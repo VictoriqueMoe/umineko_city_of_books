@@ -25,6 +25,8 @@ type (
 		VoteTheory(ctx context.Context, userID, theoryID, value int) error
 		VoteResponse(ctx context.Context, userID, responseID, value int) error
 		GetUserTheoryVote(ctx context.Context, userID, theoryID int) (int, error)
+		GetTheoryAuthorID(ctx context.Context, theoryID int) (int, error)
+		GetResponseInfo(ctx context.Context, responseID int) (authorID int, theoryID int, err error)
 	}
 
 	theoryRepository struct {
@@ -479,4 +481,26 @@ func (r *theoryRepository) getResponseSideCounts(ctx context.Context, theoryID i
 		 FROM responses WHERE theory_id = ?`, theoryID,
 	).Scan(&withLove, &withoutLove)
 	return withLove, withoutLove, nil
+}
+
+func (r *theoryRepository) GetTheoryAuthorID(ctx context.Context, theoryID int) (int, error) {
+	var userID int
+	err := r.db.QueryRowContext(ctx,
+		`SELECT user_id FROM theories WHERE id = ?`, theoryID,
+	).Scan(&userID)
+	if err != nil {
+		return 0, fmt.Errorf("get theory author: %w", err)
+	}
+	return userID, nil
+}
+
+func (r *theoryRepository) GetResponseInfo(ctx context.Context, responseID int) (int, int, error) {
+	var authorID, theoryID int
+	err := r.db.QueryRowContext(ctx,
+		`SELECT user_id, theory_id FROM responses WHERE id = ?`, responseID,
+	).Scan(&authorID, &theoryID)
+	if err != nil {
+		return 0, 0, fmt.Errorf("get response info: %w", err)
+	}
+	return authorID, theoryID, nil
 }

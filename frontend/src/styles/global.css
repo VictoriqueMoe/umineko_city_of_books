@@ -2032,3 +2032,132 @@ a.social-link-value:hover {
         flex-wrap: wrap;
     }
 }
+
+/* Notification Bell */
+
+.notification-bell {
+    position: relative;
+}
+
+.notification-bell-btn {
+    background: transparent;
+    border: 1px solid rgba(var(--gold-rgb), 0.25);
+    color: var(--text);
+    padding: 0.4rem 0.6rem;
+    border-radius: 4px;
+    font-size: 1rem;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s var(--ease-out);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.notification-bell-btn:hover {
+    border-color: var(--gold);
+    color: var(--gold);
+}
+
+.notification-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    background: #ff3333;
+    color: white;
+    font-size: 0.65rem;
+    min-width: 16px;
+    height: 16px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    font-weight: 700;
+}
+
+.notification-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--gold-rgb), 0.2);
+    border-radius: 6px;
+    min-width: 320px;
+    max-height: 400px;
+    overflow-y: auto;
+    z-index: 1000;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.notification-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid rgba(var(--gold-rgb), 0.15);
+}
+
+.notification-header h4 {
+    font-family: var(--font-display);
+    color: var(--gold);
+    font-size: 0.85rem;
+    margin: 0;
+}
+
+.notification-mark-all {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    cursor: pointer;
+}
+
+.notification-mark-all:hover {
+    color: var(--gold);
+}
+
+.notification-item {
+    display: flex;
+    gap: 0.6rem;
+    padding: 0.6rem 1rem;
+    cursor: pointer;
+    transition: background 0.15s var(--ease-out);
+    border-bottom: 1px solid rgba(var(--purple-rgb), 0.1);
+}
+
+.notification-item:hover {
+    background: rgba(var(--gold-rgb), 0.05);
+}
+
+.notification-item.unread {
+    background: rgba(var(--gold-rgb), 0.03);
+}
+
+.notification-item-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.notification-item-text {
+    font-size: 0.85rem;
+    color: var(--text);
+    line-height: 1.4;
+}
+
+.notification-item-text strong {
+    color: var(--gold);
+}
+
+.notification-item-time {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-top: 0.15rem;
+}
+
+.notification-empty {
+    padding: 1.5rem;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}

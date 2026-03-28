@@ -13,6 +13,7 @@ import (
 	"umineko_city_of_books/internal/controllers"
 	"umineko_city_of_books/internal/db"
 	appMiddleware "umineko_city_of_books/internal/middleware"
+	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/profile"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/routes"
@@ -21,6 +22,7 @@ import (
 	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/user"
 	"umineko_city_of_books/internal/utils"
+	"umineko_city_of_books/internal/ws"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/static"
@@ -53,15 +55,19 @@ func main() {
 	userService := user.NewService(repos.User)
 	authService := auth.NewService(userService, sessionMgr)
 	profileService := profile.NewService(repos.User, uploadService)
-	theoryService := theory.NewService(repos.Theory)
+	hub := ws.NewHub()
+	notifService := notification.NewService(repos.Notification, repos.Theory, hub)
+	theoryService := theory.NewService(repos.Theory, notifService)
 
 	app := fiber.New()
 
 	appMiddleware.Setup(app, config.Cfg.BaseURL)
 
 	htmlBytes, _ := staticFiles.ReadFile("static/index.html")
-	service := controllers.NewService(authService, profileService, theoryService, sessionMgr, string(htmlBytes))
+	service := controllers.NewService(authService, profileService, theoryService, notifService, sessionMgr, string(htmlBytes))
 	routes.PublicRoutes(service, app)
+
+	app.Get("/api/v1/ws", ws.Handler(hub, sessionMgr))
 
 	app.Get("/uploads/*", static.New(uploadService.GetUploadDir()))
 

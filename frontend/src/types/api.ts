@@ -148,3 +148,33 @@ export interface UpdateProfilePayload {
     social_github: string;
     website: string;
 }
+
+export type NotificationType = (
+    | "theory_response"
+    | "response_reply"
+    | "theory_upvote"
+    | "response_upvote"
+);
+
+export interface Notification {
+    id: number;
+    type: NotificationType;
+    reference_id: number;
+    theory_id: number;
+    theory_title: string;
+    actor: User;
+    read: boolean;
+    created_at: string;
+}
+
+export interface NotificationListResponse {
+    notifications: Notification[];
+    total: number;
+    limit: number;
+    offset: number;
+}
+
+export interface WSMessage {
+    type: string;
+    data: unknown;
+}

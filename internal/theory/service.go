@@ -2,8 +2,10 @@ package theory
 
 import (
 	"context"
+	"log"
 
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/theory/params"
 )
@@ -22,12 +24,16 @@ type (
 	}
 
 	service struct {
-		repo repository.TheoryRepository
+		repo         repository.TheoryRepository
+		notifService notification.Service
 	}
 )
 
-func NewService(repo repository.TheoryRepository) Service {
-	return &service{repo: repo}
+func NewService(repo repository.TheoryRepository, notifService notification.Service) Service {
+	return &service{
+		repo:         repo,
+		notifService: notifService,
+	}
 }
 
 func (s *service) CreateTheory(ctx context.Context, userID int, req dto.CreateTheoryRequest) (int64, error) {
@@ -82,7 +88,26 @@ func (s *service) DeleteTheory(ctx context.Context, id, userID int) error {
 }
 
 func (s *service) CreateResponse(ctx context.Context, theoryID, userID int, req dto.CreateResponseRequest) (int64, error) {
-	return s.repo.CreateResponse(ctx, theoryID, userID, req)
+	id, err := s.repo.CreateResponse(ctx, theoryID, userID, req)
+	if err != nil {
+		return 0, err
+	}
+
+	go func() {
+		if err := s.notifService.NotifyTheoryResponse(ctx, theoryID, userID); err != nil {
+			log.Printf("[theory] notify theory response failed: %v", err)
+		}
+	}()
+
+	if req.ParentID != nil {
+		go func() {
+			if err := s.notifService.NotifyResponseReply(ctx, *req.ParentID, theoryID, userID); err != nil {
+				log.Printf("[theory] notify response reply failed: %v", err)
+			}
+		}()
+	}
+
+	return id, nil
 }
 
 func (s *service) DeleteResponse(ctx context.Context, id, userID int) error {
@@ -90,9 +115,38 @@ func (s *service) DeleteResponse(ctx context.Context, id, userID int) error {
 }
 
 func (s *service) VoteTheory(ctx context.Context, userID, theoryID, value int) error {
-	return s.repo.VoteTheory(ctx, userID, theoryID, value)
+	if err := s.repo.VoteTheory(ctx, userID, theoryID, value); err != nil {
+		return err
+	}
+
+	if value == 1 {
+		go func() {
+			if err := s.notifService.NotifyTheoryUpvote(ctx, theoryID, userID); err != nil {
+				log.Printf("[theory] notify theory upvote failed: %v", err)
+			}
+		}()
+	}
+
+	return nil
 }
 
 func (s *service) VoteResponse(ctx context.Context, userID, responseID, value int) error {
-	return s.repo.VoteResponse(ctx, userID, responseID, value)
+	if err := s.repo.VoteResponse(ctx, userID, responseID, value); err != nil {
+		return err
+	}
+
+	if value == 1 {
+		go func() {
+			_, theoryID, err := s.repo.GetResponseInfo(ctx, responseID)
+			if err != nil {
+				log.Printf("[theory] get response info for upvote notification failed: %v", err)
+				return
+			}
+			if err := s.notifService.NotifyResponseUpvote(ctx, responseID, theoryID, userID); err != nil {
+				log.Printf("[theory] notify response upvote failed: %v", err)
+			}
+		}()
+	}
+
+	return nil
 }

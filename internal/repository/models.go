@@ -25,6 +25,21 @@ type (
 		ResponseCount int
 		VotesReceived int
 	}
+
+	NotificationRow struct {
+		ID               int
+		UserID           int
+		Type             string
+		ReferenceID      int
+		TheoryID         int
+		ActorID          int
+		Read             bool
+		CreatedAt        string
+		ActorUsername    string
+		ActorDisplayName string
+		ActorAvatarURL   string
+		TheoryTitle      string
+	}
 )
 
 func (u *User) ToResponse() *dto.UserResponse {
