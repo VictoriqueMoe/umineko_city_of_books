@@ -1,8 +1,8 @@
-import {useCallback, useEffect, useState} from "react";
-import type {QuoteBrowseResponse} from "../types/api";
-import {browseQuotes, getCharacters} from "../api/endpoints";
-import {TruthCard} from "../components/truth/TruthCard";
-import {Pagination} from "../components/common/Pagination";
+import { useCallback, useEffect, useState } from "react";
+import type { QuoteBrowseResponse } from "../types/api";
+import { browseQuotes, getCharacters } from "../api/endpoints";
+import { TruthCard } from "../components/truth/TruthCard";
+import { Pagination } from "../components/common/Pagination";
 
 const TRUTH_TYPES = ["red", "blue", "gold", "purple"];
 

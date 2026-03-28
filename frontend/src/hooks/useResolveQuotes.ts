@@ -1,5 +1,5 @@
-import {useEffect, useRef, useState} from "react";
-import type {EvidenceItem, Quote} from "../types/api";
+import { useEffect, useRef, useState } from "react";
+import type { EvidenceItem, Quote } from "../types/api";
 
 const QUOTE_API = "https://quotes.auaurora.moe/api/v1";
 
@@ -68,9 +68,7 @@ export function useResolveQuotes(evidence: EvidenceItem[]) {
             attempted.current.add(evidenceKey(ev));
         }
 
-        Promise.all(
-            toFetch.map(ev => fetchEvidence(ev).then(q => [evidenceKey(ev), q] as const)),
-        ).then(results => {
+        Promise.all(toFetch.map(ev => fetchEvidence(ev).then(q => [evidenceKey(ev), q] as const))).then(results => {
             setQuotes(prev => {
                 const next = new Map(prev);
                 for (const [key, q] of results) {

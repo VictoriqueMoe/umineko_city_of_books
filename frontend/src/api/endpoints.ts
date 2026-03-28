@@ -1,4 +1,4 @@
-import {apiDelete, apiFetch, apiPost, apiPostFormData, apiPut, buildQueryString} from "./client";
+import { apiDelete, apiFetch, apiPost, apiPostFormData, apiPut, buildQueryString } from "./client";
 import type {
     CreateResponsePayload,
     CreateTheoryPayload,

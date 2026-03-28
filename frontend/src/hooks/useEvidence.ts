@@ -1,5 +1,5 @@
-import {useCallback, useState} from "react";
-import type {EvidenceInput, Quote} from "../types/api";
+import { useCallback, useState } from "react";
+import type { EvidenceInput, Quote } from "../types/api";
 
 export interface SelectedEvidence {
     quote: Quote;

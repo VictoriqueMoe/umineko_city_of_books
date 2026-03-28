@@ -1,4 +1,4 @@
-import {useNavigate} from "react-router";
+import { useNavigate } from "react-router";
 
 export function LoginButton() {
     const navigate = useNavigate();

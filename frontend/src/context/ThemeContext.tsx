@@ -1,6 +1,6 @@
-import {type PropsWithChildren, useCallback, useLayoutEffect, useState} from "react";
-import type {ThemeType} from "../types/app";
-import {ThemeContext} from "./themeContextValue";
+import { type PropsWithChildren, useCallback, useLayoutEffect, useState } from "react";
+import type { ThemeType } from "../types/app";
+import { ThemeContext } from "./themeContextValue";
 
 const STORAGE_KEY = "ut-theme";
 const PARTICLES_KEY = "ut-particles";

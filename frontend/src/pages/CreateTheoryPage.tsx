@@ -1,10 +1,10 @@
-import React, {useEffect, useState} from "react";
-import {useNavigate} from "react-router";
-import {useAuth} from "../hooks/useAuth";
-import {useEvidence} from "../hooks/useEvidence";
-import {createTheory} from "../api/endpoints";
-import {TruthPicker} from "../components/truth/TruthPicker";
-import {TruthChip} from "../components/truth/TruthChip";
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
+import { useAuth } from "../hooks/useAuth";
+import { useEvidence } from "../hooks/useEvidence";
+import { createTheory } from "../api/endpoints";
+import { TruthPicker } from "../components/truth/TruthPicker";
+import { TruthChip } from "../components/truth/TruthChip";
 
 export function CreateTheoryPage() {
     const navigate = useNavigate();

@@ -1,15 +1,15 @@
-import {useCallback, useState} from "react";
-import {useNavigate, useParams} from "react-router";
-import {useTheory} from "../hooks/useTheory";
-import {useVote} from "../hooks/useVote";
-import {useAuth} from "../hooks/useAuth";
-import {deleteTheory, voteTheory} from "../api/endpoints";
-import {Modal} from "../components/common/Modal";
-import {ProfileLink} from "../components/common/ProfileLink";
-import {VoteButton} from "../components/theory/VoteButton";
-import {EvidenceList} from "../components/theory/EvidenceList";
-import {ResponseList} from "../components/theory/ResponseCard";
-import {ResponseEditor} from "../components/theory/ResponseEditor";
+import { useCallback, useState } from "react";
+import { useNavigate, useParams } from "react-router";
+import { useTheory } from "../hooks/useTheory";
+import { useVote } from "../hooks/useVote";
+import { useAuth } from "../hooks/useAuth";
+import { deleteTheory, voteTheory } from "../api/endpoints";
+import { Modal } from "../components/common/Modal";
+import { ProfileLink } from "../components/common/ProfileLink";
+import { VoteButton } from "../components/theory/VoteButton";
+import { EvidenceList } from "../components/theory/EvidenceList";
+import { ResponseList } from "../components/theory/ResponseCard";
+import { ResponseEditor } from "../components/theory/ResponseEditor";
 
 export function TheoryPage() {
     const { id } = useParams<{ id: string }>();

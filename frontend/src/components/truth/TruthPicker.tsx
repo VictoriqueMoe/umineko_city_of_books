@@ -1,9 +1,9 @@
-import {useCallback, useEffect, useRef, useState} from "react";
-import type {Quote} from "../../types/api";
-import {browseQuotes, getCharacters, searchQuotes} from "../../api/endpoints";
-import {Modal} from "../common/Modal";
-import {TruthCard} from "./TruthCard";
-import {Pagination} from "../common/Pagination";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { Quote } from "../../types/api";
+import { browseQuotes, getCharacters, searchQuotes } from "../../api/endpoints";
+import { Modal } from "../common/Modal";
+import { TruthCard } from "./TruthCard";
+import { Pagination } from "../common/Pagination";
 
 interface TruthPickerProps {
     isOpen: boolean;
@@ -179,15 +179,14 @@ export function TruthPicker({ isOpen, onClose, onSelect, selectedKeys }: TruthPi
             </div>
 
             <div className={`picker-results${loading ? " loading-overlay" : ""}`}>
-                {quotes
-                    .map(q => (
-                        <TruthCard
-                            key={q.audioId || `idx-${q.index}`}
-                            quote={q}
-                            onClick={() => onSelect(q)}
-                            selected={selectedKeys.includes(quoteKey(q))}
-                        />
-                    ))}
+                {quotes.map(q => (
+                    <TruthCard
+                        key={q.audioId || `idx-${q.index}`}
+                        quote={q}
+                        onClick={() => onSelect(q)}
+                        selected={selectedKeys.includes(quoteKey(q))}
+                    />
+                ))}
                 {!loading && quotes.length === 0 && <div className="empty-state">No quotes found.</div>}
             </div>
 

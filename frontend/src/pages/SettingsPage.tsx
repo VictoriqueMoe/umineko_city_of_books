@@ -1,9 +1,9 @@
-import React, {useEffect, useState} from "react";
-import {useNavigate} from "react-router";
-import {useAuth} from "../hooks/useAuth";
-import {useProfile} from "../hooks/useProfile";
-import {getCharacters, updateProfile, uploadAvatar} from "../api/endpoints";
-import type {UpdateProfilePayload} from "../types/api";
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
+import { useAuth } from "../hooks/useAuth";
+import { useProfile } from "../hooks/useProfile";
+import { getCharacters, updateProfile, uploadAvatar } from "../api/endpoints";
+import type { UpdateProfilePayload } from "../types/api";
 
 export function SettingsPage() {
     const navigate = useNavigate();

@@ -1,6 +1,6 @@
-import {useCallback, useEffect, useState} from "react";
-import type {TheoryDetail} from "../types/api";
-import {getTheory} from "../api/endpoints";
+import { useCallback, useEffect, useState } from "react";
+import type { TheoryDetail } from "../types/api";
+import { getTheory } from "../api/endpoints";
 
 export function useTheory(id: number) {
     const [theory, setTheory] = useState<TheoryDetail | null>(null);

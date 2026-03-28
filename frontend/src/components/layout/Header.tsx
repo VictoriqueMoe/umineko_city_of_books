@@ -1,8 +1,8 @@
-import {NavLink} from "react-router";
-import {useAuth} from "../../hooks/useAuth";
-import {ThemeSelector} from "./ThemeSelector";
-import {LoginButton} from "../auth/LoginButton";
-import {UserMenu} from "../auth/UserMenu";
+import { NavLink } from "react-router";
+import { useAuth } from "../../hooks/useAuth";
+import { ThemeSelector } from "./ThemeSelector";
+import { LoginButton } from "../auth/LoginButton";
+import { UserMenu } from "../auth/UserMenu";
 
 export function Header() {
     const { user, loading } = useAuth();

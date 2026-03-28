@@ -1,8 +1,8 @@
-import {useNavigate, useParams} from "react-router";
-import {useProfile} from "../hooks/useProfile";
-import {useTheoryFeed} from "../hooks/useTheoryFeed";
-import {TheoryCard} from "../components/theory/TheoryCard";
-import {Pagination} from "../components/common/Pagination";
+import { useNavigate, useParams } from "react-router";
+import { useProfile } from "../hooks/useProfile";
+import { useTheoryFeed } from "../hooks/useTheoryFeed";
+import { TheoryCard } from "../components/theory/TheoryCard";
+import { Pagination } from "../components/common/Pagination";
 
 const SOCIAL_LABELS: Record<string, string> = {
     social_twitter: "Twitter / X",

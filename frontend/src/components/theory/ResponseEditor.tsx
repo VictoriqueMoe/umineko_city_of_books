@@ -1,8 +1,8 @@
-import React, {useState} from "react";
-import {createResponse} from "../../api/endpoints";
-import {useEvidence} from "../../hooks/useEvidence";
-import {TruthPicker} from "../truth/TruthPicker";
-import {TruthChip} from "../truth/TruthChip";
+import React, { useState } from "react";
+import { createResponse } from "../../api/endpoints";
+import { useEvidence } from "../../hooks/useEvidence";
+import { TruthPicker } from "../truth/TruthPicker";
+import { TruthChip } from "../truth/TruthChip";
 
 interface ResponseEditorProps {
     theoryId: number;

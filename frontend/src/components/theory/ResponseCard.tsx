@@ -1,12 +1,12 @@
-import {useCallback, useState} from "react";
-import type {Response as TheoryResponse} from "../../types/api";
-import {useAuth} from "../../hooks/useAuth";
-import {useVote} from "../../hooks/useVote";
-import {deleteResponse, voteResponse} from "../../api/endpoints";
-import {ProfileLink} from "../common/ProfileLink";
-import {VoteButton} from "./VoteButton";
-import {EvidenceList} from "./EvidenceList";
-import {ResponseEditor} from "./ResponseEditor";
+import { useCallback, useState } from "react";
+import type { Response as TheoryResponse } from "../../types/api";
+import { useAuth } from "../../hooks/useAuth";
+import { useVote } from "../../hooks/useVote";
+import { deleteResponse, voteResponse } from "../../api/endpoints";
+import { ProfileLink } from "../common/ProfileLink";
+import { VoteButton } from "./VoteButton";
+import { EvidenceList } from "./EvidenceList";
+import { ResponseEditor } from "./ResponseEditor";
 
 interface ResponseCardProps {
     response: TheoryResponse;

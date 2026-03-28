@@ -1,8 +1,8 @@
-import {useState} from "react";
-import type {TheorySort} from "../types/app";
-import {useTheoryFeed} from "../hooks/useTheoryFeed";
-import {TheoryCard} from "../components/theory/TheoryCard";
-import {Pagination} from "../components/common/Pagination";
+import { useState } from "react";
+import type { TheorySort } from "../types/app";
+import { useTheoryFeed } from "../hooks/useTheoryFeed";
+import { TheoryCard } from "../components/theory/TheoryCard";
+import { Pagination } from "../components/common/Pagination";
 
 export function FeedPage() {
     const [sort, setSort] = useState<TheorySort>("new");

@@ -1,4 +1,4 @@
-import {useEffect, useRef} from "react";
+import { useEffect, useRef } from "react";
 
 const BUTTERFLY_SYMBOLS = ["\uD83E\uDD8B", "\u2726", "\u2727", "\u271B"];
 const BUTTERFLY_COUNT = 8;

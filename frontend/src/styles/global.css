@@ -656,7 +656,6 @@ select {
     gap: 0.5rem;
 }
 
-
 .theory-author-actions {
     display: flex;
     gap: 0.5rem;
@@ -792,7 +791,6 @@ select {
 .delete-btn:hover {
     color: #ff3333;
 }
-
 
 .response-action-btn {
     background: none;
@@ -1387,7 +1385,6 @@ select {
 .user-menu-trigger:hover {
     border-color: var(--gold);
 }
-
 
 .user-menu-dropdown {
     position: absolute;

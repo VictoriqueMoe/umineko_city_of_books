@@ -1,9 +1,9 @@
-import {useEffect} from "react";
-import {useNavigate} from "react-router";
-import {useAuth} from "../hooks/useAuth";
-import {useTheoryFeed} from "../hooks/useTheoryFeed";
-import {TheoryCard} from "../components/theory/TheoryCard";
-import {Pagination} from "../components/common/Pagination";
+import { useEffect } from "react";
+import { useNavigate } from "react-router";
+import { useAuth } from "../hooks/useAuth";
+import { useTheoryFeed } from "../hooks/useTheoryFeed";
+import { TheoryCard } from "../components/theory/TheoryCard";
+import { Pagination } from "../components/common/Pagination";
 
 export function MyTheoriesPage() {
     const navigate = useNavigate();

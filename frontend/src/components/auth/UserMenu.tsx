@@ -1,7 +1,7 @@
-import {useCallback, useRef, useState} from "react";
-import {useAuth} from "../../hooks/useAuth";
-import {useClickOutside} from "../../hooks/useClickOutside";
-import {useNavigate} from "react-router";
+import { useCallback, useRef, useState } from "react";
+import { useAuth } from "../../hooks/useAuth";
+import { useClickOutside } from "../../hooks/useClickOutside";
+import { useNavigate } from "react-router";
 
 export function UserMenu() {
     const { user, logoutUser } = useAuth();
@@ -27,7 +27,12 @@ export function UserMenu() {
         <div className="user-menu" ref={dropdownRef}>
             <button className="user-menu-trigger" onClick={() => setIsOpen(!isOpen)}>
                 {user.avatar_url ? (
-                    <img className="profile-link-avatar" src={user.avatar_url} alt="" style={{ width: 24, height: 24 }} />
+                    <img
+                        className="profile-link-avatar"
+                        src={user.avatar_url}
+                        alt=""
+                        style={{ width: 24, height: 24 }}
+                    />
                 ) : (
                     <span className="profile-link-avatar-placeholder" style={{ width: 24, height: 24, fontSize: 10 }}>
                         {user.display_name[0]}
