@@ -1,0 +1,11 @@
+services:
+  umineko-city-of-books:
+    build: .
+    container_name: umineko-city-of-books
+    restart: unless-stopped
+    ports:
+      - "4323:4323"
+    environment:
+      - JWT_SECRET=${JWT_SECRET}
+    volumes:
+      - ./truths.db:/app/truths.db

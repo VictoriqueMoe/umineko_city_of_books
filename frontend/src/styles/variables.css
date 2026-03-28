@@ -1,0 +1,71 @@
+:root {
+    --bg-void: #0a0612;
+    --bg-purple: #1a0f2e;
+    --bg-card: #150d24;
+    --bg-card-hover: #1d1230;
+    --gold: #d4a84b;
+    --gold-light: #f0d590;
+    --gold-dark: #a67c2e;
+    --purple: #6b4c9a;
+    --purple-light: #9d7bc9;
+    --purple-muted: #3d2a5c;
+    --text: #e8e0f0;
+    --text-muted: #a89bb8;
+    --rose: #8b2942;
+    --font-display: "Cinzel", serif;
+    --font-body: "Cormorant Garamond", serif;
+    --ease-out: cubic-bezier(0.4, 0, 0.2, 1);
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    --gold-rgb: 212, 168, 75;
+    --purple-rgb: 107, 76, 154;
+    --rose-rgb: 139, 41, 66;
+    --bg-card-rgb: 21, 13, 36;
+    --bg-purple-rgb: 26, 15, 46;
+    --hover-glow: 0.1;
+}
+
+[data-theme="bernkastel"] {
+    --bg-void: #06090f;
+    --bg-purple: #0a1020;
+    --bg-card: #0c1424;
+    --bg-card-hover: #0f1a30;
+    --gold: #4a90d9;
+    --gold-light: #7eb3f0;
+    --gold-dark: #2a5a9a;
+    --purple: #3d5a80;
+    --purple-light: #7eb3f0;
+    --purple-muted: #1a2a40;
+    --text: #e0eaf5;
+    --text-muted: #9bb5d0;
+    --rose: #2a4a6a;
+
+    --gold-rgb: 74, 144, 217;
+    --purple-rgb: 61, 90, 128;
+    --rose-rgb: 42, 74, 106;
+    --bg-card-rgb: 12, 20, 36;
+    --bg-purple-rgb: 10, 16, 32;
+}
+
+[data-theme="lambdadelta"] {
+    --bg-void: #120810;
+    --bg-purple: #1f0a1a;
+    --bg-card: #1a0815;
+    --bg-card-hover: #240c1f;
+    --gold: #ff69b4;
+    --gold-light: #ffb6d9;
+    --gold-dark: #d4458a;
+    --purple: #6a3a5a;
+    --purple-light: #a06888;
+    --purple-muted: #4a2038;
+    --text: #f5e0ef;
+    --text-muted: #d09bb8;
+    --rose: #b8296a;
+
+    --gold-rgb: 255, 105, 180;
+    --purple-rgb: 106, 58, 90;
+    --rose-rgb: 184, 41, 106;
+    --bg-card-rgb: 26, 8, 21;
+    --bg-purple-rgb: 31, 10, 26;
+    --hover-glow: 0.2;
+}

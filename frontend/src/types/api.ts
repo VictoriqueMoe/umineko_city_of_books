@@ -1,0 +1,150 @@
+export interface Quote {
+    text: string;
+    textHtml: string;
+    characterId: string;
+    character: string;
+    audioId: string;
+    episode: number;
+    contentType: string;
+    hasRedTruth: boolean;
+    hasBlueTruth: boolean;
+    hasGoldTruth: boolean;
+    hasPurpleTruth: boolean;
+    index: number;
+    audioCharMap?: Record<string, string>;
+    audioTextMap?: Record<string, string>;
+}
+
+export interface QuoteBrowseResponse {
+    character: string;
+    characterId: string;
+    quotes: Quote[];
+    total: number;
+    limit: number;
+    offset: number;
+}
+
+export interface QuoteSearchResult {
+    quote: Quote;
+    score: number;
+}
+
+export interface QuoteSearchResponse {
+    results: QuoteSearchResult[];
+    total: number;
+    limit: number;
+    offset: number;
+}
+
+export interface User {
+    id: number;
+    username: string;
+    display_name: string;
+    avatar_url?: string;
+}
+
+export interface EvidenceItem {
+    id: number;
+    audio_id?: string;
+    quote_index?: number;
+    note: string;
+    sort_order: number;
+}
+
+export interface Theory {
+    id: number;
+    title: string;
+    body: string;
+    episode: number;
+    author: User;
+    vote_score: number;
+    with_love_count: number;
+    without_love_count: number;
+    user_vote?: number;
+    created_at: string;
+}
+
+export interface TheoryDetail extends Theory {
+    evidence: EvidenceItem[];
+    responses: Response[];
+}
+
+export interface TheoryListResponse {
+    theories: Theory[];
+    total: number;
+    limit: number;
+    offset: number;
+}
+
+export interface Response {
+    id: number;
+    parent_id?: number;
+    author: User;
+    side: "with_love" | "without_love";
+    body: string;
+    evidence: EvidenceItem[];
+    replies?: Response[];
+    vote_score: number;
+    user_vote?: number;
+    created_at: string;
+}
+
+export interface EvidenceInput {
+    audio_id?: string;
+    quote_index?: number;
+    note: string;
+}
+
+export interface CreateTheoryPayload {
+    title: string;
+    body: string;
+    episode: number;
+    evidence: EvidenceInput[];
+}
+
+export interface CreateResponsePayload {
+    parent_id?: number;
+    side: "with_love" | "without_love";
+    body: string;
+    evidence: EvidenceInput[];
+}
+
+export interface VotePayload {
+    value: number;
+}
+
+export interface UserProfile {
+    id: number;
+    username: string;
+    display_name: string;
+    bio: string;
+    avatar_url: string;
+    favourite_character: string;
+    social_twitter: string;
+    social_discord: string;
+    social_waifulist: string;
+    social_tumblr: string;
+    social_github: string;
+    website: string;
+    created_at: string;
+    stats: UserStats;
+}
+
+export interface UserStats {
+    theory_count: number;
+    response_count: number;
+    votes_received: number;
+}
+
+export interface UpdateProfilePayload {
+    display_name: string;
+    bio: string;
+    avatar_url: string;
+    favourite_character: string;
+    social_twitter: string;
+    social_discord: string;
+    social_waifulist: string;
+    social_tumblr: string;
+    social_github: string;
+    website: string;
+}
