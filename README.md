@@ -1,6 +1,6 @@
 # Umineko City of Books
 
-A fan theory debate platform for Umineko no Naku Koro ni. Users declare theories as **blue truth**, attach quotes from the game as evidence, and others debate them on two sides: **"With love, it can be seen"** (support) and **"Without love, it cannot be seen"** (deny).
+A social networking platform for fans of Umineko no Naku Koro ni. The core feature is fan theory debates: users declare theories as **blue truth**, attach quotes from the game as evidence, and others respond on two sides: **"With love, it can be seen"** (support) and **"Without love, it cannot be seen"** (deny). Beyond theories, the platform offers user profiles with pronouns and social links, real-time notifications, role-based moderation, and is growing into a full community hub with plans for discussion boards, fanfiction, fan art, live chat, and more.
 
 ## Features
 
@@ -10,15 +10,19 @@ A fan theory debate platform for Umineko no Naku Koro ni. Users declare theories
 - **Threaded Replies** - Reply to responses with one level of threading, then flat with @mentions
 - **Real-Time Notifications** - WebSocket-powered notifications for responses, replies, and upvotes
 - **Voting** - Upvote/downvote theories and responses
-- **User Profiles** - Profile pages with avatar, banner, bio, gender, social links, favourite character, activity feed, and online status
+- **User Profiles** - Avatar, banner, bio, pronouns, gender, social links, favourite character, activity feed, and online status
+- **Role-Based Authorisation** - Permission-based system with admin and moderator roles. First registered user is automatically admin
 - **Quote Browser** - Browse game quotes filtered by episode, character, and truth type (red/blue/gold/purple)
 - **Three Themes** - Featherine (gold/purple), Bernkastel (blue), Lambdadelta (pink)
+- **Structured Logging** - zerolog with configurable log levels
 
 ## Tech Stack
 
-- **Backend**: Go 1.26, Fiber v3, SQLite (`modernc.org/sqlite`), goose migrations, WebSockets
+- **Backend**: Go 1.26, Fiber v3, SQLite (`modernc.org/sqlite`), goose migrations, WebSockets, zerolog
 - **Frontend**: React 19, TypeScript 5.9, Vite 8, React Router, CSS Modules
 - **Quotes**: [Umineko Quote Finder API](https://quotes.auaurora.moe/swagger/index.html)
+- **Auth**: Server-side sessions in SQLite with httpOnly cookies
+- **IDs**: UUIDv4 for users, theories, and responses (`github.com/google/uuid`)
 - **Deployment**: Docker, Caddy reverse proxy
 
 ## Quick Start
@@ -61,6 +65,8 @@ npm run dev
 
 The backend runs on `:4323`. The Vite dev server proxies `/api`, `/uploads`, and WebSocket connections to it.
 
+The first user to register is automatically assigned the admin role.
+
 ### Production (Docker)
 
 ```bash
@@ -72,14 +78,17 @@ docker compose up -d
 ```
 internal/
   auth/             Auth service (register, login, logout)
+  authz/            Authorisation service (permission-based role checks)
   config/           Environment configuration (godotenv)
   controllers/      HTTP handlers (Fiber v3, FSetupRoute pattern)
   db/               SQLite connection, goose migrations
   dto/              Data transfer objects
+  logger/           Structured logging (zerolog)
   middleware/       HTTP middleware (CORS, ETag, logging, auth)
   notification/     Notification service (real-time + persisted)
   profile/          Profile service (get/update profile, avatar upload)
   repository/       All database repositories + models
+  role/             Role type definition
   routes/           Route registration
   session/          Session management (token generation, validation)
   theory/           Theory service layer
@@ -97,8 +106,9 @@ frontend/
       Select/       Themed select dropdown
       Modal/        Reusable modal overlay
       Pagination/   Page navigation
-      ProfileLink/  Avatar + name link to profile
-      ToggleSwitch/  Toggle switch input
+      ProfileLink/  Avatar + name + role pill link to profile
+      RolePill/     Role badge component (admin, moderator, etc.)
+      ToggleSwitch/ Toggle switch input
       layout/       Header, Sidebar, ThemeSelector, NotificationBell, Butterflies
       auth/         LoginButton, UserMenu
       theory/       TheoryCard, TheoryForm, ResponseCard, ResponseEditor, EvidenceList, VoteButton
@@ -108,4 +118,5 @@ frontend/
     pages/          Route pages grouped by feature (theories/, auth/, profile/, quotes/)
     styles/         CSS variables and minimal global styles
     types/          TypeScript types
+    utils/          Permissions helper (role-to-permission mapping)
 ```
