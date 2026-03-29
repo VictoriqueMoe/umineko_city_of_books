@@ -1,5 +1,5 @@
-import {useCallback, useEffect, useRef, useState} from "react";
-import type {EvidenceInput, EvidenceItem, Quote} from "../types/api";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { EvidenceInput, EvidenceItem, Quote } from "../types/api";
 
 const QUOTE_API = "https://quotes.auaurora.moe/api/v1";
 

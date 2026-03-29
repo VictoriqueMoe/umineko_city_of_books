@@ -1,8 +1,8 @@
-import React, {useEffect, useState} from "react";
-import {useAuth} from "./useAuth";
-import {useProfile} from "./useProfile";
-import {getCharacters, updateProfile, uploadAvatar, uploadBanner} from "../api/endpoints";
-import type {UpdateProfilePayload, UserProfile} from "../types/api";
+import React, { useEffect, useState } from "react";
+import { useAuth } from "./useAuth";
+import { useProfile } from "./useProfile";
+import { getCharacters, updateProfile, uploadAvatar, uploadBanner } from "../api/endpoints";
+import type { UpdateProfilePayload, UserProfile } from "../types/api";
 
 const GENDER_OPTIONS = ["Prefer not to say", "Male", "Female", "Custom"];
 
@@ -28,7 +28,8 @@ function initPronouns(profile: UserProfile) {
     const subject = profile.pronoun_subject || "they";
     const possessive = profile.pronoun_possessive || "their";
     const defaults = PRONOUN_DEFAULTS[GENDER_OPTIONS.includes(profile.gender) ? profile.gender : "Custom"];
-    const isCustom = (!!profile.pronoun_subject && subject !== defaults.subject) ||
+    const isCustom =
+        (!!profile.pronoun_subject && subject !== defaults.subject) ||
         (!!profile.pronoun_possessive && possessive !== defaults.possessive);
     return { subject, possessive, isCustom };
 }
@@ -189,22 +190,40 @@ export function useSettingsForm() {
         success,
         saving,
 
-        displayName, setDisplayName,
-        bio, setBio,
-        avatarUrl, uploadingAvatar, handleAvatarChange,
-        bannerUrl, uploadingBanner, handleBannerChange,
-        favouriteCharacter, setFavouriteCharacter,
-        gender, handleGenderChange,
-        customGender, setCustomGender,
-        pronounSubject, setPronounSubject,
-        pronounPossessive, setPronounPossessive,
-        customPronouns, handleCustomPronounsToggle,
-        socialTwitter, setSocialTwitter,
-        socialDiscord, setSocialDiscord,
-        socialWaifulist, setSocialWaifulist,
-        socialTumblr, setSocialTumblr,
-        socialGithub, setSocialGithub,
-        website, setWebsite,
+        displayName,
+        setDisplayName,
+        bio,
+        setBio,
+        avatarUrl,
+        uploadingAvatar,
+        handleAvatarChange,
+        bannerUrl,
+        uploadingBanner,
+        handleBannerChange,
+        favouriteCharacter,
+        setFavouriteCharacter,
+        gender,
+        handleGenderChange,
+        customGender,
+        setCustomGender,
+        pronounSubject,
+        setPronounSubject,
+        pronounPossessive,
+        setPronounPossessive,
+        customPronouns,
+        handleCustomPronounsToggle,
+        socialTwitter,
+        setSocialTwitter,
+        socialDiscord,
+        setSocialDiscord,
+        socialWaifulist,
+        setSocialWaifulist,
+        socialTumblr,
+        setSocialTumblr,
+        socialGithub,
+        setSocialGithub,
+        website,
+        setWebsite,
         characters,
 
         handleSubmit,

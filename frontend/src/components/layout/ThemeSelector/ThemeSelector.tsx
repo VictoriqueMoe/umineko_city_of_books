@@ -1,8 +1,8 @@
-import {useCallback, useRef, useState} from "react";
-import {useTheme} from "../../../hooks/useTheme";
-import {useClickOutside} from "../../../hooks/useClickOutside";
-import type {ThemeType} from "../../../types/app";
-import {ToggleSwitch} from "../../ToggleSwitch/ToggleSwitch";
+import { useCallback, useRef, useState } from "react";
+import { useTheme } from "../../../hooks/useTheme";
+import { useClickOutside } from "../../../hooks/useClickOutside";
+import type { ThemeType } from "../../../types/app";
+import { ToggleSwitch } from "../../ToggleSwitch/ToggleSwitch";
 import styles from "./ThemeSelector.module.css";
 
 interface ThemeDefinition {

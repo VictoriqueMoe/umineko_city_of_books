@@ -1,7 +1,7 @@
-import {useCallback, useRef, useState} from "react";
-import {useAuth} from "../../../hooks/useAuth";
-import {useClickOutside} from "../../../hooks/useClickOutside";
-import {useNavigate} from "react-router";
+import { useCallback, useRef, useState } from "react";
+import { useAuth } from "../../../hooks/useAuth";
+import { useClickOutside } from "../../../hooks/useClickOutside";
+import { useNavigate } from "react-router";
 import styles from "./UserMenu.module.css";
 
 export function UserMenu() {

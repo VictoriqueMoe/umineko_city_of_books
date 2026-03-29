@@ -1,10 +1,10 @@
-import {useEffect} from "react";
-import {useNavigate} from "react-router";
-import {useAuth} from "../../hooks/useAuth";
-import {useTheoryFeed} from "../../hooks/useTheoryFeed";
-import {Button} from "../../components/Button/Button";
-import {TheoryCard} from "../../components/theory/TheoryCard/TheoryCard";
-import {Pagination} from "../../components/Pagination/Pagination";
+import { useEffect } from "react";
+import { useNavigate } from "react-router";
+import { useAuth } from "../../hooks/useAuth";
+import { useTheoryFeed } from "../../hooks/useTheoryFeed";
+import { Button } from "../../components/Button/Button";
+import { TheoryCard } from "../../components/theory/TheoryCard/TheoryCard";
+import { Pagination } from "../../components/Pagination/Pagination";
 import styles from "./MyTheoriesPage.module.css";
 
 export function MyTheoriesPage() {

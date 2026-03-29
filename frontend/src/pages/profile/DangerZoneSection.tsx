@@ -1,10 +1,10 @@
-import {useState} from "react";
-import {useNavigate} from "react-router";
-import {useAuth} from "../../hooks/useAuth";
-import {deleteAccount} from "../../api/endpoints";
-import {Button} from "../../components/Button/Button";
-import {Input} from "../../components/Input/Input";
-import {Modal} from "../../components/Modal/Modal";
+import { useState } from "react";
+import { useNavigate } from "react-router";
+import { useAuth } from "../../hooks/useAuth";
+import { deleteAccount } from "../../api/endpoints";
+import { Button } from "../../components/Button/Button";
+import { Input } from "../../components/Input/Input";
+import { Modal } from "../../components/Modal/Modal";
 import styles from "./SettingsPage.module.css";
 
 export function DangerZoneSection() {
@@ -49,12 +49,7 @@ export function DangerZoneSection() {
                     {error && <div className={styles.error}>{error}</div>}
                     <label className={styles.label}>
                         Password
-                        <Input
-                            type="password"
-                            fullWidth
-                            value={password}
-                            onChange={e => setPassword(e.target.value)}
-                        />
+                        <Input type="password" fullWidth value={password} onChange={e => setPassword(e.target.value)} />
                     </label>
                     <div className={styles.modalActions}>
                         <Button variant="secondary" onClick={() => setShowModal(false)}>

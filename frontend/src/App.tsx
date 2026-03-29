@@ -1,18 +1,18 @@
-import {useState} from "react";
-import {BrowserRouter, Route, Routes} from "react-router";
-import {useTheme} from "./hooks/useTheme";
-import {Header} from "./components/layout/Header/Header";
-import {Sidebar} from "./components/layout/Sidebar/Sidebar";
-import {Butterflies} from "./components/layout/Butterflies/Butterflies";
-import {FeedPage} from "./pages/theories/FeedPage";
-import {TheoryPage} from "./pages/theories/TheoryPage";
-import {CreateTheoryPage} from "./pages/theories/CreateTheoryPage";
-import {LoginPage} from "./pages/auth/LoginPage";
-import {QuoteBrowserPage} from "./pages/quotes/QuoteBrowserPage";
-import {MyTheoriesPage} from "./pages/theories/MyTheoriesPage";
-import {EditTheoryPage} from "./pages/theories/EditTheoryPage";
-import {ProfilePage} from "./pages/profile/ProfilePage";
-import {SettingsPage} from "./pages/profile/SettingsPage";
+import { useState } from "react";
+import { BrowserRouter, Route, Routes } from "react-router";
+import { useTheme } from "./hooks/useTheme";
+import { Header } from "./components/layout/Header/Header";
+import { Sidebar } from "./components/layout/Sidebar/Sidebar";
+import { Butterflies } from "./components/layout/Butterflies/Butterflies";
+import { FeedPage } from "./pages/theories/FeedPage";
+import { TheoryPage } from "./pages/theories/TheoryPage";
+import { CreateTheoryPage } from "./pages/theories/CreateTheoryPage";
+import { LoginPage } from "./pages/auth/LoginPage";
+import { QuoteBrowserPage } from "./pages/quotes/QuoteBrowserPage";
+import { MyTheoriesPage } from "./pages/theories/MyTheoriesPage";
+import { EditTheoryPage } from "./pages/theories/EditTheoryPage";
+import { ProfilePage } from "./pages/profile/ProfilePage";
+import { SettingsPage } from "./pages/profile/SettingsPage";
 
 function AppLayout() {
     const { particlesEnabled } = useTheme();

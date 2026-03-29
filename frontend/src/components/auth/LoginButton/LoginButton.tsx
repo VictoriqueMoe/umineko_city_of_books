@@ -1,5 +1,5 @@
-import {useNavigate} from "react-router";
-import {Button} from "../../Button/Button";
+import { useNavigate } from "react-router";
+import { Button } from "../../Button/Button";
 
 export function LoginButton() {
     const navigate = useNavigate();

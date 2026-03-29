@@ -1,6 +1,6 @@
-import {useNavigate} from "react-router";
-import type {Theory} from "../../../types/api";
-import {ProfileLink} from "../../ProfileLink/ProfileLink";
+import { useNavigate } from "react-router";
+import type { Theory } from "../../../types/api";
+import { ProfileLink } from "../../ProfileLink/ProfileLink";
 import styles from "./TheoryCard.module.css";
 
 interface TheoryCardProps {

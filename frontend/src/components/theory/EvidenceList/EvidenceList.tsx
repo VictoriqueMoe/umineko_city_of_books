@@ -1,6 +1,6 @@
-import type {EvidenceItem} from "../../../types/api";
-import {useResolveQuotes} from "../../../hooks/useResolveQuotes";
-import {TruthChip} from "../../truth/TruthChip/TruthChip";
+import type { EvidenceItem } from "../../../types/api";
+import { useResolveQuotes } from "../../../hooks/useResolveQuotes";
+import { TruthChip } from "../../truth/TruthChip/TruthChip";
 import styles from "./EvidenceList.module.css";
 
 interface EvidenceListProps {

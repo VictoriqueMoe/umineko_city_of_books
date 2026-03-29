@@ -1,6 +1,6 @@
-import {NavLink} from "react-router";
-import {useAuth} from "../../../hooks/useAuth";
-import {can} from "../../../utils/permissions";
+import { NavLink } from "react-router";
+import { useAuth } from "../../../hooks/useAuth";
+import { can } from "../../../utils/permissions";
 import styles from "./Sidebar.module.css";
 
 interface SidebarProps {
@@ -96,9 +96,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                     )}
                 </nav>
 
-                <div className={styles.footer}>
-                    Umineko no Naku Koro ni - 07th Expansion
-                </div>
+                <div className={styles.footer}>Umineko no Naku Koro ni - 07th Expansion</div>
             </aside>
         </>
     );

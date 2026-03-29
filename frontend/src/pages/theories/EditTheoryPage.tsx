@@ -1,10 +1,10 @@
-import {useEffect, useState} from "react";
-import {useNavigate, useParams} from "react-router";
-import {useAuth} from "../../hooks/useAuth";
-import {getTheory, updateTheory} from "../../api/endpoints";
-import {Button} from "../../components/Button/Button";
-import {TheoryForm} from "../../components/theory/TheoryForm/TheoryForm";
-import type {EvidenceItem} from "../../types/api";
+import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router";
+import { useAuth } from "../../hooks/useAuth";
+import { getTheory, updateTheory } from "../../api/endpoints";
+import { Button } from "../../components/Button/Button";
+import { TheoryForm } from "../../components/theory/TheoryForm/TheoryForm";
+import type { EvidenceItem } from "../../types/api";
 import formStyles from "../../components/theory/TheoryForm/TheoryForm.module.css";
 
 export function EditTheoryPage() {

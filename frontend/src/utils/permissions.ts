@@ -1,8 +1,4 @@
-type Permission =
-    | "delete_any_theory"
-    | "delete_any_response"
-    | "ban_user"
-    | "manage_roles";
+type Permission = "delete_any_theory" | "delete_any_response" | "ban_user" | "manage_roles";
 
 const rolePermissions: Record<string, Permission[]> = {
     admin: ["delete_any_theory", "delete_any_response", "ban_user", "manage_roles"],

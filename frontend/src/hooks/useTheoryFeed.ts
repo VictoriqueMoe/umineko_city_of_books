@@ -1,7 +1,7 @@
-import {useCallback, useEffect, useState} from "react";
-import type {Theory, TheoryListResponse} from "../types/api";
-import type {TheorySort} from "../types/app";
-import {listTheories} from "../api/endpoints";
+import { useCallback, useEffect, useState } from "react";
+import type { Theory, TheoryListResponse } from "../types/api";
+import type { TheorySort } from "../types/app";
+import { listTheories } from "../api/endpoints";
 
 export function useTheoryFeed(sort: TheorySort, episode: number, authorId?: string) {
     const [data, setData] = useState<TheoryListResponse | null>(null);

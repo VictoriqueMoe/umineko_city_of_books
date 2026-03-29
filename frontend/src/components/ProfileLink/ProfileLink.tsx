@@ -1,6 +1,6 @@
-import {useNavigate} from "react-router";
-import type {User} from "../../types/api";
-import {RolePill} from "../RolePill/RolePill";
+import { useNavigate } from "react-router";
+import type { User } from "../../types/api";
+import { RolePill } from "../RolePill/RolePill";
 import styles from "./ProfileLink.module.css";
 
 interface ProfileLinkProps {

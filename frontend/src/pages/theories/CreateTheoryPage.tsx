@@ -1,8 +1,8 @@
-import {useEffect} from "react";
-import {useNavigate} from "react-router";
-import {useAuth} from "../../hooks/useAuth";
-import {createTheory} from "../../api/endpoints";
-import {TheoryForm} from "../../components/theory/TheoryForm/TheoryForm";
+import { useEffect } from "react";
+import { useNavigate } from "react-router";
+import { useAuth } from "../../hooks/useAuth";
+import { createTheory } from "../../api/endpoints";
+import { TheoryForm } from "../../components/theory/TheoryForm/TheoryForm";
 import formStyles from "../../components/theory/TheoryForm/TheoryForm.module.css";
 
 export function CreateTheoryPage() {

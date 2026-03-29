@@ -1,5 +1,5 @@
-import {createContext} from "react";
-import type {Notification} from "../types/api";
+import { createContext } from "react";
+import type { Notification } from "../types/api";
 
 export interface NotificationContextValue {
     notifications: Notification[];

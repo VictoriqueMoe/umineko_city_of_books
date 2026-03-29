@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useState} from "react";
+import { useCallback, useEffect, useState } from "react";
 
 export function useVote(initialScore: number, initialUserVote: number, voteFn: (value: number) => Promise<void>) {
     const [score, setScore] = useState(initialScore);

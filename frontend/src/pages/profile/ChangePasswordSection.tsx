@@ -1,7 +1,7 @@
-import {useState} from "react";
-import {changePassword} from "../../api/endpoints";
-import {Button} from "../../components/Button/Button";
-import {Input} from "../../components/Input/Input";
+import { useState } from "react";
+import { changePassword } from "../../api/endpoints";
+import { Button } from "../../components/Button/Button";
+import { Input } from "../../components/Input/Input";
 import styles from "./SettingsPage.module.css";
 
 export function ChangePasswordSection() {
