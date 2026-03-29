@@ -7,6 +7,7 @@ import type {ActivityItem} from "../../types/api";
 import {Button} from "../../components/Button/Button";
 import {TheoryCard} from "../../components/theory/TheoryCard/TheoryCard";
 import {Pagination} from "../../components/Pagination/Pagination";
+import {RolePill} from "../../components/RolePill/RolePill";
 import styles from "./ProfilePage.module.css";
 
 const SOCIAL_LABELS: Record<string, string> = {
@@ -140,10 +141,18 @@ export function ProfilePage() {
                     {profile.online && <span className={styles.onlineDot} />}
                 </div>
                 <div className={styles.info}>
-                    <h1 className={styles.displayName}>{profile.display_name}</h1>
+                    <h1 className={styles.displayName}>
+                        {profile.display_name}
+                        {profile.role && <RolePill role={profile.role} />}
+                    </h1>
                     <span className={styles.username}>@{profile.username}</span>
                     <div className={styles.metaRow}>
                         {showGender && <span className={styles.metaItem}>{profile.gender}</span>}
+                        {profile.pronoun_subject && profile.pronoun_possessive && (
+                            <span className={styles.metaItem}>
+                                {profile.pronoun_subject}/{profile.pronoun_possessive}
+                            </span>
+                        )}
                         <span className={styles.metaItem}>Joined {formatDate(profile.created_at)}</span>
                     </div>
                 </div>
