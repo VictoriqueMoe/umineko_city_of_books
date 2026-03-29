@@ -1,0 +1,220 @@
+.page {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.heading {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    color: var(--gold);
+    margin-bottom: 1.5rem;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.gridFull {
+    grid-column: 1 / -1;
+}
+
+.section {
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--purple-rgb), 0.3);
+    border-radius: 6px;
+    padding: 1.25rem;
+}
+
+.sectionTitle {
+    font-family: var(--font-display);
+    font-size: 1rem;
+    color: var(--gold);
+    margin-bottom: 1rem;
+    letter-spacing: 0.05em;
+}
+
+.avatarSection {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+}
+
+.avatarPreview {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+    border: 2px solid rgba(var(--gold-rgb), 0.3);
+}
+
+.avatarPreview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.avatarPlaceholder {
+    width: 100%;
+    height: 100%;
+    background: rgba(var(--purple-rgb), 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-display);
+    font-size: 2rem;
+    color: var(--gold);
+}
+
+.bannerSection {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.bannerPreview {
+    width: 100%;
+    height: 120px;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid rgba(var(--purple-rgb), 0.3);
+}
+
+.bannerPreview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.bannerPlaceholder {
+    width: 100%;
+    height: 100%;
+    background: rgba(var(--purple-rgb), 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.uploadBtn {
+    background: transparent;
+    border: 1px solid rgba(var(--gold-rgb), 0.3);
+    color: var(--text);
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.2s var(--ease-out);
+    display: inline-block;
+}
+
+.uploadBtn:hover {
+    border-color: var(--gold);
+    color: var(--gold);
+    background: rgba(var(--gold-rgb), 0.05);
+}
+
+.label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-bottom: 0.75rem;
+}
+
+.pronounRow {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.pronounPreview {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.pronounRow button {
+    width: auto;
+    flex-shrink: 0;
+}
+
+.twoCol {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+
+.error {
+    background: rgba(255, 51, 51, 0.1);
+    border: 1px solid rgba(255, 51, 51, 0.3);
+    color: #ff3333;
+    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    margin-bottom: 1rem;
+}
+
+.success {
+    background: rgba(var(--gold-rgb), 0.1);
+    border: 1px solid rgba(var(--gold-rgb), 0.3);
+    color: var(--gold);
+    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    margin-bottom: 1rem;
+}
+
+.dangerZone {
+    background: var(--bg-card);
+    border: 2px solid rgba(255, 51, 51, 0.4);
+    border-radius: 6px;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.dangerZone > button {
+    margin-top: auto;
+}
+
+.dangerTitle {
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    color: #ff3333;
+    margin-bottom: 0.75rem;
+}
+
+.dangerText {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+    line-height: 1.5;
+}
+
+.modalBody {
+    padding: 1.25rem;
+}
+
+.modalActions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+    margin-top: 1rem;
+}
+
+@media (max-width: 768px) {
+    .grid {
+        grid-template-columns: 1fr;
+    }
+
+    .twoCol {
+        grid-template-columns: 1fr;
+    }
+}

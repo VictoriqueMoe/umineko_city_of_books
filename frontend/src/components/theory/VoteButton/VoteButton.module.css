@@ -1,0 +1,34 @@
+.container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.15rem;
+}
+
+.arrow {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    cursor: pointer;
+    padding: 0.15rem;
+    transition: color 0.15s var(--ease-out);
+}
+
+.arrow:hover {
+    color: var(--gold);
+}
+
+.upActive {
+    color: var(--gold);
+}
+
+.downActive {
+    color: #ff3333;
+}
+
+.score {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text);
+}

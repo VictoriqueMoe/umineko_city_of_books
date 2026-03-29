@@ -1,13 +1,15 @@
 package dto
 
+import "github.com/google/uuid"
+
 type (
 	NotificationType = string
 
 	NotificationResponse struct {
 		ID          int          `json:"id"`
 		Type        string       `json:"type"`
-		ReferenceID int          `json:"reference_id"`
-		TheoryID    int          `json:"theory_id"`
+		ReferenceID uuid.UUID    `json:"reference_id"`
+		TheoryID    uuid.UUID    `json:"theory_id"`
 		TheoryTitle string       `json:"theory_title"`
 		Actor       UserResponse `json:"actor"`
 		Read        bool         `json:"read"`

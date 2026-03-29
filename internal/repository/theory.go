@@ -7,26 +7,32 @@ import (
 	"fmt"
 
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/theory/params"
+
+	"github.com/google/uuid"
 )
 
 type (
 	TheoryRepository interface {
-		Create(ctx context.Context, userID int, req dto.CreateTheoryRequest) (int64, error)
-		GetByID(ctx context.Context, id int) (*dto.TheoryDetailResponse, error)
-		List(ctx context.Context, p params.ListParams, userID int) ([]dto.TheoryResponse, int, error)
-		Update(ctx context.Context, id, userID int, title, body string, episode int) error
-		Delete(ctx context.Context, id, userID int) error
-		GetEvidence(ctx context.Context, theoryID int) ([]dto.EvidenceResponse, error)
-		CreateResponse(ctx context.Context, theoryID, userID int, req dto.CreateResponseRequest) (int64, error)
-		DeleteResponse(ctx context.Context, id, userID int) error
-		GetResponses(ctx context.Context, theoryID int, userID int) ([]dto.ResponseResponse, error)
-		GetResponseEvidence(ctx context.Context, responseID int) ([]dto.EvidenceResponse, error)
-		VoteTheory(ctx context.Context, userID, theoryID, value int) error
-		VoteResponse(ctx context.Context, userID, responseID, value int) error
-		GetUserTheoryVote(ctx context.Context, userID, theoryID int) (int, error)
-		GetTheoryAuthorID(ctx context.Context, theoryID int) (int, error)
-		GetResponseInfo(ctx context.Context, responseID int) (authorID int, theoryID int, err error)
+		Create(ctx context.Context, userID uuid.UUID, req dto.CreateTheoryRequest) (uuid.UUID, error)
+		GetByID(ctx context.Context, id uuid.UUID) (*dto.TheoryDetailResponse, error)
+		List(ctx context.Context, p params.ListParams, userID uuid.UUID) ([]dto.TheoryResponse, int, error)
+		Update(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.CreateTheoryRequest) error
+		Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
+		DeleteAsAdmin(ctx context.Context, id uuid.UUID) error
+		GetEvidence(ctx context.Context, theoryID uuid.UUID) ([]dto.EvidenceResponse, error)
+		CreateResponse(ctx context.Context, theoryID uuid.UUID, userID uuid.UUID, req dto.CreateResponseRequest) (uuid.UUID, error)
+		DeleteResponse(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
+		DeleteResponseAsAdmin(ctx context.Context, id uuid.UUID) error
+		GetResponses(ctx context.Context, theoryID uuid.UUID, userID uuid.UUID) ([]dto.ResponseResponse, error)
+		GetResponseEvidence(ctx context.Context, responseID uuid.UUID) ([]dto.EvidenceResponse, error)
+		VoteTheory(ctx context.Context, userID uuid.UUID, theoryID uuid.UUID, value int) error
+		VoteResponse(ctx context.Context, userID uuid.UUID, responseID uuid.UUID, value int) error
+		GetUserTheoryVote(ctx context.Context, userID uuid.UUID, theoryID uuid.UUID) (int, error)
+		GetTheoryAuthorID(ctx context.Context, theoryID uuid.UUID) (uuid.UUID, error)
+		GetResponseInfo(ctx context.Context, responseID uuid.UUID) (authorID uuid.UUID, theoryID uuid.UUID, err error)
+		GetRecentActivityByUser(ctx context.Context, userID uuid.UUID, limit, offset int) ([]dto.ActivityItem, int, error)
 	}
 
 	theoryRepository struct {
@@ -34,22 +40,22 @@ type (
 	}
 )
 
-func (r *theoryRepository) Create(ctx context.Context, userID int, req dto.CreateTheoryRequest) (int64, error) {
+func (r *theoryRepository) Create(ctx context.Context, userID uuid.UUID, req dto.CreateTheoryRequest) (uuid.UUID, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return 0, fmt.Errorf("begin tx: %w", err)
+		return uuid.Nil, fmt.Errorf("begin tx: %w", err)
 	}
 	defer tx.Rollback()
 
-	result, err := tx.ExecContext(ctx,
-		`INSERT INTO theories (user_id, title, body, episode) VALUES (?, ?, ?, ?)`,
-		userID, req.Title, req.Body, req.Episode,
+	theoryID := uuid.New()
+
+	_, err = tx.ExecContext(ctx,
+		`INSERT INTO theories (id, user_id, title, body, episode) VALUES (?, ?, ?, ?, ?)`,
+		theoryID, userID, req.Title, req.Body, req.Episode,
 	)
 	if err != nil {
-		return 0, fmt.Errorf("insert theory: %w", err)
+		return uuid.Nil, fmt.Errorf("insert theory: %w", err)
 	}
-
-	theoryID, _ := result.LastInsertId()
 
 	for i, ev := range req.Evidence {
 		_, err := tx.ExecContext(ctx,
@@ -57,29 +63,30 @@ func (r *theoryRepository) Create(ctx context.Context, userID int, req dto.Creat
 			theoryID, ev.AudioID, ev.QuoteIndex, ev.Note, i,
 		)
 		if err != nil {
-			return 0, fmt.Errorf("insert evidence: %w", err)
+			return uuid.Nil, fmt.Errorf("insert evidence: %w", err)
 		}
 	}
 
 	if err := tx.Commit(); err != nil {
-		return 0, fmt.Errorf("commit: %w", err)
+		return uuid.Nil, fmt.Errorf("commit: %w", err)
 	}
 
 	return theoryID, nil
 }
 
-func (r *theoryRepository) GetByID(ctx context.Context, id int) (*dto.TheoryDetailResponse, error) {
+func (r *theoryRepository) GetByID(ctx context.Context, id uuid.UUID) (*dto.TheoryDetailResponse, error) {
 	var t dto.TheoryDetailResponse
 	var author dto.UserResponse
 
 	err := r.db.QueryRowContext(ctx,
 		`SELECT t.id, t.title, t.body, t.episode, t.created_at,
-		        u.id, u.username, u.display_name, u.avatar_url
+		        u.id, u.username, u.display_name, u.avatar_url,
+		        COALESCE((SELECT role FROM user_roles WHERE user_id = u.id LIMIT 1), '')
 		 FROM theories t
 		 JOIN users u ON t.user_id = u.id
 		 WHERE t.id = ?`, id,
 	).Scan(&t.ID, &t.Title, &t.Body, &t.Episode, &t.CreatedAt,
-		&author.ID, &author.Username, &author.DisplayName, &author.AvatarURL)
+		&author.ID, &author.Username, &author.DisplayName, &author.AvatarURL, &author.Role)
 
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
@@ -106,14 +113,14 @@ func (r *theoryRepository) GetByID(ctx context.Context, id int) (*dto.TheoryDeta
 	return &t, nil
 }
 
-func (r *theoryRepository) List(ctx context.Context, p params.ListParams, userID int) ([]dto.TheoryResponse, int, error) {
+func (r *theoryRepository) List(ctx context.Context, p params.ListParams, userID uuid.UUID) ([]dto.TheoryResponse, int, error) {
 	var conditions []string
 	var args []interface{}
 	if p.Episode > 0 {
 		conditions = append(conditions, "t.episode = ?")
 		args = append(args, p.Episode)
 	}
-	if p.AuthorID > 0 {
+	if p.AuthorID != uuid.Nil {
 		conditions = append(conditions, "t.user_id = ?")
 		args = append(args, p.AuthorID)
 	}
@@ -147,7 +154,8 @@ func (r *theoryRepository) List(ctx context.Context, p params.ListParams, userID
 
 	query := fmt.Sprintf(
 		`SELECT t.id, t.title, t.body, t.episode, t.created_at,
-		        u.id, u.username, u.display_name, u.avatar_url
+		        u.id, u.username, u.display_name, u.avatar_url,
+		        COALESCE((SELECT role FROM user_roles WHERE user_id = u.id LIMIT 1), '')
 		 FROM theories t
 		 JOIN users u ON t.user_id = u.id
 		 %s %s LIMIT ? OFFSET ?`, where, orderBy,
@@ -165,7 +173,7 @@ func (r *theoryRepository) List(ctx context.Context, p params.ListParams, userID
 		var t dto.TheoryResponse
 		var author dto.UserResponse
 		if err := rows.Scan(&t.ID, &t.Title, &t.Body, &t.Episode, &t.CreatedAt,
-			&author.ID, &author.Username, &author.DisplayName, &author.AvatarURL); err != nil {
+			&author.ID, &author.Username, &author.DisplayName, &author.AvatarURL, &author.Role); err != nil {
 			return nil, 0, fmt.Errorf("scan theory: %w", err)
 		}
 		t.Author = author
@@ -174,15 +182,25 @@ func (r *theoryRepository) List(ctx context.Context, p params.ListParams, userID
 			t.Body = t.Body[:200] + "..."
 		}
 
-		up, down, _ := r.getTheoryVoteCounts(ctx, t.ID)
+		up, down, err := r.getTheoryVoteCounts(ctx, t.ID)
+		if err != nil {
+			logger.Log.Error().Err(err).Str("theory_id", t.ID.String()).Msg("failed to get theory vote counts")
+		}
 		t.VoteScore = up - down
 
-		withLove, withoutLove, _ := r.getResponseSideCounts(ctx, t.ID)
+		withLove, withoutLove, err := r.getResponseSideCounts(ctx, t.ID)
+		if err != nil {
+			logger.Log.Error().Err(err).Str("theory_id", t.ID.String()).Msg("failed to get response side counts")
+		}
 		t.WithLoveCount = withLove
 		t.WithoutLoveCount = withoutLove
 
-		if userID > 0 {
-			t.UserVote, _ = r.GetUserTheoryVote(ctx, userID, t.ID)
+		if userID != uuid.Nil {
+			vote, err := r.GetUserTheoryVote(ctx, userID, t.ID)
+			if err != nil {
+				logger.Log.Error().Err(err).Str("theory_id", t.ID.String()).Msg("failed to get user theory vote")
+			}
+			t.UserVote = vote
 		}
 
 		theories = append(theories, t)
@@ -191,75 +209,108 @@ func (r *theoryRepository) List(ctx context.Context, p params.ListParams, userID
 	return theories, total, rows.Err()
 }
 
-func (r *theoryRepository) Update(ctx context.Context, id, userID int, title, body string, episode int) error {
-	result, err := r.db.ExecContext(ctx,
+func (r *theoryRepository) Update(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.CreateTheoryRequest) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	result, err := tx.ExecContext(ctx,
 		`UPDATE theories SET title = ?, body = ?, episode = ?, updated_at = CURRENT_TIMESTAMP
 		 WHERE id = ? AND user_id = ?`,
-		title, body, episode, id, userID,
+		req.Title, req.Body, req.Episode, id, userID,
 	)
 	if err != nil {
 		return fmt.Errorf("update theory: %w", err)
 	}
-	rows, _ := result.RowsAffected()
-	if rows == 0 {
+	affected, err := result.RowsAffected()
+	if err != nil {
+		logger.Log.Error().Err(err).Msg("failed to get rows affected for theory update")
+	}
+	if affected == 0 {
 		return fmt.Errorf("theory not found or not owned by user")
 	}
+
+	_, err = tx.ExecContext(ctx, `DELETE FROM theory_evidence WHERE theory_id = ?`, id)
+	if err != nil {
+		return fmt.Errorf("delete old evidence: %w", err)
+	}
+
+	for i, ev := range req.Evidence {
+		_, err := tx.ExecContext(ctx,
+			`INSERT INTO theory_evidence (theory_id, audio_id, quote_index, note, sort_order) VALUES (?, ?, ?, ?, ?)`,
+			id, ev.AudioID, ev.QuoteIndex, ev.Note, i,
+		)
+		if err != nil {
+			return fmt.Errorf("insert evidence: %w", err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit: %w", err)
+	}
+
 	return nil
 }
 
-func (r *theoryRepository) Delete(ctx context.Context, id, userID int) error {
+func (r *theoryRepository) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
 	result, err := r.db.ExecContext(ctx,
 		`DELETE FROM theories WHERE id = ? AND user_id = ?`, id, userID,
 	)
 	if err != nil {
 		return fmt.Errorf("delete theory: %w", err)
 	}
-	rows, _ := result.RowsAffected()
-	if rows == 0 {
+	affected, err := result.RowsAffected()
+	if err != nil {
+		logger.Log.Error().Err(err).Msg("failed to get rows affected for theory delete")
+	}
+	if affected == 0 {
 		return fmt.Errorf("theory not found or not owned by user")
 	}
 	return nil
 }
 
-func (r *theoryRepository) GetEvidence(ctx context.Context, theoryID int) ([]dto.EvidenceResponse, error) {
-	rows, err := r.db.QueryContext(ctx,
+func (r *theoryRepository) DeleteAsAdmin(ctx context.Context, id uuid.UUID) error {
+	result, err := r.db.ExecContext(ctx, `DELETE FROM theories WHERE id = ?`, id)
+	if err != nil {
+		return fmt.Errorf("admin delete theory: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		logger.Log.Error().Err(err).Msg("failed to get rows affected for admin theory delete")
+	}
+	if affected == 0 {
+		return fmt.Errorf("theory not found")
+	}
+	return nil
+}
+
+func (r *theoryRepository) GetEvidence(ctx context.Context, theoryID uuid.UUID) ([]dto.EvidenceResponse, error) {
+	return r.queryEvidence(ctx,
 		`SELECT te.id, te.audio_id, te.quote_index, te.note, te.sort_order
 		 FROM theory_evidence te
 		 WHERE te.theory_id = ?
 		 ORDER BY te.sort_order`, theoryID,
 	)
-	if err != nil {
-		return nil, fmt.Errorf("get evidence: %w", err)
-	}
-	defer rows.Close()
-
-	var evidence []dto.EvidenceResponse
-	for rows.Next() {
-		var ev dto.EvidenceResponse
-		if err := rows.Scan(&ev.ID, &ev.AudioID, &ev.QuoteIndex, &ev.Note, &ev.SortOrder); err != nil {
-			return nil, fmt.Errorf("scan evidence: %w", err)
-		}
-		evidence = append(evidence, ev)
-	}
-	return evidence, rows.Err()
 }
 
-func (r *theoryRepository) CreateResponse(ctx context.Context, theoryID, userID int, req dto.CreateResponseRequest) (int64, error) {
+func (r *theoryRepository) CreateResponse(ctx context.Context, theoryID uuid.UUID, userID uuid.UUID, req dto.CreateResponseRequest) (uuid.UUID, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return 0, fmt.Errorf("begin tx: %w", err)
+		return uuid.Nil, fmt.Errorf("begin tx: %w", err)
 	}
 	defer tx.Rollback()
 
-	result, err := tx.ExecContext(ctx,
-		`INSERT INTO responses (theory_id, user_id, side, body, parent_id) VALUES (?, ?, ?, ?, ?)`,
-		theoryID, userID, req.Side, req.Body, req.ParentID,
+	responseID := uuid.New()
+
+	_, err = tx.ExecContext(ctx,
+		`INSERT INTO responses (id, theory_id, user_id, side, body, parent_id) VALUES (?, ?, ?, ?, ?, ?)`,
+		responseID, theoryID, userID, req.Side, req.Body, req.ParentID,
 	)
 	if err != nil {
-		return 0, fmt.Errorf("insert response: %w", err)
+		return uuid.Nil, fmt.Errorf("insert response: %w", err)
 	}
-
-	responseID, _ := result.LastInsertId()
 
 	for i, ev := range req.Evidence {
 		_, err := tx.ExecContext(ctx,
@@ -267,35 +318,54 @@ func (r *theoryRepository) CreateResponse(ctx context.Context, theoryID, userID 
 			responseID, ev.AudioID, ev.QuoteIndex, ev.Note, i,
 		)
 		if err != nil {
-			return 0, fmt.Errorf("insert response evidence: %w", err)
+			return uuid.Nil, fmt.Errorf("insert response evidence: %w", err)
 		}
 	}
 
 	if err := tx.Commit(); err != nil {
-		return 0, fmt.Errorf("commit: %w", err)
+		return uuid.Nil, fmt.Errorf("commit: %w", err)
 	}
 
 	return responseID, nil
 }
 
-func (r *theoryRepository) DeleteResponse(ctx context.Context, id, userID int) error {
+func (r *theoryRepository) DeleteResponse(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
 	result, err := r.db.ExecContext(ctx,
 		`DELETE FROM responses WHERE id = ? AND user_id = ?`, id, userID,
 	)
 	if err != nil {
 		return fmt.Errorf("delete response: %w", err)
 	}
-	rows, _ := result.RowsAffected()
-	if rows == 0 {
+	affected, err := result.RowsAffected()
+	if err != nil {
+		logger.Log.Error().Err(err).Msg("failed to get rows affected for response delete")
+	}
+	if affected == 0 {
 		return fmt.Errorf("response not found or not owned by user")
 	}
 	return nil
 }
 
-func (r *theoryRepository) GetResponses(ctx context.Context, theoryID int, userID int) ([]dto.ResponseResponse, error) {
+func (r *theoryRepository) DeleteResponseAsAdmin(ctx context.Context, id uuid.UUID) error {
+	result, err := r.db.ExecContext(ctx, `DELETE FROM responses WHERE id = ?`, id)
+	if err != nil {
+		return fmt.Errorf("admin delete response: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		logger.Log.Error().Err(err).Msg("failed to get rows affected for admin response delete")
+	}
+	if affected == 0 {
+		return fmt.Errorf("response not found")
+	}
+	return nil
+}
+
+func (r *theoryRepository) GetResponses(ctx context.Context, theoryID uuid.UUID, userID uuid.UUID) ([]dto.ResponseResponse, error) {
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT r.id, r.parent_id, r.side, r.body, r.created_at,
-		        u.id, u.username, u.display_name, u.avatar_url
+		        u.id, u.username, u.display_name, u.avatar_url,
+		        COALESCE((SELECT role FROM user_roles WHERE user_id = u.id LIMIT 1), '')
 		 FROM responses r
 		 JOIN users u ON r.user_id = u.id
 		 WHERE r.theory_id = ?
@@ -311,16 +381,23 @@ func (r *theoryRepository) GetResponses(ctx context.Context, theoryID int, userI
 		var resp dto.ResponseResponse
 		var author dto.UserResponse
 		if err := rows.Scan(&resp.ID, &resp.ParentID, &resp.Side, &resp.Body, &resp.CreatedAt,
-			&author.ID, &author.Username, &author.DisplayName, &author.AvatarURL); err != nil {
+			&author.ID, &author.Username, &author.DisplayName, &author.AvatarURL, &author.Role); err != nil {
 			return nil, fmt.Errorf("scan response: %w", err)
 		}
 		resp.Author = author
 
-		up, down, _ := r.getResponseVoteCounts(ctx, resp.ID)
+		up, down, err := r.getResponseVoteCounts(ctx, resp.ID)
+		if err != nil {
+			logger.Log.Error().Err(err).Str("response_id", resp.ID.String()).Msg("failed to get response vote counts")
+		}
 		resp.VoteScore = up - down
 
-		if userID > 0 {
-			resp.UserVote, _ = r.getUserResponseVote(ctx, userID, resp.ID)
+		if userID != uuid.Nil {
+			vote, err := r.getUserResponseVote(ctx, userID, resp.ID)
+			if err != nil {
+				logger.Log.Error().Err(err).Str("response_id", resp.ID.String()).Msg("failed to get user response vote")
+			}
+			resp.UserVote = vote
 		}
 
 		evidence, err := r.GetResponseEvidence(ctx, resp.ID)
@@ -344,7 +421,7 @@ type responseNode struct {
 }
 
 func buildResponseTree(flat []dto.ResponseResponse) []dto.ResponseResponse {
-	nodes := make(map[int]*responseNode)
+	nodes := make(map[uuid.UUID]*responseNode)
 	for i := range flat {
 		nodes[flat[i].ID] = &responseNode{data: flat[i]}
 	}
@@ -378,15 +455,19 @@ func flattenNode(n *responseNode) dto.ResponseResponse {
 	return resp
 }
 
-func (r *theoryRepository) GetResponseEvidence(ctx context.Context, responseID int) ([]dto.EvidenceResponse, error) {
-	rows, err := r.db.QueryContext(ctx,
+func (r *theoryRepository) GetResponseEvidence(ctx context.Context, responseID uuid.UUID) ([]dto.EvidenceResponse, error) {
+	return r.queryEvidence(ctx,
 		`SELECT re.id, re.audio_id, re.quote_index, re.note, re.sort_order
 		 FROM response_evidence re
 		 WHERE re.response_id = ?
 		 ORDER BY re.sort_order`, responseID,
 	)
+}
+
+func (r *theoryRepository) queryEvidence(ctx context.Context, query string, args ...any) ([]dto.EvidenceResponse, error) {
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("get response evidence: %w", err)
+		return nil, fmt.Errorf("query evidence: %w", err)
 	}
 	defer rows.Close()
 
@@ -401,7 +482,7 @@ func (r *theoryRepository) GetResponseEvidence(ctx context.Context, responseID i
 	return evidence, rows.Err()
 }
 
-func (r *theoryRepository) VoteTheory(ctx context.Context, userID, theoryID, value int) error {
+func (r *theoryRepository) VoteTheory(ctx context.Context, userID uuid.UUID, theoryID uuid.UUID, value int) error {
 	if value == 0 {
 		_, err := r.db.ExecContext(ctx,
 			`DELETE FROM theory_votes WHERE user_id = ? AND theory_id = ?`, userID, theoryID,
@@ -416,7 +497,7 @@ func (r *theoryRepository) VoteTheory(ctx context.Context, userID, theoryID, val
 	return err
 }
 
-func (r *theoryRepository) VoteResponse(ctx context.Context, userID, responseID, value int) error {
+func (r *theoryRepository) VoteResponse(ctx context.Context, userID uuid.UUID, responseID uuid.UUID, value int) error {
 	if value == 0 {
 		_, err := r.db.ExecContext(ctx,
 			`DELETE FROM response_votes WHERE user_id = ? AND response_id = ?`, userID, responseID,
@@ -431,7 +512,7 @@ func (r *theoryRepository) VoteResponse(ctx context.Context, userID, responseID,
 	return err
 }
 
-func (r *theoryRepository) GetUserTheoryVote(ctx context.Context, userID, theoryID int) (int, error) {
+func (r *theoryRepository) GetUserTheoryVote(ctx context.Context, userID uuid.UUID, theoryID uuid.UUID) (int, error) {
 	var value int
 	err := r.db.QueryRowContext(ctx,
 		`SELECT value FROM theory_votes WHERE user_id = ? AND theory_id = ?`, userID, theoryID,
@@ -442,27 +523,27 @@ func (r *theoryRepository) GetUserTheoryVote(ctx context.Context, userID, theory
 	return value, err
 }
 
-func (r *theoryRepository) getTheoryVoteCounts(ctx context.Context, theoryID int) (int, int, error) {
+func (r *theoryRepository) getTheoryVoteCounts(ctx context.Context, theoryID uuid.UUID) (int, int, error) {
 	var up, down int
-	r.db.QueryRowContext(ctx,
+	err := r.db.QueryRowContext(ctx,
 		`SELECT COALESCE(SUM(CASE WHEN value = 1 THEN 1 ELSE 0 END), 0),
 		        COALESCE(SUM(CASE WHEN value = -1 THEN 1 ELSE 0 END), 0)
 		 FROM theory_votes WHERE theory_id = ?`, theoryID,
 	).Scan(&up, &down)
-	return up, down, nil
+	return up, down, err
 }
 
-func (r *theoryRepository) getResponseVoteCounts(ctx context.Context, responseID int) (int, int, error) {
+func (r *theoryRepository) getResponseVoteCounts(ctx context.Context, responseID uuid.UUID) (int, int, error) {
 	var up, down int
-	r.db.QueryRowContext(ctx,
+	err := r.db.QueryRowContext(ctx,
 		`SELECT COALESCE(SUM(CASE WHEN value = 1 THEN 1 ELSE 0 END), 0),
 		        COALESCE(SUM(CASE WHEN value = -1 THEN 1 ELSE 0 END), 0)
 		 FROM response_votes WHERE response_id = ?`, responseID,
 	).Scan(&up, &down)
-	return up, down, nil
+	return up, down, err
 }
 
-func (r *theoryRepository) getUserResponseVote(ctx context.Context, userID, responseID int) (int, error) {
+func (r *theoryRepository) getUserResponseVote(ctx context.Context, userID uuid.UUID, responseID uuid.UUID) (int, error) {
 	var value int
 	err := r.db.QueryRowContext(ctx,
 		`SELECT value FROM response_votes WHERE user_id = ? AND response_id = ?`, userID, responseID,
@@ -473,34 +554,74 @@ func (r *theoryRepository) getUserResponseVote(ctx context.Context, userID, resp
 	return value, err
 }
 
-func (r *theoryRepository) getResponseSideCounts(ctx context.Context, theoryID int) (int, int, error) {
+func (r *theoryRepository) getResponseSideCounts(ctx context.Context, theoryID uuid.UUID) (int, int, error) {
 	var withLove, withoutLove int
-	r.db.QueryRowContext(ctx,
+	err := r.db.QueryRowContext(ctx,
 		`SELECT COALESCE(SUM(CASE WHEN side = 'with_love' THEN 1 ELSE 0 END), 0),
 		        COALESCE(SUM(CASE WHEN side = 'without_love' THEN 1 ELSE 0 END), 0)
 		 FROM responses WHERE theory_id = ?`, theoryID,
 	).Scan(&withLove, &withoutLove)
-	return withLove, withoutLove, nil
+	return withLove, withoutLove, err
 }
 
-func (r *theoryRepository) GetTheoryAuthorID(ctx context.Context, theoryID int) (int, error) {
-	var userID int
+func (r *theoryRepository) GetTheoryAuthorID(ctx context.Context, theoryID uuid.UUID) (uuid.UUID, error) {
+	var userID uuid.UUID
 	err := r.db.QueryRowContext(ctx,
 		`SELECT user_id FROM theories WHERE id = ?`, theoryID,
 	).Scan(&userID)
 	if err != nil {
-		return 0, fmt.Errorf("get theory author: %w", err)
+		return uuid.Nil, fmt.Errorf("get theory author: %w", err)
 	}
 	return userID, nil
 }
 
-func (r *theoryRepository) GetResponseInfo(ctx context.Context, responseID int) (int, int, error) {
-	var authorID, theoryID int
+func (r *theoryRepository) GetResponseInfo(ctx context.Context, responseID uuid.UUID) (uuid.UUID, uuid.UUID, error) {
+	var authorID, theoryID uuid.UUID
 	err := r.db.QueryRowContext(ctx,
 		`SELECT user_id, theory_id FROM responses WHERE id = ?`, responseID,
 	).Scan(&authorID, &theoryID)
 	if err != nil {
-		return 0, 0, fmt.Errorf("get response info: %w", err)
+		return uuid.Nil, uuid.Nil, fmt.Errorf("get response info: %w", err)
 	}
 	return authorID, theoryID, nil
+}
+
+func (r *theoryRepository) GetRecentActivityByUser(ctx context.Context, userID uuid.UUID, limit, offset int) ([]dto.ActivityItem, int, error) {
+	var total int
+	err := r.db.QueryRowContext(ctx,
+		`SELECT (SELECT COUNT(*) FROM theories WHERE user_id = ?) + (SELECT COUNT(*) FROM responses WHERE user_id = ?)`,
+		userID, userID,
+	).Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("count activity: %w", err)
+	}
+
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT type, theory_id, theory_title, side, body, created_at FROM (
+			SELECT 'theory' as type, t.id as theory_id, t.title as theory_title, '' as side, t.body, t.created_at
+			FROM theories t WHERE t.user_id = ?
+			UNION ALL
+			SELECT 'response' as type, r.theory_id, th.title as theory_title, r.side, r.body, r.created_at
+			FROM responses r JOIN theories th ON r.theory_id = th.id WHERE r.user_id = ?
+		) combined ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+		userID, userID, limit, offset,
+	)
+	if err != nil {
+		return nil, 0, fmt.Errorf("get activity: %w", err)
+	}
+	defer rows.Close()
+
+	var items []dto.ActivityItem
+	for rows.Next() {
+		var item dto.ActivityItem
+		if err := rows.Scan(&item.Type, &item.TheoryID, &item.TheoryTitle, &item.Side, &item.Body, &item.CreatedAt); err != nil {
+			return nil, 0, fmt.Errorf("scan activity: %w", err)
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+
+	return items, total, nil
 }

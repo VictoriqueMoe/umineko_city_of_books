@@ -1,8 +1,7 @@
 package ws
 
 import (
-	"log"
-
+	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/session"
 
 	"github.com/fasthttp/websocket"
@@ -33,6 +32,7 @@ func Handler(hub *Hub, sessionMgr *session.Manager) fiber.Handler {
 		}
 
 		return upgrader.Upgrade(ctx.RequestCtx(), func(conn *websocket.Conn) {
+			logger.Log.Debug().Str("user_id", userID.String()).Msg("ws client connected")
 			client := &Client{
 				UserID: userID,
 				Conn:   conn,
@@ -46,7 +46,7 @@ func Handler(hub *Hub, sessionMgr *session.Manager) fiber.Handler {
 				_, _, err := conn.ReadMessage()
 				if err != nil {
 					if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseNormalClosure) {
-						log.Printf("[ws] unexpected close for user %d: %v", userID, err)
+						logger.Log.Warn().Err(err).Str("user_id", userID.String()).Msg("unexpected ws close")
 					}
 					break
 				}

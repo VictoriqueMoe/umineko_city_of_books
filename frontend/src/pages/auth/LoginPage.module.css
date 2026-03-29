@@ -1,0 +1,92 @@
+.page {
+    display: flex;
+    justify-content: center;
+    padding-top: 3rem;
+}
+
+.card {
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--gold-rgb), 0.2);
+    border-radius: 8px;
+    padding: 2rem;
+    width: 100%;
+    max-width: 400px;
+}
+
+.title {
+    font-family: var(--font-display);
+    color: var(--gold);
+    font-size: 1.3rem;
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+.input {
+    width: 100%;
+    background: var(--bg-void);
+    border: 1px solid rgba(var(--purple-rgb), 0.3);
+    color: var(--text);
+    padding: 0.75rem 1rem;
+    border-radius: 4px;
+    font-size: 1rem;
+    font-family: var(--font-body);
+    margin-bottom: 0.75rem;
+}
+
+.input:focus {
+    outline: none;
+    border-color: var(--gold);
+}
+
+.input::placeholder {
+    color: var(--text-muted);
+}
+
+.submitBtn {
+    width: 100%;
+    background: rgba(var(--gold-rgb), 0.15);
+    border: 1px solid var(--gold);
+    color: var(--gold);
+    padding: 0.75rem;
+    border-radius: 4px;
+    font-family: var(--font-display);
+    font-size: 1rem;
+    cursor: pointer;
+    margin-top: 0.5rem;
+    transition: all 0.2s var(--ease-out);
+}
+
+.submitBtn:hover:not(:disabled) {
+    background: rgba(var(--gold-rgb), 0.25);
+}
+
+.submitBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.error {
+    background: rgba(255, 51, 51, 0.1);
+    border: 1px solid rgba(255, 51, 51, 0.3);
+    color: #ff3333;
+    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    margin-bottom: 1rem;
+}
+
+.toggle {
+    display: block;
+    width: 100%;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    text-align: center;
+    margin-top: 1rem;
+    cursor: pointer;
+}
+
+.toggle:hover {
+    color: var(--gold);
+}

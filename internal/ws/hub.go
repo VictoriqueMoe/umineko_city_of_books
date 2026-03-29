@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/fasthttp/websocket"
+	"github.com/google/uuid"
 )
 
 type (
@@ -14,19 +15,19 @@ type (
 	}
 
 	Client struct {
-		UserID int
+		UserID uuid.UUID
 		Conn   *websocket.Conn
 	}
 
 	Hub struct {
-		clients map[int][]*Client
+		clients map[uuid.UUID][]*Client
 		mu      sync.RWMutex
 	}
 )
 
 func NewHub() *Hub {
 	return &Hub{
-		clients: make(map[int][]*Client),
+		clients: make(map[uuid.UUID][]*Client),
 	}
 }
 
@@ -52,7 +53,7 @@ func (h *Hub) Unregister(client *Client) {
 	}
 }
 
-func (h *Hub) SendToUser(userID int, msg Message) {
+func (h *Hub) SendToUser(userID uuid.UUID, msg Message) {
 	h.mu.RLock()
 	conns := h.clients[userID]
 	h.mu.RUnlock()
@@ -78,7 +79,7 @@ func (h *Hub) SendToUser(userID int, msg Message) {
 	}
 }
 
-func (h *Hub) IsOnline(userID int) bool {
+func (h *Hub) IsOnline(userID uuid.UUID) bool {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	return len(h.clients[userID]) > 0

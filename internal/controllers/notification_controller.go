@@ -4,6 +4,7 @@ import (
 	"umineko_city_of_books/internal/middleware"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
 )
 
 func (s *Service) getAllNotificationRoutes() []FSetupRoute {
@@ -32,7 +33,7 @@ func (s *Service) setupUnreadCountRoute(r fiber.Router) {
 }
 
 func (s *Service) listNotifications(ctx fiber.Ctx) error {
-	userID := ctx.Locals("userID").(int)
+	userID := ctx.Locals("userID").(uuid.UUID)
 	limit := fiber.Query[int](ctx, "limit", 20)
 	offset := fiber.Query[int](ctx, "offset", 0)
 
@@ -48,7 +49,7 @@ func (s *Service) listNotifications(ctx fiber.Ctx) error {
 
 func (s *Service) markNotificationRead(ctx fiber.Ctx) error {
 	id := fiber.Params[int](ctx, "id")
-	userID := ctx.Locals("userID").(int)
+	userID := ctx.Locals("userID").(uuid.UUID)
 
 	if err := s.NotificationService.MarkRead(ctx.Context(), id, userID); err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -60,7 +61,7 @@ func (s *Service) markNotificationRead(ctx fiber.Ctx) error {
 }
 
 func (s *Service) markAllNotificationsRead(ctx fiber.Ctx) error {
-	userID := ctx.Locals("userID").(int)
+	userID := ctx.Locals("userID").(uuid.UUID)
 
 	if err := s.NotificationService.MarkAllRead(ctx.Context(), userID); err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -72,7 +73,7 @@ func (s *Service) markAllNotificationsRead(ctx fiber.Ctx) error {
 }
 
 func (s *Service) unreadCount(ctx fiber.Ctx) error {
-	userID := ctx.Locals("userID").(int)
+	userID := ctx.Locals("userID").(uuid.UUID)
 
 	count, err := s.NotificationService.UnreadCount(ctx.Context(), userID)
 	if err != nil {

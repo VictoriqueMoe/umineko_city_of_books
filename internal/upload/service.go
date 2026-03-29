@@ -6,12 +6,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"umineko_city_of_books/internal/config"
-)
 
-const (
-	MaxFileSize = 50 * 1024 * 1024
+	"github.com/google/uuid"
 )
 
 var (
@@ -26,7 +25,7 @@ var (
 type (
 	Service interface {
 		SaveFile(subDir string, filename string, reader io.Reader) (string, error)
-		SaveImage(subDir string, id int, contentType string, fileSize int64, reader io.Reader) (string, error)
+		SaveImage(subDir string, id uuid.UUID, contentType string, fileSize int64, maxSize int64, reader io.Reader) (string, error)
 		DeleteByPrefix(subDir string, prefix string) error
 		GetUploadDir() string
 	}
@@ -58,8 +57,8 @@ func (s *service) SaveFile(subDir string, filename string, reader io.Reader) (st
 	return fmt.Sprintf("/uploads/%s/%s", subDir, filename), nil
 }
 
-func (s *service) SaveImage(subDir string, id int, contentType string, fileSize int64, reader io.Reader) (string, error) {
-	if fileSize > MaxFileSize {
+func (s *service) SaveImage(subDir string, id uuid.UUID, contentType string, fileSize int64, maxSize int64, reader io.Reader) (string, error) {
+	if fileSize > maxSize {
 		return "", ErrFileTooLarge
 	}
 
@@ -68,12 +67,12 @@ func (s *service) SaveImage(subDir string, id int, contentType string, fileSize 
 		return "", ErrInvalidFileType
 	}
 
-	prefix := fmt.Sprintf("%d.", id)
+	prefix := fmt.Sprintf("%s_", id.String())
 	if err := s.DeleteByPrefix(subDir, prefix); err != nil {
 		return "", err
 	}
 
-	filename := fmt.Sprintf("%d%s", id, ext)
+	filename := fmt.Sprintf("%s_%d%s", id.String(), time.Now().UnixMilli(), ext)
 	return s.SaveFile(subDir, filename, reader)
 }
 

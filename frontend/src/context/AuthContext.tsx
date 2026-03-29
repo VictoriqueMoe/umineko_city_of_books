@@ -1,6 +1,6 @@
-import { type PropsWithChildren, useCallback, useEffect, useState } from "react";
-import type { User } from "../types/api";
-import { AuthContext } from "./authContextValue";
+import {type PropsWithChildren, useCallback, useEffect, useState} from "react";
+import type {User} from "../types/api";
+import {AuthContext} from "./authContextValue";
 import * as api from "../api/endpoints";
 
 export function AuthProvider({ children }: PropsWithChildren) {
@@ -30,7 +30,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }, []);
 
     return (
-        <AuthContext.Provider value={{ user, loading, loginUser, registerUser, logoutUser }}>
+        <AuthContext.Provider value={{ user, loading, setUser, loginUser, registerUser, logoutUser }}>
             {children}
         </AuthContext.Provider>
     );

@@ -1,86 +1,28 @@
 package main
 
 import (
-	"embed"
-	"io/fs"
-	"log"
-	"os"
-	"path/filepath"
-	"strings"
+	"fmt"
 
-	"umineko_city_of_books/internal/auth"
 	"umineko_city_of_books/internal/config"
-	"umineko_city_of_books/internal/controllers"
-	"umineko_city_of_books/internal/db"
-	appMiddleware "umineko_city_of_books/internal/middleware"
-	"umineko_city_of_books/internal/notification"
-	"umineko_city_of_books/internal/profile"
-	"umineko_city_of_books/internal/repository"
-	"umineko_city_of_books/internal/routes"
-	"umineko_city_of_books/internal/session"
-	"umineko_city_of_books/internal/theory"
-	"umineko_city_of_books/internal/upload"
-	"umineko_city_of_books/internal/user"
+	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/utils"
-	"umineko_city_of_books/internal/ws"
-
-	"github.com/gofiber/fiber/v3"
-	"github.com/gofiber/fiber/v3/middleware/static"
-)
-
-var (
-	//go:embed static/*
-	staticFiles embed.FS
 )
 
 func main() {
-	if err := os.MkdirAll(filepath.Join(config.Cfg.UploadDir, "avatars"), 0755); err != nil {
-		log.Fatalf("failed to create uploads directory: %v", err)
-	}
+	logger.Init()
 
-	database, err := db.Open(config.Cfg.DBPath)
-	if err != nil {
-		log.Fatalf("failed to open database: %v", err)
-	}
-	defer database.Close()
+	logger.Log.Info().
+		Str("db_path", config.Cfg.DBPath).
+		Str("upload_dir", config.Cfg.UploadDir).
+		Str("base_url", config.Cfg.BaseURL).
+		Str("log_level", config.Cfg.LogLevel).
+		Str("max_body_size", fmt.Sprintf("%d MB", config.Cfg.MaxBodySize/1024/1024)).
+		Str("max_image_size", fmt.Sprintf("%d MB", config.Cfg.MaxImageSize/1024/1024)).
+		Str("max_video_size", fmt.Sprintf("%d MB", config.Cfg.MaxVideoSize/1024/1024)).
+		Msg("config loaded")
 
-	if err := db.Migrate(database); err != nil {
-		log.Fatalf("failed to run migrations: %v", err)
-	}
+	app := initServer()
 
-	repos := repository.New(database)
-
-	sessionMgr := session.NewManager(repos.Session)
-	uploadService := upload.NewService()
-	userService := user.NewService(repos.User)
-	authService := auth.NewService(userService, sessionMgr)
-	profileService := profile.NewService(repos.User, uploadService)
-	hub := ws.NewHub()
-	notifService := notification.NewService(repos.Notification, repos.Theory, hub)
-	theoryService := theory.NewService(repos.Theory, notifService)
-
-	app := fiber.New()
-
-	appMiddleware.Setup(app, config.Cfg.BaseURL)
-
-	htmlBytes, _ := staticFiles.ReadFile("static/index.html")
-	service := controllers.NewService(authService, profileService, theoryService, notifService, sessionMgr, string(htmlBytes))
-	routes.PublicRoutes(service, app)
-
-	app.Get("/api/v1/ws", ws.Handler(hub, sessionMgr))
-
-	app.Get("/uploads/*", static.New(uploadService.GetUploadDir()))
-
-	staticFS, _ := fs.Sub(staticFiles, "static")
-	app.Get("/*", func(ctx fiber.Ctx) error {
-		path := ctx.Path()
-		if strings.Contains(path, ".") {
-			return static.New("", static.Config{
-				FS: staticFS,
-			})(ctx)
-		}
-		return ctx.Type("html").Send(htmlBytes)
-	})
-
+	logger.Log.Info().Str("addr", ":4323").Msg("starting server")
 	utils.StartServerWithGracefulShutdown(app, ":4323")
 }

@@ -1,0 +1,43 @@
+.header {
+    background: var(--bg-purple);
+    border-bottom: 1px solid rgba(var(--gold-rgb), 0.15);
+    padding: 0.75rem 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+}
+
+.actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.hamburger {
+    display: none;
+    flex-direction: column;
+    gap: 5px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.5rem;
+    margin-right: auto;
+}
+
+.hamburgerLine {
+    display: block;
+    width: 22px;
+    height: 2px;
+    background: var(--gold);
+    border-radius: 2px;
+}
+
+@media (max-width: 900px) {
+    .hamburger {
+        display: flex;
+    }
+}

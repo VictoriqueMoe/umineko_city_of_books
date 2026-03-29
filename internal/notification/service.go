@@ -4,20 +4,23 @@ import (
 	"context"
 
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/ws"
+
+	"github.com/google/uuid"
 )
 
 type (
 	Service interface {
-		NotifyTheoryResponse(ctx context.Context, theoryID, actorID int) error
-		NotifyResponseReply(ctx context.Context, parentResponseID, theoryID, actorID int) error
-		NotifyTheoryUpvote(ctx context.Context, theoryID, actorID int) error
-		NotifyResponseUpvote(ctx context.Context, responseID, theoryID, actorID int) error
-		List(ctx context.Context, userID, limit, offset int) (*dto.NotificationListResponse, error)
-		MarkRead(ctx context.Context, id, userID int) error
-		MarkAllRead(ctx context.Context, userID int) error
-		UnreadCount(ctx context.Context, userID int) (int, error)
+		NotifyTheoryResponse(ctx context.Context, theoryID uuid.UUID, actorID uuid.UUID) error
+		NotifyResponseReply(ctx context.Context, parentResponseID uuid.UUID, theoryID uuid.UUID, actorID uuid.UUID) error
+		NotifyTheoryUpvote(ctx context.Context, theoryID uuid.UUID, actorID uuid.UUID) error
+		NotifyResponseUpvote(ctx context.Context, responseID uuid.UUID, theoryID uuid.UUID, actorID uuid.UUID) error
+		List(ctx context.Context, userID uuid.UUID, limit, offset int) (*dto.NotificationListResponse, error)
+		MarkRead(ctx context.Context, id int, userID uuid.UUID) error
+		MarkAllRead(ctx context.Context, userID uuid.UUID) error
+		UnreadCount(ctx context.Context, userID uuid.UUID) (int, error)
 	}
 
 	service struct {
@@ -35,23 +38,23 @@ func NewService(repo repository.NotificationRepository, theoryRepo repository.Th
 	}
 }
 
-func (s *service) NotifyTheoryResponse(ctx context.Context, theoryID, actorID int) error {
+func (s *service) NotifyTheoryResponse(ctx context.Context, theoryID uuid.UUID, actorID uuid.UUID) error {
 	return s.notifyTheoryAuthor(ctx, dto.NotifTheoryResponse, theoryID, theoryID, actorID)
 }
 
-func (s *service) NotifyTheoryUpvote(ctx context.Context, theoryID, actorID int) error {
+func (s *service) NotifyTheoryUpvote(ctx context.Context, theoryID uuid.UUID, actorID uuid.UUID) error {
 	return s.notifyTheoryAuthor(ctx, dto.NotifTheoryUpvote, theoryID, theoryID, actorID)
 }
 
-func (s *service) NotifyResponseReply(ctx context.Context, parentResponseID, theoryID, actorID int) error {
+func (s *service) NotifyResponseReply(ctx context.Context, parentResponseID uuid.UUID, theoryID uuid.UUID, actorID uuid.UUID) error {
 	return s.notifyResponseAuthor(ctx, dto.NotifResponseReply, parentResponseID, theoryID, actorID)
 }
 
-func (s *service) NotifyResponseUpvote(ctx context.Context, responseID, theoryID, actorID int) error {
+func (s *service) NotifyResponseUpvote(ctx context.Context, responseID uuid.UUID, theoryID uuid.UUID, actorID uuid.UUID) error {
 	return s.notifyResponseAuthor(ctx, dto.NotifResponseUpvote, responseID, theoryID, actorID)
 }
 
-func (s *service) notifyTheoryAuthor(ctx context.Context, notifType string, referenceID, theoryID, actorID int) error {
+func (s *service) notifyTheoryAuthor(ctx context.Context, notifType string, referenceID uuid.UUID, theoryID uuid.UUID, actorID uuid.UUID) error {
 	recipientID, err := s.theoryRepo.GetTheoryAuthorID(ctx, theoryID)
 	if err != nil {
 		return err
@@ -59,7 +62,7 @@ func (s *service) notifyTheoryAuthor(ctx context.Context, notifType string, refe
 	return s.send(ctx, recipientID, notifType, referenceID, theoryID, actorID)
 }
 
-func (s *service) notifyResponseAuthor(ctx context.Context, notifType string, referenceID, theoryID, actorID int) error {
+func (s *service) notifyResponseAuthor(ctx context.Context, notifType string, referenceID uuid.UUID, theoryID uuid.UUID, actorID uuid.UUID) error {
 	recipientID, _, err := s.theoryRepo.GetResponseInfo(ctx, referenceID)
 	if err != nil {
 		return err
@@ -67,7 +70,7 @@ func (s *service) notifyResponseAuthor(ctx context.Context, notifType string, re
 	return s.send(ctx, recipientID, notifType, referenceID, theoryID, actorID)
 }
 
-func (s *service) send(ctx context.Context, recipientID int, notifType string, referenceID, theoryID, actorID int) error {
+func (s *service) send(ctx context.Context, recipientID uuid.UUID, notifType string, referenceID uuid.UUID, theoryID uuid.UUID, actorID uuid.UUID) error {
 	if recipientID == actorID {
 		return nil
 	}
@@ -85,11 +88,12 @@ func (s *service) send(ctx context.Context, recipientID int, notifType string, r
 		return err
 	}
 
+	logger.Log.Debug().Str("type", notifType).Str("recipient", recipientID.String()).Msg("notification sent")
 	s.pushNotification(ctx, int(id), recipientID)
 	return nil
 }
 
-func (s *service) pushNotification(ctx context.Context, notifID, recipientID int) {
+func (s *service) pushNotification(ctx context.Context, notifID int, recipientID uuid.UUID) {
 	rows, _, err := s.repo.ListByUser(ctx, recipientID, 1, 0)
 	if err != nil || len(rows) == 0 {
 		return
@@ -112,7 +116,7 @@ func (s *service) pushNotification(ctx context.Context, notifID, recipientID int
 	})
 }
 
-func (s *service) List(ctx context.Context, userID, limit, offset int) (*dto.NotificationListResponse, error) {
+func (s *service) List(ctx context.Context, userID uuid.UUID, limit, offset int) (*dto.NotificationListResponse, error) {
 	rows, total, err := s.repo.ListByUser(ctx, userID, limit, offset)
 	if err != nil {
 		return nil, err
@@ -131,15 +135,15 @@ func (s *service) List(ctx context.Context, userID, limit, offset int) (*dto.Not
 	}, nil
 }
 
-func (s *service) MarkRead(ctx context.Context, id, userID int) error {
+func (s *service) MarkRead(ctx context.Context, id int, userID uuid.UUID) error {
 	return s.repo.MarkRead(ctx, id, userID)
 }
 
-func (s *service) MarkAllRead(ctx context.Context, userID int) error {
+func (s *service) MarkAllRead(ctx context.Context, userID uuid.UUID) error {
 	return s.repo.MarkAllRead(ctx, userID)
 }
 
-func (s *service) UnreadCount(ctx context.Context, userID int) (int, error) {
+func (s *service) UnreadCount(ctx context.Context, userID uuid.UUID) (int, error) {
 	return s.repo.UnreadCount(ctx, userID)
 }
 

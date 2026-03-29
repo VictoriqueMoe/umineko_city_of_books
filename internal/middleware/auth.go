@@ -4,6 +4,7 @@ import (
 	"umineko_city_of_books/internal/session"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
 )
 
 func RequireAuth(mgr *session.Manager) fiber.Handler {
@@ -31,13 +32,13 @@ func OptionalAuth(mgr *session.Manager) fiber.Handler {
 	return func(ctx fiber.Ctx) error {
 		cookie := ctx.Cookies(session.CookieName)
 		if cookie == "" {
-			ctx.Locals("userID", 0)
+			ctx.Locals("userID", uuid.Nil)
 			return ctx.Next()
 		}
 
 		userID, err := mgr.Validate(ctx.Context(), cookie)
 		if err != nil {
-			ctx.Locals("userID", 0)
+			ctx.Locals("userID", uuid.Nil)
 			return ctx.Next()
 		}
 

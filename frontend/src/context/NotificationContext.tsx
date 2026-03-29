@@ -42,13 +42,13 @@ export function NotificationProvider({ children }: PropsWithChildren) {
             backoffRef.current = 1000;
         };
 
-        socket.onmessage = (event) => {
+        socket.onmessage = event => {
             try {
                 const msg: WSMessage = JSON.parse(event.data);
                 if (msg.type === "notification") {
                     const notif = msg.data as Notification;
-                    setNotifications((prev) => [notif, ...prev]);
-                    setUnreadCount((prev) => prev + 1);
+                    setNotifications(prev => [notif, ...prev]);
+                    setUnreadCount(prev => prev + 1);
                 }
             } catch {
                 // ignore malformed messages
@@ -78,7 +78,7 @@ export function NotificationProvider({ children }: PropsWithChildren) {
         }
 
         api.getUnreadCount()
-            .then((res) => {
+            .then(res => {
                 setUnreadCount(res.count);
             })
             .catch(() => {
@@ -94,20 +94,20 @@ export function NotificationProvider({ children }: PropsWithChildren) {
 
     const markRead = useCallback(async (id: number) => {
         await api.markNotificationRead(id);
-        setNotifications((prev) =>
-            prev.map((n) => {
+        setNotifications(prev =>
+            prev.map(n => {
                 if (n.id === id) {
                     return { ...n, read: true };
                 }
                 return n;
             }),
         );
-        setUnreadCount((prev) => Math.max(0, prev - 1));
+        setUnreadCount(prev => Math.max(0, prev - 1));
     }, []);
 
     const markAllRead = useCallback(async () => {
         await api.markAllNotificationsRead();
-        setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+        setNotifications(prev => prev.map(n => ({ ...n, read: true })));
         setUnreadCount(0);
     }, []);
 
@@ -116,7 +116,7 @@ export function NotificationProvider({ children }: PropsWithChildren) {
         try {
             const res = await api.getNotifications({ limit: 20 });
             setNotifications(res.notifications);
-            const unread = res.notifications.filter((n) => !n.read).length;
+            const unread = res.notifications.filter(n => !n.read).length;
             setUnreadCount(unread);
         } catch {
             // ignore

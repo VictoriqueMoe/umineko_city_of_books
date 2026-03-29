@@ -5,8 +5,11 @@ import (
 	"fmt"
 
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/session"
 	"umineko_city_of_books/internal/user"
+
+	"github.com/google/uuid"
 )
 
 type (
@@ -14,7 +17,7 @@ type (
 		Register(ctx context.Context, req dto.RegisterRequest) (*dto.UserResponse, string, error)
 		Login(ctx context.Context, req dto.LoginRequest) (*dto.UserResponse, string, error)
 		Logout(ctx context.Context, token string) error
-		GetMe(ctx context.Context, userID int) (*dto.UserResponse, error)
+		GetMe(ctx context.Context, userID uuid.UUID) (*dto.UserResponse, error)
 	}
 
 	service struct {
@@ -31,6 +34,7 @@ func NewService(userService user.Service, session *session.Manager) Service {
 }
 
 func (s *service) Register(ctx context.Context, req dto.RegisterRequest) (*dto.UserResponse, string, error) {
+	logger.Log.Debug().Str("username", req.Username).Msg("registering user")
 	if req.DisplayName == "" {
 		req.DisplayName = req.Username
 	}
@@ -53,6 +57,7 @@ func (s *service) Register(ctx context.Context, req dto.RegisterRequest) (*dto.U
 }
 
 func (s *service) Login(ctx context.Context, req dto.LoginRequest) (*dto.UserResponse, string, error) {
+	logger.Log.Debug().Str("username", req.Username).Msg("login attempt")
 	userResp, err := s.userService.ValidateCredentials(ctx, req.Username, req.Password)
 	if err != nil {
 		return nil, "", err
@@ -73,6 +78,6 @@ func (s *service) Logout(ctx context.Context, token string) error {
 	return nil
 }
 
-func (s *service) GetMe(ctx context.Context, userID int) (*dto.UserResponse, error) {
+func (s *service) GetMe(ctx context.Context, userID uuid.UUID) (*dto.UserResponse, error) {
 	return s.userService.GetByID(ctx, userID)
 }

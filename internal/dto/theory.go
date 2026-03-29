@@ -1,8 +1,10 @@
 package dto
 
+import "github.com/google/uuid"
+
 type (
 	TheoryResponse struct {
-		ID               int          `json:"id"`
+		ID               uuid.UUID    `json:"id"`
 		Title            string       `json:"title"`
 		Body             string       `json:"body"`
 		Episode          int          `json:"episode"`
@@ -15,7 +17,7 @@ type (
 	}
 
 	TheoryDetailResponse struct {
-		ID               int                `json:"id"`
+		ID               uuid.UUID          `json:"id"`
 		Title            string             `json:"title"`
 		Body             string             `json:"body"`
 		Episode          int                `json:"episode"`

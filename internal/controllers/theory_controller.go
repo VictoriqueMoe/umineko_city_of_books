@@ -2,12 +2,15 @@ package controllers
 
 import (
 	"context"
+	"errors"
 
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/middleware"
+	"umineko_city_of_books/internal/theory"
 	"umineko_city_of_books/internal/theory/params"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
 )
 
 func (s *Service) getAllTheoryRoutes() []FSetupRoute {
@@ -33,40 +36,51 @@ func (s *Service) setupCreateTheoryRoute(r fiber.Router) {
 }
 
 func (s *Service) setupGetTheoryRoute(r fiber.Router) {
-	r.Get("/theories/:id<int>", middleware.OptionalAuth(s.AuthSession), s.getTheory)
+	r.Get("/theories/:id", middleware.OptionalAuth(s.AuthSession), s.getTheory)
 }
 
 func (s *Service) setupUpdateTheoryRoute(r fiber.Router) {
-	r.Put("/theories/:id<int>", middleware.RequireAuth(s.AuthSession), s.updateTheory)
+	r.Put("/theories/:id", middleware.RequireAuth(s.AuthSession), s.updateTheory)
 }
 
 func (s *Service) setupDeleteTheoryRoute(r fiber.Router) {
-	r.Delete("/theories/:id<int>", middleware.RequireAuth(s.AuthSession), s.deleteTheory)
+	r.Delete("/theories/:id", middleware.RequireAuth(s.AuthSession), s.deleteTheory)
 }
 
 func (s *Service) setupVoteTheoryRoute(r fiber.Router) {
-	r.Post("/theories/:id<int>/vote", middleware.RequireAuth(s.AuthSession), s.voteTheory)
+	r.Post("/theories/:id/vote", middleware.RequireAuth(s.AuthSession), s.voteTheory)
 }
 
 func (s *Service) setupCreateResponseRoute(r fiber.Router) {
-	r.Post("/theories/:id<int>/responses", middleware.RequireAuth(s.AuthSession), s.createResponse)
+	r.Post("/theories/:id/responses", middleware.RequireAuth(s.AuthSession), s.createResponse)
 }
 
 func (s *Service) setupDeleteResponseRoute(r fiber.Router) {
-	r.Delete("/responses/:id<int>", middleware.RequireAuth(s.AuthSession), s.deleteResponse)
+	r.Delete("/responses/:id", middleware.RequireAuth(s.AuthSession), s.deleteResponse)
 }
 
 func (s *Service) setupVoteResponseRoute(r fiber.Router) {
-	r.Post("/responses/:id<int>/vote", middleware.RequireAuth(s.AuthSession), s.voteResponse)
+	r.Post("/responses/:id/vote", middleware.RequireAuth(s.AuthSession), s.voteResponse)
 }
 
 func (s *Service) listTheories(ctx fiber.Ctx) error {
 	sort := ctx.Query("sort", "new")
 	episode := fiber.Query[int](ctx, "episode", 0)
-	authorID := fiber.Query[int](ctx, "author", 0)
+	authorIDStr := ctx.Query("author")
 	limit := fiber.Query[int](ctx, "limit", 20)
 	offset := fiber.Query[int](ctx, "offset", 0)
-	userID, _ := ctx.Locals("userID").(int)
+	userID, _ := ctx.Locals("userID").(uuid.UUID)
+
+	var authorID uuid.UUID
+	if authorIDStr != "" {
+		parsed, err := uuid.Parse(authorIDStr)
+		if err != nil {
+			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "invalid author ID",
+			})
+		}
+		authorID = parsed
+	}
 
 	p := params.NewListParams(sort, episode, authorID, limit, offset)
 	result, err := s.TheoryService.ListTheories(ctx.Context(), p, userID)
@@ -80,7 +94,7 @@ func (s *Service) listTheories(ctx fiber.Ctx) error {
 }
 
 func (s *Service) createTheory(ctx fiber.Ctx) error {
-	userID := ctx.Locals("userID").(int)
+	userID := ctx.Locals("userID").(uuid.UUID)
 
 	var req dto.CreateTheoryRequest
 	if err := ctx.Bind().JSON(&req); err != nil {
@@ -106,8 +120,13 @@ func (s *Service) createTheory(ctx fiber.Ctx) error {
 }
 
 func (s *Service) getTheory(ctx fiber.Ctx) error {
-	id := fiber.Params[int](ctx, "id")
-	userID, _ := ctx.Locals("userID").(int)
+	id, err := uuid.Parse(ctx.Params("id"))
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "invalid theory ID",
+		})
+	}
+	userID, _ := ctx.Locals("userID").(uuid.UUID)
 
 	result, err := s.TheoryService.GetTheoryDetail(ctx.Context(), id, userID)
 	if err != nil {
@@ -125,8 +144,13 @@ func (s *Service) getTheory(ctx fiber.Ctx) error {
 }
 
 func (s *Service) updateTheory(ctx fiber.Ctx) error {
-	id := fiber.Params[int](ctx, "id")
-	userID := ctx.Locals("userID").(int)
+	id, err := uuid.Parse(ctx.Params("id"))
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "invalid theory ID",
+		})
+	}
+	userID := ctx.Locals("userID").(uuid.UUID)
 
 	var req dto.CreateTheoryRequest
 	if err := ctx.Bind().JSON(&req); err != nil {
@@ -135,7 +159,7 @@ func (s *Service) updateTheory(ctx fiber.Ctx) error {
 		})
 	}
 
-	if err := s.TheoryService.UpdateTheory(ctx.Context(), id, userID, req.Title, req.Body, req.Episode); err != nil {
+	if err := s.TheoryService.UpdateTheory(ctx.Context(), id, userID, req); err != nil {
 		return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"error": "cannot update this theory",
 		})
@@ -145,8 +169,13 @@ func (s *Service) updateTheory(ctx fiber.Ctx) error {
 }
 
 func (s *Service) deleteTheory(ctx fiber.Ctx) error {
-	id := fiber.Params[int](ctx, "id")
-	userID := ctx.Locals("userID").(int)
+	id, err := uuid.Parse(ctx.Params("id"))
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "invalid theory ID",
+		})
+	}
+	userID := ctx.Locals("userID").(uuid.UUID)
 
 	if err := s.TheoryService.DeleteTheory(ctx.Context(), id, userID); err != nil {
 		return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
@@ -161,9 +190,14 @@ func (s *Service) voteTheory(ctx fiber.Ctx) error {
 	return s.vote(ctx, s.TheoryService.VoteTheory)
 }
 
-func (s *Service) vote(ctx fiber.Ctx, voteFunc func(context.Context, int, int, int) error) error {
-	id := fiber.Params[int](ctx, "id")
-	userID := ctx.Locals("userID").(int)
+func (s *Service) vote(ctx fiber.Ctx, voteFunc func(context.Context, uuid.UUID, uuid.UUID, int) error) error {
+	id, err := uuid.Parse(ctx.Params("id"))
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "invalid ID",
+		})
+	}
+	userID := ctx.Locals("userID").(uuid.UUID)
 
 	var req dto.VoteRequest
 	if err := ctx.Bind().JSON(&req); err != nil {
@@ -188,8 +222,13 @@ func (s *Service) vote(ctx fiber.Ctx, voteFunc func(context.Context, int, int, i
 }
 
 func (s *Service) createResponse(ctx fiber.Ctx) error {
-	theoryID := fiber.Params[int](ctx, "id")
-	userID := ctx.Locals("userID").(int)
+	theoryID, err := uuid.Parse(ctx.Params("id"))
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "invalid theory ID",
+		})
+	}
+	userID := ctx.Locals("userID").(uuid.UUID)
 
 	var req dto.CreateResponseRequest
 	if err := ctx.Bind().JSON(&req); err != nil {
@@ -212,6 +251,11 @@ func (s *Service) createResponse(ctx fiber.Ctx) error {
 
 	id, err := s.TheoryService.CreateResponse(ctx.Context(), theoryID, userID, req)
 	if err != nil {
+		if errors.Is(err, theory.ErrCannotRespondToOwnTheory) {
+			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"error": err.Error(),
+			})
+		}
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "failed to create response",
 		})
@@ -221,8 +265,13 @@ func (s *Service) createResponse(ctx fiber.Ctx) error {
 }
 
 func (s *Service) deleteResponse(ctx fiber.Ctx) error {
-	id := fiber.Params[int](ctx, "id")
-	userID := ctx.Locals("userID").(int)
+	id, err := uuid.Parse(ctx.Params("id"))
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "invalid response ID",
+		})
+	}
+	userID := ctx.Locals("userID").(uuid.UUID)
 
 	if err := s.TheoryService.DeleteResponse(ctx.Context(), id, userID); err != nil {
 		return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{

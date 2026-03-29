@@ -1,7 +1,10 @@
-import {apiDelete, apiFetch, apiPost, apiPostFormData, apiPut, buildQueryString} from "./client";
+import {apiDelete, apiDeleteWithBody, apiFetch, apiPost, apiPostFormData, apiPut, buildQueryString} from "./client";
 import type {
+    ActivityListResponse,
+    ChangePasswordPayload,
     CreateResponsePayload,
     CreateTheoryPayload,
+    DeleteAccountPayload,
     NotificationListResponse,
     QuoteBrowseResponse,
     QuoteSearchResponse,
@@ -90,7 +93,7 @@ export async function getCharacters(): Promise<Record<string, string>> {
 export async function listTheories(params: {
     sort?: string;
     episode?: number;
-    author?: number;
+    author?: string;
     limit?: number;
     offset?: number;
 }): Promise<TheoryListResponse> {
@@ -104,35 +107,35 @@ export async function listTheories(params: {
     return apiFetch<TheoryListResponse>(`/theories${qs}`);
 }
 
-export async function updateTheory(id: number, payload: CreateTheoryPayload): Promise<{ status: string }> {
+export async function updateTheory(id: string, payload: CreateTheoryPayload): Promise<{ status: string }> {
     return apiPut<{ status: string }, CreateTheoryPayload>(`/theories/${id}`, payload);
 }
 
-export async function getTheory(id: number): Promise<TheoryDetail> {
+export async function getTheory(id: string): Promise<TheoryDetail> {
     return apiFetch<TheoryDetail>(`/theories/${id}`);
 }
 
-export async function createTheory(payload: CreateTheoryPayload): Promise<{ id: number }> {
-    return apiPost<{ id: number }, CreateTheoryPayload>("/theories", payload);
+export async function createTheory(payload: CreateTheoryPayload): Promise<{ id: string }> {
+    return apiPost<{ id: string }, CreateTheoryPayload>("/theories", payload);
 }
 
-export async function deleteTheory(id: number): Promise<void> {
+export async function deleteTheory(id: string): Promise<void> {
     await apiDelete<unknown>(`/theories/${id}`);
 }
 
-export async function createResponse(theoryId: number, payload: CreateResponsePayload): Promise<{ id: number }> {
-    return apiPost<{ id: number }, CreateResponsePayload>(`/theories/${theoryId}/responses`, payload);
+export async function createResponse(theoryId: string, payload: CreateResponsePayload): Promise<{ id: string }> {
+    return apiPost<{ id: string }, CreateResponsePayload>(`/theories/${theoryId}/responses`, payload);
 }
 
-export async function deleteResponse(id: number): Promise<void> {
+export async function deleteResponse(id: string): Promise<void> {
     await apiDelete<unknown>(`/responses/${id}`);
 }
 
-export async function voteTheory(id: number, value: number): Promise<void> {
+export async function voteTheory(id: string, value: number): Promise<void> {
     await apiPost<unknown, VotePayload>(`/theories/${id}/vote`, { value });
 }
 
-export async function voteResponse(id: number, value: number): Promise<void> {
+export async function voteResponse(id: string, value: number): Promise<void> {
     await apiPost<unknown, VotePayload>(`/responses/${id}/vote`, { value });
 }
 
@@ -165,4 +168,31 @@ export async function markAllNotificationsRead(): Promise<void> {
 
 export async function getUnreadCount(): Promise<{ count: number }> {
     return apiFetch<{ count: number }>("/notifications/unread-count");
+}
+
+export async function uploadBanner(file: File): Promise<{ banner_url: string }> {
+    const formData = new FormData();
+    formData.append("banner", file);
+    return apiPostFormData<{ banner_url: string }>("/auth/banner", formData);
+}
+
+export async function changePassword(payload: ChangePasswordPayload): Promise<{ status: string }> {
+    return apiPut<{ status: string }, ChangePasswordPayload>("/auth/password", payload);
+}
+
+export async function deleteAccount(payload: DeleteAccountPayload): Promise<{ status: string }> {
+    return apiDeleteWithBody<{ status: string }, DeleteAccountPayload>("/auth/account", payload);
+}
+
+export async function getUserActivity(
+    username: string,
+    limit?: number,
+    offset?: number,
+): Promise<ActivityListResponse> {
+    const qs = buildQueryString({ limit: limit ?? 20, offset });
+    return apiFetch<ActivityListResponse>(`/users/${username}/activity${qs}`);
+}
+
+export async function getOnlineStatus(ids: string[]): Promise<Record<string, boolean>> {
+    return apiFetch<Record<string, boolean>>(`/users/online?ids=${ids.join(",")}`);
 }

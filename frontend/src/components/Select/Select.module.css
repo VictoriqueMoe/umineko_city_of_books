@@ -1,0 +1,15 @@
+.select {
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--gold-rgb), 0.2);
+    color: var(--text);
+    padding: 0.75rem 1rem;
+    border-radius: 4px;
+    font-size: 1rem;
+    font-family: var(--font-body);
+    width: 100%;
+}
+
+.select option {
+    background: var(--bg-card);
+    color: var(--text);
+}

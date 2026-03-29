@@ -6,6 +6,7 @@ import (
 	"umineko_city_of_books/internal/profile"
 	"umineko_city_of_books/internal/session"
 	"umineko_city_of_books/internal/theory"
+	"umineko_city_of_books/internal/ws"
 )
 
 type (
@@ -15,6 +16,7 @@ type (
 		TheoryService       theory.Service
 		NotificationService notification.Service
 		AuthSession         *session.Manager
+		Hub                 *ws.Hub
 		HTMLContent         string
 	}
 )
@@ -25,6 +27,7 @@ func NewService(
 	theoryService theory.Service,
 	notificationService notification.Service,
 	authSession *session.Manager,
+	hub *ws.Hub,
 	htmlContent string,
 ) Service {
 	return Service{
@@ -33,6 +36,7 @@ func NewService(
 		TheoryService:       theoryService,
 		NotificationService: notificationService,
 		AuthSession:         authSession,
+		Hub:                 hub,
 		HTMLContent:         htmlContent,
 	}
 }

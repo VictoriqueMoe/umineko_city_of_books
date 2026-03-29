@@ -37,10 +37,11 @@ export interface QuoteSearchResponse {
 }
 
 export interface User {
-    id: number;
+    id: string;
     username: string;
     display_name: string;
     avatar_url?: string;
+    role?: string;
 }
 
 export interface EvidenceItem {
@@ -52,7 +53,7 @@ export interface EvidenceItem {
 }
 
 export interface Theory {
-    id: number;
+    id: string;
     title: string;
     body: string;
     episode: number;
@@ -77,8 +78,8 @@ export interface TheoryListResponse {
 }
 
 export interface Response {
-    id: number;
-    parent_id?: number;
+    id: string;
+    parent_id?: string;
     author: User;
     side: "with_love" | "without_love";
     body: string;
@@ -103,7 +104,7 @@ export interface CreateTheoryPayload {
 }
 
 export interface CreateResponsePayload {
-    parent_id?: number;
+    parent_id?: string;
     side: "with_love" | "without_love";
     body: string;
     evidence: EvidenceInput[];
@@ -114,12 +115,18 @@ export interface VotePayload {
 }
 
 export interface UserProfile {
-    id: number;
+    id: string;
     username: string;
     display_name: string;
     bio: string;
     avatar_url: string;
+    banner_url: string;
     favourite_character: string;
+    gender: string;
+    pronoun_subject: string;
+    pronoun_possessive: string;
+    role?: string;
+    online: boolean;
     social_twitter: string;
     social_discord: string;
     social_waifulist: string;
@@ -140,7 +147,11 @@ export interface UpdateProfilePayload {
     display_name: string;
     bio: string;
     avatar_url: string;
+    banner_url: string;
     favourite_character: string;
+    gender: string;
+    pronoun_subject: string;
+    pronoun_possessive: string;
     social_twitter: string;
     social_discord: string;
     social_waifulist: string;
@@ -149,18 +160,38 @@ export interface UpdateProfilePayload {
     website: string;
 }
 
-export type NotificationType = (
-    | "theory_response"
-    | "response_reply"
-    | "theory_upvote"
-    | "response_upvote"
-);
+export interface ChangePasswordPayload {
+    old_password: string;
+    new_password: string;
+}
+
+export interface DeleteAccountPayload {
+    password: string;
+}
+
+export interface ActivityItem {
+    type: string;
+    theory_id: string;
+    theory_title: string;
+    side?: string;
+    body: string;
+    created_at: string;
+}
+
+export interface ActivityListResponse {
+    items: ActivityItem[];
+    total: number;
+    limit: number;
+    offset: number;
+}
+
+export type NotificationType = "theory_response" | "response_reply" | "theory_upvote" | "response_upvote";
 
 export interface Notification {
     id: number;
     type: NotificationType;
-    reference_id: number;
-    theory_id: number;
+    reference_id: string;
+    theory_id: string;
     theory_title: string;
     actor: User;
     read: boolean;

@@ -9,6 +9,7 @@ import (
 	usersvc "umineko_city_of_books/internal/user"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
 )
 
 func (s *Service) getAllAuthRoutes() []FSetupRoute {
@@ -135,7 +136,7 @@ func (s *Service) logout(ctx fiber.Ctx) error {
 }
 
 func (s *Service) getMe(ctx fiber.Ctx) error {
-	userID := ctx.Locals("userID").(int)
+	userID := ctx.Locals("userID").(uuid.UUID)
 
 	user, err := s.AuthService.GetMe(ctx.Context(), userID)
 	if err != nil {

@@ -1,0 +1,85 @@
+.card {
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--purple-rgb), 0.3);
+    border-radius: 6px;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1rem;
+    transition: all 0.2s var(--ease-out);
+    cursor: pointer;
+    position: relative;
+}
+
+.card::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    border-radius: 6px 0 0 6px;
+}
+
+.red::before {
+    background: #ff3333;
+    box-shadow: 0 0 8px rgba(255, 51, 51, 0.4);
+}
+
+.blue::before {
+    background: #3399ff;
+    box-shadow: 0 0 8px rgba(51, 153, 255, 0.4);
+}
+
+.gold::before {
+    background: #ffaa00;
+    box-shadow: 0 0 8px rgba(255, 170, 0, 0.4);
+}
+
+.purple::before {
+    background: #aa71ff;
+    box-shadow: 0 0 8px rgba(170, 113, 255, 0.4);
+}
+
+.card:hover {
+    background: var(--bg-card-hover);
+    border-color: rgba(var(--gold-rgb), 0.3);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.selected {
+    border-color: var(--gold);
+    background: rgba(var(--gold-rgb), 0.08);
+}
+
+.text {
+    font-size: 1.1rem;
+    line-height: 1.7;
+    margin-bottom: 0.75rem;
+}
+
+.meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: center;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.speaker {
+    font-family: var(--font-display);
+    color: var(--gold);
+    font-size: 0.85rem;
+}
+
+.episode {
+    background: rgba(var(--purple-rgb), 0.3);
+    padding: 0.15rem 0.5rem;
+    border-radius: 3px;
+    font-size: 0.75rem;
+}
+
+@media (max-width: 768px) {
+    .card {
+        padding: 1rem;
+    }
+}

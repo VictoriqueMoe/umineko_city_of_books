@@ -4,16 +4,18 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+
+	"github.com/google/uuid"
 )
 
 type (
 	NotificationRepository interface {
-		Create(ctx context.Context, userID int, notifType string, referenceID, theoryID, actorID int) (int64, error)
-		ListByUser(ctx context.Context, userID, limit, offset int) ([]NotificationRow, int, error)
-		MarkRead(ctx context.Context, id, userID int) error
-		MarkAllRead(ctx context.Context, userID int) error
-		UnreadCount(ctx context.Context, userID int) (int, error)
-		HasRecentDuplicate(ctx context.Context, userID int, notifType string, referenceID, actorID int) (bool, error)
+		Create(ctx context.Context, userID uuid.UUID, notifType string, referenceID uuid.UUID, theoryID uuid.UUID, actorID uuid.UUID) (int64, error)
+		ListByUser(ctx context.Context, userID uuid.UUID, limit, offset int) ([]NotificationRow, int, error)
+		MarkRead(ctx context.Context, id int, userID uuid.UUID) error
+		MarkAllRead(ctx context.Context, userID uuid.UUID) error
+		UnreadCount(ctx context.Context, userID uuid.UUID) (int, error)
+		HasRecentDuplicate(ctx context.Context, userID uuid.UUID, notifType string, referenceID uuid.UUID, actorID uuid.UUID) (bool, error)
 	}
 
 	notificationRepository struct {
@@ -21,7 +23,7 @@ type (
 	}
 )
 
-func (r *notificationRepository) Create(ctx context.Context, userID int, notifType string, referenceID, theoryID, actorID int) (int64, error) {
+func (r *notificationRepository) Create(ctx context.Context, userID uuid.UUID, notifType string, referenceID uuid.UUID, theoryID uuid.UUID, actorID uuid.UUID) (int64, error) {
 	result, err := r.db.ExecContext(ctx,
 		`INSERT INTO notifications (user_id, type, reference_id, theory_id, actor_id) VALUES (?, ?, ?, ?, ?)`,
 		userID, notifType, referenceID, theoryID, actorID,
@@ -33,7 +35,7 @@ func (r *notificationRepository) Create(ctx context.Context, userID int, notifTy
 	return result.LastInsertId()
 }
 
-func (r *notificationRepository) ListByUser(ctx context.Context, userID, limit, offset int) ([]NotificationRow, int, error) {
+func (r *notificationRepository) ListByUser(ctx context.Context, userID uuid.UUID, limit, offset int) ([]NotificationRow, int, error) {
 	var total int
 	err := r.db.QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM notifications WHERE user_id = ?`, userID,
@@ -76,7 +78,7 @@ func (r *notificationRepository) ListByUser(ctx context.Context, userID, limit, 
 	return notifications, total, rows.Err()
 }
 
-func (r *notificationRepository) MarkRead(ctx context.Context, id, userID int) error {
+func (r *notificationRepository) MarkRead(ctx context.Context, id int, userID uuid.UUID) error {
 	_, err := r.db.ExecContext(ctx,
 		`UPDATE notifications SET read = 1 WHERE id = ? AND user_id = ?`, id, userID,
 	)
@@ -86,7 +88,7 @@ func (r *notificationRepository) MarkRead(ctx context.Context, id, userID int) e
 	return nil
 }
 
-func (r *notificationRepository) MarkAllRead(ctx context.Context, userID int) error {
+func (r *notificationRepository) MarkAllRead(ctx context.Context, userID uuid.UUID) error {
 	_, err := r.db.ExecContext(ctx,
 		`UPDATE notifications SET read = 1 WHERE user_id = ?`, userID,
 	)
@@ -96,7 +98,7 @@ func (r *notificationRepository) MarkAllRead(ctx context.Context, userID int) er
 	return nil
 }
 
-func (r *notificationRepository) UnreadCount(ctx context.Context, userID int) (int, error) {
+func (r *notificationRepository) UnreadCount(ctx context.Context, userID uuid.UUID) (int, error) {
 	var count int
 	err := r.db.QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM notifications WHERE user_id = ? AND read = 0`, userID,
@@ -107,7 +109,7 @@ func (r *notificationRepository) UnreadCount(ctx context.Context, userID int) (i
 	return count, nil
 }
 
-func (r *notificationRepository) HasRecentDuplicate(ctx context.Context, userID int, notifType string, referenceID, actorID int) (bool, error) {
+func (r *notificationRepository) HasRecentDuplicate(ctx context.Context, userID uuid.UUID, notifType string, referenceID uuid.UUID, actorID uuid.UUID) (bool, error) {
 	var count int
 	err := r.db.QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM notifications

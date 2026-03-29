@@ -1,17 +1,25 @@
 package repository
 
-import "umineko_city_of_books/internal/dto"
+import (
+	"umineko_city_of_books/internal/dto"
+
+	"github.com/google/uuid"
+)
 
 type (
 	User struct {
-		ID                 int
+		ID                 uuid.UUID
 		Username           string
 		PasswordHash       string
 		DisplayName        string
 		CreatedAt          string
 		Bio                string
 		AvatarURL          string
+		BannerURL          string
 		FavouriteCharacter string
+		Gender             string
+		PronounSubject     string
+		PronounPossessive  string
 		SocialTwitter      string
 		SocialDiscord      string
 		SocialWaifulist    string
@@ -28,11 +36,11 @@ type (
 
 	NotificationRow struct {
 		ID               int
-		UserID           int
+		UserID           uuid.UUID
 		Type             string
-		ReferenceID      int
-		TheoryID         int
-		ActorID          int
+		ReferenceID      uuid.UUID
+		TheoryID         uuid.UUID
+		ActorID          uuid.UUID
 		Read             bool
 		CreatedAt        string
 		ActorUsername    string
@@ -58,7 +66,11 @@ func (u *User) ToProfileResponse(stats *UserStats) *dto.UserProfileResponse {
 		DisplayName:        u.DisplayName,
 		Bio:                u.Bio,
 		AvatarURL:          u.AvatarURL,
+		BannerURL:          u.BannerURL,
 		FavouriteCharacter: u.FavouriteCharacter,
+		Gender:             u.Gender,
+		PronounSubject:     u.PronounSubject,
+		PronounPossessive:  u.PronounPossessive,
 		SocialTwitter:      u.SocialTwitter,
 		SocialDiscord:      u.SocialDiscord,
 		SocialWaifulist:    u.SocialWaifulist,

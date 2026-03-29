@@ -1,16 +1,18 @@
 package params
 
+import "github.com/google/uuid"
+
 type (
 	ListParams struct {
 		Sort     string
 		Episode  int
-		AuthorID int
+		AuthorID uuid.UUID
 		Limit    int
 		Offset   int
 	}
 )
 
-func NewListParams(sort string, episode, authorID, limit, offset int) ListParams {
+func NewListParams(sort string, episode int, authorID uuid.UUID, limit, offset int) ListParams {
 	if sort != "popular" && sort != "controversial" {
 		sort = "new"
 	}

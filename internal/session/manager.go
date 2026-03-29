@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/repository"
+
+	"github.com/google/uuid"
 )
 
 const (
@@ -25,7 +27,7 @@ func NewManager(repo repository.SessionRepository) *Manager {
 	return &Manager{repo: repo}
 }
 
-func (m *Manager) Create(ctx context.Context, userID int) (string, error) {
+func (m *Manager) Create(ctx context.Context, userID uuid.UUID) (string, error) {
 	token, err := generateToken()
 	if err != nil {
 		return "", fmt.Errorf("generate token: %w", err)
@@ -39,15 +41,15 @@ func (m *Manager) Create(ctx context.Context, userID int) (string, error) {
 	return token, nil
 }
 
-func (m *Manager) Validate(ctx context.Context, token string) (int, error) {
+func (m *Manager) Validate(ctx context.Context, token string) (uuid.UUID, error) {
 	userID, expiresAt, err := m.repo.GetUserID(ctx, token)
 	if err != nil {
-		return 0, err
+		return uuid.Nil, err
 	}
 
 	if time.Now().After(expiresAt) {
 		m.repo.Delete(ctx, token)
-		return 0, fmt.Errorf("session expired")
+		return uuid.Nil, fmt.Errorf("session expired")
 	}
 
 	return userID, nil

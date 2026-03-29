@@ -1,40 +1,44 @@
-import { BrowserRouter, Route, Routes } from "react-router";
-import { useTheme } from "./hooks/useTheme";
-import { Header } from "./components/layout/Header";
-import { Footer } from "./components/layout/Footer";
-import { Butterflies } from "./components/layout/Butterflies";
-import { FeedPage } from "./pages/FeedPage";
-import { TheoryPage } from "./pages/TheoryPage";
-import { CreateTheoryPage } from "./pages/CreateTheoryPage";
-import { LoginPage } from "./pages/LoginPage";
-import { QuoteBrowserPage } from "./pages/QuoteBrowserPage";
-import { MyTheoriesPage } from "./pages/MyTheoriesPage";
-import { EditTheoryPage } from "./pages/EditTheoryPage";
-import { ProfilePage } from "./pages/ProfilePage";
-import { SettingsPage } from "./pages/SettingsPage";
+import {useState} from "react";
+import {BrowserRouter, Route, Routes} from "react-router";
+import {useTheme} from "./hooks/useTheme";
+import {Header} from "./components/layout/Header/Header";
+import {Sidebar} from "./components/layout/Sidebar/Sidebar";
+import {Butterflies} from "./components/layout/Butterflies/Butterflies";
+import {FeedPage} from "./pages/theories/FeedPage";
+import {TheoryPage} from "./pages/theories/TheoryPage";
+import {CreateTheoryPage} from "./pages/theories/CreateTheoryPage";
+import {LoginPage} from "./pages/auth/LoginPage";
+import {QuoteBrowserPage} from "./pages/quotes/QuoteBrowserPage";
+import {MyTheoriesPage} from "./pages/theories/MyTheoriesPage";
+import {EditTheoryPage} from "./pages/theories/EditTheoryPage";
+import {ProfilePage} from "./pages/profile/ProfilePage";
+import {SettingsPage} from "./pages/profile/SettingsPage";
 
 function AppLayout() {
     const { particlesEnabled } = useTheme();
+    const [sidebarOpen, setSidebarOpen] = useState(false);
 
     return (
-        <>
+        <div className="app-layout">
             {particlesEnabled && <Butterflies />}
-            <Header />
-            <main className="main-content">
-                <Routes>
-                    <Route path="/" element={<FeedPage />} />
-                    <Route path="/theory/new" element={<CreateTheoryPage />} />
-                    <Route path="/theory/:id" element={<TheoryPage />} />
-                    <Route path="/theory/:id/edit" element={<EditTheoryPage />} />
-                    <Route path="/my-theories" element={<MyTheoriesPage />} />
-                    <Route path="/quotes" element={<QuoteBrowserPage />} />
-                    <Route path="/user/:username" element={<ProfilePage />} />
-                    <Route path="/settings" element={<SettingsPage />} />
-                    <Route path="/login" element={<LoginPage />} />
-                </Routes>
-            </main>
-            <Footer />
-        </>
+            <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+            <div className="app-main">
+                <Header onToggleSidebar={() => setSidebarOpen(prev => !prev)} />
+                <main className="main-content">
+                    <Routes>
+                        <Route path="/" element={<FeedPage />} />
+                        <Route path="/theory/new" element={<CreateTheoryPage />} />
+                        <Route path="/theory/:id" element={<TheoryPage />} />
+                        <Route path="/theory/:id/edit" element={<EditTheoryPage />} />
+                        <Route path="/my-theories" element={<MyTheoriesPage />} />
+                        <Route path="/quotes" element={<QuoteBrowserPage />} />
+                        <Route path="/user/:username" element={<ProfilePage />} />
+                        <Route path="/settings" element={<SettingsPage />} />
+                        <Route path="/login" element={<LoginPage />} />
+                    </Routes>
+                </main>
+            </div>
+        </div>
     );
 }
 

@@ -1,0 +1,39 @@
+.controls {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    align-items: center;
+}
+
+.filterGroup {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.filterBtn {
+    background: transparent;
+    border: 1px solid rgba(var(--gold-rgb), 0.2);
+    color: var(--text-muted);
+    padding: 0.35rem 0.75rem;
+    border-radius: 3px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.15s var(--ease-out);
+}
+
+.filterBtn:hover {
+    border-color: var(--gold);
+    color: var(--text);
+}
+
+.filterBtnActive {
+    background: rgba(var(--gold-rgb), 0.15);
+    border-color: var(--gold);
+    color: var(--gold);
+}
+
+@media (max-width: 768px) {
+    .controls {
+        flex-direction: column;
+    }
+}

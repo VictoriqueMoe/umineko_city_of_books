@@ -1,9 +1,11 @@
 package dto
 
+import "github.com/google/uuid"
+
 type (
 	ResponseResponse struct {
-		ID        int                `json:"id"`
-		ParentID  *int               `json:"parent_id,omitempty"`
+		ID        uuid.UUID          `json:"id"`
+		ParentID  *uuid.UUID         `json:"parent_id,omitempty"`
 		Author    UserResponse       `json:"author"`
 		Side      string             `json:"side"`
 		Body      string             `json:"body"`
@@ -15,7 +17,7 @@ type (
 	}
 
 	CreateResponseRequest struct {
-		ParentID *int            `json:"parent_id,omitempty"`
+		ParentID *uuid.UUID      `json:"parent_id,omitempty"`
 		Side     string          `json:"side"`
 		Body     string          `json:"body"`
 		Evidence []EvidenceInput `json:"evidence"`
