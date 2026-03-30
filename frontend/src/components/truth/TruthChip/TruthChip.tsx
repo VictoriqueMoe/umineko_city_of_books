@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { Quote } from "../../../types/api";
 import styles from "./TruthChip.module.css";
 
@@ -24,11 +25,26 @@ function chipClass(quote: Quote): string {
 }
 
 export function TruthChip({ quote, note, onRemove }: TruthChipProps) {
-    const excerpt = quote.text.length > 100 ? quote.text.slice(0, 100) + "..." : quote.text;
+    const [expanded, setExpanded] = useState(false);
+    const isTruncated = quote.text.length > 100;
+    const displayText = isTruncated && !expanded ? quote.text.slice(0, 100) + "..." : quote.text;
 
     return (
         <div className={`${styles.chip} ${chipClass(quote)}`}>
-            <div className={styles.text}>{excerpt}</div>
+            <div className={styles.text}>
+                {displayText}
+                {isTruncated && (
+                    <button
+                        className={styles.expandToggle}
+                        onClick={e => {
+                            e.stopPropagation();
+                            setExpanded(!expanded);
+                        }}
+                    >
+                        {expanded ? "show less" : "show more"}
+                    </button>
+                )}
+            </div>
             <div className={styles.meta}>
                 <span className={styles.speaker}>{quote.character}</span>
                 <span>EP{quote.episode}</span>

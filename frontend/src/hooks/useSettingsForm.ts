@@ -56,6 +56,7 @@ export function useSettingsForm() {
     const [socialGithub, setSocialGithub] = useState("");
     const [website, setWebsite] = useState("");
     const [dmsEnabled, setDmsEnabled] = useState(true);
+    const [episodeProgress, setEpisodeProgress] = useState(0);
 
     const [characters, setCharacters] = useState<Record<string, string>>({});
     const [saving, setSaving] = useState(false);
@@ -79,6 +80,7 @@ export function useSettingsForm() {
             setSocialGithub(profile.social_github);
             setWebsite(profile.website);
             setDmsEnabled(profile.dms_enabled ?? true);
+            setEpisodeProgress(profile.episode_progress ?? 0);
 
             const g = initGender(profile);
             setGender(g.gender);
@@ -178,6 +180,7 @@ export function useSettingsForm() {
             social_github: socialGithub,
             website,
             dms_enabled: dmsEnabled,
+            episode_progress: episodeProgress,
         };
 
         try {
@@ -234,6 +237,8 @@ export function useSettingsForm() {
         setWebsite,
         dmsEnabled,
         setDmsEnabled,
+        episodeProgress,
+        setEpisodeProgress,
         characters,
 
         handleSubmit,

@@ -42,6 +42,7 @@ export interface User {
     display_name: string;
     avatar_url?: string;
     role?: string;
+    episode_progress?: number;
 }
 
 export interface EvidenceItem {
@@ -136,6 +137,7 @@ export interface UserProfile {
     social_github: string;
     website: string;
     dms_enabled: boolean;
+    episode_progress: number;
     created_at: string;
     stats: UserStats;
 }
@@ -163,6 +165,7 @@ export interface UpdateProfilePayload {
     social_github: string;
     website: string;
     dms_enabled: boolean;
+    episode_progress: number;
 }
 
 export interface ChangePasswordPayload {

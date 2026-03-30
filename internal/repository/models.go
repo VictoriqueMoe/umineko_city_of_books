@@ -31,6 +31,7 @@ type (
 		Website            string
 		BannerPosition     float64
 		DmsEnabled         bool
+		EpisodeProgress    int
 	}
 
 	UserStats struct {
@@ -56,10 +57,11 @@ type (
 
 func (u *User) ToResponse() *dto.UserResponse {
 	return &dto.UserResponse{
-		ID:          u.ID,
-		Username:    u.Username,
-		DisplayName: u.DisplayName,
-		AvatarURL:   u.AvatarURL,
+		ID:              u.ID,
+		Username:        u.Username,
+		DisplayName:     u.DisplayName,
+		AvatarURL:       u.AvatarURL,
+		EpisodeProgress: u.EpisodeProgress,
 	}
 }
 
@@ -83,6 +85,7 @@ func (u *User) ToProfileResponse(stats *UserStats) *dto.UserProfileResponse {
 		SocialGithub:       u.SocialGithub,
 		Website:            u.Website,
 		DmsEnabled:         u.DmsEnabled,
+		EpisodeProgress:    u.EpisodeProgress,
 		CreatedAt:          u.CreatedAt,
 		Stats: dto.UserStatsDTO{
 			TheoryCount:   stats.TheoryCount,

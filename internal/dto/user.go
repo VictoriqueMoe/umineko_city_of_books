@@ -8,11 +8,12 @@ import (
 
 type (
 	UserResponse struct {
-		ID          uuid.UUID `json:"id"`
-		Username    string    `json:"username"`
-		DisplayName string    `json:"display_name"`
-		AvatarURL   string    `json:"avatar_url,omitempty"`
-		Role        role.Role `json:"role,omitempty"`
+		ID              uuid.UUID `json:"id"`
+		Username        string    `json:"username"`
+		DisplayName     string    `json:"display_name"`
+		AvatarURL       string    `json:"avatar_url,omitempty"`
+		Role            role.Role `json:"role,omitempty"`
+		EpisodeProgress int       `json:"episode_progress"`
 	}
 
 	UserProfileResponse struct {
@@ -36,6 +37,7 @@ type (
 		SocialGithub       string       `json:"social_github"`
 		Website            string       `json:"website"`
 		DmsEnabled         bool         `json:"dms_enabled"`
+		EpisodeProgress    int          `json:"episode_progress"`
 		CreatedAt          string       `json:"created_at"`
 		Stats              UserStatsDTO `json:"stats"`
 	}
@@ -63,6 +65,7 @@ type (
 		SocialGithub       string  `json:"social_github"`
 		Website            string  `json:"website"`
 		DmsEnabled         bool    `json:"dms_enabled"`
+		EpisodeProgress    int     `json:"episode_progress"`
 	}
 
 	ChangePasswordRequest struct {

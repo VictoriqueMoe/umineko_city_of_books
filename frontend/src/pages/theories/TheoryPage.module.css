@@ -194,6 +194,26 @@
     background: rgba(var(--gold-rgb), 0.05);
 }
 
+.spoilerWarning {
+    text-align: center;
+    padding: 3rem 2rem;
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--purple-rgb), 0.3);
+    border-radius: 6px;
+}
+
+.spoilerWarning h2 {
+    font-family: var(--font-display);
+    color: var(--gold);
+    margin-bottom: 1rem;
+}
+
+.spoilerWarning p {
+    color: var(--text-muted);
+    margin-bottom: 1.5rem;
+    line-height: 1.6;
+}
+
 @media (max-width: 768px) {
     .debateSection {
         grid-template-columns: 1fr;

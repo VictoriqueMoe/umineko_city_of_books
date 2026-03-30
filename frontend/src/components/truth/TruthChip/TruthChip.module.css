@@ -61,3 +61,19 @@
 .remove:hover {
     color: #ff3333;
 }
+
+.expandToggle {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    cursor: pointer;
+    margin-left: 0.35rem;
+    padding: 0;
+    text-decoration: underline;
+    transition: color 0.15s var(--ease-out);
+}
+
+.expandToggle:hover {
+    color: var(--gold);
+}

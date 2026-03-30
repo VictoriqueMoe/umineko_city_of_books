@@ -183,6 +183,22 @@ export function SettingsPage() {
                                     ))}
                                 </Select>
                             </label>
+                            <label className={styles.label}>
+                                VN Progress
+                                <Select
+                                    value={String(form.episodeProgress)}
+                                    onChange={e =>
+                                        form.setEpisodeProgress(Number((e.target as HTMLSelectElement).value))
+                                    }
+                                >
+                                    <option value="0">I've read everything</option>
+                                    {[1, 2, 3, 4, 5, 6, 7, 8].map(ep => (
+                                        <option key={ep} value={String(ep)}>
+                                            Episode {ep}
+                                        </option>
+                                    ))}
+                                </Select>
+                            </label>
                         </div>
                         <div>
                             <label className={styles.label}>

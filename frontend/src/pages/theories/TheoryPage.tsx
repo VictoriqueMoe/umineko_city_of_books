@@ -21,6 +21,7 @@ export function TheoryPage() {
     const { user } = useAuth();
     const theoryId = id ?? "";
     const { theory, loading, refresh } = useTheory(theoryId);
+    const [spoilerDismissed, setSpoilerDismissed] = useState(false);
 
     const voteFn = useCallback(
         async (value: number) => {
@@ -46,6 +47,31 @@ export function TheoryPage() {
 
     if (!theory) {
         return <div className="empty-state">Theory not found.</div>;
+    }
+
+    const isSpoiler =
+        !spoilerDismissed &&
+        (user?.episode_progress ?? 0) > 0 &&
+        theory.episode > 0 &&
+        theory.episode >= (user?.episode_progress ?? 0);
+
+    if (isSpoiler) {
+        return (
+            <div className={styles.page}>
+                <Button variant="secondary" className={styles.backBtn} onClick={() => navigate(-1)}>
+                    &larr; Back
+                </Button>
+                <div className={styles.spoilerWarning}>
+                    <h2>Spoiler Warning</h2>
+                    <p>
+                        This theory references Episode {theory.episode}, which is beyond your current reading progress.
+                    </p>
+                    <Button variant="primary" onClick={() => setSpoilerDismissed(true)}>
+                        Continue anyway
+                    </Button>
+                </div>
+            </div>
+        );
     }
 
     const withLove = theory.responses?.filter(r => r.side === "with_love") ?? [];
