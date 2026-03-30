@@ -92,7 +92,7 @@ func (r *userRepository) GetByID(ctx context.Context, id uuid.UUID) (*User, erro
 
 func (r *userRepository) GetByUsername(ctx context.Context, username string) (*User, error) {
 	u, err := scanUser(r.db.QueryRowContext(ctx,
-		`SELECT `+userColumns+` FROM users WHERE username = ?`, username,
+		`SELECT `+userColumns+` FROM users WHERE LOWER(username) = LOWER(?)`, username,
 	))
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
@@ -106,7 +106,7 @@ func (r *userRepository) GetByUsername(ctx context.Context, username string) (*U
 func (r *userRepository) ExistsByUsername(ctx context.Context, username string) (bool, error) {
 	var count int
 	err := r.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM users WHERE username = ?`, username,
+		`SELECT COUNT(*) FROM users WHERE LOWER(username) = LOWER(?)`, username,
 	).Scan(&count)
 	if err != nil {
 		return false, fmt.Errorf("check username exists: %w", err)
