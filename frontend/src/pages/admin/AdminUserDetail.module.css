@@ -1,0 +1,199 @@
+.page {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.title {
+    font-family: var(--font-display);
+    color: var(--gold);
+    letter-spacing: 0.05em;
+    font-size: 1.5rem;
+    margin: 0;
+}
+
+.backLink {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: color 0.15s var(--ease-out);
+}
+
+.backLink:hover {
+    color: var(--gold);
+}
+
+.card {
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--purple-rgb), 0.3);
+    border-radius: 6px;
+    padding: 1.25rem;
+}
+
+.userHeader {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.avatar {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.avatarPlaceholder {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: rgba(var(--purple-rgb), 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    color: var(--text-muted);
+}
+
+.userMeta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.displayName {
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    color: var(--text);
+}
+
+.username {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+.infoGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.infoItem {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.infoLabel {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.infoValue {
+    color: var(--text);
+    font-size: 0.9rem;
+}
+
+.bannedBadge {
+    color: #e74c3c;
+    font-weight: 600;
+}
+
+.activeBadge {
+    color: #2ecc71;
+}
+
+.sectionTitle {
+    font-family: var(--font-display);
+    color: var(--gold);
+    letter-spacing: 0.05em;
+    font-size: 1.1rem;
+    margin: 0 0 0.75rem;
+}
+
+.actionRow {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.actionField {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.fieldLabel {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.roleDisplay {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+
+.currentRole {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text);
+    font-size: 0.9rem;
+}
+
+.noRole {
+    display: block;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-style: italic;
+    margin-bottom: 1rem;
+}
+
+.roleAssign {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.roleAssign select {
+    flex: 1;
+}
+
+.dangerZone {
+    border-color: rgba(231, 76, 60, 0.3);
+}
+
+.modalBody {
+    padding: 1rem 0;
+    color: var(--text);
+}
+
+.modalActions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+    padding-top: 0.75rem;
+}
+
+.loading {
+    color: var(--text-muted);
+    text-align: center;
+    padding: 2rem;
+}
+
+.error {
+    color: #e74c3c;
+    padding: 1rem;
+}
+
+.success {
+    color: #2ecc71;
+    font-size: 0.85rem;
+}

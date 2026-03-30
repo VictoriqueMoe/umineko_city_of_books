@@ -1,6 +1,7 @@
 package upload
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/settings"
 
 	"github.com/google/uuid"
 )
@@ -25,20 +27,26 @@ var (
 type (
 	Service interface {
 		SaveFile(subDir string, filename string, reader io.Reader) (string, error)
-		SaveImage(subDir string, id uuid.UUID, contentType string, fileSize int64, maxSize int64, reader io.Reader) (string, error)
+		SaveImage(ctx context.Context, subDir string, id uuid.UUID, contentType string, fileSize int64, maxSize int64, reader io.Reader) (string, error)
 		DeleteByPrefix(subDir string, prefix string) error
 		GetUploadDir() string
 	}
 
-	service struct{}
+	service struct {
+		settingsSvc settings.Service
+	}
 )
 
-func NewService() Service {
-	return &service{}
+func NewService(settingsSvc settings.Service) Service {
+	return &service{settingsSvc: settingsSvc}
+}
+
+func (s *service) GetUploadDir() string {
+	return s.settingsSvc.Get(context.Background(), config.SettingUploadDir)
 }
 
 func (s *service) SaveFile(subDir string, filename string, reader io.Reader) (string, error) {
-	dir := filepath.Join(config.Cfg.UploadDir, subDir)
+	dir := filepath.Join(s.GetUploadDir(), subDir)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return "", fmt.Errorf("create directory: %w", err)
 	}
@@ -57,7 +65,7 @@ func (s *service) SaveFile(subDir string, filename string, reader io.Reader) (st
 	return fmt.Sprintf("/uploads/%s/%s", subDir, filename), nil
 }
 
-func (s *service) SaveImage(subDir string, id uuid.UUID, contentType string, fileSize int64, maxSize int64, reader io.Reader) (string, error) {
+func (s *service) SaveImage(ctx context.Context, subDir string, id uuid.UUID, contentType string, fileSize int64, maxSize int64, reader io.Reader) (string, error) {
 	if fileSize > maxSize {
 		return "", ErrFileTooLarge
 	}
@@ -77,7 +85,7 @@ func (s *service) SaveImage(subDir string, id uuid.UUID, contentType string, fil
 }
 
 func (s *service) DeleteByPrefix(subDir string, prefix string) error {
-	dir := filepath.Join(config.Cfg.UploadDir, subDir)
+	dir := filepath.Join(s.GetUploadDir(), subDir)
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -94,8 +102,4 @@ func (s *service) DeleteByPrefix(subDir string, prefix string) error {
 		}
 	}
 	return nil
-}
-
-func (s *service) GetUploadDir() string {
-	return config.Cfg.UploadDir
 }

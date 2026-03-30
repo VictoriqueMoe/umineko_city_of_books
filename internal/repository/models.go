@@ -20,6 +20,9 @@ type (
 		Gender             string
 		PronounSubject     string
 		PronounPossessive  string
+		BannedAt           *string
+		BannedBy           *uuid.UUID
+		BanReason          string
 		SocialTwitter      string
 		SocialDiscord      string
 		SocialWaifulist    string

@@ -26,6 +26,12 @@ type (
 		ChangePassword(ctx context.Context, userID uuid.UUID, oldPassword, newPassword string) error
 		DeleteAccount(ctx context.Context, userID uuid.UUID, password string) error
 		GetProfileByUsername(ctx context.Context, username string) (*User, *UserStats, error)
+		GetProfileByID(ctx context.Context, id uuid.UUID) (*User, *UserStats, error)
+		ListAll(ctx context.Context, search string, limit, offset int) ([]User, int, error)
+		BanUser(ctx context.Context, userID uuid.UUID, bannedBy uuid.UUID, reason string) error
+		UnbanUser(ctx context.Context, userID uuid.UUID) error
+		IsBanned(ctx context.Context, userID uuid.UUID) (bool, error)
+		AdminDeleteAccount(ctx context.Context, userID uuid.UUID) error
 	}
 
 	userRepository struct {
@@ -34,7 +40,7 @@ type (
 )
 
 const (
-	userColumns = `id, username, password_hash, display_name, created_at, bio, avatar_url, banner_url, favourite_character, gender, pronoun_subject, pronoun_possessive, social_twitter, social_discord, social_waifulist, social_tumblr, social_github, website`
+	userColumns = `id, username, password_hash, display_name, created_at, bio, avatar_url, banner_url, favourite_character, gender, pronoun_subject, pronoun_possessive, banned_at, banned_by, ban_reason, social_twitter, social_discord, social_waifulist, social_tumblr, social_github, website`
 )
 
 func scanUser(row interface{ Scan(dest ...any) error }) (*User, error) {
@@ -42,6 +48,7 @@ func scanUser(row interface{ Scan(dest ...any) error }) (*User, error) {
 	err := row.Scan(&u.ID, &u.Username, &u.PasswordHash, &u.DisplayName, &u.CreatedAt,
 		&u.Bio, &u.AvatarURL, &u.BannerURL, &u.FavouriteCharacter, &u.Gender,
 		&u.PronounSubject, &u.PronounPossessive,
+		&u.BannedAt, &u.BannedBy, &u.BanReason,
 		&u.SocialTwitter, &u.SocialDiscord, &u.SocialWaifulist, &u.SocialTumblr, &u.SocialGithub, &u.Website)
 	return &u, err
 }
@@ -245,4 +252,101 @@ func (r *userRepository) GetProfileByUsername(ctx context.Context, username stri
 	stats.VotesReceived = theoryVotes + responseVotes
 
 	return u, &stats, nil
+}
+
+func (r *userRepository) GetProfileByID(ctx context.Context, id uuid.UUID) (*User, *UserStats, error) {
+	u, err := r.GetByID(ctx, id)
+	if err != nil || u == nil {
+		return u, nil, err
+	}
+
+	var stats UserStats
+	r.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM theories WHERE user_id = ?`, u.ID,
+	).Scan(&stats.TheoryCount)
+
+	r.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM responses WHERE user_id = ?`, u.ID,
+	).Scan(&stats.ResponseCount)
+
+	return u, &stats, nil
+}
+
+func (r *userRepository) ListAll(ctx context.Context, search string, limit, offset int) ([]User, int, error) {
+	where := ""
+	var args []interface{}
+	if search != "" {
+		where = " WHERE username LIKE ? OR display_name LIKE ?"
+		pattern := "%" + search + "%"
+		args = append(args, pattern, pattern)
+	}
+
+	var total int
+	countArgs := make([]interface{}, len(args))
+	copy(countArgs, args)
+	err := r.db.QueryRowContext(ctx,
+		"SELECT COUNT(*) FROM users"+where, countArgs...,
+	).Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("count users: %w", err)
+	}
+
+	args = append(args, limit, offset)
+	rows, err := r.db.QueryContext(ctx,
+		"SELECT "+userColumns+" FROM users"+where+" ORDER BY created_at DESC LIMIT ? OFFSET ?", args...,
+	)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list users: %w", err)
+	}
+	defer rows.Close()
+
+	var users []User
+	for rows.Next() {
+		u, err := scanUser(rows)
+		if err != nil {
+			return nil, 0, fmt.Errorf("scan user: %w", err)
+		}
+		users = append(users, *u)
+	}
+	return users, total, rows.Err()
+}
+
+func (r *userRepository) BanUser(ctx context.Context, userID uuid.UUID, bannedBy uuid.UUID, reason string) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE users SET banned_at = CURRENT_TIMESTAMP, banned_by = ?, ban_reason = ? WHERE id = ?`,
+		bannedBy, reason, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("ban user: %w", err)
+	}
+	return nil
+}
+
+func (r *userRepository) UnbanUser(ctx context.Context, userID uuid.UUID) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE users SET banned_at = NULL, banned_by = NULL, ban_reason = '' WHERE id = ?`, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("unban user: %w", err)
+	}
+	return nil
+}
+
+func (r *userRepository) IsBanned(ctx context.Context, userID uuid.UUID) (bool, error) {
+	var bannedAt *string
+	err := r.db.QueryRowContext(ctx,
+		`SELECT banned_at FROM users WHERE id = ?`, userID,
+	).Scan(&bannedAt)
+	if err != nil {
+		return false, fmt.Errorf("check ban: %w", err)
+	}
+	return bannedAt != nil, nil
+}
+
+func (r *userRepository) AdminDeleteAccount(ctx context.Context, userID uuid.UUID) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM users WHERE id = ?`, userID)
+	if err != nil {
+		return fmt.Errorf("admin delete account: %w", err)
+	}
+	return nil
 }

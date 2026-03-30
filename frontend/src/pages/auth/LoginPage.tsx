@@ -1,8 +1,9 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router";
-import { useAuth } from "../../hooks/useAuth";
-import { Button } from "../../components/Button/Button";
-import { Input } from "../../components/Input/Input";
+import React, {useEffect, useState} from "react";
+import {useNavigate} from "react-router";
+import {useAuth} from "../../hooks/useAuth";
+import {getSiteInfo} from "../../api/endpoints";
+import {Button} from "../../components/Button/Button";
+import {Input} from "../../components/Input/Input";
 import styles from "./LoginPage.module.css";
 
 export function LoginPage() {
@@ -14,6 +15,13 @@ export function LoginPage() {
     const [displayName, setDisplayName] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
+    const [registrationEnabled, setRegistrationEnabled] = useState(true);
+
+    useEffect(() => {
+        getSiteInfo()
+            .then(info => setRegistrationEnabled(info.registration_enabled))
+            .catch(() => {});
+    }, []);
 
     async function handleSubmit(e: React.SubmitEvent) {
         e.preventDefault();
@@ -78,13 +86,19 @@ export function LoginPage() {
                     </Button>
                 </form>
 
-                <Button
-                    variant="ghost"
-                    onClick={() => setIsRegister(!isRegister)}
-                    style={{ width: "100%", marginTop: "1rem" }}
-                >
-                    {isRegister ? "Already have an account? Sign in" : "Need an account? Register"}
-                </Button>
+                {registrationEnabled ? (
+                    <Button
+                        variant="ghost"
+                        onClick={() => setIsRegister(!isRegister)}
+                        style={{ width: "100%", marginTop: "1rem" }}
+                    >
+                        {isRegister ? "Already have an account? Sign in" : "Need an account? Register"}
+                    </Button>
+                ) : (
+                    !isRegister && (
+                        <p className={styles.disabledNotice}>Registration is currently closed.</p>
+                    )
+                )}
             </div>
         </div>
     );

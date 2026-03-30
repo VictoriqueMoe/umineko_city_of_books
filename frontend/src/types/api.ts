@@ -209,3 +209,66 @@ export interface WSMessage {
     type: string;
     data: unknown;
 }
+
+export interface AdminUserItem {
+    id: string;
+    username: string;
+    display_name: string;
+    avatar_url: string;
+    role?: string;
+    banned: boolean;
+    created_at: string;
+}
+
+export interface AdminUserListResponse {
+    users: AdminUserItem[];
+    total: number;
+    limit: number;
+    offset: number;
+}
+
+export interface AdminUserDetail extends AdminUserItem {
+    ban_reason?: string;
+    banned_at?: string;
+    theory_count: number;
+    response_count: number;
+}
+
+export interface AdminStats {
+    total_users: number;
+    total_theories: number;
+    total_responses: number;
+    total_votes: number;
+    new_users_24h: number;
+    new_users_7d: number;
+    new_users_30d: number;
+    new_theories_24h: number;
+    new_theories_7d: number;
+    new_theories_30d: number;
+    new_responses_24h: number;
+    new_responses_7d: number;
+    new_responses_30d: number;
+    most_active_users: { id: string; username: string; display_name: string; avatar_url: string; action_count: number }[];
+}
+
+export interface AuditLogEntry {
+    id: number;
+    actor_id: string;
+    actor_name: string;
+    action: string;
+    target_type: string;
+    target_id: string;
+    details: string;
+    created_at: string;
+}
+
+export interface AuditLogListResponse {
+    entries: AuditLogEntry[];
+    total: number;
+    limit: number;
+    offset: number;
+}
+
+export interface SiteSettings {
+    [key: string]: string;
+}

@@ -1,12 +1,14 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"umineko_city_of_books/internal/admin"
 	"umineko_city_of_books/internal/auth"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/config"
@@ -19,6 +21,7 @@ import (
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/routes"
 	"umineko_city_of_books/internal/session"
+	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/theory"
 	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/user"
@@ -33,14 +36,28 @@ var (
 	staticFiles embed.FS
 )
 
-func initServer() *fiber.App {
-	if err := os.MkdirAll(filepath.Join(config.Cfg.UploadDir, "avatars"), 0755); err != nil {
-		logger.Log.Fatal().Err(err).Msg("failed to create uploads directory")
-	}
-	if err := os.MkdirAll(filepath.Join(config.Cfg.UploadDir, "banners"), 0755); err != nil {
-		logger.Log.Fatal().Err(err).Msg("failed to create banners directory")
-	}
+type services struct {
+	settings     settings.Service
+	auth         auth.Service
+	profile      profile.Service
+	theory       theory.Service
+	notification notification.Service
+	admin        admin.Service
+	authz        authz.Service
+	session      *session.Manager
+	upload       upload.Service
+	hub          *ws.Hub
+}
 
+func initServer() *fiber.App {
+	repos, settingsSvc := initDatabase()
+	svc := initServices(repos, settingsSvc)
+	app := initApp(svc, settingsSvc)
+	registerListeners(settingsSvc, app)
+	return app
+}
+
+func initDatabase() (*repository.Repositories, settings.Service) {
 	database, err := db.Open(config.Cfg.DBPath)
 	if err != nil {
 		logger.Log.Fatal().Err(err).Msg("failed to open database")
@@ -52,32 +69,68 @@ func initServer() *fiber.App {
 
 	repos := repository.New(database)
 
+	settingsSvc := settings.NewService(repos.Settings)
+	if err := settingsSvc.Refresh(context.Background()); err != nil {
+		logger.Log.Fatal().Err(err).Msg("failed to load settings")
+	}
+
+	logger.Init(settingsSvc.Get(context.Background(), config.SettingLogLevel))
+
+	return repos, settingsSvc
+}
+
+func initServices(repos *repository.Repositories, settingsSvc settings.Service) *services {
+	uploadDir := settingsSvc.Get(context.Background(), config.SettingUploadDir)
+	if err := os.MkdirAll(filepath.Join(uploadDir, "avatars"), 0755); err != nil {
+		logger.Log.Fatal().Err(err).Msg("failed to create uploads directory")
+	}
+	if err := os.MkdirAll(filepath.Join(uploadDir, "banners"), 0755); err != nil {
+		logger.Log.Fatal().Err(err).Msg("failed to create banners directory")
+	}
+
 	sessionMgr := session.NewManager(repos.Session)
-	uploadService := upload.NewService()
-	authzService := authz.NewService(repos.Role)
-	userService := user.NewService(repos.User, repos.Role, authzService)
-	authService := auth.NewService(userService, sessionMgr)
-	profileService := profile.NewService(repos.User, repos.Theory, authzService, uploadService)
+	uploadSvc := upload.NewService(settingsSvc)
+	authzSvc := authz.NewService(repos.Role, repos.User)
+	userSvc := user.NewService(repos.User, repos.Role, authzSvc)
 	hub := ws.NewHub()
-	notifService := notification.NewService(repos.Notification, repos.Theory, hub)
-	theoryService := theory.NewService(repos.Theory, authzService, notifService)
 
-	app := fiber.New(fiber.Config{
-		BodyLimit: config.Cfg.MaxBodySize,
-	})
+	return &services{
+		settings:     settingsSvc,
+		auth:         auth.NewService(userSvc, sessionMgr, settingsSvc),
+		profile:      profile.NewService(repos.User, repos.Theory, authzSvc, uploadSvc, settingsSvc),
+		theory:       theory.NewService(repos.Theory, authzSvc, notification.NewService(repos.Notification, repos.Theory, hub)),
+		notification: notification.NewService(repos.Notification, repos.Theory, hub),
+		admin:        admin.NewService(repos.User, repos.Role, repos.Stats, repos.AuditLog, authzSvc, settingsSvc),
+		authz:        authzSvc,
+		session:      sessionMgr,
+		upload:       uploadSvc,
+		hub:          hub,
+	}
+}
 
-	middleware.Setup(app, config.Cfg.BaseURL)
+func registerListeners(settingsSvc settings.Service, app *fiber.App) {
+	settingsSvc.Subscribe(logger.NewSettingsListener())
+	settingsSvc.Subscribe(middleware.NewBodyLimitListener(app))
+}
+
+func initApp(svc *services, settingsSvc settings.Service) *fiber.App {
+	app := fiber.New()
+
+	middleware.Setup(app, settingsSvc)
 
 	htmlBytes, err := staticFiles.ReadFile("static/index.html")
 	if err != nil {
 		logger.Log.Fatal().Err(err).Msg("failed to read index.html from embedded files")
 	}
 
-	service := controllers.NewService(authService, profileService, theoryService, notifService, sessionMgr, hub, string(htmlBytes))
-	routes.PublicRoutes(service, app)
+	ctrlService := controllers.NewService(
+		svc.auth, svc.profile, svc.theory, svc.notification, svc.admin,
+		svc.authz, settingsSvc, svc.session, svc.hub, string(htmlBytes),
+	)
+	routes.PublicRoutes(ctrlService, app)
 
-	app.Get("/api/v1/ws", ws.Handler(hub, sessionMgr))
-	app.Get("/uploads/*", static.New(uploadService.GetUploadDir()))
+	app.Get("/api/v1/ws", ws.Handler(svc.hub, svc.session))
+	app.Get("/uploads/*", static.New(svc.upload.GetUploadDir()))
 
 	staticFS, err := fs.Sub(staticFiles, "static")
 	if err != nil {

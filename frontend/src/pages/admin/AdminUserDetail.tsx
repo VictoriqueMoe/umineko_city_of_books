@@ -1,0 +1,270 @@
+import {useEffect, useReducer, useState} from "react";
+import {useNavigate, useParams} from "react-router";
+import {adminDeleteUser, banUser, getAdminUser, removeUserRole, setUserRole, unbanUser,} from "../../api/endpoints";
+import {Button} from "../../components/Button/Button";
+import {Input} from "../../components/Input/Input";
+import {Modal} from "../../components/Modal/Modal";
+import {RolePill} from "../../components/RolePill/RolePill";
+import {Select} from "../../components/Select/Select";
+import type {AdminUserDetail as AdminUserDetailType} from "../../types/api";
+import styles from "./AdminUserDetail.module.css";
+
+export function AdminUserDetail() {
+    const { id } = useParams<{ id: string }>();
+    const navigate = useNavigate();
+    const [user, setUser] = useState<AdminUserDetailType | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
+    const [feedback, setFeedback] = useState("");
+    const [refreshKey, refresh] = useReducer((x: number) => x + 1, 0);
+
+    const [selectedRole, setSelectedRole] = useState("admin");
+    const [banReason, setBanReason] = useState("");
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+
+    useEffect(() => {
+        if (!id) {
+            return;
+        }
+        let cancelled = false;
+        async function load() {
+            setLoading(true);
+            setError("");
+            try {
+                const data = await getAdminUser(id!);
+                if (!cancelled) {
+                    setUser(data);
+                }
+            } catch (e) {
+                if (!cancelled) {
+                    setError(e instanceof Error ? e.message : "Failed to load user");
+                }
+            } finally {
+                if (!cancelled) {
+                    setLoading(false);
+                }
+            }
+        }
+        void load();
+        return () => { cancelled = true; };
+    }, [id, refreshKey]);
+
+    async function handleSetRole() {
+        if (!id) {
+            return;
+        }
+        try {
+            await setUserRole(id, selectedRole);
+            setFeedback("Role assigned");
+            refresh();
+        } catch (e) {
+            setError(e instanceof Error ? e.message : "Failed to set role");
+        }
+    }
+
+    async function handleRemoveRole() {
+        if (!id || !user?.role) {
+            return;
+        }
+        try {
+            await removeUserRole(id, user.role);
+            setFeedback("Role removed");
+            refresh();
+        } catch (e) {
+            setError(e instanceof Error ? e.message : "Failed to remove role");
+        }
+    }
+
+    async function handleBan() {
+        if (!id || !banReason.trim()) {
+            return;
+        }
+        try {
+            await banUser(id, banReason.trim());
+            setBanReason("");
+            setFeedback("User banned");
+            refresh();
+        } catch (e) {
+            setError(e instanceof Error ? e.message : "Failed to ban user");
+        }
+    }
+
+    async function handleUnban() {
+        if (!id) {
+            return;
+        }
+        try {
+            await unbanUser(id);
+            setFeedback("User unbanned");
+            refresh();
+        } catch (e) {
+            setError(e instanceof Error ? e.message : "Failed to unban user");
+        }
+    }
+
+    async function handleDelete() {
+        if (!id) {
+            return;
+        }
+        try {
+            await adminDeleteUser(id);
+            navigate("/admin/users");
+        } catch (e) {
+            setError(e instanceof Error ? e.message : "Failed to delete user");
+            setDeleteModalOpen(false);
+        }
+    }
+
+    if (loading) {
+        return <div className={styles.loading}>Loading user...</div>;
+    }
+
+    if (error && !user) {
+        return <div className={styles.error}>{error}</div>;
+    }
+
+    if (!user) {
+        return null;
+    }
+
+    return (
+        <div className={styles.page}>
+            <span className={styles.backLink} onClick={() => navigate("/admin/users")}>
+                &larr; Back to Users
+            </span>
+
+            <h1 className={styles.title}>User Details</h1>
+
+            {error && <div className={styles.error}>{error}</div>}
+            {feedback && <div className={styles.success}>{feedback}</div>}
+
+            <div className={styles.card}>
+                <div className={styles.userHeader}>
+                    {user.avatar_url ? (
+                        <img className={styles.avatar} src={user.avatar_url} alt="" />
+                    ) : (
+                        <span className={styles.avatarPlaceholder}>
+                            {user.display_name[0]}
+                        </span>
+                    )}
+                    <div className={styles.userMeta}>
+                        <span className={styles.displayName}>
+                            {user.display_name}
+                            {user.role && <> <RolePill role={user.role} /></>}
+                        </span>
+                        <span className={styles.username}>@{user.username}</span>
+                    </div>
+                </div>
+
+                <div className={styles.infoGrid}>
+                    <div className={styles.infoItem}>
+                        <span className={styles.infoLabel}>Status</span>
+                        <span className={user.banned ? styles.bannedBadge : styles.activeBadge}>
+                            {user.banned ? "Banned" : "Active"}
+                        </span>
+                    </div>
+                    {user.banned && user.ban_reason && (
+                        <div className={styles.infoItem}>
+                            <span className={styles.infoLabel}>Ban Reason</span>
+                            <span className={styles.infoValue}>{user.ban_reason}</span>
+                        </div>
+                    )}
+                    {user.banned && user.banned_at && (
+                        <div className={styles.infoItem}>
+                            <span className={styles.infoLabel}>Banned At</span>
+                            <span className={styles.infoValue}>
+                                {new Date(user.banned_at).toLocaleDateString()}
+                            </span>
+                        </div>
+                    )}
+                    <div className={styles.infoItem}>
+                        <span className={styles.infoLabel}>Theories</span>
+                        <span className={styles.infoValue}>{user.theory_count}</span>
+                    </div>
+                    <div className={styles.infoItem}>
+                        <span className={styles.infoLabel}>Responses</span>
+                        <span className={styles.infoValue}>{user.response_count}</span>
+                    </div>
+                    <div className={styles.infoItem}>
+                        <span className={styles.infoLabel}>Joined</span>
+                        <span className={styles.infoValue}>
+                            {new Date(user.created_at).toLocaleDateString()}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div className={styles.card}>
+                <h2 className={styles.sectionTitle}>Role</h2>
+                {user.role ? (
+                    <div className={styles.roleDisplay}>
+                        <span className={styles.currentRole}>
+                            Current: <RolePill role={user.role} />
+                        </span>
+                        <Button variant="danger" size="small" onClick={handleRemoveRole}>
+                            Remove Role
+                        </Button>
+                    </div>
+                ) : (
+                    <span className={styles.noRole}>No role assigned</span>
+                )}
+                <div className={styles.roleAssign}>
+                    <Select value={selectedRole} onChange={e => setSelectedRole(e.target.value)}>
+                        <option value="admin">Admin</option>
+                        <option value="moderator">Moderator</option>
+                    </Select>
+                    <Button variant="primary" onClick={handleSetRole}>
+                        {user.role ? "Change Role" : "Assign Role"}
+                    </Button>
+                </div>
+            </div>
+
+            <div className={styles.card}>
+                <h2 className={styles.sectionTitle}>Ban Management</h2>
+                {user.banned ? (
+                    <Button variant="primary" onClick={handleUnban}>Unban User</Button>
+                ) : (
+                    <div className={styles.actionRow}>
+                        <div className={styles.actionField}>
+                            <span className={styles.fieldLabel}>Ban Reason</span>
+                            <Input
+                                value={banReason}
+                                onChange={e => setBanReason(e.target.value)}
+                                placeholder="Reason for ban..."
+                            />
+                        </div>
+                        <Button variant="danger" onClick={handleBan} disabled={!banReason.trim()}>
+                            Ban User
+                        </Button>
+                    </div>
+                )}
+            </div>
+
+            <div className={`${styles.card} ${styles.dangerZone}`}>
+                <h2 className={styles.sectionTitle}>Danger Zone</h2>
+                <Button variant="danger" onClick={() => setDeleteModalOpen(true)}>
+                    Delete User
+                </Button>
+            </div>
+
+            <Modal
+                isOpen={deleteModalOpen}
+                onClose={() => setDeleteModalOpen(false)}
+                title="Confirm Delete"
+            >
+                <div className={styles.modalBody}>
+                    Are you sure you want to delete <strong>{user.display_name}</strong>? This action
+                    cannot be undone.
+                </div>
+                <div className={styles.modalActions}>
+                    <Button variant="secondary" onClick={() => setDeleteModalOpen(false)}>
+                        Cancel
+                    </Button>
+                    <Button variant="danger" onClick={handleDelete}>
+                        Delete
+                    </Button>
+                </div>
+            </Modal>
+        </div>
+    );
+}

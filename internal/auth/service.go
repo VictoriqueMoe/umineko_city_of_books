@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 
+	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/session"
+	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/user"
 
 	"github.com/google/uuid"
@@ -23,17 +25,23 @@ type (
 	service struct {
 		userService user.Service
 		session     *session.Manager
+		settingsSvc settings.Service
 	}
 )
 
-func NewService(userService user.Service, session *session.Manager) Service {
+func NewService(userService user.Service, sessionMgr *session.Manager, settingsSvc settings.Service) Service {
 	return &service{
 		userService: userService,
-		session:     session,
+		session:     sessionMgr,
+		settingsSvc: settingsSvc,
 	}
 }
 
 func (s *service) Register(ctx context.Context, req dto.RegisterRequest) (*dto.UserResponse, string, error) {
+	if !s.settingsSvc.GetBool(ctx, config.SettingRegistrationEnabled) {
+		return nil, "", ErrRegistrationDisabled
+	}
+
 	logger.Log.Debug().Str("username", req.Username).Msg("registering user")
 	if req.DisplayName == "" {
 		req.DisplayName = req.Username

@@ -1,6 +1,10 @@
-import { apiDelete, apiDeleteWithBody, apiFetch, apiPost, apiPostFormData, apiPut, buildQueryString } from "./client";
+import {apiDelete, apiDeleteWithBody, apiFetch, apiPost, apiPostFormData, apiPut, buildQueryString} from "./client";
 import type {
     ActivityListResponse,
+    AdminStats,
+    AdminUserDetail,
+    AdminUserListResponse,
+    AuditLogListResponse,
     ChangePasswordPayload,
     CreateResponsePayload,
     CreateTheoryPayload,
@@ -8,6 +12,7 @@ import type {
     NotificationListResponse,
     QuoteBrowseResponse,
     QuoteSearchResponse,
+    SiteSettings,
     TheoryDetail,
     TheoryListResponse,
     UpdateProfilePayload,
@@ -17,6 +22,16 @@ import type {
 } from "../types/api";
 
 const QUOTE_API = "https://quotes.auaurora.moe/api/v1";
+
+export interface SiteInfo {
+    site_name: string;
+    registration_enabled: boolean;
+    announcement_banner: string;
+}
+
+export async function getSiteInfo(): Promise<SiteInfo> {
+    return apiFetch<SiteInfo>("/site-info");
+}
 
 export async function register(username: string, password: string, displayName: string): Promise<User> {
     return apiPost<User, { username: string; password: string; display_name: string }>("/auth/register", {
@@ -195,4 +210,50 @@ export async function getUserActivity(
 
 export async function getOnlineStatus(ids: string[]): Promise<Record<string, boolean>> {
     return apiFetch<Record<string, boolean>>(`/users/online?ids=${ids.join(",")}`);
+}
+
+export async function getAdminStats(): Promise<AdminStats> {
+    return apiFetch<AdminStats>("/admin/stats");
+}
+
+export async function getAdminUsers(params: { search?: string; limit?: number; offset?: number }): Promise<AdminUserListResponse> {
+    const qs = buildQueryString({ search: params.search, limit: params.limit ?? 20, offset: params.offset });
+    return apiFetch<AdminUserListResponse>(`/admin/users${qs}`);
+}
+
+export async function getAdminUser(id: string): Promise<AdminUserDetail> {
+    return apiFetch<AdminUserDetail>(`/admin/users/${id}`);
+}
+
+export async function setUserRole(id: string, role: string): Promise<void> {
+    await apiPost<unknown, { role: string }>(`/admin/users/${id}/role`, { role });
+}
+
+export async function removeUserRole(id: string, role: string): Promise<void> {
+    await apiDeleteWithBody<unknown, { role: string }>(`/admin/users/${id}/role`, { role });
+}
+
+export async function banUser(id: string, reason: string): Promise<void> {
+    await apiPost<unknown, { reason: string }>(`/admin/users/${id}/ban`, { reason });
+}
+
+export async function unbanUser(id: string): Promise<void> {
+    await apiPost<unknown, undefined>(`/admin/users/${id}/unban`, undefined);
+}
+
+export async function adminDeleteUser(id: string): Promise<void> {
+    await apiDelete<unknown>(`/admin/users/${id}`);
+}
+
+export async function getAdminSettings(): Promise<SiteSettings> {
+    return apiFetch<{ settings: SiteSettings }>("/admin/settings").then(r => r.settings);
+}
+
+export async function updateAdminSettings(settings: SiteSettings): Promise<void> {
+    await apiPut<unknown, { settings: SiteSettings }>("/admin/settings", { settings });
+}
+
+export async function getAuditLog(params: { action?: string; limit?: number; offset?: number }): Promise<AuditLogListResponse> {
+    const qs = buildQueryString({ action: params.action, limit: params.limit ?? 50, offset: params.offset });
+    return apiFetch<AuditLogListResponse>(`/admin/audit-log${qs}`);
 }

@@ -9,6 +9,7 @@ import (
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/upload"
 
 	"github.com/google/uuid"
@@ -26,10 +27,11 @@ type (
 	}
 
 	service struct {
-		userRepo   repository.UserRepository
-		theoryRepo repository.TheoryRepository
-		authz      authz.Service
-		uploadSvc  upload.Service
+		userRepo    repository.UserRepository
+		theoryRepo  repository.TheoryRepository
+		authz       authz.Service
+		uploadSvc   upload.Service
+		settingsSvc settings.Service
 	}
 )
 
@@ -38,12 +40,14 @@ func NewService(
 	theoryRepo repository.TheoryRepository,
 	authzService authz.Service,
 	uploadSvc upload.Service,
+	settingsSvc settings.Service,
 ) Service {
 	return &service{
-		userRepo:   userRepo,
-		theoryRepo: theoryRepo,
-		authz:      authzService,
-		uploadSvc:  uploadSvc,
+		userRepo:    userRepo,
+		theoryRepo:  theoryRepo,
+		authz:       authzService,
+		uploadSvc:   uploadSvc,
+		settingsSvc: settingsSvc,
 	}
 }
 
@@ -66,7 +70,8 @@ func (s *service) UpdateProfile(ctx context.Context, userID uuid.UUID, req dto.U
 }
 
 func (s *service) UploadAvatar(ctx context.Context, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (string, error) {
-	avatarURL, err := s.uploadSvc.SaveImage("avatars", userID, contentType, fileSize, config.Cfg.MaxImageSize, reader)
+	maxSize := int64(s.settingsSvc.GetInt(ctx, config.SettingMaxImageSize))
+	avatarURL, err := s.uploadSvc.SaveImage(ctx, "avatars", userID, contentType, fileSize, maxSize, reader)
 	if err != nil {
 		return "", err
 	}
@@ -79,7 +84,8 @@ func (s *service) UploadAvatar(ctx context.Context, userID uuid.UUID, contentTyp
 }
 
 func (s *service) UploadBanner(ctx context.Context, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (string, error) {
-	bannerURL, err := s.uploadSvc.SaveImage("banners", userID, contentType, fileSize, config.Cfg.MaxImageSize, reader)
+	maxSize := int64(s.settingsSvc.GetInt(ctx, config.SettingMaxImageSize))
+	bannerURL, err := s.uploadSvc.SaveImage(ctx, "banners", userID, contentType, fileSize, maxSize, reader)
 	if err != nil {
 		return "", err
 	}

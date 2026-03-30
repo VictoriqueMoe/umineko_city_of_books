@@ -1,6 +1,6 @@
-import { NavLink } from "react-router";
-import { useAuth } from "../../../hooks/useAuth";
-import { can } from "../../../utils/permissions";
+import {NavLink} from "react-router";
+import {useAuth} from "../../../hooks/useAuth";
+import {canAccessAdmin} from "../../../utils/permissions";
 import styles from "./Sidebar.module.css";
 
 interface SidebarProps {
@@ -82,7 +82,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                         </div>
                     )}
 
-                    {can(user?.role, "manage_roles") && (
+                    {canAccessAdmin(user?.role) && (
                         <div className={styles.section}>
                             <span className={styles.sectionLabel}>Admin</span>
                             <NavLink

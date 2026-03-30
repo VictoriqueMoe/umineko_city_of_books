@@ -9,6 +9,9 @@ type (
 		Theory       TheoryRepository
 		Notification NotificationRepository
 		Role         RoleRepository
+		Settings     SettingsRepository
+		AuditLog     AuditLogRepository
+		Stats        StatsRepository
 	}
 )
 
@@ -19,5 +22,8 @@ func New(db *sql.DB) *Repositories {
 		Theory:       &theoryRepository{db: db},
 		Notification: &notificationRepository{db: db},
 		Role:         &roleRepository{db: db},
+		Settings:     &settingsRepository{db: db},
+		AuditLog:     &auditLogRepository{db: db},
+		Stats:        &statsRepository{db: db},
 	}
 }

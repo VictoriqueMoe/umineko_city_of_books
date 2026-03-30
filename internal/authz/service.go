@@ -14,15 +14,26 @@ type (
 	Service interface {
 		Can(ctx context.Context, userID uuid.UUID, perm Permission) bool
 		GetRole(ctx context.Context, userID uuid.UUID) (role.Role, error)
+		IsBanned(ctx context.Context, userID uuid.UUID) bool
 	}
 
 	service struct {
 		roleRepo repository.RoleRepository
+		userRepo repository.UserRepository
 	}
 )
 
-func NewService(roleRepo repository.RoleRepository) Service {
-	return &service{roleRepo: roleRepo}
+func NewService(roleRepo repository.RoleRepository, userRepo repository.UserRepository) Service {
+	return &service{roleRepo: roleRepo, userRepo: userRepo}
+}
+
+func (s *service) IsBanned(ctx context.Context, userID uuid.UUID) bool {
+	banned, err := s.userRepo.IsBanned(ctx, userID)
+	if err != nil {
+		logger.Log.Error().Err(err).Str("user_id", userID.String()).Msg("failed to check ban status")
+		return false
+	}
+	return banned
 }
 
 func (s *service) Can(ctx context.Context, userID uuid.UUID, perm Permission) bool {

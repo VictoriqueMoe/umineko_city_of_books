@@ -1,0 +1,93 @@
+package repository
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+
+	"github.com/google/uuid"
+)
+
+type (
+	SettingsRepository interface {
+		Get(ctx context.Context, key string) (string, error)
+		GetAll(ctx context.Context) (map[string]string, error)
+		Set(ctx context.Context, key, value string, updatedBy uuid.UUID) error
+		SetMultiple(ctx context.Context, settings map[string]string, updatedBy uuid.UUID) error
+	}
+
+	settingsRepository struct {
+		db *sql.DB
+	}
+)
+
+func (r *settingsRepository) Get(ctx context.Context, key string) (string, error) {
+	var value string
+	err := r.db.QueryRowContext(ctx,
+		`SELECT value FROM site_settings WHERE key = ?`, key,
+	).Scan(&value)
+	if err != nil {
+		return "", fmt.Errorf("get setting %q: %w", key, err)
+	}
+	return value, nil
+}
+
+func (r *settingsRepository) GetAll(ctx context.Context) (map[string]string, error) {
+	rows, err := r.db.QueryContext(ctx, `SELECT key, value FROM site_settings`)
+	if err != nil {
+		return nil, fmt.Errorf("get all settings: %w", err)
+	}
+	defer rows.Close()
+
+	settings := make(map[string]string)
+	for rows.Next() {
+		var key, value string
+		if err := rows.Scan(&key, &value); err != nil {
+			return nil, fmt.Errorf("scan setting: %w", err)
+		}
+		settings[key] = value
+	}
+	return settings, rows.Err()
+}
+
+func (r *settingsRepository) Set(ctx context.Context, key, value string, updatedBy uuid.UUID) error {
+	var actor any
+	if updatedBy != uuid.Nil {
+		actor = updatedBy
+	}
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO site_settings (key, value, updated_by, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+		 ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_by = excluded.updated_by, updated_at = CURRENT_TIMESTAMP`,
+		key, value, actor,
+	)
+	if err != nil {
+		return fmt.Errorf("set setting %q: %w", key, err)
+	}
+	return nil
+}
+
+func (r *settingsRepository) SetMultiple(ctx context.Context, settings map[string]string, updatedBy uuid.UUID) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	var actor any
+	if updatedBy != uuid.Nil {
+		actor = updatedBy
+	}
+
+	for key, value := range settings {
+		_, err := tx.ExecContext(ctx,
+			`INSERT INTO site_settings (key, value, updated_by, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+			 ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_by = excluded.updated_by, updated_at = CURRENT_TIMESTAMP`,
+			key, value, actor,
+		)
+		if err != nil {
+			return fmt.Errorf("set setting %q: %w", key, err)
+		}
+	}
+
+	return tx.Commit()
+}

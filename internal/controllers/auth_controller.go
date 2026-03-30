@@ -3,6 +3,8 @@ package controllers
 import (
 	"errors"
 
+	"umineko_city_of_books/internal/auth"
+	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/middleware"
 	"umineko_city_of_books/internal/session"
@@ -18,6 +20,7 @@ func (s *Service) getAllAuthRoutes() []FSetupRoute {
 		s.setupLoginRoute,
 		s.setupLogoutRoute,
 		s.setupGetMeRoute,
+		s.setupSiteInfoRoute,
 	}
 }
 
@@ -81,6 +84,11 @@ func (s *Service) register(ctx fiber.Ctx) error {
 
 	user, token, err := s.AuthService.Register(ctx.Context(), req)
 	if err != nil {
+		if errors.Is(err, auth.ErrRegistrationDisabled) {
+			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"error": "registration is currently disabled",
+			})
+		}
 		if errors.Is(err, usersvc.ErrUsernameTaken) {
 			return ctx.Status(fiber.StatusConflict).JSON(fiber.Map{
 				"error": "username already taken",
@@ -146,4 +154,16 @@ func (s *Service) getMe(ctx fiber.Ctx) error {
 	}
 
 	return ctx.JSON(user)
+}
+
+func (s *Service) setupSiteInfoRoute(r fiber.Router) {
+	r.Get("/site-info", s.siteInfo)
+}
+
+func (s *Service) siteInfo(ctx fiber.Ctx) error {
+	return ctx.JSON(fiber.Map{
+		"site_name":            s.SettingsService.Get(ctx.Context(), config.SettingSiteName),
+		"registration_enabled": s.SettingsService.GetBool(ctx.Context(), config.SettingRegistrationEnabled),
+		"announcement_banner":  s.SettingsService.Get(ctx.Context(), config.SettingAnnouncementBanner),
+	})
 }
