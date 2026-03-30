@@ -12,6 +12,7 @@ type (
 		Settings     SettingsRepository
 		AuditLog     AuditLogRepository
 		Stats        StatsRepository
+		Invite       InviteRepository
 	}
 )
 
@@ -25,5 +26,6 @@ func New(db *sql.DB) *Repositories {
 		Settings:     &settingsRepository{db: db},
 		AuditLog:     &auditLogRepository{db: db},
 		Stats:        &statsRepository{db: db},
+		Invite:       &inviteRepository{db: db},
 	}
 }

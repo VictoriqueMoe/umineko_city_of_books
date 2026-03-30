@@ -78,11 +78,20 @@ func (s *service) Refresh(ctx context.Context) error {
 		logger.Log.Info().Int("count", len(missing)).Msg("seeded missing settings with defaults")
 	}
 
+	valid := validKeys()
 	for k, v := range existing {
+		if !valid[config.SiteSettingKey(k)] {
+			if err := s.repo.Delete(ctx, k); err != nil {
+				logger.Log.Error().Err(err).Str("key", k).Msg("failed to delete stale setting")
+			} else {
+				logger.Log.Info().Str("key", k).Msg("removed stale setting")
+			}
+			continue
+		}
 		s.cache.Store(config.SiteSettingKey(k), v)
 	}
 
-	logger.Log.Debug().Int("count", len(existing)).Msg("settings cache loaded")
+	logger.Log.Debug().Msg("settings cache loaded")
 	return nil
 }
 

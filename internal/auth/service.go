@@ -7,6 +7,7 @@ import (
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
+	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/session"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/user"
@@ -26,20 +27,41 @@ type (
 		userService user.Service
 		session     *session.Manager
 		settingsSvc settings.Service
+		inviteRepo  repository.InviteRepository
 	}
 )
 
-func NewService(userService user.Service, sessionMgr *session.Manager, settingsSvc settings.Service) Service {
+func NewService(userService user.Service, sessionMgr *session.Manager, settingsSvc settings.Service, inviteRepo repository.InviteRepository) Service {
 	return &service{
 		userService: userService,
 		session:     sessionMgr,
 		settingsSvc: settingsSvc,
+		inviteRepo:  inviteRepo,
 	}
 }
 
 func (s *service) Register(ctx context.Context, req dto.RegisterRequest) (*dto.UserResponse, string, error) {
-	if !s.settingsSvc.GetBool(ctx, config.SettingRegistrationEnabled) {
+	regType := s.settingsSvc.Get(ctx, config.SettingRegistrationType)
+
+	switch regType {
+	case "closed":
 		return nil, "", ErrRegistrationDisabled
+	case "invite":
+		if req.InviteCode == "" {
+			return nil, "", ErrInviteRequired
+		}
+		invite, err := s.inviteRepo.GetByCode(ctx, req.InviteCode)
+		if err != nil {
+			return nil, "", fmt.Errorf("check invite: %w", err)
+		}
+		if invite == nil || invite.UsedBy != nil {
+			return nil, "", ErrInvalidInvite
+		}
+	}
+
+	minLen := s.settingsSvc.GetInt(ctx, config.SettingMinPasswordLength)
+	if minLen > 0 && len(req.Password) < minLen {
+		return nil, "", ErrPasswordTooShort
 	}
 
 	logger.Log.Debug().Str("username", req.Username).Msg("registering user")
@@ -54,6 +76,12 @@ func (s *service) Register(ctx context.Context, req dto.RegisterRequest) (*dto.U
 	userResp, err := s.userService.Create(ctx, req.Username, req.Password, req.DisplayName)
 	if err != nil {
 		return nil, "", fmt.Errorf("create user: %w", err)
+	}
+
+	if regType == "invite" {
+		if err := s.inviteRepo.MarkUsed(ctx, req.InviteCode, userResp.ID); err != nil {
+			logger.Log.Error().Err(err).Str("code", req.InviteCode).Msg("failed to mark invite as used")
+		}
 	}
 
 	token, err := s.session.Create(ctx, userResp.ID)

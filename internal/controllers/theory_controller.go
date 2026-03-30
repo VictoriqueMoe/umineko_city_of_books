@@ -111,6 +111,11 @@ func (s *Service) createTheory(ctx fiber.Ctx) error {
 
 	id, err := s.TheoryService.CreateTheory(ctx.Context(), userID, req)
 	if err != nil {
+		if errors.Is(err, theory.ErrRateLimited) {
+			return ctx.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
+				"error": "daily theory limit reached",
+			})
+		}
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "failed to create theory",
 		})
@@ -254,6 +259,11 @@ func (s *Service) createResponse(ctx fiber.Ctx) error {
 		if errors.Is(err, theory.ErrCannotRespondToOwnTheory) {
 			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
 				"error": err.Error(),
+			})
+		}
+		if errors.Is(err, theory.ErrRateLimited) {
+			return ctx.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
+				"error": "daily response limit reached",
 			})
 		}
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{

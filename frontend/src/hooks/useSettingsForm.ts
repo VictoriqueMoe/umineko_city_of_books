@@ -41,6 +41,7 @@ export function useSettingsForm() {
     const [bio, setBio] = useState("");
     const [avatarUrl, setAvatarUrl] = useState("");
     const [bannerUrl, setBannerUrl] = useState("");
+    const [bannerPosition, setBannerPosition] = useState(50);
     const [favouriteCharacter, setFavouriteCharacter] = useState("");
     const [gender, setGender] = useState("");
     const [customGender, setCustomGender] = useState("");
@@ -67,6 +68,7 @@ export function useSettingsForm() {
             setBio(profile.bio);
             setAvatarUrl(profile.avatar_url);
             setBannerUrl(profile.banner_url);
+            setBannerPosition(profile.banner_position ?? 50);
             setFavouriteCharacter(profile.favourite_character);
             setSocialTwitter(profile.social_twitter);
             setSocialDiscord(profile.social_discord);
@@ -161,6 +163,7 @@ export function useSettingsForm() {
             bio,
             avatar_url: avatarUrl,
             banner_url: bannerUrl,
+            banner_position: Math.round(bannerPosition * 100) / 100,
             favourite_character: favouriteCharacter,
             gender: resolvedGender,
             pronoun_subject: pronounSubject,
@@ -193,6 +196,7 @@ export function useSettingsForm() {
         bio, setBio,
         avatarUrl, uploadingAvatar, handleAvatarChange,
         bannerUrl, uploadingBanner, handleBannerChange,
+        bannerPosition, setBannerPosition,
         favouriteCharacter, setFavouriteCharacter,
         gender, handleGenderChange,
         customGender, setCustomGender,

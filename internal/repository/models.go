@@ -29,6 +29,7 @@ type (
 		SocialTumblr       string
 		SocialGithub       string
 		Website            string
+		BannerPosition     float64
 	}
 
 	UserStats struct {
@@ -70,6 +71,7 @@ func (u *User) ToProfileResponse(stats *UserStats) *dto.UserProfileResponse {
 		Bio:                u.Bio,
 		AvatarURL:          u.AvatarURL,
 		BannerURL:          u.BannerURL,
+		BannerPosition:     u.BannerPosition,
 		FavouriteCharacter: u.FavouriteCharacter,
 		Gender:             u.Gender,
 		PronounSubject:     u.PronounSubject,

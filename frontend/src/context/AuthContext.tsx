@@ -1,6 +1,6 @@
-import { type PropsWithChildren, useCallback, useEffect, useState } from "react";
-import type { User } from "../types/api";
-import { AuthContext } from "./authContextValue";
+import {type PropsWithChildren, useCallback, useEffect, useState} from "react";
+import type {User} from "../types/api";
+import {AuthContext} from "./authContextValue";
 import * as api from "../api/endpoints";
 
 export function AuthProvider({ children }: PropsWithChildren) {
@@ -19,8 +19,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
         setUser(u);
     }, []);
 
-    const registerUser = useCallback(async (username: string, password: string, displayName: string) => {
-        const u = await api.register(username, password, displayName);
+    const registerUser = useCallback(async (username: string, password: string, displayName: string, inviteCode?: string) => {
+        const u = await api.register(username, password, displayName, inviteCode);
         setUser(u);
     }, []);
 

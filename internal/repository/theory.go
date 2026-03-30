@@ -33,6 +33,11 @@ type (
 		GetTheoryAuthorID(ctx context.Context, theoryID uuid.UUID) (uuid.UUID, error)
 		GetResponseInfo(ctx context.Context, responseID uuid.UUID) (authorID uuid.UUID, theoryID uuid.UUID, err error)
 		GetRecentActivityByUser(ctx context.Context, userID uuid.UUID, limit, offset int) ([]dto.ActivityItem, int, error)
+		CountUserTheoriesToday(ctx context.Context, userID uuid.UUID) (int, error)
+		CountUserResponsesToday(ctx context.Context, userID uuid.UUID) (int, error)
+		UpdateCredibilityScore(ctx context.Context, theoryID uuid.UUID, score float64) error
+		GetResponseEvidenceWeights(ctx context.Context, theoryID uuid.UUID) (withLoveSum float64, withoutLoveSum float64, err error)
+		SetEvidenceTruthWeight(ctx context.Context, evidenceID int, weight float64) error
 	}
 
 	theoryRepository struct {
@@ -79,13 +84,13 @@ func (r *theoryRepository) GetByID(ctx context.Context, id uuid.UUID) (*dto.Theo
 	var author dto.UserResponse
 
 	err := r.db.QueryRowContext(ctx,
-		`SELECT t.id, t.title, t.body, t.episode, t.created_at,
+		`SELECT t.id, t.title, t.body, t.episode, t.credibility_score, t.created_at,
 		        u.id, u.username, u.display_name, u.avatar_url,
 		        COALESCE((SELECT role FROM user_roles WHERE user_id = u.id LIMIT 1), '')
 		 FROM theories t
 		 JOIN users u ON t.user_id = u.id
 		 WHERE t.id = ?`, id,
-	).Scan(&t.ID, &t.Title, &t.Body, &t.Episode, &t.CreatedAt,
+	).Scan(&t.ID, &t.Title, &t.Body, &t.Episode, &t.CredibilityScore, &t.CreatedAt,
 		&author.ID, &author.Username, &author.DisplayName, &author.AvatarURL, &author.Role)
 
 	if errors.Is(err, sql.ErrNoRows) {
@@ -146,14 +151,24 @@ func (r *theoryRepository) List(ctx context.Context, p params.ListParams, userID
 	switch p.Sort {
 	case "popular":
 		orderBy = `ORDER BY (SELECT COALESCE(SUM(value), 0) FROM theory_votes WHERE theory_id = t.id) DESC, t.created_at DESC`
+	case "popular_asc":
+		orderBy = `ORDER BY (SELECT COALESCE(SUM(value), 0) FROM theory_votes WHERE theory_id = t.id) ASC, t.created_at ASC`
 	case "controversial":
 		orderBy = `ORDER BY (SELECT COUNT(*) FROM theory_votes WHERE theory_id = t.id) DESC, t.created_at DESC`
+	case "controversial_asc":
+		orderBy = `ORDER BY (SELECT COUNT(*) FROM theory_votes WHERE theory_id = t.id) ASC, t.created_at ASC`
+	case "credibility":
+		orderBy = `ORDER BY t.credibility_score DESC, t.created_at DESC`
+	case "credibility_asc":
+		orderBy = `ORDER BY t.credibility_score ASC, t.created_at ASC`
+	case "old":
+		orderBy = `ORDER BY t.created_at ASC`
 	default:
 		orderBy = `ORDER BY t.created_at DESC`
 	}
 
 	query := fmt.Sprintf(
-		`SELECT t.id, t.title, t.body, t.episode, t.created_at,
+		`SELECT t.id, t.title, t.body, t.episode, t.credibility_score, t.created_at,
 		        u.id, u.username, u.display_name, u.avatar_url,
 		        COALESCE((SELECT role FROM user_roles WHERE user_id = u.id LIMIT 1), '')
 		 FROM theories t
@@ -172,7 +187,7 @@ func (r *theoryRepository) List(ctx context.Context, p params.ListParams, userID
 	for rows.Next() {
 		var t dto.TheoryResponse
 		var author dto.UserResponse
-		if err := rows.Scan(&t.ID, &t.Title, &t.Body, &t.Episode, &t.CreatedAt,
+		if err := rows.Scan(&t.ID, &t.Title, &t.Body, &t.Episode, &t.CredibilityScore, &t.CreatedAt,
 			&author.ID, &author.Username, &author.DisplayName, &author.AvatarURL, &author.Role); err != nil {
 			return nil, 0, fmt.Errorf("scan theory: %w", err)
 		}
@@ -624,4 +639,69 @@ func (r *theoryRepository) GetRecentActivityByUser(ctx context.Context, userID u
 	}
 
 	return items, total, nil
+}
+
+func (r *theoryRepository) CountUserTheoriesToday(ctx context.Context, userID uuid.UUID) (int, error) {
+	var count int
+	err := r.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM theories WHERE user_id = ? AND created_at > datetime('now', '-1 day')`, userID,
+	).Scan(&count)
+	return count, err
+}
+
+func (r *theoryRepository) CountUserResponsesToday(ctx context.Context, userID uuid.UUID) (int, error) {
+	var count int
+	err := r.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM responses WHERE user_id = ? AND created_at > datetime('now', '-1 day')`, userID,
+	).Scan(&count)
+	return count, err
+}
+
+func (r *theoryRepository) UpdateCredibilityScore(ctx context.Context, theoryID uuid.UUID, score float64) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE theories SET credibility_score = ? WHERE id = ?`, score, theoryID,
+	)
+	if err != nil {
+		return fmt.Errorf("update credibility score: %w", err)
+	}
+	return nil
+}
+
+func (r *theoryRepository) GetResponseEvidenceWeights(ctx context.Context, theoryID uuid.UUID) (float64, float64, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT r.side, COALESCE(SUM(re.truth_weight), 0)
+		 FROM responses r
+		 LEFT JOIN response_evidence re ON r.id = re.response_id
+		 WHERE r.theory_id = ? AND r.parent_id IS NULL
+		 GROUP BY r.side`, theoryID,
+	)
+	if err != nil {
+		return 0, 0, fmt.Errorf("get evidence weights: %w", err)
+	}
+	defer rows.Close()
+
+	var withLove, withoutLove float64
+	for rows.Next() {
+		var side string
+		var weight float64
+		if err := rows.Scan(&side, &weight); err != nil {
+			return 0, 0, fmt.Errorf("scan evidence weight: %w", err)
+		}
+		if side == "with_love" {
+			withLove = weight
+		} else {
+			withoutLove = weight
+		}
+	}
+	return withLove, withoutLove, rows.Err()
+}
+
+func (r *theoryRepository) SetEvidenceTruthWeight(ctx context.Context, evidenceID int, weight float64) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE response_evidence SET truth_weight = ? WHERE id = ?`, weight, evidenceID,
+	)
+	if err != nil {
+		return fmt.Errorf("set evidence truth weight: %w", err)
+	}
+	return nil
 }

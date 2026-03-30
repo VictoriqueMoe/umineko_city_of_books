@@ -13,11 +13,13 @@ import (
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/controllers"
+	"umineko_city_of_books/internal/credibility"
 	"umineko_city_of_books/internal/db"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/middleware"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/profile"
+	"umineko_city_of_books/internal/quotefinder"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/routes"
 	"umineko_city_of_books/internal/session"
@@ -88,19 +90,21 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 		logger.Log.Fatal().Err(err).Msg("failed to create banners directory")
 	}
 
-	sessionMgr := session.NewManager(repos.Session)
+	sessionMgr := session.NewManager(repos.Session, settingsSvc)
 	uploadSvc := upload.NewService(settingsSvc)
 	authzSvc := authz.NewService(repos.Role, repos.User)
 	userSvc := user.NewService(repos.User, repos.Role, authzSvc)
 	hub := ws.NewHub()
+	quoteClient := quotefinder.NewClient()
+	credibilitySvc := credibility.NewService(repos.Theory)
 
 	return &services{
 		settings:     settingsSvc,
-		auth:         auth.NewService(userSvc, sessionMgr, settingsSvc),
+		auth:         auth.NewService(userSvc, sessionMgr, settingsSvc, repos.Invite),
 		profile:      profile.NewService(repos.User, repos.Theory, authzSvc, uploadSvc, settingsSvc),
-		theory:       theory.NewService(repos.Theory, authzSvc, notification.NewService(repos.Notification, repos.Theory, hub)),
+		theory:       theory.NewService(repos.Theory, authzSvc, notification.NewService(repos.Notification, repos.Theory, hub), settingsSvc, credibilitySvc, quoteClient),
 		notification: notification.NewService(repos.Notification, repos.Theory, hub),
-		admin:        admin.NewService(repos.User, repos.Role, repos.Stats, repos.AuditLog, authzSvc, settingsSvc),
+		admin:        admin.NewService(repos.User, repos.Role, repos.Stats, repos.AuditLog, repos.Invite, authzSvc, settingsSvc),
 		authz:        authzSvc,
 		session:      sessionMgr,
 		upload:       uploadSvc,
@@ -116,7 +120,7 @@ func registerListeners(settingsSvc settings.Service, app *fiber.App) {
 func initApp(svc *services, settingsSvc settings.Service) *fiber.App {
 	app := fiber.New()
 
-	middleware.Setup(app, settingsSvc)
+	middleware.Setup(app, settingsSvc, svc.session, svc.authz)
 
 	htmlBytes, err := staticFiles.ReadFile("static/index.html")
 	if err != nil {

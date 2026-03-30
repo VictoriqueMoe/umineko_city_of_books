@@ -2,8 +2,10 @@ package controllers
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 
+	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/middleware"
 	"umineko_city_of_books/internal/profile"
@@ -191,13 +193,13 @@ func (s *Service) changePassword(ctx fiber.Ctx) error {
 		})
 	}
 
-	if len(req.NewPassword) < 8 {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "new password must be at least 8 characters",
-		})
-	}
-
 	if err := s.ProfileService.ChangePassword(ctx.Context(), userID, req); err != nil {
+		if errors.Is(err, profile.ErrPasswordTooShort) {
+			minLen := s.SettingsService.GetInt(ctx.Context(), config.SettingMinPasswordLength)
+			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": fmt.Sprintf("new password must be at least %d characters", minLen),
+			})
+		}
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": err.Error(),
 		})

@@ -31,6 +31,10 @@ type (
 		UpdateSettings(ctx context.Context, actorID uuid.UUID, settings map[string]string) error
 
 		GetAuditLog(ctx context.Context, action string, limit, offset int) (*dto.AuditLogListResponse, error)
+
+		CreateInvite(ctx context.Context, actorID uuid.UUID) (*dto.InviteResponse, error)
+		ListInvites(ctx context.Context, limit, offset int) (*dto.InviteListResponse, error)
+		DeleteInvite(ctx context.Context, actorID uuid.UUID, code string) error
 	}
 
 	service struct {
@@ -38,6 +42,7 @@ type (
 		roleRepo    repository.RoleRepository
 		statsRepo   repository.StatsRepository
 		auditRepo   repository.AuditLogRepository
+		inviteRepo  repository.InviteRepository
 		authz       authz.Service
 		settingsSvc settings.Service
 	}
@@ -48,6 +53,7 @@ func NewService(
 	roleRepo repository.RoleRepository,
 	statsRepo repository.StatsRepository,
 	auditRepo repository.AuditLogRepository,
+	inviteRepo repository.InviteRepository,
 	authzService authz.Service,
 	settingsSvc settings.Service,
 ) Service {
@@ -56,6 +62,7 @@ func NewService(
 		roleRepo:    roleRepo,
 		statsRepo:   statsRepo,
 		auditRepo:   auditRepo,
+		inviteRepo:  inviteRepo,
 		authz:       authzService,
 		settingsSvc: settingsSvc,
 	}
@@ -259,4 +266,52 @@ func (s *service) GetAuditLog(ctx context.Context, action string, limit, offset 
 		Limit:   limit,
 		Offset:  offset,
 	}, nil
+}
+
+func (s *service) CreateInvite(ctx context.Context, actorID uuid.UUID) (*dto.InviteResponse, error) {
+	code := uuid.New().String()[:8]
+	if err := s.inviteRepo.Create(ctx, code, actorID); err != nil {
+		return nil, fmt.Errorf("create invite: %w", err)
+	}
+
+	s.audit(ctx, actorID, "create_invite", "invite", code)
+
+	return &dto.InviteResponse{
+		Code:      code,
+		CreatedBy: actorID,
+		CreatedAt: "just now",
+	}, nil
+}
+
+func (s *service) ListInvites(ctx context.Context, limit, offset int) (*dto.InviteListResponse, error) {
+	invites, total, err := s.inviteRepo.List(ctx, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("list invites: %w", err)
+	}
+
+	items := make([]dto.InviteResponse, len(invites))
+	for i, inv := range invites {
+		items[i] = dto.InviteResponse{
+			Code:      inv.Code,
+			CreatedBy: inv.CreatedBy,
+			UsedBy:    inv.UsedBy,
+			UsedAt:    inv.UsedAt,
+			CreatedAt: inv.CreatedAt,
+		}
+	}
+
+	return &dto.InviteListResponse{
+		Invites: items,
+		Total:   total,
+		Limit:   limit,
+		Offset:  offset,
+	}, nil
+}
+
+func (s *service) DeleteInvite(ctx context.Context, actorID uuid.UUID, code string) error {
+	if err := s.inviteRepo.Delete(ctx, code); err != nil {
+		return fmt.Errorf("delete invite: %w", err)
+	}
+	s.audit(ctx, actorID, "delete_invite", "invite", code)
+	return nil
 }

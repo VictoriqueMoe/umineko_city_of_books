@@ -13,6 +13,7 @@ type (
 		WithLoveCount    int          `json:"with_love_count"`
 		WithoutLoveCount int          `json:"without_love_count"`
 		UserVote         int          `json:"user_vote,omitempty"`
+		CredibilityScore float64      `json:"credibility_score"`
 		CreatedAt        string       `json:"created_at"`
 	}
 
@@ -28,6 +29,7 @@ type (
 		WithLoveCount    int                `json:"with_love_count"`
 		WithoutLoveCount int                `json:"without_love_count"`
 		UserVote         int                `json:"user_vote,omitempty"`
+		CredibilityScore float64            `json:"credibility_score"`
 		CreatedAt        string             `json:"created_at"`
 	}
 

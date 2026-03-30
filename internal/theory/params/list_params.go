@@ -13,7 +13,13 @@ type (
 )
 
 func NewListParams(sort string, episode int, authorID uuid.UUID, limit, offset int) ListParams {
-	if sort != "popular" && sort != "controversial" {
+	validSorts := map[string]bool{
+		"new": true, "old": true,
+		"popular": true, "popular_asc": true,
+		"controversial": true, "controversial_asc": true,
+		"credibility": true, "credibility_asc": true,
+	}
+	if !validSorts[sort] {
 		sort = "new"
 	}
 	if limit <= 0 {

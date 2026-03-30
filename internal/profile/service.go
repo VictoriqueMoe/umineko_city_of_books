@@ -98,6 +98,10 @@ func (s *service) UploadBanner(ctx context.Context, userID uuid.UUID, contentTyp
 }
 
 func (s *service) ChangePassword(ctx context.Context, userID uuid.UUID, req dto.ChangePasswordRequest) error {
+	minLen := s.settingsSvc.GetInt(ctx, config.SettingMinPasswordLength)
+	if minLen > 0 && len(req.NewPassword) < minLen {
+		return ErrPasswordTooShort
+	}
 	return s.userRepo.ChangePassword(ctx, userID, req.OldPassword, req.NewPassword)
 }
 

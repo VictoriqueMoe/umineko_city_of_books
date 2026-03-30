@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"errors"
+	"fmt"
 
 	"umineko_city_of_books/internal/auth"
 	"umineko_city_of_books/internal/config"
@@ -41,12 +42,16 @@ func (s *Service) setupGetMeRoute(r fiber.Router) {
 }
 
 func (s *Service) setSessionCookie(ctx fiber.Ctx, token string) {
+	days := s.SettingsService.GetInt(ctx.Context(), config.SettingSessionDurationDays)
+	if days < 1 {
+		days = 30
+	}
 	ctx.Cookie(&fiber.Cookie{
 		Name:     session.CookieName,
 		Value:    token,
 		HTTPOnly: true,
 		SameSite: "Lax",
-		MaxAge:   30 * 24 * 60 * 60,
+		MaxAge:   days * 24 * 60 * 60,
 		Path:     "/",
 	})
 }
@@ -86,7 +91,18 @@ func (s *Service) register(ctx fiber.Ctx) error {
 	if err != nil {
 		if errors.Is(err, auth.ErrRegistrationDisabled) {
 			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
-				"error": "registration is currently disabled",
+				"error": err.Error(),
+			})
+		}
+		if errors.Is(err, auth.ErrInviteRequired) || errors.Is(err, auth.ErrInvalidInvite) {
+			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": err.Error(),
+			})
+		}
+		if errors.Is(err, auth.ErrPasswordTooShort) {
+			minLen := s.SettingsService.GetInt(ctx.Context(), config.SettingMinPasswordLength)
+			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": fmt.Sprintf("password must be at least %d characters", minLen),
 			})
 		}
 		if errors.Is(err, usersvc.ErrUsernameTaken) {
@@ -162,8 +178,11 @@ func (s *Service) setupSiteInfoRoute(r fiber.Router) {
 
 func (s *Service) siteInfo(ctx fiber.Ctx) error {
 	return ctx.JSON(fiber.Map{
-		"site_name":            s.SettingsService.Get(ctx.Context(), config.SettingSiteName),
-		"registration_enabled": s.SettingsService.GetBool(ctx.Context(), config.SettingRegistrationEnabled),
-		"announcement_banner":  s.SettingsService.Get(ctx.Context(), config.SettingAnnouncementBanner),
+		"site_name":           s.SettingsService.Get(ctx.Context(), config.SettingSiteName),
+		"site_description":    s.SettingsService.Get(ctx.Context(), config.SettingSiteDescription),
+		"registration_type":   s.SettingsService.Get(ctx.Context(), config.SettingRegistrationType),
+		"announcement_banner": s.SettingsService.Get(ctx.Context(), config.SettingAnnouncementBanner),
+		"default_theme":       s.SettingsService.Get(ctx.Context(), config.SettingDefaultTheme),
+		"maintenance_mode":    s.SettingsService.GetBool(ctx.Context(), config.SettingMaintenanceMode),
 	})
 }

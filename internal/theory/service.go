@@ -4,10 +4,14 @@ import (
 	"context"
 
 	"umineko_city_of_books/internal/authz"
+	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/credibility"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/notification"
+	"umineko_city_of_books/internal/quotefinder"
 	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/theory/params"
 
 	"github.com/google/uuid"
@@ -27,22 +31,47 @@ type (
 	}
 
 	service struct {
-		repo         repository.TheoryRepository
-		authz        authz.Service
-		notifService notification.Service
+		repo           repository.TheoryRepository
+		authz          authz.Service
+		notifService   notification.Service
+		settingsSvc    settings.Service
+		credibilitySvc *credibility.Service
+		quoteClient    *quotefinder.Client
 	}
 )
 
-func NewService(repo repository.TheoryRepository, authzService authz.Service, notifService notification.Service) Service {
+func NewService(
+	repo repository.TheoryRepository,
+	authzService authz.Service,
+	notifService notification.Service,
+	settingsSvc settings.Service,
+	credibilitySvc *credibility.Service,
+	quoteClient *quotefinder.Client,
+) Service {
 	return &service{
-		repo:         repo,
-		authz:        authzService,
-		notifService: notifService,
+		repo:           repo,
+		authz:          authzService,
+		notifService:   notifService,
+		settingsSvc:    settingsSvc,
+		credibilitySvc: credibilitySvc,
+		quoteClient:    quoteClient,
 	}
 }
 
 func (s *service) CreateTheory(ctx context.Context, userID uuid.UUID, req dto.CreateTheoryRequest) (uuid.UUID, error) {
 	logger.Log.Debug().Str("user_id", userID.String()).Str("title", req.Title).Msg("creating theory")
+
+	limit := s.settingsSvc.GetInt(ctx, config.SettingMaxTheoriesPerDay)
+	if limit > 0 {
+		count, err := s.repo.CountUserTheoriesToday(ctx, userID)
+		if err != nil {
+			return uuid.Nil, err
+		}
+		if count >= limit {
+			return uuid.Nil, ErrRateLimited
+		}
+	}
+
 	return s.repo.Create(ctx, userID, req)
 }
 
@@ -101,6 +130,18 @@ func (s *service) DeleteTheory(ctx context.Context, id uuid.UUID, userID uuid.UU
 
 func (s *service) CreateResponse(ctx context.Context, theoryID uuid.UUID, userID uuid.UUID, req dto.CreateResponseRequest) (uuid.UUID, error) {
 	logger.Log.Debug().Str("theory_id", theoryID.String()).Str("user_id", userID.String()).Str("side", req.Side).Msg("creating response")
+
+	limit := s.settingsSvc.GetInt(ctx, config.SettingMaxResponsesPerDay)
+	if limit > 0 {
+		count, err := s.repo.CountUserResponsesToday(ctx, userID)
+		if err != nil {
+			return uuid.Nil, err
+		}
+		if count >= limit {
+			return uuid.Nil, ErrRateLimited
+		}
+	}
+
 	if req.ParentID == nil {
 		authorID, err := s.repo.GetTheoryAuthorID(ctx, theoryID)
 		if err != nil {
@@ -115,6 +156,11 @@ func (s *service) CreateResponse(ctx context.Context, theoryID uuid.UUID, userID
 	if err != nil {
 		return uuid.Nil, err
 	}
+
+	go func() {
+		s.resolveEvidenceWeights(ctx, id)
+		s.credibilitySvc.Recalculate(ctx, theoryID)
+	}()
 
 	go func() {
 		if err := s.notifService.NotifyTheoryResponse(ctx, theoryID, userID); err != nil {
@@ -133,11 +179,49 @@ func (s *service) CreateResponse(ctx context.Context, theoryID uuid.UUID, userID
 	return id, nil
 }
 
-func (s *service) DeleteResponse(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	if s.authz.Can(ctx, userID, authz.PermDeleteAnyResponse) {
-		return s.repo.DeleteResponseAsAdmin(ctx, id)
+func (s *service) resolveEvidenceWeights(ctx context.Context, responseID uuid.UUID) {
+	evidence, err := s.repo.GetResponseEvidence(ctx, responseID)
+	if err != nil {
+		logger.Log.Error().Err(err).Msg("failed to get response evidence for weight resolution")
+		return
 	}
-	return s.repo.DeleteResponse(ctx, id, userID)
+
+	for _, ev := range evidence {
+		var q *quotefinder.Quote
+		if ev.AudioID != "" {
+			q, err = s.quoteClient.GetByAudioID(ev.AudioID)
+		} else if ev.QuoteIndex != nil {
+			q, err = s.quoteClient.GetByIndex(*ev.QuoteIndex)
+		}
+		if err != nil {
+			logger.Log.Warn().Err(err).Int("evidence_id", ev.ID).Msg("failed to resolve quote for truth weight")
+			continue
+		}
+
+		weight := quotefinder.TruthWeight(q)
+		if weight != 1.0 {
+			if err := s.repo.SetEvidenceTruthWeight(ctx, ev.ID, weight); err != nil {
+				logger.Log.Error().Err(err).Int("evidence_id", ev.ID).Msg("failed to set truth weight")
+			}
+		}
+	}
+}
+
+func (s *service) DeleteResponse(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
+	_, theoryID, _ := s.repo.GetResponseInfo(ctx, id)
+
+	var err error
+	if s.authz.Can(ctx, userID, authz.PermDeleteAnyResponse) {
+		err = s.repo.DeleteResponseAsAdmin(ctx, id)
+	} else {
+		err = s.repo.DeleteResponse(ctx, id, userID)
+	}
+
+	if err == nil && theoryID != uuid.Nil {
+		go s.credibilitySvc.Recalculate(ctx, theoryID)
+	}
+
+	return err
 }
 
 func (s *service) VoteTheory(ctx context.Context, userID uuid.UUID, theoryID uuid.UUID, value int) error {

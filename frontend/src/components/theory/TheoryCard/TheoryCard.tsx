@@ -1,6 +1,7 @@
-import { useNavigate } from "react-router";
-import type { Theory } from "../../../types/api";
-import { ProfileLink } from "../../ProfileLink/ProfileLink";
+import {useNavigate} from "react-router";
+import type {Theory} from "../../../types/api";
+import {ProfileLink} from "../../ProfileLink/ProfileLink";
+import {CredibilityBadge} from "../CredibilityBadge/CredibilityBadge";
 import styles from "./TheoryCard.module.css";
 
 interface TheoryCardProps {
@@ -33,6 +34,7 @@ export function TheoryCard({ theory }: TheoryCardProps) {
             </div>
             <p className={styles.body}>{theory.body}</p>
             <div className={styles.meta}>
+                <CredibilityBadge score={theory.credibility_score} />
                 <span>{theory.vote_score} votes</span>
                 <span className={styles.withLove}>
                     {"\u2764"} {theory.with_love_count}

@@ -40,7 +40,7 @@ type (
 )
 
 const (
-	userColumns = `id, username, password_hash, display_name, created_at, bio, avatar_url, banner_url, favourite_character, gender, pronoun_subject, pronoun_possessive, banned_at, banned_by, ban_reason, social_twitter, social_discord, social_waifulist, social_tumblr, social_github, website`
+	userColumns = `id, username, password_hash, display_name, created_at, bio, avatar_url, banner_url, favourite_character, gender, pronoun_subject, pronoun_possessive, banned_at, banned_by, ban_reason, social_twitter, social_discord, social_waifulist, social_tumblr, social_github, website, banner_position`
 )
 
 func scanUser(row interface{ Scan(dest ...any) error }) (*User, error) {
@@ -49,7 +49,8 @@ func scanUser(row interface{ Scan(dest ...any) error }) (*User, error) {
 		&u.Bio, &u.AvatarURL, &u.BannerURL, &u.FavouriteCharacter, &u.Gender,
 		&u.PronounSubject, &u.PronounPossessive,
 		&u.BannedAt, &u.BannedBy, &u.BanReason,
-		&u.SocialTwitter, &u.SocialDiscord, &u.SocialWaifulist, &u.SocialTumblr, &u.SocialGithub, &u.Website)
+		&u.SocialTwitter, &u.SocialDiscord, &u.SocialWaifulist, &u.SocialTumblr, &u.SocialGithub, &u.Website,
+		&u.BannerPosition)
 	return &u, err
 }
 
@@ -140,12 +141,12 @@ func (r *userRepository) ValidatePassword(ctx context.Context, username, passwor
 
 func (r *userRepository) UpdateProfile(ctx context.Context, userID uuid.UUID, req dto.UpdateProfileRequest) error {
 	_, err := r.db.ExecContext(ctx,
-		`UPDATE users SET display_name = ?, bio = ?, avatar_url = ?, banner_url = ?, favourite_character = ?, gender = ?,
+		`UPDATE users SET display_name = ?, bio = ?, avatar_url = ?, banner_url = ?, banner_position = ?, favourite_character = ?, gender = ?,
 		 pronoun_subject = ?, pronoun_possessive = ?,
 		 social_twitter = ?, social_discord = ?, social_waifulist = ?, social_tumblr = ?, social_github = ?,
 		 website = ?
 		 WHERE id = ?`,
-		req.DisplayName, req.Bio, req.AvatarURL, req.BannerURL, req.FavouriteCharacter, req.Gender,
+		req.DisplayName, req.Bio, req.AvatarURL, req.BannerURL, req.BannerPosition, req.FavouriteCharacter, req.Gender,
 		req.PronounSubject, req.PronounPossessive,
 		req.SocialTwitter, req.SocialDiscord, req.SocialWaifulist, req.SocialTumblr, req.SocialGithub, req.Website,
 		userID,

@@ -62,6 +62,7 @@ export interface Theory {
     with_love_count: number;
     without_love_count: number;
     user_vote?: number;
+    credibility_score: number;
     created_at: string;
 }
 
@@ -121,6 +122,7 @@ export interface UserProfile {
     bio: string;
     avatar_url: string;
     banner_url: string;
+    banner_position: number;
     favourite_character: string;
     gender: string;
     pronoun_subject: string;
@@ -148,6 +150,7 @@ export interface UpdateProfilePayload {
     bio: string;
     avatar_url: string;
     banner_url: string;
+    banner_position: number;
     favourite_character: string;
     gender: string;
     pronoun_subject: string;

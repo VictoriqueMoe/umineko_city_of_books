@@ -22,6 +22,7 @@ type (
 		Bio                string       `json:"bio"`
 		AvatarURL          string       `json:"avatar_url"`
 		BannerURL          string       `json:"banner_url"`
+		BannerPosition     float64      `json:"banner_position"`
 		FavouriteCharacter string       `json:"favourite_character"`
 		Gender             string       `json:"gender"`
 		PronounSubject     string       `json:"pronoun_subject"`
@@ -45,20 +46,21 @@ type (
 	}
 
 	UpdateProfileRequest struct {
-		DisplayName        string `json:"display_name"`
-		Bio                string `json:"bio"`
-		AvatarURL          string `json:"avatar_url"`
-		BannerURL          string `json:"banner_url"`
-		FavouriteCharacter string `json:"favourite_character"`
-		Gender             string `json:"gender"`
-		PronounSubject     string `json:"pronoun_subject"`
-		PronounPossessive  string `json:"pronoun_possessive"`
-		SocialTwitter      string `json:"social_twitter"`
-		SocialDiscord      string `json:"social_discord"`
-		SocialWaifulist    string `json:"social_waifulist"`
-		SocialTumblr       string `json:"social_tumblr"`
-		SocialGithub       string `json:"social_github"`
-		Website            string `json:"website"`
+		DisplayName        string  `json:"display_name"`
+		Bio                string  `json:"bio"`
+		AvatarURL          string  `json:"avatar_url"`
+		BannerURL          string  `json:"banner_url"`
+		BannerPosition     float64 `json:"banner_position"`
+		FavouriteCharacter string  `json:"favourite_character"`
+		Gender             string  `json:"gender"`
+		PronounSubject     string  `json:"pronoun_subject"`
+		PronounPossessive  string  `json:"pronoun_possessive"`
+		SocialTwitter      string  `json:"social_twitter"`
+		SocialDiscord      string  `json:"social_discord"`
+		SocialWaifulist    string  `json:"social_waifulist"`
+		SocialTumblr       string  `json:"social_tumblr"`
+		SocialGithub       string  `json:"social_github"`
+		Website            string  `json:"website"`
 	}
 
 	ChangePasswordRequest struct {
@@ -83,6 +85,7 @@ type (
 	RegisterRequest struct {
 		LoginRequest
 		DisplayName string `json:"display_name"`
+		InviteCode  string `json:"invite_code,omitempty"`
 	}
 )
 

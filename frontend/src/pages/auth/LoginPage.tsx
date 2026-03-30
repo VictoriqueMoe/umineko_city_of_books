@@ -13,13 +13,14 @@ export function LoginPage() {
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [displayName, setDisplayName] = useState("");
+    const [inviteCode, setInviteCode] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
-    const [registrationEnabled, setRegistrationEnabled] = useState(true);
+    const [regType, setRegType] = useState<"open" | "invite" | "closed">("open");
 
     useEffect(() => {
         getSiteInfo()
-            .then(info => setRegistrationEnabled(info.registration_enabled))
+            .then(info => setRegType(info.registration_type as "open" | "invite" | "closed"))
             .catch(() => {});
     }, []);
 
@@ -30,7 +31,7 @@ export function LoginPage() {
 
         try {
             if (isRegister) {
-                await registerUser(username, password, displayName || username);
+                await registerUser(username, password, displayName || username, inviteCode || undefined);
             } else {
                 await loginUser(username, password);
             }
@@ -41,6 +42,8 @@ export function LoginPage() {
             setLoading(false);
         }
     }
+
+    const canRegister = regType !== "closed";
 
     return (
         <div className={styles.page}>
@@ -67,26 +70,37 @@ export function LoginPage() {
                         autoComplete={isRegister ? "new-password" : "current-password"}
                     />
                     {isRegister && (
-                        <Input
-                            type="text"
-                            fullWidth
-                            placeholder="Display Name (optional)"
-                            value={displayName}
-                            onChange={e => setDisplayName(e.target.value)}
-                        />
+                        <>
+                            <Input
+                                type="text"
+                                fullWidth
+                                placeholder="Display Name (optional)"
+                                value={displayName}
+                                onChange={e => setDisplayName(e.target.value)}
+                            />
+                            {regType === "invite" && (
+                                <Input
+                                    type="text"
+                                    fullWidth
+                                    placeholder="Invite Code"
+                                    value={inviteCode}
+                                    onChange={e => setInviteCode(e.target.value)}
+                                />
+                            )}
+                        </>
                     )}
 
                     <Button
                         variant="primary"
                         type="submit"
-                        disabled={!username || !password || loading}
+                        disabled={!username || !password || loading || (isRegister && regType === "invite" && !inviteCode)}
                         style={{ width: "100%", marginTop: "0.5rem" }}
                     >
                         {loading ? "..." : isRegister ? "Register" : "Sign In"}
                     </Button>
                 </form>
 
-                {registrationEnabled ? (
+                {canRegister ? (
                     <Button
                         variant="ghost"
                         onClick={() => setIsRegister(!isRegister)}

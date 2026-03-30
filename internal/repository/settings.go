@@ -14,6 +14,7 @@ type (
 		GetAll(ctx context.Context) (map[string]string, error)
 		Set(ctx context.Context, key, value string, updatedBy uuid.UUID) error
 		SetMultiple(ctx context.Context, settings map[string]string, updatedBy uuid.UUID) error
+		Delete(ctx context.Context, key string) error
 	}
 
 	settingsRepository struct {
@@ -90,4 +91,12 @@ func (r *settingsRepository) SetMultiple(ctx context.Context, settings map[strin
 	}
 
 	return tx.Commit()
+}
+
+func (r *settingsRepository) Delete(ctx context.Context, key string) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM site_settings WHERE key = ?`, key)
+	if err != nil {
+		return fmt.Errorf("delete setting %q: %w", key, err)
+	}
+	return nil
 }

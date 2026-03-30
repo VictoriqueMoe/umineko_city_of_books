@@ -40,7 +40,7 @@ var (
 	SettingMaxImageSize        = SiteSettingDef{"max_image_size", "10485760", TypeInt}
 	SettingMaxVideoSize        = SiteSettingDef{"max_video_size", "104857600", TypeInt}
 	SettingMaxGeneralSize      = SiteSettingDef{"max_general_size", "52428800", TypeInt}
-	SettingRegistrationEnabled = SiteSettingDef{"registration_enabled", "true", TypeBool}
+	SettingRegistrationType    = SiteSettingDef{"registration_type", "open", TypeString}
 	SettingMaintenanceMode     = SiteSettingDef{"maintenance_mode", "false", TypeBool}
 	SettingSiteName            = SiteSettingDef{"site_name", "Umineko City of Books", TypeString}
 	SettingSiteDescription     = SiteSettingDef{"site_description", "", TypeString}
@@ -59,7 +59,7 @@ var (
 		SettingMaxImageSize,
 		SettingMaxVideoSize,
 		SettingMaxGeneralSize,
-		SettingRegistrationEnabled,
+		SettingRegistrationType,
 		SettingMaintenanceMode,
 		SettingSiteName,
 		SettingSiteDescription,
@@ -96,14 +96,14 @@ func ValidateSettings(all map[SiteSettingKey]string) error {
 	if maxVideo <= 0 {
 		return fmt.Errorf("max video size must be greater than 0")
 	}
-	if maxGeneral <= 0 {
-		return fmt.Errorf("max general size must be greater than 0")
-	}
 	if maxImage > maxBody {
 		return fmt.Errorf("max image size (%d) cannot exceed max body size (%d)", maxImage, maxBody)
 	}
 	if maxVideo > maxBody {
 		return fmt.Errorf("max video size (%d) cannot exceed max body size (%d)", maxVideo, maxBody)
+	}
+	if maxGeneral <= 0 {
+		return fmt.Errorf("max general size must be greater than 0")
 	}
 	if maxGeneral > maxBody {
 		return fmt.Errorf("max general size (%d) cannot exceed max body size (%d)", maxGeneral, maxBody)
@@ -119,6 +119,11 @@ func ValidateSettings(all map[SiteSettingKey]string) error {
 	}
 	if maxResponses < 0 {
 		return fmt.Errorf("max responses per day cannot be negative")
+	}
+
+	regType := all[SettingRegistrationType.Key]
+	if regType != "open" && regType != "invite" && regType != "closed" {
+		return fmt.Errorf("registration type must be 'open', 'invite', or 'closed'")
 	}
 
 	return nil

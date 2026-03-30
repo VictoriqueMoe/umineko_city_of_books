@@ -25,19 +25,23 @@ const QUOTE_API = "https://quotes.auaurora.moe/api/v1";
 
 export interface SiteInfo {
     site_name: string;
-    registration_enabled: boolean;
+    site_description: string;
+    registration_type: string;
     announcement_banner: string;
+    default_theme: string;
+    maintenance_mode: boolean;
 }
 
 export async function getSiteInfo(): Promise<SiteInfo> {
     return apiFetch<SiteInfo>("/site-info");
 }
 
-export async function register(username: string, password: string, displayName: string): Promise<User> {
-    return apiPost<User, { username: string; password: string; display_name: string }>("/auth/register", {
+export async function register(username: string, password: string, displayName: string, inviteCode?: string): Promise<User> {
+    return apiPost<User, { username: string; password: string; display_name: string; invite_code?: string }>("/auth/register", {
         username,
         password,
         display_name: displayName,
+        invite_code: inviteCode,
     });
 }
 
@@ -256,4 +260,32 @@ export async function updateAdminSettings(settings: SiteSettings): Promise<void>
 export async function getAuditLog(params: { action?: string; limit?: number; offset?: number }): Promise<AuditLogListResponse> {
     const qs = buildQueryString({ action: params.action, limit: params.limit ?? 50, offset: params.offset });
     return apiFetch<AuditLogListResponse>(`/admin/audit-log${qs}`);
+}
+
+export interface InviteItem {
+    code: string;
+    created_by: string;
+    used_by?: string;
+    used_at?: string;
+    created_at: string;
+}
+
+export interface InviteListResponse {
+    invites: InviteItem[];
+    total: number;
+    limit: number;
+    offset: number;
+}
+
+export async function createInvite(): Promise<InviteItem> {
+    return apiPost<InviteItem, undefined>("/admin/invites", undefined);
+}
+
+export async function getInvites(params: { limit?: number; offset?: number }): Promise<InviteListResponse> {
+    const qs = buildQueryString({ limit: params.limit ?? 50, offset: params.offset });
+    return apiFetch<InviteListResponse>(`/admin/invites${qs}`);
+}
+
+export async function deleteInvite(code: string): Promise<void> {
+    await apiDelete<unknown>(`/admin/invites/${code}`);
 }

@@ -121,17 +121,20 @@ export function AdminSettings() {
         <div className={styles.page}>
             <h1 className={styles.title}>Site Settings</h1>
 
-            {error && <div className={styles.error}>{error}</div>}
-
             <div className={styles.card}>
                 <h2 className={styles.sectionTitle}>Feature Toggles</h2>
                 <div className={styles.fieldGroup}>
-                    <ToggleSwitch
-                        label="Registration Enabled"
-                        description="Allow new users to register"
-                        enabled={settings.registration_enabled === "true"}
-                        onChange={v => toggleField("registration_enabled", v)}
-                    />
+                    <div className={styles.field}>
+                        <span className={styles.fieldLabel}>Registration</span>
+                        <Select
+                            value={settings.registration_type ?? "open"}
+                            onChange={e => updateField("registration_type", e.target.value)}
+                        >
+                            <option value="open">Open (anyone can register)</option>
+                            <option value="invite">Invite Only</option>
+                            <option value="closed">Closed (no registration)</option>
+                        </Select>
+                    </div>
                     <ToggleSwitch
                         label="Maintenance Mode"
                         description="Put the site into maintenance mode"
@@ -268,6 +271,7 @@ export function AdminSettings() {
                 <Button variant="primary" onClick={handleSave} disabled={saving}>
                     {saving ? "Saving..." : "Save Settings"}
                 </Button>
+                {error && <span className={styles.saveError}>{error}</span>}
                 {success && <span className={styles.success}>{success}</span>}
             </div>
         </div>

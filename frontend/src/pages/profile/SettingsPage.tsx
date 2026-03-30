@@ -1,15 +1,107 @@
-import { useEffect } from "react";
-import { useNavigate } from "react-router";
-import { useAuth } from "../../hooks/useAuth";
-import { useSettingsForm } from "../../hooks/useSettingsForm";
-import { Button } from "../../components/Button/Button";
-import { Input } from "../../components/Input/Input";
-import { TextArea } from "../../components/TextArea/TextArea";
-import { Select } from "../../components/Select/Select";
-import { ToggleSwitch } from "../../components/ToggleSwitch/ToggleSwitch";
-import { ChangePasswordSection } from "./ChangePasswordSection";
-import { DangerZoneSection } from "./DangerZoneSection";
+import {useCallback, useEffect, useRef, useState} from "react";
+import {useNavigate} from "react-router";
+import {useAuth} from "../../hooks/useAuth";
+import {useSettingsForm} from "../../hooks/useSettingsForm";
+import {Button} from "../../components/Button/Button";
+import {Input} from "../../components/Input/Input";
+import {TextArea} from "../../components/TextArea/TextArea";
+import {Select} from "../../components/Select/Select";
+import {ToggleSwitch} from "../../components/ToggleSwitch/ToggleSwitch";
+import {ChangePasswordSection} from "./ChangePasswordSection";
+import {DangerZoneSection} from "./DangerZoneSection";
 import styles from "./SettingsPage.module.css";
+
+function BannerSection({ form }: { form: ReturnType<typeof useSettingsForm> }) {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [dragging, setDragging] = useState(false);
+    const dragStartY = useRef(0);
+    const dragStartPos = useRef(0);
+
+    const handlePointerDown = useCallback(
+        (e: React.MouseEvent | React.TouchEvent) => {
+            if (!form.bannerUrl) {
+                return;
+            }
+            const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+            dragStartY.current = clientY;
+            dragStartPos.current = form.bannerPosition;
+            setDragging(true);
+        },
+        [form.bannerUrl, form.bannerPosition],
+    );
+
+    const handlePointerMove = useCallback(
+        (e: MouseEvent | TouchEvent) => {
+            if (!dragging || !containerRef.current) {
+                return;
+            }
+            const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+            const containerHeight = containerRef.current.getBoundingClientRect().height;
+            const deltaPercent = ((clientY - dragStartY.current) / containerHeight) * 100;
+            const newPos = Math.min(100, Math.max(0, dragStartPos.current - deltaPercent));
+            form.setBannerPosition(newPos);
+        },
+        [dragging, form],
+    );
+
+    const handlePointerUp = useCallback(() => {
+        setDragging(false);
+    }, []);
+
+    useEffect(() => {
+        if (dragging) {
+            document.addEventListener("mousemove", handlePointerMove);
+            document.addEventListener("mouseup", handlePointerUp);
+            document.addEventListener("touchmove", handlePointerMove);
+            document.addEventListener("touchend", handlePointerUp);
+        }
+        return () => {
+            document.removeEventListener("mousemove", handlePointerMove);
+            document.removeEventListener("mouseup", handlePointerUp);
+            document.removeEventListener("touchmove", handlePointerMove);
+            document.removeEventListener("touchend", handlePointerUp);
+        };
+    }, [dragging, handlePointerMove, handlePointerUp]);
+
+    return (
+        <div className={styles.section}>
+            <h3 className={styles.sectionTitle}>Banner</h3>
+            <div className={styles.bannerSection}>
+                <div
+                    ref={containerRef}
+                    className={styles.bannerPreview}
+                    style={{ cursor: form.bannerUrl ? "grab" : undefined, userSelect: dragging ? "none" : undefined }}
+                    onMouseDown={handlePointerDown}
+                    onTouchStart={handlePointerDown}
+                >
+                    {form.bannerUrl ? (
+                        <>
+                            <img
+                                src={form.bannerUrl}
+                                alt="Banner"
+                                draggable={false}
+                                style={{ objectPosition: `center ${form.bannerPosition}%` }}
+                            />
+                            <div className={styles.bannerDragHint}>Drag to reposition</div>
+                        </>
+                    ) : (
+                        <div className={styles.bannerPlaceholder}>No banner set</div>
+                    )}
+                </div>
+                <label className={styles.uploadBtn}>
+                    {form.uploadingBanner ? "Uploading..." : "Upload Banner"}
+                    <input
+                        type="file"
+                        accept="image/*"
+                        onChange={form.handleBannerChange}
+                        style={{ display: "none" }}
+                        disabled={form.uploadingBanner}
+                    />
+                </label>
+            </div>
+        </div>
+    );
+}
 
 export function SettingsPage() {
     const navigate = useNavigate();
@@ -35,9 +127,6 @@ export function SettingsPage() {
     return (
         <div className={styles.page}>
             <h2 className={styles.heading}>Settings</h2>
-
-            {form.error && <div className={styles.error}>{form.error}</div>}
-            {form.success && <div className={styles.success}>{form.success}</div>}
 
             <form onSubmit={form.handleSubmit}>
                 <div className={styles.grid}>
@@ -66,28 +155,7 @@ export function SettingsPage() {
                         </div>
                     </div>
 
-                    <div className={styles.section}>
-                        <h3 className={styles.sectionTitle}>Banner</h3>
-                        <div className={styles.bannerSection}>
-                            <div className={styles.bannerPreview}>
-                                {form.bannerUrl ? (
-                                    <img src={form.bannerUrl} alt="Banner" />
-                                ) : (
-                                    <div className={styles.bannerPlaceholder}>No banner set</div>
-                                )}
-                            </div>
-                            <label className={styles.uploadBtn}>
-                                {form.uploadingBanner ? "Uploading..." : "Upload Banner"}
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={form.handleBannerChange}
-                                    style={{ display: "none" }}
-                                    disabled={form.uploadingBanner}
-                                />
-                            </label>
-                        </div>
-                    </div>
+                    <BannerSection form={form} />
 
                     <div className={`${styles.section} ${styles.gridFull}`}>
                         <h3 className={styles.sectionTitle}>Profile</h3>
@@ -258,6 +326,8 @@ export function SettingsPage() {
                 <Button variant="primary" type="submit" disabled={form.saving} style={{ width: "100%" }}>
                     {form.saving ? "Saving..." : "Save Changes"}
                 </Button>
+                {form.error && <div className={styles.error}>{form.error}</div>}
+                {form.success && <div className={styles.success}>{form.success}</div>}
             </form>
 
             <div className={styles.grid} style={{ marginTop: "1.5rem" }}>

@@ -26,6 +26,9 @@ func (s *Service) getAllAdminRoutes() []FSetupRoute {
 		s.setupAdminGetSettings,
 		s.setupAdminUpdateSettings,
 		s.setupAdminGetAuditLog,
+		s.setupAdminCreateInvite,
+		s.setupAdminListInvites,
+		s.setupAdminDeleteInvite,
 	}
 }
 
@@ -222,6 +225,49 @@ func (s *Service) adminGetAuditLog(ctx fiber.Ctx) error {
 		return handleAdminError(ctx, err)
 	}
 	return ctx.JSON(result)
+}
+
+func (s *Service) setupAdminCreateInvite(r fiber.Router) {
+	r.Post("/admin/invites", s.requirePerm(authz.PermManageRoles), s.adminCreateInvite)
+}
+
+func (s *Service) setupAdminListInvites(r fiber.Router) {
+	r.Get("/admin/invites", s.requirePerm(authz.PermManageRoles), s.adminListInvites)
+}
+
+func (s *Service) setupAdminDeleteInvite(r fiber.Router) {
+	r.Delete("/admin/invites/:code", s.requirePerm(authz.PermManageRoles), s.adminDeleteInvite)
+}
+
+func (s *Service) adminCreateInvite(ctx fiber.Ctx) error {
+	actorID := ctx.Locals("userID").(uuid.UUID)
+
+	result, err := s.AdminService.CreateInvite(ctx.Context(), actorID)
+	if err != nil {
+		return handleAdminError(ctx, err)
+	}
+	return ctx.Status(fiber.StatusCreated).JSON(result)
+}
+
+func (s *Service) adminListInvites(ctx fiber.Ctx) error {
+	limit := fiber.Query[int](ctx, "limit", 50)
+	offset := fiber.Query[int](ctx, "offset", 0)
+
+	result, err := s.AdminService.ListInvites(ctx.Context(), limit, offset)
+	if err != nil {
+		return handleAdminError(ctx, err)
+	}
+	return ctx.JSON(result)
+}
+
+func (s *Service) adminDeleteInvite(ctx fiber.Ctx) error {
+	actorID := ctx.Locals("userID").(uuid.UUID)
+	code := ctx.Params("code")
+
+	if err := s.AdminService.DeleteInvite(ctx.Context(), actorID, code); err != nil {
+		return handleAdminError(ctx, err)
+	}
+	return ctx.JSON(fiber.Map{"status": "ok"})
 }
 
 func handleAdminError(ctx fiber.Ctx, err error) error {

@@ -90,4 +90,19 @@ type (
 	BanUserRequest struct {
 		Reason string `json:"reason"`
 	}
+
+	InviteResponse struct {
+		Code      string     `json:"code"`
+		CreatedBy uuid.UUID  `json:"created_by"`
+		UsedBy    *uuid.UUID `json:"used_by,omitempty"`
+		UsedAt    *string    `json:"used_at,omitempty"`
+		CreatedAt string     `json:"created_at"`
+	}
+
+	InviteListResponse struct {
+		Invites []InviteResponse `json:"invites"`
+		Total   int              `json:"total"`
+		Limit   int              `json:"limit"`
+		Offset  int              `json:"offset"`
+	}
 )
