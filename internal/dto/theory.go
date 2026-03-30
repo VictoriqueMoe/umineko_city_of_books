@@ -1,8 +1,10 @@
 package dto
 
+import "github.com/google/uuid"
+
 type (
 	TheoryResponse struct {
-		ID               int          `json:"id"`
+		ID               uuid.UUID    `json:"id"`
 		Title            string       `json:"title"`
 		Body             string       `json:"body"`
 		Episode          int          `json:"episode"`
@@ -11,11 +13,12 @@ type (
 		WithLoveCount    int          `json:"with_love_count"`
 		WithoutLoveCount int          `json:"without_love_count"`
 		UserVote         int          `json:"user_vote,omitempty"`
+		CredibilityScore float64      `json:"credibility_score"`
 		CreatedAt        string       `json:"created_at"`
 	}
 
 	TheoryDetailResponse struct {
-		ID               int                `json:"id"`
+		ID               uuid.UUID          `json:"id"`
 		Title            string             `json:"title"`
 		Body             string             `json:"body"`
 		Episode          int                `json:"episode"`
@@ -26,6 +29,7 @@ type (
 		WithLoveCount    int                `json:"with_love_count"`
 		WithoutLoveCount int                `json:"without_love_count"`
 		UserVote         int                `json:"user_vote,omitempty"`
+		CredibilityScore float64            `json:"credibility_score"`
 		CreatedAt        string             `json:"created_at"`
 	}
 

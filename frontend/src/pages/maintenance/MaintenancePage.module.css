@@ -1,0 +1,27 @@
+.page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 80vh;
+    text-align: center;
+}
+
+.card {
+    max-width: 500px;
+    padding: 3rem 2rem;
+}
+
+.title {
+    font-family: var(--font-display);
+    color: var(--gold);
+    font-size: 2rem;
+    letter-spacing: 0.05em;
+    margin-bottom: 1.5rem;
+}
+
+.message {
+    color: var(--text-muted);
+    font-size: 1.1rem;
+    line-height: 1.6;
+    font-style: italic;
+}

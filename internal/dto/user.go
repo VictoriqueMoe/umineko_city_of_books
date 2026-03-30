@@ -1,20 +1,34 @@
 package dto
 
+import (
+	"umineko_city_of_books/internal/role"
+
+	"github.com/google/uuid"
+)
+
 type (
 	UserResponse struct {
-		ID          int    `json:"id"`
-		Username    string `json:"username"`
-		DisplayName string `json:"display_name"`
-		AvatarURL   string `json:"avatar_url,omitempty"`
+		ID          uuid.UUID `json:"id"`
+		Username    string    `json:"username"`
+		DisplayName string    `json:"display_name"`
+		AvatarURL   string    `json:"avatar_url,omitempty"`
+		Role        role.Role `json:"role,omitempty"`
 	}
 
 	UserProfileResponse struct {
-		ID                 int          `json:"id"`
+		ID                 uuid.UUID    `json:"id"`
 		Username           string       `json:"username"`
 		DisplayName        string       `json:"display_name"`
 		Bio                string       `json:"bio"`
 		AvatarURL          string       `json:"avatar_url"`
+		BannerURL          string       `json:"banner_url"`
+		BannerPosition     float64      `json:"banner_position"`
 		FavouriteCharacter string       `json:"favourite_character"`
+		Gender             string       `json:"gender"`
+		PronounSubject     string       `json:"pronoun_subject"`
+		PronounPossessive  string       `json:"pronoun_possessive"`
+		Role               role.Role    `json:"role,omitempty"`
+		Online             bool         `json:"online"`
 		SocialTwitter      string       `json:"social_twitter"`
 		SocialDiscord      string       `json:"social_discord"`
 		SocialWaifulist    string       `json:"social_waifulist"`
@@ -32,16 +46,30 @@ type (
 	}
 
 	UpdateProfileRequest struct {
-		DisplayName        string `json:"display_name"`
-		Bio                string `json:"bio"`
-		AvatarURL          string `json:"avatar_url"`
-		FavouriteCharacter string `json:"favourite_character"`
-		SocialTwitter      string `json:"social_twitter"`
-		SocialDiscord      string `json:"social_discord"`
-		SocialWaifulist    string `json:"social_waifulist"`
-		SocialTumblr       string `json:"social_tumblr"`
-		SocialGithub       string `json:"social_github"`
-		Website            string `json:"website"`
+		DisplayName        string  `json:"display_name"`
+		Bio                string  `json:"bio"`
+		AvatarURL          string  `json:"avatar_url"`
+		BannerURL          string  `json:"banner_url"`
+		BannerPosition     float64 `json:"banner_position"`
+		FavouriteCharacter string  `json:"favourite_character"`
+		Gender             string  `json:"gender"`
+		PronounSubject     string  `json:"pronoun_subject"`
+		PronounPossessive  string  `json:"pronoun_possessive"`
+		SocialTwitter      string  `json:"social_twitter"`
+		SocialDiscord      string  `json:"social_discord"`
+		SocialWaifulist    string  `json:"social_waifulist"`
+		SocialTumblr       string  `json:"social_tumblr"`
+		SocialGithub       string  `json:"social_github"`
+		Website            string  `json:"website"`
+	}
+
+	ChangePasswordRequest struct {
+		OldPassword string `json:"old_password"`
+		NewPassword string `json:"new_password"`
+	}
+
+	DeleteAccountRequest struct {
+		Password string `json:"password"`
 	}
 
 	Credentials interface {
@@ -57,6 +85,7 @@ type (
 	RegisterRequest struct {
 		LoginRequest
 		DisplayName string `json:"display_name"`
+		InviteCode  string `json:"invite_code,omitempty"`
 	}
 )
 

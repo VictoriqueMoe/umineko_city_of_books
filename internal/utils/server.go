@@ -1,10 +1,11 @@
 package utils
 
 import (
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"umineko_city_of_books/internal/logger"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -18,14 +19,14 @@ func StartServerWithGracefulShutdown(app *fiber.App, addr string) {
 		<-sigint
 
 		if err := app.Shutdown(); err != nil {
-			log.Printf("Server shutdown error: %v", err)
+			logger.Log.Error().Err(err).Msg("server shutdown error")
 		}
 
 		close(idleConnsClosed)
 	}()
 
 	if err := app.Listen(addr); err != nil {
-		log.Printf("Server error: %v", err)
+		logger.Log.Error().Err(err).Msg("server error")
 	}
 
 	<-idleConnsClosed

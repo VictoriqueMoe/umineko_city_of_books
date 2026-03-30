@@ -1,0 +1,19 @@
+.pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.1rem 0.4rem;
+    border-radius: 3px;
+    font-family: var(--font-display);
+    font-size: 0.6rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    vertical-align: middle;
+    margin-left: 0.35rem;
+}
+
+.admin {
+    background: rgba(var(--gold-rgb), 0.15);
+    color: var(--gold);
+    border: 1px solid rgba(var(--gold-rgb), 0.3);
+}

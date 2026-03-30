@@ -1,0 +1,47 @@
+.link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    cursor: pointer;
+    transition: opacity 0.15s var(--ease-out);
+}
+
+.link:hover {
+    opacity: 0.8;
+}
+
+.avatarWrapper {
+    position: relative;
+    display: inline-flex;
+    flex-shrink: 0;
+}
+
+.avatar {
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.avatarPlaceholder {
+    display: inline-flex;
+    border-radius: 50%;
+    background: rgba(var(--purple-rgb), 0.4);
+    align-items: center;
+    justify-content: center;
+    color: var(--text);
+}
+
+.onlineDot {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 8px;
+    height: 8px;
+    background: #34d399;
+    border-radius: 50%;
+    border: 2px solid var(--bg-card);
+}
+
+.name {
+    color: var(--gold);
+    font-family: var(--font-display);
+}

@@ -1,0 +1,43 @@
+.layout {
+    display: flex;
+    flex-direction: column;
+}
+
+.header {
+    border-bottom: 1px solid rgba(var(--gold-rgb), 0.15);
+    margin-bottom: 1.5rem;
+}
+
+.title {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    color: var(--gold);
+    margin-bottom: 1rem;
+}
+
+.tabs {
+    display: flex;
+    gap: 0;
+}
+
+.tab {
+    padding: 0.6rem 1.25rem;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s var(--ease-out);
+}
+
+.tab:hover {
+    color: var(--text);
+    background: rgba(var(--gold-rgb), 0.04);
+}
+
+.tabActive {
+    color: var(--gold);
+    border-bottom-color: var(--gold);
+}
+
+.content {
+    min-width: 0;
+}

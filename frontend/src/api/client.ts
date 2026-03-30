@@ -43,6 +43,16 @@ export async function apiDelete<T>(path: string): Promise<T> {
     return handleResponse<T>(response);
 }
 
+export async function apiDeleteWithBody<T, B>(path: string, body: B): Promise<T> {
+    const response = await fetch(`${API_BASE}${path}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        credentials: "include",
+    });
+    return handleResponse<T>(response);
+}
+
 export async function apiPostFormData<T>(path: string, formData: FormData): Promise<T> {
     const response = await fetch(`${API_BASE}${path}`, {
         method: "POST",

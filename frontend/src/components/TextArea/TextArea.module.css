@@ -1,0 +1,24 @@
+.textarea {
+    width: 100%;
+    min-height: 100px;
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--gold-rgb), 0.2);
+    color: var(--text);
+    padding: 0.75rem 1rem;
+    border-radius: 4px;
+    font-size: 1rem;
+    font-family: var(--font-body);
+    line-height: 1.6;
+    resize: vertical;
+    transition: border-color 0.2s var(--ease-out);
+}
+
+.textarea:focus {
+    outline: none;
+    border-color: var(--gold);
+    box-shadow: 0 0 0 2px rgba(var(--gold-rgb), 0.1);
+}
+
+.textarea::placeholder {
+    color: var(--text-muted);
+}

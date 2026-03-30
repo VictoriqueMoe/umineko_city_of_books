@@ -1,6 +1,6 @@
-import {useCallback, useEffect, useState} from "react";
-import type {UserProfile} from "../types/api";
-import {getUserProfile} from "../api/endpoints";
+import { useCallback, useEffect, useState } from "react";
+import type { UserProfile } from "../types/api";
+import { getUserProfile } from "../api/endpoints";
 
 export function useProfile(username: string) {
     const [profile, setProfile] = useState<UserProfile | null>(null);
