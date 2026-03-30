@@ -210,124 +210,124 @@ export function ChatPage() {
 
     return (
         <div className={styles.chatWrapper}>
-        <div className={styles.chatLayout}>
-            <div className={styles.roomList}>
-                <div className={styles.roomListHeader}>
-                    <span className={styles.roomListTitle}>Messages</span>
-                    <Button variant="ghost" size="small" onClick={() => setShowNewDm(true)}>
-                        New DM
-                    </Button>
-                </div>
-                <div className={styles.rooms}>
-                    {rooms.length === 0 && (
-                        <div className={styles.emptyRooms}>No conversations yet</div>
-                    )}
-                    {rooms.map(room => {
-                        const avatarUser = getRoomAvatarUser(room, user);
-                        return (
-                            <button
-                                key={room.id}
-                                className={`${styles.roomItem}${room.id === activeRoomId ? ` ${styles.roomItemActive}` : ""}`}
-                                onClick={() => handleRoomSelect(room.id)}
-                            >
-                                {avatarUser?.avatar_url ? (
-                                    <img className={styles.roomAvatar} src={avatarUser.avatar_url} alt="" />
-                                ) : (
-                                    <span className={styles.roomAvatarPlaceholder}>
-                                        {getRoomDisplayName(room, user).charAt(0).toUpperCase()}
-                                    </span>
-                                )}
-                                <span className={styles.roomName}>{getRoomDisplayName(room, user)}</span>
-                            </button>
-                        );
-                    })}
-                </div>
-            </div>
-
-            <div className={styles.messageArea}>
-                {!activeRoom ? (
-                    <div className={styles.messageAreaEmpty}>Select a conversation</div>
-                ) : (
-                    <>
-                        <div className={styles.messageHeader}>
-                            <span>{getRoomDisplayName(activeRoom, user)}</span>
-                            <Button variant="danger" size="small" onClick={handleDeleteChat}>
-                                Delete Chat
-                            </Button>
-                        </div>
-                        <div className={styles.messages}>
-                            {messages.map(msg => {
-                                const isOwn = msg.sender.id === user.id;
-                                return (
-                                    <div
-                                        key={msg.id}
-                                        className={`${styles.messageBubble}${isOwn ? ` ${styles.ownMessage}` : ""}`}
-                                    >
-                                        {msg.sender.avatar_url ? (
-                                            <img
-                                                className={styles.messageAvatar}
-                                                src={msg.sender.avatar_url}
-                                                alt=""
-                                            />
-                                        ) : (
-                                            <span className={styles.messageAvatarPlaceholder}>
-                                                {msg.sender.display_name.charAt(0).toUpperCase()}
-                                            </span>
-                                        )}
-                                        <div className={styles.messageContent}>
-                                            {!isOwn && (
-                                                <div className={styles.messageSender}>
-                                                    {msg.sender.display_name}
-                                                </div>
-                                            )}
-                                            <div className={styles.messageText}>
-                                                {msg.body}
-                                            </div>
-                                            <div className={styles.messageTime}>{formatTime(msg.created_at)}</div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                            <div ref={messagesEndRef} />
-                        </div>
-                        <form className={styles.inputBar} onSubmit={handleSend}>
-                            <Input
-                                fullWidth
-                                type="text"
-                                placeholder="Type a message..."
-                                value={newMessage}
-                                onChange={e => setNewMessage(e.target.value)}
-                                autoComplete="off"
-                            />
-                            <Button variant="primary" type="submit" disabled={sending || !newMessage.trim()}>
-                                Send
-                            </Button>
-                        </form>
-                    </>
-                )}
-            </div>
-
-            <Modal isOpen={showNewDm} onClose={() => setShowNewDm(false)} title="New Direct Message">
-                <div className={styles.modalBody}>
-                    <Input
-                        fullWidth
-                        type="text"
-                        placeholder="Enter username..."
-                        value={dmUsername}
-                        onChange={e => setDmUsername(e.target.value)}
-                    />
-                    {dmError && <div className={styles.modalError}>{dmError}</div>}
-                    <div className={styles.modalActions}>
-                        <Button variant="secondary" onClick={() => setShowNewDm(false)}>
-                            Cancel
-                        </Button>
-                        <Button variant="primary" onClick={handleCreateDm} disabled={dmCreating || !dmUsername.trim()}>
-                            {dmCreating ? "Creating..." : "Start Chat"}
+            <div className={styles.chatLayout}>
+                <div className={styles.roomList}>
+                    <div className={styles.roomListHeader}>
+                        <span className={styles.roomListTitle}>Messages</span>
+                        <Button variant="ghost" size="small" onClick={() => setShowNewDm(true)}>
+                            New DM
                         </Button>
                     </div>
+                    <div className={styles.rooms}>
+                        {rooms.length === 0 && <div className={styles.emptyRooms}>No conversations yet</div>}
+                        {rooms.map(room => {
+                            const avatarUser = getRoomAvatarUser(room, user);
+                            return (
+                                <button
+                                    key={room.id}
+                                    className={`${styles.roomItem}${room.id === activeRoomId ? ` ${styles.roomItemActive}` : ""}`}
+                                    onClick={() => handleRoomSelect(room.id)}
+                                >
+                                    {avatarUser?.avatar_url ? (
+                                        <img className={styles.roomAvatar} src={avatarUser.avatar_url} alt="" />
+                                    ) : (
+                                        <span className={styles.roomAvatarPlaceholder}>
+                                            {getRoomDisplayName(room, user).charAt(0).toUpperCase()}
+                                        </span>
+                                    )}
+                                    <span className={styles.roomName}>{getRoomDisplayName(room, user)}</span>
+                                </button>
+                            );
+                        })}
+                    </div>
                 </div>
-            </Modal>
-        </div>
+
+                <div className={styles.messageArea}>
+                    {!activeRoom ? (
+                        <div className={styles.messageAreaEmpty}>Select a conversation</div>
+                    ) : (
+                        <>
+                            <div className={styles.messageHeader}>
+                                <span>{getRoomDisplayName(activeRoom, user)}</span>
+                                <Button variant="danger" size="small" onClick={handleDeleteChat}>
+                                    Delete Chat
+                                </Button>
+                            </div>
+                            <div className={styles.messages}>
+                                {messages.map(msg => {
+                                    const isOwn = msg.sender.id === user.id;
+                                    return (
+                                        <div
+                                            key={msg.id}
+                                            className={`${styles.messageBubble}${isOwn ? ` ${styles.ownMessage}` : ""}`}
+                                        >
+                                            {msg.sender.avatar_url ? (
+                                                <img
+                                                    className={styles.messageAvatar}
+                                                    src={msg.sender.avatar_url}
+                                                    alt=""
+                                                />
+                                            ) : (
+                                                <span className={styles.messageAvatarPlaceholder}>
+                                                    {msg.sender.display_name.charAt(0).toUpperCase()}
+                                                </span>
+                                            )}
+                                            <div className={styles.messageContent}>
+                                                {!isOwn && (
+                                                    <div className={styles.messageSender}>
+                                                        {msg.sender.display_name}
+                                                    </div>
+                                                )}
+                                                <div className={styles.messageText}>{msg.body}</div>
+                                                <div className={styles.messageTime}>{formatTime(msg.created_at)}</div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                                <div ref={messagesEndRef} />
+                            </div>
+                            <form className={styles.inputBar} onSubmit={handleSend}>
+                                <Input
+                                    fullWidth
+                                    type="text"
+                                    placeholder="Type a message..."
+                                    value={newMessage}
+                                    onChange={e => setNewMessage(e.target.value)}
+                                    autoComplete="off"
+                                />
+                                <Button variant="primary" type="submit" disabled={sending || !newMessage.trim()}>
+                                    Send
+                                </Button>
+                            </form>
+                        </>
+                    )}
+                </div>
+
+                <Modal isOpen={showNewDm} onClose={() => setShowNewDm(false)} title="New Direct Message">
+                    <div className={styles.modalBody}>
+                        <Input
+                            fullWidth
+                            type="text"
+                            placeholder="Enter username..."
+                            value={dmUsername}
+                            onChange={e => setDmUsername(e.target.value)}
+                        />
+                        {dmError && <div className={styles.modalError}>{dmError}</div>}
+                        <div className={styles.modalActions}>
+                            <Button variant="secondary" onClick={() => setShowNewDm(false)}>
+                                Cancel
+                            </Button>
+                            <Button
+                                variant="primary"
+                                onClick={handleCreateDm}
+                                disabled={dmCreating || !dmUsername.trim()}
+                            >
+                                {dmCreating ? "Creating..." : "Start Chat"}
+                            </Button>
+                        </div>
+                    </div>
+                </Modal>
+            </div>
         </div>
     );
 }

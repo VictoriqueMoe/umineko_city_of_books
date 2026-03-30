@@ -190,7 +190,12 @@ export interface ActivityListResponse {
     offset: number;
 }
 
-export type NotificationType = "theory_response" | "response_reply" | "theory_upvote" | "response_upvote" | "chat_message";
+export type NotificationType =
+    | "theory_response"
+    | "response_reply"
+    | "theory_upvote"
+    | "response_upvote"
+    | "chat_message";
 
 export interface Notification {
     id: number;

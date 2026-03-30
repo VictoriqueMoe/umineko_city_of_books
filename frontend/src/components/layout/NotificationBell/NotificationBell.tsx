@@ -126,8 +126,7 @@ export function NotificationBell() {
                                 <ProfileLink user={notif.actor} size="small" showName={false} />
                                 <div className={styles.itemContent}>
                                     <div className={styles.itemText}>
-                                        <strong>{notif.actor.display_name}</strong>{" "}
-                                        {notificationText(notif.type)}
+                                        <strong>{notif.actor.display_name}</strong> {notificationText(notif.type)}
                                     </div>
                                     <div className={styles.itemTime}>{relativeTime(notif.created_at)}</div>
                                 </div>

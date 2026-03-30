@@ -1,4 +1,4 @@
-import {useEffect, useState} from "react";
+import {useEffect, useRef, useState} from "react";
 import {NavLink, useLocation} from "react-router";
 import {useAuth} from "../../../hooks/useAuth";
 import {useNotifications} from "../../../hooks/useNotifications";
@@ -15,23 +15,22 @@ export function Sidebar({ open, onClose }: SidebarProps) {
     const { addWSListener } = useNotifications();
     const location = useLocation();
     const [unreadChat, setUnreadChat] = useState(0);
+    const pathnameRef = useRef(location.pathname);
 
     useEffect(() => {
-        if (location.pathname.startsWith("/chat")) {
-            setUnreadChat(0);
-        }
+        pathnameRef.current = location.pathname;
     }, [location.pathname]);
 
     useEffect(() => {
         return addWSListener(msg => {
             if (msg.type === "chat_message") {
                 const data = msg.data as { sender?: { id?: string } };
-                if (data.sender?.id !== user?.id && !location.pathname.startsWith("/chat")) {
+                if (data.sender?.id !== user?.id && !pathnameRef.current.startsWith("/chat")) {
                     setUnreadChat(prev => prev + 1);
                 }
             }
         });
-    }, [addWSListener, location.pathname, user?.id]);
+    }, [addWSListener, user?.id]);
 
     return (
         <>
@@ -103,9 +102,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                                 }}
                             >
                                 Chat
-                                {unreadChat > 0 && (
-                                    <span className={styles.chatBadge}>{unreadChat}</span>
-                                )}
+                                {unreadChat > 0 && <span className={styles.chatBadge}>{unreadChat}</span>}
                             </NavLink>
                             <NavLink
                                 to="/settings"

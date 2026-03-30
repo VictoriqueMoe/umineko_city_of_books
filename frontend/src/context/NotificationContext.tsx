@@ -144,7 +144,16 @@ export function NotificationProvider({ children }: PropsWithChildren) {
 
     return (
         <NotificationContext.Provider
-            value={{ notifications, unreadCount, loading, markRead, markAllRead, refreshNotifications, addWSListener, sendWSMessage }}
+            value={{
+                notifications,
+                unreadCount,
+                loading,
+                markRead,
+                markAllRead,
+                refreshNotifications,
+                addWSListener,
+                sendWSMessage,
+            }}
         >
             {children}
         </NotificationContext.Provider>
