@@ -94,6 +94,11 @@ func (s *Service) register(ctx fiber.Ctx) error {
 
 	user, token, err := s.AuthService.Register(ctx.Context(), req)
 	if err != nil {
+		if errors.Is(err, auth.ErrInvalidUsername) {
+			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": err.Error(),
+			})
+		}
 		if errors.Is(err, auth.ErrRegistrationDisabled) {
 			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
 				"error": err.Error(),
