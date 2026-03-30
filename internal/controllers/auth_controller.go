@@ -3,6 +3,7 @@ package controllers
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"umineko_city_of_books/internal/auth"
 	"umineko_city_of_books/internal/config"
@@ -46,10 +47,14 @@ func (s *Service) setSessionCookie(ctx fiber.Ctx, token string) {
 	if days < 1 {
 		days = 30
 	}
+
+	baseURL := s.SettingsService.Get(ctx.Context(), config.SettingBaseURL)
+	secure := strings.HasPrefix(baseURL, "https://")
 	ctx.Cookie(&fiber.Cookie{
 		Name:     session.CookieName,
 		Value:    token,
 		HTTPOnly: true,
+		Secure:   secure,
 		SameSite: "Lax",
 		MaxAge:   days * 24 * 60 * 60,
 		Path:     "/",

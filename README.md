@@ -45,16 +45,16 @@ Copy `.env.example` to `.env` and configure:
 cp .env.example .env
 ```
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DB_PATH` | `truths.db` | Path to SQLite database file |
-| `UPLOAD_DIR` | `uploads` | Directory for uploaded files |
-| `BASE_URL` | `http://localhost:4323` | Base URL for CORS |
-| `LOG_LEVEL` | `info` | Log level (trace, debug, info, warn, error, fatal) |
-| `MAX_BODY_SIZE` | `52428800` (50MB) | Fiber request body limit (bytes) |
-| `MAX_IMAGE_SIZE` | `10485760` (10MB) | Max size for image uploads (bytes) |
-| `MAX_VIDEO_SIZE` | `104857600` (100MB) | Max size for video uploads (bytes) |
-| `MAX_GENERAL_SIZE` | `52428800` (50MB) | Max size for other file uploads (bytes) |
+| Variable           | Default                 | Description                                        |
+|--------------------|-------------------------|----------------------------------------------------|
+| `DB_PATH`          | `truths.db`             | Path to SQLite database file                       |
+| `UPLOAD_DIR`       | `uploads`               | Directory for uploaded files                       |
+| `BASE_URL`         | `http://localhost:4323` | Base URL for CORS                                  |
+| `LOG_LEVEL`        | `info`                  | Log level (trace, debug, info, warn, error, fatal) |
+| `MAX_BODY_SIZE`    | `52428800` (50MB)       | Fiber request body limit (bytes)                   |
+| `MAX_IMAGE_SIZE`   | `10485760` (10MB)       | Max size for image uploads (bytes)                 |
+| `MAX_VIDEO_SIZE`   | `104857600` (100MB)     | Max size for video uploads (bytes)                 |
+| `MAX_GENERAL_SIZE` | `52428800` (50MB)       | Max size for other file uploads (bytes)            |
 
 ### Development
 
