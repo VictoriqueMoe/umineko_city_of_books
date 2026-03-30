@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -137,4 +138,11 @@ func init() {
 		dbPath = v
 	}
 	Cfg = Config{DBPath: dbPath}
+
+	for i := range AllSiteSettings {
+		envKey := strings.ToUpper(string(AllSiteSettings[i].Key))
+		if v, ok := os.LookupEnv(envKey); ok {
+			AllSiteSettings[i].Default = v
+		}
+	}
 }
