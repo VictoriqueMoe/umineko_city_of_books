@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"fmt"
+	"regexp"
 
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
@@ -31,6 +32,8 @@ type (
 	}
 )
 
+var validUsername = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
+
 func NewService(userService user.Service, sessionMgr *session.Manager, settingsSvc settings.Service, inviteRepo repository.InviteRepository) Service {
 	return &service{
 		userService: userService,
@@ -57,6 +60,10 @@ func (s *service) Register(ctx context.Context, req dto.RegisterRequest) (*dto.U
 		if invite == nil || invite.UsedBy != nil {
 			return nil, "", ErrInvalidInvite
 		}
+	}
+
+	if !isValidUsername(req.Username) {
+		return nil, "", ErrInvalidUsername
 	}
 
 	minLen := s.settingsSvc.GetInt(ctx, config.SettingMinPasswordLength)
@@ -116,4 +123,11 @@ func (s *service) Logout(ctx context.Context, token string) error {
 
 func (s *service) GetMe(ctx context.Context, userID uuid.UUID) (*dto.UserResponse, error) {
 	return s.userService.GetByID(ctx, userID)
+}
+
+func isValidUsername(username string) bool {
+	if len(username) < 3 || len(username) > 30 {
+		return false
+	}
+	return validUsername.MatchString(username)
 }
