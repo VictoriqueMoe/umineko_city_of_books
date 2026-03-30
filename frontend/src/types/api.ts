@@ -135,6 +135,7 @@ export interface UserProfile {
     social_tumblr: string;
     social_github: string;
     website: string;
+    dms_enabled: boolean;
     created_at: string;
     stats: UserStats;
 }
@@ -161,6 +162,7 @@ export interface UpdateProfilePayload {
     social_tumblr: string;
     social_github: string;
     website: string;
+    dms_enabled: boolean;
 }
 
 export interface ChangePasswordPayload {
@@ -188,14 +190,13 @@ export interface ActivityListResponse {
     offset: number;
 }
 
-export type NotificationType = "theory_response" | "response_reply" | "theory_upvote" | "response_upvote";
+export type NotificationType = "theory_response" | "response_reply" | "theory_upvote" | "response_upvote" | "chat_message";
 
 export interface Notification {
     id: number;
     type: NotificationType;
     reference_id: string;
-    theory_id: string;
-    theory_title: string;
+    reference_type: string;
     actor: User;
     read: boolean;
     created_at: string;
@@ -280,4 +281,20 @@ export interface AuditLogListResponse {
 
 export interface SiteSettings {
     [key: string]: string;
+}
+
+export interface ChatRoom {
+    id: string;
+    name: string;
+    type: "dm" | "group";
+    members: User[];
+    created_at: string;
+}
+
+export interface ChatMessage {
+    id: string;
+    room_id: string;
+    sender: User;
+    body: string;
+    created_at: string;
 }

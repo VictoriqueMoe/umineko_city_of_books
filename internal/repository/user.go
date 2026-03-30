@@ -40,7 +40,7 @@ type (
 )
 
 const (
-	userColumns = `id, username, password_hash, display_name, created_at, bio, avatar_url, banner_url, favourite_character, gender, pronoun_subject, pronoun_possessive, banned_at, banned_by, ban_reason, social_twitter, social_discord, social_waifulist, social_tumblr, social_github, website, banner_position`
+	userColumns = `id, username, password_hash, display_name, created_at, bio, avatar_url, banner_url, favourite_character, gender, pronoun_subject, pronoun_possessive, banned_at, banned_by, ban_reason, social_twitter, social_discord, social_waifulist, social_tumblr, social_github, website, banner_position, dms_enabled`
 )
 
 func scanUser(row interface{ Scan(dest ...any) error }) (*User, error) {
@@ -50,7 +50,7 @@ func scanUser(row interface{ Scan(dest ...any) error }) (*User, error) {
 		&u.PronounSubject, &u.PronounPossessive,
 		&u.BannedAt, &u.BannedBy, &u.BanReason,
 		&u.SocialTwitter, &u.SocialDiscord, &u.SocialWaifulist, &u.SocialTumblr, &u.SocialGithub, &u.Website,
-		&u.BannerPosition)
+		&u.BannerPosition, &u.DmsEnabled)
 	return &u, err
 }
 
@@ -144,11 +144,12 @@ func (r *userRepository) UpdateProfile(ctx context.Context, userID uuid.UUID, re
 		`UPDATE users SET display_name = ?, bio = ?, avatar_url = ?, banner_url = ?, banner_position = ?, favourite_character = ?, gender = ?,
 		 pronoun_subject = ?, pronoun_possessive = ?,
 		 social_twitter = ?, social_discord = ?, social_waifulist = ?, social_tumblr = ?, social_github = ?,
-		 website = ?
+		 website = ?, dms_enabled = ?
 		 WHERE id = ?`,
 		req.DisplayName, req.Bio, req.AvatarURL, req.BannerURL, req.BannerPosition, req.FavouriteCharacter, req.Gender,
 		req.PronounSubject, req.PronounPossessive,
 		req.SocialTwitter, req.SocialDiscord, req.SocialWaifulist, req.SocialTumblr, req.SocialGithub, req.Website,
+		req.DmsEnabled,
 		userID,
 	)
 	if err != nil {

@@ -1,4 +1,4 @@
-import { apiDelete, apiDeleteWithBody, apiFetch, apiPost, apiPostFormData, apiPut, buildQueryString } from "./client";
+import {apiDelete, apiDeleteWithBody, apiFetch, apiPost, apiPostFormData, apiPut, buildQueryString} from "./client";
 import type {
     ActivityListResponse,
     AdminStats,
@@ -6,6 +6,8 @@ import type {
     AdminUserListResponse,
     AuditLogListResponse,
     ChangePasswordPayload,
+    ChatMessage,
+    ChatRoom,
     CreateResponsePayload,
     CreateTheoryPayload,
     DeleteAccountPayload,
@@ -304,4 +306,36 @@ export async function getInvites(params: { limit?: number; offset?: number }): P
 
 export async function deleteInvite(code: string): Promise<void> {
     await apiDelete<unknown>(`/admin/invites/${code}`);
+}
+
+export async function createDMRoom(recipientId: string): Promise<ChatRoom> {
+    return apiPost<ChatRoom, { recipient_id: string }>("/chat/dm", { recipient_id: recipientId });
+}
+
+export async function createGroupRoom(name: string, memberIds: string[]): Promise<ChatRoom> {
+    return apiPost<ChatRoom, { name: string; member_ids: string[] }>("/chat/rooms", { name, member_ids: memberIds });
+}
+
+export async function getUserRooms(): Promise<{ rooms: ChatRoom[] }> {
+    return apiFetch<{ rooms: ChatRoom[] }>("/chat/rooms");
+}
+
+export async function getRoomMessages(
+    roomId: string,
+    limit?: number,
+    offset?: number,
+): Promise<{ messages: ChatMessage[]; total: number }> {
+    const qs = buildQueryString({ limit: limit ?? 50, offset });
+    return apiFetch<{ messages: ChatMessage[]; total: number }>(`/chat/rooms/${roomId}/messages${qs}`);
+}
+
+export async function sendChatMessage(
+    roomId: string,
+    payload: { body: string },
+): Promise<ChatMessage> {
+    return apiPost<ChatMessage, typeof payload>(`/chat/rooms/${roomId}/messages`, payload);
+}
+
+export async function deleteChatRoom(roomId: string): Promise<void> {
+    await apiDelete<unknown>(`/chat/rooms/${roomId}`);
 }

@@ -30,6 +30,7 @@ type (
 		SocialGithub       string
 		Website            string
 		BannerPosition     float64
+		DmsEnabled         bool
 	}
 
 	UserStats struct {
@@ -43,14 +44,13 @@ type (
 		UserID           uuid.UUID
 		Type             string
 		ReferenceID      uuid.UUID
-		TheoryID         uuid.UUID
+		ReferenceType    string
 		ActorID          uuid.UUID
 		Read             bool
 		CreatedAt        string
 		ActorUsername    string
 		ActorDisplayName string
 		ActorAvatarURL   string
-		TheoryTitle      string
 	}
 )
 
@@ -82,6 +82,7 @@ func (u *User) ToProfileResponse(stats *UserStats) *dto.UserProfileResponse {
 		SocialTumblr:       u.SocialTumblr,
 		SocialGithub:       u.SocialGithub,
 		Website:            u.Website,
+		DmsEnabled:         u.DmsEnabled,
 		CreatedAt:          u.CreatedAt,
 		Stats: dto.UserStatsDTO{
 			TheoryCount:   stats.TheoryCount,

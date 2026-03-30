@@ -10,12 +10,12 @@ import (
 
 type (
 	NotificationRepository interface {
-		Create(ctx context.Context, userID uuid.UUID, notifType string, referenceID uuid.UUID, theoryID uuid.UUID, actorID uuid.UUID) (int64, error)
+		Create(ctx context.Context, userID uuid.UUID, notifType string, referenceID uuid.UUID, referenceType string, actorID uuid.UUID) (int64, error)
 		ListByUser(ctx context.Context, userID uuid.UUID, limit, offset int) ([]NotificationRow, int, error)
 		MarkRead(ctx context.Context, id int, userID uuid.UUID) error
 		MarkAllRead(ctx context.Context, userID uuid.UUID) error
 		UnreadCount(ctx context.Context, userID uuid.UUID) (int, error)
-		HasRecentDuplicate(ctx context.Context, userID uuid.UUID, notifType string, referenceID uuid.UUID, actorID uuid.UUID) (bool, error)
+		HasRecentDuplicate(ctx context.Context, userID uuid.UUID, notifType string, referenceID uuid.UUID, referenceType string, actorID uuid.UUID) (bool, error)
 	}
 
 	notificationRepository struct {
@@ -23,10 +23,10 @@ type (
 	}
 )
 
-func (r *notificationRepository) Create(ctx context.Context, userID uuid.UUID, notifType string, referenceID uuid.UUID, theoryID uuid.UUID, actorID uuid.UUID) (int64, error) {
+func (r *notificationRepository) Create(ctx context.Context, userID uuid.UUID, notifType string, referenceID uuid.UUID, referenceType string, actorID uuid.UUID) (int64, error) {
 	result, err := r.db.ExecContext(ctx,
-		`INSERT INTO notifications (user_id, type, reference_id, theory_id, actor_id) VALUES (?, ?, ?, ?, ?)`,
-		userID, notifType, referenceID, theoryID, actorID,
+		`INSERT INTO notifications (user_id, type, reference_id, reference_type, actor_id) VALUES (?, ?, ?, ?, ?)`,
+		userID, notifType, referenceID, referenceType, actorID,
 	)
 	if err != nil {
 		return 0, fmt.Errorf("insert notification: %w", err)
@@ -45,12 +45,10 @@ func (r *notificationRepository) ListByUser(ctx context.Context, userID uuid.UUI
 	}
 
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT n.id, n.user_id, n.type, n.reference_id, n.theory_id, n.actor_id, n.read, n.created_at,
-		        u.username, u.display_name, u.avatar_url,
-		        t.title
+		`SELECT n.id, n.user_id, n.type, n.reference_id, n.reference_type, n.actor_id, n.read, n.created_at,
+		        u.username, u.display_name, u.avatar_url
 		 FROM notifications n
 		 JOIN users u ON n.actor_id = u.id
-		 JOIN theories t ON n.theory_id = t.id
 		 WHERE n.user_id = ?
 		 ORDER BY n.created_at DESC
 		 LIMIT ? OFFSET ?`, userID, limit, offset,
@@ -65,9 +63,8 @@ func (r *notificationRepository) ListByUser(ctx context.Context, userID uuid.UUI
 		var n NotificationRow
 		var readInt int
 		if err := rows.Scan(
-			&n.ID, &n.UserID, &n.Type, &n.ReferenceID, &n.TheoryID, &n.ActorID, &readInt, &n.CreatedAt,
+			&n.ID, &n.UserID, &n.Type, &n.ReferenceID, &n.ReferenceType, &n.ActorID, &readInt, &n.CreatedAt,
 			&n.ActorUsername, &n.ActorDisplayName, &n.ActorAvatarURL,
-			&n.TheoryTitle,
 		); err != nil {
 			return nil, 0, fmt.Errorf("scan notification: %w", err)
 		}
@@ -109,7 +106,7 @@ func (r *notificationRepository) UnreadCount(ctx context.Context, userID uuid.UU
 	return count, nil
 }
 
-func (r *notificationRepository) HasRecentDuplicate(ctx context.Context, userID uuid.UUID, notifType string, referenceID uuid.UUID, actorID uuid.UUID) (bool, error) {
+func (r *notificationRepository) HasRecentDuplicate(ctx context.Context, userID uuid.UUID, notifType string, referenceID uuid.UUID, referenceType string, actorID uuid.UUID) (bool, error) {
 	var count int
 	err := r.db.QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM notifications

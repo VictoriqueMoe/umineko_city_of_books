@@ -51,6 +51,7 @@ var (
 	SettingMinPasswordLength   = SiteSettingDef{"min_password_length", "8", TypeInt}
 	SettingSessionDurationDays = SiteSettingDef{"session_duration_days", "30", TypeInt}
 	SettingDefaultTheme        = SiteSettingDef{"default_theme", "featherine", TypeString}
+	SettingDMsEnabled          = SiteSettingDef{"dms_enabled", "true", TypeBool}
 
 	AllSiteSettings = []SiteSettingDef{
 		SettingUploadDir,
@@ -70,6 +71,7 @@ var (
 		SettingMinPasswordLength,
 		SettingSessionDurationDays,
 		SettingDefaultTheme,
+		SettingDMsEnabled,
 	}
 )
 

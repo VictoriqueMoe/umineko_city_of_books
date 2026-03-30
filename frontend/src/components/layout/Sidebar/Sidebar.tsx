@@ -1,6 +1,8 @@
-import { NavLink } from "react-router";
-import { useAuth } from "../../../hooks/useAuth";
-import { canAccessAdmin } from "../../../utils/permissions";
+import {useEffect, useState} from "react";
+import {NavLink, useLocation} from "react-router";
+import {useAuth} from "../../../hooks/useAuth";
+import {useNotifications} from "../../../hooks/useNotifications";
+import {canAccessAdmin} from "../../../utils/permissions";
 import styles from "./Sidebar.module.css";
 
 interface SidebarProps {
@@ -10,6 +12,26 @@ interface SidebarProps {
 
 export function Sidebar({ open, onClose }: SidebarProps) {
     const { user } = useAuth();
+    const { addWSListener } = useNotifications();
+    const location = useLocation();
+    const [unreadChat, setUnreadChat] = useState(0);
+
+    useEffect(() => {
+        if (location.pathname.startsWith("/chat")) {
+            setUnreadChat(0);
+        }
+    }, [location.pathname]);
+
+    useEffect(() => {
+        return addWSListener(msg => {
+            if (msg.type === "chat_message") {
+                const data = msg.data as { sender?: { id?: string } };
+                if (data.sender?.id !== user?.id && !location.pathname.startsWith("/chat")) {
+                    setUnreadChat(prev => prev + 1);
+                }
+            }
+        });
+    }, [addWSListener, location.pathname, user?.id]);
 
     return (
         <>
@@ -71,6 +93,19 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                                 onClick={onClose}
                             >
                                 Profile
+                            </NavLink>
+                            <NavLink
+                                to="/chat"
+                                className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
+                                onClick={() => {
+                                    setUnreadChat(0);
+                                    onClose();
+                                }}
+                            >
+                                Chat
+                                {unreadChat > 0 && (
+                                    <span className={styles.chatBadge}>{unreadChat}</span>
+                                )}
                             </NavLink>
                             <NavLink
                                 to="/settings"
