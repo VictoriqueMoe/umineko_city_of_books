@@ -4,9 +4,15 @@ import (
 	"context"
 	"fmt"
 
+	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/logger"
+	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/session"
+	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/user"
+
+	"github.com/google/uuid"
 )
 
 type (
@@ -14,23 +20,51 @@ type (
 		Register(ctx context.Context, req dto.RegisterRequest) (*dto.UserResponse, string, error)
 		Login(ctx context.Context, req dto.LoginRequest) (*dto.UserResponse, string, error)
 		Logout(ctx context.Context, token string) error
-		GetMe(ctx context.Context, userID int) (*dto.UserResponse, error)
+		GetMe(ctx context.Context, userID uuid.UUID) (*dto.UserResponse, error)
 	}
 
 	service struct {
 		userService user.Service
 		session     *session.Manager
+		settingsSvc settings.Service
+		inviteRepo  repository.InviteRepository
 	}
 )
 
-func NewService(userService user.Service, session *session.Manager) Service {
+func NewService(userService user.Service, sessionMgr *session.Manager, settingsSvc settings.Service, inviteRepo repository.InviteRepository) Service {
 	return &service{
 		userService: userService,
-		session:     session,
+		session:     sessionMgr,
+		settingsSvc: settingsSvc,
+		inviteRepo:  inviteRepo,
 	}
 }
 
 func (s *service) Register(ctx context.Context, req dto.RegisterRequest) (*dto.UserResponse, string, error) {
+	regType := s.settingsSvc.Get(ctx, config.SettingRegistrationType)
+
+	switch regType {
+	case "closed":
+		return nil, "", ErrRegistrationDisabled
+	case "invite":
+		if req.InviteCode == "" {
+			return nil, "", ErrInviteRequired
+		}
+		invite, err := s.inviteRepo.GetByCode(ctx, req.InviteCode)
+		if err != nil {
+			return nil, "", fmt.Errorf("check invite: %w", err)
+		}
+		if invite == nil || invite.UsedBy != nil {
+			return nil, "", ErrInvalidInvite
+		}
+	}
+
+	minLen := s.settingsSvc.GetInt(ctx, config.SettingMinPasswordLength)
+	if minLen > 0 && len(req.Password) < minLen {
+		return nil, "", ErrPasswordTooShort
+	}
+
+	logger.Log.Debug().Str("username", req.Username).Msg("registering user")
 	if req.DisplayName == "" {
 		req.DisplayName = req.Username
 	}
@@ -44,6 +78,12 @@ func (s *service) Register(ctx context.Context, req dto.RegisterRequest) (*dto.U
 		return nil, "", fmt.Errorf("create user: %w", err)
 	}
 
+	if regType == "invite" {
+		if err := s.inviteRepo.MarkUsed(ctx, req.InviteCode, userResp.ID); err != nil {
+			logger.Log.Error().Err(err).Str("code", req.InviteCode).Msg("failed to mark invite as used")
+		}
+	}
+
 	token, err := s.session.Create(ctx, userResp.ID)
 	if err != nil {
 		return nil, "", fmt.Errorf("create session: %w", err)
@@ -53,6 +93,7 @@ func (s *service) Register(ctx context.Context, req dto.RegisterRequest) (*dto.U
 }
 
 func (s *service) Login(ctx context.Context, req dto.LoginRequest) (*dto.UserResponse, string, error) {
+	logger.Log.Debug().Str("username", req.Username).Msg("login attempt")
 	userResp, err := s.userService.ValidateCredentials(ctx, req.Username, req.Password)
 	if err != nil {
 		return nil, "", err
@@ -73,6 +114,6 @@ func (s *service) Logout(ctx context.Context, token string) error {
 	return nil
 }
 
-func (s *service) GetMe(ctx context.Context, userID int) (*dto.UserResponse, error) {
+func (s *service) GetMe(ctx context.Context, userID uuid.UUID) (*dto.UserResponse, error) {
 	return s.userService.GetByID(ctx, userID)
 }

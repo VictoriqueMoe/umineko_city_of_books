@@ -1,0 +1,111 @@
+.selector {
+    position: relative;
+}
+
+.trigger {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(var(--gold-rgb), 0.08);
+    border: 1px solid rgba(var(--gold-rgb), 0.25);
+    color: var(--text);
+    padding: 0.4rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s var(--ease-out);
+}
+
+.trigger:hover {
+    border-color: var(--gold);
+    background: rgba(var(--gold-rgb), 0.12);
+}
+
+.triggerLabel {
+    color: var(--text-muted);
+}
+
+.triggerSep {
+    color: var(--gold);
+    font-size: 0.7rem;
+}
+
+.triggerName {
+    color: var(--gold);
+    font-family: var(--font-display);
+    font-size: 0.8rem;
+}
+
+.chevron {
+    font-size: 0.55rem;
+    color: var(--text-muted);
+    transition: transform 0.2s var(--ease-out);
+}
+
+.chevronOpen {
+    transform: rotate(180deg);
+}
+
+.dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--gold-rgb), 0.2);
+    border-radius: 6px;
+    min-width: 240px;
+    padding: 0.4rem;
+    z-index: 100;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    padding: 0.6rem 0.75rem;
+    border-radius: 4px;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.15s var(--ease-out);
+}
+
+.option:hover {
+    background: rgba(var(--gold-rgb), 0.08);
+}
+
+.optionActive {
+    background: rgba(var(--gold-rgb), 0.12);
+}
+
+.optionInfo {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+}
+
+.optionName {
+    font-family: var(--font-display);
+    font-size: 0.85rem;
+    color: var(--gold);
+}
+
+.optionDesc {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.check {
+    color: var(--gold);
+    font-size: 1rem;
+}
+
+.divider {
+    height: 1px;
+    background: rgba(var(--gold-rgb), 0.15);
+    margin: 0.4rem 0;
+}

@@ -1,0 +1,148 @@
+.card {
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--purple-rgb), 0.3);
+    border-radius: 6px;
+    display: flex;
+    gap: 0;
+    overflow: hidden;
+}
+
+.voteStrip {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 0.75rem 0.5rem;
+    background: rgba(var(--bg-purple-rgb), 0.3);
+    border-right: 1px solid rgba(var(--purple-rgb), 0.15);
+}
+
+.content {
+    flex: 1;
+    padding: 1rem;
+    min-width: 0;
+}
+
+.withLove {
+    border-left: 3px solid var(--gold);
+}
+
+.withoutLove {
+    border-left: 3px solid #ff3333;
+}
+
+.sideLabel {
+    font-family: var(--font-display);
+    font-size: 0.85rem;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+}
+
+.withLove .sideLabel {
+    color: var(--gold);
+}
+
+.withoutLove .sideLabel {
+    color: #ff3333;
+}
+
+.body {
+    font-size: 1.05rem;
+    line-height: 1.6;
+    margin-bottom: 0.5rem;
+}
+
+.evidence {
+    margin: 0.5rem 0;
+}
+
+.meta {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+
+.actionsInline {
+    display: flex;
+    gap: 0.5rem;
+    margin-left: auto;
+}
+
+.actionBtn {
+    background: none;
+    border: 1px solid rgba(var(--gold-rgb), 0.2);
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.15s var(--ease-out);
+}
+
+.actionBtn:hover {
+    border-color: var(--gold);
+    color: var(--gold);
+}
+
+.actionBtnDanger:hover {
+    border-color: #ff3333;
+    color: #ff3333;
+}
+
+.mention {
+    font-size: 0.85rem;
+    color: var(--gold);
+    font-weight: 600;
+    margin-bottom: 0.2rem;
+}
+
+.list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.threadGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.thread {
+    display: flex;
+    gap: 0;
+    margin-left: 0.75rem;
+}
+
+.threadLine {
+    width: 2px;
+    min-width: 2px;
+    background: rgba(var(--purple-rgb), 0.3);
+    border-radius: 1px;
+    margin-right: 0.75rem;
+}
+
+.threadReplies {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.expandBtn {
+    background: none;
+    border: none;
+    color: var(--gold);
+    font-size: 0.85rem;
+    font-family: var(--font-display);
+    cursor: pointer;
+    padding: 0.25rem 0;
+    margin-left: 1.5rem;
+    text-align: left;
+    letter-spacing: 0.03em;
+}
+
+.expandBtn:hover {
+    color: var(--gold-light);
+}

@@ -2,13 +2,17 @@ package controllers
 
 import (
 	"errors"
+	"fmt"
 
+	"umineko_city_of_books/internal/auth"
+	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/middleware"
 	"umineko_city_of_books/internal/session"
 	usersvc "umineko_city_of_books/internal/user"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
 )
 
 func (s *Service) getAllAuthRoutes() []FSetupRoute {
@@ -17,6 +21,7 @@ func (s *Service) getAllAuthRoutes() []FSetupRoute {
 		s.setupLoginRoute,
 		s.setupLogoutRoute,
 		s.setupGetMeRoute,
+		s.setupSiteInfoRoute,
 	}
 }
 
@@ -37,12 +42,16 @@ func (s *Service) setupGetMeRoute(r fiber.Router) {
 }
 
 func (s *Service) setSessionCookie(ctx fiber.Ctx, token string) {
+	days := s.SettingsService.GetInt(ctx.Context(), config.SettingSessionDurationDays)
+	if days < 1 {
+		days = 30
+	}
 	ctx.Cookie(&fiber.Cookie{
 		Name:     session.CookieName,
 		Value:    token,
 		HTTPOnly: true,
 		SameSite: "Lax",
-		MaxAge:   30 * 24 * 60 * 60,
+		MaxAge:   days * 24 * 60 * 60,
 		Path:     "/",
 	})
 }
@@ -80,6 +89,22 @@ func (s *Service) register(ctx fiber.Ctx) error {
 
 	user, token, err := s.AuthService.Register(ctx.Context(), req)
 	if err != nil {
+		if errors.Is(err, auth.ErrRegistrationDisabled) {
+			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"error": err.Error(),
+			})
+		}
+		if errors.Is(err, auth.ErrInviteRequired) || errors.Is(err, auth.ErrInvalidInvite) {
+			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": err.Error(),
+			})
+		}
+		if errors.Is(err, auth.ErrPasswordTooShort) {
+			minLen := s.SettingsService.GetInt(ctx.Context(), config.SettingMinPasswordLength)
+			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": fmt.Sprintf("password must be at least %d characters", minLen),
+			})
+		}
 		if errors.Is(err, usersvc.ErrUsernameTaken) {
 			return ctx.Status(fiber.StatusConflict).JSON(fiber.Map{
 				"error": "username already taken",
@@ -135,7 +160,7 @@ func (s *Service) logout(ctx fiber.Ctx) error {
 }
 
 func (s *Service) getMe(ctx fiber.Ctx) error {
-	userID := ctx.Locals("userID").(int)
+	userID := ctx.Locals("userID").(uuid.UUID)
 
 	user, err := s.AuthService.GetMe(ctx.Context(), userID)
 	if err != nil {
@@ -145,4 +170,19 @@ func (s *Service) getMe(ctx fiber.Ctx) error {
 	}
 
 	return ctx.JSON(user)
+}
+
+func (s *Service) setupSiteInfoRoute(r fiber.Router) {
+	r.Get("/site-info", s.siteInfo)
+}
+
+func (s *Service) siteInfo(ctx fiber.Ctx) error {
+	return ctx.JSON(fiber.Map{
+		"site_name":           s.SettingsService.Get(ctx.Context(), config.SettingSiteName),
+		"site_description":    s.SettingsService.Get(ctx.Context(), config.SettingSiteDescription),
+		"registration_type":   s.SettingsService.Get(ctx.Context(), config.SettingRegistrationType),
+		"announcement_banner": s.SettingsService.Get(ctx.Context(), config.SettingAnnouncementBanner),
+		"default_theme":       s.SettingsService.Get(ctx.Context(), config.SettingDefaultTheme),
+		"maintenance_mode":    s.SettingsService.GetBool(ctx.Context(), config.SettingMaintenanceMode),
+	})
 }

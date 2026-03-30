@@ -1,0 +1,136 @@
+.page {
+    max-width: 700px;
+    margin: 0 auto;
+}
+
+.heading {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    color: var(--gold);
+    margin-bottom: 1.5rem;
+}
+
+.titleInput {
+    width: 100%;
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--gold-rgb), 0.2);
+    color: var(--text);
+    padding: 0.75rem 1rem;
+    border-radius: 4px;
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+    transition: border-color 0.2s var(--ease-out);
+}
+
+.titleInput:focus {
+    outline: none;
+    border-color: var(--gold);
+}
+
+.titleInput::placeholder {
+    color: var(--text-muted);
+}
+
+.bodyTextarea {
+    width: 100%;
+    min-height: 150px;
+    background: var(--bg-card);
+    border: 2px solid rgba(51, 153, 255, 0.3);
+    color: var(--text);
+    padding: 1rem;
+    border-radius: 6px;
+    font-size: 1.05rem;
+    font-family: var(--font-body);
+    line-height: 1.6;
+    resize: vertical;
+    margin-bottom: 1rem;
+    transition: border-color 0.2s var(--ease-out);
+}
+
+.bodyTextarea:focus {
+    outline: none;
+    border-color: #3399ff;
+    box-shadow: 0 0 0 3px rgba(51, 153, 255, 0.1);
+}
+
+.bodyTextarea::placeholder {
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.evidenceSection {
+    margin: 1rem 0;
+}
+
+.evidenceItem {
+    margin-bottom: 0.75rem;
+}
+
+.noteInput {
+    width: 100%;
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--purple-rgb), 0.2);
+    color: var(--text);
+    padding: 0.4rem 0.75rem;
+    border-radius: 3px;
+    font-size: 0.85rem;
+    font-family: var(--font-body);
+    margin-top: 0.25rem;
+}
+
+.noteInput::placeholder {
+    color: var(--text-muted);
+}
+
+.actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1rem;
+}
+
+.addEvidenceBtn {
+    background: transparent;
+    border: 1px dashed rgba(var(--gold-rgb), 0.3);
+    color: var(--gold);
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.15s var(--ease-out);
+}
+
+.addEvidenceBtn:hover {
+    border-color: var(--gold);
+    background: rgba(var(--gold-rgb), 0.05);
+}
+
+.submitBtn {
+    background: rgba(51, 153, 255, 0.15);
+    border: 1px solid #3399ff;
+    color: #3399ff;
+    padding: 0.6rem 1.5rem;
+    border-radius: 4px;
+    font-family: var(--font-display);
+    font-size: 0.9rem;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: all 0.2s var(--ease-out);
+}
+
+.submitBtn:hover:not(:disabled) {
+    background: rgba(51, 153, 255, 0.25);
+}
+
+.submitBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+    .actions {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+}

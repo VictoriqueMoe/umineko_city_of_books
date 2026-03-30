@@ -1,0 +1,63 @@
+.chip {
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--purple-rgb), 0.3);
+    border-radius: 4px;
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 0.5rem;
+    position: relative;
+}
+
+.red {
+    border-left: 3px solid #ff3333;
+}
+
+.blue {
+    border-left: 3px solid #3399ff;
+}
+
+.gold {
+    border-left: 3px solid #ffaa00;
+}
+
+.purple {
+    border-left: 3px solid #aa71ff;
+}
+
+.text {
+    line-height: 1.5;
+    margin-bottom: 0.25rem;
+}
+
+.meta {
+    display: flex;
+    gap: 0.5rem;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.speaker {
+    font-family: var(--font-display);
+    color: var(--gold);
+}
+
+.note {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-style: italic;
+    margin-top: 0.25rem;
+}
+
+.remove {
+    position: absolute;
+    top: 0.25rem;
+    right: 0.25rem;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.8rem;
+}
+
+.remove:hover {
+    color: #ff3333;
+}

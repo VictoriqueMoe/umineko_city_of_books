@@ -1,10 +1,39 @@
 package middleware
 
 import (
+	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/session"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
 )
+
+func RequirePermission(mgr *session.Manager, authzSvc authz.Service, perm authz.Permission) fiber.Handler {
+	return func(ctx fiber.Ctx) error {
+		cookie := ctx.Cookies(session.CookieName)
+		if cookie == "" {
+			return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error": "authentication required",
+			})
+		}
+
+		userID, err := mgr.Validate(ctx.Context(), cookie)
+		if err != nil {
+			return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error": "invalid or expired session",
+			})
+		}
+
+		if !authzSvc.Can(ctx.Context(), userID, perm) {
+			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"error": "insufficient permissions",
+			})
+		}
+
+		ctx.Locals("userID", userID)
+		return ctx.Next()
+	}
+}
 
 func RequireAuth(mgr *session.Manager) fiber.Handler {
 	return func(ctx fiber.Ctx) error {
@@ -31,13 +60,13 @@ func OptionalAuth(mgr *session.Manager) fiber.Handler {
 	return func(ctx fiber.Ctx) error {
 		cookie := ctx.Cookies(session.CookieName)
 		if cookie == "" {
-			ctx.Locals("userID", 0)
+			ctx.Locals("userID", uuid.Nil)
 			return ctx.Next()
 		}
 
 		userID, err := mgr.Validate(ctx.Context(), cookie)
 		if err != nil {
-			ctx.Locals("userID", 0)
+			ctx.Locals("userID", uuid.Nil)
 			return ctx.Next()
 		}
 

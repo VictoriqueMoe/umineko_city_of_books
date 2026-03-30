@@ -1,5 +1,7 @@
-import {useCallback, useState} from "react";
-import type {EvidenceInput, Quote} from "../types/api";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { EvidenceInput, EvidenceItem, Quote } from "../types/api";
+
+const QUOTE_API = "https://quotes.auaurora.moe/api/v1";
 
 export interface SelectedEvidence {
     quote: Quote;
@@ -13,9 +15,63 @@ function quoteKey(quote: Quote): string {
     return `index:${quote.index}`;
 }
 
-export function useEvidence() {
+async function fetchQuoteByAudioId(audioId: string): Promise<Quote | null> {
+    const firstId = audioId.split(",")[0].trim();
+    if (!firstId) {
+        return null;
+    }
+    try {
+        const response = await fetch(`${QUOTE_API}/quote/${firstId}`);
+        if (!response.ok) {
+            return null;
+        }
+        return response.json();
+    } catch {
+        return null;
+    }
+}
+
+async function fetchQuoteByIndex(index: number): Promise<Quote | null> {
+    try {
+        const response = await fetch(`${QUOTE_API}/quote/index/${index}`);
+        if (!response.ok) {
+            return null;
+        }
+        return response.json();
+    } catch {
+        return null;
+    }
+}
+
+export function useEvidence(initialEvidence?: EvidenceItem[]) {
     const [evidence, setEvidence] = useState<SelectedEvidence[]>([]);
     const [pickerOpen, setPickerOpen] = useState(false);
+    const initialised = useRef(false);
+
+    useEffect(() => {
+        if (initialised.current || !initialEvidence || initialEvidence.length === 0) {
+            return;
+        }
+        initialised.current = true;
+
+        Promise.all(
+            initialEvidence.map(async ev => {
+                let quote: Quote | null = null;
+                if (ev.audio_id) {
+                    quote = await fetchQuoteByAudioId(ev.audio_id);
+                } else if (ev.quote_index !== undefined) {
+                    quote = await fetchQuoteByIndex(ev.quote_index);
+                }
+                if (!quote) {
+                    return null;
+                }
+                return { quote, note: ev.note } as SelectedEvidence;
+            }),
+        ).then(results => {
+            const resolved = results.filter((r): r is SelectedEvidence => r !== null);
+            setEvidence(resolved);
+        });
+    }, [initialEvidence]);
 
     const addQuote = useCallback((quote: Quote) => {
         const key = quoteKey(quote);

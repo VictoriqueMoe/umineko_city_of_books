@@ -1,5 +1,13 @@
 export type ThemeType = "featherine" | "bernkastel" | "lambdadelta";
-export type TheorySort = "new" | "popular" | "controversial";
+export type TheorySort =
+    | "new"
+    | "old"
+    | "popular"
+    | "popular_asc"
+    | "controversial"
+    | "controversial_asc"
+    | "credibility"
+    | "credibility_asc";
 
 export interface FilterState {
     episode: number;

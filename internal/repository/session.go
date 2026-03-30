@@ -6,14 +6,16 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type (
 	SessionRepository interface {
-		Create(ctx context.Context, token string, userID int, expiresAt time.Time) error
-		GetUserID(ctx context.Context, token string) (int, time.Time, error)
+		Create(ctx context.Context, token string, userID uuid.UUID, expiresAt time.Time) error
+		GetUserID(ctx context.Context, token string) (uuid.UUID, time.Time, error)
 		Delete(ctx context.Context, token string) error
-		DeleteAllForUser(ctx context.Context, userID int) error
+		DeleteAllForUser(ctx context.Context, userID uuid.UUID) error
 		CleanExpired(ctx context.Context) error
 	}
 
@@ -22,7 +24,7 @@ type (
 	}
 )
 
-func (r *sessionRepository) Create(ctx context.Context, token string, userID int, expiresAt time.Time) error {
+func (r *sessionRepository) Create(ctx context.Context, token string, userID uuid.UUID, expiresAt time.Time) error {
 	_, err := r.db.ExecContext(ctx,
 		`INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)`,
 		token, userID, expiresAt,
@@ -33,18 +35,18 @@ func (r *sessionRepository) Create(ctx context.Context, token string, userID int
 	return nil
 }
 
-func (r *sessionRepository) GetUserID(ctx context.Context, token string) (int, time.Time, error) {
-	var userID int
+func (r *sessionRepository) GetUserID(ctx context.Context, token string) (uuid.UUID, time.Time, error) {
+	var userID uuid.UUID
 	var expiresAt time.Time
 
 	err := r.db.QueryRowContext(ctx,
 		`SELECT user_id, expires_at FROM sessions WHERE token = ?`, token,
 	).Scan(&userID, &expiresAt)
 	if errors.Is(err, sql.ErrNoRows) {
-		return 0, time.Time{}, fmt.Errorf("session not found")
+		return uuid.Nil, time.Time{}, fmt.Errorf("session not found")
 	}
 	if err != nil {
-		return 0, time.Time{}, fmt.Errorf("query session: %w", err)
+		return uuid.Nil, time.Time{}, fmt.Errorf("query session: %w", err)
 	}
 
 	return userID, expiresAt, nil
@@ -55,7 +57,7 @@ func (r *sessionRepository) Delete(ctx context.Context, token string) error {
 	return err
 }
 
-func (r *sessionRepository) DeleteAllForUser(ctx context.Context, userID int) error {
+func (r *sessionRepository) DeleteAllForUser(ctx context.Context, userID uuid.UUID) error {
 	_, err := r.db.ExecContext(ctx, `DELETE FROM sessions WHERE user_id = ?`, userID)
 	return err
 }
