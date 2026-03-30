@@ -1,7 +1,7 @@
-import {type PropsWithChildren, useCallback, useEffect, useRef, useState} from "react";
-import type {Notification, WSMessage} from "../types/api";
-import {NotificationContext, type WSMessageHandler} from "./notificationContextValue";
-import {useAuth} from "../hooks/useAuth";
+import { type PropsWithChildren, useCallback, useEffect, useRef, useState } from "react";
+import type { Notification, WSMessage } from "../types/api";
+import { NotificationContext, type WSMessageHandler } from "./notificationContextValue";
+import { useAuth } from "../hooks/useAuth";
 import * as api from "../api/endpoints";
 
 const MAX_BACKOFF = 30000;

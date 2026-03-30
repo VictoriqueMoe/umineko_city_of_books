@@ -1,5 +1,5 @@
-import {createContext} from "react";
-import type {Notification, WSMessage} from "../types/api";
+import { createContext } from "react";
+import type { Notification, WSMessage } from "../types/api";
 
 export type WSMessageHandler = (msg: WSMessage) => void;
 

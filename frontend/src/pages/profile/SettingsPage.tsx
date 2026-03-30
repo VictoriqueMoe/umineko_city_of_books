@@ -1,14 +1,14 @@
-import {useCallback, useEffect, useRef, useState} from "react";
-import {useNavigate} from "react-router";
-import {useAuth} from "../../hooks/useAuth";
-import {useSettingsForm} from "../../hooks/useSettingsForm";
-import {Button} from "../../components/Button/Button";
-import {Input} from "../../components/Input/Input";
-import {TextArea} from "../../components/TextArea/TextArea";
-import {Select} from "../../components/Select/Select";
-import {ToggleSwitch} from "../../components/ToggleSwitch/ToggleSwitch";
-import {ChangePasswordSection} from "./ChangePasswordSection";
-import {DangerZoneSection} from "./DangerZoneSection";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router";
+import { useAuth } from "../../hooks/useAuth";
+import { useSettingsForm } from "../../hooks/useSettingsForm";
+import { Button } from "../../components/Button/Button";
+import { Input } from "../../components/Input/Input";
+import { TextArea } from "../../components/TextArea/TextArea";
+import { Select } from "../../components/Select/Select";
+import { ToggleSwitch } from "../../components/ToggleSwitch/ToggleSwitch";
+import { ChangePasswordSection } from "./ChangePasswordSection";
+import { DangerZoneSection } from "./DangerZoneSection";
 import styles from "./SettingsPage.module.css";
 
 function BannerSection({ form }: { form: ReturnType<typeof useSettingsForm> }) {
