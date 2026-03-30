@@ -251,7 +251,13 @@ export interface AdminStats {
     new_responses_24h: number;
     new_responses_7d: number;
     new_responses_30d: number;
-    most_active_users: { id: string; username: string; display_name: string; avatar_url: string; action_count: number }[];
+    most_active_users: {
+        id: string;
+        username: string;
+        display_name: string;
+        avatar_url: string;
+        action_count: number;
+    }[];
 }
 
 export interface AuditLogEntry {

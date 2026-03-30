@@ -21,12 +21,7 @@ const rolePermissions: Record<string, Permission[]> = {
         "view_stats",
         "delete_any_user",
     ],
-    moderator: [
-        "delete_any_theory",
-        "delete_any_response",
-        "view_admin_panel",
-        "view_stats",
-    ],
+    moderator: ["delete_any_theory", "delete_any_response", "view_admin_panel", "view_stats"],
 };
 
 export function can(role: string | undefined, perm: Permission): boolean {

@@ -1,7 +1,7 @@
-import {Navigate, Outlet} from "react-router";
-import {useAuth} from "../../hooks/useAuth";
-import type {Permission} from "../../utils/permissions";
-import {can} from "../../utils/permissions";
+import { Navigate, Outlet } from "react-router";
+import { useAuth } from "../../hooks/useAuth";
+import type { Permission } from "../../utils/permissions";
+import { can } from "../../utils/permissions";
 
 interface ProtectedRouteProps {
     permission?: Permission;

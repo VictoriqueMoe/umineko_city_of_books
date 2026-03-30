@@ -1,8 +1,8 @@
-import {useCallback, useEffect, useState} from "react";
-import {getAuditLog} from "../../api/endpoints";
-import {Pagination} from "../../components/Pagination/Pagination";
-import {Select} from "../../components/Select/Select";
-import type {AuditLogEntry} from "../../types/api";
+import { useCallback, useEffect, useState } from "react";
+import { getAuditLog } from "../../api/endpoints";
+import { Pagination } from "../../components/Pagination/Pagination";
+import { Select } from "../../components/Select/Select";
+import type { AuditLogEntry } from "../../types/api";
 import styles from "./AdminAuditLog.module.css";
 
 const LIMIT = 50;
@@ -20,7 +20,11 @@ export function AdminAuditLog() {
             setLoading(true);
             setError("");
             try {
-                const res = await getAuditLog({ action: actionFilter || undefined, limit: LIMIT, offset: currentOffset });
+                const res = await getAuditLog({
+                    action: actionFilter || undefined,
+                    limit: LIMIT,
+                    offset: currentOffset,
+                });
                 setEntries(res.entries);
                 setTotal(res.total);
             } catch (e) {

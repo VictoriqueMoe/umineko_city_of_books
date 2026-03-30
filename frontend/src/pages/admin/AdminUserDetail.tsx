@@ -1,12 +1,12 @@
-import {useEffect, useReducer, useState} from "react";
-import {useNavigate, useParams} from "react-router";
-import {adminDeleteUser, banUser, getAdminUser, removeUserRole, setUserRole, unbanUser,} from "../../api/endpoints";
-import {Button} from "../../components/Button/Button";
-import {Input} from "../../components/Input/Input";
-import {Modal} from "../../components/Modal/Modal";
-import {RolePill} from "../../components/RolePill/RolePill";
-import {Select} from "../../components/Select/Select";
-import type {AdminUserDetail as AdminUserDetailType} from "../../types/api";
+import { useEffect, useReducer, useState } from "react";
+import { useNavigate, useParams } from "react-router";
+import { adminDeleteUser, banUser, getAdminUser, removeUserRole, setUserRole, unbanUser } from "../../api/endpoints";
+import { Button } from "../../components/Button/Button";
+import { Input } from "../../components/Input/Input";
+import { Modal } from "../../components/Modal/Modal";
+import { RolePill } from "../../components/RolePill/RolePill";
+import { Select } from "../../components/Select/Select";
+import type { AdminUserDetail as AdminUserDetailType } from "../../types/api";
 import styles from "./AdminUserDetail.module.css";
 
 export function AdminUserDetail() {
@@ -46,7 +46,9 @@ export function AdminUserDetail() {
             }
         }
         void load();
-        return () => { cancelled = true; };
+        return () => {
+            cancelled = true;
+        };
     }, [id, refreshKey]);
 
     async function handleSetRole() {
@@ -143,14 +145,17 @@ export function AdminUserDetail() {
                     {user.avatar_url ? (
                         <img className={styles.avatar} src={user.avatar_url} alt="" />
                     ) : (
-                        <span className={styles.avatarPlaceholder}>
-                            {user.display_name[0]}
-                        </span>
+                        <span className={styles.avatarPlaceholder}>{user.display_name[0]}</span>
                     )}
                     <div className={styles.userMeta}>
                         <span className={styles.displayName}>
                             {user.display_name}
-                            {user.role && <> <RolePill role={user.role} /></>}
+                            {user.role && (
+                                <>
+                                    {" "}
+                                    <RolePill role={user.role} />
+                                </>
+                            )}
                         </span>
                         <span className={styles.username}>@{user.username}</span>
                     </div>
@@ -172,9 +177,7 @@ export function AdminUserDetail() {
                     {user.banned && user.banned_at && (
                         <div className={styles.infoItem}>
                             <span className={styles.infoLabel}>Banned At</span>
-                            <span className={styles.infoValue}>
-                                {new Date(user.banned_at).toLocaleDateString()}
-                            </span>
+                            <span className={styles.infoValue}>{new Date(user.banned_at).toLocaleDateString()}</span>
                         </div>
                     )}
                     <div className={styles.infoItem}>
@@ -187,9 +190,7 @@ export function AdminUserDetail() {
                     </div>
                     <div className={styles.infoItem}>
                         <span className={styles.infoLabel}>Joined</span>
-                        <span className={styles.infoValue}>
-                            {new Date(user.created_at).toLocaleDateString()}
-                        </span>
+                        <span className={styles.infoValue}>{new Date(user.created_at).toLocaleDateString()}</span>
                     </div>
                 </div>
             </div>
@@ -222,7 +223,9 @@ export function AdminUserDetail() {
             <div className={styles.card}>
                 <h2 className={styles.sectionTitle}>Ban Management</h2>
                 {user.banned ? (
-                    <Button variant="primary" onClick={handleUnban}>Unban User</Button>
+                    <Button variant="primary" onClick={handleUnban}>
+                        Unban User
+                    </Button>
                 ) : (
                     <div className={styles.actionRow}>
                         <div className={styles.actionField}>
@@ -247,14 +250,9 @@ export function AdminUserDetail() {
                 </Button>
             </div>
 
-            <Modal
-                isOpen={deleteModalOpen}
-                onClose={() => setDeleteModalOpen(false)}
-                title="Confirm Delete"
-            >
+            <Modal isOpen={deleteModalOpen} onClose={() => setDeleteModalOpen(false)} title="Confirm Delete">
                 <div className={styles.modalBody}>
-                    Are you sure you want to delete <strong>{user.display_name}</strong>? This action
-                    cannot be undone.
+                    Are you sure you want to delete <strong>{user.display_name}</strong>? This action cannot be undone.
                 </div>
                 <div className={styles.modalActions}>
                     <Button variant="secondary" onClick={() => setDeleteModalOpen(false)}>

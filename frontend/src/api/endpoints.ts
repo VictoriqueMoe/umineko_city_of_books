@@ -1,4 +1,4 @@
-import {apiDelete, apiDeleteWithBody, apiFetch, apiPost, apiPostFormData, apiPut, buildQueryString} from "./client";
+import { apiDelete, apiDeleteWithBody, apiFetch, apiPost, apiPostFormData, apiPut, buildQueryString } from "./client";
 import type {
     ActivityListResponse,
     AdminStats,
@@ -36,13 +36,21 @@ export async function getSiteInfo(): Promise<SiteInfo> {
     return apiFetch<SiteInfo>("/site-info");
 }
 
-export async function register(username: string, password: string, displayName: string, inviteCode?: string): Promise<User> {
-    return apiPost<User, { username: string; password: string; display_name: string; invite_code?: string }>("/auth/register", {
-        username,
-        password,
-        display_name: displayName,
-        invite_code: inviteCode,
-    });
+export async function register(
+    username: string,
+    password: string,
+    displayName: string,
+    inviteCode?: string,
+): Promise<User> {
+    return apiPost<User, { username: string; password: string; display_name: string; invite_code?: string }>(
+        "/auth/register",
+        {
+            username,
+            password,
+            display_name: displayName,
+            invite_code: inviteCode,
+        },
+    );
 }
 
 export async function login(username: string, password: string): Promise<User> {
@@ -220,7 +228,11 @@ export async function getAdminStats(): Promise<AdminStats> {
     return apiFetch<AdminStats>("/admin/stats");
 }
 
-export async function getAdminUsers(params: { search?: string; limit?: number; offset?: number }): Promise<AdminUserListResponse> {
+export async function getAdminUsers(params: {
+    search?: string;
+    limit?: number;
+    offset?: number;
+}): Promise<AdminUserListResponse> {
     const qs = buildQueryString({ search: params.search, limit: params.limit ?? 20, offset: params.offset });
     return apiFetch<AdminUserListResponse>(`/admin/users${qs}`);
 }
@@ -257,7 +269,11 @@ export async function updateAdminSettings(settings: SiteSettings): Promise<void>
     await apiPut<unknown, { settings: SiteSettings }>("/admin/settings", { settings });
 }
 
-export async function getAuditLog(params: { action?: string; limit?: number; offset?: number }): Promise<AuditLogListResponse> {
+export async function getAuditLog(params: {
+    action?: string;
+    limit?: number;
+    offset?: number;
+}): Promise<AuditLogListResponse> {
     const qs = buildQueryString({ action: params.action, limit: params.limit ?? 50, offset: params.offset });
     return apiFetch<AuditLogListResponse>(`/admin/audit-log${qs}`);
 }

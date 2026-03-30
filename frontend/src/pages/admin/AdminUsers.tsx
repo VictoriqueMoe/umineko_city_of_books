@@ -1,10 +1,10 @@
-import React, {useCallback, useEffect, useState} from "react";
-import {useNavigate} from "react-router";
-import {getAdminUsers} from "../../api/endpoints";
-import {Input} from "../../components/Input/Input";
-import {Pagination} from "../../components/Pagination/Pagination";
-import {RolePill} from "../../components/RolePill/RolePill";
-import type {AdminUserItem} from "../../types/api";
+import React, { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router";
+import { getAdminUsers } from "../../api/endpoints";
+import { Input } from "../../components/Input/Input";
+import { Pagination } from "../../components/Pagination/Pagination";
+import { RolePill } from "../../components/RolePill/RolePill";
+import type { AdminUserItem } from "../../types/api";
 import styles from "./AdminUsers.module.css";
 
 const LIMIT = 20;
@@ -24,7 +24,11 @@ export function AdminUsers() {
             setLoading(true);
             setError("");
             try {
-                const res = await getAdminUsers({ search: committed || undefined, limit: LIMIT, offset: currentOffset });
+                const res = await getAdminUsers({
+                    search: committed || undefined,
+                    limit: LIMIT,
+                    offset: currentOffset,
+                });
                 setUsers(res.users);
                 setTotal(res.total);
             } catch (e) {

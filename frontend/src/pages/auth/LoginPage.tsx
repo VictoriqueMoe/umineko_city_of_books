@@ -1,9 +1,9 @@
-import React, {useEffect, useState} from "react";
-import {useNavigate} from "react-router";
-import {useAuth} from "../../hooks/useAuth";
-import {getSiteInfo} from "../../api/endpoints";
-import {Button} from "../../components/Button/Button";
-import {Input} from "../../components/Input/Input";
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
+import { useAuth } from "../../hooks/useAuth";
+import { getSiteInfo } from "../../api/endpoints";
+import { Button } from "../../components/Button/Button";
+import { Input } from "../../components/Input/Input";
 import styles from "./LoginPage.module.css";
 
 export function LoginPage() {
@@ -93,7 +93,9 @@ export function LoginPage() {
                     <Button
                         variant="primary"
                         type="submit"
-                        disabled={!username || !password || loading || (isRegister && regType === "invite" && !inviteCode)}
+                        disabled={
+                            !username || !password || loading || (isRegister && regType === "invite" && !inviteCode)
+                        }
                         style={{ width: "100%", marginTop: "0.5rem" }}
                     >
                         {loading ? "..." : isRegister ? "Register" : "Sign In"}
@@ -109,9 +111,7 @@ export function LoginPage() {
                         {isRegister ? "Already have an account? Sign in" : "Need an account? Register"}
                     </Button>
                 ) : (
-                    !isRegister && (
-                        <p className={styles.disabledNotice}>Registration is currently closed.</p>
-                    )
+                    !isRegister && <p className={styles.disabledNotice}>Registration is currently closed.</p>
                 )}
             </div>
         </div>

@@ -1,13 +1,13 @@
-import {useCallback, useEffect, useState} from "react";
-import {useNavigate, useParams} from "react-router";
-import {useProfile} from "../../hooks/useProfile";
-import {useTheoryFeed} from "../../hooks/useTheoryFeed";
-import {getUserActivity} from "../../api/endpoints";
-import type {ActivityItem} from "../../types/api";
-import {Button} from "../../components/Button/Button";
-import {TheoryCard} from "../../components/theory/TheoryCard/TheoryCard";
-import {Pagination} from "../../components/Pagination/Pagination";
-import {RolePill} from "../../components/RolePill/RolePill";
+import { useCallback, useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router";
+import { useProfile } from "../../hooks/useProfile";
+import { useTheoryFeed } from "../../hooks/useTheoryFeed";
+import { getUserActivity } from "../../api/endpoints";
+import type { ActivityItem } from "../../types/api";
+import { Button } from "../../components/Button/Button";
+import { TheoryCard } from "../../components/theory/TheoryCard/TheoryCard";
+import { Pagination } from "../../components/Pagination/Pagination";
+import { RolePill } from "../../components/RolePill/RolePill";
 import styles from "./ProfilePage.module.css";
 
 const SOCIAL_LABELS: Record<string, string> = {

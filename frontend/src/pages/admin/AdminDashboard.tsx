@@ -1,6 +1,6 @@
-import {useEffect, useState} from "react";
-import {getAdminStats} from "../../api/endpoints";
-import type {AdminStats} from "../../types/api";
+import { useEffect, useState } from "react";
+import { getAdminStats } from "../../api/endpoints";
+import type { AdminStats } from "../../types/api";
 import styles from "./AdminDashboard.module.css";
 
 export function AdminDashboard() {
@@ -90,18 +90,14 @@ export function AdminDashboard() {
                             {u.avatar_url ? (
                                 <img className={styles.avatar} src={u.avatar_url} alt="" />
                             ) : (
-                                <span className={styles.avatarPlaceholder}>
-                                    {u.display_name[0]}
-                                </span>
+                                <span className={styles.avatarPlaceholder}>{u.display_name[0]}</span>
                             )}
                             <span>{u.display_name}</span>
                         </div>
                         <span className={styles.actionCount}>{u.action_count} actions</span>
                     </div>
                 ))}
-                {stats.most_active_users.length === 0 && (
-                    <div className={styles.loading}>No active users yet</div>
-                )}
+                {stats.most_active_users.length === 0 && <div className={styles.loading}>No active users yet</div>}
             </div>
         </div>
     );

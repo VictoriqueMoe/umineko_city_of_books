@@ -1,6 +1,6 @@
-import {useCallback, useEffect, useState} from "react";
-import {createInvite, deleteInvite, getInvites, type InviteItem} from "../../api/endpoints";
-import {Button} from "../../components/Button/Button";
+import { useCallback, useEffect, useState } from "react";
+import { createInvite, deleteInvite, getInvites, type InviteItem } from "../../api/endpoints";
+import { Button } from "../../components/Button/Button";
 import styles from "./AdminInvites.module.css";
 
 export function AdminInvites() {
@@ -50,7 +50,9 @@ export function AdminInvites() {
         <div className={styles.page}>
             <div className={styles.header}>
                 <h1 className={styles.title}>Invites</h1>
-                <Button variant="primary" onClick={handleCreate}>Create Invite</Button>
+                <Button variant="primary" onClick={handleCreate}>
+                    Create Invite
+                </Button>
             </div>
 
             {error && <div className={styles.error}>{error}</div>}

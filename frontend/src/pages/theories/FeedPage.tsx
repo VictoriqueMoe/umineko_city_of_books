@@ -1,9 +1,9 @@
-import {useState} from "react";
-import type {TheorySort} from "../../types/app";
-import {useTheoryFeed} from "../../hooks/useTheoryFeed";
-import {TheoryCard} from "../../components/theory/TheoryCard/TheoryCard";
-import {Pagination} from "../../components/Pagination/Pagination";
-import {Select} from "../../components/Select/Select";
+import { useState } from "react";
+import type { TheorySort } from "../../types/app";
+import { useTheoryFeed } from "../../hooks/useTheoryFeed";
+import { TheoryCard } from "../../components/theory/TheoryCard/TheoryCard";
+import { Pagination } from "../../components/Pagination/Pagination";
+import { Select } from "../../components/Select/Select";
 import styles from "./FeedPage.module.css";
 
 type SortCategory = "new" | "popular" | "controversial" | "credibility";

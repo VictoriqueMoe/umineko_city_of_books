@@ -1,30 +1,30 @@
-import {useEffect, useState} from "react";
-import {BrowserRouter, Route, Routes} from "react-router";
-import {getSiteInfo} from "./api/endpoints";
-import {useTheme} from "./hooks/useTheme";
-import {useAuth} from "./hooks/useAuth";
-import {canAccessAdmin} from "./utils/permissions";
-import {Header} from "./components/layout/Header/Header";
-import {Sidebar} from "./components/layout/Sidebar/Sidebar";
-import {Butterflies} from "./components/layout/Butterflies/Butterflies";
-import {ProtectedRoute} from "./components/ProtectedRoute/ProtectedRoute";
-import {FeedPage} from "./pages/theories/FeedPage";
-import {TheoryPage} from "./pages/theories/TheoryPage";
-import {CreateTheoryPage} from "./pages/theories/CreateTheoryPage";
-import {LoginPage} from "./pages/auth/LoginPage";
-import {QuoteBrowserPage} from "./pages/quotes/QuoteBrowserPage";
-import {MyTheoriesPage} from "./pages/theories/MyTheoriesPage";
-import {EditTheoryPage} from "./pages/theories/EditTheoryPage";
-import {ProfilePage} from "./pages/profile/ProfilePage";
-import {SettingsPage} from "./pages/profile/SettingsPage";
-import {AdminLayout} from "./pages/admin/AdminLayout";
-import {AdminDashboard} from "./pages/admin/AdminDashboard";
-import {AdminUsers} from "./pages/admin/AdminUsers";
-import {AdminUserDetail} from "./pages/admin/AdminUserDetail";
-import {AdminSettings} from "./pages/admin/AdminSettings";
-import {AdminAuditLog} from "./pages/admin/AdminAuditLog";
-import {AdminInvites} from "./pages/admin/AdminInvites";
-import {MaintenancePage} from "./pages/maintenance/MaintenancePage";
+import { useEffect, useState } from "react";
+import { BrowserRouter, Route, Routes } from "react-router";
+import { getSiteInfo } from "./api/endpoints";
+import { useTheme } from "./hooks/useTheme";
+import { useAuth } from "./hooks/useAuth";
+import { canAccessAdmin } from "./utils/permissions";
+import { Header } from "./components/layout/Header/Header";
+import { Sidebar } from "./components/layout/Sidebar/Sidebar";
+import { Butterflies } from "./components/layout/Butterflies/Butterflies";
+import { ProtectedRoute } from "./components/ProtectedRoute/ProtectedRoute";
+import { FeedPage } from "./pages/theories/FeedPage";
+import { TheoryPage } from "./pages/theories/TheoryPage";
+import { CreateTheoryPage } from "./pages/theories/CreateTheoryPage";
+import { LoginPage } from "./pages/auth/LoginPage";
+import { QuoteBrowserPage } from "./pages/quotes/QuoteBrowserPage";
+import { MyTheoriesPage } from "./pages/theories/MyTheoriesPage";
+import { EditTheoryPage } from "./pages/theories/EditTheoryPage";
+import { ProfilePage } from "./pages/profile/ProfilePage";
+import { SettingsPage } from "./pages/profile/SettingsPage";
+import { AdminLayout } from "./pages/admin/AdminLayout";
+import { AdminDashboard } from "./pages/admin/AdminDashboard";
+import { AdminUsers } from "./pages/admin/AdminUsers";
+import { AdminUserDetail } from "./pages/admin/AdminUserDetail";
+import { AdminSettings } from "./pages/admin/AdminSettings";
+import { AdminAuditLog } from "./pages/admin/AdminAuditLog";
+import { AdminInvites } from "./pages/admin/AdminInvites";
+import { MaintenancePage } from "./pages/maintenance/MaintenancePage";
 
 function AnnouncementBanner() {
     const [banner, setBanner] = useState("");
@@ -40,15 +40,17 @@ function AnnouncementBanner() {
     }
 
     return (
-        <div style={{
-            background: "linear-gradient(90deg, var(--gold-dark), var(--gold), var(--gold-dark))",
-            color: "var(--bg-void)",
-            padding: "0.5rem 1rem",
-            textAlign: "center",
-            fontWeight: 600,
-            fontSize: "0.95rem",
-            width: "100%",
-        }}>
+        <div
+            style={{
+                background: "linear-gradient(90deg, var(--gold-dark), var(--gold), var(--gold-dark))",
+                color: "var(--bg-void)",
+                padding: "0.5rem 1rem",
+                textAlign: "center",
+                fontWeight: 600,
+                fontSize: "0.95rem",
+                width: "100%",
+            }}
+        >
             {banner}
         </div>
     );
