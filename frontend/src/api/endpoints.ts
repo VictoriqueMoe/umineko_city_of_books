@@ -329,10 +329,7 @@ export async function getRoomMessages(
     return apiFetch<{ messages: ChatMessage[]; total: number }>(`/chat/rooms/${roomId}/messages${qs}`);
 }
 
-export async function sendChatMessage(
-    roomId: string,
-    payload: { body: string },
-): Promise<ChatMessage> {
+export async function sendChatMessage(roomId: string, payload: { body: string }): Promise<ChatMessage> {
     return apiPost<ChatMessage, typeof payload>(`/chat/rooms/${roomId}/messages`, payload);
 }
 
