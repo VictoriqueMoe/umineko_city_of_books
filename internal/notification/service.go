@@ -59,7 +59,7 @@ func (s *service) notifyTheoryAuthor(ctx context.Context, notifType string, refe
 	if err != nil {
 		return err
 	}
-	return s.send(ctx, recipientID, notifType, referenceID, theoryID, actorID)
+	return s.send(ctx, recipientID, notifType, theoryID, "theory", actorID)
 }
 
 func (s *service) notifyResponseAuthor(ctx context.Context, notifType string, referenceID uuid.UUID, theoryID uuid.UUID, actorID uuid.UUID) error {
@@ -67,15 +67,15 @@ func (s *service) notifyResponseAuthor(ctx context.Context, notifType string, re
 	if err != nil {
 		return err
 	}
-	return s.send(ctx, recipientID, notifType, referenceID, theoryID, actorID)
+	return s.send(ctx, recipientID, notifType, theoryID, "theory", actorID)
 }
 
-func (s *service) send(ctx context.Context, recipientID uuid.UUID, notifType string, referenceID uuid.UUID, theoryID uuid.UUID, actorID uuid.UUID) error {
+func (s *service) send(ctx context.Context, recipientID uuid.UUID, notifType string, referenceID uuid.UUID, referenceType string, actorID uuid.UUID) error {
 	if recipientID == actorID {
 		return nil
 	}
 
-	dupe, err := s.repo.HasRecentDuplicate(ctx, recipientID, notifType, referenceID, actorID)
+	dupe, err := s.repo.HasRecentDuplicate(ctx, recipientID, notifType, referenceID, referenceType, actorID)
 	if err != nil {
 		return err
 	}
@@ -83,7 +83,7 @@ func (s *service) send(ctx context.Context, recipientID uuid.UUID, notifType str
 		return nil
 	}
 
-	id, err := s.repo.Create(ctx, recipientID, notifType, referenceID, theoryID, actorID)
+	id, err := s.repo.Create(ctx, recipientID, notifType, referenceID, referenceType, actorID)
 	if err != nil {
 		return err
 	}
@@ -149,11 +149,10 @@ func (s *service) UnreadCount(ctx context.Context, userID uuid.UUID) (int, error
 
 func rowToDTO(row repository.NotificationRow) dto.NotificationResponse {
 	return dto.NotificationResponse{
-		ID:          row.ID,
-		Type:        row.Type,
-		ReferenceID: row.ReferenceID,
-		TheoryID:    row.TheoryID,
-		TheoryTitle: row.TheoryTitle,
+		ID:            row.ID,
+		Type:          row.Type,
+		ReferenceID:   row.ReferenceID,
+		ReferenceType: row.ReferenceType,
 		Actor: dto.UserResponse{
 			ID:          row.ActorID,
 			Username:    row.ActorUsername,

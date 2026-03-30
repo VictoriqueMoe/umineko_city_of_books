@@ -35,6 +35,7 @@ type (
 		SocialTumblr       string       `json:"social_tumblr"`
 		SocialGithub       string       `json:"social_github"`
 		Website            string       `json:"website"`
+		DmsEnabled         bool         `json:"dms_enabled"`
 		CreatedAt          string       `json:"created_at"`
 		Stats              UserStatsDTO `json:"stats"`
 	}
@@ -61,6 +62,7 @@ type (
 		SocialTumblr       string  `json:"social_tumblr"`
 		SocialGithub       string  `json:"social_github"`
 		Website            string  `json:"website"`
+		DmsEnabled         bool    `json:"dms_enabled"`
 	}
 
 	ChangePasswordRequest struct {

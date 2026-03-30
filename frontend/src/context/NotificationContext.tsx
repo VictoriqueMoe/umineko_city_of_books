@@ -1,7 +1,7 @@
-import { type PropsWithChildren, useCallback, useEffect, useRef, useState } from "react";
-import type { Notification, WSMessage } from "../types/api";
-import { NotificationContext } from "./notificationContextValue";
-import { useAuth } from "../hooks/useAuth";
+import {type PropsWithChildren, useCallback, useEffect, useRef, useState} from "react";
+import type {Notification, WSMessage} from "../types/api";
+import {NotificationContext, type WSMessageHandler} from "./notificationContextValue";
+import {useAuth} from "../hooks/useAuth";
 import * as api from "../api/endpoints";
 
 const MAX_BACKOFF = 30000;
@@ -14,6 +14,7 @@ export function NotificationProvider({ children }: PropsWithChildren) {
     const wsRef = useRef<WebSocket | null>(null);
     const backoffRef = useRef(1000);
     const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const wsListenersRef = useRef<Set<WSMessageHandler>>(new Set());
 
     const clearReconnectTimer = useCallback(() => {
         if (reconnectTimerRef.current !== null) {
@@ -50,8 +51,11 @@ export function NotificationProvider({ children }: PropsWithChildren) {
                     setNotifications(prev => [notif, ...prev]);
                     setUnreadCount(prev => prev + 1);
                 }
+                for (const handler of wsListenersRef.current) {
+                    handler(msg);
+                }
             } catch {
-                // ignore malformed messages
+                // ignore
             }
         };
 
@@ -125,9 +129,22 @@ export function NotificationProvider({ children }: PropsWithChildren) {
         }
     }, []);
 
+    const addWSListener = useCallback((handler: WSMessageHandler) => {
+        wsListenersRef.current.add(handler);
+        return () => {
+            wsListenersRef.current.delete(handler);
+        };
+    }, []);
+
+    const sendWSMessage = useCallback((msg: object) => {
+        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify(msg));
+        }
+    }, []);
+
     return (
         <NotificationContext.Provider
-            value={{ notifications, unreadCount, loading, markRead, markAllRead, refreshNotifications }}
+            value={{ notifications, unreadCount, loading, markRead, markAllRead, refreshNotifications, addWSListener, sendWSMessage }}
         >
             {children}
         </NotificationContext.Provider>

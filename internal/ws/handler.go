@@ -1,11 +1,15 @@
 package ws
 
 import (
+	"context"
+	"encoding/json"
+
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/session"
 
 	"github.com/fasthttp/websocket"
 	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
 	"github.com/valyala/fasthttp"
 )
 
@@ -15,7 +19,33 @@ var upgrader = websocket.FastHTTPUpgrader{
 	},
 }
 
-func Handler(hub *Hub, sessionMgr *session.Manager) fiber.Handler {
+type RoomLister interface {
+	GetRoomsByUser(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error)
+}
+
+type incomingMessage struct {
+	Type string          `json:"type"`
+	Data json.RawMessage `json:"data"`
+}
+
+type chatMessageData struct {
+	RoomID string `json:"room_id"`
+	Body   string `json:"body"`
+}
+
+type roomActionData struct {
+	RoomID string `json:"room_id"`
+}
+
+type typingData struct {
+	RoomID string `json:"room_id"`
+}
+
+type ChatMessageSender interface {
+	SendChatMessage(ctx context.Context, senderID uuid.UUID, roomID uuid.UUID, body string) error
+}
+
+func Handler(hub *Hub, sessionMgr *session.Manager, roomLister RoomLister) fiber.Handler {
 	return func(ctx fiber.Ctx) error {
 		cookie := ctx.Cookies(session.CookieName)
 		if cookie == "" {
@@ -42,13 +72,68 @@ func Handler(hub *Hub, sessionMgr *session.Manager) fiber.Handler {
 			defer hub.Unregister(client)
 			defer conn.Close()
 
+			if roomLister != nil {
+				roomIDs, err := roomLister.GetRoomsByUser(context.Background(), userID)
+				if err == nil {
+					for _, roomID := range roomIDs {
+						hub.JoinRoom(roomID, userID)
+					}
+				}
+			}
+
 			for {
-				_, _, err := conn.ReadMessage()
+				_, raw, err := conn.ReadMessage()
 				if err != nil {
 					if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseNormalClosure) {
 						logger.Log.Warn().Err(err).Str("user_id", userID.String()).Msg("unexpected ws close")
 					}
 					break
+				}
+
+				var msg incomingMessage
+				if err := json.Unmarshal(raw, &msg); err != nil {
+					continue
+				}
+
+				switch msg.Type {
+				case "typing":
+					var data typingData
+					if err := json.Unmarshal(msg.Data, &data); err != nil {
+						continue
+					}
+					roomID, err := uuid.Parse(data.RoomID)
+					if err != nil {
+						continue
+					}
+					hub.BroadcastToRoom(roomID, Message{
+						Type: "typing",
+						Data: map[string]interface{}{
+							"room_id": data.RoomID,
+							"user_id": userID.String(),
+						},
+					}, userID)
+
+				case "join_room":
+					var data roomActionData
+					if err := json.Unmarshal(msg.Data, &data); err != nil {
+						continue
+					}
+					roomID, err := uuid.Parse(data.RoomID)
+					if err != nil {
+						continue
+					}
+					hub.JoinRoom(roomID, userID)
+
+				case "leave_room":
+					var data roomActionData
+					if err := json.Unmarshal(msg.Data, &data); err != nil {
+						continue
+					}
+					roomID, err := uuid.Parse(data.RoomID)
+					if err != nil {
+						continue
+					}
+					hub.LeaveRoom(roomID, userID)
 				}
 			}
 		})

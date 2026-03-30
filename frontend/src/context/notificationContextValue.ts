@@ -1,5 +1,7 @@
-import { createContext } from "react";
-import type { Notification } from "../types/api";
+import {createContext} from "react";
+import type {Notification, WSMessage} from "../types/api";
+
+export type WSMessageHandler = (msg: WSMessage) => void;
 
 export interface NotificationContextValue {
     notifications: Notification[];
@@ -8,6 +10,8 @@ export interface NotificationContextValue {
     markRead: (id: number) => Promise<void>;
     markAllRead: () => Promise<void>;
     refreshNotifications: () => Promise<void>;
+    addWSListener: (handler: WSMessageHandler) => () => void;
+    sendWSMessage: (msg: object) => void;
 }
 
 export const NotificationContext = createContext<NotificationContextValue | null>(null);

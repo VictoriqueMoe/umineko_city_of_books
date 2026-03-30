@@ -1,30 +1,24 @@
-import { useCallback, useRef, useState } from "react";
-import { useNavigate } from "react-router";
-import { useNotifications } from "../../../hooks/useNotifications";
-import { useClickOutside } from "../../../hooks/useClickOutside";
-import { Button } from "../../Button/Button";
-import { ProfileLink } from "../../ProfileLink/ProfileLink";
-import type { Notification, NotificationType } from "../../../types/api";
+import {useCallback, useRef, useState} from "react";
+import {useNavigate} from "react-router";
+import {useNotifications} from "../../../hooks/useNotifications";
+import {useClickOutside} from "../../../hooks/useClickOutside";
+import {Button} from "../../Button/Button";
+import {ProfileLink} from "../../ProfileLink/ProfileLink";
+import type {Notification, NotificationType} from "../../../types/api";
 import styles from "./NotificationBell.module.css";
 
-function truncateTitle(title: string, max: number): string {
-    if (title.length <= max) {
-        return title;
-    }
-    return title.slice(0, max) + "...";
-}
-
-function notificationText(type: NotificationType, title: string): string {
-    const truncated = truncateTitle(title, 30);
+function notificationText(type: NotificationType): string {
     switch (type) {
         case "theory_response":
-            return `responded to your theory '${truncated}'`;
+            return "responded to your theory";
         case "response_reply":
             return "replied to your response";
         case "theory_upvote":
-            return `upvoted your theory '${truncated}'`;
+            return "upvoted your theory";
         case "response_upvote":
             return "upvoted your response";
+        case "chat_message":
+            return "sent you a message";
     }
 }
 
@@ -79,7 +73,11 @@ export function NotificationBell() {
                 await markRead(notif.id);
             }
             setOpen(false);
-            navigate(`/theory/${notif.theory_id}`);
+            if (notif.reference_type === "chat") {
+                navigate(`/chat/${notif.reference_id}`);
+            } else {
+                navigate(`/theory/${notif.reference_id}`);
+            }
         },
         [markRead, navigate],
     );
@@ -129,7 +127,7 @@ export function NotificationBell() {
                                 <div className={styles.itemContent}>
                                     <div className={styles.itemText}>
                                         <strong>{notif.actor.display_name}</strong>{" "}
-                                        {notificationText(notif.type, notif.theory_title)}
+                                        {notificationText(notif.type)}
                                     </div>
                                     <div className={styles.itemTime}>{relativeTime(notif.created_at)}</div>
                                 </div>

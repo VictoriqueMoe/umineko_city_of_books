@@ -11,6 +11,7 @@ import (
 	"umineko_city_of_books/internal/admin"
 	"umineko_city_of_books/internal/auth"
 	"umineko_city_of_books/internal/authz"
+	"umineko_city_of_books/internal/chat"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/controllers"
 	"umineko_city_of_books/internal/credibility"
@@ -46,6 +47,7 @@ type services struct {
 	notification notification.Service
 	admin        admin.Service
 	authz        authz.Service
+	chat         chat.Service
 	session      *session.Manager
 	upload       upload.Service
 	hub          *ws.Hub
@@ -98,6 +100,8 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 	quoteClient := quotefinder.NewClient()
 	credibilitySvc := credibility.NewService(repos.Theory)
 
+	chatSvc := chat.NewService(repos.Chat, repos.User, repos.Notification, hub)
+
 	return &services{
 		settings:     settingsSvc,
 		auth:         auth.NewService(userSvc, sessionMgr, settingsSvc, repos.Invite),
@@ -106,6 +110,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 		notification: notification.NewService(repos.Notification, repos.Theory, hub),
 		admin:        admin.NewService(repos.User, repos.Role, repos.Stats, repos.AuditLog, repos.Invite, authzSvc, settingsSvc),
 		authz:        authzSvc,
+		chat:         chatSvc,
 		session:      sessionMgr,
 		upload:       uploadSvc,
 		hub:          hub,
@@ -129,11 +134,11 @@ func initApp(svc *services, settingsSvc settings.Service) *fiber.App {
 
 	ctrlService := controllers.NewService(
 		svc.auth, svc.profile, svc.theory, svc.notification, svc.admin,
-		svc.authz, settingsSvc, svc.session, svc.hub, string(htmlBytes),
+		svc.authz, settingsSvc, svc.chat, svc.session, svc.hub, string(htmlBytes),
 	)
 	routes.PublicRoutes(ctrlService, app)
 
-	app.Get("/api/v1/ws", ws.Handler(svc.hub, svc.session))
+	app.Get("/api/v1/ws", ws.Handler(svc.hub, svc.session, svc.chat))
 	app.Get("/uploads/*", static.New(svc.upload.GetUploadDir()))
 
 	staticFS, err := fs.Sub(staticFiles, "static")

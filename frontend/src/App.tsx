@@ -1,30 +1,31 @@
-import { useEffect, useState } from "react";
-import { BrowserRouter, Route, Routes } from "react-router";
-import { getSiteInfo } from "./api/endpoints";
-import { useTheme } from "./hooks/useTheme";
-import { useAuth } from "./hooks/useAuth";
-import { canAccessAdmin } from "./utils/permissions";
-import { Header } from "./components/layout/Header/Header";
-import { Sidebar } from "./components/layout/Sidebar/Sidebar";
-import { Butterflies } from "./components/layout/Butterflies/Butterflies";
-import { ProtectedRoute } from "./components/ProtectedRoute/ProtectedRoute";
-import { FeedPage } from "./pages/theories/FeedPage";
-import { TheoryPage } from "./pages/theories/TheoryPage";
-import { CreateTheoryPage } from "./pages/theories/CreateTheoryPage";
-import { LoginPage } from "./pages/auth/LoginPage";
-import { QuoteBrowserPage } from "./pages/quotes/QuoteBrowserPage";
-import { MyTheoriesPage } from "./pages/theories/MyTheoriesPage";
-import { EditTheoryPage } from "./pages/theories/EditTheoryPage";
-import { ProfilePage } from "./pages/profile/ProfilePage";
-import { SettingsPage } from "./pages/profile/SettingsPage";
-import { AdminLayout } from "./pages/admin/AdminLayout";
-import { AdminDashboard } from "./pages/admin/AdminDashboard";
-import { AdminUsers } from "./pages/admin/AdminUsers";
-import { AdminUserDetail } from "./pages/admin/AdminUserDetail";
-import { AdminSettings } from "./pages/admin/AdminSettings";
-import { AdminAuditLog } from "./pages/admin/AdminAuditLog";
-import { AdminInvites } from "./pages/admin/AdminInvites";
-import { MaintenancePage } from "./pages/maintenance/MaintenancePage";
+import {useEffect, useState} from "react";
+import {BrowserRouter, Route, Routes} from "react-router";
+import {getSiteInfo} from "./api/endpoints";
+import {useTheme} from "./hooks/useTheme";
+import {useAuth} from "./hooks/useAuth";
+import {canAccessAdmin} from "./utils/permissions";
+import {Header} from "./components/layout/Header/Header";
+import {Sidebar} from "./components/layout/Sidebar/Sidebar";
+import {Butterflies} from "./components/layout/Butterflies/Butterflies";
+import {ProtectedRoute} from "./components/ProtectedRoute/ProtectedRoute";
+import {FeedPage} from "./pages/theories/FeedPage";
+import {TheoryPage} from "./pages/theories/TheoryPage";
+import {CreateTheoryPage} from "./pages/theories/CreateTheoryPage";
+import {LoginPage} from "./pages/auth/LoginPage";
+import {QuoteBrowserPage} from "./pages/quotes/QuoteBrowserPage";
+import {MyTheoriesPage} from "./pages/theories/MyTheoriesPage";
+import {EditTheoryPage} from "./pages/theories/EditTheoryPage";
+import {ProfilePage} from "./pages/profile/ProfilePage";
+import {SettingsPage} from "./pages/profile/SettingsPage";
+import {AdminLayout} from "./pages/admin/AdminLayout";
+import {AdminDashboard} from "./pages/admin/AdminDashboard";
+import {AdminUsers} from "./pages/admin/AdminUsers";
+import {AdminUserDetail} from "./pages/admin/AdminUserDetail";
+import {AdminSettings} from "./pages/admin/AdminSettings";
+import {AdminAuditLog} from "./pages/admin/AdminAuditLog";
+import {AdminInvites} from "./pages/admin/AdminInvites";
+import {ChatPage} from "./pages/chat/ChatPage";
+import {MaintenancePage} from "./pages/maintenance/MaintenancePage";
 
 function AnnouncementBanner() {
     const [banner, setBanner] = useState("");
@@ -98,6 +99,8 @@ function AppLayout() {
                             <Route path="/theory/:id/edit" element={<EditTheoryPage />} />
                             <Route path="/my-theories" element={<MyTheoriesPage />} />
                             <Route path="/settings" element={<SettingsPage />} />
+                            <Route path="/chat" element={<ChatPage />} />
+                            <Route path="/chat/:roomId" element={<ChatPage />} />
                         </Route>
 
                         <Route element={<ProtectedRoute permission="view_admin_panel" />}>

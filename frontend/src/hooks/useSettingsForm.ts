@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from "react";
-import { useAuth } from "./useAuth";
-import { useProfile } from "./useProfile";
-import { getCharacters, updateProfile, uploadAvatar, uploadBanner } from "../api/endpoints";
-import type { UpdateProfilePayload, UserProfile } from "../types/api";
+import React, {useEffect, useState} from "react";
+import {useAuth} from "./useAuth";
+import {useProfile} from "./useProfile";
+import {getCharacters, updateProfile, uploadAvatar, uploadBanner} from "../api/endpoints";
+import type {UpdateProfilePayload, UserProfile} from "../types/api";
 
 const GENDER_OPTIONS = ["Prefer not to say", "Male", "Female", "Custom"];
 
@@ -55,6 +55,7 @@ export function useSettingsForm() {
     const [socialTumblr, setSocialTumblr] = useState("");
     const [socialGithub, setSocialGithub] = useState("");
     const [website, setWebsite] = useState("");
+    const [dmsEnabled, setDmsEnabled] = useState(true);
 
     const [characters, setCharacters] = useState<Record<string, string>>({});
     const [saving, setSaving] = useState(false);
@@ -77,6 +78,7 @@ export function useSettingsForm() {
             setSocialTumblr(profile.social_tumblr);
             setSocialGithub(profile.social_github);
             setWebsite(profile.website);
+            setDmsEnabled(profile.dms_enabled ?? true);
 
             const g = initGender(profile);
             setGender(g.gender);
@@ -175,6 +177,7 @@ export function useSettingsForm() {
             social_tumblr: socialTumblr,
             social_github: socialGithub,
             website,
+            dms_enabled: dmsEnabled,
         };
 
         try {
@@ -229,6 +232,8 @@ export function useSettingsForm() {
         setSocialGithub,
         website,
         setWebsite,
+        dmsEnabled,
+        setDmsEnabled,
         characters,
 
         handleSubmit,

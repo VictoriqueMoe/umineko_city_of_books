@@ -54,7 +54,8 @@
 }
 
 .link {
-    display: block;
+    display: flex;
+    align-items: center;
     padding: 0.5rem 1.25rem;
     color: var(--text);
     font-size: 0.9rem;
@@ -71,6 +72,21 @@
     color: var(--gold);
     background: rgba(var(--gold-rgb), 0.08);
     border-left-color: var(--gold);
+}
+
+.chatBadge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 9px;
+    background: #ff3333;
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    margin-left: auto;
 }
 
 .footer {

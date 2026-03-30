@@ -21,6 +21,7 @@ type (
 
 	Hub struct {
 		clients map[uuid.UUID][]*Client
+		rooms   map[uuid.UUID]map[uuid.UUID]bool
 		mu      sync.RWMutex
 	}
 )
@@ -28,6 +29,7 @@ type (
 func NewHub() *Hub {
 	return &Hub{
 		clients: make(map[uuid.UUID][]*Client),
+		rooms:   make(map[uuid.UUID]map[uuid.UUID]bool),
 	}
 }
 
@@ -50,6 +52,13 @@ func (h *Hub) Unregister(client *Client) {
 	}
 	if len(h.clients[client.UserID]) == 0 {
 		delete(h.clients, client.UserID)
+
+		for roomID, members := range h.rooms {
+			delete(members, client.UserID)
+			if len(members) == 0 {
+				delete(h.rooms, roomID)
+			}
+		}
 	}
 }
 
@@ -83,4 +92,53 @@ func (h *Hub) IsOnline(userID uuid.UUID) bool {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	return len(h.clients[userID]) > 0
+}
+
+func (h *Hub) JoinRoom(roomID, userID uuid.UUID) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if h.rooms[roomID] == nil {
+		h.rooms[roomID] = make(map[uuid.UUID]bool)
+	}
+	h.rooms[roomID][userID] = true
+}
+
+func (h *Hub) LeaveRoom(roomID, userID uuid.UUID) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if h.rooms[roomID] != nil {
+		delete(h.rooms[roomID], userID)
+		if len(h.rooms[roomID]) == 0 {
+			delete(h.rooms, roomID)
+		}
+	}
+}
+
+func (h *Hub) BroadcastToRoom(roomID uuid.UUID, msg Message, excludeUserID uuid.UUID) {
+	h.mu.RLock()
+	members := h.rooms[roomID]
+	var targetUserIDs []uuid.UUID
+	for uid := range members {
+		if uid != excludeUserID {
+			targetUserIDs = append(targetUserIDs, uid)
+		}
+	}
+	h.mu.RUnlock()
+
+	data, err := json.Marshal(msg)
+	if err != nil {
+		return
+	}
+
+	for _, uid := range targetUserIDs {
+		h.mu.RLock()
+		conns := h.clients[uid]
+		h.mu.RUnlock()
+
+		for _, client := range conns {
+			client.Conn.WriteMessage(websocket.TextMessage, data)
+		}
+	}
 }
