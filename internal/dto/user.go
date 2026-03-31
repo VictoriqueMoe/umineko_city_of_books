@@ -38,6 +38,9 @@ type (
 		Website            string       `json:"website"`
 		DmsEnabled         bool         `json:"dms_enabled"`
 		EpisodeProgress    int          `json:"episode_progress"`
+		Email              string       `json:"email,omitempty"`
+		EmailPublic        bool         `json:"email_public"`
+		EmailNotifications bool         `json:"email_notifications"`
 		CreatedAt          string       `json:"created_at"`
 		Stats              UserStatsDTO `json:"stats"`
 	}
@@ -66,6 +69,9 @@ type (
 		Website            string  `json:"website"`
 		DmsEnabled         bool    `json:"dms_enabled"`
 		EpisodeProgress    int     `json:"episode_progress"`
+		Email              string  `json:"email"`
+		EmailPublic        bool    `json:"email_public"`
+		EmailNotifications bool    `json:"email_notifications"`
 	}
 
 	ChangePasswordRequest struct {

@@ -1,13 +1,14 @@
-import { useCallback, useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router";
-import { useProfile } from "../../hooks/useProfile";
-import { useTheoryFeed } from "../../hooks/useTheoryFeed";
-import { getUserActivity } from "../../api/endpoints";
-import type { ActivityItem } from "../../types/api";
-import { Button } from "../../components/Button/Button";
-import { TheoryCard } from "../../components/theory/TheoryCard/TheoryCard";
-import { Pagination } from "../../components/Pagination/Pagination";
-import { RolePill } from "../../components/RolePill/RolePill";
+import {useCallback, useEffect, useState} from "react";
+import {useNavigate, useParams} from "react-router";
+import {useProfile} from "../../hooks/useProfile";
+import {useTheoryFeed} from "../../hooks/useTheoryFeed";
+import {getUserActivity} from "../../api/endpoints";
+import type {ActivityItem} from "../../types/api";
+import {Button} from "../../components/Button/Button";
+import {TheoryCard} from "../../components/theory/TheoryCard/TheoryCard";
+import {Pagination} from "../../components/Pagination/Pagination";
+import {RolePill} from "../../components/RolePill/RolePill";
+import {RoleStyledName} from "../../components/RoleStyledName/RoleStyledName";
 import styles from "./ProfilePage.module.css";
 
 const SOCIAL_LABELS: Record<string, string> = {
@@ -147,7 +148,7 @@ export function ProfilePage() {
                 </div>
                 <div className={styles.info}>
                     <h1 className={styles.displayName}>
-                        {profile.display_name}
+                        <RoleStyledName name={profile.display_name} role={profile.role} />
                         {profile.role && <RolePill role={profile.role} />}
                     </h1>
                     <span className={styles.username}>@{profile.username}</span>
@@ -159,6 +160,11 @@ export function ProfilePage() {
                             </span>
                         )}
                         <span className={styles.metaItem}>Joined {formatDate(profile.created_at)}</span>
+                        {profile.email && (
+                            <a href={`mailto:${profile.email}`} className={styles.metaItem}>
+                                {profile.email}
+                            </a>
+                        )}
                     </div>
                 </div>
             </div>

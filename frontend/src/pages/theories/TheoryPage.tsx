@@ -1,18 +1,19 @@
-import { useCallback, useState } from "react";
-import { useNavigate, useParams } from "react-router";
-import { useTheory } from "../../hooks/useTheory";
-import { useVote } from "../../hooks/useVote";
-import { useAuth } from "../../hooks/useAuth";
-import { deleteTheory, voteTheory } from "../../api/endpoints";
-import { Button } from "../../components/Button/Button";
-import { Modal } from "../../components/Modal/Modal";
-import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
-import { VoteButton } from "../../components/theory/VoteButton/VoteButton";
-import { EvidenceList } from "../../components/theory/EvidenceList/EvidenceList";
-import { ResponseList } from "../../components/theory/ResponseCard/ResponseCard";
-import { ResponseEditor } from "../../components/theory/ResponseEditor/ResponseEditor";
-import { CredibilityBadge } from "../../components/theory/CredibilityBadge/CredibilityBadge";
-import { can } from "../../utils/permissions";
+import {useCallback, useState} from "react";
+import {useNavigate, useParams} from "react-router";
+import {useTheory} from "../../hooks/useTheory";
+import {useVote} from "../../hooks/useVote";
+import {useAuth} from "../../hooks/useAuth";
+import {deleteTheory, voteTheory} from "../../api/endpoints";
+import {Button} from "../../components/Button/Button";
+import {Modal} from "../../components/Modal/Modal";
+import {ProfileLink} from "../../components/ProfileLink/ProfileLink";
+import {VoteButton} from "../../components/theory/VoteButton/VoteButton";
+import {EvidenceList} from "../../components/theory/EvidenceList/EvidenceList";
+import {ResponseList} from "../../components/theory/ResponseCard/ResponseCard";
+import {ResponseEditor} from "../../components/theory/ResponseEditor/ResponseEditor";
+import {CredibilityBadge} from "../../components/theory/CredibilityBadge/CredibilityBadge";
+import {ReportButton} from "../../components/ReportButton/ReportButton";
+import {can} from "../../utils/permissions";
 import styles from "./TheoryPage.module.css";
 
 export function TheoryPage() {
@@ -98,24 +99,23 @@ export function TheoryPage() {
                             <CredibilityBadge score={theory.credibility_score} />
                         </div>
                     </div>
-                    {(isAuthor || canDelete) && (
-                        <div className={styles.authorActions}>
-                            {isAuthor && (
-                                <Button
-                                    variant="secondary"
-                                    size="small"
-                                    onClick={() => navigate(`/theory/${theoryId}/edit`)}
-                                >
-                                    Edit
-                                </Button>
-                            )}
-                            {canDelete && (
-                                <Button variant="danger" size="small" onClick={() => setDeleteConfirmOpen(true)}>
-                                    Delete
-                                </Button>
-                            )}
-                        </div>
-                    )}
+                    <div className={styles.authorActions}>
+                        {isAuthor && (
+                            <Button
+                                variant="secondary"
+                                size="small"
+                                onClick={() => navigate(`/theory/${theoryId}/edit`)}
+                            >
+                                Edit
+                            </Button>
+                        )}
+                        {canDelete && (
+                            <Button variant="danger" size="small" onClick={() => setDeleteConfirmOpen(true)}>
+                                Delete
+                            </Button>
+                        )}
+                        {user && !isAuthor && <ReportButton targetType="theory" targetId={theory.id} />}
+                    </div>
                 </div>
 
                 <div className={styles.body}>{theory.body}</div>

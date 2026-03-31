@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from "react";
-import { useAuth } from "./useAuth";
-import { useProfile } from "./useProfile";
-import { getCharacters, updateProfile, uploadAvatar, uploadBanner } from "../api/endpoints";
-import type { UpdateProfilePayload, UserProfile } from "../types/api";
+import React, {useEffect, useState} from "react";
+import {useAuth} from "./useAuth";
+import {useProfile} from "./useProfile";
+import {getCharacters, updateProfile, uploadAvatar, uploadBanner} from "../api/endpoints";
+import type {UpdateProfilePayload, UserProfile} from "../types/api";
 
 const GENDER_OPTIONS = ["Prefer not to say", "Male", "Female", "Custom"];
 
@@ -57,6 +57,9 @@ export function useSettingsForm() {
     const [website, setWebsite] = useState("");
     const [dmsEnabled, setDmsEnabled] = useState(true);
     const [episodeProgress, setEpisodeProgress] = useState(0);
+    const [email, setEmail] = useState("");
+    const [emailPublic, setEmailPublic] = useState(false);
+    const [emailNotifications, setEmailNotifications] = useState(false);
 
     const [characters, setCharacters] = useState<Record<string, string>>({});
     const [saving, setSaving] = useState(false);
@@ -81,6 +84,9 @@ export function useSettingsForm() {
             setWebsite(profile.website);
             setDmsEnabled(profile.dms_enabled ?? true);
             setEpisodeProgress(profile.episode_progress ?? 0);
+            setEmail(profile.email ?? "");
+            setEmailPublic(profile.email_public ?? false);
+            setEmailNotifications(profile.email_notifications ?? false);
 
             const g = initGender(profile);
             setGender(g.gender);
@@ -181,6 +187,9 @@ export function useSettingsForm() {
             website,
             dms_enabled: dmsEnabled,
             episode_progress: episodeProgress,
+            email,
+            email_public: emailPublic,
+            email_notifications: emailNotifications,
         };
 
         try {
@@ -239,6 +248,12 @@ export function useSettingsForm() {
         setDmsEnabled,
         episodeProgress,
         setEpisodeProgress,
+        email,
+        setEmail,
+        emailPublic,
+        setEmailPublic,
+        emailNotifications,
+        setEmailNotifications,
         characters,
 
         handleSubmit,

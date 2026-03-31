@@ -15,16 +15,22 @@ const (
 	PermDeleteAnyResponse Permission = "delete_any_response"
 	PermDeleteAnyUser     Permission = "delete_any_user"
 	PermBanUser           Permission = "ban_user"
+	PermViewUsers         Permission = "view_users"
 )
 
 var rolePermissions = map[role.Role][]Permission{
+	RoleSuperAdmin: {
+		PermAll,
+	},
 	RoleAdmin: {
 		PermAll,
 	},
 	RoleModerator: {
 		PermViewAdminPanel,
 		PermViewStats,
+		PermViewUsers,
 		PermDeleteAnyTheory,
 		PermDeleteAnyResponse,
+		PermBanUser,
 	},
 }

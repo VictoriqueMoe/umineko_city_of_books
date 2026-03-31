@@ -1,4 +1,4 @@
-import { apiDelete, apiDeleteWithBody, apiFetch, apiPost, apiPostFormData, apiPut, buildQueryString } from "./client";
+import {apiDelete, apiDeleteWithBody, apiFetch, apiPost, apiPostFormData, apiPut, buildQueryString} from "./client";
 import type {
     ActivityListResponse,
     AdminStats,
@@ -32,6 +32,8 @@ export interface SiteInfo {
     announcement_banner: string;
     default_theme: string;
     maintenance_mode: boolean;
+    maintenance_title: string;
+    maintenance_message: string;
     turnstile_enabled: boolean;
     turnstile_site_key: string;
 }
@@ -131,6 +133,7 @@ export async function listTheories(params: {
     sort?: string;
     episode?: number;
     author?: string;
+    search?: string;
     limit?: number;
     offset?: number;
 }): Promise<TheoryListResponse> {
@@ -138,6 +141,7 @@ export async function listTheories(params: {
         sort: params.sort,
         episode: params.episode,
         author: params.author,
+        search: params.search,
         limit: params.limit ?? 20,
         offset: params.offset,
     });
@@ -343,4 +347,55 @@ export async function sendChatMessage(roomId: string, payload: { body: string })
 
 export async function deleteChatRoom(roomId: string): Promise<void> {
     await apiDelete<unknown>(`/chat/rooms/${roomId}`);
+}
+
+export async function createReport(
+    targetType: string,
+    targetId: string,
+    reason: string,
+    contextId?: string,
+): Promise<void> {
+    await apiPost<unknown, { target_type: string; target_id: string; context_id?: string; reason: string }>("/report", {
+        target_type: targetType,
+        target_id: targetId,
+        context_id: contextId,
+        reason,
+    });
+}
+
+export interface ReportItem {
+    id: number;
+    reporter_name: string;
+    reporter_avatar: string;
+    target_type: string;
+    target_id: string;
+    context_id?: string;
+    reason: string;
+    status: string;
+    resolved_by?: string;
+    created_at: string;
+}
+
+export interface ReportListResponse {
+    reports: ReportItem[];
+    total: number;
+    limit: number;
+    offset: number;
+}
+
+export async function getReports(
+    status: string = "open",
+    limit: number = 50,
+    offset: number = 0,
+): Promise<ReportListResponse> {
+    const qs = buildQueryString({ status, limit, offset });
+    return apiFetch<ReportListResponse>(`/admin/reports${qs}`);
+}
+
+export async function resolveReport(id: number): Promise<void> {
+    await apiPost<unknown, undefined>(`/admin/reports/${id}/resolve`, undefined);
+}
+
+export async function getRules(page: string): Promise<{ page: string; rules: string }> {
+    return apiFetch<{ page: string; rules: string }>(`/rules/${page}`);
 }

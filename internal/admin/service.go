@@ -10,6 +10,7 @@ import (
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
+	"umineko_city_of_books/internal/session"
 	"umineko_city_of_books/internal/settings"
 
 	"github.com/google/uuid"
@@ -45,6 +46,7 @@ type (
 		inviteRepo  repository.InviteRepository
 		authz       authz.Service
 		settingsSvc settings.Service
+		sessionMgr  *session.Manager
 	}
 )
 
@@ -56,6 +58,7 @@ func NewService(
 	inviteRepo repository.InviteRepository,
 	authzService authz.Service,
 	settingsSvc settings.Service,
+	sessionMgr *session.Manager,
 ) Service {
 	return &service{
 		userRepo:    userRepo,
@@ -65,7 +68,19 @@ func NewService(
 		inviteRepo:  inviteRepo,
 		authz:       authzService,
 		settingsSvc: settingsSvc,
+		sessionMgr:  sessionMgr,
 	}
+}
+
+func (s *service) guardedAction(ctx context.Context, actorID, targetID uuid.UUID, fn func() error) error {
+	actorRole, _ := s.authz.GetRole(ctx, actorID)
+	targetRole, _ := s.authz.GetRole(ctx, targetID)
+
+	if targetRole == authz.RoleSuperAdmin && actorRole != authz.RoleSuperAdmin {
+		return ErrProtectedUser
+	}
+
+	return fn()
 }
 
 func (s *service) audit(ctx context.Context, actorID uuid.UUID, action, targetType, targetID string) {
@@ -178,27 +193,36 @@ func (s *service) GetUser(ctx context.Context, targetID uuid.UUID) (*dto.AdminUs
 }
 
 func (s *service) SetUserRole(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID, r role.Role) error {
-	if err := s.roleRepo.SetRole(ctx, targetID, r); err != nil {
-		return fmt.Errorf("set role: %w", err)
-	}
-	s.audit(ctx, actorID, "set_role", "user", targetID.String())
-	return nil
+	return s.guardedAction(ctx, actorID, targetID, func() error {
+		if err := s.roleRepo.SetRole(ctx, targetID, r); err != nil {
+			return fmt.Errorf("set role: %w", err)
+		}
+		s.audit(ctx, actorID, "set_role", "user", targetID.String())
+		return nil
+	})
 }
 
 func (s *service) RemoveUserRole(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID, r role.Role) error {
-	if err := s.roleRepo.RemoveRole(ctx, targetID, r); err != nil {
-		return fmt.Errorf("remove role: %w", err)
-	}
-	s.audit(ctx, actorID, "remove_role", "user", targetID.String())
-	return nil
+	return s.guardedAction(ctx, actorID, targetID, func() error {
+		if err := s.roleRepo.RemoveRole(ctx, targetID, r); err != nil {
+			return fmt.Errorf("remove role: %w", err)
+		}
+		s.audit(ctx, actorID, "remove_role", "user", targetID.String())
+		return nil
+	})
 }
 
 func (s *service) BanUser(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID, reason string) error {
-	if err := s.userRepo.BanUser(ctx, targetID, actorID, reason); err != nil {
-		return fmt.Errorf("ban user: %w", err)
-	}
-	s.audit(ctx, actorID, "ban_user", "user", targetID.String())
-	return nil
+	return s.guardedAction(ctx, actorID, targetID, func() error {
+		if err := s.userRepo.BanUser(ctx, targetID, actorID, reason); err != nil {
+			return fmt.Errorf("ban user: %w", err)
+		}
+		if err := s.sessionMgr.DeleteAllForUser(ctx, targetID); err != nil {
+			logger.Log.Error().Err(err).Str("user_id", targetID.String()).Msg("failed to invalidate sessions after ban")
+		}
+		s.audit(ctx, actorID, "ban_user", "user", targetID.String())
+		return nil
+	})
 }
 
 func (s *service) UnbanUser(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID) error {
@@ -210,11 +234,13 @@ func (s *service) UnbanUser(ctx context.Context, actorID uuid.UUID, targetID uui
 }
 
 func (s *service) DeleteUser(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID) error {
-	if err := s.userRepo.AdminDeleteAccount(ctx, targetID); err != nil {
-		return fmt.Errorf("delete user: %w", err)
-	}
-	s.audit(ctx, actorID, "delete_user", "user", targetID.String())
-	return nil
+	return s.guardedAction(ctx, actorID, targetID, func() error {
+		if err := s.userRepo.AdminDeleteAccount(ctx, targetID); err != nil {
+			return fmt.Errorf("delete user: %w", err)
+		}
+		s.audit(ctx, actorID, "delete_user", "user", targetID.String())
+		return nil
+	})
 }
 
 func (s *service) GetSettings(ctx context.Context) (*dto.SettingsResponse, error) {

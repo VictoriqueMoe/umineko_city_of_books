@@ -1,17 +1,21 @@
-import { useEffect, useReducer, useState } from "react";
-import { useNavigate, useParams } from "react-router";
-import { adminDeleteUser, banUser, getAdminUser, removeUserRole, setUserRole, unbanUser } from "../../api/endpoints";
-import { Button } from "../../components/Button/Button";
-import { Input } from "../../components/Input/Input";
-import { Modal } from "../../components/Modal/Modal";
-import { RolePill } from "../../components/RolePill/RolePill";
-import { Select } from "../../components/Select/Select";
-import type { AdminUserDetail as AdminUserDetailType } from "../../types/api";
+import {useEffect, useReducer, useState} from "react";
+import {useNavigate, useParams} from "react-router";
+import {adminDeleteUser, banUser, getAdminUser, removeUserRole, setUserRole, unbanUser} from "../../api/endpoints";
+import {Button} from "../../components/Button/Button";
+import {Input} from "../../components/Input/Input";
+import {Modal} from "../../components/Modal/Modal";
+import {ProfileLink} from "../../components/ProfileLink/ProfileLink";
+import {RolePill} from "../../components/RolePill/RolePill";
+import {Select} from "../../components/Select/Select";
+import type {AdminUserDetail as AdminUserDetailType} from "../../types/api";
+import {useAuth} from "../../hooks/useAuth";
+import {can} from "../../utils/permissions";
 import styles from "./AdminUserDetail.module.css";
 
 export function AdminUserDetail() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const { user: currentUser } = useAuth();
     const [user, setUser] = useState<AdminUserDetailType | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
@@ -142,23 +146,16 @@ export function AdminUserDetail() {
 
             <div className={styles.card}>
                 <div className={styles.userHeader}>
-                    {user.avatar_url ? (
-                        <img className={styles.avatar} src={user.avatar_url} alt="" />
-                    ) : (
-                        <span className={styles.avatarPlaceholder}>{user.display_name[0]}</span>
-                    )}
-                    <div className={styles.userMeta}>
-                        <span className={styles.displayName}>
-                            {user.display_name}
-                            {user.role && (
-                                <>
-                                    {" "}
-                                    <RolePill role={user.role} />
-                                </>
-                            )}
-                        </span>
-                        <span className={styles.username}>@{user.username}</span>
-                    </div>
+                    <ProfileLink
+                        user={{
+                            id: user.id,
+                            username: user.username,
+                            display_name: user.display_name,
+                            avatar_url: user.avatar_url,
+                            role: user.role,
+                        }}
+                        size="large"
+                    />
                 </div>
 
                 <div className={styles.infoGrid}>
@@ -195,60 +192,66 @@ export function AdminUserDetail() {
                 </div>
             </div>
 
-            <div className={styles.card}>
-                <h2 className={styles.sectionTitle}>Role</h2>
-                {user.role ? (
-                    <div className={styles.roleDisplay}>
-                        <span className={styles.currentRole}>
-                            Current: <RolePill role={user.role} />
-                        </span>
-                        <Button variant="danger" size="small" onClick={handleRemoveRole}>
-                            Remove Role
+            {can(currentUser?.role, "manage_roles") && user.role !== "super_admin" && (
+                <div className={styles.card}>
+                    <h2 className={styles.sectionTitle}>Role</h2>
+                    {user.role ? (
+                        <div className={styles.roleDisplay}>
+                            <span className={styles.currentRole}>
+                                Current: <RolePill role={user.role} />
+                            </span>
+                            <Button variant="danger" size="small" onClick={handleRemoveRole}>
+                                Remove Role
+                            </Button>
+                        </div>
+                    ) : (
+                        <span className={styles.noRole}>No role assigned</span>
+                    )}
+                    <div className={styles.roleAssign}>
+                        <Select value={selectedRole} onChange={e => setSelectedRole(e.target.value)}>
+                            <option value="admin">Admin</option>
+                            <option value="moderator">Moderator</option>
+                        </Select>
+                        <Button variant="primary" onClick={handleSetRole}>
+                            {user.role ? "Change Role" : "Assign Role"}
                         </Button>
                     </div>
-                ) : (
-                    <span className={styles.noRole}>No role assigned</span>
-                )}
-                <div className={styles.roleAssign}>
-                    <Select value={selectedRole} onChange={e => setSelectedRole(e.target.value)}>
-                        <option value="admin">Admin</option>
-                        <option value="moderator">Moderator</option>
-                    </Select>
-                    <Button variant="primary" onClick={handleSetRole}>
-                        {user.role ? "Change Role" : "Assign Role"}
+                </div>
+            )}
+
+            {can(currentUser?.role, "ban_user") && user.role !== "super_admin" && (
+                <div className={styles.card}>
+                    <h2 className={styles.sectionTitle}>Ban Management</h2>
+                    {user.banned ? (
+                        <Button variant="primary" onClick={handleUnban}>
+                            Unban User
+                        </Button>
+                    ) : (
+                        <div className={styles.actionRow}>
+                            <div className={styles.actionField}>
+                                <span className={styles.fieldLabel}>Ban Reason</span>
+                                <Input
+                                    value={banReason}
+                                    onChange={e => setBanReason(e.target.value)}
+                                    placeholder="Reason for ban..."
+                                />
+                            </div>
+                            <Button variant="danger" onClick={handleBan} disabled={!banReason.trim()}>
+                                Ban User
+                            </Button>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {can(currentUser?.role, "delete_any_user") && user.role !== "super_admin" && (
+                <div className={`${styles.card} ${styles.dangerZone}`}>
+                    <h2 className={styles.sectionTitle}>Danger Zone</h2>
+                    <Button variant="danger" onClick={() => setDeleteModalOpen(true)}>
+                        Delete User
                     </Button>
                 </div>
-            </div>
-
-            <div className={styles.card}>
-                <h2 className={styles.sectionTitle}>Ban Management</h2>
-                {user.banned ? (
-                    <Button variant="primary" onClick={handleUnban}>
-                        Unban User
-                    </Button>
-                ) : (
-                    <div className={styles.actionRow}>
-                        <div className={styles.actionField}>
-                            <span className={styles.fieldLabel}>Ban Reason</span>
-                            <Input
-                                value={banReason}
-                                onChange={e => setBanReason(e.target.value)}
-                                placeholder="Reason for ban..."
-                            />
-                        </div>
-                        <Button variant="danger" onClick={handleBan} disabled={!banReason.trim()}>
-                            Ban User
-                        </Button>
-                    </div>
-                )}
-            </div>
-
-            <div className={`${styles.card} ${styles.dangerZone}`}>
-                <h2 className={styles.sectionTitle}>Danger Zone</h2>
-                <Button variant="danger" onClick={() => setDeleteModalOpen(true)}>
-                    Delete User
-                </Button>
-            </div>
+            )}
 
             <Modal isOpen={deleteModalOpen} onClose={() => setDeleteModalOpen(false)} title="Confirm Delete">
                 <div className={styles.modalBody}>

@@ -29,7 +29,7 @@ func (s *Service) getAllProfileRoutes() []FSetupRoute {
 }
 
 func (s *Service) setupGetProfileRoute(r fiber.Router) {
-	r.Get("/users/:username", s.getProfile)
+	r.Get("/users/:username", middleware.OptionalAuth(s.AuthSession), s.getProfile)
 }
 
 func (s *Service) setupUpdateProfileRoute(r fiber.Router) {
@@ -76,6 +76,15 @@ func (s *Service) getProfile(ctx fiber.Ctx) error {
 	}
 
 	result.Online = s.Hub.IsOnline(result.ID)
+
+	viewerID, _ := ctx.Locals("userID").(uuid.UUID)
+	if viewerID != result.ID {
+		if !result.EmailPublic {
+			result.Email = ""
+		}
+		result.EmailPublic = false
+		result.EmailNotifications = false
+	}
 
 	return ctx.JSON(result)
 }

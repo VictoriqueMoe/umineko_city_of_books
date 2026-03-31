@@ -1,9 +1,9 @@
-import { useState } from "react";
-import { useNavigate } from "react-router";
-import type { Theory } from "../../../types/api";
-import { useAuth } from "../../../hooks/useAuth";
-import { ProfileLink } from "../../ProfileLink/ProfileLink";
-import { CredibilityBadge } from "../CredibilityBadge/CredibilityBadge";
+import {useState} from "react";
+import {useNavigate} from "react-router";
+import type {Theory} from "../../../types/api";
+import {useAuth} from "../../../hooks/useAuth";
+import {ProfileLink} from "../../ProfileLink/ProfileLink";
+import {CredibilityBadge} from "../CredibilityBadge/CredibilityBadge";
 import styles from "./TheoryCard.module.css";
 
 interface TheoryCardProps {
@@ -70,6 +70,7 @@ export function TheoryCard({ theory }: TheoryCardProps) {
                     <span className={styles.withoutLove}>
                         {"\u2718"} {theory.without_love_count}
                     </span>
+                    <span className={styles.timestamp}>{new Date(theory.created_at).toLocaleString()}</span>
                 </div>
             </div>
         </div>

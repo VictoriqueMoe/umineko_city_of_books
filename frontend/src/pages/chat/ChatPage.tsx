@@ -1,10 +1,10 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router";
-import { useAuth } from "../../hooks/useAuth";
-import { useNotifications } from "../../hooks/useNotifications";
-import { Button } from "../../components/Button/Button";
-import { Input } from "../../components/Input/Input";
-import { Modal } from "../../components/Modal/Modal";
+import React, {useCallback, useEffect, useRef, useState} from "react";
+import {useNavigate, useParams} from "react-router";
+import {useAuth} from "../../hooks/useAuth";
+import {useNotifications} from "../../hooks/useNotifications";
+import {Button} from "../../components/Button/Button";
+import {Input} from "../../components/Input/Input";
+import {Modal} from "../../components/Modal/Modal";
 import {
     createDMRoom,
     deleteChatRoom,
@@ -13,7 +13,7 @@ import {
     getUserRooms,
     sendChatMessage,
 } from "../../api/endpoints";
-import type { ChatMessage, ChatRoom, User, WSMessage } from "../../types/api";
+import type {ChatMessage, ChatRoom, User, WSMessage} from "../../types/api";
 import styles from "./ChatPage.module.css";
 
 function getRoomDisplayName(room: ChatRoom, currentUser: User): string {
@@ -93,7 +93,12 @@ export function ChatPage() {
             if (msg.type === "chat_message") {
                 const chatMsg = msg.data as ChatMessage;
                 if (chatMsg.room_id === activeRoomIdRef.current) {
-                    setMessages(prev => [...prev, chatMsg]);
+                    setMessages(prev => {
+                        if (prev.some(m => m.id === chatMsg.id)) {
+                            return prev;
+                        }
+                        return [...prev, chatMsg];
+                    });
                     scrollToBottom();
                 }
             }
@@ -142,7 +147,12 @@ export function ChatPage() {
                 body: newMessage.trim(),
             });
 
-            setMessages(prev => [...prev, result]);
+            setMessages(prev => {
+                if (prev.some(m => m.id === result.id)) {
+                    return prev;
+                }
+                return [...prev, result];
+            });
             setNewMessage("");
             scrollToBottom();
         } catch {

@@ -3,6 +3,7 @@ package authz
 import "umineko_city_of_books/internal/role"
 
 const (
-	RoleAdmin     role.Role = "admin"
-	RoleModerator role.Role = "moderator"
+	RoleSuperAdmin role.Role = "super_admin"
+	RoleAdmin      role.Role = "admin"
+	RoleModerator  role.Role = "moderator"
 )

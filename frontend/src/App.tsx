@@ -1,40 +1,37 @@
-import { useEffect, useState } from "react";
-import { BrowserRouter, Route, Routes } from "react-router";
-import { getSiteInfo } from "./api/endpoints";
-import { useTheme } from "./hooks/useTheme";
-import { useAuth } from "./hooks/useAuth";
-import { canAccessAdmin } from "./utils/permissions";
-import { Header } from "./components/layout/Header/Header";
-import { Sidebar } from "./components/layout/Sidebar/Sidebar";
-import { Butterflies } from "./components/layout/Butterflies/Butterflies";
-import { ProtectedRoute } from "./components/ProtectedRoute/ProtectedRoute";
-import { FeedPage } from "./pages/theories/FeedPage";
-import { TheoryPage } from "./pages/theories/TheoryPage";
-import { CreateTheoryPage } from "./pages/theories/CreateTheoryPage";
-import { LoginPage } from "./pages/auth/LoginPage";
-import { QuoteBrowserPage } from "./pages/quotes/QuoteBrowserPage";
-import { MyTheoriesPage } from "./pages/theories/MyTheoriesPage";
-import { EditTheoryPage } from "./pages/theories/EditTheoryPage";
-import { ProfilePage } from "./pages/profile/ProfilePage";
-import { SettingsPage } from "./pages/profile/SettingsPage";
-import { AdminLayout } from "./pages/admin/AdminLayout";
-import { AdminDashboard } from "./pages/admin/AdminDashboard";
-import { AdminUsers } from "./pages/admin/AdminUsers";
-import { AdminUserDetail } from "./pages/admin/AdminUserDetail";
-import { AdminSettings } from "./pages/admin/AdminSettings";
-import { AdminAuditLog } from "./pages/admin/AdminAuditLog";
-import { AdminInvites } from "./pages/admin/AdminInvites";
-import { ChatPage } from "./pages/chat/ChatPage";
-import { MaintenancePage } from "./pages/maintenance/MaintenancePage";
+import {useState} from "react";
+import {BrowserRouter, Route, Routes} from "react-router";
+import {useSiteInfo} from "./hooks/useSiteInfo";
+import {useTheme} from "./hooks/useTheme";
+import {useAuth} from "./hooks/useAuth";
+import {canAccessAdmin} from "./utils/permissions";
+import {Header} from "./components/layout/Header/Header";
+import {Sidebar} from "./components/layout/Sidebar/Sidebar";
+import {Butterflies} from "./components/layout/Butterflies/Butterflies";
+import {ProtectedRoute} from "./components/ProtectedRoute/ProtectedRoute";
+import {FeedPage} from "./pages/theories/FeedPage";
+import {TheoryPage} from "./pages/theories/TheoryPage";
+import {CreateTheoryPage} from "./pages/theories/CreateTheoryPage";
+import {LoginPage} from "./pages/auth/LoginPage";
+import {QuoteBrowserPage} from "./pages/quotes/QuoteBrowserPage";
+import {MyTheoriesPage} from "./pages/theories/MyTheoriesPage";
+import {EditTheoryPage} from "./pages/theories/EditTheoryPage";
+import {ProfilePage} from "./pages/profile/ProfilePage";
+import {SettingsPage} from "./pages/profile/SettingsPage";
+import {AdminLayout} from "./pages/admin/AdminLayout";
+import {AdminDashboard} from "./pages/admin/AdminDashboard";
+import {AdminUsers} from "./pages/admin/AdminUsers";
+import {AdminUserDetail} from "./pages/admin/AdminUserDetail";
+import {AdminSettings} from "./pages/admin/AdminSettings";
+import {AdminAuditLog} from "./pages/admin/AdminAuditLog";
+import {AdminInvites} from "./pages/admin/AdminInvites";
+import {AdminReports} from "./pages/admin/AdminReports";
+import {AdminContentRules} from "./pages/admin/AdminContentRules";
+import {ChatPage} from "./pages/chat/ChatPage";
+import {MaintenancePage} from "./pages/maintenance/MaintenancePage";
 
 function AnnouncementBanner() {
-    const [banner, setBanner] = useState("");
-
-    useEffect(() => {
-        getSiteInfo()
-            .then(info => setBanner(info.announcement_banner ?? ""))
-            .catch(() => {});
-    }, []);
+    const siteInfo = useSiteInfo();
+    const banner = siteInfo.announcement_banner ?? "";
 
     if (!banner) {
         return null;
@@ -58,25 +55,19 @@ function AnnouncementBanner() {
 }
 
 function AppLayout() {
+    const siteInfo = useSiteInfo();
     const { particlesEnabled } = useTheme();
     const { user, loading: authLoading } = useAuth();
     const [sidebarOpen, setSidebarOpen] = useState(false);
-    const [maintenance, setMaintenance] = useState(false);
-    const [siteInfoLoaded, setSiteInfoLoaded] = useState(false);
 
-    useEffect(() => {
-        getSiteInfo()
-            .then(info => setMaintenance(info.maintenance_mode))
-            .catch(() => {})
-            .finally(() => setSiteInfoLoaded(true));
-    }, []);
-
-    if (!siteInfoLoaded || authLoading) {
+    if (authLoading) {
         return null;
     }
 
-    if (maintenance && !canAccessAdmin(user?.role)) {
-        return <MaintenancePage />;
+    if (siteInfo.maintenance_mode && !canAccessAdmin(user?.role)) {
+        return (
+            <MaintenancePage title={siteInfo.maintenance_title ?? ""} message={siteInfo.maintenance_message ?? ""} />
+        );
     }
 
     return (
@@ -110,6 +101,8 @@ function AppLayout() {
                                 <Route path="users/:id" element={<AdminUserDetail />} />
                                 <Route path="invites" element={<AdminInvites />} />
                                 <Route path="settings" element={<AdminSettings />} />
+                                <Route path="reports" element={<AdminReports />} />
+                                <Route path="content-rules" element={<AdminContentRules />} />
                                 <Route path="audit-log" element={<AdminAuditLog />} />
                             </Route>
                         </Route>

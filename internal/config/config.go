@@ -43,6 +43,8 @@ var (
 	SettingMaxGeneralSize      = SiteSettingDef{"max_general_size", "52428800", TypeInt}
 	SettingRegistrationType    = SiteSettingDef{"registration_type", "open", TypeString}
 	SettingMaintenanceMode     = SiteSettingDef{"maintenance_mode", "false", TypeBool}
+	SettingMaintenanceTitle    = SiteSettingDef{"maintenance_title", "", TypeString}
+	SettingMaintenanceMessage  = SiteSettingDef{"maintenance_message", "", TypeString}
 	SettingSiteName            = SiteSettingDef{"site_name", "Umineko City of Books", TypeString}
 	SettingSiteDescription     = SiteSettingDef{"site_description", "", TypeString}
 	SettingAnnouncementBanner  = SiteSettingDef{"announcement_banner", "", TypeString}
@@ -55,6 +57,12 @@ var (
 	SettingTurnstileEnabled    = SiteSettingDef{"turnstile_enabled", "false", TypeBool}
 	SettingTurnstileSiteKey    = SiteSettingDef{"turnstile_site_key", "", TypeString}
 	SettingTurnstileSecretKey  = SiteSettingDef{"turnstile_secret_key", "", TypeString}
+	SettingRulesTheories       = SiteSettingDef{"rules_theories", "", TypeString}
+	SettingSMTPHost            = SiteSettingDef{"smtp_host", "", TypeString}
+	SettingSMTPPort            = SiteSettingDef{"smtp_port", "25", TypeInt}
+	SettingSMTPFrom            = SiteSettingDef{"smtp_from", "", TypeString}
+	SettingSMTPUsername        = SiteSettingDef{"smtp_username", "", TypeString}
+	SettingSMTPPassword        = SiteSettingDef{"smtp_password", "", TypeString}
 
 	AllSiteSettings = []SiteSettingDef{
 		SettingUploadDir,
@@ -66,6 +74,8 @@ var (
 		SettingMaxGeneralSize,
 		SettingRegistrationType,
 		SettingMaintenanceMode,
+		SettingMaintenanceTitle,
+		SettingMaintenanceMessage,
 		SettingSiteName,
 		SettingSiteDescription,
 		SettingAnnouncementBanner,
@@ -78,6 +88,12 @@ var (
 		SettingTurnstileEnabled,
 		SettingTurnstileSiteKey,
 		SettingTurnstileSecretKey,
+		SettingRulesTheories,
+		SettingSMTPHost,
+		SettingSMTPPort,
+		SettingSMTPFrom,
+		SettingSMTPUsername,
+		SettingSMTPPassword,
 	}
 )
 

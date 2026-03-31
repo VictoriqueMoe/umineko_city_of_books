@@ -138,6 +138,9 @@ export interface UserProfile {
     website: string;
     dms_enabled: boolean;
     episode_progress: number;
+    email?: string;
+    email_public?: boolean;
+    email_notifications?: boolean;
     created_at: string;
     stats: UserStats;
 }
@@ -166,6 +169,9 @@ export interface UpdateProfilePayload {
     website: string;
     dms_enabled: boolean;
     episode_progress: number;
+    email: string;
+    email_public: boolean;
+    email_notifications: boolean;
 }
 
 export interface ChangePasswordPayload {
@@ -198,7 +204,8 @@ export type NotificationType =
     | "response_reply"
     | "theory_upvote"
     | "response_upvote"
-    | "chat_message";
+    | "chat_message"
+    | "report";
 
 export interface Notification {
     id: number;

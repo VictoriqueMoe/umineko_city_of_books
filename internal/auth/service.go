@@ -29,18 +29,19 @@ type (
 		session     *session.Manager
 		settingsSvc settings.Service
 		inviteRepo  repository.InviteRepository
+		userRepo    repository.UserRepository
 	}
 )
 
 var validUsername = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
 
-
-func NewService(userService user.Service, sessionMgr *session.Manager, settingsSvc settings.Service, inviteRepo repository.InviteRepository) Service {
+func NewService(userService user.Service, sessionMgr *session.Manager, settingsSvc settings.Service, inviteRepo repository.InviteRepository, userRepo repository.UserRepository) Service {
 	return &service{
 		userService: userService,
 		session:     sessionMgr,
 		settingsSvc: settingsSvc,
 		inviteRepo:  inviteRepo,
+		userRepo:    userRepo,
 	}
 }
 
@@ -105,6 +106,11 @@ func (s *service) Login(ctx context.Context, req dto.LoginRequest) (*dto.UserRes
 	userResp, err := s.userService.ValidateCredentials(ctx, req.Username, req.Password)
 	if err != nil {
 		return nil, "", err
+	}
+
+	banned, _ := s.userRepo.IsBanned(ctx, userResp.ID)
+	if banned {
+		return nil, "", ErrUserBanned
 	}
 
 	token, err := s.session.Create(ctx, userResp.ID)

@@ -32,6 +32,9 @@ type (
 		BannerPosition     float64
 		DmsEnabled         bool
 		EpisodeProgress    int
+		Email              string
+		EmailPublic        bool
+		EmailNotifications bool
 	}
 
 	UserStats struct {
@@ -86,6 +89,9 @@ func (u *User) ToProfileResponse(stats *UserStats) *dto.UserProfileResponse {
 		Website:            u.Website,
 		DmsEnabled:         u.DmsEnabled,
 		EpisodeProgress:    u.EpisodeProgress,
+		Email:              u.Email,
+		EmailPublic:        u.EmailPublic,
+		EmailNotifications: u.EmailNotifications,
 		CreatedAt:          u.CreatedAt,
 		Stats: dto.UserStatsDTO{
 			TheoryCount:   stats.TheoryCount,

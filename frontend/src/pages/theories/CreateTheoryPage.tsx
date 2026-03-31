@@ -1,8 +1,9 @@
-import { useEffect } from "react";
-import { useNavigate } from "react-router";
-import { useAuth } from "../../hooks/useAuth";
-import { createTheory } from "../../api/endpoints";
-import { TheoryForm } from "../../components/theory/TheoryForm/TheoryForm";
+import {useEffect} from "react";
+import {useNavigate} from "react-router";
+import {useAuth} from "../../hooks/useAuth";
+import {createTheory} from "../../api/endpoints";
+import {TheoryForm} from "../../components/theory/TheoryForm/TheoryForm";
+import {RulesBox} from "../../components/RulesBox/RulesBox";
 import formStyles from "../../components/theory/TheoryForm/TheoryForm.module.css";
 
 export function CreateTheoryPage() {
@@ -22,6 +23,7 @@ export function CreateTheoryPage() {
     return (
         <div className={formStyles.page}>
             <h2 className={formStyles.heading}>Declare Your Blue Truth</h2>
+            <RulesBox page="theories" />
 
             <TheoryForm
                 submitLabel="Declare Blue Truth"

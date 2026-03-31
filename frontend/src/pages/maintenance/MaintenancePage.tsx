@@ -1,11 +1,18 @@
 import styles from "./MaintenancePage.module.css";
 
-export function MaintenancePage() {
+interface MaintenancePageProps {
+    title?: string;
+    message?: string;
+}
+
+export function MaintenancePage({ title, message }: MaintenancePageProps) {
     return (
         <div className={styles.page}>
             <div className={styles.card}>
-                <h1 className={styles.title}>The game board is being prepared</h1>
-                <p className={styles.message}>Without love, it cannot be seen. Please check back shortly.</p>
+                <h1 className={styles.title}>{title || "The game board is being prepared"}</h1>
+                <p className={styles.message}>
+                    {message || "Without love, it cannot be seen. Please check back shortly."}
+                </p>
             </div>
         </div>
     );

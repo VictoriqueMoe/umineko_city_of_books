@@ -8,5 +8,6 @@ var (
 	ErrInvalidInvite        = errors.New("invalid or already used invite code")
 	ErrPasswordTooShort     = errors.New("password is too short")
 	ErrInvalidUsername      = errors.New("username must be 3-30 characters and contain only letters, numbers, underscores, or hyphens")
-	ErrTurnstileFailed     = errors.New("verification failed")
+	ErrTurnstileFailed      = errors.New("verification failed")
+	ErrUserBanned           = errors.New("your account has been banned")
 )

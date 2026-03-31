@@ -68,6 +68,10 @@ func (m *Manager) Delete(ctx context.Context, token string) error {
 	return m.repo.Delete(ctx, token)
 }
 
+func (m *Manager) DeleteAllForUser(ctx context.Context, userID uuid.UUID) error {
+	return m.repo.DeleteAllForUser(ctx, userID)
+}
+
 func generateToken() (string, error) {
 	bytes := make([]byte, 32)
 	if _, err := rand.Read(bytes); err != nil {

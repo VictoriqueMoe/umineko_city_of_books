@@ -7,6 +7,7 @@ import (
 	"umineko_city_of_books/internal/chat"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/profile"
+	"umineko_city_of_books/internal/report"
 	"umineko_city_of_books/internal/session"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/theory"
@@ -23,6 +24,7 @@ type (
 		AuthzService        authz.Service
 		SettingsService     settings.Service
 		ChatService         chat.Service
+		ReportService       report.Service
 		AuthSession         *session.Manager
 		Hub                 *ws.Hub
 		HTMLContent         string
@@ -38,6 +40,7 @@ func NewService(
 	authzService authz.Service,
 	settingsService settings.Service,
 	chatService chat.Service,
+	reportService report.Service,
 	authSession *session.Manager,
 	hub *ws.Hub,
 	htmlContent string,
@@ -51,6 +54,7 @@ func NewService(
 		AuthzService:        authzService,
 		SettingsService:     settingsService,
 		ChatService:         chatService,
+		ReportService:       reportService,
 		AuthSession:         authSession,
 		Hub:                 hub,
 		HTMLContent:         htmlContent,
@@ -65,6 +69,7 @@ func (s *Service) GetAPIRoutes() []FSetupRoute {
 	all = append(all, s.getAllNotificationRoutes()...)
 	all = append(all, s.getAllAdminRoutes()...)
 	all = append(all, s.getAllChatRoutes()...)
+	all = append(all, s.getAllReportRoutes()...)
 	return all
 }
 

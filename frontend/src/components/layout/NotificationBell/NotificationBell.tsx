@@ -1,10 +1,10 @@
-import { useCallback, useRef, useState } from "react";
-import { useNavigate } from "react-router";
-import { useNotifications } from "../../../hooks/useNotifications";
-import { useClickOutside } from "../../../hooks/useClickOutside";
-import { Button } from "../../Button/Button";
-import { ProfileLink } from "../../ProfileLink/ProfileLink";
-import type { Notification, NotificationType } from "../../../types/api";
+import {useCallback, useRef, useState} from "react";
+import {useNavigate} from "react-router";
+import {useNotifications} from "../../../hooks/useNotifications";
+import {useClickOutside} from "../../../hooks/useClickOutside";
+import {Button} from "../../Button/Button";
+import {ProfileLink} from "../../ProfileLink/ProfileLink";
+import type {Notification, NotificationType} from "../../../types/api";
 import styles from "./NotificationBell.module.css";
 
 function notificationText(type: NotificationType): string {
@@ -19,6 +19,8 @@ function notificationText(type: NotificationType): string {
             return "upvoted your response";
         case "chat_message":
             return "sent you a message";
+        case "report":
+            return "reported content";
     }
 }
 
@@ -73,7 +75,9 @@ export function NotificationBell() {
                 await markRead(notif.id);
             }
             setOpen(false);
-            if (notif.reference_type === "chat") {
+            if (notif.type === "report") {
+                navigate("/admin/reports");
+            } else if (notif.reference_type === "chat") {
                 navigate(`/chat/${notif.reference_id}`);
             } else {
                 navigate(`/theory/${notif.reference_id}`);

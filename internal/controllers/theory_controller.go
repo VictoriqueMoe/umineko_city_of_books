@@ -67,6 +67,7 @@ func (s *Service) listTheories(ctx fiber.Ctx) error {
 	sort := ctx.Query("sort", "new")
 	episode := fiber.Query[int](ctx, "episode", 0)
 	authorIDStr := ctx.Query("author")
+	search := ctx.Query("search")
 	limit := fiber.Query[int](ctx, "limit", 20)
 	offset := fiber.Query[int](ctx, "offset", 0)
 	userID, _ := ctx.Locals("userID").(uuid.UUID)
@@ -82,7 +83,7 @@ func (s *Service) listTheories(ctx fiber.Ctx) error {
 		authorID = parsed
 	}
 
-	p := params.NewListParams(sort, episode, authorID, limit, offset)
+	p := params.NewListParams(sort, episode, authorID, search, limit, offset)
 	result, err := s.TheoryService.ListTheories(ctx.Context(), p, userID)
 	if err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{

@@ -18,6 +18,10 @@ type (
 		OnSettingChanged(key config.SiteSettingKey, value string)
 	}
 
+	BatchListener interface {
+		OnSettingsBatchChanged(keys []config.SiteSettingKey)
+	}
+
 	Service interface {
 		Get(ctx context.Context, def config.SiteSettingDef) string
 		GetInt(ctx context.Context, def config.SiteSettingDef) int
@@ -52,6 +56,16 @@ func (s *service) notify(key config.SiteSettingKey, value string) {
 	defer s.listenerMu.RUnlock()
 	for _, l := range s.listeners {
 		l.OnSettingChanged(key, value)
+	}
+}
+
+func (s *service) notifyBatch(keys []config.SiteSettingKey) {
+	s.listenerMu.RLock()
+	defer s.listenerMu.RUnlock()
+	for _, l := range s.listeners {
+		if bl, ok := l.(BatchListener); ok {
+			bl.OnSettingsBatchChanged(keys)
+		}
 	}
 }
 
@@ -166,10 +180,13 @@ func (s *service) SetMultiple(ctx context.Context, values map[config.SiteSetting
 		return err
 	}
 
+	var keys []config.SiteSettingKey
 	for k, v := range values {
 		s.cache.Store(k, v)
 		s.notify(k, v)
+		keys = append(keys, k)
 	}
+	s.notifyBatch(keys)
 	logger.Log.Info().Int("count", len(values)).Str("updated_by", updatedBy.String()).Msg("settings updated")
 	return nil
 }

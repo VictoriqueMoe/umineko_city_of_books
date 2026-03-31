@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from "react";
-import { NavLink, useLocation } from "react-router";
-import { useAuth } from "../../../hooks/useAuth";
-import { useNotifications } from "../../../hooks/useNotifications";
-import { canAccessAdmin } from "../../../utils/permissions";
+import {useEffect, useRef, useState} from "react";
+import {NavLink, useLocation} from "react-router";
+import {useAuth} from "../../../hooks/useAuth";
+import {useNotifications} from "../../../hooks/useNotifications";
+import {can, canAccessAdmin} from "../../../utils/permissions";
 import styles from "./Sidebar.module.css";
 
 interface SidebarProps {
@@ -116,13 +116,15 @@ export function Sidebar({ open, onClose }: SidebarProps) {
 
                     {canAccessAdmin(user?.role) && (
                         <div className={styles.section}>
-                            <span className={styles.sectionLabel}>Admin</span>
+                            <span className={styles.sectionLabel}>
+                                {can(user?.role, "manage_settings") ? "Admin" : "Moderation"}
+                            </span>
                             <NavLink
                                 to="/admin"
                                 className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
                                 onClick={onClose}
                             >
-                                Admin Panel
+                                {can(user?.role, "manage_settings") ? "Admin Panel" : "Moderator Panel"}
                             </NavLink>
                         </div>
                     )}

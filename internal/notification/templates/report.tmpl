@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#1a1a2e;color:#e0d0c0;font-family:Georgia,serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#1a1a2e;padding:40px 0;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="background:#252540;border:1px solid rgba(180,160,120,0.3);border-radius:8px;">
+        <tr><td style="padding:32px 40px 24px;border-bottom:1px solid rgba(180,160,120,0.15);">
+          <h2 style="margin:0;color:#ff3333;font-size:18px;font-weight:600;">Content Report</h2>
+        </td></tr>
+        <tr><td style="padding:24px 40px;">
+          <p style="margin:0 0 12px;font-size:15px;line-height:1.6;color:#e0d0c0;">
+            <strong style="color:#d4af37;">{{.ReporterName}}</strong> reported a <strong>{{.TargetType}}</strong>
+          </p>
+          <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#e0d0c0;">
+            Reason: <em>{{.Reason}}</em>
+          </p>
+          <a href="{{.LinkURL}}" style="display:inline-block;padding:10px 24px;background:#d4af37;color:#1a1a2e;text-decoration:none;border-radius:4px;font-weight:600;font-size:14px;">View Reports</a>
+        </td></tr>
+        <tr><td style="padding:16px 40px;border-top:1px solid rgba(180,160,120,0.15);text-align:center;">
+          <p style="margin:0;font-size:12px;color:#888;">Umineko City of Books</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>

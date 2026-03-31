@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/email"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/ws"
@@ -13,10 +14,8 @@ import (
 
 type (
 	Service interface {
-		NotifyTheoryResponse(ctx context.Context, theoryID uuid.UUID, actorID uuid.UUID) error
-		NotifyResponseReply(ctx context.Context, parentResponseID uuid.UUID, theoryID uuid.UUID, actorID uuid.UUID) error
-		NotifyTheoryUpvote(ctx context.Context, theoryID uuid.UUID, actorID uuid.UUID) error
-		NotifyResponseUpvote(ctx context.Context, responseID uuid.UUID, theoryID uuid.UUID, actorID uuid.UUID) error
+		Notify(ctx context.Context, params dto.NotifyParams) error
+		NotifyMany(ctx context.Context, params []dto.NotifyParams)
 		List(ctx context.Context, userID uuid.UUID, limit, offset int) (*dto.NotificationListResponse, error)
 		MarkRead(ctx context.Context, id int, userID uuid.UUID) error
 		MarkAllRead(ctx context.Context, userID uuid.UUID) error
@@ -24,73 +23,65 @@ type (
 	}
 
 	service struct {
-		repo       repository.NotificationRepository
-		theoryRepo repository.TheoryRepository
-		hub        *ws.Hub
+		repo     repository.NotificationRepository
+		userRepo repository.UserRepository
+		hub      *ws.Hub
+		emailSvc email.Service
 	}
 )
 
-func NewService(repo repository.NotificationRepository, theoryRepo repository.TheoryRepository, hub *ws.Hub) Service {
+func NewService(repo repository.NotificationRepository, userRepo repository.UserRepository, hub *ws.Hub, emailSvc email.Service) Service {
 	return &service{
-		repo:       repo,
-		theoryRepo: theoryRepo,
-		hub:        hub,
+		repo:     repo,
+		userRepo: userRepo,
+		hub:      hub,
+		emailSvc: emailSvc,
 	}
 }
 
-func (s *service) NotifyTheoryResponse(ctx context.Context, theoryID uuid.UUID, actorID uuid.UUID) error {
-	return s.notifyTheoryAuthor(ctx, dto.NotifTheoryResponse, theoryID, theoryID, actorID)
-}
-
-func (s *service) NotifyTheoryUpvote(ctx context.Context, theoryID uuid.UUID, actorID uuid.UUID) error {
-	return s.notifyTheoryAuthor(ctx, dto.NotifTheoryUpvote, theoryID, theoryID, actorID)
-}
-
-func (s *service) NotifyResponseReply(ctx context.Context, parentResponseID uuid.UUID, theoryID uuid.UUID, actorID uuid.UUID) error {
-	return s.notifyResponseAuthor(ctx, dto.NotifResponseReply, parentResponseID, theoryID, actorID)
-}
-
-func (s *service) NotifyResponseUpvote(ctx context.Context, responseID uuid.UUID, theoryID uuid.UUID, actorID uuid.UUID) error {
-	return s.notifyResponseAuthor(ctx, dto.NotifResponseUpvote, responseID, theoryID, actorID)
-}
-
-func (s *service) notifyTheoryAuthor(ctx context.Context, notifType string, referenceID uuid.UUID, theoryID uuid.UUID, actorID uuid.UUID) error {
-	recipientID, err := s.theoryRepo.GetTheoryAuthorID(ctx, theoryID)
-	if err != nil {
-		return err
-	}
-	return s.send(ctx, recipientID, notifType, theoryID, "theory", actorID)
-}
-
-func (s *service) notifyResponseAuthor(ctx context.Context, notifType string, referenceID uuid.UUID, theoryID uuid.UUID, actorID uuid.UUID) error {
-	recipientID, _, err := s.theoryRepo.GetResponseInfo(ctx, referenceID)
-	if err != nil {
-		return err
-	}
-	return s.send(ctx, recipientID, notifType, theoryID, "theory", actorID)
-}
-
-func (s *service) send(ctx context.Context, recipientID uuid.UUID, notifType string, referenceID uuid.UUID, referenceType string, actorID uuid.UUID) error {
-	if recipientID == actorID {
+func (s *service) Notify(ctx context.Context, params dto.NotifyParams) error {
+	if params.RecipientID == params.ActorID {
 		return nil
 	}
 
-	dupe, err := s.repo.HasRecentDuplicate(ctx, recipientID, notifType, referenceID, referenceType, actorID)
-	if err != nil {
-		return err
-	}
-	if dupe {
-		return nil
-	}
+	emailDupe, _ := s.repo.HasRecentDuplicate(ctx, params.RecipientID, params.Type, params.ReferenceID, params.ActorID)
 
-	id, err := s.repo.Create(ctx, recipientID, notifType, referenceID, referenceType, actorID)
+	id, err := s.repo.Create(ctx, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID)
 	if err != nil {
 		return err
 	}
 
-	logger.Log.Debug().Str("type", notifType).Str("recipient", recipientID.String()).Msg("notification sent")
-	s.pushNotification(ctx, int(id), recipientID)
+	logger.Log.Debug().Str("type", string(params.Type)).Str("recipient", params.RecipientID.String()).Msg("notification sent")
+	s.pushNotification(ctx, int(id), params.RecipientID)
+
+	if params.Type != dto.NotifChatMessage && params.EmailSubject != "" && !emailDupe {
+		s.sendEmail(ctx, params)
+	}
+
 	return nil
+}
+
+func (s *service) NotifyMany(ctx context.Context, params []dto.NotifyParams) {
+	for _, p := range params {
+		if err := s.Notify(ctx, p); err != nil {
+			logger.Log.Warn().Err(err).Str("type", string(p.Type)).Str("recipient", p.RecipientID.String()).Msg("notify failed")
+		}
+	}
+}
+
+func (s *service) sendEmail(ctx context.Context, params dto.NotifyParams) {
+	recipient, err := s.userRepo.GetByID(ctx, params.RecipientID)
+	if err != nil || recipient == nil || recipient.Email == "" {
+		return
+	}
+
+	if params.Type != dto.NotifReport && !recipient.EmailNotifications {
+		return
+	}
+
+	if err := s.emailSvc.Send(ctx, recipient.Email, params.EmailSubject, params.EmailBody); err != nil {
+		logger.Log.Warn().Err(err).Str("to", recipient.Email).Msg("failed to send notification email")
+	}
 }
 
 func (s *service) pushNotification(ctx context.Context, notifID int, recipientID uuid.UUID) {

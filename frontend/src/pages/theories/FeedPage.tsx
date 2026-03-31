@@ -1,9 +1,11 @@
-import { useState } from "react";
-import type { TheorySort } from "../../types/app";
-import { useTheoryFeed } from "../../hooks/useTheoryFeed";
-import { TheoryCard } from "../../components/theory/TheoryCard/TheoryCard";
-import { Pagination } from "../../components/Pagination/Pagination";
-import { Select } from "../../components/Select/Select";
+import {useEffect, useRef, useState} from "react";
+import type {TheorySort} from "../../types/app";
+import {useTheoryFeed} from "../../hooks/useTheoryFeed";
+import {TheoryCard} from "../../components/theory/TheoryCard/TheoryCard";
+import {Pagination} from "../../components/Pagination/Pagination";
+import {Input} from "../../components/Input/Input";
+import {Select} from "../../components/Select/Select";
+import {RulesBox} from "../../components/RulesBox/RulesBox";
 import styles from "./FeedPage.module.css";
 
 type SortCategory = "new" | "popular" | "controversial" | "credibility";
@@ -29,7 +31,24 @@ function isAsc(sort: TheorySort): boolean {
 export function FeedPage() {
     const [sort, setSort] = useState<TheorySort>("new");
     const [episode, setEpisode] = useState(0);
-    const { theories, total, loading, offset, limit, goNext, goPrev, hasNext, hasPrev } = useTheoryFeed(sort, episode);
+    const [searchInput, setSearchInput] = useState("");
+    const [search, setSearch] = useState("");
+    const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+    useEffect(() => {
+        clearTimeout(debounceRef.current);
+        debounceRef.current = setTimeout(() => {
+            setSearch(searchInput);
+        }, 300);
+        return () => clearTimeout(debounceRef.current);
+    }, [searchInput]);
+
+    const { theories, total, loading, offset, limit, goNext, goPrev, hasNext, hasPrev } = useTheoryFeed(
+        sort,
+        episode,
+        undefined,
+        search,
+    );
 
     function handleSortClick(category: SortCategory) {
         const current = getCategory(sort);
@@ -46,7 +65,15 @@ export function FeedPage() {
 
     return (
         <div>
+            <RulesBox page="theories" />
             <div className={styles.controls}>
+                <Input
+                    type="text"
+                    placeholder="Search theories..."
+                    value={searchInput}
+                    onChange={e => setSearchInput(e.target.value)}
+                    className={styles.searchInput}
+                />
                 <div className={styles.filterGroup}>
                     {(["new", "popular", "controversial", "credibility"] as SortCategory[]).map(s => (
                         <button

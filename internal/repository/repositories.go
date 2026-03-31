@@ -14,6 +14,7 @@ type (
 		Stats        StatsRepository
 		Invite       InviteRepository
 		Chat         ChatRepository
+		Report       ReportRepository
 	}
 )
 
@@ -29,5 +30,6 @@ func New(db *sql.DB) *Repositories {
 		Stats:        &statsRepository{db: db},
 		Invite:       &inviteRepository{db: db},
 		Chat:         &chatRepository{db: db},
+		Report:       &reportRepository{db: db},
 	}
 }
