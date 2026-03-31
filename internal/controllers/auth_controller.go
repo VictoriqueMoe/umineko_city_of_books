@@ -27,11 +27,11 @@ func (s *Service) getAllAuthRoutes() []FSetupRoute {
 }
 
 func (s *Service) setupRegisterRoute(r fiber.Router) {
-	r.Post("/auth/register", s.register)
+	r.Post("/auth/register", middleware.RequireTurnstile(s.SettingsService), s.register)
 }
 
 func (s *Service) setupLoginRoute(r fiber.Router) {
-	r.Post("/auth/login", s.login)
+	r.Post("/auth/login", middleware.RequireTurnstile(s.SettingsService), s.login)
 }
 
 func (s *Service) setupLogoutRoute(r fiber.Router) {
@@ -94,7 +94,7 @@ func (s *Service) register(ctx fiber.Ctx) error {
 
 	user, token, err := s.AuthService.Register(ctx.Context(), req)
 	if err != nil {
-		if errors.Is(err, auth.ErrInvalidUsername) {
+if errors.Is(err, auth.ErrInvalidUsername) {
 			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": err.Error(),
 			})
@@ -144,7 +144,7 @@ func (s *Service) login(ctx fiber.Ctx) error {
 
 	user, token, err := s.AuthService.Login(ctx.Context(), req)
 	if err != nil {
-		if errors.Is(err, usersvc.ErrInvalidCredentials) {
+if errors.Is(err, usersvc.ErrInvalidCredentials) {
 			return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"error": "invalid username or password",
 			})
@@ -194,5 +194,7 @@ func (s *Service) siteInfo(ctx fiber.Ctx) error {
 		"announcement_banner": s.SettingsService.Get(ctx.Context(), config.SettingAnnouncementBanner),
 		"default_theme":       s.SettingsService.Get(ctx.Context(), config.SettingDefaultTheme),
 		"maintenance_mode":    s.SettingsService.GetBool(ctx.Context(), config.SettingMaintenanceMode),
+		"turnstile_enabled":  s.SettingsService.GetBool(ctx.Context(), config.SettingTurnstileEnabled),
+		"turnstile_site_key": s.SettingsService.Get(ctx.Context(), config.SettingTurnstileSiteKey),
 	})
 }

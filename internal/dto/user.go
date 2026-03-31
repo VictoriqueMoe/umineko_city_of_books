@@ -83,8 +83,9 @@ type (
 	}
 
 	LoginRequest struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
+		Username       string `json:"username"`
+		Password       string `json:"password"`
+		TurnstileToken string `json:"turnstile_token,omitempty"`
 	}
 
 	RegisterRequest struct {

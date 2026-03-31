@@ -14,14 +14,20 @@ export function AuthProvider({ children }: PropsWithChildren) {
             .finally(() => setLoading(false));
     }, []);
 
-    const loginUser = useCallback(async (username: string, password: string) => {
-        const u = await api.login(username, password);
+    const loginUser = useCallback(async (username: string, password: string, turnstileToken?: string) => {
+        const u = await api.login(username, password, turnstileToken);
         setUser(u);
     }, []);
 
     const registerUser = useCallback(
-        async (username: string, password: string, displayName: string, inviteCode?: string) => {
-            const u = await api.register(username, password, displayName, inviteCode);
+        async (
+            username: string,
+            password: string,
+            displayName: string,
+            inviteCode?: string,
+            turnstileToken?: string,
+        ) => {
+            const u = await api.register(username, password, displayName, inviteCode, turnstileToken);
             setUser(u);
         },
         [],

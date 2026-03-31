@@ -52,6 +52,9 @@ var (
 	SettingSessionDurationDays = SiteSettingDef{"session_duration_days", "30", TypeInt}
 	SettingDefaultTheme        = SiteSettingDef{"default_theme", "featherine", TypeString}
 	SettingDMsEnabled          = SiteSettingDef{"dms_enabled", "true", TypeBool}
+	SettingTurnstileEnabled    = SiteSettingDef{"turnstile_enabled", "false", TypeBool}
+	SettingTurnstileSiteKey    = SiteSettingDef{"turnstile_site_key", "", TypeString}
+	SettingTurnstileSecretKey  = SiteSettingDef{"turnstile_secret_key", "", TypeString}
 
 	AllSiteSettings = []SiteSettingDef{
 		SettingUploadDir,
@@ -72,6 +75,9 @@ var (
 		SettingSessionDurationDays,
 		SettingDefaultTheme,
 		SettingDMsEnabled,
+		SettingTurnstileEnabled,
+		SettingTurnstileSiteKey,
+		SettingTurnstileSecretKey,
 	}
 )
 

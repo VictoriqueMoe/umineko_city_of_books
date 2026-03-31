@@ -145,6 +145,41 @@ export function AdminSettings() {
             </div>
 
             <div className={styles.card}>
+                <h2 className={styles.sectionTitle}>Turnstile (Cloudflare)</h2>
+                <div className={styles.fieldGroup}>
+                    <ToggleSwitch
+                        label="Enable Turnstile"
+                        description="Require Cloudflare Turnstile verification on login and registration"
+                        enabled={settings.turnstile_enabled === "true"}
+                        onChange={v => toggleField("turnstile_enabled", v)}
+                    />
+                    {settings.turnstile_enabled === "true" && (
+                        <>
+                            <div className={styles.field}>
+                                <span className={styles.fieldLabel}>Site Key</span>
+                                <Input
+                                    value={settings.turnstile_site_key ?? ""}
+                                    onChange={e => updateField("turnstile_site_key", e.target.value)}
+                                    fullWidth
+                                    placeholder="0x..."
+                                />
+                            </div>
+                            <div className={styles.field}>
+                                <span className={styles.fieldLabel}>Secret Key</span>
+                                <Input
+                                    type="password"
+                                    value={settings.turnstile_secret_key ?? ""}
+                                    onChange={e => updateField("turnstile_secret_key", e.target.value)}
+                                    fullWidth
+                                    placeholder="0x..."
+                                />
+                            </div>
+                        </>
+                    )}
+                </div>
+            </div>
+
+            <div className={styles.card}>
                 <h2 className={styles.sectionTitle}>General</h2>
                 <div className={styles.fieldGroup}>
                     <div className={styles.field}>

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
+import { Turnstile } from "@marsidev/react-turnstile";
 import { useAuth } from "../../hooks/useAuth";
 import { getSiteInfo } from "../../api/endpoints";
 import { Button } from "../../components/Button/Button";
@@ -17,27 +18,47 @@ export function LoginPage() {
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
     const [regType, setRegType] = useState<"open" | "invite" | "closed">("open");
+    const [turnstileEnabled, setTurnstileEnabled] = useState(false);
+    const [turnstileSiteKey, setTurnstileSiteKey] = useState("");
+    const [turnstileToken, setTurnstileToken] = useState("");
 
     useEffect(() => {
         getSiteInfo()
-            .then(info => setRegType(info.registration_type as "open" | "invite" | "closed"))
+            .then(info => {
+                setRegType(info.registration_type as "open" | "invite" | "closed");
+                setTurnstileEnabled(info.turnstile_enabled);
+                setTurnstileSiteKey(info.turnstile_site_key);
+            })
             .catch(() => {});
     }, []);
 
     async function handleSubmit(e: React.SubmitEvent) {
         e.preventDefault();
         setError("");
+
+        if (turnstileEnabled && !turnstileToken) {
+            setError("Please complete the verification.");
+            return;
+        }
+
         setLoading(true);
 
         try {
             if (isRegister) {
-                await registerUser(username, password, displayName || username, inviteCode || undefined);
+                await registerUser(
+                    username,
+                    password,
+                    displayName || username,
+                    inviteCode || undefined,
+                    turnstileEnabled ? turnstileToken : undefined,
+                );
             } else {
-                await loginUser(username, password);
+                await loginUser(username, password, turnstileEnabled ? turnstileToken : undefined);
             }
             navigate("/");
         } catch (err) {
             setError(err instanceof Error ? err.message : "Something went wrong.");
+            setTurnstileToken("");
         } finally {
             setLoading(false);
         }
@@ -90,11 +111,29 @@ export function LoginPage() {
                         </>
                     )}
 
+                    {turnstileEnabled && turnstileSiteKey && (
+                        <div className={styles.turnstile}>
+                            <Turnstile
+                                siteKey={turnstileSiteKey}
+                                onSuccess={setTurnstileToken}
+                                onExpire={() => setTurnstileToken("")}
+                                options={{
+                                    refreshExpired: "auto",
+                                    theme: "dark",
+                                }}
+                            />
+                        </div>
+                    )}
+
                     <Button
                         variant="primary"
                         type="submit"
                         disabled={
-                            !username || !password || loading || (isRegister && regType === "invite" && !inviteCode)
+                            !username ||
+                            !password ||
+                            loading ||
+                            (isRegister && regType === "invite" && !inviteCode) ||
+                            (turnstileEnabled && !turnstileToken)
                         }
                         style={{ width: "100%", marginTop: "0.5rem" }}
                     >

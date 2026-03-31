@@ -34,6 +34,7 @@ type (
 
 var validUsername = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
 
+
 func NewService(userService user.Service, sessionMgr *session.Manager, settingsSvc settings.Service, inviteRepo repository.InviteRepository) Service {
 	return &service{
 		userService: userService,

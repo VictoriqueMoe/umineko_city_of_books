@@ -5,8 +5,14 @@ export interface AuthContextValue {
     user: User | null;
     loading: boolean;
     setUser: (user: User | null) => void;
-    loginUser: (username: string, password: string) => Promise<void>;
-    registerUser: (username: string, password: string, displayName: string, inviteCode?: string) => Promise<void>;
+    loginUser: (username: string, password: string, turnstileToken?: string) => Promise<void>;
+    registerUser: (
+        username: string,
+        password: string,
+        displayName: string,
+        inviteCode?: string,
+        turnstileToken?: string,
+    ) => Promise<void>;
     logoutUser: () => Promise<void>;
 }
 

@@ -91,6 +91,12 @@
     color: var(--gold);
 }
 
+.turnstile {
+    display: flex;
+    justify-content: center;
+    margin: 0.75rem 0;
+}
+
 .disabledNotice {
     text-align: center;
     color: var(--text-muted);

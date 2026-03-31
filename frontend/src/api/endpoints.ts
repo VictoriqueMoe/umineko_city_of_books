@@ -32,6 +32,8 @@ export interface SiteInfo {
     announcement_banner: string;
     default_theme: string;
     maintenance_mode: boolean;
+    turnstile_enabled: boolean;
+    turnstile_site_key: string;
 }
 
 export async function getSiteInfo(): Promise<SiteInfo> {
@@ -43,20 +45,26 @@ export async function register(
     password: string,
     displayName: string,
     inviteCode?: string,
+    turnstileToken?: string,
 ): Promise<User> {
-    return apiPost<User, { username: string; password: string; display_name: string; invite_code?: string }>(
-        "/auth/register",
-        {
-            username,
-            password,
-            display_name: displayName,
-            invite_code: inviteCode,
-        },
-    );
+    return apiPost<
+        User,
+        { username: string; password: string; display_name: string; invite_code?: string; turnstile_token?: string }
+    >("/auth/register", {
+        username,
+        password,
+        display_name: displayName,
+        invite_code: inviteCode,
+        turnstile_token: turnstileToken,
+    });
 }
 
-export async function login(username: string, password: string): Promise<User> {
-    return apiPost<User, { username: string; password: string }>("/auth/login", { username, password });
+export async function login(username: string, password: string, turnstileToken?: string): Promise<User> {
+    return apiPost<User, { username: string; password: string; turnstile_token?: string }>("/auth/login", {
+        username,
+        password,
+        turnstile_token: turnstileToken,
+    });
 }
 
 export async function logout(): Promise<void> {
