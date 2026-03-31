@@ -1,11 +1,11 @@
-import React, { useState } from "react";
-import { createResponse } from "../../../api/endpoints";
-import { useEvidence } from "../../../hooks/useEvidence";
-import { Button } from "../../Button/Button";
-import { Input } from "../../Input/Input";
-import { TextArea } from "../../TextArea/TextArea";
-import { TruthPicker } from "../../truth/TruthPicker/TruthPicker";
-import { TruthChip } from "../../truth/TruthChip/TruthChip";
+import React, {useState} from "react";
+import {createResponse} from "../../../api/endpoints";
+import {useEvidence} from "../../../hooks/useEvidence";
+import {Button} from "../../Button/Button";
+import {Input} from "../../Input/Input";
+import {TextArea} from "../../TextArea/TextArea";
+import {TruthPicker} from "../../truth/TruthPicker/TruthPicker";
+import {TruthChip} from "../../truth/TruthChip/TruthChip";
 import styles from "./ResponseEditor.module.css";
 
 interface ResponseEditorProps {
@@ -47,6 +47,7 @@ export function ResponseEditor({ theoryId, parentId, inheritedSide, onCreated }:
     }
 
     return (
+        <>
         <form className={styles.editor} onSubmit={handleSubmit}>
             <h4 className={styles.title}>{isReply ? "Reply" : "Add your response"}</h4>
 
@@ -105,12 +106,13 @@ export function ResponseEditor({ theoryId, parentId, inheritedSide, onCreated }:
                 </Button>
             </div>
 
-            <TruthPicker
-                isOpen={ev.pickerOpen}
-                onClose={ev.closePicker}
-                onSelect={ev.addQuote}
-                selectedKeys={ev.selectedKeys}
-            />
         </form>
+        <TruthPicker
+            isOpen={ev.pickerOpen}
+            onClose={ev.closePicker}
+            onSelect={ev.addQuote}
+            selectedKeys={ev.selectedKeys}
+        />
+        </>
     );
 }
