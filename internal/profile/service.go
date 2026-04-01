@@ -25,6 +25,7 @@ type (
 		DeleteAccount(ctx context.Context, userID uuid.UUID, req dto.DeleteAccountRequest) error
 		GetActivity(ctx context.Context, username string, limit, offset int) (*dto.ActivityListResponse, error)
 		ListPublicUsers(ctx context.Context) ([]dto.UserResponse, error)
+		SearchUsers(ctx context.Context, query string, limit int) ([]dto.UserResponse, error)
 	}
 
 	service struct {
@@ -152,6 +153,18 @@ func (s *service) ListPublicUsers(ctx context.Context) ([]dto.UserResponse, erro
 		return nil, err
 	}
 
+	return s.usersToResponses(ctx, users), nil
+}
+
+func (s *service) SearchUsers(ctx context.Context, query string, limit int) ([]dto.UserResponse, error) {
+	users, err := s.userRepo.SearchByName(ctx, query, limit)
+	if err != nil {
+		return nil, err
+	}
+	return s.usersToResponses(ctx, users), nil
+}
+
+func (s *service) usersToResponses(ctx context.Context, users []repository.User) []dto.UserResponse {
 	result := make([]dto.UserResponse, len(users))
 	for i, u := range users {
 		rl, _ := s.authz.GetRole(ctx, u.ID)
@@ -163,5 +176,5 @@ func (s *service) ListPublicUsers(ctx context.Context) ([]dto.UserResponse, erro
 			Role:        rl,
 		}
 	}
-	return result, nil
+	return result
 }

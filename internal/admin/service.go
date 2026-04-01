@@ -120,6 +120,8 @@ func (s *service) GetStats(ctx context.Context) (*dto.AdminStatsResponse, error)
 		TotalTheories:   stats.TotalTheories,
 		TotalResponses:  stats.TotalResponses,
 		TotalVotes:      stats.TotalVotes,
+		TotalPosts:      stats.TotalPosts,
+		TotalComments:   stats.TotalComments,
 		NewUsers24h:     stats.NewUsers24h,
 		NewUsers7d:      stats.NewUsers7d,
 		NewUsers30d:     stats.NewUsers30d,
@@ -129,6 +131,10 @@ func (s *service) GetStats(ctx context.Context) (*dto.AdminStatsResponse, error)
 		NewResponses24h: stats.NewResponses24h,
 		NewResponses7d:  stats.NewResponses7d,
 		NewResponses30d: stats.NewResponses30d,
+		NewPosts24h:     stats.NewPosts24h,
+		NewPosts7d:      stats.NewPosts7d,
+		NewPosts30d:     stats.NewPosts30d,
+		PostsByCorner:   stats.PostsByCorner,
 		MostActiveUsers: mostActive,
 	}, nil
 }

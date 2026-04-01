@@ -204,6 +204,8 @@ func (s *Service) siteInfo(ctx fiber.Ctx) error {
 		"maintenance_message": s.SettingsService.Get(ctx.Context(), config.SettingMaintenanceMessage),
 		"turnstile_enabled":   s.SettingsService.GetBool(ctx.Context(), config.SettingTurnstileEnabled),
 		"turnstile_site_key":  s.SettingsService.Get(ctx.Context(), config.SettingTurnstileSiteKey),
+		"max_image_size":      s.SettingsService.GetInt(ctx.Context(), config.SettingMaxImageSize),
+		"max_video_size":      s.SettingsService.GetInt(ctx.Context(), config.SettingMaxVideoSize),
 	})
 }
 
@@ -212,8 +214,11 @@ func (s *Service) setupGetRulesRoute(r fiber.Router) {
 }
 
 var rulesSettings = map[string]config.SiteSettingDef{
-	"theories":   config.SettingRulesTheories,
-	"game_board": config.SettingRulesGameBoard,
+	"theories":             config.SettingRulesTheories,
+	"game_board":           config.SettingRulesGameBoard,
+	"game_board_umineko":   config.SettingRulesGameBoardUmineko,
+	"game_board_higurashi": config.SettingRulesGameBoardHigurashi,
+	"game_board_ciconia":   config.SettingRulesGameBoardCiconia,
 }
 
 func (s *Service) getRules(ctx fiber.Ctx) error {

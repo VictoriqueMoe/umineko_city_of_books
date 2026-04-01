@@ -41,3 +41,14 @@
         display: flex;
     }
 }
+
+@media (max-width: 480px) {
+    .header {
+        padding: 0.5rem 0.75rem;
+        gap: 0.5rem;
+    }
+
+    .actions {
+        gap: 0.5rem;
+    }
+}

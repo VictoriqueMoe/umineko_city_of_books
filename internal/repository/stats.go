@@ -14,6 +14,8 @@ type (
 		TotalTheories   int
 		TotalResponses  int
 		TotalVotes      int
+		TotalPosts      int
+		TotalComments   int
 		NewUsers24h     int
 		NewUsers7d      int
 		NewUsers30d     int
@@ -23,6 +25,10 @@ type (
 		NewResponses24h int
 		NewResponses7d  int
 		NewResponses30d int
+		NewPosts24h     int
+		NewPosts7d      int
+		NewPosts30d     int
+		PostsByCorner   map[string]int
 	}
 
 	ActiveUser struct {
@@ -68,27 +74,47 @@ func (r *statsRepository) GetOverview(ctx context.Context) (*SiteStats, error) {
 		return nil, fmt.Errorf("count votes: %w", err)
 	}
 
+	_ = r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM posts`).Scan(&s.TotalPosts)
+	_ = r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM post_comments`).Scan(&s.TotalComments)
+
 	periods := []struct {
 		interval  string
 		users     *int
 		theories  *int
 		responses *int
+		posts     *int
 	}{
-		{"-1 day", &s.NewUsers24h, &s.NewTheories24h, &s.NewResponses24h},
-		{"-7 days", &s.NewUsers7d, &s.NewTheories7d, &s.NewResponses7d},
-		{"-30 days", &s.NewUsers30d, &s.NewTheories30d, &s.NewResponses30d},
+		{"-1 day", &s.NewUsers24h, &s.NewTheories24h, &s.NewResponses24h, &s.NewPosts24h},
+		{"-7 days", &s.NewUsers7d, &s.NewTheories7d, &s.NewResponses7d, &s.NewPosts7d},
+		{"-30 days", &s.NewUsers30d, &s.NewTheories30d, &s.NewResponses30d, &s.NewPosts30d},
 	}
 
 	for _, p := range periods {
-		r.db.QueryRowContext(ctx,
+		_ = r.db.QueryRowContext(ctx,
 			`SELECT COUNT(*) FROM users WHERE created_at > datetime('now', ?)`, p.interval,
 		).Scan(p.users)
-		r.db.QueryRowContext(ctx,
+		_ = r.db.QueryRowContext(ctx,
 			`SELECT COUNT(*) FROM theories WHERE created_at > datetime('now', ?)`, p.interval,
 		).Scan(p.theories)
-		r.db.QueryRowContext(ctx,
+		_ = r.db.QueryRowContext(ctx,
 			`SELECT COUNT(*) FROM responses WHERE created_at > datetime('now', ?)`, p.interval,
 		).Scan(p.responses)
+		_ = r.db.QueryRowContext(ctx,
+			`SELECT COUNT(*) FROM posts WHERE created_at > datetime('now', ?)`, p.interval,
+		).Scan(p.posts)
+	}
+
+	s.PostsByCorner = make(map[string]int)
+	cornerRows, err := r.db.QueryContext(ctx, `SELECT corner, COUNT(*) FROM posts GROUP BY corner`)
+	if err == nil {
+		defer cornerRows.Close()
+		for cornerRows.Next() {
+			var corner string
+			var count int
+			if cornerRows.Scan(&corner, &count) == nil {
+				s.PostsByCorner[corner] = count
+			}
+		}
 	}
 
 	return &s, nil
@@ -101,6 +127,10 @@ func (r *statsRepository) GetMostActiveUsers(ctx context.Context, limit int) ([]
 			SELECT user_id FROM theories
 			UNION ALL
 			SELECT user_id FROM responses
+			UNION ALL
+			SELECT user_id FROM posts
+			UNION ALL
+			SELECT user_id FROM post_comments
 		 ) actions
 		 JOIN users u ON actions.user_id = u.id
 		 GROUP BY u.id

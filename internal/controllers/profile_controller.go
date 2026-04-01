@@ -24,8 +24,10 @@ func (s *Service) getAllProfileRoutes() []FSetupRoute {
 		s.setupDeleteAccountRoute,
 		s.setupGetOnlineStatusRoute,
 		s.setupGetUserActivityRoute,
-		s.setupGetProfileRoute,
+		s.setupSearchUsersRoute,
+		s.setupGetMutualFollowersRoute,
 		s.setupListUsersPublicRoute,
+		s.setupGetProfileRoute,
 	}
 }
 
@@ -281,6 +283,53 @@ func (s *Service) getUserActivity(ctx fiber.Ctx) error {
 	}
 
 	return ctx.JSON(result)
+}
+
+func (s *Service) setupGetMutualFollowersRoute(r fiber.Router) {
+	r.Get("/users/mutuals", middleware.RequireAuth(s.AuthSession), s.getMutualFollowers)
+}
+
+func (s *Service) getMutualFollowers(ctx fiber.Ctx) error {
+	userID := ctx.Locals("userID").(uuid.UUID)
+	users, err := s.FollowService.GetMutualFollowers(ctx.Context(), userID)
+	if err != nil {
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to get mutuals"})
+	}
+	return ctx.JSON(users)
+}
+
+func (s *Service) setupSearchUsersRoute(r fiber.Router) {
+	r.Get("/users/search", middleware.OptionalAuth(s.AuthSession), s.searchUsers)
+}
+
+func (s *Service) searchUsers(ctx fiber.Ctx) error {
+	q := ctx.Query("q")
+	if len(q) < 1 {
+		return ctx.JSON([]interface{}{})
+	}
+
+	viewerID, _ := ctx.Locals("userID").(uuid.UUID)
+	users, err := s.ProfileService.SearchUsers(ctx.Context(), q, 10)
+	if err != nil {
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "search failed"})
+	}
+
+	type searchResult struct {
+		dto.UserResponse
+		ViewerFollows bool `json:"viewer_follows"`
+		FollowsViewer bool `json:"follows_viewer"`
+	}
+
+	results := make([]searchResult, len(users))
+	for i, u := range users {
+		results[i] = searchResult{UserResponse: u}
+		if viewerID != uuid.Nil && viewerID != u.ID {
+			results[i].ViewerFollows, _ = s.FollowService.IsFollowing(ctx.Context(), viewerID, u.ID)
+			results[i].FollowsViewer, _ = s.FollowService.IsFollowing(ctx.Context(), u.ID, viewerID)
+		}
+	}
+
+	return ctx.JSON(results)
 }
 
 func (s *Service) setupListUsersPublicRoute(r fiber.Router) {

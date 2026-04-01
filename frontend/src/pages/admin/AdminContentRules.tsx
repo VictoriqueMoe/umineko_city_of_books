@@ -7,7 +7,10 @@ import styles from "./AdminSettings.module.css";
 
 const pages = [
     { key: "rules_theories", label: "Theories" },
-    { key: "rules_game_board", label: "Game Board" },
+    { key: "rules_game_board", label: "Game Board (General)" },
+    { key: "rules_game_board_umineko", label: "Game Board (Umineko)" },
+    { key: "rules_game_board_higurashi", label: "Game Board (Higurashi)" },
+    { key: "rules_game_board_ciconia", label: "Game Board (Ciconia)" },
 ];
 
 export function AdminContentRules() {

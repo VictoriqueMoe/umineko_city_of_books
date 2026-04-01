@@ -1,12 +1,19 @@
 import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { createPost, uploadPostMedia } from "../../../api/endpoints";
+import { useSiteInfo } from "../../../hooks/useSiteInfo";
+import { validateFileSize } from "../../../utils/fileValidation";
 import { Button } from "../../Button/Button";
-import { TextArea } from "../../TextArea/TextArea";
+import { MentionTextArea } from "../../MentionTextArea/MentionTextArea";
 import styles from "./PostComposer.module.css";
 
-export function PostComposer() {
+interface PostComposerProps {
+    corner?: string;
+}
+
+export function PostComposer({ corner = "general" }: PostComposerProps) {
     const navigate = useNavigate();
+    const siteInfo = useSiteInfo();
     const [body, setBody] = useState("");
     const [files, setFiles] = useState<File[]>([]);
     const [submitting, setSubmitting] = useState(false);
@@ -21,7 +28,7 @@ export function PostComposer() {
         setError("");
 
         try {
-            const { id } = await createPost(body.trim());
+            const { id } = await createPost(body.trim(), corner);
             const mediaErrors: string[] = [];
             for (const file of files) {
                 try {
@@ -46,7 +53,25 @@ export function PostComposer() {
 
     function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
         if (e.target.files) {
-            setFiles(prev => [...prev, ...Array.from(e.target.files!)]);
+            const newFiles = Array.from(e.target.files);
+            const errors: string[] = [];
+            const valid: File[] = [];
+
+            for (const file of newFiles) {
+                const err = validateFileSize(file, siteInfo.max_image_size, siteInfo.max_video_size);
+                if (err) {
+                    errors.push(err);
+                } else {
+                    valid.push(file);
+                }
+            }
+
+            if (errors.length > 0) {
+                setError(errors.join(" "));
+            }
+            if (valid.length > 0) {
+                setFiles(prev => [...prev, ...valid]);
+            }
         }
         e.target.value = "";
     }
@@ -60,12 +85,7 @@ export function PostComposer() {
     return (
         <div className={styles.composer}>
             {error && <div className={styles.error}>{error}</div>}
-            <TextArea
-                placeholder="What's on your mind?"
-                value={body}
-                onChange={e => setBody(e.target.value)}
-                rows={3}
-            />
+            <MentionTextArea placeholder="What's on your mind?" value={body} onChange={setBody} rows={3} />
 
             {files.length > 0 && (
                 <div className={styles.previews}>

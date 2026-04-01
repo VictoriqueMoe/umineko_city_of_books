@@ -47,4 +47,5 @@ const (
 	NotifNewFollower    NotificationType = "new_follower"
 	NotifPostLiked      NotificationType = "post_liked"
 	NotifPostCommented  NotificationType = "post_commented"
+	NotifMention        NotificationType = "mention"
 )

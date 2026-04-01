@@ -112,6 +112,9 @@ export function AdminUserDetail() {
         if (!id) {
             return;
         }
+        if (!window.confirm("Are you sure you want to delete this user? This cannot be undone.")) {
+            return;
+        }
         try {
             await adminDeleteUser(id);
             navigate("/admin/users");

@@ -8,11 +8,13 @@ import { Modal } from "../../components/Modal/Modal";
 import {
     createDMRoom,
     deleteChatRoom,
+    getMutualFollowers,
     getRoomMessages,
-    getUserProfile,
     getUserRooms,
+    searchUsers,
     sendChatMessage,
 } from "../../api/endpoints";
+import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import type { ChatMessage, ChatRoom, User, WSMessage } from "../../types/api";
 import styles from "./ChatPage.module.css";
 
@@ -54,9 +56,12 @@ export function ChatPage() {
     const [loading, setLoading] = useState(true);
     const [sending, setSending] = useState(false);
     const [showNewDm, setShowNewDm] = useState(false);
-    const [dmUsername, setDmUsername] = useState("");
+    const [dmSearch, setDmSearch] = useState("");
+    const [dmResults, setDmResults] = useState<User[]>([]);
+    const [dmMutuals, setDmMutuals] = useState<User[]>([]);
     const [dmError, setDmError] = useState("");
     const [dmCreating, setDmCreating] = useState(false);
+    const dmDebounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const activeRoomIdRef = useRef(activeRoomId);
 
@@ -130,6 +135,30 @@ export function ChatPage() {
             .catch(() => setMessages([]));
     }, [activeRoomId, scrollToBottom]);
 
+    useEffect(() => {
+        if (showNewDm) {
+            getMutualFollowers()
+                .then(setDmMutuals)
+                .catch(() => setDmMutuals([]));
+        }
+    }, [showNewDm]);
+
+    useEffect(() => {
+        clearTimeout(dmDebounceRef.current);
+        if (!dmSearch.trim()) {
+            dmDebounceRef.current = setTimeout(() => {
+                setDmResults([]);
+            }, 0);
+            return () => clearTimeout(dmDebounceRef.current);
+        }
+        dmDebounceRef.current = setTimeout(() => {
+            searchUsers(dmSearch)
+                .then(setDmResults)
+                .catch(() => setDmResults([]));
+        }, 200);
+        return () => clearTimeout(dmDebounceRef.current);
+    }, [dmSearch]);
+
     function handleRoomSelect(roomId: string) {
         setActiveRoomId(roomId);
         navigate(`/chat/${roomId}`, { replace: true });
@@ -162,19 +191,15 @@ export function ChatPage() {
         }
     }
 
-    async function handleCreateDm() {
-        if (!dmUsername.trim()) {
-            return;
-        }
-
+    async function handleSelectUser(selectedUser: User) {
         setDmCreating(true);
         setDmError("");
 
         try {
-            const profile = await getUserProfile(dmUsername.trim());
-            const room = await createDMRoom(profile.id);
+            const room = await createDMRoom(selectedUser.id);
             setShowNewDm(false);
-            setDmUsername("");
+            setDmSearch("");
+            setDmResults([]);
 
             setRooms(prev => {
                 const exists = prev.find(r => r.id === room.id);
@@ -194,6 +219,9 @@ export function ChatPage() {
 
     async function handleDeleteChat() {
         if (!activeRoomId) {
+            return;
+        }
+        if (!window.confirm("Are you sure you want to delete this chat?")) {
             return;
         }
 
@@ -238,14 +266,11 @@ export function ChatPage() {
                                     className={`${styles.roomItem}${room.id === activeRoomId ? ` ${styles.roomItemActive}` : ""}`}
                                     onClick={() => handleRoomSelect(room.id)}
                                 >
-                                    {avatarUser?.avatar_url ? (
-                                        <img className={styles.roomAvatar} src={avatarUser.avatar_url} alt="" />
+                                    {avatarUser ? (
+                                        <ProfileLink user={avatarUser} size="small" />
                                     ) : (
-                                        <span className={styles.roomAvatarPlaceholder}>
-                                            {getRoomDisplayName(room, user).charAt(0).toUpperCase()}
-                                        </span>
+                                        <span className={styles.roomName}>{getRoomDisplayName(room, user)}</span>
                                     )}
-                                    <span className={styles.roomName}>{getRoomDisplayName(room, user)}</span>
                                 </button>
                             );
                         })}
@@ -258,7 +283,11 @@ export function ChatPage() {
                     ) : (
                         <>
                             <div className={styles.messageHeader}>
-                                <span>{getRoomDisplayName(activeRoom, user)}</span>
+                                {getRoomAvatarUser(activeRoom, user) ? (
+                                    <ProfileLink user={getRoomAvatarUser(activeRoom, user)!} size="small" />
+                                ) : (
+                                    <span>{getRoomDisplayName(activeRoom, user)}</span>
+                                )}
                                 <Button variant="danger" size="small" onClick={handleDeleteChat}>
                                     Delete Chat
                                 </Button>
@@ -271,17 +300,7 @@ export function ChatPage() {
                                             key={msg.id}
                                             className={`${styles.messageBubble}${isOwn ? ` ${styles.ownMessage}` : ""}`}
                                         >
-                                            {msg.sender.avatar_url ? (
-                                                <img
-                                                    className={styles.messageAvatar}
-                                                    src={msg.sender.avatar_url}
-                                                    alt=""
-                                                />
-                                            ) : (
-                                                <span className={styles.messageAvatarPlaceholder}>
-                                                    {msg.sender.display_name.charAt(0).toUpperCase()}
-                                                </span>
-                                            )}
+                                            <ProfileLink user={msg.sender} size="small" showName={false} />
                                             <div className={styles.messageContent}>
                                                 {!isOwn && (
                                                     <div className={styles.messageSender}>
@@ -318,22 +337,50 @@ export function ChatPage() {
                         <Input
                             fullWidth
                             type="text"
-                            placeholder="Enter username..."
-                            value={dmUsername}
-                            onChange={e => setDmUsername(e.target.value)}
+                            placeholder="Search users..."
+                            value={dmSearch}
+                            onChange={e => setDmSearch(e.target.value)}
                         />
                         {dmError && <div className={styles.modalError}>{dmError}</div>}
-                        <div className={styles.modalActions}>
-                            <Button variant="secondary" onClick={() => setShowNewDm(false)}>
-                                Cancel
-                            </Button>
-                            <Button
-                                variant="primary"
-                                onClick={handleCreateDm}
-                                disabled={dmCreating || !dmUsername.trim()}
-                            >
-                                {dmCreating ? "Creating..." : "Start Chat"}
-                            </Button>
+
+                        <div className={styles.userList}>
+                            {dmSearch.trim() ? (
+                                dmResults.length === 0 ? (
+                                    <div className={styles.emptyRooms}>No users found</div>
+                                ) : (
+                                    dmResults.map(u => (
+                                        <button
+                                            key={u.id}
+                                            className={styles.userOption}
+                                            onClick={() => handleSelectUser(u)}
+                                            disabled={dmCreating}
+                                        >
+                                            <ProfileLink user={u} size="small" />
+                                        </button>
+                                    ))
+                                )
+                            ) : (
+                                <>
+                                    {dmMutuals.length > 0 && (
+                                        <div className={styles.mutualsLabel}>Mutual followers</div>
+                                    )}
+                                    {dmMutuals.map(u => (
+                                        <button
+                                            key={u.id}
+                                            className={styles.userOption}
+                                            onClick={() => handleSelectUser(u)}
+                                            disabled={dmCreating}
+                                        >
+                                            <ProfileLink user={u} size="small" />
+                                        </button>
+                                    ))}
+                                    {dmMutuals.length === 0 && (
+                                        <div className={styles.emptyRooms}>
+                                            Search for a user to start a conversation
+                                        </div>
+                                    )}
+                                </>
+                            )}
                         </div>
                     </div>
                 </Modal>

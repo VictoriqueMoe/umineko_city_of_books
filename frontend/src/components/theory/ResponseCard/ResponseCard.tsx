@@ -46,6 +46,9 @@ function ResponseCard({
     const { score, userVote, vote } = useVote(response.vote_score, response.user_vote ?? 0, voteFn);
 
     async function handleDelete() {
+        if (!window.confirm("Are you sure you want to delete this response?")) {
+            return;
+        }
         await deleteResponse(response.id);
         onDeleted?.();
     }

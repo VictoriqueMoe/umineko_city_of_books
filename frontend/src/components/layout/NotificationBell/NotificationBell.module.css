@@ -124,3 +124,24 @@
     color: var(--text-muted);
     font-size: 0.85rem;
 }
+
+@media (max-width: 480px) {
+    .dropdown {
+        position: fixed;
+        top: 52px;
+        left: 0;
+        right: 0;
+        min-width: unset;
+        width: 100%;
+        border-radius: 0;
+        max-height: calc(100vh - 52px);
+    }
+
+    .item {
+        padding: 0.5rem 0.75rem;
+    }
+
+    .itemText {
+        font-size: 0.8rem;
+    }
+}

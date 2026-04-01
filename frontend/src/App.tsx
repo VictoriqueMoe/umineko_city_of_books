@@ -96,6 +96,9 @@ function AppLayout() {
                         <Route path="/" element={<HomePage />} />
                         <Route path="/theories" element={<FeedPage />} />
                         <Route path="/game-board" element={<SocialFeedPage />} />
+                        <Route path="/game-board/umineko" element={<SocialFeedPage corner="umineko" />} />
+                        <Route path="/game-board/higurashi" element={<SocialFeedPage corner="higurashi" />} />
+                        <Route path="/game-board/ciconia" element={<SocialFeedPage corner="ciconia" />} />
                         <Route path="/game-board/:id" element={<PostDetailPage />} />
                         <Route path="/theory/:id" element={<TheoryPage />} />
                         <Route path="/quotes" element={<QuoteBrowserPage />} />

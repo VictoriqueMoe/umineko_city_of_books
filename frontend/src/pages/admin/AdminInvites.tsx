@@ -34,6 +34,9 @@ export function AdminInvites() {
     }
 
     async function handleDelete(code: string) {
+        if (!window.confirm("Are you sure you want to delete this invite?")) {
+            return;
+        }
         try {
             await deleteInvite(code);
             await fetchInvites();

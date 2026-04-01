@@ -34,37 +34,40 @@ const (
 var (
 	Cfg Config
 
-	SettingUploadDir           = SiteSettingDef{"upload_dir", "uploads", TypeString}
-	SettingBaseURL             = SiteSettingDef{"base_url", "http://localhost:4323", TypeString}
-	SettingLogLevel            = SiteSettingDef{"log_level", "info", TypeString}
-	SettingMaxBodySize         = SiteSettingDef{"max_body_size", "52428800", TypeInt}
-	SettingMaxImageSize        = SiteSettingDef{"max_image_size", "10485760", TypeInt}
-	SettingMaxVideoSize        = SiteSettingDef{"max_video_size", "104857600", TypeInt}
-	SettingMaxGeneralSize      = SiteSettingDef{"max_general_size", "52428800", TypeInt}
-	SettingRegistrationType    = SiteSettingDef{"registration_type", "open", TypeString}
-	SettingMaintenanceMode     = SiteSettingDef{"maintenance_mode", "false", TypeBool}
-	SettingMaintenanceTitle    = SiteSettingDef{"maintenance_title", "", TypeString}
-	SettingMaintenanceMessage  = SiteSettingDef{"maintenance_message", "", TypeString}
-	SettingSiteName            = SiteSettingDef{"site_name", "Umineko City of Books", TypeString}
-	SettingSiteDescription     = SiteSettingDef{"site_description", "", TypeString}
-	SettingAnnouncementBanner  = SiteSettingDef{"announcement_banner", "", TypeString}
-	SettingMaxTheoriesPerDay   = SiteSettingDef{"max_theories_per_day", "0", TypeInt}
-	SettingMaxResponsesPerDay  = SiteSettingDef{"max_responses_per_day", "0", TypeInt}
-	SettingMaxPostsPerDay      = SiteSettingDef{"max_posts_per_day", "0", TypeInt}
-	SettingMinPasswordLength   = SiteSettingDef{"min_password_length", "8", TypeInt}
-	SettingSessionDurationDays = SiteSettingDef{"session_duration_days", "30", TypeInt}
-	SettingDefaultTheme        = SiteSettingDef{"default_theme", "featherine", TypeString}
-	SettingDMsEnabled          = SiteSettingDef{"dms_enabled", "true", TypeBool}
-	SettingTurnstileEnabled    = SiteSettingDef{"turnstile_enabled", "false", TypeBool}
-	SettingTurnstileSiteKey    = SiteSettingDef{"turnstile_site_key", "", TypeString}
-	SettingTurnstileSecretKey  = SiteSettingDef{"turnstile_secret_key", "", TypeString}
-	SettingRulesTheories       = SiteSettingDef{"rules_theories", "", TypeString}
-	SettingRulesGameBoard      = SiteSettingDef{"rules_game_board", "", TypeString}
-	SettingSMTPHost            = SiteSettingDef{"smtp_host", "", TypeString}
-	SettingSMTPPort            = SiteSettingDef{"smtp_port", "25", TypeInt}
-	SettingSMTPFrom            = SiteSettingDef{"smtp_from", "", TypeString}
-	SettingSMTPUsername        = SiteSettingDef{"smtp_username", "", TypeString}
-	SettingSMTPPassword        = SiteSettingDef{"smtp_password", "", TypeString}
+	SettingUploadDir               = SiteSettingDef{"upload_dir", "uploads", TypeString}
+	SettingBaseURL                 = SiteSettingDef{"base_url", "http://localhost:4323", TypeString}
+	SettingLogLevel                = SiteSettingDef{"log_level", "info", TypeString}
+	SettingMaxBodySize             = SiteSettingDef{"max_body_size", "52428800", TypeInt}
+	SettingMaxImageSize            = SiteSettingDef{"max_image_size", "10485760", TypeInt}
+	SettingMaxVideoSize            = SiteSettingDef{"max_video_size", "104857600", TypeInt}
+	SettingMaxGeneralSize          = SiteSettingDef{"max_general_size", "52428800", TypeInt}
+	SettingRegistrationType        = SiteSettingDef{"registration_type", "open", TypeString}
+	SettingMaintenanceMode         = SiteSettingDef{"maintenance_mode", "false", TypeBool}
+	SettingMaintenanceTitle        = SiteSettingDef{"maintenance_title", "", TypeString}
+	SettingMaintenanceMessage      = SiteSettingDef{"maintenance_message", "", TypeString}
+	SettingSiteName                = SiteSettingDef{"site_name", "Umineko City of Books", TypeString}
+	SettingSiteDescription         = SiteSettingDef{"site_description", "", TypeString}
+	SettingAnnouncementBanner      = SiteSettingDef{"announcement_banner", "", TypeString}
+	SettingMaxTheoriesPerDay       = SiteSettingDef{"max_theories_per_day", "0", TypeInt}
+	SettingMaxResponsesPerDay      = SiteSettingDef{"max_responses_per_day", "0", TypeInt}
+	SettingMaxPostsPerDay          = SiteSettingDef{"max_posts_per_day", "0", TypeInt}
+	SettingMinPasswordLength       = SiteSettingDef{"min_password_length", "8", TypeInt}
+	SettingSessionDurationDays     = SiteSettingDef{"session_duration_days", "30", TypeInt}
+	SettingDefaultTheme            = SiteSettingDef{"default_theme", "featherine", TypeString}
+	SettingDMsEnabled              = SiteSettingDef{"dms_enabled", "true", TypeBool}
+	SettingTurnstileEnabled        = SiteSettingDef{"turnstile_enabled", "false", TypeBool}
+	SettingTurnstileSiteKey        = SiteSettingDef{"turnstile_site_key", "", TypeString}
+	SettingTurnstileSecretKey      = SiteSettingDef{"turnstile_secret_key", "", TypeString}
+	SettingRulesTheories           = SiteSettingDef{"rules_theories", "", TypeString}
+	SettingRulesGameBoard          = SiteSettingDef{"rules_game_board", "", TypeString}
+	SettingRulesGameBoardUmineko   = SiteSettingDef{"rules_game_board_umineko", "", TypeString}
+	SettingRulesGameBoardHigurashi = SiteSettingDef{"rules_game_board_higurashi", "", TypeString}
+	SettingRulesGameBoardCiconia   = SiteSettingDef{"rules_game_board_ciconia", "", TypeString}
+	SettingSMTPHost                = SiteSettingDef{"smtp_host", "", TypeString}
+	SettingSMTPPort                = SiteSettingDef{"smtp_port", "25", TypeInt}
+	SettingSMTPFrom                = SiteSettingDef{"smtp_from", "", TypeString}
+	SettingSMTPUsername            = SiteSettingDef{"smtp_username", "", TypeString}
+	SettingSMTPPassword            = SiteSettingDef{"smtp_password", "", TypeString}
 
 	AllSiteSettings = []SiteSettingDef{
 		SettingUploadDir,
@@ -93,6 +96,9 @@ var (
 		SettingTurnstileSecretKey,
 		SettingRulesTheories,
 		SettingRulesGameBoard,
+		SettingRulesGameBoardUmineko,
+		SettingRulesGameBoardHigurashi,
+		SettingRulesGameBoardCiconia,
 		SettingSMTPHost,
 		SettingSMTPPort,
 		SettingSMTPFrom,
