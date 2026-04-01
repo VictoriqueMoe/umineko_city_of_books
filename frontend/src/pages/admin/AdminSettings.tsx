@@ -371,6 +371,7 @@ export function AdminSettings() {
                             <option value="beatrice">Beatrice</option>
                             <option value="bernkastel">Bernkastel</option>
                             <option value="lambdadelta">Lambdadelta</option>
+                            <option value="erika">Erika Furudo</option>
                         </Select>
                     </div>
                 </div>

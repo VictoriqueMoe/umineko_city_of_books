@@ -4,21 +4,31 @@ A social networking platform for fans of Umineko no Naku Koro ni. The core featu
 
 ## Features
 
+- **Game Board** - Twitter-style social feed with posts, images, videos, likes, comments, and a relevance-based feed algorithm
+- **Follow System** - Follow other users, see their posts in a dedicated Following tab, follower/following counts on profiles
 - **Theory Declarations** - Submit fan theories as blue truth with a title, body, and episode scope
 - **Evidence Attachment** - Search any quote from the game (including narrator quotes) and attach as evidence
 - **Debate System** - Respond with "With love, it can be seen" or "Without love, it cannot be seen", each with their own evidence
 - **Credibility Score** - 0-100 score per theory based on debate quality, weighted by truth type of evidence (gold > red > purple > blue > none)
 - **Threaded Replies** - Reply to responses with one level of threading, then flat with @mentions
-- **Real-Time Notifications** - WebSocket-powered notifications for responses, replies, and upvotes
+- **Real-Time Notifications** - WebSocket-powered notifications for responses, replies, upvotes, likes, comments, and new followers
+- **Email Notifications** - SMTP integration with HTML templates, deep links, and per-user toggle
+- **Live Like Counters** - WebSocket broadcast of like events for real-time engagement
 - **Voting** - Upvote/downvote theories and responses (popularity, separate from credibility)
-- **User Profiles** - Avatar, draggable banner positioning, bio, pronouns, gender, social links, favourite character, activity feed, and online status
-- **Role-Based Authorisation** - Permission-based system with admin and moderator roles. First registered user is automatically admin
-- **Admin Panel** - Dashboard with site stats, user management (roles, bans), DB-backed site settings with live reload, invite system, audit log
+- **Media Processing** - Automatic image-to-webp and video-to-mp4 encoding via background worker pool, thumbnail generation via external API
+- **User Profiles** - Avatar, draggable banner positioning, bio, pronouns, gender, social links, favourite character, activity feed, posts tab, and online status
+- **Players Page** - Browse all users grouped by role (Reality Authors, Voyager Witches, Witches) and online/offline status
+- **Role-Based Authorisation** - Permission-based system with themed role names: Reality Author (super admin), Voyager Witch (admin), Witch (moderator). Role-coloured usernames with glow
+- **Admin Panel** - Dashboard with site stats, user management (roles, bans), DB-backed site settings with live reload, invite system, audit log, content rules
+- **Cloudflare Turnstile** - Bot protection on login and registration, configurable from admin settings
 - **Site Settings** - All configuration stored in DB, editable from admin panel, hot-reloadable (body limits, log level, registration type, maintenance mode, etc.)
+- **Content Rules** - Admin-editable rules per section (theories, game board), displayed at the top of each page
 - **Invite System** - Open, invite-only, or closed registration modes. Admins generate one-time invite codes
-- **Maintenance Mode** - Toggle from admin panel, serves maintenance page to non-admins, admins can still access the full site
+- **Maintenance Mode** - Toggle from admin panel with custom title and message, admins bypass it
 - **Quote Browser** - Browse game quotes filtered by episode, character, and truth type (red/blue/gold/purple)
-- **Three Themes** - Featherine (gold/purple), Bernkastel (blue), Lambdadelta (pink)
+- **Five Themes** - Featherine (gold/purple), Beatrice (warm gold/brown), Bernkastel (blue), Lambdadelta (pink), Erika Furudo (cyan/pink)
+- **OG Embeds** - Rich previews when sharing links to theories, posts, and profiles
+- **Configurable Home Page** - Each user picks their default landing page (Theories or Game Board)
 - **Structured Logging** - zerolog with configurable log levels, settings change listener pattern
 
 ## Tech Stack

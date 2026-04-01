@@ -16,6 +16,7 @@ const THEMES: ThemeDefinition[] = [
     { id: "beatrice", name: "Beatrice", description: "The Golden and Endless Witch" },
     { id: "bernkastel", name: "Lady Bernkastel", description: "Witch of Miracles" },
     { id: "lambdadelta", name: "Lady Lambdadelta", description: "Witch of Certainty" },
+    { id: "erika", name: "Erika Furudo", description: "The Witch of Truth" },
 ];
 
 export function ThemeSelector() {

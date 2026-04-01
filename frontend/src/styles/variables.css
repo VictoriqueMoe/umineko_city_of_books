@@ -92,3 +92,26 @@
     --bg-purple-rgb: 26, 16, 8;
     --hover-glow: 0.15;
 }
+
+[data-theme="erika"] {
+    --bg-void: #060a0f;
+    --bg-purple: #081420;
+    --bg-card: #0a1824;
+    --bg-card-hover: #0e2030;
+    --gold: #00b4d8;
+    --gold-light: #48cae4;
+    --gold-dark: #0077b6;
+    --purple: #4a3060;
+    --purple-light: #e27599;
+    --purple-muted: #1a2a40;
+    --text: #e0f0f5;
+    --text-muted: #90c0d8;
+    --rose: #e27599;
+
+    --gold-rgb: 0, 180, 216;
+    --purple-rgb: 74, 48, 96;
+    --rose-rgb: 226, 117, 153;
+    --bg-card-rgb: 10, 24, 36;
+    --bg-purple-rgb: 8, 20, 32;
+    --hover-glow: 0.15;
+}

@@ -8,7 +8,13 @@ const PARTICLES_KEY = "ut-particles";
 const FALLBACK_THEME: ThemeType = "featherine";
 
 function isValidTheme(value: string): value is ThemeType {
-    return value === "featherine" || value === "bernkastel" || value === "lambdadelta" || value === "beatrice";
+    return (
+        value === "featherine" ||
+        value === "bernkastel" ||
+        value === "lambdadelta" ||
+        value === "beatrice" ||
+        value === "erika"
+    );
 }
 
 function hasStoredTheme(): boolean {

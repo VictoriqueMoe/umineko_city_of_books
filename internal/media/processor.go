@@ -89,7 +89,8 @@ func (p *Processor) worker(id int) {
 }
 
 func encodeImage(inputPath string) (string, error) {
-	if strings.HasSuffix(strings.ToLower(inputPath), ".webp") {
+	lower := strings.ToLower(inputPath)
+	if strings.HasSuffix(lower, ".webp") || strings.HasSuffix(lower, ".gif") {
 		return inputPath, nil
 	}
 
@@ -117,7 +118,7 @@ func encodeVideo(inputPath string) (string, error) {
 		return inputPath, nil
 	}
 
-	tmpOutput := outputPath + ".tmp"
+	tmpOutput := replaceExt(outputPath, ".tmp.mp4")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
