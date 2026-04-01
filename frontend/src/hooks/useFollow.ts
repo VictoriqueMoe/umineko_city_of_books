@@ -32,13 +32,23 @@ export function useFollow(userId: string) {
         if (!stats) {
             return;
         }
-        if (stats.is_following) {
-            await unfollowUser(userId);
-        } else {
-            await followUser(userId);
+        const wasFollowing = stats.is_following;
+        setStats({
+            ...stats,
+            is_following: !wasFollowing,
+            follower_count: stats.follower_count + (wasFollowing ? -1 : 1),
+        });
+        try {
+            if (wasFollowing) {
+                await unfollowUser(userId);
+            } else {
+                await followUser(userId);
+            }
+            const updated = await getFollowStats(userId);
+            setStats(updated);
+        } catch {
+            setStats(stats);
         }
-        const updated = await getFollowStats(userId);
-        setStats(updated);
     }, [stats, userId]);
 
     return { stats, loading, toggleFollow };

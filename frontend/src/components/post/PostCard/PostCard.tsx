@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import type { Post } from "../../../types/api";
 import { deletePost as apiDeletePost, likePost, unlikePost } from "../../../api/endpoints";
@@ -42,11 +42,17 @@ export function PostCard({ post, onDelete }: PostCardProps) {
     const [liked, setLiked] = useState(post.user_liked);
     const [likeCount, setLikeCount] = useState(post.like_count);
 
+    const pendingLikeRef = useRef(false);
+
     useEffect(() => {
         return addWSListener(msg => {
             if (msg.type === "post_like") {
                 const data = msg.data as { post_id: string; delta: number };
                 if (data.post_id === post.id) {
+                    if (pendingLikeRef.current) {
+                        pendingLikeRef.current = false;
+                        return;
+                    }
                     setLikeCount(c => c + data.delta);
                 }
             }
@@ -57,12 +63,14 @@ export function PostCard({ post, onDelete }: PostCardProps) {
         if (!user) {
             return;
         }
+        pendingLikeRef.current = true;
         if (liked) {
             setLiked(false);
             setLikeCount(c => c - 1);
             await unlikePost(post.id).catch(() => {
                 setLiked(true);
                 setLikeCount(c => c + 1);
+                pendingLikeRef.current = false;
             });
         } else {
             setLiked(true);
@@ -70,6 +78,7 @@ export function PostCard({ post, onDelete }: PostCardProps) {
             await likePost(post.id).catch(() => {
                 setLiked(false);
                 setLikeCount(c => c - 1);
+                pendingLikeRef.current = false;
             });
         }
     }

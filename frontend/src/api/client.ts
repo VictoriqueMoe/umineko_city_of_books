@@ -5,6 +5,9 @@ async function handleResponse<T>(response: Response): Promise<T> {
         const body = await response.json().catch(() => null);
         throw new Error(body?.error ?? `API error: ${response.status}`);
     }
+    if (response.status === 204 || response.headers.get("content-length") === "0") {
+        return undefined as T;
+    }
     return response.json();
 }
 
