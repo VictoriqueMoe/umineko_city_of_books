@@ -56,7 +56,7 @@ func maintenanceMiddleware(settingsSvc settings.Service, sessionMgr *session.Man
 			return ctx.Next()
 		}
 
-		if path == "/api/v1/site-info" || path == "/api/v1/auth/login" || path == "/api/v1/auth/me" {
+		if path == "/api/v1/site-info" || path == "/api/v1/auth/login" || path == "/api/v1/auth/me" || path == "/api/v1/ws" {
 			return ctx.Next()
 		}
 
