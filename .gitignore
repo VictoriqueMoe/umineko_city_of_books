@@ -34,5 +34,6 @@ frontend/vite.config.d.ts
 
 # Plan / notes
 *.txt
+!frontend/public/robots.txt
 uploads
 PLAN.md
