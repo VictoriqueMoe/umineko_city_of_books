@@ -23,6 +23,7 @@ func (s *Service) getAllAuthRoutes() []FSetupRoute {
 		s.setupLogoutRoute,
 		s.setupGetMeRoute,
 		s.setupSiteInfoRoute,
+		s.setupGetRulesRoute,
 	}
 }
 
@@ -94,7 +95,7 @@ func (s *Service) register(ctx fiber.Ctx) error {
 
 	user, token, err := s.AuthService.Register(ctx.Context(), req)
 	if err != nil {
-if errors.Is(err, auth.ErrInvalidUsername) {
+		if errors.Is(err, auth.ErrInvalidUsername) {
 			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": err.Error(),
 			})
@@ -144,9 +145,14 @@ func (s *Service) login(ctx fiber.Ctx) error {
 
 	user, token, err := s.AuthService.Login(ctx.Context(), req)
 	if err != nil {
-if errors.Is(err, usersvc.ErrInvalidCredentials) {
+		if errors.Is(err, usersvc.ErrInvalidCredentials) {
 			return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"error": "invalid username or password",
+			})
+		}
+		if errors.Is(err, auth.ErrUserBanned) {
+			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"error": "your account has been banned",
 			})
 		}
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -194,7 +200,31 @@ func (s *Service) siteInfo(ctx fiber.Ctx) error {
 		"announcement_banner": s.SettingsService.Get(ctx.Context(), config.SettingAnnouncementBanner),
 		"default_theme":       s.SettingsService.Get(ctx.Context(), config.SettingDefaultTheme),
 		"maintenance_mode":    s.SettingsService.GetBool(ctx.Context(), config.SettingMaintenanceMode),
-		"turnstile_enabled":  s.SettingsService.GetBool(ctx.Context(), config.SettingTurnstileEnabled),
-		"turnstile_site_key": s.SettingsService.Get(ctx.Context(), config.SettingTurnstileSiteKey),
+		"maintenance_title":   s.SettingsService.Get(ctx.Context(), config.SettingMaintenanceTitle),
+		"maintenance_message": s.SettingsService.Get(ctx.Context(), config.SettingMaintenanceMessage),
+		"turnstile_enabled":   s.SettingsService.GetBool(ctx.Context(), config.SettingTurnstileEnabled),
+		"turnstile_site_key":  s.SettingsService.Get(ctx.Context(), config.SettingTurnstileSiteKey),
+	})
+}
+
+func (s *Service) setupGetRulesRoute(r fiber.Router) {
+	r.Get("/rules/:page", s.getRules)
+}
+
+var rulesSettings = map[string]config.SiteSettingDef{
+	"theories":   config.SettingRulesTheories,
+	"game_board": config.SettingRulesGameBoard,
+}
+
+func (s *Service) getRules(ctx fiber.Ctx) error {
+	page := ctx.Params("page")
+	def, ok := rulesSettings[page]
+	if !ok {
+		return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "unknown page"})
+	}
+
+	return ctx.JSON(fiber.Map{
+		"page":  page,
+		"rules": s.SettingsService.Get(ctx.Context(), def),
 	})
 }

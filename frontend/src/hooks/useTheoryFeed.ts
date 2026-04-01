@@ -3,7 +3,7 @@ import type { Theory, TheoryListResponse } from "../types/api";
 import type { TheorySort } from "../types/app";
 import { listTheories } from "../api/endpoints";
 
-export function useTheoryFeed(sort: TheorySort, episode: number, authorId?: string) {
+export function useTheoryFeed(sort: TheorySort, episode: number, authorId?: string, search?: string) {
     const [data, setData] = useState<TheoryListResponse | null>(null);
     const [loading, setLoading] = useState(false);
     const [offset, setOffset] = useState(0);
@@ -17,6 +17,7 @@ export function useTheoryFeed(sort: TheorySort, episode: number, authorId?: stri
                     sort,
                     episode: episode || undefined,
                     author: authorId || undefined,
+                    search: search || undefined,
                     limit,
                     offset: currentOffset,
                 });
@@ -27,7 +28,7 @@ export function useTheoryFeed(sort: TheorySort, episode: number, authorId?: stri
                 setLoading(false);
             }
         },
-        [sort, episode, authorId],
+        [sort, episode, authorId, search],
     );
 
     useEffect(() => {

@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
-import { BrowserRouter, Route, Routes } from "react-router";
-import { getSiteInfo } from "./api/endpoints";
+import { useState } from "react";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router";
+import { useSiteInfo } from "./hooks/useSiteInfo";
 import { useTheme } from "./hooks/useTheme";
 import { useAuth } from "./hooks/useAuth";
 import { canAccessAdmin } from "./utils/permissions";
@@ -24,17 +24,28 @@ import { AdminUserDetail } from "./pages/admin/AdminUserDetail";
 import { AdminSettings } from "./pages/admin/AdminSettings";
 import { AdminAuditLog } from "./pages/admin/AdminAuditLog";
 import { AdminInvites } from "./pages/admin/AdminInvites";
+import { AdminReports } from "./pages/admin/AdminReports";
+import { AdminContentRules } from "./pages/admin/AdminContentRules";
+import { SocialFeedPage } from "./pages/feed/SocialFeedPage";
+import { PostDetailPage } from "./pages/feed/PostDetailPage";
+import { UsersPage } from "./pages/users/UsersPage";
 import { ChatPage } from "./pages/chat/ChatPage";
 import { MaintenancePage } from "./pages/maintenance/MaintenancePage";
 
-function AnnouncementBanner() {
-    const [banner, setBanner] = useState("");
+const homePageRoutes: Record<string, string> = {
+    theories: "/theories",
+    game_board: "/game-board",
+};
 
-    useEffect(() => {
-        getSiteInfo()
-            .then(info => setBanner(info.announcement_banner ?? ""))
-            .catch(() => {});
-    }, []);
+function HomePage() {
+    const { user } = useAuth();
+    const target = homePageRoutes[user?.home_page ?? "theories"] ?? "/theories";
+    return <Navigate to={target} replace />;
+}
+
+function AnnouncementBanner() {
+    const siteInfo = useSiteInfo();
+    const banner = siteInfo.announcement_banner ?? "";
 
     if (!banner) {
         return null;
@@ -58,25 +69,19 @@ function AnnouncementBanner() {
 }
 
 function AppLayout() {
+    const siteInfo = useSiteInfo();
     const { particlesEnabled } = useTheme();
     const { user, loading: authLoading } = useAuth();
     const [sidebarOpen, setSidebarOpen] = useState(false);
-    const [maintenance, setMaintenance] = useState(false);
-    const [siteInfoLoaded, setSiteInfoLoaded] = useState(false);
 
-    useEffect(() => {
-        getSiteInfo()
-            .then(info => setMaintenance(info.maintenance_mode))
-            .catch(() => {})
-            .finally(() => setSiteInfoLoaded(true));
-    }, []);
-
-    if (!siteInfoLoaded || authLoading) {
+    if (authLoading) {
         return null;
     }
 
-    if (maintenance && !canAccessAdmin(user?.role)) {
-        return <MaintenancePage />;
+    if (siteInfo.maintenance_mode && !canAccessAdmin(user?.role)) {
+        return (
+            <MaintenancePage title={siteInfo.maintenance_title ?? ""} message={siteInfo.maintenance_message ?? ""} />
+        );
     }
 
     return (
@@ -88,9 +93,13 @@ function AppLayout() {
                 <AnnouncementBanner />
                 <main className="main-content">
                     <Routes>
-                        <Route path="/" element={<FeedPage />} />
+                        <Route path="/" element={<HomePage />} />
+                        <Route path="/theories" element={<FeedPage />} />
+                        <Route path="/game-board" element={<SocialFeedPage />} />
+                        <Route path="/game-board/:id" element={<PostDetailPage />} />
                         <Route path="/theory/:id" element={<TheoryPage />} />
                         <Route path="/quotes" element={<QuoteBrowserPage />} />
+                        <Route path="/users" element={<UsersPage />} />
                         <Route path="/user/:username" element={<ProfilePage />} />
                         <Route path="/login" element={<LoginPage />} />
 
@@ -110,6 +119,8 @@ function AppLayout() {
                                 <Route path="users/:id" element={<AdminUserDetail />} />
                                 <Route path="invites" element={<AdminInvites />} />
                                 <Route path="settings" element={<AdminSettings />} />
+                                <Route path="reports" element={<AdminReports />} />
+                                <Route path="content-rules" element={<AdminContentRules />} />
                                 <Route path="audit-log" element={<AdminAuditLog />} />
                             </Route>
                         </Route>

@@ -11,7 +11,11 @@ import type {
     CreateResponsePayload,
     CreateTheoryPayload,
     DeleteAccountPayload,
+    FollowStats,
     NotificationListResponse,
+    PostDetail,
+    PostListResponse,
+    PostMedia,
     QuoteBrowseResponse,
     QuoteSearchResponse,
     SiteSettings,
@@ -32,6 +36,8 @@ export interface SiteInfo {
     announcement_banner: string;
     default_theme: string;
     maintenance_mode: boolean;
+    maintenance_title: string;
+    maintenance_message: string;
     turnstile_enabled: boolean;
     turnstile_site_key: string;
 }
@@ -131,6 +137,7 @@ export async function listTheories(params: {
     sort?: string;
     episode?: number;
     author?: string;
+    search?: string;
     limit?: number;
     offset?: number;
 }): Promise<TheoryListResponse> {
@@ -138,6 +145,7 @@ export async function listTheories(params: {
         sort: params.sort,
         episode: params.episode,
         author: params.author,
+        search: params.search,
         limit: params.limit ?? 20,
         offset: params.offset,
     });
@@ -343,4 +351,131 @@ export async function sendChatMessage(roomId: string, payload: { body: string })
 
 export async function deleteChatRoom(roomId: string): Promise<void> {
     await apiDelete<unknown>(`/chat/rooms/${roomId}`);
+}
+
+export async function createReport(
+    targetType: string,
+    targetId: string,
+    reason: string,
+    contextId?: string,
+): Promise<void> {
+    await apiPost<unknown, { target_type: string; target_id: string; context_id?: string; reason: string }>("/report", {
+        target_type: targetType,
+        target_id: targetId,
+        context_id: contextId,
+        reason,
+    });
+}
+
+export interface ReportItem {
+    id: number;
+    reporter_name: string;
+    reporter_avatar: string;
+    target_type: string;
+    target_id: string;
+    context_id?: string;
+    reason: string;
+    status: string;
+    resolved_by?: string;
+    created_at: string;
+}
+
+export interface ReportListResponse {
+    reports: ReportItem[];
+    total: number;
+    limit: number;
+    offset: number;
+}
+
+export async function getReports(
+    status: string = "open",
+    limit: number = 50,
+    offset: number = 0,
+): Promise<ReportListResponse> {
+    const qs = buildQueryString({ status, limit, offset });
+    return apiFetch<ReportListResponse>(`/admin/reports${qs}`);
+}
+
+export async function resolveReport(id: number): Promise<void> {
+    await apiPost<unknown, undefined>(`/admin/reports/${id}/resolve`, undefined);
+}
+
+export async function getRules(page: string): Promise<{ page: string; rules: string }> {
+    return apiFetch<{ page: string; rules: string }>(`/rules/${page}`);
+}
+
+export async function listPosts(params: {
+    tab?: string;
+    search?: string;
+    sort?: string;
+    limit?: number;
+    offset?: number;
+}): Promise<PostListResponse> {
+    const qs = buildQueryString(params);
+    return apiFetch<PostListResponse>(`/posts${qs}`);
+}
+
+export async function getPost(id: string): Promise<PostDetail> {
+    return apiFetch<PostDetail>(`/posts/${id}`);
+}
+
+export async function createPost(body: string): Promise<{ id: string }> {
+    return apiPost<{ id: string }, { body: string }>("/posts", { body });
+}
+
+export async function deletePost(id: string): Promise<void> {
+    await apiDelete(`/posts/${id}`);
+}
+
+export async function uploadPostMedia(postId: string, file: File): Promise<PostMedia> {
+    const formData = new FormData();
+    formData.append("media", file);
+    return apiPostFormData<PostMedia>(`/posts/${postId}/media`, formData);
+}
+
+export async function likePost(id: string): Promise<void> {
+    await apiPost<unknown, undefined>(`/posts/${id}/like`, undefined);
+}
+
+export async function unlikePost(id: string): Promise<void> {
+    await apiDelete(`/posts/${id}/like`);
+}
+
+export async function createComment(postId: string, body: string): Promise<{ id: string }> {
+    return apiPost<{ id: string }, { body: string }>(`/posts/${postId}/comments`, { body });
+}
+
+export async function deleteComment(id: string): Promise<void> {
+    await apiDelete(`/comments/${id}`);
+}
+
+export async function uploadCommentMedia(commentId: string, file: File): Promise<PostMedia> {
+    const formData = new FormData();
+    formData.append("media", file);
+    return apiPostFormData<PostMedia>(`/comments/${commentId}/media`, formData);
+}
+
+export async function getUserPosts(userId: string, limit: number = 20, offset: number = 0): Promise<PostListResponse> {
+    const qs = buildQueryString({ limit, offset });
+    return apiFetch<PostListResponse>(`/users/${userId}/posts${qs}`);
+}
+
+export async function followUser(id: string): Promise<void> {
+    await apiPost<unknown, undefined>(`/users/${id}/follow`, undefined);
+}
+
+export async function unfollowUser(id: string): Promise<void> {
+    await apiDelete(`/users/${id}/follow`);
+}
+
+export async function getFollowStats(id: string): Promise<FollowStats> {
+    return apiFetch<FollowStats>(`/users/${id}/follow-stats`);
+}
+
+export interface PublicUser extends User {
+    online: boolean;
+}
+
+export async function listUsersPublic(): Promise<PublicUser[]> {
+    return apiFetch<PublicUser[]>("/users");
 }

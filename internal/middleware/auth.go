@@ -35,6 +35,25 @@ func RequirePermission(mgr *session.Manager, authzSvc authz.Service, perm authz.
 	}
 }
 
+func OptionalAuth(mgr *session.Manager) fiber.Handler {
+	return func(ctx fiber.Ctx) error {
+		cookie := ctx.Cookies(session.CookieName)
+		if cookie == "" {
+			ctx.Locals("userID", uuid.Nil)
+			return ctx.Next()
+		}
+
+		userID, err := mgr.Validate(ctx.Context(), cookie)
+		if err != nil {
+			ctx.Locals("userID", uuid.Nil)
+			return ctx.Next()
+		}
+
+		ctx.Locals("userID", userID)
+		return ctx.Next()
+	}
+}
+
 func RequireAuth(mgr *session.Manager) fiber.Handler {
 	return func(ctx fiber.Ctx) error {
 		cookie := ctx.Cookies(session.CookieName)
@@ -49,25 +68,6 @@ func RequireAuth(mgr *session.Manager) fiber.Handler {
 			return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"error": "invalid or expired session",
 			})
-		}
-
-		ctx.Locals("userID", userID)
-		return ctx.Next()
-	}
-}
-
-func OptionalAuth(mgr *session.Manager) fiber.Handler {
-	return func(ctx fiber.Ctx) error {
-		cookie := ctx.Cookies(session.CookieName)
-		if cookie == "" {
-			ctx.Locals("userID", uuid.Nil)
-			return ctx.Next()
-		}
-
-		userID, err := mgr.Validate(ctx.Context(), cookie)
-		if err != nil {
-			ctx.Locals("userID", uuid.Nil)
-			return ctx.Next()
 		}
 
 		ctx.Locals("userID", userID)

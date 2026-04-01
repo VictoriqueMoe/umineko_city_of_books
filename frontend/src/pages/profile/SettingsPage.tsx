@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { useAuth } from "../../hooks/useAuth";
 import { useSettingsForm } from "../../hooks/useSettingsForm";
@@ -22,8 +22,7 @@ function BannerSection({ form }: { form: ReturnType<typeof useSettingsForm> }) {
             if (!form.bannerUrl) {
                 return;
             }
-            const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
-            dragStartY.current = clientY;
+            dragStartY.current = "touches" in e ? e.touches[0].clientY : e.clientY;
             dragStartPos.current = form.bannerPosition;
             setDragging(true);
         },
@@ -275,6 +274,43 @@ export function SettingsPage() {
                                 rows={3}
                                 placeholder="Tell others about yourself on the game board..."
                             />
+                        </label>
+                    </div>
+
+                    <div className={`${styles.section} ${styles.gridFull}`}>
+                        <h3 className={styles.sectionTitle}>Email</h3>
+                        <label className={styles.label}>
+                            Email Address
+                            <Input
+                                type="email"
+                                fullWidth
+                                value={form.email}
+                                onChange={e => form.setEmail(e.target.value)}
+                                placeholder="your@email.com"
+                            />
+                        </label>
+                        <ToggleSwitch
+                            enabled={form.emailPublic}
+                            onChange={form.setEmailPublic}
+                            label="Public Email"
+                            description="Show your email address on your profile"
+                        />
+                        <ToggleSwitch
+                            enabled={form.emailNotifications}
+                            onChange={form.setEmailNotifications}
+                            label="Email Notifications"
+                            description="Receive email notifications for replies and upvotes on your posts"
+                        />
+                    </div>
+
+                    <div className={`${styles.section} ${styles.gridFull}`}>
+                        <h3 className={styles.sectionTitle}>Preferences</h3>
+                        <label className={styles.label}>
+                            Home Page
+                            <Select value={form.homePage} onChange={e => form.setHomePage(e.target.value)}>
+                                <option value="theories">Theories</option>
+                                <option value="game_board">Game Board</option>
+                            </Select>
                         </label>
                     </div>
 

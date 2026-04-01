@@ -180,7 +180,7 @@ func (r *chatRepository) GetMessages(ctx context.Context, roomID uuid.UUID, limi
 		 FROM chat_messages cm
 		 JOIN users u ON cm.sender_id = u.id
 		 WHERE cm.room_id = ?
-		 ORDER BY cm.created_at DESC
+		 ORDER BY cm.created_at ASC
 		 LIMIT ? OFFSET ?`,
 		roomID, limit, offset,
 	)

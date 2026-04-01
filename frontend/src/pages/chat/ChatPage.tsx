@@ -93,7 +93,12 @@ export function ChatPage() {
             if (msg.type === "chat_message") {
                 const chatMsg = msg.data as ChatMessage;
                 if (chatMsg.room_id === activeRoomIdRef.current) {
-                    setMessages(prev => [...prev, chatMsg]);
+                    setMessages(prev => {
+                        if (prev.some(m => m.id === chatMsg.id)) {
+                            return prev;
+                        }
+                        return [...prev, chatMsg];
+                    });
                     scrollToBottom();
                 }
             }
@@ -142,7 +147,12 @@ export function ChatPage() {
                 body: newMessage.trim(),
             });
 
-            setMessages(prev => [...prev, result]);
+            setMessages(prev => {
+                if (prev.some(m => m.id === result.id)) {
+                    return prev;
+                }
+                return [...prev, result];
+            });
             setNewMessage("");
             scrollToBottom();
         } catch {

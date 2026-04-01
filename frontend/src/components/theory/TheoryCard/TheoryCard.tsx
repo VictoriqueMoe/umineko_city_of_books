@@ -70,6 +70,7 @@ export function TheoryCard({ theory }: TheoryCardProps) {
                     <span className={styles.withoutLove}>
                         {"\u2718"} {theory.without_love_count}
                     </span>
+                    <span className={styles.timestamp}>{new Date(theory.created_at).toLocaleString()}</span>
                 </div>
             </div>
         </div>

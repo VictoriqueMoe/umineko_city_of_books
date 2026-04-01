@@ -5,7 +5,9 @@ interface RolePillProps {
 }
 
 const roleConfig: Record<string, { label: string; className: string }> = {
-    admin: { label: "Admin", className: "admin" },
+    super_admin: { label: "Reality Author", className: "superAdmin" },
+    admin: { label: "Voyager Witch", className: "admin" },
+    moderator: { label: "Witch", className: "moderator" },
 };
 
 export function RolePill({ role }: RolePillProps) {

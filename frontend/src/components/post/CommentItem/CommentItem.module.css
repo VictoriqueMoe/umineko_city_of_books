@@ -1,0 +1,50 @@
+.comment {
+    padding: 0.75rem 0;
+    border-bottom: 1px solid rgba(var(--purple-rgb), 0.1);
+}
+
+.comment:last-child {
+    border-bottom: none;
+}
+
+.highlighted {
+    background: rgba(var(--gold-rgb), 0.1);
+    border-left: 3px solid var(--gold);
+    padding-left: 0.75rem;
+    border-radius: 4px;
+    animation: fadeHighlight 3s ease-out forwards;
+}
+
+@keyframes fadeHighlight {
+    0% {
+        background: rgba(var(--gold-rgb), 0.15);
+    }
+    100% {
+        background: rgba(var(--gold-rgb), 0.05);
+    }
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.35rem;
+}
+
+.time {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.body {
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.actions {
+    margin-top: 0.35rem;
+}

@@ -1,0 +1,82 @@
+.card {
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--purple-rgb), 0.2);
+    border-radius: 8px;
+    padding: 1rem;
+    transition: border-color 0.15s var(--ease-out);
+}
+
+.card:hover {
+    border-color: rgba(var(--gold-rgb), 0.2);
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+}
+
+.time {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.body {
+    cursor: pointer;
+}
+
+.text {
+    margin: 0;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 0.75rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid rgba(var(--purple-rgb), 0.1);
+}
+
+.actionBtn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    cursor: pointer;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    transition:
+        color 0.15s,
+        background 0.15s;
+}
+
+.actionBtn:hover {
+    background: rgba(var(--purple-rgb), 0.15);
+    color: var(--text);
+}
+
+.actionBtn:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.liked {
+    color: #e74c3c;
+}
+
+.liked:hover {
+    color: #c0392b;
+}
+
+.viewCount {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-left: auto;
+}

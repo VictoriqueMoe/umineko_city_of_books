@@ -7,9 +7,26 @@ export type Permission =
     | "manage_settings"
     | "view_audit_log"
     | "view_stats"
-    | "delete_any_user";
+    | "view_users"
+    | "delete_any_user"
+    | "delete_any_post"
+    | "delete_any_comment";
 
 const rolePermissions: Record<string, Permission[]> = {
+    super_admin: [
+        "delete_any_theory",
+        "delete_any_response",
+        "ban_user",
+        "manage_roles",
+        "view_admin_panel",
+        "manage_settings",
+        "view_audit_log",
+        "view_stats",
+        "view_users",
+        "delete_any_user",
+        "delete_any_post",
+        "delete_any_comment",
+    ],
     admin: [
         "delete_any_theory",
         "delete_any_response",
@@ -19,9 +36,21 @@ const rolePermissions: Record<string, Permission[]> = {
         "manage_settings",
         "view_audit_log",
         "view_stats",
+        "view_users",
         "delete_any_user",
+        "delete_any_post",
+        "delete_any_comment",
     ],
-    moderator: ["delete_any_theory", "delete_any_response", "view_admin_panel", "view_stats"],
+    moderator: [
+        "delete_any_theory",
+        "delete_any_response",
+        "delete_any_post",
+        "delete_any_comment",
+        "view_admin_panel",
+        "view_stats",
+        "view_users",
+        "ban_user",
+    ],
 };
 
 export function can(role: string | undefined, perm: Permission): boolean {

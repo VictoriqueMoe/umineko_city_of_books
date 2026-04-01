@@ -38,6 +38,7 @@ type (
 		UpdateCredibilityScore(ctx context.Context, theoryID uuid.UUID, score float64) error
 		GetResponseEvidenceWeights(ctx context.Context, theoryID uuid.UUID) (withLoveSum float64, withoutLoveSum float64, err error)
 		SetEvidenceTruthWeight(ctx context.Context, evidenceID int, weight float64) error
+		GetTheoryTitle(ctx context.Context, theoryID uuid.UUID) (string, error)
 	}
 
 	theoryRepository struct {
@@ -128,6 +129,11 @@ func (r *theoryRepository) List(ctx context.Context, p params.ListParams, userID
 	if p.AuthorID != uuid.Nil {
 		conditions = append(conditions, "t.user_id = ?")
 		args = append(args, p.AuthorID)
+	}
+	if p.Search != "" {
+		conditions = append(conditions, "(t.title LIKE ? OR t.body LIKE ?)")
+		wildcard := "%" + p.Search + "%"
+		args = append(args, wildcard, wildcard)
 	}
 	where := ""
 	if len(conditions) > 0 {
@@ -599,6 +605,15 @@ func (r *theoryRepository) GetResponseInfo(ctx context.Context, responseID uuid.
 		return uuid.Nil, uuid.Nil, fmt.Errorf("get response info: %w", err)
 	}
 	return authorID, theoryID, nil
+}
+
+func (r *theoryRepository) GetTheoryTitle(ctx context.Context, theoryID uuid.UUID) (string, error) {
+	var title string
+	err := r.db.QueryRowContext(ctx, `SELECT title FROM theories WHERE id = ?`, theoryID).Scan(&title)
+	if err != nil {
+		return "", fmt.Errorf("get theory title: %w", err)
+	}
+	return title, nil
 }
 
 func (r *theoryRepository) GetRecentActivityByUser(ctx context.Context, userID uuid.UUID, limit, offset int) ([]dto.ActivityItem, int, error) {

@@ -25,11 +25,12 @@ func (s *Service) getAllProfileRoutes() []FSetupRoute {
 		s.setupGetOnlineStatusRoute,
 		s.setupGetUserActivityRoute,
 		s.setupGetProfileRoute,
+		s.setupListUsersPublicRoute,
 	}
 }
 
 func (s *Service) setupGetProfileRoute(r fiber.Router) {
-	r.Get("/users/:username", s.getProfile)
+	r.Get("/users/:username", middleware.OptionalAuth(s.AuthSession), s.getProfile)
 }
 
 func (s *Service) setupUpdateProfileRoute(r fiber.Router) {
@@ -76,6 +77,16 @@ func (s *Service) getProfile(ctx fiber.Ctx) error {
 	}
 
 	result.Online = s.Hub.IsOnline(result.ID)
+
+	viewerID, _ := ctx.Locals("userID").(uuid.UUID)
+	if viewerID != result.ID {
+		if !result.EmailPublic {
+			result.Email = ""
+		}
+		result.EmailPublic = false
+		result.EmailNotifications = false
+		result.HomePage = ""
+	}
 
 	return ctx.JSON(result)
 }
@@ -267,6 +278,34 @@ func (s *Service) getUserActivity(ctx fiber.Ctx) error {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "failed to get activity",
 		})
+	}
+
+	return ctx.JSON(result)
+}
+
+func (s *Service) setupListUsersPublicRoute(r fiber.Router) {
+	r.Get("/users", s.listUsersPublic)
+}
+
+func (s *Service) listUsersPublic(ctx fiber.Ctx) error {
+	users, err := s.ProfileService.ListPublicUsers(ctx.Context())
+	if err != nil {
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "failed to list users",
+		})
+	}
+
+	type userWithOnline struct {
+		dto.UserResponse
+		Online bool `json:"online"`
+	}
+
+	result := make([]userWithOnline, len(users))
+	for i, u := range users {
+		result[i] = userWithOnline{
+			UserResponse: u,
+			Online:       s.Hub.IsOnline(u.ID),
+		}
 	}
 
 	return ctx.JSON(result)

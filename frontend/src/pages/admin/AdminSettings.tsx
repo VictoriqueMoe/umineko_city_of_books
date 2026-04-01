@@ -141,6 +141,28 @@ export function AdminSettings() {
                         enabled={settings.maintenance_mode === "true"}
                         onChange={v => toggleField("maintenance_mode", v)}
                     />
+                    {settings.maintenance_mode === "true" && (
+                        <>
+                            <div className={styles.field}>
+                                <span className={styles.fieldLabel}>Maintenance Title</span>
+                                <Input
+                                    value={settings.maintenance_title ?? ""}
+                                    onChange={e => updateField("maintenance_title", e.target.value)}
+                                    fullWidth
+                                    placeholder="The game board is being prepared"
+                                />
+                            </div>
+                            <div className={styles.field}>
+                                <span className={styles.fieldLabel}>Maintenance Message</span>
+                                <Input
+                                    value={settings.maintenance_message ?? ""}
+                                    onChange={e => updateField("maintenance_message", e.target.value)}
+                                    fullWidth
+                                    placeholder="Without love, it cannot be seen. Please check back shortly."
+                                />
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
 
@@ -286,6 +308,57 @@ export function AdminSettings() {
             </div>
 
             <div className={styles.card}>
+                <h2 className={styles.sectionTitle}>SMTP (Email)</h2>
+                <div className={styles.fieldGroup}>
+                    <div className={styles.field}>
+                        <span className={styles.fieldLabel}>SMTP Host</span>
+                        <Input
+                            value={settings.smtp_host ?? ""}
+                            onChange={e => updateField("smtp_host", e.target.value)}
+                            fullWidth
+                            placeholder="127.0.0.1"
+                        />
+                    </div>
+                    <div className={styles.field}>
+                        <span className={styles.fieldLabel}>SMTP Port</span>
+                        <Input
+                            type="number"
+                            value={getNumber("smtp_port")}
+                            onChange={e => updateField("smtp_port", e.target.value)}
+                        />
+                    </div>
+                    <div className={styles.field}>
+                        <span className={styles.fieldLabel}>From Address</span>
+                        <Input
+                            value={settings.smtp_from ?? ""}
+                            onChange={e => updateField("smtp_from", e.target.value)}
+                            fullWidth
+                            placeholder="noreply@example.com"
+                        />
+                    </div>
+                    <div className={styles.field}>
+                        <span className={styles.fieldLabel}>SMTP Username</span>
+                        <Input
+                            value={settings.smtp_username ?? ""}
+                            onChange={e => updateField("smtp_username", e.target.value)}
+                            fullWidth
+                            placeholder="Leave empty for no auth"
+                        />
+                    </div>
+                    <div className={styles.field}>
+                        <span className={styles.fieldLabel}>SMTP Password</span>
+                        <Input
+                            type="password"
+                            value={settings.smtp_password ?? ""}
+                            onChange={e => updateField("smtp_password", e.target.value)}
+                            fullWidth
+                            placeholder="Leave empty for no auth"
+                        />
+                    </div>
+                </div>
+            </div>
+
+            <div className={styles.card}>
                 <h2 className={styles.sectionTitle}>Appearance</h2>
                 <div className={styles.fieldGroup}>
                     <div className={styles.field}>
@@ -295,8 +368,10 @@ export function AdminSettings() {
                             onChange={e => updateField("default_theme", e.target.value)}
                         >
                             <option value="featherine">Featherine</option>
+                            <option value="beatrice">Beatrice</option>
                             <option value="bernkastel">Bernkastel</option>
                             <option value="lambdadelta">Lambdadelta</option>
+                            <option value="erika">Erika Furudo</option>
                         </Select>
                     </div>
                 </div>

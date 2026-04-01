@@ -1,0 +1,18 @@
+.name {
+    color: var(--gold);
+}
+
+.moderator {
+    color: #d4a84b;
+    text-shadow: 0 0 8px rgba(212, 168, 75, 0.3);
+}
+
+.admin {
+    color: #db559b;
+    text-shadow: 0 0 8px rgba(219, 85, 155, 0.3);
+}
+
+.superAdmin {
+    color: var(--purple-light);
+    text-shadow: 0 0 8px rgba(var(--purple-rgb), 0.4);
+}

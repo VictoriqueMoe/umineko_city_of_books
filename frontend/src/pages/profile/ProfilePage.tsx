@@ -1,13 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
+import { useAuth } from "../../hooks/useAuth";
 import { useProfile } from "../../hooks/useProfile";
 import { useTheoryFeed } from "../../hooks/useTheoryFeed";
-import { getUserActivity } from "../../api/endpoints";
-import type { ActivityItem } from "../../types/api";
+import { useFollow } from "../../hooks/useFollow";
+import { getUserActivity, getUserPosts } from "../../api/endpoints";
+import type { ActivityItem, Post } from "../../types/api";
 import { Button } from "../../components/Button/Button";
 import { TheoryCard } from "../../components/theory/TheoryCard/TheoryCard";
+import { PostCard } from "../../components/post/PostCard/PostCard";
 import { Pagination } from "../../components/Pagination/Pagination";
 import { RolePill } from "../../components/RolePill/RolePill";
+import { RoleStyledName } from "../../components/RoleStyledName/RoleStyledName";
 import styles from "./ProfilePage.module.css";
 
 const SOCIAL_LABELS: Record<string, string> = {
@@ -41,13 +45,15 @@ function socialUrl(key: string, value: string): string {
     }
 }
 
-type TabType = "theories" | "activity";
+type TabType = "posts" | "theories" | "activity";
 
 export function ProfilePage() {
     const { username } = useParams<{ username: string }>();
     const navigate = useNavigate();
+    const { user: currentUser } = useAuth();
     const { profile, loading } = useProfile(username ?? "");
-    const [activeTab, setActiveTab] = useState<TabType>("theories");
+    const [activeTab, setActiveTab] = useState<TabType>("posts");
+    const follow = useFollow(profile?.id ?? "");
 
     const {
         theories,
@@ -60,6 +66,32 @@ export function ProfilePage() {
         hasNext,
         hasPrev,
     } = useTheoryFeed("new", 0, profile?.id);
+
+    const [userPosts, setUserPosts] = useState<Post[]>([]);
+    const [postsTotal, setPostsTotal] = useState(0);
+    const [postsOffset, setPostsOffset] = useState(0);
+    const [postsLoading, setPostsLoading] = useState(false);
+    const postsLimit = 20;
+
+    const fetchPosts = useCallback(async (id: string, off: number) => {
+        setPostsLoading(true);
+        try {
+            const result = await getUserPosts(id, postsLimit, off);
+            setUserPosts(result.posts ?? []);
+            setPostsTotal(result.total);
+        } catch {
+            setUserPosts([]);
+            setPostsTotal(0);
+        } finally {
+            setPostsLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (activeTab === "posts" && profile?.id) {
+            fetchPosts(profile.id, postsOffset);
+        }
+    }, [activeTab, profile?.id, postsOffset, fetchPosts]);
 
     const [activityItems, setActivityItems] = useState<ActivityItem[]>([]);
     const [activityTotal, setActivityTotal] = useState(0);
@@ -147,10 +179,19 @@ export function ProfilePage() {
                 </div>
                 <div className={styles.info}>
                     <h1 className={styles.displayName}>
-                        {profile.display_name}
+                        <RoleStyledName name={profile.display_name} role={profile.role} />
                         {profile.role && <RolePill role={profile.role} />}
                     </h1>
                     <span className={styles.username}>@{profile.username}</span>
+                    {currentUser && currentUser.id !== profile.id && follow.stats && (
+                        <Button
+                            variant={follow.stats.is_following ? "secondary" : "primary"}
+                            size="small"
+                            onClick={follow.toggleFollow}
+                        >
+                            {follow.stats.is_following ? "Unfollow" : "Follow"}
+                        </Button>
+                    )}
                     <div className={styles.metaRow}>
                         {showGender && <span className={styles.metaItem}>{profile.gender}</span>}
                         {profile.pronoun_subject && profile.pronoun_possessive && (
@@ -159,6 +200,11 @@ export function ProfilePage() {
                             </span>
                         )}
                         <span className={styles.metaItem}>Joined {formatDate(profile.created_at)}</span>
+                        {profile.email && (
+                            <a href={`mailto:${profile.email}`} className={styles.metaItem}>
+                                {profile.email}
+                            </a>
+                        )}
                     </div>
                 </div>
             </div>
@@ -213,9 +259,27 @@ export function ProfilePage() {
                     <span className={styles.statNumber}>{profile.stats.votes_received}</span>
                     <span className={styles.statLabel}>Votes Received</span>
                 </div>
+                {follow.stats && (
+                    <>
+                        <div className={styles.statBox}>
+                            <span className={styles.statNumber}>{follow.stats.follower_count}</span>
+                            <span className={styles.statLabel}>Followers</span>
+                        </div>
+                        <div className={styles.statBox}>
+                            <span className={styles.statNumber}>{follow.stats.following_count}</span>
+                            <span className={styles.statLabel}>Following</span>
+                        </div>
+                    </>
+                )}
             </div>
 
             <div className={styles.tabs}>
+                <button
+                    className={`${styles.tab} ${activeTab === "posts" ? styles.tabActive : ""}`}
+                    onClick={() => setActiveTab("posts")}
+                >
+                    Posts
+                </button>
                 <button
                     className={`${styles.tab} ${activeTab === "theories" ? styles.tabActive : ""}`}
                     onClick={() => setActiveTab("theories")}
@@ -229,6 +293,28 @@ export function ProfilePage() {
                     Activity
                 </button>
             </div>
+
+            {activeTab === "posts" && (
+                <div className={styles.tabContent}>
+                    {postsLoading && <div className="loading">Loading posts...</div>}
+                    {!postsLoading && userPosts.length === 0 && <div className="empty-state">No posts yet.</div>}
+                    {!postsLoading &&
+                        userPosts.map(p => (
+                            <PostCard key={p.id} post={p} onDelete={() => fetchPosts(profile.id, postsOffset)} />
+                        ))}
+                    {!postsLoading && postsTotal > postsLimit && (
+                        <Pagination
+                            offset={postsOffset}
+                            limit={postsLimit}
+                            total={postsTotal}
+                            hasNext={postsOffset + postsLimit < postsTotal}
+                            hasPrev={postsOffset > 0}
+                            onNext={() => setPostsOffset(postsOffset + postsLimit)}
+                            onPrev={() => setPostsOffset(Math.max(0, postsOffset - postsLimit))}
+                        />
+                    )}
+                </div>
+            )}
 
             {activeTab === "theories" && (
                 <div className={styles.tabContent}>

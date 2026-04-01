@@ -19,6 +19,14 @@ function notificationText(type: NotificationType): string {
             return "upvoted your response";
         case "chat_message":
             return "sent you a message";
+        case "report":
+            return "reported content";
+        case "new_follower":
+            return "started following you";
+        case "post_liked":
+            return "liked your post";
+        case "post_commented":
+            return "commented on your post";
     }
 }
 
@@ -73,8 +81,14 @@ export function NotificationBell() {
                 await markRead(notif.id);
             }
             setOpen(false);
-            if (notif.reference_type === "chat") {
+            if (notif.type === "report") {
+                navigate("/admin/reports");
+            } else if (notif.reference_type === "chat") {
                 navigate(`/chat/${notif.reference_id}`);
+            } else if (notif.type === "new_follower") {
+                navigate(`/user/${notif.actor.username}`);
+            } else if (notif.reference_type === "post") {
+                navigate(`/game-board/${notif.reference_id}`);
             } else {
                 navigate(`/theory/${notif.reference_id}`);
             }

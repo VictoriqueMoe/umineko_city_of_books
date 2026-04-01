@@ -32,8 +32,16 @@
     color: var(--gold);
 }
 
+.searchInput {
+    max-width: 250px;
+}
+
 @media (max-width: 768px) {
     .controls {
         flex-direction: column;
+    }
+
+    .searchInput {
+        max-width: 100%;
     }
 }

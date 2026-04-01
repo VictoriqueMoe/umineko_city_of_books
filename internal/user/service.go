@@ -43,10 +43,10 @@ func (s *service) Create(ctx context.Context, username, password, displayName st
 	}
 
 	if count == 0 {
-		if err := s.roleRepo.SetRole(ctx, user.ID, authz.RoleAdmin); err != nil {
-			logger.Log.Error().Err(err).Str("user_id", user.ID.String()).Msg("failed to assign admin role to first user")
+		if err := s.roleRepo.SetRole(ctx, user.ID, authz.RoleSuperAdmin); err != nil {
+			logger.Log.Error().Err(err).Str("user_id", user.ID.String()).Msg("failed to assign super admin role to first user")
 		} else {
-			logger.Log.Info().Str("user_id", user.ID.String()).Str("username", username).Msg("first user created, assigned admin role")
+			logger.Log.Info().Str("user_id", user.ID.String()).Str("username", username).Msg("first user created, assigned super admin role")
 		}
 	}
 

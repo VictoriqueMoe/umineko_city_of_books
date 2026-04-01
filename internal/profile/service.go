@@ -24,6 +24,7 @@ type (
 		ChangePassword(ctx context.Context, userID uuid.UUID, req dto.ChangePasswordRequest) error
 		DeleteAccount(ctx context.Context, userID uuid.UUID, req dto.DeleteAccountRequest) error
 		GetActivity(ctx context.Context, username string, limit, offset int) (*dto.ActivityListResponse, error)
+		ListPublicUsers(ctx context.Context) ([]dto.UserResponse, error)
 	}
 
 	service struct {
@@ -106,7 +107,21 @@ func (s *service) ChangePassword(ctx context.Context, userID uuid.UUID, req dto.
 }
 
 func (s *service) DeleteAccount(ctx context.Context, userID uuid.UUID, req dto.DeleteAccountRequest) error {
-	return s.userRepo.DeleteAccount(ctx, userID, req.Password)
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("get user for cleanup: %w", err)
+	}
+
+	if err := s.userRepo.DeleteAccount(ctx, userID, req.Password); err != nil {
+		return err
+	}
+
+	if user != nil {
+		_ = s.uploadSvc.Delete(user.AvatarURL)
+		_ = s.uploadSvc.Delete(user.BannerURL)
+	}
+
+	return nil
 }
 
 func (s *service) GetActivity(ctx context.Context, username string, limit, offset int) (*dto.ActivityListResponse, error) {
@@ -129,4 +144,24 @@ func (s *service) GetActivity(ctx context.Context, username string, limit, offse
 		Limit:  limit,
 		Offset: offset,
 	}, nil
+}
+
+func (s *service) ListPublicUsers(ctx context.Context) ([]dto.UserResponse, error) {
+	users, err := s.userRepo.ListPublic(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]dto.UserResponse, len(users))
+	for i, u := range users {
+		rl, _ := s.authz.GetRole(ctx, u.ID)
+		result[i] = dto.UserResponse{
+			ID:          u.ID,
+			Username:    u.Username,
+			DisplayName: u.DisplayName,
+			AvatarURL:   u.AvatarURL,
+			Role:        rl,
+		}
+	}
+	return result, nil
 }

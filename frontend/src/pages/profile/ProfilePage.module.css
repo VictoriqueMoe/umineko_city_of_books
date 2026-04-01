@@ -227,6 +227,9 @@ a.socialChipValue:hover {
 
 .tabContent {
     min-height: 100px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
 }
 
 .activityItem {

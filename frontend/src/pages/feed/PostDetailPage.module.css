@@ -1,0 +1,52 @@
+.page {
+    max-width: 640px;
+    margin: 0 auto;
+}
+
+.back {
+    display: inline-block;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    cursor: pointer;
+    margin-bottom: 1rem;
+    transition: color 0.15s;
+}
+
+.back:hover {
+    color: var(--gold);
+}
+
+.comments {
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--purple-rgb), 0.2);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 0.75rem;
+}
+
+.commentsTitle {
+    font-family: var(--font-display);
+    color: var(--gold);
+    font-size: 1rem;
+    margin: 0 0 0.75rem;
+}
+
+.likedBy {
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--purple-rgb), 0.2);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 0.75rem;
+}
+
+.likedByList {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.noComments {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    font-style: italic;
+}
