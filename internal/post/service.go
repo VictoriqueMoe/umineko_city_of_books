@@ -316,6 +316,7 @@ func (s *service) saveMedia(ctx context.Context, contentType string, fileSize in
 			},
 		})
 	} else {
+		done := make(chan string, 1)
 		s.mediaProc.Enqueue(media.Job{
 			Type:      media.JobImage,
 			InputPath: diskPath,
@@ -324,8 +325,14 @@ func (s *service) saveMedia(ctx context.Context, contentType string, fileSize in
 				if err := s.postRepo.UpdateMediaURL(context.Background(), rowID, newURL); err != nil {
 					logger.Log.Error().Err(err).Msg("failed to update image media url")
 				}
+				done <- newURL
 			},
 		})
+		select {
+		case newURL := <-done:
+			urlPath = newURL
+		case <-ctx.Done():
+		}
 	}
 
 	return &dto.PostMediaResponse{
