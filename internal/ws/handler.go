@@ -3,6 +3,7 @@ package ws
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/session"
@@ -80,6 +81,22 @@ func Handler(hub *Hub, sessionMgr *session.Manager, roomLister RoomLister) fiber
 					}
 				}
 			}
+
+			conn.SetPongHandler(func(string) error {
+				return conn.SetReadDeadline(time.Now().Add(90 * time.Second))
+			})
+			_ = conn.SetReadDeadline(time.Now().Add(90 * time.Second))
+
+			ticker := time.NewTicker(30 * time.Second)
+			defer ticker.Stop()
+
+			go func() {
+				for range ticker.C {
+					if err := conn.WriteControl(websocket.PingMessage, nil, time.Now().Add(10*time.Second)); err != nil {
+						return
+					}
+				}
+			}()
 
 			for {
 				_, raw, err := conn.ReadMessage()
