@@ -212,7 +212,8 @@ func (s *Service) setupGetRulesRoute(r fiber.Router) {
 }
 
 var rulesSettings = map[string]config.SiteSettingDef{
-	"theories": config.SettingRulesTheories,
+	"theories":   config.SettingRulesTheories,
+	"game_board": config.SettingRulesGameBoard,
 }
 
 func (s *Service) getRules(ctx fiber.Ctx) error {

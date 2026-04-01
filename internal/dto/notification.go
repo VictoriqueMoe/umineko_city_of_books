@@ -44,4 +44,7 @@ const (
 	NotifResponseUpvote NotificationType = "response_upvote"
 	NotifChatMessage    NotificationType = "chat_message"
 	NotifReport         NotificationType = "report"
+	NotifNewFollower    NotificationType = "new_follower"
+	NotifPostLiked      NotificationType = "post_liked"
+	NotifPostCommented  NotificationType = "post_commented"
 )

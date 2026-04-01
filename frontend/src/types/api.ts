@@ -43,6 +43,7 @@ export interface User {
     avatar_url?: string;
     role?: string;
     episode_progress?: number;
+    home_page?: string;
 }
 
 export interface EvidenceItem {
@@ -141,6 +142,7 @@ export interface UserProfile {
     email?: string;
     email_public?: boolean;
     email_notifications?: boolean;
+    home_page?: string;
     created_at: string;
     stats: UserStats;
 }
@@ -172,6 +174,7 @@ export interface UpdateProfilePayload {
     email: string;
     email_public: boolean;
     email_notifications: boolean;
+    home_page: string;
 }
 
 export interface ChangePasswordPayload {
@@ -199,13 +202,64 @@ export interface ActivityListResponse {
     offset: number;
 }
 
+export interface PostMedia {
+    id: number;
+    media_url: string;
+    media_type: "image" | "video";
+    thumbnail_url?: string;
+    sort_order: number;
+}
+
+export interface Post {
+    id: string;
+    author: User;
+    body: string;
+    media: PostMedia[];
+    like_count: number;
+    comment_count: number;
+    view_count: number;
+    user_liked: boolean;
+    created_at: string;
+}
+
+export interface PostDetail extends Post {
+    comments: PostComment[];
+    liked_by: User[];
+}
+
+export interface PostComment {
+    id: string;
+    author: User;
+    body: string;
+    media: PostMedia[];
+    created_at: string;
+}
+
+export interface PostListResponse {
+    posts: Post[];
+    total: number;
+    limit: number;
+    offset: number;
+}
+
+export interface FollowStats {
+    follower_count: number;
+    following_count: number;
+    is_following: boolean;
+}
+
+export type FeedTab = "following" | "everyone";
+
 export type NotificationType =
     | "theory_response"
     | "response_reply"
     | "theory_upvote"
     | "response_upvote"
     | "chat_message"
-    | "report";
+    | "report"
+    | "new_follower"
+    | "post_liked"
+    | "post_commented";
 
 export interface Notification {
     id: number;

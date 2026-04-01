@@ -14,6 +14,7 @@ type (
 	Resolver struct {
 		theoryRepo repository.TheoryRepository
 		userRepo   repository.UserRepository
+		postRepo   repository.PostRepository
 		baseHTML   string
 		baseURL    string
 	}
@@ -31,10 +32,11 @@ const (
 	defaultDescription = "A social platform for Umineko no Naku Koro ni fans. Declare fan theories as blue truth, debate with evidence, and earn credibility through community response."
 )
 
-func NewResolver(theoryRepo repository.TheoryRepository, userRepo repository.UserRepository, baseHTML, baseURL string) *Resolver {
+func NewResolver(theoryRepo repository.TheoryRepository, userRepo repository.UserRepository, postRepo repository.PostRepository, baseHTML, baseURL string) *Resolver {
 	return &Resolver{
 		theoryRepo: theoryRepo,
 		userRepo:   userRepo,
+		postRepo:   postRepo,
 		baseHTML:   baseHTML,
 		baseURL:    baseURL,
 	}
@@ -57,6 +59,10 @@ func (r *Resolver) metaForPath(ctx context.Context, path string) *Meta {
 
 	if len(parts) == 2 && parts[0] == "user" {
 		return r.profileMeta(ctx, parts[1])
+	}
+
+	if len(parts) >= 2 && parts[0] == "game-board" {
+		return r.postMeta(ctx, parts[1])
 	}
 
 	return nil
@@ -108,6 +114,44 @@ func (r *Resolver) profileMeta(ctx context.Context, username string) *Meta {
 		Image:       u.AvatarURL,
 		URL:         fmt.Sprintf("%s/user/%s", r.baseURL, username),
 	}
+}
+
+func (r *Resolver) postMeta(ctx context.Context, idStr string) *Meta {
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		return nil
+	}
+
+	post, err := r.postRepo.GetByID(ctx, id, uuid.Nil)
+	if err != nil || post == nil {
+		return nil
+	}
+
+	desc := post.Body
+	if len(desc) > 200 {
+		desc = desc[:197] + "..."
+	}
+
+	title := fmt.Sprintf("%s on Game Board", post.AuthorDisplayName)
+
+	meta := &Meta{
+		Title:       title,
+		Description: desc,
+		Image:       post.AuthorAvatarURL,
+		URL:         fmt.Sprintf("%s/game-board/%s", r.baseURL, idStr),
+	}
+
+	media, _ := r.postRepo.GetMedia(ctx, id)
+	if len(media) > 0 {
+		first := media[0]
+		if first.MediaType == "video" && first.ThumbnailURL != "" {
+			meta.Image = first.ThumbnailURL
+		} else if first.MediaType == "image" {
+			meta.Image = first.MediaURL
+		}
+	}
+
+	return meta
 }
 
 func (r *Resolver) inject(meta Meta) string {

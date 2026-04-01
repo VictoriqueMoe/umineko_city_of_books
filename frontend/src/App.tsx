@@ -1,5 +1,5 @@
 import {useState} from "react";
-import {BrowserRouter, Route, Routes} from "react-router";
+import {BrowserRouter, Navigate, Route, Routes} from "react-router";
 import {useSiteInfo} from "./hooks/useSiteInfo";
 import {useTheme} from "./hooks/useTheme";
 import {useAuth} from "./hooks/useAuth";
@@ -26,8 +26,22 @@ import {AdminAuditLog} from "./pages/admin/AdminAuditLog";
 import {AdminInvites} from "./pages/admin/AdminInvites";
 import {AdminReports} from "./pages/admin/AdminReports";
 import {AdminContentRules} from "./pages/admin/AdminContentRules";
+import {SocialFeedPage} from "./pages/feed/SocialFeedPage";
+import {PostDetailPage} from "./pages/feed/PostDetailPage";
+import {UsersPage} from "./pages/users/UsersPage";
 import {ChatPage} from "./pages/chat/ChatPage";
 import {MaintenancePage} from "./pages/maintenance/MaintenancePage";
+
+const homePageRoutes: Record<string, string> = {
+    theories: "/theories",
+    game_board: "/game-board",
+};
+
+function HomePage() {
+    const { user } = useAuth();
+    const target = homePageRoutes[user?.home_page ?? "theories"] ?? "/theories";
+    return <Navigate to={target} replace />;
+}
 
 function AnnouncementBanner() {
     const siteInfo = useSiteInfo();
@@ -79,9 +93,13 @@ function AppLayout() {
                 <AnnouncementBanner />
                 <main className="main-content">
                     <Routes>
-                        <Route path="/" element={<FeedPage />} />
+                        <Route path="/" element={<HomePage />} />
+                        <Route path="/theories" element={<FeedPage />} />
+                        <Route path="/game-board" element={<SocialFeedPage />} />
+                        <Route path="/game-board/:id" element={<PostDetailPage />} />
                         <Route path="/theory/:id" element={<TheoryPage />} />
                         <Route path="/quotes" element={<QuoteBrowserPage />} />
+                        <Route path="/users" element={<UsersPage />} />
                         <Route path="/user/:username" element={<ProfilePage />} />
                         <Route path="/login" element={<LoginPage />} />
 

@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useRef, useState} from "react";
+import React, {useCallback, useEffect, useRef, useState} from "react";
 import {useNavigate} from "react-router";
 import {useAuth} from "../../hooks/useAuth";
 import {useSettingsForm} from "../../hooks/useSettingsForm";
@@ -22,8 +22,7 @@ function BannerSection({ form }: { form: ReturnType<typeof useSettingsForm> }) {
             if (!form.bannerUrl) {
                 return;
             }
-            const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
-            dragStartY.current = clientY;
+            dragStartY.current = "touches" in e ? e.touches[0].clientY : e.clientY;
             dragStartPos.current = form.bannerPosition;
             setDragging(true);
         },
@@ -302,6 +301,17 @@ export function SettingsPage() {
                             label="Email Notifications"
                             description="Receive email notifications for replies and upvotes on your posts"
                         />
+                    </div>
+
+                    <div className={`${styles.section} ${styles.gridFull}`}>
+                        <h3 className={styles.sectionTitle}>Preferences</h3>
+                        <label className={styles.label}>
+                            Home Page
+                            <Select value={form.homePage} onChange={e => form.setHomePage(e.target.value)}>
+                                <option value="theories">Theories</option>
+                                <option value="game_board">Game Board</option>
+                            </Select>
+                        </label>
                     </div>
 
                     <div className={`${styles.section} ${styles.gridFull}`}>

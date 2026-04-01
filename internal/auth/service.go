@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strings"
 
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
@@ -33,7 +34,20 @@ type (
 	}
 )
 
-var validUsername = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
+var (
+	validUsername    = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
+	reservedPatterns = []string{"featherine", "faa", "auaurora"}
+)
+
+func isReservedUsername(username string) bool {
+	lower := strings.ToLower(username)
+	for _, pattern := range reservedPatterns {
+		if strings.Contains(lower, pattern) {
+			return true
+		}
+	}
+	return false
+}
 
 func NewService(userService user.Service, sessionMgr *session.Manager, settingsSvc settings.Service, inviteRepo repository.InviteRepository, userRepo repository.UserRepository) Service {
 	return &service{
@@ -66,6 +80,10 @@ func (s *service) Register(ctx context.Context, req dto.RegisterRequest) (*dto.U
 
 	if !isValidUsername(req.Username) {
 		return nil, "", ErrInvalidUsername
+	}
+
+	if isReservedUsername(req.Username) {
+		return nil, "", user.ErrUsernameTaken
 	}
 
 	minLen := s.settingsSvc.GetInt(ctx, config.SettingMinPasswordLength)

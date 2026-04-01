@@ -5,7 +5,10 @@ import {TextArea} from "../../components/TextArea/TextArea";
 import type {SiteSettings} from "../../types/api";
 import styles from "./AdminSettings.module.css";
 
-const pages = [{ key: "rules_theories", label: "Theories" }];
+const pages = [
+    { key: "rules_theories", label: "Theories" },
+    { key: "rules_game_board", label: "Game Board" },
+];
 
 export function AdminContentRules() {
     const [settings, setSettings] = useState<SiteSettings>({});

@@ -21,6 +21,12 @@ function notificationText(type: NotificationType): string {
             return "sent you a message";
         case "report":
             return "reported content";
+        case "new_follower":
+            return "started following you";
+        case "post_liked":
+            return "liked your post";
+        case "post_commented":
+            return "commented on your post";
     }
 }
 
@@ -79,6 +85,10 @@ export function NotificationBell() {
                 navigate("/admin/reports");
             } else if (notif.reference_type === "chat") {
                 navigate(`/chat/${notif.reference_id}`);
+            } else if (notif.type === "new_follower") {
+                navigate(`/user/${notif.actor.username}`);
+            } else if (notif.reference_type === "post") {
+                navigate(`/game-board/${notif.reference_id}`);
             } else {
                 navigate(`/theory/${notif.reference_id}`);
             }

@@ -12,6 +12,7 @@ import (
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/session"
 	"umineko_city_of_books/internal/settings"
+	"umineko_city_of_books/internal/upload"
 
 	"github.com/google/uuid"
 )
@@ -47,6 +48,7 @@ type (
 		authz       authz.Service
 		settingsSvc settings.Service
 		sessionMgr  *session.Manager
+		uploadSvc   upload.Service
 	}
 )
 
@@ -59,6 +61,7 @@ func NewService(
 	authzService authz.Service,
 	settingsSvc settings.Service,
 	sessionMgr *session.Manager,
+	uploadSvc upload.Service,
 ) Service {
 	return &service{
 		userRepo:    userRepo,
@@ -69,6 +72,7 @@ func NewService(
 		authz:       authzService,
 		settingsSvc: settingsSvc,
 		sessionMgr:  sessionMgr,
+		uploadSvc:   uploadSvc,
 	}
 }
 
@@ -234,9 +238,15 @@ func (s *service) UnbanUser(ctx context.Context, actorID uuid.UUID, targetID uui
 }
 
 func (s *service) DeleteUser(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID) error {
+	user, _ := s.userRepo.GetByID(ctx, targetID)
+
 	return s.guardedAction(ctx, actorID, targetID, func() error {
 		if err := s.userRepo.AdminDeleteAccount(ctx, targetID); err != nil {
 			return fmt.Errorf("delete user: %w", err)
+		}
+		if user != nil {
+			_ = s.uploadSvc.Delete(user.AvatarURL)
+			_ = s.uploadSvc.Delete(user.BannerURL)
 		}
 		s.audit(ctx, actorID, "delete_user", "user", targetID.String())
 		return nil

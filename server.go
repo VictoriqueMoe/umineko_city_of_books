@@ -17,10 +17,13 @@ import (
 	"umineko_city_of_books/internal/credibility"
 	"umineko_city_of_books/internal/db"
 	"umineko_city_of_books/internal/email"
+	"umineko_city_of_books/internal/follow"
 	"umineko_city_of_books/internal/logger"
+	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/middleware"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/og"
+	postsvc "umineko_city_of_books/internal/post"
 	"umineko_city_of_books/internal/profile"
 	"umineko_city_of_books/internal/quotefinder"
 	"umineko_city_of_books/internal/report"
@@ -35,6 +38,7 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/static"
+	"github.com/valyala/fasthttp"
 )
 
 var (
@@ -52,10 +56,13 @@ type services struct {
 	authz        authz.Service
 	chat         chat.Service
 	report       report.Service
+	post         postsvc.Service
+	follow       follow.Service
 	email        email.Service
 	session      *session.Manager
 	upload       upload.Service
 	hub          *ws.Hub
+	mediaProc    *media.Processor
 }
 
 func initServer() *fiber.App {
@@ -96,6 +103,9 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 	if err := os.MkdirAll(filepath.Join(uploadDir, "banners"), 0755); err != nil {
 		logger.Log.Fatal().Err(err).Msg("failed to create banners directory")
 	}
+	if err := os.MkdirAll(filepath.Join(uploadDir, "posts"), 0755); err != nil {
+		logger.Log.Fatal().Err(err).Msg("failed to create posts directory")
+	}
 
 	sessionMgr := session.NewManager(repos.Session, settingsSvc)
 	uploadSvc := upload.NewService(settingsSvc)
@@ -109,6 +119,9 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 	chatSvc := chat.NewService(repos.Chat, repos.User, repos.Notification, hub)
 	notifSvc := notification.NewService(repos.Notification, repos.User, hub, emailSvc)
 	reportSvc := report.NewService(repos.Report, repos.Role, repos.User, notifSvc, settingsSvc)
+	mediaProc := media.NewProcessor(4)
+	postSvc := postsvc.NewService(repos.Post, repos.User, authzSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, hub)
+	followSvc := follow.NewService(repos.Follow, repos.User, notifSvc, settingsSvc)
 
 	return &services{
 		settings:     settingsSvc,
@@ -116,14 +129,17 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 		profile:      profile.NewService(repos.User, repos.Theory, authzSvc, uploadSvc, settingsSvc),
 		theory:       theory.NewService(repos.Theory, repos.User, authzSvc, notifSvc, settingsSvc, credibilitySvc, quoteClient),
 		notification: notifSvc,
-		admin:        admin.NewService(repos.User, repos.Role, repos.Stats, repos.AuditLog, repos.Invite, authzSvc, settingsSvc, sessionMgr),
+		admin:        admin.NewService(repos.User, repos.Role, repos.Stats, repos.AuditLog, repos.Invite, authzSvc, settingsSvc, sessionMgr, uploadSvc),
 		authz:        authzSvc,
 		chat:         chatSvc,
 		report:       reportSvc,
+		post:         postSvc,
+		follow:       followSvc,
 		email:        emailSvc,
 		session:      sessionMgr,
 		upload:       uploadSvc,
 		hub:          hub,
+		mediaProc:    mediaProc,
 	}
 }
 
@@ -145,12 +161,17 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 
 	ctrlService := controllers.NewService(
 		svc.auth, svc.profile, svc.theory, svc.notification, svc.admin,
-		svc.authz, settingsSvc, svc.chat, svc.report, svc.session, svc.hub, string(htmlBytes),
+		svc.authz, settingsSvc, svc.chat, svc.report, svc.post, svc.follow,
+		svc.session, svc.hub, string(htmlBytes),
 	)
 	routes.PublicRoutes(ctrlService, app)
 
 	app.Get("/api/v1/ws", ws.Handler(svc.hub, svc.session, svc.chat))
-	app.Get("/uploads/*", static.New(svc.upload.GetUploadDir()))
+	app.Get("/uploads/*", func(ctx fiber.Ctx) error {
+		filePath := filepath.Join(svc.upload.GetUploadDir(), ctx.Params("*"))
+		fasthttp.ServeFile(ctx.RequestCtx(), filePath)
+		return nil
+	})
 
 	staticFS, err := fs.Sub(staticFiles, "static")
 	if err != nil {
@@ -158,7 +179,7 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 	}
 
 	baseURL := settingsSvc.Get(context.Background(), config.SettingBaseURL)
-	ogResolver := og.NewResolver(repos.Theory, repos.User, string(htmlBytes), baseURL)
+	ogResolver := og.NewResolver(repos.Theory, repos.User, repos.Post, string(htmlBytes), baseURL)
 
 	app.Get("/*", func(ctx fiber.Ctx) error {
 		path := ctx.Path()

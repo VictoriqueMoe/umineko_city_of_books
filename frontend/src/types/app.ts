@@ -1,4 +1,4 @@
-export type ThemeType = "featherine" | "bernkastel" | "lambdadelta";
+export type ThemeType = "featherine" | "bernkastel" | "lambdadelta" | "beatrice";
 export type TheorySort =
     | "new"
     | "old"

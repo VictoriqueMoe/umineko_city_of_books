@@ -368,6 +368,7 @@ export function AdminSettings() {
                             onChange={e => updateField("default_theme", e.target.value)}
                         >
                             <option value="featherine">Featherine</option>
+                            <option value="beatrice">Beatrice</option>
                             <option value="bernkastel">Bernkastel</option>
                             <option value="lambdadelta">Lambdadelta</option>
                         </Select>

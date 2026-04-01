@@ -47,12 +47,25 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                     <div className={styles.section}>
                         <span className={styles.sectionLabel}>Browse</span>
                         <NavLink
-                            to="/"
-                            end
+                            to="/game-board"
+                            className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
+                            onClick={onClose}
+                        >
+                            Game Board
+                        </NavLink>
+                        <NavLink
+                            to="/theories"
                             className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
                             onClick={onClose}
                         >
                             Theories
+                        </NavLink>
+                        <NavLink
+                            to="/users"
+                            className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
+                            onClick={onClose}
+                        >
+                            Players
                         </NavLink>
                         <NavLink
                             to="/quotes"

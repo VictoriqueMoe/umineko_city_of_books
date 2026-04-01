@@ -60,6 +60,7 @@ export function useSettingsForm() {
     const [email, setEmail] = useState("");
     const [emailPublic, setEmailPublic] = useState(false);
     const [emailNotifications, setEmailNotifications] = useState(false);
+    const [homePage, setHomePage] = useState("theories");
 
     const [characters, setCharacters] = useState<Record<string, string>>({});
     const [saving, setSaving] = useState(false);
@@ -87,6 +88,7 @@ export function useSettingsForm() {
             setEmail(profile.email ?? "");
             setEmailPublic(profile.email_public ?? false);
             setEmailNotifications(profile.email_notifications ?? false);
+            setHomePage(profile.home_page ?? "theories");
 
             const g = initGender(profile);
             setGender(g.gender);
@@ -190,6 +192,7 @@ export function useSettingsForm() {
             email,
             email_public: emailPublic,
             email_notifications: emailNotifications,
+            home_page: homePage,
         };
 
         try {
@@ -254,6 +257,8 @@ export function useSettingsForm() {
         setEmailPublic,
         emailNotifications,
         setEmailNotifications,
+        homePage,
+        setHomePage,
         characters,
 
         handleSubmit,

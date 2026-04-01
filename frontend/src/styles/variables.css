@@ -69,3 +69,26 @@
     --bg-purple-rgb: 31, 10, 26;
     --hover-glow: 0.2;
 }
+
+[data-theme="beatrice"] {
+    --bg-void: #0f0a08;
+    --bg-purple: #1a1008;
+    --bg-card: #1a1208;
+    --bg-card-hover: #241a0c;
+    --gold: #d4a84b;
+    --gold-light: #f0d590;
+    --gold-dark: #a67c2e;
+    --purple: #6b4c3a;
+    --purple-light: #c9a27a;
+    --purple-muted: #3d2a1a;
+    --text: #f5ebe0;
+    --text-muted: #c9b8a0;
+    --rose: #c9284d;
+
+    --gold-rgb: 212, 168, 75;
+    --purple-rgb: 107, 76, 58;
+    --rose-rgb: 201, 40, 77;
+    --bg-card-rgb: 26, 18, 8;
+    --bg-purple-rgb: 26, 16, 8;
+    --hover-glow: 0.15;
+}

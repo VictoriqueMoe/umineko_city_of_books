@@ -1,8 +1,8 @@
-import { useCallback, useRef, useState } from "react";
-import { useTheme } from "../../../hooks/useTheme";
-import { useClickOutside } from "../../../hooks/useClickOutside";
-import type { ThemeType } from "../../../types/app";
-import { ToggleSwitch } from "../../ToggleSwitch/ToggleSwitch";
+import {useCallback, useRef, useState} from "react";
+import {useTheme} from "../../../hooks/useTheme";
+import {useClickOutside} from "../../../hooks/useClickOutside";
+import type {ThemeType} from "../../../types/app";
+import {ToggleSwitch} from "../../ToggleSwitch/ToggleSwitch";
 import styles from "./ThemeSelector.module.css";
 
 interface ThemeDefinition {
@@ -13,6 +13,7 @@ interface ThemeDefinition {
 
 const THEMES: ThemeDefinition[] = [
     { id: "featherine", name: "Featherine", description: "Witch of Theatergoing, Drama, and Spectating" },
+    { id: "beatrice", name: "Beatrice", description: "The Golden and Endless Witch" },
     { id: "bernkastel", name: "Lady Bernkastel", description: "Witch of Miracles" },
     { id: "lambdadelta", name: "Lady Lambdadelta", description: "Witch of Certainty" },
 ];

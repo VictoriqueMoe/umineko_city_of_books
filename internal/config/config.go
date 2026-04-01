@@ -50,6 +50,7 @@ var (
 	SettingAnnouncementBanner  = SiteSettingDef{"announcement_banner", "", TypeString}
 	SettingMaxTheoriesPerDay   = SiteSettingDef{"max_theories_per_day", "0", TypeInt}
 	SettingMaxResponsesPerDay  = SiteSettingDef{"max_responses_per_day", "0", TypeInt}
+	SettingMaxPostsPerDay      = SiteSettingDef{"max_posts_per_day", "0", TypeInt}
 	SettingMinPasswordLength   = SiteSettingDef{"min_password_length", "8", TypeInt}
 	SettingSessionDurationDays = SiteSettingDef{"session_duration_days", "30", TypeInt}
 	SettingDefaultTheme        = SiteSettingDef{"default_theme", "featherine", TypeString}
@@ -58,6 +59,7 @@ var (
 	SettingTurnstileSiteKey    = SiteSettingDef{"turnstile_site_key", "", TypeString}
 	SettingTurnstileSecretKey  = SiteSettingDef{"turnstile_secret_key", "", TypeString}
 	SettingRulesTheories       = SiteSettingDef{"rules_theories", "", TypeString}
+	SettingRulesGameBoard      = SiteSettingDef{"rules_game_board", "", TypeString}
 	SettingSMTPHost            = SiteSettingDef{"smtp_host", "", TypeString}
 	SettingSMTPPort            = SiteSettingDef{"smtp_port", "25", TypeInt}
 	SettingSMTPFrom            = SiteSettingDef{"smtp_from", "", TypeString}
@@ -81,6 +83,7 @@ var (
 		SettingAnnouncementBanner,
 		SettingMaxTheoriesPerDay,
 		SettingMaxResponsesPerDay,
+		SettingMaxPostsPerDay,
 		SettingMinPasswordLength,
 		SettingSessionDurationDays,
 		SettingDefaultTheme,
@@ -89,6 +92,7 @@ var (
 		SettingTurnstileSiteKey,
 		SettingTurnstileSecretKey,
 		SettingRulesTheories,
+		SettingRulesGameBoard,
 		SettingSMTPHost,
 		SettingSMTPPort,
 		SettingSMTPFrom,

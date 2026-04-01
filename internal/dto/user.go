@@ -14,6 +14,7 @@ type (
 		AvatarURL       string    `json:"avatar_url,omitempty"`
 		Role            role.Role `json:"role,omitempty"`
 		EpisodeProgress int       `json:"episode_progress"`
+		HomePage        string    `json:"home_page,omitempty"`
 	}
 
 	UserProfileResponse struct {
@@ -41,6 +42,7 @@ type (
 		Email              string       `json:"email,omitempty"`
 		EmailPublic        bool         `json:"email_public"`
 		EmailNotifications bool         `json:"email_notifications"`
+		HomePage           string       `json:"home_page"`
 		CreatedAt          string       `json:"created_at"`
 		Stats              UserStatsDTO `json:"stats"`
 	}
@@ -72,6 +74,7 @@ type (
 		Email              string  `json:"email"`
 		EmailPublic        bool    `json:"email_public"`
 		EmailNotifications bool    `json:"email_notifications"`
+		HomePage           string  `json:"home_page"`
 	}
 
 	ChangePasswordRequest struct {
