@@ -1,14 +1,12 @@
-import {useMemo, useRef, useState} from "react";
-import {createPost, uploadPostMedia} from "../../../api/endpoints";
-import {Button} from "../../Button/Button";
-import {TextArea} from "../../TextArea/TextArea";
+import { useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router";
+import { createPost, uploadPostMedia } from "../../../api/endpoints";
+import { Button } from "../../Button/Button";
+import { TextArea } from "../../TextArea/TextArea";
 import styles from "./PostComposer.module.css";
 
-interface PostComposerProps {
-    onCreated: () => void;
-}
-
-export function PostComposer({ onCreated }: PostComposerProps) {
+export function PostComposer() {
+    const navigate = useNavigate();
     const [body, setBody] = useState("");
     const [files, setFiles] = useState<File[]>([]);
     const [submitting, setSubmitting] = useState(false);
@@ -34,9 +32,10 @@ export function PostComposer({ onCreated }: PostComposerProps) {
             }
             setBody("");
             setFiles([]);
-            onCreated();
             if (mediaErrors.length > 0) {
                 setError(mediaErrors.join(", "));
+            } else {
+                navigate(`/game-board/${id}`);
             }
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to create post");

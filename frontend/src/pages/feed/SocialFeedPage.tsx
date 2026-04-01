@@ -77,7 +77,7 @@ export function SocialFeedPage() {
                 ))}
             </div>
 
-            {user && <PostComposer onCreated={feed.refresh} />}
+            {user && <PostComposer />}
 
             {feed.loading && <div className="loading">Consulting the game board...</div>}
 

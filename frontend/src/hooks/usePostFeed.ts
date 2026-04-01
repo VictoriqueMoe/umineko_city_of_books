@@ -1,6 +1,6 @@
-import {useCallback, useEffect, useState} from "react";
-import type {FeedTab, Post, PostListResponse} from "../types/api";
-import {listPosts} from "../api/endpoints";
+import { useCallback, useEffect, useState } from "react";
+import type { FeedTab, Post, PostListResponse } from "../types/api";
+import { listPosts } from "../api/endpoints";
 
 export function usePostFeed(tab: FeedTab, search?: string, sort?: string) {
     const [data, setData] = useState<PostListResponse | null>(null);

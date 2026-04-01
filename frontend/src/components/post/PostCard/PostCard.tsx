@@ -1,13 +1,13 @@
-import {useEffect, useState} from "react";
-import {useNavigate} from "react-router";
-import type {Post} from "../../../types/api";
-import {deletePost as apiDeletePost, likePost, unlikePost} from "../../../api/endpoints";
-import {useAuth} from "../../../hooks/useAuth";
-import {useNotifications} from "../../../hooks/useNotifications";
-import {can} from "../../../utils/permissions";
-import {ProfileLink} from "../../ProfileLink/ProfileLink";
-import {MediaGallery} from "../MediaGallery/MediaGallery";
-import {Button} from "../../Button/Button";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
+import type { Post } from "../../../types/api";
+import { deletePost as apiDeletePost, likePost, unlikePost } from "../../../api/endpoints";
+import { useAuth } from "../../../hooks/useAuth";
+import { useNotifications } from "../../../hooks/useNotifications";
+import { can } from "../../../utils/permissions";
+import { ProfileLink } from "../../ProfileLink/ProfileLink";
+import { MediaGallery } from "../MediaGallery/MediaGallery";
+import { Button } from "../../Button/Button";
 import styles from "./PostCard.module.css";
 
 interface PostCardProps {
