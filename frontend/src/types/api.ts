@@ -210,16 +210,28 @@ export interface PostMedia {
     sort_order: number;
 }
 
+export interface PostEmbed {
+    url: string;
+    type: "link" | "youtube";
+    title?: string;
+    description?: string;
+    image?: string;
+    site_name?: string;
+    video_id?: string;
+}
+
 export interface Post {
     id: string;
     author: User;
     body: string;
     media: PostMedia[];
+    embeds?: PostEmbed[];
     like_count: number;
     comment_count: number;
     view_count: number;
     user_liked: boolean;
     created_at: string;
+    updated_at?: string;
 }
 
 export interface PostDetail extends Post {
@@ -229,10 +241,16 @@ export interface PostDetail extends Post {
 
 export interface PostComment {
     id: string;
+    parent_id?: string;
     author: User;
     body: string;
     media: PostMedia[];
+    embeds?: PostEmbed[];
+    like_count: number;
+    user_liked: boolean;
+    replies?: PostComment[];
     created_at: string;
+    updated_at?: string;
 }
 
 export interface PostListResponse {
@@ -246,6 +264,7 @@ export interface FollowStats {
     follower_count: number;
     following_count: number;
     is_following: boolean;
+    follows_you: boolean;
 }
 
 export type FeedTab = "following" | "everyone";
@@ -259,7 +278,8 @@ export type NotificationType =
     | "report"
     | "new_follower"
     | "post_liked"
-    | "post_commented";
+    | "post_commented"
+    | "mention";
 
 export interface Notification {
     id: number;
@@ -312,6 +332,8 @@ export interface AdminStats {
     total_theories: number;
     total_responses: number;
     total_votes: number;
+    total_posts: number;
+    total_comments: number;
     new_users_24h: number;
     new_users_7d: number;
     new_users_30d: number;
@@ -321,6 +343,10 @@ export interface AdminStats {
     new_responses_24h: number;
     new_responses_7d: number;
     new_responses_30d: number;
+    new_posts_24h: number;
+    new_posts_7d: number;
+    new_posts_30d: number;
+    posts_by_corner: Record<string, number>;
     most_active_users: {
         id: string;
         username: string;

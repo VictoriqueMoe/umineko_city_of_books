@@ -1,50 +1,65 @@
 package media
 
 import (
+	"context"
 	"fmt"
-	"io"
-	"net/http"
-	"net/url"
+	"math/rand/v2"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"time"
 
 	"umineko_city_of_books/internal/logger"
 )
 
-const thumbnailAPIBase = "https://thumbnails.waifuvault.moe"
-
-func GenerateThumbnail(fileURL string, outputDir string, filename string) (string, error) {
-	reqURL := fmt.Sprintf("%s/generateThumbnail/ext/fromURL?url=%s", thumbnailAPIBase, url.QueryEscape(fileURL))
-
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Get(reqURL)
+func getVideoDuration(ctx context.Context, videoPath string) (float64, error) {
+	cmd := exec.CommandContext(ctx, "ffprobe",
+		"-v", "error",
+		"-show_entries", "format=duration",
+		"-of", "default=noprint_wrappers=1:nokey=1",
+		videoPath,
+	)
+	out, err := cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("thumbnail request: %w", err)
+		return 0, err
 	}
-	defer resp.Body.Close()
+	return strconv.ParseFloat(strings.TrimSpace(string(out)), 64)
+}
 
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("thumbnail API returned %d: %s", resp.StatusCode, string(body))
-	}
-
+func GenerateThumbnail(videoPath string, outputDir string, filename string) (string, error) {
 	thumbFilename := "thumb_" + replaceExt(filename, ".webp")
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		return "", fmt.Errorf("create thumbnail dir: %w", err)
 	}
 
 	destPath := filepath.Join(outputDir, thumbFilename)
-	dst, err := os.Create(destPath)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	ts := "1"
+	duration, err := getVideoDuration(ctx, videoPath)
+	if err == nil && duration > 1 {
+		ts = fmt.Sprintf("%.2f", rand.Float64()*duration)
+	}
+
+	cmd := exec.CommandContext(ctx, "ffmpeg",
+		"-ss", ts,
+		"-i", videoPath,
+		"-frames:v", "1",
+		"-vcodec", "libwebp",
+		"-vf", "scale=-1:200",
+		"-q:v", "80",
+		"-y",
+		destPath,
+	)
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("create thumbnail file: %w", err)
-	}
-	defer dst.Close()
-
-	if _, err := io.Copy(dst, resp.Body); err != nil {
-		return "", fmt.Errorf("write thumbnail: %w", err)
+		return "", fmt.Errorf("ffmpeg thumbnail: %w: %s", err, string(output))
 	}
 
-	logger.Log.Debug().Str("url", fileURL).Str("thumb", destPath).Msg("thumbnail generated")
+	logger.Log.Debug().Str("video", videoPath).Str("thumb", destPath).Msg("thumbnail generated")
 	return thumbFilename, nil
 }

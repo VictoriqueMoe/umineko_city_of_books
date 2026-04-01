@@ -1,33 +1,41 @@
 # Umineko City of Books
 
-A social networking platform for fans of Umineko no Naku Koro ni. The core feature is fan theory debates: users declare theories as **blue truth**, attach quotes from the game as evidence, and others respond on two sides: **"With love, it can be seen"** (support) and **"Without love, it cannot be seen"** (deny). Beyond theories, the platform offers user profiles with pronouns and social links, real-time notifications, role-based moderation, and is growing into a full community hub with plans for discussion boards, fanfiction, fan art, live chat, and more.
+A social networking platform for fans of Umineko no Naku Koro ni. The core feature is fan theory debates: users declare theories as **blue truth**, attach quotes from the game as evidence, and others respond on two sides: **"With love, it can be seen"** (support) and **"Without love, it cannot be seen"** (deny). Beyond theories, the platform offers a full social feed (Game Board) with corners for different WTC titles, user profiles, real-time notifications, @mentions, embeds, role-based moderation, and is growing into a full community hub with plans for fanfiction, fan art, and more.
 
 ## Features
 
-- **Game Board** - Twitter-style social feed with posts, images, videos, likes, comments, and a relevance-based feed algorithm
-- **Follow System** - Follow other users, see their posts in a dedicated Following tab, follower/following counts on profiles
+- **Game Board** - Twitter-style social feed with posts, images, videos, likes, threaded comments, and a relevance-based feed algorithm with deterministic jitter for stable pagination
+- **Corners** - Dedicated sub-feeds for Umineko, Higurashi, and Ciconia, each with their own post count, rules, and content
+- **@Mentions** - Tag users with `@username` autocomplete in posts and comments, mentioned users receive notifications
+- **Embeds** - YouTube links embed inline, other URLs show rich OG preview cards (title, image, description). Embeds refresh daily
+- **Follow System** - Follow other users, see their posts in a Following tab, view follower/following lists on profiles, "Follows you" label
 - **Theory Declarations** - Submit fan theories as blue truth with a title, body, and episode scope
 - **Evidence Attachment** - Search any quote from the game (including narrator quotes) and attach as evidence
 - **Debate System** - Respond with "With love, it can be seen" or "Without love, it cannot be seen", each with their own evidence
 - **Credibility Score** - 0-100 score per theory based on debate quality, weighted by truth type of evidence (gold > red > purple > blue > none)
-- **Threaded Replies** - Reply to responses with one level of threading, then flat with @mentions
-- **Real-Time Notifications** - WebSocket-powered notifications for responses, replies, upvotes, likes, comments, and new followers
+- **Threaded Replies** - Reply to responses and comments with flat threading and @username attribution
+- **Comment System** - Nested comments on posts with likes, media uploads, editing, collapsible threads, and link embeds
+- **Real-Time Notifications** - WebSocket-powered notifications for responses, replies, upvotes, likes, comments, mentions, and new followers
 - **Email Notifications** - SMTP integration with HTML templates, deep links, and per-user toggle
 - **Live Like Counters** - WebSocket broadcast of like events for real-time engagement
 - **Voting** - Upvote/downvote theories and responses (popularity, separate from credibility)
-- **Media Processing** - Automatic image-to-webp and video-to-mp4 encoding via background worker pool, thumbnail generation via external API
-- **User Profiles** - Avatar, draggable banner positioning, bio, pronouns, gender, social links, favourite character, activity feed, posts tab, and online status
+- **Media Processing** - Automatic image-to-webp and video-to-mp4 encoding via background worker pool, local FFmpeg thumbnail generation
+- **Client-Side Validation** - File size limits checked before upload, configured from server settings
+- **User Profiles** - Avatar, draggable banner positioning, bio, pronouns, gender, social links, favourite character, activity feed, posts tab, followers/following lists, and online status
 - **Players Page** - Browse all users grouped by role (Reality Authors, Voyager Witches, Witches) and online/offline status
 - **Role-Based Authorisation** - Permission-based system with themed role names: Reality Author (super admin), Voyager Witch (admin), Witch (moderator). Role-coloured usernames with glow
-- **Admin Panel** - Dashboard with site stats, user management (roles, bans), DB-backed site settings with live reload, invite system, audit log, content rules
+- **Admin Panel** - Dashboard with site stats (users, theories, responses, posts, comments, per-corner breakdown), user management (roles, bans), DB-backed site settings with live reload, invite system, audit log, content rules
 - **Cloudflare Turnstile** - Bot protection on login and registration, configurable from admin settings
 - **Site Settings** - All configuration stored in DB, editable from admin panel, hot-reloadable (body limits, log level, registration type, maintenance mode, etc.)
-- **Content Rules** - Admin-editable rules per section (theories, game board), displayed at the top of each page
+- **Content Rules** - Admin-editable rules per section (theories, general game board, and each corner), displayed at the top of each page
 - **Invite System** - Open, invite-only, or closed registration modes. Admins generate one-time invite codes
 - **Maintenance Mode** - Toggle from admin panel with custom title and message, admins bypass it
 - **Quote Browser** - Browse game quotes filtered by episode, character, and truth type (red/blue/gold/purple)
 - **Five Themes** - Featherine (gold/purple), Beatrice (warm gold/brown), Bernkastel (blue), Lambdadelta (pink), Erika Furudo (cyan/pink)
-- **OG Embeds** - Rich previews when sharing links to theories, posts, and profiles
+- **OG Embeds** - Rich previews when sharing links to theories, posts, and profiles on Twitter/Discord
+- **Sitemap** - Auto-generated sitemap index with sub-sitemaps for static pages, theories, posts, and users
+- **Unique Views** - Post view counts are unique per viewer (hashed user ID or IP)
+- **Mobile Responsive** - Full mobile support across all pages
 - **Configurable Home Page** - Each user picks their default landing page (Theories or Game Board)
 - **Structured Logging** - zerolog with configurable log levels, settings change listener pattern
 
@@ -38,6 +46,7 @@ A social networking platform for fans of Umineko no Naku Koro ni. The core featu
 - **Quotes**: [Umineko Quote Finder API](https://quotes.auaurora.moe/swagger/index.html)
 - **Auth**: Server-side sessions in SQLite with httpOnly cookies
 - **IDs**: UUIDv4 for users, theories, and responses (`github.com/google/uuid`)
+- **Media**: FFmpeg for video transcoding and thumbnail generation
 - **Deployment**: Docker, Caddy reverse proxy
 
 ## Quick Start
@@ -46,6 +55,7 @@ A social networking platform for fans of Umineko no Naku Koro ni. The core featu
 
 - Go 1.26+
 - Node.js (LTS)
+- FFmpeg (for video processing and thumbnails)
 
 ### Environment
 
@@ -78,7 +88,7 @@ npm install
 npm run dev
 ```
 
-The backend runs on `:4323`. The Vite dev server proxies `/api`, `/uploads`, and WebSocket connections to it.
+The backend runs on `:4323`. The Vite dev server proxies `/api`, `/uploads`, `/sitemap`, and WebSocket connections to it.
 
 The first user to register is automatically assigned the admin role.
 

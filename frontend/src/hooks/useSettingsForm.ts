@@ -1,8 +1,10 @@
-import React, { useEffect, useState } from "react";
-import { useAuth } from "./useAuth";
-import { useProfile } from "./useProfile";
-import { getCharacters, updateProfile, uploadAvatar, uploadBanner } from "../api/endpoints";
-import type { UpdateProfilePayload, UserProfile } from "../types/api";
+import React, {useEffect, useState} from "react";
+import {useAuth} from "./useAuth";
+import {useProfile} from "./useProfile";
+import {useSiteInfo} from "./useSiteInfo";
+import {getCharacters, updateProfile, uploadAvatar, uploadBanner} from "../api/endpoints";
+import {validateFileSize} from "../utils/fileValidation";
+import type {UpdateProfilePayload, UserProfile} from "../types/api";
 
 const GENDER_OPTIONS = ["Prefer not to say", "Male", "Female", "Custom"];
 
@@ -36,6 +38,7 @@ function initPronouns(profile: UserProfile) {
 
 export function useSettingsForm() {
     const { user, setUser } = useAuth();
+    const siteInfo = useSiteInfo();
     const { profile, loading: profileLoading } = useProfile(user?.username ?? "");
 
     const [displayName, setDisplayName] = useState("");
@@ -130,6 +133,12 @@ export function useSettingsForm() {
         if (!file) {
             return;
         }
+        const sizeErr = validateFileSize(file, siteInfo.max_image_size, siteInfo.max_video_size);
+        if (sizeErr) {
+            setError(sizeErr);
+            e.target.value = "";
+            return;
+        }
         setUploadingAvatar(true);
         setError("");
         try {
@@ -149,6 +158,11 @@ export function useSettingsForm() {
     async function handleBannerChange(e: React.ChangeEvent<HTMLInputElement>) {
         const file = e.target.files?.[0];
         if (!file) {
+            return;
+        }
+        const sizeErr = validateFileSize(file, siteInfo.max_image_size, siteInfo.max_video_size);
+        if (sizeErr) {
+            setError(sizeErr);
             return;
         }
         setUploadingBanner(true);

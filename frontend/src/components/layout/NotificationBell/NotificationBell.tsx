@@ -1,10 +1,10 @@
-import { useCallback, useRef, useState } from "react";
-import { useNavigate } from "react-router";
-import { useNotifications } from "../../../hooks/useNotifications";
-import { useClickOutside } from "../../../hooks/useClickOutside";
-import { Button } from "../../Button/Button";
-import { ProfileLink } from "../../ProfileLink/ProfileLink";
-import type { Notification, NotificationType } from "../../../types/api";
+import {useCallback, useRef, useState} from "react";
+import {useNavigate} from "react-router";
+import {useNotifications} from "../../../hooks/useNotifications";
+import {useClickOutside} from "../../../hooks/useClickOutside";
+import {Button} from "../../Button/Button";
+import {ProfileLink} from "../../ProfileLink/ProfileLink";
+import type {Notification, NotificationType} from "../../../types/api";
 import styles from "./NotificationBell.module.css";
 
 function notificationText(type: NotificationType): string {
@@ -27,6 +27,8 @@ function notificationText(type: NotificationType): string {
             return "liked your post";
         case "post_commented":
             return "commented on your post";
+        case "mention":
+            return "mentioned you";
     }
 }
 

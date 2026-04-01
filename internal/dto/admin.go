@@ -37,6 +37,8 @@ type (
 		TotalTheories   int              `json:"total_theories"`
 		TotalResponses  int              `json:"total_responses"`
 		TotalVotes      int              `json:"total_votes"`
+		TotalPosts      int              `json:"total_posts"`
+		TotalComments   int              `json:"total_comments"`
 		NewUsers24h     int              `json:"new_users_24h"`
 		NewUsers7d      int              `json:"new_users_7d"`
 		NewUsers30d     int              `json:"new_users_30d"`
@@ -46,6 +48,10 @@ type (
 		NewResponses24h int              `json:"new_responses_24h"`
 		NewResponses7d  int              `json:"new_responses_7d"`
 		NewResponses30d int              `json:"new_responses_30d"`
+		NewPosts24h     int              `json:"new_posts_24h"`
+		NewPosts7d      int              `json:"new_posts_7d"`
+		NewPosts30d     int              `json:"new_posts_30d"`
+		PostsByCorner   map[string]int   `json:"posts_by_corner"`
 		MostActiveUsers []MostActiveUser `json:"most_active_users"`
 	}
 

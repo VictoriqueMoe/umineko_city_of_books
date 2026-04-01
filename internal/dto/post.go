@@ -11,16 +11,32 @@ type (
 		SortOrder    int    `json:"sort_order"`
 	}
 
+	EmbedResponse struct {
+		URL      string `json:"url"`
+		Type     string `json:"type"`
+		Title    string `json:"title,omitempty"`
+		Desc     string `json:"description,omitempty"`
+		Image    string `json:"image,omitempty"`
+		SiteName string `json:"site_name,omitempty"`
+		VideoID  string `json:"video_id,omitempty"`
+	}
+
 	PostResponse struct {
 		ID           uuid.UUID           `json:"id"`
 		Author       UserResponse        `json:"author"`
 		Body         string              `json:"body"`
 		Media        []PostMediaResponse `json:"media"`
+		Embeds       []EmbedResponse     `json:"embeds,omitempty"`
 		LikeCount    int                 `json:"like_count"`
 		CommentCount int                 `json:"comment_count"`
 		ViewCount    int                 `json:"view_count"`
 		UserLiked    bool                `json:"user_liked"`
 		CreatedAt    string              `json:"created_at"`
+		UpdatedAt    *string             `json:"updated_at,omitempty"`
+	}
+
+	UpdatePostRequest struct {
+		Body string `json:"body"`
 	}
 
 	PostDetailResponse struct {
@@ -30,11 +46,17 @@ type (
 	}
 
 	PostCommentResponse struct {
-		ID        uuid.UUID           `json:"id"`
-		Author    UserResponse        `json:"author"`
-		Body      string              `json:"body"`
-		Media     []PostMediaResponse `json:"media"`
-		CreatedAt string              `json:"created_at"`
+		ID        uuid.UUID             `json:"id"`
+		ParentID  *uuid.UUID            `json:"parent_id,omitempty"`
+		Author    UserResponse          `json:"author"`
+		Body      string                `json:"body"`
+		Media     []PostMediaResponse   `json:"media"`
+		Embeds    []EmbedResponse       `json:"embeds,omitempty"`
+		LikeCount int                   `json:"like_count"`
+		UserLiked bool                  `json:"user_liked"`
+		Replies   []PostCommentResponse `json:"replies,omitempty"`
+		CreatedAt string                `json:"created_at"`
+		UpdatedAt *string               `json:"updated_at,omitempty"`
 	}
 
 	PostListResponse struct {
@@ -45,10 +67,16 @@ type (
 	}
 
 	CreatePostRequest struct {
-		Body string `json:"body"`
+		Corner string `json:"corner"`
+		Body   string `json:"body"`
 	}
 
 	CreateCommentRequest struct {
+		ParentID *uuid.UUID `json:"parent_id,omitempty"`
+		Body     string     `json:"body"`
+	}
+
+	UpdateCommentRequest struct {
 		Body string `json:"body"`
 	}
 
@@ -56,5 +84,6 @@ type (
 		FollowerCount  int  `json:"follower_count"`
 		FollowingCount int  `json:"following_count"`
 		IsFollowing    bool `json:"is_following"`
+		FollowsYou     bool `json:"follows_you"`
 	}
 )

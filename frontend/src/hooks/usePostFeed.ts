@@ -1,12 +1,23 @@
-import { useCallback, useEffect, useState } from "react";
-import type { FeedTab, Post, PostListResponse } from "../types/api";
-import { listPosts } from "../api/endpoints";
+import {useCallback, useEffect, useRef, useState} from "react";
+import type {FeedTab, Post, PostListResponse} from "../types/api";
+import {listPosts} from "../api/endpoints";
 
-export function usePostFeed(tab: FeedTab, search?: string, sort?: string) {
+function generateSeed(): number {
+    return Math.floor(Math.random() * 1000000);
+}
+
+export function usePostFeed(
+    tab: FeedTab,
+    corner: string = "general",
+    search?: string,
+    sort?: string,
+    page: number = 1,
+) {
     const [data, setData] = useState<PostListResponse | null>(null);
     const [loading, setLoading] = useState(false);
-    const [offset, setOffset] = useState(0);
+    const seedRef = useRef(generateSeed());
     const limit = 20;
+    const offset = (page - 1) * limit;
 
     const fetchPosts = useCallback(
         async (currentOffset: number, showLoading = true) => {
@@ -16,8 +27,10 @@ export function usePostFeed(tab: FeedTab, search?: string, sort?: string) {
             try {
                 const result = await listPosts({
                     tab,
+                    corner,
                     search: search || undefined,
                     sort: sort || undefined,
+                    seed: seedRef.current,
                     limit,
                     offset: currentOffset,
                 });
@@ -28,29 +41,12 @@ export function usePostFeed(tab: FeedTab, search?: string, sort?: string) {
                 setLoading(false);
             }
         },
-        [tab, search, sort],
+        [tab, corner, search, sort],
     );
 
     useEffect(() => {
-        setOffset(0);
-        fetchPosts(0);
-    }, [fetchPosts]);
-
-    const goNext = useCallback(() => {
-        if (data && offset + limit < data.total) {
-            const next = offset + limit;
-            setOffset(next);
-            fetchPosts(next);
-        }
-    }, [data, offset, fetchPosts]);
-
-    const goPrev = useCallback(() => {
-        if (offset > 0) {
-            const prev = Math.max(0, offset - limit);
-            setOffset(prev);
-            fetchPosts(prev);
-        }
-    }, [offset, fetchPosts]);
+        fetchPosts(offset);
+    }, [fetchPosts, offset]);
 
     return {
         posts: data?.posts ?? ([] as Post[]),
@@ -58,8 +54,6 @@ export function usePostFeed(tab: FeedTab, search?: string, sort?: string) {
         loading,
         offset,
         limit,
-        goNext,
-        goPrev,
         hasNext: data ? offset + limit < data.total : false,
         hasPrev: offset > 0,
         refresh: () => fetchPosts(offset, false),

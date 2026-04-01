@@ -1,4 +1,4 @@
-import { apiDelete, apiDeleteWithBody, apiFetch, apiPost, apiPostFormData, apiPut, buildQueryString } from "./client";
+import {apiDelete, apiDeleteWithBody, apiFetch, apiPost, apiPostFormData, apiPut, buildQueryString} from "./client";
 import type {
     ActivityListResponse,
     AdminStats,
@@ -40,6 +40,8 @@ export interface SiteInfo {
     maintenance_message: string;
     turnstile_enabled: boolean;
     turnstile_site_key: string;
+    max_image_size: number;
+    max_video_size: number;
 }
 
 export async function getSiteInfo(): Promise<SiteInfo> {
@@ -404,10 +406,24 @@ export async function getRules(page: string): Promise<{ page: string; rules: str
     return apiFetch<{ page: string; rules: string }>(`/rules/${page}`);
 }
 
+export async function searchUsers(query: string): Promise<User[]> {
+    return apiFetch<User[]>(`/users/search?q=${encodeURIComponent(query)}`);
+}
+
+export async function getMutualFollowers(): Promise<User[]> {
+    return apiFetch<User[]>("/users/mutuals");
+}
+
+export async function getCornerCounts(): Promise<Record<string, number>> {
+    return apiFetch<Record<string, number>>("/posts/corner-counts");
+}
+
 export async function listPosts(params: {
     tab?: string;
+    corner?: string;
     search?: string;
     sort?: string;
+    seed?: number;
     limit?: number;
     offset?: number;
 }): Promise<PostListResponse> {
@@ -419,8 +435,12 @@ export async function getPost(id: string): Promise<PostDetail> {
     return apiFetch<PostDetail>(`/posts/${id}`);
 }
 
-export async function createPost(body: string): Promise<{ id: string }> {
-    return apiPost<{ id: string }, { body: string }>("/posts", { body });
+export async function updatePost(id: string, body: string): Promise<void> {
+    await apiPut<unknown, { body: string }>(`/posts/${id}`, { body });
+}
+
+export async function createPost(body: string, corner: string = "general"): Promise<{ id: string }> {
+    return apiPost<{ id: string }, { body: string; corner: string }>("/posts", { body, corner });
 }
 
 export async function deletePost(id: string): Promise<void> {
@@ -441,12 +461,27 @@ export async function unlikePost(id: string): Promise<void> {
     await apiDelete(`/posts/${id}/like`);
 }
 
-export async function createComment(postId: string, body: string): Promise<{ id: string }> {
-    return apiPost<{ id: string }, { body: string }>(`/posts/${postId}/comments`, { body });
+export async function createComment(postId: string, body: string, parentId?: string): Promise<{ id: string }> {
+    return apiPost<{ id: string }, { body: string; parent_id?: string }>(`/posts/${postId}/comments`, {
+        body,
+        parent_id: parentId,
+    });
+}
+
+export async function updateComment(id: string, body: string): Promise<void> {
+    await apiPut<unknown, { body: string }>(`/comments/${id}`, { body });
 }
 
 export async function deleteComment(id: string): Promise<void> {
     await apiDelete(`/comments/${id}`);
+}
+
+export async function likeComment(id: string): Promise<void> {
+    await apiPost<unknown, undefined>(`/comments/${id}/like`, undefined);
+}
+
+export async function unlikeComment(id: string): Promise<void> {
+    await apiDelete(`/comments/${id}/like`);
 }
 
 export async function uploadCommentMedia(commentId: string, file: File): Promise<PostMedia> {
@@ -470,6 +505,24 @@ export async function unfollowUser(id: string): Promise<void> {
 
 export async function getFollowStats(id: string): Promise<FollowStats> {
     return apiFetch<FollowStats>(`/users/${id}/follow-stats`);
+}
+
+export async function getFollowers(
+    id: string,
+    limit: number = 50,
+    offset: number = 0,
+): Promise<{ users: User[]; total: number }> {
+    const qs = buildQueryString({ limit, offset });
+    return apiFetch<{ users: User[]; total: number }>(`/users/${id}/followers${qs}`);
+}
+
+export async function getFollowing(
+    id: string,
+    limit: number = 50,
+    offset: number = 0,
+): Promise<{ users: User[]; total: number }> {
+    const qs = buildQueryString({ limit, offset });
+    return apiFetch<{ users: User[]; total: number }>(`/users/${id}/following${qs}`);
 }
 
 export interface PublicUser extends User {

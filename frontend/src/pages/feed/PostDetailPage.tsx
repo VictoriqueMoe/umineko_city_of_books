@@ -1,12 +1,12 @@
-import { useCallback, useEffect, useState } from "react";
-import { useLocation, useNavigate, useParams } from "react-router";
-import type { PostDetail } from "../../types/api";
-import { getPost } from "../../api/endpoints";
-import { useAuth } from "../../hooks/useAuth";
-import { PostCard } from "../../components/post/PostCard/PostCard";
-import { CommentItem } from "../../components/post/CommentItem/CommentItem";
-import { CommentComposer } from "../../components/post/CommentComposer/CommentComposer";
-import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
+import {useCallback, useEffect, useState} from "react";
+import {useLocation, useNavigate, useParams} from "react-router";
+import type {PostDetail} from "../../types/api";
+import {getPost} from "../../api/endpoints";
+import {useAuth} from "../../hooks/useAuth";
+import {PostCard} from "../../components/post/PostCard/PostCard";
+import {CommentItem} from "../../components/post/CommentItem/CommentItem";
+import {CommentComposer} from "../../components/post/CommentComposer/CommentComposer";
+import {ProfileLink} from "../../components/ProfileLink/ProfileLink";
 import styles from "./PostDetailPage.module.css";
 
 export function PostDetailPage() {
@@ -56,7 +56,7 @@ export function PostDetailPage() {
 
     return (
         <div className={styles.page}>
-            <span className={styles.back} onClick={() => navigate("/game-board")}>
+            <span className={styles.back} onClick={() => navigate(-1)}>
                 &larr; Back to Game Board
             </span>
             <PostCard post={post} onDelete={() => navigate("/game-board")} />
@@ -82,7 +82,7 @@ export function PostDetailPage() {
                         comment={c}
                         postId={post.id}
                         onDelete={fetchPost}
-                        highlighted={highlightedComment === c.id}
+                        highlighted={c.id === highlightedComment}
                     />
                 ))}
                 {post.comments.length === 0 && <p className={styles.noComments}>No comments yet.</p>}

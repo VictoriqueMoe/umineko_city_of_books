@@ -12,6 +12,7 @@ html {
     font-size: 16px;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
 }
 
 body {
@@ -20,6 +21,7 @@ body {
     background-color: var(--bg-void);
     min-height: 100vh;
     line-height: 1.6;
+    overflow-x: hidden;
 }
 
 #root {
@@ -186,5 +188,11 @@ select {
 
     .main-content {
         padding: 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .main-content {
+        padding: 0.75rem;
     }
 }

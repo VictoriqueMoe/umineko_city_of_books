@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from "react";
-import { NavLink, useLocation } from "react-router";
-import { useAuth } from "../../../hooks/useAuth";
-import { useNotifications } from "../../../hooks/useNotifications";
-import { can, canAccessAdmin } from "../../../utils/permissions";
+import {useEffect, useRef, useState} from "react";
+import {NavLink, useLocation} from "react-router";
+import {useAuth} from "../../../hooks/useAuth";
+import {useNotifications} from "../../../hooks/useNotifications";
+import {getCornerCounts} from "../../../api/endpoints";
+import {can, canAccessAdmin} from "../../../utils/permissions";
 import styles from "./Sidebar.module.css";
 
 interface SidebarProps {
@@ -10,16 +11,31 @@ interface SidebarProps {
     onClose: () => void;
 }
 
+const CORNERS = [
+    { path: "/game-board", label: "General", key: "general" },
+    { path: "/game-board/umineko", label: "Umineko", key: "umineko" },
+    { path: "/game-board/higurashi", label: "Higurashi", key: "higurashi" },
+    { path: "/game-board/ciconia", label: "Ciconia", key: "ciconia" },
+];
+
 export function Sidebar({ open, onClose }: SidebarProps) {
     const { user } = useAuth();
     const { addWSListener } = useNotifications();
     const location = useLocation();
     const [unreadChat, setUnreadChat] = useState(0);
+    const [cornersOpen, setCornersOpen] = useState(location.pathname.startsWith("/game-board"));
+    const [cornerCounts, setCornerCounts] = useState<Record<string, number>>({});
     const pathnameRef = useRef(location.pathname);
 
     useEffect(() => {
         pathnameRef.current = location.pathname;
     }, [location.pathname]);
+
+    useEffect(() => {
+        getCornerCounts()
+            .then(setCornerCounts)
+            .catch(() => {});
+    }, []);
 
     useEffect(() => {
         return addWSListener(msg => {
@@ -46,13 +62,31 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                 <nav className={styles.nav}>
                     <div className={styles.section}>
                         <span className={styles.sectionLabel}>Browse</span>
-                        <NavLink
-                            to="/game-board"
-                            className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
-                            onClick={onClose}
+                        <button
+                            className={`${styles.link} ${styles.expandBtn}${cornersOpen ? ` ${styles.expandOpen}` : ""}`}
+                            onClick={() => setCornersOpen(prev => !prev)}
                         >
                             Game Board
-                        </NavLink>
+                            <span className={styles.expandIcon}>{cornersOpen ? "\u25B4" : "\u25BE"}</span>
+                        </button>
+                        {cornersOpen && (
+                            <div className={styles.subLinks}>
+                                {CORNERS.map(c => (
+                                    <NavLink
+                                        key={c.path}
+                                        to={c.path}
+                                        end
+                                        className={({ isActive }) =>
+                                            `${styles.link} ${styles.subLink}${isActive ? ` ${styles.active}` : ""}`
+                                        }
+                                        onClick={onClose}
+                                    >
+                                        {c.label}
+                                        <span className={styles.cornerCount}>{cornerCounts[c.key] ?? 0}</span>
+                                    </NavLink>
+                                ))}
+                            </div>
+                        )}
                         <NavLink
                             to="/theories"
                             className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}

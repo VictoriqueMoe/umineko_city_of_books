@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
-import { createInvite, deleteInvite, getInvites, type InviteItem } from "../../api/endpoints";
-import { Button } from "../../components/Button/Button";
+import {useCallback, useEffect, useState} from "react";
+import {createInvite, deleteInvite, getInvites, type InviteItem} from "../../api/endpoints";
+import {Button} from "../../components/Button/Button";
 import styles from "./AdminInvites.module.css";
 
 export function AdminInvites() {
@@ -34,6 +34,9 @@ export function AdminInvites() {
     }
 
     async function handleDelete(code: string) {
+        if (!window.confirm("Are you sure you want to delete this invite?")) {
+            return;
+        }
         try {
             await deleteInvite(code);
             await fetchInvites();

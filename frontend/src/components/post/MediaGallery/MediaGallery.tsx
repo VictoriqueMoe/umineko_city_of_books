@@ -1,6 +1,6 @@
-import { useState } from "react";
-import type { PostMedia } from "../../../types/api";
-import { Modal } from "../../Modal/Modal";
+import {useState} from "react";
+import type {PostMedia} from "../../../types/api";
+import {Modal} from "../../Modal/Modal";
 import styles from "./MediaGallery.module.css";
 
 interface MediaGalleryProps {
@@ -27,7 +27,7 @@ export function MediaGallery({ media }: MediaGalleryProps) {
                                 src={item.media_url}
                                 poster={item.thumbnail_url || undefined}
                                 controls
-                                preload="none"
+                                preload="metadata"
                             />
                         ) : (
                             <img

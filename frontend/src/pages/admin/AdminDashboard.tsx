@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
-import { getAdminStats } from "../../api/endpoints";
-import type { AdminStats } from "../../types/api";
+import {useEffect, useState} from "react";
+import {getAdminStats} from "../../api/endpoints";
+import type {AdminStats} from "../../types/api";
 import styles from "./AdminDashboard.module.css";
 
 export function AdminDashboard() {
@@ -48,7 +48,29 @@ export function AdminDashboard() {
                     <div className={styles.statLabel}>Total Votes</div>
                     <div className={styles.statValue}>{stats.total_votes.toLocaleString()}</div>
                 </div>
+                <div className={styles.statCard}>
+                    <div className={styles.statLabel}>Total Posts</div>
+                    <div className={styles.statValue}>{stats.total_posts.toLocaleString()}</div>
+                </div>
+                <div className={styles.statCard}>
+                    <div className={styles.statLabel}>Total Comments</div>
+                    <div className={styles.statValue}>{stats.total_comments.toLocaleString()}</div>
+                </div>
             </div>
+
+            {stats.posts_by_corner && Object.keys(stats.posts_by_corner).length > 0 && (
+                <>
+                    <h2 className={styles.sectionTitle}>Posts by Corner</h2>
+                    <div className={styles.statCards}>
+                        {Object.entries(stats.posts_by_corner).map(([corner, count]) => (
+                            <div key={corner} className={styles.statCard}>
+                                <div className={styles.statLabel}>{corner}</div>
+                                <div className={styles.statValue}>{count.toLocaleString()}</div>
+                            </div>
+                        ))}
+                    </div>
+                </>
+            )}
 
             <h2 className={styles.sectionTitle}>Activity Overview</h2>
             <table className={styles.table}>
@@ -58,6 +80,7 @@ export function AdminDashboard() {
                         <th>New Users</th>
                         <th>New Theories</th>
                         <th>New Responses</th>
+                        <th>New Posts</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -66,18 +89,21 @@ export function AdminDashboard() {
                         <td>{stats.new_users_24h}</td>
                         <td>{stats.new_theories_24h}</td>
                         <td>{stats.new_responses_24h}</td>
+                        <td>{stats.new_posts_24h}</td>
                     </tr>
                     <tr>
                         <td>Last 7 days</td>
                         <td>{stats.new_users_7d}</td>
                         <td>{stats.new_theories_7d}</td>
                         <td>{stats.new_responses_7d}</td>
+                        <td>{stats.new_posts_7d}</td>
                     </tr>
                     <tr>
                         <td>Last 30 days</td>
                         <td>{stats.new_users_30d}</td>
                         <td>{stats.new_theories_30d}</td>
                         <td>{stats.new_responses_30d}</td>
+                        <td>{stats.new_posts_30d}</td>
                     </tr>
                 </tbody>
             </table>

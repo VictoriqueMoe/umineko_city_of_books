@@ -1,5 +1,5 @@
-import { useState } from "react";
-import type { Quote } from "../../../types/api";
+import {useState} from "react";
+import type {Quote} from "../../../types/api";
 import styles from "./TruthChip.module.css";
 
 interface TruthChipProps {
@@ -35,6 +35,7 @@ export function TruthChip({ quote, note, onRemove }: TruthChipProps) {
                 {displayText}
                 {isTruncated && (
                     <button
+                        type="button"
                         className={styles.expandToggle}
                         onClick={e => {
                             e.stopPropagation();

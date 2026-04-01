@@ -1,16 +1,16 @@
-import { useCallback, useEffect, useState } from "react";
-import { useLocation } from "react-router";
-import type { Response as TheoryResponse } from "../../../types/api";
-import { useAuth } from "../../../hooks/useAuth";
-import { useVote } from "../../../hooks/useVote";
-import { deleteResponse, voteResponse } from "../../../api/endpoints";
-import { Button } from "../../Button/Button";
-import { ProfileLink } from "../../ProfileLink/ProfileLink";
-import { VoteButton } from "../VoteButton/VoteButton";
-import { EvidenceList } from "../EvidenceList/EvidenceList";
-import { ResponseEditor } from "../ResponseEditor/ResponseEditor";
-import { ReportButton } from "../../ReportButton/ReportButton";
-import { can } from "../../../utils/permissions";
+import {useCallback, useEffect, useState} from "react";
+import {useLocation} from "react-router";
+import type {Response as TheoryResponse} from "../../../types/api";
+import {useAuth} from "../../../hooks/useAuth";
+import {useVote} from "../../../hooks/useVote";
+import {deleteResponse, voteResponse} from "../../../api/endpoints";
+import {Button} from "../../Button/Button";
+import {ProfileLink} from "../../ProfileLink/ProfileLink";
+import {VoteButton} from "../VoteButton/VoteButton";
+import {EvidenceList} from "../EvidenceList/EvidenceList";
+import {ResponseEditor} from "../ResponseEditor/ResponseEditor";
+import {ReportButton} from "../../ReportButton/ReportButton";
+import {can} from "../../../utils/permissions";
 import styles from "./ResponseCard.module.css";
 
 interface ResponseCardProps {
@@ -46,6 +46,9 @@ function ResponseCard({
     const { score, userVote, vote } = useVote(response.vote_score, response.user_vote ?? 0, voteFn);
 
     async function handleDelete() {
+        if (!window.confirm("Are you sure you want to delete this response?")) {
+            return;
+        }
         await deleteResponse(response.id);
         onDeleted?.();
     }

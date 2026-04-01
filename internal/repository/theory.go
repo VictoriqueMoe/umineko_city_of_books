@@ -9,6 +9,7 @@ import (
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/theory/params"
+	"umineko_city_of_books/internal/utils"
 
 	"github.com/google/uuid"
 )
@@ -433,47 +434,11 @@ func (r *theoryRepository) GetResponses(ctx context.Context, theoryID uuid.UUID,
 		return nil, err
 	}
 
-	return buildResponseTree(all), nil
-}
-
-type responseNode struct {
-	data     dto.ResponseResponse
-	children []*responseNode
-}
-
-func buildResponseTree(flat []dto.ResponseResponse) []dto.ResponseResponse {
-	nodes := make(map[uuid.UUID]*responseNode)
-	for i := range flat {
-		nodes[flat[i].ID] = &responseNode{data: flat[i]}
-	}
-
-	var roots []*responseNode
-	for i := range flat {
-		if flat[i].ParentID == nil {
-			roots = append(roots, nodes[flat[i].ID])
-		} else {
-			if parent, ok := nodes[*flat[i].ParentID]; ok {
-				parent.children = append(parent.children, nodes[flat[i].ID])
-			} else {
-				roots = append(roots, nodes[flat[i].ID])
-			}
-		}
-	}
-
-	result := make([]dto.ResponseResponse, len(roots))
-	for i, r := range roots {
-		result[i] = flattenNode(r)
-	}
-	return result
-}
-
-func flattenNode(n *responseNode) dto.ResponseResponse {
-	resp := n.data
-	resp.Replies = nil
-	for _, child := range n.children {
-		resp.Replies = append(resp.Replies, flattenNode(child))
-	}
-	return resp
+	return utils.BuildTree(all,
+		func(r dto.ResponseResponse) uuid.UUID { return r.ID },
+		func(r dto.ResponseResponse) *uuid.UUID { return r.ParentID },
+		func(r *dto.ResponseResponse, replies []dto.ResponseResponse) { r.Replies = replies },
+	), nil
 }
 
 func (r *theoryRepository) GetResponseEvidence(ctx context.Context, responseID uuid.UUID) ([]dto.EvidenceResponse, error) {

@@ -1,36 +1,36 @@
-import { useState } from "react";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router";
-import { useSiteInfo } from "./hooks/useSiteInfo";
-import { useTheme } from "./hooks/useTheme";
-import { useAuth } from "./hooks/useAuth";
-import { canAccessAdmin } from "./utils/permissions";
-import { Header } from "./components/layout/Header/Header";
-import { Sidebar } from "./components/layout/Sidebar/Sidebar";
-import { Butterflies } from "./components/layout/Butterflies/Butterflies";
-import { ProtectedRoute } from "./components/ProtectedRoute/ProtectedRoute";
-import { FeedPage } from "./pages/theories/FeedPage";
-import { TheoryPage } from "./pages/theories/TheoryPage";
-import { CreateTheoryPage } from "./pages/theories/CreateTheoryPage";
-import { LoginPage } from "./pages/auth/LoginPage";
-import { QuoteBrowserPage } from "./pages/quotes/QuoteBrowserPage";
-import { MyTheoriesPage } from "./pages/theories/MyTheoriesPage";
-import { EditTheoryPage } from "./pages/theories/EditTheoryPage";
-import { ProfilePage } from "./pages/profile/ProfilePage";
-import { SettingsPage } from "./pages/profile/SettingsPage";
-import { AdminLayout } from "./pages/admin/AdminLayout";
-import { AdminDashboard } from "./pages/admin/AdminDashboard";
-import { AdminUsers } from "./pages/admin/AdminUsers";
-import { AdminUserDetail } from "./pages/admin/AdminUserDetail";
-import { AdminSettings } from "./pages/admin/AdminSettings";
-import { AdminAuditLog } from "./pages/admin/AdminAuditLog";
-import { AdminInvites } from "./pages/admin/AdminInvites";
-import { AdminReports } from "./pages/admin/AdminReports";
-import { AdminContentRules } from "./pages/admin/AdminContentRules";
-import { SocialFeedPage } from "./pages/feed/SocialFeedPage";
-import { PostDetailPage } from "./pages/feed/PostDetailPage";
-import { UsersPage } from "./pages/users/UsersPage";
-import { ChatPage } from "./pages/chat/ChatPage";
-import { MaintenancePage } from "./pages/maintenance/MaintenancePage";
+import {useState} from "react";
+import {BrowserRouter, Navigate, Route, Routes} from "react-router";
+import {useSiteInfo} from "./hooks/useSiteInfo";
+import {useTheme} from "./hooks/useTheme";
+import {useAuth} from "./hooks/useAuth";
+import {canAccessAdmin} from "./utils/permissions";
+import {Header} from "./components/layout/Header/Header";
+import {Sidebar} from "./components/layout/Sidebar/Sidebar";
+import {Butterflies} from "./components/layout/Butterflies/Butterflies";
+import {ProtectedRoute} from "./components/ProtectedRoute/ProtectedRoute";
+import {FeedPage} from "./pages/theories/FeedPage";
+import {TheoryPage} from "./pages/theories/TheoryPage";
+import {CreateTheoryPage} from "./pages/theories/CreateTheoryPage";
+import {LoginPage} from "./pages/auth/LoginPage";
+import {QuoteBrowserPage} from "./pages/quotes/QuoteBrowserPage";
+import {MyTheoriesPage} from "./pages/theories/MyTheoriesPage";
+import {EditTheoryPage} from "./pages/theories/EditTheoryPage";
+import {ProfilePage} from "./pages/profile/ProfilePage";
+import {SettingsPage} from "./pages/profile/SettingsPage";
+import {AdminLayout} from "./pages/admin/AdminLayout";
+import {AdminDashboard} from "./pages/admin/AdminDashboard";
+import {AdminUsers} from "./pages/admin/AdminUsers";
+import {AdminUserDetail} from "./pages/admin/AdminUserDetail";
+import {AdminSettings} from "./pages/admin/AdminSettings";
+import {AdminAuditLog} from "./pages/admin/AdminAuditLog";
+import {AdminInvites} from "./pages/admin/AdminInvites";
+import {AdminReports} from "./pages/admin/AdminReports";
+import {AdminContentRules} from "./pages/admin/AdminContentRules";
+import {SocialFeedPage} from "./pages/feed/SocialFeedPage";
+import {PostDetailPage} from "./pages/feed/PostDetailPage";
+import {UsersPage} from "./pages/users/UsersPage";
+import {ChatPage} from "./pages/chat/ChatPage";
+import {MaintenancePage} from "./pages/maintenance/MaintenancePage";
 
 const homePageRoutes: Record<string, string> = {
     theories: "/theories",
@@ -96,6 +96,9 @@ function AppLayout() {
                         <Route path="/" element={<HomePage />} />
                         <Route path="/theories" element={<FeedPage />} />
                         <Route path="/game-board" element={<SocialFeedPage />} />
+                        <Route path="/game-board/umineko" element={<SocialFeedPage corner="umineko" />} />
+                        <Route path="/game-board/higurashi" element={<SocialFeedPage corner="higurashi" />} />
+                        <Route path="/game-board/ciconia" element={<SocialFeedPage corner="ciconia" />} />
                         <Route path="/game-board/:id" element={<PostDetailPage />} />
                         <Route path="/theory/:id" element={<TheoryPage />} />
                         <Route path="/quotes" element={<QuoteBrowserPage />} />

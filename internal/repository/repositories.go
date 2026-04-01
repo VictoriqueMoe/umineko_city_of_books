@@ -4,6 +4,7 @@ import "database/sql"
 
 type (
 	Repositories struct {
+		db           *sql.DB
 		Session      SessionRepository
 		User         UserRepository
 		Theory       TheoryRepository
@@ -20,8 +21,13 @@ type (
 	}
 )
 
+func (r *Repositories) DB() *sql.DB {
+	return r.db
+}
+
 func New(db *sql.DB) *Repositories {
 	return &Repositories{
+		db:           db,
 		Session:      &sessionRepository{db: db},
 		User:         &userRepository{db: db},
 		Theory:       &theoryRepository{db: db},

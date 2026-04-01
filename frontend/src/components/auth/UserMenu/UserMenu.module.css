@@ -83,3 +83,13 @@
     justify-content: center;
     color: var(--text);
 }
+
+@media (max-width: 480px) {
+    .name {
+        display: none;
+    }
+
+    .trigger {
+        padding: 0.4rem 0.5rem;
+    }
+}

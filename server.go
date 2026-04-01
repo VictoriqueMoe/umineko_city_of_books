@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"umineko_city_of_books/internal/admin"
 	"umineko_city_of_books/internal/auth"
@@ -147,6 +148,17 @@ func registerListeners(settingsSvc settings.Service, app *fiber.App, svc *servic
 	settingsSvc.Subscribe(logger.NewSettingsListener())
 	settingsSvc.Subscribe(middleware.NewBodyLimitListener(app))
 	settingsSvc.Subscribe(email.NewMailSettingListener(svc.email))
+
+	go func() {
+		ticker := time.NewTicker(1 * time.Hour)
+		defer ticker.Stop()
+		for range ticker.C {
+			n := svc.post.RefreshStaleEmbeds(context.Background())
+			if n > 0 {
+				logger.Log.Info().Int("count", n).Msg("refreshed stale embeds")
+			}
+		}
+	}()
 }
 
 func initApp(svc *services, repos *repository.Repositories, settingsSvc settings.Service) *fiber.App {
@@ -166,6 +178,10 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 	)
 	routes.PublicRoutes(ctrlService, app)
 
+	baseURL := settingsSvc.Get(context.Background(), config.SettingBaseURL)
+	sitemapHandler := controllers.NewSitemapHandler(repos.DB(), baseURL)
+	sitemapHandler.Register(app)
+
 	app.Get("/api/v1/ws", ws.Handler(svc.hub, svc.session, svc.chat))
 	app.Get("/uploads/*", func(ctx fiber.Ctx) error {
 		filePath := filepath.Join(svc.upload.GetUploadDir(), ctx.Params("*"))
@@ -178,7 +194,6 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 		logger.Log.Fatal().Err(err).Msg("failed to create static sub-filesystem")
 	}
 
-	baseURL := settingsSvc.Get(context.Background(), config.SettingBaseURL)
 	ogResolver := og.NewResolver(repos.Theory, repos.User, repos.Post, string(htmlBytes), baseURL)
 
 	app.Get("/*", func(ctx fiber.Ctx) error {
