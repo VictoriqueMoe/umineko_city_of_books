@@ -1,10 +1,10 @@
-import React, {useState} from "react";
-import {useNavigate} from "react-router";
-import {Turnstile} from "@marsidev/react-turnstile";
-import {useAuth} from "../../hooks/useAuth";
-import {useSiteInfo} from "../../hooks/useSiteInfo";
-import {Button} from "../../components/Button/Button";
-import {Input} from "../../components/Input/Input";
+import React, { useState } from "react";
+import { useNavigate } from "react-router";
+import { Turnstile } from "@marsidev/react-turnstile";
+import { useAuth } from "../../hooks/useAuth";
+import { useSiteInfo } from "../../hooks/useSiteInfo";
+import { Button } from "../../components/Button/Button";
+import { Input } from "../../components/Input/Input";
 import styles from "./LoginPage.module.css";
 
 export function LoginPage() {

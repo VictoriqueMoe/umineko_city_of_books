@@ -1,7 +1,7 @@
-import {type PropsWithChildren, useEffect, useState} from "react";
-import type {SiteInfo} from "../api/endpoints";
-import {getSiteInfo} from "../api/endpoints";
-import {SiteInfoContext} from "./siteInfoContextValue";
+import { type PropsWithChildren, useEffect, useState } from "react";
+import type { SiteInfo } from "../api/endpoints";
+import { getSiteInfo } from "../api/endpoints";
+import { SiteInfoContext } from "./siteInfoContextValue";
 
 export function SiteInfoProvider({ children }: PropsWithChildren) {
     const [siteInfo, setSiteInfo] = useState<SiteInfo | null>(null);

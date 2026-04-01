@@ -1,8 +1,8 @@
-import {useEffect, useMemo, useState} from "react";
-import type {PublicUser} from "../../api/endpoints";
-import {listUsersPublic} from "../../api/endpoints";
-import {ProfileLink} from "../../components/ProfileLink/ProfileLink";
-import {Input} from "../../components/Input/Input";
+import { useEffect, useMemo, useState } from "react";
+import type { PublicUser } from "../../api/endpoints";
+import { listUsersPublic } from "../../api/endpoints";
+import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
+import { Input } from "../../components/Input/Input";
 import styles from "./UsersPage.module.css";
 
 const ROLE_GROUPS = [

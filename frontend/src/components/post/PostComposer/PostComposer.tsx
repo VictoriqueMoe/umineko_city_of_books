@@ -1,7 +1,7 @@
-import {useMemo, useRef, useState} from "react";
-import {createPost, uploadPostMedia} from "../../../api/endpoints";
-import {Button} from "../../Button/Button";
-import {TextArea} from "../../TextArea/TextArea";
+import { useMemo, useRef, useState } from "react";
+import { createPost, uploadPostMedia } from "../../../api/endpoints";
+import { Button } from "../../Button/Button";
+import { TextArea } from "../../TextArea/TextArea";
 import styles from "./PostComposer.module.css";
 
 interface PostComposerProps {

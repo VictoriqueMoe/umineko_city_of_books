@@ -1,6 +1,6 @@
-import {useCallback, useEffect, useState} from "react";
-import type {FollowStats} from "../types/api";
-import {followUser, getFollowStats, unfollowUser} from "../api/endpoints";
+import { useCallback, useEffect, useState } from "react";
+import type { FollowStats } from "../types/api";
+import { followUser, getFollowStats, unfollowUser } from "../api/endpoints";
 
 export function useFollow(userId: string) {
     const [stats, setStats] = useState<FollowStats | null>(null);

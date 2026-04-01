@@ -1,9 +1,9 @@
-import {useCallback, useEffect, useState} from "react";
-import {useNavigate} from "react-router";
-import type {ReportItem} from "../../api/endpoints";
-import {getReports, resolveReport} from "../../api/endpoints";
-import {Button} from "../../components/Button/Button";
-import {Select} from "../../components/Select/Select";
+import { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router";
+import type { ReportItem } from "../../api/endpoints";
+import { getReports, resolveReport } from "../../api/endpoints";
+import { Button } from "../../components/Button/Button";
+import { Select } from "../../components/Select/Select";
 import styles from "./AdminReports.module.css";
 
 export function AdminReports() {

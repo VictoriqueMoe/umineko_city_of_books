@@ -1,12 +1,12 @@
-import {useEffect, useRef, useState} from "react";
-import type {FeedTab} from "../../types/api";
-import {useAuth} from "../../hooks/useAuth";
-import {usePostFeed} from "../../hooks/usePostFeed";
-import {PostCard} from "../../components/post/PostCard/PostCard";
-import {PostComposer} from "../../components/post/PostComposer/PostComposer";
-import {Pagination} from "../../components/Pagination/Pagination";
-import {Input} from "../../components/Input/Input";
-import {RulesBox} from "../../components/RulesBox/RulesBox";
+import { useEffect, useRef, useState } from "react";
+import type { FeedTab } from "../../types/api";
+import { useAuth } from "../../hooks/useAuth";
+import { usePostFeed } from "../../hooks/usePostFeed";
+import { PostCard } from "../../components/post/PostCard/PostCard";
+import { PostComposer } from "../../components/post/PostComposer/PostComposer";
+import { Pagination } from "../../components/Pagination/Pagination";
+import { Input } from "../../components/Input/Input";
+import { RulesBox } from "../../components/RulesBox/RulesBox";
 import styles from "./SocialFeedPage.module.css";
 
 type PostSort = "relevance" | "new" | "likes" | "comments" | "views";

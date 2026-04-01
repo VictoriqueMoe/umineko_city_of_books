@@ -1,15 +1,15 @@
-import {useEffect, useReducer, useState} from "react";
-import {useNavigate, useParams} from "react-router";
-import {adminDeleteUser, banUser, getAdminUser, removeUserRole, setUserRole, unbanUser} from "../../api/endpoints";
-import {Button} from "../../components/Button/Button";
-import {Input} from "../../components/Input/Input";
-import {Modal} from "../../components/Modal/Modal";
-import {ProfileLink} from "../../components/ProfileLink/ProfileLink";
-import {RolePill} from "../../components/RolePill/RolePill";
-import {Select} from "../../components/Select/Select";
-import type {AdminUserDetail as AdminUserDetailType} from "../../types/api";
-import {useAuth} from "../../hooks/useAuth";
-import {can} from "../../utils/permissions";
+import { useEffect, useReducer, useState } from "react";
+import { useNavigate, useParams } from "react-router";
+import { adminDeleteUser, banUser, getAdminUser, removeUserRole, setUserRole, unbanUser } from "../../api/endpoints";
+import { Button } from "../../components/Button/Button";
+import { Input } from "../../components/Input/Input";
+import { Modal } from "../../components/Modal/Modal";
+import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
+import { RolePill } from "../../components/RolePill/RolePill";
+import { Select } from "../../components/Select/Select";
+import type { AdminUserDetail as AdminUserDetailType } from "../../types/api";
+import { useAuth } from "../../hooks/useAuth";
+import { can } from "../../utils/permissions";
 import styles from "./AdminUserDetail.module.css";
 
 export function AdminUserDetail() {

@@ -1,6 +1,6 @@
-import {NavLink, Outlet} from "react-router";
-import {useAuth} from "../../hooks/useAuth";
-import {can} from "../../utils/permissions";
+import { NavLink, Outlet } from "react-router";
+import { useAuth } from "../../hooks/useAuth";
+import { can } from "../../utils/permissions";
 import styles from "./AdminLayout.module.css";
 
 export function AdminLayout() {

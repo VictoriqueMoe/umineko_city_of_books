@@ -1,5 +1,5 @@
-import {useContext} from "react";
-import {SiteInfoContext} from "../context/siteInfoContextValue";
+import { useContext } from "react";
+import { SiteInfoContext } from "../context/siteInfoContextValue";
 
 export function useSiteInfo() {
     const ctx = useContext(SiteInfoContext);

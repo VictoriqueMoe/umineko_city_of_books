@@ -1,10 +1,10 @@
-import type {PostComment} from "../../../types/api";
-import {deleteComment as apiDeleteComment} from "../../../api/endpoints";
-import {useAuth} from "../../../hooks/useAuth";
-import {can} from "../../../utils/permissions";
-import {ProfileLink} from "../../ProfileLink/ProfileLink";
-import {MediaGallery} from "../MediaGallery/MediaGallery";
-import {Button} from "../../Button/Button";
+import type { PostComment } from "../../../types/api";
+import { deleteComment as apiDeleteComment } from "../../../api/endpoints";
+import { useAuth } from "../../../hooks/useAuth";
+import { can } from "../../../utils/permissions";
+import { ProfileLink } from "../../ProfileLink/ProfileLink";
+import { MediaGallery } from "../MediaGallery/MediaGallery";
+import { Button } from "../../Button/Button";
 import styles from "./CommentItem.module.css";
 
 interface CommentItemProps {

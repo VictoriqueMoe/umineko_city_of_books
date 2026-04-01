@@ -1,10 +1,10 @@
-import {useEffect, useState} from "react";
-import {getAdminSettings, updateAdminSettings} from "../../api/endpoints";
-import {Button} from "../../components/Button/Button";
-import {Input} from "../../components/Input/Input";
-import {Select} from "../../components/Select/Select";
-import {ToggleSwitch} from "../../components/ToggleSwitch/ToggleSwitch";
-import type {SiteSettings} from "../../types/api";
+import { useEffect, useState } from "react";
+import { getAdminSettings, updateAdminSettings } from "../../api/endpoints";
+import { Button } from "../../components/Button/Button";
+import { Input } from "../../components/Input/Input";
+import { Select } from "../../components/Select/Select";
+import { ToggleSwitch } from "../../components/ToggleSwitch/ToggleSwitch";
+import type { SiteSettings } from "../../types/api";
 import styles from "./AdminSettings.module.css";
 
 const BYTES_PER_MB = 1024 * 1024;

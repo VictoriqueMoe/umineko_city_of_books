@@ -1,9 +1,9 @@
-import {useState} from "react";
-import {createReport} from "../../api/endpoints";
-import {useAuth} from "../../hooks/useAuth";
-import {Button} from "../Button/Button";
-import {Input} from "../Input/Input";
-import {Modal} from "../Modal/Modal";
+import { useState } from "react";
+import { createReport } from "../../api/endpoints";
+import { useAuth } from "../../hooks/useAuth";
+import { Button } from "../Button/Button";
+import { Input } from "../Input/Input";
+import { Modal } from "../Modal/Modal";
 import styles from "./ReportButton.module.css";
 
 interface ReportButtonProps {

@@ -1,17 +1,17 @@
-import {useCallback, useEffect, useState} from "react";
-import {useNavigate, useParams} from "react-router";
-import {useAuth} from "../../hooks/useAuth";
-import {useProfile} from "../../hooks/useProfile";
-import {useTheoryFeed} from "../../hooks/useTheoryFeed";
-import {useFollow} from "../../hooks/useFollow";
-import {getUserActivity, getUserPosts} from "../../api/endpoints";
-import type {ActivityItem, Post} from "../../types/api";
-import {Button} from "../../components/Button/Button";
-import {TheoryCard} from "../../components/theory/TheoryCard/TheoryCard";
-import {PostCard} from "../../components/post/PostCard/PostCard";
-import {Pagination} from "../../components/Pagination/Pagination";
-import {RolePill} from "../../components/RolePill/RolePill";
-import {RoleStyledName} from "../../components/RoleStyledName/RoleStyledName";
+import { useCallback, useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router";
+import { useAuth } from "../../hooks/useAuth";
+import { useProfile } from "../../hooks/useProfile";
+import { useTheoryFeed } from "../../hooks/useTheoryFeed";
+import { useFollow } from "../../hooks/useFollow";
+import { getUserActivity, getUserPosts } from "../../api/endpoints";
+import type { ActivityItem, Post } from "../../types/api";
+import { Button } from "../../components/Button/Button";
+import { TheoryCard } from "../../components/theory/TheoryCard/TheoryCard";
+import { PostCard } from "../../components/post/PostCard/PostCard";
+import { Pagination } from "../../components/Pagination/Pagination";
+import { RolePill } from "../../components/RolePill/RolePill";
+import { RoleStyledName } from "../../components/RoleStyledName/RoleStyledName";
 import styles from "./ProfilePage.module.css";
 
 const SOCIAL_LABELS: Record<string, string> = {

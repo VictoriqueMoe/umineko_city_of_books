@@ -1,9 +1,9 @@
-import {useState} from "react";
-import {useNavigate} from "react-router";
-import type {Theory} from "../../../types/api";
-import {useAuth} from "../../../hooks/useAuth";
-import {ProfileLink} from "../../ProfileLink/ProfileLink";
-import {CredibilityBadge} from "../CredibilityBadge/CredibilityBadge";
+import { useState } from "react";
+import { useNavigate } from "react-router";
+import type { Theory } from "../../../types/api";
+import { useAuth } from "../../../hooks/useAuth";
+import { ProfileLink } from "../../ProfileLink/ProfileLink";
+import { CredibilityBadge } from "../CredibilityBadge/CredibilityBadge";
 import styles from "./TheoryCard.module.css";
 
 interface TheoryCardProps {

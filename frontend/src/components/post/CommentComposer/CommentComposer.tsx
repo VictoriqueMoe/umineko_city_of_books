@@ -1,7 +1,7 @@
-import {useState} from "react";
-import {createComment} from "../../../api/endpoints";
-import {Button} from "../../Button/Button";
-import {TextArea} from "../../TextArea/TextArea";
+import { useState } from "react";
+import { createComment } from "../../../api/endpoints";
+import { Button } from "../../Button/Button";
+import { TextArea } from "../../TextArea/TextArea";
 import styles from "./CommentComposer.module.css";
 
 interface CommentComposerProps {

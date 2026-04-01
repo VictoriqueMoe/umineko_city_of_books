@@ -1,12 +1,12 @@
-import {useCallback, useEffect, useState} from "react";
-import {useLocation, useNavigate, useParams} from "react-router";
-import type {PostDetail} from "../../types/api";
-import {getPost} from "../../api/endpoints";
-import {useAuth} from "../../hooks/useAuth";
-import {PostCard} from "../../components/post/PostCard/PostCard";
-import {CommentItem} from "../../components/post/CommentItem/CommentItem";
-import {CommentComposer} from "../../components/post/CommentComposer/CommentComposer";
-import {ProfileLink} from "../../components/ProfileLink/ProfileLink";
+import { useCallback, useEffect, useState } from "react";
+import { useLocation, useNavigate, useParams } from "react-router";
+import type { PostDetail } from "../../types/api";
+import { getPost } from "../../api/endpoints";
+import { useAuth } from "../../hooks/useAuth";
+import { PostCard } from "../../components/post/PostCard/PostCard";
+import { CommentItem } from "../../components/post/CommentItem/CommentItem";
+import { CommentComposer } from "../../components/post/CommentComposer/CommentComposer";
+import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import styles from "./PostDetailPage.module.css";
 
 export function PostDetailPage() {

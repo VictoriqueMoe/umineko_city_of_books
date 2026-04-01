@@ -1,5 +1,5 @@
-import {useEffect, useState} from "react";
-import {getRules} from "../../api/endpoints";
+import { useEffect, useState } from "react";
+import { getRules } from "../../api/endpoints";
 import styles from "./RulesBox.module.css";
 
 interface RulesBoxProps {

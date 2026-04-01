@@ -1,11 +1,11 @@
-import {useEffect, useRef, useState} from "react";
-import type {TheorySort} from "../../types/app";
-import {useTheoryFeed} from "../../hooks/useTheoryFeed";
-import {TheoryCard} from "../../components/theory/TheoryCard/TheoryCard";
-import {Pagination} from "../../components/Pagination/Pagination";
-import {Input} from "../../components/Input/Input";
-import {Select} from "../../components/Select/Select";
-import {RulesBox} from "../../components/RulesBox/RulesBox";
+import { useEffect, useRef, useState } from "react";
+import type { TheorySort } from "../../types/app";
+import { useTheoryFeed } from "../../hooks/useTheoryFeed";
+import { TheoryCard } from "../../components/theory/TheoryCard/TheoryCard";
+import { Pagination } from "../../components/Pagination/Pagination";
+import { Input } from "../../components/Input/Input";
+import { Select } from "../../components/Select/Select";
+import { RulesBox } from "../../components/RulesBox/RulesBox";
 import styles from "./FeedPage.module.css";
 
 type SortCategory = "new" | "popular" | "controversial" | "credibility";
