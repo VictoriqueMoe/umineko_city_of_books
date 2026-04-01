@@ -221,9 +221,11 @@ func (s *service) saveMedia(ctx context.Context, contentType string, fileSize in
 	var err error
 	if isVideo {
 		maxSize := int64(s.settingsSvc.GetInt(ctx, config.SettingMaxVideoSize))
+		logger.Log.Debug().Str("content_type", contentType).Int64("file_size", fileSize).Int64("max_size", maxSize).Msg("uploading video")
 		urlPath, err = s.uploadSvc.SaveVideo(ctx, "posts", mediaID, contentType, fileSize, maxSize, reader)
 	} else {
 		maxSize := int64(s.settingsSvc.GetInt(ctx, config.SettingMaxImageSize))
+		logger.Log.Debug().Str("content_type", contentType).Int64("file_size", fileSize).Int64("max_size", maxSize).Msg("uploading image")
 		urlPath, err = s.uploadSvc.SaveImage(ctx, "posts", mediaID, contentType, fileSize, maxSize, reader)
 	}
 	if err != nil {

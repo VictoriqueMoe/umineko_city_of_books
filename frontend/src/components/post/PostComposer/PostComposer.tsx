@@ -1,7 +1,7 @@
-import { useMemo, useRef, useState } from "react";
-import { createPost, uploadPostMedia } from "../../../api/endpoints";
-import { Button } from "../../Button/Button";
-import { TextArea } from "../../TextArea/TextArea";
+import {useMemo, useRef, useState} from "react";
+import {createPost, uploadPostMedia} from "../../../api/endpoints";
+import {Button} from "../../Button/Button";
+import {TextArea} from "../../TextArea/TextArea";
 import styles from "./PostComposer.module.css";
 
 interface PostComposerProps {
@@ -16,7 +16,7 @@ export function PostComposer({ onCreated }: PostComposerProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     async function handleSubmit() {
-        if (!body.trim() && files.length === 0) {
+        if (submitting || (!body.trim() && files.length === 0)) {
             return;
         }
         setSubmitting(true);
@@ -24,12 +24,20 @@ export function PostComposer({ onCreated }: PostComposerProps) {
 
         try {
             const { id } = await createPost(body.trim());
+            const mediaErrors: string[] = [];
             for (const file of files) {
-                await uploadPostMedia(id, file);
+                try {
+                    await uploadPostMedia(id, file);
+                } catch (err) {
+                    mediaErrors.push(err instanceof Error ? err.message : `Failed to upload ${file.name}`);
+                }
             }
             setBody("");
             setFiles([]);
             onCreated();
+            if (mediaErrors.length > 0) {
+                setError(mediaErrors.join(", "));
+            }
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to create post");
         } finally {
