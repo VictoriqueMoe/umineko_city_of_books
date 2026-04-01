@@ -109,3 +109,23 @@
     background: rgba(var(--gold-rgb), 0.15);
     margin: 0.4rem 0;
 }
+
+@media (max-width: 480px) {
+    .triggerLabel,
+    .triggerSep {
+        display: none;
+    }
+
+    .trigger {
+        padding: 0.4rem 0.6rem;
+    }
+
+    .dropdown {
+        position: fixed;
+        top: 52px;
+        right: 0;
+        left: 0;
+        min-width: unset;
+        border-radius: 0;
+    }
+}

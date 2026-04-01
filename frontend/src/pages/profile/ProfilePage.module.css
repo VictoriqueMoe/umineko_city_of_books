@@ -198,6 +198,35 @@ a.socialChipValue:hover {
     color: var(--text-muted);
 }
 
+.statBoxClickable {
+    cursor: pointer;
+    transition: border-color 0.15s var(--ease-out);
+}
+
+.statBoxClickable:hover {
+    border-color: rgba(var(--gold-rgb), 0.4);
+}
+
+.followRow {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.followsYou {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    background: rgba(var(--purple-rgb), 0.3);
+    padding: 0.15rem 0.5rem;
+    border-radius: 3px;
+}
+
+.followList {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
 .tabs {
     display: flex;
     border-bottom: 1px solid rgba(var(--purple-rgb), 0.3);
@@ -281,6 +310,7 @@ a.socialChipValue:hover {
 @media (max-width: 768px) {
     .banner {
         height: 140px;
+        margin-bottom: -30px;
     }
 
     .headerSection {
@@ -291,6 +321,7 @@ a.socialChipValue:hover {
 
     .info {
         align-items: center;
+        padding-top: 10px;
     }
 
     .stats {
@@ -299,5 +330,48 @@ a.socialChipValue:hover {
 
     .socialRow {
         justify-content: center;
+    }
+
+    .tab {
+        padding: 0.6rem 1rem;
+        font-size: 0.9rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .banner {
+        height: 100px;
+        margin-bottom: -25px;
+        border-radius: 0;
+    }
+
+    .avatarContainer {
+        width: 72px;
+        height: 72px;
+    }
+
+    .displayName {
+        font-size: 1.2rem;
+    }
+
+    .stats {
+        gap: 0.5rem;
+    }
+
+    .statBox {
+        padding: 0.75rem 0.5rem;
+    }
+
+    .statNumber {
+        font-size: 1.2rem;
+    }
+
+    .statLabel {
+        font-size: 0.7rem;
+    }
+
+    .favourite {
+        flex-direction: column;
+        gap: 0.35rem;
     }
 }

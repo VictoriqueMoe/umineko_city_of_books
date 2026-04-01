@@ -38,45 +38,35 @@
 .actions {
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 0.5rem;
     margin-top: 0.75rem;
     padding-top: 0.5rem;
     border-top: 1px solid rgba(var(--purple-rgb), 0.1);
 }
 
-.actionBtn {
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    font-size: 0.9rem;
-    cursor: pointer;
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-    transition:
-        color 0.15s,
-        background 0.15s;
-}
-
-.actionBtn:hover {
-    background: rgba(var(--purple-rgb), 0.15);
-    color: var(--text);
-}
-
-.actionBtn:disabled {
-    opacity: 0.4;
-    cursor: default;
-}
-
-.liked {
-    color: #e74c3c;
-}
-
-.liked:hover {
-    color: #c0392b;
+.spacer {
+    flex: 1;
 }
 
 .viewCount {
     font-size: 0.8rem;
     color: var(--text-muted);
-    margin-left: auto;
+}
+
+.editArea {
+    margin: 0.5rem 0;
+}
+
+.editActions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+    margin-top: 0.5rem;
+}
+
+@media (max-width: 480px) {
+    .actions {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
 }

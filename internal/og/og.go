@@ -32,7 +32,12 @@ const (
 	defaultDescription = "A social platform for Umineko no Naku Koro ni fans. Declare fan theories as blue truth, debate with evidence, and earn credibility through community response."
 )
 
-func NewResolver(theoryRepo repository.TheoryRepository, userRepo repository.UserRepository, postRepo repository.PostRepository, baseHTML, baseURL string) *Resolver {
+func NewResolver(
+	theoryRepo repository.TheoryRepository,
+	userRepo repository.UserRepository,
+	postRepo repository.PostRepository,
+	baseHTML, baseURL string,
+) *Resolver {
 	return &Resolver{
 		theoryRepo: theoryRepo,
 		userRepo:   userRepo,
@@ -61,8 +66,10 @@ func (r *Resolver) metaForPath(ctx context.Context, path string) *Meta {
 		return r.profileMeta(ctx, parts[1])
 	}
 
-	if len(parts) >= 2 && parts[0] == "game-board" {
-		return r.postMeta(ctx, parts[1])
+	if len(parts) == 2 && parts[0] == "game-board" {
+		if _, err := uuid.Parse(parts[1]); err == nil {
+			return r.postMeta(ctx, parts[1])
+		}
 	}
 
 	return nil
@@ -166,11 +173,12 @@ func (r *Resolver) inject(meta Meta) string {
 	}
 
 	if meta.Image != "" {
+		img := r.absoluteURL(meta.Image)
 		html = strings.Replace(html,
 			`<meta name="twitter:card" content="summary_large_image">`,
 			`<meta name="twitter:card" content="summary_large_image">`+
-				"\n    "+`<meta property="og:image" content="`+meta.Image+`">`+
-				"\n    "+`<meta name="twitter:image" content="`+meta.Image+`">`,
+				"\n    "+`<meta property="og:image" content="`+img+`">`+
+				"\n    "+`<meta name="twitter:image" content="`+img+`">`,
 			1,
 		)
 	}
@@ -182,6 +190,13 @@ func replaceMetaContent(html, attrName, attrValue, oldContent, newContent string
 	old := attrName + `="` + attrValue + `" content="` + oldContent + `"`
 	repl := attrName + `="` + attrValue + `" content="` + newContent + `"`
 	return strings.Replace(html, old, repl, 1)
+}
+
+func (r *Resolver) absoluteURL(u string) string {
+	if strings.HasPrefix(u, "http://") || strings.HasPrefix(u, "https://") {
+		return u
+	}
+	return r.baseURL + u
 }
 
 func escapeAttr(s string) string {

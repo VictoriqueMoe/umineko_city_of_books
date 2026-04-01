@@ -4,18 +4,20 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 )
 
 type (
 	PostRepository interface {
-		Create(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string) error
+		Create(ctx context.Context, id uuid.UUID, userID uuid.UUID, corner string, body string) error
+		UpdatePost(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string) error
 		GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID) (*PostRow, error)
 		Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		DeleteAsAdmin(ctx context.Context, id uuid.UUID) error
-		ListAll(ctx context.Context, viewerID uuid.UUID, search string, sort string, limit, offset int) ([]PostRow, int, error)
-		ListByFollowing(ctx context.Context, userID uuid.UUID, sort string, limit, offset int) ([]PostRow, int, error)
+		ListAll(ctx context.Context, viewerID uuid.UUID, corner string, search string, sort string, seed int, limit, offset int) ([]PostRow, int, error)
+		ListByFollowing(ctx context.Context, userID uuid.UUID, corner string, sort string, seed int, limit, offset int) ([]PostRow, int, error)
 		ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit, offset int) ([]PostRow, int, error)
 
 		AddMedia(ctx context.Context, postID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, sortOrder int) (int64, error)
@@ -27,19 +29,30 @@ type (
 		Like(ctx context.Context, userID uuid.UUID, postID uuid.UUID) error
 		Unlike(ctx context.Context, userID uuid.UUID, postID uuid.UUID) error
 		GetLikedBy(ctx context.Context, postID uuid.UUID) ([]PostLikeUser, error)
-		IncrementViewCount(ctx context.Context, postID uuid.UUID) error
+		RecordView(ctx context.Context, postID uuid.UUID, viewerHash string) (bool, error)
 		GetPostAuthorID(ctx context.Context, postID uuid.UUID) (uuid.UUID, error)
 
-		CreateComment(ctx context.Context, id uuid.UUID, postID uuid.UUID, userID uuid.UUID, body string) error
+		CreateComment(ctx context.Context, id uuid.UUID, postID uuid.UUID, parentID *uuid.UUID, userID uuid.UUID, body string) error
+		UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string) error
 		DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		DeleteCommentAsAdmin(ctx context.Context, id uuid.UUID) error
-		GetComments(ctx context.Context, postID uuid.UUID, limit, offset int) ([]PostCommentRow, int, error)
+		GetComments(ctx context.Context, postID uuid.UUID, viewerID uuid.UUID, limit, offset int) ([]PostCommentRow, int, error)
 		GetCommentPostID(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error)
+		LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error
+		UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error
 		AddCommentMedia(ctx context.Context, commentID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, sortOrder int) (int64, error)
 		GetCommentMedia(ctx context.Context, commentID uuid.UUID) ([]PostMediaRow, error)
 		GetCommentMediaBatch(ctx context.Context, commentIDs []uuid.UUID) (map[uuid.UUID][]PostMediaRow, error)
 
 		CountUserPostsToday(ctx context.Context, userID uuid.UUID) (int, error)
+		GetCornerCounts(ctx context.Context) (map[string]int, error)
+
+		AddEmbed(ctx context.Context, ownerID string, ownerType string, url string, embedType string, title string, description string, image string, siteName string, videoID string, sortOrder int) error
+		DeleteEmbeds(ctx context.Context, ownerID string, ownerType string) error
+		UpdateEmbed(ctx context.Context, id int, title string, description string, image string, siteName string) error
+		GetEmbeds(ctx context.Context, ownerID string, ownerType string) ([]EmbedRow, error)
+		GetEmbedsBatch(ctx context.Context, ownerIDs []string, ownerType string) (map[string][]EmbedRow, error)
+		GetStaleEmbeds(ctx context.Context, olderThan string, limit int) ([]EmbedRow, error)
 	}
 
 	postRepository struct {
@@ -48,7 +61,7 @@ type (
 )
 
 const postSelectBase = `
-	SELECT p.id, p.user_id, p.body, p.created_at,
+	SELECT p.id, p.user_id, p.corner, p.body, p.created_at, p.updated_at,
 		u.username, u.display_name, u.avatar_url,
 		COALESCE(r.role, ''),
 		(SELECT COUNT(*) FROM post_likes WHERE post_id = p.id),
@@ -62,7 +75,7 @@ const postSelectBase = `
 func scanPostRow(row interface{ Scan(...interface{}) error }, p *PostRow) error {
 	var userLikedInt int
 	err := row.Scan(
-		&p.ID, &p.UserID, &p.Body, &p.CreatedAt,
+		&p.ID, &p.UserID, &p.Corner, &p.Body, &p.CreatedAt, &p.UpdatedAt,
 		&p.AuthorUsername, &p.AuthorDisplayName, &p.AuthorAvatarURL,
 		&p.AuthorRole,
 		&p.LikeCount, &p.CommentCount, &userLikedInt, &p.ViewCount,
@@ -82,33 +95,51 @@ func postOrderClause(sort string, hasFollowBoost bool) string {
 	case "views":
 		return ` ORDER BY p.view_count DESC, p.created_at DESC`
 	default:
+		jitter := `((unicode(substr(p.id, 1, 1)) * 7 + unicode(substr(p.id, 5, 1)) * 13 + ?) % 1000) / 2500.0`
 		if hasFollowBoost {
 			return `
 				ORDER BY (
-					1.0 / (1.0 + (julianday('now') - julianday(p.created_at)) * 24.0)
-					+ (SELECT COUNT(*) FROM post_likes WHERE post_id = p.id) * 0.3
-					+ (SELECT COUNT(*) FROM post_comments WHERE post_id = p.id) * 0.5
-					+ CASE WHEN EXISTS(SELECT 1 FROM follows WHERE follower_id = ? AND following_id = p.user_id) THEN 2.0 ELSE 0 END
-					+ (abs(random()) % 1000) / 5000.0
+					(1.0
+						+ MIN((SELECT COUNT(*) FROM post_likes WHERE post_id = p.id), 50) * 0.15
+						+ MIN((SELECT COUNT(*) FROM post_comments WHERE post_id = p.id), 30) * 0.3
+						+ CASE WHEN EXISTS(SELECT 1 FROM follows WHERE follower_id = ? AND following_id = p.user_id) THEN 3.0 ELSE 0 END
+					) / (1.0 + (julianday('now') - julianday(p.created_at)) * 24.0 * 0.3)
+					+ ` + jitter + `
 				) DESC`
 		}
 		return `
 			ORDER BY (
-				1.0 / (1.0 + (julianday('now') - julianday(p.created_at)) * 24.0)
-				+ (SELECT COUNT(*) FROM post_likes WHERE post_id = p.id) * 0.15
-				+ (SELECT COUNT(*) FROM post_comments WHERE post_id = p.id) * 0.25
-				+ (abs(random()) % 1000) / 5000.0
+				(1.0
+					+ MIN((SELECT COUNT(*) FROM post_likes WHERE post_id = p.id), 50) * 0.15
+					+ MIN((SELECT COUNT(*) FROM post_comments WHERE post_id = p.id), 30) * 0.3
+				) / (1.0 + (julianday('now') - julianday(p.created_at)) * 24.0 * 0.3)
+				+ ` + jitter + `
 			) DESC`
 	}
 }
 
-func (r *postRepository) Create(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string) error {
+func (r *postRepository) Create(ctx context.Context, id uuid.UUID, userID uuid.UUID, corner string, body string) error {
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO posts (id, user_id, body) VALUES (?, ?, ?)`,
-		id, userID, body,
+		`INSERT INTO posts (id, user_id, corner, body) VALUES (?, ?, ?, ?)`,
+		id, userID, corner, body,
 	)
 	if err != nil {
 		return fmt.Errorf("create post: %w", err)
+	}
+	return nil
+}
+
+func (r *postRepository) UpdatePost(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string) error {
+	res, err := r.db.ExecContext(ctx,
+		`UPDATE posts SET body = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?`,
+		body, id, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("update post: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("post not found or not owned")
 	}
 	return nil
 }
@@ -145,16 +176,18 @@ func (r *postRepository) DeleteAsAdmin(ctx context.Context, id uuid.UUID) error 
 	return nil
 }
 
-func (r *postRepository) ListAll(ctx context.Context, viewerID uuid.UUID, search string, sort string, limit, offset int) ([]PostRow, int, error) {
+func (r *postRepository) ListAll(ctx context.Context, viewerID uuid.UUID, corner string, search string, sort string, seed int, limit, offset int) ([]PostRow, int, error) {
 	var total int
-	var whereClause string
-	var args []interface{}
+	whereParts := []string{"p.corner = ?"}
+	args := []interface{}{corner}
 
 	if search != "" {
-		whereClause = ` WHERE (p.body LIKE ? OR u.display_name LIKE ? OR u.username LIKE ?)`
+		whereParts = append(whereParts, "(p.body LIKE ? OR u.display_name LIKE ? OR u.username LIKE ?)")
 		like := "%" + search + "%"
 		args = append(args, like, like, like)
 	}
+
+	whereClause := " WHERE " + strings.Join(whereParts, " AND ")
 
 	if err := r.db.QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM posts p JOIN users u ON p.user_id = u.id`+whereClause, args...,
@@ -168,7 +201,7 @@ func (r *postRepository) ListAll(ctx context.Context, viewerID uuid.UUID, search
 	queryArgs := []interface{}{viewerID}
 	queryArgs = append(queryArgs, args...)
 	if sort == "" || sort == "relevance" {
-		queryArgs = append(queryArgs, viewerID)
+		queryArgs = append(queryArgs, seed, viewerID)
 	}
 	queryArgs = append(queryArgs, limit, offset)
 	rows, err := r.db.QueryContext(ctx, query, queryArgs...)
@@ -188,20 +221,25 @@ func (r *postRepository) ListAll(ctx context.Context, viewerID uuid.UUID, search
 	return posts, total, rows.Err()
 }
 
-func (r *postRepository) ListByFollowing(ctx context.Context, userID uuid.UUID, sort string, limit, offset int) ([]PostRow, int, error) {
+func (r *postRepository) ListByFollowing(ctx context.Context, userID uuid.UUID, corner string, sort string, seed int, limit, offset int) ([]PostRow, int, error) {
 	var total int
 	if err := r.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM posts WHERE user_id = ? OR user_id IN (SELECT following_id FROM follows WHERE follower_id = ?)`,
-		userID, userID,
+		`SELECT COUNT(*) FROM posts WHERE corner = ? AND (user_id = ? OR user_id IN (SELECT following_id FROM follows WHERE follower_id = ?))`,
+		corner, userID, userID,
 	).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count following posts: %w", err)
 	}
 
-	whereClause := ` WHERE p.user_id = ? OR p.user_id IN (SELECT following_id FROM follows WHERE follower_id = ?)`
+	whereClause := ` WHERE p.corner = ? AND (p.user_id = ? OR p.user_id IN (SELECT following_id FROM follows WHERE follower_id = ?))`
 	orderClause := postOrderClause(sort, false)
 	query := postSelectBase + whereClause + orderClause + ` LIMIT ? OFFSET ?`
 
-	rows, err := r.db.QueryContext(ctx, query, userID, userID, userID, limit, offset)
+	queryArgs := []interface{}{userID, corner, userID, userID}
+	if sort == "" || sort == "relevance" {
+		queryArgs = append(queryArgs, seed)
+	}
+	queryArgs = append(queryArgs, limit, offset)
+	rows, err := r.db.QueryContext(ctx, query, queryArgs...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list following posts: %w", err)
 	}
@@ -370,12 +408,22 @@ func (r *postRepository) GetLikedBy(ctx context.Context, postID uuid.UUID) ([]Po
 	return users, rows.Err()
 }
 
-func (r *postRepository) IncrementViewCount(ctx context.Context, postID uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx, `UPDATE posts SET view_count = view_count + 1 WHERE id = ?`, postID)
+func (r *postRepository) RecordView(ctx context.Context, postID uuid.UUID, viewerHash string) (bool, error) {
+	res, err := r.db.ExecContext(ctx,
+		`INSERT OR IGNORE INTO post_views (post_id, viewer_hash) VALUES (?, ?)`,
+		postID, viewerHash,
+	)
 	if err != nil {
-		return fmt.Errorf("increment view count: %w", err)
+		return false, fmt.Errorf("record view: %w", err)
 	}
-	return nil
+	n, _ := res.RowsAffected()
+	if n > 0 {
+		_, err = r.db.ExecContext(ctx, `UPDATE posts SET view_count = view_count + 1 WHERE id = ?`, postID)
+		if err != nil {
+			return false, fmt.Errorf("increment view count: %w", err)
+		}
+	}
+	return n > 0, nil
 }
 
 func (r *postRepository) GetPostAuthorID(ctx context.Context, postID uuid.UUID) (uuid.UUID, error) {
@@ -387,13 +435,28 @@ func (r *postRepository) GetPostAuthorID(ctx context.Context, postID uuid.UUID) 
 	return userID, nil
 }
 
-func (r *postRepository) CreateComment(ctx context.Context, id uuid.UUID, postID uuid.UUID, userID uuid.UUID, body string) error {
+func (r *postRepository) CreateComment(ctx context.Context, id uuid.UUID, postID uuid.UUID, parentID *uuid.UUID, userID uuid.UUID, body string) error {
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO post_comments (id, post_id, user_id, body) VALUES (?, ?, ?, ?)`,
-		id, postID, userID, body,
+		`INSERT INTO post_comments (id, post_id, parent_id, user_id, body) VALUES (?, ?, ?, ?, ?)`,
+		id, postID, parentID, userID, body,
 	)
 	if err != nil {
 		return fmt.Errorf("create comment: %w", err)
+	}
+	return nil
+}
+
+func (r *postRepository) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string) error {
+	res, err := r.db.ExecContext(ctx,
+		`UPDATE post_comments SET body = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?`,
+		body, id, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("update comment: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("comment not found or not owned")
 	}
 	return nil
 }
@@ -418,23 +481,25 @@ func (r *postRepository) DeleteCommentAsAdmin(ctx context.Context, id uuid.UUID)
 	return nil
 }
 
-func (r *postRepository) GetComments(ctx context.Context, postID uuid.UUID, limit, offset int) ([]PostCommentRow, int, error) {
+func (r *postRepository) GetComments(ctx context.Context, postID uuid.UUID, viewerID uuid.UUID, limit, offset int) ([]PostCommentRow, int, error) {
 	var total int
 	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM post_comments WHERE post_id = ?`, postID).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count comments: %w", err)
 	}
 
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT c.id, c.post_id, c.user_id, c.body, c.created_at,
+		`SELECT c.id, c.post_id, c.parent_id, c.user_id, c.body, c.created_at, c.updated_at,
 			u.username, u.display_name, u.avatar_url,
-			COALESCE(r.role, '')
+			COALESCE(r.role, ''),
+			(SELECT COUNT(*) FROM post_comment_likes WHERE comment_id = c.id),
+			EXISTS(SELECT 1 FROM post_comment_likes WHERE comment_id = c.id AND user_id = ?)
 		FROM post_comments c
 		JOIN users u ON c.user_id = u.id
 		LEFT JOIN user_roles r ON r.user_id = c.user_id
 		WHERE c.post_id = ?
 		ORDER BY c.created_at ASC
 		LIMIT ? OFFSET ?`,
-		postID, limit, offset,
+		viewerID, postID, limit, offset,
 	)
 	if err != nil {
 		return nil, 0, fmt.Errorf("get comments: %w", err)
@@ -444,16 +509,40 @@ func (r *postRepository) GetComments(ctx context.Context, postID uuid.UUID, limi
 	var comments []PostCommentRow
 	for rows.Next() {
 		var c PostCommentRow
+		var userLikedInt int
 		if err := rows.Scan(
-			&c.ID, &c.PostID, &c.UserID, &c.Body, &c.CreatedAt,
+			&c.ID, &c.PostID, &c.ParentID, &c.UserID, &c.Body, &c.CreatedAt, &c.UpdatedAt,
 			&c.AuthorUsername, &c.AuthorDisplayName, &c.AuthorAvatarURL,
-			&c.AuthorRole,
+			&c.AuthorRole, &c.LikeCount, &userLikedInt,
 		); err != nil {
 			return nil, 0, fmt.Errorf("scan comment: %w", err)
 		}
+		c.UserLiked = userLikedInt == 1
 		comments = append(comments, c)
 	}
 	return comments, total, rows.Err()
+}
+
+func (r *postRepository) LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
+	_, err := r.db.ExecContext(ctx,
+		`INSERT OR IGNORE INTO post_comment_likes (user_id, comment_id) VALUES (?, ?)`,
+		userID, commentID,
+	)
+	if err != nil {
+		return fmt.Errorf("like comment: %w", err)
+	}
+	return nil
+}
+
+func (r *postRepository) UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
+	_, err := r.db.ExecContext(ctx,
+		`DELETE FROM post_comment_likes WHERE user_id = ? AND comment_id = ?`,
+		userID, commentID,
+	)
+	if err != nil {
+		return fmt.Errorf("unlike comment: %w", err)
+	}
+	return nil
 }
 
 func (r *postRepository) GetCommentPostID(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error) {
@@ -540,4 +629,128 @@ func (r *postRepository) CountUserPostsToday(ctx context.Context, userID uuid.UU
 		return 0, fmt.Errorf("count user posts today: %w", err)
 	}
 	return count, nil
+}
+
+func (r *postRepository) GetCornerCounts(ctx context.Context) (map[string]int, error) {
+	rows, err := r.db.QueryContext(ctx, `SELECT corner, COUNT(*) FROM posts GROUP BY corner`)
+	if err != nil {
+		return nil, fmt.Errorf("corner counts: %w", err)
+	}
+	defer rows.Close()
+
+	result := make(map[string]int)
+	for rows.Next() {
+		var corner string
+		var count int
+		if err := rows.Scan(&corner, &count); err != nil {
+			return nil, fmt.Errorf("scan corner count: %w", err)
+		}
+		result[corner] = count
+	}
+	return result, rows.Err()
+}
+
+func (r *postRepository) AddEmbed(ctx context.Context, ownerID string, ownerType string, url string, embedType string, title string, description string, image string, siteName string, videoID string, sortOrder int) error {
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO embeds (owner_id, owner_type, url, embed_type, title, description, image, site_name, video_id, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		ownerID, ownerType, url, embedType, title, description, image, siteName, videoID, sortOrder,
+	)
+	if err != nil {
+		return fmt.Errorf("add embed: %w", err)
+	}
+	return nil
+}
+
+func (r *postRepository) DeleteEmbeds(ctx context.Context, ownerID string, ownerType string) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM embeds WHERE owner_id = ? AND owner_type = ?`, ownerID, ownerType)
+	if err != nil {
+		return fmt.Errorf("delete embeds: %w", err)
+	}
+	return nil
+}
+
+func (r *postRepository) UpdateEmbed(ctx context.Context, id int, title string, description string, image string, siteName string) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE embeds SET title = ?, description = ?, image = ?, site_name = ?, fetched_at = CURRENT_TIMESTAMP WHERE id = ?`,
+		title, description, image, siteName, id,
+	)
+	if err != nil {
+		return fmt.Errorf("update embed: %w", err)
+	}
+	return nil
+}
+
+func (r *postRepository) GetStaleEmbeds(ctx context.Context, olderThan string, limit int) ([]EmbedRow, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT id, owner_id, url, embed_type, title, description, image, site_name, video_id, sort_order FROM embeds WHERE embed_type = 'link' AND fetched_at < datetime('now', ?) LIMIT ?`,
+		olderThan, limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("get stale embeds: %w", err)
+	}
+	defer rows.Close()
+
+	var embeds []EmbedRow
+	for rows.Next() {
+		var e EmbedRow
+		if err := rows.Scan(&e.ID, &e.OwnerID, &e.URL, &e.EmbedType, &e.Title, &e.Desc, &e.Image, &e.SiteName, &e.VideoID, &e.SortOrder); err != nil {
+			return nil, fmt.Errorf("scan stale embed: %w", err)
+		}
+		embeds = append(embeds, e)
+	}
+	return embeds, rows.Err()
+}
+
+func (r *postRepository) GetEmbeds(ctx context.Context, ownerID string, ownerType string) ([]EmbedRow, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT id, owner_id, url, embed_type, title, description, image, site_name, video_id, sort_order FROM embeds WHERE owner_id = ? AND owner_type = ? ORDER BY sort_order`,
+		ownerID, ownerType,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("get embeds: %w", err)
+	}
+	defer rows.Close()
+
+	var embeds []EmbedRow
+	for rows.Next() {
+		var e EmbedRow
+		if err := rows.Scan(&e.ID, &e.OwnerID, &e.URL, &e.EmbedType, &e.Title, &e.Desc, &e.Image, &e.SiteName, &e.VideoID, &e.SortOrder); err != nil {
+			return nil, fmt.Errorf("scan embed: %w", err)
+		}
+		embeds = append(embeds, e)
+	}
+	return embeds, rows.Err()
+}
+
+func (r *postRepository) GetEmbedsBatch(ctx context.Context, ownerIDs []string, ownerType string) (map[string][]EmbedRow, error) {
+	if len(ownerIDs) == 0 {
+		return nil, nil
+	}
+
+	placeholders := "?"
+	args := []interface{}{ownerIDs[0]}
+	for _, id := range ownerIDs[1:] {
+		placeholders += ", ?"
+		args = append(args, id)
+	}
+	args = append(args, ownerType)
+
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT id, owner_id, url, embed_type, title, description, image, site_name, video_id, sort_order FROM embeds WHERE owner_id IN (`+placeholders+`) AND owner_type = ? ORDER BY sort_order`,
+		args...,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("batch get embeds: %w", err)
+	}
+	defer rows.Close()
+
+	result := make(map[string][]EmbedRow)
+	for rows.Next() {
+		var e EmbedRow
+		if err := rows.Scan(&e.ID, &e.OwnerID, &e.URL, &e.EmbedType, &e.Title, &e.Desc, &e.Image, &e.SiteName, &e.VideoID, &e.SortOrder); err != nil {
+			return nil, fmt.Errorf("scan embed: %w", err)
+		}
+		result[e.OwnerID] = append(result[e.OwnerID], e)
+	}
+	return result, rows.Err()
 }

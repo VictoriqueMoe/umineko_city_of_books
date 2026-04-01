@@ -27,7 +27,7 @@ export function MediaGallery({ media }: MediaGalleryProps) {
                                 src={item.media_url}
                                 poster={item.thumbnail_url || undefined}
                                 controls
-                                preload="none"
+                                preload="metadata"
                             />
                         ) : (
                             <img

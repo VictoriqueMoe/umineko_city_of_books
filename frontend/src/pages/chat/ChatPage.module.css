@@ -250,6 +250,45 @@
     justify-content: flex-end;
 }
 
+.userList {
+    max-height: 300px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.userOption {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 0.5rem 0.5rem;
+    background: none;
+    border: none;
+    border-bottom: 1px solid rgba(var(--purple-rgb), 0.1);
+    cursor: pointer;
+    transition: background 0.1s;
+    text-align: left;
+    color: var(--text);
+    font-family: var(--font-body);
+}
+
+.userOption:hover {
+    background: rgba(var(--gold-rgb), 0.08);
+}
+
+.userOption:disabled {
+    opacity: 0.5;
+    cursor: wait;
+}
+
+.mutualsLabel {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.5rem 0.5rem 0.25rem;
+}
+
 .keysLoading {
     display: flex;
     align-items: center;
@@ -279,5 +318,24 @@
 
     .messageBubble {
         max-width: 90%;
+    }
+}
+
+@media (max-width: 480px) {
+    .roomList {
+        max-height: 150px;
+    }
+
+    .messages {
+        padding: 0.75rem;
+    }
+
+    .inputBar {
+        padding: 0.5rem 0.75rem;
+    }
+
+    .messageHeader {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.9rem;
     }
 }

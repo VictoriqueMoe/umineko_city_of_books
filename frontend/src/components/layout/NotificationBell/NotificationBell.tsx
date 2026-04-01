@@ -27,6 +27,8 @@ function notificationText(type: NotificationType): string {
             return "liked your post";
         case "post_commented":
             return "commented on your post";
+        case "mention":
+            return "mentioned you";
     }
 }
 

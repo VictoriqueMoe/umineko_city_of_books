@@ -38,6 +38,9 @@ export function TheoryPage() {
     const canDelete = isAuthor || can(user?.role, "delete_any_theory");
 
     async function handleDelete() {
+        if (!window.confirm("Are you sure you want to delete this theory?")) {
+            return;
+        }
         await deleteTheory(theoryId);
         navigate("/");
     }

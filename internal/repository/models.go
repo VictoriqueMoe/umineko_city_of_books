@@ -63,8 +63,10 @@ type (
 	PostRow struct {
 		ID                uuid.UUID
 		UserID            uuid.UUID
+		Corner            string
 		Body              string
 		CreatedAt         string
+		UpdatedAt         *string
 		AuthorUsername    string
 		AuthorDisplayName string
 		AuthorAvatarURL   string
@@ -73,6 +75,19 @@ type (
 		CommentCount      int
 		UserLiked         bool
 		ViewCount         int
+	}
+
+	EmbedRow struct {
+		ID        int
+		OwnerID   string
+		URL       string
+		EmbedType string
+		Title     string
+		Desc      string
+		Image     string
+		SiteName  string
+		VideoID   string
+		SortOrder int
 	}
 
 	PostMediaRow struct {
@@ -95,13 +110,17 @@ type (
 	PostCommentRow struct {
 		ID                uuid.UUID
 		PostID            uuid.UUID
+		ParentID          *uuid.UUID
 		UserID            uuid.UUID
 		Body              string
 		CreatedAt         string
+		UpdatedAt         *string
 		AuthorUsername    string
 		AuthorDisplayName string
 		AuthorAvatarURL   string
 		AuthorRole        string
+		LikeCount         int
+		UserLiked         bool
 	}
 )
 

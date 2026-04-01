@@ -4,9 +4,10 @@ import { useAuth } from "../../hooks/useAuth";
 import { useProfile } from "../../hooks/useProfile";
 import { useTheoryFeed } from "../../hooks/useTheoryFeed";
 import { useFollow } from "../../hooks/useFollow";
-import { getUserActivity, getUserPosts } from "../../api/endpoints";
-import type { ActivityItem, Post } from "../../types/api";
+import { getFollowers, getFollowing, getUserActivity, getUserPosts } from "../../api/endpoints";
+import type { ActivityItem, Post, User } from "../../types/api";
 import { Button } from "../../components/Button/Button";
+import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { TheoryCard } from "../../components/theory/TheoryCard/TheoryCard";
 import { PostCard } from "../../components/post/PostCard/PostCard";
 import { Pagination } from "../../components/Pagination/Pagination";
@@ -45,7 +46,7 @@ function socialUrl(key: string, value: string): string {
     }
 }
 
-type TabType = "posts" | "theories" | "activity";
+type TabType = "posts" | "theories" | "activity" | "followers" | "following";
 
 export function ProfilePage() {
     const { username } = useParams<{ username: string }>();
@@ -119,6 +120,20 @@ export function ProfilePage() {
         }
     }, [activeTab, username, activityOffset, fetchActivity]);
 
+    const [followList, setFollowList] = useState<User[]>([]);
+    const [followListLoading, setFollowListLoading] = useState(false);
+
+    useEffect(() => {
+        if ((activeTab === "followers" || activeTab === "following") && profile?.id) {
+            setFollowListLoading(true);
+            const fn = activeTab === "followers" ? getFollowers : getFollowing;
+            fn(profile.id, 200, 0)
+                .then(r => setFollowList(r.users ?? []))
+                .catch(() => setFollowList([]))
+                .finally(() => setFollowListLoading(false));
+        }
+    }, [activeTab, profile?.id]);
+
     if (loading) {
         return <div className="loading">Consulting the game board...</div>;
     }
@@ -184,13 +199,16 @@ export function ProfilePage() {
                     </h1>
                     <span className={styles.username}>@{profile.username}</span>
                     {currentUser && currentUser.id !== profile.id && follow.stats && (
-                        <Button
-                            variant={follow.stats.is_following ? "secondary" : "primary"}
-                            size="small"
-                            onClick={follow.toggleFollow}
-                        >
-                            {follow.stats.is_following ? "Unfollow" : "Follow"}
-                        </Button>
+                        <div className={styles.followRow}>
+                            <Button
+                                variant={follow.stats.is_following ? "secondary" : "primary"}
+                                size="small"
+                                onClick={follow.toggleFollow}
+                            >
+                                {follow.stats.is_following ? "Unfollow" : "Follow"}
+                            </Button>
+                            {follow.stats.follows_you && <span className={styles.followsYou}>Follows you</span>}
+                        </div>
                     )}
                     <div className={styles.metaRow}>
                         {showGender && <span className={styles.metaItem}>{profile.gender}</span>}
@@ -261,11 +279,17 @@ export function ProfilePage() {
                 </div>
                 {follow.stats && (
                     <>
-                        <div className={styles.statBox}>
+                        <div
+                            className={`${styles.statBox} ${styles.statBoxClickable}`}
+                            onClick={() => setActiveTab("followers")}
+                        >
                             <span className={styles.statNumber}>{follow.stats.follower_count}</span>
                             <span className={styles.statLabel}>Followers</span>
                         </div>
-                        <div className={styles.statBox}>
+                        <div
+                            className={`${styles.statBox} ${styles.statBoxClickable}`}
+                            onClick={() => setActiveTab("following")}
+                        >
                             <span className={styles.statNumber}>{follow.stats.following_count}</span>
                             <span className={styles.statLabel}>Following</span>
                         </div>
@@ -380,6 +404,24 @@ export function ProfilePage() {
                             onNext={() => setActivityOffset(prev => prev + activityLimit)}
                             onPrev={() => setActivityOffset(prev => Math.max(0, prev - activityLimit))}
                         />
+                    )}
+                </div>
+            )}
+
+            {(activeTab === "followers" || activeTab === "following") && (
+                <div className={styles.tabContent}>
+                    {followListLoading && <div className="loading">Loading...</div>}
+                    {!followListLoading && followList.length === 0 && (
+                        <div className="empty-state">
+                            {activeTab === "followers" ? "No followers yet." : "Not following anyone yet."}
+                        </div>
+                    )}
+                    {!followListLoading && (
+                        <div className={styles.followList}>
+                            {followList.map(u => (
+                                <ProfileLink key={u.id} user={u} size="medium" />
+                            ))}
+                        </div>
                     )}
                 </div>
             )}

@@ -1,0 +1,132 @@
+.wrapper {
+    position: relative;
+}
+
+.backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+    font-family: var(--font-body);
+    line-height: 1.5;
+    color: transparent;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow: hidden;
+    pointer-events: none;
+    border: 1px solid transparent;
+    border-radius: 4px;
+}
+
+.backdrop :global(.mention-hl) {
+    color: var(--gold);
+    font-weight: 600;
+}
+
+.textarea {
+    position: relative;
+    width: 100%;
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--gold-rgb), 0.2);
+    color: var(--text);
+    caret-color: var(--text);
+    padding: 0.75rem 1rem;
+    border-radius: 4px;
+    font-size: 1rem;
+    font-family: var(--font-body);
+    line-height: 1.5;
+    resize: vertical;
+    transition: border-color 0.2s var(--ease-out);
+}
+
+.textarea:focus {
+    outline: none;
+    border-color: var(--gold);
+    box-shadow: 0 0 0 2px rgba(var(--gold-rgb), 0.1);
+}
+
+.textarea::placeholder {
+    color: var(--text-muted);
+}
+
+.dropdown {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    right: 0;
+    max-height: 280px;
+    overflow-y: auto;
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--gold-rgb), 0.2);
+    border-radius: 6px;
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.4);
+    z-index: 100;
+    margin-bottom: 4px;
+}
+
+.suggestion {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    background: none;
+    border: none;
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.1s;
+}
+
+.suggestion:hover,
+.suggestionActive {
+    background: rgba(var(--gold-rgb), 0.08);
+}
+
+.avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.avatarPlaceholder {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(var(--purple-rgb), 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    color: var(--gold);
+    flex-shrink: 0;
+}
+
+.userInfo {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.displayName {
+    font-weight: 600;
+    color: var(--text);
+    font-size: 0.85rem;
+}
+
+.username {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+}
+
+.followStatus {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}

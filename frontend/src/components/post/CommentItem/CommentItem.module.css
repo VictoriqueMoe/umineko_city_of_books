@@ -7,6 +7,10 @@
     border-bottom: none;
 }
 
+.reply {
+    padding-left: 0;
+}
+
 .highlighted {
     background: rgba(var(--gold-rgb), 0.1);
     border-left: 3px solid var(--gold);
@@ -27,13 +31,21 @@
 .header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: 0.5rem;
     margin-bottom: 0.35rem;
+}
+
+.replyTo {
+    font-size: 0.8rem;
+    color: var(--gold);
+    font-weight: 600;
 }
 
 .time {
     font-size: 0.75rem;
     color: var(--text-muted);
+    margin-left: auto;
+    flex-shrink: 0;
 }
 
 .body {
@@ -46,5 +58,77 @@
 }
 
 .actions {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
     margin-top: 0.35rem;
+}
+
+.copyLink {
+    margin-left: auto;
+}
+
+.threadContainer {
+    margin-left: 1.5rem;
+    border-left: 2px solid rgba(var(--purple-rgb), 0.2);
+    padding-left: 0.75rem;
+}
+
+.thread {
+    display: flex;
+    flex-direction: column;
+}
+
+.collapseBtn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    cursor: pointer;
+    padding: 0.35rem 0;
+    transition: color 0.15s var(--ease-out);
+}
+
+.collapseBtn:hover {
+    color: var(--gold);
+}
+
+.editArea {
+    margin: 0.35rem 0;
+}
+
+.editTextarea {
+    width: 100%;
+    min-height: 60px;
+    background: var(--bg-void);
+    border: 1px solid rgba(var(--purple-rgb), 0.3);
+    color: var(--text);
+    padding: 0.5rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-family: var(--font-body);
+    line-height: 1.5;
+    resize: vertical;
+}
+
+.editTextarea:focus {
+    outline: none;
+    border-color: var(--gold);
+}
+
+.editActions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+    margin-top: 0.35rem;
+}
+
+@media (max-width: 480px) {
+    .threadContainer {
+        margin-left: 0.75rem;
+    }
+
+    .actions {
+        flex-wrap: wrap;
+    }
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"umineko_city_of_books/internal/authz"
@@ -17,6 +18,7 @@ import (
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/upload"
+	"umineko_city_of_books/internal/utils"
 	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
@@ -25,16 +27,22 @@ import (
 type (
 	Service interface {
 		CreatePost(ctx context.Context, userID uuid.UUID, req dto.CreatePostRequest) (uuid.UUID, error)
-		GetPost(ctx context.Context, id uuid.UUID, viewerID uuid.UUID) (*dto.PostDetailResponse, error)
+		GetPost(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, viewerHash string) (*dto.PostDetailResponse, error)
+		UpdatePost(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.UpdatePostRequest) error
 		DeletePost(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
-		ListFeed(ctx context.Context, tab string, viewerID uuid.UUID, search string, sort string, limit, offset int) (*dto.PostListResponse, error)
+		ListFeed(ctx context.Context, tab string, viewerID uuid.UUID, corner string, search string, sort string, seed int, limit, offset int) (*dto.PostListResponse, error)
 		ListUserPosts(ctx context.Context, targetUserID uuid.UUID, viewerID uuid.UUID, limit, offset int) (*dto.PostListResponse, error)
 		UploadPostMedia(ctx context.Context, postID uuid.UUID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error)
 		LikePost(ctx context.Context, userID uuid.UUID, postID uuid.UUID) error
 		UnlikePost(ctx context.Context, userID uuid.UUID, postID uuid.UUID) error
 		CreateComment(ctx context.Context, postID uuid.UUID, userID uuid.UUID, req dto.CreateCommentRequest) (uuid.UUID, error)
+		UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.UpdateCommentRequest) error
 		DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
+		LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error
+		UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error
 		UploadCommentMedia(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error)
+		GetCornerCounts(ctx context.Context) (map[string]int, error)
+		RefreshStaleEmbeds(ctx context.Context) int
 	}
 
 	service struct {
@@ -87,15 +95,24 @@ func (s *service) CreatePost(ctx context.Context, userID uuid.UUID, req dto.Crea
 		}
 	}
 
+	corner := req.Corner
+	if corner == "" {
+		corner = "general"
+	}
+
 	id := uuid.New()
-	if err := s.postRepo.Create(ctx, id, userID, strings.TrimSpace(req.Body)); err != nil {
+	body := strings.TrimSpace(req.Body)
+	if err := s.postRepo.Create(ctx, id, userID, corner, body); err != nil {
 		return uuid.Nil, err
 	}
+
+	go s.processEmbeds(id.String(), "post", body)
+	go s.processMentions(userID, body, id, "post", fmt.Sprintf("/game-board/%s", id))
 
 	return id, nil
 }
 
-func (s *service) GetPost(ctx context.Context, id uuid.UUID, viewerID uuid.UUID) (*dto.PostDetailResponse, error) {
+func (s *service) GetPost(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, viewerHash string) (*dto.PostDetailResponse, error) {
 	row, err := s.postRepo.GetByID(ctx, id, viewerID)
 	if err != nil {
 		return nil, err
@@ -104,22 +121,35 @@ func (s *service) GetPost(ctx context.Context, id uuid.UUID, viewerID uuid.UUID)
 		return nil, ErrNotFound
 	}
 
-	_ = s.postRepo.IncrementViewCount(ctx, id)
-	row.ViewCount++
+	if viewerHash != "" {
+		isNew, _ := s.postRepo.RecordView(ctx, id, viewerHash)
+		if isNew {
+			row.ViewCount++
+		}
+	}
 
 	postMedia, _ := s.postRepo.GetMedia(ctx, id)
-	comments, _, _ := s.postRepo.GetComments(ctx, id, 100, 0)
+	postEmbeds, _ := s.postRepo.GetEmbeds(ctx, id.String(), "post")
+	comments, _, _ := s.postRepo.GetComments(ctx, id, viewerID, 500, 0)
 
 	var commentIDs []uuid.UUID
+	var commentIDStrs []string
 	for _, c := range comments {
 		commentIDs = append(commentIDs, c.ID)
+		commentIDStrs = append(commentIDStrs, c.ID.String())
 	}
 	commentMediaMap, _ := s.postRepo.GetCommentMediaBatch(ctx, commentIDs)
+	commentEmbedMap, _ := s.postRepo.GetEmbedsBatch(ctx, commentIDStrs, "comment")
 
-	dtoComments := make([]dto.PostCommentResponse, len(comments))
+	flatComments := make([]dto.PostCommentResponse, len(comments))
 	for i, c := range comments {
-		dtoComments[i] = commentToDTO(c, commentMediaMap[c.ID])
+		flatComments[i] = commentToDTO(c, commentMediaMap[c.ID], commentEmbedMap[c.ID.String()])
 	}
+	dtoComments := utils.BuildTree(flatComments,
+		func(c dto.PostCommentResponse) uuid.UUID { return c.ID },
+		func(c dto.PostCommentResponse) *uuid.UUID { return c.ParentID },
+		func(c *dto.PostCommentResponse, replies []dto.PostCommentResponse) { c.Replies = replies },
+	)
 
 	likeUsers, _ := s.postRepo.GetLikedBy(ctx, id)
 	likedBy := make([]dto.UserResponse, len(likeUsers))
@@ -134,10 +164,25 @@ func (s *service) GetPost(ctx context.Context, id uuid.UUID, viewerID uuid.UUID)
 	}
 
 	return &dto.PostDetailResponse{
-		PostResponse: postRowToDTO(*row, postMedia),
+		PostResponse: postRowToDTO(*row, postMedia, postEmbeds),
 		Comments:     dtoComments,
 		LikedBy:      likedBy,
 	}, nil
+}
+
+func (s *service) UpdatePost(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.UpdatePostRequest) error {
+	body := strings.TrimSpace(req.Body)
+	if body == "" {
+		return ErrEmptyBody
+	}
+	if err := s.postRepo.UpdatePost(ctx, id, userID, body); err != nil {
+		return err
+	}
+	go func() {
+		_ = s.postRepo.DeleteEmbeds(context.Background(), id.String(), "post")
+		s.processEmbeds(id.String(), "post", body)
+	}()
+	return nil
 }
 
 func (s *service) DeletePost(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
@@ -147,15 +192,19 @@ func (s *service) DeletePost(ctx context.Context, id uuid.UUID, userID uuid.UUID
 	return s.postRepo.Delete(ctx, id, userID)
 }
 
-func (s *service) ListFeed(ctx context.Context, tab string, viewerID uuid.UUID, search string, sort string, limit, offset int) (*dto.PostListResponse, error) {
+func (s *service) ListFeed(ctx context.Context, tab string, viewerID uuid.UUID, corner string, search string, sort string, seed int, limit, offset int) (*dto.PostListResponse, error) {
+	if corner == "" {
+		corner = "general"
+	}
+
 	var rows []repository.PostRow
 	var total int
 	var err error
 
 	if tab == "following" && viewerID != uuid.Nil {
-		rows, total, err = s.postRepo.ListByFollowing(ctx, viewerID, sort, limit, offset)
+		rows, total, err = s.postRepo.ListByFollowing(ctx, viewerID, corner, sort, seed, limit, offset)
 	} else {
-		rows, total, err = s.postRepo.ListAll(ctx, viewerID, search, sort, limit, offset)
+		rows, total, err = s.postRepo.ListAll(ctx, viewerID, corner, search, sort, seed, limit, offset)
 	}
 	if err != nil {
 		return nil, err
@@ -174,15 +223,18 @@ func (s *service) ListUserPosts(ctx context.Context, targetUserID uuid.UUID, vie
 
 func (s *service) buildPostList(ctx context.Context, rows []repository.PostRow, total, limit, offset int) *dto.PostListResponse {
 	postIDs := make([]uuid.UUID, len(rows))
+	postIDStrs := make([]string, len(rows))
 	for i, r := range rows {
 		postIDs[i] = r.ID
+		postIDStrs[i] = r.ID.String()
 	}
 
 	mediaMap, _ := s.postRepo.GetMediaBatch(ctx, postIDs)
+	embedMap, _ := s.postRepo.GetEmbedsBatch(ctx, postIDStrs, "post")
 
 	posts := make([]dto.PostResponse, len(rows))
 	for i, r := range rows {
-		posts[i] = postRowToDTO(r, mediaMap[r.ID])
+		posts[i] = postRowToDTO(r, mediaMap[r.ID], embedMap[r.ID.String()])
 	}
 
 	return &dto.PostListResponse{
@@ -252,8 +304,7 @@ func (s *service) saveMedia(ctx context.Context, contentType string, fileSize in
 				if err := s.postRepo.UpdateMediaURL(context.Background(), rowID, newURL); err != nil {
 					logger.Log.Error().Err(err).Msg("failed to update video media url")
 				}
-				baseURL := s.settingsSvc.Get(context.Background(), config.SettingBaseURL)
-				thumbName, err := media.GenerateThumbnail(baseURL+newURL, filepath.Dir(outputPath), filepath.Base(outputPath))
+				thumbName, err := media.GenerateThumbnail(outputPath, filepath.Dir(outputPath), filepath.Base(outputPath))
 				if err != nil {
 					logger.Log.Error().Err(err).Msg("failed to generate video thumbnail")
 					return
@@ -341,9 +392,13 @@ func (s *service) CreateComment(ctx context.Context, postID uuid.UUID, userID uu
 	}
 
 	id := uuid.New()
-	if err := s.postRepo.CreateComment(ctx, id, postID, userID, strings.TrimSpace(req.Body)); err != nil {
+	body := strings.TrimSpace(req.Body)
+	if err := s.postRepo.CreateComment(ctx, id, postID, req.ParentID, userID, body); err != nil {
 		return uuid.Nil, err
 	}
+
+	go s.processEmbeds(id.String(), "comment", body)
+	go s.processMentions(userID, body, postID, "post", fmt.Sprintf("/game-board/%s#comment-%s", postID, id))
 
 	go func() {
 		authorID, err := s.postRepo.GetPostAuthorID(ctx, postID)
@@ -371,6 +426,21 @@ func (s *service) CreateComment(ctx context.Context, postID uuid.UUID, userID uu
 	return id, nil
 }
 
+func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.UpdateCommentRequest) error {
+	body := strings.TrimSpace(req.Body)
+	if body == "" {
+		return ErrEmptyBody
+	}
+	if err := s.postRepo.UpdateComment(ctx, id, userID, body); err != nil {
+		return err
+	}
+	go func() {
+		_ = s.postRepo.DeleteEmbeds(context.Background(), id.String(), "comment")
+		s.processEmbeds(id.String(), "comment", body)
+	}()
+	return nil
+}
+
 func (s *service) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
 	if s.authz.Can(ctx, userID, authz.PermDeleteAnyComment) {
 		return s.postRepo.DeleteCommentAsAdmin(ctx, id)
@@ -378,7 +448,15 @@ func (s *service) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.U
 	return s.postRepo.DeleteComment(ctx, id, userID)
 }
 
-func postRowToDTO(r repository.PostRow, mediaRows []repository.PostMediaRow) dto.PostResponse {
+func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
+	return s.postRepo.LikeComment(ctx, userID, commentID)
+}
+
+func (s *service) UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
+	return s.postRepo.UnlikeComment(ctx, userID, commentID)
+}
+
+func postRowToDTO(r repository.PostRow, mediaRows []repository.PostMediaRow, embedRows []repository.EmbedRow) dto.PostResponse {
 	mediaList := make([]dto.PostMediaResponse, len(mediaRows))
 	for i, m := range mediaRows {
 		mediaList[i] = dto.PostMediaResponse{
@@ -401,15 +479,17 @@ func postRowToDTO(r repository.PostRow, mediaRows []repository.PostMediaRow) dto
 		},
 		Body:         r.Body,
 		Media:        mediaList,
+		Embeds:       embedRowsToDTO(embedRows),
 		LikeCount:    r.LikeCount,
 		CommentCount: r.CommentCount,
 		ViewCount:    r.ViewCount,
 		UserLiked:    r.UserLiked,
 		CreatedAt:    r.CreatedAt,
+		UpdatedAt:    r.UpdatedAt,
 	}
 }
 
-func commentToDTO(c repository.PostCommentRow, mediaRows []repository.PostMediaRow) dto.PostCommentResponse {
+func commentToDTO(c repository.PostCommentRow, mediaRows []repository.PostMediaRow, embedRows []repository.EmbedRow) dto.PostCommentResponse {
 	mediaList := make([]dto.PostMediaResponse, len(mediaRows))
 	for i, m := range mediaRows {
 		mediaList[i] = dto.PostMediaResponse{
@@ -422,7 +502,8 @@ func commentToDTO(c repository.PostCommentRow, mediaRows []repository.PostMediaR
 	}
 
 	return dto.PostCommentResponse{
-		ID: c.ID,
+		ID:       c.ID,
+		ParentID: c.ParentID,
 		Author: dto.UserResponse{
 			ID:          c.UserID,
 			Username:    c.AuthorUsername,
@@ -432,6 +513,106 @@ func commentToDTO(c repository.PostCommentRow, mediaRows []repository.PostMediaR
 		},
 		Body:      c.Body,
 		Media:     mediaList,
+		Embeds:    embedRowsToDTO(embedRows),
+		LikeCount: c.LikeCount,
+		UserLiked: c.UserLiked,
 		CreatedAt: c.CreatedAt,
+		UpdatedAt: c.UpdatedAt,
+	}
+}
+
+func embedRowsToDTO(rows []repository.EmbedRow) []dto.EmbedResponse {
+	if len(rows) == 0 {
+		return nil
+	}
+	result := make([]dto.EmbedResponse, len(rows))
+	for i, e := range rows {
+		result[i] = dto.EmbedResponse{
+			URL:      e.URL,
+			Type:     e.EmbedType,
+			Title:    e.Title,
+			Desc:     e.Desc,
+			Image:    e.Image,
+			SiteName: e.SiteName,
+			VideoID:  e.VideoID,
+		}
+	}
+	return result
+}
+
+func (s *service) processEmbeds(ownerID string, ownerType string, body string) {
+	urls := media.ExtractURLs(body)
+	for i, rawURL := range urls {
+		if i >= 5 {
+			break
+		}
+		embed := media.ParseEmbed(rawURL)
+		if embed == nil {
+			continue
+		}
+		_ = s.postRepo.AddEmbed(
+			context.Background(), ownerID, ownerType,
+			embed.URL, embed.Type, embed.Title, embed.Desc, embed.Image, embed.SiteName, embed.VideoID, i,
+		)
+	}
+}
+
+func (s *service) GetCornerCounts(ctx context.Context) (map[string]int, error) {
+	return s.postRepo.GetCornerCounts(ctx)
+}
+
+func (s *service) RefreshStaleEmbeds(ctx context.Context) int {
+	stale, err := s.postRepo.GetStaleEmbeds(ctx, "-1 day", 50)
+	if err != nil {
+		return 0
+	}
+	refreshed := 0
+	for _, e := range stale {
+		embed := media.ParseEmbed(e.URL)
+		if embed == nil {
+			continue
+		}
+		if embed.Type == "link" {
+			_ = s.postRepo.UpdateEmbed(ctx, e.ID, embed.Title, embed.Desc, embed.Image, embed.SiteName)
+			refreshed++
+		}
+	}
+	return refreshed
+}
+
+var mentionRegex = regexp.MustCompile(`@([a-zA-Z0-9_]+)`)
+
+func (s *service) processMentions(actorID uuid.UUID, body string, referenceID uuid.UUID, referenceType string, linkURL string) {
+	matches := mentionRegex.FindAllStringSubmatch(body, 20)
+	seen := make(map[string]bool)
+
+	for _, m := range matches {
+		username := m[1]
+		if seen[username] {
+			continue
+		}
+		seen[username] = true
+
+		mentioned, err := s.userRepo.GetByUsername(context.Background(), username)
+		if err != nil || mentioned == nil || mentioned.ID == actorID {
+			continue
+		}
+
+		actor, err := s.userRepo.GetByID(context.Background(), actorID)
+		if err != nil || actor == nil {
+			continue
+		}
+
+		baseURL := s.settingsSvc.Get(context.Background(), config.SettingBaseURL)
+		subject, emailBody := notification.NotifEmail(actor.DisplayName, "mentioned you", "", baseURL+linkURL)
+		_ = s.notifService.Notify(context.Background(), dto.NotifyParams{
+			RecipientID:   mentioned.ID,
+			Type:          dto.NotifMention,
+			ReferenceID:   referenceID,
+			ReferenceType: referenceType,
+			ActorID:       actorID,
+			EmailSubject:  subject,
+			EmailBody:     emailBody,
+		})
 	}
 }

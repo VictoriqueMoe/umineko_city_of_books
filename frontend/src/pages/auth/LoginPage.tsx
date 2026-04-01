@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { useNavigate } from "react-router";
-import { Turnstile } from "@marsidev/react-turnstile";
+import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { useAuth } from "../../hooks/useAuth";
 import { useSiteInfo } from "../../hooks/useSiteInfo";
 import { Button } from "../../components/Button/Button";
@@ -19,6 +19,7 @@ export function LoginPage() {
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
     const [turnstileToken, setTurnstileToken] = useState("");
+    const turnstileRef = useRef<TurnstileInstance>(null);
 
     const regType = siteInfo.registration_type as "open" | "invite" | "closed";
     const turnstileEnabled = siteInfo.turnstile_enabled;
@@ -51,6 +52,7 @@ export function LoginPage() {
         } catch (err) {
             setError(err instanceof Error ? err.message : "Something went wrong.");
             setTurnstileToken("");
+            turnstileRef.current?.reset();
         } finally {
             setLoading(false);
         }
@@ -106,6 +108,7 @@ export function LoginPage() {
                     {turnstileEnabled && turnstileSiteKey && (
                         <div className={styles.turnstile}>
                             <Turnstile
+                                ref={turnstileRef}
                                 siteKey={turnstileSiteKey}
                                 onSuccess={setTurnstileToken}
                                 onExpire={() => setTurnstileToken("")}

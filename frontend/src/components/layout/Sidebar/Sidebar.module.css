@@ -68,6 +68,42 @@
     color: var(--gold);
 }
 
+.expandBtn {
+    cursor: pointer;
+    background: none;
+    border: none;
+    width: 100%;
+    text-align: left;
+    font-family: var(--font-body);
+    justify-content: space-between;
+}
+
+.expandIcon {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.subLinks {
+    display: flex;
+    flex-direction: column;
+}
+
+.subLink {
+    padding-left: 2.25rem;
+    font-size: 0.85rem;
+    justify-content: space-between;
+}
+
+.cornerCount {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    background: rgba(var(--purple-rgb), 0.3);
+    padding: 0.1rem 0.4rem;
+    border-radius: 8px;
+    min-width: 20px;
+    text-align: center;
+}
+
 .active {
     color: var(--gold);
     background: rgba(var(--gold-rgb), 0.08);

@@ -29,6 +29,7 @@ type (
 		GetProfileByID(ctx context.Context, id uuid.UUID) (*User, *UserStats, error)
 		ListAll(ctx context.Context, search string, limit, offset int) ([]User, int, error)
 		ListPublic(ctx context.Context) ([]User, error)
+		SearchByName(ctx context.Context, query string, limit int) ([]User, error)
 		BanUser(ctx context.Context, userID uuid.UUID, bannedBy uuid.UUID, reason string) error
 		UnbanUser(ctx context.Context, userID uuid.UUID) error
 		IsBanned(ctx context.Context, userID uuid.UUID) (bool, error)
@@ -320,6 +321,28 @@ func (r *userRepository) ListPublic(ctx context.Context) ([]User, error) {
 	)
 	if err != nil {
 		return nil, fmt.Errorf("list public users: %w", err)
+	}
+	defer rows.Close()
+
+	var users []User
+	for rows.Next() {
+		u, err := scanUser(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan user: %w", err)
+		}
+		users = append(users, *u)
+	}
+	return users, rows.Err()
+}
+
+func (r *userRepository) SearchByName(ctx context.Context, query string, limit int) ([]User, error) {
+	like := "%" + query + "%"
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT `+userColumns+` FROM users WHERE banned_at IS NULL AND (username LIKE ? OR display_name LIKE ?) ORDER BY CASE WHEN username LIKE ? THEN 0 ELSE 1 END, display_name COLLATE NOCASE LIMIT ?`,
+		like, like, query+"%", limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("search users: %w", err)
 	}
 	defer rows.Close()
 

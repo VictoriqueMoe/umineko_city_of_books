@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import type { Post } from "../../../types/api";
-import { deletePost as apiDeletePost, likePost, unlikePost } from "../../../api/endpoints";
+import { deletePost as apiDeletePost, likePost, unlikePost, updatePost } from "../../../api/endpoints";
 import { useAuth } from "../../../hooks/useAuth";
 import { useNotifications } from "../../../hooks/useNotifications";
 import { can } from "../../../utils/permissions";
+import { linkify } from "../../../utils/linkify";
 import { ProfileLink } from "../../ProfileLink/ProfileLink";
 import { MediaGallery } from "../MediaGallery/MediaGallery";
+import { PostEmbeds } from "../PostEmbeds/PostEmbeds";
+import { MentionTextArea } from "../../MentionTextArea/MentionTextArea";
 import { Button } from "../../Button/Button";
 import styles from "./PostCard.module.css";
 
@@ -41,6 +44,9 @@ export function PostCard({ post, onDelete }: PostCardProps) {
     const { addWSListener } = useNotifications();
     const [liked, setLiked] = useState(post.user_liked);
     const [likeCount, setLikeCount] = useState(post.like_count);
+    const [editing, setEditing] = useState(false);
+    const [editBody, setEditBody] = useState(post.body);
+    const [saving, setSaving] = useState(false);
 
     const pendingLikeRef = useRef(false);
 
@@ -84,12 +90,31 @@ export function PostCard({ post, onDelete }: PostCardProps) {
     }
 
     async function handleDelete() {
+        if (!window.confirm("Are you sure you want to delete this post?")) {
+            return;
+        }
         try {
             await apiDeletePost(post.id);
         } catch {
             void 0;
         }
         onDelete?.();
+    }
+
+    async function handleSaveEdit() {
+        if (!editBody.trim() || saving) {
+            return;
+        }
+        setSaving(true);
+        try {
+            await updatePost(post.id, editBody.trim());
+            setEditing(false);
+            onDelete?.();
+        } catch {
+            void 0;
+        } finally {
+            setSaving(false);
+        }
     }
 
     const isOwner = user?.id === post.author.id;
@@ -99,13 +124,36 @@ export function PostCard({ post, onDelete }: PostCardProps) {
         <div className={styles.card}>
             <div className={styles.header}>
                 <ProfileLink user={post.author} size="medium" />
-                <span className={styles.time}>{timeAgo(post.created_at)}</span>
+                <span className={styles.time}>
+                    {timeAgo(post.created_at)}
+                    {post.updated_at && " (edited)"}
+                </span>
             </div>
 
-            <div className={styles.body} onClick={() => navigate(`/game-board/${post.id}`)}>
-                <p className={styles.text}>{post.body}</p>
-                <MediaGallery media={post.media} />
-            </div>
+            {editing ? (
+                <div className={styles.editArea}>
+                    <MentionTextArea value={editBody} onChange={setEditBody} rows={3} />
+                    <div className={styles.editActions}>
+                        <Button variant="ghost" size="small" onClick={() => setEditing(false)}>
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="primary"
+                            size="small"
+                            onClick={handleSaveEdit}
+                            disabled={saving || !editBody.trim()}
+                        >
+                            {saving ? "..." : "Save"}
+                        </Button>
+                    </div>
+                </div>
+            ) : (
+                <div className={styles.body} onClick={() => navigate(`/game-board/${post.id}`)}>
+                    <p className={styles.text}>{linkify(post.body)}</p>
+                    <MediaGallery media={post.media} />
+                    {post.embeds && <PostEmbeds embeds={post.embeds} />}
+                </div>
+            )}
 
             <div className={styles.actions}>
                 <Button variant="ghost" size="small" onClick={handleLike} disabled={!user}>
@@ -116,13 +164,21 @@ export function PostCard({ post, onDelete }: PostCardProps) {
                     {"\uD83D\uDCAC"} {post.comment_count > 0 && post.comment_count}
                 </Button>
 
-                {post.view_count > 0 && <span className={styles.viewCount}>{post.view_count} views</span>}
+                {isOwner && !editing && (
+                    <Button variant="ghost" size="small" onClick={() => setEditing(true)}>
+                        Edit
+                    </Button>
+                )}
 
                 {canDelete && (
                     <Button variant="ghost" size="small" onClick={handleDelete}>
                         Delete
                     </Button>
                 )}
+
+                <span className={styles.spacer} />
+
+                {post.view_count > 0 && <span className={styles.viewCount}>{post.view_count} views</span>}
 
                 <Button
                     variant="ghost"

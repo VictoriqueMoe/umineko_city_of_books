@@ -35,6 +35,7 @@ export function TruthChip({ quote, note, onRemove }: TruthChipProps) {
                 {displayText}
                 {isTruncated && (
                     <button
+                        type="button"
                         className={styles.expandToggle}
                         onClick={e => {
                             e.stopPropagation();
