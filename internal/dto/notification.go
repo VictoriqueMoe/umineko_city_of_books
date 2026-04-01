@@ -3,7 +3,17 @@ package dto
 import "github.com/google/uuid"
 
 type (
-	NotificationType = string
+	NotificationType string
+
+	NotifyParams struct {
+		RecipientID   uuid.UUID
+		Type          NotificationType
+		ReferenceID   uuid.UUID
+		ReferenceType string
+		ActorID       uuid.UUID
+		EmailSubject  string
+		EmailBody     string
+	}
 
 	NotificationResponse struct {
 		ID            int          `json:"id"`
@@ -28,9 +38,13 @@ type (
 )
 
 const (
-	NotifTheoryResponse = "theory_response"
-	NotifResponseReply  = "response_reply"
-	NotifTheoryUpvote   = "theory_upvote"
-	NotifResponseUpvote = "response_upvote"
-	NotifChatMessage    = "chat_message"
+	NotifTheoryResponse NotificationType = "theory_response"
+	NotifResponseReply  NotificationType = "response_reply"
+	NotifTheoryUpvote   NotificationType = "theory_upvote"
+	NotifResponseUpvote NotificationType = "response_upvote"
+	NotifChatMessage    NotificationType = "chat_message"
+	NotifReport         NotificationType = "report"
+	NotifNewFollower    NotificationType = "new_follower"
+	NotifPostLiked      NotificationType = "post_liked"
+	NotifPostCommented  NotificationType = "post_commented"
 )

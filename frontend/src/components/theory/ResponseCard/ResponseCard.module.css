@@ -5,6 +5,13 @@
     display: flex;
     gap: 0;
     overflow: hidden;
+    transition: box-shadow 0.3s ease;
+}
+
+.highlighted {
+    box-shadow:
+        0 0 0 2px var(--gold),
+        0 0 12px rgba(var(--gold-rgb), 0.3);
 }
 
 .voteStrip {
@@ -49,6 +56,8 @@
     font-size: 1.05rem;
     line-height: 1.6;
     margin-bottom: 0.5rem;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
 }
 
 .evidence {

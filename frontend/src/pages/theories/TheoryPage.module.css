@@ -114,6 +114,8 @@
     margin-bottom: 1rem;
     color: #3399ff;
     font-weight: 500;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
 }
 
 .debateSection {

@@ -3,6 +3,8 @@ package theory
 import (
 	"context"
 
+	"fmt"
+
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/credibility"
@@ -32,6 +34,7 @@ type (
 
 	service struct {
 		repo           repository.TheoryRepository
+		userRepo       repository.UserRepository
 		authz          authz.Service
 		notifService   notification.Service
 		settingsSvc    settings.Service
@@ -42,6 +45,7 @@ type (
 
 func NewService(
 	repo repository.TheoryRepository,
+	userRepo repository.UserRepository,
 	authzService authz.Service,
 	notifService notification.Service,
 	settingsSvc settings.Service,
@@ -50,12 +54,21 @@ func NewService(
 ) Service {
 	return &service{
 		repo:           repo,
+		userRepo:       userRepo,
 		authz:          authzService,
 		notifService:   notifService,
 		settingsSvc:    settingsSvc,
 		credibilitySvc: credibilitySvc,
 		quoteClient:    quoteClient,
 	}
+}
+
+func (s *service) actorName(ctx context.Context, userID uuid.UUID) string {
+	u, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil || u == nil {
+		return "Someone"
+	}
+	return u.DisplayName
 }
 
 func (s *service) CreateTheory(ctx context.Context, userID uuid.UUID, req dto.CreateTheoryRequest) (uuid.UUID, error) {
@@ -163,14 +176,46 @@ func (s *service) CreateResponse(ctx context.Context, theoryID uuid.UUID, userID
 	}()
 
 	go func() {
-		if err := s.notifService.NotifyTheoryResponse(ctx, theoryID, userID); err != nil {
+		authorID, err := s.repo.GetTheoryAuthorID(ctx, theoryID)
+		if err != nil {
+			return
+		}
+		title, _ := s.repo.GetTheoryTitle(ctx, theoryID)
+		baseURL := s.settingsSvc.Get(ctx, config.SettingBaseURL)
+		linkURL := fmt.Sprintf("%s/theory/%s#response-%s", baseURL, theoryID, id)
+		subject, body := notification.NotifEmail(s.actorName(ctx, userID), "responded to your theory", title, linkURL)
+		if err := s.notifService.Notify(ctx, dto.NotifyParams{
+			RecipientID:   authorID,
+			Type:          dto.NotifTheoryResponse,
+			ReferenceID:   theoryID,
+			ReferenceType: "theory",
+			ActorID:       userID,
+			EmailSubject:  subject,
+			EmailBody:     body,
+		}); err != nil {
 			logger.Log.Warn().Err(err).Msg("notify theory response failed")
 		}
 	}()
 
 	if req.ParentID != nil {
 		go func() {
-			if err := s.notifService.NotifyResponseReply(ctx, *req.ParentID, theoryID, userID); err != nil {
+			recipientID, _, err := s.repo.GetResponseInfo(ctx, *req.ParentID)
+			if err != nil {
+				return
+			}
+			title, _ := s.repo.GetTheoryTitle(ctx, theoryID)
+			baseURL := s.settingsSvc.Get(ctx, config.SettingBaseURL)
+			linkURL := fmt.Sprintf("%s/theory/%s#response-%s", baseURL, theoryID, id)
+			subject, body := notification.NotifEmail(s.actorName(ctx, userID), "replied to your response", title, linkURL)
+			if err := s.notifService.Notify(ctx, dto.NotifyParams{
+				RecipientID:   recipientID,
+				Type:          dto.NotifResponseReply,
+				ReferenceID:   theoryID,
+				ReferenceType: "theory",
+				ActorID:       userID,
+				EmailSubject:  subject,
+				EmailBody:     body,
+			}); err != nil {
 				logger.Log.Warn().Err(err).Msg("notify response reply failed")
 			}
 		}()
@@ -231,7 +276,23 @@ func (s *service) VoteTheory(ctx context.Context, userID uuid.UUID, theoryID uui
 
 	if value == 1 {
 		go func() {
-			if err := s.notifService.NotifyTheoryUpvote(ctx, theoryID, userID); err != nil {
+			authorID, err := s.repo.GetTheoryAuthorID(ctx, theoryID)
+			if err != nil {
+				return
+			}
+			title, _ := s.repo.GetTheoryTitle(ctx, theoryID)
+			baseURL := s.settingsSvc.Get(ctx, config.SettingBaseURL)
+			linkURL := fmt.Sprintf("%s/theory/%s", baseURL, theoryID)
+			subject, body := notification.NotifEmail(s.actorName(ctx, userID), "upvoted your theory", title, linkURL)
+			if err := s.notifService.Notify(ctx, dto.NotifyParams{
+				RecipientID:   authorID,
+				Type:          dto.NotifTheoryUpvote,
+				ReferenceID:   theoryID,
+				ReferenceType: "theory",
+				ActorID:       userID,
+				EmailSubject:  subject,
+				EmailBody:     body,
+			}); err != nil {
 				logger.Log.Warn().Err(err).Msg("notify theory upvote failed")
 			}
 		}()
@@ -247,12 +308,23 @@ func (s *service) VoteResponse(ctx context.Context, userID uuid.UUID, responseID
 
 	if value == 1 {
 		go func() {
-			_, theoryID, err := s.repo.GetResponseInfo(ctx, responseID)
+			recipientID, theoryID, err := s.repo.GetResponseInfo(ctx, responseID)
 			if err != nil {
-				logger.Log.Warn().Err(err).Msg("get response info for upvote notification failed")
 				return
 			}
-			if err := s.notifService.NotifyResponseUpvote(ctx, responseID, theoryID, userID); err != nil {
+			title, _ := s.repo.GetTheoryTitle(ctx, theoryID)
+			baseURL := s.settingsSvc.Get(ctx, config.SettingBaseURL)
+			linkURL := fmt.Sprintf("%s/theory/%s#response-%s", baseURL, theoryID, responseID)
+			subject, body := notification.NotifEmail(s.actorName(ctx, userID), "upvoted your response", title, linkURL)
+			if err := s.notifService.Notify(ctx, dto.NotifyParams{
+				RecipientID:   recipientID,
+				Type:          dto.NotifResponseUpvote,
+				ReferenceID:   theoryID,
+				ReferenceType: "theory",
+				ActorID:       userID,
+				EmailSubject:  subject,
+				EmailBody:     body,
+			}); err != nil {
 				logger.Log.Warn().Err(err).Msg("notify response upvote failed")
 			}
 		}()

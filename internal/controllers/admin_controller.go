@@ -41,11 +41,11 @@ func (s *Service) setupAdminGetStats(r fiber.Router) {
 }
 
 func (s *Service) setupAdminListUsers(r fiber.Router) {
-	r.Get("/admin/users", s.requirePerm(authz.PermManageRoles), s.adminListUsers)
+	r.Get("/admin/users", s.requirePerm(authz.PermViewUsers), s.adminListUsers)
 }
 
 func (s *Service) setupAdminGetUser(r fiber.Router) {
-	r.Get("/admin/users/:id", s.requirePerm(authz.PermManageRoles), s.adminGetUser)
+	r.Get("/admin/users/:id", s.requirePerm(authz.PermViewUsers), s.adminGetUser)
 }
 
 func (s *Service) setupAdminSetRole(r fiber.Router) {
@@ -273,6 +273,9 @@ func (s *Service) adminDeleteInvite(ctx fiber.Ctx) error {
 func handleAdminError(ctx fiber.Ctx, err error) error {
 	if errors.Is(err, admin.ErrUserNotFound) {
 		return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "user not found"})
+	}
+	if errors.Is(err, admin.ErrProtectedUser) {
+		return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "this user cannot be modified"})
 	}
 	return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 }

@@ -30,6 +30,7 @@ require (
 	github.com/tinylib/msgp v1.6.3 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasthttp v1.69.0 // indirect
+	github.com/wneessen/go-mail v0.7.2 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/net v0.52.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect

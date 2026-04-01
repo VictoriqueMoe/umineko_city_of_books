@@ -4,18 +4,26 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"umineko_city_of_books/internal/dto"
 
 	"github.com/google/uuid"
 )
 
 type (
 	NotificationRepository interface {
-		Create(ctx context.Context, userID uuid.UUID, notifType string, referenceID uuid.UUID, referenceType string, actorID uuid.UUID) (int64, error)
+		Create(
+			ctx context.Context,
+			userID uuid.UUID,
+			notifType dto.NotificationType,
+			referenceID uuid.UUID,
+			referenceType string,
+			actorID uuid.UUID,
+		) (int64, error)
 		ListByUser(ctx context.Context, userID uuid.UUID, limit, offset int) ([]NotificationRow, int, error)
 		MarkRead(ctx context.Context, id int, userID uuid.UUID) error
 		MarkAllRead(ctx context.Context, userID uuid.UUID) error
 		UnreadCount(ctx context.Context, userID uuid.UUID) (int, error)
-		HasRecentDuplicate(ctx context.Context, userID uuid.UUID, notifType string, referenceID uuid.UUID, referenceType string, actorID uuid.UUID) (bool, error)
+		HasRecentDuplicate(ctx context.Context, userID uuid.UUID, notifType dto.NotificationType, referenceID uuid.UUID, actorID uuid.UUID) (bool, error)
 	}
 
 	notificationRepository struct {
@@ -23,7 +31,14 @@ type (
 	}
 )
 
-func (r *notificationRepository) Create(ctx context.Context, userID uuid.UUID, notifType string, referenceID uuid.UUID, referenceType string, actorID uuid.UUID) (int64, error) {
+func (r *notificationRepository) Create(
+	ctx context.Context,
+	userID uuid.UUID,
+	notifType dto.NotificationType,
+	referenceID uuid.UUID,
+	referenceType string,
+	actorID uuid.UUID,
+) (int64, error) {
 	result, err := r.db.ExecContext(ctx,
 		`INSERT INTO notifications (user_id, type, reference_id, reference_type, actor_id) VALUES (?, ?, ?, ?, ?)`,
 		userID, notifType, referenceID, referenceType, actorID,
@@ -106,7 +121,13 @@ func (r *notificationRepository) UnreadCount(ctx context.Context, userID uuid.UU
 	return count, nil
 }
 
-func (r *notificationRepository) HasRecentDuplicate(ctx context.Context, userID uuid.UUID, notifType string, referenceID uuid.UUID, referenceType string, actorID uuid.UUID) (bool, error) {
+func (r *notificationRepository) HasRecentDuplicate(
+	ctx context.Context,
+	userID uuid.UUID,
+	notifType dto.NotificationType,
+	referenceID uuid.UUID,
+	actorID uuid.UUID,
+) (bool, error) {
 	var count int
 	err := r.db.QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM notifications

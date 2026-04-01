@@ -1,6 +1,6 @@
-import { type PropsWithChildren, useCallback, useEffect, useLayoutEffect, useState } from "react";
+import { type PropsWithChildren, useCallback, useLayoutEffect, useState } from "react";
 import type { ThemeType } from "../types/app";
-import { getSiteInfo } from "../api/endpoints";
+import { useSiteInfo } from "../hooks/useSiteInfo";
 import { ThemeContext } from "./themeContextValue";
 
 const STORAGE_KEY = "ut-theme";
@@ -8,7 +8,13 @@ const PARTICLES_KEY = "ut-particles";
 const FALLBACK_THEME: ThemeType = "featherine";
 
 function isValidTheme(value: string): value is ThemeType {
-    return value === "featherine" || value === "bernkastel" || value === "lambdadelta";
+    return (
+        value === "featherine" ||
+        value === "bernkastel" ||
+        value === "lambdadelta" ||
+        value === "beatrice" ||
+        value === "erika"
+    );
 }
 
 function hasStoredTheme(): boolean {
@@ -45,21 +51,17 @@ function getStoredParticles(): boolean {
 }
 
 export function ThemeProvider({ children }: PropsWithChildren) {
-    const [theme, setThemeState] = useState<ThemeType>(getStoredTheme);
-    const [particlesEnabled, setParticlesEnabledState] = useState(getStoredParticles);
-
-    useEffect(() => {
+    const siteInfo = useSiteInfo();
+    const [theme, setThemeState] = useState<ThemeType>(() => {
         if (hasStoredTheme()) {
-            return;
+            return getStoredTheme();
         }
-        getSiteInfo()
-            .then(info => {
-                if (info.default_theme && isValidTheme(info.default_theme)) {
-                    setThemeState(info.default_theme);
-                }
-            })
-            .catch(() => {});
-    }, []);
+        if (siteInfo.default_theme && isValidTheme(siteInfo.default_theme)) {
+            return siteInfo.default_theme;
+        }
+        return FALLBACK_THEME;
+    });
+    const [particlesEnabled, setParticlesEnabledState] = useState(getStoredParticles);
 
     useLayoutEffect(() => {
         if (theme === FALLBACK_THEME) {

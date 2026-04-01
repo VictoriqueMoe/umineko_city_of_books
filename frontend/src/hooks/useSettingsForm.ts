@@ -57,6 +57,10 @@ export function useSettingsForm() {
     const [website, setWebsite] = useState("");
     const [dmsEnabled, setDmsEnabled] = useState(true);
     const [episodeProgress, setEpisodeProgress] = useState(0);
+    const [email, setEmail] = useState("");
+    const [emailPublic, setEmailPublic] = useState(false);
+    const [emailNotifications, setEmailNotifications] = useState(false);
+    const [homePage, setHomePage] = useState("theories");
 
     const [characters, setCharacters] = useState<Record<string, string>>({});
     const [saving, setSaving] = useState(false);
@@ -81,6 +85,10 @@ export function useSettingsForm() {
             setWebsite(profile.website);
             setDmsEnabled(profile.dms_enabled ?? true);
             setEpisodeProgress(profile.episode_progress ?? 0);
+            setEmail(profile.email ?? "");
+            setEmailPublic(profile.email_public ?? false);
+            setEmailNotifications(profile.email_notifications ?? false);
+            setHomePage(profile.home_page ?? "theories");
 
             const g = initGender(profile);
             setGender(g.gender);
@@ -181,6 +189,10 @@ export function useSettingsForm() {
             website,
             dms_enabled: dmsEnabled,
             episode_progress: episodeProgress,
+            email,
+            email_public: emailPublic,
+            email_notifications: emailNotifications,
+            home_page: homePage,
         };
 
         try {
@@ -239,6 +251,14 @@ export function useSettingsForm() {
         setDmsEnabled,
         episodeProgress,
         setEpisodeProgress,
+        email,
+        setEmail,
+        emailPublic,
+        setEmailPublic,
+        emailNotifications,
+        setEmailNotifications,
+        homePage,
+        setHomePage,
         characters,
 
         handleSubmit,

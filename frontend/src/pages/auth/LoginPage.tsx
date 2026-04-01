@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router";
 import { Turnstile } from "@marsidev/react-turnstile";
 import { useAuth } from "../../hooks/useAuth";
-import { getSiteInfo } from "../../api/endpoints";
+import { useSiteInfo } from "../../hooks/useSiteInfo";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
 import styles from "./LoginPage.module.css";
@@ -10,6 +10,7 @@ import styles from "./LoginPage.module.css";
 export function LoginPage() {
     const navigate = useNavigate();
     const { loginUser, registerUser } = useAuth();
+    const siteInfo = useSiteInfo();
     const [isRegister, setIsRegister] = useState(false);
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
@@ -17,20 +18,11 @@ export function LoginPage() {
     const [inviteCode, setInviteCode] = useState("");
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
-    const [regType, setRegType] = useState<"open" | "invite" | "closed">("open");
-    const [turnstileEnabled, setTurnstileEnabled] = useState(false);
-    const [turnstileSiteKey, setTurnstileSiteKey] = useState("");
     const [turnstileToken, setTurnstileToken] = useState("");
 
-    useEffect(() => {
-        getSiteInfo()
-            .then(info => {
-                setRegType(info.registration_type as "open" | "invite" | "closed");
-                setTurnstileEnabled(info.turnstile_enabled);
-                setTurnstileSiteKey(info.turnstile_site_key);
-            })
-            .catch(() => {});
-    }, []);
+    const regType = siteInfo.registration_type as "open" | "invite" | "closed";
+    const turnstileEnabled = siteInfo.turnstile_enabled;
+    const turnstileSiteKey = siteInfo.turnstile_site_key;
 
     async function handleSubmit(e: React.SubmitEvent) {
         e.preventDefault();

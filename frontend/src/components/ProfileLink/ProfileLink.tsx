@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router";
 import type { User } from "../../types/api";
 import { RolePill } from "../RolePill/RolePill";
+import { RoleStyledName } from "../RoleStyledName/RoleStyledName";
 import styles from "./ProfileLink.module.css";
 
 interface ProfileLinkProps {
@@ -36,7 +37,7 @@ export function ProfileLink({ user, size = "medium", showName = true, prefix, on
             {showName && (
                 <span className={styles.name}>
                     {prefix && `${prefix} `}
-                    {user.display_name}
+                    <RoleStyledName name={user.display_name} role={user.role} />
                     {user.role && <RolePill role={user.role} />}
                 </span>
             )}

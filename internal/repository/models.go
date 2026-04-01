@@ -32,6 +32,10 @@ type (
 		BannerPosition     float64
 		DmsEnabled         bool
 		EpisodeProgress    int
+		Email              string
+		EmailPublic        bool
+		EmailNotifications bool
+		HomePage           string
 	}
 
 	UserStats struct {
@@ -55,6 +59,52 @@ type (
 	}
 )
 
+type (
+	PostRow struct {
+		ID                uuid.UUID
+		UserID            uuid.UUID
+		Body              string
+		CreatedAt         string
+		AuthorUsername    string
+		AuthorDisplayName string
+		AuthorAvatarURL   string
+		AuthorRole        string
+		LikeCount         int
+		CommentCount      int
+		UserLiked         bool
+		ViewCount         int
+	}
+
+	PostMediaRow struct {
+		ID           int
+		PostID       uuid.UUID
+		MediaURL     string
+		MediaType    string
+		ThumbnailURL string
+		SortOrder    int
+	}
+
+	PostLikeUser struct {
+		ID          uuid.UUID
+		Username    string
+		DisplayName string
+		AvatarURL   string
+		Role        string
+	}
+
+	PostCommentRow struct {
+		ID                uuid.UUID
+		PostID            uuid.UUID
+		UserID            uuid.UUID
+		Body              string
+		CreatedAt         string
+		AuthorUsername    string
+		AuthorDisplayName string
+		AuthorAvatarURL   string
+		AuthorRole        string
+	}
+)
+
 func (u *User) ToResponse() *dto.UserResponse {
 	return &dto.UserResponse{
 		ID:              u.ID,
@@ -62,6 +112,7 @@ func (u *User) ToResponse() *dto.UserResponse {
 		DisplayName:     u.DisplayName,
 		AvatarURL:       u.AvatarURL,
 		EpisodeProgress: u.EpisodeProgress,
+		HomePage:        u.HomePage,
 	}
 }
 
@@ -86,6 +137,10 @@ func (u *User) ToProfileResponse(stats *UserStats) *dto.UserProfileResponse {
 		Website:            u.Website,
 		DmsEnabled:         u.DmsEnabled,
 		EpisodeProgress:    u.EpisodeProgress,
+		Email:              u.Email,
+		EmailPublic:        u.EmailPublic,
+		EmailNotifications: u.EmailNotifications,
+		HomePage:           u.HomePage,
 		CreatedAt:          u.CreatedAt,
 		Stats: dto.UserStatsDTO{
 			TheoryCount:   stats.TheoryCount,

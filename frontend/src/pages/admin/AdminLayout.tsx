@@ -9,7 +9,9 @@ export function AdminLayout() {
     return (
         <div className={styles.layout}>
             <div className={styles.header}>
-                <h2 className={styles.title}>Administration</h2>
+                <h2 className={styles.title}>
+                    {can(user?.role, "manage_settings") ? "Administration" : "Moderator Panel"}
+                </h2>
                 <nav className={styles.tabs}>
                     <NavLink
                         to="/admin"
@@ -18,12 +20,20 @@ export function AdminLayout() {
                     >
                         Dashboard
                     </NavLink>
-                    {can(user?.role, "manage_roles") && (
+                    {can(user?.role, "view_users") && (
                         <NavLink
                             to="/admin/users"
                             className={({ isActive }) => `${styles.tab}${isActive ? ` ${styles.tabActive}` : ""}`}
                         >
                             Users
+                        </NavLink>
+                    )}
+                    {can(user?.role, "view_users") && (
+                        <NavLink
+                            to="/admin/reports"
+                            className={({ isActive }) => `${styles.tab}${isActive ? ` ${styles.tabActive}` : ""}`}
+                        >
+                            Reports
                         </NavLink>
                     )}
                     {can(user?.role, "manage_roles") && (
@@ -32,6 +42,14 @@ export function AdminLayout() {
                             className={({ isActive }) => `${styles.tab}${isActive ? ` ${styles.tabActive}` : ""}`}
                         >
                             Invites
+                        </NavLink>
+                    )}
+                    {can(user?.role, "manage_settings") && (
+                        <NavLink
+                            to="/admin/content-rules"
+                            className={({ isActive }) => `${styles.tab}${isActive ? ` ${styles.tabActive}` : ""}`}
+                        >
+                            Content Rules
                         </NavLink>
                     )}
                     {can(user?.role, "manage_settings") && (

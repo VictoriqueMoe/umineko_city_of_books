@@ -1,4 +1,5 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useLocation } from "react-router";
 import type { Response as TheoryResponse } from "../../../types/api";
 import { useAuth } from "../../../hooks/useAuth";
 import { useVote } from "../../../hooks/useVote";
@@ -8,6 +9,7 @@ import { ProfileLink } from "../../ProfileLink/ProfileLink";
 import { VoteButton } from "../VoteButton/VoteButton";
 import { EvidenceList } from "../EvidenceList/EvidenceList";
 import { ResponseEditor } from "../ResponseEditor/ResponseEditor";
+import { ReportButton } from "../../ReportButton/ReportButton";
 import { can } from "../../../utils/permissions";
 import styles from "./ResponseCard.module.css";
 
@@ -31,6 +33,8 @@ function ResponseCard({
     mentionedAuthor,
 }: ResponseCardProps) {
     const { user } = useAuth();
+    const location = useLocation();
+    const isHighlighted = location.hash === `#response-${response.id}`;
 
     const voteFn = useCallback(
         async (value: number) => {
@@ -50,7 +54,10 @@ function ResponseCard({
     const sideClass = response.side === "with_love" ? styles.withLove : styles.withoutLove;
 
     return (
-        <div className={`${styles.card} ${sideClass}`}>
+        <div
+            id={`response-${response.id}`}
+            className={`${styles.card} ${sideClass}${isHighlighted ? ` ${styles.highlighted}` : ""}`}
+        >
             <div className={styles.voteStrip}>
                 <VoteButton score={score} userVote={userVote} onVote={vote} />
             </div>
@@ -71,6 +78,9 @@ function ResponseCard({
                             >
                                 Reply
                             </Button>
+                        )}
+                        {user && user.id !== response.author.id && (
+                            <ReportButton targetType="response" targetId={response.id} contextId={theoryId} />
                         )}
                         {user && (user.id === response.author.id || can(user.role, "delete_any_response")) && (
                             <Button variant="danger" size="small" onClick={handleDelete}>
@@ -129,8 +139,40 @@ export function ResponseList({
     theoryId: string;
     onDeleted?: () => void;
 }) {
+    const location = useLocation();
     const [replyTarget, setReplyTarget] = useState<{ parentId: string; parentAuthor: string } | null>(null);
-    const [expandedThreads, setExpandedThreads] = useState<Set<string>>(new Set());
+    const [expandedThreads, setExpandedThreads] = useState<Set<string>>(() => {
+        const hash = window.location.hash.replace("#response-", "");
+        if (!hash) {
+            return new Set<string>();
+        }
+        for (const r of responses) {
+            const inThread = (r.replies ?? []).some(function check(reply: TheoryResponse): boolean {
+                if (reply.id === hash) {
+                    return true;
+                }
+                return (reply.replies ?? []).some(check);
+            });
+            if (inThread) {
+                return new Set([r.id]);
+            }
+        }
+        return new Set<string>();
+    });
+
+    useEffect(() => {
+        const hash = location.hash;
+        if (!hash) {
+            return;
+        }
+        const timer = setTimeout(() => {
+            const el = document.querySelector(hash);
+            if (el) {
+                el.scrollIntoView({ behavior: "smooth", block: "center" });
+            }
+        }, 100);
+        return () => clearTimeout(timer);
+    }, [location.hash, expandedThreads]);
 
     function handleReply(parentId: string, parentAuthor: string) {
         if (replyTarget?.parentId === parentId) {

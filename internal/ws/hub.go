@@ -88,6 +88,28 @@ func (h *Hub) SendToUser(userID uuid.UUID, msg Message) {
 	}
 }
 
+func (h *Hub) Broadcast(msg Message) {
+	h.mu.RLock()
+	var allConns []*Client
+	for _, conns := range h.clients {
+		allConns = append(allConns, conns...)
+	}
+	h.mu.RUnlock()
+
+	if len(allConns) == 0 {
+		return
+	}
+
+	data, err := json.Marshal(msg)
+	if err != nil {
+		return
+	}
+
+	for _, client := range allConns {
+		client.Conn.WriteMessage(websocket.TextMessage, data)
+	}
+}
+
 func (h *Hub) IsOnline(userID uuid.UUID) bool {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
