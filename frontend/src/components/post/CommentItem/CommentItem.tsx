@@ -1,14 +1,14 @@
-import {useState} from "react";
-import type {PostComment} from "../../../types/api";
-import {deleteComment as apiDeleteComment, likeComment, unlikeComment, updateComment} from "../../../api/endpoints";
-import {useAuth} from "../../../hooks/useAuth";
-import {can} from "../../../utils/permissions";
-import {linkify} from "../../../utils/linkify";
-import {ProfileLink} from "../../ProfileLink/ProfileLink";
-import {MediaGallery} from "../MediaGallery/MediaGallery";
-import {PostEmbeds} from "../PostEmbeds/PostEmbeds";
-import {CommentComposer} from "../CommentComposer/CommentComposer";
-import {Button} from "../../Button/Button";
+import { useState } from "react";
+import type { PostComment } from "../../../types/api";
+import { deleteComment as apiDeleteComment, likeComment, unlikeComment, updateComment } from "../../../api/endpoints";
+import { useAuth } from "../../../hooks/useAuth";
+import { can } from "../../../utils/permissions";
+import { linkify } from "../../../utils/linkify";
+import { ProfileLink } from "../../ProfileLink/ProfileLink";
+import { MediaGallery } from "../MediaGallery/MediaGallery";
+import { PostEmbeds } from "../PostEmbeds/PostEmbeds";
+import { CommentComposer } from "../CommentComposer/CommentComposer";
+import { Button } from "../../Button/Button";
 import styles from "./CommentItem.module.css";
 
 interface CommentItemProps {

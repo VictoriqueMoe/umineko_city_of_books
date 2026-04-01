@@ -1,10 +1,10 @@
-import React, {useCallback, useEffect, useRef, useState} from "react";
-import {useNavigate, useParams} from "react-router";
-import {useAuth} from "../../hooks/useAuth";
-import {useNotifications} from "../../hooks/useNotifications";
-import {Button} from "../../components/Button/Button";
-import {Input} from "../../components/Input/Input";
-import {Modal} from "../../components/Modal/Modal";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router";
+import { useAuth } from "../../hooks/useAuth";
+import { useNotifications } from "../../hooks/useNotifications";
+import { Button } from "../../components/Button/Button";
+import { Input } from "../../components/Input/Input";
+import { Modal } from "../../components/Modal/Modal";
 import {
     createDMRoom,
     deleteChatRoom,
@@ -14,8 +14,8 @@ import {
     searchUsers,
     sendChatMessage,
 } from "../../api/endpoints";
-import {ProfileLink} from "../../components/ProfileLink/ProfileLink";
-import type {ChatMessage, ChatRoom, User, WSMessage} from "../../types/api";
+import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
+import type { ChatMessage, ChatRoom, User, WSMessage } from "../../types/api";
 import styles from "./ChatPage.module.css";
 
 function getRoomDisplayName(room: ChatRoom, currentUser: User): string {

@@ -1,6 +1,6 @@
-import {useCallback, useEffect, useRef, useState} from "react";
-import type {FeedTab, Post, PostListResponse} from "../types/api";
-import {listPosts} from "../api/endpoints";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { FeedTab, Post, PostListResponse } from "../types/api";
+import { listPosts } from "../api/endpoints";
 
 function generateSeed(): number {
     return Math.floor(Math.random() * 1000000);

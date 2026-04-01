@@ -1,6 +1,6 @@
-import {useCallback, useEffect, useState} from "react";
-import {createInvite, deleteInvite, getInvites, type InviteItem} from "../../api/endpoints";
-import {Button} from "../../components/Button/Button";
+import { useCallback, useEffect, useState } from "react";
+import { createInvite, deleteInvite, getInvites, type InviteItem } from "../../api/endpoints";
+import { Button } from "../../components/Button/Button";
 import styles from "./AdminInvites.module.css";
 
 export function AdminInvites() {

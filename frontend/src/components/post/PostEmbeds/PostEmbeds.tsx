@@ -1,4 +1,4 @@
-import type {PostEmbed} from "../../../types/api";
+import type { PostEmbed } from "../../../types/api";
 import styles from "./PostEmbeds.module.css";
 
 interface PostEmbedsProps {

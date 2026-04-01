@@ -1,6 +1,6 @@
-import {useEffect, useState} from "react";
-import {getAdminStats} from "../../api/endpoints";
-import type {AdminStats} from "../../types/api";
+import { useEffect, useState } from "react";
+import { getAdminStats } from "../../api/endpoints";
+import type { AdminStats } from "../../types/api";
 import styles from "./AdminDashboard.module.css";
 
 export function AdminDashboard() {

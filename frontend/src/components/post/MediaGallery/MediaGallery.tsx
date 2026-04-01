@@ -1,6 +1,6 @@
-import {useState} from "react";
-import type {PostMedia} from "../../../types/api";
-import {Modal} from "../../Modal/Modal";
+import { useState } from "react";
+import type { PostMedia } from "../../../types/api";
+import { Modal } from "../../Modal/Modal";
 import styles from "./MediaGallery.module.css";
 
 interface MediaGalleryProps {

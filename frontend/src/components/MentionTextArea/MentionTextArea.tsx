@@ -1,6 +1,6 @@
-import {useCallback, useEffect, useRef, useState} from "react";
-import type {User} from "../../types/api";
-import {searchUsers} from "../../api/endpoints";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { User } from "../../types/api";
+import { searchUsers } from "../../api/endpoints";
 import styles from "./MentionTextArea.module.css";
 
 interface MentionTextAreaProps {

@@ -1,10 +1,10 @@
-import {useMemo, useRef, useState} from "react";
-import {useNavigate} from "react-router";
-import {createPost, uploadPostMedia} from "../../../api/endpoints";
-import {useSiteInfo} from "../../../hooks/useSiteInfo";
-import {validateFileSize} from "../../../utils/fileValidation";
-import {Button} from "../../Button/Button";
-import {MentionTextArea} from "../../MentionTextArea/MentionTextArea";
+import { useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router";
+import { createPost, uploadPostMedia } from "../../../api/endpoints";
+import { useSiteInfo } from "../../../hooks/useSiteInfo";
+import { validateFileSize } from "../../../utils/fileValidation";
+import { Button } from "../../Button/Button";
+import { MentionTextArea } from "../../MentionTextArea/MentionTextArea";
 import styles from "./PostComposer.module.css";
 
 interface PostComposerProps {

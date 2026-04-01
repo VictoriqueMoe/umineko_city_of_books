@@ -1,10 +1,10 @@
-import React, {useEffect, useState} from "react";
-import {useAuth} from "./useAuth";
-import {useProfile} from "./useProfile";
-import {useSiteInfo} from "./useSiteInfo";
-import {getCharacters, updateProfile, uploadAvatar, uploadBanner} from "../api/endpoints";
-import {validateFileSize} from "../utils/fileValidation";
-import type {UpdateProfilePayload, UserProfile} from "../types/api";
+import React, { useEffect, useState } from "react";
+import { useAuth } from "./useAuth";
+import { useProfile } from "./useProfile";
+import { useSiteInfo } from "./useSiteInfo";
+import { getCharacters, updateProfile, uploadAvatar, uploadBanner } from "../api/endpoints";
+import { validateFileSize } from "../utils/fileValidation";
+import type { UpdateProfilePayload, UserProfile } from "../types/api";
 
 const GENDER_OPTIONS = ["Prefer not to say", "Male", "Female", "Custom"];
 

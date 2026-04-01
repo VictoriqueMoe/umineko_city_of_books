@@ -1,16 +1,16 @@
-import {useEffect, useRef, useState} from "react";
-import {useNavigate} from "react-router";
-import type {Post} from "../../../types/api";
-import {deletePost as apiDeletePost, likePost, unlikePost, updatePost} from "../../../api/endpoints";
-import {useAuth} from "../../../hooks/useAuth";
-import {useNotifications} from "../../../hooks/useNotifications";
-import {can} from "../../../utils/permissions";
-import {linkify} from "../../../utils/linkify";
-import {ProfileLink} from "../../ProfileLink/ProfileLink";
-import {MediaGallery} from "../MediaGallery/MediaGallery";
-import {PostEmbeds} from "../PostEmbeds/PostEmbeds";
-import {MentionTextArea} from "../../MentionTextArea/MentionTextArea";
-import {Button} from "../../Button/Button";
+import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router";
+import type { Post } from "../../../types/api";
+import { deletePost as apiDeletePost, likePost, unlikePost, updatePost } from "../../../api/endpoints";
+import { useAuth } from "../../../hooks/useAuth";
+import { useNotifications } from "../../../hooks/useNotifications";
+import { can } from "../../../utils/permissions";
+import { linkify } from "../../../utils/linkify";
+import { ProfileLink } from "../../ProfileLink/ProfileLink";
+import { MediaGallery } from "../MediaGallery/MediaGallery";
+import { PostEmbeds } from "../PostEmbeds/PostEmbeds";
+import { MentionTextArea } from "../../MentionTextArea/MentionTextArea";
+import { Button } from "../../Button/Button";
 import styles from "./PostCard.module.css";
 
 interface PostCardProps {
