@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
-import type { FeedTab, Post, PostListResponse } from "../types/api";
-import { listPosts } from "../api/endpoints";
+import {useCallback, useEffect, useState} from "react";
+import type {FeedTab, Post, PostListResponse} from "../types/api";
+import {listPosts} from "../api/endpoints";
 
 export function usePostFeed(tab: FeedTab, search?: string, sort?: string) {
     const [data, setData] = useState<PostListResponse | null>(null);
@@ -9,8 +9,10 @@ export function usePostFeed(tab: FeedTab, search?: string, sort?: string) {
     const limit = 20;
 
     const fetchPosts = useCallback(
-        async (currentOffset: number) => {
-            setLoading(true);
+        async (currentOffset: number, showLoading = true) => {
+            if (showLoading) {
+                setLoading(true);
+            }
             try {
                 const result = await listPosts({
                     tab,
@@ -60,6 +62,6 @@ export function usePostFeed(tab: FeedTab, search?: string, sort?: string) {
         goPrev,
         hasNext: data ? offset + limit < data.total : false,
         hasPrev: offset > 0,
-        refresh: () => fetchPosts(offset),
+        refresh: () => fetchPosts(offset, false),
     };
 }
