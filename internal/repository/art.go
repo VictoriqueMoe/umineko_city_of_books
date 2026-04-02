@@ -41,6 +41,7 @@ type (
 		DeleteCommentAsAdmin(ctx context.Context, id uuid.UUID) error
 		GetComments(ctx context.Context, artID uuid.UUID, viewerID uuid.UUID, limit, offset int) ([]ArtCommentRow, int, error)
 		GetCommentArtID(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error)
+		GetCommentAuthorID(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error)
 		LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error
 		UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error
 		AddCommentMedia(ctx context.Context, commentID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, sortOrder int) (int64, error)
@@ -396,7 +397,7 @@ func (r *artRepository) GetTagsBatch(ctx context.Context, artIDs []uuid.UUID) (m
 
 func (r *artRepository) GetPopularTags(ctx context.Context, corner string, limit int) ([]TagCount, error) {
 	query := `SELECT t.tag, COUNT(*) as cnt FROM art_tags t JOIN art a ON t.art_id = a.id`
-	args := []interface{}{}
+	var args []interface{}
 
 	if corner != "" {
 		query += ` WHERE a.corner = ?`
@@ -549,6 +550,15 @@ func (r *artRepository) GetCommentArtID(ctx context.Context, commentID uuid.UUID
 		return uuid.Nil, fmt.Errorf("get comment art id: %w", err)
 	}
 	return artID, nil
+}
+
+func (r *artRepository) GetCommentAuthorID(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error) {
+	var userID uuid.UUID
+	err := r.db.QueryRowContext(ctx, `SELECT user_id FROM art_comments WHERE id = ?`, commentID).Scan(&userID)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("get art comment author: %w", err)
+	}
+	return userID, nil
 }
 
 func (r *artRepository) LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {

@@ -421,7 +421,15 @@ func (s *service) UnlikeComment(ctx context.Context, userID uuid.UUID, commentID
 	return s.artRepo.UnlikeComment(ctx, userID, commentID)
 }
 
-func (s *service) UploadCommentMedia(ctx context.Context, commentID uuid.UUID, _ uuid.UUID, contentType string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error) {
+func (s *service) UploadCommentMedia(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error) {
+	authorID, err := s.artRepo.GetCommentAuthorID(ctx, commentID)
+	if err != nil {
+		return nil, ErrNotFound
+	}
+	if authorID != userID {
+		return nil, fmt.Errorf("not the comment author")
+	}
+
 	isVideo := strings.HasPrefix(contentType, "video/")
 	mediaID := uuid.New()
 
