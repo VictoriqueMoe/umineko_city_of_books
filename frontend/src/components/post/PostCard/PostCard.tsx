@@ -1,7 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
-import type { Post } from "../../../types/api";
-import { deletePost as apiDeletePost, likePost, unlikePost, updatePost } from "../../../api/endpoints";
+import type { Post, PostMedia } from "../../../types/api";
+import {
+    deletePost as apiDeletePost,
+    deletePostMedia,
+    likePost,
+    unlikePost,
+    updatePost,
+    uploadPostMedia,
+} from "../../../api/endpoints";
 import { useAuth } from "../../../hooks/useAuth";
 import { useNotifications } from "../../../hooks/useNotifications";
 import { can } from "../../../utils/permissions";
@@ -16,6 +23,7 @@ import styles from "./PostCard.module.css";
 interface PostCardProps {
     post: Post;
     onDelete?: () => void;
+    onEdit?: () => void;
 }
 
 function timeAgo(dateStr: string): string {
@@ -38,15 +46,19 @@ function timeAgo(dateStr: string): string {
     return new Date(dateStr).toLocaleDateString();
 }
 
-export function PostCard({ post, onDelete }: PostCardProps) {
+export function PostCard({ post, onDelete, onEdit }: PostCardProps) {
     const navigate = useNavigate();
     const { user } = useAuth();
     const { addWSListener } = useNotifications();
     const [liked, setLiked] = useState(post.user_liked);
     const [likeCount, setLikeCount] = useState(post.like_count);
     const [editing, setEditing] = useState(false);
+    const [displayBody, setDisplayBody] = useState(post.body);
     const [editBody, setEditBody] = useState(post.body);
+    const [editMedia, setEditMedia] = useState<PostMedia[]>(post.media);
+    const [displayMedia, setDisplayMedia] = useState<PostMedia[]>(post.media);
     const [saving, setSaving] = useState(false);
+    const mediaInputRef = useRef<HTMLInputElement>(null);
 
     const pendingLikeRef = useRef(false);
 
@@ -108,8 +120,10 @@ export function PostCard({ post, onDelete }: PostCardProps) {
         setSaving(true);
         try {
             await updatePost(post.id, editBody.trim());
+            setDisplayBody(editBody.trim());
+            setDisplayMedia([...editMedia]);
             setEditing(false);
-            onDelete?.();
+            onEdit?.();
         } catch {
             void 0;
         } finally {
@@ -133,7 +147,44 @@ export function PostCard({ post, onDelete }: PostCardProps) {
             {editing ? (
                 <div className={styles.editArea}>
                     <MentionTextArea value={editBody} onChange={setEditBody} rows={3} />
+                    {editMedia.length > 0 && (
+                        <div className={styles.editMediaList}>
+                            {editMedia.map(m => (
+                                <div key={m.id} className={styles.editMediaItem}>
+                                    <img src={m.media_url} alt="" className={styles.editMediaThumb} />
+                                    <button
+                                        type="button"
+                                        className={styles.editMediaRemove}
+                                        onClick={async () => {
+                                            await deletePostMedia(post.id, m.id);
+                                            setEditMedia(prev => prev.filter(x => x.id !== m.id));
+                                        }}
+                                    >
+                                        &times;
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                     <div className={styles.editActions}>
+                        <input
+                            ref={mediaInputRef}
+                            type="file"
+                            accept="image/*,video/*"
+                            hidden
+                            onChange={async e => {
+                                const file = e.target.files?.[0];
+                                if (!file) {
+                                    return;
+                                }
+                                e.target.value = "";
+                                const result = await uploadPostMedia(post.id, file);
+                                setEditMedia(prev => [...prev, result]);
+                            }}
+                        />
+                        <Button variant="ghost" size="small" onClick={() => mediaInputRef.current?.click()}>
+                            + Media
+                        </Button>
                         <Button variant="ghost" size="small" onClick={() => setEditing(false)}>
                             Cancel
                         </Button>
@@ -149,8 +200,8 @@ export function PostCard({ post, onDelete }: PostCardProps) {
                 </div>
             ) : (
                 <div className={styles.body} onClick={() => navigate(`/game-board/${post.id}`)}>
-                    <p className={styles.text}>{linkify(post.body)}</p>
-                    <MediaGallery media={post.media} />
+                    <p className={styles.text}>{linkify(displayBody)}</p>
+                    <MediaGallery media={displayMedia} />
                     {post.embeds && <PostEmbeds embeds={post.embeds} />}
                 </div>
             )}

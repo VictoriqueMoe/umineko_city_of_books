@@ -65,8 +65,9 @@ func (s *Service) setupGetUserActivityRoute(r fiber.Router) {
 
 func (s *Service) getProfile(ctx fiber.Ctx) error {
 	username := ctx.Params("username")
+	viewerID, _ := ctx.Locals("userID").(uuid.UUID)
 
-	result, err := s.ProfileService.GetProfile(ctx.Context(), username)
+	result, err := s.ProfileService.GetProfile(ctx.Context(), username, viewerID)
 	if err != nil {
 		if errors.Is(err, profile.ErrUserNotFound) {
 			return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{
@@ -79,16 +80,6 @@ func (s *Service) getProfile(ctx fiber.Ctx) error {
 	}
 
 	result.Online = s.Hub.IsOnline(result.ID)
-
-	viewerID, _ := ctx.Locals("userID").(uuid.UUID)
-	if viewerID != result.ID {
-		if !result.EmailPublic {
-			result.Email = ""
-		}
-		result.EmailPublic = false
-		result.EmailNotifications = false
-		result.HomePage = ""
-	}
 
 	return ctx.JSON(result)
 }

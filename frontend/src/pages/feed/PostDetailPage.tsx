@@ -59,7 +59,7 @@ export function PostDetailPage() {
             <span className={styles.back} onClick={() => navigate(-1)}>
                 &larr; Back to Game Board
             </span>
-            <PostCard post={post} onDelete={() => navigate("/game-board")} />
+            <PostCard post={post} onDelete={() => navigate("/game-board")} onEdit={fetchPost} />
 
             {post.liked_by && post.liked_by.length > 0 && (
                 <div className={styles.likedBy}>

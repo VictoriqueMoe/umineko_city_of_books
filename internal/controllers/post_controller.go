@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"strconv"
 
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/follow"
@@ -23,6 +24,7 @@ func (s *Service) getAllPostRoutes() []FSetupRoute {
 		s.setupUpdatePost,
 		s.setupDeletePost,
 		s.setupUploadPostMedia,
+		s.setupDeletePostMedia,
 		s.setupLikePost,
 		s.setupUnlikePost,
 		s.setupCreateComment,
@@ -62,6 +64,10 @@ func (s *Service) setupDeletePost(r fiber.Router) {
 
 func (s *Service) setupUploadPostMedia(r fiber.Router) {
 	r.Post("/posts/:id/media", middleware.RequireAuth(s.AuthSession), s.uploadPostMedia)
+}
+
+func (s *Service) setupDeletePostMedia(r fiber.Router) {
+	r.Delete("/posts/:id/media/:mediaId", middleware.RequireAuth(s.AuthSession), s.deletePostMedia)
 }
 
 func (s *Service) setupLikePost(r fiber.Router) {
@@ -255,6 +261,27 @@ func (s *Service) uploadPostMedia(ctx fiber.Ctx) error {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 	return ctx.Status(fiber.StatusCreated).JSON(result)
+}
+
+func (s *Service) deletePostMedia(ctx fiber.Ctx) error {
+	postID, err := uuid.Parse(ctx.Params("id"))
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid post id"})
+	}
+
+	mediaID := fiber.Query[int64](ctx, "mediaId", 0)
+	if mediaID == 0 {
+		mediaID, _ = strconv.ParseInt(ctx.Params("mediaId"), 10, 64)
+	}
+	if mediaID == 0 {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid media id"})
+	}
+
+	userID := ctx.Locals("userID").(uuid.UUID)
+	if err := s.PostService.DeletePostMedia(ctx.Context(), postID, mediaID, userID); err != nil {
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to delete media"})
+	}
+	return ctx.SendStatus(fiber.StatusNoContent)
 }
 
 func (s *Service) likePost(ctx fiber.Ctx) error {

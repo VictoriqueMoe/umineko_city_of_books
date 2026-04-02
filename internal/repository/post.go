@@ -21,6 +21,7 @@ type (
 		ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit, offset int) ([]PostRow, int, error)
 
 		AddMedia(ctx context.Context, postID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, sortOrder int) (int64, error)
+		DeleteMedia(ctx context.Context, id int64, postID uuid.UUID) (string, error)
 		UpdateMediaURL(ctx context.Context, id int64, mediaURL string) error
 		UpdateMediaThumbnail(ctx context.Context, id int64, thumbnailURL string) error
 		GetMedia(ctx context.Context, postID uuid.UUID) ([]PostMediaRow, error)
@@ -292,6 +293,19 @@ func (r *postRepository) AddMedia(ctx context.Context, postID uuid.UUID, mediaUR
 		return 0, fmt.Errorf("add post media: %w", err)
 	}
 	return res.LastInsertId()
+}
+
+func (r *postRepository) DeleteMedia(ctx context.Context, id int64, postID uuid.UUID) (string, error) {
+	var mediaURL string
+	err := r.db.QueryRowContext(ctx, `SELECT media_url FROM post_media WHERE id = ? AND post_id = ?`, id, postID).Scan(&mediaURL)
+	if err != nil {
+		return "", fmt.Errorf("media not found: %w", err)
+	}
+	_, err = r.db.ExecContext(ctx, `DELETE FROM post_media WHERE id = ? AND post_id = ?`, id, postID)
+	if err != nil {
+		return "", fmt.Errorf("delete media: %w", err)
+	}
+	return mediaURL, nil
 }
 
 func (r *postRepository) UpdateMediaURL(ctx context.Context, id int64, mediaURL string) error {
