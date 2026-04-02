@@ -57,6 +57,8 @@ type (
 		DeleteGallery(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		GetGalleryByID(ctx context.Context, id uuid.UUID) (*GalleryRow, error)
 		ListGalleriesByUser(ctx context.Context, userID uuid.UUID) ([]GalleryRow, error)
+		ListAllGalleries(ctx context.Context, corner string) ([]GalleryRow, error)
+		GetGalleryPreviewImages(ctx context.Context, galleryID uuid.UUID, limit int) ([]string, error)
 		ListArtInGallery(ctx context.Context, galleryID uuid.UUID, viewerID uuid.UUID, limit, offset int) ([]ArtRow, int, error)
 	}
 
@@ -788,6 +790,67 @@ func (r *artRepository) ListGalleriesByUser(ctx context.Context, userID uuid.UUI
 		galleries = append(galleries, g)
 	}
 	return galleries, rows.Err()
+}
+
+func (r *artRepository) ListAllGalleries(ctx context.Context, corner string) ([]GalleryRow, error) {
+	query := `SELECT g.id, g.user_id, g.name, g.description, g.cover_art_id,
+			COALESCE(a.image_url, ''), COALESCE(a.thumbnail_url, ''),
+			(SELECT COUNT(*) FROM art WHERE gallery_id = g.id),
+			g.created_at, g.updated_at,
+			u.username, u.display_name, u.avatar_url
+		FROM galleries g
+		JOIN users u ON g.user_id = u.id
+		LEFT JOIN art a ON g.cover_art_id = a.id`
+	args := []interface{}{}
+
+	if corner != "" {
+		query += ` WHERE EXISTS(SELECT 1 FROM art WHERE gallery_id = g.id AND corner = ?)`
+		args = append(args, corner)
+	}
+
+	query += ` ORDER BY g.created_at DESC`
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list all galleries: %w", err)
+	}
+	defer rows.Close()
+
+	var galleries []GalleryRow
+	for rows.Next() {
+		var g GalleryRow
+		if err := rows.Scan(
+			&g.ID, &g.UserID, &g.Name, &g.Description, &g.CoverArtID,
+			&g.CoverImageURL, &g.CoverThumbnailURL, &g.ArtCount,
+			&g.CreatedAt, &g.UpdatedAt,
+			&g.AuthorUsername, &g.AuthorDisplayName, &g.AuthorAvatarURL,
+		); err != nil {
+			return nil, fmt.Errorf("scan gallery: %w", err)
+		}
+		galleries = append(galleries, g)
+	}
+	return galleries, rows.Err()
+}
+
+func (r *artRepository) GetGalleryPreviewImages(ctx context.Context, galleryID uuid.UUID, limit int) ([]string, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT COALESCE(thumbnail_url, image_url) FROM art WHERE gallery_id = ? ORDER BY created_at DESC LIMIT ?`,
+		galleryID, limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("get gallery preview images: %w", err)
+	}
+	defer rows.Close()
+
+	var urls []string
+	for rows.Next() {
+		var url string
+		if err := rows.Scan(&url); err != nil {
+			return nil, fmt.Errorf("scan preview image: %w", err)
+		}
+		urls = append(urls, url)
+	}
+	return urls, rows.Err()
 }
 
 func (r *artRepository) ListArtInGallery(ctx context.Context, galleryID uuid.UUID, viewerID uuid.UUID, limit, offset int) ([]ArtRow, int, error) {

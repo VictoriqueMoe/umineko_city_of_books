@@ -648,6 +648,11 @@ export async function getGallery(id: string, limit: number = 24, offset: number 
     return apiFetch<GalleryDetailResponse>(`/galleries/${id}${qs}`);
 }
 
+export async function listAllGalleries(corner?: string): Promise<Gallery[]> {
+    const qs = corner ? `?corner=${encodeURIComponent(corner)}` : "";
+    return apiFetch<Gallery[]>(`/galleries${qs}`);
+}
+
 export async function getUserGalleries(userId: string): Promise<Gallery[]> {
     return apiFetch<Gallery[]>(`/users/${userId}/galleries`);
 }

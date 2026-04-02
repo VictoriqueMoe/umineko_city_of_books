@@ -74,6 +74,7 @@ type (
 		Description       string       `json:"description"`
 		CoverImageURL     string       `json:"cover_image_url"`
 		CoverThumbnailURL string       `json:"cover_thumbnail_url"`
+		PreviewImages     []string     `json:"preview_images,omitempty"`
 		ArtCount          int          `json:"art_count"`
 		CreatedAt         string       `json:"created_at"`
 		UpdatedAt         *string      `json:"updated_at,omitempty"`

@@ -123,13 +123,12 @@
 }
 
 .grid {
-    columns: 4 240px;
-    column-gap: 1rem;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
 }
 
 .artCard {
-    break-inside: avoid;
-    margin-bottom: 1rem;
     border-radius: 8px;
     overflow: hidden;
     background: var(--bg-card);
@@ -146,7 +145,8 @@
 .artImage {
     display: block;
     width: 100%;
-    height: auto;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
 }
 
 .artInfo {
@@ -205,13 +205,13 @@
 
 @media (max-width: 1024px) {
     .grid {
-        columns: 3 200px;
+        grid-template-columns: repeat(3, 1fr);
     }
 }
 
 @media (max-width: 768px) {
     .grid {
-        columns: 2 160px;
+        grid-template-columns: repeat(2, 1fr);
     }
 }
 
@@ -226,7 +226,7 @@
     }
 
     .grid {
-        columns: 1;
+        grid-template-columns: 1fr;
     }
 
     .manageGrid {

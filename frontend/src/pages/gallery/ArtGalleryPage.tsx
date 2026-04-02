@@ -1,14 +1,15 @@
 import {useCallback, useEffect, useRef, useState} from "react";
-import {useSearchParams} from "react-router";
+import {useNavigate, useSearchParams} from "react-router";
 import {useAuth} from "../../hooks/useAuth";
 import {useArtFeed} from "../../hooks/useArtFeed";
-import {createGallery, getPopularTags, getUserGalleries} from "../../api/endpoints";
+import {createGallery, getPopularTags, getUserGalleries, listAllGalleries} from "../../api/endpoints";
 import type {Gallery, TagCount} from "../../types/api";
 import {ArtGrid} from "../../components/art/ArtGrid/ArtGrid";
 import {ArtUploadForm} from "../../components/art/ArtUploadForm/ArtUploadForm";
 import {Pagination} from "../../components/Pagination/Pagination";
 import {Input} from "../../components/Input/Input";
 import {Button} from "../../components/Button/Button";
+import {ProfileLink} from "../../components/ProfileLink/ProfileLink";
 import {RulesBox} from "../../components/RulesBox/RulesBox";
 import styles from "./ArtGalleryPage.module.css";
 
@@ -39,8 +40,10 @@ interface ArtGalleryPageProps {
 
 export function ArtGalleryPage({ corner = "general" }: ArtGalleryPageProps) {
     const { user } = useAuth();
+    const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
 
+    const viewMode = searchParams.get("view") || "galleries";
     const sort = (searchParams.get("sort") as ArtSort) || "new";
     const search = searchParams.get("search") || "";
     const activeTag = searchParams.get("tag") || "";
@@ -51,11 +54,14 @@ export function ArtGalleryPage({ corner = "general" }: ArtGalleryPageProps) {
     const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
     const [refreshKey, setRefreshKey] = useState(0);
 
-    const [galleries, setGalleries] = useState<Gallery[]>([]);
+    const [userGalleries, setUserGalleries] = useState<Gallery[]>([]);
     const [selectedGallery, setSelectedGallery] = useState("");
     const [showUpload, setShowUpload] = useState(false);
     const [creatingGallery, setCreatingGallery] = useState(false);
     const [newGalleryName, setNewGalleryName] = useState("");
+
+    const [allGalleries, setAllGalleries] = useState<Gallery[]>([]);
+    const [galleriesLoading, setGalleriesLoading] = useState(false);
 
     const feed = useArtFeed(corner, search || undefined, activeTag || undefined, sort, page, refreshKey);
 
@@ -70,13 +76,23 @@ export function ArtGalleryPage({ corner = "general" }: ArtGalleryPageProps) {
     useEffect(() => {
         if (user?.id) {
             getUserGalleries(user.id).then(g => {
-                setGalleries(g ?? []);
+                setUserGalleries(g ?? []);
                 if (g && g.length > 0) {
                     setSelectedGallery(prev => prev || g[0].id);
                 }
             }).catch(() => {});
         }
     }, [user?.id]);
+
+    useEffect(() => {
+        if (viewMode === "galleries") {
+            setGalleriesLoading(true);
+            listAllGalleries(corner)
+                .then(g => setAllGalleries(g ?? []))
+                .catch(() => setAllGalleries([]))
+                .finally(() => setGalleriesLoading(false));
+        }
+    }, [viewMode, corner]);
 
     async function handleCreateGallery() {
         if (!newGalleryName.trim()) {
@@ -88,7 +104,7 @@ export function ArtGalleryPage({ corner = "general" }: ArtGalleryPageProps) {
             setNewGalleryName("");
             if (user?.id) {
                 const updated = await getUserGalleries(user.id);
-                setGalleries(updated ?? []);
+                setUserGalleries(updated ?? []);
                 setSelectedGallery(id);
             }
         } finally {
@@ -106,7 +122,8 @@ export function ArtGalleryPage({ corner = "general" }: ArtGalleryPageProps) {
                             value &&
                             value !== "" &&
                             !(key === "sort" && value === "new") &&
-                            !(key === "page" && value === "1")
+                            !(key === "page" && value === "1") &&
+                            !(key === "view" && value === "galleries")
                         ) {
                             next.set(key, value);
                         } else {
@@ -132,6 +149,15 @@ export function ArtGalleryPage({ corner = "general" }: ArtGalleryPageProps) {
         return () => clearTimeout(debounceRef.current);
     }, [searchInput, search, updateParams]);
 
+    const grouped = new Map<string, { user: Gallery["author"]; galleries: Gallery[] }>();
+    for (const g of allGalleries) {
+        const key = g.author.id;
+        if (!grouped.has(key)) {
+            grouped.set(key, { user: g.author, galleries: [] });
+        }
+        grouped.get(key)!.galleries.push(g);
+    }
+
     return (
         <div className={styles.page}>
             {CORNER_TITLES[corner] && <h1 className={styles.cornerTitle}>{CORNER_TITLES[corner]}</h1>}
@@ -139,13 +165,29 @@ export function ArtGalleryPage({ corner = "general" }: ArtGalleryPageProps) {
             <RulesBox page={CORNER_RULES[corner] || "gallery"} />
 
             <div className={styles.controls}>
-                <Input
-                    type="text"
-                    placeholder="Search art..."
-                    value={searchInput}
-                    onChange={e => setSearchInput(e.target.value)}
-                    className={styles.searchInput}
-                />
+                <div className={styles.viewToggle}>
+                    <button
+                        className={`${styles.toggleBtn}${viewMode === "galleries" ? ` ${styles.toggleBtnActive}` : ""}`}
+                        onClick={() => updateParams({ view: "galleries", page: "1" })}
+                    >
+                        By Artist
+                    </button>
+                    <button
+                        className={`${styles.toggleBtn}${viewMode === "all" ? ` ${styles.toggleBtnActive}` : ""}`}
+                        onClick={() => updateParams({ view: "all", page: "1" })}
+                    >
+                        All Art
+                    </button>
+                </div>
+                {viewMode === "all" && (
+                    <Input
+                        type="text"
+                        placeholder="Search art..."
+                        value={searchInput}
+                        onChange={e => setSearchInput(e.target.value)}
+                        className={styles.searchInput}
+                    />
+                )}
                 {user && (
                     <Button
                         variant="primary"
@@ -159,7 +201,7 @@ export function ArtGalleryPage({ corner = "general" }: ArtGalleryPageProps) {
 
             {showUpload && user && (
                 <div className={styles.uploadSection}>
-                    {galleries.length === 0 ? (
+                    {userGalleries.length === 0 ? (
                         <div className={styles.createGalleryPrompt}>
                             <p>You need a gallery first. Create one to start uploading art.</p>
                             <div className={styles.createGalleryRow}>
@@ -189,7 +231,7 @@ export function ArtGalleryPage({ corner = "general" }: ArtGalleryPageProps) {
                                 setShowUpload(false);
                                 refresh();
                             }}
-                            galleries={galleries}
+                            galleries={userGalleries}
                             selectedGallery={selectedGallery}
                             onGalleryChange={setSelectedGallery}
                         />
@@ -197,68 +239,152 @@ export function ArtGalleryPage({ corner = "general" }: ArtGalleryPageProps) {
                 </div>
             )}
 
-            <div className={styles.sortBar}>
-                {SORT_OPTIONS.map(opt => (
-                    <button
-                        key={opt.value}
-                        className={`${styles.sortBtn}${sort === opt.value ? ` ${styles.sortBtnActive}` : ""}`}
-                        onClick={() => updateParams({ sort: opt.value, page: "1" })}
-                    >
-                        {opt.label}
-                    </button>
-                ))}
-            </div>
-
-            {popularTags.length > 0 && (
-                <div className={styles.tagBar}>
-                    {activeTag && (
-                        <button
-                            className={`${styles.tagChip} ${styles.tagChipClear}`}
-                            onClick={() => updateParams({ tag: undefined, page: "1" })}
-                        >
-                            Clear filter
-                        </button>
+            {viewMode === "galleries" && (
+                <>
+                    {galleriesLoading && <div className="loading">Loading galleries...</div>}
+                    {!galleriesLoading && grouped.size === 0 && (
+                        <div className="empty-state">No galleries yet. Be the first to create one.</div>
                     )}
-                    {popularTags.map(t => (
-                        <button
-                            key={t.tag}
-                            className={`${styles.tagChip}${activeTag === t.tag ? ` ${styles.tagChipActive}` : ""}`}
-                            onClick={() =>
-                                updateParams({
-                                    tag: activeTag === t.tag ? undefined : t.tag,
-                                    page: "1",
-                                })
-                            }
-                        >
-                            {t.tag} ({t.count})
-                        </button>
-                    ))}
-                </div>
+                    {!galleriesLoading && (
+                        <div className={styles.artistList}>
+                            {[...grouped.values()].map(({ user: artist, galleries: artistGalleries }) => (
+                                <div key={artist.id} className={styles.artistSection}>
+                                    <div className={styles.artistHeader}>
+                                        <ProfileLink user={artist} size="medium" />
+                                        <span className={styles.artistGalleryCount}>
+                                            {artistGalleries.length} {artistGalleries.length === 1 ? "gallery" : "galleries"}
+                                        </span>
+                                    </div>
+                                    <div className={styles.artistGalleries}>
+                                        {artistGalleries.map(g => (
+                                            <div
+                                                key={g.id}
+                                                className={styles.galleryCard}
+                                                onClick={() => navigate(`/gallery/view/${g.id}`)}
+                                            >
+                                                <div className={styles.galleryCover}>
+                                                    {g.cover_thumbnail_url || g.cover_image_url ? (
+                                                        <img
+                                                            src={g.cover_thumbnail_url || g.cover_image_url}
+                                                            alt=""
+                                                            className={styles.galleryCoverImage}
+                                                            onError={e => {
+                                                                if (g.cover_image_url && e.currentTarget.src !== g.cover_image_url) {
+                                                                    e.currentTarget.src = g.cover_image_url;
+                                                                }
+                                                            }}
+                                                        />
+                                                    ) : g.preview_images && g.preview_images.length > 0 ? (
+                                                        <GalleryPreview images={g.preview_images} />
+                                                    ) : (
+                                                        <div className={styles.galleryCoverPlaceholder}>Empty</div>
+                                                    )}
+                                                </div>
+                                                <div className={styles.galleryCardInfo}>
+                                                    <span className={styles.galleryCardName}>{g.name}</span>
+                                                    <span className={styles.galleryCardCount}>{g.art_count} pieces</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </>
             )}
 
-            {feed.loading && <div className="loading">Loading gallery...</div>}
+            {viewMode === "all" && (
+                <>
+                    <div className={styles.sortBar}>
+                        {SORT_OPTIONS.map(opt => (
+                            <button
+                                key={opt.value}
+                                className={`${styles.sortBtn}${sort === opt.value ? ` ${styles.sortBtnActive}` : ""}`}
+                                onClick={() => updateParams({ sort: opt.value, page: "1" })}
+                            >
+                                {opt.label}
+                            </button>
+                        ))}
+                    </div>
 
-            {!feed.loading && feed.art.length === 0 && (
-                <div className="empty-state">
-                    {search || activeTag
-                        ? "No art matches your search."
-                        : "No art yet. Be the first to upload."}
-                </div>
+                    {popularTags.length > 0 && (
+                        <div className={styles.tagBar}>
+                            {activeTag && (
+                                <button
+                                    className={`${styles.tagChip} ${styles.tagChipClear}`}
+                                    onClick={() => updateParams({ tag: undefined, page: "1" })}
+                                >
+                                    Clear filter
+                                </button>
+                            )}
+                            {popularTags.map(t => (
+                                <button
+                                    key={t.tag}
+                                    className={`${styles.tagChip}${activeTag === t.tag ? ` ${styles.tagChipActive}` : ""}`}
+                                    onClick={() =>
+                                        updateParams({
+                                            tag: activeTag === t.tag ? undefined : t.tag,
+                                            page: "1",
+                                        })
+                                    }
+                                >
+                                    {t.tag} ({t.count})
+                                </button>
+                            ))}
+                        </div>
+                    )}
+
+                    {feed.loading && <div className="loading">Loading gallery...</div>}
+
+                    {!feed.loading && feed.art.length === 0 && (
+                        <div className="empty-state">
+                            {search || activeTag
+                                ? "No art matches your search."
+                                : "No art yet. Be the first to upload."}
+                        </div>
+                    )}
+
+                    {!feed.loading && feed.art.length > 0 && <ArtGrid art={feed.art} />}
+
+                    {!feed.loading && (
+                        <Pagination
+                            offset={feed.offset}
+                            limit={feed.limit}
+                            total={feed.total}
+                            hasNext={feed.hasNext}
+                            hasPrev={feed.hasPrev}
+                            onNext={() => updateParams({ page: String(page + 1) })}
+                            onPrev={() => updateParams({ page: String(Math.max(1, page - 1)) })}
+                        />
+                    )}
+                </>
             )}
+        </div>
+    );
+}
 
-            {!feed.loading && feed.art.length > 0 && <ArtGrid art={feed.art} />}
+function GalleryPreview({ images }: { images: string[] }) {
+    if (images.length === 1) {
+        return <img src={images[0]} alt="" className={styles.galleryCoverImage} />;
+    }
 
-            {!feed.loading && (
-                <Pagination
-                    offset={feed.offset}
-                    limit={feed.limit}
-                    total={feed.total}
-                    hasNext={feed.hasNext}
-                    hasPrev={feed.hasPrev}
-                    onNext={() => updateParams({ page: String(page + 1) })}
-                    onPrev={() => updateParams({ page: String(Math.max(1, page - 1)) })}
-                />
-            )}
+    if (images.length === 2) {
+        return (
+            <div className={styles.preview2}>
+                <img src={images[0]} alt="" className={styles.previewImg} />
+                <img src={images[1]} alt="" className={styles.previewImg} />
+            </div>
+        );
+    }
+
+    return (
+        <div className={styles.preview3}>
+            <img src={images[0]} alt="" className={styles.previewMain} />
+            <div className={styles.previewSide}>
+                <img src={images[1]} alt="" className={styles.previewImg} />
+                {images[2] && <img src={images[2]} alt="" className={styles.previewImg} />}
+            </div>
         </div>
     );
 }

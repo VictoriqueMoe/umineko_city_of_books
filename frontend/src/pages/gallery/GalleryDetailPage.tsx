@@ -209,6 +209,11 @@ export function GalleryDetailPage() {
                                 alt={a.title}
                                 className={styles.artImage}
                                 loading="lazy"
+                                onError={e => {
+                                    if (e.currentTarget.src !== a.image_url) {
+                                        e.currentTarget.src = a.image_url;
+                                    }
+                                }}
                             />
                             <div className={styles.artInfo}>
                                 <span className={styles.artTitle}>{a.title}</span>
@@ -228,6 +233,11 @@ export function GalleryDetailPage() {
                                 alt={a.title}
                                 className={styles.artImage}
                                 loading="lazy"
+                                onError={e => {
+                                    if (e.currentTarget.src !== a.image_url) {
+                                        e.currentTarget.src = a.image_url;
+                                    }
+                                }}
                             />
                             <div className={styles.manageInfo}>
                                 <span className={styles.artTitle}>{a.title}</span>

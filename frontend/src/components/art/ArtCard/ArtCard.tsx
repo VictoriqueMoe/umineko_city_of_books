@@ -14,7 +14,17 @@ export function ArtCard({ art }: ArtCardProps) {
     return (
         <div className={styles.card} onClick={() => navigate(`/gallery/art/${art.id}`)}>
             <div className={styles.imageWrap}>
-                <img src={imgSrc} alt={art.title} className={styles.image} loading="lazy" />
+                <img
+                    src={imgSrc}
+                    alt={art.title}
+                    className={styles.image}
+                    loading="lazy"
+                    onError={e => {
+                        if (e.currentTarget.src !== art.image_url) {
+                            e.currentTarget.src = art.image_url;
+                        }
+                    }}
+                />
             </div>
             <div className={styles.info}>
                 <span className={styles.title}>{art.title}</span>

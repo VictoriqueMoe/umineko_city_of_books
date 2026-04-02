@@ -153,3 +153,158 @@
     outline: none;
     border-color: var(--gold);
 }
+
+.viewToggle {
+    display: flex;
+    border: 1px solid rgba(var(--gold-rgb), 0.2);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.toggleBtn {
+    padding: 0.35rem 0.75rem;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.toggleBtn:first-child {
+    border-right: 1px solid rgba(var(--gold-rgb), 0.2);
+}
+
+.toggleBtnActive {
+    background: var(--gold);
+    color: var(--bg-void);
+}
+
+.artistList {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.artistSection {
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--gold-rgb), 0.2);
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.artistHeader {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.artistGalleryCount {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+
+.artistGalleries {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 0.75rem;
+}
+
+.galleryCard {
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--bg-purple);
+    border: 1px solid rgba(var(--gold-rgb), 0.15);
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.galleryCard:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.galleryCover {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+}
+
+.galleryCoverImage {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.galleryCoverPlaceholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    background: var(--bg-purple);
+}
+
+.galleryCardInfo {
+    padding: 0.5rem 0.6rem;
+}
+
+.galleryCardName {
+    display: block;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.galleryCardCount {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.preview2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+    height: 100%;
+}
+
+.preview3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+    height: 100%;
+}
+
+.previewMain {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.previewSide {
+    display: grid;
+    grid-template-rows: 1fr 1fr;
+    height: 100%;
+}
+
+.previewImg {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+@media (max-width: 480px) {
+    .controls {
+        flex-wrap: wrap;
+    }
+
+    .artistGalleries {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}

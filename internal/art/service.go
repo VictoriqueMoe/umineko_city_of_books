@@ -49,6 +49,7 @@ type (
 		DeleteGallery(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		GetGallery(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, limit, offset int) (*dto.GalleryResponse, []dto.ArtResponse, int, error)
 		ListUserGalleries(ctx context.Context, userID uuid.UUID) ([]dto.GalleryResponse, error)
+		ListAllGalleries(ctx context.Context, corner string) ([]dto.GalleryResponse, error)
 		SetArtGallery(ctx context.Context, artID uuid.UUID, userID uuid.UUID, galleryID *uuid.UUID) error
 	}
 
@@ -715,16 +716,32 @@ func (s *service) GetGallery(ctx context.Context, id uuid.UUID, viewerID uuid.UU
 	return &gallery, arts, total, nil
 }
 
+func (s *service) galleriesWithPreviews(ctx context.Context, rows []repository.GalleryRow) []dto.GalleryResponse {
+	result := make([]dto.GalleryResponse, len(rows))
+	for i, g := range rows {
+		result[i] = galleryRowToDTO(g)
+		if g.CoverArtID == nil && g.ArtCount > 0 {
+			previews, _ := s.artRepo.GetGalleryPreviewImages(ctx, g.ID, 3)
+			result[i].PreviewImages = previews
+		}
+	}
+	return result
+}
+
 func (s *service) ListUserGalleries(ctx context.Context, userID uuid.UUID) ([]dto.GalleryResponse, error) {
 	rows, err := s.artRepo.ListGalleriesByUser(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
-	result := make([]dto.GalleryResponse, len(rows))
-	for i, g := range rows {
-		result[i] = galleryRowToDTO(g)
+	return s.galleriesWithPreviews(ctx, rows), nil
+}
+
+func (s *service) ListAllGalleries(ctx context.Context, corner string) ([]dto.GalleryResponse, error) {
+	rows, err := s.artRepo.ListAllGalleries(ctx, corner)
+	if err != nil {
+		return nil, err
 	}
-	return result, nil
+	return s.galleriesWithPreviews(ctx, rows), nil
 }
 
 func (s *service) SetArtGallery(ctx context.Context, artID uuid.UUID, userID uuid.UUID, galleryID *uuid.UUID) error {

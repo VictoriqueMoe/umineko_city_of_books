@@ -473,8 +473,10 @@ export function ProfilePage() {
                                                 alt=""
                                                 className={styles.galleryCoverImage}
                                             />
+                                        ) : g.preview_images && g.preview_images.length > 0 ? (
+                                            <ProfileGalleryPreview images={g.preview_images} />
                                         ) : (
-                                            <div className={styles.galleryCoverPlaceholder}>No cover</div>
+                                            <div className={styles.galleryCoverPlaceholder}>Empty</div>
                                         )}
                                     </div>
                                     <div className={styles.galleryInfo}>
@@ -629,6 +631,31 @@ function CreateGalleryInline({ onCreated }: { onCreated: () => void }) {
                 <Button variant="primary" size="small" onClick={handleCreate} disabled={!name.trim() || submitting}>
                     {submitting ? "Creating..." : "Create"}
                 </Button>
+            </div>
+        </div>
+    );
+}
+
+function ProfileGalleryPreview({ images }: { images: string[] }) {
+    if (images.length === 1) {
+        return <img src={images[0]} alt="" className={styles.galleryCoverImage} />;
+    }
+
+    if (images.length === 2) {
+        return (
+            <div className={styles.galleryPreview2}>
+                <img src={images[0]} alt="" className={styles.galleryPreviewImg} />
+                <img src={images[1]} alt="" className={styles.galleryPreviewImg} />
+            </div>
+        );
+    }
+
+    return (
+        <div className={styles.galleryPreview3}>
+            <img src={images[0]} alt="" className={styles.galleryPreviewMain} />
+            <div className={styles.galleryPreviewSide}>
+                <img src={images[1]} alt="" className={styles.galleryPreviewImg} />
+                {images[2] && <img src={images[2]} alt="" className={styles.galleryPreviewImg} />}
             </div>
         </div>
     );

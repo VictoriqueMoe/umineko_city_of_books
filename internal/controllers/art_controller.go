@@ -33,6 +33,7 @@ func (s *Service) getAllArtRoutes() []FSetupRoute {
 		s.setupUploadArtCommentMedia,
 		s.setupListUserArt,
 		s.setupCreateGallery,
+		s.setupListAllGalleries,
 		s.setupUpdateGallery,
 		s.setupSetGalleryCover,
 		s.setupDeleteGallery,
@@ -387,6 +388,10 @@ func (s *Service) setupCreateGallery(r fiber.Router) {
 	r.Post("/galleries", middleware.RequireAuth(s.AuthSession), s.createGallery)
 }
 
+func (s *Service) setupListAllGalleries(r fiber.Router) {
+	r.Get("/galleries", s.listAllGalleries)
+}
+
 func (s *Service) setupUpdateGallery(r fiber.Router) {
 	r.Put("/galleries/:id", middleware.RequireAuth(s.AuthSession), s.updateGallery)
 }
@@ -426,6 +431,15 @@ func (s *Service) createGallery(ctx fiber.Ctx) error {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to create gallery"})
 	}
 	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id})
+}
+
+func (s *Service) listAllGalleries(ctx fiber.Ctx) error {
+	corner := ctx.Query("corner")
+	galleries, err := s.ArtService.ListAllGalleries(ctx.Context(), corner)
+	if err != nil {
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to list galleries"})
+	}
+	return ctx.JSON(galleries)
 }
 
 func (s *Service) updateGallery(ctx fiber.Ctx) error {
