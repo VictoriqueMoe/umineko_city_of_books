@@ -176,7 +176,12 @@ func (s *service) UpdatePost(ctx context.Context, id uuid.UUID, userID uuid.UUID
 	if body == "" {
 		return ErrEmptyBody
 	}
-	if err := s.postRepo.UpdatePost(ctx, id, userID, body); err != nil {
+	if s.authz.Can(ctx, userID, authz.PermEditAnyPost) {
+		if err := s.postRepo.UpdatePostAsAdmin(ctx, id, body); err != nil {
+			return err
+		}
+		go s.notifyContentEdited(ctx, id, "post", userID)
+	} else if err := s.postRepo.UpdatePost(ctx, id, userID, body); err != nil {
 		return err
 	}
 	go func() {
@@ -442,7 +447,7 @@ func (s *service) CreateComment(ctx context.Context, postID uuid.UUID, userID uu
 	}
 
 	go social.ProcessEmbeds(s.postRepo, id.String(), "comment", body)
-	go social.ProcessMentions(s.userRepo, s.notifService, s.settingsSvc, userID, body, postID, "post", fmt.Sprintf("/game-board/%s#comment-%s", postID, id))
+	go social.ProcessMentions(s.userRepo, s.notifService, s.settingsSvc, userID, body, postID, fmt.Sprintf("post_comment:%s", id), fmt.Sprintf("/game-board/%s#comment-%s", postID, id))
 
 	go func() {
 		authorID, err := s.postRepo.GetPostAuthorID(ctx, postID)
@@ -460,7 +465,7 @@ func (s *service) CreateComment(ctx context.Context, postID uuid.UUID, userID uu
 			RecipientID:   authorID,
 			Type:          dto.NotifPostCommented,
 			ReferenceID:   postID,
-			ReferenceType: "post",
+			ReferenceType: fmt.Sprintf("post_comment:%s", id),
 			ActorID:       userID,
 			EmailSubject:  subject,
 			EmailBody:     body,
@@ -475,7 +480,12 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 	if body == "" {
 		return ErrEmptyBody
 	}
-	if err := s.postRepo.UpdateComment(ctx, id, userID, body); err != nil {
+	if s.authz.Can(ctx, userID, authz.PermEditAnyComment) {
+		if err := s.postRepo.UpdateCommentAsAdmin(ctx, id, body); err != nil {
+			return err
+		}
+		go s.notifyCommentEdited(ctx, id, "post", userID)
+	} else if err := s.postRepo.UpdateComment(ctx, id, userID, body); err != nil {
 		return err
 	}
 	go func() {
@@ -586,6 +596,67 @@ func embedRowsToDTO(rows []repository.EmbedRow) []dto.EmbedResponse {
 
 func (s *service) GetCornerCounts(ctx context.Context) (map[string]int, error) {
 	return s.postRepo.GetCornerCounts(ctx)
+}
+
+func (s *service) notifyContentEdited(ctx context.Context, postID uuid.UUID, contentType string, editorID uuid.UUID) {
+	authorID, err := s.postRepo.GetPostAuthorID(ctx, postID)
+	if err != nil || authorID == editorID {
+		return
+	}
+
+	actor, err := s.userRepo.GetByID(ctx, editorID)
+	if err != nil || actor == nil {
+		return
+	}
+
+	message := fmt.Sprintf("your %s has been edited", contentType)
+	baseURL := s.settingsSvc.Get(ctx, config.SettingBaseURL)
+	linkURL := fmt.Sprintf("%s/game-board/%s", baseURL, postID)
+	subject, body := notification.NotifEmail(actor.DisplayName, fmt.Sprintf("edited your %s", contentType), "", linkURL)
+
+	s.notifService.Notify(ctx, dto.NotifyParams{
+		RecipientID:   authorID,
+		Type:          dto.NotifContentEdited,
+		ReferenceID:   postID,
+		ReferenceType: "post",
+		ActorID:       editorID,
+		Message:       message,
+		EmailSubject:  subject,
+		EmailBody:     body,
+	})
+}
+
+func (s *service) notifyCommentEdited(ctx context.Context, commentID uuid.UUID, commentType string, editorID uuid.UUID) {
+	authorID, err := s.postRepo.GetCommentAuthorID(ctx, commentID)
+	if err != nil || authorID == editorID {
+		return
+	}
+
+	postID, err := s.postRepo.GetCommentPostID(ctx, commentID)
+	if err != nil {
+		return
+	}
+
+	actor, err := s.userRepo.GetByID(ctx, editorID)
+	if err != nil || actor == nil {
+		return
+	}
+
+	message := "your comment has been edited"
+	baseURL := s.settingsSvc.Get(ctx, config.SettingBaseURL)
+	linkURL := fmt.Sprintf("%s/game-board/%s#comment-%s", baseURL, postID, commentID)
+	subject, body := notification.NotifEmail(actor.DisplayName, "edited your comment", "", linkURL)
+
+	s.notifService.Notify(ctx, dto.NotifyParams{
+		RecipientID:   authorID,
+		Type:          dto.NotifContentEdited,
+		ReferenceID:   postID,
+		ReferenceType: fmt.Sprintf("post_comment:%s", commentID),
+		ActorID:       editorID,
+		Message:       message,
+		EmailSubject:  subject,
+		EmailBody:     body,
+	})
 }
 
 func (s *service) RefreshStaleEmbeds(ctx context.Context) int {

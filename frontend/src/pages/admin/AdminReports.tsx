@@ -55,8 +55,16 @@ export function AdminReports() {
     function handleViewTarget(report: ReportItem) {
         if (report.target_type === "theory") {
             navigate(`/theory/${report.target_id}`);
-        } else if (report.context_id) {
+        } else if (report.target_type === "response" && report.context_id) {
             navigate(`/theory/${report.context_id}#response-${report.target_id}`);
+        } else if (report.target_type === "post") {
+            navigate(`/game-board/${report.target_id}`);
+        } else if (report.target_type === "comment" && report.context_id) {
+            navigate(`/game-board/${report.context_id}#comment-${report.target_id}`);
+        } else if (report.target_type === "art") {
+            navigate(`/gallery/art/${report.target_id}`);
+        } else if (report.target_type === "art_comment" && report.context_id) {
+            navigate(`/gallery/art/${report.context_id}#comment-${report.target_id}`);
         }
     }
 

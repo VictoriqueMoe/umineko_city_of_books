@@ -13,6 +13,7 @@ import { useAuth } from "../../../hooks/useAuth";
 import { useNotifications } from "../../../hooks/useNotifications";
 import { can } from "../../../utils/permissions";
 import { linkify } from "../../../utils/linkify";
+import { ReportButton } from "../../ReportButton/ReportButton";
 import { ProfileLink } from "../../ProfileLink/ProfileLink";
 import { MediaGallery } from "../MediaGallery/MediaGallery";
 import { PostEmbeds } from "../PostEmbeds/PostEmbeds";
@@ -132,6 +133,7 @@ export function PostCard({ post, onDelete, onEdit }: PostCardProps) {
     }
 
     const isOwner = user?.id === post.author.id;
+    const canEdit = isOwner || can(user?.role, "edit_any_post");
     const canDelete = isOwner || can(user?.role, "delete_any_post");
 
     return (
@@ -215,7 +217,7 @@ export function PostCard({ post, onDelete, onEdit }: PostCardProps) {
                     {"\uD83D\uDCAC"} {post.comment_count > 0 && post.comment_count}
                 </Button>
 
-                {isOwner && !editing && (
+                {canEdit && !editing && (
                     <Button variant="ghost" size="small" onClick={() => setEditing(true)}>
                         Edit
                     </Button>
@@ -238,6 +240,8 @@ export function PostCard({ post, onDelete, onEdit }: PostCardProps) {
                 >
                     Copy Link
                 </Button>
+
+                {user && !isOwner && <ReportButton targetType="post" targetId={post.id} />}
             </div>
         </div>
     );

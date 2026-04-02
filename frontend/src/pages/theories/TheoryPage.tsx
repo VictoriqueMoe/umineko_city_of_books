@@ -35,6 +35,7 @@ export function TheoryPage() {
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
     const isAuthor = user && theory && user.id === theory.author.id;
+    const canEdit = isAuthor || can(user?.role, "edit_any_theory");
     const canDelete = isAuthor || can(user?.role, "delete_any_theory");
 
     async function handleDelete() {
@@ -103,7 +104,7 @@ export function TheoryPage() {
                         </div>
                     </div>
                     <div className={styles.authorActions}>
-                        {isAuthor && (
+                        {canEdit && (
                             <Button
                                 variant="secondary"
                                 size="small"

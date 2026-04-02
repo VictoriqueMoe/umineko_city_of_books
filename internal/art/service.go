@@ -227,7 +227,12 @@ func (s *service) UpdateArt(ctx context.Context, id uuid.UUID, userID uuid.UUID,
 	}
 	description := strings.TrimSpace(req.Description)
 
-	if err := s.artRepo.Update(ctx, id, userID, title, description); err != nil {
+	if s.authz.Can(ctx, userID, authz.PermEditAnyPost) {
+		if err := s.artRepo.UpdateAsAdmin(ctx, id, title, description); err != nil {
+			return err
+		}
+		go s.notifyArtEdited(ctx, id, userID)
+	} else if err := s.artRepo.Update(ctx, id, userID, title, description); err != nil {
 		return err
 	}
 
@@ -368,7 +373,7 @@ func (s *service) CreateComment(ctx context.Context, artID uuid.UUID, userID uui
 	}
 
 	go social.ProcessEmbeds(s.postRepo, id.String(), "art_comment", body)
-	go social.ProcessMentions(s.userRepo, s.notifService, s.settingsSvc, userID, body, artID, "art", fmt.Sprintf("/gallery/art/%s#comment-%s", artID, id))
+	go social.ProcessMentions(s.userRepo, s.notifService, s.settingsSvc, userID, body, artID, fmt.Sprintf("art_comment:%s", id), fmt.Sprintf("/gallery/art/%s#comment-%s", artID, id))
 
 	go func() {
 		authorID, err := s.artRepo.GetArtAuthorID(ctx, artID)
@@ -386,7 +391,7 @@ func (s *service) CreateComment(ctx context.Context, artID uuid.UUID, userID uui
 			RecipientID:   authorID,
 			Type:          dto.NotifArtCommented,
 			ReferenceID:   artID,
-			ReferenceType: "art",
+			ReferenceType: fmt.Sprintf("art_comment:%s", id),
 			ActorID:       userID,
 			EmailSubject:  subject,
 			EmailBody:     emailBody,
@@ -401,7 +406,12 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 	if body == "" {
 		return fmt.Errorf("comment body cannot be empty")
 	}
-	if err := s.artRepo.UpdateComment(ctx, id, userID, body); err != nil {
+	if s.authz.Can(ctx, userID, authz.PermEditAnyComment) {
+		if err := s.artRepo.UpdateCommentAsAdmin(ctx, id, body); err != nil {
+			return err
+		}
+		go s.notifyArtCommentEdited(ctx, id, userID)
+	} else if err := s.artRepo.UpdateComment(ctx, id, userID, body); err != nil {
 		return err
 	}
 	go func() {
@@ -663,4 +673,65 @@ func (s *service) ListAllGalleries(ctx context.Context, corner string) ([]dto.Ga
 
 func (s *service) SetArtGallery(ctx context.Context, artID uuid.UUID, userID uuid.UUID, galleryID *uuid.UUID) error {
 	return s.artRepo.SetGallery(ctx, artID, userID, galleryID)
+}
+
+func (s *service) notifyArtEdited(ctx context.Context, artID uuid.UUID, editorID uuid.UUID) {
+	authorID, err := s.artRepo.GetArtAuthorID(ctx, artID)
+	if err != nil || authorID == editorID {
+		return
+	}
+
+	actor, err := s.userRepo.GetByID(ctx, editorID)
+	if err != nil || actor == nil {
+		return
+	}
+
+	message := "your art has been edited"
+	baseURL := s.settingsSvc.Get(ctx, config.SettingBaseURL)
+	linkURL := fmt.Sprintf("%s/gallery/art/%s", baseURL, artID)
+	subject, body := notification.NotifEmail(actor.DisplayName, "edited your art", "", linkURL)
+
+	s.notifService.Notify(ctx, dto.NotifyParams{
+		RecipientID:   authorID,
+		Type:          dto.NotifContentEdited,
+		ReferenceID:   artID,
+		ReferenceType: "art",
+		ActorID:       editorID,
+		Message:       message,
+		EmailSubject:  subject,
+		EmailBody:     body,
+	})
+}
+
+func (s *service) notifyArtCommentEdited(ctx context.Context, commentID uuid.UUID, editorID uuid.UUID) {
+	authorID, err := s.artRepo.GetCommentAuthorID(ctx, commentID)
+	if err != nil || authorID == editorID {
+		return
+	}
+
+	artID, err := s.artRepo.GetCommentArtID(ctx, commentID)
+	if err != nil {
+		return
+	}
+
+	actor, err := s.userRepo.GetByID(ctx, editorID)
+	if err != nil || actor == nil {
+		return
+	}
+
+	message := "your comment has been edited"
+	baseURL := s.settingsSvc.Get(ctx, config.SettingBaseURL)
+	linkURL := fmt.Sprintf("%s/gallery/art/%s#comment-%s", baseURL, artID, commentID)
+	subject, body := notification.NotifEmail(actor.DisplayName, "edited your comment", "", linkURL)
+
+	s.notifService.Notify(ctx, dto.NotifyParams{
+		RecipientID:   authorID,
+		Type:          dto.NotifContentEdited,
+		ReferenceID:   artID,
+		ReferenceType: fmt.Sprintf("art_comment:%s", commentID),
+		ActorID:       editorID,
+		Message:       message,
+		EmailSubject:  subject,
+		EmailBody:     body,
+	})
 }

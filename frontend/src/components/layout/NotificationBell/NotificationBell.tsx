@@ -7,8 +7,14 @@ import { ProfileLink } from "../../ProfileLink/ProfileLink";
 import type { Notification, NotificationType } from "../../../types/api";
 import styles from "./NotificationBell.module.css";
 
+const roleDisplayNames: Record<string, string> = {
+    super_admin: "Reality Author",
+    admin: "Voyager Witch",
+    moderator: "Witch",
+};
+
 function notificationText(notif: { type: NotificationType; message?: string }): string {
-    if (notif.message) {
+    if (notif.message && notif.type !== "content_edited") {
         return notif.message;
     }
     switch (notif.type) {
@@ -38,6 +44,8 @@ function notificationText(notif: { type: NotificationType; message?: string }): 
             return "liked your art";
         case "art_commented":
             return "commented on your art";
+        case "content_edited":
+            return "edited your content";
     }
 }
 
@@ -98,8 +106,16 @@ export function NotificationBell() {
                 navigate(`/chat/${notif.reference_id}`);
             } else if (notif.type === "new_follower") {
                 navigate(`/user/${notif.actor.username}`);
+            } else if (notif.reference_type.startsWith("post_comment:")) {
+                const commentId = notif.reference_type.split(":")[1];
+                navigate(`/game-board/${notif.reference_id}#comment-${commentId}`);
+            } else if (notif.reference_type.startsWith("art_comment:")) {
+                const commentId = notif.reference_type.split(":")[1];
+                navigate(`/gallery/art/${notif.reference_id}#comment-${commentId}`);
             } else if (notif.reference_type === "post") {
                 navigate(`/game-board/${notif.reference_id}`);
+            } else if (notif.reference_type === "art") {
+                navigate(`/gallery/art/${notif.reference_id}`);
             } else {
                 navigate(`/theory/${notif.reference_id}`);
             }
@@ -151,7 +167,17 @@ export function NotificationBell() {
                                 <ProfileLink user={notif.actor} size="small" showName={false} />
                                 <div className={styles.itemContent}>
                                     <div className={styles.itemText}>
-                                        <strong>{notif.actor.display_name}</strong> {notificationText(notif)}
+                                        {notif.type === "content_edited" ? (
+                                            <>
+                                                {notif.message || "your content has been edited"} by{" "}
+                                                {notif.actor.role ? roleDisplayNames[notif.actor.role] ?? "" : ""}{" "}
+                                                <strong>{notif.actor.display_name}</strong>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <strong>{notif.actor.display_name}</strong> {notificationText(notif)}
+                                            </>
+                                        )}
                                     </div>
                                     <div className={styles.itemTime}>{relativeTime(notif.created_at)}</div>
                                 </div>

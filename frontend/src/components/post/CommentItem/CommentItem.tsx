@@ -9,6 +9,7 @@ import { MediaGallery } from "../MediaGallery/MediaGallery";
 import { PostEmbeds } from "../PostEmbeds/PostEmbeds";
 import { CommentComposer } from "../CommentComposer/CommentComposer";
 import { Button } from "../../Button/Button";
+import { ReportButton } from "../../ReportButton/ReportButton";
 import styles from "./CommentItem.module.css";
 
 interface CommentItemProps {
@@ -54,6 +55,7 @@ function flattenReplies(comment: PostComment): { reply: PostComment; replyToName
 function SingleComment({ comment, postId, onDelete, highlighted, isReply, replyToName }: CommentItemProps) {
     const { user } = useAuth();
     const isOwner = user?.id === comment.author.id;
+    const canEditComment = isOwner || can(user?.role, "edit_any_comment");
     const canDeleteComment = isOwner || can(user?.role, "delete_any_comment");
 
     const [liked, setLiked] = useState(comment.user_liked);
@@ -163,7 +165,7 @@ function SingleComment({ comment, postId, onDelete, highlighted, isReply, replyT
                     </Button>
                 )}
 
-                {isOwner && !editing && (
+                {canEditComment && !editing && (
                     <Button variant="ghost" size="small" onClick={() => setEditing(true)}>
                         Edit
                     </Button>
@@ -187,6 +189,8 @@ function SingleComment({ comment, postId, onDelete, highlighted, isReply, replyT
                 >
                     Copy Link
                 </Button>
+
+                {user && !isOwner && <ReportButton targetType="comment" targetId={comment.id} contextId={postId} />}
             </div>
 
             {showReply && (

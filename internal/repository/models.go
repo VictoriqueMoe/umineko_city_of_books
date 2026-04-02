@@ -58,6 +58,7 @@ type (
 		ActorUsername    string
 		ActorDisplayName string
 		ActorAvatarURL   string
+		ActorRole        string
 	}
 )
 

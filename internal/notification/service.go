@@ -7,6 +7,7 @@ import (
 	"umineko_city_of_books/internal/email"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
@@ -149,6 +150,7 @@ func rowToDTO(row repository.NotificationRow) dto.NotificationResponse {
 			Username:    row.ActorUsername,
 			DisplayName: row.ActorDisplayName,
 			AvatarURL:   row.ActorAvatarURL,
+			Role:        role.Role(row.ActorRole),
 		},
 		Message:   row.Message,
 		Read:      row.Read,

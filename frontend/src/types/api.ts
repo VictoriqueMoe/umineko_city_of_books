@@ -282,7 +282,8 @@ export type NotificationType =
     | "post_commented"
     | "mention"
     | "art_liked"
-    | "art_commented";
+    | "art_commented"
+    | "content_edited";
 
 export interface Notification {
     id: number;

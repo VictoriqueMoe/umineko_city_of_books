@@ -10,7 +10,10 @@ export type Permission =
     | "view_users"
     | "delete_any_user"
     | "delete_any_post"
-    | "delete_any_comment";
+    | "delete_any_comment"
+    | "edit_any_theory"
+    | "edit_any_post"
+    | "edit_any_comment";
 
 const rolePermissions: Record<string, Permission[]> = {
     super_admin: [
@@ -26,6 +29,9 @@ const rolePermissions: Record<string, Permission[]> = {
         "delete_any_user",
         "delete_any_post",
         "delete_any_comment",
+        "edit_any_theory",
+        "edit_any_post",
+        "edit_any_comment",
     ],
     admin: [
         "delete_any_theory",
@@ -40,12 +46,18 @@ const rolePermissions: Record<string, Permission[]> = {
         "delete_any_user",
         "delete_any_post",
         "delete_any_comment",
+        "edit_any_theory",
+        "edit_any_post",
+        "edit_any_comment",
     ],
     moderator: [
         "delete_any_theory",
         "delete_any_response",
         "delete_any_post",
         "delete_any_comment",
+        "edit_any_theory",
+        "edit_any_post",
+        "edit_any_comment",
         "view_admin_panel",
         "view_stats",
         "view_users",

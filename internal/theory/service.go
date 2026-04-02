@@ -131,7 +131,46 @@ func (s *service) ListTheories(ctx context.Context, p params.ListParams, userID 
 }
 
 func (s *service) UpdateTheory(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.CreateTheoryRequest) error {
+	if s.authz.Can(ctx, userID, authz.PermEditAnyTheory) {
+		if err := s.repo.UpdateAsAdmin(ctx, id, req); err != nil {
+			return err
+		}
+		go s.notifyContentEdited(ctx, id, "theory", id, userID)
+		return nil
+	}
 	return s.repo.Update(ctx, id, userID, req)
+}
+
+func (s *service) notifyContentEdited(ctx context.Context, contentID uuid.UUID, contentType string, referenceID uuid.UUID, editorID uuid.UUID) {
+	var authorID uuid.UUID
+	var err error
+	if contentType == "theory" {
+		authorID, err = s.repo.GetTheoryAuthorID(ctx, contentID)
+	}
+	if err != nil || authorID == editorID {
+		return
+	}
+
+	actor, err := s.userRepo.GetByID(ctx, editorID)
+	if err != nil || actor == nil {
+		return
+	}
+
+	message := fmt.Sprintf("your %s has been edited", contentType)
+	baseURL := s.settingsSvc.Get(ctx, config.SettingBaseURL)
+	linkURL := fmt.Sprintf("%s/theory/%s", baseURL, referenceID)
+	subject, body := notification.NotifEmail(actor.DisplayName, fmt.Sprintf("edited your %s", contentType), "", linkURL)
+
+	s.notifService.Notify(ctx, dto.NotifyParams{
+		RecipientID:   authorID,
+		Type:          dto.NotifContentEdited,
+		ReferenceID:   referenceID,
+		ReferenceType: contentType,
+		ActorID:       editorID,
+		Message:       message,
+		EmailSubject:  subject,
+		EmailBody:     body,
+	})
 }
 
 func (s *service) DeleteTheory(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {

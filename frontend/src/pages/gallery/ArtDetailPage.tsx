@@ -11,6 +11,7 @@ import {
     unlikeArt,
     unlikeArtComment,
     updateArt as apiUpdateArt,
+    updateArtComment,
     uploadArtCommentMedia,
 } from "../../api/endpoints";
 import { useAuth } from "../../hooks/useAuth";
@@ -22,6 +23,7 @@ import { Modal } from "../../components/Modal/Modal";
 import { CommentComposer } from "../../components/post/CommentComposer/CommentComposer";
 import { MentionTextArea } from "../../components/MentionTextArea/MentionTextArea";
 import { TagInput } from "../../components/art/TagInput/TagInput";
+import { ReportButton } from "../../components/ReportButton/ReportButton";
 import styles from "./ArtDetailPage.module.css";
 
 export function ArtDetailPage() {
@@ -39,6 +41,8 @@ export function ArtDetailPage() {
     const [editTags, setEditTags] = useState<string[]>([]);
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const [lightboxOpen, setLightboxOpen] = useState(false);
+    const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+    const [editCommentBody, setEditCommentBody] = useState("");
 
     const hash = location.hash;
     const highlightedComment = hash.startsWith("#comment-") ? hash.replace("#comment-", "") : null;
@@ -134,6 +138,7 @@ export function ArtDetailPage() {
     }
 
     const isAuthor = user && user.id === art.author.id;
+    const canEdit = isAuthor || can(user?.role, "edit_any_post");
     const canDelete = isAuthor || can(user?.role, "delete_any_post");
 
     function flattenComments(comments: ArtDetail["comments"]): ArtDetail["comments"] {
@@ -238,7 +243,7 @@ export function ArtDetailPage() {
                     </button>
                     <span className={styles.viewCount}>&#128065; {art.view_count}</span>
                     <div className={styles.spacer} />
-                    {isAuthor && !editing && (
+                    {canEdit && !editing && (
                         <Button variant="secondary" size="small" onClick={startEdit}>
                             Edit
                         </Button>
@@ -248,6 +253,7 @@ export function ArtDetailPage() {
                             Delete
                         </Button>
                     )}
+                    {user && !isAuthor && <ReportButton targetType="art" targetId={art.id} />}
                 </div>
             </div>
 
@@ -277,7 +283,35 @@ export function ArtDetailPage() {
                             </span>
                             {c.updated_at && <span className={styles.edited}>(edited)</span>}
                         </div>
-                        <div className={styles.commentBody}>{linkify(c.body)}</div>
+                        {editingCommentId === c.id ? (
+                            <div className={styles.editSection}>
+                                <textarea
+                                    className={styles.editTitle}
+                                    value={editCommentBody}
+                                    onChange={e => setEditCommentBody(e.target.value)}
+                                    rows={3}
+                                />
+                                <div className={styles.editActions}>
+                                    <Button variant="secondary" size="small" onClick={() => setEditingCommentId(null)}>
+                                        Cancel
+                                    </Button>
+                                    <Button
+                                        variant="primary"
+                                        size="small"
+                                        disabled={!editCommentBody.trim()}
+                                        onClick={async () => {
+                                            await updateArtComment(c.id, editCommentBody.trim());
+                                            setEditingCommentId(null);
+                                            fetchArt();
+                                        }}
+                                    >
+                                        Save
+                                    </Button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className={styles.commentBody}>{linkify(c.body)}</div>
+                        )}
                         <div className={styles.commentActions}>
                             <button
                                 className={`${styles.commentLikeBtn}${c.user_liked ? ` ${styles.likeBtnActive}` : ""}`}
@@ -306,7 +340,18 @@ export function ArtDetailPage() {
                                     Reply
                                 </button>
                             )}
-                            {user && user.id === c.author.id && (
+                            {(user?.id === c.author.id || can(user?.role, "edit_any_comment")) && editingCommentId !== c.id && (
+                                <button
+                                    className={styles.replyBtn}
+                                    onClick={() => {
+                                        setEditingCommentId(c.id);
+                                        setEditCommentBody(c.body);
+                                    }}
+                                >
+                                    Edit
+                                </button>
+                            )}
+                            {(user?.id === c.author.id || can(user?.role, "delete_any_comment")) && (
                                 <button
                                     className={styles.deleteBtn}
                                     onClick={async () => {
@@ -318,6 +363,9 @@ export function ArtDetailPage() {
                                 >
                                     Delete
                                 </button>
+                            )}
+                            {user && user.id !== c.author.id && (
+                                <ReportButton targetType="art_comment" targetId={c.id} contextId={art.id} />
                             )}
                         </div>
                     </div>

@@ -53,4 +53,5 @@ const (
 	NotifArtLiked       NotificationType = "art_liked"
 	NotifArtCommented   NotificationType = "art_commented"
 	NotifReportResolved NotificationType = "report_resolved"
+	NotifContentEdited  NotificationType = "content_edited"
 )

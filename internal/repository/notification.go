@@ -63,9 +63,10 @@ func (r *notificationRepository) ListByUser(ctx context.Context, userID uuid.UUI
 
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT n.id, n.user_id, n.type, n.reference_id, n.reference_type, n.actor_id, COALESCE(n.message, ''), n.read, n.created_at,
-		        u.username, u.display_name, u.avatar_url
+		        u.username, u.display_name, u.avatar_url, COALESCE(ur.role, '')
 		 FROM notifications n
 		 JOIN users u ON n.actor_id = u.id
+		 LEFT JOIN user_roles ur ON n.actor_id = ur.user_id
 		 WHERE n.user_id = ?
 		 ORDER BY n.created_at DESC
 		 LIMIT ? OFFSET ?`, userID, limit, offset,
@@ -81,7 +82,7 @@ func (r *notificationRepository) ListByUser(ctx context.Context, userID uuid.UUI
 		var readInt int
 		if err := rows.Scan(
 			&n.ID, &n.UserID, &n.Type, &n.ReferenceID, &n.ReferenceType, &n.ActorID, &n.Message, &readInt, &n.CreatedAt,
-			&n.ActorUsername, &n.ActorDisplayName, &n.ActorAvatarURL,
+			&n.ActorUsername, &n.ActorDisplayName, &n.ActorAvatarURL, &n.ActorRole,
 		); err != nil {
 			return nil, 0, fmt.Errorf("scan notification: %w", err)
 		}
