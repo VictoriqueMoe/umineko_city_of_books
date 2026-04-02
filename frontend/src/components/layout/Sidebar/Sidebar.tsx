@@ -27,7 +27,7 @@ const GALLERY_CORNERS = [
 
 export function Sidebar({ open, onClose }: SidebarProps) {
     const { user } = useAuth();
-    const { addWSListener } = useNotifications();
+    const { addWSListener, unreadCount: unreadNotifs } = useNotifications();
     const location = useLocation();
     const [unreadChat, setUnreadChat] = useState(0);
     const [cornersOpen, setCornersOpen] = useState(location.pathname.startsWith("/game-board"));
@@ -163,6 +163,16 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                     {user && (
                         <div className={styles.section}>
                             <span className={styles.sectionLabel}>Account</span>
+                            <NavLink
+                                to="/notifications"
+                                className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
+                                onClick={onClose}
+                            >
+                                Notifications
+                                {unreadNotifs > 0 && (
+                                    <span className={styles.chatBadge}>{unreadNotifs > 99 ? "99+" : unreadNotifs}</span>
+                                )}
+                            </NavLink>
                             <NavLink
                                 to="/my-theories"
                                 className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}

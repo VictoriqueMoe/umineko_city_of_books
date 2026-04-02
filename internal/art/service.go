@@ -632,8 +632,7 @@ func (s *service) GetGallery(ctx context.Context, id uuid.UUID, viewerID uuid.UU
 		arts[i] = r.ToResponse(tagMap[r.ID])
 	}
 
-	gallery := g.ToResponse()
-	return &gallery, arts, total, nil
+	return new(g.ToResponse()), arts, total, nil
 }
 
 func (s *service) galleriesWithPreviews(ctx context.Context, rows []repository.GalleryRow) []dto.GalleryResponse {

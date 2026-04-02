@@ -2,80 +2,17 @@ import { useCallback, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { useNotifications } from "../../../hooks/useNotifications";
 import { useClickOutside } from "../../../hooks/useClickOutside";
+import {
+    getNotificationText,
+    getNotificationRoute,
+    isContentEditedNotification,
+    formatContentEditedText,
+    relativeTime,
+} from "../../../utils/notifications";
+import type { Notification } from "../../../types/api";
 import { Button } from "../../Button/Button";
 import { ProfileLink } from "../../ProfileLink/ProfileLink";
-import type { Notification, NotificationType } from "../../../types/api";
 import styles from "./NotificationBell.module.css";
-
-const roleDisplayNames: Record<string, string> = {
-    super_admin: "Reality Author",
-    admin: "Voyager Witch",
-    moderator: "Witch",
-};
-
-function notificationText(notif: { type: NotificationType; message?: string }): string {
-    if (notif.message && notif.type !== "content_edited") {
-        return notif.message;
-    }
-    switch (notif.type) {
-        case "theory_response":
-            return "responded to your theory";
-        case "response_reply":
-            return "replied to your response";
-        case "theory_upvote":
-            return "upvoted your theory";
-        case "response_upvote":
-            return "upvoted your response";
-        case "chat_message":
-            return "sent you a message";
-        case "report":
-            return "reported content";
-        case "report_resolved":
-            return "resolved your report";
-        case "new_follower":
-            return "started following you";
-        case "post_liked":
-            return "liked your post";
-        case "post_commented":
-            return "commented on your post";
-        case "mention":
-            return "mentioned you";
-        case "art_liked":
-            return "liked your art";
-        case "art_commented":
-            return "commented on your art";
-        case "content_edited":
-            return "edited your content";
-    }
-}
-
-function relativeTime(dateStr: string): string {
-    const now = Date.now();
-    const then = new Date(dateStr).getTime();
-    const diffSeconds = Math.floor((now - then) / 1000);
-
-    if (diffSeconds < 60) {
-        return "just now";
-    }
-
-    const diffMinutes = Math.floor(diffSeconds / 60);
-    if (diffMinutes < 60) {
-        return `${diffMinutes}m ago`;
-    }
-
-    const diffHours = Math.floor(diffMinutes / 60);
-    if (diffHours < 24) {
-        return `${diffHours}h ago`;
-    }
-
-    const diffDays = Math.floor(diffHours / 24);
-    if (diffDays < 30) {
-        return `${diffDays}d ago`;
-    }
-
-    const diffMonths = Math.floor(diffDays / 30);
-    return `${diffMonths}mo ago`;
-}
 
 export function NotificationBell() {
     const { notifications, unreadCount, loading, markRead, markAllRead, refreshNotifications } = useNotifications();
@@ -100,25 +37,7 @@ export function NotificationBell() {
                 await markRead(notif.id);
             }
             setOpen(false);
-            if (notif.type === "report") {
-                navigate("/admin/reports");
-            } else if (notif.reference_type === "chat") {
-                navigate(`/chat/${notif.reference_id}`);
-            } else if (notif.type === "new_follower") {
-                navigate(`/user/${notif.actor.username}`);
-            } else if (notif.reference_type.startsWith("post_comment:")) {
-                const commentId = notif.reference_type.split(":")[1];
-                navigate(`/game-board/${notif.reference_id}#comment-${commentId}`);
-            } else if (notif.reference_type.startsWith("art_comment:")) {
-                const commentId = notif.reference_type.split(":")[1];
-                navigate(`/gallery/art/${notif.reference_id}#comment-${commentId}`);
-            } else if (notif.reference_type === "post") {
-                navigate(`/game-board/${notif.reference_id}`);
-            } else if (notif.reference_type === "art") {
-                navigate(`/gallery/art/${notif.reference_id}`);
-            } else {
-                navigate(`/theory/${notif.reference_id}`);
-            }
+            navigate(getNotificationRoute(notif));
         },
         [markRead, navigate],
     );
@@ -167,17 +86,7 @@ export function NotificationBell() {
                                 <ProfileLink user={notif.actor} size="small" showName={false} />
                                 <div className={styles.itemContent}>
                                     <div className={styles.itemText}>
-                                        {notif.type === "content_edited" ? (
-                                            <>
-                                                {notif.message || "your content has been edited"} by{" "}
-                                                {notif.actor.role ? roleDisplayNames[notif.actor.role] ?? "" : ""}{" "}
-                                                <strong>{notif.actor.display_name}</strong>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <strong>{notif.actor.display_name}</strong> {notificationText(notif)}
-                                            </>
-                                        )}
+                                        <NotificationText notif={notif} />
                                     </div>
                                     <div className={styles.itemTime}>{relativeTime(notif.created_at)}</div>
                                 </div>
@@ -187,5 +96,22 @@ export function NotificationBell() {
                 </div>
             )}
         </div>
+    );
+}
+
+function NotificationText({ notif }: { notif: Notification }) {
+    if (isContentEditedNotification(notif)) {
+        const { message, role, actorName } = formatContentEditedText(notif);
+        return (
+            <>
+                {message} by {role} <strong>{actorName}</strong>
+            </>
+        );
+    }
+
+    return (
+        <>
+            <strong>{notif.actor.display_name}</strong> {getNotificationText(notif)}
+        </>
     );
 }

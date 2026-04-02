@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -143,7 +144,7 @@ func (r *artRepository) GetByID(ctx context.Context, id uuid.UUID, viewerID uuid
 	var a ArtRow
 	err := scanArtRow(r.db.QueryRowContext(ctx, artSelectBase+` WHERE a.id = ?`, viewerID, id), &a)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("get art: %w", err)
@@ -800,7 +801,7 @@ func (r *artRepository) GetGalleryByID(ctx context.Context, id uuid.UUID) (*Gall
 		&g.AuthorUsername, &g.AuthorDisplayName, &g.AuthorAvatarURL,
 	)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("get gallery: %w", err)

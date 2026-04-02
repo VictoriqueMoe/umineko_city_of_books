@@ -34,6 +34,7 @@ import { ArtGalleryPage } from "./pages/gallery/ArtGalleryPage";
 import { ArtDetailPage } from "./pages/gallery/ArtDetailPage";
 import { GalleryDetailPage } from "./pages/gallery/GalleryDetailPage";
 import { MaintenancePage } from "./pages/maintenance/MaintenancePage";
+import { NotificationsPage } from "./pages/notifications/NotificationsPage";
 
 const homePageRoutes: Record<string, string> = {
     theories: "/theories",
@@ -64,6 +65,7 @@ function AnnouncementBanner() {
                 fontWeight: 600,
                 fontSize: "0.95rem",
                 width: "100%",
+                overflowWrap: "anywhere" as const,
             }}
         >
             {banner}
@@ -116,6 +118,7 @@ function AppLayout() {
                         <Route path="/login" element={<LoginPage />} />
 
                         <Route element={<ProtectedRoute />}>
+                            <Route path="/notifications" element={<NotificationsPage />} />
                             <Route path="/theory/new" element={<CreateTheoryPage />} />
                             <Route path="/theory/:id/edit" element={<EditTheoryPage />} />
                             <Route path="/my-theories" element={<MyTheoriesPage />} />

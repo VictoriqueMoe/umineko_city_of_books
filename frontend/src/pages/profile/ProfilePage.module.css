@@ -1,6 +1,7 @@
 .page {
     max-width: 800px;
     margin: 0 auto;
+    overflow-x: hidden;
 }
 
 .banner {
@@ -113,6 +114,7 @@
     font-size: 1rem;
     line-height: 1.6;
     color: var(--text);
+    overflow-wrap: anywhere;
 }
 
 .socialRow {
@@ -139,6 +141,10 @@
 
 .socialChipValue {
     color: var(--gold);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 200px;
 }
 
 a.socialChipValue:hover {
@@ -231,6 +237,8 @@ a.socialChipValue:hover {
     display: flex;
     border-bottom: 1px solid rgba(var(--purple-rgb), 0.3);
     margin-bottom: 1rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 .tab {
@@ -450,10 +458,13 @@ a.socialChipValue:hover {
 
     .stats {
         gap: 0.5rem;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
     }
 
     .statBox {
         padding: 0.75rem 0.5rem;
+        min-width: 70px;
     }
 
     .statNumber {
@@ -467,5 +478,15 @@ a.socialChipValue:hover {
     .favourite {
         flex-direction: column;
         gap: 0.35rem;
+    }
+
+    .socialChipValue {
+        max-width: 140px;
+    }
+
+    .tab {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.8rem;
+        white-space: nowrap;
     }
 }

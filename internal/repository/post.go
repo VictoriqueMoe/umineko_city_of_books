@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -171,7 +172,7 @@ func (r *postRepository) GetByID(ctx context.Context, id uuid.UUID, viewerID uui
 	var p PostRow
 	err := scanPostRow(r.db.QueryRowContext(ctx, postSelectBase+` WHERE p.id = ?`, viewerID, id), &p)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("get post: %w", err)
