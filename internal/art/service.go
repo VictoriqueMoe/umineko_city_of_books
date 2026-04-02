@@ -721,7 +721,14 @@ func (s *service) galleriesWithPreviews(ctx context.Context, rows []repository.G
 	for i, g := range rows {
 		result[i] = galleryRowToDTO(g)
 		if g.CoverArtID == nil && g.ArtCount > 0 {
-			previews, _ := s.artRepo.GetGalleryPreviewImages(ctx, g.ID, 3)
+			imgs, _ := s.artRepo.GetGalleryPreviewImages(ctx, g.ID, 3)
+			previews := make([]dto.PreviewImageDTO, len(imgs))
+			for j, img := range imgs {
+				previews[j] = dto.PreviewImageDTO{
+					Thumbnail: img.ThumbnailURL,
+					Full:      img.ImageURL,
+				}
+			}
 			result[i].PreviewImages = previews
 		}
 	}

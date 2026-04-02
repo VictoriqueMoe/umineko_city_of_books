@@ -164,6 +164,14 @@ export function ArtGalleryPage({ corner = "general" }: ArtGalleryPageProps) {
             {!CORNER_TITLES[corner] && <h1 className={styles.cornerTitle}>Gallery</h1>}
             <RulesBox page={CORNER_RULES[corner] || "gallery"} />
 
+            <div className={styles.infoBox}>
+                <strong>How it works:</strong> Create a gallery from your{" "}
+                <span className={styles.infoLink} onClick={() => user ? navigate(`/user/${user.username}`) : navigate("/login")}>
+                    profile
+                </span>{" "}
+                (Galleries tab), then upload art into it. Your galleries and art will appear here for everyone to browse.
+            </div>
+
             <div className={styles.controls}>
                 <div className={styles.viewToggle}>
                     <button
@@ -364,26 +372,41 @@ export function ArtGalleryPage({ corner = "general" }: ArtGalleryPageProps) {
     );
 }
 
-function GalleryPreview({ images }: { images: string[] }) {
+function PreviewImg({ img, className }: { img: { thumbnail: string; full: string }; className: string }) {
+    return (
+        <img
+            src={img.thumbnail || img.full}
+            alt=""
+            className={className}
+            onError={e => {
+                if (e.currentTarget.src !== img.full) {
+                    e.currentTarget.src = img.full;
+                }
+            }}
+        />
+    );
+}
+
+function GalleryPreview({ images }: { images: { thumbnail: string; full: string }[] }) {
     if (images.length === 1) {
-        return <img src={images[0]} alt="" className={styles.galleryCoverImage} />;
+        return <PreviewImg img={images[0]} className={styles.galleryCoverImage} />;
     }
 
     if (images.length === 2) {
         return (
             <div className={styles.preview2}>
-                <img src={images[0]} alt="" className={styles.previewImg} />
-                <img src={images[1]} alt="" className={styles.previewImg} />
+                <PreviewImg img={images[0]} className={styles.previewImg} />
+                <PreviewImg img={images[1]} className={styles.previewImg} />
             </div>
         );
     }
 
     return (
         <div className={styles.preview3}>
-            <img src={images[0]} alt="" className={styles.previewMain} />
+            <PreviewImg img={images[0]} className={styles.previewMain} />
             <div className={styles.previewSide}>
-                <img src={images[1]} alt="" className={styles.previewImg} />
-                {images[2] && <img src={images[2]} alt="" className={styles.previewImg} />}
+                <PreviewImg img={images[1]} className={styles.previewImg} />
+                {images[2] && <PreviewImg img={images[2]} className={styles.previewImg} />}
             </div>
         </div>
     );

@@ -636,26 +636,41 @@ function CreateGalleryInline({ onCreated }: { onCreated: () => void }) {
     );
 }
 
-function ProfileGalleryPreview({ images }: { images: string[] }) {
+function ProfilePreviewImg({ img, className }: { img: { thumbnail: string; full: string }; className: string }) {
+    return (
+        <img
+            src={img.thumbnail || img.full}
+            alt=""
+            className={className}
+            onError={e => {
+                if (e.currentTarget.src !== img.full) {
+                    e.currentTarget.src = img.full;
+                }
+            }}
+        />
+    );
+}
+
+function ProfileGalleryPreview({ images }: { images: { thumbnail: string; full: string }[] }) {
     if (images.length === 1) {
-        return <img src={images[0]} alt="" className={styles.galleryCoverImage} />;
+        return <ProfilePreviewImg img={images[0]} className={styles.galleryCoverImage} />;
     }
 
     if (images.length === 2) {
         return (
             <div className={styles.galleryPreview2}>
-                <img src={images[0]} alt="" className={styles.galleryPreviewImg} />
-                <img src={images[1]} alt="" className={styles.galleryPreviewImg} />
+                <ProfilePreviewImg img={images[0]} className={styles.galleryPreviewImg} />
+                <ProfilePreviewImg img={images[1]} className={styles.galleryPreviewImg} />
             </div>
         );
     }
 
     return (
         <div className={styles.galleryPreview3}>
-            <img src={images[0]} alt="" className={styles.galleryPreviewMain} />
+            <ProfilePreviewImg img={images[0]} className={styles.galleryPreviewMain} />
             <div className={styles.galleryPreviewSide}>
-                <img src={images[1]} alt="" className={styles.galleryPreviewImg} />
-                {images[2] && <img src={images[2]} alt="" className={styles.galleryPreviewImg} />}
+                <ProfilePreviewImg img={images[1]} className={styles.galleryPreviewImg} />
+                {images[2] && <ProfilePreviewImg img={images[2]} className={styles.galleryPreviewImg} />}
             </div>
         </div>
     );

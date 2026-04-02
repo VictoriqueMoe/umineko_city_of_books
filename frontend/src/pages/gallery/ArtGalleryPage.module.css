@@ -10,6 +10,23 @@
     color: var(--text);
 }
 
+.infoBox {
+    background: rgba(var(--gold-rgb), 0.08);
+    border: 1px solid rgba(var(--gold-rgb), 0.25);
+    border-radius: 8px;
+    padding: 0.65rem 1rem;
+    margin-bottom: 0.75rem;
+    font-size: 0.85rem;
+    color: var(--text);
+    line-height: 1.5;
+}
+
+.infoLink {
+    color: var(--gold);
+    cursor: pointer;
+    text-decoration: underline;
+}
+
 .controls {
     display: flex;
     gap: 0.75rem;

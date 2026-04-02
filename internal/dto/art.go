@@ -68,16 +68,21 @@ type (
 	}
 
 	GalleryResponse struct {
-		ID                uuid.UUID    `json:"id"`
-		Author            UserResponse `json:"author"`
-		Name              string       `json:"name"`
-		Description       string       `json:"description"`
-		CoverImageURL     string       `json:"cover_image_url"`
-		CoverThumbnailURL string       `json:"cover_thumbnail_url"`
-		PreviewImages     []string     `json:"preview_images,omitempty"`
-		ArtCount          int          `json:"art_count"`
-		CreatedAt         string       `json:"created_at"`
-		UpdatedAt         *string      `json:"updated_at,omitempty"`
+		ID                uuid.UUID         `json:"id"`
+		Author            UserResponse      `json:"author"`
+		Name              string            `json:"name"`
+		Description       string            `json:"description"`
+		CoverImageURL     string            `json:"cover_image_url"`
+		CoverThumbnailURL string            `json:"cover_thumbnail_url"`
+		PreviewImages     []PreviewImageDTO `json:"preview_images,omitempty"`
+		ArtCount          int               `json:"art_count"`
+		CreatedAt         string            `json:"created_at"`
+		UpdatedAt         *string           `json:"updated_at,omitempty"`
+	}
+
+	PreviewImageDTO struct {
+		Thumbnail string `json:"thumbnail"`
+		Full      string `json:"full"`
 	}
 
 	CreateGalleryRequest struct {

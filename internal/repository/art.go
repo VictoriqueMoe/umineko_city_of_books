@@ -58,7 +58,7 @@ type (
 		GetGalleryByID(ctx context.Context, id uuid.UUID) (*GalleryRow, error)
 		ListGalleriesByUser(ctx context.Context, userID uuid.UUID) ([]GalleryRow, error)
 		ListAllGalleries(ctx context.Context, corner string) ([]GalleryRow, error)
-		GetGalleryPreviewImages(ctx context.Context, galleryID uuid.UUID, limit int) ([]string, error)
+		GetGalleryPreviewImages(ctx context.Context, galleryID uuid.UUID, limit int) ([]PreviewImage, error)
 		ListArtInGallery(ctx context.Context, galleryID uuid.UUID, viewerID uuid.UUID, limit, offset int) ([]ArtRow, int, error)
 	}
 
@@ -832,9 +832,14 @@ func (r *artRepository) ListAllGalleries(ctx context.Context, corner string) ([]
 	return galleries, rows.Err()
 }
 
-func (r *artRepository) GetGalleryPreviewImages(ctx context.Context, galleryID uuid.UUID, limit int) ([]string, error) {
+type PreviewImage struct {
+	ThumbnailURL string
+	ImageURL     string
+}
+
+func (r *artRepository) GetGalleryPreviewImages(ctx context.Context, galleryID uuid.UUID, limit int) ([]PreviewImage, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT COALESCE(thumbnail_url, image_url) FROM art WHERE gallery_id = ? ORDER BY created_at DESC LIMIT ?`,
+		`SELECT thumbnail_url, image_url FROM art WHERE gallery_id = ? ORDER BY created_at DESC LIMIT ?`,
 		galleryID, limit,
 	)
 	if err != nil {
@@ -842,15 +847,15 @@ func (r *artRepository) GetGalleryPreviewImages(ctx context.Context, galleryID u
 	}
 	defer rows.Close()
 
-	var urls []string
+	var imgs []PreviewImage
 	for rows.Next() {
-		var url string
-		if err := rows.Scan(&url); err != nil {
+		var p PreviewImage
+		if err := rows.Scan(&p.ThumbnailURL, &p.ImageURL); err != nil {
 			return nil, fmt.Errorf("scan preview image: %w", err)
 		}
-		urls = append(urls, url)
+		imgs = append(imgs, p)
 	}
-	return urls, rows.Err()
+	return imgs, rows.Err()
 }
 
 func (r *artRepository) ListArtInGallery(ctx context.Context, galleryID uuid.UUID, viewerID uuid.UUID, limit, offset int) ([]ArtRow, int, error) {
