@@ -1,12 +1,12 @@
-import {useMemo, useRef, useState} from "react";
-import {useNavigate} from "react-router";
-import type {Gallery} from "../../../types/api";
-import {createArt, setArtGallery} from "../../../api/endpoints";
-import {useSiteInfo} from "../../../hooks/useSiteInfo";
-import {validateFileSize} from "../../../utils/fileValidation";
-import {Button} from "../../Button/Button";
-import {MentionTextArea} from "../../MentionTextArea/MentionTextArea";
-import {TagInput} from "../TagInput/TagInput";
+import { useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router";
+import type { Gallery } from "../../../types/api";
+import { createArt, setArtGallery } from "../../../api/endpoints";
+import { useSiteInfo } from "../../../hooks/useSiteInfo";
+import { validateFileSize } from "../../../utils/fileValidation";
+import { Button } from "../../Button/Button";
+import { MentionTextArea } from "../../MentionTextArea/MentionTextArea";
+import { TagInput } from "../TagInput/TagInput";
 import styles from "./ArtUploadForm.module.css";
 
 interface ArtUploadFormProps {
@@ -19,7 +19,15 @@ interface ArtUploadFormProps {
     onGalleryChange?: (id: string) => void;
 }
 
-export function ArtUploadForm({ galleryId, corner = "general", onCreated, inline = false, galleries, selectedGallery, onGalleryChange }: ArtUploadFormProps) {
+export function ArtUploadForm({
+    galleryId,
+    corner = "general",
+    onCreated,
+    inline = false,
+    galleries,
+    selectedGallery,
+    onGalleryChange,
+}: ArtUploadFormProps) {
     const navigate = useNavigate();
     const siteInfo = useSiteInfo();
     const [title, setTitle] = useState("");
@@ -110,7 +118,9 @@ export function ArtUploadForm({ galleryId, corner = "general", onCreated, inline
                         onChange={e => onGalleryChange(e.target.value)}
                     >
                         {galleries.map(g => (
-                            <option key={g.id} value={g.id}>{g.name}</option>
+                            <option key={g.id} value={g.id}>
+                                {g.name}
+                            </option>
                         ))}
                     </select>
                 </div>
@@ -118,11 +128,7 @@ export function ArtUploadForm({ galleryId, corner = "general", onCreated, inline
 
             <div className={styles.field}>
                 <label className={styles.label}>Type</label>
-                <select
-                    className={styles.input}
-                    value={artType}
-                    onChange={e => setArtType(e.target.value)}
-                >
+                <select className={styles.input} value={artType} onChange={e => setArtType(e.target.value)}>
                     <option value="drawing">Drawing</option>
                     <option value="cosplay">Cosplay</option>
                     <option value="figure">Figure</option>
@@ -160,21 +166,11 @@ export function ArtUploadForm({ galleryId, corner = "general", onCreated, inline
 
             <div className={styles.field}>
                 <label className={styles.label}>Image *</label>
-                <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileChange}
-                    hidden
-                />
+                <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} hidden />
                 {preview ? (
                     <div className={styles.previewWrap}>
                         <img src={preview} alt="Preview" className={styles.preview} />
-                        <button
-                            type="button"
-                            className={styles.removeBtn}
-                            onClick={() => setFile(null)}
-                        >
+                        <button type="button" className={styles.removeBtn} onClick={() => setFile(null)}>
                             &times; Remove
                         </button>
                     </div>
@@ -191,11 +187,7 @@ export function ArtUploadForm({ galleryId, corner = "general", onCreated, inline
                         Cancel
                     </Button>
                 )}
-                <Button
-                    variant="primary"
-                    onClick={handleSubmit}
-                    disabled={submitting || !title.trim() || !file}
-                >
+                <Button variant="primary" onClick={handleSubmit} disabled={submitting || !title.trim() || !file}>
                     {submitting ? "Uploading..." : "Upload"}
                 </Button>
             </div>

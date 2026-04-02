@@ -1,6 +1,6 @@
-import {useNavigate} from "react-router";
-import type {Art} from "../../../types/api";
-import {ProfileLink} from "../../ProfileLink/ProfileLink";
+import { useNavigate } from "react-router";
+import type { Art } from "../../../types/api";
+import { ProfileLink } from "../../ProfileLink/ProfileLink";
 import styles from "./ArtCard.module.css";
 
 interface ArtCardProps {

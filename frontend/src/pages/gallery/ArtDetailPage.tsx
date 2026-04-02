@@ -1,6 +1,6 @@
-import {useCallback, useEffect, useState} from "react";
-import {useLocation, useNavigate, useParams} from "react-router";
-import type {ArtDetail} from "../../types/api";
+import { useCallback, useEffect, useState } from "react";
+import { useLocation, useNavigate, useParams } from "react-router";
+import type { ArtDetail } from "../../types/api";
 import {
     createArtComment,
     deleteArt as apiDeleteArt,
@@ -13,15 +13,15 @@ import {
     updateArt as apiUpdateArt,
     uploadArtCommentMedia,
 } from "../../api/endpoints";
-import {useAuth} from "../../hooks/useAuth";
-import {can} from "../../utils/permissions";
-import {linkify} from "../../utils/linkify";
-import {ProfileLink} from "../../components/ProfileLink/ProfileLink";
-import {Button} from "../../components/Button/Button";
-import {Modal} from "../../components/Modal/Modal";
-import {CommentComposer} from "../../components/post/CommentComposer/CommentComposer";
-import {MentionTextArea} from "../../components/MentionTextArea/MentionTextArea";
-import {TagInput} from "../../components/art/TagInput/TagInput";
+import { useAuth } from "../../hooks/useAuth";
+import { can } from "../../utils/permissions";
+import { linkify } from "../../utils/linkify";
+import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
+import { Button } from "../../components/Button/Button";
+import { Modal } from "../../components/Modal/Modal";
+import { CommentComposer } from "../../components/post/CommentComposer/CommentComposer";
+import { MentionTextArea } from "../../components/MentionTextArea/MentionTextArea";
+import { TagInput } from "../../components/art/TagInput/TagInput";
 import styles from "./ArtDetailPage.module.css";
 
 export function ArtDetailPage() {
@@ -173,12 +173,7 @@ export function ArtDetailPage() {
                             onChange={e => setEditTitle(e.target.value)}
                             placeholder="Title"
                         />
-                        <MentionTextArea
-                            value={editDesc}
-                            onChange={setEditDesc}
-                            placeholder="Description"
-                            rows={3}
-                        />
+                        <MentionTextArea value={editDesc} onChange={setEditDesc} placeholder="Description" rows={3} />
                         <TagInput tags={editTags} onChange={setEditTags} />
                         <div className={styles.editActions}>
                             <Button variant="secondary" size="small" onClick={() => setEditing(false)}>
@@ -192,9 +187,7 @@ export function ArtDetailPage() {
                 ) : (
                     <>
                         <h1 className={styles.title}>{art.title}</h1>
-                        {art.description && (
-                            <div className={styles.description}>{linkify(art.description)}</div>
-                        )}
+                        {art.description && <div className={styles.description}>{linkify(art.description)}</div>}
                     </>
                 )}
 
@@ -211,17 +204,11 @@ export function ArtDetailPage() {
                 </div>
 
                 <div className={styles.artistLinks}>
-                    <span
-                        className={styles.artistLink}
-                        onClick={() => navigate(`/user/${art.author.username}`)}
-                    >
+                    <span className={styles.artistLink} onClick={() => navigate(`/user/${art.author.username}`)}>
                         More by {art.author.display_name}
                     </span>
                     {art.gallery_id && (
-                        <span
-                            className={styles.artistLink}
-                            onClick={() => navigate(`/gallery/view/${art.gallery_id}`)}
-                        >
+                        <span className={styles.artistLink} onClick={() => navigate(`/gallery/view/${art.gallery_id}`)}>
                             View gallery
                         </span>
                     )}
@@ -276,9 +263,7 @@ export function ArtDetailPage() {
             )}
 
             <div className={styles.comments}>
-                <h3 className={styles.sectionTitle}>
-                    Comments {allComments.length > 0 && `(${allComments.length})`}
-                </h3>
+                <h3 className={styles.sectionTitle}>Comments {allComments.length > 0 && `(${allComments.length})`}</h3>
                 {allComments.map(c => (
                     <div
                         key={c.id}

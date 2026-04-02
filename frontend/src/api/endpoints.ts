@@ -1,4 +1,4 @@
-import {apiDelete, apiDeleteWithBody, apiFetch, apiPost, apiPostFormData, apiPut, buildQueryString} from "./client";
+import { apiDelete, apiDeleteWithBody, apiFetch, apiPost, apiPostFormData, apiPut, buildQueryString } from "./client";
 import type {
     ActivityListResponse,
     AdminStats,
@@ -560,7 +560,14 @@ export async function getArt(id: string): Promise<ArtDetail> {
 }
 
 export async function createArt(
-    metadata: { title: string; description: string; corner: string; art_type: string; tags: string[]; gallery_id?: string },
+    metadata: {
+        title: string;
+        description: string;
+        corner: string;
+        art_type: string;
+        tags: string[];
+        gallery_id?: string;
+    },
     imageFile: File,
 ): Promise<{ id: string }> {
     const formData = new FormData();
@@ -664,11 +671,7 @@ export async function setArtGallery(artId: string, galleryId: string | null): Pr
     });
 }
 
-export async function getUserArt(
-    userId: string,
-    limit: number = 24,
-    offset: number = 0,
-): Promise<ArtListResponse> {
+export async function getUserArt(userId: string, limit: number = 24, offset: number = 0): Promise<ArtListResponse> {
     const qs = buildQueryString({ limit, offset });
     return apiFetch<ArtListResponse>(`/users/${userId}/art${qs}`);
 }

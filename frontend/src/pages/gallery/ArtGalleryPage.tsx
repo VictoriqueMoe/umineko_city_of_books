@@ -1,16 +1,16 @@
-import {useCallback, useEffect, useRef, useState} from "react";
-import {useNavigate, useSearchParams} from "react-router";
-import {useAuth} from "../../hooks/useAuth";
-import {useArtFeed} from "../../hooks/useArtFeed";
-import {createGallery, getPopularTags, getUserGalleries, listAllGalleries} from "../../api/endpoints";
-import type {Gallery, TagCount} from "../../types/api";
-import {ArtGrid} from "../../components/art/ArtGrid/ArtGrid";
-import {ArtUploadForm} from "../../components/art/ArtUploadForm/ArtUploadForm";
-import {Pagination} from "../../components/Pagination/Pagination";
-import {Input} from "../../components/Input/Input";
-import {Button} from "../../components/Button/Button";
-import {ProfileLink} from "../../components/ProfileLink/ProfileLink";
-import {RulesBox} from "../../components/RulesBox/RulesBox";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router";
+import { useAuth } from "../../hooks/useAuth";
+import { useArtFeed } from "../../hooks/useArtFeed";
+import { createGallery, getPopularTags, getUserGalleries, listAllGalleries } from "../../api/endpoints";
+import type { Gallery, TagCount } from "../../types/api";
+import { ArtGrid } from "../../components/art/ArtGrid/ArtGrid";
+import { ArtUploadForm } from "../../components/art/ArtUploadForm/ArtUploadForm";
+import { Pagination } from "../../components/Pagination/Pagination";
+import { Input } from "../../components/Input/Input";
+import { Button } from "../../components/Button/Button";
+import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
+import { RulesBox } from "../../components/RulesBox/RulesBox";
 import styles from "./ArtGalleryPage.module.css";
 
 type ArtSort = "new" | "popular" | "views";
@@ -64,24 +64,36 @@ export function ArtGalleryPage({ corner = "general" }: ArtGalleryPageProps) {
     const [allGalleries, setAllGalleries] = useState<Gallery[]>([]);
     const [galleriesLoading, setGalleriesLoading] = useState(false);
 
-    const feed = useArtFeed(corner, activeType || undefined, search || undefined, activeTag || undefined, sort, page, refreshKey);
+    const feed = useArtFeed(
+        corner,
+        activeType || undefined,
+        search || undefined,
+        activeTag || undefined,
+        sort,
+        page,
+        refreshKey,
+    );
 
     function refresh() {
         setRefreshKey(k => k + 1);
     }
 
     useEffect(() => {
-        getPopularTags(corner).then(setPopularTags).catch(() => setPopularTags([]));
+        getPopularTags(corner)
+            .then(setPopularTags)
+            .catch(() => setPopularTags([]));
     }, [corner]);
 
     useEffect(() => {
         if (user?.id) {
-            getUserGalleries(user.id).then(g => {
-                setUserGalleries(g ?? []);
-                if (g && g.length > 0) {
-                    setSelectedGallery(prev => prev || g[0].id);
-                }
-            }).catch(() => {});
+            getUserGalleries(user.id)
+                .then(g => {
+                    setUserGalleries(g ?? []);
+                    if (g && g.length > 0) {
+                        setSelectedGallery(prev => prev || g[0].id);
+                    }
+                })
+                .catch(() => {});
         }
     }, [user?.id]);
 
@@ -158,9 +170,7 @@ export function ArtGalleryPage({ corner = "general" }: ArtGalleryPageProps) {
         }
         grouped.get(key)!.galleries.push(g);
     }
-    const sortedGroups = [...grouped.values()].sort((a, b) =>
-        a.user.display_name.localeCompare(b.user.display_name),
-    );
+    const sortedGroups = [...grouped.values()].sort((a, b) => a.user.display_name.localeCompare(b.user.display_name));
 
     return (
         <div className={styles.page}>
@@ -170,11 +180,15 @@ export function ArtGalleryPage({ corner = "general" }: ArtGalleryPageProps) {
 
             <div className={styles.infoBox}>
                 <strong>How it works:</strong> Create a gallery from your{" "}
-                <span className={styles.infoLink} onClick={() => user ? navigate(`/user/${user.username}`) : navigate("/login")}>
+                <span
+                    className={styles.infoLink}
+                    onClick={() => (user ? navigate(`/user/${user.username}`) : navigate("/login"))}
+                >
                     profile
                 </span>{" "}
-                (Galleries tab), then upload art into it. You can also upload directly using the Upload Art button above.
-                Share your drawings, cosplay photos, figure collections, and more. Use the "All Art" view to filter by type.
+                (Galleries tab), then upload art into it. You can also upload directly using the Upload Art button
+                above. Share your drawings, cosplay photos, figure collections, and more. Use the "All Art" view to
+                filter by type.
             </div>
 
             <div className={styles.controls}>
@@ -202,11 +216,7 @@ export function ArtGalleryPage({ corner = "general" }: ArtGalleryPageProps) {
                     />
                 )}
                 {user && (
-                    <Button
-                        variant="primary"
-                        size="small"
-                        onClick={() => setShowUpload(prev => !prev)}
-                    >
+                    <Button variant="primary" size="small" onClick={() => setShowUpload(prev => !prev)}>
                         {showUpload ? "Cancel" : "Upload Art"}
                     </Button>
                 )}
@@ -265,7 +275,8 @@ export function ArtGalleryPage({ corner = "general" }: ArtGalleryPageProps) {
                                     <div className={styles.artistHeader}>
                                         <ProfileLink user={artist} size="medium" />
                                         <span className={styles.artistGalleryCount}>
-                                            {artistGalleries.length} {artistGalleries.length === 1 ? "gallery" : "galleries"}
+                                            {artistGalleries.length}{" "}
+                                            {artistGalleries.length === 1 ? "gallery" : "galleries"}
                                         </span>
                                     </div>
                                     <div className={styles.artistGalleries}>
@@ -282,7 +293,10 @@ export function ArtGalleryPage({ corner = "general" }: ArtGalleryPageProps) {
                                                             alt=""
                                                             className={styles.galleryCoverImage}
                                                             onError={e => {
-                                                                if (g.cover_image_url && e.currentTarget.src !== g.cover_image_url) {
+                                                                if (
+                                                                    g.cover_image_url &&
+                                                                    e.currentTarget.src !== g.cover_image_url
+                                                                ) {
                                                                     e.currentTarget.src = g.cover_image_url;
                                                                 }
                                                             }}
@@ -295,7 +309,9 @@ export function ArtGalleryPage({ corner = "general" }: ArtGalleryPageProps) {
                                                 </div>
                                                 <div className={styles.galleryCardInfo}>
                                                     <span className={styles.galleryCardName}>{g.name}</span>
-                                                    <span className={styles.galleryCardCount}>{g.art_count} pieces</span>
+                                                    <span className={styles.galleryCardCount}>
+                                                        {g.art_count} pieces
+                                                    </span>
                                                 </div>
                                             </div>
                                         ))}

@@ -1,5 +1,5 @@
-import type {Art} from "../../../types/api";
-import {ArtCard} from "../ArtCard/ArtCard";
+import type { Art } from "../../../types/api";
+import { ArtCard } from "../ArtCard/ArtCard";
 import styles from "./ArtGrid.module.css";
 
 interface ArtGridProps {

@@ -1,6 +1,6 @@
-import {useEffect, useState} from "react";
-import {useNavigate, useParams} from "react-router";
-import type {Art, Gallery} from "../../types/api";
+import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router";
+import type { Art, Gallery } from "../../types/api";
 import {
     deleteGallery as apiDeleteGallery,
     getGallery,
@@ -8,12 +8,12 @@ import {
     setGalleryCover,
     updateGallery,
 } from "../../api/endpoints";
-import {useAuth} from "../../hooks/useAuth";
-import {ArtUploadForm} from "../../components/art/ArtUploadForm/ArtUploadForm";
-import {ProfileLink} from "../../components/ProfileLink/ProfileLink";
-import {Button} from "../../components/Button/Button";
-import {Modal} from "../../components/Modal/Modal";
-import {Pagination} from "../../components/Pagination/Pagination";
+import { useAuth } from "../../hooks/useAuth";
+import { ArtUploadForm } from "../../components/art/ArtUploadForm/ArtUploadForm";
+import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
+import { Button } from "../../components/Button/Button";
+import { Modal } from "../../components/Modal/Modal";
+import { Pagination } from "../../components/Pagination/Pagination";
 import styles from "./GalleryDetailPage.module.css";
 
 export function GalleryDetailPage() {
@@ -158,9 +158,7 @@ export function GalleryDetailPage() {
                     ) : (
                         <>
                             <h1 className={styles.name}>{gallery.name}</h1>
-                            {gallery.description && (
-                                <p className={styles.description}>{gallery.description}</p>
-                            )}
+                            {gallery.description && <p className={styles.description}>{gallery.description}</p>}
                         </>
                     )}
                     <div className={styles.metaRow}>
@@ -172,18 +170,10 @@ export function GalleryDetailPage() {
                             <Button variant="secondary" size="small" onClick={startEdit}>
                                 Edit
                             </Button>
-                            <Button
-                                variant="secondary"
-                                size="small"
-                                onClick={() => setManaging(prev => !prev)}
-                            >
+                            <Button variant="secondary" size="small" onClick={() => setManaging(prev => !prev)}>
                                 {managing ? "Done" : "Manage Art"}
                             </Button>
-                            <Button
-                                variant="danger"
-                                size="small"
-                                onClick={() => setDeleteConfirmOpen(true)}
-                            >
+                            <Button variant="danger" size="small" onClick={() => setDeleteConfirmOpen(true)}>
                                 Delete
                             </Button>
                         </div>
@@ -191,12 +181,7 @@ export function GalleryDetailPage() {
                 </div>
             </div>
 
-            {isOwner && id && (
-                <ArtUploadForm
-                    galleryId={id}
-                    onCreated={refresh}
-                />
-            )}
+            {isOwner && id && <ArtUploadForm galleryId={id} onCreated={refresh} />}
 
             {art.length === 0 && !managing && <div className="empty-state">This gallery is empty.</div>}
 
@@ -242,11 +227,7 @@ export function GalleryDetailPage() {
                             <div className={styles.manageInfo}>
                                 <span className={styles.artTitle}>{a.title}</span>
                                 <div className={styles.manageActions}>
-                                    <Button
-                                        variant="secondary"
-                                        size="small"
-                                        onClick={() => handleSetCover(a.id)}
-                                    >
+                                    <Button variant="secondary" size="small" onClick={() => handleSetCover(a.id)}>
                                         Set as Cover
                                     </Button>
                                     <Button
@@ -279,11 +260,7 @@ export function GalleryDetailPage() {
                 />
             )}
 
-            <Modal
-                isOpen={deleteConfirmOpen}
-                onClose={() => setDeleteConfirmOpen(false)}
-                title="Delete Gallery"
-            >
+            <Modal isOpen={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)} title="Delete Gallery">
                 <div style={{ padding: "1.25rem" }}>
                     <p style={{ marginBottom: "1rem" }}>
                         Are you sure you want to delete this gallery? All art in it will be permanently deleted.

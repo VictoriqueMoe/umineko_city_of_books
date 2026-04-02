@@ -248,7 +248,9 @@
     background: var(--bg-purple);
     border: 1px solid rgba(var(--gold-rgb), 0.15);
     cursor: pointer;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    transition:
+        transform 0.15s ease,
+        box-shadow 0.15s ease;
 }
 
 .galleryCard:hover {

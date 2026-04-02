@@ -1,9 +1,9 @@
-import {useCallback, useEffect, useState} from "react";
-import {useNavigate, useParams} from "react-router";
-import {useAuth} from "../../hooks/useAuth";
-import {useProfile} from "../../hooks/useProfile";
-import {useTheoryFeed} from "../../hooks/useTheoryFeed";
-import {useFollow} from "../../hooks/useFollow";
+import { useCallback, useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router";
+import { useAuth } from "../../hooks/useAuth";
+import { useProfile } from "../../hooks/useProfile";
+import { useTheoryFeed } from "../../hooks/useTheoryFeed";
+import { useFollow } from "../../hooks/useFollow";
 import {
     createGallery,
     getFollowers,
@@ -13,15 +13,15 @@ import {
     getUserGalleries,
     getUserPosts,
 } from "../../api/endpoints";
-import type {ActivityItem, Art, Gallery, Post, User} from "../../types/api";
-import {Button} from "../../components/Button/Button";
-import {ProfileLink} from "../../components/ProfileLink/ProfileLink";
-import {TheoryCard} from "../../components/theory/TheoryCard/TheoryCard";
-import {PostCard} from "../../components/post/PostCard/PostCard";
-import {ArtGrid} from "../../components/art/ArtGrid/ArtGrid";
-import {Pagination} from "../../components/Pagination/Pagination";
-import {RolePill} from "../../components/RolePill/RolePill";
-import {RoleStyledName} from "../../components/RoleStyledName/RoleStyledName";
+import type { ActivityItem, Art, Gallery, Post, User } from "../../types/api";
+import { Button } from "../../components/Button/Button";
+import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
+import { TheoryCard } from "../../components/theory/TheoryCard/TheoryCard";
+import { PostCard } from "../../components/post/PostCard/PostCard";
+import { ArtGrid } from "../../components/art/ArtGrid/ArtGrid";
+import { Pagination } from "../../components/Pagination/Pagination";
+import { RolePill } from "../../components/RolePill/RolePill";
+import { RoleStyledName } from "../../components/RoleStyledName/RoleStyledName";
 import styles from "./ProfilePage.module.css";
 
 const SOCIAL_LABELS: Record<string, string> = {

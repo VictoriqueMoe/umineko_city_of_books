@@ -1,5 +1,5 @@
-import type {KeyboardEvent} from "react";
-import {useState} from "react";
+import type { KeyboardEvent } from "react";
+import { useState } from "react";
 import styles from "./TagInput.module.css";
 
 interface TagInputProps {
@@ -12,7 +12,10 @@ export function TagInput({ tags, onChange, maxTags = 10 }: TagInputProps) {
     const [input, setInput] = useState("");
 
     function addTag(raw: string) {
-        const tag = raw.trim().toLowerCase().replace(/[^a-z0-9_-]/g, "");
+        const tag = raw
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9_-]/g, "");
         if (!tag || tags.includes(tag) || tags.length >= maxTags) {
             return;
         }

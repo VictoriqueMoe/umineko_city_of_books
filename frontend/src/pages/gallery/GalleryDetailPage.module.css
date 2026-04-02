@@ -134,7 +134,9 @@
     background: var(--bg-card);
     border: 1px solid rgba(var(--gold-rgb), 0.2);
     cursor: pointer;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    transition:
+        transform 0.15s ease,
+        box-shadow 0.15s ease;
 }
 
 .artCard:hover {

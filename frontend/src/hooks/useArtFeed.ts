@@ -1,6 +1,6 @@
-import {useCallback, useEffect, useState} from "react";
-import type {Art, ArtListResponse} from "../types/api";
-import {listArt} from "../api/endpoints";
+import { useCallback, useEffect, useState } from "react";
+import type { Art, ArtListResponse } from "../types/api";
+import { listArt } from "../api/endpoints";
 
 export function useArtFeed(
     corner: string = "general",
