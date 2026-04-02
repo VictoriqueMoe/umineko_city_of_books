@@ -7,8 +7,11 @@ import { ProfileLink } from "../../ProfileLink/ProfileLink";
 import type { Notification, NotificationType } from "../../../types/api";
 import styles from "./NotificationBell.module.css";
 
-function notificationText(type: NotificationType): string {
-    switch (type) {
+function notificationText(notif: { type: NotificationType; message?: string }): string {
+    if (notif.message) {
+        return notif.message;
+    }
+    switch (notif.type) {
         case "theory_response":
             return "responded to your theory";
         case "response_reply":
@@ -21,6 +24,8 @@ function notificationText(type: NotificationType): string {
             return "sent you a message";
         case "report":
             return "reported content";
+        case "report_resolved":
+            return "resolved your report";
         case "new_follower":
             return "started following you";
         case "post_liked":
@@ -146,7 +151,7 @@ export function NotificationBell() {
                                 <ProfileLink user={notif.actor} size="small" showName={false} />
                                 <div className={styles.itemContent}>
                                     <div className={styles.itemText}>
-                                        <strong>{notif.actor.display_name}</strong> {notificationText(notif.type)}
+                                        <strong>{notif.actor.display_name}</strong> {notificationText(notif)}
                                     </div>
                                     <div className={styles.itemTime}>{relativeTime(notif.created_at)}</div>
                                 </div>

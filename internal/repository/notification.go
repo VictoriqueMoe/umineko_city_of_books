@@ -18,6 +18,7 @@ type (
 			referenceID uuid.UUID,
 			referenceType string,
 			actorID uuid.UUID,
+			message string,
 		) (int64, error)
 		ListByUser(ctx context.Context, userID uuid.UUID, limit, offset int) ([]NotificationRow, int, error)
 		MarkRead(ctx context.Context, id int, userID uuid.UUID) error
@@ -38,10 +39,11 @@ func (r *notificationRepository) Create(
 	referenceID uuid.UUID,
 	referenceType string,
 	actorID uuid.UUID,
+	message string,
 ) (int64, error) {
 	result, err := r.db.ExecContext(ctx,
-		`INSERT INTO notifications (user_id, type, reference_id, reference_type, actor_id) VALUES (?, ?, ?, ?, ?)`,
-		userID, notifType, referenceID, referenceType, actorID,
+		`INSERT INTO notifications (user_id, type, reference_id, reference_type, actor_id, message) VALUES (?, ?, ?, ?, ?, ?)`,
+		userID, notifType, referenceID, referenceType, actorID, message,
 	)
 	if err != nil {
 		return 0, fmt.Errorf("insert notification: %w", err)
@@ -60,7 +62,7 @@ func (r *notificationRepository) ListByUser(ctx context.Context, userID uuid.UUI
 	}
 
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT n.id, n.user_id, n.type, n.reference_id, n.reference_type, n.actor_id, n.read, n.created_at,
+		`SELECT n.id, n.user_id, n.type, n.reference_id, n.reference_type, n.actor_id, COALESCE(n.message, ''), n.read, n.created_at,
 		        u.username, u.display_name, u.avatar_url
 		 FROM notifications n
 		 JOIN users u ON n.actor_id = u.id
@@ -78,7 +80,7 @@ func (r *notificationRepository) ListByUser(ctx context.Context, userID uuid.UUI
 		var n NotificationRow
 		var readInt int
 		if err := rows.Scan(
-			&n.ID, &n.UserID, &n.Type, &n.ReferenceID, &n.ReferenceType, &n.ActorID, &readInt, &n.CreatedAt,
+			&n.ID, &n.UserID, &n.Type, &n.ReferenceID, &n.ReferenceType, &n.ActorID, &n.Message, &readInt, &n.CreatedAt,
 			&n.ActorUsername, &n.ActorDisplayName, &n.ActorAvatarURL,
 		); err != nil {
 			return nil, 0, fmt.Errorf("scan notification: %w", err)

@@ -276,6 +276,7 @@ export type NotificationType =
     | "response_upvote"
     | "chat_message"
     | "report"
+    | "report_resolved"
     | "new_follower"
     | "post_liked"
     | "post_commented"
@@ -289,6 +290,7 @@ export interface Notification {
     reference_id: string;
     reference_type: string;
     actor: User;
+    message?: string;
     read: boolean;
     created_at: string;
 }

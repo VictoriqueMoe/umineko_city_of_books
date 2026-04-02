@@ -52,6 +52,7 @@ type (
 		ReferenceID      uuid.UUID
 		ReferenceType    string
 		ActorID          uuid.UUID
+		Message          string
 		Read             bool
 		CreatedAt        string
 		ActorUsername    string

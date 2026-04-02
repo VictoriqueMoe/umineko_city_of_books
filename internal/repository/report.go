@@ -27,7 +27,8 @@ type (
 	ReportRepository interface {
 		Create(ctx context.Context, reporterID uuid.UUID, targetType, targetID, contextID, reason string) (int64, error)
 		List(ctx context.Context, status string, limit, offset int) ([]ReportRow, int, error)
-		Resolve(ctx context.Context, id int, resolvedBy uuid.UUID) error
+		GetByID(ctx context.Context, id int) (*ReportRow, error)
+		Resolve(ctx context.Context, id int, resolvedBy uuid.UUID, comment string) error
 	}
 
 	reportRepository struct {
@@ -96,10 +97,31 @@ func (r *reportRepository) List(ctx context.Context, status string, limit, offse
 	return reports, total, rows.Err()
 }
 
-func (r *reportRepository) Resolve(ctx context.Context, id int, resolvedBy uuid.UUID) error {
+func (r *reportRepository) GetByID(ctx context.Context, id int) (*ReportRow, error) {
+	var row ReportRow
+	err := r.db.QueryRowContext(ctx,
+		`SELECT r.id, r.reporter_id, u.display_name, u.avatar_url,
+		        r.target_type, r.target_id, COALESCE(r.context_id, ''), r.reason, r.status,
+		        r.resolved_by, COALESCE(ru.display_name, ''), r.created_at
+		 FROM reports r
+		 JOIN users u ON r.reporter_id = u.id
+		 LEFT JOIN users ru ON r.resolved_by = ru.id
+		 WHERE r.id = ?`, id,
+	).Scan(
+		&row.ID, &row.ReporterID, &row.ReporterName, &row.ReporterAvatar,
+		&row.TargetType, &row.TargetID, &row.ContextID, &row.Reason, &row.Status,
+		&row.ResolvedByID, &row.ResolvedByName, &row.CreatedAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("get report by id: %w", err)
+	}
+	return &row, nil
+}
+
+func (r *reportRepository) Resolve(ctx context.Context, id int, resolvedBy uuid.UUID, comment string) error {
 	_, err := r.db.ExecContext(ctx,
-		`UPDATE reports SET status = 'resolved', resolved_by = ? WHERE id = ?`,
-		resolvedBy, id,
+		`UPDATE reports SET status = 'resolved', resolved_by = ?, resolution_comment = ? WHERE id = ?`,
+		resolvedBy, comment, id,
 	)
 	if err != nil {
 		return fmt.Errorf("resolve report: %w", err)

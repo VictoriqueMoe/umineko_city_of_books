@@ -19,7 +19,7 @@ type (
 	Service interface {
 		Create(ctx context.Context, reporterID uuid.UUID, req CreateReportRequest) error
 		List(ctx context.Context, status string, limit, offset int) (*ReportListResponse, error)
-		Resolve(ctx context.Context, id int, resolvedBy uuid.UUID) error
+		Resolve(ctx context.Context, id int, resolvedBy uuid.UUID, comment string) error
 	}
 
 	service struct {
@@ -150,6 +150,47 @@ func (s *service) List(ctx context.Context, status string, limit, offset int) (*
 	}, nil
 }
 
-func (s *service) Resolve(ctx context.Context, id int, resolvedBy uuid.UUID) error {
-	return s.reportRepo.Resolve(ctx, id, resolvedBy)
+func (s *service) Resolve(ctx context.Context, id int, resolvedBy uuid.UUID, comment string) error {
+	row, err := s.reportRepo.GetByID(ctx, id)
+	if err != nil {
+		return fmt.Errorf("resolve report: %w", err)
+	}
+
+	if err := s.reportRepo.Resolve(ctx, id, resolvedBy, comment); err != nil {
+		return err
+	}
+
+	go func() {
+		resolverName := "A moderator"
+		if u, err := s.userRepo.GetByID(ctx, resolvedBy); err == nil && u != nil {
+			resolverName = u.DisplayName
+		}
+
+		baseURL := s.settingsSvc.Get(ctx, config.SettingBaseURL)
+		linkURL := baseURL
+		subject, body := notification.ReportResolvedEmail(resolverName, row.TargetType, comment, linkURL)
+
+		targetUUID, err := uuid.Parse(row.TargetID)
+		if err != nil {
+			targetUUID = uuid.Nil
+		}
+
+		message := fmt.Sprintf("resolved your report on a %s", row.TargetType)
+		if comment != "" {
+			message = fmt.Sprintf("%s: %s", message, comment)
+		}
+
+		s.notifSvc.Notify(ctx, dto.NotifyParams{
+			RecipientID:   row.ReporterID,
+			Type:          dto.NotifReportResolved,
+			ReferenceID:   targetUUID,
+			ReferenceType: row.TargetType,
+			ActorID:       resolvedBy,
+			Message:       message,
+			EmailSubject:  subject,
+			EmailBody:     body,
+		})
+	}()
+
+	return nil
 }

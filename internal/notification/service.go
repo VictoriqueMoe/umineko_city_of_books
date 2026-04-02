@@ -46,7 +46,7 @@ func (s *service) Notify(ctx context.Context, params dto.NotifyParams) error {
 
 	emailDupe, _ := s.repo.HasRecentDuplicate(ctx, params.RecipientID, params.Type, params.ReferenceID, params.ActorID)
 
-	id, err := s.repo.Create(ctx, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID)
+	id, err := s.repo.Create(ctx, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message)
 	if err != nil {
 		return err
 	}
@@ -150,6 +150,7 @@ func rowToDTO(row repository.NotificationRow) dto.NotificationResponse {
 			DisplayName: row.ActorDisplayName,
 			AvatarURL:   row.ActorAvatarURL,
 		},
+		Message:   row.Message,
 		Read:      row.Read,
 		CreatedAt: row.CreatedAt,
 	}

@@ -222,7 +222,7 @@ func (s *service) SendMessage(ctx context.Context, senderID, roomID uuid.UUID, r
 		for _, memberID := range members {
 			if memberID != senderID {
 				s.hub.SendToUser(memberID, msg)
-				s.notifRepo.Create(ctx, memberID, dto.NotifChatMessage, roomID, "chat", senderID)
+				s.notifRepo.Create(ctx, memberID, dto.NotifChatMessage, roomID, "chat", senderID, "")
 			}
 		}
 	}
