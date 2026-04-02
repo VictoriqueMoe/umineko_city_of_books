@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"umineko_city_of_books/internal/authz"
@@ -17,6 +16,7 @@ import (
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/settings"
+	"umineko_city_of_books/internal/social"
 	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/utils"
 
@@ -29,7 +29,7 @@ type (
 		GetArt(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, viewerHash string) (*dto.ArtDetailResponse, error)
 		UpdateArt(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.UpdateArtRequest) error
 		DeleteArt(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
-		ListArt(ctx context.Context, viewerID uuid.UUID, corner string, search string, tag string, sort string, limit, offset int) (*dto.ArtListResponse, error)
+		ListArt(ctx context.Context, viewerID uuid.UUID, corner string, artType string, search string, tag string, sort string, limit, offset int) (*dto.ArtListResponse, error)
 		ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit, offset int) (*dto.ArtListResponse, error)
 		LikeArt(ctx context.Context, userID uuid.UUID, artID uuid.UUID) error
 		UnlikeArt(ctx context.Context, userID uuid.UUID, artID uuid.UUID) error
@@ -108,6 +108,11 @@ func (s *service) CreateArt(ctx context.Context, userID uuid.UUID, req dto.Creat
 		corner = "general"
 	}
 
+	artType := req.ArtType
+	if artType == "" {
+		artType = "drawing"
+	}
+
 	maxSize := int64(s.settingsSvc.GetInt(ctx, config.SettingMaxImageSize))
 	mediaID := uuid.New()
 	urlPath, err := s.uploadSvc.SaveImage(ctx, "art", mediaID, contentType, fileSize, maxSize, reader)
@@ -135,7 +140,7 @@ func (s *service) CreateArt(ctx context.Context, userID uuid.UUID, req dto.Creat
 	id := uuid.New()
 	title := strings.TrimSpace(req.Title)
 	description := strings.TrimSpace(req.Description)
-	if err := s.artRepo.Create(ctx, id, userID, corner, title, description, urlPath, thumbnailURL); err != nil {
+	if err := s.artRepo.Create(ctx, id, userID, corner, artType, title, description, urlPath, thumbnailURL); err != nil {
 		return uuid.Nil, err
 	}
 
@@ -147,7 +152,7 @@ func (s *service) CreateArt(ctx context.Context, userID uuid.UUID, req dto.Creat
 		_ = s.artRepo.AddTags(ctx, id, tags)
 	}
 
-	go s.processMentions(userID, description, id, "art", fmt.Sprintf("/gallery/art/%s", id))
+	go social.ProcessMentions(s.userRepo, s.notifService, s.settingsSvc, userID, description, id, "art", fmt.Sprintf("/gallery/art/%s", id))
 
 	return id, nil
 }
@@ -209,7 +214,7 @@ func (s *service) GetArt(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, 
 	}
 
 	return &dto.ArtDetailResponse{
-		ArtResponse: artRowToDTO(*row, tags),
+		ArtResponse: row.ToResponse(tags),
 		Comments:    dtoComments,
 		LikedBy:     likedBy,
 	}, nil
@@ -258,12 +263,12 @@ func (s *service) DeleteArt(ctx context.Context, id uuid.UUID, userID uuid.UUID)
 	return nil
 }
 
-func (s *service) ListArt(ctx context.Context, viewerID uuid.UUID, corner string, search string, tag string, sort string, limit, offset int) (*dto.ArtListResponse, error) {
+func (s *service) ListArt(ctx context.Context, viewerID uuid.UUID, corner string, artType string, search string, tag string, sort string, limit, offset int) (*dto.ArtListResponse, error) {
 	if corner == "" {
 		corner = "general"
 	}
 
-	rows, total, err := s.artRepo.ListAll(ctx, viewerID, corner, search, tag, sort, limit, offset)
+	rows, total, err := s.artRepo.ListAll(ctx, viewerID, corner, artType, search, tag, sort, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -289,7 +294,7 @@ func (s *service) buildArtList(ctx context.Context, rows []repository.ArtRow, to
 
 	arts := make([]dto.ArtResponse, len(rows))
 	for i, r := range rows {
-		arts[i] = artRowToDTO(r, tagMap[r.ID])
+		arts[i] = r.ToResponse(tagMap[r.ID])
 	}
 
 	return &dto.ArtListResponse{
@@ -362,8 +367,8 @@ func (s *service) CreateComment(ctx context.Context, artID uuid.UUID, userID uui
 		return uuid.Nil, err
 	}
 
-	go s.processEmbeds(id.String(), "art_comment", body)
-	go s.processMentions(userID, body, artID, "art", fmt.Sprintf("/gallery/art/%s#comment-%s", artID, id))
+	go social.ProcessEmbeds(s.postRepo, id.String(), "art_comment", body)
+	go social.ProcessMentions(s.userRepo, s.notifService, s.settingsSvc, userID, body, artID, "art", fmt.Sprintf("/gallery/art/%s#comment-%s", artID, id))
 
 	go func() {
 		authorID, err := s.artRepo.GetArtAuthorID(ctx, artID)
@@ -401,7 +406,7 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 	}
 	go func() {
 		_ = s.postRepo.DeleteEmbeds(context.Background(), id.String(), "art_comment")
-		s.processEmbeds(id.String(), "art_comment", body)
+		social.ProcessEmbeds(s.postRepo, id.String(), "art_comment", body)
 	}()
 	return nil
 }
@@ -434,7 +439,6 @@ func (s *service) UploadCommentMedia(ctx context.Context, commentID uuid.UUID, u
 	mediaID := uuid.New()
 
 	var urlPath string
-	var err error
 	if isVideo {
 		maxSize := int64(s.settingsSvc.GetInt(ctx, config.SettingMaxVideoSize))
 		urlPath, err = s.uploadSvc.SaveVideo(ctx, "art", mediaID, contentType, fileSize, maxSize, reader)
@@ -504,54 +508,6 @@ func (s *service) UploadCommentMedia(ctx context.Context, commentID uuid.UUID, u
 	}, nil
 }
 
-func artRowToDTO(r repository.ArtRow, tags []string) dto.ArtResponse {
-	if tags == nil {
-		tags = []string{}
-	}
-	return dto.ArtResponse{
-		ID: r.ID,
-		Author: dto.UserResponse{
-			ID:          r.UserID,
-			Username:    r.AuthorUsername,
-			DisplayName: r.AuthorDisplayName,
-			AvatarURL:   r.AuthorAvatarURL,
-			Role:        role.Role(r.AuthorRole),
-		},
-		Corner:       r.Corner,
-		Title:        r.Title,
-		Description:  r.Description,
-		ImageURL:     r.ImageURL,
-		ThumbnailURL: r.ThumbnailURL,
-		GalleryID:    r.GalleryID,
-		Tags:         tags,
-		LikeCount:    r.LikeCount,
-		CommentCount: r.CommentCount,
-		ViewCount:    r.ViewCount,
-		UserLiked:    r.UserLiked,
-		CreatedAt:    r.CreatedAt,
-		UpdatedAt:    r.UpdatedAt,
-	}
-}
-
-func galleryRowToDTO(g repository.GalleryRow) dto.GalleryResponse {
-	return dto.GalleryResponse{
-		ID: g.ID,
-		Author: dto.UserResponse{
-			ID:          g.UserID,
-			Username:    g.AuthorUsername,
-			DisplayName: g.AuthorDisplayName,
-			AvatarURL:   g.AuthorAvatarURL,
-		},
-		Name:              g.Name,
-		Description:       g.Description,
-		CoverImageURL:     g.CoverImageURL,
-		CoverThumbnailURL: g.CoverThumbnailURL,
-		ArtCount:          g.ArtCount,
-		CreatedAt:         g.CreatedAt,
-		UpdatedAt:         g.UpdatedAt,
-	}
-}
-
 func artCommentToDTO(c repository.ArtCommentRow, mediaRows []repository.PostMediaRow, embedRows []repository.EmbedRow) dto.ArtCommentResponse {
 	mediaList := make([]dto.PostMediaResponse, len(mediaRows))
 	for i, m := range mediaRows {
@@ -597,60 +553,6 @@ func artCommentToDTO(c repository.ArtCommentRow, mediaRows []repository.PostMedi
 		UserLiked: c.UserLiked,
 		CreatedAt: c.CreatedAt,
 		UpdatedAt: c.UpdatedAt,
-	}
-}
-
-func (s *service) processEmbeds(ownerID string, ownerType string, body string) {
-	urls := media.ExtractURLs(body)
-	for i, rawURL := range urls {
-		if i >= 5 {
-			break
-		}
-		embed := media.ParseEmbed(rawURL)
-		if embed == nil {
-			continue
-		}
-		_ = s.postRepo.AddEmbed(
-			context.Background(), ownerID, ownerType,
-			embed.URL, embed.Type, embed.Title, embed.Desc, embed.Image, embed.SiteName, embed.VideoID, i,
-		)
-	}
-}
-
-var mentionRegex = regexp.MustCompile(`@([a-zA-Z0-9_]+)`)
-
-func (s *service) processMentions(actorID uuid.UUID, body string, referenceID uuid.UUID, referenceType string, linkURL string) {
-	matches := mentionRegex.FindAllStringSubmatch(body, 20)
-	seen := make(map[string]bool)
-
-	for _, m := range matches {
-		username := m[1]
-		if seen[username] {
-			continue
-		}
-		seen[username] = true
-
-		mentioned, err := s.userRepo.GetByUsername(context.Background(), username)
-		if err != nil || mentioned == nil || mentioned.ID == actorID {
-			continue
-		}
-
-		actor, err := s.userRepo.GetByID(context.Background(), actorID)
-		if err != nil || actor == nil {
-			continue
-		}
-
-		baseURL := s.settingsSvc.Get(context.Background(), config.SettingBaseURL)
-		subject, emailBody := notification.NotifEmail(actor.DisplayName, "mentioned you", "", baseURL+linkURL)
-		_ = s.notifService.Notify(context.Background(), dto.NotifyParams{
-			RecipientID:   mentioned.ID,
-			Type:          dto.NotifMention,
-			ReferenceID:   referenceID,
-			ReferenceType: referenceType,
-			ActorID:       actorID,
-			EmailSubject:  subject,
-			EmailBody:     emailBody,
-		})
 	}
 }
 
@@ -717,17 +619,17 @@ func (s *service) GetGallery(ctx context.Context, id uuid.UUID, viewerID uuid.UU
 
 	arts := make([]dto.ArtResponse, len(rows))
 	for i, r := range rows {
-		arts[i] = artRowToDTO(r, tagMap[r.ID])
+		arts[i] = r.ToResponse(tagMap[r.ID])
 	}
 
-	gallery := galleryRowToDTO(*g)
+	gallery := g.ToResponse()
 	return &gallery, arts, total, nil
 }
 
 func (s *service) galleriesWithPreviews(ctx context.Context, rows []repository.GalleryRow) []dto.GalleryResponse {
 	result := make([]dto.GalleryResponse, len(rows))
 	for i, g := range rows {
-		result[i] = galleryRowToDTO(g)
+		result[i] = g.ToResponse()
 		if g.CoverArtID == nil && g.ArtCount > 0 {
 			imgs, _ := s.artRepo.GetGalleryPreviewImages(ctx, g.ID, 3)
 			previews := make([]dto.PreviewImageDTO, len(imgs))

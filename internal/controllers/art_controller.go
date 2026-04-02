@@ -122,13 +122,14 @@ func artViewerHash(ctx fiber.Ctx) string {
 func (s *Service) listArt(ctx fiber.Ctx) error {
 	viewerID, _ := ctx.Locals("userID").(uuid.UUID)
 	corner := ctx.Query("corner", "general")
+	artType := ctx.Query("type")
 	search := ctx.Query("search")
 	tag := ctx.Query("tag")
 	sort := ctx.Query("sort", "new")
 	limit := fiber.Query[int](ctx, "limit", 24)
 	offset := fiber.Query[int](ctx, "offset", 0)
 
-	result, err := s.ArtService.ListArt(ctx.Context(), viewerID, corner, search, tag, sort, limit, offset)
+	result, err := s.ArtService.ListArt(ctx.Context(), viewerID, corner, artType, search, tag, sort, limit, offset)
 	if err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to list art"})
 	}

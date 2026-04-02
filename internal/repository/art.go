@@ -11,12 +11,12 @@ import (
 
 type (
 	ArtRepository interface {
-		Create(ctx context.Context, id uuid.UUID, userID uuid.UUID, corner string, title string, description string, imageURL string, thumbnailURL string) error
+		Create(ctx context.Context, id uuid.UUID, userID uuid.UUID, corner string, artType string, title string, description string, imageURL string, thumbnailURL string) error
 		Update(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, description string) error
 		GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID) (*ArtRow, error)
 		Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		DeleteAsAdmin(ctx context.Context, id uuid.UUID) error
-		ListAll(ctx context.Context, viewerID uuid.UUID, corner string, search string, tag string, sort string, limit, offset int) ([]ArtRow, int, error)
+		ListAll(ctx context.Context, viewerID uuid.UUID, corner string, artType string, search string, tag string, sort string, limit, offset int) ([]ArtRow, int, error)
 		ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit, offset int) ([]ArtRow, int, error)
 		GetArtAuthorID(ctx context.Context, artID uuid.UUID) (uuid.UUID, error)
 		GetImageURL(ctx context.Context, artID uuid.UUID) (string, error)
@@ -69,7 +69,7 @@ type (
 )
 
 const artSelectBase = `
-	SELECT a.id, a.user_id, a.corner, a.title, a.description, a.image_url, a.thumbnail_url,
+	SELECT a.id, a.user_id, a.corner, a.art_type, a.title, a.description, a.image_url, a.thumbnail_url,
 		a.gallery_id, a.created_at, a.updated_at,
 		u.username, u.display_name, u.avatar_url,
 		COALESCE(r.role, ''),
@@ -84,7 +84,7 @@ const artSelectBase = `
 func scanArtRow(row interface{ Scan(...interface{}) error }, a *ArtRow) error {
 	var userLikedInt int
 	err := row.Scan(
-		&a.ID, &a.UserID, &a.Corner, &a.Title, &a.Description, &a.ImageURL, &a.ThumbnailURL,
+		&a.ID, &a.UserID, &a.Corner, &a.ArtType, &a.Title, &a.Description, &a.ImageURL, &a.ThumbnailURL,
 		&a.GalleryID, &a.CreatedAt, &a.UpdatedAt,
 		&a.AuthorUsername, &a.AuthorDisplayName, &a.AuthorAvatarURL,
 		&a.AuthorRole,
@@ -94,10 +94,10 @@ func scanArtRow(row interface{ Scan(...interface{}) error }, a *ArtRow) error {
 	return err
 }
 
-func (r *artRepository) Create(ctx context.Context, id uuid.UUID, userID uuid.UUID, corner string, title string, description string, imageURL string, thumbnailURL string) error {
+func (r *artRepository) Create(ctx context.Context, id uuid.UUID, userID uuid.UUID, corner string, artType string, title string, description string, imageURL string, thumbnailURL string) error {
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO art (id, user_id, corner, title, description, image_url, thumbnail_url) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		id, userID, corner, title, description, imageURL, thumbnailURL,
+		`INSERT INTO art (id, user_id, corner, art_type, title, description, image_url, thumbnail_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		id, userID, corner, artType, title, description, imageURL, thumbnailURL,
 	)
 	if err != nil {
 		return fmt.Errorf("create art: %w", err)
@@ -163,10 +163,15 @@ func artOrderClause(sort string) string {
 	}
 }
 
-func (r *artRepository) ListAll(ctx context.Context, viewerID uuid.UUID, corner string, search string, tag string, sort string, limit, offset int) ([]ArtRow, int, error) {
+func (r *artRepository) ListAll(ctx context.Context, viewerID uuid.UUID, corner string, artType string, search string, tag string, sort string, limit, offset int) ([]ArtRow, int, error) {
 	var total int
 	whereParts := []string{"a.corner = ?"}
 	args := []interface{}{corner}
+
+	if artType != "" {
+		whereParts = append(whereParts, "a.art_type = ?")
+		args = append(args, artType)
+	}
 
 	if search != "" {
 		whereParts = append(whereParts, "(a.title LIKE ? OR a.description LIKE ? OR u.display_name LIKE ? OR u.username LIKE ?)")

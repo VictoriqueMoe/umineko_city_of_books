@@ -544,6 +544,7 @@ export async function listUsersPublic(): Promise<PublicUser[]> {
 
 export async function listArt(params: {
     corner?: string;
+    type?: string;
     search?: string;
     tag?: string;
     sort?: string;
@@ -559,7 +560,7 @@ export async function getArt(id: string): Promise<ArtDetail> {
 }
 
 export async function createArt(
-    metadata: { title: string; description: string; corner: string; tags: string[]; gallery_id?: string },
+    metadata: { title: string; description: string; corner: string; art_type: string; tags: string[]; gallery_id?: string },
     imageFile: File,
 ): Promise<{ id: string }> {
     const formData = new FormData();

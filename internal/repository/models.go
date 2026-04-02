@@ -2,6 +2,7 @@ package repository
 
 import (
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/role"
 
 	"github.com/google/uuid"
 )
@@ -129,6 +130,7 @@ type (
 		ID                uuid.UUID
 		UserID            uuid.UUID
 		Corner            string
+		ArtType           string
 		Title             string
 		Description       string
 		ImageURL          string
@@ -237,5 +239,54 @@ func (u *User) ToProfileResponse(stats *UserStats, isSelf bool) *dto.UserProfile
 			ResponseCount: stats.ResponseCount,
 			VotesReceived: stats.VotesReceived,
 		},
+	}
+}
+
+func (r *ArtRow) ToResponse(tags []string) dto.ArtResponse {
+	if tags == nil {
+		tags = []string{}
+	}
+	return dto.ArtResponse{
+		ID: r.ID,
+		Author: dto.UserResponse{
+			ID:          r.UserID,
+			Username:    r.AuthorUsername,
+			DisplayName: r.AuthorDisplayName,
+			AvatarURL:   r.AuthorAvatarURL,
+			Role:        role.Role(r.AuthorRole),
+		},
+		Corner:       r.Corner,
+		ArtType:      r.ArtType,
+		Title:        r.Title,
+		Description:  r.Description,
+		ImageURL:     r.ImageURL,
+		ThumbnailURL: r.ThumbnailURL,
+		GalleryID:    r.GalleryID,
+		Tags:         tags,
+		LikeCount:    r.LikeCount,
+		CommentCount: r.CommentCount,
+		ViewCount:    r.ViewCount,
+		UserLiked:    r.UserLiked,
+		CreatedAt:    r.CreatedAt,
+		UpdatedAt:    r.UpdatedAt,
+	}
+}
+
+func (g *GalleryRow) ToResponse() dto.GalleryResponse {
+	return dto.GalleryResponse{
+		ID: g.ID,
+		Author: dto.UserResponse{
+			ID:          g.UserID,
+			Username:    g.AuthorUsername,
+			DisplayName: g.AuthorDisplayName,
+			AvatarURL:   g.AuthorAvatarURL,
+		},
+		Name:              g.Name,
+		Description:       g.Description,
+		CoverImageURL:     g.CoverImageURL,
+		CoverThumbnailURL: g.CoverThumbnailURL,
+		ArtCount:          g.ArtCount,
+		CreatedAt:         g.CreatedAt,
+		UpdatedAt:         g.UpdatedAt,
 	}
 }

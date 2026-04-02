@@ -4,6 +4,7 @@ import {listArt} from "../api/endpoints";
 
 export function useArtFeed(
     corner: string = "general",
+    artType?: string,
     search?: string,
     tag?: string,
     sort?: string,
@@ -23,6 +24,7 @@ export function useArtFeed(
             try {
                 const result = await listArt({
                     corner,
+                    type: artType || undefined,
                     search: search || undefined,
                     tag: tag || undefined,
                     sort: sort || undefined,
@@ -36,7 +38,7 @@ export function useArtFeed(
                 setLoading(false);
             }
         },
-        [corner, search, tag, sort],
+        [corner, artType, search, tag, sort],
     );
 
     useEffect(() => {

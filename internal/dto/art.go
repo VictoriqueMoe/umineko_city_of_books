@@ -7,6 +7,7 @@ type (
 		ID           uuid.UUID    `json:"id"`
 		Author       UserResponse `json:"author"`
 		Corner       string       `json:"corner"`
+		ArtType      string       `json:"art_type"`
 		Title        string       `json:"title"`
 		Description  string       `json:"description"`
 		ImageURL     string       `json:"image_url"`
@@ -31,6 +32,7 @@ type (
 		Title       string     `json:"title"`
 		Description string     `json:"description"`
 		Corner      string     `json:"corner"`
+		ArtType     string     `json:"art_type"`
 		Tags        []string   `json:"tags"`
 		GalleryID   *uuid.UUID `json:"gallery_id,omitempty"`
 	}

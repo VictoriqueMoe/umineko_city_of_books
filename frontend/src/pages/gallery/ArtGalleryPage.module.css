@@ -67,6 +67,20 @@
     border-color: var(--gold);
 }
 
+.typeBar {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.typeLabel {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
 .tagBar {
     display: flex;
     gap: 0.4rem;

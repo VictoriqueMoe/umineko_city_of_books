@@ -1,4 +1,5 @@
 import {useMemo, useRef, useState} from "react";
+import {useNavigate} from "react-router";
 import type {Gallery} from "../../../types/api";
 import {createArt, setArtGallery} from "../../../api/endpoints";
 import {useSiteInfo} from "../../../hooks/useSiteInfo";
@@ -19,8 +20,10 @@ interface ArtUploadFormProps {
 }
 
 export function ArtUploadForm({ galleryId, corner = "general", onCreated, inline = false, galleries, selectedGallery, onGalleryChange }: ArtUploadFormProps) {
+    const navigate = useNavigate();
     const siteInfo = useSiteInfo();
     const [title, setTitle] = useState("");
+    const [artType, setArtType] = useState("drawing");
     const [description, setDescription] = useState("");
     const [tags, setTags] = useState<string[]>([]);
     const [file, setFile] = useState<File | null>(null);
@@ -42,18 +45,15 @@ export function ArtUploadForm({ galleryId, corner = "general", onCreated, inline
                     title: title.trim(),
                     description: description.trim(),
                     corner,
+                    art_type: artType,
                     tags,
                     gallery_id: galleryId,
                 },
                 file,
             );
             await setArtGallery(id, galleryId).catch(() => {});
-            setTitle("");
-            setDescription("");
-            setTags([]);
-            setFile(null);
-            setOpen(false);
             onCreated();
+            navigate(`/gallery/art/${id}`);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to upload art");
         } finally {
@@ -115,6 +115,20 @@ export function ArtUploadForm({ galleryId, corner = "general", onCreated, inline
                     </select>
                 </div>
             )}
+
+            <div className={styles.field}>
+                <label className={styles.label}>Type</label>
+                <select
+                    className={styles.input}
+                    value={artType}
+                    onChange={e => setArtType(e.target.value)}
+                >
+                    <option value="drawing">Drawing</option>
+                    <option value="cosplay">Cosplay</option>
+                    <option value="figure">Figure</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
 
             <div className={styles.field}>
                 <label className={styles.label}>Title *</label>

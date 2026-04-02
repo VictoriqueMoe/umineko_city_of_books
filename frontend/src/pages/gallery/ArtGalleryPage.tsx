@@ -47,6 +47,7 @@ export function ArtGalleryPage({ corner = "general" }: ArtGalleryPageProps) {
     const sort = (searchParams.get("sort") as ArtSort) || "new";
     const search = searchParams.get("search") || "";
     const activeTag = searchParams.get("tag") || "";
+    const activeType = searchParams.get("type") || "";
     const page = parseInt(searchParams.get("page") || "1", 10);
 
     const [searchInput, setSearchInput] = useState(search);
@@ -63,7 +64,7 @@ export function ArtGalleryPage({ corner = "general" }: ArtGalleryPageProps) {
     const [allGalleries, setAllGalleries] = useState<Gallery[]>([]);
     const [galleriesLoading, setGalleriesLoading] = useState(false);
 
-    const feed = useArtFeed(corner, search || undefined, activeTag || undefined, sort, page, refreshKey);
+    const feed = useArtFeed(corner, activeType || undefined, search || undefined, activeTag || undefined, sort, page, refreshKey);
 
     function refresh() {
         setRefreshKey(k => k + 1);
@@ -157,6 +158,9 @@ export function ArtGalleryPage({ corner = "general" }: ArtGalleryPageProps) {
         }
         grouped.get(key)!.galleries.push(g);
     }
+    const sortedGroups = [...grouped.values()].sort((a, b) =>
+        a.user.display_name.localeCompare(b.user.display_name),
+    );
 
     return (
         <div className={styles.page}>
@@ -169,7 +173,8 @@ export function ArtGalleryPage({ corner = "general" }: ArtGalleryPageProps) {
                 <span className={styles.infoLink} onClick={() => user ? navigate(`/user/${user.username}`) : navigate("/login")}>
                     profile
                 </span>{" "}
-                (Galleries tab), then upload art into it. Your galleries and art will appear here for everyone to browse.
+                (Galleries tab), then upload art into it. You can also upload directly using the Upload Art button above.
+                Share your drawings, cosplay photos, figure collections, and more. Use the "All Art" view to filter by type.
             </div>
 
             <div className={styles.controls}>
@@ -255,7 +260,7 @@ export function ArtGalleryPage({ corner = "general" }: ArtGalleryPageProps) {
                     )}
                     {!galleriesLoading && (
                         <div className={styles.artistList}>
-                            {[...grouped.values()].map(({ user: artist, galleries: artistGalleries }) => (
+                            {sortedGroups.map(({ user: artist, galleries: artistGalleries }) => (
                                 <div key={artist.id} className={styles.artistSection}>
                                     <div className={styles.artistHeader}>
                                         <ProfileLink user={artist} size="medium" />
@@ -310,6 +315,24 @@ export function ArtGalleryPage({ corner = "general" }: ArtGalleryPageProps) {
                                 key={opt.value}
                                 className={`${styles.sortBtn}${sort === opt.value ? ` ${styles.sortBtnActive}` : ""}`}
                                 onClick={() => updateParams({ sort: opt.value, page: "1" })}
+                            >
+                                {opt.label}
+                            </button>
+                        ))}
+                    </div>
+                    <div className={styles.typeBar}>
+                        <span className={styles.typeLabel}>Type:</span>
+                        {[
+                            { value: "", label: "All" },
+                            { value: "drawing", label: "Drawing" },
+                            { value: "cosplay", label: "Cosplay" },
+                            { value: "figure", label: "Figure" },
+                            { value: "other", label: "Other" },
+                        ].map(opt => (
+                            <button
+                                key={opt.value}
+                                className={`${styles.sortBtn}${activeType === opt.value ? ` ${styles.sortBtnActive}` : ""}`}
+                                onClick={() => updateParams({ type: opt.value || undefined, page: "1" })}
                             >
                                 {opt.label}
                             </button>

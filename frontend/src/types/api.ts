@@ -384,6 +384,7 @@ export interface Art {
     id: string;
     author: User;
     corner: string;
+    art_type: string;
     title: string;
     description: string;
     image_url: string;

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"umineko_city_of_books/internal/authz"
@@ -17,6 +16,7 @@ import (
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/settings"
+	"umineko_city_of_books/internal/social"
 	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/utils"
 	"umineko_city_of_books/internal/ws"
@@ -107,8 +107,8 @@ func (s *service) CreatePost(ctx context.Context, userID uuid.UUID, req dto.Crea
 		return uuid.Nil, err
 	}
 
-	go s.processEmbeds(id.String(), "post", body)
-	go s.processMentions(userID, body, id, "post", fmt.Sprintf("/game-board/%s", id))
+	go social.ProcessEmbeds(s.postRepo, id.String(), "post", body)
+	go social.ProcessMentions(s.userRepo, s.notifService, s.settingsSvc, userID, body, id, "post", fmt.Sprintf("/game-board/%s", id))
 
 	return id, nil
 }
@@ -181,7 +181,7 @@ func (s *service) UpdatePost(ctx context.Context, id uuid.UUID, userID uuid.UUID
 	}
 	go func() {
 		_ = s.postRepo.DeleteEmbeds(context.Background(), id.String(), "post")
-		s.processEmbeds(id.String(), "post", body)
+		social.ProcessEmbeds(s.postRepo, id.String(), "post", body)
 	}()
 	return nil
 }
@@ -441,8 +441,8 @@ func (s *service) CreateComment(ctx context.Context, postID uuid.UUID, userID uu
 		return uuid.Nil, err
 	}
 
-	go s.processEmbeds(id.String(), "comment", body)
-	go s.processMentions(userID, body, postID, "post", fmt.Sprintf("/game-board/%s#comment-%s", postID, id))
+	go social.ProcessEmbeds(s.postRepo, id.String(), "comment", body)
+	go social.ProcessMentions(s.userRepo, s.notifService, s.settingsSvc, userID, body, postID, "post", fmt.Sprintf("/game-board/%s#comment-%s", postID, id))
 
 	go func() {
 		authorID, err := s.postRepo.GetPostAuthorID(ctx, postID)
@@ -480,7 +480,7 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 	}
 	go func() {
 		_ = s.postRepo.DeleteEmbeds(context.Background(), id.String(), "comment")
-		s.processEmbeds(id.String(), "comment", body)
+		social.ProcessEmbeds(s.postRepo, id.String(), "comment", body)
 	}()
 	return nil
 }
@@ -584,23 +584,6 @@ func embedRowsToDTO(rows []repository.EmbedRow) []dto.EmbedResponse {
 	return result
 }
 
-func (s *service) processEmbeds(ownerID string, ownerType string, body string) {
-	urls := media.ExtractURLs(body)
-	for i, rawURL := range urls {
-		if i >= 5 {
-			break
-		}
-		embed := media.ParseEmbed(rawURL)
-		if embed == nil {
-			continue
-		}
-		_ = s.postRepo.AddEmbed(
-			context.Background(), ownerID, ownerType,
-			embed.URL, embed.Type, embed.Title, embed.Desc, embed.Image, embed.SiteName, embed.VideoID, i,
-		)
-	}
-}
-
 func (s *service) GetCornerCounts(ctx context.Context) (map[string]int, error) {
 	return s.postRepo.GetCornerCounts(ctx)
 }
@@ -622,41 +605,4 @@ func (s *service) RefreshStaleEmbeds(ctx context.Context) int {
 		}
 	}
 	return refreshed
-}
-
-var mentionRegex = regexp.MustCompile(`@([a-zA-Z0-9_]+)`)
-
-func (s *service) processMentions(actorID uuid.UUID, body string, referenceID uuid.UUID, referenceType string, linkURL string) {
-	matches := mentionRegex.FindAllStringSubmatch(body, 20)
-	seen := make(map[string]bool)
-
-	for _, m := range matches {
-		username := m[1]
-		if seen[username] {
-			continue
-		}
-		seen[username] = true
-
-		mentioned, err := s.userRepo.GetByUsername(context.Background(), username)
-		if err != nil || mentioned == nil || mentioned.ID == actorID {
-			continue
-		}
-
-		actor, err := s.userRepo.GetByID(context.Background(), actorID)
-		if err != nil || actor == nil {
-			continue
-		}
-
-		baseURL := s.settingsSvc.Get(context.Background(), config.SettingBaseURL)
-		subject, emailBody := notification.NotifEmail(actor.DisplayName, "mentioned you", "", baseURL+linkURL)
-		_ = s.notifService.Notify(context.Background(), dto.NotifyParams{
-			RecipientID:   mentioned.ID,
-			Type:          dto.NotifMention,
-			ReferenceID:   referenceID,
-			ReferenceType: referenceType,
-			ActorID:       actorID,
-			EmailSubject:  subject,
-			EmailBody:     emailBody,
-		})
-	}
 }
