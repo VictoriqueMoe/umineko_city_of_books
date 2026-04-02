@@ -38,9 +38,12 @@ type (
 		DeleteCommentAsAdmin(ctx context.Context, id uuid.UUID) error
 		GetComments(ctx context.Context, postID uuid.UUID, viewerID uuid.UUID, limit, offset int) ([]PostCommentRow, int, error)
 		GetCommentPostID(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error)
+		GetCommentAuthorID(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error)
 		LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error
 		UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error
 		AddCommentMedia(ctx context.Context, commentID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, sortOrder int) (int64, error)
+		UpdateCommentMediaURL(ctx context.Context, id int64, mediaURL string) error
+		UpdateCommentMediaThumbnail(ctx context.Context, id int64, thumbnailURL string) error
 		GetCommentMedia(ctx context.Context, commentID uuid.UUID) ([]PostMediaRow, error)
 		GetCommentMediaBatch(ctx context.Context, commentIDs []uuid.UUID) (map[uuid.UUID][]PostMediaRow, error)
 
@@ -554,6 +557,15 @@ func (r *postRepository) GetCommentPostID(ctx context.Context, commentID uuid.UU
 	return postID, nil
 }
 
+func (r *postRepository) GetCommentAuthorID(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error) {
+	var userID uuid.UUID
+	err := r.db.QueryRowContext(ctx, `SELECT user_id FROM post_comments WHERE id = ?`, commentID).Scan(&userID)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("get comment author: %w", err)
+	}
+	return userID, nil
+}
+
 func (r *postRepository) AddCommentMedia(ctx context.Context, commentID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, sortOrder int) (int64, error) {
 	res, err := r.db.ExecContext(ctx,
 		`INSERT INTO post_comment_media (comment_id, media_url, media_type, thumbnail_url, sort_order) VALUES (?, ?, ?, ?, ?)`,
@@ -563,6 +575,22 @@ func (r *postRepository) AddCommentMedia(ctx context.Context, commentID uuid.UUI
 		return 0, fmt.Errorf("add comment media: %w", err)
 	}
 	return res.LastInsertId()
+}
+
+func (r *postRepository) UpdateCommentMediaURL(ctx context.Context, id int64, mediaURL string) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE post_comment_media SET media_url = ? WHERE id = ?`, mediaURL, id)
+	if err != nil {
+		return fmt.Errorf("update comment media url: %w", err)
+	}
+	return nil
+}
+
+func (r *postRepository) UpdateCommentMediaThumbnail(ctx context.Context, id int64, thumbnailURL string) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE post_comment_media SET thumbnail_url = ? WHERE id = ?`, thumbnailURL, id)
+	if err != nil {
+		return fmt.Errorf("update comment media thumbnail: %w", err)
+	}
+	return nil
 }
 
 func (r *postRepository) GetCommentMedia(ctx context.Context, commentID uuid.UUID) ([]PostMediaRow, error) {

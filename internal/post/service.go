@@ -254,18 +254,36 @@ func (s *service) UploadPostMedia(ctx context.Context, postID uuid.UUID, userID 
 		return nil, fmt.Errorf("not the post author")
 	}
 
-	return s.saveMedia(ctx, contentType, fileSize, reader, func(mediaURL, mediaType, thumbURL string, sortOrder int) (int64, error) {
-		return s.postRepo.AddMedia(ctx, postID, mediaURL, mediaType, thumbURL, sortOrder)
-	})
+	return s.saveMedia(ctx, contentType, fileSize, reader,
+		func(mediaURL, mediaType, thumbURL string, sortOrder int) (int64, error) {
+			return s.postRepo.AddMedia(ctx, postID, mediaURL, mediaType, thumbURL, sortOrder)
+		},
+		s.postRepo.UpdateMediaURL,
+		s.postRepo.UpdateMediaThumbnail,
+	)
 }
 
 func (s *service) UploadCommentMedia(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error) {
-	return s.saveMedia(ctx, contentType, fileSize, reader, func(mediaURL, mediaType, thumbURL string, sortOrder int) (int64, error) {
-		return s.postRepo.AddCommentMedia(ctx, commentID, mediaURL, mediaType, thumbURL, sortOrder)
-	})
+	authorID, err := s.postRepo.GetCommentAuthorID(ctx, commentID)
+	if err != nil {
+		return nil, ErrNotFound
+	}
+	if authorID != userID {
+		return nil, fmt.Errorf("not the comment author")
+	}
+
+	return s.saveMedia(ctx, contentType, fileSize, reader,
+		func(mediaURL, mediaType, thumbURL string, sortOrder int) (int64, error) {
+			return s.postRepo.AddCommentMedia(ctx, commentID, mediaURL, mediaType, thumbURL, sortOrder)
+		},
+		s.postRepo.UpdateCommentMediaURL,
+		s.postRepo.UpdateCommentMediaThumbnail,
+	)
 }
 
-func (s *service) saveMedia(ctx context.Context, contentType string, fileSize int64, reader io.Reader, addFn func(string, string, string, int) (int64, error)) (*dto.PostMediaResponse, error) {
+type updateURLFn func(ctx context.Context, id int64, url string) error
+
+func (s *service) saveMedia(ctx context.Context, contentType string, fileSize int64, reader io.Reader, addFn func(string, string, string, int) (int64, error), updateURL updateURLFn, updateThumb updateURLFn) (*dto.PostMediaResponse, error) {
 	isVideo := strings.HasPrefix(contentType, "video/")
 	mediaID := uuid.New()
 
@@ -301,7 +319,7 @@ func (s *service) saveMedia(ctx context.Context, contentType string, fileSize in
 			InputPath: diskPath,
 			Callback: func(outputPath string) {
 				newURL := "/uploads/posts/" + filepath.Base(outputPath)
-				if err := s.postRepo.UpdateMediaURL(context.Background(), rowID, newURL); err != nil {
+				if err := updateURL(context.Background(), rowID, newURL); err != nil {
 					logger.Log.Error().Err(err).Msg("failed to update video media url")
 				}
 				thumbName, err := media.GenerateThumbnail(outputPath, filepath.Dir(outputPath), filepath.Base(outputPath))
@@ -310,7 +328,7 @@ func (s *service) saveMedia(ctx context.Context, contentType string, fileSize in
 					return
 				}
 				thumbURL := "/uploads/posts/" + thumbName
-				if err := s.postRepo.UpdateMediaThumbnail(context.Background(), rowID, thumbURL); err != nil {
+				if err := updateThumb(context.Background(), rowID, thumbURL); err != nil {
 					logger.Log.Error().Err(err).Msg("failed to update video thumbnail url")
 				}
 			},
@@ -322,7 +340,7 @@ func (s *service) saveMedia(ctx context.Context, contentType string, fileSize in
 			InputPath: diskPath,
 			Callback: func(outputPath string) {
 				newURL := "/uploads/posts/" + filepath.Base(outputPath)
-				if err := s.postRepo.UpdateMediaURL(context.Background(), rowID, newURL); err != nil {
+				if err := updateURL(context.Background(), rowID, newURL); err != nil {
 					logger.Log.Error().Err(err).Msg("failed to update image media url")
 				}
 				done <- newURL
