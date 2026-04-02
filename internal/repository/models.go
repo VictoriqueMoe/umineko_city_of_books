@@ -195,7 +195,18 @@ func (u *User) ToResponse() *dto.UserResponse {
 	}
 }
 
-func (u *User) ToProfileResponse(stats *UserStats) *dto.UserProfileResponse {
+func (u *User) ToProfileResponse(stats *UserStats, isSelf bool) *dto.UserProfileResponse {
+	email := ""
+	emailPublic := u.EmailPublic
+	emailNotifications := false
+	homePage := ""
+	if u.EmailPublic || isSelf {
+		email = u.Email
+	}
+	if isSelf {
+		emailNotifications = u.EmailNotifications
+		homePage = u.HomePage
+	}
 	return &dto.UserProfileResponse{
 		ID:                 u.ID,
 		Username:           u.Username,
@@ -216,10 +227,10 @@ func (u *User) ToProfileResponse(stats *UserStats) *dto.UserProfileResponse {
 		Website:            u.Website,
 		DmsEnabled:         u.DmsEnabled,
 		EpisodeProgress:    u.EpisodeProgress,
-		Email:              u.Email,
-		EmailPublic:        u.EmailPublic,
-		EmailNotifications: u.EmailNotifications,
-		HomePage:           u.HomePage,
+		Email:              email,
+		EmailPublic:        emailPublic,
+		EmailNotifications: emailNotifications,
+		HomePage:           homePage,
 		CreatedAt:          u.CreatedAt,
 		Stats: dto.UserStatsDTO{
 			TheoryCount:   stats.TheoryCount,

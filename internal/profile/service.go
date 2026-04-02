@@ -17,7 +17,7 @@ import (
 
 type (
 	Service interface {
-		GetProfile(ctx context.Context, username string) (*dto.UserProfileResponse, error)
+		GetProfile(ctx context.Context, username string, viewerID uuid.UUID) (*dto.UserProfileResponse, error)
 		UpdateProfile(ctx context.Context, userID uuid.UUID, req dto.UpdateProfileRequest) error
 		UploadAvatar(ctx context.Context, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (string, error)
 		UploadBanner(ctx context.Context, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (string, error)
@@ -53,7 +53,7 @@ func NewService(
 	}
 }
 
-func (s *service) GetProfile(ctx context.Context, username string) (*dto.UserProfileResponse, error) {
+func (s *service) GetProfile(ctx context.Context, username string, viewerID uuid.UUID) (*dto.UserProfileResponse, error) {
 	user, stats, err := s.userRepo.GetProfileByUsername(ctx, username)
 	if err != nil {
 		return nil, fmt.Errorf("get profile: %w", err)
@@ -62,7 +62,7 @@ func (s *service) GetProfile(ctx context.Context, username string) (*dto.UserPro
 		return nil, ErrUserNotFound
 	}
 
-	resp := user.ToProfileResponse(stats)
+	resp := user.ToProfileResponse(stats, user.ID == viewerID)
 	resp.Role, _ = s.authz.GetRole(ctx, user.ID)
 	return resp, nil
 }
