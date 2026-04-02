@@ -1,18 +1,27 @@
-import { useCallback, useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router";
-import { useAuth } from "../../hooks/useAuth";
-import { useProfile } from "../../hooks/useProfile";
-import { useTheoryFeed } from "../../hooks/useTheoryFeed";
-import { useFollow } from "../../hooks/useFollow";
-import { getFollowers, getFollowing, getUserActivity, getUserPosts } from "../../api/endpoints";
-import type { ActivityItem, Post, User } from "../../types/api";
-import { Button } from "../../components/Button/Button";
-import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
-import { TheoryCard } from "../../components/theory/TheoryCard/TheoryCard";
-import { PostCard } from "../../components/post/PostCard/PostCard";
-import { Pagination } from "../../components/Pagination/Pagination";
-import { RolePill } from "../../components/RolePill/RolePill";
-import { RoleStyledName } from "../../components/RoleStyledName/RoleStyledName";
+import {useCallback, useEffect, useState} from "react";
+import {useNavigate, useParams} from "react-router";
+import {useAuth} from "../../hooks/useAuth";
+import {useProfile} from "../../hooks/useProfile";
+import {useTheoryFeed} from "../../hooks/useTheoryFeed";
+import {useFollow} from "../../hooks/useFollow";
+import {
+    createGallery,
+    getFollowers,
+    getFollowing,
+    getUserActivity,
+    getUserArt,
+    getUserGalleries,
+    getUserPosts,
+} from "../../api/endpoints";
+import type {ActivityItem, Art, Gallery, Post, User} from "../../types/api";
+import {Button} from "../../components/Button/Button";
+import {ProfileLink} from "../../components/ProfileLink/ProfileLink";
+import {TheoryCard} from "../../components/theory/TheoryCard/TheoryCard";
+import {PostCard} from "../../components/post/PostCard/PostCard";
+import {ArtGrid} from "../../components/art/ArtGrid/ArtGrid";
+import {Pagination} from "../../components/Pagination/Pagination";
+import {RolePill} from "../../components/RolePill/RolePill";
+import {RoleStyledName} from "../../components/RoleStyledName/RoleStyledName";
 import styles from "./ProfilePage.module.css";
 
 const SOCIAL_LABELS: Record<string, string> = {
@@ -46,7 +55,7 @@ function socialUrl(key: string, value: string): string {
     }
 }
 
-type TabType = "posts" | "theories" | "activity" | "followers" | "following";
+type TabType = "posts" | "theories" | "art" | "galleries" | "activity" | "followers" | "following";
 
 export function ProfilePage() {
     const { username } = useParams<{ username: string }>();
@@ -93,6 +102,45 @@ export function ProfilePage() {
             fetchPosts(profile.id, postsOffset);
         }
     }, [activeTab, profile?.id, postsOffset, fetchPosts]);
+
+    const [userArt, setUserArt] = useState<Art[]>([]);
+    const [artTotal, setArtTotal] = useState(0);
+    const [artOffset, setArtOffset] = useState(0);
+    const [artLoading, setArtLoading] = useState(false);
+    const artLimit = 24;
+
+    const fetchUserArt = useCallback(async (id: string, off: number) => {
+        setArtLoading(true);
+        try {
+            const result = await getUserArt(id, artLimit, off);
+            setUserArt(result.art ?? []);
+            setArtTotal(result.total);
+        } catch {
+            setUserArt([]);
+            setArtTotal(0);
+        } finally {
+            setArtLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (activeTab === "art" && profile?.id) {
+            fetchUserArt(profile.id, artOffset);
+        }
+    }, [activeTab, profile?.id, artOffset, fetchUserArt]);
+
+    const [userGalleries, setUserGalleries] = useState<Gallery[]>([]);
+    const [galleriesLoading, setGalleriesLoading] = useState(false);
+
+    useEffect(() => {
+        if (activeTab === "galleries" && profile?.id) {
+            setGalleriesLoading(true);
+            getUserGalleries(profile.id)
+                .then(g => setUserGalleries(g ?? []))
+                .catch(() => setUserGalleries([]))
+                .finally(() => setGalleriesLoading(false));
+        }
+    }, [activeTab, profile?.id]);
 
     const [activityItems, setActivityItems] = useState<ActivityItem[]>([]);
     const [activityTotal, setActivityTotal] = useState(0);
@@ -311,6 +359,18 @@ export function ProfilePage() {
                     Theories
                 </button>
                 <button
+                    className={`${styles.tab} ${activeTab === "art" ? styles.tabActive : ""}`}
+                    onClick={() => setActiveTab("art")}
+                >
+                    Art
+                </button>
+                <button
+                    className={`${styles.tab} ${activeTab === "galleries" ? styles.tabActive : ""}`}
+                    onClick={() => setActiveTab("galleries")}
+                >
+                    Galleries
+                </button>
+                <button
                     className={`${styles.tab} ${activeTab === "activity" ? styles.tabActive : ""}`}
                     onClick={() => setActiveTab("activity")}
                 >
@@ -360,6 +420,70 @@ export function ProfilePage() {
                             onNext={goNext}
                             onPrev={goPrev}
                         />
+                    )}
+                </div>
+            )}
+
+            {activeTab === "art" && (
+                <div className={styles.tabContent}>
+                    {artLoading && <div className="loading">Loading art...</div>}
+                    {!artLoading && userArt.length === 0 && <div className="empty-state">No art yet.</div>}
+                    {!artLoading && userArt.length > 0 && <ArtGrid art={userArt} />}
+                    {!artLoading && artTotal > artLimit && (
+                        <Pagination
+                            offset={artOffset}
+                            limit={artLimit}
+                            total={artTotal}
+                            hasNext={artOffset + artLimit < artTotal}
+                            hasPrev={artOffset > 0}
+                            onNext={() => setArtOffset(artOffset + artLimit)}
+                            onPrev={() => setArtOffset(Math.max(0, artOffset - artLimit))}
+                        />
+                    )}
+                </div>
+            )}
+
+            {activeTab === "galleries" && (
+                <div className={styles.tabContent}>
+                    {currentUser && profile && currentUser.id === profile.id && (
+                        <CreateGalleryInline
+                            onCreated={() => {
+                                getUserGalleries(profile.id)
+                                    .then(g => setUserGalleries(g ?? []))
+                                    .catch(() => {});
+                            }}
+                        />
+                    )}
+                    {galleriesLoading && <div className="loading">Loading galleries...</div>}
+                    {!galleriesLoading && userGalleries.length === 0 && (
+                        <div className="empty-state">No galleries yet.</div>
+                    )}
+                    {!galleriesLoading && (
+                        <div className={styles.galleryGrid}>
+                            {userGalleries.map(g => (
+                                <div
+                                    key={g.id}
+                                    className={styles.galleryCard}
+                                    onClick={() => navigate(`/gallery/view/${g.id}`)}
+                                >
+                                    <div className={styles.galleryCover}>
+                                        {g.cover_thumbnail_url || g.cover_image_url ? (
+                                            <img
+                                                src={g.cover_thumbnail_url || g.cover_image_url}
+                                                alt=""
+                                                className={styles.galleryCoverImage}
+                                            />
+                                        ) : (
+                                            <div className={styles.galleryCoverPlaceholder}>No cover</div>
+                                        )}
+                                    </div>
+                                    <div className={styles.galleryInfo}>
+                                        <span className={styles.galleryName}>{g.name}</span>
+                                        <span className={styles.galleryCount}>{g.art_count} pieces</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     )}
                 </div>
             )}
@@ -425,6 +549,87 @@ export function ProfilePage() {
                     )}
                 </div>
             )}
+        </div>
+    );
+}
+
+function CreateGalleryInline({ onCreated }: { onCreated: () => void }) {
+    const [open, setOpen] = useState(false);
+    const [name, setName] = useState("");
+    const [description, setDescription] = useState("");
+    const [submitting, setSubmitting] = useState(false);
+
+    async function handleCreate() {
+        if (!name.trim() || submitting) {
+            return;
+        }
+        setSubmitting(true);
+        try {
+            await createGallery(name.trim(), description.trim());
+            setName("");
+            setDescription("");
+            setOpen(false);
+            onCreated();
+        } finally {
+            setSubmitting(false);
+        }
+    }
+
+    if (!open) {
+        return (
+            <div style={{ marginBottom: "1rem" }}>
+                <Button variant="primary" size="small" onClick={() => setOpen(true)}>
+                    Create Gallery
+                </Button>
+            </div>
+        );
+    }
+
+    return (
+        <div className={styles.galleryCard} style={{ padding: "1rem", cursor: "default", marginBottom: "1rem" }}>
+            <input
+                type="text"
+                placeholder="Gallery name"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                style={{
+                    width: "100%",
+                    padding: "0.5rem 0.75rem",
+                    border: "1px solid rgba(var(--gold-rgb), 0.2)",
+                    borderRadius: "6px",
+                    background: "var(--bg-card)",
+                    color: "var(--text)",
+                    fontSize: "0.9rem",
+                    marginBottom: "0.5rem",
+                    boxSizing: "border-box",
+                }}
+            />
+            <textarea
+                placeholder="Description (optional)"
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                rows={2}
+                style={{
+                    width: "100%",
+                    padding: "0.5rem 0.75rem",
+                    border: "1px solid rgba(var(--gold-rgb), 0.2)",
+                    borderRadius: "6px",
+                    background: "var(--bg-card)",
+                    color: "var(--text)",
+                    fontSize: "0.9rem",
+                    marginBottom: "0.5rem",
+                    resize: "vertical",
+                    boxSizing: "border-box",
+                }}
+            />
+            <div style={{ display: "flex", gap: "0.5rem" }}>
+                <Button variant="secondary" size="small" onClick={() => setOpen(false)}>
+                    Cancel
+                </Button>
+                <Button variant="primary" size="small" onClick={handleCreate} disabled={!name.trim() || submitting}>
+                    {submitting ? "Creating..." : "Create"}
+                </Button>
+            </div>
         </div>
     );
 }

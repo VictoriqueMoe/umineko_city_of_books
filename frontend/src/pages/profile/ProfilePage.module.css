@@ -307,6 +307,66 @@ a.socialChipValue:hover {
     line-height: 1.5;
 }
 
+.galleryGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1rem;
+}
+
+.galleryCard {
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--gold-rgb), 0.2);
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.galleryCard:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.galleryCover {
+    width: 100%;
+    height: 140px;
+    overflow: hidden;
+}
+
+.galleryCoverImage {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.galleryCoverPlaceholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    background: var(--bg-purple);
+}
+
+.galleryInfo {
+    padding: 0.6rem 0.75rem;
+}
+
+.galleryName {
+    display: block;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text);
+    margin-bottom: 0.2rem;
+}
+
+.galleryCount {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
 @media (max-width: 768px) {
     .banner {
         height: 140px;

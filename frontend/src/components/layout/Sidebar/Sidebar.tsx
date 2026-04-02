@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from "react";
-import { NavLink, useLocation } from "react-router";
-import { useAuth } from "../../../hooks/useAuth";
-import { useNotifications } from "../../../hooks/useNotifications";
-import { getCornerCounts } from "../../../api/endpoints";
-import { can, canAccessAdmin } from "../../../utils/permissions";
+import {useEffect, useRef, useState} from "react";
+import {NavLink, useLocation} from "react-router";
+import {useAuth} from "../../../hooks/useAuth";
+import {useNotifications} from "../../../hooks/useNotifications";
+import {getArtCornerCounts, getCornerCounts} from "../../../api/endpoints";
+import {can, canAccessAdmin} from "../../../utils/permissions";
 import styles from "./Sidebar.module.css";
 
 interface SidebarProps {
@@ -18,13 +18,22 @@ const CORNERS = [
     { path: "/game-board/ciconia", label: "Ciconia", key: "ciconia" },
 ];
 
+const GALLERY_CORNERS = [
+    { path: "/gallery", label: "General", key: "general" },
+    { path: "/gallery/umineko", label: "Umineko", key: "umineko" },
+    { path: "/gallery/higurashi", label: "Higurashi", key: "higurashi" },
+    { path: "/gallery/ciconia", label: "Ciconia", key: "ciconia" },
+];
+
 export function Sidebar({ open, onClose }: SidebarProps) {
     const { user } = useAuth();
     const { addWSListener } = useNotifications();
     const location = useLocation();
     const [unreadChat, setUnreadChat] = useState(0);
     const [cornersOpen, setCornersOpen] = useState(location.pathname.startsWith("/game-board"));
+    const [galleryOpen, setGalleryOpen] = useState(location.pathname.startsWith("/gallery"));
     const [cornerCounts, setCornerCounts] = useState<Record<string, number>>({});
+    const [artCounts, setArtCounts] = useState<Record<string, number>>({});
     const pathnameRef = useRef(location.pathname);
 
     useEffect(() => {
@@ -34,6 +43,9 @@ export function Sidebar({ open, onClose }: SidebarProps) {
     useEffect(() => {
         getCornerCounts()
             .then(setCornerCounts)
+            .catch(() => {});
+        getArtCornerCounts()
+            .then(setArtCounts)
             .catch(() => {});
     }, []);
 
@@ -83,6 +95,31 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                                     >
                                         {c.label}
                                         <span className={styles.cornerCount}>{cornerCounts[c.key] ?? 0}</span>
+                                    </NavLink>
+                                ))}
+                            </div>
+                        )}
+                        <button
+                            className={`${styles.link} ${styles.expandBtn}${galleryOpen ? ` ${styles.expandOpen}` : ""}`}
+                            onClick={() => setGalleryOpen(prev => !prev)}
+                        >
+                            Gallery
+                            <span className={styles.expandIcon}>{galleryOpen ? "\u25B4" : "\u25BE"}</span>
+                        </button>
+                        {galleryOpen && (
+                            <div className={styles.subLinks}>
+                                {GALLERY_CORNERS.map(c => (
+                                    <NavLink
+                                        key={c.path}
+                                        to={c.path}
+                                        end
+                                        className={({ isActive }) =>
+                                            `${styles.link} ${styles.subLink}${isActive ? ` ${styles.active}` : ""}`
+                                        }
+                                        onClick={onClose}
+                                    >
+                                        {c.label}
+                                        <span className={styles.cornerCount}>{artCounts[c.key] ?? 0}</span>
                                     </NavLink>
                                 ))}
                             </div>

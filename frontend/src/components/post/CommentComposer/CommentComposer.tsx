@@ -1,18 +1,23 @@
-import { useMemo, useRef, useState } from "react";
-import { createComment, uploadCommentMedia } from "../../../api/endpoints";
-import { useSiteInfo } from "../../../hooks/useSiteInfo";
-import { validateFileSize } from "../../../utils/fileValidation";
-import { Button } from "../../Button/Button";
-import { MentionTextArea } from "../../MentionTextArea/MentionTextArea";
+import {useMemo, useRef, useState} from "react";
+import {createComment, uploadCommentMedia} from "../../../api/endpoints";
+import {useSiteInfo} from "../../../hooks/useSiteInfo";
+import {validateFileSize} from "../../../utils/fileValidation";
+import {Button} from "../../Button/Button";
+import {MentionTextArea} from "../../MentionTextArea/MentionTextArea";
 import styles from "./CommentComposer.module.css";
+
+type CreateCommentFn = (postId: string, body: string, parentId?: string) => Promise<{ id: string }>;
+type UploadMediaFn = (commentId: string, file: File) => Promise<unknown>;
 
 interface CommentComposerProps {
     postId: string;
     parentId?: string;
     onCreated: () => void;
+    createCommentFn?: CreateCommentFn;
+    uploadMediaFn?: UploadMediaFn;
 }
 
-export function CommentComposer({ postId, parentId, onCreated }: CommentComposerProps) {
+export function CommentComposer({ postId, parentId, onCreated, createCommentFn, uploadMediaFn }: CommentComposerProps) {
     const siteInfo = useSiteInfo();
     const [body, setBody] = useState("");
     const [files, setFiles] = useState<File[]>([]);
@@ -58,10 +63,12 @@ export function CommentComposer({ postId, parentId, onCreated }: CommentComposer
         setSubmitting(true);
         setError("");
         try {
-            const { id } = await createComment(postId, body.trim(), parentId);
+            const doCreate = createCommentFn || createComment;
+            const doUpload = uploadMediaFn || uploadCommentMedia;
+            const { id } = await doCreate(postId, body.trim(), parentId);
             for (const file of files) {
                 try {
-                    await uploadCommentMedia(id, file);
+                    await doUpload(id, file);
                 } catch (err) {
                     setError(err instanceof Error ? err.message : "Failed to upload media");
                 }

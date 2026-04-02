@@ -18,6 +18,7 @@ type (
 		Report       ReportRepository
 		Post         PostRepository
 		Follow       FollowRepository
+		Art          ArtRepository
 	}
 )
 
@@ -41,5 +42,6 @@ func New(db *sql.DB) *Repositories {
 		Report:       &reportRepository{db: db},
 		Post:         &postRepository{db: db},
 		Follow:       &followRepository{db: db},
+		Art:          &artRepository{db: db},
 	}
 }

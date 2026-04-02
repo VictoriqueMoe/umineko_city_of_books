@@ -1,0 +1,54 @@
+.card {
+    break-inside: avoid;
+    margin-bottom: 1rem;
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--gold-rgb), 0.2);
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.imageWrap {
+    width: 100%;
+    overflow: hidden;
+}
+
+.image {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.info {
+    padding: 0.6rem 0.75rem;
+}
+
+.title {
+    display: block;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text);
+    margin-bottom: 0.35rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.likes {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    white-space: nowrap;
+}

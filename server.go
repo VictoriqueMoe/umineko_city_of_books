@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/admin"
+	artsvc "umineko_city_of_books/internal/art"
 	"umineko_city_of_books/internal/auth"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/chat"
@@ -59,6 +60,7 @@ type services struct {
 	report       report.Service
 	post         postsvc.Service
 	follow       follow.Service
+	art          artsvc.Service
 	email        email.Service
 	session      *session.Manager
 	upload       upload.Service
@@ -107,6 +109,9 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 	if err := os.MkdirAll(filepath.Join(uploadDir, "posts"), 0755); err != nil {
 		logger.Log.Fatal().Err(err).Msg("failed to create posts directory")
 	}
+	if err := os.MkdirAll(filepath.Join(uploadDir, "art"), 0755); err != nil {
+		logger.Log.Fatal().Err(err).Msg("failed to create art directory")
+	}
 
 	sessionMgr := session.NewManager(repos.Session, settingsSvc)
 	uploadSvc := upload.NewService(settingsSvc)
@@ -123,6 +128,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 	mediaProc := media.NewProcessor(4)
 	postSvc := postsvc.NewService(repos.Post, repos.User, authzSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, hub)
 	followSvc := follow.NewService(repos.Follow, repos.User, notifSvc, settingsSvc)
+	artSvc := artsvc.NewService(repos.Art, repos.Post, repos.User, authzSvc, notifSvc, uploadSvc, mediaProc, settingsSvc)
 
 	return &services{
 		settings:     settingsSvc,
@@ -136,6 +142,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 		report:       reportSvc,
 		post:         postSvc,
 		follow:       followSvc,
+		art:          artSvc,
 		email:        emailSvc,
 		session:      sessionMgr,
 		upload:       uploadSvc,
@@ -174,7 +181,7 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 	ctrlService := controllers.NewService(
 		svc.auth, svc.profile, svc.theory, svc.notification, svc.admin,
 		svc.authz, settingsSvc, svc.chat, svc.report, svc.post, svc.follow,
-		svc.session, svc.hub, string(htmlBytes),
+		svc.art, svc.session, svc.hub, string(htmlBytes),
 	)
 	routes.PublicRoutes(ctrlService, app)
 
@@ -194,7 +201,7 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 		logger.Log.Fatal().Err(err).Msg("failed to create static sub-filesystem")
 	}
 
-	ogResolver := og.NewResolver(repos.Theory, repos.User, repos.Post, string(htmlBytes), baseURL)
+	ogResolver := og.NewResolver(repos.Theory, repos.User, repos.Post, repos.Art, string(htmlBytes), baseURL)
 
 	app.Get("/*", func(ctx fiber.Ctx) error {
 		path := ctx.Path()

@@ -124,6 +124,66 @@ type (
 	}
 )
 
+type (
+	ArtRow struct {
+		ID                uuid.UUID
+		UserID            uuid.UUID
+		Corner            string
+		Title             string
+		Description       string
+		ImageURL          string
+		ThumbnailURL      string
+		GalleryID         *uuid.UUID
+		CreatedAt         string
+		UpdatedAt         *string
+		AuthorUsername    string
+		AuthorDisplayName string
+		AuthorAvatarURL   string
+		AuthorRole        string
+		LikeCount         int
+		CommentCount      int
+		ViewCount         int
+		UserLiked         bool
+	}
+
+	GalleryRow struct {
+		ID                uuid.UUID
+		UserID            uuid.UUID
+		Name              string
+		Description       string
+		CoverArtID        *uuid.UUID
+		CoverImageURL     string
+		CoverThumbnailURL string
+		ArtCount          int
+		CreatedAt         string
+		UpdatedAt         *string
+		AuthorUsername    string
+		AuthorDisplayName string
+		AuthorAvatarURL   string
+	}
+
+	ArtCommentRow struct {
+		ID                uuid.UUID
+		ArtID             uuid.UUID
+		ParentID          *uuid.UUID
+		UserID            uuid.UUID
+		Body              string
+		CreatedAt         string
+		UpdatedAt         *string
+		AuthorUsername    string
+		AuthorDisplayName string
+		AuthorAvatarURL   string
+		AuthorRole        string
+		LikeCount         int
+		UserLiked         bool
+	}
+
+	TagCount struct {
+		Tag   string
+		Count int
+	}
+)
+
 func (u *User) ToResponse() *dto.UserResponse {
 	return &dto.UserResponse{
 		ID:              u.ID,

@@ -1,0 +1,22 @@
+.grid {
+    columns: 4 240px;
+    column-gap: 1rem;
+}
+
+@media (max-width: 1024px) {
+    .grid {
+        columns: 3 200px;
+    }
+}
+
+@media (max-width: 768px) {
+    .grid {
+        columns: 2 160px;
+    }
+}
+
+@media (max-width: 480px) {
+    .grid {
+        columns: 1;
+    }
+}

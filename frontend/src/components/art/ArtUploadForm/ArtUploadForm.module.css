@@ -1,0 +1,94 @@
+.form {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 1.5rem;
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--gold-rgb), 0.2);
+    border-radius: 8px;
+}
+
+.heading {
+    margin: 0 0 1.25rem;
+    font-size: 1.3rem;
+    color: var(--text);
+}
+
+.error {
+    background: rgba(var(--rose-rgb), 0.1);
+    color: var(--rose);
+    padding: 0.5rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    margin-bottom: 1rem;
+}
+
+.field {
+    margin-bottom: 1rem;
+}
+
+.label {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.input {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid rgba(var(--gold-rgb), 0.2);
+    border-radius: 6px;
+    background: var(--bg-card);
+    color: var(--text);
+    font-size: 0.9rem;
+    box-sizing: border-box;
+}
+
+.hint {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.dropZone {
+    border: 2px dashed rgba(var(--gold-rgb), 0.3);
+    border-radius: 8px;
+    padding: 2rem;
+    text-align: center;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.dropZone:hover {
+    border-color: var(--gold);
+}
+
+.previewWrap {
+    position: relative;
+    display: inline-block;
+    max-width: 100%;
+}
+
+.preview {
+    display: block;
+    max-width: 100%;
+    max-height: 300px;
+    border-radius: 8px;
+    object-fit: contain;
+}
+
+.removeBtn {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    background: rgba(0, 0, 0, 0.7);
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: 0.25rem 0.5rem;
+    cursor: pointer;
+    font-size: 0.8rem;
+}

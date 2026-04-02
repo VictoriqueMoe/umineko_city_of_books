@@ -63,6 +63,11 @@ var (
 	SettingRulesGameBoardUmineko   = SiteSettingDef{"rules_game_board_umineko", "", TypeString}
 	SettingRulesGameBoardHigurashi = SiteSettingDef{"rules_game_board_higurashi", "", TypeString}
 	SettingRulesGameBoardCiconia   = SiteSettingDef{"rules_game_board_ciconia", "", TypeString}
+	SettingMaxArtPerDay            = SiteSettingDef{"max_art_per_day", "0", TypeInt}
+	SettingRulesGallery            = SiteSettingDef{"rules_gallery", "", TypeString}
+	SettingRulesGalleryUmineko     = SiteSettingDef{"rules_gallery_umineko", "", TypeString}
+	SettingRulesGalleryHigurashi   = SiteSettingDef{"rules_gallery_higurashi", "", TypeString}
+	SettingRulesGalleryCiconia     = SiteSettingDef{"rules_gallery_ciconia", "", TypeString}
 	SettingSMTPHost                = SiteSettingDef{"smtp_host", "", TypeString}
 	SettingSMTPPort                = SiteSettingDef{"smtp_port", "25", TypeInt}
 	SettingSMTPFrom                = SiteSettingDef{"smtp_from", "", TypeString}
@@ -99,6 +104,11 @@ var (
 		SettingRulesGameBoardUmineko,
 		SettingRulesGameBoardHigurashi,
 		SettingRulesGameBoardCiconia,
+		SettingMaxArtPerDay,
+		SettingRulesGallery,
+		SettingRulesGalleryUmineko,
+		SettingRulesGalleryHigurashi,
+		SettingRulesGalleryCiconia,
 		SettingSMTPHost,
 		SettingSMTPPort,
 		SettingSMTPFrom,

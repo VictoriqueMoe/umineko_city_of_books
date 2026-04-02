@@ -279,7 +279,9 @@ export type NotificationType =
     | "new_follower"
     | "post_liked"
     | "post_commented"
-    | "mention";
+    | "mention"
+    | "art_liked"
+    | "art_commented";
 
 export interface Notification {
     id: number;
@@ -376,6 +378,75 @@ export interface AuditLogListResponse {
 
 export interface SiteSettings {
     [key: string]: string;
+}
+
+export interface Art {
+    id: string;
+    author: User;
+    corner: string;
+    title: string;
+    description: string;
+    image_url: string;
+    thumbnail_url: string;
+    gallery_id?: string;
+    tags: string[];
+    like_count: number;
+    comment_count: number;
+    view_count: number;
+    user_liked: boolean;
+    created_at: string;
+    updated_at?: string;
+}
+
+export interface ArtDetail extends Art {
+    comments: ArtComment[];
+    liked_by: User[];
+}
+
+export interface ArtComment {
+    id: string;
+    parent_id?: string;
+    author: User;
+    body: string;
+    media: PostMedia[];
+    embeds?: PostEmbed[];
+    like_count: number;
+    user_liked: boolean;
+    replies?: ArtComment[];
+    created_at: string;
+    updated_at?: string;
+}
+
+export interface ArtListResponse {
+    art: Art[];
+    total: number;
+    limit: number;
+    offset: number;
+}
+
+export interface TagCount {
+    tag: string;
+    count: number;
+}
+
+export interface Gallery {
+    id: string;
+    author: User;
+    name: string;
+    description: string;
+    cover_image_url: string;
+    cover_thumbnail_url: string;
+    art_count: number;
+    created_at: string;
+    updated_at?: string;
+}
+
+export interface GalleryDetailResponse {
+    gallery: Gallery;
+    art: Art[];
+    total: number;
+    limit: number;
+    offset: number;
 }
 
 export interface ChatRoom {

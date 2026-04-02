@@ -1,0 +1,155 @@
+.page {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1rem;
+}
+
+.cornerTitle {
+    margin: 0 0 0.75rem;
+    font-size: 1.4rem;
+    color: var(--text);
+}
+
+.controls {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.searchInput {
+    flex: 1;
+}
+
+.sortBar {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.75rem;
+}
+
+.sortBtn {
+    padding: 0.35rem 0.75rem;
+    border: 1px solid rgba(var(--gold-rgb), 0.2);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.sortBtn:hover {
+    border-color: var(--gold);
+    color: var(--gold);
+}
+
+.sortBtnActive {
+    background: var(--gold);
+    color: var(--bg-void);
+    border-color: var(--gold);
+}
+
+.tagBar {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+}
+
+.tagChip {
+    padding: 0.25rem 0.6rem;
+    border-radius: 12px;
+    border: 1px solid rgba(var(--gold-rgb), 0.2);
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.tagChip:hover {
+    border-color: var(--gold);
+    color: var(--gold);
+}
+
+.tagChipActive {
+    background: var(--gold);
+    color: var(--bg-void);
+    border-color: var(--gold);
+}
+
+.tagChipClear {
+    border-color: var(--rose);
+    color: var(--rose);
+}
+
+.tagChipClear:hover {
+    background: var(--rose);
+    color: #fff;
+}
+
+.uploadSection {
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--gold-rgb), 0.2);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.createGalleryPrompt p {
+    margin: 0 0 0.75rem;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.createGalleryRow {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.createGalleryInput {
+    flex: 1;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid rgba(var(--gold-rgb), 0.2);
+    border-radius: 6px;
+    background: var(--bg-card);
+    color: var(--text);
+    font-size: 0.9rem;
+}
+
+.createGalleryInput:focus {
+    outline: none;
+    border-color: var(--gold);
+}
+
+.galleryPicker {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.pickerLabel {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.pickerSelect {
+    flex: 1;
+    max-width: 300px;
+    padding: 0.4rem 0.75rem;
+    border: 1px solid rgba(var(--gold-rgb), 0.2);
+    border-radius: 6px;
+    background: var(--bg-card);
+    color: var(--text);
+    font-size: 0.85rem;
+}
+
+.pickerSelect:focus {
+    outline: none;
+    border-color: var(--gold);
+}

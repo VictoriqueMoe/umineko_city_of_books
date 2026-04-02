@@ -48,4 +48,6 @@ const (
 	NotifPostLiked      NotificationType = "post_liked"
 	NotifPostCommented  NotificationType = "post_commented"
 	NotifMention        NotificationType = "mention"
+	NotifArtLiked       NotificationType = "art_liked"
+	NotifArtCommented   NotificationType = "art_commented"
 )
