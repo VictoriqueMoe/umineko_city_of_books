@@ -453,6 +453,10 @@ export async function uploadPostMedia(postId: string, file: File): Promise<PostM
     return apiPostFormData<PostMedia>(`/posts/${postId}/media`, formData);
 }
 
+export async function deletePostMedia(postId: string, mediaId: number): Promise<void> {
+    await apiDelete(`/posts/${postId}/media/${mediaId}`);
+}
+
 export async function likePost(id: string): Promise<void> {
     await apiPost<unknown, undefined>(`/posts/${id}/like`, undefined);
 }

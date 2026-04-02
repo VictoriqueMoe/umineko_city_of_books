@@ -33,6 +33,7 @@ type (
 		ListFeed(ctx context.Context, tab string, viewerID uuid.UUID, corner string, search string, sort string, seed int, limit, offset int) (*dto.PostListResponse, error)
 		ListUserPosts(ctx context.Context, targetUserID uuid.UUID, viewerID uuid.UUID, limit, offset int) (*dto.PostListResponse, error)
 		UploadPostMedia(ctx context.Context, postID uuid.UUID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error)
+		DeletePostMedia(ctx context.Context, postID uuid.UUID, mediaID int64, userID uuid.UUID) error
 		LikePost(ctx context.Context, userID uuid.UUID, postID uuid.UUID) error
 		UnlikePost(ctx context.Context, userID uuid.UUID, postID uuid.UUID) error
 		CreateComment(ctx context.Context, postID uuid.UUID, userID uuid.UUID, req dto.CreateCommentRequest) (uuid.UUID, error)
@@ -261,6 +262,24 @@ func (s *service) UploadPostMedia(ctx context.Context, postID uuid.UUID, userID 
 		s.postRepo.UpdateMediaURL,
 		s.postRepo.UpdateMediaThumbnail,
 	)
+}
+
+func (s *service) DeletePostMedia(ctx context.Context, postID uuid.UUID, mediaID int64, userID uuid.UUID) error {
+	authorID, err := s.postRepo.GetPostAuthorID(ctx, postID)
+	if err != nil {
+		return ErrNotFound
+	}
+	if authorID != userID {
+		return fmt.Errorf("not the post author")
+	}
+
+	mediaURL, err := s.postRepo.DeleteMedia(ctx, mediaID, postID)
+	if err != nil {
+		return err
+	}
+
+	_ = s.uploadSvc.Delete(mediaURL)
+	return nil
 }
 
 func (s *service) UploadCommentMedia(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error) {
