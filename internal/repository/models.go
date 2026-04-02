@@ -136,6 +136,10 @@ func (u *User) ToResponse() *dto.UserResponse {
 }
 
 func (u *User) ToProfileResponse(stats *UserStats) *dto.UserProfileResponse {
+	var dtoEmail = ""
+	if u.EmailPublic {
+		dtoEmail = u.Email
+	}
 	return &dto.UserProfileResponse{
 		ID:                 u.ID,
 		Username:           u.Username,
@@ -156,7 +160,7 @@ func (u *User) ToProfileResponse(stats *UserStats) *dto.UserProfileResponse {
 		Website:            u.Website,
 		DmsEnabled:         u.DmsEnabled,
 		EpisodeProgress:    u.EpisodeProgress,
-		Email:              u.Email,
+		Email:              dtoEmail,
 		EmailPublic:        u.EmailPublic,
 		EmailNotifications: u.EmailNotifications,
 		HomePage:           u.HomePage,
