@@ -21,7 +21,7 @@ async function fetchQuoteByAudioId(audioId: string): Promise<Quote | null> {
         return null;
     }
     try {
-        const response = await fetch(`${QUOTE_API}/quote/${firstId}`);
+        const response = await fetch(`${QUOTE_API}/umineko/quote/${firstId}`);
         if (!response.ok) {
             return null;
         }
@@ -33,7 +33,7 @@ async function fetchQuoteByAudioId(audioId: string): Promise<Quote | null> {
 
 async function fetchQuoteByIndex(index: number): Promise<Quote | null> {
     try {
-        const response = await fetch(`${QUOTE_API}/quote/index/${index}`);
+        const response = await fetch(`${QUOTE_API}/umineko/quote/index/${index}`);
         if (!response.ok) {
             return null;
         }
