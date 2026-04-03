@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/url"
 	"path/filepath"
 	"strings"
 	"time"
@@ -136,12 +137,10 @@ func (s *service) CreateArt(ctx context.Context, userID uuid.UUID, req dto.Creat
 	case <-ctx.Done():
 	}
 
-	thumbnailURL := s.generateThumbnailURL(urlPath)
-
 	id := uuid.New()
 	title := strings.TrimSpace(req.Title)
 	description := strings.TrimSpace(req.Description)
-	if err := s.artRepo.Create(ctx, id, userID, corner, artType, title, description, urlPath, thumbnailURL); err != nil {
+	if err := s.artRepo.Create(ctx, id, userID, corner, artType, title, description, urlPath, ""); err != nil {
 		return uuid.Nil, err
 	}
 
@@ -160,8 +159,9 @@ func (s *service) CreateArt(ctx context.Context, userID uuid.UUID, req dto.Creat
 
 func (s *service) generateThumbnailURL(imageURL string) string {
 	baseURL := s.settingsSvc.Get(context.Background(), config.SettingBaseURL)
-	fullURL := baseURL + imageURL
-	return fmt.Sprintf("https://thumbnails.waifuvault.moe/api/v1/generateThumbnail/ext/fromURL?url=%s&v=%d", fullURL, time.Now().UnixMilli())
+	day := time.Now().Unix() / 86400
+	sourceURL := fmt.Sprintf("%s%s?v=%d", baseURL, imageURL, day)
+	return "https://thumbnails.waifuvault.moe/api/v1/generateThumbnail/ext/fromURL?url=" + url.QueryEscape(sourceURL)
 }
 
 func (s *service) GetArt(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, viewerHash string) (*dto.ArtDetailResponse, error) {
@@ -214,8 +214,11 @@ func (s *service) GetArt(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, 
 		}
 	}
 
+	artResp := row.ToResponse(tags)
+	artResp.ThumbnailURL = s.generateThumbnailURL(row.ImageURL)
+
 	return &dto.ArtDetailResponse{
-		ArtResponse: row.ToResponse(tags),
+		ArtResponse: artResp,
 		Comments:    dtoComments,
 		LikedBy:     likedBy,
 	}, nil
@@ -301,6 +304,7 @@ func (s *service) buildArtList(ctx context.Context, rows []repository.ArtRow, to
 	arts := make([]dto.ArtResponse, len(rows))
 	for i, r := range rows {
 		arts[i] = r.ToResponse(tagMap[r.ID])
+		arts[i].ThumbnailURL = s.generateThumbnailURL(r.ImageURL)
 	}
 
 	return &dto.ArtListResponse{
@@ -662,21 +666,29 @@ func (s *service) GetGallery(ctx context.Context, id uuid.UUID, viewerID uuid.UU
 	arts := make([]dto.ArtResponse, len(rows))
 	for i, r := range rows {
 		arts[i] = r.ToResponse(tagMap[r.ID])
+		arts[i].ThumbnailURL = s.generateThumbnailURL(r.ImageURL)
 	}
 
-	return new(g.ToResponse()), arts, total, nil
+	gallery := g.ToResponse()
+	if g.CoverImageURL != "" {
+		gallery.CoverThumbnailURL = s.generateThumbnailURL(g.CoverImageURL)
+	}
+	return &gallery, arts, total, nil
 }
 
 func (s *service) galleriesWithPreviews(ctx context.Context, rows []repository.GalleryRow) []dto.GalleryResponse {
 	result := make([]dto.GalleryResponse, len(rows))
 	for i, g := range rows {
 		result[i] = g.ToResponse()
+		if g.CoverImageURL != "" {
+			result[i].CoverThumbnailURL = s.generateThumbnailURL(g.CoverImageURL)
+		}
 		if g.CoverArtID == nil && g.ArtCount > 0 {
 			imgs, _ := s.artRepo.GetGalleryPreviewImages(ctx, g.ID, 3)
 			previews := make([]dto.PreviewImageDTO, len(imgs))
 			for j, img := range imgs {
 				previews[j] = dto.PreviewImageDTO{
-					Thumbnail: img.ThumbnailURL,
+					Thumbnail: s.generateThumbnailURL(img.ImageURL),
 					Full:      img.ImageURL,
 				}
 			}
