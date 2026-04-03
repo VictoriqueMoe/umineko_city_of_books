@@ -126,6 +126,11 @@ const notificationConfigs: Record<NotificationType, NotificationConfig> = {
         category: "gallery",
         route: routeByReferenceType,
     },
+    comment_liked: {
+        text: "liked your comment",
+        category: "dynamic",
+        route: routeByReferenceType,
+    },
     content_edited: {
         text: "edited your content",
         category: "dynamic",

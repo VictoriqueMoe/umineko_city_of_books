@@ -21,6 +21,7 @@ import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { Button } from "../../components/Button/Button";
 import { Modal } from "../../components/Modal/Modal";
 import { CommentComposer } from "../../components/post/CommentComposer/CommentComposer";
+import { CommentItem } from "../../components/post/CommentItem/CommentItem";
 import { MentionTextArea } from "../../components/MentionTextArea/MentionTextArea";
 import { TagInput } from "../../components/art/TagInput/TagInput";
 import { ReportButton } from "../../components/ReportButton/ReportButton";
@@ -41,8 +42,6 @@ export function ArtDetailPage() {
     const [editTags, setEditTags] = useState<string[]>([]);
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const [lightboxOpen, setLightboxOpen] = useState(false);
-    const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
-    const [editCommentBody, setEditCommentBody] = useState("");
 
     const hash = location.hash;
     const highlightedComment = hash.startsWith("#comment-") ? hash.replace("#comment-", "") : null;
@@ -140,19 +139,6 @@ export function ArtDetailPage() {
     const isAuthor = user && user.id === art.author.id;
     const canEdit = isAuthor || can(user?.role, "edit_any_post");
     const canDelete = isAuthor || can(user?.role, "delete_any_post");
-
-    function flattenComments(comments: ArtDetail["comments"]): ArtDetail["comments"] {
-        const result: ArtDetail["comments"] = [];
-        for (const c of comments) {
-            result.push(c);
-            if (c.replies) {
-                result.push(...flattenComments(c.replies));
-            }
-        }
-        return result;
-    }
-
-    const allComments = flattenComments(art.comments);
 
     return (
         <div className={styles.page}>
@@ -269,117 +255,34 @@ export function ArtDetailPage() {
             )}
 
             <div className={styles.comments}>
-                <h3 className={styles.sectionTitle}>Comments {allComments.length > 0 && `(${allComments.length})`}</h3>
-                {allComments.map(c => (
-                    <div
+                <h3 className={styles.sectionTitle}>
+                    Comments {art.comments.length > 0 && `(${art.comments.length})`}
+                </h3>
+                {art.comments.map(c => (
+                    <CommentItem
                         key={c.id}
-                        id={`comment-${c.id}`}
-                        className={`${styles.comment}${c.id === highlightedComment ? ` ${styles.commentHighlighted}` : ""}`}
-                    >
-                        <div className={styles.commentHeader}>
-                            <ProfileLink user={c.author} size="small" />
-                            <span className={styles.commentDate}>
-                                {new Date(c.created_at).toLocaleDateString("en-GB")}
-                            </span>
-                            {c.updated_at && <span className={styles.edited}>(edited)</span>}
-                        </div>
-                        {editingCommentId === c.id ? (
-                            <div className={styles.editSection}>
-                                <textarea
-                                    className={styles.editTitle}
-                                    value={editCommentBody}
-                                    onChange={e => setEditCommentBody(e.target.value)}
-                                    rows={3}
-                                />
-                                <div className={styles.editActions}>
-                                    <Button variant="secondary" size="small" onClick={() => setEditingCommentId(null)}>
-                                        Cancel
-                                    </Button>
-                                    <Button
-                                        variant="primary"
-                                        size="small"
-                                        disabled={!editCommentBody.trim()}
-                                        onClick={async () => {
-                                            await updateArtComment(c.id, editCommentBody.trim());
-                                            setEditingCommentId(null);
-                                            fetchArt();
-                                        }}
-                                    >
-                                        Save
-                                    </Button>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className={styles.commentBody}>{linkify(c.body)}</div>
-                        )}
-                        <div className={styles.commentActions}>
-                            <button
-                                className={`${styles.commentLikeBtn}${c.user_liked ? ` ${styles.likeBtnActive}` : ""}`}
-                                onClick={async () => {
-                                    if (c.user_liked) {
-                                        await unlikeArtComment(c.id);
-                                    } else {
-                                        await likeArtComment(c.id);
-                                    }
-                                    fetchArt();
-                                }}
-                                disabled={!user}
-                            >
-                                &#9829; {c.like_count}
-                            </button>
-                            {user && (
-                                <button
-                                    className={styles.replyBtn}
-                                    onClick={() => {
-                                        const composer = document.getElementById("art-comment-composer");
-                                        if (composer) {
-                                            composer.scrollIntoView({ behavior: "smooth" });
-                                        }
-                                    }}
-                                >
-                                    Reply
-                                </button>
-                            )}
-                            {(user?.id === c.author.id || can(user?.role, "edit_any_comment")) && editingCommentId !== c.id && (
-                                <button
-                                    className={styles.replyBtn}
-                                    onClick={() => {
-                                        setEditingCommentId(c.id);
-                                        setEditCommentBody(c.body);
-                                    }}
-                                >
-                                    Edit
-                                </button>
-                            )}
-                            {(user?.id === c.author.id || can(user?.role, "delete_any_comment")) && (
-                                <button
-                                    className={styles.deleteBtn}
-                                    onClick={async () => {
-                                        if (window.confirm("Delete this comment?")) {
-                                            await deleteArtComment(c.id);
-                                            fetchArt();
-                                        }
-                                    }}
-                                >
-                                    Delete
-                                </button>
-                            )}
-                            {user && user.id !== c.author.id && (
-                                <ReportButton targetType="art_comment" targetId={c.id} contextId={art.id} />
-                            )}
-                        </div>
-                    </div>
+                        comment={c}
+                        postId={art.id}
+                        onDelete={fetchArt}
+                        highlighted={c.id === highlightedComment}
+                        linkPrefix="/gallery/art"
+                        reportType="art_comment"
+                        likeFn={likeArtComment}
+                        unlikeFn={unlikeArtComment}
+                        deleteFn={deleteArtComment}
+                        updateFn={updateArtComment}
+                        createCommentFn={createArtComment}
+                        uploadMediaFn={uploadArtCommentMedia}
+                    />
                 ))}
-                {allComments.length === 0 && <p className={styles.noComments}>No comments yet.</p>}
+                {art.comments.length === 0 && <p className={styles.noComments}>No comments yet.</p>}
                 {user && id && (
-                    <div id="art-comment-composer">
-                        <CommentComposer
-                            postId={id}
-                            onCreated={fetchArt}
-                            createCommentFn={createArtComment}
-                            uploadMediaFn={uploadArtCommentMedia}
-                        />
-                    </div>
+                    <CommentComposer
+                        postId={id}
+                        onCreated={fetchArt}
+                        createCommentFn={createArtComment}
+                        uploadMediaFn={uploadArtCommentMedia}
+                    />
                 )}
             </div>
 

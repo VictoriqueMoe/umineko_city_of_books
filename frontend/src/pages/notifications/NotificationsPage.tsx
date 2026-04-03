@@ -24,6 +24,7 @@ export function NotificationsPage() {
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [loading, setLoading] = useState(true);
     const [total, setTotal] = useState(0);
+    const [activeFilter, setActiveFilter] = useState<NotificationCategory | "all">("all");
 
     const fetchAll = useCallback(async (offset = 0) => {
         setLoading(true);
@@ -69,14 +70,19 @@ export function NotificationsPage() {
     const grouped = groupByCategory(notifications);
     const hasMore = notifications.length < total;
 
+    const availableCategories = getCategoryOrder().filter(cat => {
+        const items = grouped.get(cat);
+        return items && items.length > 0;
+    });
+
     return (
         <div className={styles.page}>
             <div className={styles.topBar}>
                 <h1 className={styles.title}>Notifications</h1>
                 {unreadCount > 0 && (
-                    <Button variant="ghost" size="small" onClick={handleMarkAllRead}>
+                    <button className={styles.markAllBtn} onClick={handleMarkAllRead}>
                         Mark all as read
-                    </Button>
+                    </button>
                 )}
             </div>
 
@@ -86,7 +92,33 @@ export function NotificationsPage() {
                 <div className={styles.empty}>No notifications yet</div>
             ) : (
                 <>
+                    <div className={styles.tabs}>
+                        <button
+                            className={`${styles.tab}${activeFilter === "all" ? ` ${styles.tabActive}` : ""}`}
+                            onClick={() => setActiveFilter("all")}
+                        >
+                            All
+                        </button>
+                        {availableCategories.map(cat => {
+                            const items = grouped.get(cat)!;
+                            const catUnread = items.filter(n => !n.read).length;
+                            return (
+                                <button
+                                    key={cat}
+                                    className={`${styles.tab}${activeFilter === cat ? ` ${styles.tabActive}` : ""}`}
+                                    onClick={() => setActiveFilter(cat)}
+                                >
+                                    {getCategoryLabel(cat)}
+                                    {catUnread > 0 && <span className={styles.tabBadge}>{catUnread}</span>}
+                                </button>
+                            );
+                        })}
+                    </div>
+
                     {getCategoryOrder().map(cat => {
+                        if (activeFilter !== "all" && activeFilter !== cat) {
+                            return null;
+                        }
                         const items = grouped.get(cat);
                         if (!items || items.length === 0) {
                             return null;

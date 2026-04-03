@@ -142,34 +142,17 @@ func (s *service) UpdateTheory(ctx context.Context, id uuid.UUID, userID uuid.UU
 }
 
 func (s *service) notifyContentEdited(ctx context.Context, contentID uuid.UUID, contentType string, referenceID uuid.UUID, editorID uuid.UUID) {
-	var authorID uuid.UUID
-	var err error
-	if contentType == "theory" {
-		authorID, err = s.repo.GetTheoryAuthorID(ctx, contentID)
-	}
-	if err != nil || authorID == editorID {
+	authorID, err := s.repo.GetTheoryAuthorID(ctx, contentID)
+	if err != nil {
 		return
 	}
-
-	actor, err := s.userRepo.GetByID(ctx, editorID)
-	if err != nil || actor == nil {
-		return
-	}
-
-	message := fmt.Sprintf("your %s has been edited", contentType)
-	baseURL := s.settingsSvc.Get(ctx, config.SettingBaseURL)
-	linkURL := fmt.Sprintf("%s/theory/%s", baseURL, referenceID)
-	subject, body := notification.NotifEmail(actor.DisplayName, fmt.Sprintf("edited your %s", contentType), "", linkURL)
-
-	s.notifService.Notify(ctx, dto.NotifyParams{
-		RecipientID:   authorID,
-		Type:          dto.NotifContentEdited,
+	notification.SendEditNotification(ctx, s.userRepo, s.settingsSvc, s.notifService, notification.EditNotifyParams{
+		AuthorID:      authorID,
+		EditorID:      editorID,
+		ContentType:   contentType,
 		ReferenceID:   referenceID,
 		ReferenceType: contentType,
-		ActorID:       editorID,
-		Message:       message,
-		EmailSubject:  subject,
-		EmailBody:     body,
+		LinkPath:      fmt.Sprintf("/theory/%s", referenceID),
 	})
 }
 

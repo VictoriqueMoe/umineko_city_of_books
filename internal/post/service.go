@@ -503,7 +503,38 @@ func (s *service) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.U
 }
 
 func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
-	return s.postRepo.LikeComment(ctx, userID, commentID)
+	if err := s.postRepo.LikeComment(ctx, userID, commentID); err != nil {
+		return err
+	}
+
+	go func() {
+		authorID, err := s.postRepo.GetCommentAuthorID(ctx, commentID)
+		if err != nil {
+			return
+		}
+		postID, err := s.postRepo.GetCommentPostID(ctx, commentID)
+		if err != nil {
+			return
+		}
+		actor, err := s.userRepo.GetByID(ctx, userID)
+		if err != nil || actor == nil {
+			return
+		}
+		baseURL := s.settingsSvc.Get(ctx, config.SettingBaseURL)
+		linkURL := fmt.Sprintf("%s/game-board/%s#comment-%s", baseURL, postID, commentID)
+		subject, body := notification.NotifEmail(actor.DisplayName, "liked your comment", "", linkURL)
+		_ = s.notifService.Notify(ctx, dto.NotifyParams{
+			RecipientID:   authorID,
+			Type:          dto.NotifCommentLiked,
+			ReferenceID:   postID,
+			ReferenceType: fmt.Sprintf("post_comment:%s", commentID),
+			ActorID:       userID,
+			EmailSubject:  subject,
+			EmailBody:     body,
+		})
+	}()
+
+	return nil
 }
 
 func (s *service) UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
@@ -600,62 +631,35 @@ func (s *service) GetCornerCounts(ctx context.Context) (map[string]int, error) {
 
 func (s *service) notifyContentEdited(ctx context.Context, postID uuid.UUID, contentType string, editorID uuid.UUID) {
 	authorID, err := s.postRepo.GetPostAuthorID(ctx, postID)
-	if err != nil || authorID == editorID {
+	if err != nil {
 		return
 	}
-
-	actor, err := s.userRepo.GetByID(ctx, editorID)
-	if err != nil || actor == nil {
-		return
-	}
-
-	message := fmt.Sprintf("your %s has been edited", contentType)
-	baseURL := s.settingsSvc.Get(ctx, config.SettingBaseURL)
-	linkURL := fmt.Sprintf("%s/game-board/%s", baseURL, postID)
-	subject, body := notification.NotifEmail(actor.DisplayName, fmt.Sprintf("edited your %s", contentType), "", linkURL)
-
-	s.notifService.Notify(ctx, dto.NotifyParams{
-		RecipientID:   authorID,
-		Type:          dto.NotifContentEdited,
+	notification.SendEditNotification(ctx, s.userRepo, s.settingsSvc, s.notifService, notification.EditNotifyParams{
+		AuthorID:      authorID,
+		EditorID:      editorID,
+		ContentType:   contentType,
 		ReferenceID:   postID,
 		ReferenceType: "post",
-		ActorID:       editorID,
-		Message:       message,
-		EmailSubject:  subject,
-		EmailBody:     body,
+		LinkPath:      fmt.Sprintf("/game-board/%s", postID),
 	})
 }
 
 func (s *service) notifyCommentEdited(ctx context.Context, commentID uuid.UUID, commentType string, editorID uuid.UUID) {
 	authorID, err := s.postRepo.GetCommentAuthorID(ctx, commentID)
-	if err != nil || authorID == editorID {
+	if err != nil {
 		return
 	}
-
 	postID, err := s.postRepo.GetCommentPostID(ctx, commentID)
 	if err != nil {
 		return
 	}
-
-	actor, err := s.userRepo.GetByID(ctx, editorID)
-	if err != nil || actor == nil {
-		return
-	}
-
-	message := "your comment has been edited"
-	baseURL := s.settingsSvc.Get(ctx, config.SettingBaseURL)
-	linkURL := fmt.Sprintf("%s/game-board/%s#comment-%s", baseURL, postID, commentID)
-	subject, body := notification.NotifEmail(actor.DisplayName, "edited your comment", "", linkURL)
-
-	s.notifService.Notify(ctx, dto.NotifyParams{
-		RecipientID:   authorID,
-		Type:          dto.NotifContentEdited,
+	notification.SendEditNotification(ctx, s.userRepo, s.settingsSvc, s.notifService, notification.EditNotifyParams{
+		AuthorID:      authorID,
+		EditorID:      editorID,
+		ContentType:   "comment",
 		ReferenceID:   postID,
 		ReferenceType: fmt.Sprintf("post_comment:%s", commentID),
-		ActorID:       editorID,
-		Message:       message,
-		EmailSubject:  subject,
-		EmailBody:     body,
+		LinkPath:      fmt.Sprintf("/game-board/%s#comment-%s", postID, commentID),
 	})
 }
 

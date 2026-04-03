@@ -72,7 +72,7 @@ func initServer() *fiber.App {
 	repos, settingsSvc := initDatabase()
 	svc := initServices(repos, settingsSvc)
 	app := initApp(svc, repos, settingsSvc)
-	registerListeners(settingsSvc, app, svc)
+	registerListeners(settingsSvc, app, svc, repos)
 	return app
 }
 
@@ -151,11 +151,12 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 	}
 }
 
-func registerListeners(settingsSvc settings.Service, app *fiber.App, svc *services) {
+func registerListeners(settingsSvc settings.Service, app *fiber.App, svc *services, repos *repository.Repositories) {
 	settingsSvc.Subscribe(logger.NewSettingsListener())
 	settingsSvc.Subscribe(middleware.NewBodyLimitListener(app))
 	settingsSvc.Subscribe(email.NewMailSettingListener(svc.email))
 
+	logger.Log.Info().Str("interval", "1h").Msg("registered job: refresh stale embeds")
 	go func() {
 		ticker := time.NewTicker(1 * time.Hour)
 		defer ticker.Stop()
@@ -163,6 +164,23 @@ func registerListeners(settingsSvc settings.Service, app *fiber.App, svc *servic
 			n := svc.post.RefreshStaleEmbeds(context.Background())
 			if n > 0 {
 				logger.Log.Info().Int("count", n).Msg("refreshed stale embeds")
+			}
+		}
+	}()
+
+	logger.Log.Info().Str("interval", "24h").Msg("registered job: clean orphaned uploads")
+	go func() {
+		uploadDir := svc.upload.GetUploadDir()
+		n := upload.CleanOrphanedFiles(repos.Upload, uploadDir)
+		if n > 0 {
+			logger.Log.Info().Int("count", n).Msg("cleaned orphaned upload files")
+		}
+		ticker := time.NewTicker(24 * time.Hour)
+		defer ticker.Stop()
+		for range ticker.C {
+			n := upload.CleanOrphanedFiles(repos.Upload, uploadDir)
+			if n > 0 {
+				logger.Log.Info().Int("count", n).Msg("cleaned orphaned upload files")
 			}
 		}
 	}()

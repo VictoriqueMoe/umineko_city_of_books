@@ -6,6 +6,7 @@ import (
 	"io"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/config"
@@ -160,7 +161,7 @@ func (s *service) CreateArt(ctx context.Context, userID uuid.UUID, req dto.Creat
 func (s *service) generateThumbnailURL(imageURL string) string {
 	baseURL := s.settingsSvc.Get(context.Background(), config.SettingBaseURL)
 	fullURL := baseURL + imageURL
-	return "https://thumbnails.waifuvault.moe/api/v1/generateThumbnail/ext/fromURL?url=" + fullURL
+	return fmt.Sprintf("https://thumbnails.waifuvault.moe/api/v1/generateThumbnail/ext/fromURL?url=%s&v=%d", fullURL, time.Now().UnixMilli())
 }
 
 func (s *service) GetArt(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, viewerHash string) (*dto.ArtDetailResponse, error) {
@@ -429,7 +430,38 @@ func (s *service) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.U
 }
 
 func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
-	return s.artRepo.LikeComment(ctx, userID, commentID)
+	if err := s.artRepo.LikeComment(ctx, userID, commentID); err != nil {
+		return err
+	}
+
+	go func() {
+		authorID, err := s.artRepo.GetCommentAuthorID(ctx, commentID)
+		if err != nil {
+			return
+		}
+		artID, err := s.artRepo.GetCommentArtID(ctx, commentID)
+		if err != nil {
+			return
+		}
+		actor, err := s.userRepo.GetByID(ctx, userID)
+		if err != nil || actor == nil {
+			return
+		}
+		baseURL := s.settingsSvc.Get(ctx, config.SettingBaseURL)
+		linkURL := fmt.Sprintf("%s/gallery/art/%s#comment-%s", baseURL, artID, commentID)
+		subject, body := notification.NotifEmail(actor.DisplayName, "liked your comment", "", linkURL)
+		_ = s.notifService.Notify(ctx, dto.NotifyParams{
+			RecipientID:   authorID,
+			Type:          dto.NotifCommentLiked,
+			ReferenceID:   artID,
+			ReferenceType: fmt.Sprintf("art_comment:%s", commentID),
+			ActorID:       userID,
+			EmailSubject:  subject,
+			EmailBody:     body,
+		})
+	}()
+
+	return nil
 }
 
 func (s *service) UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
@@ -676,61 +708,34 @@ func (s *service) SetArtGallery(ctx context.Context, artID uuid.UUID, userID uui
 
 func (s *service) notifyArtEdited(ctx context.Context, artID uuid.UUID, editorID uuid.UUID) {
 	authorID, err := s.artRepo.GetArtAuthorID(ctx, artID)
-	if err != nil || authorID == editorID {
+	if err != nil {
 		return
 	}
-
-	actor, err := s.userRepo.GetByID(ctx, editorID)
-	if err != nil || actor == nil {
-		return
-	}
-
-	message := "your art has been edited"
-	baseURL := s.settingsSvc.Get(ctx, config.SettingBaseURL)
-	linkURL := fmt.Sprintf("%s/gallery/art/%s", baseURL, artID)
-	subject, body := notification.NotifEmail(actor.DisplayName, "edited your art", "", linkURL)
-
-	s.notifService.Notify(ctx, dto.NotifyParams{
-		RecipientID:   authorID,
-		Type:          dto.NotifContentEdited,
+	notification.SendEditNotification(ctx, s.userRepo, s.settingsSvc, s.notifService, notification.EditNotifyParams{
+		AuthorID:      authorID,
+		EditorID:      editorID,
+		ContentType:   "art",
 		ReferenceID:   artID,
 		ReferenceType: "art",
-		ActorID:       editorID,
-		Message:       message,
-		EmailSubject:  subject,
-		EmailBody:     body,
+		LinkPath:      fmt.Sprintf("/gallery/art/%s", artID),
 	})
 }
 
 func (s *service) notifyArtCommentEdited(ctx context.Context, commentID uuid.UUID, editorID uuid.UUID) {
 	authorID, err := s.artRepo.GetCommentAuthorID(ctx, commentID)
-	if err != nil || authorID == editorID {
+	if err != nil {
 		return
 	}
-
 	artID, err := s.artRepo.GetCommentArtID(ctx, commentID)
 	if err != nil {
 		return
 	}
-
-	actor, err := s.userRepo.GetByID(ctx, editorID)
-	if err != nil || actor == nil {
-		return
-	}
-
-	message := "your comment has been edited"
-	baseURL := s.settingsSvc.Get(ctx, config.SettingBaseURL)
-	linkURL := fmt.Sprintf("%s/gallery/art/%s#comment-%s", baseURL, artID, commentID)
-	subject, body := notification.NotifEmail(actor.DisplayName, "edited your comment", "", linkURL)
-
-	s.notifService.Notify(ctx, dto.NotifyParams{
-		RecipientID:   authorID,
-		Type:          dto.NotifContentEdited,
+	notification.SendEditNotification(ctx, s.userRepo, s.settingsSvc, s.notifService, notification.EditNotifyParams{
+		AuthorID:      authorID,
+		EditorID:      editorID,
+		ContentType:   "comment",
 		ReferenceID:   artID,
 		ReferenceType: fmt.Sprintf("art_comment:%s", commentID),
-		ActorID:       editorID,
-		Message:       message,
-		EmailSubject:  subject,
-		EmailBody:     body,
+		LinkPath:      fmt.Sprintf("/gallery/art/%s#comment-%s", artID, commentID),
 	})
 }

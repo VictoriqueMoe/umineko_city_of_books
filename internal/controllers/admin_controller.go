@@ -114,10 +114,9 @@ func (s *Service) adminGetUser(ctx fiber.Ctx) error {
 }
 
 func (s *Service) adminSetRole(ctx fiber.Ctx) error {
-	actorID := ctx.Locals("userID").(uuid.UUID)
-	targetID, err := uuid.Parse(ctx.Params("id"))
+	actorID, targetID, err := actorAndTarget(ctx)
 	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user ID"})
+		return err
 	}
 
 	var req dto.SetRoleRequest
@@ -132,10 +131,9 @@ func (s *Service) adminSetRole(ctx fiber.Ctx) error {
 }
 
 func (s *Service) adminRemoveRole(ctx fiber.Ctx) error {
-	actorID := ctx.Locals("userID").(uuid.UUID)
-	targetID, err := uuid.Parse(ctx.Params("id"))
+	actorID, targetID, err := actorAndTarget(ctx)
 	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user ID"})
+		return err
 	}
 
 	var req dto.SetRoleRequest
@@ -150,10 +148,9 @@ func (s *Service) adminRemoveRole(ctx fiber.Ctx) error {
 }
 
 func (s *Service) adminBanUser(ctx fiber.Ctx) error {
-	actorID := ctx.Locals("userID").(uuid.UUID)
-	targetID, err := uuid.Parse(ctx.Params("id"))
+	actorID, targetID, err := actorAndTarget(ctx)
 	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user ID"})
+		return err
 	}
 
 	var req dto.BanUserRequest
@@ -168,10 +165,9 @@ func (s *Service) adminBanUser(ctx fiber.Ctx) error {
 }
 
 func (s *Service) adminUnbanUser(ctx fiber.Ctx) error {
-	actorID := ctx.Locals("userID").(uuid.UUID)
-	targetID, err := uuid.Parse(ctx.Params("id"))
+	actorID, targetID, err := actorAndTarget(ctx)
 	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user ID"})
+		return err
 	}
 
 	if err := s.AdminService.UnbanUser(ctx.Context(), actorID, targetID); err != nil {
@@ -181,10 +177,9 @@ func (s *Service) adminUnbanUser(ctx fiber.Ctx) error {
 }
 
 func (s *Service) adminDeleteUser(ctx fiber.Ctx) error {
-	actorID := ctx.Locals("userID").(uuid.UUID)
-	targetID, err := uuid.Parse(ctx.Params("id"))
+	actorID, targetID, err := actorAndTarget(ctx)
 	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user ID"})
+		return err
 	}
 
 	if err := s.AdminService.DeleteUser(ctx.Context(), actorID, targetID); err != nil {

@@ -283,6 +283,7 @@ export type NotificationType =
     | "mention"
     | "art_liked"
     | "art_commented"
+    | "comment_liked"
     | "content_edited";
 
 export interface Notification {
