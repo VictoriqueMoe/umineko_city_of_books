@@ -104,7 +104,7 @@ export async function searchQuotes(params: {
         limit: params.limit ?? 30,
         offset: params.offset,
     });
-    const response = await fetch(`${QUOTE_API}/search${qs}`);
+    const response = await fetch(`${QUOTE_API}/umineko/search${qs}`);
     if (!response.ok) {
         throw new Error(`Quote API error: ${response.status}`);
     }
@@ -125,7 +125,7 @@ export async function browseQuotes(params: {
         limit: params.limit ?? 30,
         offset: params.offset,
     });
-    const response = await fetch(`${QUOTE_API}/browse${qs}`);
+    const response = await fetch(`${QUOTE_API}/umineko/browse${qs}`);
     if (!response.ok) {
         throw new Error(`Quote API error: ${response.status}`);
     }
@@ -133,11 +133,12 @@ export async function browseQuotes(params: {
 }
 
 export async function getCharacters(): Promise<Record<string, string>> {
-    const response = await fetch(`${QUOTE_API}/characters`);
+    const response = await fetch(`${QUOTE_API}/umineko/characters`);
     if (!response.ok) {
         throw new Error(`Quote API error: ${response.status}`);
     }
-    return response.json();
+    const data = await response.json();
+    return data.characters;
 }
 
 export async function listTheories(params: {
