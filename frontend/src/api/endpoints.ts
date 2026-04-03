@@ -137,7 +137,8 @@ export async function getCharacters(): Promise<Record<string, string>> {
     if (!response.ok) {
         throw new Error(`Quote API error: ${response.status}`);
     }
-    return response.json();
+    const data = await response.json();
+    return data.characters;
 }
 
 export async function listTheories(params: {
