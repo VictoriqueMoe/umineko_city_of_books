@@ -131,7 +131,29 @@ func (s *service) ListTheories(ctx context.Context, p params.ListParams, userID 
 }
 
 func (s *service) UpdateTheory(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.CreateTheoryRequest) error {
+	if s.authz.Can(ctx, userID, authz.PermEditAnyTheory) {
+		if err := s.repo.UpdateAsAdmin(ctx, id, req); err != nil {
+			return err
+		}
+		go s.notifyContentEdited(ctx, id, "theory", id, userID)
+		return nil
+	}
 	return s.repo.Update(ctx, id, userID, req)
+}
+
+func (s *service) notifyContentEdited(ctx context.Context, contentID uuid.UUID, contentType string, referenceID uuid.UUID, editorID uuid.UUID) {
+	authorID, err := s.repo.GetTheoryAuthorID(ctx, contentID)
+	if err != nil {
+		return
+	}
+	notification.SendEditNotification(ctx, s.userRepo, s.settingsSvc, s.notifService, notification.EditNotifyParams{
+		AuthorID:      authorID,
+		EditorID:      editorID,
+		ContentType:   contentType,
+		ReferenceID:   referenceID,
+		ReferenceType: contentType,
+		LinkPath:      fmt.Sprintf("/theory/%s", referenceID),
+	})
 }
 
 func (s *service) DeleteTheory(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {

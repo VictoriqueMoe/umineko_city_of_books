@@ -11,6 +11,7 @@ type (
 		ReferenceID   uuid.UUID
 		ReferenceType string
 		ActorID       uuid.UUID
+		Message       string
 		EmailSubject  string
 		EmailBody     string
 	}
@@ -21,6 +22,7 @@ type (
 		ReferenceID   uuid.UUID    `json:"reference_id"`
 		ReferenceType string       `json:"reference_type"`
 		Actor         UserResponse `json:"actor"`
+		Message       string       `json:"message,omitempty"`
 		Read          bool         `json:"read"`
 		CreatedAt     string       `json:"created_at"`
 	}
@@ -50,4 +52,7 @@ const (
 	NotifMention        NotificationType = "mention"
 	NotifArtLiked       NotificationType = "art_liked"
 	NotifArtCommented   NotificationType = "art_commented"
+	NotifCommentLiked   NotificationType = "comment_liked"
+	NotifReportResolved NotificationType = "report_resolved"
+	NotifContentEdited  NotificationType = "content_edited"
 )

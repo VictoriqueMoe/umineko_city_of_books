@@ -7,6 +7,7 @@ import (
 	"umineko_city_of_books/internal/email"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
@@ -46,7 +47,7 @@ func (s *service) Notify(ctx context.Context, params dto.NotifyParams) error {
 
 	emailDupe, _ := s.repo.HasRecentDuplicate(ctx, params.RecipientID, params.Type, params.ReferenceID, params.ActorID)
 
-	id, err := s.repo.Create(ctx, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID)
+	id, err := s.repo.Create(ctx, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message)
 	if err != nil {
 		return err
 	}
@@ -149,7 +150,9 @@ func rowToDTO(row repository.NotificationRow) dto.NotificationResponse {
 			Username:    row.ActorUsername,
 			DisplayName: row.ActorDisplayName,
 			AvatarURL:   row.ActorAvatarURL,
+			Role:        role.Role(row.ActorRole),
 		},
+		Message:   row.Message,
 		Read:      row.Read,
 		CreatedAt: row.CreatedAt,
 	}

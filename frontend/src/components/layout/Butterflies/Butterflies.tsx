@@ -1,16 +1,25 @@
 import { useEffect, useRef } from "react";
+import type { ThemeType } from "../../../types/app";
+import { useTheme } from "../../../hooks/useTheme";
 import styles from "./Butterflies.module.css";
 
-const BUTTERFLY_SYMBOLS = ["\uD83E\uDD8B", "\u2726", "\u2727", "\u271B"];
-const BUTTERFLY_COUNT = 8;
+const DEFAULT_BUTTERFLY_SYMBOLS = ["\uD83E\uDD8B", "\u2726", "\u2727", "\u271B"];
+const DEFAULT_PARTICLE_SYMBOLS = ["\u2726", "\u2727", "\u2B25", "\u25C7"];
 
-const PARTICLE_SYMBOLS = ["\u2726", "\u2727", "\u2B25", "\u25C7"];
+const themeSymbols: Partial<Record<ThemeType, { butterflies: string[]; particles: string[] }>> = {
+    lambdadelta: {
+        butterflies: ["\u2728", "\uD83C\uDF6D", "\uD83C\uDF6C", "\uD83C\uDF83"],
+        particles: ["\u2728", "\u2B50", "\uD83C\uDF6D", "\u2726"],
+    },
+};
+
+const BUTTERFLY_COUNT = 8;
 const PARTICLE_COUNT = 15;
 
-function createButterfly(container: HTMLElement) {
+function createButterfly(container: HTMLElement, symbols: string[]) {
     const el = document.createElement("div");
     el.className = "butterfly";
-    el.textContent = BUTTERFLY_SYMBOLS[Math.floor(Math.random() * BUTTERFLY_SYMBOLS.length)];
+    el.textContent = symbols[Math.floor(Math.random() * symbols.length)];
     el.style.setProperty("--start-x", `${Math.random() * 100}vw`);
     el.style.setProperty("--duration", `${15 + Math.random() * 15}s`);
     el.style.setProperty("--delay", `${Math.random() * 5}s`);
@@ -21,10 +30,10 @@ function createButterfly(container: HTMLElement) {
     container.appendChild(el);
 }
 
-function createParticle(container: HTMLElement) {
+function createParticle(container: HTMLElement, symbols: string[]) {
     const el = document.createElement("div");
     el.className = "particle";
-    el.textContent = PARTICLE_SYMBOLS[Math.floor(Math.random() * PARTICLE_SYMBOLS.length)];
+    el.textContent = symbols[Math.floor(Math.random() * symbols.length)];
     el.style.setProperty("--start-x", `${Math.random() * 100}vw`);
     el.style.setProperty("--duration", `${15 + Math.random() * 20}s`);
     el.style.setProperty("--delay", `${Math.random() * 10}s`);
@@ -37,6 +46,7 @@ function createParticle(container: HTMLElement) {
 
 export function Butterflies() {
     const containerRef = useRef<HTMLDivElement>(null);
+    const { theme } = useTheme();
 
     useEffect(() => {
         const container = containerRef.current;
@@ -44,17 +54,21 @@ export function Butterflies() {
             return;
         }
 
+        const config = themeSymbols[theme];
+        const butterflySymbols = config?.butterflies ?? DEFAULT_BUTTERFLY_SYMBOLS;
+        const particleSymbols = config?.particles ?? DEFAULT_PARTICLE_SYMBOLS;
+
         for (let i = 0; i < BUTTERFLY_COUNT; i++) {
-            createButterfly(container);
+            createButterfly(container, butterflySymbols);
         }
         for (let i = 0; i < PARTICLE_COUNT; i++) {
-            createParticle(container);
+            createParticle(container, particleSymbols);
         }
 
         return () => {
             container.innerHTML = "";
         };
-    }, []);
+    }, [theme]);
 
     return <div className={styles.container} ref={containerRef} />;
 }

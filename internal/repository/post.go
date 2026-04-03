@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -13,6 +14,7 @@ type (
 	PostRepository interface {
 		Create(ctx context.Context, id uuid.UUID, userID uuid.UUID, corner string, body string) error
 		UpdatePost(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string) error
+		UpdatePostAsAdmin(ctx context.Context, id uuid.UUID, body string) error
 		GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID) (*PostRow, error)
 		Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		DeleteAsAdmin(ctx context.Context, id uuid.UUID) error
@@ -35,6 +37,7 @@ type (
 
 		CreateComment(ctx context.Context, id uuid.UUID, postID uuid.UUID, parentID *uuid.UUID, userID uuid.UUID, body string) error
 		UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string) error
+		UpdateCommentAsAdmin(ctx context.Context, id uuid.UUID, body string) error
 		DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		DeleteCommentAsAdmin(ctx context.Context, id uuid.UUID) error
 		GetComments(ctx context.Context, postID uuid.UUID, viewerID uuid.UUID, limit, offset int) ([]PostCommentRow, int, error)
@@ -134,10 +137,27 @@ func (r *postRepository) Create(ctx context.Context, id uuid.UUID, userID uuid.U
 }
 
 func (r *postRepository) UpdatePost(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string) error {
-	res, err := r.db.ExecContext(ctx,
-		`UPDATE posts SET body = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?`,
-		body, id, userID,
-	)
+	return r.updatePost(ctx, id, &userID, body)
+}
+
+func (r *postRepository) UpdatePostAsAdmin(ctx context.Context, id uuid.UUID, body string) error {
+	return r.updatePost(ctx, id, nil, body)
+}
+
+func (r *postRepository) updatePost(ctx context.Context, id uuid.UUID, userID *uuid.UUID, body string) error {
+	var res sql.Result
+	var err error
+	if userID != nil {
+		res, err = r.db.ExecContext(ctx,
+			`UPDATE posts SET body = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?`,
+			body, id, *userID,
+		)
+	} else {
+		res, err = r.db.ExecContext(ctx,
+			`UPDATE posts SET body = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+			body, id,
+		)
+	}
 	if err != nil {
 		return fmt.Errorf("update post: %w", err)
 	}
@@ -152,7 +172,7 @@ func (r *postRepository) GetByID(ctx context.Context, id uuid.UUID, viewerID uui
 	var p PostRow
 	err := scanPostRow(r.db.QueryRowContext(ctx, postSelectBase+` WHERE p.id = ?`, viewerID, id), &p)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("get post: %w", err)
@@ -464,10 +484,27 @@ func (r *postRepository) CreateComment(ctx context.Context, id uuid.UUID, postID
 }
 
 func (r *postRepository) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string) error {
-	res, err := r.db.ExecContext(ctx,
-		`UPDATE post_comments SET body = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?`,
-		body, id, userID,
-	)
+	return r.updateComment(ctx, id, &userID, body)
+}
+
+func (r *postRepository) UpdateCommentAsAdmin(ctx context.Context, id uuid.UUID, body string) error {
+	return r.updateComment(ctx, id, nil, body)
+}
+
+func (r *postRepository) updateComment(ctx context.Context, id uuid.UUID, userID *uuid.UUID, body string) error {
+	var res sql.Result
+	var err error
+	if userID != nil {
+		res, err = r.db.ExecContext(ctx,
+			`UPDATE post_comments SET body = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?`,
+			body, id, *userID,
+		)
+	} else {
+		res, err = r.db.ExecContext(ctx,
+			`UPDATE post_comments SET body = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+			body, id,
+		)
+	}
 	if err != nil {
 		return fmt.Errorf("update comment: %w", err)
 	}

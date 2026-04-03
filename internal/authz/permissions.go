@@ -18,6 +18,9 @@ const (
 	PermViewUsers         Permission = "view_users"
 	PermDeleteAnyPost     Permission = "delete_any_post"
 	PermDeleteAnyComment  Permission = "delete_any_comment"
+	PermEditAnyTheory     Permission = "edit_any_theory"
+	PermEditAnyPost       Permission = "edit_any_post"
+	PermEditAnyComment    Permission = "edit_any_comment"
 )
 
 var rolePermissions = map[role.Role][]Permission{
@@ -35,6 +38,9 @@ var rolePermissions = map[role.Role][]Permission{
 		PermDeleteAnyResponse,
 		PermDeleteAnyPost,
 		PermDeleteAnyComment,
+		PermEditAnyTheory,
+		PermEditAnyPost,
+		PermEditAnyComment,
 		PermBanUser,
 	},
 }

@@ -8,6 +8,31 @@
     padding: 0;
 }
 
+/* Themed scrollbars */
+
+* {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(var(--gold-rgb), 0.3) transparent;
+}
+
+*::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+    background: rgba(var(--gold-rgb), 0.3);
+    border-radius: 4px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+    background: rgba(var(--gold-rgb), 0.5);
+}
+
 html {
     font-size: 16px;
     -webkit-font-smoothing: antialiased;
@@ -35,10 +60,12 @@ body {
 
 .app-main {
     flex: 1;
+    min-width: 0;
     margin-left: 290px;
     display: flex;
     flex-direction: column;
     min-height: 100vh;
+    overflow-x: hidden;
 }
 
 a {
@@ -91,6 +118,13 @@ select {
     max-width: 1200px;
     margin: 0 auto;
     width: 100%;
+    overflow-x: hidden;
+}
+
+@media (max-width: 480px) {
+    .main-content {
+        padding: 1rem;
+    }
 }
 
 /* Loading & Empty states */

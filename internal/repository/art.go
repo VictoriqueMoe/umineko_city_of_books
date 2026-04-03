@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -13,6 +14,7 @@ type (
 	ArtRepository interface {
 		Create(ctx context.Context, id uuid.UUID, userID uuid.UUID, corner string, artType string, title string, description string, imageURL string, thumbnailURL string) error
 		Update(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, description string) error
+		UpdateAsAdmin(ctx context.Context, id uuid.UUID, title string, description string) error
 		GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID) (*ArtRow, error)
 		Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		DeleteAsAdmin(ctx context.Context, id uuid.UUID) error
@@ -37,6 +39,7 @@ type (
 
 		CreateComment(ctx context.Context, id uuid.UUID, artID uuid.UUID, parentID *uuid.UUID, userID uuid.UUID, body string) error
 		UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string) error
+		UpdateCommentAsAdmin(ctx context.Context, id uuid.UUID, body string) error
 		DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		DeleteCommentAsAdmin(ctx context.Context, id uuid.UUID) error
 		GetComments(ctx context.Context, artID uuid.UUID, viewerID uuid.UUID, limit, offset int) ([]ArtCommentRow, int, error)
@@ -106,10 +109,27 @@ func (r *artRepository) Create(ctx context.Context, id uuid.UUID, userID uuid.UU
 }
 
 func (r *artRepository) Update(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, description string) error {
-	res, err := r.db.ExecContext(ctx,
-		`UPDATE art SET title = ?, description = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?`,
-		title, description, id, userID,
-	)
+	return r.updateArt(ctx, id, &userID, title, description)
+}
+
+func (r *artRepository) UpdateAsAdmin(ctx context.Context, id uuid.UUID, title string, description string) error {
+	return r.updateArt(ctx, id, nil, title, description)
+}
+
+func (r *artRepository) updateArt(ctx context.Context, id uuid.UUID, userID *uuid.UUID, title string, description string) error {
+	var res sql.Result
+	var err error
+	if userID != nil {
+		res, err = r.db.ExecContext(ctx,
+			`UPDATE art SET title = ?, description = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?`,
+			title, description, id, *userID,
+		)
+	} else {
+		res, err = r.db.ExecContext(ctx,
+			`UPDATE art SET title = ?, description = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+			title, description, id,
+		)
+	}
 	if err != nil {
 		return fmt.Errorf("update art: %w", err)
 	}
@@ -124,7 +144,7 @@ func (r *artRepository) GetByID(ctx context.Context, id uuid.UUID, viewerID uuid
 	var a ArtRow
 	err := scanArtRow(r.db.QueryRowContext(ctx, artSelectBase+` WHERE a.id = ?`, viewerID, id), &a)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("get art: %w", err)
@@ -472,10 +492,27 @@ func (r *artRepository) CreateComment(ctx context.Context, id uuid.UUID, artID u
 }
 
 func (r *artRepository) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string) error {
-	res, err := r.db.ExecContext(ctx,
-		`UPDATE art_comments SET body = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?`,
-		body, id, userID,
-	)
+	return r.updateArtComment(ctx, id, &userID, body)
+}
+
+func (r *artRepository) UpdateCommentAsAdmin(ctx context.Context, id uuid.UUID, body string) error {
+	return r.updateArtComment(ctx, id, nil, body)
+}
+
+func (r *artRepository) updateArtComment(ctx context.Context, id uuid.UUID, userID *uuid.UUID, body string) error {
+	var res sql.Result
+	var err error
+	if userID != nil {
+		res, err = r.db.ExecContext(ctx,
+			`UPDATE art_comments SET body = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?`,
+			body, id, *userID,
+		)
+	} else {
+		res, err = r.db.ExecContext(ctx,
+			`UPDATE art_comments SET body = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+			body, id,
+		)
+	}
 	if err != nil {
 		return fmt.Errorf("update art comment: %w", err)
 	}
@@ -764,7 +801,7 @@ func (r *artRepository) GetGalleryByID(ctx context.Context, id uuid.UUID) (*Gall
 		&g.AuthorUsername, &g.AuthorDisplayName, &g.AuthorAvatarURL,
 	)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("get gallery: %w", err)

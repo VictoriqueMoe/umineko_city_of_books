@@ -108,6 +108,42 @@
     padding: 2rem;
 }
 
+.resolveModal {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1rem;
+}
+
+.resolveLabel {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.resolveTextarea {
+    width: 100%;
+    min-height: 80px;
+    padding: 0.6rem;
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--purple-rgb), 0.3);
+    border-radius: 4px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 0.85rem;
+    resize: vertical;
+}
+
+.resolveTextarea:focus {
+    outline: none;
+    border-color: var(--gold);
+}
+
+.resolveActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
 @media (max-width: 768px) {
     .table {
         display: block;

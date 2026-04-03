@@ -1,6 +1,11 @@
 import { useState } from "react";
 import type { PostComment } from "../../../types/api";
-import { deleteComment as apiDeleteComment, likeComment, unlikeComment, updateComment } from "../../../api/endpoints";
+import {
+    deleteComment as apiDeleteComment,
+    likeComment as apiLikeComment,
+    unlikeComment as apiUnlikeComment,
+    updateComment as apiUpdateComment,
+} from "../../../api/endpoints";
 import { useAuth } from "../../../hooks/useAuth";
 import { can } from "../../../utils/permissions";
 import { linkify } from "../../../utils/linkify";
@@ -9,7 +14,11 @@ import { MediaGallery } from "../MediaGallery/MediaGallery";
 import { PostEmbeds } from "../PostEmbeds/PostEmbeds";
 import { CommentComposer } from "../CommentComposer/CommentComposer";
 import { Button } from "../../Button/Button";
+import { ReportButton } from "../../ReportButton/ReportButton";
 import styles from "./CommentItem.module.css";
+
+type CreateCommentFn = (postId: string, body: string, parentId?: string) => Promise<{ id: string }>;
+type UploadMediaFn = (commentId: string, file: File) => Promise<unknown>;
 
 interface CommentItemProps {
     comment: PostComment;
@@ -18,6 +27,14 @@ interface CommentItemProps {
     highlighted?: boolean;
     isReply?: boolean;
     replyToName?: string;
+    linkPrefix?: string;
+    reportType?: string;
+    likeFn?: (id: string) => Promise<void>;
+    unlikeFn?: (id: string) => Promise<void>;
+    deleteFn?: (id: string) => Promise<void>;
+    updateFn?: (id: string, body: string) => Promise<void>;
+    createCommentFn?: CreateCommentFn;
+    uploadMediaFn?: UploadMediaFn;
 }
 
 function timeAgo(dateStr: string): string {
@@ -51,10 +68,31 @@ function flattenReplies(comment: PostComment): { reply: PostComment; replyToName
     return result;
 }
 
-function SingleComment({ comment, postId, onDelete, highlighted, isReply, replyToName }: CommentItemProps) {
+function SingleComment({
+    comment,
+    postId,
+    onDelete,
+    highlighted,
+    isReply,
+    replyToName,
+    linkPrefix = "/game-board",
+    reportType = "comment",
+    likeFn,
+    unlikeFn,
+    deleteFn,
+    updateFn,
+    createCommentFn,
+    uploadMediaFn,
+}: CommentItemProps) {
     const { user } = useAuth();
     const isOwner = user?.id === comment.author.id;
+    const canEditComment = isOwner || can(user?.role, "edit_any_comment");
     const canDeleteComment = isOwner || can(user?.role, "delete_any_comment");
+
+    const doLike = likeFn || apiLikeComment;
+    const doUnlike = unlikeFn || apiUnlikeComment;
+    const doDelete = deleteFn || apiDeleteComment;
+    const doUpdate = updateFn || apiUpdateComment;
 
     const [liked, setLiked] = useState(comment.user_liked);
     const [likeCount, setLikeCount] = useState(comment.like_count);
@@ -70,14 +108,14 @@ function SingleComment({ comment, postId, onDelete, highlighted, isReply, replyT
         if (liked) {
             setLiked(false);
             setLikeCount(c => c - 1);
-            await unlikeComment(comment.id).catch(() => {
+            await doUnlike(comment.id).catch(() => {
                 setLiked(true);
                 setLikeCount(c => c + 1);
             });
         } else {
             setLiked(true);
             setLikeCount(c => c + 1);
-            await likeComment(comment.id).catch(() => {
+            await doLike(comment.id).catch(() => {
                 setLiked(false);
                 setLikeCount(c => c - 1);
             });
@@ -88,7 +126,7 @@ function SingleComment({ comment, postId, onDelete, highlighted, isReply, replyT
         if (!window.confirm("Are you sure you want to delete this comment?")) {
             return;
         }
-        await apiDeleteComment(comment.id);
+        await doDelete(comment.id);
         onDelete();
     }
 
@@ -98,7 +136,7 @@ function SingleComment({ comment, postId, onDelete, highlighted, isReply, replyT
         }
         setSaving(true);
         try {
-            await updateComment(comment.id, editBody.trim());
+            await doUpdate(comment.id, editBody.trim());
             setEditing(false);
             onDelete();
         } catch {
@@ -163,7 +201,7 @@ function SingleComment({ comment, postId, onDelete, highlighted, isReply, replyT
                     </Button>
                 )}
 
-                {isOwner && !editing && (
+                {canEditComment && !editing && (
                     <Button variant="ghost" size="small" onClick={() => setEditing(true)}>
                         Edit
                     </Button>
@@ -181,12 +219,14 @@ function SingleComment({ comment, postId, onDelete, highlighted, isReply, replyT
                     className={styles.copyLink}
                     onClick={() =>
                         navigator.clipboard.writeText(
-                            `${window.location.origin}/game-board/${postId}#comment-${comment.id}`,
+                            `${window.location.origin}${linkPrefix}/${postId}#comment-${comment.id}`,
                         )
                     }
                 >
                     Copy Link
                 </Button>
+
+                {user && !isOwner && <ReportButton targetType={reportType} targetId={comment.id} contextId={postId} />}
             </div>
 
             {showReply && (
@@ -197,24 +237,47 @@ function SingleComment({ comment, postId, onDelete, highlighted, isReply, replyT
                         setShowReply(false);
                         onDelete();
                     }}
+                    createCommentFn={createCommentFn}
+                    uploadMediaFn={uploadMediaFn}
                 />
             )}
         </div>
     );
 }
 
-export function CommentItem({ comment, postId, onDelete, highlighted }: CommentItemProps) {
+export function CommentItem({
+    comment,
+    postId,
+    onDelete,
+    highlighted,
+    linkPrefix,
+    reportType,
+    likeFn,
+    unlikeFn,
+    deleteFn,
+    updateFn,
+    createCommentFn,
+    uploadMediaFn,
+}: CommentItemProps) {
     const allReplies = flattenReplies(comment);
     const [collapsed, setCollapsed] = useState(false);
 
+    const sharedProps = {
+        postId,
+        onDelete,
+        linkPrefix,
+        reportType,
+        likeFn,
+        unlikeFn,
+        deleteFn,
+        updateFn,
+        createCommentFn,
+        uploadMediaFn,
+    };
+
     return (
         <div>
-            <SingleComment
-                comment={comment}
-                postId={postId}
-                onDelete={onDelete}
-                highlighted={highlighted === true || undefined}
-            />
+            <SingleComment comment={comment} highlighted={highlighted === true || undefined} {...sharedProps} />
 
             {allReplies.length > 0 && (
                 <div className={styles.threadContainer}>
@@ -230,11 +293,10 @@ export function CommentItem({ comment, postId, onDelete, highlighted }: CommentI
                                 <SingleComment
                                     key={reply.id}
                                     comment={reply}
-                                    postId={postId}
-                                    onDelete={onDelete}
                                     highlighted={highlighted === true || undefined}
                                     isReply
                                     replyToName={replyToName}
+                                    {...sharedProps}
                                 />
                             ))}
                         </div>

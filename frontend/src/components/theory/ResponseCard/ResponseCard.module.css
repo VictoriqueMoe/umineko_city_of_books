@@ -155,3 +155,22 @@
 .expandBtn:hover {
     color: var(--gold-light);
 }
+
+@media (max-width: 768px) {
+    .meta {
+        flex-wrap: wrap;
+    }
+
+    .actionsInline {
+        margin-left: 0;
+        width: 100%;
+    }
+
+    .thread {
+        margin-left: 0.25rem;
+    }
+
+    .card {
+        max-width: 100%;
+    }
+}

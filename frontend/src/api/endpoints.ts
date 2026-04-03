@@ -403,8 +403,8 @@ export async function getReports(
     return apiFetch<ReportListResponse>(`/admin/reports${qs}`);
 }
 
-export async function resolveReport(id: number): Promise<void> {
-    await apiPost<unknown, undefined>(`/admin/reports/${id}/resolve`, undefined);
+export async function resolveReport(id: number, comment: string): Promise<void> {
+    await apiPost<unknown, { comment: string }>(`/admin/reports/${id}/resolve`, { comment });
 }
 
 export async function getRules(page: string): Promise<{ page: string; rules: string }> {

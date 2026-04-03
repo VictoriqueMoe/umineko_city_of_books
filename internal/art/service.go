@@ -6,6 +6,7 @@ import (
 	"io"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/config"
@@ -160,7 +161,7 @@ func (s *service) CreateArt(ctx context.Context, userID uuid.UUID, req dto.Creat
 func (s *service) generateThumbnailURL(imageURL string) string {
 	baseURL := s.settingsSvc.Get(context.Background(), config.SettingBaseURL)
 	fullURL := baseURL + imageURL
-	return "https://thumbnails.waifuvault.moe/api/v1/generateThumbnail/ext/fromURL?url=" + fullURL
+	return fmt.Sprintf("https://thumbnails.waifuvault.moe/api/v1/generateThumbnail/ext/fromURL?url=%s&v=%d", fullURL, time.Now().UnixMilli())
 }
 
 func (s *service) GetArt(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, viewerHash string) (*dto.ArtDetailResponse, error) {
@@ -227,7 +228,12 @@ func (s *service) UpdateArt(ctx context.Context, id uuid.UUID, userID uuid.UUID,
 	}
 	description := strings.TrimSpace(req.Description)
 
-	if err := s.artRepo.Update(ctx, id, userID, title, description); err != nil {
+	if s.authz.Can(ctx, userID, authz.PermEditAnyPost) {
+		if err := s.artRepo.UpdateAsAdmin(ctx, id, title, description); err != nil {
+			return err
+		}
+		go s.notifyArtEdited(ctx, id, userID)
+	} else if err := s.artRepo.Update(ctx, id, userID, title, description); err != nil {
 		return err
 	}
 
@@ -368,7 +374,7 @@ func (s *service) CreateComment(ctx context.Context, artID uuid.UUID, userID uui
 	}
 
 	go social.ProcessEmbeds(s.postRepo, id.String(), "art_comment", body)
-	go social.ProcessMentions(s.userRepo, s.notifService, s.settingsSvc, userID, body, artID, "art", fmt.Sprintf("/gallery/art/%s#comment-%s", artID, id))
+	go social.ProcessMentions(s.userRepo, s.notifService, s.settingsSvc, userID, body, artID, fmt.Sprintf("art_comment:%s", id), fmt.Sprintf("/gallery/art/%s#comment-%s", artID, id))
 
 	go func() {
 		authorID, err := s.artRepo.GetArtAuthorID(ctx, artID)
@@ -386,7 +392,7 @@ func (s *service) CreateComment(ctx context.Context, artID uuid.UUID, userID uui
 			RecipientID:   authorID,
 			Type:          dto.NotifArtCommented,
 			ReferenceID:   artID,
-			ReferenceType: "art",
+			ReferenceType: fmt.Sprintf("art_comment:%s", id),
 			ActorID:       userID,
 			EmailSubject:  subject,
 			EmailBody:     emailBody,
@@ -401,7 +407,12 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 	if body == "" {
 		return fmt.Errorf("comment body cannot be empty")
 	}
-	if err := s.artRepo.UpdateComment(ctx, id, userID, body); err != nil {
+	if s.authz.Can(ctx, userID, authz.PermEditAnyComment) {
+		if err := s.artRepo.UpdateCommentAsAdmin(ctx, id, body); err != nil {
+			return err
+		}
+		go s.notifyArtCommentEdited(ctx, id, userID)
+	} else if err := s.artRepo.UpdateComment(ctx, id, userID, body); err != nil {
 		return err
 	}
 	go func() {
@@ -419,7 +430,38 @@ func (s *service) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.U
 }
 
 func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
-	return s.artRepo.LikeComment(ctx, userID, commentID)
+	if err := s.artRepo.LikeComment(ctx, userID, commentID); err != nil {
+		return err
+	}
+
+	go func() {
+		authorID, err := s.artRepo.GetCommentAuthorID(ctx, commentID)
+		if err != nil {
+			return
+		}
+		artID, err := s.artRepo.GetCommentArtID(ctx, commentID)
+		if err != nil {
+			return
+		}
+		actor, err := s.userRepo.GetByID(ctx, userID)
+		if err != nil || actor == nil {
+			return
+		}
+		baseURL := s.settingsSvc.Get(ctx, config.SettingBaseURL)
+		linkURL := fmt.Sprintf("%s/gallery/art/%s#comment-%s", baseURL, artID, commentID)
+		subject, body := notification.NotifEmail(actor.DisplayName, "liked your comment", "", linkURL)
+		_ = s.notifService.Notify(ctx, dto.NotifyParams{
+			RecipientID:   authorID,
+			Type:          dto.NotifCommentLiked,
+			ReferenceID:   artID,
+			ReferenceType: fmt.Sprintf("art_comment:%s", commentID),
+			ActorID:       userID,
+			EmailSubject:  subject,
+			EmailBody:     body,
+		})
+	}()
+
+	return nil
 }
 
 func (s *service) UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
@@ -622,8 +664,7 @@ func (s *service) GetGallery(ctx context.Context, id uuid.UUID, viewerID uuid.UU
 		arts[i] = r.ToResponse(tagMap[r.ID])
 	}
 
-	gallery := g.ToResponse()
-	return &gallery, arts, total, nil
+	return new(g.ToResponse()), arts, total, nil
 }
 
 func (s *service) galleriesWithPreviews(ctx context.Context, rows []repository.GalleryRow) []dto.GalleryResponse {
@@ -663,4 +704,38 @@ func (s *service) ListAllGalleries(ctx context.Context, corner string) ([]dto.Ga
 
 func (s *service) SetArtGallery(ctx context.Context, artID uuid.UUID, userID uuid.UUID, galleryID *uuid.UUID) error {
 	return s.artRepo.SetGallery(ctx, artID, userID, galleryID)
+}
+
+func (s *service) notifyArtEdited(ctx context.Context, artID uuid.UUID, editorID uuid.UUID) {
+	authorID, err := s.artRepo.GetArtAuthorID(ctx, artID)
+	if err != nil {
+		return
+	}
+	notification.SendEditNotification(ctx, s.userRepo, s.settingsSvc, s.notifService, notification.EditNotifyParams{
+		AuthorID:      authorID,
+		EditorID:      editorID,
+		ContentType:   "art",
+		ReferenceID:   artID,
+		ReferenceType: "art",
+		LinkPath:      fmt.Sprintf("/gallery/art/%s", artID),
+	})
+}
+
+func (s *service) notifyArtCommentEdited(ctx context.Context, commentID uuid.UUID, editorID uuid.UUID) {
+	authorID, err := s.artRepo.GetCommentAuthorID(ctx, commentID)
+	if err != nil {
+		return
+	}
+	artID, err := s.artRepo.GetCommentArtID(ctx, commentID)
+	if err != nil {
+		return
+	}
+	notification.SendEditNotification(ctx, s.userRepo, s.settingsSvc, s.notifService, notification.EditNotifyParams{
+		AuthorID:      authorID,
+		EditorID:      editorID,
+		ContentType:   "comment",
+		ReferenceID:   artID,
+		ReferenceType: fmt.Sprintf("art_comment:%s", commentID),
+		LinkPath:      fmt.Sprintf("/gallery/art/%s#comment-%s", artID, commentID),
+	})
 }

@@ -20,6 +20,7 @@ type (
 		GetByID(ctx context.Context, id uuid.UUID) (*dto.TheoryDetailResponse, error)
 		List(ctx context.Context, p params.ListParams, userID uuid.UUID) ([]dto.TheoryResponse, int, error)
 		Update(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.CreateTheoryRequest) error
+		UpdateAsAdmin(ctx context.Context, id uuid.UUID, req dto.CreateTheoryRequest) error
 		Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		DeleteAsAdmin(ctx context.Context, id uuid.UUID) error
 		GetEvidence(ctx context.Context, theoryID uuid.UUID) ([]dto.EvidenceResponse, error)
@@ -232,17 +233,34 @@ func (r *theoryRepository) List(ctx context.Context, p params.ListParams, userID
 }
 
 func (r *theoryRepository) Update(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.CreateTheoryRequest) error {
+	return r.updateTheory(ctx, id, &userID, req)
+}
+
+func (r *theoryRepository) UpdateAsAdmin(ctx context.Context, id uuid.UUID, req dto.CreateTheoryRequest) error {
+	return r.updateTheory(ctx, id, nil, req)
+}
+
+func (r *theoryRepository) updateTheory(ctx context.Context, id uuid.UUID, userID *uuid.UUID, req dto.CreateTheoryRequest) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
 	defer tx.Rollback()
 
-	result, err := tx.ExecContext(ctx,
-		`UPDATE theories SET title = ?, body = ?, episode = ?, updated_at = CURRENT_TIMESTAMP
-		 WHERE id = ? AND user_id = ?`,
-		req.Title, req.Body, req.Episode, id, userID,
-	)
+	var result sql.Result
+	if userID != nil {
+		result, err = tx.ExecContext(ctx,
+			`UPDATE theories SET title = ?, body = ?, episode = ?, updated_at = CURRENT_TIMESTAMP
+			 WHERE id = ? AND user_id = ?`,
+			req.Title, req.Body, req.Episode, id, *userID,
+		)
+	} else {
+		result, err = tx.ExecContext(ctx,
+			`UPDATE theories SET title = ?, body = ?, episode = ?, updated_at = CURRENT_TIMESTAMP
+			 WHERE id = ?`,
+			req.Title, req.Body, req.Episode, id,
+		)
+	}
 	if err != nil {
 		return fmt.Errorf("update theory: %w", err)
 	}

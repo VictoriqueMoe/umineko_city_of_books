@@ -79,7 +79,12 @@ func (s *Service) resolveReport(ctx fiber.Ctx) error {
 		})
 	}
 
-	if err := s.ReportService.Resolve(ctx.Context(), id, userID); err != nil {
+	var req struct {
+		Comment string `json:"comment"`
+	}
+	_ = ctx.Bind().JSON(&req)
+
+	if err := s.ReportService.Resolve(ctx.Context(), id, userID, req.Comment); err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "failed to resolve report",
 		})
