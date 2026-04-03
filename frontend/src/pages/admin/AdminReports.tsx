@@ -117,7 +117,11 @@ export function AdminReports() {
                                         View
                                     </Button>
                                     {report.status === "open" && (
-                                        <Button variant="primary" size="small" onClick={() => openResolveModal(report.id)}>
+                                        <Button
+                                            variant="primary"
+                                            size="small"
+                                            onClick={() => openResolveModal(report.id)}
+                                        >
                                             Resolve
                                         </Button>
                                     )}
@@ -130,9 +134,7 @@ export function AdminReports() {
 
             <Modal isOpen={resolvingId !== null} onClose={() => setResolvingId(null)} title="Resolve Report">
                 <div className={styles.resolveModal}>
-                    <label className={styles.resolveLabel}>
-                        Message to the reporter (optional):
-                    </label>
+                    <label className={styles.resolveLabel}>Message to the reporter (optional):</label>
                     <textarea
                         ref={textareaRef}
                         className={styles.resolveTextarea}

@@ -183,7 +183,9 @@
     font-size: 0.85rem;
     letter-spacing: 0.03em;
     cursor: pointer;
-    transition: background 0.15s var(--ease-out), border-color 0.15s var(--ease-out);
+    transition:
+        background 0.15s var(--ease-out),
+        border-color 0.15s var(--ease-out);
 }
 
 .markAllBtn:hover {

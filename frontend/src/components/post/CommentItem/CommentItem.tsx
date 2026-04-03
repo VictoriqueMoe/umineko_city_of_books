@@ -277,11 +277,7 @@ export function CommentItem({
 
     return (
         <div>
-            <SingleComment
-                comment={comment}
-                highlighted={highlighted === true || undefined}
-                {...sharedProps}
-            />
+            <SingleComment comment={comment} highlighted={highlighted === true || undefined} {...sharedProps} />
 
             {allReplies.length > 0 && (
                 <div className={styles.threadContainer}>

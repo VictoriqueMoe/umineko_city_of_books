@@ -99,7 +99,7 @@ const notificationConfigs: Record<NotificationType, NotificationConfig> = {
     new_follower: {
         text: "started following you",
         category: "social",
-        route: (notif) => `/user/${notif.actor.username}`,
+        route: notif => `/user/${notif.actor.username}`,
     },
     post_liked: {
         text: "liked your post",
@@ -192,7 +192,7 @@ export function isContentEditedNotification(notif: Notification): boolean {
 
 export function formatContentEditedText(notif: Notification): { message: string; role: string; actorName: string } {
     const message = notif.message || "your content has been edited";
-    const role = notif.actor.role ? roleDisplayNames[notif.actor.role] ?? "" : "";
+    const role = notif.actor.role ? (roleDisplayNames[notif.actor.role] ?? "") : "";
     return { message, role, actorName: notif.actor.display_name };
 }
 
