@@ -12,14 +12,15 @@ import (
 
 type (
 	Resolver struct {
-		theoryRepo  repository.TheoryRepository
-		userRepo    repository.UserRepository
-		postRepo    repository.PostRepository
-		artRepo     repository.ArtRepository
-		mysteryRepo repository.MysteryRepository
-		shipRepo    repository.ShipRepository
-		baseHTML    string
-		baseURL     string
+		theoryRepo       repository.TheoryRepository
+		userRepo         repository.UserRepository
+		postRepo         repository.PostRepository
+		artRepo          repository.ArtRepository
+		mysteryRepo      repository.MysteryRepository
+		shipRepo         repository.ShipRepository
+		announcementRepo repository.AnnouncementRepository
+		baseHTML         string
+		baseURL          string
 	}
 
 	Meta struct {
@@ -42,17 +43,19 @@ func NewResolver(
 	artRepo repository.ArtRepository,
 	mysteryRepo repository.MysteryRepository,
 	shipRepo repository.ShipRepository,
+	announcementRepo repository.AnnouncementRepository,
 	baseHTML, baseURL string,
 ) *Resolver {
 	return &Resolver{
-		theoryRepo:  theoryRepo,
-		userRepo:    userRepo,
-		postRepo:    postRepo,
-		artRepo:     artRepo,
-		mysteryRepo: mysteryRepo,
-		shipRepo:    shipRepo,
-		baseHTML:    baseHTML,
-		baseURL:     baseURL,
+		theoryRepo:       theoryRepo,
+		userRepo:         userRepo,
+		postRepo:         postRepo,
+		artRepo:          artRepo,
+		mysteryRepo:      mysteryRepo,
+		shipRepo:         shipRepo,
+		announcementRepo: announcementRepo,
+		baseHTML:         baseHTML,
+		baseURL:          baseURL,
 	}
 }
 
@@ -118,6 +121,20 @@ func (r *Resolver) metaForPath(ctx context.Context, path string) *Meta {
 	if len(parts) == 2 && parts[0] == "ships" {
 		if _, err := uuid.Parse(parts[1]); err == nil {
 			return r.shipMeta(ctx, parts[1])
+		}
+	}
+
+	if len(parts) == 1 && parts[0] == "announcements" {
+		return &Meta{
+			Title:       "Announcements - Umineko City of Books",
+			Description: "Latest announcements from the Umineko City of Books moderation team.",
+			URL:         r.baseURL + "/announcements",
+		}
+	}
+
+	if len(parts) == 2 && parts[0] == "announcements" {
+		if _, err := uuid.Parse(parts[1]); err == nil {
+			return r.announcementMeta(ctx, parts[1])
 		}
 	}
 
@@ -320,6 +337,32 @@ func (r *Resolver) mysteryMeta(ctx context.Context, idStr string) *Meta {
 		Description: desc,
 		Image:       mystery.AuthorAvatarURL,
 		URL:         fmt.Sprintf("%s/mysteries/%s", r.baseURL, idStr),
+	}
+}
+
+func (r *Resolver) announcementMeta(ctx context.Context, idStr string) *Meta {
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		return nil
+	}
+
+	ann, err := r.announcementRepo.GetByID(ctx, id)
+	if err != nil || ann == nil {
+		return nil
+	}
+
+	desc := ann.Body
+	if len(desc) > 200 {
+		desc = desc[:197] + "..."
+	}
+
+	title := fmt.Sprintf("%s - Announcement by %s", ann.Title, ann.AuthorDisplayName)
+
+	return &Meta{
+		Title:       title,
+		Description: desc,
+		Image:       ann.AuthorAvatarURL,
+		URL:         fmt.Sprintf("%s/announcements/%s", r.baseURL, idStr),
 	}
 }
 
