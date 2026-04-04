@@ -1,0 +1,30 @@
+.panel {
+    background: rgba(var(--purple-rgb), 0.1);
+    border: 1px solid rgba(var(--purple-rgb), 0.3);
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    line-height: 1.6;
+}
+
+.panel p {
+    margin-bottom: 0.5rem;
+}
+
+.panel p:last-child {
+    margin-bottom: 0;
+}
+
+.panel strong {
+    color: var(--gold-light);
+}
+
+.title {
+    font-family: var(--font-display);
+    color: var(--gold);
+    font-size: 1rem;
+    margin-bottom: 0.75rem;
+    letter-spacing: 0.03em;
+}

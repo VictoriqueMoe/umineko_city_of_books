@@ -320,6 +320,7 @@ export function SettingsPage() {
                                 <option value="gallery_higurashi">Gallery (Higurashi)</option>
                                 <option value="gallery_ciconia">Gallery (Ciconia)</option>
                                 <option value="quotes">Quotes</option>
+                                <option value="mysteries">Mysteries</option>
                             </Select>
                         </label>
                     </div>

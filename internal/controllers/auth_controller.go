@@ -215,6 +215,8 @@ func (s *Service) setupGetRulesRoute(r fiber.Router) {
 
 var rulesSettings = map[string]config.SiteSettingDef{
 	"theories":             config.SettingRulesTheories,
+	"theories_higurashi":   config.SettingRulesTheoriesHigurashi,
+	"mysteries":            config.SettingRulesMysteries,
 	"game_board":           config.SettingRulesGameBoard,
 	"game_board_umineko":   config.SettingRulesGameBoardUmineko,
 	"game_board_higurashi": config.SettingRulesGameBoardHigurashi,

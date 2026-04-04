@@ -80,6 +80,17 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                 </div>
 
                 <nav className={styles.nav}>
+                    <NavLink
+                        to="/announcements"
+                        className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
+                        onClick={() => {
+                            setNewAnnouncement(false);
+                            onClose();
+                        }}
+                    >
+                        Announcements
+                        {newAnnouncement && <span className={styles.newBadge}>New</span>}
+                    </NavLink>
                     <div className={styles.section}>
                         <span className={styles.sectionLabel}>Browse</span>
                         <button
@@ -164,15 +175,11 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                             </div>
                         )}
                         <NavLink
-                            to="/announcements"
+                            to="/mysteries"
                             className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
-                            onClick={() => {
-                                setNewAnnouncement(false);
-                                onClose();
-                            }}
+                            onClick={onClose}
                         >
-                            Announcements
-                            {newAnnouncement && <span className={styles.newBadge}>New</span>}
+                            Mysteries
                         </NavLink>
                         <NavLink
                             to="/users"
@@ -206,6 +213,13 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                                 onClick={onClose}
                             >
                                 New Higurashi Theory
+                            </NavLink>
+                            <NavLink
+                                to="/mystery/new"
+                                className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
+                                onClick={onClose}
+                            >
+                                New Mystery
                             </NavLink>
                         </div>
                     )}

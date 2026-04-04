@@ -59,6 +59,8 @@ var (
 	SettingTurnstileSiteKey        = SiteSettingDef{"turnstile_site_key", "", TypeString}
 	SettingTurnstileSecretKey      = SiteSettingDef{"turnstile_secret_key", "", TypeString}
 	SettingRulesTheories           = SiteSettingDef{"rules_theories", "", TypeString}
+	SettingRulesTheoriesHigurashi  = SiteSettingDef{"rules_theories_higurashi", "", TypeString}
+	SettingRulesMysteries          = SiteSettingDef{"rules_mysteries", "", TypeString}
 	SettingRulesGameBoard          = SiteSettingDef{"rules_game_board", "", TypeString}
 	SettingRulesGameBoardUmineko   = SiteSettingDef{"rules_game_board_umineko", "", TypeString}
 	SettingRulesGameBoardHigurashi = SiteSettingDef{"rules_game_board_higurashi", "", TypeString}
@@ -100,6 +102,8 @@ var (
 		SettingTurnstileSiteKey,
 		SettingTurnstileSecretKey,
 		SettingRulesTheories,
+		SettingRulesTheoriesHigurashi,
+		SettingRulesMysteries,
 		SettingRulesGameBoard,
 		SettingRulesGameBoardUmineko,
 		SettingRulesGameBoardHigurashi,

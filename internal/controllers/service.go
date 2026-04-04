@@ -35,6 +35,7 @@ type (
 		ArtService          artsvc.Service
 		BlockService        block.Service
 		AnnouncementRepo    repository.AnnouncementRepository
+		MysteryRepo         repository.MysteryRepository
 		AuthSession         *session.Manager
 		Hub                 *ws.Hub
 		HTMLContent         string
@@ -56,6 +57,7 @@ func NewService(
 	artService artsvc.Service,
 	blockService block.Service,
 	announcementRepo repository.AnnouncementRepository,
+	mysteryRepo repository.MysteryRepository,
 	authSession *session.Manager,
 	hub *ws.Hub,
 	htmlContent string,
@@ -75,6 +77,7 @@ func NewService(
 		ArtService:          artService,
 		BlockService:        blockService,
 		AnnouncementRepo:    announcementRepo,
+		MysteryRepo:         mysteryRepo,
 		AuthSession:         authSession,
 		Hub:                 hub,
 		HTMLContent:         htmlContent,
@@ -94,6 +97,7 @@ func (s *Service) GetAPIRoutes() []FSetupRoute {
 	all = append(all, s.getAllArtRoutes()...)
 	all = append(all, s.getAllBlockRoutes()...)
 	all = append(all, s.getAllAnnouncementRoutes()...)
+	all = append(all, s.getAllMysteryRoutes()...)
 	return all
 }
 

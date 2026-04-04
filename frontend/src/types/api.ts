@@ -475,6 +475,60 @@ export interface ChatMessage {
     created_at: string;
 }
 
+export interface Mystery {
+    id: string;
+    title: string;
+    body: string;
+    difficulty: string;
+    author: User;
+    solved: boolean;
+    winner?: User;
+    solved_at?: string;
+    attempt_count: number;
+    clue_count: number;
+    created_at: string;
+}
+
+export interface MysteryClue {
+    id: number;
+    body: string;
+    truth_type: string;
+    sort_order: number;
+}
+
+export interface MysteryAttempt {
+    id: string;
+    parent_id?: string;
+    author: User;
+    body: string;
+    is_winner: boolean;
+    vote_score: number;
+    user_vote?: number;
+    replies?: MysteryAttempt[];
+    created_at: string;
+}
+
+export interface MysteryDetail {
+    id: string;
+    title: string;
+    body: string;
+    difficulty: string;
+    author: User;
+    solved: boolean;
+    winner?: User;
+    solved_at?: string;
+    clues: MysteryClue[];
+    attempts: MysteryAttempt[];
+    created_at: string;
+}
+
+export interface MysteryListResponse {
+    mysteries: Mystery[];
+    total: number;
+    limit: number;
+    offset: number;
+}
+
 export interface Announcement {
     id: string;
     title: string;

@@ -22,6 +22,7 @@ type (
 		Upload       UploadRepository
 		Block        BlockRepository
 		Announcement AnnouncementRepository
+		Mystery      MysteryRepository
 	}
 )
 
@@ -49,5 +50,6 @@ func New(db *sql.DB) *Repositories {
 		Upload:       &uploadRepository{db: db},
 		Block:        &blockRepository{db: db},
 		Announcement: &announcementRepository{db: db},
+		Mystery:      &mysteryRepository{db: db},
 	}
 }

@@ -5,6 +5,8 @@ import type {
     AdminUserDetail,
     Announcement,
     AnnouncementListResponse,
+    MysteryDetail,
+    MysteryListResponse,
     AdminUserListResponse,
     ArtDetail,
     ArtListResponse,
@@ -743,4 +745,71 @@ export async function deleteAnnouncement(id: string): Promise<void> {
 
 export async function pinAnnouncement(id: string, pinned: boolean): Promise<void> {
     await apiPost<unknown, { pinned: boolean }>(`/admin/announcements/${id}/pin`, { pinned });
+}
+
+export async function listMysteries(params: {
+    sort?: string;
+    solved?: string;
+    limit?: number;
+    offset?: number;
+}): Promise<MysteryListResponse> {
+    const qs = buildQueryString({
+        sort: params.sort,
+        solved: params.solved,
+        limit: params.limit ?? 20,
+        offset: params.offset,
+    });
+    return apiFetch<MysteryListResponse>(`/mysteries${qs}`);
+}
+
+export async function getMystery(id: string): Promise<MysteryDetail> {
+    return apiFetch<MysteryDetail>(`/mysteries/${id}`);
+}
+
+export async function createMystery(data: {
+    title: string;
+    body: string;
+    difficulty: string;
+    clues: { body: string; truth_type: string }[];
+}): Promise<{ id: string }> {
+    return apiPost<{ id: string }, typeof data>("/mysteries", data);
+}
+
+export async function updateMystery(id: string, data: {
+    title: string;
+    body: string;
+    difficulty: string;
+    clues: { body: string; truth_type: string }[];
+}): Promise<void> {
+    await apiPut<unknown, typeof data>(`/mysteries/${id}`, data);
+}
+
+export async function deleteMystery(id: string): Promise<void> {
+    await apiDelete(`/mysteries/${id}`);
+}
+
+export async function createMysteryAttempt(mysteryId: string, body: string, parentId?: string): Promise<{ id: string }> {
+    return apiPost<{ id: string }, { body: string; parent_id?: string }>(`/mysteries/${mysteryId}/attempts`, {
+        body,
+        parent_id: parentId,
+    });
+}
+
+export async function deleteMysteryAttempt(id: string): Promise<void> {
+    await apiDelete(`/mystery-attempts/${id}`);
+}
+
+export async function voteMysteryAttempt(id: string, value: number): Promise<void> {
+    await apiPost<unknown, { value: number }>(`/mystery-attempts/${id}/vote`, { value });
+}
+
+export async function markMysterySolved(mysteryId: string, winnerId: string): Promise<void> {
+    await apiPost<unknown, { winner_id: string }>(`/mysteries/${mysteryId}/solve`, { winner_id: winnerId });
+}
+
+export async function addMysteryClue(mysteryId: string, body: string, truthType: string): Promise<void> {
+    await apiPost<unknown, { body: string; truth_type: string }>(`/mysteries/${mysteryId}/clues`, {
+        body,
+        truth_type: truthType,
+    });
 }

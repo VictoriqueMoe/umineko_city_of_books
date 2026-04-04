@@ -292,3 +292,34 @@ func (g *GalleryRow) ToResponse() dto.GalleryResponse {
 		UpdatedAt:         g.UpdatedAt,
 	}
 }
+
+func (r *MysteryRow) ToResponse() dto.MysteryResponse {
+	resp := dto.MysteryResponse{
+		ID:         r.ID,
+		Title:      r.Title,
+		Body:       r.Body,
+		Difficulty: r.Difficulty,
+		Solved:     r.Solved,
+		SolvedAt:   r.SolvedAt,
+		Author: dto.UserResponse{
+			ID:          r.UserID,
+			Username:    r.AuthorUsername,
+			DisplayName: r.AuthorDisplayName,
+			AvatarURL:   r.AuthorAvatarURL,
+			Role:        role.Role(r.AuthorRole),
+		},
+		AttemptCount: r.AttemptCount,
+		ClueCount:    r.ClueCount,
+		CreatedAt:    r.CreatedAt,
+	}
+	if r.WinnerID != nil && r.WinnerUsername != nil {
+		resp.Winner = &dto.UserResponse{
+			ID:          *r.WinnerID,
+			Username:    *r.WinnerUsername,
+			DisplayName: *r.WinnerDisplayName,
+			AvatarURL:   *r.WinnerAvatarURL,
+			Role:        role.Role(*r.WinnerRole),
+		}
+	}
+	return resp
+}
