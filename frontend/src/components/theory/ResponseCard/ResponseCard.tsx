@@ -4,6 +4,7 @@ import type { Response as TheoryResponse } from "../../../types/api";
 import { useAuth } from "../../../hooks/useAuth";
 import { useVote } from "../../../hooks/useVote";
 import { deleteResponse, voteResponse } from "../../../api/endpoints";
+import type { Series } from "../../../api/endpoints";
 import { Button } from "../../Button/Button";
 import { ProfileLink } from "../../ProfileLink/ProfileLink";
 import { VoteButton } from "../VoteButton/VoteButton";
@@ -16,6 +17,7 @@ import styles from "./ResponseCard.module.css";
 interface ResponseCardProps {
     response: TheoryResponse;
     theoryId: string;
+    series?: Series;
     onDeleted?: () => void;
     onReply?: (parentId: string, parentAuthor: string) => void;
     replyTarget?: { parentId: string; parentAuthor: string } | null;
@@ -26,6 +28,7 @@ interface ResponseCardProps {
 function ResponseCard({
     response,
     theoryId,
+    series = "umineko",
     onDeleted,
     onReply,
     replyTarget,
@@ -68,7 +71,7 @@ function ResponseCard({
                 {mentionedAuthor && <div className={styles.mention}>@{mentionedAuthor}</div>}
                 <div className={styles.body}>{response.body}</div>
 
-                <EvidenceList evidence={response.evidence ?? []} />
+                <EvidenceList evidence={response.evidence ?? []} series={series} />
 
                 <div className={styles.meta}>
                     <ProfileLink user={response.author} size="small" />
@@ -99,6 +102,7 @@ function ResponseCard({
                         parentId={response.id}
                         inheritedSide={response.side}
                         onCreated={() => onDeleted?.()}
+                        series={series}
                     />
                 )}
             </div>
@@ -136,10 +140,12 @@ function flattenThreadRecursive(
 export function ResponseList({
     responses,
     theoryId,
+    series = "umineko",
     onDeleted,
 }: {
     responses: TheoryResponse[];
     theoryId: string;
+    series?: Series;
     onDeleted?: () => void;
 }) {
     const location = useLocation();
@@ -213,6 +219,7 @@ export function ResponseList({
                         <ResponseCard
                             response={response}
                             theoryId={theoryId}
+                            series={series}
                             onDeleted={handleCreated}
                             onReply={handleReply}
                             replyTarget={replyTarget}
@@ -223,6 +230,7 @@ export function ResponseList({
                                 replies={threadReplies}
                                 response={response}
                                 theoryId={theoryId}
+                                series={series}
                                 expanded={expandedThreads.has(response.id)}
                                 onToggle={() => toggleThread(response.id)}
                                 onDeleted={handleCreated}
@@ -241,6 +249,7 @@ function ThreadReplies({
     replies,
     response,
     theoryId,
+    series = "umineko",
     expanded,
     onToggle,
     onDeleted,
@@ -250,6 +259,7 @@ function ThreadReplies({
     replies: Array<{ reply: TheoryResponse; mentionedAuthor?: string }>;
     response: TheoryResponse;
     theoryId: string;
+    series?: Series;
     expanded: boolean;
     onToggle: () => void;
     onDeleted?: () => void;
@@ -273,6 +283,7 @@ function ThreadReplies({
                         <ResponseCard
                             response={reply}
                             theoryId={theoryId}
+                            series={series}
                             onDeleted={onDeleted}
                             onReply={onReply}
                             replyTarget={replyTarget}
@@ -285,6 +296,7 @@ function ThreadReplies({
                                 parentId={reply.id}
                                 inheritedSide={response.side}
                                 onCreated={() => onDeleted?.()}
+                                series={series}
                             />
                         )}
                     </div>

@@ -32,27 +32,27 @@ func (s *Service) getAllProfileRoutes() []FSetupRoute {
 }
 
 func (s *Service) setupGetProfileRoute(r fiber.Router) {
-	r.Get("/users/:username", middleware.OptionalAuth(s.AuthSession), s.getProfile)
+	r.Get("/users/:username", middleware.OptionalAuth(s.AuthSession, s.AuthzService), s.getProfile)
 }
 
 func (s *Service) setupUpdateProfileRoute(r fiber.Router) {
-	r.Put("/auth/profile", middleware.RequireAuth(s.AuthSession), s.updateProfile)
+	r.Put("/auth/profile", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.updateProfile)
 }
 
 func (s *Service) setupUploadAvatarRoute(r fiber.Router) {
-	r.Post("/auth/avatar", middleware.RequireAuth(s.AuthSession), s.uploadAvatar)
+	r.Post("/auth/avatar", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.uploadAvatar)
 }
 
 func (s *Service) setupUploadBannerRoute(r fiber.Router) {
-	r.Post("/auth/banner", middleware.RequireAuth(s.AuthSession), s.uploadBanner)
+	r.Post("/auth/banner", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.uploadBanner)
 }
 
 func (s *Service) setupChangePasswordRoute(r fiber.Router) {
-	r.Put("/auth/password", middleware.RequireAuth(s.AuthSession), s.changePassword)
+	r.Put("/auth/password", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.changePassword)
 }
 
 func (s *Service) setupDeleteAccountRoute(r fiber.Router) {
-	r.Delete("/auth/account", middleware.RequireAuth(s.AuthSession), s.deleteAccount)
+	r.Delete("/auth/account", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.deleteAccount)
 }
 
 func (s *Service) setupGetOnlineStatusRoute(r fiber.Router) {
@@ -277,7 +277,7 @@ func (s *Service) getUserActivity(ctx fiber.Ctx) error {
 }
 
 func (s *Service) setupGetMutualFollowersRoute(r fiber.Router) {
-	r.Get("/users/mutuals", middleware.RequireAuth(s.AuthSession), s.getMutualFollowers)
+	r.Get("/users/mutuals", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.getMutualFollowers)
 }
 
 func (s *Service) getMutualFollowers(ctx fiber.Ctx) error {
@@ -290,7 +290,7 @@ func (s *Service) getMutualFollowers(ctx fiber.Ctx) error {
 }
 
 func (s *Service) setupSearchUsersRoute(r fiber.Router) {
-	r.Get("/users/search", middleware.OptionalAuth(s.AuthSession), s.searchUsers)
+	r.Get("/users/search", middleware.OptionalAuth(s.AuthSession, s.AuthzService), s.searchUsers)
 }
 
 func (s *Service) searchUsers(ctx fiber.Ctx) error {

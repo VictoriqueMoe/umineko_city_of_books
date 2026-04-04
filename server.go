@@ -13,6 +13,7 @@ import (
 	artsvc "umineko_city_of_books/internal/art"
 	"umineko_city_of_books/internal/auth"
 	"umineko_city_of_books/internal/authz"
+	blocksvc "umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/chat"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/controllers"
@@ -33,6 +34,7 @@ import (
 	"umineko_city_of_books/internal/routes"
 	"umineko_city_of_books/internal/session"
 	"umineko_city_of_books/internal/settings"
+	"umineko_city_of_books/internal/ship"
 	"umineko_city_of_books/internal/theory"
 	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/user"
@@ -61,6 +63,8 @@ type services struct {
 	post         postsvc.Service
 	follow       follow.Service
 	art          artsvc.Service
+	ship         ship.Service
+	block        blocksvc.Service
 	email        email.Service
 	session      *session.Manager
 	upload       upload.Service
@@ -122,19 +126,21 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 	credibilitySvc := credibility.NewService(repos.Theory)
 
 	emailSvc := email.NewService(settingsSvc)
-	chatSvc := chat.NewService(repos.Chat, repos.User, repos.Notification, hub)
+	blockSvc := blocksvc.NewService(repos.Block, repos.Follow, authzSvc)
+	chatSvc := chat.NewService(repos.Chat, repos.User, repos.Notification, blockSvc, hub)
 	notifSvc := notification.NewService(repos.Notification, repos.User, hub, emailSvc)
 	reportSvc := report.NewService(repos.Report, repos.Role, repos.User, notifSvc, settingsSvc)
 	mediaProc := media.NewProcessor(4)
-	postSvc := postsvc.NewService(repos.Post, repos.User, authzSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, hub)
-	followSvc := follow.NewService(repos.Follow, repos.User, notifSvc, settingsSvc)
-	artSvc := artsvc.NewService(repos.Art, repos.Post, repos.User, authzSvc, notifSvc, uploadSvc, mediaProc, settingsSvc)
+	followSvc := follow.NewService(repos.Follow, repos.User, blockSvc, notifSvc, settingsSvc)
+	postSvc := postsvc.NewService(repos.Post, repos.User, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, hub)
+	artSvc := artsvc.NewService(repos.Art, repos.Post, repos.User, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc)
+	shipSvc := ship.NewService(repos.Ship, repos.User, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, quoteClient)
 
 	return &services{
 		settings:     settingsSvc,
 		auth:         auth.NewService(userSvc, sessionMgr, settingsSvc, repos.Invite, repos.User),
 		profile:      profile.NewService(repos.User, repos.Theory, authzSvc, uploadSvc, settingsSvc),
-		theory:       theory.NewService(repos.Theory, repos.User, authzSvc, notifSvc, settingsSvc, credibilitySvc, quoteClient),
+		theory:       theory.NewService(repos.Theory, repos.User, authzSvc, blockSvc, notifSvc, settingsSvc, credibilitySvc, quoteClient),
 		notification: notifSvc,
 		admin:        admin.NewService(repos.User, repos.Role, repos.Stats, repos.AuditLog, repos.Invite, authzSvc, settingsSvc, sessionMgr, uploadSvc),
 		authz:        authzSvc,
@@ -143,6 +149,8 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 		post:         postSvc,
 		follow:       followSvc,
 		art:          artSvc,
+		ship:         shipSvc,
+		block:        blockSvc,
 		email:        emailSvc,
 		session:      sessionMgr,
 		upload:       uploadSvc,
@@ -199,7 +207,7 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 	ctrlService := controllers.NewService(
 		svc.auth, svc.profile, svc.theory, svc.notification, svc.admin,
 		svc.authz, settingsSvc, svc.chat, svc.report, svc.post, svc.follow,
-		svc.art, svc.session, svc.hub, string(htmlBytes),
+		svc.art, svc.block, repos.Announcement, repos.Mystery, svc.ship, svc.session, svc.hub, string(htmlBytes),
 	)
 	routes.PublicRoutes(ctrlService, app)
 
@@ -219,7 +227,7 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 		logger.Log.Fatal().Err(err).Msg("failed to create static sub-filesystem")
 	}
 
-	ogResolver := og.NewResolver(repos.Theory, repos.User, repos.Post, repos.Art, string(htmlBytes), baseURL)
+	ogResolver := og.NewResolver(repos.Theory, repos.User, repos.Post, repos.Art, repos.Mystery, repos.Ship, string(htmlBytes), baseURL)
 
 	app.Get("/*", func(ctx fiber.Ctx) error {
 		path := ctx.Path()

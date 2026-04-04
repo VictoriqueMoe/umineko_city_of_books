@@ -5,6 +5,7 @@ import { getTheory, updateTheory } from "../../api/endpoints";
 import { Button } from "../../components/Button/Button";
 import { TheoryForm } from "../../components/theory/TheoryForm/TheoryForm";
 import type { EvidenceItem } from "../../types/api";
+import type { Series } from "../../api/endpoints";
 import formStyles from "../../components/theory/TheoryForm/TheoryForm.module.css";
 
 export function EditTheoryPage() {
@@ -16,6 +17,7 @@ export function EditTheoryPage() {
         title: string;
         body: string;
         episode: number;
+        series: string;
         evidence: EvidenceItem[];
     } | null>(null);
     const [loading, setLoading] = useState(true);
@@ -30,6 +32,7 @@ export function EditTheoryPage() {
                     title: theory.title,
                     body: theory.body,
                     episode: theory.episode,
+                    series: theory.series || "umineko",
                     evidence: theory.evidence ?? [],
                 });
                 setLoading(false);
@@ -67,8 +70,9 @@ export function EditTheoryPage() {
                 initialEvidence={initialData.evidence}
                 submitLabel="Save Changes"
                 submittingLabel="Saving..."
+                series={(initialData.series || "umineko") as Series}
                 onSubmit={async data => {
-                    await updateTheory(theoryId, data);
+                    await updateTheory(theoryId, { ...data, series: initialData.series || "umineko" });
                     navigate(`/theory/${theoryId}`);
                 }}
             />

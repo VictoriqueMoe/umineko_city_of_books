@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/notification"
@@ -28,6 +29,7 @@ type (
 	service struct {
 		followRepo   repository.FollowRepository
 		userRepo     repository.UserRepository
+		blockSvc     block.Service
 		notifService notification.Service
 		settingsSvc  settings.Service
 	}
@@ -36,12 +38,14 @@ type (
 func NewService(
 	followRepo repository.FollowRepository,
 	userRepo repository.UserRepository,
+	blockSvc block.Service,
 	notifService notification.Service,
 	settingsSvc settings.Service,
 ) Service {
 	return &service{
 		followRepo:   followRepo,
 		userRepo:     userRepo,
+		blockSvc:     blockSvc,
 		notifService: notifService,
 		settingsSvc:  settingsSvc,
 	}
@@ -50,6 +54,10 @@ func NewService(
 func (s *service) Follow(ctx context.Context, followerID uuid.UUID, followingID uuid.UUID) error {
 	if followerID == followingID {
 		return ErrCannotFollowSelf
+	}
+
+	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, followerID, followingID); blocked {
+		return block.ErrUserBlocked
 	}
 
 	if err := s.followRepo.Follow(ctx, followerID, followingID); err != nil {

@@ -3,6 +3,14 @@ import type {
     ActivityListResponse,
     AdminStats,
     AdminUserDetail,
+    Announcement,
+    AnnouncementListResponse,
+    MysteryDetail,
+    MysteryListResponse,
+    ShipDetail,
+    ShipListResponse,
+    ShipCharacter,
+    CharacterListResponse,
     AdminUserListResponse,
     ArtDetail,
     ArtListResponse,
@@ -88,6 +96,8 @@ export async function getMe(): Promise<User> {
     return apiFetch<User>("/auth/me");
 }
 
+export type Series = "umineko" | "higurashi";
+
 export async function searchQuotes(params: {
     query?: string;
     character?: string;
@@ -95,7 +105,9 @@ export async function searchQuotes(params: {
     truth?: string;
     limit?: number;
     offset?: number;
+    series?: Series;
 }): Promise<QuoteSearchResponse> {
+    const series = params.series ?? "umineko";
     const qs = buildQueryString({
         q: params.query,
         character: params.character,
@@ -104,7 +116,7 @@ export async function searchQuotes(params: {
         limit: params.limit ?? 30,
         offset: params.offset,
     });
-    const response = await fetch(`${QUOTE_API}/umineko/search${qs}`);
+    const response = await fetch(`${QUOTE_API}/${series}/search${qs}`);
     if (!response.ok) {
         throw new Error(`Quote API error: ${response.status}`);
     }
@@ -115,25 +127,29 @@ export async function browseQuotes(params: {
     character?: string;
     episode?: number;
     truth?: string;
+    arc?: string;
     limit?: number;
     offset?: number;
+    series?: Series;
 }): Promise<QuoteBrowseResponse> {
+    const series = params.series ?? "umineko";
     const qs = buildQueryString({
         character: params.character,
         episode: params.episode,
         truth: params.truth,
+        arc: params.arc,
         limit: params.limit ?? 30,
         offset: params.offset,
     });
-    const response = await fetch(`${QUOTE_API}/umineko/browse${qs}`);
+    const response = await fetch(`${QUOTE_API}/${series}/browse${qs}`);
     if (!response.ok) {
         throw new Error(`Quote API error: ${response.status}`);
     }
     return response.json();
 }
 
-export async function getCharacters(): Promise<Record<string, string>> {
-    const response = await fetch(`${QUOTE_API}/umineko/characters`);
+export async function getCharacters(series: Series = "umineko"): Promise<Record<string, string>> {
+    const response = await fetch(`${QUOTE_API}/${series}/characters`);
     if (!response.ok) {
         throw new Error(`Quote API error: ${response.status}`);
     }
@@ -146,6 +162,7 @@ export async function listTheories(params: {
     episode?: number;
     author?: string;
     search?: string;
+    series?: Series;
     limit?: number;
     offset?: number;
 }): Promise<TheoryListResponse> {
@@ -154,6 +171,7 @@ export async function listTheories(params: {
         episode: params.episode,
         author: params.author,
         search: params.search,
+        series: params.series ?? "umineko",
         limit: params.limit ?? 20,
         offset: params.offset,
     });
@@ -675,4 +693,225 @@ export async function setArtGallery(artId: string, galleryId: string | null): Pr
 export async function getUserArt(userId: string, limit: number = 24, offset: number = 0): Promise<ArtListResponse> {
     const qs = buildQueryString({ limit, offset });
     return apiFetch<ArtListResponse>(`/users/${userId}/art${qs}`);
+}
+
+export async function blockUser(id: string): Promise<void> {
+    await apiPost<unknown, undefined>(`/users/${id}/block`, undefined);
+}
+
+export async function unblockUser(id: string): Promise<void> {
+    await apiDelete(`/users/${id}/block`);
+}
+
+export interface BlockStatus {
+    blocking: boolean;
+    blocked_by: boolean;
+}
+
+export async function getBlockStatus(id: string): Promise<BlockStatus> {
+    return apiFetch<BlockStatus>(`/users/${id}/block-status`);
+}
+
+export interface BlockedUserItem {
+    id: string;
+    username: string;
+    display_name: string;
+    avatar_url: string;
+    blocked_at: string;
+}
+
+export async function getBlockedUsers(): Promise<{ users: BlockedUserItem[] }> {
+    return apiFetch<{ users: BlockedUserItem[] }>("/blocked-users");
+}
+
+export async function listAnnouncements(limit: number = 20, offset: number = 0): Promise<AnnouncementListResponse> {
+    const qs = buildQueryString({ limit, offset });
+    return apiFetch<AnnouncementListResponse>(`/announcements${qs}`);
+}
+
+export async function getAnnouncement(id: string): Promise<Announcement> {
+    return apiFetch<Announcement>(`/announcements/${id}`);
+}
+
+export async function getLatestAnnouncement(): Promise<{ announcement: Announcement | null }> {
+    return apiFetch<{ announcement: Announcement | null }>("/announcements-latest");
+}
+
+export async function createAnnouncement(title: string, body: string): Promise<{ id: string }> {
+    return apiPost<{ id: string }, { title: string; body: string }>("/admin/announcements", { title, body });
+}
+
+export async function updateAnnouncement(id: string, title: string, body: string): Promise<void> {
+    await apiPut<unknown, { title: string; body: string }>(`/admin/announcements/${id}`, { title, body });
+}
+
+export async function deleteAnnouncement(id: string): Promise<void> {
+    await apiDelete(`/admin/announcements/${id}`);
+}
+
+export async function pinAnnouncement(id: string, pinned: boolean): Promise<void> {
+    await apiPost<unknown, { pinned: boolean }>(`/admin/announcements/${id}/pin`, { pinned });
+}
+
+export async function listMysteries(params: {
+    sort?: string;
+    solved?: string;
+    limit?: number;
+    offset?: number;
+}): Promise<MysteryListResponse> {
+    const qs = buildQueryString({
+        sort: params.sort,
+        solved: params.solved,
+        limit: params.limit ?? 20,
+        offset: params.offset,
+    });
+    return apiFetch<MysteryListResponse>(`/mysteries${qs}`);
+}
+
+export async function getMystery(id: string): Promise<MysteryDetail> {
+    return apiFetch<MysteryDetail>(`/mysteries/${id}`);
+}
+
+export async function createMystery(data: {
+    title: string;
+    body: string;
+    difficulty: string;
+    clues: { body: string; truth_type: string }[];
+}): Promise<{ id: string }> {
+    return apiPost<{ id: string }, typeof data>("/mysteries", data);
+}
+
+export async function updateMystery(
+    id: string,
+    data: {
+        title: string;
+        body: string;
+        difficulty: string;
+        clues: { body: string; truth_type: string }[];
+    },
+): Promise<void> {
+    await apiPut<unknown, typeof data>(`/mysteries/${id}`, data);
+}
+
+export async function deleteMystery(id: string): Promise<void> {
+    await apiDelete(`/mysteries/${id}`);
+}
+
+export async function createMysteryAttempt(
+    mysteryId: string,
+    body: string,
+    parentId?: string,
+): Promise<{ id: string }> {
+    return apiPost<{ id: string }, { body: string; parent_id?: string }>(`/mysteries/${mysteryId}/attempts`, {
+        body,
+        parent_id: parentId,
+    });
+}
+
+export async function deleteMysteryAttempt(id: string): Promise<void> {
+    await apiDelete(`/mystery-attempts/${id}`);
+}
+
+export async function voteMysteryAttempt(id: string, value: number): Promise<void> {
+    await apiPost<unknown, { value: number }>(`/mystery-attempts/${id}/vote`, { value });
+}
+
+export async function markMysterySolved(mysteryId: string, winnerId: string): Promise<void> {
+    await apiPost<unknown, { winner_id: string }>(`/mysteries/${mysteryId}/solve`, { winner_id: winnerId });
+}
+
+export async function addMysteryClue(mysteryId: string, body: string, truthType: string): Promise<void> {
+    await apiPost<unknown, { body: string; truth_type: string }>(`/mysteries/${mysteryId}/clues`, {
+        body,
+        truth_type: truthType,
+    });
+}
+
+export async function listShips(params: {
+    sort?: string;
+    series?: string;
+    character?: string;
+    crackships?: boolean;
+    limit?: number;
+    offset?: number;
+}): Promise<ShipListResponse> {
+    const qs = buildQueryString({
+        sort: params.sort,
+        series: params.series,
+        character: params.character,
+        crackships: params.crackships ? "true" : undefined,
+        limit: params.limit,
+        offset: params.offset,
+    });
+    return apiFetch<ShipListResponse>(`/ships${qs}`);
+}
+
+export async function getShip(id: string): Promise<ShipDetail> {
+    return apiFetch<ShipDetail>(`/ships/${id}`);
+}
+
+export async function createShip(data: {
+    title: string;
+    description: string;
+    characters: ShipCharacter[];
+}): Promise<{ id: string }> {
+    return apiPost<{ id: string }, typeof data>("/ships", data);
+}
+
+export async function updateShip(
+    id: string,
+    data: {
+        title: string;
+        description: string;
+        characters: ShipCharacter[];
+    },
+): Promise<void> {
+    await apiPut<unknown, typeof data>(`/ships/${id}`, data);
+}
+
+export async function deleteShip(id: string): Promise<void> {
+    await apiDelete(`/ships/${id}`);
+}
+
+export async function uploadShipImage(shipId: string, file: File): Promise<{ image_url: string }> {
+    const formData = new FormData();
+    formData.append("image", file);
+    return apiPostFormData<{ image_url: string }>(`/ships/${shipId}/image`, formData);
+}
+
+export async function voteShip(shipId: string, value: number): Promise<void> {
+    await apiPost<unknown, { value: number }>(`/ships/${shipId}/vote`, { value });
+}
+
+export async function createShipComment(shipId: string, body: string, parentId?: string): Promise<{ id: string }> {
+    return apiPost<{ id: string }, { body: string; parent_id?: string }>(`/ships/${shipId}/comments`, {
+        body,
+        parent_id: parentId,
+    });
+}
+
+export async function updateShipComment(id: string, body: string): Promise<void> {
+    await apiPut<unknown, { body: string }>(`/ship-comments/${id}`, { body });
+}
+
+export async function deleteShipComment(id: string): Promise<void> {
+    await apiDelete(`/ship-comments/${id}`);
+}
+
+export async function likeShipComment(id: string): Promise<void> {
+    await apiPost<unknown, Record<string, never>>(`/ship-comments/${id}/like`, {});
+}
+
+export async function unlikeShipComment(id: string): Promise<void> {
+    await apiDelete(`/ship-comments/${id}/like`);
+}
+
+export async function uploadShipCommentMedia(commentId: string, file: File): Promise<PostMedia> {
+    const formData = new FormData();
+    formData.append("media", file);
+    return apiPostFormData<PostMedia>(`/ship-comments/${commentId}/media`, formData);
+}
+
+export async function listCharacters(series: string): Promise<CharacterListResponse> {
+    return apiFetch<CharacterListResponse>(`/characters/${series}`);
 }

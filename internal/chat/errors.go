@@ -9,4 +9,5 @@ var (
 	ErrRoomNotFound  = errors.New("room not found")
 	ErrMissingFields = errors.New("missing required fields")
 	ErrCannotDMSelf  = errors.New("cannot create DM with yourself")
+	ErrUserBlocked   = errors.New("you cannot message this user")
 )

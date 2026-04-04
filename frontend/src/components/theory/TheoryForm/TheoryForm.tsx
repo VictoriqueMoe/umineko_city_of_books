@@ -7,6 +7,8 @@ import { TruthPicker } from "../../truth/TruthPicker/TruthPicker";
 import { TruthChip } from "../../truth/TruthChip/TruthChip";
 import { Select } from "../../Select/Select";
 import type { EvidenceInput, EvidenceItem } from "../../../types/api";
+import type { Series } from "../../../api/endpoints";
+import { getSeriesConfig } from "../../../utils/seriesConfig";
 import styles from "./TheoryForm.module.css";
 
 interface TheoryFormProps {
@@ -16,6 +18,7 @@ interface TheoryFormProps {
     initialEvidence?: EvidenceItem[];
     submitLabel: string;
     submittingLabel: string;
+    series?: Series;
     onSubmit: (data: { title: string; body: string; episode: number; evidence: EvidenceInput[] }) => Promise<void>;
 }
 
@@ -26,13 +29,15 @@ export function TheoryForm({
     initialEvidence,
     submitLabel,
     submittingLabel,
+    series = "umineko",
     onSubmit,
 }: TheoryFormProps) {
+    const cfg = getSeriesConfig(series);
     const [title, setTitle] = useState(initialTitle);
     const [body, setBody] = useState(initialBody);
     const [episode, setEpisode] = useState(initialEpisode);
     const [submitting, setSubmitting] = useState(false);
-    const ev = useEvidence(initialEvidence);
+    const ev = useEvidence(initialEvidence, series);
 
     async function handleSubmit(e: React.SubmitEvent) {
         e.preventDefault();
@@ -69,7 +74,7 @@ export function TheoryForm({
 
                 <Select value={episode} onChange={e => setEpisode(Number((e.target as HTMLSelectElement).value))}>
                     <option value={0}>General (no specific episode)</option>
-                    {[1, 2, 3, 4, 5, 6, 7, 8].map(ep => (
+                    {Array.from({ length: cfg.episodeCount }, (_, i) => i + 1).map(ep => (
                         <option key={ep} value={ep}>
                             Episode {ep}
                         </option>
@@ -108,6 +113,7 @@ export function TheoryForm({
                 onClose={ev.closePicker}
                 onSelect={ev.addQuote}
                 selectedKeys={ev.selectedKeys}
+                series={series}
             />
         </>
     );

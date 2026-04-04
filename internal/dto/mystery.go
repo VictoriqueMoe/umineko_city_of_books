@@ -1,0 +1,76 @@
+package dto
+
+import "github.com/google/uuid"
+
+type (
+	MysteryResponse struct {
+		ID           uuid.UUID     `json:"id"`
+		Title        string        `json:"title"`
+		Body         string        `json:"body"`
+		Difficulty   string        `json:"difficulty"`
+		Author       UserResponse  `json:"author"`
+		Solved       bool          `json:"solved"`
+		Winner       *UserResponse `json:"winner,omitempty"`
+		SolvedAt     *string       `json:"solved_at,omitempty"`
+		AttemptCount int           `json:"attempt_count"`
+		ClueCount    int           `json:"clue_count"`
+		CreatedAt    string        `json:"created_at"`
+	}
+
+	MysteryDetailResponse struct {
+		ID         uuid.UUID        `json:"id"`
+		Title      string           `json:"title"`
+		Body       string           `json:"body"`
+		Difficulty string           `json:"difficulty"`
+		Author     UserResponse     `json:"author"`
+		Solved     bool             `json:"solved"`
+		Winner     *UserResponse    `json:"winner,omitempty"`
+		SolvedAt   *string          `json:"solved_at,omitempty"`
+		Clues      []MysteryClue    `json:"clues"`
+		Attempts   []MysteryAttempt `json:"attempts"`
+		CreatedAt  string           `json:"created_at"`
+	}
+
+	MysteryClue struct {
+		ID        int    `json:"id"`
+		Body      string `json:"body"`
+		TruthType string `json:"truth_type"`
+		SortOrder int    `json:"sort_order"`
+	}
+
+	MysteryAttempt struct {
+		ID        uuid.UUID        `json:"id"`
+		ParentID  *uuid.UUID       `json:"parent_id,omitempty"`
+		Author    UserResponse     `json:"author"`
+		Body      string           `json:"body"`
+		IsWinner  bool             `json:"is_winner"`
+		VoteScore int              `json:"vote_score"`
+		UserVote  int              `json:"user_vote,omitempty"`
+		Replies   []MysteryAttempt `json:"replies,omitempty"`
+		CreatedAt string           `json:"created_at"`
+	}
+
+	MysteryListResponse struct {
+		Mysteries []MysteryResponse `json:"mysteries"`
+		Total     int               `json:"total"`
+		Limit     int               `json:"limit"`
+		Offset    int               `json:"offset"`
+	}
+
+	CreateMysteryRequest struct {
+		Title      string              `json:"title"`
+		Body       string              `json:"body"`
+		Difficulty string              `json:"difficulty"`
+		Clues      []CreateClueRequest `json:"clues"`
+	}
+
+	CreateClueRequest struct {
+		Body      string `json:"body"`
+		TruthType string `json:"truth_type"`
+	}
+
+	CreateAttemptRequest struct {
+		ParentID *uuid.UUID `json:"parent_id,omitempty"`
+		Body     string     `json:"body"`
+	}
+)

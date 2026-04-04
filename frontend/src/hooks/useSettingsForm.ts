@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useAuth } from "./useAuth";
 import { useProfile } from "./useProfile";
 import { useSiteInfo } from "./useSiteInfo";
-import { getCharacters, updateProfile, uploadAvatar, uploadBanner } from "../api/endpoints";
+import { getCharacters, getMe, updateProfile, uploadAvatar, uploadBanner } from "../api/endpoints";
 import { validateFileSize } from "../utils/fileValidation";
 import type { UpdateProfilePayload, UserProfile } from "../types/api";
 
@@ -63,9 +63,15 @@ export function useSettingsForm() {
     const [email, setEmail] = useState("");
     const [emailPublic, setEmailPublic] = useState(false);
     const [emailNotifications, setEmailNotifications] = useState(false);
-    const [homePage, setHomePage] = useState("theories");
+    const [homePage, setHomePage] = useState("game_board");
 
-    const [characters, setCharacters] = useState<Record<string, string>>({});
+    const [characters, setCharacters] = useState<{
+        umineko: Record<string, string>;
+        higurashi: Record<string, string>;
+    }>({
+        umineko: {},
+        higurashi: {},
+    });
     const [saving, setSaving] = useState(false);
     const [uploadingAvatar, setUploadingAvatar] = useState(false);
     const [uploadingBanner, setUploadingBanner] = useState(false);
@@ -91,7 +97,7 @@ export function useSettingsForm() {
             setEmail(profile.email ?? "");
             setEmailPublic(profile.email_public ?? false);
             setEmailNotifications(profile.email_notifications ?? false);
-            setHomePage(profile.home_page ?? "theories");
+            setHomePage(profile.home_page ?? "game_board");
 
             const g = initGender(profile);
             setGender(g.gender);
@@ -105,9 +111,9 @@ export function useSettingsForm() {
     }, [profile]);
 
     useEffect(() => {
-        getCharacters()
-            .then(setCharacters)
-            .catch(() => setCharacters({}));
+        Promise.all([getCharacters("umineko"), getCharacters("higurashi")])
+            .then(([umineko, higurashi]) => setCharacters({ umineko, higurashi }))
+            .catch(() => setCharacters({ umineko: {}, higurashi: {} }));
     }, []);
 
     function handleGenderChange(newGender: string) {
@@ -211,6 +217,12 @@ export function useSettingsForm() {
 
         try {
             await updateProfile(payload);
+            try {
+                const refreshed = await getMe();
+                setUser(refreshed);
+            } catch {
+                // ignore
+            }
             setSuccess("Profile updated successfully.");
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to update profile.");

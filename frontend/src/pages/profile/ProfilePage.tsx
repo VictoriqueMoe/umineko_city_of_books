@@ -4,6 +4,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { useProfile } from "../../hooks/useProfile";
 import { useTheoryFeed } from "../../hooks/useTheoryFeed";
 import { useFollow } from "../../hooks/useFollow";
+import { useBlock } from "../../hooks/useBlock";
 import {
     createGallery,
     getFollowers,
@@ -64,6 +65,7 @@ export function ProfilePage() {
     const { profile, loading } = useProfile(username ?? "");
     const [activeTab, setActiveTab] = useState<TabType>("posts");
     const follow = useFollow(profile?.id ?? "");
+    const blockHook = useBlock(profile?.id ?? "");
 
     const {
         theories,
@@ -256,7 +258,15 @@ export function ProfilePage() {
                                 {follow.stats.is_following ? "Unfollow" : "Follow"}
                             </Button>
                             {follow.stats.follows_you && <span className={styles.followsYou}>Follows you</span>}
+                            {blockHook.status && !profile.role && (
+                                <Button variant="ghost" size="small" onClick={blockHook.toggleBlock}>
+                                    {blockHook.status.blocking ? "Unblock" : "Block"}
+                                </Button>
+                            )}
                         </div>
+                    )}
+                    {blockHook.status?.blocked_by && (
+                        <div className={styles.blockedBanner}>This user has blocked you.</div>
                     )}
                     <div className={styles.metaRow}>
                         {showGender && <span className={styles.metaItem}>{profile.gender}</span>}

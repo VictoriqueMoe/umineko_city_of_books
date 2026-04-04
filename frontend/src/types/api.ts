@@ -59,6 +59,7 @@ export interface Theory {
     title: string;
     body: string;
     episode: number;
+    series: string;
     author: User;
     vote_score: number;
     with_love_count: number;
@@ -103,6 +104,7 @@ export interface CreateTheoryPayload {
     title: string;
     body: string;
     episode: number;
+    series: string;
     evidence: EvidenceInput[];
 }
 
@@ -237,6 +239,7 @@ export interface Post {
 export interface PostDetail extends Post {
     comments: PostComment[];
     liked_by: User[];
+    viewer_blocked: boolean;
 }
 
 export interface PostComment {
@@ -284,7 +287,13 @@ export type NotificationType =
     | "art_liked"
     | "art_commented"
     | "comment_liked"
-    | "content_edited";
+    | "content_edited"
+    | "mystery_attempt"
+    | "mystery_attempt_vote"
+    | "mystery_solved"
+    | "ship_commented"
+    | "ship_comment_reply"
+    | "ship_comment_liked";
 
 export interface Notification {
     id: number;
@@ -406,6 +415,7 @@ export interface Art {
 export interface ArtDetail extends Art {
     comments: ArtComment[];
     liked_by: User[];
+    viewer_blocked: boolean;
 }
 
 export interface ArtComment {
@@ -469,4 +479,134 @@ export interface ChatMessage {
     sender: User;
     body: string;
     created_at: string;
+}
+
+export interface Mystery {
+    id: string;
+    title: string;
+    body: string;
+    difficulty: string;
+    author: User;
+    solved: boolean;
+    winner?: User;
+    solved_at?: string;
+    attempt_count: number;
+    clue_count: number;
+    created_at: string;
+}
+
+export interface MysteryClue {
+    id: number;
+    body: string;
+    truth_type: string;
+    sort_order: number;
+}
+
+export interface MysteryAttempt {
+    id: string;
+    parent_id?: string;
+    author: User;
+    body: string;
+    is_winner: boolean;
+    vote_score: number;
+    user_vote?: number;
+    replies?: MysteryAttempt[];
+    created_at: string;
+}
+
+export interface MysteryDetail {
+    id: string;
+    title: string;
+    body: string;
+    difficulty: string;
+    author: User;
+    solved: boolean;
+    winner?: User;
+    solved_at?: string;
+    clues: MysteryClue[];
+    attempts: MysteryAttempt[];
+    created_at: string;
+}
+
+export interface MysteryListResponse {
+    mysteries: Mystery[];
+    total: number;
+    limit: number;
+    offset: number;
+}
+
+export interface Announcement {
+    id: string;
+    title: string;
+    body: string;
+    author: User;
+    pinned: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface ShipCharacter {
+    series: string;
+    character_id?: string;
+    character_name: string;
+    sort_order: number;
+}
+
+export interface Ship {
+    id: string;
+    author: User;
+    title: string;
+    description: string;
+    image_url?: string;
+    thumbnail_url?: string;
+    characters: ShipCharacter[];
+    vote_score: number;
+    user_vote?: number;
+    comment_count: number;
+    is_crackship: boolean;
+    created_at: string;
+    updated_at?: string;
+}
+
+export interface ShipComment {
+    id: string;
+    parent_id?: string;
+    author: User;
+    body: string;
+    media: PostMedia[];
+    embeds?: PostEmbed[];
+    like_count: number;
+    user_liked: boolean;
+    replies?: ShipComment[];
+    created_at: string;
+    updated_at?: string;
+}
+
+export interface ShipDetail extends Ship {
+    comments: ShipComment[];
+    viewer_blocked: boolean;
+}
+
+export interface ShipListResponse {
+    ships: Ship[];
+    total: number;
+    limit: number;
+    offset: number;
+}
+
+export interface CharacterListEntry {
+    id: string;
+    name: string;
+}
+
+export interface CharacterListResponse {
+    series: string;
+    characters: CharacterListEntry[];
+}
+
+export interface AnnouncementListResponse {
+    announcements: Announcement[];
+    total: number;
+    limit: number;
+    offset: number;
 }

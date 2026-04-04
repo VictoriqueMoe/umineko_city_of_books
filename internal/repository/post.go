@@ -18,8 +18,8 @@ type (
 		GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID) (*PostRow, error)
 		Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		DeleteAsAdmin(ctx context.Context, id uuid.UUID) error
-		ListAll(ctx context.Context, viewerID uuid.UUID, corner string, search string, sort string, seed int, limit, offset int) ([]PostRow, int, error)
-		ListByFollowing(ctx context.Context, userID uuid.UUID, corner string, sort string, seed int, limit, offset int) ([]PostRow, int, error)
+		ListAll(ctx context.Context, viewerID uuid.UUID, corner string, search string, sort string, seed int, limit, offset int, excludeUserIDs []uuid.UUID) ([]PostRow, int, error)
+		ListByFollowing(ctx context.Context, userID uuid.UUID, corner string, sort string, seed int, limit, offset int, excludeUserIDs []uuid.UUID) ([]PostRow, int, error)
 		ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit, offset int) ([]PostRow, int, error)
 
 		AddMedia(ctx context.Context, postID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, sortOrder int) (int64, error)
@@ -31,7 +31,7 @@ type (
 
 		Like(ctx context.Context, userID uuid.UUID, postID uuid.UUID) error
 		Unlike(ctx context.Context, userID uuid.UUID, postID uuid.UUID) error
-		GetLikedBy(ctx context.Context, postID uuid.UUID) ([]PostLikeUser, error)
+		GetLikedBy(ctx context.Context, postID uuid.UUID, excludeUserIDs []uuid.UUID) ([]PostLikeUser, error)
 		RecordView(ctx context.Context, postID uuid.UUID, viewerHash string) (bool, error)
 		GetPostAuthorID(ctx context.Context, postID uuid.UUID) (uuid.UUID, error)
 
@@ -40,7 +40,7 @@ type (
 		UpdateCommentAsAdmin(ctx context.Context, id uuid.UUID, body string) error
 		DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		DeleteCommentAsAdmin(ctx context.Context, id uuid.UUID) error
-		GetComments(ctx context.Context, postID uuid.UUID, viewerID uuid.UUID, limit, offset int) ([]PostCommentRow, int, error)
+		GetComments(ctx context.Context, postID uuid.UUID, viewerID uuid.UUID, limit, offset int, excludeUserIDs []uuid.UUID) ([]PostCommentRow, int, error)
 		GetCommentPostID(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error)
 		GetCommentAuthorID(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error)
 		LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error
@@ -200,7 +200,7 @@ func (r *postRepository) DeleteAsAdmin(ctx context.Context, id uuid.UUID) error 
 	return nil
 }
 
-func (r *postRepository) ListAll(ctx context.Context, viewerID uuid.UUID, corner string, search string, sort string, seed int, limit, offset int) ([]PostRow, int, error) {
+func (r *postRepository) ListAll(ctx context.Context, viewerID uuid.UUID, corner string, search string, sort string, seed int, limit, offset int, excludeUserIDs []uuid.UUID) ([]PostRow, int, error) {
 	var total int
 	whereParts := []string{"p.corner = ?"}
 	args := []interface{}{corner}
@@ -212,9 +212,12 @@ func (r *postRepository) ListAll(ctx context.Context, viewerID uuid.UUID, corner
 	}
 
 	whereClause := " WHERE " + strings.Join(whereParts, " AND ")
+	exclSQL, exclArgs := ExcludeClause("p.user_id", excludeUserIDs)
+	whereClause += exclSQL
+	countArgs := append(args, exclArgs...)
 
 	if err := r.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM posts p JOIN users u ON p.user_id = u.id`+whereClause, args...,
+		`SELECT COUNT(*) FROM posts p JOIN users u ON p.user_id = u.id`+whereClause, countArgs...,
 	).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count posts: %w", err)
 	}
@@ -223,7 +226,7 @@ func (r *postRepository) ListAll(ctx context.Context, viewerID uuid.UUID, corner
 	query := postSelectBase + whereClause + orderClause + ` LIMIT ? OFFSET ?`
 
 	queryArgs := []interface{}{viewerID}
-	queryArgs = append(queryArgs, args...)
+	queryArgs = append(queryArgs, countArgs...)
 	if sort == "" || sort == "relevance" {
 		queryArgs = append(queryArgs, seed, viewerID)
 	}
@@ -245,20 +248,23 @@ func (r *postRepository) ListAll(ctx context.Context, viewerID uuid.UUID, corner
 	return posts, total, rows.Err()
 }
 
-func (r *postRepository) ListByFollowing(ctx context.Context, userID uuid.UUID, corner string, sort string, seed int, limit, offset int) ([]PostRow, int, error) {
+func (r *postRepository) ListByFollowing(ctx context.Context, userID uuid.UUID, corner string, sort string, seed int, limit, offset int, excludeUserIDs []uuid.UUID) ([]PostRow, int, error) {
 	var total int
-	if err := r.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM posts WHERE corner = ? AND (user_id = ? OR user_id IN (SELECT following_id FROM follows WHERE follower_id = ?))`,
-		corner, userID, userID,
-	).Scan(&total); err != nil {
+	exclSQL, exclArgs := ExcludeClause("user_id", excludeUserIDs)
+	countQuery := `SELECT COUNT(*) FROM posts WHERE corner = ? AND (user_id = ? OR user_id IN (SELECT following_id FROM follows WHERE follower_id = ?))` + exclSQL
+	countArgs := []interface{}{corner, userID, userID}
+	countArgs = append(countArgs, exclArgs...)
+	if err := r.db.QueryRowContext(ctx, countQuery, countArgs...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count following posts: %w", err)
 	}
 
-	whereClause := ` WHERE p.corner = ? AND (p.user_id = ? OR p.user_id IN (SELECT following_id FROM follows WHERE follower_id = ?))`
+	exclSQL2, exclArgs2 := ExcludeClause("p.user_id", excludeUserIDs)
+	whereClause := ` WHERE p.corner = ? AND (p.user_id = ? OR p.user_id IN (SELECT following_id FROM follows WHERE follower_id = ?))` + exclSQL2
 	orderClause := postOrderClause(sort, false)
 	query := postSelectBase + whereClause + orderClause + ` LIMIT ? OFFSET ?`
 
 	queryArgs := []interface{}{userID, corner, userID, userID}
+	queryArgs = append(queryArgs, exclArgs2...)
 	if sort == "" || sort == "relevance" {
 		queryArgs = append(queryArgs, seed)
 	}
@@ -419,15 +425,18 @@ func (r *postRepository) Unlike(ctx context.Context, userID uuid.UUID, postID uu
 	return nil
 }
 
-func (r *postRepository) GetLikedBy(ctx context.Context, postID uuid.UUID) ([]PostLikeUser, error) {
+func (r *postRepository) GetLikedBy(ctx context.Context, postID uuid.UUID, excludeUserIDs []uuid.UUID) ([]PostLikeUser, error) {
+	exclSQL, exclArgs := ExcludeClause("pl.user_id", excludeUserIDs)
+	queryArgs := []interface{}{postID}
+	queryArgs = append(queryArgs, exclArgs...)
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT u.id, u.username, u.display_name, u.avatar_url, COALESCE(r.role, '')
 		FROM post_likes pl
 		JOIN users u ON pl.user_id = u.id
 		LEFT JOIN user_roles r ON r.user_id = u.id
-		WHERE pl.post_id = ?
+		WHERE pl.post_id = ?`+exclSQL+`
 		ORDER BY pl.created_at DESC`,
-		postID,
+		queryArgs...,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("get liked by: %w", err)
@@ -535,12 +544,16 @@ func (r *postRepository) DeleteCommentAsAdmin(ctx context.Context, id uuid.UUID)
 	return nil
 }
 
-func (r *postRepository) GetComments(ctx context.Context, postID uuid.UUID, viewerID uuid.UUID, limit, offset int) ([]PostCommentRow, int, error) {
+func (r *postRepository) GetComments(ctx context.Context, postID uuid.UUID, viewerID uuid.UUID, limit, offset int, excludeUserIDs []uuid.UUID) ([]PostCommentRow, int, error) {
 	var total int
-	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM post_comments WHERE post_id = ?`, postID).Scan(&total); err != nil {
+	exclSQL, exclArgs := ExcludeClause("user_id", excludeUserIDs)
+	countArgs := []interface{}{postID}
+	countArgs = append(countArgs, exclArgs...)
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM post_comments WHERE post_id = ?`+exclSQL, countArgs...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count comments: %w", err)
 	}
 
+	exclSQL2, exclArgs2 := ExcludeClause("c.user_id", excludeUserIDs)
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT c.id, c.post_id, c.parent_id, c.user_id, c.body, c.created_at, c.updated_at,
 			u.username, u.display_name, u.avatar_url,
@@ -550,10 +563,10 @@ func (r *postRepository) GetComments(ctx context.Context, postID uuid.UUID, view
 		FROM post_comments c
 		JOIN users u ON c.user_id = u.id
 		LEFT JOIN user_roles r ON r.user_id = c.user_id
-		WHERE c.post_id = ?
+		WHERE c.post_id = ?`+exclSQL2+`
 		ORDER BY c.created_at ASC
 		LIMIT ? OFFSET ?`,
-		viewerID, postID, limit, offset,
+		append([]interface{}{viewerID, postID}, append(exclArgs2, limit, offset)...)...,
 	)
 	if err != nil {
 		return nil, 0, fmt.Errorf("get comments: %w", err)

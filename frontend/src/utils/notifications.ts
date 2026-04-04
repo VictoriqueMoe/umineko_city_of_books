@@ -43,6 +43,16 @@ function routeByReferenceType(notif: Notification): string {
     if (refType === "art") {
         return `/gallery/art/${notif.reference_id}`;
     }
+    if (refType === "mystery") {
+        return `/mysteries/${notif.reference_id}`;
+    }
+    if (refType === "ship" || refType.startsWith("ship_comment:")) {
+        const parts = refType.split(":");
+        if (parts.length === 2) {
+            return `/ships/${notif.reference_id}#comment-${parts[1]}`;
+        }
+        return `/ships/${notif.reference_id}`;
+    }
     return `/theory/${notif.reference_id}`;
 }
 
@@ -56,6 +66,12 @@ function categoryFromReferenceType(notif: Notification): NotificationCategory {
     }
     if (refType === "theory" || refType === "response") {
         return "theories";
+    }
+    if (refType === "mystery") {
+        return "game_board";
+    }
+    if (refType === "ship" || refType.startsWith("ship_comment:")) {
+        return "social";
     }
     return "social";
 }
@@ -134,6 +150,36 @@ const notificationConfigs: Record<NotificationType, NotificationConfig> = {
     content_edited: {
         text: "edited your content",
         category: "dynamic",
+        route: routeByReferenceType,
+    },
+    mystery_attempt: {
+        text: "submitted an attempt on your mystery",
+        category: "game_board",
+        route: notif => `/mysteries/${notif.reference_id}`,
+    },
+    mystery_attempt_vote: {
+        text: "voted on your attempt",
+        category: "game_board",
+        route: notif => `/mysteries/${notif.reference_id}`,
+    },
+    mystery_solved: {
+        text: "chose your attempt as the winner!",
+        category: "game_board",
+        route: notif => `/mysteries/${notif.reference_id}`,
+    },
+    ship_commented: {
+        text: "commented on your ship",
+        category: "social",
+        route: routeByReferenceType,
+    },
+    ship_comment_reply: {
+        text: "replied to your comment",
+        category: "social",
+        route: routeByReferenceType,
+    },
+    ship_comment_liked: {
+        text: "liked your comment",
+        category: "social",
         route: routeByReferenceType,
     },
 };

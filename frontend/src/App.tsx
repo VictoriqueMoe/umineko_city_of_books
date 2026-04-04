@@ -26,6 +26,16 @@ import { AdminAuditLog } from "./pages/admin/AdminAuditLog";
 import { AdminInvites } from "./pages/admin/AdminInvites";
 import { AdminReports } from "./pages/admin/AdminReports";
 import { AdminContentRules } from "./pages/admin/AdminContentRules";
+import { AdminAnnouncements as AdminAnnouncementsPage } from "./pages/admin/AdminAnnouncements";
+import { AnnouncementsPage as AnnouncementsListPage } from "./pages/announcements/AnnouncementsPage";
+import { linkify } from "./utils/linkify";
+import { AnnouncementDetailPage } from "./pages/announcements/AnnouncementDetailPage";
+import { MysteryListPage } from "./pages/mysteries/MysteryListPage";
+import { MysteryDetailPage } from "./pages/mysteries/MysteryDetailPage";
+import { CreateMysteryPage } from "./pages/mysteries/CreateMysteryPage";
+import { ShipsListPage } from "./pages/ships/ShipsListPage";
+import { ShipDetailPage } from "./pages/ships/ShipDetailPage";
+import { CreateShipPage } from "./pages/ships/CreateShipPage";
 import { SocialFeedPage } from "./pages/feed/SocialFeedPage";
 import { PostDetailPage } from "./pages/feed/PostDetailPage";
 import { UsersPage } from "./pages/users/UsersPage";
@@ -38,12 +48,23 @@ import { NotificationsPage } from "./pages/notifications/NotificationsPage";
 
 const homePageRoutes: Record<string, string> = {
     theories: "/theories",
+    theories_higurashi: "/theories/higurashi",
     game_board: "/game-board",
+    game_board_umineko: "/game-board/umineko",
+    game_board_higurashi: "/game-board/higurashi",
+    game_board_ciconia: "/game-board/ciconia",
+    gallery: "/gallery",
+    gallery_umineko: "/gallery/umineko",
+    gallery_higurashi: "/gallery/higurashi",
+    gallery_ciconia: "/gallery/ciconia",
+    quotes: "/quotes",
+    mysteries: "/mysteries",
+    ships: "/ships",
 };
 
 function HomePage() {
     const { user } = useAuth();
-    const target = homePageRoutes[user?.home_page ?? "theories"] ?? "/theories";
+    const target = homePageRoutes[user?.home_page ?? "game_board"] ?? "/game-board";
     return <Navigate to={target} replace />;
 }
 
@@ -68,7 +89,7 @@ function AnnouncementBanner() {
                 overflowWrap: "anywhere" as const,
             }}
         >
-            {banner}
+            {linkify(banner)}
         </div>
     );
 }
@@ -100,6 +121,7 @@ function AppLayout() {
                     <Routes>
                         <Route path="/" element={<HomePage />} />
                         <Route path="/theories" element={<FeedPage />} />
+                        <Route path="/theories/higurashi" element={<FeedPage series="higurashi" />} />
                         <Route path="/game-board" element={<SocialFeedPage />} />
                         <Route path="/game-board/umineko" element={<SocialFeedPage corner="umineko" />} />
                         <Route path="/game-board/higurashi" element={<SocialFeedPage corner="higurashi" />} />
@@ -112,6 +134,12 @@ function AppLayout() {
                         <Route path="/gallery/art/:id" element={<ArtDetailPage />} />
                         <Route path="/gallery/view/:id" element={<GalleryDetailPage />} />
                         <Route path="/theory/:id" element={<TheoryPage />} />
+                        <Route path="/announcements" element={<AnnouncementsListPage />} />
+                        <Route path="/announcements/:id" element={<AnnouncementDetailPage />} />
+                        <Route path="/mysteries" element={<MysteryListPage />} />
+                        <Route path="/mystery/:id" element={<MysteryDetailPage />} />
+                        <Route path="/ships" element={<ShipsListPage />} />
+                        <Route path="/ships/:id" element={<ShipDetailPage />} />
                         <Route path="/quotes" element={<QuoteBrowserPage />} />
                         <Route path="/users" element={<UsersPage />} />
                         <Route path="/user/:username" element={<ProfilePage />} />
@@ -120,6 +148,9 @@ function AppLayout() {
                         <Route element={<ProtectedRoute />}>
                             <Route path="/notifications" element={<NotificationsPage />} />
                             <Route path="/theory/new" element={<CreateTheoryPage />} />
+                            <Route path="/theory/higurashi/new" element={<CreateTheoryPage series="higurashi" />} />
+                            <Route path="/mystery/new" element={<CreateMysteryPage />} />
+                            <Route path="/ships/new" element={<CreateShipPage />} />
                             <Route path="/theory/:id/edit" element={<EditTheoryPage />} />
                             <Route path="/my-theories" element={<MyTheoriesPage />} />
                             <Route path="/settings" element={<SettingsPage />} />
@@ -136,6 +167,7 @@ function AppLayout() {
                                 <Route path="settings" element={<AdminSettings />} />
                                 <Route path="reports" element={<AdminReports />} />
                                 <Route path="content-rules" element={<AdminContentRules />} />
+                                <Route path="announcements" element={<AdminAnnouncementsPage />} />
                                 <Route path="audit-log" element={<AdminAuditLog />} />
                             </Route>
                         </Route>

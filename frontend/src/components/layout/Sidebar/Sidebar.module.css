@@ -125,6 +125,21 @@
     margin-left: auto;
 }
 
+.newBadge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.1rem 0.4rem;
+    border-radius: 9px;
+    background: #ff3333;
+    color: #fff;
+    font-size: 0.6rem;
+    font-weight: 700;
+    margin-left: auto;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
 .footer {
     padding: 1rem 1.25rem;
     border-top: 1px solid rgba(var(--gold-rgb), 0.1);

@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"umineko_city_of_books/internal/authz"
+	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/credibility"
 	"umineko_city_of_books/internal/dto"
@@ -36,6 +37,7 @@ type (
 		repo           repository.TheoryRepository
 		userRepo       repository.UserRepository
 		authz          authz.Service
+		blockSvc       block.Service
 		notifService   notification.Service
 		settingsSvc    settings.Service
 		credibilitySvc *credibility.Service
@@ -47,6 +49,7 @@ func NewService(
 	repo repository.TheoryRepository,
 	userRepo repository.UserRepository,
 	authzService authz.Service,
+	blockSvc block.Service,
 	notifService notification.Service,
 	settingsSvc settings.Service,
 	credibilitySvc *credibility.Service,
@@ -56,6 +59,7 @@ func NewService(
 		repo:           repo,
 		userRepo:       userRepo,
 		authz:          authzService,
+		blockSvc:       blockSvc,
 		notifService:   notifService,
 		settingsSvc:    settingsSvc,
 		credibilitySvc: credibilitySvc,
@@ -118,7 +122,8 @@ func (s *service) GetTheoryDetail(ctx context.Context, id uuid.UUID, userID uuid
 }
 
 func (s *service) ListTheories(ctx context.Context, p params.ListParams, userID uuid.UUID) (*dto.TheoryListResponse, error) {
-	theories, total, err := s.repo.List(ctx, p, userID)
+	blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, userID)
+	theories, total, err := s.repo.List(ctx, p, userID, blockedIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -177,12 +182,16 @@ func (s *service) CreateResponse(ctx context.Context, theoryID uuid.UUID, userID
 		}
 	}
 
+	theoryAuthorID, err := s.repo.GetTheoryAuthorID(ctx, theoryID)
+	if err != nil {
+		return uuid.Nil, err
+	}
+	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, theoryAuthorID); blocked {
+		return uuid.Nil, block.ErrUserBlocked
+	}
+
 	if req.ParentID == nil {
-		authorID, err := s.repo.GetTheoryAuthorID(ctx, theoryID)
-		if err != nil {
-			return uuid.Nil, err
-		}
-		if authorID == userID {
+		if theoryAuthorID == userID {
 			return uuid.Nil, ErrCannotRespondToOwnTheory
 		}
 	}
@@ -193,7 +202,7 @@ func (s *service) CreateResponse(ctx context.Context, theoryID uuid.UUID, userID
 	}
 
 	go func() {
-		s.resolveEvidenceWeights(ctx, id)
+		s.resolveEvidenceWeights(ctx, theoryID, id)
 		s.credibilitySvc.Recalculate(ctx, theoryID)
 	}()
 
@@ -246,7 +255,19 @@ func (s *service) CreateResponse(ctx context.Context, theoryID uuid.UUID, userID
 	return id, nil
 }
 
-func (s *service) resolveEvidenceWeights(ctx context.Context, responseID uuid.UUID) {
+func (s *service) resolveEvidenceWeights(ctx context.Context, theoryID uuid.UUID, responseID uuid.UUID) {
+	seriesStr, err := s.repo.GetTheorySeries(ctx, theoryID)
+	if err != nil {
+		logger.Log.Error().Err(err).Str("theory_id", theoryID.String()).Msg("failed to get theory series for weight resolution")
+		return
+	}
+
+	series, err := quotefinder.ParseSeries(seriesStr)
+	if err != nil {
+		logger.Log.Warn().Err(err).Str("series", seriesStr).Msg("theory has invalid series, defaulting to umineko")
+		series = quotefinder.SeriesUmineko
+	}
+
 	evidence, err := s.repo.GetResponseEvidence(ctx, responseID)
 	if err != nil {
 		logger.Log.Error().Err(err).Msg("failed to get response evidence for weight resolution")
@@ -256,9 +277,9 @@ func (s *service) resolveEvidenceWeights(ctx context.Context, responseID uuid.UU
 	for _, ev := range evidence {
 		var q *quotefinder.Quote
 		if ev.AudioID != "" {
-			q, err = s.quoteClient.GetByAudioID(ev.AudioID)
+			q, err = s.quoteClient.GetByAudioID(series, ev.AudioID)
 		} else if ev.QuoteIndex != nil {
-			q, err = s.quoteClient.GetByIndex(*ev.QuoteIndex)
+			q, err = s.quoteClient.GetByIndex(series, *ev.QuoteIndex)
 		}
 		if err != nil {
 			logger.Log.Warn().Err(err).Int("evidence_id", ev.ID).Msg("failed to resolve quote for truth weight")
@@ -292,6 +313,14 @@ func (s *service) DeleteResponse(ctx context.Context, id uuid.UUID, userID uuid.
 }
 
 func (s *service) VoteTheory(ctx context.Context, userID uuid.UUID, theoryID uuid.UUID, value int) error {
+	authorID, err := s.repo.GetTheoryAuthorID(ctx, theoryID)
+	if err != nil {
+		return err
+	}
+	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, authorID); blocked {
+		return block.ErrUserBlocked
+	}
+
 	if err := s.repo.VoteTheory(ctx, userID, theoryID, value); err != nil {
 		return err
 	}
@@ -324,6 +353,14 @@ func (s *service) VoteTheory(ctx context.Context, userID uuid.UUID, theoryID uui
 }
 
 func (s *service) VoteResponse(ctx context.Context, userID uuid.UUID, responseID uuid.UUID, value int) error {
+	respAuthorID, _, err := s.repo.GetResponseInfo(ctx, responseID)
+	if err != nil {
+		return err
+	}
+	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, respAuthorID); blocked {
+		return block.ErrUserBlocked
+	}
+
 	if err := s.repo.VoteResponse(ctx, userID, responseID, value); err != nil {
 		return err
 	}

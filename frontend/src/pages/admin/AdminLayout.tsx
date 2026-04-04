@@ -54,6 +54,14 @@ export function AdminLayout() {
                     )}
                     {can(user?.role, "manage_settings") && (
                         <NavLink
+                            to="/admin/announcements"
+                            className={({ isActive }) => `${styles.tab}${isActive ? ` ${styles.tabActive}` : ""}`}
+                        >
+                            Announcements
+                        </NavLink>
+                    )}
+                    {can(user?.role, "manage_settings") && (
+                        <NavLink
                             to="/admin/settings"
                             className={({ isActive }) => `${styles.tab}${isActive ? ` ${styles.tabActive}` : ""}`}
                         >

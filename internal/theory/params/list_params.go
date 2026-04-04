@@ -8,12 +8,13 @@ type (
 		Episode  int
 		AuthorID uuid.UUID
 		Search   string
+		Series   string
 		Limit    int
 		Offset   int
 	}
 )
 
-func NewListParams(sort string, episode int, authorID uuid.UUID, search string, limit, offset int) ListParams {
+func NewListParams(sort string, episode int, authorID uuid.UUID, search string, series string, limit, offset int) ListParams {
 	validSorts := map[string]bool{
 		"new": true, "old": true,
 		"popular": true, "popular_asc": true,
@@ -32,11 +33,15 @@ func NewListParams(sort string, episode int, authorID uuid.UUID, search string, 
 	if offset < 0 {
 		offset = 0
 	}
+	if series == "" {
+		series = "umineko"
+	}
 	return ListParams{
 		Sort:     sort,
 		Episode:  episode,
 		AuthorID: authorID,
 		Search:   search,
+		Series:   series,
 		Limit:    limit,
 		Offset:   offset,
 	}

@@ -52,6 +52,13 @@ type (
 	}
 )
 
+var roleRank = map[role.Role]int{
+	"":                   0,
+	authz.RoleModerator:  1,
+	authz.RoleAdmin:      2,
+	authz.RoleSuperAdmin: 3,
+}
+
 func NewService(
 	userRepo repository.UserRepository,
 	roleRepo repository.RoleRepository,
@@ -80,7 +87,11 @@ func (s *service) guardedAction(ctx context.Context, actorID, targetID uuid.UUID
 	actorRole, _ := s.authz.GetRole(ctx, actorID)
 	targetRole, _ := s.authz.GetRole(ctx, targetID)
 
-	if targetRole == authz.RoleSuperAdmin && actorRole != authz.RoleSuperAdmin {
+	if targetRole == authz.RoleSuperAdmin {
+		return ErrProtectedUser
+	}
+
+	if roleRank[targetRole] >= roleRank[actorRole] {
 		return ErrProtectedUser
 	}
 

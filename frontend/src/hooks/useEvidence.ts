@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { EvidenceInput, EvidenceItem, Quote } from "../types/api";
+import type { Series } from "../api/endpoints";
 
 const QUOTE_API = "https://quotes.auaurora.moe/api/v1";
 
@@ -15,13 +16,13 @@ function quoteKey(quote: Quote): string {
     return `index:${quote.index}`;
 }
 
-async function fetchQuoteByAudioId(audioId: string): Promise<Quote | null> {
+async function fetchQuoteByAudioId(series: Series, audioId: string): Promise<Quote | null> {
     const firstId = audioId.split(",")[0].trim();
     if (!firstId) {
         return null;
     }
     try {
-        const response = await fetch(`${QUOTE_API}/umineko/quote/${firstId}`);
+        const response = await fetch(`${QUOTE_API}/${series}/quote/${firstId}`);
         if (!response.ok) {
             return null;
         }
@@ -31,9 +32,9 @@ async function fetchQuoteByAudioId(audioId: string): Promise<Quote | null> {
     }
 }
 
-async function fetchQuoteByIndex(index: number): Promise<Quote | null> {
+async function fetchQuoteByIndex(series: Series, index: number): Promise<Quote | null> {
     try {
-        const response = await fetch(`${QUOTE_API}/umineko/quote/index/${index}`);
+        const response = await fetch(`${QUOTE_API}/${series}/quote/index/${index}`);
         if (!response.ok) {
             return null;
         }
@@ -43,7 +44,7 @@ async function fetchQuoteByIndex(index: number): Promise<Quote | null> {
     }
 }
 
-export function useEvidence(initialEvidence?: EvidenceItem[]) {
+export function useEvidence(initialEvidence?: EvidenceItem[], series: Series = "umineko") {
     const [evidence, setEvidence] = useState<SelectedEvidence[]>([]);
     const [pickerOpen, setPickerOpen] = useState(false);
     const initialised = useRef(false);
@@ -58,9 +59,9 @@ export function useEvidence(initialEvidence?: EvidenceItem[]) {
             initialEvidence.map(async ev => {
                 let quote: Quote | null = null;
                 if (ev.audio_id) {
-                    quote = await fetchQuoteByAudioId(ev.audio_id);
+                    quote = await fetchQuoteByAudioId(series, ev.audio_id);
                 } else if (ev.quote_index !== undefined) {
-                    quote = await fetchQuoteByIndex(ev.quote_index);
+                    quote = await fetchQuoteByIndex(series, ev.quote_index);
                 }
                 if (!quote) {
                     return null;
@@ -71,7 +72,7 @@ export function useEvidence(initialEvidence?: EvidenceItem[]) {
             const resolved = results.filter((r): r is SelectedEvidence => r !== null);
             setEvidence(resolved);
         });
-    }, [initialEvidence]);
+    }, [initialEvidence, series]);
 
     const addQuote = useCallback((quote: Quote) => {
         const key = quoteKey(quote);

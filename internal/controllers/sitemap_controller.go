@@ -91,6 +91,8 @@ func (h *SitemapHandler) static(ctx fiber.Ctx) error {
 			{Loc: h.baseURL + "/gallery/higurashi", LastMod: now},
 			{Loc: h.baseURL + "/gallery/ciconia", LastMod: now},
 			{Loc: h.baseURL + "/quotes", LastMod: now},
+			{Loc: h.baseURL + "/mysteries", LastMod: now},
+			{Loc: h.baseURL + "/ships", LastMod: now},
 			{Loc: h.baseURL + "/login", LastMod: now},
 		},
 	}

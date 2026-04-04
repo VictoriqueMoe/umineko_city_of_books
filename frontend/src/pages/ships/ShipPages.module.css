@@ -1,0 +1,389 @@
+.page {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.heading {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    color: var(--gold);
+    margin-bottom: 1rem;
+    letter-spacing: 0.05em;
+}
+
+.controls {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+.toggleWrap {
+    min-width: 200px;
+}
+
+.list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+}
+
+.card {
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--purple-rgb), 0.3);
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    transition:
+        border-color 0.2s,
+        transform 0.2s;
+    display: flex;
+    flex-direction: column;
+}
+
+.card:hover {
+    border-color: var(--gold);
+    transform: translateY(-2px);
+}
+
+.cardCrack {
+    border-color: rgba(229, 57, 53, 0.5);
+}
+
+.cardImage {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    background: var(--bg-void);
+    display: block;
+}
+
+.cardImagePlaceholder {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: linear-gradient(135deg, rgba(var(--purple-rgb), 0.1), rgba(var(--gold-rgb), 0.05));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: 2rem;
+}
+
+.cardBody {
+    padding: 0.9rem 1rem;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.cardTitle {
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    color: var(--gold);
+    margin: 0;
+}
+
+.characterPills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.characterPill {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 12px;
+    background: rgba(var(--purple-rgb), 0.2);
+    color: var(--text);
+}
+
+.characterPillUmineko {
+    background: rgba(156, 39, 176, 0.25);
+    color: #ce93d8;
+}
+
+.characterPillHigurashi {
+    background: rgba(229, 57, 53, 0.22);
+    color: #ef9a9a;
+}
+
+.characterPillOc {
+    background: rgba(255, 193, 7, 0.22);
+    color: #ffd54f;
+}
+
+.xDivider {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    align-self: center;
+}
+
+.cardMeta {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.cardStats {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: auto;
+}
+
+.voteChip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    padding: 0.15rem 0.5rem;
+    background: rgba(var(--purple-rgb), 0.15);
+    border-radius: 10px;
+    color: var(--text);
+    font-weight: 600;
+}
+
+.voteChipCrack {
+    background: rgba(229, 57, 53, 0.2);
+    color: #ef9a9a;
+}
+
+.crackshipBadge {
+    font-size: 0.65rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 700;
+    background: rgba(229, 57, 53, 0.25);
+    color: #ef9a9a;
+}
+
+.cardDescription {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.formPage {
+    max-width: 700px;
+    margin: 0 auto;
+}
+
+.formHeading {
+    font-family: var(--font-display);
+    font-size: 1.4rem;
+    color: var(--gold);
+    margin-bottom: 1rem;
+}
+
+.formSection {
+    margin-bottom: 1.25rem;
+}
+
+.formLabel {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-bottom: 0.35rem;
+    font-weight: 600;
+}
+
+.formTextarea {
+    width: 100%;
+    min-height: 100px;
+    background: var(--bg-void);
+    border: 1px solid rgba(var(--purple-rgb), 0.3);
+    color: var(--text);
+    padding: 0.75rem;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    resize: vertical;
+    box-sizing: border-box;
+}
+
+.formTextarea:focus {
+    outline: none;
+    border-color: var(--gold);
+}
+
+.formActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+.picker {
+    background: var(--bg-void);
+    border: 1px solid rgba(var(--purple-rgb), 0.3);
+    border-radius: 6px;
+    padding: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.pickerTabs {
+    display: flex;
+    gap: 0.25rem;
+    margin-bottom: 0.5rem;
+}
+
+.pickerTab {
+    background: none;
+    border: 1px solid rgba(var(--purple-rgb), 0.3);
+    color: var(--text-muted);
+    padding: 0.3rem 0.75rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.15s;
+}
+
+.pickerTab:hover {
+    color: var(--gold);
+}
+
+.pickerTabActive {
+    background: rgba(var(--gold-rgb), 0.15);
+    color: var(--gold);
+    border-color: var(--gold);
+}
+
+.pickerBody {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.pickerBody > *:first-child {
+    flex: 1;
+}
+
+.selectedCharacters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.5rem;
+}
+
+.selectedCharacter {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.6rem;
+    border-radius: 14px;
+    background: rgba(var(--purple-rgb), 0.2);
+    font-size: 0.8rem;
+    color: var(--text);
+}
+
+.removeCharBtn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 0;
+    line-height: 1;
+}
+
+.removeCharBtn:hover {
+    color: #e53935;
+}
+
+.back {
+    cursor: pointer;
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+    display: inline-block;
+    font-size: 0.9rem;
+}
+
+.back:hover {
+    color: var(--gold);
+}
+
+.detailHeader {
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--purple-rgb), 0.3);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 1rem;
+}
+
+.detailImage {
+    width: 100%;
+    max-height: 400px;
+    object-fit: cover;
+    display: block;
+}
+
+.detailBody {
+    padding: 1.25rem;
+}
+
+.detailTitle {
+    font-family: var(--font-display);
+    font-size: 1.4rem;
+    color: var(--gold);
+    margin: 0 0 0.5rem;
+}
+
+.detailMeta {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+}
+
+.detailDescription {
+    color: var(--text);
+    line-height: 1.6;
+    white-space: pre-wrap;
+    margin-bottom: 1rem;
+}
+
+.voteRow {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(var(--purple-rgb), 0.2);
+}
+
+.voteScore {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--text);
+    min-width: 2rem;
+    text-align: center;
+}
+
+.commentsSection {
+    margin-top: 1.5rem;
+}
+
+.commentsTitle {
+    font-family: var(--font-display);
+    color: var(--gold);
+    font-size: 1.05rem;
+    margin-bottom: 0.75rem;
+}
+
+@media (max-width: 600px) {
+    .list {
+        grid-template-columns: 1fr;
+    }
+}

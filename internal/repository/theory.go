@@ -18,7 +18,7 @@ type (
 	TheoryRepository interface {
 		Create(ctx context.Context, userID uuid.UUID, req dto.CreateTheoryRequest) (uuid.UUID, error)
 		GetByID(ctx context.Context, id uuid.UUID) (*dto.TheoryDetailResponse, error)
-		List(ctx context.Context, p params.ListParams, userID uuid.UUID) ([]dto.TheoryResponse, int, error)
+		List(ctx context.Context, p params.ListParams, userID uuid.UUID, excludeUserIDs []uuid.UUID) ([]dto.TheoryResponse, int, error)
 		Update(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.CreateTheoryRequest) error
 		UpdateAsAdmin(ctx context.Context, id uuid.UUID, req dto.CreateTheoryRequest) error
 		Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
@@ -41,6 +41,7 @@ type (
 		GetResponseEvidenceWeights(ctx context.Context, theoryID uuid.UUID) (withLoveSum float64, withoutLoveSum float64, err error)
 		SetEvidenceTruthWeight(ctx context.Context, evidenceID int, weight float64) error
 		GetTheoryTitle(ctx context.Context, theoryID uuid.UUID) (string, error)
+		GetTheorySeries(ctx context.Context, theoryID uuid.UUID) (string, error)
 	}
 
 	theoryRepository struct {
@@ -57,9 +58,13 @@ func (r *theoryRepository) Create(ctx context.Context, userID uuid.UUID, req dto
 
 	theoryID := uuid.New()
 
+	series := req.Series
+	if series == "" {
+		series = "umineko"
+	}
 	_, err = tx.ExecContext(ctx,
-		`INSERT INTO theories (id, user_id, title, body, episode) VALUES (?, ?, ?, ?, ?)`,
-		theoryID, userID, req.Title, req.Body, req.Episode,
+		`INSERT INTO theories (id, user_id, title, body, episode, series) VALUES (?, ?, ?, ?, ?, ?)`,
+		theoryID, userID, req.Title, req.Body, req.Episode, series,
 	)
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("insert theory: %w", err)
@@ -87,13 +92,13 @@ func (r *theoryRepository) GetByID(ctx context.Context, id uuid.UUID) (*dto.Theo
 	var author dto.UserResponse
 
 	err := r.db.QueryRowContext(ctx,
-		`SELECT t.id, t.title, t.body, t.episode, t.credibility_score, t.created_at,
+		`SELECT t.id, t.title, t.body, t.episode, t.series, t.credibility_score, t.created_at,
 		        u.id, u.username, u.display_name, u.avatar_url,
 		        COALESCE((SELECT role FROM user_roles WHERE user_id = u.id LIMIT 1), '')
 		 FROM theories t
 		 JOIN users u ON t.user_id = u.id
 		 WHERE t.id = ?`, id,
-	).Scan(&t.ID, &t.Title, &t.Body, &t.Episode, &t.CredibilityScore, &t.CreatedAt,
+	).Scan(&t.ID, &t.Title, &t.Body, &t.Episode, &t.Series, &t.CredibilityScore, &t.CreatedAt,
 		&author.ID, &author.Username, &author.DisplayName, &author.AvatarURL, &author.Role)
 
 	if errors.Is(err, sql.ErrNoRows) {
@@ -121,9 +126,13 @@ func (r *theoryRepository) GetByID(ctx context.Context, id uuid.UUID) (*dto.Theo
 	return &t, nil
 }
 
-func (r *theoryRepository) List(ctx context.Context, p params.ListParams, userID uuid.UUID) ([]dto.TheoryResponse, int, error) {
+func (r *theoryRepository) List(ctx context.Context, p params.ListParams, userID uuid.UUID, excludeUserIDs []uuid.UUID) ([]dto.TheoryResponse, int, error) {
 	var conditions []string
 	var args []interface{}
+	if p.Series != "" {
+		conditions = append(conditions, "t.series = ?")
+		args = append(args, p.Series)
+	}
 	if p.Episode > 0 {
 		conditions = append(conditions, "t.episode = ?")
 		args = append(args, p.Episode)
@@ -144,6 +153,14 @@ func (r *theoryRepository) List(ctx context.Context, p params.ListParams, userID
 			where += " AND " + c
 		}
 	}
+
+	exclSQL, exclArgs := ExcludeClause("t.user_id", excludeUserIDs)
+	if where == "" && exclSQL != "" {
+		where = " WHERE 1=1" + exclSQL
+	} else {
+		where += exclSQL
+	}
+	args = append(args, exclArgs...)
 
 	var total int
 	countArgs := make([]interface{}, len(args))
@@ -176,7 +193,7 @@ func (r *theoryRepository) List(ctx context.Context, p params.ListParams, userID
 	}
 
 	query := fmt.Sprintf(
-		`SELECT t.id, t.title, t.body, t.episode, t.credibility_score, t.created_at,
+		`SELECT t.id, t.title, t.body, t.episode, t.series, t.credibility_score, t.created_at,
 		        u.id, u.username, u.display_name, u.avatar_url,
 		        COALESCE((SELECT role FROM user_roles WHERE user_id = u.id LIMIT 1), '')
 		 FROM theories t
@@ -195,7 +212,7 @@ func (r *theoryRepository) List(ctx context.Context, p params.ListParams, userID
 	for rows.Next() {
 		var t dto.TheoryResponse
 		var author dto.UserResponse
-		if err := rows.Scan(&t.ID, &t.Title, &t.Body, &t.Episode, &t.CredibilityScore, &t.CreatedAt,
+		if err := rows.Scan(&t.ID, &t.Title, &t.Body, &t.Episode, &t.Series, &t.CredibilityScore, &t.CreatedAt,
 			&author.ID, &author.Username, &author.DisplayName, &author.AvatarURL, &author.Role); err != nil {
 			return nil, 0, fmt.Errorf("scan theory: %w", err)
 		}
@@ -588,6 +605,15 @@ func (r *theoryRepository) GetResponseInfo(ctx context.Context, responseID uuid.
 		return uuid.Nil, uuid.Nil, fmt.Errorf("get response info: %w", err)
 	}
 	return authorID, theoryID, nil
+}
+
+func (r *theoryRepository) GetTheorySeries(ctx context.Context, theoryID uuid.UUID) (string, error) {
+	var series string
+	err := r.db.QueryRowContext(ctx, `SELECT series FROM theories WHERE id = ?`, theoryID).Scan(&series)
+	if err != nil {
+		return "", fmt.Errorf("get theory series: %w", err)
+	}
+	return series, nil
 }
 
 func (r *theoryRepository) GetTheoryTitle(ctx context.Context, theoryID uuid.UUID) (string, error) {

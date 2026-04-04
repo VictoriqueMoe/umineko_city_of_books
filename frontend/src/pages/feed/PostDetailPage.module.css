@@ -50,3 +50,14 @@
     font-size: 0.9rem;
     font-style: italic;
 }
+
+.blockedNotice {
+    color: #e57373;
+    font-size: 0.9rem;
+    text-align: center;
+    padding: 0.75rem;
+    background: rgba(220, 50, 50, 0.1);
+    border: 1px solid rgba(220, 50, 50, 0.25);
+    border-radius: 4px;
+    margin-top: 0.5rem;
+}

@@ -8,6 +8,7 @@ import { PostComposer } from "../../components/post/PostComposer/PostComposer";
 import { Pagination } from "../../components/Pagination/Pagination";
 import { Input } from "../../components/Input/Input";
 import { RulesBox } from "../../components/RulesBox/RulesBox";
+import { AnnouncementCard } from "../../components/AnnouncementCard/AnnouncementCard";
 import styles from "./SocialFeedPage.module.css";
 
 type PostSort = "relevance" | "new" | "likes" | "comments" | "views";
@@ -91,6 +92,7 @@ export function SocialFeedPage({ corner = "general" }: SocialFeedPageProps) {
     return (
         <div className={styles.page}>
             {CORNER_TITLES[corner] && <h1 className={styles.cornerTitle}>{CORNER_TITLES[corner]}</h1>}
+            <AnnouncementCard />
             <RulesBox page={CORNER_RULES[corner] || "game_board"} />
 
             <div className={styles.controls}>

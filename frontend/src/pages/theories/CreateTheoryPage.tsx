@@ -1,12 +1,12 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router";
 import { useAuth } from "../../hooks/useAuth";
-import { createTheory } from "../../api/endpoints";
+import { createTheory, type Series } from "../../api/endpoints";
 import { TheoryForm } from "../../components/theory/TheoryForm/TheoryForm";
 import { RulesBox } from "../../components/RulesBox/RulesBox";
 import formStyles from "../../components/theory/TheoryForm/TheoryForm.module.css";
 
-export function CreateTheoryPage() {
+export function CreateTheoryPage({ series = "umineko" }: { series?: Series }) {
     const navigate = useNavigate();
     const { user, loading: authLoading } = useAuth();
 
@@ -28,8 +28,9 @@ export function CreateTheoryPage() {
             <TheoryForm
                 submitLabel="Declare Blue Truth"
                 submittingLabel="Declaring..."
+                series={series}
                 onSubmit={async data => {
-                    const result = await createTheory(data);
+                    const result = await createTheory({ ...data, series });
                     navigate(`/theory/${result.id}`);
                 }}
             />

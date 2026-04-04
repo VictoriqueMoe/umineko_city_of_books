@@ -20,7 +20,7 @@ func (s *Service) getAllReportRoutes() []FSetupRoute {
 }
 
 func (s *Service) setupCreateReport(r fiber.Router) {
-	r.Post("/report", middleware.RequireAuth(s.AuthSession), s.createReport)
+	r.Post("/report", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.createReport)
 }
 
 func (s *Service) setupListReports(r fiber.Router) {

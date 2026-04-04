@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { createResponse } from "../../../api/endpoints";
+import { createResponse, type Series } from "../../../api/endpoints";
 import { useEvidence } from "../../../hooks/useEvidence";
+import { getSeriesConfig } from "../../../utils/seriesConfig";
 import { Button } from "../../Button/Button";
 import { Input } from "../../Input/Input";
 import { TextArea } from "../../TextArea/TextArea";
@@ -13,14 +14,22 @@ interface ResponseEditorProps {
     parentId?: string;
     inheritedSide?: "with_love" | "without_love";
     onCreated: () => void;
+    series?: Series;
 }
 
-export function ResponseEditor({ theoryId, parentId, inheritedSide, onCreated }: ResponseEditorProps) {
+export function ResponseEditor({
+    theoryId,
+    parentId,
+    inheritedSide,
+    onCreated,
+    series = "umineko",
+}: ResponseEditorProps) {
+    const cfg = getSeriesConfig(series);
     const [side, setSide] = useState<"with_love" | "without_love" | null>(inheritedSide ?? null);
     const [body, setBody] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
-    const ev = useEvidence();
+    const ev = useEvidence(undefined, series);
     const isReply = parentId !== undefined;
 
     async function handleSubmit(e: React.SubmitEvent) {
@@ -60,16 +69,16 @@ export function ResponseEditor({ theoryId, parentId, inheritedSide, onCreated }:
                             className={`${styles.sideBtn} ${styles.sideBtnWithLove}${side === "with_love" ? ` ${styles.sideBtnWithLoveActive}` : ""}`}
                             onClick={() => setSide("with_love")}
                         >
-                            <span className={styles.sideBtnTitle}>With love, it can be seen</span>
-                            <span className={styles.sideBtnSubtitle}>I support this theory</span>
+                            <span className={styles.sideBtnTitle}>{cfg.withLoveTitle}</span>
+                            <span className={styles.sideBtnSubtitle}>{cfg.withLoveSubtitle}</span>
                         </button>
                         <button
                             type="button"
                             className={`${styles.sideBtn} ${styles.sideBtnWithoutLove}${side === "without_love" ? ` ${styles.sideBtnWithoutLoveActive}` : ""}`}
                             onClick={() => setSide("without_love")}
                         >
-                            <span className={styles.sideBtnTitle}>Without love, it cannot be seen</span>
-                            <span className={styles.sideBtnSubtitle}>I deny this theory</span>
+                            <span className={styles.sideBtnTitle}>{cfg.withoutLoveTitle}</span>
+                            <span className={styles.sideBtnSubtitle}>{cfg.withoutLoveSubtitle}</span>
                         </button>
                     </div>
                 )}
@@ -111,6 +120,7 @@ export function ResponseEditor({ theoryId, parentId, inheritedSide, onCreated }:
                 onClose={ev.closePicker}
                 onSelect={ev.addQuote}
                 selectedKeys={ev.selectedKeys}
+                series={series}
             />
         </>
     );

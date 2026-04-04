@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/follow"
 	"umineko_city_of_books/internal/middleware"
@@ -43,63 +44,63 @@ func (s *Service) getAllPostRoutes() []FSetupRoute {
 }
 
 func (s *Service) setupListPostFeed(r fiber.Router) {
-	r.Get("/posts", middleware.OptionalAuth(s.AuthSession), s.listPostFeed)
+	r.Get("/posts", middleware.OptionalAuth(s.AuthSession, s.AuthzService), s.listPostFeed)
 }
 
 func (s *Service) setupCreatePost(r fiber.Router) {
-	r.Post("/posts", middleware.RequireAuth(s.AuthSession), s.createPost)
+	r.Post("/posts", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.createPost)
 }
 
 func (s *Service) setupGetPost(r fiber.Router) {
-	r.Get("/posts/:id", middleware.OptionalAuth(s.AuthSession), s.getPost)
+	r.Get("/posts/:id", middleware.OptionalAuth(s.AuthSession, s.AuthzService), s.getPost)
 }
 
 func (s *Service) setupUpdatePost(r fiber.Router) {
-	r.Put("/posts/:id", middleware.RequireAuth(s.AuthSession), s.updatePost)
+	r.Put("/posts/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.updatePost)
 }
 
 func (s *Service) setupDeletePost(r fiber.Router) {
-	r.Delete("/posts/:id", middleware.RequireAuth(s.AuthSession), s.deletePost)
+	r.Delete("/posts/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.deletePost)
 }
 
 func (s *Service) setupUploadPostMedia(r fiber.Router) {
-	r.Post("/posts/:id/media", middleware.RequireAuth(s.AuthSession), s.uploadPostMedia)
+	r.Post("/posts/:id/media", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.uploadPostMedia)
 }
 
 func (s *Service) setupDeletePostMedia(r fiber.Router) {
-	r.Delete("/posts/:id/media/:mediaId", middleware.RequireAuth(s.AuthSession), s.deletePostMedia)
+	r.Delete("/posts/:id/media/:mediaId", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.deletePostMedia)
 }
 
 func (s *Service) setupLikePost(r fiber.Router) {
-	r.Post("/posts/:id/like", middleware.RequireAuth(s.AuthSession), s.likePost)
+	r.Post("/posts/:id/like", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.likePost)
 }
 
 func (s *Service) setupUnlikePost(r fiber.Router) {
-	r.Delete("/posts/:id/like", middleware.RequireAuth(s.AuthSession), s.unlikePost)
+	r.Delete("/posts/:id/like", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.unlikePost)
 }
 
 func (s *Service) setupCreateComment(r fiber.Router) {
-	r.Post("/posts/:id/comments", middleware.RequireAuth(s.AuthSession), s.createComment)
+	r.Post("/posts/:id/comments", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.createComment)
 }
 
 func (s *Service) setupUpdateComment(r fiber.Router) {
-	r.Put("/comments/:id", middleware.RequireAuth(s.AuthSession), s.updateComment)
+	r.Put("/comments/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.updateComment)
 }
 
 func (s *Service) setupDeleteComment(r fiber.Router) {
-	r.Delete("/comments/:id", middleware.RequireAuth(s.AuthSession), s.deleteComment)
+	r.Delete("/comments/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.deleteComment)
 }
 
 func (s *Service) setupUploadCommentMedia(r fiber.Router) {
-	r.Post("/comments/:id/media", middleware.RequireAuth(s.AuthSession), s.uploadCommentMedia)
+	r.Post("/comments/:id/media", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.uploadCommentMedia)
 }
 
 func (s *Service) setupLikeComment(r fiber.Router) {
-	r.Post("/comments/:id/like", middleware.RequireAuth(s.AuthSession), s.likeComment)
+	r.Post("/comments/:id/like", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.likeComment)
 }
 
 func (s *Service) setupUnlikeComment(r fiber.Router) {
-	r.Delete("/comments/:id/like", middleware.RequireAuth(s.AuthSession), s.unlikeComment)
+	r.Delete("/comments/:id/like", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.unlikeComment)
 }
 
 func (s *Service) setupGetCornerCounts(r fiber.Router) {
@@ -107,19 +108,19 @@ func (s *Service) setupGetCornerCounts(r fiber.Router) {
 }
 
 func (s *Service) setupListUserPosts(r fiber.Router) {
-	r.Get("/users/:id/posts", middleware.OptionalAuth(s.AuthSession), s.listUserPosts)
+	r.Get("/users/:id/posts", middleware.OptionalAuth(s.AuthSession, s.AuthzService), s.listUserPosts)
 }
 
 func (s *Service) setupFollowUser(r fiber.Router) {
-	r.Post("/users/:id/follow", middleware.RequireAuth(s.AuthSession), s.followUser)
+	r.Post("/users/:id/follow", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.followUser)
 }
 
 func (s *Service) setupUnfollowUser(r fiber.Router) {
-	r.Delete("/users/:id/follow", middleware.RequireAuth(s.AuthSession), s.unfollowUser)
+	r.Delete("/users/:id/follow", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.unfollowUser)
 }
 
 func (s *Service) setupGetFollowStats(r fiber.Router) {
-	r.Get("/users/:id/follow-stats", middleware.OptionalAuth(s.AuthSession), s.getFollowStats)
+	r.Get("/users/:id/follow-stats", middleware.OptionalAuth(s.AuthSession, s.AuthzService), s.getFollowStats)
 }
 
 func (s *Service) setupGetFollowers(r fiber.Router) {
@@ -292,6 +293,9 @@ func (s *Service) likePost(ctx fiber.Ctx) error {
 
 	userID := ctx.Locals("userID").(uuid.UUID)
 	if err := s.PostService.LikePost(ctx.Context(), userID, postID); err != nil {
+		if errors.Is(err, block.ErrUserBlocked) {
+			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "user is blocked"})
+		}
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to like post"})
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
@@ -324,6 +328,9 @@ func (s *Service) createComment(ctx fiber.Ctx) error {
 
 	id, err := s.PostService.CreateComment(ctx.Context(), postID, userID, req)
 	if err != nil {
+		if errors.Is(err, block.ErrUserBlocked) {
+			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "user is blocked"})
+		}
 		if errors.Is(err, postsvc.ErrEmptyBody) {
 			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 		}
@@ -374,6 +381,9 @@ func (s *Service) likeComment(ctx fiber.Ctx) error {
 
 	userID := ctx.Locals("userID").(uuid.UUID)
 	if err := s.PostService.LikeComment(ctx.Context(), userID, commentID); err != nil {
+		if errors.Is(err, block.ErrUserBlocked) {
+			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "user is blocked"})
+		}
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to like comment"})
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
@@ -444,6 +454,9 @@ func (s *Service) followUser(ctx fiber.Ctx) error {
 	if err := s.FollowService.Follow(ctx.Context(), userID, targetID); err != nil {
 		if errors.Is(err, follow.ErrCannotFollowSelf) {
 			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+		}
+		if errors.Is(err, block.ErrUserBlocked) {
+			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "user is blocked"})
 		}
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to follow user"})
 	}

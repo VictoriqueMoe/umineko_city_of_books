@@ -11,6 +11,7 @@ import { Input } from "../../components/Input/Input";
 import { Button } from "../../components/Button/Button";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { RulesBox } from "../../components/RulesBox/RulesBox";
+import { InfoPanel } from "../../components/InfoPanel/InfoPanel";
 import styles from "./ArtGalleryPage.module.css";
 
 type ArtSort = "new" | "popular" | "views";
@@ -178,18 +179,20 @@ export function ArtGalleryPage({ corner = "general" }: ArtGalleryPageProps) {
             {!CORNER_TITLES[corner] && <h1 className={styles.cornerTitle}>Gallery</h1>}
             <RulesBox page={CORNER_RULES[corner] || "gallery"} />
 
-            <div className={styles.infoBox}>
-                <strong>How it works:</strong> Create a gallery from your{" "}
-                <span
-                    className={styles.infoLink}
-                    onClick={() => (user ? navigate(`/user/${user.username}`) : navigate("/login"))}
-                >
-                    profile
-                </span>{" "}
-                (Galleries tab), then upload art into it. You can also upload directly using the Upload Art button
-                above. Share your drawings, cosplay photos, figure collections, and more. Use the "All Art" view to
-                filter by type.
-            </div>
+            <InfoPanel title="How It Works">
+                <p>
+                    Create a gallery from your{" "}
+                    <span
+                        style={{ color: "var(--gold)", cursor: "pointer" }}
+                        onClick={() => (user ? navigate(`/user/${user.username}`) : navigate("/login"))}
+                    >
+                        profile
+                    </span>{" "}
+                    (Galleries tab), then upload art into it. You can also upload directly using the Upload Art button
+                    above. Share your drawings, cosplay photos, figure collections, and more. Use the &quot;All
+                    Art&quot; view to filter by type.
+                </p>
+            </InfoPanel>
 
             <div className={styles.controls}>
                 <div className={styles.viewToggle}>

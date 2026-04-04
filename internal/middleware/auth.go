@@ -10,18 +10,9 @@ import (
 
 func RequirePermission(mgr *session.Manager, authzSvc authz.Service, perm authz.Permission) fiber.Handler {
 	return func(ctx fiber.Ctx) error {
-		cookie := ctx.Cookies(session.CookieName)
-		if cookie == "" {
-			return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "authentication required",
-			})
-		}
-
-		userID, err := mgr.Validate(ctx.Context(), cookie)
+		userID, _, err := authenticateAndCheckBan(ctx, mgr, authzSvc)
 		if err != nil {
-			return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "invalid or expired session",
-			})
+			return err
 		}
 
 		if !authzSvc.Can(ctx.Context(), userID, perm) {
@@ -35,7 +26,7 @@ func RequirePermission(mgr *session.Manager, authzSvc authz.Service, perm authz.
 	}
 }
 
-func OptionalAuth(mgr *session.Manager) fiber.Handler {
+func OptionalAuth(mgr *session.Manager, authzSvc authz.Service) fiber.Handler {
 	return func(ctx fiber.Ctx) error {
 		cookie := ctx.Cookies(session.CookieName)
 		if cookie == "" {
@@ -45,6 +36,12 @@ func OptionalAuth(mgr *session.Manager) fiber.Handler {
 
 		userID, err := mgr.Validate(ctx.Context(), cookie)
 		if err != nil {
+			ctx.Locals("userID", uuid.Nil)
+			return ctx.Next()
+		}
+
+		if authzSvc.IsBanned(ctx.Context(), userID) {
+			mgr.Delete(ctx.Context(), cookie)
 			ctx.Locals("userID", uuid.Nil)
 			return ctx.Next()
 		}
@@ -54,23 +51,39 @@ func OptionalAuth(mgr *session.Manager) fiber.Handler {
 	}
 }
 
-func RequireAuth(mgr *session.Manager) fiber.Handler {
+func RequireAuth(mgr *session.Manager, authzSvc authz.Service) fiber.Handler {
 	return func(ctx fiber.Ctx) error {
-		cookie := ctx.Cookies(session.CookieName)
-		if cookie == "" {
-			return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "authentication required",
-			})
-		}
-
-		userID, err := mgr.Validate(ctx.Context(), cookie)
+		userID, _, err := authenticateAndCheckBan(ctx, mgr, authzSvc)
 		if err != nil {
-			return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "invalid or expired session",
-			})
+			return err
 		}
 
 		ctx.Locals("userID", userID)
 		return ctx.Next()
 	}
+}
+
+func authenticateAndCheckBan(ctx fiber.Ctx, mgr *session.Manager, authzSvc authz.Service) (uuid.UUID, string, error) {
+	cookie := ctx.Cookies(session.CookieName)
+	if cookie == "" {
+		return uuid.Nil, "", ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "authentication required",
+		})
+	}
+
+	userID, err := mgr.Validate(ctx.Context(), cookie)
+	if err != nil {
+		return uuid.Nil, "", ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "invalid or expired session",
+		})
+	}
+
+	if authzSvc.IsBanned(ctx.Context(), userID) {
+		mgr.Delete(ctx.Context(), cookie)
+		return uuid.Nil, "", ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"error": "your account has been banned",
+		})
+	}
+
+	return userID, cookie, nil
 }
