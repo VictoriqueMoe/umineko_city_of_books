@@ -1,13 +1,17 @@
 package controllers
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"strings"
 
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
+	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/middleware"
+	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/utils"
 
@@ -294,10 +298,52 @@ func (s *Service) createAttempt(ctx fiber.Ctx) error {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "body is required"})
 	}
 
+	if req.ParentID != nil {
+		parentAuthor, err := s.MysteryRepo.GetAttemptAuthorID(ctx.Context(), *req.ParentID)
+		if err != nil {
+			return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "parent attempt not found"})
+		}
+		if userID != authorID && userID != parentAuthor {
+			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "only the game master or the attempt author can reply"})
+		}
+	}
+
 	id := uuid.New()
 	if err := s.MysteryRepo.CreateAttempt(ctx.Context(), id, mysteryID, userID, req.ParentID, strings.TrimSpace(req.Body)); err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to create attempt"})
 	}
+
+	go func() {
+		bgCtx := context.Background()
+		baseURL := s.SettingsService.Get(bgCtx, config.SettingBaseURL)
+		linkURL := fmt.Sprintf("%s/mysteries/%s", baseURL, mysteryID)
+
+		subject, body := notification.NotifEmail("Someone", "submitted an attempt on your mystery", "", linkURL)
+		_ = s.NotificationService.Notify(bgCtx, dto.NotifyParams{
+			RecipientID:   authorID,
+			Type:          dto.NotifMysteryAttempt,
+			ReferenceID:   mysteryID,
+			ReferenceType: "mystery",
+			ActorID:       userID,
+			EmailSubject:  subject,
+			EmailBody:     body,
+		})
+
+		if req.ParentID != nil {
+			if parentAuthor, err := s.MysteryRepo.GetAttemptAuthorID(bgCtx, *req.ParentID); err == nil && parentAuthor != authorID {
+				replySubject, replyBody := notification.NotifEmail("Someone", "replied to your attempt", "", linkURL)
+				_ = s.NotificationService.Notify(bgCtx, dto.NotifyParams{
+					RecipientID:   parentAuthor,
+					Type:          dto.NotifMysteryAttempt,
+					ReferenceID:   mysteryID,
+					ReferenceType: "mystery",
+					ActorID:       userID,
+					EmailSubject:  replySubject,
+					EmailBody:     replyBody,
+				})
+			}
+		}
+	}()
 
 	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id})
 }
@@ -350,6 +396,28 @@ func (s *Service) voteAttempt(ctx fiber.Ctx) error {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to vote"})
 	}
 
+	if req.Value != 0 {
+		go func() {
+			bgCtx := context.Background()
+			mysteryID, err := s.MysteryRepo.GetAttemptMysteryID(bgCtx, attemptID)
+			if err != nil {
+				return
+			}
+			baseURL := s.SettingsService.Get(bgCtx, config.SettingBaseURL)
+			linkURL := fmt.Sprintf("%s/mysteries/%s", baseURL, mysteryID)
+			subject, body := notification.NotifEmail("Someone", "voted on your attempt", "", linkURL)
+			_ = s.NotificationService.Notify(bgCtx, dto.NotifyParams{
+				RecipientID:   attemptAuthorID,
+				Type:          dto.NotifMysteryVote,
+				ReferenceID:   mysteryID,
+				ReferenceType: "mystery",
+				ActorID:       userID,
+				EmailSubject:  subject,
+				EmailBody:     body,
+			})
+		}()
+	}
+
 	return ctx.JSON(fiber.Map{"status": "ok"})
 }
 
@@ -381,6 +449,22 @@ func (s *Service) markSolved(ctx fiber.Ctx) error {
 	if err := s.MysteryRepo.MarkSolved(ctx.Context(), mysteryID, req.WinnerID); err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to mark as solved"})
 	}
+
+	go func() {
+		bgCtx := context.Background()
+		baseURL := s.SettingsService.Get(bgCtx, config.SettingBaseURL)
+		linkURL := fmt.Sprintf("%s/mysteries/%s", baseURL, mysteryID)
+		subject, body := notification.NotifEmail("Someone", "chose your attempt as the winner!", "", linkURL)
+		_ = s.NotificationService.Notify(bgCtx, dto.NotifyParams{
+			RecipientID:   req.WinnerID,
+			Type:          dto.NotifMysterySolved,
+			ReferenceID:   mysteryID,
+			ReferenceType: "mystery",
+			ActorID:       userID,
+			EmailSubject:  subject,
+			EmailBody:     body,
+		})
+	}()
 
 	return ctx.JSON(fiber.Map{"status": "ok"})
 }

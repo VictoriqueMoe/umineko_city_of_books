@@ -1,14 +1,16 @@
 import type { EvidenceItem } from "../../../types/api";
+import type { Series } from "../../../api/endpoints";
 import { useResolveQuotes } from "../../../hooks/useResolveQuotes";
 import { TruthChip } from "../../truth/TruthChip/TruthChip";
 import styles from "./EvidenceList.module.css";
 
 interface EvidenceListProps {
     evidence: EvidenceItem[];
+    series?: Series;
 }
 
-export function EvidenceList({ evidence }: EvidenceListProps) {
-    const quotes = useResolveQuotes(evidence);
+export function EvidenceList({ evidence, series = "umineko" }: EvidenceListProps) {
+    const quotes = useResolveQuotes(evidence, series);
 
     if (evidence.length === 0) {
         return null;

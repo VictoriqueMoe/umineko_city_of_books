@@ -277,9 +277,7 @@ export function ArtDetailPage() {
                     />
                 ))}
                 {art.comments.length === 0 && <p className={styles.noComments}>No comments yet.</p>}
-                {art.viewer_blocked && (
-                    <p className={styles.blockedNotice}>You cannot interact with this post.</p>
-                )}
+                {art.viewer_blocked && <p className={styles.blockedNotice}>You cannot interact with this post.</p>}
                 {user && id && !art.viewer_blocked && (
                     <CommentComposer
                         postId={id}

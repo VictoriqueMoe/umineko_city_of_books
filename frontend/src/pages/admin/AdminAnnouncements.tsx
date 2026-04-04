@@ -130,10 +130,7 @@ export function AdminAnnouncements() {
                         </button>
                     </div>
                     {showPreview ? (
-                        <div
-                            className={styles.preview}
-                            dangerouslySetInnerHTML={{ __html: renderMarkdown(body) }}
-                        />
+                        <div className={styles.preview} dangerouslySetInnerHTML={{ __html: renderMarkdown(body) }} />
                     ) : (
                         <textarea
                             className={styles.textarea}
@@ -147,7 +144,11 @@ export function AdminAnnouncements() {
                         <Button variant="ghost" onClick={cancelEdit}>
                             Cancel
                         </Button>
-                        <Button variant="primary" onClick={handleSave} disabled={!title.trim() || !body.trim() || saving}>
+                        <Button
+                            variant="primary"
+                            onClick={handleSave}
+                            disabled={!title.trim() || !body.trim() || saving}
+                        >
                             {saving ? "Saving..." : editingId === "new" ? "Publish" : "Save Changes"}
                         </Button>
                     </div>

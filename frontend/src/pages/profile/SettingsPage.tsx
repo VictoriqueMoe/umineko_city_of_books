@@ -122,7 +122,8 @@ export function SettingsPage() {
         return <div className="loading">Loading settings...</div>;
     }
 
-    const characterEntries = Object.entries(form.characters).sort((a, b) => a[1].localeCompare(b[1]));
+    const uminekoEntries = Object.entries(form.characters.umineko).sort((a, b) => a[1].localeCompare(b[1]));
+    const higurashiEntries = Object.entries(form.characters.higurashi).sort((a, b) => a[1].localeCompare(b[1]));
 
     return (
         <div className={styles.page}>
@@ -176,11 +177,20 @@ export function SettingsPage() {
                                     onChange={e => form.setFavouriteCharacter((e.target as HTMLSelectElement).value)}
                                 >
                                     <option value="">None</option>
-                                    {characterEntries.map(([id, name]) => (
-                                        <option key={id} value={name}>
-                                            {name}
-                                        </option>
-                                    ))}
+                                    <optgroup label="Umineko">
+                                        {uminekoEntries.map(([id, name]) => (
+                                            <option key={`umineko-${id}`} value={name}>
+                                                {name}
+                                            </option>
+                                        ))}
+                                    </optgroup>
+                                    <optgroup label="Higurashi">
+                                        {higurashiEntries.map(([id, name]) => (
+                                            <option key={`higurashi-${id}`} value={name}>
+                                                {name}
+                                            </option>
+                                        ))}
+                                    </optgroup>
                                 </Select>
                             </label>
                             <label className={styles.label}>
@@ -321,6 +331,7 @@ export function SettingsPage() {
                                 <option value="gallery_ciconia">Gallery (Ciconia)</option>
                                 <option value="quotes">Quotes</option>
                                 <option value="mysteries">Mysteries</option>
+                                <option value="ships">Ships</option>
                             </Select>
                         </label>
                     </div>

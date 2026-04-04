@@ -37,7 +37,7 @@ export function TheoryForm({
     const [body, setBody] = useState(initialBody);
     const [episode, setEpisode] = useState(initialEpisode);
     const [submitting, setSubmitting] = useState(false);
-    const ev = useEvidence(initialEvidence);
+    const ev = useEvidence(initialEvidence, series);
 
     async function handleSubmit(e: React.SubmitEvent) {
         e.preventDefault();

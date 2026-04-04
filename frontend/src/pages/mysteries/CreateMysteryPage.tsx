@@ -83,13 +83,13 @@ export function CreateMysteryPage() {
                     information you provide, the pieces should have everything they need to reach the truth.
                 </p>
                 <p>
-                    Set your <strong>red truths</strong>, these are absolute facts that cannot be denied.
-                    Use them to define the boundaries of your mystery. You can also use <strong>purple truths</strong> for
+                    Set your <strong>red truths</strong>, these are absolute facts that cannot be denied. Use them to
+                    define the boundaries of your mystery. You can also use <strong>purple truths</strong> for
                     statements from characters that may or may not be reliable.
                 </p>
                 <p>
-                    Once pieces begin submitting their blue truths, you can reply to dismantle incorrect theories,
-                    add additional red truths if needed, and ultimately select a winner when someone solves it.
+                    Once pieces begin submitting their blue truths, you can reply to dismantle incorrect theories, add
+                    additional red truths if needed, and ultimately select a winner when someone solves it.
                 </p>
             </InfoPanel>
 
@@ -118,7 +118,9 @@ export function CreateMysteryPage() {
                     <option value="nightmare">Nightmare</option>
                 </Select>
 
-                <h3 className={styles.cluesTitle} style={{ marginTop: "1.5rem" }}>Red Truths (Clues)</h3>
+                <h3 className={styles.cluesTitle} style={{ marginTop: "1.5rem" }}>
+                    Red Truths (Clues)
+                </h3>
                 <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginBottom: "0.75rem" }}>
                     These are the absolute truths of your mystery. They cannot be denied.
                 </p>

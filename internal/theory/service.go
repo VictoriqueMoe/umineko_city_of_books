@@ -202,7 +202,7 @@ func (s *service) CreateResponse(ctx context.Context, theoryID uuid.UUID, userID
 	}
 
 	go func() {
-		s.resolveEvidenceWeights(ctx, id)
+		s.resolveEvidenceWeights(ctx, theoryID, id)
 		s.credibilitySvc.Recalculate(ctx, theoryID)
 	}()
 
@@ -255,7 +255,19 @@ func (s *service) CreateResponse(ctx context.Context, theoryID uuid.UUID, userID
 	return id, nil
 }
 
-func (s *service) resolveEvidenceWeights(ctx context.Context, responseID uuid.UUID) {
+func (s *service) resolveEvidenceWeights(ctx context.Context, theoryID uuid.UUID, responseID uuid.UUID) {
+	seriesStr, err := s.repo.GetTheorySeries(ctx, theoryID)
+	if err != nil {
+		logger.Log.Error().Err(err).Str("theory_id", theoryID.String()).Msg("failed to get theory series for weight resolution")
+		return
+	}
+
+	series, err := quotefinder.ParseSeries(seriesStr)
+	if err != nil {
+		logger.Log.Warn().Err(err).Str("series", seriesStr).Msg("theory has invalid series, defaulting to umineko")
+		series = quotefinder.SeriesUmineko
+	}
+
 	evidence, err := s.repo.GetResponseEvidence(ctx, responseID)
 	if err != nil {
 		logger.Log.Error().Err(err).Msg("failed to get response evidence for weight resolution")
@@ -265,9 +277,9 @@ func (s *service) resolveEvidenceWeights(ctx context.Context, responseID uuid.UU
 	for _, ev := range evidence {
 		var q *quotefinder.Quote
 		if ev.AudioID != "" {
-			q, err = s.quoteClient.GetByAudioID(ev.AudioID)
+			q, err = s.quoteClient.GetByAudioID(series, ev.AudioID)
 		} else if ev.QuoteIndex != nil {
-			q, err = s.quoteClient.GetByIndex(*ev.QuoteIndex)
+			q, err = s.quoteClient.GetByIndex(series, *ev.QuoteIndex)
 		}
 		if err != nil {
 			logger.Log.Warn().Err(err).Int("evidence_id", ev.ID).Msg("failed to resolve quote for truth weight")

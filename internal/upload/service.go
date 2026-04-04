@@ -78,7 +78,16 @@ func (s *service) SaveFile(subDir string, filename string, reader io.Reader) (st
 	return fmt.Sprintf("/uploads/%s/%s", subDir, filename), nil
 }
 
-func (s *service) saveMedia(subDir string, id uuid.UUID, contentType string, fileSize int64, maxSize int64, allowedTypes map[string]string, typeErr error, reader io.Reader) (string, error) {
+func (s *service) saveMedia(
+	subDir string,
+	id uuid.UUID,
+	contentType string,
+	fileSize int64,
+	maxSize int64,
+	allowedTypes map[string]string,
+	typeErr error,
+	reader io.Reader,
+) (string, error) {
 	if fileSize > maxSize {
 		return "", fmt.Errorf("file size %dMB exceeds maximum %dMB", fileSize/(1024*1024), maxSize/(1024*1024))
 	}

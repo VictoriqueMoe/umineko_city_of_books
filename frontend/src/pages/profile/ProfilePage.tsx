@@ -259,11 +259,7 @@ export function ProfilePage() {
                             </Button>
                             {follow.stats.follows_you && <span className={styles.followsYou}>Follows you</span>}
                             {blockHook.status && !profile.role && (
-                                <Button
-                                    variant="ghost"
-                                    size="small"
-                                    onClick={blockHook.toggleBlock}
-                                >
+                                <Button variant="ghost" size="small" onClick={blockHook.toggleBlock}>
                                     {blockHook.status.blocking ? "Unblock" : "Block"}
                                 </Button>
                             )}

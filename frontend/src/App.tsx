@@ -33,6 +33,9 @@ import { AnnouncementDetailPage } from "./pages/announcements/AnnouncementDetail
 import { MysteryListPage } from "./pages/mysteries/MysteryListPage";
 import { MysteryDetailPage } from "./pages/mysteries/MysteryDetailPage";
 import { CreateMysteryPage } from "./pages/mysteries/CreateMysteryPage";
+import { ShipsListPage } from "./pages/ships/ShipsListPage";
+import { ShipDetailPage } from "./pages/ships/ShipDetailPage";
+import { CreateShipPage } from "./pages/ships/CreateShipPage";
 import { SocialFeedPage } from "./pages/feed/SocialFeedPage";
 import { PostDetailPage } from "./pages/feed/PostDetailPage";
 import { UsersPage } from "./pages/users/UsersPage";
@@ -56,6 +59,7 @@ const homePageRoutes: Record<string, string> = {
     gallery_ciconia: "/gallery/ciconia",
     quotes: "/quotes",
     mysteries: "/mysteries",
+    ships: "/ships",
 };
 
 function HomePage() {
@@ -134,6 +138,8 @@ function AppLayout() {
                         <Route path="/announcements/:id" element={<AnnouncementDetailPage />} />
                         <Route path="/mysteries" element={<MysteryListPage />} />
                         <Route path="/mystery/:id" element={<MysteryDetailPage />} />
+                        <Route path="/ships" element={<ShipsListPage />} />
+                        <Route path="/ships/:id" element={<ShipDetailPage />} />
                         <Route path="/quotes" element={<QuoteBrowserPage />} />
                         <Route path="/users" element={<UsersPage />} />
                         <Route path="/user/:username" element={<ProfilePage />} />
@@ -144,6 +150,7 @@ function AppLayout() {
                             <Route path="/theory/new" element={<CreateTheoryPage />} />
                             <Route path="/theory/higurashi/new" element={<CreateTheoryPage series="higurashi" />} />
                             <Route path="/mystery/new" element={<CreateMysteryPage />} />
+                            <Route path="/ships/new" element={<CreateShipPage />} />
                             <Route path="/theory/:id/edit" element={<EditTheoryPage />} />
                             <Route path="/my-theories" element={<MyTheoriesPage />} />
                             <Route path="/settings" element={<SettingsPage />} />

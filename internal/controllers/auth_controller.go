@@ -217,6 +217,7 @@ var rulesSettings = map[string]config.SiteSettingDef{
 	"theories":             config.SettingRulesTheories,
 	"theories_higurashi":   config.SettingRulesTheoriesHigurashi,
 	"mysteries":            config.SettingRulesMysteries,
+	"ships":                config.SettingRulesShips,
 	"game_board":           config.SettingRulesGameBoard,
 	"game_board_umineko":   config.SettingRulesGameBoardUmineko,
 	"game_board_higurashi": config.SettingRulesGameBoardHigurashi,

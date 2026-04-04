@@ -87,9 +87,7 @@ export function PostDetailPage() {
                     />
                 ))}
                 {post.comments.length === 0 && <p className={styles.noComments}>No comments yet.</p>}
-                {post.viewer_blocked && (
-                    <p className={styles.blockedNotice}>You cannot interact with this post.</p>
-                )}
+                {post.viewer_blocked && <p className={styles.blockedNotice}>You cannot interact with this post.</p>}
                 {user && !post.viewer_blocked && <CommentComposer postId={post.id} onCreated={fetchPost} />}
             </div>
         </div>

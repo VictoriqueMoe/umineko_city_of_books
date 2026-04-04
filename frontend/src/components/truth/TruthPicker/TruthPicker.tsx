@@ -47,40 +47,43 @@ export function TruthPicker({ isOpen, onClose, onSelect, selectedKeys, series = 
             .catch(() => {});
     }, [series]);
 
-    const doFetch = useCallback(async (q: string, ep: number, char: string, tr: string, off: number) => {
-        setLoading(true);
-        try {
-            if (q.trim()) {
-                const result = await searchQuotes({
-                    query: q.trim(),
-                    episode: ep || undefined,
-                    character: char || undefined,
-                    truth: tr || undefined,
-                    limit: LIMIT,
-                    offset: off,
-                    series,
-                });
-                setQuotes(result.results.map(r => r.quote));
-                setTotal(result.total);
-            } else {
-                const result = await browseQuotes({
-                    episode: ep || undefined,
-                    character: char || undefined,
-                    truth: tr || undefined,
-                    limit: LIMIT,
-                    offset: off,
-                    series,
-                });
-                setQuotes(result.quotes);
-                setTotal(result.total);
+    const doFetch = useCallback(
+        async (q: string, ep: number, char: string, tr: string, off: number) => {
+            setLoading(true);
+            try {
+                if (q.trim()) {
+                    const result = await searchQuotes({
+                        query: q.trim(),
+                        episode: ep || undefined,
+                        character: char || undefined,
+                        truth: tr || undefined,
+                        limit: LIMIT,
+                        offset: off,
+                        series,
+                    });
+                    setQuotes(result.results.map(r => r.quote));
+                    setTotal(result.total);
+                } else {
+                    const result = await browseQuotes({
+                        episode: ep || undefined,
+                        character: char || undefined,
+                        truth: tr || undefined,
+                        limit: LIMIT,
+                        offset: off,
+                        series,
+                    });
+                    setQuotes(result.quotes);
+                    setTotal(result.total);
+                }
+            } catch {
+                setQuotes([]);
+                setTotal(0);
+            } finally {
+                setLoading(false);
             }
-        } catch {
-            setQuotes([]);
-            setTotal(0);
-        } finally {
-            setLoading(false);
-        }
-    }, [series]);
+        },
+        [series],
+    );
 
     useEffect(() => {
         if (isOpen && !initialLoadDone.current) {

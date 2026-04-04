@@ -1,165 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import type { MysteryAttempt, MysteryDetail } from "../../types/api";
-import {
-    addMysteryClue,
-    createMysteryAttempt,
-    deleteMystery,
-    deleteMysteryAttempt,
-    getMystery,
-    markMysterySolved,
-    voteMysteryAttempt,
-} from "../../api/endpoints";
+import type { MysteryDetail } from "../../types/api";
+import { addMysteryClue, createMysteryAttempt, deleteMystery, getMystery } from "../../api/endpoints";
 import { useAuth } from "../../hooks/useAuth";
 import { can } from "../../utils/permissions";
 import { Button } from "../../components/Button/Button";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { relativeTime } from "../../utils/notifications";
+import { AttemptItem } from "./AttemptItem";
 import styles from "./MysteryPages.module.css";
-
-function AttemptItem({
-    attempt,
-    mysteryId,
-    isAuthor,
-    onRefresh,
-    depth,
-}: {
-    attempt: MysteryAttempt;
-    mysteryId: string;
-    isAuthor: boolean;
-    onRefresh: () => void;
-    depth: number;
-}) {
-    const { user } = useAuth();
-    const [showReply, setShowReply] = useState(false);
-    const [replyBody, setReplyBody] = useState("");
-    const [submitting, setSubmitting] = useState(false);
-    const [voteScore, setVoteScore] = useState(attempt.vote_score);
-    const [userVote, setUserVote] = useState(attempt.user_vote ?? 0);
-
-    async function handleVote(value: number) {
-        const newValue = userVote === value ? 0 : value;
-        const oldScore = voteScore;
-        const oldVote = userVote;
-        setVoteScore(voteScore - oldVote + newValue);
-        setUserVote(newValue);
-        try {
-            await voteMysteryAttempt(attempt.id, newValue);
-        } catch {
-            setVoteScore(oldScore);
-            setUserVote(oldVote);
-        }
-    }
-
-    async function handleReply() {
-        if (!replyBody.trim() || submitting) {
-            return;
-        }
-        setSubmitting(true);
-        try {
-            await createMysteryAttempt(mysteryId, replyBody.trim(), attempt.id);
-            setReplyBody("");
-            setShowReply(false);
-            onRefresh();
-        } catch {
-            // ignore
-        } finally {
-            setSubmitting(false);
-        }
-    }
-
-    async function handleDelete() {
-        if (!window.confirm("Delete this attempt?")) {
-            return;
-        }
-        await deleteMysteryAttempt(attempt.id);
-        onRefresh();
-    }
-
-    async function handleSelectWinner() {
-        if (!window.confirm(`Select ${attempt.author.display_name} as the winner?`)) {
-            return;
-        }
-        await markMysterySolved(mysteryId, attempt.author.id);
-        onRefresh();
-    }
-
-    const isOwner = user?.id === attempt.author.id;
-    const canDelete = isOwner || can(user?.role, "delete_any_comment");
-
-    return (
-        <div>
-            <div className={`${styles.attempt}${attempt.is_winner ? ` ${styles.attemptWinner}` : ""}`}>
-                <div className={styles.attemptHeader}>
-                    <ProfileLink user={attempt.author} size="small" />
-                    <span>{relativeTime(attempt.created_at)}</span>
-                    {attempt.is_winner && <span className={styles.winnerBadge}>Winner</span>}
-                </div>
-                <div className={styles.attemptBody}>{attempt.body}</div>
-                <div className={styles.attemptActions}>
-                    {user && (
-                        <>
-                            <Button variant="ghost" size="small" onClick={() => handleVote(1)}>
-                                {userVote === 1 ? "\u25B2" : "\u25B3"} {voteScore > 0 ? voteScore : ""}
-                            </Button>
-                            <Button variant="ghost" size="small" onClick={() => handleVote(-1)}>
-                                {userVote === -1 ? "\u25BC" : "\u25BD"}
-                            </Button>
-                            {depth < 3 && (
-                                <Button variant="ghost" size="small" onClick={() => setShowReply(!showReply)}>
-                                    Reply
-                                </Button>
-                            )}
-                            {isAuthor && !attempt.is_winner && (
-                                <Button variant="ghost" size="small" onClick={handleSelectWinner}>
-                                    Select Winner
-                                </Button>
-                            )}
-                        </>
-                    )}
-                    {canDelete && (
-                        <Button variant="ghost" size="small" onClick={handleDelete}>
-                            Delete
-                        </Button>
-                    )}
-                </div>
-                {showReply && (
-                    <div className={styles.composer}>
-                        <textarea
-                            className={styles.composerTextarea}
-                            placeholder="Reply..."
-                            value={replyBody}
-                            onChange={e => setReplyBody(e.target.value)}
-                            rows={2}
-                        />
-                        <div className={styles.composerActions}>
-                            <Button variant="ghost" size="small" onClick={() => setShowReply(false)}>
-                                Cancel
-                            </Button>
-                            <Button variant="primary" size="small" onClick={handleReply} disabled={!replyBody.trim() || submitting}>
-                                {submitting ? "..." : "Reply"}
-                            </Button>
-                        </div>
-                    </div>
-                )}
-            </div>
-            {attempt.replies && attempt.replies.length > 0 && (
-                <div className={styles.replies}>
-                    {attempt.replies.map(r => (
-                        <AttemptItem
-                            key={r.id}
-                            attempt={r}
-                            mysteryId={mysteryId}
-                            isAuthor={isAuthor}
-                            onRefresh={onRefresh}
-                            depth={depth + 1}
-                        />
-                    ))}
-                </div>
-            )}
-        </div>
-    );
-}
 
 export function MysteryDetailPage() {
     const { id } = useParams<{ id: string }>();
@@ -167,7 +16,12 @@ export function MysteryDetailPage() {
     const { user } = useAuth();
     const [mystery, setMystery] = useState<MysteryDetail | null>(null);
     const [loading, setLoading] = useState(true);
-    const [spoilerRevealed, setSpoilerRevealed] = useState(false);
+    const [spoilerRevealed, setSpoilerRevealed] = useState(() => {
+        if (!id) {
+            return false;
+        }
+        return localStorage.getItem(`mystery-revealed-${id}`) === "1";
+    });
     const [attemptBody, setAttemptBody] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const [newClueBody, setNewClueBody] = useState("");
@@ -245,9 +99,7 @@ export function MysteryDetailPage() {
             </span>
 
             {mystery.solved && mystery.winner && (
-                <div className={styles.solvedBanner}>
-                    Mystery solved! Winner: {mystery.winner.display_name}
-                </div>
+                <div className={styles.solvedBanner}>Mystery solved! Winner: {mystery.winner.display_name}</div>
             )}
 
             <div className={styles.detail}>
@@ -258,7 +110,9 @@ export function MysteryDetailPage() {
                             <ProfileLink user={mystery.author} size="small" />
                             <span>{relativeTime(mystery.created_at)}</span>
                             <span className={`${styles.badge} ${styles.badgeDifficulty}`}>{mystery.difficulty}</span>
-                            <span className={`${styles.badge} ${mystery.solved ? styles.badgeSolved : styles.badgeOpen}`}>
+                            <span
+                                className={`${styles.badge} ${mystery.solved ? styles.badgeSolved : styles.badgeOpen}`}
+                            >
                                 {mystery.solved ? "Solved" : "Open"}
                             </span>
                         </div>
@@ -296,7 +150,12 @@ export function MysteryDetailPage() {
                             rows={2}
                         />
                         <div className={styles.composerActions}>
-                            <Button variant="primary" size="small" onClick={handleAddClue} disabled={!newClueBody.trim() || addingClue}>
+                            <Button
+                                variant="primary"
+                                size="small"
+                                onClick={handleAddClue}
+                                disabled={!newClueBody.trim() || addingClue}
+                            >
                                 {addingClue ? "..." : "Add Red Truth"}
                             </Button>
                         </div>
@@ -308,17 +167,22 @@ export function MysteryDetailPage() {
                 <div className={styles.spoilerGate}>
                     <h3 className={styles.spoilerGateTitle}>Want to try solving this mystery?</h3>
                     <p className={styles.spoilerGateText}>
-                        The attempts below may contain spoilers. Read the mystery and clues above first, then reveal when ready.
+                        The attempts below may contain spoilers. Read the mystery and clues above first, then reveal
+                        when ready.
                     </p>
-                    <Button variant="primary" onClick={() => setSpoilerRevealed(true)}>
+                    <Button
+                        variant="primary"
+                        onClick={() => {
+                            localStorage.setItem(`mystery-revealed-${id}`, "1");
+                            setSpoilerRevealed(true);
+                        }}
+                    >
                         Reveal Attempts ({mystery.attempts.length})
                     </Button>
                 </div>
             ) : (
                 <div className={styles.attemptsSection}>
-                    <h3 className={styles.attemptsTitle}>
-                        Blue Truth Attempts ({mystery.attempts.length})
-                    </h3>
+                    <h3 className={styles.attemptsTitle}>Blue Truth Attempts ({mystery.attempts.length})</h3>
 
                     {mystery.attempts.map(a => (
                         <AttemptItem
@@ -327,7 +191,6 @@ export function MysteryDetailPage() {
                             mysteryId={mystery.id}
                             isAuthor={isAuthor}
                             onRefresh={fetchMystery}
-                            depth={0}
                         />
                     ))}
 

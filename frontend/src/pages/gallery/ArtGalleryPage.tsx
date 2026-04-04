@@ -189,8 +189,8 @@ export function ArtGalleryPage({ corner = "general" }: ArtGalleryPageProps) {
                         profile
                     </span>{" "}
                     (Galleries tab), then upload art into it. You can also upload directly using the Upload Art button
-                    above. Share your drawings, cosplay photos, figure collections, and more. Use the &quot;All Art&quot; view to
-                    filter by type.
+                    above. Share your drawings, cosplay photos, figure collections, and more. Use the &quot;All
+                    Art&quot; view to filter by type.
                 </p>
             </InfoPanel>
 

@@ -51,24 +51,15 @@ export function AnnouncementCard() {
         <div className={styles.card}>
             <div className={styles.header}>
                 <span className={styles.badge}>Announcement</span>
-                <span
-                    className={styles.title}
-                    onClick={() => navigate(`/announcements/${announcement.id}`)}
-                >
+                <span className={styles.title} onClick={() => navigate(`/announcements/${announcement.id}`)}>
                     {announcement.title}
                 </span>
                 <button className={styles.dismiss} onClick={handleDismiss} title="Dismiss">
                     {"\u2715"}
                 </button>
             </div>
-            <div
-                className={styles.body}
-                dangerouslySetInnerHTML={{ __html: renderMarkdown(announcement.body) }}
-            />
-            <span
-                className={styles.readMore}
-                onClick={() => navigate(`/announcements/${announcement.id}`)}
-            >
+            <div className={styles.body} dangerouslySetInnerHTML={{ __html: renderMarkdown(announcement.body) }} />
+            <span className={styles.readMore} onClick={() => navigate(`/announcements/${announcement.id}`)}>
                 Read more &rarr;
             </span>
             <div className={styles.meta}>

@@ -17,13 +17,19 @@ interface ResponseEditorProps {
     series?: Series;
 }
 
-export function ResponseEditor({ theoryId, parentId, inheritedSide, onCreated, series = "umineko" }: ResponseEditorProps) {
+export function ResponseEditor({
+    theoryId,
+    parentId,
+    inheritedSide,
+    onCreated,
+    series = "umineko",
+}: ResponseEditorProps) {
     const cfg = getSeriesConfig(series);
     const [side, setSide] = useState<"with_love" | "without_love" | null>(inheritedSide ?? null);
     const [body, setBody] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
-    const ev = useEvidence();
+    const ev = useEvidence(undefined, series);
     const isReply = parentId !== undefined;
 
     async function handleSubmit(e: React.SubmitEvent) {

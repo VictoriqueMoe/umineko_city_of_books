@@ -65,7 +65,13 @@ export function useSettingsForm() {
     const [emailNotifications, setEmailNotifications] = useState(false);
     const [homePage, setHomePage] = useState("game_board");
 
-    const [characters, setCharacters] = useState<Record<string, string>>({});
+    const [characters, setCharacters] = useState<{
+        umineko: Record<string, string>;
+        higurashi: Record<string, string>;
+    }>({
+        umineko: {},
+        higurashi: {},
+    });
     const [saving, setSaving] = useState(false);
     const [uploadingAvatar, setUploadingAvatar] = useState(false);
     const [uploadingBanner, setUploadingBanner] = useState(false);
@@ -105,9 +111,9 @@ export function useSettingsForm() {
     }, [profile]);
 
     useEffect(() => {
-        getCharacters()
-            .then(setCharacters)
-            .catch(() => setCharacters({}));
+        Promise.all([getCharacters("umineko"), getCharacters("higurashi")])
+            .then(([umineko, higurashi]) => setCharacters({ umineko, higurashi }))
+            .catch(() => setCharacters({ umineko: {}, higurashi: {} }));
     }, []);
 
     function handleGenderChange(newGender: string) {

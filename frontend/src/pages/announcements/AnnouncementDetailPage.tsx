@@ -50,10 +50,7 @@ export function AnnouncementDetailPage() {
                     <span>{relativeTime(announcement.created_at)}</span>
                     {announcement.updated_at !== announcement.created_at && <span>(edited)</span>}
                 </div>
-                <div
-                    className={styles.body}
-                    dangerouslySetInnerHTML={{ __html: renderMarkdown(announcement.body) }}
-                />
+                <div className={styles.body} dangerouslySetInnerHTML={{ __html: renderMarkdown(announcement.body) }} />
             </div>
         </div>
     );

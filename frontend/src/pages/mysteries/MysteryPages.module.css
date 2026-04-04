@@ -251,10 +251,35 @@
     margin-top: 0.5rem;
 }
 
-.replies {
+.threadContainer {
     margin-left: 1.5rem;
-    border-left: 1px solid rgba(var(--purple-rgb), 0.2);
+    border-left: 2px solid rgba(var(--purple-rgb), 0.2);
     padding-left: 0.75rem;
+}
+
+.thread {
+    display: flex;
+    flex-direction: column;
+}
+
+.collapseBtn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    cursor: pointer;
+    padding: 0.35rem 0;
+    transition: color 0.15s var(--ease-out);
+}
+
+.collapseBtn:hover {
+    color: var(--gold);
+}
+
+.replyTo {
+    font-size: 0.8rem;
+    color: var(--gold);
+    font-weight: 600;
 }
 
 .composer {
@@ -338,7 +363,7 @@
         padding: 1rem;
     }
 
-    .replies {
+    .threadContainer {
         margin-left: 0.75rem;
     }
 }

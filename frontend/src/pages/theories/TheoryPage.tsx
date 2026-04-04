@@ -129,7 +129,7 @@ export function TheoryPage() {
 
                 <div className={styles.body}>{theory.body}</div>
 
-                <EvidenceList evidence={theory.evidence ?? []} />
+                <EvidenceList evidence={theory.evidence ?? []} series={seriesKey} />
             </div>
 
             <div className={styles.debateSection}>
@@ -138,7 +138,7 @@ export function TheoryPage() {
                         {cfg.withLoveTitle} ({withLove.length})
                     </h3>
                     {withLove.length > 0 ? (
-                        <ResponseList responses={withLove} theoryId={theoryId} onDeleted={refresh} />
+                        <ResponseList responses={withLove} theoryId={theoryId} series={seriesKey} onDeleted={refresh} />
                     ) : (
                         <div className="empty-state">No supporters yet.</div>
                     )}
@@ -149,7 +149,12 @@ export function TheoryPage() {
                         {cfg.withoutLoveTitle} ({withoutLove.length})
                     </h3>
                     {withoutLove.length > 0 ? (
-                        <ResponseList responses={withoutLove} theoryId={theoryId} onDeleted={refresh} />
+                        <ResponseList
+                            responses={withoutLove}
+                            theoryId={theoryId}
+                            series={seriesKey}
+                            onDeleted={refresh}
+                        />
                     ) : (
                         <div className="empty-state">No deniers yet.</div>
                     )}

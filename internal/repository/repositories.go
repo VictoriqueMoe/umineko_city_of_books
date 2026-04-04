@@ -23,6 +23,7 @@ type (
 		Block        BlockRepository
 		Announcement AnnouncementRepository
 		Mystery      MysteryRepository
+		Ship         ShipRepository
 	}
 )
 
@@ -51,5 +52,6 @@ func New(db *sql.DB) *Repositories {
 		Block:        &blockRepository{db: db},
 		Announcement: &announcementRepository{db: db},
 		Mystery:      &mysteryRepository{db: db},
+		Ship:         &shipRepository{db: db},
 	}
 }

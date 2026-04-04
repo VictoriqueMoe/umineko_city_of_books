@@ -15,6 +15,7 @@ import (
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/session"
 	"umineko_city_of_books/internal/settings"
+	shipsvc "umineko_city_of_books/internal/ship"
 	"umineko_city_of_books/internal/theory"
 	"umineko_city_of_books/internal/ws"
 )
@@ -36,6 +37,7 @@ type (
 		BlockService        block.Service
 		AnnouncementRepo    repository.AnnouncementRepository
 		MysteryRepo         repository.MysteryRepository
+		ShipService         shipsvc.Service
 		AuthSession         *session.Manager
 		Hub                 *ws.Hub
 		HTMLContent         string
@@ -58,6 +60,7 @@ func NewService(
 	blockService block.Service,
 	announcementRepo repository.AnnouncementRepository,
 	mysteryRepo repository.MysteryRepository,
+	shipService shipsvc.Service,
 	authSession *session.Manager,
 	hub *ws.Hub,
 	htmlContent string,
@@ -78,6 +81,7 @@ func NewService(
 		BlockService:        blockService,
 		AnnouncementRepo:    announcementRepo,
 		MysteryRepo:         mysteryRepo,
+		ShipService:         shipService,
 		AuthSession:         authSession,
 		Hub:                 hub,
 		HTMLContent:         htmlContent,
@@ -98,6 +102,7 @@ func (s *Service) GetAPIRoutes() []FSetupRoute {
 	all = append(all, s.getAllBlockRoutes()...)
 	all = append(all, s.getAllAnnouncementRoutes()...)
 	all = append(all, s.getAllMysteryRoutes()...)
+	all = append(all, s.getAllShipRoutes()...)
 	return all
 }
 

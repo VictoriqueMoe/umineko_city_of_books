@@ -41,6 +41,7 @@ type (
 		GetResponseEvidenceWeights(ctx context.Context, theoryID uuid.UUID) (withLoveSum float64, withoutLoveSum float64, err error)
 		SetEvidenceTruthWeight(ctx context.Context, evidenceID int, weight float64) error
 		GetTheoryTitle(ctx context.Context, theoryID uuid.UUID) (string, error)
+		GetTheorySeries(ctx context.Context, theoryID uuid.UUID) (string, error)
 	}
 
 	theoryRepository struct {
@@ -604,6 +605,15 @@ func (r *theoryRepository) GetResponseInfo(ctx context.Context, responseID uuid.
 		return uuid.Nil, uuid.Nil, fmt.Errorf("get response info: %w", err)
 	}
 	return authorID, theoryID, nil
+}
+
+func (r *theoryRepository) GetTheorySeries(ctx context.Context, theoryID uuid.UUID) (string, error) {
+	var series string
+	err := r.db.QueryRowContext(ctx, `SELECT series FROM theories WHERE id = ?`, theoryID).Scan(&series)
+	if err != nil {
+		return "", fmt.Errorf("get theory series: %w", err)
+	}
+	return series, nil
 }
 
 func (r *theoryRepository) GetTheoryTitle(ctx context.Context, theoryID uuid.UUID) (string, error) {

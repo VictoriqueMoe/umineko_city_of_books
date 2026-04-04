@@ -287,7 +287,13 @@ export type NotificationType =
     | "art_liked"
     | "art_commented"
     | "comment_liked"
-    | "content_edited";
+    | "content_edited"
+    | "mystery_attempt"
+    | "mystery_attempt_vote"
+    | "mystery_solved"
+    | "ship_commented"
+    | "ship_comment_reply"
+    | "ship_comment_liked";
 
 export interface Notification {
     id: number;
@@ -537,6 +543,65 @@ export interface Announcement {
     pinned: boolean;
     created_at: string;
     updated_at: string;
+}
+
+export interface ShipCharacter {
+    series: string;
+    character_id?: string;
+    character_name: string;
+    sort_order: number;
+}
+
+export interface Ship {
+    id: string;
+    author: User;
+    title: string;
+    description: string;
+    image_url?: string;
+    thumbnail_url?: string;
+    characters: ShipCharacter[];
+    vote_score: number;
+    user_vote?: number;
+    comment_count: number;
+    is_crackship: boolean;
+    created_at: string;
+    updated_at?: string;
+}
+
+export interface ShipComment {
+    id: string;
+    parent_id?: string;
+    author: User;
+    body: string;
+    media: PostMedia[];
+    embeds?: PostEmbed[];
+    like_count: number;
+    user_liked: boolean;
+    replies?: ShipComment[];
+    created_at: string;
+    updated_at?: string;
+}
+
+export interface ShipDetail extends Ship {
+    comments: ShipComment[];
+    viewer_blocked: boolean;
+}
+
+export interface ShipListResponse {
+    ships: Ship[];
+    total: number;
+    limit: number;
+    offset: number;
+}
+
+export interface CharacterListEntry {
+    id: string;
+    name: string;
+}
+
+export interface CharacterListResponse {
+    series: string;
+    characters: CharacterListEntry[];
 }
 
 export interface AnnouncementListResponse {

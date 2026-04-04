@@ -48,20 +48,32 @@ export function MysteryListPage() {
             <InfoPanel title="Welcome, Piece">
                 <p>
                     A Game Master has laid out a mystery for you to solve. Read the scenario, study the red truths
-                    carefully, they are absolute and cannot be denied. Then declare your blue truth: your theory
-                    on the solution. The Game Master will respond, either dismantling your theory or acknowledging
-                    your deduction. The first piece to solve the mystery is declared the winner.
+                    carefully, they are absolute and cannot be denied. Then declare your blue truth: your theory on the
+                    solution. The Game Master will respond, either dismantling your theory or acknowledging your
+                    deduction. The first piece to solve the mystery is declared the winner.
                 </p>
             </InfoPanel>
 
             <RulesBox page="mysteries" />
 
             <div className={styles.controls}>
-                <Select value={sort} onChange={e => { setSort(e.target.value); setOffset(0); }}>
+                <Select
+                    value={sort}
+                    onChange={e => {
+                        setSort(e.target.value);
+                        setOffset(0);
+                    }}
+                >
                     <option value="new">Newest</option>
                     <option value="old">Oldest</option>
                 </Select>
-                <Select value={solved} onChange={e => { setSolved(e.target.value); setOffset(0); }}>
+                <Select
+                    value={solved}
+                    onChange={e => {
+                        setSolved(e.target.value);
+                        setOffset(0);
+                    }}
+                >
                     <option value="">All</option>
                     <option value="false">Unsolved</option>
                     <option value="true">Solved</option>
@@ -94,8 +106,12 @@ export function MysteryListPage() {
                                 <span>{relativeTime(m.created_at)}</span>
                             </div>
                             <div className={styles.cardStats}>
-                                <span>{m.clue_count} clue{m.clue_count !== 1 ? "s" : ""}</span>
-                                <span>{m.attempt_count} attempt{m.attempt_count !== 1 ? "s" : ""}</span>
+                                <span>
+                                    {m.clue_count} clue{m.clue_count !== 1 ? "s" : ""}
+                                </span>
+                                <span>
+                                    {m.attempt_count} attempt{m.attempt_count !== 1 ? "s" : ""}
+                                </span>
                                 {m.winner && <span>Winner: {m.winner.display_name}</span>}
                             </div>
                             <p className={styles.cardPreview}>

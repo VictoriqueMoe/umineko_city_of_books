@@ -34,6 +34,7 @@ import (
 	"umineko_city_of_books/internal/routes"
 	"umineko_city_of_books/internal/session"
 	"umineko_city_of_books/internal/settings"
+	"umineko_city_of_books/internal/ship"
 	"umineko_city_of_books/internal/theory"
 	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/user"
@@ -62,6 +63,7 @@ type services struct {
 	post         postsvc.Service
 	follow       follow.Service
 	art          artsvc.Service
+	ship         ship.Service
 	block        blocksvc.Service
 	email        email.Service
 	session      *session.Manager
@@ -132,6 +134,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 	followSvc := follow.NewService(repos.Follow, repos.User, blockSvc, notifSvc, settingsSvc)
 	postSvc := postsvc.NewService(repos.Post, repos.User, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, hub)
 	artSvc := artsvc.NewService(repos.Art, repos.Post, repos.User, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc)
+	shipSvc := ship.NewService(repos.Ship, repos.User, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, quoteClient)
 
 	return &services{
 		settings:     settingsSvc,
@@ -146,6 +149,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 		post:         postSvc,
 		follow:       followSvc,
 		art:          artSvc,
+		ship:         shipSvc,
 		block:        blockSvc,
 		email:        emailSvc,
 		session:      sessionMgr,
@@ -203,7 +207,7 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 	ctrlService := controllers.NewService(
 		svc.auth, svc.profile, svc.theory, svc.notification, svc.admin,
 		svc.authz, settingsSvc, svc.chat, svc.report, svc.post, svc.follow,
-		svc.art, svc.block, repos.Announcement, repos.Mystery, svc.session, svc.hub, string(htmlBytes),
+		svc.art, svc.block, repos.Announcement, repos.Mystery, svc.ship, svc.session, svc.hub, string(htmlBytes),
 	)
 	routes.PublicRoutes(ctrlService, app)
 
@@ -223,7 +227,7 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 		logger.Log.Fatal().Err(err).Msg("failed to create static sub-filesystem")
 	}
 
-	ogResolver := og.NewResolver(repos.Theory, repos.User, repos.Post, repos.Art, string(htmlBytes), baseURL)
+	ogResolver := og.NewResolver(repos.Theory, repos.User, repos.Post, repos.Art, repos.Mystery, repos.Ship, string(htmlBytes), baseURL)
 
 	app.Get("/*", func(ctx fiber.Ctx) error {
 		path := ctx.Path()

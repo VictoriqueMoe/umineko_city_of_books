@@ -182,6 +182,13 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                             Mysteries
                         </NavLink>
                         <NavLink
+                            to="/ships"
+                            className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
+                            onClick={onClose}
+                        >
+                            Ships
+                        </NavLink>
+                        <NavLink
                             to="/users"
                             className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
                             onClick={onClose}
@@ -220,6 +227,13 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                                 onClick={onClose}
                             >
                                 New Mystery
+                            </NavLink>
+                            <NavLink
+                                to="/ships/new"
+                                className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
+                                onClick={onClose}
+                            >
+                                New Ship
                             </NavLink>
                         </div>
                     )}
