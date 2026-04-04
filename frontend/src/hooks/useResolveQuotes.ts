@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { EvidenceItem, Quote } from "../types/api";
+import type { Series } from "../api/endpoints";
 
 const QUOTE_API = "https://quotes.auaurora.moe/api/v1";
 
@@ -13,13 +14,13 @@ function evidenceKey(ev: EvidenceItem): string {
     return "";
 }
 
-async function fetchQuoteByAudioId(audioId: string): Promise<Quote | null> {
+async function fetchQuoteByAudioId(series: Series, audioId: string): Promise<Quote | null> {
     const firstId = audioId.split(",")[0].trim();
     if (!firstId) {
         return null;
     }
     try {
-        const response = await fetch(`${QUOTE_API}/umineko/quote/${firstId}`);
+        const response = await fetch(`${QUOTE_API}/${series}/quote/${firstId}`);
         if (!response.ok) {
             return null;
         }
@@ -29,9 +30,9 @@ async function fetchQuoteByAudioId(audioId: string): Promise<Quote | null> {
     }
 }
 
-async function fetchQuoteByIndex(index: number): Promise<Quote | null> {
+async function fetchQuoteByIndex(series: Series, index: number): Promise<Quote | null> {
     try {
-        const response = await fetch(`${QUOTE_API}/umineko/quote/index/${index}`);
+        const response = await fetch(`${QUOTE_API}/${series}/quote/index/${index}`);
         if (!response.ok) {
             return null;
         }
@@ -41,17 +42,17 @@ async function fetchQuoteByIndex(index: number): Promise<Quote | null> {
     }
 }
 
-async function fetchEvidence(ev: EvidenceItem): Promise<Quote | null> {
+async function fetchEvidence(series: Series, ev: EvidenceItem): Promise<Quote | null> {
     if (ev.audio_id) {
-        return fetchQuoteByAudioId(ev.audio_id);
+        return fetchQuoteByAudioId(series, ev.audio_id);
     }
     if (ev.quote_index !== undefined) {
-        return fetchQuoteByIndex(ev.quote_index);
+        return fetchQuoteByIndex(series, ev.quote_index);
     }
     return null;
 }
 
-export function useResolveQuotes(evidence: EvidenceItem[]) {
+export function useResolveQuotes(evidence: EvidenceItem[], series: Series = "umineko") {
     const [quotes, setQuotes] = useState<Map<string, Quote | null>>(new Map());
     const attempted = useRef<Set<string>>(new Set());
 
@@ -68,16 +69,18 @@ export function useResolveQuotes(evidence: EvidenceItem[]) {
             attempted.current.add(evidenceKey(ev));
         }
 
-        Promise.all(toFetch.map(ev => fetchEvidence(ev).then(q => [evidenceKey(ev), q] as const))).then(results => {
-            setQuotes(prev => {
-                const next = new Map(prev);
-                for (const [key, q] of results) {
-                    next.set(key, q);
-                }
-                return next;
-            });
-        });
-    }, [evidence]);
+        Promise.all(toFetch.map(ev => fetchEvidence(series, ev).then(q => [evidenceKey(ev), q] as const))).then(
+            results => {
+                setQuotes(prev => {
+                    const next = new Map(prev);
+                    for (const [key, q] of results) {
+                        next.set(key, q);
+                    }
+                    return next;
+                });
+            },
+        );
+    }, [evidence, series]);
 
     return quotes;
 }

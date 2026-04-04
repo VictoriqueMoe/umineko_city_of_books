@@ -1,3 +1,11 @@
+.pageTitle {
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    color: var(--gold);
+    letter-spacing: 0.05em;
+    margin-bottom: 1rem;
+}
+
 .controls {
     display: flex;
     gap: 1rem;

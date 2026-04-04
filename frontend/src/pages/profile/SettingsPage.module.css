@@ -229,6 +229,26 @@
     margin-top: 1rem;
 }
 
+.mutedText {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+.blockedList {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.blockedRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0.75rem;
+    background: rgba(var(--purple-rgb), 0.08);
+    border-radius: 4px;
+}
+
 @media (max-width: 768px) {
     .grid {
         grid-template-columns: 1fr;

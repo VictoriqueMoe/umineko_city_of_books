@@ -1,0 +1,185 @@
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router";
+import type { Ship, ShipCharacter } from "../../types/api";
+import { listShips } from "../../api/endpoints";
+import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
+import { Pagination } from "../../components/Pagination/Pagination";
+import { Select } from "../../components/Select/Select";
+import { InfoPanel } from "../../components/InfoPanel/InfoPanel";
+import { RulesBox } from "../../components/RulesBox/RulesBox";
+import { ToggleSwitch } from "../../components/ToggleSwitch/ToggleSwitch";
+import { relativeTime } from "../../utils/notifications";
+import styles from "./ShipPages.module.css";
+
+function characterPillClass(series: string): string {
+    if (series === "umineko") {
+        return `${styles.characterPill} ${styles.characterPillUmineko}`;
+    }
+    if (series === "higurashi") {
+        return `${styles.characterPill} ${styles.characterPillHigurashi}`;
+    }
+    return `${styles.characterPill} ${styles.characterPillOc}`;
+}
+
+export function CharacterPills({ characters }: { characters: ShipCharacter[] }) {
+    const sorted = [...characters].sort((a, b) => a.sort_order - b.sort_order);
+    return (
+        <div className={styles.characterPills}>
+            {sorted.map((c, idx) => (
+                <span key={`${c.series}-${c.character_id ?? c.character_name}-${idx}`}>
+                    {idx > 0 && <span className={styles.xDivider}>×</span>}
+                    <span className={characterPillClass(c.series)}>{c.character_name}</span>
+                </span>
+            ))}
+        </div>
+    );
+}
+
+export function ShipsListPage() {
+    const navigate = useNavigate();
+    const [ships, setShips] = useState<Ship[]>([]);
+    const [total, setTotal] = useState(0);
+    const [offset, setOffset] = useState(0);
+    const [sort, setSort] = useState("new");
+    const [series, setSeries] = useState("");
+    const [crackshipsOnly, setCrackshipsOnly] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const limit = 20;
+
+    useEffect(() => {
+        let cancelled = false;
+        listShips({
+            sort,
+            series: series || undefined,
+            crackships: crackshipsOnly,
+            limit,
+            offset,
+        })
+            .then(data => {
+                if (!cancelled) {
+                    setShips(data.ships ?? []);
+                    setTotal(data.total);
+                    setLoading(false);
+                }
+            })
+            .catch(() => {
+                if (!cancelled) {
+                    setShips([]);
+                    setLoading(false);
+                }
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [sort, series, crackshipsOnly, offset]);
+
+    return (
+        <div className={styles.page}>
+            <h1 className={styles.heading}>Ships</h1>
+
+            <InfoPanel title="Declare Your OTP">
+                <p>
+                    This is the place to declare your favourite pairings from Umineko, Higurashi, or even your original
+                    characters. Vote other ships up or down. If a ship drops below the crackship threshold, it gets
+                    branded as a certified crackship, mii~
+                </p>
+            </InfoPanel>
+
+            <RulesBox page="ships" />
+
+            <div className={styles.controls}>
+                <Select
+                    value={sort}
+                    onChange={e => {
+                        setSort(e.target.value);
+                        setOffset(0);
+                    }}
+                >
+                    <option value="new">Newest</option>
+                    <option value="old">Oldest</option>
+                    <option value="top">Most Upvoted</option>
+                    <option value="crackship">Crackship (lowest score)</option>
+                    <option value="controversial">Most Controversial</option>
+                    <option value="comments">Most Commented</option>
+                </Select>
+                <Select
+                    value={series}
+                    onChange={e => {
+                        setSeries(e.target.value);
+                        setOffset(0);
+                    }}
+                >
+                    <option value="">All series</option>
+                    <option value="umineko">Umineko</option>
+                    <option value="higurashi">Higurashi</option>
+                    <option value="oc">OC</option>
+                </Select>
+                <div className={styles.toggleWrap}>
+                    <ToggleSwitch
+                        enabled={crackshipsOnly}
+                        onChange={next => {
+                            setCrackshipsOnly(next);
+                            setOffset(0);
+                        }}
+                        label="Crackships only"
+                    />
+                </div>
+            </div>
+
+            {loading && <div className="loading">Loading ships...</div>}
+
+            {!loading && ships.length === 0 && (
+                <div className="empty-state">No ships found. Be the first to declare a pairing!</div>
+            )}
+
+            {!loading && (
+                <div className={styles.list}>
+                    {ships.map(s => (
+                        <div
+                            key={s.id}
+                            className={`${styles.card}${s.is_crackship ? ` ${styles.cardCrack}` : ""}`}
+                            onClick={() => navigate(`/ships/${s.id}`)}
+                        >
+                            {s.thumbnail_url || s.image_url ? (
+                                <img className={styles.cardImage} src={s.thumbnail_url || s.image_url} alt={s.title} />
+                            ) : (
+                                <div className={styles.cardImagePlaceholder}>♥</div>
+                            )}
+                            <div className={styles.cardBody}>
+                                <h3 className={styles.cardTitle}>{s.title}</h3>
+                                <CharacterPills characters={s.characters} />
+                                {s.description && <p className={styles.cardDescription}>{s.description}</p>}
+                                <div className={styles.cardMeta}>
+                                    <ProfileLink user={s.author} size="small" />
+                                    <span>{relativeTime(s.created_at)}</span>
+                                </div>
+                                <div className={styles.cardStats}>
+                                    <span
+                                        className={`${styles.voteChip}${s.is_crackship ? ` ${styles.voteChipCrack}` : ""}`}
+                                    >
+                                        {s.vote_score > 0 ? "+" : ""}
+                                        {s.vote_score}
+                                    </span>
+                                    <span>
+                                        {s.comment_count} comment{s.comment_count !== 1 ? "s" : ""}
+                                    </span>
+                                    {s.is_crackship && <span className={styles.crackshipBadge}>Crackship</span>}
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            <Pagination
+                offset={offset}
+                limit={limit}
+                total={total}
+                hasNext={offset + limit < total}
+                hasPrev={offset > 0}
+                onNext={() => setOffset(offset + limit)}
+                onPrev={() => setOffset(Math.max(0, offset - limit))}
+            />
+        </div>
+    );
+}

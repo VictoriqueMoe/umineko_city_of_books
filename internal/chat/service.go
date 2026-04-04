@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/ws"
@@ -28,15 +29,17 @@ type (
 		chatRepo  repository.ChatRepository
 		userRepo  repository.UserRepository
 		notifRepo repository.NotificationRepository
+		blockSvc  block.Service
 		hub       *ws.Hub
 	}
 )
 
-func NewService(chatRepo repository.ChatRepository, userRepo repository.UserRepository, notifRepo repository.NotificationRepository, hub *ws.Hub) Service {
+func NewService(chatRepo repository.ChatRepository, userRepo repository.UserRepository, notifRepo repository.NotificationRepository, blockSvc block.Service, hub *ws.Hub) Service {
 	return &service{
 		chatRepo:  chatRepo,
 		userRepo:  userRepo,
 		notifRepo: notifRepo,
+		blockSvc:  blockSvc,
 		hub:       hub,
 	}
 }
@@ -55,6 +58,10 @@ func (s *service) GetOrCreateDMRoom(ctx context.Context, senderID uuid.UUID, req
 	}
 	if !recipient.DmsEnabled {
 		return nil, ErrDmsDisabled
+	}
+
+	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, senderID, req.RecipientID); blocked {
+		return nil, ErrUserBlocked
 	}
 
 	existingID, err := s.chatRepo.FindDMRoom(ctx, senderID, req.RecipientID)
@@ -187,6 +194,18 @@ func (s *service) SendMessage(ctx context.Context, senderID, roomID uuid.UUID, r
 		return nil, ErrNotMember
 	}
 
+	members, err := s.chatRepo.GetRoomMembers(ctx, roomID)
+	if err != nil {
+		return nil, fmt.Errorf("get room members: %w", err)
+	}
+	for _, memberID := range members {
+		if memberID != senderID {
+			if blocked, _ := s.blockSvc.IsBlockedEither(ctx, senderID, memberID); blocked {
+				return nil, ErrUserBlocked
+			}
+		}
+	}
+
 	sender, err := s.userRepo.GetByID(ctx, senderID)
 	if err != nil {
 		return nil, fmt.Errorf("get sender: %w", err)
@@ -213,7 +232,7 @@ func (s *service) SendMessage(ctx context.Context, senderID, roomID uuid.UUID, r
 		CreatedAt: time.Now().UTC().Format(time.RFC3339),
 	}
 
-	members, err := s.chatRepo.GetRoomMembers(ctx, roomID)
+	members, err = s.chatRepo.GetRoomMembers(ctx, roomID)
 	if err == nil {
 		msg := ws.Message{
 			Type: "chat_message",

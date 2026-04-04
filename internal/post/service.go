@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"umineko_city_of_books/internal/authz"
+	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
@@ -50,6 +51,7 @@ type (
 		postRepo     repository.PostRepository
 		userRepo     repository.UserRepository
 		authz        authz.Service
+		blockSvc     block.Service
 		notifService notification.Service
 		uploadSvc    upload.Service
 		mediaProc    *media.Processor
@@ -62,6 +64,7 @@ func NewService(
 	postRepo repository.PostRepository,
 	userRepo repository.UserRepository,
 	authzService authz.Service,
+	blockSvc block.Service,
 	notifService notification.Service,
 	uploadSvc upload.Service,
 	mediaProc *media.Processor,
@@ -72,6 +75,7 @@ func NewService(
 		postRepo:     postRepo,
 		userRepo:     userRepo,
 		authz:        authzService,
+		blockSvc:     blockSvc,
 		notifService: notifService,
 		uploadSvc:    uploadSvc,
 		mediaProc:    mediaProc,
@@ -129,9 +133,11 @@ func (s *service) GetPost(ctx context.Context, id uuid.UUID, viewerID uuid.UUID,
 		}
 	}
 
+	blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, viewerID)
+
 	postMedia, _ := s.postRepo.GetMedia(ctx, id)
 	postEmbeds, _ := s.postRepo.GetEmbeds(ctx, id.String(), "post")
-	comments, _, _ := s.postRepo.GetComments(ctx, id, viewerID, 500, 0)
+	comments, _, _ := s.postRepo.GetComments(ctx, id, viewerID, 500, 0, blockedIDs)
 
 	var commentIDs []uuid.UUID
 	var commentIDStrs []string
@@ -152,7 +158,7 @@ func (s *service) GetPost(ctx context.Context, id uuid.UUID, viewerID uuid.UUID,
 		func(c *dto.PostCommentResponse, replies []dto.PostCommentResponse) { c.Replies = replies },
 	)
 
-	likeUsers, _ := s.postRepo.GetLikedBy(ctx, id)
+	likeUsers, _ := s.postRepo.GetLikedBy(ctx, id, blockedIDs)
 	likedBy := make([]dto.UserResponse, len(likeUsers))
 	for i, u := range likeUsers {
 		likedBy[i] = dto.UserResponse{
@@ -164,10 +170,16 @@ func (s *service) GetPost(ctx context.Context, id uuid.UUID, viewerID uuid.UUID,
 		}
 	}
 
+	viewerBlocked := false
+	if viewerID != uuid.Nil {
+		viewerBlocked, _ = s.blockSvc.IsBlockedEither(ctx, viewerID, row.UserID)
+	}
+
 	return &dto.PostDetailResponse{
-		PostResponse: postRowToDTO(*row, postMedia, postEmbeds),
-		Comments:     dtoComments,
-		LikedBy:      likedBy,
+		PostResponse:  postRowToDTO(*row, postMedia, postEmbeds),
+		Comments:      dtoComments,
+		LikedBy:       likedBy,
+		ViewerBlocked: viewerBlocked,
 	}, nil
 }
 
@@ -203,14 +215,16 @@ func (s *service) ListFeed(ctx context.Context, tab string, viewerID uuid.UUID, 
 		corner = "general"
 	}
 
+	blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, viewerID)
+
 	var rows []repository.PostRow
 	var total int
 	var err error
 
 	if tab == "following" && viewerID != uuid.Nil {
-		rows, total, err = s.postRepo.ListByFollowing(ctx, viewerID, corner, sort, seed, limit, offset)
+		rows, total, err = s.postRepo.ListByFollowing(ctx, viewerID, corner, sort, seed, limit, offset, blockedIDs)
 	} else {
-		rows, total, err = s.postRepo.ListAll(ctx, viewerID, corner, search, sort, seed, limit, offset)
+		rows, total, err = s.postRepo.ListAll(ctx, viewerID, corner, search, sort, seed, limit, offset, blockedIDs)
 	}
 	if err != nil {
 		return nil, err
@@ -395,6 +409,14 @@ func (s *service) broadcastLikeUpdate(postID uuid.UUID, delta int) {
 }
 
 func (s *service) LikePost(ctx context.Context, userID uuid.UUID, postID uuid.UUID) error {
+	authorID, err := s.postRepo.GetPostAuthorID(ctx, postID)
+	if err != nil {
+		return err
+	}
+	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, authorID); blocked {
+		return block.ErrUserBlocked
+	}
+
 	if err := s.postRepo.Like(ctx, userID, postID); err != nil {
 		return err
 	}
@@ -438,6 +460,14 @@ func (s *service) UnlikePost(ctx context.Context, userID uuid.UUID, postID uuid.
 func (s *service) CreateComment(ctx context.Context, postID uuid.UUID, userID uuid.UUID, req dto.CreateCommentRequest) (uuid.UUID, error) {
 	if strings.TrimSpace(req.Body) == "" {
 		return uuid.Nil, ErrEmptyBody
+	}
+
+	authorID, err := s.postRepo.GetPostAuthorID(ctx, postID)
+	if err != nil {
+		return uuid.Nil, err
+	}
+	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, authorID); blocked {
+		return uuid.Nil, block.ErrUserBlocked
 	}
 
 	id := uuid.New()
@@ -503,6 +533,14 @@ func (s *service) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.U
 }
 
 func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
+	commentAuthorID, err := s.postRepo.GetCommentAuthorID(ctx, commentID)
+	if err != nil {
+		return err
+	}
+	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, commentAuthorID); blocked {
+		return block.ErrUserBlocked
+	}
+
 	if err := s.postRepo.LikeComment(ctx, userID, commentID); err != nil {
 		return err
 	}

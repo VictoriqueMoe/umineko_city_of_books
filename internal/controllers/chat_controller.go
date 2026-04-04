@@ -23,19 +23,19 @@ func (s *Service) getAllChatRoutes() []FSetupRoute {
 }
 
 func (s *Service) setupCreateDMRoute(r fiber.Router) {
-	r.Post("/chat/dm", middleware.RequireAuth(s.AuthSession), s.createDM)
+	r.Post("/chat/dm", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.createDM)
 }
 
 func (s *Service) setupCreateGroupRoomRoute(r fiber.Router) {
-	r.Post("/chat/rooms", middleware.RequireAuth(s.AuthSession), s.createGroupRoom)
+	r.Post("/chat/rooms", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.createGroupRoom)
 }
 
 func (s *Service) setupListRoomsRoute(r fiber.Router) {
-	r.Get("/chat/rooms", middleware.RequireAuth(s.AuthSession), s.listRooms)
+	r.Get("/chat/rooms", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.listRooms)
 }
 
 func (s *Service) setupGetMessagesRoute(r fiber.Router) {
-	r.Get("/chat/rooms/:roomID/messages", middleware.RequireAuth(s.AuthSession), s.getMessages)
+	r.Get("/chat/rooms/:roomID/messages", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.getMessages)
 }
 
 func (s *Service) createDM(ctx fiber.Ctx) error {
@@ -50,6 +50,11 @@ func (s *Service) createDM(ctx fiber.Ctx) error {
 
 	room, err := s.ChatService.GetOrCreateDMRoom(ctx.Context(), userID, req)
 	if err != nil {
+		if errors.Is(err, chat.ErrUserBlocked) {
+			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"error": "you cannot message this user",
+			})
+		}
 		if errors.Is(err, chat.ErrDmsDisabled) {
 			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
 				"error": "recipient has DMs disabled",
@@ -112,7 +117,7 @@ func (s *Service) listRooms(ctx fiber.Ctx) error {
 }
 
 func (s *Service) setupSendMessageRoute(r fiber.Router) {
-	r.Post("/chat/rooms/:roomID/messages", middleware.RequireAuth(s.AuthSession), s.sendMessage)
+	r.Post("/chat/rooms/:roomID/messages", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.sendMessage)
 }
 
 func (s *Service) sendMessage(ctx fiber.Ctx) error {
@@ -134,6 +139,11 @@ func (s *Service) sendMessage(ctx fiber.Ctx) error {
 
 	resp, err := s.ChatService.SendMessage(ctx.Context(), userID, roomID, req)
 	if err != nil {
+		if errors.Is(err, chat.ErrUserBlocked) {
+			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"error": "you cannot message this user",
+			})
+		}
 		if errors.Is(err, chat.ErrMissingFields) {
 			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "message body is required",
@@ -181,7 +191,7 @@ func (s *Service) getMessages(ctx fiber.Ctx) error {
 }
 
 func (s *Service) setupDeleteChatRoute(r fiber.Router) {
-	r.Delete("/chat/rooms/:roomID", middleware.RequireAuth(s.AuthSession), s.deleteChat)
+	r.Delete("/chat/rooms/:roomID", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.deleteChat)
 }
 
 func (s *Service) deleteChat(ctx fiber.Ctx) error {

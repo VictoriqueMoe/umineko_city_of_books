@@ -40,7 +40,7 @@ func (s *Service) setupLogoutRoute(r fiber.Router) {
 }
 
 func (s *Service) setupGetMeRoute(r fiber.Router) {
-	r.Get("/auth/me", middleware.RequireAuth(s.AuthSession), s.getMe)
+	r.Get("/auth/me", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.getMe)
 }
 
 func (s *Service) setSessionCookie(ctx fiber.Ctx, token string) {
@@ -215,6 +215,9 @@ func (s *Service) setupGetRulesRoute(r fiber.Router) {
 
 var rulesSettings = map[string]config.SiteSettingDef{
 	"theories":             config.SettingRulesTheories,
+	"theories_higurashi":   config.SettingRulesTheoriesHigurashi,
+	"mysteries":            config.SettingRulesMysteries,
+	"ships":                config.SettingRulesShips,
 	"game_board":           config.SettingRulesGameBoard,
 	"game_board_umineko":   config.SettingRulesGameBoardUmineko,
 	"game_board_higurashi": config.SettingRulesGameBoardHigurashi,

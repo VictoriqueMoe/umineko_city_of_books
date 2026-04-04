@@ -227,6 +227,16 @@ a.socialChipValue:hover {
     border-radius: 3px;
 }
 
+.blockedBanner {
+    background: rgba(220, 50, 50, 0.15);
+    color: #e57373;
+    border: 1px solid rgba(220, 50, 50, 0.3);
+    border-radius: 4px;
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+    text-align: center;
+}
+
 .followList {
     display: flex;
     flex-wrap: wrap;

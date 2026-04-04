@@ -1,0 +1,369 @@
+.page {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.heading {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    color: var(--gold);
+    margin-bottom: 1rem;
+    letter-spacing: 0.05em;
+}
+
+.controls {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+.list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.card {
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--purple-rgb), 0.3);
+    border-radius: 8px;
+    padding: 1.25rem;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.card:hover {
+    border-color: var(--gold);
+}
+
+.cardSolved {
+    border-color: rgba(40, 167, 69, 0.4);
+}
+
+.cardHeader {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.cardTitle {
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    color: var(--gold);
+    flex: 1;
+}
+
+.badge {
+    font-size: 0.65rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 700;
+}
+
+.badgeSolved {
+    background: rgba(40, 167, 69, 0.2);
+    color: #66bb6a;
+}
+
+.badgeOpen {
+    background: rgba(var(--gold-rgb), 0.2);
+    color: var(--gold);
+}
+
+.badgeDifficulty {
+    background: rgba(var(--purple-rgb), 0.3);
+    color: var(--purple-light);
+}
+
+.cardMeta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.cardStats {
+    display: flex;
+    gap: 1rem;
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.cardPreview {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    margin-top: 0.5rem;
+    line-height: 1.4;
+}
+
+.back {
+    cursor: pointer;
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+    display: inline-block;
+    font-size: 0.9rem;
+}
+
+.back:hover {
+    color: var(--gold);
+}
+
+.detail {
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--purple-rgb), 0.3);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.detailTitle {
+    font-family: var(--font-display);
+    font-size: 1.4rem;
+    color: var(--gold);
+    margin-bottom: 0.5rem;
+}
+
+.detailMeta {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid rgba(var(--purple-rgb), 0.2);
+}
+
+.detailBody {
+    color: var(--text);
+    line-height: 1.7;
+    white-space: pre-wrap;
+    margin-bottom: 1.5rem;
+}
+
+.cluesSection {
+    margin-bottom: 1.5rem;
+}
+
+.cluesTitle {
+    font-family: var(--font-display);
+    color: #e53935;
+    font-size: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.clue {
+    background: rgba(229, 57, 53, 0.08);
+    border-left: 3px solid #e53935;
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.5rem;
+    border-radius: 0 4px 4px 0;
+    color: #ef9a9a;
+    font-style: italic;
+}
+
+.cluePurple {
+    background: rgba(156, 39, 176, 0.08);
+    border-left-color: #ab47bc;
+    color: #ce93d8;
+}
+
+.spoilerGate {
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--purple-rgb), 0.3);
+    border-radius: 8px;
+    padding: 2rem;
+    text-align: center;
+}
+
+.spoilerGateTitle {
+    font-family: var(--font-display);
+    color: var(--gold);
+    font-size: 1.1rem;
+    margin-bottom: 0.75rem;
+}
+
+.spoilerGateText {
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+}
+
+.attemptsSection {
+    margin-top: 1.5rem;
+}
+
+.attemptsTitle {
+    font-family: var(--font-display);
+    color: #42a5f5;
+    font-size: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.attempt {
+    background: rgba(66, 165, 245, 0.06);
+    border-left: 3px solid #42a5f5;
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.75rem;
+    border-radius: 0 4px 4px 0;
+}
+
+.attemptWinner {
+    border-left-color: #66bb6a;
+    background: rgba(40, 167, 69, 0.08);
+}
+
+.attemptHeader {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.winnerBadge {
+    background: rgba(40, 167, 69, 0.3);
+    color: #66bb6a;
+    font-size: 0.65rem;
+    padding: 0.1rem 0.4rem;
+    border-radius: 3px;
+    text-transform: uppercase;
+    font-weight: 700;
+}
+
+.attemptBody {
+    color: var(--text);
+    line-height: 1.5;
+    white-space: pre-wrap;
+}
+
+.attemptActions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.threadContainer {
+    margin-left: 1.5rem;
+    border-left: 2px solid rgba(var(--purple-rgb), 0.2);
+    padding-left: 0.75rem;
+}
+
+.thread {
+    display: flex;
+    flex-direction: column;
+}
+
+.collapseBtn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    cursor: pointer;
+    padding: 0.35rem 0;
+    transition: color 0.15s var(--ease-out);
+}
+
+.collapseBtn:hover {
+    color: var(--gold);
+}
+
+.replyTo {
+    font-size: 0.8rem;
+    color: var(--gold);
+    font-weight: 600;
+}
+
+.composer {
+    margin-top: 1rem;
+}
+
+.composerTextarea {
+    width: 100%;
+    min-height: 80px;
+    background: var(--bg-void);
+    border: 1px solid rgba(var(--purple-rgb), 0.3);
+    border-radius: 6px;
+    color: var(--text);
+    padding: 0.75rem;
+    font-family: inherit;
+    font-size: 0.9rem;
+    resize: vertical;
+    box-sizing: border-box;
+    margin-bottom: 0.5rem;
+}
+
+.composerTextarea:focus {
+    outline: none;
+    border-color: #42a5f5;
+}
+
+.composerActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+.solvedBanner {
+    background: rgba(40, 167, 69, 0.1);
+    border: 1px solid rgba(40, 167, 69, 0.3);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    text-align: center;
+    color: #66bb6a;
+}
+
+.formPage {
+    max-width: 700px;
+    margin: 0 auto;
+}
+
+.formHeading {
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    color: var(--gold);
+    margin-bottom: 1.5rem;
+}
+
+.clueInputs {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.clueRow {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.clueInput {
+    flex: 1;
+}
+
+.formActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+@media (max-width: 768px) {
+    .detail {
+        padding: 1rem;
+    }
+
+    .threadContainer {
+        margin-left: 0.75rem;
+    }
+}

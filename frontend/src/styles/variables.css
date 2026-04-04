@@ -115,3 +115,69 @@
     --bg-purple-rgb: 8, 20, 32;
     --hover-glow: 0.15;
 }
+
+[data-theme="rika"] {
+    --bg-void: #080812;
+    --bg-purple: #0f0f24;
+    --bg-card: #0d0d20;
+    --bg-card-hover: #14142c;
+    --gold: #6366f1;
+    --gold-light: #a5b4fc;
+    --gold-dark: #4338ca;
+    --purple: #4c4f8a;
+    --purple-light: #818cf8;
+    --purple-muted: #2a2a50;
+    --text: #e8e8f5;
+    --text-muted: #a8a8cc;
+    --rose: #4a2068;
+
+    --gold-rgb: 99, 102, 241;
+    --purple-rgb: 76, 79, 138;
+    --rose-rgb: 74, 32, 104;
+    --bg-card-rgb: 13, 13, 32;
+    --bg-purple-rgb: 15, 15, 36;
+}
+
+[data-theme="mion"] {
+    --bg-void: #0a100e;
+    --bg-purple: #0f1a16;
+    --bg-card: #0d1512;
+    --bg-card-hover: #132420;
+    --gold: #2d8f6f;
+    --gold-light: #5fbf9f;
+    --gold-dark: #1a6b4f;
+    --purple: #3d6b5a;
+    --purple-light: #7dd3b8;
+    --purple-muted: #1a3d30;
+    --text: #e0f0eb;
+    --text-muted: #9bb8ad;
+    --rose: #6b2a2a;
+
+    --gold-rgb: 45, 143, 111;
+    --purple-rgb: 61, 107, 90;
+    --rose-rgb: 107, 42, 42;
+    --bg-card-rgb: 13, 21, 18;
+    --bg-purple-rgb: 15, 26, 22;
+}
+
+[data-theme="satoko"] {
+    --bg-void: #0f0a06;
+    --bg-purple: #1e1408;
+    --bg-card: #1a1208;
+    --bg-card-hover: #251a0c;
+    --gold: #d4964b;
+    --gold-light: #f0c878;
+    --gold-dark: #a06820;
+    --purple: #8a6a3a;
+    --purple-light: #c49a5a;
+    --purple-muted: #3d2a14;
+    --text: #f0e8d8;
+    --text-muted: #b8a890;
+    --rose: #8b4a20;
+
+    --gold-rgb: 212, 150, 75;
+    --purple-rgb: 138, 106, 58;
+    --rose-rgb: 139, 74, 32;
+    --bg-card-rgb: 26, 18, 8;
+    --bg-purple-rgb: 30, 20, 8;
+}

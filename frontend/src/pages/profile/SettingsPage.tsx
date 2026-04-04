@@ -7,6 +7,7 @@ import { Input } from "../../components/Input/Input";
 import { TextArea } from "../../components/TextArea/TextArea";
 import { Select } from "../../components/Select/Select";
 import { ToggleSwitch } from "../../components/ToggleSwitch/ToggleSwitch";
+import { BlockedUsersSection } from "./BlockedUsersSection";
 import { ChangePasswordSection } from "./ChangePasswordSection";
 import { DangerZoneSection } from "./DangerZoneSection";
 import styles from "./SettingsPage.module.css";
@@ -121,7 +122,8 @@ export function SettingsPage() {
         return <div className="loading">Loading settings...</div>;
     }
 
-    const characterEntries = Object.entries(form.characters).sort((a, b) => a[1].localeCompare(b[1]));
+    const uminekoEntries = Object.entries(form.characters.umineko).sort((a, b) => a[1].localeCompare(b[1]));
+    const higurashiEntries = Object.entries(form.characters.higurashi).sort((a, b) => a[1].localeCompare(b[1]));
 
     return (
         <div className={styles.page}>
@@ -175,11 +177,20 @@ export function SettingsPage() {
                                     onChange={e => form.setFavouriteCharacter((e.target as HTMLSelectElement).value)}
                                 >
                                     <option value="">None</option>
-                                    {characterEntries.map(([id, name]) => (
-                                        <option key={id} value={name}>
-                                            {name}
-                                        </option>
-                                    ))}
+                                    <optgroup label="Umineko">
+                                        {uminekoEntries.map(([id, name]) => (
+                                            <option key={`umineko-${id}`} value={name}>
+                                                {name}
+                                            </option>
+                                        ))}
+                                    </optgroup>
+                                    <optgroup label="Higurashi">
+                                        {higurashiEntries.map(([id, name]) => (
+                                            <option key={`higurashi-${id}`} value={name}>
+                                                {name}
+                                            </option>
+                                        ))}
+                                    </optgroup>
                                 </Select>
                             </label>
                             <label className={styles.label}>
@@ -308,8 +319,19 @@ export function SettingsPage() {
                         <label className={styles.label}>
                             Home Page
                             <Select value={form.homePage} onChange={e => form.setHomePage(e.target.value)}>
-                                <option value="theories">Theories</option>
-                                <option value="game_board">Game Board</option>
+                                <option value="theories">Theories (Umineko)</option>
+                                <option value="theories_higurashi">Theories (Higurashi)</option>
+                                <option value="game_board">Game Board (General)</option>
+                                <option value="game_board_umineko">Game Board (Umineko)</option>
+                                <option value="game_board_higurashi">Game Board (Higurashi)</option>
+                                <option value="game_board_ciconia">Game Board (Ciconia)</option>
+                                <option value="gallery">Gallery (General)</option>
+                                <option value="gallery_umineko">Gallery (Umineko)</option>
+                                <option value="gallery_higurashi">Gallery (Higurashi)</option>
+                                <option value="gallery_ciconia">Gallery (Ciconia)</option>
+                                <option value="quotes">Quotes</option>
+                                <option value="mysteries">Mysteries</option>
+                                <option value="ships">Ships</option>
                             </Select>
                         </label>
                     </div>
@@ -389,6 +411,7 @@ export function SettingsPage() {
             </form>
 
             <div className={styles.grid} style={{ marginTop: "1.5rem" }}>
+                <BlockedUsersSection />
                 <ChangePasswordSection />
                 <DangerZoneSection />
             </div>

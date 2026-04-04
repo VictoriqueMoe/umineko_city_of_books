@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { QuoteBrowseResponse } from "../../types/api";
+import type { Series } from "../../api/endpoints";
 import { browseQuotes, getCharacters } from "../../api/endpoints";
 import { TruthCard } from "../../components/truth/TruthCard/TruthCard";
 import { Pagination } from "../../components/Pagination/Pagination";
@@ -15,8 +16,32 @@ const TRUTH_COLOURS: Record<string, { base: string; active: string }> = {
     purple: { base: styles.filterBtnPurple, active: styles.filterBtnPurpleActive },
 };
 
+const HIGURASHI_ARCS: { value: string; label: string }[] = [
+    { value: "onikakushi", label: "Onikakushi" },
+    { value: "watanagashi", label: "Watanagashi" },
+    { value: "tatarigoroshi", label: "Tatarigoroshi" },
+    { value: "himatsubushi", label: "Himatsubushi" },
+    { value: "meakashi", label: "Meakashi" },
+    { value: "tsumihoroboshi", label: "Tsumihoroboshi" },
+    { value: "minagoroshi", label: "Minagoroshi" },
+    { value: "matsuribayashi", label: "Matsuribayashi" },
+    { value: "someutsushi", label: "Someutsushi" },
+    { value: "kageboshi", label: "Kageboshi" },
+    { value: "tsukiotoshi", label: "Tsukiotoshi" },
+    { value: "taraimawashi", label: "Taraimawashi" },
+    { value: "yoigoshi", label: "Yoigoshi" },
+    { value: "tokihogushi", label: "Tokihogushi" },
+    { value: "miotsukushi_omote", label: "Miotsukushi Omote" },
+    { value: "kakera", label: "Kakera" },
+    { value: "miotsukushi_ura", label: "Miotsukushi Ura" },
+    { value: "kotohogushi", label: "Kotohogushi" },
+    { value: "hajisarashi", label: "Hajisarashi" },
+];
+
 export function QuoteBrowserPage() {
+    const [series, setSeries] = useState<Series>("umineko");
     const [episode, setEpisode] = useState(0);
+    const [arc, setArc] = useState("");
     const [character, setCharacter] = useState("");
     const [truth, setTruth] = useState("");
     const [characters, setCharacters] = useState<Record<string, string>>({});
@@ -26,10 +51,10 @@ export function QuoteBrowserPage() {
     const limit = 30;
 
     useEffect(() => {
-        getCharacters()
+        getCharacters(series)
             .then(setCharacters)
-            .catch(() => {});
-    }, []);
+            .catch(() => setCharacters({}));
+    }, [series]);
 
     const fetchQuotes = useCallback(
         async (currentOffset: number) => {
@@ -39,8 +64,10 @@ export function QuoteBrowserPage() {
                     episode: episode || undefined,
                     character: character || undefined,
                     truth: truth || undefined,
+                    arc: arc || undefined,
                     limit,
                     offset: currentOffset,
+                    series,
                 });
                 setData(result);
             } catch {
@@ -49,8 +76,16 @@ export function QuoteBrowserPage() {
                 setLoading(false);
             }
         },
-        [episode, character, truth],
+        [episode, character, truth, arc, series],
     );
+
+    function changeSeries(next: Series) {
+        setSeries(next);
+        setCharacter("");
+        setTruth("");
+        setEpisode(0);
+        setArc("");
+    }
 
     useEffect(() => {
         setOffset(0);
@@ -67,41 +102,73 @@ export function QuoteBrowserPage() {
 
     return (
         <div>
-            <div className={styles.filterPanel}>
-                <div className={styles.filterGroup}>
-                    <button
-                        className={`${styles.filterBtn}${truth === "" ? ` ${styles.filterBtnActive}` : ""}`}
-                        onClick={() => setTruth("")}
-                    >
-                        All
-                    </button>
-                    {TRUTH_TYPES.map(t => (
-                        <button
-                            key={t}
-                            className={truthBtnClass(t)}
-                            onClick={() => setTruth(prev => (prev === t ? "" : t))}
-                        >
-                            {t.charAt(0).toUpperCase() + t.slice(1)} Truth
-                        </button>
-                    ))}
-                </div>
+            <div className={styles.seriesTabs}>
+                <button
+                    className={`${styles.seriesTab}${series === "umineko" ? ` ${styles.seriesTabActive}` : ""}`}
+                    onClick={() => changeSeries("umineko")}
+                >
+                    Umineko
+                </button>
+                <button
+                    className={`${styles.seriesTab}${series === "higurashi" ? ` ${styles.seriesTabActive}` : ""}`}
+                    onClick={() => changeSeries("higurashi")}
+                >
+                    Higurashi
+                </button>
+            </div>
 
-                <Select value={episode} onChange={e => setEpisode(Number((e.target as HTMLSelectElement).value))}>
-                    <option value={0}>All Episodes</option>
-                    {[1, 2, 3, 4, 5, 6, 7, 8].map(ep => (
-                        <option key={ep} value={ep}>
-                            Episode {ep}
-                        </option>
-                    ))}
-                </Select>
+            <div className={styles.filterPanel}>
+                {series === "umineko" && (
+                    <div className={styles.filterGroup}>
+                        <button
+                            className={`${styles.filterBtn}${truth === "" ? ` ${styles.filterBtnActive}` : ""}`}
+                            onClick={() => setTruth("")}
+                        >
+                            All
+                        </button>
+                        {TRUTH_TYPES.map(t => (
+                            <button
+                                key={t}
+                                className={truthBtnClass(t)}
+                                onClick={() => setTruth(prev => (prev === t ? "" : t))}
+                            >
+                                {t.charAt(0).toUpperCase() + t.slice(1)} Truth
+                            </button>
+                        ))}
+                    </div>
+                )}
+
+                {series === "umineko" && (
+                    <Select value={episode} onChange={e => setEpisode(Number((e.target as HTMLSelectElement).value))}>
+                        <option value={0}>All Episodes</option>
+                        {[1, 2, 3, 4, 5, 6, 7, 8].map(ep => (
+                            <option key={ep} value={ep}>
+                                Episode {ep}
+                            </option>
+                        ))}
+                    </Select>
+                )}
+
+                {series === "higurashi" && (
+                    <Select value={arc} onChange={e => setArc((e.target as HTMLSelectElement).value)}>
+                        <option value="">All Arcs</option>
+                        {HIGURASHI_ARCS.map(a => (
+                            <option key={a.value} value={a.value}>
+                                {a.label}
+                            </option>
+                        ))}
+                    </Select>
+                )}
 
                 <Select value={character} onChange={e => setCharacter((e.target as HTMLSelectElement).value)}>
                     <option value="">All Characters</option>
-                    {Object.entries(characters).map(([id, name]) => (
-                        <option key={id} value={id}>
-                            {name}
-                        </option>
-                    ))}
+                    {Object.entries(characters)
+                        .sort((a, b) => a[1].localeCompare(b[1]))
+                        .map(([id, name]) => (
+                            <option key={id} value={id}>
+                                {name}
+                            </option>
+                        ))}
                 </Select>
             </div>
 

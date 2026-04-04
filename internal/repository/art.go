@@ -18,14 +18,14 @@ type (
 		GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID) (*ArtRow, error)
 		Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		DeleteAsAdmin(ctx context.Context, id uuid.UUID) error
-		ListAll(ctx context.Context, viewerID uuid.UUID, corner string, artType string, search string, tag string, sort string, limit, offset int) ([]ArtRow, int, error)
+		ListAll(ctx context.Context, viewerID uuid.UUID, corner string, artType string, search string, tag string, sort string, limit, offset int, excludeUserIDs []uuid.UUID) ([]ArtRow, int, error)
 		ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit, offset int) ([]ArtRow, int, error)
 		GetArtAuthorID(ctx context.Context, artID uuid.UUID) (uuid.UUID, error)
 		GetImageURL(ctx context.Context, artID uuid.UUID) (string, error)
 
 		Like(ctx context.Context, userID uuid.UUID, artID uuid.UUID) error
 		Unlike(ctx context.Context, userID uuid.UUID, artID uuid.UUID) error
-		GetLikedBy(ctx context.Context, artID uuid.UUID) ([]PostLikeUser, error)
+		GetLikedBy(ctx context.Context, artID uuid.UUID, excludeUserIDs []uuid.UUID) ([]PostLikeUser, error)
 		RecordView(ctx context.Context, artID uuid.UUID, viewerHash string) (bool, error)
 
 		AddTags(ctx context.Context, artID uuid.UUID, tags []string) error
@@ -42,7 +42,7 @@ type (
 		UpdateCommentAsAdmin(ctx context.Context, id uuid.UUID, body string) error
 		DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		DeleteCommentAsAdmin(ctx context.Context, id uuid.UUID) error
-		GetComments(ctx context.Context, artID uuid.UUID, viewerID uuid.UUID, limit, offset int) ([]ArtCommentRow, int, error)
+		GetComments(ctx context.Context, artID uuid.UUID, viewerID uuid.UUID, limit, offset int, excludeUserIDs []uuid.UUID) ([]ArtCommentRow, int, error)
 		GetCommentArtID(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error)
 		GetCommentAuthorID(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error)
 		LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error
@@ -183,7 +183,7 @@ func artOrderClause(sort string) string {
 	}
 }
 
-func (r *artRepository) ListAll(ctx context.Context, viewerID uuid.UUID, corner string, artType string, search string, tag string, sort string, limit, offset int) ([]ArtRow, int, error) {
+func (r *artRepository) ListAll(ctx context.Context, viewerID uuid.UUID, corner string, artType string, search string, tag string, sort string, limit, offset int, excludeUserIDs []uuid.UUID) ([]ArtRow, int, error) {
 	var total int
 	whereParts := []string{"a.corner = ?"}
 	args := []interface{}{corner}
@@ -205,9 +205,12 @@ func (r *artRepository) ListAll(ctx context.Context, viewerID uuid.UUID, corner 
 	}
 
 	whereClause := " WHERE " + strings.Join(whereParts, " AND ")
+	exclSQL, exclArgs := ExcludeClause("a.user_id", excludeUserIDs)
+	whereClause += exclSQL
+	countArgs := append(args, exclArgs...)
 
 	if err := r.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM art a JOIN users u ON a.user_id = u.id`+whereClause, args...,
+		`SELECT COUNT(*) FROM art a JOIN users u ON a.user_id = u.id`+whereClause, countArgs...,
 	).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count art: %w", err)
 	}
@@ -216,7 +219,7 @@ func (r *artRepository) ListAll(ctx context.Context, viewerID uuid.UUID, corner 
 	query := artSelectBase + whereClause + orderClause + ` LIMIT ? OFFSET ?`
 
 	queryArgs := []interface{}{viewerID}
-	queryArgs = append(queryArgs, args...)
+	queryArgs = append(queryArgs, countArgs...)
 	queryArgs = append(queryArgs, limit, offset)
 
 	rows, err := r.db.QueryContext(ctx, query, queryArgs...)
@@ -300,15 +303,18 @@ func (r *artRepository) Unlike(ctx context.Context, userID uuid.UUID, artID uuid
 	return nil
 }
 
-func (r *artRepository) GetLikedBy(ctx context.Context, artID uuid.UUID) ([]PostLikeUser, error) {
+func (r *artRepository) GetLikedBy(ctx context.Context, artID uuid.UUID, excludeUserIDs []uuid.UUID) ([]PostLikeUser, error) {
+	exclSQL, exclArgs := ExcludeClause("al.user_id", excludeUserIDs)
+	queryArgs := []interface{}{artID}
+	queryArgs = append(queryArgs, exclArgs...)
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT u.id, u.username, u.display_name, u.avatar_url, COALESCE(r.role, '')
 		FROM art_likes al
 		JOIN users u ON al.user_id = u.id
 		LEFT JOIN user_roles r ON r.user_id = u.id
-		WHERE al.art_id = ?
+		WHERE al.art_id = ?`+exclSQL+`
 		ORDER BY al.created_at DESC`,
-		artID,
+		queryArgs...,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("get art liked by: %w", err)
@@ -543,12 +549,16 @@ func (r *artRepository) DeleteCommentAsAdmin(ctx context.Context, id uuid.UUID) 
 	return nil
 }
 
-func (r *artRepository) GetComments(ctx context.Context, artID uuid.UUID, viewerID uuid.UUID, limit, offset int) ([]ArtCommentRow, int, error) {
+func (r *artRepository) GetComments(ctx context.Context, artID uuid.UUID, viewerID uuid.UUID, limit, offset int, excludeUserIDs []uuid.UUID) ([]ArtCommentRow, int, error) {
 	var total int
-	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM art_comments WHERE art_id = ?`, artID).Scan(&total); err != nil {
+	exclSQL, exclArgs := ExcludeClause("user_id", excludeUserIDs)
+	countArgs := []interface{}{artID}
+	countArgs = append(countArgs, exclArgs...)
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM art_comments WHERE art_id = ?`+exclSQL, countArgs...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count art comments: %w", err)
 	}
 
+	exclSQL2, exclArgs2 := ExcludeClause("c.user_id", excludeUserIDs)
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT c.id, c.art_id, c.parent_id, c.user_id, c.body, c.created_at, c.updated_at,
 			u.username, u.display_name, u.avatar_url,
@@ -558,10 +568,10 @@ func (r *artRepository) GetComments(ctx context.Context, artID uuid.UUID, viewer
 		FROM art_comments c
 		JOIN users u ON c.user_id = u.id
 		LEFT JOIN user_roles r ON r.user_id = c.user_id
-		WHERE c.art_id = ?
+		WHERE c.art_id = ?`+exclSQL2+`
 		ORDER BY c.created_at ASC
 		LIMIT ? OFFSET ?`,
-		viewerID, artID, limit, offset,
+		append([]interface{}{viewerID, artID}, append(exclArgs2, limit, offset)...)...,
 	)
 	if err != nil {
 		return nil, 0, fmt.Errorf("get art comments: %w", err)

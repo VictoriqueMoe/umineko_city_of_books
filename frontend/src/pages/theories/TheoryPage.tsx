@@ -14,6 +14,8 @@ import { ResponseEditor } from "../../components/theory/ResponseEditor/ResponseE
 import { CredibilityBadge } from "../../components/theory/CredibilityBadge/CredibilityBadge";
 import { ReportButton } from "../../components/ReportButton/ReportButton";
 import { can } from "../../utils/permissions";
+import { getSeriesConfig } from "../../utils/seriesConfig";
+import type { Series } from "../../api/endpoints";
 import styles from "./TheoryPage.module.css";
 
 export function TheoryPage() {
@@ -43,7 +45,8 @@ export function TheoryPage() {
             return;
         }
         await deleteTheory(theoryId);
-        navigate("/");
+        const s = (theory?.series || "umineko") as Series;
+        navigate(getSeriesConfig(s).theoriesPath);
     }
 
     if (loading) {
@@ -79,6 +82,8 @@ export function TheoryPage() {
         );
     }
 
+    const seriesKey = (theory.series || "umineko") as Series;
+    const cfg = getSeriesConfig(seriesKey);
     const withLove = theory.responses?.filter(r => r.side === "with_love") ?? [];
     const withoutLove = theory.responses?.filter(r => r.side === "without_love") ?? [];
 
@@ -124,16 +129,16 @@ export function TheoryPage() {
 
                 <div className={styles.body}>{theory.body}</div>
 
-                <EvidenceList evidence={theory.evidence ?? []} />
+                <EvidenceList evidence={theory.evidence ?? []} series={seriesKey} />
             </div>
 
             <div className={styles.debateSection}>
                 <div>
                     <h3 className={`${styles.debateHeader} ${styles.debateHeaderWithLove}`}>
-                        With love, it can be seen ({withLove.length})
+                        {cfg.withLoveTitle} ({withLove.length})
                     </h3>
                     {withLove.length > 0 ? (
-                        <ResponseList responses={withLove} theoryId={theoryId} onDeleted={refresh} />
+                        <ResponseList responses={withLove} theoryId={theoryId} series={seriesKey} onDeleted={refresh} />
                     ) : (
                         <div className="empty-state">No supporters yet.</div>
                     )}
@@ -141,17 +146,22 @@ export function TheoryPage() {
 
                 <div>
                     <h3 className={`${styles.debateHeader} ${styles.debateHeaderWithoutLove}`}>
-                        Without love, it cannot be seen ({withoutLove.length})
+                        {cfg.withoutLoveTitle} ({withoutLove.length})
                     </h3>
                     {withoutLove.length > 0 ? (
-                        <ResponseList responses={withoutLove} theoryId={theoryId} onDeleted={refresh} />
+                        <ResponseList
+                            responses={withoutLove}
+                            theoryId={theoryId}
+                            series={seriesKey}
+                            onDeleted={refresh}
+                        />
                     ) : (
                         <div className="empty-state">No deniers yet.</div>
                     )}
                 </div>
             </div>
 
-            {user && !isAuthor && <ResponseEditor theoryId={theoryId} onCreated={refresh} />}
+            {user && !isAuthor && <ResponseEditor theoryId={theoryId} onCreated={refresh} series={seriesKey} />}
 
             {!user && (
                 <div className="empty-state">

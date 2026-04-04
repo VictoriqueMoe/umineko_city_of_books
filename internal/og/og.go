@@ -12,12 +12,14 @@ import (
 
 type (
 	Resolver struct {
-		theoryRepo repository.TheoryRepository
-		userRepo   repository.UserRepository
-		postRepo   repository.PostRepository
-		artRepo    repository.ArtRepository
-		baseHTML   string
-		baseURL    string
+		theoryRepo  repository.TheoryRepository
+		userRepo    repository.UserRepository
+		postRepo    repository.PostRepository
+		artRepo     repository.ArtRepository
+		mysteryRepo repository.MysteryRepository
+		shipRepo    repository.ShipRepository
+		baseHTML    string
+		baseURL     string
 	}
 
 	Meta struct {
@@ -38,15 +40,19 @@ func NewResolver(
 	userRepo repository.UserRepository,
 	postRepo repository.PostRepository,
 	artRepo repository.ArtRepository,
+	mysteryRepo repository.MysteryRepository,
+	shipRepo repository.ShipRepository,
 	baseHTML, baseURL string,
 ) *Resolver {
 	return &Resolver{
-		theoryRepo: theoryRepo,
-		userRepo:   userRepo,
-		postRepo:   postRepo,
-		artRepo:    artRepo,
-		baseHTML:   baseHTML,
-		baseURL:    baseURL,
+		theoryRepo:  theoryRepo,
+		userRepo:    userRepo,
+		postRepo:    postRepo,
+		artRepo:     artRepo,
+		mysteryRepo: mysteryRepo,
+		shipRepo:    shipRepo,
+		baseHTML:    baseHTML,
+		baseURL:     baseURL,
 	}
 }
 
@@ -84,6 +90,34 @@ func (r *Resolver) metaForPath(ctx context.Context, path string) *Meta {
 	if len(parts) == 3 && parts[0] == "gallery" && parts[1] == "view" {
 		if _, err := uuid.Parse(parts[2]); err == nil {
 			return r.galleryMeta(ctx, parts[2])
+		}
+	}
+
+	if len(parts) == 1 && parts[0] == "mysteries" {
+		return &Meta{
+			Title:       "Mysteries - Umineko City of Books",
+			Description: "Browse and solve fan-created mysteries inspired by Umineko no Naku Koro ni.",
+			URL:         r.baseURL + "/mysteries",
+		}
+	}
+
+	if len(parts) == 2 && parts[0] == "mysteries" {
+		if _, err := uuid.Parse(parts[1]); err == nil {
+			return r.mysteryMeta(ctx, parts[1])
+		}
+	}
+
+	if len(parts) == 1 && parts[0] == "ships" {
+		return &Meta{
+			Title:       "Ships - Umineko City of Books",
+			Description: "Declare your favourite Umineko and Higurashi pairings. Vote on crackships and debate the merits of your OTPs.",
+			URL:         r.baseURL + "/ships",
+		}
+	}
+
+	if len(parts) == 2 && parts[0] == "ships" {
+		if _, err := uuid.Parse(parts[1]); err == nil {
+			return r.shipMeta(ctx, parts[1])
 		}
 	}
 
@@ -255,6 +289,78 @@ func (r *Resolver) galleryMeta(ctx context.Context, idStr string) *Meta {
 		}
 	}
 
+	return meta
+}
+
+func (r *Resolver) mysteryMeta(ctx context.Context, idStr string) *Meta {
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		return nil
+	}
+
+	mystery, err := r.mysteryRepo.GetByID(ctx, id)
+	if err != nil || mystery == nil {
+		return nil
+	}
+
+	desc := mystery.Body
+	if len(desc) > 200 {
+		desc = desc[:197] + "..."
+	}
+
+	status := "Open"
+	if mystery.Solved {
+		status = "Solved"
+	}
+
+	title := fmt.Sprintf("%s (%s) - Mystery by %s", mystery.Title, status, mystery.AuthorDisplayName)
+
+	return &Meta{
+		Title:       title,
+		Description: desc,
+		Image:       mystery.AuthorAvatarURL,
+		URL:         fmt.Sprintf("%s/mysteries/%s", r.baseURL, idStr),
+	}
+}
+
+func (r *Resolver) shipMeta(ctx context.Context, idStr string) *Meta {
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		return nil
+	}
+
+	ship, err := r.shipRepo.GetByID(ctx, id, uuid.Nil)
+	if err != nil || ship == nil {
+		return nil
+	}
+
+	characters, _ := r.shipRepo.GetCharacters(ctx, id)
+	charNames := make([]string, len(characters))
+	for i, c := range characters {
+		charNames[i] = c.CharacterName
+	}
+	pairing := strings.Join(charNames, " \u00D7 ")
+
+	desc := ship.Description
+	if desc == "" {
+		desc = fmt.Sprintf("A ship by %s featuring %s", ship.AuthorDisplayName, pairing)
+	}
+	if len(desc) > 200 {
+		desc = desc[:197] + "..."
+	}
+
+	title := fmt.Sprintf("%s - %s", ship.Title, pairing)
+
+	meta := &Meta{
+		Title:       title,
+		Description: desc,
+		URL:         fmt.Sprintf("%s/ships/%s", r.baseURL, idStr),
+	}
+	if ship.ImageURL != "" {
+		meta.Image = ship.ImageURL
+	} else {
+		meta.Image = ship.AuthorAvatarURL
+	}
 	return meta
 }
 
