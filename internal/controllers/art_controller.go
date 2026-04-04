@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	artsvc "umineko_city_of_books/internal/art"
+	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/middleware"
 
@@ -44,7 +45,7 @@ func (s *Service) getAllArtRoutes() []FSetupRoute {
 }
 
 func (s *Service) setupListArt(r fiber.Router) {
-	r.Get("/art", middleware.OptionalAuth(s.AuthSession), s.listArt)
+	r.Get("/art", middleware.OptionalAuth(s.AuthSession, s.AuthzService), s.listArt)
 }
 
 func (s *Service) setupGetArtCornerCounts(r fiber.Router) {
@@ -56,55 +57,55 @@ func (s *Service) setupGetPopularTags(r fiber.Router) {
 }
 
 func (s *Service) setupGetArt(r fiber.Router) {
-	r.Get("/art/:id", middleware.OptionalAuth(s.AuthSession), s.getArt)
+	r.Get("/art/:id", middleware.OptionalAuth(s.AuthSession, s.AuthzService), s.getArt)
 }
 
 func (s *Service) setupCreateArt(r fiber.Router) {
-	r.Post("/art", middleware.RequireAuth(s.AuthSession), s.createArt)
+	r.Post("/art", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.createArt)
 }
 
 func (s *Service) setupUpdateArt(r fiber.Router) {
-	r.Put("/art/:id", middleware.RequireAuth(s.AuthSession), s.updateArt)
+	r.Put("/art/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.updateArt)
 }
 
 func (s *Service) setupDeleteArt(r fiber.Router) {
-	r.Delete("/art/:id", middleware.RequireAuth(s.AuthSession), s.deleteArt)
+	r.Delete("/art/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.deleteArt)
 }
 
 func (s *Service) setupLikeArt(r fiber.Router) {
-	r.Post("/art/:id/like", middleware.RequireAuth(s.AuthSession), s.likeArt)
+	r.Post("/art/:id/like", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.likeArt)
 }
 
 func (s *Service) setupUnlikeArt(r fiber.Router) {
-	r.Delete("/art/:id/like", middleware.RequireAuth(s.AuthSession), s.unlikeArt)
+	r.Delete("/art/:id/like", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.unlikeArt)
 }
 
 func (s *Service) setupCreateArtComment(r fiber.Router) {
-	r.Post("/art/:id/comments", middleware.RequireAuth(s.AuthSession), s.createArtComment)
+	r.Post("/art/:id/comments", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.createArtComment)
 }
 
 func (s *Service) setupUpdateArtComment(r fiber.Router) {
-	r.Put("/art-comments/:id", middleware.RequireAuth(s.AuthSession), s.updateArtComment)
+	r.Put("/art-comments/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.updateArtComment)
 }
 
 func (s *Service) setupDeleteArtComment(r fiber.Router) {
-	r.Delete("/art-comments/:id", middleware.RequireAuth(s.AuthSession), s.deleteArtComment)
+	r.Delete("/art-comments/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.deleteArtComment)
 }
 
 func (s *Service) setupLikeArtComment(r fiber.Router) {
-	r.Post("/art-comments/:id/like", middleware.RequireAuth(s.AuthSession), s.likeArtComment)
+	r.Post("/art-comments/:id/like", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.likeArtComment)
 }
 
 func (s *Service) setupUnlikeArtComment(r fiber.Router) {
-	r.Delete("/art-comments/:id/like", middleware.RequireAuth(s.AuthSession), s.unlikeArtComment)
+	r.Delete("/art-comments/:id/like", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.unlikeArtComment)
 }
 
 func (s *Service) setupUploadArtCommentMedia(r fiber.Router) {
-	r.Post("/art-comments/:id/media", middleware.RequireAuth(s.AuthSession), s.uploadArtCommentMedia)
+	r.Post("/art-comments/:id/media", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.uploadArtCommentMedia)
 }
 
 func (s *Service) setupListUserArt(r fiber.Router) {
-	r.Get("/users/:id/art", middleware.OptionalAuth(s.AuthSession), s.listUserArt)
+	r.Get("/users/:id/art", middleware.OptionalAuth(s.AuthSession, s.AuthzService), s.listUserArt)
 }
 
 func artViewerHash(ctx fiber.Ctx) string {
@@ -249,6 +250,9 @@ func (s *Service) likeArt(ctx fiber.Ctx) error {
 
 	userID := ctx.Locals("userID").(uuid.UUID)
 	if err := s.ArtService.LikeArt(ctx.Context(), userID, artID); err != nil {
+		if errors.Is(err, block.ErrUserBlocked) {
+			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "user is blocked"})
+		}
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to like art"})
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
@@ -281,6 +285,9 @@ func (s *Service) createArtComment(ctx fiber.Ctx) error {
 
 	id, err := s.ArtService.CreateComment(ctx.Context(), artID, userID, req)
 	if err != nil {
+		if errors.Is(err, block.ErrUserBlocked) {
+			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "user is blocked"})
+		}
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to create comment"})
 	}
 	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id})
@@ -325,6 +332,9 @@ func (s *Service) likeArtComment(ctx fiber.Ctx) error {
 
 	userID := ctx.Locals("userID").(uuid.UUID)
 	if err := s.ArtService.LikeComment(ctx.Context(), userID, commentID); err != nil {
+		if errors.Is(err, block.ErrUserBlocked) {
+			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "user is blocked"})
+		}
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to like comment"})
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
@@ -386,7 +396,7 @@ func (s *Service) listUserArt(ctx fiber.Ctx) error {
 }
 
 func (s *Service) setupCreateGallery(r fiber.Router) {
-	r.Post("/galleries", middleware.RequireAuth(s.AuthSession), s.createGallery)
+	r.Post("/galleries", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.createGallery)
 }
 
 func (s *Service) setupListAllGalleries(r fiber.Router) {
@@ -394,19 +404,19 @@ func (s *Service) setupListAllGalleries(r fiber.Router) {
 }
 
 func (s *Service) setupUpdateGallery(r fiber.Router) {
-	r.Put("/galleries/:id", middleware.RequireAuth(s.AuthSession), s.updateGallery)
+	r.Put("/galleries/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.updateGallery)
 }
 
 func (s *Service) setupSetGalleryCover(r fiber.Router) {
-	r.Put("/galleries/:id/cover", middleware.RequireAuth(s.AuthSession), s.setGalleryCover)
+	r.Put("/galleries/:id/cover", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.setGalleryCover)
 }
 
 func (s *Service) setupDeleteGallery(r fiber.Router) {
-	r.Delete("/galleries/:id", middleware.RequireAuth(s.AuthSession), s.deleteGallery)
+	r.Delete("/galleries/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.deleteGallery)
 }
 
 func (s *Service) setupGetGallery(r fiber.Router) {
-	r.Get("/galleries/:id", middleware.OptionalAuth(s.AuthSession), s.getGallery)
+	r.Get("/galleries/:id", middleware.OptionalAuth(s.AuthSession, s.AuthzService), s.getGallery)
 }
 
 func (s *Service) setupListUserGalleries(r fiber.Router) {
@@ -414,7 +424,7 @@ func (s *Service) setupListUserGalleries(r fiber.Router) {
 }
 
 func (s *Service) setupSetArtGallery(r fiber.Router) {
-	r.Put("/art/:id/gallery", middleware.RequireAuth(s.AuthSession), s.setArtGallery)
+	r.Put("/art/:id/gallery", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.setArtGallery)
 }
 
 func (s *Service) createGallery(ctx fiber.Ctx) error {

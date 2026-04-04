@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/middleware"
 	"umineko_city_of_books/internal/theory"
@@ -28,39 +29,39 @@ func (s *Service) getAllTheoryRoutes() []FSetupRoute {
 }
 
 func (s *Service) setupListTheoriesRoute(r fiber.Router) {
-	r.Get("/theories", middleware.OptionalAuth(s.AuthSession), s.listTheories)
+	r.Get("/theories", middleware.OptionalAuth(s.AuthSession, s.AuthzService), s.listTheories)
 }
 
 func (s *Service) setupCreateTheoryRoute(r fiber.Router) {
-	r.Post("/theories", middleware.RequireAuth(s.AuthSession), s.createTheory)
+	r.Post("/theories", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.createTheory)
 }
 
 func (s *Service) setupGetTheoryRoute(r fiber.Router) {
-	r.Get("/theories/:id", middleware.OptionalAuth(s.AuthSession), s.getTheory)
+	r.Get("/theories/:id", middleware.OptionalAuth(s.AuthSession, s.AuthzService), s.getTheory)
 }
 
 func (s *Service) setupUpdateTheoryRoute(r fiber.Router) {
-	r.Put("/theories/:id", middleware.RequireAuth(s.AuthSession), s.updateTheory)
+	r.Put("/theories/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.updateTheory)
 }
 
 func (s *Service) setupDeleteTheoryRoute(r fiber.Router) {
-	r.Delete("/theories/:id", middleware.RequireAuth(s.AuthSession), s.deleteTheory)
+	r.Delete("/theories/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.deleteTheory)
 }
 
 func (s *Service) setupVoteTheoryRoute(r fiber.Router) {
-	r.Post("/theories/:id/vote", middleware.RequireAuth(s.AuthSession), s.voteTheory)
+	r.Post("/theories/:id/vote", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.voteTheory)
 }
 
 func (s *Service) setupCreateResponseRoute(r fiber.Router) {
-	r.Post("/theories/:id/responses", middleware.RequireAuth(s.AuthSession), s.createResponse)
+	r.Post("/theories/:id/responses", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.createResponse)
 }
 
 func (s *Service) setupDeleteResponseRoute(r fiber.Router) {
-	r.Delete("/responses/:id", middleware.RequireAuth(s.AuthSession), s.deleteResponse)
+	r.Delete("/responses/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.deleteResponse)
 }
 
 func (s *Service) setupVoteResponseRoute(r fiber.Router) {
-	r.Post("/responses/:id/vote", middleware.RequireAuth(s.AuthSession), s.voteResponse)
+	r.Post("/responses/:id/vote", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.voteResponse)
 }
 
 func (s *Service) listTheories(ctx fiber.Ctx) error {
@@ -68,6 +69,7 @@ func (s *Service) listTheories(ctx fiber.Ctx) error {
 	episode := fiber.Query[int](ctx, "episode", 0)
 	authorIDStr := ctx.Query("author")
 	search := ctx.Query("search")
+	series := ctx.Query("series", "umineko")
 	limit := fiber.Query[int](ctx, "limit", 20)
 	offset := fiber.Query[int](ctx, "offset", 0)
 	userID, _ := ctx.Locals("userID").(uuid.UUID)
@@ -83,7 +85,7 @@ func (s *Service) listTheories(ctx fiber.Ctx) error {
 		authorID = parsed
 	}
 
-	p := params.NewListParams(sort, episode, authorID, search, limit, offset)
+	p := params.NewListParams(sort, episode, authorID, search, series, limit, offset)
 	result, err := s.TheoryService.ListTheories(ctx.Context(), p, userID)
 	if err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -219,6 +221,11 @@ func (s *Service) vote(ctx fiber.Ctx, voteFunc func(context.Context, uuid.UUID, 
 	}
 
 	if err := voteFunc(ctx.Context(), userID, id, req.Value); err != nil {
+		if errors.Is(err, block.ErrUserBlocked) {
+			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"error": "user is blocked",
+			})
+		}
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "failed to vote",
 		})
@@ -257,6 +264,11 @@ func (s *Service) createResponse(ctx fiber.Ctx) error {
 
 	id, err := s.TheoryService.CreateResponse(ctx.Context(), theoryID, userID, req)
 	if err != nil {
+		if errors.Is(err, block.ErrUserBlocked) {
+			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"error": "user is blocked",
+			})
+		}
 		if errors.Is(err, theory.ErrCannotRespondToOwnTheory) {
 			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
 				"error": err.Error(),

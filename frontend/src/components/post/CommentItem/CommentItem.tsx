@@ -35,6 +35,7 @@ interface CommentItemProps {
     updateFn?: (id: string, body: string) => Promise<void>;
     createCommentFn?: CreateCommentFn;
     uploadMediaFn?: UploadMediaFn;
+    viewerBlocked?: boolean;
 }
 
 function timeAgo(dateStr: string): string {
@@ -83,6 +84,7 @@ function SingleComment({
     updateFn,
     createCommentFn,
     uploadMediaFn,
+    viewerBlocked,
 }: CommentItemProps) {
     const { user } = useAuth();
     const isOwner = user?.id === comment.author.id;
@@ -191,11 +193,13 @@ function SingleComment({
             )}
 
             <div className={styles.actions}>
-                <Button variant="ghost" size="small" onClick={handleLike} disabled={!user}>
-                    {liked ? "\u2665" : "\u2661"} {likeCount > 0 && likeCount}
-                </Button>
+                {!viewerBlocked && (
+                    <Button variant="ghost" size="small" onClick={handleLike} disabled={!user}>
+                        {liked ? "\u2665" : "\u2661"} {likeCount > 0 && likeCount}
+                    </Button>
+                )}
 
-                {user && (
+                {user && !viewerBlocked && (
                     <Button variant="ghost" size="small" onClick={() => setShowReply(!showReply)}>
                         Reply
                     </Button>
@@ -258,6 +262,7 @@ export function CommentItem({
     updateFn,
     createCommentFn,
     uploadMediaFn,
+    viewerBlocked,
 }: CommentItemProps) {
     const allReplies = flattenReplies(comment);
     const [collapsed, setCollapsed] = useState(false);
@@ -273,6 +278,7 @@ export function CommentItem({
         updateFn,
         createCommentFn,
         uploadMediaFn,
+        viewerBlocked,
     };
 
     return (

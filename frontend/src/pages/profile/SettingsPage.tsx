@@ -7,6 +7,7 @@ import { Input } from "../../components/Input/Input";
 import { TextArea } from "../../components/TextArea/TextArea";
 import { Select } from "../../components/Select/Select";
 import { ToggleSwitch } from "../../components/ToggleSwitch/ToggleSwitch";
+import { BlockedUsersSection } from "./BlockedUsersSection";
 import { ChangePasswordSection } from "./ChangePasswordSection";
 import { DangerZoneSection } from "./DangerZoneSection";
 import styles from "./SettingsPage.module.css";
@@ -308,8 +309,17 @@ export function SettingsPage() {
                         <label className={styles.label}>
                             Home Page
                             <Select value={form.homePage} onChange={e => form.setHomePage(e.target.value)}>
-                                <option value="theories">Theories</option>
-                                <option value="game_board">Game Board</option>
+                                <option value="theories">Theories (Umineko)</option>
+                                <option value="theories_higurashi">Theories (Higurashi)</option>
+                                <option value="game_board">Game Board (General)</option>
+                                <option value="game_board_umineko">Game Board (Umineko)</option>
+                                <option value="game_board_higurashi">Game Board (Higurashi)</option>
+                                <option value="game_board_ciconia">Game Board (Ciconia)</option>
+                                <option value="gallery">Gallery (General)</option>
+                                <option value="gallery_umineko">Gallery (Umineko)</option>
+                                <option value="gallery_higurashi">Gallery (Higurashi)</option>
+                                <option value="gallery_ciconia">Gallery (Ciconia)</option>
+                                <option value="quotes">Quotes</option>
                             </Select>
                         </label>
                     </div>
@@ -389,6 +399,7 @@ export function SettingsPage() {
             </form>
 
             <div className={styles.grid} style={{ marginTop: "1.5rem" }}>
+                <BlockedUsersSection />
                 <ChangePasswordSection />
                 <DangerZoneSection />
             </div>

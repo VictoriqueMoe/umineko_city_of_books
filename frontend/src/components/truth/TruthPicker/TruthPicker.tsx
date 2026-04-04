@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Quote } from "../../../types/api";
-import { browseQuotes, getCharacters, searchQuotes } from "../../../api/endpoints";
+import { browseQuotes, getCharacters, searchQuotes, type Series } from "../../../api/endpoints";
+import { getSeriesConfig } from "../../../utils/seriesConfig";
 import { Button } from "../../Button/Button";
 import { Input } from "../../Input/Input";
 import { Modal } from "../../Modal/Modal";
@@ -14,6 +15,7 @@ interface TruthPickerProps {
     onClose: () => void;
     onSelect: (quote: Quote) => void;
     selectedKeys: string[];
+    series?: Series;
 }
 
 const TRUTH_TYPES = ["red", "blue", "gold", "purple"];
@@ -26,7 +28,8 @@ function quoteKey(q: Quote): string {
     return `index:${q.index}`;
 }
 
-export function TruthPicker({ isOpen, onClose, onSelect, selectedKeys }: TruthPickerProps) {
+export function TruthPicker({ isOpen, onClose, onSelect, selectedKeys, series = "umineko" }: TruthPickerProps) {
+    const cfg = getSeriesConfig(series);
     const [query, setQuery] = useState("");
     const [episode, setEpisode] = useState(0);
     const [character, setCharacter] = useState("");
@@ -39,10 +42,10 @@ export function TruthPicker({ isOpen, onClose, onSelect, selectedKeys }: TruthPi
     const initialLoadDone = useRef(false);
 
     useEffect(() => {
-        getCharacters()
+        getCharacters(series)
             .then(setCharacters)
             .catch(() => {});
-    }, []);
+    }, [series]);
 
     const doFetch = useCallback(async (q: string, ep: number, char: string, tr: string, off: number) => {
         setLoading(true);
@@ -55,6 +58,7 @@ export function TruthPicker({ isOpen, onClose, onSelect, selectedKeys }: TruthPi
                     truth: tr || undefined,
                     limit: LIMIT,
                     offset: off,
+                    series,
                 });
                 setQuotes(result.results.map(r => r.quote));
                 setTotal(result.total);
@@ -65,6 +69,7 @@ export function TruthPicker({ isOpen, onClose, onSelect, selectedKeys }: TruthPi
                     truth: tr || undefined,
                     limit: LIMIT,
                     offset: off,
+                    series,
                 });
                 setQuotes(result.quotes);
                 setTotal(result.total);
@@ -75,7 +80,7 @@ export function TruthPicker({ isOpen, onClose, onSelect, selectedKeys }: TruthPi
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [series]);
 
     useEffect(() => {
         if (isOpen && !initialLoadDone.current) {
@@ -137,7 +142,7 @@ export function TruthPicker({ isOpen, onClose, onSelect, selectedKeys }: TruthPi
                     }}
                 >
                     <option value={0}>All Episodes</option>
-                    {[1, 2, 3, 4, 5, 6, 7, 8].map(ep => (
+                    {Array.from({ length: cfg.episodeCount }, (_, i) => i + 1).map(ep => (
                         <option key={ep} value={ep}>
                             Episode {ep}
                         </option>

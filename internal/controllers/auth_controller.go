@@ -40,7 +40,7 @@ func (s *Service) setupLogoutRoute(r fiber.Router) {
 }
 
 func (s *Service) setupGetMeRoute(r fiber.Router) {
-	r.Get("/auth/me", middleware.RequireAuth(s.AuthSession), s.getMe)
+	r.Get("/auth/me", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.getMe)
 }
 
 func (s *Service) setSessionCookie(ctx fiber.Ctx, token string) {

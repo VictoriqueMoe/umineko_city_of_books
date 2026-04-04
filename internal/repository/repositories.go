@@ -20,6 +20,8 @@ type (
 		Follow       FollowRepository
 		Art          ArtRepository
 		Upload       UploadRepository
+		Block        BlockRepository
+		Announcement AnnouncementRepository
 	}
 )
 
@@ -45,5 +47,7 @@ func New(db *sql.DB) *Repositories {
 		Follow:       &followRepository{db: db},
 		Art:          &artRepository{db: db},
 		Upload:       &uploadRepository{db: db},
+		Block:        &blockRepository{db: db},
+		Announcement: &announcementRepository{db: db},
 	}
 }

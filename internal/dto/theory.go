@@ -8,6 +8,7 @@ type (
 		Title            string       `json:"title"`
 		Body             string       `json:"body"`
 		Episode          int          `json:"episode"`
+		Series           string       `json:"series"`
 		Author           UserResponse `json:"author"`
 		VoteScore        int          `json:"vote_score"`
 		WithLoveCount    int          `json:"with_love_count"`
@@ -22,6 +23,7 @@ type (
 		Title            string             `json:"title"`
 		Body             string             `json:"body"`
 		Episode          int                `json:"episode"`
+		Series           string             `json:"series"`
 		Author           UserResponse       `json:"author"`
 		Evidence         []EvidenceResponse `json:"evidence"`
 		Responses        []ResponseResponse `json:"responses"`
@@ -58,6 +60,7 @@ type (
 		Title    string          `json:"title"`
 		Body     string          `json:"body"`
 		Episode  int             `json:"episode"`
+		Series   string          `json:"series"`
 		Evidence []EvidenceInput `json:"evidence"`
 	}
 

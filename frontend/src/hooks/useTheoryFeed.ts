@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Theory, TheoryListResponse } from "../types/api";
 import type { TheorySort } from "../types/app";
-import { listTheories } from "../api/endpoints";
+import { listTheories, type Series } from "../api/endpoints";
 
-export function useTheoryFeed(sort: TheorySort, episode: number, authorId?: string, search?: string) {
+export function useTheoryFeed(sort: TheorySort, episode: number, authorId?: string, search?: string, series?: Series) {
     const [data, setData] = useState<TheoryListResponse | null>(null);
     const [loading, setLoading] = useState(false);
     const [offset, setOffset] = useState(0);
@@ -18,6 +18,7 @@ export function useTheoryFeed(sort: TheorySort, episode: number, authorId?: stri
                     episode: episode || undefined,
                     author: authorId || undefined,
                     search: search || undefined,
+                    series: series ?? "umineko",
                     limit,
                     offset: currentOffset,
                 });
@@ -28,7 +29,7 @@ export function useTheoryFeed(sort: TheorySort, episode: number, authorId?: stri
                 setLoading(false);
             }
         },
-        [sort, episode, authorId, search],
+        [sort, episode, authorId, search, series],
     );
 
     useEffect(() => {

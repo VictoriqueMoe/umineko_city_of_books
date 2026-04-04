@@ -59,6 +59,7 @@ export interface Theory {
     title: string;
     body: string;
     episode: number;
+    series: string;
     author: User;
     vote_score: number;
     with_love_count: number;
@@ -103,6 +104,7 @@ export interface CreateTheoryPayload {
     title: string;
     body: string;
     episode: number;
+    series: string;
     evidence: EvidenceInput[];
 }
 
@@ -237,6 +239,7 @@ export interface Post {
 export interface PostDetail extends Post {
     comments: PostComment[];
     liked_by: User[];
+    viewer_blocked: boolean;
 }
 
 export interface PostComment {
@@ -406,6 +409,7 @@ export interface Art {
 export interface ArtDetail extends Art {
     comments: ArtComment[];
     liked_by: User[];
+    viewer_blocked: boolean;
 }
 
 export interface ArtComment {
@@ -469,4 +473,21 @@ export interface ChatMessage {
     sender: User;
     body: string;
     created_at: string;
+}
+
+export interface Announcement {
+    id: string;
+    title: string;
+    body: string;
+    author: User;
+    pinned: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface AnnouncementListResponse {
+    announcements: Announcement[];
+    total: number;
+    limit: number;
+    offset: number;
 }

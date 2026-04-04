@@ -24,8 +24,9 @@ type (
 
 	ArtDetailResponse struct {
 		ArtResponse
-		Comments []ArtCommentResponse `json:"comments"`
-		LikedBy  []UserResponse       `json:"liked_by"`
+		Comments      []ArtCommentResponse `json:"comments"`
+		LikedBy       []UserResponse       `json:"liked_by"`
+		ViewerBlocked bool                 `json:"viewer_blocked"`
 	}
 
 	CreateArtRequest struct {

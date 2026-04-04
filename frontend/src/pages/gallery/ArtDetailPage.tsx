@@ -273,10 +273,14 @@ export function ArtDetailPage() {
                         updateFn={updateArtComment}
                         createCommentFn={createArtComment}
                         uploadMediaFn={uploadArtCommentMedia}
+                        viewerBlocked={art.viewer_blocked}
                     />
                 ))}
                 {art.comments.length === 0 && <p className={styles.noComments}>No comments yet.</p>}
-                {user && id && (
+                {art.viewer_blocked && (
+                    <p className={styles.blockedNotice}>You cannot interact with this post.</p>
+                )}
+                {user && id && !art.viewer_blocked && (
                     <CommentComposer
                         postId={id}
                         onCreated={fetchArt}

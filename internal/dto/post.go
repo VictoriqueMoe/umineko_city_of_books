@@ -41,8 +41,9 @@ type (
 
 	PostDetailResponse struct {
 		PostResponse
-		Comments []PostCommentResponse `json:"comments"`
-		LikedBy  []UserResponse        `json:"liked_by"`
+		Comments      []PostCommentResponse `json:"comments"`
+		LikedBy       []UserResponse        `json:"liked_by"`
+		ViewerBlocked bool                  `json:"viewer_blocked"`
 	}
 
 	PostCommentResponse struct {

@@ -6,6 +6,8 @@ import { Pagination } from "../../components/Pagination/Pagination";
 import { Input } from "../../components/Input/Input";
 import { Select } from "../../components/Select/Select";
 import { RulesBox } from "../../components/RulesBox/RulesBox";
+import type { Series } from "../../api/endpoints";
+import { getSeriesConfig } from "../../utils/seriesConfig";
 import styles from "./FeedPage.module.css";
 
 type SortCategory = "new" | "popular" | "controversial" | "credibility";
@@ -28,7 +30,8 @@ function isAsc(sort: TheorySort): boolean {
     return sort === "old" || sort.endsWith("_asc");
 }
 
-export function FeedPage() {
+export function FeedPage({ series = "umineko" }: { series?: Series }) {
+    const cfg = getSeriesConfig(series);
     const [sort, setSort] = useState<TheorySort>("new");
     const [episode, setEpisode] = useState(0);
     const [searchInput, setSearchInput] = useState("");
@@ -48,6 +51,7 @@ export function FeedPage() {
         episode,
         undefined,
         search,
+        series,
     );
 
     function handleSortClick(category: SortCategory) {
@@ -91,7 +95,7 @@ export function FeedPage() {
 
                 <Select value={episode} onChange={e => setEpisode(Number((e.target as HTMLSelectElement).value))}>
                     <option value={0}>All Episodes</option>
-                    {[1, 2, 3, 4, 5, 6, 7, 8].map(ep => (
+                    {Array.from({ length: cfg.episodeCount }, (_, i) => i + 1).map(ep => (
                         <option key={ep} value={ep}>
                             Episode {ep}
                         </option>

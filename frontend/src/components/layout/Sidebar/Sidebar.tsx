@@ -30,8 +30,10 @@ export function Sidebar({ open, onClose }: SidebarProps) {
     const { addWSListener, unreadCount: unreadNotifs } = useNotifications();
     const location = useLocation();
     const [unreadChat, setUnreadChat] = useState(0);
+    const [newAnnouncement, setNewAnnouncement] = useState(false);
     const [cornersOpen, setCornersOpen] = useState(location.pathname.startsWith("/game-board"));
     const [galleryOpen, setGalleryOpen] = useState(location.pathname.startsWith("/gallery"));
+    const [theoriesOpen, setTheoriesOpen] = useState(location.pathname.startsWith("/theor"));
     const [cornerCounts, setCornerCounts] = useState<Record<string, number>>({});
     const [artCounts, setArtCounts] = useState<Record<string, number>>({});
     const pathnameRef = useRef(location.pathname);
@@ -55,6 +57,12 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                 const data = msg.data as { sender?: { id?: string } };
                 if (data.sender?.id !== user?.id && !pathnameRef.current.startsWith("/chat")) {
                     setUnreadChat(prev => prev + 1);
+                }
+            }
+            if (msg.type === "new_announcement") {
+                const data = msg.data as { author_id?: string };
+                if (data.author_id !== user?.id && !pathnameRef.current.startsWith("/announcement")) {
+                    setNewAnnouncement(true);
                 }
             }
         });
@@ -124,12 +132,47 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                                 ))}
                             </div>
                         )}
-                        <NavLink
-                            to="/theories"
-                            className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
-                            onClick={onClose}
+                        <button
+                            className={`${styles.link} ${styles.expandBtn}${theoriesOpen ? ` ${styles.expandOpen}` : ""}`}
+                            onClick={() => setTheoriesOpen(prev => !prev)}
                         >
                             Theories
+                            <span className={styles.expandIcon}>{theoriesOpen ? "\u25B4" : "\u25BE"}</span>
+                        </button>
+                        {theoriesOpen && (
+                            <div className={styles.subLinks}>
+                                <NavLink
+                                    to="/theories"
+                                    end
+                                    className={({ isActive }) =>
+                                        `${styles.link} ${styles.subLink}${isActive ? ` ${styles.active}` : ""}`
+                                    }
+                                    onClick={onClose}
+                                >
+                                    Umineko
+                                </NavLink>
+                                <NavLink
+                                    to="/theories/higurashi"
+                                    end
+                                    className={({ isActive }) =>
+                                        `${styles.link} ${styles.subLink}${isActive ? ` ${styles.active}` : ""}`
+                                    }
+                                    onClick={onClose}
+                                >
+                                    Higurashi
+                                </NavLink>
+                            </div>
+                        )}
+                        <NavLink
+                            to="/announcements"
+                            className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
+                            onClick={() => {
+                                setNewAnnouncement(false);
+                                onClose();
+                            }}
+                        >
+                            Announcements
+                            {newAnnouncement && <span className={styles.newBadge}>New</span>}
                         </NavLink>
                         <NavLink
                             to="/users"
@@ -155,7 +198,14 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                                 className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
                                 onClick={onClose}
                             >
-                                New Theory
+                                New Umineko Theory
+                            </NavLink>
+                            <NavLink
+                                to="/theory/higurashi/new"
+                                className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
+                                onClick={onClose}
+                            >
+                                New Higurashi Theory
                             </NavLink>
                         </div>
                     )}

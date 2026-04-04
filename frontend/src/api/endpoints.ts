@@ -3,6 +3,8 @@ import type {
     ActivityListResponse,
     AdminStats,
     AdminUserDetail,
+    Announcement,
+    AnnouncementListResponse,
     AdminUserListResponse,
     ArtDetail,
     ArtListResponse,
@@ -88,6 +90,8 @@ export async function getMe(): Promise<User> {
     return apiFetch<User>("/auth/me");
 }
 
+export type Series = "umineko" | "higurashi";
+
 export async function searchQuotes(params: {
     query?: string;
     character?: string;
@@ -95,7 +99,9 @@ export async function searchQuotes(params: {
     truth?: string;
     limit?: number;
     offset?: number;
+    series?: Series;
 }): Promise<QuoteSearchResponse> {
+    const series = params.series ?? "umineko";
     const qs = buildQueryString({
         q: params.query,
         character: params.character,
@@ -104,7 +110,7 @@ export async function searchQuotes(params: {
         limit: params.limit ?? 30,
         offset: params.offset,
     });
-    const response = await fetch(`${QUOTE_API}/umineko/search${qs}`);
+    const response = await fetch(`${QUOTE_API}/${series}/search${qs}`);
     if (!response.ok) {
         throw new Error(`Quote API error: ${response.status}`);
     }
@@ -117,7 +123,9 @@ export async function browseQuotes(params: {
     truth?: string;
     limit?: number;
     offset?: number;
+    series?: Series;
 }): Promise<QuoteBrowseResponse> {
+    const series = params.series ?? "umineko";
     const qs = buildQueryString({
         character: params.character,
         episode: params.episode,
@@ -125,15 +133,15 @@ export async function browseQuotes(params: {
         limit: params.limit ?? 30,
         offset: params.offset,
     });
-    const response = await fetch(`${QUOTE_API}/umineko/browse${qs}`);
+    const response = await fetch(`${QUOTE_API}/${series}/browse${qs}`);
     if (!response.ok) {
         throw new Error(`Quote API error: ${response.status}`);
     }
     return response.json();
 }
 
-export async function getCharacters(): Promise<Record<string, string>> {
-    const response = await fetch(`${QUOTE_API}/umineko/characters`);
+export async function getCharacters(series: Series = "umineko"): Promise<Record<string, string>> {
+    const response = await fetch(`${QUOTE_API}/${series}/characters`);
     if (!response.ok) {
         throw new Error(`Quote API error: ${response.status}`);
     }
@@ -146,6 +154,7 @@ export async function listTheories(params: {
     episode?: number;
     author?: string;
     search?: string;
+    series?: Series;
     limit?: number;
     offset?: number;
 }): Promise<TheoryListResponse> {
@@ -154,6 +163,7 @@ export async function listTheories(params: {
         episode: params.episode,
         author: params.author,
         search: params.search,
+        series: params.series ?? "umineko",
         limit: params.limit ?? 20,
         offset: params.offset,
     });
@@ -675,4 +685,62 @@ export async function setArtGallery(artId: string, galleryId: string | null): Pr
 export async function getUserArt(userId: string, limit: number = 24, offset: number = 0): Promise<ArtListResponse> {
     const qs = buildQueryString({ limit, offset });
     return apiFetch<ArtListResponse>(`/users/${userId}/art${qs}`);
+}
+
+export async function blockUser(id: string): Promise<void> {
+    await apiPost<unknown, undefined>(`/users/${id}/block`, undefined);
+}
+
+export async function unblockUser(id: string): Promise<void> {
+    await apiDelete(`/users/${id}/block`);
+}
+
+export interface BlockStatus {
+    blocking: boolean;
+    blocked_by: boolean;
+}
+
+export async function getBlockStatus(id: string): Promise<BlockStatus> {
+    return apiFetch<BlockStatus>(`/users/${id}/block-status`);
+}
+
+export interface BlockedUserItem {
+    id: string;
+    username: string;
+    display_name: string;
+    avatar_url: string;
+    blocked_at: string;
+}
+
+export async function getBlockedUsers(): Promise<{ users: BlockedUserItem[] }> {
+    return apiFetch<{ users: BlockedUserItem[] }>("/blocked-users");
+}
+
+export async function listAnnouncements(limit: number = 20, offset: number = 0): Promise<AnnouncementListResponse> {
+    const qs = buildQueryString({ limit, offset });
+    return apiFetch<AnnouncementListResponse>(`/announcements${qs}`);
+}
+
+export async function getAnnouncement(id: string): Promise<Announcement> {
+    return apiFetch<Announcement>(`/announcements/${id}`);
+}
+
+export async function getLatestAnnouncement(): Promise<{ announcement: Announcement | null }> {
+    return apiFetch<{ announcement: Announcement | null }>("/announcements-latest");
+}
+
+export async function createAnnouncement(title: string, body: string): Promise<{ id: string }> {
+    return apiPost<{ id: string }, { title: string; body: string }>("/admin/announcements", { title, body });
+}
+
+export async function updateAnnouncement(id: string, title: string, body: string): Promise<void> {
+    await apiPut<unknown, { title: string; body: string }>(`/admin/announcements/${id}`, { title, body });
+}
+
+export async function deleteAnnouncement(id: string): Promise<void> {
+    await apiDelete(`/admin/announcements/${id}`);
+}
+
+export async function pinAnnouncement(id: string, pinned: boolean): Promise<void> {
+    await apiPost<unknown, { pinned: boolean }>(`/admin/announcements/${id}/pin`, { pinned });
 }

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/authz"
+	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
@@ -60,6 +61,7 @@ type (
 		postRepo     repository.PostRepository
 		userRepo     repository.UserRepository
 		authz        authz.Service
+		blockSvc     block.Service
 		notifService notification.Service
 		uploadSvc    upload.Service
 		mediaProc    *media.Processor
@@ -72,6 +74,7 @@ func NewService(
 	postRepo repository.PostRepository,
 	userRepo repository.UserRepository,
 	authzService authz.Service,
+	blockSvc block.Service,
 	notifService notification.Service,
 	uploadSvc upload.Service,
 	mediaProc *media.Processor,
@@ -82,6 +85,7 @@ func NewService(
 		postRepo:     postRepo,
 		userRepo:     userRepo,
 		authz:        authzService,
+		blockSvc:     blockSvc,
 		notifService: notifService,
 		uploadSvc:    uploadSvc,
 		mediaProc:    mediaProc,
@@ -180,8 +184,10 @@ func (s *service) GetArt(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, 
 		}
 	}
 
+	blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, viewerID)
+
 	tags, _ := s.artRepo.GetTags(ctx, id)
-	comments, _, _ := s.artRepo.GetComments(ctx, id, viewerID, 500, 0)
+	comments, _, _ := s.artRepo.GetComments(ctx, id, viewerID, 500, 0, blockedIDs)
 
 	var commentIDs []uuid.UUID
 	var commentIDStrs []string
@@ -202,7 +208,7 @@ func (s *service) GetArt(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, 
 		func(c *dto.ArtCommentResponse, replies []dto.ArtCommentResponse) { c.Replies = replies },
 	)
 
-	likeUsers, _ := s.artRepo.GetLikedBy(ctx, id)
+	likeUsers, _ := s.artRepo.GetLikedBy(ctx, id, blockedIDs)
 	likedBy := make([]dto.UserResponse, len(likeUsers))
 	for i, u := range likeUsers {
 		likedBy[i] = dto.UserResponse{
@@ -217,10 +223,16 @@ func (s *service) GetArt(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, 
 	artResp := row.ToResponse(tags)
 	artResp.ThumbnailURL = s.generateThumbnailURL(row.ImageURL)
 
+	viewerBlocked := false
+	if viewerID != uuid.Nil {
+		viewerBlocked, _ = s.blockSvc.IsBlockedEither(ctx, viewerID, row.UserID)
+	}
+
 	return &dto.ArtDetailResponse{
-		ArtResponse: artResp,
-		Comments:    dtoComments,
-		LikedBy:     likedBy,
+		ArtResponse:   artResp,
+		Comments:      dtoComments,
+		LikedBy:       likedBy,
+		ViewerBlocked: viewerBlocked,
 	}, nil
 }
 
@@ -277,7 +289,8 @@ func (s *service) ListArt(ctx context.Context, viewerID uuid.UUID, corner string
 		corner = "general"
 	}
 
-	rows, total, err := s.artRepo.ListAll(ctx, viewerID, corner, artType, search, tag, sort, limit, offset)
+	blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, viewerID)
+	rows, total, err := s.artRepo.ListAll(ctx, viewerID, corner, artType, search, tag, sort, limit, offset, blockedIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -316,6 +329,14 @@ func (s *service) buildArtList(ctx context.Context, rows []repository.ArtRow, to
 }
 
 func (s *service) LikeArt(ctx context.Context, userID uuid.UUID, artID uuid.UUID) error {
+	authorID, err := s.artRepo.GetArtAuthorID(ctx, artID)
+	if err != nil {
+		return err
+	}
+	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, authorID); blocked {
+		return block.ErrUserBlocked
+	}
+
 	if err := s.artRepo.Like(ctx, userID, artID); err != nil {
 		return err
 	}
@@ -369,6 +390,14 @@ func (s *service) GetPopularTags(ctx context.Context, corner string) ([]dto.TagC
 func (s *service) CreateComment(ctx context.Context, artID uuid.UUID, userID uuid.UUID, req dto.CreateCommentRequest) (uuid.UUID, error) {
 	if strings.TrimSpace(req.Body) == "" {
 		return uuid.Nil, fmt.Errorf("comment body cannot be empty")
+	}
+
+	authorID, err := s.artRepo.GetArtAuthorID(ctx, artID)
+	if err != nil {
+		return uuid.Nil, err
+	}
+	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, authorID); blocked {
+		return uuid.Nil, block.ErrUserBlocked
 	}
 
 	id := uuid.New()
@@ -434,6 +463,14 @@ func (s *service) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.U
 }
 
 func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
+	commentAuthorID, err := s.artRepo.GetCommentAuthorID(ctx, commentID)
+	if err != nil {
+		return err
+	}
+	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, commentAuthorID); blocked {
+		return block.ErrUserBlocked
+	}
+
 	if err := s.artRepo.LikeComment(ctx, userID, commentID); err != nil {
 		return err
 	}

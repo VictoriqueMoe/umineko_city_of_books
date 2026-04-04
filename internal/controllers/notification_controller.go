@@ -17,19 +17,19 @@ func (s *Service) getAllNotificationRoutes() []FSetupRoute {
 }
 
 func (s *Service) setupListNotificationsRoute(r fiber.Router) {
-	r.Get("/notifications", middleware.RequireAuth(s.AuthSession), s.listNotifications)
+	r.Get("/notifications", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.listNotifications)
 }
 
 func (s *Service) setupMarkNotificationReadRoute(r fiber.Router) {
-	r.Post("/notifications/:id<int>/read", middleware.RequireAuth(s.AuthSession), s.markNotificationRead)
+	r.Post("/notifications/:id<int>/read", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.markNotificationRead)
 }
 
 func (s *Service) setupMarkAllNotificationsReadRoute(r fiber.Router) {
-	r.Post("/notifications/read", middleware.RequireAuth(s.AuthSession), s.markAllNotificationsRead)
+	r.Post("/notifications/read", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.markAllNotificationsRead)
 }
 
 func (s *Service) setupUnreadCountRoute(r fiber.Router) {
-	r.Get("/notifications/unread-count", middleware.RequireAuth(s.AuthSession), s.unreadCount)
+	r.Get("/notifications/unread-count", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.unreadCount)
 }
 
 func (s *Service) listNotifications(ctx fiber.Ctx) error {

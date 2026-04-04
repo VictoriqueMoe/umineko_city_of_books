@@ -76,8 +76,8 @@ export function CommentComposer({ postId, parentId, onCreated, createCommentFn, 
             setBody("");
             setFiles([]);
             onCreated();
-        } catch {
-            void 0;
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to post comment");
         } finally {
             setSubmitting(false);
         }

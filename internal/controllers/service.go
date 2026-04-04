@@ -5,12 +5,14 @@ import (
 	artsvc "umineko_city_of_books/internal/art"
 	"umineko_city_of_books/internal/auth"
 	"umineko_city_of_books/internal/authz"
+	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/chat"
 	"umineko_city_of_books/internal/follow"
 	"umineko_city_of_books/internal/notification"
 	postsvc "umineko_city_of_books/internal/post"
 	"umineko_city_of_books/internal/profile"
 	"umineko_city_of_books/internal/report"
+	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/session"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/theory"
@@ -31,6 +33,8 @@ type (
 		PostService         postsvc.Service
 		FollowService       follow.Service
 		ArtService          artsvc.Service
+		BlockService        block.Service
+		AnnouncementRepo    repository.AnnouncementRepository
 		AuthSession         *session.Manager
 		Hub                 *ws.Hub
 		HTMLContent         string
@@ -50,6 +54,8 @@ func NewService(
 	postService postsvc.Service,
 	followService follow.Service,
 	artService artsvc.Service,
+	blockService block.Service,
+	announcementRepo repository.AnnouncementRepository,
 	authSession *session.Manager,
 	hub *ws.Hub,
 	htmlContent string,
@@ -67,6 +73,8 @@ func NewService(
 		PostService:         postService,
 		FollowService:       followService,
 		ArtService:          artService,
+		BlockService:        blockService,
+		AnnouncementRepo:    announcementRepo,
 		AuthSession:         authSession,
 		Hub:                 hub,
 		HTMLContent:         htmlContent,
@@ -84,6 +92,8 @@ func (s *Service) GetAPIRoutes() []FSetupRoute {
 	all = append(all, s.getAllReportRoutes()...)
 	all = append(all, s.getAllPostRoutes()...)
 	all = append(all, s.getAllArtRoutes()...)
+	all = append(all, s.getAllBlockRoutes()...)
+	all = append(all, s.getAllAnnouncementRoutes()...)
 	return all
 }
 
