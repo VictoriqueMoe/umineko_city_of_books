@@ -213,6 +213,29 @@ select {
     }
 }
 
+.announcement-banner {
+    background: linear-gradient(90deg, var(--gold-dark), var(--gold), var(--gold-dark));
+    color: var(--bg-void);
+    padding: 0.5rem 1rem;
+    text-align: center;
+    font-weight: 600;
+    font-size: 0.95rem;
+    width: 100%;
+    overflow-wrap: anywhere;
+}
+
+.announcement-banner a {
+    color: var(--bg-void);
+    font-weight: 800;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.announcement-banner a:hover {
+    color: var(--bg-void);
+    opacity: 0.75;
+}
+
 /* Responsive layout */
 
 @media (max-width: 960px) {

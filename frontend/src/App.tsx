@@ -76,22 +76,7 @@ function AnnouncementBanner() {
         return null;
     }
 
-    return (
-        <div
-            style={{
-                background: "linear-gradient(90deg, var(--gold-dark), var(--gold), var(--gold-dark))",
-                color: "var(--bg-void)",
-                padding: "0.5rem 1rem",
-                textAlign: "center",
-                fontWeight: 600,
-                fontSize: "0.95rem",
-                width: "100%",
-                overflowWrap: "anywhere" as const,
-            }}
-        >
-            {linkify(banner)}
-        </div>
-    );
+    return <div className="announcement-banner">{linkify(banner)}</div>;
 }
 
 function AppLayout() {
