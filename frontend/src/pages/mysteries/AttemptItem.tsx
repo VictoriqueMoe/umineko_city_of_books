@@ -1,12 +1,12 @@
-import {useState} from "react";
-import type {MysteryAttempt} from "../../types/api";
-import {createMysteryAttempt, deleteMysteryAttempt, markMysterySolved, voteMysteryAttempt} from "../../api/endpoints";
-import {useAuth} from "../../hooks/useAuth";
-import {can} from "../../utils/permissions";
-import {Button} from "../../components/Button/Button";
-import {ProfileLink} from "../../components/ProfileLink/ProfileLink";
-import {ReportButton} from "../../components/ReportButton/ReportButton";
-import {relativeTime} from "../../utils/notifications";
+import { useState } from "react";
+import type { MysteryAttempt } from "../../types/api";
+import { createMysteryAttempt, deleteMysteryAttempt, markMysterySolved, voteMysteryAttempt } from "../../api/endpoints";
+import { useAuth } from "../../hooks/useAuth";
+import { can } from "../../utils/permissions";
+import { Button } from "../../components/Button/Button";
+import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
+import { ReportButton } from "../../components/ReportButton/ReportButton";
+import { relativeTime } from "../../utils/notifications";
 import styles from "./MysteryPages.module.css";
 
 function flattenReplies(attempt: MysteryAttempt): { reply: MysteryAttempt; replyToName: string }[] {

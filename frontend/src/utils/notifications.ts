@@ -1,4 +1,4 @@
-import type {Notification, NotificationType} from "../types/api";
+import type { Notification, NotificationType } from "../types/api";
 
 export type NotificationCategory =
     | "game_board"

@@ -1,6 +1,6 @@
-import {useCallback, useEffect, useState} from "react";
-import {useLocation, useNavigate, useParams} from "react-router";
-import type {PostComment, ShipCharacter, ShipDetail} from "../../types/api";
+import { useCallback, useEffect, useState } from "react";
+import { useLocation, useNavigate, useParams } from "react-router";
+import type { PostComment, ShipCharacter, ShipDetail } from "../../types/api";
 import {
     createShipComment,
     deleteShip,
@@ -13,17 +13,17 @@ import {
     uploadShipCommentMedia,
     voteShip,
 } from "../../api/endpoints";
-import {useAuth} from "../../hooks/useAuth";
-import {can} from "../../utils/permissions";
-import {Button} from "../../components/Button/Button";
-import {Input} from "../../components/Input/Input";
-import {Lightbox} from "../../components/Lightbox/Lightbox";
-import {ProfileLink} from "../../components/ProfileLink/ProfileLink";
-import {CommentItem} from "../../components/post/CommentItem/CommentItem";
-import {CommentComposer} from "../../components/post/CommentComposer/CommentComposer";
-import {relativeTime} from "../../utils/notifications";
-import {CharacterPicker} from "./CharacterPicker";
-import {CharacterPills} from "./ShipsListPage";
+import { useAuth } from "../../hooks/useAuth";
+import { can } from "../../utils/permissions";
+import { Button } from "../../components/Button/Button";
+import { Input } from "../../components/Input/Input";
+import { Lightbox } from "../../components/Lightbox/Lightbox";
+import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
+import { CommentItem } from "../../components/post/CommentItem/CommentItem";
+import { CommentComposer } from "../../components/post/CommentComposer/CommentComposer";
+import { relativeTime } from "../../utils/notifications";
+import { CharacterPicker } from "./CharacterPicker";
+import { CharacterPills } from "./ShipsListPage";
 import styles from "./ShipPages.module.css";
 
 function characterPillClass(series: string): string {
@@ -266,9 +266,7 @@ export function ShipDetailPage() {
                                     <div className={styles.detailMeta}>
                                         <ProfileLink user={ship.author} size="small" />
                                         <span>{relativeTime(ship.created_at)}</span>
-                                        {ship.is_crackship && (
-                                            <span className={styles.crackshipBadge}>Crackship</span>
-                                        )}
+                                        {ship.is_crackship && <span className={styles.crackshipBadge}>Crackship</span>}
                                     </div>
                                     <CharacterPills characters={ship.characters} />
                                 </div>
