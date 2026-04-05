@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
-import { useLocation, useNavigate, useParams } from "react-router";
-import type { PostComment, ShipDetail } from "../../types/api";
+import {useCallback, useEffect, useState} from "react";
+import {useLocation, useNavigate, useParams} from "react-router";
+import type {PostComment, ShipCharacter, ShipDetail} from "../../types/api";
 import {
     createShipComment,
     deleteShip,
@@ -8,20 +8,33 @@ import {
     getShip,
     likeShipComment,
     unlikeShipComment,
+    updateShip,
     updateShipComment,
     uploadShipCommentMedia,
     voteShip,
 } from "../../api/endpoints";
-import { useAuth } from "../../hooks/useAuth";
-import { can } from "../../utils/permissions";
-import { Button } from "../../components/Button/Button";
-import { Lightbox } from "../../components/Lightbox/Lightbox";
-import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
-import { CommentItem } from "../../components/post/CommentItem/CommentItem";
-import { CommentComposer } from "../../components/post/CommentComposer/CommentComposer";
-import { relativeTime } from "../../utils/notifications";
-import { CharacterPills } from "./ShipsListPage";
+import {useAuth} from "../../hooks/useAuth";
+import {can} from "../../utils/permissions";
+import {Button} from "../../components/Button/Button";
+import {Input} from "../../components/Input/Input";
+import {Lightbox} from "../../components/Lightbox/Lightbox";
+import {ProfileLink} from "../../components/ProfileLink/ProfileLink";
+import {CommentItem} from "../../components/post/CommentItem/CommentItem";
+import {CommentComposer} from "../../components/post/CommentComposer/CommentComposer";
+import {relativeTime} from "../../utils/notifications";
+import {CharacterPicker} from "./CharacterPicker";
+import {CharacterPills} from "./ShipsListPage";
 import styles from "./ShipPages.module.css";
+
+function characterPillClass(series: string): string {
+    if (series === "umineko") {
+        return `${styles.selectedCharacter} ${styles.characterPillUmineko}`;
+    }
+    if (series === "higurashi") {
+        return `${styles.selectedCharacter} ${styles.characterPillHigurashi}`;
+    }
+    return `${styles.selectedCharacter} ${styles.characterPillOc}`;
+}
 
 export function ShipDetailPage() {
     const { id } = useParams<{ id: string }>();
@@ -32,6 +45,12 @@ export function ShipDetailPage() {
     const [loading, setLoading] = useState(true);
     const [voting, setVoting] = useState(false);
     const [lightboxOpen, setLightboxOpen] = useState(false);
+    const [editing, setEditing] = useState(false);
+    const [editTitle, setEditTitle] = useState("");
+    const [editDesc, setEditDesc] = useState("");
+    const [editChars, setEditChars] = useState<ShipCharacter[]>([]);
+    const [saving, setSaving] = useState(false);
+    const [editError, setEditError] = useState("");
     const hash = location.hash;
     const highlightedComment = hash.startsWith("#comment-") ? hash.replace("#comment-", "") : null;
 
@@ -91,6 +110,59 @@ export function ShipDetailPage() {
         navigate("/ships");
     }
 
+    function startEdit() {
+        if (!ship) {
+            return;
+        }
+        setEditTitle(ship.title);
+        setEditDesc(ship.description);
+        setEditChars(ship.characters.map((c, i) => ({ ...c, sort_order: i })));
+        setEditError("");
+        setEditing(true);
+    }
+
+    function cancelEdit() {
+        setEditing(false);
+        setEditError("");
+    }
+
+    function addEditCharacter(character: ShipCharacter) {
+        setEditChars(prev => [...prev, { ...character, sort_order: prev.length }]);
+    }
+
+    function removeEditCharacter(index: number) {
+        setEditChars(prev => prev.filter((_, i) => i !== index).map((c, i) => ({ ...c, sort_order: i })));
+    }
+
+    async function saveEdit() {
+        if (!ship) {
+            return;
+        }
+        setEditError("");
+        if (!editTitle.trim()) {
+            setEditError("Title is required");
+            return;
+        }
+        if (editChars.length < 2) {
+            setEditError("A ship needs at least 2 characters");
+            return;
+        }
+        setSaving(true);
+        try {
+            await updateShip(ship.id, {
+                title: editTitle.trim(),
+                description: editDesc.trim(),
+                characters: editChars,
+            });
+            setEditing(false);
+            fetchShip();
+        } catch (e) {
+            setEditError(e instanceof Error ? e.message : "Failed to update ship");
+        } finally {
+            setSaving(false);
+        }
+    }
+
     if (loading) {
         return <div className="loading">Loading ship...</div>;
     }
@@ -100,6 +172,7 @@ export function ShipDetailPage() {
     }
 
     const isAuthor = user?.id === ship.author.id;
+    const canEdit = isAuthor || can(user?.role, "edit_any_post");
     const canDelete = isAuthor || can(user?.role, "delete_any_post");
     const userVote = ship.user_vote ?? 0;
 
@@ -120,31 +193,102 @@ export function ShipDetailPage() {
                     />
                 )}
                 <div className={styles.detailBody}>
-                    <div
-                        style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "flex-start",
-                            gap: "1rem",
-                        }}
-                    >
-                        <div style={{ flex: 1 }}>
-                            <h1 className={styles.detailTitle}>{ship.title}</h1>
-                            <div className={styles.detailMeta}>
-                                <ProfileLink user={ship.author} size="small" />
-                                <span>{relativeTime(ship.created_at)}</span>
-                                {ship.is_crackship && <span className={styles.crackshipBadge}>Crackship</span>}
+                    {editing ? (
+                        <>
+                            <div className={styles.formSection}>
+                                <label className={styles.formLabel}>Ship Title</label>
+                                <Input
+                                    type="text"
+                                    value={editTitle}
+                                    onChange={e => setEditTitle(e.target.value)}
+                                    fullWidth
+                                />
                             </div>
-                            <CharacterPills characters={ship.characters} />
-                        </div>
-                        {canDelete && (
-                            <Button variant="danger" size="small" onClick={handleDelete}>
-                                Delete
-                            </Button>
-                        )}
-                    </div>
+                            <div className={styles.formSection}>
+                                <label className={styles.formLabel}>Characters (at least 2)</label>
+                                <CharacterPicker onAdd={addEditCharacter} existing={editChars} />
+                                {editChars.length > 0 && (
+                                    <div className={styles.selectedCharacters}>
+                                        {editChars.map((c, i) => (
+                                            <span
+                                                key={`${c.series}-${c.character_id ?? c.character_name}-${i}`}
+                                                className={characterPillClass(c.series)}
+                                            >
+                                                {c.character_name}
+                                                <button
+                                                    type="button"
+                                                    className={styles.removeCharBtn}
+                                                    onClick={() => removeEditCharacter(i)}
+                                                    aria-label="Remove character"
+                                                >
+                                                    ×
+                                                </button>
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                            <div className={styles.formSection}>
+                                <label className={styles.formLabel}>Why do you ship it?</label>
+                                <textarea
+                                    className={styles.formTextarea}
+                                    value={editDesc}
+                                    onChange={e => setEditDesc(e.target.value)}
+                                    rows={5}
+                                />
+                            </div>
+                            {editError && <div className="error-message">{editError}</div>}
+                            <div className={styles.formActions}>
+                                <Button variant="ghost" onClick={cancelEdit} disabled={saving}>
+                                    Cancel
+                                </Button>
+                                <Button
+                                    variant="primary"
+                                    onClick={saveEdit}
+                                    disabled={saving || !editTitle.trim() || editChars.length < 2}
+                                >
+                                    {saving ? "Saving..." : "Save"}
+                                </Button>
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <div
+                                style={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "flex-start",
+                                    gap: "1rem",
+                                }}
+                            >
+                                <div style={{ flex: 1 }}>
+                                    <h1 className={styles.detailTitle}>{ship.title}</h1>
+                                    <div className={styles.detailMeta}>
+                                        <ProfileLink user={ship.author} size="small" />
+                                        <span>{relativeTime(ship.created_at)}</span>
+                                        {ship.is_crackship && (
+                                            <span className={styles.crackshipBadge}>Crackship</span>
+                                        )}
+                                    </div>
+                                    <CharacterPills characters={ship.characters} />
+                                </div>
+                                <div style={{ display: "flex", gap: "0.5rem" }}>
+                                    {canEdit && (
+                                        <Button variant="secondary" size="small" onClick={startEdit}>
+                                            Edit
+                                        </Button>
+                                    )}
+                                    {canDelete && (
+                                        <Button variant="danger" size="small" onClick={handleDelete}>
+                                            Delete
+                                        </Button>
+                                    )}
+                                </div>
+                            </div>
 
-                    {ship.description && <p className={styles.detailDescription}>{ship.description}</p>}
+                            {ship.description && <p className={styles.detailDescription}>{ship.description}</p>}
+                        </>
+                    )}
 
                     <div className={styles.voteRow}>
                         <Button variant="ghost" size="small" onClick={() => handleVote(1)} disabled={!user || voting}>

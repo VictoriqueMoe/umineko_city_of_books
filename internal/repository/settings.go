@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 
+	"umineko_city_of_books/internal/db"
+
 	"github.com/google/uuid"
 )
 
@@ -68,29 +70,23 @@ func (r *settingsRepository) Set(ctx context.Context, key, value string, updated
 }
 
 func (r *settingsRepository) SetMultiple(ctx context.Context, settings map[string]string, updatedBy uuid.UUID) error {
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("begin tx: %w", err)
-	}
-	defer tx.Rollback()
-
 	var actor any
 	if updatedBy != uuid.Nil {
 		actor = updatedBy
 	}
-
-	for key, value := range settings {
-		_, err := tx.ExecContext(ctx,
-			`INSERT INTO site_settings (key, value, updated_by, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-			 ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_by = excluded.updated_by, updated_at = CURRENT_TIMESTAMP`,
-			key, value, actor,
-		)
-		if err != nil {
-			return fmt.Errorf("set setting %q: %w", key, err)
+	return db.WithTx(ctx, r.db, func(tx *sql.Tx) error {
+		for key, value := range settings {
+			_, err := tx.ExecContext(ctx,
+				`INSERT INTO site_settings (key, value, updated_by, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+				 ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_by = excluded.updated_by, updated_at = CURRENT_TIMESTAMP`,
+				key, value, actor,
+			)
+			if err != nil {
+				return fmt.Errorf("set setting %q: %w", key, err)
+			}
 		}
-	}
-
-	return tx.Commit()
+		return nil
+	})
 }
 
 func (r *settingsRepository) Delete(ctx context.Context, key string) error {

@@ -144,16 +144,12 @@ func (s *service) CreateArt(ctx context.Context, userID uuid.UUID, req dto.Creat
 	id := uuid.New()
 	title := strings.TrimSpace(req.Title)
 	description := strings.TrimSpace(req.Description)
-	if err := s.artRepo.Create(ctx, id, userID, corner, artType, title, description, urlPath, ""); err != nil {
-		return uuid.Nil, err
+	tags := req.Tags
+	if len(tags) > 10 {
+		tags = tags[:10]
 	}
-
-	if len(req.Tags) > 0 {
-		tags := req.Tags
-		if len(tags) > 10 {
-			tags = tags[:10]
-		}
-		_ = s.artRepo.AddTags(ctx, id, tags)
+	if err := s.artRepo.CreateWithTags(ctx, id, userID, corner, artType, title, description, urlPath, "", tags); err != nil {
+		return uuid.Nil, err
 	}
 
 	go social.ProcessMentions(s.userRepo, s.notifService, s.settingsSvc, userID, description, id, "art", fmt.Sprintf("/gallery/art/%s", id))
@@ -242,25 +238,18 @@ func (s *service) UpdateArt(ctx context.Context, id uuid.UUID, userID uuid.UUID,
 		return ErrEmptyTitle
 	}
 	description := strings.TrimSpace(req.Description)
+	tags := req.Tags
+	if len(tags) > 10 {
+		tags = tags[:10]
+	}
 
-	if s.authz.Can(ctx, userID, authz.PermEditAnyPost) {
-		if err := s.artRepo.UpdateAsAdmin(ctx, id, title, description); err != nil {
-			return err
-		}
-		go s.notifyArtEdited(ctx, id, userID)
-	} else if err := s.artRepo.Update(ctx, id, userID, title, description); err != nil {
+	asAdmin := s.authz.Can(ctx, userID, authz.PermEditAnyPost)
+	if err := s.artRepo.UpdateWithTags(ctx, id, userID, title, description, tags, asAdmin); err != nil {
 		return err
 	}
-
-	_ = s.artRepo.DeleteTags(ctx, id)
-	if len(req.Tags) > 0 {
-		tags := req.Tags
-		if len(tags) > 10 {
-			tags = tags[:10]
-		}
-		_ = s.artRepo.AddTags(ctx, id, tags)
+	if asAdmin {
+		go s.notifyArtEdited(ctx, id, userID)
 	}
-
 	return nil
 }
 
