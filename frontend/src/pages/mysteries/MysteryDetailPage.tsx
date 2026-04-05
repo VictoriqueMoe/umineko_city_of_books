@@ -1,14 +1,15 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useLocation, useNavigate, useParams } from "react-router";
-import type { MysteryAttempt, MysteryDetail } from "../../types/api";
-import { addMysteryClue, createMysteryAttempt, deleteMystery, getMystery } from "../../api/endpoints";
-import { useAuth } from "../../hooks/useAuth";
-import { useNotifications } from "../../hooks/useNotifications";
-import { can } from "../../utils/permissions";
-import { Button } from "../../components/Button/Button";
-import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
-import { relativeTime } from "../../utils/notifications";
-import { AttemptItem } from "./AttemptItem";
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {useLocation, useNavigate, useParams} from "react-router";
+import type {MysteryAttempt, MysteryDetail} from "../../types/api";
+import {addMysteryClue, createMysteryAttempt, deleteMystery, getMystery} from "../../api/endpoints";
+import {useAuth} from "../../hooks/useAuth";
+import {useNotifications} from "../../hooks/useNotifications";
+import {useThrottled} from "../../hooks/useThrottled";
+import {can} from "../../utils/permissions";
+import {Button} from "../../components/Button/Button";
+import {ProfileLink} from "../../components/ProfileLink/ProfileLink";
+import {relativeTime} from "../../utils/notifications";
+import {AttemptItem} from "./AttemptItem";
 import styles from "./MysteryPages.module.css";
 
 function findWinningAttempt(attempts: MysteryAttempt[]): MysteryAttempt | null {
@@ -125,6 +126,8 @@ export function MysteryDetailPage() {
             .finally(() => setLoading(false));
     }, [id]);
 
+    const throttledFetchMystery = useThrottled(fetchMystery, 200);
+
     useEffect(() => {
         fetchMystery();
     }, [fetchMystery]);
@@ -139,7 +142,7 @@ export function MysteryDetailPage() {
                 if (data.mystery_id !== id) {
                     return;
                 }
-                fetchMystery();
+                throttledFetchMystery();
                 if (data.attempt_id) {
                     requestAnimationFrame(() => {
                         const el = document.getElementById(`attempt-${data.attempt_id}`);
@@ -162,10 +165,10 @@ export function MysteryDetailPage() {
                         return next;
                     });
                 }
-                fetchMystery();
+                throttledFetchMystery();
             }
         });
-    }, [id, addWSListener, fetchMystery, user?.id]);
+    }, [id, addWSListener, throttledFetchMystery, user?.id]);
 
     useEffect(() => {
         if (!mystery || !id) {
