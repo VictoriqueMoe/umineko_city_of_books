@@ -46,12 +46,23 @@ function routeByReferenceType(notif: Notification): string {
     if (refType === "mystery") {
         return `/mysteries/${notif.reference_id}`;
     }
+    if (refType.startsWith("mystery_attempt:")) {
+        const attemptId = refType.split(":")[1];
+        return `/mysteries/${notif.reference_id}#attempt-${attemptId}`;
+    }
     if (refType === "ship" || refType.startsWith("ship_comment:")) {
         const parts = refType.split(":");
         if (parts.length === 2) {
             return `/ships/${notif.reference_id}#comment-${parts[1]}`;
         }
         return `/ships/${notif.reference_id}`;
+    }
+    if (refType === "announcement" || refType.startsWith("announcement_comment:")) {
+        const parts = refType.split(":");
+        if (parts.length === 2) {
+            return `/announcements/${notif.reference_id}#comment-${parts[1]}`;
+        }
+        return `/announcements/${notif.reference_id}`;
     }
     return `/theory/${notif.reference_id}`;
 }
@@ -155,12 +166,12 @@ const notificationConfigs: Record<NotificationType, NotificationConfig> = {
     mystery_attempt: {
         text: "submitted an attempt on your mystery",
         category: "game_board",
-        route: notif => `/mysteries/${notif.reference_id}`,
+        route: routeByReferenceType,
     },
     mystery_attempt_vote: {
         text: "voted on your attempt",
         category: "game_board",
-        route: notif => `/mysteries/${notif.reference_id}`,
+        route: routeByReferenceType,
     },
     mystery_solved: {
         text: "chose your attempt as the winner!",
@@ -180,6 +191,21 @@ const notificationConfigs: Record<NotificationType, NotificationConfig> = {
     ship_comment_liked: {
         text: "liked your comment",
         category: "social",
+        route: routeByReferenceType,
+    },
+    announcement_commented: {
+        text: "commented on your announcement",
+        category: "moderation",
+        route: routeByReferenceType,
+    },
+    announcement_comment_reply: {
+        text: "replied to your comment",
+        category: "moderation",
+        route: routeByReferenceType,
+    },
+    announcement_comment_liked: {
+        text: "liked your comment",
+        category: "moderation",
         route: routeByReferenceType,
     },
 };

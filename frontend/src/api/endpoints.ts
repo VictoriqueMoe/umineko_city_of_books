@@ -6,6 +6,7 @@ import type {
     Announcement,
     AnnouncementListResponse,
     MysteryDetail,
+    MysteryLeaderboardResponse,
     MysteryListResponse,
     ShipDetail,
     ShipListResponse,
@@ -825,6 +826,44 @@ export async function addMysteryClue(mysteryId: string, body: string, truthType:
         body,
         truth_type: truthType,
     });
+}
+
+export async function getMysteryLeaderboard(limit?: number): Promise<MysteryLeaderboardResponse> {
+    const qs = buildQueryString({ limit });
+    return apiFetch<MysteryLeaderboardResponse>(`/mysteries/leaderboard${qs}`);
+}
+
+export async function createAnnouncementComment(
+    announcementId: string,
+    body: string,
+    parentId?: string,
+): Promise<{ id: string }> {
+    return apiPost<{ id: string }, { body: string; parent_id?: string }>(`/announcements/${announcementId}/comments`, {
+        body,
+        parent_id: parentId,
+    });
+}
+
+export async function updateAnnouncementComment(id: string, body: string): Promise<void> {
+    await apiPut<unknown, { body: string }>(`/announcement-comments/${id}`, { body });
+}
+
+export async function deleteAnnouncementComment(id: string): Promise<void> {
+    await apiDelete(`/announcement-comments/${id}`);
+}
+
+export async function likeAnnouncementComment(id: string): Promise<void> {
+    await apiPost<unknown, Record<string, never>>(`/announcement-comments/${id}/like`, {});
+}
+
+export async function unlikeAnnouncementComment(id: string): Promise<void> {
+    await apiDelete(`/announcement-comments/${id}/like`);
+}
+
+export async function uploadAnnouncementCommentMedia(commentId: string, file: File): Promise<PostMedia> {
+    const formData = new FormData();
+    formData.append("media", file);
+    return apiPostFormData<PostMedia>(`/announcement-comments/${commentId}/media`, formData);
 }
 
 export async function listShips(params: {

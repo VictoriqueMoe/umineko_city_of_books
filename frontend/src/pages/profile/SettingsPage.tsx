@@ -12,6 +12,8 @@ import { ChangePasswordSection } from "./ChangePasswordSection";
 import { DangerZoneSection } from "./DangerZoneSection";
 import styles from "./SettingsPage.module.css";
 
+const SPECIAL_CHARACTERS: string[] = ["Goldsmith"];
+
 function BannerSection({ form }: { form: ReturnType<typeof useSettingsForm> }) {
     const containerRef = useRef<HTMLDivElement>(null);
     const [dragging, setDragging] = useState(false);
@@ -187,6 +189,13 @@ export function SettingsPage() {
                                     <optgroup label="Higurashi">
                                         {higurashiEntries.map(([id, name]) => (
                                             <option key={`higurashi-${id}`} value={name}>
+                                                {name}
+                                            </option>
+                                        ))}
+                                    </optgroup>
+                                    <optgroup label="Special / Alias">
+                                        {SPECIAL_CHARACTERS.map(name => (
+                                            <option key={`special-${name}`} value={name}>
                                                 {name}
                                             </option>
                                         ))}

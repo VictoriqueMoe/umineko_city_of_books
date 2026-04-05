@@ -1,10 +1,21 @@
-import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useCallback, useEffect, useState } from "react";
+import { useLocation, useNavigate, useParams } from "react-router";
 import { marked } from "marked";
 import DOMPurify from "dompurify";
-import type { Announcement } from "../../types/api";
-import { getAnnouncement } from "../../api/endpoints";
+import type { Announcement, PostComment } from "../../types/api";
+import {
+    createAnnouncementComment,
+    deleteAnnouncementComment,
+    getAnnouncement,
+    likeAnnouncementComment,
+    unlikeAnnouncementComment,
+    updateAnnouncementComment,
+    uploadAnnouncementCommentMedia,
+} from "../../api/endpoints";
+import { useAuth } from "../../hooks/useAuth";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
+import { CommentItem } from "../../components/post/CommentItem/CommentItem";
+import { CommentComposer } from "../../components/post/CommentComposer/CommentComposer";
 import { relativeTime } from "../../utils/notifications";
 import styles from "./AnnouncementsPage.module.css";
 
@@ -16,10 +27,14 @@ function renderMarkdown(md: string): string {
 export function AnnouncementDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const location = useLocation();
+    const { user } = useAuth();
     const [announcement, setAnnouncement] = useState<Announcement | null>(null);
     const [loading, setLoading] = useState(true);
+    const hash = location.hash;
+    const highlightedComment = hash.startsWith("#comment-") ? hash.replace("#comment-", "") : null;
 
-    useEffect(() => {
+    const fetchAnnouncement = useCallback(() => {
         if (!id) {
             return;
         }
@@ -29,6 +44,22 @@ export function AnnouncementDetailPage() {
             .finally(() => setLoading(false));
     }, [id]);
 
+    useEffect(() => {
+        fetchAnnouncement();
+    }, [fetchAnnouncement]);
+
+    useEffect(() => {
+        if (!announcement || loading || !highlightedComment) {
+            return;
+        }
+        requestAnimationFrame(() => {
+            const el = document.getElementById(`comment-${highlightedComment}`);
+            if (el) {
+                el.scrollIntoView({ behavior: "smooth", block: "center" });
+            }
+        });
+    }, [announcement, loading, highlightedComment]);
+
     if (loading) {
         return <div className="loading">Loading announcement...</div>;
     }
@@ -36,6 +67,8 @@ export function AnnouncementDetailPage() {
     if (!announcement) {
         return <div className="empty-state">Announcement not found.</div>;
     }
+
+    const comments = announcement.comments ?? [];
 
     return (
         <div className={styles.page}>
@@ -51,6 +84,36 @@ export function AnnouncementDetailPage() {
                     {announcement.updated_at !== announcement.created_at && <span>(edited)</span>}
                 </div>
                 <div className={styles.body} dangerouslySetInnerHTML={{ __html: renderMarkdown(announcement.body) }} />
+            </div>
+
+            <div className={styles.commentsSection}>
+                <h3 className={styles.commentsTitle}>Comments {comments.length > 0 && `(${comments.length})`}</h3>
+                {comments.map(c => (
+                    <CommentItem
+                        key={c.id}
+                        comment={c as unknown as PostComment}
+                        postId={announcement.id}
+                        onDelete={fetchAnnouncement}
+                        highlighted={c.id === highlightedComment}
+                        linkPrefix="/announcements"
+                        reportType="announcement_comment"
+                        likeFn={likeAnnouncementComment}
+                        unlikeFn={unlikeAnnouncementComment}
+                        deleteFn={deleteAnnouncementComment}
+                        updateFn={updateAnnouncementComment}
+                        createCommentFn={createAnnouncementComment}
+                        uploadMediaFn={uploadAnnouncementCommentMedia}
+                    />
+                ))}
+                {comments.length === 0 && <p className="empty-state">No comments yet.</p>}
+                {user && id && (
+                    <CommentComposer
+                        postId={id}
+                        onCreated={fetchAnnouncement}
+                        createCommentFn={createAnnouncementComment}
+                        uploadMediaFn={uploadAnnouncementCommentMedia}
+                    />
+                )}
             </div>
         </div>
     );

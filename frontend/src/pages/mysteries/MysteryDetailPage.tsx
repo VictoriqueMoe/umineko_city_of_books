@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useLocation, useNavigate, useParams } from "react-router";
 import type { MysteryDetail } from "../../types/api";
 import { addMysteryClue, createMysteryAttempt, deleteMystery, getMystery } from "../../api/endpoints";
 import { useAuth } from "../../hooks/useAuth";
@@ -13,12 +13,18 @@ import styles from "./MysteryPages.module.css";
 export function MysteryDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const location = useLocation();
     const { user } = useAuth();
     const [mystery, setMystery] = useState<MysteryDetail | null>(null);
     const [loading, setLoading] = useState(true);
+    const hash = location.hash;
+    const highlightedAttempt = hash.startsWith("#attempt-") ? hash.replace("#attempt-", "") : null;
     const [spoilerRevealed, setSpoilerRevealed] = useState(() => {
         if (!id) {
             return false;
+        }
+        if (typeof window !== "undefined" && window.location.hash.startsWith("#attempt-")) {
+            return true;
         }
         return localStorage.getItem(`mystery-revealed-${id}`) === "1";
     });
@@ -40,6 +46,18 @@ export function MysteryDetailPage() {
     useEffect(() => {
         fetchMystery();
     }, [fetchMystery]);
+
+    useEffect(() => {
+        if (!mystery || loading || !highlightedAttempt || !spoilerRevealed) {
+            return;
+        }
+        requestAnimationFrame(() => {
+            const el = document.getElementById(`attempt-${highlightedAttempt}`);
+            if (el) {
+                el.scrollIntoView({ behavior: "smooth", block: "center" });
+            }
+        });
+    }, [mystery, loading, highlightedAttempt, spoilerRevealed]);
 
     if (loading) {
         return <div className="loading">Investigating the mystery...</div>;

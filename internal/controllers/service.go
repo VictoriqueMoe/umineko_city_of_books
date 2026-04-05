@@ -8,6 +8,7 @@ import (
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/chat"
 	"umineko_city_of_books/internal/follow"
+	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/notification"
 	postsvc "umineko_city_of_books/internal/post"
 	"umineko_city_of_books/internal/profile"
@@ -17,6 +18,7 @@ import (
 	"umineko_city_of_books/internal/settings"
 	shipsvc "umineko_city_of_books/internal/ship"
 	"umineko_city_of_books/internal/theory"
+	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/ws"
 )
 
@@ -37,7 +39,10 @@ type (
 		BlockService        block.Service
 		AnnouncementRepo    repository.AnnouncementRepository
 		MysteryRepo         repository.MysteryRepository
+		UserRepo            repository.UserRepository
 		ShipService         shipsvc.Service
+		UploadService       upload.Service
+		MediaProcessor      *media.Processor
 		AuthSession         *session.Manager
 		Hub                 *ws.Hub
 		HTMLContent         string
@@ -60,7 +65,10 @@ func NewService(
 	blockService block.Service,
 	announcementRepo repository.AnnouncementRepository,
 	mysteryRepo repository.MysteryRepository,
+	userRepo repository.UserRepository,
 	shipService shipsvc.Service,
+	uploadService upload.Service,
+	mediaProcessor *media.Processor,
 	authSession *session.Manager,
 	hub *ws.Hub,
 	htmlContent string,
@@ -81,7 +89,10 @@ func NewService(
 		BlockService:        blockService,
 		AnnouncementRepo:    announcementRepo,
 		MysteryRepo:         mysteryRepo,
+		UserRepo:            userRepo,
 		ShipService:         shipService,
+		UploadService:       uploadService,
+		MediaProcessor:      mediaProcessor,
 		AuthSession:         authSession,
 		Hub:                 hub,
 		HTMLContent:         htmlContent,

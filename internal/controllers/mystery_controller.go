@@ -22,6 +22,7 @@ import (
 func (s *Service) getAllMysteryRoutes() []FSetupRoute {
 	return []FSetupRoute{
 		s.setupListMysteries,
+		s.setupMysteryLeaderboard,
 		s.setupGetMystery,
 		s.setupCreateMystery,
 		s.setupUpdateMystery,
@@ -72,6 +73,10 @@ func (s *Service) setupMarkSolved(r fiber.Router) {
 
 func (s *Service) setupAddClue(r fiber.Router) {
 	r.Post("/mysteries/:id/clues", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.addClue)
+}
+
+func (s *Service) setupMysteryLeaderboard(r fiber.Router) {
+	r.Get("/mysteries/leaderboard", s.mysteryLeaderboard)
 }
 
 func (s *Service) listMysteries(ctx fiber.Ctx) error {
@@ -316,14 +321,15 @@ func (s *Service) createAttempt(ctx fiber.Ctx) error {
 	go func() {
 		bgCtx := context.Background()
 		baseURL := s.SettingsService.Get(bgCtx, config.SettingBaseURL)
-		linkURL := fmt.Sprintf("%s/mysteries/%s", baseURL, mysteryID)
+		linkURL := fmt.Sprintf("%s/mysteries/%s#attempt-%s", baseURL, mysteryID, id)
+		attemptRef := fmt.Sprintf("mystery_attempt:%s", id)
 
 		subject, body := notification.NotifEmail("Someone", "submitted an attempt on your mystery", "", linkURL)
 		_ = s.NotificationService.Notify(bgCtx, dto.NotifyParams{
 			RecipientID:   authorID,
 			Type:          dto.NotifMysteryAttempt,
 			ReferenceID:   mysteryID,
-			ReferenceType: "mystery",
+			ReferenceType: attemptRef,
 			ActorID:       userID,
 			EmailSubject:  subject,
 			EmailBody:     body,
@@ -336,7 +342,7 @@ func (s *Service) createAttempt(ctx fiber.Ctx) error {
 					RecipientID:   parentAuthor,
 					Type:          dto.NotifMysteryAttempt,
 					ReferenceID:   mysteryID,
-					ReferenceType: "mystery",
+					ReferenceType: attemptRef,
 					ActorID:       userID,
 					EmailSubject:  replySubject,
 					EmailBody:     replyBody,
@@ -404,13 +410,13 @@ func (s *Service) voteAttempt(ctx fiber.Ctx) error {
 				return
 			}
 			baseURL := s.SettingsService.Get(bgCtx, config.SettingBaseURL)
-			linkURL := fmt.Sprintf("%s/mysteries/%s", baseURL, mysteryID)
+			linkURL := fmt.Sprintf("%s/mysteries/%s#attempt-%s", baseURL, mysteryID, attemptID)
 			subject, body := notification.NotifEmail("Someone", "voted on your attempt", "", linkURL)
 			_ = s.NotificationService.Notify(bgCtx, dto.NotifyParams{
 				RecipientID:   attemptAuthorID,
 				Type:          dto.NotifMysteryVote,
 				ReferenceID:   mysteryID,
-				ReferenceType: "mystery",
+				ReferenceType: fmt.Sprintf("mystery_attempt:%s", attemptID),
 				ActorID:       userID,
 				EmailSubject:  subject,
 				EmailBody:     body,
@@ -501,4 +507,27 @@ func (s *Service) addClue(ctx fiber.Ctx) error {
 	}
 
 	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"status": "ok"})
+}
+
+func (s *Service) mysteryLeaderboard(ctx fiber.Ctx) error {
+	limit := fiber.Query[int](ctx, "limit", 20)
+	rows, err := s.MysteryRepo.GetLeaderboard(ctx.Context(), limit)
+	if err != nil {
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to load leaderboard"})
+	}
+
+	entries := make([]dto.MysteryLeaderboardEntry, len(rows))
+	for i, r := range rows {
+		entries[i] = dto.MysteryLeaderboardEntry{
+			User: dto.UserResponse{
+				ID:          r.UserID,
+				Username:    r.Username,
+				DisplayName: r.DisplayName,
+				AvatarURL:   r.AvatarURL,
+				Role:        role.Role(r.Role),
+			},
+			SolvedCount: r.SolvedCount,
+		}
+	}
+	return ctx.JSON(dto.MysteryLeaderboardResponse{Entries: entries})
 }
