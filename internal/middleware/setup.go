@@ -14,6 +14,7 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/cors"
 	"github.com/gofiber/fiber/v3/middleware/etag"
 	"github.com/gofiber/fiber/v3/middleware/logger"
+	"github.com/rs/zerolog"
 )
 
 func Setup(app *fiber.App, settingsSvc settings.Service, sessionMgr *session.Manager, authzSvc authz.Service) {
@@ -29,6 +30,8 @@ func Setup(app *fiber.App, settingsSvc settings.Service, sessionMgr *session.Man
 		switch {
 		case strings.HasPrefix(path, "/static/assets/") || strings.HasPrefix(path, "/assets/"):
 			ctx.Set("Cache-Control", "public, max-age=31536000, immutable")
+		case strings.HasPrefix(path, "/uploads/"):
+			ctx.Set("Cache-Control", "public, max-age=2592000")
 		case strings.HasPrefix(path, "/api"):
 			ctx.Set("Cache-Control", "no-cache, must-revalidate")
 		default:
@@ -50,6 +53,16 @@ func Setup(app *fiber.App, settingsSvc settings.Service, sessionMgr *session.Man
 	app.Use(logger.New(logger.Config{
 		Format:     "${time} | ${status} | ${latency} | ${method} ${path} ${queryParams}\n",
 		TimeFormat: "2006-01-02 15:04:05",
+		Next: func(ctx fiber.Ctx) bool {
+			if zerolog.GlobalLevel() <= zerolog.DebugLevel {
+				return false
+			}
+			path := ctx.Path()
+			return strings.HasPrefix(path, "/uploads/") ||
+				strings.HasPrefix(path, "/static/assets/") ||
+				strings.HasPrefix(path, "/assets/") ||
+				strings.HasPrefix(path, "/favicon")
+		},
 	}))
 
 	app.Use(maintenanceMiddleware(settingsSvc, sessionMgr, authzSvc))
