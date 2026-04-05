@@ -144,16 +144,12 @@ func (s *service) CreateArt(ctx context.Context, userID uuid.UUID, req dto.Creat
 	id := uuid.New()
 	title := strings.TrimSpace(req.Title)
 	description := strings.TrimSpace(req.Description)
-	if err := s.artRepo.Create(ctx, id, userID, corner, artType, title, description, urlPath, ""); err != nil {
-		return uuid.Nil, err
+	tags := req.Tags
+	if len(tags) > 10 {
+		tags = tags[:10]
 	}
-
-	if len(req.Tags) > 0 {
-		tags := req.Tags
-		if len(tags) > 10 {
-			tags = tags[:10]
-		}
-		_ = s.artRepo.AddTags(ctx, id, tags)
+	if err := s.artRepo.CreateWithTags(ctx, id, userID, corner, artType, title, description, urlPath, "", tags); err != nil {
+		return uuid.Nil, err
 	}
 
 	go social.ProcessMentions(s.userRepo, s.notifService, s.settingsSvc, userID, description, id, "art", fmt.Sprintf("/gallery/art/%s", id))
@@ -242,25 +238,18 @@ func (s *service) UpdateArt(ctx context.Context, id uuid.UUID, userID uuid.UUID,
 		return ErrEmptyTitle
 	}
 	description := strings.TrimSpace(req.Description)
+	tags := req.Tags
+	if len(tags) > 10 {
+		tags = tags[:10]
+	}
 
-	if s.authz.Can(ctx, userID, authz.PermEditAnyPost) {
-		if err := s.artRepo.UpdateAsAdmin(ctx, id, title, description); err != nil {
-			return err
-		}
-		go s.notifyArtEdited(ctx, id, userID)
-	} else if err := s.artRepo.Update(ctx, id, userID, title, description); err != nil {
+	asAdmin := s.authz.Can(ctx, userID, authz.PermEditAnyPost)
+	if err := s.artRepo.UpdateWithTags(ctx, id, userID, title, description, tags, asAdmin); err != nil {
 		return err
 	}
-
-	_ = s.artRepo.DeleteTags(ctx, id)
-	if len(req.Tags) > 0 {
-		tags := req.Tags
-		if len(tags) > 10 {
-			tags = tags[:10]
-		}
-		_ = s.artRepo.AddTags(ctx, id, tags)
+	if asAdmin {
+		go s.notifyArtEdited(ctx, id, userID)
 	}
-
 	return nil
 }
 
@@ -410,7 +399,7 @@ func (s *service) CreateComment(ctx context.Context, artID uuid.UUID, userID uui
 	go social.ProcessMentions(s.userRepo, s.notifService, s.settingsSvc, userID, body, artID, fmt.Sprintf("art_comment:%s", id), fmt.Sprintf("/gallery/art/%s#comment-%s", artID, id))
 
 	go func() {
-		authorID, err := s.artRepo.GetArtAuthorID(ctx, artID)
+		artAuthorID, err := s.artRepo.GetArtAuthorID(ctx, artID)
 		if err != nil {
 			return
 		}
@@ -420,16 +409,47 @@ func (s *service) CreateComment(ctx context.Context, artID uuid.UUID, userID uui
 		}
 		baseURL := s.settingsSvc.Get(ctx, config.SettingBaseURL)
 		linkURL := fmt.Sprintf("%s/gallery/art/%s#comment-%s", baseURL, artID, id)
-		subject, emailBody := notification.NotifEmail(actor.DisplayName, "commented on your art", "", linkURL)
-		_ = s.notifService.Notify(ctx, dto.NotifyParams{
-			RecipientID:   authorID,
-			Type:          dto.NotifArtCommented,
-			ReferenceID:   artID,
-			ReferenceType: fmt.Sprintf("art_comment:%s", id),
-			ActorID:       userID,
-			EmailSubject:  subject,
-			EmailBody:     emailBody,
-		})
+
+		if req.ParentID == nil {
+			subject, emailBody := notification.NotifEmail(actor.DisplayName, "commented on your art", "", linkURL)
+			_ = s.notifService.Notify(ctx, dto.NotifyParams{
+				RecipientID:   artAuthorID,
+				Type:          dto.NotifArtCommented,
+				ReferenceID:   artID,
+				ReferenceType: fmt.Sprintf("art_comment:%s", id),
+				ActorID:       userID,
+				EmailSubject:  subject,
+				EmailBody:     emailBody,
+			})
+			return
+		}
+
+		parentAuthorID, err := s.artRepo.GetCommentAuthorID(ctx, *req.ParentID)
+		if err == nil && parentAuthorID != userID {
+			replySubject, replyBody := notification.NotifEmail(actor.DisplayName, "replied to your comment", "", linkURL)
+			_ = s.notifService.Notify(ctx, dto.NotifyParams{
+				RecipientID:   parentAuthorID,
+				Type:          dto.NotifArtCommentReply,
+				ReferenceID:   artID,
+				ReferenceType: fmt.Sprintf("art_comment:%s", id),
+				ActorID:       userID,
+				EmailSubject:  replySubject,
+				EmailBody:     replyBody,
+			})
+		}
+
+		if artAuthorID != userID && artAuthorID != parentAuthorID {
+			subject, emailBody := notification.NotifEmail(actor.DisplayName, "commented on your art", "", linkURL)
+			_ = s.notifService.Notify(ctx, dto.NotifyParams{
+				RecipientID:   artAuthorID,
+				Type:          dto.NotifArtCommented,
+				ReferenceID:   artID,
+				ReferenceType: fmt.Sprintf("art_comment:%s", id),
+				ActorID:       userID,
+				EmailSubject:  subject,
+				EmailBody:     emailBody,
+			})
+		}
 	}()
 
 	return id, nil

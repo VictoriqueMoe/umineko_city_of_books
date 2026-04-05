@@ -7,14 +7,15 @@ import (
 	"fmt"
 	"strings"
 
+	"umineko_city_of_books/internal/db"
+
 	"github.com/google/uuid"
 )
 
 type (
 	ArtRepository interface {
-		Create(ctx context.Context, id uuid.UUID, userID uuid.UUID, corner string, artType string, title string, description string, imageURL string, thumbnailURL string) error
-		Update(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, description string) error
-		UpdateAsAdmin(ctx context.Context, id uuid.UUID, title string, description string) error
+		CreateWithTags(ctx context.Context, id uuid.UUID, userID uuid.UUID, corner string, artType string, title string, description string, imageURL string, thumbnailURL string, tags []string) error
+		UpdateWithTags(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, description string, tags []string, asAdmin bool) error
 		GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID) (*ArtRow, error)
 		Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		DeleteAsAdmin(ctx context.Context, id uuid.UUID) error
@@ -28,8 +29,6 @@ type (
 		GetLikedBy(ctx context.Context, artID uuid.UUID, excludeUserIDs []uuid.UUID) ([]PostLikeUser, error)
 		RecordView(ctx context.Context, artID uuid.UUID, viewerHash string) (bool, error)
 
-		AddTags(ctx context.Context, artID uuid.UUID, tags []string) error
-		DeleteTags(ctx context.Context, artID uuid.UUID) error
 		GetTags(ctx context.Context, artID uuid.UUID) ([]string, error)
 		GetTagsBatch(ctx context.Context, artIDs []uuid.UUID) (map[uuid.UUID][]string, error)
 		GetPopularTags(ctx context.Context, corner string, limit int) ([]TagCount, error)
@@ -97,45 +96,59 @@ func scanArtRow(row interface{ Scan(...interface{}) error }, a *ArtRow) error {
 	return err
 }
 
-func (r *artRepository) Create(ctx context.Context, id uuid.UUID, userID uuid.UUID, corner string, artType string, title string, description string, imageURL string, thumbnailURL string) error {
-	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO art (id, user_id, corner, art_type, title, description, image_url, thumbnail_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		id, userID, corner, artType, title, description, imageURL, thumbnailURL,
-	)
-	if err != nil {
-		return fmt.Errorf("create art: %w", err)
-	}
-	return nil
+func (r *artRepository) CreateWithTags(ctx context.Context, id uuid.UUID, userID uuid.UUID, corner string, artType string, title string, description string, imageURL string, thumbnailURL string, tags []string) error {
+	return db.WithTx(ctx, r.db, func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(ctx,
+			`INSERT INTO art (id, user_id, corner, art_type, title, description, image_url, thumbnail_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			id, userID, corner, artType, title, description, imageURL, thumbnailURL,
+		); err != nil {
+			return fmt.Errorf("create art: %w", err)
+		}
+		return insertArtTagsTx(ctx, tx, id, tags)
+	})
 }
 
-func (r *artRepository) Update(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, description string) error {
-	return r.updateArt(ctx, id, &userID, title, description)
+func (r *artRepository) UpdateWithTags(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, description string, tags []string, asAdmin bool) error {
+	return db.WithTx(ctx, r.db, func(tx *sql.Tx) error {
+		var res sql.Result
+		var err error
+		if asAdmin {
+			res, err = tx.ExecContext(ctx,
+				`UPDATE art SET title = ?, description = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+				title, description, id,
+			)
+		} else {
+			res, err = tx.ExecContext(ctx,
+				`UPDATE art SET title = ?, description = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?`,
+				title, description, id, userID,
+			)
+		}
+		if err != nil {
+			return fmt.Errorf("update art: %w", err)
+		}
+		n, _ := res.RowsAffected()
+		if n == 0 {
+			return fmt.Errorf("art not found or not owned")
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM art_tags WHERE art_id = ?`, id); err != nil {
+			return fmt.Errorf("delete art tags: %w", err)
+		}
+		return insertArtTagsTx(ctx, tx, id, tags)
+	})
 }
 
-func (r *artRepository) UpdateAsAdmin(ctx context.Context, id uuid.UUID, title string, description string) error {
-	return r.updateArt(ctx, id, nil, title, description)
-}
-
-func (r *artRepository) updateArt(ctx context.Context, id uuid.UUID, userID *uuid.UUID, title string, description string) error {
-	var res sql.Result
-	var err error
-	if userID != nil {
-		res, err = r.db.ExecContext(ctx,
-			`UPDATE art SET title = ?, description = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?`,
-			title, description, id, *userID,
-		)
-	} else {
-		res, err = r.db.ExecContext(ctx,
-			`UPDATE art SET title = ?, description = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-			title, description, id,
-		)
-	}
-	if err != nil {
-		return fmt.Errorf("update art: %w", err)
-	}
-	n, _ := res.RowsAffected()
-	if n == 0 {
-		return fmt.Errorf("art not found or not owned")
+func insertArtTagsTx(ctx context.Context, tx *sql.Tx, artID uuid.UUID, tags []string) error {
+	for _, tag := range tags {
+		tag = strings.TrimSpace(strings.ToLower(tag))
+		if tag == "" {
+			continue
+		}
+		if _, err := tx.ExecContext(ctx,
+			`INSERT OR IGNORE INTO art_tags (art_id, tag) VALUES (?, ?)`,
+			artID, tag,
+		); err != nil {
+			return fmt.Errorf("add art tag: %w", err)
+		}
 	}
 	return nil
 }
@@ -348,31 +361,6 @@ func (r *artRepository) RecordView(ctx context.Context, artID uuid.UUID, viewerH
 		}
 	}
 	return n > 0, nil
-}
-
-func (r *artRepository) AddTags(ctx context.Context, artID uuid.UUID, tags []string) error {
-	for _, tag := range tags {
-		tag = strings.TrimSpace(strings.ToLower(tag))
-		if tag == "" {
-			continue
-		}
-		_, err := r.db.ExecContext(ctx,
-			`INSERT OR IGNORE INTO art_tags (art_id, tag) VALUES (?, ?)`,
-			artID, tag,
-		)
-		if err != nil {
-			return fmt.Errorf("add art tag: %w", err)
-		}
-	}
-	return nil
-}
-
-func (r *artRepository) DeleteTags(ctx context.Context, artID uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM art_tags WHERE art_id = ?`, artID)
-	if err != nil {
-		return fmt.Errorf("delete art tags: %w", err)
-	}
-	return nil
 }
 
 func (r *artRepository) GetTags(ctx context.Context, artID uuid.UUID) ([]string, error) {
@@ -773,22 +761,23 @@ func (r *artRepository) SetGalleryCover(ctx context.Context, galleryID uuid.UUID
 }
 
 func (r *artRepository) DeleteGallery(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx,
-		`DELETE FROM art WHERE gallery_id = ? AND user_id = ?`,
-		id, userID,
-	)
-	if err != nil {
-		return fmt.Errorf("delete art in gallery: %w", err)
-	}
-	res, err := r.db.ExecContext(ctx, `DELETE FROM galleries WHERE id = ? AND user_id = ?`, id, userID)
-	if err != nil {
-		return fmt.Errorf("delete gallery: %w", err)
-	}
-	n, _ := res.RowsAffected()
-	if n == 0 {
-		return fmt.Errorf("gallery not found or not owned")
-	}
-	return nil
+	return db.WithTx(ctx, r.db, func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(ctx,
+			`DELETE FROM art WHERE gallery_id = ? AND user_id = ?`,
+			id, userID,
+		); err != nil {
+			return fmt.Errorf("delete art in gallery: %w", err)
+		}
+		res, err := tx.ExecContext(ctx, `DELETE FROM galleries WHERE id = ? AND user_id = ?`, id, userID)
+		if err != nil {
+			return fmt.Errorf("delete gallery: %w", err)
+		}
+		n, _ := res.RowsAffected()
+		if n == 0 {
+			return fmt.Errorf("gallery not found or not owned")
+		}
+		return nil
+	})
 }
 
 func (r *artRepository) GetGalleryByID(ctx context.Context, id uuid.UUID) (*GalleryRow, error) {

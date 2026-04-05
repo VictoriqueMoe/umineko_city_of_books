@@ -285,12 +285,15 @@ export type NotificationType =
     | "new_follower"
     | "post_liked"
     | "post_commented"
+    | "post_comment_reply"
     | "mention"
     | "art_liked"
     | "art_commented"
+    | "art_comment_reply"
     | "comment_liked"
     | "content_edited"
     | "mystery_attempt"
+    | "mystery_reply"
     | "mystery_attempt_vote"
     | "mystery_solved"
     | "ship_commented"
@@ -530,6 +533,7 @@ export interface MysteryDetail {
     solved_at?: string;
     clues: MysteryClue[];
     attempts: MysteryAttempt[];
+    player_count: number;
     created_at: string;
 }
 

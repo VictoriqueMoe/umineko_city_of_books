@@ -480,7 +480,7 @@ func (s *service) CreateComment(ctx context.Context, postID uuid.UUID, userID uu
 	go social.ProcessMentions(s.userRepo, s.notifService, s.settingsSvc, userID, body, postID, fmt.Sprintf("post_comment:%s", id), fmt.Sprintf("/game-board/%s#comment-%s", postID, id))
 
 	go func() {
-		authorID, err := s.postRepo.GetPostAuthorID(ctx, postID)
+		postAuthorID, err := s.postRepo.GetPostAuthorID(ctx, postID)
 		if err != nil {
 			return
 		}
@@ -490,16 +490,47 @@ func (s *service) CreateComment(ctx context.Context, postID uuid.UUID, userID uu
 		}
 		baseURL := s.settingsSvc.Get(ctx, config.SettingBaseURL)
 		linkURL := fmt.Sprintf("%s/game-board/%s#comment-%s", baseURL, postID, id)
-		subject, body := notification.NotifEmail(actor.DisplayName, "commented on your post", "", linkURL)
-		_ = s.notifService.Notify(ctx, dto.NotifyParams{
-			RecipientID:   authorID,
-			Type:          dto.NotifPostCommented,
-			ReferenceID:   postID,
-			ReferenceType: fmt.Sprintf("post_comment:%s", id),
-			ActorID:       userID,
-			EmailSubject:  subject,
-			EmailBody:     body,
-		})
+
+		if req.ParentID == nil {
+			subject, body := notification.NotifEmail(actor.DisplayName, "commented on your post", "", linkURL)
+			_ = s.notifService.Notify(ctx, dto.NotifyParams{
+				RecipientID:   postAuthorID,
+				Type:          dto.NotifPostCommented,
+				ReferenceID:   postID,
+				ReferenceType: fmt.Sprintf("post_comment:%s", id),
+				ActorID:       userID,
+				EmailSubject:  subject,
+				EmailBody:     body,
+			})
+			return
+		}
+
+		parentAuthorID, err := s.postRepo.GetCommentAuthorID(ctx, *req.ParentID)
+		if err == nil && parentAuthorID != userID {
+			replySubject, replyBody := notification.NotifEmail(actor.DisplayName, "replied to your comment", "", linkURL)
+			_ = s.notifService.Notify(ctx, dto.NotifyParams{
+				RecipientID:   parentAuthorID,
+				Type:          dto.NotifPostCommentReply,
+				ReferenceID:   postID,
+				ReferenceType: fmt.Sprintf("post_comment:%s", id),
+				ActorID:       userID,
+				EmailSubject:  replySubject,
+				EmailBody:     replyBody,
+			})
+		}
+
+		if postAuthorID != userID && postAuthorID != parentAuthorID {
+			subject, body := notification.NotifEmail(actor.DisplayName, "commented on your post", "", linkURL)
+			_ = s.notifService.Notify(ctx, dto.NotifyParams{
+				RecipientID:   postAuthorID,
+				Type:          dto.NotifPostCommented,
+				ReferenceID:   postID,
+				ReferenceType: fmt.Sprintf("post_comment:%s", id),
+				ActorID:       userID,
+				EmailSubject:  subject,
+				EmailBody:     body,
+			})
+		}
 	}()
 
 	return id, nil

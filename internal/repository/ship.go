@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"umineko_city_of_books/internal/db"
 	"umineko_city_of_books/internal/dto"
 
 	"github.com/google/uuid"
@@ -14,9 +15,8 @@ import (
 
 type (
 	ShipRepository interface {
-		Create(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, description string, imageURL string, thumbnailURL string) error
-		Update(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, description string) error
-		UpdateAsAdmin(ctx context.Context, id uuid.UUID, title string, description string) error
+		CreateWithCharacters(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, description string, characters []dto.ShipCharacter) error
+		UpdateWithCharacters(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, description string, characters []dto.ShipCharacter, asAdmin bool) error
 		UpdateImage(ctx context.Context, id uuid.UUID, imageURL string, thumbnailURL string) error
 		Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		DeleteAsAdmin(ctx context.Context, id uuid.UUID) error
@@ -25,8 +25,6 @@ type (
 		List(ctx context.Context, viewerID uuid.UUID, sort string, crackshipsOnly bool, series string, characterID string, limit, offset int, excludeUserIDs []uuid.UUID) ([]ShipRow, int, error)
 		ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit, offset int) ([]ShipRow, int, error)
 
-		AddCharacter(ctx context.Context, shipID uuid.UUID, series string, characterID string, characterName string, sortOrder int) error
-		DeleteCharacters(ctx context.Context, shipID uuid.UUID) error
 		GetCharacters(ctx context.Context, shipID uuid.UUID) ([]ShipCharacterRow, error)
 		GetCharactersBatch(ctx context.Context, shipIDs []uuid.UUID) (map[uuid.UUID][]ShipCharacterRow, error)
 
@@ -73,41 +71,57 @@ func scanShipRow(row interface{ Scan(...interface{}) error }, s *ShipRow) error 
 	)
 }
 
-func (r *shipRepository) Create(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, description string, imageURL string, thumbnailURL string) error {
-	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO ships (id, user_id, title, description, image_url, thumbnail_url) VALUES (?, ?, ?, ?, ?, ?)`,
-		id, userID, title, description, imageURL, thumbnailURL,
-	)
-	if err != nil {
-		return fmt.Errorf("create ship: %w", err)
+func (r *shipRepository) CreateWithCharacters(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, description string, characters []dto.ShipCharacter) error {
+	return db.WithTx(ctx, r.db, func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(ctx,
+			`INSERT INTO ships (id, user_id, title, description, image_url, thumbnail_url) VALUES (?, ?, ?, ?, ?, ?)`,
+			id, userID, title, description, "", "",
+		); err != nil {
+			return fmt.Errorf("create ship: %w", err)
+		}
+		return insertShipCharactersTx(ctx, tx, id, characters)
+	})
+}
+
+func insertShipCharactersTx(ctx context.Context, tx *sql.Tx, shipID uuid.UUID, characters []dto.ShipCharacter) error {
+	for i, c := range characters {
+		if _, err := tx.ExecContext(ctx,
+			`INSERT INTO ship_characters (ship_id, series, character_id, character_name, sort_order) VALUES (?, ?, ?, ?, ?)`,
+			shipID, c.Series, c.CharacterID, strings.TrimSpace(c.CharacterName), i,
+		); err != nil {
+			return fmt.Errorf("add ship character: %w", err)
+		}
 	}
 	return nil
 }
 
-func (r *shipRepository) Update(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, description string) error {
-	res, err := r.db.ExecContext(ctx,
-		`UPDATE ships SET title = ?, description = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?`,
-		title, description, id, userID,
-	)
-	if err != nil {
-		return fmt.Errorf("update ship: %w", err)
-	}
-	n, _ := res.RowsAffected()
-	if n == 0 {
-		return fmt.Errorf("ship not found or not owned")
-	}
-	return nil
-}
-
-func (r *shipRepository) UpdateAsAdmin(ctx context.Context, id uuid.UUID, title string, description string) error {
-	_, err := r.db.ExecContext(ctx,
-		`UPDATE ships SET title = ?, description = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-		title, description, id,
-	)
-	if err != nil {
-		return fmt.Errorf("admin update ship: %w", err)
-	}
-	return nil
+func (r *shipRepository) UpdateWithCharacters(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, description string, characters []dto.ShipCharacter, asAdmin bool) error {
+	return db.WithTx(ctx, r.db, func(tx *sql.Tx) error {
+		var res sql.Result
+		var err error
+		if asAdmin {
+			res, err = tx.ExecContext(ctx,
+				`UPDATE ships SET title = ?, description = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+				title, description, id,
+			)
+		} else {
+			res, err = tx.ExecContext(ctx,
+				`UPDATE ships SET title = ?, description = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?`,
+				title, description, id, userID,
+			)
+		}
+		if err != nil {
+			return fmt.Errorf("update ship: %w", err)
+		}
+		n, _ := res.RowsAffected()
+		if n == 0 {
+			return fmt.Errorf("ship not found or not owned")
+		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM ship_characters WHERE ship_id = ?`, id); err != nil {
+			return fmt.Errorf("delete ship characters: %w", err)
+		}
+		return insertShipCharactersTx(ctx, tx, id, characters)
+	})
 }
 
 func (r *shipRepository) UpdateImage(ctx context.Context, id uuid.UUID, imageURL string, thumbnailURL string) error {
@@ -260,25 +274,6 @@ func (r *shipRepository) ListByUser(ctx context.Context, userID uuid.UUID, viewe
 		ships = append(ships, s)
 	}
 	return ships, total, rows.Err()
-}
-
-func (r *shipRepository) AddCharacter(ctx context.Context, shipID uuid.UUID, series string, characterID string, characterName string, sortOrder int) error {
-	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO ship_characters (ship_id, series, character_id, character_name, sort_order) VALUES (?, ?, ?, ?, ?)`,
-		shipID, series, characterID, characterName, sortOrder,
-	)
-	if err != nil {
-		return fmt.Errorf("add ship character: %w", err)
-	}
-	return nil
-}
-
-func (r *shipRepository) DeleteCharacters(ctx context.Context, shipID uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM ship_characters WHERE ship_id = ?`, shipID)
-	if err != nil {
-		return fmt.Errorf("delete ship characters: %w", err)
-	}
-	return nil
 }
 
 func (r *shipRepository) GetCharacters(ctx context.Context, shipID uuid.UUID) ([]ShipCharacterRow, error) {

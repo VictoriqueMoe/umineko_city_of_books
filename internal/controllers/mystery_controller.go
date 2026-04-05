@@ -14,6 +14,7 @@ import (
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/utils"
+	"umineko_city_of_books/internal/ws"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -166,6 +167,26 @@ func (s *Service) getMystery(ctx fiber.Ctx) error {
 		func(a *dto.MysteryAttempt, replies []dto.MysteryAttempt) { a.Replies = replies },
 	)
 
+	playerSet := make(map[uuid.UUID]struct{})
+	for _, a := range attempts {
+		if a.Author.ID != row.UserID {
+			playerSet[a.Author.ID] = struct{}{}
+		}
+	}
+	playerCount := len(playerSet)
+
+	viewerRole, _ := s.AuthzService.GetRole(ctx.Context(), userID)
+	isGameMaster := userID == row.UserID || viewerRole == authz.RoleSuperAdmin
+	if !isGameMaster && !row.Solved {
+		filtered := make([]dto.MysteryAttempt, 0, len(attempts))
+		for _, a := range attempts {
+			if a.Author.ID == userID {
+				filtered = append(filtered, a)
+			}
+		}
+		attempts = filtered
+	}
+
 	resp := dto.MysteryDetailResponse{
 		ID:         row.ID,
 		Title:      row.Title,
@@ -180,9 +201,10 @@ func (s *Service) getMystery(ctx fiber.Ctx) error {
 			AvatarURL:   row.AuthorAvatarURL,
 			Role:        role.Role(row.AuthorRole),
 		},
-		Clues:     clues,
-		Attempts:  attempts,
-		CreatedAt: row.CreatedAt,
+		Clues:       clues,
+		Attempts:    attempts,
+		PlayerCount: playerCount,
+		CreatedAt:   row.CreatedAt,
 	}
 	if row.WinnerID != nil && row.WinnerUsername != nil {
 		resp.Winner = &dto.UserResponse{
@@ -292,6 +314,11 @@ func (s *Service) createAttempt(ctx fiber.Ctx) error {
 	if err != nil {
 		return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "mystery not found"})
 	}
+	if solved, err := s.MysteryRepo.IsSolved(ctx.Context(), mysteryID); err != nil {
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to check mystery state"})
+	} else if solved {
+		return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "this mystery has already been solved"})
+	}
 	if blocked, _ := s.BlockService.IsBlockedEither(ctx.Context(), userID, authorID); blocked {
 		return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "user is blocked"})
 	}
@@ -319,10 +346,27 @@ func (s *Service) createAttempt(ctx fiber.Ctx) error {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to create attempt"})
 	}
 
+	actor, _ := s.UserRepo.GetByID(ctx.Context(), userID)
+	wsData := map[string]interface{}{
+		"mystery_id": mysteryID,
+		"attempt_id": id,
+		"parent_id":  req.ParentID,
+		"author_id":  userID,
+	}
+	if actor != nil {
+		wsData["author_username"] = actor.Username
+		wsData["author_display_name"] = actor.DisplayName
+		wsData["author_avatar_url"] = actor.AvatarURL
+	}
+	s.Hub.Broadcast(ws.Message{
+		Type: "mystery_attempt_created",
+		Data: wsData,
+	})
+
 	go func() {
 		bgCtx := context.Background()
 		baseURL := s.SettingsService.Get(bgCtx, config.SettingBaseURL)
-		linkURL := fmt.Sprintf("%s/mysteries/%s#attempt-%s", baseURL, mysteryID, id)
+		linkURL := fmt.Sprintf("%s/mystery/%s#attempt-%s", baseURL, mysteryID, id)
 		attemptRef := fmt.Sprintf("mystery_attempt:%s", id)
 
 		subject, body := notification.NotifEmail("Someone", "submitted an attempt on your mystery", "", linkURL)
@@ -341,7 +385,7 @@ func (s *Service) createAttempt(ctx fiber.Ctx) error {
 				replySubject, replyBody := notification.NotifEmail("Someone", "replied to your attempt", "", linkURL)
 				_ = s.NotificationService.Notify(bgCtx, dto.NotifyParams{
 					RecipientID:   parentAuthor,
-					Type:          dto.NotifMysteryAttempt,
+					Type:          dto.NotifMysteryReply,
 					ReferenceID:   mysteryID,
 					ReferenceType: attemptRef,
 					ActorID:       userID,
@@ -411,7 +455,7 @@ func (s *Service) voteAttempt(ctx fiber.Ctx) error {
 				return
 			}
 			baseURL := s.SettingsService.Get(bgCtx, config.SettingBaseURL)
-			linkURL := fmt.Sprintf("%s/mysteries/%s#attempt-%s", baseURL, mysteryID, attemptID)
+			linkURL := fmt.Sprintf("%s/mystery/%s#attempt-%s", baseURL, mysteryID, attemptID)
 			subject, body := notification.NotifEmail("Someone", "voted on your attempt", "", linkURL)
 			_ = s.NotificationService.Notify(bgCtx, dto.NotifyParams{
 				RecipientID:   attemptAuthorID,
@@ -444,29 +488,50 @@ func (s *Service) markSolved(ctx fiber.Ctx) error {
 	}
 
 	var req struct {
-		WinnerID uuid.UUID `json:"winner_id"`
+		AttemptID uuid.UUID `json:"attempt_id"`
 	}
 	if err := ctx.Bind().JSON(&req); err != nil {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
 	}
-	if req.WinnerID == uuid.Nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "winner_id is required"})
+	if req.AttemptID == uuid.Nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "attempt_id is required"})
 	}
 
-	if err := s.MysteryRepo.MarkSolved(ctx.Context(), mysteryID, req.WinnerID); err != nil {
+	attemptAuthorID, err := s.MysteryRepo.GetAttemptAuthorID(ctx.Context(), req.AttemptID)
+	if err != nil {
+		return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "attempt not found"})
+	}
+	attemptMysteryID, err := s.MysteryRepo.GetAttemptMysteryID(ctx.Context(), req.AttemptID)
+	if err != nil {
+		return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "attempt not found"})
+	}
+	if attemptMysteryID != mysteryID {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "attempt does not belong to this mystery"})
+	}
+
+	if err := s.MysteryRepo.MarkSolved(ctx.Context(), mysteryID, req.AttemptID); err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to mark as solved"})
 	}
+
+	s.Hub.Broadcast(ws.Message{
+		Type: "mystery_solved",
+		Data: map[string]interface{}{
+			"mystery_id": mysteryID,
+			"attempt_id": req.AttemptID,
+			"winner_id":  attemptAuthorID,
+		},
+	})
 
 	go func() {
 		bgCtx := context.Background()
 		baseURL := s.SettingsService.Get(bgCtx, config.SettingBaseURL)
-		linkURL := fmt.Sprintf("%s/mysteries/%s", baseURL, mysteryID)
+		linkURL := fmt.Sprintf("%s/mystery/%s#attempt-%s", baseURL, mysteryID, req.AttemptID)
 		subject, body := notification.NotifEmail("Someone", "chose your attempt as the winner!", "", linkURL)
 		_ = s.NotificationService.Notify(bgCtx, dto.NotifyParams{
-			RecipientID:   req.WinnerID,
+			RecipientID:   attemptAuthorID,
 			Type:          dto.NotifMysterySolved,
 			ReferenceID:   mysteryID,
-			ReferenceType: "mystery",
+			ReferenceType: fmt.Sprintf("mystery_attempt:%s", req.AttemptID),
 			ActorID:       userID,
 			EmailSubject:  subject,
 			EmailBody:     body,
