@@ -15,6 +15,7 @@ import {
 import { useAuth } from "../../hooks/useAuth";
 import { can } from "../../utils/permissions";
 import { Button } from "../../components/Button/Button";
+import { Lightbox } from "../../components/Lightbox/Lightbox";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { CommentItem } from "../../components/post/CommentItem/CommentItem";
 import { CommentComposer } from "../../components/post/CommentComposer/CommentComposer";
@@ -30,6 +31,7 @@ export function ShipDetailPage() {
     const [ship, setShip] = useState<ShipDetail | null>(null);
     const [loading, setLoading] = useState(true);
     const [voting, setVoting] = useState(false);
+    const [lightboxOpen, setLightboxOpen] = useState(false);
     const hash = location.hash;
     const highlightedComment = hash.startsWith("#comment-") ? hash.replace("#comment-", "") : null;
 
@@ -109,7 +111,13 @@ export function ShipDetailPage() {
 
             <div className={styles.detailHeader}>
                 {(ship.image_url || ship.thumbnail_url) && (
-                    <img className={styles.detailImage} src={ship.image_url || ship.thumbnail_url} alt={ship.title} />
+                    <img
+                        className={styles.detailImage}
+                        src={ship.image_url || ship.thumbnail_url}
+                        alt={ship.title}
+                        onClick={() => setLightboxOpen(true)}
+                        style={{ cursor: "zoom-in" }}
+                    />
                 )}
                 <div className={styles.detailBody}>
                     <div
@@ -186,6 +194,14 @@ export function ShipDetailPage() {
                     />
                 )}
             </div>
+
+            {lightboxOpen && (ship.image_url || ship.thumbnail_url) && (
+                <Lightbox
+                    src={ship.image_url || ship.thumbnail_url || ""}
+                    alt={ship.title}
+                    onClose={() => setLightboxOpen(false)}
+                />
+            )}
         </div>
     );
 }

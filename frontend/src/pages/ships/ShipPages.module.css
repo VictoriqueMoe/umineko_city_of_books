@@ -322,10 +322,11 @@
 }
 
 .detailImage {
-    width: 100%;
-    max-height: 400px;
-    object-fit: cover;
     display: block;
+    width: 100%;
+    max-height: 500px;
+    object-fit: contain;
+    background: var(--bg-void);
 }
 
 .detailBody {
