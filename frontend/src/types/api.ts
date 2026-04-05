@@ -153,6 +153,8 @@ export interface UserStats {
     theory_count: number;
     response_count: number;
     votes_received: number;
+    ship_count: number;
+    mystery_count: number;
 }
 
 export interface UpdateProfilePayload {

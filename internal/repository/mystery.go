@@ -19,6 +19,7 @@ type (
 		DeleteAsAdmin(ctx context.Context, id uuid.UUID) error
 		GetByID(ctx context.Context, id uuid.UUID) (*MysteryRow, error)
 		List(ctx context.Context, sort string, solved *bool, limit, offset int, excludeUserIDs []uuid.UUID) ([]MysteryRow, int, error)
+		ListByUser(ctx context.Context, userID uuid.UUID, limit, offset int) ([]MysteryRow, int, error)
 		GetClues(ctx context.Context, mysteryID uuid.UUID) ([]dto.MysteryClue, error)
 		DeleteClues(ctx context.Context, mysteryID uuid.UUID) error
 		GetAuthorID(ctx context.Context, mysteryID uuid.UUID) (uuid.UUID, error)
@@ -424,6 +425,50 @@ func (r *mysteryRepository) CountAttempts(ctx context.Context, mysteryID uuid.UU
 	var count int
 	err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM mystery_attempts WHERE mystery_id = ?`, mysteryID).Scan(&count)
 	return count, err
+}
+
+func (r *mysteryRepository) ListByUser(ctx context.Context, userID uuid.UUID, limit, offset int) ([]MysteryRow, int, error) {
+	var total int
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM mysteries WHERE user_id = ?`, userID).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count user mysteries: %w", err)
+	}
+
+	query := `SELECT m.id, m.user_id, m.title, m.body, m.difficulty, m.solved, m.solved_at, m.created_at, m.updated_at,
+		u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''),
+		w.id, w.username, w.display_name, w.avatar_url, COALESCE(wr.role, ''),
+		(SELECT COUNT(*) FROM mystery_attempts WHERE mystery_id = m.id),
+		(SELECT COUNT(*) FROM mystery_clues WHERE mystery_id = m.id)
+	FROM mysteries m
+	JOIN users u ON m.user_id = u.id
+	LEFT JOIN user_roles r ON r.user_id = u.id
+	LEFT JOIN users w ON m.winner_id = w.id
+	LEFT JOIN user_roles wr ON wr.user_id = w.id
+	WHERE m.user_id = ?
+	ORDER BY m.created_at DESC
+	LIMIT ? OFFSET ?`
+
+	rows, err := r.db.QueryContext(ctx, query, userID, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list user mysteries: %w", err)
+	}
+	defer rows.Close()
+
+	var result []MysteryRow
+	for rows.Next() {
+		var row MysteryRow
+		var solved int
+		if err := rows.Scan(
+			&row.ID, &row.UserID, &row.Title, &row.Body, &row.Difficulty, &solved, &row.SolvedAt, &row.CreatedAt, &row.UpdatedAt,
+			&row.AuthorUsername, &row.AuthorDisplayName, &row.AuthorAvatarURL, &row.AuthorRole,
+			&row.WinnerID, &row.WinnerUsername, &row.WinnerDisplayName, &row.WinnerAvatarURL, &row.WinnerRole,
+			&row.AttemptCount, &row.ClueCount,
+		); err != nil {
+			return nil, 0, fmt.Errorf("scan mystery: %w", err)
+		}
+		row.Solved = solved != 0
+		result = append(result, row)
+	}
+	return result, total, rows.Err()
 }
 
 func (r *mysteryRepository) GetLeaderboard(ctx context.Context, limit int) ([]LeaderboardEntry, error) {

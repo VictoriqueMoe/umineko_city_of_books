@@ -833,6 +833,16 @@ export async function getMysteryLeaderboard(limit?: number): Promise<MysteryLead
     return apiFetch<MysteryLeaderboardResponse>(`/mysteries/leaderboard${qs}`);
 }
 
+export async function getUserShips(userId: string, limit = 20, offset = 0): Promise<ShipListResponse> {
+    const qs = buildQueryString({ limit, offset });
+    return apiFetch<ShipListResponse>(`/users/${userId}/ships${qs}`);
+}
+
+export async function getUserMysteries(userId: string, limit = 20, offset = 0): Promise<MysteryListResponse> {
+    const qs = buildQueryString({ limit, offset });
+    return apiFetch<MysteryListResponse>(`/users/${userId}/mysteries${qs}`);
+}
+
 export async function createAnnouncementComment(
     announcementId: string,
     body: string,

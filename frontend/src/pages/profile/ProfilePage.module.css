@@ -500,3 +500,105 @@ a.socialChipValue:hover {
         white-space: nowrap;
     }
 }
+
+.shipList,
+.mysteryList {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.shipCard {
+    display: flex;
+    gap: 0.75rem;
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--purple-rgb), 0.3);
+    border-radius: 8px;
+    padding: 0.75rem;
+    cursor: pointer;
+    transition: border-color 0.2s;
+    align-items: center;
+}
+
+.shipCard:hover {
+    border-color: var(--gold);
+}
+
+.shipThumb {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 6px;
+    flex-shrink: 0;
+}
+
+.shipInfo {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-width: 0;
+}
+
+.shipTitle {
+    font-family: var(--font-display);
+    color: var(--gold);
+    font-size: 1rem;
+}
+
+.shipMeta {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.mysteryCard {
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--purple-rgb), 0.3);
+    border-radius: 8px;
+    padding: 0.9rem 1rem;
+    cursor: pointer;
+    transition: border-color 0.2s;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.mysteryCard:hover {
+    border-color: var(--gold);
+}
+
+.mysteryHeader {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.mysteryTitle {
+    font-family: var(--font-display);
+    color: var(--gold);
+    font-size: 1rem;
+    flex: 1;
+}
+
+.mysteryBadge {
+    font-size: 0.65rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 700;
+}
+
+.mysteryBadgeSolved {
+    background: rgba(40, 167, 69, 0.2);
+    color: #66bb6a;
+}
+
+.mysteryBadgeOpen {
+    background: rgba(var(--gold-rgb), 0.2);
+    color: var(--gold);
+}
+
+.mysteryMeta {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}

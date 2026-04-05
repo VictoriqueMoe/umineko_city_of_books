@@ -43,6 +43,8 @@ type (
 		TheoryCount   int
 		ResponseCount int
 		VotesReceived int
+		ShipCount     int
+		MysteryCount  int
 	}
 
 	NotificationRow struct {
@@ -292,6 +294,8 @@ func (u *User) ToProfileResponse(stats *UserStats, isSelf bool) *dto.UserProfile
 			TheoryCount:   stats.TheoryCount,
 			ResponseCount: stats.ResponseCount,
 			VotesReceived: stats.VotesReceived,
+			ShipCount:     stats.ShipCount,
+			MysteryCount:  stats.MysteryCount,
 		},
 	}
 }

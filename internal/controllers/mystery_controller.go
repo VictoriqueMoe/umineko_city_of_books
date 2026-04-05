@@ -23,6 +23,7 @@ func (s *Service) getAllMysteryRoutes() []FSetupRoute {
 	return []FSetupRoute{
 		s.setupListMysteries,
 		s.setupMysteryLeaderboard,
+		s.setupListUserMysteries,
 		s.setupGetMystery,
 		s.setupCreateMystery,
 		s.setupUpdateMystery,
@@ -530,4 +531,38 @@ func (s *Service) mysteryLeaderboard(ctx fiber.Ctx) error {
 		}
 	}
 	return ctx.JSON(dto.MysteryLeaderboardResponse{Entries: entries})
+}
+
+func (s *Service) setupListUserMysteries(r fiber.Router) {
+	r.Get("/users/:id/mysteries", s.listUserMysteries)
+}
+
+func (s *Service) listUserMysteries(ctx fiber.Ctx) error {
+	userID, err := uuid.Parse(ctx.Params("id"))
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user id"})
+	}
+	limit := fiber.Query[int](ctx, "limit", 20)
+	offset := fiber.Query[int](ctx, "offset", 0)
+
+	rows, total, err := s.MysteryRepo.ListByUser(ctx.Context(), userID, limit, offset)
+	if err != nil {
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to list user mysteries"})
+	}
+
+	mysteries := make([]dto.MysteryResponse, len(rows))
+	for i, r := range rows {
+		resp := r.ToResponse()
+		if len(resp.Body) > 200 {
+			resp.Body = resp.Body[:200] + "..."
+		}
+		mysteries[i] = resp
+	}
+
+	return ctx.JSON(dto.MysteryListResponse{
+		Mysteries: mysteries,
+		Total:     total,
+		Limit:     limit,
+		Offset:    offset,
+	})
 }

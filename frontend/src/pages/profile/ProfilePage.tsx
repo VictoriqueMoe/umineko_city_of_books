@@ -12,9 +12,11 @@ import {
     getUserActivity,
     getUserArt,
     getUserGalleries,
+    getUserMysteries,
     getUserPosts,
+    getUserShips,
 } from "../../api/endpoints";
-import type { ActivityItem, Art, Gallery, Post, User } from "../../types/api";
+import type { ActivityItem, Art, Gallery, Mystery, Post, Ship, User } from "../../types/api";
 import { Button } from "../../components/Button/Button";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { TheoryCard } from "../../components/theory/TheoryCard/TheoryCard";
@@ -56,7 +58,16 @@ function socialUrl(key: string, value: string): string {
     }
 }
 
-type TabType = "posts" | "theories" | "art" | "galleries" | "activity" | "followers" | "following";
+type TabType =
+    | "posts"
+    | "theories"
+    | "art"
+    | "galleries"
+    | "ships"
+    | "mysteries"
+    | "activity"
+    | "followers"
+    | "following";
 
 export function ProfilePage() {
     const { username } = useParams<{ username: string }>();
@@ -143,6 +154,58 @@ export function ProfilePage() {
                 .finally(() => setGalleriesLoading(false));
         }
     }, [activeTab, profile?.id]);
+
+    const [userShips, setUserShips] = useState<Ship[]>([]);
+    const [shipsTotal, setShipsTotal] = useState(0);
+    const [shipsOffset, setShipsOffset] = useState(0);
+    const [shipsLoading, setShipsLoading] = useState(false);
+    const shipsLimit = 20;
+
+    const fetchUserShips = useCallback(async (id: string, off: number) => {
+        setShipsLoading(true);
+        try {
+            const result = await getUserShips(id, shipsLimit, off);
+            setUserShips(result.ships ?? []);
+            setShipsTotal(result.total);
+        } catch {
+            setUserShips([]);
+            setShipsTotal(0);
+        } finally {
+            setShipsLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (activeTab === "ships" && profile?.id) {
+            fetchUserShips(profile.id, shipsOffset);
+        }
+    }, [activeTab, profile?.id, shipsOffset, fetchUserShips]);
+
+    const [userMysteries, setUserMysteries] = useState<Mystery[]>([]);
+    const [mysteriesTotal, setMysteriesTotal] = useState(0);
+    const [mysteriesOffset, setMysteriesOffset] = useState(0);
+    const [mysteriesLoading, setMysteriesLoading] = useState(false);
+    const mysteriesLimit = 20;
+
+    const fetchUserMysteries = useCallback(async (id: string, off: number) => {
+        setMysteriesLoading(true);
+        try {
+            const result = await getUserMysteries(id, mysteriesLimit, off);
+            setUserMysteries(result.mysteries ?? []);
+            setMysteriesTotal(result.total);
+        } catch {
+            setUserMysteries([]);
+            setMysteriesTotal(0);
+        } finally {
+            setMysteriesLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (activeTab === "mysteries" && profile?.id) {
+            fetchUserMysteries(profile.id, mysteriesOffset);
+        }
+    }, [activeTab, profile?.id, mysteriesOffset, fetchUserMysteries]);
 
     const [activityItems, setActivityItems] = useState<ActivityItem[]>([]);
     const [activityTotal, setActivityTotal] = useState(0);
@@ -335,6 +398,17 @@ export function ProfilePage() {
                     <span className={styles.statNumber}>{profile.stats.votes_received}</span>
                     <span className={styles.statLabel}>Votes Received</span>
                 </div>
+                <div className={`${styles.statBox} ${styles.statBoxClickable}`} onClick={() => setActiveTab("ships")}>
+                    <span className={styles.statNumber}>{profile.stats.ship_count}</span>
+                    <span className={styles.statLabel}>Ships</span>
+                </div>
+                <div
+                    className={`${styles.statBox} ${styles.statBoxClickable}`}
+                    onClick={() => setActiveTab("mysteries")}
+                >
+                    <span className={styles.statNumber}>{profile.stats.mystery_count}</span>
+                    <span className={styles.statLabel}>Mysteries</span>
+                </div>
                 {follow.stats && (
                     <>
                         <div
@@ -379,6 +453,18 @@ export function ProfilePage() {
                     onClick={() => setActiveTab("galleries")}
                 >
                     Galleries
+                </button>
+                <button
+                    className={`${styles.tab} ${activeTab === "ships" ? styles.tabActive : ""}`}
+                    onClick={() => setActiveTab("ships")}
+                >
+                    Ships
+                </button>
+                <button
+                    className={`${styles.tab} ${activeTab === "mysteries" ? styles.tabActive : ""}`}
+                    onClick={() => setActiveTab("mysteries")}
+                >
+                    Mysteries
                 </button>
                 <button
                     className={`${styles.tab} ${activeTab === "activity" ? styles.tabActive : ""}`}
@@ -496,6 +582,99 @@ export function ProfilePage() {
                                 </div>
                             ))}
                         </div>
+                    )}
+                </div>
+            )}
+
+            {activeTab === "ships" && (
+                <div className={styles.tabContent}>
+                    {shipsLoading && <div className="loading">Loading ships...</div>}
+                    {!shipsLoading && userShips.length === 0 && (
+                        <div className="empty-state">No ships declared yet.</div>
+                    )}
+                    {!shipsLoading && userShips.length > 0 && (
+                        <div className={styles.shipList}>
+                            {userShips.map(s => (
+                                <div key={s.id} className={styles.shipCard} onClick={() => navigate(`/ships/${s.id}`)}>
+                                    {(s.thumbnail_url || s.image_url) && (
+                                        <img
+                                            className={styles.shipThumb}
+                                            src={s.thumbnail_url || s.image_url}
+                                            alt={s.title}
+                                        />
+                                    )}
+                                    <div className={styles.shipInfo}>
+                                        <span className={styles.shipTitle}>{s.title}</span>
+                                        <span className={styles.shipMeta}>
+                                            {s.characters.map(c => c.character_name).join(" × ")}
+                                        </span>
+                                        <span className={styles.shipMeta}>
+                                            {s.vote_score > 0 ? "+" : ""}
+                                            {s.vote_score} &middot; {s.comment_count} comment
+                                            {s.comment_count !== 1 ? "s" : ""}
+                                            {s.is_crackship && " \u00B7 Crackship"}
+                                        </span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                    {!shipsLoading && shipsTotal > shipsLimit && (
+                        <Pagination
+                            offset={shipsOffset}
+                            limit={shipsLimit}
+                            total={shipsTotal}
+                            hasNext={shipsOffset + shipsLimit < shipsTotal}
+                            hasPrev={shipsOffset > 0}
+                            onNext={() => setShipsOffset(shipsOffset + shipsLimit)}
+                            onPrev={() => setShipsOffset(Math.max(0, shipsOffset - shipsLimit))}
+                        />
+                    )}
+                </div>
+            )}
+
+            {activeTab === "mysteries" && (
+                <div className={styles.tabContent}>
+                    {mysteriesLoading && <div className="loading">Loading mysteries...</div>}
+                    {!mysteriesLoading && userMysteries.length === 0 && (
+                        <div className="empty-state">No mysteries declared yet.</div>
+                    )}
+                    {!mysteriesLoading && userMysteries.length > 0 && (
+                        <div className={styles.mysteryList}>
+                            {userMysteries.map(m => (
+                                <div
+                                    key={m.id}
+                                    className={styles.mysteryCard}
+                                    onClick={() => navigate(`/mystery/${m.id}`)}
+                                >
+                                    <div className={styles.mysteryHeader}>
+                                        <span className={styles.mysteryTitle}>{m.title}</span>
+                                        <span
+                                            className={`${styles.mysteryBadge} ${m.solved ? styles.mysteryBadgeSolved : styles.mysteryBadgeOpen}`}
+                                        >
+                                            {m.solved ? "Solved" : "Open"}
+                                        </span>
+                                    </div>
+                                    <span className={styles.mysteryMeta}>
+                                        Difficulty: {m.difficulty} &middot; {m.attempt_count} attempt
+                                        {m.attempt_count !== 1 ? "s" : ""} &middot; {m.clue_count} clue
+                                        {m.clue_count !== 1 ? "s" : ""}
+                                        {m.winner && ` \u00B7 Winner: ${m.winner.display_name}`}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                    {!mysteriesLoading && mysteriesTotal > mysteriesLimit && (
+                        <Pagination
+                            offset={mysteriesOffset}
+                            limit={mysteriesLimit}
+                            total={mysteriesTotal}
+                            hasNext={mysteriesOffset + mysteriesLimit < mysteriesTotal}
+                            hasPrev={mysteriesOffset > 0}
+                            onNext={() => setMysteriesOffset(mysteriesOffset + mysteriesLimit)}
+                            onPrev={() => setMysteriesOffset(Math.max(0, mysteriesOffset - mysteriesLimit))}
+                        />
                     )}
                 </div>
             )}

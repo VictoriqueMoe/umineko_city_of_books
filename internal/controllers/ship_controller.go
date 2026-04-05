@@ -29,6 +29,7 @@ func (s *Service) getAllShipRoutes() []FSetupRoute {
 		s.setupUnlikeShipComment,
 		s.setupUploadShipCommentMedia,
 		s.setupListCharacters,
+		s.setupListUserShips,
 	}
 }
 
@@ -345,4 +346,24 @@ func (s *Service) listCharacters(ctx fiber.Ctx) error {
 		Series:     string(series),
 		Characters: chars,
 	})
+}
+
+func (s *Service) setupListUserShips(r fiber.Router) {
+	r.Get("/users/:id/ships", middleware.OptionalAuth(s.AuthSession, s.AuthzService), s.listUserShips)
+}
+
+func (s *Service) listUserShips(ctx fiber.Ctx) error {
+	userID, err := uuid.Parse(ctx.Params("id"))
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user id"})
+	}
+	viewerID, _ := ctx.Locals("userID").(uuid.UUID)
+	limit := fiber.Query[int](ctx, "limit", 20)
+	offset := fiber.Query[int](ctx, "offset", 0)
+
+	result, err := s.ShipService.ListShipsByUser(ctx.Context(), userID, viewerID, limit, offset)
+	if err != nil {
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to list user ships"})
+	}
+	return ctx.JSON(result)
 }

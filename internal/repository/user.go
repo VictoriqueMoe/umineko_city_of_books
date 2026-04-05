@@ -255,6 +255,14 @@ func (r *userRepository) GetProfileByUsername(ctx context.Context, username stri
 
 	stats.VotesReceived = theoryVotes + responseVotes
 
+	r.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM ships WHERE user_id = ?`, u.ID,
+	).Scan(&stats.ShipCount)
+
+	r.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM mysteries WHERE user_id = ?`, u.ID,
+	).Scan(&stats.MysteryCount)
+
 	return u, &stats, nil
 }
 
@@ -272,6 +280,14 @@ func (r *userRepository) GetProfileByID(ctx context.Context, id uuid.UUID) (*Use
 	r.db.QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM responses WHERE user_id = ?`, u.ID,
 	).Scan(&stats.ResponseCount)
+
+	r.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM ships WHERE user_id = ?`, u.ID,
+	).Scan(&stats.ShipCount)
+
+	r.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM mysteries WHERE user_id = ?`, u.ID,
+	).Scan(&stats.MysteryCount)
 
 	return u, &stats, nil
 }

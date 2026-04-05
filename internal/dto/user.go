@@ -51,6 +51,8 @@ type (
 		TheoryCount   int `json:"theory_count"`
 		ResponseCount int `json:"response_count"`
 		VotesReceived int `json:"votes_received"`
+		ShipCount     int `json:"ship_count"`
+		MysteryCount  int `json:"mystery_count"`
 	}
 
 	UpdateProfileRequest struct {

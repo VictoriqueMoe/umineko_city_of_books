@@ -23,6 +23,7 @@ type (
 		GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID) (*ShipRow, error)
 		GetAuthorID(ctx context.Context, shipID uuid.UUID) (uuid.UUID, error)
 		List(ctx context.Context, viewerID uuid.UUID, sort string, crackshipsOnly bool, series string, characterID string, limit, offset int, excludeUserIDs []uuid.UUID) ([]ShipRow, int, error)
+		ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit, offset int) ([]ShipRow, int, error)
 
 		AddCharacter(ctx context.Context, shipID uuid.UUID, series string, characterID string, characterName string, sortOrder int) error
 		DeleteCharacters(ctx context.Context, shipID uuid.UUID) error
@@ -235,6 +236,30 @@ func shipOrderClause(sort string) string {
 	default:
 		return ` ORDER BY s.created_at DESC`
 	}
+}
+
+func (r *shipRepository) ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit, offset int) ([]ShipRow, int, error) {
+	var total int
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM ships WHERE user_id = ?`, userID).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count user ships: %w", err)
+	}
+
+	query := shipSelectBase + ` WHERE s.user_id = ? ORDER BY s.created_at DESC LIMIT ? OFFSET ?`
+	rows, err := r.db.QueryContext(ctx, query, viewerID, userID, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list user ships: %w", err)
+	}
+	defer rows.Close()
+
+	var ships []ShipRow
+	for rows.Next() {
+		var s ShipRow
+		if err := scanShipRow(rows, &s); err != nil {
+			return nil, 0, fmt.Errorf("scan ship: %w", err)
+		}
+		ships = append(ships, s)
+	}
+	return ships, total, rows.Err()
 }
 
 func (r *shipRepository) AddCharacter(ctx context.Context, shipID uuid.UUID, series string, characterID string, characterName string, sortOrder int) error {

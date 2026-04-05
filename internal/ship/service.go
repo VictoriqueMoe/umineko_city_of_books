@@ -38,6 +38,12 @@ type (
 			characterID string,
 			limit, offset int,
 		) (*dto.ShipListResponse, error)
+		ListShipsByUser(
+			ctx context.Context,
+			userID uuid.UUID,
+			viewerID uuid.UUID,
+			limit, offset int,
+		) (*dto.ShipListResponse, error)
 		UploadShipImage(
 			ctx context.Context,
 			shipID uuid.UUID,
@@ -231,6 +237,36 @@ func (s *service) ListShips(
 	blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, viewerID)
 
 	rows, total, err := s.shipRepo.List(ctx, viewerID, sort, crackshipsOnly, series, characterID, limit, offset, blockedIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	shipIDs := make([]uuid.UUID, len(rows))
+	for i, r := range rows {
+		shipIDs[i] = r.ID
+	}
+	charactersMap, _ := s.shipRepo.GetCharactersBatch(ctx, shipIDs)
+
+	ships := make([]dto.ShipResponse, len(rows))
+	for i, r := range rows {
+		ships[i] = r.ToResponse(charactersMap[r.ID])
+	}
+
+	return &dto.ShipListResponse{
+		Ships:  ships,
+		Total:  total,
+		Limit:  limit,
+		Offset: offset,
+	}, nil
+}
+
+func (s *service) ListShipsByUser(
+	ctx context.Context,
+	userID uuid.UUID,
+	viewerID uuid.UUID,
+	limit, offset int,
+) (*dto.ShipListResponse, error) {
+	rows, total, err := s.shipRepo.ListByUser(ctx, userID, viewerID, limit, offset)
 	if err != nil {
 		return nil, err
 	}
