@@ -22,10 +22,21 @@ func Setup(app *fiber.App, settingsSvc settings.Service, sessionMgr *session.Man
 	app.Use(etag.New())
 
 	app.Use(func(ctx fiber.Ctx) error {
-		if !strings.HasPrefix(ctx.Path(), "/api") {
-			ctx.Set("Cache-Control", "no-cache")
+		path := ctx.Path()
+		if err := ctx.Next(); err != nil {
+			return err
 		}
-		return ctx.Next()
+		switch {
+		case strings.HasPrefix(path, "/static/assets/") || strings.HasPrefix(path, "/assets/"):
+			ctx.Set("Cache-Control", "public, max-age=31536000, immutable")
+		case strings.HasPrefix(path, "/api"):
+			ctx.Set("Cache-Control", "no-cache, must-revalidate")
+		default:
+			ctx.Set("Cache-Control", "no-cache, no-store, must-revalidate")
+			ctx.Set("Pragma", "no-cache")
+			ctx.Set("Expires", "0")
+		}
+		return nil
 	})
 
 	app.Use(cors.New(cors.Config{
