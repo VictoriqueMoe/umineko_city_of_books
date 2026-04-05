@@ -23,7 +23,7 @@ export function CreateTheoryPage({ series = "umineko" }: { series?: Series }) {
     return (
         <div className={formStyles.page}>
             <h2 className={formStyles.heading}>Declare Your Blue Truth</h2>
-            <RulesBox page="theories" />
+            <RulesBox page={series === "higurashi" ? "theories_higurashi" : "theories"} />
 
             <TheoryForm
                 submitLabel="Declare Blue Truth"

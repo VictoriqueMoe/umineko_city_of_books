@@ -73,4 +73,13 @@ type (
 		ParentID *uuid.UUID `json:"parent_id,omitempty"`
 		Body     string     `json:"body"`
 	}
+
+	MysteryLeaderboardEntry struct {
+		User        UserResponse `json:"user"`
+		SolvedCount int          `json:"solved_count"`
+	}
+
+	MysteryLeaderboardResponse struct {
+		Entries []MysteryLeaderboardEntry `json:"entries"`
+	}
 )

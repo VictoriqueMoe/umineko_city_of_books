@@ -293,7 +293,10 @@ export type NotificationType =
     | "mystery_solved"
     | "ship_commented"
     | "ship_comment_reply"
-    | "ship_comment_liked";
+    | "ship_comment_liked"
+    | "announcement_commented"
+    | "announcement_comment_reply"
+    | "announcement_comment_liked";
 
 export interface Notification {
     id: number;
@@ -535,6 +538,15 @@ export interface MysteryListResponse {
     offset: number;
 }
 
+export interface MysteryLeaderboardEntry {
+    user: User;
+    solved_count: number;
+}
+
+export interface MysteryLeaderboardResponse {
+    entries: MysteryLeaderboardEntry[];
+}
+
 export interface Announcement {
     id: string;
     title: string;
@@ -543,6 +555,21 @@ export interface Announcement {
     pinned: boolean;
     created_at: string;
     updated_at: string;
+    comments?: AnnouncementComment[];
+}
+
+export interface AnnouncementComment {
+    id: string;
+    parent_id?: string;
+    author: User;
+    body: string;
+    media: PostMedia[];
+    embeds?: PostEmbed[];
+    like_count: number;
+    user_liked: boolean;
+    replies?: AnnouncementComment[];
+    created_at: string;
+    updated_at?: string;
 }
 
 export interface ShipCharacter {

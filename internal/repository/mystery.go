@@ -35,6 +35,8 @@ type (
 		MarkSolved(ctx context.Context, mysteryID uuid.UUID, winnerID uuid.UUID) error
 		Unsolve(ctx context.Context, mysteryID uuid.UUID) error
 
+		GetLeaderboard(ctx context.Context, limit int) ([]LeaderboardEntry, error)
+
 		CountAttempts(ctx context.Context, mysteryID uuid.UUID) (int, error)
 	}
 
@@ -75,6 +77,15 @@ type (
 		VoteScore         int
 		UserVote          int
 		CreatedAt         string
+	}
+
+	LeaderboardEntry struct {
+		UserID         uuid.UUID
+		Username       string
+		DisplayName    string
+		AvatarURL      string
+		Role           string
+		SolvedCount    int
 	}
 
 	mysteryRepository struct {
@@ -413,4 +424,35 @@ func (r *mysteryRepository) CountAttempts(ctx context.Context, mysteryID uuid.UU
 	var count int
 	err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM mystery_attempts WHERE mystery_id = ?`, mysteryID).Scan(&count)
 	return count, err
+}
+
+func (r *mysteryRepository) GetLeaderboard(ctx context.Context, limit int) ([]LeaderboardEntry, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT u.id, u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''),
+			COUNT(m.id) AS solved_count
+		FROM mysteries m
+		JOIN users u ON m.winner_id = u.id
+		LEFT JOIN user_roles r ON r.user_id = u.id
+		WHERE m.solved = 1 AND m.winner_id IS NOT NULL
+		GROUP BY u.id
+		ORDER BY solved_count DESC, u.display_name ASC
+		LIMIT ?`, limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("get leaderboard: %w", err)
+	}
+	defer rows.Close()
+
+	var result []LeaderboardEntry
+	for rows.Next() {
+		var e LeaderboardEntry
+		if err := rows.Scan(&e.UserID, &e.Username, &e.DisplayName, &e.AvatarURL, &e.Role, &e.SolvedCount); err != nil {
+			return nil, fmt.Errorf("scan leaderboard entry: %w", err)
+		}
+		result = append(result, e)
+	}
+	return result, rows.Err()
 }

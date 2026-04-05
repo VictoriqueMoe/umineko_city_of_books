@@ -94,7 +94,10 @@ function SingleAttempt({
     const canDelete = isOwner || can(user?.role, "delete_any_comment");
 
     return (
-        <div className={`${styles.attempt}${attempt.is_winner ? ` ${styles.attemptWinner}` : ""}`}>
+        <div
+            id={`attempt-${attempt.id}`}
+            className={`${styles.attempt}${attempt.is_winner ? ` ${styles.attemptWinner}` : ""}`}
+        >
             <div className={styles.attemptHeader}>
                 <ProfileLink user={attempt.author} size="small" />
                 {replyToName && <span className={styles.replyTo}>@{replyToName}</span>}

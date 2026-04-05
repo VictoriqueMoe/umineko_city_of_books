@@ -58,7 +58,10 @@ const (
 	NotifMysteryAttempt    NotificationType = "mystery_attempt"
 	NotifMysteryVote       NotificationType = "mystery_attempt_vote"
 	NotifMysterySolved     NotificationType = "mystery_solved"
-	NotifShipCommented     NotificationType = "ship_commented"
-	NotifShipCommentReply  NotificationType = "ship_comment_reply"
-	NotifShipCommentLiked  NotificationType = "ship_comment_liked"
+	NotifShipCommented             NotificationType = "ship_commented"
+	NotifShipCommentReply          NotificationType = "ship_comment_reply"
+	NotifShipCommentLiked          NotificationType = "ship_comment_liked"
+	NotifAnnouncementCommented     NotificationType = "announcement_commented"
+	NotifAnnouncementCommentReply  NotificationType = "announcement_comment_reply"
+	NotifAnnouncementCommentLiked  NotificationType = "announcement_comment_liked"
 )

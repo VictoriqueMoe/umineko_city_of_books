@@ -189,6 +189,21 @@
     color: var(--gold);
 }
 
+.commentsSection {
+    margin-top: 1.5rem;
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--purple-rgb), 0.3);
+    border-radius: 8px;
+    padding: 1.25rem;
+}
+
+.commentsTitle {
+    font-family: var(--font-display);
+    color: var(--gold);
+    font-size: 1.05rem;
+    margin-bottom: 0.75rem;
+}
+
 @media (max-width: 768px) {
     .detail {
         padding: 1rem;

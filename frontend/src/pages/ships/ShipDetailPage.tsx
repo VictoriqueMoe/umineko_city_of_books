@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useLocation, useNavigate, useParams } from "react-router";
 import type { PostComment, ShipDetail } from "../../types/api";
 import {
     createShipComment,
@@ -25,10 +25,13 @@ import styles from "./ShipPages.module.css";
 export function ShipDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const location = useLocation();
     const { user } = useAuth();
     const [ship, setShip] = useState<ShipDetail | null>(null);
     const [loading, setLoading] = useState(true);
     const [voting, setVoting] = useState(false);
+    const hash = location.hash;
+    const highlightedComment = hash.startsWith("#comment-") ? hash.replace("#comment-", "") : null;
 
     const fetchShip = useCallback(() => {
         if (!id) {
@@ -43,6 +46,18 @@ export function ShipDetailPage() {
     useEffect(() => {
         fetchShip();
     }, [fetchShip]);
+
+    useEffect(() => {
+        if (!ship || loading || !highlightedComment) {
+            return;
+        }
+        requestAnimationFrame(() => {
+            const el = document.getElementById(`comment-${highlightedComment}`);
+            if (el) {
+                el.scrollIntoView({ behavior: "smooth", block: "center" });
+            }
+        });
+    }, [ship, loading, highlightedComment]);
 
     async function handleVote(value: number) {
         if (!ship || voting) {
@@ -148,6 +163,7 @@ export function ShipDetailPage() {
                         comment={c as unknown as PostComment}
                         postId={ship.id}
                         onDelete={fetchShip}
+                        highlighted={c.id === highlightedComment}
                         linkPrefix="/ships"
                         reportType="ship_comment"
                         likeFn={likeShipComment}
