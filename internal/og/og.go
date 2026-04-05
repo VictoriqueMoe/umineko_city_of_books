@@ -104,7 +104,7 @@ func (r *Resolver) metaForPath(ctx context.Context, path string) *Meta {
 		}
 	}
 
-	if len(parts) == 2 && parts[0] == "mysteries" {
+	if len(parts) == 2 && parts[0] == "mystery" {
 		if _, err := uuid.Parse(parts[1]); err == nil {
 			return r.mysteryMeta(ctx, parts[1])
 		}
@@ -336,7 +336,7 @@ func (r *Resolver) mysteryMeta(ctx context.Context, idStr string) *Meta {
 		Title:       title,
 		Description: desc,
 		Image:       mystery.AuthorAvatarURL,
-		URL:         fmt.Sprintf("%s/mysteries/%s", r.baseURL, idStr),
+		URL:         fmt.Sprintf("%s/mystery/%s", r.baseURL, idStr),
 	}
 }
 

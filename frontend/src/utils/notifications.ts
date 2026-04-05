@@ -1,6 +1,13 @@
-import type { Notification, NotificationType } from "../types/api";
+import type {Notification, NotificationType} from "../types/api";
 
-export type NotificationCategory = "game_board" | "gallery" | "theories" | "social" | "moderation";
+export type NotificationCategory =
+    | "game_board"
+    | "gallery"
+    | "theories"
+    | "mysteries_gm"
+    | "mysteries_player"
+    | "social"
+    | "moderation";
 
 interface NotificationConfig {
     text: string;
@@ -18,11 +25,21 @@ const categoryLabels: Record<NotificationCategory, string> = {
     game_board: "Game Board",
     gallery: "Gallery",
     theories: "Theories",
+    mysteries_gm: "Mysteries (as Game Master)",
+    mysteries_player: "Mysteries (as Player)",
     social: "Social",
     moderation: "Moderation",
 };
 
-const categoryOrder: NotificationCategory[] = ["game_board", "gallery", "theories", "social", "moderation"];
+const categoryOrder: NotificationCategory[] = [
+    "game_board",
+    "gallery",
+    "theories",
+    "mysteries_gm",
+    "mysteries_player",
+    "social",
+    "moderation",
+];
 
 function routeByReferenceType(notif: Notification): string {
     const refType = notif.reference_type;
@@ -44,11 +61,11 @@ function routeByReferenceType(notif: Notification): string {
         return `/gallery/art/${notif.reference_id}`;
     }
     if (refType === "mystery") {
-        return `/mysteries/${notif.reference_id}`;
+        return `/mystery/${notif.reference_id}`;
     }
     if (refType.startsWith("mystery_attempt:")) {
         const attemptId = refType.split(":")[1];
-        return `/mysteries/${notif.reference_id}#attempt-${attemptId}`;
+        return `/mystery/${notif.reference_id}#attempt-${attemptId}`;
     }
     if (refType === "ship" || refType.startsWith("ship_comment:")) {
         const parts = refType.split(":");
@@ -138,6 +155,11 @@ const notificationConfigs: Record<NotificationType, NotificationConfig> = {
         category: "game_board",
         route: routeByReferenceType,
     },
+    post_comment_reply: {
+        text: "replied to your comment",
+        category: "game_board",
+        route: routeByReferenceType,
+    },
     mention: {
         text: "mentioned you",
         category: "dynamic",
@@ -153,6 +175,11 @@ const notificationConfigs: Record<NotificationType, NotificationConfig> = {
         category: "gallery",
         route: routeByReferenceType,
     },
+    art_comment_reply: {
+        text: "replied to your comment",
+        category: "gallery",
+        route: routeByReferenceType,
+    },
     comment_liked: {
         text: "liked your comment",
         category: "dynamic",
@@ -164,19 +191,24 @@ const notificationConfigs: Record<NotificationType, NotificationConfig> = {
         route: routeByReferenceType,
     },
     mystery_attempt: {
-        text: "submitted an attempt on your mystery",
-        category: "game_board",
+        text: "made an attempt on your mystery",
+        category: "mysteries_gm",
+        route: routeByReferenceType,
+    },
+    mystery_reply: {
+        text: "replied in a thread on your mystery",
+        category: "mysteries_gm",
         route: routeByReferenceType,
     },
     mystery_attempt_vote: {
         text: "voted on your attempt",
-        category: "game_board",
+        category: "mysteries_player",
         route: routeByReferenceType,
     },
     mystery_solved: {
         text: "chose your attempt as the winner!",
-        category: "game_board",
-        route: notif => `/mysteries/${notif.reference_id}`,
+        category: "mysteries_player",
+        route: routeByReferenceType,
     },
     ship_commented: {
         text: "commented on your ship",

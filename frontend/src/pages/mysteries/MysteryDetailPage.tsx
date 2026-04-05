@@ -1,20 +1,37 @@
-import { useCallback, useEffect, useState } from "react";
-import { useLocation, useNavigate, useParams } from "react-router";
-import type { MysteryDetail } from "../../types/api";
-import { addMysteryClue, createMysteryAttempt, deleteMystery, getMystery } from "../../api/endpoints";
-import { useAuth } from "../../hooks/useAuth";
-import { can } from "../../utils/permissions";
-import { Button } from "../../components/Button/Button";
-import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
-import { relativeTime } from "../../utils/notifications";
-import { AttemptItem } from "./AttemptItem";
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {useLocation, useNavigate, useParams} from "react-router";
+import type {MysteryAttempt, MysteryDetail} from "../../types/api";
+import {addMysteryClue, createMysteryAttempt, deleteMystery, getMystery} from "../../api/endpoints";
+import {useAuth} from "../../hooks/useAuth";
+import {useNotifications} from "../../hooks/useNotifications";
+import {can} from "../../utils/permissions";
+import {Button} from "../../components/Button/Button";
+import {ProfileLink} from "../../components/ProfileLink/ProfileLink";
+import {relativeTime} from "../../utils/notifications";
+import {AttemptItem} from "./AttemptItem";
 import styles from "./MysteryPages.module.css";
+
+function findWinningAttempt(attempts: MysteryAttempt[]): MysteryAttempt | null {
+    for (const a of attempts) {
+        if (a.is_winner) {
+            return a;
+        }
+        if (a.replies && a.replies.length > 0) {
+            const nested = findWinningAttempt(a.replies);
+            if (nested) {
+                return nested;
+            }
+        }
+    }
+    return null;
+}
 
 export function MysteryDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const location = useLocation();
     const { user } = useAuth();
+    const { addWSListener } = useNotifications();
     const [mystery, setMystery] = useState<MysteryDetail | null>(null);
     const [loading, setLoading] = useState(true);
     const hash = location.hash;
@@ -30,8 +47,73 @@ export function MysteryDetailPage() {
     });
     const [attemptBody, setAttemptBody] = useState("");
     const [submitting, setSubmitting] = useState(false);
+    const [collapsedPlayers, setCollapsedPlayers] = useState<Set<string>>(new Set());
+    const [unreadPlayers, setUnreadPlayers] = useState<Set<string>>(new Set());
+    const initialUnreadComputedFor = useRef<string | null>(null);
     const [newClueBody, setNewClueBody] = useState("");
     const [addingClue, setAddingClue] = useState(false);
+
+    function togglePlayerCollapse(authorId: string) {
+        setCollapsedPlayers(prev => {
+            const next = new Set(prev);
+            if (next.has(authorId)) {
+                next.delete(authorId);
+            } else {
+                next.add(authorId);
+            }
+            return next;
+        });
+    }
+
+    function markPlayerRead(authorId: string) {
+        setUnreadPlayers(prev => {
+            if (!prev.has(authorId)) {
+                return prev;
+            }
+            const next = new Set(prev);
+            next.delete(authorId);
+            return next;
+        });
+    }
+
+    function jumpToPlayer(authorId: string) {
+        markPlayerRead(authorId);
+        setCollapsedPlayers(prev => {
+            if (!prev.has(authorId)) {
+                return prev;
+            }
+            const next = new Set(prev);
+            next.delete(authorId);
+            return next;
+        });
+        requestAnimationFrame(() => {
+            const el = document.getElementById(`player-group-${authorId}`);
+            if (el) {
+                el.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+        });
+    }
+
+    const winningAttempt = useMemo(
+        () => (mystery?.solved ? findWinningAttempt(mystery.attempts ?? []) : null),
+        [mystery],
+    );
+
+    const groupedAttempts = useMemo(() => {
+        if (!mystery) {
+            return [];
+        }
+        const groups = new Map<string, { author: MysteryAttempt["author"]; attempts: MysteryAttempt[] }>();
+        for (const a of mystery.attempts ?? []) {
+            const existing = groups.get(a.author.id);
+            if (existing) {
+                existing.attempts.push(a);
+            } else {
+                groups.set(a.author.id, { author: a.author, attempts: [a] });
+            }
+        }
+        return Array.from(groups.values());
+    }, [mystery]);
 
     const fetchMystery = useCallback(() => {
         if (!id) {
@@ -46,6 +128,84 @@ export function MysteryDetailPage() {
     useEffect(() => {
         fetchMystery();
     }, [fetchMystery]);
+
+    useEffect(() => {
+        if (!id) {
+            return;
+        }
+        return addWSListener(msg => {
+            if (msg.type === "mystery_solved") {
+                const data = msg.data as { mystery_id?: string; attempt_id?: string };
+                if (data.mystery_id !== id) {
+                    return;
+                }
+                fetchMystery();
+                if (data.attempt_id) {
+                    requestAnimationFrame(() => {
+                        const el = document.getElementById(`attempt-${data.attempt_id}`);
+                        if (el) {
+                            el.scrollIntoView({ behavior: "smooth", block: "center" });
+                        }
+                    });
+                }
+                return;
+            }
+            if (msg.type === "mystery_attempt_created") {
+                const data = msg.data as { mystery_id?: string; author_id?: string };
+                if (data.mystery_id !== id) {
+                    return;
+                }
+                if (data.author_id && data.author_id !== user?.id) {
+                    setUnreadPlayers(prev => {
+                        const next = new Set(prev);
+                        next.add(data.author_id as string);
+                        return next;
+                    });
+                }
+                fetchMystery();
+            }
+        });
+    }, [id, addWSListener, fetchMystery, user?.id]);
+
+    useEffect(() => {
+        if (!mystery || !id) {
+            return;
+        }
+        if (initialUnreadComputedFor.current === id) {
+            return;
+        }
+        initialUnreadComputedFor.current = id;
+
+        const isGM = user?.id === mystery.author.id || user?.role === "super_admin";
+        if (!isGM || mystery.solved) {
+            return;
+        }
+        const cursorRaw = localStorage.getItem(`mystery-read-cursor-${id}`);
+        if (!cursorRaw) {
+            localStorage.setItem(`mystery-read-cursor-${id}`, new Date().toISOString());
+            return;
+        }
+        const cursor = new Date(cursorRaw).getTime();
+        const unread = new Set<string>();
+        for (const a of mystery.attempts ?? []) {
+            const created = new Date(a.created_at).getTime();
+            if (created > cursor && a.author.id !== user?.id) {
+                unread.add(a.author.id);
+            }
+        }
+        if (unread.size > 0) {
+            setUnreadPlayers(unread);
+        }
+    }, [mystery, id, user?.id, user?.role]);
+
+    useEffect(() => {
+        if (!id) {
+            return;
+        }
+        return () => {
+            localStorage.setItem(`mystery-read-cursor-${id}`, new Date().toISOString());
+        };
+    }, [id]);
 
     useEffect(() => {
         if (!mystery || loading || !highlightedAttempt || !spoilerRevealed) {
@@ -69,6 +229,7 @@ export function MysteryDetailPage() {
 
     const isAuthor = user?.id === mystery.author.id;
     const canDelete = isAuthor || can(user?.role, "delete_any_theory");
+    const canSeeAsGameMaster = isAuthor || user?.role === "super_admin";
 
     async function handleSubmitAttempt() {
         if (!attemptBody.trim() || submitting || !id) {
@@ -132,6 +293,9 @@ export function MysteryDetailPage() {
                                 className={`${styles.badge} ${mystery.solved ? styles.badgeSolved : styles.badgeOpen}`}
                             >
                                 {mystery.solved ? "Solved" : "Open"}
+                            </span>
+                            <span className={`${styles.badge} ${styles.badgePieces}`}>
+                                {mystery.player_count} piece{mystery.player_count !== 1 ? "s" : ""} attempting
                             </span>
                         </div>
                     </div>
@@ -202,18 +366,121 @@ export function MysteryDetailPage() {
                 <div className={styles.attemptsSection}>
                     <h3 className={styles.attemptsTitle}>Blue Truth Attempts ({mystery.attempts.length})</h3>
 
-                    {mystery.attempts.map(a => (
-                        <AttemptItem
-                            key={a.id}
-                            attempt={a}
-                            mysteryId={mystery.id}
-                            isAuthor={isAuthor}
-                            onRefresh={fetchMystery}
-                        />
-                    ))}
+                    {canSeeAsGameMaster && !mystery.solved && groupedAttempts.length > 0 && (
+                        <div className={styles.playerPills}>
+                            {groupedAttempts.map(group => {
+                                const isUnread = unreadPlayers.has(group.author.id);
+                                return (
+                                    <button
+                                        key={group.author.id}
+                                        type="button"
+                                        className={`${styles.playerPill}${isUnread ? ` ${styles.playerPillUnread}` : ""}`}
+                                        onClick={() => jumpToPlayer(group.author.id)}
+                                        title={`Jump to ${group.author.display_name}'s attempts`}
+                                    >
+                                        {group.author.avatar_url ? (
+                                            <img
+                                                className={styles.playerPillAvatar}
+                                                src={group.author.avatar_url}
+                                                alt=""
+                                            />
+                                        ) : (
+                                            <span className={styles.playerPillAvatarPlaceholder}>
+                                                {group.author.display_name[0]}
+                                            </span>
+                                        )}
+                                        <span className={styles.playerPillName}>{group.author.display_name}</span>
+                                        {isUnread && <span className={styles.playerPillDot} aria-label="unread" />}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
+
+                    {winningAttempt && (
+                        <div className={styles.pinnedWinner}>
+                            <div className={styles.pinnedWinnerHeader}>
+                                <span className={styles.pinnedWinnerLabel}>Winning Attempt</span>
+                                <a
+                                    className={styles.pinnedWinnerJump}
+                                    href={`#attempt-${winningAttempt.id}`}
+                                    onClick={e => {
+                                        e.preventDefault();
+                                        const el = document.getElementById(`attempt-${winningAttempt.id}`);
+                                        if (el) {
+                                            el.scrollIntoView({ behavior: "smooth", block: "center" });
+                                            window.history.replaceState(null, "", `#attempt-${winningAttempt.id}`);
+                                        }
+                                    }}
+                                >
+                                    Jump to original &rarr;
+                                </a>
+                            </div>
+                            <div className={styles.pinnedWinnerMeta}>
+                                <ProfileLink user={winningAttempt.author} size="small" />
+                                <span>{relativeTime(winningAttempt.created_at)}</span>
+                            </div>
+                            <div className={styles.pinnedWinnerBody}>{winningAttempt.body}</div>
+                        </div>
+                    )}
+
+                    {canSeeAsGameMaster || mystery.solved
+                        ? groupedAttempts.map(group => {
+                              const collapsed = collapsedPlayers.has(group.author.id);
+                              return (
+                                  <div
+                                      key={group.author.id}
+                                      id={`player-group-${group.author.id}`}
+                                      className={styles.playerGroup}
+                                  >
+                                      <button
+                                          type="button"
+                                          className={styles.playerGroupHeader}
+                                          onClick={() => togglePlayerCollapse(group.author.id)}
+                                          aria-expanded={!collapsed}
+                                      >
+                                          <span className={styles.playerGroupChevron}>
+                                              {collapsed ? "\u25B6" : "\u25BC"}
+                                          </span>
+                                          <ProfileLink user={group.author} size="small" />
+                                          <span className={styles.playerGroupCount}>
+                                              {group.attempts.length} attempt
+                                              {group.attempts.length !== 1 ? "s" : ""}
+                                          </span>
+                                      </button>
+                                      {!collapsed &&
+                                          group.attempts.map(a => (
+                                              <AttemptItem
+                                                  key={a.id}
+                                                  attempt={a}
+                                                  mysteryId={mystery.id}
+                                                  isAuthor={isAuthor}
+                                                  onRefresh={fetchMystery}
+                                                  mysterySolved={mystery.solved}
+                                              />
+                                          ))}
+                                  </div>
+                              );
+                          })
+                        : mystery.attempts.map(a => (
+                              <AttemptItem
+                                  key={a.id}
+                                  attempt={a}
+                                  mysteryId={mystery.id}
+                                  isAuthor={isAuthor}
+                                  onRefresh={fetchMystery}
+                                  mysterySolved={mystery.solved}
+                              />
+                          ))}
 
                     {mystery.attempts.length === 0 && (
-                        <div className="empty-state">No attempts yet. Be the first to declare your blue truth!</div>
+                        <div className="empty-state">
+                            {!canSeeAsGameMaster && mystery.player_count > 0
+                                ? `There ${mystery.player_count === 1 ? "is" : "are"} ${mystery.player_count} piece${mystery.player_count !== 1 ? "s" : ""} playing this mystery. Join the game board and declare your own blue truth!`
+                                : canSeeAsGameMaster
+                                  ? "No attempts yet. Waiting for pieces to make their move."
+                                  : "No attempts yet. Be the first to declare your blue truth!"}
+                        </div>
                     )}
 
                     {user && !isAuthor && !mystery.solved && (
