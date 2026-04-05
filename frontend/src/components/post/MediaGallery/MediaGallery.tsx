@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { PostMedia } from "../../../types/api";
-import { Modal } from "../../Modal/Modal";
+import { Lightbox } from "../../Lightbox/Lightbox";
 import styles from "./MediaGallery.module.css";
 
 interface MediaGalleryProps {
@@ -43,11 +43,7 @@ export function MediaGallery({ media }: MediaGalleryProps) {
             </div>
 
             {lightboxIdx !== null && media[lightboxIdx]?.media_type === "image" && (
-                <Modal isOpen onClose={() => setLightboxIdx(null)} title="">
-                    <div className={styles.lightbox}>
-                        <img src={media[lightboxIdx].media_url} alt="" />
-                    </div>
-                </Modal>
+                <Lightbox src={media[lightboxIdx].media_url} onClose={() => setLightboxIdx(null)} />
             )}
         </>
     );
