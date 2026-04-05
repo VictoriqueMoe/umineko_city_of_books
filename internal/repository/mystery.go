@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"umineko_city_of_books/internal/db"
 	"umineko_city_of_books/internal/dto"
 
 	"github.com/google/uuid"
@@ -33,8 +34,8 @@ type (
 
 		VoteAttempt(ctx context.Context, userID uuid.UUID, attemptID uuid.UUID, value int) error
 
-		MarkSolved(ctx context.Context, mysteryID uuid.UUID, winnerID uuid.UUID) error
-		Unsolve(ctx context.Context, mysteryID uuid.UUID) error
+		MarkSolved(ctx context.Context, mysteryID uuid.UUID, attemptID uuid.UUID) error
+		IsSolved(ctx context.Context, mysteryID uuid.UUID) (bool, error)
 
 		GetLeaderboard(ctx context.Context, limit int) ([]LeaderboardEntry, error)
 
@@ -81,12 +82,12 @@ type (
 	}
 
 	LeaderboardEntry struct {
-		UserID         uuid.UUID
-		Username       string
-		DisplayName    string
-		AvatarURL      string
-		Role           string
-		SolvedCount    int
+		UserID      uuid.UUID
+		Username    string
+		DisplayName string
+		AvatarURL   string
+		Role        string
+		SolvedCount int
 	}
 
 	mysteryRepository struct {
@@ -391,34 +392,48 @@ func (r *mysteryRepository) VoteAttempt(ctx context.Context, userID uuid.UUID, a
 	return nil
 }
 
-func (r *mysteryRepository) MarkSolved(ctx context.Context, mysteryID uuid.UUID, winnerID uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx,
-		`UPDATE mysteries SET solved = 1, winner_id = ?, solved_at = CURRENT_TIMESTAMP WHERE id = ?`,
-		winnerID, mysteryID,
-	)
-	if err != nil {
-		return fmt.Errorf("mark solved: %w", err)
-	}
-	_, err = r.db.ExecContext(ctx,
-		`UPDATE mystery_attempts SET is_winner = (CASE WHEN user_id = ? THEN 1 ELSE 0 END) WHERE mystery_id = ?`,
-		winnerID, mysteryID,
-	)
-	if err != nil {
-		return fmt.Errorf("set winner attempts: %w", err)
-	}
-	return nil
+func (r *mysteryRepository) MarkSolved(ctx context.Context, mysteryID uuid.UUID, attemptID uuid.UUID) error {
+	return db.WithTx(ctx, r.db, func(tx *sql.Tx) error {
+		var attemptUserID uuid.UUID
+		var attemptMysteryID uuid.UUID
+		if err := tx.QueryRowContext(ctx,
+			`SELECT user_id, mystery_id FROM mystery_attempts WHERE id = ?`, attemptID,
+		).Scan(&attemptUserID, &attemptMysteryID); err != nil {
+			return fmt.Errorf("get attempt for winner: %w", err)
+		}
+		if attemptMysteryID != mysteryID {
+			return fmt.Errorf("attempt does not belong to mystery")
+		}
+
+		if _, err := tx.ExecContext(ctx,
+			`UPDATE mysteries SET solved = 1, winner_id = ?, solved_at = CURRENT_TIMESTAMP WHERE id = ?`,
+			attemptUserID, mysteryID,
+		); err != nil {
+			return fmt.Errorf("mark solved: %w", err)
+		}
+
+		if _, err := tx.ExecContext(ctx,
+			`UPDATE mystery_attempts SET is_winner = 0 WHERE mystery_id = ?`, mysteryID,
+		); err != nil {
+			return fmt.Errorf("clear previous winner attempts: %w", err)
+		}
+
+		if _, err := tx.ExecContext(ctx,
+			`UPDATE mystery_attempts SET is_winner = 1 WHERE id = ?`, attemptID,
+		); err != nil {
+			return fmt.Errorf("set winning attempt: %w", err)
+		}
+		return nil
+	})
 }
 
-func (r *mysteryRepository) Unsolve(ctx context.Context, mysteryID uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx,
-		`UPDATE mysteries SET solved = 0, winner_id = NULL, solved_at = NULL WHERE id = ?`,
-		mysteryID,
-	)
+func (r *mysteryRepository) IsSolved(ctx context.Context, mysteryID uuid.UUID) (bool, error) {
+	var solved int
+	err := r.db.QueryRowContext(ctx, `SELECT solved FROM mysteries WHERE id = ?`, mysteryID).Scan(&solved)
 	if err != nil {
-		return fmt.Errorf("unsolve: %w", err)
+		return false, fmt.Errorf("check mystery solved: %w", err)
 	}
-	_, err = r.db.ExecContext(ctx, `UPDATE mystery_attempts SET is_winner = 0 WHERE mystery_id = ?`, mysteryID)
-	return err
+	return solved != 0, nil
 }
 
 func (r *mysteryRepository) CountAttempts(ctx context.Context, mysteryID uuid.UUID) (int, error) {

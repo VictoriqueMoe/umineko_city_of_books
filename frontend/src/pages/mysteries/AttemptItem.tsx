@@ -29,12 +29,14 @@ function SingleAttempt({
     isAuthor,
     onRefresh,
     replyToName,
+    mysterySolved,
 }: {
     attempt: MysteryAttempt;
     mysteryId: string;
     isAuthor: boolean;
     onRefresh: () => void;
     replyToName?: string;
+    mysterySolved: boolean;
 }) {
     const { user } = useAuth();
     const [showReply, setShowReply] = useState(false);
@@ -83,10 +85,10 @@ function SingleAttempt({
     }
 
     async function handleSelectWinner() {
-        if (!window.confirm(`Select ${attempt.author.display_name} as the winner?`)) {
+        if (!window.confirm(`Select this attempt by ${attempt.author.display_name} as the winner?`)) {
             return;
         }
-        await markMysterySolved(mysteryId, attempt.author.id);
+        await markMysterySolved(mysteryId, attempt.id);
         onRefresh();
     }
 
@@ -114,12 +116,12 @@ function SingleAttempt({
                         <Button variant="ghost" size="small" onClick={() => handleVote(-1)}>
                             {userVote === -1 ? "\u25BC" : "\u25BD"}
                         </Button>
-                        {(isAuthor || isOwner) && (
+                        {(isAuthor || isOwner) && !mysterySolved && (
                             <Button variant="ghost" size="small" onClick={() => setShowReply(!showReply)}>
                                 Reply
                             </Button>
                         )}
-                        {isAuthor && !attempt.is_winner && (
+                        {isAuthor && !mysterySolved && (
                             <Button variant="ghost" size="small" onClick={handleSelectWinner}>
                                 Select Winner
                             </Button>
@@ -131,6 +133,17 @@ function SingleAttempt({
                         Delete
                     </Button>
                 )}
+                <Button
+                    variant="ghost"
+                    size="small"
+                    onClick={() =>
+                        navigator.clipboard.writeText(
+                            `${window.location.origin}/mystery/${mysteryId}#attempt-${attempt.id}`,
+                        )
+                    }
+                >
+                    Copy Link
+                </Button>
                 {user && !isOwner && (
                     <ReportButton targetType="mystery_attempt" targetId={attempt.id} contextId={mysteryId} />
                 )}
@@ -168,18 +181,26 @@ export function AttemptItem({
     mysteryId,
     isAuthor,
     onRefresh,
+    mysterySolved,
 }: {
     attempt: MysteryAttempt;
     mysteryId: string;
     isAuthor: boolean;
     onRefresh: () => void;
+    mysterySolved: boolean;
 }) {
     const allReplies = flattenReplies(attempt);
     const [collapsed, setCollapsed] = useState(false);
 
     return (
         <div>
-            <SingleAttempt attempt={attempt} mysteryId={mysteryId} isAuthor={isAuthor} onRefresh={onRefresh} />
+            <SingleAttempt
+                attempt={attempt}
+                mysteryId={mysteryId}
+                isAuthor={isAuthor}
+                onRefresh={onRefresh}
+                mysterySolved={mysterySolved}
+            />
             {allReplies.length > 0 && (
                 <div className={styles.threadContainer}>
                     <button className={styles.collapseBtn} onClick={() => setCollapsed(!collapsed)}>
@@ -197,6 +218,7 @@ export function AttemptItem({
                                     isAuthor={isAuthor}
                                     onRefresh={onRefresh}
                                     replyToName={replyToName}
+                                    mysterySolved={mysterySolved}
                                 />
                             ))}
                         </div>

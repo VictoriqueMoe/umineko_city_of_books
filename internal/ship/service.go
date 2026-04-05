@@ -135,14 +135,8 @@ func (s *service) CreateShip(ctx context.Context, userID uuid.UUID, req dto.Crea
 
 	id := uuid.New()
 	description := strings.TrimSpace(req.Description)
-	if err := s.shipRepo.Create(ctx, id, userID, title, description, "", ""); err != nil {
+	if err := s.shipRepo.CreateWithCharacters(ctx, id, userID, title, description, req.Characters); err != nil {
 		return uuid.Nil, err
-	}
-
-	for i, c := range req.Characters {
-		if err := s.shipRepo.AddCharacter(ctx, id, c.Series, c.CharacterID, strings.TrimSpace(c.CharacterName), i); err != nil {
-			return uuid.Nil, err
-		}
 	}
 
 	return id, nil
@@ -200,21 +194,8 @@ func (s *service) UpdateShip(ctx context.Context, id uuid.UUID, userID uuid.UUID
 	}
 
 	description := strings.TrimSpace(req.Description)
-	if s.authz.Can(ctx, userID, authz.PermEditAnyPost) {
-		if err := s.shipRepo.UpdateAsAdmin(ctx, id, title, description); err != nil {
-			return err
-		}
-	} else if err := s.shipRepo.Update(ctx, id, userID, title, description); err != nil {
-		return err
-	}
-
-	_ = s.shipRepo.DeleteCharacters(ctx, id)
-	for i, c := range req.Characters {
-		if err := s.shipRepo.AddCharacter(ctx, id, c.Series, c.CharacterID, strings.TrimSpace(c.CharacterName), i); err != nil {
-			return err
-		}
-	}
-	return nil
+	asAdmin := s.authz.Can(ctx, userID, authz.PermEditAnyPost)
+	return s.shipRepo.UpdateWithCharacters(ctx, id, userID, title, description, req.Characters, asAdmin)
 }
 
 func (s *service) DeleteShip(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {

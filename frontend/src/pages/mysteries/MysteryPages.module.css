@@ -83,6 +83,12 @@
     align-items: center;
     gap: 0.6rem;
     font-size: 0.9rem;
+    min-width: 0;
+}
+
+.leaderboardItem > :nth-child(2) {
+    min-width: 0;
+    flex: 1;
 }
 
 .leaderboardRank {
@@ -157,6 +163,11 @@
 .badgeDifficulty {
     background: rgba(var(--purple-rgb), 0.3);
     color: var(--purple-light);
+}
+
+.badgePieces {
+    background: rgba(66, 165, 245, 0.2);
+    color: #64b5f6;
 }
 
 .cardMeta {
@@ -277,6 +288,187 @@
 
 .attemptsSection {
     margin-top: 1.5rem;
+}
+
+.pinnedWinner {
+    background: rgba(40, 167, 69, 0.1);
+    border: 1px solid rgba(40, 167, 69, 0.4);
+    border-left: 4px solid #66bb6a;
+    border-radius: 6px;
+    padding: 0.9rem 1rem;
+    margin-bottom: 1rem;
+}
+
+.pinnedWinnerHeader {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 0.5rem;
+}
+
+.pinnedWinnerLabel {
+    font-family: var(--font-display);
+    font-size: 0.7rem;
+    color: #66bb6a;
+    background: rgba(40, 167, 69, 0.25);
+    padding: 0.2rem 0.6rem;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+}
+
+.pinnedWinnerJump {
+    margin-left: auto;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.pinnedWinnerJump:hover {
+    color: var(--gold);
+}
+
+.pinnedWinnerMeta {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+}
+
+.pinnedWinnerBody {
+    color: var(--text);
+    line-height: 1.5;
+    white-space: pre-wrap;
+}
+
+.playerPills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid rgba(var(--purple-rgb), 0.2);
+}
+
+.playerPill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.25rem 0.65rem 0.25rem 0.3rem;
+    background: rgba(var(--purple-rgb), 0.2);
+    border: 1px solid rgba(var(--purple-rgb), 0.35);
+    border-radius: 14px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.8rem;
+    color: var(--text);
+    transition:
+        border-color 0.15s,
+        background 0.15s;
+    position: relative;
+}
+
+.playerPill:hover {
+    border-color: var(--gold);
+    background: rgba(var(--gold-rgb), 0.12);
+}
+
+.playerPillUnread {
+    border-color: rgba(229, 57, 53, 0.55);
+    background: rgba(229, 57, 53, 0.12);
+}
+
+.playerPillUnread:hover {
+    border-color: #e53935;
+    background: rgba(229, 57, 53, 0.2);
+}
+
+.playerPillAvatar,
+.playerPillAvatarPlaceholder {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.playerPillAvatarPlaceholder {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(var(--purple-rgb), 0.4);
+    font-size: 0.7rem;
+    color: var(--text);
+}
+
+.playerPillName {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    max-width: 140px;
+}
+
+.playerPillDot {
+    width: 8px;
+    height: 8px;
+    background: #e53935;
+    border-radius: 50%;
+    box-shadow: 0 0 0 2px var(--bg-card);
+    flex-shrink: 0;
+}
+
+.playerGroup {
+    background: rgba(var(--purple-rgb), 0.08);
+    border: 1px solid rgba(var(--purple-rgb), 0.25);
+    border-radius: 8px;
+    padding: 0.75rem 0.9rem;
+    margin-bottom: 1rem;
+}
+
+.playerGroupHeader {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0 0 0.6rem 0;
+    margin-bottom: 0.6rem;
+    border-bottom: 1px solid rgba(var(--purple-rgb), 0.2);
+    width: 100%;
+    background: none;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+    cursor: pointer;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    transition: border-color 0.15s;
+}
+
+.playerGroupHeader:hover {
+    border-bottom-color: var(--gold);
+}
+
+.playerGroupHeader:hover .playerGroupChevron {
+    color: var(--gold);
+}
+
+.playerGroupChevron {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    width: 0.9rem;
+    display: inline-flex;
+    justify-content: center;
+    transition: color 0.15s;
+}
+
+.playerGroupCount {
+    margin-left: auto;
+    font-size: 0.75rem;
+    color: var(--text-muted);
 }
 
 .attemptsTitle {

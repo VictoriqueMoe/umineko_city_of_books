@@ -3,20 +3,14 @@ import type {
     ActivityListResponse,
     AdminStats,
     AdminUserDetail,
+    AdminUserListResponse,
     Announcement,
     AnnouncementListResponse,
-    MysteryDetail,
-    MysteryLeaderboardResponse,
-    MysteryListResponse,
-    ShipDetail,
-    ShipListResponse,
-    ShipCharacter,
-    CharacterListResponse,
-    AdminUserListResponse,
     ArtDetail,
     ArtListResponse,
     AuditLogListResponse,
     ChangePasswordPayload,
+    CharacterListResponse,
     ChatMessage,
     ChatRoom,
     CreateResponsePayload,
@@ -25,12 +19,18 @@ import type {
     FollowStats,
     Gallery,
     GalleryDetailResponse,
+    MysteryDetail,
+    MysteryLeaderboardResponse,
+    MysteryListResponse,
     NotificationListResponse,
     PostDetail,
     PostListResponse,
     PostMedia,
     QuoteBrowseResponse,
     QuoteSearchResponse,
+    ShipCharacter,
+    ShipDetail,
+    ShipListResponse,
     SiteSettings,
     TagCount,
     TheoryDetail,
@@ -817,8 +817,8 @@ export async function voteMysteryAttempt(id: string, value: number): Promise<voi
     await apiPost<unknown, { value: number }>(`/mystery-attempts/${id}/vote`, { value });
 }
 
-export async function markMysterySolved(mysteryId: string, winnerId: string): Promise<void> {
-    await apiPost<unknown, { winner_id: string }>(`/mysteries/${mysteryId}/solve`, { winner_id: winnerId });
+export async function markMysterySolved(mysteryId: string, attemptId: string): Promise<void> {
+    await apiPost<unknown, { attempt_id: string }>(`/mysteries/${mysteryId}/solve`, { attempt_id: attemptId });
 }
 
 export async function addMysteryClue(mysteryId: string, body: string, truthType: string): Promise<void> {

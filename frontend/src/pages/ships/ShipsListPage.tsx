@@ -1,14 +1,14 @@
-import {Fragment, useEffect, useState} from "react";
-import {useNavigate} from "react-router";
-import type {Ship, ShipCharacter} from "../../types/api";
-import {listShips} from "../../api/endpoints";
-import {ProfileLink} from "../../components/ProfileLink/ProfileLink";
-import {Pagination} from "../../components/Pagination/Pagination";
-import {Select} from "../../components/Select/Select";
-import {InfoPanel} from "../../components/InfoPanel/InfoPanel";
-import {RulesBox} from "../../components/RulesBox/RulesBox";
-import {ToggleSwitch} from "../../components/ToggleSwitch/ToggleSwitch";
-import {relativeTime} from "../../utils/notifications";
+import { Fragment, useEffect, useState } from "react";
+import { useNavigate } from "react-router";
+import type { Ship, ShipCharacter } from "../../types/api";
+import { listShips } from "../../api/endpoints";
+import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
+import { Pagination } from "../../components/Pagination/Pagination";
+import { Select } from "../../components/Select/Select";
+import { InfoPanel } from "../../components/InfoPanel/InfoPanel";
+import { RulesBox } from "../../components/RulesBox/RulesBox";
+import { ToggleSwitch } from "../../components/ToggleSwitch/ToggleSwitch";
+import { relativeTime } from "../../utils/notifications";
 import styles from "./ShipPages.module.css";
 
 function characterPillClass(series: string): string {

@@ -4,6 +4,8 @@
     gap: 0.4rem;
     cursor: pointer;
     transition: opacity 0.15s var(--ease-out);
+    min-width: 0;
+    max-width: 100%;
 }
 
 .link:hover {
@@ -43,4 +45,7 @@
 
 .name {
     font-family: var(--font-display);
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }

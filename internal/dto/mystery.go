@@ -18,17 +18,18 @@ type (
 	}
 
 	MysteryDetailResponse struct {
-		ID         uuid.UUID        `json:"id"`
-		Title      string           `json:"title"`
-		Body       string           `json:"body"`
-		Difficulty string           `json:"difficulty"`
-		Author     UserResponse     `json:"author"`
-		Solved     bool             `json:"solved"`
-		Winner     *UserResponse    `json:"winner,omitempty"`
-		SolvedAt   *string          `json:"solved_at,omitempty"`
-		Clues      []MysteryClue    `json:"clues"`
-		Attempts   []MysteryAttempt `json:"attempts"`
-		CreatedAt  string           `json:"created_at"`
+		ID          uuid.UUID        `json:"id"`
+		Title       string           `json:"title"`
+		Body        string           `json:"body"`
+		Difficulty  string           `json:"difficulty"`
+		Author      UserResponse     `json:"author"`
+		Solved      bool             `json:"solved"`
+		Winner      *UserResponse    `json:"winner,omitempty"`
+		SolvedAt    *string          `json:"solved_at,omitempty"`
+		Clues       []MysteryClue    `json:"clues"`
+		Attempts    []MysteryAttempt `json:"attempts"`
+		PlayerCount int              `json:"player_count"`
+		CreatedAt   string           `json:"created_at"`
 	}
 
 	MysteryClue struct {

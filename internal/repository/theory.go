@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 
+	"umineko_city_of_books/internal/db"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/theory/params"
@@ -50,40 +51,32 @@ type (
 )
 
 func (r *theoryRepository) Create(ctx context.Context, userID uuid.UUID, req dto.CreateTheoryRequest) (uuid.UUID, error) {
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return uuid.Nil, fmt.Errorf("begin tx: %w", err)
-	}
-	defer tx.Rollback()
-
 	theoryID := uuid.New()
-
 	series := req.Series
 	if series == "" {
 		series = "umineko"
 	}
-	_, err = tx.ExecContext(ctx,
-		`INSERT INTO theories (id, user_id, title, body, episode, series) VALUES (?, ?, ?, ?, ?, ?)`,
-		theoryID, userID, req.Title, req.Body, req.Episode, series,
-	)
-	if err != nil {
-		return uuid.Nil, fmt.Errorf("insert theory: %w", err)
-	}
 
-	for i, ev := range req.Evidence {
-		_, err := tx.ExecContext(ctx,
-			`INSERT INTO theory_evidence (theory_id, audio_id, quote_index, note, sort_order) VALUES (?, ?, ?, ?, ?)`,
-			theoryID, ev.AudioID, ev.QuoteIndex, ev.Note, i,
-		)
-		if err != nil {
-			return uuid.Nil, fmt.Errorf("insert evidence: %w", err)
+	err := db.WithTx(ctx, r.db, func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(ctx,
+			`INSERT INTO theories (id, user_id, title, body, episode, series) VALUES (?, ?, ?, ?, ?, ?)`,
+			theoryID, userID, req.Title, req.Body, req.Episode, series,
+		); err != nil {
+			return fmt.Errorf("insert theory: %w", err)
 		}
+		for i, ev := range req.Evidence {
+			if _, err := tx.ExecContext(ctx,
+				`INSERT INTO theory_evidence (theory_id, audio_id, quote_index, note, sort_order) VALUES (?, ?, ?, ?, ?)`,
+				theoryID, ev.AudioID, ev.QuoteIndex, ev.Note, i,
+			); err != nil {
+				return fmt.Errorf("insert evidence: %w", err)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return uuid.Nil, err
 	}
-
-	if err := tx.Commit(); err != nil {
-		return uuid.Nil, fmt.Errorf("commit: %w", err)
-	}
-
 	return theoryID, nil
 }
 
@@ -258,57 +251,47 @@ func (r *theoryRepository) UpdateAsAdmin(ctx context.Context, id uuid.UUID, req 
 }
 
 func (r *theoryRepository) updateTheory(ctx context.Context, id uuid.UUID, userID *uuid.UUID, req dto.CreateTheoryRequest) error {
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("begin tx: %w", err)
-	}
-	defer tx.Rollback()
-
-	var result sql.Result
-	if userID != nil {
-		result, err = tx.ExecContext(ctx,
-			`UPDATE theories SET title = ?, body = ?, episode = ?, updated_at = CURRENT_TIMESTAMP
-			 WHERE id = ? AND user_id = ?`,
-			req.Title, req.Body, req.Episode, id, *userID,
-		)
-	} else {
-		result, err = tx.ExecContext(ctx,
-			`UPDATE theories SET title = ?, body = ?, episode = ?, updated_at = CURRENT_TIMESTAMP
-			 WHERE id = ?`,
-			req.Title, req.Body, req.Episode, id,
-		)
-	}
-	if err != nil {
-		return fmt.Errorf("update theory: %w", err)
-	}
-	affected, err := result.RowsAffected()
-	if err != nil {
-		logger.Log.Error().Err(err).Msg("failed to get rows affected for theory update")
-	}
-	if affected == 0 {
-		return fmt.Errorf("theory not found or not owned by user")
-	}
-
-	_, err = tx.ExecContext(ctx, `DELETE FROM theory_evidence WHERE theory_id = ?`, id)
-	if err != nil {
-		return fmt.Errorf("delete old evidence: %w", err)
-	}
-
-	for i, ev := range req.Evidence {
-		_, err := tx.ExecContext(ctx,
-			`INSERT INTO theory_evidence (theory_id, audio_id, quote_index, note, sort_order) VALUES (?, ?, ?, ?, ?)`,
-			id, ev.AudioID, ev.QuoteIndex, ev.Note, i,
-		)
-		if err != nil {
-			return fmt.Errorf("insert evidence: %w", err)
+	return db.WithTx(ctx, r.db, func(tx *sql.Tx) error {
+		var result sql.Result
+		var err error
+		if userID != nil {
+			result, err = tx.ExecContext(ctx,
+				`UPDATE theories SET title = ?, body = ?, episode = ?, updated_at = CURRENT_TIMESTAMP
+				 WHERE id = ? AND user_id = ?`,
+				req.Title, req.Body, req.Episode, id, *userID,
+			)
+		} else {
+			result, err = tx.ExecContext(ctx,
+				`UPDATE theories SET title = ?, body = ?, episode = ?, updated_at = CURRENT_TIMESTAMP
+				 WHERE id = ?`,
+				req.Title, req.Body, req.Episode, id,
+			)
 		}
-	}
+		if err != nil {
+			return fmt.Errorf("update theory: %w", err)
+		}
+		affected, err := result.RowsAffected()
+		if err != nil {
+			logger.Log.Error().Err(err).Msg("failed to get rows affected for theory update")
+		}
+		if affected == 0 {
+			return fmt.Errorf("theory not found or not owned by user")
+		}
 
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("commit: %w", err)
-	}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM theory_evidence WHERE theory_id = ?`, id); err != nil {
+			return fmt.Errorf("delete old evidence: %w", err)
+		}
 
-	return nil
+		for i, ev := range req.Evidence {
+			if _, err := tx.ExecContext(ctx,
+				`INSERT INTO theory_evidence (theory_id, audio_id, quote_index, note, sort_order) VALUES (?, ?, ?, ?, ?)`,
+				id, ev.AudioID, ev.QuoteIndex, ev.Note, i,
+			); err != nil {
+				return fmt.Errorf("insert evidence: %w", err)
+			}
+		}
+		return nil
+	})
 }
 
 func (r *theoryRepository) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
@@ -353,36 +336,27 @@ func (r *theoryRepository) GetEvidence(ctx context.Context, theoryID uuid.UUID) 
 }
 
 func (r *theoryRepository) CreateResponse(ctx context.Context, theoryID uuid.UUID, userID uuid.UUID, req dto.CreateResponseRequest) (uuid.UUID, error) {
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return uuid.Nil, fmt.Errorf("begin tx: %w", err)
-	}
-	defer tx.Rollback()
-
 	responseID := uuid.New()
-
-	_, err = tx.ExecContext(ctx,
-		`INSERT INTO responses (id, theory_id, user_id, side, body, parent_id) VALUES (?, ?, ?, ?, ?, ?)`,
-		responseID, theoryID, userID, req.Side, req.Body, req.ParentID,
-	)
-	if err != nil {
-		return uuid.Nil, fmt.Errorf("insert response: %w", err)
-	}
-
-	for i, ev := range req.Evidence {
-		_, err := tx.ExecContext(ctx,
-			`INSERT INTO response_evidence (response_id, audio_id, quote_index, note, sort_order) VALUES (?, ?, ?, ?, ?)`,
-			responseID, ev.AudioID, ev.QuoteIndex, ev.Note, i,
-		)
-		if err != nil {
-			return uuid.Nil, fmt.Errorf("insert response evidence: %w", err)
+	err := db.WithTx(ctx, r.db, func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(ctx,
+			`INSERT INTO responses (id, theory_id, user_id, side, body, parent_id) VALUES (?, ?, ?, ?, ?, ?)`,
+			responseID, theoryID, userID, req.Side, req.Body, req.ParentID,
+		); err != nil {
+			return fmt.Errorf("insert response: %w", err)
 		}
+		for i, ev := range req.Evidence {
+			if _, err := tx.ExecContext(ctx,
+				`INSERT INTO response_evidence (response_id, audio_id, quote_index, note, sort_order) VALUES (?, ?, ?, ?, ?)`,
+				responseID, ev.AudioID, ev.QuoteIndex, ev.Note, i,
+			); err != nil {
+				return fmt.Errorf("insert response evidence: %w", err)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return uuid.Nil, err
 	}
-
-	if err := tx.Commit(); err != nil {
-		return uuid.Nil, fmt.Errorf("commit: %w", err)
-	}
-
 	return responseID, nil
 }
 
