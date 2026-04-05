@@ -101,7 +101,15 @@ func Handler(hub *Hub, sessionMgr *session.Manager, roomLister RoomLister) fiber
 			for {
 				_, raw, err := conn.ReadMessage()
 				if err != nil {
-					if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseNormalClosure) {
+					if websocket.IsUnexpectedCloseError(err,
+						websocket.CloseNormalClosure,
+						websocket.CloseGoingAway,
+						websocket.CloseNoStatusReceived,
+						websocket.CloseAbnormalClosure,
+						websocket.CloseServiceRestart,
+						websocket.CloseTryAgainLater,
+						websocket.CloseTLSHandshake,
+					) {
 						logger.Log.Warn().Err(err).Str("user_id", userID.String()).Msg("unexpected ws close")
 					}
 					break
