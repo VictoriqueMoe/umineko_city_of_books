@@ -1,10 +1,11 @@
-import { useState } from "react";
-import type { Quote } from "../../../types/api";
+import {useState} from "react";
+import type {Quote} from "../../../types/api";
 import styles from "./TruthChip.module.css";
 
 interface TruthChipProps {
     quote: Quote;
     note?: string;
+    lang?: string;
     onRemove?: () => void;
 }
 
@@ -24,10 +25,11 @@ function chipClass(quote: Quote): string {
     return "";
 }
 
-export function TruthChip({ quote, note, onRemove }: TruthChipProps) {
+export function TruthChip({ quote, note, lang, onRemove }: TruthChipProps) {
     const [expanded, setExpanded] = useState(false);
-    const isTruncated = quote.text.length > 100;
-    const displayText = isTruncated && !expanded ? quote.text.slice(0, 100) + "..." : quote.text;
+    const rawText = (lang === "jp" && quote.textJp) ? quote.textJp : quote.text;
+    const isTruncated = rawText.length > 100;
+    const displayText = isTruncated && !expanded ? rawText.slice(0, 100) + "..." : rawText;
 
     return (
         <div className={`${styles.chip} ${chipClass(quote)}`}>

@@ -1,20 +1,12 @@
 package controllers
 
 import (
-	"context"
 	"errors"
-	"fmt"
-	"strings"
 
-	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
-	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/middleware"
-	"umineko_city_of_books/internal/notification"
-	"umineko_city_of_books/internal/role"
-	"umineko_city_of_books/internal/utils"
-	"umineko_city_of_books/internal/ws"
+	mysterysvc "umineko_city_of_books/internal/mystery"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -81,6 +73,10 @@ func (s *Service) setupMysteryLeaderboard(r fiber.Router) {
 	r.Get("/mysteries/leaderboard", s.mysteryLeaderboard)
 }
 
+func (s *Service) setupListUserMysteries(r fiber.Router) {
+	r.Get("/users/:id/mysteries", s.listUserMysteries)
+}
+
 func (s *Service) listMysteries(ctx fiber.Ctx) error {
 	userID, _ := ctx.Locals("userID").(uuid.UUID)
 	sort := ctx.Query("sort", "new")
@@ -97,27 +93,11 @@ func (s *Service) listMysteries(ctx fiber.Ctx) error {
 		solved = &f
 	}
 
-	blockedIDs, _ := s.BlockService.GetBlockedIDs(ctx.Context(), userID)
-	rows, total, err := s.MysteryRepo.List(ctx.Context(), sort, solved, limit, offset, blockedIDs)
+	resp, err := s.MysteryService.ListMysteries(ctx.Context(), sort, solved, userID, limit, offset)
 	if err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to list mysteries"})
 	}
-
-	mysteries := make([]dto.MysteryResponse, len(rows))
-	for i, r := range rows {
-		resp := r.ToResponse()
-		if len(resp.Body) > 200 {
-			resp.Body = resp.Body[:200] + "..."
-		}
-		mysteries[i] = resp
-	}
-
-	return ctx.JSON(dto.MysteryListResponse{
-		Mysteries: mysteries,
-		Total:     total,
-		Limit:     limit,
-		Offset:    offset,
-	})
+	return ctx.JSON(resp)
 }
 
 func (s *Service) getMystery(ctx fiber.Ctx) error {
@@ -127,95 +107,13 @@ func (s *Service) getMystery(ctx fiber.Ctx) error {
 	}
 	userID, _ := ctx.Locals("userID").(uuid.UUID)
 
-	row, err := s.MysteryRepo.GetByID(ctx.Context(), id)
+	resp, err := s.MysteryService.GetMystery(ctx.Context(), id, userID)
 	if err != nil {
+		if errors.Is(err, mysterysvc.ErrNotFound) {
+			return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "mystery not found"})
+		}
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to get mystery"})
 	}
-	if row == nil {
-		return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "mystery not found"})
-	}
-
-	clues, _ := s.MysteryRepo.GetClues(ctx.Context(), id)
-	if clues == nil {
-		clues = []dto.MysteryClue{}
-	}
-
-	attemptRows, _ := s.MysteryRepo.GetAttempts(ctx.Context(), id, userID)
-	flatAttempts := make([]dto.MysteryAttempt, len(attemptRows))
-	for i, a := range attemptRows {
-		flatAttempts[i] = dto.MysteryAttempt{
-			ID:       a.ID,
-			ParentID: a.ParentID,
-			Author: dto.UserResponse{
-				ID:          a.UserID,
-				Username:    a.AuthorUsername,
-				DisplayName: a.AuthorDisplayName,
-				AvatarURL:   a.AuthorAvatarURL,
-				Role:        role.Role(a.AuthorRole),
-			},
-			Body:      a.Body,
-			IsWinner:  a.IsWinner,
-			VoteScore: a.VoteScore,
-			UserVote:  a.UserVote,
-			CreatedAt: a.CreatedAt,
-		}
-	}
-
-	attempts := utils.BuildTree(flatAttempts,
-		func(a dto.MysteryAttempt) uuid.UUID { return a.ID },
-		func(a dto.MysteryAttempt) *uuid.UUID { return a.ParentID },
-		func(a *dto.MysteryAttempt, replies []dto.MysteryAttempt) { a.Replies = replies },
-	)
-
-	playerSet := make(map[uuid.UUID]struct{})
-	for _, a := range attempts {
-		if a.Author.ID != row.UserID {
-			playerSet[a.Author.ID] = struct{}{}
-		}
-	}
-	playerCount := len(playerSet)
-
-	viewerRole, _ := s.AuthzService.GetRole(ctx.Context(), userID)
-	isGameMaster := userID == row.UserID || viewerRole == authz.RoleSuperAdmin
-	if !isGameMaster && !row.Solved {
-		filtered := make([]dto.MysteryAttempt, 0, len(attempts))
-		for _, a := range attempts {
-			if a.Author.ID == userID {
-				filtered = append(filtered, a)
-			}
-		}
-		attempts = filtered
-	}
-
-	resp := dto.MysteryDetailResponse{
-		ID:         row.ID,
-		Title:      row.Title,
-		Body:       row.Body,
-		Difficulty: row.Difficulty,
-		Solved:     row.Solved,
-		SolvedAt:   row.SolvedAt,
-		Author: dto.UserResponse{
-			ID:          row.UserID,
-			Username:    row.AuthorUsername,
-			DisplayName: row.AuthorDisplayName,
-			AvatarURL:   row.AuthorAvatarURL,
-			Role:        role.Role(row.AuthorRole),
-		},
-		Clues:       clues,
-		Attempts:    attempts,
-		PlayerCount: playerCount,
-		CreatedAt:   row.CreatedAt,
-	}
-	if row.WinnerID != nil && row.WinnerUsername != nil {
-		resp.Winner = &dto.UserResponse{
-			ID:          *row.WinnerID,
-			Username:    *row.WinnerUsername,
-			DisplayName: *row.WinnerDisplayName,
-			AvatarURL:   *row.WinnerAvatarURL,
-			Role:        role.Role(*row.WinnerRole),
-		}
-	}
-
 	return ctx.JSON(resp)
 }
 
@@ -226,29 +124,13 @@ func (s *Service) createMystery(ctx fiber.Ctx) error {
 	if err := ctx.Bind().JSON(&req); err != nil {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
 	}
-	if strings.TrimSpace(req.Title) == "" || strings.TrimSpace(req.Body) == "" {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "title and body are required"})
-	}
-	if req.Difficulty == "" {
-		req.Difficulty = "medium"
-	}
 
-	id := uuid.New()
-	if err := s.MysteryRepo.Create(ctx.Context(), id, userID, req.Title, req.Body, req.Difficulty); err != nil {
+	id, err := s.MysteryService.CreateMystery(ctx.Context(), userID, req)
+	if err != nil {
+		if errors.Is(err, mysterysvc.ErrEmptyTitle) {
+			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+		}
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to create mystery"})
-	}
-
-	for i, clue := range req.Clues {
-		if strings.TrimSpace(clue.Body) == "" {
-			continue
-		}
-		truthType := clue.TruthType
-		if truthType == "" {
-			truthType = "red"
-		}
-		if err := s.MysteryRepo.AddClue(ctx.Context(), id, clue.Body, truthType, i); err != nil {
-			return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to add clue"})
-		}
 	}
 
 	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id})
@@ -266,22 +148,9 @@ func (s *Service) updateMystery(ctx fiber.Ctx) error {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
 	}
 
-	if err := s.MysteryRepo.Update(ctx.Context(), id, userID, req.Title, req.Body, req.Difficulty); err != nil {
+	if err := s.MysteryService.UpdateMystery(ctx.Context(), id, userID, req); err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to update mystery"})
 	}
-
-	_ = s.MysteryRepo.DeleteClues(ctx.Context(), id)
-	for i, clue := range req.Clues {
-		if strings.TrimSpace(clue.Body) == "" {
-			continue
-		}
-		truthType := clue.TruthType
-		if truthType == "" {
-			truthType = "red"
-		}
-		_ = s.MysteryRepo.AddClue(ctx.Context(), id, clue.Body, truthType, i)
-	}
-
 	return ctx.JSON(fiber.Map{"status": "ok"})
 }
 
@@ -292,14 +161,9 @@ func (s *Service) deleteMystery(ctx fiber.Ctx) error {
 	}
 	userID := ctx.Locals("userID").(uuid.UUID)
 
-	if s.AuthzService.Can(ctx.Context(), userID, authz.PermDeleteAnyTheory) {
-		if err := s.MysteryRepo.DeleteAsAdmin(ctx.Context(), id); err != nil {
-			return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to delete mystery"})
-		}
-	} else if err := s.MysteryRepo.Delete(ctx.Context(), id, userID); err != nil {
+	if err := s.MysteryService.DeleteMystery(ctx.Context(), id, userID); err != nil {
 		return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "cannot delete this mystery"})
 	}
-
 	return ctx.JSON(fiber.Map{"status": "ok"})
 }
 
@@ -310,91 +174,24 @@ func (s *Service) createAttempt(ctx fiber.Ctx) error {
 	}
 	userID := ctx.Locals("userID").(uuid.UUID)
 
-	authorID, err := s.MysteryRepo.GetAuthorID(ctx.Context(), mysteryID)
-	if err != nil {
-		return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "mystery not found"})
-	}
-	if solved, err := s.MysteryRepo.IsSolved(ctx.Context(), mysteryID); err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to check mystery state"})
-	} else if solved {
-		return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "this mystery has already been solved"})
-	}
-	if blocked, _ := s.BlockService.IsBlockedEither(ctx.Context(), userID, authorID); blocked {
-		return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "user is blocked"})
-	}
-
 	var req dto.CreateAttemptRequest
 	if err := ctx.Bind().JSON(&req); err != nil {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
 	}
-	if strings.TrimSpace(req.Body) == "" {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "body is required"})
-	}
 
-	if req.ParentID != nil {
-		parentAuthor, err := s.MysteryRepo.GetAttemptAuthorID(ctx.Context(), *req.ParentID)
-		if err != nil {
-			return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "parent attempt not found"})
+	id, err := s.MysteryService.CreateAttempt(ctx.Context(), mysteryID, userID, req)
+	if err != nil {
+		if errors.Is(err, mysterysvc.ErrEmptyBody) {
+			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 		}
-		if userID != authorID && userID != parentAuthor {
-			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "only the game master or the attempt author can reply"})
+		if errors.Is(err, mysterysvc.ErrNotFound) {
+			return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "mystery not found"})
 		}
-	}
-
-	id := uuid.New()
-	if err := s.MysteryRepo.CreateAttempt(ctx.Context(), id, mysteryID, userID, req.ParentID, strings.TrimSpace(req.Body)); err != nil {
+		if errors.Is(err, mysterysvc.ErrAlreadySolved) || errors.Is(err, mysterysvc.ErrCannotReply) || errors.Is(err, block.ErrUserBlocked) {
+			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
+		}
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to create attempt"})
 	}
-
-	actor, _ := s.UserRepo.GetByID(ctx.Context(), userID)
-	wsData := map[string]interface{}{
-		"mystery_id": mysteryID,
-		"attempt_id": id,
-		"parent_id":  req.ParentID,
-		"author_id":  userID,
-	}
-	if actor != nil {
-		wsData["author_username"] = actor.Username
-		wsData["author_display_name"] = actor.DisplayName
-		wsData["author_avatar_url"] = actor.AvatarURL
-	}
-	s.Hub.Broadcast(ws.Message{
-		Type: "mystery_attempt_created",
-		Data: wsData,
-	})
-
-	go func() {
-		bgCtx := context.Background()
-		baseURL := s.SettingsService.Get(bgCtx, config.SettingBaseURL)
-		linkURL := fmt.Sprintf("%s/mystery/%s#attempt-%s", baseURL, mysteryID, id)
-		attemptRef := fmt.Sprintf("mystery_attempt:%s", id)
-
-		subject, body := notification.NotifEmail("Someone", "submitted an attempt on your mystery", "", linkURL)
-		_ = s.NotificationService.Notify(bgCtx, dto.NotifyParams{
-			RecipientID:   authorID,
-			Type:          dto.NotifMysteryAttempt,
-			ReferenceID:   mysteryID,
-			ReferenceType: attemptRef,
-			ActorID:       userID,
-			EmailSubject:  subject,
-			EmailBody:     body,
-		})
-
-		if req.ParentID != nil {
-			if parentAuthor, err := s.MysteryRepo.GetAttemptAuthorID(bgCtx, *req.ParentID); err == nil && parentAuthor != authorID {
-				replySubject, replyBody := notification.NotifEmail("Someone", "replied to your attempt", "", linkURL)
-				_ = s.NotificationService.Notify(bgCtx, dto.NotifyParams{
-					RecipientID:   parentAuthor,
-					Type:          dto.NotifMysteryReply,
-					ReferenceID:   mysteryID,
-					ReferenceType: attemptRef,
-					ActorID:       userID,
-					EmailSubject:  replySubject,
-					EmailBody:     replyBody,
-				})
-			}
-		}
-	}()
 
 	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id})
 }
@@ -406,14 +203,9 @@ func (s *Service) deleteAttempt(ctx fiber.Ctx) error {
 	}
 	userID := ctx.Locals("userID").(uuid.UUID)
 
-	if s.AuthzService.Can(ctx.Context(), userID, authz.PermDeleteAnyComment) {
-		if err := s.MysteryRepo.DeleteAttemptAsAdmin(ctx.Context(), id); err != nil {
-			return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to delete attempt"})
-		}
-	} else if err := s.MysteryRepo.DeleteAttempt(ctx.Context(), id, userID); err != nil {
+	if err := s.MysteryService.DeleteAttempt(ctx.Context(), id, userID); err != nil {
 		return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "cannot delete this attempt"})
 	}
-
 	return ctx.JSON(fiber.Map{"status": "ok"})
 }
 
@@ -424,51 +216,23 @@ func (s *Service) voteAttempt(ctx fiber.Ctx) error {
 	}
 	userID := ctx.Locals("userID").(uuid.UUID)
 
-	attemptAuthorID, err := s.MysteryRepo.GetAttemptAuthorID(ctx.Context(), attemptID)
-	if err != nil {
-		return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "attempt not found"})
-	}
-	if blocked, _ := s.BlockService.IsBlockedEither(ctx.Context(), userID, attemptAuthorID); blocked {
-		return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "user is blocked"})
-	}
-
 	var req dto.VoteRequest
 	if err := ctx.Bind().JSON(&req); err != nil {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
 	}
-	if req.Value != 1 && req.Value != -1 && req.Value != 0 {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "value must be 1, -1, or 0"})
-	}
 
-	if err := s.MysteryRepo.VoteAttempt(ctx.Context(), userID, attemptID, req.Value); err != nil {
+	if err := s.MysteryService.VoteAttempt(ctx.Context(), attemptID, userID, req.Value); err != nil {
+		if errors.Is(err, mysterysvc.ErrNotFound) {
+			return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "attempt not found"})
+		}
+		if errors.Is(err, mysterysvc.ErrInvalidVote) {
+			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+		}
 		if errors.Is(err, block.ErrUserBlocked) {
 			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "user is blocked"})
 		}
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to vote"})
 	}
-
-	if req.Value != 0 {
-		go func() {
-			bgCtx := context.Background()
-			mysteryID, err := s.MysteryRepo.GetAttemptMysteryID(bgCtx, attemptID)
-			if err != nil {
-				return
-			}
-			baseURL := s.SettingsService.Get(bgCtx, config.SettingBaseURL)
-			linkURL := fmt.Sprintf("%s/mystery/%s#attempt-%s", baseURL, mysteryID, attemptID)
-			subject, body := notification.NotifEmail("Someone", "voted on your attempt", "", linkURL)
-			_ = s.NotificationService.Notify(bgCtx, dto.NotifyParams{
-				RecipientID:   attemptAuthorID,
-				Type:          dto.NotifMysteryVote,
-				ReferenceID:   mysteryID,
-				ReferenceType: fmt.Sprintf("mystery_attempt:%s", attemptID),
-				ActorID:       userID,
-				EmailSubject:  subject,
-				EmailBody:     body,
-			})
-		}()
-	}
-
 	return ctx.JSON(fiber.Map{"status": "ok"})
 }
 
@@ -478,14 +242,6 @@ func (s *Service) markSolved(ctx fiber.Ctx) error {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
 	}
 	userID := ctx.Locals("userID").(uuid.UUID)
-
-	authorID, err := s.MysteryRepo.GetAuthorID(ctx.Context(), mysteryID)
-	if err != nil {
-		return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "mystery not found"})
-	}
-	if authorID != userID && !s.AuthzService.Can(ctx.Context(), userID, authz.PermEditAnyTheory) {
-		return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "only the author can mark this as solved"})
-	}
 
 	var req struct {
 		AttemptID uuid.UUID `json:"attempt_id"`
@@ -497,47 +253,15 @@ func (s *Service) markSolved(ctx fiber.Ctx) error {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "attempt_id is required"})
 	}
 
-	attemptAuthorID, err := s.MysteryRepo.GetAttemptAuthorID(ctx.Context(), req.AttemptID)
-	if err != nil {
-		return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "attempt not found"})
-	}
-	attemptMysteryID, err := s.MysteryRepo.GetAttemptMysteryID(ctx.Context(), req.AttemptID)
-	if err != nil {
-		return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "attempt not found"})
-	}
-	if attemptMysteryID != mysteryID {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "attempt does not belong to this mystery"})
-	}
-
-	if err := s.MysteryRepo.MarkSolved(ctx.Context(), mysteryID, req.AttemptID); err != nil {
+	if err := s.MysteryService.MarkSolved(ctx.Context(), mysteryID, userID, req.AttemptID); err != nil {
+		if errors.Is(err, mysterysvc.ErrNotFound) {
+			return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": err.Error()})
+		}
+		if errors.Is(err, mysterysvc.ErrNotAuthor) {
+			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
+		}
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to mark as solved"})
 	}
-
-	s.Hub.Broadcast(ws.Message{
-		Type: "mystery_solved",
-		Data: map[string]interface{}{
-			"mystery_id": mysteryID,
-			"attempt_id": req.AttemptID,
-			"winner_id":  attemptAuthorID,
-		},
-	})
-
-	go func() {
-		bgCtx := context.Background()
-		baseURL := s.SettingsService.Get(bgCtx, config.SettingBaseURL)
-		linkURL := fmt.Sprintf("%s/mystery/%s#attempt-%s", baseURL, mysteryID, req.AttemptID)
-		subject, body := notification.NotifEmail("Someone", "chose your attempt as the winner!", "", linkURL)
-		_ = s.NotificationService.Notify(bgCtx, dto.NotifyParams{
-			RecipientID:   attemptAuthorID,
-			Type:          dto.NotifMysterySolved,
-			ReferenceID:   mysteryID,
-			ReferenceType: fmt.Sprintf("mystery_attempt:%s", req.AttemptID),
-			ActorID:       userID,
-			EmailSubject:  subject,
-			EmailBody:     body,
-		})
-	}()
-
 	return ctx.JSON(fiber.Map{"status": "ok"})
 }
 
@@ -548,58 +272,30 @@ func (s *Service) addClue(ctx fiber.Ctx) error {
 	}
 	userID := ctx.Locals("userID").(uuid.UUID)
 
-	authorID, err := s.MysteryRepo.GetAuthorID(ctx.Context(), mysteryID)
-	if err != nil {
-		return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "mystery not found"})
-	}
-	if authorID != userID {
-		return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "only the author can add clues"})
-	}
-
 	var req dto.CreateClueRequest
 	if err := ctx.Bind().JSON(&req); err != nil {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
 	}
-	if strings.TrimSpace(req.Body) == "" {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "body is required"})
-	}
-	if req.TruthType == "" {
-		req.TruthType = "red"
-	}
 
-	count, _ := s.MysteryRepo.CountAttempts(ctx.Context(), mysteryID)
-	if err := s.MysteryRepo.AddClue(ctx.Context(), mysteryID, req.Body, req.TruthType, count); err != nil {
+	if err := s.MysteryService.AddClue(ctx.Context(), mysteryID, userID, req); err != nil {
+		if errors.Is(err, mysterysvc.ErrEmptyBody) {
+			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+		}
+		if errors.Is(err, mysterysvc.ErrNotFound) || errors.Is(err, mysterysvc.ErrNotAuthor) {
+			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
+		}
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to add clue"})
 	}
-
 	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"status": "ok"})
 }
 
 func (s *Service) mysteryLeaderboard(ctx fiber.Ctx) error {
 	limit := fiber.Query[int](ctx, "limit", 20)
-	rows, err := s.MysteryRepo.GetLeaderboard(ctx.Context(), limit)
+	resp, err := s.MysteryService.GetLeaderboard(ctx.Context(), limit)
 	if err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to load leaderboard"})
 	}
-
-	entries := make([]dto.MysteryLeaderboardEntry, len(rows))
-	for i, r := range rows {
-		entries[i] = dto.MysteryLeaderboardEntry{
-			User: dto.UserResponse{
-				ID:          r.UserID,
-				Username:    r.Username,
-				DisplayName: r.DisplayName,
-				AvatarURL:   r.AvatarURL,
-				Role:        role.Role(r.Role),
-			},
-			SolvedCount: r.SolvedCount,
-		}
-	}
-	return ctx.JSON(dto.MysteryLeaderboardResponse{Entries: entries})
-}
-
-func (s *Service) setupListUserMysteries(r fiber.Router) {
-	r.Get("/users/:id/mysteries", s.listUserMysteries)
+	return ctx.JSON(resp)
 }
 
 func (s *Service) listUserMysteries(ctx fiber.Ctx) error {
@@ -610,24 +306,9 @@ func (s *Service) listUserMysteries(ctx fiber.Ctx) error {
 	limit := fiber.Query[int](ctx, "limit", 20)
 	offset := fiber.Query[int](ctx, "offset", 0)
 
-	rows, total, err := s.MysteryRepo.ListByUser(ctx.Context(), userID, limit, offset)
+	resp, err := s.MysteryService.ListByUser(ctx.Context(), userID, limit, offset)
 	if err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to list user mysteries"})
 	}
-
-	mysteries := make([]dto.MysteryResponse, len(rows))
-	for i, r := range rows {
-		resp := r.ToResponse()
-		if len(resp.Body) > 200 {
-			resp.Body = resp.Body[:200] + "..."
-		}
-		mysteries[i] = resp
-	}
-
-	return ctx.JSON(dto.MysteryListResponse{
-		Mysteries: mysteries,
-		Total:     total,
-		Limit:     limit,
-		Offset:    offset,
-	})
+	return ctx.JSON(resp)
 }

@@ -24,6 +24,7 @@ import (
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/middleware"
+	mysterysvc "umineko_city_of_books/internal/mystery"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/og"
 	postsvc "umineko_city_of_books/internal/post"
@@ -64,6 +65,7 @@ type services struct {
 	follow       follow.Service
 	art          artsvc.Service
 	ship         ship.Service
+	mystery      mysterysvc.Service
 	block        blocksvc.Service
 	email        email.Service
 	session      *session.Manager
@@ -132,9 +134,10 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 	reportSvc := report.NewService(repos.Report, repos.Role, repos.User, notifSvc, settingsSvc)
 	mediaProc := media.NewProcessor(4)
 	followSvc := follow.NewService(repos.Follow, repos.User, blockSvc, notifSvc, settingsSvc)
-	postSvc := postsvc.NewService(repos.Post, repos.User, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, hub)
+	postSvc := postsvc.NewService(repos.Post, repos.User, repos.Role, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, hub)
 	artSvc := artsvc.NewService(repos.Art, repos.Post, repos.User, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc)
 	shipSvc := ship.NewService(repos.Ship, repos.User, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, quoteClient)
+	mysterySvc := mysterysvc.NewService(repos.Mystery, repos.User, authzSvc, blockSvc, notifSvc, settingsSvc, hub)
 
 	return &services{
 		settings:     settingsSvc,
@@ -150,6 +153,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 		follow:       followSvc,
 		art:          artSvc,
 		ship:         shipSvc,
+		mystery:      mysterySvc,
 		block:        blockSvc,
 		email:        emailSvc,
 		session:      sessionMgr,
@@ -207,7 +211,7 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 	ctrlService := controllers.NewService(
 		svc.auth, svc.profile, svc.theory, svc.notification, svc.admin,
 		svc.authz, settingsSvc, svc.chat, svc.report, svc.post, svc.follow,
-		svc.art, svc.block, repos.Announcement, repos.Mystery, repos.User, svc.ship, svc.upload, svc.mediaProc, svc.session, svc.hub, string(htmlBytes),
+		svc.art, svc.block, repos.Announcement, svc.mystery, repos.User, svc.ship, svc.upload, svc.mediaProc, svc.session, svc.hub, string(htmlBytes),
 	)
 	routes.PublicRoutes(ctrlService, app)
 

@@ -1,0 +1,96 @@
+.poll {
+    background: var(--bg-void);
+    border: 1px solid rgba(var(--purple-rgb), 0.2);
+    border-radius: 6px;
+    padding: 0.75rem;
+    margin: 0.5rem 0;
+}
+
+.options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    margin-bottom: 0.5rem;
+}
+
+.option {
+    position: relative;
+    border: 1px solid rgba(var(--purple-rgb), 0.2);
+    border-radius: 4px;
+    padding: 0.5rem 0.75rem;
+    cursor: pointer;
+    transition: border-color 0.15s;
+    overflow: hidden;
+}
+
+.option:hover {
+    border-color: var(--gold);
+}
+
+.optionSelected {
+    border-color: var(--gold);
+    background: rgba(var(--gold-rgb), 0.08);
+}
+
+.optionDisabled {
+    cursor: default;
+}
+
+.optionDisabled:hover {
+    border-color: rgba(var(--purple-rgb), 0.2);
+}
+
+.resultBar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background: rgba(var(--purple-rgb), 0.15);
+    border-radius: 3px;
+    transition: width 0.4s ease;
+    z-index: 0;
+}
+
+.resultBarWinner {
+    background: rgba(var(--gold-rgb), 0.2);
+}
+
+.optionContent {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.85rem;
+}
+
+.optionLabel {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.checkmark {
+    color: var(--gold);
+    font-size: 0.9rem;
+}
+
+.optionPercent {
+    font-weight: 600;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+
+.footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.submitRow {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 0.5rem;
+}

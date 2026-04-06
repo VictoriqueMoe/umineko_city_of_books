@@ -40,6 +40,7 @@ func (s *Service) getAllPostRoutes() []FSetupRoute {
 		s.setupGetFollowStats,
 		s.setupGetFollowers,
 		s.setupGetFollowing,
+		s.setupVotePoll,
 	}
 }
 
@@ -520,4 +521,39 @@ func (s *Service) getFollowing(ctx fiber.Ctx) error {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to get following"})
 	}
 	return ctx.JSON(fiber.Map{"users": users, "total": total})
+}
+
+func (s *Service) setupVotePoll(r fiber.Router) {
+	r.Post("/posts/:id/poll/vote", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.votePoll)
+}
+
+func (s *Service) votePoll(ctx fiber.Ctx) error {
+	postID, err := uuid.Parse(ctx.Params("id"))
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid post id"})
+	}
+	userID := ctx.Locals("userID").(uuid.UUID)
+
+	var req dto.VotePollRequest
+	if err := ctx.Bind().JSON(&req); err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	}
+
+	poll, err := s.PostService.VotePoll(ctx.Context(), postID, userID, req.OptionID)
+	if err != nil {
+		if errors.Is(err, postsvc.ErrNotFound) {
+			return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "poll not found"})
+		}
+		if errors.Is(err, postsvc.ErrPollExpired) {
+			return ctx.Status(fiber.StatusGone).JSON(fiber.Map{"error": err.Error()})
+		}
+		if errors.Is(err, postsvc.ErrAlreadyVoted) {
+			return ctx.Status(fiber.StatusConflict).JSON(fiber.Map{"error": err.Error()})
+		}
+		if errors.Is(err, postsvc.ErrInvalidOption) {
+			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+		}
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to vote"})
+	}
+	return ctx.JSON(poll)
 }

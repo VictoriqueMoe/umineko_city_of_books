@@ -27,6 +27,7 @@ type (
 		Body         string              `json:"body"`
 		Media        []PostMediaResponse `json:"media"`
 		Embeds       []EmbedResponse     `json:"embeds,omitempty"`
+		Poll         *PollResponse       `json:"poll,omitempty"`
 		LikeCount    int                 `json:"like_count"`
 		CommentCount int                 `json:"comment_count"`
 		ViewCount    int                 `json:"view_count"`
@@ -68,8 +69,39 @@ type (
 	}
 
 	CreatePostRequest struct {
-		Corner string `json:"corner"`
-		Body   string `json:"body"`
+		Corner string           `json:"corner"`
+		Body   string           `json:"body"`
+		Poll   *CreatePollInput `json:"poll,omitempty"`
+	}
+
+	CreatePollInput struct {
+		Options         []PollOptionInput `json:"options"`
+		DurationSeconds int               `json:"duration_seconds"`
+	}
+
+	PollOptionInput struct {
+		Label string `json:"label"`
+	}
+
+	PollResponse struct {
+		ID              string               `json:"id"`
+		Options         []PollOptionResponse `json:"options"`
+		TotalVotes      int                  `json:"total_votes"`
+		UserVotedOption *int                 `json:"user_voted_option"`
+		Expired         bool                 `json:"expired"`
+		ExpiresAt       string               `json:"expires_at"`
+		DurationSeconds int                  `json:"duration_seconds"`
+	}
+
+	PollOptionResponse struct {
+		ID        int     `json:"id"`
+		Label     string  `json:"label"`
+		VoteCount int     `json:"vote_count"`
+		Percent   float64 `json:"percent"`
+	}
+
+	VotePollRequest struct {
+		OptionID int `json:"option_id"`
 	}
 
 	CreateCommentRequest struct {

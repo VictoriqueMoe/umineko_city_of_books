@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"umineko_city_of_books/internal/repository/model"
 
 	"umineko_city_of_books/internal/db"
 
@@ -16,22 +17,22 @@ type (
 	ArtRepository interface {
 		CreateWithTags(ctx context.Context, id uuid.UUID, userID uuid.UUID, corner string, artType string, title string, description string, imageURL string, thumbnailURL string, tags []string) error
 		UpdateWithTags(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, description string, tags []string, asAdmin bool) error
-		GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID) (*ArtRow, error)
+		GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID) (*model.ArtRow, error)
 		Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		DeleteAsAdmin(ctx context.Context, id uuid.UUID) error
-		ListAll(ctx context.Context, viewerID uuid.UUID, corner string, artType string, search string, tag string, sort string, limit, offset int, excludeUserIDs []uuid.UUID) ([]ArtRow, int, error)
-		ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit, offset int) ([]ArtRow, int, error)
+		ListAll(ctx context.Context, viewerID uuid.UUID, corner string, artType string, search string, tag string, sort string, limit, offset int, excludeUserIDs []uuid.UUID) ([]model.ArtRow, int, error)
+		ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit, offset int) ([]model.ArtRow, int, error)
 		GetArtAuthorID(ctx context.Context, artID uuid.UUID) (uuid.UUID, error)
 		GetImageURL(ctx context.Context, artID uuid.UUID) (string, error)
 
 		Like(ctx context.Context, userID uuid.UUID, artID uuid.UUID) error
 		Unlike(ctx context.Context, userID uuid.UUID, artID uuid.UUID) error
-		GetLikedBy(ctx context.Context, artID uuid.UUID, excludeUserIDs []uuid.UUID) ([]PostLikeUser, error)
+		GetLikedBy(ctx context.Context, artID uuid.UUID, excludeUserIDs []uuid.UUID) ([]model.PostLikeUser, error)
 		RecordView(ctx context.Context, artID uuid.UUID, viewerHash string) (bool, error)
 
 		GetTags(ctx context.Context, artID uuid.UUID) ([]string, error)
 		GetTagsBatch(ctx context.Context, artIDs []uuid.UUID) (map[uuid.UUID][]string, error)
-		GetPopularTags(ctx context.Context, corner string, limit int) ([]TagCount, error)
+		GetPopularTags(ctx context.Context, corner string, limit int) ([]model.TagCount, error)
 
 		GetCornerCounts(ctx context.Context) (map[string]int, error)
 		CountUserArtToday(ctx context.Context, userID uuid.UUID) (int, error)
@@ -41,14 +42,14 @@ type (
 		UpdateCommentAsAdmin(ctx context.Context, id uuid.UUID, body string) error
 		DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		DeleteCommentAsAdmin(ctx context.Context, id uuid.UUID) error
-		GetComments(ctx context.Context, artID uuid.UUID, viewerID uuid.UUID, limit, offset int, excludeUserIDs []uuid.UUID) ([]ArtCommentRow, int, error)
+		GetComments(ctx context.Context, artID uuid.UUID, viewerID uuid.UUID, limit, offset int, excludeUserIDs []uuid.UUID) ([]model.ArtCommentRow, int, error)
 		GetCommentArtID(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error)
 		GetCommentAuthorID(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error)
 		LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error
 		UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error
 		AddCommentMedia(ctx context.Context, commentID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, sortOrder int) (int64, error)
-		GetCommentMedia(ctx context.Context, commentID uuid.UUID) ([]PostMediaRow, error)
-		GetCommentMediaBatch(ctx context.Context, commentIDs []uuid.UUID) (map[uuid.UUID][]PostMediaRow, error)
+		GetCommentMedia(ctx context.Context, commentID uuid.UUID) ([]model.PostMediaRow, error)
+		GetCommentMediaBatch(ctx context.Context, commentIDs []uuid.UUID) (map[uuid.UUID][]model.PostMediaRow, error)
 		UpdateCommentMediaURL(ctx context.Context, id int64, mediaURL string) error
 		UpdateCommentMediaThumbnail(ctx context.Context, id int64, thumbnailURL string) error
 
@@ -58,11 +59,11 @@ type (
 		UpdateGallery(ctx context.Context, id uuid.UUID, userID uuid.UUID, name string, description string) error
 		SetGalleryCover(ctx context.Context, galleryID uuid.UUID, userID uuid.UUID, coverArtID *uuid.UUID) error
 		DeleteGallery(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
-		GetGalleryByID(ctx context.Context, id uuid.UUID) (*GalleryRow, error)
-		ListGalleriesByUser(ctx context.Context, userID uuid.UUID) ([]GalleryRow, error)
-		ListAllGalleries(ctx context.Context, corner string) ([]GalleryRow, error)
+		GetGalleryByID(ctx context.Context, id uuid.UUID) (*model.GalleryRow, error)
+		ListGalleriesByUser(ctx context.Context, userID uuid.UUID) ([]model.GalleryRow, error)
+		ListAllGalleries(ctx context.Context, corner string) ([]model.GalleryRow, error)
 		GetGalleryPreviewImages(ctx context.Context, galleryID uuid.UUID, limit int) ([]PreviewImage, error)
-		ListArtInGallery(ctx context.Context, galleryID uuid.UUID, viewerID uuid.UUID, limit, offset int) ([]ArtRow, int, error)
+		ListArtInGallery(ctx context.Context, galleryID uuid.UUID, viewerID uuid.UUID, limit, offset int) ([]model.ArtRow, int, error)
 	}
 
 	artRepository struct {
@@ -83,7 +84,7 @@ const artSelectBase = `
 	JOIN users u ON a.user_id = u.id
 	LEFT JOIN user_roles r ON r.user_id = a.user_id`
 
-func scanArtRow(row interface{ Scan(...interface{}) error }, a *ArtRow) error {
+func scanArtRow(row interface{ Scan(...interface{}) error }, a *model.ArtRow) error {
 	var userLikedInt int
 	err := row.Scan(
 		&a.ID, &a.UserID, &a.Corner, &a.ArtType, &a.Title, &a.Description, &a.ImageURL, &a.ThumbnailURL,
@@ -153,8 +154,8 @@ func insertArtTagsTx(ctx context.Context, tx *sql.Tx, artID uuid.UUID, tags []st
 	return nil
 }
 
-func (r *artRepository) GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID) (*ArtRow, error) {
-	var a ArtRow
+func (r *artRepository) GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID) (*model.ArtRow, error) {
+	var a model.ArtRow
 	err := scanArtRow(r.db.QueryRowContext(ctx, artSelectBase+` WHERE a.id = ?`, viewerID, id), &a)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -196,7 +197,7 @@ func artOrderClause(sort string) string {
 	}
 }
 
-func (r *artRepository) ListAll(ctx context.Context, viewerID uuid.UUID, corner string, artType string, search string, tag string, sort string, limit, offset int, excludeUserIDs []uuid.UUID) ([]ArtRow, int, error) {
+func (r *artRepository) ListAll(ctx context.Context, viewerID uuid.UUID, corner string, artType string, search string, tag string, sort string, limit, offset int, excludeUserIDs []uuid.UUID) ([]model.ArtRow, int, error) {
 	var total int
 	whereParts := []string{"a.corner = ?"}
 	args := []interface{}{corner}
@@ -241,9 +242,9 @@ func (r *artRepository) ListAll(ctx context.Context, viewerID uuid.UUID, corner 
 	}
 	defer rows.Close()
 
-	var arts []ArtRow
+	var arts []model.ArtRow
 	for rows.Next() {
-		var a ArtRow
+		var a model.ArtRow
 		if err := scanArtRow(rows, &a); err != nil {
 			return nil, 0, fmt.Errorf("scan art: %w", err)
 		}
@@ -252,7 +253,7 @@ func (r *artRepository) ListAll(ctx context.Context, viewerID uuid.UUID, corner 
 	return arts, total, rows.Err()
 }
 
-func (r *artRepository) ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit, offset int) ([]ArtRow, int, error) {
+func (r *artRepository) ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit, offset int) ([]model.ArtRow, int, error) {
 	var total int
 	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM art WHERE user_id = ?`, userID).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count user art: %w", err)
@@ -265,9 +266,9 @@ func (r *artRepository) ListByUser(ctx context.Context, userID uuid.UUID, viewer
 	}
 	defer rows.Close()
 
-	var arts []ArtRow
+	var arts []model.ArtRow
 	for rows.Next() {
-		var a ArtRow
+		var a model.ArtRow
 		if err := scanArtRow(rows, &a); err != nil {
 			return nil, 0, fmt.Errorf("scan art: %w", err)
 		}
@@ -316,7 +317,7 @@ func (r *artRepository) Unlike(ctx context.Context, userID uuid.UUID, artID uuid
 	return nil
 }
 
-func (r *artRepository) GetLikedBy(ctx context.Context, artID uuid.UUID, excludeUserIDs []uuid.UUID) ([]PostLikeUser, error) {
+func (r *artRepository) GetLikedBy(ctx context.Context, artID uuid.UUID, excludeUserIDs []uuid.UUID) ([]model.PostLikeUser, error) {
 	exclSQL, exclArgs := ExcludeClause("al.user_id", excludeUserIDs)
 	queryArgs := []interface{}{artID}
 	queryArgs = append(queryArgs, exclArgs...)
@@ -334,9 +335,9 @@ func (r *artRepository) GetLikedBy(ctx context.Context, artID uuid.UUID, exclude
 	}
 	defer rows.Close()
 
-	var users []PostLikeUser
+	var users []model.PostLikeUser
 	for rows.Next() {
-		var u PostLikeUser
+		var u model.PostLikeUser
 		if err := rows.Scan(&u.ID, &u.Username, &u.DisplayName, &u.AvatarURL, &u.Role); err != nil {
 			return nil, fmt.Errorf("scan like user: %w", err)
 		}
@@ -414,7 +415,7 @@ func (r *artRepository) GetTagsBatch(ctx context.Context, artIDs []uuid.UUID) (m
 	return result, rows.Err()
 }
 
-func (r *artRepository) GetPopularTags(ctx context.Context, corner string, limit int) ([]TagCount, error) {
+func (r *artRepository) GetPopularTags(ctx context.Context, corner string, limit int) ([]model.TagCount, error) {
 	query := `SELECT t.tag, COUNT(*) as cnt FROM art_tags t JOIN art a ON t.art_id = a.id`
 	var args []interface{}
 
@@ -432,9 +433,9 @@ func (r *artRepository) GetPopularTags(ctx context.Context, corner string, limit
 	}
 	defer rows.Close()
 
-	var tags []TagCount
+	var tags []model.TagCount
 	for rows.Next() {
-		var t TagCount
+		var t model.TagCount
 		if err := rows.Scan(&t.Tag, &t.Count); err != nil {
 			return nil, fmt.Errorf("scan tag count: %w", err)
 		}
@@ -537,7 +538,7 @@ func (r *artRepository) DeleteCommentAsAdmin(ctx context.Context, id uuid.UUID) 
 	return nil
 }
 
-func (r *artRepository) GetComments(ctx context.Context, artID uuid.UUID, viewerID uuid.UUID, limit, offset int, excludeUserIDs []uuid.UUID) ([]ArtCommentRow, int, error) {
+func (r *artRepository) GetComments(ctx context.Context, artID uuid.UUID, viewerID uuid.UUID, limit, offset int, excludeUserIDs []uuid.UUID) ([]model.ArtCommentRow, int, error) {
 	var total int
 	exclSQL, exclArgs := ExcludeClause("user_id", excludeUserIDs)
 	countArgs := []interface{}{artID}
@@ -566,9 +567,9 @@ func (r *artRepository) GetComments(ctx context.Context, artID uuid.UUID, viewer
 	}
 	defer rows.Close()
 
-	var comments []ArtCommentRow
+	var comments []model.ArtCommentRow
 	for rows.Next() {
-		var c ArtCommentRow
+		var c model.ArtCommentRow
 		var userLikedInt int
 		if err := rows.Scan(
 			&c.ID, &c.ArtID, &c.ParentID, &c.UserID, &c.Body, &c.CreatedAt, &c.UpdatedAt,
@@ -634,7 +635,7 @@ func (r *artRepository) AddCommentMedia(ctx context.Context, commentID uuid.UUID
 	return res.LastInsertId()
 }
 
-func (r *artRepository) GetCommentMedia(ctx context.Context, commentID uuid.UUID) ([]PostMediaRow, error) {
+func (r *artRepository) GetCommentMedia(ctx context.Context, commentID uuid.UUID) ([]model.PostMediaRow, error) {
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT id, comment_id, media_url, media_type, thumbnail_url, sort_order FROM art_comment_media WHERE comment_id = ? ORDER BY sort_order`,
 		commentID,
@@ -644,9 +645,9 @@ func (r *artRepository) GetCommentMedia(ctx context.Context, commentID uuid.UUID
 	}
 	defer rows.Close()
 
-	var mediaList []PostMediaRow
+	var mediaList []model.PostMediaRow
 	for rows.Next() {
-		var m PostMediaRow
+		var m model.PostMediaRow
 		if err := rows.Scan(&m.ID, &m.PostID, &m.MediaURL, &m.MediaType, &m.ThumbnailURL, &m.SortOrder); err != nil {
 			return nil, fmt.Errorf("scan art comment media: %w", err)
 		}
@@ -655,7 +656,7 @@ func (r *artRepository) GetCommentMedia(ctx context.Context, commentID uuid.UUID
 	return mediaList, rows.Err()
 }
 
-func (r *artRepository) GetCommentMediaBatch(ctx context.Context, commentIDs []uuid.UUID) (map[uuid.UUID][]PostMediaRow, error) {
+func (r *artRepository) GetCommentMediaBatch(ctx context.Context, commentIDs []uuid.UUID) (map[uuid.UUID][]model.PostMediaRow, error) {
 	if len(commentIDs) == 0 {
 		return nil, nil
 	}
@@ -676,9 +677,9 @@ func (r *artRepository) GetCommentMediaBatch(ctx context.Context, commentIDs []u
 	}
 	defer rows.Close()
 
-	result := make(map[uuid.UUID][]PostMediaRow)
+	result := make(map[uuid.UUID][]model.PostMediaRow)
 	for rows.Next() {
-		var m PostMediaRow
+		var m model.PostMediaRow
 		var commentID uuid.UUID
 		if err := rows.Scan(&m.ID, &commentID, &m.MediaURL, &m.MediaType, &m.ThumbnailURL, &m.SortOrder); err != nil {
 			return nil, fmt.Errorf("scan art comment media: %w", err)
@@ -780,8 +781,8 @@ func (r *artRepository) DeleteGallery(ctx context.Context, id uuid.UUID, userID 
 	})
 }
 
-func (r *artRepository) GetGalleryByID(ctx context.Context, id uuid.UUID) (*GalleryRow, error) {
-	var g GalleryRow
+func (r *artRepository) GetGalleryByID(ctx context.Context, id uuid.UUID) (*model.GalleryRow, error) {
+	var g model.GalleryRow
 	err := r.db.QueryRowContext(ctx,
 		`SELECT g.id, g.user_id, g.name, g.description, g.cover_art_id,
 			COALESCE(a.image_url, ''), COALESCE(a.thumbnail_url, ''),
@@ -808,7 +809,7 @@ func (r *artRepository) GetGalleryByID(ctx context.Context, id uuid.UUID) (*Gall
 	return &g, nil
 }
 
-func (r *artRepository) ListGalleriesByUser(ctx context.Context, userID uuid.UUID) ([]GalleryRow, error) {
+func (r *artRepository) ListGalleriesByUser(ctx context.Context, userID uuid.UUID) ([]model.GalleryRow, error) {
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT g.id, g.user_id, g.name, g.description, g.cover_art_id,
 			COALESCE(a.image_url, ''), COALESCE(a.thumbnail_url, ''),
@@ -827,9 +828,9 @@ func (r *artRepository) ListGalleriesByUser(ctx context.Context, userID uuid.UUI
 	}
 	defer rows.Close()
 
-	var galleries []GalleryRow
+	var galleries []model.GalleryRow
 	for rows.Next() {
-		var g GalleryRow
+		var g model.GalleryRow
 		if err := rows.Scan(
 			&g.ID, &g.UserID, &g.Name, &g.Description, &g.CoverArtID,
 			&g.CoverImageURL, &g.CoverThumbnailURL, &g.ArtCount,
@@ -843,7 +844,7 @@ func (r *artRepository) ListGalleriesByUser(ctx context.Context, userID uuid.UUI
 	return galleries, rows.Err()
 }
 
-func (r *artRepository) ListAllGalleries(ctx context.Context, corner string) ([]GalleryRow, error) {
+func (r *artRepository) ListAllGalleries(ctx context.Context, corner string) ([]model.GalleryRow, error) {
 	query := `SELECT g.id, g.user_id, g.name, g.description, g.cover_art_id,
 			COALESCE(a.image_url, ''), COALESCE(a.thumbnail_url, ''),
 			(SELECT COUNT(*) FROM art WHERE gallery_id = g.id),
@@ -867,9 +868,9 @@ func (r *artRepository) ListAllGalleries(ctx context.Context, corner string) ([]
 	}
 	defer rows.Close()
 
-	var galleries []GalleryRow
+	var galleries []model.GalleryRow
 	for rows.Next() {
-		var g GalleryRow
+		var g model.GalleryRow
 		if err := rows.Scan(
 			&g.ID, &g.UserID, &g.Name, &g.Description, &g.CoverArtID,
 			&g.CoverImageURL, &g.CoverThumbnailURL, &g.ArtCount,
@@ -909,7 +910,7 @@ func (r *artRepository) GetGalleryPreviewImages(ctx context.Context, galleryID u
 	return imgs, rows.Err()
 }
 
-func (r *artRepository) ListArtInGallery(ctx context.Context, galleryID uuid.UUID, viewerID uuid.UUID, limit, offset int) ([]ArtRow, int, error) {
+func (r *artRepository) ListArtInGallery(ctx context.Context, galleryID uuid.UUID, viewerID uuid.UUID, limit, offset int) ([]model.ArtRow, int, error) {
 	var total int
 	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM art WHERE gallery_id = ?`, galleryID).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count gallery art: %w", err)
@@ -922,9 +923,9 @@ func (r *artRepository) ListArtInGallery(ctx context.Context, galleryID uuid.UUI
 	}
 	defer rows.Close()
 
-	var arts []ArtRow
+	var arts []model.ArtRow
 	for rows.Next() {
-		var a ArtRow
+		var a model.ArtRow
 		if err := scanArtRow(rows, &a); err != nil {
 			return nil, 0, fmt.Errorf("scan gallery art: %w", err)
 		}

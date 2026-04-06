@@ -67,4 +67,5 @@ const (
 	NotifAnnouncementCommented    NotificationType = "announcement_commented"
 	NotifAnnouncementCommentReply NotificationType = "announcement_comment_reply"
 	NotifAnnouncementCommentLiked NotificationType = "announcement_comment_liked"
+	NotifSuggestionPosted         NotificationType = "suggestion_posted"
 )

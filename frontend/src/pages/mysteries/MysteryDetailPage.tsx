@@ -1,6 +1,6 @@
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {useLocation, useNavigate, useParams} from "react-router";
-import type {MysteryAttempt, MysteryDetail} from "../../types/api";
+import type {MysteryAttempt, MysteryClue, MysteryDetail} from "../../types/api";
 import {addMysteryClue, createMysteryAttempt, deleteMystery, getMystery} from "../../api/endpoints";
 import {useAuth} from "../../hooks/useAuth";
 import {useNotifications} from "../../hooks/useNotifications";
@@ -11,6 +11,88 @@ import {ProfileLink} from "../../components/ProfileLink/ProfileLink";
 import {relativeTime} from "../../utils/notifications";
 import {AttemptItem} from "./AttemptItem";
 import styles from "./MysteryPages.module.css";
+
+function PrivateClues({
+    clues,
+    playerId,
+    mysteryId,
+    isAuthor,
+    onAdded,
+}: {
+    clues: MysteryClue[];
+    playerId: string;
+    mysteryId: string;
+    isAuthor: boolean;
+    onAdded: () => void;
+}) {
+    const [body, setBody] = useState("");
+    const [adding, setAdding] = useState(false);
+    const playerClues = clues.filter(c => c.player_id === playerId);
+
+    async function handleAdd() {
+        if (!body.trim() || adding) {
+            return;
+        }
+        setAdding(true);
+        try {
+            await addMysteryClue(mysteryId, body.trim(), "red", playerId);
+            setBody("");
+            onAdded();
+        } catch {
+            // ignore
+        } finally {
+            setAdding(false);
+        }
+    }
+
+    return (
+        <div style={{ padding: "0 0.5rem", marginBottom: "0.5rem" }}>
+            {playerClues.length > 0 && (
+                <div className={styles.cluesSection} style={{ marginBottom: "0.5rem" }}>
+                    {playerClues.map(clue => (
+                        <div key={clue.id} className={styles.clue} style={{ fontSize: "0.85rem" }}>
+                            {clue.body}
+                        </div>
+                    ))}
+                </div>
+            )}
+            {isAuthor && (
+                <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
+                    <input
+                        type="text"
+                        value={body}
+                        onChange={e => setBody(e.target.value)}
+                        placeholder="Private red truth for this player..."
+                        onKeyDown={e => {
+                            if (e.key === "Enter") {
+                                handleAdd();
+                            }
+                        }}
+                        style={{
+                            flex: 1,
+                            background: "var(--bg-void)",
+                            border: "1px solid rgba(229, 57, 53, 0.3)",
+                            color: "#ef9a9a",
+                            padding: "0.35rem 0.6rem",
+                            borderRadius: "4px",
+                            fontSize: "0.8rem",
+                            fontFamily: "inherit",
+                            fontStyle: "italic",
+                        }}
+                    />
+                    <Button
+                        variant="danger"
+                        size="small"
+                        onClick={handleAdd}
+                        disabled={!body.trim() || adding}
+                    >
+                        {adding ? "..." : "Add private Red Truth"}
+                    </Button>
+                </div>
+            )}
+        </div>
+    );
+}
 
 function findWinningAttempt(attempts: MysteryAttempt[]): MysteryAttempt | null {
     for (const a of attempts) {
@@ -37,15 +119,6 @@ export function MysteryDetailPage() {
     const [loading, setLoading] = useState(true);
     const hash = location.hash;
     const highlightedAttempt = hash.startsWith("#attempt-") ? hash.replace("#attempt-", "") : null;
-    const [spoilerRevealed, setSpoilerRevealed] = useState(() => {
-        if (!id) {
-            return false;
-        }
-        if (typeof window !== "undefined" && window.location.hash.startsWith("#attempt-")) {
-            return true;
-        }
-        return localStorage.getItem(`mystery-revealed-${id}`) === "1";
-    });
     const [attemptBody, setAttemptBody] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const [collapsedPlayers, setCollapsedPlayers] = useState<Set<string>>(new Set());
@@ -167,6 +240,12 @@ export function MysteryDetailPage() {
                 }
                 throttledFetchMystery();
             }
+            if (msg.type === "mystery_clue_added") {
+                const data = msg.data as { mystery_id?: string };
+                if (data.mystery_id === id) {
+                    throttledFetchMystery();
+                }
+            }
         });
     }, [id, addWSListener, throttledFetchMystery, user?.id]);
 
@@ -211,7 +290,7 @@ export function MysteryDetailPage() {
     }, [id]);
 
     useEffect(() => {
-        if (!mystery || loading || !highlightedAttempt || !spoilerRevealed) {
+        if (!mystery || loading || !highlightedAttempt) {
             return;
         }
         requestAnimationFrame(() => {
@@ -220,7 +299,7 @@ export function MysteryDetailPage() {
                 el.scrollIntoView({ behavior: "smooth", block: "center" });
             }
         });
-    }, [mystery, loading, highlightedAttempt, spoilerRevealed]);
+    }, [mystery, loading, highlightedAttempt]);
 
     if (loading) {
         return <div className="loading">Investigating the mystery...</div>;
@@ -311,17 +390,19 @@ export function MysteryDetailPage() {
 
                 <div className={styles.detailBody}>{mystery.body}</div>
 
-                {mystery.clues.length > 0 && (
+                {mystery.clues.filter(c => !c.player_id).length > 0 && (
                     <div className={styles.cluesSection}>
                         <h3 className={styles.cluesTitle}>Red Truths</h3>
-                        {mystery.clues.map(clue => (
-                            <div
-                                key={clue.id}
-                                className={`${styles.clue}${clue.truth_type === "purple" ? ` ${styles.cluePurple}` : ""}`}
-                            >
-                                {clue.body}
-                            </div>
-                        ))}
+                        {mystery.clues
+                            .filter(c => !c.player_id)
+                            .map(clue => (
+                                <div
+                                    key={clue.id}
+                                    className={`${styles.clue}${clue.truth_type === "purple" ? ` ${styles.cluePurple}` : ""}`}
+                                >
+                                    {clue.body}
+                                </div>
+                            ))}
                     </div>
                 )}
 
@@ -336,37 +417,19 @@ export function MysteryDetailPage() {
                         />
                         <div className={styles.composerActions}>
                             <Button
-                                variant="primary"
+                                variant="danger"
                                 size="small"
                                 onClick={handleAddClue}
                                 disabled={!newClueBody.trim() || addingClue}
                             >
-                                {addingClue ? "..." : "Add Red Truth"}
+                                {addingClue ? "..." : "Add global Red Truth"}
                             </Button>
                         </div>
                     </div>
                 )}
             </div>
 
-            {!spoilerRevealed && !isAuthor ? (
-                <div className={styles.spoilerGate}>
-                    <h3 className={styles.spoilerGateTitle}>Want to try solving this mystery?</h3>
-                    <p className={styles.spoilerGateText}>
-                        The attempts below may contain spoilers. Read the mystery and clues above first, then reveal
-                        when ready.
-                    </p>
-                    <Button
-                        variant="primary"
-                        onClick={() => {
-                            localStorage.setItem(`mystery-revealed-${id}`, "1");
-                            setSpoilerRevealed(true);
-                        }}
-                    >
-                        Reveal Attempts ({mystery.attempts.length})
-                    </Button>
-                </div>
-            ) : (
-                <div className={styles.attemptsSection}>
+            <div className={styles.attemptsSection}>
                     <h3 className={styles.attemptsTitle}>Blue Truth Attempts ({mystery.attempts.length})</h3>
 
                     {canSeeAsGameMaster && !mystery.solved && groupedAttempts.length > 0 && (
@@ -451,30 +514,58 @@ export function MysteryDetailPage() {
                                               {group.attempts.length !== 1 ? "s" : ""}
                                           </span>
                                       </button>
-                                      {!collapsed &&
-                                          group.attempts.map(a => (
-                                              <AttemptItem
-                                                  key={a.id}
-                                                  attempt={a}
+                                      {!collapsed && (
+                                          <>
+                                              <PrivateClues
+                                                  clues={mystery.clues}
+                                                  playerId={group.author.id}
                                                   mysteryId={mystery.id}
                                                   isAuthor={isAuthor}
-                                                  onRefresh={fetchMystery}
-                                                  mysterySolved={mystery.solved}
+                                                  onAdded={fetchMystery}
                                               />
-                                          ))}
+                                              {group.attempts.map(a => (
+                                                  <AttemptItem
+                                                      key={a.id}
+                                                      attempt={a}
+                                                      mysteryId={mystery.id}
+                                                      isAuthor={isAuthor}
+                                                      onRefresh={fetchMystery}
+                                                      mysterySolved={mystery.solved}
+                                                  />
+                                              ))}
+                                          </>
+                                      )}
                                   </div>
                               );
                           })
-                        : mystery.attempts.map(a => (
-                              <AttemptItem
-                                  key={a.id}
-                                  attempt={a}
-                                  mysteryId={mystery.id}
-                                  isAuthor={isAuthor}
-                                  onRefresh={fetchMystery}
-                                  mysterySolved={mystery.solved}
-                              />
-                          ))}
+                        : (
+                              <>
+                                  {user && mystery.clues.filter(c => c.player_id === user.id).length > 0 && (
+                                      <div className={styles.cluesSection}>
+                                          <h3 className={styles.cluesTitle} style={{ fontSize: "0.85rem" }}>
+                                              Private Red Truths (to you)
+                                          </h3>
+                                          {mystery.clues
+                                              .filter(c => c.player_id === user.id)
+                                              .map(clue => (
+                                                  <div key={clue.id} className={styles.clue}>
+                                                      {clue.body}
+                                                  </div>
+                                              ))}
+                                      </div>
+                                  )}
+                                  {mystery.attempts.map(a => (
+                                      <AttemptItem
+                                          key={a.id}
+                                          attempt={a}
+                                          mysteryId={mystery.id}
+                                          isAuthor={isAuthor}
+                                          onRefresh={fetchMystery}
+                                          mysterySolved={mystery.solved}
+                                      />
+                                  ))}
+                              </>
+                          )}
 
                     {mystery.attempts.length === 0 && (
                         <div className="empty-state">
@@ -515,7 +606,6 @@ export function MysteryDetailPage() {
                         </div>
                     )}
                 </div>
-            )}
         </div>
     );
 }

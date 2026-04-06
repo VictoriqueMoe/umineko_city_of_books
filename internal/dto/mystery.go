@@ -33,10 +33,11 @@ type (
 	}
 
 	MysteryClue struct {
-		ID        int    `json:"id"`
-		Body      string `json:"body"`
-		TruthType string `json:"truth_type"`
-		SortOrder int    `json:"sort_order"`
+		ID        int        `json:"id"`
+		Body      string     `json:"body"`
+		TruthType string     `json:"truth_type"`
+		SortOrder int        `json:"sort_order"`
+		PlayerID  *uuid.UUID `json:"player_id,omitempty"`
 	}
 
 	MysteryAttempt struct {
@@ -66,8 +67,9 @@ type (
 	}
 
 	CreateClueRequest struct {
-		Body      string `json:"body"`
-		TruthType string `json:"truth_type"`
+		Body      string     `json:"body"`
+		TruthType string     `json:"truth_type"`
+		PlayerID  *uuid.UUID `json:"player_id,omitempty"`
 	}
 
 	CreateAttemptRequest struct {

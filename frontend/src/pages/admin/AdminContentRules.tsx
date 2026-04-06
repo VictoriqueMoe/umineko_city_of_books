@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
-import { getAdminSettings, updateAdminSettings } from "../../api/endpoints";
-import { Button } from "../../components/Button/Button";
-import { TextArea } from "../../components/TextArea/TextArea";
-import type { SiteSettings } from "../../types/api";
+import {useEffect, useState} from "react";
+import {getAdminSettings, updateAdminSettings} from "../../api/endpoints";
+import {Button} from "../../components/Button/Button";
+import {TextArea} from "../../components/TextArea/TextArea";
+import type {SiteSettings} from "../../types/api";
 import styles from "./AdminSettings.module.css";
 
 const pages = [
@@ -18,6 +18,7 @@ const pages = [
     { key: "rules_gallery_umineko", label: "Gallery (Umineko)" },
     { key: "rules_gallery_higurashi", label: "Gallery (Higurashi)" },
     { key: "rules_gallery_ciconia", label: "Gallery (Ciconia)" },
+    { key: "rules_suggestions", label: "Site Improvements" },
 ];
 
 export function AdminContentRules() {

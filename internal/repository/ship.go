@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"umineko_city_of_books/internal/repository/model"
 
 	"umineko_city_of_books/internal/db"
 	"umineko_city_of_books/internal/dto"
@@ -20,13 +21,13 @@ type (
 		UpdateImage(ctx context.Context, id uuid.UUID, imageURL string, thumbnailURL string) error
 		Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		DeleteAsAdmin(ctx context.Context, id uuid.UUID) error
-		GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID) (*ShipRow, error)
+		GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID) (*model.ShipRow, error)
 		GetAuthorID(ctx context.Context, shipID uuid.UUID) (uuid.UUID, error)
-		List(ctx context.Context, viewerID uuid.UUID, sort string, crackshipsOnly bool, series string, characterID string, limit, offset int, excludeUserIDs []uuid.UUID) ([]ShipRow, int, error)
-		ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit, offset int) ([]ShipRow, int, error)
+		List(ctx context.Context, viewerID uuid.UUID, sort string, crackshipsOnly bool, series string, characterID string, limit, offset int, excludeUserIDs []uuid.UUID) ([]model.ShipRow, int, error)
+		ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit, offset int) ([]model.ShipRow, int, error)
 
-		GetCharacters(ctx context.Context, shipID uuid.UUID) ([]ShipCharacterRow, error)
-		GetCharactersBatch(ctx context.Context, shipIDs []uuid.UUID) (map[uuid.UUID][]ShipCharacterRow, error)
+		GetCharacters(ctx context.Context, shipID uuid.UUID) ([]model.ShipCharacterRow, error)
+		GetCharactersBatch(ctx context.Context, shipIDs []uuid.UUID) (map[uuid.UUID][]model.ShipCharacterRow, error)
 
 		Vote(ctx context.Context, userID uuid.UUID, shipID uuid.UUID, value int) error
 
@@ -35,7 +36,7 @@ type (
 		UpdateCommentAsAdmin(ctx context.Context, id uuid.UUID, body string) error
 		DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		DeleteCommentAsAdmin(ctx context.Context, id uuid.UUID) error
-		GetComments(ctx context.Context, shipID uuid.UUID, viewerID uuid.UUID, limit, offset int, excludeUserIDs []uuid.UUID) ([]ShipCommentRow, int, error)
+		GetComments(ctx context.Context, shipID uuid.UUID, viewerID uuid.UUID, limit, offset int, excludeUserIDs []uuid.UUID) ([]model.ShipCommentRow, int, error)
 		GetCommentShipID(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error)
 		GetCommentAuthorID(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error)
 		LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error
@@ -44,8 +45,8 @@ type (
 		AddCommentMedia(ctx context.Context, commentID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, sortOrder int) (int64, error)
 		UpdateCommentMediaURL(ctx context.Context, id int64, mediaURL string) error
 		UpdateCommentMediaThumbnail(ctx context.Context, id int64, thumbnailURL string) error
-		GetCommentMedia(ctx context.Context, commentID uuid.UUID) ([]ShipCommentMediaRow, error)
-		GetCommentMediaBatch(ctx context.Context, commentIDs []uuid.UUID) (map[uuid.UUID][]ShipCommentMediaRow, error)
+		GetCommentMedia(ctx context.Context, commentID uuid.UUID) ([]model.ShipCommentMediaRow, error)
+		GetCommentMediaBatch(ctx context.Context, commentIDs []uuid.UUID) (map[uuid.UUID][]model.ShipCommentMediaRow, error)
 	}
 
 	shipRepository struct {
@@ -63,7 +64,7 @@ const shipSelectBase = `
 	JOIN users u ON s.user_id = u.id
 	LEFT JOIN user_roles r ON r.user_id = s.user_id`
 
-func scanShipRow(row interface{ Scan(...interface{}) error }, s *ShipRow) error {
+func scanShipRow(row interface{ Scan(...interface{}) error }, s *model.ShipRow) error {
 	return row.Scan(
 		&s.ID, &s.UserID, &s.Title, &s.Description, &s.ImageURL, &s.ThumbnailURL, &s.CreatedAt, &s.UpdatedAt,
 		&s.AuthorUsername, &s.AuthorDisplayName, &s.AuthorAvatarURL, &s.AuthorRole,
@@ -155,8 +156,8 @@ func (r *shipRepository) DeleteAsAdmin(ctx context.Context, id uuid.UUID) error 
 	return nil
 }
 
-func (r *shipRepository) GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID) (*ShipRow, error) {
-	var s ShipRow
+func (r *shipRepository) GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID) (*model.ShipRow, error) {
+	var s model.ShipRow
 	err := scanShipRow(r.db.QueryRowContext(ctx, shipSelectBase+` WHERE s.id = ?`, viewerID, id), &s)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -176,7 +177,7 @@ func (r *shipRepository) GetAuthorID(ctx context.Context, shipID uuid.UUID) (uui
 	return userID, nil
 }
 
-func (r *shipRepository) List(ctx context.Context, viewerID uuid.UUID, sort string, crackshipsOnly bool, series string, characterID string, limit, offset int, excludeUserIDs []uuid.UUID) ([]ShipRow, int, error) {
+func (r *shipRepository) List(ctx context.Context, viewerID uuid.UUID, sort string, crackshipsOnly bool, series string, characterID string, limit, offset int, excludeUserIDs []uuid.UUID) ([]model.ShipRow, int, error) {
 	whereParts := []string{"1=1"}
 	var args []interface{}
 
@@ -220,9 +221,9 @@ func (r *shipRepository) List(ctx context.Context, viewerID uuid.UUID, sort stri
 	}
 	defer rows.Close()
 
-	var ships []ShipRow
+	var ships []model.ShipRow
 	for rows.Next() {
-		var s ShipRow
+		var s model.ShipRow
 		if err := scanShipRow(rows, &s); err != nil {
 			return nil, 0, fmt.Errorf("scan ship: %w", err)
 		}
@@ -252,7 +253,7 @@ func shipOrderClause(sort string) string {
 	}
 }
 
-func (r *shipRepository) ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit, offset int) ([]ShipRow, int, error) {
+func (r *shipRepository) ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit, offset int) ([]model.ShipRow, int, error) {
 	var total int
 	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM ships WHERE user_id = ?`, userID).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count user ships: %w", err)
@@ -265,9 +266,9 @@ func (r *shipRepository) ListByUser(ctx context.Context, userID uuid.UUID, viewe
 	}
 	defer rows.Close()
 
-	var ships []ShipRow
+	var ships []model.ShipRow
 	for rows.Next() {
-		var s ShipRow
+		var s model.ShipRow
 		if err := scanShipRow(rows, &s); err != nil {
 			return nil, 0, fmt.Errorf("scan ship: %w", err)
 		}
@@ -276,7 +277,7 @@ func (r *shipRepository) ListByUser(ctx context.Context, userID uuid.UUID, viewe
 	return ships, total, rows.Err()
 }
 
-func (r *shipRepository) GetCharacters(ctx context.Context, shipID uuid.UUID) ([]ShipCharacterRow, error) {
+func (r *shipRepository) GetCharacters(ctx context.Context, shipID uuid.UUID) ([]model.ShipCharacterRow, error) {
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT id, ship_id, series, character_id, character_name, sort_order FROM ship_characters WHERE ship_id = ? ORDER BY sort_order ASC`,
 		shipID,
@@ -286,9 +287,9 @@ func (r *shipRepository) GetCharacters(ctx context.Context, shipID uuid.UUID) ([
 	}
 	defer rows.Close()
 
-	var chars []ShipCharacterRow
+	var chars []model.ShipCharacterRow
 	for rows.Next() {
-		var c ShipCharacterRow
+		var c model.ShipCharacterRow
 		if err := rows.Scan(&c.ID, &c.ShipID, &c.Series, &c.CharacterID, &c.CharacterName, &c.SortOrder); err != nil {
 			return nil, fmt.Errorf("scan ship character: %w", err)
 		}
@@ -297,7 +298,7 @@ func (r *shipRepository) GetCharacters(ctx context.Context, shipID uuid.UUID) ([
 	return chars, rows.Err()
 }
 
-func (r *shipRepository) GetCharactersBatch(ctx context.Context, shipIDs []uuid.UUID) (map[uuid.UUID][]ShipCharacterRow, error) {
+func (r *shipRepository) GetCharactersBatch(ctx context.Context, shipIDs []uuid.UUID) (map[uuid.UUID][]model.ShipCharacterRow, error) {
 	if len(shipIDs) == 0 {
 		return nil, nil
 	}
@@ -318,9 +319,9 @@ func (r *shipRepository) GetCharactersBatch(ctx context.Context, shipIDs []uuid.
 	}
 	defer rows.Close()
 
-	result := make(map[uuid.UUID][]ShipCharacterRow)
+	result := make(map[uuid.UUID][]model.ShipCharacterRow)
 	for rows.Next() {
-		var c ShipCharacterRow
+		var c model.ShipCharacterRow
 		if err := rows.Scan(&c.ID, &c.ShipID, &c.Series, &c.CharacterID, &c.CharacterName, &c.SortOrder); err != nil {
 			return nil, fmt.Errorf("scan ship character: %w", err)
 		}
@@ -405,7 +406,7 @@ func (r *shipRepository) DeleteCommentAsAdmin(ctx context.Context, id uuid.UUID)
 	return nil
 }
 
-func (r *shipRepository) GetComments(ctx context.Context, shipID uuid.UUID, viewerID uuid.UUID, limit, offset int, excludeUserIDs []uuid.UUID) ([]ShipCommentRow, int, error) {
+func (r *shipRepository) GetComments(ctx context.Context, shipID uuid.UUID, viewerID uuid.UUID, limit, offset int, excludeUserIDs []uuid.UUID) ([]model.ShipCommentRow, int, error) {
 	exclSQL, exclArgs := ExcludeClause("user_id", excludeUserIDs)
 	var total int
 	countArgs := []interface{}{shipID}
@@ -436,9 +437,9 @@ func (r *shipRepository) GetComments(ctx context.Context, shipID uuid.UUID, view
 	}
 	defer rows.Close()
 
-	var comments []ShipCommentRow
+	var comments []model.ShipCommentRow
 	for rows.Next() {
-		var c ShipCommentRow
+		var c model.ShipCommentRow
 		var userLikedInt int
 		if err := rows.Scan(
 			&c.ID, &c.ShipID, &c.ParentID, &c.UserID, &c.Body, &c.CreatedAt, &c.UpdatedAt,
@@ -520,7 +521,7 @@ func (r *shipRepository) UpdateCommentMediaThumbnail(ctx context.Context, id int
 	return nil
 }
 
-func (r *shipRepository) GetCommentMedia(ctx context.Context, commentID uuid.UUID) ([]ShipCommentMediaRow, error) {
+func (r *shipRepository) GetCommentMedia(ctx context.Context, commentID uuid.UUID) ([]model.ShipCommentMediaRow, error) {
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT id, comment_id, media_url, media_type, thumbnail_url, sort_order FROM ship_comment_media WHERE comment_id = ? ORDER BY sort_order`,
 		commentID,
@@ -530,9 +531,9 @@ func (r *shipRepository) GetCommentMedia(ctx context.Context, commentID uuid.UUI
 	}
 	defer rows.Close()
 
-	var media []ShipCommentMediaRow
+	var media []model.ShipCommentMediaRow
 	for rows.Next() {
-		var m ShipCommentMediaRow
+		var m model.ShipCommentMediaRow
 		if err := rows.Scan(&m.ID, &m.CommentID, &m.MediaURL, &m.MediaType, &m.ThumbnailURL, &m.SortOrder); err != nil {
 			return nil, fmt.Errorf("scan ship comment media: %w", err)
 		}
@@ -541,7 +542,7 @@ func (r *shipRepository) GetCommentMedia(ctx context.Context, commentID uuid.UUI
 	return media, rows.Err()
 }
 
-func (r *shipRepository) GetCommentMediaBatch(ctx context.Context, commentIDs []uuid.UUID) (map[uuid.UUID][]ShipCommentMediaRow, error) {
+func (r *shipRepository) GetCommentMediaBatch(ctx context.Context, commentIDs []uuid.UUID) (map[uuid.UUID][]model.ShipCommentMediaRow, error) {
 	if len(commentIDs) == 0 {
 		return nil, nil
 	}
@@ -562,9 +563,9 @@ func (r *shipRepository) GetCommentMediaBatch(ctx context.Context, commentIDs []
 	}
 	defer rows.Close()
 
-	result := make(map[uuid.UUID][]ShipCommentMediaRow)
+	result := make(map[uuid.UUID][]model.ShipCommentMediaRow)
 	for rows.Next() {
-		var m ShipCommentMediaRow
+		var m model.ShipCommentMediaRow
 		if err := rows.Scan(&m.ID, &m.CommentID, &m.MediaURL, &m.MediaType, &m.ThumbnailURL, &m.SortOrder); err != nil {
 			return nil, fmt.Errorf("scan ship comment media: %w", err)
 		}

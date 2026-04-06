@@ -138,6 +138,14 @@ func (r *Resolver) metaForPath(ctx context.Context, path string) *Meta {
 		}
 	}
 
+	if len(parts) == 1 && parts[0] == "suggestions" {
+		return &Meta{
+			Title:       "Site Improvements - Umineko City of Books",
+			Description: "Suggest improvements, report issues, and share ideas for the site.",
+			URL:         r.baseURL + "/suggestions",
+		}
+	}
+
 	if len(parts) == 1 && parts[0] == "gallery" {
 		return &Meta{
 			Title:       "Gallery - Umineko City of Books",

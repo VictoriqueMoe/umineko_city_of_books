@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
-import type { QuoteBrowseResponse } from "../../types/api";
-import type { Series } from "../../api/endpoints";
-import { browseQuotes, getCharacters } from "../../api/endpoints";
-import { TruthCard } from "../../components/truth/TruthCard/TruthCard";
-import { Pagination } from "../../components/Pagination/Pagination";
-import { Select } from "../../components/Select/Select";
+import {useCallback, useEffect, useState} from "react";
+import type {QuoteBrowseResponse} from "../../types/api";
+import type {Series} from "../../api/endpoints";
+import {browseQuotes, getCharacters} from "../../api/endpoints";
+import {getSeriesConfig} from "../../utils/seriesConfig";
+import {TruthCard} from "../../components/truth/TruthCard/TruthCard";
+import {Pagination} from "../../components/Pagination/Pagination";
+import {Select} from "../../components/Select/Select";
 import styles from "./QuoteBrowserPage.module.css";
 
 const TRUTH_TYPES = ["red", "blue", "gold", "purple"] as const;
@@ -44,11 +45,13 @@ export function QuoteBrowserPage() {
     const [arc, setArc] = useState("");
     const [character, setCharacter] = useState("");
     const [truth, setTruth] = useState("");
+    const [lang, setLang] = useState("");
     const [characters, setCharacters] = useState<Record<string, string>>({});
     const [data, setData] = useState<QuoteBrowseResponse | null>(null);
     const [loading, setLoading] = useState(false);
     const [offset, setOffset] = useState(0);
     const limit = 30;
+    const cfg = getSeriesConfig(series);
 
     useEffect(() => {
         getCharacters(series)
@@ -65,6 +68,7 @@ export function QuoteBrowserPage() {
                     character: character || undefined,
                     truth: truth || undefined,
                     arc: arc || undefined,
+                    lang: lang || undefined,
                     limit,
                     offset: currentOffset,
                     series,
@@ -76,7 +80,7 @@ export function QuoteBrowserPage() {
                 setLoading(false);
             }
         },
-        [episode, character, truth, arc, series],
+        [episode, character, truth, arc, lang, series],
     );
 
     function changeSeries(next: Series) {
@@ -85,6 +89,7 @@ export function QuoteBrowserPage() {
         setTruth("");
         setEpisode(0);
         setArc("");
+        setLang("");
     }
 
     useEffect(() => {
@@ -170,13 +175,22 @@ export function QuoteBrowserPage() {
                             </option>
                         ))}
                 </Select>
+
+                <Select value={lang} onChange={e => setLang((e.target as HTMLSelectElement).value)}>
+                    <option value="">Default Language</option>
+                    {cfg.languages.map(l => (
+                        <option key={l.value} value={l.value}>
+                            {l.label}
+                        </option>
+                    ))}
+                </Select>
             </div>
 
             {loading && <div className="loading">Consulting the game board...</div>}
 
             {!loading && data && data.quotes.length === 0 && <div className="empty-state">No quotes found.</div>}
 
-            {!loading && data?.quotes.map((q, i) => <TruthCard key={q.audioId || i} quote={q} />)}
+            {!loading && data?.quotes.map((q, i) => <TruthCard key={q.audioId || i} quote={q} lang={lang || undefined} />)}
 
             {!loading && data && (
                 <Pagination

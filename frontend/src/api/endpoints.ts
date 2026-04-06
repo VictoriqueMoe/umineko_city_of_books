@@ -1,4 +1,4 @@
-import { apiDelete, apiDeleteWithBody, apiFetch, apiPost, apiPostFormData, apiPut, buildQueryString } from "./client";
+import {apiDelete, apiDeleteWithBody, apiFetch, apiPost, apiPostFormData, apiPut, buildQueryString} from "./client";
 import type {
     ActivityListResponse,
     AdminStats,
@@ -23,6 +23,7 @@ import type {
     MysteryLeaderboardResponse,
     MysteryListResponse,
     NotificationListResponse,
+    Poll,
     PostDetail,
     PostListResponse,
     PostMedia,
@@ -104,6 +105,7 @@ export async function searchQuotes(params: {
     character?: string;
     episode?: number;
     truth?: string;
+    lang?: string;
     limit?: number;
     offset?: number;
     series?: Series;
@@ -114,6 +116,7 @@ export async function searchQuotes(params: {
         character: params.character,
         episode: params.episode,
         truth: params.truth,
+        lang: series === "umineko" ? params.lang : undefined,
         limit: params.limit ?? 30,
         offset: params.offset,
     });
@@ -129,6 +132,7 @@ export async function browseQuotes(params: {
     episode?: number;
     truth?: string;
     arc?: string;
+    lang?: string;
     limit?: number;
     offset?: number;
     series?: Series;
@@ -139,6 +143,7 @@ export async function browseQuotes(params: {
         episode: params.episode,
         truth: params.truth,
         arc: params.arc,
+        lang: series === "umineko" ? params.lang : undefined,
         limit: params.limit ?? 30,
         offset: params.offset,
     });
@@ -464,8 +469,25 @@ export async function updatePost(id: string, body: string): Promise<void> {
     await apiPut<unknown, { body: string }>(`/posts/${id}`, { body });
 }
 
-export async function createPost(body: string, corner: string = "general"): Promise<{ id: string }> {
-    return apiPost<{ id: string }, { body: string; corner: string }>("/posts", { body, corner });
+export interface CreatePollPayload {
+    options: { label: string }[];
+    duration_seconds: number;
+}
+
+export async function createPost(
+    body: string,
+    corner: string = "general",
+    poll?: CreatePollPayload,
+): Promise<{ id: string }> {
+    return apiPost<{ id: string }, { body: string; corner: string; poll?: CreatePollPayload }>("/posts", {
+        body,
+        corner,
+        poll,
+    });
+}
+
+export async function votePoll(postId: string, optionId: number): Promise<Poll> {
+    return apiPost<Poll, { option_id: number }>(`/posts/${postId}/poll/vote`, { option_id: optionId });
 }
 
 export async function deletePost(id: string): Promise<void> {
@@ -821,10 +843,16 @@ export async function markMysterySolved(mysteryId: string, attemptId: string): P
     await apiPost<unknown, { attempt_id: string }>(`/mysteries/${mysteryId}/solve`, { attempt_id: attemptId });
 }
 
-export async function addMysteryClue(mysteryId: string, body: string, truthType: string): Promise<void> {
-    await apiPost<unknown, { body: string; truth_type: string }>(`/mysteries/${mysteryId}/clues`, {
+export async function addMysteryClue(
+    mysteryId: string,
+    body: string,
+    truthType: string,
+    playerId?: string,
+): Promise<void> {
+    await apiPost<unknown, { body: string; truth_type: string; player_id?: string }>(`/mysteries/${mysteryId}/clues`, {
         body,
         truth_type: truthType,
+        player_id: playerId,
     });
 }
 

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"umineko_city_of_books/internal/repository/model"
 
 	"umineko_city_of_books/internal/dto"
 
@@ -14,22 +15,22 @@ import (
 
 type (
 	UserRepository interface {
-		Create(ctx context.Context, username, password, displayName string) (*User, error)
-		GetByID(ctx context.Context, id uuid.UUID) (*User, error)
-		GetByUsername(ctx context.Context, username string) (*User, error)
+		Create(ctx context.Context, username, password, displayName string) (*model.User, error)
+		GetByID(ctx context.Context, id uuid.UUID) (*model.User, error)
+		GetByUsername(ctx context.Context, username string) (*model.User, error)
 		ExistsByUsername(ctx context.Context, username string) (bool, error)
 		Count(ctx context.Context) (int, error)
-		ValidatePassword(ctx context.Context, username, password string) (*User, error)
+		ValidatePassword(ctx context.Context, username, password string) (*model.User, error)
 		UpdateProfile(ctx context.Context, userID uuid.UUID, req dto.UpdateProfileRequest) error
 		UpdateAvatarURL(ctx context.Context, userID uuid.UUID, avatarURL string) error
 		UpdateBannerURL(ctx context.Context, userID uuid.UUID, bannerURL string) error
 		ChangePassword(ctx context.Context, userID uuid.UUID, oldPassword, newPassword string) error
 		DeleteAccount(ctx context.Context, userID uuid.UUID, password string) error
-		GetProfileByUsername(ctx context.Context, username string) (*User, *UserStats, error)
-		GetProfileByID(ctx context.Context, id uuid.UUID) (*User, *UserStats, error)
-		ListAll(ctx context.Context, search string, limit, offset int) ([]User, int, error)
-		ListPublic(ctx context.Context) ([]User, error)
-		SearchByName(ctx context.Context, query string, limit int) ([]User, error)
+		GetProfileByUsername(ctx context.Context, username string) (*model.User, *model.UserStats, error)
+		GetProfileByID(ctx context.Context, id uuid.UUID) (*model.User, *model.UserStats, error)
+		ListAll(ctx context.Context, search string, limit, offset int) ([]model.User, int, error)
+		ListPublic(ctx context.Context) ([]model.User, error)
+		SearchByName(ctx context.Context, query string, limit int) ([]model.User, error)
 		BanUser(ctx context.Context, userID uuid.UUID, bannedBy uuid.UUID, reason string) error
 		UnbanUser(ctx context.Context, userID uuid.UUID) error
 		IsBanned(ctx context.Context, userID uuid.UUID) (bool, error)
@@ -45,8 +46,8 @@ const (
 	userColumns = `id, username, password_hash, display_name, created_at, bio, avatar_url, banner_url, favourite_character, gender, pronoun_subject, pronoun_possessive, banned_at, banned_by, ban_reason, social_twitter, social_discord, social_waifulist, social_tumblr, social_github, website, banner_position, dms_enabled, episode_progress, email, email_public, email_notifications, home_page`
 )
 
-func scanUser(row interface{ Scan(dest ...any) error }) (*User, error) {
-	var u User
+func scanUser(row interface{ Scan(dest ...any) error }) (*model.User, error) {
+	var u model.User
 	err := row.Scan(&u.ID, &u.Username, &u.PasswordHash, &u.DisplayName, &u.CreatedAt,
 		&u.Bio, &u.AvatarURL, &u.BannerURL, &u.FavouriteCharacter, &u.Gender,
 		&u.PronounSubject, &u.PronounPossessive,
@@ -56,7 +57,7 @@ func scanUser(row interface{ Scan(dest ...any) error }) (*User, error) {
 	return &u, err
 }
 
-func (r *userRepository) Create(ctx context.Context, username, password, displayName string) (*User, error) {
+func (r *userRepository) Create(ctx context.Context, username, password, displayName string) (*model.User, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, fmt.Errorf("hash password: %w", err)
@@ -72,14 +73,14 @@ func (r *userRepository) Create(ctx context.Context, username, password, display
 		return nil, fmt.Errorf("create user: %w", err)
 	}
 
-	return &User{
+	return &model.User{
 		ID:          id,
 		Username:    username,
 		DisplayName: displayName,
 	}, nil
 }
 
-func (r *userRepository) GetByID(ctx context.Context, id uuid.UUID) (*User, error) {
+func (r *userRepository) GetByID(ctx context.Context, id uuid.UUID) (*model.User, error) {
 	u, err := scanUser(r.db.QueryRowContext(ctx,
 		`SELECT `+userColumns+` FROM users WHERE id = ?`, id,
 	))
@@ -92,7 +93,7 @@ func (r *userRepository) GetByID(ctx context.Context, id uuid.UUID) (*User, erro
 	return u, nil
 }
 
-func (r *userRepository) GetByUsername(ctx context.Context, username string) (*User, error) {
+func (r *userRepository) GetByUsername(ctx context.Context, username string) (*model.User, error) {
 	u, err := scanUser(r.db.QueryRowContext(ctx,
 		`SELECT `+userColumns+` FROM users WHERE LOWER(username) = LOWER(?)`, username,
 	))
@@ -125,7 +126,7 @@ func (r *userRepository) Count(ctx context.Context) (int, error) {
 	return count, nil
 }
 
-func (r *userRepository) ValidatePassword(ctx context.Context, username, password string) (*User, error) {
+func (r *userRepository) ValidatePassword(ctx context.Context, username, password string) (*model.User, error) {
 	u, err := r.GetByUsername(ctx, username)
 	if err != nil {
 		return nil, err
@@ -229,13 +230,13 @@ func (r *userRepository) DeleteAccount(ctx context.Context, userID uuid.UUID, pa
 	return nil
 }
 
-func (r *userRepository) GetProfileByUsername(ctx context.Context, username string) (*User, *UserStats, error) {
+func (r *userRepository) GetProfileByUsername(ctx context.Context, username string) (*model.User, *model.UserStats, error) {
 	u, err := r.GetByUsername(ctx, username)
 	if err != nil || u == nil {
 		return u, nil, err
 	}
 
-	var stats UserStats
+	var stats model.UserStats
 	r.db.QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM theories WHERE user_id = ?`, u.ID,
 	).Scan(&stats.TheoryCount)
@@ -266,13 +267,13 @@ func (r *userRepository) GetProfileByUsername(ctx context.Context, username stri
 	return u, &stats, nil
 }
 
-func (r *userRepository) GetProfileByID(ctx context.Context, id uuid.UUID) (*User, *UserStats, error) {
+func (r *userRepository) GetProfileByID(ctx context.Context, id uuid.UUID) (*model.User, *model.UserStats, error) {
 	u, err := r.GetByID(ctx, id)
 	if err != nil || u == nil {
 		return u, nil, err
 	}
 
-	var stats UserStats
+	var stats model.UserStats
 	r.db.QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM theories WHERE user_id = ?`, u.ID,
 	).Scan(&stats.TheoryCount)
@@ -292,7 +293,7 @@ func (r *userRepository) GetProfileByID(ctx context.Context, id uuid.UUID) (*Use
 	return u, &stats, nil
 }
 
-func (r *userRepository) ListAll(ctx context.Context, search string, limit, offset int) ([]User, int, error) {
+func (r *userRepository) ListAll(ctx context.Context, search string, limit, offset int) ([]model.User, int, error) {
 	where := ""
 	var args []interface{}
 	if search != "" {
@@ -320,7 +321,7 @@ func (r *userRepository) ListAll(ctx context.Context, search string, limit, offs
 	}
 	defer rows.Close()
 
-	var users []User
+	var users []model.User
 	for rows.Next() {
 		u, err := scanUser(rows)
 		if err != nil {
@@ -331,7 +332,7 @@ func (r *userRepository) ListAll(ctx context.Context, search string, limit, offs
 	return users, total, rows.Err()
 }
 
-func (r *userRepository) ListPublic(ctx context.Context) ([]User, error) {
+func (r *userRepository) ListPublic(ctx context.Context) ([]model.User, error) {
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT `+userColumns+` FROM users WHERE banned_at IS NULL ORDER BY display_name COLLATE NOCASE`,
 	)
@@ -340,7 +341,7 @@ func (r *userRepository) ListPublic(ctx context.Context) ([]User, error) {
 	}
 	defer rows.Close()
 
-	var users []User
+	var users []model.User
 	for rows.Next() {
 		u, err := scanUser(rows)
 		if err != nil {
@@ -351,7 +352,7 @@ func (r *userRepository) ListPublic(ctx context.Context) ([]User, error) {
 	return users, rows.Err()
 }
 
-func (r *userRepository) SearchByName(ctx context.Context, query string, limit int) ([]User, error) {
+func (r *userRepository) SearchByName(ctx context.Context, query string, limit int) ([]model.User, error) {
 	like := "%" + query + "%"
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT `+userColumns+` FROM users WHERE banned_at IS NULL AND (username LIKE ? OR display_name LIKE ?) ORDER BY CASE WHEN username LIKE ? THEN 0 ELSE 1 END, display_name COLLATE NOCASE LIMIT ?`,
@@ -362,7 +363,7 @@ func (r *userRepository) SearchByName(ctx context.Context, query string, limit i
 	}
 	defer rows.Close()
 
-	var users []User
+	var users []model.User
 	for rows.Next() {
 		u, err := scanUser(rows)
 		if err != nil {

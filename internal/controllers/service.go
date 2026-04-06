@@ -9,6 +9,7 @@ import (
 	"umineko_city_of_books/internal/chat"
 	"umineko_city_of_books/internal/follow"
 	"umineko_city_of_books/internal/media"
+	mysterysvc "umineko_city_of_books/internal/mystery"
 	"umineko_city_of_books/internal/notification"
 	postsvc "umineko_city_of_books/internal/post"
 	"umineko_city_of_books/internal/profile"
@@ -38,7 +39,7 @@ type (
 		ArtService          artsvc.Service
 		BlockService        block.Service
 		AnnouncementRepo    repository.AnnouncementRepository
-		MysteryRepo         repository.MysteryRepository
+		MysteryService      mysterysvc.Service
 		UserRepo            repository.UserRepository
 		ShipService         shipsvc.Service
 		UploadService       upload.Service
@@ -64,7 +65,7 @@ func NewService(
 	artService artsvc.Service,
 	blockService block.Service,
 	announcementRepo repository.AnnouncementRepository,
-	mysteryRepo repository.MysteryRepository,
+	mysteryService mysterysvc.Service,
 	userRepo repository.UserRepository,
 	shipService shipsvc.Service,
 	uploadService upload.Service,
@@ -88,7 +89,7 @@ func NewService(
 		ArtService:          artService,
 		BlockService:        blockService,
 		AnnouncementRepo:    announcementRepo,
-		MysteryRepo:         mysteryRepo,
+		MysteryService:      mysteryService,
 		UserRepo:            userRepo,
 		ShipService:         shipService,
 		UploadService:       uploadService,

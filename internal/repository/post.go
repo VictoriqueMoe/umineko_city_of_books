@@ -6,6 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"umineko_city_of_books/internal/repository/model"
+
+	"umineko_city_of_books/internal/db"
 
 	"github.com/google/uuid"
 )
@@ -15,23 +18,23 @@ type (
 		Create(ctx context.Context, id uuid.UUID, userID uuid.UUID, corner string, body string) error
 		UpdatePost(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string) error
 		UpdatePostAsAdmin(ctx context.Context, id uuid.UUID, body string) error
-		GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID) (*PostRow, error)
+		GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID) (*model.PostRow, error)
 		Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		DeleteAsAdmin(ctx context.Context, id uuid.UUID) error
-		ListAll(ctx context.Context, viewerID uuid.UUID, corner string, search string, sort string, seed int, limit, offset int, excludeUserIDs []uuid.UUID) ([]PostRow, int, error)
-		ListByFollowing(ctx context.Context, userID uuid.UUID, corner string, sort string, seed int, limit, offset int, excludeUserIDs []uuid.UUID) ([]PostRow, int, error)
-		ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit, offset int) ([]PostRow, int, error)
+		ListAll(ctx context.Context, viewerID uuid.UUID, corner string, search string, sort string, seed int, limit, offset int, excludeUserIDs []uuid.UUID) ([]model.PostRow, int, error)
+		ListByFollowing(ctx context.Context, userID uuid.UUID, corner string, sort string, seed int, limit, offset int, excludeUserIDs []uuid.UUID) ([]model.PostRow, int, error)
+		ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit, offset int) ([]model.PostRow, int, error)
 
 		AddMedia(ctx context.Context, postID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, sortOrder int) (int64, error)
 		DeleteMedia(ctx context.Context, id int64, postID uuid.UUID) (string, error)
 		UpdateMediaURL(ctx context.Context, id int64, mediaURL string) error
 		UpdateMediaThumbnail(ctx context.Context, id int64, thumbnailURL string) error
-		GetMedia(ctx context.Context, postID uuid.UUID) ([]PostMediaRow, error)
-		GetMediaBatch(ctx context.Context, postIDs []uuid.UUID) (map[uuid.UUID][]PostMediaRow, error)
+		GetMedia(ctx context.Context, postID uuid.UUID) ([]model.PostMediaRow, error)
+		GetMediaBatch(ctx context.Context, postIDs []uuid.UUID) (map[uuid.UUID][]model.PostMediaRow, error)
 
 		Like(ctx context.Context, userID uuid.UUID, postID uuid.UUID) error
 		Unlike(ctx context.Context, userID uuid.UUID, postID uuid.UUID) error
-		GetLikedBy(ctx context.Context, postID uuid.UUID, excludeUserIDs []uuid.UUID) ([]PostLikeUser, error)
+		GetLikedBy(ctx context.Context, postID uuid.UUID, excludeUserIDs []uuid.UUID) ([]model.PostLikeUser, error)
 		RecordView(ctx context.Context, postID uuid.UUID, viewerHash string) (bool, error)
 		GetPostAuthorID(ctx context.Context, postID uuid.UUID) (uuid.UUID, error)
 
@@ -40,7 +43,7 @@ type (
 		UpdateCommentAsAdmin(ctx context.Context, id uuid.UUID, body string) error
 		DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		DeleteCommentAsAdmin(ctx context.Context, id uuid.UUID) error
-		GetComments(ctx context.Context, postID uuid.UUID, viewerID uuid.UUID, limit, offset int, excludeUserIDs []uuid.UUID) ([]PostCommentRow, int, error)
+		GetComments(ctx context.Context, postID uuid.UUID, viewerID uuid.UUID, limit, offset int, excludeUserIDs []uuid.UUID) ([]model.PostCommentRow, int, error)
 		GetCommentPostID(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error)
 		GetCommentAuthorID(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error)
 		LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error
@@ -48,18 +51,23 @@ type (
 		AddCommentMedia(ctx context.Context, commentID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, sortOrder int) (int64, error)
 		UpdateCommentMediaURL(ctx context.Context, id int64, mediaURL string) error
 		UpdateCommentMediaThumbnail(ctx context.Context, id int64, thumbnailURL string) error
-		GetCommentMedia(ctx context.Context, commentID uuid.UUID) ([]PostMediaRow, error)
-		GetCommentMediaBatch(ctx context.Context, commentIDs []uuid.UUID) (map[uuid.UUID][]PostMediaRow, error)
+		GetCommentMedia(ctx context.Context, commentID uuid.UUID) ([]model.PostMediaRow, error)
+		GetCommentMediaBatch(ctx context.Context, commentIDs []uuid.UUID) (map[uuid.UUID][]model.PostMediaRow, error)
 
 		CountUserPostsToday(ctx context.Context, userID uuid.UUID) (int, error)
 		GetCornerCounts(ctx context.Context) (map[string]int, error)
 
+		CreatePollWithOptions(ctx context.Context, pollID uuid.UUID, postID uuid.UUID, durationSeconds int, expiresAt string, options []string) error
+		GetPollByPostID(ctx context.Context, postID uuid.UUID, viewerID uuid.UUID) (*model.PollRow, []model.PollOptionRow, *int, error)
+		GetPollsByPostIDs(ctx context.Context, postIDs []uuid.UUID, viewerID uuid.UUID) (map[uuid.UUID]*model.PollRow, map[uuid.UUID][]model.PollOptionRow, map[uuid.UUID]*int, error)
+		VotePoll(ctx context.Context, pollID uuid.UUID, userID uuid.UUID, optionID int) error
+
 		AddEmbed(ctx context.Context, ownerID string, ownerType string, url string, embedType string, title string, description string, image string, siteName string, videoID string, sortOrder int) error
 		DeleteEmbeds(ctx context.Context, ownerID string, ownerType string) error
 		UpdateEmbed(ctx context.Context, id int, title string, description string, image string, siteName string) error
-		GetEmbeds(ctx context.Context, ownerID string, ownerType string) ([]EmbedRow, error)
-		GetEmbedsBatch(ctx context.Context, ownerIDs []string, ownerType string) (map[string][]EmbedRow, error)
-		GetStaleEmbeds(ctx context.Context, olderThan string, limit int) ([]EmbedRow, error)
+		GetEmbeds(ctx context.Context, ownerID string, ownerType string) ([]model.EmbedRow, error)
+		GetEmbedsBatch(ctx context.Context, ownerIDs []string, ownerType string) (map[string][]model.EmbedRow, error)
+		GetStaleEmbeds(ctx context.Context, olderThan string, limit int) ([]model.EmbedRow, error)
 	}
 
 	postRepository struct {
@@ -79,7 +87,7 @@ const postSelectBase = `
 	JOIN users u ON p.user_id = u.id
 	LEFT JOIN user_roles r ON r.user_id = p.user_id`
 
-func scanPostRow(row interface{ Scan(...interface{}) error }, p *PostRow) error {
+func scanPostRow(row interface{ Scan(...interface{}) error }, p *model.PostRow) error {
 	var userLikedInt int
 	err := row.Scan(
 		&p.ID, &p.UserID, &p.Corner, &p.Body, &p.CreatedAt, &p.UpdatedAt,
@@ -168,8 +176,8 @@ func (r *postRepository) updatePost(ctx context.Context, id uuid.UUID, userID *u
 	return nil
 }
 
-func (r *postRepository) GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID) (*PostRow, error) {
-	var p PostRow
+func (r *postRepository) GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID) (*model.PostRow, error) {
+	var p model.PostRow
 	err := scanPostRow(r.db.QueryRowContext(ctx, postSelectBase+` WHERE p.id = ?`, viewerID, id), &p)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -200,7 +208,7 @@ func (r *postRepository) DeleteAsAdmin(ctx context.Context, id uuid.UUID) error 
 	return nil
 }
 
-func (r *postRepository) ListAll(ctx context.Context, viewerID uuid.UUID, corner string, search string, sort string, seed int, limit, offset int, excludeUserIDs []uuid.UUID) ([]PostRow, int, error) {
+func (r *postRepository) ListAll(ctx context.Context, viewerID uuid.UUID, corner string, search string, sort string, seed int, limit, offset int, excludeUserIDs []uuid.UUID) ([]model.PostRow, int, error) {
 	var total int
 	whereParts := []string{"p.corner = ?"}
 	args := []interface{}{corner}
@@ -237,9 +245,9 @@ func (r *postRepository) ListAll(ctx context.Context, viewerID uuid.UUID, corner
 	}
 	defer rows.Close()
 
-	var posts []PostRow
+	var posts []model.PostRow
 	for rows.Next() {
-		var p PostRow
+		var p model.PostRow
 		if err := scanPostRow(rows, &p); err != nil {
 			return nil, 0, fmt.Errorf("scan post: %w", err)
 		}
@@ -248,7 +256,7 @@ func (r *postRepository) ListAll(ctx context.Context, viewerID uuid.UUID, corner
 	return posts, total, rows.Err()
 }
 
-func (r *postRepository) ListByFollowing(ctx context.Context, userID uuid.UUID, corner string, sort string, seed int, limit, offset int, excludeUserIDs []uuid.UUID) ([]PostRow, int, error) {
+func (r *postRepository) ListByFollowing(ctx context.Context, userID uuid.UUID, corner string, sort string, seed int, limit, offset int, excludeUserIDs []uuid.UUID) ([]model.PostRow, int, error) {
 	var total int
 	exclSQL, exclArgs := ExcludeClause("user_id", excludeUserIDs)
 	countQuery := `SELECT COUNT(*) FROM posts WHERE corner = ? AND (user_id = ? OR user_id IN (SELECT following_id FROM follows WHERE follower_id = ?))` + exclSQL
@@ -275,9 +283,9 @@ func (r *postRepository) ListByFollowing(ctx context.Context, userID uuid.UUID, 
 	}
 	defer rows.Close()
 
-	var posts []PostRow
+	var posts []model.PostRow
 	for rows.Next() {
-		var p PostRow
+		var p model.PostRow
 		if err := scanPostRow(rows, &p); err != nil {
 			return nil, 0, fmt.Errorf("scan post: %w", err)
 		}
@@ -286,7 +294,7 @@ func (r *postRepository) ListByFollowing(ctx context.Context, userID uuid.UUID, 
 	return posts, total, rows.Err()
 }
 
-func (r *postRepository) ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit, offset int) ([]PostRow, int, error) {
+func (r *postRepository) ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit, offset int) ([]model.PostRow, int, error) {
 	var total int
 	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM posts WHERE user_id = ?`, userID).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count user posts: %w", err)
@@ -299,9 +307,9 @@ func (r *postRepository) ListByUser(ctx context.Context, userID uuid.UUID, viewe
 	}
 	defer rows.Close()
 
-	var posts []PostRow
+	var posts []model.PostRow
 	for rows.Next() {
-		var p PostRow
+		var p model.PostRow
 		if err := scanPostRow(rows, &p); err != nil {
 			return nil, 0, fmt.Errorf("scan post: %w", err)
 		}
@@ -350,7 +358,7 @@ func (r *postRepository) UpdateMediaThumbnail(ctx context.Context, id int64, thu
 	return nil
 }
 
-func (r *postRepository) GetMedia(ctx context.Context, postID uuid.UUID) ([]PostMediaRow, error) {
+func (r *postRepository) GetMedia(ctx context.Context, postID uuid.UUID) ([]model.PostMediaRow, error) {
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT id, post_id, media_url, media_type, thumbnail_url, sort_order FROM post_media WHERE post_id = ? ORDER BY sort_order`,
 		postID,
@@ -360,9 +368,9 @@ func (r *postRepository) GetMedia(ctx context.Context, postID uuid.UUID) ([]Post
 	}
 	defer rows.Close()
 
-	var media []PostMediaRow
+	var media []model.PostMediaRow
 	for rows.Next() {
-		var m PostMediaRow
+		var m model.PostMediaRow
 		if err := rows.Scan(&m.ID, &m.PostID, &m.MediaURL, &m.MediaType, &m.ThumbnailURL, &m.SortOrder); err != nil {
 			return nil, fmt.Errorf("scan post media: %w", err)
 		}
@@ -371,7 +379,7 @@ func (r *postRepository) GetMedia(ctx context.Context, postID uuid.UUID) ([]Post
 	return media, rows.Err()
 }
 
-func (r *postRepository) GetMediaBatch(ctx context.Context, postIDs []uuid.UUID) (map[uuid.UUID][]PostMediaRow, error) {
+func (r *postRepository) GetMediaBatch(ctx context.Context, postIDs []uuid.UUID) (map[uuid.UUID][]model.PostMediaRow, error) {
 	if len(postIDs) == 0 {
 		return nil, nil
 	}
@@ -392,9 +400,9 @@ func (r *postRepository) GetMediaBatch(ctx context.Context, postIDs []uuid.UUID)
 	}
 	defer rows.Close()
 
-	result := make(map[uuid.UUID][]PostMediaRow)
+	result := make(map[uuid.UUID][]model.PostMediaRow)
 	for rows.Next() {
-		var m PostMediaRow
+		var m model.PostMediaRow
 		if err := rows.Scan(&m.ID, &m.PostID, &m.MediaURL, &m.MediaType, &m.ThumbnailURL, &m.SortOrder); err != nil {
 			return nil, fmt.Errorf("scan post media: %w", err)
 		}
@@ -425,7 +433,7 @@ func (r *postRepository) Unlike(ctx context.Context, userID uuid.UUID, postID uu
 	return nil
 }
 
-func (r *postRepository) GetLikedBy(ctx context.Context, postID uuid.UUID, excludeUserIDs []uuid.UUID) ([]PostLikeUser, error) {
+func (r *postRepository) GetLikedBy(ctx context.Context, postID uuid.UUID, excludeUserIDs []uuid.UUID) ([]model.PostLikeUser, error) {
 	exclSQL, exclArgs := ExcludeClause("pl.user_id", excludeUserIDs)
 	queryArgs := []interface{}{postID}
 	queryArgs = append(queryArgs, exclArgs...)
@@ -443,9 +451,9 @@ func (r *postRepository) GetLikedBy(ctx context.Context, postID uuid.UUID, exclu
 	}
 	defer rows.Close()
 
-	var users []PostLikeUser
+	var users []model.PostLikeUser
 	for rows.Next() {
-		var u PostLikeUser
+		var u model.PostLikeUser
 		if err := rows.Scan(&u.ID, &u.Username, &u.DisplayName, &u.AvatarURL, &u.Role); err != nil {
 			return nil, fmt.Errorf("scan like user: %w", err)
 		}
@@ -544,7 +552,7 @@ func (r *postRepository) DeleteCommentAsAdmin(ctx context.Context, id uuid.UUID)
 	return nil
 }
 
-func (r *postRepository) GetComments(ctx context.Context, postID uuid.UUID, viewerID uuid.UUID, limit, offset int, excludeUserIDs []uuid.UUID) ([]PostCommentRow, int, error) {
+func (r *postRepository) GetComments(ctx context.Context, postID uuid.UUID, viewerID uuid.UUID, limit, offset int, excludeUserIDs []uuid.UUID) ([]model.PostCommentRow, int, error) {
 	var total int
 	exclSQL, exclArgs := ExcludeClause("user_id", excludeUserIDs)
 	countArgs := []interface{}{postID}
@@ -573,9 +581,9 @@ func (r *postRepository) GetComments(ctx context.Context, postID uuid.UUID, view
 	}
 	defer rows.Close()
 
-	var comments []PostCommentRow
+	var comments []model.PostCommentRow
 	for rows.Next() {
-		var c PostCommentRow
+		var c model.PostCommentRow
 		var userLikedInt int
 		if err := rows.Scan(
 			&c.ID, &c.PostID, &c.ParentID, &c.UserID, &c.Body, &c.CreatedAt, &c.UpdatedAt,
@@ -657,7 +665,7 @@ func (r *postRepository) UpdateCommentMediaThumbnail(ctx context.Context, id int
 	return nil
 }
 
-func (r *postRepository) GetCommentMedia(ctx context.Context, commentID uuid.UUID) ([]PostMediaRow, error) {
+func (r *postRepository) GetCommentMedia(ctx context.Context, commentID uuid.UUID) ([]model.PostMediaRow, error) {
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT id, comment_id, media_url, media_type, thumbnail_url, sort_order FROM post_comment_media WHERE comment_id = ? ORDER BY sort_order`,
 		commentID,
@@ -667,9 +675,9 @@ func (r *postRepository) GetCommentMedia(ctx context.Context, commentID uuid.UUI
 	}
 	defer rows.Close()
 
-	var media []PostMediaRow
+	var media []model.PostMediaRow
 	for rows.Next() {
-		var m PostMediaRow
+		var m model.PostMediaRow
 		if err := rows.Scan(&m.ID, &m.PostID, &m.MediaURL, &m.MediaType, &m.ThumbnailURL, &m.SortOrder); err != nil {
 			return nil, fmt.Errorf("scan comment media: %w", err)
 		}
@@ -678,7 +686,7 @@ func (r *postRepository) GetCommentMedia(ctx context.Context, commentID uuid.UUI
 	return media, rows.Err()
 }
 
-func (r *postRepository) GetCommentMediaBatch(ctx context.Context, commentIDs []uuid.UUID) (map[uuid.UUID][]PostMediaRow, error) {
+func (r *postRepository) GetCommentMediaBatch(ctx context.Context, commentIDs []uuid.UUID) (map[uuid.UUID][]model.PostMediaRow, error) {
 	if len(commentIDs) == 0 {
 		return nil, nil
 	}
@@ -699,9 +707,9 @@ func (r *postRepository) GetCommentMediaBatch(ctx context.Context, commentIDs []
 	}
 	defer rows.Close()
 
-	result := make(map[uuid.UUID][]PostMediaRow)
+	result := make(map[uuid.UUID][]model.PostMediaRow)
 	for rows.Next() {
-		var m PostMediaRow
+		var m model.PostMediaRow
 		var commentID uuid.UUID
 		if err := rows.Scan(&m.ID, &commentID, &m.MediaURL, &m.MediaType, &m.ThumbnailURL, &m.SortOrder); err != nil {
 			return nil, fmt.Errorf("scan comment media: %w", err)
@@ -772,7 +780,7 @@ func (r *postRepository) UpdateEmbed(ctx context.Context, id int, title string, 
 	return nil
 }
 
-func (r *postRepository) GetStaleEmbeds(ctx context.Context, olderThan string, limit int) ([]EmbedRow, error) {
+func (r *postRepository) GetStaleEmbeds(ctx context.Context, olderThan string, limit int) ([]model.EmbedRow, error) {
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT id, owner_id, url, embed_type, title, description, image, site_name, video_id, sort_order FROM embeds WHERE embed_type = 'link' AND fetched_at < datetime('now', ?) LIMIT ?`,
 		olderThan, limit,
@@ -782,9 +790,9 @@ func (r *postRepository) GetStaleEmbeds(ctx context.Context, olderThan string, l
 	}
 	defer rows.Close()
 
-	var embeds []EmbedRow
+	var embeds []model.EmbedRow
 	for rows.Next() {
-		var e EmbedRow
+		var e model.EmbedRow
 		if err := rows.Scan(&e.ID, &e.OwnerID, &e.URL, &e.EmbedType, &e.Title, &e.Desc, &e.Image, &e.SiteName, &e.VideoID, &e.SortOrder); err != nil {
 			return nil, fmt.Errorf("scan stale embed: %w", err)
 		}
@@ -793,7 +801,7 @@ func (r *postRepository) GetStaleEmbeds(ctx context.Context, olderThan string, l
 	return embeds, rows.Err()
 }
 
-func (r *postRepository) GetEmbeds(ctx context.Context, ownerID string, ownerType string) ([]EmbedRow, error) {
+func (r *postRepository) GetEmbeds(ctx context.Context, ownerID string, ownerType string) ([]model.EmbedRow, error) {
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT id, owner_id, url, embed_type, title, description, image, site_name, video_id, sort_order FROM embeds WHERE owner_id = ? AND owner_type = ? ORDER BY sort_order`,
 		ownerID, ownerType,
@@ -803,9 +811,9 @@ func (r *postRepository) GetEmbeds(ctx context.Context, ownerID string, ownerTyp
 	}
 	defer rows.Close()
 
-	var embeds []EmbedRow
+	var embeds []model.EmbedRow
 	for rows.Next() {
-		var e EmbedRow
+		var e model.EmbedRow
 		if err := rows.Scan(&e.ID, &e.OwnerID, &e.URL, &e.EmbedType, &e.Title, &e.Desc, &e.Image, &e.SiteName, &e.VideoID, &e.SortOrder); err != nil {
 			return nil, fmt.Errorf("scan embed: %w", err)
 		}
@@ -814,7 +822,7 @@ func (r *postRepository) GetEmbeds(ctx context.Context, ownerID string, ownerTyp
 	return embeds, rows.Err()
 }
 
-func (r *postRepository) GetEmbedsBatch(ctx context.Context, ownerIDs []string, ownerType string) (map[string][]EmbedRow, error) {
+func (r *postRepository) GetEmbedsBatch(ctx context.Context, ownerIDs []string, ownerType string) (map[string][]model.EmbedRow, error) {
 	if len(ownerIDs) == 0 {
 		return nil, nil
 	}
@@ -836,13 +844,197 @@ func (r *postRepository) GetEmbedsBatch(ctx context.Context, ownerIDs []string, 
 	}
 	defer rows.Close()
 
-	result := make(map[string][]EmbedRow)
+	result := make(map[string][]model.EmbedRow)
 	for rows.Next() {
-		var e EmbedRow
+		var e model.EmbedRow
 		if err := rows.Scan(&e.ID, &e.OwnerID, &e.URL, &e.EmbedType, &e.Title, &e.Desc, &e.Image, &e.SiteName, &e.VideoID, &e.SortOrder); err != nil {
 			return nil, fmt.Errorf("scan embed: %w", err)
 		}
 		result[e.OwnerID] = append(result[e.OwnerID], e)
 	}
 	return result, rows.Err()
+}
+
+func (r *postRepository) CreatePollWithOptions(ctx context.Context, pollID uuid.UUID, postID uuid.UUID, durationSeconds int, expiresAt string, options []string) error {
+	return db.WithTx(ctx, r.db, func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(ctx,
+			`INSERT INTO post_polls (id, post_id, duration_seconds, expires_at) VALUES (?, ?, ?, ?)`,
+			pollID, postID, durationSeconds, expiresAt,
+		); err != nil {
+			return fmt.Errorf("create poll: %w", err)
+		}
+		for i, label := range options {
+			if _, err := tx.ExecContext(ctx,
+				`INSERT INTO post_poll_options (poll_id, label, sort_order) VALUES (?, ?, ?)`,
+				pollID, label, i,
+			); err != nil {
+				return fmt.Errorf("add poll option: %w", err)
+			}
+		}
+		return nil
+	})
+}
+
+func (r *postRepository) GetPollByPostID(ctx context.Context, postID uuid.UUID, viewerID uuid.UUID) (*model.PollRow, []model.PollOptionRow, *int, error) {
+	var poll model.PollRow
+	err := r.db.QueryRowContext(ctx,
+		`SELECT id, post_id, duration_seconds, expires_at FROM post_polls WHERE post_id = ?`, postID,
+	).Scan(&poll.ID, &poll.PostID, &poll.DurationSeconds, &poll.ExpiresAt)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil, nil, nil
+		}
+		return nil, nil, nil, fmt.Errorf("get poll: %w", err)
+	}
+
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT o.id, o.poll_id, o.label, o.sort_order,
+			(SELECT COUNT(*) FROM post_poll_votes WHERE option_id = o.id)
+		FROM post_poll_options o
+		WHERE o.poll_id = ?
+		ORDER BY o.sort_order`, poll.ID,
+	)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("get poll options: %w", err)
+	}
+	defer rows.Close()
+
+	var options []model.PollOptionRow
+	for rows.Next() {
+		var o model.PollOptionRow
+		if err := rows.Scan(&o.ID, &o.PollID, &o.Label, &o.SortOrder, &o.VoteCount); err != nil {
+			return nil, nil, nil, fmt.Errorf("scan poll option: %w", err)
+		}
+		options = append(options, o)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, nil, nil, err
+	}
+
+	var votedOption *int
+	if viewerID != uuid.Nil {
+		var optID int
+		err := r.db.QueryRowContext(ctx,
+			`SELECT option_id FROM post_poll_votes WHERE poll_id = ? AND user_id = ?`, poll.ID, viewerID,
+		).Scan(&optID)
+		if err == nil {
+			votedOption = &optID
+		}
+	}
+
+	return &poll, options, votedOption, nil
+}
+
+func (r *postRepository) GetPollsByPostIDs(ctx context.Context, postIDs []uuid.UUID, viewerID uuid.UUID) (map[uuid.UUID]*model.PollRow, map[uuid.UUID][]model.PollOptionRow, map[uuid.UUID]*int, error) {
+	if len(postIDs) == 0 {
+		return nil, nil, nil, nil
+	}
+
+	placeholders := "?"
+	args := []interface{}{postIDs[0]}
+	for _, id := range postIDs[1:] {
+		placeholders += ", ?"
+		args = append(args, id)
+	}
+
+	pollRows, err := r.db.QueryContext(ctx,
+		`SELECT id, post_id, duration_seconds, expires_at FROM post_polls WHERE post_id IN (`+placeholders+`)`, args...,
+	)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("batch get polls: %w", err)
+	}
+	defer pollRows.Close()
+
+	polls := make(map[uuid.UUID]*model.PollRow)
+	var pollIDs []string
+	for pollRows.Next() {
+		var p model.PollRow
+		if err := pollRows.Scan(&p.ID, &p.PostID, &p.DurationSeconds, &p.ExpiresAt); err != nil {
+			return nil, nil, nil, fmt.Errorf("scan poll: %w", err)
+		}
+		postUUID, _ := uuid.Parse(p.PostID)
+		polls[postUUID] = &p
+		pollIDs = append(pollIDs, p.ID)
+	}
+	if err := pollRows.Err(); err != nil {
+		return nil, nil, nil, err
+	}
+	if len(pollIDs) == 0 {
+		return polls, nil, nil, nil
+	}
+
+	pPlaceholders := "?"
+	pArgs := []interface{}{pollIDs[0]}
+	for _, pid := range pollIDs[1:] {
+		pPlaceholders += ", ?"
+		pArgs = append(pArgs, pid)
+	}
+
+	optRows, err := r.db.QueryContext(ctx,
+		`SELECT o.id, o.poll_id, o.label, o.sort_order,
+			(SELECT COUNT(*) FROM post_poll_votes WHERE option_id = o.id)
+		FROM post_poll_options o
+		WHERE o.poll_id IN (`+pPlaceholders+`)
+		ORDER BY o.sort_order`, pArgs...,
+	)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("batch get poll options: %w", err)
+	}
+	defer optRows.Close()
+
+	optionsByPost := make(map[uuid.UUID][]model.PollOptionRow)
+	pollToPost := make(map[string]uuid.UUID)
+	for postUUID, p := range polls {
+		pollToPost[p.ID] = postUUID
+	}
+	for optRows.Next() {
+		var o model.PollOptionRow
+		if err := optRows.Scan(&o.ID, &o.PollID, &o.Label, &o.SortOrder, &o.VoteCount); err != nil {
+			return nil, nil, nil, fmt.Errorf("scan poll option: %w", err)
+		}
+		postUUID := pollToPost[o.PollID]
+		optionsByPost[postUUID] = append(optionsByPost[postUUID], o)
+	}
+	if err := optRows.Err(); err != nil {
+		return nil, nil, nil, err
+	}
+
+	votes := make(map[uuid.UUID]*int)
+	if viewerID != uuid.Nil {
+		vRows, err := r.db.QueryContext(ctx,
+			`SELECT v.poll_id, v.option_id FROM post_poll_votes v
+			WHERE v.poll_id IN (`+pPlaceholders+`) AND v.user_id = ?`,
+			append(pArgs, viewerID)...,
+		)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("batch get poll votes: %w", err)
+		}
+		defer vRows.Close()
+		for vRows.Next() {
+			var pollID string
+			var optID int
+			if err := vRows.Scan(&pollID, &optID); err != nil {
+				return nil, nil, nil, fmt.Errorf("scan poll vote: %w", err)
+			}
+			postUUID := pollToPost[pollID]
+			v := optID
+			votes[postUUID] = &v
+		}
+	}
+
+	return polls, optionsByPost, votes, nil
+}
+
+func (r *postRepository) VotePoll(ctx context.Context, pollID uuid.UUID, userID uuid.UUID, optionID int) error {
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO post_poll_votes (poll_id, user_id, option_id) VALUES (?, ?, ?)`,
+		pollID, userID, optionID,
+	)
+	if err != nil {
+		if strings.Contains(err.Error(), "UNIQUE constraint") || strings.Contains(err.Error(), "PRIMARY") {
+			return fmt.Errorf("already voted")
+		}
+		return fmt.Errorf("vote poll: %w", err)
+	}
+	return nil
 }

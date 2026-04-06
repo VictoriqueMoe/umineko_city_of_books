@@ -1,10 +1,11 @@
-import type { Quote } from "../../../types/api";
+import type {Quote} from "../../../types/api";
 import styles from "./TruthCard.module.css";
 
 interface TruthCardProps {
     quote: Quote;
     onClick?: () => void;
     selected?: boolean;
+    lang?: string;
 }
 
 function cardClass(quote: Quote): string {
@@ -23,7 +24,14 @@ function cardClass(quote: Quote): string {
     return "";
 }
 
-export function TruthCard({ quote, onClick, selected }: TruthCardProps) {
+function getDisplayHtml(quote: Quote, lang?: string): string {
+    if (lang === "jp" && quote.textJpHtml) {
+        return quote.textJpHtml;
+    }
+    return quote.textHtml;
+}
+
+export function TruthCard({ quote, onClick, selected, lang }: TruthCardProps) {
     return (
         <div
             className={`${styles.card} ${cardClass(quote)}${selected ? ` ${styles.selected}` : ""}`}
@@ -37,7 +45,7 @@ export function TruthCard({ quote, onClick, selected }: TruthCardProps) {
                 }
             }}
         >
-            <div className={styles.text} dangerouslySetInnerHTML={{ __html: quote.textHtml }} />
+            <div className={styles.text} dangerouslySetInnerHTML={{ __html: getDisplayHtml(quote, lang) }} />
             <div className={styles.meta}>
                 <span className={styles.speaker}>{quote.character}</span>
                 <span className={styles.episode}>Episode {quote.episode}</span>

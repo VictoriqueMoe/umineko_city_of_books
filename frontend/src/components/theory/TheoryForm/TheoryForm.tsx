@@ -1,14 +1,14 @@
-import React, { useState } from "react";
-import { useEvidence } from "../../../hooks/useEvidence";
-import { Button } from "../../Button/Button";
-import { Input } from "../../Input/Input";
-import { TextArea } from "../../TextArea/TextArea";
-import { TruthPicker } from "../../truth/TruthPicker/TruthPicker";
-import { TruthChip } from "../../truth/TruthChip/TruthChip";
-import { Select } from "../../Select/Select";
-import type { EvidenceInput, EvidenceItem } from "../../../types/api";
-import type { Series } from "../../../api/endpoints";
-import { getSeriesConfig } from "../../../utils/seriesConfig";
+import React, {useState} from "react";
+import {useEvidence} from "../../../hooks/useEvidence";
+import {Button} from "../../Button/Button";
+import {Input} from "../../Input/Input";
+import {TextArea} from "../../TextArea/TextArea";
+import {TruthPicker} from "../../truth/TruthPicker/TruthPicker";
+import {TruthChip} from "../../truth/TruthChip/TruthChip";
+import {Select} from "../../Select/Select";
+import type {EvidenceInput, EvidenceItem} from "../../../types/api";
+import type {Series} from "../../../api/endpoints";
+import {getSeriesConfig} from "../../../utils/seriesConfig";
 import styles from "./TheoryForm.module.css";
 
 interface TheoryFormProps {
@@ -85,7 +85,7 @@ export function TheoryForm({
                     <div className={styles.evidenceSection}>
                         {ev.evidence.map((item, i) => (
                             <div key={item.quote.audioId} className={styles.evidenceItem}>
-                                <TruthChip quote={item.quote} onRemove={() => ev.removeAt(i)} />
+                                <TruthChip quote={item.quote} lang={item.lang} onRemove={() => ev.removeAt(i)} />
                                 <Input
                                     type="text"
                                     fullWidth

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/repository/model"
 
 	"github.com/google/uuid"
 )
@@ -20,7 +21,7 @@ type (
 			actorID uuid.UUID,
 			message string,
 		) (int64, error)
-		ListByUser(ctx context.Context, userID uuid.UUID, limit, offset int) ([]NotificationRow, int, error)
+		ListByUser(ctx context.Context, userID uuid.UUID, limit, offset int) ([]model.NotificationRow, int, error)
 		MarkRead(ctx context.Context, id int, userID uuid.UUID) error
 		MarkAllRead(ctx context.Context, userID uuid.UUID) error
 		UnreadCount(ctx context.Context, userID uuid.UUID) (int, error)
@@ -52,7 +53,7 @@ func (r *notificationRepository) Create(
 	return result.LastInsertId()
 }
 
-func (r *notificationRepository) ListByUser(ctx context.Context, userID uuid.UUID, limit, offset int) ([]NotificationRow, int, error) {
+func (r *notificationRepository) ListByUser(ctx context.Context, userID uuid.UUID, limit, offset int) ([]model.NotificationRow, int, error) {
 	var total int
 	err := r.db.QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM notifications WHERE user_id = ?`, userID,
@@ -76,9 +77,9 @@ func (r *notificationRepository) ListByUser(ctx context.Context, userID uuid.UUI
 	}
 	defer rows.Close()
 
-	var notifications []NotificationRow
+	var notifications []model.NotificationRow
 	for rows.Next() {
-		var n NotificationRow
+		var n model.NotificationRow
 		var readInt int
 		if err := rows.Scan(
 			&n.ID, &n.UserID, &n.Type, &n.ReferenceID, &n.ReferenceType, &n.ActorID, &n.Message, &readInt, &n.CreatedAt,

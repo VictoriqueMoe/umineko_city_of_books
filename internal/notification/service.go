@@ -2,12 +2,12 @@ package notification
 
 import (
 	"context"
+	"umineko_city_of_books/internal/repository/model"
 
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/email"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/repository"
-	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
@@ -91,7 +91,7 @@ func (s *service) pushNotification(ctx context.Context, notifID int, recipientID
 		return
 	}
 
-	var row repository.NotificationRow
+	var row model.NotificationRow
 	for _, r := range rows {
 		if r.ID == notifID {
 			row = r
@@ -104,7 +104,7 @@ func (s *service) pushNotification(ctx context.Context, notifID int, recipientID
 
 	s.hub.SendToUser(recipientID, ws.Message{
 		Type: "notification",
-		Data: rowToDTO(row),
+		Data: row.ToResponse(),
 	})
 }
 
@@ -116,7 +116,7 @@ func (s *service) List(ctx context.Context, userID uuid.UUID, limit, offset int)
 
 	notifications := make([]dto.NotificationResponse, len(rows))
 	for i, row := range rows {
-		notifications[i] = rowToDTO(row)
+		notifications[i] = row.ToResponse()
 	}
 
 	return &dto.NotificationListResponse{
@@ -137,23 +137,4 @@ func (s *service) MarkAllRead(ctx context.Context, userID uuid.UUID) error {
 
 func (s *service) UnreadCount(ctx context.Context, userID uuid.UUID) (int, error) {
 	return s.repo.UnreadCount(ctx, userID)
-}
-
-func rowToDTO(row repository.NotificationRow) dto.NotificationResponse {
-	return dto.NotificationResponse{
-		ID:            row.ID,
-		Type:          row.Type,
-		ReferenceID:   row.ReferenceID,
-		ReferenceType: row.ReferenceType,
-		Actor: dto.UserResponse{
-			ID:          row.ActorID,
-			Username:    row.ActorUsername,
-			DisplayName: row.ActorDisplayName,
-			AvatarURL:   row.ActorAvatarURL,
-			Role:        role.Role(row.ActorRole),
-		},
-		Message:   row.Message,
-		Read:      row.Read,
-		CreatedAt: row.CreatedAt,
-	}
 }

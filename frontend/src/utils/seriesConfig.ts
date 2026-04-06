@@ -1,4 +1,9 @@
-import type { Series } from "../api/endpoints";
+import type {Series} from "../api/endpoints";
+
+interface LangOption {
+    value: string;
+    label: string;
+}
 
 interface SeriesConfig {
     withLoveTitle: string;
@@ -11,6 +16,7 @@ interface SeriesConfig {
     theoriesPath: string;
     newTheoryPath: string;
     label: string;
+    languages: LangOption[];
 }
 
 const configs: Record<Series, SeriesConfig> = {
@@ -25,6 +31,15 @@ const configs: Record<Series, SeriesConfig> = {
         theoriesPath: "/theories",
         newTheoryPath: "/theory/new",
         label: "Umineko",
+        languages: [
+            { value: "en", label: "English" },
+            { value: "wh", label: "Witch Hunt" },
+            { value: "ja", label: "Japanese" },
+            { value: "zh", label: "Chinese" },
+            { value: "ru", label: "Russian" },
+            { value: "es", label: "Spanish" },
+            { value: "pt", label: "Portuguese" },
+        ],
     },
     higurashi: {
         withLoveTitle: "Nipah~!",
@@ -37,6 +52,10 @@ const configs: Record<Series, SeriesConfig> = {
         theoriesPath: "/theories/higurashi",
         newTheoryPath: "/theory/higurashi/new",
         label: "Higurashi",
+        languages: [
+            { value: "en", label: "English" },
+            { value: "jp", label: "Japanese" },
+        ],
     },
 };
 

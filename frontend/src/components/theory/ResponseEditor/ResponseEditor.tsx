@@ -1,12 +1,12 @@
-import React, { useState } from "react";
-import { createResponse, type Series } from "../../../api/endpoints";
-import { useEvidence } from "../../../hooks/useEvidence";
-import { getSeriesConfig } from "../../../utils/seriesConfig";
-import { Button } from "../../Button/Button";
-import { Input } from "../../Input/Input";
-import { TextArea } from "../../TextArea/TextArea";
-import { TruthPicker } from "../../truth/TruthPicker/TruthPicker";
-import { TruthChip } from "../../truth/TruthChip/TruthChip";
+import React, {useState} from "react";
+import {createResponse, type Series} from "../../../api/endpoints";
+import {useEvidence} from "../../../hooks/useEvidence";
+import {getSeriesConfig} from "../../../utils/seriesConfig";
+import {Button} from "../../Button/Button";
+import {Input} from "../../Input/Input";
+import {TextArea} from "../../TextArea/TextArea";
+import {TruthPicker} from "../../truth/TruthPicker/TruthPicker";
+import {TruthChip} from "../../truth/TruthChip/TruthChip";
 import styles from "./ResponseEditor.module.css";
 
 interface ResponseEditorProps {
@@ -93,7 +93,7 @@ export function ResponseEditor({
                     <div className={styles.evidenceSection}>
                         {ev.evidence.map((item, i) => (
                             <div key={item.quote.audioId} className={styles.evidenceItem}>
-                                <TruthChip quote={item.quote} onRemove={() => ev.removeAt(i)} />
+                                <TruthChip quote={item.quote} lang={item.lang} onRemove={() => ev.removeAt(i)} />
                                 <Input
                                     type="text"
                                     fullWidth

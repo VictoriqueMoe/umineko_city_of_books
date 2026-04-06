@@ -49,6 +49,8 @@ func (h *SitemapHandler) Register(app fiber.Router) {
 	app.Get("/sitemap-posts.xml", h.posts)
 	app.Get("/sitemap-art.xml", h.art)
 	app.Get("/sitemap-users.xml", h.users)
+	app.Get("/sitemap-mysteries.xml", h.mysteries)
+	app.Get("/sitemap-ships.xml", h.ships)
 }
 
 func (h *SitemapHandler) sendXML(ctx fiber.Ctx, v interface{}) error {
@@ -70,6 +72,8 @@ func (h *SitemapHandler) index(ctx fiber.Ctx) error {
 			{Loc: h.baseURL + "/sitemap-posts.xml"},
 			{Loc: h.baseURL + "/sitemap-art.xml"},
 			{Loc: h.baseURL + "/sitemap-users.xml"},
+			{Loc: h.baseURL + "/sitemap-mysteries.xml"},
+			{Loc: h.baseURL + "/sitemap-ships.xml"},
 		},
 	}
 	return h.sendXML(ctx, idx)
@@ -93,6 +97,7 @@ func (h *SitemapHandler) static(ctx fiber.Ctx) error {
 			{Loc: h.baseURL + "/quotes", LastMod: now},
 			{Loc: h.baseURL + "/mysteries", LastMod: now},
 			{Loc: h.baseURL + "/ships", LastMod: now},
+			{Loc: h.baseURL + "/suggestions", LastMod: now},
 			{Loc: h.baseURL + "/login", LastMod: now},
 		},
 	}
@@ -196,6 +201,60 @@ func (h *SitemapHandler) users(ctx fiber.Ctx) error {
 		}
 		urls = append(urls, sitemapURL{
 			Loc: h.baseURL + "/user/" + username,
+		})
+	}
+
+	return h.sendXML(ctx, sitemapURLSet{
+		XMLNS: "http://www.sitemaps.org/schemas/sitemap/0.9",
+		URLs:  urls,
+	})
+}
+
+func (h *SitemapHandler) mysteries(ctx fiber.Ctx) error {
+	rows, err := h.db.QueryContext(ctx.Context(),
+		`SELECT id, created_at FROM mysteries ORDER BY created_at DESC`)
+	if err != nil {
+		return ctx.Status(fiber.StatusInternalServerError).SendString("failed to query mysteries")
+	}
+	defer rows.Close()
+
+	var urls []sitemapURL
+	for rows.Next() {
+		var id, createdAt string
+		if err := rows.Scan(&id, &createdAt); err != nil {
+			continue
+		}
+		t, _ := time.Parse("2006-01-02 15:04:05", createdAt)
+		urls = append(urls, sitemapURL{
+			Loc:     h.baseURL + "/mystery/" + id,
+			LastMod: t.Format("2006-01-02"),
+		})
+	}
+
+	return h.sendXML(ctx, sitemapURLSet{
+		XMLNS: "http://www.sitemaps.org/schemas/sitemap/0.9",
+		URLs:  urls,
+	})
+}
+
+func (h *SitemapHandler) ships(ctx fiber.Ctx) error {
+	rows, err := h.db.QueryContext(ctx.Context(),
+		`SELECT id, created_at FROM ships ORDER BY created_at DESC`)
+	if err != nil {
+		return ctx.Status(fiber.StatusInternalServerError).SendString("failed to query ships")
+	}
+	defer rows.Close()
+
+	var urls []sitemapURL
+	for rows.Next() {
+		var id, createdAt string
+		if err := rows.Scan(&id, &createdAt); err != nil {
+			continue
+		}
+		t, _ := time.Parse("2006-01-02 15:04:05", createdAt)
+		urls = append(urls, sitemapURL{
+			Loc:     h.baseURL + "/ships/" + id,
+			LastMod: t.Format("2006-01-02"),
 		})
 	}
 

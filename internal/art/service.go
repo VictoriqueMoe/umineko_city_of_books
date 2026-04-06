@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"umineko_city_of_books/internal/repository/model"
 
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
@@ -196,7 +197,7 @@ func (s *service) GetArt(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, 
 
 	flatComments := make([]dto.ArtCommentResponse, len(comments))
 	for i, c := range comments {
-		flatComments[i] = artCommentToDTO(c, commentMediaMap[c.ID], commentEmbedMap[c.ID.String()])
+		flatComments[i] = c.ToResponse(commentMediaMap[c.ID], commentEmbedMap[c.ID.String()])
 	}
 	dtoComments := utils.BuildTree(flatComments,
 		func(c dto.ArtCommentResponse) uuid.UUID { return c.ID },
@@ -295,7 +296,7 @@ func (s *service) ListByUser(ctx context.Context, userID uuid.UUID, viewerID uui
 	return s.buildArtList(ctx, rows, total, limit, offset), nil
 }
 
-func (s *service) buildArtList(ctx context.Context, rows []repository.ArtRow, total, limit, offset int) *dto.ArtListResponse {
+func (s *service) buildArtList(ctx context.Context, rows []model.ArtRow, total, limit, offset int) *dto.ArtListResponse {
 	artIDs := make([]uuid.UUID, len(rows))
 	for i, r := range rows {
 		artIDs[i] = r.ID
@@ -611,54 +612,6 @@ func (s *service) UploadCommentMedia(ctx context.Context, commentID uuid.UUID, u
 	}, nil
 }
 
-func artCommentToDTO(c repository.ArtCommentRow, mediaRows []repository.PostMediaRow, embedRows []repository.EmbedRow) dto.ArtCommentResponse {
-	mediaList := make([]dto.PostMediaResponse, len(mediaRows))
-	for i, m := range mediaRows {
-		mediaList[i] = dto.PostMediaResponse{
-			ID:           m.ID,
-			MediaURL:     m.MediaURL,
-			MediaType:    m.MediaType,
-			ThumbnailURL: m.ThumbnailURL,
-			SortOrder:    m.SortOrder,
-		}
-	}
-
-	var embeds []dto.EmbedResponse
-	if len(embedRows) > 0 {
-		embeds = make([]dto.EmbedResponse, len(embedRows))
-		for i, e := range embedRows {
-			embeds[i] = dto.EmbedResponse{
-				URL:      e.URL,
-				Type:     e.EmbedType,
-				Title:    e.Title,
-				Desc:     e.Desc,
-				Image:    e.Image,
-				SiteName: e.SiteName,
-				VideoID:  e.VideoID,
-			}
-		}
-	}
-
-	return dto.ArtCommentResponse{
-		ID:       c.ID,
-		ParentID: c.ParentID,
-		Author: dto.UserResponse{
-			ID:          c.UserID,
-			Username:    c.AuthorUsername,
-			DisplayName: c.AuthorDisplayName,
-			AvatarURL:   c.AuthorAvatarURL,
-			Role:        role.Role(c.AuthorRole),
-		},
-		Body:      c.Body,
-		Media:     mediaList,
-		Embeds:    embeds,
-		LikeCount: c.LikeCount,
-		UserLiked: c.UserLiked,
-		CreatedAt: c.CreatedAt,
-		UpdatedAt: c.UpdatedAt,
-	}
-}
-
 func (s *service) CreateGallery(ctx context.Context, userID uuid.UUID, req dto.CreateGalleryRequest) (uuid.UUID, error) {
 	name := strings.TrimSpace(req.Name)
 	if name == "" {
@@ -733,7 +686,7 @@ func (s *service) GetGallery(ctx context.Context, id uuid.UUID, viewerID uuid.UU
 	return &gallery, arts, total, nil
 }
 
-func (s *service) galleriesWithPreviews(ctx context.Context, rows []repository.GalleryRow) []dto.GalleryResponse {
+func (s *service) galleriesWithPreviews(ctx context.Context, rows []model.GalleryRow) []dto.GalleryResponse {
 	result := make([]dto.GalleryResponse, len(rows))
 	for i, g := range rows {
 		result[i] = g.ToResponse()

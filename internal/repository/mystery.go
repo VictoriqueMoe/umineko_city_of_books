@@ -7,6 +7,7 @@ import (
 
 	"umineko_city_of_books/internal/db"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/role"
 
 	"github.com/google/uuid"
 )
@@ -14,7 +15,7 @@ import (
 type (
 	MysteryRepository interface {
 		Create(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, body string, difficulty string) error
-		AddClue(ctx context.Context, mysteryID uuid.UUID, body string, truthType string, sortOrder int) error
+		AddClue(ctx context.Context, mysteryID uuid.UUID, body string, truthType string, sortOrder int, playerID *uuid.UUID) error
 		Update(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, body string, difficulty string) error
 		Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		DeleteAsAdmin(ctx context.Context, id uuid.UUID) error
@@ -95,6 +96,37 @@ type (
 	}
 )
 
+func (r *MysteryRow) ToResponse() dto.MysteryResponse {
+	resp := dto.MysteryResponse{
+		ID:         r.ID,
+		Title:      r.Title,
+		Body:       r.Body,
+		Difficulty: r.Difficulty,
+		Solved:     r.Solved,
+		SolvedAt:   r.SolvedAt,
+		Author: dto.UserResponse{
+			ID:          r.UserID,
+			Username:    r.AuthorUsername,
+			DisplayName: r.AuthorDisplayName,
+			AvatarURL:   r.AuthorAvatarURL,
+			Role:        role.Role(r.AuthorRole),
+		},
+		AttemptCount: r.AttemptCount,
+		ClueCount:    r.ClueCount,
+		CreatedAt:    r.CreatedAt,
+	}
+	if r.WinnerID != nil && r.WinnerUsername != nil {
+		resp.Winner = &dto.UserResponse{
+			ID:          *r.WinnerID,
+			Username:    *r.WinnerUsername,
+			DisplayName: *r.WinnerDisplayName,
+			AvatarURL:   *r.WinnerAvatarURL,
+			Role:        role.Role(*r.WinnerRole),
+		}
+	}
+	return resp
+}
+
 func (r *mysteryRepository) Create(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, body string, difficulty string) error {
 	_, err := r.db.ExecContext(ctx,
 		`INSERT INTO mysteries (id, user_id, title, body, difficulty) VALUES (?, ?, ?, ?, ?)`,
@@ -106,10 +138,10 @@ func (r *mysteryRepository) Create(ctx context.Context, id uuid.UUID, userID uui
 	return nil
 }
 
-func (r *mysteryRepository) AddClue(ctx context.Context, mysteryID uuid.UUID, body string, truthType string, sortOrder int) error {
+func (r *mysteryRepository) AddClue(ctx context.Context, mysteryID uuid.UUID, body string, truthType string, sortOrder int, playerID *uuid.UUID) error {
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO mystery_clues (mystery_id, body, truth_type, sort_order) VALUES (?, ?, ?, ?)`,
-		mysteryID, body, truthType, sortOrder,
+		`INSERT INTO mystery_clues (mystery_id, body, truth_type, sort_order, player_id) VALUES (?, ?, ?, ?, ?)`,
+		mysteryID, body, truthType, sortOrder, playerID,
 	)
 	if err != nil {
 		return fmt.Errorf("add clue: %w", err)
@@ -253,7 +285,7 @@ func (r *mysteryRepository) List(ctx context.Context, sort string, solved *bool,
 
 func (r *mysteryRepository) GetClues(ctx context.Context, mysteryID uuid.UUID) ([]dto.MysteryClue, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, body, truth_type, sort_order FROM mystery_clues WHERE mystery_id = ? ORDER BY sort_order ASC`,
+		`SELECT id, body, truth_type, sort_order, player_id FROM mystery_clues WHERE mystery_id = ? ORDER BY sort_order ASC`,
 		mysteryID,
 	)
 	if err != nil {
@@ -264,7 +296,7 @@ func (r *mysteryRepository) GetClues(ctx context.Context, mysteryID uuid.UUID) (
 	var clues []dto.MysteryClue
 	for rows.Next() {
 		var c dto.MysteryClue
-		if err := rows.Scan(&c.ID, &c.Body, &c.TruthType, &c.SortOrder); err != nil {
+		if err := rows.Scan(&c.ID, &c.Body, &c.TruthType, &c.SortOrder, &c.PlayerID); err != nil {
 			return nil, fmt.Errorf("scan clue: %w", err)
 		}
 		clues = append(clues, c)

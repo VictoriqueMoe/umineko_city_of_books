@@ -18,3 +18,9 @@
     align-items: center;
     margin-top: 0.75rem;
 }
+
+.barLeft {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}

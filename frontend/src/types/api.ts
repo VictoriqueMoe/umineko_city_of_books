@@ -1,6 +1,8 @@
 export interface Quote {
     text: string;
     textHtml: string;
+    textJp?: string;
+    textJpHtml?: string;
     characterId: string;
     character: string;
     audioId: string;
@@ -11,6 +13,7 @@ export interface Quote {
     hasGoldTruth: boolean;
     hasPurpleTruth: boolean;
     index: number;
+    arc?: string;
     audioCharMap?: Record<string, string>;
     audioTextMap?: Record<string, string>;
 }
@@ -51,6 +54,7 @@ export interface EvidenceItem {
     audio_id?: string;
     quote_index?: number;
     note: string;
+    lang: string;
     sort_order: number;
 }
 
@@ -98,6 +102,7 @@ export interface EvidenceInput {
     audio_id?: string;
     quote_index?: number;
     note: string;
+    lang?: string;
 }
 
 export interface CreateTheoryPayload {
@@ -224,12 +229,30 @@ export interface PostEmbed {
     video_id?: string;
 }
 
+export interface PollOption {
+    id: number;
+    label: string;
+    vote_count: number;
+    percent: number;
+}
+
+export interface Poll {
+    id: string;
+    options: PollOption[];
+    total_votes: number;
+    user_voted_option: number | null;
+    expired: boolean;
+    expires_at: string;
+    duration_seconds: number;
+}
+
 export interface Post {
     id: string;
     author: User;
     body: string;
     media: PostMedia[];
     embeds?: PostEmbed[];
+    poll?: Poll;
     like_count: number;
     comment_count: number;
     view_count: number;
@@ -301,7 +324,8 @@ export type NotificationType =
     | "ship_comment_liked"
     | "announcement_commented"
     | "announcement_comment_reply"
-    | "announcement_comment_liked";
+    | "announcement_comment_liked"
+    | "suggestion_posted";
 
 export interface Notification {
     id: number;
@@ -508,6 +532,7 @@ export interface MysteryClue {
     body: string;
     truth_type: string;
     sort_order: number;
+    player_id?: string;
 }
 
 export interface MysteryAttempt {

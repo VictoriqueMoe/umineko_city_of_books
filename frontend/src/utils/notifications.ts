@@ -1,4 +1,4 @@
-import type { Notification, NotificationType } from "../types/api";
+import type {Notification, NotificationType} from "../types/api";
 
 export type NotificationCategory =
     | "game_board"
@@ -7,6 +7,7 @@ export type NotificationCategory =
     | "mysteries_gm"
     | "mysteries_player"
     | "social"
+    | "site_improvements"
     | "moderation";
 
 interface NotificationConfig {
@@ -28,6 +29,7 @@ const categoryLabels: Record<NotificationCategory, string> = {
     mysteries_gm: "Mysteries (as Game Master)",
     mysteries_player: "Mysteries (as Player)",
     social: "Social",
+    site_improvements: "Site Improvements",
     moderation: "Moderation",
 };
 
@@ -38,6 +40,7 @@ const categoryOrder: NotificationCategory[] = [
     "mysteries_gm",
     "mysteries_player",
     "social",
+    "site_improvements",
     "moderation",
 ];
 
@@ -239,6 +242,11 @@ const notificationConfigs: Record<NotificationType, NotificationConfig> = {
         text: "liked your comment",
         category: "moderation",
         route: routeByReferenceType,
+    },
+    suggestion_posted: {
+        text: "posted a site suggestion",
+        category: "site_improvements",
+        route: notif => `/suggestions/${notif.reference_id}`,
     },
 };
 

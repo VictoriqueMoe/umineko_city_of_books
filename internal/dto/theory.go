@@ -40,6 +40,7 @@ type (
 		AudioID    string `json:"audio_id,omitempty"`
 		QuoteIndex *int   `json:"quote_index,omitempty"`
 		Note       string `json:"note"`
+		Lang       string `json:"lang"`
 		SortOrder  int    `json:"sort_order"`
 	}
 
@@ -54,6 +55,7 @@ type (
 		AudioID    string `json:"audio_id,omitempty"`
 		QuoteIndex *int   `json:"quote_index,omitempty"`
 		Note       string `json:"note"`
+		Lang       string `json:"lang,omitempty"`
 	}
 
 	CreateTheoryRequest struct {

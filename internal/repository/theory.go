@@ -66,8 +66,8 @@ func (r *theoryRepository) Create(ctx context.Context, userID uuid.UUID, req dto
 		}
 		for i, ev := range req.Evidence {
 			if _, err := tx.ExecContext(ctx,
-				`INSERT INTO theory_evidence (theory_id, audio_id, quote_index, note, sort_order) VALUES (?, ?, ?, ?, ?)`,
-				theoryID, ev.AudioID, ev.QuoteIndex, ev.Note, i,
+				`INSERT INTO theory_evidence (theory_id, audio_id, quote_index, note, sort_order, lang) VALUES (?, ?, ?, ?, ?, ?)`,
+				theoryID, ev.AudioID, ev.QuoteIndex, ev.Note, i, langOrDefault(ev.Lang),
 			); err != nil {
 				return fmt.Errorf("insert evidence: %w", err)
 			}
@@ -328,7 +328,7 @@ func (r *theoryRepository) DeleteAsAdmin(ctx context.Context, id uuid.UUID) erro
 
 func (r *theoryRepository) GetEvidence(ctx context.Context, theoryID uuid.UUID) ([]dto.EvidenceResponse, error) {
 	return r.queryEvidence(ctx,
-		`SELECT te.id, te.audio_id, te.quote_index, te.note, te.sort_order
+		`SELECT te.id, te.audio_id, te.quote_index, te.note, te.sort_order, te.lang
 		 FROM theory_evidence te
 		 WHERE te.theory_id = ?
 		 ORDER BY te.sort_order`, theoryID,
@@ -346,8 +346,8 @@ func (r *theoryRepository) CreateResponse(ctx context.Context, theoryID uuid.UUI
 		}
 		for i, ev := range req.Evidence {
 			if _, err := tx.ExecContext(ctx,
-				`INSERT INTO response_evidence (response_id, audio_id, quote_index, note, sort_order) VALUES (?, ?, ?, ?, ?)`,
-				responseID, ev.AudioID, ev.QuoteIndex, ev.Note, i,
+				`INSERT INTO response_evidence (response_id, audio_id, quote_index, note, sort_order, lang) VALUES (?, ?, ?, ?, ?, ?)`,
+				responseID, ev.AudioID, ev.QuoteIndex, ev.Note, i, langOrDefault(ev.Lang),
 			); err != nil {
 				return fmt.Errorf("insert response evidence: %w", err)
 			}
@@ -452,7 +452,7 @@ func (r *theoryRepository) GetResponses(ctx context.Context, theoryID uuid.UUID,
 
 func (r *theoryRepository) GetResponseEvidence(ctx context.Context, responseID uuid.UUID) ([]dto.EvidenceResponse, error) {
 	return r.queryEvidence(ctx,
-		`SELECT re.id, re.audio_id, re.quote_index, re.note, re.sort_order
+		`SELECT re.id, re.audio_id, re.quote_index, re.note, re.sort_order, re.lang
 		 FROM response_evidence re
 		 WHERE re.response_id = ?
 		 ORDER BY re.sort_order`, responseID,
@@ -469,7 +469,7 @@ func (r *theoryRepository) queryEvidence(ctx context.Context, query string, args
 	var evidence []dto.EvidenceResponse
 	for rows.Next() {
 		var ev dto.EvidenceResponse
-		if err := rows.Scan(&ev.ID, &ev.AudioID, &ev.QuoteIndex, &ev.Note, &ev.SortOrder); err != nil {
+		if err := rows.Scan(&ev.ID, &ev.AudioID, &ev.QuoteIndex, &ev.Note, &ev.SortOrder, &ev.Lang); err != nil {
 			return nil, fmt.Errorf("scan evidence: %w", err)
 		}
 		evidence = append(evidence, ev)
@@ -702,4 +702,11 @@ func (r *theoryRepository) SetEvidenceTruthWeight(ctx context.Context, evidenceI
 		return fmt.Errorf("set evidence truth weight: %w", err)
 	}
 	return nil
+}
+
+func langOrDefault(lang string) string {
+	if lang == "" {
+		return "en"
+	}
+	return lang
 }

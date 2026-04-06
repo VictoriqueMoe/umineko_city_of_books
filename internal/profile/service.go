@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"umineko_city_of_books/internal/repository/model"
 
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/config"
@@ -164,7 +165,7 @@ func (s *service) SearchUsers(ctx context.Context, query string, limit int) ([]d
 	return s.usersToResponses(ctx, users), nil
 }
 
-func (s *service) usersToResponses(ctx context.Context, users []repository.User) []dto.UserResponse {
+func (s *service) usersToResponses(ctx context.Context, users []model.User) []dto.UserResponse {
 	result := make([]dto.UserResponse, len(users))
 	for i, u := range users {
 		rl, _ := s.authz.GetRole(ctx, u.ID)

@@ -1,12 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import type { EvidenceInput, EvidenceItem, Quote } from "../types/api";
-import type { Series } from "../api/endpoints";
+import {useCallback, useEffect, useRef, useState} from "react";
+import type {EvidenceInput, EvidenceItem, Quote} from "../types/api";
+import type {Series} from "../api/endpoints";
 
 const QUOTE_API = "https://quotes.auaurora.moe/api/v1";
 
 export interface SelectedEvidence {
     quote: Quote;
     note: string;
+    lang: string;
 }
 
 function quoteKey(quote: Quote): string {
@@ -16,13 +17,14 @@ function quoteKey(quote: Quote): string {
     return `index:${quote.index}`;
 }
 
-async function fetchQuoteByAudioId(series: Series, audioId: string): Promise<Quote | null> {
+async function fetchQuoteByAudioId(series: Series, audioId: string, lang?: string): Promise<Quote | null> {
     const firstId = audioId.split(",")[0].trim();
     if (!firstId) {
         return null;
     }
     try {
-        const response = await fetch(`${QUOTE_API}/${series}/quote/${firstId}`);
+        const qs = lang ? `?lang=${lang}` : "";
+        const response = await fetch(`${QUOTE_API}/${series}/quote/${firstId}${qs}`);
         if (!response.ok) {
             return null;
         }
@@ -32,9 +34,10 @@ async function fetchQuoteByAudioId(series: Series, audioId: string): Promise<Quo
     }
 }
 
-async function fetchQuoteByIndex(series: Series, index: number): Promise<Quote | null> {
+async function fetchQuoteByIndex(series: Series, index: number, lang?: string): Promise<Quote | null> {
     try {
-        const response = await fetch(`${QUOTE_API}/${series}/quote/index/${index}`);
+        const qs = lang ? `?lang=${lang}` : "";
+        const response = await fetch(`${QUOTE_API}/${series}/quote/index/${index}${qs}`);
         if (!response.ok) {
             return null;
         }
@@ -58,15 +61,16 @@ export function useEvidence(initialEvidence?: EvidenceItem[], series: Series = "
         Promise.all(
             initialEvidence.map(async ev => {
                 let quote: Quote | null = null;
+                const evLang = ev.lang || "en";
                 if (ev.audio_id) {
-                    quote = await fetchQuoteByAudioId(series, ev.audio_id);
+                    quote = await fetchQuoteByAudioId(series, ev.audio_id, evLang);
                 } else if (ev.quote_index !== undefined) {
-                    quote = await fetchQuoteByIndex(series, ev.quote_index);
+                    quote = await fetchQuoteByIndex(series, ev.quote_index, evLang);
                 }
                 if (!quote) {
                     return null;
                 }
-                return { quote, note: ev.note } as SelectedEvidence;
+                return { quote, note: ev.note, lang: evLang } as SelectedEvidence;
             }),
         ).then(results => {
             const resolved = results.filter((r): r is SelectedEvidence => r !== null);
@@ -74,13 +78,13 @@ export function useEvidence(initialEvidence?: EvidenceItem[], series: Series = "
         });
     }, [initialEvidence, series]);
 
-    const addQuote = useCallback((quote: Quote) => {
+    const addQuote = useCallback((quote: Quote, lang: string = "en") => {
         const key = quoteKey(quote);
         setEvidence(prev => {
             if (prev.some(e => quoteKey(e.quote) === key)) {
                 return prev;
             }
-            return [...prev, { quote, note: "" }];
+            return [...prev, { quote, note: "", lang }];
         });
         setPickerOpen(false);
     }, []);
@@ -109,6 +113,7 @@ export function useEvidence(initialEvidence?: EvidenceItem[], series: Series = "
             audio_id: ev.quote.audioId || undefined,
             quote_index: ev.quote.audioId ? undefined : ev.quote.index,
             note: ev.note,
+            lang: ev.lang,
         }));
     }, [evidence]);
 
