@@ -1,11 +1,11 @@
-import {useState} from "react";
-import {useNavigate} from "react-router";
-import type {CreatePollPayload} from "../../../api/endpoints";
-import {createPost, uploadPostMedia} from "../../../api/endpoints";
-import {Button} from "../../Button/Button";
-import {MediaPickerButton, MediaPreviews} from "../../MediaPicker/MediaPicker";
-import {MentionTextArea} from "../../MentionTextArea/MentionTextArea";
-import {PollCreator} from "../PollCreator/PollCreator";
+import { useState } from "react";
+import { useNavigate } from "react-router";
+import type { CreatePollPayload } from "../../../api/endpoints";
+import { createPost, uploadPostMedia } from "../../../api/endpoints";
+import { Button } from "../../Button/Button";
+import { MediaPickerButton, MediaPreviews } from "../../MediaPicker/MediaPicker";
+import { MentionTextArea } from "../../MentionTextArea/MentionTextArea";
+import { PollCreator } from "../PollCreator/PollCreator";
 import styles from "./PostComposer.module.css";
 
 interface PostComposerProps {

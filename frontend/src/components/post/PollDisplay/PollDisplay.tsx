@@ -1,8 +1,8 @@
-import React, {useState} from "react";
-import type {Poll} from "../../../types/api";
-import {votePoll} from "../../../api/endpoints";
-import {useAuth} from "../../../hooks/useAuth";
-import {Button} from "../../Button/Button";
+import React, { useState } from "react";
+import type { Poll } from "../../../types/api";
+import { votePoll } from "../../../api/endpoints";
+import { useAuth } from "../../../hooks/useAuth";
+import { Button } from "../../Button/Button";
 import styles from "./PollDisplay.module.css";
 
 interface PollDisplayProps {
@@ -79,11 +79,7 @@ export function PollDisplay({ poll: initialPoll, postId, onVoted }: PollDisplayP
                     }
 
                     return (
-                        <div
-                            key={option.id}
-                            className={className}
-                            onClick={e => handleOptionClick(e, option.id)}
-                        >
+                        <div key={option.id} className={className} onClick={e => handleOptionClick(e, option.id)}>
                             {showResults && (
                                 <div
                                     className={`${styles.resultBar}${isWinner ? ` ${styles.resultBarWinner}` : ""}`}
@@ -96,9 +92,7 @@ export function PollDisplay({ poll: initialPoll, postId, onVoted }: PollDisplayP
                                     {option.label}
                                 </span>
                                 {showResults && (
-                                    <span className={styles.optionPercent}>
-                                        {Math.round(option.percent)}%
-                                    </span>
+                                    <span className={styles.optionPercent}>{Math.round(option.percent)}%</span>
                                 )}
                             </div>
                         </div>
@@ -120,7 +114,9 @@ export function PollDisplay({ poll: initialPoll, postId, onVoted }: PollDisplayP
             )}
 
             <div className={styles.footer}>
-                <span>{poll.total_votes} {poll.total_votes === 1 ? "vote" : "votes"}</span>
+                <span>
+                    {poll.total_votes} {poll.total_votes === 1 ? "vote" : "votes"}
+                </span>
                 <span>{timeRemaining(poll.expires_at)}</span>
             </div>
         </div>

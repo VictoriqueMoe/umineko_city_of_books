@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useRef} from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 export function useThrottled<TArgs extends unknown[]>(
     fn: (...args: TArgs) => void,

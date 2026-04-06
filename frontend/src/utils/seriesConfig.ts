@@ -1,4 +1,4 @@
-import type {Series} from "../api/endpoints";
+import type { Series } from "../api/endpoints";
 
 interface LangOption {
     value: string;

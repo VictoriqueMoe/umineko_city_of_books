@@ -1,6 +1,6 @@
-import {useEffect, useRef, useState} from "react";
-import type {EvidenceItem, Quote} from "../types/api";
-import type {Series} from "../api/endpoints";
+import { useEffect, useRef, useState } from "react";
+import type { EvidenceItem, Quote } from "../types/api";
+import type { Series } from "../api/endpoints";
 
 const QUOTE_API = "https://quotes.auaurora.moe/api/v1";
 

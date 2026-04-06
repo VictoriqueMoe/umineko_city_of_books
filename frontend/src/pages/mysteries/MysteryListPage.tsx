@@ -1,13 +1,13 @@
-import {useEffect, useState} from "react";
-import {useNavigate, useSearchParams} from "react-router";
-import type {Mystery, MysteryLeaderboardEntry} from "../../types/api";
-import {getMysteryLeaderboard, listMysteries} from "../../api/endpoints";
-import {ProfileLink} from "../../components/ProfileLink/ProfileLink";
-import {Pagination} from "../../components/Pagination/Pagination";
-import {Select} from "../../components/Select/Select";
-import {RulesBox} from "../../components/RulesBox/RulesBox";
-import {InfoPanel} from "../../components/InfoPanel/InfoPanel";
-import {relativeTime} from "../../utils/notifications";
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router";
+import type { Mystery, MysteryLeaderboardEntry } from "../../types/api";
+import { getMysteryLeaderboard, listMysteries } from "../../api/endpoints";
+import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
+import { Pagination } from "../../components/Pagination/Pagination";
+import { Select } from "../../components/Select/Select";
+import { RulesBox } from "../../components/RulesBox/RulesBox";
+import { InfoPanel } from "../../components/InfoPanel/InfoPanel";
+import { relativeTime } from "../../utils/notifications";
 import styles from "./MysteryPages.module.css";
 
 function formatDuration(ms: number): string {
@@ -131,10 +131,13 @@ export function MysteryListPage() {
                                 const v = e.target.value;
                                 setSort(v);
                                 setOffset(0);
-                                setSearchParams(prev => {
-                                    prev.set("sort", v);
-                                    return prev;
-                                }, { replace: true });
+                                setSearchParams(
+                                    prev => {
+                                        prev.set("sort", v);
+                                        return prev;
+                                    },
+                                    { replace: true },
+                                );
                             }}
                         >
                             <option value="new">Newest</option>
@@ -146,14 +149,17 @@ export function MysteryListPage() {
                                 const v = e.target.value;
                                 setSolved(v);
                                 setOffset(0);
-                                setSearchParams(prev => {
-                                    if (v) {
-                                        prev.set("solved", v);
-                                    } else {
-                                        prev.delete("solved");
-                                    }
-                                    return prev;
-                                }, { replace: true });
+                                setSearchParams(
+                                    prev => {
+                                        if (v) {
+                                            prev.set("solved", v);
+                                        } else {
+                                            prev.delete("solved");
+                                        }
+                                        return prev;
+                                    },
+                                    { replace: true },
+                                );
                             }}
                         >
                             <option value="">All</option>

@@ -1,6 +1,6 @@
-import {useEffect, useRef, useState} from "react";
-import {useNavigate} from "react-router";
-import type {Post, PostMedia} from "../../../types/api";
+import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router";
+import type { Post, PostMedia } from "../../../types/api";
 import {
     deletePost as apiDeletePost,
     deletePostMedia,
@@ -9,17 +9,17 @@ import {
     updatePost,
     uploadPostMedia,
 } from "../../../api/endpoints";
-import {useAuth} from "../../../hooks/useAuth";
-import {useNotifications} from "../../../hooks/useNotifications";
-import {can} from "../../../utils/permissions";
-import {linkify} from "../../../utils/linkify";
-import {ReportButton} from "../../ReportButton/ReportButton";
-import {ProfileLink} from "../../ProfileLink/ProfileLink";
-import {MediaGallery} from "../MediaGallery/MediaGallery";
-import {PollDisplay} from "../PollDisplay/PollDisplay";
-import {PostEmbeds} from "../PostEmbeds/PostEmbeds";
-import {MentionTextArea} from "../../MentionTextArea/MentionTextArea";
-import {Button} from "../../Button/Button";
+import { useAuth } from "../../../hooks/useAuth";
+import { useNotifications } from "../../../hooks/useNotifications";
+import { can } from "../../../utils/permissions";
+import { linkify } from "../../../utils/linkify";
+import { ReportButton } from "../../ReportButton/ReportButton";
+import { ProfileLink } from "../../ProfileLink/ProfileLink";
+import { MediaGallery } from "../MediaGallery/MediaGallery";
+import { PollDisplay } from "../PollDisplay/PollDisplay";
+import { PostEmbeds } from "../PostEmbeds/PostEmbeds";
+import { MentionTextArea } from "../../MentionTextArea/MentionTextArea";
+import { Button } from "../../Button/Button";
 import styles from "./PostCard.module.css";
 
 interface PostCardProps {
