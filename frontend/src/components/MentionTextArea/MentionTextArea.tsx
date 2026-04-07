@@ -1,6 +1,6 @@
-import React, {useCallback, useEffect, useRef, useState} from "react";
-import type {User} from "../../types/api";
-import {searchUsers} from "../../api/endpoints";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import type { User } from "../../types/api";
+import { searchUsers } from "../../api/endpoints";
 import styles from "./MentionTextArea.module.css";
 
 interface MentionTextAreaProps {
@@ -40,7 +40,14 @@ function highlightMentions(text: string): string {
     );
 }
 
-export function MentionTextArea({ value, onChange, placeholder, rows = 3, className, onPasteFiles }: MentionTextAreaProps) {
+export function MentionTextArea({
+    value,
+    onChange,
+    placeholder,
+    rows = 3,
+    className,
+    onPasteFiles,
+}: MentionTextAreaProps) {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const backdropRef = useRef<HTMLDivElement>(null);
     const [suggestions, setSuggestions] = useState<SearchResult[]>([]);
@@ -142,9 +149,7 @@ export function MentionTextArea({ value, onChange, placeholder, rows = 3, classN
         if (!items || items.length === 0 || !onPasteFiles) {
             return;
         }
-        const mediaFiles = Array.from(items).filter(
-            f => f.type.startsWith("image/") || f.type.startsWith("video/"),
-        );
+        const mediaFiles = Array.from(items).filter(f => f.type.startsWith("image/") || f.type.startsWith("video/"));
         if (mediaFiles.length > 0) {
             e.preventDefault();
             onPasteFiles(mediaFiles);

@@ -1,8 +1,8 @@
-import {useEffect, useState} from "react";
-import {getAdminSettings, updateAdminSettings} from "../../api/endpoints";
-import {Button} from "../../components/Button/Button";
-import {TextArea} from "../../components/TextArea/TextArea";
-import type {SiteSettings} from "../../types/api";
+import { useEffect, useState } from "react";
+import { getAdminSettings, updateAdminSettings } from "../../api/endpoints";
+import { Button } from "../../components/Button/Button";
+import { TextArea } from "../../components/TextArea/TextArea";
+import type { SiteSettings } from "../../types/api";
 import styles from "./AdminSettings.module.css";
 
 const pages = [

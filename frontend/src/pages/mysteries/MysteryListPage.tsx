@@ -1,13 +1,13 @@
-import {useEffect, useState} from "react";
-import {useNavigate, useSearchParams} from "react-router";
-import type {Mystery, MysteryLeaderboardEntry} from "../../types/api";
-import {getMysteryLeaderboard, listMysteries} from "../../api/endpoints";
-import {ProfileLink} from "../../components/ProfileLink/ProfileLink";
-import {Pagination} from "../../components/Pagination/Pagination";
-import {Select} from "../../components/Select/Select";
-import {RulesBox} from "../../components/RulesBox/RulesBox";
-import {InfoPanel} from "../../components/InfoPanel/InfoPanel";
-import {relativeTime} from "../../utils/notifications";
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router";
+import type { Mystery, MysteryLeaderboardEntry } from "../../types/api";
+import { getMysteryLeaderboard, listMysteries } from "../../api/endpoints";
+import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
+import { Pagination } from "../../components/Pagination/Pagination";
+import { Select } from "../../components/Select/Select";
+import { RulesBox } from "../../components/RulesBox/RulesBox";
+import { InfoPanel } from "../../components/InfoPanel/InfoPanel";
+import { relativeTime } from "../../utils/notifications";
 import styles from "./MysteryPages.module.css";
 
 function formatDuration(ms: number): string {

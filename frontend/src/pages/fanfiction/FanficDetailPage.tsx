@@ -1,6 +1,6 @@
-import {useCallback, useEffect, useState} from "react";
-import {useNavigate, useParams} from "react-router";
-import type {FanficDetail, PostComment} from "../../types/api";
+import { useCallback, useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router";
+import type { FanficDetail, PostComment } from "../../types/api";
 import {
     createFanficComment,
     deleteFanfic,
@@ -14,14 +14,14 @@ import {
     updateFanficComment,
     uploadFanficCommentMedia,
 } from "../../api/endpoints";
-import {useAuth} from "../../hooks/useAuth";
-import {can} from "../../utils/permissions";
-import {Button} from "../../components/Button/Button";
-import {ProfileLink} from "../../components/ProfileLink/ProfileLink";
-import {CommentItem} from "../../components/post/CommentItem/CommentItem";
-import {CommentComposer} from "../../components/post/CommentComposer/CommentComposer";
-import {Lightbox} from "../../components/Lightbox/Lightbox";
-import {relativeTime} from "../../utils/notifications";
+import { useAuth } from "../../hooks/useAuth";
+import { can } from "../../utils/permissions";
+import { Button } from "../../components/Button/Button";
+import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
+import { CommentItem } from "../../components/post/CommentItem/CommentItem";
+import { CommentComposer } from "../../components/post/CommentComposer/CommentComposer";
+import { Lightbox } from "../../components/Lightbox/Lightbox";
+import { relativeTime } from "../../utils/notifications";
 import styles from "./FanficPages.module.css";
 
 function ratingBadgeClass(rating: string): string {
@@ -167,12 +167,20 @@ export function FanficDetailPage() {
                     {(canEdit || canDelete) && (
                         <div style={{ display: "flex", gap: "0.5rem" }}>
                             {canEdit && (
-                                <Button variant="secondary" size="small" onClick={() => navigate(`/fanfiction/${fanfic.id}/edit`)}>
+                                <Button
+                                    variant="secondary"
+                                    size="small"
+                                    onClick={() => navigate(`/fanfiction/${fanfic.id}/edit`)}
+                                >
                                     Edit
                                 </Button>
                             )}
                             {canEdit && !fanfic.is_oneshot && (
-                                <Button variant="secondary" size="small" onClick={() => navigate(`/fanfiction/${fanfic.id}/chapter/new`)}>
+                                <Button
+                                    variant="secondary"
+                                    size="small"
+                                    onClick={() => navigate(`/fanfiction/${fanfic.id}/chapter/new`)}
+                                >
                                     Add Chapter
                                 </Button>
                             )}
@@ -196,7 +204,9 @@ export function FanficDetailPage() {
                     <span className={`${styles.detailBadge} ${styles.detailBadgeSeries}`}>{fanfic.series}</span>
                     <span className={`${styles.detailBadge} ${styles.detailBadgeLang}`}>{fanfic.language}</span>
                     {fanfic.genres.map(g => (
-                        <span key={g} className={`${styles.detailBadge} ${styles.badgeGenre}`}>{g}</span>
+                        <span key={g} className={`${styles.detailBadge} ${styles.badgeGenre}`}>
+                            {g}
+                        </span>
                     ))}
                 </div>
 
@@ -207,7 +217,9 @@ export function FanficDetailPage() {
                     </div>
                     <div className={styles.detailStat}>
                         <span className={styles.detailStatValue}>{fanfic.chapter_count}</span>
-                        <span className={styles.detailStatLabel}>{fanfic.chapter_count === 1 ? "Chapter" : "Chapters"}</span>
+                        <span className={styles.detailStatLabel}>
+                            {fanfic.chapter_count === 1 ? "Chapter" : "Chapters"}
+                        </span>
                     </div>
                     <div className={styles.detailStat}>
                         <span className={styles.detailStatValue}>{formatNumber(fanfic.favourite_count)}</span>
@@ -222,16 +234,17 @@ export function FanficDetailPage() {
                 {fanfic.characters.length > 0 && (
                     <div className={styles.detailCharacters}>
                         {fanfic.characters.map((c, i) => (
-                            <span key={`${c.series}-${c.character_id ?? c.character_name}-${i}`} className={styles.charPill}>
+                            <span
+                                key={`${c.series}-${c.character_id ?? c.character_name}-${i}`}
+                                className={styles.charPill}
+                            >
                                 {c.character_name}
                             </span>
                         ))}
                     </div>
                 )}
 
-                {fanfic.summary && (
-                    <p className={styles.summary}>{fanfic.summary}</p>
-                )}
+                {fanfic.summary && <p className={styles.summary}>{fanfic.summary}</p>}
 
                 <div className={styles.tocSection}>
                     {fanfic.is_oneshot ? (
@@ -240,55 +253,69 @@ export function FanficDetailPage() {
                         </Button>
                     ) : (
                         <>
-                        {fanfic.reading_progress > 0 && fanfic.reading_progress <= fanfic.chapters.length && (
-                            <div style={{ marginBottom: "0.75rem" }}>
-                                <Button variant="primary" onClick={() => navigate(`/fanfiction/${fanfic.id}/chapter/${fanfic.reading_progress}`)}>
-                                    Continue from Chapter {fanfic.reading_progress}
-                                </Button>
-                            </div>
-                        )}
-                        <h3 className={styles.tocTitle}>Chapters ({fanfic.chapters.length})</h3>
-                        <ul className={styles.tocList}>
-                            {fanfic.chapters.map(ch => (
-                                <li
-                                    key={ch.chapter_number}
-                                    className={styles.tocItem}
-                                >
-                                    <span
-                                        className={styles.tocItemLink}
-                                        onClick={() => navigate(`/fanfiction/${fanfic.id}/chapter/${ch.chapter_number}`)}
+                            {fanfic.reading_progress > 0 && fanfic.reading_progress <= fanfic.chapters.length && (
+                                <div style={{ marginBottom: "0.75rem" }}>
+                                    <Button
+                                        variant="primary"
+                                        onClick={() =>
+                                            navigate(`/fanfiction/${fanfic.id}/chapter/${fanfic.reading_progress}`)
+                                        }
                                     >
-                                        <span className={styles.tocItemNum}>{ch.chapter_number}.</span>
-                                        <span className={styles.tocItemTitle}>{ch.title}</span>
-                                        <span className={styles.tocItemWords}>{formatNumber(ch.word_count)} words</span>
-                                    </span>
-                                    {canEdit && (
-                                        <div style={{ display: "flex", gap: "0.25rem" }}>
-                                            <Button
-                                                variant="ghost"
-                                                size="small"
-                                                onClick={() => navigate(`/fanfiction/${fanfic.id}/chapter/${ch.chapter_number}/edit`)}
-                                            >
-                                                Edit
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="small"
-                                                onClick={async () => {
-                                                    if (!window.confirm(`Delete chapter ${ch.chapter_number}? This cannot be undone.`)) {
-                                                        return;
+                                        Continue from Chapter {fanfic.reading_progress}
+                                    </Button>
+                                </div>
+                            )}
+                            <h3 className={styles.tocTitle}>Chapters ({fanfic.chapters.length})</h3>
+                            <ul className={styles.tocList}>
+                                {fanfic.chapters.map(ch => (
+                                    <li key={ch.chapter_number} className={styles.tocItem}>
+                                        <span
+                                            className={styles.tocItemLink}
+                                            onClick={() =>
+                                                navigate(`/fanfiction/${fanfic.id}/chapter/${ch.chapter_number}`)
+                                            }
+                                        >
+                                            <span className={styles.tocItemNum}>{ch.chapter_number}.</span>
+                                            <span className={styles.tocItemTitle}>{ch.title}</span>
+                                            <span className={styles.tocItemWords}>
+                                                {formatNumber(ch.word_count)} words
+                                            </span>
+                                        </span>
+                                        {canEdit && (
+                                            <div style={{ display: "flex", gap: "0.25rem" }}>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="small"
+                                                    onClick={() =>
+                                                        navigate(
+                                                            `/fanfiction/${fanfic.id}/chapter/${ch.chapter_number}/edit`,
+                                                        )
                                                     }
-                                                    await deleteFanficChapter(ch.id);
-                                                    fetchFanfic();
-                                                }}
-                                            >
-                                                Delete
-                                            </Button>
-                                        </div>
-                                    )}
-                                </li>
-                            ))}
-                        </ul>
+                                                >
+                                                    Edit
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="small"
+                                                    onClick={async () => {
+                                                        if (
+                                                            !window.confirm(
+                                                                `Delete chapter ${ch.chapter_number}? This cannot be undone.`,
+                                                            )
+                                                        ) {
+                                                            return;
+                                                        }
+                                                        await deleteFanficChapter(ch.id);
+                                                        fetchFanfic();
+                                                    }}
+                                                >
+                                                    Delete
+                                                </Button>
+                                            </div>
+                                        )}
+                                    </li>
+                                ))}
+                            </ul>
                         </>
                     )}
                 </div>
@@ -329,11 +356,7 @@ export function FanficDetailPage() {
             </div>
 
             {lightboxOpen && fanfic.cover_image_url && (
-                <Lightbox
-                    src={fanfic.cover_image_url}
-                    alt={fanfic.title}
-                    onClose={() => setLightboxOpen(false)}
-                />
+                <Lightbox src={fanfic.cover_image_url} alt={fanfic.title} onClose={() => setLightboxOpen(false)} />
             )}
         </div>
     );

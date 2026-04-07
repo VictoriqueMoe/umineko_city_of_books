@@ -1,13 +1,13 @@
-import {useCallback, useEffect, useRef, useState} from "react";
-import type {Quote} from "../../../types/api";
-import {browseQuotes, getCharacters, searchQuotes, type Series} from "../../../api/endpoints";
-import {getSeriesConfig} from "../../../utils/seriesConfig";
-import {Button} from "../../Button/Button";
-import {Input} from "../../Input/Input";
-import {Modal} from "../../Modal/Modal";
-import {TruthCard} from "../TruthCard/TruthCard";
-import {Pagination} from "../../Pagination/Pagination";
-import {Select} from "../../Select/Select";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { Quote } from "../../../types/api";
+import { browseQuotes, getCharacters, searchQuotes, type Series } from "../../../api/endpoints";
+import { getSeriesConfig } from "../../../utils/seriesConfig";
+import { Button } from "../../Button/Button";
+import { Input } from "../../Input/Input";
+import { Modal } from "../../Modal/Modal";
+import { TruthCard } from "../TruthCard/TruthCard";
+import { Pagination } from "../../Pagination/Pagination";
+import { Select } from "../../Select/Select";
 import styles from "./TruthPicker.module.css";
 
 interface TruthPickerProps {

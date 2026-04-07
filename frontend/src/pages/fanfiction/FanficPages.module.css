@@ -29,7 +29,9 @@
     padding: 0.45rem 0.85rem;
     border-radius: 6px;
     cursor: pointer;
-    transition: border-color 0.15s, color 0.15s;
+    transition:
+        border-color 0.15s,
+        color 0.15s;
 }
 
 .filterToggleBtn:hover {

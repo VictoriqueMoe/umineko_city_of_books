@@ -1,4 +1,4 @@
-import {apiDelete, apiDeleteWithBody, apiFetch, apiPost, apiPostFormData, apiPut, buildQueryString} from "./client";
+import { apiDelete, apiDeleteWithBody, apiFetch, apiPost, apiPostFormData, apiPut, buildQueryString } from "./client";
 import type {
     ActivityListResponse,
     AdminStats,
@@ -861,7 +861,11 @@ export async function addMysteryClue(
     });
 }
 
-export async function createMysteryComment(mysteryId: string, body: string, parentId?: string): Promise<{ id: string }> {
+export async function createMysteryComment(
+    mysteryId: string,
+    body: string,
+    parentId?: string,
+): Promise<{ id: string }> {
     return apiPost<{ id: string }, { body: string; parent_id?: string }>(`/mysteries/${mysteryId}/comments`, {
         body,
         parent_id: parentId,

@@ -1,5 +1,5 @@
-import {useCallback} from "react";
-import {EditorContent, useEditor} from "@tiptap/react";
+import { useCallback } from "react";
+import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -12,15 +12,7 @@ interface RichTextEditorProps {
     placeholder?: string;
 }
 
-function ToolbarButton({
-    onClick,
-    active,
-    label,
-}: {
-    onClick: () => void;
-    active?: boolean;
-    label: string;
-}) {
+function ToolbarButton({ onClick, active, label }: { onClick: () => void; active?: boolean; label: string }) {
     return (
         <button
             type="button"
@@ -81,20 +73,64 @@ export function RichTextEditor({ content, onChange, placeholder = "Write your st
     return (
         <div className={styles.editor}>
             <div className={styles.toolbar}>
-                <ToolbarButton label="B" onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive("bold")} />
-                <ToolbarButton label="I" onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive("italic")} />
-                <ToolbarButton label="S" onClick={() => editor.chain().focus().toggleStrike().run()} active={editor.isActive("strike")} />
+                <ToolbarButton
+                    label="B"
+                    onClick={() => editor.chain().focus().toggleBold().run()}
+                    active={editor.isActive("bold")}
+                />
+                <ToolbarButton
+                    label="I"
+                    onClick={() => editor.chain().focus().toggleItalic().run()}
+                    active={editor.isActive("italic")}
+                />
+                <ToolbarButton
+                    label="S"
+                    onClick={() => editor.chain().focus().toggleStrike().run()}
+                    active={editor.isActive("strike")}
+                />
                 <Separator />
-                <ToolbarButton label="H2" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} active={editor.isActive("heading", { level: 2 })} />
-                <ToolbarButton label="H3" onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} active={editor.isActive("heading", { level: 3 })} />
+                <ToolbarButton
+                    label="H2"
+                    onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+                    active={editor.isActive("heading", { level: 2 })}
+                />
+                <ToolbarButton
+                    label="H3"
+                    onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+                    active={editor.isActive("heading", { level: 3 })}
+                />
                 <Separator />
-                <ToolbarButton label="Quote" onClick={() => editor.chain().focus().toggleBlockquote().run()} active={editor.isActive("blockquote")} />
-                <ToolbarButton label="Bullets" onClick={() => editor.chain().focus().toggleBulletList().run()} active={editor.isActive("bulletList")} />
-                <ToolbarButton label="Numbers" onClick={() => editor.chain().focus().toggleOrderedList().run()} active={editor.isActive("orderedList")} />
+                <ToolbarButton
+                    label="Quote"
+                    onClick={() => editor.chain().focus().toggleBlockquote().run()}
+                    active={editor.isActive("blockquote")}
+                />
+                <ToolbarButton
+                    label="Bullets"
+                    onClick={() => editor.chain().focus().toggleBulletList().run()}
+                    active={editor.isActive("bulletList")}
+                />
+                <ToolbarButton
+                    label="Numbers"
+                    onClick={() => editor.chain().focus().toggleOrderedList().run()}
+                    active={editor.isActive("orderedList")}
+                />
                 <Separator />
-                <ToolbarButton label="Left" onClick={() => editor.chain().focus().setTextAlign("left").run()} active={editor.isActive({ textAlign: "left" })} />
-                <ToolbarButton label="Centre" onClick={() => editor.chain().focus().setTextAlign("center").run()} active={editor.isActive({ textAlign: "center" })} />
-                <ToolbarButton label="Right" onClick={() => editor.chain().focus().setTextAlign("right").run()} active={editor.isActive({ textAlign: "right" })} />
+                <ToolbarButton
+                    label="Left"
+                    onClick={() => editor.chain().focus().setTextAlign("left").run()}
+                    active={editor.isActive({ textAlign: "left" })}
+                />
+                <ToolbarButton
+                    label="Centre"
+                    onClick={() => editor.chain().focus().setTextAlign("center").run()}
+                    active={editor.isActive({ textAlign: "center" })}
+                />
+                <ToolbarButton
+                    label="Right"
+                    onClick={() => editor.chain().focus().setTextAlign("right").run()}
+                    active={editor.isActive({ textAlign: "right" })}
+                />
                 <Separator />
                 <ToolbarButton label="Link" onClick={setLink} active={editor.isActive("link")} />
                 <ToolbarButton label="HR" onClick={() => editor.chain().focus().setHorizontalRule().run()} />

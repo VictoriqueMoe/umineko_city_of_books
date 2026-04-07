@@ -1,9 +1,9 @@
-import {useEffect, useState} from "react";
-import {useNavigate, useParams} from "react-router";
-import {createFanficChapter, getFanficChapter, updateFanficChapter} from "../../api/endpoints";
-import {Button} from "../../components/Button/Button";
-import {Input} from "../../components/Input/Input";
-import {RichTextEditor} from "../../components/RichTextEditor/RichTextEditor";
+import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router";
+import { createFanficChapter, getFanficChapter, updateFanficChapter } from "../../api/endpoints";
+import { Button } from "../../components/Button/Button";
+import { Input } from "../../components/Input/Input";
+import { RichTextEditor } from "../../components/RichTextEditor/RichTextEditor";
 import styles from "./FanficPages.module.css";
 
 export function ChapterEditorPage() {
@@ -63,18 +63,14 @@ export function ChapterEditorPage() {
         return <div className="empty-state">Chapter not found.</div>;
     }
 
-    const backPath = isEdit
-        ? `/fanfiction/${fanficId}/chapter/${chapterNumber}`
-        : `/fanfiction/${fanficId}`;
+    const backPath = isEdit ? `/fanfiction/${fanficId}/chapter/${chapterNumber}` : `/fanfiction/${fanficId}`;
 
     return (
         <div className={styles.formPage}>
             <span className={styles.back} onClick={() => navigate(backPath)}>
                 &larr; {isEdit ? "Back to Chapter" : "Back to Fanfic"}
             </span>
-            <h1 className={styles.formHeading}>
-                {isEdit ? `Edit Chapter ${chapterNumber}` : "Add Chapter"}
-            </h1>
+            <h1 className={styles.formHeading}>{isEdit ? `Edit Chapter ${chapterNumber}` : "Add Chapter"}</h1>
 
             <div className={styles.formRow}>
                 <label className={styles.formLabel}>Chapter Title (optional)</label>
@@ -89,11 +85,7 @@ export function ChapterEditorPage() {
 
             <div className={styles.formRow}>
                 <label className={styles.formLabel}>Content</label>
-                <RichTextEditor
-                    content={body}
-                    onChange={setBody}
-                    placeholder="Write your chapter here..."
-                />
+                <RichTextEditor content={body} onChange={setBody} placeholder="Write your chapter here..." />
             </div>
 
             {error && <div className="error-message">{error}</div>}
@@ -102,11 +94,7 @@ export function ChapterEditorPage() {
                 <Button variant="ghost" onClick={() => navigate(backPath)}>
                     Cancel
                 </Button>
-                <Button
-                    variant="primary"
-                    onClick={handleSubmit}
-                    disabled={submitting || !body.trim()}
-                >
+                <Button variant="primary" onClick={handleSubmit} disabled={submitting || !body.trim()}>
                     {submitting ? "Saving..." : "Save Chapter"}
                 </Button>
             </div>

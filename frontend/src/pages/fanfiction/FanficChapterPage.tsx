@@ -1,8 +1,8 @@
-import {useCallback, useEffect, useState} from "react";
-import {useNavigate, useParams} from "react-router";
-import type {FanficChapter, FanficDetail} from "../../types/api";
-import {getFanfic, getFanficChapter} from "../../api/endpoints";
-import {Button} from "../../components/Button/Button";
+import { useCallback, useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router";
+import type { FanficChapter, FanficDetail } from "../../types/api";
+import { getFanfic, getFanficChapter } from "../../api/endpoints";
+import { Button } from "../../components/Button/Button";
 import styles from "./FanficPages.module.css";
 
 function formatNumber(n: number): string {
@@ -28,10 +28,7 @@ export function FanficChapterPage() {
         if (!fanficId || !numParam || isNaN(chapterNumber)) {
             return;
         }
-        Promise.all([
-            getFanficChapter(fanficId, chapterNumber),
-            getFanfic(fanficId),
-        ])
+        Promise.all([getFanficChapter(fanficId, chapterNumber), getFanfic(fanficId)])
             .then(([ch, f]) => {
                 setChapter(ch);
                 setFanfic(f);
@@ -56,9 +53,7 @@ export function FanficChapterPage() {
     }
 
     const isOneshot = fanfic.is_oneshot;
-    const title = isOneshot
-        ? fanfic.title
-        : `Chapter ${chapter.chapter_number}: ${chapter.title}`;
+    const title = isOneshot ? fanfic.title : `Chapter ${chapter.chapter_number}: ${chapter.title}`;
 
     function navButtons() {
         return (
@@ -93,10 +88,7 @@ export function FanficChapterPage() {
 
             {!isOneshot && navButtons()}
 
-            <div
-                className={styles.chapterBody}
-                dangerouslySetInnerHTML={{ __html: chapter.body }}
-            />
+            <div className={styles.chapterBody} dangerouslySetInnerHTML={{ __html: chapter.body }} />
 
             <p className={styles.cardStats} style={{ marginTop: "1.5rem" }}>
                 {formatNumber(chapter.word_count)} words

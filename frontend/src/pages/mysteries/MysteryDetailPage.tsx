@@ -1,6 +1,6 @@
-import {type MouseEvent, useCallback, useEffect, useMemo, useRef, useState} from "react";
-import {useLocation, useNavigate, useParams} from "react-router";
-import type {MysteryAttempt, MysteryClue, MysteryDetail, PostComment} from "../../types/api";
+import { type MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate, useParams } from "react-router";
+import type { MysteryAttempt, MysteryClue, MysteryDetail, PostComment } from "../../types/api";
 import {
     addMysteryClue,
     createMysteryAttempt,
@@ -13,16 +13,16 @@ import {
     updateMysteryComment,
     uploadMysteryCommentMedia,
 } from "../../api/endpoints";
-import {useAuth} from "../../hooks/useAuth";
-import {useNotifications} from "../../hooks/useNotifications";
-import {useThrottled} from "../../hooks/useThrottled";
-import {can} from "../../utils/permissions";
-import {Button} from "../../components/Button/Button";
-import {ProfileLink} from "../../components/ProfileLink/ProfileLink";
-import {relativeTime} from "../../utils/notifications";
-import {CommentComposer} from "../../components/post/CommentComposer/CommentComposer";
-import {CommentItem} from "../../components/post/CommentItem/CommentItem";
-import {AttemptItem} from "./AttemptItem";
+import { useAuth } from "../../hooks/useAuth";
+import { useNotifications } from "../../hooks/useNotifications";
+import { useThrottled } from "../../hooks/useThrottled";
+import { can } from "../../utils/permissions";
+import { Button } from "../../components/Button/Button";
+import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
+import { relativeTime } from "../../utils/notifications";
+import { CommentComposer } from "../../components/post/CommentComposer/CommentComposer";
+import { CommentItem } from "../../components/post/CommentItem/CommentItem";
+import { AttemptItem } from "./AttemptItem";
 import styles from "./MysteryPages.module.css";
 
 function ClueCopyBtn({ text }: { text: string }) {
@@ -38,8 +38,19 @@ function ClueCopyBtn({ text }: { text: string }) {
 
     return (
         <button type="button" className={styles.clueCopy} onClick={handleCopy} title="Copy to clipboard">
-            {copied ? "\u2713" : (
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            {copied ? (
+                "\u2713"
+            ) : (
+                <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                >
                     <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
                     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
                 </svg>
@@ -660,9 +671,7 @@ export function MysteryDetailPage() {
                         />
                     ))}
                     {mystery.comments.length === 0 && (
-                        <p className="empty-state">
-                            The mystery is solved. Share your thoughts on the game!
-                        </p>
+                        <p className="empty-state">The mystery is solved. Share your thoughts on the game!</p>
                     )}
                     {user && id && (
                         <CommentComposer

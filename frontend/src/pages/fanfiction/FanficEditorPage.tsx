@@ -1,6 +1,6 @@
-import {useCallback, useEffect, useRef, useState} from "react";
-import {useNavigate, useParams} from "react-router";
-import type {ShipCharacter} from "../../types/api";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router";
+import type { ShipCharacter } from "../../types/api";
 import {
     createFanfic,
     getFanfic,
@@ -9,21 +9,39 @@ import {
     getFanficSeries,
     updateFanfic,
     updateFanficChapter,
-    uploadFanficCover
+    uploadFanficCover,
 } from "../../api/endpoints";
-import {Button} from "../../components/Button/Button";
-import {Input} from "../../components/Input/Input";
-import {Select} from "../../components/Select/Select";
-import {MentionTextArea} from "../../components/MentionTextArea/MentionTextArea";
-import {CharacterPicker} from "../../components/CharacterPicker/CharacterPicker";
-import {RichTextEditor} from "../../components/RichTextEditor/RichTextEditor";
-import {ToggleSwitch} from "../../components/ToggleSwitch/ToggleSwitch";
+import { Button } from "../../components/Button/Button";
+import { Input } from "../../components/Input/Input";
+import { Select } from "../../components/Select/Select";
+import { MentionTextArea } from "../../components/MentionTextArea/MentionTextArea";
+import { CharacterPicker } from "../../components/CharacterPicker/CharacterPicker";
+import { RichTextEditor } from "../../components/RichTextEditor/RichTextEditor";
+import { ToggleSwitch } from "../../components/ToggleSwitch/ToggleSwitch";
 import styles from "./FanficPages.module.css";
 
 const GENRES = [
-    "Adventure", "Angst", "Crime", "Drama", "Family", "Fantasy", "Friendship",
-    "General", "Horror", "Humour", "Hurt/Comfort", "Mystery", "Parody", "Poetry",
-    "Romance", "Sci-Fi", "Spiritual", "Supernatural", "Suspense", "Tragedy", "Western",
+    "Adventure",
+    "Angst",
+    "Crime",
+    "Drama",
+    "Family",
+    "Fantasy",
+    "Friendship",
+    "General",
+    "Horror",
+    "Humour",
+    "Hurt/Comfort",
+    "Mystery",
+    "Parody",
+    "Poetry",
+    "Romance",
+    "Sci-Fi",
+    "Spiritual",
+    "Supernatural",
+    "Suspense",
+    "Tragedy",
+    "Western",
 ];
 
 const PINNED_SERIES = ["Umineko", "Higurashi", "Ciconia"];
@@ -103,8 +121,12 @@ export function FanficEditorPage() {
     const showCustomLanguage = language === OTHER_VALUE;
 
     useEffect(() => {
-        getFanficSeries().then(setDynamicSeries).catch(() => setDynamicSeries([]));
-        getFanficLanguages().then(setAvailableLanguages).catch(() => setAvailableLanguages([]));
+        getFanficSeries()
+            .then(setDynamicSeries)
+            .catch(() => setDynamicSeries([]));
+        getFanficLanguages()
+            .then(setAvailableLanguages)
+            .catch(() => setAvailableLanguages([]));
     }, []);
 
     useEffect(() => {
@@ -120,12 +142,14 @@ export function FanficEditorPage() {
                 setContainsLemons(data.contains_lemons);
                 setIsPairing(data.is_pairing);
                 setStatus(data.status);
-                setCharacters(data.characters?.map((c, i) => ({
-                    series: c.series,
-                    character_id: c.character_id,
-                    character_name: c.character_name,
-                    sort_order: i,
-                })) ?? []);
+                setCharacters(
+                    data.characters?.map((c, i) => ({
+                        series: c.series,
+                        character_id: c.character_id,
+                        character_name: c.character_name,
+                        sort_order: i,
+                    })) ?? [],
+                );
                 setGenreA(data.genres?.[0] ?? "");
                 setGenreB(data.genres?.[1] ?? "");
 
@@ -136,16 +160,18 @@ export function FanficEditorPage() {
                     setCustomSeries(data.series);
                 }
 
-                getFanficLanguages().then(langs => {
-                    if (langs.includes(data.language)) {
+                getFanficLanguages()
+                    .then(langs => {
+                        if (langs.includes(data.language)) {
+                            setLanguage(data.language);
+                        } else {
+                            setLanguage(OTHER_VALUE);
+                            setCustomLanguage(data.language);
+                        }
+                    })
+                    .catch(() => {
                         setLanguage(data.language);
-                    } else {
-                        setLanguage(OTHER_VALUE);
-                        setCustomLanguage(data.language);
-                    }
-                }).catch(() => {
-                    setLanguage(data.language);
-                });
+                    });
 
                 setEditChapterCount(data.chapter_count ?? 0);
                 setEditLoading(false);
@@ -193,11 +219,40 @@ export function FanficEditorPage() {
 
     const saveDraft = useCallback(() => {
         const data: DraftData = {
-            title, summary, series, customSeries, rating, language, customLanguage,
-            genreA, genreB, characters, isPairing, isOneshot, containsLemons, body, step,
+            title,
+            summary,
+            series,
+            customSeries,
+            rating,
+            language,
+            customLanguage,
+            genreA,
+            genreB,
+            characters,
+            isPairing,
+            isOneshot,
+            containsLemons,
+            body,
+            step,
         };
         localStorage.setItem(DRAFT_KEY, JSON.stringify(data));
-    }, [title, summary, series, customSeries, rating, language, customLanguage, genreA, genreB, characters, isPairing, isOneshot, containsLemons, body, step]);
+    }, [
+        title,
+        summary,
+        series,
+        customSeries,
+        rating,
+        language,
+        customLanguage,
+        genreA,
+        genreB,
+        characters,
+        isPairing,
+        isOneshot,
+        containsLemons,
+        body,
+        step,
+    ]);
 
     useEffect(() => {
         if (!initialised || isEdit) {
@@ -206,10 +261,7 @@ export function FanficEditorPage() {
         saveDraft();
     }, [saveDraft, initialised, isEdit]);
 
-    const allSeries = [
-        ...PINNED_SERIES,
-        ...dynamicSeries.filter(s => !PINNED_SERIES.includes(s)),
-    ];
+    const allSeries = [...PINNED_SERIES, ...dynamicSeries.filter(s => !PINNED_SERIES.includes(s))];
 
     function addCharacter(character: ShipCharacter) {
         setCharacters(prev => [...prev, { ...character, sort_order: prev.length }]);
@@ -467,7 +519,9 @@ export function FanficEditorPage() {
                             }}
                         >
                             {allSeries.map(s => (
-                                <option key={s} value={s}>{s}</option>
+                                <option key={s} value={s}>
+                                    {s}
+                                </option>
                             ))}
                             <option value={OTHER_VALUE}>Other...</option>
                         </Select>
@@ -509,11 +563,11 @@ export function FanficEditorPage() {
                             }}
                         >
                             {availableLanguages.map(l => (
-                                <option key={l} value={l}>{l}</option>
+                                <option key={l} value={l}>
+                                    {l}
+                                </option>
                             ))}
-                            {!availableLanguages.includes("English") && (
-                                <option value="English">English</option>
-                            )}
+                            {!availableLanguages.includes("English") && <option value="English">English</option>}
                             <option value={OTHER_VALUE}>Other...</option>
                         </Select>
                         {showCustomLanguage && (
@@ -532,7 +586,9 @@ export function FanficEditorPage() {
                         <Select value={genreA} onChange={e => setGenreA(e.target.value)}>
                             <option value="">-- select genre --</option>
                             {GENRES.map(g => (
-                                <option key={g} value={g}>{g}</option>
+                                <option key={g} value={g}>
+                                    {g}
+                                </option>
                             ))}
                         </Select>
                     </div>
@@ -544,7 +600,9 @@ export function FanficEditorPage() {
                         <Select value={genreB} onChange={e => setGenreB(e.target.value)}>
                             <option value="">-- select genre --</option>
                             {GENRES.map(g => (
-                                <option key={g} value={g}>{g}</option>
+                                <option key={g} value={g}>
+                                    {g}
+                                </option>
                             ))}
                         </Select>
                     </div>
@@ -671,7 +729,11 @@ export function FanficEditorPage() {
                 placeholder={isOneshot ? "Write your story here..." : "Write your first chapter here..."}
             />
 
-            {error && <div className="error-message" style={{ marginTop: "1rem" }}>{error}</div>}
+            {error && (
+                <div className="error-message" style={{ marginTop: "1rem" }}>
+                    {error}
+                </div>
+            )}
 
             <div className={styles.formActions} style={{ marginTop: "1rem" }}>
                 <Button variant="ghost" onClick={() => setStep(1)}>
@@ -700,18 +762,10 @@ export function FanficEditorPage() {
                     </Button>
                 ) : (
                     <>
-                        <Button
-                            variant="secondary"
-                            onClick={() => handleSubmit(true)}
-                            disabled={submitting}
-                        >
+                        <Button variant="secondary" onClick={() => handleSubmit(true)} disabled={submitting}>
                             {submitting ? "Saving..." : "Save as Draft"}
                         </Button>
-                        <Button
-                            variant="primary"
-                            onClick={() => handleSubmit(false)}
-                            disabled={submitting}
-                        >
+                        <Button variant="primary" onClick={() => handleSubmit(false)} disabled={submitting}>
                             {submitting ? "Publishing..." : "Publish"}
                         </Button>
                     </>

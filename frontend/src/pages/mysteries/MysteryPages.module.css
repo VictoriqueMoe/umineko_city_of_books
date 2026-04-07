@@ -282,7 +282,10 @@
     padding: 0.2rem 0.35rem;
     border-radius: 3px;
     opacity: 0;
-    transition: opacity 0.15s, color 0.15s, background 0.15s;
+    transition:
+        opacity 0.15s,
+        color 0.15s,
+        background 0.15s;
 }
 
 .clue:hover .clueCopy {

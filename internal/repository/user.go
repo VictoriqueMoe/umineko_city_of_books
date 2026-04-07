@@ -264,6 +264,10 @@ func (r *userRepository) GetProfileByUsername(ctx context.Context, username stri
 		`SELECT COUNT(*) FROM mysteries WHERE user_id = ?`, u.ID,
 	).Scan(&stats.MysteryCount)
 
+	r.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM fanfics WHERE user_id = ?`, u.ID,
+	).Scan(&stats.FanficCount)
+
 	return u, &stats, nil
 }
 
@@ -289,6 +293,10 @@ func (r *userRepository) GetProfileByID(ctx context.Context, id uuid.UUID) (*mod
 	r.db.QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM mysteries WHERE user_id = ?`, u.ID,
 	).Scan(&stats.MysteryCount)
+
+	r.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM fanfics WHERE user_id = ?`, u.ID,
+	).Scan(&stats.FanficCount)
 
 	return u, &stats, nil
 }

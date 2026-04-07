@@ -1,13 +1,13 @@
-import {useCallback, useState} from "react";
-import {useNavigate} from "react-router";
-import type {CreatePollPayload} from "../../../api/endpoints";
-import {createPost, uploadPostMedia} from "../../../api/endpoints";
-import {useSiteInfo} from "../../../hooks/useSiteInfo";
-import {validateFileSize} from "../../../utils/fileValidation";
-import {Button} from "../../Button/Button";
-import {MediaPickerButton, MediaPreviews} from "../../MediaPicker/MediaPicker";
-import {MentionTextArea} from "../../MentionTextArea/MentionTextArea";
-import {PollCreator} from "../PollCreator/PollCreator";
+import { useCallback, useState } from "react";
+import { useNavigate } from "react-router";
+import type { CreatePollPayload } from "../../../api/endpoints";
+import { createPost, uploadPostMedia } from "../../../api/endpoints";
+import { useSiteInfo } from "../../../hooks/useSiteInfo";
+import { validateFileSize } from "../../../utils/fileValidation";
+import { Button } from "../../Button/Button";
+import { MediaPickerButton, MediaPreviews } from "../../MediaPicker/MediaPicker";
+import { MentionTextArea } from "../../MentionTextArea/MentionTextArea";
+import { PollCreator } from "../PollCreator/PollCreator";
 import styles from "./PostComposer.module.css";
 
 interface PostComposerProps {
@@ -77,29 +77,38 @@ export function PostComposer({ corner = "general" }: PostComposerProps) {
         setFiles(prev => prev.filter((_, i) => i !== index));
     }
 
-    const handlePasteFiles = useCallback((pasted: File[]) => {
-        const errors: string[] = [];
-        const valid: File[] = [];
-        for (const file of pasted) {
-            const err = validateFileSize(file, siteInfo.max_image_size, siteInfo.max_video_size);
-            if (err) {
-                errors.push(err);
-            } else {
-                valid.push(file);
+    const handlePasteFiles = useCallback(
+        (pasted: File[]) => {
+            const errors: string[] = [];
+            const valid: File[] = [];
+            for (const file of pasted) {
+                const err = validateFileSize(file, siteInfo.max_image_size, siteInfo.max_video_size);
+                if (err) {
+                    errors.push(err);
+                } else {
+                    valid.push(file);
+                }
             }
-        }
-        if (errors.length > 0) {
-            setError(errors.join(" "));
-        }
-        if (valid.length > 0) {
-            setFiles(prev => [...prev, ...valid]);
-        }
-    }, [siteInfo.max_image_size, siteInfo.max_video_size]);
+            if (errors.length > 0) {
+                setError(errors.join(" "));
+            }
+            if (valid.length > 0) {
+                setFiles(prev => [...prev, ...valid]);
+            }
+        },
+        [siteInfo.max_image_size, siteInfo.max_video_size],
+    );
 
     return (
         <div className={styles.composer}>
             {error && <div className={styles.error}>{error}</div>}
-            <MentionTextArea placeholder="What's on your mind?" value={body} onChange={setBody} rows={3} onPasteFiles={handlePasteFiles} />
+            <MentionTextArea
+                placeholder="What's on your mind?"
+                value={body}
+                onChange={setBody}
+                rows={3}
+                onPasteFiles={handlePasteFiles}
+            />
 
             <MediaPreviews files={files} onRemove={removeFile} />
 

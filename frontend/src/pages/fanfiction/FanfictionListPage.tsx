@@ -1,7 +1,7 @@
-import {useEffect, useState} from "react";
-import {useNavigate, useSearchParams} from "react-router";
-import {useAuth} from "../../hooks/useAuth";
-import type {Fanfic} from "../../types/api";
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router";
+import { useAuth } from "../../hooks/useAuth";
+import type { Fanfic } from "../../types/api";
 import {
     getCharacters,
     getFanficLanguages,
@@ -9,15 +9,15 @@ import {
     listFanfics,
     searchOCCharacters,
 } from "../../api/endpoints";
-import {Button} from "../../components/Button/Button";
-import {ProfileLink} from "../../components/ProfileLink/ProfileLink";
-import {Pagination} from "../../components/Pagination/Pagination";
-import {Select} from "../../components/Select/Select";
-import {Input} from "../../components/Input/Input";
-import {InfoPanel} from "../../components/InfoPanel/InfoPanel";
-import {RulesBox} from "../../components/RulesBox/RulesBox";
-import {ToggleSwitch} from "../../components/ToggleSwitch/ToggleSwitch";
-import {relativeTime} from "../../utils/notifications";
+import { Button } from "../../components/Button/Button";
+import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
+import { Pagination } from "../../components/Pagination/Pagination";
+import { Select } from "../../components/Select/Select";
+import { Input } from "../../components/Input/Input";
+import { InfoPanel } from "../../components/InfoPanel/InfoPanel";
+import { RulesBox } from "../../components/RulesBox/RulesBox";
+import { ToggleSwitch } from "../../components/ToggleSwitch/ToggleSwitch";
+import { relativeTime } from "../../utils/notifications";
 import styles from "./FanficPages.module.css";
 
 const GENRES = [
@@ -102,7 +102,10 @@ export function FanfictionListPage() {
     const [searchInput, setSearchInput] = useState(search);
     const [filtersOpen, setFiltersOpen] = useState(false);
 
-    const activeFilterCount = [series, rating, status, language, genreA, genreB, charA, charB, charC, charD].filter(Boolean).length + (pairing ? 1 : 0) + (lemons ? 1 : 0);
+    const activeFilterCount =
+        [series, rating, status, language, genreA, genreB, charA, charB, charC, charD].filter(Boolean).length +
+        (pairing ? 1 : 0) +
+        (lemons ? 1 : 0);
 
     function setParam(key: string, value: string) {
         setLoading(true);
@@ -132,26 +135,22 @@ export function FanfictionListPage() {
     }
 
     useEffect(() => {
-        Promise.all([getFanficSeries(), getFanficLanguages()]).then(([s, l]) => {
-            setSeriesOptions(s);
-            setLanguageOptions(l);
-        }).catch(() => {});
+        Promise.all([getFanficSeries(), getFanficLanguages()])
+            .then(([s, l]) => {
+                setSeriesOptions(s);
+                setLanguageOptions(l);
+            })
+            .catch(() => {});
     }, []);
 
     useEffect(() => {
-        Promise.all([
-            getCharacters("umineko"),
-            getCharacters("higurashi"),
-            searchOCCharacters(""),
-        ]).then(([umi, higu, ocs]) => {
-            setUminekoChars(
-                Object.values(umi).sort((a, b) => a.localeCompare(b)),
-            );
-            setHiguChars(
-                Object.values(higu).sort((a, b) => a.localeCompare(b)),
-            );
-            setOcChars(ocs);
-        }).catch(() => {});
+        Promise.all([getCharacters("umineko"), getCharacters("higurashi"), searchOCCharacters("")])
+            .then(([umi, higu, ocs]) => {
+                setUminekoChars(Object.values(umi).sort((a, b) => a.localeCompare(b)));
+                setHiguChars(Object.values(higu).sort((a, b) => a.localeCompare(b)));
+                setOcChars(ocs);
+            })
+            .catch(() => {});
     }, []);
 
     useEffect(() => {
@@ -191,30 +190,48 @@ export function FanfictionListPage() {
         return () => {
             cancelled = true;
         };
-    }, [sort, series, rating, status, language, genreA, genreB, charA, charB, charC, charD, pairing, lemons, search, offset]);
+    }, [
+        sort,
+        series,
+        rating,
+        status,
+        language,
+        genreA,
+        genreB,
+        charA,
+        charB,
+        charC,
+        charD,
+        pairing,
+        lemons,
+        search,
+        offset,
+    ]);
 
     function renderCharacterSelect(label: string, paramKey: string, value: string) {
         return (
-            <Select
-                value={value}
-                onChange={e => setParam(paramKey, e.target.value)}
-                aria-label={label}
-            >
+            <Select value={value} onChange={e => setParam(paramKey, e.target.value)} aria-label={label}>
                 <option value="">All Characters</option>
                 <optgroup label="Umineko">
                     {uminekoChars.map(c => (
-                        <option key={c} value={c}>{c}</option>
+                        <option key={c} value={c}>
+                            {c}
+                        </option>
                     ))}
                 </optgroup>
                 <optgroup label="Higurashi">
                     {higuChars.map(c => (
-                        <option key={c} value={c}>{c}</option>
+                        <option key={c} value={c}>
+                            {c}
+                        </option>
                     ))}
                 </optgroup>
                 {ocChars.length > 0 && (
                     <optgroup label="OC">
                         {ocChars.map(c => (
-                            <option key={c} value={c}>{c} (OC)</option>
+                            <option key={c} value={c}>
+                                {c} (OC)
+                            </option>
                         ))}
                     </optgroup>
                 )}
@@ -235,8 +252,8 @@ export function FanfictionListPage() {
 
             <InfoPanel title="Welcome to the Archive">
                 <p>
-                    Browse fanfiction from across the When They Cry universe. Filter by series, genre, characters,
-                    and more to find your next read.
+                    Browse fanfiction from across the When They Cry universe. Filter by series, genre, characters, and
+                    more to find your next read.
                 </p>
             </InfoPanel>
 
@@ -259,11 +276,7 @@ export function FanfictionListPage() {
                     />
                 </form>
 
-                <Select
-                    value={sort}
-                    onChange={e => setParam("sort", e.target.value)}
-                    aria-label="Sort"
-                >
+                <Select value={sort} onChange={e => setParam("sort", e.target.value)} aria-label="Sort">
                     <option value="updated">Recently Updated</option>
                     <option value="published">Recently Published</option>
                     <option value="favourites">Most Favourited</option>
@@ -275,30 +288,22 @@ export function FanfictionListPage() {
                     onClick={() => setFiltersOpen(prev => !prev)}
                 >
                     Filters
-                    {activeFilterCount > 0 && (
-                        <span className={styles.filterActiveCount}>{activeFilterCount}</span>
-                    )}
+                    {activeFilterCount > 0 && <span className={styles.filterActiveCount}>{activeFilterCount}</span>}
                 </button>
             </div>
 
             {filtersOpen && (
                 <div className={styles.filterPanel}>
-                    <Select
-                        value={series}
-                        onChange={e => setParam("series", e.target.value)}
-                        aria-label="Series"
-                    >
+                    <Select value={series} onChange={e => setParam("series", e.target.value)} aria-label="Series">
                         <option value="">All Series</option>
                         {seriesOptions.map(s => (
-                            <option key={s} value={s}>{s}</option>
+                            <option key={s} value={s}>
+                                {s}
+                            </option>
                         ))}
                     </Select>
 
-                    <Select
-                        value={rating}
-                        onChange={e => setParam("rating", e.target.value)}
-                        aria-label="Rating"
-                    >
+                    <Select value={rating} onChange={e => setParam("rating", e.target.value)} aria-label="Rating">
                         <option value="">All Ratings</option>
                         <option value="K">K</option>
                         <option value="K+">K+</option>
@@ -306,46 +311,36 @@ export function FanfictionListPage() {
                         <option value="M">M</option>
                     </Select>
 
-                    <Select
-                        value={status}
-                        onChange={e => setParam("status", e.target.value)}
-                        aria-label="Status"
-                    >
+                    <Select value={status} onChange={e => setParam("status", e.target.value)} aria-label="Status">
                         <option value="">All Statuses</option>
                         <option value="in_progress">In Progress</option>
                         <option value="complete">Complete</option>
                     </Select>
 
-                    <Select
-                        value={language}
-                        onChange={e => setParam("language", e.target.value)}
-                        aria-label="Language"
-                    >
+                    <Select value={language} onChange={e => setParam("language", e.target.value)} aria-label="Language">
                         <option value="">All Languages</option>
                         {languageOptions.map(l => (
-                            <option key={l} value={l}>{l}</option>
+                            <option key={l} value={l}>
+                                {l}
+                            </option>
                         ))}
                     </Select>
 
-                    <Select
-                        value={genreA}
-                        onChange={e => setParam("genre_a", e.target.value)}
-                        aria-label="Genre A"
-                    >
+                    <Select value={genreA} onChange={e => setParam("genre_a", e.target.value)} aria-label="Genre A">
                         <option value="">Genre A (All)</option>
                         {GENRES.map(g => (
-                            <option key={g} value={g}>{g}</option>
+                            <option key={g} value={g}>
+                                {g}
+                            </option>
                         ))}
                     </Select>
 
-                    <Select
-                        value={genreB}
-                        onChange={e => setParam("genre_b", e.target.value)}
-                        aria-label="Genre B"
-                    >
+                    <Select value={genreB} onChange={e => setParam("genre_b", e.target.value)} aria-label="Genre B">
                         <option value="">Genre B (All)</option>
                         {GENRES.map(g => (
-                            <option key={g} value={g}>{g}</option>
+                            <option key={g} value={g}>
+                                {g}
+                            </option>
                         ))}
                     </Select>
 
@@ -382,11 +377,7 @@ export function FanfictionListPage() {
             {!loading && (
                 <div className={styles.list}>
                     {fanfics.map(f => (
-                        <div
-                            key={f.id}
-                            className={styles.card}
-                            onClick={() => navigate(`/fanfiction/${f.id}`)}
-                        >
+                        <div key={f.id} className={styles.card} onClick={() => navigate(`/fanfiction/${f.id}`)}>
                             <div className={styles.cardTitleRow}>
                                 <h3 className={styles.cardTitle}>{f.title}</h3>
                                 <span className={`${styles.badge} ${ratingBadgeClass(f.rating)}`}>{f.rating}</span>
@@ -409,17 +400,19 @@ export function FanfictionListPage() {
                                 )}
                             </div>
 
-                            {f.summary && (
-                                <p className={styles.cardSummary}>{f.summary}</p>
-                            )}
+                            {f.summary && <p className={styles.cardSummary}>{f.summary}</p>}
 
                             {(f.genres?.length > 0 || f.characters?.length > 0) && (
                                 <div className={styles.cardBadges}>
                                     {(f.genres ?? []).map(g => (
-                                        <span key={g} className={`${styles.badge} ${styles.badgeGenre}`}>{g}</span>
+                                        <span key={g} className={`${styles.badge} ${styles.badgeGenre}`}>
+                                            {g}
+                                        </span>
                                     ))}
                                     {(f.characters ?? []).map((c, i) => (
-                                        <span key={`${c.character_name}-${i}`} className={styles.charPill}>{c.character_name}</span>
+                                        <span key={`${c.character_name}-${i}`} className={styles.charPill}>
+                                            {c.character_name}
+                                        </span>
                                     ))}
                                 </div>
                             )}
@@ -427,8 +420,12 @@ export function FanfictionListPage() {
                             <div className={styles.cardFooter}>
                                 <div className={styles.cardStats}>
                                     <span>{formatWordCount(f.word_count)} words</span>
-                                    <span>{f.chapter_count} {f.chapter_count === 1 ? "chapter" : "chapters"}</span>
-                                    <span>{f.favourite_count} {f.favourite_count === 1 ? "fav" : "favs"}</span>
+                                    <span>
+                                        {f.chapter_count} {f.chapter_count === 1 ? "chapter" : "chapters"}
+                                    </span>
+                                    <span>
+                                        {f.favourite_count} {f.favourite_count === 1 ? "fav" : "favs"}
+                                    </span>
                                 </div>
                             </div>
                         </div>

@@ -24,7 +24,10 @@
     cursor: pointer;
     font-family: inherit;
     font-weight: 600;
-    transition: color 0.15s, background 0.15s, border-color 0.15s;
+    transition:
+        color 0.15s,
+        background 0.15s,
+        border-color 0.15s;
 }
 
 .toolbarBtn:hover {

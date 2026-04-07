@@ -102,6 +102,7 @@ func (u *User) ToProfileResponse(stats *UserStats, isSelf bool) *dto.UserProfile
 			VotesReceived: stats.VotesReceived,
 			ShipCount:     stats.ShipCount,
 			MysteryCount:  stats.MysteryCount,
+			FanficCount:   stats.FanficCount,
 		},
 	}
 }

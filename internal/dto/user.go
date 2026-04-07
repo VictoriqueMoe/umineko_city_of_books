@@ -53,6 +53,7 @@ type (
 		VotesReceived int `json:"votes_received"`
 		ShipCount     int `json:"ship_count"`
 		MysteryCount  int `json:"mystery_count"`
+		FanficCount   int `json:"fanfic_count"`
 	}
 
 	UpdateProfileRequest struct {

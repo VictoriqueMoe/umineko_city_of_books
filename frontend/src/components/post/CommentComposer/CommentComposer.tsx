@@ -1,10 +1,10 @@
-import {useCallback, useState} from "react";
-import {createComment, uploadCommentMedia} from "../../../api/endpoints";
-import {useSiteInfo} from "../../../hooks/useSiteInfo";
-import {validateFileSize} from "../../../utils/fileValidation";
-import {Button} from "../../Button/Button";
-import {MediaPickerButton, MediaPreviews} from "../../MediaPicker/MediaPicker";
-import {MentionTextArea} from "../../MentionTextArea/MentionTextArea";
+import { useCallback, useState } from "react";
+import { createComment, uploadCommentMedia } from "../../../api/endpoints";
+import { useSiteInfo } from "../../../hooks/useSiteInfo";
+import { validateFileSize } from "../../../utils/fileValidation";
+import { Button } from "../../Button/Button";
+import { MediaPickerButton, MediaPreviews } from "../../MediaPicker/MediaPicker";
+import { MentionTextArea } from "../../MentionTextArea/MentionTextArea";
 import styles from "./CommentComposer.module.css";
 
 type CreateCommentFn = (postId: string, body: string, parentId?: string) => Promise<{ id: string }>;
@@ -29,24 +29,27 @@ export function CommentComposer({ postId, parentId, onCreated, createCommentFn, 
         setFiles(prev => prev.filter((_, i) => i !== index));
     }
 
-    const handlePasteFiles = useCallback((pasted: File[]) => {
-        const errors: string[] = [];
-        const valid: File[] = [];
-        for (const file of pasted) {
-            const err = validateFileSize(file, siteInfo.max_image_size, siteInfo.max_video_size);
-            if (err) {
-                errors.push(err);
-            } else {
-                valid.push(file);
+    const handlePasteFiles = useCallback(
+        (pasted: File[]) => {
+            const errors: string[] = [];
+            const valid: File[] = [];
+            for (const file of pasted) {
+                const err = validateFileSize(file, siteInfo.max_image_size, siteInfo.max_video_size);
+                if (err) {
+                    errors.push(err);
+                } else {
+                    valid.push(file);
+                }
             }
-        }
-        if (errors.length > 0) {
-            setError(errors.join(" "));
-        }
-        if (valid.length > 0) {
-            setFiles(prev => [...prev, ...valid]);
-        }
-    }, [siteInfo.max_image_size, siteInfo.max_video_size]);
+            if (errors.length > 0) {
+                setError(errors.join(" "));
+            }
+            if (valid.length > 0) {
+                setFiles(prev => [...prev, ...valid]);
+            }
+        },
+        [siteInfo.max_image_size, siteInfo.max_video_size],
+    );
 
     async function handleSubmit() {
         if ((!body.trim() && files.length === 0) || submitting) {

@@ -1,10 +1,10 @@
-import {useCallback, useEffect, useState} from "react";
-import {useNavigate, useParams} from "react-router";
-import {useAuth} from "../../hooks/useAuth";
-import {useProfile} from "../../hooks/useProfile";
-import {useTheoryFeed} from "../../hooks/useTheoryFeed";
-import {useFollow} from "../../hooks/useFollow";
-import {useBlock} from "../../hooks/useBlock";
+import { useCallback, useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router";
+import { useAuth } from "../../hooks/useAuth";
+import { useProfile } from "../../hooks/useProfile";
+import { useTheoryFeed } from "../../hooks/useTheoryFeed";
+import { useFollow } from "../../hooks/useFollow";
+import { useBlock } from "../../hooks/useBlock";
 import {
     createGallery,
     getFollowers,
@@ -18,15 +18,15 @@ import {
     getUserPosts,
     getUserShips,
 } from "../../api/endpoints";
-import type {ActivityItem, Art, Fanfic, Gallery, Mystery, Post, Ship, User} from "../../types/api";
-import {Button} from "../../components/Button/Button";
-import {ProfileLink} from "../../components/ProfileLink/ProfileLink";
-import {TheoryCard} from "../../components/theory/TheoryCard/TheoryCard";
-import {PostCard} from "../../components/post/PostCard/PostCard";
-import {ArtGrid} from "../../components/art/ArtGrid/ArtGrid";
-import {Pagination} from "../../components/Pagination/Pagination";
-import {RolePill} from "../../components/RolePill/RolePill";
-import {RoleStyledName} from "../../components/RoleStyledName/RoleStyledName";
+import type { ActivityItem, Art, Fanfic, Gallery, Mystery, Post, Ship, User } from "../../types/api";
+import { Button } from "../../components/Button/Button";
+import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
+import { TheoryCard } from "../../components/theory/TheoryCard/TheoryCard";
+import { PostCard } from "../../components/post/PostCard/PostCard";
+import { ArtGrid } from "../../components/art/ArtGrid/ArtGrid";
+import { Pagination } from "../../components/Pagination/Pagination";
+import { RolePill } from "../../components/RolePill/RolePill";
+import { RoleStyledName } from "../../components/RoleStyledName/RoleStyledName";
 import styles from "./ProfilePage.module.css";
 
 const SOCIAL_LABELS: Record<string, string> = {
@@ -465,6 +465,10 @@ export function ProfilePage() {
                     <span className={styles.statNumber}>{profile.stats.mystery_count}</span>
                     <span className={styles.statLabel}>Mysteries</span>
                 </div>
+                <div className={`${styles.statBox} ${styles.statBoxClickable}`} onClick={() => setActiveTab("fanfics")}>
+                    <span className={styles.statNumber}>{profile.stats.fanfic_count}</span>
+                    <span className={styles.statLabel}>Fanfictions</span>
+                </div>
                 {follow.stats && (
                     <>
                         <div
@@ -526,13 +530,13 @@ export function ProfilePage() {
                     className={`${styles.tab} ${activeTab === "fanfics" ? styles.tabActive : ""}`}
                     onClick={() => setActiveTab("fanfics")}
                 >
-                    Fanfics
+                    Fanfictions
                 </button>
                 <button
                     className={`${styles.tab} ${activeTab === "fanfic-favourites" ? styles.tabActive : ""}`}
                     onClick={() => setActiveTab("fanfic-favourites")}
                 >
-                    Favourites
+                    Saved Fics
                 </button>
                 <button
                     className={`${styles.tab} ${activeTab === "activity" ? styles.tabActive : ""}`}

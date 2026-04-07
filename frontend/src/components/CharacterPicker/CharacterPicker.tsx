@@ -1,9 +1,9 @@
-import {useEffect, useMemo, useState} from "react";
-import type {CharacterListEntry, ShipCharacter} from "../../types/api";
-import {listCharacters} from "../../api/endpoints";
-import {Button} from "../Button/Button";
-import {Input} from "../Input/Input";
-import {Select} from "../Select/Select";
+import { useEffect, useMemo, useState } from "react";
+import type { CharacterListEntry, ShipCharacter } from "../../types/api";
+import { listCharacters } from "../../api/endpoints";
+import { Button } from "../Button/Button";
+import { Input } from "../Input/Input";
+import { Select } from "../Select/Select";
 import styles from "./CharacterPicker.module.css";
 
 type Series = "umineko" | "higurashi" | "oc";

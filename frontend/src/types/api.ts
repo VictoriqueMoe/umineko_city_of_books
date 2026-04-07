@@ -160,6 +160,7 @@ export interface UserStats {
     votes_received: number;
     ship_count: number;
     mystery_count: number;
+    fanfic_count: number;
 }
 
 export interface UpdateProfilePayload {

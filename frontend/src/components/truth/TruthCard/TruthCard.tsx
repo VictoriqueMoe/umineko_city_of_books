@@ -1,4 +1,4 @@
-import type {Quote} from "../../../types/api";
+import type { Quote } from "../../../types/api";
 import styles from "./TruthCard.module.css";
 
 interface TruthCardProps {

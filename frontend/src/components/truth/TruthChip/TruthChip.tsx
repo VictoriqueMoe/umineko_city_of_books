@@ -1,5 +1,5 @@
-import {useState} from "react";
-import type {Quote} from "../../../types/api";
+import { useState } from "react";
+import type { Quote } from "../../../types/api";
 import styles from "./TruthChip.module.css";
 
 interface TruthChipProps {

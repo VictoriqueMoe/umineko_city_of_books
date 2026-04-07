@@ -1,11 +1,11 @@
-import {useCallback, useEffect, useState} from "react";
-import type {QuoteBrowseResponse} from "../../types/api";
-import type {Series} from "../../api/endpoints";
-import {browseQuotes, getCharacters} from "../../api/endpoints";
-import {getSeriesConfig} from "../../utils/seriesConfig";
-import {TruthCard} from "../../components/truth/TruthCard/TruthCard";
-import {Pagination} from "../../components/Pagination/Pagination";
-import {Select} from "../../components/Select/Select";
+import { useCallback, useEffect, useState } from "react";
+import type { QuoteBrowseResponse } from "../../types/api";
+import type { Series } from "../../api/endpoints";
+import { browseQuotes, getCharacters } from "../../api/endpoints";
+import { getSeriesConfig } from "../../utils/seriesConfig";
+import { TruthCard } from "../../components/truth/TruthCard/TruthCard";
+import { Pagination } from "../../components/Pagination/Pagination";
+import { Select } from "../../components/Select/Select";
 import styles from "./QuoteBrowserPage.module.css";
 
 const TRUTH_TYPES = ["red", "blue", "gold", "purple"] as const;
@@ -16,8 +16,6 @@ const TRUTH_COLOURS: Record<string, { base: string; active: string }> = {
     gold: { base: styles.filterBtnGold, active: styles.filterBtnGoldActive },
     purple: { base: styles.filterBtnPurple, active: styles.filterBtnPurpleActive },
 };
-
-
 
 export function QuoteBrowserPage() {
     const [series, setSeries] = useState<Series>("umineko");
