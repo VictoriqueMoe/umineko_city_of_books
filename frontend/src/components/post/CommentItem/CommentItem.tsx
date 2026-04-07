@@ -142,7 +142,6 @@ function SingleComment({
             setEditing(false);
             onDelete();
         } catch {
-            void 0;
         } finally {
             setSaving(false);
         }

@@ -60,6 +60,7 @@ export interface SiteInfo {
     turnstile_site_key: string;
     max_image_size: number;
     max_video_size: number;
+    top_detective_id: string;
 }
 
 export async function getSiteInfo(): Promise<SiteInfo> {
@@ -461,6 +462,7 @@ export async function listPosts(params: {
     seed?: number;
     limit?: number;
     offset?: number;
+    resolved?: string;
 }): Promise<PostListResponse> {
     const qs = buildQueryString(params);
     return apiFetch<PostListResponse>(`/posts${qs}`);
@@ -493,6 +495,14 @@ export async function createPost(
 
 export async function votePoll(postId: string, optionId: number): Promise<Poll> {
     return apiPost<Poll, { option_id: number }>(`/posts/${postId}/poll/vote`, { option_id: optionId });
+}
+
+export async function resolveSuggestion(postId: string): Promise<void> {
+    await apiPost<unknown, Record<string, never>>(`/posts/${postId}/resolve`, {});
+}
+
+export async function unresolveSuggestion(postId: string): Promise<void> {
+    await apiDelete(`/posts/${postId}/resolve`);
 }
 
 export async function deletePost(id: string): Promise<void> {

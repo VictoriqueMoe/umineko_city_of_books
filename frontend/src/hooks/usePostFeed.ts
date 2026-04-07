@@ -12,6 +12,7 @@ export function usePostFeed(
     search?: string,
     sort?: string,
     page: number = 1,
+    resolved?: string,
 ) {
     const [data, setData] = useState<PostListResponse | null>(null);
     const [loading, setLoading] = useState(false);
@@ -33,6 +34,7 @@ export function usePostFeed(
                     seed: seedRef.current,
                     limit,
                     offset: currentOffset,
+                    resolved: resolved || undefined,
                 });
                 setData(result);
             } catch {
@@ -41,7 +43,7 @@ export function usePostFeed(
                 setLoading(false);
             }
         },
-        [tab, corner, search, sort],
+        [tab, corner, search, sort, resolved],
     );
 
     useEffect(() => {

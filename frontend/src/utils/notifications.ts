@@ -279,6 +279,11 @@ const notificationConfigs: Record<NotificationType, NotificationConfig> = {
         category: "site_improvements",
         route: notif => `/suggestions/${notif.reference_id}`,
     },
+    suggestion_resolved: {
+        text: "marked your suggestion as done",
+        category: "site_improvements",
+        route: notif => `/suggestions/${notif.reference_id}`,
+    },
 };
 
 export function getNotificationText(notif: Notification): string {

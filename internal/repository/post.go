@@ -21,7 +21,7 @@ type (
 		GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID) (*model.PostRow, error)
 		Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		DeleteAsAdmin(ctx context.Context, id uuid.UUID) error
-		ListAll(ctx context.Context, viewerID uuid.UUID, corner string, search string, sort string, seed int, limit, offset int, excludeUserIDs []uuid.UUID) ([]model.PostRow, int, error)
+		ListAll(ctx context.Context, viewerID uuid.UUID, corner string, search string, sort string, seed int, limit, offset int, excludeUserIDs []uuid.UUID, resolved *bool) ([]model.PostRow, int, error)
 		ListByFollowing(ctx context.Context, userID uuid.UUID, corner string, sort string, seed int, limit, offset int, excludeUserIDs []uuid.UUID) ([]model.PostRow, int, error)
 		ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit, offset int) ([]model.PostRow, int, error)
 
@@ -37,6 +37,9 @@ type (
 		GetLikedBy(ctx context.Context, postID uuid.UUID, excludeUserIDs []uuid.UUID) ([]model.PostLikeUser, error)
 		RecordView(ctx context.Context, postID uuid.UUID, viewerHash string) (bool, error)
 		GetPostAuthorID(ctx context.Context, postID uuid.UUID) (uuid.UUID, error)
+
+		ResolveSuggestion(ctx context.Context, postID uuid.UUID, resolvedBy uuid.UUID) error
+		UnresolveSuggestion(ctx context.Context, postID uuid.UUID) error
 
 		CreateComment(ctx context.Context, id uuid.UUID, postID uuid.UUID, parentID *uuid.UUID, userID uuid.UUID, body string) error
 		UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string) error
@@ -82,20 +85,22 @@ const postSelectBase = `
 		(SELECT COUNT(*) FROM post_likes WHERE post_id = p.id),
 		(SELECT COUNT(*) FROM post_comments WHERE post_id = p.id),
 		EXISTS(SELECT 1 FROM post_likes WHERE post_id = p.id AND user_id = ?),
-		p.view_count
+		p.view_count,
+		EXISTS(SELECT 1 FROM suggestion_resolved WHERE post_id = p.id)
 	FROM posts p
 	JOIN users u ON p.user_id = u.id
 	LEFT JOIN user_roles r ON r.user_id = p.user_id`
 
 func scanPostRow(row interface{ Scan(...interface{}) error }, p *model.PostRow) error {
-	var userLikedInt int
+	var userLikedInt, resolvedInt int
 	err := row.Scan(
 		&p.ID, &p.UserID, &p.Corner, &p.Body, &p.CreatedAt, &p.UpdatedAt,
 		&p.AuthorUsername, &p.AuthorDisplayName, &p.AuthorAvatarURL,
 		&p.AuthorRole,
-		&p.LikeCount, &p.CommentCount, &userLikedInt, &p.ViewCount,
+		&p.LikeCount, &p.CommentCount, &userLikedInt, &p.ViewCount, &resolvedInt,
 	)
 	p.UserLiked = userLikedInt == 1
+	p.Resolved = resolvedInt == 1
 	return err
 }
 
@@ -208,7 +213,7 @@ func (r *postRepository) DeleteAsAdmin(ctx context.Context, id uuid.UUID) error 
 	return nil
 }
 
-func (r *postRepository) ListAll(ctx context.Context, viewerID uuid.UUID, corner string, search string, sort string, seed int, limit, offset int, excludeUserIDs []uuid.UUID) ([]model.PostRow, int, error) {
+func (r *postRepository) ListAll(ctx context.Context, viewerID uuid.UUID, corner string, search string, sort string, seed int, limit, offset int, excludeUserIDs []uuid.UUID, resolved *bool) ([]model.PostRow, int, error) {
 	var total int
 	whereParts := []string{"p.corner = ?"}
 	args := []interface{}{corner}
@@ -217,6 +222,14 @@ func (r *postRepository) ListAll(ctx context.Context, viewerID uuid.UUID, corner
 		whereParts = append(whereParts, "(p.body LIKE ? OR u.display_name LIKE ? OR u.username LIKE ?)")
 		like := "%" + search + "%"
 		args = append(args, like, like, like)
+	}
+
+	if resolved != nil {
+		if *resolved {
+			whereParts = append(whereParts, "EXISTS(SELECT 1 FROM suggestion_resolved WHERE post_id = p.id)")
+		} else {
+			whereParts = append(whereParts, "NOT EXISTS(SELECT 1 FROM suggestion_resolved WHERE post_id = p.id)")
+		}
 	}
 
 	whereClause := " WHERE " + strings.Join(whereParts, " AND ")
@@ -487,6 +500,25 @@ func (r *postRepository) GetPostAuthorID(ctx context.Context, postID uuid.UUID) 
 		return uuid.Nil, fmt.Errorf("get post author: %w", err)
 	}
 	return userID, nil
+}
+
+func (r *postRepository) ResolveSuggestion(ctx context.Context, postID uuid.UUID, resolvedBy uuid.UUID) error {
+	_, err := r.db.ExecContext(ctx,
+		`INSERT OR IGNORE INTO suggestion_resolved (post_id, resolved_by) VALUES (?, ?)`,
+		postID, resolvedBy,
+	)
+	if err != nil {
+		return fmt.Errorf("resolve suggestion: %w", err)
+	}
+	return nil
+}
+
+func (r *postRepository) UnresolveSuggestion(ctx context.Context, postID uuid.UUID) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM suggestion_resolved WHERE post_id = ?`, postID)
+	if err != nil {
+		return fmt.Errorf("unresolve suggestion: %w", err)
+	}
+	return nil
 }
 
 func (r *postRepository) CreateComment(ctx context.Context, id uuid.UUID, postID uuid.UUID, parentID *uuid.UUID, userID uuid.UUID, body string) error {

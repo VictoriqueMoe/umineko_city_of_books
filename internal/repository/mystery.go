@@ -39,6 +39,7 @@ type (
 		IsSolved(ctx context.Context, mysteryID uuid.UUID) (bool, error)
 
 		GetLeaderboard(ctx context.Context, limit int) ([]LeaderboardEntry, error)
+		GetTopDetectiveID(ctx context.Context) (string, error)
 
 		CountAttempts(ctx context.Context, mysteryID uuid.UUID) (int, error)
 
@@ -124,12 +125,16 @@ type (
 	}
 
 	LeaderboardEntry struct {
-		UserID      uuid.UUID
-		Username    string
-		DisplayName string
-		AvatarURL   string
-		Role        string
-		SolvedCount int
+		UserID          uuid.UUID
+		Username        string
+		DisplayName     string
+		AvatarURL       string
+		Role            string
+		Score           int
+		EasySolved      int
+		MediumSolved    int
+		HardSolved      int
+		NightmareSolved int
 	}
 
 	mysteryRepository struct {
@@ -565,13 +570,21 @@ func (r *mysteryRepository) GetLeaderboard(ctx context.Context, limit int) ([]Le
 	}
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT u.id, u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''),
-			COUNT(m.id) AS solved_count
+			SUM(CASE WHEN m.difficulty = 'easy' THEN 2
+			         WHEN m.difficulty = 'medium' THEN 4
+			         WHEN m.difficulty = 'hard' THEN 6
+			         WHEN m.difficulty = 'nightmare' THEN 8
+			         ELSE 4 END) AS score,
+			SUM(CASE WHEN m.difficulty = 'easy' THEN 1 ELSE 0 END) AS easy_solved,
+			SUM(CASE WHEN m.difficulty = 'medium' THEN 1 ELSE 0 END) AS medium_solved,
+			SUM(CASE WHEN m.difficulty = 'hard' THEN 1 ELSE 0 END) AS hard_solved,
+			SUM(CASE WHEN m.difficulty = 'nightmare' THEN 1 ELSE 0 END) AS nightmare_solved
 		FROM mysteries m
 		JOIN users u ON m.winner_id = u.id
 		LEFT JOIN user_roles r ON r.user_id = u.id
 		WHERE m.solved = 1 AND m.winner_id IS NOT NULL
 		GROUP BY u.id
-		ORDER BY solved_count DESC, u.display_name ASC
+		ORDER BY score DESC, u.display_name ASC
 		LIMIT ?`, limit,
 	)
 	if err != nil {
@@ -582,12 +595,33 @@ func (r *mysteryRepository) GetLeaderboard(ctx context.Context, limit int) ([]Le
 	var result []LeaderboardEntry
 	for rows.Next() {
 		var e LeaderboardEntry
-		if err := rows.Scan(&e.UserID, &e.Username, &e.DisplayName, &e.AvatarURL, &e.Role, &e.SolvedCount); err != nil {
+		if err := rows.Scan(&e.UserID, &e.Username, &e.DisplayName, &e.AvatarURL, &e.Role,
+			&e.Score, &e.EasySolved, &e.MediumSolved, &e.HardSolved, &e.NightmareSolved); err != nil {
 			return nil, fmt.Errorf("scan leaderboard entry: %w", err)
 		}
 		result = append(result, e)
 	}
 	return result, rows.Err()
+}
+
+func (r *mysteryRepository) GetTopDetectiveID(ctx context.Context) (string, error) {
+	var userID string
+	err := r.db.QueryRowContext(ctx,
+		`SELECT m.winner_id
+		FROM mysteries m
+		WHERE m.solved = 1 AND m.winner_id IS NOT NULL
+		GROUP BY m.winner_id
+		ORDER BY SUM(CASE WHEN m.difficulty = 'easy' THEN 2
+		                  WHEN m.difficulty = 'medium' THEN 4
+		                  WHEN m.difficulty = 'hard' THEN 6
+		                  WHEN m.difficulty = 'nightmare' THEN 8
+		                  ELSE 4 END) DESC
+		LIMIT 1`,
+	).Scan(&userID)
+	if err != nil {
+		return "", err
+	}
+	return userID, nil
 }
 
 func (r *MysteryCommentRow) ToResponse(media []MysteryCommentMediaRow) dto.MysteryCommentResponse {

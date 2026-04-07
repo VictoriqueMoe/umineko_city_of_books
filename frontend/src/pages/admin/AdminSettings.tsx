@@ -372,6 +372,7 @@ export function AdminSettings() {
                             <option value="bernkastel">Bernkastel</option>
                             <option value="lambdadelta">Lambdadelta</option>
                             <option value="erika">Erika Furudo</option>
+                            <option value="battler">Battler Ushiromiya</option>
                             <option value="rika">Rika Furude</option>
                             <option value="mion">Mion Sonozaki</option>
                             <option value="satoko">Satoko Houjou</option>

@@ -364,7 +364,7 @@ export function ProfilePage() {
                 <div className={styles.info}>
                     <h1 className={styles.displayName}>
                         <RoleStyledName name={profile.display_name} role={profile.role} />
-                        {profile.role && <RolePill role={profile.role} />}
+                        <RolePill role={profile.role ?? ""} userId={profile.id} />
                     </h1>
                     <span className={styles.username}>@{profile.username}</span>
                     {currentUser && currentUser.id !== profile.id && follow.stats && (

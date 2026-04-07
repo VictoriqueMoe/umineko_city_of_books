@@ -92,8 +92,12 @@ type (
 	}
 
 	MysteryLeaderboardEntry struct {
-		User        UserResponse `json:"user"`
-		SolvedCount int          `json:"solved_count"`
+		User            UserResponse `json:"user"`
+		Score           int          `json:"score"`
+		EasySolved      int          `json:"easy_solved"`
+		MediumSolved    int          `json:"medium_solved"`
+		HardSolved      int          `json:"hard_solved"`
+		NightmareSolved int          `json:"nightmare_solved"`
 	}
 
 	MysteryLeaderboardResponse struct {

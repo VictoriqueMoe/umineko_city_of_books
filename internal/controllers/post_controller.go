@@ -41,6 +41,8 @@ func (s *Service) getAllPostRoutes() []FSetupRoute {
 		s.setupGetFollowers,
 		s.setupGetFollowing,
 		s.setupVotePoll,
+		s.setupResolveSuggestion,
+		s.setupUnresolveSuggestion,
 	}
 }
 
@@ -150,7 +152,13 @@ func (s *Service) listPostFeed(ctx fiber.Ctx) error {
 	limit := fiber.Query[int](ctx, "limit", 20)
 	offset := fiber.Query[int](ctx, "offset", 0)
 
-	result, err := s.PostService.ListFeed(ctx.Context(), tab, viewerID, corner, search, sort, seed, limit, offset)
+	var resolved *bool
+	if r := ctx.Query("resolved"); r != "" {
+		v := r == "true"
+		resolved = &v
+	}
+
+	result, err := s.PostService.ListFeed(ctx.Context(), tab, viewerID, corner, search, sort, seed, limit, offset, resolved)
 	if err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to list posts"})
 	}
@@ -556,4 +564,38 @@ func (s *Service) votePoll(ctx fiber.Ctx) error {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to vote"})
 	}
 	return ctx.JSON(poll)
+}
+
+func (s *Service) setupResolveSuggestion(r fiber.Router) {
+	r.Post("/posts/:id/resolve", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.resolveSuggestion)
+}
+
+func (s *Service) setupUnresolveSuggestion(r fiber.Router) {
+	r.Delete("/posts/:id/resolve", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.unresolveSuggestion)
+}
+
+func (s *Service) resolveSuggestion(ctx fiber.Ctx) error {
+	postID, err := uuid.Parse(ctx.Params("id"))
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid post id"})
+	}
+	userID := ctx.Locals("userID").(uuid.UUID)
+
+	if err := s.PostService.ResolveSuggestion(ctx.Context(), postID, userID); err != nil {
+		return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
+	}
+	return ctx.JSON(fiber.Map{"status": "ok"})
+}
+
+func (s *Service) unresolveSuggestion(ctx fiber.Ctx) error {
+	postID, err := uuid.Parse(ctx.Params("id"))
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid post id"})
+	}
+	userID := ctx.Locals("userID").(uuid.UUID)
+
+	if err := s.PostService.UnresolveSuggestion(ctx.Context(), postID, userID); err != nil {
+		return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
+	}
+	return ctx.JSON(fiber.Map{"status": "ok"})
 }

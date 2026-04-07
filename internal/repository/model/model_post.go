@@ -25,6 +25,7 @@ type (
 		CommentCount      int
 		UserLiked         bool
 		ViewCount         int
+		Resolved          bool
 	}
 
 	PostCommentRow struct {
@@ -76,6 +77,7 @@ func (r *PostRow) ToResponse(media []PostMediaRow, embeds []EmbedRow) dto.PostRe
 		CommentCount: r.CommentCount,
 		ViewCount:    r.ViewCount,
 		UserLiked:    r.UserLiked,
+		Resolved:     r.Resolved,
 		CreatedAt:    r.CreatedAt,
 		UpdatedAt:    r.UpdatedAt,
 	}

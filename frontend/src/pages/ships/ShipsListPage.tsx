@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useState } from "react";
-import { useNavigate } from "react-router";
+import { Link } from "react-router";
 import type { Ship, ShipCharacter } from "../../types/api";
 import { listShips } from "../../api/endpoints";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
@@ -36,7 +36,6 @@ export function CharacterPills({ characters }: { characters: ShipCharacter[] }) 
 }
 
 export function ShipsListPage() {
-    const navigate = useNavigate();
     const [ships, setShips] = useState<Ship[]>([]);
     const [total, setTotal] = useState(0);
     const [offset, setOffset] = useState(0);
@@ -135,10 +134,10 @@ export function ShipsListPage() {
             {!loading && (
                 <div className={styles.list}>
                     {ships.map(s => (
-                        <div
+                        <Link
                             key={s.id}
+                            to={`/ships/${s.id}`}
                             className={`${styles.card}${s.is_crackship ? ` ${styles.cardCrack}` : ""}`}
-                            onClick={() => navigate(`/ships/${s.id}`)}
                         >
                             {s.thumbnail_url || s.image_url ? (
                                 <img className={styles.cardImage} src={s.thumbnail_url || s.image_url} alt={s.title} />
@@ -150,7 +149,7 @@ export function ShipsListPage() {
                                 <CharacterPills characters={s.characters} />
                                 {s.description && <p className={styles.cardDescription}>{s.description}</p>}
                                 <div className={styles.cardMeta}>
-                                    <ProfileLink user={s.author} size="small" />
+                                    <ProfileLink user={s.author} size="small" clickable={false} />
                                     <span>{relativeTime(s.created_at)}</span>
                                 </div>
                                 <div className={styles.cardStats}>
@@ -166,7 +165,7 @@ export function ShipsListPage() {
                                     {s.is_crackship && <span className={styles.crackshipBadge}>Crackship</span>}
                                 </div>
                             </div>
-                        </div>
+                        </Link>
                     ))}
                 </div>
             )}

@@ -33,7 +33,7 @@ type (
 		GetPost(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, viewerHash string) (*dto.PostDetailResponse, error)
 		UpdatePost(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.UpdatePostRequest) error
 		DeletePost(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
-		ListFeed(ctx context.Context, tab string, viewerID uuid.UUID, corner string, search string, sort string, seed int, limit, offset int) (*dto.PostListResponse, error)
+		ListFeed(ctx context.Context, tab string, viewerID uuid.UUID, corner string, search string, sort string, seed int, limit, offset int, resolved *bool) (*dto.PostListResponse, error)
 		ListUserPosts(ctx context.Context, targetUserID uuid.UUID, viewerID uuid.UUID, limit, offset int) (*dto.PostListResponse, error)
 		UploadPostMedia(ctx context.Context, postID uuid.UUID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error)
 		DeletePostMedia(ctx context.Context, postID uuid.UUID, mediaID int64, userID uuid.UUID) error
@@ -48,6 +48,8 @@ type (
 		GetCornerCounts(ctx context.Context) (map[string]int, error)
 		RefreshStaleEmbeds(ctx context.Context) int
 		VotePoll(ctx context.Context, postID uuid.UUID, userID uuid.UUID, optionID int) (*dto.PollResponse, error)
+		ResolveSuggestion(ctx context.Context, postID uuid.UUID, userID uuid.UUID) error
+		UnresolveSuggestion(ctx context.Context, postID uuid.UUID, userID uuid.UUID) error
 	}
 
 	service struct {
@@ -252,7 +254,7 @@ func (s *service) DeletePost(ctx context.Context, id uuid.UUID, userID uuid.UUID
 	return s.postRepo.Delete(ctx, id, userID)
 }
 
-func (s *service) ListFeed(ctx context.Context, tab string, viewerID uuid.UUID, corner string, search string, sort string, seed int, limit, offset int) (*dto.PostListResponse, error) {
+func (s *service) ListFeed(ctx context.Context, tab string, viewerID uuid.UUID, corner string, search string, sort string, seed int, limit, offset int, resolved *bool) (*dto.PostListResponse, error) {
 	if corner == "" {
 		corner = "general"
 	}
@@ -266,7 +268,7 @@ func (s *service) ListFeed(ctx context.Context, tab string, viewerID uuid.UUID, 
 	if tab == "following" && viewerID != uuid.Nil {
 		rows, total, err = s.postRepo.ListByFollowing(ctx, viewerID, corner, sort, seed, limit, offset, blockedIDs)
 	} else {
-		rows, total, err = s.postRepo.ListAll(ctx, viewerID, corner, search, sort, seed, limit, offset, blockedIDs)
+		rows, total, err = s.postRepo.ListAll(ctx, viewerID, corner, search, sort, seed, limit, offset, blockedIDs, resolved)
 	}
 	if err != nil {
 		return nil, err
@@ -790,4 +792,42 @@ func validatePollInput(poll *dto.CreatePollInput) error {
 		return ErrInvalidDuration
 	}
 	return nil
+}
+
+func (s *service) ResolveSuggestion(ctx context.Context, postID uuid.UUID, userID uuid.UUID) error {
+	if !s.authz.Can(ctx, userID, authz.PermResolveSuggestion) {
+		return fmt.Errorf("not authorised")
+	}
+	if err := s.postRepo.ResolveSuggestion(ctx, postID, userID); err != nil {
+		return err
+	}
+
+	go func() {
+		bgCtx := context.Background()
+		authorID, err := s.postRepo.GetPostAuthorID(bgCtx, postID)
+		if err != nil || authorID == userID {
+			return
+		}
+		baseURL := s.settingsSvc.Get(bgCtx, config.SettingBaseURL)
+		linkURL := fmt.Sprintf("%s/suggestions/%s", baseURL, postID)
+		subject, body := notification.NotifEmail("An admin", "marked your suggestion as done", "", linkURL)
+		_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
+			RecipientID:   authorID,
+			Type:          dto.NotifSuggestionResolved,
+			ReferenceID:   postID,
+			ReferenceType: "post",
+			ActorID:       userID,
+			EmailSubject:  subject,
+			EmailBody:     body,
+		})
+	}()
+
+	return nil
+}
+
+func (s *service) UnresolveSuggestion(ctx context.Context, postID uuid.UUID, userID uuid.UUID) error {
+	if !s.authz.Can(ctx, userID, authz.PermResolveSuggestion) {
+		return fmt.Errorf("not authorised")
+	}
+	return s.postRepo.UnresolveSuggestion(ctx, postID)
 }

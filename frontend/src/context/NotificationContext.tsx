@@ -96,6 +96,15 @@ export function NotificationProvider({ children }: PropsWithChildren) {
         };
     }, [user, connectWs, closeSocket]);
 
+    useEffect(() => {
+        const base = "Umineko City of Books";
+        if (unreadCount > 0) {
+            document.title = `(${unreadCount}) ${base}`;
+        } else {
+            document.title = base;
+        }
+    }, [unreadCount]);
+
     const markRead = useCallback(async (id: number) => {
         await api.markNotificationRead(id);
         setNotifications(prev =>

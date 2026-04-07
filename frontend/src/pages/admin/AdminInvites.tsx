@@ -21,7 +21,7 @@ export function AdminInvites() {
     }, []);
 
     useEffect(() => {
-        void fetchInvites();
+        fetchInvites();
     }, [fetchInvites]);
 
     async function handleCreate() {

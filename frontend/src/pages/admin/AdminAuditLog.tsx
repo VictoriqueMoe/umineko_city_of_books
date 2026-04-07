@@ -37,7 +37,7 @@ export function AdminAuditLog() {
     );
 
     useEffect(() => {
-        void fetchLog(offset);
+        fetchLog(offset);
     }, [fetchLog, offset]);
 
     function handleFilterChange(value: string) {

@@ -41,7 +41,7 @@ export function AdminUsers() {
     );
 
     useEffect(() => {
-        void fetchUsers(offset);
+        fetchUsers(offset);
     }, [fetchUsers, offset]);
 
     function handleSearch(e: React.SubmitEvent) {
@@ -101,7 +101,9 @@ export function AdminUsers() {
                                             </div>
                                         </td>
                                         <td>{u.display_name}</td>
-                                        <td>{u.role ? <RolePill role={u.role} /> : "-"}</td>
+                                        <td>
+                                            <RolePill role={u.role ?? ""} userId={u.id} />
+                                        </td>
                                         <td>
                                             {u.banned ? (
                                                 <span className={styles.banned}>Banned</span>

@@ -24,6 +24,9 @@
 
 .body {
     cursor: pointer;
+    color: inherit;
+    text-decoration: none;
+    display: block;
 }
 
 .text {

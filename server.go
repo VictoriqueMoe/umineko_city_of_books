@@ -203,7 +203,14 @@ func registerListeners(settingsSvc settings.Service, app *fiber.App, svc *servic
 }
 
 func initApp(svc *services, repos *repository.Repositories, settingsSvc settings.Service) *fiber.App {
-	app := fiber.New()
+	app := fiber.New(fiber.Config{
+		ProxyHeader: "CF-Connecting-IP",
+		TrustProxy:  true,
+		TrustProxyConfig: fiber.TrustProxyConfig{
+			Loopback: true,
+			Private:  true,
+		},
+	})
 
 	middleware.Setup(app, settingsSvc, svc.session, svc.authz)
 

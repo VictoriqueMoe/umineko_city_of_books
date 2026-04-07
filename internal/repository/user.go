@@ -24,6 +24,7 @@ type (
 		UpdateProfile(ctx context.Context, userID uuid.UUID, req dto.UpdateProfileRequest) error
 		UpdateAvatarURL(ctx context.Context, userID uuid.UUID, avatarURL string) error
 		UpdateBannerURL(ctx context.Context, userID uuid.UUID, bannerURL string) error
+		UpdateIP(ctx context.Context, userID uuid.UUID, ip string) error
 		ChangePassword(ctx context.Context, userID uuid.UUID, oldPassword, newPassword string) error
 		DeleteAccount(ctx context.Context, userID uuid.UUID, password string) error
 		GetProfileByUsername(ctx context.Context, username string) (*model.User, *model.UserStats, error)
@@ -177,6 +178,16 @@ func (r *userRepository) UpdateBannerURL(ctx context.Context, userID uuid.UUID, 
 	)
 	if err != nil {
 		return fmt.Errorf("update banner url: %w", err)
+	}
+	return nil
+}
+
+func (r *userRepository) UpdateIP(ctx context.Context, userID uuid.UUID, ip string) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE users SET ip = ? WHERE id = ?`, ip, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("update ip: %w", err)
 	}
 	return nil
 }

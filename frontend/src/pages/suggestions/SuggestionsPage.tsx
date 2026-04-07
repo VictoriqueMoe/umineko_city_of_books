@@ -1,17 +1,32 @@
 import { useState } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import { usePostFeed } from "../../hooks/usePostFeed";
+import { resolveSuggestion, unresolveSuggestion } from "../../api/endpoints";
+import { can } from "../../utils/permissions";
 import { PostCard } from "../../components/post/PostCard/PostCard";
 import { PostComposer } from "../../components/post/PostComposer/PostComposer";
 import { Pagination } from "../../components/Pagination/Pagination";
 import { RulesBox } from "../../components/RulesBox/RulesBox";
 import { InfoPanel } from "../../components/InfoPanel/InfoPanel";
+import { Button } from "../../components/Button/Button";
+import { Select } from "../../components/Select/Select";
 import styles from "./SuggestionsPage.module.css";
 
 export function SuggestionsPage() {
     const { user } = useAuth();
     const [page, setPage] = useState(1);
-    const feed = usePostFeed("everyone", "suggestions", undefined, "new", page);
+    const [filter, setFilter] = useState("false");
+    const feed = usePostFeed("everyone", "suggestions", undefined, "new", page, filter || undefined);
+    const canResolve = can(user?.role, "resolve_suggestion");
+
+    async function toggleResolved(postId: string, currentlyResolved: boolean) {
+        if (currentlyResolved) {
+            await unresolveSuggestion(postId);
+        } else {
+            await resolveSuggestion(postId);
+        }
+        feed.refresh();
+    }
 
     return (
         <div className={styles.page}>
@@ -27,6 +42,20 @@ export function SuggestionsPage() {
 
             <RulesBox page="suggestions" />
 
+            <div className={styles.controls}>
+                <Select
+                    value={filter}
+                    onChange={e => {
+                        setFilter(e.target.value);
+                        setPage(1);
+                    }}
+                >
+                    <option value="false">Open</option>
+                    <option value="true">Done</option>
+                    <option value="">All</option>
+                </Select>
+            </div>
+
             {user && <PostComposer corner="suggestions" />}
 
             {feed.loading && <div className="loading">Loading suggestions...</div>}
@@ -37,7 +66,25 @@ export function SuggestionsPage() {
 
             {!feed.loading &&
                 feed.posts.map(post => (
-                    <PostCard key={post.id} post={post} onDelete={feed.refresh} onEdit={feed.refresh} />
+                    <div key={post.id} className={post.resolved ? styles.resolvedCard : undefined}>
+                        {post.resolved && <div className={styles.resolvedBadge}>Done</div>}
+                        <PostCard
+                            post={post}
+                            onDelete={feed.refresh}
+                            onEdit={feed.refresh}
+                            extraActions={
+                                canResolve ? (
+                                    <Button
+                                        variant={post.resolved ? "ghost" : "secondary"}
+                                        size="small"
+                                        onClick={() => toggleResolved(post.id, !!post.resolved)}
+                                    >
+                                        {post.resolved ? "Undo" : "Mark as Done"}
+                                    </Button>
+                                ) : undefined
+                            }
+                        />
+                    </div>
                 ))}
 
             <Pagination

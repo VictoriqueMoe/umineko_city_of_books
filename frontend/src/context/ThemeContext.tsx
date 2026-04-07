@@ -13,6 +13,7 @@ const VALID_THEMES: Set<string> = new Set([
     "lambdadelta",
     "beatrice",
     "erika",
+    "battler",
     "rika",
     "mion",
     "satoko",
@@ -37,9 +38,7 @@ function getStoredTheme(): ThemeType {
         if (stored !== null && isValidTheme(stored)) {
             return stored;
         }
-    } catch {
-        void 0;
-    }
+    } catch {}
     return FALLBACK_THEME;
 }
 
@@ -49,9 +48,7 @@ function getStoredParticles(): boolean {
         if (stored !== null) {
             return stored === "true";
         }
-    } catch {
-        void 0;
-    }
+    } catch {}
     return true;
 }
 
@@ -80,18 +77,14 @@ export function ThemeProvider({ children }: PropsWithChildren) {
         setThemeState(newTheme);
         try {
             localStorage.setItem(STORAGE_KEY, newTheme);
-        } catch {
-            void 0;
-        }
+        } catch {}
     }, []);
 
     const setParticlesEnabled = useCallback((enabled: boolean) => {
         setParticlesEnabledState(enabled);
         try {
             localStorage.setItem(PARTICLES_KEY, String(enabled));
-        } catch {
-            void 0;
-        }
+        } catch {}
     }, []);
 
     return (

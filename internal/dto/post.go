@@ -32,6 +32,7 @@ type (
 		CommentCount int                 `json:"comment_count"`
 		ViewCount    int                 `json:"view_count"`
 		UserLiked    bool                `json:"user_liked"`
+		Resolved     bool                `json:"resolved,omitempty"`
 		CreatedAt    string              `json:"created_at"`
 		UpdatedAt    *string             `json:"updated_at,omitempty"`
 	}

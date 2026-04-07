@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -126,6 +127,11 @@ func (s *Service) register(ctx fiber.Ctx) error {
 		})
 	}
 
+	go func() {
+		ip, _ := ctx.Locals("client_ip").(string)
+		_ = s.UserRepo.UpdateIP(context.Background(), user.ID, ip)
+	}()
+
 	s.setSessionCookie(ctx, token)
 	return ctx.Status(fiber.StatusCreated).JSON(user)
 }
@@ -160,6 +166,11 @@ func (s *Service) login(ctx fiber.Ctx) error {
 		})
 	}
 
+	go func() {
+		ip, _ := ctx.Locals("client_ip").(string)
+		_ = s.UserRepo.UpdateIP(context.Background(), user.ID, ip)
+	}()
+
 	s.setSessionCookie(ctx, token)
 	return ctx.JSON(user)
 }
@@ -193,6 +204,7 @@ func (s *Service) setupSiteInfoRoute(r fiber.Router) {
 }
 
 func (s *Service) siteInfo(ctx fiber.Ctx) error {
+	topDetective, _ := s.MysteryService.GetTopDetectiveID(ctx.Context())
 	return ctx.JSON(fiber.Map{
 		"site_name":           s.SettingsService.Get(ctx.Context(), config.SettingSiteName),
 		"site_description":    s.SettingsService.Get(ctx.Context(), config.SettingSiteDescription),
@@ -206,6 +218,7 @@ func (s *Service) siteInfo(ctx fiber.Ctx) error {
 		"turnstile_site_key":  s.SettingsService.Get(ctx.Context(), config.SettingTurnstileSiteKey),
 		"max_image_size":      s.SettingsService.GetInt(ctx.Context(), config.SettingMaxImageSize),
 		"max_video_size":      s.SettingsService.GetInt(ctx.Context(), config.SettingMaxVideoSize),
+		"top_detective_id":    topDetective,
 	})
 }
 

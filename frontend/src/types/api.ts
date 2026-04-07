@@ -258,6 +258,7 @@ export interface Post {
     comment_count: number;
     view_count: number;
     user_liked: boolean;
+    resolved?: boolean;
     created_at: string;
     updated_at?: string;
 }
@@ -330,7 +331,8 @@ export type NotificationType =
     | "announcement_commented"
     | "announcement_comment_reply"
     | "announcement_comment_liked"
-    | "suggestion_posted";
+    | "suggestion_posted"
+    | "suggestion_resolved";
 
 export interface Notification {
     id: number;
@@ -590,7 +592,11 @@ export interface MysteryListResponse {
 
 export interface MysteryLeaderboardEntry {
     user: User;
-    solved_count: number;
+    score: number;
+    easy_solved: number;
+    medium_solved: number;
+    hard_solved: number;
+    nightmare_solved: number;
 }
 
 export interface MysteryLeaderboardResponse {

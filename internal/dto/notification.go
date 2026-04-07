@@ -72,4 +72,5 @@ const (
 	NotifFanficCommentReply       NotificationType = "fanfic_comment_reply"
 	NotifFanficFavourited         NotificationType = "fanfic_favourited"
 	NotifSuggestionPosted         NotificationType = "suggestion_posted"
+	NotifSuggestionResolved       NotificationType = "suggestion_resolved"
 )

@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router";
+import React, { useEffect, useRef, useState } from "react";
+import { Link } from "react-router";
 import type { Post, PostMedia } from "../../../types/api";
 import {
     deletePost as apiDeletePost,
@@ -26,6 +26,7 @@ interface PostCardProps {
     post: Post;
     onDelete?: () => void;
     onEdit?: () => void;
+    extraActions?: React.ReactNode;
 }
 
 function timeAgo(dateStr: string): string {
@@ -48,8 +49,7 @@ function timeAgo(dateStr: string): string {
     return new Date(dateStr).toLocaleDateString();
 }
 
-export function PostCard({ post, onDelete, onEdit }: PostCardProps) {
-    const navigate = useNavigate();
+export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps) {
     const { user } = useAuth();
     const { addWSListener } = useNotifications();
     const [liked, setLiked] = useState(post.user_liked);
@@ -109,9 +109,7 @@ export function PostCard({ post, onDelete, onEdit }: PostCardProps) {
         }
         try {
             await apiDeletePost(post.id);
-        } catch {
-            void 0;
-        }
+        } catch {}
         onDelete?.();
     }
 
@@ -127,7 +125,6 @@ export function PostCard({ post, onDelete, onEdit }: PostCardProps) {
             setEditing(false);
             onEdit?.();
         } catch {
-            void 0;
         } finally {
             setSaving(false);
         }
@@ -202,12 +199,12 @@ export function PostCard({ post, onDelete, onEdit }: PostCardProps) {
                     </div>
                 </div>
             ) : (
-                <div className={styles.body} onClick={() => navigate(`/game-board/${post.id}`)}>
+                <Link to={`/game-board/${post.id}`} className={styles.body}>
                     <p className={styles.text}>{linkify(displayBody)}</p>
                     {post.poll && <PollDisplay poll={post.poll} postId={post.id} onVoted={onEdit} />}
                     <MediaGallery media={displayMedia} />
                     {post.embeds && <PostEmbeds embeds={post.embeds} />}
-                </div>
+                </Link>
             )}
 
             <div className={styles.actions}>
@@ -215,9 +212,11 @@ export function PostCard({ post, onDelete, onEdit }: PostCardProps) {
                     {liked ? "\u2665" : "\u2661"} {likeCount > 0 && likeCount}
                 </Button>
 
-                <Button variant="ghost" size="small" onClick={() => navigate(`/game-board/${post.id}`)}>
-                    {"\uD83D\uDCAC"} {post.comment_count > 0 && post.comment_count}
-                </Button>
+                <Link to={`/game-board/${post.id}`} style={{ textDecoration: "none" }}>
+                    <Button variant="ghost" size="small">
+                        {"\uD83D\uDCAC"} {post.comment_count > 0 && post.comment_count}
+                    </Button>
+                </Link>
 
                 {canEdit && !editing && (
                     <Button variant="ghost" size="small" onClick={() => setEditing(true)}>
@@ -244,6 +243,7 @@ export function PostCard({ post, onDelete, onEdit }: PostCardProps) {
                 </Button>
 
                 {user && !isOwner && <ReportButton targetType="post" targetId={post.id} />}
+                {extraActions}
             </div>
         </div>
     );

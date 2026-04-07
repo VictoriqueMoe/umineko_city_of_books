@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router";
+import { Link } from "react-router";
 import type { User } from "../../types/api";
 import { RolePill } from "../RolePill/RolePill";
 import { RoleStyledName } from "../RoleStyledName/RoleStyledName";
@@ -10,6 +10,7 @@ interface ProfileLinkProps {
     showName?: boolean;
     prefix?: string;
     online?: boolean;
+    clickable?: boolean;
 }
 
 const sizes = {
@@ -18,12 +19,18 @@ const sizes = {
     large: 40,
 };
 
-export function ProfileLink({ user, size = "medium", showName = true, prefix, online }: ProfileLinkProps) {
-    const navigate = useNavigate();
+export function ProfileLink({
+    user,
+    size = "medium",
+    showName = true,
+    prefix,
+    online,
+    clickable = true,
+}: ProfileLinkProps) {
     const px = sizes[size];
 
-    return (
-        <span className={styles.link} onClick={() => navigate(`/user/${user.username}`)}>
+    const content = (
+        <>
             <span className={styles.avatarWrapper} style={{ width: px, height: px }}>
                 {user.avatar_url ? (
                     <img className={styles.avatar} src={user.avatar_url} alt="" style={{ width: px, height: px }} />
@@ -38,9 +45,19 @@ export function ProfileLink({ user, size = "medium", showName = true, prefix, on
                 <span className={styles.name}>
                     {prefix && `${prefix} `}
                     <RoleStyledName name={user.display_name} role={user.role} />
-                    {user.role && <RolePill role={user.role} />}
+                    <RolePill role={user.role ?? ""} userId={user.id} />
                 </span>
             )}
-        </span>
+        </>
+    );
+
+    if (!clickable) {
+        return <span className={styles.link}>{content}</span>;
+    }
+
+    return (
+        <Link to={`/user/${user.username}`} className={styles.link}>
+            {content}
+        </Link>
     );
 }

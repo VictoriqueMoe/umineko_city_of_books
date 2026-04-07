@@ -559,7 +559,7 @@ func (s *service) Favourite(ctx context.Context, userID, fanficID uuid.UUID) err
 		subject, emailBody := notification.NotifEmail(actor.DisplayName, "favourited your fanfic", "", linkURL)
 		_ = s.notifSvc.Notify(bgCtx, dto.NotifyParams{
 			RecipientID:   authorID,
-			Type:          "fanfic_favourited",
+			Type:          dto.NotifFanficFavourited,
 			ReferenceID:   fanficID,
 			ReferenceType: "fanfic",
 			ActorID:       userID,
@@ -622,7 +622,7 @@ func (s *service) CreateComment(ctx context.Context, fanficID, userID uuid.UUID,
 		subject, emailBody := notification.NotifEmail(actor.DisplayName, "commented on your fanfic", "", linkURL)
 		_ = s.notifSvc.Notify(bgCtx, dto.NotifyParams{
 			RecipientID:   authorID,
-			Type:          "fanfic_commented",
+			Type:          dto.NotifFanficCommented,
 			ReferenceID:   fanficID,
 			ReferenceType: fmt.Sprintf("fanfic_comment:%s", id),
 			ActorID:       userID,
@@ -636,7 +636,7 @@ func (s *service) CreateComment(ctx context.Context, fanficID, userID uuid.UUID,
 				replySubject, replyBody := notification.NotifEmail(actor.DisplayName, "replied to your comment", "", linkURL)
 				_ = s.notifSvc.Notify(bgCtx, dto.NotifyParams{
 					RecipientID:   parentAuthor,
-					Type:          "fanfic_comment_reply",
+					Type:          dto.NotifFanficCommentReply,
 					ReferenceID:   fanficID,
 					ReferenceType: fmt.Sprintf("fanfic_comment:%s", id),
 					ActorID:       userID,

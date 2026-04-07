@@ -85,7 +85,7 @@ export function TruthPicker({ isOpen, onClose, onSelect, selectedKeys, series = 
     useEffect(() => {
         if (isOpen && !initialLoadDone.current) {
             initialLoadDone.current = true;
-            void doFetch("", 0, "", "", "", lang, 0);
+            doFetch("", 0, "", "", "", lang, 0);
         }
         if (!isOpen) {
             initialLoadDone.current = false;
@@ -102,12 +102,12 @@ export function TruthPicker({ isOpen, onClose, onSelect, selectedKeys, series = 
 
     function handleSearch() {
         setOffset(0);
-        void doFetch(query, episode, arc, character, truth, lang, 0);
+        doFetch(query, episode, arc, character, truth, lang, 0);
     }
 
     function handlePageChange(newOffset: number) {
         setOffset(newOffset);
-        void doFetch(query, episode, arc, character, truth, lang, newOffset);
+        doFetch(query, episode, arc, character, truth, lang, newOffset);
     }
 
     return (
@@ -140,7 +140,7 @@ export function TruthPicker({ isOpen, onClose, onSelect, selectedKeys, series = 
                             const val = (e.target as HTMLSelectElement).value;
                             setArc(val);
                             setOffset(0);
-                            void doFetch(query, 0, val, character, truth, lang, 0);
+                            doFetch(query, 0, val, character, truth, lang, 0);
                         }}
                     >
                         <option value="">All Arcs</option>
@@ -157,7 +157,7 @@ export function TruthPicker({ isOpen, onClose, onSelect, selectedKeys, series = 
                             const val = Number((e.target as HTMLSelectElement).value);
                             setEpisode(val);
                             setOffset(0);
-                            void doFetch(query, val, "", character, truth, lang, 0);
+                            doFetch(query, val, "", character, truth, lang, 0);
                         }}
                     >
                         <option value={0}>All Episodes</option>
@@ -175,7 +175,7 @@ export function TruthPicker({ isOpen, onClose, onSelect, selectedKeys, series = 
                         const val = (e.target as HTMLSelectElement).value;
                         setCharacter(val);
                         setOffset(0);
-                        void doFetch(query, episode, arc, val, truth, lang, 0);
+                        doFetch(query, episode, arc, val, truth, lang, 0);
                     }}
                 >
                     <option value="">All Characters</option>
@@ -192,7 +192,7 @@ export function TruthPicker({ isOpen, onClose, onSelect, selectedKeys, series = 
                         const val = (e.target as HTMLSelectElement).value;
                         setTruth(val);
                         setOffset(0);
-                        void doFetch(query, episode, arc, character, val, lang, 0);
+                        doFetch(query, episode, arc, character, val, lang, 0);
                     }}
                 >
                     <option value="">All Types</option>
@@ -209,7 +209,7 @@ export function TruthPicker({ isOpen, onClose, onSelect, selectedKeys, series = 
                         const val = (e.target as HTMLSelectElement).value;
                         setLang(val);
                         setOffset(0);
-                        void doFetch(query, episode, arc, character, truth, val, 0);
+                        doFetch(query, episode, arc, character, truth, val, 0);
                     }}
                 >
                     <option value="">Default Language</option>

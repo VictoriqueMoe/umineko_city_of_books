@@ -50,8 +50,19 @@ func Setup(app *fiber.App, settingsSvc settings.Service, sessionMgr *session.Man
 		},
 	}))
 
+	app.Use(func(ctx fiber.Ctx) error {
+		ip := ctx.IP()
+		if ip == "" {
+			if addr := ctx.RequestCtx().RemoteAddr(); addr != nil {
+				ip = addr.String()
+			}
+		}
+		ctx.Locals("client_ip", ip)
+		return ctx.Next()
+	})
+
 	app.Use(logger.New(logger.Config{
-		Format:     "${time} | ${status} | ${latency} | ${method} ${path} ${queryParams}\n",
+		Format:     "${time} | ${status} | ${latency} | ${locals:client_ip} | ${method} ${path} ${queryParams}\n",
 		TimeFormat: "2006-01-02 15:04:05",
 		Next: func(ctx fiber.Ctx) bool {
 			if zerolog.GlobalLevel() <= zerolog.DebugLevel {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
+import { Link } from "react-router";
 import type { Announcement } from "../../types/api";
 import { listAnnouncements } from "../../api/endpoints";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
@@ -8,7 +8,6 @@ import { relativeTime } from "../../utils/notifications";
 import styles from "./AnnouncementsPage.module.css";
 
 export function AnnouncementsPage() {
-    const navigate = useNavigate();
     const [announcements, setAnnouncements] = useState<Announcement[]>([]);
     const [total, setTotal] = useState(0);
     const [offset, setOffset] = useState(0);
@@ -56,21 +55,21 @@ export function AnnouncementsPage() {
 
             <div className={styles.list}>
                 {announcements.map(a => (
-                    <div
+                    <Link
                         key={a.id}
+                        to={`/announcements/${a.id}`}
                         className={`${styles.card}${a.pinned ? ` ${styles.cardPinned}` : ""}`}
-                        onClick={() => navigate(`/announcements/${a.id}`)}
                     >
                         <div className={styles.cardHeader}>
                             <span className={styles.cardTitle}>{a.title}</span>
                             {a.pinned && <span className={styles.pinnedBadge}>Pinned</span>}
                         </div>
                         <div className={styles.cardMeta}>
-                            <ProfileLink user={a.author} size="small" />
+                            <ProfileLink user={a.author} size="small" clickable={false} />
                             <span>{relativeTime(a.created_at)}</span>
                         </div>
                         <p className={styles.cardPreview}>{preview(a.body)}</p>
-                    </div>
+                    </Link>
                 ))}
             </div>
 

@@ -8,3 +8,29 @@
     color: var(--gold);
     margin-bottom: 1rem;
 }
+
+.controls {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.resolvedCard {
+    position: relative;
+    opacity: 0.6;
+}
+
+.resolvedBadge {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    background: rgba(40, 167, 69, 0.2);
+    color: #66bb6a;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.15rem 0.5rem;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    z-index: 1;
+}

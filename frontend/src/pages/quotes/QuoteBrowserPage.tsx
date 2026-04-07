@@ -72,7 +72,7 @@ export function QuoteBrowserPage() {
 
     useEffect(() => {
         setOffset(0);
-        void fetchQuotes(0);
+        fetchQuotes(0);
     }, [fetchQuotes]);
 
     function truthBtnClass(t: string): string {
@@ -181,12 +181,12 @@ export function QuoteBrowserPage() {
                     onNext={() => {
                         const next = offset + limit;
                         setOffset(next);
-                        void fetchQuotes(next);
+                        fetchQuotes(next);
                     }}
                     onPrev={() => {
                         const prev = Math.max(0, offset - limit);
                         setOffset(prev);
-                        void fetchQuotes(prev);
+                        fetchQuotes(prev);
                     }}
                 />
             )}

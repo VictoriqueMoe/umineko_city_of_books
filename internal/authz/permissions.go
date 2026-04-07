@@ -21,6 +21,7 @@ const (
 	PermEditAnyTheory     Permission = "edit_any_theory"
 	PermEditAnyPost       Permission = "edit_any_post"
 	PermEditAnyComment    Permission = "edit_any_comment"
+	PermResolveSuggestion Permission = "resolve_suggestion"
 )
 
 var rolePermissions = map[role.Role][]Permission{

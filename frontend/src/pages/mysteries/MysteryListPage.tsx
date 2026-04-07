@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router";
-import type { Mystery, MysteryLeaderboardEntry } from "../../types/api";
+import { useCallback, useEffect, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router";
+import type { Mystery, MysteryLeaderboardEntry, User } from "../../types/api";
 import { getMysteryLeaderboard, listMysteries } from "../../api/endpoints";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
+import { RoleStyledName } from "../../components/RoleStyledName/RoleStyledName";
 import { Pagination } from "../../components/Pagination/Pagination";
 import { Select } from "../../components/Select/Select";
 import { RulesBox } from "../../components/RulesBox/RulesBox";
@@ -68,8 +69,26 @@ function LiveTimer({ since, until }: { since: string; until?: string | null }) {
     return <span>{formatDuration(elapsed)}</span>;
 }
 
-export function MysteryListPage() {
+function LeaderboardAvatar({ user }: { user: User }) {
     const navigate = useNavigate();
+    return (
+        <span
+            className={styles.leaderboardAvatar}
+            onClick={e => {
+                e.stopPropagation();
+                navigate(`/user/${user.username}`);
+            }}
+        >
+            {user.avatar_url ? (
+                <img src={user.avatar_url} alt="" className={styles.leaderboardAvatarImg} />
+            ) : (
+                <span className={styles.leaderboardAvatarPlaceholder}>{user.display_name[0]}</span>
+            )}
+        </span>
+    );
+}
+
+export function MysteryListPage() {
     const [searchParams, setSearchParams] = useSearchParams();
     const [mysteries, setMysteries] = useState<Mystery[]>([]);
     const [total, setTotal] = useState(0);
@@ -78,7 +97,12 @@ export function MysteryListPage() {
     const [solved, setSolved] = useState(searchParams.get("solved") ?? "false");
     const [loading, setLoading] = useState(true);
     const [leaderboard, setLeaderboard] = useState<MysteryLeaderboardEntry[]>([]);
+    const [expandedId, setExpandedId] = useState<string | null>(null);
     const limit = 20;
+
+    const toggleExpand = useCallback((id: string) => {
+        setExpandedId(prev => (prev === id ? null : id));
+    }, []);
 
     useEffect(() => {
         getMysteryLeaderboard(10)
@@ -179,14 +203,14 @@ export function MysteryListPage() {
                     {!loading && (
                         <div className={styles.list}>
                             {mysteries.map(m => (
-                                <div
+                                <Link
                                     key={m.id}
+                                    to={`/mystery/${m.id}`}
                                     className={`${styles.card}${m.solved ? ` ${styles.cardSolved}` : ""}`}
-                                    onClick={() => navigate(`/mystery/${m.id}`)}
                                 >
                                     <div className={styles.cardTitle}>{m.title}</div>
                                     <div className={styles.cardMeta}>
-                                        <ProfileLink user={m.author} size="small" />
+                                        <ProfileLink user={m.author} size="small" clickable={false} />
                                         <span>{relativeTime(m.created_at)}</span>
                                     </div>
                                     <div className={styles.cardBadges}>
@@ -217,7 +241,7 @@ export function MysteryListPage() {
                                     <p className={styles.cardPreview}>
                                         {m.body.length > 200 ? m.body.slice(0, 200) + "..." : m.body}
                                     </p>
-                                </div>
+                                </Link>
                             ))}
                         </div>
                     )}
@@ -236,19 +260,89 @@ export function MysteryListPage() {
                 <aside className={styles.sidebar}>
                     <div className={styles.leaderboard}>
                         <h3 className={styles.leaderboardTitle}>Top Detectives</h3>
+                        <p className={styles.leaderboardInfo}>
+                            Scores are based on difficulty: Easy 2 pts, Medium 4 pts, Hard 6 pts, Nightmare 8 pts. Click
+                            a detective to see their breakdown.
+                        </p>
                         {leaderboard.length === 0 ? (
                             <p className={styles.leaderboardEmpty}>
                                 No mysteries have been solved yet. Be the first to claim a winner's laurels.
                             </p>
                         ) : (
                             <ol className={styles.leaderboardList}>
-                                {leaderboard.map((entry, i) => (
-                                    <li key={entry.user.id} className={styles.leaderboardItem}>
-                                        <span className={styles.leaderboardRank}>#{i + 1}</span>
-                                        <ProfileLink user={entry.user} size="small" />
-                                        <span className={styles.leaderboardScore}>{entry.solved_count} solved</span>
-                                    </li>
-                                ))}
+                                {leaderboard.map((entry, i) => {
+                                    const isExpanded = expandedId === entry.user.id;
+                                    const total =
+                                        entry.easy_solved +
+                                        entry.medium_solved +
+                                        entry.hard_solved +
+                                        entry.nightmare_solved;
+                                    return (
+                                        <li key={entry.user.id}>
+                                            <div
+                                                className={`${styles.leaderboardItem}${isExpanded ? ` ${styles.leaderboardItemExpanded}` : ""}`}
+                                                onClick={() => toggleExpand(entry.user.id)}
+                                            >
+                                                <span className={styles.leaderboardRank}>#{i + 1}</span>
+                                                <LeaderboardAvatar user={entry.user} />
+                                                <span className={styles.leaderboardName}>
+                                                    <RoleStyledName
+                                                        name={entry.user.display_name}
+                                                        role={entry.user.role}
+                                                    />
+                                                </span>
+                                                <span className={styles.leaderboardScore}>{entry.score} pts</span>
+                                            </div>
+                                            {i === 0 && (
+                                                <div className={styles.topDetectiveRow}>
+                                                    <span
+                                                        className={styles.topDetectiveBadge}
+                                                        title="Ranked #1 in mysteries"
+                                                    >
+                                                        True Detective
+                                                    </span>
+                                                </div>
+                                            )}
+                                            {isExpanded && (
+                                                <div className={styles.leaderboardBreakdown}>
+                                                    <span className={styles.breakdownTotal}>{total} solved</span>
+                                                    {entry.easy_solved > 0 && (
+                                                        <span className={styles.breakdownRow}>
+                                                            <span className={styles.breakdownLabel}>Easy</span>
+                                                            <span className={styles.breakdownCount}>
+                                                                {entry.easy_solved}
+                                                            </span>
+                                                        </span>
+                                                    )}
+                                                    {entry.medium_solved > 0 && (
+                                                        <span className={styles.breakdownRow}>
+                                                            <span className={styles.breakdownLabel}>Medium</span>
+                                                            <span className={styles.breakdownCount}>
+                                                                {entry.medium_solved}
+                                                            </span>
+                                                        </span>
+                                                    )}
+                                                    {entry.hard_solved > 0 && (
+                                                        <span className={styles.breakdownRow}>
+                                                            <span className={styles.breakdownLabel}>Hard</span>
+                                                            <span className={styles.breakdownCount}>
+                                                                {entry.hard_solved}
+                                                            </span>
+                                                        </span>
+                                                    )}
+                                                    {entry.nightmare_solved > 0 && (
+                                                        <span className={styles.breakdownRow}>
+                                                            <span className={styles.breakdownLabel}>Nightmare</span>
+                                                            <span className={styles.breakdownCount}>
+                                                                {entry.nightmare_solved}
+                                                            </span>
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </li>
+                                    );
+                                })}
                             </ol>
                         )}
                     </div>

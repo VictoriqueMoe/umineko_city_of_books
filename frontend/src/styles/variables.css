@@ -116,6 +116,29 @@
     --hover-glow: 0.15;
 }
 
+[data-theme="battler"] {
+    --bg-void: #0f0608;
+    --bg-purple: #1a0a10;
+    --bg-card: #1f0c14;
+    --bg-card-hover: #28101a;
+    --gold: #c41e3a;
+    --gold-light: #e85a70;
+    --gold-dark: #8b1428;
+    --purple: #4a1520;
+    --purple-light: #e85a70;
+    --purple-muted: #2a0f18;
+    --text: #f0e0e5;
+    --text-muted: #c0a0a8;
+    --rose: #2a5a8a;
+
+    --gold-rgb: 196, 30, 58;
+    --purple-rgb: 74, 21, 32;
+    --rose-rgb: 42, 90, 138;
+    --bg-card-rgb: 31, 12, 20;
+    --bg-purple-rgb: 26, 10, 16;
+    --hover-glow: 0.15;
+}
+
 [data-theme="rika"] {
     --bg-void: #080812;
     --bg-purple: #0f0f24;

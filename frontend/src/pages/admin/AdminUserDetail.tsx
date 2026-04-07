@@ -49,7 +49,7 @@ export function AdminUserDetail() {
                 }
             }
         }
-        void load();
+        load();
         return () => {
             cancelled = true;
         };
@@ -201,7 +201,7 @@ export function AdminUserDetail() {
                     {user.role ? (
                         <div className={styles.roleDisplay}>
                             <span className={styles.currentRole}>
-                                Current: <RolePill role={user.role} />
+                                Current: <RolePill role={user.role} userId={user.id} />
                             </span>
                             <Button variant="danger" size="small" onClick={handleRemoveRole}>
                                 Remove Role

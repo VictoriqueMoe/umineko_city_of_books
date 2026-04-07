@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { useAuth } from "../../hooks/useAuth";
 import type { Fanfic } from "../../types/api";
 import {
@@ -377,7 +377,7 @@ export function FanfictionListPage() {
             {!loading && (
                 <div className={styles.list}>
                     {fanfics.map(f => (
-                        <div key={f.id} className={styles.card} onClick={() => navigate(`/fanfiction/${f.id}`)}>
+                        <Link key={f.id} to={`/fanfiction/${f.id}`} className={styles.card}>
                             <div className={styles.cardTitleRow}>
                                 <h3 className={styles.cardTitle}>{f.title}</h3>
                                 <span className={`${styles.badge} ${ratingBadgeClass(f.rating)}`}>{f.rating}</span>
@@ -390,7 +390,7 @@ export function FanfictionListPage() {
                             </div>
 
                             <div className={styles.cardByline}>
-                                <ProfileLink user={f.author} size="small" />
+                                <ProfileLink user={f.author} size="small" clickable={false} />
                                 <span>{f.series}</span>
                                 <span>{f.language}</span>
                                 {f.updated_at ? (
@@ -428,7 +428,7 @@ export function FanfictionListPage() {
                                     </span>
                                 </div>
                             </div>
-                        </div>
+                        </Link>
                     ))}
                 </div>
             )}
