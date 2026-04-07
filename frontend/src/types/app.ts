@@ -1,4 +1,13 @@
-export type ThemeType = "featherine" | "bernkastel" | "lambdadelta" | "beatrice" | "erika" | "battler" | "rika" | "mion" | "satoko";
+export type ThemeType =
+    | "featherine"
+    | "bernkastel"
+    | "lambdadelta"
+    | "beatrice"
+    | "erika"
+    | "battler"
+    | "rika"
+    | "mion"
+    | "satoko";
 export type TheorySort =
     | "new"
     | "old"
