@@ -706,7 +706,7 @@ func (s *service) LikeComment(ctx context.Context, userID, commentID uuid.UUID) 
 		subject, emailBody := notification.NotifEmail("Someone", "liked your comment", "", linkURL)
 		_ = s.notifSvc.Notify(bgCtx, dto.NotifyParams{
 			RecipientID:   commentAuthorID,
-			Type:          "fanfic_comment_liked",
+			Type:          dto.NotifFanficCommentLiked,
 			ReferenceID:   fanficID,
 			ReferenceType: fmt.Sprintf("fanfic_comment:%s", commentID),
 			ActorID:       userID,

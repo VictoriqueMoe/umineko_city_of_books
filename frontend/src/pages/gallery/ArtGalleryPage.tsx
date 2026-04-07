@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { useAuth } from "../../hooks/useAuth";
 import { useArtFeed } from "../../hooks/useArtFeed";
 import { createGallery, getPopularTags, getUserGalleries, listAllGalleries } from "../../api/endpoints";
@@ -284,10 +284,10 @@ export function ArtGalleryPage({ corner = "general" }: ArtGalleryPageProps) {
                                     </div>
                                     <div className={styles.artistGalleries}>
                                         {artistGalleries.map(g => (
-                                            <div
+                                            <Link
                                                 key={g.id}
+                                                to={`/gallery/view/${g.id}`}
                                                 className={styles.galleryCard}
-                                                onClick={() => navigate(`/gallery/view/${g.id}`)}
                                             >
                                                 <div className={styles.galleryCover}>
                                                     {g.cover_thumbnail_url || g.cover_image_url ? (
@@ -316,7 +316,7 @@ export function ArtGalleryPage({ corner = "general" }: ArtGalleryPageProps) {
                                                         {g.art_count} pieces
                                                     </span>
                                                 </div>
-                                            </div>
+                                            </Link>
                                         ))}
                                     </div>
                                 </div>

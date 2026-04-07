@@ -1,5 +1,8 @@
 .card {
     position: relative;
+    display: block;
+    color: inherit;
+    text-decoration: none;
     background: var(--bg-card);
     border: 1px solid rgba(var(--purple-rgb), 0.3);
     border-left: 3px solid #3399ff;

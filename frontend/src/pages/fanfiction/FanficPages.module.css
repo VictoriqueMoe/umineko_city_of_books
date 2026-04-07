@@ -215,11 +215,6 @@
 .detailHeader {
     display: flex;
     gap: 1.5rem;
-}
-
-.detailHeader {
-    display: flex;
-    gap: 1.5rem;
     margin-bottom: 1rem;
 }
 
@@ -246,6 +241,8 @@
     font-size: 1.4rem;
     color: var(--gold);
     margin-bottom: 0.5rem;
+    word-break: break-word;
+    overflow-wrap: anywhere;
 }
 
 .detailMeta {
@@ -271,6 +268,7 @@
 .detailByline {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 0.75rem;
     font-size: 0.9rem;
     color: var(--text-muted);
@@ -618,16 +616,26 @@
 @media (max-width: 768px) {
     .detailHeader {
         flex-direction: column;
+        align-items: center;
     }
 
-    .detailHeader {
-        flex-direction: column;
-        align-items: center;
+    .detailHeaderInfo {
+        width: 100%;
     }
 
     .detailCover {
         width: 140px;
         height: 200px;
+    }
+
+    .detailTitleRow {
+        flex-wrap: wrap;
+    }
+
+    .detailTitleRow h1 {
+        width: 100%;
+        flex: none;
+        word-break: break-word;
     }
 
     .formRowDouble {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import type { Art, Gallery } from "../../types/api";
 import {
     deleteGallery as apiDeleteGallery,
@@ -188,7 +188,7 @@ export function GalleryDetailPage() {
             {art.length > 0 && !managing && (
                 <div className={styles.grid}>
                     {art.map(a => (
-                        <div key={a.id} className={styles.artCard} onClick={() => navigate(`/gallery/art/${a.id}`)}>
+                        <Link key={a.id} to={`/gallery/art/${a.id}`} className={styles.artCard}>
                             <img
                                 src={a.thumbnail_url || a.image_url}
                                 alt={a.title}
@@ -204,7 +204,7 @@ export function GalleryDetailPage() {
                                 <span className={styles.artTitle}>{a.title}</span>
                                 <span className={styles.artLikes}>&#9829; {a.like_count}</span>
                             </div>
-                        </div>
+                        </Link>
                     ))}
                 </div>
             )}

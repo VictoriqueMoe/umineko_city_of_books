@@ -239,6 +239,11 @@ const notificationConfigs: Record<NotificationType, NotificationConfig> = {
         category: "social",
         route: routeByReferenceType,
     },
+    fanfic_comment_liked: {
+        text: "liked your comment on a fanfic",
+        category: "social",
+        route: routeByReferenceType,
+    },
     fanfic_favourited: {
         text: "favourited your fanfic",
         category: "social",

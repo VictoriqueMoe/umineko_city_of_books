@@ -69,10 +69,13 @@ func Setup(app *fiber.App, settingsSvc settings.Service, sessionMgr *session.Man
 				return false
 			}
 			path := ctx.Path()
-			return strings.HasPrefix(path, "/uploads/") ||
+			if strings.HasPrefix(path, "/uploads/") ||
 				strings.HasPrefix(path, "/static/assets/") ||
 				strings.HasPrefix(path, "/assets/") ||
-				strings.HasPrefix(path, "/favicon")
+				strings.HasPrefix(path, "/favicon") {
+				return true
+			}
+			return ctx.Method() == "GET" && ctx.Response().StatusCode() < 400
 		},
 	}))
 

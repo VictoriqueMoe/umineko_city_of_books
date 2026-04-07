@@ -286,6 +286,8 @@ a.socialChipValue:hover {
     padding: 1rem 1.25rem;
     margin-bottom: 0.75rem;
     cursor: pointer;
+    color: inherit;
+    text-decoration: none;
     transition: border-color 0.2s var(--ease-out);
 }
 
@@ -337,6 +339,8 @@ a.socialChipValue:hover {
     border-radius: 8px;
     overflow: hidden;
     cursor: pointer;
+    color: inherit;
+    text-decoration: none;
     transition:
         transform 0.15s ease,
         box-shadow 0.15s ease;
@@ -515,6 +519,8 @@ a.socialChipValue:hover {
     border-radius: 8px;
     padding: 0.75rem;
     cursor: pointer;
+    color: inherit;
+    text-decoration: none;
     transition: border-color 0.2s;
     align-items: center;
 }
@@ -555,6 +561,8 @@ a.socialChipValue:hover {
     border-radius: 8px;
     padding: 0.9rem 1rem;
     cursor: pointer;
+    color: inherit;
+    text-decoration: none;
     transition: border-color 0.2s;
     display: flex;
     flex-direction: column;

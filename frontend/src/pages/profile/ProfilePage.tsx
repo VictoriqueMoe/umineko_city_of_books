@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import { useAuth } from "../../hooks/useAuth";
 import { useProfile } from "../../hooks/useProfile";
 import { useTheoryFeed } from "../../hooks/useTheoryFeed";
@@ -629,11 +629,7 @@ export function ProfilePage() {
                     {!galleriesLoading && (
                         <div className={styles.galleryGrid}>
                             {userGalleries.map(g => (
-                                <div
-                                    key={g.id}
-                                    className={styles.galleryCard}
-                                    onClick={() => navigate(`/gallery/view/${g.id}`)}
-                                >
+                                <Link key={g.id} to={`/gallery/view/${g.id}`} className={styles.galleryCard}>
                                     <div className={styles.galleryCover}>
                                         {g.cover_thumbnail_url || g.cover_image_url ? (
                                             <img
@@ -651,7 +647,7 @@ export function ProfilePage() {
                                         <span className={styles.galleryName}>{g.name}</span>
                                         <span className={styles.galleryCount}>{g.art_count} pieces</span>
                                     </div>
-                                </div>
+                                </Link>
                             ))}
                         </div>
                     )}
@@ -667,7 +663,7 @@ export function ProfilePage() {
                     {!shipsLoading && userShips.length > 0 && (
                         <div className={styles.shipList}>
                             {userShips.map(s => (
-                                <div key={s.id} className={styles.shipCard} onClick={() => navigate(`/ships/${s.id}`)}>
+                                <Link key={s.id} to={`/ships/${s.id}`} className={styles.shipCard}>
                                     {(s.thumbnail_url || s.image_url) && (
                                         <img
                                             className={styles.shipThumb}
@@ -687,7 +683,7 @@ export function ProfilePage() {
                                             {s.is_crackship && " \u00B7 Crackship"}
                                         </span>
                                     </div>
-                                </div>
+                                </Link>
                             ))}
                         </div>
                     )}
@@ -714,11 +710,7 @@ export function ProfilePage() {
                     {!mysteriesLoading && userMysteries.length > 0 && (
                         <div className={styles.mysteryList}>
                             {userMysteries.map(m => (
-                                <div
-                                    key={m.id}
-                                    className={styles.mysteryCard}
-                                    onClick={() => navigate(`/mystery/${m.id}`)}
-                                >
+                                <Link key={m.id} to={`/mystery/${m.id}`} className={styles.mysteryCard}>
                                     <div className={styles.mysteryHeader}>
                                         <span className={styles.mysteryTitle}>{m.title}</span>
                                         <span
@@ -733,7 +725,7 @@ export function ProfilePage() {
                                         {m.clue_count !== 1 ? "s" : ""}
                                         {m.winner && ` \u00B7 Winner: ${m.winner.display_name}`}
                                     </span>
-                                </div>
+                                </Link>
                             ))}
                         </div>
                     )}
@@ -760,11 +752,7 @@ export function ProfilePage() {
                     {!fanficsLoading && userFanfics.length > 0 && (
                         <div className={styles.shipList}>
                             {userFanfics.map(f => (
-                                <div
-                                    key={f.id}
-                                    className={styles.shipCard}
-                                    onClick={() => navigate(`/fanfiction/${f.id}`)}
-                                >
+                                <Link key={f.id} to={`/fanfiction/${f.id}`} className={styles.shipCard}>
                                     <div className={styles.shipInfo}>
                                         <span className={styles.shipTitle}>{f.title}</span>
                                         <span className={styles.shipMeta}>
@@ -772,7 +760,7 @@ export function ProfilePage() {
                                             {f.chapter_count} {f.chapter_count === 1 ? "chapter" : "chapters"}
                                         </span>
                                     </div>
-                                </div>
+                                </Link>
                             ))}
                         </div>
                     )}
@@ -799,11 +787,7 @@ export function ProfilePage() {
                     {!favouritesLoading && userFavourites.length > 0 && (
                         <div className={styles.shipList}>
                             {userFavourites.map(f => (
-                                <div
-                                    key={f.id}
-                                    className={styles.shipCard}
-                                    onClick={() => navigate(`/fanfiction/${f.id}`)}
-                                >
+                                <Link key={f.id} to={`/fanfiction/${f.id}`} className={styles.shipCard}>
                                     <div className={styles.shipInfo}>
                                         <span className={styles.shipTitle}>{f.title}</span>
                                         <span className={styles.shipMeta}>
@@ -811,7 +795,7 @@ export function ProfilePage() {
                                             {f.chapter_count} {f.chapter_count === 1 ? "chapter" : "chapters"}
                                         </span>
                                     </div>
-                                </div>
+                                </Link>
                             ))}
                         </div>
                     )}
@@ -839,10 +823,10 @@ export function ProfilePage() {
 
                     {!activityLoading &&
                         activityItems.map((item, i) => (
-                            <div
+                            <Link
                                 key={`${item.type}-${item.theory_id}-${item.created_at}-${i}`}
+                                to={`/theory/${item.theory_id}`}
                                 className={styles.activityItem}
-                                onClick={() => navigate(`/theory/${item.theory_id}`)}
                             >
                                 <div className={styles.activityHeader}>
                                     <span className={styles.activityType}>
@@ -856,7 +840,7 @@ export function ProfilePage() {
                                 <div className={styles.activityBody}>
                                     {item.body.length > 200 ? `${item.body.substring(0, 200)}...` : item.body}
                                 </div>
-                            </div>
+                            </Link>
                         ))}
 
                     {!activityLoading && activityTotal > activityLimit && (

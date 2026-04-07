@@ -324,6 +324,7 @@ export type NotificationType =
     | "mystery_comment_reply"
     | "fanfic_commented"
     | "fanfic_comment_reply"
+    | "fanfic_comment_liked"
     | "fanfic_favourited"
     | "ship_commented"
     | "ship_comment_reply"

@@ -11,6 +11,7 @@ import {
     updateFanficChapter,
     uploadFanficCover,
     deleteFanficCover,
+    createFanficChapter,
 } from "../../api/endpoints";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
@@ -350,6 +351,16 @@ export function FanficEditorPage() {
                 characters,
                 is_pairing: isPairing,
             });
+
+            if (coverFile && editId) {
+                try {
+                    await uploadFanficCover(editId, coverFile);
+                } catch {}
+            } else if (coverRemoved && editId) {
+                try {
+                    await deleteFanficCover(editId);
+                } catch {}
+            }
 
             if (isOneshot && editId) {
                 const fanficData = await getFanfic(editId);
@@ -752,12 +763,16 @@ export function FanficEditorPage() {
                     <Button
                         variant="primary"
                         onClick={async () => {
-                            if (!editChapterId || !body.trim()) {
+                            if (!body.trim()) {
                                 return;
                             }
                             setSubmitting(true);
                             try {
-                                await updateFanficChapter(editChapterId, "", body);
+                                if (editChapterId) {
+                                    await updateFanficChapter(editChapterId, "", body);
+                                } else {
+                                    await createFanficChapter(editId!, "", body);
+                                }
                                 navigate(`/fanfiction/${editId}`);
                             } catch (e) {
                                 setError(e instanceof Error ? e.message : "Failed to save");

@@ -129,6 +129,9 @@
 }
 
 .artCard {
+    display: block;
+    color: inherit;
+    text-decoration: none;
     border-radius: 8px;
     overflow: hidden;
     background: var(--bg-card);

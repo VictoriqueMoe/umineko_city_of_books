@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router";
+import { Link } from "react-router";
 import type { Art } from "../../../types/api";
 import { ProfileLink } from "../../ProfileLink/ProfileLink";
 import styles from "./ArtCard.module.css";
@@ -8,11 +8,10 @@ interface ArtCardProps {
 }
 
 export function ArtCard({ art }: ArtCardProps) {
-    const navigate = useNavigate();
     const imgSrc = art.thumbnail_url || art.image_url;
 
     return (
-        <div className={styles.card} onClick={() => navigate(`/gallery/art/${art.id}`)}>
+        <Link to={`/gallery/art/${art.id}`} className={styles.card}>
             <div className={styles.imageWrap}>
                 <img
                     src={imgSrc}
@@ -29,10 +28,10 @@ export function ArtCard({ art }: ArtCardProps) {
             <div className={styles.info}>
                 <span className={styles.title}>{art.title}</span>
                 <div className={styles.meta}>
-                    <ProfileLink user={art.author} size="small" />
+                    <ProfileLink user={art.author} size="small" clickable={false} />
                     <span className={styles.likes}>&#9829; {art.like_count}</span>
                 </div>
             </div>
-        </div>
+        </Link>
     );
 }

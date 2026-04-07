@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { Link } from "react-router";
 import type { Theory } from "../../../types/api";
 import { useAuth } from "../../../hooks/useAuth";
 import { ProfileLink } from "../../ProfileLink/ProfileLink";
@@ -11,7 +11,6 @@ interface TheoryCardProps {
 }
 
 export function TheoryCard({ theory }: TheoryCardProps) {
-    const navigate = useNavigate();
     const { user } = useAuth();
     const [spoilerRevealed, setSpoilerRevealed] = useState(false);
 
@@ -22,19 +21,12 @@ export function TheoryCard({ theory }: TheoryCardProps) {
         theory.episode >= (user?.episode_progress ?? 0);
 
     return (
-        <div
+        <Link
+            to={`/theory/${theory.id}`}
             className={styles.card}
-            onClick={() => {
-                if (!isSpoiler) {
-                    navigate(`/theory/${theory.id}`);
-                }
-            }}
-            role="button"
-            tabIndex={0}
-            onKeyDown={e => {
-                if ((e.key === "Enter" || e.key === " ") && !isSpoiler) {
+            onClick={e => {
+                if (isSpoiler) {
                     e.preventDefault();
-                    navigate(`/theory/${theory.id}`);
                 }
             }}
         >
@@ -73,6 +65,6 @@ export function TheoryCard({ theory }: TheoryCardProps) {
                     <span className={styles.timestamp}>{new Date(theory.created_at).toLocaleString()}</span>
                 </div>
             </div>
-        </div>
+        </Link>
     );
 }
