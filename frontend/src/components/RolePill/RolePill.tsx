@@ -15,7 +15,7 @@ const roleConfig: Record<string, { label: string; className: string }> = {
 export function RolePill({ role, userId }: RolePillProps) {
     const siteInfo = useSiteInfo();
     const config = roleConfig[role];
-    const isTopDetective = userId && siteInfo.top_detective_id && userId === siteInfo.top_detective_id;
+    const isTopDetective = userId && siteInfo.top_detective_ids?.includes(userId);
 
     return (
         <>

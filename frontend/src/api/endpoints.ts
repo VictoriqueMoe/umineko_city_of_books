@@ -60,7 +60,7 @@ export interface SiteInfo {
     turnstile_site_key: string;
     max_image_size: number;
     max_video_size: number;
-    top_detective_id: string;
+    top_detective_ids: string[];
 }
 
 export async function getSiteInfo(): Promise<SiteInfo> {

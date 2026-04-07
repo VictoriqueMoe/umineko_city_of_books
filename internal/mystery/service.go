@@ -34,7 +34,7 @@ type (
 		MarkSolved(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, attemptID uuid.UUID) error
 		AddClue(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, req dto.CreateClueRequest) error
 		GetLeaderboard(ctx context.Context, limit int) (*dto.MysteryLeaderboardResponse, error)
-		GetTopDetectiveID(ctx context.Context) (string, error)
+		GetTopDetectiveIDs(ctx context.Context) ([]string, error)
 		ListByUser(ctx context.Context, userID uuid.UUID, limit, offset int) (*dto.MysteryListResponse, error)
 		CreateComment(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, req dto.CreateCommentRequest) (uuid.UUID, error)
 		UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.UpdateCommentRequest) error
@@ -541,8 +541,8 @@ func (s *service) GetLeaderboard(ctx context.Context, limit int) (*dto.MysteryLe
 	return &dto.MysteryLeaderboardResponse{Entries: entries}, nil
 }
 
-func (s *service) GetTopDetectiveID(ctx context.Context) (string, error) {
-	return s.mysteryRepo.GetTopDetectiveID(ctx)
+func (s *service) GetTopDetectiveIDs(ctx context.Context) ([]string, error) {
+	return s.mysteryRepo.GetTopDetectiveIDs(ctx)
 }
 
 func (s *service) ListByUser(ctx context.Context, userID uuid.UUID, limit, offset int) (*dto.MysteryListResponse, error) {

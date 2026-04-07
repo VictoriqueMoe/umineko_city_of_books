@@ -293,7 +293,7 @@ export function MysteryListPage() {
                                                 </span>
                                                 <span className={styles.leaderboardScore}>{entry.score} pts</span>
                                             </div>
-                                            {i === 0 && (
+                                            {leaderboard.length > 0 && entry.score === leaderboard[0].score && (
                                                 <div className={styles.topDetectiveRow}>
                                                     <span
                                                         className={styles.topDetectiveBadge}

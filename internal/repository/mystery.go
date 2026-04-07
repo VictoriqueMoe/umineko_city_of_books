@@ -39,7 +39,7 @@ type (
 		IsSolved(ctx context.Context, mysteryID uuid.UUID) (bool, error)
 
 		GetLeaderboard(ctx context.Context, limit int) ([]LeaderboardEntry, error)
-		GetTopDetectiveID(ctx context.Context) (string, error)
+		GetTopDetectiveIDs(ctx context.Context) ([]string, error)
 
 		CountAttempts(ctx context.Context, mysteryID uuid.UUID) (int, error)
 
@@ -604,24 +604,46 @@ func (r *mysteryRepository) GetLeaderboard(ctx context.Context, limit int) ([]Le
 	return result, rows.Err()
 }
 
-func (r *mysteryRepository) GetTopDetectiveID(ctx context.Context) (string, error) {
-	var userID string
-	err := r.db.QueryRowContext(ctx,
-		`SELECT m.winner_id
-		FROM mysteries m
-		WHERE m.solved = 1 AND m.winner_id IS NOT NULL
-		GROUP BY m.winner_id
-		ORDER BY SUM(CASE WHEN m.difficulty = 'easy' THEN 2
-		                  WHEN m.difficulty = 'medium' THEN 4
-		                  WHEN m.difficulty = 'hard' THEN 6
-		                  WHEN m.difficulty = 'nightmare' THEN 8
-		                  ELSE 4 END) DESC
-		LIMIT 1`,
-	).Scan(&userID)
+func (r *mysteryRepository) GetTopDetectiveIDs(ctx context.Context) ([]string, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT winner_id FROM (
+			SELECT m.winner_id,
+				SUM(CASE WHEN m.difficulty = 'easy' THEN 2
+				         WHEN m.difficulty = 'medium' THEN 4
+				         WHEN m.difficulty = 'hard' THEN 6
+				         WHEN m.difficulty = 'nightmare' THEN 8
+				         ELSE 4 END) AS score
+			FROM mysteries m
+			WHERE m.solved = 1 AND m.winner_id IS NOT NULL
+			GROUP BY m.winner_id
+		) ranked
+		WHERE score = (
+			SELECT MAX(s) FROM (
+				SELECT SUM(CASE WHEN m2.difficulty = 'easy' THEN 2
+				                WHEN m2.difficulty = 'medium' THEN 4
+				                WHEN m2.difficulty = 'hard' THEN 6
+				                WHEN m2.difficulty = 'nightmare' THEN 8
+				                ELSE 4 END) AS s
+				FROM mysteries m2
+				WHERE m2.solved = 1 AND m2.winner_id IS NOT NULL
+				GROUP BY m2.winner_id
+			)
+		)`,
+	)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return userID, nil
+	defer rows.Close()
+
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
 }
 
 func (r *MysteryCommentRow) ToResponse(media []MysteryCommentMediaRow) dto.MysteryCommentResponse {
