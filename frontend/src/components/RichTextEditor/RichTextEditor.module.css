@@ -1,0 +1,116 @@
+.editor {
+    background: rgba(var(--purple-rgb), 0.08);
+    border: 1px solid rgba(var(--purple-rgb), 0.3);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    padding: 0.5rem;
+    border-bottom: 1px solid rgba(var(--purple-rgb), 0.2);
+    background: rgba(var(--purple-rgb), 0.05);
+}
+
+.toolbarBtn {
+    background: none;
+    border: 1px solid transparent;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 600;
+    transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+
+.toolbarBtn:hover {
+    color: var(--text);
+    background: rgba(var(--purple-rgb), 0.15);
+}
+
+.toolbarBtnActive {
+    color: var(--gold);
+    background: rgba(var(--gold-rgb), 0.12);
+    border-color: rgba(var(--gold-rgb), 0.3);
+}
+
+.separator {
+    width: 1px;
+    background: rgba(var(--purple-rgb), 0.2);
+    margin: 0 0.25rem;
+    align-self: stretch;
+}
+
+.content {
+    padding: 0.75rem 1rem;
+    min-height: 60vh;
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 1rem;
+    line-height: 1.7;
+    background: var(--bg-void);
+}
+
+.content:focus {
+    outline: none;
+}
+
+.content :global(.tiptap) {
+    outline: none;
+    min-height: 60vh;
+}
+
+.content :global(.tiptap p) {
+    margin: 0 0 0.75rem;
+}
+
+.content :global(.tiptap h2) {
+    font-family: var(--font-display);
+    color: var(--gold);
+    font-size: 1.3rem;
+    margin: 1.5rem 0 0.75rem;
+}
+
+.content :global(.tiptap h3) {
+    font-family: var(--font-display);
+    color: var(--gold);
+    font-size: 1.1rem;
+    margin: 1.25rem 0 0.5rem;
+}
+
+.content :global(.tiptap blockquote) {
+    border-left: 3px solid rgba(var(--gold-rgb), 0.4);
+    padding-left: 1rem;
+    margin: 0.75rem 0;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.content :global(.tiptap ul),
+.content :global(.tiptap ol) {
+    padding-left: 1.5rem;
+    margin: 0.5rem 0;
+}
+
+.content :global(.tiptap hr) {
+    border: none;
+    border-top: 1px solid rgba(var(--purple-rgb), 0.3);
+    margin: 1.5rem 0;
+}
+
+.content :global(.tiptap a) {
+    color: var(--gold);
+    text-decoration: underline;
+}
+
+.content :global(.tiptap p.is-editor-empty:first-child::before) {
+    content: attr(data-placeholder);
+    float: left;
+    color: var(--text-muted);
+    pointer-events: none;
+    height: 0;
+}

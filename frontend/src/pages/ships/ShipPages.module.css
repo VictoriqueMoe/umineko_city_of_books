@@ -381,6 +381,10 @@
 
 .commentsSection {
     margin-top: 1.5rem;
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--purple-rgb), 0.3);
+    border-radius: 8px;
+    padding: 1.25rem;
 }
 
 .commentsTitle {

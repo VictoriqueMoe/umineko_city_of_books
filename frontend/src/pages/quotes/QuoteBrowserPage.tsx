@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
-import type { QuoteBrowseResponse } from "../../types/api";
-import type { Series } from "../../api/endpoints";
-import { browseQuotes, getCharacters } from "../../api/endpoints";
-import { getSeriesConfig } from "../../utils/seriesConfig";
-import { TruthCard } from "../../components/truth/TruthCard/TruthCard";
-import { Pagination } from "../../components/Pagination/Pagination";
-import { Select } from "../../components/Select/Select";
+import {useCallback, useEffect, useState} from "react";
+import type {QuoteBrowseResponse} from "../../types/api";
+import type {Series} from "../../api/endpoints";
+import {browseQuotes, getCharacters} from "../../api/endpoints";
+import {getSeriesConfig} from "../../utils/seriesConfig";
+import {TruthCard} from "../../components/truth/TruthCard/TruthCard";
+import {Pagination} from "../../components/Pagination/Pagination";
+import {Select} from "../../components/Select/Select";
 import styles from "./QuoteBrowserPage.module.css";
 
 const TRUTH_TYPES = ["red", "blue", "gold", "purple"] as const;
@@ -17,27 +17,7 @@ const TRUTH_COLOURS: Record<string, { base: string; active: string }> = {
     purple: { base: styles.filterBtnPurple, active: styles.filterBtnPurpleActive },
 };
 
-const HIGURASHI_ARCS: { value: string; label: string }[] = [
-    { value: "onikakushi", label: "Onikakushi" },
-    { value: "watanagashi", label: "Watanagashi" },
-    { value: "tatarigoroshi", label: "Tatarigoroshi" },
-    { value: "himatsubushi", label: "Himatsubushi" },
-    { value: "meakashi", label: "Meakashi" },
-    { value: "tsumihoroboshi", label: "Tsumihoroboshi" },
-    { value: "minagoroshi", label: "Minagoroshi" },
-    { value: "matsuribayashi", label: "Matsuribayashi" },
-    { value: "someutsushi", label: "Someutsushi" },
-    { value: "kageboshi", label: "Kageboshi" },
-    { value: "tsukiotoshi", label: "Tsukiotoshi" },
-    { value: "taraimawashi", label: "Taraimawashi" },
-    { value: "yoigoshi", label: "Yoigoshi" },
-    { value: "tokihogushi", label: "Tokihogushi" },
-    { value: "miotsukushi_omote", label: "Miotsukushi Omote" },
-    { value: "kakera", label: "Kakera" },
-    { value: "miotsukushi_ura", label: "Miotsukushi Ura" },
-    { value: "kotohogushi", label: "Kotohogushi" },
-    { value: "hajisarashi", label: "Hajisarashi" },
-];
+
 
 export function QuoteBrowserPage() {
     const [series, setSeries] = useState<Series>("umineko");
@@ -157,7 +137,7 @@ export function QuoteBrowserPage() {
                 {series === "higurashi" && (
                     <Select value={arc} onChange={e => setArc((e.target as HTMLSelectElement).value)}>
                         <option value="">All Arcs</option>
-                        {HIGURASHI_ARCS.map(a => (
+                        {(cfg.arcs ?? []).map(a => (
                             <option key={a.value} value={a.value}>
                                 {a.label}
                             </option>

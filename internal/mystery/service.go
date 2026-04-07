@@ -3,6 +3,7 @@ package mystery
 import (
 	"context"
 	"fmt"
+	"io"
 	"strings"
 
 	"umineko_city_of_books/internal/authz"
@@ -13,6 +14,7 @@ import (
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/settings"
+	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/utils"
 	"umineko_city_of_books/internal/ws"
 
@@ -33,6 +35,12 @@ type (
 		AddClue(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, req dto.CreateClueRequest) error
 		GetLeaderboard(ctx context.Context, limit int) (*dto.MysteryLeaderboardResponse, error)
 		ListByUser(ctx context.Context, userID uuid.UUID, limit, offset int) (*dto.MysteryListResponse, error)
+		CreateComment(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, req dto.CreateCommentRequest) (uuid.UUID, error)
+		UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.UpdateCommentRequest) error
+		DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
+		LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error
+		UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error
+		UploadCommentMedia(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error)
 	}
 
 	service struct {
@@ -42,6 +50,7 @@ type (
 		blockSvc     block.Service
 		notifService notification.Service
 		settingsSvc  settings.Service
+		uploadSvc    upload.Service
 		hub          *ws.Hub
 	}
 )
@@ -53,6 +62,7 @@ func NewService(
 	blockSvc block.Service,
 	notifService notification.Service,
 	settingsSvc settings.Service,
+	uploadSvc upload.Service,
 	hub *ws.Hub,
 ) Service {
 	return &service{
@@ -62,6 +72,7 @@ func NewService(
 		blockSvc:     blockSvc,
 		notifService: notifService,
 		settingsSvc:  settingsSvc,
+		uploadSvc:    uploadSvc,
 		hub:          hub,
 	}
 }
@@ -160,6 +171,31 @@ func (s *service) GetMystery(ctx context.Context, id uuid.UUID, viewerID uuid.UU
 		}
 	}
 
+	var comments []dto.MysteryCommentResponse
+	if row.Solved {
+		blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, viewerID)
+		commentRows, _ := s.mysteryRepo.GetComments(ctx, id, viewerID, blockedIDs)
+		if len(commentRows) > 0 {
+			commentIDs := make([]uuid.UUID, len(commentRows))
+			for i, c := range commentRows {
+				commentIDs[i] = c.ID
+			}
+			mediaBatch, _ := s.mysteryRepo.GetCommentMediaBatch(ctx, commentIDs)
+			flat := make([]dto.MysteryCommentResponse, len(commentRows))
+			for i, c := range commentRows {
+				flat[i] = c.ToResponse(mediaBatch[c.ID])
+			}
+			comments = utils.BuildTree(flat,
+				func(c dto.MysteryCommentResponse) uuid.UUID { return c.ID },
+				func(c dto.MysteryCommentResponse) *uuid.UUID { return c.ParentID },
+				func(c *dto.MysteryCommentResponse, replies []dto.MysteryCommentResponse) { c.Replies = replies },
+			)
+		}
+	}
+	if comments == nil {
+		comments = []dto.MysteryCommentResponse{}
+	}
+
 	resp := dto.MysteryDetailResponse{
 		ID:         row.ID,
 		Title:      row.Title,
@@ -176,6 +212,7 @@ func (s *service) GetMystery(ctx context.Context, id uuid.UUID, viewerID uuid.UU
 		},
 		Clues:       clues,
 		Attempts:    attempts,
+		Comments:    comments,
 		PlayerCount: len(playerSet),
 		CreatedAt:   row.CreatedAt,
 	}
@@ -519,5 +556,146 @@ func (s *service) ListByUser(ctx context.Context, userID uuid.UUID, limit, offse
 		Total:     total,
 		Limit:     limit,
 		Offset:    offset,
+	}, nil
+}
+
+func (s *service) CreateComment(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, req dto.CreateCommentRequest) (uuid.UUID, error) {
+	body := strings.TrimSpace(req.Body)
+	if body == "" {
+		return uuid.Nil, ErrEmptyBody
+	}
+
+	solved, err := s.mysteryRepo.IsSolved(ctx, mysteryID)
+	if err != nil {
+		return uuid.Nil, ErrNotFound
+	}
+	if !solved {
+		return uuid.Nil, ErrNotSolved
+	}
+
+	authorID, err := s.mysteryRepo.GetAuthorID(ctx, mysteryID)
+	if err != nil {
+		return uuid.Nil, ErrNotFound
+	}
+	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, authorID); blocked {
+		return uuid.Nil, block.ErrUserBlocked
+	}
+
+	id := uuid.New()
+	if err := s.mysteryRepo.CreateComment(ctx, id, mysteryID, req.ParentID, userID, body); err != nil {
+		return uuid.Nil, err
+	}
+
+	if req.ParentID != nil {
+		go func() {
+			bgCtx := context.Background()
+			parentAuthor, err := s.mysteryRepo.GetCommentAuthorID(bgCtx, *req.ParentID)
+			if err != nil || parentAuthor == userID {
+				return
+			}
+			actor, err := s.userRepo.GetByID(bgCtx, userID)
+			if err != nil || actor == nil {
+				return
+			}
+			baseURL := s.settingsSvc.Get(bgCtx, config.SettingBaseURL)
+			linkURL := fmt.Sprintf("%s/mystery/%s#comment-%s", baseURL, mysteryID, id)
+			subject, emailBody := notification.NotifEmail(actor.DisplayName, "replied to your comment", "", linkURL)
+			_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
+				RecipientID:   parentAuthor,
+				Type:          dto.NotifMysteryCommentReply,
+				ReferenceID:   mysteryID,
+				ReferenceType: fmt.Sprintf("mystery_comment:%s", id),
+				ActorID:       userID,
+				EmailSubject:  subject,
+				EmailBody:     emailBody,
+			})
+		}()
+	}
+
+	return id, nil
+}
+
+func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.UpdateCommentRequest) error {
+	body := strings.TrimSpace(req.Body)
+	if body == "" {
+		return ErrEmptyBody
+	}
+	if s.authz.Can(ctx, userID, authz.PermEditAnyComment) {
+		return s.mysteryRepo.UpdateCommentAsAdmin(ctx, id, body)
+	}
+	return s.mysteryRepo.UpdateComment(ctx, id, userID, body)
+}
+
+func (s *service) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
+	if s.authz.Can(ctx, userID, authz.PermDeleteAnyComment) {
+		return s.mysteryRepo.DeleteCommentAsAdmin(ctx, id)
+	}
+	return s.mysteryRepo.DeleteComment(ctx, id, userID)
+}
+
+func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
+	commentAuthorID, err := s.mysteryRepo.GetCommentAuthorID(ctx, commentID)
+	if err != nil {
+		return err
+	}
+	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, commentAuthorID); blocked {
+		return block.ErrUserBlocked
+	}
+	return s.mysteryRepo.LikeComment(ctx, userID, commentID)
+}
+
+func (s *service) UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
+	return s.mysteryRepo.UnlikeComment(ctx, userID, commentID)
+}
+
+func (s *service) UploadCommentMedia(
+	ctx context.Context,
+	commentID uuid.UUID,
+	userID uuid.UUID,
+	contentType string,
+	fileSize int64,
+	reader io.Reader,
+) (*dto.PostMediaResponse, error) {
+	authorID, err := s.mysteryRepo.GetCommentAuthorID(ctx, commentID)
+	if err != nil {
+		return nil, ErrNotFound
+	}
+	if authorID != userID {
+		return nil, fmt.Errorf("not the comment author")
+	}
+
+	isVideo := strings.HasPrefix(contentType, "video/")
+	mediaID := uuid.New()
+
+	var urlPath string
+	if isVideo {
+		maxSize := int64(s.settingsSvc.GetInt(ctx, config.SettingMaxVideoSize))
+		urlPath, err = s.uploadSvc.SaveVideo(ctx, "mysteries", mediaID, contentType, fileSize, maxSize, reader)
+	} else {
+		maxSize := int64(s.settingsSvc.GetInt(ctx, config.SettingMaxImageSize))
+		urlPath, err = s.uploadSvc.SaveImage(ctx, "mysteries", mediaID, contentType, fileSize, maxSize, reader)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	existing, _ := s.mysteryRepo.GetCommentMedia(ctx, commentID)
+	sortOrder := len(existing)
+
+	mediaType := "image"
+	if isVideo {
+		mediaType = "video"
+	}
+
+	dbID, err := s.mysteryRepo.AddCommentMedia(ctx, commentID, urlPath, mediaType, "", sortOrder)
+	if err != nil {
+		return nil, err
+	}
+
+	return &dto.PostMediaResponse{
+		ID:        int(dbID),
+		MediaURL:  urlPath,
+		MediaType: mediaType,
+		SortOrder: sortOrder,
 	}, nil
 }

@@ -26,6 +26,12 @@ func (s *Service) getAllMysteryRoutes() []FSetupRoute {
 		s.setupVoteAttempt,
 		s.setupMarkSolved,
 		s.setupAddClue,
+		s.setupCreateMysteryComment,
+		s.setupUpdateMysteryComment,
+		s.setupDeleteMysteryComment,
+		s.setupLikeMysteryComment,
+		s.setupUnlikeMysteryComment,
+		s.setupUploadMysteryCommentMedia,
 	}
 }
 
@@ -311,4 +317,143 @@ func (s *Service) listUserMysteries(ctx fiber.Ctx) error {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to list user mysteries"})
 	}
 	return ctx.JSON(resp)
+}
+
+func (s *Service) setupCreateMysteryComment(r fiber.Router) {
+	r.Post("/mysteries/:id/comments", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.createMysteryComment)
+}
+
+func (s *Service) setupUpdateMysteryComment(r fiber.Router) {
+	r.Put("/mystery-comments/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.updateMysteryComment)
+}
+
+func (s *Service) setupDeleteMysteryComment(r fiber.Router) {
+	r.Delete("/mystery-comments/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.deleteMysteryComment)
+}
+
+func (s *Service) setupLikeMysteryComment(r fiber.Router) {
+	r.Post("/mystery-comments/:id/like", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.likeMysteryComment)
+}
+
+func (s *Service) setupUnlikeMysteryComment(r fiber.Router) {
+	r.Delete("/mystery-comments/:id/like", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.unlikeMysteryComment)
+}
+
+func (s *Service) setupUploadMysteryCommentMedia(r fiber.Router) {
+	r.Post("/mystery-comments/:id/media", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.uploadMysteryCommentMedia)
+}
+
+func (s *Service) createMysteryComment(ctx fiber.Ctx) error {
+	mysteryID, err := uuid.Parse(ctx.Params("id"))
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
+	}
+	userID := ctx.Locals("userID").(uuid.UUID)
+
+	var req dto.CreateCommentRequest
+	if err := ctx.Bind().JSON(&req); err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	}
+
+	id, err := s.MysteryService.CreateComment(ctx.Context(), mysteryID, userID, req)
+	if err != nil {
+		if errors.Is(err, mysterysvc.ErrEmptyBody) {
+			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+		}
+		if errors.Is(err, mysterysvc.ErrNotSolved) {
+			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
+		}
+		if errors.Is(err, block.ErrUserBlocked) {
+			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "user is blocked"})
+		}
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to create comment"})
+	}
+	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id})
+}
+
+func (s *Service) updateMysteryComment(ctx fiber.Ctx) error {
+	id, err := uuid.Parse(ctx.Params("id"))
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid comment id"})
+	}
+	userID := ctx.Locals("userID").(uuid.UUID)
+
+	var req dto.UpdateCommentRequest
+	if err := ctx.Bind().JSON(&req); err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	}
+
+	if err := s.MysteryService.UpdateComment(ctx.Context(), id, userID, req); err != nil {
+		if errors.Is(err, mysterysvc.ErrEmptyBody) {
+			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+		}
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to update comment"})
+	}
+	return ctx.SendStatus(fiber.StatusNoContent)
+}
+
+func (s *Service) deleteMysteryComment(ctx fiber.Ctx) error {
+	id, err := uuid.Parse(ctx.Params("id"))
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid comment id"})
+	}
+	userID := ctx.Locals("userID").(uuid.UUID)
+
+	if err := s.MysteryService.DeleteComment(ctx.Context(), id, userID); err != nil {
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to delete comment"})
+	}
+	return ctx.SendStatus(fiber.StatusNoContent)
+}
+
+func (s *Service) likeMysteryComment(ctx fiber.Ctx) error {
+	commentID, err := uuid.Parse(ctx.Params("id"))
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid comment id"})
+	}
+	userID := ctx.Locals("userID").(uuid.UUID)
+
+	if err := s.MysteryService.LikeComment(ctx.Context(), userID, commentID); err != nil {
+		if errors.Is(err, block.ErrUserBlocked) {
+			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "user is blocked"})
+		}
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to like comment"})
+	}
+	return ctx.SendStatus(fiber.StatusNoContent)
+}
+
+func (s *Service) unlikeMysteryComment(ctx fiber.Ctx) error {
+	commentID, err := uuid.Parse(ctx.Params("id"))
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid comment id"})
+	}
+	userID := ctx.Locals("userID").(uuid.UUID)
+
+	if err := s.MysteryService.UnlikeComment(ctx.Context(), userID, commentID); err != nil {
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to unlike comment"})
+	}
+	return ctx.SendStatus(fiber.StatusNoContent)
+}
+
+func (s *Service) uploadMysteryCommentMedia(ctx fiber.Ctx) error {
+	commentID, err := uuid.Parse(ctx.Params("id"))
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid comment id"})
+	}
+	userID := ctx.Locals("userID").(uuid.UUID)
+
+	file, err := ctx.FormFile("media")
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "no media file provided"})
+	}
+	reader, err := file.Open()
+	if err != nil {
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to read file"})
+	}
+	defer reader.Close()
+
+	result, err := s.MysteryService.UploadCommentMedia(ctx.Context(), commentID, userID, file.Header.Get("Content-Type"), file.Size, reader)
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	}
+	return ctx.Status(fiber.StatusCreated).JSON(result)
 }

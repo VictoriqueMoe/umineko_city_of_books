@@ -1,15 +1,15 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router";
-import { useAuth } from "../../hooks/useAuth";
-import { useSettingsForm } from "../../hooks/useSettingsForm";
-import { Button } from "../../components/Button/Button";
-import { Input } from "../../components/Input/Input";
-import { TextArea } from "../../components/TextArea/TextArea";
-import { Select } from "../../components/Select/Select";
-import { ToggleSwitch } from "../../components/ToggleSwitch/ToggleSwitch";
-import { BlockedUsersSection } from "./BlockedUsersSection";
-import { ChangePasswordSection } from "./ChangePasswordSection";
-import { DangerZoneSection } from "./DangerZoneSection";
+import React, {useCallback, useEffect, useRef, useState} from "react";
+import {useNavigate} from "react-router";
+import {useAuth} from "../../hooks/useAuth";
+import {useSettingsForm} from "../../hooks/useSettingsForm";
+import {Button} from "../../components/Button/Button";
+import {Input} from "../../components/Input/Input";
+import {TextArea} from "../../components/TextArea/TextArea";
+import {Select} from "../../components/Select/Select";
+import {ToggleSwitch} from "../../components/ToggleSwitch/ToggleSwitch";
+import {BlockedUsersSection} from "./BlockedUsersSection";
+import {ChangePasswordSection} from "./ChangePasswordSection";
+import {DangerZoneSection} from "./DangerZoneSection";
 import styles from "./SettingsPage.module.css";
 
 const SPECIAL_CHARACTERS: string[] = ["Goldsmith"];
@@ -341,6 +341,7 @@ export function SettingsPage() {
                                 <option value="quotes">Quotes</option>
                                 <option value="mysteries">Mysteries</option>
                                 <option value="ships">Ships</option>
+                                <option value="fanfiction">Fanfiction</option>
                             </Select>
                         </label>
                     </div>

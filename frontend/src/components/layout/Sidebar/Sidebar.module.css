@@ -59,6 +59,7 @@
     padding: 0.5rem 1.25rem;
     color: var(--text);
     font-size: 0.9rem;
+    font-weight: bold;
     transition: all 0.15s var(--ease-out);
     border-left: 3px solid transparent;
 }

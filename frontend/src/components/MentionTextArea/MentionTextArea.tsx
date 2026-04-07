@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import type { User } from "../../types/api";
-import { searchUsers } from "../../api/endpoints";
+import React, {useCallback, useEffect, useRef, useState} from "react";
+import type {User} from "../../types/api";
+import {searchUsers} from "../../api/endpoints";
 import styles from "./MentionTextArea.module.css";
 
 interface MentionTextAreaProps {
@@ -9,6 +9,7 @@ interface MentionTextAreaProps {
     placeholder?: string;
     rows?: number;
     className?: string;
+    onPasteFiles?: (files: File[]) => void;
 }
 
 interface SearchResult extends User {
@@ -39,7 +40,7 @@ function highlightMentions(text: string): string {
     );
 }
 
-export function MentionTextArea({ value, onChange, placeholder, rows = 3, className }: MentionTextAreaProps) {
+export function MentionTextArea({ value, onChange, placeholder, rows = 3, className, onPasteFiles }: MentionTextAreaProps) {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const backdropRef = useRef<HTMLDivElement>(null);
     const [suggestions, setSuggestions] = useState<SearchResult[]>([]);
@@ -136,6 +137,20 @@ export function MentionTextArea({ value, onChange, placeholder, rows = 3, classN
         });
     }
 
+    function handlePaste(e: React.ClipboardEvent) {
+        const items = e.clipboardData?.files;
+        if (!items || items.length === 0 || !onPasteFiles) {
+            return;
+        }
+        const mediaFiles = Array.from(items).filter(
+            f => f.type.startsWith("image/") || f.type.startsWith("video/"),
+        );
+        if (mediaFiles.length > 0) {
+            e.preventDefault();
+            onPasteFiles(mediaFiles);
+        }
+    }
+
     function handleKeyDown(e: React.KeyboardEvent) {
         if (!showDropdown || suggestions.length === 0) {
             return;
@@ -169,6 +184,7 @@ export function MentionTextArea({ value, onChange, placeholder, rows = 3, classN
                 value={value}
                 onChange={e => onChange(e.target.value)}
                 onKeyDown={handleKeyDown}
+                onPaste={handlePaste}
                 onScroll={syncScroll}
                 placeholder={placeholder}
                 rows={rows}

@@ -1,6 +1,11 @@
-import type { Series } from "../api/endpoints";
+import type {Series} from "../api/endpoints";
 
 interface LangOption {
+    value: string;
+    label: string;
+}
+
+interface ArcOption {
     value: string;
     label: string;
 }
@@ -13,6 +18,7 @@ interface SeriesConfig {
     withLoveEmoji: string;
     withoutLoveEmoji: string;
     episodeCount: number;
+    arcs?: ArcOption[];
     theoriesPath: string;
     newTheoryPath: string;
     label: string;
@@ -48,7 +54,28 @@ const configs: Record<Series, SeriesConfig> = {
         withoutLoveSubtitle: "I deny this theory",
         withLoveEmoji: "\u2764",
         withoutLoveEmoji: "\u2718",
-        episodeCount: 8,
+        episodeCount: 0,
+        arcs: [
+            { value: "onikakushi", label: "Onikakushi" },
+            { value: "watanagashi", label: "Watanagashi" },
+            { value: "tatarigoroshi", label: "Tatarigoroshi" },
+            { value: "himatsubushi", label: "Himatsubushi" },
+            { value: "meakashi", label: "Meakashi" },
+            { value: "tsumihoroboshi", label: "Tsumihoroboshi" },
+            { value: "minagoroshi", label: "Minagoroshi" },
+            { value: "matsuribayashi", label: "Matsuribayashi" },
+            { value: "someutsushi", label: "Someutsushi" },
+            { value: "kageboshi", label: "Kageboshi" },
+            { value: "tsukiotoshi", label: "Tsukiotoshi" },
+            { value: "taraimawashi", label: "Taraimawashi" },
+            { value: "yoigoshi", label: "Yoigoshi" },
+            { value: "tokihogushi", label: "Tokihogushi" },
+            { value: "miotsukushi_omote", label: "Miotsukushi Omote" },
+            { value: "kakera", label: "Kakera" },
+            { value: "miotsukushi_ura", label: "Miotsukushi Ura" },
+            { value: "kotohogushi", label: "Kotohogushi" },
+            { value: "hajisarashi", label: "Hajisarashi" },
+        ],
         theoriesPath: "/theories/higurashi",
         newTheoryPath: "/theory/higurashi/new",
         label: "Higurashi",

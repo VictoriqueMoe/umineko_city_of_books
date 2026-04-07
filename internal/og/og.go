@@ -18,6 +18,7 @@ type (
 		artRepo          repository.ArtRepository
 		mysteryRepo      repository.MysteryRepository
 		shipRepo         repository.ShipRepository
+		fanficRepo       repository.FanficRepository
 		announcementRepo repository.AnnouncementRepository
 		baseHTML         string
 		baseURL          string
@@ -43,6 +44,7 @@ func NewResolver(
 	artRepo repository.ArtRepository,
 	mysteryRepo repository.MysteryRepository,
 	shipRepo repository.ShipRepository,
+	fanficRepo repository.FanficRepository,
 	announcementRepo repository.AnnouncementRepository,
 	baseHTML, baseURL string,
 ) *Resolver {
@@ -53,6 +55,7 @@ func NewResolver(
 		artRepo:          artRepo,
 		mysteryRepo:      mysteryRepo,
 		shipRepo:         shipRepo,
+		fanficRepo:       fanficRepo,
 		announcementRepo: announcementRepo,
 		baseHTML:         baseHTML,
 		baseURL:          baseURL,
@@ -135,6 +138,19 @@ func (r *Resolver) metaForPath(ctx context.Context, path string) *Meta {
 	if len(parts) == 2 && parts[0] == "announcements" {
 		if _, err := uuid.Parse(parts[1]); err == nil {
 			return r.announcementMeta(ctx, parts[1])
+		}
+	}
+
+	if len(parts) == 1 && parts[0] == "fanfiction" {
+		return &Meta{
+			Title:       "Fanfiction - Umineko City of Books",
+			Description: "Browse and share fan-created stories inspired by When They Cry.",
+			URL:         r.baseURL + "/fanfiction",
+		}
+	}
+	if len(parts) >= 2 && parts[0] == "fanfiction" {
+		if _, err := uuid.Parse(parts[1]); err == nil {
+			return r.fanficMeta(ctx, parts[1])
 		}
 	}
 
@@ -411,6 +427,36 @@ func (r *Resolver) shipMeta(ctx context.Context, idStr string) *Meta {
 		meta.Image = ship.ImageURL
 	} else {
 		meta.Image = ship.AuthorAvatarURL
+	}
+	return meta
+}
+
+func (r *Resolver) fanficMeta(ctx context.Context, idStr string) *Meta {
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		return nil
+	}
+
+	fanfic, err := r.fanficRepo.GetByID(ctx, id, uuid.Nil)
+	if err != nil || fanfic == nil {
+		return nil
+	}
+
+	desc := fanfic.Summary
+	if desc == "" {
+		desc = fmt.Sprintf("A fanfic by %s", fanfic.AuthorDisplayName)
+	}
+	if len(desc) > 200 {
+		desc = desc[:197] + "..."
+	}
+
+	meta := &Meta{
+		Title:       fanfic.Title + " - Fanfiction",
+		Description: desc,
+		URL:         fmt.Sprintf("%s/fanfiction/%s", r.baseURL, idStr),
+	}
+	if fanfic.CoverImageURL != "" {
+		meta.Image = fanfic.CoverImageURL
 	}
 	return meta
 }

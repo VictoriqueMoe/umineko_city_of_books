@@ -10,4 +10,5 @@ var (
 	ErrNotAuthor     = errors.New("only the author can perform this action")
 	ErrCannotReply   = errors.New("only the game master or the attempt author can reply")
 	ErrInvalidVote   = errors.New("value must be 1, -1, or 0")
+	ErrNotSolved     = errors.New("discussion comments are only available after the mystery is solved")
 )

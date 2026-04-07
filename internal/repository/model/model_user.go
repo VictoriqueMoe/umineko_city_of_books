@@ -44,6 +44,7 @@ type (
 		VotesReceived int
 		ShipCount     int
 		MysteryCount  int
+		FanficCount   int
 	}
 )
 

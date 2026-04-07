@@ -1,13 +1,13 @@
-import { useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router";
-import type { Mystery, MysteryLeaderboardEntry } from "../../types/api";
-import { getMysteryLeaderboard, listMysteries } from "../../api/endpoints";
-import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
-import { Pagination } from "../../components/Pagination/Pagination";
-import { Select } from "../../components/Select/Select";
-import { RulesBox } from "../../components/RulesBox/RulesBox";
-import { InfoPanel } from "../../components/InfoPanel/InfoPanel";
-import { relativeTime } from "../../utils/notifications";
+import {useEffect, useState} from "react";
+import {useNavigate, useSearchParams} from "react-router";
+import type {Mystery, MysteryLeaderboardEntry} from "../../types/api";
+import {getMysteryLeaderboard, listMysteries} from "../../api/endpoints";
+import {ProfileLink} from "../../components/ProfileLink/ProfileLink";
+import {Pagination} from "../../components/Pagination/Pagination";
+import {Select} from "../../components/Select/Select";
+import {RulesBox} from "../../components/RulesBox/RulesBox";
+import {InfoPanel} from "../../components/InfoPanel/InfoPanel";
+import {relativeTime} from "../../utils/notifications";
 import styles from "./MysteryPages.module.css";
 
 function formatDuration(ms: number): string {
@@ -184,8 +184,12 @@ export function MysteryListPage() {
                                     className={`${styles.card}${m.solved ? ` ${styles.cardSolved}` : ""}`}
                                     onClick={() => navigate(`/mystery/${m.id}`)}
                                 >
-                                    <div className={styles.cardHeader}>
-                                        <span className={styles.cardTitle}>{m.title}</span>
+                                    <div className={styles.cardTitle}>{m.title}</div>
+                                    <div className={styles.cardMeta}>
+                                        <ProfileLink user={m.author} size="small" />
+                                        <span>{relativeTime(m.created_at)}</span>
+                                    </div>
+                                    <div className={styles.cardBadges}>
                                         <span
                                             className={`${styles.badge} ${m.solved ? styles.badgeSolved : styles.badgeOpen}`}
                                         >
@@ -194,10 +198,6 @@ export function MysteryListPage() {
                                         <span className={`${styles.badge} ${styles.badgeDifficulty}`}>
                                             {m.difficulty}
                                         </span>
-                                    </div>
-                                    <div className={styles.cardMeta}>
-                                        <ProfileLink user={m.author} size="small" />
-                                        <span>{relativeTime(m.created_at)}</span>
                                     </div>
                                     <div className={styles.cardStats}>
                                         <span>

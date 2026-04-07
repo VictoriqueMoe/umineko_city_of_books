@@ -1,30 +1,32 @@
-import { useCallback, useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router";
-import { useAuth } from "../../hooks/useAuth";
-import { useProfile } from "../../hooks/useProfile";
-import { useTheoryFeed } from "../../hooks/useTheoryFeed";
-import { useFollow } from "../../hooks/useFollow";
-import { useBlock } from "../../hooks/useBlock";
+import {useCallback, useEffect, useState} from "react";
+import {useNavigate, useParams} from "react-router";
+import {useAuth} from "../../hooks/useAuth";
+import {useProfile} from "../../hooks/useProfile";
+import {useTheoryFeed} from "../../hooks/useTheoryFeed";
+import {useFollow} from "../../hooks/useFollow";
+import {useBlock} from "../../hooks/useBlock";
 import {
     createGallery,
     getFollowers,
     getFollowing,
     getUserActivity,
     getUserArt,
+    getUserFanficFavourites,
+    getUserFanfics,
     getUserGalleries,
     getUserMysteries,
     getUserPosts,
     getUserShips,
 } from "../../api/endpoints";
-import type { ActivityItem, Art, Gallery, Mystery, Post, Ship, User } from "../../types/api";
-import { Button } from "../../components/Button/Button";
-import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
-import { TheoryCard } from "../../components/theory/TheoryCard/TheoryCard";
-import { PostCard } from "../../components/post/PostCard/PostCard";
-import { ArtGrid } from "../../components/art/ArtGrid/ArtGrid";
-import { Pagination } from "../../components/Pagination/Pagination";
-import { RolePill } from "../../components/RolePill/RolePill";
-import { RoleStyledName } from "../../components/RoleStyledName/RoleStyledName";
+import type {ActivityItem, Art, Fanfic, Gallery, Mystery, Post, Ship, User} from "../../types/api";
+import {Button} from "../../components/Button/Button";
+import {ProfileLink} from "../../components/ProfileLink/ProfileLink";
+import {TheoryCard} from "../../components/theory/TheoryCard/TheoryCard";
+import {PostCard} from "../../components/post/PostCard/PostCard";
+import {ArtGrid} from "../../components/art/ArtGrid/ArtGrid";
+import {Pagination} from "../../components/Pagination/Pagination";
+import {RolePill} from "../../components/RolePill/RolePill";
+import {RoleStyledName} from "../../components/RoleStyledName/RoleStyledName";
 import styles from "./ProfilePage.module.css";
 
 const SOCIAL_LABELS: Record<string, string> = {
@@ -65,6 +67,8 @@ type TabType =
     | "galleries"
     | "ships"
     | "mysteries"
+    | "fanfics"
+    | "fanfic-favourites"
     | "activity"
     | "followers"
     | "following";
@@ -206,6 +210,58 @@ export function ProfilePage() {
             fetchUserMysteries(profile.id, mysteriesOffset);
         }
     }, [activeTab, profile?.id, mysteriesOffset, fetchUserMysteries]);
+
+    const [userFanfics, setUserFanfics] = useState<Fanfic[]>([]);
+    const [fanficsTotal, setFanficsTotal] = useState(0);
+    const [fanficsOffset, setFanficsOffset] = useState(0);
+    const [fanficsLoading, setFanficsLoading] = useState(false);
+    const fanficsLimit = 20;
+
+    const fetchUserFanfics = useCallback(async (id: string, off: number) => {
+        setFanficsLoading(true);
+        try {
+            const result = await getUserFanfics(id, fanficsLimit, off);
+            setUserFanfics(result.fanfics ?? []);
+            setFanficsTotal(result.total);
+        } catch {
+            setUserFanfics([]);
+            setFanficsTotal(0);
+        } finally {
+            setFanficsLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (activeTab === "fanfics" && profile?.id) {
+            fetchUserFanfics(profile.id, fanficsOffset);
+        }
+    }, [activeTab, profile?.id, fanficsOffset, fetchUserFanfics]);
+
+    const [userFavourites, setUserFavourites] = useState<Fanfic[]>([]);
+    const [favouritesTotal, setFavouritesTotal] = useState(0);
+    const [favouritesOffset, setFavouritesOffset] = useState(0);
+    const [favouritesLoading, setFavouritesLoading] = useState(false);
+    const favouritesLimit = 20;
+
+    const fetchUserFavourites = useCallback(async (id: string, off: number) => {
+        setFavouritesLoading(true);
+        try {
+            const result = await getUserFanficFavourites(id, favouritesLimit, off);
+            setUserFavourites(result.fanfics ?? []);
+            setFavouritesTotal(result.total);
+        } catch {
+            setUserFavourites([]);
+            setFavouritesTotal(0);
+        } finally {
+            setFavouritesLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (activeTab === "fanfic-favourites" && profile?.id) {
+            fetchUserFavourites(profile.id, favouritesOffset);
+        }
+    }, [activeTab, profile?.id, favouritesOffset, fetchUserFavourites]);
 
     const [activityItems, setActivityItems] = useState<ActivityItem[]>([]);
     const [activityTotal, setActivityTotal] = useState(0);
@@ -467,6 +523,18 @@ export function ProfilePage() {
                     Mysteries
                 </button>
                 <button
+                    className={`${styles.tab} ${activeTab === "fanfics" ? styles.tabActive : ""}`}
+                    onClick={() => setActiveTab("fanfics")}
+                >
+                    Fanfics
+                </button>
+                <button
+                    className={`${styles.tab} ${activeTab === "fanfic-favourites" ? styles.tabActive : ""}`}
+                    onClick={() => setActiveTab("fanfic-favourites")}
+                >
+                    Favourites
+                </button>
+                <button
                     className={`${styles.tab} ${activeTab === "activity" ? styles.tabActive : ""}`}
                     onClick={() => setActiveTab("activity")}
                 >
@@ -674,6 +742,84 @@ export function ProfilePage() {
                             hasPrev={mysteriesOffset > 0}
                             onNext={() => setMysteriesOffset(mysteriesOffset + mysteriesLimit)}
                             onPrev={() => setMysteriesOffset(Math.max(0, mysteriesOffset - mysteriesLimit))}
+                        />
+                    )}
+                </div>
+            )}
+
+            {activeTab === "fanfics" && (
+                <div className={styles.tabContent}>
+                    {fanficsLoading && <div className="loading">Loading fanfics...</div>}
+                    {!fanficsLoading && userFanfics.length === 0 && (
+                        <div className="empty-state">No fanfics written yet.</div>
+                    )}
+                    {!fanficsLoading && userFanfics.length > 0 && (
+                        <div className={styles.shipList}>
+                            {userFanfics.map(f => (
+                                <div
+                                    key={f.id}
+                                    className={styles.shipCard}
+                                    onClick={() => navigate(`/fanfiction/${f.id}`)}
+                                >
+                                    <div className={styles.shipInfo}>
+                                        <span className={styles.shipTitle}>{f.title}</span>
+                                        <span className={styles.shipMeta}>
+                                            {f.series} &middot; {f.word_count.toLocaleString()} words &middot;{" "}
+                                            {f.chapter_count} {f.chapter_count === 1 ? "chapter" : "chapters"}
+                                        </span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                    {!fanficsLoading && fanficsTotal > fanficsLimit && (
+                        <Pagination
+                            offset={fanficsOffset}
+                            limit={fanficsLimit}
+                            total={fanficsTotal}
+                            hasNext={fanficsOffset + fanficsLimit < fanficsTotal}
+                            hasPrev={fanficsOffset > 0}
+                            onNext={() => setFanficsOffset(fanficsOffset + fanficsLimit)}
+                            onPrev={() => setFanficsOffset(Math.max(0, fanficsOffset - fanficsLimit))}
+                        />
+                    )}
+                </div>
+            )}
+
+            {activeTab === "fanfic-favourites" && (
+                <div className={styles.tabContent}>
+                    {favouritesLoading && <div className="loading">Loading favourites...</div>}
+                    {!favouritesLoading && userFavourites.length === 0 && (
+                        <div className="empty-state">No favourites saved yet.</div>
+                    )}
+                    {!favouritesLoading && userFavourites.length > 0 && (
+                        <div className={styles.shipList}>
+                            {userFavourites.map(f => (
+                                <div
+                                    key={f.id}
+                                    className={styles.shipCard}
+                                    onClick={() => navigate(`/fanfiction/${f.id}`)}
+                                >
+                                    <div className={styles.shipInfo}>
+                                        <span className={styles.shipTitle}>{f.title}</span>
+                                        <span className={styles.shipMeta}>
+                                            {f.series} &middot; {f.word_count.toLocaleString()} words &middot;{" "}
+                                            {f.chapter_count} {f.chapter_count === 1 ? "chapter" : "chapters"}
+                                        </span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                    {!favouritesLoading && favouritesTotal > favouritesLimit && (
+                        <Pagination
+                            offset={favouritesOffset}
+                            limit={favouritesLimit}
+                            total={favouritesTotal}
+                            hasNext={favouritesOffset + favouritesLimit < favouritesTotal}
+                            hasPrev={favouritesOffset > 0}
+                            onNext={() => setFavouritesOffset(favouritesOffset + favouritesLimit)}
+                            onPrev={() => setFavouritesOffset(Math.max(0, favouritesOffset - favouritesLimit))}
                         />
                     )}
                 </div>

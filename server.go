@@ -20,6 +20,7 @@ import (
 	"umineko_city_of_books/internal/credibility"
 	"umineko_city_of_books/internal/db"
 	"umineko_city_of_books/internal/email"
+	fanficsvc "umineko_city_of_books/internal/fanfic"
 	"umineko_city_of_books/internal/follow"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
@@ -66,6 +67,7 @@ type services struct {
 	art          artsvc.Service
 	ship         ship.Service
 	mystery      mysterysvc.Service
+	fanfic       fanficsvc.Service
 	block        blocksvc.Service
 	email        email.Service
 	session      *session.Manager
@@ -137,7 +139,8 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 	postSvc := postsvc.NewService(repos.Post, repos.User, repos.Role, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, hub)
 	artSvc := artsvc.NewService(repos.Art, repos.Post, repos.User, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc)
 	shipSvc := ship.NewService(repos.Ship, repos.User, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, quoteClient)
-	mysterySvc := mysterysvc.NewService(repos.Mystery, repos.User, authzSvc, blockSvc, notifSvc, settingsSvc, hub)
+	mysterySvc := mysterysvc.NewService(repos.Mystery, repos.User, authzSvc, blockSvc, notifSvc, settingsSvc, uploadSvc, hub)
+	fanficSvc := fanficsvc.NewService(repos.Fanfic, repos.User, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc)
 
 	return &services{
 		settings:     settingsSvc,
@@ -154,6 +157,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 		art:          artSvc,
 		ship:         shipSvc,
 		mystery:      mysterySvc,
+		fanfic:       fanficSvc,
 		block:        blockSvc,
 		email:        emailSvc,
 		session:      sessionMgr,
@@ -211,7 +215,7 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 	ctrlService := controllers.NewService(
 		svc.auth, svc.profile, svc.theory, svc.notification, svc.admin,
 		svc.authz, settingsSvc, svc.chat, svc.report, svc.post, svc.follow,
-		svc.art, svc.block, repos.Announcement, svc.mystery, repos.User, svc.ship, svc.upload, svc.mediaProc, svc.session, svc.hub, string(htmlBytes),
+		svc.art, svc.block, repos.Announcement, svc.mystery, repos.User, svc.ship, svc.fanfic, svc.upload, svc.mediaProc, svc.session, svc.hub, string(htmlBytes),
 	)
 	routes.PublicRoutes(ctrlService, app)
 
@@ -231,7 +235,7 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 		logger.Log.Fatal().Err(err).Msg("failed to create static sub-filesystem")
 	}
 
-	ogResolver := og.NewResolver(repos.Theory, repos.User, repos.Post, repos.Art, repos.Mystery, repos.Ship, repos.Announcement, string(htmlBytes), baseURL)
+	ogResolver := og.NewResolver(repos.Theory, repos.User, repos.Post, repos.Art, repos.Mystery, repos.Ship, repos.Fanfic, repos.Announcement, string(htmlBytes), baseURL)
 
 	app.Get("/*", func(ctx fiber.Ctx) error {
 		path := ctx.Path()

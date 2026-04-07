@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
-import { getAdminSettings, updateAdminSettings } from "../../api/endpoints";
-import { Button } from "../../components/Button/Button";
-import { TextArea } from "../../components/TextArea/TextArea";
-import type { SiteSettings } from "../../types/api";
+import {useEffect, useState} from "react";
+import {getAdminSettings, updateAdminSettings} from "../../api/endpoints";
+import {Button} from "../../components/Button/Button";
+import {TextArea} from "../../components/TextArea/TextArea";
+import type {SiteSettings} from "../../types/api";
 import styles from "./AdminSettings.module.css";
 
 const pages = [
@@ -10,6 +10,7 @@ const pages = [
     { key: "rules_theories_higurashi", label: "Theories (Higurashi)" },
     { key: "rules_mysteries", label: "Mysteries" },
     { key: "rules_ships", label: "Ships" },
+    { key: "rules_fanfiction", label: "Fanfiction" },
     { key: "rules_game_board", label: "Game Board (General)" },
     { key: "rules_game_board_umineko", label: "Game Board (Umineko)" },
     { key: "rules_game_board_higurashi", label: "Game Board (Higurashi)" },

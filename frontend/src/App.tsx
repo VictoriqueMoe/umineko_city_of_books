@@ -1,51 +1,56 @@
-import { useState } from "react";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router";
-import { useSiteInfo } from "./hooks/useSiteInfo";
-import { useTheme } from "./hooks/useTheme";
-import { useAuth } from "./hooks/useAuth";
-import { canAccessAdmin } from "./utils/permissions";
-import { Header } from "./components/layout/Header/Header";
-import { Sidebar } from "./components/layout/Sidebar/Sidebar";
-import { Butterflies } from "./components/layout/Butterflies/Butterflies";
-import { ProtectedRoute } from "./components/ProtectedRoute/ProtectedRoute";
-import { FeedPage } from "./pages/theories/FeedPage";
-import { TheoryPage } from "./pages/theories/TheoryPage";
-import { CreateTheoryPage } from "./pages/theories/CreateTheoryPage";
-import { LoginPage } from "./pages/auth/LoginPage";
-import { QuoteBrowserPage } from "./pages/quotes/QuoteBrowserPage";
-import { MyTheoriesPage } from "./pages/theories/MyTheoriesPage";
-import { EditTheoryPage } from "./pages/theories/EditTheoryPage";
-import { ProfilePage } from "./pages/profile/ProfilePage";
-import { SettingsPage } from "./pages/profile/SettingsPage";
-import { AdminLayout } from "./pages/admin/AdminLayout";
-import { AdminDashboard } from "./pages/admin/AdminDashboard";
-import { AdminUsers } from "./pages/admin/AdminUsers";
-import { AdminUserDetail } from "./pages/admin/AdminUserDetail";
-import { AdminSettings } from "./pages/admin/AdminSettings";
-import { AdminAuditLog } from "./pages/admin/AdminAuditLog";
-import { AdminInvites } from "./pages/admin/AdminInvites";
-import { AdminReports } from "./pages/admin/AdminReports";
-import { AdminContentRules } from "./pages/admin/AdminContentRules";
-import { AdminAnnouncements as AdminAnnouncementsPage } from "./pages/admin/AdminAnnouncements";
-import { AnnouncementsPage as AnnouncementsListPage } from "./pages/announcements/AnnouncementsPage";
-import { linkify } from "./utils/linkify";
-import { AnnouncementDetailPage } from "./pages/announcements/AnnouncementDetailPage";
-import { MysteryListPage } from "./pages/mysteries/MysteryListPage";
-import { MysteryDetailPage } from "./pages/mysteries/MysteryDetailPage";
-import { CreateMysteryPage } from "./pages/mysteries/CreateMysteryPage";
-import { ShipsListPage } from "./pages/ships/ShipsListPage";
-import { ShipDetailPage } from "./pages/ships/ShipDetailPage";
-import { CreateShipPage } from "./pages/ships/CreateShipPage";
-import { SuggestionsPage } from "./pages/suggestions/SuggestionsPage";
-import { SocialFeedPage } from "./pages/feed/SocialFeedPage";
-import { PostDetailPage } from "./pages/feed/PostDetailPage";
-import { UsersPage } from "./pages/users/UsersPage";
-import { ChatPage } from "./pages/chat/ChatPage";
-import { ArtGalleryPage } from "./pages/gallery/ArtGalleryPage";
-import { ArtDetailPage } from "./pages/gallery/ArtDetailPage";
-import { GalleryDetailPage } from "./pages/gallery/GalleryDetailPage";
-import { MaintenancePage } from "./pages/maintenance/MaintenancePage";
-import { NotificationsPage } from "./pages/notifications/NotificationsPage";
+import {useState} from "react";
+import {BrowserRouter, Navigate, Route, Routes} from "react-router";
+import {useSiteInfo} from "./hooks/useSiteInfo";
+import {useTheme} from "./hooks/useTheme";
+import {useAuth} from "./hooks/useAuth";
+import {canAccessAdmin} from "./utils/permissions";
+import {Header} from "./components/layout/Header/Header";
+import {Sidebar} from "./components/layout/Sidebar/Sidebar";
+import {Butterflies} from "./components/layout/Butterflies/Butterflies";
+import {ProtectedRoute} from "./components/ProtectedRoute/ProtectedRoute";
+import {FeedPage} from "./pages/theories/FeedPage";
+import {TheoryPage} from "./pages/theories/TheoryPage";
+import {CreateTheoryPage} from "./pages/theories/CreateTheoryPage";
+import {LoginPage} from "./pages/auth/LoginPage";
+import {QuoteBrowserPage} from "./pages/quotes/QuoteBrowserPage";
+import {MyTheoriesPage} from "./pages/theories/MyTheoriesPage";
+import {EditTheoryPage} from "./pages/theories/EditTheoryPage";
+import {ProfilePage} from "./pages/profile/ProfilePage";
+import {SettingsPage} from "./pages/profile/SettingsPage";
+import {AdminLayout} from "./pages/admin/AdminLayout";
+import {AdminDashboard} from "./pages/admin/AdminDashboard";
+import {AdminUsers} from "./pages/admin/AdminUsers";
+import {AdminUserDetail} from "./pages/admin/AdminUserDetail";
+import {AdminSettings} from "./pages/admin/AdminSettings";
+import {AdminAuditLog} from "./pages/admin/AdminAuditLog";
+import {AdminInvites} from "./pages/admin/AdminInvites";
+import {AdminReports} from "./pages/admin/AdminReports";
+import {AdminContentRules} from "./pages/admin/AdminContentRules";
+import {AdminAnnouncements as AdminAnnouncementsPage} from "./pages/admin/AdminAnnouncements";
+import {AnnouncementsPage as AnnouncementsListPage} from "./pages/announcements/AnnouncementsPage";
+import {linkify} from "./utils/linkify";
+import {AnnouncementDetailPage} from "./pages/announcements/AnnouncementDetailPage";
+import {MysteryListPage} from "./pages/mysteries/MysteryListPage";
+import {MysteryDetailPage} from "./pages/mysteries/MysteryDetailPage";
+import {CreateMysteryPage} from "./pages/mysteries/CreateMysteryPage";
+import {ShipsListPage} from "./pages/ships/ShipsListPage";
+import {FanfictionListPage} from "./pages/fanfiction/FanfictionListPage";
+import {FanficDetailPage} from "./pages/fanfiction/FanficDetailPage";
+import {FanficChapterPage} from "./pages/fanfiction/FanficChapterPage";
+import {FanficEditorPage} from "./pages/fanfiction/FanficEditorPage";
+import {ChapterEditorPage} from "./pages/fanfiction/ChapterEditorPage";
+import {ShipDetailPage} from "./pages/ships/ShipDetailPage";
+import {CreateShipPage} from "./pages/ships/CreateShipPage";
+import {SuggestionsPage} from "./pages/suggestions/SuggestionsPage";
+import {SocialFeedPage} from "./pages/feed/SocialFeedPage";
+import {PostDetailPage} from "./pages/feed/PostDetailPage";
+import {UsersPage} from "./pages/users/UsersPage";
+import {ChatPage} from "./pages/chat/ChatPage";
+import {ArtGalleryPage} from "./pages/gallery/ArtGalleryPage";
+import {ArtDetailPage} from "./pages/gallery/ArtDetailPage";
+import {GalleryDetailPage} from "./pages/gallery/GalleryDetailPage";
+import {MaintenancePage} from "./pages/maintenance/MaintenancePage";
+import {NotificationsPage} from "./pages/notifications/NotificationsPage";
 
 const homePageRoutes: Record<string, string> = {
     theories: "/theories",
@@ -61,6 +66,7 @@ const homePageRoutes: Record<string, string> = {
     quotes: "/quotes",
     mysteries: "/mysteries",
     ships: "/ships",
+    fanfiction: "/fanfiction",
 };
 
 function HomePage() {
@@ -128,6 +134,9 @@ function AppLayout() {
                         <Route path="/mystery/:id" element={<MysteryDetailPage />} />
                         <Route path="/ships" element={<ShipsListPage />} />
                         <Route path="/ships/:id" element={<ShipDetailPage />} />
+                        <Route path="/fanfiction" element={<FanfictionListPage />} />
+                        <Route path="/fanfiction/:id" element={<FanficDetailPage />} />
+                        <Route path="/fanfiction/:id/chapter/:number" element={<FanficChapterPage />} />
                         <Route path="/quotes" element={<QuoteBrowserPage />} />
                         <Route path="/users" element={<UsersPage />} />
                         <Route path="/user/:username" element={<ProfilePage />} />
@@ -139,6 +148,10 @@ function AppLayout() {
                             <Route path="/theory/higurashi/new" element={<CreateTheoryPage series="higurashi" />} />
                             <Route path="/mystery/new" element={<CreateMysteryPage />} />
                             <Route path="/ships/new" element={<CreateShipPage />} />
+                            <Route path="/fanfiction/new" element={<FanficEditorPage />} />
+                            <Route path="/fanfiction/:id/edit" element={<FanficEditorPage />} />
+                            <Route path="/fanfiction/:id/chapter/new" element={<ChapterEditorPage />} />
+                            <Route path="/fanfiction/:id/chapter/:number/edit" element={<ChapterEditorPage />} />
                             <Route path="/theory/:id/edit" element={<EditTheoryPage />} />
                             <Route path="/my-theories" element={<MyTheoriesPage />} />
                             <Route path="/settings" element={<SettingsPage />} />

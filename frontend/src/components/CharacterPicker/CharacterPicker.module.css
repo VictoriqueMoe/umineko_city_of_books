@@ -1,0 +1,52 @@
+.picker {
+    background: rgba(var(--purple-rgb), 0.08);
+    border: 1px solid rgba(var(--purple-rgb), 0.25);
+    border-radius: 6px;
+    padding: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.pickerTabs {
+    display: flex;
+    gap: 0.25rem;
+    margin-bottom: 0.5rem;
+}
+
+.pickerTab {
+    background: none;
+    border: 1px solid rgba(var(--purple-rgb), 0.3);
+    color: var(--text-muted);
+    padding: 0.3rem 0.75rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-family: inherit;
+    transition: all 0.15s;
+}
+
+.pickerTab:hover {
+    color: var(--gold);
+}
+
+.pickerTabActive {
+    background: rgba(var(--gold-rgb), 0.15);
+    color: var(--gold);
+    border-color: var(--gold);
+}
+
+.pickerBody {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.pickerBody > *:first-child {
+    flex: 1;
+}
+
+.limitMsg {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-style: italic;
+    padding: 0.25rem 0;
+}

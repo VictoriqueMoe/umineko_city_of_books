@@ -177,7 +177,8 @@ a.socialChipValue:hover {
 
 .stats {
     display: flex;
-    gap: 1rem;
+    flex-wrap: wrap;
+    gap: 0.75rem;
     margin-bottom: 1.5rem;
 }
 

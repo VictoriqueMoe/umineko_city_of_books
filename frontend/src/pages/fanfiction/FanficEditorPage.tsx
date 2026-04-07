@@ -1,0 +1,722 @@
+import {useCallback, useEffect, useRef, useState} from "react";
+import {useNavigate, useParams} from "react-router";
+import type {ShipCharacter} from "../../types/api";
+import {
+    createFanfic,
+    getFanfic,
+    getFanficChapter,
+    getFanficLanguages,
+    getFanficSeries,
+    updateFanfic,
+    updateFanficChapter,
+    uploadFanficCover
+} from "../../api/endpoints";
+import {Button} from "../../components/Button/Button";
+import {Input} from "../../components/Input/Input";
+import {Select} from "../../components/Select/Select";
+import {MentionTextArea} from "../../components/MentionTextArea/MentionTextArea";
+import {CharacterPicker} from "../../components/CharacterPicker/CharacterPicker";
+import {RichTextEditor} from "../../components/RichTextEditor/RichTextEditor";
+import {ToggleSwitch} from "../../components/ToggleSwitch/ToggleSwitch";
+import styles from "./FanficPages.module.css";
+
+const GENRES = [
+    "Adventure", "Angst", "Crime", "Drama", "Family", "Fantasy", "Friendship",
+    "General", "Horror", "Humour", "Hurt/Comfort", "Mystery", "Parody", "Poetry",
+    "Romance", "Sci-Fi", "Spiritual", "Supernatural", "Suspense", "Tragedy", "Western",
+];
+
+const PINNED_SERIES = ["Umineko", "Higurashi", "Ciconia"];
+const OTHER_VALUE = "__other__";
+const DRAFT_KEY = "fanfic-draft";
+
+interface DraftData {
+    title: string;
+    summary: string;
+    series: string;
+    customSeries: string;
+    rating: string;
+    language: string;
+    customLanguage: string;
+    genreA: string;
+    genreB: string;
+    characters: ShipCharacter[];
+    isPairing: boolean;
+    isOneshot: boolean;
+    containsLemons: boolean;
+    body: string;
+    step: number;
+}
+
+function loadDraft(): DraftData | null {
+    try {
+        const raw = localStorage.getItem(DRAFT_KEY);
+        if (!raw) {
+            return null;
+        }
+        return JSON.parse(raw) as DraftData;
+    } catch {
+        return null;
+    }
+}
+
+function clearDraft() {
+    localStorage.removeItem(DRAFT_KEY);
+}
+
+export function FanficEditorPage() {
+    const { id: editId } = useParams<{ id: string }>();
+    const isEdit = !!editId;
+    const navigate = useNavigate();
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [draftPrompt, setDraftPrompt] = useState<DraftData | null>(null);
+    const [initialised, setInitialised] = useState(isEdit);
+    const [editLoading, setEditLoading] = useState(isEdit);
+
+    const [step, setStep] = useState(1);
+    const [status, setStatus] = useState("in_progress");
+    const [title, setTitle] = useState("");
+    const [summary, setSummary] = useState("");
+    const [series, setSeries] = useState("Umineko");
+    const [customSeries, setCustomSeries] = useState("");
+    const [rating, setRating] = useState("K");
+    const [language, setLanguage] = useState("English");
+    const [customLanguage, setCustomLanguage] = useState("");
+    const [genreA, setGenreA] = useState("");
+    const [genreB, setGenreB] = useState("");
+    const [characters, setCharacters] = useState<ShipCharacter[]>([]);
+    const [isPairing, setIsPairing] = useState(false);
+    const [isOneshot, setIsOneshot] = useState(true);
+    const [containsLemons, setContainsLemons] = useState(false);
+    const [body, setBody] = useState("");
+    const [coverFile, setCoverFile] = useState<File | null>(null);
+    const [coverPreview, setCoverPreview] = useState("");
+    const [editChapterId, setEditChapterId] = useState("");
+    const [editChapterCount, setEditChapterCount] = useState(0);
+    const [submitting, setSubmitting] = useState(false);
+    const [error, setError] = useState("");
+
+    const [dynamicSeries, setDynamicSeries] = useState<string[]>([]);
+    const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
+
+    const showCustomSeries = series === OTHER_VALUE;
+    const showCustomLanguage = language === OTHER_VALUE;
+
+    useEffect(() => {
+        getFanficSeries().then(setDynamicSeries).catch(() => setDynamicSeries([]));
+        getFanficLanguages().then(setAvailableLanguages).catch(() => setAvailableLanguages([]));
+    }, []);
+
+    useEffect(() => {
+        if (!isEdit || !editId) {
+            return;
+        }
+        getFanfic(editId)
+            .then(data => {
+                setTitle(data.title);
+                setSummary(data.summary);
+                setRating(data.rating);
+                setIsOneshot(data.is_oneshot);
+                setContainsLemons(data.contains_lemons);
+                setIsPairing(data.is_pairing);
+                setStatus(data.status);
+                setCharacters(data.characters?.map((c, i) => ({
+                    series: c.series,
+                    character_id: c.character_id,
+                    character_name: c.character_name,
+                    sort_order: i,
+                })) ?? []);
+                setGenreA(data.genres?.[0] ?? "");
+                setGenreB(data.genres?.[1] ?? "");
+
+                if (PINNED_SERIES.includes(data.series)) {
+                    setSeries(data.series);
+                } else {
+                    setSeries(OTHER_VALUE);
+                    setCustomSeries(data.series);
+                }
+
+                getFanficLanguages().then(langs => {
+                    if (langs.includes(data.language)) {
+                        setLanguage(data.language);
+                    } else {
+                        setLanguage(OTHER_VALUE);
+                        setCustomLanguage(data.language);
+                    }
+                }).catch(() => {
+                    setLanguage(data.language);
+                });
+
+                setEditChapterCount(data.chapter_count ?? 0);
+                setEditLoading(false);
+            })
+            .catch(() => setEditLoading(false));
+    }, [isEdit, editId]);
+
+    useEffect(() => {
+        if (isEdit) {
+            return;
+        }
+        const existing = loadDraft();
+        if (existing && existing.title) {
+            setDraftPrompt(existing);
+        } else {
+            setInitialised(true);
+        }
+    }, [isEdit]);
+
+    function restoreDraft(draft: DraftData) {
+        setTitle(draft.title);
+        setSummary(draft.summary);
+        setSeries(draft.series);
+        setCustomSeries(draft.customSeries);
+        setRating(draft.rating);
+        setLanguage(draft.language);
+        setCustomLanguage(draft.customLanguage);
+        setGenreA(draft.genreA);
+        setGenreB(draft.genreB);
+        setCharacters(draft.characters);
+        setIsPairing(draft.isPairing);
+        setIsOneshot(draft.isOneshot);
+        setContainsLemons(draft.containsLemons);
+        setBody(draft.body);
+        setStep(draft.step);
+        setDraftPrompt(null);
+        setInitialised(true);
+    }
+
+    function startFresh() {
+        clearDraft();
+        setDraftPrompt(null);
+        setInitialised(true);
+    }
+
+    const saveDraft = useCallback(() => {
+        const data: DraftData = {
+            title, summary, series, customSeries, rating, language, customLanguage,
+            genreA, genreB, characters, isPairing, isOneshot, containsLemons, body, step,
+        };
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(data));
+    }, [title, summary, series, customSeries, rating, language, customLanguage, genreA, genreB, characters, isPairing, isOneshot, containsLemons, body, step]);
+
+    useEffect(() => {
+        if (!initialised || isEdit) {
+            return;
+        }
+        saveDraft();
+    }, [saveDraft, initialised, isEdit]);
+
+    const allSeries = [
+        ...PINNED_SERIES,
+        ...dynamicSeries.filter(s => !PINNED_SERIES.includes(s)),
+    ];
+
+    function addCharacter(character: ShipCharacter) {
+        setCharacters(prev => [...prev, { ...character, sort_order: prev.length }]);
+    }
+
+    function removeCharacter(index: number) {
+        setCharacters(prev => prev.filter((_, i) => i !== index).map((c, i) => ({ ...c, sort_order: i })));
+    }
+
+    function handleCoverChange(e: React.ChangeEvent<HTMLInputElement>) {
+        const file = e.target.files?.[0];
+        if (!file) {
+            return;
+        }
+        setCoverFile(file);
+        setCoverPreview(URL.createObjectURL(file));
+    }
+
+    function removeCover() {
+        setCoverFile(null);
+        setCoverPreview("");
+        if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+        }
+    }
+
+    function handleNextStep() {
+        setError("");
+        if (!title.trim()) {
+            setError("Title is required");
+            return;
+        }
+        const resolvedSeries = showCustomSeries ? customSeries.trim() : series;
+        if (!resolvedSeries) {
+            setError("Series is required");
+            return;
+        }
+        const resolvedLanguage = showCustomLanguage ? customLanguage.trim() : language;
+        if (!resolvedLanguage) {
+            setError("Language is required");
+            return;
+        }
+        setStep(2);
+    }
+
+    async function handleNextStepEdit() {
+        setError("");
+        if (!title.trim()) {
+            setError("Title is required");
+            return;
+        }
+        const resolvedSeries = showCustomSeries ? customSeries.trim() : series;
+        const resolvedLanguage = showCustomLanguage ? customLanguage.trim() : language;
+        if (!resolvedSeries || !resolvedLanguage) {
+            setError("Series and language are required");
+            return;
+        }
+
+        const genres: string[] = [];
+        if (genreA) {
+            genres.push(genreA);
+        }
+        if (genreB && genreB !== genreA) {
+            genres.push(genreB);
+        }
+
+        setSubmitting(true);
+        try {
+            await updateFanfic(editId!, {
+                title: title.trim(),
+                summary: summary.trim(),
+                series: resolvedSeries,
+                rating,
+                language: resolvedLanguage,
+                status,
+                is_oneshot: isOneshot,
+                contains_lemons: containsLemons,
+                genres,
+                characters,
+                is_pairing: isPairing,
+            });
+
+            if (isOneshot && editId) {
+                const fanficData = await getFanfic(editId);
+                if (fanficData.chapters?.length > 0) {
+                    const ch = await getFanficChapter(editId, 1);
+                    setBody(ch.body);
+                    setEditChapterId(ch.id);
+                }
+            }
+            setStep(2);
+        } catch (e) {
+            setError(e instanceof Error ? e.message : "Failed to save");
+        } finally {
+            setSubmitting(false);
+        }
+    }
+
+    async function handleSubmit(asDraft: boolean) {
+        setError("");
+
+        const resolvedSeries = showCustomSeries ? customSeries.trim() : series;
+        const resolvedLanguage = showCustomLanguage ? customLanguage.trim() : language;
+
+        const genres: string[] = [];
+        if (genreA) {
+            genres.push(genreA);
+        }
+        if (genreB && genreB !== genreA) {
+            genres.push(genreB);
+        }
+
+        setSubmitting(true);
+        try {
+            if (isEdit && editId) {
+                await updateFanfic(editId, {
+                    title: title.trim(),
+                    summary: summary.trim(),
+                    series: resolvedSeries,
+                    rating,
+                    language: resolvedLanguage,
+                    status,
+                    is_oneshot: isOneshot,
+                    contains_lemons: containsLemons,
+                    genres,
+                    characters,
+                    is_pairing: isPairing,
+                });
+                if (coverFile) {
+                    try {
+                        await uploadFanficCover(editId, coverFile);
+                    } catch {
+                        // cover upload failure should not block
+                    }
+                }
+                navigate(`/fanfiction/${editId}`);
+                return;
+            }
+
+            const result = await createFanfic({
+                title: title.trim(),
+                summary: summary.trim(),
+                series: resolvedSeries,
+                rating,
+                language: resolvedLanguage,
+                status: asDraft ? "draft" : "in_progress",
+                is_oneshot: isOneshot,
+                contains_lemons: containsLemons,
+                genres,
+                characters,
+                is_pairing: isPairing,
+                body: body || undefined,
+            });
+
+            if (coverFile) {
+                try {
+                    await uploadFanficCover(result.id, coverFile);
+                } catch {
+                    // cover upload failure should not block creation
+                }
+            }
+
+            clearDraft();
+            navigate(`/fanfiction/${result.id}`);
+        } catch (e) {
+            setError(e instanceof Error ? e.message : "Failed to create fanfic");
+        } finally {
+            setSubmitting(false);
+        }
+    }
+
+    function handleCancel() {
+        if (title.trim() || body.trim()) {
+            if (!window.confirm("You have unsaved work. Discard your draft?")) {
+                return;
+            }
+        }
+        clearDraft();
+        navigate("/fanfiction");
+    }
+
+    if (editLoading) {
+        return <div className="loading">Loading...</div>;
+    }
+
+    if (isEdit && !title) {
+        return <div className="empty-state">Fanfic not found.</div>;
+    }
+
+    if (draftPrompt) {
+        return (
+            <div className={styles.formPage}>
+                <h1 className={styles.formHeading}>Unfinished Draft</h1>
+                <p style={{ color: "var(--text)", marginBottom: "1rem" }}>
+                    You have an unfinished draft: <strong>{draftPrompt.title}</strong>
+                </p>
+                <div className={styles.formActions}>
+                    <Button variant="ghost" onClick={startFresh}>
+                        Start Fresh
+                    </Button>
+                    <Button variant="primary" onClick={() => restoreDraft(draftPrompt)}>
+                        Continue Draft
+                    </Button>
+                </div>
+            </div>
+        );
+    }
+
+    if (!initialised) {
+        return null;
+    }
+
+    if (step === 1) {
+        return (
+            <div className={styles.formPage}>
+                <span className={styles.back} onClick={isEdit ? () => navigate(`/fanfiction/${editId}`) : handleCancel}>
+                    &larr; {isEdit ? "Back to Fanfic" : "All Fanfiction"}
+                </span>
+                <h1 className={styles.formHeading}>{isEdit ? "Edit Fanfic" : "New Fanfic"}</h1>
+
+                <div className={styles.formRow}>
+                    <label className={styles.formLabel}>Title</label>
+                    <Input
+                        type="text"
+                        value={title}
+                        onChange={e => setTitle(e.target.value)}
+                        placeholder="Your fanfic title..."
+                        fullWidth
+                    />
+                </div>
+
+                <div className={styles.formRow}>
+                    <label className={styles.formLabel}>Summary</label>
+                    <MentionTextArea
+                        value={summary}
+                        onChange={setSummary}
+                        placeholder="Brief summary of your story..."
+                        rows={3}
+                    />
+                </div>
+
+                <div className={styles.formRowDouble}>
+                    <div>
+                        <label className={styles.formLabel}>Series</label>
+                        <Select
+                            value={showCustomSeries ? OTHER_VALUE : series}
+                            onChange={e => {
+                                const v = e.target.value;
+                                if (v === OTHER_VALUE) {
+                                    setSeries(OTHER_VALUE);
+                                } else {
+                                    setSeries(v);
+                                    setCustomSeries("");
+                                }
+                            }}
+                        >
+                            {allSeries.map(s => (
+                                <option key={s} value={s}>{s}</option>
+                            ))}
+                            <option value={OTHER_VALUE}>Other...</option>
+                        </Select>
+                        {showCustomSeries && (
+                            <Input
+                                type="text"
+                                value={customSeries}
+                                onChange={e => setCustomSeries(e.target.value)}
+                                placeholder="Enter series name..."
+                                fullWidth
+                                style={{ marginTop: "0.5rem" }}
+                            />
+                        )}
+                    </div>
+                    <div>
+                        <label className={styles.formLabel}>Rating</label>
+                        <Select value={rating} onChange={e => setRating(e.target.value)}>
+                            <option value="K">K - All ages</option>
+                            <option value="K+">K+ - 9 and older</option>
+                            <option value="T">T - Teens</option>
+                            <option value="M">M - Mature</option>
+                        </Select>
+                    </div>
+                </div>
+
+                <div className={styles.formRowDouble}>
+                    <div>
+                        <label className={styles.formLabel}>Language</label>
+                        <Select
+                            value={showCustomLanguage ? OTHER_VALUE : language}
+                            onChange={e => {
+                                const v = e.target.value;
+                                if (v === OTHER_VALUE) {
+                                    setLanguage(OTHER_VALUE);
+                                } else {
+                                    setLanguage(v);
+                                    setCustomLanguage("");
+                                }
+                            }}
+                        >
+                            {availableLanguages.map(l => (
+                                <option key={l} value={l}>{l}</option>
+                            ))}
+                            {!availableLanguages.includes("English") && (
+                                <option value="English">English</option>
+                            )}
+                            <option value={OTHER_VALUE}>Other...</option>
+                        </Select>
+                        {showCustomLanguage && (
+                            <Input
+                                type="text"
+                                value={customLanguage}
+                                onChange={e => setCustomLanguage(e.target.value)}
+                                placeholder="Enter language..."
+                                fullWidth
+                                style={{ marginTop: "0.5rem" }}
+                            />
+                        )}
+                    </div>
+                    <div>
+                        <label className={styles.formLabel}>Genre A</label>
+                        <Select value={genreA} onChange={e => setGenreA(e.target.value)}>
+                            <option value="">-- select genre --</option>
+                            {GENRES.map(g => (
+                                <option key={g} value={g}>{g}</option>
+                            ))}
+                        </Select>
+                    </div>
+                </div>
+
+                <div className={styles.formRowDouble}>
+                    <div>
+                        <label className={styles.formLabel}>Genre B (optional)</label>
+                        <Select value={genreB} onChange={e => setGenreB(e.target.value)}>
+                            <option value="">-- select genre --</option>
+                            {GENRES.map(g => (
+                                <option key={g} value={g}>{g}</option>
+                            ))}
+                        </Select>
+                    </div>
+                    <div />
+                </div>
+
+                <div className={styles.formRow}>
+                    <label className={styles.formLabel}>Characters (up to 4)</label>
+                    <CharacterPicker onAdd={addCharacter} existing={characters} maxCharacters={4} />
+                    {characters.length > 0 && (
+                        <div className={styles.charList}>
+                            {characters.map((c, i) => (
+                                <span
+                                    key={`${c.series}-${c.character_id ?? c.character_name}-${i}`}
+                                    className={styles.charPill}
+                                >
+                                    {c.character_name}
+                                    <button
+                                        type="button"
+                                        className={styles.charPillRemove}
+                                        onClick={() => removeCharacter(i)}
+                                        aria-label="Remove character"
+                                    >
+                                        &times;
+                                    </button>
+                                </span>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                <ToggleSwitch
+                    enabled={isPairing}
+                    onChange={setIsPairing}
+                    label="Pairing / ship fic"
+                    description="These characters are in a relationship"
+                />
+
+                <ToggleSwitch
+                    enabled={isOneshot}
+                    onChange={isEdit && editChapterCount > 1 ? () => {} : setIsOneshot}
+                    label="One-shot"
+                    description={
+                        isEdit && editChapterCount > 1
+                            ? `Cannot switch to one-shot with ${editChapterCount} chapters. Delete extra chapters first.`
+                            : "Single chapter story. Turn off to add chapters after creation."
+                    }
+                />
+
+                <ToggleSwitch
+                    enabled={containsLemons}
+                    onChange={setContainsLemons}
+                    label="Contains lemons"
+                    description="This story contains explicit content. It will be hidden by default."
+                />
+
+                {isEdit && (
+                    <div className={styles.formRow}>
+                        <label className={styles.formLabel}>Status</label>
+                        <Select value={status} onChange={e => setStatus(e.target.value)}>
+                            <option value="draft">Draft</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="complete">Complete</option>
+                        </Select>
+                    </div>
+                )}
+
+                <div className={styles.formRow}>
+                    <label className={styles.formLabel}>Cover image (optional)</label>
+                    <input ref={fileInputRef} type="file" accept="image/*" onChange={handleCoverChange} hidden />
+                    <Button variant="ghost" size="small" onClick={() => fileInputRef.current?.click()}>
+                        + Cover Image
+                    </Button>
+                    {coverPreview && (
+                        <div style={{ marginTop: "0.5rem" }}>
+                            <img
+                                src={coverPreview}
+                                alt="preview"
+                                style={{ maxWidth: "100%", maxHeight: "200px", borderRadius: "6px", display: "block" }}
+                            />
+                            <Button variant="ghost" size="small" onClick={removeCover}>
+                                Remove
+                            </Button>
+                        </div>
+                    )}
+                </div>
+
+                {error && <div className="error-message">{error}</div>}
+
+                <div className={styles.formActions}>
+                    <Button variant="ghost" onClick={handleCancel}>
+                        Cancel
+                    </Button>
+                    {isEdit && !isOneshot ? (
+                        <Button
+                            variant="primary"
+                            onClick={() => handleSubmit(false)}
+                            disabled={submitting || !title.trim()}
+                        >
+                            {submitting ? "Saving..." : "Save Changes"}
+                        </Button>
+                    ) : (
+                        <Button variant="primary" onClick={isEdit ? handleNextStepEdit : handleNextStep}>
+                            Next: {isOneshot ? "Edit Story" : "Write Story"}
+                        </Button>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className={styles.formPage}>
+            <span className={styles.back} onClick={() => setStep(1)}>
+                &larr; Back to Details
+            </span>
+            <h1 className={styles.formHeading}>
+                {isEdit ? "Edit Story" : isOneshot ? "Write Your Story" : "Write First Chapter"}
+            </h1>
+
+            <RichTextEditor
+                content={body}
+                onChange={setBody}
+                placeholder={isOneshot ? "Write your story here..." : "Write your first chapter here..."}
+            />
+
+            {error && <div className="error-message" style={{ marginTop: "1rem" }}>{error}</div>}
+
+            <div className={styles.formActions} style={{ marginTop: "1rem" }}>
+                <Button variant="ghost" onClick={() => setStep(1)}>
+                    Back
+                </Button>
+                {isEdit ? (
+                    <Button
+                        variant="primary"
+                        onClick={async () => {
+                            if (!editChapterId || !body.trim()) {
+                                return;
+                            }
+                            setSubmitting(true);
+                            try {
+                                await updateFanficChapter(editChapterId, "", body);
+                                navigate(`/fanfiction/${editId}`);
+                            } catch (e) {
+                                setError(e instanceof Error ? e.message : "Failed to save");
+                            } finally {
+                                setSubmitting(false);
+                            }
+                        }}
+                        disabled={submitting || !body.trim()}
+                    >
+                        {submitting ? "Saving..." : "Save Changes"}
+                    </Button>
+                ) : (
+                    <>
+                        <Button
+                            variant="secondary"
+                            onClick={() => handleSubmit(true)}
+                            disabled={submitting}
+                        >
+                            {submitting ? "Saving..." : "Save as Draft"}
+                        </Button>
+                        <Button
+                            variant="primary"
+                            onClick={() => handleSubmit(false)}
+                            disabled={submitting}
+                        >
+                            {submitting ? "Publishing..." : "Publish"}
+                        </Button>
+                    </>
+                )}
+            </div>
+        </div>
+    );
+}

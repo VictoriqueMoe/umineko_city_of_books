@@ -28,7 +28,7 @@
 
 .text {
     margin: 0;
-    font-size: 0.95rem;
+    font-size: 1.05rem;
     line-height: 1.6;
     color: var(--text);
     white-space: pre-wrap;

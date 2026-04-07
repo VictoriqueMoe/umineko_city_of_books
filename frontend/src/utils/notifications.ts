@@ -1,4 +1,4 @@
-import type { Notification, NotificationType } from "../types/api";
+import type {Notification, NotificationType} from "../types/api";
 
 export type NotificationCategory =
     | "game_board"
@@ -69,6 +69,17 @@ function routeByReferenceType(notif: Notification): string {
     if (refType.startsWith("mystery_attempt:")) {
         const attemptId = refType.split(":")[1];
         return `/mystery/${notif.reference_id}#attempt-${attemptId}`;
+    }
+    if (refType.startsWith("mystery_comment:")) {
+        const commentId = refType.split(":")[1];
+        return `/mystery/${notif.reference_id}#comment-${commentId}`;
+    }
+    if (refType === "fanfic") {
+        return `/fanfiction/${notif.reference_id}`;
+    }
+    if (refType.startsWith("fanfic_comment:")) {
+        const commentId = refType.split(":")[1];
+        return `/fanfiction/${notif.reference_id}#comment-${commentId}`;
     }
     if (refType === "ship" || refType.startsWith("ship_comment:")) {
         const parts = refType.split(":");
@@ -211,6 +222,26 @@ const notificationConfigs: Record<NotificationType, NotificationConfig> = {
     mystery_solved: {
         text: "chose your attempt as the winner!",
         category: "mysteries_player",
+        route: routeByReferenceType,
+    },
+    mystery_comment_reply: {
+        text: "replied to your comment on a mystery",
+        category: "mysteries_player",
+        route: routeByReferenceType,
+    },
+    fanfic_commented: {
+        text: "commented on your fanfic",
+        category: "social",
+        route: routeByReferenceType,
+    },
+    fanfic_comment_reply: {
+        text: "replied to your comment on a fanfic",
+        category: "social",
+        route: routeByReferenceType,
+    },
+    fanfic_favourited: {
+        text: "favourited your fanfic",
+        category: "social",
         route: routeByReferenceType,
     },
     ship_commented: {

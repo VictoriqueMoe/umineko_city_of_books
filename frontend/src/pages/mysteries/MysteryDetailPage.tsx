@@ -1,16 +1,52 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useLocation, useNavigate, useParams } from "react-router";
-import type { MysteryAttempt, MysteryClue, MysteryDetail } from "../../types/api";
-import { addMysteryClue, createMysteryAttempt, deleteMystery, getMystery } from "../../api/endpoints";
-import { useAuth } from "../../hooks/useAuth";
-import { useNotifications } from "../../hooks/useNotifications";
-import { useThrottled } from "../../hooks/useThrottled";
-import { can } from "../../utils/permissions";
-import { Button } from "../../components/Button/Button";
-import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
-import { relativeTime } from "../../utils/notifications";
-import { AttemptItem } from "./AttemptItem";
+import {type MouseEvent, useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {useLocation, useNavigate, useParams} from "react-router";
+import type {MysteryAttempt, MysteryClue, MysteryDetail, PostComment} from "../../types/api";
+import {
+    addMysteryClue,
+    createMysteryAttempt,
+    createMysteryComment,
+    deleteMystery,
+    deleteMysteryComment,
+    getMystery,
+    likeMysteryComment,
+    unlikeMysteryComment,
+    updateMysteryComment,
+    uploadMysteryCommentMedia,
+} from "../../api/endpoints";
+import {useAuth} from "../../hooks/useAuth";
+import {useNotifications} from "../../hooks/useNotifications";
+import {useThrottled} from "../../hooks/useThrottled";
+import {can} from "../../utils/permissions";
+import {Button} from "../../components/Button/Button";
+import {ProfileLink} from "../../components/ProfileLink/ProfileLink";
+import {relativeTime} from "../../utils/notifications";
+import {CommentComposer} from "../../components/post/CommentComposer/CommentComposer";
+import {CommentItem} from "../../components/post/CommentItem/CommentItem";
+import {AttemptItem} from "./AttemptItem";
 import styles from "./MysteryPages.module.css";
+
+function ClueCopyBtn({ text }: { text: string }) {
+    const [copied, setCopied] = useState(false);
+
+    function handleCopy(e: MouseEvent) {
+        e.stopPropagation();
+        navigator.clipboard.writeText(text).then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+        });
+    }
+
+    return (
+        <button type="button" className={styles.clueCopy} onClick={handleCopy} title="Copy to clipboard">
+            {copied ? "\u2713" : (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                </svg>
+            )}
+        </button>
+    );
+}
 
 function PrivateClues({
     clues,
@@ -52,6 +88,7 @@ function PrivateClues({
                     {playerClues.map(clue => (
                         <div key={clue.id} className={styles.clue} style={{ fontSize: "0.85rem" }}>
                             {clue.body}
+                            <ClueCopyBtn text={clue.body} />
                         </div>
                     ))}
                 </div>
@@ -365,6 +402,8 @@ export function MysteryDetailPage() {
                         <div className={styles.detailMeta}>
                             <ProfileLink user={mystery.author} size="small" />
                             <span>{relativeTime(mystery.created_at)}</span>
+                        </div>
+                        <div className={styles.cardBadges}>
                             <span className={`${styles.badge} ${styles.badgeDifficulty}`}>{mystery.difficulty}</span>
                             <span
                                 className={`${styles.badge} ${mystery.solved ? styles.badgeSolved : styles.badgeOpen}`}
@@ -396,6 +435,7 @@ export function MysteryDetailPage() {
                                     className={`${styles.clue}${clue.truth_type === "purple" ? ` ${styles.cluePurple}` : ""}`}
                                 >
                                     {clue.body}
+                                    <ClueCopyBtn text={clue.body} />
                                 </div>
                             ))}
                     </div>
@@ -539,6 +579,7 @@ export function MysteryDetailPage() {
                                     .map(clue => (
                                         <div key={clue.id} className={styles.clue}>
                                             {clue.body}
+                                            <ClueCopyBtn text={clue.body} />
                                         </div>
                                     ))}
                             </div>
@@ -595,6 +636,44 @@ export function MysteryDetailPage() {
                     </div>
                 )}
             </div>
+
+            {mystery.solved && (
+                <div className={styles.discussionSection}>
+                    <h3 className={styles.attemptsTitle}>
+                        Post-Game Discussion {mystery.comments.length > 0 && `(${mystery.comments.length})`}
+                    </h3>
+                    {mystery.comments.map(c => (
+                        <CommentItem
+                            key={c.id}
+                            comment={c as unknown as PostComment}
+                            postId={mystery.id}
+                            onDelete={fetchMystery}
+                            highlighted={false}
+                            linkPrefix="/mystery"
+                            reportType="mystery_comment"
+                            likeFn={likeMysteryComment}
+                            unlikeFn={unlikeMysteryComment}
+                            deleteFn={deleteMysteryComment}
+                            updateFn={updateMysteryComment}
+                            createCommentFn={createMysteryComment}
+                            uploadMediaFn={uploadMysteryCommentMedia}
+                        />
+                    ))}
+                    {mystery.comments.length === 0 && (
+                        <p className="empty-state">
+                            The mystery is solved. Share your thoughts on the game!
+                        </p>
+                    )}
+                    {user && id && (
+                        <CommentComposer
+                            postId={id}
+                            onCreated={fetchMystery}
+                            createCommentFn={createMysteryComment}
+                            uploadMediaFn={uploadMysteryCommentMedia}
+                        />
+                    )}
+                </div>
+            )}
         </div>
     );
 }

@@ -1,4 +1,4 @@
-import type { Quote } from "../../../types/api";
+import type {Quote} from "../../../types/api";
 import styles from "./TruthCard.module.css";
 
 interface TruthCardProps {
@@ -48,7 +48,7 @@ export function TruthCard({ quote, onClick, selected, lang }: TruthCardProps) {
             <div className={styles.text} dangerouslySetInnerHTML={{ __html: getDisplayHtml(quote, lang) }} />
             <div className={styles.meta}>
                 <span className={styles.speaker}>{quote.character}</span>
-                <span className={styles.episode}>Episode {quote.episode}</span>
+                <span className={styles.episode}>{quote.arc || `Episode ${quote.episode}`}</span>
             </div>
         </div>
     );

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import type { Quote } from "../../../types/api";
+import {useState} from "react";
+import type {Quote} from "../../../types/api";
 import styles from "./TruthChip.module.css";
 
 interface TruthChipProps {
@@ -50,7 +50,7 @@ export function TruthChip({ quote, note, lang, onRemove }: TruthChipProps) {
             </div>
             <div className={styles.meta}>
                 <span className={styles.speaker}>{quote.character}</span>
-                <span>EP{quote.episode}</span>
+                <span>{quote.arc || `EP${quote.episode}`}</span>
             </div>
             {note && <div className={styles.note}>{note}</div>}
             {onRemove && (

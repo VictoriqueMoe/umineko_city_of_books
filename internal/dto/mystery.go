@@ -18,18 +18,32 @@ type (
 	}
 
 	MysteryDetailResponse struct {
-		ID          uuid.UUID        `json:"id"`
-		Title       string           `json:"title"`
-		Body        string           `json:"body"`
-		Difficulty  string           `json:"difficulty"`
-		Author      UserResponse     `json:"author"`
-		Solved      bool             `json:"solved"`
-		Winner      *UserResponse    `json:"winner,omitempty"`
-		SolvedAt    *string          `json:"solved_at,omitempty"`
-		Clues       []MysteryClue    `json:"clues"`
-		Attempts    []MysteryAttempt `json:"attempts"`
-		PlayerCount int              `json:"player_count"`
-		CreatedAt   string           `json:"created_at"`
+		ID          uuid.UUID                `json:"id"`
+		Title       string                   `json:"title"`
+		Body        string                   `json:"body"`
+		Difficulty  string                   `json:"difficulty"`
+		Author      UserResponse             `json:"author"`
+		Solved      bool                     `json:"solved"`
+		Winner      *UserResponse            `json:"winner,omitempty"`
+		SolvedAt    *string                  `json:"solved_at,omitempty"`
+		Clues       []MysteryClue            `json:"clues"`
+		Attempts    []MysteryAttempt         `json:"attempts"`
+		Comments    []MysteryCommentResponse `json:"comments"`
+		PlayerCount int                      `json:"player_count"`
+		CreatedAt   string                   `json:"created_at"`
+	}
+
+	MysteryCommentResponse struct {
+		ID        uuid.UUID                `json:"id"`
+		ParentID  *uuid.UUID               `json:"parent_id,omitempty"`
+		Author    UserResponse             `json:"author"`
+		Body      string                   `json:"body"`
+		Media     []PostMediaResponse      `json:"media"`
+		LikeCount int                      `json:"like_count"`
+		UserLiked bool                     `json:"user_liked"`
+		Replies   []MysteryCommentResponse `json:"replies,omitempty"`
+		CreatedAt string                   `json:"created_at"`
+		UpdatedAt *string                  `json:"updated_at,omitempty"`
 	}
 
 	MysteryClue struct {

@@ -42,6 +42,7 @@ html {
 
 body {
     font-family: var(--font-body);
+    font-size: 1.05rem;
     color: var(--text);
     background-color: var(--bg-void);
     min-height: 100vh;

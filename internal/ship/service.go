@@ -410,7 +410,34 @@ func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID u
 	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, commentAuthorID); blocked {
 		return block.ErrUserBlocked
 	}
-	return s.shipRepo.LikeComment(ctx, userID, commentID)
+	if err := s.shipRepo.LikeComment(ctx, userID, commentID); err != nil {
+		return err
+	}
+
+	go func() {
+		if commentAuthorID == userID {
+			return
+		}
+		bgCtx := context.Background()
+		shipID, err := s.shipRepo.GetCommentShipID(bgCtx, commentID)
+		if err != nil {
+			return
+		}
+		baseURL := s.settingsSvc.Get(bgCtx, config.SettingBaseURL)
+		linkURL := fmt.Sprintf("%s/ships/%s#comment-%s", baseURL, shipID, commentID)
+		subject, emailBody := notification.NotifEmail("Someone", "liked your comment", "", linkURL)
+		_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
+			RecipientID:   commentAuthorID,
+			Type:          dto.NotifShipCommentLiked,
+			ReferenceID:   shipID,
+			ReferenceType: fmt.Sprintf("ship_comment:%s", commentID),
+			ActorID:       userID,
+			EmailSubject:  subject,
+			EmailBody:     emailBody,
+		})
+	}()
+
+	return nil
 }
 
 func (s *service) UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {

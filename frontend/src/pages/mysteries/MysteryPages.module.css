@@ -127,18 +127,18 @@
     border-color: rgba(40, 167, 69, 0.4);
 }
 
-.cardHeader {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin-bottom: 0.5rem;
-}
-
 .cardTitle {
     font-family: var(--font-display);
     font-size: 1.05rem;
     color: var(--gold);
-    flex: 1;
+    margin-bottom: 0.35rem;
+}
+
+.cardBadges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin: 0.35rem 0;
 }
 
 .badge {
@@ -176,6 +176,8 @@
     gap: 0.5rem;
     font-size: 0.8rem;
     color: var(--text-muted);
+    flex-wrap: wrap;
+    min-width: 0;
 }
 
 .cardStats {
@@ -198,7 +200,7 @@
 
 .cardPreview {
     color: var(--text-muted);
-    font-size: 0.9rem;
+    font-size: 1rem;
     margin-top: 0.5rem;
     line-height: 1.4;
 }
@@ -236,9 +238,7 @@
     gap: 0.75rem;
     font-size: 0.85rem;
     color: var(--text-muted);
-    margin-bottom: 1rem;
-    padding-bottom: 1rem;
-    border-bottom: 1px solid rgba(var(--purple-rgb), 0.2);
+    flex-wrap: wrap;
 }
 
 .detailBody {
@@ -267,6 +267,31 @@
     border-radius: 0 4px 4px 0;
     color: #ef9a9a;
     font-style: italic;
+    position: relative;
+}
+
+.clueCopy {
+    position: absolute;
+    top: 0.4rem;
+    right: 0.4rem;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.75rem;
+    padding: 0.2rem 0.35rem;
+    border-radius: 3px;
+    opacity: 0;
+    transition: opacity 0.15s, color 0.15s, background 0.15s;
+}
+
+.clue:hover .clueCopy {
+    opacity: 1;
+}
+
+.clueCopy:hover {
+    color: var(--gold);
+    background: rgba(var(--gold-rgb), 0.12);
 }
 
 .cluePurple {
@@ -298,6 +323,14 @@
 
 .attemptsSection {
     margin-top: 1.5rem;
+}
+
+.discussionSection {
+    margin-top: 1.5rem;
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--purple-rgb), 0.3);
+    border-radius: 8px;
+    padding: 1.25rem;
 }
 
 .pinnedWinner {
