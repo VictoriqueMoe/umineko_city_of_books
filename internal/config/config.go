@@ -116,6 +116,7 @@ var (
 		SettingRulesGalleryUmineko,
 		SettingRulesGalleryHigurashi,
 		SettingRulesGalleryCiconia,
+		SettingRulesFanfiction,
 		SettingSMTPHost,
 		SettingSMTPPort,
 		SettingSMTPFrom,
