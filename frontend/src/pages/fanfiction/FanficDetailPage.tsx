@@ -141,93 +141,97 @@ export function FanficDetailPage() {
             </span>
 
             <div className={styles.detail}>
-                {fanfic.cover_image_url && (
-                    <div style={{ marginBottom: "1rem" }}>
+                <div className={styles.detailHeader}>
+                    {fanfic.cover_image_url && (
                         <img
                             className={styles.detailCover}
                             src={fanfic.cover_image_url}
                             alt={fanfic.title}
                             onClick={() => setLightboxOpen(true)}
-                            style={{ cursor: "zoom-in" }}
                         />
-                    </div>
-                )}
-
-                <div className={styles.detailTitleRow}>
-                    <h1 className={styles.detailTitle}>{fanfic.title}</h1>
-                    {user && (
-                        <button
-                            className={`${styles.favouriteBtn}${fanfic.user_favourited ? ` ${styles.favouriteBtnActive}` : ""}`}
-                            onClick={handleFavourite}
-                            disabled={favouriting}
-                        >
-                            {fanfic.user_favourited ? "\u2665" : "\u2661"} {fanfic.favourite_count}
-                        </button>
                     )}
-                    {(canEdit || canDelete) && (
-                        <div style={{ display: "flex", gap: "0.5rem" }}>
-                            {canEdit && (
-                                <Button
-                                    variant="secondary"
-                                    size="small"
-                                    onClick={() => navigate(`/fanfiction/${fanfic.id}/edit`)}
+                    <div className={styles.detailHeaderInfo}>
+                        <div className={styles.detailTitleRow}>
+                            <h1 className={styles.detailTitle}>{fanfic.title}</h1>
+                            {user && (
+                                <button
+                                    className={`${styles.favouriteBtn}${fanfic.user_favourited ? ` ${styles.favouriteBtnActive}` : ""}`}
+                                    onClick={handleFavourite}
+                                    disabled={favouriting}
                                 >
-                                    Edit
-                                </Button>
+                                    {fanfic.user_favourited ? "\u2665" : "\u2661"} {fanfic.favourite_count}
+                                </button>
                             )}
-                            {canEdit && !fanfic.is_oneshot && (
-                                <Button
-                                    variant="secondary"
-                                    size="small"
-                                    onClick={() => navigate(`/fanfiction/${fanfic.id}/chapter/new`)}
-                                >
-                                    Add Chapter
-                                </Button>
-                            )}
-                            {canDelete && (
-                                <Button variant="danger" size="small" onClick={handleDelete}>
-                                    Delete
-                                </Button>
+                            {(canEdit || canDelete) && (
+                                <div style={{ display: "flex", gap: "0.5rem" }}>
+                                    {canEdit && (
+                                        <Button
+                                            variant="secondary"
+                                            size="small"
+                                            onClick={() => navigate(`/fanfiction/${fanfic.id}/edit`)}
+                                        >
+                                            Edit
+                                        </Button>
+                                    )}
+                                    {canEdit && !fanfic.is_oneshot && (
+                                        <Button
+                                            variant="secondary"
+                                            size="small"
+                                            onClick={() => navigate(`/fanfiction/${fanfic.id}/chapter/new`)}
+                                        >
+                                            Add Chapter
+                                        </Button>
+                                    )}
+                                    {canDelete && (
+                                        <Button variant="danger" size="small" onClick={handleDelete}>
+                                            Delete
+                                        </Button>
+                                    )}
+                                </div>
                             )}
                         </div>
-                    )}
-                </div>
 
-                <div className={styles.detailByline}>
-                    <ProfileLink user={fanfic.author} size="small" />
-                    <span>{relativeTime(fanfic.published_at)}</span>
-                </div>
+                        <div className={styles.detailByline}>
+                            <ProfileLink user={fanfic.author} size="small" />
+                            <span>{relativeTime(fanfic.published_at)}</span>
+                        </div>
 
-                <div className={styles.detailBadges}>
-                    <span className={`${styles.detailBadge} ${ratingBadgeClass(fanfic.rating)}`}>{fanfic.rating}</span>
-                    <span className={`${styles.detailBadge} ${statusBadgeClass(fanfic.status)}`}>{fanfic.status}</span>
-                    <span className={`${styles.detailBadge} ${styles.detailBadgeSeries}`}>{fanfic.series}</span>
-                    <span className={`${styles.detailBadge} ${styles.detailBadgeLang}`}>{fanfic.language}</span>
-                    {fanfic.genres.map(g => (
-                        <span key={g} className={`${styles.detailBadge} ${styles.badgeGenre}`}>
-                            {g}
-                        </span>
-                    ))}
-                </div>
+                        <div className={styles.detailBadges}>
+                            <span className={`${styles.detailBadge} ${ratingBadgeClass(fanfic.rating)}`}>
+                                {fanfic.rating}
+                            </span>
+                            <span className={`${styles.detailBadge} ${statusBadgeClass(fanfic.status)}`}>
+                                {fanfic.status}
+                            </span>
+                            <span className={`${styles.detailBadge} ${styles.detailBadgeSeries}`}>{fanfic.series}</span>
+                            <span className={`${styles.detailBadge} ${styles.detailBadgeLang}`}>{fanfic.language}</span>
+                            {fanfic.genres.map(g => (
+                                <span key={g} className={`${styles.detailBadge} ${styles.badgeGenre}`}>
+                                    {g}
+                                </span>
+                            ))}
+                        </div>
 
-                <div className={styles.detailStats}>
-                    <div className={styles.detailStat}>
-                        <span className={styles.detailStatValue}>{formatNumber(fanfic.word_count)}</span>
-                        <span className={styles.detailStatLabel}>Words</span>
-                    </div>
-                    <div className={styles.detailStat}>
-                        <span className={styles.detailStatValue}>{fanfic.chapter_count}</span>
-                        <span className={styles.detailStatLabel}>
-                            {fanfic.chapter_count === 1 ? "Chapter" : "Chapters"}
-                        </span>
-                    </div>
-                    <div className={styles.detailStat}>
-                        <span className={styles.detailStatValue}>{formatNumber(fanfic.favourite_count)}</span>
-                        <span className={styles.detailStatLabel}>Favourites</span>
-                    </div>
-                    <div className={styles.detailStat}>
-                        <span className={styles.detailStatValue}>{formatNumber(fanfic.view_count)}</span>
-                        <span className={styles.detailStatLabel}>Views</span>
+                        <div className={styles.detailStats}>
+                            <div className={styles.detailStat}>
+                                <span className={styles.detailStatValue}>{formatNumber(fanfic.word_count)}</span>
+                                <span className={styles.detailStatLabel}>Words</span>
+                            </div>
+                            <div className={styles.detailStat}>
+                                <span className={styles.detailStatValue}>{fanfic.chapter_count}</span>
+                                <span className={styles.detailStatLabel}>
+                                    {fanfic.chapter_count === 1 ? "Chapter" : "Chapters"}
+                                </span>
+                            </div>
+                            <div className={styles.detailStat}>
+                                <span className={styles.detailStatValue}>{formatNumber(fanfic.favourite_count)}</span>
+                                <span className={styles.detailStatLabel}>Favourites</span>
+                            </div>
+                            <div className={styles.detailStat}>
+                                <span className={styles.detailStatValue}>{formatNumber(fanfic.view_count)}</span>
+                                <span className={styles.detailStatLabel}>Views</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
 

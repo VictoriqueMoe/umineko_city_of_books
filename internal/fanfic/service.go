@@ -32,6 +32,7 @@ type (
 		ListFanfics(ctx context.Context, viewerID uuid.UUID, params repository.FanficListParams) (*dto.FanficListResponse, error)
 		ListFanficsByUser(ctx context.Context, userID, viewerID uuid.UUID, limit, offset int) (*dto.FanficListResponse, error)
 		UploadCoverImage(ctx context.Context, fanficID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (string, error)
+		RemoveCoverImage(ctx context.Context, fanficID, userID uuid.UUID) error
 
 		CreateChapter(ctx context.Context, fanficID, userID uuid.UUID, req dto.CreateChapterRequest) (uuid.UUID, error)
 		GetChapter(ctx context.Context, fanficID uuid.UUID, chapterNumber int, viewerID uuid.UUID) (*dto.FanficChapterResponse, error)
@@ -418,6 +419,17 @@ func (s *service) UploadCoverImage(ctx context.Context, fanficID, userID uuid.UU
 	}
 
 	return urlPath, nil
+}
+
+func (s *service) RemoveCoverImage(ctx context.Context, fanficID, userID uuid.UUID) error {
+	authorID, err := s.fanficRepo.GetAuthorID(ctx, fanficID)
+	if err != nil {
+		return err
+	}
+	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyPost) {
+		return fmt.Errorf("not authorised")
+	}
+	return s.fanficRepo.UpdateCoverImage(ctx, fanficID, "", "")
 }
 
 func (s *service) CreateChapter(ctx context.Context, fanficID, userID uuid.UUID, req dto.CreateChapterRequest) (uuid.UUID, error) {

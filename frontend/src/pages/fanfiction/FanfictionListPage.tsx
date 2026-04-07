@@ -378,54 +378,63 @@ export function FanfictionListPage() {
                 <div className={styles.list}>
                     {fanfics.map(f => (
                         <Link key={f.id} to={`/fanfiction/${f.id}`} className={styles.card}>
-                            <div className={styles.cardTitleRow}>
-                                <h3 className={styles.cardTitle}>{f.title}</h3>
-                                <span className={`${styles.badge} ${ratingBadgeClass(f.rating)}`}>{f.rating}</span>
-                                {f.status === "complete" && (
-                                    <span className={`${styles.badge} ${styles.badgeComplete}`}>Complete</span>
-                                )}
-                                {f.status === "draft" && (
-                                    <span className={`${styles.badge} ${styles.badgeStatus}`}>Draft</span>
-                                )}
-                            </div>
-
-                            <div className={styles.cardByline}>
-                                <ProfileLink user={f.author} size="small" clickable={false} />
-                                <span>{f.series}</span>
-                                <span>{f.language}</span>
-                                {f.updated_at ? (
-                                    <span>Updated {relativeTime(f.updated_at)}</span>
-                                ) : (
-                                    <span>{relativeTime(f.published_at)}</span>
-                                )}
-                            </div>
-
-                            {f.summary && <p className={styles.cardSummary}>{f.summary}</p>}
-
-                            {(f.genres?.length > 0 || f.characters?.length > 0) && (
-                                <div className={styles.cardBadges}>
-                                    {(f.genres ?? []).map(g => (
-                                        <span key={g} className={`${styles.badge} ${styles.badgeGenre}`}>
-                                            {g}
-                                        </span>
-                                    ))}
-                                    {(f.characters ?? []).map((c, i) => (
-                                        <span key={`${c.character_name}-${i}`} className={styles.charPill}>
-                                            {c.character_name}
-                                        </span>
-                                    ))}
-                                </div>
+                            {(f.cover_thumbnail_url || f.cover_image_url) && (
+                                <img
+                                    className={styles.cardCover}
+                                    src={f.cover_thumbnail_url || f.cover_image_url}
+                                    alt=""
+                                />
                             )}
+                            <div className={styles.cardContent}>
+                                <div className={styles.cardTitleRow}>
+                                    <h3 className={styles.cardTitle}>{f.title}</h3>
+                                    <span className={`${styles.badge} ${ratingBadgeClass(f.rating)}`}>{f.rating}</span>
+                                    {f.status === "complete" && (
+                                        <span className={`${styles.badge} ${styles.badgeComplete}`}>Complete</span>
+                                    )}
+                                    {f.status === "draft" && (
+                                        <span className={`${styles.badge} ${styles.badgeStatus}`}>Draft</span>
+                                    )}
+                                </div>
 
-                            <div className={styles.cardFooter}>
-                                <div className={styles.cardStats}>
-                                    <span>{formatWordCount(f.word_count)} words</span>
-                                    <span>
-                                        {f.chapter_count} {f.chapter_count === 1 ? "chapter" : "chapters"}
-                                    </span>
-                                    <span>
-                                        {f.favourite_count} {f.favourite_count === 1 ? "fav" : "favs"}
-                                    </span>
+                                <div className={styles.cardByline}>
+                                    <ProfileLink user={f.author} size="small" clickable={false} />
+                                    <span>{f.series}</span>
+                                    <span>{f.language}</span>
+                                    {f.updated_at ? (
+                                        <span>Updated {relativeTime(f.updated_at)}</span>
+                                    ) : (
+                                        <span>{relativeTime(f.published_at)}</span>
+                                    )}
+                                </div>
+
+                                {f.summary && <p className={styles.cardSummary}>{f.summary}</p>}
+
+                                {(f.genres?.length > 0 || f.characters?.length > 0) && (
+                                    <div className={styles.cardBadges}>
+                                        {(f.genres ?? []).map(g => (
+                                            <span key={g} className={`${styles.badge} ${styles.badgeGenre}`}>
+                                                {g}
+                                            </span>
+                                        ))}
+                                        {(f.characters ?? []).map((c, i) => (
+                                            <span key={`${c.character_name}-${i}`} className={styles.charPill}>
+                                                {c.character_name}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+
+                                <div className={styles.cardFooter}>
+                                    <div className={styles.cardStats}>
+                                        <span>{formatWordCount(f.word_count)} words</span>
+                                        <span>
+                                            {f.chapter_count} {f.chapter_count === 1 ? "chapter" : "chapters"}
+                                        </span>
+                                        <span>
+                                            {f.favourite_count} {f.favourite_count === 1 ? "fav" : "favs"}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                         </Link>

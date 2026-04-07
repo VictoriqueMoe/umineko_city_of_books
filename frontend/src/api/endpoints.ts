@@ -1010,6 +1010,10 @@ export async function uploadFanficCover(fanficId: string, file: File): Promise<{
     return apiPostFormData<{ image_url: string }>(`/fanfics/${fanficId}/cover`, formData);
 }
 
+export async function deleteFanficCover(fanficId: string): Promise<void> {
+    await apiDelete(`/fanfics/${fanficId}/cover`);
+}
+
 export async function getFanficChapter(fanficId: string, chapterNumber: number): Promise<FanficChapter> {
     return apiFetch<FanficChapter>(`/fanfics/${fanficId}/chapters/${chapterNumber}`);
 }

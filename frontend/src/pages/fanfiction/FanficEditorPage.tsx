@@ -10,6 +10,7 @@ import {
     updateFanfic,
     updateFanficChapter,
     uploadFanficCover,
+    deleteFanficCover,
 } from "../../api/endpoints";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
@@ -109,6 +110,7 @@ export function FanficEditorPage() {
     const [body, setBody] = useState("");
     const [coverFile, setCoverFile] = useState<File | null>(null);
     const [coverPreview, setCoverPreview] = useState("");
+    const [coverRemoved, setCoverRemoved] = useState(false);
     const [editChapterId, setEditChapterId] = useState("");
     const [editChapterCount, setEditChapterCount] = useState(0);
     const [submitting, setSubmitting] = useState(false);
@@ -173,6 +175,9 @@ export function FanficEditorPage() {
                         setLanguage(data.language);
                     });
 
+                if (data.cover_image_url) {
+                    setCoverPreview(data.cover_image_url);
+                }
                 setEditChapterCount(data.chapter_count ?? 0);
                 setEditLoading(false);
             })
@@ -278,11 +283,13 @@ export function FanficEditorPage() {
         }
         setCoverFile(file);
         setCoverPreview(URL.createObjectURL(file));
+        setCoverRemoved(false);
     }
 
     function removeCover() {
         setCoverFile(null);
         setCoverPreview("");
+        setCoverRemoved(true);
         if (fileInputRef.current) {
             fileInputRef.current.value = "";
         }
@@ -393,9 +400,11 @@ export function FanficEditorPage() {
                 if (coverFile) {
                     try {
                         await uploadFanficCover(editId, coverFile);
-                    } catch {
-                        // cover upload failure should not block
-                    }
+                    } catch {}
+                } else if (coverRemoved) {
+                    try {
+                        await deleteFanficCover(editId);
+                    } catch {}
                 }
                 navigate(`/fanfiction/${editId}`);
                 return;

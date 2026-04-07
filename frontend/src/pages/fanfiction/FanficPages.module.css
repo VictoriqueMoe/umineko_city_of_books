@@ -76,7 +76,8 @@
 }
 
 .card {
-    display: block;
+    display: flex;
+    gap: 1rem;
     color: inherit;
     text-decoration: none;
     background: var(--bg-card);
@@ -89,6 +90,19 @@
 
 .card:hover {
     border-color: var(--gold);
+}
+
+.cardCover {
+    width: 80px;
+    height: 110px;
+    object-fit: cover;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+.cardContent {
+    flex: 1;
+    min-width: 0;
 }
 
 .cardTitleRow {
@@ -203,10 +217,24 @@
     gap: 1.5rem;
 }
 
+.detailHeader {
+    display: flex;
+    gap: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.detailHeaderInfo {
+    flex: 1;
+    min-width: 0;
+}
+
 .detailCover {
-    max-width: 200px;
+    width: 180px;
+    height: 260px;
+    object-fit: cover;
     border-radius: 6px;
-    cursor: pointer;
+    cursor: zoom-in;
+    flex-shrink: 0;
 }
 
 .detailInfo {
@@ -592,9 +620,14 @@
         flex-direction: column;
     }
 
+    .detailHeader {
+        flex-direction: column;
+        align-items: center;
+    }
+
     .detailCover {
-        width: 100%;
-        max-width: 200px;
+        width: 140px;
+        height: 200px;
     }
 
     .formRowDouble {

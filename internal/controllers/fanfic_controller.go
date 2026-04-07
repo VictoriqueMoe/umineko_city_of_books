@@ -21,6 +21,7 @@ func (s *Service) getAllFanficRoutes() []FSetupRoute {
 		s.setupUpdateFanfic,
 		s.setupDeleteFanfic,
 		s.setupUploadFanficCover,
+		s.setupDeleteFanficCover,
 		s.setupGetFanficChapter,
 		s.setupCreateFanficChapter,
 		s.setupUpdateFanficChapter,
@@ -63,6 +64,10 @@ func (s *Service) setupDeleteFanfic(r fiber.Router) {
 
 func (s *Service) setupUploadFanficCover(r fiber.Router) {
 	r.Post("/fanfics/:id/cover", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.uploadFanficCover)
+}
+
+func (s *Service) setupDeleteFanficCover(r fiber.Router) {
+	r.Delete("/fanfics/:id/cover", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.deleteFanficCover)
 }
 
 func (s *Service) setupGetFanficChapter(r fiber.Router) {
@@ -252,6 +257,19 @@ func (s *Service) uploadFanficCover(ctx fiber.Ctx) error {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 	return ctx.JSON(fiber.Map{"image_url": url})
+}
+
+func (s *Service) deleteFanficCover(ctx fiber.Ctx) error {
+	fanficID, err := uuid.Parse(ctx.Params("id"))
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid fanfic id"})
+	}
+	userID := ctx.Locals("userID").(uuid.UUID)
+
+	if err := s.FanficService.RemoveCoverImage(ctx.Context(), fanficID, userID); err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	}
+	return ctx.SendStatus(fiber.StatusNoContent)
 }
 
 func (s *Service) getFanficChapter(ctx fiber.Ctx) error {
