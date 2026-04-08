@@ -31,12 +31,7 @@ func Setup(app *fiber.App, settingsSvc settings.Service, sessionMgr *session.Man
 		case strings.HasPrefix(path, "/static/assets/") || strings.HasPrefix(path, "/assets/"):
 			ctx.Set("Cache-Control", "public, max-age=31536000, immutable")
 		case strings.HasPrefix(path, "/uploads/"):
-			ct := string(ctx.RequestCtx().Response.Header.ContentType())
-			if strings.HasPrefix(ct, "video/") {
-				ctx.RequestCtx().Response.Header.Set("Cache-Control", "no-cache, no-transform")
-			} else {
-				ctx.Set("Cache-Control", "public, max-age=2592000")
-			}
+			ctx.Set("Cache-Control", "public, max-age=2592000")
 		case strings.HasPrefix(path, "/api"):
 			ctx.Set("Cache-Control", "no-cache, must-revalidate")
 		default:
