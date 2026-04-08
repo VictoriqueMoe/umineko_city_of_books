@@ -14,7 +14,8 @@ export type Permission =
     | "edit_any_theory"
     | "edit_any_post"
     | "edit_any_comment"
-    | "resolve_suggestion";
+    | "resolve_suggestion"
+    | "edit_mystery_score";
 
 const rolePermissions: Record<string, Permission[]> = {
     super_admin: [
@@ -34,6 +35,7 @@ const rolePermissions: Record<string, Permission[]> = {
         "edit_any_post",
         "edit_any_comment",
         "resolve_suggestion",
+        "edit_mystery_score",
     ],
     admin: [
         "delete_any_theory",
@@ -52,6 +54,7 @@ const rolePermissions: Record<string, Permission[]> = {
         "edit_any_post",
         "edit_any_comment",
         "resolve_suggestion",
+        "edit_mystery_score",
     ],
     moderator: [
         "delete_any_theory",
@@ -65,6 +68,7 @@ const rolePermissions: Record<string, Permission[]> = {
         "view_stats",
         "view_users",
         "ban_user",
+        "edit_mystery_score",
     ],
 };
 

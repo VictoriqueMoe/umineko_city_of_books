@@ -82,7 +82,7 @@ export function PostDetailPage() {
                         comment={c}
                         postId={post.id}
                         onDelete={fetchPost}
-                        highlighted={c.id === highlightedComment}
+                        highlightedId={highlightedComment ?? undefined}
                         viewerBlocked={post.viewer_blocked}
                     />
                 ))}

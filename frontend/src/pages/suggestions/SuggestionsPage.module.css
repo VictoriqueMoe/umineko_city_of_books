@@ -34,3 +34,23 @@
     letter-spacing: 0.05em;
     z-index: 1;
 }
+
+.archivedBadge {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    background: rgba(158, 158, 158, 0.15);
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.15rem 0.5rem;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    z-index: 1;
+}
+
+.actionButtons {
+    display: flex;
+    gap: 0.5rem;
+}

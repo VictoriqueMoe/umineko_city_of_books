@@ -24,7 +24,7 @@ interface CommentItemProps {
     comment: PostComment;
     postId: string;
     onDelete: () => void;
-    highlighted?: boolean;
+    highlightedId?: string;
     isReply?: boolean;
     replyToName?: string;
     linkPrefix?: string;
@@ -73,7 +73,7 @@ function SingleComment({
     comment,
     postId,
     onDelete,
-    highlighted,
+    highlightedId,
     isReply,
     replyToName,
     linkPrefix = "/game-board",
@@ -86,6 +86,7 @@ function SingleComment({
     uploadMediaFn,
     viewerBlocked,
 }: CommentItemProps) {
+    const highlighted = highlightedId === comment.id;
     const { user } = useAuth();
     const isOwner = user?.id === comment.author.id;
     const canEditComment = isOwner || can(user?.role, "edit_any_comment");
@@ -252,7 +253,7 @@ export function CommentItem({
     comment,
     postId,
     onDelete,
-    highlighted,
+    highlightedId,
     linkPrefix,
     reportType,
     likeFn,
@@ -282,7 +283,7 @@ export function CommentItem({
 
     return (
         <div>
-            <SingleComment comment={comment} highlighted={highlighted === true || undefined} {...sharedProps} />
+            <SingleComment comment={comment} highlightedId={highlightedId} {...sharedProps} />
 
             {allReplies.length > 0 && (
                 <div className={styles.threadContainer}>
@@ -298,7 +299,7 @@ export function CommentItem({
                                 <SingleComment
                                     key={reply.id}
                                     comment={reply}
-                                    highlighted={highlighted === true || undefined}
+                                    highlightedId={highlightedId}
                                     isReply
                                     replyToName={replyToName}
                                     {...sharedProps}

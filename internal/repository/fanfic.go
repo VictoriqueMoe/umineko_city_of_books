@@ -16,8 +16,8 @@ import (
 
 type (
 	FanficRepository interface {
-		CreateWithDetails(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, summary string, series string, rating string, language string, status string, isOneshot bool, containsLemons bool, genres []string, characters []dto.FanficCharacter, isPairing bool) error
-		UpdateWithDetails(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, summary string, series string, rating string, language string, status string, isOneshot bool, containsLemons bool, genres []string, characters []dto.FanficCharacter, isPairing bool, asAdmin bool) error
+		CreateWithDetails(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, summary string, series string, rating string, language string, status string, isOneshot bool, containsLemons bool, genres []string, tags []string, characters []dto.FanficCharacter, isPairing bool) error
+		UpdateWithDetails(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, summary string, series string, rating string, language string, status string, isOneshot bool, containsLemons bool, genres []string, tags []string, characters []dto.FanficCharacter, isPairing bool, asAdmin bool) error
 		UpdateCoverImage(ctx context.Context, id uuid.UUID, imageURL string, thumbnailURL string) error
 		UpdateWordCount(ctx context.Context, fanficID uuid.UUID) error
 		Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
@@ -40,6 +40,8 @@ type (
 
 		GetGenres(ctx context.Context, fanficID uuid.UUID) ([]string, error)
 		GetGenresBatch(ctx context.Context, fanficIDs []uuid.UUID) (map[uuid.UUID][]string, error)
+		GetTags(ctx context.Context, fanficID uuid.UUID) ([]string, error)
+		GetTagsBatch(ctx context.Context, fanficIDs []uuid.UUID) (map[uuid.UUID][]string, error)
 		GetCharacters(ctx context.Context, fanficID uuid.UUID) ([]model.FanficCharacterRow, error)
 		GetCharactersBatch(ctx context.Context, fanficIDs []uuid.UUID) (map[uuid.UUID][]model.FanficCharacterRow, error)
 
@@ -82,6 +84,7 @@ type (
 		GenreB     string
 		Language   string
 		Status     string
+		Tag        string
 		CharacterA string
 		CharacterB string
 		CharacterC string
@@ -143,6 +146,22 @@ func insertFanficGenresTx(ctx context.Context, tx *sql.Tx, fanficID uuid.UUID, g
 	return nil
 }
 
+func insertFanficTagsTx(ctx context.Context, tx *sql.Tx, fanficID uuid.UUID, tags []string) error {
+	for _, t := range tags {
+		tag := strings.TrimSpace(t)
+		if tag == "" {
+			continue
+		}
+		if _, err := tx.ExecContext(ctx,
+			`INSERT OR IGNORE INTO fanfic_tags (fanfic_id, tag) VALUES (?, ?)`,
+			fanficID, tag,
+		); err != nil {
+			return fmt.Errorf("add fanfic tag: %w", err)
+		}
+	}
+	return nil
+}
+
 func insertFanficCharactersTx(ctx context.Context, tx *sql.Tx, fanficID uuid.UUID, characters []dto.FanficCharacter, isPairing bool) error {
 	for i, c := range characters {
 		var pairingVal int
@@ -159,7 +178,7 @@ func insertFanficCharactersTx(ctx context.Context, tx *sql.Tx, fanficID uuid.UUI
 	return nil
 }
 
-func (r *fanficRepository) CreateWithDetails(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, summary string, series string, rating string, language string, status string, isOneshot bool, containsLemons bool, genres []string, characters []dto.FanficCharacter, isPairing bool) error {
+func (r *fanficRepository) CreateWithDetails(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, summary string, series string, rating string, language string, status string, isOneshot bool, containsLemons bool, genres []string, tags []string, characters []dto.FanficCharacter, isPairing bool) error {
 	return db.WithTx(ctx, r.db, func(tx *sql.Tx) error {
 		var oneshotVal, lemonsVal int
 		if isOneshot {
@@ -177,11 +196,14 @@ func (r *fanficRepository) CreateWithDetails(ctx context.Context, id uuid.UUID, 
 		if err := insertFanficGenresTx(ctx, tx, id, genres); err != nil {
 			return err
 		}
+		if err := insertFanficTagsTx(ctx, tx, id, tags); err != nil {
+			return err
+		}
 		return insertFanficCharactersTx(ctx, tx, id, characters, isPairing)
 	})
 }
 
-func (r *fanficRepository) UpdateWithDetails(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, summary string, series string, rating string, language string, status string, isOneshot bool, containsLemons bool, genres []string, characters []dto.FanficCharacter, isPairing bool, asAdmin bool) error {
+func (r *fanficRepository) UpdateWithDetails(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, summary string, series string, rating string, language string, status string, isOneshot bool, containsLemons bool, genres []string, tags []string, characters []dto.FanficCharacter, isPairing bool, asAdmin bool) error {
 	return db.WithTx(ctx, r.db, func(tx *sql.Tx) error {
 		var oneshotVal, lemonsVal int
 		if isOneshot {
@@ -213,10 +235,16 @@ func (r *fanficRepository) UpdateWithDetails(ctx context.Context, id uuid.UUID, 
 		if _, err := tx.ExecContext(ctx, `DELETE FROM fanfic_genres WHERE fanfic_id = ?`, id); err != nil {
 			return fmt.Errorf("delete fanfic genres: %w", err)
 		}
+		if _, err := tx.ExecContext(ctx, `DELETE FROM fanfic_tags WHERE fanfic_id = ?`, id); err != nil {
+			return fmt.Errorf("delete fanfic tags: %w", err)
+		}
 		if _, err := tx.ExecContext(ctx, `DELETE FROM fanfic_characters WHERE fanfic_id = ?`, id); err != nil {
 			return fmt.Errorf("delete fanfic characters: %w", err)
 		}
 		if err := insertFanficGenresTx(ctx, tx, id, genres); err != nil {
+			return err
+		}
+		if err := insertFanficTagsTx(ctx, tx, id, tags); err != nil {
 			return err
 		}
 		return insertFanficCharactersTx(ctx, tx, id, characters, isPairing)
@@ -327,6 +355,10 @@ func (r *fanficRepository) List(ctx context.Context, viewerID uuid.UUID, params 
 	if params.GenreB != "" {
 		whereParts = append(whereParts, "EXISTS(SELECT 1 FROM fanfic_genres WHERE fanfic_id = f.id AND genre = ?)")
 		args = append(args, params.GenreB)
+	}
+	if params.Tag != "" {
+		whereParts = append(whereParts, "EXISTS(SELECT 1 FROM fanfic_tags WHERE fanfic_id = f.id AND tag = ?)")
+		args = append(args, params.Tag)
 	}
 
 	characterFilter := func(name string) string {
@@ -574,6 +606,60 @@ func (r *fanficRepository) GetGenresBatch(ctx context.Context, fanficIDs []uuid.
 			return nil, fmt.Errorf("scan fanfic genre: %w", err)
 		}
 		result[fanficID] = append(result[fanficID], genre)
+	}
+	return result, rows.Err()
+}
+
+func (r *fanficRepository) GetTags(ctx context.Context, fanficID uuid.UUID) ([]string, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT tag FROM fanfic_tags WHERE fanfic_id = ? ORDER BY tag ASC`,
+		fanficID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("get fanfic tags: %w", err)
+	}
+	defer rows.Close()
+
+	var tags []string
+	for rows.Next() {
+		var t string
+		if err := rows.Scan(&t); err != nil {
+			return nil, fmt.Errorf("scan fanfic tag: %w", err)
+		}
+		tags = append(tags, t)
+	}
+	return tags, rows.Err()
+}
+
+func (r *fanficRepository) GetTagsBatch(ctx context.Context, fanficIDs []uuid.UUID) (map[uuid.UUID][]string, error) {
+	if len(fanficIDs) == 0 {
+		return nil, nil
+	}
+
+	placeholders := "?"
+	args := []interface{}{fanficIDs[0]}
+	for _, id := range fanficIDs[1:] {
+		placeholders += ", ?"
+		args = append(args, id)
+	}
+
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT fanfic_id, tag FROM fanfic_tags WHERE fanfic_id IN (`+placeholders+`) ORDER BY tag ASC`,
+		args...,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("batch get fanfic tags: %w", err)
+	}
+	defer rows.Close()
+
+	result := make(map[uuid.UUID][]string)
+	for rows.Next() {
+		var fanficID uuid.UUID
+		var tag string
+		if err := rows.Scan(&fanficID, &tag); err != nil {
+			return nil, fmt.Errorf("scan fanfic tag: %w", err)
+		}
+		result[fanficID] = append(result[fanficID], tag)
 	}
 	return result, rows.Err()
 }

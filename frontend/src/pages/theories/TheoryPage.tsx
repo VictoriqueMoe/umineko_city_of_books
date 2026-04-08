@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router";
 import { useTheory } from "../../hooks/useTheory";
 import { useVote } from "../../hooks/useVote";
 import { useAuth } from "../../hooks/useAuth";
+import type { Series } from "../../api/endpoints";
 import { deleteTheory, voteTheory } from "../../api/endpoints";
 import { Button } from "../../components/Button/Button";
 import { Modal } from "../../components/Modal/Modal";
@@ -13,9 +14,9 @@ import { ResponseList } from "../../components/theory/ResponseCard/ResponseCard"
 import { ResponseEditor } from "../../components/theory/ResponseEditor/ResponseEditor";
 import { CredibilityBadge } from "../../components/theory/CredibilityBadge/CredibilityBadge";
 import { ReportButton } from "../../components/ReportButton/ReportButton";
+import { ShareButton } from "../../components/ShareButton/ShareButton";
 import { can } from "../../utils/permissions";
 import { getSeriesConfig } from "../../utils/seriesConfig";
-import type { Series } from "../../api/endpoints";
 import styles from "./TheoryPage.module.css";
 
 export function TheoryPage() {
@@ -124,6 +125,7 @@ export function TheoryPage() {
                             </Button>
                         )}
                         {user && !isAuthor && <ReportButton targetType="theory" targetId={theory.id} />}
+                        <ShareButton contentId={theory.id} contentType="theory" contentTitle={theory.title} />
                     </div>
                 </div>
 

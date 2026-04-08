@@ -2,6 +2,10 @@ package controllers
 
 import (
 	"errors"
+	"io"
+	"net/http"
+	"strconv"
+	"strings"
 
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/dto"
@@ -11,6 +15,12 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 )
+
+var allowedSniffedTypes = map[string]bool{
+	"application/pdf": true,
+	"text/plain":      true,
+	"application/zip": true,
+}
 
 func (s *Service) getAllMysteryRoutes() []FSetupRoute {
 	return []FSetupRoute{
@@ -32,6 +42,8 @@ func (s *Service) getAllMysteryRoutes() []FSetupRoute {
 		s.setupLikeMysteryComment,
 		s.setupUnlikeMysteryComment,
 		s.setupUploadMysteryCommentMedia,
+		s.setupUploadMysteryAttachment,
+		s.setupDeleteMysteryAttachment,
 	}
 }
 
@@ -456,4 +468,77 @@ func (s *Service) uploadMysteryCommentMedia(ctx fiber.Ctx) error {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	}
 	return ctx.Status(fiber.StatusCreated).JSON(result)
+}
+
+func (s *Service) setupUploadMysteryAttachment(r fiber.Router) {
+	r.Post("/mysteries/:id/attachments", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.uploadMysteryAttachment)
+}
+
+func (s *Service) setupDeleteMysteryAttachment(r fiber.Router) {
+	r.Delete("/mysteries/:id/attachments/:attachmentId", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.deleteMysteryAttachment)
+}
+
+func (s *Service) uploadMysteryAttachment(ctx fiber.Ctx) error {
+	mysteryID, err := uuid.Parse(ctx.Params("id"))
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
+	}
+	userID := ctx.Locals("userID").(uuid.UUID)
+
+	file, err := ctx.FormFile("file")
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "no file provided"})
+	}
+
+	reader, err := file.Open()
+	if err != nil {
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to read file"})
+	}
+	defer reader.Close()
+
+	buf := make([]byte, 512)
+	n, _ := reader.Read(buf)
+	if _, err := reader.Seek(0, io.SeekStart); err != nil {
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to read file"})
+	}
+
+	sniffed := http.DetectContentType(buf[:n])
+	if !allowedSniffedTypes[strings.SplitN(sniffed, ";", 2)[0]] {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "only PDF, TXT, and DOCX files are allowed"})
+	}
+
+	result, err := s.MysteryService.UploadAttachment(ctx.Context(), mysteryID, userID, file.Filename, file.Size, reader)
+	if err != nil {
+		if errors.Is(err, mysterysvc.ErrNotFound) {
+			return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "mystery not found"})
+		}
+		if errors.Is(err, mysterysvc.ErrNotAuthor) {
+			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
+		}
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	}
+	return ctx.Status(fiber.StatusCreated).JSON(result)
+}
+
+func (s *Service) deleteMysteryAttachment(ctx fiber.Ctx) error {
+	mysteryID, err := uuid.Parse(ctx.Params("id"))
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
+	}
+	attachmentID, err := strconv.ParseInt(ctx.Params("attachmentId"), 10, 64)
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid attachment id"})
+	}
+	userID := ctx.Locals("userID").(uuid.UUID)
+
+	if err := s.MysteryService.DeleteAttachment(ctx.Context(), attachmentID, mysteryID, userID); err != nil {
+		if errors.Is(err, mysterysvc.ErrNotFound) {
+			return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "mystery not found"})
+		}
+		if errors.Is(err, mysterysvc.ErrNotAuthor) {
+			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
+		}
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to delete attachment"})
+	}
+	return ctx.SendStatus(fiber.StatusNoContent)
 }

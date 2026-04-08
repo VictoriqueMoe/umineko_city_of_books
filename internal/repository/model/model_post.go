@@ -25,7 +25,9 @@ type (
 		CommentCount      int
 		UserLiked         bool
 		ViewCount         int
-		Resolved          bool
+		ResolvedStatus    string
+		SharedContentID   *string
+		SharedContentType *string
 	}
 
 	PostCommentRow struct {
@@ -70,16 +72,16 @@ func (r *PostRow) ToResponse(media []PostMediaRow, embeds []EmbedRow) dto.PostRe
 			AvatarURL:   r.AuthorAvatarURL,
 			Role:        role.Role(r.AuthorRole),
 		},
-		Body:         r.Body,
-		Media:        MediaRowsToResponse(media),
-		Embeds:       EmbedRowsToResponse(embeds),
-		LikeCount:    r.LikeCount,
-		CommentCount: r.CommentCount,
-		ViewCount:    r.ViewCount,
-		UserLiked:    r.UserLiked,
-		Resolved:     r.Resolved,
-		CreatedAt:    r.CreatedAt,
-		UpdatedAt:    r.UpdatedAt,
+		Body:           r.Body,
+		Media:          MediaRowsToResponse(media),
+		Embeds:         EmbedRowsToResponse(embeds),
+		LikeCount:      r.LikeCount,
+		CommentCount:   r.CommentCount,
+		ViewCount:      r.ViewCount,
+		UserLiked:      r.UserLiked,
+		ResolvedStatus: r.ResolvedStatus,
+		CreatedAt:      r.CreatedAt,
+		UpdatedAt:      r.UpdatedAt,
 	}
 }
 

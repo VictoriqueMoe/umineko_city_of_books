@@ -604,6 +604,24 @@
     color: var(--gold);
 }
 
+.tagPill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.5rem 0.25rem 0.65rem;
+    background: rgba(var(--gold-rgb), 0.1);
+    border: 1px solid rgba(var(--gold-rgb), 0.3);
+    border-radius: 14px;
+    font-size: 0.8rem;
+    color: var(--gold);
+}
+
+.badgeTag {
+    background: rgba(var(--gold-rgb), 0.1);
+    border-color: rgba(var(--gold-rgb), 0.3);
+    color: var(--gold);
+}
+
 .toggleRow {
     display: flex;
     align-items: center;

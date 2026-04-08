@@ -15,16 +15,17 @@ import styles from "./SuggestionsPage.module.css";
 export function SuggestionsPage() {
     const { user } = useAuth();
     const [page, setPage] = useState(1);
-    const [filter, setFilter] = useState("false");
+    const [filter, setFilter] = useState("open");
     const feed = usePostFeed("everyone", "suggestions", undefined, "new", page, filter || undefined);
     const canResolve = can(user?.role, "resolve_suggestion");
 
-    async function toggleResolved(postId: string, currentlyResolved: boolean) {
-        if (currentlyResolved) {
-            await unresolveSuggestion(postId);
-        } else {
-            await resolveSuggestion(postId);
-        }
+    async function handleResolve(postId: string, status: string) {
+        await resolveSuggestion(postId, status);
+        feed.refresh();
+    }
+
+    async function handleUnresolve(postId: string) {
+        await unresolveSuggestion(postId);
         feed.refresh();
     }
 
@@ -50,8 +51,9 @@ export function SuggestionsPage() {
                         setPage(1);
                     }}
                 >
-                    <option value="false">Open</option>
-                    <option value="true">Done</option>
+                    <option value="open">Open</option>
+                    <option value="done">Done</option>
+                    <option value="archived">Archived</option>
                     <option value="">All</option>
                 </Select>
             </div>
@@ -65,27 +67,53 @@ export function SuggestionsPage() {
             )}
 
             {!feed.loading &&
-                feed.posts.map(post => (
-                    <div key={post.id} className={post.resolved ? styles.resolvedCard : undefined}>
-                        {post.resolved && <div className={styles.resolvedBadge}>Done</div>}
-                        <PostCard
-                            post={post}
-                            onDelete={feed.refresh}
-                            onEdit={feed.refresh}
-                            extraActions={
-                                canResolve ? (
-                                    <Button
-                                        variant={post.resolved ? "ghost" : "secondary"}
-                                        size="small"
-                                        onClick={() => toggleResolved(post.id, !!post.resolved)}
-                                    >
-                                        {post.resolved ? "Undo" : "Mark as Done"}
-                                    </Button>
-                                ) : undefined
-                            }
-                        />
-                    </div>
-                ))}
+                feed.posts.map(post => {
+                    const status = post.resolved_status;
+                    const isResolved = status === "done" || status === "archived";
+                    return (
+                        <div key={post.id} className={isResolved ? styles.resolvedCard : undefined}>
+                            {status === "done" && <div className={styles.resolvedBadge}>Done</div>}
+                            {status === "archived" && <div className={styles.archivedBadge}>Archived</div>}
+                            <PostCard
+                                post={post}
+                                onDelete={feed.refresh}
+                                onEdit={feed.refresh}
+                                extraActions={
+                                    canResolve ? (
+                                        <div className={styles.actionButtons}>
+                                            {isResolved ? (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="small"
+                                                    onClick={() => handleUnresolve(post.id)}
+                                                >
+                                                    Undo
+                                                </Button>
+                                            ) : (
+                                                <>
+                                                    <Button
+                                                        variant="secondary"
+                                                        size="small"
+                                                        onClick={() => handleResolve(post.id, "done")}
+                                                    >
+                                                        Mark as Done
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="small"
+                                                        onClick={() => handleResolve(post.id, "archived")}
+                                                    >
+                                                        Archive
+                                                    </Button>
+                                                </>
+                                            )}
+                                        </div>
+                                    ) : undefined
+                                }
+                            />
+                        </div>
+                    );
+                })}
 
             <Pagination
                 offset={feed.offset}

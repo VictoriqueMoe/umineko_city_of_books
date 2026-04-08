@@ -43,6 +43,7 @@ func (s *Service) getAllPostRoutes() []FSetupRoute {
 		s.setupVotePoll,
 		s.setupResolveSuggestion,
 		s.setupUnresolveSuggestion,
+		s.setupGetShareCount,
 	}
 }
 
@@ -152,13 +153,9 @@ func (s *Service) listPostFeed(ctx fiber.Ctx) error {
 	limit := fiber.Query[int](ctx, "limit", 20)
 	offset := fiber.Query[int](ctx, "offset", 0)
 
-	var resolved *bool
-	if r := ctx.Query("resolved"); r != "" {
-		v := r == "true"
-		resolved = &v
-	}
+	resolvedFilter := ctx.Query("resolved")
 
-	result, err := s.PostService.ListFeed(ctx.Context(), tab, viewerID, corner, search, sort, seed, limit, offset, resolved)
+	result, err := s.PostService.ListFeed(ctx.Context(), tab, viewerID, corner, search, sort, seed, limit, offset, resolvedFilter)
 	if err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to list posts"})
 	}
@@ -174,7 +171,7 @@ func (s *Service) createPost(ctx fiber.Ctx) error {
 
 	id, err := s.PostService.CreatePost(ctx.Context(), userID, req)
 	if err != nil {
-		if errors.Is(err, postsvc.ErrEmptyBody) {
+		if errors.Is(err, postsvc.ErrEmptyBody) || errors.Is(err, postsvc.ErrInvalidShareType) {
 			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 		}
 		if errors.Is(err, postsvc.ErrRateLimited) {
@@ -581,7 +578,15 @@ func (s *Service) resolveSuggestion(ctx fiber.Ctx) error {
 	}
 	userID := ctx.Locals("userID").(uuid.UUID)
 
-	if err := s.PostService.ResolveSuggestion(ctx.Context(), postID, userID); err != nil {
+	var body struct {
+		Status string `json:"status"`
+	}
+	_ = ctx.Bind().JSON(&body)
+	if body.Status == "" {
+		body.Status = "done"
+	}
+
+	if err := s.PostService.ResolveSuggestion(ctx.Context(), postID, userID, body.Status); err != nil {
 		return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
 	}
 	return ctx.JSON(fiber.Map{"status": "ok"})
@@ -598,4 +603,15 @@ func (s *Service) unresolveSuggestion(ctx fiber.Ctx) error {
 		return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
 	}
 	return ctx.JSON(fiber.Map{"status": "ok"})
+}
+
+func (s *Service) setupGetShareCount(r fiber.Router) {
+	r.Get("/share-count/:type/:id", s.getShareCount)
+}
+
+func (s *Service) getShareCount(ctx fiber.Ctx) error {
+	contentType := ctx.Params("type")
+	contentID := ctx.Params("id")
+	count, _ := s.PostService.GetShareCount(ctx.Context(), contentID, contentType)
+	return ctx.JSON(fiber.Map{"share_count": count})
 }

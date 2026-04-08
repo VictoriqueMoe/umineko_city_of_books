@@ -144,6 +144,7 @@ func (s *Service) listFanfics(ctx fiber.Ctx) error {
 		GenreB:     ctx.Query("genre_b"),
 		Language:   ctx.Query("language"),
 		Status:     ctx.Query("status"),
+		Tag:        ctx.Query("tag"),
 		CharacterA: ctx.Query("char_a"),
 		CharacterB: ctx.Query("char_b"),
 		CharacterC: ctx.Query("char_c"),
@@ -187,7 +188,7 @@ func (s *Service) createFanfic(ctx fiber.Ctx) error {
 
 	id, err := s.FanficService.CreateFanfic(ctx.Context(), userID, req)
 	if err != nil {
-		if errors.Is(err, fanficsvc.ErrEmptyTitle) || errors.Is(err, fanficsvc.ErrTooManyGenres) || errors.Is(err, fanficsvc.ErrTooManyCharacters) || errors.Is(err, fanficsvc.ErrInvalidRating) {
+		if errors.Is(err, fanficsvc.ErrEmptyTitle) || errors.Is(err, fanficsvc.ErrTooManyGenres) || errors.Is(err, fanficsvc.ErrTooManyCharacters) || errors.Is(err, fanficsvc.ErrTooManyTags) || errors.Is(err, fanficsvc.ErrTagTooLong) || errors.Is(err, fanficsvc.ErrInvalidRating) {
 			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 		}
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to create fanfic"})
@@ -208,7 +209,7 @@ func (s *Service) updateFanfic(ctx fiber.Ctx) error {
 	}
 
 	if err := s.FanficService.UpdateFanfic(ctx.Context(), id, userID, req); err != nil {
-		if errors.Is(err, fanficsvc.ErrEmptyTitle) || errors.Is(err, fanficsvc.ErrTooManyGenres) || errors.Is(err, fanficsvc.ErrTooManyCharacters) || errors.Is(err, fanficsvc.ErrInvalidRating) {
+		if errors.Is(err, fanficsvc.ErrEmptyTitle) || errors.Is(err, fanficsvc.ErrTooManyGenres) || errors.Is(err, fanficsvc.ErrTooManyCharacters) || errors.Is(err, fanficsvc.ErrTooManyTags) || errors.Is(err, fanficsvc.ErrTagTooLong) || errors.Is(err, fanficsvc.ErrInvalidRating) {
 			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 		}
 		if errors.Is(err, fanficsvc.ErrNotAuthor) {

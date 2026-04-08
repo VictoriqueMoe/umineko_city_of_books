@@ -24,6 +24,8 @@ import { CommentComposer } from "../../components/post/CommentComposer/CommentCo
 import { relativeTime } from "../../utils/notifications";
 import { CharacterPicker } from "../../components/CharacterPicker/CharacterPicker";
 import { CharacterPills } from "./ShipsListPage";
+import { ShareButton } from "../../components/ShareButton/ShareButton";
+import { ErrorBanner } from "../../components/ErrorBanner/ErrorBanner";
 import styles from "./ShipPages.module.css";
 
 function characterPillClass(series: string): string {
@@ -237,7 +239,7 @@ export function ShipDetailPage() {
                                     rows={5}
                                 />
                             </div>
-                            {editError && <div className="error-message">{editError}</div>}
+                            {editError && <ErrorBanner message={editError} />}
                             <div className={styles.formActions}>
                                 <Button variant="ghost" onClick={cancelEdit} disabled={saving}>
                                     Cancel
@@ -299,6 +301,7 @@ export function ShipDetailPage() {
                         <Button variant="ghost" size="small" onClick={() => handleVote(-1)} disabled={!user || voting}>
                             {userVote === -1 ? "\u25BC" : "\u25BD"}
                         </Button>
+                        <ShareButton contentId={ship.id} contentType="ship" contentTitle={ship.title} />
                     </div>
                 </div>
             </div>
@@ -313,7 +316,7 @@ export function ShipDetailPage() {
                         comment={c as unknown as PostComment}
                         postId={ship.id}
                         onDelete={fetchShip}
-                        highlighted={c.id === highlightedComment}
+                        highlightedId={highlightedComment ?? undefined}
                         linkPrefix="/ships"
                         reportType="ship_comment"
                         likeFn={likeShipComment}

@@ -29,6 +29,7 @@ func (s *Service) getAllAdminRoutes() []FSetupRoute {
 		s.setupAdminCreateInvite,
 		s.setupAdminListInvites,
 		s.setupAdminDeleteInvite,
+		s.setupAdminUpdateMysteryScore,
 	}
 }
 
@@ -232,6 +233,27 @@ func (s *Service) setupAdminListInvites(r fiber.Router) {
 
 func (s *Service) setupAdminDeleteInvite(r fiber.Router) {
 	r.Delete("/admin/invites/:code", s.requirePerm(authz.PermManageRoles), s.adminDeleteInvite)
+}
+
+func (s *Service) setupAdminUpdateMysteryScore(r fiber.Router) {
+	r.Put("/admin/users/:id/mystery-score", s.requirePerm(authz.PermEditMysteryScore), s.adminUpdateMysteryScore)
+}
+
+func (s *Service) adminUpdateMysteryScore(ctx fiber.Ctx) error {
+	targetID, err := uuid.Parse(ctx.Params("id"))
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user ID"})
+	}
+	var req struct {
+		Adjustment int `json:"adjustment"`
+	}
+	if err := ctx.Bind().JSON(&req); err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request"})
+	}
+	if err := s.UserRepo.UpdateMysteryScoreAdjustment(ctx.Context(), targetID, req.Adjustment); err != nil {
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to update"})
+	}
+	return ctx.SendStatus(fiber.StatusNoContent)
 }
 
 func (s *Service) adminCreateInvite(ctx fiber.Ctx) error {

@@ -22,19 +22,44 @@ type (
 	}
 
 	PostResponse struct {
-		ID           uuid.UUID           `json:"id"`
-		Author       UserResponse        `json:"author"`
-		Body         string              `json:"body"`
-		Media        []PostMediaResponse `json:"media"`
-		Embeds       []EmbedResponse     `json:"embeds,omitempty"`
-		Poll         *PollResponse       `json:"poll,omitempty"`
-		LikeCount    int                 `json:"like_count"`
-		CommentCount int                 `json:"comment_count"`
-		ViewCount    int                 `json:"view_count"`
-		UserLiked    bool                `json:"user_liked"`
-		Resolved     bool                `json:"resolved,omitempty"`
-		CreatedAt    string              `json:"created_at"`
-		UpdatedAt    *string             `json:"updated_at,omitempty"`
+		ID             uuid.UUID             `json:"id"`
+		Author         UserResponse          `json:"author"`
+		Body           string                `json:"body"`
+		Media          []PostMediaResponse   `json:"media"`
+		Embeds         []EmbedResponse       `json:"embeds,omitempty"`
+		Poll           *PollResponse         `json:"poll,omitempty"`
+		SharedContent  *SharedContentPreview `json:"shared_content,omitempty"`
+		ShareCount     int                   `json:"share_count"`
+		LikeCount      int                   `json:"like_count"`
+		CommentCount   int                   `json:"comment_count"`
+		ViewCount      int                   `json:"view_count"`
+		UserLiked      bool                  `json:"user_liked"`
+		ResolvedStatus string                `json:"resolved_status,omitempty"`
+		CreatedAt      string                `json:"created_at"`
+		UpdatedAt      *string               `json:"updated_at,omitempty"`
+	}
+
+	SharedContentPreview struct {
+		ID               string              `json:"id"`
+		ContentType      string              `json:"content_type"`
+		Title            string              `json:"title,omitempty"`
+		Body             string              `json:"body,omitempty"`
+		ImageURL         string              `json:"image_url,omitempty"`
+		Media            []PostMediaResponse `json:"media,omitempty"`
+		Author           *UserResponse       `json:"author,omitempty"`
+		Deleted          bool                `json:"deleted"`
+		URL              string              `json:"url"`
+		Difficulty       string              `json:"difficulty,omitempty"`
+		Solved           bool                `json:"solved,omitempty"`
+		Series           string              `json:"series,omitempty"`
+		VoteScore        int                 `json:"vote_score,omitempty"`
+		CredibilityScore float64             `json:"credibility_score,omitempty"`
+		Rating           string              `json:"rating,omitempty"`
+		WordCount        int                 `json:"word_count,omitempty"`
+		ChapterCount     int                 `json:"chapter_count,omitempty"`
+		Corner           string              `json:"corner,omitempty"`
+		LikeCount        int                 `json:"like_count,omitempty"`
+		CommentCount     int                 `json:"comment_count,omitempty"`
 	}
 
 	UpdatePostRequest struct {
@@ -70,9 +95,11 @@ type (
 	}
 
 	CreatePostRequest struct {
-		Corner string           `json:"corner"`
-		Body   string           `json:"body"`
-		Poll   *CreatePollInput `json:"poll,omitempty"`
+		Corner            string           `json:"corner"`
+		Body              string           `json:"body"`
+		Poll              *CreatePollInput `json:"poll,omitempty"`
+		SharedContentID   string           `json:"shared_content_id,omitempty"`
+		SharedContentType string           `json:"shared_content_type,omitempty"`
 	}
 
 	CreatePollInput struct {

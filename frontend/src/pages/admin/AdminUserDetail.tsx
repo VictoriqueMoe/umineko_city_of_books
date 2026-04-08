@@ -1,6 +1,14 @@
 import { useEffect, useReducer, useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { adminDeleteUser, banUser, getAdminUser, removeUserRole, setUserRole, unbanUser } from "../../api/endpoints";
+import {
+    adminDeleteUser,
+    banUser,
+    getAdminUser,
+    removeUserRole,
+    setUserRole,
+    unbanUser,
+    updateMysteryScoreAdjustment,
+} from "../../api/endpoints";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
 import { Modal } from "../../components/Modal/Modal";
@@ -25,6 +33,7 @@ export function AdminUserDetail() {
     const [selectedRole, setSelectedRole] = useState("admin");
     const [banReason, setBanReason] = useState("");
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [scoreInput, setScoreInput] = useState("0");
 
     useEffect(() => {
         if (!id) {
@@ -38,6 +47,7 @@ export function AdminUserDetail() {
                 const data = await getAdminUser(id!);
                 if (!cancelled) {
                     setUser(data);
+                    setScoreInput(String(data.mystery_score_adjustment));
                 }
             } catch (e) {
                 if (!cancelled) {
@@ -200,6 +210,46 @@ export function AdminUserDetail() {
                     </div>
                 </div>
             </div>
+
+            {can(currentUser?.role, "edit_mystery_score") && (
+                <div className={styles.card}>
+                    <h2 className={styles.sectionTitle}>Mystery Score Adjustment</h2>
+                    <div className={styles.fieldGroup}>
+                        <div className={styles.field}>
+                            <span className={styles.fieldLabel}>
+                                Points added or removed from this user's mystery leaderboard score
+                            </span>
+                            <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                                <Input
+                                    type="text"
+                                    inputMode="numeric"
+                                    value={scoreInput}
+                                    onChange={e => {
+                                        const val = e.target.value;
+                                        if (/^-?\d*$/.test(val)) {
+                                            setScoreInput(val);
+                                        }
+                                    }}
+                                    style={{ width: "100px" }}
+                                />
+                                <Button
+                                    variant="primary"
+                                    size="small"
+                                    onClick={async () => {
+                                        const num = parseInt(scoreInput, 10) || 0;
+                                        try {
+                                            await updateMysteryScoreAdjustment(user.id, num);
+                                            refresh();
+                                        } catch {}
+                                    }}
+                                >
+                                    Save
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {can(currentUser?.role, "manage_roles") && user.role !== "super_admin" && (
                 <div className={styles.card}>

@@ -22,6 +22,7 @@ import type {
     FollowStats,
     Gallery,
     GalleryDetailResponse,
+    MysteryAttachment,
     MysteryDetail,
     MysteryLeaderboardResponse,
     MysteryListResponse,
@@ -306,6 +307,10 @@ export async function setUserRole(id: string, role: string): Promise<void> {
     await apiPost<unknown, { role: string }>(`/admin/users/${id}/role`, { role });
 }
 
+export async function updateMysteryScoreAdjustment(id: string, adjustment: number): Promise<void> {
+    await apiPut<unknown, { adjustment: number }>(`/admin/users/${id}/mystery-score`, { adjustment });
+}
+
 export async function removeUserRole(id: string, role: string): Promise<void> {
     await apiDeleteWithBody<unknown, { role: string }>(`/admin/users/${id}/role`, { role });
 }
@@ -490,20 +495,37 @@ export async function createPost(
     body: string,
     corner: string = "general",
     poll?: CreatePollPayload,
+    sharedContentId?: string,
+    sharedContentType?: string,
 ): Promise<{ id: string }> {
-    return apiPost<{ id: string }, { body: string; corner: string; poll?: CreatePollPayload }>("/posts", {
+    return apiPost<
+        { id: string },
+        {
+            body: string;
+            corner: string;
+            poll?: CreatePollPayload;
+            shared_content_id?: string;
+            shared_content_type?: string;
+        }
+    >("/posts", {
         body,
         corner,
         poll,
+        shared_content_id: sharedContentId,
+        shared_content_type: sharedContentType,
     });
+}
+
+export async function getShareCount(contentType: string, contentId: string): Promise<{ share_count: number }> {
+    return apiFetch<{ share_count: number }>(`/share-count/${contentType}/${contentId}`);
 }
 
 export async function votePoll(postId: string, optionId: number): Promise<Poll> {
     return apiPost<Poll, { option_id: number }>(`/posts/${postId}/poll/vote`, { option_id: optionId });
 }
 
-export async function resolveSuggestion(postId: string): Promise<void> {
-    await apiPost<unknown, Record<string, never>>(`/posts/${postId}/resolve`, {});
+export async function resolveSuggestion(postId: string, status: string = "done"): Promise<void> {
+    await apiPost<unknown, { status: string }>(`/posts/${postId}/resolve`, { status });
 }
 
 export async function unresolveSuggestion(postId: string): Promise<void> {
@@ -909,6 +931,16 @@ export async function uploadMysteryCommentMedia(commentId: string, file: File): 
     return apiPostFormData<PostMedia>(`/mystery-comments/${commentId}/media`, formData);
 }
 
+export async function uploadMysteryAttachment(mysteryId: string, file: File): Promise<MysteryAttachment> {
+    const formData = new FormData();
+    formData.append("file", file);
+    return apiPostFormData<MysteryAttachment>(`/mysteries/${mysteryId}/attachments`, formData);
+}
+
+export async function deleteMysteryAttachment(mysteryId: string, attachmentId: number): Promise<void> {
+    await apiDelete(`/mysteries/${mysteryId}/attachments/${attachmentId}`);
+}
+
 export async function getMysteryLeaderboard(limit?: number): Promise<MysteryLeaderboardResponse> {
     const qs = buildQueryString({ limit });
     return apiFetch<MysteryLeaderboardResponse>(`/mysteries/leaderboard${qs}`);
@@ -934,6 +966,7 @@ export async function listFanfics(params: {
     genre_b?: string;
     language?: string;
     status?: string;
+    tag?: string;
     char_a?: string;
     char_b?: string;
     char_c?: string;
@@ -952,6 +985,7 @@ export async function listFanfics(params: {
         genre_b: params.genre_b,
         language: params.language,
         status: params.status,
+        tag: params.tag,
         char_a: params.char_a,
         char_b: params.char_b,
         char_c: params.char_c,
@@ -979,6 +1013,7 @@ export async function createFanfic(data: {
     is_oneshot: boolean;
     contains_lemons: boolean;
     genres: string[];
+    tags: string[];
     characters: { series: string; character_id?: string; character_name: string; sort_order: number }[];
     is_pairing: boolean;
     body?: string;
@@ -998,6 +1033,7 @@ export async function updateFanfic(
         is_oneshot: boolean;
         contains_lemons: boolean;
         genres: string[];
+        tags: string[];
         characters: { series: string; character_id?: string; character_name: string; sort_order: number }[];
         is_pairing: boolean;
     },

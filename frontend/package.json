@@ -14,30 +14,30 @@
     },
     "dependencies": {
         "@marsidev/react-turnstile": "^1.5.0",
-        "@tiptap/extension-link": "^3.22.2",
-        "@tiptap/extension-placeholder": "^3.22.2",
-        "@tiptap/extension-text-align": "^3.22.2",
-        "@tiptap/pm": "^3.22.2",
-        "@tiptap/react": "^3.22.2",
-        "@tiptap/starter-kit": "^3.22.2",
+        "@tiptap/extension-link": "^3.22.3",
+        "@tiptap/extension-placeholder": "^3.22.3",
+        "@tiptap/extension-text-align": "^3.22.3",
+        "@tiptap/pm": "^3.22.3",
+        "@tiptap/react": "^3.22.3",
+        "@tiptap/starter-kit": "^3.22.3",
         "dompurify": "^3.3.3",
-        "marked": "^17.0.5",
+        "marked": "^18.0.0",
         "react": "^19.2.4",
         "react-dom": "^19.2.4",
-        "react-router": "^7.13.2"
+        "react-router": "^7.14.0"
     },
     "devDependencies": {
         "@eslint/js": "^9.39.4",
-        "@types/dompurify": "^3.0.5",
+        "@types/dompurify": "^3.2.0",
         "@types/react": "^19.2.14",
         "@types/react-dom": "^19.2.3",
         "@vitejs/plugin-react": "^6.0.1",
-        "eslint": "9.39.4",
+        "eslint": "^9.39.4",
         "eslint-plugin-react-hooks": "^7.0.1",
         "eslint-plugin-react-refresh": "^0.5.2",
         "prettier": "^3.8.1",
-        "typescript": "^5.9.3",
-        "typescript-eslint": "^8.57.2",
-        "vite": "^8.0.3"
+        "typescript": "^6.0.2",
+        "typescript-eslint": "^8.58.1",
+        "vite": "^8.0.7"
     }
 }

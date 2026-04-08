@@ -4,14 +4,14 @@ import type { Notification } from "../../types/api";
 import { getNotifications } from "../../api/endpoints";
 import { useNotifications } from "../../hooks/useNotifications";
 import {
-    type NotificationCategory,
-    getNotificationRoute,
-    getNotificationText,
+    formatContentEditedText,
     getCategoryLabel,
     getCategoryOrder,
+    getNotificationRoute,
+    getNotificationText,
     groupByCategory,
     isContentEditedNotification,
-    formatContentEditedText,
+    type NotificationCategory,
     relativeTime,
 } from "../../utils/notifications";
 import { Button } from "../../components/Button/Button";
@@ -24,7 +24,7 @@ export function NotificationsPage() {
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [loading, setLoading] = useState(true);
     const [total, setTotal] = useState(0);
-    const [activeFilter, setActiveFilter] = useState<NotificationCategory | "all">("all");
+    const [activeFilter, setActiveFilter] = useState<NotificationCategory | "all" | "unread">("unread");
 
     const fetchAll = useCallback(async (offset = 0) => {
         setLoading(true);
@@ -68,6 +68,7 @@ export function NotificationsPage() {
     }
 
     const grouped = groupByCategory(notifications);
+    const unreadNotifications = notifications.filter(n => !n.read);
     const hasMore = notifications.length < total;
 
     const availableCategories = getCategoryOrder().filter(cat => {
@@ -94,6 +95,13 @@ export function NotificationsPage() {
                 <>
                     <div className={styles.tabs}>
                         <button
+                            className={`${styles.tab}${activeFilter === "unread" ? ` ${styles.tabActive}` : ""}`}
+                            onClick={() => setActiveFilter("unread")}
+                        >
+                            Unread
+                            {unreadCount > 0 && <span className={styles.tabBadge}>{unreadCount}</span>}
+                        </button>
+                        <button
                             className={`${styles.tab}${activeFilter === "all" ? ` ${styles.tabActive}` : ""}`}
                             onClick={() => setActiveFilter("all")}
                         >
@@ -115,25 +123,49 @@ export function NotificationsPage() {
                         })}
                     </div>
 
-                    {getCategoryOrder().map(cat => {
-                        if (activeFilter !== "all" && activeFilter !== cat) {
-                            return null;
-                        }
-                        const items = grouped.get(cat);
-                        if (!items || items.length === 0) {
-                            return null;
-                        }
-                        const unread = items.filter(n => !n.read).length;
-                        return (
-                            <CategorySection
-                                key={cat}
-                                category={cat}
-                                notifications={items}
-                                unreadCount={unread}
-                                onClick={handleClick}
-                            />
-                        );
-                    })}
+                    {activeFilter === "unread" ? (
+                        <div className={styles.flatList}>
+                            {unreadNotifications.length === 0 ? (
+                                <div className={styles.empty}>No unread notifications</div>
+                            ) : (
+                                unreadNotifications.map(notif => (
+                                    <div
+                                        key={notif.id}
+                                        className={`${styles.item} ${styles.unread}`}
+                                        onClick={() => handleClick(notif)}
+                                    >
+                                        <ProfileLink user={notif.actor} size="small" showName={false} />
+                                        <div className={styles.itemContent}>
+                                            <div className={styles.itemText}>
+                                                <NotificationText notif={notif} />
+                                            </div>
+                                            <div className={styles.itemTime}>{relativeTime(notif.created_at)}</div>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    ) : (
+                        getCategoryOrder().map(cat => {
+                            if (activeFilter !== "all" && activeFilter !== cat) {
+                                return null;
+                            }
+                            const items = grouped.get(cat);
+                            if (!items || items.length === 0) {
+                                return null;
+                            }
+                            const catUnread = items.filter(n => !n.read).length;
+                            return (
+                                <CategorySection
+                                    key={cat}
+                                    category={cat}
+                                    notifications={items}
+                                    unreadCount={catUnread}
+                                    onClick={handleClick}
+                                />
+                            );
+                        })
+                    )}
 
                     {hasMore && (
                         <div className={styles.loadMore}>

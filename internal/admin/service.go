@@ -209,6 +209,7 @@ func (s *service) GetUser(ctx context.Context, targetID uuid.UUID) (*dto.AdminUs
 		resp.TheoryCount = stats.TheoryCount
 		resp.ResponseCount = stats.ResponseCount
 	}
+	resp.MysteryScoreAdjustment = u.MysteryScoreAdjustment
 
 	return resp, nil
 }

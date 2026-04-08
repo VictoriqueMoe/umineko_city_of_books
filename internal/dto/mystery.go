@@ -29,8 +29,16 @@ type (
 		Clues       []MysteryClue            `json:"clues"`
 		Attempts    []MysteryAttempt         `json:"attempts"`
 		Comments    []MysteryCommentResponse `json:"comments"`
+		Attachments []MysteryAttachment      `json:"attachments"`
 		PlayerCount int                      `json:"player_count"`
 		CreatedAt   string                   `json:"created_at"`
+	}
+
+	MysteryAttachment struct {
+		ID       int    `json:"id"`
+		FileURL  string `json:"file_url"`
+		FileName string `json:"file_name"`
+		FileSize int    `json:"file_size"`
 	}
 
 	MysteryCommentResponse struct {
@@ -98,6 +106,7 @@ type (
 		MediumSolved    int          `json:"medium_solved"`
 		HardSolved      int          `json:"hard_solved"`
 		NightmareSolved int          `json:"nightmare_solved"`
+		ScoreAdjustment int          `json:"score_adjustment"`
 	}
 
 	MysteryLeaderboardResponse struct {

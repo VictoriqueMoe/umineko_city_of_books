@@ -17,6 +17,7 @@ type (
 		Create(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, body string, difficulty string) error
 		AddClue(ctx context.Context, mysteryID uuid.UUID, body string, truthType string, sortOrder int, playerID *uuid.UUID) error
 		Update(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, body string, difficulty string) error
+		UpdateAsAdmin(ctx context.Context, id uuid.UUID, title string, body string, difficulty string) error
 		Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		DeleteAsAdmin(ctx context.Context, id uuid.UUID) error
 		GetByID(ctx context.Context, id uuid.UUID) (*MysteryRow, error)
@@ -58,6 +59,10 @@ type (
 		UpdateCommentMediaThumbnail(ctx context.Context, id int64, thumbnailURL string) error
 		GetCommentMedia(ctx context.Context, commentID uuid.UUID) ([]MysteryCommentMediaRow, error)
 		GetCommentMediaBatch(ctx context.Context, commentIDs []uuid.UUID) (map[uuid.UUID][]MysteryCommentMediaRow, error)
+
+		AddAttachment(ctx context.Context, mysteryID uuid.UUID, fileURL string, fileName string, fileSize int) (int64, error)
+		DeleteAttachment(ctx context.Context, id int64, mysteryID uuid.UUID) error
+		GetAttachments(ctx context.Context, mysteryID uuid.UUID) ([]dto.MysteryAttachment, error)
 	}
 
 	MysteryRow struct {
@@ -135,6 +140,7 @@ type (
 		MediumSolved    int
 		HardSolved      int
 		NightmareSolved int
+		ScoreAdjustment int
 	}
 
 	mysteryRepository struct {
@@ -206,6 +212,17 @@ func (r *mysteryRepository) Update(ctx context.Context, id uuid.UUID, userID uui
 	n, _ := res.RowsAffected()
 	if n == 0 {
 		return fmt.Errorf("mystery not found or not owned")
+	}
+	return nil
+}
+
+func (r *mysteryRepository) UpdateAsAdmin(ctx context.Context, id uuid.UUID, title string, body string, difficulty string) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE mysteries SET title = ?, body = ?, difficulty = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+		title, body, difficulty, id,
+	)
+	if err != nil {
+		return fmt.Errorf("update mystery as admin: %w", err)
 	}
 	return nil
 }
@@ -569,22 +586,27 @@ func (r *mysteryRepository) GetLeaderboard(ctx context.Context, limit int) ([]Le
 		limit = 20
 	}
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT u.id, u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''),
-			SUM(CASE WHEN m.difficulty = 'easy' THEN 2
-			         WHEN m.difficulty = 'medium' THEN 4
-			         WHEN m.difficulty = 'hard' THEN 6
-			         WHEN m.difficulty = 'nightmare' THEN 8
-			         ELSE 4 END) AS score,
-			SUM(CASE WHEN m.difficulty = 'easy' THEN 1 ELSE 0 END) AS easy_solved,
-			SUM(CASE WHEN m.difficulty = 'medium' THEN 1 ELSE 0 END) AS medium_solved,
-			SUM(CASE WHEN m.difficulty = 'hard' THEN 1 ELSE 0 END) AS hard_solved,
-			SUM(CASE WHEN m.difficulty = 'nightmare' THEN 1 ELSE 0 END) AS nightmare_solved
-		FROM mysteries m
-		JOIN users u ON m.winner_id = u.id
-		LEFT JOIN user_roles r ON r.user_id = u.id
-		WHERE m.solved = 1 AND m.winner_id IS NOT NULL
-		GROUP BY u.id
-		ORDER BY score DESC, u.display_name ASC
+		`SELECT id, username, display_name, avatar_url, role, score, easy_solved, medium_solved, hard_solved, nightmare_solved, score_adjustment FROM (
+			SELECT u.id, u.username, u.display_name, u.avatar_url, COALESCE(r.role, '') AS role,
+				COALESCE(SUM(CASE WHEN m.id IS NOT NULL THEN
+					CASE WHEN m.difficulty = 'easy' THEN 2
+					     WHEN m.difficulty = 'medium' THEN 4
+					     WHEN m.difficulty = 'hard' THEN 6
+					     WHEN m.difficulty = 'nightmare' THEN 8
+					     ELSE 4 END
+				ELSE 0 END), 0) + u.mystery_score_adjustment AS score,
+				COALESCE(SUM(CASE WHEN m.difficulty = 'easy' THEN 1 ELSE 0 END), 0) AS easy_solved,
+				COALESCE(SUM(CASE WHEN m.difficulty = 'medium' THEN 1 ELSE 0 END), 0) AS medium_solved,
+				COALESCE(SUM(CASE WHEN m.difficulty = 'hard' THEN 1 ELSE 0 END), 0) AS hard_solved,
+				COALESCE(SUM(CASE WHEN m.difficulty = 'nightmare' THEN 1 ELSE 0 END), 0) AS nightmare_solved,
+				u.mystery_score_adjustment AS score_adjustment
+			FROM users u
+			LEFT JOIN mysteries m ON m.winner_id = u.id AND m.solved = 1
+			LEFT JOIN user_roles r ON r.user_id = u.id
+			GROUP BY u.id
+			HAVING score > 0
+		)
+		ORDER BY score DESC, display_name ASC
 		LIMIT ?`, limit,
 	)
 	if err != nil {
@@ -596,7 +618,7 @@ func (r *mysteryRepository) GetLeaderboard(ctx context.Context, limit int) ([]Le
 	for rows.Next() {
 		var e LeaderboardEntry
 		if err := rows.Scan(&e.UserID, &e.Username, &e.DisplayName, &e.AvatarURL, &e.Role,
-			&e.Score, &e.EasySolved, &e.MediumSolved, &e.HardSolved, &e.NightmareSolved); err != nil {
+			&e.Score, &e.EasySolved, &e.MediumSolved, &e.HardSolved, &e.NightmareSolved, &e.ScoreAdjustment); err != nil {
 			return nil, fmt.Errorf("scan leaderboard entry: %w", err)
 		}
 		result = append(result, e)
@@ -606,29 +628,22 @@ func (r *mysteryRepository) GetLeaderboard(ctx context.Context, limit int) ([]Le
 
 func (r *mysteryRepository) GetTopDetectiveIDs(ctx context.Context) ([]string, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT winner_id FROM (
-			SELECT m.winner_id,
-				SUM(CASE WHEN m.difficulty = 'easy' THEN 2
-				         WHEN m.difficulty = 'medium' THEN 4
-				         WHEN m.difficulty = 'hard' THEN 6
-				         WHEN m.difficulty = 'nightmare' THEN 8
-				         ELSE 4 END) AS score
-			FROM mysteries m
-			WHERE m.solved = 1 AND m.winner_id IS NOT NULL
-			GROUP BY m.winner_id
-		) ranked
-		WHERE score = (
-			SELECT MAX(s) FROM (
-				SELECT SUM(CASE WHEN m2.difficulty = 'easy' THEN 2
-				                WHEN m2.difficulty = 'medium' THEN 4
-				                WHEN m2.difficulty = 'hard' THEN 6
-				                WHEN m2.difficulty = 'nightmare' THEN 8
-				                ELSE 4 END) AS s
-				FROM mysteries m2
-				WHERE m2.solved = 1 AND m2.winner_id IS NOT NULL
-				GROUP BY m2.winner_id
-			)
-		)`,
+		`WITH ranked AS (
+			SELECT u.id AS user_id,
+				COALESCE(SUM(CASE WHEN m.id IS NOT NULL THEN
+					CASE WHEN m.difficulty = 'easy' THEN 2
+					     WHEN m.difficulty = 'medium' THEN 4
+					     WHEN m.difficulty = 'hard' THEN 6
+					     WHEN m.difficulty = 'nightmare' THEN 8
+					     ELSE 4 END
+				ELSE 0 END), 0) + u.mystery_score_adjustment AS score
+			FROM users u
+			LEFT JOIN mysteries m ON m.winner_id = u.id AND m.solved = 1
+			GROUP BY u.id
+			HAVING score > 0
+		)
+		SELECT user_id FROM ranked
+		WHERE score = (SELECT MAX(score) FROM ranked)`,
 	)
 	if err != nil {
 		return nil, err
@@ -888,4 +903,51 @@ func (r *mysteryRepository) GetCommentMediaBatch(ctx context.Context, commentIDs
 		result[m.CommentID] = append(result[m.CommentID], m)
 	}
 	return result, rows.Err()
+}
+
+func (r *mysteryRepository) AddAttachment(ctx context.Context, mysteryID uuid.UUID, fileURL string, fileName string, fileSize int) (int64, error) {
+	res, err := r.db.ExecContext(ctx,
+		`INSERT INTO mystery_attachments (mystery_id, file_url, file_name, file_size) VALUES (?, ?, ?, ?)`,
+		mysteryID, fileURL, fileName, fileSize,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("add attachment: %w", err)
+	}
+	return res.LastInsertId()
+}
+
+func (r *mysteryRepository) DeleteAttachment(ctx context.Context, id int64, mysteryID uuid.UUID) error {
+	res, err := r.db.ExecContext(ctx,
+		`DELETE FROM mystery_attachments WHERE id = ? AND mystery_id = ?`,
+		id, mysteryID,
+	)
+	if err != nil {
+		return fmt.Errorf("delete attachment: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("attachment not found")
+	}
+	return nil
+}
+
+func (r *mysteryRepository) GetAttachments(ctx context.Context, mysteryID uuid.UUID) ([]dto.MysteryAttachment, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT id, file_url, file_name, file_size FROM mystery_attachments WHERE mystery_id = ? ORDER BY created_at`,
+		mysteryID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("get attachments: %w", err)
+	}
+	defer rows.Close()
+
+	var attachments []dto.MysteryAttachment
+	for rows.Next() {
+		var a dto.MysteryAttachment
+		if err := rows.Scan(&a.ID, &a.FileURL, &a.FileName, &a.FileSize); err != nil {
+			return nil, fmt.Errorf("scan attachment: %w", err)
+		}
+		attachments = append(attachments, a)
+	}
+	return attachments, rows.Err()
 }

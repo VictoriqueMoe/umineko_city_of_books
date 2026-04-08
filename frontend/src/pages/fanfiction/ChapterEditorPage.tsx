@@ -4,6 +4,7 @@ import { createFanficChapter, getFanficChapter, updateFanficChapter } from "../.
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
 import { RichTextEditor } from "../../components/RichTextEditor/RichTextEditor";
+import { ErrorBanner } from "../../components/ErrorBanner/ErrorBanner";
 import styles from "./FanficPages.module.css";
 
 export function ChapterEditorPage() {
@@ -88,7 +89,7 @@ export function ChapterEditorPage() {
                 <RichTextEditor content={body} onChange={setBody} placeholder="Write your chapter here..." />
             </div>
 
-            {error && <div className="error-message">{error}</div>}
+            {error && <ErrorBanner message={error} />}
 
             <div className={styles.formActions}>
                 <Button variant="ghost" onClick={() => navigate(backPath)}>

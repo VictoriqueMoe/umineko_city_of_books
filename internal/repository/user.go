@@ -26,6 +26,7 @@ type (
 		UpdateBannerURL(ctx context.Context, userID uuid.UUID, bannerURL string) error
 		UpdateIP(ctx context.Context, userID uuid.UUID, ip string) error
 		UpdateGameBoardSort(ctx context.Context, userID uuid.UUID, sort string) error
+		UpdateMysteryScoreAdjustment(ctx context.Context, userID uuid.UUID, adjustment int) error
 		ChangePassword(ctx context.Context, userID uuid.UUID, oldPassword, newPassword string) error
 		DeleteAccount(ctx context.Context, userID uuid.UUID, password string) error
 		GetProfileByUsername(ctx context.Context, username string) (*model.User, *model.UserStats, error)
@@ -45,7 +46,7 @@ type (
 )
 
 const (
-	userColumns = `u.id, u.username, u.password_hash, u.display_name, u.created_at, u.bio, u.avatar_url, u.banner_url, u.favourite_character, u.gender, u.pronoun_subject, u.pronoun_possessive, u.banned_at, u.banned_by, u.ban_reason, u.social_twitter, u.social_discord, u.social_waifulist, u.social_tumblr, u.social_github, u.website, u.banner_position, u.dms_enabled, u.episode_progress, u.email, u.email_public, u.email_notifications, u.home_page, u.game_board_sort, u.ip, COALESCE(r.role, '')`
+	userColumns = `u.id, u.username, u.password_hash, u.display_name, u.created_at, u.bio, u.avatar_url, u.banner_url, u.favourite_character, u.gender, u.pronoun_subject, u.pronoun_possessive, u.banned_at, u.banned_by, u.ban_reason, u.social_twitter, u.social_discord, u.social_waifulist, u.social_tumblr, u.social_github, u.website, u.banner_position, u.dms_enabled, u.episode_progress, u.email, u.email_public, u.email_notifications, u.home_page, u.game_board_sort, u.ip, u.mystery_score_adjustment, COALESCE(r.role, '')`
 )
 
 func scanUser(row interface{ Scan(dest ...any) error }) (*model.User, error) {
@@ -55,7 +56,7 @@ func scanUser(row interface{ Scan(dest ...any) error }) (*model.User, error) {
 		&u.PronounSubject, &u.PronounPossessive,
 		&u.BannedAt, &u.BannedBy, &u.BanReason,
 		&u.SocialTwitter, &u.SocialDiscord, &u.SocialWaifulist, &u.SocialTumblr, &u.SocialGithub, &u.Website,
-		&u.BannerPosition, &u.DmsEnabled, &u.EpisodeProgress, &u.Email, &u.EmailPublic, &u.EmailNotifications, &u.HomePage, &u.GameBoardSort, &u.IP, &u.Role)
+		&u.BannerPosition, &u.DmsEnabled, &u.EpisodeProgress, &u.Email, &u.EmailPublic, &u.EmailNotifications, &u.HomePage, &u.GameBoardSort, &u.IP, &u.MysteryScoreAdjustment, &u.Role)
 	return &u, err
 }
 
@@ -199,6 +200,16 @@ func (r *userRepository) UpdateGameBoardSort(ctx context.Context, userID uuid.UU
 	)
 	if err != nil {
 		return fmt.Errorf("update game board sort: %w", err)
+	}
+	return nil
+}
+
+func (r *userRepository) UpdateMysteryScoreAdjustment(ctx context.Context, userID uuid.UUID, adjustment int) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE users SET mystery_score_adjustment = ? WHERE id = ?`, adjustment, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("update mystery score adjustment: %w", err)
 	}
 	return nil
 }

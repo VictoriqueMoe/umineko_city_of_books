@@ -24,6 +24,7 @@ type (
 		CoverImageURL     string            `json:"cover_image_url,omitempty"`
 		CoverThumbnailURL string            `json:"cover_thumbnail_url,omitempty"`
 		Genres            []string          `json:"genres"`
+		Tags              []string          `json:"tags"`
 		Characters        []FanficCharacter `json:"characters"`
 		IsPairing         bool              `json:"is_pairing"`
 		WordCount         int               `json:"word_count"`
@@ -94,6 +95,7 @@ type (
 		IsOneshot      bool              `json:"is_oneshot"`
 		ContainsLemons bool              `json:"contains_lemons"`
 		Genres         []string          `json:"genres"`
+		Tags           []string          `json:"tags"`
 		Characters     []FanficCharacter `json:"characters"`
 		IsPairing      bool              `json:"is_pairing"`
 		Body           string            `json:"body,omitempty"`
@@ -109,6 +111,7 @@ type (
 		IsOneshot      bool              `json:"is_oneshot"`
 		ContainsLemons bool              `json:"contains_lemons"`
 		Genres         []string          `json:"genres"`
+		Tags           []string          `json:"tags"`
 		Characters     []FanficCharacter `json:"characters"`
 		IsPairing      bool              `json:"is_pairing"`
 	}

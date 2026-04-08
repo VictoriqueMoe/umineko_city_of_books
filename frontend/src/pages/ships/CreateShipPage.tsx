@@ -5,6 +5,7 @@ import { createShip, uploadShipImage } from "../../api/endpoints";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
 import { CharacterPicker } from "../../components/CharacterPicker/CharacterPicker";
+import { ErrorBanner } from "../../components/ErrorBanner/ErrorBanner";
 import styles from "./ShipPages.module.css";
 
 export function CreateShipPage() {
@@ -160,7 +161,7 @@ export function CreateShipPage() {
                 )}
             </div>
 
-            {error && <div className="error-message">{error}</div>}
+            {error && <ErrorBanner message={error} />}
 
             <div className={styles.formActions}>
                 <Button variant="ghost" onClick={() => navigate("/ships")}>

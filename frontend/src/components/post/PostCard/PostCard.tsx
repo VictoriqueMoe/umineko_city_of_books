@@ -18,6 +18,8 @@ import { ProfileLink } from "../../ProfileLink/ProfileLink";
 import { MediaGallery } from "../MediaGallery/MediaGallery";
 import { PollDisplay } from "../PollDisplay/PollDisplay";
 import { PostEmbeds } from "../PostEmbeds/PostEmbeds";
+import { SharedContentCard } from "../SharedContentCard/SharedContentCard";
+import { ShareDialog } from "../ShareDialog/ShareDialog";
 import { MentionTextArea } from "../../MentionTextArea/MentionTextArea";
 import { Button } from "../../Button/Button";
 import styles from "./PostCard.module.css";
@@ -61,6 +63,7 @@ export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps
     const [editMedia, setEditMedia] = useState<PostMedia[]>(post.media);
     const [displayMedia, setDisplayMedia] = useState<PostMedia[]>(post.media);
     const [saving, setSaving] = useState(false);
+    const [shareOpen, setShareOpen] = useState(false);
     const mediaInputRef = useRef<HTMLInputElement>(null);
 
     const pendingLikeRef = useRef(false);
@@ -218,6 +221,7 @@ export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps
                         <p className={styles.text}>{linkify(displayBody)}</p>
                         <MediaGallery media={displayMedia} />
                         {post.embeds && <PostEmbeds embeds={post.embeds} />}
+                        {post.shared_content && <SharedContentCard content={post.shared_content} />}
                     </div>
                     {post.poll && <PollDisplay poll={post.poll} postId={post.id} onVoted={onEdit} />}
                 </>
@@ -233,6 +237,12 @@ export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps
                         {"\uD83D\uDCAC"} {post.comment_count > 0 && post.comment_count}
                     </Button>
                 </Link>
+
+                {user && (
+                    <Button variant="ghost" size="small" onClick={() => setShareOpen(true)}>
+                        Share {post.share_count > 0 && post.share_count}
+                    </Button>
+                )}
 
                 {canEdit && !editing && (
                     <Button variant="ghost" size="small" onClick={() => setEditing(true)}>
@@ -261,6 +271,17 @@ export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps
                 {user && !isOwner && <ReportButton targetType="post" targetId={post.id} />}
                 {extraActions}
             </div>
+
+            {shareOpen && (
+                <ShareDialog
+                    isOpen={shareOpen}
+                    onClose={() => setShareOpen(false)}
+                    contentId={post.id}
+                    contentType="post"
+                    contentTitle={post.body.slice(0, 50)}
+                    onShared={onEdit}
+                />
+            )}
         </div>
     );
 }

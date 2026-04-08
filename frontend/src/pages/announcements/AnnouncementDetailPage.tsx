@@ -94,7 +94,7 @@ export function AnnouncementDetailPage() {
                         comment={c as unknown as PostComment}
                         postId={announcement.id}
                         onDelete={fetchAnnouncement}
-                        highlighted={c.id === highlightedComment}
+                        highlightedId={highlightedComment ?? undefined}
                         linkPrefix="/announcements"
                         reportType="announcement_comment"
                         likeFn={likeAnnouncementComment}

@@ -74,4 +74,5 @@ const (
 	NotifFanficFavourited         NotificationType = "fanfic_favourited"
 	NotifSuggestionPosted         NotificationType = "suggestion_posted"
 	NotifSuggestionResolved       NotificationType = "suggestion_resolved"
+	NotifContentShared            NotificationType = "content_shared"
 )

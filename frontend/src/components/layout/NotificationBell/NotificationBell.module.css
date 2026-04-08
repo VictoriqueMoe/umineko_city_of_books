@@ -1,7 +1,3 @@
-.bell {
-    position: relative;
-}
-
 .btn {
     background: transparent;
     border: 1px solid rgba(var(--gold-rgb), 0.25);
@@ -37,111 +33,11 @@
     justify-content: center;
     padding: 0 4px;
     font-weight: 700;
-}
-
-.dropdown {
-    position: absolute;
-    top: calc(100% + 6px);
-    right: 0;
-    background: var(--bg-card);
-    border: 1px solid rgba(var(--gold-rgb), 0.2);
-    border-radius: 6px;
-    min-width: 320px;
-    max-height: 400px;
-    overflow-y: auto;
-    z-index: 1000;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-}
-
-.header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.75rem 1rem;
-    border-bottom: 1px solid rgba(var(--gold-rgb), 0.15);
-}
-
-.header h4 {
-    font-family: var(--font-display);
-    color: var(--gold);
-    font-size: 0.85rem;
-    margin: 0;
-}
-
-.markAll {
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    font-size: 0.75rem;
-    cursor: pointer;
-}
-
-.markAll:hover {
-    color: var(--gold);
-}
-
-.item {
-    display: flex;
-    gap: 0.6rem;
-    padding: 0.6rem 1rem;
-    cursor: pointer;
-    transition: background 0.15s var(--ease-out);
-    border-bottom: 1px solid rgba(var(--purple-rgb), 0.1);
-}
-
-.item:hover {
-    background: rgba(var(--gold-rgb), 0.05);
-}
-
-.unread {
-    background: rgba(var(--gold-rgb), 0.03);
-}
-
-.itemContent {
-    flex: 1;
-    min-width: 0;
-}
-
-.itemText {
-    font-size: 0.85rem;
-    color: var(--text);
-    line-height: 1.4;
-}
-
-.itemText strong {
-    color: var(--gold);
-}
-
-.itemTime {
-    font-size: 0.7rem;
-    color: var(--text-muted);
-    margin-top: 0.15rem;
-}
-
-.empty {
-    padding: 1.5rem;
-    text-align: center;
-    color: var(--text-muted);
-    font-size: 0.85rem;
+    pointer-events: none;
 }
 
 @media (max-width: 480px) {
-    .dropdown {
-        position: fixed;
-        top: 52px;
-        left: 0;
-        right: 0;
-        min-width: unset;
-        width: 100%;
-        border-radius: 0;
-        max-height: calc(100vh - 52px);
-    }
-
-    .item {
-        padding: 0.5rem 0.75rem;
-    }
-
-    .itemText {
-        font-size: 0.8rem;
+    .btn {
+        padding: 0.35rem 0.5rem;
     }
 }

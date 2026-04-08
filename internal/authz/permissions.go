@@ -22,6 +22,7 @@ const (
 	PermEditAnyPost       Permission = "edit_any_post"
 	PermEditAnyComment    Permission = "edit_any_comment"
 	PermResolveSuggestion Permission = "resolve_suggestion"
+	PermEditMysteryScore  Permission = "edit_mystery_score"
 )
 
 var rolePermissions = map[role.Role][]Permission{
@@ -43,5 +44,6 @@ var rolePermissions = map[role.Role][]Permission{
 		PermEditAnyPost,
 		PermEditAnyComment,
 		PermBanUser,
+		PermEditMysteryScore,
 	},
 }

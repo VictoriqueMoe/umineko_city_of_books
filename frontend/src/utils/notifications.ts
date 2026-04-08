@@ -289,6 +289,11 @@ const notificationConfigs: Record<NotificationType, NotificationConfig> = {
         category: "site_improvements",
         route: notif => `/suggestions/${notif.reference_id}`,
     },
+    content_shared: {
+        text: "shared your content",
+        category: "social",
+        route: routeByReferenceType,
+    },
 };
 
 export function getNotificationText(notif: Notification): string {

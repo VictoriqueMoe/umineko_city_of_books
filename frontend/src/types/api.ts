@@ -247,6 +247,29 @@ export interface Poll {
     duration_seconds: number;
 }
 
+export interface SharedContentPreview {
+    id: string;
+    content_type: string;
+    title?: string;
+    body?: string;
+    image_url?: string;
+    media?: PostMedia[];
+    author?: User;
+    deleted: boolean;
+    url: string;
+    difficulty?: string;
+    solved?: boolean;
+    series?: string;
+    vote_score?: number;
+    credibility_score?: number;
+    rating?: string;
+    word_count?: number;
+    chapter_count?: number;
+    corner?: string;
+    like_count?: number;
+    comment_count?: number;
+}
+
 export interface Post {
     id: string;
     author: User;
@@ -254,11 +277,13 @@ export interface Post {
     media: PostMedia[];
     embeds?: PostEmbed[];
     poll?: Poll;
+    shared_content?: SharedContentPreview;
+    share_count: number;
     like_count: number;
     comment_count: number;
     view_count: number;
     user_liked: boolean;
-    resolved?: boolean;
+    resolved_status?: string;
     created_at: string;
     updated_at?: string;
 }
@@ -333,7 +358,8 @@ export type NotificationType =
     | "announcement_comment_reply"
     | "announcement_comment_liked"
     | "suggestion_posted"
-    | "suggestion_resolved";
+    | "suggestion_resolved"
+    | "content_shared";
 
 export interface Notification {
     id: number;
@@ -381,6 +407,7 @@ export interface AdminUserDetail extends AdminUserItem {
     banned_at?: string;
     theory_count: number;
     response_count: number;
+    mystery_score_adjustment: number;
 }
 
 export interface AdminStats {
@@ -569,6 +596,13 @@ export interface MysteryComment {
     updated_at?: string;
 }
 
+export interface MysteryAttachment {
+    id: number;
+    file_url: string;
+    file_name: string;
+    file_size: number;
+}
+
 export interface MysteryDetail {
     id: string;
     title: string;
@@ -581,6 +615,7 @@ export interface MysteryDetail {
     clues: MysteryClue[];
     attempts: MysteryAttempt[];
     comments: MysteryComment[];
+    attachments?: MysteryAttachment[];
     player_count: number;
     created_at: string;
 }
@@ -599,6 +634,7 @@ export interface MysteryLeaderboardEntry {
     medium_solved: number;
     hard_solved: number;
     nightmare_solved: number;
+    score_adjustment: number;
 }
 
 export interface MysteryLeaderboardResponse {
@@ -626,6 +662,7 @@ export interface Fanfic {
     cover_image_url?: string;
     cover_thumbnail_url?: string;
     genres: string[];
+    tags: string[];
     characters: FanficCharacter[];
     is_pairing: boolean;
     word_count: number;

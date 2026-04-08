@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 
 	"umineko_city_of_books/internal/authz"
@@ -42,6 +43,8 @@ type (
 		LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error
 		UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error
 		UploadCommentMedia(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error)
+		UploadAttachment(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, fileName string, fileSize int64, reader io.Reader) (*dto.MysteryAttachment, error)
+		DeleteAttachment(ctx context.Context, attachmentID int64, mysteryID uuid.UUID, userID uuid.UUID) error
 	}
 
 	service struct {
@@ -197,6 +200,11 @@ func (s *service) GetMystery(ctx context.Context, id uuid.UUID, viewerID uuid.UU
 		comments = []dto.MysteryCommentResponse{}
 	}
 
+	attachments, _ := s.mysteryRepo.GetAttachments(ctx, id)
+	if attachments == nil {
+		attachments = []dto.MysteryAttachment{}
+	}
+
 	resp := dto.MysteryDetailResponse{
 		ID:         row.ID,
 		Title:      row.Title,
@@ -214,6 +222,7 @@ func (s *service) GetMystery(ctx context.Context, id uuid.UUID, viewerID uuid.UU
 		Clues:       clues,
 		Attempts:    attempts,
 		Comments:    comments,
+		Attachments: attachments,
 		PlayerCount: len(playerSet),
 		CreatedAt:   row.CreatedAt,
 	}
@@ -260,7 +269,10 @@ func (s *service) CreateMystery(ctx context.Context, userID uuid.UUID, req dto.C
 }
 
 func (s *service) UpdateMystery(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.CreateMysteryRequest) error {
-	if err := s.mysteryRepo.Update(ctx, id, userID, req.Title, req.Body, req.Difficulty); err != nil {
+	if !s.authz.Can(ctx, userID, authz.PermEditAnyTheory) {
+		return fmt.Errorf("not authorised")
+	}
+	if err := s.mysteryRepo.UpdateAsAdmin(ctx, id, req.Title, req.Body, req.Difficulty); err != nil {
 		return err
 	}
 
@@ -536,6 +548,7 @@ func (s *service) GetLeaderboard(ctx context.Context, limit int) (*dto.MysteryLe
 			MediumSolved:    r.MediumSolved,
 			HardSolved:      r.HardSolved,
 			NightmareSolved: r.NightmareSolved,
+			ScoreAdjustment: r.ScoreAdjustment,
 		}
 	}
 	return &dto.MysteryLeaderboardResponse{Entries: entries}, nil
@@ -707,4 +720,74 @@ func (s *service) UploadCommentMedia(
 		MediaType: mediaType,
 		SortOrder: sortOrder,
 	}, nil
+}
+
+func (s *service) UploadAttachment(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, fileName string, fileSize int64, reader io.Reader) (*dto.MysteryAttachment, error) {
+	authorID, err := s.mysteryRepo.GetAuthorID(ctx, mysteryID)
+	if err != nil {
+		return nil, ErrNotFound
+	}
+	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyTheory) {
+		return nil, ErrNotAuthor
+	}
+
+	maxSize := int64(s.settingsSvc.GetInt(ctx, config.SettingMaxGeneralSize))
+	if fileSize > maxSize {
+		return nil, fmt.Errorf("file size exceeds maximum allowed (%dMB)", maxSize/(1024*1024))
+	}
+
+	existing, _ := s.mysteryRepo.GetAttachments(ctx, mysteryID)
+	for _, a := range existing {
+		if a.FileName == fileName {
+			return nil, fmt.Errorf("a file named %q is already attached", fileName)
+		}
+	}
+
+	subDir := "mystery-attachments/" + mysteryID.String()
+	urlPath, err := s.uploadSvc.SaveFile(subDir, fileName, reader)
+	if err != nil {
+		return nil, err
+	}
+
+	dbID, err := s.mysteryRepo.AddAttachment(ctx, mysteryID, urlPath, fileName, int(fileSize))
+	if err != nil {
+		return nil, err
+	}
+
+	return &dto.MysteryAttachment{
+		ID:       int(dbID),
+		FileURL:  urlPath,
+		FileName: fileName,
+		FileSize: int(fileSize),
+	}, nil
+}
+
+func (s *service) DeleteAttachment(ctx context.Context, attachmentID int64, mysteryID uuid.UUID, userID uuid.UUID) error {
+	authorID, err := s.mysteryRepo.GetAuthorID(ctx, mysteryID)
+	if err != nil {
+		return ErrNotFound
+	}
+	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyTheory) {
+		return ErrNotAuthor
+	}
+
+	attachments, _ := s.mysteryRepo.GetAttachments(ctx, mysteryID)
+	var fileURL string
+	for _, a := range attachments {
+		if a.ID == int(attachmentID) {
+			fileURL = a.FileURL
+			break
+		}
+	}
+
+	if err := s.mysteryRepo.DeleteAttachment(ctx, attachmentID, mysteryID); err != nil {
+		return err
+	}
+
+	if fileURL != "" {
+		diskPath := s.uploadSvc.GetUploadDir() + strings.TrimPrefix(fileURL, "/uploads")
+		os.Remove(diskPath)
+	}
+
+	return nil
 }

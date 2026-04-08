@@ -25,6 +25,7 @@ import { CommentItem } from "../../components/post/CommentItem/CommentItem";
 import { MentionTextArea } from "../../components/MentionTextArea/MentionTextArea";
 import { TagInput } from "../../components/art/TagInput/TagInput";
 import { ReportButton } from "../../components/ReportButton/ReportButton";
+import { ShareButton } from "../../components/ShareButton/ShareButton";
 import styles from "./ArtDetailPage.module.css";
 
 export function ArtDetailPage() {
@@ -240,6 +241,7 @@ export function ArtDetailPage() {
                         </Button>
                     )}
                     {user && !isAuthor && <ReportButton targetType="art" targetId={art.id} />}
+                    <ShareButton contentId={art.id} contentType="art" contentTitle={art.title} />
                 </div>
             </div>
 
@@ -264,7 +266,7 @@ export function ArtDetailPage() {
                         comment={c}
                         postId={art.id}
                         onDelete={fetchArt}
-                        highlighted={c.id === highlightedComment}
+                        highlightedId={highlightedComment ?? undefined}
                         linkPrefix="/gallery/art"
                         reportType="art_comment"
                         likeFn={likeArtComment}

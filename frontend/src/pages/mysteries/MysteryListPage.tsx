@@ -338,6 +338,17 @@ export function MysteryListPage() {
                                                             </span>
                                                         </span>
                                                     )}
+                                                    {entry.score_adjustment !== 0 && (
+                                                        <span className={styles.breakdownRow}>
+                                                            <span className={styles.breakdownLabel}>
+                                                                Adjusted score
+                                                            </span>
+                                                            <span className={styles.breakdownCount}>
+                                                                {entry.score_adjustment > 0 ? "+" : ""}
+                                                                {entry.score_adjustment}
+                                                            </span>
+                                                        </span>
+                                                    )}
                                                 </div>
                                             )}
                                         </li>

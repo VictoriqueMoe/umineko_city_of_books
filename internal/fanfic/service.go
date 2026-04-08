@@ -16,6 +16,7 @@ import (
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/repository/model"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/utils"
@@ -97,6 +98,21 @@ var (
 	htmlTagRe = regexp.MustCompile(`<[^>]*>`)
 )
 
+func sanitiseTags(raw []string) []string {
+	seen := make(map[string]bool)
+	var result []string
+	for _, t := range raw {
+		t = strings.TrimSpace(t)
+		lower := strings.ToLower(t)
+		if t == "" || seen[lower] {
+			continue
+		}
+		seen[lower] = true
+		result = append(result, t)
+	}
+	return result
+}
+
 func countWords(html string) int {
 	text := htmlTagRe.ReplaceAllString(html, " ")
 	return len(strings.Fields(text))
@@ -112,6 +128,16 @@ func (s *service) CreateFanfic(ctx context.Context, userID uuid.UUID, req dto.Cr
 	}
 	if len(req.Characters) > 4 {
 		return uuid.Nil, ErrTooManyCharacters
+	}
+
+	tags := sanitiseTags(req.Tags)
+	if len(tags) > 10 {
+		return uuid.Nil, ErrTooManyTags
+	}
+	for _, t := range tags {
+		if len(t) > 30 {
+			return uuid.Nil, ErrTagTooLong
+		}
 	}
 
 	rating := strings.TrimSpace(req.Rating)
@@ -133,13 +159,15 @@ func (s *service) CreateFanfic(ctx context.Context, userID uuid.UUID, req dto.Cr
 	}
 
 	status := strings.TrimSpace(req.Status)
-	if status != "draft" {
+	switch status {
+	case "draft", "in_progress", "complete":
+	default:
 		status = "in_progress"
 	}
 
 	id := uuid.New()
 	summary := strings.TrimSpace(req.Summary)
-	if err := s.fanficRepo.CreateWithDetails(ctx, id, userID, title, summary, series, rating, language, status, req.IsOneshot, req.ContainsLemons, req.Genres, req.Characters, req.IsPairing); err != nil {
+	if err := s.fanficRepo.CreateWithDetails(ctx, id, userID, title, summary, series, rating, language, status, req.IsOneshot, req.ContainsLemons, req.Genres, tags, req.Characters, req.IsPairing); err != nil {
 		return uuid.Nil, err
 	}
 
@@ -181,6 +209,7 @@ func (s *service) GetFanfic(ctx context.Context, id, viewerID uuid.UUID, viewerH
 	}
 
 	genres, _ := s.fanficRepo.GetGenres(ctx, id)
+	tags, _ := s.fanficRepo.GetTags(ctx, id)
 	characters, _ := s.fanficRepo.GetCharacters(ctx, id)
 
 	chapterRows, _ := s.fanficRepo.ListChapters(ctx, id)
@@ -224,7 +253,7 @@ func (s *service) GetFanfic(ctx context.Context, id, viewerID uuid.UUID, viewerH
 	readingProgress, _ := s.fanficRepo.GetReadingProgress(ctx, viewerID, id)
 
 	return &dto.FanficDetailResponse{
-		FanficResponse:  row.ToResponse(genres, characters),
+		FanficResponse:  row.ToResponse(genres, tags, characters),
 		Chapters:        chapters,
 		Comments:        threaded,
 		ReadingProgress: readingProgress,
@@ -254,6 +283,16 @@ func (s *service) UpdateFanfic(ctx context.Context, id, userID uuid.UUID, req dt
 		return ErrTooManyCharacters
 	}
 
+	tags := sanitiseTags(req.Tags)
+	if len(tags) > 10 {
+		return ErrTooManyTags
+	}
+	for _, t := range tags {
+		if len(t) > 30 {
+			return ErrTagTooLong
+		}
+	}
+
 	rating := strings.TrimSpace(req.Rating)
 	if rating == "" {
 		rating = "K"
@@ -274,7 +313,7 @@ func (s *service) UpdateFanfic(ctx context.Context, id, userID uuid.UUID, req dt
 
 	summary := strings.TrimSpace(req.Summary)
 	status := strings.TrimSpace(req.Status)
-	if err := s.fanficRepo.UpdateWithDetails(ctx, id, userID, title, summary, series, rating, language, status, req.IsOneshot, req.ContainsLemons, req.Genres, req.Characters, req.IsPairing, asAdmin); err != nil {
+	if err := s.fanficRepo.UpdateWithDetails(ctx, id, userID, title, summary, series, rating, language, status, req.IsOneshot, req.ContainsLemons, req.Genres, tags, req.Characters, req.IsPairing, asAdmin); err != nil {
 		return err
 	}
 
@@ -301,17 +340,21 @@ func (s *service) ListFanfics(ctx context.Context, viewerID uuid.UUID, params re
 	if err != nil {
 		return nil, err
 	}
+	return s.buildFanficList(ctx, rows, total, params.Limit, params.Offset)
+}
 
+func (s *service) buildFanficList(ctx context.Context, rows []model.FanficRow, total, limit, offset int) (*dto.FanficListResponse, error) {
 	fanficIDs := make([]uuid.UUID, len(rows))
 	for i, r := range rows {
 		fanficIDs[i] = r.ID
 	}
 	genresMap, _ := s.fanficRepo.GetGenresBatch(ctx, fanficIDs)
+	tagsMap, _ := s.fanficRepo.GetTagsBatch(ctx, fanficIDs)
 	charactersMap, _ := s.fanficRepo.GetCharactersBatch(ctx, fanficIDs)
 
 	fanfics := make([]dto.FanficResponse, len(rows))
 	for i, r := range rows {
-		resp := r.ToResponse(genresMap[r.ID], charactersMap[r.ID])
+		resp := r.ToResponse(genresMap[r.ID], tagsMap[r.ID], charactersMap[r.ID])
 		if len(resp.Summary) > 200 {
 			resp.Summary = resp.Summary[:200] + "..."
 		}
@@ -321,8 +364,8 @@ func (s *service) ListFanfics(ctx context.Context, viewerID uuid.UUID, params re
 	return &dto.FanficListResponse{
 		Fanfics: fanfics,
 		Total:   total,
-		Limit:   params.Limit,
-		Offset:  params.Offset,
+		Limit:   limit,
+		Offset:  offset,
 	}, nil
 }
 
@@ -331,29 +374,7 @@ func (s *service) ListFanficsByUser(ctx context.Context, userID, viewerID uuid.U
 	if err != nil {
 		return nil, err
 	}
-
-	fanficIDs := make([]uuid.UUID, len(rows))
-	for i, r := range rows {
-		fanficIDs[i] = r.ID
-	}
-	genresMap, _ := s.fanficRepo.GetGenresBatch(ctx, fanficIDs)
-	charactersMap, _ := s.fanficRepo.GetCharactersBatch(ctx, fanficIDs)
-
-	fanfics := make([]dto.FanficResponse, len(rows))
-	for i, r := range rows {
-		resp := r.ToResponse(genresMap[r.ID], charactersMap[r.ID])
-		if len(resp.Summary) > 200 {
-			resp.Summary = resp.Summary[:200] + "..."
-		}
-		fanfics[i] = resp
-	}
-
-	return &dto.FanficListResponse{
-		Fanfics: fanfics,
-		Total:   total,
-		Limit:   limit,
-		Offset:  offset,
-	}, nil
+	return s.buildFanficList(ctx, rows, total, limit, offset)
 }
 
 func (s *service) ListFavourites(ctx context.Context, userID, viewerID uuid.UUID, limit, offset int) (*dto.FanficListResponse, error) {
@@ -361,29 +382,7 @@ func (s *service) ListFavourites(ctx context.Context, userID, viewerID uuid.UUID
 	if err != nil {
 		return nil, err
 	}
-
-	fanficIDs := make([]uuid.UUID, len(rows))
-	for i, r := range rows {
-		fanficIDs[i] = r.ID
-	}
-	genresMap, _ := s.fanficRepo.GetGenresBatch(ctx, fanficIDs)
-	charactersMap, _ := s.fanficRepo.GetCharactersBatch(ctx, fanficIDs)
-
-	fanfics := make([]dto.FanficResponse, len(rows))
-	for i, r := range rows {
-		resp := r.ToResponse(genresMap[r.ID], charactersMap[r.ID])
-		if len(resp.Summary) > 200 {
-			resp.Summary = resp.Summary[:200] + "..."
-		}
-		fanfics[i] = resp
-	}
-
-	return &dto.FanficListResponse{
-		Fanfics: fanfics,
-		Total:   total,
-		Limit:   limit,
-		Offset:  offset,
-	}, nil
+	return s.buildFanficList(ctx, rows, total, limit, offset)
 }
 
 func (s *service) UploadCoverImage(ctx context.Context, fanficID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (string, error) {

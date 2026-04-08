@@ -111,6 +111,13 @@
     font-weight: 700;
 }
 
+.flatList {
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--purple-rgb), 0.3);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
 .list {
     display: flex;
     flex-direction: column;

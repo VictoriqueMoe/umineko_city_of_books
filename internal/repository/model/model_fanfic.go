@@ -91,7 +91,7 @@ type (
 	}
 )
 
-func (r *FanficRow) ToResponse(genres []string, characters []FanficCharacterRow) dto.FanficResponse {
+func (r *FanficRow) ToResponse(genres []string, tags []string, characters []FanficCharacterRow) dto.FanficResponse {
 	chars := make([]dto.FanficCharacter, len(characters))
 	for i, c := range characters {
 		chars[i] = dto.FanficCharacter{
@@ -103,6 +103,9 @@ func (r *FanficRow) ToResponse(genres []string, characters []FanficCharacterRow)
 	}
 	if genres == nil {
 		genres = []string{}
+	}
+	if tags == nil {
+		tags = []string{}
 	}
 	return dto.FanficResponse{
 		ID: r.ID,
@@ -124,6 +127,7 @@ func (r *FanficRow) ToResponse(genres []string, characters []FanficCharacterRow)
 		CoverImageURL:     r.CoverImageURL,
 		CoverThumbnailURL: r.CoverThumbnailURL,
 		Genres:            genres,
+		Tags:              tags,
 		Characters:        chars,
 		IsPairing:         r.IsPairing,
 		WordCount:         r.WordCount,

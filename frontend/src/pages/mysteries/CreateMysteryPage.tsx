@@ -1,12 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { useAuth } from "../../hooks/useAuth";
-import { createMystery } from "../../api/endpoints";
+import { createMystery, uploadMysteryAttachment } from "../../api/endpoints";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
 import { TextArea } from "../../components/TextArea/TextArea";
 import { Select } from "../../components/Select/Select";
 import { InfoPanel } from "../../components/InfoPanel/InfoPanel";
+import { ErrorBanner } from "../../components/ErrorBanner/ErrorBanner";
 import styles from "./MysteryPages.module.css";
 
 interface ClueInput {
@@ -21,6 +22,8 @@ export function CreateMysteryPage() {
     const [body, setBody] = useState("");
     const [difficulty, setDifficulty] = useState("medium");
     const [clues, setClues] = useState<ClueInput[]>([{ body: "", truth_type: "red" }]);
+    const [attachments, setAttachments] = useState<File[]>([]);
+    const attachmentInputRef = useRef<HTMLInputElement>(null);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
 
@@ -61,6 +64,11 @@ export function CreateMysteryPage() {
                 difficulty,
                 clues: validClues,
             });
+            for (const file of attachments) {
+                try {
+                    await uploadMysteryAttachment(result.id, file);
+                } catch {}
+            }
             navigate(`/mystery/${result.id}`);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to create mystery");
@@ -93,7 +101,7 @@ export function CreateMysteryPage() {
                 </p>
             </InfoPanel>
 
-            {error && <div style={{ color: "#e57373", marginBottom: "1rem" }}>{error}</div>}
+            {error && <ErrorBanner message={error} />}
 
             <form onSubmit={handleSubmit}>
                 <Input
@@ -155,6 +163,50 @@ export function CreateMysteryPage() {
                 <Button variant="ghost" type="button" onClick={addClue}>
                     + Add Clue
                 </Button>
+
+                <div className={styles.attachments} style={{ marginTop: "1.5rem" }}>
+                    <h3 className={styles.attachmentsTitle}>Attachments (optional)</h3>
+                    <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginBottom: "0.75rem" }}>
+                        Upload PDF, TXT, or DOCX files as evidence or supplementary material.
+                    </p>
+                    {attachments.map((file, i) => (
+                        <div key={i} className={styles.attachmentItem}>
+                            <span className={styles.attachmentLink}>{file.name}</span>
+                            <span className={styles.attachmentSize}>
+                                {file.size < 1024
+                                    ? `${file.size} B`
+                                    : file.size < 1024 * 1024
+                                      ? `${(file.size / 1024).toFixed(1)} KB`
+                                      : `${(file.size / (1024 * 1024)).toFixed(1)} MB`}
+                            </span>
+                            <button
+                                type="button"
+                                className={styles.attachmentDelete}
+                                onClick={() => setAttachments(prev => prev.filter((_, j) => j !== i))}
+                            >
+                                &times;
+                            </button>
+                        </div>
+                    ))}
+                    <input
+                        ref={attachmentInputRef}
+                        type="file"
+                        accept=".pdf,.txt,.docx"
+                        style={{ display: "none" }}
+                        onChange={e => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                                setAttachments(prev => [...prev, file]);
+                            }
+                            if (attachmentInputRef.current) {
+                                attachmentInputRef.current.value = "";
+                            }
+                        }}
+                    />
+                    <Button variant="ghost" type="button" onClick={() => attachmentInputRef.current?.click()}>
+                        + Add File
+                    </Button>
+                </div>
 
                 <div className={styles.formActions}>
                     <Button variant="ghost" type="button" onClick={() => navigate("/mysteries")}>

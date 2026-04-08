@@ -1,16 +1,19 @@
 import { type MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
-import type { MysteryAttempt, MysteryClue, MysteryDetail, PostComment } from "../../types/api";
+import type { MysteryAttachment, MysteryAttempt, MysteryClue, MysteryDetail, PostComment } from "../../types/api";
 import {
     addMysteryClue,
     createMysteryAttempt,
     createMysteryComment,
     deleteMystery,
+    deleteMysteryAttachment,
     deleteMysteryComment,
     getMystery,
     likeMysteryComment,
     unlikeMysteryComment,
+    updateMystery,
     updateMysteryComment,
+    uploadMysteryAttachment,
     uploadMysteryCommentMedia,
 } from "../../api/endpoints";
 import { useAuth } from "../../hooks/useAuth";
@@ -23,6 +26,9 @@ import { relativeTime } from "../../utils/notifications";
 import { CommentComposer } from "../../components/post/CommentComposer/CommentComposer";
 import { CommentItem } from "../../components/post/CommentItem/CommentItem";
 import { AttemptItem } from "./AttemptItem";
+import { ShareButton } from "../../components/ShareButton/ShareButton";
+import { ReportButton } from "../../components/ReportButton/ReportButton";
+import { ErrorBanner } from "../../components/ErrorBanner/ErrorBanner";
 import styles from "./MysteryPages.module.css";
 
 function ClueCopyBtn({ text }: { text: string }) {
@@ -169,6 +175,12 @@ export function MysteryDetailPage() {
     const initialUnreadComputedFor = useRef<string | null>(null);
     const [newClueBody, setNewClueBody] = useState("");
     const [addingClue, setAddingClue] = useState(false);
+    const [editingBody, setEditingBody] = useState(false);
+    const [editBody, setEditBody] = useState("");
+    const [savingEdit, setSavingEdit] = useState(false);
+    const [uploadingAttachment, setUploadingAttachment] = useState(false);
+    const [attachmentError, setAttachmentError] = useState("");
+    const attachmentInputRef = useRef<HTMLInputElement>(null);
 
     function togglePlayerCollapse(authorId: string) {
         setCollapsedPlayers(prev => {
@@ -353,6 +365,7 @@ export function MysteryDetailPage() {
     }
 
     const isAuthor = user?.id === mystery.author.id;
+    const canEdit = can(user?.role, "edit_any_theory");
     const canDelete = isAuthor || can(user?.role, "delete_any_theory");
     const canSeeAsGameMaster = isAuthor || user?.role === "super_admin";
 
@@ -388,12 +401,77 @@ export function MysteryDetailPage() {
         }
     }
 
+    async function handleSaveEdit() {
+        if (!editBody.trim() || savingEdit || !mystery) {
+            return;
+        }
+        setSavingEdit(true);
+        try {
+            await updateMystery(mystery.id, {
+                title: mystery.title,
+                body: editBody.trim(),
+                difficulty: mystery.difficulty,
+                clues: mystery.clues
+                    .filter(c => !c.player_id)
+                    .map(c => ({
+                        body: c.body,
+                        truth_type: c.truth_type,
+                    })),
+            });
+            setEditingBody(false);
+            fetchMystery();
+        } catch {
+        } finally {
+            setSavingEdit(false);
+        }
+    }
+
     async function handleDelete() {
         if (!window.confirm("Delete this mystery? This cannot be undone.")) {
             return;
         }
         await deleteMystery(mystery!.id);
         navigate("/mysteries");
+    }
+
+    async function handleAttachmentUpload(e: React.ChangeEvent<HTMLInputElement>) {
+        const file = e.target.files?.[0];
+        if (!file || uploadingAttachment || !id) {
+            return;
+        }
+        setUploadingAttachment(true);
+        setAttachmentError("");
+        try {
+            await uploadMysteryAttachment(id, file);
+            fetchMystery();
+        } catch (err) {
+            setAttachmentError(err instanceof Error ? err.message : "Failed to upload attachment");
+        } finally {
+            setUploadingAttachment(false);
+            if (attachmentInputRef.current) {
+                attachmentInputRef.current.value = "";
+            }
+        }
+    }
+
+    async function handleDeleteAttachment(attachment: MysteryAttachment) {
+        if (!window.confirm(`Delete attachment "${attachment.file_name}"?`)) {
+            return;
+        }
+        try {
+            await deleteMysteryAttachment(mystery!.id, attachment.id);
+            fetchMystery();
+        } catch {}
+    }
+
+    function formatFileSize(bytes: number): string {
+        if (bytes < 1024) {
+            return `${bytes} B`;
+        }
+        if (bytes < 1024 * 1024) {
+            return `${(bytes / 1024).toFixed(1)} KB`;
+        }
+        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
     }
 
     return (
@@ -426,14 +504,61 @@ export function MysteryDetailPage() {
                             </span>
                         </div>
                     </div>
-                    {canDelete && (
-                        <Button variant="danger" size="small" onClick={handleDelete}>
-                            Delete
-                        </Button>
-                    )}
+                    <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                        {canEdit && !editingBody && (
+                            <Button
+                                variant="secondary"
+                                size="small"
+                                onClick={() => {
+                                    setEditBody(mystery.body);
+                                    setEditingBody(true);
+                                }}
+                            >
+                                Edit
+                            </Button>
+                        )}
+                        {canDelete && (
+                            <Button variant="danger" size="small" onClick={handleDelete}>
+                                Delete
+                            </Button>
+                        )}
+                        <ShareButton contentId={mystery.id} contentType="mystery" contentTitle={mystery.title} />
+                        {user && !isAuthor && <ReportButton targetType="mystery" targetId={mystery.id} />}
+                    </div>
                 </div>
 
-                <div className={styles.detailBody}>{mystery.body}</div>
+                {editingBody ? (
+                    <div style={{ marginTop: "0.5rem" }}>
+                        <textarea
+                            className={styles.editTextarea}
+                            value={editBody}
+                            onChange={e => setEditBody(e.target.value)}
+                            rows={6}
+                        />
+                        <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
+                            <Button
+                                variant="primary"
+                                size="small"
+                                onClick={handleSaveEdit}
+                                disabled={savingEdit || !editBody.trim()}
+                            >
+                                {savingEdit ? "Saving..." : "Save"}
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="small"
+                                onClick={() => {
+                                    setEditingBody(false);
+                                    setEditBody(mystery.body);
+                                }}
+                            >
+                                Cancel
+                            </Button>
+                        </div>
+                    </div>
+                ) : (
+                    <div className={styles.detailBody}>{mystery.body}</div>
+                )}
 
                 {mystery.clues.filter(c => !c.player_id).length > 0 && (
                     <div className={styles.cluesSection}>
@@ -471,6 +596,70 @@ export function MysteryDetailPage() {
                                 {addingClue ? "..." : "Add global Red Truth"}
                             </Button>
                         </div>
+                    </div>
+                )}
+
+                {((mystery.attachments && mystery.attachments.length > 0) || isAuthor || canEdit) && (
+                    <div className={styles.attachments}>
+                        <h3 className={styles.attachmentsTitle}>Attachments</h3>
+                        {mystery.attachments?.map(att => (
+                            <div key={att.id} className={styles.attachmentItem}>
+                                <svg
+                                    className={styles.attachmentIcon}
+                                    width="16"
+                                    height="16"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                >
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                    <polyline points="14 2 14 8 20 8" />
+                                </svg>
+                                <a
+                                    href={att.file_url}
+                                    className={styles.attachmentLink}
+                                    download={att.file_name}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
+                                    {att.file_name}
+                                </a>
+                                <span className={styles.attachmentSize}>{formatFileSize(att.file_size)}</span>
+                                {(isAuthor || canEdit) && (
+                                    <button
+                                        type="button"
+                                        className={styles.attachmentDelete}
+                                        onClick={() => handleDeleteAttachment(att)}
+                                        title="Delete attachment"
+                                    >
+                                        &times;
+                                    </button>
+                                )}
+                            </div>
+                        ))}
+                        {(isAuthor || canEdit) && (
+                            <>
+                                <input
+                                    ref={attachmentInputRef}
+                                    type="file"
+                                    accept=".pdf,.txt,.docx"
+                                    style={{ display: "none" }}
+                                    onChange={handleAttachmentUpload}
+                                />
+                                <Button
+                                    variant="secondary"
+                                    size="small"
+                                    onClick={() => attachmentInputRef.current?.click()}
+                                    disabled={uploadingAttachment}
+                                >
+                                    {uploadingAttachment ? "Uploading..." : "Add Attachment"}
+                                </Button>
+                                {attachmentError && <ErrorBanner message={attachmentError} />}
+                            </>
+                        )}
                     </div>
                 )}
             </div>
@@ -659,7 +848,7 @@ export function MysteryDetailPage() {
                             comment={c as unknown as PostComment}
                             postId={mystery.id}
                             onDelete={fetchMystery}
-                            highlighted={false}
+                            highlightedId={undefined}
                             linkPrefix="/mystery"
                             reportType="mystery_comment"
                             likeFn={likeMysteryComment}

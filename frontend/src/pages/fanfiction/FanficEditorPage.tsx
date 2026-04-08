@@ -3,6 +3,8 @@ import { useNavigate, useParams } from "react-router";
 import type { ShipCharacter } from "../../types/api";
 import {
     createFanfic,
+    createFanficChapter,
+    deleteFanficCover,
     getFanfic,
     getFanficChapter,
     getFanficLanguages,
@@ -10,8 +12,6 @@ import {
     updateFanfic,
     updateFanficChapter,
     uploadFanficCover,
-    deleteFanficCover,
-    createFanficChapter,
 } from "../../api/endpoints";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
@@ -20,6 +20,7 @@ import { MentionTextArea } from "../../components/MentionTextArea/MentionTextAre
 import { CharacterPicker } from "../../components/CharacterPicker/CharacterPicker";
 import { RichTextEditor } from "../../components/RichTextEditor/RichTextEditor";
 import { ToggleSwitch } from "../../components/ToggleSwitch/ToggleSwitch";
+import { ErrorBanner } from "../../components/ErrorBanner/ErrorBanner";
 import styles from "./FanficPages.module.css";
 
 const GENRES = [
@@ -60,6 +61,8 @@ interface DraftData {
     customLanguage: string;
     genreA: string;
     genreB: string;
+    tags: string[];
+    status: string;
     characters: ShipCharacter[];
     isPairing: boolean;
     isOneshot: boolean;
@@ -104,6 +107,8 @@ export function FanficEditorPage() {
     const [customLanguage, setCustomLanguage] = useState("");
     const [genreA, setGenreA] = useState("");
     const [genreB, setGenreB] = useState("");
+    const [tags, setTags] = useState<string[]>([]);
+    const [tagInput, setTagInput] = useState("");
     const [characters, setCharacters] = useState<ShipCharacter[]>([]);
     const [isPairing, setIsPairing] = useState(false);
     const [isOneshot, setIsOneshot] = useState(true);
@@ -155,6 +160,7 @@ export function FanficEditorPage() {
                 );
                 setGenreA(data.genres?.[0] ?? "");
                 setGenreB(data.genres?.[1] ?? "");
+                setTags(data.tags ?? []);
 
                 if (PINNED_SERIES.includes(data.series)) {
                     setSeries(data.series);
@@ -207,6 +213,8 @@ export function FanficEditorPage() {
         setCustomLanguage(draft.customLanguage);
         setGenreA(draft.genreA);
         setGenreB(draft.genreB);
+        setTags(draft.tags ?? []);
+        setStatus(draft.status ?? "in_progress");
         setCharacters(draft.characters);
         setIsPairing(draft.isPairing);
         setIsOneshot(draft.isOneshot);
@@ -234,6 +242,8 @@ export function FanficEditorPage() {
             customLanguage,
             genreA,
             genreB,
+            tags,
+            status,
             characters,
             isPairing,
             isOneshot,
@@ -252,6 +262,8 @@ export function FanficEditorPage() {
         customLanguage,
         genreA,
         genreB,
+        tags,
+        status,
         characters,
         isPairing,
         isOneshot,
@@ -348,6 +360,7 @@ export function FanficEditorPage() {
                 is_oneshot: isOneshot,
                 contains_lemons: containsLemons,
                 genres,
+                tags,
                 characters,
                 is_pairing: isPairing,
             });
@@ -405,6 +418,7 @@ export function FanficEditorPage() {
                     is_oneshot: isOneshot,
                     contains_lemons: containsLemons,
                     genres,
+                    tags,
                     characters,
                     is_pairing: isPairing,
                 });
@@ -427,10 +441,11 @@ export function FanficEditorPage() {
                 series: resolvedSeries,
                 rating,
                 language: resolvedLanguage,
-                status: asDraft ? "draft" : "in_progress",
+                status: asDraft ? "draft" : status,
                 is_oneshot: isOneshot,
                 contains_lemons: containsLemons,
                 genres,
+                tags,
                 characters,
                 is_pairing: isPairing,
                 body: body || undefined,
@@ -679,16 +694,62 @@ export function FanficEditorPage() {
                     description="This story contains explicit content. It will be hidden by default."
                 />
 
-                {isEdit && (
-                    <div className={styles.formRow}>
-                        <label className={styles.formLabel}>Status</label>
-                        <Select value={status} onChange={e => setStatus(e.target.value)}>
-                            <option value="draft">Draft</option>
-                            <option value="in_progress">In Progress</option>
-                            <option value="complete">Complete</option>
-                        </Select>
+                <div className={styles.formRow}>
+                    <label className={styles.formLabel}>Status</label>
+                    <Select value={status} onChange={e => setStatus(e.target.value)}>
+                        {isEdit && <option value="draft">Draft</option>}
+                        <option value="in_progress">In Progress</option>
+                        <option value="complete">Complete</option>
+                    </Select>
+                </div>
+
+                <div className={styles.formRow}>
+                    <label className={styles.formLabel}>Tags (up to 10)</label>
+                    <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginBottom: "0.5rem" }}>
+                        Content warnings, themes, or anything you want readers to see at a glance.
+                    </p>
+                    <div style={{ display: "flex", gap: "0.5rem" }}>
+                        <Input
+                            type="text"
+                            value={tagInput}
+                            onChange={e => setTagInput(e.target.value)}
+                            onKeyDown={e => {
+                                if (e.key === "Enter" || e.key === ",") {
+                                    e.preventDefault();
+                                    const val = tagInput.trim().slice(0, 30);
+                                    if (
+                                        val &&
+                                        tags.length < 10 &&
+                                        !tags.some(t => t.toLowerCase() === val.toLowerCase())
+                                    ) {
+                                        setTags(prev => [...prev, val]);
+                                    }
+                                    setTagInput("");
+                                }
+                            }}
+                            placeholder="Type a tag and press Enter..."
+                            fullWidth
+                            maxLength={30}
+                        />
                     </div>
-                )}
+                    {tags.length > 0 && (
+                        <div className={styles.charList} style={{ marginTop: "0.5rem" }}>
+                            {tags.map((t, i) => (
+                                <span key={`${t}-${i}`} className={styles.tagPill}>
+                                    {t}
+                                    <button
+                                        type="button"
+                                        className={styles.charPillRemove}
+                                        onClick={() => setTags(prev => prev.filter((_, j) => j !== i))}
+                                        aria-label="Remove tag"
+                                    >
+                                        &times;
+                                    </button>
+                                </span>
+                            ))}
+                        </div>
+                    )}
+                </div>
 
                 <div className={styles.formRow}>
                     <label className={styles.formLabel}>Cover image (optional)</label>
@@ -710,7 +771,7 @@ export function FanficEditorPage() {
                     )}
                 </div>
 
-                {error && <div className="error-message">{error}</div>}
+                {error && <ErrorBanner message={error} />}
 
                 <div className={styles.formActions}>
                     <Button variant="ghost" onClick={handleCancel}>
@@ -749,11 +810,7 @@ export function FanficEditorPage() {
                 placeholder={isOneshot ? "Write your story here..." : "Write your first chapter here..."}
             />
 
-            {error && (
-                <div className="error-message" style={{ marginTop: "1rem" }}>
-                    {error}
-                </div>
-            )}
+            {error && <ErrorBanner message={error} />}
 
             <div className={styles.formActions} style={{ marginTop: "1rem" }}>
                 <Button variant="ghost" onClick={() => setStep(1)}>

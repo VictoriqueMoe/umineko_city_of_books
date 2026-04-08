@@ -2,6 +2,7 @@ package post
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -33,7 +34,7 @@ type (
 		GetPost(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, viewerHash string) (*dto.PostDetailResponse, error)
 		UpdatePost(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.UpdatePostRequest) error
 		DeletePost(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
-		ListFeed(ctx context.Context, tab string, viewerID uuid.UUID, corner string, search string, sort string, seed int, limit, offset int, resolved *bool) (*dto.PostListResponse, error)
+		ListFeed(ctx context.Context, tab string, viewerID uuid.UUID, corner string, search string, sort string, seed int, limit, offset int, resolvedFilter string) (*dto.PostListResponse, error)
 		ListUserPosts(ctx context.Context, targetUserID uuid.UUID, viewerID uuid.UUID, limit, offset int) (*dto.PostListResponse, error)
 		UploadPostMedia(ctx context.Context, postID uuid.UUID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error)
 		DeletePostMedia(ctx context.Context, postID uuid.UUID, mediaID int64, userID uuid.UUID) error
@@ -48,11 +49,13 @@ type (
 		GetCornerCounts(ctx context.Context) (map[string]int, error)
 		RefreshStaleEmbeds(ctx context.Context) int
 		VotePoll(ctx context.Context, postID uuid.UUID, userID uuid.UUID, optionID int) (*dto.PollResponse, error)
-		ResolveSuggestion(ctx context.Context, postID uuid.UUID, userID uuid.UUID) error
+		ResolveSuggestion(ctx context.Context, postID uuid.UUID, userID uuid.UUID, status string) error
 		UnresolveSuggestion(ctx context.Context, postID uuid.UUID, userID uuid.UUID) error
+		GetShareCount(ctx context.Context, contentID string, contentType string) (int, error)
 	}
 
 	service struct {
+		db           *sql.DB
 		postRepo     repository.PostRepository
 		userRepo     repository.UserRepository
 		roleRepo     repository.RoleRepository
@@ -74,6 +77,7 @@ var validPollDurations = map[int]bool{
 }
 
 func NewService(
+	db *sql.DB,
 	postRepo repository.PostRepository,
 	userRepo repository.UserRepository,
 	roleRepo repository.RoleRepository,
@@ -86,6 +90,7 @@ func NewService(
 	hub *ws.Hub,
 ) Service {
 	return &service{
+		db:           db,
 		postRepo:     postRepo,
 		userRepo:     userRepo,
 		roleRepo:     roleRepo,
@@ -99,8 +104,20 @@ func NewService(
 	}
 }
 
+var validSharedContentTypes = map[string]bool{
+	"post": true, "art": true, "ship": true,
+	"mystery": true, "theory": true, "fanfic": true,
+}
+
 func (s *service) CreatePost(ctx context.Context, userID uuid.UUID, req dto.CreatePostRequest) (uuid.UUID, error) {
-	if strings.TrimSpace(req.Body) == "" {
+	isShare := req.SharedContentID != ""
+	if isShare {
+		if !validSharedContentTypes[req.SharedContentType] {
+			return uuid.Nil, ErrInvalidShareType
+		}
+	}
+
+	if strings.TrimSpace(req.Body) == "" && !isShare {
 		return uuid.Nil, ErrEmptyBody
 	}
 
@@ -128,8 +145,19 @@ func (s *service) CreatePost(ctx context.Context, userID uuid.UUID, req dto.Crea
 
 	id := uuid.New()
 	body := strings.TrimSpace(req.Body)
-	if err := s.postRepo.Create(ctx, id, userID, corner, body); err != nil {
+
+	var sharedContentID, sharedContentType *string
+	if isShare {
+		sharedContentID = &req.SharedContentID
+		sharedContentType = &req.SharedContentType
+	}
+
+	if err := s.postRepo.Create(ctx, id, userID, corner, body, sharedContentID, sharedContentType); err != nil {
 		return uuid.Nil, err
+	}
+
+	if isShare {
+		go s.postRepo.IncrementShareCount(context.Background(), req.SharedContentID, req.SharedContentType)
 	}
 
 	if req.Poll != nil {
@@ -219,6 +247,16 @@ func (s *service) GetPost(ctx context.Context, id uuid.UUID, viewerID uuid.UUID,
 		postResp.Poll = pollRow.ToResponse(pollOptions, votedOption)
 	}
 
+	if row.SharedContentID != nil && row.SharedContentType != nil {
+		refs := []repository.SharedContentRef{{ID: *row.SharedContentID, Type: *row.SharedContentType}}
+		previews := repository.GetSharedContentPreviews(s.db, refs)
+		key := *row.SharedContentType + ":" + *row.SharedContentID
+		postResp.SharedContent = previews[key]
+	}
+
+	shareCount, _ := s.postRepo.GetShareCount(ctx, id.String(), "post")
+	postResp.ShareCount = shareCount
+
 	return &dto.PostDetailResponse{
 		PostResponse:  postResp,
 		Comments:      dtoComments,
@@ -248,13 +286,26 @@ func (s *service) UpdatePost(ctx context.Context, id uuid.UUID, userID uuid.UUID
 }
 
 func (s *service) DeletePost(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
+	contentID, contentType, _ := s.postRepo.GetSharedContentFields(ctx, id)
+
+	var err error
 	if s.authz.Can(ctx, userID, authz.PermDeleteAnyPost) {
-		return s.postRepo.DeleteAsAdmin(ctx, id)
+		err = s.postRepo.DeleteAsAdmin(ctx, id)
+	} else {
+		err = s.postRepo.Delete(ctx, id, userID)
 	}
-	return s.postRepo.Delete(ctx, id, userID)
+	if err != nil {
+		return err
+	}
+
+	if contentID != nil && contentType != nil {
+		go s.postRepo.DecrementShareCount(context.Background(), *contentID, *contentType)
+	}
+
+	return nil
 }
 
-func (s *service) ListFeed(ctx context.Context, tab string, viewerID uuid.UUID, corner string, search string, sort string, seed int, limit, offset int, resolved *bool) (*dto.PostListResponse, error) {
+func (s *service) ListFeed(ctx context.Context, tab string, viewerID uuid.UUID, corner string, search string, sort string, seed int, limit, offset int, resolvedFilter string) (*dto.PostListResponse, error) {
 	if corner == "" {
 		corner = "general"
 	}
@@ -268,7 +319,7 @@ func (s *service) ListFeed(ctx context.Context, tab string, viewerID uuid.UUID, 
 	if tab == "following" && viewerID != uuid.Nil {
 		rows, total, err = s.postRepo.ListByFollowing(ctx, viewerID, corner, sort, seed, limit, offset, blockedIDs)
 	} else {
-		rows, total, err = s.postRepo.ListAll(ctx, viewerID, corner, search, sort, seed, limit, offset, blockedIDs, resolved)
+		rows, total, err = s.postRepo.ListAll(ctx, viewerID, corner, search, sort, seed, limit, offset, blockedIDs, resolvedFilter)
 	}
 	if err != nil {
 		return nil, err
@@ -295,14 +346,33 @@ func (s *service) buildPostList(ctx context.Context, rows []model.PostRow, total
 
 	mediaMap, _ := s.postRepo.GetMediaBatch(ctx, postIDs)
 	embedMap, _ := s.postRepo.GetEmbedsBatch(ctx, postIDStrs, "post")
-
 	pollMap, pollOptionMap, pollVoteMap, _ := s.postRepo.GetPollsByPostIDs(ctx, postIDs, viewerID)
+
+	var sharedRefs []repository.SharedContentRef
+	for _, r := range rows {
+		if r.SharedContentID != nil && r.SharedContentType != nil {
+			sharedRefs = append(sharedRefs, repository.SharedContentRef{
+				ID:   *r.SharedContentID,
+				Type: *r.SharedContentType,
+			})
+		}
+	}
+	sharedPreviews := repository.GetSharedContentPreviews(s.db, sharedRefs)
+
+	postShareCounts, _ := s.postRepo.GetShareCountsBatch(ctx, postIDStrs, "post")
 
 	posts := make([]dto.PostResponse, len(rows))
 	for i, r := range rows {
 		posts[i] = r.ToResponse(mediaMap[r.ID], embedMap[r.ID.String()])
 		if p, ok := pollMap[r.ID]; ok {
 			posts[i].Poll = p.ToResponse(pollOptionMap[r.ID], pollVoteMap[r.ID])
+		}
+		if r.SharedContentID != nil && r.SharedContentType != nil {
+			key := *r.SharedContentType + ":" + *r.SharedContentID
+			posts[i].SharedContent = sharedPreviews[key]
+		}
+		if count, ok := postShareCounts[r.ID.String()]; ok {
+			posts[i].ShareCount = count
 		}
 	}
 
@@ -794,33 +864,38 @@ func validatePollInput(poll *dto.CreatePollInput) error {
 	return nil
 }
 
-func (s *service) ResolveSuggestion(ctx context.Context, postID uuid.UUID, userID uuid.UUID) error {
+func (s *service) ResolveSuggestion(ctx context.Context, postID uuid.UUID, userID uuid.UUID, status string) error {
 	if !s.authz.Can(ctx, userID, authz.PermResolveSuggestion) {
 		return fmt.Errorf("not authorised")
 	}
-	if err := s.postRepo.ResolveSuggestion(ctx, postID, userID); err != nil {
+	if status != "done" && status != "archived" {
+		status = "done"
+	}
+	if err := s.postRepo.ResolveSuggestion(ctx, postID, userID, status); err != nil {
 		return err
 	}
 
-	go func() {
-		bgCtx := context.Background()
-		authorID, err := s.postRepo.GetPostAuthorID(bgCtx, postID)
-		if err != nil || authorID == userID {
-			return
-		}
-		baseURL := s.settingsSvc.Get(bgCtx, config.SettingBaseURL)
-		linkURL := fmt.Sprintf("%s/suggestions/%s", baseURL, postID)
-		subject, body := notification.NotifEmail("An admin", "marked your suggestion as done", "", linkURL)
-		_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
-			RecipientID:   authorID,
-			Type:          dto.NotifSuggestionResolved,
-			ReferenceID:   postID,
-			ReferenceType: "post",
-			ActorID:       userID,
-			EmailSubject:  subject,
-			EmailBody:     body,
-		})
-	}()
+	if status == "done" {
+		go func() {
+			bgCtx := context.Background()
+			authorID, err := s.postRepo.GetPostAuthorID(bgCtx, postID)
+			if err != nil || authorID == userID {
+				return
+			}
+			baseURL := s.settingsSvc.Get(bgCtx, config.SettingBaseURL)
+			linkURL := fmt.Sprintf("%s/suggestions/%s", baseURL, postID)
+			subject, body := notification.NotifEmail("An admin", "marked your suggestion as done", "", linkURL)
+			_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
+				RecipientID:   authorID,
+				Type:          dto.NotifSuggestionResolved,
+				ReferenceID:   postID,
+				ReferenceType: "post",
+				ActorID:       userID,
+				EmailSubject:  subject,
+				EmailBody:     body,
+			})
+		}()
+	}
 
 	return nil
 }
@@ -830,4 +905,8 @@ func (s *service) UnresolveSuggestion(ctx context.Context, postID uuid.UUID, use
 		return fmt.Errorf("not authorised")
 	}
 	return s.postRepo.UnresolveSuggestion(ctx, postID)
+}
+
+func (s *service) GetShareCount(ctx context.Context, contentID string, contentType string) (int, error) {
+	return s.postRepo.GetShareCount(ctx, contentID, contentType)
 }

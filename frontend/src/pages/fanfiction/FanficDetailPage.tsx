@@ -21,6 +21,7 @@ import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { CommentItem } from "../../components/post/CommentItem/CommentItem";
 import { CommentComposer } from "../../components/post/CommentComposer/CommentComposer";
 import { Lightbox } from "../../components/Lightbox/Lightbox";
+import { ShareButton } from "../../components/ShareButton/ShareButton";
 import { relativeTime } from "../../utils/notifications";
 import styles from "./FanficPages.module.css";
 
@@ -75,6 +76,7 @@ export function FanficDetailPage() {
                 data.comments = data.comments ?? [];
                 data.chapters = data.chapters ?? [];
                 data.genres = data.genres ?? [];
+                data.tags = data.tags ?? [];
                 data.characters = data.characters ?? [];
                 setFanfic(data);
             })
@@ -189,6 +191,7 @@ export function FanficDetailPage() {
                                     )}
                                 </div>
                             )}
+                            <ShareButton contentId={fanfic.id} contentType="fanfic" contentTitle={fanfic.title} />
                         </div>
 
                         <div className={styles.detailByline}>
@@ -208,6 +211,11 @@ export function FanficDetailPage() {
                             {fanfic.genres.map(g => (
                                 <span key={g} className={`${styles.detailBadge} ${styles.badgeGenre}`}>
                                     {g}
+                                </span>
+                            ))}
+                            {fanfic.tags.map(t => (
+                                <span key={t} className={`${styles.detailBadge} ${styles.badgeTag}`}>
+                                    {t}
                                 </span>
                             ))}
                             {fanfic.is_pairing && (
@@ -341,7 +349,7 @@ export function FanficDetailPage() {
                         comment={c as unknown as PostComment}
                         postId={fanfic.id}
                         onDelete={fetchFanfic}
-                        highlighted={false}
+                        highlightedId={undefined}
                         linkPrefix="/fanfiction"
                         reportType="fanfic_comment"
                         likeFn={likeFanficComment}

@@ -79,6 +79,7 @@ export function FanfictionListPage() {
     const language = p("language");
     const genreA = p("genre_a");
     const genreB = p("genre_b");
+    const tag = p("tag");
     const charA = p("char_a");
     const charB = p("char_b");
     const charC = p("char_c");
@@ -103,7 +104,7 @@ export function FanfictionListPage() {
     const [filtersOpen, setFiltersOpen] = useState(false);
 
     const activeFilterCount =
-        [series, rating, status, language, genreA, genreB, charA, charB, charC, charD].filter(Boolean).length +
+        [series, rating, status, language, genreA, genreB, tag, charA, charB, charC, charD].filter(Boolean).length +
         (pairing ? 1 : 0) +
         (lemons ? 1 : 0);
 
@@ -163,6 +164,7 @@ export function FanfictionListPage() {
             language: language || undefined,
             genre_a: genreA || undefined,
             genre_b: genreB || undefined,
+            tag: tag || undefined,
             char_a: charA || undefined,
             char_b: charB || undefined,
             char_c: charC || undefined,
@@ -198,6 +200,7 @@ export function FanfictionListPage() {
         language,
         genreA,
         genreB,
+        tag,
         charA,
         charB,
         charC,
@@ -344,6 +347,14 @@ export function FanfictionListPage() {
                         ))}
                     </Select>
 
+                    <Input
+                        type="text"
+                        placeholder="Filter by tag..."
+                        value={tag}
+                        onChange={e => setParam("tag", e.target.value)}
+                        aria-label="Tag"
+                    />
+
                     {renderCharacterSelect("Character A", "char_a", charA)}
                     {renderCharacterSelect("Character B", "char_b", charB)}
                     {renderCharacterSelect("Character C", "char_c", charC)}
@@ -411,6 +422,7 @@ export function FanfictionListPage() {
                                 {f.summary && <p className={styles.cardSummary}>{f.summary}</p>}
 
                                 {(f.genres?.length > 0 ||
+                                    f.tags?.length > 0 ||
                                     f.characters?.length > 0 ||
                                     f.is_pairing ||
                                     f.contains_lemons) && (
@@ -418,6 +430,11 @@ export function FanfictionListPage() {
                                         {(f.genres ?? []).map(g => (
                                             <span key={g} className={`${styles.badge} ${styles.badgeGenre}`}>
                                                 {g}
+                                            </span>
+                                        ))}
+                                        {(f.tags ?? []).map(t => (
+                                            <span key={t} className={`${styles.badge} ${styles.badgeTag}`}>
+                                                {t}
                                             </span>
                                         ))}
                                         {f.is_pairing && (
