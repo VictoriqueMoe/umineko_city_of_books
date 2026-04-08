@@ -121,7 +121,7 @@ function SingleAttempt({
                                 Reply
                             </Button>
                         )}
-                        {isAuthor && !mysterySolved && (
+                        {isAuthor && !mysterySolved && user?.id !== attempt.author.id && (
                             <Button variant="ghost" size="small" onClick={handleSelectWinner}>
                                 Select Winner
                             </Button>

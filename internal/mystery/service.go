@@ -453,6 +453,9 @@ func (s *service) MarkSolved(ctx context.Context, mysteryID uuid.UUID, userID uu
 	if attemptMysteryID != mysteryID {
 		return fmt.Errorf("attempt does not belong to this mystery")
 	}
+	if attemptAuthorID == authorID {
+		return fmt.Errorf("cannot select your own attempt as the winner")
+	}
 
 	if err := s.mysteryRepo.MarkSolved(ctx, mysteryID, attemptID); err != nil {
 		return err
