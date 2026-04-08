@@ -368,7 +368,7 @@ func (r *mysteryRepository) GetClues(ctx context.Context, mysteryID uuid.UUID) (
 }
 
 func (r *mysteryRepository) DeleteClues(ctx context.Context, mysteryID uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM mystery_clues WHERE mystery_id = ?`, mysteryID)
+	_, err := r.db.ExecContext(ctx, `DELETE FROM mystery_clues WHERE mystery_id = ? AND player_id IS NULL`, mysteryID)
 	if err != nil {
 		return fmt.Errorf("delete clues: %w", err)
 	}
