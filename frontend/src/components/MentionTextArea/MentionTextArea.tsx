@@ -149,7 +149,9 @@ export function MentionTextArea({
         if (!items || items.length === 0 || !onPasteFiles) {
             return;
         }
-        const mediaFiles = Array.from(items).filter(f => f.type.startsWith("image/") || f.type.startsWith("video/"));
+        const mediaFiles = Array.from(items).filter(
+            f => f.size > 0 && (f.type.startsWith("image/") || f.type.startsWith("video/")),
+        );
         if (mediaFiles.length > 0) {
             e.preventDefault();
             onPasteFiles(mediaFiles);

@@ -210,6 +210,12 @@ export function FanficDetailPage() {
                                     {g}
                                 </span>
                             ))}
+                            {fanfic.is_pairing && (
+                                <span className={`${styles.detailBadge} ${styles.badgePairing}`}>Pairing</span>
+                            )}
+                            {fanfic.contains_lemons && (
+                                <span className={`${styles.detailBadge} ${styles.badgeLemons}`}>Contains Lemons</span>
+                            )}
                         </div>
 
                         <div className={styles.detailStats}>

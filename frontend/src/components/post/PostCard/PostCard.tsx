@@ -199,12 +199,14 @@ export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps
                     </div>
                 </div>
             ) : (
-                <Link to={`/game-board/${post.id}`} className={styles.body}>
-                    <p className={styles.text}>{linkify(displayBody)}</p>
+                <>
+                    <Link to={`/game-board/${post.id}`} className={styles.body}>
+                        <p className={styles.text}>{linkify(displayBody)}</p>
+                        <MediaGallery media={displayMedia} />
+                        {post.embeds && <PostEmbeds embeds={post.embeds} />}
+                    </Link>
                     {post.poll && <PollDisplay poll={post.poll} postId={post.id} onVoted={onEdit} />}
-                    <MediaGallery media={displayMedia} />
-                    {post.embeds && <PostEmbeds embeds={post.embeds} />}
-                </Link>
+                </>
             )}
 
             <div className={styles.actions}>

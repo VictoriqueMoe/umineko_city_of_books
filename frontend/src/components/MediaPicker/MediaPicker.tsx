@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useSiteInfo } from "../../hooks/useSiteInfo";
 import { validateFileSize } from "../../utils/fileValidation";
 import { Button } from "../Button/Button";
@@ -15,6 +15,12 @@ interface MediaPreviewsProps {
 export function MediaPreviews({ files, onRemove, size = "normal" }: MediaPreviewsProps) {
     const previews = useMemo(() => files.map(f => URL.createObjectURL(f)), [files]);
 
+    useEffect(() => {
+        return () => {
+            previews.forEach(url => URL.revokeObjectURL(url));
+        };
+    }, [previews]);
+
     if (files.length === 0) {
         return null;
     }
@@ -30,7 +36,20 @@ export function MediaPreviews({ files, onRemove, size = "normal" }: MediaPreview
                     {file.type.startsWith("video/") ? (
                         <video className={styles.previewMedia} src={previews[i]} />
                     ) : (
-                        <img className={styles.previewMedia} src={previews[i]} alt="" />
+                        <img
+                            className={styles.previewMedia}
+                            src={previews[i]}
+                            alt=""
+                            onError={e => {
+                                console.warn(
+                                    "Media preview failed for file:",
+                                    files[i]?.name,
+                                    files[i]?.type,
+                                    files[i]?.size,
+                                );
+                                e.currentTarget.style.display = "none";
+                            }}
+                        />
                     )}
                     <button className={removeClass} onClick={() => onRemove(i)}>
                         x

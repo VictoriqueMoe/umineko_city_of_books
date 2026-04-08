@@ -184,6 +184,18 @@
     color: var(--purple-light);
 }
 
+.badgePairing {
+    background: rgba(var(--rose-rgb), 0.2);
+    color: var(--rose);
+    border: 1px solid rgba(var(--rose-rgb), 0.35);
+}
+
+.badgeLemons {
+    background: rgba(255, 213, 79, 0.15);
+    color: #ffd54f;
+    border: 1px solid rgba(255, 213, 79, 0.35);
+}
+
 .badgeStatus {
     background: rgba(var(--gold-rgb), 0.2);
     color: var(--gold);

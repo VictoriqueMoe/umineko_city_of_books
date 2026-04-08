@@ -410,13 +410,22 @@ export function FanfictionListPage() {
 
                                 {f.summary && <p className={styles.cardSummary}>{f.summary}</p>}
 
-                                {(f.genres?.length > 0 || f.characters?.length > 0) && (
+                                {(f.genres?.length > 0 ||
+                                    f.characters?.length > 0 ||
+                                    f.is_pairing ||
+                                    f.contains_lemons) && (
                                     <div className={styles.cardBadges}>
                                         {(f.genres ?? []).map(g => (
                                             <span key={g} className={`${styles.badge} ${styles.badgeGenre}`}>
                                                 {g}
                                             </span>
                                         ))}
+                                        {f.is_pairing && (
+                                            <span className={`${styles.badge} ${styles.badgePairing}`}>Pairing</span>
+                                        )}
+                                        {f.contains_lemons && (
+                                            <span className={`${styles.badge} ${styles.badgeLemons}`}>Lemons</span>
+                                        )}
                                         {(f.characters ?? []).map((c, i) => (
                                             <span key={`${c.character_name}-${i}`} className={styles.charPill}>
                                                 {c.character_name}
