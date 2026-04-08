@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import type { Post, PostMedia } from "../../../types/api";
 import {
     deletePost as apiDeletePost,
@@ -50,6 +50,7 @@ function timeAgo(dateStr: string): string {
 }
 
 export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps) {
+    const navigate = useNavigate();
     const { user } = useAuth();
     const { addWSListener } = useNotifications();
     const [liked, setLiked] = useState(post.user_liked);
@@ -200,11 +201,24 @@ export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps
                 </div>
             ) : (
                 <>
-                    <Link to={`/game-board/${post.id}`} className={styles.body}>
+                    <div
+                        className={styles.body}
+                        onClick={e => {
+                            if ((e.target as HTMLElement).closest("a")) {
+                                return;
+                            }
+                            navigate(`/game-board/${post.id}`);
+                        }}
+                        onAuxClick={e => {
+                            if (e.button === 1 && !(e.target as HTMLElement).closest("a")) {
+                                window.open(`/game-board/${post.id}`, "_blank");
+                            }
+                        }}
+                    >
                         <p className={styles.text}>{linkify(displayBody)}</p>
                         <MediaGallery media={displayMedia} />
                         {post.embeds && <PostEmbeds embeds={post.embeds} />}
-                    </Link>
+                    </div>
                     {post.poll && <PollDisplay poll={post.poll} postId={post.id} onVoted={onEdit} />}
                 </>
             )}

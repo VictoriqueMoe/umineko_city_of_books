@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
 import type { FeedTab } from "../../types/api";
+import { updateGameBoardSort } from "../../api/endpoints";
 import { useAuth } from "../../hooks/useAuth";
 import { usePostFeed } from "../../hooks/usePostFeed";
 import { PostCard } from "../../components/post/PostCard/PostCard";
@@ -43,7 +44,8 @@ export function SocialFeedPage({ corner = "general" }: SocialFeedPageProps) {
     const [searchParams, setSearchParams] = useSearchParams();
 
     const tab = (searchParams.get("tab") as FeedTab) || "everyone";
-    const sort = (searchParams.get("sort") as PostSort) || "relevance";
+    const savedSort = localStorage.getItem("ut-game-board-sort") as PostSort | null;
+    const sort = (searchParams.get("sort") as PostSort) || savedSort || "relevance";
     const search = searchParams.get("search") || "";
     const page = parseInt(searchParams.get("page") || "1", 10);
 
@@ -125,7 +127,13 @@ export function SocialFeedPage({ corner = "general" }: SocialFeedPageProps) {
                     <button
                         key={opt.value}
                         className={`${styles.sortBtn}${sort === opt.value ? ` ${styles.sortBtnActive}` : ""}`}
-                        onClick={() => updateParams({ sort: opt.value, page: "1" })}
+                        onClick={() => {
+                            updateParams({ sort: opt.value, page: "1" });
+                            localStorage.setItem("ut-game-board-sort", opt.value);
+                            if (user) {
+                                updateGameBoardSort(opt.value).catch(() => {});
+                            }
+                        }}
                     >
                         {opt.label}
                     </button>

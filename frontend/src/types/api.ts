@@ -150,6 +150,7 @@ export interface UserProfile {
     email_public?: boolean;
     email_notifications?: boolean;
     home_page?: string;
+    game_board_sort?: string;
     created_at: string;
     stats: UserStats;
 }
@@ -185,6 +186,7 @@ export interface UpdateProfilePayload {
     email_public: boolean;
     email_notifications: boolean;
     home_page: string;
+    game_board_sort: string;
 }
 
 export interface ChangePasswordPayload {

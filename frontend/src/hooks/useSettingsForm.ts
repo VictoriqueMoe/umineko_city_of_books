@@ -64,6 +64,7 @@ export function useSettingsForm() {
     const [emailPublic, setEmailPublic] = useState(false);
     const [emailNotifications, setEmailNotifications] = useState(false);
     const [homePage, setHomePage] = useState("game_board");
+    const [gameBoardSort, setGameBoardSort] = useState("relevance");
 
     const [characters, setCharacters] = useState<{
         umineko: Record<string, string>;
@@ -98,6 +99,7 @@ export function useSettingsForm() {
             setEmailPublic(profile.email_public ?? false);
             setEmailNotifications(profile.email_notifications ?? false);
             setHomePage(profile.home_page ?? "game_board");
+            setGameBoardSort(profile.game_board_sort ?? "relevance");
 
             const g = initGender(profile);
             setGender(g.gender);
@@ -213,6 +215,7 @@ export function useSettingsForm() {
             email_public: emailPublic,
             email_notifications: emailNotifications,
             home_page: homePage,
+            game_board_sort: gameBoardSort,
         };
 
         try {
@@ -285,6 +288,8 @@ export function useSettingsForm() {
         setEmailNotifications,
         homePage,
         setHomePage,
+        gameBoardSort,
+        setGameBoardSort,
         characters,
 
         handleSubmit,

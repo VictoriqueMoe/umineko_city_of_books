@@ -36,6 +36,7 @@ type (
 		EmailPublic        bool
 		EmailNotifications bool
 		HomePage           string
+		GameBoardSort      string
 	}
 
 	UserStats struct {
@@ -64,12 +65,14 @@ func (u *User) ToProfileResponse(stats *UserStats, isSelf bool) *dto.UserProfile
 	emailPublic := u.EmailPublic
 	emailNotifications := false
 	homePage := ""
+	gameBoardSort := ""
 	if u.EmailPublic || isSelf {
 		email = u.Email
 	}
 	if isSelf {
 		emailNotifications = u.EmailNotifications
 		homePage = u.HomePage
+		gameBoardSort = u.GameBoardSort
 	}
 	return &dto.UserProfileResponse{
 		ID:                 u.ID,
@@ -95,6 +98,7 @@ func (u *User) ToProfileResponse(stats *UserStats, isSelf bool) *dto.UserProfile
 		EmailPublic:        emailPublic,
 		EmailNotifications: emailNotifications,
 		HomePage:           homePage,
+		GameBoardSort:      gameBoardSort,
 		CreatedAt:          u.CreatedAt,
 		Stats: dto.UserStatsDTO{
 			TheoryCount:   stats.TheoryCount,

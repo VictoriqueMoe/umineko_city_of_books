@@ -230,6 +230,10 @@ export async function updateProfile(payload: UpdateProfilePayload): Promise<{ st
     return apiPut<{ status: string }, UpdateProfilePayload>("/auth/profile", payload);
 }
 
+export async function updateGameBoardSort(sort: string): Promise<void> {
+    await apiPut<unknown, { sort: string }>("/preferences/game-board-sort", { sort });
+}
+
 export async function uploadAvatar(file: File): Promise<{ avatar_url: string }> {
     const formData = new FormData();
     formData.append("avatar", file);

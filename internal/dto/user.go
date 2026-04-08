@@ -43,6 +43,7 @@ type (
 		EmailPublic        bool         `json:"email_public"`
 		EmailNotifications bool         `json:"email_notifications"`
 		HomePage           string       `json:"home_page"`
+		GameBoardSort      string       `json:"game_board_sort"`
 		CreatedAt          string       `json:"created_at"`
 		Stats              UserStatsDTO `json:"stats"`
 	}
@@ -78,6 +79,7 @@ type (
 		EmailPublic        bool    `json:"email_public"`
 		EmailNotifications bool    `json:"email_notifications"`
 		HomePage           string  `json:"home_page"`
+		GameBoardSort      string  `json:"game_board_sort"`
 	}
 
 	ChangePasswordRequest struct {

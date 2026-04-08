@@ -25,6 +25,7 @@ type (
 		UpdateAvatarURL(ctx context.Context, userID uuid.UUID, avatarURL string) error
 		UpdateBannerURL(ctx context.Context, userID uuid.UUID, bannerURL string) error
 		UpdateIP(ctx context.Context, userID uuid.UUID, ip string) error
+		UpdateGameBoardSort(ctx context.Context, userID uuid.UUID, sort string) error
 		ChangePassword(ctx context.Context, userID uuid.UUID, oldPassword, newPassword string) error
 		DeleteAccount(ctx context.Context, userID uuid.UUID, password string) error
 		GetProfileByUsername(ctx context.Context, username string) (*model.User, *model.UserStats, error)
@@ -44,7 +45,7 @@ type (
 )
 
 const (
-	userColumns = `id, username, password_hash, display_name, created_at, bio, avatar_url, banner_url, favourite_character, gender, pronoun_subject, pronoun_possessive, banned_at, banned_by, ban_reason, social_twitter, social_discord, social_waifulist, social_tumblr, social_github, website, banner_position, dms_enabled, episode_progress, email, email_public, email_notifications, home_page`
+	userColumns = `id, username, password_hash, display_name, created_at, bio, avatar_url, banner_url, favourite_character, gender, pronoun_subject, pronoun_possessive, banned_at, banned_by, ban_reason, social_twitter, social_discord, social_waifulist, social_tumblr, social_github, website, banner_position, dms_enabled, episode_progress, email, email_public, email_notifications, home_page, game_board_sort`
 )
 
 func scanUser(row interface{ Scan(dest ...any) error }) (*model.User, error) {
@@ -54,7 +55,7 @@ func scanUser(row interface{ Scan(dest ...any) error }) (*model.User, error) {
 		&u.PronounSubject, &u.PronounPossessive,
 		&u.BannedAt, &u.BannedBy, &u.BanReason,
 		&u.SocialTwitter, &u.SocialDiscord, &u.SocialWaifulist, &u.SocialTumblr, &u.SocialGithub, &u.Website,
-		&u.BannerPosition, &u.DmsEnabled, &u.EpisodeProgress, &u.Email, &u.EmailPublic, &u.EmailNotifications, &u.HomePage)
+		&u.BannerPosition, &u.DmsEnabled, &u.EpisodeProgress, &u.Email, &u.EmailPublic, &u.EmailNotifications, &u.HomePage, &u.GameBoardSort)
 	return &u, err
 }
 
@@ -148,12 +149,12 @@ func (r *userRepository) UpdateProfile(ctx context.Context, userID uuid.UUID, re
 		`UPDATE users SET display_name = ?, bio = ?, avatar_url = ?, banner_url = ?, banner_position = ?, favourite_character = ?, gender = ?,
 		 pronoun_subject = ?, pronoun_possessive = ?,
 		 social_twitter = ?, social_discord = ?, social_waifulist = ?, social_tumblr = ?, social_github = ?,
-		 website = ?, dms_enabled = ?, episode_progress = ?, email = ?, email_public = ?, email_notifications = ?, home_page = ?
+		 website = ?, dms_enabled = ?, episode_progress = ?, email = ?, email_public = ?, email_notifications = ?, home_page = ?, game_board_sort = ?
 		 WHERE id = ?`,
 		req.DisplayName, req.Bio, req.AvatarURL, req.BannerURL, req.BannerPosition, req.FavouriteCharacter, req.Gender,
 		req.PronounSubject, req.PronounPossessive,
 		req.SocialTwitter, req.SocialDiscord, req.SocialWaifulist, req.SocialTumblr, req.SocialGithub, req.Website,
-		req.DmsEnabled, req.EpisodeProgress, req.Email, req.EmailPublic, req.EmailNotifications, req.HomePage,
+		req.DmsEnabled, req.EpisodeProgress, req.Email, req.EmailPublic, req.EmailNotifications, req.HomePage, req.GameBoardSort,
 		userID,
 	)
 	if err != nil {
@@ -188,6 +189,16 @@ func (r *userRepository) UpdateIP(ctx context.Context, userID uuid.UUID, ip stri
 	)
 	if err != nil {
 		return fmt.Errorf("update ip: %w", err)
+	}
+	return nil
+}
+
+func (r *userRepository) UpdateGameBoardSort(ctx context.Context, userID uuid.UUID, sort string) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE users SET game_board_sort = ? WHERE id = ?`, sort, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("update game board sort: %w", err)
 	}
 	return nil
 }
