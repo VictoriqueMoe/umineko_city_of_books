@@ -1,10 +1,10 @@
 import { type PropsWithChildren, useCallback, useEffect, useState } from "react";
-import type { User } from "../types/api";
+import type { UserProfile } from "../types/api";
 import { AuthContext } from "./authContextValue";
 import * as api from "../api/endpoints";
 
 export function AuthProvider({ children }: PropsWithChildren) {
-    const [user, setUser] = useState<User | null>(null);
+    const [user, setUser] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -15,8 +15,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }, []);
 
     const loginUser = useCallback(async (username: string, password: string, turnstileToken?: string) => {
-        const u = await api.login(username, password, turnstileToken);
-        setUser(u);
+        await api.login(username, password, turnstileToken);
+        const me = await api.getMe();
+        setUser(me);
     }, []);
 
     const registerUser = useCallback(
@@ -27,8 +28,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
             inviteCode?: string,
             turnstileToken?: string,
         ) => {
-            const u = await api.register(username, password, displayName, inviteCode, turnstileToken);
-            setUser(u);
+            await api.register(username, password, displayName, inviteCode, turnstileToken);
+            const me = await api.getMe();
+            setUser(me);
         },
         [],
     );

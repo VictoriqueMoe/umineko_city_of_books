@@ -1,10 +1,10 @@
 import { createContext } from "react";
-import type { User } from "../types/api";
+import type { UserProfile } from "../types/api";
 
 export interface AuthContextValue {
-    user: User | null;
+    user: UserProfile | null;
     loading: boolean;
-    setUser: (user: User | null) => void;
+    setUser: (user: UserProfile | null) => void;
     loginUser: (username: string, password: string, turnstileToken?: string) => Promise<void>;
     registerUser: (
         username: string,

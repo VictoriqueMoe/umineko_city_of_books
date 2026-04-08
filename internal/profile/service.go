@@ -64,7 +64,6 @@ func (s *service) GetProfile(ctx context.Context, username string, viewerID uuid
 	}
 
 	resp := user.ToProfileResponse(stats, user.ID == viewerID)
-	resp.Role, _ = s.authz.GetRole(ctx, user.ID)
 	return resp, nil
 }
 

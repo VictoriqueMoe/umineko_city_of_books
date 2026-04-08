@@ -13,8 +13,6 @@ import (
 	"umineko_city_of_books/internal/session"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/user"
-
-	"github.com/google/uuid"
 )
 
 type (
@@ -22,7 +20,6 @@ type (
 		Register(ctx context.Context, req dto.RegisterRequest) (*dto.UserResponse, string, error)
 		Login(ctx context.Context, req dto.LoginRequest) (*dto.UserResponse, string, error)
 		Logout(ctx context.Context, token string) error
-		GetMe(ctx context.Context, userID uuid.UUID) (*dto.UserResponse, error)
 	}
 
 	service struct {
@@ -144,10 +141,6 @@ func (s *service) Logout(ctx context.Context, token string) error {
 		return s.session.Delete(ctx, token)
 	}
 	return nil
-}
-
-func (s *service) GetMe(ctx context.Context, userID uuid.UUID) (*dto.UserResponse, error) {
-	return s.userService.GetByID(ctx, userID)
 }
 
 func isValidUsername(username string) bool {

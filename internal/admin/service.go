@@ -158,13 +158,12 @@ func (s *service) ListUsers(ctx context.Context, search string, limit, offset in
 
 	items := make([]dto.AdminUserItem, len(users))
 	for i, u := range users {
-		r, _ := s.authz.GetRole(ctx, u.ID)
 		items[i] = dto.AdminUserItem{
 			ID:          u.ID,
 			Username:    u.Username,
 			DisplayName: u.DisplayName,
 			AvatarURL:   u.AvatarURL,
-			Role:        r,
+			Role:        role.Role(u.Role),
 			Banned:      u.BannedAt != nil,
 			CreatedAt:   u.CreatedAt,
 		}
@@ -187,19 +186,20 @@ func (s *service) GetUser(ctx context.Context, targetID uuid.UUID) (*dto.AdminUs
 		return nil, ErrUserNotFound
 	}
 
-	r, _ := s.authz.GetRole(ctx, u.ID)
-
 	resp := &dto.AdminUserDetailResponse{
 		AdminUserItem: dto.AdminUserItem{
 			ID:          u.ID,
 			Username:    u.Username,
 			DisplayName: u.DisplayName,
 			AvatarURL:   u.AvatarURL,
-			Role:        r,
+			Role:        role.Role(u.Role),
 			Banned:      u.BannedAt != nil,
 			CreatedAt:   u.CreatedAt,
 		},
 		BanReason: u.BanReason,
+	}
+	if u.IP != nil {
+		resp.IP = *u.IP
 	}
 
 	if u.BannedAt != nil {

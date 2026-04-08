@@ -50,9 +50,7 @@ func (s *service) Create(ctx context.Context, username, password, displayName st
 		}
 	}
 
-	resp := user.ToResponse()
-	resp.Role, _ = s.authz.GetRole(ctx, user.ID)
-	return resp, nil
+	return user.ToResponse(), nil
 }
 
 func (s *service) GetByID(ctx context.Context, id uuid.UUID) (*dto.UserResponse, error) {
@@ -63,9 +61,7 @@ func (s *service) GetByID(ctx context.Context, id uuid.UUID) (*dto.UserResponse,
 	if user == nil {
 		return nil, ErrUserNotFound
 	}
-	resp := user.ToResponse()
-	resp.Role, _ = s.authz.GetRole(ctx, user.ID)
-	return resp, nil
+	return user.ToResponse(), nil
 }
 
 func (s *service) ValidateCredentials(ctx context.Context, username, password string) (*dto.UserResponse, error) {
@@ -76,9 +72,7 @@ func (s *service) ValidateCredentials(ctx context.Context, username, password st
 	if user == nil {
 		return nil, ErrInvalidCredentials
 	}
-	resp := user.ToResponse()
-	resp.Role, _ = s.authz.GetRole(ctx, user.ID)
-	return resp, nil
+	return user.ToResponse(), nil
 }
 
 func (s *service) CheckUsernameAvailable(ctx context.Context, username string) error {

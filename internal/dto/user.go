@@ -8,28 +8,23 @@ import (
 
 type (
 	UserResponse struct {
-		ID              uuid.UUID `json:"id"`
-		Username        string    `json:"username"`
-		DisplayName     string    `json:"display_name"`
-		AvatarURL       string    `json:"avatar_url,omitempty"`
-		Role            role.Role `json:"role,omitempty"`
-		EpisodeProgress int       `json:"episode_progress"`
-		HomePage        string    `json:"home_page,omitempty"`
+		ID          uuid.UUID `json:"id"`
+		Username    string    `json:"username"`
+		DisplayName string    `json:"display_name"`
+		AvatarURL   string    `json:"avatar_url,omitempty"`
+		Role        role.Role `json:"role,omitempty"`
 	}
 
 	UserProfileResponse struct {
-		ID                 uuid.UUID    `json:"id"`
-		Username           string       `json:"username"`
-		DisplayName        string       `json:"display_name"`
+		UserResponse
 		Bio                string       `json:"bio"`
-		AvatarURL          string       `json:"avatar_url"`
+		EpisodeProgress    int          `json:"episode_progress"`
 		BannerURL          string       `json:"banner_url"`
 		BannerPosition     float64      `json:"banner_position"`
 		FavouriteCharacter string       `json:"favourite_character"`
 		Gender             string       `json:"gender"`
 		PronounSubject     string       `json:"pronoun_subject"`
 		PronounPossessive  string       `json:"pronoun_possessive"`
-		Role               role.Role    `json:"role,omitempty"`
 		Online             bool         `json:"online"`
 		SocialTwitter      string       `json:"social_twitter"`
 		SocialDiscord      string       `json:"social_discord"`
@@ -38,7 +33,6 @@ type (
 		SocialGithub       string       `json:"social_github"`
 		Website            string       `json:"website"`
 		DmsEnabled         bool         `json:"dms_enabled"`
-		EpisodeProgress    int          `json:"episode_progress"`
 		Email              string       `json:"email,omitempty"`
 		EmailPublic        bool         `json:"email_public"`
 		EmailNotifications bool         `json:"email_notifications"`

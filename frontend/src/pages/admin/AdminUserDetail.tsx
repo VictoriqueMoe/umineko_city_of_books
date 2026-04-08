@@ -162,6 +162,12 @@ export function AdminUserDetail() {
                 </div>
 
                 <div className={styles.infoGrid}>
+                    {user.ip && (
+                        <div className={styles.infoItem}>
+                            <span className={styles.infoLabel}>IP Address</span>
+                            <span className={styles.infoValue}>{user.ip}</span>
+                        </div>
+                    )}
                     <div className={styles.infoItem}>
                         <span className={styles.infoLabel}>Status</span>
                         <span className={user.banned ? styles.bannedBadge : styles.activeBadge}>

@@ -168,7 +168,7 @@ func (s *Service) getFanfic(ctx fiber.Ctx) error {
 	}
 
 	viewerID, _ := ctx.Locals("userID").(uuid.UUID)
-	result, err := s.FanficService.GetFanfic(ctx.Context(), id, viewerID)
+	result, err := s.FanficService.GetFanfic(ctx.Context(), id, viewerID, viewerHash(ctx))
 	if err != nil {
 		if errors.Is(err, fanficsvc.ErrNotFound) {
 			return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "fanfic not found"})

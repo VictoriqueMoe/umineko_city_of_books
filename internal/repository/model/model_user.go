@@ -2,6 +2,7 @@ package model
 
 import (
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/role"
 
 	"github.com/google/uuid"
 )
@@ -37,6 +38,8 @@ type (
 		EmailNotifications bool
 		HomePage           string
 		GameBoardSort      string
+		IP                 *string
+		Role               string
 	}
 
 	UserStats struct {
@@ -51,12 +54,11 @@ type (
 
 func (u *User) ToResponse() *dto.UserResponse {
 	return &dto.UserResponse{
-		ID:              u.ID,
-		Username:        u.Username,
-		DisplayName:     u.DisplayName,
-		AvatarURL:       u.AvatarURL,
-		EpisodeProgress: u.EpisodeProgress,
-		HomePage:        u.HomePage,
+		ID:          u.ID,
+		Username:    u.Username,
+		DisplayName: u.DisplayName,
+		AvatarURL:   u.AvatarURL,
+		Role:        role.Role(u.Role),
 	}
 }
 
@@ -75,11 +77,9 @@ func (u *User) ToProfileResponse(stats *UserStats, isSelf bool) *dto.UserProfile
 		gameBoardSort = u.GameBoardSort
 	}
 	return &dto.UserProfileResponse{
-		ID:                 u.ID,
-		Username:           u.Username,
-		DisplayName:        u.DisplayName,
+		UserResponse:       *u.ToResponse(),
+		EpisodeProgress:    u.EpisodeProgress,
 		Bio:                u.Bio,
-		AvatarURL:          u.AvatarURL,
 		BannerURL:          u.BannerURL,
 		BannerPosition:     u.BannerPosition,
 		FavouriteCharacter: u.FavouriteCharacter,
@@ -93,7 +93,6 @@ func (u *User) ToProfileResponse(stats *UserStats, isSelf bool) *dto.UserProfile
 		SocialGithub:       u.SocialGithub,
 		Website:            u.Website,
 		DmsEnabled:         u.DmsEnabled,
-		EpisodeProgress:    u.EpisodeProgress,
 		Email:              email,
 		EmailPublic:        emailPublic,
 		EmailNotifications: emailNotifications,

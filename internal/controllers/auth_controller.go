@@ -22,7 +22,7 @@ func (s *Service) getAllAuthRoutes() []FSetupRoute {
 		s.setupRegisterRoute,
 		s.setupLoginRoute,
 		s.setupLogoutRoute,
-		s.setupGetMeRoute,
+		s.setupSessionRoute,
 		s.setupSiteInfoRoute,
 		s.setupGetRulesRoute,
 	}
@@ -40,8 +40,17 @@ func (s *Service) setupLogoutRoute(r fiber.Router) {
 	r.Post("/auth/logout", s.logout)
 }
 
-func (s *Service) setupGetMeRoute(r fiber.Router) {
-	r.Get("/auth/me", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.getMe)
+func (s *Service) setupSessionRoute(r fiber.Router) {
+	r.Get("/auth/session", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.getSession)
+}
+
+func (s *Service) getSession(ctx fiber.Ctx) error {
+	userID := ctx.Locals("userID").(uuid.UUID)
+	user, err := s.UserRepo.GetByID(ctx.Context(), userID)
+	if err != nil || user == nil {
+		return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "not authenticated"})
+	}
+	return ctx.JSON(fiber.Map{"username": user.Username})
 }
 
 func (s *Service) setSessionCookie(ctx fiber.Ctx, token string) {
@@ -186,18 +195,6 @@ func (s *Service) logout(ctx fiber.Ctx) error {
 	return ctx.JSON(fiber.Map{"status": "ok"})
 }
 
-func (s *Service) getMe(ctx fiber.Ctx) error {
-	userID := ctx.Locals("userID").(uuid.UUID)
-
-	user, err := s.AuthService.GetMe(ctx.Context(), userID)
-	if err != nil {
-		return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "user not found",
-		})
-	}
-
-	return ctx.JSON(user)
-}
 
 func (s *Service) setupSiteInfoRoute(r fiber.Router) {
 	r.Get("/site-info", s.siteInfo)

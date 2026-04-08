@@ -45,8 +45,6 @@ export interface User {
     display_name: string;
     avatar_url?: string;
     role?: string;
-    episode_progress?: number;
-    home_page?: string;
 }
 
 export interface EvidenceItem {
@@ -378,6 +376,7 @@ export interface AdminUserListResponse {
 }
 
 export interface AdminUserDetail extends AdminUserItem {
+    ip?: string;
     ban_reason?: string;
     banned_at?: string;
     theory_count: number;

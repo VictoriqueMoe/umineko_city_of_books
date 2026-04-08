@@ -45,7 +45,7 @@ type (
 )
 
 const (
-	userColumns = `id, username, password_hash, display_name, created_at, bio, avatar_url, banner_url, favourite_character, gender, pronoun_subject, pronoun_possessive, banned_at, banned_by, ban_reason, social_twitter, social_discord, social_waifulist, social_tumblr, social_github, website, banner_position, dms_enabled, episode_progress, email, email_public, email_notifications, home_page, game_board_sort`
+	userColumns = `u.id, u.username, u.password_hash, u.display_name, u.created_at, u.bio, u.avatar_url, u.banner_url, u.favourite_character, u.gender, u.pronoun_subject, u.pronoun_possessive, u.banned_at, u.banned_by, u.ban_reason, u.social_twitter, u.social_discord, u.social_waifulist, u.social_tumblr, u.social_github, u.website, u.banner_position, u.dms_enabled, u.episode_progress, u.email, u.email_public, u.email_notifications, u.home_page, u.game_board_sort, u.ip, COALESCE(r.role, '')`
 )
 
 func scanUser(row interface{ Scan(dest ...any) error }) (*model.User, error) {
@@ -55,7 +55,7 @@ func scanUser(row interface{ Scan(dest ...any) error }) (*model.User, error) {
 		&u.PronounSubject, &u.PronounPossessive,
 		&u.BannedAt, &u.BannedBy, &u.BanReason,
 		&u.SocialTwitter, &u.SocialDiscord, &u.SocialWaifulist, &u.SocialTumblr, &u.SocialGithub, &u.Website,
-		&u.BannerPosition, &u.DmsEnabled, &u.EpisodeProgress, &u.Email, &u.EmailPublic, &u.EmailNotifications, &u.HomePage, &u.GameBoardSort)
+		&u.BannerPosition, &u.DmsEnabled, &u.EpisodeProgress, &u.Email, &u.EmailPublic, &u.EmailNotifications, &u.HomePage, &u.GameBoardSort, &u.IP, &u.Role)
 	return &u, err
 }
 
@@ -84,7 +84,7 @@ func (r *userRepository) Create(ctx context.Context, username, password, display
 
 func (r *userRepository) GetByID(ctx context.Context, id uuid.UUID) (*model.User, error) {
 	u, err := scanUser(r.db.QueryRowContext(ctx,
-		`SELECT `+userColumns+` FROM users WHERE id = ?`, id,
+		`SELECT `+userColumns+` FROM users u LEFT JOIN user_roles r ON r.user_id = u.id WHERE u.id = ?`, id,
 	))
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
@@ -97,7 +97,7 @@ func (r *userRepository) GetByID(ctx context.Context, id uuid.UUID) (*model.User
 
 func (r *userRepository) GetByUsername(ctx context.Context, username string) (*model.User, error) {
 	u, err := scanUser(r.db.QueryRowContext(ctx,
-		`SELECT `+userColumns+` FROM users WHERE LOWER(username) = LOWER(?)`, username,
+		`SELECT `+userColumns+` FROM users u LEFT JOIN user_roles r ON r.user_id = u.id WHERE LOWER(u.username) = LOWER(?)`, username,
 	))
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
@@ -327,7 +327,7 @@ func (r *userRepository) ListAll(ctx context.Context, search string, limit, offs
 	where := ""
 	var args []interface{}
 	if search != "" {
-		where = " WHERE username LIKE ? OR display_name LIKE ?"
+		where = " WHERE u.username LIKE ? OR u.display_name LIKE ?"
 		pattern := "%" + search + "%"
 		args = append(args, pattern, pattern)
 	}
@@ -336,7 +336,7 @@ func (r *userRepository) ListAll(ctx context.Context, search string, limit, offs
 	countArgs := make([]interface{}, len(args))
 	copy(countArgs, args)
 	err := r.db.QueryRowContext(ctx,
-		"SELECT COUNT(*) FROM users"+where, countArgs...,
+		"SELECT COUNT(*) FROM users u"+where, countArgs...,
 	).Scan(&total)
 	if err != nil {
 		return nil, 0, fmt.Errorf("count users: %w", err)
@@ -344,7 +344,7 @@ func (r *userRepository) ListAll(ctx context.Context, search string, limit, offs
 
 	args = append(args, limit, offset)
 	rows, err := r.db.QueryContext(ctx,
-		"SELECT "+userColumns+" FROM users"+where+" ORDER BY created_at DESC LIMIT ? OFFSET ?", args...,
+		"SELECT "+userColumns+" FROM users u LEFT JOIN user_roles r ON r.user_id = u.id"+where+" ORDER BY u.created_at DESC LIMIT ? OFFSET ?", args...,
 	)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list users: %w", err)
@@ -364,7 +364,7 @@ func (r *userRepository) ListAll(ctx context.Context, search string, limit, offs
 
 func (r *userRepository) ListPublic(ctx context.Context) ([]model.User, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT `+userColumns+` FROM users WHERE banned_at IS NULL ORDER BY display_name COLLATE NOCASE`,
+		`SELECT `+userColumns+` FROM users u LEFT JOIN user_roles r ON r.user_id = u.id WHERE u.banned_at IS NULL ORDER BY u.display_name COLLATE NOCASE`,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("list public users: %w", err)
@@ -385,7 +385,7 @@ func (r *userRepository) ListPublic(ctx context.Context) ([]model.User, error) {
 func (r *userRepository) SearchByName(ctx context.Context, query string, limit int) ([]model.User, error) {
 	like := "%" + query + "%"
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT `+userColumns+` FROM users WHERE banned_at IS NULL AND (username LIKE ? OR display_name LIKE ?) ORDER BY CASE WHEN username LIKE ? THEN 0 ELSE 1 END, display_name COLLATE NOCASE LIMIT ?`,
+		`SELECT `+userColumns+` FROM users u LEFT JOIN user_roles r ON r.user_id = u.id WHERE u.banned_at IS NULL AND (u.username LIKE ? OR u.display_name LIKE ?) ORDER BY CASE WHEN u.username LIKE ? THEN 0 ELSE 1 END, u.display_name COLLATE NOCASE LIMIT ?`,
 		like, like, query+"%", limit,
 	)
 	if err != nil {

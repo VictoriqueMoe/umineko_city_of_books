@@ -40,12 +40,11 @@ interface SocialFeedPageProps {
 }
 
 export function SocialFeedPage({ corner = "general" }: SocialFeedPageProps) {
-    const { user } = useAuth();
+    const { user, setUser } = useAuth();
     const [searchParams, setSearchParams] = useSearchParams();
 
     const tab = (searchParams.get("tab") as FeedTab) || "everyone";
-    const savedSort = localStorage.getItem("ut-game-board-sort") as PostSort | null;
-    const sort = (searchParams.get("sort") as PostSort) || savedSort || "relevance";
+    const sort = (searchParams.get("sort") as PostSort) || (user?.game_board_sort as PostSort) || "relevance";
     const search = searchParams.get("search") || "";
     const page = parseInt(searchParams.get("page") || "1", 10);
 
@@ -129,8 +128,8 @@ export function SocialFeedPage({ corner = "general" }: SocialFeedPageProps) {
                         className={`${styles.sortBtn}${sort === opt.value ? ` ${styles.sortBtnActive}` : ""}`}
                         onClick={() => {
                             updateParams({ sort: opt.value, page: "1" });
-                            localStorage.setItem("ut-game-board-sort", opt.value);
                             if (user) {
+                                setUser({ ...user, game_board_sort: opt.value });
                                 updateGameBoardSort(opt.value).catch(() => {});
                             }
                         }}

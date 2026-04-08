@@ -98,8 +98,9 @@ export async function logout(): Promise<void> {
     await apiPost<unknown, undefined>("/auth/logout", undefined);
 }
 
-export async function getMe(): Promise<User> {
-    return apiFetch<User>("/auth/me");
+export async function getMe(): Promise<UserProfile> {
+    const session = await apiFetch<{ username: string }>("/auth/session");
+    return getUserProfile(session.username);
 }
 
 export type Series = "umineko" | "higurashi";

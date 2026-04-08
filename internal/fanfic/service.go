@@ -26,7 +26,7 @@ import (
 type (
 	Service interface {
 		CreateFanfic(ctx context.Context, userID uuid.UUID, req dto.CreateFanficRequest) (uuid.UUID, error)
-		GetFanfic(ctx context.Context, id, viewerID uuid.UUID) (*dto.FanficDetailResponse, error)
+		GetFanfic(ctx context.Context, id, viewerID uuid.UUID, viewerHash string) (*dto.FanficDetailResponse, error)
 		UpdateFanfic(ctx context.Context, id, userID uuid.UUID, req dto.UpdateFanficRequest) error
 		DeleteFanfic(ctx context.Context, id, userID uuid.UUID) error
 		ListFanfics(ctx context.Context, viewerID uuid.UUID, params repository.FanficListParams) (*dto.FanficListResponse, error)
@@ -160,13 +160,20 @@ func (s *service) CreateFanfic(ctx context.Context, userID uuid.UUID, req dto.Cr
 	return id, nil
 }
 
-func (s *service) GetFanfic(ctx context.Context, id, viewerID uuid.UUID) (*dto.FanficDetailResponse, error) {
+func (s *service) GetFanfic(ctx context.Context, id, viewerID uuid.UUID, viewerHash string) (*dto.FanficDetailResponse, error) {
 	row, err := s.fanficRepo.GetByID(ctx, id, viewerID)
 	if err != nil {
 		return nil, err
 	}
 	if row == nil {
 		return nil, ErrNotFound
+	}
+
+	if viewerHash != "" {
+		isNew, _ := s.fanficRepo.RecordView(ctx, id, viewerHash)
+		if isNew {
+			row.ViewCount++
+		}
 	}
 
 	if row.Status == "draft" && row.UserID != viewerID && !s.authz.Can(ctx, viewerID, authz.PermEditAnyTheory) {

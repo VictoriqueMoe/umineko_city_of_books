@@ -26,6 +26,7 @@ type (
 
 	AdminUserDetailResponse struct {
 		AdminUserItem
+		IP            string `json:"ip,omitempty"`
 		BanReason     string `json:"ban_reason,omitempty"`
 		BannedAt      string `json:"banned_at,omitempty"`
 		TheoryCount   int    `json:"theory_count"`
