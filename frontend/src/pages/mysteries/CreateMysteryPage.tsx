@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import { useAuth } from "../../hooks/useAuth";
-import { createMystery, uploadMysteryAttachment } from "../../api/endpoints";
+import { createMystery, getMystery, updateMystery, uploadMysteryAttachment } from "../../api/endpoints";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
 import { TextArea } from "../../components/TextArea/TextArea";
@@ -16,6 +16,8 @@ interface ClueInput {
 }
 
 export function CreateMysteryPage() {
+    const { id: editId } = useParams<{ id: string }>();
+    const isEdit = !!editId;
     const navigate = useNavigate();
     const { user, loading: authLoading } = useAuth();
     const [title, setTitle] = useState("");
@@ -26,12 +28,33 @@ export function CreateMysteryPage() {
     const attachmentInputRef = useRef<HTMLInputElement>(null);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
+    const [editLoading, setEditLoading] = useState(isEdit);
 
     useEffect(() => {
         if (!authLoading && !user) {
             navigate("/login");
         }
     }, [user, authLoading, navigate]);
+
+    useEffect(() => {
+        if (!isEdit || !editId) {
+            return;
+        }
+        getMystery(editId)
+            .then(data => {
+                setTitle(data.title);
+                setBody(data.body);
+                setDifficulty(data.difficulty);
+                const gmClues = (data.clues ?? []).filter(c => !c.player_id);
+                if (gmClues.length > 0) {
+                    setClues(gmClues.map(c => ({ body: c.body, truth_type: c.truth_type })));
+                }
+                setEditLoading(false);
+            })
+            .catch(() => {
+                setEditLoading(false);
+            });
+    }, [isEdit, editId]);
 
     function addClue() {
         setClues(prev => [...prev, { body: "", truth_type: "red" }]);
@@ -58,20 +81,37 @@ export function CreateMysteryPage() {
         setError("");
         try {
             const validClues = clues.filter(c => c.body.trim());
-            const result = await createMystery({
-                title: title.trim(),
-                body: body.trim(),
-                difficulty,
-                clues: validClues,
-            });
-            for (const file of attachments) {
-                try {
-                    await uploadMysteryAttachment(result.id, file);
-                } catch {}
+            if (isEdit && editId) {
+                await updateMystery(editId, {
+                    title: title.trim(),
+                    body: body.trim(),
+                    difficulty,
+                    clues: validClues,
+                });
+                for (const file of attachments) {
+                    try {
+                        await uploadMysteryAttachment(editId, file);
+                    } catch {}
+                }
+                navigate(`/mystery/${editId}`);
+            } else {
+                const result = await createMystery({
+                    title: title.trim(),
+                    body: body.trim(),
+                    difficulty,
+                    clues: validClues,
+                });
+                for (const file of attachments) {
+                    try {
+                        await uploadMysteryAttachment(result.id, file);
+                    } catch {}
+                }
+                navigate(`/mystery/${result.id}`);
             }
-            navigate(`/mystery/${result.id}`);
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to create mystery");
+            setError(
+                err instanceof Error ? err.message : isEdit ? "Failed to update mystery" : "Failed to create mystery",
+            );
         } finally {
             setSubmitting(false);
         }
@@ -81,25 +121,34 @@ export function CreateMysteryPage() {
         return null;
     }
 
+    if (editLoading) {
+        return <div className="loading">Loading mystery...</div>;
+    }
+
     return (
         <div className={styles.formPage}>
-            <h2 className={styles.formHeading}>Create a Mystery</h2>
+            <span className={styles.back} onClick={() => navigate(isEdit ? `/mystery/${editId}` : "/mysteries")}>
+                &larr; {isEdit ? "Back to Mystery" : "All Mysteries"}
+            </span>
+            <h2 className={styles.formHeading}>{isEdit ? "Edit Mystery" : "Create a Mystery"}</h2>
 
-            <InfoPanel title="Game Master's Guide">
-                <p>
-                    As the Game Master, you control the board. Write a mystery scenario that is solvable from the
-                    information you provide, the pieces should have everything they need to reach the truth.
-                </p>
-                <p>
-                    Set your <strong>red truths</strong>, these are absolute facts that cannot be denied. Use them to
-                    define the boundaries of your mystery. You can also use <strong>purple truths</strong> for
-                    statements from characters that may or may not be reliable.
-                </p>
-                <p>
-                    Once pieces begin submitting their blue truths, you can reply to dismantle incorrect theories, add
-                    additional red truths if needed, and ultimately select a winner when someone solves it.
-                </p>
-            </InfoPanel>
+            {!isEdit && (
+                <InfoPanel title="Game Master's Guide">
+                    <p>
+                        As the Game Master, you control the board. Write a mystery scenario that is solvable from the
+                        information you provide, the pieces should have everything they need to reach the truth.
+                    </p>
+                    <p>
+                        Set your <strong>red truths</strong>, these are absolute facts that cannot be denied. Use them
+                        to define the boundaries of your mystery. You can also use <strong>purple truths</strong> for
+                        statements from characters that may or may not be reliable.
+                    </p>
+                    <p>
+                        Once pieces begin submitting their blue truths, you can reply to dismantle incorrect theories,
+                        add additional red truths if needed, and ultimately select a winner when someone solves it.
+                    </p>
+                </InfoPanel>
+            )}
 
             {error && <ErrorBanner message={error} />}
 
@@ -209,11 +258,21 @@ export function CreateMysteryPage() {
                 </div>
 
                 <div className={styles.formActions}>
-                    <Button variant="ghost" type="button" onClick={() => navigate("/mysteries")}>
+                    <Button
+                        variant="ghost"
+                        type="button"
+                        onClick={() => navigate(isEdit ? `/mystery/${editId}` : "/mysteries")}
+                    >
                         Cancel
                     </Button>
                     <Button variant="primary" type="submit" disabled={!title.trim() || !body.trim() || submitting}>
-                        {submitting ? "Creating..." : "Present Mystery"}
+                        {submitting
+                            ? isEdit
+                                ? "Saving..."
+                                : "Creating..."
+                            : isEdit
+                              ? "Save Changes"
+                              : "Present Mystery"}
                     </Button>
                 </div>
             </form>

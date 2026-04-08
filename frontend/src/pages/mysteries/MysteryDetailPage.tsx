@@ -11,7 +11,6 @@ import {
     getMystery,
     likeMysteryComment,
     unlikeMysteryComment,
-    updateMystery,
     updateMysteryComment,
     uploadMysteryAttachment,
     uploadMysteryCommentMedia,
@@ -175,9 +174,6 @@ export function MysteryDetailPage() {
     const initialUnreadComputedFor = useRef<string | null>(null);
     const [newClueBody, setNewClueBody] = useState("");
     const [addingClue, setAddingClue] = useState(false);
-    const [editingBody, setEditingBody] = useState(false);
-    const [editBody, setEditBody] = useState("");
-    const [savingEdit, setSavingEdit] = useState(false);
     const [uploadingAttachment, setUploadingAttachment] = useState(false);
     const [attachmentError, setAttachmentError] = useState("");
     const attachmentInputRef = useRef<HTMLInputElement>(null);
@@ -401,31 +397,6 @@ export function MysteryDetailPage() {
         }
     }
 
-    async function handleSaveEdit() {
-        if (!editBody.trim() || savingEdit || !mystery) {
-            return;
-        }
-        setSavingEdit(true);
-        try {
-            await updateMystery(mystery.id, {
-                title: mystery.title,
-                body: editBody.trim(),
-                difficulty: mystery.difficulty,
-                clues: mystery.clues
-                    .filter(c => !c.player_id)
-                    .map(c => ({
-                        body: c.body,
-                        truth_type: c.truth_type,
-                    })),
-            });
-            setEditingBody(false);
-            fetchMystery();
-        } catch {
-        } finally {
-            setSavingEdit(false);
-        }
-    }
-
     async function handleDelete() {
         if (!window.confirm("Delete this mystery? This cannot be undone.")) {
             return;
@@ -505,14 +476,11 @@ export function MysteryDetailPage() {
                         </div>
                     </div>
                     <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-                        {canEdit && !editingBody && (
+                        {canEdit && (
                             <Button
                                 variant="secondary"
                                 size="small"
-                                onClick={() => {
-                                    setEditBody(mystery.body);
-                                    setEditingBody(true);
-                                }}
+                                onClick={() => navigate(`/mystery/${mystery.id}/edit`)}
                             >
                                 Edit
                             </Button>
@@ -527,38 +495,7 @@ export function MysteryDetailPage() {
                     </div>
                 </div>
 
-                {editingBody ? (
-                    <div style={{ marginTop: "0.5rem" }}>
-                        <textarea
-                            className={styles.editTextarea}
-                            value={editBody}
-                            onChange={e => setEditBody(e.target.value)}
-                            rows={6}
-                        />
-                        <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.5rem" }}>
-                            <Button
-                                variant="primary"
-                                size="small"
-                                onClick={handleSaveEdit}
-                                disabled={savingEdit || !editBody.trim()}
-                            >
-                                {savingEdit ? "Saving..." : "Save"}
-                            </Button>
-                            <Button
-                                variant="ghost"
-                                size="small"
-                                onClick={() => {
-                                    setEditingBody(false);
-                                    setEditBody(mystery.body);
-                                }}
-                            >
-                                Cancel
-                            </Button>
-                        </div>
-                    </div>
-                ) : (
-                    <div className={styles.detailBody}>{mystery.body}</div>
-                )}
+                <div className={styles.detailBody}>{mystery.body}</div>
 
                 {mystery.clues.filter(c => !c.player_id).length > 0 && (
                     <div className={styles.cluesSection}>

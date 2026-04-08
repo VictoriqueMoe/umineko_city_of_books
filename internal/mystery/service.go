@@ -272,6 +272,13 @@ func (s *service) UpdateMystery(ctx context.Context, id uuid.UUID, userID uuid.U
 	if !s.authz.Can(ctx, userID, authz.PermEditAnyTheory) {
 		return fmt.Errorf("not authorised")
 	}
+
+	old, err := s.mysteryRepo.GetByID(ctx, id)
+	if err != nil || old == nil {
+		return ErrNotFound
+	}
+	oldClues, _ := s.mysteryRepo.GetClues(ctx, id)
+
 	if err := s.mysteryRepo.UpdateAsAdmin(ctx, id, req.Title, req.Body, req.Difficulty); err != nil {
 		return err
 	}
@@ -288,7 +295,60 @@ func (s *service) UpdateMystery(ctx context.Context, id uuid.UUID, userID uuid.U
 		_ = s.mysteryRepo.AddClue(ctx, id, clue.Body, truthType, i, nil)
 	}
 
+	if old.UserID != userID {
+		var changes []string
+		if old.Title != req.Title {
+			changes = append(changes, "title")
+		}
+		if old.Body != req.Body {
+			changes = append(changes, "description")
+		}
+		if old.Difficulty != req.Difficulty {
+			changes = append(changes, "difficulty")
+		}
+		if cluesChanged(oldClues, req.Clues) {
+			changes = append(changes, "truths")
+		}
+		if len(changes) > 0 {
+			message := fmt.Sprintf("your mystery was edited (changed: %s)", strings.Join(changes, ", "))
+			go func() {
+				bgCtx := context.Background()
+				baseURL := s.settingsSvc.Get(bgCtx, config.SettingBaseURL)
+				linkURL := fmt.Sprintf("%s/mystery/%s", baseURL, id)
+				subject, body := notification.NotifEmail("A moderator", "edited your mystery", "", linkURL)
+				_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
+					RecipientID:   old.UserID,
+					Type:          dto.NotifContentEdited,
+					ReferenceID:   id,
+					ReferenceType: "mystery",
+					ActorID:       userID,
+					Message:       message,
+					EmailSubject:  subject,
+					EmailBody:     body,
+				})
+			}()
+		}
+	}
+
 	return nil
+}
+
+func cluesChanged(old []dto.MysteryClue, new []dto.CreateClueRequest) bool {
+	gmClues := make([]dto.MysteryClue, 0)
+	for _, c := range old {
+		if c.PlayerID == nil {
+			gmClues = append(gmClues, c)
+		}
+	}
+	if len(gmClues) != len(new) {
+		return true
+	}
+	for i, c := range gmClues {
+		if c.Body != new[i].Body || c.TruthType != new[i].TruthType {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *service) DeleteMystery(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {

@@ -147,6 +147,9 @@ function AppLayout() {
                             <Route path="/theory/new" element={<CreateTheoryPage />} />
                             <Route path="/theory/higurashi/new" element={<CreateTheoryPage series="higurashi" />} />
                             <Route path="/mystery/new" element={<CreateMysteryPage />} />
+                            <Route element={<ProtectedRoute permission="edit_any_theory" />}>
+                                <Route path="/mystery/:id/edit" element={<CreateMysteryPage />} />
+                            </Route>
                             <Route path="/ships/new" element={<CreateShipPage />} />
                             <Route path="/fanfiction/new" element={<FanficEditorPage />} />
                             <Route path="/fanfiction/:id/edit" element={<FanficEditorPage />} />

@@ -158,6 +158,7 @@ func (s *service) CreatePost(ctx context.Context, userID uuid.UUID, req dto.Crea
 
 	if isShare {
 		go s.postRepo.IncrementShareCount(context.Background(), req.SharedContentID, req.SharedContentType)
+		go s.notifyContentShared(userID, id, req.SharedContentID, req.SharedContentType)
 	}
 
 	if req.Poll != nil {
@@ -909,4 +910,42 @@ func (s *service) UnresolveSuggestion(ctx context.Context, postID uuid.UUID, use
 
 func (s *service) GetShareCount(ctx context.Context, contentID string, contentType string) (int, error) {
 	return s.postRepo.GetShareCount(ctx, contentID, contentType)
+}
+
+func (s *service) notifyContentShared(sharerID uuid.UUID, postID uuid.UUID, contentID string, contentType string) {
+	bgCtx := context.Background()
+
+	tableMap := map[string]string{
+		"post":    "posts",
+		"art":     "art_pieces",
+		"ship":    "ships",
+		"mystery": "mysteries",
+		"theory":  "theories",
+		"fanfic":  "fanfics",
+	}
+	table, ok := tableMap[contentType]
+	if !ok {
+		return
+	}
+
+	var authorID uuid.UUID
+	if err := s.db.QueryRowContext(bgCtx, `SELECT user_id FROM `+table+` WHERE id = ?`, contentID).Scan(&authorID); err != nil {
+		return
+	}
+	if authorID == sharerID {
+		return
+	}
+
+	baseURL := s.settingsSvc.Get(bgCtx, config.SettingBaseURL)
+	linkURL := fmt.Sprintf("%s/game-board/%s", baseURL, postID)
+	subject, body := notification.NotifEmail("Someone", "shared your content", "", linkURL)
+	_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
+		RecipientID:   authorID,
+		Type:          dto.NotifContentShared,
+		ReferenceID:   postID,
+		ReferenceType: "post",
+		ActorID:       sharerID,
+		EmailSubject:  subject,
+		EmailBody:     body,
+	})
 }

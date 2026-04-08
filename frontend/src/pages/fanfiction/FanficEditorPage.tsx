@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import type { ShipCharacter } from "../../types/api";
+import { useAuth } from "../../hooks/useAuth";
 import {
     createFanfic,
     createFanficChapter,
@@ -20,6 +21,7 @@ import { MentionTextArea } from "../../components/MentionTextArea/MentionTextAre
 import { CharacterPicker } from "../../components/CharacterPicker/CharacterPicker";
 import { RichTextEditor } from "../../components/RichTextEditor/RichTextEditor";
 import { ToggleSwitch } from "../../components/ToggleSwitch/ToggleSwitch";
+import { can } from "../../utils/permissions";
 import { ErrorBanner } from "../../components/ErrorBanner/ErrorBanner";
 import styles from "./FanficPages.module.css";
 
@@ -91,6 +93,7 @@ export function FanficEditorPage() {
     const { id: editId } = useParams<{ id: string }>();
     const isEdit = !!editId;
     const navigate = useNavigate();
+    const { user } = useAuth();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [draftPrompt, setDraftPrompt] = useState<DraftData | null>(null);
     const [initialised, setInitialised] = useState(isEdit);
@@ -143,6 +146,10 @@ export function FanficEditorPage() {
         }
         getFanfic(editId)
             .then(data => {
+                if (data.author.id !== user?.id && !can(user?.role, "edit_any_theory")) {
+                    navigate(`/fanfiction/${editId}`);
+                    return;
+                }
                 setTitle(data.title);
                 setSummary(data.summary);
                 setRating(data.rating);
@@ -189,7 +196,7 @@ export function FanficEditorPage() {
                 setEditLoading(false);
             })
             .catch(() => setEditLoading(false));
-    }, [isEdit, editId]);
+    }, [isEdit, editId, user?.id, user?.role, navigate]);
 
     useEffect(() => {
         if (isEdit) {
