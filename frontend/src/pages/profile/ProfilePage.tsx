@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { useAuth } from "../../hooks/useAuth";
 import { useProfile } from "../../hooks/useProfile";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import { useTheoryFeed } from "../../hooks/useTheoryFeed";
 import { useFollow } from "../../hooks/useFollow";
 import { useBlock } from "../../hooks/useBlock";
@@ -78,6 +79,7 @@ export function ProfilePage() {
     const navigate = useNavigate();
     const { user: currentUser } = useAuth();
     const { profile, loading } = useProfile(username ?? "");
+    usePageTitle(profile?.display_name ?? "Profile");
     const [activeTab, setActiveTab] = useState<TabType>("posts");
     const follow = useFollow(profile?.id ?? "");
     const blockHook = useBlock(profile?.id ?? "");

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import type { GMLeaderboardEntry, Mystery, MysteryLeaderboardEntry, User } from "../../types/api";
 import { getGMLeaderboard, getMysteryLeaderboard, listMysteries } from "../../api/endpoints";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
@@ -89,6 +90,7 @@ function LeaderboardAvatar({ user }: { user: User }) {
 }
 
 export function MysteryListPage() {
+    usePageTitle("Mysteries");
     const [searchParams, setSearchParams] = useSearchParams();
     const [mysteries, setMysteries] = useState<Mystery[]>([]);
     const [total, setTotal] = useState(0);

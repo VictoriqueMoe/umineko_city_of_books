@@ -1,3 +1,4 @@
+import { usePageTitle } from "../../hooks/usePageTitle";
 import styles from "./MaintenancePage.module.css";
 
 interface MaintenancePageProps {
@@ -6,6 +7,7 @@ interface MaintenancePageProps {
 }
 
 export function MaintenancePage({ title, message }: MaintenancePageProps) {
+    usePageTitle("Maintenance");
     return (
         <div className={styles.page}>
             <div className={styles.card}>

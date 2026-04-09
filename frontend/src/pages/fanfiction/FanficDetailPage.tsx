@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import type { FanficDetail, PostComment } from "../../types/api";
 import {
     createFanficComment,
@@ -66,6 +67,7 @@ export function FanficDetailPage() {
     const [loading, setLoading] = useState(true);
     const [lightboxOpen, setLightboxOpen] = useState(false);
     const [favouriting, setFavouriting] = useState(false);
+    usePageTitle(fanfic?.title ?? "Fanfic");
 
     const fetchFanfic = useCallback(() => {
         if (!id) {

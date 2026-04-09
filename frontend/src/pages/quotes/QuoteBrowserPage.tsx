@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { QuoteBrowseResponse } from "../../types/api";
 import type { Series } from "../../api/endpoints";
 import { browseQuotes, getCharacters } from "../../api/endpoints";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import { getSeriesConfig } from "../../utils/seriesConfig";
 import { TruthCard } from "../../components/truth/TruthCard/TruthCard";
 import { Pagination } from "../../components/Pagination/Pagination";
@@ -18,6 +19,7 @@ const TRUTH_COLOURS: Record<string, { base: string; active: string }> = {
 };
 
 export function QuoteBrowserPage() {
+    usePageTitle("Quotes");
     const [series, setSeries] = useState<Series>("umineko");
     const [episode, setEpisode] = useState(0);
     const [arc, setArc] = useState("");

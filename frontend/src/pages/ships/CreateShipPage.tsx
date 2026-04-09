@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import type { ShipCharacter } from "../../types/api";
 import { createShip, uploadShipImage } from "../../api/endpoints";
 import { Button } from "../../components/Button/Button";
@@ -9,6 +10,7 @@ import { ErrorBanner } from "../../components/ErrorBanner/ErrorBanner";
 import styles from "./ShipPages.module.css";
 
 export function CreateShipPage() {
+    usePageTitle("New Ship");
     const navigate = useNavigate();
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");

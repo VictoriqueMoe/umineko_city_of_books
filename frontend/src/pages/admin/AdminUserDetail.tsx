@@ -1,5 +1,6 @@
 import { useEffect, useReducer, useState } from "react";
 import { useNavigate, useParams } from "react-router";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import {
     adminDeleteUser,
     banUser,
@@ -26,6 +27,7 @@ export function AdminUserDetail() {
     const navigate = useNavigate();
     const { user: currentUser } = useAuth();
     const [user, setUser] = useState<AdminUserDetailType | null>(null);
+    usePageTitle(user ? `Admin - ${user.display_name}` : "Admin - User");
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [feedback, setFeedback] = useState("");

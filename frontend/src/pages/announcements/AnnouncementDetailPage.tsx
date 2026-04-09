@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import { marked } from "marked";
 import DOMPurify from "dompurify";
 import type { Announcement, PostComment } from "../../types/api";
@@ -31,6 +32,7 @@ export function AnnouncementDetailPage() {
     const { user } = useAuth();
     const [announcement, setAnnouncement] = useState<Announcement | null>(null);
     const [loading, setLoading] = useState(true);
+    usePageTitle(announcement?.title ?? "Announcement");
     const hash = location.hash;
     const highlightedComment = hash.startsWith("#comment-") ? hash.replace("#comment-", "") : null;
 

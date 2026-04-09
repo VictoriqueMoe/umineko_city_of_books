@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import { usePostFeed } from "../../hooks/usePostFeed";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import { resolveSuggestion, unresolveSuggestion } from "../../api/endpoints";
 import { can } from "../../utils/permissions";
 import { PostCard } from "../../components/post/PostCard/PostCard";
@@ -13,6 +14,7 @@ import { Select } from "../../components/Select/Select";
 import styles from "./SuggestionsPage.module.css";
 
 export function SuggestionsPage() {
+    usePageTitle("Suggestions");
     const { user } = useAuth();
     const [page, setPage] = useState(1);
     const [filter, setFilter] = useState("open");

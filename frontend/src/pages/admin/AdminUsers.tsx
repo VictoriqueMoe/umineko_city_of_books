@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { getAdminUsers } from "../../api/endpoints";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import { Input } from "../../components/Input/Input";
 import { Pagination } from "../../components/Pagination/Pagination";
 import { RolePill } from "../../components/RolePill/RolePill";
@@ -10,6 +11,7 @@ import styles from "./AdminUsers.module.css";
 const LIMIT = 20;
 
 export function AdminUsers() {
+    usePageTitle("Admin - Users");
     const navigate = useNavigate();
     const [users, setUsers] = useState<AdminUserItem[]>([]);
     const [total, setTotal] = useState(0);

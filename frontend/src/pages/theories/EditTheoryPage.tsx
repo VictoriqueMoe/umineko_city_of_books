@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useAuth } from "../../hooks/useAuth";
+import { usePageTitle } from "../../hooks/usePageTitle";
+import type { Series } from "../../api/endpoints";
 import { getTheory, updateTheory } from "../../api/endpoints";
 import { Button } from "../../components/Button/Button";
 import { TheoryForm } from "../../components/theory/TheoryForm/TheoryForm";
 import type { EvidenceItem } from "../../types/api";
-import type { Series } from "../../api/endpoints";
 import formStyles from "../../components/theory/TheoryForm/TheoryForm.module.css";
 
 export function EditTheoryPage() {
+    usePageTitle("Edit Theory");
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { user, loading: authLoading } = useAuth();

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import type { Art, Gallery } from "../../types/api";
 import {
     deleteGallery as apiDeleteGallery,
@@ -21,6 +22,7 @@ export function GalleryDetailPage() {
     const navigate = useNavigate();
     const { user } = useAuth();
     const [gallery, setGallery] = useState<Gallery | null>(null);
+    usePageTitle(gallery?.name ?? "Gallery");
     const [art, setArt] = useState<Art[]>([]);
     const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(true);

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { createFanficChapter, getFanficChapter, updateFanficChapter } from "../../api/endpoints";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
 import { RichTextEditor } from "../../components/RichTextEditor/RichTextEditor";
@@ -13,6 +14,7 @@ export function ChapterEditorPage() {
 
     const isEdit = numParam !== "new" && numParam !== undefined;
     const chapterNumber = isEdit ? Number(numParam) : 0;
+    usePageTitle(isEdit ? `Edit Chapter ${chapterNumber}` : "New Chapter");
 
     const [chapterId, setChapterId] = useState("");
     const [title, setTitle] = useState("");

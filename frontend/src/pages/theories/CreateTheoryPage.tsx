@@ -1,12 +1,14 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router";
 import { useAuth } from "../../hooks/useAuth";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import { createTheory, type Series } from "../../api/endpoints";
 import { TheoryForm } from "../../components/theory/TheoryForm/TheoryForm";
 import { RulesBox } from "../../components/RulesBox/RulesBox";
 import formStyles from "../../components/theory/TheoryForm/TheoryForm.module.css";
 
 export function CreateTheoryPage({ series = "umineko" }: { series?: Series }) {
+    usePageTitle("New Theory");
     const navigate = useNavigate();
     const { user, loading: authLoading } = useAuth();
 

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import type { FeedTab } from "../../types/api";
 import { updateGameBoardSort } from "../../api/endpoints";
 import { useAuth } from "../../hooks/useAuth";
@@ -40,6 +41,7 @@ interface SocialFeedPageProps {
 }
 
 export function SocialFeedPage({ corner = "general" }: SocialFeedPageProps) {
+    usePageTitle("Game Board");
     const { user, setUser } = useAuth();
     const [searchParams, setSearchParams] = useSearchParams();
 

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import type { ShipCharacter } from "../../types/api";
 import { useAuth } from "../../hooks/useAuth";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import {
     createFanfic,
     createFanficChapter,
@@ -92,6 +93,7 @@ function clearDraft() {
 export function FanficEditorPage() {
     const { id: editId } = useParams<{ id: string }>();
     const isEdit = !!editId;
+    usePageTitle(isEdit ? "Edit Fanfic" : "New Fanfic");
     const navigate = useNavigate();
     const { user } = useAuth();
     const fileInputRef = useRef<HTMLInputElement>(null);

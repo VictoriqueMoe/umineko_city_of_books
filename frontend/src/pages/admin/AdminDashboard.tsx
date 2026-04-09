@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { getAdminStats } from "../../api/endpoints";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import type { AdminStats } from "../../types/api";
 import styles from "./AdminDashboard.module.css";
 
 export function AdminDashboard() {
+    usePageTitle("Admin");
     const [stats, setStats] = useState<AdminStats | null>(null);
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(true);

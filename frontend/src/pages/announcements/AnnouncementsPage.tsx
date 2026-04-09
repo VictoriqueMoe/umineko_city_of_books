@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import type { Announcement } from "../../types/api";
 import { listAnnouncements } from "../../api/endpoints";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
@@ -8,6 +9,7 @@ import { relativeTime } from "../../utils/notifications";
 import styles from "./AnnouncementsPage.module.css";
 
 export function AnnouncementsPage() {
+    usePageTitle("Announcements");
     const [announcements, setAnnouncements] = useState<Announcement[]>([]);
     const [total, setTotal] = useState(0);
     const [offset, setOffset] = useState(0);

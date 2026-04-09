@@ -82,7 +82,7 @@ export function NotificationProvider({ children }: PropsWithChildren) {
         socket.onerror = () => {
             socket.close();
         };
-    }, [closeSocket]);
+    }, [closeSocket, setUser]);
 
     useEffect(() => {
         if (!user) {
@@ -107,14 +107,7 @@ export function NotificationProvider({ children }: PropsWithChildren) {
         };
     }, [user, connectWs, closeSocket]);
 
-    useEffect(() => {
-        const base = "Umineko City of Books";
-        if (unreadCount > 0) {
-            document.title = `(${unreadCount}) ${base}`;
-        } else {
-            document.title = base;
-        }
-    }, [unreadCount]);
+    // Page titles are now handled by usePageTitle hook per page
 
     const markRead = useCallback(async (id: number) => {
         await api.markNotificationRead(id);

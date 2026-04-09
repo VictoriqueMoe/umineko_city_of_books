@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useState } from "react";
 import { Link } from "react-router";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import type { Ship, ShipCharacter } from "../../types/api";
 import { listShips } from "../../api/endpoints";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
@@ -36,6 +37,7 @@ export function CharacterPills({ characters }: { characters: ShipCharacter[] }) 
 }
 
 export function ShipsListPage() {
+    usePageTitle("Ships");
     const [ships, setShips] = useState<Ship[]>([]);
     const [total, setTotal] = useState(0);
     const [offset, setOffset] = useState(0);

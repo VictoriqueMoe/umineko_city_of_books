@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getAdminSettings, updateAdminSettings } from "../../api/endpoints";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
 import { Select } from "../../components/Select/Select";
@@ -10,6 +11,7 @@ import styles from "./AdminSettings.module.css";
 const BYTES_PER_MB = 1024 * 1024;
 
 export function AdminSettings() {
+    usePageTitle("Admin - Settings");
     const [settings, setSettings] = useState<SiteSettings>({});
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);

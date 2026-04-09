@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router";
 import { useTheory } from "../../hooks/useTheory";
 import { useVote } from "../../hooks/useVote";
 import { useAuth } from "../../hooks/useAuth";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import type { Series } from "../../api/endpoints";
 import { deleteTheory, voteTheory } from "../../api/endpoints";
 import { Button } from "../../components/Button/Button";
@@ -25,6 +26,7 @@ export function TheoryPage() {
     const { user } = useAuth();
     const theoryId = id ?? "";
     const { theory, loading, refresh } = useTheory(theoryId);
+    usePageTitle(theory?.title ?? "Theory");
     const [spoilerDismissed, setSpoilerDismissed] = useState(false);
 
     const voteFn = useCallback(

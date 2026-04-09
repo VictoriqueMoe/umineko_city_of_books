@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { useAuth } from "../../hooks/useAuth";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import type { Fanfic } from "../../types/api";
 import {
     getCharacters,
@@ -67,6 +68,7 @@ function formatWordCount(n: number): string {
 }
 
 export function FanfictionListPage() {
+    usePageTitle("Fanfiction");
     const { user } = useAuth();
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();

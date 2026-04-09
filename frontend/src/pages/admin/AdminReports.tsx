@@ -2,12 +2,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import type { ReportItem } from "../../api/endpoints";
 import { getReports, resolveReport } from "../../api/endpoints";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import { Button } from "../../components/Button/Button";
 import { Modal } from "../../components/Modal/Modal";
 import { Select } from "../../components/Select/Select";
 import styles from "./AdminReports.module.css";
 
 export function AdminReports() {
+    usePageTitle("Admin - Reports");
     const navigate = useNavigate();
     const [reports, setReports] = useState<ReportItem[]>([]);
     const [status, setStatus] = useState("open");

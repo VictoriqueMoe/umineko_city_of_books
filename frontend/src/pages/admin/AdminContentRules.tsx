@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getAdminSettings, updateAdminSettings } from "../../api/endpoints";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import { Button } from "../../components/Button/Button";
 import { TextArea } from "../../components/TextArea/TextArea";
 import type { SiteSettings } from "../../types/api";
@@ -23,6 +24,7 @@ const pages = [
 ];
 
 export function AdminContentRules() {
+    usePageTitle("Admin - Content Rules");
     const [settings, setSettings] = useState<SiteSettings>({});
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);

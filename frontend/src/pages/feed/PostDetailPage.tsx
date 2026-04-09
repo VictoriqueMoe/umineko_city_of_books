@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import type { PostDetail } from "../../types/api";
 import { getPost } from "../../api/endpoints";
 import { useAuth } from "../../hooks/useAuth";
@@ -10,6 +11,7 @@ import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import styles from "./PostDetailPage.module.css";
 
 export function PostDetailPage() {
+    usePageTitle("Post");
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const location = useLocation();

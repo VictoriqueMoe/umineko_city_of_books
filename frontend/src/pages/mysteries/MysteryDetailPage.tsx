@@ -1,5 +1,6 @@
 import { type MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import type { MysteryAttachment, MysteryAttempt, MysteryClue, MysteryDetail, PostComment } from "../../types/api";
 import {
     addMysteryClue,
@@ -269,6 +270,7 @@ export function MysteryDetailPage() {
     const { addWSListener } = useNotifications();
     const [mystery, setMystery] = useState<MysteryDetail | null>(null);
     const [loading, setLoading] = useState(true);
+    usePageTitle(mystery?.title ?? "Mystery");
     const hash = location.hash;
     const highlightedAttempt = hash.startsWith("#attempt-") ? hash.replace("#attempt-", "") : null;
     const [attemptBody, setAttemptBody] = useState("");

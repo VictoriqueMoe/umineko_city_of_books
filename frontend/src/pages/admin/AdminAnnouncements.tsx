@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { marked } from "marked";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import DOMPurify from "dompurify";
 import type { Announcement } from "../../types/api";
 import {
@@ -21,6 +22,7 @@ function renderMarkdown(md: string): string {
 }
 
 export function AdminAnnouncements() {
+    usePageTitle("Admin - Announcements");
     const [announcements, setAnnouncements] = useState<Announcement[]>([]);
     const [loading, setLoading] = useState(true);
     const [editingId, setEditingId] = useState<string | null>(null);

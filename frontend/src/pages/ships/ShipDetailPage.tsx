@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import type { PostComment, ShipCharacter, ShipDetail } from "../../types/api";
 import {
     createShipComment,
@@ -44,6 +45,7 @@ export function ShipDetailPage() {
     const location = useLocation();
     const { user } = useAuth();
     const [ship, setShip] = useState<ShipDetail | null>(null);
+    usePageTitle(ship?.title ?? "Ship");
     const [loading, setLoading] = useState(true);
     const [voting, setVoting] = useState(false);
     const [lightboxOpen, setLightboxOpen] = useState(false);

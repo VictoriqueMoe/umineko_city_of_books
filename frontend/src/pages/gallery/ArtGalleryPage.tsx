@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { useAuth } from "../../hooks/useAuth";
 import { useArtFeed } from "../../hooks/useArtFeed";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import { createGallery, getPopularTags, getUserGalleries, listAllGalleries } from "../../api/endpoints";
 import type { Gallery, TagCount } from "../../types/api";
 import { ArtGrid } from "../../components/art/ArtGrid/ArtGrid";
@@ -40,6 +41,7 @@ interface ArtGalleryPageProps {
 }
 
 export function ArtGalleryPage({ corner = "general" }: ArtGalleryPageProps) {
+    usePageTitle("Gallery");
     const { user } = useAuth();
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();

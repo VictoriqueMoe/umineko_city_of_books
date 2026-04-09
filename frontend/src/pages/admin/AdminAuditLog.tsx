@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { getAuditLog } from "../../api/endpoints";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import { Pagination } from "../../components/Pagination/Pagination";
 import { Select } from "../../components/Select/Select";
 import type { AuditLogEntry } from "../../types/api";
@@ -8,6 +9,7 @@ import styles from "./AdminAuditLog.module.css";
 const LIMIT = 50;
 
 export function AdminAuditLog() {
+    usePageTitle("Admin - Audit Log");
     const [entries, setEntries] = useState<AuditLogEntry[]>([]);
     const [total, setTotal] = useState(0);
     const [offset, setOffset] = useState(0);

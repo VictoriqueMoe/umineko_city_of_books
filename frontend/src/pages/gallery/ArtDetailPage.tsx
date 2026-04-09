@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import type { ArtDetail } from "../../types/api";
 import {
     createArtComment,
@@ -36,6 +37,7 @@ export function ArtDetailPage() {
     const location = useLocation();
     const { user } = useAuth();
     const [art, setArt] = useState<ArtDetail | null>(null);
+    usePageTitle(art?.title ?? "Art");
     const [loading, setLoading] = useState(true);
     const [liked, setLiked] = useState(false);
     const [likeCount, setLikeCount] = useState(0);

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { useAuth } from "../../hooks/useAuth";
 import { useSettingsForm } from "../../hooks/useSettingsForm";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
 import { TextArea } from "../../components/TextArea/TextArea";
@@ -106,6 +107,7 @@ function BannerSection({ form }: { form: ReturnType<typeof useSettingsForm> }) {
 }
 
 export function SettingsPage() {
+    usePageTitle("Settings");
     const navigate = useNavigate();
     const { user, loading: authLoading } = useAuth();
     const form = useSettingsForm();

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { TheorySort } from "../../types/app";
 import { useTheoryFeed } from "../../hooks/useTheoryFeed";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import { TheoryCard } from "../../components/theory/TheoryCard/TheoryCard";
 import { Pagination } from "../../components/Pagination/Pagination";
 import { Input } from "../../components/Input/Input";
@@ -31,6 +32,7 @@ function isAsc(sort: TheorySort): boolean {
 }
 
 export function FeedPage({ series = "umineko" }: { series?: Series }) {
+    usePageTitle("Theories");
     const cfg = getSeriesConfig(series);
     const [sort, setSort] = useState<TheorySort>("new");
     const [episode, setEpisode] = useState(0);

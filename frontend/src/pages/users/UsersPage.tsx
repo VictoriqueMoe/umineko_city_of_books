@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { PublicUser } from "../../api/endpoints";
 import { listUsersPublic } from "../../api/endpoints";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { Input } from "../../components/Input/Input";
 import styles from "./UsersPage.module.css";
@@ -12,6 +13,7 @@ const ROLE_GROUPS = [
 ];
 
 export function UsersPage() {
+    usePageTitle("Users");
     const [users, setUsers] = useState<PublicUser[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");

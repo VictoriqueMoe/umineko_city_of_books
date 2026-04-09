@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import type { Notification } from "../../types/api";
 import { getNotifications } from "../../api/endpoints";
 import { useNotifications } from "../../hooks/useNotifications";
@@ -19,6 +20,7 @@ import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import styles from "./NotificationsPage.module.css";
 
 export function NotificationsPage() {
+    usePageTitle("Notifications");
     const navigate = useNavigate();
     const { markRead, markAllRead, unreadCount } = useNotifications();
     const [notifications, setNotifications] = useState<Notification[]>([]);

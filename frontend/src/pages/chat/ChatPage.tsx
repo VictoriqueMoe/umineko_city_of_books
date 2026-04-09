@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useAuth } from "../../hooks/useAuth";
 import { useNotifications } from "../../hooks/useNotifications";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
 import { Modal } from "../../components/Modal/Modal";
@@ -45,6 +46,7 @@ function formatTime(dateStr: string): string {
 }
 
 export function ChatPage() {
+    usePageTitle("Chat");
     const { roomId: urlRoomId } = useParams<{ roomId: string }>();
     const navigate = useNavigate();
     const { user } = useAuth();

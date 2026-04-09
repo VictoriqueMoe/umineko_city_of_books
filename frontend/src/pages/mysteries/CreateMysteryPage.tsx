@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useAuth } from "../../hooks/useAuth";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import { createMystery, getMystery, updateMystery, uploadMysteryAttachment } from "../../api/endpoints";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
@@ -19,6 +20,7 @@ interface ClueInput {
 export function CreateMysteryPage() {
     const { id: editId } = useParams<{ id: string }>();
     const isEdit = !!editId;
+    usePageTitle(isEdit ? "Edit Mystery" : "New Mystery");
     const navigate = useNavigate();
     const { user, loading: authLoading } = useAuth();
     const [title, setTitle] = useState("");

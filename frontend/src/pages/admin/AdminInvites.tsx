@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { createInvite, deleteInvite, getInvites, type InviteItem } from "../../api/endpoints";
+import { usePageTitle } from "../../hooks/usePageTitle";
 import { Button } from "../../components/Button/Button";
 import styles from "./AdminInvites.module.css";
 
 export function AdminInvites() {
+    usePageTitle("Admin - Invites");
     const [invites, setInvites] = useState<InviteItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
