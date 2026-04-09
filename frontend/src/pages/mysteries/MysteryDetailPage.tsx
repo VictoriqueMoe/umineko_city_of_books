@@ -10,10 +10,10 @@ import {
     deleteMysteryClue,
     deleteMysteryComment,
     getMystery,
-    setMysteryPaused,
-    updateMysteryClue,
     likeMysteryComment,
+    setMysteryPaused,
     unlikeMysteryComment,
+    updateMysteryClue,
     updateMysteryComment,
     uploadMysteryAttachment,
     uploadMysteryCommentMedia,
@@ -67,41 +67,22 @@ function ClueCopyBtn({ text }: { text: string }) {
     );
 }
 
-function PrivateClues({
+function PrivateCluesDisplay({
     clues,
     playerId,
     mysteryId,
-    isAuthor,
     canEditClues,
     onAdded,
 }: {
     clues: MysteryClue[];
     playerId: string;
     mysteryId: string;
-    isAuthor: boolean;
     canEditClues: boolean;
     onAdded: () => void;
 }) {
-    const [body, setBody] = useState("");
-    const [adding, setAdding] = useState(false);
     const [editingClueId, setEditingClueId] = useState<number | null>(null);
     const [editClueBody, setEditClueBody] = useState("");
     const playerClues = clues.filter(c => c.player_id === playerId);
-
-    async function handleAdd() {
-        if (!body.trim() || adding) {
-            return;
-        }
-        setAdding(true);
-        try {
-            await addMysteryClue(mysteryId, body.trim(), "red", playerId);
-            setBody("");
-            onAdded();
-        } catch {
-        } finally {
-            setAdding(false);
-        }
-    }
 
     async function handleDeleteClue(clueId: number) {
         if (!window.confirm("Delete this red truth? This cannot be undone.")) {
@@ -120,106 +101,147 @@ function PrivateClues({
         onAdded();
     }
 
+    if (playerClues.length === 0) {
+        return null;
+    }
+
     return (
         <div style={{ padding: "0 0.5rem", marginBottom: "0.5rem" }}>
-            {playerClues.length > 0 && (
-                <div className={styles.cluesSection} style={{ marginBottom: "0.5rem" }}>
-                    {playerClues.map(clue => (
-                        <div key={clue.id} className={styles.clue} style={{ fontSize: "0.85rem" }}>
-                            {editingClueId === clue.id ? (
-                                <div style={{ display: "flex", gap: "0.4rem", alignItems: "center", flex: 1 }}>
-                                    <input
-                                        type="text"
-                                        value={editClueBody}
-                                        onChange={e => setEditClueBody(e.target.value)}
-                                        onKeyDown={e => {
-                                            if (e.key === "Enter") {
-                                                handleSaveClue(clue.id);
-                                            }
-                                            if (e.key === "Escape") {
-                                                setEditingClueId(null);
-                                            }
-                                        }}
-                                        style={{
-                                            flex: 1,
-                                            background: "var(--bg-void)",
-                                            border: "1px solid rgba(229, 57, 53, 0.3)",
-                                            color: "#ef9a9a",
-                                            padding: "0.3rem 0.5rem",
-                                            borderRadius: "4px",
-                                            fontSize: "0.8rem",
-                                            fontFamily: "inherit",
-                                            fontStyle: "italic",
-                                        }}
-                                        autoFocus
-                                    />
-                                    <Button variant="primary" size="small" onClick={() => handleSaveClue(clue.id)}>
-                                        Save
-                                    </Button>
-                                    <Button variant="ghost" size="small" onClick={() => setEditingClueId(null)}>
-                                        Cancel
-                                    </Button>
-                                </div>
-                            ) : (
-                                <>
-                                    {clue.body}
-                                    <span className={styles.clueActions}>
-                                        {canEditClues && (
-                                            <>
-                                                <button
-                                                    className={styles.clueActionBtn}
-                                                    onClick={() => {
-                                                        setEditingClueId(clue.id);
-                                                        setEditClueBody(clue.body);
-                                                    }}
-                                                >
-                                                    edit
-                                                </button>
-                                                <button
-                                                    className={styles.clueActionBtn}
-                                                    onClick={() => handleDeleteClue(clue.id)}
-                                                >
-                                                    delete
-                                                </button>
-                                            </>
-                                        )}
-                                        <ClueCopyBtn text={clue.body} />
-                                    </span>
-                                </>
-                            )}
-                        </div>
-                    ))}
-                </div>
-            )}
-            {isAuthor && (
-                <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
-                    <input
-                        type="text"
-                        value={body}
-                        onChange={e => setBody(e.target.value)}
-                        placeholder="Private red truth for this player..."
-                        onKeyDown={e => {
-                            if (e.key === "Enter") {
-                                handleAdd();
-                            }
-                        }}
-                        style={{
-                            flex: 1,
-                            background: "var(--bg-void)",
-                            border: "1px solid rgba(229, 57, 53, 0.3)",
-                            color: "#ef9a9a",
-                            padding: "0.35rem 0.6rem",
-                            borderRadius: "4px",
-                            fontSize: "0.8rem",
-                            fontFamily: "inherit",
-                            fontStyle: "italic",
-                        }}
-                    />
-                    <Button variant="danger" size="small" onClick={handleAdd} disabled={!body.trim() || adding}>
-                        {adding ? "..." : "Add private Red Truth"}
-                    </Button>
-                </div>
-            )}
+            <div className={styles.cluesSection} style={{ marginBottom: "0.5rem" }}>
+                {playerClues.map(clue => (
+                    <div key={clue.id} className={styles.clue} style={{ fontSize: "0.85rem" }}>
+                        {editingClueId === clue.id ? (
+                            <div style={{ display: "flex", gap: "0.4rem", alignItems: "center", flex: 1 }}>
+                                <input
+                                    type="text"
+                                    value={editClueBody}
+                                    onChange={e => setEditClueBody(e.target.value)}
+                                    onKeyDown={e => {
+                                        if (e.key === "Enter") {
+                                            handleSaveClue(clue.id);
+                                        }
+                                        if (e.key === "Escape") {
+                                            setEditingClueId(null);
+                                        }
+                                    }}
+                                    style={{
+                                        flex: 1,
+                                        background: "var(--bg-void)",
+                                        border: "1px solid rgba(229, 57, 53, 0.3)",
+                                        color: "#ef9a9a",
+                                        padding: "0.3rem 0.5rem",
+                                        borderRadius: "4px",
+                                        fontSize: "0.8rem",
+                                        fontFamily: "inherit",
+                                        fontStyle: "italic",
+                                    }}
+                                    autoFocus
+                                />
+                                <Button variant="primary" size="small" onClick={() => handleSaveClue(clue.id)}>
+                                    Save
+                                </Button>
+                                <Button variant="ghost" size="small" onClick={() => setEditingClueId(null)}>
+                                    Cancel
+                                </Button>
+                            </div>
+                        ) : (
+                            <>
+                                {clue.body}
+                                <span className={styles.clueActions}>
+                                    {canEditClues && (
+                                        <>
+                                            <button
+                                                className={styles.clueActionBtn}
+                                                onClick={() => {
+                                                    setEditingClueId(clue.id);
+                                                    setEditClueBody(clue.body);
+                                                }}
+                                            >
+                                                edit
+                                            </button>
+                                            <button
+                                                className={styles.clueActionBtn}
+                                                onClick={() => handleDeleteClue(clue.id)}
+                                            >
+                                                delete
+                                            </button>
+                                        </>
+                                    )}
+                                    <ClueCopyBtn text={clue.body} />
+                                </span>
+                            </>
+                        )}
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function PrivateClueInput({
+    playerId,
+    mysteryId,
+    onAdded,
+}: {
+    playerId: string;
+    mysteryId: string;
+    onAdded: () => void;
+}) {
+    const [body, setBody] = useState("");
+    const [adding, setAdding] = useState(false);
+    const [added, setAdded] = useState(false);
+
+    async function handleAdd() {
+        if (!body.trim() || adding) {
+            return;
+        }
+        setAdding(true);
+        try {
+            await addMysteryClue(mysteryId, body.trim(), "red", playerId);
+            setBody("");
+            setAdded(true);
+            setTimeout(() => setAdded(false), 2000);
+            onAdded();
+        } catch {
+        } finally {
+            setAdding(false);
+        }
+    }
+
+    return (
+        <div style={{ padding: "0 0.5rem", marginTop: "0.5rem" }}>
+            <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
+                <input
+                    type="text"
+                    value={body}
+                    onChange={e => setBody(e.target.value)}
+                    placeholder="Private red truth for this player..."
+                    onKeyDown={e => {
+                        if (e.key === "Enter") {
+                            handleAdd();
+                        }
+                    }}
+                    style={{
+                        flex: 1,
+                        background: "var(--bg-void)",
+                        border: "1px solid rgba(229, 57, 53, 0.3)",
+                        color: "#ef9a9a",
+                        padding: "0.35rem 0.6rem",
+                        borderRadius: "4px",
+                        fontSize: "0.8rem",
+                        fontFamily: "inherit",
+                        fontStyle: "italic",
+                    }}
+                />
+                <Button variant="danger" size="small" onClick={handleAdd} disabled={!body.trim() || adding}>
+                    {adding ? "..." : "Add private Red Truth"}
+                </Button>
+                {added && (
+                    <span style={{ color: "#ef9a9a", fontSize: "0.8rem", fontStyle: "italic", whiteSpace: "nowrap" }}>
+                        Red truth added
+                    </span>
+                )}
+            </div>
         </div>
     );
 }
@@ -319,8 +341,20 @@ export function MysteryDetailPage() {
                 groups.set(a.author.id, { author: a.author, attempts: [a] });
             }
         }
-        return Array.from(groups.values());
-    }, [mystery]);
+        const result = Array.from(groups.values());
+        if (mystery.free_for_all && user) {
+            result.sort((a, b) => {
+                if (a.author.id === user.id) {
+                    return -1;
+                }
+                if (b.author.id === user.id) {
+                    return 1;
+                }
+                return 0;
+            });
+        }
+        return result;
+    }, [mystery, user]);
 
     const fetchMystery = useCallback(() => {
         if (!id) {
@@ -565,6 +599,9 @@ export function MysteryDetailPage() {
                                 {mystery.solved ? "Solved" : "Open"}
                             </span>
                             {mystery.paused && <span className={`${styles.badge} ${styles.badgePaused}`}>Paused</span>}
+                            {mystery.free_for_all && (
+                                <span className={`${styles.badge} ${styles.badgeFreeForAll}`}>Free-for-all</span>
+                            )}
                             <span className={`${styles.badge} ${styles.badgePieces}`}>
                                 {mystery.player_count} piece{mystery.player_count !== 1 ? "s" : ""} attempting
                             </span>
@@ -713,7 +750,7 @@ export function MysteryDetailPage() {
             <div className={styles.attemptsSection}>
                 <h3 className={styles.attemptsTitle}>Blue Truth Attempts ({mystery.attempts.length})</h3>
 
-                {canSeeAsGameMaster && !mystery.solved && groupedAttempts.length > 0 && (
+                {(canSeeAsGameMaster || mystery.free_for_all) && !mystery.solved && groupedAttempts.length > 0 && (
                     <div className={styles.playerPills}>
                         {groupedAttempts.map(group => {
                             const isUnread = unreadPlayers.has(group.author.id);
@@ -767,7 +804,7 @@ export function MysteryDetailPage() {
                     </div>
                 )}
 
-                {canSeeAsGameMaster || mystery.solved ? (
+                {canSeeAsGameMaster || mystery.solved || mystery.free_for_all ? (
                     groupedAttempts.map(group => {
                         const collapsed = collapsedPlayers.has(group.author.id);
                         return (
@@ -791,11 +828,10 @@ export function MysteryDetailPage() {
                                 </button>
                                 {!collapsed && (
                                     <>
-                                        <PrivateClues
+                                        <PrivateCluesDisplay
                                             clues={mystery.clues}
                                             playerId={group.author.id}
                                             mysteryId={mystery.id}
-                                            isAuthor={isAuthor}
                                             canEditClues={canEdit}
                                             onAdded={fetchMystery}
                                         />
@@ -810,6 +846,13 @@ export function MysteryDetailPage() {
                                                 mysteryPaused={mystery.paused}
                                             />
                                         ))}
+                                        {isAuthor && (
+                                            <PrivateClueInput
+                                                playerId={group.author.id}
+                                                mysteryId={mystery.id}
+                                                onAdded={fetchMystery}
+                                            />
+                                        )}
                                     </>
                                 )}
                             </div>

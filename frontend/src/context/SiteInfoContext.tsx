@@ -10,6 +10,14 @@ export function SiteInfoProvider({ children }: PropsWithChildren) {
         getSiteInfo()
             .then(setSiteInfo)
             .catch(() => {});
+
+        function handleRefresh() {
+            getSiteInfo()
+                .then(setSiteInfo)
+                .catch(() => {});
+        }
+        window.addEventListener("site-info-refresh", handleRefresh);
+        return () => window.removeEventListener("site-info-refresh", handleRefresh);
     }, []);
 
     if (!siteInfo) {

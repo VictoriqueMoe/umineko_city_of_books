@@ -1,5 +1,5 @@
 import { type PropsWithChildren, useCallback, useEffect, useRef, useState } from "react";
-import type { Notification, WSMessage } from "../types/api";
+import type { Notification, UserProfile, WSMessage } from "../types/api";
 import { NotificationContext, type WSMessageHandler } from "./notificationContextValue";
 import { useAuth } from "../hooks/useAuth";
 import * as api from "../api/endpoints";
@@ -7,7 +7,7 @@ import * as api from "../api/endpoints";
 const MAX_BACKOFF = 30000;
 
 export function NotificationProvider({ children }: PropsWithChildren) {
-    const { user } = useAuth();
+    const { user, setUser } = useAuth();
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [loading, setLoading] = useState(false);
@@ -15,6 +15,8 @@ export function NotificationProvider({ children }: PropsWithChildren) {
     const backoffRef = useRef(1000);
     const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const wsListenersRef = useRef<Set<WSMessageHandler>>(new Set());
+    const userRef = useRef(user);
+    userRef.current = user;
 
     const clearReconnectTimer = useCallback(() => {
         if (reconnectTimerRef.current !== null) {
@@ -50,6 +52,15 @@ export function NotificationProvider({ children }: PropsWithChildren) {
                     const notif = msg.data as Notification;
                     setNotifications(prev => [notif, ...prev]);
                     setUnreadCount(prev => prev + 1);
+                }
+                if (msg.type === "role_changed") {
+                    const data = msg.data as { user_id?: string; role?: string };
+                    if (data.user_id && userRef.current && data.user_id === userRef.current.id) {
+                        setUser({ ...userRef.current, role: (data.role ?? "") as UserProfile["role"] });
+                    }
+                }
+                if (msg.type === "top_detective_changed" || msg.type === "top_gm_changed") {
+                    window.dispatchEvent(new CustomEvent("site-info-refresh"));
                 }
                 for (const handler of wsListenersRef.current) {
                     handler(msg);

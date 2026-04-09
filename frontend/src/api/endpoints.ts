@@ -22,6 +22,7 @@ import type {
     FollowStats,
     Gallery,
     GalleryDetailResponse,
+    GMLeaderboardResponse,
     MysteryAttachment,
     MysteryDetail,
     MysteryLeaderboardResponse,
@@ -62,6 +63,7 @@ export interface SiteInfo {
     max_image_size: number;
     max_video_size: number;
     top_detective_ids: string[];
+    top_gm_ids: string[];
 }
 
 export async function getSiteInfo(): Promise<SiteInfo> {
@@ -307,8 +309,14 @@ export async function setUserRole(id: string, role: string): Promise<void> {
     await apiPost<unknown, { role: string }>(`/admin/users/${id}/role`, { role });
 }
 
-export async function updateMysteryScoreAdjustment(id: string, adjustment: number): Promise<void> {
-    await apiPut<unknown, { adjustment: number }>(`/admin/users/${id}/mystery-score`, { adjustment });
+export async function updateDetectiveScore(id: string, desiredScore: number): Promise<void> {
+    await apiPut<unknown, { desired_score: number }>(`/admin/users/${id}/mystery-score`, {
+        desired_score: desiredScore,
+    });
+}
+
+export async function updateGMScore(id: string, desiredScore: number): Promise<void> {
+    await apiPut<unknown, { desired_score: number }>(`/admin/users/${id}/gm-score`, { desired_score: desiredScore });
 }
 
 export async function removeUserRole(id: string, role: string): Promise<void> {
@@ -650,6 +658,7 @@ export async function createArt(
         corner: string;
         art_type: string;
         tags: string[];
+        is_spoiler: boolean;
         gallery_id?: string;
     },
     imageFile: File,
@@ -662,7 +671,7 @@ export async function createArt(
 
 export async function updateArt(
     id: string,
-    data: { title: string; description: string; tags: string[] },
+    data: { title: string; description: string; tags: string[]; is_spoiler: boolean },
 ): Promise<void> {
     await apiPut<unknown, typeof data>(`/art/${id}`, data);
 }
@@ -841,6 +850,7 @@ export async function createMystery(data: {
     title: string;
     body: string;
     difficulty: string;
+    free_for_all: boolean;
     clues: { body: string; truth_type: string }[];
 }): Promise<{ id: string }> {
     return apiPost<{ id: string }, typeof data>("/mysteries", data);
@@ -852,6 +862,7 @@ export async function updateMystery(
         title: string;
         body: string;
         difficulty: string;
+        free_for_all: boolean;
         clues: { body: string; truth_type: string }[];
     },
 ): Promise<void> {
@@ -956,6 +967,11 @@ export async function deleteMysteryAttachment(mysteryId: string, attachmentId: n
 export async function getMysteryLeaderboard(limit?: number): Promise<MysteryLeaderboardResponse> {
     const qs = buildQueryString({ limit });
     return apiFetch<MysteryLeaderboardResponse>(`/mysteries/leaderboard${qs}`);
+}
+
+export async function getGMLeaderboard(limit?: number): Promise<GMLeaderboardResponse> {
+    const qs = buildQueryString({ limit });
+    return apiFetch<GMLeaderboardResponse>(`/mysteries/gm-leaderboard${qs}`);
 }
 
 export async function getUserShips(userId: string, limit = 20, offset = 0): Promise<ShipListResponse> {

@@ -32,6 +32,9 @@ type (
 		TheoryCount            int    `json:"theory_count"`
 		ResponseCount          int    `json:"response_count"`
 		MysteryScoreAdjustment int    `json:"mystery_score_adjustment"`
+		DetectiveScore         int    `json:"detective_score"`
+		GMScoreAdjustment      int    `json:"gm_score_adjustment"`
+		GMScore                int    `json:"gm_score"`
 	}
 
 	AdminStatsResponse struct {

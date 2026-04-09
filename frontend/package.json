@@ -14,9 +14,11 @@
     },
     "dependencies": {
         "@marsidev/react-turnstile": "^1.5.0",
+        "@tiptap/extension-color": "^3.22.3",
         "@tiptap/extension-link": "^3.22.3",
         "@tiptap/extension-placeholder": "^3.22.3",
         "@tiptap/extension-text-align": "^3.22.3",
+        "@tiptap/extension-text-style": "^3.22.3",
         "@tiptap/pm": "^3.22.3",
         "@tiptap/react": "^3.22.3",
         "@tiptap/starter-kit": "^3.22.3",

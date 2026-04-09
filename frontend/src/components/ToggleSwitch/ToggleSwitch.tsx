@@ -10,6 +10,7 @@ interface ToggleSwitchProps {
 export function ToggleSwitch({ enabled, onChange, label, description }: ToggleSwitchProps) {
     return (
         <button
+            type="button"
             className={styles.row}
             onClick={() => onChange(!enabled)}
             role="switch"

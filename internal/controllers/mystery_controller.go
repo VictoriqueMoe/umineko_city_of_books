@@ -27,6 +27,7 @@ func (s *Service) getAllMysteryRoutes() []FSetupRoute {
 	return []FSetupRoute{
 		s.setupListMysteries,
 		s.setupMysteryLeaderboard,
+		s.setupGMLeaderboard,
 		s.setupListUserMysteries,
 		s.setupGetMystery,
 		s.setupCreateMystery,
@@ -316,6 +317,19 @@ func (s *Service) mysteryLeaderboard(ctx fiber.Ctx) error {
 	resp, err := s.MysteryService.GetLeaderboard(ctx.Context(), limit)
 	if err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to load leaderboard"})
+	}
+	return ctx.JSON(resp)
+}
+
+func (s *Service) setupGMLeaderboard(r fiber.Router) {
+	r.Get("/mysteries/gm-leaderboard", s.gmLeaderboard)
+}
+
+func (s *Service) gmLeaderboard(ctx fiber.Ctx) error {
+	limit := fiber.Query[int](ctx, "limit", 20)
+	resp, err := s.MysteryService.GetGMLeaderboard(ctx.Context(), limit)
+	if err != nil {
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to load gm leaderboard"})
 	}
 	return ctx.JSON(resp)
 }

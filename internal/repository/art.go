@@ -15,8 +15,8 @@ import (
 
 type (
 	ArtRepository interface {
-		CreateWithTags(ctx context.Context, id uuid.UUID, userID uuid.UUID, corner string, artType string, title string, description string, imageURL string, thumbnailURL string, tags []string) error
-		UpdateWithTags(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, description string, tags []string, asAdmin bool) error
+		CreateWithTags(ctx context.Context, id uuid.UUID, userID uuid.UUID, corner string, artType string, title string, description string, imageURL string, thumbnailURL string, tags []string, isSpoiler bool) error
+		UpdateWithTags(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, description string, tags []string, isSpoiler bool, asAdmin bool) error
 		GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID) (*model.ArtRow, error)
 		Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		DeleteAsAdmin(ctx context.Context, id uuid.UUID) error
@@ -79,29 +79,35 @@ const artSelectBase = `
 		(SELECT COUNT(*) FROM art_likes WHERE art_id = a.id),
 		(SELECT COUNT(*) FROM art_comments WHERE art_id = a.id),
 		a.view_count,
-		EXISTS(SELECT 1 FROM art_likes WHERE art_id = a.id AND user_id = ?)
+		EXISTS(SELECT 1 FROM art_likes WHERE art_id = a.id AND user_id = ?),
+		a.is_spoiler
 	FROM art a
 	JOIN users u ON a.user_id = u.id
 	LEFT JOIN user_roles r ON r.user_id = a.user_id`
 
 func scanArtRow(row interface{ Scan(...interface{}) error }, a *model.ArtRow) error {
-	var userLikedInt int
+	var userLikedInt, isSpoilerInt int
 	err := row.Scan(
 		&a.ID, &a.UserID, &a.Corner, &a.ArtType, &a.Title, &a.Description, &a.ImageURL, &a.ThumbnailURL,
 		&a.GalleryID, &a.CreatedAt, &a.UpdatedAt,
 		&a.AuthorUsername, &a.AuthorDisplayName, &a.AuthorAvatarURL,
 		&a.AuthorRole,
-		&a.LikeCount, &a.CommentCount, &a.ViewCount, &userLikedInt,
+		&a.LikeCount, &a.CommentCount, &a.ViewCount, &userLikedInt, &isSpoilerInt,
 	)
 	a.UserLiked = userLikedInt == 1
+	a.IsSpoiler = isSpoilerInt == 1
 	return err
 }
 
-func (r *artRepository) CreateWithTags(ctx context.Context, id uuid.UUID, userID uuid.UUID, corner string, artType string, title string, description string, imageURL string, thumbnailURL string, tags []string) error {
+func (r *artRepository) CreateWithTags(ctx context.Context, id uuid.UUID, userID uuid.UUID, corner string, artType string, title string, description string, imageURL string, thumbnailURL string, tags []string, isSpoiler bool) error {
+	var spoilerVal int
+	if isSpoiler {
+		spoilerVal = 1
+	}
 	return db.WithTx(ctx, r.db, func(tx *sql.Tx) error {
 		if _, err := tx.ExecContext(ctx,
-			`INSERT INTO art (id, user_id, corner, art_type, title, description, image_url, thumbnail_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-			id, userID, corner, artType, title, description, imageURL, thumbnailURL,
+			`INSERT INTO art (id, user_id, corner, art_type, title, description, image_url, thumbnail_url, is_spoiler) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			id, userID, corner, artType, title, description, imageURL, thumbnailURL, spoilerVal,
 		); err != nil {
 			return fmt.Errorf("create art: %w", err)
 		}
@@ -109,19 +115,23 @@ func (r *artRepository) CreateWithTags(ctx context.Context, id uuid.UUID, userID
 	})
 }
 
-func (r *artRepository) UpdateWithTags(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, description string, tags []string, asAdmin bool) error {
+func (r *artRepository) UpdateWithTags(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, description string, tags []string, isSpoiler bool, asAdmin bool) error {
+	var spoilerVal int
+	if isSpoiler {
+		spoilerVal = 1
+	}
 	return db.WithTx(ctx, r.db, func(tx *sql.Tx) error {
 		var res sql.Result
 		var err error
 		if asAdmin {
 			res, err = tx.ExecContext(ctx,
-				`UPDATE art SET title = ?, description = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-				title, description, id,
+				`UPDATE art SET title = ?, description = ?, is_spoiler = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+				title, description, spoilerVal, id,
 			)
 		} else {
 			res, err = tx.ExecContext(ctx,
-				`UPDATE art SET title = ?, description = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?`,
-				title, description, id, userID,
+				`UPDATE art SET title = ?, description = ?, is_spoiler = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?`,
+				title, description, spoilerVal, id, userID,
 			)
 		}
 		if err != nil {

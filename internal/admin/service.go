@@ -13,6 +13,7 @@ import (
 	"umineko_city_of_books/internal/session"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/upload"
+	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
 )
@@ -49,6 +50,7 @@ type (
 		settingsSvc settings.Service
 		sessionMgr  *session.Manager
 		uploadSvc   upload.Service
+		hub         *ws.Hub
 	}
 )
 
@@ -69,6 +71,7 @@ func NewService(
 	settingsSvc settings.Service,
 	sessionMgr *session.Manager,
 	uploadSvc upload.Service,
+	hub *ws.Hub,
 ) Service {
 	return &service{
 		userRepo:    userRepo,
@@ -80,6 +83,7 @@ func NewService(
 		settingsSvc: settingsSvc,
 		sessionMgr:  sessionMgr,
 		uploadSvc:   uploadSvc,
+		hub:         hub,
 	}
 }
 
@@ -210,6 +214,13 @@ func (s *service) GetUser(ctx context.Context, targetID uuid.UUID) (*dto.AdminUs
 		resp.ResponseCount = stats.ResponseCount
 	}
 	resp.MysteryScoreAdjustment = u.MysteryScoreAdjustment
+	resp.GMScoreAdjustment = u.GMScoreAdjustment
+
+	detectiveRaw, _ := s.userRepo.GetDetectiveRawScore(ctx, targetID)
+	resp.DetectiveScore = detectiveRaw + u.MysteryScoreAdjustment
+
+	gmRaw, _ := s.userRepo.GetGMRawScore(ctx, targetID)
+	resp.GMScore = gmRaw + u.GMScoreAdjustment
 
 	return resp, nil
 }
@@ -220,6 +231,7 @@ func (s *service) SetUserRole(ctx context.Context, actorID uuid.UUID, targetID u
 			return fmt.Errorf("set role: %w", err)
 		}
 		s.audit(ctx, actorID, "set_role", "user", targetID.String())
+		s.broadcastRoleChange(targetID, string(r))
 		return nil
 	})
 }
@@ -230,7 +242,18 @@ func (s *service) RemoveUserRole(ctx context.Context, actorID uuid.UUID, targetI
 			return fmt.Errorf("remove role: %w", err)
 		}
 		s.audit(ctx, actorID, "remove_role", "user", targetID.String())
+		s.broadcastRoleChange(targetID, "")
 		return nil
+	})
+}
+
+func (s *service) broadcastRoleChange(userID uuid.UUID, newRole string) {
+	s.hub.Broadcast(ws.Message{
+		Type: "role_changed",
+		Data: map[string]interface{}{
+			"user_id": userID,
+			"role":    newRole,
+		},
 	})
 }
 

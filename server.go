@@ -148,7 +148,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 		profile:      profile.NewService(repos.User, repos.Theory, authzSvc, uploadSvc, settingsSvc),
 		theory:       theory.NewService(repos.Theory, repos.User, authzSvc, blockSvc, notifSvc, settingsSvc, credibilitySvc, quoteClient),
 		notification: notifSvc,
-		admin:        admin.NewService(repos.User, repos.Role, repos.Stats, repos.AuditLog, repos.Invite, authzSvc, settingsSvc, sessionMgr, uploadSvc),
+		admin:        admin.NewService(repos.User, repos.Role, repos.Stats, repos.AuditLog, repos.Invite, authzSvc, settingsSvc, sessionMgr, uploadSvc, hub),
 		authz:        authzSvc,
 		chat:         chatSvc,
 		report:       reportSvc,

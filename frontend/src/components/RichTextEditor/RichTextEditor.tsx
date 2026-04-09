@@ -3,6 +3,8 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import TextAlign from "@tiptap/extension-text-align";
+import Color from "@tiptap/extension-color";
+import { TextStyle } from "@tiptap/extension-text-style";
 import styles from "./RichTextEditor.module.css";
 
 interface RichTextEditorProps {
@@ -27,6 +29,22 @@ function ToolbarButton({ onClick, active, label }: { onClick: () => void; active
     );
 }
 
+function ColourButton({ onClick, active, colour }: { onClick: () => void; active?: boolean; colour: string }) {
+    return (
+        <button
+            type="button"
+            tabIndex={-1}
+            className={`${styles.toolbarBtn}${active ? ` ${styles.toolbarBtnActive}` : ""}`}
+            onMouseDown={e => {
+                e.preventDefault();
+                onClick();
+            }}
+        >
+            <span className={styles.colourDot} style={{ background: colour }} />
+        </button>
+    );
+}
+
 function Separator() {
     return <div className={styles.separator} />;
 }
@@ -45,6 +63,8 @@ export function RichTextEditor({ content, onChange, placeholder = "Write your st
             }),
             Placeholder.configure({ placeholder }),
             TextAlign.configure({ types: ["heading", "paragraph"] }),
+            TextStyle,
+            Color,
         ],
         content,
         onUpdate: ({ editor: e }) => {
@@ -139,6 +159,28 @@ export function RichTextEditor({ content, onChange, placeholder = "Write your st
                 <Separator />
                 <ToolbarButton label="Link" onClick={setLink} active={editor.isActive("link")} />
                 <ToolbarButton label="HR" onClick={() => editor.chain().focus().setHorizontalRule().run()} />
+                <Separator />
+                <ColourButton
+                    colour="#e53935"
+                    onClick={() => editor.chain().focus().setColor("#e53935").run()}
+                    active={editor.isActive("textStyle", { color: "#e53935" })}
+                />
+                <ColourButton
+                    colour="#42a5f5"
+                    onClick={() => editor.chain().focus().setColor("#42a5f5").run()}
+                    active={editor.isActive("textStyle", { color: "#42a5f5" })}
+                />
+                <ColourButton
+                    colour="#ffd700"
+                    onClick={() => editor.chain().focus().setColor("#ffd700").run()}
+                    active={editor.isActive("textStyle", { color: "#ffd700" })}
+                />
+                <ColourButton
+                    colour="#ab47bc"
+                    onClick={() => editor.chain().focus().setColor("#ab47bc").run()}
+                    active={editor.isActive("textStyle", { color: "#ab47bc" })}
+                />
+                <ToolbarButton label="✕" onClick={() => editor.chain().focus().unsetColor().run()} />
             </div>
             <div className={styles.content}>
                 <EditorContent editor={editor} />

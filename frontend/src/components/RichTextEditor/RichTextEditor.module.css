@@ -41,6 +41,15 @@
     border-color: rgba(var(--gold-rgb), 0.3);
 }
 
+.colourDot {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    vertical-align: middle;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
 .separator {
     width: 1px;
     background: rgba(var(--purple-rgb), 0.2);

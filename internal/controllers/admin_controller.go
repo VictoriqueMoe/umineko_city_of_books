@@ -237,6 +237,7 @@ func (s *Service) setupAdminDeleteInvite(r fiber.Router) {
 
 func (s *Service) setupAdminUpdateMysteryScore(r fiber.Router) {
 	r.Put("/admin/users/:id/mystery-score", s.requirePerm(authz.PermEditMysteryScore), s.adminUpdateMysteryScore)
+	r.Put("/admin/users/:id/gm-score", s.requirePerm(authz.PermEditMysteryScore), s.adminUpdateGMScore)
 }
 
 func (s *Service) adminUpdateMysteryScore(ctx fiber.Ctx) error {
@@ -245,12 +246,33 @@ func (s *Service) adminUpdateMysteryScore(ctx fiber.Ctx) error {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user ID"})
 	}
 	var req struct {
-		Adjustment int `json:"adjustment"`
+		DesiredScore int `json:"desired_score"`
 	}
 	if err := ctx.Bind().JSON(&req); err != nil {
 		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request"})
 	}
-	if err := s.UserRepo.UpdateMysteryScoreAdjustment(ctx.Context(), targetID, req.Adjustment); err != nil {
+	rawScore, _ := s.UserRepo.GetDetectiveRawScore(ctx.Context(), targetID)
+	adjustment := req.DesiredScore - rawScore
+	if err := s.UserRepo.UpdateMysteryScoreAdjustment(ctx.Context(), targetID, adjustment); err != nil {
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to update"})
+	}
+	return ctx.SendStatus(fiber.StatusNoContent)
+}
+
+func (s *Service) adminUpdateGMScore(ctx fiber.Ctx) error {
+	targetID, err := uuid.Parse(ctx.Params("id"))
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user ID"})
+	}
+	var req struct {
+		DesiredScore int `json:"desired_score"`
+	}
+	if err := ctx.Bind().JSON(&req); err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request"})
+	}
+	rawScore, _ := s.UserRepo.GetGMRawScore(ctx.Context(), targetID)
+	adjustment := req.DesiredScore - rawScore
+	if err := s.UserRepo.UpdateGMScoreAdjustment(ctx.Context(), targetID, adjustment); err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to update"})
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)

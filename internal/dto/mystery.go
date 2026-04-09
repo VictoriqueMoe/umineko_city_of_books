@@ -11,6 +11,7 @@ type (
 		Author       UserResponse  `json:"author"`
 		Solved       bool          `json:"solved"`
 		Paused       bool          `json:"paused"`
+		FreeForAll   bool          `json:"free_for_all"`
 		Winner       *UserResponse `json:"winner,omitempty"`
 		SolvedAt     *string       `json:"solved_at,omitempty"`
 		AttemptCount int           `json:"attempt_count"`
@@ -26,6 +27,7 @@ type (
 		Author      UserResponse             `json:"author"`
 		Solved      bool                     `json:"solved"`
 		Paused      bool                     `json:"paused"`
+		FreeForAll  bool                     `json:"free_for_all"`
 		Winner      *UserResponse            `json:"winner,omitempty"`
 		SolvedAt    *string                  `json:"solved_at,omitempty"`
 		Clues       []MysteryClue            `json:"clues"`
@@ -87,6 +89,7 @@ type (
 		Title      string              `json:"title"`
 		Body       string              `json:"body"`
 		Difficulty string              `json:"difficulty"`
+		FreeForAll bool                `json:"free_for_all"`
 		Clues      []CreateClueRequest `json:"clues"`
 	}
 
@@ -113,5 +116,16 @@ type (
 
 	MysteryLeaderboardResponse struct {
 		Entries []MysteryLeaderboardEntry `json:"entries"`
+	}
+
+	GMLeaderboardEntry struct {
+		User         UserResponse `json:"user"`
+		Score        int          `json:"score"`
+		MysteryCount int          `json:"mystery_count"`
+		PlayerCount  int          `json:"player_count"`
+	}
+
+	GMLeaderboardResponse struct {
+		Entries []GMLeaderboardEntry `json:"entries"`
 	}
 )

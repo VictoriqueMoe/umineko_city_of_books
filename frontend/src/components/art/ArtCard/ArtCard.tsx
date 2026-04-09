@@ -1,6 +1,7 @@
 import { Link } from "react-router";
 import type { Art } from "../../../types/api";
 import { ProfileLink } from "../../ProfileLink/ProfileLink";
+import { SpoilerImage } from "../../SpoilerImage/SpoilerImage";
 import styles from "./ArtCard.module.css";
 
 interface ArtCardProps {
@@ -12,19 +13,19 @@ export function ArtCard({ art }: ArtCardProps) {
 
     return (
         <Link to={`/gallery/art/${art.id}`} className={styles.card}>
-            <div className={styles.imageWrap}>
-                <img
-                    src={imgSrc}
-                    alt={art.title}
-                    className={styles.image}
-                    loading="lazy"
-                    onError={e => {
-                        if (e.currentTarget.src !== art.image_url) {
-                            e.currentTarget.src = art.image_url;
-                        }
-                    }}
-                />
-            </div>
+            <SpoilerImage
+                src={imgSrc}
+                alt={art.title}
+                isSpoiler={art.is_spoiler}
+                className={styles.imageWrap}
+                imageClassName={styles.image}
+                loading="lazy"
+                onError={e => {
+                    if (e.currentTarget.src !== art.image_url) {
+                        e.currentTarget.src = art.image_url;
+                    }
+                }}
+            />
             <div className={styles.info}>
                 <span className={styles.title}>{art.title}</span>
                 <div className={styles.meta}>

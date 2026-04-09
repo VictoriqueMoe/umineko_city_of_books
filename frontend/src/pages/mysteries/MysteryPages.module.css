@@ -54,6 +54,38 @@
     margin-bottom: 1rem;
 }
 
+.leaderboardTabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 0.75rem;
+    border-bottom: 1px solid rgba(var(--gold-rgb), 0.15);
+}
+
+.leaderboardTab {
+    flex: 1;
+    background: none;
+    border: none;
+    padding: 0.5rem 0.25rem;
+    font-family: var(--font-display);
+    font-size: 0.8rem;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition:
+        color 0.15s,
+        border-color 0.15s;
+}
+
+.leaderboardTab:hover {
+    color: var(--gold);
+}
+
+.leaderboardTabActive {
+    color: var(--gold);
+    border-bottom-color: var(--gold);
+}
+
 .leaderboardTitle {
     font-family: var(--font-display);
     font-size: 1rem;
@@ -179,6 +211,21 @@
     white-space: nowrap;
 }
 
+.topGMBadge {
+    display: inline-flex;
+    font-size: 0.55rem;
+    font-family: var(--font-display);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.1rem 0.35rem;
+    border-radius: 3px;
+    background: rgba(229, 57, 53, 0.15);
+    color: #ef5350;
+    border: 1px solid rgba(229, 57, 53, 0.4);
+    white-space: nowrap;
+}
+
 .leaderboardScore {
     margin-left: auto;
     font-size: 0.8rem;
@@ -278,6 +325,11 @@
 .badgePaused {
     background: rgba(255, 165, 0, 0.2);
     color: #ffa500;
+}
+
+.badgeFreeForAll {
+    background: rgba(100, 181, 246, 0.2);
+    color: #64b5f6;
 }
 
 .pausedBanner {

@@ -16,6 +16,7 @@ export function RolePill({ role, userId }: RolePillProps) {
     const siteInfo = useSiteInfo();
     const config = roleConfig[role];
     const isTopDetective = userId && siteInfo.top_detective_ids?.includes(userId);
+    const isTopGM = userId && siteInfo.top_gm_ids?.includes(userId);
 
     return (
         <>
@@ -23,6 +24,11 @@ export function RolePill({ role, userId }: RolePillProps) {
             {isTopDetective && (
                 <span className={`${styles.pill} ${styles.topDetective}`} title="Ranked #1 in mysteries">
                     True Detective
+                </span>
+            )}
+            {isTopGM && (
+                <span className={`${styles.pill} ${styles.topGM}`} title="Top ranked Game Master">
+                    Game Master
                 </span>
             )}
         </>

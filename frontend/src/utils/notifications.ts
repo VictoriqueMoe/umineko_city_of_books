@@ -224,6 +224,21 @@ const notificationConfigs: Record<NotificationType, NotificationConfig> = {
         category: "mysteries_player",
         route: routeByReferenceType,
     },
+    mystery_paused_notif: {
+        text: "paused a mystery you are playing",
+        category: "mysteries_player",
+        route: routeByReferenceType,
+    },
+    mystery_unpaused: {
+        text: "resumed a mystery you are playing",
+        category: "mysteries_player",
+        route: routeByReferenceType,
+    },
+    mystery_solved_all: {
+        text: "a mystery you were playing has been solved",
+        category: "mysteries_player",
+        route: routeByReferenceType,
+    },
     mystery_comment_reply: {
         text: "replied to your comment on a mystery",
         category: "mysteries_player",

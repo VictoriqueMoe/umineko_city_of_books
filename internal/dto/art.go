@@ -18,6 +18,7 @@ type (
 		CommentCount int          `json:"comment_count"`
 		ViewCount    int          `json:"view_count"`
 		UserLiked    bool         `json:"user_liked"`
+		IsSpoiler    bool         `json:"is_spoiler"`
 		CreatedAt    string       `json:"created_at"`
 		UpdatedAt    *string      `json:"updated_at,omitempty"`
 	}
@@ -35,6 +36,7 @@ type (
 		Corner      string     `json:"corner"`
 		ArtType     string     `json:"art_type"`
 		Tags        []string   `json:"tags"`
+		IsSpoiler   bool       `json:"is_spoiler"`
 		GalleryID   *uuid.UUID `json:"gallery_id,omitempty"`
 	}
 
@@ -42,6 +44,7 @@ type (
 		Title       string   `json:"title"`
 		Description string   `json:"description"`
 		Tags        []string `json:"tags"`
+		IsSpoiler   bool     `json:"is_spoiler"`
 	}
 
 	ArtCommentResponse struct {

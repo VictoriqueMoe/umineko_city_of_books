@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
-import type { Mystery, MysteryLeaderboardEntry, User } from "../../types/api";
-import { getMysteryLeaderboard, listMysteries } from "../../api/endpoints";
+import type { GMLeaderboardEntry, Mystery, MysteryLeaderboardEntry, User } from "../../types/api";
+import { getGMLeaderboard, getMysteryLeaderboard, listMysteries } from "../../api/endpoints";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { RoleStyledName } from "../../components/RoleStyledName/RoleStyledName";
 import { Pagination } from "../../components/Pagination/Pagination";
@@ -97,17 +97,27 @@ export function MysteryListPage() {
     const [solved, setSolved] = useState(searchParams.get("solved") ?? "false");
     const [loading, setLoading] = useState(true);
     const [leaderboard, setLeaderboard] = useState<MysteryLeaderboardEntry[]>([]);
+    const [gmLeaderboard, setGMLeaderboard] = useState<GMLeaderboardEntry[]>([]);
     const [expandedId, setExpandedId] = useState<string | null>(null);
+    const [gmExpandedId, setGMExpandedId] = useState<string | null>(null);
+    const [leaderboardTab, setLeaderboardTab] = useState<"detectives" | "gm">("detectives");
     const limit = 20;
 
     const toggleExpand = useCallback((id: string) => {
         setExpandedId(prev => (prev === id ? null : id));
     }, []);
 
+    const toggleGMExpand = useCallback((id: string) => {
+        setGMExpandedId(prev => (prev === id ? null : id));
+    }, []);
+
     useEffect(() => {
         getMysteryLeaderboard(10)
             .then(res => setLeaderboard(res.entries ?? []))
             .catch(() => setLeaderboard([]));
+        getGMLeaderboard(10)
+            .then(res => setGMLeaderboard(res.entries ?? []))
+            .catch(() => setGMLeaderboard([]));
     }, []);
 
     useEffect(() => {
@@ -222,6 +232,11 @@ export function MysteryListPage() {
                                         {m.paused && (
                                             <span className={`${styles.badge} ${styles.badgePaused}`}>Paused</span>
                                         )}
+                                        {m.free_for_all && (
+                                            <span className={`${styles.badge} ${styles.badgeFreeForAll}`}>
+                                                Free-for-all
+                                            </span>
+                                        )}
                                         <span className={`${styles.badge} ${styles.badgeDifficulty}`}>
                                             {m.difficulty}
                                         </span>
@@ -262,102 +277,197 @@ export function MysteryListPage() {
 
                 <aside className={styles.sidebar}>
                     <div className={styles.leaderboard}>
-                        <h3 className={styles.leaderboardTitle}>Top Detectives</h3>
-                        <p className={styles.leaderboardInfo}>
-                            Scores are based on difficulty: Easy 2 pts, Medium 4 pts, Hard 6 pts, Nightmare 8 pts. Click
-                            a detective to see their breakdown.
-                        </p>
-                        {leaderboard.length === 0 ? (
-                            <p className={styles.leaderboardEmpty}>
-                                No mysteries have been solved yet. Be the first to claim a winner's laurels.
-                            </p>
-                        ) : (
-                            <ol className={styles.leaderboardList}>
-                                {leaderboard.map((entry, i) => {
-                                    const isExpanded = expandedId === entry.user.id;
-                                    const total =
-                                        entry.easy_solved +
-                                        entry.medium_solved +
-                                        entry.hard_solved +
-                                        entry.nightmare_solved;
-                                    return (
-                                        <li key={entry.user.id}>
-                                            <div
-                                                className={`${styles.leaderboardItem}${isExpanded ? ` ${styles.leaderboardItemExpanded}` : ""}`}
-                                                onClick={() => toggleExpand(entry.user.id)}
-                                            >
-                                                <span className={styles.leaderboardRank}>#{i + 1}</span>
-                                                <LeaderboardAvatar user={entry.user} />
-                                                <span className={styles.leaderboardName}>
-                                                    <RoleStyledName
-                                                        name={entry.user.display_name}
-                                                        role={entry.user.role}
-                                                    />
-                                                </span>
-                                                <span className={styles.leaderboardScore}>{entry.score} pts</span>
-                                            </div>
-                                            {leaderboard.length > 0 && entry.score === leaderboard[0].score && (
-                                                <div className={styles.topDetectiveRow}>
-                                                    <span
-                                                        className={styles.topDetectiveBadge}
-                                                        title="Ranked #1 in mysteries"
+                        <div className={styles.leaderboardTabs}>
+                            <button
+                                className={`${styles.leaderboardTab}${leaderboardTab === "detectives" ? ` ${styles.leaderboardTabActive}` : ""}`}
+                                onClick={() => setLeaderboardTab("detectives")}
+                            >
+                                Top Detectives
+                            </button>
+                            <button
+                                className={`${styles.leaderboardTab}${leaderboardTab === "gm" ? ` ${styles.leaderboardTabActive}` : ""}`}
+                                onClick={() => setLeaderboardTab("gm")}
+                            >
+                                Top Game Masters
+                            </button>
+                        </div>
+
+                        {leaderboardTab === "detectives" && (
+                            <>
+                                <p className={styles.leaderboardInfo}>
+                                    Scores are based on difficulty: Easy 2 pts, Medium 4 pts, Hard 6 pts, Nightmare 8
+                                    pts. Click a detective to see their breakdown.
+                                </p>
+                                {leaderboard.length === 0 ? (
+                                    <p className={styles.leaderboardEmpty}>
+                                        No mysteries have been solved yet. Be the first to claim a winner's laurels.
+                                    </p>
+                                ) : (
+                                    <ol className={styles.leaderboardList}>
+                                        {leaderboard.map((entry, i) => {
+                                            const isExpanded = expandedId === entry.user.id;
+                                            const total =
+                                                entry.easy_solved +
+                                                entry.medium_solved +
+                                                entry.hard_solved +
+                                                entry.nightmare_solved;
+                                            return (
+                                                <li key={entry.user.id}>
+                                                    <div
+                                                        className={`${styles.leaderboardItem}${isExpanded ? ` ${styles.leaderboardItemExpanded}` : ""}`}
+                                                        onClick={() => toggleExpand(entry.user.id)}
                                                     >
-                                                        True Detective
-                                                    </span>
-                                                </div>
-                                            )}
-                                            {isExpanded && (
-                                                <div className={styles.leaderboardBreakdown}>
-                                                    <span className={styles.breakdownTotal}>{total} solved</span>
-                                                    {entry.easy_solved > 0 && (
-                                                        <span className={styles.breakdownRow}>
-                                                            <span className={styles.breakdownLabel}>Easy</span>
-                                                            <span className={styles.breakdownCount}>
-                                                                {entry.easy_solved}
-                                                            </span>
+                                                        <span className={styles.leaderboardRank}>#{i + 1}</span>
+                                                        <LeaderboardAvatar user={entry.user} />
+                                                        <span className={styles.leaderboardName}>
+                                                            <RoleStyledName
+                                                                name={entry.user.display_name}
+                                                                role={entry.user.role}
+                                                            />
                                                         </span>
-                                                    )}
-                                                    {entry.medium_solved > 0 && (
-                                                        <span className={styles.breakdownRow}>
-                                                            <span className={styles.breakdownLabel}>Medium</span>
-                                                            <span className={styles.breakdownCount}>
-                                                                {entry.medium_solved}
-                                                            </span>
+                                                        <span className={styles.leaderboardScore}>
+                                                            {entry.score} pts
                                                         </span>
-                                                    )}
-                                                    {entry.hard_solved > 0 && (
-                                                        <span className={styles.breakdownRow}>
-                                                            <span className={styles.breakdownLabel}>Hard</span>
-                                                            <span className={styles.breakdownCount}>
-                                                                {entry.hard_solved}
+                                                    </div>
+                                                    {leaderboard.length > 0 && entry.score === leaderboard[0].score && (
+                                                        <div className={styles.topDetectiveRow}>
+                                                            <span
+                                                                className={styles.topDetectiveBadge}
+                                                                title="Ranked #1 in mysteries"
+                                                            >
+                                                                True Detective
                                                             </span>
+                                                        </div>
+                                                    )}
+                                                    {isExpanded && (
+                                                        <div className={styles.leaderboardBreakdown}>
+                                                            <span className={styles.breakdownTotal}>
+                                                                {total} solved
+                                                            </span>
+                                                            {entry.easy_solved > 0 && (
+                                                                <span className={styles.breakdownRow}>
+                                                                    <span className={styles.breakdownLabel}>Easy</span>
+                                                                    <span className={styles.breakdownCount}>
+                                                                        {entry.easy_solved}
+                                                                    </span>
+                                                                </span>
+                                                            )}
+                                                            {entry.medium_solved > 0 && (
+                                                                <span className={styles.breakdownRow}>
+                                                                    <span className={styles.breakdownLabel}>
+                                                                        Medium
+                                                                    </span>
+                                                                    <span className={styles.breakdownCount}>
+                                                                        {entry.medium_solved}
+                                                                    </span>
+                                                                </span>
+                                                            )}
+                                                            {entry.hard_solved > 0 && (
+                                                                <span className={styles.breakdownRow}>
+                                                                    <span className={styles.breakdownLabel}>Hard</span>
+                                                                    <span className={styles.breakdownCount}>
+                                                                        {entry.hard_solved}
+                                                                    </span>
+                                                                </span>
+                                                            )}
+                                                            {entry.nightmare_solved > 0 && (
+                                                                <span className={styles.breakdownRow}>
+                                                                    <span className={styles.breakdownLabel}>
+                                                                        Nightmare
+                                                                    </span>
+                                                                    <span className={styles.breakdownCount}>
+                                                                        {entry.nightmare_solved}
+                                                                    </span>
+                                                                </span>
+                                                            )}
+                                                            {entry.score_adjustment !== 0 && (
+                                                                <span className={styles.breakdownRow}>
+                                                                    <span className={styles.breakdownLabel}>
+                                                                        Adjusted score
+                                                                    </span>
+                                                                    <span className={styles.breakdownCount}>
+                                                                        {entry.score_adjustment > 0 ? "+" : ""}
+                                                                        {entry.score_adjustment}
+                                                                    </span>
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </li>
+                                            );
+                                        })}
+                                    </ol>
+                                )}
+                            </>
+                        )}
+
+                        {leaderboardTab === "gm" && (
+                            <>
+                                <p className={styles.leaderboardInfo}>
+                                    Scores are based on difficulty + player engagement: base points per solved mystery
+                                    plus up to 5 bonus points for unique players. Click to see breakdown.
+                                </p>
+                                {gmLeaderboard.length === 0 ? (
+                                    <p className={styles.leaderboardEmpty}>
+                                        No mysteries have been solved yet. Create a mystery and have it solved to appear
+                                        here.
+                                    </p>
+                                ) : (
+                                    <ol className={styles.leaderboardList}>
+                                        {gmLeaderboard.map((entry, i) => {
+                                            const isExpanded = gmExpandedId === entry.user.id;
+                                            return (
+                                                <li key={entry.user.id}>
+                                                    <div
+                                                        className={`${styles.leaderboardItem}${isExpanded ? ` ${styles.leaderboardItemExpanded}` : ""}`}
+                                                        onClick={() => toggleGMExpand(entry.user.id)}
+                                                    >
+                                                        <span className={styles.leaderboardRank}>#{i + 1}</span>
+                                                        <LeaderboardAvatar user={entry.user} />
+                                                        <span className={styles.leaderboardName}>
+                                                            <RoleStyledName
+                                                                name={entry.user.display_name}
+                                                                role={entry.user.role}
+                                                            />
                                                         </span>
-                                                    )}
-                                                    {entry.nightmare_solved > 0 && (
-                                                        <span className={styles.breakdownRow}>
-                                                            <span className={styles.breakdownLabel}>Nightmare</span>
-                                                            <span className={styles.breakdownCount}>
-                                                                {entry.nightmare_solved}
-                                                            </span>
+                                                        <span className={styles.leaderboardScore}>
+                                                            {entry.score} pts
                                                         </span>
-                                                    )}
-                                                    {entry.score_adjustment !== 0 && (
-                                                        <span className={styles.breakdownRow}>
-                                                            <span className={styles.breakdownLabel}>
-                                                                Adjusted score
+                                                    </div>
+                                                    {gmLeaderboard.length > 0 &&
+                                                        entry.score === gmLeaderboard[0].score && (
+                                                            <div className={styles.topDetectiveRow}>
+                                                                <span
+                                                                    className={styles.topGMBadge}
+                                                                    title="Top ranked Game Master"
+                                                                >
+                                                                    Game Master
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                    {isExpanded && (
+                                                        <div className={styles.leaderboardBreakdown}>
+                                                            <span className={styles.breakdownTotal}>
+                                                                {entry.mystery_count}{" "}
+                                                                {entry.mystery_count === 1 ? "mystery" : "mysteries"}{" "}
+                                                                solved
                                                             </span>
-                                                            <span className={styles.breakdownCount}>
-                                                                {entry.score_adjustment > 0 ? "+" : ""}
-                                                                {entry.score_adjustment}
+                                                            <span className={styles.breakdownRow}>
+                                                                <span className={styles.breakdownLabel}>
+                                                                    Total players
+                                                                </span>
+                                                                <span className={styles.breakdownCount}>
+                                                                    {entry.player_count}
+                                                                </span>
                                                             </span>
-                                                        </span>
+                                                        </div>
                                                     )}
-                                                </div>
-                                            )}
-                                        </li>
-                                    );
-                                })}
-                            </ol>
+                                                </li>
+                                            );
+                                        })}
+                                    </ol>
+                                )}
+                            </>
                         )}
                     </div>
                 </aside>

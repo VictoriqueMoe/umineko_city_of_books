@@ -149,7 +149,7 @@ func (s *service) CreateArt(ctx context.Context, userID uuid.UUID, req dto.Creat
 	if len(tags) > 10 {
 		tags = tags[:10]
 	}
-	if err := s.artRepo.CreateWithTags(ctx, id, userID, corner, artType, title, description, urlPath, "", tags); err != nil {
+	if err := s.artRepo.CreateWithTags(ctx, id, userID, corner, artType, title, description, urlPath, "", tags, req.IsSpoiler); err != nil {
 		return uuid.Nil, err
 	}
 
@@ -245,7 +245,7 @@ func (s *service) UpdateArt(ctx context.Context, id uuid.UUID, userID uuid.UUID,
 	}
 
 	asAdmin := s.authz.Can(ctx, userID, authz.PermEditAnyPost)
-	if err := s.artRepo.UpdateWithTags(ctx, id, userID, title, description, tags, asAdmin); err != nil {
+	if err := s.artRepo.UpdateWithTags(ctx, id, userID, title, description, tags, req.IsSpoiler, asAdmin); err != nil {
 		return err
 	}
 	if asAdmin {

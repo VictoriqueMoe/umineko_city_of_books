@@ -62,7 +62,10 @@ export function FanficChapterPage() {
                     variant="secondary"
                     size="small"
                     disabled={!chapter!.has_prev}
-                    onClick={() => navigate(`/fanfiction/${fanficId}/chapter/${chapterNumber - 1}`)}
+                    onClick={() => {
+                        navigate(`/fanfiction/${fanficId}/chapter/${chapterNumber - 1}`);
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
                 >
                     &larr; Previous
                 </Button>
@@ -70,7 +73,10 @@ export function FanficChapterPage() {
                     variant="secondary"
                     size="small"
                     disabled={!chapter!.has_next}
-                    onClick={() => navigate(`/fanfiction/${fanficId}/chapter/${chapterNumber + 1}`)}
+                    onClick={() => {
+                        navigate(`/fanfiction/${fanficId}/chapter/${chapterNumber + 1}`);
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
                 >
                     Next &rarr;
                 </Button>

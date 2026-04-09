@@ -195,13 +195,13 @@ func (s *Service) logout(ctx fiber.Ctx) error {
 	return ctx.JSON(fiber.Map{"status": "ok"})
 }
 
-
 func (s *Service) setupSiteInfoRoute(r fiber.Router) {
 	r.Get("/site-info", s.siteInfo)
 }
 
 func (s *Service) siteInfo(ctx fiber.Ctx) error {
 	topDetectives, _ := s.MysteryService.GetTopDetectiveIDs(ctx.Context())
+	topGMs, _ := s.MysteryService.GetTopGMIDs(ctx.Context())
 	return ctx.JSON(fiber.Map{
 		"site_name":           s.SettingsService.Get(ctx.Context(), config.SettingSiteName),
 		"site_description":    s.SettingsService.Get(ctx.Context(), config.SettingSiteDescription),
@@ -216,6 +216,7 @@ func (s *Service) siteInfo(ctx fiber.Ctx) error {
 		"max_image_size":      s.SettingsService.GetInt(ctx.Context(), config.SettingMaxImageSize),
 		"max_video_size":      s.SettingsService.GetInt(ctx.Context(), config.SettingMaxVideoSize),
 		"top_detective_ids":   topDetectives,
+		"top_gm_ids":          topGMs,
 	})
 }
 

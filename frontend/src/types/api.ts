@@ -346,6 +346,9 @@ export type NotificationType =
     | "mystery_reply"
     | "mystery_attempt_vote"
     | "mystery_solved"
+    | "mystery_paused_notif"
+    | "mystery_unpaused"
+    | "mystery_solved_all"
     | "mystery_comment_reply"
     | "fanfic_commented"
     | "fanfic_comment_reply"
@@ -408,6 +411,9 @@ export interface AdminUserDetail extends AdminUserItem {
     theory_count: number;
     response_count: number;
     mystery_score_adjustment: number;
+    detective_score: number;
+    gm_score_adjustment: number;
+    gm_score: number;
 }
 
 export interface AdminStats {
@@ -476,6 +482,7 @@ export interface Art {
     comment_count: number;
     view_count: number;
     user_liked: boolean;
+    is_spoiler: boolean;
     created_at: string;
     updated_at?: string;
 }
@@ -557,6 +564,7 @@ export interface Mystery {
     author: User;
     solved: boolean;
     paused: boolean;
+    free_for_all: boolean;
     winner?: User;
     solved_at?: string;
     attempt_count: number;
@@ -612,6 +620,7 @@ export interface MysteryDetail {
     author: User;
     solved: boolean;
     paused: boolean;
+    free_for_all: boolean;
     winner?: User;
     solved_at?: string;
     clues: MysteryClue[];
@@ -641,6 +650,17 @@ export interface MysteryLeaderboardEntry {
 
 export interface MysteryLeaderboardResponse {
     entries: MysteryLeaderboardEntry[];
+}
+
+export interface GMLeaderboardEntry {
+    user: User;
+    score: number;
+    mystery_count: number;
+    player_count: number;
+}
+
+export interface GMLeaderboardResponse {
+    entries: GMLeaderboardEntry[];
 }
 
 export interface FanficCharacter {

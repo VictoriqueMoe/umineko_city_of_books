@@ -13,7 +13,6 @@ import { TheoryPage } from "./pages/theories/TheoryPage";
 import { CreateTheoryPage } from "./pages/theories/CreateTheoryPage";
 import { LoginPage } from "./pages/auth/LoginPage";
 import { QuoteBrowserPage } from "./pages/quotes/QuoteBrowserPage";
-import { MyTheoriesPage } from "./pages/theories/MyTheoriesPage";
 import { EditTheoryPage } from "./pages/theories/EditTheoryPage";
 import { ProfilePage } from "./pages/profile/ProfilePage";
 import { SettingsPage } from "./pages/profile/SettingsPage";
@@ -156,7 +155,6 @@ function AppLayout() {
                             <Route path="/fanfiction/:id/chapter/new" element={<ChapterEditorPage />} />
                             <Route path="/fanfiction/:id/chapter/:number/edit" element={<ChapterEditorPage />} />
                             <Route path="/theory/:id/edit" element={<EditTheoryPage />} />
-                            <Route path="/my-theories" element={<MyTheoriesPage />} />
                             <Route path="/settings" element={<SettingsPage />} />
                             <Route path="/chat" element={<ChatPage />} />
                             <Route path="/chat/:roomId" element={<ChatPage />} />

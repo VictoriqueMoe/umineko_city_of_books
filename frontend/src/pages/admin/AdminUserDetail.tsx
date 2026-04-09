@@ -7,7 +7,8 @@ import {
     removeUserRole,
     setUserRole,
     unbanUser,
-    updateMysteryScoreAdjustment,
+    updateDetectiveScore,
+    updateGMScore,
 } from "../../api/endpoints";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
@@ -33,7 +34,8 @@ export function AdminUserDetail() {
     const [selectedRole, setSelectedRole] = useState("admin");
     const [banReason, setBanReason] = useState("");
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-    const [scoreInput, setScoreInput] = useState("0");
+    const [detectiveScoreInput, setDetectiveScoreInput] = useState("0");
+    const [gmScoreInput, setGMScoreInput] = useState("0");
 
     useEffect(() => {
         if (!id) {
@@ -47,7 +49,8 @@ export function AdminUserDetail() {
                 const data = await getAdminUser(id!);
                 if (!cancelled) {
                     setUser(data);
-                    setScoreInput(String(data.mystery_score_adjustment));
+                    setDetectiveScoreInput(String(data.detective_score));
+                    setGMScoreInput(String(data.gm_score));
                 }
             } catch (e) {
                 if (!cancelled) {
@@ -213,21 +216,19 @@ export function AdminUserDetail() {
 
             {can(currentUser?.role, "edit_mystery_score") && (
                 <div className={styles.card}>
-                    <h2 className={styles.sectionTitle}>Mystery Score Adjustment</h2>
+                    <h2 className={styles.sectionTitle}>Mystery Scores</h2>
                     <div className={styles.fieldGroup}>
                         <div className={styles.field}>
-                            <span className={styles.fieldLabel}>
-                                Points added or removed from this user's mystery leaderboard score
-                            </span>
+                            <span className={styles.fieldLabel}>Detective Score</span>
                             <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
                                 <Input
                                     type="text"
                                     inputMode="numeric"
-                                    value={scoreInput}
+                                    value={detectiveScoreInput}
                                     onChange={e => {
                                         const val = e.target.value;
                                         if (/^-?\d*$/.test(val)) {
-                                            setScoreInput(val);
+                                            setDetectiveScoreInput(val);
                                         }
                                     }}
                                     style={{ width: "100px" }}
@@ -236,9 +237,39 @@ export function AdminUserDetail() {
                                     variant="primary"
                                     size="small"
                                     onClick={async () => {
-                                        const num = parseInt(scoreInput, 10) || 0;
+                                        const num = parseInt(detectiveScoreInput, 10) || 0;
                                         try {
-                                            await updateMysteryScoreAdjustment(user.id, num);
+                                            await updateDetectiveScore(user.id, num);
+                                            refresh();
+                                        } catch {}
+                                    }}
+                                >
+                                    Save
+                                </Button>
+                            </div>
+                        </div>
+                        <div className={styles.field}>
+                            <span className={styles.fieldLabel}>Game Master Score</span>
+                            <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                                <Input
+                                    type="text"
+                                    inputMode="numeric"
+                                    value={gmScoreInput}
+                                    onChange={e => {
+                                        const val = e.target.value;
+                                        if (/^-?\d*$/.test(val)) {
+                                            setGMScoreInput(val);
+                                        }
+                                    }}
+                                    style={{ width: "100px" }}
+                                />
+                                <Button
+                                    variant="primary"
+                                    size="small"
+                                    onClick={async () => {
+                                        const num = parseInt(gmScoreInput, 10) || 0;
+                                        try {
+                                            await updateGMScore(user.id, num);
                                             refresh();
                                         } catch {}
                                     }}

@@ -40,6 +40,7 @@ type (
 		GameBoardSort          string
 		IP                     *string
 		MysteryScoreAdjustment int
+		GMScoreAdjustment      int
 		Role                   string
 	}
 

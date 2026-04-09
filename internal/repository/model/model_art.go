@@ -28,6 +28,7 @@ type (
 		CommentCount      int
 		ViewCount         int
 		UserLiked         bool
+		IsSpoiler         bool
 	}
 
 	GalleryRow struct {
@@ -93,6 +94,7 @@ func (r *ArtRow) ToResponse(tags []string) dto.ArtResponse {
 		CommentCount: r.CommentCount,
 		ViewCount:    r.ViewCount,
 		UserLiked:    r.UserLiked,
+		IsSpoiler:    r.IsSpoiler,
 		CreatedAt:    r.CreatedAt,
 		UpdatedAt:    r.UpdatedAt,
 	}

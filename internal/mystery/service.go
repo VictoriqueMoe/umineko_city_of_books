@@ -36,6 +36,8 @@ type (
 		AddClue(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, req dto.CreateClueRequest) error
 		GetLeaderboard(ctx context.Context, limit int) (*dto.MysteryLeaderboardResponse, error)
 		GetTopDetectiveIDs(ctx context.Context) ([]string, error)
+		GetGMLeaderboard(ctx context.Context, limit int) (*dto.GMLeaderboardResponse, error)
+		GetTopGMIDs(ctx context.Context) ([]string, error)
 		ListByUser(ctx context.Context, userID uuid.UUID, limit, offset int) (*dto.MysteryListResponse, error)
 		CreateComment(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, req dto.CreateCommentRequest) (uuid.UUID, error)
 		UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.UpdateCommentRequest) error
@@ -158,7 +160,7 @@ func (s *service) GetMystery(ctx context.Context, id uuid.UUID, viewerID uuid.UU
 
 	viewerRole, _ := s.authz.GetRole(ctx, viewerID)
 	isGameMaster := viewerID == row.UserID || viewerRole == authz.RoleSuperAdmin
-	if !isGameMaster && !row.Solved {
+	if !isGameMaster && !row.Solved && !row.FreeForAll {
 		filtered := make([]dto.MysteryAttempt, 0, len(attempts))
 		for _, a := range attempts {
 			if a.Author.ID == viewerID {
@@ -215,6 +217,7 @@ func (s *service) GetMystery(ctx context.Context, id uuid.UUID, viewerID uuid.UU
 		Difficulty: row.Difficulty,
 		Solved:     row.Solved,
 		Paused:     row.Paused,
+		FreeForAll: row.FreeForAll,
 		SolvedAt:   row.SolvedAt,
 		Author: dto.UserResponse{
 			ID:          row.UserID,
@@ -252,7 +255,7 @@ func (s *service) CreateMystery(ctx context.Context, userID uuid.UUID, req dto.C
 	}
 
 	id := uuid.New()
-	if err := s.mysteryRepo.Create(ctx, id, userID, req.Title, req.Body, req.Difficulty); err != nil {
+	if err := s.mysteryRepo.Create(ctx, id, userID, req.Title, req.Body, req.Difficulty, req.FreeForAll); err != nil {
 		return uuid.Nil, err
 	}
 
@@ -283,7 +286,7 @@ func (s *service) UpdateMystery(ctx context.Context, id uuid.UUID, userID uuid.U
 	}
 	oldClues, _ := s.mysteryRepo.GetClues(ctx, id)
 
-	if err := s.mysteryRepo.UpdateAsAdmin(ctx, id, req.Title, req.Body, req.Difficulty); err != nil {
+	if err := s.mysteryRepo.UpdateAsAdmin(ctx, id, req.Title, req.Body, req.Difficulty, req.FreeForAll); err != nil {
 		return err
 	}
 
@@ -551,6 +554,44 @@ func (s *service) MarkSolved(ctx context.Context, mysteryID uuid.UUID, userID uu
 			EmailSubject:  subject,
 			EmailBody:     body,
 		})
+
+		playerIDs, _ := s.mysteryRepo.GetPlayerIDs(bgCtx, mysteryID)
+		solvedLink := fmt.Sprintf("%s/mystery/%s", baseURL, mysteryID)
+		solvedSubject, solvedBody := notification.NotifEmail("The Game Master", "solved a mystery you were playing", "", solvedLink)
+		for _, pid := range playerIDs {
+			if pid == attemptAuthorID {
+				continue
+			}
+			_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
+				RecipientID:   pid,
+				Type:          dto.NotifMysterySolvedAll,
+				ReferenceID:   mysteryID,
+				ReferenceType: "mystery",
+				ActorID:       userID,
+				Message:       "a mystery you were playing has been solved",
+				EmailSubject:  solvedSubject,
+				EmailBody:     solvedBody,
+			})
+		}
+
+		topIDs, err := s.mysteryRepo.GetTopDetectiveIDs(bgCtx)
+		if err == nil {
+			s.hub.Broadcast(ws.Message{
+				Type: "top_detective_changed",
+				Data: map[string]interface{}{
+					"user_ids": topIDs,
+				},
+			})
+		}
+		topGMIDs, err := s.mysteryRepo.GetTopGMIDs(bgCtx)
+		if err == nil {
+			s.hub.Broadcast(ws.Message{
+				Type: "top_gm_changed",
+				Data: map[string]interface{}{
+					"user_ids": topGMIDs,
+				},
+			})
+		}
 	}()
 
 	return nil
@@ -628,6 +669,33 @@ func (s *service) GetTopDetectiveIDs(ctx context.Context) ([]string, error) {
 	return s.mysteryRepo.GetTopDetectiveIDs(ctx)
 }
 
+func (s *service) GetGMLeaderboard(ctx context.Context, limit int) (*dto.GMLeaderboardResponse, error) {
+	rows, err := s.mysteryRepo.GetGMLeaderboard(ctx, limit)
+	if err != nil {
+		return nil, err
+	}
+	entries := make([]dto.GMLeaderboardEntry, len(rows))
+	for i, r := range rows {
+		entries[i] = dto.GMLeaderboardEntry{
+			User: dto.UserResponse{
+				ID:          r.UserID,
+				Username:    r.Username,
+				DisplayName: r.DisplayName,
+				AvatarURL:   r.AvatarURL,
+				Role:        role.Role(r.Role),
+			},
+			Score:        r.Score,
+			MysteryCount: r.MysteryCount,
+			PlayerCount:  r.PlayerCount,
+		}
+	}
+	return &dto.GMLeaderboardResponse{Entries: entries}, nil
+}
+
+func (s *service) GetTopGMIDs(ctx context.Context) ([]string, error) {
+	return s.mysteryRepo.GetTopGMIDs(ctx)
+}
+
 func (s *service) ListByUser(ctx context.Context, userID uuid.UUID, limit, offset int) (*dto.MysteryListResponse, error) {
 	rows, total, err := s.mysteryRepo.ListByUser(ctx, userID, limit, offset)
 	if err != nil {
@@ -678,19 +746,20 @@ func (s *service) CreateComment(ctx context.Context, mysteryID uuid.UUID, userID
 		return uuid.Nil, err
 	}
 
-	if req.ParentID != nil {
-		go func() {
-			bgCtx := context.Background()
+	go func() {
+		bgCtx := context.Background()
+		actor, err := s.userRepo.GetByID(bgCtx, userID)
+		if err != nil || actor == nil {
+			return
+		}
+		baseURL := s.settingsSvc.Get(bgCtx, config.SettingBaseURL)
+		linkURL := fmt.Sprintf("%s/mystery/%s#comment-%s", baseURL, mysteryID, id)
+
+		if req.ParentID != nil {
 			parentAuthor, err := s.mysteryRepo.GetCommentAuthorID(bgCtx, *req.ParentID)
 			if err != nil || parentAuthor == userID {
 				return
 			}
-			actor, err := s.userRepo.GetByID(bgCtx, userID)
-			if err != nil || actor == nil {
-				return
-			}
-			baseURL := s.settingsSvc.Get(bgCtx, config.SettingBaseURL)
-			linkURL := fmt.Sprintf("%s/mystery/%s#comment-%s", baseURL, mysteryID, id)
 			subject, emailBody := notification.NotifEmail(actor.DisplayName, "replied to your comment", "", linkURL)
 			_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
 				RecipientID:   parentAuthor,
@@ -701,8 +770,19 @@ func (s *service) CreateComment(ctx context.Context, mysteryID uuid.UUID, userID
 				EmailSubject:  subject,
 				EmailBody:     emailBody,
 			})
-		}()
-	}
+		} else if authorID != userID {
+			subject, emailBody := notification.NotifEmail(actor.DisplayName, "commented on your mystery", "", linkURL)
+			_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
+				RecipientID:   authorID,
+				Type:          dto.NotifMysteryCommentReply,
+				ReferenceID:   mysteryID,
+				ReferenceType: fmt.Sprintf("mystery_comment:%s", id),
+				ActorID:       userID,
+				EmailSubject:  subject,
+				EmailBody:     emailBody,
+			})
+		}
+	}()
 
 	return id, nil
 }
@@ -880,6 +960,37 @@ func (s *service) SetPaused(ctx context.Context, mysteryID uuid.UUID, userID uui
 			"paused":     paused,
 		},
 	})
+
+	go func() {
+		bgCtx := context.Background()
+		playerIDs, err := s.mysteryRepo.GetPlayerIDs(bgCtx, mysteryID)
+		if err != nil || len(playerIDs) == 0 {
+			return
+		}
+		baseURL := s.settingsSvc.Get(bgCtx, config.SettingBaseURL)
+		linkURL := fmt.Sprintf("%s/mystery/%s", baseURL, mysteryID)
+
+		notifType := dto.NotifMysteryPaused
+		message := "paused a mystery you are playing"
+		if !paused {
+			notifType = dto.NotifMysteryUnpaused
+			message = "resumed a mystery you are playing"
+		}
+		subject, body := notification.NotifEmail("The Game Master", message, "", linkURL)
+		for _, pid := range playerIDs {
+			_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
+				RecipientID:   pid,
+				Type:          notifType,
+				ReferenceID:   mysteryID,
+				ReferenceType: "mystery",
+				ActorID:       userID,
+				Message:       message,
+				EmailSubject:  subject,
+				EmailBody:     body,
+			})
+		}
+	}()
+
 	return nil
 }
 

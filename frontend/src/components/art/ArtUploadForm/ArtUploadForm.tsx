@@ -6,6 +6,7 @@ import { useSiteInfo } from "../../../hooks/useSiteInfo";
 import { validateFileSize } from "../../../utils/fileValidation";
 import { Button } from "../../Button/Button";
 import { MentionTextArea } from "../../MentionTextArea/MentionTextArea";
+import { ToggleSwitch } from "../../ToggleSwitch/ToggleSwitch";
 import { TagInput } from "../TagInput/TagInput";
 import styles from "./ArtUploadForm.module.css";
 
@@ -34,6 +35,7 @@ export function ArtUploadForm({
     const [artType, setArtType] = useState("drawing");
     const [description, setDescription] = useState("");
     const [tags, setTags] = useState<string[]>([]);
+    const [isSpoiler, setIsSpoiler] = useState(false);
     const [file, setFile] = useState<File | null>(null);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
@@ -55,6 +57,7 @@ export function ArtUploadForm({
                     corner,
                     art_type: artType,
                     tags,
+                    is_spoiler: isSpoiler,
                     gallery_id: galleryId,
                 },
                 file,
@@ -163,6 +166,13 @@ export function ArtUploadForm({
                 <TagInput tags={tags} onChange={setTags} />
                 <span className={styles.hint}>Press Enter or comma to add. Max 10 tags.</span>
             </div>
+
+            <ToggleSwitch
+                enabled={isSpoiler}
+                onChange={setIsSpoiler}
+                label="Contains spoilers"
+                description="Image will be blurred until the viewer clicks to reveal it"
+            />
 
             <div className={styles.field}>
                 <label className={styles.label}>Image *</label>

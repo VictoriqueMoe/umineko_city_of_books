@@ -273,13 +273,6 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                                 )}
                             </NavLink>
                             <NavLink
-                                to="/my-theories"
-                                className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
-                                onClick={onClose}
-                            >
-                                My Theories
-                            </NavLink>
-                            <NavLink
                                 to={`/user/${user.username}`}
                                 className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
                                 onClick={onClose}
