@@ -65,6 +65,8 @@ export function AdminReports() {
             navigate(`/gallery/art/${report.target_id}`);
         } else if (report.target_type === "art_comment" && report.context_id) {
             navigate(`/gallery/art/${report.context_id}#comment-${report.target_id}`);
+        } else if (report.target_type === "mystery") {
+            navigate(`/mystery/${report.target_id}`);
         }
     }
 
