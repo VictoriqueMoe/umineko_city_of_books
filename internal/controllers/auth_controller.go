@@ -233,6 +233,8 @@ var rulesSettings = map[string]config.SiteSettingDef{
 	"game_board_umineko":   config.SettingRulesGameBoardUmineko,
 	"game_board_higurashi": config.SettingRulesGameBoardHigurashi,
 	"game_board_ciconia":   config.SettingRulesGameBoardCiconia,
+	"game_board_higanbana": config.SettingRulesGameBoardHiganbana,
+	"game_board_roseguns":  config.SettingRulesGameBoardRoseguns,
 	"gallery":              config.SettingRulesGallery,
 	"gallery_umineko":      config.SettingRulesGalleryUmineko,
 	"gallery_higurashi":    config.SettingRulesGalleryHigurashi,

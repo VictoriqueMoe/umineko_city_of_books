@@ -318,6 +318,51 @@ export function getNotificationText(notif: Notification): string {
     return notificationConfigs[notif.type]?.text ?? "";
 }
 
+export function showDesktopNotification(notif: Notification): void {
+    if (typeof window === "undefined" || !("Notification" in window)) {
+        return;
+    }
+    if (window.Notification.permission !== "granted") {
+        return;
+    }
+    if (document.visibilityState === "visible" && document.hasFocus()) {
+        return;
+    }
+    const actorName = notif.actor?.display_name || "Someone";
+    const body = getNotificationText(notif);
+    const title = `${actorName} ${body}`;
+    const route = getNotificationRoute(notif);
+    const osNotif = new window.Notification(title, {
+        body: notif.message || "",
+        icon: notif.actor?.avatar_url || "/favicon/android-chrome-192x192.png",
+        badge: "/favicon/favicon-32x32.png",
+        tag: `notif-${notif.id}`,
+    });
+    osNotif.onclick = () => {
+        window.focus();
+        window.location.href = route;
+        osNotif.close();
+    };
+}
+
+export async function ensureNotificationPermission(): Promise<boolean> {
+    if (typeof window === "undefined" || !("Notification" in window)) {
+        return false;
+    }
+    if (window.Notification.permission === "granted") {
+        return true;
+    }
+    if (window.Notification.permission === "denied") {
+        return false;
+    }
+    try {
+        const result = await window.Notification.requestPermission();
+        return result === "granted";
+    } catch {
+        return false;
+    }
+}
+
 export function getNotificationRoute(notif: Notification): string {
     const config = notificationConfigs[notif.type];
     if (config) {

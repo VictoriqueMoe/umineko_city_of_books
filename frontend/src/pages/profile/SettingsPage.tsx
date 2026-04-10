@@ -317,6 +317,10 @@ export function SettingsPage() {
                             label="Public Email"
                             description="Show your email address on your profile"
                         />
+                    </div>
+
+                    <div className={`${styles.section} ${styles.gridFull}`}>
+                        <h3 className={styles.sectionTitle}>Notifications</h3>
                         <ToggleSwitch
                             enabled={form.emailNotifications}
                             onChange={form.setEmailNotifications}
@@ -336,6 +340,8 @@ export function SettingsPage() {
                                 <option value="game_board_umineko">Game Board (Umineko)</option>
                                 <option value="game_board_higurashi">Game Board (Higurashi)</option>
                                 <option value="game_board_ciconia">Game Board (Ciconia)</option>
+                                <option value="game_board_higanbana">Game Board (Higanbana)</option>
+                                <option value="game_board_roseguns">Game Board (Rose Guns Days)</option>
                                 <option value="gallery">Gallery (General)</option>
                                 <option value="gallery_umineko">Gallery (Umineko)</option>
                                 <option value="gallery_higurashi">Gallery (Higurashi)</option>

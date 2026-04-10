@@ -66,6 +66,8 @@ var (
 	SettingRulesGameBoardUmineko   = SiteSettingDef{"rules_game_board_umineko", "", TypeString}
 	SettingRulesGameBoardHigurashi = SiteSettingDef{"rules_game_board_higurashi", "", TypeString}
 	SettingRulesGameBoardCiconia   = SiteSettingDef{"rules_game_board_ciconia", "", TypeString}
+	SettingRulesGameBoardHiganbana = SiteSettingDef{"rules_game_board_higanbana", "", TypeString}
+	SettingRulesGameBoardRoseguns  = SiteSettingDef{"rules_game_board_roseguns", "", TypeString}
 	SettingMaxArtPerDay            = SiteSettingDef{"max_art_per_day", "0", TypeInt}
 	SettingRulesGallery            = SiteSettingDef{"rules_gallery", "", TypeString}
 	SettingRulesGalleryUmineko     = SiteSettingDef{"rules_gallery_umineko", "", TypeString}
@@ -111,6 +113,8 @@ var (
 		SettingRulesGameBoardUmineko,
 		SettingRulesGameBoardHigurashi,
 		SettingRulesGameBoardCiconia,
+		SettingRulesGameBoardHiganbana,
+		SettingRulesGameBoardRoseguns,
 		SettingMaxArtPerDay,
 		SettingRulesGallery,
 		SettingRulesGalleryUmineko,

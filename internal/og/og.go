@@ -85,6 +85,7 @@ func (r *Resolver) metaForPath(ctx context.Context, path string) *Meta {
 		if _, err := uuid.Parse(parts[1]); err == nil {
 			return r.postMeta(ctx, parts[1])
 		}
+		return r.gameBoardCornerMeta(parts[1])
 	}
 
 	if len(parts) == 3 && parts[0] == "gallery" && parts[1] == "art" {
@@ -228,6 +229,25 @@ func (r *Resolver) profileMeta(ctx context.Context, username string) *Meta {
 		Description: desc,
 		Image:       u.AvatarURL,
 		URL:         fmt.Sprintf("%s/user/%s", r.baseURL, username),
+	}
+}
+
+func (r *Resolver) gameBoardCornerMeta(corner string) *Meta {
+	titles := map[string]string{
+		"umineko":   "Umineko",
+		"higurashi": "Higurashi",
+		"ciconia":   "Ciconia",
+		"higanbana": "Higanbana",
+		"roseguns":  "Rose Guns Days",
+	}
+	name, ok := titles[corner]
+	if !ok {
+		return nil
+	}
+	return &Meta{
+		Title:       name + " Game Board - Umineko City of Books",
+		Description: fmt.Sprintf("Discuss %s with fellow players on the game board.", name),
+		URL:         fmt.Sprintf("%s/game-board/%s", r.baseURL, corner),
 	}
 }
 

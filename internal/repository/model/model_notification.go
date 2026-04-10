@@ -11,7 +11,7 @@ type (
 	NotificationRow struct {
 		ID               int
 		UserID           uuid.UUID
-		Type             string
+		Type             dto.NotificationType
 		ReferenceID      uuid.UUID
 		ReferenceType    string
 		ActorID          uuid.UUID

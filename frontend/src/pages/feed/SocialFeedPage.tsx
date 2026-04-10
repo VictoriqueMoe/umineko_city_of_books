@@ -28,12 +28,16 @@ const CORNER_RULES: Record<string, string> = {
     umineko: "game_board_umineko",
     higurashi: "game_board_higurashi",
     ciconia: "game_board_ciconia",
+    higanbana: "game_board_higanbana",
+    roseguns: "game_board_roseguns",
 };
 
 const CORNER_TITLES: Record<string, string> = {
     umineko: "Umineko Corner",
     higurashi: "Higurashi Corner",
     ciconia: "Ciconia Corner",
+    higanbana: "Higanbana Corner",
+    roseguns: "Rose Guns Days Corner",
 };
 
 interface SocialFeedPageProps {
@@ -41,7 +45,7 @@ interface SocialFeedPageProps {
 }
 
 export function SocialFeedPage({ corner = "general" }: SocialFeedPageProps) {
-    usePageTitle("Game Board");
+    usePageTitle(CORNER_TITLES[corner] ?? "Game Board");
     const { user, setUser } = useAuth();
     const [searchParams, setSearchParams] = useSearchParams();
 

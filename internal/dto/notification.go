@@ -17,14 +17,14 @@ type (
 	}
 
 	NotificationResponse struct {
-		ID            int          `json:"id"`
-		Type          string       `json:"type"`
-		ReferenceID   uuid.UUID    `json:"reference_id"`
-		ReferenceType string       `json:"reference_type"`
-		Actor         UserResponse `json:"actor"`
-		Message       string       `json:"message,omitempty"`
-		Read          bool         `json:"read"`
-		CreatedAt     string       `json:"created_at"`
+		ID            int              `json:"id"`
+		Type          NotificationType `json:"type"`
+		ReferenceID   uuid.UUID        `json:"reference_id"`
+		ReferenceType string           `json:"reference_type"`
+		Actor         UserResponse     `json:"actor"`
+		Message       string           `json:"message,omitempty"`
+		Read          bool             `json:"read"`
+		CreatedAt     string           `json:"created_at"`
 	}
 
 	NotificationListResponse struct {

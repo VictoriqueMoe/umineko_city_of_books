@@ -3,6 +3,7 @@ import type { Notification, UserProfile, WSMessage } from "../types/api";
 import { NotificationContext, type WSMessageHandler } from "./notificationContextValue";
 import { useAuth } from "../hooks/useAuth";
 import * as api from "../api/endpoints";
+import { showDesktopNotification } from "../utils/notifications";
 
 const MAX_BACKOFF = 30000;
 
@@ -52,6 +53,7 @@ export function NotificationProvider({ children }: PropsWithChildren) {
                     const notif = msg.data as Notification;
                     setNotifications(prev => [notif, ...prev]);
                     setUnreadCount(prev => prev + 1);
+                    showDesktopNotification(notif);
                 }
                 if (msg.type === "role_changed") {
                     const data = msg.data as { user_id?: string; role?: string };

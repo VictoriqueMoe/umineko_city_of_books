@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 import { useSiteInfo } from "./hooks/useSiteInfo";
 import { useTheme } from "./hooks/useTheme";
 import { useAuth } from "./hooks/useAuth";
 import { canAccessAdmin } from "./utils/permissions";
+import { ensureNotificationPermission } from "./utils/notifications";
 import { Header } from "./components/layout/Header/Header";
 import { Sidebar } from "./components/layout/Sidebar/Sidebar";
 import { Butterflies } from "./components/layout/Butterflies/Butterflies";
@@ -58,6 +59,8 @@ const homePageRoutes: Record<string, string> = {
     game_board_umineko: "/game-board/umineko",
     game_board_higurashi: "/game-board/higurashi",
     game_board_ciconia: "/game-board/ciconia",
+    game_board_higanbana: "/game-board/higanbana",
+    game_board_roseguns: "/game-board/roseguns",
     gallery: "/gallery",
     gallery_umineko: "/gallery/umineko",
     gallery_higurashi: "/gallery/higurashi",
@@ -91,6 +94,12 @@ function AppLayout() {
     const { user, loading: authLoading } = useAuth();
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
+    useEffect(() => {
+        if (user) {
+            ensureNotificationPermission().catch(() => {});
+        }
+    }, [user]);
+
     if (authLoading) {
         return null;
     }
@@ -117,6 +126,8 @@ function AppLayout() {
                         <Route path="/game-board/umineko" element={<SocialFeedPage corner="umineko" />} />
                         <Route path="/game-board/higurashi" element={<SocialFeedPage corner="higurashi" />} />
                         <Route path="/game-board/ciconia" element={<SocialFeedPage corner="ciconia" />} />
+                        <Route path="/game-board/higanbana" element={<SocialFeedPage corner="higanbana" />} />
+                        <Route path="/game-board/roseguns" element={<SocialFeedPage corner="roseguns" />} />
                         <Route path="/game-board/:id" element={<PostDetailPage />} />
                         <Route path="/gallery" element={<ArtGalleryPage />} />
                         <Route path="/gallery/umineko" element={<ArtGalleryPage corner="umineko" />} />

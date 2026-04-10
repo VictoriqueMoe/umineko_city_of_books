@@ -18,6 +18,11 @@ const CORNERS = [
     { path: "/game-board/ciconia", label: "Ciconia", key: "ciconia" },
 ];
 
+const RYUKISHI_CORNERS = [
+    { path: "/game-board/higanbana", label: "Higanbana", key: "higanbana" },
+    { path: "/game-board/roseguns", label: "Rose Guns Days", key: "roseguns" },
+];
+
 const GALLERY_CORNERS = [
     { path: "/gallery", label: "General", key: "general" },
     { path: "/gallery/umineko", label: "Umineko", key: "umineko" },
@@ -31,7 +36,9 @@ export function Sidebar({ open, onClose }: SidebarProps) {
     const location = useLocation();
     const [unreadChat, setUnreadChat] = useState(0);
     const [newAnnouncement, setNewAnnouncement] = useState(false);
-    const [cornersOpen, setCornersOpen] = useState(location.pathname.startsWith("/game-board"));
+    const isRyukishiPath = RYUKISHI_CORNERS.some(c => location.pathname === c.path);
+    const [cornersOpen, setCornersOpen] = useState(location.pathname.startsWith("/game-board") && !isRyukishiPath);
+    const [ryukishiOpen, setRyukishiOpen] = useState(isRyukishiPath);
     const [galleryOpen, setGalleryOpen] = useState(location.pathname.startsWith("/gallery"));
     const [theoriesOpen, setTheoriesOpen] = useState(location.pathname.startsWith("/theor"));
     const [cornerCounts, setCornerCounts] = useState<Record<string, number>>({});
@@ -110,6 +117,31 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                         {cornersOpen && (
                             <div className={styles.subLinks}>
                                 {CORNERS.map(c => (
+                                    <NavLink
+                                        key={c.path}
+                                        to={c.path}
+                                        end
+                                        className={({ isActive }) =>
+                                            `${styles.link} ${styles.subLink}${isActive ? ` ${styles.active}` : ""}`
+                                        }
+                                        onClick={onClose}
+                                    >
+                                        {c.label}
+                                        <span className={styles.cornerCount}>{cornerCounts[c.key] ?? 0}</span>
+                                    </NavLink>
+                                ))}
+                            </div>
+                        )}
+                        <button
+                            className={`${styles.link} ${styles.expandBtn}${ryukishiOpen ? ` ${styles.expandOpen}` : ""}`}
+                            onClick={() => setRyukishiOpen(prev => !prev)}
+                        >
+                            Ryukishi's Other Works
+                            <span className={styles.expandIcon}>{ryukishiOpen ? "\u25B4" : "\u25BE"}</span>
+                        </button>
+                        {ryukishiOpen && (
+                            <div className={styles.subLinks}>
+                                {RYUKISHI_CORNERS.map(c => (
                                     <NavLink
                                         key={c.path}
                                         to={c.path}

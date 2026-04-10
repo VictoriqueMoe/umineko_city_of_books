@@ -261,6 +261,22 @@ export async function getUnreadCount(): Promise<{ count: number }> {
     return apiFetch<{ count: number }>("/notifications/unread-count");
 }
 
+export async function getPushPublicKey(): Promise<{ public_key: string }> {
+    return apiFetch<{ public_key: string }>("/push/public-key");
+}
+
+export async function subscribePush(data: { endpoint: string; keys: { p256dh: string; auth: string } }): Promise<void> {
+    await apiPost<unknown, typeof data>("/push/subscribe", data);
+}
+
+export async function unsubscribePush(data: { endpoint: string }): Promise<void> {
+    await apiPost<unknown, typeof data>("/push/unsubscribe", data);
+}
+
+export async function getPushStatus(endpoint: string): Promise<{ subscribed: boolean }> {
+    return apiPost<{ subscribed: boolean }, { endpoint: string }>("/push/status", { endpoint });
+}
+
 export async function uploadBanner(file: File): Promise<{ banner_url: string }> {
     const formData = new FormData();
     formData.append("banner", file);
