@@ -136,8 +136,8 @@ func (s *Service) register(ctx fiber.Ctx) error {
 		})
 	}
 
+	ip, _ := ctx.Locals("client_ip").(string)
 	go func() {
-		ip, _ := ctx.Locals("client_ip").(string)
 		_ = s.UserRepo.UpdateIP(context.Background(), user.ID, ip)
 	}()
 
@@ -175,8 +175,8 @@ func (s *Service) login(ctx fiber.Ctx) error {
 		})
 	}
 
+	ip, _ := ctx.Locals("client_ip").(string)
 	go func() {
-		ip, _ := ctx.Locals("client_ip").(string)
 		_ = s.UserRepo.UpdateIP(context.Background(), user.ID, ip)
 	}()
 
