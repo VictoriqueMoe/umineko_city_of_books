@@ -17,7 +17,8 @@ export type Permission =
     | "resolve_suggestion"
     | "edit_mystery_score"
     | "edit_any_journal"
-    | "delete_any_journal";
+    | "delete_any_journal"
+    | "manage_vanity_roles";
 
 const rolePermissions: Record<string, Permission[]> = {
     super_admin: [
@@ -40,6 +41,7 @@ const rolePermissions: Record<string, Permission[]> = {
         "edit_mystery_score",
         "edit_any_journal",
         "delete_any_journal",
+        "manage_vanity_roles",
     ],
     admin: [
         "delete_any_theory",
@@ -61,6 +63,7 @@ const rolePermissions: Record<string, Permission[]> = {
         "edit_mystery_score",
         "edit_any_journal",
         "delete_any_journal",
+        "manage_vanity_roles",
     ],
     moderator: [
         "delete_any_theory",

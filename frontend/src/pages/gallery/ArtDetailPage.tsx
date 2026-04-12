@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { usePageTitle } from "../../hooks/usePageTitle";
+import { useScrollToHash } from "../../hooks/useScrollToHash";
 import type { ArtDetail } from "../../types/api";
 import {
     createArtComment,
@@ -70,17 +71,7 @@ export function ArtDetailPage() {
         fetchArt();
     }, [fetchArt]);
 
-    useEffect(() => {
-        if (!art || loading || !highlightedComment) {
-            return;
-        }
-        requestAnimationFrame(() => {
-            const el = document.getElementById(`comment-${highlightedComment}`);
-            if (el) {
-                el.scrollIntoView({ behavior: "smooth", block: "center" });
-            }
-        });
-    }, [art, loading, highlightedComment]);
+    useScrollToHash(!loading && !!art, highlightedComment ? `comment-${highlightedComment}` : null);
 
     async function handleLike() {
         if (!id) {

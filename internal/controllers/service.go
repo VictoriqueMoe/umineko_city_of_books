@@ -48,6 +48,7 @@ type (
 		ShipService         shipsvc.Service
 		UploadService       upload.Service
 		MediaProcessor      *media.Processor
+		VanityRoleRepo      repository.VanityRoleRepository
 		AuthSession         *session.Manager
 		Hub                 *ws.Hub
 		HTMLContent         string
@@ -76,6 +77,7 @@ func NewService(
 	journalService journal.Service,
 	uploadService upload.Service,
 	mediaProcessor *media.Processor,
+	vanityRoleRepo repository.VanityRoleRepository,
 	authSession *session.Manager,
 	hub *ws.Hub,
 	htmlContent string,
@@ -102,6 +104,7 @@ func NewService(
 		JournalService:      journalService,
 		UploadService:       uploadService,
 		MediaProcessor:      mediaProcessor,
+		VanityRoleRepo:      vanityRoleRepo,
 		AuthSession:         authSession,
 		Hub:                 hub,
 		HTMLContent:         htmlContent,

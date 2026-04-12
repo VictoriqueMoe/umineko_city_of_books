@@ -25,6 +25,7 @@ const (
 	PermEditMysteryScore  Permission = "edit_mystery_score"
 	PermEditAnyJournal    Permission = "edit_any_journal"
 	PermDeleteAnyJournal  Permission = "delete_any_journal"
+	PermManageVanityRoles Permission = "manage_vanity_roles"
 )
 
 var rolePermissions = map[role.Role][]Permission{

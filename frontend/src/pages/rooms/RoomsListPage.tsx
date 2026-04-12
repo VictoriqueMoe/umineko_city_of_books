@@ -245,6 +245,79 @@ export function RoomsListPage() {
 
     const filterActive = search !== "" || rpOnly || tagFilter !== "";
 
+    function renderGroupedGrid(rooms: ChatRoom[], renderCard: (room: ChatRoom) => React.ReactNode) {
+        const rpRooms: ChatRoom[] = [];
+        const chatRooms: ChatRoom[] = [];
+        for (const room of rooms) {
+            if (room.is_rp) {
+                rpRooms.push(room);
+            } else {
+                chatRooms.push(room);
+            }
+        }
+        const hasRP = rpRooms.length > 0;
+        const hasChat = chatRooms.length > 0;
+        const showLabels = hasRP && hasChat;
+        return (
+            <>
+                {hasRP && (
+                    <>
+                        {showLabels && <div className={styles.subGroupLabel}>Roleplay</div>}
+                        <div className={styles.cardGrid}>{rpRooms.map(renderCard)}</div>
+                    </>
+                )}
+                {hasChat && (
+                    <>
+                        {showLabels && <div className={styles.subGroupLabel}>Chat</div>}
+                        <div className={styles.cardGrid}>{chatRooms.map(renderCard)}</div>
+                    </>
+                )}
+            </>
+        );
+    }
+
+    function renderDiscoverCard(room: ChatRoom) {
+        return (
+            <div key={room.id} className={styles.card}>
+                <div className={styles.cardHeader}>
+                    <h3 className={styles.cardTitle}>{room.name}</h3>
+                    <div className={styles.cardBadges}>
+                        {room.is_rp && <span className={styles.rpBadge}>RP</span>}
+                        <span className={styles.publicBadge}>Public</span>
+                    </div>
+                </div>
+                {room.description && <p className={styles.cardDesc}>{room.description}</p>}
+                {room.tags && room.tags.length > 0 && (
+                    <div className={styles.cardTags}>
+                        {room.tags.map(t => (
+                            <button key={t} className={styles.cardTag} onClick={() => setTagFilter(t)}>
+                                #{t}
+                            </button>
+                        ))}
+                    </div>
+                )}
+                <div className={styles.cardMeta}>
+                    <span>
+                        {"\u2605"} {room.member_count ?? room.members.length} members
+                    </span>
+                    <span className={styles.cardActivity}>{relativeTime(room.last_message_at)}</span>
+                </div>
+                {user && (
+                    <div className={styles.cardActions}>
+                        <Button
+                            variant="primary"
+                            size="small"
+                            onClick={() => handleJoin(room)}
+                            disabled={joining === room.id}
+                        >
+                            {joining === room.id ? "Joining..." : "Join Room"}
+                        </Button>
+                    </div>
+                )}
+            </div>
+        );
+    }
+
     return (
         <div className={styles.page}>
             <div className={styles.pageHeader}>
@@ -285,14 +358,14 @@ export function RoomsListPage() {
                         className={`${styles.filterChip}${rpOnly ? ` ${styles.filterChipActive}` : ""}`}
                         onClick={() => setRpOnly(prev => !prev)}
                     >
-                        🎭 RP only
+                        RP only
                     </button>
                     {tagFilter && (
                         <button
                             className={`${styles.filterChip} ${styles.filterChipActive}`}
                             onClick={() => setTagFilter("")}
                         >
-                            #{tagFilter} ✕
+                            #{tagFilter} x
                         </button>
                     )}
                 </div>
@@ -311,9 +384,7 @@ export function RoomsListPage() {
                                 : "You haven't created any rooms yet."}
                         </div>
                     )}
-                    {hosted.items.length > 0 && (
-                        <div className={styles.cardGrid}>{hosted.items.map(room => renderMemberCard(room))}</div>
-                    )}
+                    {hosted.items.length > 0 && renderGroupedGrid(hosted.items, renderMemberCard)}
                     {hosted.items.length < hosted.total && (
                         <div className={styles.loadMoreRow}>
                             <Button
@@ -342,9 +413,7 @@ export function RoomsListPage() {
                                 : "You haven't joined any rooms yet. Browse below or create one."}
                         </div>
                     )}
-                    {joined.items.length > 0 && (
-                        <div className={styles.cardGrid}>{joined.items.map(room => renderMemberCard(room))}</div>
-                    )}
+                    {joined.items.length > 0 && renderGroupedGrid(joined.items, renderMemberCard)}
                     {joined.items.length < joined.total && (
                         <div className={styles.loadMoreRow}>
                             <Button
@@ -374,49 +443,7 @@ export function RoomsListPage() {
                             : "No public rooms yet. Create the first one!"}
                     </div>
                 )}
-                {discover.items.length > 0 && (
-                    <div className={styles.cardGrid}>
-                        {discover.items.map(room => (
-                            <div key={room.id} className={styles.card}>
-                                <div className={styles.cardHeader}>
-                                    <h3 className={styles.cardTitle}>{room.name}</h3>
-                                    <div className={styles.cardBadges}>
-                                        {room.is_rp && <span className={styles.rpBadge}>RP</span>}
-                                        <span className={styles.publicBadge}>Public</span>
-                                    </div>
-                                </div>
-                                {room.description && <p className={styles.cardDesc}>{room.description}</p>}
-                                {room.tags && room.tags.length > 0 && (
-                                    <div className={styles.cardTags}>
-                                        {room.tags.map(t => (
-                                            <button key={t} className={styles.cardTag} onClick={() => setTagFilter(t)}>
-                                                #{t}
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
-                                <div className={styles.cardMeta}>
-                                    <span>
-                                        {"\u2605"} {room.member_count ?? room.members.length} members
-                                    </span>
-                                    <span className={styles.cardActivity}>{relativeTime(room.last_message_at)}</span>
-                                </div>
-                                {user && (
-                                    <div className={styles.cardActions}>
-                                        <Button
-                                            variant="primary"
-                                            size="small"
-                                            onClick={() => handleJoin(room)}
-                                            disabled={joining === room.id}
-                                        >
-                                            {joining === room.id ? "Joining..." : "Join Room"}
-                                        </Button>
-                                    </div>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                )}
+                {discover.items.length > 0 && renderGroupedGrid(discover.items, renderDiscoverCard)}
                 {discover.items.length < discover.total && (
                     <div className={styles.loadMoreRow}>
                         <Button

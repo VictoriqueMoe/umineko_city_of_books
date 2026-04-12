@@ -493,7 +493,7 @@ func (r *chatRepository) GetRoomMembersDetailed(ctx context.Context, roomID uuid
 
 func (r *chatRepository) ListPublicRooms(ctx context.Context, search string, isRPOnly bool, tag string, viewerID uuid.UUID, excludeUserIDs []uuid.UUID, limit, offset int) ([]ChatRoomRow, int, error) {
 	conditions := []string{"cr.type = 'group'", "cr.is_public = 1"}
-	args := []interface{}{}
+	var args []interface{}
 	if search != "" {
 		conditions = append(conditions, "(cr.name LIKE ? OR cr.description LIKE ?)")
 		wc := "%" + search + "%"
@@ -505,6 +505,10 @@ func (r *chatRepository) ListPublicRooms(ctx context.Context, search string, isR
 	if tag != "" {
 		conditions = append(conditions, "EXISTS(SELECT 1 FROM chat_room_tags WHERE room_id = cr.id AND tag = ?)")
 		args = append(args, tag)
+	}
+	if viewerID != uuid.Nil {
+		conditions = append(conditions, "NOT EXISTS(SELECT 1 FROM chat_room_members WHERE room_id = cr.id AND user_id = ?)")
+		args = append(args, viewerID)
 	}
 	exclSQL, exclArgs := ExcludeClause("cr.created_by", excludeUserIDs)
 	args = append(args, exclArgs...)

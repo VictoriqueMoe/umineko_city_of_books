@@ -1,6 +1,7 @@
 import { type MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { usePageTitle } from "../../hooks/usePageTitle";
+import { useScrollToHash } from "../../hooks/useScrollToHash";
 import type { MysteryAttachment, MysteryAttempt, MysteryClue, MysteryDetail, PostComment } from "../../types/api";
 import {
     addMysteryClue,
@@ -464,17 +465,7 @@ export function MysteryDetailPage() {
         };
     }, [id]);
 
-    useEffect(() => {
-        if (!mystery || loading || !highlightedAttempt) {
-            return;
-        }
-        requestAnimationFrame(() => {
-            const el = document.getElementById(`attempt-${highlightedAttempt}`);
-            if (el) {
-                el.scrollIntoView({ behavior: "smooth", block: "center" });
-            }
-        });
-    }, [mystery, loading, highlightedAttempt]);
+    useScrollToHash(!loading && !!mystery, highlightedAttempt ? `attempt-${highlightedAttempt}` : null);
 
     if (loading) {
         return <div className="loading">Investigating the mystery...</div>;

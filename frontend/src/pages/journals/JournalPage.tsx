@@ -15,6 +15,7 @@ import {
 } from "../../api/endpoints";
 import { useAuth } from "../../hooks/useAuth";
 import { usePageTitle } from "../../hooks/usePageTitle";
+import { useScrollToHash } from "../../hooks/useScrollToHash";
 import { can } from "../../utils/permissions";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { Button } from "../../components/Button/Button";
@@ -56,17 +57,7 @@ export function JournalPage() {
         fetchJournal();
     }, [fetchJournal]);
 
-    useEffect(() => {
-        if (!journal || loading || !highlightedComment) {
-            return;
-        }
-        requestAnimationFrame(() => {
-            const el = document.getElementById(`comment-${highlightedComment}`);
-            if (el) {
-                el.scrollIntoView({ behavior: "smooth", block: "center" });
-            }
-        });
-    }, [journal, loading, highlightedComment]);
+    useScrollToHash(!loading && !!journal, highlightedComment ? `comment-${highlightedComment}` : null);
 
     async function handleFollow() {
         if (!journal || !id) {

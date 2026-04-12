@@ -500,6 +500,9 @@ func (r *userRepository) IsBanned(ctx context.Context, userID uuid.UUID) (bool, 
 	err := r.db.QueryRowContext(ctx,
 		`SELECT banned_at FROM users WHERE id = ?`, userID,
 	).Scan(&bannedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
 	if err != nil {
 		return false, fmt.Errorf("check ban: %w", err)
 	}

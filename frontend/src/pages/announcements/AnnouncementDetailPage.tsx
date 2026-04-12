@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { usePageTitle } from "../../hooks/usePageTitle";
+import { useScrollToHash } from "../../hooks/useScrollToHash";
 import { marked } from "marked";
 import DOMPurify from "dompurify";
 import type { Announcement, PostComment } from "../../types/api";
@@ -50,17 +51,7 @@ export function AnnouncementDetailPage() {
         fetchAnnouncement();
     }, [fetchAnnouncement]);
 
-    useEffect(() => {
-        if (!announcement || loading || !highlightedComment) {
-            return;
-        }
-        requestAnimationFrame(() => {
-            const el = document.getElementById(`comment-${highlightedComment}`);
-            if (el) {
-                el.scrollIntoView({ behavior: "smooth", block: "center" });
-            }
-        });
-    }, [announcement, loading, highlightedComment]);
+    useScrollToHash(!loading && !!announcement, highlightedComment ? `comment-${highlightedComment}` : null);
 
     if (loading) {
         return <div className="loading">Loading announcement...</div>;

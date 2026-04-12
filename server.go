@@ -151,7 +151,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 		profile:      profile.NewService(repos.User, repos.Theory, authzSvc, uploadSvc, settingsSvc),
 		theory:       theory.NewService(repos.Theory, repos.User, authzSvc, blockSvc, notifSvc, settingsSvc, credibilitySvc, quoteClient),
 		notification: notifSvc,
-		admin:        admin.NewService(repos.User, repos.Role, repos.Stats, repos.AuditLog, repos.Invite, authzSvc, settingsSvc, sessionMgr, uploadSvc, hub),
+		admin:        admin.NewService(repos.User, repos.Role, repos.Stats, repos.AuditLog, repos.Invite, repos.VanityRole, authzSvc, settingsSvc, sessionMgr, uploadSvc, hub),
 		authz:        authzSvc,
 		chat:         chatSvc,
 		report:       reportSvc,
@@ -242,7 +242,7 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 	ctrlService := controllers.NewService(
 		svc.auth, svc.profile, svc.theory, svc.notification, svc.admin,
 		svc.authz, settingsSvc, svc.chat, svc.report, svc.post, svc.follow,
-		svc.art, svc.block, repos.Announcement, svc.mystery, repos.User, svc.ship, svc.fanfic, svc.journal, svc.upload, svc.mediaProc, svc.session, svc.hub, string(htmlBytes),
+		svc.art, svc.block, repos.Announcement, svc.mystery, repos.User, svc.ship, svc.fanfic, svc.journal, svc.upload, svc.mediaProc, repos.VanityRole, svc.session, svc.hub, string(htmlBytes),
 	)
 	routes.PublicRoutes(ctrlService, app)
 

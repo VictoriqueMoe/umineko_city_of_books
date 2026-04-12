@@ -17,6 +17,25 @@ import (
 	"github.com/google/uuid"
 )
 
+var rulesSettings = map[string]config.SiteSettingDef{
+	"theories":             config.SettingRulesTheories,
+	"theories_higurashi":   config.SettingRulesTheoriesHigurashi,
+	"mysteries":            config.SettingRulesMysteries,
+	"ships":                config.SettingRulesShips,
+	"game_board":           config.SettingRulesGameBoard,
+	"game_board_umineko":   config.SettingRulesGameBoardUmineko,
+	"game_board_higurashi": config.SettingRulesGameBoardHigurashi,
+	"game_board_ciconia":   config.SettingRulesGameBoardCiconia,
+	"game_board_higanbana": config.SettingRulesGameBoardHiganbana,
+	"game_board_roseguns":  config.SettingRulesGameBoardRoseguns,
+	"gallery":              config.SettingRulesGallery,
+	"gallery_umineko":      config.SettingRulesGalleryUmineko,
+	"gallery_higurashi":    config.SettingRulesGalleryHigurashi,
+	"gallery_ciconia":      config.SettingRulesGalleryCiconia,
+	"fanfiction":           config.SettingRulesFanfiction,
+	"journals":             config.SettingRulesJournals,
+}
+
 func (s *Service) getAllAuthRoutes() []FSetupRoute {
 	return []FSetupRoute{
 		s.setupRegisterRoute,
@@ -202,45 +221,54 @@ func (s *Service) setupSiteInfoRoute(r fiber.Router) {
 func (s *Service) siteInfo(ctx fiber.Ctx) error {
 	topDetectives, _ := s.MysteryService.GetTopDetectiveIDs(ctx.Context())
 	topGMs, _ := s.MysteryService.GetTopGMIDs(ctx.Context())
-	return ctx.JSON(fiber.Map{
-		"site_name":           s.SettingsService.Get(ctx.Context(), config.SettingSiteName),
-		"site_description":    s.SettingsService.Get(ctx.Context(), config.SettingSiteDescription),
-		"registration_type":   s.SettingsService.Get(ctx.Context(), config.SettingRegistrationType),
-		"announcement_banner": s.SettingsService.Get(ctx.Context(), config.SettingAnnouncementBanner),
-		"default_theme":       s.SettingsService.Get(ctx.Context(), config.SettingDefaultTheme),
-		"maintenance_mode":    s.SettingsService.GetBool(ctx.Context(), config.SettingMaintenanceMode),
-		"maintenance_title":   s.SettingsService.Get(ctx.Context(), config.SettingMaintenanceTitle),
-		"maintenance_message": s.SettingsService.Get(ctx.Context(), config.SettingMaintenanceMessage),
-		"turnstile_enabled":   s.SettingsService.GetBool(ctx.Context(), config.SettingTurnstileEnabled),
-		"turnstile_site_key":  s.SettingsService.Get(ctx.Context(), config.SettingTurnstileSiteKey),
-		"max_image_size":      s.SettingsService.GetInt(ctx.Context(), config.SettingMaxImageSize),
-		"max_video_size":      s.SettingsService.GetInt(ctx.Context(), config.SettingMaxVideoSize),
-		"top_detective_ids":   topDetectives,
-		"top_gm_ids":          topGMs,
+
+	vanityRoles, _ := s.VanityRoleRepo.List(ctx.Context())
+	manualAssignments, _ := s.VanityRoleRepo.GetAllAssignments(ctx.Context())
+
+	assignments := make(map[string][]string)
+	for uid, roleIDs := range manualAssignments {
+		assignments[uid] = roleIDs
+	}
+	for _, uid := range topDetectives {
+		assignments[uid] = append(assignments[uid], "system_top_detective")
+	}
+	for _, uid := range topGMs {
+		assignments[uid] = append(assignments[uid], "system_top_gm")
+	}
+
+	vrList := make([]dto.SiteInfoVanityRole, len(vanityRoles))
+	for i, vr := range vanityRoles {
+		vrList[i] = dto.SiteInfoVanityRole{
+			ID:        vr.ID,
+			Label:     vr.Label,
+			Color:     vr.Color,
+			IsSystem:  vr.IsSystem,
+			SortOrder: vr.SortOrder,
+		}
+	}
+
+	return ctx.JSON(dto.SiteInfoResponse{
+		SiteName:              s.SettingsService.Get(ctx.Context(), config.SettingSiteName),
+		SiteDescription:       s.SettingsService.Get(ctx.Context(), config.SettingSiteDescription),
+		RegistrationType:      s.SettingsService.Get(ctx.Context(), config.SettingRegistrationType),
+		AnnouncementBanner:    s.SettingsService.Get(ctx.Context(), config.SettingAnnouncementBanner),
+		DefaultTheme:          s.SettingsService.Get(ctx.Context(), config.SettingDefaultTheme),
+		MaintenanceMode:       s.SettingsService.GetBool(ctx.Context(), config.SettingMaintenanceMode),
+		MaintenanceTitle:      s.SettingsService.Get(ctx.Context(), config.SettingMaintenanceTitle),
+		MaintenanceMessage:    s.SettingsService.Get(ctx.Context(), config.SettingMaintenanceMessage),
+		TurnstileEnabled:      s.SettingsService.GetBool(ctx.Context(), config.SettingTurnstileEnabled),
+		TurnstileSiteKey:      s.SettingsService.Get(ctx.Context(), config.SettingTurnstileSiteKey),
+		MaxImageSize:          s.SettingsService.GetInt(ctx.Context(), config.SettingMaxImageSize),
+		MaxVideoSize:          s.SettingsService.GetInt(ctx.Context(), config.SettingMaxVideoSize),
+		TopDetectiveIDs:       topDetectives,
+		TopGMIDs:              topGMs,
+		VanityRoles:           vrList,
+		VanityRoleAssignments: assignments,
 	})
 }
 
 func (s *Service) setupGetRulesRoute(r fiber.Router) {
 	r.Get("/rules/:page", s.getRules)
-}
-
-var rulesSettings = map[string]config.SiteSettingDef{
-	"theories":             config.SettingRulesTheories,
-	"theories_higurashi":   config.SettingRulesTheoriesHigurashi,
-	"mysteries":            config.SettingRulesMysteries,
-	"ships":                config.SettingRulesShips,
-	"game_board":           config.SettingRulesGameBoard,
-	"game_board_umineko":   config.SettingRulesGameBoardUmineko,
-	"game_board_higurashi": config.SettingRulesGameBoardHigurashi,
-	"game_board_ciconia":   config.SettingRulesGameBoardCiconia,
-	"game_board_higanbana": config.SettingRulesGameBoardHiganbana,
-	"game_board_roseguns":  config.SettingRulesGameBoardRoseguns,
-	"gallery":              config.SettingRulesGallery,
-	"gallery_umineko":      config.SettingRulesGalleryUmineko,
-	"gallery_higurashi":    config.SettingRulesGalleryHigurashi,
-	"gallery_ciconia":      config.SettingRulesGalleryCiconia,
-	"fanfiction":           config.SettingRulesFanfiction,
-	"journals":             config.SettingRulesJournals,
 }
 
 func (s *Service) getRules(ctx fiber.Ctx) error {

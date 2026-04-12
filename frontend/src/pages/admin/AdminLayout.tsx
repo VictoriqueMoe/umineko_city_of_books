@@ -68,6 +68,14 @@ export function AdminLayout() {
                             Settings
                         </NavLink>
                     )}
+                    {can(user?.role, "manage_vanity_roles") && (
+                        <NavLink
+                            to="/admin/vanity-roles"
+                            className={({ isActive }) => `${styles.tab}${isActive ? ` ${styles.tabActive}` : ""}`}
+                        >
+                            Vanity Roles
+                        </NavLink>
+                    )}
                     {can(user?.role, "view_audit_log") && (
                         <NavLink
                             to="/admin/audit-log"

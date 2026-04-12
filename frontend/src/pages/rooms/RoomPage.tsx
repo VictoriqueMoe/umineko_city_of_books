@@ -84,15 +84,15 @@ export function RoomPage() {
         if (!messages.some(m => m.id === pendingTargetMsgId)) {
             return;
         }
-        const raf = requestAnimationFrame(() => {
+        const t = setTimeout(() => {
             const el = document.getElementById(`chat-msg-${pendingTargetMsgId}`);
             if (el) {
                 el.scrollIntoView({ behavior: "smooth", block: "center" });
                 setHighlightedMsgId(pendingTargetMsgId);
                 handledHashRef.current = pendingTargetMsgId;
             }
-        });
-        return () => cancelAnimationFrame(raf);
+        }, 300);
+        return () => clearTimeout(t);
     }, [pendingTargetMsgId, messages]);
 
     useEffect(() => {

@@ -30,6 +30,13 @@ func (s *Service) getAllAdminRoutes() []FSetupRoute {
 		s.setupAdminListInvites,
 		s.setupAdminDeleteInvite,
 		s.setupAdminUpdateMysteryScore,
+		s.setupAdminListVanityRoles,
+		s.setupAdminCreateVanityRole,
+		s.setupAdminUpdateVanityRole,
+		s.setupAdminDeleteVanityRole,
+		s.setupAdminGetVanityRoleUsers,
+		s.setupAdminAssignVanityRole,
+		s.setupAdminUnassignVanityRole,
 	}
 }
 
@@ -316,5 +323,124 @@ func handleAdminError(ctx fiber.Ctx, err error) error {
 	if errors.Is(err, admin.ErrProtectedUser) {
 		return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "this user cannot be modified"})
 	}
+	if errors.Is(err, admin.ErrVanityRoleNotFound) {
+		return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "vanity role not found"})
+	}
+	if errors.Is(err, admin.ErrSystemRole) {
+		return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "cannot modify system role assignments"})
+	}
 	return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+}
+
+func (s *Service) setupAdminListVanityRoles(r fiber.Router) {
+	r.Get("/admin/vanity-roles", s.requirePerm(authz.PermManageVanityRoles), s.adminListVanityRoles)
+}
+
+func (s *Service) setupAdminCreateVanityRole(r fiber.Router) {
+	r.Post("/admin/vanity-roles", s.requirePerm(authz.PermManageVanityRoles), s.adminCreateVanityRole)
+}
+
+func (s *Service) setupAdminUpdateVanityRole(r fiber.Router) {
+	r.Put("/admin/vanity-roles/:id", s.requirePerm(authz.PermManageVanityRoles), s.adminUpdateVanityRole)
+}
+
+func (s *Service) setupAdminDeleteVanityRole(r fiber.Router) {
+	r.Delete("/admin/vanity-roles/:id", s.requirePerm(authz.PermManageVanityRoles), s.adminDeleteVanityRole)
+}
+
+func (s *Service) setupAdminGetVanityRoleUsers(r fiber.Router) {
+	r.Get("/admin/vanity-roles/:id/users", s.requirePerm(authz.PermManageVanityRoles), s.adminGetVanityRoleUsers)
+}
+
+func (s *Service) setupAdminAssignVanityRole(r fiber.Router) {
+	r.Post("/admin/vanity-roles/:id/users", s.requirePerm(authz.PermManageVanityRoles), s.adminAssignVanityRole)
+}
+
+func (s *Service) setupAdminUnassignVanityRole(r fiber.Router) {
+	r.Delete("/admin/vanity-roles/:id/users/:userId", s.requirePerm(authz.PermManageVanityRoles), s.adminUnassignVanityRole)
+}
+
+func (s *Service) adminListVanityRoles(ctx fiber.Ctx) error {
+	roles, err := s.AdminService.ListVanityRoles(ctx.Context())
+	if err != nil {
+		return handleAdminError(ctx, err)
+	}
+	return ctx.JSON(roles)
+}
+
+func (s *Service) adminCreateVanityRole(ctx fiber.Ctx) error {
+	actorID := ctx.Locals("userID").(uuid.UUID)
+	var req dto.CreateVanityRoleRequest
+	if err := ctx.Bind().JSON(&req); err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request"})
+	}
+	result, err := s.AdminService.CreateVanityRole(ctx.Context(), actorID, req)
+	if err != nil {
+		return handleAdminError(ctx, err)
+	}
+	return ctx.Status(fiber.StatusCreated).JSON(result)
+}
+
+func (s *Service) adminUpdateVanityRole(ctx fiber.Ctx) error {
+	actorID := ctx.Locals("userID").(uuid.UUID)
+	id := ctx.Params("id")
+	var req dto.UpdateVanityRoleRequest
+	if err := ctx.Bind().JSON(&req); err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request"})
+	}
+	if err := s.AdminService.UpdateVanityRole(ctx.Context(), actorID, id, req); err != nil {
+		return handleAdminError(ctx, err)
+	}
+	return ctx.JSON(fiber.Map{"status": "ok"})
+}
+
+func (s *Service) adminDeleteVanityRole(ctx fiber.Ctx) error {
+	actorID := ctx.Locals("userID").(uuid.UUID)
+	id := ctx.Params("id")
+	if err := s.AdminService.DeleteVanityRole(ctx.Context(), actorID, id); err != nil {
+		return handleAdminError(ctx, err)
+	}
+	return ctx.JSON(fiber.Map{"status": "ok"})
+}
+
+func (s *Service) adminGetVanityRoleUsers(ctx fiber.Ctx) error {
+	id := ctx.Params("id")
+	search := ctx.Query("search")
+	limit := fiber.Query[int](ctx, "limit", 20)
+	offset := fiber.Query[int](ctx, "offset", 0)
+	result, err := s.AdminService.GetVanityRoleUsers(ctx.Context(), id, search, limit, offset)
+	if err != nil {
+		return handleAdminError(ctx, err)
+	}
+	return ctx.JSON(result)
+}
+
+func (s *Service) adminAssignVanityRole(ctx fiber.Ctx) error {
+	actorID := ctx.Locals("userID").(uuid.UUID)
+	roleID := ctx.Params("id")
+	var req dto.AssignVanityRoleRequest
+	if err := ctx.Bind().JSON(&req); err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request"})
+	}
+	userID, err := uuid.Parse(req.UserID)
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user id"})
+	}
+	if err := s.AdminService.AssignVanityRole(ctx.Context(), actorID, roleID, userID); err != nil {
+		return handleAdminError(ctx, err)
+	}
+	return ctx.JSON(fiber.Map{"status": "ok"})
+}
+
+func (s *Service) adminUnassignVanityRole(ctx fiber.Ctx) error {
+	actorID := ctx.Locals("userID").(uuid.UUID)
+	roleID := ctx.Params("id")
+	userID, err := uuid.Parse(ctx.Params("userId"))
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user id"})
+	}
+	if err := s.AdminService.UnassignVanityRole(ctx.Context(), actorID, roleID, userID); err != nil {
+		return handleAdminError(ctx, err)
+	}
+	return ctx.JSON(fiber.Map{"status": "ok"})
 }

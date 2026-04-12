@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { usePageTitle } from "../../hooks/usePageTitle";
+import { useScrollToHash } from "../../hooks/useScrollToHash";
 import type { PostComment, ShipCharacter, ShipDetail } from "../../types/api";
 import {
     createShipComment,
@@ -72,17 +73,7 @@ export function ShipDetailPage() {
         fetchShip();
     }, [fetchShip]);
 
-    useEffect(() => {
-        if (!ship || loading || !highlightedComment) {
-            return;
-        }
-        requestAnimationFrame(() => {
-            const el = document.getElementById(`comment-${highlightedComment}`);
-            if (el) {
-                el.scrollIntoView({ behavior: "smooth", block: "center" });
-            }
-        });
-    }, [ship, loading, highlightedComment]);
+    useScrollToHash(!loading && !!ship, highlightedComment ? `comment-${highlightedComment}` : null);
 
     async function handleVote(value: number) {
         if (!ship || voting) {

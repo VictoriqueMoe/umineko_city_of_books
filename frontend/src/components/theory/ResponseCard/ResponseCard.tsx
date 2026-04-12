@@ -179,7 +179,7 @@ export function ResponseList({
             if (el) {
                 el.scrollIntoView({ behavior: "smooth", block: "center" });
             }
-        }, 100);
+        }, 300);
         return () => clearTimeout(timer);
     }, [location.hash, expandedThreads]);
 

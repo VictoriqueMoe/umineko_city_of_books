@@ -62,7 +62,11 @@ export function NotificationProvider({ children }: PropsWithChildren) {
                         setUser({ ...userRef.current, role: (data.role ?? "") as UserProfile["role"] });
                     }
                 }
-                if (msg.type === "top_detective_changed" || msg.type === "top_gm_changed") {
+                if (
+                    msg.type === "top_detective_changed" ||
+                    msg.type === "top_gm_changed" ||
+                    msg.type === "vanity_roles_changed"
+                ) {
                     window.dispatchEvent(new CustomEvent("site-info-refresh"));
                 }
                 if (msg.type === "chat_unread_bumped" || msg.type === "chat_read") {

@@ -54,6 +54,14 @@ import type {
 
 const QUOTE_API = "https://quotes.auaurora.moe/api/v1";
 
+export interface VanityRoleDefinition {
+    id: string;
+    label: string;
+    color: string;
+    is_system: boolean;
+    sort_order: number;
+}
+
 export interface SiteInfo {
     site_name: string;
     site_description: string;
@@ -69,6 +77,8 @@ export interface SiteInfo {
     max_video_size: number;
     top_detective_ids: string[];
     top_gm_ids: string[];
+    vanity_roles: VanityRoleDefinition[];
+    vanity_role_assignments: Record<string, string[]>;
 }
 
 export async function getSiteInfo(): Promise<SiteInfo> {
@@ -1499,4 +1509,57 @@ export async function uploadShipCommentMedia(commentId: string, file: File): Pro
 
 export async function listCharacters(series: string): Promise<CharacterListResponse> {
     return apiFetch<CharacterListResponse>(`/characters/${series}`);
+}
+
+export async function getVanityRoles(): Promise<VanityRoleDefinition[]> {
+    return apiFetch<VanityRoleDefinition[]>("/admin/vanity-roles");
+}
+
+export async function createVanityRole(data: {
+    label: string;
+    color: string;
+    sort_order: number;
+}): Promise<VanityRoleDefinition> {
+    return apiPost<VanityRoleDefinition, typeof data>("/admin/vanity-roles", data);
+}
+
+export async function updateVanityRole(
+    id: string,
+    data: { label: string; color: string; sort_order: number },
+): Promise<void> {
+    await apiPut<unknown, typeof data>(`/admin/vanity-roles/${id}`, data);
+}
+
+export async function deleteVanityRole(id: string): Promise<void> {
+    await apiDelete(`/admin/vanity-roles/${id}`);
+}
+
+export interface VanityRoleUsersResponse {
+    users: { id: string; username: string; display_name: string; avatar_url: string }[];
+    total: number;
+    limit: number;
+    offset: number;
+}
+
+export async function getVanityRoleUsers(
+    id: string,
+    params: { search?: string; limit?: number; offset?: number },
+): Promise<VanityRoleUsersResponse> {
+    const parts: string[] = [];
+    if (params.search) {
+        parts.push(`search=${encodeURIComponent(params.search)}`);
+    }
+    parts.push(`limit=${params.limit ?? 20}`);
+    if (params.offset) {
+        parts.push(`offset=${params.offset}`);
+    }
+    return apiFetch<VanityRoleUsersResponse>(`/admin/vanity-roles/${id}/users?${parts.join("&")}`);
+}
+
+export async function assignVanityRole(roleId: string, userId: string): Promise<void> {
+    await apiPost<unknown, { user_id: string }>(`/admin/vanity-roles/${roleId}/users`, { user_id: userId });
+}
+
+export async function unassignVanityRole(roleId: string, userId: string): Promise<void> {
+    await apiDelete(`/admin/vanity-roles/${roleId}/users/${userId}`);
 }

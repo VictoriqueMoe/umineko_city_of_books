@@ -26,6 +26,7 @@ import { AdminAuditLog } from "./pages/admin/AdminAuditLog";
 import { AdminInvites } from "./pages/admin/AdminInvites";
 import { AdminReports } from "./pages/admin/AdminReports";
 import { AdminContentRules } from "./pages/admin/AdminContentRules";
+import { AdminVanityRoles } from "./pages/admin/AdminVanityRoles";
 import { AdminAnnouncements as AdminAnnouncementsPage } from "./pages/admin/AdminAnnouncements";
 import { AnnouncementsPage as AnnouncementsListPage } from "./pages/announcements/AnnouncementsPage";
 import { linkify } from "./utils/linkify";
@@ -195,6 +196,7 @@ function AppLayout() {
                                 <Route path="content-rules" element={<AdminContentRules />} />
                                 <Route path="announcements" element={<AdminAnnouncementsPage />} />
                                 <Route path="audit-log" element={<AdminAuditLog />} />
+                                <Route path="vanity-roles" element={<AdminVanityRoles />} />
                             </Route>
                         </Route>
                     </Routes>

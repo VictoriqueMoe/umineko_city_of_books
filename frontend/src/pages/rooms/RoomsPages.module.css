@@ -1,5 +1,5 @@
 .page {
-    max-width: var(--page-max-width);
+    max-width: 960px;
     margin: 0 auto;
 }
 
@@ -37,6 +37,21 @@
     letter-spacing: 0.04em;
     font-size: 1.15rem;
     margin-bottom: 0.75rem;
+}
+
+.subGroupLabel {
+    font-family: var(--font-display);
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+    margin-top: 1rem;
+    padding-left: 0.1rem;
+}
+
+.subGroupLabel:first-child {
+    margin-top: 0;
 }
 
 .searchInput {

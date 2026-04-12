@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { usePageTitle } from "../../hooks/usePageTitle";
+import { useScrollToHash } from "../../hooks/useScrollToHash";
 import type { PostDetail } from "../../types/api";
 import { getPost } from "../../api/endpoints";
 import { useAuth } from "../../hooks/useAuth";
@@ -35,18 +36,7 @@ export function PostDetailPage() {
         fetchPost();
     }, [fetchPost]);
 
-    useEffect(() => {
-        if (!post || loading || !highlightedComment) {
-            return;
-        }
-
-        requestAnimationFrame(() => {
-            const el = document.getElementById(`comment-${highlightedComment}`);
-            if (el) {
-                el.scrollIntoView({ behavior: "smooth", block: "center" });
-            }
-        });
-    }, [post, loading, highlightedComment]);
+    useScrollToHash(!loading && !!post, highlightedComment ? `comment-${highlightedComment}` : null);
 
     if (loading) {
         return <div className="loading">Loading post...</div>;

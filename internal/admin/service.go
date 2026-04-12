@@ -3,6 +3,8 @@ package admin
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"strings"
 
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/config"
@@ -38,28 +40,41 @@ type (
 		CreateInvite(ctx context.Context, actorID uuid.UUID) (*dto.InviteResponse, error)
 		ListInvites(ctx context.Context, limit, offset int) (*dto.InviteListResponse, error)
 		DeleteInvite(ctx context.Context, actorID uuid.UUID, code string) error
+
+		ListVanityRoles(ctx context.Context) ([]dto.VanityRoleResponse, error)
+		CreateVanityRole(ctx context.Context, actorID uuid.UUID, req dto.CreateVanityRoleRequest) (*dto.VanityRoleResponse, error)
+		UpdateVanityRole(ctx context.Context, actorID uuid.UUID, id string, req dto.UpdateVanityRoleRequest) error
+		DeleteVanityRole(ctx context.Context, actorID uuid.UUID, id string) error
+		GetVanityRoleUsers(ctx context.Context, roleID string, search string, limit, offset int) (*dto.VanityRoleUsersResponse, error)
+		AssignVanityRole(ctx context.Context, actorID uuid.UUID, roleID string, userID uuid.UUID) error
+		UnassignVanityRole(ctx context.Context, actorID uuid.UUID, roleID string, userID uuid.UUID) error
 	}
 
 	service struct {
-		userRepo    repository.UserRepository
-		roleRepo    repository.RoleRepository
-		statsRepo   repository.StatsRepository
-		auditRepo   repository.AuditLogRepository
-		inviteRepo  repository.InviteRepository
-		authz       authz.Service
-		settingsSvc settings.Service
-		sessionMgr  *session.Manager
-		uploadSvc   upload.Service
-		hub         *ws.Hub
+		userRepo       repository.UserRepository
+		roleRepo       repository.RoleRepository
+		statsRepo      repository.StatsRepository
+		auditRepo      repository.AuditLogRepository
+		inviteRepo     repository.InviteRepository
+		vanityRoleRepo repository.VanityRoleRepository
+		authz          authz.Service
+		settingsSvc    settings.Service
+		sessionMgr     *session.Manager
+		uploadSvc      upload.Service
+		hub            *ws.Hub
 	}
 )
 
-var roleRank = map[role.Role]int{
-	"":                   0,
-	authz.RoleModerator:  1,
-	authz.RoleAdmin:      2,
-	authz.RoleSuperAdmin: 3,
-}
+var (
+	colorRegex = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
+
+	roleRank = map[role.Role]int{
+		"":                   0,
+		authz.RoleModerator:  1,
+		authz.RoleAdmin:      2,
+		authz.RoleSuperAdmin: 3,
+	}
+)
 
 func NewService(
 	userRepo repository.UserRepository,
@@ -67,6 +82,7 @@ func NewService(
 	statsRepo repository.StatsRepository,
 	auditRepo repository.AuditLogRepository,
 	inviteRepo repository.InviteRepository,
+	vanityRoleRepo repository.VanityRoleRepository,
 	authzService authz.Service,
 	settingsSvc settings.Service,
 	sessionMgr *session.Manager,
@@ -74,16 +90,17 @@ func NewService(
 	hub *ws.Hub,
 ) Service {
 	return &service{
-		userRepo:    userRepo,
-		roleRepo:    roleRepo,
-		statsRepo:   statsRepo,
-		auditRepo:   auditRepo,
-		inviteRepo:  inviteRepo,
-		authz:       authzService,
-		settingsSvc: settingsSvc,
-		sessionMgr:  sessionMgr,
-		uploadSvc:   uploadSvc,
-		hub:         hub,
+		userRepo:       userRepo,
+		roleRepo:       roleRepo,
+		statsRepo:      statsRepo,
+		auditRepo:      auditRepo,
+		inviteRepo:     inviteRepo,
+		vanityRoleRepo: vanityRoleRepo,
+		authz:          authzService,
+		settingsSvc:    settingsSvc,
+		sessionMgr:     sessionMgr,
+		uploadSvc:      uploadSvc,
+		hub:            hub,
 	}
 }
 
@@ -391,4 +408,152 @@ func (s *service) DeleteInvite(ctx context.Context, actorID uuid.UUID, code stri
 	}
 	s.audit(ctx, actorID, "delete_invite", "invite", code)
 	return nil
+}
+
+func (s *service) ListVanityRoles(ctx context.Context) ([]dto.VanityRoleResponse, error) {
+	rows, err := s.vanityRoleRepo.List(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list vanity roles: %w", err)
+	}
+	result := make([]dto.VanityRoleResponse, len(rows))
+	for i, r := range rows {
+		result[i] = dto.VanityRoleResponse{
+			ID:        r.ID,
+			Label:     r.Label,
+			Color:     r.Color,
+			IsSystem:  r.IsSystem,
+			SortOrder: r.SortOrder,
+		}
+	}
+	return result, nil
+}
+
+func (s *service) CreateVanityRole(ctx context.Context, actorID uuid.UUID, req dto.CreateVanityRoleRequest) (*dto.VanityRoleResponse, error) {
+	if strings.TrimSpace(req.Label) == "" {
+		return nil, fmt.Errorf("label is required")
+	}
+	if !colorRegex.MatchString(req.Color) {
+		return nil, fmt.Errorf("color must be a valid hex color (e.g. #ff0000)")
+	}
+	id := uuid.New().String()
+	if err := s.vanityRoleRepo.Create(ctx, id, strings.TrimSpace(req.Label), req.Color, req.SortOrder); err != nil {
+		return nil, fmt.Errorf("create vanity role: %w", err)
+	}
+	s.audit(ctx, actorID, "create_vanity_role", "vanity_role", id)
+	s.broadcastVanityRolesChanged()
+	return &dto.VanityRoleResponse{
+		ID:        id,
+		Label:     strings.TrimSpace(req.Label),
+		Color:     req.Color,
+		IsSystem:  false,
+		SortOrder: req.SortOrder,
+	}, nil
+}
+
+func (s *service) UpdateVanityRole(ctx context.Context, actorID uuid.UUID, id string, req dto.UpdateVanityRoleRequest) error {
+	existing, err := s.vanityRoleRepo.GetByID(ctx, id)
+	if err != nil {
+		return fmt.Errorf("get vanity role: %w", err)
+	}
+	if existing == nil {
+		return ErrVanityRoleNotFound
+	}
+	if strings.TrimSpace(req.Label) == "" {
+		return fmt.Errorf("label is required")
+	}
+	if !colorRegex.MatchString(req.Color) {
+		return fmt.Errorf("color must be a valid hex color (e.g. #ff0000)")
+	}
+	if err := s.vanityRoleRepo.Update(ctx, id, strings.TrimSpace(req.Label), req.Color, req.SortOrder); err != nil {
+		return fmt.Errorf("update vanity role: %w", err)
+	}
+	s.audit(ctx, actorID, "update_vanity_role", "vanity_role", id)
+	s.broadcastVanityRolesChanged()
+	return nil
+}
+
+func (s *service) DeleteVanityRole(ctx context.Context, actorID uuid.UUID, id string) error {
+	existing, err := s.vanityRoleRepo.GetByID(ctx, id)
+	if err != nil {
+		return fmt.Errorf("get vanity role: %w", err)
+	}
+	if existing == nil {
+		return ErrVanityRoleNotFound
+	}
+	if existing.IsSystem {
+		return ErrSystemRole
+	}
+	if err := s.vanityRoleRepo.Delete(ctx, id); err != nil {
+		return fmt.Errorf("delete vanity role: %w", err)
+	}
+	s.audit(ctx, actorID, "delete_vanity_role", "vanity_role", id)
+	s.broadcastVanityRolesChanged()
+	return nil
+}
+
+func (s *service) GetVanityRoleUsers(ctx context.Context, roleID string, search string, limit, offset int) (*dto.VanityRoleUsersResponse, error) {
+	rows, total, err := s.vanityRoleRepo.GetUsersForRole(ctx, roleID, search, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("get vanity role users: %w", err)
+	}
+	users := make([]dto.VanityRoleUserItem, len(rows))
+	for i, r := range rows {
+		users[i] = dto.VanityRoleUserItem{
+			ID:          r.UserID,
+			Username:    r.Username,
+			DisplayName: r.DisplayName,
+			AvatarURL:   r.AvatarURL,
+		}
+	}
+	return &dto.VanityRoleUsersResponse{
+		Users:  users,
+		Total:  total,
+		Limit:  limit,
+		Offset: offset,
+	}, nil
+}
+
+func (s *service) AssignVanityRole(ctx context.Context, actorID uuid.UUID, roleID string, userID uuid.UUID) error {
+	existing, err := s.vanityRoleRepo.GetByID(ctx, roleID)
+	if err != nil {
+		return fmt.Errorf("get vanity role: %w", err)
+	}
+	if existing == nil {
+		return ErrVanityRoleNotFound
+	}
+	if existing.IsSystem {
+		return ErrSystemRole
+	}
+	if err := s.vanityRoleRepo.AssignToUser(ctx, userID, roleID); err != nil {
+		return fmt.Errorf("assign vanity role: %w", err)
+	}
+	s.audit(ctx, actorID, "assign_vanity_role", "vanity_role", roleID+":"+userID.String())
+	s.broadcastVanityRolesChanged()
+	return nil
+}
+
+func (s *service) UnassignVanityRole(ctx context.Context, actorID uuid.UUID, roleID string, userID uuid.UUID) error {
+	existing, err := s.vanityRoleRepo.GetByID(ctx, roleID)
+	if err != nil {
+		return fmt.Errorf("get vanity role: %w", err)
+	}
+	if existing == nil {
+		return ErrVanityRoleNotFound
+	}
+	if existing.IsSystem {
+		return ErrSystemRole
+	}
+	if err := s.vanityRoleRepo.UnassignFromUser(ctx, userID, roleID); err != nil {
+		return fmt.Errorf("unassign vanity role: %w", err)
+	}
+	s.audit(ctx, actorID, "unassign_vanity_role", "vanity_role", roleID+":"+userID.String())
+	s.broadcastVanityRolesChanged()
+	return nil
+}
+
+func (s *service) broadcastVanityRolesChanged() {
+	s.hub.Broadcast(ws.Message{
+		Type: "vanity_roles_changed",
+		Data: map[string]interface{}{},
+	})
 }

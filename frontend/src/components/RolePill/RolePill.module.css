@@ -29,15 +29,3 @@
     color: #d4a84b;
     border: 1px solid rgba(212, 168, 75, 0.35);
 }
-
-.topDetective {
-    background: rgba(56, 189, 248, 0.15);
-    color: #38bdf8;
-    border: 1px solid rgba(56, 189, 248, 0.4);
-}
-
-.topGM {
-    background: rgba(229, 57, 53, 0.15);
-    color: #ef5350;
-    border: 1px solid rgba(229, 57, 53, 0.4);
-}

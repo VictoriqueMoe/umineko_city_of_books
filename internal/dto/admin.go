@@ -116,4 +116,69 @@ type (
 		Limit   int              `json:"limit"`
 		Offset  int              `json:"offset"`
 	}
+
+	VanityRoleResponse struct {
+		ID        string `json:"id"`
+		Label     string `json:"label"`
+		Color     string `json:"color"`
+		IsSystem  bool   `json:"is_system"`
+		SortOrder int    `json:"sort_order"`
+	}
+
+	VanityRoleUsersResponse struct {
+		Users  []VanityRoleUserItem `json:"users"`
+		Total  int                  `json:"total"`
+		Limit  int                  `json:"limit"`
+		Offset int                  `json:"offset"`
+	}
+
+	VanityRoleUserItem struct {
+		ID          uuid.UUID `json:"id"`
+		Username    string    `json:"username"`
+		DisplayName string    `json:"display_name"`
+		AvatarURL   string    `json:"avatar_url"`
+	}
+
+	CreateVanityRoleRequest struct {
+		Label     string `json:"label"`
+		Color     string `json:"color"`
+		SortOrder int    `json:"sort_order"`
+	}
+
+	UpdateVanityRoleRequest struct {
+		Label     string `json:"label"`
+		Color     string `json:"color"`
+		SortOrder int    `json:"sort_order"`
+	}
+
+	AssignVanityRoleRequest struct {
+		UserID string `json:"user_id"`
+	}
+
+	SiteInfoResponse struct {
+		SiteName              string               `json:"site_name"`
+		SiteDescription       string               `json:"site_description"`
+		RegistrationType      string               `json:"registration_type"`
+		AnnouncementBanner    string               `json:"announcement_banner"`
+		DefaultTheme          string               `json:"default_theme"`
+		MaintenanceMode       bool                 `json:"maintenance_mode"`
+		MaintenanceTitle      string               `json:"maintenance_title"`
+		MaintenanceMessage    string               `json:"maintenance_message"`
+		TurnstileEnabled      bool                 `json:"turnstile_enabled"`
+		TurnstileSiteKey      string               `json:"turnstile_site_key"`
+		MaxImageSize          int                  `json:"max_image_size"`
+		MaxVideoSize          int                  `json:"max_video_size"`
+		TopDetectiveIDs       []string             `json:"top_detective_ids"`
+		TopGMIDs              []string             `json:"top_gm_ids"`
+		VanityRoles           []SiteInfoVanityRole `json:"vanity_roles"`
+		VanityRoleAssignments map[string][]string  `json:"vanity_role_assignments"`
+	}
+
+	SiteInfoVanityRole struct {
+		ID        string `json:"id"`
+		Label     string `json:"label"`
+		Color     string `json:"color"`
+		IsSystem  bool   `json:"is_system"`
+		SortOrder int    `json:"sort_order"`
+	}
 )
