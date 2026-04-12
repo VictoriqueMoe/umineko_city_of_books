@@ -353,8 +353,11 @@ export function ChatPage() {
         }
 
         setMessages(prev => {
-            if (prev.some(m => m.id === message.id)) {
-                return prev;
+            const idx = prev.findIndex(m => m.id === message.id);
+            if (idx !== -1) {
+                const next = prev.slice();
+                next[idx] = message;
+                return next;
             }
             return [...prev, message];
         });
