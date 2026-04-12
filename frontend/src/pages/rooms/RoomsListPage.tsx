@@ -8,6 +8,7 @@ import { joinChatRoom, listMyChatRooms, listPublicChatRooms } from "../../api/en
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
 import { InfoPanel } from "../../components/InfoPanel/InfoPanel";
+import { RulesBox } from "../../components/RulesBox/RulesBox";
 import { CreateRoomModal } from "../../components/chat/CreateRoomModal/CreateRoomModal";
 import styles from "./RoomsPages.module.css";
 
@@ -268,6 +269,8 @@ export function RoomsListPage() {
                     you, so you won't get spammed by busy chats.
                 </p>
             </InfoPanel>
+
+            <RulesBox page="chat_rooms" />
 
             <div className={styles.filterBar}>
                 <Input

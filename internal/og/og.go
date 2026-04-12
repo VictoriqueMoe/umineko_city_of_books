@@ -20,6 +20,8 @@ type (
 		shipRepo         repository.ShipRepository
 		fanficRepo       repository.FanficRepository
 		announcementRepo repository.AnnouncementRepository
+		journalRepo      repository.JournalRepository
+		chatRepo         repository.ChatRepository
 		baseHTML         string
 		baseURL          string
 	}
@@ -46,6 +48,8 @@ func NewResolver(
 	shipRepo repository.ShipRepository,
 	fanficRepo repository.FanficRepository,
 	announcementRepo repository.AnnouncementRepository,
+	journalRepo repository.JournalRepository,
+	chatRepo repository.ChatRepository,
 	baseHTML, baseURL string,
 ) *Resolver {
 	return &Resolver{
@@ -57,6 +61,8 @@ func NewResolver(
 		shipRepo:         shipRepo,
 		fanficRepo:       fanficRepo,
 		announcementRepo: announcementRepo,
+		journalRepo:      journalRepo,
+		chatRepo:         chatRepo,
 		baseHTML:         baseHTML,
 		baseURL:          baseURL,
 	}
@@ -168,6 +174,34 @@ func (r *Resolver) metaForPath(ctx context.Context, path string) *Meta {
 			Title:       "Gallery - Umineko City of Books",
 			Description: "Browse fan art galleries from the Umineko community.",
 			URL:         r.baseURL + "/gallery",
+		}
+	}
+
+	if len(parts) == 1 && parts[0] == "journals" {
+		return &Meta{
+			Title:       "Reading Journals - Umineko City of Books",
+			Description: "Live-blog your read-throughs of Ryukishi07's works. Post reactions, theories, and predictions as you go.",
+			URL:         r.baseURL + "/journals",
+		}
+	}
+
+	if len(parts) == 2 && parts[0] == "journals" {
+		if _, err := uuid.Parse(parts[1]); err == nil {
+			return r.journalMeta(ctx, parts[1])
+		}
+	}
+
+	if len(parts) == 1 && parts[0] == "rooms" {
+		return &Meta{
+			Title:       "Chat Rooms - Umineko City of Books",
+			Description: "Live group chats for roleplay, book clubs, episode reactions, and more.",
+			URL:         r.baseURL + "/rooms",
+		}
+	}
+
+	if len(parts) == 2 && parts[0] == "rooms" {
+		if _, err := uuid.Parse(parts[1]); err == nil {
+			return r.roomMeta(ctx, parts[1])
 		}
 	}
 
@@ -479,6 +513,58 @@ func (r *Resolver) fanficMeta(ctx context.Context, idStr string) *Meta {
 		meta.Image = fanfic.CoverImageURL
 	}
 	return meta
+}
+
+func (r *Resolver) journalMeta(ctx context.Context, idStr string) *Meta {
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		return nil
+	}
+
+	journal, err := r.journalRepo.GetByID(ctx, id, uuid.Nil)
+	if err != nil || journal == nil {
+		return nil
+	}
+
+	desc := journal.Body
+	if len(desc) > 200 {
+		desc = desc[:197] + "..."
+	}
+
+	title := fmt.Sprintf("%s - %s's Reading Journal", journal.Title, journal.Author.DisplayName)
+
+	return &Meta{
+		Title:       title,
+		Description: desc,
+		Image:       journal.Author.AvatarURL,
+		URL:         fmt.Sprintf("%s/journals/%s", r.baseURL, idStr),
+	}
+}
+
+func (r *Resolver) roomMeta(ctx context.Context, idStr string) *Meta {
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		return nil
+	}
+
+	room, err := r.chatRepo.GetRoomByID(ctx, id, uuid.Nil)
+	if err != nil || room == nil {
+		return nil
+	}
+
+	desc := room.Description
+	if desc == "" {
+		desc = fmt.Sprintf("A chat room with %d members on Umineko City of Books", room.MemberCount)
+	}
+	if len(desc) > 200 {
+		desc = desc[:197] + "..."
+	}
+
+	return &Meta{
+		Title:       room.Name + " - Chat Room",
+		Description: desc,
+		URL:         fmt.Sprintf("%s/rooms/%s", r.baseURL, idStr),
+	}
 }
 
 func (r *Resolver) inject(meta Meta) string {
