@@ -487,6 +487,10 @@ export async function leaveChatRoom(roomId: string): Promise<void> {
     await apiPost<unknown, Record<string, never>>(`/chat/rooms/${roomId}/leave`, {});
 }
 
+export async function setChatRoomMuted(roomId: string, muted: boolean): Promise<{ muted: boolean }> {
+    return apiPut<{ muted: boolean }, { muted: boolean }>(`/chat/rooms/${roomId}/mute`, { muted });
+}
+
 export async function getChatRoomMembers(roomId: string): Promise<{ members: ChatRoomMember[] }> {
     return apiFetch<{ members: ChatRoomMember[] }>(`/chat/rooms/${roomId}/members`);
 }

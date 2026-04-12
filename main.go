@@ -8,6 +8,7 @@ import (
 
 func main() {
 	logger.Init(config.SettingLogLevel.Default)
+	defer logger.Shutdown()
 
 	logger.Log.Info().
 		Str("db_path", config.Cfg.DBPath).

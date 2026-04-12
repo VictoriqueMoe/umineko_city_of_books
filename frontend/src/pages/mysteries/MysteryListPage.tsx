@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { usePageTitle } from "../../hooks/usePageTitle";
+import { useSiteInfo } from "../../hooks/useSiteInfo";
 import type { GMLeaderboardEntry, Mystery, MysteryLeaderboardEntry, User } from "../../types/api";
 import { getGMLeaderboard, getMysteryLeaderboard, listMysteries } from "../../api/endpoints";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
@@ -105,6 +106,9 @@ function LeaderboardAvatar({ user }: { user: User }) {
 
 export function MysteryListPage() {
     usePageTitle("Mysteries");
+    const siteInfo = useSiteInfo();
+    const detectiveRole = siteInfo.vanity_roles?.find(v => v.id === "system_top_detective");
+    const gmRole = siteInfo.vanity_roles?.find(v => v.id === "system_top_gm");
     const [searchParams, setSearchParams] = useSearchParams();
     const [mysteries, setMysteries] = useState<Mystery[]>([]);
     const [total, setTotal] = useState(0);
@@ -359,7 +363,7 @@ export function MysteryListPage() {
                                                                 className={styles.topDetectiveBadge}
                                                                 title="Ranked #1 in mysteries"
                                                             >
-                                                                True Detective
+                                                                {detectiveRole?.label ?? "True Detective"}
                                                             </span>
                                                         </div>
                                                     )}
@@ -465,7 +469,7 @@ export function MysteryListPage() {
                                                                     className={styles.topGMBadge}
                                                                     title="Top ranked Game Master"
                                                                 >
-                                                                    Game Master
+                                                                    {gmRole?.label ?? "Game Master"}
                                                                 </span>
                                                             </div>
                                                         )}

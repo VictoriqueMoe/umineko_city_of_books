@@ -23,11 +23,11 @@ type (
 	}
 
 	Service interface {
-		Get(ctx context.Context, def config.SiteSettingDef) string
-		GetInt(ctx context.Context, def config.SiteSettingDef) int
-		GetBool(ctx context.Context, def config.SiteSettingDef) bool
+		Get(ctx context.Context, def *config.SiteSettingDef) string
+		GetInt(ctx context.Context, def *config.SiteSettingDef) int
+		GetBool(ctx context.Context, def *config.SiteSettingDef) bool
 		GetAll(ctx context.Context) map[config.SiteSettingKey]string
-		Set(ctx context.Context, setting config.SiteSettingDef, value string, updatedBy uuid.UUID) error
+		Set(ctx context.Context, setting *config.SiteSettingDef, value string, updatedBy uuid.UUID) error
 		SetMultiple(ctx context.Context, values map[config.SiteSettingKey]string, updatedBy uuid.UUID) error
 		Subscribe(listener Listener)
 		Refresh(ctx context.Context) error
@@ -109,14 +109,14 @@ func (s *service) Refresh(ctx context.Context) error {
 	return nil
 }
 
-func (s *service) Get(ctx context.Context, def config.SiteSettingDef) string {
+func (s *service) Get(ctx context.Context, def *config.SiteSettingDef) string {
 	if v, ok := s.cache.Load(def.Key); ok {
 		return v.(string)
 	}
 	return def.Default
 }
 
-func (s *service) GetInt(ctx context.Context, def config.SiteSettingDef) int {
+func (s *service) GetInt(ctx context.Context, def *config.SiteSettingDef) int {
 	v, err := strconv.Atoi(s.Get(ctx, def))
 	if err != nil {
 		return 0
@@ -124,7 +124,7 @@ func (s *service) GetInt(ctx context.Context, def config.SiteSettingDef) int {
 	return v
 }
 
-func (s *service) GetBool(ctx context.Context, def config.SiteSettingDef) bool {
+func (s *service) GetBool(ctx context.Context, def *config.SiteSettingDef) bool {
 	return s.Get(ctx, def) == "true"
 }
 
@@ -140,7 +140,7 @@ func (s *service) GetAll(ctx context.Context) map[config.SiteSettingKey]string {
 	return result
 }
 
-func (s *service) Set(ctx context.Context, setting config.SiteSettingDef, value string, updatedBy uuid.UUID) error {
+func (s *service) Set(ctx context.Context, setting *config.SiteSettingDef, value string, updatedBy uuid.UUID) error {
 	merged := s.GetAll(ctx)
 	merged[setting.Key] = value
 	if err := config.ValidateSettings(merged); err != nil {

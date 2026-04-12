@@ -17,7 +17,7 @@ import (
 	"github.com/google/uuid"
 )
 
-var rulesSettings = map[string]config.SiteSettingDef{
+var rulesSettings = map[string]*config.SiteSettingDef{
 	"theories":             config.SettingRulesTheories,
 	"theories_higurashi":   config.SettingRulesTheoriesHigurashi,
 	"mysteries":            config.SettingRulesMysteries,

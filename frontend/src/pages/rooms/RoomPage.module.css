@@ -109,7 +109,8 @@
     border-top: 1px solid rgba(var(--purple-rgb), 0.2);
     flex-shrink: 0;
     display: flex;
-    justify-content: stretch;
+    flex-direction: column;
+    gap: 0.5rem;
 }
 
 .sidebarFooter button {

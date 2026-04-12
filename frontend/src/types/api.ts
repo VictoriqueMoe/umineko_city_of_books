@@ -402,6 +402,7 @@ export type NotificationType =
     | "journal_followed"
     | "journal_archived"
     | "chat_mention"
+    | "chat_room_message"
     | "chat_room_invite"
     | "chat_reply"
     | "fanfic_commented"
@@ -603,6 +604,7 @@ export interface ChatRoom {
     is_rp: boolean;
     tags: string[];
     viewer_role?: string;
+    viewer_muted: boolean;
     is_member: boolean;
     member_count: number;
     members: User[];

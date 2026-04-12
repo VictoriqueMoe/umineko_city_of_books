@@ -71,6 +71,8 @@ type (
 		GetRoomsByUser(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error)
 		DeleteChat(ctx context.Context, roomID, userID uuid.UUID) error
 		JoinRoom(ctx context.Context, roomID, userID uuid.UUID) (*dto.ChatRoomResponse, error)
+		SetRoomMuted(ctx context.Context, roomID, userID uuid.UUID, muted bool) error
+		IsRoomMuted(ctx context.Context, roomID, userID uuid.UUID) (bool, error)
 		LeaveRoom(ctx context.Context, roomID, userID uuid.UUID) error
 		KickMember(ctx context.Context, hostID, roomID, targetID uuid.UUID) error
 		GetMembers(ctx context.Context, viewerID, roomID uuid.UUID) ([]dto.ChatRoomMemberResponse, error)
@@ -315,6 +317,24 @@ func (s *service) ListUserGroupRooms(ctx context.Context, userID uuid.UUID, sear
 	return &dto.ChatRoomListResponse{Rooms: rooms, Total: total}, nil
 }
 
+func (s *service) SetRoomMuted(ctx context.Context, roomID, userID uuid.UUID, muted bool) error {
+	isMember, err := s.chatRepo.IsMember(ctx, roomID, userID)
+	if err != nil {
+		return fmt.Errorf("check membership: %w", err)
+	}
+	if !isMember {
+		return ErrNotMember
+	}
+	if err := s.chatRepo.SetMuted(ctx, roomID, userID, muted); err != nil {
+		return fmt.Errorf("set muted: %w", err)
+	}
+	return nil
+}
+
+func (s *service) IsRoomMuted(ctx context.Context, roomID, userID uuid.UUID) (bool, error) {
+	return s.chatRepo.IsMuted(ctx, roomID, userID)
+}
+
 func (s *service) JoinRoom(ctx context.Context, roomID, userID uuid.UUID) (*dto.ChatRoomResponse, error) {
 	row, err := s.chatRepo.GetRoomByID(ctx, roomID, userID)
 	if err != nil {
@@ -510,6 +530,7 @@ func (s *service) rowToResponse(row repository.ChatRoomRow) dto.ChatRoomResponse
 		IsRP:          row.IsRP,
 		Tags:          row.Tags,
 		ViewerRole:    row.ViewerRole,
+		ViewerMuted:   row.ViewerMuted,
 		IsMember:      row.IsMember,
 		MemberCount:   row.MemberCount,
 		CreatedAt:     row.CreatedAt,
@@ -736,7 +757,11 @@ func (s *service) SendMessage(ctx context.Context, senderID, roomID uuid.UUID, r
 			s.hub.SendToUser(memberID, msg)
 
 			if isGroup {
-				if _, isMentioned := mentionedIDs[memberID]; isMentioned {
+				_, isMentioned := mentionedIDs[memberID]
+				isReplyTarget := replyToAuthor != uuid.Nil && memberID == replyToAuthor
+				inRoom := s.hub.IsUserViewing(roomID, memberID)
+
+				if isMentioned {
 					_ = s.notifSvc.Notify(ctx, dto.NotifyParams{
 						RecipientID:   memberID,
 						ActorID:       senderID,
@@ -744,7 +769,7 @@ func (s *service) SendMessage(ctx context.Context, senderID, roomID uuid.UUID, r
 						ReferenceID:   roomID,
 						ReferenceType: fmt.Sprintf("chat_message:%s", msgID),
 					})
-				} else if replyToAuthor != uuid.Nil && memberID == replyToAuthor {
+				} else if isReplyTarget {
 					_ = s.notifSvc.Notify(ctx, dto.NotifyParams{
 						RecipientID:   memberID,
 						ActorID:       senderID,
@@ -752,6 +777,22 @@ func (s *service) SendMessage(ctx context.Context, senderID, roomID uuid.UUID, r
 						ReferenceID:   roomID,
 						ReferenceType: fmt.Sprintf("chat_message:%s", msgID),
 					})
+				} else if !inRoom {
+					muted, _ := s.chatRepo.IsMuted(ctx, roomID, memberID)
+					if !muted {
+						roomName := ""
+						if roomRow != nil {
+							roomName = roomRow.Name
+						}
+						_ = s.notifSvc.Notify(ctx, dto.NotifyParams{
+							RecipientID:   memberID,
+							ActorID:       senderID,
+							Type:          dto.NotifChatRoomMessage,
+							ReferenceID:   roomID,
+							ReferenceType: fmt.Sprintf("chat_message:%s", msgID),
+							Message:       fmt.Sprintf("sent a message in %s", roomName),
+						})
+					}
 				}
 			} else {
 				_ = s.notifSvc.Notify(ctx, dto.NotifyParams{
@@ -763,7 +804,7 @@ func (s *service) SendMessage(ctx context.Context, senderID, roomID uuid.UUID, r
 				})
 			}
 
-			if !isGroup {
+			if !s.hub.IsUserViewing(roomID, memberID) {
 				total, countErr := s.chatRepo.CountUnreadRoomsForUser(ctx, memberID)
 				if countErr == nil {
 					s.hub.SendToUser(memberID, ws.Message{

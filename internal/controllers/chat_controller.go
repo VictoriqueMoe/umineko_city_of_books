@@ -23,6 +23,7 @@ func (s *Service) getAllChatRoutes() []FSetupRoute {
 		s.setupLeaveRoomRoute,
 		s.setupGetRoomMembersRoute,
 		s.setupKickMemberRoute,
+		s.setupSetRoomMuteRoute,
 		s.setupGetMessagesRoute,
 		s.setupSendMessageRoute,
 		s.setupDeleteChatRoute,
@@ -403,6 +404,31 @@ func (s *Service) leaveRoom(ctx fiber.Ctx) error {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to leave room"})
 	}
 	return ctx.JSON(fiber.Map{"status": "ok"})
+}
+
+func (s *Service) setupSetRoomMuteRoute(r fiber.Router) {
+	r.Put("/chat/rooms/:roomID/mute", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.setRoomMute)
+}
+
+func (s *Service) setRoomMute(ctx fiber.Ctx) error {
+	userID := ctx.Locals("userID").(uuid.UUID)
+	roomID, err := uuid.Parse(ctx.Params("roomID"))
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid room ID"})
+	}
+	var req struct {
+		Muted bool `json:"muted"`
+	}
+	if err := ctx.Bind().JSON(&req); err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request"})
+	}
+	if err := s.ChatService.SetRoomMuted(ctx.Context(), roomID, userID, req.Muted); err != nil {
+		if errors.Is(err, chat.ErrNotMember) {
+			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "not a member"})
+		}
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to set mute"})
+	}
+	return ctx.JSON(fiber.Map{"muted": req.Muted})
 }
 
 func (s *Service) setupGetRoomMembersRoute(r fiber.Router) {

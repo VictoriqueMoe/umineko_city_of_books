@@ -243,10 +243,7 @@ export function AdminVanityRoles() {
                                 <td>{role.label}</td>
                                 <td>
                                     <span className={styles.colorCell}>
-                                        <span
-                                            className={styles.colorDot}
-                                            style={{ backgroundColor: role.color }}
-                                        />
+                                        <span className={styles.colorDot} style={{ backgroundColor: role.color }} />
                                         {role.color}
                                     </span>
                                 </td>
@@ -262,19 +259,11 @@ export function AdminVanityRoles() {
                                     <Button variant="secondary" size="small" onClick={() => openEdit(role)}>
                                         Edit
                                     </Button>
-                                    <Button
-                                        variant="secondary"
-                                        size="small"
-                                        onClick={() => openManageUsers(role)}
-                                    >
+                                    <Button variant="secondary" size="small" onClick={() => openManageUsers(role)}>
                                         Users
                                     </Button>
                                     {!role.is_system && (
-                                        <Button
-                                            variant="danger"
-                                            size="small"
-                                            onClick={() => handleDelete(role.id)}
-                                        >
+                                        <Button variant="danger" size="small" onClick={() => handleDelete(role.id)}>
                                             Delete
                                         </Button>
                                     )}
@@ -342,23 +331,24 @@ export function AdminVanityRoles() {
                         <Button variant="ghost" size="small" onClick={closeForm}>
                             Cancel
                         </Button>
-                        <Button variant="primary" size="small" onClick={handleSave} disabled={saving || !formLabel.trim()}>
+                        <Button
+                            variant="primary"
+                            size="small"
+                            onClick={handleSave}
+                            disabled={saving || !formLabel.trim()}
+                        >
                             {saving ? "Saving..." : "Save"}
                         </Button>
                     </div>
                 </div>
             </Modal>
 
-            <Modal
-                isOpen={!!managingRole}
-                onClose={closeManage}
-                title={`Users - ${managingRole?.label ?? ""}`}
-            >
+            <Modal isOpen={!!managingRole} onClose={closeManage} title={`Users - ${managingRole?.label ?? ""}`}>
                 <div className={styles.manageBody}>
                     {managingRole?.is_system ? (
                         <div className={styles.systemNotice}>
-                            This is a system role. Users are automatically assigned based on mystery leaderboard
-                            scores and cannot be manually changed.
+                            This is a system role. Users are automatically assigned based on mystery leaderboard scores
+                            and cannot be manually changed.
                         </div>
                     ) : (
                         <>
@@ -394,9 +384,7 @@ export function AdminVanityRoles() {
                     )}
 
                     <div className={styles.assignedSection}>
-                        <div className={styles.assignedLabel}>
-                            Assigned ({assignedUsers?.total ?? 0})
-                        </div>
+                        <div className={styles.assignedLabel}>Assigned ({assignedUsers?.total ?? 0})</div>
                         {(!assignedUsers || assignedUsers.users.length === 0) && (
                             <div className={styles.empty}>No users assigned.</div>
                         )}
@@ -404,7 +392,9 @@ export function AdminVanityRoles() {
                             <div className={styles.assignedList}>
                                 {assignedUsers.users.map(u => (
                                     <div key={u.id} className={styles.userRow}>
-                                        <span className={styles.userName}>{u.display_name} (@{u.username})</span>
+                                        <span className={styles.userName}>
+                                            {u.display_name} (@{u.username})
+                                        </span>
                                         {!managingRole?.is_system && (
                                             <Button
                                                 variant="danger"

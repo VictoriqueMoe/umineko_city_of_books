@@ -26,6 +26,7 @@ type (
 		LastReadAt    sql.NullString
 		MemberCount   int
 		ViewerRole    string
+		ViewerMuted   bool
 		IsMember      bool
 		Tags          []string
 	}
@@ -70,6 +71,9 @@ type (
 		GetRoomMembersDetailed(ctx context.Context, roomID uuid.UUID) ([]ChatRoomMemberRow, error)
 		GetMemberRole(ctx context.Context, roomID, userID uuid.UUID) (string, error)
 		IsMember(ctx context.Context, roomID, userID uuid.UUID) (bool, error)
+		SetMuted(ctx context.Context, roomID, userID uuid.UUID, muted bool) error
+		IsMuted(ctx context.Context, roomID, userID uuid.UUID) (bool, error)
+		GetRoomMembersUnmuted(ctx context.Context, roomID uuid.UUID) ([]uuid.UUID, error)
 		ListPublicRooms(ctx context.Context, search string, isRPOnly bool, tag string, viewerID uuid.UUID, excludeUserIDs []uuid.UUID, limit, offset int) ([]ChatRoomRow, int, error)
 		FindDMRoom(ctx context.Context, userA, userB uuid.UUID) (uuid.UUID, error)
 		AddRoomTags(ctx context.Context, roomID uuid.UUID, tags []string) error
@@ -441,14 +445,15 @@ func (r *chatRepository) GetRoomByID(ctx context.Context, roomID, viewerID uuid.
 	var row ChatRoomRow
 	var publicInt, rpInt int
 	var viewerRole sql.NullString
+	var viewerMuted sql.NullInt64
 	err := r.db.QueryRowContext(ctx,
-		`SELECT cr.id, cr.name, cr.description, cr.type, cr.is_public, cr.is_rp, cr.created_by, cr.created_at, cr.last_message_at, m.last_read_at, m.role,
+		`SELECT cr.id, cr.name, cr.description, cr.type, cr.is_public, cr.is_rp, cr.created_by, cr.created_at, cr.last_message_at, m.last_read_at, m.role, m.muted,
 		 (SELECT COUNT(*) FROM chat_room_members WHERE room_id = cr.id)
 		 FROM chat_rooms cr
 		 LEFT JOIN chat_room_members m ON cr.id = m.room_id AND m.user_id = ?
 		 WHERE cr.id = ?`,
 		viewerID, roomID,
-	).Scan(&row.ID, &row.Name, &row.Description, &row.Type, &publicInt, &rpInt, &row.CreatedBy, &row.CreatedAt, &row.LastMessageAt, &row.LastReadAt, &viewerRole, &row.MemberCount)
+	).Scan(&row.ID, &row.Name, &row.Description, &row.Type, &publicInt, &rpInt, &row.CreatedBy, &row.CreatedAt, &row.LastMessageAt, &row.LastReadAt, &viewerRole, &viewerMuted, &row.MemberCount)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -460,6 +465,9 @@ func (r *chatRepository) GetRoomByID(ctx context.Context, roomID, viewerID uuid.
 	if viewerRole.Valid {
 		row.ViewerRole = viewerRole.String
 		row.IsMember = true
+	}
+	if viewerMuted.Valid {
+		row.ViewerMuted = viewerMuted.Int64 != 0
 	}
 	row.Tags, _ = r.GetRoomTags(ctx, roomID)
 	return &row, nil
@@ -604,6 +612,54 @@ func (r *chatRepository) IsMember(ctx context.Context, roomID, userID uuid.UUID)
 		return false, fmt.Errorf("check membership: %w", err)
 	}
 	return count > 0, nil
+}
+
+func (r *chatRepository) SetMuted(ctx context.Context, roomID, userID uuid.UUID, muted bool) error {
+	v := 0
+	if muted {
+		v = 1
+	}
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE chat_room_members SET muted = ? WHERE room_id = ? AND user_id = ?`, v, roomID, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("set muted: %w", err)
+	}
+	return nil
+}
+
+func (r *chatRepository) IsMuted(ctx context.Context, roomID, userID uuid.UUID) (bool, error) {
+	var muted int
+	err := r.db.QueryRowContext(ctx,
+		`SELECT muted FROM chat_room_members WHERE room_id = ? AND user_id = ?`, roomID, userID,
+	).Scan(&muted)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("check muted: %w", err)
+	}
+	return muted != 0, nil
+}
+
+func (r *chatRepository) GetRoomMembersUnmuted(ctx context.Context, roomID uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT user_id FROM chat_room_members WHERE room_id = ? AND muted = 0`, roomID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("get unmuted members: %w", err)
+	}
+	defer rows.Close()
+
+	var members []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("scan unmuted member: %w", err)
+		}
+		members = append(members, id)
+	}
+	return members, rows.Err()
 }
 
 func (r *chatRepository) FindDMRoom(ctx context.Context, userA, userB uuid.UUID) (uuid.UUID, error) {

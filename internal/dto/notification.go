@@ -75,6 +75,7 @@ const (
 	NotifJournalFollowed          NotificationType = "journal_followed"
 	NotifJournalArchived          NotificationType = "journal_archived"
 	NotifChatMention              NotificationType = "chat_mention"
+	NotifChatRoomMessage          NotificationType = "chat_room_message"
 	NotifChatRoomInvite           NotificationType = "chat_room_invite"
 	NotifChatReply                NotificationType = "chat_reply"
 	NotifShipCommented            NotificationType = "ship_commented"

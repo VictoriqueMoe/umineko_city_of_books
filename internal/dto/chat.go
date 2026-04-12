@@ -43,6 +43,7 @@ type (
 		IsRP          bool           `json:"is_rp"`
 		Tags          []string       `json:"tags"`
 		ViewerRole    string         `json:"viewer_role,omitempty"`
+		ViewerMuted   bool           `json:"viewer_muted"`
 		IsMember      bool           `json:"is_member"`
 		MemberCount   int            `json:"member_count"`
 		Members       []UserResponse `json:"members"`

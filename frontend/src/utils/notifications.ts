@@ -151,6 +151,11 @@ const notificationConfigs: Record<NotificationType, NotificationConfig> = {
         category: "social",
         route: routeByReferenceType,
     },
+    chat_room_message: {
+        text: "sent a message in a chat room",
+        category: "social",
+        route: chatMessageRoute,
+    },
     report: {
         text: "reported content",
         category: "moderation",

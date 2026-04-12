@@ -9,3 +9,29 @@ services:
       - .env
     volumes:
       - ./data:/app/data
+
+  glitchtip-postgres:
+    image: postgres:18
+    container_name: glitchtip-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: "trust"
+    volumes:
+      - glitchtip-pg-data:/var/lib/postgresql
+
+  glitchtip:
+    image: glitchtip/glitchtip:6
+    container_name: glitchtip
+    restart: unless-stopped
+    depends_on:
+      - glitchtip-postgres
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env.glitchtip
+    volumes:
+      - glitchtip-uploads:/code/uploads
+
+volumes:
+  glitchtip-pg-data:
+  glitchtip-uploads:

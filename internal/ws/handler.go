@@ -147,7 +147,7 @@ func Handler(hub *Hub, sessionMgr *session.Manager, roomLister RoomLister) fiber
 					if err != nil {
 						continue
 					}
-					hub.JoinRoom(roomID, userID)
+					hub.AddViewer(roomID, userID)
 
 				case "leave_room":
 					var data roomActionData
@@ -158,7 +158,7 @@ func Handler(hub *Hub, sessionMgr *session.Manager, roomLister RoomLister) fiber
 					if err != nil {
 						continue
 					}
-					hub.LeaveRoom(roomID, userID)
+					hub.RemoveViewer(roomID, userID)
 				}
 			}
 		})

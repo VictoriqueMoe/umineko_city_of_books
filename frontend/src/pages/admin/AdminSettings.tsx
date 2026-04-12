@@ -361,6 +361,34 @@ export function AdminSettings() {
             </div>
 
             <div className={styles.card}>
+                <h2 className={styles.sectionTitle}>Logging & Error Reporting</h2>
+                <div className={styles.fieldGroup}>
+                    <div className={styles.field}>
+                        <span className={styles.fieldLabel}>Log Level</span>
+                        <Select
+                            value={settings.log_level ?? "info"}
+                            onChange={e => updateField("log_level", e.target.value)}
+                        >
+                            <option value="trace">Trace</option>
+                            <option value="debug">Debug</option>
+                            <option value="info">Info</option>
+                            <option value="warn">Warn</option>
+                            <option value="error">Error</option>
+                        </Select>
+                    </div>
+                    <div className={styles.field}>
+                        <span className={styles.fieldLabel}>Sentry DSN</span>
+                        <Input
+                            value={settings.sentry_dsn ?? ""}
+                            onChange={e => updateField("sentry_dsn", e.target.value)}
+                            fullWidth
+                            placeholder="Leave empty to disable"
+                        />
+                    </div>
+                </div>
+            </div>
+
+            <div className={styles.card}>
                 <h2 className={styles.sectionTitle}>Appearance</h2>
                 <div className={styles.fieldGroup}>
                     <div className={styles.field}>

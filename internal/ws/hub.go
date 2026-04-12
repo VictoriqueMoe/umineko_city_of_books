@@ -22,6 +22,7 @@ type (
 	Hub struct {
 		clients map[uuid.UUID][]*Client
 		rooms   map[uuid.UUID]map[uuid.UUID]bool
+		viewers map[uuid.UUID]map[uuid.UUID]int
 		mu      sync.RWMutex
 	}
 )
@@ -30,7 +31,41 @@ func NewHub() *Hub {
 	return &Hub{
 		clients: make(map[uuid.UUID][]*Client),
 		rooms:   make(map[uuid.UUID]map[uuid.UUID]bool),
+		viewers: make(map[uuid.UUID]map[uuid.UUID]int),
 	}
+}
+
+func (h *Hub) AddViewer(roomID, userID uuid.UUID) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.viewers[roomID] == nil {
+		h.viewers[roomID] = make(map[uuid.UUID]int)
+	}
+	h.viewers[roomID][userID]++
+}
+
+func (h *Hub) RemoveViewer(roomID, userID uuid.UUID) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.viewers[roomID] == nil {
+		return
+	}
+	h.viewers[roomID][userID]--
+	if h.viewers[roomID][userID] <= 0 {
+		delete(h.viewers[roomID], userID)
+	}
+	if len(h.viewers[roomID]) == 0 {
+		delete(h.viewers, roomID)
+	}
+}
+
+func (h *Hub) IsUserViewing(roomID, userID uuid.UUID) bool {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	if h.viewers[roomID] == nil {
+		return false
+	}
+	return h.viewers[roomID][userID] > 0
 }
 
 func (h *Hub) Register(client *Client) {
@@ -136,6 +171,15 @@ func (h *Hub) LeaveRoom(roomID, userID uuid.UUID) {
 			delete(h.rooms, roomID)
 		}
 	}
+}
+
+func (h *Hub) IsUserInRoom(roomID, userID uuid.UUID) bool {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	if h.rooms[roomID] == nil {
+		return false
+	}
+	return h.rooms[roomID][userID]
 }
 
 func (h *Hub) BroadcastToRoom(roomID uuid.UUID, msg Message, excludeUserID uuid.UUID) {
