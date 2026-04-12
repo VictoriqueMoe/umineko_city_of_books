@@ -25,6 +25,7 @@ type (
 		Mystery      MysteryRepository
 		Ship         ShipRepository
 		Fanfic       FanficRepository
+		Journal      JournalRepository
 	}
 )
 
@@ -55,5 +56,6 @@ func New(db *sql.DB) *Repositories {
 		Mystery:      &mysteryRepository{db: db},
 		Ship:         &shipRepository{db: db},
 		Fanfic:       &fanficRepository{db: db},
+		Journal:      &journalRepository{db: db},
 	}
 }

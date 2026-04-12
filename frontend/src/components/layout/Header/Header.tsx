@@ -1,6 +1,7 @@
 import { useAuth } from "../../../hooks/useAuth";
 import { ThemeSelector } from "../ThemeSelector/ThemeSelector";
 import { NotificationBell } from "../NotificationBell/NotificationBell";
+import { ChatBell } from "../../chat/ChatBell/ChatBell";
 import { LoginButton } from "../../auth/LoginButton/LoginButton";
 import { UserMenu } from "../../auth/UserMenu/UserMenu";
 import styles from "./Header.module.css";
@@ -22,6 +23,7 @@ export function Header({ onToggleSidebar }: HeaderProps) {
 
             <div className={styles.actions}>
                 {!loading && user && <NotificationBell />}
+                {!loading && user && <ChatBell />}
                 <ThemeSelector />
                 {!loading && (user ? <UserMenu /> : <LoginButton />)}
             </div>

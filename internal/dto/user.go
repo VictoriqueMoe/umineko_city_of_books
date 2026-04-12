@@ -38,6 +38,9 @@ type (
 		EmailNotifications bool         `json:"email_notifications"`
 		HomePage           string       `json:"home_page"`
 		GameBoardSort      string       `json:"game_board_sort"`
+		Theme              string       `json:"theme"`
+		Font               string       `json:"font"`
+		WideLayout         bool         `json:"wide_layout"`
 		CreatedAt          string       `json:"created_at"`
 		Stats              UserStatsDTO `json:"stats"`
 	}

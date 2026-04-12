@@ -13,12 +13,17 @@ import type {
     CharacterListResponse,
     ChatMessage,
     ChatRoom,
+    ChatRoomMember,
     CreateResponsePayload,
     CreateTheoryPayload,
     DeleteAccountPayload,
+    CreateJournalPayload,
     FanficChapter,
     FanficDetail,
     FanficListResponse,
+    JournalDetail,
+    JournalListResponse,
+    JournalWork,
     FollowStats,
     Gallery,
     GalleryDetailResponse,
@@ -238,6 +243,14 @@ export async function updateGameBoardSort(sort: string): Promise<void> {
     await apiPut<unknown, { sort: string }>("/preferences/game-board-sort", { sort });
 }
 
+export async function updateAppearance(theme: string, font: string, wideLayout: boolean): Promise<void> {
+    await apiPut<unknown, { theme: string; font: string; wide_layout: boolean }>("/preferences/appearance", {
+        theme,
+        font,
+        wide_layout: wideLayout,
+    });
+}
+
 export async function uploadAvatar(file: File): Promise<{ avatar_url: string }> {
     const formData = new FormData();
     formData.append("avatar", file);
@@ -396,12 +409,80 @@ export async function deleteInvite(code: string): Promise<void> {
     await apiDelete<unknown>(`/admin/invites/${code}`);
 }
 
-export async function createDMRoom(recipientId: string): Promise<ChatRoom> {
-    return apiPost<ChatRoom, { recipient_id: string }>("/chat/dm", { recipient_id: recipientId });
+export async function resolveDMRoom(recipientId: string): Promise<{ room: ChatRoom | null; recipient: User }> {
+    return apiFetch<{ room: ChatRoom | null; recipient: User }>(`/chat/dm/${recipientId}/resolve`);
 }
 
-export async function createGroupRoom(name: string, memberIds: string[]): Promise<ChatRoom> {
-    return apiPost<ChatRoom, { name: string; member_ids: string[] }>("/chat/rooms", { name, member_ids: memberIds });
+export async function sendFirstDMMessage(
+    recipientId: string,
+    body: string,
+): Promise<{ room: ChatRoom; message: ChatMessage }> {
+    return apiPost<{ room: ChatRoom; message: ChatMessage }, { body: string }>(`/chat/dm/${recipientId}/messages`, {
+        body,
+    });
+}
+
+export async function createGroupRoom(payload: {
+    name: string;
+    description: string;
+    is_public: boolean;
+    is_rp: boolean;
+    tags: string[];
+    member_ids: string[];
+}): Promise<ChatRoom> {
+    return apiPost<ChatRoom, typeof payload>("/chat/rooms", payload);
+}
+
+export async function listPublicChatRooms(params: {
+    search?: string;
+    rp?: boolean;
+    tag?: string;
+    limit?: number;
+    offset?: number;
+}): Promise<{ rooms: ChatRoom[]; total: number }> {
+    const qs = buildQueryString({
+        search: params.search,
+        rp: params.rp ? "true" : undefined,
+        tag: params.tag,
+        limit: params.limit ?? 20,
+        offset: params.offset,
+    });
+    return apiFetch<{ rooms: ChatRoom[]; total: number }>(`/chat/rooms/public${qs}`);
+}
+
+export async function listMyChatRooms(params: {
+    role?: "host" | "member";
+    search?: string;
+    rp?: boolean;
+    tag?: string;
+    limit?: number;
+    offset?: number;
+}): Promise<{ rooms: ChatRoom[]; total: number }> {
+    const qs = buildQueryString({
+        role: params.role,
+        search: params.search,
+        rp: params.rp ? "true" : undefined,
+        tag: params.tag,
+        limit: params.limit ?? 20,
+        offset: params.offset,
+    });
+    return apiFetch<{ rooms: ChatRoom[]; total: number }>(`/chat/rooms/mine${qs}`);
+}
+
+export async function joinChatRoom(roomId: string): Promise<ChatRoom> {
+    return apiPost<ChatRoom, Record<string, never>>(`/chat/rooms/${roomId}/join`, {});
+}
+
+export async function leaveChatRoom(roomId: string): Promise<void> {
+    await apiPost<unknown, Record<string, never>>(`/chat/rooms/${roomId}/leave`, {});
+}
+
+export async function getChatRoomMembers(roomId: string): Promise<{ members: ChatRoomMember[] }> {
+    return apiFetch<{ members: ChatRoomMember[] }>(`/chat/rooms/${roomId}/members`);
+}
+
+export async function kickChatRoomMember(roomId: string, userId: string): Promise<void> {
+    await apiDelete<unknown>(`/chat/rooms/${roomId}/members/${userId}`);
 }
 
 export async function getUserRooms(): Promise<{ rooms: ChatRoom[] }> {
@@ -417,12 +498,29 @@ export async function getRoomMessages(
     return apiFetch<{ messages: ChatMessage[]; total: number }>(`/chat/rooms/${roomId}/messages${qs}`);
 }
 
-export async function sendChatMessage(roomId: string, payload: { body: string }): Promise<ChatMessage> {
+export async function sendChatMessage(
+    roomId: string,
+    payload: { body: string; reply_to_id?: string },
+): Promise<ChatMessage> {
     return apiPost<ChatMessage, typeof payload>(`/chat/rooms/${roomId}/messages`, payload);
 }
 
 export async function deleteChatRoom(roomId: string): Promise<void> {
     await apiDelete<unknown>(`/chat/rooms/${roomId}`);
+}
+
+export async function getChatUnreadCount(): Promise<{ count: number }> {
+    return apiFetch<{ count: number }>("/chat/unread-count");
+}
+
+export async function markChatRoomRead(roomId: string): Promise<void> {
+    await apiPost<unknown, Record<string, never>>(`/chat/rooms/${roomId}/read`, {});
+}
+
+export async function uploadChatMessageMedia(messageId: string, file: File): Promise<PostMedia> {
+    const formData = new FormData();
+    formData.append("media", file);
+    return apiPostFormData<PostMedia>(`/chat/messages/${messageId}/media`, formData);
 }
 
 export async function createReport(
@@ -916,6 +1014,10 @@ export async function setMysteryPaused(mysteryId: string, paused: boolean): Prom
     await apiPost<unknown, { paused: boolean }>(`/mysteries/${mysteryId}/pause`, { paused });
 }
 
+export async function setMysteryGmAway(mysteryId: string, away: boolean): Promise<void> {
+    await apiPost<unknown, { away: boolean }>(`/mysteries/${mysteryId}/away`, { away });
+}
+
 export async function deleteMysteryClue(mysteryId: string, clueId: number): Promise<void> {
     await apiDelete(`/mysteries/${mysteryId}/clues/${clueId}`);
 }
@@ -1211,6 +1313,94 @@ export async function uploadAnnouncementCommentMedia(commentId: string, file: Fi
     const formData = new FormData();
     formData.append("media", file);
     return apiPostFormData<PostMedia>(`/announcement-comments/${commentId}/media`, formData);
+}
+
+export async function listJournals(params: {
+    sort?: string;
+    work?: JournalWork | "";
+    author?: string;
+    search?: string;
+    includeArchived?: boolean;
+    limit?: number;
+    offset?: number;
+}): Promise<JournalListResponse> {
+    const qs = buildQueryString({
+        sort: params.sort,
+        work: params.work || undefined,
+        author: params.author,
+        search: params.search,
+        include_archived: params.includeArchived ? "true" : undefined,
+        limit: params.limit ?? 20,
+        offset: params.offset,
+    });
+    return apiFetch<JournalListResponse>(`/journals${qs}`);
+}
+
+export async function getJournal(id: string): Promise<JournalDetail> {
+    return apiFetch<JournalDetail>(`/journals/${id}`);
+}
+
+export async function createJournal(payload: CreateJournalPayload): Promise<{ id: string }> {
+    return apiPost<{ id: string }, CreateJournalPayload>("/journals", payload);
+}
+
+export async function updateJournal(id: string, payload: CreateJournalPayload): Promise<void> {
+    await apiPut<unknown, CreateJournalPayload>(`/journals/${id}`, payload);
+}
+
+export async function deleteJournal(id: string): Promise<void> {
+    await apiDelete<unknown>(`/journals/${id}`);
+}
+
+export async function followJournal(id: string): Promise<void> {
+    await apiPost<unknown, Record<string, never>>(`/journals/${id}/follow`, {});
+}
+
+export async function unfollowJournal(id: string): Promise<void> {
+    await apiDelete(`/journals/${id}/follow`);
+}
+
+export async function createJournalComment(
+    journalId: string,
+    body: string,
+    parentId?: string,
+): Promise<{ id: string }> {
+    return apiPost<{ id: string }, { body: string; parent_id?: string }>(`/journals/${journalId}/comments`, {
+        body,
+        parent_id: parentId,
+    });
+}
+
+export async function updateJournalComment(id: string, body: string): Promise<void> {
+    await apiPut<unknown, { body: string }>(`/journal-comments/${id}`, { body });
+}
+
+export async function deleteJournalComment(id: string): Promise<void> {
+    await apiDelete(`/journal-comments/${id}`);
+}
+
+export async function likeJournalComment(id: string): Promise<void> {
+    await apiPost<unknown, Record<string, never>>(`/journal-comments/${id}/like`, {});
+}
+
+export async function unlikeJournalComment(id: string): Promise<void> {
+    await apiDelete(`/journal-comments/${id}/like`);
+}
+
+export async function uploadJournalCommentMedia(commentId: string, file: File): Promise<PostMedia> {
+    const formData = new FormData();
+    formData.append("media", file);
+    return apiPostFormData<PostMedia>(`/journal-comments/${commentId}/media`, formData);
+}
+
+export async function getUserJournals(userId: string, limit = 20, offset = 0): Promise<JournalListResponse> {
+    const qs = buildQueryString({ limit, offset });
+    return apiFetch<JournalListResponse>(`/users/${userId}/journals${qs}`);
+}
+
+export async function getUserFollowedJournals(userId: string, limit = 20, offset = 0): Promise<JournalListResponse> {
+    const qs = buildQueryString({ limit, offset });
+    return apiFetch<JournalListResponse>(`/users/${userId}/journal-follows${qs}`);
 }
 
 export async function listShips(params: {

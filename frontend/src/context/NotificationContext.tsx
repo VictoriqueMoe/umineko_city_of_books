@@ -11,6 +11,7 @@ export function NotificationProvider({ children }: PropsWithChildren) {
     const { user, setUser } = useAuth();
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
+    const [chatUnreadCount, setChatUnreadCount] = useState(0);
     const [loading, setLoading] = useState(false);
     const wsRef = useRef<WebSocket | null>(null);
     const backoffRef = useRef(1000);
@@ -64,6 +65,12 @@ export function NotificationProvider({ children }: PropsWithChildren) {
                 if (msg.type === "top_detective_changed" || msg.type === "top_gm_changed") {
                     window.dispatchEvent(new CustomEvent("site-info-refresh"));
                 }
+                if (msg.type === "chat_unread_bumped" || msg.type === "chat_read") {
+                    const data = msg.data as { total?: number };
+                    if (typeof data.total === "number") {
+                        setChatUnreadCount(data.total);
+                    }
+                }
                 for (const handler of wsListenersRef.current) {
                     handler(msg);
                 }
@@ -91,12 +98,21 @@ export function NotificationProvider({ children }: PropsWithChildren) {
             closeSocket();
             setNotifications([]);
             setUnreadCount(0);
+            setChatUnreadCount(0);
             return;
         }
 
         api.getUnreadCount()
             .then(res => {
                 setUnreadCount(res.count);
+            })
+            .catch(() => {
+                // ignore
+            });
+
+        api.getChatUnreadCount()
+            .then(res => {
+                setChatUnreadCount(res.count);
             })
             .catch(() => {
                 // ignore
@@ -122,6 +138,9 @@ export function NotificationProvider({ children }: PropsWithChildren) {
             }),
         );
         setUnreadCount(prev => Math.max(0, prev - 1));
+        api.getUnreadCount()
+            .then(res => setUnreadCount(res.count))
+            .catch(() => {});
     }, []);
 
     const markAllRead = useCallback(async () => {
@@ -162,6 +181,7 @@ export function NotificationProvider({ children }: PropsWithChildren) {
             value={{
                 notifications,
                 unreadCount,
+                chatUnreadCount,
                 loading,
                 markRead,
                 markAllRead,

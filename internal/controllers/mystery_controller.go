@@ -47,6 +47,7 @@ func (s *Service) getAllMysteryRoutes() []FSetupRoute {
 		s.setupUploadMysteryAttachment,
 		s.setupDeleteMysteryAttachment,
 		s.setupToggleMysteryPause,
+		s.setupToggleMysteryGmAway,
 		s.setupDeleteMysteryClue,
 		s.setupUpdateMysteryClue,
 	}
@@ -587,6 +588,36 @@ func (s *Service) toggleMysteryPause(ctx fiber.Ctx) error {
 			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
 		}
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to toggle pause"})
+	}
+	return ctx.JSON(fiber.Map{"status": "ok"})
+}
+
+func (s *Service) setupToggleMysteryGmAway(r fiber.Router) {
+	r.Post("/mysteries/:id/away", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.toggleMysteryGmAway)
+}
+
+func (s *Service) toggleMysteryGmAway(ctx fiber.Ctx) error {
+	mysteryID, err := uuid.Parse(ctx.Params("id"))
+	if err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
+	}
+	userID := ctx.Locals("userID").(uuid.UUID)
+
+	var req struct {
+		Away bool `json:"away"`
+	}
+	if err := ctx.Bind().JSON(&req); err != nil {
+		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	}
+
+	if err := s.MysteryService.SetGmAway(ctx.Context(), mysteryID, userID, req.Away); err != nil {
+		if errors.Is(err, mysterysvc.ErrNotFound) {
+			return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": err.Error()})
+		}
+		if errors.Is(err, mysterysvc.ErrNotAuthor) {
+			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
+		}
+		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to toggle away"})
 	}
 	return ctx.JSON(fiber.Map{"status": "ok"})
 }

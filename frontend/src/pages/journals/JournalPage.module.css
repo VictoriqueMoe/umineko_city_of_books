@@ -1,0 +1,115 @@
+.page {
+    max-width: var(--page-max-width);
+    margin: 0 auto;
+}
+
+.back {
+    display: inline-block;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    cursor: pointer;
+    margin-bottom: 1rem;
+}
+
+.back:hover {
+    color: var(--gold);
+}
+
+.detail {
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--purple-rgb), 0.3);
+    border-left: 3px solid var(--gold);
+    border-radius: 6px;
+    padding: 1.5rem 1.75rem;
+    margin-bottom: 1.5rem;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.75rem;
+}
+
+.title {
+    font-family: var(--font-display);
+    font-size: 1.6rem;
+    color: var(--gold);
+    margin: 0;
+}
+
+.work {
+    background: rgba(var(--purple-rgb), 0.3);
+    padding: 0.2rem 0.6rem;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text);
+}
+
+.archived {
+    background: rgba(var(--text-muted), 0.2);
+    border: 1px solid rgba(var(--text-muted), 0.3);
+    padding: 0.2rem 0.6rem;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.meta {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+.followerCount {
+    margin-left: auto;
+    color: var(--gold);
+}
+
+.body {
+    color: var(--text);
+    font-size: 1.05rem;
+    line-height: 1.6;
+    margin-bottom: 1rem;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    padding-top: 0.75rem;
+    border-top: 1px solid rgba(var(--purple-rgb), 0.2);
+}
+
+.archivedBanner {
+    margin-top: 1rem;
+    padding: 0.75rem 1rem;
+    background: rgba(var(--text-muted), 0.1);
+    border: 1px solid rgba(var(--text-muted), 0.25);
+    border-radius: 4px;
+    color: var(--text-muted);
+    font-style: italic;
+    font-size: 0.9rem;
+}
+
+.commentsSection {
+    margin-top: 1rem;
+}
+
+.commentsTitle {
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    color: var(--gold);
+    letter-spacing: 0.05em;
+    margin-bottom: 1rem;
+}

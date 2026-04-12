@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/logger"
+
+	"github.com/disintegration/imaging"
 )
 
 const (
@@ -94,18 +96,49 @@ func encodeImage(inputPath string) (string, error) {
 		return inputPath, nil
 	}
 
+	cwebpInput := inputPath
+	orientedPath := ""
+	if strings.HasSuffix(lower, ".jpg") || strings.HasSuffix(lower, ".jpeg") {
+		oriented, err := applyExifOrientation(inputPath)
+		if err != nil {
+			logger.Log.Warn().Err(err).Str("input", inputPath).Msg("exif auto-orient failed, using original")
+		} else if oriented != "" {
+			cwebpInput = oriented
+			orientedPath = oriented
+		}
+	}
+
 	outputPath := replaceExt(inputPath, ".webp")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "cwebp", "-q", cwebpQuality, inputPath, "-o", outputPath)
+	cmd := exec.CommandContext(ctx, "cwebp", "-q", cwebpQuality, cwebpInput, "-o", outputPath)
 	if out, err := cmd.CombinedOutput(); err != nil {
+		if orientedPath != "" {
+			_ = os.Remove(orientedPath)
+		}
 		return "", fmt.Errorf("cwebp: %w: %s", err, string(out))
 	}
 
+	if orientedPath != "" {
+		_ = os.Remove(orientedPath)
+	}
 	_ = os.Remove(inputPath)
 	return outputPath, nil
+}
+
+func applyExifOrientation(inputPath string) (string, error) {
+	img, err := imaging.Open(inputPath, imaging.AutoOrientation(true))
+	if err != nil {
+		return "", fmt.Errorf("open image: %w", err)
+	}
+
+	tmpPath := replaceExt(inputPath, ".oriented.jpg")
+	if err := imaging.Save(img, tmpPath, imaging.JPEGQuality(95)); err != nil {
+		return "", fmt.Errorf("save oriented image: %w", err)
+	}
+	return tmpPath, nil
 }
 
 func encodeVideo(inputPath string) (string, error) {

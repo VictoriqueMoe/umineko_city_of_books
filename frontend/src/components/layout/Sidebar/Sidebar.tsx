@@ -32,9 +32,8 @@ const GALLERY_CORNERS = [
 
 export function Sidebar({ open, onClose }: SidebarProps) {
     const { user } = useAuth();
-    const { addWSListener, unreadCount: unreadNotifs } = useNotifications();
+    const { addWSListener, unreadCount: unreadNotifs, chatUnreadCount: unreadChat } = useNotifications();
     const location = useLocation();
-    const [unreadChat, setUnreadChat] = useState(0);
     const [newAnnouncement, setNewAnnouncement] = useState(false);
     const isRyukishiPath = RYUKISHI_CORNERS.some(c => location.pathname === c.path);
     const [cornersOpen, setCornersOpen] = useState(location.pathname.startsWith("/game-board") && !isRyukishiPath);
@@ -60,12 +59,6 @@ export function Sidebar({ open, onClose }: SidebarProps) {
 
     useEffect(() => {
         return addWSListener(msg => {
-            if (msg.type === "chat_message") {
-                const data = msg.data as { sender?: { id?: string } };
-                if (data.sender?.id !== user?.id && !pathnameRef.current.startsWith("/chat")) {
-                    setUnreadChat(prev => prev + 1);
-                }
-            }
             if (msg.type === "new_announcement") {
                 const data = msg.data as { author_id?: string };
                 if (data.author_id !== user?.id && !pathnameRef.current.startsWith("/announcement")) {
@@ -235,6 +228,20 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                             Fanfictions
                         </NavLink>
                         <NavLink
+                            to="/journals"
+                            className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
+                            onClick={onClose}
+                        >
+                            Reading Journals
+                        </NavLink>
+                        <NavLink
+                            to="/rooms"
+                            className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
+                            onClick={onClose}
+                        >
+                            Chat Rooms
+                        </NavLink>
+                        <NavLink
                             to="/users"
                             className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
                             onClick={onClose}
@@ -288,6 +295,13 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                             >
                                 New Fanfic
                             </NavLink>
+                            <NavLink
+                                to="/journals/new"
+                                className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
+                                onClick={onClose}
+                            >
+                                New Journal
+                            </NavLink>
                         </div>
                     )}
 
@@ -314,13 +328,12 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                             <NavLink
                                 to="/chat"
                                 className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
-                                onClick={() => {
-                                    setUnreadChat(0);
-                                    onClose();
-                                }}
+                                onClick={onClose}
                             >
                                 Chat
-                                {unreadChat > 0 && <span className={styles.chatBadge}>{unreadChat}</span>}
+                                {unreadChat > 0 && (
+                                    <span className={styles.chatBadge}>{unreadChat > 99 ? "99+" : unreadChat}</span>
+                                )}
                             </NavLink>
                             <NavLink
                                 to="/settings"

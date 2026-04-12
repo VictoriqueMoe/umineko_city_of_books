@@ -1,21 +1,25 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate, useParams } from "react-router";
 import { useAuth } from "../../hooks/useAuth";
 import { useNotifications } from "../../hooks/useNotifications";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
 import { Modal } from "../../components/Modal/Modal";
+import { ChatComposer } from "../../components/chat/ChatComposer/ChatComposer";
+import { MessageBubble } from "../../components/chat/MessageBubble/MessageBubble";
+import { Lightbox } from "../../components/Lightbox/Lightbox";
 import {
-    createDMRoom,
     deleteChatRoom,
     getMutualFollowers,
     getRoomMessages,
     getUserRooms,
+    markChatRoomRead,
+    resolveDMRoom,
     searchUsers,
-    sendChatMessage,
 } from "../../api/endpoints";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
+import { handleIncomingChatMessage } from "../../utils/chatStream";
 import type { ChatMessage, ChatRoom, User, WSMessage } from "../../types/api";
 import styles from "./ChatPage.module.css";
 
@@ -45,24 +49,116 @@ function formatTime(dateStr: string): string {
     return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
+function renderSeenLabel(
+    msg: ChatMessage,
+    idx: number,
+    messages: ChatMessage[],
+    room: ChatRoom | undefined,
+    selfId: string,
+    receipts: Record<string, Record<string, string>>,
+): string | null {
+    if (!room) {
+        return null;
+    }
+    for (let j = idx + 1; j < messages.length; j++) {
+        if (messages[j].sender.id === selfId) {
+            return null;
+        }
+    }
+    const roomReceipts = receipts[room.id];
+    if (!roomReceipts) {
+        return null;
+    }
+    let latestReadAt = "";
+    let seenByName = "";
+    for (let i = 0; i < room.members.length; i++) {
+        const member = room.members[i];
+        if (member.id === selfId) {
+            continue;
+        }
+        const readAt = roomReceipts[member.id];
+        if (!readAt) {
+            continue;
+        }
+        if (readAt < msg.created_at) {
+            continue;
+        }
+        if (readAt > latestReadAt) {
+            latestReadAt = readAt;
+            seenByName = room.type === "dm" ? "" : member.display_name;
+        }
+    }
+    if (!latestReadAt) {
+        return null;
+    }
+    const time = formatTime(latestReadAt);
+    if (room.type === "dm") {
+        return `seen ${time}`;
+    }
+    return `seen by ${seenByName} ${time}`;
+}
+
 export function ChatPage() {
     usePageTitle("Chat");
     const { roomId: urlRoomId } = useParams<{ roomId: string }>();
+    const location = useLocation();
     const navigate = useNavigate();
     const { user } = useAuth();
     const { addWSListener, sendWSMessage } = useNotifications();
     const [rooms, setRooms] = useState<ChatRoom[]>([]);
     const [activeRoomId, setActiveRoomId] = useState<string | null>(urlRoomId ?? null);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
-    const [newMessage, setNewMessage] = useState("");
+    const [readReceipts, setReadReceipts] = useState<Record<string, Record<string, string>>>({});
     const [loading, setLoading] = useState(true);
-    const [sending, setSending] = useState(false);
     const [showNewDm, setShowNewDm] = useState(false);
     const [dmSearch, setDmSearch] = useState("");
     const [dmResults, setDmResults] = useState<User[]>([]);
     const [dmMutuals, setDmMutuals] = useState<User[]>([]);
     const [dmError, setDmError] = useState("");
     const [dmCreating, setDmCreating] = useState(false);
+    const [draftRecipient, setDraftRecipient] = useState<User | null>(null);
+    const [mobileView, setMobileView] = useState<"list" | "room">(urlRoomId ? "room" : "list");
+    const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+
+    useEffect(() => {
+        document.body.dataset.chatPage = "true";
+        return () => {
+            delete document.body.dataset.chatPage;
+        };
+    }, []);
+
+    useEffect(() => {
+        const state = location.state as { dmUserId?: string } | null;
+        if (!state?.dmUserId) {
+            return;
+        }
+        const targetId = state.dmUserId;
+        navigate(location.pathname, { replace: true, state: null });
+
+        resolveDMRoom(targetId)
+            .then(resolved => {
+                if (resolved.room) {
+                    setRooms(prev => {
+                        const exists = prev.find(r => r.id === resolved.room!.id);
+                        if (exists) {
+                            return prev;
+                        }
+                        return [resolved.room!, ...prev];
+                    });
+                    setActiveRoomId(resolved.room.id);
+                    setDraftRecipient(null);
+                    navigate(`/chat/${resolved.room.id}`, { replace: true });
+                } else {
+                    setDraftRecipient(resolved.recipient);
+                    setActiveRoomId(null);
+                }
+            })
+            .catch(() => {});
+    }, [location.state, location.pathname, navigate]);
+
+    useEffect(() => {
+        setMobileView(urlRoomId || draftRecipient ? "room" : "list");
+    }, [urlRoomId, draftRecipient]);
     const dmDebounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const activeRoomIdRef = useRef(activeRoomId);
@@ -82,14 +178,11 @@ export function ChatPage() {
 
         getUserRooms()
             .then(res => {
-                setRooms(res.rooms);
-                if (!activeRoomId && res.rooms.length > 0) {
-                    setActiveRoomId(res.rooms[0].id);
-                }
+                setRooms((res.rooms ?? []).filter(r => r.type === "dm"));
             })
             .catch(() => {})
             .finally(() => setLoading(false));
-    }, [user, activeRoomId]);
+    }, [user]);
 
     useEffect(() => {
         if (!user) {
@@ -97,18 +190,52 @@ export function ChatPage() {
         }
 
         return addWSListener((msg: WSMessage) => {
-            if (msg.type === "chat_message") {
-                const chatMsg = msg.data as ChatMessage;
-                if (chatMsg.room_id === activeRoomIdRef.current) {
-                    setMessages(prev => {
-                        if (prev.some(m => m.id === chatMsg.id)) {
-                            return prev;
-                        }
-                        return [...prev, chatMsg];
-                    });
-                    scrollToBottom();
-                }
+            if (msg.type === "chat_read_receipt") {
+                const data = msg.data as { room_id: string; user_id: string; read_at: string };
+                setReadReceipts(prev => {
+                    const room = prev[data.room_id] ?? {};
+                    if (room[data.user_id] && room[data.user_id] >= data.read_at) {
+                        return prev;
+                    }
+                    return {
+                        ...prev,
+                        [data.room_id]: { ...room, [data.user_id]: data.read_at },
+                    };
+                });
+                return;
             }
+            if (msg.type !== "chat_message") {
+                return;
+            }
+            const chatMsg = msg.data as ChatMessage;
+
+            handleIncomingChatMessage(chatMsg, activeRoomIdRef.current, setMessages, scrollToBottom);
+
+            setRooms(prev => {
+                let foundIdx = -1;
+                for (let i = 0; i < prev.length; i++) {
+                    if (prev[i].id === chatMsg.room_id) {
+                        foundIdx = i;
+                        break;
+                    }
+                }
+                if (foundIdx === -1) {
+                    getUserRooms()
+                        .then(res => setRooms((res.rooms ?? []).filter(r => r.type === "dm")))
+                        .catch(() => {});
+                    return prev;
+                }
+                const target = prev[foundIdx];
+                const updated: ChatRoom = {
+                    ...target,
+                    last_message_at: chatMsg.created_at,
+                    unread: chatMsg.room_id !== activeRoomIdRef.current && chatMsg.sender.id !== user.id,
+                };
+                const next = prev.slice();
+                next.splice(foundIdx, 1);
+                next.unshift(updated);
+                return next;
+            });
         });
     }, [user, addWSListener, scrollToBottom]);
 
@@ -126,16 +253,49 @@ export function ChatPage() {
 
     useEffect(() => {
         if (!activeRoomId) {
+            setMessages([]);
             return;
         }
 
+        let cancelled = false;
+        setMessages([]);
+
         getRoomMessages(activeRoomId, 50)
             .then(res => {
+                if (cancelled) {
+                    return;
+                }
                 setMessages(res.messages);
                 setTimeout(scrollToBottom, 50);
             })
-            .catch(() => setMessages([]));
+            .catch(() => {
+                if (cancelled) {
+                    return;
+                }
+                setMessages([]);
+            });
+
+        markChatRoomRead(activeRoomId).catch(() => {});
+
+        return () => {
+            cancelled = true;
+        };
     }, [activeRoomId, scrollToBottom]);
+
+    useEffect(() => {
+        if (!activeRoomId) {
+            return;
+        }
+        function handleFocus() {
+            if (activeRoomIdRef.current) {
+                markChatRoomRead(activeRoomIdRef.current).catch(() => {});
+            }
+        }
+        window.addEventListener("focus", handleFocus);
+        return () => {
+            window.removeEventListener("focus", handleFocus);
+        };
+    }, [activeRoomId]);
 
     useEffect(() => {
         if (showNewDm) {
@@ -163,46 +323,20 @@ export function ChatPage() {
 
     function handleRoomSelect(roomId: string) {
         setActiveRoomId(roomId);
+        setRooms(prev => prev.map(r => (r.id === roomId ? { ...r, unread: false } : r)));
+        setMobileView("room");
         navigate(`/chat/${roomId}`, { replace: true });
     }
 
-    async function handleSend(e: React.SubmitEvent) {
-        e.preventDefault();
-        if (!newMessage.trim() || !activeRoomId || !user || sending) {
-            return;
-        }
-
-        setSending(true);
-        try {
-            const result = await sendChatMessage(activeRoomId, {
-                body: newMessage.trim(),
-            });
-
-            setMessages(prev => {
-                if (prev.some(m => m.id === result.id)) {
-                    return prev;
-                }
-                return [...prev, result];
-            });
-            setNewMessage("");
-            scrollToBottom();
-        } catch {
-            // ignore
-        } finally {
-            setSending(false);
-        }
+    function handleMobileBack() {
+        setMobileView("list");
+        setActiveRoomId(null);
+        setDraftRecipient(null);
+        navigate("/chat", { replace: true });
     }
 
-    async function handleSelectUser(selectedUser: User) {
-        setDmCreating(true);
-        setDmError("");
-
-        try {
-            const room = await createDMRoom(selectedUser.id);
-            setShowNewDm(false);
-            setDmSearch("");
-            setDmResults([]);
-
+    function handleSentMessage(message: ChatMessage, room?: ChatRoom) {
+        if (room) {
             setRooms(prev => {
                 const exists = prev.find(r => r.id === room.id);
                 if (exists) {
@@ -210,10 +344,75 @@ export function ChatPage() {
                 }
                 return [room, ...prev];
             });
+            setMessages([message]);
+            setActiveRoomId(room.id);
+            setDraftRecipient(null);
+            navigate(`/chat/${room.id}`, { replace: true });
+            scrollToBottom();
+            return;
+        }
 
-            handleRoomSelect(room.id);
+        setMessages(prev => {
+            if (prev.some(m => m.id === message.id)) {
+                return prev;
+            }
+            return [...prev, message];
+        });
+
+        setRooms(prev => {
+            let foundIdx = -1;
+            for (let i = 0; i < prev.length; i++) {
+                if (prev[i].id === message.room_id) {
+                    foundIdx = i;
+                    break;
+                }
+            }
+            if (foundIdx === -1) {
+                return prev;
+            }
+            const target = prev[foundIdx];
+            const updated: ChatRoom = {
+                ...target,
+                last_message_at: message.created_at,
+                unread: false,
+            };
+            const next = prev.slice();
+            next.splice(foundIdx, 1);
+            next.unshift(updated);
+            return next;
+        });
+
+        scrollToBottom();
+    }
+
+    async function handleSelectUser(selectedUser: User) {
+        setDmCreating(true);
+        setDmError("");
+
+        try {
+            const resolved = await resolveDMRoom(selectedUser.id);
+            setShowNewDm(false);
+            setDmSearch("");
+            setDmResults([]);
+
+            if (resolved.room) {
+                setRooms(prev => {
+                    const exists = prev.find(r => r.id === resolved.room!.id);
+                    if (exists) {
+                        return prev;
+                    }
+                    return [resolved.room!, ...prev];
+                });
+                handleRoomSelect(resolved.room.id);
+                setDraftRecipient(null);
+            } else {
+                setDraftRecipient(resolved.recipient);
+                setActiveRoomId(null);
+                setMessages([]);
+                navigate("/chat", { replace: true });
+            }
         } catch (err) {
-            setDmError(err instanceof Error ? err.message : "Failed to create conversation");
+            setDmError(err instanceof Error ? err.message : "Failed to open conversation");
         } finally {
             setDmCreating(false);
         }
@@ -223,7 +422,7 @@ export function ChatPage() {
         if (!activeRoomId) {
             return;
         }
-        if (!window.confirm("Are you sure you want to delete this chat?")) {
+        if (!window.confirm("Remove this conversation from your chat list?")) {
             return;
         }
 
@@ -250,7 +449,7 @@ export function ChatPage() {
 
     return (
         <div className={styles.chatWrapper}>
-            <div className={styles.chatLayout}>
+            <div className={styles.chatLayout} data-mobile-view={mobileView}>
                 <div className={styles.roomList}>
                     <div className={styles.roomListHeader}>
                         <span className={styles.roomListTitle}>Messages</span>
@@ -273,6 +472,7 @@ export function ChatPage() {
                                     ) : (
                                         <span className={styles.roomName}>{getRoomDisplayName(room, user)}</span>
                                     )}
+                                    {room.unread && <span className={styles.unreadDot} aria-label="unread" />}
                                 </button>
                             );
                         })}
@@ -280,56 +480,79 @@ export function ChatPage() {
                 </div>
 
                 <div className={styles.messageArea}>
-                    {!activeRoom ? (
+                    {!activeRoom && draftRecipient ? (
+                        <>
+                            <div className={styles.messageHeader}>
+                                <div className={styles.messageHeaderLeft}>
+                                    <button
+                                        type="button"
+                                        className={styles.backButton}
+                                        onClick={handleMobileBack}
+                                        aria-label="Back to conversations"
+                                    >
+                                        {"\u2190"}
+                                    </button>
+                                    <ProfileLink user={draftRecipient} size="small" />
+                                </div>
+                                <Button variant="ghost" size="small" onClick={() => setDraftRecipient(null)}>
+                                    Cancel
+                                </Button>
+                            </div>
+                            <div className={styles.messages}>
+                                <div className={styles.messageAreaEmpty}>
+                                    Send your first message to {draftRecipient.display_name}.
+                                </div>
+                                <div ref={messagesEndRef} />
+                            </div>
+                            <ChatComposer
+                                roomId={null}
+                                draftRecipientId={draftRecipient.id}
+                                onSent={handleSentMessage}
+                            />
+                        </>
+                    ) : !activeRoom ? (
                         <div className={styles.messageAreaEmpty}>Select a conversation</div>
                     ) : (
                         <>
                             <div className={styles.messageHeader}>
-                                {getRoomAvatarUser(activeRoom, user) ? (
-                                    <ProfileLink user={getRoomAvatarUser(activeRoom, user)!} size="small" />
-                                ) : (
-                                    <span>{getRoomDisplayName(activeRoom, user)}</span>
-                                )}
+                                <div className={styles.messageHeaderLeft}>
+                                    <button
+                                        type="button"
+                                        className={styles.backButton}
+                                        onClick={handleMobileBack}
+                                        aria-label="Back to conversations"
+                                    >
+                                        {"\u2190"}
+                                    </button>
+                                    {getRoomAvatarUser(activeRoom, user) ? (
+                                        <ProfileLink user={getRoomAvatarUser(activeRoom, user)!} size="small" />
+                                    ) : (
+                                        <span>{getRoomDisplayName(activeRoom, user)}</span>
+                                    )}
+                                </div>
                                 <Button variant="danger" size="small" onClick={handleDeleteChat}>
                                     Delete Chat
                                 </Button>
                             </div>
                             <div className={styles.messages}>
-                                {messages.map(msg => {
+                                {messages.map((msg, idx) => {
                                     const isOwn = msg.sender.id === user.id;
+                                    const seenLabel = isOwn
+                                        ? renderSeenLabel(msg, idx, messages, activeRoom, user.id, readReceipts)
+                                        : null;
                                     return (
-                                        <div
+                                        <MessageBubble
                                             key={msg.id}
-                                            className={`${styles.messageBubble}${isOwn ? ` ${styles.ownMessage}` : ""}`}
-                                        >
-                                            <ProfileLink user={msg.sender} size="small" showName={false} />
-                                            <div className={styles.messageContent}>
-                                                {!isOwn && (
-                                                    <div className={styles.messageSender}>
-                                                        {msg.sender.display_name}
-                                                    </div>
-                                                )}
-                                                <div className={styles.messageText}>{msg.body}</div>
-                                                <div className={styles.messageTime}>{formatTime(msg.created_at)}</div>
-                                            </div>
-                                        </div>
+                                            message={msg}
+                                            isOwn={isOwn}
+                                            seenLabel={seenLabel}
+                                            onLightbox={setLightboxSrc}
+                                        />
                                     );
                                 })}
                                 <div ref={messagesEndRef} />
                             </div>
-                            <form className={styles.inputBar} onSubmit={handleSend}>
-                                <Input
-                                    fullWidth
-                                    type="text"
-                                    placeholder="Type a message..."
-                                    value={newMessage}
-                                    onChange={e => setNewMessage(e.target.value)}
-                                    autoComplete="off"
-                                />
-                                <Button variant="primary" type="submit" disabled={sending || !newMessage.trim()}>
-                                    Send
-                                </Button>
-                            </form>
+                            <ChatComposer roomId={activeRoomId} draftRecipientId={null} onSent={handleSentMessage} />
                         </>
                     )}
                 </div>
@@ -357,7 +580,7 @@ export function ChatPage() {
                                             onClick={() => handleSelectUser(u)}
                                             disabled={dmCreating}
                                         >
-                                            <ProfileLink user={u} size="small" />
+                                            <ProfileLink user={u} size="small" clickable={false} />
                                         </button>
                                     ))
                                 )
@@ -373,7 +596,7 @@ export function ChatPage() {
                                             onClick={() => handleSelectUser(u)}
                                             disabled={dmCreating}
                                         >
-                                            <ProfileLink user={u} size="small" />
+                                            <ProfileLink user={u} size="small" clickable={false} />
                                         </button>
                                     ))}
                                     {dmMutuals.length === 0 && (
@@ -387,6 +610,7 @@ export function ChatPage() {
                     </div>
                 </Modal>
             </div>
+            {lightboxSrc && <Lightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />}
         </div>
     );
 }

@@ -1,0 +1,19 @@
+.page {
+    max-width: var(--page-max-width);
+    margin: 0 auto;
+}
+
+.heading {
+    font-family: var(--font-display);
+    color: var(--gold);
+    letter-spacing: 0.05em;
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.intro {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    margin-bottom: 1.25rem;
+    font-style: italic;
+}

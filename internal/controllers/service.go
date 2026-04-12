@@ -9,6 +9,7 @@ import (
 	"umineko_city_of_books/internal/chat"
 	fanficsvc "umineko_city_of_books/internal/fanfic"
 	"umineko_city_of_books/internal/follow"
+	"umineko_city_of_books/internal/journal"
 	"umineko_city_of_books/internal/media"
 	mysterysvc "umineko_city_of_books/internal/mystery"
 	"umineko_city_of_books/internal/notification"
@@ -42,6 +43,7 @@ type (
 		AnnouncementRepo    repository.AnnouncementRepository
 		MysteryService      mysterysvc.Service
 		FanficService       fanficsvc.Service
+		JournalService      journal.Service
 		UserRepo            repository.UserRepository
 		ShipService         shipsvc.Service
 		UploadService       upload.Service
@@ -71,6 +73,7 @@ func NewService(
 	userRepo repository.UserRepository,
 	shipService shipsvc.Service,
 	fanficService fanficsvc.Service,
+	journalService journal.Service,
 	uploadService upload.Service,
 	mediaProcessor *media.Processor,
 	authSession *session.Manager,
@@ -96,6 +99,7 @@ func NewService(
 		UserRepo:            userRepo,
 		ShipService:         shipService,
 		FanficService:       fanficService,
+		JournalService:      journalService,
 		UploadService:       uploadService,
 		MediaProcessor:      mediaProcessor,
 		AuthSession:         authSession,
@@ -120,6 +124,7 @@ func (s *Service) GetAPIRoutes() []FSetupRoute {
 	all = append(all, s.getAllMysteryRoutes()...)
 	all = append(all, s.getAllShipRoutes()...)
 	all = append(all, s.getAllFanficRoutes()...)
+	all = append(all, s.getAllJournalRoutes()...)
 	all = append(all, s.getAllUserPreferencesRoutes()...)
 	return all
 }

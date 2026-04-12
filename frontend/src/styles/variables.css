@@ -23,6 +23,16 @@
     --bg-card-rgb: 21, 13, 36;
     --bg-purple-rgb: 26, 15, 46;
     --hover-glow: 0.1;
+    --page-max-width: 640px;
+}
+
+html[data-font="im-fell"] {
+    --font-display: "IM Fell English SC", serif;
+    --font-body: "IM Fell English", serif;
+}
+
+html[data-width="wide"] {
+    --page-max-width: 100%;
 }
 
 [data-theme="bernkastel"] {

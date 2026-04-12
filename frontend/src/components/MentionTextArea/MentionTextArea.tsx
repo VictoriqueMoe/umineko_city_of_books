@@ -10,6 +10,7 @@ interface MentionTextAreaProps {
     rows?: number;
     className?: string;
     onPasteFiles?: (files: File[]) => void;
+    mentionPool?: User[];
 }
 
 interface SearchResult extends User {
@@ -47,6 +48,7 @@ export function MentionTextArea({
     rows = 3,
     className,
     onPasteFiles,
+    mentionPool,
 }: MentionTextAreaProps) {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const backdropRef = useRef<HTMLDivElement>(null);
@@ -87,34 +89,50 @@ export function MentionTextArea({
         clearTimeout(debounceRef.current);
         const mention = getMentionQuery();
 
-        debounceRef.current = setTimeout(() => {
-            if (!mention || mention.query.length < 1) {
-                setShowDropdown(false);
-                setSuggestions([]);
-                return;
-            }
-
-            setMentionStart(mention.atIndex);
-            searchUsers(mention.query)
-                .then(users => {
-                    const results = users as SearchResult[];
-                    results.sort((a, b) => {
-                        const aScore = (a.viewer_follows ? 2 : 0) + (a.follows_viewer ? 1 : 0);
-                        const bScore = (b.viewer_follows ? 2 : 0) + (b.follows_viewer ? 1 : 0);
-                        return bScore - aScore;
-                    });
-                    setSuggestions(results);
-                    setShowDropdown(results.length > 0);
-                    setSelectedIndex(0);
-                })
-                .catch(() => {
-                    setSuggestions([]);
+        debounceRef.current = setTimeout(
+            () => {
+                if (!mention || mention.query.length < 1) {
                     setShowDropdown(false);
-                });
-        }, 150);
+                    setSuggestions([]);
+                    return;
+                }
+
+                setMentionStart(mention.atIndex);
+
+                if (mentionPool) {
+                    const q = mention.query.toLowerCase();
+                    const filtered = mentionPool
+                        .filter(u => u.username.toLowerCase().includes(q) || u.display_name.toLowerCase().includes(q))
+                        .slice(0, 8)
+                        .map(u => ({ ...u, viewer_follows: false, follows_viewer: false }));
+                    setSuggestions(filtered);
+                    setShowDropdown(filtered.length > 0);
+                    setSelectedIndex(0);
+                    return;
+                }
+
+                searchUsers(mention.query)
+                    .then(users => {
+                        const results = users as SearchResult[];
+                        results.sort((a, b) => {
+                            const aScore = (a.viewer_follows ? 2 : 0) + (a.follows_viewer ? 1 : 0);
+                            const bScore = (b.viewer_follows ? 2 : 0) + (b.follows_viewer ? 1 : 0);
+                            return bScore - aScore;
+                        });
+                        setSuggestions(results);
+                        setShowDropdown(results.length > 0);
+                        setSelectedIndex(0);
+                    })
+                    .catch(() => {
+                        setSuggestions([]);
+                        setShowDropdown(false);
+                    });
+            },
+            mentionPool ? 0 : 150,
+        );
 
         return () => clearTimeout(debounceRef.current);
-    }, [value, getMentionQuery]);
+    }, [value, getMentionQuery, mentionPool]);
 
     function syncScroll() {
         if (textareaRef.current && backdropRef.current) {

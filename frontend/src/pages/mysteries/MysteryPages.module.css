@@ -327,6 +327,11 @@
     color: #ffa500;
 }
 
+.badgeAway {
+    background: rgba(138, 130, 230, 0.2);
+    color: #b5aef0;
+}
+
 .badgeFreeForAll {
     background: rgba(100, 181, 246, 0.2);
     color: #64b5f6;
@@ -342,6 +347,18 @@
     font-family: var(--font-display);
     font-size: 0.95rem;
     letter-spacing: 0.03em;
+}
+
+.awayBanner {
+    text-align: center;
+    padding: 0.85rem 1.25rem;
+    margin-bottom: 0.75rem;
+    color: #b5aef0;
+    background: rgba(138, 130, 230, 0.08);
+    border: 1px solid rgba(138, 130, 230, 0.25);
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-style: italic;
 }
 
 .badgeDifficulty {

@@ -69,11 +69,15 @@ var (
 	SettingRulesGameBoardHiganbana = SiteSettingDef{"rules_game_board_higanbana", "", TypeString}
 	SettingRulesGameBoardRoseguns  = SiteSettingDef{"rules_game_board_roseguns", "", TypeString}
 	SettingMaxArtPerDay            = SiteSettingDef{"max_art_per_day", "0", TypeInt}
+	SettingMaxJournalsPerDay       = SiteSettingDef{"max_journals_per_day", "0", TypeInt}
+	SettingMaxChatRoomMembers      = SiteSettingDef{"max_chat_room_members", "100", TypeInt}
+	SettingMaxChatRoomsPerDay      = SiteSettingDef{"max_chat_rooms_per_day", "0", TypeInt}
 	SettingRulesGallery            = SiteSettingDef{"rules_gallery", "", TypeString}
 	SettingRulesGalleryUmineko     = SiteSettingDef{"rules_gallery_umineko", "", TypeString}
 	SettingRulesGalleryHigurashi   = SiteSettingDef{"rules_gallery_higurashi", "", TypeString}
 	SettingRulesGalleryCiconia     = SiteSettingDef{"rules_gallery_ciconia", "", TypeString}
 	SettingRulesFanfiction         = SiteSettingDef{"rules_fanfiction", "", TypeString}
+	SettingRulesJournals           = SiteSettingDef{"rules_journals", "", TypeString}
 	SettingSMTPHost                = SiteSettingDef{"smtp_host", "", TypeString}
 	SettingSMTPPort                = SiteSettingDef{"smtp_port", "25", TypeInt}
 	SettingSMTPFrom                = SiteSettingDef{"smtp_from", "", TypeString}
@@ -116,11 +120,15 @@ var (
 		SettingRulesGameBoardHiganbana,
 		SettingRulesGameBoardRoseguns,
 		SettingMaxArtPerDay,
+		SettingMaxJournalsPerDay,
+		SettingMaxChatRoomMembers,
+		SettingMaxChatRoomsPerDay,
 		SettingRulesGallery,
 		SettingRulesGalleryUmineko,
 		SettingRulesGalleryHigurashi,
 		SettingRulesGalleryCiconia,
 		SettingRulesFanfiction,
+		SettingRulesJournals,
 		SettingSMTPHost,
 		SettingSMTPPort,
 		SettingSMTPFrom,

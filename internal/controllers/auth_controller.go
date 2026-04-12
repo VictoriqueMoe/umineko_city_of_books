@@ -240,6 +240,7 @@ var rulesSettings = map[string]config.SiteSettingDef{
 	"gallery_higurashi":    config.SettingRulesGalleryHigurashi,
 	"gallery_ciconia":      config.SettingRulesGalleryCiconia,
 	"fanfiction":           config.SettingRulesFanfiction,
+	"journals":             config.SettingRulesJournals,
 }
 
 func (s *Service) getRules(ctx fiber.Ctx) error {

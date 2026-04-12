@@ -38,6 +38,9 @@ type (
 		EmailNotifications     bool
 		HomePage               string
 		GameBoardSort          string
+		Theme                  string
+		Font                   string
+		WideLayout             bool
 		IP                     *string
 		MysteryScoreAdjustment int
 		GMScoreAdjustment      int
@@ -70,6 +73,9 @@ func (u *User) ToProfileResponse(stats *UserStats, isSelf bool) *dto.UserProfile
 	emailNotifications := false
 	homePage := ""
 	gameBoardSort := ""
+	theme := ""
+	font := ""
+	wideLayout := false
 	if u.EmailPublic || isSelf {
 		email = u.Email
 	}
@@ -77,6 +83,9 @@ func (u *User) ToProfileResponse(stats *UserStats, isSelf bool) *dto.UserProfile
 		emailNotifications = u.EmailNotifications
 		homePage = u.HomePage
 		gameBoardSort = u.GameBoardSort
+		theme = u.Theme
+		font = u.Font
+		wideLayout = u.WideLayout
 	}
 	return &dto.UserProfileResponse{
 		UserResponse:       *u.ToResponse(),
@@ -100,6 +109,9 @@ func (u *User) ToProfileResponse(stats *UserStats, isSelf bool) *dto.UserProfile
 		EmailNotifications: emailNotifications,
 		HomePage:           homePage,
 		GameBoardSort:      gameBoardSort,
+		Theme:              theme,
+		Font:               font,
+		WideLayout:         wideLayout,
 		CreatedAt:          u.CreatedAt,
 		Stats: dto.UserStatsDTO{
 			TheoryCount:   stats.TheoryCount,

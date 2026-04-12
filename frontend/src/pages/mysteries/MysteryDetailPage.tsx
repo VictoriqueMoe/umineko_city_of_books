@@ -12,6 +12,7 @@ import {
     deleteMysteryComment,
     getMystery,
     likeMysteryComment,
+    setMysteryGmAway,
     setMysteryPaused,
     unlikeMysteryComment,
     updateMysteryClue,
@@ -412,7 +413,8 @@ export function MysteryDetailPage() {
             if (
                 msg.type === "mystery_clue_added" ||
                 msg.type === "mystery_clue_updated" ||
-                msg.type === "mystery_paused"
+                msg.type === "mystery_paused" ||
+                msg.type === "mystery_gm_away"
             ) {
                 const data = msg.data as { mystery_id?: string };
                 if (data.mystery_id === id) {
@@ -601,6 +603,9 @@ export function MysteryDetailPage() {
                                 {mystery.solved ? "Solved" : "Open"}
                             </span>
                             {mystery.paused && <span className={`${styles.badge} ${styles.badgePaused}`}>Paused</span>}
+                            {mystery.gm_away && !mystery.paused && (
+                                <span className={`${styles.badge} ${styles.badgeAway}`}>GM Away</span>
+                            )}
                             {mystery.free_for_all && (
                                 <span className={`${styles.badge} ${styles.badgeFreeForAll}`}>Free-for-all</span>
                             )}
@@ -634,6 +639,18 @@ export function MysteryDetailPage() {
                                 }}
                             >
                                 {mystery.paused ? "Resume" : "Pause"}
+                            </Button>
+                        )}
+                        {(isAuthor || canEdit) && !mystery.solved && !mystery.paused && (
+                            <Button
+                                variant={mystery.gm_away ? "primary" : "ghost"}
+                                size="small"
+                                onClick={async () => {
+                                    await setMysteryGmAway(mystery.id, !mystery.gm_away);
+                                    fetchMystery();
+                                }}
+                            >
+                                {mystery.gm_away ? "I'm back" : "Mark as away"}
                             </Button>
                         )}
                         <ShareButton contentId={mystery.id} contentType="mystery" contentTitle={mystery.title} />
@@ -909,24 +926,32 @@ export function MysteryDetailPage() {
                             The Game Master has paused this mystery. New attempts are temporarily disabled.
                         </div>
                     ) : (
-                        <div className={styles.composer}>
-                            <textarea
-                                className={styles.composerTextarea}
-                                placeholder="Declare your blue truth..."
-                                value={attemptBody}
-                                onChange={e => setAttemptBody(e.target.value)}
-                                rows={3}
-                            />
-                            <div className={styles.composerActions}>
-                                <Button
-                                    variant="primary"
-                                    onClick={handleSubmitAttempt}
-                                    disabled={!attemptBody.trim() || submitting}
-                                >
-                                    {submitting ? "..." : "Submit Blue Truth"}
-                                </Button>
+                        <>
+                            {mystery.gm_away && (
+                                <div className={styles.awayBanner}>
+                                    The Game Master is currently away. You can still post theories, but responses may be
+                                    delayed.
+                                </div>
+                            )}
+                            <div className={styles.composer}>
+                                <textarea
+                                    className={styles.composerTextarea}
+                                    placeholder="Declare your blue truth..."
+                                    value={attemptBody}
+                                    onChange={e => setAttemptBody(e.target.value)}
+                                    rows={3}
+                                />
+                                <div className={styles.composerActions}>
+                                    <Button
+                                        variant="primary"
+                                        onClick={handleSubmitAttempt}
+                                        disabled={!attemptBody.trim() || submitting}
+                                    >
+                                        {submitting ? "..." : "Submit Blue Truth"}
+                                    </Button>
+                                </div>
                             </div>
-                        </div>
+                        </>
                     ))}
 
                 {!user && (

@@ -11,13 +11,13 @@ import "./styles/global.css";
 createRoot(document.getElementById("root")!).render(
     <StrictMode>
         <SiteInfoProvider>
-            <ThemeProvider>
-                <AuthProvider>
+            <AuthProvider>
+                <ThemeProvider>
                     <NotificationProvider>
                         <App />
                     </NotificationProvider>
-                </AuthProvider>
-            </ThemeProvider>
+                </ThemeProvider>
+            </AuthProvider>
         </SiteInfoProvider>
     </StrictMode>,
 );

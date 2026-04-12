@@ -51,6 +51,12 @@ import { ArtDetailPage } from "./pages/gallery/ArtDetailPage";
 import { GalleryDetailPage } from "./pages/gallery/GalleryDetailPage";
 import { MaintenancePage } from "./pages/maintenance/MaintenancePage";
 import { NotificationsPage } from "./pages/notifications/NotificationsPage";
+import { JournalsFeedPage } from "./pages/journals/FeedPage";
+import { JournalPage } from "./pages/journals/JournalPage";
+import { CreateJournalPage } from "./pages/journals/CreateJournalPage";
+import { EditJournalPage } from "./pages/journals/EditJournalPage";
+import { RoomsListPage } from "./pages/rooms/RoomsListPage";
+import { RoomPage } from "./pages/rooms/RoomPage";
 
 const homePageRoutes: Record<string, string> = {
     theories: "/theories",
@@ -69,6 +75,7 @@ const homePageRoutes: Record<string, string> = {
     mysteries: "/mysteries",
     ships: "/ships",
     fanfiction: "/fanfiction",
+    journals: "/journals",
 };
 
 function HomePage() {
@@ -147,6 +154,9 @@ function AppLayout() {
                         <Route path="/fanfiction" element={<FanfictionListPage />} />
                         <Route path="/fanfiction/:id" element={<FanficDetailPage />} />
                         <Route path="/fanfiction/:id/chapter/:number" element={<FanficChapterPage />} />
+                        <Route path="/journals" element={<JournalsFeedPage />} />
+                        <Route path="/journals/:id" element={<JournalPage />} />
+                        <Route path="/rooms" element={<RoomsListPage />} />
                         <Route path="/quotes" element={<QuoteBrowserPage />} />
                         <Route path="/users" element={<UsersPage />} />
                         <Route path="/user/:username" element={<ProfilePage />} />
@@ -165,6 +175,9 @@ function AppLayout() {
                             <Route path="/fanfiction/:id/edit" element={<FanficEditorPage />} />
                             <Route path="/fanfiction/:id/chapter/new" element={<ChapterEditorPage />} />
                             <Route path="/fanfiction/:id/chapter/:number/edit" element={<ChapterEditorPage />} />
+                            <Route path="/journals/new" element={<CreateJournalPage />} />
+                            <Route path="/journals/:id/edit" element={<EditJournalPage />} />
+                            <Route path="/rooms/:roomId" element={<RoomPage />} />
                             <Route path="/theory/:id/edit" element={<EditTheoryPage />} />
                             <Route path="/settings" element={<SettingsPage />} />
                             <Route path="/chat" element={<ChatPage />} />

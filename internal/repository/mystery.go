@@ -43,6 +43,7 @@ type (
 		IsSolved(ctx context.Context, mysteryID uuid.UUID) (bool, error)
 		IsPaused(ctx context.Context, mysteryID uuid.UUID) (bool, error)
 		SetPaused(ctx context.Context, mysteryID uuid.UUID, paused bool) error
+		SetGmAway(ctx context.Context, mysteryID uuid.UUID, away bool) error
 
 		GetLeaderboard(ctx context.Context, limit int) ([]LeaderboardEntry, error)
 		GetTopDetectiveIDs(ctx context.Context) ([]string, error)
@@ -50,6 +51,7 @@ type (
 		GetTopGMIDs(ctx context.Context) ([]string, error)
 
 		CountAttempts(ctx context.Context, mysteryID uuid.UUID) (int, error)
+		CountClues(ctx context.Context, mysteryID uuid.UUID) (int, error)
 		GetPlayerIDs(ctx context.Context, mysteryID uuid.UUID) ([]uuid.UUID, error)
 
 		CreateComment(ctx context.Context, id uuid.UUID, mysteryID uuid.UUID, parentID *uuid.UUID, userID uuid.UUID, body string) error
@@ -74,28 +76,31 @@ type (
 	}
 
 	MysteryRow struct {
-		ID                uuid.UUID
-		UserID            uuid.UUID
-		Title             string
-		Body              string
-		Difficulty        string
-		Solved            bool
-		Paused            bool
-		FreeForAll        bool
-		WinnerID          *uuid.UUID
-		WinnerUsername    *string
-		WinnerDisplayName *string
-		WinnerAvatarURL   *string
-		WinnerRole        *string
-		SolvedAt          *string
-		AuthorUsername    string
-		AuthorDisplayName string
-		AuthorAvatarURL   string
-		AuthorRole        string
-		AttemptCount      int
-		ClueCount         int
-		CreatedAt         string
-		UpdatedAt         string
+		ID                    uuid.UUID
+		UserID                uuid.UUID
+		Title                 string
+		Body                  string
+		Difficulty            string
+		Solved                bool
+		Paused                bool
+		GmAway                bool
+		FreeForAll            bool
+		WinnerID              *uuid.UUID
+		WinnerUsername        *string
+		WinnerDisplayName     *string
+		WinnerAvatarURL       *string
+		WinnerRole            *string
+		SolvedAt              *string
+		PausedAt              *string
+		PausedDurationSeconds int
+		AuthorUsername        string
+		AuthorDisplayName     string
+		AuthorAvatarURL       string
+		AuthorRole            string
+		AttemptCount          int
+		ClueCount             int
+		CreatedAt             string
+		UpdatedAt             string
 	}
 
 	MysteryAttemptRow struct {
@@ -171,14 +176,17 @@ type (
 
 func (r *MysteryRow) ToResponse() dto.MysteryResponse {
 	resp := dto.MysteryResponse{
-		ID:         r.ID,
-		Title:      r.Title,
-		Body:       r.Body,
-		Difficulty: r.Difficulty,
-		Solved:     r.Solved,
-		Paused:     r.Paused,
-		FreeForAll: r.FreeForAll,
-		SolvedAt:   r.SolvedAt,
+		ID:                    r.ID,
+		Title:                 r.Title,
+		Body:                  r.Body,
+		Difficulty:            r.Difficulty,
+		Solved:                r.Solved,
+		Paused:                r.Paused,
+		GmAway:                r.GmAway,
+		FreeForAll:            r.FreeForAll,
+		SolvedAt:              r.SolvedAt,
+		PausedAt:              r.PausedAt,
+		PausedDurationSeconds: r.PausedDurationSeconds,
 		Author: dto.UserResponse{
 			ID:          r.UserID,
 			Username:    r.AuthorUsername,
@@ -273,8 +281,9 @@ func (r *mysteryRepository) DeleteAsAdmin(ctx context.Context, id uuid.UUID) err
 func (r *mysteryRepository) GetByID(ctx context.Context, id uuid.UUID) (*MysteryRow, error) {
 	var row MysteryRow
 	var solved, paused, freeForAll int
+	var gmAway int
 	err := r.db.QueryRowContext(ctx,
-		`SELECT m.id, m.user_id, m.title, m.body, m.difficulty, m.solved, m.paused, m.free_for_all, m.solved_at, m.created_at, m.updated_at,
+		`SELECT m.id, m.user_id, m.title, m.body, m.difficulty, m.solved, m.paused, m.gm_away, m.free_for_all, m.solved_at, m.paused_at, m.paused_duration_seconds, m.created_at, m.updated_at,
 			u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''),
 			w.id, w.username, w.display_name, w.avatar_url, COALESCE(wr.role, ''),
 			(SELECT COUNT(*) FROM mystery_attempts WHERE mystery_id = m.id AND parent_id IS NULL AND user_id != m.user_id),
@@ -286,13 +295,14 @@ func (r *mysteryRepository) GetByID(ctx context.Context, id uuid.UUID) (*Mystery
 		LEFT JOIN user_roles wr ON wr.user_id = w.id
 		WHERE m.id = ?`, id,
 	).Scan(
-		&row.ID, &row.UserID, &row.Title, &row.Body, &row.Difficulty, &solved, &paused, &freeForAll, &row.SolvedAt, &row.CreatedAt, &row.UpdatedAt,
+		&row.ID, &row.UserID, &row.Title, &row.Body, &row.Difficulty, &solved, &paused, &gmAway, &freeForAll, &row.SolvedAt, &row.PausedAt, &row.PausedDurationSeconds, &row.CreatedAt, &row.UpdatedAt,
 		&row.AuthorUsername, &row.AuthorDisplayName, &row.AuthorAvatarURL, &row.AuthorRole,
 		&row.WinnerID, &row.WinnerUsername, &row.WinnerDisplayName, &row.WinnerAvatarURL, &row.WinnerRole,
 		&row.AttemptCount, &row.ClueCount,
 	)
 	row.Solved = solved != 0
 	row.Paused = paused != 0
+	row.GmAway = gmAway != 0
 	row.FreeForAll = freeForAll != 0
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
@@ -335,7 +345,7 @@ func (r *mysteryRepository) List(ctx context.Context, sort string, solved *bool,
 		orderBy = "ORDER BY m.created_at ASC"
 	}
 
-	query := `SELECT m.id, m.user_id, m.title, m.body, m.difficulty, m.solved, m.paused, m.free_for_all, m.solved_at, m.created_at, m.updated_at,
+	query := `SELECT m.id, m.user_id, m.title, m.body, m.difficulty, m.solved, m.paused, m.gm_away, m.free_for_all, m.solved_at, m.paused_at, m.paused_duration_seconds, m.created_at, m.updated_at,
 		u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''),
 		w.id, w.username, w.display_name, w.avatar_url, COALESCE(wr.role, ''),
 		(SELECT COUNT(*) FROM mystery_attempts WHERE mystery_id = m.id AND parent_id IS NULL AND user_id != m.user_id),
@@ -356,9 +366,9 @@ func (r *mysteryRepository) List(ctx context.Context, sort string, solved *bool,
 	var result []MysteryRow
 	for rows.Next() {
 		var row MysteryRow
-		var solved, paused, freeForAll int
+		var solved, paused, gmAway, freeForAll int
 		if err := rows.Scan(
-			&row.ID, &row.UserID, &row.Title, &row.Body, &row.Difficulty, &solved, &paused, &freeForAll, &row.SolvedAt, &row.CreatedAt, &row.UpdatedAt,
+			&row.ID, &row.UserID, &row.Title, &row.Body, &row.Difficulty, &solved, &paused, &gmAway, &freeForAll, &row.SolvedAt, &row.PausedAt, &row.PausedDurationSeconds, &row.CreatedAt, &row.UpdatedAt,
 			&row.AuthorUsername, &row.AuthorDisplayName, &row.AuthorAvatarURL, &row.AuthorRole,
 			&row.WinnerID, &row.WinnerUsername, &row.WinnerDisplayName, &row.WinnerAvatarURL, &row.WinnerRole,
 			&row.AttemptCount, &row.ClueCount,
@@ -367,6 +377,7 @@ func (r *mysteryRepository) List(ctx context.Context, sort string, solved *bool,
 		}
 		row.Solved = solved != 0
 		row.Paused = paused != 0
+		row.GmAway = gmAway != 0
 		row.FreeForAll = freeForAll != 0
 		result = append(result, row)
 	}
@@ -584,13 +595,41 @@ func (r *mysteryRepository) IsPaused(ctx context.Context, mysteryID uuid.UUID) (
 }
 
 func (r *mysteryRepository) SetPaused(ctx context.Context, mysteryID uuid.UUID, paused bool) error {
-	val := 0
 	if paused {
+		_, err := r.db.ExecContext(ctx,
+			`UPDATE mysteries
+			 SET paused = 1,
+			     paused_at = CASE WHEN paused = 1 THEN paused_at ELSE CURRENT_TIMESTAMP END
+			 WHERE id = ?`, mysteryID)
+		if err != nil {
+			return fmt.Errorf("set mystery paused: %w", err)
+		}
+		return nil
+	}
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE mysteries
+		 SET paused = 0,
+		     paused_duration_seconds = paused_duration_seconds + CASE
+		         WHEN paused_at IS NOT NULL
+		         THEN CAST((julianday(CURRENT_TIMESTAMP) - julianday(paused_at)) * 86400 AS INTEGER)
+		         ELSE 0
+		     END,
+		     paused_at = NULL
+		 WHERE id = ?`, mysteryID)
+	if err != nil {
+		return fmt.Errorf("set mystery unpaused: %w", err)
+	}
+	return nil
+}
+
+func (r *mysteryRepository) SetGmAway(ctx context.Context, mysteryID uuid.UUID, away bool) error {
+	val := 0
+	if away {
 		val = 1
 	}
-	_, err := r.db.ExecContext(ctx, `UPDATE mysteries SET paused = ? WHERE id = ?`, val, mysteryID)
+	_, err := r.db.ExecContext(ctx, `UPDATE mysteries SET gm_away = ? WHERE id = ?`, val, mysteryID)
 	if err != nil {
-		return fmt.Errorf("set mystery paused: %w", err)
+		return fmt.Errorf("set mystery gm_away: %w", err)
 	}
 	return nil
 }
@@ -598,6 +637,12 @@ func (r *mysteryRepository) SetPaused(ctx context.Context, mysteryID uuid.UUID, 
 func (r *mysteryRepository) CountAttempts(ctx context.Context, mysteryID uuid.UUID) (int, error) {
 	var count int
 	err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM mystery_attempts WHERE mystery_id = ?`, mysteryID).Scan(&count)
+	return count, err
+}
+
+func (r *mysteryRepository) CountClues(ctx context.Context, mysteryID uuid.UUID) (int, error) {
+	var count int
+	err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM mystery_clues WHERE mystery_id = ?`, mysteryID).Scan(&count)
 	return count, err
 }
 
@@ -629,7 +674,7 @@ func (r *mysteryRepository) ListByUser(ctx context.Context, userID uuid.UUID, li
 		return nil, 0, fmt.Errorf("count user mysteries: %w", err)
 	}
 
-	query := `SELECT m.id, m.user_id, m.title, m.body, m.difficulty, m.solved, m.paused, m.free_for_all, m.solved_at, m.created_at, m.updated_at,
+	query := `SELECT m.id, m.user_id, m.title, m.body, m.difficulty, m.solved, m.paused, m.gm_away, m.free_for_all, m.solved_at, m.paused_at, m.paused_duration_seconds, m.created_at, m.updated_at,
 		u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''),
 		w.id, w.username, w.display_name, w.avatar_url, COALESCE(wr.role, ''),
 		(SELECT COUNT(*) FROM mystery_attempts WHERE mystery_id = m.id AND parent_id IS NULL AND user_id != m.user_id),
@@ -652,9 +697,9 @@ func (r *mysteryRepository) ListByUser(ctx context.Context, userID uuid.UUID, li
 	var result []MysteryRow
 	for rows.Next() {
 		var row MysteryRow
-		var solved, paused, freeForAll int
+		var solved, paused, gmAway, freeForAll int
 		if err := rows.Scan(
-			&row.ID, &row.UserID, &row.Title, &row.Body, &row.Difficulty, &solved, &paused, &freeForAll, &row.SolvedAt, &row.CreatedAt, &row.UpdatedAt,
+			&row.ID, &row.UserID, &row.Title, &row.Body, &row.Difficulty, &solved, &paused, &gmAway, &freeForAll, &row.SolvedAt, &row.PausedAt, &row.PausedDurationSeconds, &row.CreatedAt, &row.UpdatedAt,
 			&row.AuthorUsername, &row.AuthorDisplayName, &row.AuthorAvatarURL, &row.AuthorRole,
 			&row.WinnerID, &row.WinnerUsername, &row.WinnerDisplayName, &row.WinnerAvatarURL, &row.WinnerRole,
 			&row.AttemptCount, &row.ClueCount,
@@ -663,6 +708,7 @@ func (r *mysteryRepository) ListByUser(ctx context.Context, userID uuid.UUID, li
 		}
 		row.Solved = solved != 0
 		row.Paused = paused != 0
+		row.GmAway = gmAway != 0
 		row.FreeForAll = freeForAll != 0
 		result = append(result, row)
 	}

@@ -212,8 +212,14 @@ export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps
                             }
                             navigate(`/game-board/${post.id}`);
                         }}
+                        onMouseDown={e => {
+                            if (e.button === 1 && !(e.target as HTMLElement).closest("a")) {
+                                e.preventDefault();
+                            }
+                        }}
                         onAuxClick={e => {
                             if (e.button === 1 && !(e.target as HTMLElement).closest("a")) {
+                                e.preventDefault();
                                 window.open(`/game-board/${post.id}`, "_blank");
                             }
                         }}

@@ -1,14 +1,13 @@
 .chatWrapper {
-    position: fixed;
-    top: 52px;
-    left: 290px;
-    right: 0;
-    bottom: 0;
+    flex: 1;
+    min-height: 0;
+    display: flex;
 }
 
 .chatLayout {
     display: flex;
-    height: 100%;
+    flex: 1;
+    min-height: 0;
     overflow: hidden;
 }
 
@@ -28,6 +27,14 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.roomListActions {
+    display: flex;
+    gap: 0.25rem;
+    flex-wrap: wrap;
 }
 
 .roomListTitle {
@@ -35,6 +42,58 @@
     font-size: 1rem;
     color: var(--gold);
     letter-spacing: 0.05em;
+}
+
+.groupRow {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 1;
+    min-width: 0;
+}
+
+.groupIcon {
+    color: var(--gold);
+    font-size: 1rem;
+}
+
+.groupInfo {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.groupMeta {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.groupHeaderInfo {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+}
+
+.groupHeaderMeta {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    font-family: var(--font-body);
+    letter-spacing: 0;
+}
+
+.toast {
+    position: fixed;
+    bottom: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--gold-rgb), 0.4);
+    color: var(--text);
+    padding: 0.75rem 1.25rem;
+    border-radius: 6px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    font-size: 0.9rem;
 }
 
 .rooms {
@@ -66,6 +125,16 @@
 .roomItemActive {
     background: rgba(var(--purple-rgb), 0.25);
     border-left: 2px solid var(--gold);
+}
+
+.unreadDot {
+    margin-left: auto;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--gold);
+    flex-shrink: 0;
+    box-shadow: 0 0 6px rgba(var(--gold-rgb, 212, 175, 55), 0.6);
 }
 
 .roomAvatar {
@@ -117,17 +186,29 @@
 }
 
 .messageHeader {
-    padding: 0.75rem 1.25rem;
+    flex-shrink: 0;
+    box-sizing: border-box;
+    height: 60px;
+    padding: 0 1.25rem;
+    gap: 0.75rem;
     border-bottom: 1px solid rgba(var(--purple-rgb), 0.2);
     font-family: var(--font-display);
     font-size: 1rem;
+    line-height: 1;
     color: var(--gold);
     letter-spacing: 0.03em;
     background: var(--bg-card);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    justify-content: space-between;
+}
+
+.messageHeaderLeft {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+    flex: 1;
 }
 
 .messages {
@@ -137,79 +218,6 @@
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
-}
-
-.messageBubble {
-    display: flex;
-    gap: 0.75rem;
-    max-width: 75%;
-    align-self: flex-start;
-}
-
-.ownMessage {
-    align-self: flex-end;
-    flex-direction: row-reverse;
-}
-
-.messageAvatar {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    object-fit: cover;
-    flex-shrink: 0;
-    cursor: pointer;
-}
-
-.messageAvatarPlaceholder {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    background: rgba(var(--purple-rgb), 0.4);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.75rem;
-    color: var(--gold);
-    flex-shrink: 0;
-    cursor: pointer;
-}
-
-.messageContent {
-    background: var(--bg-card);
-    border: 1px solid rgba(var(--purple-rgb), 0.2);
-    border-radius: 8px;
-    padding: 0.6rem 0.85rem;
-    min-width: 0;
-}
-
-.ownMessage .messageContent {
-    background: rgba(var(--purple-rgb), 0.2);
-    border-color: rgba(var(--gold-rgb), 0.15);
-}
-
-.messageSender {
-    font-size: 0.75rem;
-    color: var(--gold);
-    font-weight: 600;
-    margin-bottom: 0.2rem;
-}
-
-.messageText {
-    font-size: 0.95rem;
-    color: var(--text);
-    line-height: 1.45;
-    word-break: break-word;
-}
-
-.messageTextFailed {
-    color: var(--text-muted);
-    font-style: italic;
-}
-
-.messageTime {
-    font-size: 0.7rem;
-    color: var(--text-muted);
-    margin-top: 0.2rem;
 }
 
 .inputBar {
@@ -299,33 +307,41 @@
     font-size: 1rem;
 }
 
-@media (max-width: 960px) {
-    .chatWrapper {
-        left: 0;
+.backButton {
+    display: none;
+    background: none;
+    border: none;
+    color: var(--gold);
+    cursor: pointer;
+    font-size: 1.25rem;
+    padding: 0.25rem 0.5rem;
+    margin-right: 0.25rem;
+    line-height: 1;
+}
+
+@media (max-width: 768px) {
+    .chatLayout[data-mobile-view="list"] .messageArea {
+        display: none;
     }
 
-    .chatLayout {
-        flex-direction: column;
+    .chatLayout[data-mobile-view="room"] .roomList {
+        display: none;
     }
 
     .roomList {
         width: 100%;
         min-width: unset;
-        max-height: 200px;
         border-right: none;
-        border-bottom: 1px solid rgba(var(--purple-rgb), 0.3);
+        border-bottom: none;
     }
 
-    .messageBubble {
-        max-width: 90%;
+    .backButton {
+        display: inline-flex;
+        align-items: center;
     }
 }
 
 @media (max-width: 480px) {
-    .roomList {
-        max-height: 150px;
-    }
-
     .messages {
         padding: 0.75rem;
     }

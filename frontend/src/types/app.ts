@@ -8,6 +8,8 @@ export type ThemeType =
     | "rika"
     | "mion"
     | "satoko";
+
+export type FontType = "default" | "im-fell";
 export type TheorySort =
     | "new"
     | "old"

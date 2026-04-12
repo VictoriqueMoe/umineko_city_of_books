@@ -1,0 +1,283 @@
+.roomWrapper {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+}
+
+.roomLayout {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.sidebar {
+    width: 240px;
+    min-width: 240px;
+    border-right: 1px solid rgba(var(--purple-rgb), 0.3);
+    background: var(--bg-card);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.sidebarHeader {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid rgba(var(--purple-rgb), 0.2);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+.backButton {
+    background: none;
+    border: none;
+    color: var(--gold);
+    cursor: pointer;
+    font-size: 1.2rem;
+    padding: 0;
+    line-height: 1;
+}
+
+.sidebarTitle {
+    font-family: var(--font-display);
+    font-size: 0.95rem;
+    color: var(--gold);
+    letter-spacing: 0.05em;
+    flex: 1;
+}
+
+.memberCount {
+    background: rgba(var(--purple-rgb), 0.3);
+    padding: 0.1rem 0.5rem;
+    border-radius: 10px;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.memberList {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.5rem 0;
+}
+
+.memberRow {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.85rem;
+}
+
+.memberRow:hover {
+    background: rgba(var(--purple-rgb), 0.1);
+}
+
+.hostBadge {
+    background: rgba(var(--gold-rgb), 0.18);
+    border: 1px solid rgba(var(--gold-rgb), 0.4);
+    color: var(--gold);
+    padding: 0.05rem 0.4rem;
+    border-radius: 999px;
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.kickBtn {
+    margin-left: auto;
+    background: none;
+    border: 1px solid rgba(255, 51, 51, 0.4);
+    color: #ff6666;
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+}
+
+.kickBtn:hover {
+    background: rgba(255, 51, 51, 0.15);
+}
+
+.sidebarFooter {
+    padding: 0.75rem 1rem;
+    border-top: 1px solid rgba(var(--purple-rgb), 0.2);
+    flex-shrink: 0;
+    display: flex;
+    justify-content: stretch;
+}
+
+.sidebarFooter button {
+    width: 100%;
+}
+
+.messageArea {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-void);
+    min-width: 0;
+}
+
+.roomHeader {
+    flex-shrink: 0;
+    box-sizing: border-box;
+    min-height: 60px;
+    padding: 0.5rem 1.25rem;
+    gap: 0.75rem;
+    border-bottom: 1px solid rgba(var(--purple-rgb), 0.2);
+    background: var(--bg-card);
+    display: flex;
+    align-items: center;
+}
+
+.mobileMembersBtn {
+    display: none;
+    background: none;
+    border: none;
+    color: var(--gold);
+    cursor: pointer;
+    font-size: 1.25rem;
+    padding: 0.25rem 0.5rem;
+    line-height: 1;
+}
+
+.roomHeaderInfo {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+}
+
+.roomTitle {
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    color: var(--gold);
+    letter-spacing: 0.03em;
+    line-height: 1.2;
+}
+
+.roomMeta {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-top: 0.15rem;
+}
+
+.roomDescription {
+    flex-shrink: 0;
+    padding: 0.5rem 1.25rem;
+    color: var(--text-muted);
+    font-style: italic;
+    font-size: 0.85rem;
+    border-bottom: 1px solid rgba(var(--purple-rgb), 0.15);
+    background: rgba(var(--bg-card-rgb), 0.5);
+}
+
+.roomTitleRow {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.rpBadge {
+    background: rgba(139, 41, 66, 0.25);
+    border: 1px solid rgba(var(--rose-rgb), 0.6);
+    color: #ff8095;
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.roomTags {
+    flex-shrink: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    padding: 0.4rem 1.25rem;
+    border-bottom: 1px solid rgba(var(--purple-rgb), 0.15);
+}
+
+.roomTag {
+    background: rgba(var(--purple-rgb), 0.2);
+    border: 1px solid rgba(var(--purple-rgb), 0.4);
+    color: var(--text-muted);
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.7rem;
+}
+
+.messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.messagesEmpty {
+    text-align: center;
+    color: var(--text-muted);
+    padding: 2rem;
+    font-style: italic;
+    margin: auto;
+}
+
+.notMember {
+    max-width: var(--page-max-width);
+    margin: 3rem auto;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    align-items: center;
+    color: var(--text-muted);
+    font-size: 1rem;
+}
+
+.toast {
+    position: fixed;
+    bottom: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--gold-rgb), 0.4);
+    color: var(--text);
+    padding: 0.75rem 1.25rem;
+    border-radius: 6px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    font-size: 0.9rem;
+}
+
+.mobileBackToChat {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .roomLayout[data-mobile-view="chat"] .sidebar {
+        display: none;
+    }
+
+    .roomLayout[data-mobile-view="members"] .messageArea {
+        display: none;
+    }
+
+    .sidebar {
+        width: 100%;
+        min-width: unset;
+        border-right: none;
+    }
+
+    .mobileMembersBtn {
+        display: inline-flex;
+        align-items: center;
+    }
+}

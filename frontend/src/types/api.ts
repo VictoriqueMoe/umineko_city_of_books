@@ -149,6 +149,9 @@ export interface UserProfile {
     email_notifications?: boolean;
     home_page?: string;
     game_board_sort?: string;
+    theme?: string;
+    font?: string;
+    wide_layout?: boolean;
     created_at: string;
     stats: UserStats;
 }
@@ -322,6 +325,45 @@ export interface FollowStats {
     follows_you: boolean;
 }
 
+export type JournalWork = "general" | "umineko" | "higurashi" | "ciconia" | "higanbana" | "roseguns";
+
+export interface Journal {
+    id: string;
+    title: string;
+    body: string;
+    work: JournalWork;
+    author: User;
+    follower_count: number;
+    is_following: boolean;
+    is_archived: boolean;
+    comment_count: number;
+    created_at: string;
+    updated_at?: string;
+    last_author_activity_at: string;
+    archived_at?: string;
+}
+
+export interface JournalComment extends PostComment {
+    is_author: boolean;
+}
+
+export interface JournalDetail extends Journal {
+    comments: JournalComment[];
+}
+
+export interface JournalListResponse {
+    journals: Journal[];
+    total: number;
+    limit: number;
+    offset: number;
+}
+
+export interface CreateJournalPayload {
+    title: string;
+    body: string;
+    work: JournalWork;
+}
+
 export type FeedTab = "following" | "everyone";
 
 export type NotificationType =
@@ -348,8 +390,20 @@ export type NotificationType =
     | "mystery_solved"
     | "mystery_paused_notif"
     | "mystery_unpaused"
+    | "mystery_gm_away_notif"
+    | "mystery_gm_back_notif"
     | "mystery_solved_all"
     | "mystery_comment_reply"
+    | "mystery_private_clue"
+    | "journal_update"
+    | "journal_commented"
+    | "journal_comment_reply"
+    | "journal_comment_liked"
+    | "journal_followed"
+    | "journal_archived"
+    | "chat_mention"
+    | "chat_room_invite"
+    | "chat_reply"
     | "fanfic_commented"
     | "fanfic_comment_reply"
     | "fanfic_comment_liked"
@@ -543,9 +597,31 @@ export interface GalleryDetailResponse {
 export interface ChatRoom {
     id: string;
     name: string;
+    description: string;
     type: "dm" | "group";
+    is_public: boolean;
+    is_rp: boolean;
+    tags: string[];
+    viewer_role?: string;
+    is_member: boolean;
+    member_count: number;
     members: User[];
     created_at: string;
+    last_message_at?: string;
+    unread?: boolean;
+}
+
+export interface ChatRoomMember {
+    user: User;
+    role: string;
+    joined_at: string;
+}
+
+export interface ChatMessageReplyPreview {
+    id: string;
+    sender_id: string;
+    sender_name: string;
+    body_preview: string;
 }
 
 export interface ChatMessage {
@@ -554,6 +630,8 @@ export interface ChatMessage {
     sender: User;
     body: string;
     created_at: string;
+    media?: PostMedia[];
+    reply_to?: ChatMessageReplyPreview;
 }
 
 export interface Mystery {
@@ -564,9 +642,12 @@ export interface Mystery {
     author: User;
     solved: boolean;
     paused: boolean;
+    gm_away: boolean;
     free_for_all: boolean;
     winner?: User;
     solved_at?: string;
+    paused_at?: string;
+    paused_duration_seconds: number;
     attempt_count: number;
     clue_count: number;
     created_at: string;
@@ -620,9 +701,12 @@ export interface MysteryDetail {
     author: User;
     solved: boolean;
     paused: boolean;
+    gm_away: boolean;
     free_for_all: boolean;
     winner?: User;
     solved_at?: string;
+    paused_at?: string;
+    paused_duration_seconds: number;
     clues: MysteryClue[];
     attempts: MysteryAttempt[];
     comments: MysteryComment[];

@@ -68,6 +68,10 @@ body {
     min-height: 100vh;
 }
 
+html[data-width="wide"] [class*="_page_"] {
+    max-width: 100% !important;
+}
+
 a {
     color: var(--gold);
     text-decoration: none;
@@ -118,12 +122,31 @@ select {
     max-width: 1200px;
     margin: 0 auto;
     width: 100%;
+    position: relative;
 }
 
 @media (max-width: 480px) {
     .main-content {
         padding: 1rem;
     }
+}
+
+body[data-chat-page="true"] {
+    overflow: hidden;
+}
+
+body[data-chat-page="true"] .app-main {
+    height: 100dvh;
+    min-height: 0;
+}
+
+body[data-chat-page="true"] .main-content {
+    padding: 0;
+    max-width: none;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 /* Loading & Empty states */

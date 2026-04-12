@@ -1,0 +1,81 @@
+.composer {
+    padding: 0.85rem 1.25rem;
+    border-top: 1px solid rgba(var(--purple-rgb), 0.2);
+    background: var(--bg-card);
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.row {
+    display: flex;
+    gap: 0.6rem;
+    align-items: center;
+}
+
+.textareaWrapper {
+    flex: 1;
+    min-width: 0;
+}
+
+.previews {
+    padding: 0.25rem 0;
+}
+
+.error {
+    color: #ff6b6b;
+    font-size: 0.85rem;
+}
+
+.replyBar {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.6rem;
+    background: rgba(var(--purple-rgb), 0.15);
+    border-left: 3px solid var(--gold);
+    border-radius: 4px;
+}
+
+.replyContent {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+}
+
+.replyLabel {
+    font-size: 0.7rem;
+    color: var(--gold);
+    font-weight: 600;
+}
+
+.replyPreview {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.replyCancel {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 0.2rem 0.4rem;
+    line-height: 1;
+}
+
+.replyCancel:hover {
+    color: var(--gold);
+}
+
+@media (max-width: 480px) {
+    .composer {
+        padding: 0.6rem 0.75rem;
+        gap: 0.5rem;
+    }
+}

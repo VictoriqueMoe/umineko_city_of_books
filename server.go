@@ -22,6 +22,7 @@ import (
 	"umineko_city_of_books/internal/email"
 	fanficsvc "umineko_city_of_books/internal/fanfic"
 	"umineko_city_of_books/internal/follow"
+	"umineko_city_of_books/internal/journal"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/middleware"
@@ -68,6 +69,7 @@ type services struct {
 	ship         ship.Service
 	mystery      mysterysvc.Service
 	fanfic       fanficsvc.Service
+	journal      journal.Service
 	block        blocksvc.Service
 	email        email.Service
 	session      *session.Manager
@@ -131,16 +133,17 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 
 	emailSvc := email.NewService(settingsSvc)
 	blockSvc := blocksvc.NewService(repos.Block, repos.Follow, authzSvc)
-	chatSvc := chat.NewService(repos.Chat, repos.User, repos.Notification, blockSvc, hub)
 	notifSvc := notification.NewService(repos.Notification, repos.User, hub, emailSvc)
 	reportSvc := report.NewService(repos.Report, repos.Role, repos.User, notifSvc, settingsSvc)
 	mediaProc := media.NewProcessor(4)
+	chatSvc := chat.NewService(repos.Chat, repos.User, notifSvc, blockSvc, uploadSvc, settingsSvc, mediaProc, hub)
 	followSvc := follow.NewService(repos.Follow, repos.User, blockSvc, notifSvc, settingsSvc)
 	postSvc := postsvc.NewService(repos.DB(), repos.Post, repos.User, repos.Role, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, hub)
 	artSvc := artsvc.NewService(repos.Art, repos.Post, repos.User, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc)
 	shipSvc := ship.NewService(repos.Ship, repos.User, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, quoteClient)
-	mysterySvc := mysterysvc.NewService(repos.Mystery, repos.User, authzSvc, blockSvc, notifSvc, settingsSvc, uploadSvc, hub)
+	mysterySvc := mysterysvc.NewService(repos.Mystery, repos.User, authzSvc, blockSvc, notifSvc, settingsSvc, uploadSvc, mediaProc, hub)
 	fanficSvc := fanficsvc.NewService(repos.Fanfic, repos.User, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc)
+	journalSvc := journal.NewService(repos.Journal, repos.User, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc)
 
 	return &services{
 		settings:     settingsSvc,
@@ -158,6 +161,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 		ship:         shipSvc,
 		mystery:      mysterySvc,
 		fanfic:       fanficSvc,
+		journal:      journalSvc,
 		block:        blockSvc,
 		email:        emailSvc,
 		session:      sessionMgr,
@@ -200,6 +204,22 @@ func registerListeners(settingsSvc settings.Service, app *fiber.App, svc *servic
 			}
 		}
 	}()
+
+	logger.Log.Info().Str("interval", "1h").Msg("registered job: archive stale journals")
+	go func() {
+		ticker := time.NewTicker(1 * time.Hour)
+		defer ticker.Stop()
+		for range ticker.C {
+			n, err := svc.journal.ArchiveStale(context.Background())
+			if err != nil {
+				logger.Log.Error().Err(err).Msg("archive stale journals failed")
+				continue
+			}
+			if n > 0 {
+				logger.Log.Info().Int("count", n).Msg("archived stale journals")
+			}
+		}
+	}()
 }
 
 func initApp(svc *services, repos *repository.Repositories, settingsSvc settings.Service) *fiber.App {
@@ -222,7 +242,7 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 	ctrlService := controllers.NewService(
 		svc.auth, svc.profile, svc.theory, svc.notification, svc.admin,
 		svc.authz, settingsSvc, svc.chat, svc.report, svc.post, svc.follow,
-		svc.art, svc.block, repos.Announcement, svc.mystery, repos.User, svc.ship, svc.fanfic, svc.upload, svc.mediaProc, svc.session, svc.hub, string(htmlBytes),
+		svc.art, svc.block, repos.Announcement, svc.mystery, repos.User, svc.ship, svc.fanfic, svc.journal, svc.upload, svc.mediaProc, svc.session, svc.hub, string(htmlBytes),
 	)
 	routes.PublicRoutes(ctrlService, app)
 

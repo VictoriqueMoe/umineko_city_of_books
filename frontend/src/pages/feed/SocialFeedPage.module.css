@@ -1,5 +1,5 @@
 .page {
-    max-width: 640px;
+    max-width: var(--page-max-width);
     margin: 0 auto;
 }
 

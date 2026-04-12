@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"io"
-	"path/filepath"
 	"strings"
 	"time"
 	"umineko_city_of_books/internal/repository/model"
@@ -14,7 +13,6 @@ import (
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
@@ -64,11 +62,10 @@ type (
 		notifService notification.Service
 		uploadSvc    upload.Service
 		mediaProc    *media.Processor
+		uploader     *media.Uploader
 		settingsSvc  settings.Service
 		hub          *ws.Hub
 	}
-
-	updateURLFn func(ctx context.Context, id int64, url string) error
 )
 
 var validPollDurations = map[int]bool{
@@ -99,6 +96,7 @@ func NewService(
 		notifService: notifService,
 		uploadSvc:    uploadSvc,
 		mediaProc:    mediaProc,
+		uploader:     media.NewUploader(uploadSvc, settingsSvc, mediaProc),
 		settingsSvc:  settingsSvc,
 		hub:          hub,
 	}
@@ -394,7 +392,7 @@ func (s *service) UploadPostMedia(ctx context.Context, postID uuid.UUID, userID 
 		return nil, fmt.Errorf("not the post author")
 	}
 
-	return s.saveMedia(ctx, contentType, fileSize, reader,
+	return s.uploader.SaveAndRecord(ctx, "posts", contentType, fileSize, reader,
 		func(mediaURL, mediaType, thumbURL string, sortOrder int) (int64, error) {
 			return s.postRepo.AddMedia(ctx, postID, mediaURL, mediaType, thumbURL, sortOrder)
 		},
@@ -430,90 +428,13 @@ func (s *service) UploadCommentMedia(ctx context.Context, commentID uuid.UUID, u
 		return nil, fmt.Errorf("not the comment author")
 	}
 
-	return s.saveMedia(ctx, contentType, fileSize, reader,
+	return s.uploader.SaveAndRecord(ctx, "posts", contentType, fileSize, reader,
 		func(mediaURL, mediaType, thumbURL string, sortOrder int) (int64, error) {
 			return s.postRepo.AddCommentMedia(ctx, commentID, mediaURL, mediaType, thumbURL, sortOrder)
 		},
 		s.postRepo.UpdateCommentMediaURL,
 		s.postRepo.UpdateCommentMediaThumbnail,
 	)
-}
-
-func (s *service) saveMedia(ctx context.Context, contentType string, fileSize int64, reader io.Reader, addFn func(string, string, string, int) (int64, error), updateURL updateURLFn, updateThumb updateURLFn) (*dto.PostMediaResponse, error) {
-	isVideo := strings.HasPrefix(contentType, "video/")
-	mediaID := uuid.New()
-
-	var urlPath string
-	var err error
-	if isVideo {
-		maxSize := int64(s.settingsSvc.GetInt(ctx, config.SettingMaxVideoSize))
-		logger.Log.Debug().Str("content_type", contentType).Int64("file_size", fileSize).Int64("max_size", maxSize).Msg("uploading video")
-		urlPath, err = s.uploadSvc.SaveVideo(ctx, "posts", mediaID, contentType, fileSize, maxSize, reader)
-	} else {
-		maxSize := int64(s.settingsSvc.GetInt(ctx, config.SettingMaxImageSize))
-		logger.Log.Debug().Str("content_type", contentType).Int64("file_size", fileSize).Int64("max_size", maxSize).Msg("uploading image")
-		urlPath, err = s.uploadSvc.SaveImage(ctx, "posts", mediaID, contentType, fileSize, maxSize, reader)
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	mediaType := "image"
-	if isVideo {
-		mediaType = "video"
-	}
-
-	rowID, err := addFn(urlPath, mediaType, "", 0)
-	if err != nil {
-		return nil, err
-	}
-
-	diskPath := s.uploadSvc.FullDiskPath(urlPath)
-	if isVideo {
-		s.mediaProc.Enqueue(media.Job{
-			Type:      media.JobVideo,
-			InputPath: diskPath,
-			Callback: func(outputPath string) {
-				newURL := "/uploads/posts/" + filepath.Base(outputPath)
-				if err := updateURL(context.Background(), rowID, newURL); err != nil {
-					logger.Log.Error().Err(err).Msg("failed to update video media url")
-				}
-				thumbName, err := media.GenerateThumbnail(outputPath, filepath.Dir(outputPath), filepath.Base(outputPath))
-				if err != nil {
-					logger.Log.Error().Err(err).Msg("failed to generate video thumbnail")
-					return
-				}
-				thumbURL := "/uploads/posts/" + thumbName
-				if err := updateThumb(context.Background(), rowID, thumbURL); err != nil {
-					logger.Log.Error().Err(err).Msg("failed to update video thumbnail url")
-				}
-			},
-		})
-	} else {
-		done := make(chan string, 1)
-		s.mediaProc.Enqueue(media.Job{
-			Type:      media.JobImage,
-			InputPath: diskPath,
-			Callback: func(outputPath string) {
-				newURL := "/uploads/posts/" + filepath.Base(outputPath)
-				if err := updateURL(context.Background(), rowID, newURL); err != nil {
-					logger.Log.Error().Err(err).Msg("failed to update image media url")
-				}
-				done <- newURL
-			},
-		})
-		select {
-		case newURL := <-done:
-			urlPath = newURL
-		case <-ctx.Done():
-		}
-	}
-
-	return &dto.PostMediaResponse{
-		ID:        int(rowID),
-		MediaURL:  urlPath,
-		MediaType: mediaType,
-	}, nil
 }
 
 func (s *service) broadcastLikeUpdate(postID uuid.UUID, delta int) {

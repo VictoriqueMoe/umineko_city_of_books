@@ -4,38 +4,44 @@ import "github.com/google/uuid"
 
 type (
 	MysteryResponse struct {
-		ID           uuid.UUID     `json:"id"`
-		Title        string        `json:"title"`
-		Body         string        `json:"body"`
-		Difficulty   string        `json:"difficulty"`
-		Author       UserResponse  `json:"author"`
-		Solved       bool          `json:"solved"`
-		Paused       bool          `json:"paused"`
-		FreeForAll   bool          `json:"free_for_all"`
-		Winner       *UserResponse `json:"winner,omitempty"`
-		SolvedAt     *string       `json:"solved_at,omitempty"`
-		AttemptCount int           `json:"attempt_count"`
-		ClueCount    int           `json:"clue_count"`
-		CreatedAt    string        `json:"created_at"`
+		ID                    uuid.UUID     `json:"id"`
+		Title                 string        `json:"title"`
+		Body                  string        `json:"body"`
+		Difficulty            string        `json:"difficulty"`
+		Author                UserResponse  `json:"author"`
+		Solved                bool          `json:"solved"`
+		Paused                bool          `json:"paused"`
+		GmAway                bool          `json:"gm_away"`
+		FreeForAll            bool          `json:"free_for_all"`
+		Winner                *UserResponse `json:"winner,omitempty"`
+		SolvedAt              *string       `json:"solved_at,omitempty"`
+		PausedAt              *string       `json:"paused_at,omitempty"`
+		PausedDurationSeconds int           `json:"paused_duration_seconds"`
+		AttemptCount          int           `json:"attempt_count"`
+		ClueCount             int           `json:"clue_count"`
+		CreatedAt             string        `json:"created_at"`
 	}
 
 	MysteryDetailResponse struct {
-		ID          uuid.UUID                `json:"id"`
-		Title       string                   `json:"title"`
-		Body        string                   `json:"body"`
-		Difficulty  string                   `json:"difficulty"`
-		Author      UserResponse             `json:"author"`
-		Solved      bool                     `json:"solved"`
-		Paused      bool                     `json:"paused"`
-		FreeForAll  bool                     `json:"free_for_all"`
-		Winner      *UserResponse            `json:"winner,omitempty"`
-		SolvedAt    *string                  `json:"solved_at,omitempty"`
-		Clues       []MysteryClue            `json:"clues"`
-		Attempts    []MysteryAttempt         `json:"attempts"`
-		Comments    []MysteryCommentResponse `json:"comments"`
-		Attachments []MysteryAttachment      `json:"attachments"`
-		PlayerCount int                      `json:"player_count"`
-		CreatedAt   string                   `json:"created_at"`
+		ID                    uuid.UUID                `json:"id"`
+		Title                 string                   `json:"title"`
+		Body                  string                   `json:"body"`
+		Difficulty            string                   `json:"difficulty"`
+		Author                UserResponse             `json:"author"`
+		Solved                bool                     `json:"solved"`
+		Paused                bool                     `json:"paused"`
+		GmAway                bool                     `json:"gm_away"`
+		FreeForAll            bool                     `json:"free_for_all"`
+		Winner                *UserResponse            `json:"winner,omitempty"`
+		SolvedAt              *string                  `json:"solved_at,omitempty"`
+		PausedAt              *string                  `json:"paused_at,omitempty"`
+		PausedDurationSeconds int                      `json:"paused_duration_seconds"`
+		Clues                 []MysteryClue            `json:"clues"`
+		Attempts              []MysteryAttempt         `json:"attempts"`
+		Comments              []MysteryCommentResponse `json:"comments"`
+		Attachments           []MysteryAttachment      `json:"attachments"`
+		PlayerCount           int                      `json:"player_count"`
+		CreatedAt             string                   `json:"created_at"`
 	}
 
 	MysteryAttachment struct {

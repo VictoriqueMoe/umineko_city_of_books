@@ -1,0 +1,409 @@
+.page {
+    max-width: var(--page-max-width);
+    margin: 0 auto;
+}
+
+.pageHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.pageTitle {
+    font-family: var(--font-display);
+    color: var(--gold);
+    letter-spacing: 0.05em;
+    font-size: 1.6rem;
+}
+
+.section {
+    margin-top: 1.5rem;
+}
+
+.sectionHead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.sectionTitle {
+    font-family: var(--font-display);
+    color: var(--gold);
+    letter-spacing: 0.04em;
+    font-size: 1.15rem;
+    margin-bottom: 0.75rem;
+}
+
+.searchInput {
+    max-width: 280px;
+    margin-bottom: 0;
+}
+
+.cardGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1rem;
+}
+
+.card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 1rem 1.25rem;
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--purple-rgb), 0.3);
+    border-left: 3px solid var(--gold);
+    border-radius: 6px;
+    color: inherit;
+    text-decoration: none;
+    transition: all 0.2s var(--ease-out);
+}
+
+.card:hover {
+    background: var(--bg-card-hover);
+    border-color: rgba(var(--gold-rgb), 0.4);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.cardHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.cardTitle {
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    color: var(--gold);
+    margin: 0;
+    flex: 1;
+    min-width: 0;
+}
+
+.cardBadges {
+    display: flex;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+}
+
+.publicBadge {
+    background: rgba(var(--gold-rgb), 0.18);
+    border: 1px solid rgba(var(--gold-rgb), 0.4);
+    color: var(--gold);
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.privateBadge {
+    background: rgba(var(--purple-rgb), 0.25);
+    border: 1px solid rgba(var(--purple-rgb), 0.5);
+    color: var(--text-muted);
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.hostBadge {
+    background: rgba(212, 168, 75, 0.18);
+    border: 1px solid rgba(var(--gold-rgb), 0.5);
+    color: var(--gold);
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.rpBadge {
+    background: rgba(139, 41, 66, 0.25);
+    border: 1px solid rgba(var(--rose-rgb), 0.6);
+    color: #ff8095;
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.cardTags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    margin-bottom: 0.35rem;
+}
+
+.cardTag {
+    background: rgba(var(--purple-rgb), 0.2);
+    border: 1px solid rgba(var(--purple-rgb), 0.4);
+    color: var(--text-muted);
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    cursor: pointer;
+}
+
+.cardTag:hover {
+    background: rgba(var(--purple-rgb), 0.35);
+    color: var(--text);
+}
+
+.filterBar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin: 1rem 0 0.5rem;
+    padding: 0.75rem 1rem;
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--purple-rgb), 0.3);
+    border-radius: 6px;
+}
+
+.filterRow {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+}
+
+.loadMoreRow {
+    display: flex;
+    justify-content: center;
+    margin-top: 1rem;
+}
+
+.filterChip {
+    background: none;
+    border: 1px solid rgba(var(--purple-rgb), 0.4);
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    padding: 0.3rem 0.75rem;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: all 0.15s var(--ease-out);
+}
+
+.filterChip:hover {
+    color: var(--text);
+    border-color: rgba(var(--gold-rgb), 0.4);
+}
+
+.filterChipActive {
+    background: var(--gold);
+    color: var(--bg-void);
+    border-color: var(--gold);
+}
+
+.cardDesc {
+    color: var(--text);
+    font-size: 0.9rem;
+    line-height: 1.4;
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.cardMeta {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    align-items: center;
+}
+
+.cardActivity {
+    margin-left: auto;
+}
+
+.cardActions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 0.25rem;
+}
+
+.detailPage {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+}
+
+.back {
+    display: inline-block;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    cursor: pointer;
+    margin-bottom: 0.5rem;
+}
+
+.back:hover {
+    color: var(--gold);
+}
+
+.detailHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid rgba(var(--purple-rgb), 0.3);
+    margin-bottom: 0.75rem;
+}
+
+.detailHeaderInfo {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.detailTitle {
+    font-family: var(--font-display);
+    color: var(--gold);
+    font-size: 1.4rem;
+    line-height: 1.2;
+}
+
+.detailMeta {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 0.15rem;
+}
+
+.detailDescription {
+    color: var(--text-muted);
+    font-style: italic;
+    font-size: 0.85rem;
+    margin-bottom: 0.75rem;
+}
+
+.detailActions {
+    display: flex;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+.messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.75rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-height: 300px;
+}
+
+.messagesEmpty {
+    text-align: center;
+    color: var(--text-muted);
+    padding: 2rem;
+    font-style: italic;
+}
+
+.messageBubble {
+    display: flex;
+    gap: 0.75rem;
+    max-width: 75%;
+    align-self: flex-start;
+}
+
+.ownMessage {
+    align-self: flex-end;
+    flex-direction: row-reverse;
+}
+
+.messageContent {
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--purple-rgb), 0.2);
+    border-radius: 8px;
+    padding: 0.6rem 0.85rem;
+    min-width: 0;
+}
+
+.ownMessage .messageContent {
+    background: rgba(var(--purple-rgb), 0.2);
+    border-color: rgba(var(--gold-rgb), 0.15);
+}
+
+.messageSender {
+    font-size: 0.75rem;
+    color: var(--gold);
+    font-weight: 600;
+    margin-bottom: 0.2rem;
+}
+
+.messageText {
+    font-size: 0.95rem;
+    color: var(--text);
+    line-height: 1.45;
+    word-break: break-word;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.messageText a {
+    color: var(--gold);
+    text-decoration: underline;
+}
+
+.messageMedia {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.4rem;
+}
+
+.messageMediaItem {
+    max-width: 220px;
+    max-height: 220px;
+    border-radius: 6px;
+    border: 1px solid rgba(var(--purple-rgb), 0.25);
+    object-fit: cover;
+    cursor: pointer;
+}
+
+.messageTime {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-top: 0.2rem;
+}
+
+.archivedBanner {
+    margin-top: 0.5rem;
+    padding: 0.75rem 1rem;
+    background: rgba(var(--text-muted), 0.1);
+    border: 1px solid rgba(var(--text-muted), 0.25);
+    border-radius: 4px;
+    color: var(--text-muted);
+    font-style: italic;
+    font-size: 0.9rem;
+}
+
+.toast {
+    position: fixed;
+    bottom: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--gold-rgb), 0.4);
+    color: var(--text);
+    padding: 0.75rem 1.25rem;
+    border-radius: 6px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    font-size: 0.9rem;
+}

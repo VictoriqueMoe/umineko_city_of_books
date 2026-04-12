@@ -6,6 +6,7 @@ export type WSMessageHandler = (msg: WSMessage) => void;
 export interface NotificationContextValue {
     notifications: Notification[];
     unreadCount: number;
+    chatUnreadCount: number;
     loading: boolean;
     markRead: (id: number) => Promise<void>;
     markAllRead: () => Promise<void>;

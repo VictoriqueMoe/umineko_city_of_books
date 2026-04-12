@@ -110,6 +110,24 @@
     margin: 0.4rem 0;
 }
 
+.sectionLabel {
+    display: block;
+    font-family: var(--font-display);
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 0.3rem 0.75rem 0.2rem;
+}
+
+.fontPreviewDefault {
+    font-family: "Cinzel", serif;
+}
+
+.fontPreviewImFell {
+    font-family: "IM Fell English SC", serif;
+}
+
 @media (max-width: 480px) {
     .triggerLabel,
     .triggerSep {

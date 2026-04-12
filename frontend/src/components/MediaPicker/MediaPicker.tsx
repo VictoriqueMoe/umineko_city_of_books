@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSiteInfo } from "../../hooks/useSiteInfo";
 import { validateFileSize } from "../../utils/fileValidation";
 import { Button } from "../Button/Button";
@@ -13,13 +13,21 @@ interface MediaPreviewsProps {
 }
 
 export function MediaPreviews({ files, onRemove, size = "normal" }: MediaPreviewsProps) {
-    const previews = useMemo(() => files.map(f => URL.createObjectURL(f)), [files]);
+    const [previews, setPreviews] = useState<string[]>([]);
 
     useEffect(() => {
+        const urls: string[] = [];
+        for (let i = 0; i < files.length; i++) {
+            urls.push(URL.createObjectURL(files[i]));
+        }
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setPreviews(urls);
         return () => {
-            previews.forEach(url => URL.revokeObjectURL(url));
+            for (let i = 0; i < urls.length; i++) {
+                URL.revokeObjectURL(urls[i]);
+            }
         };
-    }, [previews]);
+    }, [files]);
 
     if (files.length === 0) {
         return null;
@@ -31,31 +39,20 @@ export function MediaPreviews({ files, onRemove, size = "normal" }: MediaPreview
 
     return (
         <div className={styles.previews}>
-            {files.map((file, i) => (
-                <div key={i} className={previewClass}>
-                    {file.type.startsWith("video/") ? (
-                        <video className={styles.previewMedia} src={previews[i]} />
-                    ) : (
-                        <img
-                            className={styles.previewMedia}
-                            src={previews[i]}
-                            alt=""
-                            onError={e => {
-                                console.warn(
-                                    "Media preview failed for file:",
-                                    files[i]?.name,
-                                    files[i]?.type,
-                                    files[i]?.size,
-                                );
-                                e.currentTarget.style.display = "none";
-                            }}
-                        />
-                    )}
-                    <button className={removeClass} onClick={() => onRemove(i)}>
-                        x
-                    </button>
-                </div>
-            ))}
+            {files.map((file, i) => {
+                const url = previews[i];
+                return (
+                    <div key={i} className={previewClass}>
+                        {url && file.type.startsWith("video/") && <video className={styles.previewMedia} src={url} />}
+                        {url && !file.type.startsWith("video/") && (
+                            <img className={styles.previewMedia} src={url} alt="" />
+                        )}
+                        <button className={removeClass} onClick={() => onRemove(i)}>
+                            x
+                        </button>
+                    </div>
+                );
+            })}
         </div>
     );
 }

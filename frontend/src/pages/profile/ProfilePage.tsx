@@ -14,16 +14,19 @@ import {
     getUserArt,
     getUserFanficFavourites,
     getUserFanfics,
+    getUserFollowedJournals,
     getUserGalleries,
+    getUserJournals,
     getUserMysteries,
     getUserPosts,
     getUserShips,
 } from "../../api/endpoints";
-import type { ActivityItem, Art, Fanfic, Gallery, Mystery, Post, Ship, User } from "../../types/api";
+import type { ActivityItem, Art, Fanfic, Gallery, Journal, Mystery, Post, Ship, User } from "../../types/api";
 import { Button } from "../../components/Button/Button";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { TheoryCard } from "../../components/theory/TheoryCard/TheoryCard";
 import { PostCard } from "../../components/post/PostCard/PostCard";
+import { JournalCard } from "../../components/journal/JournalCard/JournalCard";
 import { ArtGrid } from "../../components/art/ArtGrid/ArtGrid";
 import { Pagination } from "../../components/Pagination/Pagination";
 import { RolePill } from "../../components/RolePill/RolePill";
@@ -70,6 +73,8 @@ type TabType =
     | "mysteries"
     | "fanfics"
     | "fanfic-favourites"
+    | "journals"
+    | "journal-follows"
     | "activity"
     | "followers"
     | "following";
@@ -265,6 +270,58 @@ export function ProfilePage() {
         }
     }, [activeTab, profile?.id, favouritesOffset, fetchUserFavourites]);
 
+    const [userJournals, setUserJournals] = useState<Journal[]>([]);
+    const [journalsTotal, setJournalsTotal] = useState(0);
+    const [journalsOffset, setJournalsOffset] = useState(0);
+    const [journalsLoading, setJournalsLoading] = useState(false);
+    const journalsLimit = 20;
+
+    const fetchUserJournals = useCallback(async (id: string, off: number) => {
+        setJournalsLoading(true);
+        try {
+            const result = await getUserJournals(id, journalsLimit, off);
+            setUserJournals(result.journals ?? []);
+            setJournalsTotal(result.total);
+        } catch {
+            setUserJournals([]);
+            setJournalsTotal(0);
+        } finally {
+            setJournalsLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (activeTab === "journals" && profile?.id) {
+            fetchUserJournals(profile.id, journalsOffset);
+        }
+    }, [activeTab, profile?.id, journalsOffset, fetchUserJournals]);
+
+    const [followedJournals, setFollowedJournals] = useState<Journal[]>([]);
+    const [followedJournalsTotal, setFollowedJournalsTotal] = useState(0);
+    const [followedJournalsOffset, setFollowedJournalsOffset] = useState(0);
+    const [followedJournalsLoading, setFollowedJournalsLoading] = useState(false);
+    const followedJournalsLimit = 20;
+
+    const fetchFollowedJournals = useCallback(async (id: string, off: number) => {
+        setFollowedJournalsLoading(true);
+        try {
+            const result = await getUserFollowedJournals(id, followedJournalsLimit, off);
+            setFollowedJournals(result.journals ?? []);
+            setFollowedJournalsTotal(result.total);
+        } catch {
+            setFollowedJournals([]);
+            setFollowedJournalsTotal(0);
+        } finally {
+            setFollowedJournalsLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (activeTab === "journal-follows" && profile?.id) {
+            fetchFollowedJournals(profile.id, followedJournalsOffset);
+        }
+    }, [activeTab, profile?.id, followedJournalsOffset, fetchFollowedJournals]);
+
     const [activityItems, setActivityItems] = useState<ActivityItem[]>([]);
     const [activityTotal, setActivityTotal] = useState(0);
     const [activityOffset, setActivityOffset] = useState(0);
@@ -378,6 +435,15 @@ export function ProfilePage() {
                             >
                                 {follow.stats.is_following ? "Unfollow" : "Follow"}
                             </Button>
+                            {profile.dms_enabled && !blockHook.status?.blocking && !blockHook.status?.blocked_by && (
+                                <Button
+                                    variant="secondary"
+                                    size="small"
+                                    onClick={() => navigate("/chat", { state: { dmUserId: profile.id } })}
+                                >
+                                    Message
+                                </Button>
+                            )}
                             {follow.stats.follows_you && <span className={styles.followsYou}>Follows you</span>}
                             {blockHook.status && !profile.role && (
                                 <Button variant="ghost" size="small" onClick={blockHook.toggleBlock}>
@@ -539,6 +605,18 @@ export function ProfilePage() {
                     onClick={() => setActiveTab("fanfic-favourites")}
                 >
                     Saved Fics
+                </button>
+                <button
+                    className={`${styles.tab} ${activeTab === "journals" ? styles.tabActive : ""}`}
+                    onClick={() => setActiveTab("journals")}
+                >
+                    Journals
+                </button>
+                <button
+                    className={`${styles.tab} ${activeTab === "journal-follows" ? styles.tabActive : ""}`}
+                    onClick={() => setActiveTab("journal-follows")}
+                >
+                    Following Journals
                 </button>
                 <button
                     className={`${styles.tab} ${activeTab === "activity" ? styles.tabActive : ""}`}
@@ -810,6 +888,50 @@ export function ProfilePage() {
                             hasPrev={favouritesOffset > 0}
                             onNext={() => setFavouritesOffset(favouritesOffset + favouritesLimit)}
                             onPrev={() => setFavouritesOffset(Math.max(0, favouritesOffset - favouritesLimit))}
+                        />
+                    )}
+                </div>
+            )}
+
+            {activeTab === "journals" && (
+                <div className={styles.tabContent}>
+                    {journalsLoading && <div className="loading">Loading journals...</div>}
+                    {!journalsLoading && userJournals.length === 0 && (
+                        <div className="empty-state">No reading journals yet.</div>
+                    )}
+                    {!journalsLoading && userJournals.map(j => <JournalCard key={j.id} journal={j} />)}
+                    {!journalsLoading && journalsTotal > journalsLimit && (
+                        <Pagination
+                            offset={journalsOffset}
+                            limit={journalsLimit}
+                            total={journalsTotal}
+                            hasNext={journalsOffset + journalsLimit < journalsTotal}
+                            hasPrev={journalsOffset > 0}
+                            onNext={() => setJournalsOffset(journalsOffset + journalsLimit)}
+                            onPrev={() => setJournalsOffset(Math.max(0, journalsOffset - journalsLimit))}
+                        />
+                    )}
+                </div>
+            )}
+
+            {activeTab === "journal-follows" && (
+                <div className={styles.tabContent}>
+                    {followedJournalsLoading && <div className="loading">Loading followed journals...</div>}
+                    {!followedJournalsLoading && followedJournals.length === 0 && (
+                        <div className="empty-state">Not following any journals yet.</div>
+                    )}
+                    {!followedJournalsLoading && followedJournals.map(j => <JournalCard key={j.id} journal={j} />)}
+                    {!followedJournalsLoading && followedJournalsTotal > followedJournalsLimit && (
+                        <Pagination
+                            offset={followedJournalsOffset}
+                            limit={followedJournalsLimit}
+                            total={followedJournalsTotal}
+                            hasNext={followedJournalsOffset + followedJournalsLimit < followedJournalsTotal}
+                            hasPrev={followedJournalsOffset > 0}
+                            onNext={() => setFollowedJournalsOffset(followedJournalsOffset + followedJournalsLimit)}
+                            onPrev={() =>
+                                setFollowedJournalsOffset(Math.max(0, followedJournalsOffset - followedJournalsLimit))
+                            }
                         />
                     )}
                 </div>

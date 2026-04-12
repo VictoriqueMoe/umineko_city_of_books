@@ -48,24 +48,38 @@ function timerColour(createdAt: string, solved: boolean): string {
     return "#e57373";
 }
 
-function LiveTimer({ since, until }: { since: string; until?: string | null }) {
+function LiveTimer({
+    since,
+    until,
+    pausedAt,
+    pausedDurationSeconds,
+}: {
+    since: string;
+    until?: string | null;
+    pausedAt?: string | null;
+    pausedDurationSeconds?: number;
+}) {
     const [elapsed, setElapsed] = useState(0);
     const end = until ? new Date(until).getTime() : null;
     const sinceMs = new Date(since).getTime();
+    const pausedAtMs = pausedAt ? new Date(pausedAt).getTime() : null;
+    const storedPausedMs = (pausedDurationSeconds ?? 0) * 1000;
     const isStopped = end !== null;
 
     useEffect(() => {
         function tick() {
             const target = isStopped && end !== null ? end : Date.now();
-            setElapsed(Math.max(0, target - sinceMs));
+            const raw = target - sinceMs;
+            const activePausedMs = pausedAtMs !== null ? Math.max(0, target - pausedAtMs) : 0;
+            setElapsed(Math.max(0, raw - storedPausedMs - activePausedMs));
         }
         tick();
-        if (isStopped) {
+        if (isStopped || pausedAtMs !== null) {
             return;
         }
         const id = setInterval(tick, 1000);
         return () => clearInterval(id);
-    }, [sinceMs, end, isStopped]);
+    }, [sinceMs, end, isStopped, pausedAtMs, storedPausedMs]);
 
     return <span>{formatDuration(elapsed)}</span>;
 }
@@ -234,6 +248,9 @@ export function MysteryListPage() {
                                         {m.paused && (
                                             <span className={`${styles.badge} ${styles.badgePaused}`}>Paused</span>
                                         )}
+                                        {m.gm_away && !m.paused && (
+                                            <span className={`${styles.badge} ${styles.badgeAway}`}>GM Away</span>
+                                        )}
                                         {m.free_for_all && (
                                             <span className={`${styles.badge} ${styles.badgeFreeForAll}`}>
                                                 Free-for-all
@@ -254,8 +271,13 @@ export function MysteryListPage() {
                                     <div className={styles.cardTimer}>
                                         {m.winner && <span>Winner: {m.winner.display_name}</span>}
                                         <span style={{ color: timerColour(m.created_at, m.solved) }}>
-                                            {m.solved ? "Solved in " : "Unsolved for "}
-                                            <LiveTimer since={m.created_at} until={m.solved_at} />
+                                            {m.solved ? "Solved in " : m.paused ? "Paused at " : "Unsolved for "}
+                                            <LiveTimer
+                                                since={m.created_at}
+                                                until={m.solved_at}
+                                                pausedAt={m.paused_at}
+                                                pausedDurationSeconds={m.paused_duration_seconds}
+                                            />
                                         </span>
                                     </div>
                                     <p className={styles.cardPreview}>

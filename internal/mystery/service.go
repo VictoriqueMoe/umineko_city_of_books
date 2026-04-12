@@ -11,6 +11,7 @@ import (
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
@@ -48,6 +49,7 @@ type (
 		UploadAttachment(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, fileName string, fileSize int64, reader io.Reader) (*dto.MysteryAttachment, error)
 		DeleteAttachment(ctx context.Context, attachmentID int64, mysteryID uuid.UUID, userID uuid.UUID) error
 		SetPaused(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, paused bool) error
+		SetGmAway(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, away bool) error
 		DeleteClue(ctx context.Context, mysteryID uuid.UUID, clueID int, userID uuid.UUID) error
 		UpdateClue(ctx context.Context, mysteryID uuid.UUID, clueID int, userID uuid.UUID, body string) error
 	}
@@ -60,6 +62,7 @@ type (
 		notifService notification.Service
 		settingsSvc  settings.Service
 		uploadSvc    upload.Service
+		uploader     *media.Uploader
 		hub          *ws.Hub
 	}
 )
@@ -72,6 +75,7 @@ func NewService(
 	notifService notification.Service,
 	settingsSvc settings.Service,
 	uploadSvc upload.Service,
+	mediaProc *media.Processor,
 	hub *ws.Hub,
 ) Service {
 	return &service{
@@ -82,6 +86,7 @@ func NewService(
 		notifService: notifService,
 		settingsSvc:  settingsSvc,
 		uploadSvc:    uploadSvc,
+		uploader:     media.NewUploader(uploadSvc, settingsSvc, mediaProc),
 		hub:          hub,
 	}
 }
@@ -211,14 +216,17 @@ func (s *service) GetMystery(ctx context.Context, id uuid.UUID, viewerID uuid.UU
 	}
 
 	resp := dto.MysteryDetailResponse{
-		ID:         row.ID,
-		Title:      row.Title,
-		Body:       row.Body,
-		Difficulty: row.Difficulty,
-		Solved:     row.Solved,
-		Paused:     row.Paused,
-		FreeForAll: row.FreeForAll,
-		SolvedAt:   row.SolvedAt,
+		ID:                    row.ID,
+		Title:                 row.Title,
+		Body:                  row.Body,
+		Difficulty:            row.Difficulty,
+		Solved:                row.Solved,
+		Paused:                row.Paused,
+		GmAway:                row.GmAway,
+		FreeForAll:            row.FreeForAll,
+		SolvedAt:              row.SolvedAt,
+		PausedAt:              row.PausedAt,
+		PausedDurationSeconds: row.PausedDurationSeconds,
 		Author: dto.UserResponse{
 			ID:          row.UserID,
 			Username:    row.AuthorUsername,
@@ -614,7 +622,7 @@ func (s *service) AddClue(ctx context.Context, mysteryID uuid.UUID, userID uuid.
 		req.TruthType = "red"
 	}
 
-	count, _ := s.mysteryRepo.CountAttempts(ctx, mysteryID)
+	count, _ := s.mysteryRepo.CountClues(ctx, mysteryID)
 	if err := s.mysteryRepo.AddClue(ctx, mysteryID, req.Body, req.TruthType, count, req.PlayerID); err != nil {
 		return err
 	}
@@ -629,6 +637,23 @@ func (s *service) AddClue(ctx context.Context, mysteryID uuid.UUID, userID uuid.
 			Type: "mystery_clue_added",
 			Data: wsData,
 		})
+
+		recipient := *req.PlayerID
+		go func() {
+			bgCtx := context.Background()
+			baseURL := s.settingsSvc.Get(bgCtx, config.SettingBaseURL)
+			linkURL := fmt.Sprintf("%s/mystery/%s", baseURL, mysteryID)
+			subject, body := notification.NotifEmail("The Game Master", "revealed a private red truth to you", "", linkURL)
+			_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
+				RecipientID:   recipient,
+				Type:          dto.NotifMysteryPrivateClue,
+				ReferenceID:   mysteryID,
+				ReferenceType: "mystery",
+				ActorID:       userID,
+				EmailSubject:  subject,
+				EmailBody:     body,
+			})
+		}()
 	}
 	s.hub.Broadcast(ws.Message{
 		Type: "mystery_clue_added",
@@ -836,40 +861,21 @@ func (s *service) UploadCommentMedia(
 		return nil, fmt.Errorf("not the comment author")
 	}
 
-	isVideo := strings.HasPrefix(contentType, "video/")
-	mediaID := uuid.New()
-
-	var urlPath string
-	if isVideo {
-		maxSize := int64(s.settingsSvc.GetInt(ctx, config.SettingMaxVideoSize))
-		urlPath, err = s.uploadSvc.SaveVideo(ctx, "mysteries", mediaID, contentType, fileSize, maxSize, reader)
-	} else {
-		maxSize := int64(s.settingsSvc.GetInt(ctx, config.SettingMaxImageSize))
-		urlPath, err = s.uploadSvc.SaveImage(ctx, "mysteries", mediaID, contentType, fileSize, maxSize, reader)
-	}
-	if err != nil {
-		return nil, err
-	}
-
 	existing, _ := s.mysteryRepo.GetCommentMedia(ctx, commentID)
 	sortOrder := len(existing)
 
-	mediaType := "image"
-	if isVideo {
-		mediaType = "video"
-	}
-
-	dbID, err := s.mysteryRepo.AddCommentMedia(ctx, commentID, urlPath, mediaType, "", sortOrder)
+	resp, err := s.uploader.SaveAndRecord(ctx, "mysteries", contentType, fileSize, reader,
+		func(mediaURL, mediaType, _ string, _ int) (int64, error) {
+			return s.mysteryRepo.AddCommentMedia(ctx, commentID, mediaURL, mediaType, "", sortOrder)
+		},
+		s.mysteryRepo.UpdateCommentMediaURL,
+		s.mysteryRepo.UpdateCommentMediaThumbnail,
+	)
 	if err != nil {
 		return nil, err
 	}
-
-	return &dto.PostMediaResponse{
-		ID:        int(dbID),
-		MediaURL:  urlPath,
-		MediaType: mediaType,
-		SortOrder: sortOrder,
-	}, nil
+	resp.SortOrder = sortOrder
+	return resp, nil
 }
 
 func (s *service) UploadAttachment(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, fileName string, fileSize int64, reader io.Reader) (*dto.MysteryAttachment, error) {
@@ -975,6 +981,58 @@ func (s *service) SetPaused(ctx context.Context, mysteryID uuid.UUID, userID uui
 		if !paused {
 			notifType = dto.NotifMysteryUnpaused
 			message = "resumed a mystery you are playing"
+		}
+		subject, body := notification.NotifEmail("The Game Master", message, "", linkURL)
+		for _, pid := range playerIDs {
+			_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
+				RecipientID:   pid,
+				Type:          notifType,
+				ReferenceID:   mysteryID,
+				ReferenceType: "mystery",
+				ActorID:       userID,
+				Message:       message,
+				EmailSubject:  subject,
+				EmailBody:     body,
+			})
+		}
+	}()
+
+	return nil
+}
+
+func (s *service) SetGmAway(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, away bool) error {
+	authorID, err := s.mysteryRepo.GetAuthorID(ctx, mysteryID)
+	if err != nil {
+		return ErrNotFound
+	}
+	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyTheory) {
+		return ErrNotAuthor
+	}
+	if err := s.mysteryRepo.SetGmAway(ctx, mysteryID, away); err != nil {
+		return err
+	}
+	s.hub.Broadcast(ws.Message{
+		Type: "mystery_gm_away",
+		Data: map[string]interface{}{
+			"mystery_id": mysteryID,
+			"gm_away":    away,
+		},
+	})
+
+	go func() {
+		bgCtx := context.Background()
+		playerIDs, err := s.mysteryRepo.GetPlayerIDs(bgCtx, mysteryID)
+		if err != nil || len(playerIDs) == 0 {
+			return
+		}
+		baseURL := s.settingsSvc.Get(bgCtx, config.SettingBaseURL)
+		linkURL := fmt.Sprintf("%s/mystery/%s", baseURL, mysteryID)
+
+		notifType := dto.NotifMysteryGmAway
+		message := "marked themselves as away on a mystery you are playing"
+		if !away {
+			notifType = dto.NotifMysteryGmBack
+			message = "is back on a mystery you are playing"
 		}
 		subject, body := notification.NotifEmail("The Game Master", message, "", linkURL)
 		for _, pid := range playerIDs {

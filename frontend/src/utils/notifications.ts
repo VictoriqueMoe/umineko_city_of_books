@@ -95,6 +95,13 @@ function routeByReferenceType(notif: Notification): string {
         }
         return `/announcements/${notif.reference_id}`;
     }
+    if (refType === "journal" || refType.startsWith("journal_comment:")) {
+        const parts = refType.split(":");
+        if (parts.length === 2) {
+            return `/journals/${notif.reference_id}#comment-${parts[1]}`;
+        }
+        return `/journals/${notif.reference_id}`;
+    }
     return `/theory/${notif.reference_id}`;
 }
 
@@ -234,6 +241,16 @@ const notificationConfigs: Record<NotificationType, NotificationConfig> = {
         category: "mysteries_player",
         route: routeByReferenceType,
     },
+    mystery_gm_away_notif: {
+        text: "marked themselves as away on a mystery you are playing",
+        category: "mysteries_player",
+        route: routeByReferenceType,
+    },
+    mystery_gm_back_notif: {
+        text: "is back on a mystery you are playing",
+        category: "mysteries_player",
+        route: routeByReferenceType,
+    },
     mystery_solved_all: {
         text: "a mystery you were playing has been solved",
         category: "mysteries_player",
@@ -241,6 +258,11 @@ const notificationConfigs: Record<NotificationType, NotificationConfig> = {
     },
     mystery_comment_reply: {
         text: "replied to your comment on a mystery",
+        category: "mysteries_player",
+        route: routeByReferenceType,
+    },
+    mystery_private_clue: {
+        text: "revealed a private red truth to you",
         category: "mysteries_player",
         route: routeByReferenceType,
     },
@@ -309,7 +331,61 @@ const notificationConfigs: Record<NotificationType, NotificationConfig> = {
         category: "social",
         route: routeByReferenceType,
     },
+    journal_update: {
+        text: "posted a new update on a journal you follow",
+        category: "social",
+        route: routeByReferenceType,
+    },
+    journal_commented: {
+        text: "commented on your journal",
+        category: "social",
+        route: routeByReferenceType,
+    },
+    journal_comment_reply: {
+        text: "replied to your comment on a journal",
+        category: "social",
+        route: routeByReferenceType,
+    },
+    journal_comment_liked: {
+        text: "liked your comment",
+        category: "social",
+        route: routeByReferenceType,
+    },
+    journal_followed: {
+        text: "started following your journal",
+        category: "social",
+        route: routeByReferenceType,
+    },
+    journal_archived: {
+        text: "your journal was archived after 7 days of inactivity",
+        category: "social",
+        route: routeByReferenceType,
+    },
+    chat_mention: {
+        text: "mentioned you in a chat room",
+        category: "social",
+        route: chatMessageRoute,
+    },
+    chat_room_invite: {
+        text: "added you to a chat room",
+        category: "social",
+        route: notif => `/rooms/${notif.reference_id}`,
+    },
+    chat_reply: {
+        text: "replied to your message",
+        category: "social",
+        route: chatMessageRoute,
+    },
 };
+
+function chatMessageRoute(notif: Notification): string {
+    const refType = notif.reference_type;
+    if (refType.startsWith("chat_message:")) {
+        const msgId = refType.split(":")[1];
+        return `/rooms/${notif.reference_id}#msg-${msgId}`;
+    }
+    return `/rooms/${notif.reference_id}`;
+}
 
 export function getNotificationText(notif: Notification): string {
     if (notif.message && notif.type !== "content_edited") {

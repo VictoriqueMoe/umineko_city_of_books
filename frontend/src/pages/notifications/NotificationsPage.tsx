@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import type { Notification } from "../../types/api";
+import type { Notification, WSMessage } from "../../types/api";
 import { getNotifications } from "../../api/endpoints";
 import { useNotifications } from "../../hooks/useNotifications";
 import {
@@ -22,7 +22,7 @@ import styles from "./NotificationsPage.module.css";
 export function NotificationsPage() {
     usePageTitle("Notifications");
     const navigate = useNavigate();
-    const { markRead, markAllRead, unreadCount } = useNotifications();
+    const { markRead, markAllRead, unreadCount, addWSListener } = useNotifications();
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [loading, setLoading] = useState(true);
     const [total, setTotal] = useState(0);
@@ -48,6 +48,22 @@ export function NotificationsPage() {
     useEffect(() => {
         fetchAll();
     }, [fetchAll]);
+
+    useEffect(() => {
+        return addWSListener((msg: WSMessage) => {
+            if (msg.type !== "notification") {
+                return;
+            }
+            const notif = msg.data as Notification;
+            setNotifications(prev => {
+                if (prev.some(n => n.id === notif.id)) {
+                    return prev;
+                }
+                return [notif, ...prev];
+            });
+            setTotal(prev => prev + 1);
+        });
+    }, [addWSListener]);
 
     async function handleClick(notif: Notification) {
         if (!notif.read) {

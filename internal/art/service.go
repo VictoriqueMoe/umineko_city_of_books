@@ -14,7 +14,6 @@ import (
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
@@ -66,6 +65,7 @@ type (
 		notifService notification.Service
 		uploadSvc    upload.Service
 		mediaProc    *media.Processor
+		uploader     *media.Uploader
 		settingsSvc  settings.Service
 	}
 )
@@ -90,6 +90,7 @@ func NewService(
 		notifService: notifService,
 		uploadSvc:    uploadSvc,
 		mediaProc:    mediaProc,
+		uploader:     media.NewUploader(uploadSvc, settingsSvc, mediaProc),
 		settingsSvc:  settingsSvc,
 	}
 }
@@ -539,77 +540,13 @@ func (s *service) UploadCommentMedia(ctx context.Context, commentID uuid.UUID, u
 		return nil, fmt.Errorf("not the comment author")
 	}
 
-	isVideo := strings.HasPrefix(contentType, "video/")
-	mediaID := uuid.New()
-
-	var urlPath string
-	if isVideo {
-		maxSize := int64(s.settingsSvc.GetInt(ctx, config.SettingMaxVideoSize))
-		urlPath, err = s.uploadSvc.SaveVideo(ctx, "art", mediaID, contentType, fileSize, maxSize, reader)
-	} else {
-		maxSize := int64(s.settingsSvc.GetInt(ctx, config.SettingMaxImageSize))
-		urlPath, err = s.uploadSvc.SaveImage(ctx, "art", mediaID, contentType, fileSize, maxSize, reader)
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	mediaType := "image"
-	if isVideo {
-		mediaType = "video"
-	}
-
-	rowID, err := s.artRepo.AddCommentMedia(ctx, commentID, urlPath, mediaType, "", 0)
-	if err != nil {
-		return nil, err
-	}
-
-	diskPath := s.uploadSvc.FullDiskPath(urlPath)
-	if isVideo {
-		s.mediaProc.Enqueue(media.Job{
-			Type:      media.JobVideo,
-			InputPath: diskPath,
-			Callback: func(outputPath string) {
-				newURL := "/uploads/art/" + filepath.Base(outputPath)
-				if err := s.artRepo.UpdateCommentMediaURL(context.Background(), rowID, newURL); err != nil {
-					logger.Log.Error().Err(err).Msg("failed to update art comment video url")
-				}
-				thumbName, err := media.GenerateThumbnail(outputPath, filepath.Dir(outputPath), filepath.Base(outputPath))
-				if err != nil {
-					logger.Log.Error().Err(err).Msg("failed to generate art comment video thumbnail")
-					return
-				}
-				thumbURL := "/uploads/art/" + thumbName
-				if err := s.artRepo.UpdateCommentMediaThumbnail(context.Background(), rowID, thumbURL); err != nil {
-					logger.Log.Error().Err(err).Msg("failed to update art comment video thumbnail")
-				}
-			},
-		})
-	} else {
-		done := make(chan string, 1)
-		s.mediaProc.Enqueue(media.Job{
-			Type:      media.JobImage,
-			InputPath: diskPath,
-			Callback: func(outputPath string) {
-				newURL := "/uploads/art/" + filepath.Base(outputPath)
-				if err := s.artRepo.UpdateCommentMediaURL(context.Background(), rowID, newURL); err != nil {
-					logger.Log.Error().Err(err).Msg("failed to update art comment image url")
-				}
-				done <- newURL
-			},
-		})
-		select {
-		case newURL := <-done:
-			urlPath = newURL
-		case <-ctx.Done():
-		}
-	}
-
-	return &dto.PostMediaResponse{
-		ID:        int(rowID),
-		MediaURL:  urlPath,
-		MediaType: mediaType,
-	}, nil
+	return s.uploader.SaveAndRecord(ctx, "art", contentType, fileSize, reader,
+		func(mediaURL, mediaType, thumbURL string, sortOrder int) (int64, error) {
+			return s.artRepo.AddCommentMedia(ctx, commentID, mediaURL, mediaType, thumbURL, sortOrder)
+		},
+		s.artRepo.UpdateCommentMediaURL,
+		s.artRepo.UpdateCommentMediaThumbnail,
+	)
 }
 
 func (s *service) CreateGallery(ctx context.Context, userID uuid.UUID, req dto.CreateGalleryRequest) (uuid.UUID, error) {

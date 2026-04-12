@@ -64,6 +64,7 @@ type (
 		notifSvc    notification.Service
 		uploadSvc   upload.Service
 		mediaProc   *media.Processor
+		uploader    *media.Uploader
 		settingsSvc settings.Service
 	}
 )
@@ -86,6 +87,7 @@ func NewService(
 		notifSvc:    notifSvc,
 		uploadSvc:   uploadSvc,
 		mediaProc:   mediaProc,
+		uploader:    media.NewUploader(uploadSvc, settingsSvc, mediaProc),
 		settingsSvc: settingsSvc,
 	}
 }
@@ -744,72 +746,11 @@ func (s *service) UploadCommentMedia(
 		return nil, fmt.Errorf("not the comment author")
 	}
 
-	isVideo := strings.HasPrefix(contentType, "video/")
-	mediaID := uuid.New()
-
-	var urlPath string
-	if isVideo {
-		maxSize := int64(s.settingsSvc.GetInt(ctx, config.SettingMaxVideoSize))
-		urlPath, err = s.uploadSvc.SaveVideo(ctx, "fanfics", mediaID, contentType, fileSize, maxSize, reader)
-	} else {
-		maxSize := int64(s.settingsSvc.GetInt(ctx, config.SettingMaxImageSize))
-		urlPath, err = s.uploadSvc.SaveImage(ctx, "fanfics", mediaID, contentType, fileSize, maxSize, reader)
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	mediaType := "image"
-	if isVideo {
-		mediaType = "video"
-	}
-
-	rowID, err := s.fanficRepo.AddCommentMedia(ctx, commentID, urlPath, mediaType, "", 0)
-	if err != nil {
-		return nil, err
-	}
-
-	diskPath := s.uploadSvc.FullDiskPath(urlPath)
-	if isVideo {
-		s.mediaProc.Enqueue(media.Job{
-			Type:      media.JobVideo,
-			InputPath: diskPath,
-			Callback: func(outputPath string) {
-				newURL := "/uploads/fanfics/" + filepath.Base(outputPath)
-				if err := s.fanficRepo.UpdateCommentMediaURL(context.Background(), rowID, newURL); err != nil {
-					logger.Log.Error().Err(err).Msg("failed to update fanfic comment video url")
-				}
-				thumbName, err := media.GenerateThumbnail(outputPath, filepath.Dir(outputPath), filepath.Base(outputPath))
-				if err != nil {
-					return
-				}
-				thumbURL := "/uploads/fanfics/" + thumbName
-				_ = s.fanficRepo.UpdateCommentMediaThumbnail(context.Background(), rowID, thumbURL)
-			},
-		})
-	} else {
-		done := make(chan string, 1)
-		s.mediaProc.Enqueue(media.Job{
-			Type:      media.JobImage,
-			InputPath: diskPath,
-			Callback: func(outputPath string) {
-				newURL := "/uploads/fanfics/" + filepath.Base(outputPath)
-				if err := s.fanficRepo.UpdateCommentMediaURL(context.Background(), rowID, newURL); err != nil {
-					logger.Log.Error().Err(err).Msg("failed to update fanfic comment image url")
-				}
-				done <- newURL
-			},
-		})
-		select {
-		case newURL := <-done:
-			urlPath = newURL
-		case <-ctx.Done():
-		}
-	}
-
-	return &dto.PostMediaResponse{
-		ID:        int(rowID),
-		MediaURL:  urlPath,
-		MediaType: mediaType,
-	}, nil
+	return s.uploader.SaveAndRecord(ctx, "fanfics", contentType, fileSize, reader,
+		func(mediaURL, mediaType, thumbURL string, sortOrder int) (int64, error) {
+			return s.fanficRepo.AddCommentMedia(ctx, commentID, mediaURL, mediaType, thumbURL, sortOrder)
+		},
+		s.fanficRepo.UpdateCommentMediaURL,
+		s.fanficRepo.UpdateCommentMediaThumbnail,
+	)
 }

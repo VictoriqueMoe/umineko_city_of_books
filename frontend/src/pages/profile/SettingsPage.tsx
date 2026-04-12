@@ -350,6 +350,7 @@ export function SettingsPage() {
                                 <option value="mysteries">Mysteries</option>
                                 <option value="ships">Ships</option>
                                 <option value="fanfiction">Fanfiction</option>
+                                <option value="journals">Reading Journals</option>
                             </Select>
                         </label>
                     </div>

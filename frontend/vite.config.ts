@@ -28,5 +28,29 @@ export default defineConfig({
     build: {
         outDir: "../static",
         emptyOutDir: true,
+        rolldownOptions: {
+            output: {
+                codeSplitting: {
+                    groups: [
+                        {
+                            name: "vendor-react",
+                            test: /[\\/]node_modules[\\/](react|react-dom|react-router|scheduler)[\\/]/,
+                        },
+                        {
+                            name: "vendor-tiptap",
+                            test: /@tiptap|prosemirror/,
+                        },
+                        {
+                            name: "vendor-markdown",
+                            test: /marked|dompurify/,
+                        },
+                        {
+                            name: "vendor-turnstile",
+                            test: /@marsidev|react-turnstile/,
+                        },
+                    ],
+                },
+            },
+        },
     },
 });
