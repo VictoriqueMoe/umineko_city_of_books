@@ -7,13 +7,13 @@ import type { ChatMessage, ChatRoom, ChatRoomMember, User, WSMessage } from "../
 import {
     deleteChatRoom,
     getChatRoomMembers,
-    getRoomMessages,
     getUserRooms,
     joinChatRoom,
     kickChatRoomMember,
     leaveChatRoom,
     markChatRoomRead,
 } from "../../api/endpoints";
+import { useMessageHistory } from "../../hooks/useMessageHistory";
 import { Button } from "../../components/Button/Button";
 import { ChatComposer, type ReplyTarget } from "../../components/chat/ChatComposer/ChatComposer";
 import { MessageBubble } from "../../components/chat/MessageBubble/MessageBubble";
@@ -30,7 +30,6 @@ export function RoomPage() {
     const { addWSListener, sendWSMessage } = useNotifications();
     const [room, setRoom] = useState<ChatRoom | null>(null);
     const [members, setMembers] = useState<ChatRoomMember[]>([]);
-    const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [loading, setLoading] = useState(true);
     const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
     const [toast, setToast] = useState<string | null>(null);
@@ -39,9 +38,20 @@ export function RoomPage() {
     const [mobileView, setMobileView] = useState<"members" | "chat">("chat");
     const [replyingTo, setReplyingTo] = useState<ReplyTarget | null>(null);
     const [highlightedMsgId, setHighlightedMsgId] = useState<string | null>(null);
-    const messagesEndRef = useRef<HTMLDivElement>(null);
+    const [descExpanded, setDescExpanded] = useState(false);
     const roomIdRef = useRef(roomId);
     const handledHashRef = useRef<string | null>(null);
+    const {
+        messages,
+        setMessages,
+        hasMore,
+        loadingMore,
+        containerRef: messagesContainerRef,
+        endRef: messagesEndRef,
+        scrollToBottom,
+        handleScroll: handleMessagesScroll,
+        addMessage,
+    } = useMessageHistory(room ? roomId : undefined);
 
     const targetMsgId = location.hash.startsWith("#msg-") ? location.hash.slice(5) : null;
     const pendingTargetMsgId = targetMsgId && handledHashRef.current !== targetMsgId ? targetMsgId : null;
@@ -66,23 +76,6 @@ export function RoomPage() {
         const t = setTimeout(() => setToast(null), 4000);
         return () => clearTimeout(t);
     }, [toast]);
-
-    const scrollToBottom = useCallback(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, []);
-
-    useEffect(() => {
-        if (messages.length === 0) {
-            return;
-        }
-        if (pendingTargetMsgId) {
-            return;
-        }
-        const id = requestAnimationFrame(() => {
-            messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-        });
-        return () => cancelAnimationFrame(id);
-    }, [messages.length, pendingTargetMsgId]);
 
     useEffect(() => {
         if (!pendingTargetMsgId || messages.length === 0) {
@@ -153,24 +146,8 @@ export function RoomPage() {
         if (!roomId || !room) {
             return;
         }
-        let cancelled = false;
-        getRoomMessages(roomId, 50)
-            .then(res => {
-                if (!cancelled) {
-                    setMessages(res.messages);
-                    setTimeout(scrollToBottom, 50);
-                }
-            })
-            .catch(() => {
-                if (!cancelled) {
-                    setMessages([]);
-                }
-            });
         markChatRoomRead(roomId).catch(() => {});
-        return () => {
-            cancelled = true;
-        };
-    }, [roomId, room, scrollToBottom]);
+    }, [roomId, room]);
 
     useEffect(() => {
         if (!roomId) {
@@ -245,18 +222,10 @@ export function RoomPage() {
                 return;
             }
         });
-    }, [user, addWSListener, scrollToBottom, navigate, loadMembers]);
+    }, [user, addWSListener, scrollToBottom, setMessages, navigate, loadMembers]);
 
     function handleSentMessage(message: ChatMessage) {
-        setMessages(prev => {
-            const idx = prev.findIndex(m => m.id === message.id);
-            if (idx !== -1) {
-                const next = prev.slice();
-                next[idx] = message;
-                return next;
-            }
-            return [...prev, message];
-        });
+        addMessage(message);
         scrollToBottom();
     }
 
@@ -353,8 +322,14 @@ export function RoomPage() {
                         <button
                             type="button"
                             className={styles.backButton}
-                            onClick={() => navigate("/rooms")}
-                            aria-label="Back to rooms"
+                            onClick={() => {
+                                if (mobileView === "members") {
+                                    setMobileView("chat");
+                                } else {
+                                    navigate("/rooms");
+                                }
+                            }}
+                            aria-label={mobileView === "members" ? "Back to chat" : "Back to rooms"}
                         >
                             {"\u2190"}
                         </button>
@@ -412,19 +387,37 @@ export function RoomPage() {
                             </span>
                         </div>
                     </div>
-                    {room.description && <div className={styles.roomDescription}>{room.description}</div>}
-                    {room.tags && room.tags.length > 0 && (
-                        <div className={styles.roomTags}>
-                            {room.tags.map(t => (
-                                <span key={t} className={styles.roomTag}>
-                                    #{t}
-                                </span>
-                            ))}
+                    {(room.description || (room.tags && room.tags.length > 0)) && (
+                        <div className={styles.roomInfoCollapsible} data-expanded={descExpanded}>
+                            <button
+                                type="button"
+                                className={styles.roomInfoToggle}
+                                onClick={() => setDescExpanded(prev => !prev)}
+                            >
+                                {descExpanded ? "Hide info \u25B2" : "Show info \u25BC"}
+                            </button>
+                            <div className={styles.roomInfoContent}>
+                                {room.description && <div className={styles.roomDescription}>{room.description}</div>}
+                                {room.tags && room.tags.length > 0 && (
+                                    <div className={styles.roomTags}>
+                                        {room.tags.map(t => (
+                                            <span key={t} className={styles.roomTag}>
+                                                #{t}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     )}
 
-                    <div className={styles.messages}>
-                        {messages.length === 0 && (
+                    <div className={styles.messages} ref={messagesContainerRef} onScroll={handleMessagesScroll}>
+                        {hasMore && (
+                            <div className={styles.loadMoreBar}>
+                                {loadingMore ? "Loading older messages..." : "Scroll up for more"}
+                            </div>
+                        )}
+                        {messages.length === 0 && !hasMore && (
                             <div className={styles.messagesEmpty}>No messages yet. Say hello!</div>
                         )}
                         {messages.map(msg => (

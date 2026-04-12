@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { useAuth } from "../../hooks/useAuth";
 import { useNotifications } from "../../hooks/useNotifications";
@@ -12,7 +12,6 @@ import { Lightbox } from "../../components/Lightbox/Lightbox";
 import {
     deleteChatRoom,
     getMutualFollowers,
-    getRoomMessages,
     getUserRooms,
     markChatRoomRead,
     resolveDMRoom,
@@ -20,6 +19,7 @@ import {
 } from "../../api/endpoints";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { handleIncomingChatMessage } from "../../utils/chatStream";
+import { useMessageHistory } from "../../hooks/useMessageHistory";
 import type { ChatMessage, ChatRoom, User, WSMessage } from "../../types/api";
 import styles from "./ChatPage.module.css";
 
@@ -107,7 +107,6 @@ export function ChatPage() {
     const { addWSListener, sendWSMessage } = useNotifications();
     const [rooms, setRooms] = useState<ChatRoom[]>([]);
     const [activeRoomId, setActiveRoomId] = useState<string | null>(urlRoomId ?? null);
-    const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [readReceipts, setReadReceipts] = useState<Record<string, Record<string, string>>>({});
     const [loading, setLoading] = useState(true);
     const [showNewDm, setShowNewDm] = useState(false);
@@ -119,6 +118,17 @@ export function ChatPage() {
     const [draftRecipient, setDraftRecipient] = useState<User | null>(null);
     const [mobileView, setMobileView] = useState<"list" | "room">(urlRoomId ? "room" : "list");
     const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+    const {
+        messages,
+        setMessages,
+        hasMore,
+        loadingMore,
+        containerRef: messagesContainerRef,
+        endRef: messagesEndRef,
+        scrollToBottom,
+        handleScroll: handleDmScroll,
+        addMessage,
+    } = useMessageHistory(activeRoomId ?? undefined);
 
     useEffect(() => {
         document.body.dataset.chatPage = "true";
@@ -160,16 +170,11 @@ export function ChatPage() {
         setMobileView(urlRoomId || draftRecipient ? "room" : "list");
     }, [urlRoomId, draftRecipient]);
     const dmDebounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-    const messagesEndRef = useRef<HTMLDivElement>(null);
     const activeRoomIdRef = useRef(activeRoomId);
 
     useEffect(() => {
         activeRoomIdRef.current = activeRoomId;
     }, [activeRoomId]);
-
-    const scrollToBottom = useCallback(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, []);
 
     useEffect(() => {
         if (!user) {
@@ -237,7 +242,7 @@ export function ChatPage() {
                 return next;
             });
         });
-    }, [user, addWSListener, scrollToBottom]);
+    }, [user, addWSListener, scrollToBottom, setMessages]);
 
     useEffect(() => {
         if (!activeRoomId) {
@@ -253,34 +258,10 @@ export function ChatPage() {
 
     useEffect(() => {
         if (!activeRoomId) {
-            setMessages([]);
             return;
         }
-
-        let cancelled = false;
-        setMessages([]);
-
-        getRoomMessages(activeRoomId, 50)
-            .then(res => {
-                if (cancelled) {
-                    return;
-                }
-                setMessages(res.messages);
-                setTimeout(scrollToBottom, 50);
-            })
-            .catch(() => {
-                if (cancelled) {
-                    return;
-                }
-                setMessages([]);
-            });
-
         markChatRoomRead(activeRoomId).catch(() => {});
-
-        return () => {
-            cancelled = true;
-        };
-    }, [activeRoomId, scrollToBottom]);
+    }, [activeRoomId]);
 
     useEffect(() => {
         if (!activeRoomId) {
@@ -352,15 +333,7 @@ export function ChatPage() {
             return;
         }
 
-        setMessages(prev => {
-            const idx = prev.findIndex(m => m.id === message.id);
-            if (idx !== -1) {
-                const next = prev.slice();
-                next[idx] = message;
-                return next;
-            }
-            return [...prev, message];
-        });
+        addMessage(message);
 
         setRooms(prev => {
             let foundIdx = -1;
@@ -537,7 +510,12 @@ export function ChatPage() {
                                     Delete Chat
                                 </Button>
                             </div>
-                            <div className={styles.messages}>
+                            <div className={styles.messages} ref={messagesContainerRef} onScroll={handleDmScroll}>
+                                {hasMore && (
+                                    <div className={styles.loadMoreBar}>
+                                        {loadingMore ? "Loading older messages..." : "Scroll up for more"}
+                                    </div>
+                                )}
                                 {messages.map((msg, idx) => {
                                     const isOwn = msg.sender.id === user.id;
                                     const seenLabel = isOwn

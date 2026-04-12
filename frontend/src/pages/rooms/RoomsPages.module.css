@@ -307,6 +307,14 @@
     min-height: 300px;
 }
 
+.loadMoreBar {
+    text-align: center;
+    padding: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
 .messagesEmpty {
     text-align: center;
     color: var(--text-muted);

@@ -199,9 +199,15 @@ func (s *Service) getMessages(ctx fiber.Ctx) error {
 	}
 
 	limit := fiber.Query[int](ctx, "limit", 50)
-	offset := fiber.Query[int](ctx, "offset", 0)
+	before := ctx.Query("before")
 
-	resp, err := s.ChatService.GetMessages(ctx.Context(), userID, roomID, limit, offset)
+	var resp *dto.ChatMessageListResponse
+	if before != "" {
+		resp, err = s.ChatService.GetMessagesBefore(ctx.Context(), userID, roomID, before, limit)
+	} else {
+		offset := fiber.Query[int](ctx, "offset", 0)
+		resp, err = s.ChatService.GetMessages(ctx.Context(), userID, roomID, limit, offset)
+	}
 	if err != nil {
 		if errors.Is(err, chat.ErrNotMember) {
 			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{

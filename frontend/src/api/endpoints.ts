@@ -498,6 +498,15 @@ export async function getRoomMessages(
     return apiFetch<{ messages: ChatMessage[]; total: number }>(`/chat/rooms/${roomId}/messages${qs}`);
 }
 
+export async function getRoomMessagesBefore(
+    roomId: string,
+    before: string,
+    limit?: number,
+): Promise<{ messages: ChatMessage[] }> {
+    const qs = buildQueryString({ before, limit: limit ?? 50 });
+    return apiFetch<{ messages: ChatMessage[] }>(`/chat/rooms/${roomId}/messages${qs}`);
+}
+
 export async function sendChatMessage(
     roomId: string,
     payload: { body: string; reply_to_id?: string },

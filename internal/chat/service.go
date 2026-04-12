@@ -65,6 +65,7 @@ type (
 		ListUserGroupRooms(ctx context.Context, userID uuid.UUID, search string, isRPOnly bool, tag, role string, limit, offset int) (*dto.ChatRoomListResponse, error)
 		ListPublicRooms(ctx context.Context, search string, isRPOnly bool, tag string, viewerID uuid.UUID, limit, offset int) (*dto.ChatRoomListResponse, error)
 		GetMessages(ctx context.Context, userID, roomID uuid.UUID, limit, offset int) (*dto.ChatMessageListResponse, error)
+		GetMessagesBefore(ctx context.Context, userID, roomID uuid.UUID, before string, limit int) (*dto.ChatMessageListResponse, error)
 
 		SendMessage(ctx context.Context, senderID, roomID uuid.UUID, req dto.SendMessageRequest) (*dto.ChatMessageResponse, error)
 		GetRoomsByUser(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error)
@@ -594,6 +595,45 @@ func (s *service) GetMessages(ctx context.Context, userID, roomID uuid.UUID, lim
 		Total:    total,
 		Limit:    limit,
 		Offset:   offset,
+	}, nil
+}
+
+func (s *service) GetMessagesBefore(ctx context.Context, userID, roomID uuid.UUID, before string, limit int) (*dto.ChatMessageListResponse, error) {
+	isMember, err := s.chatRepo.IsMember(ctx, roomID, userID)
+	if err != nil {
+		return nil, fmt.Errorf("check membership: %w", err)
+	}
+	if !isMember {
+		return nil, ErrNotMember
+	}
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit > 200 {
+		limit = 200
+	}
+
+	rows, err := s.chatRepo.GetMessagesBefore(ctx, roomID, before, limit)
+	if err != nil {
+		return nil, fmt.Errorf("get messages before: %w", err)
+	}
+
+	messageIDs := make([]uuid.UUID, len(rows))
+	for i := 0; i < len(rows); i++ {
+		messageIDs[i] = rows[i].ID
+	}
+	mediaBatch, _ := s.chatRepo.GetMessageMediaBatch(ctx, messageIDs)
+
+	messages := make([]dto.ChatMessageResponse, 0, len(rows))
+	for i := 0; i < len(rows); i++ {
+		row := rows[i]
+		messages = append(messages, messageRowToResponse(row, mediaBatch[row.ID]))
+	}
+
+	return &dto.ChatMessageListResponse{
+		Messages: messages,
+		Total:    -1,
+		Limit:    limit,
 	}, nil
 }
 

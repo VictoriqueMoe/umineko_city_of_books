@@ -168,14 +168,21 @@
     margin-top: 0.15rem;
 }
 
-.roomDescription {
+.roomInfoCollapsible {
     flex-shrink: 0;
+    border-bottom: 1px solid rgba(var(--purple-rgb), 0.15);
+    background: rgba(var(--bg-card-rgb), 0.5);
+}
+
+.roomInfoToggle {
+    display: none;
+}
+
+.roomDescription {
     padding: 0.5rem 1.25rem;
     color: var(--text-muted);
     font-style: italic;
     font-size: 0.85rem;
-    border-bottom: 1px solid rgba(var(--purple-rgb), 0.15);
-    background: rgba(var(--bg-card-rgb), 0.5);
 }
 
 .roomTitleRow {
@@ -195,13 +202,16 @@
     letter-spacing: 0.05em;
 }
 
+.roomInfoContent {
+    display: flex;
+    flex-direction: column;
+}
+
 .roomTags {
-    flex-shrink: 0;
     display: flex;
     flex-wrap: wrap;
     gap: 0.3rem;
     padding: 0.4rem 1.25rem;
-    border-bottom: 1px solid rgba(var(--purple-rgb), 0.15);
 }
 
 .roomTag {
@@ -279,5 +289,25 @@
     .mobileMembersBtn {
         display: inline-flex;
         align-items: center;
+    }
+
+    .roomInfoToggle {
+        display: block;
+        width: 100%;
+        background: none;
+        border: none;
+        color: var(--text-muted);
+        font-size: 0.75rem;
+        padding: 0.4rem 1.25rem;
+        cursor: pointer;
+        text-align: center;
+    }
+
+    .roomInfoToggle:hover {
+        color: var(--gold);
+    }
+
+    .roomInfoCollapsible:not([data-expanded="true"]) .roomInfoContent {
+        display: none;
     }
 }

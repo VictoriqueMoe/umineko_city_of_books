@@ -79,6 +79,7 @@ type (
 
 		InsertMessage(ctx context.Context, id, roomID, senderID uuid.UUID, body string, replyToID *uuid.UUID) error
 		GetMessages(ctx context.Context, roomID uuid.UUID, limit, offset int) ([]ChatMessageRow, int, error)
+		GetMessagesBefore(ctx context.Context, roomID uuid.UUID, before string, limit int) ([]ChatMessageRow, error)
 		GetMessageByID(ctx context.Context, messageID uuid.UUID) (*ChatMessageRow, error)
 		DeleteMessages(ctx context.Context, roomID uuid.UUID) error
 		GetMessageSenderID(ctx context.Context, messageID uuid.UUID) (uuid.UUID, error)
@@ -659,17 +660,19 @@ func (r *chatRepository) GetMessages(ctx context.Context, roomID uuid.UUID, limi
 	}
 
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT cm.id, cm.room_id, cm.sender_id, u.username, u.display_name, u.avatar_url,
-		 cm.body, cm.created_at, cm.reply_to_id,
-		 parent.sender_id, pu.display_name, parent.body
-		 FROM chat_messages cm
-		 JOIN users u ON cm.sender_id = u.id
-		 LEFT JOIN chat_messages parent ON cm.reply_to_id = parent.id
-		 LEFT JOIN users pu ON parent.sender_id = pu.id
-		 WHERE cm.room_id = ?
-		 ORDER BY cm.created_at ASC
-		 LIMIT ? OFFSET ?`,
-		roomID, limit, offset,
+		`SELECT * FROM (
+			SELECT cm.id, cm.room_id, cm.sender_id, u.username, u.display_name, u.avatar_url,
+			 cm.body, cm.created_at, cm.reply_to_id,
+			 parent.sender_id, pu.display_name, parent.body
+			 FROM chat_messages cm
+			 JOIN users u ON cm.sender_id = u.id
+			 LEFT JOIN chat_messages parent ON cm.reply_to_id = parent.id
+			 LEFT JOIN users pu ON parent.sender_id = pu.id
+			 WHERE cm.room_id = ?
+			 ORDER BY cm.created_at DESC
+			 LIMIT ?
+		) sub ORDER BY sub.created_at ASC`,
+		roomID, limit,
 	)
 	if err != nil {
 		return nil, 0, fmt.Errorf("get messages: %w", err)
@@ -690,6 +693,43 @@ func (r *chatRepository) GetMessages(ctx context.Context, roomID uuid.UUID, limi
 		messages = append(messages, msg)
 	}
 	return messages, total, rows.Err()
+}
+
+func (r *chatRepository) GetMessagesBefore(ctx context.Context, roomID uuid.UUID, before string, limit int) ([]ChatMessageRow, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT * FROM (
+			SELECT cm.id, cm.room_id, cm.sender_id, u.username, u.display_name, u.avatar_url,
+			 cm.body, cm.created_at, cm.reply_to_id,
+			 parent.sender_id, pu.display_name, parent.body
+			 FROM chat_messages cm
+			 JOIN users u ON cm.sender_id = u.id
+			 LEFT JOIN chat_messages parent ON cm.reply_to_id = parent.id
+			 LEFT JOIN users pu ON parent.sender_id = pu.id
+			 WHERE cm.room_id = ? AND cm.created_at < ?
+			 ORDER BY cm.created_at DESC
+			 LIMIT ?
+		) sub ORDER BY sub.created_at ASC`,
+		roomID, before, limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("get messages before: %w", err)
+	}
+	defer rows.Close()
+
+	var messages []ChatMessageRow
+	for rows.Next() {
+		var msg ChatMessageRow
+		if err := rows.Scan(
+			&msg.ID, &msg.RoomID, &msg.SenderID,
+			&msg.SenderUsername, &msg.SenderDisplayName, &msg.SenderAvatarURL,
+			&msg.Body, &msg.CreatedAt, &msg.ReplyToID,
+			&msg.ReplyToSenderID, &msg.ReplyToSenderName, &msg.ReplyToBody,
+		); err != nil {
+			return nil, fmt.Errorf("scan message: %w", err)
+		}
+		messages = append(messages, msg)
+	}
+	return messages, rows.Err()
 }
 
 func (r *chatRepository) GetMessageByID(ctx context.Context, messageID uuid.UUID) (*ChatMessageRow, error) {
