@@ -345,6 +345,7 @@ export function RoomPage() {
     }
 
     const isHost = room.viewer_role === "host";
+    const isSystem = room.is_system;
 
     return (
         <div className={styles.roomWrapper}>
@@ -373,7 +374,7 @@ export function RoomPage() {
                             <div key={m.user.id} className={styles.memberRow}>
                                 <ProfileLink user={m.user} size="small" />
                                 {m.role === "host" && <span className={styles.hostBadge}>Host</span>}
-                                {isHost && m.user.id !== user.id && m.role !== "host" && (
+                                {isHost && !isSystem && m.user.id !== user.id && m.role !== "host" && (
                                     <button
                                         className={styles.kickBtn}
                                         onClick={() => handleKick(m.user.id)}
@@ -399,7 +400,7 @@ export function RoomPage() {
                                   ? "Unmute notifications"
                                   : "Mute notifications"}
                         </Button>
-                        {isHost ? (
+                        {isSystem ? null : isHost ? (
                             <Button variant="danger" size="small" onClick={handleDelete} disabled={busy === "delete"}>
                                 {busy === "delete" ? "Deleting..." : "Delete Room"}
                             </Button>
@@ -424,6 +425,7 @@ export function RoomPage() {
                         <div className={styles.roomHeaderInfo}>
                             <div className={styles.roomTitleRow}>
                                 <span className={styles.roomTitle}>{room.name}</span>
+                                {room.is_system && <span className={styles.rpBadge}>Staff</span>}
                                 {room.is_rp && <span className={styles.rpBadge}>RP</span>}
                             </div>
                             <span className={styles.roomMeta}>

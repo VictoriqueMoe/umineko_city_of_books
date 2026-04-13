@@ -243,6 +243,11 @@ func (s *Service) deleteChat(ctx fiber.Ctx) error {
 				"error": "you are not a member of this chat",
 			})
 		}
+		if errors.Is(err, chat.ErrSystemRoom) {
+			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"error": "system rooms cannot be deleted",
+			})
+		}
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "failed to delete chat",
 		})
@@ -378,6 +383,9 @@ func (s *Service) joinRoom(ctx fiber.Ctx) error {
 		if errors.Is(err, chat.ErrUserBlocked) {
 			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "you cannot join this room"})
 		}
+		if errors.Is(err, chat.ErrSystemRoom) {
+			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "this room is managed automatically"})
+		}
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to join room"})
 	}
 	return ctx.JSON(resp)
@@ -400,6 +408,9 @@ func (s *Service) leaveRoom(ctx fiber.Ctx) error {
 		}
 		if errors.Is(err, chat.ErrNotMember) {
 			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "not a member"})
+		}
+		if errors.Is(err, chat.ErrSystemRoom) {
+			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "this room is managed automatically"})
 		}
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to leave room"})
 	}
@@ -475,6 +486,9 @@ func (s *Service) kickMember(ctx fiber.Ctx) error {
 		}
 		if errors.Is(err, chat.ErrNotMember) {
 			return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "user is not a member"})
+		}
+		if errors.Is(err, chat.ErrSystemRoom) {
+			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "this room is managed automatically"})
 		}
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to kick member"})
 	}

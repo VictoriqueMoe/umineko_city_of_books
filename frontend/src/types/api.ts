@@ -602,6 +602,8 @@ export interface ChatRoom {
     type: "dm" | "group";
     is_public: boolean;
     is_rp: boolean;
+    is_system: boolean;
+    system_kind?: string;
     tags: string[];
     viewer_role?: string;
     viewer_muted: boolean;
