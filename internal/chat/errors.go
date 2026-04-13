@@ -18,4 +18,5 @@ var (
 	ErrAlreadyMember     = errors.New("already a member")
 	ErrNotGroupRoom      = errors.New("not a group room")
 	ErrRateLimited       = errors.New("daily limit reached")
+	ErrSystemRoom        = errors.New("system rooms are managed automatically")
 )

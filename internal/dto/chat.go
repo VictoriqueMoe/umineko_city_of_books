@@ -41,6 +41,8 @@ type (
 		Type          string         `json:"type"`
 		IsPublic      bool           `json:"is_public"`
 		IsRP          bool           `json:"is_rp"`
+		IsSystem      bool           `json:"is_system"`
+		SystemKind    string         `json:"system_kind,omitempty"`
 		Tags          []string       `json:"tags"`
 		ViewerRole    string         `json:"viewer_role,omitempty"`
 		ViewerMuted   bool           `json:"viewer_muted"`

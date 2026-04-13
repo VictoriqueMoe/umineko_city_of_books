@@ -4,7 +4,7 @@ import { usePageTitle } from "../../hooks/usePageTitle";
 import { useAuth } from "../../hooks/useAuth";
 import { useNotifications } from "../../hooks/useNotifications";
 import type { ChatRoom, WSMessage } from "../../types/api";
-import { joinChatRoom, listMyChatRooms, listPublicChatRooms } from "../../api/endpoints";
+import { getUserRooms, joinChatRoom, listMyChatRooms, listPublicChatRooms } from "../../api/endpoints";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
 import { InfoPanel } from "../../components/InfoPanel/InfoPanel";
@@ -53,6 +53,7 @@ export function RoomsListPage() {
     const [hosted, setHosted] = useState<Page<ChatRoom>>(emptyPage);
     const [joined, setJoined] = useState<Page<ChatRoom>>(emptyPage);
     const [discover, setDiscover] = useState<Page<ChatRoom>>(emptyPage);
+    const [systemRooms, setSystemRooms] = useState<ChatRoom[]>([]);
     const [searchInput, setSearchInput] = useState("");
     const [search, setSearch] = useState("");
     const [rpOnly, setRpOnly] = useState(false);
@@ -143,6 +144,20 @@ export function RoomsListPage() {
         fetchDiscover(search, rpOnly, tagFilter, 0, false);
     }, [fetchHosted, fetchJoined, fetchDiscover, search, rpOnly, tagFilter]);
 
+    const fetchSystemRooms = useCallback(() => {
+        if (!user) {
+            setSystemRooms([]);
+            return;
+        }
+        getUserRooms()
+            .then(res => setSystemRooms((res.rooms ?? []).filter(r => r.is_system)))
+            .catch(() => setSystemRooms([]));
+    }, [user]);
+
+    useEffect(() => {
+        fetchSystemRooms();
+    }, [fetchSystemRooms]);
+
     useEffect(() => {
         clearTimeout(debounceRef.current);
         debounceRef.current = setTimeout(() => {
@@ -155,6 +170,7 @@ export function RoomsListPage() {
         return addWSListener((msg: WSMessage) => {
             if (msg.type === "chat_room_invited") {
                 fetchJoined(search, rpOnly, tagFilter, 0, false);
+                fetchSystemRooms();
                 return;
             }
             if (msg.type === "chat_kicked" || msg.type === "chat_room_deleted") {
@@ -169,9 +185,10 @@ export function RoomsListPage() {
                     items: prev.items.filter(r => r.id !== data.room_id),
                     total: Math.max(0, prev.total - 1),
                 }));
+                setSystemRooms(prev => prev.filter(r => r.id !== data.room_id));
             }
         });
-    }, [addWSListener, fetchJoined, search, rpOnly, tagFilter]);
+    }, [addWSListener, fetchJoined, fetchSystemRooms, search, rpOnly, tagFilter]);
 
     async function handleJoin(room: ChatRoom) {
         setJoining(room.id);
@@ -201,18 +218,21 @@ export function RoomsListPage() {
     }
 
     function renderMemberCard(room: ChatRoom) {
+        const cardClass = room.is_system ? `${styles.card} ${styles.systemCard}` : styles.card;
         return (
-            <Link key={room.id} to={`/rooms/${room.id}`} className={styles.card}>
+            <Link key={room.id} to={`/rooms/${room.id}`} className={cardClass}>
                 <div className={styles.cardHeader}>
                     <h3 className={styles.cardTitle}>{room.name}</h3>
                     <div className={styles.cardBadges}>
+                        {room.is_system && <span className={styles.systemBadge}>Pinned</span>}
                         {room.viewer_role === "host" && <span className={styles.hostBadge}>Host</span>}
                         {room.is_rp && <span className={styles.rpBadge}>RP</span>}
-                        {room.is_public ? (
-                            <span className={styles.publicBadge}>Public</span>
-                        ) : (
-                            <span className={styles.privateBadge}>Private</span>
-                        )}
+                        {!room.is_system &&
+                            (room.is_public ? (
+                                <span className={styles.publicBadge}>Public</span>
+                            ) : (
+                                <span className={styles.privateBadge}>Private</span>
+                            ))}
                     </div>
                 </div>
                 {room.description && <p className={styles.cardDesc}>{room.description}</p>}
@@ -244,6 +264,8 @@ export function RoomsListPage() {
     }
 
     const filterActive = search !== "" || rpOnly || tagFilter !== "";
+    const hostedFiltered = hosted.items.filter(r => !r.is_system);
+    const joinedFiltered = joined.items.filter(r => !r.is_system);
 
     function renderGroupedGrid(rooms: ChatRoom[], renderCard: (room: ChatRoom) => React.ReactNode) {
         const rpRooms: ChatRoom[] = [];
@@ -373,18 +395,20 @@ export function RoomsListPage() {
 
             {user && (
                 <section className={styles.section}>
-                    <h2 className={styles.sectionTitle}>My Rooms{hosted.total > 0 ? ` (${hosted.total})` : ""}</h2>
-                    {hosted.loading && hosted.items.length === 0 && (
+                    <h2 className={styles.sectionTitle}>
+                        My Rooms{hostedFiltered.length > 0 ? ` (${hostedFiltered.length})` : ""}
+                    </h2>
+                    {hosted.loading && hostedFiltered.length === 0 && (
                         <div className="loading">Loading your rooms...</div>
                     )}
-                    {!hosted.loading && hosted.items.length === 0 && (
+                    {!hosted.loading && hostedFiltered.length === 0 && (
                         <div className="empty-state">
                             {filterActive
                                 ? "No rooms you host match the filters."
                                 : "You haven't created any rooms yet."}
                         </div>
                     )}
-                    {hosted.items.length > 0 && renderGroupedGrid(hosted.items, renderMemberCard)}
+                    {hostedFiltered.length > 0 && renderGroupedGrid(hostedFiltered, renderMemberCard)}
                     {hosted.items.length < hosted.total && (
                         <div className={styles.loadMoreRow}>
                             <Button
@@ -402,18 +426,29 @@ export function RoomsListPage() {
 
             {user && (
                 <section className={styles.section}>
-                    <h2 className={styles.sectionTitle}>Joined Rooms{joined.total > 0 ? ` (${joined.total})` : ""}</h2>
-                    {joined.loading && joined.items.length === 0 && (
+                    <h2 className={styles.sectionTitle}>
+                        Joined Rooms
+                        {joinedFiltered.length > 0 || systemRooms.length > 0
+                            ? ` (${joinedFiltered.length + systemRooms.length})`
+                            : ""}
+                    </h2>
+                    {systemRooms.length > 0 && (
+                        <>
+                            <div className={styles.pinnedGroupLabel}>Pinned</div>
+                            <div className={styles.cardGrid}>{systemRooms.map(renderMemberCard)}</div>
+                        </>
+                    )}
+                    {joined.loading && joinedFiltered.length === 0 && systemRooms.length === 0 && (
                         <div className="loading">Loading your rooms...</div>
                     )}
-                    {!joined.loading && joined.items.length === 0 && (
+                    {!joined.loading && joinedFiltered.length === 0 && systemRooms.length === 0 && (
                         <div className="empty-state">
                             {filterActive
                                 ? "No joined rooms match the filters."
                                 : "You haven't joined any rooms yet. Browse below or create one."}
                         </div>
                     )}
-                    {joined.items.length > 0 && renderGroupedGrid(joined.items, renderMemberCard)}
+                    {joinedFiltered.length > 0 && renderGroupedGrid(joinedFiltered, renderMemberCard)}
                     {joined.items.length < joined.total && (
                         <div className={styles.loadMoreRow}>
                             <Button

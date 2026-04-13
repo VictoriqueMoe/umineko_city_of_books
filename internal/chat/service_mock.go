@@ -8,6 +8,7 @@ import (
 	"context"
 	"io"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/role"
 
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
@@ -173,6 +174,57 @@ func (_c *MockService_DeleteChat_Call) Return(err error) *MockService_DeleteChat
 }
 
 func (_c *MockService_DeleteChat_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) error) *MockService_DeleteChat_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// EnsureSystemRooms provides a mock function for the type MockService
+func (_mock *MockService) EnsureSystemRooms(ctx context.Context) error {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for EnsureSystemRooms")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) error); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_EnsureSystemRooms_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'EnsureSystemRooms'
+type MockService_EnsureSystemRooms_Call struct {
+	*mock.Call
+}
+
+// EnsureSystemRooms is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockService_Expecter) EnsureSystemRooms(ctx interface{}) *MockService_EnsureSystemRooms_Call {
+	return &MockService_EnsureSystemRooms_Call{Call: _e.mock.On("EnsureSystemRooms", ctx)}
+}
+
+func (_c *MockService_EnsureSystemRooms_Call) Run(run func(ctx context.Context)) *MockService_EnsureSystemRooms_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_EnsureSystemRooms_Call) Return(err error) *MockService_EnsureSystemRooms_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_EnsureSystemRooms_Call) RunAndReturn(run func(ctx context.Context) error) *MockService_EnsureSystemRooms_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1467,6 +1519,69 @@ func (_c *MockService_SetRoomMuted_Call) Return(err error) *MockService_SetRoomM
 }
 
 func (_c *MockService_SetRoomMuted_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, muted bool) error) *MockService_SetRoomMuted_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SyncSystemRoomMembership provides a mock function for the type MockService
+func (_mock *MockService) SyncSystemRoomMembership(ctx context.Context, userID uuid.UUID, newRole role.Role) error {
+	ret := _mock.Called(ctx, userID, newRole)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SyncSystemRoomMembership")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, role.Role) error); ok {
+		r0 = returnFunc(ctx, userID, newRole)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_SyncSystemRoomMembership_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SyncSystemRoomMembership'
+type MockService_SyncSystemRoomMembership_Call struct {
+	*mock.Call
+}
+
+// SyncSystemRoomMembership is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+//   - newRole role.Role
+func (_e *MockService_Expecter) SyncSystemRoomMembership(ctx interface{}, userID interface{}, newRole interface{}) *MockService_SyncSystemRoomMembership_Call {
+	return &MockService_SyncSystemRoomMembership_Call{Call: _e.mock.On("SyncSystemRoomMembership", ctx, userID, newRole)}
+}
+
+func (_c *MockService_SyncSystemRoomMembership_Call) Run(run func(ctx context.Context, userID uuid.UUID, newRole role.Role)) *MockService_SyncSystemRoomMembership_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 role.Role
+		if args[2] != nil {
+			arg2 = args[2].(role.Role)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_SyncSystemRoomMembership_Call) Return(err error) *MockService_SyncSystemRoomMembership_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_SyncSystemRoomMembership_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, newRole role.Role) error) *MockService_SyncSystemRoomMembership_Call {
 	_c.Call.Return(run)
 	return _c
 }

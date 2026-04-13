@@ -21,6 +21,11 @@ import (
 )
 
 type (
+	SystemRoomSync interface {
+		EnsureSystemRooms(ctx context.Context) error
+		SyncSystemRoomMembership(ctx context.Context, userID uuid.UUID, newRole role.Role) error
+	}
+
 	Service interface {
 		GetStats(ctx context.Context) (*dto.AdminStatsResponse, error)
 
@@ -62,6 +67,7 @@ type (
 		sessionMgr     *session.Manager
 		uploadSvc      upload.Service
 		hub            *ws.Hub
+		chatSync       SystemRoomSync
 	}
 )
 
@@ -88,6 +94,7 @@ func NewService(
 	sessionMgr *session.Manager,
 	uploadSvc upload.Service,
 	hub *ws.Hub,
+	chatSync SystemRoomSync,
 ) Service {
 	return &service{
 		userRepo:       userRepo,
@@ -101,6 +108,7 @@ func NewService(
 		sessionMgr:     sessionMgr,
 		uploadSvc:      uploadSvc,
 		hub:            hub,
+		chatSync:       chatSync,
 	}
 }
 
@@ -248,6 +256,14 @@ func (s *service) SetUserRole(ctx context.Context, actorID uuid.UUID, targetID u
 			return fmt.Errorf("set role: %w", err)
 		}
 		s.audit(ctx, actorID, "set_role", "user", targetID.String())
+		if s.chatSync != nil {
+			if err := s.chatSync.EnsureSystemRooms(ctx); err != nil {
+				logger.Log.Error().Err(err).Msg("ensure system rooms after role change")
+			}
+			if err := s.chatSync.SyncSystemRoomMembership(ctx, targetID, r); err != nil {
+				logger.Log.Error().Err(err).Str("user_id", targetID.String()).Msg("sync system rooms after role set")
+			}
+		}
 		s.broadcastRoleChange(targetID, string(r))
 		return nil
 	})
@@ -259,6 +275,11 @@ func (s *service) RemoveUserRole(ctx context.Context, actorID uuid.UUID, targetI
 			return fmt.Errorf("remove role: %w", err)
 		}
 		s.audit(ctx, actorID, "remove_role", "user", targetID.String())
+		if s.chatSync != nil {
+			if err := s.chatSync.SyncSystemRoomMembership(ctx, targetID, ""); err != nil {
+				logger.Log.Error().Err(err).Str("user_id", targetID.String()).Msg("sync system rooms after role remove")
+			}
+		}
 		s.broadcastRoleChange(targetID, "")
 		return nil
 	})

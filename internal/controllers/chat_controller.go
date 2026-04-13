@@ -214,6 +214,9 @@ func (s *Service) deleteChat(ctx fiber.Ctx) error {
 		if errors.Is(err, chat.ErrNotMember) {
 			return utils.Forbidden(ctx, "you are not a member of this chat")
 		}
+		if errors.Is(err, chat.ErrSystemRoom) {
+			return utils.Forbidden(ctx, "system rooms cannot be deleted")
+		}
 		return utils.InternalError(ctx, "failed to delete chat")
 	}
 
@@ -347,6 +350,9 @@ func (s *Service) joinRoom(ctx fiber.Ctx) error {
 		if errors.Is(err, chat.ErrUserBlocked) {
 			return utils.Forbidden(ctx, "you cannot join this room")
 		}
+		if errors.Is(err, chat.ErrSystemRoom) {
+			return utils.Forbidden(ctx, "this room is managed automatically")
+		}
 		return utils.InternalError(ctx, "failed to join room")
 	}
 	return ctx.JSON(resp)
@@ -369,6 +375,9 @@ func (s *Service) leaveRoom(ctx fiber.Ctx) error {
 		}
 		if errors.Is(err, chat.ErrNotMember) {
 			return utils.Forbidden(ctx, "not a member")
+		}
+		if errors.Is(err, chat.ErrSystemRoom) {
+			return utils.Forbidden(ctx, "this room is managed automatically")
 		}
 		return utils.InternalError(ctx, "failed to leave room")
 	}
@@ -444,6 +453,9 @@ func (s *Service) kickMember(ctx fiber.Ctx) error {
 		}
 		if errors.Is(err, chat.ErrNotMember) {
 			return utils.NotFound(ctx, "user is not a member")
+		}
+		if errors.Is(err, chat.ErrSystemRoom) {
+			return utils.Forbidden(ctx, "this room is managed automatically")
 		}
 		return utils.InternalError(ctx, "failed to kick member")
 	}

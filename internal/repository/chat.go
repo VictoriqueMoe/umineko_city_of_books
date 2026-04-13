@@ -20,6 +20,8 @@ type (
 		Type          string
 		IsPublic      bool
 		IsRP          bool
+		IsSystem      bool
+		SystemKind    string
 		CreatedBy     uuid.UUID
 		CreatedAt     string
 		LastMessageAt sql.NullString
@@ -58,9 +60,12 @@ type (
 
 	ChatRepository interface {
 		CreateRoom(ctx context.Context, id uuid.UUID, name, description, roomType string, isPublic, isRP bool, createdBy uuid.UUID) error
+		CreateSystemRoom(ctx context.Context, id uuid.UUID, name, description, systemKind string, createdBy uuid.UUID) error
+		GetSystemRoomID(ctx context.Context, systemKind string) (uuid.UUID, error)
 		CreateDMRoomAtomic(ctx context.Context, id, userA, userB uuid.UUID) (uuid.UUID, error)
 		AddMember(ctx context.Context, roomID, userID uuid.UUID) error
 		AddMemberWithRole(ctx context.Context, roomID, userID uuid.UUID, role string) error
+		SetMemberRole(ctx context.Context, roomID, userID uuid.UUID, role string) error
 		RemoveMember(ctx context.Context, roomID, userID uuid.UUID) error
 		CountRoomMembers(ctx context.Context, roomID uuid.UUID) (int, error)
 		DeleteRoom(ctx context.Context, roomID uuid.UUID) error
@@ -120,6 +125,31 @@ func (r *chatRepository) CreateRoom(ctx context.Context, id uuid.UUID, name, des
 		return fmt.Errorf("create room: %w", err)
 	}
 	return nil
+}
+
+func (r *chatRepository) CreateSystemRoom(ctx context.Context, id uuid.UUID, name, description, systemKind string, createdBy uuid.UUID) error {
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO chat_rooms (id, name, description, type, is_public, is_rp, is_system, system_kind, created_by) VALUES (?, ?, ?, 'group', 0, 0, 1, ?, ?)`,
+		id, name, description, systemKind, createdBy,
+	)
+	if err != nil {
+		return fmt.Errorf("create system room: %w", err)
+	}
+	return nil
+}
+
+func (r *chatRepository) GetSystemRoomID(ctx context.Context, systemKind string) (uuid.UUID, error) {
+	var id uuid.UUID
+	err := r.db.QueryRowContext(ctx,
+		`SELECT id FROM chat_rooms WHERE system_kind = ? LIMIT 1`, systemKind,
+	).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return uuid.Nil, nil
+	}
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("get system room id: %w", err)
+	}
+	return id, nil
 }
 
 func (r *chatRepository) AddRoomTags(ctx context.Context, roomID uuid.UUID, tags []string) error {
@@ -204,6 +234,17 @@ func (r *chatRepository) AddMemberWithRole(ctx context.Context, roomID, userID u
 	)
 	if err != nil {
 		return fmt.Errorf("add member with role: %w", err)
+	}
+	return nil
+}
+
+func (r *chatRepository) SetMemberRole(ctx context.Context, roomID, userID uuid.UUID, role string) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE chat_room_members SET role = ? WHERE room_id = ? AND user_id = ?`,
+		role, roomID, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("set member role: %w", err)
 	}
 	return nil
 }
@@ -319,11 +360,11 @@ func (r *chatRepository) RemoveMember(ctx context.Context, roomID, userID uuid.U
 
 func (r *chatRepository) GetRoomsByUser(ctx context.Context, userID uuid.UUID) ([]ChatRoomRow, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT cr.id, cr.name, cr.description, cr.type, cr.is_public, cr.is_rp, cr.created_by, cr.created_at, cr.last_message_at, m.last_read_at, m.role,
+		`SELECT cr.id, cr.name, cr.description, cr.type, cr.is_public, cr.is_rp, cr.is_system, cr.system_kind, cr.created_by, cr.created_at, cr.last_message_at, m.last_read_at, m.role,
 		 (SELECT COUNT(*) FROM chat_room_members WHERE room_id = cr.id)
 		 FROM chat_rooms cr
 		 JOIN chat_room_members m ON cr.id = m.room_id AND m.user_id = ?
-		 ORDER BY COALESCE(cr.last_message_at, cr.created_at) DESC`, userID,
+		 ORDER BY cr.is_system DESC, COALESCE(cr.last_message_at, cr.created_at) DESC`, userID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("get rooms by user: %w", err)
@@ -333,12 +374,17 @@ func (r *chatRepository) GetRoomsByUser(ctx context.Context, userID uuid.UUID) (
 	var result []ChatRoomRow
 	for rows.Next() {
 		var row ChatRoomRow
-		var publicInt, rpInt int
-		if err := rows.Scan(&row.ID, &row.Name, &row.Description, &row.Type, &publicInt, &rpInt, &row.CreatedBy, &row.CreatedAt, &row.LastMessageAt, &row.LastReadAt, &row.ViewerRole, &row.MemberCount); err != nil {
+		var publicInt, rpInt, systemInt int
+		var systemKind sql.NullString
+		if err := rows.Scan(&row.ID, &row.Name, &row.Description, &row.Type, &publicInt, &rpInt, &systemInt, &systemKind, &row.CreatedBy, &row.CreatedAt, &row.LastMessageAt, &row.LastReadAt, &row.ViewerRole, &row.MemberCount); err != nil {
 			return nil, fmt.Errorf("scan room: %w", err)
 		}
 		row.IsPublic = publicInt != 0
 		row.IsRP = rpInt != 0
+		row.IsSystem = systemInt != 0
+		if systemKind.Valid {
+			row.SystemKind = systemKind.String
+		}
 		row.IsMember = true
 		result = append(result, row)
 	}
@@ -400,11 +446,11 @@ func (r *chatRepository) ListUserGroupRooms(ctx context.Context, userID uuid.UUI
 	queryArgs = append(queryArgs, limit, offset)
 
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT cr.id, cr.name, cr.description, cr.type, cr.is_public, cr.is_rp, cr.created_by, cr.created_at, cr.last_message_at, m.last_read_at, m.role,
+		`SELECT cr.id, cr.name, cr.description, cr.type, cr.is_public, cr.is_rp, cr.is_system, cr.system_kind, cr.created_by, cr.created_at, cr.last_message_at, m.last_read_at, m.role,
 		 (SELECT COUNT(*) FROM chat_room_members WHERE room_id = cr.id)
 		 FROM chat_rooms cr
 		 JOIN chat_room_members m ON cr.id = m.room_id`+where+`
-		 ORDER BY COALESCE(cr.last_message_at, cr.created_at) DESC
+		 ORDER BY cr.is_system DESC, COALESCE(cr.last_message_at, cr.created_at) DESC
 		 LIMIT ? OFFSET ?`, queryArgs...,
 	)
 	if err != nil {
@@ -415,12 +461,17 @@ func (r *chatRepository) ListUserGroupRooms(ctx context.Context, userID uuid.UUI
 	var result []ChatRoomRow
 	for rows.Next() {
 		var row ChatRoomRow
-		var publicInt, rpInt int
-		if err := rows.Scan(&row.ID, &row.Name, &row.Description, &row.Type, &publicInt, &rpInt, &row.CreatedBy, &row.CreatedAt, &row.LastMessageAt, &row.LastReadAt, &row.ViewerRole, &row.MemberCount); err != nil {
+		var publicInt, rpInt, systemInt int
+		var systemKind sql.NullString
+		if err := rows.Scan(&row.ID, &row.Name, &row.Description, &row.Type, &publicInt, &rpInt, &systemInt, &systemKind, &row.CreatedBy, &row.CreatedAt, &row.LastMessageAt, &row.LastReadAt, &row.ViewerRole, &row.MemberCount); err != nil {
 			return nil, 0, fmt.Errorf("scan user group room: %w", err)
 		}
 		row.IsPublic = publicInt != 0
 		row.IsRP = rpInt != 0
+		row.IsSystem = systemInt != 0
+		if systemKind.Valid {
+			row.SystemKind = systemKind.String
+		}
 		row.IsMember = true
 		result = append(result, row)
 	}
@@ -443,17 +494,18 @@ func (r *chatRepository) ListUserGroupRooms(ctx context.Context, userID uuid.UUI
 
 func (r *chatRepository) GetRoomByID(ctx context.Context, roomID, viewerID uuid.UUID) (*ChatRoomRow, error) {
 	var row ChatRoomRow
-	var publicInt, rpInt int
+	var publicInt, rpInt, systemInt int
+	var systemKind sql.NullString
 	var viewerRole sql.NullString
 	var viewerMuted sql.NullInt64
 	err := r.db.QueryRowContext(ctx,
-		`SELECT cr.id, cr.name, cr.description, cr.type, cr.is_public, cr.is_rp, cr.created_by, cr.created_at, cr.last_message_at, m.last_read_at, m.role, m.muted,
+		`SELECT cr.id, cr.name, cr.description, cr.type, cr.is_public, cr.is_rp, cr.is_system, cr.system_kind, cr.created_by, cr.created_at, cr.last_message_at, m.last_read_at, m.role, m.muted,
 		 (SELECT COUNT(*) FROM chat_room_members WHERE room_id = cr.id)
 		 FROM chat_rooms cr
 		 LEFT JOIN chat_room_members m ON cr.id = m.room_id AND m.user_id = ?
 		 WHERE cr.id = ?`,
 		viewerID, roomID,
-	).Scan(&row.ID, &row.Name, &row.Description, &row.Type, &publicInt, &rpInt, &row.CreatedBy, &row.CreatedAt, &row.LastMessageAt, &row.LastReadAt, &viewerRole, &viewerMuted, &row.MemberCount)
+	).Scan(&row.ID, &row.Name, &row.Description, &row.Type, &publicInt, &rpInt, &systemInt, &systemKind, &row.CreatedBy, &row.CreatedAt, &row.LastMessageAt, &row.LastReadAt, &viewerRole, &viewerMuted, &row.MemberCount)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -462,6 +514,10 @@ func (r *chatRepository) GetRoomByID(ctx context.Context, roomID, viewerID uuid.
 	}
 	row.IsPublic = publicInt != 0
 	row.IsRP = rpInt != 0
+	row.IsSystem = systemInt != 0
+	if systemKind.Valid {
+		row.SystemKind = systemKind.String
+	}
 	if viewerRole.Valid {
 		row.ViewerRole = viewerRole.String
 		row.IsMember = true
@@ -500,7 +556,7 @@ func (r *chatRepository) GetRoomMembersDetailed(ctx context.Context, roomID uuid
 }
 
 func (r *chatRepository) ListPublicRooms(ctx context.Context, search string, isRPOnly bool, tag string, viewerID uuid.UUID, excludeUserIDs []uuid.UUID, limit, offset int) ([]ChatRoomRow, int, error) {
-	conditions := []string{"cr.type = 'group'", "cr.is_public = 1"}
+	conditions := []string{"cr.type = 'group'", "cr.is_public = 1", "cr.is_system = 0"}
 	var args []interface{}
 	if search != "" {
 		conditions = append(conditions, "(cr.name LIKE ? OR cr.description LIKE ?)")
@@ -541,7 +597,7 @@ func (r *chatRepository) ListPublicRooms(ctx context.Context, search string, isR
 	queryArgs = append(queryArgs, limit, offset)
 
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT cr.id, cr.name, cr.description, cr.type, cr.is_public, cr.is_rp, cr.created_by, cr.created_at, cr.last_message_at,
+		`SELECT cr.id, cr.name, cr.description, cr.type, cr.is_public, cr.is_rp, cr.is_system, cr.system_kind, cr.created_by, cr.created_at, cr.last_message_at,
 		 (SELECT COUNT(*) FROM chat_room_members WHERE room_id = cr.id),
 		 EXISTS(SELECT 1 FROM chat_room_members WHERE room_id = cr.id AND user_id = ?)
 		 FROM chat_rooms cr`+where+`
@@ -557,12 +613,17 @@ func (r *chatRepository) ListPublicRooms(ctx context.Context, search string, isR
 	var result []ChatRoomRow
 	for rows.Next() {
 		var row ChatRoomRow
-		var publicInt, rpInt, isMemberInt int
-		if err := rows.Scan(&row.ID, &row.Name, &row.Description, &row.Type, &publicInt, &rpInt, &row.CreatedBy, &row.CreatedAt, &row.LastMessageAt, &row.MemberCount, &isMemberInt); err != nil {
+		var publicInt, rpInt, systemInt, isMemberInt int
+		var systemKind sql.NullString
+		if err := rows.Scan(&row.ID, &row.Name, &row.Description, &row.Type, &publicInt, &rpInt, &systemInt, &systemKind, &row.CreatedBy, &row.CreatedAt, &row.LastMessageAt, &row.MemberCount, &isMemberInt); err != nil {
 			return nil, 0, fmt.Errorf("scan public room: %w", err)
 		}
 		row.IsPublic = publicInt != 0
 		row.IsRP = rpInt != 0
+		row.IsSystem = systemInt != 0
+		if systemKind.Valid {
+			row.SystemKind = systemKind.String
+		}
 		row.IsMember = isMemberInt != 0
 		result = append(result, row)
 	}

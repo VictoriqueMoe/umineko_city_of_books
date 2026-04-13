@@ -9,9 +9,11 @@ import (
 	"strings"
 	"time"
 
+	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
@@ -22,6 +24,16 @@ import (
 	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
+)
+
+const (
+	SystemKindMods   = "mods"
+	SystemKindAdmins = "admins"
+
+	systemModsName   = "Moderators"
+	systemAdminsName = "Administrators"
+	systemModsDesc   = "Private staff room for moderators, admins, and super admins. Membership is managed automatically."
+	systemAdminsDesc = "Private room for admins and super admins. Membership is managed automatically."
 )
 
 var mentionRegex = regexp.MustCompile(`@([a-zA-Z0-9_]+)`)
@@ -58,6 +70,9 @@ func sanitizeTags(raw []string) []string {
 
 type (
 	Service interface {
+		EnsureSystemRooms(ctx context.Context) error
+		SyncSystemRoomMembership(ctx context.Context, userID uuid.UUID, newRole role.Role) error
+
 		ResolveDMRoom(ctx context.Context, senderID, recipientID uuid.UUID) (*dto.ResolveDMResponse, error)
 		SendDMMessage(ctx context.Context, senderID, recipientID uuid.UUID, body string) (*dto.SendDMResponse, error)
 		CreateGroupRoom(ctx context.Context, creatorID uuid.UUID, req dto.CreateGroupRoomRequest) (*dto.ChatRoomResponse, error)
@@ -84,6 +99,7 @@ type (
 	service struct {
 		chatRepo    repository.ChatRepository
 		userRepo    repository.UserRepository
+		roleRepo    repository.RoleRepository
 		notifSvc    notification.Service
 		blockSvc    block.Service
 		settingsSvc settings.Service
@@ -95,6 +111,7 @@ type (
 func NewService(
 	chatRepo repository.ChatRepository,
 	userRepo repository.UserRepository,
+	roleRepo repository.RoleRepository,
 	notifSvc notification.Service,
 	blockSvc block.Service,
 	uploadSvc upload.Service,
@@ -105,6 +122,7 @@ func NewService(
 	return &service{
 		chatRepo:    chatRepo,
 		userRepo:    userRepo,
+		roleRepo:    roleRepo,
 		notifSvc:    notifSvc,
 		blockSvc:    blockSvc,
 		settingsSvc: settingsSvc,
@@ -346,6 +364,9 @@ func (s *service) JoinRoom(ctx context.Context, roomID, userID uuid.UUID) (*dto.
 	if row.Type != "group" {
 		return nil, ErrNotGroupRoom
 	}
+	if row.IsSystem {
+		return nil, ErrSystemRoom
+	}
 	if !row.IsPublic {
 		return nil, ErrNotPublic
 	}
@@ -394,6 +415,9 @@ func (s *service) LeaveRoom(ctx context.Context, roomID, userID uuid.UUID) error
 	if row == nil || !row.IsMember {
 		return ErrNotMember
 	}
+	if row.IsSystem {
+		return ErrSystemRoom
+	}
 	if row.ViewerRole == "host" {
 		return ErrCannotLeaveAsHost
 	}
@@ -421,6 +445,17 @@ func (s *service) LeaveRoom(ctx context.Context, roomID, userID uuid.UUID) error
 }
 
 func (s *service) KickMember(ctx context.Context, hostID, roomID, targetID uuid.UUID) error {
+	row, err := s.chatRepo.GetRoomByID(ctx, roomID, hostID)
+	if err != nil {
+		return fmt.Errorf("get room: %w", err)
+	}
+	if row == nil {
+		return ErrRoomNotFound
+	}
+	if row.IsSystem {
+		return ErrSystemRoom
+	}
+
 	hostRole, err := s.chatRepo.GetMemberRole(ctx, roomID, hostID)
 	if err != nil {
 		return fmt.Errorf("get host role: %w", err)
@@ -520,6 +555,128 @@ func (s *service) ListRooms(ctx context.Context, userID uuid.UUID) (*dto.ChatRoo
 	return &dto.ChatRoomListResponse{Rooms: rooms}, nil
 }
 
+func eligibleForMods(r role.Role) bool {
+	return r == authz.RoleModerator || r == authz.RoleAdmin || r == authz.RoleSuperAdmin
+}
+
+func eligibleForAdmins(r role.Role) bool {
+	return r == authz.RoleAdmin || r == authz.RoleSuperAdmin
+}
+
+func memberRoleForSystem(r role.Role) string {
+	if r == authz.RoleSuperAdmin {
+		return "host"
+	}
+	return "member"
+}
+
+func (s *service) EnsureSystemRooms(ctx context.Context) error {
+	modsID, err := s.chatRepo.GetSystemRoomID(ctx, SystemKindMods)
+	if err != nil {
+		return fmt.Errorf("get mods room: %w", err)
+	}
+	adminsID, err := s.chatRepo.GetSystemRoomID(ctx, SystemKindAdmins)
+	if err != nil {
+		return fmt.Errorf("get admins room: %w", err)
+	}
+	if modsID != uuid.Nil && adminsID != uuid.Nil {
+		return nil
+	}
+
+	supers, err := s.roleRepo.GetUsersByRoles(ctx, []role.Role{authz.RoleSuperAdmin})
+	if err != nil {
+		return fmt.Errorf("find super admin: %w", err)
+	}
+	if len(supers) == 0 {
+		return nil
+	}
+	creator := supers[0]
+
+	if modsID == uuid.Nil {
+		if err := s.chatRepo.CreateSystemRoom(ctx, uuid.New(), systemModsName, systemModsDesc, SystemKindMods, creator); err != nil {
+			return err
+		}
+	}
+	if adminsID == uuid.Nil {
+		if err := s.chatRepo.CreateSystemRoom(ctx, uuid.New(), systemAdminsName, systemAdminsDesc, SystemKindAdmins, creator); err != nil {
+			return err
+		}
+	}
+
+	staff, err := s.roleRepo.GetUsersByRoles(ctx, []role.Role{authz.RoleModerator, authz.RoleAdmin, authz.RoleSuperAdmin})
+	if err != nil {
+		return fmt.Errorf("list staff: %w", err)
+	}
+	for _, uid := range staff {
+		r, rErr := s.roleRepo.GetRole(ctx, uid)
+		if rErr != nil {
+			logger.Log.Error().Err(rErr).Str("user_id", uid.String()).Msg("get role during system room seed")
+			continue
+		}
+		if err := s.SyncSystemRoomMembership(ctx, uid, r); err != nil {
+			logger.Log.Error().Err(err).Str("user_id", uid.String()).Msg("sync system room membership during seed")
+		}
+	}
+	return nil
+}
+
+func (s *service) SyncSystemRoomMembership(ctx context.Context, userID uuid.UUID, newRole role.Role) error {
+	modsID, err := s.chatRepo.GetSystemRoomID(ctx, SystemKindMods)
+	if err != nil {
+		return fmt.Errorf("get mods room: %w", err)
+	}
+	adminsID, err := s.chatRepo.GetSystemRoomID(ctx, SystemKindAdmins)
+	if err != nil {
+		return fmt.Errorf("get admins room: %w", err)
+	}
+
+	desired := memberRoleForSystem(newRole)
+	if err := s.syncOneSystemRoom(ctx, modsID, userID, eligibleForMods(newRole), desired); err != nil {
+		return err
+	}
+	if err := s.syncOneSystemRoom(ctx, adminsID, userID, eligibleForAdmins(newRole), desired); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *service) syncOneSystemRoom(ctx context.Context, roomID, userID uuid.UUID, shouldBeMember bool, desiredRole string) error {
+	if roomID == uuid.Nil {
+		return nil
+	}
+	currentRole, err := s.chatRepo.GetMemberRole(ctx, roomID, userID)
+	if err != nil {
+		return fmt.Errorf("get current role: %w", err)
+	}
+	wasMember := currentRole != ""
+
+	switch {
+	case shouldBeMember && !wasMember:
+		if err := s.chatRepo.AddMemberWithRole(ctx, roomID, userID, desiredRole); err != nil {
+			return err
+		}
+		s.hub.JoinRoom(roomID, userID)
+		s.hub.SendToUser(userID, ws.Message{
+			Type: "chat_room_invited",
+			Data: map[string]interface{}{"room_id": roomID},
+		})
+	case !shouldBeMember && wasMember:
+		if err := s.chatRepo.RemoveMember(ctx, roomID, userID); err != nil {
+			return err
+		}
+		s.hub.LeaveRoom(roomID, userID)
+		s.hub.SendToUser(userID, ws.Message{
+			Type: "chat_kicked",
+			Data: map[string]interface{}{"room_id": roomID},
+		})
+	case shouldBeMember && wasMember && currentRole != desiredRole:
+		if err := s.chatRepo.SetMemberRole(ctx, roomID, userID, desiredRole); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (s *service) rowToResponse(row repository.ChatRoomRow) dto.ChatRoomResponse {
 	return dto.ChatRoomResponse{
 		ID:            row.ID,
@@ -528,6 +685,8 @@ func (s *service) rowToResponse(row repository.ChatRoomRow) dto.ChatRoomResponse
 		Type:          row.Type,
 		IsPublic:      row.IsPublic,
 		IsRP:          row.IsRP,
+		IsSystem:      row.IsSystem,
+		SystemKind:    row.SystemKind,
 		Tags:          row.Tags,
 		ViewerRole:    row.ViewerRole,
 		ViewerMuted:   row.ViewerMuted,
@@ -928,6 +1087,9 @@ func (s *service) DeleteChat(ctx context.Context, roomID, userID uuid.UUID) erro
 	}
 	if row == nil || !row.IsMember {
 		return ErrNotMember
+	}
+	if row.IsSystem {
+		return ErrSystemRoom
 	}
 
 	if row.Type == "group" && row.ViewerRole == "host" {

@@ -136,7 +136,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 	notifSvc := notification.NewService(repos.Notification, repos.User, hub, emailSvc)
 	reportSvc := report.NewService(repos.Report, repos.Role, repos.User, notifSvc, settingsSvc)
 	mediaProc := media.NewProcessor(4)
-	chatSvc := chat.NewService(repos.Chat, repos.User, notifSvc, blockSvc, uploadSvc, settingsSvc, mediaProc, hub)
+	chatSvc := chat.NewService(repos.Chat, repos.User, repos.Role, notifSvc, blockSvc, uploadSvc, settingsSvc, mediaProc, hub)
 	followSvc := follow.NewService(repos.Follow, repos.User, blockSvc, notifSvc, settingsSvc)
 	postSvc := postsvc.NewService(repos.DB(), repos.Post, repos.User, repos.Role, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, hub)
 	artSvc := artsvc.NewService(repos.Art, repos.Post, repos.User, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc)
@@ -151,7 +151,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 		profile:      profile.NewService(repos.User, repos.Theory, authzSvc, uploadSvc, settingsSvc),
 		theory:       theory.NewService(repos.Theory, repos.User, authzSvc, blockSvc, notifSvc, settingsSvc, credibilitySvc, quoteClient),
 		notification: notifSvc,
-		admin:        admin.NewService(repos.User, repos.Role, repos.Stats, repos.AuditLog, repos.Invite, repos.VanityRole, authzSvc, settingsSvc, sessionMgr, uploadSvc, hub),
+		admin:        admin.NewService(repos.User, repos.Role, repos.Stats, repos.AuditLog, repos.Invite, repos.VanityRole, authzSvc, settingsSvc, sessionMgr, uploadSvc, hub, chatSvc),
 		authz:        authzSvc,
 		chat:         chatSvc,
 		report:       reportSvc,
@@ -175,6 +175,10 @@ func registerListeners(settingsSvc settings.Service, app *fiber.App, svc *servic
 	settingsSvc.Subscribe(logger.NewSettingsListener())
 	settingsSvc.Subscribe(middleware.NewBodyLimitListener(app))
 	settingsSvc.Subscribe(email.NewMailSettingListener(svc.email))
+
+	if err := svc.chat.EnsureSystemRooms(context.Background()); err != nil {
+		logger.Log.Error().Err(err).Msg("ensure system chat rooms at startup")
+	}
 
 	logger.Log.Info().Str("interval", "1h").Msg("registered job: refresh stale embeds")
 	go func() {
