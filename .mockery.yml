@@ -66,9 +66,12 @@ packages:
   umineko_city_of_books/internal/upload:
     interfaces:
       Service:
-  umineko_city_of_books/internal/repository:
+  umineko_city_of_books/internal/user:
     interfaces:
-      UserRepository:
-      AnnouncementRepository:
-      VanityRoleRepository:
-      SessionRepository:
+      Service:
+  umineko_city_of_books/internal/email:
+    interfaces:
+      Service:
+  umineko_city_of_books/internal/repository:
+    config:
+      all: true
