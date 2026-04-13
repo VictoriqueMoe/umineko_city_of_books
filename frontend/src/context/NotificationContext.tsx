@@ -45,6 +45,7 @@ export function NotificationProvider({ children }: PropsWithChildren) {
 
         socket.onopen = () => {
             backoffRef.current = 1000;
+            window.dispatchEvent(new CustomEvent("site-info-refresh"));
         };
 
         socket.onmessage = event => {

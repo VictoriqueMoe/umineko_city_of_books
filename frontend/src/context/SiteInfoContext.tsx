@@ -21,9 +21,12 @@ export function SiteInfoProvider({ children }: PropsWithChildren) {
                 handleRefresh();
             }
         }
+        const pollId = setInterval(handleRefresh, 5 * 60 * 1000);
+
         window.addEventListener("site-info-refresh", handleRefresh);
         document.addEventListener("visibilitychange", handleVisibility);
         return () => {
+            clearInterval(pollId);
             window.removeEventListener("site-info-refresh", handleRefresh);
             document.removeEventListener("visibilitychange", handleVisibility);
         };
