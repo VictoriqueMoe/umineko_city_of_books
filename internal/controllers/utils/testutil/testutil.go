@@ -162,6 +162,87 @@ func (h *Harness) ExpectBannedUser(cookie string, userID uuid.UUID) {
 		Maybe()
 }
 
+// ExpectHasPermission registers Can(userID, perm) → granted on the authz mock.
+// Combine with ExpectValidSession to set up a fully-authorised user for routes
+// gated by middleware.RequirePermission.
+func (h *Harness) ExpectHasPermission(userID uuid.UUID, perm authzsvc.Permission, granted bool) {
+	h.T.Helper()
+	h.AuthzService.EXPECT().
+		Can(mock.Anything, userID, perm).
+		Return(granted).
+		Maybe()
+}
+
+// RunPermissionFailureSuite runs the four standard failure cases against a
+// permission-gated route: missing cookie (401), invalid session (401), banned
+// user (403), and authenticated-but-lacking-permission (403).
+func RunPermissionFailureSuite[H any](t *testing.T, factory func(t *testing.T) (*Harness, H), method, path string, body any, perm authzsvc.Permission) {
+	t.Helper()
+
+	cases := []struct {
+		name     string
+		cookie   string
+		setup    func(*Harness)
+		wantCode int
+		wantBody string
+	}{
+		{
+			name:     "no cookie",
+			cookie:   "",
+			setup:    func(_ *Harness) {},
+			wantCode: http.StatusUnauthorized,
+			wantBody: "authentication required",
+		},
+		{
+			name:     "invalid session",
+			cookie:   "bogus",
+			setup:    func(h *Harness) { h.ExpectInvalidSession("bogus") },
+			wantCode: http.StatusUnauthorized,
+			wantBody: "invalid or expired session",
+		},
+		{
+			name:     "banned",
+			cookie:   "banned-cookie",
+			setup:    func(h *Harness) { h.ExpectBannedUser("banned-cookie", uuid.New()) },
+			wantCode: http.StatusForbidden,
+			wantBody: "banned",
+		},
+		{
+			name:   "insufficient permissions",
+			cookie: "valid-cookie",
+			setup: func(h *Harness) {
+				userID := uuid.New()
+				h.ExpectValidSession("valid-cookie", userID)
+				h.ExpectHasPermission(userID, perm, false)
+			},
+			wantCode: http.StatusForbidden,
+			wantBody: "insufficient permissions",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h, _ := factory(t)
+			tc.setup(h)
+
+			// when
+			req := h.NewRequest(method, path)
+			if body != nil {
+				req = req.WithJSONBody(body)
+			}
+			if tc.cookie != "" {
+				req = req.WithCookie(tc.cookie)
+			}
+			status, respBody := req.Do()
+
+			// then
+			require.Equal(t, tc.wantCode, status)
+			assert.Contains(t, string(respBody), tc.wantBody)
+		})
+	}
+}
+
 // Request is a fluent builder for issuing HTTP requests against the harness app.
 type Request struct {
 	h       *Harness
