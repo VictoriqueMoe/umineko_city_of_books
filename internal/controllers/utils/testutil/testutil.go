@@ -21,10 +21,30 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// RunAuthFailureSuite runs the three standard auth failure cases against a
-// protected route: missing cookie (401), invalid session cookie (401), and
-// banned user (403). The factory is called fresh for each subtest so mocks
-// are isolated. If body is non-nil it is sent as JSON.
+type (
+	Harness struct {
+		T               *testing.T
+		App             *fiber.App
+		SessionManager  *session.Manager
+		SessionRepo     *repository.MockSessionRepository
+		SettingsService *settingssvc.MockService
+		AuthzService    *authzsvc.MockService
+	}
+
+	Request struct {
+		h       *Harness
+		method  string
+		path    string
+		body    io.Reader
+		cookie  string
+		headers map[string]string
+	}
+
+	errNotFoundT struct{}
+)
+
+var errNotFound error = errNotFoundT{}
+
 func RunAuthFailureSuite[H any](t *testing.T, factory func(t *testing.T) (*Harness, H), method, path string, body any) {
 	t.Helper()
 
@@ -81,31 +101,12 @@ func RunAuthFailureSuite[H any](t *testing.T, factory func(t *testing.T) (*Harne
 	}
 }
 
-// Harness wires a real session.Manager to mocked dependencies so tests can
-// exercise the full route chain (middleware + handler) against a fiber.App.
-//
-// The harness exposes the mocked repos/services so individual tests can
-// customise expectations on top of the defaults set up by NewHarness.
-type Harness struct {
-	T               *testing.T
-	App             *fiber.App
-	SessionManager  *session.Manager
-	SessionRepo     *repository.MockSessionRepository
-	SettingsService *settingssvc.MockService
-	AuthzService    *authzsvc.MockService
-}
-
-// NewHarness creates a harness with a fresh fiber app and default-mocked
-// session infrastructure. Callers register routes on harness.App after
-// constructing a controllers.Service that uses harness.SessionManager and
-// harness.AuthzService.
 func NewHarness(t *testing.T) *Harness {
 	t.Helper()
 	sessionRepo := repository.NewMockSessionRepository(t)
 	settingsService := settingssvc.NewMockService(t)
 	authzService := authzsvc.NewMockService(t)
 
-	// session.Manager reads SettingSessionDurationDays during Create; stub a sane default.
 	settingsService.EXPECT().GetInt(mock.Anything, mock.Anything).Return(30).Maybe()
 
 	mgr := session.NewManager(sessionRepo, settingsService)
@@ -120,9 +121,6 @@ func NewHarness(t *testing.T) *Harness {
 	}
 }
 
-// ExpectValidSession registers a SessionRepo expectation that `cookie` maps to
-// `userID` and IsBanned(userID) returns false. This is the happy path setup
-// for any authenticated route under test.
 func (h *Harness) ExpectValidSession(cookie string, userID uuid.UUID) {
 	h.T.Helper()
 	h.SessionRepo.EXPECT().
@@ -135,7 +133,6 @@ func (h *Harness) ExpectValidSession(cookie string, userID uuid.UUID) {
 		Maybe()
 }
 
-// ExpectInvalidSession makes `cookie` lookup fail with a not-found-style error.
 func (h *Harness) ExpectInvalidSession(cookie string) {
 	h.T.Helper()
 	h.SessionRepo.EXPECT().
@@ -144,8 +141,6 @@ func (h *Harness) ExpectInvalidSession(cookie string) {
 		Maybe()
 }
 
-// ExpectBannedUser makes `cookie` resolve to `userID` but the authz service
-// reports the user as banned. This exercises the 403 branch in RequireAuth.
 func (h *Harness) ExpectBannedUser(cookie string, userID uuid.UUID) {
 	h.T.Helper()
 	h.SessionRepo.EXPECT().
@@ -162,9 +157,6 @@ func (h *Harness) ExpectBannedUser(cookie string, userID uuid.UUID) {
 		Maybe()
 }
 
-// ExpectHasPermission registers Can(userID, perm) → granted on the authz mock.
-// Combine with ExpectValidSession to set up a fully-authorised user for routes
-// gated by middleware.RequirePermission.
 func (h *Harness) ExpectHasPermission(userID uuid.UUID, perm authzsvc.Permission, granted bool) {
 	h.T.Helper()
 	h.AuthzService.EXPECT().
@@ -173,9 +165,6 @@ func (h *Harness) ExpectHasPermission(userID uuid.UUID, perm authzsvc.Permission
 		Maybe()
 }
 
-// RunPermissionFailureSuite runs the four standard failure cases against a
-// permission-gated route: missing cookie (401), invalid session (401), banned
-// user (403), and authenticated-but-lacking-permission (403).
 func RunPermissionFailureSuite[H any](t *testing.T, factory func(t *testing.T) (*Harness, H), method, path string, body any, perm authzsvc.Permission) {
 	t.Helper()
 
@@ -243,16 +232,6 @@ func RunPermissionFailureSuite[H any](t *testing.T, factory func(t *testing.T) (
 	}
 }
 
-// Request is a fluent builder for issuing HTTP requests against the harness app.
-type Request struct {
-	h       *Harness
-	method  string
-	path    string
-	body    io.Reader
-	cookie  string
-	headers map[string]string
-}
-
 func (h *Harness) NewRequest(method, path string) *Request {
 	return &Request{h: h, method: method, path: path, headers: map[string]string{}}
 }
@@ -283,7 +262,6 @@ func (r *Request) WithHeader(k, v string) *Request {
 	return r
 }
 
-// Do executes the request and returns status code + body bytes.
 func (r *Request) Do() (int, []byte) {
 	r.h.T.Helper()
 	req := httptest.NewRequest(r.method, r.path, r.body)
@@ -301,7 +279,6 @@ func (r *Request) Do() (int, []byte) {
 	return resp.StatusCode, data
 }
 
-// UnmarshalJSON is a convenience to unmarshal the response body.
 func UnmarshalJSON[T any](t *testing.T, body []byte) T {
 	t.Helper()
 	var v T
@@ -309,10 +286,6 @@ func UnmarshalJSON[T any](t *testing.T, body []byte) T {
 	return v
 }
 
-// sentinel used by ExpectInvalidSession so callers don't need to import
-// database/sql or similar just to fabricate a "session missing" error.
-type errNotFoundT struct{}
-
-func (errNotFoundT) Error() string { return "session not found" }
-
-var errNotFound error = errNotFoundT{}
+func (errNotFoundT) Error() string {
+	return "session not found"
+}
