@@ -28,7 +28,7 @@ func (s *Service) setupUnblockUser(r fiber.Router) {
 }
 
 func (s *Service) setupGetBlockStatus(r fiber.Router) {
-	r.Get("/users/:id/block-status", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.getBlockStatus)
+	r.Get("/users/:id/block-status", middleware.OptionalAuth(s.AuthSession, s.AuthzService), s.getBlockStatus)
 }
 
 func (s *Service) setupListBlockedUsers(r fiber.Router) {
@@ -107,6 +107,13 @@ func (s *Service) getBlockStatus(ctx fiber.Ctx) error {
 	}
 
 	userID := ctx.Locals("userID").(uuid.UUID)
+	if userID == uuid.Nil {
+		return ctx.JSON(fiber.Map{
+			"blocking":   false,
+			"blocked_by": false,
+		})
+	}
+
 	blocked, err := s.BlockService.IsBlocked(ctx.Context(), userID, targetID)
 	if err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to check block status"})

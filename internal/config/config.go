@@ -81,6 +81,8 @@ var (
 	SettingRulesGalleryCiconia     = &SiteSettingDef{"rules_gallery_ciconia", "", TypeString}
 	SettingRulesFanfiction         = &SiteSettingDef{"rules_fanfiction", "", TypeString}
 	SettingRulesJournals           = &SiteSettingDef{"rules_journals", "", TypeString}
+	SettingRulesSuggestions        = &SiteSettingDef{"rules_suggestions", "", TypeString}
+	SettingRulesChatRooms          = &SiteSettingDef{"rules_chat_rooms", "", TypeString}
 	SettingSMTPHost                = &SiteSettingDef{"smtp_host", "", TypeString}
 	SettingSMTPPort                = &SiteSettingDef{"smtp_port", "25", TypeInt}
 	SettingSMTPFrom                = &SiteSettingDef{"smtp_from", "", TypeString}
@@ -133,6 +135,8 @@ var (
 		SettingRulesGalleryCiconia,
 		SettingRulesFanfiction,
 		SettingRulesJournals,
+		SettingRulesSuggestions,
+		SettingRulesChatRooms,
 		SettingSMTPHost,
 		SettingSMTPPort,
 		SettingSMTPFrom,

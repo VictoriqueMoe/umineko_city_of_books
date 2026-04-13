@@ -34,6 +34,8 @@ var rulesSettings = map[string]*config.SiteSettingDef{
 	"gallery_ciconia":      config.SettingRulesGalleryCiconia,
 	"fanfiction":           config.SettingRulesFanfiction,
 	"journals":             config.SettingRulesJournals,
+	"suggestions":          config.SettingRulesSuggestions,
+	"chat_rooms":           config.SettingRulesChatRooms,
 }
 
 func (s *Service) getAllAuthRoutes() []FSetupRoute {
