@@ -124,10 +124,6 @@ func (s *Service) listAnnouncements(ctx fiber.Ctx) error {
 		}
 	}
 
-	if items == nil {
-		items = []fiber.Map{}
-	}
-
 	return ctx.JSON(fiber.Map{
 		"announcements": items,
 		"total":         total,

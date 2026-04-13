@@ -29,11 +29,6 @@ type incomingMessage struct {
 	Data json.RawMessage `json:"data"`
 }
 
-type chatMessageData struct {
-	RoomID string `json:"room_id"`
-	Body   string `json:"body"`
-}
-
 type roomActionData struct {
 	RoomID string `json:"room_id"`
 }

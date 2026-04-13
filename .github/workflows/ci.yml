@@ -42,8 +42,14 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Vet
+        run: go vet ./...
+
+      - name: Staticcheck
+        run: go tool staticcheck ./...
+
       - name: Test
-        run: go test ./...
+        run: go test ./... -count=1
 
       - name: Build
         run: go build ./...

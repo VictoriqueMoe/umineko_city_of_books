@@ -62,10 +62,6 @@ func (s *Service) listBlockedUsers(ctx fiber.Ctx) error {
 		}
 	}
 
-	if result == nil {
-		result = []blockedUserResp{}
-	}
-
 	return ctx.JSON(fiber.Map{"users": result})
 }
 
