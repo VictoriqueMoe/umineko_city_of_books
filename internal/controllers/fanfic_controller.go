@@ -4,13 +4,13 @@ import (
 	"errors"
 
 	"umineko_city_of_books/internal/block"
+	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
 	fanficsvc "umineko_city_of_books/internal/fanfic"
 	"umineko_city_of_books/internal/middleware"
 	"umineko_city_of_books/internal/repository"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/google/uuid"
 )
 
 func (s *Service) getAllFanficRoutes() []FSetupRoute {
@@ -135,7 +135,7 @@ func (s *Service) setupListUserFanfics(r fiber.Router) {
 }
 
 func (s *Service) listFanfics(ctx fiber.Ctx) error {
-	viewerID, _ := ctx.Locals("userID").(uuid.UUID)
+	viewerID := utils.UserID(ctx)
 	params := repository.FanficListParams{
 		Sort:       ctx.Query("sort", "updated"),
 		Series:     ctx.Query("series"),
@@ -157,353 +157,353 @@ func (s *Service) listFanfics(ctx fiber.Ctx) error {
 	}
 	result, err := s.FanficService.ListFanfics(ctx.Context(), viewerID, params)
 	if err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to list fanfics"})
+		return utils.InternalError(ctx, "failed to list fanfics")
 	}
 	return ctx.JSON(result)
 }
 
 func (s *Service) getFanfic(ctx fiber.Ctx) error {
-	id, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid fanfic id"})
+	id, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
 
-	viewerID, _ := ctx.Locals("userID").(uuid.UUID)
+	viewerID := utils.UserID(ctx)
 	result, err := s.FanficService.GetFanfic(ctx.Context(), id, viewerID, viewerHash(ctx))
 	if err != nil {
 		if errors.Is(err, fanficsvc.ErrNotFound) {
-			return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "fanfic not found"})
+			return utils.NotFound(ctx, "fanfic not found")
 		}
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to get fanfic"})
+		return utils.InternalError(ctx, "failed to get fanfic")
 	}
 	return ctx.JSON(result)
 }
 
 func (s *Service) createFanfic(ctx fiber.Ctx) error {
-	userID := ctx.Locals("userID").(uuid.UUID)
-	var req dto.CreateFanficRequest
-	if err := ctx.Bind().JSON(&req); err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	userID := utils.UserID(ctx)
+	req, ok := utils.BindJSON[dto.CreateFanficRequest](ctx)
+	if !ok {
+		return nil
 	}
 
 	id, err := s.FanficService.CreateFanfic(ctx.Context(), userID, req)
 	if err != nil {
 		if errors.Is(err, fanficsvc.ErrEmptyTitle) || errors.Is(err, fanficsvc.ErrTooManyGenres) || errors.Is(err, fanficsvc.ErrTooManyCharacters) || errors.Is(err, fanficsvc.ErrTooManyTags) || errors.Is(err, fanficsvc.ErrTagTooLong) || errors.Is(err, fanficsvc.ErrInvalidRating) {
-			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+			return utils.BadRequest(ctx, err.Error())
 		}
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to create fanfic"})
+		return utils.InternalError(ctx, "failed to create fanfic")
 	}
 	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id})
 }
 
 func (s *Service) updateFanfic(ctx fiber.Ctx) error {
-	id, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid fanfic id"})
+	id, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 
-	var req dto.UpdateFanficRequest
-	if err := ctx.Bind().JSON(&req); err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	req, ok := utils.BindJSON[dto.UpdateFanficRequest](ctx)
+	if !ok {
+		return nil
 	}
 
 	if err := s.FanficService.UpdateFanfic(ctx.Context(), id, userID, req); err != nil {
 		if errors.Is(err, fanficsvc.ErrEmptyTitle) || errors.Is(err, fanficsvc.ErrTooManyGenres) || errors.Is(err, fanficsvc.ErrTooManyCharacters) || errors.Is(err, fanficsvc.ErrTooManyTags) || errors.Is(err, fanficsvc.ErrTagTooLong) || errors.Is(err, fanficsvc.ErrInvalidRating) {
-			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+			return utils.BadRequest(ctx, err.Error())
 		}
 		if errors.Is(err, fanficsvc.ErrNotAuthor) {
-			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
+			return utils.Forbidden(ctx, err.Error())
 		}
 		if errors.Is(err, fanficsvc.ErrNotFound) {
-			return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "fanfic not found"})
+			return utils.NotFound(ctx, "fanfic not found")
 		}
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to update fanfic"})
+		return utils.InternalError(ctx, "failed to update fanfic")
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
 
 func (s *Service) deleteFanfic(ctx fiber.Ctx) error {
-	id, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid fanfic id"})
+	id, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 
 	if err := s.FanficService.DeleteFanfic(ctx.Context(), id, userID); err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to delete fanfic"})
+		return utils.InternalError(ctx, "failed to delete fanfic")
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
 
 func (s *Service) uploadFanficCover(ctx fiber.Ctx) error {
-	fanficID, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid fanfic id"})
+	fanficID, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 
 	file, err := ctx.FormFile("image")
 	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "no image file provided"})
+		return utils.BadRequest(ctx, "no image file provided")
 	}
 	reader, err := file.Open()
 	if err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to read file"})
+		return utils.InternalError(ctx, "failed to read file")
 	}
 	defer reader.Close()
 
 	url, err := s.FanficService.UploadCoverImage(ctx.Context(), fanficID, userID, file.Header.Get("Content-Type"), file.Size, reader)
 	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+		return utils.BadRequest(ctx, err.Error())
 	}
 	return ctx.JSON(fiber.Map{"image_url": url})
 }
 
 func (s *Service) deleteFanficCover(ctx fiber.Ctx) error {
-	fanficID, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid fanfic id"})
+	fanficID, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 
 	if err := s.FanficService.RemoveCoverImage(ctx.Context(), fanficID, userID); err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+		return utils.BadRequest(ctx, err.Error())
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
 
 func (s *Service) getFanficChapter(ctx fiber.Ctx) error {
-	fanficID, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid fanfic id"})
+	fanficID, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
 	number := fiber.Params[int](ctx, "number", 0)
 	if number < 1 {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid chapter number"})
+		return utils.BadRequest(ctx, "invalid chapter number")
 	}
-	viewerID, _ := ctx.Locals("userID").(uuid.UUID)
+	viewerID := utils.UserID(ctx)
 	result, err := s.FanficService.GetChapter(ctx.Context(), fanficID, number, viewerID)
 	if err != nil {
 		if errors.Is(err, fanficsvc.ErrNotFound) {
-			return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "chapter not found"})
+			return utils.NotFound(ctx, "chapter not found")
 		}
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to get chapter"})
+		return utils.InternalError(ctx, "failed to get chapter")
 	}
 	return ctx.JSON(result)
 }
 
 func (s *Service) createFanficChapter(ctx fiber.Ctx) error {
-	fanficID, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid fanfic id"})
+	fanficID, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 
-	var req dto.CreateChapterRequest
-	if err := ctx.Bind().JSON(&req); err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	req, ok := utils.BindJSON[dto.CreateChapterRequest](ctx)
+	if !ok {
+		return nil
 	}
 
 	id, err := s.FanficService.CreateChapter(ctx.Context(), fanficID, userID, req)
 	if err != nil {
 		if errors.Is(err, fanficsvc.ErrNotAuthor) {
-			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
+			return utils.Forbidden(ctx, err.Error())
 		}
 		if errors.Is(err, fanficsvc.ErrEmptyBody) {
-			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+			return utils.BadRequest(ctx, err.Error())
 		}
 		if errors.Is(err, fanficsvc.ErrNotFound) {
-			return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "fanfic not found"})
+			return utils.NotFound(ctx, "fanfic not found")
 		}
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to create chapter"})
+		return utils.InternalError(ctx, "failed to create chapter")
 	}
 	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id})
 }
 
 func (s *Service) updateFanficChapter(ctx fiber.Ctx) error {
-	id, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid chapter id"})
+	id, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 
-	var req dto.UpdateChapterRequest
-	if err := ctx.Bind().JSON(&req); err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	req, ok := utils.BindJSON[dto.UpdateChapterRequest](ctx)
+	if !ok {
+		return nil
 	}
 
 	if err := s.FanficService.UpdateChapter(ctx.Context(), id, userID, req); err != nil {
 		if errors.Is(err, fanficsvc.ErrNotAuthor) {
-			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
+			return utils.Forbidden(ctx, err.Error())
 		}
 		if errors.Is(err, fanficsvc.ErrEmptyBody) {
-			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+			return utils.BadRequest(ctx, err.Error())
 		}
 		if errors.Is(err, fanficsvc.ErrNotFound) {
-			return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "chapter not found"})
+			return utils.NotFound(ctx, "chapter not found")
 		}
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to update chapter"})
+		return utils.InternalError(ctx, "failed to update chapter")
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
 
 func (s *Service) deleteFanficChapter(ctx fiber.Ctx) error {
-	id, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid chapter id"})
+	id, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 
 	if err := s.FanficService.DeleteChapter(ctx.Context(), id, userID); err != nil {
 		if errors.Is(err, fanficsvc.ErrNotAuthor) {
-			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
+			return utils.Forbidden(ctx, err.Error())
 		}
 		if errors.Is(err, fanficsvc.ErrNotFound) {
-			return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "chapter not found"})
+			return utils.NotFound(ctx, "chapter not found")
 		}
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to delete chapter"})
+		return utils.InternalError(ctx, "failed to delete chapter")
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
 
 func (s *Service) favouriteFanfic(ctx fiber.Ctx) error {
-	fanficID, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid fanfic id"})
+	fanficID, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 
 	if err := s.FanficService.Favourite(ctx.Context(), userID, fanficID); err != nil {
 		if errors.Is(err, block.ErrUserBlocked) {
-			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "user is blocked"})
+			return utils.Forbidden(ctx, "user is blocked")
 		}
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to favourite fanfic"})
+		return utils.InternalError(ctx, "failed to favourite fanfic")
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
 
 func (s *Service) unfavouriteFanfic(ctx fiber.Ctx) error {
-	fanficID, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid fanfic id"})
+	fanficID, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 
 	if err := s.FanficService.Unfavourite(ctx.Context(), userID, fanficID); err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to unfavourite fanfic"})
+		return utils.InternalError(ctx, "failed to unfavourite fanfic")
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
 
 func (s *Service) createFanficComment(ctx fiber.Ctx) error {
-	fanficID, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid fanfic id"})
+	fanficID, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 
-	var req dto.CreateCommentRequest
-	if err := ctx.Bind().JSON(&req); err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	req, ok := utils.BindJSON[dto.CreateCommentRequest](ctx)
+	if !ok {
+		return nil
 	}
 
 	id, err := s.FanficService.CreateComment(ctx.Context(), fanficID, userID, req)
 	if err != nil {
 		if errors.Is(err, block.ErrUserBlocked) {
-			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "user is blocked"})
+			return utils.Forbidden(ctx, "user is blocked")
 		}
 		if errors.Is(err, fanficsvc.ErrEmptyBody) {
-			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+			return utils.BadRequest(ctx, err.Error())
 		}
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to create comment"})
+		return utils.InternalError(ctx, "failed to create comment")
 	}
 	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id})
 }
 
 func (s *Service) updateFanficComment(ctx fiber.Ctx) error {
-	id, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid comment id"})
+	id, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 
-	var req dto.UpdateCommentRequest
-	if err := ctx.Bind().JSON(&req); err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	req, ok := utils.BindJSON[dto.UpdateCommentRequest](ctx)
+	if !ok {
+		return nil
 	}
 
 	if err := s.FanficService.UpdateComment(ctx.Context(), id, userID, req); err != nil {
 		if errors.Is(err, fanficsvc.ErrEmptyBody) {
-			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+			return utils.BadRequest(ctx, err.Error())
 		}
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to update comment"})
+		return utils.InternalError(ctx, "failed to update comment")
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
 
 func (s *Service) deleteFanficComment(ctx fiber.Ctx) error {
-	id, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid comment id"})
+	id, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 
 	if err := s.FanficService.DeleteComment(ctx.Context(), id, userID); err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to delete comment"})
+		return utils.InternalError(ctx, "failed to delete comment")
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
 
 func (s *Service) likeFanficComment(ctx fiber.Ctx) error {
-	commentID, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid comment id"})
+	commentID, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 
 	if err := s.FanficService.LikeComment(ctx.Context(), userID, commentID); err != nil {
 		if errors.Is(err, block.ErrUserBlocked) {
-			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "user is blocked"})
+			return utils.Forbidden(ctx, "user is blocked")
 		}
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to like comment"})
+		return utils.InternalError(ctx, "failed to like comment")
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
 
 func (s *Service) unlikeFanficComment(ctx fiber.Ctx) error {
-	commentID, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid comment id"})
+	commentID, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 
 	if err := s.FanficService.UnlikeComment(ctx.Context(), userID, commentID); err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to unlike comment"})
+		return utils.InternalError(ctx, "failed to unlike comment")
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
 
 func (s *Service) uploadFanficCommentMedia(ctx fiber.Ctx) error {
-	commentID, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid comment id"})
+	commentID, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 
 	file, err := ctx.FormFile("media")
 	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "no media file provided"})
+		return utils.BadRequest(ctx, "no media file provided")
 	}
 	reader, err := file.Open()
 	if err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to read file"})
+		return utils.InternalError(ctx, "failed to read file")
 	}
 	defer reader.Close()
 
 	result, err := s.FanficService.UploadCommentMedia(ctx.Context(), commentID, userID, file.Header.Get("Content-Type"), file.Size, reader)
 	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+		return utils.BadRequest(ctx, err.Error())
 	}
 	return ctx.Status(fiber.StatusCreated).JSON(result)
 }
@@ -511,7 +511,7 @@ func (s *Service) uploadFanficCommentMedia(ctx fiber.Ctx) error {
 func (s *Service) getFanficLanguages(ctx fiber.Ctx) error {
 	langs, err := s.FanficService.GetLanguages(ctx.Context())
 	if err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to get languages"})
+		return utils.InternalError(ctx, "failed to get languages")
 	}
 	return ctx.JSON(fiber.Map{"languages": langs})
 }
@@ -519,7 +519,7 @@ func (s *Service) getFanficLanguages(ctx fiber.Ctx) error {
 func (s *Service) getFanficSeries(ctx fiber.Ctx) error {
 	series, err := s.FanficService.GetSeries(ctx.Context())
 	if err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to get series"})
+		return utils.InternalError(ctx, "failed to get series")
 	}
 	return ctx.JSON(fiber.Map{"series": series})
 }
@@ -528,23 +528,23 @@ func (s *Service) searchOCCharacters(ctx fiber.Ctx) error {
 	q := ctx.Query("q")
 	results, err := s.FanficService.SearchOCCharacters(ctx.Context(), q)
 	if err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to search characters"})
+		return utils.InternalError(ctx, "failed to search characters")
 	}
 	return ctx.JSON(fiber.Map{"characters": results})
 }
 
 func (s *Service) listUserFanfics(ctx fiber.Ctx) error {
-	userID, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user id"})
+	userID, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
-	viewerID, _ := ctx.Locals("userID").(uuid.UUID)
+	viewerID := utils.UserID(ctx)
 	limit := fiber.Query[int](ctx, "limit", 20)
 	offset := fiber.Query[int](ctx, "offset", 0)
 
 	result, err := s.FanficService.ListFanficsByUser(ctx.Context(), userID, viewerID, limit, offset)
 	if err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to list user fanfics"})
+		return utils.InternalError(ctx, "failed to list user fanfics")
 	}
 	return ctx.JSON(result)
 }
@@ -554,17 +554,17 @@ func (s *Service) setupListUserFanficFavourites(r fiber.Router) {
 }
 
 func (s *Service) listUserFanficFavourites(ctx fiber.Ctx) error {
-	userID, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user id"})
+	userID, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
-	viewerID, _ := ctx.Locals("userID").(uuid.UUID)
+	viewerID := utils.UserID(ctx)
 	limit := fiber.Query[int](ctx, "limit", 20)
 	offset := fiber.Query[int](ctx, "offset", 0)
 
 	result, err := s.FanficService.ListFavourites(ctx.Context(), userID, viewerID, limit, offset)
 	if err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to list favourites"})
+		return utils.InternalError(ctx, "failed to list favourites")
 	}
 	return ctx.JSON(result)
 }

@@ -2,8 +2,8 @@ package controllers
 
 import (
 	"github.com/gofiber/fiber/v3"
-	"github.com/google/uuid"
 
+	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/middleware"
 )
 
@@ -23,31 +23,31 @@ func (s *Service) setupUpdateAppearance(r fiber.Router) {
 }
 
 func (s *Service) updateGameBoardSort(ctx fiber.Ctx) error {
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 	var req struct {
 		Sort string `json:"sort"`
 	}
 	if err := ctx.Bind().JSON(&req); err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request"})
+		return utils.BadRequest(ctx, "invalid request")
 	}
 	if err := s.UserRepo.UpdateGameBoardSort(ctx.Context(), userID, req.Sort); err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to save"})
+		return utils.InternalError(ctx, "failed to save")
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
 
 func (s *Service) updateAppearance(ctx fiber.Ctx) error {
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 	var req struct {
 		Theme      string `json:"theme"`
 		Font       string `json:"font"`
 		WideLayout bool   `json:"wide_layout"`
 	}
 	if err := ctx.Bind().JSON(&req); err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request"})
+		return utils.BadRequest(ctx, "invalid request")
 	}
 	if err := s.UserRepo.UpdateAppearance(ctx.Context(), userID, req.Theme, req.Font, req.WideLayout); err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to save"})
+		return utils.InternalError(ctx, "failed to save")
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }

@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"umineko_city_of_books/internal/block"
+	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/middleware"
 
 	"github.com/gofiber/fiber/v3"
@@ -36,10 +37,10 @@ func (s *Service) setupListBlockedUsers(r fiber.Router) {
 }
 
 func (s *Service) listBlockedUsers(ctx fiber.Ctx) error {
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 	users, err := s.BlockService.GetBlockedUsers(ctx.Context(), userID)
 	if err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to list blocked users"})
+		return utils.InternalError(ctx, "failed to list blocked users")
 	}
 
 	type blockedUserResp struct {
@@ -69,44 +70,44 @@ func (s *Service) listBlockedUsers(ctx fiber.Ctx) error {
 }
 
 func (s *Service) blockUser(ctx fiber.Ctx) error {
-	targetID, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user id"})
+	targetID, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
 
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 	if err := s.BlockService.Block(ctx.Context(), userID, targetID); err != nil {
 		if errors.Is(err, block.ErrCannotBlockSelf) {
-			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+			return utils.BadRequest(ctx, err.Error())
 		}
 		if errors.Is(err, block.ErrCannotBlockStaff) {
-			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
+			return utils.Forbidden(ctx, err.Error())
 		}
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to block user"})
+		return utils.InternalError(ctx, "failed to block user")
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
 
 func (s *Service) unblockUser(ctx fiber.Ctx) error {
-	targetID, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user id"})
+	targetID, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
 
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 	if err := s.BlockService.Unblock(ctx.Context(), userID, targetID); err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to unblock user"})
+		return utils.InternalError(ctx, "failed to unblock user")
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
 
 func (s *Service) getBlockStatus(ctx fiber.Ctx) error {
-	targetID, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user id"})
+	targetID, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
 
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 	if userID == uuid.Nil {
 		return ctx.JSON(fiber.Map{
 			"blocking":   false,
@@ -116,12 +117,12 @@ func (s *Service) getBlockStatus(ctx fiber.Ctx) error {
 
 	blocked, err := s.BlockService.IsBlocked(ctx.Context(), userID, targetID)
 	if err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to check block status"})
+		return utils.InternalError(ctx, "failed to check block status")
 	}
 
 	blockedBy, err := s.BlockService.IsBlocked(ctx.Context(), targetID, userID)
 	if err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to check block status"})
+		return utils.InternalError(ctx, "failed to check block status")
 	}
 
 	return ctx.JSON(fiber.Map{

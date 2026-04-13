@@ -10,9 +10,9 @@ import (
 
 func RequirePermission(mgr *session.Manager, authzSvc authz.Service, perm authz.Permission) fiber.Handler {
 	return func(ctx fiber.Ctx) error {
-		userID, _, err := authenticateAndCheckBan(ctx, mgr, authzSvc)
-		if err != nil {
-			return err
+		userID, _, ok := authenticateAndCheckBan(ctx, mgr, authzSvc)
+		if !ok {
+			return nil
 		}
 
 		if !authzSvc.Can(ctx.Context(), userID, perm) {
@@ -53,9 +53,9 @@ func OptionalAuth(mgr *session.Manager, authzSvc authz.Service) fiber.Handler {
 
 func RequireAuth(mgr *session.Manager, authzSvc authz.Service) fiber.Handler {
 	return func(ctx fiber.Ctx) error {
-		userID, _, err := authenticateAndCheckBan(ctx, mgr, authzSvc)
-		if err != nil {
-			return err
+		userID, _, ok := authenticateAndCheckBan(ctx, mgr, authzSvc)
+		if !ok {
+			return nil
 		}
 
 		ctx.Locals("userID", userID)
@@ -63,27 +63,33 @@ func RequireAuth(mgr *session.Manager, authzSvc authz.Service) fiber.Handler {
 	}
 }
 
-func authenticateAndCheckBan(ctx fiber.Ctx, mgr *session.Manager, authzSvc authz.Service) (uuid.UUID, string, error) {
+// authenticateAndCheckBan validates the session cookie and ban status. On any
+// failure it writes the appropriate response and returns ok=false; callers
+// must then `return nil` so fiber does not run subsequent handlers.
+func authenticateAndCheckBan(ctx fiber.Ctx, mgr *session.Manager, authzSvc authz.Service) (uuid.UUID, string, bool) {
 	cookie := ctx.Cookies(session.CookieName)
 	if cookie == "" {
-		return uuid.Nil, "", ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+		_ = ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "authentication required",
 		})
+		return uuid.Nil, "", false
 	}
 
 	userID, err := mgr.Validate(ctx.Context(), cookie)
 	if err != nil {
-		return uuid.Nil, "", ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+		_ = ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "invalid or expired session",
 		})
+		return uuid.Nil, "", false
 	}
 
 	if authzSvc.IsBanned(ctx.Context(), userID) {
 		mgr.Delete(ctx.Context(), cookie)
-		return uuid.Nil, "", ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
+		_ = ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"error": "your account has been banned",
 		})
+		return uuid.Nil, "", false
 	}
 
-	return userID, cookie, nil
+	return userID, cookie, true
 }

@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"umineko_city_of_books/internal/block"
+	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/follow"
 	"umineko_city_of_books/internal/middleware"
@@ -138,13 +139,13 @@ func (s *Service) setupGetFollowing(r fiber.Router) {
 func (s *Service) getCornerCounts(ctx fiber.Ctx) error {
 	counts, err := s.PostService.GetCornerCounts(ctx.Context())
 	if err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to get counts"})
+		return utils.InternalError(ctx, "failed to get counts")
 	}
 	return ctx.JSON(counts)
 }
 
 func (s *Service) listPostFeed(ctx fiber.Ctx) error {
-	viewerID, _ := ctx.Locals("userID").(uuid.UUID)
+	viewerID := utils.UserID(ctx)
 	tab := ctx.Query("tab", "everyone")
 	corner := ctx.Query("corner", "general")
 	search := ctx.Query("search")
@@ -157,48 +158,48 @@ func (s *Service) listPostFeed(ctx fiber.Ctx) error {
 
 	result, err := s.PostService.ListFeed(ctx.Context(), tab, viewerID, corner, search, sort, seed, limit, offset, resolvedFilter)
 	if err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to list posts"})
+		return utils.InternalError(ctx, "failed to list posts")
 	}
 	return ctx.JSON(result)
 }
 
 func (s *Service) createPost(ctx fiber.Ctx) error {
-	userID := ctx.Locals("userID").(uuid.UUID)
-	var req dto.CreatePostRequest
-	if err := ctx.Bind().JSON(&req); err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	userID := utils.UserID(ctx)
+	req, ok := utils.BindJSON[dto.CreatePostRequest](ctx)
+	if !ok {
+		return nil
 	}
 
 	id, err := s.PostService.CreatePost(ctx.Context(), userID, req)
 	if err != nil {
 		if errors.Is(err, postsvc.ErrEmptyBody) || errors.Is(err, postsvc.ErrInvalidShareType) {
-			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+			return utils.BadRequest(ctx, err.Error())
 		}
 		if errors.Is(err, postsvc.ErrRateLimited) {
 			return ctx.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{"error": err.Error()})
 		}
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to create post"})
+		return utils.InternalError(ctx, "failed to create post")
 	}
 	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id})
 }
 
 func (s *Service) updatePost(ctx fiber.Ctx) error {
-	id, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid post id"})
+	id, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
 
-	userID := ctx.Locals("userID").(uuid.UUID)
-	var req dto.UpdatePostRequest
-	if err := ctx.Bind().JSON(&req); err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	userID := utils.UserID(ctx)
+	req, ok := utils.BindJSON[dto.UpdatePostRequest](ctx)
+	if !ok {
+		return nil
 	}
 
 	if err := s.PostService.UpdatePost(ctx.Context(), id, userID, req); err != nil {
 		if errors.Is(err, postsvc.ErrEmptyBody) {
-			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+			return utils.BadRequest(ctx, err.Error())
 		}
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to update post"})
+		return utils.InternalError(ctx, "failed to update post")
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
@@ -216,64 +217,64 @@ func viewerHash(ctx fiber.Ctx) string {
 }
 
 func (s *Service) getPost(ctx fiber.Ctx) error {
-	id, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid post id"})
+	id, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
 
-	viewerID, _ := ctx.Locals("userID").(uuid.UUID)
+	viewerID := utils.UserID(ctx)
 	result, err := s.PostService.GetPost(ctx.Context(), id, viewerID, viewerHash(ctx))
 	if err != nil {
 		if errors.Is(err, postsvc.ErrNotFound) {
-			return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "post not found"})
+			return utils.NotFound(ctx, "post not found")
 		}
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to get post"})
+		return utils.InternalError(ctx, "failed to get post")
 	}
 	return ctx.JSON(result)
 }
 
 func (s *Service) deletePost(ctx fiber.Ctx) error {
-	id, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid post id"})
+	id, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
 
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 	if err := s.PostService.DeletePost(ctx.Context(), id, userID); err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to delete post"})
+		return utils.InternalError(ctx, "failed to delete post")
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
 
 func (s *Service) uploadPostMedia(ctx fiber.Ctx) error {
-	postID, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid post id"})
+	postID, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
 
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 	file, err := ctx.FormFile("media")
 	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "no media file provided"})
+		return utils.BadRequest(ctx, "no media file provided")
 	}
 
 	reader, err := file.Open()
 	if err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to read file"})
+		return utils.InternalError(ctx, "failed to read file")
 	}
 	defer reader.Close()
 
 	result, err := s.PostService.UploadPostMedia(ctx.Context(), postID, userID, file.Header.Get("Content-Type"), file.Size, reader)
 	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+		return utils.BadRequest(ctx, err.Error())
 	}
 	return ctx.Status(fiber.StatusCreated).JSON(result)
 }
 
 func (s *Service) deletePostMedia(ctx fiber.Ctx) error {
-	postID, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid post id"})
+	postID, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
 
 	mediaID := fiber.Query[int64](ctx, "mediaId", 0)
@@ -281,225 +282,225 @@ func (s *Service) deletePostMedia(ctx fiber.Ctx) error {
 		mediaID, _ = strconv.ParseInt(ctx.Params("mediaId"), 10, 64)
 	}
 	if mediaID == 0 {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid media id"})
+		return utils.BadRequest(ctx, "invalid media id")
 	}
 
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 	if err := s.PostService.DeletePostMedia(ctx.Context(), postID, mediaID, userID); err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to delete media"})
+		return utils.InternalError(ctx, "failed to delete media")
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
 
 func (s *Service) likePost(ctx fiber.Ctx) error {
-	postID, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid post id"})
+	postID, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
 
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 	if err := s.PostService.LikePost(ctx.Context(), userID, postID); err != nil {
 		if errors.Is(err, block.ErrUserBlocked) {
-			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "user is blocked"})
+			return utils.Forbidden(ctx, "user is blocked")
 		}
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to like post"})
+		return utils.InternalError(ctx, "failed to like post")
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
 
 func (s *Service) unlikePost(ctx fiber.Ctx) error {
-	postID, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid post id"})
+	postID, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
 
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 	if err := s.PostService.UnlikePost(ctx.Context(), userID, postID); err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to unlike post"})
+		return utils.InternalError(ctx, "failed to unlike post")
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
 
 func (s *Service) createComment(ctx fiber.Ctx) error {
-	postID, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid post id"})
+	postID, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
 
-	userID := ctx.Locals("userID").(uuid.UUID)
-	var req dto.CreateCommentRequest
-	if err := ctx.Bind().JSON(&req); err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	userID := utils.UserID(ctx)
+	req, ok := utils.BindJSON[dto.CreateCommentRequest](ctx)
+	if !ok {
+		return nil
 	}
 
 	id, err := s.PostService.CreateComment(ctx.Context(), postID, userID, req)
 	if err != nil {
 		if errors.Is(err, block.ErrUserBlocked) {
-			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "user is blocked"})
+			return utils.Forbidden(ctx, "user is blocked")
 		}
 		if errors.Is(err, postsvc.ErrEmptyBody) {
-			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+			return utils.BadRequest(ctx, err.Error())
 		}
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to create comment"})
+		return utils.InternalError(ctx, "failed to create comment")
 	}
 	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id})
 }
 
 func (s *Service) deleteComment(ctx fiber.Ctx) error {
-	id, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid comment id"})
+	id, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
 
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 	if err := s.PostService.DeleteComment(ctx.Context(), id, userID); err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to delete comment"})
+		return utils.InternalError(ctx, "failed to delete comment")
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
 
 func (s *Service) updateComment(ctx fiber.Ctx) error {
-	id, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid comment id"})
+	id, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
 
-	userID := ctx.Locals("userID").(uuid.UUID)
-	var req dto.UpdateCommentRequest
-	if err := ctx.Bind().JSON(&req); err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	userID := utils.UserID(ctx)
+	req, ok := utils.BindJSON[dto.UpdateCommentRequest](ctx)
+	if !ok {
+		return nil
 	}
 
 	if err := s.PostService.UpdateComment(ctx.Context(), id, userID, req); err != nil {
 		if errors.Is(err, postsvc.ErrEmptyBody) {
-			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+			return utils.BadRequest(ctx, err.Error())
 		}
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to update comment"})
+		return utils.InternalError(ctx, "failed to update comment")
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
 
 func (s *Service) likeComment(ctx fiber.Ctx) error {
-	commentID, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid comment id"})
+	commentID, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
 
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 	if err := s.PostService.LikeComment(ctx.Context(), userID, commentID); err != nil {
 		if errors.Is(err, block.ErrUserBlocked) {
-			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "user is blocked"})
+			return utils.Forbidden(ctx, "user is blocked")
 		}
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to like comment"})
+		return utils.InternalError(ctx, "failed to like comment")
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
 
 func (s *Service) unlikeComment(ctx fiber.Ctx) error {
-	commentID, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid comment id"})
+	commentID, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
 
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 	if err := s.PostService.UnlikeComment(ctx.Context(), userID, commentID); err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to unlike comment"})
+		return utils.InternalError(ctx, "failed to unlike comment")
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
 
 func (s *Service) uploadCommentMedia(ctx fiber.Ctx) error {
-	commentID, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid comment id"})
+	commentID, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
 
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 	file, err := ctx.FormFile("media")
 	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "no media file provided"})
+		return utils.BadRequest(ctx, "no media file provided")
 	}
 
 	reader, err := file.Open()
 	if err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to read file"})
+		return utils.InternalError(ctx, "failed to read file")
 	}
 	defer reader.Close()
 
 	result, err := s.PostService.UploadCommentMedia(ctx.Context(), commentID, userID, file.Header.Get("Content-Type"), file.Size, reader)
 	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+		return utils.BadRequest(ctx, err.Error())
 	}
 	return ctx.Status(fiber.StatusCreated).JSON(result)
 }
 
 func (s *Service) listUserPosts(ctx fiber.Ctx) error {
-	userID, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user id"})
+	userID, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
 
-	viewerID, _ := ctx.Locals("userID").(uuid.UUID)
+	viewerID := utils.UserID(ctx)
 	limit := fiber.Query[int](ctx, "limit", 20)
 	offset := fiber.Query[int](ctx, "offset", 0)
 
 	result, err := s.PostService.ListUserPosts(ctx.Context(), userID, viewerID, limit, offset)
 	if err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to list user posts"})
+		return utils.InternalError(ctx, "failed to list user posts")
 	}
 	return ctx.JSON(result)
 }
 
 func (s *Service) followUser(ctx fiber.Ctx) error {
-	targetID, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user id"})
+	targetID, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
 
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 	if err := s.FollowService.Follow(ctx.Context(), userID, targetID); err != nil {
 		if errors.Is(err, follow.ErrCannotFollowSelf) {
-			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+			return utils.BadRequest(ctx, err.Error())
 		}
 		if errors.Is(err, block.ErrUserBlocked) {
-			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "user is blocked"})
+			return utils.Forbidden(ctx, "user is blocked")
 		}
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to follow user"})
+		return utils.InternalError(ctx, "failed to follow user")
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
 
 func (s *Service) unfollowUser(ctx fiber.Ctx) error {
-	targetID, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user id"})
+	targetID, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
 
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 	if err := s.FollowService.Unfollow(ctx.Context(), userID, targetID); err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to unfollow user"})
+		return utils.InternalError(ctx, "failed to unfollow user")
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
 
 func (s *Service) getFollowStats(ctx fiber.Ctx) error {
-	userID, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user id"})
+	userID, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
 
-	viewerID, _ := ctx.Locals("userID").(uuid.UUID)
+	viewerID := utils.UserID(ctx)
 	stats, err := s.FollowService.GetFollowStats(ctx.Context(), userID, viewerID)
 	if err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to get follow stats"})
+		return utils.InternalError(ctx, "failed to get follow stats")
 	}
 	return ctx.JSON(stats)
 }
 
 func (s *Service) getFollowers(ctx fiber.Ctx) error {
-	userID, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user id"})
+	userID, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
 
 	limit := fiber.Query[int](ctx, "limit", 50)
@@ -507,15 +508,15 @@ func (s *Service) getFollowers(ctx fiber.Ctx) error {
 
 	users, total, err := s.FollowService.GetFollowers(ctx.Context(), userID, limit, offset)
 	if err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to get followers"})
+		return utils.InternalError(ctx, "failed to get followers")
 	}
 	return ctx.JSON(fiber.Map{"users": users, "total": total})
 }
 
 func (s *Service) getFollowing(ctx fiber.Ctx) error {
-	userID, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user id"})
+	userID, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
 
 	limit := fiber.Query[int](ctx, "limit", 50)
@@ -523,7 +524,7 @@ func (s *Service) getFollowing(ctx fiber.Ctx) error {
 
 	users, total, err := s.FollowService.GetFollowing(ctx.Context(), userID, limit, offset)
 	if err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to get following"})
+		return utils.InternalError(ctx, "failed to get following")
 	}
 	return ctx.JSON(fiber.Map{"users": users, "total": total})
 }
@@ -533,32 +534,32 @@ func (s *Service) setupVotePoll(r fiber.Router) {
 }
 
 func (s *Service) votePoll(ctx fiber.Ctx) error {
-	postID, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid post id"})
+	postID, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 
-	var req dto.VotePollRequest
-	if err := ctx.Bind().JSON(&req); err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	req, ok := utils.BindJSON[dto.VotePollRequest](ctx)
+	if !ok {
+		return nil
 	}
 
 	poll, err := s.PostService.VotePoll(ctx.Context(), postID, userID, req.OptionID)
 	if err != nil {
 		if errors.Is(err, postsvc.ErrNotFound) {
-			return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "poll not found"})
+			return utils.NotFound(ctx, "poll not found")
 		}
 		if errors.Is(err, postsvc.ErrPollExpired) {
 			return ctx.Status(fiber.StatusGone).JSON(fiber.Map{"error": err.Error()})
 		}
 		if errors.Is(err, postsvc.ErrAlreadyVoted) {
-			return ctx.Status(fiber.StatusConflict).JSON(fiber.Map{"error": err.Error()})
+			return utils.Conflict(ctx, err.Error())
 		}
 		if errors.Is(err, postsvc.ErrInvalidOption) {
-			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+			return utils.BadRequest(ctx, err.Error())
 		}
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to vote"})
+		return utils.InternalError(ctx, "failed to vote")
 	}
 	return ctx.JSON(poll)
 }
@@ -572,11 +573,11 @@ func (s *Service) setupUnresolveSuggestion(r fiber.Router) {
 }
 
 func (s *Service) resolveSuggestion(ctx fiber.Ctx) error {
-	postID, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid post id"})
+	postID, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 
 	var body struct {
 		Status string `json:"status"`
@@ -587,22 +588,22 @@ func (s *Service) resolveSuggestion(ctx fiber.Ctx) error {
 	}
 
 	if err := s.PostService.ResolveSuggestion(ctx.Context(), postID, userID, body.Status); err != nil {
-		return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
+		return utils.Forbidden(ctx, err.Error())
 	}
-	return ctx.JSON(fiber.Map{"status": "ok"})
+	return utils.OK(ctx)
 }
 
 func (s *Service) unresolveSuggestion(ctx fiber.Ctx) error {
-	postID, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid post id"})
+	postID, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 
 	if err := s.PostService.UnresolveSuggestion(ctx.Context(), postID, userID); err != nil {
-		return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
+		return utils.Forbidden(ctx, err.Error())
 	}
-	return ctx.JSON(fiber.Map{"status": "ok"})
+	return utils.OK(ctx)
 }
 
 func (s *Service) setupGetShareCount(r fiber.Router) {

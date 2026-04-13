@@ -38,7 +38,34 @@ type (
 		AvatarURL   string
 		Role        string
 	}
+
+	CommentMediaRow struct {
+		ID           int
+		CommentID    uuid.UUID
+		MediaURL     string
+		MediaType    string
+		ThumbnailURL string
+		SortOrder    int
+	}
 )
+
+func (m *CommentMediaRow) ToResponse() dto.PostMediaResponse {
+	return dto.PostMediaResponse{
+		ID:           m.ID,
+		MediaURL:     m.MediaURL,
+		MediaType:    m.MediaType,
+		ThumbnailURL: m.ThumbnailURL,
+		SortOrder:    m.SortOrder,
+	}
+}
+
+func CommentMediaRowsToResponse(rows []CommentMediaRow) []dto.PostMediaResponse {
+	list := make([]dto.PostMediaResponse, len(rows))
+	for i := range rows {
+		list[i] = rows[i].ToResponse()
+	}
+	return list
+}
 
 func (m *PostMediaRow) ToResponse() dto.PostMediaResponse {
 	return dto.PostMediaResponse{

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/middleware"
 	"umineko_city_of_books/internal/profile"
@@ -65,18 +66,14 @@ func (s *Service) setupGetUserActivityRoute(r fiber.Router) {
 
 func (s *Service) getProfile(ctx fiber.Ctx) error {
 	username := ctx.Params("username")
-	viewerID, _ := ctx.Locals("userID").(uuid.UUID)
+	viewerID := utils.UserID(ctx)
 
 	result, err := s.ProfileService.GetProfile(ctx.Context(), username, viewerID)
 	if err != nil {
 		if errors.Is(err, profile.ErrUserNotFound) {
-			return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{
-				"error": "user not found",
-			})
+			return utils.NotFound(ctx, "user not found")
 		}
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "failed to get profile",
-		})
+		return utils.InternalError(ctx, "failed to get profile")
 	}
 
 	result.Online = s.Hub.IsOnline(result.ID)
@@ -85,45 +82,35 @@ func (s *Service) getProfile(ctx fiber.Ctx) error {
 }
 
 func (s *Service) updateProfile(ctx fiber.Ctx) error {
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 
-	var req dto.UpdateProfileRequest
-	if err := ctx.Bind().JSON(&req); err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "invalid request body",
-		})
+	req, ok := utils.BindJSON[dto.UpdateProfileRequest](ctx)
+	if !ok {
+		return nil
 	}
 
 	if req.DisplayName == "" {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "display name is required",
-		})
+		return utils.BadRequest(ctx, "display name is required")
 	}
 
 	if err := s.ProfileService.UpdateProfile(ctx.Context(), userID, req); err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "failed to update profile",
-		})
+		return utils.InternalError(ctx, "failed to update profile")
 	}
 
-	return ctx.JSON(fiber.Map{"status": "ok"})
+	return utils.OK(ctx)
 }
 
 func (s *Service) uploadAvatar(ctx fiber.Ctx) error {
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 
 	file, err := ctx.FormFile("avatar")
 	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "avatar file is required",
-		})
+		return utils.BadRequest(ctx, "avatar file is required")
 	}
 
 	src, err := file.Open()
 	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "failed to read file",
-		})
+		return utils.BadRequest(ctx, "failed to read file")
 	}
 	defer src.Close()
 
@@ -136,33 +123,25 @@ func (s *Service) uploadAvatar(ctx fiber.Ctx) error {
 	)
 	if err != nil {
 		if errors.Is(err, upload.ErrFileTooLarge) || errors.Is(err, upload.ErrInvalidFileType) {
-			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": err.Error(),
-			})
+			return utils.BadRequest(ctx, err.Error())
 		}
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "failed to upload avatar",
-		})
+		return utils.InternalError(ctx, "failed to upload avatar")
 	}
 
 	return ctx.JSON(fiber.Map{"avatar_url": avatarURL})
 }
 
 func (s *Service) uploadBanner(ctx fiber.Ctx) error {
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 
 	file, err := ctx.FormFile("banner")
 	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "banner file is required",
-		})
+		return utils.BadRequest(ctx, "banner file is required")
 	}
 
 	src, err := file.Open()
 	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "failed to read file",
-		})
+		return utils.BadRequest(ctx, "failed to read file")
 	}
 	defer src.Close()
 
@@ -175,62 +154,48 @@ func (s *Service) uploadBanner(ctx fiber.Ctx) error {
 	)
 	if err != nil {
 		if errors.Is(err, upload.ErrFileTooLarge) || errors.Is(err, upload.ErrInvalidFileType) {
-			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": err.Error(),
-			})
+			return utils.BadRequest(ctx, err.Error())
 		}
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "failed to upload banner",
-		})
+		return utils.InternalError(ctx, "failed to upload banner")
 	}
 
 	return ctx.JSON(fiber.Map{"banner_url": bannerURL})
 }
 
 func (s *Service) changePassword(ctx fiber.Ctx) error {
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 
-	var req dto.ChangePasswordRequest
-	if err := ctx.Bind().JSON(&req); err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "invalid request body",
-		})
+	req, ok := utils.BindJSON[dto.ChangePasswordRequest](ctx)
+	if !ok {
+		return nil
 	}
 
 	if err := s.ProfileService.ChangePassword(ctx.Context(), userID, req); err != nil {
 		if errors.Is(err, profile.ErrPasswordTooShort) {
 			minLen := s.SettingsService.GetInt(ctx.Context(), config.SettingMinPasswordLength)
-			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": fmt.Sprintf("new password must be at least %d characters", minLen),
-			})
+			return utils.BadRequest(ctx, fmt.Sprintf("new password must be at least %d characters", minLen))
 		}
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": err.Error(),
-		})
+		return utils.BadRequest(ctx, err.Error())
 	}
 
-	return ctx.JSON(fiber.Map{"status": "ok"})
+	return utils.OK(ctx)
 }
 
 func (s *Service) deleteAccount(ctx fiber.Ctx) error {
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 
-	var req dto.DeleteAccountRequest
-	if err := ctx.Bind().JSON(&req); err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "invalid request body",
-		})
+	req, ok := utils.BindJSON[dto.DeleteAccountRequest](ctx)
+	if !ok {
+		return nil
 	}
 
 	if err := s.ProfileService.DeleteAccount(ctx.Context(), userID, req); err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": err.Error(),
-		})
+		return utils.BadRequest(ctx, err.Error())
 	}
 
 	s.clearSessionCookie(ctx)
 
-	return ctx.JSON(fiber.Map{"status": "ok"})
+	return utils.OK(ctx)
 }
 
 func (s *Service) getOnlineStatus(ctx fiber.Ctx) error {
@@ -264,13 +229,9 @@ func (s *Service) getUserActivity(ctx fiber.Ctx) error {
 	result, err := s.ProfileService.GetActivity(ctx.Context(), username, limit, offset)
 	if err != nil {
 		if errors.Is(err, profile.ErrUserNotFound) {
-			return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{
-				"error": "user not found",
-			})
+			return utils.NotFound(ctx, "user not found")
 		}
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "failed to get activity",
-		})
+		return utils.InternalError(ctx, "failed to get activity")
 	}
 
 	return ctx.JSON(result)
@@ -281,10 +242,10 @@ func (s *Service) setupGetMutualFollowersRoute(r fiber.Router) {
 }
 
 func (s *Service) getMutualFollowers(ctx fiber.Ctx) error {
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 	users, err := s.FollowService.GetMutualFollowers(ctx.Context(), userID)
 	if err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to get mutuals"})
+		return utils.InternalError(ctx, "failed to get mutuals")
 	}
 	return ctx.JSON(users)
 }
@@ -299,10 +260,10 @@ func (s *Service) searchUsers(ctx fiber.Ctx) error {
 		return ctx.JSON([]interface{}{})
 	}
 
-	viewerID, _ := ctx.Locals("userID").(uuid.UUID)
+	viewerID := utils.UserID(ctx)
 	users, err := s.ProfileService.SearchUsers(ctx.Context(), q, 10)
 	if err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "search failed"})
+		return utils.InternalError(ctx, "search failed")
 	}
 
 	type searchResult struct {
@@ -330,9 +291,7 @@ func (s *Service) setupListUsersPublicRoute(r fiber.Router) {
 func (s *Service) listUsersPublic(ctx fiber.Ctx) error {
 	users, err := s.ProfileService.ListPublicUsers(ctx.Context())
 	if err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "failed to list users",
-		})
+		return utils.InternalError(ctx, "failed to list users")
 	}
 
 	type userWithOnline struct {

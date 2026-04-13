@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 
+	"umineko_city_of_books/internal/repository/model"
+
 	"github.com/google/uuid"
 )
 
@@ -51,14 +53,7 @@ type (
 		UserLiked         bool
 	}
 
-	AnnouncementCommentMediaRow struct {
-		ID           int
-		CommentID    uuid.UUID
-		MediaURL     string
-		MediaType    string
-		ThumbnailURL string
-		SortOrder    int
-	}
+	AnnouncementCommentMediaRow = model.CommentMediaRow
 
 	AnnouncementRow struct {
 		ID                uuid.UUID

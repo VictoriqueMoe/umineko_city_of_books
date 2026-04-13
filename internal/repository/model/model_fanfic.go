@@ -81,14 +81,7 @@ type (
 		UserLiked         bool
 	}
 
-	FanficCommentMediaRow struct {
-		ID           int
-		CommentID    uuid.UUID
-		MediaURL     string
-		MediaType    string
-		ThumbnailURL string
-		SortOrder    int
-	}
+	FanficCommentMediaRow = CommentMediaRow
 )
 
 func (r *FanficRow) ToResponse(genres []string, tags []string, characters []FanficCharacterRow) dto.FanficResponse {
@@ -143,16 +136,7 @@ func (r *FanficRow) ToResponse(genres []string, tags []string, characters []Fanf
 }
 
 func (r *FanficCommentRow) ToResponse(media []FanficCommentMediaRow) dto.FanficCommentResponse {
-	mediaList := make([]dto.PostMediaResponse, len(media))
-	for i, m := range media {
-		mediaList[i] = dto.PostMediaResponse{
-			ID:           m.ID,
-			MediaURL:     m.MediaURL,
-			MediaType:    m.MediaType,
-			ThumbnailURL: m.ThumbnailURL,
-			SortOrder:    m.SortOrder,
-		}
-	}
+	mediaList := CommentMediaRowsToResponse(media)
 	return dto.FanficCommentResponse{
 		ID:       r.ID,
 		ParentID: r.ParentID,

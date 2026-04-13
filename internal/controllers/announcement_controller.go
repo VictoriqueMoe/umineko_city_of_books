@@ -10,12 +10,14 @@ import (
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/config"
+	ctrlutils "umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/middleware"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/repository/model"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/utils"
 	"umineko_city_of_books/internal/ws"
@@ -100,7 +102,7 @@ func (s *Service) listAnnouncements(ctx fiber.Ctx) error {
 
 	rows, total, err := s.AnnouncementRepo.List(ctx.Context(), limit, offset)
 	if err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to list announcements"})
+		return ctrlutils.InternalError(ctx, "failed to list announcements")
 	}
 
 	items := make([]fiber.Map, len(rows))
@@ -135,18 +137,18 @@ func (s *Service) listAnnouncements(ctx fiber.Ctx) error {
 }
 
 func (s *Service) getAnnouncement(ctx fiber.Ctx) error {
-	id, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
+	id, ok := ctrlutils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
-	viewerID, _ := ctx.Locals("userID").(uuid.UUID)
+	viewerID := ctrlutils.UserID(ctx)
 
 	row, err := s.AnnouncementRepo.GetByID(ctx.Context(), id)
 	if err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to get announcement"})
+		return ctrlutils.InternalError(ctx, "failed to get announcement")
 	}
 	if row == nil {
-		return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "announcement not found"})
+		return ctrlutils.NotFound(ctx, "announcement not found")
 	}
 
 	blockedIDs, _ := s.BlockService.GetBlockedIDs(ctx.Context(), viewerID)
@@ -165,7 +167,9 @@ func (s *Service) getAnnouncement(ctx fiber.Ctx) error {
 	comments := utils.BuildTree(flatComments,
 		func(c dto.AnnouncementCommentResponse) uuid.UUID { return c.ID },
 		func(c dto.AnnouncementCommentResponse) *uuid.UUID { return c.ParentID },
-		func(c *dto.AnnouncementCommentResponse, replies []dto.AnnouncementCommentResponse) { c.Replies = replies },
+		func(c *dto.AnnouncementCommentResponse, replies []dto.AnnouncementCommentResponse) {
+			c.Replies = replies
+		},
 	)
 
 	return ctx.JSON(fiber.Map{
@@ -187,16 +191,7 @@ func (s *Service) getAnnouncement(ctx fiber.Ctx) error {
 }
 
 func announcementCommentToDTO(c repository.AnnouncementCommentRow, media []repository.AnnouncementCommentMediaRow) dto.AnnouncementCommentResponse {
-	mediaList := make([]dto.PostMediaResponse, len(media))
-	for i, m := range media {
-		mediaList[i] = dto.PostMediaResponse{
-			ID:           m.ID,
-			MediaURL:     m.MediaURL,
-			MediaType:    m.MediaType,
-			ThumbnailURL: m.ThumbnailURL,
-			SortOrder:    m.SortOrder,
-		}
-	}
+	mediaList := model.CommentMediaRowsToResponse(media)
 	return dto.AnnouncementCommentResponse{
 		ID:       c.ID,
 		ParentID: c.ParentID,
@@ -219,7 +214,7 @@ func announcementCommentToDTO(c repository.AnnouncementCommentRow, media []repos
 func (s *Service) getLatestAnnouncement(ctx fiber.Ctx) error {
 	row, err := s.AnnouncementRepo.GetLatest(ctx.Context())
 	if err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to get latest announcement"})
+		return ctrlutils.InternalError(ctx, "failed to get latest announcement")
 	}
 	if row == nil {
 		return ctx.JSON(fiber.Map{"announcement": nil})
@@ -245,22 +240,22 @@ func (s *Service) getLatestAnnouncement(ctx fiber.Ctx) error {
 }
 
 func (s *Service) createAnnouncement(ctx fiber.Ctx) error {
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := ctrlutils.UserID(ctx)
 
 	var req struct {
 		Title string `json:"title"`
 		Body  string `json:"body"`
 	}
 	if err := ctx.Bind().JSON(&req); err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+		return ctrlutils.BadRequest(ctx, "invalid request body")
 	}
 	if req.Title == "" || req.Body == "" {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "title and body are required"})
+		return ctrlutils.BadRequest(ctx, "title and body are required")
 	}
 
 	id := uuid.New()
 	if err := s.AnnouncementRepo.Create(ctx.Context(), id, userID, req.Title, req.Body); err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to create announcement"})
+		return ctrlutils.InternalError(ctx, "failed to create announcement")
 	}
 
 	s.Hub.Broadcast(ws.Message{
@@ -276,9 +271,9 @@ func (s *Service) createAnnouncement(ctx fiber.Ctx) error {
 }
 
 func (s *Service) updateAnnouncement(ctx fiber.Ctx) error {
-	id, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
+	id, ok := ctrlutils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
 
 	var req struct {
@@ -286,74 +281,74 @@ func (s *Service) updateAnnouncement(ctx fiber.Ctx) error {
 		Body  string `json:"body"`
 	}
 	if err := ctx.Bind().JSON(&req); err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+		return ctrlutils.BadRequest(ctx, "invalid request body")
 	}
 	if req.Title == "" || req.Body == "" {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "title and body are required"})
+		return ctrlutils.BadRequest(ctx, "title and body are required")
 	}
 
 	if err := s.AnnouncementRepo.Update(ctx.Context(), id, req.Title, req.Body); err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to update announcement"})
+		return ctrlutils.InternalError(ctx, "failed to update announcement")
 	}
 
-	return ctx.JSON(fiber.Map{"status": "ok"})
+	return ctrlutils.OK(ctx)
 }
 
 func (s *Service) deleteAnnouncement(ctx fiber.Ctx) error {
-	id, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
+	id, ok := ctrlutils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
 
 	if err := s.AnnouncementRepo.Delete(ctx.Context(), id); err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to delete announcement"})
+		return ctrlutils.InternalError(ctx, "failed to delete announcement")
 	}
 
-	return ctx.JSON(fiber.Map{"status": "ok"})
+	return ctrlutils.OK(ctx)
 }
 
 func (s *Service) pinAnnouncement(ctx fiber.Ctx) error {
-	id, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
+	id, ok := ctrlutils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
 
 	var req struct {
 		Pinned bool `json:"pinned"`
 	}
 	if err := ctx.Bind().JSON(&req); err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+		return ctrlutils.BadRequest(ctx, "invalid request body")
 	}
 
 	if err := s.AnnouncementRepo.SetPinned(ctx.Context(), id, req.Pinned); err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to pin announcement"})
+		return ctrlutils.InternalError(ctx, "failed to pin announcement")
 	}
 
-	return ctx.JSON(fiber.Map{"status": "ok"})
+	return ctrlutils.OK(ctx)
 }
 
 func (s *Service) createAnnouncementComment(ctx fiber.Ctx) error {
-	announcementID, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
+	announcementID, ok := ctrlutils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := ctrlutils.UserID(ctx)
 
-	var req dto.CreateCommentRequest
-	if err := ctx.Bind().JSON(&req); err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	req, ok := ctrlutils.BindJSON[dto.CreateCommentRequest](ctx)
+	if !ok {
+		return nil
 	}
 	body := strings.TrimSpace(req.Body)
 	if body == "" {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "body is required"})
+		return ctrlutils.BadRequest(ctx, "body is required")
 	}
 
 	ann, err := s.AnnouncementRepo.GetByID(ctx.Context(), announcementID)
 	if err != nil || ann == nil {
-		return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "announcement not found"})
+		return ctrlutils.NotFound(ctx, "announcement not found")
 	}
 	if blocked, _ := s.BlockService.IsBlockedEither(ctx.Context(), userID, ann.AuthorID); blocked {
-		return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "user is blocked"})
+		return ctrlutils.Forbidden(ctx, "user is blocked")
 	}
 
 	id := uuid.New()
@@ -362,7 +357,7 @@ func (s *Service) createAnnouncementComment(ctx fiber.Ctx) error {
 			Str("announcement_id", announcementID.String()).
 			Str("user_id", userID.String()).
 			Msg("failed to create announcement comment")
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to create comment"})
+		return ctrlutils.InternalError(ctx, "failed to create comment")
 	}
 
 	go func() {
@@ -406,70 +401,70 @@ func (s *Service) createAnnouncementComment(ctx fiber.Ctx) error {
 }
 
 func (s *Service) updateAnnouncementComment(ctx fiber.Ctx) error {
-	id, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
+	id, ok := ctrlutils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := ctrlutils.UserID(ctx)
 
-	var req dto.UpdateCommentRequest
-	if err := ctx.Bind().JSON(&req); err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	req, ok := ctrlutils.BindJSON[dto.UpdateCommentRequest](ctx)
+	if !ok {
+		return nil
 	}
 	body := strings.TrimSpace(req.Body)
 	if body == "" {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "body is required"})
+		return ctrlutils.BadRequest(ctx, "body is required")
 	}
 
 	if s.AuthzService.Can(ctx.Context(), userID, authz.PermEditAnyComment) {
 		if err := s.AnnouncementRepo.UpdateCommentAsAdmin(ctx.Context(), id, body); err != nil {
-			return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to update comment"})
+			return ctrlutils.InternalError(ctx, "failed to update comment")
 		}
 	} else if err := s.AnnouncementRepo.UpdateComment(ctx.Context(), id, userID, body); err != nil {
-		return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "cannot update this comment"})
+		return ctrlutils.Forbidden(ctx, "cannot update this comment")
 	}
 
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
 
 func (s *Service) deleteAnnouncementComment(ctx fiber.Ctx) error {
-	id, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
+	id, ok := ctrlutils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := ctrlutils.UserID(ctx)
 
 	if s.AuthzService.Can(ctx.Context(), userID, authz.PermDeleteAnyComment) {
 		if err := s.AnnouncementRepo.DeleteCommentAsAdmin(ctx.Context(), id); err != nil {
-			return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to delete comment"})
+			return ctrlutils.InternalError(ctx, "failed to delete comment")
 		}
 	} else if err := s.AnnouncementRepo.DeleteComment(ctx.Context(), id, userID); err != nil {
-		return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "cannot delete this comment"})
+		return ctrlutils.Forbidden(ctx, "cannot delete this comment")
 	}
 
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
 
 func (s *Service) likeAnnouncementComment(ctx fiber.Ctx) error {
-	commentID, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
+	commentID, ok := ctrlutils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := ctrlutils.UserID(ctx)
 
 	commentAuthorID, err := s.AnnouncementRepo.GetCommentAuthorID(ctx.Context(), commentID)
 	if err != nil {
-		return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "comment not found"})
+		return ctrlutils.NotFound(ctx, "comment not found")
 	}
 	if blocked, _ := s.BlockService.IsBlockedEither(ctx.Context(), userID, commentAuthorID); blocked {
-		return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "user is blocked"})
+		return ctrlutils.Forbidden(ctx, "user is blocked")
 	}
 
 	if err := s.AnnouncementRepo.LikeComment(ctx.Context(), userID, commentID); err != nil {
 		if errors.Is(err, block.ErrUserBlocked) {
-			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "user is blocked"})
+			return ctrlutils.Forbidden(ctx, "user is blocked")
 		}
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to like comment"})
+		return ctrlutils.InternalError(ctx, "failed to like comment")
 	}
 
 	go func() {
@@ -500,40 +495,40 @@ func (s *Service) likeAnnouncementComment(ctx fiber.Ctx) error {
 }
 
 func (s *Service) unlikeAnnouncementComment(ctx fiber.Ctx) error {
-	commentID, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
+	commentID, ok := ctrlutils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := ctrlutils.UserID(ctx)
 
 	if err := s.AnnouncementRepo.UnlikeComment(ctx.Context(), userID, commentID); err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to unlike comment"})
+		return ctrlutils.InternalError(ctx, "failed to unlike comment")
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
 
 func (s *Service) uploadAnnouncementCommentMedia(ctx fiber.Ctx) error {
-	commentID, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid id"})
+	commentID, ok := ctrlutils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := ctrlutils.UserID(ctx)
 
 	authorID, err := s.AnnouncementRepo.GetCommentAuthorID(ctx.Context(), commentID)
 	if err != nil {
-		return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "comment not found"})
+		return ctrlutils.NotFound(ctx, "comment not found")
 	}
 	if authorID != userID {
-		return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "not the comment author"})
+		return ctrlutils.Forbidden(ctx, "not the comment author")
 	}
 
 	file, err := ctx.FormFile("media")
 	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "no media file provided"})
+		return ctrlutils.BadRequest(ctx, "no media file provided")
 	}
 	reader, err := file.Open()
 	if err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to read file"})
+		return ctrlutils.InternalError(ctx, "failed to read file")
 	}
 	defer reader.Close()
 
@@ -550,7 +545,7 @@ func (s *Service) uploadAnnouncementCommentMedia(ctx fiber.Ctx) error {
 		urlPath, err = s.UploadService.SaveImage(ctx.Context(), "announcements", mediaID, contentType, file.Size, maxSize, reader)
 	}
 	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+		return ctrlutils.BadRequest(ctx, err.Error())
 	}
 
 	mediaType := "image"
@@ -560,7 +555,7 @@ func (s *Service) uploadAnnouncementCommentMedia(ctx fiber.Ctx) error {
 
 	rowID, err := s.AnnouncementRepo.AddCommentMedia(ctx.Context(), commentID, urlPath, mediaType, "", 0)
 	if err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to save media record"})
+		return ctrlutils.InternalError(ctx, "failed to save media record")
 	}
 
 	diskPath := s.UploadService.FullDiskPath(urlPath)

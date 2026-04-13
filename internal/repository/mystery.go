@@ -8,6 +8,7 @@ import (
 
 	"umineko_city_of_books/internal/db"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/repository/model"
 	"umineko_city_of_books/internal/role"
 
 	"github.com/google/uuid"
@@ -135,14 +136,7 @@ type (
 		UserLiked         bool
 	}
 
-	MysteryCommentMediaRow struct {
-		ID           int
-		CommentID    uuid.UUID
-		MediaURL     string
-		MediaType    string
-		ThumbnailURL string
-		SortOrder    int
-	}
+	MysteryCommentMediaRow = model.CommentMediaRow
 
 	LeaderboardEntry struct {
 		UserID          uuid.UUID
@@ -881,16 +875,7 @@ func (r *mysteryRepository) GetTopGMIDs(ctx context.Context) ([]string, error) {
 }
 
 func (r *MysteryCommentRow) ToResponse(media []MysteryCommentMediaRow) dto.MysteryCommentResponse {
-	mediaList := make([]dto.PostMediaResponse, len(media))
-	for i, m := range media {
-		mediaList[i] = dto.PostMediaResponse{
-			ID:           m.ID,
-			MediaURL:     m.MediaURL,
-			MediaType:    m.MediaType,
-			ThumbnailURL: m.ThumbnailURL,
-			SortOrder:    m.SortOrder,
-		}
-	}
+	mediaList := model.CommentMediaRowsToResponse(media)
 	return dto.MysteryCommentResponse{
 		ID:       r.ID,
 		ParentID: r.ParentID,

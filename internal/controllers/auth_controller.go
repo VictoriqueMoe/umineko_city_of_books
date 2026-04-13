@@ -8,13 +8,13 @@ import (
 
 	"umineko_city_of_books/internal/auth"
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/middleware"
 	"umineko_city_of_books/internal/session"
 	usersvc "umineko_city_of_books/internal/user"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/google/uuid"
 )
 
 var rulesSettings = map[string]*config.SiteSettingDef{
@@ -66,10 +66,10 @@ func (s *Service) setupSessionRoute(r fiber.Router) {
 }
 
 func (s *Service) getSession(ctx fiber.Ctx) error {
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 	user, err := s.UserRepo.GetByID(ctx.Context(), userID)
 	if err != nil || user == nil {
-		return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "not authenticated"})
+		return utils.Unauthorized(ctx, "not authenticated")
 	}
 	return ctx.JSON(fiber.Map{"username": user.Username})
 }
@@ -112,49 +112,33 @@ func validateCredentials(creds dto.Credentials) error {
 }
 
 func (s *Service) register(ctx fiber.Ctx) error {
-	var req dto.RegisterRequest
-	if err := ctx.Bind().JSON(&req); err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "invalid request body",
-		})
+	req, ok := utils.BindJSON[dto.RegisterRequest](ctx)
+	if !ok {
+		return nil
 	}
 	if err := validateCredentials(&req); err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": err.Error(),
-		})
+		return utils.BadRequest(ctx, err.Error())
 	}
 
 	user, token, err := s.AuthService.Register(ctx.Context(), req)
 	if err != nil {
 		if errors.Is(err, auth.ErrInvalidUsername) {
-			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": err.Error(),
-			})
+			return utils.BadRequest(ctx, err.Error())
 		}
 		if errors.Is(err, auth.ErrRegistrationDisabled) {
-			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
-				"error": err.Error(),
-			})
+			return utils.Forbidden(ctx, err.Error())
 		}
 		if errors.Is(err, auth.ErrInviteRequired) || errors.Is(err, auth.ErrInvalidInvite) {
-			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": err.Error(),
-			})
+			return utils.BadRequest(ctx, err.Error())
 		}
 		if errors.Is(err, auth.ErrPasswordTooShort) {
 			minLen := s.SettingsService.GetInt(ctx.Context(), config.SettingMinPasswordLength)
-			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": fmt.Sprintf("password must be at least %d characters", minLen),
-			})
+			return utils.BadRequest(ctx, fmt.Sprintf("password must be at least %d characters", minLen))
 		}
 		if errors.Is(err, usersvc.ErrUsernameTaken) {
-			return ctx.Status(fiber.StatusConflict).JSON(fiber.Map{
-				"error": "username already taken",
-			})
+			return utils.Conflict(ctx, "username already taken")
 		}
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "failed to register",
-		})
+		return utils.InternalError(ctx, "failed to register")
 	}
 
 	ip, _ := ctx.Locals("client_ip").(string)
@@ -167,33 +151,23 @@ func (s *Service) register(ctx fiber.Ctx) error {
 }
 
 func (s *Service) login(ctx fiber.Ctx) error {
-	var req dto.LoginRequest
-	if err := ctx.Bind().JSON(&req); err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "invalid request body",
-		})
+	req, ok := utils.BindJSON[dto.LoginRequest](ctx)
+	if !ok {
+		return nil
 	}
 	if err := validateCredentials(&req); err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": err.Error(),
-		})
+		return utils.BadRequest(ctx, err.Error())
 	}
 
 	user, token, err := s.AuthService.Login(ctx.Context(), req)
 	if err != nil {
 		if errors.Is(err, usersvc.ErrInvalidCredentials) {
-			return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "invalid username or password",
-			})
+			return utils.Unauthorized(ctx, "invalid username or password")
 		}
 		if errors.Is(err, auth.ErrUserBanned) {
-			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
-				"error": "your account has been banned",
-			})
+			return utils.Forbidden(ctx, "your account has been banned")
 		}
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "failed to login",
-		})
+		return utils.InternalError(ctx, "failed to login")
 	}
 
 	ip, _ := ctx.Locals("client_ip").(string)
@@ -208,12 +182,10 @@ func (s *Service) login(ctx fiber.Ctx) error {
 func (s *Service) logout(ctx fiber.Ctx) error {
 	cookie := ctx.Cookies(session.CookieName)
 	if err := s.AuthService.Logout(ctx.Context(), cookie); err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "failed to logout",
-		})
+		return utils.InternalError(ctx, "failed to logout")
 	}
 	s.clearSessionCookie(ctx)
-	return ctx.JSON(fiber.Map{"status": "ok"})
+	return utils.OK(ctx)
 }
 
 func (s *Service) setupSiteInfoRoute(r fiber.Router) {
@@ -278,7 +250,7 @@ func (s *Service) getRules(ctx fiber.Ctx) error {
 	page := ctx.Params("page")
 	def, ok := rulesSettings[page]
 	if !ok {
-		return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "unknown page"})
+		return utils.NotFound(ctx, "unknown page")
 	}
 
 	return ctx.JSON(fiber.Map{

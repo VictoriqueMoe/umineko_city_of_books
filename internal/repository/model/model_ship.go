@@ -51,14 +51,7 @@ type (
 		UserLiked         bool
 	}
 
-	ShipCommentMediaRow struct {
-		ID           int
-		CommentID    uuid.UUID
-		MediaURL     string
-		MediaType    string
-		ThumbnailURL string
-		SortOrder    int
-	}
+	ShipCommentMediaRow = CommentMediaRow
 )
 
 func (r *ShipRow) ToResponse(characters []ShipCharacterRow) dto.ShipResponse {
@@ -95,16 +88,7 @@ func (r *ShipRow) ToResponse(characters []ShipCharacterRow) dto.ShipResponse {
 }
 
 func (r *ShipCommentRow) ToResponse(media []ShipCommentMediaRow) dto.ShipCommentResponse {
-	mediaList := make([]dto.PostMediaResponse, len(media))
-	for i, m := range media {
-		mediaList[i] = dto.PostMediaResponse{
-			ID:           m.ID,
-			MediaURL:     m.MediaURL,
-			MediaType:    m.MediaType,
-			ThumbnailURL: m.ThumbnailURL,
-			SortOrder:    m.SortOrder,
-		}
-	}
+	mediaList := CommentMediaRowsToResponse(media)
 	return dto.ShipCommentResponse{
 		ID:       r.ID,
 		ParentID: r.ParentID,

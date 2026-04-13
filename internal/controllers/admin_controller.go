@@ -1,16 +1,24 @@
 package controllers
 
 import (
+	"context"
 	"errors"
 
 	"umineko_city_of_books/internal/admin"
 	"umineko_city_of_books/internal/authz"
+	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/middleware"
 	"umineko_city_of_books/internal/role"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
+)
+
+type (
+	roleMutation func(ctx context.Context, actorID, targetID uuid.UUID, r role.Role) error
+	scoreReader  func(ctx context.Context, userID uuid.UUID) (int, error)
+	scoreUpdater func(ctx context.Context, userID uuid.UUID, adjustment int) error
 )
 
 func (s *Service) getAllAdminRoutes() []FSetupRoute {
@@ -109,9 +117,9 @@ func (s *Service) adminListUsers(ctx fiber.Ctx) error {
 }
 
 func (s *Service) adminGetUser(ctx fiber.Ctx) error {
-	targetID, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user ID"})
+	targetID, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
 
 	result, err := s.AdminService.GetUser(ctx.Context(), targetID)
@@ -121,79 +129,70 @@ func (s *Service) adminGetUser(ctx fiber.Ctx) error {
 	return ctx.JSON(result)
 }
 
-func (s *Service) adminSetRole(ctx fiber.Ctx) error {
-	actorID, targetID, err := actorAndTarget(ctx)
-	if err != nil {
-		return err
+func (s *Service) handleRoleMutation(ctx fiber.Ctx, op roleMutation) error {
+	actorID, targetID, ok := utils.ActorAndTarget(ctx)
+	if !ok {
+		return nil
 	}
 
-	var req dto.SetRoleRequest
-	if err := ctx.Bind().JSON(&req); err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	req, ok := utils.BindJSON[dto.SetRoleRequest](ctx)
+	if !ok {
+		return nil
 	}
 
-	if err := s.AdminService.SetUserRole(ctx.Context(), actorID, targetID, role.Role(req.Role)); err != nil {
+	if err := op(ctx.Context(), actorID, targetID, role.Role(req.Role)); err != nil {
 		return handleAdminError(ctx, err)
 	}
-	return ctx.JSON(fiber.Map{"status": "ok"})
+	return utils.OK(ctx)
+}
+
+func (s *Service) adminSetRole(ctx fiber.Ctx) error {
+	return s.handleRoleMutation(ctx, s.AdminService.SetUserRole)
 }
 
 func (s *Service) adminRemoveRole(ctx fiber.Ctx) error {
-	actorID, targetID, err := actorAndTarget(ctx)
-	if err != nil {
-		return err
-	}
-
-	var req dto.SetRoleRequest
-	if err := ctx.Bind().JSON(&req); err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
-	}
-
-	if err := s.AdminService.RemoveUserRole(ctx.Context(), actorID, targetID, role.Role(req.Role)); err != nil {
-		return handleAdminError(ctx, err)
-	}
-	return ctx.JSON(fiber.Map{"status": "ok"})
+	return s.handleRoleMutation(ctx, s.AdminService.RemoveUserRole)
 }
 
 func (s *Service) adminBanUser(ctx fiber.Ctx) error {
-	actorID, targetID, err := actorAndTarget(ctx)
-	if err != nil {
-		return err
+	actorID, targetID, ok := utils.ActorAndTarget(ctx)
+	if !ok {
+		return nil
 	}
 
-	var req dto.BanUserRequest
-	if err := ctx.Bind().JSON(&req); err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	req, ok := utils.BindJSON[dto.BanUserRequest](ctx)
+	if !ok {
+		return nil
 	}
 
 	if err := s.AdminService.BanUser(ctx.Context(), actorID, targetID, req.Reason); err != nil {
 		return handleAdminError(ctx, err)
 	}
-	return ctx.JSON(fiber.Map{"status": "ok"})
+	return utils.OK(ctx)
 }
 
 func (s *Service) adminUnbanUser(ctx fiber.Ctx) error {
-	actorID, targetID, err := actorAndTarget(ctx)
-	if err != nil {
-		return err
+	actorID, targetID, ok := utils.ActorAndTarget(ctx)
+	if !ok {
+		return nil
 	}
 
 	if err := s.AdminService.UnbanUser(ctx.Context(), actorID, targetID); err != nil {
 		return handleAdminError(ctx, err)
 	}
-	return ctx.JSON(fiber.Map{"status": "ok"})
+	return utils.OK(ctx)
 }
 
 func (s *Service) adminDeleteUser(ctx fiber.Ctx) error {
-	actorID, targetID, err := actorAndTarget(ctx)
-	if err != nil {
-		return err
+	actorID, targetID, ok := utils.ActorAndTarget(ctx)
+	if !ok {
+		return nil
 	}
 
 	if err := s.AdminService.DeleteUser(ctx.Context(), actorID, targetID); err != nil {
 		return handleAdminError(ctx, err)
 	}
-	return ctx.JSON(fiber.Map{"status": "ok"})
+	return utils.OK(ctx)
 }
 
 func (s *Service) adminGetSettings(ctx fiber.Ctx) error {
@@ -205,17 +204,17 @@ func (s *Service) adminGetSettings(ctx fiber.Ctx) error {
 }
 
 func (s *Service) adminUpdateSettings(ctx fiber.Ctx) error {
-	actorID := ctx.Locals("userID").(uuid.UUID)
+	actorID := utils.UserID(ctx)
 
-	var req dto.UpdateSettingsRequest
-	if err := ctx.Bind().JSON(&req); err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	req, ok := utils.BindJSON[dto.UpdateSettingsRequest](ctx)
+	if !ok {
+		return nil
 	}
 
 	if err := s.AdminService.UpdateSettings(ctx.Context(), actorID, req.Settings); err != nil {
 		return handleAdminError(ctx, err)
 	}
-	return ctx.JSON(fiber.Map{"status": "ok"})
+	return utils.OK(ctx)
 }
 
 func (s *Service) adminGetAuditLog(ctx fiber.Ctx) error {
@@ -247,46 +246,34 @@ func (s *Service) setupAdminUpdateMysteryScore(r fiber.Router) {
 	r.Put("/admin/users/:id/gm-score", s.requirePerm(authz.PermEditMysteryScore), s.adminUpdateGMScore)
 }
 
-func (s *Service) adminUpdateMysteryScore(ctx fiber.Ctx) error {
-	targetID, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user ID"})
+func (s *Service) handleScoreUpdate(ctx fiber.Ctx, getRaw scoreReader, setAdjustment scoreUpdater) error {
+	targetID, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
 	var req struct {
 		DesiredScore int `json:"desired_score"`
 	}
 	if err := ctx.Bind().JSON(&req); err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request"})
+		return utils.BadRequest(ctx, "invalid request")
 	}
-	rawScore, _ := s.UserRepo.GetDetectiveRawScore(ctx.Context(), targetID)
-	adjustment := req.DesiredScore - rawScore
-	if err := s.UserRepo.UpdateMysteryScoreAdjustment(ctx.Context(), targetID, adjustment); err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to update"})
+	rawScore, _ := getRaw(ctx.Context(), targetID)
+	if err := setAdjustment(ctx.Context(), targetID, req.DesiredScore-rawScore); err != nil {
+		return utils.InternalError(ctx, "failed to update")
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
+}
+
+func (s *Service) adminUpdateMysteryScore(ctx fiber.Ctx) error {
+	return s.handleScoreUpdate(ctx, s.UserRepo.GetDetectiveRawScore, s.UserRepo.UpdateMysteryScoreAdjustment)
 }
 
 func (s *Service) adminUpdateGMScore(ctx fiber.Ctx) error {
-	targetID, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user ID"})
-	}
-	var req struct {
-		DesiredScore int `json:"desired_score"`
-	}
-	if err := ctx.Bind().JSON(&req); err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request"})
-	}
-	rawScore, _ := s.UserRepo.GetGMRawScore(ctx.Context(), targetID)
-	adjustment := req.DesiredScore - rawScore
-	if err := s.UserRepo.UpdateGMScoreAdjustment(ctx.Context(), targetID, adjustment); err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to update"})
-	}
-	return ctx.SendStatus(fiber.StatusNoContent)
+	return s.handleScoreUpdate(ctx, s.UserRepo.GetGMRawScore, s.UserRepo.UpdateGMScoreAdjustment)
 }
 
 func (s *Service) adminCreateInvite(ctx fiber.Ctx) error {
-	actorID := ctx.Locals("userID").(uuid.UUID)
+	actorID := utils.UserID(ctx)
 
 	result, err := s.AdminService.CreateInvite(ctx.Context(), actorID)
 	if err != nil {
@@ -307,29 +294,29 @@ func (s *Service) adminListInvites(ctx fiber.Ctx) error {
 }
 
 func (s *Service) adminDeleteInvite(ctx fiber.Ctx) error {
-	actorID := ctx.Locals("userID").(uuid.UUID)
+	actorID := utils.UserID(ctx)
 	code := ctx.Params("code")
 
 	if err := s.AdminService.DeleteInvite(ctx.Context(), actorID, code); err != nil {
 		return handleAdminError(ctx, err)
 	}
-	return ctx.JSON(fiber.Map{"status": "ok"})
+	return utils.OK(ctx)
 }
 
 func handleAdminError(ctx fiber.Ctx, err error) error {
 	if errors.Is(err, admin.ErrUserNotFound) {
-		return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "user not found"})
+		return utils.NotFound(ctx, "user not found")
 	}
 	if errors.Is(err, admin.ErrProtectedUser) {
-		return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "this user cannot be modified"})
+		return utils.Forbidden(ctx, "this user cannot be modified")
 	}
 	if errors.Is(err, admin.ErrVanityRoleNotFound) {
-		return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "vanity role not found"})
+		return utils.NotFound(ctx, "vanity role not found")
 	}
 	if errors.Is(err, admin.ErrSystemRole) {
-		return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "cannot modify system role assignments"})
+		return utils.Forbidden(ctx, "cannot modify system role assignments")
 	}
-	return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	return utils.InternalError(ctx, err.Error())
 }
 
 func (s *Service) setupAdminListVanityRoles(r fiber.Router) {
@@ -369,10 +356,10 @@ func (s *Service) adminListVanityRoles(ctx fiber.Ctx) error {
 }
 
 func (s *Service) adminCreateVanityRole(ctx fiber.Ctx) error {
-	actorID := ctx.Locals("userID").(uuid.UUID)
-	var req dto.CreateVanityRoleRequest
-	if err := ctx.Bind().JSON(&req); err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request"})
+	actorID := utils.UserID(ctx)
+	req, ok := utils.BindJSON[dto.CreateVanityRoleRequest](ctx)
+	if !ok {
+		return nil
 	}
 	result, err := s.AdminService.CreateVanityRole(ctx.Context(), actorID, req)
 	if err != nil {
@@ -382,25 +369,25 @@ func (s *Service) adminCreateVanityRole(ctx fiber.Ctx) error {
 }
 
 func (s *Service) adminUpdateVanityRole(ctx fiber.Ctx) error {
-	actorID := ctx.Locals("userID").(uuid.UUID)
+	actorID := utils.UserID(ctx)
 	id := ctx.Params("id")
-	var req dto.UpdateVanityRoleRequest
-	if err := ctx.Bind().JSON(&req); err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request"})
+	req, ok := utils.BindJSON[dto.UpdateVanityRoleRequest](ctx)
+	if !ok {
+		return nil
 	}
 	if err := s.AdminService.UpdateVanityRole(ctx.Context(), actorID, id, req); err != nil {
 		return handleAdminError(ctx, err)
 	}
-	return ctx.JSON(fiber.Map{"status": "ok"})
+	return utils.OK(ctx)
 }
 
 func (s *Service) adminDeleteVanityRole(ctx fiber.Ctx) error {
-	actorID := ctx.Locals("userID").(uuid.UUID)
+	actorID := utils.UserID(ctx)
 	id := ctx.Params("id")
 	if err := s.AdminService.DeleteVanityRole(ctx.Context(), actorID, id); err != nil {
 		return handleAdminError(ctx, err)
 	}
-	return ctx.JSON(fiber.Map{"status": "ok"})
+	return utils.OK(ctx)
 }
 
 func (s *Service) adminGetVanityRoleUsers(ctx fiber.Ctx) error {
@@ -416,31 +403,31 @@ func (s *Service) adminGetVanityRoleUsers(ctx fiber.Ctx) error {
 }
 
 func (s *Service) adminAssignVanityRole(ctx fiber.Ctx) error {
-	actorID := ctx.Locals("userID").(uuid.UUID)
+	actorID := utils.UserID(ctx)
 	roleID := ctx.Params("id")
-	var req dto.AssignVanityRoleRequest
-	if err := ctx.Bind().JSON(&req); err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request"})
+	req, ok := utils.BindJSON[dto.AssignVanityRoleRequest](ctx)
+	if !ok {
+		return nil
 	}
 	userID, err := uuid.Parse(req.UserID)
 	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user id"})
+		return utils.BadRequest(ctx, "invalid user id")
 	}
 	if err := s.AdminService.AssignVanityRole(ctx.Context(), actorID, roleID, userID); err != nil {
 		return handleAdminError(ctx, err)
 	}
-	return ctx.JSON(fiber.Map{"status": "ok"})
+	return utils.OK(ctx)
 }
 
 func (s *Service) adminUnassignVanityRole(ctx fiber.Ctx) error {
-	actorID := ctx.Locals("userID").(uuid.UUID)
+	actorID := utils.UserID(ctx)
 	roleID := ctx.Params("id")
-	userID, err := uuid.Parse(ctx.Params("userId"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid user id"})
+	userID, ok := utils.ParseIDParam(ctx, "userId")
+	if !ok {
+		return nil
 	}
 	if err := s.AdminService.UnassignVanityRole(ctx.Context(), actorID, roleID, userID); err != nil {
 		return handleAdminError(ctx, err)
 	}
-	return ctx.JSON(fiber.Map{"status": "ok"})
+	return utils.OK(ctx)
 }

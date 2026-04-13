@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"umineko_city_of_books/internal/block"
+	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/middleware"
 	"umineko_city_of_books/internal/theory"
@@ -72,15 +73,13 @@ func (s *Service) listTheories(ctx fiber.Ctx) error {
 	series := ctx.Query("series", "umineko")
 	limit := fiber.Query[int](ctx, "limit", 20)
 	offset := fiber.Query[int](ctx, "offset", 0)
-	userID, _ := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 
 	var authorID uuid.UUID
 	if authorIDStr != "" {
 		parsed, err := uuid.Parse(authorIDStr)
 		if err != nil {
-			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "invalid author ID",
-			})
+			return utils.BadRequest(ctx, "invalid author ID")
 		}
 		authorID = parsed
 	}
@@ -88,28 +87,22 @@ func (s *Service) listTheories(ctx fiber.Ctx) error {
 	p := params.NewListParams(sort, episode, authorID, search, series, limit, offset)
 	result, err := s.TheoryService.ListTheories(ctx.Context(), p, userID)
 	if err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "failed to list theories",
-		})
+		return utils.InternalError(ctx, "failed to list theories")
 	}
 
 	return ctx.JSON(result)
 }
 
 func (s *Service) createTheory(ctx fiber.Ctx) error {
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 
-	var req dto.CreateTheoryRequest
-	if err := ctx.Bind().JSON(&req); err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "invalid request body",
-		})
+	req, ok := utils.BindJSON[dto.CreateTheoryRequest](ctx)
+	if !ok {
+		return nil
 	}
 
 	if req.Title == "" || req.Body == "" {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "title and body are required",
-		})
+		return utils.BadRequest(ctx, "title and body are required")
 	}
 
 	id, err := s.TheoryService.CreateTheory(ctx.Context(), userID, req)
@@ -119,79 +112,61 @@ func (s *Service) createTheory(ctx fiber.Ctx) error {
 				"error": "daily theory limit reached",
 			})
 		}
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "failed to create theory",
-		})
+		return utils.InternalError(ctx, "failed to create theory")
 	}
 
 	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id})
 }
 
 func (s *Service) getTheory(ctx fiber.Ctx) error {
-	id, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "invalid theory ID",
-		})
+	id, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
-	userID, _ := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 
 	result, err := s.TheoryService.GetTheoryDetail(ctx.Context(), id, userID)
 	if err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "failed to get theory",
-		})
+		return utils.InternalError(ctx, "failed to get theory")
 	}
 	if result == nil {
-		return ctx.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error": "theory not found",
-		})
+		return utils.NotFound(ctx, "theory not found")
 	}
 
 	return ctx.JSON(result)
 }
 
 func (s *Service) updateTheory(ctx fiber.Ctx) error {
-	id, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "invalid theory ID",
-		})
+	id, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 
-	var req dto.CreateTheoryRequest
-	if err := ctx.Bind().JSON(&req); err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "invalid request body",
-		})
+	req, ok := utils.BindJSON[dto.CreateTheoryRequest](ctx)
+	if !ok {
+		return nil
 	}
 
 	if err := s.TheoryService.UpdateTheory(ctx.Context(), id, userID, req); err != nil {
-		return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"error": "cannot update this theory",
-		})
+		return utils.Forbidden(ctx, "cannot update this theory")
 	}
 
-	return ctx.JSON(fiber.Map{"status": "ok"})
+	return utils.OK(ctx)
 }
 
 func (s *Service) deleteTheory(ctx fiber.Ctx) error {
-	id, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "invalid theory ID",
-		})
+	id, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 
 	if err := s.TheoryService.DeleteTheory(ctx.Context(), id, userID); err != nil {
-		return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"error": "cannot delete this theory",
-		})
+		return utils.Forbidden(ctx, "cannot delete this theory")
 	}
 
-	return ctx.JSON(fiber.Map{"status": "ok"})
+	return utils.OK(ctx)
 }
 
 func (s *Service) voteTheory(ctx fiber.Ctx) error {
@@ -199,110 +174,82 @@ func (s *Service) voteTheory(ctx fiber.Ctx) error {
 }
 
 func (s *Service) vote(ctx fiber.Ctx, voteFunc func(context.Context, uuid.UUID, uuid.UUID, int) error) error {
-	id, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "invalid ID",
-		})
+	id, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 
-	var req dto.VoteRequest
-	if err := ctx.Bind().JSON(&req); err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "invalid request body",
-		})
+	req, ok := utils.BindJSON[dto.VoteRequest](ctx)
+	if !ok {
+		return nil
 	}
 
 	if req.Value != 1 && req.Value != -1 && req.Value != 0 {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "value must be 1, -1, or 0",
-		})
+		return utils.BadRequest(ctx, "value must be 1, -1, or 0")
 	}
 
 	if err := voteFunc(ctx.Context(), userID, id, req.Value); err != nil {
 		if errors.Is(err, block.ErrUserBlocked) {
-			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
-				"error": "user is blocked",
-			})
+			return utils.Forbidden(ctx, "user is blocked")
 		}
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "failed to vote",
-		})
+		return utils.InternalError(ctx, "failed to vote")
 	}
 
-	return ctx.JSON(fiber.Map{"status": "ok"})
+	return utils.OK(ctx)
 }
 
 func (s *Service) createResponse(ctx fiber.Ctx) error {
-	theoryID, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "invalid theory ID",
-		})
+	theoryID, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 
-	var req dto.CreateResponseRequest
-	if err := ctx.Bind().JSON(&req); err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "invalid request body",
-		})
+	req, ok := utils.BindJSON[dto.CreateResponseRequest](ctx)
+	if !ok {
+		return nil
 	}
 
 	if req.Side != "with_love" && req.Side != "without_love" {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "side must be 'with_love' or 'without_love'",
-		})
+		return utils.BadRequest(ctx, "side must be 'with_love' or 'without_love'")
 	}
 
 	if req.Body == "" {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "body is required",
-		})
+		return utils.BadRequest(ctx, "body is required")
 	}
 
 	id, err := s.TheoryService.CreateResponse(ctx.Context(), theoryID, userID, req)
 	if err != nil {
 		if errors.Is(err, block.ErrUserBlocked) {
-			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
-				"error": "user is blocked",
-			})
+			return utils.Forbidden(ctx, "user is blocked")
 		}
 		if errors.Is(err, theory.ErrCannotRespondToOwnTheory) {
-			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
-				"error": err.Error(),
-			})
+			return utils.Forbidden(ctx, err.Error())
 		}
 		if errors.Is(err, theory.ErrRateLimited) {
 			return ctx.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
 				"error": "daily response limit reached",
 			})
 		}
-		return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "failed to create response",
-		})
+		return utils.InternalError(ctx, "failed to create response")
 	}
 
 	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id})
 }
 
 func (s *Service) deleteResponse(ctx fiber.Ctx) error {
-	id, err := uuid.Parse(ctx.Params("id"))
-	if err != nil {
-		return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "invalid response ID",
-		})
+	id, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
 	}
-	userID := ctx.Locals("userID").(uuid.UUID)
+	userID := utils.UserID(ctx)
 
 	if err := s.TheoryService.DeleteResponse(ctx.Context(), id, userID); err != nil {
-		return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"error": "cannot delete this response",
-		})
+		return utils.Forbidden(ctx, "cannot delete this response")
 	}
 
-	return ctx.JSON(fiber.Map{"status": "ok"})
+	return utils.OK(ctx)
 }
 
 func (s *Service) voteResponse(ctx fiber.Ctx) error {
