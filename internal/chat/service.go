@@ -979,13 +979,40 @@ func (s *service) UploadMessageMedia(ctx context.Context, messageID, userID uuid
 		return nil, fmt.Errorf("not the message sender")
 	}
 
-	return s.uploader.SaveAndRecord(ctx, "chat", contentType, fileSize, reader,
+	result, err := s.uploader.SaveAndRecord(ctx, "chat", contentType, fileSize, reader,
 		func(mediaURL, mediaType, thumbURL string, sortOrder int) (int64, error) {
 			return s.chatRepo.AddMessageMedia(ctx, messageID, mediaURL, mediaType, thumbURL, sortOrder)
 		},
 		s.chatRepo.UpdateMessageMediaURL,
 		s.chatRepo.UpdateMessageMediaThumbnail,
 	)
+	if err != nil {
+		return nil, err
+	}
+
+	roomID, roomErr := s.chatRepo.GetMessageRoomID(ctx, messageID)
+	if roomErr == nil {
+		members, memErr := s.chatRepo.GetRoomMembers(ctx, roomID)
+		if memErr == nil {
+			msg := ws.Message{
+				Type: "chat_message_media_added",
+				Data: map[string]interface{}{
+					"room_id":    roomID,
+					"message_id": messageID,
+					"media":      result,
+				},
+			}
+			for i := 0; i < len(members); i++ {
+				memberID := members[i]
+				if memberID == senderID {
+					continue
+				}
+				s.hub.SendToUser(memberID, msg)
+			}
+		}
+	}
+
+	return result, nil
 }
 
 func (s *service) buildRoomResponse(ctx context.Context, roomID, viewerID uuid.UUID) (*dto.ChatRoomResponse, error) {

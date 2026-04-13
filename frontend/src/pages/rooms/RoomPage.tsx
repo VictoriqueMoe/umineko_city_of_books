@@ -20,7 +20,11 @@ import { ChatComposer, type ReplyTarget } from "../../components/chat/ChatCompos
 import { MessageBubble } from "../../components/chat/MessageBubble/MessageBubble";
 import { Lightbox } from "../../components/Lightbox/Lightbox";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
-import { handleIncomingChatMessage } from "../../utils/chatStream";
+import {
+    ChatMessageMediaAddedPayload,
+    handleIncomingChatMessage,
+    handleIncomingChatMessageMedia,
+} from "../../utils/chatStream";
 import styles from "./RoomPage.module.css";
 
 export function RoomPage() {
@@ -168,6 +172,11 @@ export function RoomPage() {
             if (msg.type === "chat_message") {
                 const chatMsg = msg.data as ChatMessage;
                 handleIncomingChatMessage(chatMsg, roomIdRef.current ?? null, setMessages, scrollToBottom);
+                return;
+            }
+            if (msg.type === "chat_message_media_added") {
+                const payload = msg.data as ChatMessageMediaAddedPayload;
+                handleIncomingChatMessageMedia(payload, roomIdRef.current ?? null, setMessages);
                 return;
             }
             if (msg.type === "chat_member_joined") {
