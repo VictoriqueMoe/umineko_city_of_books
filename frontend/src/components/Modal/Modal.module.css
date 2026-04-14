@@ -22,6 +22,12 @@
     flex-direction: column;
 }
 
+.body {
+    padding: 1.25rem;
+    overflow-y: auto;
+    flex: 1;
+}
+
 .header {
     display: flex;
     justify-content: space-between;

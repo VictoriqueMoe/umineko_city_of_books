@@ -55,9 +55,12 @@ type (
 	}
 
 	ChatRoomMemberResponse struct {
-		User     UserResponse `json:"user"`
-		Role     string       `json:"role"`
-		JoinedAt string       `json:"joined_at"`
+		User            UserResponse `json:"user"`
+		Role            string       `json:"role"`
+		JoinedAt        string       `json:"joined_at"`
+		Nickname        string       `json:"nickname"`
+		NicknameLocked  bool         `json:"nickname_locked"`
+		MemberAvatarURL string       `json:"member_avatar_url"`
 	}
 
 	ChatMessageResponse struct {
@@ -68,6 +71,25 @@ type (
 		CreatedAt string                   `json:"created_at"`
 		Media     []PostMediaResponse      `json:"media,omitempty"`
 		ReplyTo   *ChatMessageReplyPreview `json:"reply_to,omitempty"`
+		Pinned    bool                     `json:"pinned"`
+		PinnedAt  *string                  `json:"pinned_at,omitempty"`
+		PinnedBy  *uuid.UUID               `json:"pinned_by,omitempty"`
+		Reactions []ReactionGroup          `json:"reactions"`
+	}
+
+	ReactionGroup struct {
+		Emoji         string   `json:"emoji"`
+		Count         int      `json:"count"`
+		ViewerReacted bool     `json:"viewer_reacted"`
+		DisplayNames  []string `json:"display_names"`
+	}
+
+	UpdateMemberProfileRequest struct {
+		Nickname string `json:"nickname"`
+	}
+
+	AddReactionRequest struct {
+		Emoji string `json:"emoji"`
 	}
 
 	ChatRoomListResponse struct {

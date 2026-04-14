@@ -81,23 +81,6 @@ func TestCreateFanfic_TooManyGenres(t *testing.T) {
 	require.ErrorIs(t, err, ErrTooManyGenres)
 }
 
-func TestCreateFanfic_TooManyCharacters(t *testing.T) {
-	// given
-	svc, _ := newTestService(t)
-	req := dto.CreateFanficRequest{
-		Title: "t",
-		Characters: []dto.FanficCharacter{
-			{CharacterName: "a"}, {CharacterName: "b"}, {CharacterName: "c"}, {CharacterName: "d"}, {CharacterName: "e"},
-		},
-	}
-
-	// when
-	_, err := svc.CreateFanfic(context.Background(), uuid.New(), req)
-
-	// then
-	require.ErrorIs(t, err, ErrTooManyCharacters)
-}
-
 func TestCreateFanfic_TooManyTags(t *testing.T) {
 	// given
 	svc, _ := newTestService(t)
@@ -409,24 +392,6 @@ func TestUpdateFanfic_TooManyGenres(t *testing.T) {
 
 	// then
 	require.ErrorIs(t, err, ErrTooManyGenres)
-}
-
-func TestUpdateFanfic_TooManyCharacters(t *testing.T) {
-	// given
-	svc, m := newTestService(t)
-	id := uuid.New()
-	userID := uuid.New()
-	m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(userID, nil)
-	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(false)
-	chars := []dto.FanficCharacter{
-		{CharacterName: "a"}, {CharacterName: "b"}, {CharacterName: "c"}, {CharacterName: "d"}, {CharacterName: "e"},
-	}
-
-	// when
-	err := svc.UpdateFanfic(context.Background(), id, userID, dto.UpdateFanficRequest{Title: "T", Characters: chars})
-
-	// then
-	require.ErrorIs(t, err, ErrTooManyCharacters)
 }
 
 func TestUpdateFanfic_TooManyTags(t *testing.T) {

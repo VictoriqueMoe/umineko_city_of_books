@@ -1,7 +1,7 @@
 .search {
     display: flex;
     gap: 0.5rem;
-    padding: 0.75rem 1.25rem;
+    padding-bottom: 0.75rem;
 }
 
 .searchInput {
@@ -46,13 +46,13 @@
 .filters {
     display: flex;
     gap: 0.5rem;
-    padding: 0 1.25rem 0.5rem;
+    padding-bottom: 0.5rem;
 }
 
 .results {
     flex: 1;
     overflow-y: auto;
-    padding: 0.75rem 1.25rem;
+    padding: 0.75rem 0;
 }
 
 .loadingOverlay {
@@ -61,7 +61,7 @@
 }
 
 .pagination {
-    padding: 0 1.25rem 0.75rem;
+    padding-top: 0.75rem;
 }
 
 @media (max-width: 768px) {

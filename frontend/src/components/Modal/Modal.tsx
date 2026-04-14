@@ -21,7 +21,7 @@ export function Modal({ isOpen, onClose, title, children }: PropsWithChildren<Mo
                         {"\u2715"}
                     </button>
                 </div>
-                {children}
+                <div className={styles.body}>{children}</div>
             </div>
         </div>
     );

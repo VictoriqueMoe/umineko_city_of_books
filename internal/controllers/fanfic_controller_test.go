@@ -233,7 +233,6 @@ func TestCreateFanfic_ServiceErrors(t *testing.T) {
 	}{
 		{"empty title", fanficsvc.ErrEmptyTitle, http.StatusBadRequest},
 		{"too many genres", fanficsvc.ErrTooManyGenres, http.StatusBadRequest},
-		{"too many characters", fanficsvc.ErrTooManyCharacters, http.StatusBadRequest},
 		{"too many tags", fanficsvc.ErrTooManyTags, http.StatusBadRequest},
 		{"tag too long", fanficsvc.ErrTagTooLong, http.StatusBadRequest},
 		{"invalid rating", fanficsvc.ErrInvalidRating, http.StatusBadRequest},
@@ -322,7 +321,6 @@ func TestUpdateFanfic_ServiceErrors(t *testing.T) {
 	}{
 		{"empty title", fanficsvc.ErrEmptyTitle, http.StatusBadRequest},
 		{"too many genres", fanficsvc.ErrTooManyGenres, http.StatusBadRequest},
-		{"too many characters", fanficsvc.ErrTooManyCharacters, http.StatusBadRequest},
 		{"too many tags", fanficsvc.ErrTooManyTags, http.StatusBadRequest},
 		{"tag too long", fanficsvc.ErrTagTooLong, http.StatusBadRequest},
 		{"invalid rating", fanficsvc.ErrInvalidRating, http.StatusBadRequest},

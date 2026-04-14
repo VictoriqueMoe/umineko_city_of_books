@@ -1635,3 +1635,312 @@ func TestChatRepository_CountUnreadRoomsForUser_IgnoresGroups(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 0, count)
 }
+
+func TestChatRepository_SetMemberNickname(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	ctx := context.Background()
+	user := repotest.CreateUser(t, repos)
+	roomID := uuid.New()
+	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "R", "", "group", false, false, user.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
+
+	// when
+	err := repos.Chat.SetMemberNickname(ctx, roomID, user.ID, "Beato")
+
+	// then
+	require.NoError(t, err)
+	members, err := repos.Chat.GetRoomMembersDetailed(ctx, roomID)
+	require.NoError(t, err)
+	require.Len(t, members, 1)
+	assert.Equal(t, "Beato", members[0].Nickname)
+}
+
+func TestChatRepository_SetMemberAvatar_Overwrites(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	ctx := context.Background()
+	user := repotest.CreateUser(t, repos)
+	roomID := uuid.New()
+	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "R", "", "group", false, false, user.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
+	require.NoError(t, repos.Chat.SetMemberAvatar(ctx, roomID, user.ID, "/uploads/chat-avatars/first.png"))
+
+	// when
+	err := repos.Chat.SetMemberAvatar(ctx, roomID, user.ID, "/uploads/chat-avatars/second.png")
+
+	// then
+	require.NoError(t, err)
+	members, err := repos.Chat.GetRoomMembersDetailed(ctx, roomID)
+	require.NoError(t, err)
+	require.Len(t, members, 1)
+	assert.Equal(t, "/uploads/chat-avatars/second.png", members[0].MemberAvatarURL)
+}
+
+func TestChatRepository_PinAndUnpinMessage(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	ctx := context.Background()
+	user := repotest.CreateUser(t, repos)
+	roomID := uuid.New()
+	msgID := uuid.New()
+	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "R", "", "group", false, false, user.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
+	require.NoError(t, repos.Chat.InsertMessage(ctx, msgID, roomID, user.ID, "hi", nil))
+
+	// when
+	require.NoError(t, repos.Chat.PinMessage(ctx, msgID, user.ID))
+	pinned, err := repos.Chat.ListPinnedMessages(ctx, roomID)
+
+	// then
+	require.NoError(t, err)
+	require.Len(t, pinned, 1)
+	assert.Equal(t, msgID, pinned[0].ID)
+	require.NotNil(t, pinned[0].PinnedAt)
+	require.NotNil(t, pinned[0].PinnedBy)
+	assert.Equal(t, user.ID, *pinned[0].PinnedBy)
+
+	require.NoError(t, repos.Chat.UnpinMessage(ctx, msgID))
+	after, err := repos.Chat.ListPinnedMessages(ctx, roomID)
+	require.NoError(t, err)
+	assert.Len(t, after, 0)
+}
+
+func TestChatRepository_ListPinnedMessages_OrdersByPinnedAtDesc(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	ctx := context.Background()
+	user := repotest.CreateUser(t, repos)
+	roomID := uuid.New()
+	first := uuid.New()
+	second := uuid.New()
+	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "R", "", "group", false, false, user.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
+	require.NoError(t, repos.Chat.InsertMessage(ctx, first, roomID, user.ID, "first", nil))
+	require.NoError(t, repos.Chat.InsertMessage(ctx, second, roomID, user.ID, "second", nil))
+
+	// when
+	require.NoError(t, repos.Chat.PinMessage(ctx, first, user.ID))
+	_, _ = repos.DB().ExecContext(ctx, `UPDATE chat_messages SET pinned_at = datetime(pinned_at, '-1 second') WHERE id = ?`, first)
+	require.NoError(t, repos.Chat.PinMessage(ctx, second, user.ID))
+	pinned, err := repos.Chat.ListPinnedMessages(ctx, roomID)
+
+	// then
+	require.NoError(t, err)
+	require.Len(t, pinned, 2)
+	assert.Equal(t, second, pinned[0].ID)
+	assert.Equal(t, first, pinned[1].ID)
+}
+
+func TestChatRepository_AddAndRemoveReaction(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	ctx := context.Background()
+	user := repotest.CreateUser(t, repos)
+	roomID := uuid.New()
+	msgID := uuid.New()
+	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "R", "", "group", false, false, user.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
+	require.NoError(t, repos.Chat.InsertMessage(ctx, msgID, roomID, user.ID, "hi", nil))
+
+	// when
+	require.NoError(t, repos.Chat.AddReaction(ctx, msgID, user.ID, "👍"))
+	groups, err := repos.Chat.GetReactionsBatch(ctx, []uuid.UUID{msgID}, user.ID)
+
+	// then
+	require.NoError(t, err)
+	require.Len(t, groups[msgID], 1)
+	assert.Equal(t, "👍", groups[msgID][0].Emoji)
+	assert.Equal(t, 1, groups[msgID][0].Count)
+	assert.True(t, groups[msgID][0].ViewerReacted)
+
+	require.NoError(t, repos.Chat.RemoveReaction(ctx, msgID, user.ID, "👍"))
+	after, err := repos.Chat.GetReactionsBatch(ctx, []uuid.UUID{msgID}, user.ID)
+	require.NoError(t, err)
+	assert.Empty(t, after[msgID])
+}
+
+func TestChatRepository_AddReaction_Idempotent(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	ctx := context.Background()
+	user := repotest.CreateUser(t, repos)
+	roomID := uuid.New()
+	msgID := uuid.New()
+	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "R", "", "group", false, false, user.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
+	require.NoError(t, repos.Chat.InsertMessage(ctx, msgID, roomID, user.ID, "hi", nil))
+
+	// when
+	require.NoError(t, repos.Chat.AddReaction(ctx, msgID, user.ID, "🎉"))
+	require.NoError(t, repos.Chat.AddReaction(ctx, msgID, user.ID, "🎉"))
+	groups, err := repos.Chat.GetReactionsBatch(ctx, []uuid.UUID{msgID}, user.ID)
+
+	// then
+	require.NoError(t, err)
+	require.Len(t, groups[msgID], 1)
+	assert.Equal(t, 1, groups[msgID][0].Count)
+}
+
+func TestChatRepository_GetReactionsBatch_GroupsByEmoji(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	ctx := context.Background()
+	userA := repotest.CreateUser(t, repos)
+	userB := repotest.CreateUser(t, repos)
+	roomID := uuid.New()
+	msgID := uuid.New()
+	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "R", "", "group", false, false, userA.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, roomID, userA.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, roomID, userB.ID))
+	require.NoError(t, repos.Chat.InsertMessage(ctx, msgID, roomID, userA.ID, "hi", nil))
+	require.NoError(t, repos.Chat.AddReaction(ctx, msgID, userA.ID, "👍"))
+	require.NoError(t, repos.Chat.AddReaction(ctx, msgID, userB.ID, "👍"))
+	require.NoError(t, repos.Chat.AddReaction(ctx, msgID, userA.ID, "😂"))
+
+	// when
+	groups, err := repos.Chat.GetReactionsBatch(ctx, []uuid.UUID{msgID}, userB.ID)
+
+	// then
+	require.NoError(t, err)
+	require.Len(t, groups[msgID], 2)
+	thumbs := groups[msgID][0]
+	assert.Equal(t, "👍", thumbs.Emoji)
+	assert.Equal(t, 2, thumbs.Count)
+	assert.True(t, thumbs.ViewerReacted)
+	laugh := groups[msgID][1]
+	assert.Equal(t, "😂", laugh.Emoji)
+	assert.Equal(t, 1, laugh.Count)
+	assert.False(t, laugh.ViewerReacted)
+}
+
+func TestChatRepository_IsMemberNicknameLocked_False(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	ctx := context.Background()
+	user := repotest.CreateUser(t, repos)
+	roomID := uuid.New()
+	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "R", "", "group", false, false, user.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
+
+	// when
+	locked, err := repos.Chat.IsMemberNicknameLocked(ctx, roomID, user.ID)
+
+	// then
+	require.NoError(t, err)
+	assert.False(t, locked)
+}
+
+func TestChatRepository_IsMemberNicknameLocked_True(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	ctx := context.Background()
+	user := repotest.CreateUser(t, repos)
+	roomID := uuid.New()
+	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "R", "", "group", false, false, user.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
+	require.NoError(t, repos.Chat.SetMemberNicknameWithLock(ctx, roomID, user.ID, "Locked", true))
+
+	// when
+	locked, err := repos.Chat.IsMemberNicknameLocked(ctx, roomID, user.ID)
+
+	// then
+	require.NoError(t, err)
+	assert.True(t, locked)
+}
+
+func TestChatRepository_IsMemberNicknameLocked_NotMember(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	ctx := context.Background()
+	user := repotest.CreateUser(t, repos)
+	roomID := uuid.New()
+	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "R", "", "group", false, false, user.ID))
+
+	// when
+	locked, err := repos.Chat.IsMemberNicknameLocked(ctx, roomID, uuid.New())
+
+	// then
+	require.NoError(t, err)
+	assert.False(t, locked)
+}
+
+func TestChatRepository_SetMemberNicknameWithLock_LocksAndUnlocks(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	ctx := context.Background()
+	user := repotest.CreateUser(t, repos)
+	roomID := uuid.New()
+	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "R", "", "group", false, false, user.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
+
+	// when
+	require.NoError(t, repos.Chat.SetMemberNicknameWithLock(ctx, roomID, user.ID, "Forced", true))
+	lockedAfter, err := repos.Chat.IsMemberNicknameLocked(ctx, roomID, user.ID)
+
+	// then
+	require.NoError(t, err)
+	assert.True(t, lockedAfter)
+	members, err := repos.Chat.GetRoomMembersDetailed(ctx, roomID)
+	require.NoError(t, err)
+	require.Len(t, members, 1)
+	assert.Equal(t, "Forced", members[0].Nickname)
+	assert.True(t, members[0].NicknameLocked)
+
+	// and when unlocking
+	require.NoError(t, repos.Chat.SetMemberNicknameWithLock(ctx, roomID, user.ID, "", false))
+	lockedAfterUnlock, err := repos.Chat.IsMemberNicknameLocked(ctx, roomID, user.ID)
+	require.NoError(t, err)
+	assert.False(t, lockedAfterUnlock)
+	members2, err := repos.Chat.GetRoomMembersDetailed(ctx, roomID)
+	require.NoError(t, err)
+	require.Len(t, members2, 1)
+	assert.Equal(t, "", members2[0].Nickname)
+	assert.False(t, members2[0].NicknameLocked)
+}
+
+func TestChatRepository_GetRoomMembersDetailed_PopulatesNicknameLocked(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	ctx := context.Background()
+	owner := repotest.CreateUser(t, repos)
+	other := repotest.CreateUser(t, repos)
+	roomID := uuid.New()
+	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "R", "", "group", false, false, owner.ID))
+	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, roomID, owner.ID, "host"))
+	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, roomID, other.ID, "member"))
+	require.NoError(t, repos.Chat.SetMemberNicknameWithLock(ctx, roomID, other.ID, "Pinned", true))
+
+	// when
+	detailed, err := repos.Chat.GetRoomMembersDetailed(ctx, roomID)
+
+	// then
+	require.NoError(t, err)
+	require.Len(t, detailed, 2)
+	assert.False(t, detailed[0].NicknameLocked)
+	assert.Equal(t, other.ID, detailed[1].UserID)
+	assert.True(t, detailed[1].NicknameLocked)
+	assert.Equal(t, "Pinned", detailed[1].Nickname)
+}
+
+func TestChatRepository_GetMessages_UsesPerRoomOverrides(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	ctx := context.Background()
+	user := repotest.CreateUser(t, repos)
+	roomID := uuid.New()
+	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "R", "", "group", false, false, user.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
+	require.NoError(t, repos.Chat.SetMemberNickname(ctx, roomID, user.ID, "Beato"))
+	require.NoError(t, repos.Chat.SetMemberAvatar(ctx, roomID, user.ID, "/custom.png"))
+	require.NoError(t, repos.Chat.InsertMessage(ctx, uuid.New(), roomID, user.ID, "hi", nil))
+
+	// when
+	msgs, _, err := repos.Chat.GetMessages(ctx, roomID, 10, 0)
+
+	// then
+	require.NoError(t, err)
+	require.Len(t, msgs, 1)
+	assert.Equal(t, "Beato", msgs[0].SenderNickname)
+	assert.Equal(t, "/custom.png", msgs[0].SenderMemberAvatar)
+}

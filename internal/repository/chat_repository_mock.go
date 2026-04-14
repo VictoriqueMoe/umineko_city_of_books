@@ -261,6 +261,75 @@ func (_c *MockChatRepository_AddMessageMedia_Call) RunAndReturn(run func(ctx con
 	return _c
 }
 
+// AddReaction provides a mock function for the type MockChatRepository
+func (_mock *MockChatRepository) AddReaction(ctx context.Context, messageID uuid.UUID, userID uuid.UUID, emoji string) error {
+	ret := _mock.Called(ctx, messageID, userID, emoji)
+
+	if len(ret) == 0 {
+		panic("no return value specified for AddReaction")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string) error); ok {
+		r0 = returnFunc(ctx, messageID, userID, emoji)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockChatRepository_AddReaction_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AddReaction'
+type MockChatRepository_AddReaction_Call struct {
+	*mock.Call
+}
+
+// AddReaction is a helper method to define mock.On call
+//   - ctx context.Context
+//   - messageID uuid.UUID
+//   - userID uuid.UUID
+//   - emoji string
+func (_e *MockChatRepository_Expecter) AddReaction(ctx interface{}, messageID interface{}, userID interface{}, emoji interface{}) *MockChatRepository_AddReaction_Call {
+	return &MockChatRepository_AddReaction_Call{Call: _e.mock.On("AddReaction", ctx, messageID, userID, emoji)}
+}
+
+func (_c *MockChatRepository_AddReaction_Call) Run(run func(ctx context.Context, messageID uuid.UUID, userID uuid.UUID, emoji string)) *MockChatRepository_AddReaction_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatRepository_AddReaction_Call) Return(err error) *MockChatRepository_AddReaction_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockChatRepository_AddReaction_Call) RunAndReturn(run func(ctx context.Context, messageID uuid.UUID, userID uuid.UUID, emoji string) error) *MockChatRepository_AddReaction_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // AddRoomTags provides a mock function for the type MockChatRepository
 func (_mock *MockChatRepository) AddRoomTags(ctx context.Context, roomID uuid.UUID, tags []string) error {
 	ret := _mock.Called(ctx, roomID, tags)
@@ -1408,6 +1477,80 @@ func (_c *MockChatRepository_GetMessagesBefore_Call) RunAndReturn(run func(ctx c
 	return _c
 }
 
+// GetReactionsBatch provides a mock function for the type MockChatRepository
+func (_mock *MockChatRepository) GetReactionsBatch(ctx context.Context, messageIDs []uuid.UUID, viewerID uuid.UUID) (map[uuid.UUID][]ReactionGroup, error) {
+	ret := _mock.Called(ctx, messageIDs, viewerID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetReactionsBatch")
+	}
+
+	var r0 map[uuid.UUID][]ReactionGroup
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID, uuid.UUID) (map[uuid.UUID][]ReactionGroup, error)); ok {
+		return returnFunc(ctx, messageIDs, viewerID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID, uuid.UUID) map[uuid.UUID][]ReactionGroup); ok {
+		r0 = returnFunc(ctx, messageIDs, viewerID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[uuid.UUID][]ReactionGroup)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, []uuid.UUID, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, messageIDs, viewerID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockChatRepository_GetReactionsBatch_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetReactionsBatch'
+type MockChatRepository_GetReactionsBatch_Call struct {
+	*mock.Call
+}
+
+// GetReactionsBatch is a helper method to define mock.On call
+//   - ctx context.Context
+//   - messageIDs []uuid.UUID
+//   - viewerID uuid.UUID
+func (_e *MockChatRepository_Expecter) GetReactionsBatch(ctx interface{}, messageIDs interface{}, viewerID interface{}) *MockChatRepository_GetReactionsBatch_Call {
+	return &MockChatRepository_GetReactionsBatch_Call{Call: _e.mock.On("GetReactionsBatch", ctx, messageIDs, viewerID)}
+}
+
+func (_c *MockChatRepository_GetReactionsBatch_Call) Run(run func(ctx context.Context, messageIDs []uuid.UUID, viewerID uuid.UUID)) *MockChatRepository_GetReactionsBatch_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].([]uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatRepository_GetReactionsBatch_Call) Return(uUIDToReactionGroups map[uuid.UUID][]ReactionGroup, err error) *MockChatRepository_GetReactionsBatch_Call {
+	_c.Call.Return(uUIDToReactionGroups, err)
+	return _c
+}
+
+func (_c *MockChatRepository_GetReactionsBatch_Call) RunAndReturn(run func(ctx context.Context, messageIDs []uuid.UUID, viewerID uuid.UUID) (map[uuid.UUID][]ReactionGroup, error)) *MockChatRepository_GetReactionsBatch_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetRoomByID provides a mock function for the type MockChatRepository
 func (_mock *MockChatRepository) GetRoomByID(ctx context.Context, roomID uuid.UUID, viewerID uuid.UUID) (*ChatRoomRow, error) {
 	ret := _mock.Called(ctx, roomID, viewerID)
@@ -2111,6 +2254,78 @@ func (_c *MockChatRepository_IsMember_Call) RunAndReturn(run func(ctx context.Co
 	return _c
 }
 
+// IsMemberNicknameLocked provides a mock function for the type MockChatRepository
+func (_mock *MockChatRepository) IsMemberNicknameLocked(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) (bool, error) {
+	ret := _mock.Called(ctx, roomID, userID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for IsMemberNicknameLocked")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) (bool, error)); ok {
+		return returnFunc(ctx, roomID, userID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) bool); ok {
+		r0 = returnFunc(ctx, roomID, userID)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, roomID, userID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockChatRepository_IsMemberNicknameLocked_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IsMemberNicknameLocked'
+type MockChatRepository_IsMemberNicknameLocked_Call struct {
+	*mock.Call
+}
+
+// IsMemberNicknameLocked is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roomID uuid.UUID
+//   - userID uuid.UUID
+func (_e *MockChatRepository_Expecter) IsMemberNicknameLocked(ctx interface{}, roomID interface{}, userID interface{}) *MockChatRepository_IsMemberNicknameLocked_Call {
+	return &MockChatRepository_IsMemberNicknameLocked_Call{Call: _e.mock.On("IsMemberNicknameLocked", ctx, roomID, userID)}
+}
+
+func (_c *MockChatRepository_IsMemberNicknameLocked_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID)) *MockChatRepository_IsMemberNicknameLocked_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatRepository_IsMemberNicknameLocked_Call) Return(b bool, err error) *MockChatRepository_IsMemberNicknameLocked_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *MockChatRepository_IsMemberNicknameLocked_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) (bool, error)) *MockChatRepository_IsMemberNicknameLocked_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // IsMuted provides a mock function for the type MockChatRepository
 func (_mock *MockChatRepository) IsMuted(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) (bool, error) {
 	ret := _mock.Called(ctx, roomID, userID)
@@ -2179,6 +2394,74 @@ func (_c *MockChatRepository_IsMuted_Call) Return(b bool, err error) *MockChatRe
 }
 
 func (_c *MockChatRepository_IsMuted_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) (bool, error)) *MockChatRepository_IsMuted_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListPinnedMessages provides a mock function for the type MockChatRepository
+func (_mock *MockChatRepository) ListPinnedMessages(ctx context.Context, roomID uuid.UUID) ([]ChatMessageRow, error) {
+	ret := _mock.Called(ctx, roomID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListPinnedMessages")
+	}
+
+	var r0 []ChatMessageRow
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]ChatMessageRow, error)); ok {
+		return returnFunc(ctx, roomID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []ChatMessageRow); ok {
+		r0 = returnFunc(ctx, roomID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]ChatMessageRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, roomID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockChatRepository_ListPinnedMessages_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListPinnedMessages'
+type MockChatRepository_ListPinnedMessages_Call struct {
+	*mock.Call
+}
+
+// ListPinnedMessages is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roomID uuid.UUID
+func (_e *MockChatRepository_Expecter) ListPinnedMessages(ctx interface{}, roomID interface{}) *MockChatRepository_ListPinnedMessages_Call {
+	return &MockChatRepository_ListPinnedMessages_Call{Call: _e.mock.On("ListPinnedMessages", ctx, roomID)}
+}
+
+func (_c *MockChatRepository_ListPinnedMessages_Call) Run(run func(ctx context.Context, roomID uuid.UUID)) *MockChatRepository_ListPinnedMessages_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatRepository_ListPinnedMessages_Call) Return(chatMessageRows []ChatMessageRow, err error) *MockChatRepository_ListPinnedMessages_Call {
+	_c.Call.Return(chatMessageRows, err)
+	return _c
+}
+
+func (_c *MockChatRepository_ListPinnedMessages_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID) ([]ChatMessageRow, error)) *MockChatRepository_ListPinnedMessages_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2466,6 +2749,69 @@ func (_c *MockChatRepository_MarkRoomRead_Call) RunAndReturn(run func(ctx contex
 	return _c
 }
 
+// PinMessage provides a mock function for the type MockChatRepository
+func (_mock *MockChatRepository) PinMessage(ctx context.Context, messageID uuid.UUID, pinnedBy uuid.UUID) error {
+	ret := _mock.Called(ctx, messageID, pinnedBy)
+
+	if len(ret) == 0 {
+		panic("no return value specified for PinMessage")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, messageID, pinnedBy)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockChatRepository_PinMessage_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'PinMessage'
+type MockChatRepository_PinMessage_Call struct {
+	*mock.Call
+}
+
+// PinMessage is a helper method to define mock.On call
+//   - ctx context.Context
+//   - messageID uuid.UUID
+//   - pinnedBy uuid.UUID
+func (_e *MockChatRepository_Expecter) PinMessage(ctx interface{}, messageID interface{}, pinnedBy interface{}) *MockChatRepository_PinMessage_Call {
+	return &MockChatRepository_PinMessage_Call{Call: _e.mock.On("PinMessage", ctx, messageID, pinnedBy)}
+}
+
+func (_c *MockChatRepository_PinMessage_Call) Run(run func(ctx context.Context, messageID uuid.UUID, pinnedBy uuid.UUID)) *MockChatRepository_PinMessage_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatRepository_PinMessage_Call) Return(err error) *MockChatRepository_PinMessage_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockChatRepository_PinMessage_Call) RunAndReturn(run func(ctx context.Context, messageID uuid.UUID, pinnedBy uuid.UUID) error) *MockChatRepository_PinMessage_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // RemoveMember provides a mock function for the type MockChatRepository
 func (_mock *MockChatRepository) RemoveMember(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) error {
 	ret := _mock.Called(ctx, roomID, userID)
@@ -2529,6 +2875,75 @@ func (_c *MockChatRepository_RemoveMember_Call) RunAndReturn(run func(ctx contex
 	return _c
 }
 
+// RemoveReaction provides a mock function for the type MockChatRepository
+func (_mock *MockChatRepository) RemoveReaction(ctx context.Context, messageID uuid.UUID, userID uuid.UUID, emoji string) error {
+	ret := _mock.Called(ctx, messageID, userID, emoji)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RemoveReaction")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string) error); ok {
+		r0 = returnFunc(ctx, messageID, userID, emoji)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockChatRepository_RemoveReaction_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RemoveReaction'
+type MockChatRepository_RemoveReaction_Call struct {
+	*mock.Call
+}
+
+// RemoveReaction is a helper method to define mock.On call
+//   - ctx context.Context
+//   - messageID uuid.UUID
+//   - userID uuid.UUID
+//   - emoji string
+func (_e *MockChatRepository_Expecter) RemoveReaction(ctx interface{}, messageID interface{}, userID interface{}, emoji interface{}) *MockChatRepository_RemoveReaction_Call {
+	return &MockChatRepository_RemoveReaction_Call{Call: _e.mock.On("RemoveReaction", ctx, messageID, userID, emoji)}
+}
+
+func (_c *MockChatRepository_RemoveReaction_Call) Run(run func(ctx context.Context, messageID uuid.UUID, userID uuid.UUID, emoji string)) *MockChatRepository_RemoveReaction_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatRepository_RemoveReaction_Call) Return(err error) *MockChatRepository_RemoveReaction_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockChatRepository_RemoveReaction_Call) RunAndReturn(run func(ctx context.Context, messageID uuid.UUID, userID uuid.UUID, emoji string) error) *MockChatRepository_RemoveReaction_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ReplaceRoomTags provides a mock function for the type MockChatRepository
 func (_mock *MockChatRepository) ReplaceRoomTags(ctx context.Context, roomID uuid.UUID, tags []string) error {
 	ret := _mock.Called(ctx, roomID, tags)
@@ -2588,6 +3003,219 @@ func (_c *MockChatRepository_ReplaceRoomTags_Call) Return(err error) *MockChatRe
 }
 
 func (_c *MockChatRepository_ReplaceRoomTags_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, tags []string) error) *MockChatRepository_ReplaceRoomTags_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SetMemberAvatar provides a mock function for the type MockChatRepository
+func (_mock *MockChatRepository) SetMemberAvatar(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, avatarURL string) error {
+	ret := _mock.Called(ctx, roomID, userID, avatarURL)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetMemberAvatar")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string) error); ok {
+		r0 = returnFunc(ctx, roomID, userID, avatarURL)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockChatRepository_SetMemberAvatar_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetMemberAvatar'
+type MockChatRepository_SetMemberAvatar_Call struct {
+	*mock.Call
+}
+
+// SetMemberAvatar is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roomID uuid.UUID
+//   - userID uuid.UUID
+//   - avatarURL string
+func (_e *MockChatRepository_Expecter) SetMemberAvatar(ctx interface{}, roomID interface{}, userID interface{}, avatarURL interface{}) *MockChatRepository_SetMemberAvatar_Call {
+	return &MockChatRepository_SetMemberAvatar_Call{Call: _e.mock.On("SetMemberAvatar", ctx, roomID, userID, avatarURL)}
+}
+
+func (_c *MockChatRepository_SetMemberAvatar_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, avatarURL string)) *MockChatRepository_SetMemberAvatar_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatRepository_SetMemberAvatar_Call) Return(err error) *MockChatRepository_SetMemberAvatar_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockChatRepository_SetMemberAvatar_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, avatarURL string) error) *MockChatRepository_SetMemberAvatar_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SetMemberNickname provides a mock function for the type MockChatRepository
+func (_mock *MockChatRepository) SetMemberNickname(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, nickname string) error {
+	ret := _mock.Called(ctx, roomID, userID, nickname)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetMemberNickname")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string) error); ok {
+		r0 = returnFunc(ctx, roomID, userID, nickname)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockChatRepository_SetMemberNickname_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetMemberNickname'
+type MockChatRepository_SetMemberNickname_Call struct {
+	*mock.Call
+}
+
+// SetMemberNickname is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roomID uuid.UUID
+//   - userID uuid.UUID
+//   - nickname string
+func (_e *MockChatRepository_Expecter) SetMemberNickname(ctx interface{}, roomID interface{}, userID interface{}, nickname interface{}) *MockChatRepository_SetMemberNickname_Call {
+	return &MockChatRepository_SetMemberNickname_Call{Call: _e.mock.On("SetMemberNickname", ctx, roomID, userID, nickname)}
+}
+
+func (_c *MockChatRepository_SetMemberNickname_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, nickname string)) *MockChatRepository_SetMemberNickname_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatRepository_SetMemberNickname_Call) Return(err error) *MockChatRepository_SetMemberNickname_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockChatRepository_SetMemberNickname_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, nickname string) error) *MockChatRepository_SetMemberNickname_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SetMemberNicknameWithLock provides a mock function for the type MockChatRepository
+func (_mock *MockChatRepository) SetMemberNicknameWithLock(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, nickname string, locked bool) error {
+	ret := _mock.Called(ctx, roomID, userID, nickname, locked)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetMemberNicknameWithLock")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, bool) error); ok {
+		r0 = returnFunc(ctx, roomID, userID, nickname, locked)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockChatRepository_SetMemberNicknameWithLock_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetMemberNicknameWithLock'
+type MockChatRepository_SetMemberNicknameWithLock_Call struct {
+	*mock.Call
+}
+
+// SetMemberNicknameWithLock is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roomID uuid.UUID
+//   - userID uuid.UUID
+//   - nickname string
+//   - locked bool
+func (_e *MockChatRepository_Expecter) SetMemberNicknameWithLock(ctx interface{}, roomID interface{}, userID interface{}, nickname interface{}, locked interface{}) *MockChatRepository_SetMemberNicknameWithLock_Call {
+	return &MockChatRepository_SetMemberNicknameWithLock_Call{Call: _e.mock.On("SetMemberNicknameWithLock", ctx, roomID, userID, nickname, locked)}
+}
+
+func (_c *MockChatRepository_SetMemberNicknameWithLock_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, nickname string, locked bool)) *MockChatRepository_SetMemberNicknameWithLock_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		var arg4 bool
+		if args[4] != nil {
+			arg4 = args[4].(bool)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatRepository_SetMemberNicknameWithLock_Call) Return(err error) *MockChatRepository_SetMemberNicknameWithLock_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockChatRepository_SetMemberNicknameWithLock_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, nickname string, locked bool) error) *MockChatRepository_SetMemberNicknameWithLock_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2783,6 +3411,63 @@ func (_c *MockChatRepository_TouchRoomActivity_Call) Return(err error) *MockChat
 }
 
 func (_c *MockChatRepository_TouchRoomActivity_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID) error) *MockChatRepository_TouchRoomActivity_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UnpinMessage provides a mock function for the type MockChatRepository
+func (_mock *MockChatRepository) UnpinMessage(ctx context.Context, messageID uuid.UUID) error {
+	ret := _mock.Called(ctx, messageID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UnpinMessage")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, messageID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockChatRepository_UnpinMessage_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UnpinMessage'
+type MockChatRepository_UnpinMessage_Call struct {
+	*mock.Call
+}
+
+// UnpinMessage is a helper method to define mock.On call
+//   - ctx context.Context
+//   - messageID uuid.UUID
+func (_e *MockChatRepository_Expecter) UnpinMessage(ctx interface{}, messageID interface{}) *MockChatRepository_UnpinMessage_Call {
+	return &MockChatRepository_UnpinMessage_Call{Call: _e.mock.On("UnpinMessage", ctx, messageID)}
+}
+
+func (_c *MockChatRepository_UnpinMessage_Call) Run(run func(ctx context.Context, messageID uuid.UUID)) *MockChatRepository_UnpinMessage_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatRepository_UnpinMessage_Call) Return(err error) *MockChatRepository_UnpinMessage_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockChatRepository_UnpinMessage_Call) RunAndReturn(run func(ctx context.Context, messageID uuid.UUID) error) *MockChatRepository_UnpinMessage_Call {
 	_c.Call.Return(run)
 	return _c
 }

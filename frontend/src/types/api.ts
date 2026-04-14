@@ -619,6 +619,9 @@ export interface ChatRoomMember {
     user: User;
     role: string;
     joined_at: string;
+    nickname: string;
+    member_avatar_url: string;
+    nickname_locked: boolean;
 }
 
 export interface ChatMessageReplyPreview {
@@ -626,6 +629,13 @@ export interface ChatMessageReplyPreview {
     sender_id: string;
     sender_name: string;
     body_preview: string;
+}
+
+export interface ReactionGroup {
+    emoji: string;
+    count: number;
+    viewer_reacted: boolean;
+    display_names: string[];
 }
 
 export interface ChatMessage {
@@ -636,6 +646,17 @@ export interface ChatMessage {
     created_at: string;
     media?: PostMedia[];
     reply_to?: ChatMessageReplyPreview;
+    pinned: boolean;
+    pinned_at?: string;
+    pinned_by?: string;
+    reactions: ReactionGroup[];
+    sender_nickname?: string;
+    sender_member_avatar_url?: string;
+}
+
+export interface ChatMessageListResponse {
+    messages: ChatMessage[];
+    total: number;
 }
 
 export interface Mystery {

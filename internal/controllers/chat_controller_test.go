@@ -1,13 +1,18 @@
 package controllers
 
 import (
+	"bytes"
 	"errors"
+	"io"
+	"mime/multipart"
 	"net/http"
+	"net/url"
 	"testing"
 
 	chatsvc "umineko_city_of_books/internal/chat"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
@@ -15,6 +20,25 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
+
+func buildAvatarMultipart(t *testing.T, fieldName, fileName, contentType, content string) (string, string) {
+	t.Helper()
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+	if fieldName != "" {
+		header := make(map[string][]string)
+		header["Content-Disposition"] = []string{`form-data; name="` + fieldName + `"; filename="` + fileName + `"`}
+		if contentType != "" {
+			header["Content-Type"] = []string{contentType}
+		}
+		part, err := w.CreatePart(header)
+		require.NoError(t, err)
+		_, err = io.WriteString(part, content)
+		require.NoError(t, err)
+	}
+	require.NoError(t, w.Close())
+	return buf.String(), w.FormDataContentType()
+}
 
 func newChatHarness(t *testing.T) (*testutil.Harness, *chatsvc.MockService) {
 	h := testutil.NewHarness(t)
@@ -1127,4 +1151,825 @@ func TestUploadChatMessageMedia_MissingFile(t *testing.T) {
 	// then
 	require.Equal(t, http.StatusBadRequest, status)
 	assert.Contains(t, string(body), "no media file provided")
+}
+
+func TestSetRoomNickname_AuthFailures(t *testing.T) {
+	testutil.RunAuthFailureSuite(t, chatFactory, "PUT", "/chat/rooms/"+uuid.NewString()+"/me",
+		dto.UpdateMemberProfileRequest{Nickname: "nick"})
+}
+
+func TestSetRoomNickname_OK(t *testing.T) {
+	// given
+	h, chatMock := newChatHarness(t)
+	userID := uuid.New()
+	roomID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	chatMock.EXPECT().SetRoomNickname(mock.Anything, roomID, userID, "nick").Return(&dto.ChatRoomMemberResponse{
+		User:     dto.UserResponse{ID: userID},
+		Nickname: "nick",
+	}, nil)
+
+	// when
+	status, respBody := h.NewRequest("PUT", "/chat/rooms/"+roomID.String()+"/me").
+		WithCookie("valid-cookie").
+		WithJSONBody(dto.UpdateMemberProfileRequest{Nickname: "nick"}).Do()
+
+	// then
+	require.Equal(t, http.StatusOK, status)
+	got := testutil.UnmarshalJSON[dto.ChatRoomMemberResponse](t, respBody)
+	assert.Equal(t, "nick", got.Nickname)
+}
+
+func TestSetRoomNickname_InvalidID(t *testing.T) {
+	// given
+	h, _ := newChatHarness(t)
+	h.ExpectValidSession("valid-cookie", uuid.New())
+
+	// when
+	status, body := h.NewRequest("PUT", "/chat/rooms/not-a-uuid/me").
+		WithCookie("valid-cookie").
+		WithJSONBody(dto.UpdateMemberProfileRequest{Nickname: "nick"}).Do()
+
+	// then
+	require.Equal(t, http.StatusBadRequest, status)
+	assert.Contains(t, string(body), "invalid roomID")
+}
+
+func TestSetRoomNickname_BadJSON(t *testing.T) {
+	// given
+	h, _ := newChatHarness(t)
+	h.ExpectValidSession("valid-cookie", uuid.New())
+
+	// when
+	status, body := h.NewRequest("PUT", "/chat/rooms/"+uuid.NewString()+"/me").
+		WithCookie("valid-cookie").
+		WithRawBody("not json", "application/json").Do()
+
+	// then
+	require.Equal(t, http.StatusBadRequest, status)
+	assert.Contains(t, string(body), "invalid request")
+}
+
+func TestSetRoomNickname_ServiceErrors(t *testing.T) {
+	cases := []struct {
+		name     string
+		err      error
+		wantCode int
+		wantBody string
+	}{
+		{"not member", chatsvc.ErrNotMember, http.StatusForbidden, "not a member"},
+		{"internal", errors.New("boom"), http.StatusInternalServerError, "failed to update nickname"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h, chatMock := newChatHarness(t)
+			userID := uuid.New()
+			roomID := uuid.New()
+			h.ExpectValidSession("valid-cookie", userID)
+			chatMock.EXPECT().SetRoomNickname(mock.Anything, roomID, userID, "nick").Return(nil, tc.err)
+
+			// when
+			status, body := h.NewRequest("PUT", "/chat/rooms/"+roomID.String()+"/me").
+				WithCookie("valid-cookie").
+				WithJSONBody(dto.UpdateMemberProfileRequest{Nickname: "nick"}).Do()
+
+			// then
+			require.Equal(t, tc.wantCode, status)
+			assert.Contains(t, string(body), tc.wantBody)
+		})
+	}
+}
+
+func TestSetRoomAvatar_AuthFailures(t *testing.T) {
+	testutil.RunAuthFailureSuite(t, chatFactory, "POST",
+		"/chat/rooms/"+uuid.NewString()+"/me/avatar", nil)
+}
+
+func TestSetRoomAvatar_OK(t *testing.T) {
+	// given
+	h, chatMock := newChatHarness(t)
+	userID := uuid.New()
+	roomID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	body, ct := buildAvatarMultipart(t, "avatar", "avatar.png", "image/png", "pngdata")
+	chatMock.EXPECT().SetRoomAvatar(mock.Anything, roomID, userID, "image/png", int64(len("pngdata")), mock.Anything).
+		Return(&dto.ChatRoomMemberResponse{
+			User:            dto.UserResponse{ID: userID},
+			MemberAvatarURL: "https://cdn/avatar.png",
+		}, nil)
+
+	// when
+	status, respBody := h.NewRequest("POST", "/chat/rooms/"+roomID.String()+"/me/avatar").
+		WithCookie("valid-cookie").
+		WithRawBody(body, ct).Do()
+
+	// then
+	require.Equal(t, http.StatusOK, status)
+	got := testutil.UnmarshalJSON[dto.ChatRoomMemberResponse](t, respBody)
+	assert.Equal(t, "https://cdn/avatar.png", got.MemberAvatarURL)
+}
+
+func TestSetRoomAvatar_InvalidID(t *testing.T) {
+	// given
+	h, _ := newChatHarness(t)
+	h.ExpectValidSession("valid-cookie", uuid.New())
+
+	// when
+	status, body := h.NewRequest("POST", "/chat/rooms/not-a-uuid/me/avatar").
+		WithCookie("valid-cookie").Do()
+
+	// then
+	require.Equal(t, http.StatusBadRequest, status)
+	assert.Contains(t, string(body), "invalid roomID")
+}
+
+func TestSetRoomAvatar_MissingFile(t *testing.T) {
+	// given
+	h, _ := newChatHarness(t)
+	h.ExpectValidSession("valid-cookie", uuid.New())
+
+	// when
+	status, body := h.NewRequest("POST", "/chat/rooms/"+uuid.NewString()+"/me/avatar").
+		WithCookie("valid-cookie").
+		WithRawBody("", "multipart/form-data; boundary=----xxx").Do()
+
+	// then
+	require.Equal(t, http.StatusBadRequest, status)
+	assert.Contains(t, string(body), "avatar file is required")
+}
+
+func TestSetRoomAvatar_ServiceErrors(t *testing.T) {
+	cases := []struct {
+		name     string
+		err      error
+		wantCode int
+		wantBody string
+	}{
+		{"not member", chatsvc.ErrNotMember, http.StatusForbidden, "not a member"},
+		{"file too large", upload.ErrFileTooLarge, http.StatusBadRequest, "50MB"},
+		{"invalid file type", upload.ErrInvalidFileType, http.StatusBadRequest, "PNG"},
+		{"internal", errors.New("boom"), http.StatusInternalServerError, "failed to upload avatar"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h, chatMock := newChatHarness(t)
+			userID := uuid.New()
+			roomID := uuid.New()
+			h.ExpectValidSession("valid-cookie", userID)
+			body, ct := buildAvatarMultipart(t, "avatar", "avatar.png", "image/png", "pngdata")
+			chatMock.EXPECT().SetRoomAvatar(mock.Anything, roomID, userID, "image/png", int64(len("pngdata")), mock.Anything).
+				Return(nil, tc.err)
+
+			// when
+			status, respBody := h.NewRequest("POST", "/chat/rooms/"+roomID.String()+"/me/avatar").
+				WithCookie("valid-cookie").
+				WithRawBody(body, ct).Do()
+
+			// then
+			require.Equal(t, tc.wantCode, status)
+			assert.Contains(t, string(respBody), tc.wantBody)
+		})
+	}
+}
+
+func TestClearRoomAvatar_AuthFailures(t *testing.T) {
+	testutil.RunAuthFailureSuite(t, chatFactory, "DELETE",
+		"/chat/rooms/"+uuid.NewString()+"/me/avatar", nil)
+}
+
+func TestClearRoomAvatar_OK(t *testing.T) {
+	// given
+	h, chatMock := newChatHarness(t)
+	userID := uuid.New()
+	roomID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	chatMock.EXPECT().ClearRoomAvatar(mock.Anything, roomID, userID).Return(&dto.ChatRoomMemberResponse{
+		User:            dto.UserResponse{ID: userID},
+		MemberAvatarURL: "",
+	}, nil)
+
+	// when
+	status, respBody := h.NewRequest("DELETE", "/chat/rooms/"+roomID.String()+"/me/avatar").
+		WithCookie("valid-cookie").Do()
+
+	// then
+	require.Equal(t, http.StatusOK, status)
+	got := testutil.UnmarshalJSON[dto.ChatRoomMemberResponse](t, respBody)
+	assert.Equal(t, "", got.MemberAvatarURL)
+}
+
+func TestClearRoomAvatar_InvalidID(t *testing.T) {
+	// given
+	h, _ := newChatHarness(t)
+	h.ExpectValidSession("valid-cookie", uuid.New())
+
+	// when
+	status, body := h.NewRequest("DELETE", "/chat/rooms/not-a-uuid/me/avatar").
+		WithCookie("valid-cookie").Do()
+
+	// then
+	require.Equal(t, http.StatusBadRequest, status)
+	assert.Contains(t, string(body), "invalid roomID")
+}
+
+func TestClearRoomAvatar_ServiceErrors(t *testing.T) {
+	cases := []struct {
+		name     string
+		err      error
+		wantCode int
+		wantBody string
+	}{
+		{"not member", chatsvc.ErrNotMember, http.StatusForbidden, "not a member"},
+		{"internal", errors.New("boom"), http.StatusInternalServerError, "failed to clear avatar"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h, chatMock := newChatHarness(t)
+			userID := uuid.New()
+			roomID := uuid.New()
+			h.ExpectValidSession("valid-cookie", userID)
+			chatMock.EXPECT().ClearRoomAvatar(mock.Anything, roomID, userID).Return(nil, tc.err)
+
+			// when
+			status, body := h.NewRequest("DELETE", "/chat/rooms/"+roomID.String()+"/me/avatar").
+				WithCookie("valid-cookie").Do()
+
+			// then
+			require.Equal(t, tc.wantCode, status)
+			assert.Contains(t, string(body), tc.wantBody)
+		})
+	}
+}
+
+func TestPinMessage_AuthFailures(t *testing.T) {
+	testutil.RunAuthFailureSuite(t, chatFactory, "POST",
+		"/chat/messages/"+uuid.NewString()+"/pin", nil)
+}
+
+func TestPinMessage_OK(t *testing.T) {
+	// given
+	h, chatMock := newChatHarness(t)
+	userID := uuid.New()
+	messageID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	chatMock.EXPECT().PinMessage(mock.Anything, messageID, userID).Return(nil)
+
+	// when
+	status, _ := h.NewRequest("POST", "/chat/messages/"+messageID.String()+"/pin").
+		WithCookie("valid-cookie").Do()
+
+	// then
+	require.Equal(t, http.StatusOK, status)
+}
+
+func TestPinMessage_InvalidID(t *testing.T) {
+	// given
+	h, _ := newChatHarness(t)
+	h.ExpectValidSession("valid-cookie", uuid.New())
+
+	// when
+	status, body := h.NewRequest("POST", "/chat/messages/not-a-uuid/pin").
+		WithCookie("valid-cookie").Do()
+
+	// then
+	require.Equal(t, http.StatusBadRequest, status)
+	assert.Contains(t, string(body), "invalid messageID")
+}
+
+func TestPinMessage_ServiceErrors(t *testing.T) {
+	cases := []struct {
+		name     string
+		err      error
+		wantCode int
+		wantBody string
+	}{
+		{"not host", chatsvc.ErrNotHost, http.StatusForbidden, "only the host can pin"},
+		{"message not found", chatsvc.ErrRoomNotFound, http.StatusNotFound, "message not found"},
+		{"internal", errors.New("boom"), http.StatusInternalServerError, "failed to pin message"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h, chatMock := newChatHarness(t)
+			userID := uuid.New()
+			messageID := uuid.New()
+			h.ExpectValidSession("valid-cookie", userID)
+			chatMock.EXPECT().PinMessage(mock.Anything, messageID, userID).Return(tc.err)
+
+			// when
+			status, body := h.NewRequest("POST", "/chat/messages/"+messageID.String()+"/pin").
+				WithCookie("valid-cookie").Do()
+
+			// then
+			require.Equal(t, tc.wantCode, status)
+			assert.Contains(t, string(body), tc.wantBody)
+		})
+	}
+}
+
+func TestUnpinMessage_AuthFailures(t *testing.T) {
+	testutil.RunAuthFailureSuite(t, chatFactory, "DELETE",
+		"/chat/messages/"+uuid.NewString()+"/pin", nil)
+}
+
+func TestUnpinMessage_OK(t *testing.T) {
+	// given
+	h, chatMock := newChatHarness(t)
+	userID := uuid.New()
+	messageID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	chatMock.EXPECT().UnpinMessage(mock.Anything, messageID, userID).Return(nil)
+
+	// when
+	status, _ := h.NewRequest("DELETE", "/chat/messages/"+messageID.String()+"/pin").
+		WithCookie("valid-cookie").Do()
+
+	// then
+	require.Equal(t, http.StatusOK, status)
+}
+
+func TestUnpinMessage_InvalidID(t *testing.T) {
+	// given
+	h, _ := newChatHarness(t)
+	h.ExpectValidSession("valid-cookie", uuid.New())
+
+	// when
+	status, body := h.NewRequest("DELETE", "/chat/messages/not-a-uuid/pin").
+		WithCookie("valid-cookie").Do()
+
+	// then
+	require.Equal(t, http.StatusBadRequest, status)
+	assert.Contains(t, string(body), "invalid messageID")
+}
+
+func TestUnpinMessage_ServiceErrors(t *testing.T) {
+	cases := []struct {
+		name     string
+		err      error
+		wantCode int
+		wantBody string
+	}{
+		{"not host", chatsvc.ErrNotHost, http.StatusForbidden, "only the host can unpin"},
+		{"not pinned", chatsvc.ErrMessageNotPinned, http.StatusBadRequest, "not pinned"},
+		{"message not found", chatsvc.ErrRoomNotFound, http.StatusNotFound, "message not found"},
+		{"internal", errors.New("boom"), http.StatusInternalServerError, "failed to unpin message"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h, chatMock := newChatHarness(t)
+			userID := uuid.New()
+			messageID := uuid.New()
+			h.ExpectValidSession("valid-cookie", userID)
+			chatMock.EXPECT().UnpinMessage(mock.Anything, messageID, userID).Return(tc.err)
+
+			// when
+			status, body := h.NewRequest("DELETE", "/chat/messages/"+messageID.String()+"/pin").
+				WithCookie("valid-cookie").Do()
+
+			// then
+			require.Equal(t, tc.wantCode, status)
+			assert.Contains(t, string(body), tc.wantBody)
+		})
+	}
+}
+
+func TestListPinnedMessages_AuthFailures(t *testing.T) {
+	testutil.RunAuthFailureSuite(t, chatFactory, "GET",
+		"/chat/rooms/"+uuid.NewString()+"/pins", nil)
+}
+
+func TestListPinnedMessages_OK(t *testing.T) {
+	// given
+	h, chatMock := newChatHarness(t)
+	userID := uuid.New()
+	roomID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	chatMock.EXPECT().ListPinnedMessages(mock.Anything, roomID, userID).
+		Return(&dto.ChatMessageListResponse{}, nil)
+
+	// when
+	status, _ := h.NewRequest("GET", "/chat/rooms/"+roomID.String()+"/pins").
+		WithCookie("valid-cookie").Do()
+
+	// then
+	require.Equal(t, http.StatusOK, status)
+}
+
+func TestListPinnedMessages_InvalidID(t *testing.T) {
+	// given
+	h, _ := newChatHarness(t)
+	h.ExpectValidSession("valid-cookie", uuid.New())
+
+	// when
+	status, body := h.NewRequest("GET", "/chat/rooms/not-a-uuid/pins").
+		WithCookie("valid-cookie").Do()
+
+	// then
+	require.Equal(t, http.StatusBadRequest, status)
+	assert.Contains(t, string(body), "invalid roomID")
+}
+
+func TestListPinnedMessages_ServiceErrors(t *testing.T) {
+	cases := []struct {
+		name     string
+		err      error
+		wantCode int
+		wantBody string
+	}{
+		{"not member", chatsvc.ErrNotMember, http.StatusForbidden, "not a member"},
+		{"internal", errors.New("boom"), http.StatusInternalServerError, "failed to list pinned messages"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h, chatMock := newChatHarness(t)
+			userID := uuid.New()
+			roomID := uuid.New()
+			h.ExpectValidSession("valid-cookie", userID)
+			chatMock.EXPECT().ListPinnedMessages(mock.Anything, roomID, userID).Return(nil, tc.err)
+
+			// when
+			status, body := h.NewRequest("GET", "/chat/rooms/"+roomID.String()+"/pins").
+				WithCookie("valid-cookie").Do()
+
+			// then
+			require.Equal(t, tc.wantCode, status)
+			assert.Contains(t, string(body), tc.wantBody)
+		})
+	}
+}
+
+func TestAddReaction_AuthFailures(t *testing.T) {
+	testutil.RunAuthFailureSuite(t, chatFactory, "POST",
+		"/chat/messages/"+uuid.NewString()+"/reactions",
+		dto.AddReactionRequest{Emoji: "heart"})
+}
+
+func TestAddReaction_OK(t *testing.T) {
+	// given
+	h, chatMock := newChatHarness(t)
+	userID := uuid.New()
+	messageID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	chatMock.EXPECT().AddReaction(mock.Anything, messageID, userID, "heart").Return(nil)
+
+	// when
+	status, _ := h.NewRequest("POST", "/chat/messages/"+messageID.String()+"/reactions").
+		WithCookie("valid-cookie").
+		WithJSONBody(dto.AddReactionRequest{Emoji: "heart"}).Do()
+
+	// then
+	require.Equal(t, http.StatusOK, status)
+}
+
+func TestAddReaction_InvalidID(t *testing.T) {
+	// given
+	h, _ := newChatHarness(t)
+	h.ExpectValidSession("valid-cookie", uuid.New())
+
+	// when
+	status, body := h.NewRequest("POST", "/chat/messages/not-a-uuid/reactions").
+		WithCookie("valid-cookie").
+		WithJSONBody(dto.AddReactionRequest{Emoji: "heart"}).Do()
+
+	// then
+	require.Equal(t, http.StatusBadRequest, status)
+	assert.Contains(t, string(body), "invalid messageID")
+}
+
+func TestAddReaction_BadJSON(t *testing.T) {
+	// given
+	h, _ := newChatHarness(t)
+	h.ExpectValidSession("valid-cookie", uuid.New())
+
+	// when
+	status, body := h.NewRequest("POST", "/chat/messages/"+uuid.NewString()+"/reactions").
+		WithCookie("valid-cookie").
+		WithRawBody("not json", "application/json").Do()
+
+	// then
+	require.Equal(t, http.StatusBadRequest, status)
+	assert.Contains(t, string(body), "invalid request")
+}
+
+func TestAddReaction_ServiceErrors(t *testing.T) {
+	cases := []struct {
+		name     string
+		err      error
+		wantCode int
+		wantBody string
+	}{
+		{"invalid emoji", chatsvc.ErrInvalidEmoji, http.StatusBadRequest, "invalid emoji"},
+		{"not member", chatsvc.ErrNotMember, http.StatusForbidden, "not a member"},
+		{"message not found", chatsvc.ErrRoomNotFound, http.StatusNotFound, "message not found"},
+		{"internal", errors.New("boom"), http.StatusInternalServerError, "failed to add reaction"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h, chatMock := newChatHarness(t)
+			userID := uuid.New()
+			messageID := uuid.New()
+			h.ExpectValidSession("valid-cookie", userID)
+			chatMock.EXPECT().AddReaction(mock.Anything, messageID, userID, "heart").Return(tc.err)
+
+			// when
+			status, body := h.NewRequest("POST", "/chat/messages/"+messageID.String()+"/reactions").
+				WithCookie("valid-cookie").
+				WithJSONBody(dto.AddReactionRequest{Emoji: "heart"}).Do()
+
+			// then
+			require.Equal(t, tc.wantCode, status)
+			assert.Contains(t, string(body), tc.wantBody)
+		})
+	}
+}
+
+func TestRemoveReaction_AuthFailures(t *testing.T) {
+	testutil.RunAuthFailureSuite(t, chatFactory, "DELETE",
+		"/chat/messages/"+uuid.NewString()+"/reactions/heart", nil)
+}
+
+func TestRemoveReaction_OK(t *testing.T) {
+	// given
+	h, chatMock := newChatHarness(t)
+	userID := uuid.New()
+	messageID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	chatMock.EXPECT().RemoveReaction(mock.Anything, messageID, userID, "heart").Return(nil)
+
+	// when
+	status, _ := h.NewRequest("DELETE", "/chat/messages/"+messageID.String()+"/reactions/heart").
+		WithCookie("valid-cookie").Do()
+
+	// then
+	require.Equal(t, http.StatusOK, status)
+}
+
+func TestRemoveReaction_URLEncodedEmoji(t *testing.T) {
+	// given
+	h, chatMock := newChatHarness(t)
+	userID := uuid.New()
+	messageID := uuid.New()
+	emoji := "heart eyes"
+	encoded := url.PathEscape(emoji)
+	h.ExpectValidSession("valid-cookie", userID)
+	chatMock.EXPECT().RemoveReaction(mock.Anything, messageID, userID, emoji).Return(nil)
+
+	// when
+	status, _ := h.NewRequest("DELETE", "/chat/messages/"+messageID.String()+"/reactions/"+encoded).
+		WithCookie("valid-cookie").Do()
+
+	// then
+	require.Equal(t, http.StatusOK, status)
+}
+
+func TestRemoveReaction_InvalidID(t *testing.T) {
+	// given
+	h, _ := newChatHarness(t)
+	h.ExpectValidSession("valid-cookie", uuid.New())
+
+	// when
+	status, body := h.NewRequest("DELETE", "/chat/messages/not-a-uuid/reactions/heart").
+		WithCookie("valid-cookie").Do()
+
+	// then
+	require.Equal(t, http.StatusBadRequest, status)
+	assert.Contains(t, string(body), "invalid messageID")
+}
+
+func TestRemoveReaction_ServiceErrors(t *testing.T) {
+	cases := []struct {
+		name     string
+		err      error
+		wantCode int
+		wantBody string
+	}{
+		{"invalid emoji", chatsvc.ErrInvalidEmoji, http.StatusBadRequest, "invalid emoji"},
+		{"not member", chatsvc.ErrNotMember, http.StatusForbidden, "not a member"},
+		{"message not found", chatsvc.ErrRoomNotFound, http.StatusNotFound, "message not found"},
+		{"internal", errors.New("boom"), http.StatusInternalServerError, "failed to remove reaction"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h, chatMock := newChatHarness(t)
+			userID := uuid.New()
+			messageID := uuid.New()
+			h.ExpectValidSession("valid-cookie", userID)
+			chatMock.EXPECT().RemoveReaction(mock.Anything, messageID, userID, "heart").Return(tc.err)
+
+			// when
+			status, body := h.NewRequest("DELETE", "/chat/messages/"+messageID.String()+"/reactions/heart").
+				WithCookie("valid-cookie").Do()
+
+			// then
+			require.Equal(t, tc.wantCode, status)
+			assert.Contains(t, string(body), tc.wantBody)
+		})
+	}
+}
+
+func TestSetMemberNicknameAsMod_AuthFailures(t *testing.T) {
+	testutil.RunAuthFailureSuite(t, chatFactory, "PUT",
+		"/chat/rooms/"+uuid.NewString()+"/members/"+uuid.NewString()+"/nickname",
+		dto.UpdateMemberProfileRequest{Nickname: "x"})
+}
+
+func TestSetMemberNicknameAsMod_OK(t *testing.T) {
+	// given
+	h, chatMock := newChatHarness(t)
+	actorID := uuid.New()
+	roomID := uuid.New()
+	targetID := uuid.New()
+	h.ExpectValidSession("valid-cookie", actorID)
+	member := &dto.ChatRoomMemberResponse{
+		User:           dto.UserResponse{ID: targetID, Username: "target"},
+		Role:           "member",
+		Nickname:       "Forced",
+		NicknameLocked: true,
+	}
+	chatMock.EXPECT().SetMemberNicknameAsMod(mock.Anything, roomID, actorID, targetID, "Forced").Return(member, nil)
+
+	// when
+	status, body := h.NewRequest("PUT", "/chat/rooms/"+roomID.String()+"/members/"+targetID.String()+"/nickname").
+		WithCookie("valid-cookie").
+		WithJSONBody(dto.UpdateMemberProfileRequest{Nickname: "Forced"}).Do()
+
+	// then
+	require.Equal(t, http.StatusOK, status)
+	assert.Contains(t, string(body), "Forced")
+	assert.Contains(t, string(body), targetID.String())
+}
+
+func TestSetMemberNicknameAsMod_InvalidRoomID(t *testing.T) {
+	// given
+	h, _ := newChatHarness(t)
+	h.ExpectValidSession("valid-cookie", uuid.New())
+
+	// when
+	status, body := h.NewRequest("PUT", "/chat/rooms/not-a-uuid/members/"+uuid.NewString()+"/nickname").
+		WithCookie("valid-cookie").
+		WithJSONBody(dto.UpdateMemberProfileRequest{Nickname: "x"}).Do()
+
+	// then
+	require.Equal(t, http.StatusBadRequest, status)
+	assert.Contains(t, string(body), "invalid roomID")
+}
+
+func TestSetMemberNicknameAsMod_InvalidUserID(t *testing.T) {
+	// given
+	h, _ := newChatHarness(t)
+	h.ExpectValidSession("valid-cookie", uuid.New())
+
+	// when
+	status, body := h.NewRequest("PUT", "/chat/rooms/"+uuid.NewString()+"/members/not-a-uuid/nickname").
+		WithCookie("valid-cookie").
+		WithJSONBody(dto.UpdateMemberProfileRequest{Nickname: "x"}).Do()
+
+	// then
+	require.Equal(t, http.StatusBadRequest, status)
+	assert.Contains(t, string(body), "invalid userID")
+}
+
+func TestSetMemberNicknameAsMod_BadJSON(t *testing.T) {
+	// given
+	h, _ := newChatHarness(t)
+	h.ExpectValidSession("valid-cookie", uuid.New())
+
+	// when
+	status, body := h.NewRequest("PUT", "/chat/rooms/"+uuid.NewString()+"/members/"+uuid.NewString()+"/nickname").
+		WithCookie("valid-cookie").
+		WithRawBody("not json", "application/json").Do()
+
+	// then
+	require.Equal(t, http.StatusBadRequest, status)
+	assert.Contains(t, string(body), "invalid request")
+}
+
+func TestSetMemberNicknameAsMod_ServiceErrors(t *testing.T) {
+	cases := []struct {
+		name     string
+		err      error
+		wantCode int
+		wantBody string
+	}{
+		{"not member", chatsvc.ErrNotMember, http.StatusForbidden, "not a member"},
+		{"not mod", chatsvc.ErrModRoleRequired, http.StatusForbidden, "only site moderators"},
+		{"target immune", chatsvc.ErrTargetImmune, http.StatusForbidden, "cannot be changed by moderators"},
+		{"internal", errors.New("boom"), http.StatusInternalServerError, "failed to set member nickname"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h, chatMock := newChatHarness(t)
+			actorID := uuid.New()
+			roomID := uuid.New()
+			targetID := uuid.New()
+			h.ExpectValidSession("valid-cookie", actorID)
+			chatMock.EXPECT().SetMemberNicknameAsMod(mock.Anything, roomID, actorID, targetID, "x").Return(nil, tc.err)
+
+			// when
+			status, body := h.NewRequest("PUT", "/chat/rooms/"+roomID.String()+"/members/"+targetID.String()+"/nickname").
+				WithCookie("valid-cookie").
+				WithJSONBody(dto.UpdateMemberProfileRequest{Nickname: "x"}).Do()
+
+			// then
+			require.Equal(t, tc.wantCode, status)
+			assert.Contains(t, string(body), tc.wantBody)
+		})
+	}
+}
+
+func TestUnlockMemberNickname_AuthFailures(t *testing.T) {
+	testutil.RunAuthFailureSuite(t, chatFactory, "DELETE",
+		"/chat/rooms/"+uuid.NewString()+"/members/"+uuid.NewString()+"/nickname", nil)
+}
+
+func TestUnlockMemberNickname_OK(t *testing.T) {
+	// given
+	h, chatMock := newChatHarness(t)
+	actorID := uuid.New()
+	roomID := uuid.New()
+	targetID := uuid.New()
+	h.ExpectValidSession("valid-cookie", actorID)
+	member := &dto.ChatRoomMemberResponse{
+		User:           dto.UserResponse{ID: targetID, Username: "target"},
+		Role:           "member",
+		NicknameLocked: false,
+	}
+	chatMock.EXPECT().UnlockMemberNickname(mock.Anything, roomID, actorID, targetID).Return(member, nil)
+
+	// when
+	status, body := h.NewRequest("DELETE", "/chat/rooms/"+roomID.String()+"/members/"+targetID.String()+"/nickname").
+		WithCookie("valid-cookie").Do()
+
+	// then
+	require.Equal(t, http.StatusOK, status)
+	assert.Contains(t, string(body), targetID.String())
+}
+
+func TestUnlockMemberNickname_InvalidRoomID(t *testing.T) {
+	// given
+	h, _ := newChatHarness(t)
+	h.ExpectValidSession("valid-cookie", uuid.New())
+
+	// when
+	status, body := h.NewRequest("DELETE", "/chat/rooms/not-a-uuid/members/"+uuid.NewString()+"/nickname").
+		WithCookie("valid-cookie").Do()
+
+	// then
+	require.Equal(t, http.StatusBadRequest, status)
+	assert.Contains(t, string(body), "invalid roomID")
+}
+
+func TestUnlockMemberNickname_InvalidUserID(t *testing.T) {
+	// given
+	h, _ := newChatHarness(t)
+	h.ExpectValidSession("valid-cookie", uuid.New())
+
+	// when
+	status, body := h.NewRequest("DELETE", "/chat/rooms/"+uuid.NewString()+"/members/not-a-uuid/nickname").
+		WithCookie("valid-cookie").Do()
+
+	// then
+	require.Equal(t, http.StatusBadRequest, status)
+	assert.Contains(t, string(body), "invalid userID")
+}
+
+func TestUnlockMemberNickname_ServiceErrors(t *testing.T) {
+	cases := []struct {
+		name     string
+		err      error
+		wantCode int
+		wantBody string
+	}{
+		{"not member", chatsvc.ErrNotMember, http.StatusForbidden, "not a member"},
+		{"not mod", chatsvc.ErrModRoleRequired, http.StatusForbidden, "only site moderators"},
+		{"target immune", chatsvc.ErrTargetImmune, http.StatusForbidden, "not affected by nickname locks"},
+		{"internal", errors.New("boom"), http.StatusInternalServerError, "failed to unlock nickname"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h, chatMock := newChatHarness(t)
+			actorID := uuid.New()
+			roomID := uuid.New()
+			targetID := uuid.New()
+			h.ExpectValidSession("valid-cookie", actorID)
+			chatMock.EXPECT().UnlockMemberNickname(mock.Anything, roomID, actorID, targetID).Return(nil, tc.err)
+
+			// when
+			status, body := h.NewRequest("DELETE", "/chat/rooms/"+roomID.String()+"/members/"+targetID.String()+"/nickname").
+				WithCookie("valid-cookie").Do()
+
+			// then
+			require.Equal(t, tc.wantCode, status)
+			assert.Contains(t, string(body), tc.wantBody)
+		})
+	}
 }

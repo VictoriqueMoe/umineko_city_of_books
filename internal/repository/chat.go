@@ -34,28 +34,43 @@ type (
 	}
 
 	ChatRoomMemberRow struct {
-		UserID      uuid.UUID
-		Username    string
-		DisplayName string
-		AvatarURL   string
-		Role        string
-		AuthorRole  string
-		JoinedAt    string
+		UserID          uuid.UUID
+		Username        string
+		DisplayName     string
+		AvatarURL       string
+		Role            string
+		AuthorRole      string
+		JoinedAt        string
+		Nickname        string
+		NicknameLocked  bool
+		MemberAvatarURL string
 	}
 
 	ChatMessageRow struct {
-		ID                uuid.UUID
-		RoomID            uuid.UUID
-		SenderID          uuid.UUID
-		SenderUsername    string
-		SenderDisplayName string
-		SenderAvatarURL   string
-		Body              string
-		CreatedAt         string
-		ReplyToID         *uuid.UUID
-		ReplyToSenderID   *uuid.UUID
-		ReplyToSenderName *string
-		ReplyToBody       *string
+		ID                 uuid.UUID
+		RoomID             uuid.UUID
+		SenderID           uuid.UUID
+		SenderUsername     string
+		SenderDisplayName  string
+		SenderAvatarURL    string
+		SenderRole         string
+		Body               string
+		CreatedAt          string
+		ReplyToID          *uuid.UUID
+		ReplyToSenderID    *uuid.UUID
+		ReplyToSenderName  *string
+		ReplyToBody        *string
+		PinnedAt           *string
+		PinnedBy           *uuid.UUID
+		SenderNickname     string
+		SenderMemberAvatar string
+	}
+
+	ReactionGroup struct {
+		Emoji         string
+		Count         int
+		ViewerReacted bool
+		DisplayNames  []string
 	}
 
 	ChatRepository interface {
@@ -101,6 +116,17 @@ type (
 		TouchRoomActivity(ctx context.Context, roomID uuid.UUID) error
 		MarkRoomRead(ctx context.Context, roomID, userID uuid.UUID) error
 		CountUnreadRoomsForUser(ctx context.Context, userID uuid.UUID) (int, error)
+
+		SetMemberNickname(ctx context.Context, roomID, userID uuid.UUID, nickname string) error
+		SetMemberNicknameWithLock(ctx context.Context, roomID, userID uuid.UUID, nickname string, locked bool) error
+		IsMemberNicknameLocked(ctx context.Context, roomID, userID uuid.UUID) (bool, error)
+		SetMemberAvatar(ctx context.Context, roomID, userID uuid.UUID, avatarURL string) error
+		PinMessage(ctx context.Context, messageID, pinnedBy uuid.UUID) error
+		UnpinMessage(ctx context.Context, messageID uuid.UUID) error
+		ListPinnedMessages(ctx context.Context, roomID uuid.UUID) ([]ChatMessageRow, error)
+		AddReaction(ctx context.Context, messageID, userID uuid.UUID, emoji string) error
+		RemoveReaction(ctx context.Context, messageID, userID uuid.UUID, emoji string) error
+		GetReactionsBatch(ctx context.Context, messageIDs []uuid.UUID, viewerID uuid.UUID) (map[uuid.UUID][]ReactionGroup, error)
 	}
 
 	chatRepository struct {
@@ -531,7 +557,7 @@ func (r *chatRepository) GetRoomByID(ctx context.Context, roomID, viewerID uuid.
 
 func (r *chatRepository) GetRoomMembersDetailed(ctx context.Context, roomID uuid.UUID) ([]ChatRoomMemberRow, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT m.user_id, u.username, u.display_name, u.avatar_url, m.role, COALESCE(ur.role, ''), m.joined_at
+		`SELECT m.user_id, u.username, u.display_name, u.avatar_url, m.role, COALESCE(ur.role, ''), m.joined_at, m.nickname, m.nickname_locked, m.avatar_url
 		 FROM chat_room_members m
 		 JOIN users u ON m.user_id = u.id
 		 LEFT JOIN user_roles ur ON ur.user_id = u.id
@@ -547,9 +573,11 @@ func (r *chatRepository) GetRoomMembersDetailed(ctx context.Context, roomID uuid
 	var result []ChatRoomMemberRow
 	for rows.Next() {
 		var m ChatRoomMemberRow
-		if err := rows.Scan(&m.UserID, &m.Username, &m.DisplayName, &m.AvatarURL, &m.Role, &m.AuthorRole, &m.JoinedAt); err != nil {
+		var lockedInt int
+		if err := rows.Scan(&m.UserID, &m.Username, &m.DisplayName, &m.AvatarURL, &m.Role, &m.AuthorRole, &m.JoinedAt, &m.Nickname, &lockedInt, &m.MemberAvatarURL); err != nil {
 			return nil, fmt.Errorf("scan member detailed: %w", err)
 		}
+		m.NicknameLocked = lockedInt != 0
 		result = append(result, m)
 	}
 	return result, rows.Err()
@@ -783,12 +811,17 @@ func (r *chatRepository) GetMessages(ctx context.Context, roomID uuid.UUID, limi
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT * FROM (
 			SELECT cm.id, cm.room_id, cm.sender_id, u.username, u.display_name, u.avatar_url,
+			 COALESCE(ur.role, ''),
 			 cm.body, cm.created_at, cm.reply_to_id,
-			 parent.sender_id, pu.display_name, parent.body
+			 parent.sender_id, pu.display_name, parent.body,
+			 cm.pinned_at, cm.pinned_by,
+			 COALESCE(mem.nickname, ''), COALESCE(mem.avatar_url, '')
 			 FROM chat_messages cm
 			 JOIN users u ON cm.sender_id = u.id
+			 LEFT JOIN user_roles ur ON ur.user_id = u.id
 			 LEFT JOIN chat_messages parent ON cm.reply_to_id = parent.id
 			 LEFT JOIN users pu ON parent.sender_id = pu.id
+			 LEFT JOIN chat_room_members mem ON mem.room_id = cm.room_id AND mem.user_id = cm.sender_id
 			 WHERE cm.room_id = ?
 			 ORDER BY cm.created_at DESC
 			 LIMIT ?
@@ -802,30 +835,57 @@ func (r *chatRepository) GetMessages(ctx context.Context, roomID uuid.UUID, limi
 
 	var messages []ChatMessageRow
 	for rows.Next() {
-		var msg ChatMessageRow
-		if err := rows.Scan(
-			&msg.ID, &msg.RoomID, &msg.SenderID,
-			&msg.SenderUsername, &msg.SenderDisplayName, &msg.SenderAvatarURL,
-			&msg.Body, &msg.CreatedAt, &msg.ReplyToID,
-			&msg.ReplyToSenderID, &msg.ReplyToSenderName, &msg.ReplyToBody,
-		); err != nil {
-			return nil, 0, fmt.Errorf("scan message: %w", err)
+		msg, err := scanMessageRow(rows)
+		if err != nil {
+			return nil, 0, err
 		}
 		messages = append(messages, msg)
 	}
 	return messages, total, rows.Err()
 }
 
+func scanMessageRow(rows *sql.Rows) (ChatMessageRow, error) {
+	var msg ChatMessageRow
+	var pinnedAt sql.NullString
+	var pinnedBy sql.NullString
+	if err := rows.Scan(
+		&msg.ID, &msg.RoomID, &msg.SenderID,
+		&msg.SenderUsername, &msg.SenderDisplayName, &msg.SenderAvatarURL,
+		&msg.SenderRole,
+		&msg.Body, &msg.CreatedAt, &msg.ReplyToID,
+		&msg.ReplyToSenderID, &msg.ReplyToSenderName, &msg.ReplyToBody,
+		&pinnedAt, &pinnedBy,
+		&msg.SenderNickname, &msg.SenderMemberAvatar,
+	); err != nil {
+		return msg, fmt.Errorf("scan message: %w", err)
+	}
+	if pinnedAt.Valid {
+		s := pinnedAt.String
+		msg.PinnedAt = &s
+	}
+	if pinnedBy.Valid {
+		if parsed, err := uuid.Parse(pinnedBy.String); err == nil {
+			msg.PinnedBy = &parsed
+		}
+	}
+	return msg, nil
+}
+
 func (r *chatRepository) GetMessagesBefore(ctx context.Context, roomID uuid.UUID, before string, limit int) ([]ChatMessageRow, error) {
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT * FROM (
 			SELECT cm.id, cm.room_id, cm.sender_id, u.username, u.display_name, u.avatar_url,
+			 COALESCE(ur.role, ''),
 			 cm.body, cm.created_at, cm.reply_to_id,
-			 parent.sender_id, pu.display_name, parent.body
+			 parent.sender_id, pu.display_name, parent.body,
+			 cm.pinned_at, cm.pinned_by,
+			 COALESCE(mem.nickname, ''), COALESCE(mem.avatar_url, '')
 			 FROM chat_messages cm
 			 JOIN users u ON cm.sender_id = u.id
+			 LEFT JOIN user_roles ur ON ur.user_id = u.id
 			 LEFT JOIN chat_messages parent ON cm.reply_to_id = parent.id
 			 LEFT JOIN users pu ON parent.sender_id = pu.id
+			 LEFT JOIN chat_room_members mem ON mem.room_id = cm.room_id AND mem.user_id = cm.sender_id
 			 WHERE cm.room_id = ? AND cm.created_at < ?
 			 ORDER BY cm.created_at DESC
 			 LIMIT ?
@@ -839,14 +899,9 @@ func (r *chatRepository) GetMessagesBefore(ctx context.Context, roomID uuid.UUID
 
 	var messages []ChatMessageRow
 	for rows.Next() {
-		var msg ChatMessageRow
-		if err := rows.Scan(
-			&msg.ID, &msg.RoomID, &msg.SenderID,
-			&msg.SenderUsername, &msg.SenderDisplayName, &msg.SenderAvatarURL,
-			&msg.Body, &msg.CreatedAt, &msg.ReplyToID,
-			&msg.ReplyToSenderID, &msg.ReplyToSenderName, &msg.ReplyToBody,
-		); err != nil {
-			return nil, fmt.Errorf("scan message: %w", err)
+		msg, err := scanMessageRow(rows)
+		if err != nil {
+			return nil, err
 		}
 		messages = append(messages, msg)
 	}
@@ -855,27 +910,46 @@ func (r *chatRepository) GetMessagesBefore(ctx context.Context, roomID uuid.UUID
 
 func (r *chatRepository) GetMessageByID(ctx context.Context, messageID uuid.UUID) (*ChatMessageRow, error) {
 	var msg ChatMessageRow
+	var pinnedAt sql.NullString
+	var pinnedBy sql.NullString
 	err := r.db.QueryRowContext(ctx,
 		`SELECT cm.id, cm.room_id, cm.sender_id, u.username, u.display_name, u.avatar_url,
+		 COALESCE(ur.role, ''),
 		 cm.body, cm.created_at, cm.reply_to_id,
-		 parent.sender_id, pu.display_name, parent.body
+		 parent.sender_id, pu.display_name, parent.body,
+		 cm.pinned_at, cm.pinned_by,
+		 COALESCE(mem.nickname, ''), COALESCE(mem.avatar_url, '')
 		 FROM chat_messages cm
 		 JOIN users u ON cm.sender_id = u.id
+		 LEFT JOIN user_roles ur ON ur.user_id = u.id
 		 LEFT JOIN chat_messages parent ON cm.reply_to_id = parent.id
 		 LEFT JOIN users pu ON parent.sender_id = pu.id
+		 LEFT JOIN chat_room_members mem ON mem.room_id = cm.room_id AND mem.user_id = cm.sender_id
 		 WHERE cm.id = ?`,
 		messageID,
 	).Scan(
 		&msg.ID, &msg.RoomID, &msg.SenderID,
 		&msg.SenderUsername, &msg.SenderDisplayName, &msg.SenderAvatarURL,
+		&msg.SenderRole,
 		&msg.Body, &msg.CreatedAt, &msg.ReplyToID,
 		&msg.ReplyToSenderID, &msg.ReplyToSenderName, &msg.ReplyToBody,
+		&pinnedAt, &pinnedBy,
+		&msg.SenderNickname, &msg.SenderMemberAvatar,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get message by id: %w", err)
+	}
+	if pinnedAt.Valid {
+		s := pinnedAt.String
+		msg.PinnedAt = &s
+	}
+	if pinnedBy.Valid {
+		if parsed, err := uuid.Parse(pinnedBy.String); err == nil {
+			msg.PinnedBy = &parsed
+		}
 	}
 	return &msg, nil
 }
@@ -1004,6 +1078,188 @@ func (r *chatRepository) GetMessageMediaBatch(ctx context.Context, messageIDs []
 			MediaType:    mediaType,
 			ThumbnailURL: thumbURL,
 			SortOrder:    sortOrder,
+		})
+	}
+	return result, rows.Err()
+}
+
+func (r *chatRepository) SetMemberNickname(ctx context.Context, roomID, userID uuid.UUID, nickname string) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE chat_room_members SET nickname = ? WHERE room_id = ? AND user_id = ?`,
+		nickname, roomID, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("set member nickname: %w", err)
+	}
+	return nil
+}
+
+func (r *chatRepository) SetMemberNicknameWithLock(ctx context.Context, roomID, userID uuid.UUID, nickname string, locked bool) error {
+	lockedInt := 0
+	if locked {
+		lockedInt = 1
+	}
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE chat_room_members SET nickname = ?, nickname_locked = ? WHERE room_id = ? AND user_id = ?`,
+		nickname, lockedInt, roomID, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("set member nickname with lock: %w", err)
+	}
+	return nil
+}
+
+func (r *chatRepository) IsMemberNicknameLocked(ctx context.Context, roomID, userID uuid.UUID) (bool, error) {
+	var locked int
+	err := r.db.QueryRowContext(ctx,
+		`SELECT nickname_locked FROM chat_room_members WHERE room_id = ? AND user_id = ?`,
+		roomID, userID,
+	).Scan(&locked)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("check nickname locked: %w", err)
+	}
+	return locked != 0, nil
+}
+
+func (r *chatRepository) SetMemberAvatar(ctx context.Context, roomID, userID uuid.UUID, avatarURL string) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE chat_room_members SET avatar_url = ? WHERE room_id = ? AND user_id = ?`,
+		avatarURL, roomID, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("set member avatar: %w", err)
+	}
+	return nil
+}
+
+func (r *chatRepository) PinMessage(ctx context.Context, messageID, pinnedBy uuid.UUID) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE chat_messages SET pinned_at = CURRENT_TIMESTAMP, pinned_by = ? WHERE id = ?`,
+		pinnedBy, messageID,
+	)
+	if err != nil {
+		return fmt.Errorf("pin message: %w", err)
+	}
+	return nil
+}
+
+func (r *chatRepository) UnpinMessage(ctx context.Context, messageID uuid.UUID) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE chat_messages SET pinned_at = NULL, pinned_by = NULL WHERE id = ?`,
+		messageID,
+	)
+	if err != nil {
+		return fmt.Errorf("unpin message: %w", err)
+	}
+	return nil
+}
+
+func (r *chatRepository) ListPinnedMessages(ctx context.Context, roomID uuid.UUID) ([]ChatMessageRow, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT cm.id, cm.room_id, cm.sender_id, u.username, u.display_name, u.avatar_url,
+		 COALESCE(ur.role, ''),
+		 cm.body, cm.created_at, cm.reply_to_id,
+		 parent.sender_id, pu.display_name, parent.body,
+		 cm.pinned_at, cm.pinned_by,
+		 COALESCE(mem.nickname, ''), COALESCE(mem.avatar_url, '')
+		 FROM chat_messages cm
+		 JOIN users u ON cm.sender_id = u.id
+		 LEFT JOIN user_roles ur ON ur.user_id = u.id
+		 LEFT JOIN chat_messages parent ON cm.reply_to_id = parent.id
+		 LEFT JOIN users pu ON parent.sender_id = pu.id
+		 LEFT JOIN chat_room_members mem ON mem.room_id = cm.room_id AND mem.user_id = cm.sender_id
+		 WHERE cm.room_id = ? AND cm.pinned_at IS NOT NULL
+		 ORDER BY cm.pinned_at DESC`,
+		roomID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list pinned messages: %w", err)
+	}
+	defer rows.Close()
+
+	var messages []ChatMessageRow
+	for rows.Next() {
+		msg, err := scanMessageRow(rows)
+		if err != nil {
+			return nil, err
+		}
+		messages = append(messages, msg)
+	}
+	return messages, rows.Err()
+}
+
+func (r *chatRepository) AddReaction(ctx context.Context, messageID, userID uuid.UUID, emoji string) error {
+	_, err := r.db.ExecContext(ctx,
+		`INSERT OR IGNORE INTO chat_message_reactions (message_id, user_id, emoji) VALUES (?, ?, ?)`,
+		messageID, userID, emoji,
+	)
+	if err != nil {
+		return fmt.Errorf("add reaction: %w", err)
+	}
+	return nil
+}
+
+func (r *chatRepository) RemoveReaction(ctx context.Context, messageID, userID uuid.UUID, emoji string) error {
+	_, err := r.db.ExecContext(ctx,
+		`DELETE FROM chat_message_reactions WHERE message_id = ? AND user_id = ? AND emoji = ?`,
+		messageID, userID, emoji,
+	)
+	if err != nil {
+		return fmt.Errorf("remove reaction: %w", err)
+	}
+	return nil
+}
+
+func (r *chatRepository) GetReactionsBatch(ctx context.Context, messageIDs []uuid.UUID, viewerID uuid.UUID) (map[uuid.UUID][]ReactionGroup, error) {
+	result := make(map[uuid.UUID][]ReactionGroup)
+	if len(messageIDs) == 0 {
+		return result, nil
+	}
+
+	placeholders := make([]string, len(messageIDs))
+	args := make([]interface{}, 0, len(messageIDs)+1)
+	args = append(args, viewerID)
+	for i := range messageIDs {
+		placeholders[i] = "?"
+		args = append(args, messageIDs[i])
+	}
+
+	query := `SELECT r.message_id, r.emoji, COUNT(*) AS cnt,
+	          MAX(CASE WHEN r.user_id = ? THEN 1 ELSE 0 END) AS viewer_reacted,
+	          GROUP_CONCAT(u.display_name, char(10)) AS names
+	          FROM chat_message_reactions r
+	          JOIN users u ON u.id = r.user_id
+	          WHERE r.message_id IN (` + strings.Join(placeholders, ",") + `)
+	          GROUP BY r.message_id, r.emoji
+	          ORDER BY cnt DESC, r.emoji ASC`
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("get reactions batch: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var msgID uuid.UUID
+		var emoji string
+		var count int
+		var viewerReacted int
+		var names sql.NullString
+		if err := rows.Scan(&msgID, &emoji, &count, &viewerReacted, &names); err != nil {
+			return nil, fmt.Errorf("scan reaction group: %w", err)
+		}
+		var displayNames []string
+		if names.Valid && names.String != "" {
+			displayNames = strings.Split(names.String, "\n")
+		}
+		result[msgID] = append(result[msgID], ReactionGroup{
+			Emoji:         emoji,
+			Count:         count,
+			ViewerReacted: viewerReacted != 0,
+			DisplayNames:  displayNames,
 		})
 	}
 	return result, rows.Err()

@@ -12,22 +12,23 @@ import type {
     ChangePasswordPayload,
     CharacterListResponse,
     ChatMessage,
+    ChatMessageListResponse,
     ChatRoom,
     ChatRoomMember,
+    CreateJournalPayload,
     CreateResponsePayload,
     CreateTheoryPayload,
     DeleteAccountPayload,
-    CreateJournalPayload,
     FanficChapter,
     FanficDetail,
     FanficListResponse,
-    JournalDetail,
-    JournalListResponse,
-    JournalWork,
     FollowStats,
     Gallery,
     GalleryDetailResponse,
     GMLeaderboardResponse,
+    JournalDetail,
+    JournalListResponse,
+    JournalWork,
     MysteryAttachment,
     MysteryDetail,
     MysteryLeaderboardResponse,
@@ -545,6 +546,54 @@ export async function uploadChatMessageMedia(messageId: string, file: File): Pro
     const formData = new FormData();
     formData.append("media", file);
     return apiPostFormData<PostMedia>(`/chat/messages/${messageId}/media`, formData);
+}
+
+export async function updateChatRoomNickname(roomId: string, nickname: string): Promise<ChatRoomMember> {
+    return apiPut<ChatRoomMember, { nickname: string }>(`/chat/rooms/${roomId}/me`, { nickname });
+}
+
+export async function setChatRoomMemberNickname(
+    roomId: string,
+    userId: string,
+    nickname: string,
+): Promise<ChatRoomMember> {
+    return apiPut<ChatRoomMember, { nickname: string }>(`/chat/rooms/${roomId}/members/${userId}/nickname`, {
+        nickname,
+    });
+}
+
+export async function unlockChatRoomMemberNickname(roomId: string, userId: string): Promise<ChatRoomMember> {
+    return apiDelete<ChatRoomMember>(`/chat/rooms/${roomId}/members/${userId}/nickname`);
+}
+
+export async function uploadChatRoomAvatar(roomId: string, file: File): Promise<ChatRoomMember> {
+    const formData = new FormData();
+    formData.append("avatar", file);
+    return apiPostFormData<ChatRoomMember>(`/chat/rooms/${roomId}/me/avatar`, formData);
+}
+
+export async function clearChatRoomAvatar(roomId: string): Promise<ChatRoomMember> {
+    return apiDelete<ChatRoomMember>(`/chat/rooms/${roomId}/me/avatar`);
+}
+
+export async function pinChatMessage(messageId: string): Promise<void> {
+    await apiPost<unknown, Record<string, never>>(`/chat/messages/${messageId}/pin`, {});
+}
+
+export async function unpinChatMessage(messageId: string): Promise<void> {
+    await apiDelete<unknown>(`/chat/messages/${messageId}/pin`);
+}
+
+export async function getChatRoomPinnedMessages(roomId: string): Promise<ChatMessageListResponse> {
+    return apiFetch<ChatMessageListResponse>(`/chat/rooms/${roomId}/pins`);
+}
+
+export async function addChatMessageReaction(messageId: string, emoji: string): Promise<void> {
+    await apiPost<unknown, { emoji: string }>(`/chat/messages/${messageId}/reactions`, { emoji });
+}
+
+export async function removeChatMessageReaction(messageId: string, emoji: string): Promise<void> {
+    await apiDelete<unknown>(`/chat/messages/${messageId}/reactions/${encodeURIComponent(emoji)}`);
 }
 
 export async function createReport(

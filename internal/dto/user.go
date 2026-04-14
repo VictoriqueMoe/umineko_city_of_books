@@ -8,11 +8,12 @@ import (
 
 type (
 	UserResponse struct {
-		ID          uuid.UUID `json:"id"`
-		Username    string    `json:"username"`
-		DisplayName string    `json:"display_name"`
-		AvatarURL   string    `json:"avatar_url,omitempty"`
-		Role        role.Role `json:"role,omitempty"`
+		ID          uuid.UUID            `json:"id"`
+		Username    string               `json:"username"`
+		DisplayName string               `json:"display_name"`
+		AvatarURL   string               `json:"avatar_url,omitempty"`
+		Role        role.Role            `json:"role,omitempty"`
+		VanityRoles []VanityRoleResponse `json:"vanity_roles,omitempty"`
 	}
 
 	UserProfileResponse struct {

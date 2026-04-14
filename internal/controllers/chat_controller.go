@@ -2,11 +2,13 @@ package controllers
 
 import (
 	"errors"
+	"net/url"
 
 	"umineko_city_of_books/internal/chat"
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/middleware"
+	"umineko_city_of_books/internal/upload"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -30,6 +32,16 @@ func (s *Service) getAllChatRoutes() []FSetupRoute {
 		s.setupChatUnreadCountRoute,
 		s.setupMarkRoomReadRoute,
 		s.setupUploadChatMessageMediaRoute,
+		s.setupSetRoomNicknameRoute,
+		s.setupSetRoomAvatarRoute,
+		s.setupClearRoomAvatarRoute,
+		s.setupSetMemberNicknameAsModRoute,
+		s.setupUnlockMemberNicknameRoute,
+		s.setupPinMessageRoute,
+		s.setupUnpinMessageRoute,
+		s.setupListPinnedMessagesRoute,
+		s.setupAddReactionRoute,
+		s.setupRemoveReactionRoute,
 	}
 }
 
@@ -458,6 +470,292 @@ func (s *Service) kickMember(ctx fiber.Ctx) error {
 			return utils.Forbidden(ctx, "this room is managed automatically")
 		}
 		return utils.InternalError(ctx, "failed to kick member")
+	}
+	return utils.OK(ctx)
+}
+
+func (s *Service) setupSetRoomNicknameRoute(r fiber.Router) {
+	r.Put("/chat/rooms/:roomID/me", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.setRoomNickname)
+}
+
+func (s *Service) setRoomNickname(ctx fiber.Ctx) error {
+	userID := utils.UserID(ctx)
+	roomID, ok := utils.ParseIDParam(ctx, "roomID")
+	if !ok {
+		return nil
+	}
+	req, ok := utils.BindJSON[dto.UpdateMemberProfileRequest](ctx)
+	if !ok {
+		return nil
+	}
+
+	member, err := s.ChatService.SetRoomNickname(ctx.Context(), roomID, userID, req.Nickname)
+	if err != nil {
+		if errors.Is(err, chat.ErrNotMember) {
+			return utils.Forbidden(ctx, "not a member")
+		}
+		if errors.Is(err, chat.ErrNicknameLocked) {
+			return utils.Forbidden(ctx, "nickname has been locked by a moderator")
+		}
+		return utils.InternalError(ctx, "failed to update nickname")
+	}
+	return ctx.JSON(member)
+}
+
+func (s *Service) setupSetRoomAvatarRoute(r fiber.Router) {
+	r.Post("/chat/rooms/:roomID/me/avatar", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.setRoomAvatar)
+}
+
+func (s *Service) setRoomAvatar(ctx fiber.Ctx) error {
+	userID := utils.UserID(ctx)
+	roomID, ok := utils.ParseIDParam(ctx, "roomID")
+	if !ok {
+		return nil
+	}
+
+	file, err := ctx.FormFile("avatar")
+	if err != nil {
+		return utils.BadRequest(ctx, "avatar file is required")
+	}
+	src, err := file.Open()
+	if err != nil {
+		return utils.BadRequest(ctx, "failed to read file")
+	}
+	defer src.Close()
+
+	member, err := s.ChatService.SetRoomAvatar(ctx.Context(), roomID, userID, file.Header.Get("Content-Type"), file.Size, src)
+	if err != nil {
+		if errors.Is(err, chat.ErrNotMember) {
+			return utils.Forbidden(ctx, "not a member")
+		}
+		if errors.Is(err, chat.ErrNicknameLocked) {
+			return utils.Forbidden(ctx, "nickname has been locked by a moderator")
+		}
+		if errors.Is(err, upload.ErrFileTooLarge) || errors.Is(err, upload.ErrInvalidFileType) {
+			return utils.BadRequest(ctx, err.Error())
+		}
+		return utils.InternalError(ctx, "failed to upload avatar")
+	}
+	return ctx.JSON(member)
+}
+
+func (s *Service) setupClearRoomAvatarRoute(r fiber.Router) {
+	r.Delete("/chat/rooms/:roomID/me/avatar", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.clearRoomAvatar)
+}
+
+func (s *Service) clearRoomAvatar(ctx fiber.Ctx) error {
+	userID := utils.UserID(ctx)
+	roomID, ok := utils.ParseIDParam(ctx, "roomID")
+	if !ok {
+		return nil
+	}
+
+	member, err := s.ChatService.ClearRoomAvatar(ctx.Context(), roomID, userID)
+	if err != nil {
+		if errors.Is(err, chat.ErrNotMember) {
+			return utils.Forbidden(ctx, "not a member")
+		}
+		if errors.Is(err, chat.ErrNicknameLocked) {
+			return utils.Forbidden(ctx, "nickname has been locked by a moderator")
+		}
+		return utils.InternalError(ctx, "failed to clear avatar")
+	}
+	return ctx.JSON(member)
+}
+
+func (s *Service) setupSetMemberNicknameAsModRoute(r fiber.Router) {
+	r.Put("/chat/rooms/:roomID/members/:userID/nickname", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.setMemberNicknameAsMod)
+}
+
+func (s *Service) setMemberNicknameAsMod(ctx fiber.Ctx) error {
+	actorID := utils.UserID(ctx)
+	roomID, ok := utils.ParseIDParam(ctx, "roomID")
+	if !ok {
+		return nil
+	}
+	targetID, ok := utils.ParseIDParam(ctx, "userID")
+	if !ok {
+		return nil
+	}
+	req, ok := utils.BindJSON[dto.UpdateMemberProfileRequest](ctx)
+	if !ok {
+		return nil
+	}
+
+	member, err := s.ChatService.SetMemberNicknameAsMod(ctx.Context(), roomID, actorID, targetID, req.Nickname)
+	if err != nil {
+		if errors.Is(err, chat.ErrNotMember) {
+			return utils.Forbidden(ctx, "not a member of this room")
+		}
+		if errors.Is(err, chat.ErrModRoleRequired) {
+			return utils.Forbidden(ctx, "only site moderators or admins can change another member's nickname")
+		}
+		if errors.Is(err, chat.ErrTargetImmune) {
+			return utils.Forbidden(ctx, "this member's nickname cannot be changed by moderators")
+		}
+		return utils.InternalError(ctx, "failed to set member nickname")
+	}
+	return ctx.JSON(member)
+}
+
+func (s *Service) setupUnlockMemberNicknameRoute(r fiber.Router) {
+	r.Delete("/chat/rooms/:roomID/members/:userID/nickname", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.unlockMemberNickname)
+}
+
+func (s *Service) unlockMemberNickname(ctx fiber.Ctx) error {
+	actorID := utils.UserID(ctx)
+	roomID, ok := utils.ParseIDParam(ctx, "roomID")
+	if !ok {
+		return nil
+	}
+	targetID, ok := utils.ParseIDParam(ctx, "userID")
+	if !ok {
+		return nil
+	}
+
+	member, err := s.ChatService.UnlockMemberNickname(ctx.Context(), roomID, actorID, targetID)
+	if err != nil {
+		if errors.Is(err, chat.ErrNotMember) {
+			return utils.Forbidden(ctx, "not a member of this room")
+		}
+		if errors.Is(err, chat.ErrModRoleRequired) {
+			return utils.Forbidden(ctx, "only site moderators or admins can unlock a nickname")
+		}
+		if errors.Is(err, chat.ErrTargetImmune) {
+			return utils.Forbidden(ctx, "this member is not affected by nickname locks")
+		}
+		return utils.InternalError(ctx, "failed to unlock nickname")
+	}
+	return ctx.JSON(member)
+}
+
+func (s *Service) setupPinMessageRoute(r fiber.Router) {
+	r.Post("/chat/messages/:messageID/pin", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.pinMessage)
+}
+
+func (s *Service) pinMessage(ctx fiber.Ctx) error {
+	userID := utils.UserID(ctx)
+	messageID, ok := utils.ParseIDParam(ctx, "messageID")
+	if !ok {
+		return nil
+	}
+
+	if err := s.ChatService.PinMessage(ctx.Context(), messageID, userID); err != nil {
+		if errors.Is(err, chat.ErrNotHost) {
+			return utils.Forbidden(ctx, "only the host can pin messages")
+		}
+		if errors.Is(err, chat.ErrRoomNotFound) {
+			return utils.NotFound(ctx, "message not found")
+		}
+		return utils.InternalError(ctx, "failed to pin message")
+	}
+	return utils.OK(ctx)
+}
+
+func (s *Service) setupUnpinMessageRoute(r fiber.Router) {
+	r.Delete("/chat/messages/:messageID/pin", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.unpinMessage)
+}
+
+func (s *Service) unpinMessage(ctx fiber.Ctx) error {
+	userID := utils.UserID(ctx)
+	messageID, ok := utils.ParseIDParam(ctx, "messageID")
+	if !ok {
+		return nil
+	}
+
+	if err := s.ChatService.UnpinMessage(ctx.Context(), messageID, userID); err != nil {
+		if errors.Is(err, chat.ErrNotHost) {
+			return utils.Forbidden(ctx, "only the host can unpin messages")
+		}
+		if errors.Is(err, chat.ErrMessageNotPinned) {
+			return utils.BadRequest(ctx, "message is not pinned")
+		}
+		if errors.Is(err, chat.ErrRoomNotFound) {
+			return utils.NotFound(ctx, "message not found")
+		}
+		return utils.InternalError(ctx, "failed to unpin message")
+	}
+	return utils.OK(ctx)
+}
+
+func (s *Service) setupListPinnedMessagesRoute(r fiber.Router) {
+	r.Get("/chat/rooms/:roomID/pins", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.listPinnedMessages)
+}
+
+func (s *Service) listPinnedMessages(ctx fiber.Ctx) error {
+	userID := utils.UserID(ctx)
+	roomID, ok := utils.ParseIDParam(ctx, "roomID")
+	if !ok {
+		return nil
+	}
+
+	resp, err := s.ChatService.ListPinnedMessages(ctx.Context(), roomID, userID)
+	if err != nil {
+		if errors.Is(err, chat.ErrNotMember) {
+			return utils.Forbidden(ctx, "not a member")
+		}
+		return utils.InternalError(ctx, "failed to list pinned messages")
+	}
+	return ctx.JSON(resp)
+}
+
+func (s *Service) setupAddReactionRoute(r fiber.Router) {
+	r.Post("/chat/messages/:messageID/reactions", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.addReaction)
+}
+
+func (s *Service) addReaction(ctx fiber.Ctx) error {
+	userID := utils.UserID(ctx)
+	messageID, ok := utils.ParseIDParam(ctx, "messageID")
+	if !ok {
+		return nil
+	}
+	req, ok := utils.BindJSON[dto.AddReactionRequest](ctx)
+	if !ok {
+		return nil
+	}
+
+	if err := s.ChatService.AddReaction(ctx.Context(), messageID, userID, req.Emoji); err != nil {
+		if errors.Is(err, chat.ErrInvalidEmoji) {
+			return utils.BadRequest(ctx, "invalid emoji")
+		}
+		if errors.Is(err, chat.ErrNotMember) {
+			return utils.Forbidden(ctx, "not a member")
+		}
+		if errors.Is(err, chat.ErrRoomNotFound) {
+			return utils.NotFound(ctx, "message not found")
+		}
+		return utils.InternalError(ctx, "failed to add reaction")
+	}
+	return utils.OK(ctx)
+}
+
+func (s *Service) setupRemoveReactionRoute(r fiber.Router) {
+	r.Delete("/chat/messages/:messageID/reactions/:emoji", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.removeReaction)
+}
+
+func (s *Service) removeReaction(ctx fiber.Ctx) error {
+	userID := utils.UserID(ctx)
+	messageID, ok := utils.ParseIDParam(ctx, "messageID")
+	if !ok {
+		return nil
+	}
+	emojiRaw := ctx.Params("emoji")
+	emoji, err := url.PathUnescape(emojiRaw)
+	if err != nil {
+		return utils.BadRequest(ctx, "invalid emoji")
+	}
+
+	if err := s.ChatService.RemoveReaction(ctx.Context(), messageID, userID, emoji); err != nil {
+		if errors.Is(err, chat.ErrInvalidEmoji) {
+			return utils.BadRequest(ctx, "invalid emoji")
+		}
+		if errors.Is(err, chat.ErrNotMember) {
+			return utils.Forbidden(ctx, "not a member")
+		}
+		if errors.Is(err, chat.ErrRoomNotFound) {
+			return utils.NotFound(ctx, "message not found")
+		}
+		return utils.InternalError(ctx, "failed to remove reaction")
 	}
 	return utils.OK(ctx)
 }
