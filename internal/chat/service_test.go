@@ -76,8 +76,6 @@ func sampleUser(id uuid.UUID) *model.User {
 	}
 }
 
-// --- sanitizeTags ---
-
 func TestSanitizeTags(t *testing.T) {
 	cases := []struct {
 		name string
@@ -106,8 +104,6 @@ func TestSanitizeTags(t *testing.T) {
 		})
 	}
 }
-
-// --- ResolveDMRoom ---
 
 func TestResolveDMRoom_CannotDMSelf(t *testing.T) {
 	// given
@@ -237,8 +233,6 @@ func TestResolveDMRoom_ExistingRoom(t *testing.T) {
 	assert.Equal(t, roomID, got.Room.ID)
 }
 
-// --- SendDMMessage ---
-
 func TestSendDMMessage_EmptyBody(t *testing.T) {
 	// given
 	svc, _ := newTestService(t)
@@ -277,8 +271,6 @@ func TestSendDMMessage_CreateRoomError(t *testing.T) {
 	// then
 	require.Error(t, err)
 }
-
-// --- CreateGroupRoom ---
 
 func TestCreateGroupRoom_EmptyName(t *testing.T) {
 	// given
@@ -382,8 +374,6 @@ func TestCreateGroupRoom_AddMemberError(t *testing.T) {
 	require.Error(t, err)
 }
 
-// --- ListPublicRooms ---
-
 func TestListPublicRooms_DefaultsAndTrim(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -427,8 +417,6 @@ func TestListPublicRooms_RepoError(t *testing.T) {
 	// then
 	require.Error(t, err)
 }
-
-// --- ListUserGroupRooms ---
 
 func TestListUserGroupRooms_DefaultsAndRoleReset(t *testing.T) {
 	// given
@@ -481,8 +469,6 @@ func TestListUserGroupRooms_RepoError(t *testing.T) {
 	// then
 	require.Error(t, err)
 }
-
-// --- SetRoomMuted ---
 
 func TestSetRoomMuted_MembershipCheckError(t *testing.T) {
 	// given
@@ -542,8 +528,6 @@ func TestSetRoomMuted_OK(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// --- IsRoomMuted ---
-
 func TestIsRoomMuted_Delegates(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -558,8 +542,6 @@ func TestIsRoomMuted_Delegates(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, got)
 }
-
-// --- JoinRoom ---
 
 func TestJoinRoom_RepoError(t *testing.T) {
 	// given
@@ -727,8 +709,6 @@ func TestJoinRoom_OK(t *testing.T) {
 	require.NotNil(t, got)
 }
 
-// --- LeaveRoom ---
-
 func TestLeaveRoom_RepoError(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -831,8 +811,6 @@ func TestLeaveRoom_OK(t *testing.T) {
 	// then
 	require.NoError(t, err)
 }
-
-// --- KickMember ---
 
 func TestKickMember_RepoError(t *testing.T) {
 	// given
@@ -1021,8 +999,6 @@ func TestKickMember_TargetIsSiteMod(t *testing.T) {
 	require.ErrorIs(t, err, ErrTargetImmune)
 }
 
-// --- GetMembers ---
-
 func TestGetMembers_IsMemberError(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -1093,7 +1069,7 @@ func TestGetMembers_SiteMod_NicknameLockedFalse(t *testing.T) {
 	memberID := uuid.New()
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, viewerID).Return(true, nil)
 	m.chatRepo.EXPECT().GetRoomMembersDetailed(mock.Anything, roomID).Return([]repository.ChatRoomMemberRow{
-		{UserID: memberID, Username: "admin", DisplayName: "Admin", Role: "member", AuthorRole: string(authz.RoleAdmin), NicknameLocked: true},
+		{UserID: memberID, Username: "admin", DisplayName: "Admin", Role: "member", AuthorRole: string(authz.RoleAdmin), AuthorRoleTyped: authz.RoleAdmin, NicknameLocked: true},
 	}, nil)
 	m.vanityRoleRepo.EXPECT().GetRolesForUsersBatch(mock.Anything, []uuid.UUID{memberID}).Return(nil, nil)
 
@@ -1105,8 +1081,6 @@ func TestGetMembers_SiteMod_NicknameLockedFalse(t *testing.T) {
 	require.Len(t, got, 1)
 	assert.False(t, got[0].NicknameLocked)
 }
-
-// --- ListRooms ---
 
 func TestListRooms_RepoError(t *testing.T) {
 	// given
@@ -1153,8 +1127,6 @@ func TestListRooms_OK(t *testing.T) {
 	require.Len(t, got.Rooms, 1)
 	assert.Equal(t, roomID, got.Rooms[0].ID)
 }
-
-// --- EnsureSystemRooms ---
 
 func TestEnsureSystemRooms_GetModsError(t *testing.T) {
 	// given
@@ -1255,8 +1227,6 @@ func TestEnsureSystemRooms_CreateModsError(t *testing.T) {
 	// then
 	require.Error(t, err)
 }
-
-// --- SyncSystemRoomMembership ---
 
 func TestSyncSystemRoomMembership_GetModsError(t *testing.T) {
 	// given
@@ -1400,8 +1370,6 @@ func TestSyncSystemRoomMembership_GetRoleError(t *testing.T) {
 	require.Error(t, err)
 }
 
-// --- GetMessages ---
-
 func TestGetMessages_IsMemberError(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -1465,8 +1433,6 @@ func TestGetMessages_OK(t *testing.T) {
 	assert.Equal(t, 1, got.Total)
 	assert.Len(t, got.Messages, 1)
 }
-
-// --- GetMessagesBefore ---
 
 func TestGetMessagesBefore_IsMemberError(t *testing.T) {
 	// given
@@ -1548,8 +1514,6 @@ func TestGetMessagesBefore_LimitClamped(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 200, got.Limit)
 }
-
-// --- SendMessage ---
 
 func TestSendMessage_EmptyBody(t *testing.T) {
 	// given
@@ -1810,8 +1774,6 @@ func TestSendMessage_GroupMutedNoNotify(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// --- GetRoomsByUser ---
-
 func TestGetRoomsByUser_RepoError(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -1840,8 +1802,6 @@ func TestGetRoomsByUser_OK(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []uuid.UUID{r1, r2}, got)
 }
-
-// --- DeleteChat ---
 
 func TestDeleteChat_RepoError(t *testing.T) {
 	// given
@@ -2003,8 +1963,6 @@ func TestDeleteChat_DM_StillHasMembers(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// --- GetUnreadCount ---
-
 func TestGetUnreadCount_RepoError(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -2031,8 +1989,6 @@ func TestGetUnreadCount_OK(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 3, got)
 }
-
-// --- MarkRead ---
 
 func TestMarkRead_IsMemberError(t *testing.T) {
 	// given
@@ -2093,8 +2049,6 @@ func TestMarkRead_OK(t *testing.T) {
 	// then
 	require.NoError(t, err)
 }
-
-// --- Pure helpers ---
 
 func TestIsUnread(t *testing.T) {
 	cases := []struct {
@@ -2204,8 +2158,6 @@ func TestMessageRowToResponse_NoReply(t *testing.T) {
 	assert.Equal(t, "hi", got.Body)
 }
 
-// --- SetRoomNickname ---
-
 func TestSetRoomNickname_HappyPath(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -2309,8 +2261,6 @@ func TestSetRoomNickname_RepoError(t *testing.T) {
 	assert.Nil(t, got)
 }
 
-// --- SetRoomAvatar ---
-
 func TestSetRoomAvatar_HappyPath(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -2387,8 +2337,6 @@ func TestSetRoomAvatar_RepoError(t *testing.T) {
 	// then
 	require.Error(t, err)
 }
-
-// --- ClearRoomAvatar ---
 
 func TestClearRoomAvatar_HappyPath(t *testing.T) {
 	// given
@@ -2472,8 +2420,6 @@ func TestClearRoomAvatar_RepoError(t *testing.T) {
 	require.Error(t, err)
 	assert.Nil(t, got)
 }
-
-// --- PinMessage ---
 
 func TestPinMessage_HappyPath(t *testing.T) {
 	// given
@@ -2571,8 +2517,6 @@ func TestPinMessage_RepoError(t *testing.T) {
 	require.Error(t, err)
 }
 
-// --- UnpinMessage ---
-
 func TestUnpinMessage_HappyPath(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -2657,8 +2601,6 @@ func TestUnpinMessage_RepoError(t *testing.T) {
 	require.Error(t, err)
 }
 
-// --- ListPinnedMessages ---
-
 func TestListPinnedMessages_HappyPath(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -2725,8 +2667,6 @@ func TestListPinnedMessages_RepoError(t *testing.T) {
 	// then
 	require.Error(t, err)
 }
-
-// --- AddReaction ---
 
 func TestAddReaction_HappyPath(t *testing.T) {
 	// given
@@ -2823,8 +2763,6 @@ func TestAddReaction_RepoError(t *testing.T) {
 	require.Error(t, err)
 }
 
-// --- RemoveReaction ---
-
 func TestRemoveReaction_HappyPath(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -2915,8 +2853,6 @@ func TestRemoveReaction_RepoError(t *testing.T) {
 	// then
 	require.Error(t, err)
 }
-
-// --- canModerateRoom ---
 
 func TestCanModerateRoom_Host(t *testing.T) {
 	// given
@@ -3012,8 +2948,6 @@ func TestCanModerateRoom_NonMember(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, got)
 }
-
-// --- SetMemberNicknameAsMod ---
 
 func TestSetMemberNicknameAsMod_SiteMod_OK(t *testing.T) {
 	// given
@@ -3158,8 +3092,6 @@ func TestSetMemberNicknameAsMod_RepoError(t *testing.T) {
 	assert.Nil(t, got)
 }
 
-// --- UnlockMemberNickname ---
-
 func TestUnlockMemberNickname_OK(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -3236,8 +3168,6 @@ func TestUnlockMemberNickname_RepoError(t *testing.T) {
 	require.Error(t, err)
 	assert.Nil(t, got)
 }
-
-// --- lock-protected self-service ---
 
 func TestSetRoomNickname_Locked(t *testing.T) {
 	// given
@@ -3356,8 +3286,6 @@ func TestClearRoomAvatar_SiteMod_BypassesLock(t *testing.T) {
 	require.NotNil(t, got)
 }
 
-// --- KickMember as site mod ---
-
 func TestKickMember_SiteMod_OK(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -3379,8 +3307,6 @@ func TestKickMember_SiteMod_OK(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// --- DeleteChat as site mod ---
-
 func TestDeleteChat_SiteMod_GroupOK(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -3399,8 +3325,6 @@ func TestDeleteChat_SiteMod_GroupOK(t *testing.T) {
 	// then
 	require.NoError(t, err)
 }
-
-// --- PinMessage as site mod ---
 
 func TestPinMessage_SiteMod_OK(t *testing.T) {
 	// given
@@ -3421,8 +3345,6 @@ func TestPinMessage_SiteMod_OK(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// --- UnpinMessage as site mod ---
-
 func TestUnpinMessage_SiteMod_OK(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -3441,4 +3363,92 @@ func TestUnpinMessage_SiteMod_OK(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
+}
+
+func TestDeleteMessage_Author_OK(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	messageID := uuid.New()
+	roomID := uuid.New()
+	authorID := uuid.New()
+	m.chatRepo.EXPECT().GetMessageByID(mock.Anything, messageID).Return(&repository.ChatMessageRow{ID: messageID, RoomID: roomID, SenderID: authorID}, nil)
+	m.chatRepo.EXPECT().DeleteMessage(mock.Anything, messageID).Return(nil)
+	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return(nil, nil).Maybe()
+
+	// when
+	err := svc.DeleteMessage(context.Background(), messageID, authorID)
+
+	// then
+	require.NoError(t, err)
+}
+
+func TestDeleteMessage_Host_OK(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	messageID := uuid.New()
+	roomID := uuid.New()
+	senderID := uuid.New()
+	hostID := uuid.New()
+	m.chatRepo.EXPECT().GetMessageByID(mock.Anything, messageID).Return(&repository.ChatMessageRow{ID: messageID, RoomID: roomID, SenderID: senderID}, nil)
+	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, hostID).Return("host", nil)
+	m.chatRepo.EXPECT().DeleteMessage(mock.Anything, messageID).Return(nil)
+	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return(nil, nil).Maybe()
+
+	// when
+	err := svc.DeleteMessage(context.Background(), messageID, hostID)
+
+	// then
+	require.NoError(t, err)
+}
+
+func TestDeleteMessage_SiteMod_OK(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	messageID := uuid.New()
+	roomID := uuid.New()
+	senderID := uuid.New()
+	modID := uuid.New()
+	m.chatRepo.EXPECT().GetMessageByID(mock.Anything, messageID).Return(&repository.ChatMessageRow{ID: messageID, RoomID: roomID, SenderID: senderID}, nil)
+	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, modID).Return("member", nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, modID).Return(authz.RoleModerator, nil)
+	m.chatRepo.EXPECT().DeleteMessage(mock.Anything, messageID).Return(nil)
+	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return(nil, nil).Maybe()
+
+	// when
+	err := svc.DeleteMessage(context.Background(), messageID, modID)
+
+	// then
+	require.NoError(t, err)
+}
+
+func TestDeleteMessage_NotAuthorNotMod_Refused(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	messageID := uuid.New()
+	roomID := uuid.New()
+	senderID := uuid.New()
+	actorID := uuid.New()
+	m.chatRepo.EXPECT().GetMessageByID(mock.Anything, messageID).Return(&repository.ChatMessageRow{ID: messageID, RoomID: roomID, SenderID: senderID}, nil)
+	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, actorID).Return("member", nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, actorID).Return(role.Role(""), nil)
+
+	// when
+	err := svc.DeleteMessage(context.Background(), messageID, actorID)
+
+	// then
+	require.ErrorIs(t, err, ErrMessageDeletePermission)
+}
+
+func TestDeleteMessage_NotFound(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	messageID := uuid.New()
+	actorID := uuid.New()
+	m.chatRepo.EXPECT().GetMessageByID(mock.Anything, messageID).Return(nil, nil)
+
+	// when
+	err := svc.DeleteMessage(context.Background(), messageID, actorID)
+
+	// then
+	require.ErrorIs(t, err, ErrRoomNotFound)
 }

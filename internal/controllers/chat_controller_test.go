@@ -1973,3 +1973,69 @@ func TestUnlockMemberNickname_ServiceErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestDeleteMessage_AuthFailures(t *testing.T) {
+	testutil.RunAuthFailureSuite(t, chatFactory, "DELETE",
+		"/chat/messages/"+uuid.NewString(), nil)
+}
+
+func TestDeleteMessage_OK(t *testing.T) {
+	// given
+	h, chatMock := newChatHarness(t)
+	userID := uuid.New()
+	messageID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	chatMock.EXPECT().DeleteMessage(mock.Anything, messageID, userID).Return(nil)
+
+	// when
+	status, _ := h.NewRequest("DELETE", "/chat/messages/"+messageID.String()).
+		WithCookie("valid-cookie").Do()
+
+	// then
+	require.Equal(t, http.StatusOK, status)
+}
+
+func TestDeleteMessage_InvalidID(t *testing.T) {
+	// given
+	h, _ := newChatHarness(t)
+	h.ExpectValidSession("valid-cookie", uuid.New())
+
+	// when
+	status, body := h.NewRequest("DELETE", "/chat/messages/not-a-uuid").
+		WithCookie("valid-cookie").Do()
+
+	// then
+	require.Equal(t, http.StatusBadRequest, status)
+	assert.Contains(t, string(body), "invalid messageID")
+}
+
+func TestDeleteMessage_ServiceErrors(t *testing.T) {
+	cases := []struct {
+		name     string
+		err      error
+		wantCode int
+		wantBody string
+	}{
+		{"not found", chatsvc.ErrRoomNotFound, http.StatusNotFound, "message not found"},
+		{"permission", chatsvc.ErrMessageDeletePermission, http.StatusForbidden, "do not have permission"},
+		{"internal", errors.New("boom"), http.StatusInternalServerError, "failed to delete message"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h, chatMock := newChatHarness(t)
+			userID := uuid.New()
+			messageID := uuid.New()
+			h.ExpectValidSession("valid-cookie", userID)
+			chatMock.EXPECT().DeleteMessage(mock.Anything, messageID, userID).Return(tc.err)
+
+			// when
+			status, body := h.NewRequest("DELETE", "/chat/messages/"+messageID.String()).
+				WithCookie("valid-cookie").Do()
+
+			// then
+			require.Equal(t, tc.wantCode, status)
+			assert.Contains(t, string(body), tc.wantBody)
+		})
+	}
+}

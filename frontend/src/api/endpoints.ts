@@ -576,6 +576,10 @@ export async function clearChatRoomAvatar(roomId: string): Promise<ChatRoomMembe
     return apiDelete<ChatRoomMember>(`/chat/rooms/${roomId}/me/avatar`);
 }
 
+export async function deleteChatMessage(messageId: string): Promise<void> {
+    await apiDelete<unknown>(`/chat/messages/${messageId}`);
+}
+
 export async function pinChatMessage(messageId: string): Promise<void> {
     await apiPost<unknown, Record<string, never>>(`/chat/messages/${messageId}/pin`, {});
 }

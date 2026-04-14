@@ -4,8 +4,10 @@ import { useAuth } from "../../hooks/useAuth";
 import { useNotifications } from "../../hooks/useNotifications";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import type { ChatMessage, ChatRoom, ChatRoomMember, User, WSMessage } from "../../types/api";
+import { isSiteStaff } from "../../utils/permissions";
 import {
     addChatMessageReaction,
+    deleteChatMessage,
     deleteChatRoom,
     getChatRoomMembers,
     getUserRooms,
@@ -30,11 +32,13 @@ import { Lightbox } from "../../components/Lightbox/Lightbox";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import {
     applyChatMemberUpdate,
+    applyChatMessageDeleted,
     applyChatMessagePinned,
     applyChatMessageUnpinned,
     applyReactionAdded,
     applyReactionRemoved,
     ChatMemberUpdatedPayload,
+    ChatMessageDeletedPayload,
     ChatMessageMediaAddedPayload,
     ChatMessagePinnedPayload,
     ChatMessageUnpinnedPayload,
@@ -298,6 +302,14 @@ export function RoomPage() {
                 applyReactionRemoved(data, user.id, setMessages);
                 return;
             }
+            if (msg.type === "chat_message_deleted") {
+                const data = msg.data as ChatMessageDeletedPayload;
+                if (data.room_id !== roomIdRef.current) {
+                    return;
+                }
+                applyChatMessageDeleted(data, setMessages);
+                return;
+            }
         });
     }, [user, addWSListener, scrollToBottom, setMessages, navigate, loadMembers]);
 
@@ -443,6 +455,15 @@ export function RoomPage() {
         }
     }
 
+    async function handleDeleteMessage(message: ChatMessage) {
+        try {
+            await deleteChatMessage(message.id);
+            setMessages(prev => prev.filter(m => m.id !== message.id));
+        } catch (err) {
+            setToast(err instanceof Error ? err.message : "Failed to delete message");
+        }
+    }
+
     async function handlePinToggle(message: ChatMessage) {
         try {
             if (message.pinned) {
@@ -494,7 +515,7 @@ export function RoomPage() {
 
     const isHost = room.viewer_role === "host";
     const isSystem = room.is_system;
-    const isSiteMod = user.role === "admin" || user.role === "moderator" || user.role === "super_admin";
+    const isSiteMod = isSiteStaff(user.role);
     const canModerateRoom = isHost || isSiteMod;
     const currentMember = members.find(m => m.user.id === user.id) ?? null;
 
@@ -531,8 +552,7 @@ export function RoomPage() {
                                         : m.user.avatar_url,
                             };
                             const isSelf = m.user.id === user.id;
-                            const targetIsSiteMod =
-                                m.user.role === "admin" || m.user.role === "moderator" || m.user.role === "super_admin";
+                            const targetIsSiteMod = isSiteStaff(m.user.role);
                             const targetIsHost = m.role === "host";
                             const canKickTarget =
                                 canModerateRoom && !isSystem && !isSelf && !targetIsHost && !targetIsSiteMod;
@@ -714,7 +734,10 @@ export function RoomPage() {
                                 }
                                 onReactionToggle={handleReactionToggle}
                                 onPinToggle={canModerateRoom ? handlePinToggle : undefined}
+                                onDelete={handleDeleteMessage}
                                 canPin={canModerateRoom}
+                                canModerate={canModerateRoom}
+                                senderIsStaff={isSiteStaff(msg.sender.role)}
                             />
                         ))}
                         <div ref={messagesEndRef} />

@@ -77,8 +77,6 @@ func validCreateTheoryReq() dto.CreateTheoryRequest {
 	}
 }
 
-// --- CreateTheory ---
-
 func TestCreateTheory_NoLimit_Delegates(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -153,8 +151,6 @@ func TestCreateTheory_RepoCreateError(t *testing.T) {
 	// then
 	require.Error(t, err)
 }
-
-// --- GetTheoryDetail ---
 
 func TestGetTheoryDetail_RepoError(t *testing.T) {
 	// given
@@ -279,8 +275,6 @@ func TestGetTheoryDetail_UserVoteErrorSwallowed(t *testing.T) {
 	require.NotNil(t, got)
 }
 
-// --- ListTheories ---
-
 func TestListTheories_OK(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -333,8 +327,6 @@ func TestListTheories_RepoError(t *testing.T) {
 	// then
 	require.Error(t, err)
 }
-
-// --- UpdateTheory ---
 
 func TestUpdateTheory_NonAdmin_Delegates(t *testing.T) {
 	// given
@@ -434,8 +426,6 @@ func TestUpdateTheory_Admin_OK_AuthorLookupErrorSwallowed(t *testing.T) {
 	}
 }
 
-// --- DeleteTheory ---
-
 func TestDeleteTheory_Admin(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -480,8 +470,6 @@ func TestDeleteTheory_NonAdmin_RepoError(t *testing.T) {
 	// then
 	require.Error(t, err)
 }
-
-// --- CreateResponse ---
 
 func TestCreateResponse_CountError(t *testing.T) {
 	// given
@@ -647,8 +635,6 @@ func TestCreateResponse_OK_SendsNotification(t *testing.T) {
 	waitOrFail(t, &wg, 2*time.Second)
 }
 
-// --- DeleteResponse ---
-
 func TestDeleteResponse_Admin(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -719,8 +705,6 @@ func TestDeleteResponse_ResponseInfoFailure_NoRecalc(t *testing.T) {
 	// then
 	require.NoError(t, err)
 }
-
-// --- VoteTheory ---
 
 func TestVoteTheory_AuthorLookupError(t *testing.T) {
 	// given
@@ -815,8 +799,6 @@ func TestVoteTheory_Upvote_SendsNotification(t *testing.T) {
 	require.NoError(t, err)
 	waitOrFail(t, &wg, 2*time.Second)
 }
-
-// --- VoteResponse ---
 
 func TestVoteResponse_ResponseInfoError(t *testing.T) {
 	// given

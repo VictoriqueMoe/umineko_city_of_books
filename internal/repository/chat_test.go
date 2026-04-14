@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/repository/repotest"
 
 	"github.com/google/uuid"
@@ -1921,6 +1922,92 @@ func TestChatRepository_GetRoomMembersDetailed_PopulatesNicknameLocked(t *testin
 	assert.Equal(t, other.ID, detailed[1].UserID)
 	assert.True(t, detailed[1].NicknameLocked)
 	assert.Equal(t, "Pinned", detailed[1].Nickname)
+}
+
+func TestChatRepository_RemoveMember_SoftDeletes(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	ctx := context.Background()
+	owner := repotest.CreateUser(t, repos)
+	joiner := repotest.CreateUser(t, repos)
+	roomID := uuid.New()
+	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "R", "", "group", false, false, owner.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, roomID, joiner.ID))
+	require.NoError(t, repos.Chat.SetMemberNickname(ctx, roomID, joiner.ID, "Beato"))
+
+	// when
+	err := repos.Chat.RemoveMember(ctx, roomID, joiner.ID)
+
+	// then
+	require.NoError(t, err)
+	isMember, err := repos.Chat.IsMember(ctx, roomID, joiner.ID)
+	require.NoError(t, err)
+	assert.False(t, isMember)
+
+	var count int
+	require.NoError(t, repos.DB().QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM chat_room_members WHERE room_id = ? AND user_id = ? AND left_at IS NOT NULL`,
+		roomID, joiner.ID,
+	).Scan(&count))
+	assert.Equal(t, 1, count)
+}
+
+func TestChatRepository_AddMember_Rejoin_PreservesNickname(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	ctx := context.Background()
+	owner := repotest.CreateUser(t, repos)
+	joiner := repotest.CreateUser(t, repos)
+	roomID := uuid.New()
+	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "R", "", "group", false, false, owner.ID))
+	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, roomID, joiner.ID, "member"))
+	require.NoError(t, repos.Chat.SetMemberNicknameWithLock(ctx, roomID, joiner.ID, "Beato", true))
+	require.NoError(t, repos.Chat.SetMemberAvatar(ctx, roomID, joiner.ID, "/custom.png"))
+	require.NoError(t, repos.Chat.RemoveMember(ctx, roomID, joiner.ID))
+
+	// when
+	err := repos.Chat.AddMemberWithRole(ctx, roomID, joiner.ID, "member")
+
+	// then
+	require.NoError(t, err)
+	isMember, err := repos.Chat.IsMember(ctx, roomID, joiner.ID)
+	require.NoError(t, err)
+	assert.True(t, isMember)
+
+	detailed, err := repos.Chat.GetRoomMembersDetailed(ctx, roomID)
+	require.NoError(t, err)
+	var found *repository.ChatRoomMemberRow
+	for i := range detailed {
+		if detailed[i].UserID == joiner.ID {
+			found = &detailed[i]
+			break
+		}
+	}
+	require.NotNil(t, found)
+	assert.Equal(t, "Beato", found.Nickname)
+	assert.True(t, found.NicknameLocked)
+	assert.Equal(t, "/custom.png", found.MemberAvatarURL)
+}
+
+func TestChatRepository_DeleteMessage(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	ctx := context.Background()
+	user := repotest.CreateUser(t, repos)
+	roomID := uuid.New()
+	msgID := uuid.New()
+	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "R", "", "group", false, false, user.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
+	require.NoError(t, repos.Chat.InsertMessage(ctx, msgID, roomID, user.ID, "hi", nil))
+
+	// when
+	err := repos.Chat.DeleteMessage(ctx, msgID)
+
+	// then
+	require.NoError(t, err)
+	got, err := repos.Chat.GetMessageByID(ctx, msgID)
+	require.NoError(t, err)
+	assert.Nil(t, got)
 }
 
 func TestChatRepository_GetMessages_UsesPerRoomOverrides(t *testing.T) {

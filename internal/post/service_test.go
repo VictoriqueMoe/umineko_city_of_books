@@ -113,8 +113,6 @@ func expectBackgroundSocial(m *testMocks) {
 	m.roleRepo.EXPECT().GetUsersByRoles(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 }
 
-// --- CreatePost ---
-
 func TestCreatePost_InvalidShareType(t *testing.T) {
 	// given
 	svc, _ := newTestService(t)
@@ -342,8 +340,6 @@ func TestCreatePost_ShareOK(t *testing.T) {
 	assert.NotEqual(t, uuid.Nil, id)
 }
 
-// --- GetPost ---
-
 func TestGetPost_RepoError(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -428,8 +424,6 @@ func TestGetPost_AnonymousNoViewHash(t *testing.T) {
 	assert.Equal(t, 5, got.ShareCount)
 }
 
-// --- UpdatePost ---
-
 func TestUpdatePost_EmptyBody(t *testing.T) {
 	// given
 	svc, _ := newTestService(t)
@@ -502,8 +496,6 @@ func TestUpdatePost_AsOwnerRepoError(t *testing.T) {
 	// then
 	require.Error(t, err)
 }
-
-// --- DeletePost ---
 
 func TestDeletePost_AsAdmin(t *testing.T) {
 	// given
@@ -578,8 +570,6 @@ func TestDeletePost_SharedContentDecrements(t *testing.T) {
 	waitOrFail(t, &wg, time.Second)
 }
 
-// --- ListFeed ---
-
 func TestListFeed_FollowingTab(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -634,8 +624,6 @@ func TestListFeed_RepoError(t *testing.T) {
 	require.Error(t, err)
 }
 
-// --- ListUserPosts ---
-
 func TestListUserPosts_OK(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -668,8 +656,6 @@ func TestListUserPosts_RepoError(t *testing.T) {
 	// then
 	require.Error(t, err)
 }
-
-// --- UploadPostMedia ---
 
 func TestUploadPostMedia_NotFound(t *testing.T) {
 	// given
@@ -716,8 +702,6 @@ func TestUploadPostMedia_UploaderError(t *testing.T) {
 	// then
 	require.Error(t, err)
 }
-
-// --- DeletePostMedia ---
 
 func TestDeletePostMedia_NotFound(t *testing.T) {
 	// given
@@ -780,8 +764,6 @@ func TestDeletePostMedia_OK(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// --- UploadCommentMedia ---
-
 func TestUploadCommentMedia_NotFound(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -826,8 +808,6 @@ func TestUploadCommentMedia_UploaderError(t *testing.T) {
 	// then
 	require.Error(t, err)
 }
-
-// --- LikePost ---
 
 func TestLikePost_AuthorLookupError(t *testing.T) {
 	// given
@@ -894,8 +874,6 @@ func TestLikePost_OK(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// --- UnlikePost ---
-
 func TestUnlikePost_OK(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -923,8 +901,6 @@ func TestUnlikePost_RepoError(t *testing.T) {
 	// then
 	require.Error(t, err)
 }
-
-// --- CreateComment ---
 
 func TestCreateComment_EmptyBody(t *testing.T) {
 	// given
@@ -1023,8 +999,6 @@ func TestCreateComment_OKReply(t *testing.T) {
 	assert.NotEqual(t, uuid.Nil, id)
 }
 
-// --- UpdateComment ---
-
 func TestUpdateComment_EmptyBody(t *testing.T) {
 	// given
 	svc, _ := newTestService(t)
@@ -1098,8 +1072,6 @@ func TestUpdateComment_AsOwnerRepoError(t *testing.T) {
 	require.Error(t, err)
 }
 
-// --- DeleteComment ---
-
 func TestDeleteComment_AsAdmin(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -1144,8 +1116,6 @@ func TestDeleteComment_RepoError(t *testing.T) {
 	// then
 	require.Error(t, err)
 }
-
-// --- LikeComment ---
 
 func TestLikeComment_AuthorLookupError(t *testing.T) {
 	// given
@@ -1212,8 +1182,6 @@ func TestLikeComment_OK(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// --- UnlikeComment ---
-
 func TestUnlikeComment_OK(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -1242,8 +1210,6 @@ func TestUnlikeComment_RepoError(t *testing.T) {
 	require.Error(t, err)
 }
 
-// --- GetCornerCounts ---
-
 func TestGetCornerCounts_OK(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -1270,8 +1236,6 @@ func TestGetCornerCounts_RepoError(t *testing.T) {
 	require.Error(t, err)
 }
 
-// --- RefreshStaleEmbeds ---
-
 func TestRefreshStaleEmbeds_RepoErrorReturnsZero(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -1296,8 +1260,6 @@ func TestRefreshStaleEmbeds_UnparsedSkipped(t *testing.T) {
 	// then
 	assert.Zero(t, got)
 }
-
-// --- VotePoll ---
 
 func TestVotePoll_RepoError(t *testing.T) {
 	// given
@@ -1452,8 +1414,6 @@ func TestVotePoll_OK(t *testing.T) {
 	require.NotNil(t, got)
 }
 
-// --- ResolveSuggestion ---
-
 func TestResolveSuggestion_Unauthorised(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -1515,8 +1475,6 @@ func TestResolveSuggestion_RepoError(t *testing.T) {
 	require.Error(t, err)
 }
 
-// --- UnresolveSuggestion ---
-
 func TestUnresolveSuggestion_Unauthorised(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -1561,8 +1519,6 @@ func TestUnresolveSuggestion_RepoError(t *testing.T) {
 	// then
 	require.Error(t, err)
 }
-
-// --- GetShareCount ---
 
 func TestGetShareCount_OK(t *testing.T) {
 	// given

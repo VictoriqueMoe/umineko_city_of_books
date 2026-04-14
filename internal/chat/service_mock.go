@@ -321,6 +321,69 @@ func (_c *MockService_DeleteChat_Call) RunAndReturn(run func(ctx context.Context
 	return _c
 }
 
+// DeleteMessage provides a mock function for the type MockService
+func (_mock *MockService) DeleteMessage(ctx context.Context, messageID uuid.UUID, actorID uuid.UUID) error {
+	ret := _mock.Called(ctx, messageID, actorID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteMessage")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, messageID, actorID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_DeleteMessage_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteMessage'
+type MockService_DeleteMessage_Call struct {
+	*mock.Call
+}
+
+// DeleteMessage is a helper method to define mock.On call
+//   - ctx context.Context
+//   - messageID uuid.UUID
+//   - actorID uuid.UUID
+func (_e *MockService_Expecter) DeleteMessage(ctx interface{}, messageID interface{}, actorID interface{}) *MockService_DeleteMessage_Call {
+	return &MockService_DeleteMessage_Call{Call: _e.mock.On("DeleteMessage", ctx, messageID, actorID)}
+}
+
+func (_c *MockService_DeleteMessage_Call) Run(run func(ctx context.Context, messageID uuid.UUID, actorID uuid.UUID)) *MockService_DeleteMessage_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_DeleteMessage_Call) Return(err error) *MockService_DeleteMessage_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_DeleteMessage_Call) RunAndReturn(run func(ctx context.Context, messageID uuid.UUID, actorID uuid.UUID) error) *MockService_DeleteMessage_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // EnsureSystemRooms provides a mock function for the type MockService
 func (_mock *MockService) EnsureSystemRooms(ctx context.Context) error {
 	ret := _mock.Called(ctx)

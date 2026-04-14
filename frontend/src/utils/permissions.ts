@@ -1,3 +1,9 @@
+export type SiteRole = "super_admin" | "admin" | "moderator";
+
+export function isSiteStaff(role: SiteRole | undefined | null): boolean {
+    return role === "super_admin" || role === "admin" || role === "moderator";
+}
+
 export type Permission =
     | "delete_any_theory"
     | "delete_any_response"
@@ -83,13 +89,13 @@ const rolePermissions: Record<string, Permission[]> = {
     ],
 };
 
-export function can(role: string | undefined, perm: Permission): boolean {
+export function can(role: SiteRole | undefined, perm: Permission): boolean {
     if (!role) {
         return false;
     }
     return rolePermissions[role]?.includes(perm) ?? false;
 }
 
-export function canAccessAdmin(role: string | undefined): boolean {
+export function canAccessAdmin(role: SiteRole | undefined): boolean {
     return can(role, "view_admin_panel");
 }

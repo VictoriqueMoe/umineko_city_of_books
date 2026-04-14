@@ -42,6 +42,7 @@ func (s *Service) getAllChatRoutes() []FSetupRoute {
 		s.setupListPinnedMessagesRoute,
 		s.setupAddReactionRoute,
 		s.setupRemoveReactionRoute,
+		s.setupDeleteMessageRoute,
 	}
 }
 
@@ -728,6 +729,29 @@ func (s *Service) addReaction(ctx fiber.Ctx) error {
 			return utils.NotFound(ctx, "message not found")
 		}
 		return utils.InternalError(ctx, "failed to add reaction")
+	}
+	return utils.OK(ctx)
+}
+
+func (s *Service) setupDeleteMessageRoute(r fiber.Router) {
+	r.Delete("/chat/messages/:messageID", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.deleteMessage)
+}
+
+func (s *Service) deleteMessage(ctx fiber.Ctx) error {
+	userID := utils.UserID(ctx)
+	messageID, ok := utils.ParseIDParam(ctx, "messageID")
+	if !ok {
+		return nil
+	}
+
+	if err := s.ChatService.DeleteMessage(ctx.Context(), messageID, userID); err != nil {
+		if errors.Is(err, chat.ErrRoomNotFound) {
+			return utils.NotFound(ctx, "message not found")
+		}
+		if errors.Is(err, chat.ErrMessageDeletePermission) {
+			return utils.Forbidden(ctx, "you do not have permission to delete this message")
+		}
+		return utils.InternalError(ctx, "failed to delete message")
 	}
 	return utils.OK(ctx)
 }

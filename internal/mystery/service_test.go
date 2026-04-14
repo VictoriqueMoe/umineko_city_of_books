@@ -80,8 +80,6 @@ func validCreateReq() dto.CreateMysteryRequest {
 	}
 }
 
-// --- ListMysteries ---
-
 func TestListMysteries_RepoError(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -134,8 +132,6 @@ func TestListMysteries_OK_ShortBodyPreserved(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "short", got.Mysteries[0].Body)
 }
-
-// --- GetMystery ---
 
 func TestGetMystery_RepoError(t *testing.T) {
 	// given
@@ -317,8 +313,6 @@ func TestGetMystery_SuperAdmin_SeesAll(t *testing.T) {
 	assert.Len(t, got.Attempts, 1)
 }
 
-// --- CreateMystery ---
-
 func TestCreateMystery_EmptyTitle(t *testing.T) {
 	// given
 	svc, _ := newTestService(t)
@@ -410,8 +404,6 @@ func TestCreateMystery_ClueError(t *testing.T) {
 	// then
 	require.Error(t, err)
 }
-
-// --- UpdateMystery ---
 
 func TestUpdateMystery_NotAuthorised(t *testing.T) {
 	// given
@@ -545,8 +537,6 @@ func TestUpdateMystery_WithClues_Replaces(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// --- DeleteMystery ---
-
 func TestDeleteMystery_Admin(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -591,8 +581,6 @@ func TestDeleteMystery_NonAdmin_RepoError(t *testing.T) {
 	// then
 	require.Error(t, err)
 }
-
-// --- CreateAttempt ---
 
 func TestCreateAttempt_EmptyBody(t *testing.T) {
 	// given
@@ -770,8 +758,6 @@ func TestCreateAttempt_OK(t *testing.T) {
 	assert.NotEqual(t, uuid.Nil, id)
 }
 
-// --- DeleteAttempt ---
-
 func TestDeleteAttempt_Admin(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -801,8 +787,6 @@ func TestDeleteAttempt_NonAdmin(t *testing.T) {
 	// then
 	require.NoError(t, err)
 }
-
-// --- VoteAttempt ---
 
 func TestVoteAttempt_InvalidValue(t *testing.T) {
 	// given
@@ -905,8 +889,6 @@ func TestVoteAttempt_Upvote_SendsNotification(t *testing.T) {
 	require.NoError(t, err)
 	waitOrFail(t, &wg, time.Second)
 }
-
-// --- MarkSolved ---
 
 func TestMarkSolved_MysteryNotFound(t *testing.T) {
 	// given
@@ -1078,8 +1060,6 @@ func TestMarkSolved_Admin_CanSolve(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// --- AddClue ---
-
 func TestAddClue_EmptyBody(t *testing.T) {
 	// given
 	svc, _ := newTestService(t)
@@ -1173,8 +1153,6 @@ func TestAddClue_Private_NotifiesPlayer(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// --- GetLeaderboard ---
-
 func TestGetLeaderboard_RepoError(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -1256,8 +1234,6 @@ func TestGetTopGMIDs_Delegates(t *testing.T) {
 	assert.Equal(t, []string{"x"}, got)
 }
 
-// --- ListByUser ---
-
 func TestListByUser_RepoError(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -1290,8 +1266,6 @@ func TestListByUser_TruncatesLongBody(t *testing.T) {
 	assert.Equal(t, 203, len(got.Mysteries[0].Body))
 	assert.Equal(t, 1, got.Total)
 }
-
-// --- CreateComment ---
 
 func TestCreateComment_EmptyBody(t *testing.T) {
 	// given
@@ -1430,8 +1404,6 @@ func TestCreateComment_Reply_NotifiesParentAuthor(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// --- UpdateComment ---
-
 func TestUpdateComment_EmptyBody(t *testing.T) {
 	// given
 	svc, _ := newTestService(t)
@@ -1473,8 +1445,6 @@ func TestUpdateComment_Owner(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// --- DeleteComment ---
-
 func TestDeleteComment_Admin(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -1504,8 +1474,6 @@ func TestDeleteComment_Owner(t *testing.T) {
 	// then
 	require.NoError(t, err)
 }
-
-// --- LikeComment / UnlikeComment ---
 
 func TestLikeComment_AuthorLookupError(t *testing.T) {
 	// given
@@ -1568,8 +1536,6 @@ func TestUnlikeComment_Delegates(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// --- UploadCommentMedia ---
-
 func TestUploadCommentMedia_CommentNotFound(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -1597,8 +1563,6 @@ func TestUploadCommentMedia_NotAuthor(t *testing.T) {
 	// then
 	require.Error(t, err)
 }
-
-// --- UploadAttachment ---
 
 func TestUploadAttachment_MysteryNotFound(t *testing.T) {
 	// given
@@ -1715,8 +1679,6 @@ func TestUploadAttachment_OK(t *testing.T) {
 	assert.Equal(t, "/uploads/x", got.FileURL)
 }
 
-// --- DeleteAttachment ---
-
 func TestDeleteAttachment_MysteryNotFound(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -1779,8 +1741,6 @@ func TestDeleteAttachment_OK_DeletesFile(t *testing.T) {
 	// then
 	require.NoError(t, err)
 }
-
-// --- SetPaused ---
 
 func TestSetPaused_NotFound(t *testing.T) {
 	// given
@@ -1867,8 +1827,6 @@ func TestSetPaused_OK_Unpause_NotifiesPlayers(t *testing.T) {
 	waitOrFail(t, &wg, time.Second)
 }
 
-// --- SetGmAway ---
-
 func TestSetGmAway_NotFound(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -1953,8 +1911,6 @@ func TestSetGmAway_OK_Back_NotifiesPlayers(t *testing.T) {
 	require.NoError(t, err)
 	waitOrFail(t, &wg, time.Second)
 }
-
-// --- DeleteClue / UpdateClue ---
 
 func TestDeleteClue_RepoError(t *testing.T) {
 	// given
