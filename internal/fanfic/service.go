@@ -128,9 +128,6 @@ func (s *service) CreateFanfic(ctx context.Context, userID uuid.UUID, req dto.Cr
 	if len(req.Genres) > 2 {
 		return uuid.Nil, ErrTooManyGenres
 	}
-	if len(req.Characters) > 4 {
-		return uuid.Nil, ErrTooManyCharacters
-	}
 
 	tags := sanitiseTags(req.Tags)
 	if len(tags) > 10 {
@@ -280,9 +277,6 @@ func (s *service) UpdateFanfic(ctx context.Context, id, userID uuid.UUID, req dt
 	}
 	if len(req.Genres) > 2 {
 		return ErrTooManyGenres
-	}
-	if len(req.Characters) > 4 {
-		return ErrTooManyCharacters
 	}
 
 	tags := sanitiseTags(req.Tags)

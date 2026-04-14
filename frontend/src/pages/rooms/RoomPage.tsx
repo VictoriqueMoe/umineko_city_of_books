@@ -5,6 +5,7 @@ import { useNotifications } from "../../hooks/useNotifications";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import type { ChatMessage, ChatRoom, ChatRoomMember, User, WSMessage } from "../../types/api";
 import {
+    addChatMessageReaction,
     deleteChatRoom,
     getChatRoomMembers,
     getUserRooms,
@@ -12,16 +13,32 @@ import {
     kickChatRoomMember,
     leaveChatRoom,
     markChatRoomRead,
+    pinChatMessage,
+    removeChatMessageReaction,
+    setChatRoomMemberNickname,
     setChatRoomMuted,
+    unlockChatRoomMemberNickname,
+    unpinChatMessage,
 } from "../../api/endpoints";
 import { useMessageHistory } from "../../hooks/useMessageHistory";
 import { Button } from "../../components/Button/Button";
 import { ChatComposer, type ReplyTarget } from "../../components/chat/ChatComposer/ChatComposer";
+import { EditRoomProfileDialog } from "../../components/chat/EditRoomProfileDialog/EditRoomProfileDialog";
 import { MessageBubble } from "../../components/chat/MessageBubble/MessageBubble";
+import { PinnedMessagesPanel } from "../../components/chat/PinnedMessagesPanel/PinnedMessagesPanel";
 import { Lightbox } from "../../components/Lightbox/Lightbox";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import {
+    applyChatMemberUpdate,
+    applyChatMessagePinned,
+    applyChatMessageUnpinned,
+    applyReactionAdded,
+    applyReactionRemoved,
+    ChatMemberUpdatedPayload,
     ChatMessageMediaAddedPayload,
+    ChatMessagePinnedPayload,
+    ChatMessageUnpinnedPayload,
+    ChatReactionPayload,
     handleIncomingChatMessage,
     handleIncomingChatMessageMedia,
 } from "../../utils/chatStream";
@@ -44,6 +61,14 @@ export function RoomPage() {
     const [replyingTo, setReplyingTo] = useState<ReplyTarget | null>(null);
     const [highlightedMsgId, setHighlightedMsgId] = useState<string | null>(null);
     const [descExpanded, setDescExpanded] = useState(false);
+    const [pinnedOpen, setPinnedOpen] = useState(false);
+    const [pinnedRefreshKey, setPinnedRefreshKey] = useState(0);
+    const [editProfileOpen, setEditProfileOpen] = useState(false);
+    const [openMemberMenu, setOpenMemberMenu] = useState<string | null>(null);
+    const [nicknameDialogTarget, setNicknameDialogTarget] = useState<ChatRoomMember | null>(null);
+    const [nicknameDialogValue, setNicknameDialogValue] = useState("");
+    const [nicknameDialogError, setNicknameDialogError] = useState<string>("");
+    const [nicknameDialogSaving, setNicknameDialogSaving] = useState(false);
     const roomIdRef = useRef(roomId);
     const handledHashRef = useRef<string | null>(null);
     const {
@@ -231,6 +256,48 @@ export function RoomPage() {
                 setTimeout(() => navigate("/rooms"), 1500);
                 return;
             }
+            if (msg.type === "chat_member_updated") {
+                const data = msg.data as ChatMemberUpdatedPayload;
+                if (data.room_id !== roomIdRef.current) {
+                    return;
+                }
+                applyChatMemberUpdate(data, setMembers, setMessages);
+                return;
+            }
+            if (msg.type === "chat_message_pinned") {
+                const data = msg.data as ChatMessagePinnedPayload;
+                if (data.room_id !== roomIdRef.current) {
+                    return;
+                }
+                applyChatMessagePinned(data, setMessages);
+                setPinnedRefreshKey(k => k + 1);
+                return;
+            }
+            if (msg.type === "chat_message_unpinned") {
+                const data = msg.data as ChatMessageUnpinnedPayload;
+                if (data.room_id !== roomIdRef.current) {
+                    return;
+                }
+                applyChatMessageUnpinned(data, setMessages);
+                setPinnedRefreshKey(k => k + 1);
+                return;
+            }
+            if (msg.type === "chat_reaction_added") {
+                const data = msg.data as ChatReactionPayload;
+                if (data.room_id !== roomIdRef.current) {
+                    return;
+                }
+                applyReactionAdded(data, user.id, setMessages);
+                return;
+            }
+            if (msg.type === "chat_reaction_removed") {
+                const data = msg.data as ChatReactionPayload;
+                if (data.room_id !== roomIdRef.current) {
+                    return;
+                }
+                applyReactionRemoved(data, user.id, setMessages);
+                return;
+            }
         });
     }, [user, addWSListener, scrollToBottom, setMessages, navigate, loadMembers]);
 
@@ -251,6 +318,50 @@ export function RoomPage() {
             setToast(err instanceof Error ? err.message : "Failed to join room");
         } finally {
             setJoining(false);
+        }
+    }
+
+    function openNicknameDialog(member: ChatRoomMember) {
+        setNicknameDialogTarget(member);
+        setNicknameDialogValue(member.nickname ?? "");
+        setNicknameDialogError("");
+        setOpenMemberMenu(null);
+    }
+
+    async function handleModSetNickname() {
+        if (!roomId || !nicknameDialogTarget) {
+            return;
+        }
+        setNicknameDialogSaving(true);
+        setNicknameDialogError("");
+        try {
+            const updated = await setChatRoomMemberNickname(
+                roomId,
+                nicknameDialogTarget.user.id,
+                nicknameDialogValue.trim(),
+            );
+            setMembers(prev => prev.map(m => (m.user.id === updated.user.id ? updated : m)));
+            setNicknameDialogTarget(null);
+        } catch (err) {
+            setNicknameDialogError(err instanceof Error ? err.message : "Failed to set nickname");
+        } finally {
+            setNicknameDialogSaving(false);
+        }
+    }
+
+    async function handleModUnlockNickname(targetId: string) {
+        if (!roomId) {
+            return;
+        }
+        setBusy(targetId);
+        setOpenMemberMenu(null);
+        try {
+            const updated = await unlockChatRoomMemberNickname(roomId, targetId);
+            setMembers(prev => prev.map(m => (m.user.id === updated.user.id ? updated : m)));
+        } catch (err) {
+            setToast(err instanceof Error ? err.message : "Failed to unlock nickname");
+        } finally {
+            setBusy(null);
         }
     }
 
@@ -319,6 +430,43 @@ export function RoomPage() {
         }
     }
 
+    async function handleReactionToggle(message: ChatMessage, emoji: string) {
+        const existing = (message.reactions ?? []).find(r => r.emoji === emoji);
+        try {
+            if (existing && existing.viewer_reacted) {
+                await removeChatMessageReaction(message.id, emoji);
+            } else {
+                await addChatMessageReaction(message.id, emoji);
+            }
+        } catch (err) {
+            setToast(err instanceof Error ? err.message : "Failed to update reaction");
+        }
+    }
+
+    async function handlePinToggle(message: ChatMessage) {
+        try {
+            if (message.pinned) {
+                await unpinChatMessage(message.id);
+            } else {
+                await pinChatMessage(message.id);
+            }
+        } catch (err) {
+            setToast(err instanceof Error ? err.message : "Failed to update pin");
+        }
+    }
+
+    function handleJumpToMessage(messageId: string) {
+        if (!messages.some(m => m.id === messageId)) {
+            setToast("Message not in loaded history; scroll up to find it.");
+            return;
+        }
+        const el = document.getElementById(`chat-msg-${messageId}`);
+        if (el) {
+            el.scrollIntoView({ behavior: "smooth", block: "center" });
+            setHighlightedMsgId(messageId);
+        }
+    }
+
     if (!user) {
         return null;
     }
@@ -346,6 +494,9 @@ export function RoomPage() {
 
     const isHost = room.viewer_role === "host";
     const isSystem = room.is_system;
+    const isSiteMod = user.role === "admin" || user.role === "moderator" || user.role === "super_admin";
+    const canModerateRoom = isHost || isSiteMod;
+    const currentMember = members.find(m => m.user.id === user.id) ?? null;
 
     return (
         <div className={styles.roomWrapper}>
@@ -370,21 +521,86 @@ export function RoomPage() {
                         <span className={styles.memberCount}>{members.length}</span>
                     </div>
                     <div className={styles.memberList}>
-                        {members.map(m => (
-                            <div key={m.user.id} className={styles.memberRow}>
-                                <ProfileLink user={m.user} size="small" />
-                                {m.role === "host" && <span className={styles.hostBadge}>Host</span>}
-                                {isHost && !isSystem && m.user.id !== user.id && m.role !== "host" && (
-                                    <button
-                                        className={styles.kickBtn}
-                                        onClick={() => handleKick(m.user.id)}
-                                        disabled={busy === m.user.id}
-                                    >
-                                        ✕
-                                    </button>
-                                )}
-                            </div>
-                        ))}
+                        {members.map(m => {
+                            const effectiveUser: User = {
+                                ...m.user,
+                                display_name: m.nickname && m.nickname.trim() !== "" ? m.nickname : m.user.display_name,
+                                avatar_url:
+                                    m.member_avatar_url && m.member_avatar_url.trim() !== ""
+                                        ? m.member_avatar_url
+                                        : m.user.avatar_url,
+                            };
+                            const isSelf = m.user.id === user.id;
+                            const targetIsSiteMod =
+                                m.user.role === "admin" || m.user.role === "moderator" || m.user.role === "super_admin";
+                            const canActOnMember = canModerateRoom && !isSystem && !isSelf && m.role !== "host";
+                            const canEditTargetNickname = isSiteMod && !targetIsSiteMod && !isSelf && !isSystem;
+                            const menuOpen = openMemberMenu === m.user.id;
+                            return (
+                                <div key={m.user.id} className={styles.memberRow}>
+                                    <ProfileLink user={effectiveUser} size="small" />
+                                    {m.role === "host" && <span className={styles.hostBadge}>Host</span>}
+                                    {isSelf && (
+                                        <button
+                                            type="button"
+                                            className={styles.editSelfBtn}
+                                            onClick={() => setEditProfileOpen(true)}
+                                            title="Edit profile in this room"
+                                            aria-label="Edit profile in this room"
+                                        >
+                                            {"\u270E"}
+                                        </button>
+                                    )}
+                                    {canActOnMember && (
+                                        <div className={styles.memberActions}>
+                                            <button
+                                                type="button"
+                                                className={styles.modActionsBtn}
+                                                onClick={() =>
+                                                    setOpenMemberMenu(prev => (prev === m.user.id ? null : m.user.id))
+                                                }
+                                                aria-label="Moderator actions"
+                                                title="Moderator actions"
+                                            >
+                                                {"\u22EE"}
+                                            </button>
+                                            {menuOpen && (
+                                                <div
+                                                    className={styles.modActionsMenu}
+                                                    onMouseLeave={() => setOpenMemberMenu(null)}
+                                                >
+                                                    {canEditTargetNickname && (
+                                                        <button type="button" onClick={() => openNicknameDialog(m)}>
+                                                            Change nickname
+                                                        </button>
+                                                    )}
+                                                    {canEditTargetNickname && m.nickname_locked && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleModUnlockNickname(m.user.id)}
+                                                            disabled={busy === m.user.id}
+                                                        >
+                                                            Reset/unlock nickname
+                                                        </button>
+                                                    )}
+                                                    <button
+                                                        type="button"
+                                                        className={styles.danger}
+                                                        onClick={() => {
+                                                            setOpenMemberMenu(null);
+                                                            handleKick(m.user.id);
+                                                        }}
+                                                        disabled={busy === m.user.id}
+                                                    >
+                                                        Kick member
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
                     </div>
                     <div className={styles.sidebarFooter}>
                         <Button
@@ -400,11 +616,12 @@ export function RoomPage() {
                                   ? "Unmute notifications"
                                   : "Mute notifications"}
                         </Button>
-                        {isSystem ? null : isHost ? (
+                        {!isSystem && canModerateRoom && (
                             <Button variant="danger" size="small" onClick={handleDelete} disabled={busy === "delete"}>
                                 {busy === "delete" ? "Deleting..." : "Delete Room"}
                             </Button>
-                        ) : (
+                        )}
+                        {!isSystem && !isHost && (
                             <Button variant="danger" size="small" onClick={handleLeave} disabled={busy === "self"}>
                                 {busy === "self" ? "Leaving..." : "Leave Room"}
                             </Button>
@@ -433,6 +650,15 @@ export function RoomPage() {
                                 {room.is_public ? " · public" : " · private"}
                             </span>
                         </div>
+                        <button
+                            type="button"
+                            className={styles.pinHeaderBtn}
+                            onClick={() => setPinnedOpen(true)}
+                            aria-label="Pinned messages"
+                            title="Pinned messages"
+                        >
+                            {"\u{1F4CC}"}
+                        </button>
                     </div>
                     {(room.description || (room.tags && room.tags.length > 0)) && (
                         <div className={styles.roomInfoCollapsible} data-expanded={descExpanded}>
@@ -481,6 +707,9 @@ export function RoomPage() {
                                         bodyPreview: m.body.length > 80 ? m.body.slice(0, 80) + "..." : m.body,
                                     })
                                 }
+                                onReactionToggle={handleReactionToggle}
+                                onPinToggle={canModerateRoom ? handlePinToggle : undefined}
+                                canPin={canModerateRoom}
                             />
                         ))}
                         <div ref={messagesEndRef} />
@@ -505,6 +734,60 @@ export function RoomPage() {
                 >
                     {"\u2190 Back to chat"}
                 </button>
+            )}
+
+            <PinnedMessagesPanel
+                roomId={room.id}
+                isOpen={pinnedOpen}
+                onClose={() => setPinnedOpen(false)}
+                onJump={handleJumpToMessage}
+                canUnpin={canModerateRoom}
+                refreshKey={pinnedRefreshKey}
+            />
+
+            <EditRoomProfileDialog
+                isOpen={editProfileOpen}
+                roomId={room.id}
+                currentMember={currentMember}
+                onClose={() => setEditProfileOpen(false)}
+                onSaved={updated => {
+                    setMembers(prev => prev.map(m => (m.user.id === updated.user.id ? updated : m)));
+                }}
+            />
+
+            {nicknameDialogTarget && (
+                <div className={styles.nicknameDialogOverlay} onClick={() => setNicknameDialogTarget(null)}>
+                    <div className={styles.nicknameDialog} onClick={e => e.stopPropagation()}>
+                        <h3>Change nickname for {nicknameDialogTarget.user.display_name}</h3>
+                        <input
+                            type="text"
+                            value={nicknameDialogValue}
+                            maxLength={32}
+                            onChange={e => setNicknameDialogValue(e.target.value)}
+                            placeholder="Nickname (leave blank to clear)"
+                            autoFocus
+                        />
+                        {nicknameDialogError && <div className={styles.dialogError}>{nicknameDialogError}</div>}
+                        <div className={styles.nicknameDialogActions}>
+                            <Button
+                                variant="ghost"
+                                size="small"
+                                onClick={() => setNicknameDialogTarget(null)}
+                                disabled={nicknameDialogSaving}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                variant="primary"
+                                size="small"
+                                onClick={handleModSetNickname}
+                                disabled={nicknameDialogSaving}
+                            >
+                                {nicknameDialogSaving ? "Saving..." : "Save"}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
             )}
 
             {toast && <div className={styles.toast}>{toast}</div>}

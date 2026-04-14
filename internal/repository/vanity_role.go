@@ -21,6 +21,7 @@ type (
 		UnassignFromUser(ctx context.Context, userID uuid.UUID, roleID string) error
 		GetUsersForRole(ctx context.Context, roleID string, search string, limit, offset int) ([]VanityRoleUserRow, int, error)
 		GetRolesForUser(ctx context.Context, userID uuid.UUID) ([]VanityRoleRow, error)
+		GetRolesForUsersBatch(ctx context.Context, userIDs []uuid.UUID) (map[uuid.UUID][]VanityRoleRow, error)
 		GetAllAssignments(ctx context.Context) (map[string][]string, error)
 	}
 
@@ -199,6 +200,42 @@ func (r *vanityRoleRepository) GetRolesForUser(ctx context.Context, userID uuid.
 		}
 		row.IsSystem = sysInt != 0
 		result = append(result, row)
+	}
+	return result, rows.Err()
+}
+
+func (r *vanityRoleRepository) GetRolesForUsersBatch(ctx context.Context, userIDs []uuid.UUID) (map[uuid.UUID][]VanityRoleRow, error) {
+	result := make(map[uuid.UUID][]VanityRoleRow)
+	if len(userIDs) == 0 {
+		return result, nil
+	}
+	placeholders := make([]string, len(userIDs))
+	args := make([]interface{}, len(userIDs))
+	for i := range userIDs {
+		placeholders[i] = "?"
+		args[i] = userIDs[i]
+	}
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT uvr.user_id, vr.id, vr.label, vr.color, vr.is_system, vr.sort_order
+		 FROM user_vanity_roles uvr
+		 JOIN vanity_roles vr ON vr.id = uvr.vanity_role_id
+		 WHERE uvr.user_id IN (`+strings.Join(placeholders, ",")+`)
+		 ORDER BY vr.sort_order, vr.label`, args...,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("get roles for users batch: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var userID uuid.UUID
+		var row VanityRoleRow
+		var sysInt int
+		if err := rows.Scan(&userID, &row.ID, &row.Label, &row.Color, &sysInt, &row.SortOrder); err != nil {
+			return nil, fmt.Errorf("scan batch vanity role: %w", err)
+		}
+		row.IsSystem = sysInt != 0
+		result[userID] = append(result[userID], row)
 	}
 	return result, rows.Err()
 }

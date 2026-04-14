@@ -41,6 +41,149 @@ func (_m *MockService) EXPECT() *MockService_Expecter {
 	return &MockService_Expecter{mock: &_m.Mock}
 }
 
+// AddReaction provides a mock function for the type MockService
+func (_mock *MockService) AddReaction(ctx context.Context, messageID uuid.UUID, userID uuid.UUID, emoji string) error {
+	ret := _mock.Called(ctx, messageID, userID, emoji)
+
+	if len(ret) == 0 {
+		panic("no return value specified for AddReaction")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string) error); ok {
+		r0 = returnFunc(ctx, messageID, userID, emoji)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_AddReaction_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AddReaction'
+type MockService_AddReaction_Call struct {
+	*mock.Call
+}
+
+// AddReaction is a helper method to define mock.On call
+//   - ctx context.Context
+//   - messageID uuid.UUID
+//   - userID uuid.UUID
+//   - emoji string
+func (_e *MockService_Expecter) AddReaction(ctx interface{}, messageID interface{}, userID interface{}, emoji interface{}) *MockService_AddReaction_Call {
+	return &MockService_AddReaction_Call{Call: _e.mock.On("AddReaction", ctx, messageID, userID, emoji)}
+}
+
+func (_c *MockService_AddReaction_Call) Run(run func(ctx context.Context, messageID uuid.UUID, userID uuid.UUID, emoji string)) *MockService_AddReaction_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_AddReaction_Call) Return(err error) *MockService_AddReaction_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_AddReaction_Call) RunAndReturn(run func(ctx context.Context, messageID uuid.UUID, userID uuid.UUID, emoji string) error) *MockService_AddReaction_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ClearRoomAvatar provides a mock function for the type MockService
+func (_mock *MockService) ClearRoomAvatar(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) (*dto.ChatRoomMemberResponse, error) {
+	ret := _mock.Called(ctx, roomID, userID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ClearRoomAvatar")
+	}
+
+	var r0 *dto.ChatRoomMemberResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) (*dto.ChatRoomMemberResponse, error)); ok {
+		return returnFunc(ctx, roomID, userID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) *dto.ChatRoomMemberResponse); ok {
+		r0 = returnFunc(ctx, roomID, userID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dto.ChatRoomMemberResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, roomID, userID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_ClearRoomAvatar_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ClearRoomAvatar'
+type MockService_ClearRoomAvatar_Call struct {
+	*mock.Call
+}
+
+// ClearRoomAvatar is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roomID uuid.UUID
+//   - userID uuid.UUID
+func (_e *MockService_Expecter) ClearRoomAvatar(ctx interface{}, roomID interface{}, userID interface{}) *MockService_ClearRoomAvatar_Call {
+	return &MockService_ClearRoomAvatar_Call{Call: _e.mock.On("ClearRoomAvatar", ctx, roomID, userID)}
+}
+
+func (_c *MockService_ClearRoomAvatar_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID)) *MockService_ClearRoomAvatar_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_ClearRoomAvatar_Call) Return(chatRoomMemberResponse *dto.ChatRoomMemberResponse, err error) *MockService_ClearRoomAvatar_Call {
+	_c.Call.Return(chatRoomMemberResponse, err)
+	return _c
+}
+
+func (_c *MockService_ClearRoomAvatar_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) (*dto.ChatRoomMemberResponse, error)) *MockService_ClearRoomAvatar_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateGroupRoom provides a mock function for the type MockService
 func (_mock *MockService) CreateGroupRoom(ctx context.Context, creatorID uuid.UUID, req dto.CreateGroupRoomRequest) (*dto.ChatRoomResponse, error) {
 	ret := _mock.Called(ctx, creatorID, req)
@@ -887,6 +1030,80 @@ func (_c *MockService_LeaveRoom_Call) RunAndReturn(run func(ctx context.Context,
 	return _c
 }
 
+// ListPinnedMessages provides a mock function for the type MockService
+func (_mock *MockService) ListPinnedMessages(ctx context.Context, roomID uuid.UUID, viewerID uuid.UUID) (*dto.ChatMessageListResponse, error) {
+	ret := _mock.Called(ctx, roomID, viewerID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListPinnedMessages")
+	}
+
+	var r0 *dto.ChatMessageListResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) (*dto.ChatMessageListResponse, error)); ok {
+		return returnFunc(ctx, roomID, viewerID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) *dto.ChatMessageListResponse); ok {
+		r0 = returnFunc(ctx, roomID, viewerID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dto.ChatMessageListResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, roomID, viewerID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_ListPinnedMessages_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListPinnedMessages'
+type MockService_ListPinnedMessages_Call struct {
+	*mock.Call
+}
+
+// ListPinnedMessages is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roomID uuid.UUID
+//   - viewerID uuid.UUID
+func (_e *MockService_Expecter) ListPinnedMessages(ctx interface{}, roomID interface{}, viewerID interface{}) *MockService_ListPinnedMessages_Call {
+	return &MockService_ListPinnedMessages_Call{Call: _e.mock.On("ListPinnedMessages", ctx, roomID, viewerID)}
+}
+
+func (_c *MockService_ListPinnedMessages_Call) Run(run func(ctx context.Context, roomID uuid.UUID, viewerID uuid.UUID)) *MockService_ListPinnedMessages_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_ListPinnedMessages_Call) Return(chatMessageListResponse *dto.ChatMessageListResponse, err error) *MockService_ListPinnedMessages_Call {
+	_c.Call.Return(chatMessageListResponse, err)
+	return _c
+}
+
+func (_c *MockService_ListPinnedMessages_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, viewerID uuid.UUID) (*dto.ChatMessageListResponse, error)) *MockService_ListPinnedMessages_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListPublicRooms provides a mock function for the type MockService
 func (_mock *MockService) ListPublicRooms(ctx context.Context, search string, isRPOnly bool, tag string, viewerID uuid.UUID, limit int, offset int) (*dto.ChatRoomListResponse, error) {
 	ret := _mock.Called(ctx, search, isRPOnly, tag, viewerID, limit, offset)
@@ -1220,6 +1437,138 @@ func (_c *MockService_MarkRead_Call) RunAndReturn(run func(ctx context.Context, 
 	return _c
 }
 
+// PinMessage provides a mock function for the type MockService
+func (_mock *MockService) PinMessage(ctx context.Context, messageID uuid.UUID, userID uuid.UUID) error {
+	ret := _mock.Called(ctx, messageID, userID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for PinMessage")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, messageID, userID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_PinMessage_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'PinMessage'
+type MockService_PinMessage_Call struct {
+	*mock.Call
+}
+
+// PinMessage is a helper method to define mock.On call
+//   - ctx context.Context
+//   - messageID uuid.UUID
+//   - userID uuid.UUID
+func (_e *MockService_Expecter) PinMessage(ctx interface{}, messageID interface{}, userID interface{}) *MockService_PinMessage_Call {
+	return &MockService_PinMessage_Call{Call: _e.mock.On("PinMessage", ctx, messageID, userID)}
+}
+
+func (_c *MockService_PinMessage_Call) Run(run func(ctx context.Context, messageID uuid.UUID, userID uuid.UUID)) *MockService_PinMessage_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_PinMessage_Call) Return(err error) *MockService_PinMessage_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_PinMessage_Call) RunAndReturn(run func(ctx context.Context, messageID uuid.UUID, userID uuid.UUID) error) *MockService_PinMessage_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// RemoveReaction provides a mock function for the type MockService
+func (_mock *MockService) RemoveReaction(ctx context.Context, messageID uuid.UUID, userID uuid.UUID, emoji string) error {
+	ret := _mock.Called(ctx, messageID, userID, emoji)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RemoveReaction")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string) error); ok {
+		r0 = returnFunc(ctx, messageID, userID, emoji)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_RemoveReaction_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RemoveReaction'
+type MockService_RemoveReaction_Call struct {
+	*mock.Call
+}
+
+// RemoveReaction is a helper method to define mock.On call
+//   - ctx context.Context
+//   - messageID uuid.UUID
+//   - userID uuid.UUID
+//   - emoji string
+func (_e *MockService_Expecter) RemoveReaction(ctx interface{}, messageID interface{}, userID interface{}, emoji interface{}) *MockService_RemoveReaction_Call {
+	return &MockService_RemoveReaction_Call{Call: _e.mock.On("RemoveReaction", ctx, messageID, userID, emoji)}
+}
+
+func (_c *MockService_RemoveReaction_Call) Run(run func(ctx context.Context, messageID uuid.UUID, userID uuid.UUID, emoji string)) *MockService_RemoveReaction_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_RemoveReaction_Call) Return(err error) *MockService_RemoveReaction_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_RemoveReaction_Call) RunAndReturn(run func(ctx context.Context, messageID uuid.UUID, userID uuid.UUID, emoji string) error) *MockService_RemoveReaction_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ResolveDMRoom provides a mock function for the type MockService
 func (_mock *MockService) ResolveDMRoom(ctx context.Context, senderID uuid.UUID, recipientID uuid.UUID) (*dto.ResolveDMResponse, error) {
 	ret := _mock.Called(ctx, senderID, recipientID)
@@ -1454,6 +1803,184 @@ func (_c *MockService_SendMessage_Call) RunAndReturn(run func(ctx context.Contex
 	return _c
 }
 
+// SetMemberNicknameAsMod provides a mock function for the type MockService
+func (_mock *MockService) SetMemberNicknameAsMod(ctx context.Context, roomID uuid.UUID, actorID uuid.UUID, targetID uuid.UUID, nickname string) (*dto.ChatRoomMemberResponse, error) {
+	ret := _mock.Called(ctx, roomID, actorID, targetID, nickname)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetMemberNicknameAsMod")
+	}
+
+	var r0 *dto.ChatRoomMemberResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID, string) (*dto.ChatRoomMemberResponse, error)); ok {
+		return returnFunc(ctx, roomID, actorID, targetID, nickname)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID, string) *dto.ChatRoomMemberResponse); ok {
+		r0 = returnFunc(ctx, roomID, actorID, targetID, nickname)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dto.ChatRoomMemberResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID, string) error); ok {
+		r1 = returnFunc(ctx, roomID, actorID, targetID, nickname)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_SetMemberNicknameAsMod_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetMemberNicknameAsMod'
+type MockService_SetMemberNicknameAsMod_Call struct {
+	*mock.Call
+}
+
+// SetMemberNicknameAsMod is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roomID uuid.UUID
+//   - actorID uuid.UUID
+//   - targetID uuid.UUID
+//   - nickname string
+func (_e *MockService_Expecter) SetMemberNicknameAsMod(ctx interface{}, roomID interface{}, actorID interface{}, targetID interface{}, nickname interface{}) *MockService_SetMemberNicknameAsMod_Call {
+	return &MockService_SetMemberNicknameAsMod_Call{Call: _e.mock.On("SetMemberNicknameAsMod", ctx, roomID, actorID, targetID, nickname)}
+}
+
+func (_c *MockService_SetMemberNicknameAsMod_Call) Run(run func(ctx context.Context, roomID uuid.UUID, actorID uuid.UUID, targetID uuid.UUID, nickname string)) *MockService_SetMemberNicknameAsMod_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 uuid.UUID
+		if args[3] != nil {
+			arg3 = args[3].(uuid.UUID)
+		}
+		var arg4 string
+		if args[4] != nil {
+			arg4 = args[4].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_SetMemberNicknameAsMod_Call) Return(chatRoomMemberResponse *dto.ChatRoomMemberResponse, err error) *MockService_SetMemberNicknameAsMod_Call {
+	_c.Call.Return(chatRoomMemberResponse, err)
+	return _c
+}
+
+func (_c *MockService_SetMemberNicknameAsMod_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, actorID uuid.UUID, targetID uuid.UUID, nickname string) (*dto.ChatRoomMemberResponse, error)) *MockService_SetMemberNicknameAsMod_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SetRoomAvatar provides a mock function for the type MockService
+func (_mock *MockService) SetRoomAvatar(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (*dto.ChatRoomMemberResponse, error) {
+	ret := _mock.Called(ctx, roomID, userID, contentType, fileSize, reader)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetRoomAvatar")
+	}
+
+	var r0 *dto.ChatRoomMemberResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, int64, io.Reader) (*dto.ChatRoomMemberResponse, error)); ok {
+		return returnFunc(ctx, roomID, userID, contentType, fileSize, reader)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, int64, io.Reader) *dto.ChatRoomMemberResponse); ok {
+		r0 = returnFunc(ctx, roomID, userID, contentType, fileSize, reader)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dto.ChatRoomMemberResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, string, int64, io.Reader) error); ok {
+		r1 = returnFunc(ctx, roomID, userID, contentType, fileSize, reader)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_SetRoomAvatar_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetRoomAvatar'
+type MockService_SetRoomAvatar_Call struct {
+	*mock.Call
+}
+
+// SetRoomAvatar is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roomID uuid.UUID
+//   - userID uuid.UUID
+//   - contentType string
+//   - fileSize int64
+//   - reader io.Reader
+func (_e *MockService_Expecter) SetRoomAvatar(ctx interface{}, roomID interface{}, userID interface{}, contentType interface{}, fileSize interface{}, reader interface{}) *MockService_SetRoomAvatar_Call {
+	return &MockService_SetRoomAvatar_Call{Call: _e.mock.On("SetRoomAvatar", ctx, roomID, userID, contentType, fileSize, reader)}
+}
+
+func (_c *MockService_SetRoomAvatar_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader)) *MockService_SetRoomAvatar_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		var arg4 int64
+		if args[4] != nil {
+			arg4 = args[4].(int64)
+		}
+		var arg5 io.Reader
+		if args[5] != nil {
+			arg5 = args[5].(io.Reader)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+			arg5,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_SetRoomAvatar_Call) Return(chatRoomMemberResponse *dto.ChatRoomMemberResponse, err error) *MockService_SetRoomAvatar_Call {
+	_c.Call.Return(chatRoomMemberResponse, err)
+	return _c
+}
+
+func (_c *MockService_SetRoomAvatar_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (*dto.ChatRoomMemberResponse, error)) *MockService_SetRoomAvatar_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SetRoomMuted provides a mock function for the type MockService
 func (_mock *MockService) SetRoomMuted(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, muted bool) error {
 	ret := _mock.Called(ctx, roomID, userID, muted)
@@ -1523,6 +2050,86 @@ func (_c *MockService_SetRoomMuted_Call) RunAndReturn(run func(ctx context.Conte
 	return _c
 }
 
+// SetRoomNickname provides a mock function for the type MockService
+func (_mock *MockService) SetRoomNickname(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, nickname string) (*dto.ChatRoomMemberResponse, error) {
+	ret := _mock.Called(ctx, roomID, userID, nickname)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetRoomNickname")
+	}
+
+	var r0 *dto.ChatRoomMemberResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string) (*dto.ChatRoomMemberResponse, error)); ok {
+		return returnFunc(ctx, roomID, userID, nickname)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string) *dto.ChatRoomMemberResponse); ok {
+		r0 = returnFunc(ctx, roomID, userID, nickname)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dto.ChatRoomMemberResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, string) error); ok {
+		r1 = returnFunc(ctx, roomID, userID, nickname)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_SetRoomNickname_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetRoomNickname'
+type MockService_SetRoomNickname_Call struct {
+	*mock.Call
+}
+
+// SetRoomNickname is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roomID uuid.UUID
+//   - userID uuid.UUID
+//   - nickname string
+func (_e *MockService_Expecter) SetRoomNickname(ctx interface{}, roomID interface{}, userID interface{}, nickname interface{}) *MockService_SetRoomNickname_Call {
+	return &MockService_SetRoomNickname_Call{Call: _e.mock.On("SetRoomNickname", ctx, roomID, userID, nickname)}
+}
+
+func (_c *MockService_SetRoomNickname_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, nickname string)) *MockService_SetRoomNickname_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_SetRoomNickname_Call) Return(chatRoomMemberResponse *dto.ChatRoomMemberResponse, err error) *MockService_SetRoomNickname_Call {
+	_c.Call.Return(chatRoomMemberResponse, err)
+	return _c
+}
+
+func (_c *MockService_SetRoomNickname_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, nickname string) (*dto.ChatRoomMemberResponse, error)) *MockService_SetRoomNickname_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SyncSystemRoomMembership provides a mock function for the type MockService
 func (_mock *MockService) SyncSystemRoomMembership(ctx context.Context, userID uuid.UUID, newRole role.Role) error {
 	ret := _mock.Called(ctx, userID, newRole)
@@ -1582,6 +2189,149 @@ func (_c *MockService_SyncSystemRoomMembership_Call) Return(err error) *MockServ
 }
 
 func (_c *MockService_SyncSystemRoomMembership_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, newRole role.Role) error) *MockService_SyncSystemRoomMembership_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UnlockMemberNickname provides a mock function for the type MockService
+func (_mock *MockService) UnlockMemberNickname(ctx context.Context, roomID uuid.UUID, actorID uuid.UUID, targetID uuid.UUID) (*dto.ChatRoomMemberResponse, error) {
+	ret := _mock.Called(ctx, roomID, actorID, targetID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UnlockMemberNickname")
+	}
+
+	var r0 *dto.ChatRoomMemberResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) (*dto.ChatRoomMemberResponse, error)); ok {
+		return returnFunc(ctx, roomID, actorID, targetID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) *dto.ChatRoomMemberResponse); ok {
+		r0 = returnFunc(ctx, roomID, actorID, targetID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dto.ChatRoomMemberResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, roomID, actorID, targetID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_UnlockMemberNickname_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UnlockMemberNickname'
+type MockService_UnlockMemberNickname_Call struct {
+	*mock.Call
+}
+
+// UnlockMemberNickname is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roomID uuid.UUID
+//   - actorID uuid.UUID
+//   - targetID uuid.UUID
+func (_e *MockService_Expecter) UnlockMemberNickname(ctx interface{}, roomID interface{}, actorID interface{}, targetID interface{}) *MockService_UnlockMemberNickname_Call {
+	return &MockService_UnlockMemberNickname_Call{Call: _e.mock.On("UnlockMemberNickname", ctx, roomID, actorID, targetID)}
+}
+
+func (_c *MockService_UnlockMemberNickname_Call) Run(run func(ctx context.Context, roomID uuid.UUID, actorID uuid.UUID, targetID uuid.UUID)) *MockService_UnlockMemberNickname_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 uuid.UUID
+		if args[3] != nil {
+			arg3 = args[3].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_UnlockMemberNickname_Call) Return(chatRoomMemberResponse *dto.ChatRoomMemberResponse, err error) *MockService_UnlockMemberNickname_Call {
+	_c.Call.Return(chatRoomMemberResponse, err)
+	return _c
+}
+
+func (_c *MockService_UnlockMemberNickname_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, actorID uuid.UUID, targetID uuid.UUID) (*dto.ChatRoomMemberResponse, error)) *MockService_UnlockMemberNickname_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UnpinMessage provides a mock function for the type MockService
+func (_mock *MockService) UnpinMessage(ctx context.Context, messageID uuid.UUID, userID uuid.UUID) error {
+	ret := _mock.Called(ctx, messageID, userID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UnpinMessage")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, messageID, userID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_UnpinMessage_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UnpinMessage'
+type MockService_UnpinMessage_Call struct {
+	*mock.Call
+}
+
+// UnpinMessage is a helper method to define mock.On call
+//   - ctx context.Context
+//   - messageID uuid.UUID
+//   - userID uuid.UUID
+func (_e *MockService_Expecter) UnpinMessage(ctx interface{}, messageID interface{}, userID interface{}) *MockService_UnpinMessage_Call {
+	return &MockService_UnpinMessage_Call{Call: _e.mock.On("UnpinMessage", ctx, messageID, userID)}
+}
+
+func (_c *MockService_UnpinMessage_Call) Run(run func(ctx context.Context, messageID uuid.UUID, userID uuid.UUID)) *MockService_UnpinMessage_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_UnpinMessage_Call) Return(err error) *MockService_UnpinMessage_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_UnpinMessage_Call) RunAndReturn(run func(ctx context.Context, messageID uuid.UUID, userID uuid.UUID) error) *MockService_UnpinMessage_Call {
 	_c.Call.Return(run)
 	return _c
 }

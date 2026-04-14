@@ -188,7 +188,7 @@ func (s *Service) createFanfic(ctx fiber.Ctx) error {
 
 	id, err := s.FanficService.CreateFanfic(ctx.Context(), userID, req)
 	if err != nil {
-		if errors.Is(err, fanficsvc.ErrEmptyTitle) || errors.Is(err, fanficsvc.ErrTooManyGenres) || errors.Is(err, fanficsvc.ErrTooManyCharacters) || errors.Is(err, fanficsvc.ErrTooManyTags) || errors.Is(err, fanficsvc.ErrTagTooLong) || errors.Is(err, fanficsvc.ErrInvalidRating) {
+		if errors.Is(err, fanficsvc.ErrEmptyTitle) || errors.Is(err, fanficsvc.ErrTooManyGenres) || errors.Is(err, fanficsvc.ErrTooManyTags) || errors.Is(err, fanficsvc.ErrTagTooLong) || errors.Is(err, fanficsvc.ErrInvalidRating) {
 			return utils.BadRequest(ctx, err.Error())
 		}
 		return utils.InternalError(ctx, "failed to create fanfic")
@@ -209,7 +209,7 @@ func (s *Service) updateFanfic(ctx fiber.Ctx) error {
 	}
 
 	if err := s.FanficService.UpdateFanfic(ctx.Context(), id, userID, req); err != nil {
-		if errors.Is(err, fanficsvc.ErrEmptyTitle) || errors.Is(err, fanficsvc.ErrTooManyGenres) || errors.Is(err, fanficsvc.ErrTooManyCharacters) || errors.Is(err, fanficsvc.ErrTooManyTags) || errors.Is(err, fanficsvc.ErrTagTooLong) || errors.Is(err, fanficsvc.ErrInvalidRating) {
+		if errors.Is(err, fanficsvc.ErrEmptyTitle) || errors.Is(err, fanficsvc.ErrTooManyGenres) || errors.Is(err, fanficsvc.ErrTooManyTags) || errors.Is(err, fanficsvc.ErrTagTooLong) || errors.Is(err, fanficsvc.ErrInvalidRating) {
 			return utils.BadRequest(ctx, err.Error())
 		}
 		if errors.Is(err, fanficsvc.ErrNotAuthor) {

@@ -94,17 +94,31 @@ type (
 		GetUnreadCount(ctx context.Context, userID uuid.UUID) (int, error)
 		MarkRead(ctx context.Context, roomID, userID uuid.UUID) error
 		UploadMessageMedia(ctx context.Context, messageID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error)
+
+		SetRoomNickname(ctx context.Context, roomID, userID uuid.UUID, nickname string) (*dto.ChatRoomMemberResponse, error)
+		SetRoomAvatar(ctx context.Context, roomID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (*dto.ChatRoomMemberResponse, error)
+		ClearRoomAvatar(ctx context.Context, roomID, userID uuid.UUID) (*dto.ChatRoomMemberResponse, error)
+		SetMemberNicknameAsMod(ctx context.Context, roomID, actorID, targetID uuid.UUID, nickname string) (*dto.ChatRoomMemberResponse, error)
+		UnlockMemberNickname(ctx context.Context, roomID, actorID, targetID uuid.UUID) (*dto.ChatRoomMemberResponse, error)
+		PinMessage(ctx context.Context, messageID, userID uuid.UUID) error
+		UnpinMessage(ctx context.Context, messageID, userID uuid.UUID) error
+		ListPinnedMessages(ctx context.Context, roomID, viewerID uuid.UUID) (*dto.ChatMessageListResponse, error)
+		AddReaction(ctx context.Context, messageID, userID uuid.UUID, emoji string) error
+		RemoveReaction(ctx context.Context, messageID, userID uuid.UUID, emoji string) error
 	}
 
 	service struct {
-		chatRepo    repository.ChatRepository
-		userRepo    repository.UserRepository
-		roleRepo    repository.RoleRepository
-		notifSvc    notification.Service
-		blockSvc    block.Service
-		settingsSvc settings.Service
-		uploader    *media.Uploader
-		hub         *ws.Hub
+		chatRepo       repository.ChatRepository
+		userRepo       repository.UserRepository
+		roleRepo       repository.RoleRepository
+		vanityRoleRepo repository.VanityRoleRepository
+		authzSvc       authz.Service
+		notifSvc       notification.Service
+		blockSvc       block.Service
+		settingsSvc    settings.Service
+		uploadSvc      upload.Service
+		uploader       *media.Uploader
+		hub            *ws.Hub
 	}
 )
 
@@ -112,6 +126,8 @@ func NewService(
 	chatRepo repository.ChatRepository,
 	userRepo repository.UserRepository,
 	roleRepo repository.RoleRepository,
+	vanityRoleRepo repository.VanityRoleRepository,
+	authzSvc authz.Service,
 	notifSvc notification.Service,
 	blockSvc block.Service,
 	uploadSvc upload.Service,
@@ -120,14 +136,17 @@ func NewService(
 	hub *ws.Hub,
 ) Service {
 	return &service{
-		chatRepo:    chatRepo,
-		userRepo:    userRepo,
-		roleRepo:    roleRepo,
-		notifSvc:    notifSvc,
-		blockSvc:    blockSvc,
-		settingsSvc: settingsSvc,
-		uploader:    media.NewUploader(uploadSvc, settingsSvc, mediaProc),
-		hub:         hub,
+		chatRepo:       chatRepo,
+		userRepo:       userRepo,
+		roleRepo:       roleRepo,
+		vanityRoleRepo: vanityRoleRepo,
+		authzSvc:       authzSvc,
+		notifSvc:       notifSvc,
+		blockSvc:       blockSvc,
+		settingsSvc:    settingsSvc,
+		uploadSvc:      uploadSvc,
+		uploader:       media.NewUploader(uploadSvc, settingsSvc, mediaProc),
+		hub:            hub,
 	}
 }
 
@@ -456,11 +475,11 @@ func (s *service) KickMember(ctx context.Context, hostID, roomID, targetID uuid.
 		return ErrSystemRoom
 	}
 
-	hostRole, err := s.chatRepo.GetMemberRole(ctx, roomID, hostID)
+	canMod, err := s.canModerateRoom(ctx, roomID, hostID)
 	if err != nil {
-		return fmt.Errorf("get host role: %w", err)
+		return err
 	}
-	if hostRole != "host" {
+	if !canMod {
 		return ErrNotHost
 	}
 	targetRole, err := s.chatRepo.GetMemberRole(ctx, roomID, targetID)
@@ -516,9 +535,16 @@ func (s *service) GetMembers(ctx context.Context, viewerID, roomID uuid.UUID) ([
 		return nil, fmt.Errorf("get members: %w", err)
 	}
 
+	userIDs := make([]uuid.UUID, len(rows))
+	for i := range rows {
+		userIDs[i] = rows[i].UserID
+	}
+	vanityMap, _ := s.vanityRoleRepo.GetRolesForUsersBatch(ctx, userIDs)
+
 	members := make([]dto.ChatRoomMemberResponse, 0, len(rows))
 	for i := range rows {
 		m := rows[i]
+		locked := m.NicknameLocked && !isSiteMod(role.Role(m.AuthorRole))
 		members = append(members, dto.ChatRoomMemberResponse{
 			User: dto.UserResponse{
 				ID:          m.UserID,
@@ -526,9 +552,13 @@ func (s *service) GetMembers(ctx context.Context, viewerID, roomID uuid.UUID) ([
 				DisplayName: m.DisplayName,
 				AvatarURL:   m.AvatarURL,
 				Role:        role.Role(m.AuthorRole),
+				VanityRoles: s.toVanityRoleResponses(vanityMap[m.UserID]),
 			},
-			Role:     m.Role,
-			JoinedAt: m.JoinedAt,
+			Role:            m.Role,
+			JoinedAt:        m.JoinedAt,
+			Nickname:        m.Nickname,
+			NicknameLocked:  locked,
+			MemberAvatarURL: m.MemberAvatarURL,
 		})
 	}
 	return members, nil
@@ -553,6 +583,42 @@ func (s *service) ListRooms(ctx context.Context, userID uuid.UUID) (*dto.ChatRoo
 	}
 
 	return &dto.ChatRoomListResponse{Rooms: rooms}, nil
+}
+
+func isSiteMod(r role.Role) bool {
+	return r == authz.RoleModerator || r == authz.RoleAdmin || r == authz.RoleSuperAdmin
+}
+
+func (s *service) canModerateRoom(ctx context.Context, roomID, userID uuid.UUID) (bool, error) {
+	memberRole, err := s.chatRepo.GetMemberRole(ctx, roomID, userID)
+	if err != nil {
+		return false, fmt.Errorf("get member role: %w", err)
+	}
+	if memberRole == "host" {
+		return true, nil
+	}
+	siteRole, err := s.authzSvc.GetRole(ctx, userID)
+	if err != nil {
+		return false, fmt.Errorf("get site role: %w", err)
+	}
+	return isSiteMod(siteRole), nil
+}
+
+func (s *service) toVanityRoleResponses(rows []repository.VanityRoleRow) []dto.VanityRoleResponse {
+	if len(rows) == 0 {
+		return nil
+	}
+	out := make([]dto.VanityRoleResponse, len(rows))
+	for i, r := range rows {
+		out[i] = dto.VanityRoleResponse{
+			ID:        r.ID,
+			Label:     r.Label,
+			Color:     r.Color,
+			IsSystem:  r.IsSystem,
+			SortOrder: r.SortOrder,
+		}
+	}
+	return out
 }
 
 func eligibleForMods(r role.Role) bool {
@@ -705,19 +771,34 @@ func nullStr(ns sql.NullString) string {
 	return ""
 }
 
-func messageRowToResponse(row repository.ChatMessageRow, media []dto.PostMediaResponse) dto.ChatMessageResponse {
+func (s *service) messageRowToResponse(row repository.ChatMessageRow, media []dto.PostMediaResponse, reactions []repository.ReactionGroup, vanityRoles []dto.VanityRoleResponse) dto.ChatMessageResponse {
+	displayName := row.SenderDisplayName
+	if row.SenderNickname != "" {
+		displayName = row.SenderNickname
+	}
+	avatarURL := row.SenderAvatarURL
+	if row.SenderMemberAvatar != "" {
+		avatarURL = row.SenderMemberAvatar
+	}
+
 	resp := dto.ChatMessageResponse{
 		ID:     row.ID,
 		RoomID: row.RoomID,
 		Sender: dto.UserResponse{
 			ID:          row.SenderID,
 			Username:    row.SenderUsername,
-			DisplayName: row.SenderDisplayName,
-			AvatarURL:   row.SenderAvatarURL,
+			DisplayName: displayName,
+			AvatarURL:   avatarURL,
+			Role:        role.Role(row.SenderRole),
+			VanityRoles: vanityRoles,
 		},
 		Body:      row.Body,
 		CreatedAt: row.CreatedAt,
 		Media:     media,
+		Pinned:    row.PinnedAt != nil,
+		PinnedAt:  row.PinnedAt,
+		PinnedBy:  row.PinnedBy,
+		Reactions: toDTOReactions(reactions),
 	}
 	if row.ReplyToID != nil && row.ReplyToSenderID != nil && row.ReplyToSenderName != nil && row.ReplyToBody != nil {
 		preview := *row.ReplyToBody
@@ -732,6 +813,22 @@ func messageRowToResponse(row repository.ChatMessageRow, media []dto.PostMediaRe
 		}
 	}
 	return resp
+}
+
+func toDTOReactions(groups []repository.ReactionGroup) []dto.ReactionGroup {
+	if len(groups) == 0 {
+		return []dto.ReactionGroup{}
+	}
+	out := make([]dto.ReactionGroup, len(groups))
+	for i, g := range groups {
+		out[i] = dto.ReactionGroup{
+			Emoji:         g.Emoji,
+			Count:         g.Count,
+			ViewerReacted: g.ViewerReacted,
+			DisplayNames:  g.DisplayNames,
+		}
+	}
+	return out
 }
 
 func isUnread(lastMessageAt, lastReadAt sql.NullString) bool {
@@ -759,15 +856,23 @@ func (s *service) GetMessages(ctx context.Context, userID, roomID uuid.UUID, lim
 	}
 
 	messageIDs := make([]uuid.UUID, len(rows))
+	senderIDs := make([]uuid.UUID, 0, len(rows))
+	seenSender := make(map[uuid.UUID]struct{})
 	for i := 0; i < len(rows); i++ {
 		messageIDs[i] = rows[i].ID
+		if _, ok := seenSender[rows[i].SenderID]; !ok {
+			seenSender[rows[i].SenderID] = struct{}{}
+			senderIDs = append(senderIDs, rows[i].SenderID)
+		}
 	}
 	mediaBatch, _ := s.chatRepo.GetMessageMediaBatch(ctx, messageIDs)
+	reactionBatch, _ := s.chatRepo.GetReactionsBatch(ctx, messageIDs, userID)
+	vanityMap, _ := s.vanityRoleRepo.GetRolesForUsersBatch(ctx, senderIDs)
 
 	messages := make([]dto.ChatMessageResponse, 0, len(rows))
 	for i := 0; i < len(rows); i++ {
 		row := rows[i]
-		messages = append(messages, messageRowToResponse(row, mediaBatch[row.ID]))
+		messages = append(messages, s.messageRowToResponse(row, mediaBatch[row.ID], reactionBatch[row.ID], s.toVanityRoleResponses(vanityMap[row.SenderID])))
 	}
 
 	return &dto.ChatMessageListResponse{
@@ -799,15 +904,23 @@ func (s *service) GetMessagesBefore(ctx context.Context, userID, roomID uuid.UUI
 	}
 
 	messageIDs := make([]uuid.UUID, len(rows))
+	senderIDs := make([]uuid.UUID, 0, len(rows))
+	seenSender := make(map[uuid.UUID]struct{})
 	for i := 0; i < len(rows); i++ {
 		messageIDs[i] = rows[i].ID
+		if _, ok := seenSender[rows[i].SenderID]; !ok {
+			seenSender[rows[i].SenderID] = struct{}{}
+			senderIDs = append(senderIDs, rows[i].SenderID)
+		}
 	}
 	mediaBatch, _ := s.chatRepo.GetMessageMediaBatch(ctx, messageIDs)
+	reactionBatch, _ := s.chatRepo.GetReactionsBatch(ctx, messageIDs, userID)
+	vanityMap, _ := s.vanityRoleRepo.GetRolesForUsersBatch(ctx, senderIDs)
 
 	messages := make([]dto.ChatMessageResponse, 0, len(rows))
 	for i := 0; i < len(rows); i++ {
 		row := rows[i]
-		messages = append(messages, messageRowToResponse(row, mediaBatch[row.ID]))
+		messages = append(messages, s.messageRowToResponse(row, mediaBatch[row.ID], reactionBatch[row.ID], s.toVanityRoleResponses(vanityMap[row.SenderID])))
 	}
 
 	return &dto.ChatMessageListResponse{
@@ -880,18 +993,38 @@ func (s *service) SendMessage(ctx context.Context, senderID, roomID uuid.UUID, r
 		return nil, fmt.Errorf("mark sender read: %w", err)
 	}
 
+	displayName := sender.DisplayName
+	avatarURL := sender.AvatarURL
+	memberRows, _ := s.chatRepo.GetRoomMembersDetailed(ctx, roomID)
+	for _, mr := range memberRows {
+		if mr.UserID == senderID {
+			if mr.Nickname != "" {
+				displayName = mr.Nickname
+			}
+			if mr.MemberAvatarURL != "" {
+				avatarURL = mr.MemberAvatarURL
+			}
+			break
+		}
+	}
+
+	senderVanity, _ := s.vanityRoleRepo.GetRolesForUser(ctx, senderID)
+
 	resp := &dto.ChatMessageResponse{
 		ID:     msgID,
 		RoomID: roomID,
 		Sender: dto.UserResponse{
 			ID:          sender.ID,
 			Username:    sender.Username,
-			DisplayName: sender.DisplayName,
-			AvatarURL:   sender.AvatarURL,
+			DisplayName: displayName,
+			AvatarURL:   avatarURL,
+			Role:        role.Role(sender.Role),
+			VanityRoles: s.toVanityRoleResponses(senderVanity),
 		},
 		Body:      req.Body,
 		CreatedAt: time.Now().UTC().Format(time.RFC3339),
 		ReplyTo:   replyToPreview,
+		Reactions: []dto.ReactionGroup{},
 	}
 
 	roomRow, _ := s.chatRepo.GetRoomByID(ctx, roomID, senderID)
@@ -915,55 +1048,58 @@ func (s *service) SendMessage(ctx context.Context, senderID, roomID uuid.UUID, r
 			}
 			s.hub.SendToUser(memberID, msg)
 
-			if isGroup {
-				_, isMentioned := mentionedIDs[memberID]
-				isReplyTarget := replyToAuthor != uuid.Nil && memberID == replyToAuthor
-				inRoom := s.hub.IsUserViewing(roomID, memberID)
+			inRoom := s.hub.IsUserViewing(roomID, memberID)
 
-				if isMentioned {
-					_ = s.notifSvc.Notify(ctx, dto.NotifyParams{
-						RecipientID:   memberID,
-						ActorID:       senderID,
-						Type:          dto.NotifChatMention,
-						ReferenceID:   roomID,
-						ReferenceType: fmt.Sprintf("chat_message:%s", msgID),
-					})
-				} else if isReplyTarget {
-					_ = s.notifSvc.Notify(ctx, dto.NotifyParams{
-						RecipientID:   memberID,
-						ActorID:       senderID,
-						Type:          dto.NotifChatReply,
-						ReferenceID:   roomID,
-						ReferenceType: fmt.Sprintf("chat_message:%s", msgID),
-					})
-				} else if !inRoom {
-					muted, _ := s.chatRepo.IsMuted(ctx, roomID, memberID)
-					if !muted {
-						roomName := ""
-						if roomRow != nil {
-							roomName = roomRow.Name
-						}
+			if !inRoom {
+				if isGroup {
+					_, isMentioned := mentionedIDs[memberID]
+					isReplyTarget := replyToAuthor != uuid.Nil && memberID == replyToAuthor
+
+					if isMentioned {
 						_ = s.notifSvc.Notify(ctx, dto.NotifyParams{
 							RecipientID:   memberID,
 							ActorID:       senderID,
-							Type:          dto.NotifChatRoomMessage,
+							Type:          dto.NotifChatMention,
 							ReferenceID:   roomID,
 							ReferenceType: fmt.Sprintf("chat_message:%s", msgID),
-							Message:       fmt.Sprintf("sent a message in %s", roomName),
 						})
+					} else if isReplyTarget {
+						_ = s.notifSvc.Notify(ctx, dto.NotifyParams{
+							RecipientID:   memberID,
+							ActorID:       senderID,
+							Type:          dto.NotifChatReply,
+							ReferenceID:   roomID,
+							ReferenceType: fmt.Sprintf("chat_message:%s", msgID),
+						})
+					} else {
+						muted, _ := s.chatRepo.IsMuted(ctx, roomID, memberID)
+						if !muted {
+							roomName := ""
+							if roomRow != nil {
+								roomName = roomRow.Name
+							}
+							_ = s.notifSvc.Notify(ctx, dto.NotifyParams{
+								RecipientID:   memberID,
+								ActorID:       senderID,
+								Type:          dto.NotifChatRoomMessage,
+								ReferenceID:   roomID,
+								ReferenceType: fmt.Sprintf("chat_message:%s", msgID),
+								Message:       fmt.Sprintf("sent a message in %s", roomName),
+							})
+						}
 					}
+				} else {
+					_ = s.notifSvc.Notify(ctx, dto.NotifyParams{
+						RecipientID:   memberID,
+						ActorID:       senderID,
+						Type:          dto.NotifChatMessage,
+						ReferenceID:   roomID,
+						ReferenceType: "chat",
+					})
 				}
-			} else {
-				_ = s.notifSvc.Notify(ctx, dto.NotifyParams{
-					RecipientID:   memberID,
-					ActorID:       senderID,
-					Type:          dto.NotifChatMessage,
-					ReferenceID:   roomID,
-					ReferenceType: "chat",
-				})
 			}
 
-			if !s.hub.IsUserViewing(roomID, memberID) {
+			if !inRoom {
 				total, countErr := s.chatRepo.CountUnreadRoomsForUser(ctx, memberID)
 				if countErr == nil {
 					s.hub.SendToUser(memberID, ws.Message{
@@ -1085,14 +1221,26 @@ func (s *service) DeleteChat(ctx context.Context, roomID, userID uuid.UUID) erro
 	if err != nil {
 		return fmt.Errorf("get room: %w", err)
 	}
-	if row == nil || !row.IsMember {
+	if row == nil {
 		return ErrNotMember
 	}
 	if row.IsSystem {
 		return ErrSystemRoom
 	}
 
-	if row.Type == "group" && row.ViewerRole == "host" {
+	canMod := false
+	if row.Type == "group" {
+		mod, modErr := s.canModerateRoom(ctx, roomID, userID)
+		if modErr != nil {
+			return modErr
+		}
+		canMod = mod
+	}
+	if !row.IsMember && !canMod {
+		return ErrNotMember
+	}
+
+	if row.Type == "group" && canMod {
 		members, _ := s.chatRepo.GetRoomMembers(ctx, roomID)
 		if err := s.chatRepo.DeleteMessages(ctx, roomID); err != nil {
 			return fmt.Errorf("delete messages: %w", err)
@@ -1194,6 +1342,445 @@ func (s *service) buildRoomResponse(ctx context.Context, roomID, viewerID uuid.U
 	resp := s.rowToResponse(*row)
 	resp.Members = members
 	return &resp, nil
+}
+
+func (s *service) SetRoomNickname(ctx context.Context, roomID, userID uuid.UUID, nickname string) (*dto.ChatRoomMemberResponse, error) {
+	isMember, err := s.chatRepo.IsMember(ctx, roomID, userID)
+	if err != nil {
+		return nil, fmt.Errorf("check membership: %w", err)
+	}
+	if !isMember {
+		return nil, ErrNotMember
+	}
+
+	locked, err := s.effectiveLocked(ctx, roomID, userID)
+	if err != nil {
+		return nil, err
+	}
+	if locked {
+		return nil, ErrNicknameLocked
+	}
+
+	nickname = strings.TrimSpace(nickname)
+	if len(nickname) > 32 {
+		nickname = nickname[:32]
+	}
+
+	if err := s.chatRepo.SetMemberNickname(ctx, roomID, userID, nickname); err != nil {
+		return nil, fmt.Errorf("set member nickname: %w", err)
+	}
+
+	return s.broadcastAndBuildMember(ctx, roomID, userID)
+}
+
+func (s *service) SetRoomAvatar(ctx context.Context, roomID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (*dto.ChatRoomMemberResponse, error) {
+	isMember, err := s.chatRepo.IsMember(ctx, roomID, userID)
+	if err != nil {
+		return nil, fmt.Errorf("check membership: %w", err)
+	}
+	if !isMember {
+		return nil, ErrNotMember
+	}
+
+	locked, err := s.effectiveLocked(ctx, roomID, userID)
+	if err != nil {
+		return nil, err
+	}
+	if locked {
+		return nil, ErrNicknameLocked
+	}
+
+	maxSize := int64(s.settingsSvc.GetInt(ctx, config.SettingMaxImageSize))
+	subDir := fmt.Sprintf("chat-avatars/%s", roomID.String())
+	avatarURL, err := s.uploadSvc.SaveImage(ctx, subDir, userID, contentType, fileSize, maxSize, reader)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.chatRepo.SetMemberAvatar(ctx, roomID, userID, avatarURL); err != nil {
+		return nil, fmt.Errorf("set member avatar: %w", err)
+	}
+
+	return s.broadcastAndBuildMember(ctx, roomID, userID)
+}
+
+func (s *service) ClearRoomAvatar(ctx context.Context, roomID, userID uuid.UUID) (*dto.ChatRoomMemberResponse, error) {
+	isMember, err := s.chatRepo.IsMember(ctx, roomID, userID)
+	if err != nil {
+		return nil, fmt.Errorf("check membership: %w", err)
+	}
+	if !isMember {
+		return nil, ErrNotMember
+	}
+
+	locked, err := s.effectiveLocked(ctx, roomID, userID)
+	if err != nil {
+		return nil, err
+	}
+	if locked {
+		return nil, ErrNicknameLocked
+	}
+
+	rows, err := s.chatRepo.GetRoomMembersDetailed(ctx, roomID)
+	if err == nil {
+		for _, r := range rows {
+			if r.UserID == userID && r.MemberAvatarURL != "" {
+				_ = s.uploadSvc.Delete(r.MemberAvatarURL)
+				break
+			}
+		}
+	}
+
+	if err := s.chatRepo.SetMemberAvatar(ctx, roomID, userID, ""); err != nil {
+		return nil, fmt.Errorf("clear member avatar: %w", err)
+	}
+
+	return s.broadcastAndBuildMember(ctx, roomID, userID)
+}
+
+func (s *service) SetMemberNicknameAsMod(ctx context.Context, roomID, actorID, targetID uuid.UUID, nickname string) (*dto.ChatRoomMemberResponse, error) {
+	if err := s.requireSiteMod(ctx, actorID); err != nil {
+		return nil, err
+	}
+
+	if err := s.assertTargetEditable(ctx, roomID, targetID); err != nil {
+		return nil, err
+	}
+
+	nickname = strings.TrimSpace(nickname)
+	if len(nickname) > 32 {
+		nickname = nickname[:32]
+	}
+
+	locked := nickname != ""
+	if err := s.chatRepo.SetMemberNicknameWithLock(ctx, roomID, targetID, nickname, locked); err != nil {
+		return nil, fmt.Errorf("set member nickname as mod: %w", err)
+	}
+
+	return s.broadcastAndBuildMember(ctx, roomID, targetID)
+}
+
+func (s *service) UnlockMemberNickname(ctx context.Context, roomID, actorID, targetID uuid.UUID) (*dto.ChatRoomMemberResponse, error) {
+	if err := s.requireSiteMod(ctx, actorID); err != nil {
+		return nil, err
+	}
+
+	if err := s.assertTargetEditable(ctx, roomID, targetID); err != nil {
+		return nil, err
+	}
+
+	if err := s.chatRepo.SetMemberNicknameWithLock(ctx, roomID, targetID, "", false); err != nil {
+		return nil, fmt.Errorf("unlock nickname: %w", err)
+	}
+
+	return s.broadcastAndBuildMember(ctx, roomID, targetID)
+}
+
+func (s *service) effectiveLocked(ctx context.Context, roomID, userID uuid.UUID) (bool, error) {
+	siteRole, err := s.authzSvc.GetRole(ctx, userID)
+	if err != nil {
+		return false, fmt.Errorf("get site role: %w", err)
+	}
+	if isSiteMod(siteRole) {
+		return false, nil
+	}
+	locked, err := s.chatRepo.IsMemberNicknameLocked(ctx, roomID, userID)
+	if err != nil {
+		return false, fmt.Errorf("check nickname locked: %w", err)
+	}
+	return locked, nil
+}
+
+func (s *service) requireSiteMod(ctx context.Context, userID uuid.UUID) error {
+	siteRole, err := s.authzSvc.GetRole(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("get site role: %w", err)
+	}
+	if !isSiteMod(siteRole) {
+		return ErrModRoleRequired
+	}
+	return nil
+}
+
+func (s *service) assertTargetEditable(ctx context.Context, roomID, targetID uuid.UUID) error {
+	targetRole, err := s.chatRepo.GetMemberRole(ctx, roomID, targetID)
+	if err != nil {
+		return fmt.Errorf("get target role: %w", err)
+	}
+	if targetRole == "" {
+		return ErrNotMember
+	}
+	siteRole, err := s.authzSvc.GetRole(ctx, targetID)
+	if err != nil {
+		return fmt.Errorf("get target site role: %w", err)
+	}
+	if isSiteMod(siteRole) {
+		return ErrTargetImmune
+	}
+	return nil
+}
+
+func (s *service) broadcastAndBuildMember(ctx context.Context, roomID, targetID uuid.UUID) (*dto.ChatRoomMemberResponse, error) {
+	rows, err := s.chatRepo.GetRoomMembersDetailed(ctx, roomID)
+	if err != nil {
+		return nil, fmt.Errorf("get members: %w", err)
+	}
+	vanityMap, _ := s.vanityRoleRepo.GetRolesForUsersBatch(ctx, []uuid.UUID{targetID})
+
+	var resp *dto.ChatRoomMemberResponse
+	for _, m := range rows {
+		if m.UserID != targetID {
+			continue
+		}
+		locked := m.NicknameLocked && !isSiteMod(role.Role(m.AuthorRole))
+		resp = &dto.ChatRoomMemberResponse{
+			User: dto.UserResponse{
+				ID:          m.UserID,
+				Username:    m.Username,
+				DisplayName: m.DisplayName,
+				AvatarURL:   m.AvatarURL,
+				Role:        role.Role(m.AuthorRole),
+				VanityRoles: s.toVanityRoleResponses(vanityMap[m.UserID]),
+			},
+			Role:            m.Role,
+			JoinedAt:        m.JoinedAt,
+			Nickname:        m.Nickname,
+			NicknameLocked:  locked,
+			MemberAvatarURL: m.MemberAvatarURL,
+		}
+		break
+	}
+
+	event := ws.Message{
+		Type: "chat_member_updated",
+		Data: map[string]interface{}{
+			"room_id":           roomID,
+			"user_id":           targetID,
+			"nickname":          stringOrEmpty(resp, func(r *dto.ChatRoomMemberResponse) string { return r.Nickname }),
+			"member_avatar_url": stringOrEmpty(resp, func(r *dto.ChatRoomMemberResponse) string { return r.MemberAvatarURL }),
+			"nickname_locked":   resp != nil && resp.NicknameLocked,
+		},
+	}
+	for _, r := range rows {
+		s.hub.SendToUser(r.UserID, event)
+	}
+
+	if resp == nil {
+		return nil, ErrNotMember
+	}
+	return resp, nil
+}
+
+func stringOrEmpty(resp *dto.ChatRoomMemberResponse, get func(*dto.ChatRoomMemberResponse) string) string {
+	if resp == nil {
+		return ""
+	}
+	return get(resp)
+}
+
+func (s *service) PinMessage(ctx context.Context, messageID, userID uuid.UUID) error {
+	msg, err := s.chatRepo.GetMessageByID(ctx, messageID)
+	if err != nil {
+		return fmt.Errorf("get message: %w", err)
+	}
+	if msg == nil {
+		return ErrRoomNotFound
+	}
+
+	canMod, err := s.canModerateRoom(ctx, msg.RoomID, userID)
+	if err != nil {
+		return err
+	}
+	if !canMod {
+		return ErrNotHost
+	}
+
+	if err := s.chatRepo.PinMessage(ctx, messageID, userID); err != nil {
+		return fmt.Errorf("pin message: %w", err)
+	}
+
+	pinnedAt := time.Now().UTC().Format(time.RFC3339)
+	members, _ := s.chatRepo.GetRoomMembers(ctx, msg.RoomID)
+	event := ws.Message{
+		Type: "chat_message_pinned",
+		Data: map[string]interface{}{
+			"room_id":    msg.RoomID,
+			"message_id": messageID,
+			"pinned_at":  pinnedAt,
+			"pinned_by":  userID,
+		},
+	}
+	for _, mid := range members {
+		s.hub.SendToUser(mid, event)
+	}
+	return nil
+}
+
+func (s *service) UnpinMessage(ctx context.Context, messageID, userID uuid.UUID) error {
+	msg, err := s.chatRepo.GetMessageByID(ctx, messageID)
+	if err != nil {
+		return fmt.Errorf("get message: %w", err)
+	}
+	if msg == nil {
+		return ErrRoomNotFound
+	}
+	if msg.PinnedAt == nil {
+		return ErrMessageNotPinned
+	}
+
+	canMod, err := s.canModerateRoom(ctx, msg.RoomID, userID)
+	if err != nil {
+		return err
+	}
+	if !canMod {
+		return ErrNotHost
+	}
+
+	if err := s.chatRepo.UnpinMessage(ctx, messageID); err != nil {
+		return fmt.Errorf("unpin message: %w", err)
+	}
+
+	members, _ := s.chatRepo.GetRoomMembers(ctx, msg.RoomID)
+	event := ws.Message{
+		Type: "chat_message_unpinned",
+		Data: map[string]interface{}{
+			"room_id":    msg.RoomID,
+			"message_id": messageID,
+		},
+	}
+	for _, mid := range members {
+		s.hub.SendToUser(mid, event)
+	}
+	return nil
+}
+
+func (s *service) ListPinnedMessages(ctx context.Context, roomID, viewerID uuid.UUID) (*dto.ChatMessageListResponse, error) {
+	isMember, err := s.chatRepo.IsMember(ctx, roomID, viewerID)
+	if err != nil {
+		return nil, fmt.Errorf("check membership: %w", err)
+	}
+	if !isMember {
+		return nil, ErrNotMember
+	}
+
+	rows, err := s.chatRepo.ListPinnedMessages(ctx, roomID)
+	if err != nil {
+		return nil, fmt.Errorf("list pinned messages: %w", err)
+	}
+
+	messageIDs := make([]uuid.UUID, len(rows))
+	senderIDs := make([]uuid.UUID, 0, len(rows))
+	seenSender := make(map[uuid.UUID]struct{})
+	for i := range rows {
+		messageIDs[i] = rows[i].ID
+		if _, ok := seenSender[rows[i].SenderID]; !ok {
+			seenSender[rows[i].SenderID] = struct{}{}
+			senderIDs = append(senderIDs, rows[i].SenderID)
+		}
+	}
+	mediaBatch, _ := s.chatRepo.GetMessageMediaBatch(ctx, messageIDs)
+	reactionBatch, _ := s.chatRepo.GetReactionsBatch(ctx, messageIDs, viewerID)
+	vanityMap, _ := s.vanityRoleRepo.GetRolesForUsersBatch(ctx, senderIDs)
+
+	messages := make([]dto.ChatMessageResponse, 0, len(rows))
+	for i := range rows {
+		row := rows[i]
+		messages = append(messages, s.messageRowToResponse(row, mediaBatch[row.ID], reactionBatch[row.ID], s.toVanityRoleResponses(vanityMap[row.SenderID])))
+	}
+
+	return &dto.ChatMessageListResponse{
+		Messages: messages,
+		Total:    len(messages),
+	}, nil
+}
+
+func validateEmoji(emoji string) error {
+	if emoji == "" || len(emoji) > 16 {
+		return ErrInvalidEmoji
+	}
+	return nil
+}
+
+func (s *service) AddReaction(ctx context.Context, messageID, userID uuid.UUID, emoji string) error {
+	if err := validateEmoji(emoji); err != nil {
+		return err
+	}
+
+	msg, err := s.chatRepo.GetMessageByID(ctx, messageID)
+	if err != nil {
+		return fmt.Errorf("get message: %w", err)
+	}
+	if msg == nil {
+		return ErrRoomNotFound
+	}
+
+	isMember, err := s.chatRepo.IsMember(ctx, msg.RoomID, userID)
+	if err != nil {
+		return fmt.Errorf("check membership: %w", err)
+	}
+	if !isMember {
+		return ErrNotMember
+	}
+
+	if err := s.chatRepo.AddReaction(ctx, messageID, userID, emoji); err != nil {
+		return fmt.Errorf("add reaction: %w", err)
+	}
+
+	members, _ := s.chatRepo.GetRoomMembers(ctx, msg.RoomID)
+	event := ws.Message{
+		Type: "chat_reaction_added",
+		Data: map[string]interface{}{
+			"room_id":    msg.RoomID,
+			"message_id": messageID,
+			"emoji":      emoji,
+			"user_id":    userID,
+		},
+	}
+	for _, mid := range members {
+		s.hub.SendToUser(mid, event)
+	}
+	return nil
+}
+
+func (s *service) RemoveReaction(ctx context.Context, messageID, userID uuid.UUID, emoji string) error {
+	if err := validateEmoji(emoji); err != nil {
+		return err
+	}
+
+	msg, err := s.chatRepo.GetMessageByID(ctx, messageID)
+	if err != nil {
+		return fmt.Errorf("get message: %w", err)
+	}
+	if msg == nil {
+		return ErrRoomNotFound
+	}
+
+	isMember, err := s.chatRepo.IsMember(ctx, msg.RoomID, userID)
+	if err != nil {
+		return fmt.Errorf("check membership: %w", err)
+	}
+	if !isMember {
+		return ErrNotMember
+	}
+
+	if err := s.chatRepo.RemoveReaction(ctx, messageID, userID, emoji); err != nil {
+		return fmt.Errorf("remove reaction: %w", err)
+	}
+
+	members, _ := s.chatRepo.GetRoomMembers(ctx, msg.RoomID)
+	event := ws.Message{
+		Type: "chat_reaction_removed",
+		Data: map[string]interface{}{
+			"room_id":    msg.RoomID,
+			"message_id": messageID,
+			"emoji":      emoji,
+			"user_id":    userID,
+		},
+	}
+	for _, mid := range members {
+		s.hub.SendToUser(mid, event)
+	}
+	return nil
 }
 
 func (s *service) getRoomMemberResponses(ctx context.Context, roomID uuid.UUID) ([]dto.UserResponse, error) {

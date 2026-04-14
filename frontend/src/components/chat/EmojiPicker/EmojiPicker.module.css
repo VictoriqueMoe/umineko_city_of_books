@@ -1,0 +1,20 @@
+.wrapper {
+    position: absolute;
+    z-index: 200;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.loading {
+    width: 320px;
+    height: 360px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--purple-rgb), 0.3);
+    border-radius: 10px;
+    font-size: 0.85rem;
+}

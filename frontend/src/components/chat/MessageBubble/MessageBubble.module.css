@@ -14,34 +14,106 @@
     flex-direction: row-reverse;
 }
 
-.messageBubble:hover .replyBtn {
+.messageBubble:hover .actions {
     opacity: 1;
 }
 
-.replyBtn {
+.actions {
+    display: flex;
+    gap: 0.25rem;
+    align-self: center;
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.reactAnchor {
+    position: relative;
+}
+
+.actionBtn {
     background: var(--bg-card);
     border: 1px solid rgba(var(--purple-rgb), 0.3);
     color: var(--text-muted);
-    width: 28px;
     height: 28px;
-    border-radius: 50%;
+    min-width: 28px;
+    padding: 0 0.4rem;
+    border-radius: 999px;
     cursor: pointer;
-    font-size: 0.9rem;
-    display: flex;
+    font-size: 0.85rem;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    flex-shrink: 0;
-    align-self: center;
-    opacity: 0;
     transition:
-        opacity 0.15s,
         color 0.15s,
+        border-color 0.15s,
+        background 0.15s;
+}
+
+.actionBtn:hover {
+    color: var(--gold);
+    border-color: var(--gold);
+}
+
+.reactionRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    margin-top: 0.4rem;
+}
+
+.reactionChip {
+    background: rgba(var(--purple-rgb), 0.2);
+    border: 1px solid rgba(var(--purple-rgb), 0.4);
+    color: var(--text);
+    padding: 0.15rem 0.55rem;
+    border-radius: 999px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    transition:
+        background 0.15s,
         border-color 0.15s;
 }
 
-.replyBtn:hover {
+.reactionChip:hover {
+    background: rgba(var(--purple-rgb), 0.32);
+    border-color: rgba(var(--gold-rgb), 0.5);
+}
+
+.reactionChipMine {
+    background: rgba(var(--gold-rgb), 0.18);
+    border-color: rgba(var(--gold-rgb), 0.55);
+}
+
+.reactionEmoji {
+    font-size: 0.95rem;
+    line-height: 1;
+}
+
+.reactionCount {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.pinnedIndicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.7rem;
     color: var(--gold);
-    border-color: var(--gold);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-bottom: 0.3rem;
+    opacity: 0.9;
+}
+
+.messagePinned .messageContent {
+    border-color: rgba(var(--gold-rgb), 0.5);
+    box-shadow: inset 0 0 0 1px rgba(var(--gold-rgb), 0.15);
 }
 
 .messageContent {

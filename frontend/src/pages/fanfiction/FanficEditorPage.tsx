@@ -654,8 +654,8 @@ export function FanficEditorPage() {
                 </div>
 
                 <div className={styles.formRow}>
-                    <label className={styles.formLabel}>Characters (up to 4)</label>
-                    <CharacterPicker onAdd={addCharacter} existing={characters} maxCharacters={4} />
+                    <label className={styles.formLabel}>Characters</label>
+                    <CharacterPicker onAdd={addCharacter} existing={characters} />
                     {characters.length > 0 && (
                         <div className={styles.charList}>
                             {characters.map((c, i) => (

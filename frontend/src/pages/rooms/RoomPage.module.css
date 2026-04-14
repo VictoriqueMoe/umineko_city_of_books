@@ -104,6 +104,172 @@
     background: rgba(255, 51, 51, 0.15);
 }
 
+.editSelfBtn {
+    margin-left: auto;
+    background: none;
+    border: 1px solid rgba(var(--gold-rgb), 0.35);
+    color: var(--gold);
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+}
+
+.editSelfBtn:hover {
+    background: rgba(var(--gold-rgb), 0.15);
+}
+
+.memberActions {
+    margin-left: auto;
+    position: relative;
+    display: inline-flex;
+}
+
+.modActionsBtn {
+    background: none;
+    border: 1px solid rgba(var(--purple-rgb), 0.4);
+    color: var(--text-muted);
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    line-height: 1;
+}
+
+.modActionsBtn:hover {
+    background: rgba(var(--purple-rgb), 0.2);
+    color: var(--text);
+}
+
+.modActionsMenu {
+    position: absolute;
+    right: 0;
+    top: 26px;
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--purple-rgb), 0.45);
+    border-radius: 6px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+    padding: 0.25rem;
+    z-index: 50;
+    min-width: 170px;
+    display: flex;
+    flex-direction: column;
+}
+
+.modActionsMenu button {
+    background: none;
+    border: none;
+    color: var(--text);
+    text-align: left;
+    padding: 0.45rem 0.6rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.modActionsMenu button:hover {
+    background: rgba(var(--purple-rgb), 0.2);
+}
+
+.modActionsMenu button.danger {
+    color: #ff8080;
+}
+
+.modActionsMenu button.danger:hover {
+    background: rgba(255, 51, 51, 0.15);
+}
+
+.nicknameDialogOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 120;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+}
+
+.nicknameDialog {
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--purple-rgb), 0.45);
+    border-radius: 8px;
+    padding: 1rem;
+    width: 100%;
+    max-width: 360px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.nicknameDialog h3 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: 1rem;
+    color: var(--gold);
+}
+
+.nicknameDialog input {
+    background: var(--bg-void);
+    border: 1px solid rgba(var(--purple-rgb), 0.4);
+    border-radius: 6px;
+    color: var(--text);
+    padding: 0.55rem 0.7rem;
+    font-size: 0.95rem;
+}
+
+.nicknameDialog input:focus {
+    outline: none;
+    border-color: var(--gold);
+}
+
+.nicknameDialogActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+.dialogError {
+    background: rgba(255, 80, 80, 0.12);
+    border: 1px solid rgba(255, 80, 80, 0.4);
+    color: #ff8f8f;
+    padding: 0.45rem 0.6rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+}
+
+.pinHeaderBtn {
+    background: none;
+    border: 1px solid rgba(var(--purple-rgb), 0.4);
+    color: var(--text-muted);
+    width: 36px;
+    height: 32px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition:
+        color 0.15s,
+        border-color 0.15s;
+    flex-shrink: 0;
+}
+
+.pinHeaderBtn:hover {
+    color: var(--gold);
+    border-color: var(--gold);
+}
+
 .sidebarFooter {
     padding: 0.75rem 1rem;
     border-top: 1px solid rgba(var(--purple-rgb), 0.2);

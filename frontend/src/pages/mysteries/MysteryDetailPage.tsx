@@ -76,16 +76,42 @@ function PrivateCluesDisplay({
     mysteryId,
     canEditClues,
     onAdded,
+    title,
 }: {
     clues: MysteryClue[];
     playerId: string;
     mysteryId: string;
     canEditClues: boolean;
     onAdded: () => void;
+    title?: string;
 }) {
+    const storageKey = `mystery:${mysteryId}:private-clues:${playerId}:collapsed`;
     const [editingClueId, setEditingClueId] = useState<number | null>(null);
     const [editClueBody, setEditClueBody] = useState("");
+    const [collapsed, setCollapsed] = useState<boolean>(() => {
+        try {
+            return window.localStorage.getItem(storageKey) === "1";
+        } catch {
+            return false;
+        }
+    });
     const playerClues = clues.filter(c => c.player_id === playerId);
+
+    function toggleCollapsed() {
+        setCollapsed(prev => {
+            const next = !prev;
+            try {
+                if (next) {
+                    window.localStorage.setItem(storageKey, "1");
+                } else {
+                    window.localStorage.removeItem(storageKey);
+                }
+            } catch {
+                // localStorage unavailable; in-memory state still works
+            }
+            return next;
+        });
+    }
 
     async function handleDeleteClue(clueId: number) {
         if (!window.confirm("Delete this red truth? This cannot be undone.")) {
@@ -108,75 +134,103 @@ function PrivateCluesDisplay({
         return null;
     }
 
+    const heading = title ?? "Private Red Truths";
+
     return (
         <div style={{ padding: "0 0.5rem", marginBottom: "0.5rem" }}>
-            <div className={styles.cluesSection} style={{ marginBottom: "0.5rem" }}>
-                {playerClues.map(clue => (
-                    <div key={clue.id} className={styles.clue} style={{ fontSize: "0.85rem" }}>
-                        {editingClueId === clue.id ? (
-                            <div style={{ display: "flex", gap: "0.4rem", alignItems: "center", flex: 1 }}>
-                                <input
-                                    type="text"
-                                    value={editClueBody}
-                                    onChange={e => setEditClueBody(e.target.value)}
-                                    onKeyDown={e => {
-                                        if (e.key === "Enter") {
-                                            handleSaveClue(clue.id);
-                                        }
-                                        if (e.key === "Escape") {
-                                            setEditingClueId(null);
-                                        }
-                                    }}
-                                    style={{
-                                        flex: 1,
-                                        background: "var(--bg-void)",
-                                        border: "1px solid rgba(229, 57, 53, 0.3)",
-                                        color: "#ef9a9a",
-                                        padding: "0.3rem 0.5rem",
-                                        borderRadius: "4px",
-                                        fontSize: "0.8rem",
-                                        fontFamily: "inherit",
-                                        fontStyle: "italic",
-                                    }}
-                                    autoFocus
-                                />
-                                <Button variant="primary" size="small" onClick={() => handleSaveClue(clue.id)}>
-                                    Save
-                                </Button>
-                                <Button variant="ghost" size="small" onClick={() => setEditingClueId(null)}>
-                                    Cancel
-                                </Button>
-                            </div>
-                        ) : (
-                            <>
-                                {clue.body}
-                                <span className={styles.clueActions}>
-                                    {canEditClues && (
-                                        <>
-                                            <button
-                                                className={styles.clueActionBtn}
-                                                onClick={() => {
-                                                    setEditingClueId(clue.id);
-                                                    setEditClueBody(clue.body);
-                                                }}
-                                            >
-                                                edit
-                                            </button>
-                                            <button
-                                                className={styles.clueActionBtn}
-                                                onClick={() => handleDeleteClue(clue.id)}
-                                            >
-                                                delete
-                                            </button>
-                                        </>
-                                    )}
-                                    <ClueCopyBtn text={clue.body} />
-                                </span>
-                            </>
-                        )}
-                    </div>
-                ))}
-            </div>
+            <button
+                type="button"
+                onClick={toggleCollapsed}
+                aria-expanded={!collapsed}
+                style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.4rem",
+                    background: "none",
+                    border: "none",
+                    color: "#ef9a9a",
+                    cursor: "pointer",
+                    fontSize: "0.8rem",
+                    fontFamily: "inherit",
+                    fontStyle: "italic",
+                    padding: "0.2rem 0",
+                    marginBottom: "0.25rem",
+                }}
+            >
+                <span>{collapsed ? "\u25B6" : "\u25BC"}</span>
+                <span>
+                    {heading} ({playerClues.length})
+                </span>
+            </button>
+            {!collapsed && (
+                <div className={styles.cluesSection} style={{ marginBottom: "0.5rem" }}>
+                    {playerClues.map(clue => (
+                        <div key={clue.id} className={styles.clue} style={{ fontSize: "0.85rem" }}>
+                            {editingClueId === clue.id ? (
+                                <div style={{ display: "flex", gap: "0.4rem", alignItems: "center", flex: 1 }}>
+                                    <input
+                                        type="text"
+                                        value={editClueBody}
+                                        onChange={e => setEditClueBody(e.target.value)}
+                                        onKeyDown={e => {
+                                            if (e.key === "Enter") {
+                                                handleSaveClue(clue.id);
+                                            }
+                                            if (e.key === "Escape") {
+                                                setEditingClueId(null);
+                                            }
+                                        }}
+                                        style={{
+                                            flex: 1,
+                                            background: "var(--bg-void)",
+                                            border: "1px solid rgba(229, 57, 53, 0.3)",
+                                            color: "#ef9a9a",
+                                            padding: "0.3rem 0.5rem",
+                                            borderRadius: "4px",
+                                            fontSize: "0.8rem",
+                                            fontFamily: "inherit",
+                                            fontStyle: "italic",
+                                        }}
+                                        autoFocus
+                                    />
+                                    <Button variant="primary" size="small" onClick={() => handleSaveClue(clue.id)}>
+                                        Save
+                                    </Button>
+                                    <Button variant="ghost" size="small" onClick={() => setEditingClueId(null)}>
+                                        Cancel
+                                    </Button>
+                                </div>
+                            ) : (
+                                <>
+                                    {clue.body}
+                                    <span className={styles.clueActions}>
+                                        {canEditClues && (
+                                            <>
+                                                <button
+                                                    className={styles.clueActionBtn}
+                                                    onClick={() => {
+                                                        setEditingClueId(clue.id);
+                                                        setEditClueBody(clue.body);
+                                                    }}
+                                                >
+                                                    edit
+                                                </button>
+                                                <button
+                                                    className={styles.clueActionBtn}
+                                                    onClick={() => handleDeleteClue(clue.id)}
+                                                >
+                                                    delete
+                                                </button>
+                                            </>
+                                        )}
+                                        <ClueCopyBtn text={clue.body} />
+                                    </span>
+                                </>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            )}
         </div>
     );
 }
@@ -870,20 +924,15 @@ export function MysteryDetailPage() {
                     })
                 ) : (
                     <>
-                        {user && mystery.clues.filter(c => c.player_id === user.id).length > 0 && (
-                            <div className={styles.cluesSection}>
-                                <h3 className={styles.cluesTitle} style={{ fontSize: "0.85rem" }}>
-                                    Private Red Truths (to you)
-                                </h3>
-                                {mystery.clues
-                                    .filter(c => c.player_id === user.id)
-                                    .map(clue => (
-                                        <div key={clue.id} className={styles.clue}>
-                                            {clue.body}
-                                            <ClueCopyBtn text={clue.body} />
-                                        </div>
-                                    ))}
-                            </div>
+                        {user && (
+                            <PrivateCluesDisplay
+                                clues={mystery.clues}
+                                playerId={user.id}
+                                mysteryId={mystery.id}
+                                canEditClues={false}
+                                onAdded={fetchMystery}
+                                title="Private Red Truths (to you)"
+                            />
                         )}
                         {mystery.attempts.map(a => (
                             <AttemptItem
