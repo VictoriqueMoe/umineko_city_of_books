@@ -463,6 +463,9 @@ func (s *Service) kickMember(ctx fiber.Ctx) error {
 		if errors.Is(err, chat.ErrCannotKickHost) {
 			return utils.BadRequest(ctx, "cannot kick the host")
 		}
+		if errors.Is(err, chat.ErrTargetImmune) {
+			return utils.Forbidden(ctx, "moderators and admins cannot be kicked")
+		}
 		if errors.Is(err, chat.ErrNotMember) {
 			return utils.NotFound(ctx, "user is not a member")
 		}

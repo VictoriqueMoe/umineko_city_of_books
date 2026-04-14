@@ -972,6 +972,7 @@ func TestKickMember_RemoveError(t *testing.T) {
 	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, hostID).Return(&repository.ChatRoomRow{}, nil)
 	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, hostID).Return("host", nil)
 	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, targetID).Return("member", nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, targetID).Return("", nil)
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return([]uuid.UUID{hostID, targetID}, nil)
 	m.chatRepo.EXPECT().RemoveMember(mock.Anything, roomID, targetID).Return(errors.New("boom"))
 
@@ -991,6 +992,7 @@ func TestKickMember_OK(t *testing.T) {
 	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, hostID).Return(&repository.ChatRoomRow{}, nil)
 	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, hostID).Return("host", nil)
 	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, targetID).Return("member", nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, targetID).Return("", nil)
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return([]uuid.UUID{hostID, targetID}, nil)
 	m.chatRepo.EXPECT().RemoveMember(mock.Anything, roomID, targetID).Return(nil)
 
@@ -999,6 +1001,24 @@ func TestKickMember_OK(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
+}
+
+func TestKickMember_TargetIsSiteMod(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	hostID := uuid.New()
+	roomID := uuid.New()
+	targetID := uuid.New()
+	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, hostID).Return(&repository.ChatRoomRow{}, nil)
+	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, hostID).Return("host", nil)
+	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, targetID).Return("member", nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, targetID).Return(authz.RoleAdmin, nil)
+
+	// when
+	err := svc.KickMember(context.Background(), hostID, roomID, targetID)
+
+	// then
+	require.ErrorIs(t, err, ErrTargetImmune)
 }
 
 // --- GetMembers ---
@@ -3348,6 +3368,7 @@ func TestKickMember_SiteMod_OK(t *testing.T) {
 	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, actorID).Return("member", nil)
 	m.authzSvc.EXPECT().GetRole(mock.Anything, actorID).Return(authz.RoleModerator, nil)
 	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, targetID).Return("member", nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, targetID).Return("", nil)
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return([]uuid.UUID{actorID, targetID}, nil)
 	m.chatRepo.EXPECT().RemoveMember(mock.Anything, roomID, targetID).Return(nil)
 

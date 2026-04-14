@@ -492,6 +492,13 @@ func (s *service) KickMember(ctx context.Context, hostID, roomID, targetID uuid.
 	if targetRole == "host" {
 		return ErrCannotKickHost
 	}
+	targetSiteRole, err := s.authzSvc.GetRole(ctx, targetID)
+	if err != nil {
+		return fmt.Errorf("get target site role: %w", err)
+	}
+	if isSiteMod(targetSiteRole) {
+		return ErrTargetImmune
+	}
 
 	members, _ := s.chatRepo.GetRoomMembers(ctx, roomID)
 

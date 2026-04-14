@@ -533,8 +533,11 @@ export function RoomPage() {
                             const isSelf = m.user.id === user.id;
                             const targetIsSiteMod =
                                 m.user.role === "admin" || m.user.role === "moderator" || m.user.role === "super_admin";
-                            const canActOnMember = canModerateRoom && !isSystem && !isSelf && m.role !== "host";
+                            const targetIsHost = m.role === "host";
+                            const canKickTarget =
+                                canModerateRoom && !isSystem && !isSelf && !targetIsHost && !targetIsSiteMod;
                             const canEditTargetNickname = isSiteMod && !targetIsSiteMod && !isSelf && !isSystem;
+                            const canActOnMember = canKickTarget || canEditTargetNickname;
                             const menuOpen = openMemberMenu === m.user.id;
                             return (
                                 <div key={m.user.id} className={styles.memberRow}>
@@ -583,17 +586,19 @@ export function RoomPage() {
                                                             Reset/unlock nickname
                                                         </button>
                                                     )}
-                                                    <button
-                                                        type="button"
-                                                        className={styles.danger}
-                                                        onClick={() => {
-                                                            setOpenMemberMenu(null);
-                                                            handleKick(m.user.id);
-                                                        }}
-                                                        disabled={busy === m.user.id}
-                                                    >
-                                                        Kick member
-                                                    </button>
+                                                    {canKickTarget && (
+                                                        <button
+                                                            type="button"
+                                                            className={styles.danger}
+                                                            onClick={() => {
+                                                                setOpenMemberMenu(null);
+                                                                handleKick(m.user.id);
+                                                            }}
+                                                            disabled={busy === m.user.id}
+                                                        >
+                                                            Kick member
+                                                        </button>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>
