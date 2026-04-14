@@ -46,7 +46,7 @@ type (
 		GetCharactersBatch(ctx context.Context, fanficIDs []uuid.UUID) (map[uuid.UUID][]model.FanficCharacterRow, error)
 
 		RegisterOCCharacter(ctx context.Context, name string, creatorID uuid.UUID) error
-		SearchOCCharacters(ctx context.Context, query string, limit int) ([]string, error)
+		SearchOCCharacters(ctx context.Context, query string) ([]string, error)
 		GetLanguages(ctx context.Context) ([]string, error)
 		RegisterLanguage(ctx context.Context, name string) error
 		GetSeries(ctx context.Context) ([]string, error)
@@ -723,7 +723,7 @@ func (r *fanficRepository) GetCharactersBatch(ctx context.Context, fanficIDs []u
 
 func (r *fanficRepository) RegisterOCCharacter(ctx context.Context, name string, creatorID uuid.UUID) error {
 	_, err := r.db.ExecContext(ctx,
-		`INSERT OR IGNORE INTO fanfic_oc_characters (name, creator_id) VALUES (?, ?)`,
+		`INSERT OR IGNORE INTO fanfic_oc_characters (name, created_by) VALUES (?, ?)`,
 		strings.TrimSpace(name), creatorID,
 	)
 	if err != nil {
@@ -732,10 +732,10 @@ func (r *fanficRepository) RegisterOCCharacter(ctx context.Context, name string,
 	return nil
 }
 
-func (r *fanficRepository) SearchOCCharacters(ctx context.Context, query string, limit int) ([]string, error) {
+func (r *fanficRepository) SearchOCCharacters(ctx context.Context, query string) ([]string, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT name FROM fanfic_oc_characters WHERE name LIKE ? ORDER BY name ASC LIMIT ?`,
-		"%"+query+"%", limit,
+		`SELECT name FROM fanfic_oc_characters WHERE name LIKE ? ORDER BY name ASC`,
+		"%"+query+"%",
 	)
 	if err != nil {
 		return nil, fmt.Errorf("search oc characters: %w", err)

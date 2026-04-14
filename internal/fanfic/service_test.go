@@ -1301,22 +1301,23 @@ func TestGetSeries_Delegates(t *testing.T) {
 	assert.Equal(t, []string{"s"}, got)
 }
 
-func TestSearchOCCharacters_EmptyQuery(t *testing.T) {
+func TestSearchOCCharacters_EmptyQueryDelegates(t *testing.T) {
 	// given
-	svc, _ := newTestService(t)
+	svc, m := newTestService(t)
+	m.fanficRepo.EXPECT().SearchOCCharacters(mock.Anything, "").Return([]string{"Alice", "Bob"}, nil)
 
 	// when
 	got, err := svc.SearchOCCharacters(context.Background(), "   ")
 
 	// then
 	require.NoError(t, err)
-	assert.Equal(t, []string{}, got)
+	assert.Equal(t, []string{"Alice", "Bob"}, got)
 }
 
 func TestSearchOCCharacters_Delegates(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
-	m.fanficRepo.EXPECT().SearchOCCharacters(mock.Anything, "alice", 20).Return([]string{"Alice"}, nil)
+	m.fanficRepo.EXPECT().SearchOCCharacters(mock.Anything, "alice").Return([]string{"Alice"}, nil)
 
 	// when
 	got, err := svc.SearchOCCharacters(context.Background(), " alice ")

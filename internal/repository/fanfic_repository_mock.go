@@ -2884,8 +2884,8 @@ func (_c *MockFanficRepository_RegisterSeries_Call) RunAndReturn(run func(ctx co
 }
 
 // SearchOCCharacters provides a mock function for the type MockFanficRepository
-func (_mock *MockFanficRepository) SearchOCCharacters(ctx context.Context, query string, limit int) ([]string, error) {
-	ret := _mock.Called(ctx, query, limit)
+func (_mock *MockFanficRepository) SearchOCCharacters(ctx context.Context, query string) ([]string, error) {
+	ret := _mock.Called(ctx, query)
 
 	if len(ret) == 0 {
 		panic("no return value specified for SearchOCCharacters")
@@ -2893,18 +2893,18 @@ func (_mock *MockFanficRepository) SearchOCCharacters(ctx context.Context, query
 
 	var r0 []string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int) ([]string, error)); ok {
-		return returnFunc(ctx, query, limit)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) ([]string, error)); ok {
+		return returnFunc(ctx, query)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int) []string); ok {
-		r0 = returnFunc(ctx, query, limit)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) []string); ok {
+		r0 = returnFunc(ctx, query)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]string)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, int) error); ok {
-		r1 = returnFunc(ctx, query, limit)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = returnFunc(ctx, query)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -2919,12 +2919,11 @@ type MockFanficRepository_SearchOCCharacters_Call struct {
 // SearchOCCharacters is a helper method to define mock.On call
 //   - ctx context.Context
 //   - query string
-//   - limit int
-func (_e *MockFanficRepository_Expecter) SearchOCCharacters(ctx interface{}, query interface{}, limit interface{}) *MockFanficRepository_SearchOCCharacters_Call {
-	return &MockFanficRepository_SearchOCCharacters_Call{Call: _e.mock.On("SearchOCCharacters", ctx, query, limit)}
+func (_e *MockFanficRepository_Expecter) SearchOCCharacters(ctx interface{}, query interface{}) *MockFanficRepository_SearchOCCharacters_Call {
+	return &MockFanficRepository_SearchOCCharacters_Call{Call: _e.mock.On("SearchOCCharacters", ctx, query)}
 }
 
-func (_c *MockFanficRepository_SearchOCCharacters_Call) Run(run func(ctx context.Context, query string, limit int)) *MockFanficRepository_SearchOCCharacters_Call {
+func (_c *MockFanficRepository_SearchOCCharacters_Call) Run(run func(ctx context.Context, query string)) *MockFanficRepository_SearchOCCharacters_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -2934,14 +2933,9 @@ func (_c *MockFanficRepository_SearchOCCharacters_Call) Run(run func(ctx context
 		if args[1] != nil {
 			arg1 = args[1].(string)
 		}
-		var arg2 int
-		if args[2] != nil {
-			arg2 = args[2].(int)
-		}
 		run(
 			arg0,
 			arg1,
-			arg2,
 		)
 	})
 	return _c
@@ -2952,7 +2946,7 @@ func (_c *MockFanficRepository_SearchOCCharacters_Call) Return(strings []string,
 	return _c
 }
 
-func (_c *MockFanficRepository_SearchOCCharacters_Call) RunAndReturn(run func(ctx context.Context, query string, limit int) ([]string, error)) *MockFanficRepository_SearchOCCharacters_Call {
+func (_c *MockFanficRepository_SearchOCCharacters_Call) RunAndReturn(run func(ctx context.Context, query string) ([]string, error)) *MockFanficRepository_SearchOCCharacters_Call {
 	_c.Call.Return(run)
 	return _c
 }

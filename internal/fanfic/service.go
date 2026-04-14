@@ -604,11 +604,7 @@ func (s *service) GetSeries(ctx context.Context) ([]string, error) {
 }
 
 func (s *service) SearchOCCharacters(ctx context.Context, query string) ([]string, error) {
-	q := strings.TrimSpace(query)
-	if q == "" {
-		return []string{}, nil
-	}
-	return s.fanficRepo.SearchOCCharacters(ctx, q, 20)
+	return s.fanficRepo.SearchOCCharacters(ctx, strings.TrimSpace(query))
 }
 
 func (s *service) CreateComment(ctx context.Context, fanficID, userID uuid.UUID, req dto.CreateCommentRequest) (uuid.UUID, error) {
