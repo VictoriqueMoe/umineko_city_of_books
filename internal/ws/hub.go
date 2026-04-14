@@ -94,6 +94,13 @@ func (h *Hub) Unregister(client *Client) {
 				delete(h.rooms, roomID)
 			}
 		}
+
+		for roomID, viewers := range h.viewers {
+			delete(viewers, client.UserID)
+			if len(viewers) == 0 {
+				delete(h.viewers, roomID)
+			}
+		}
 	}
 }
 
