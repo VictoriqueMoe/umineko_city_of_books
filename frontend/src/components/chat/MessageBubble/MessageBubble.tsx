@@ -13,9 +13,12 @@ interface MessageBubbleProps {
     onReply?: (msg: ChatMessage) => void;
     onReactionToggle?: (msg: ChatMessage, emoji: string) => void;
     onPinToggle?: (msg: ChatMessage) => void;
+    onDelete?: (msg: ChatMessage) => void;
     canPin?: boolean;
+    canModerate?: boolean;
     highlighted?: boolean;
     seenLabel?: string | null;
+    senderIsStaff?: boolean;
 }
 
 function formatTime(dateStr: string): string {
@@ -58,9 +61,12 @@ export function MessageBubble({
     onReply,
     onReactionToggle,
     onPinToggle,
+    onDelete,
     canPin,
+    canModerate,
     highlighted,
     seenLabel,
+    senderIsStaff,
 }: MessageBubbleProps) {
     const [pickerOpen, setPickerOpen] = useState(false);
     const classes = [styles.messageBubble];
@@ -183,6 +189,21 @@ export function MessageBubble({
                         title={message.pinned ? "Unpin message" : "Pin message"}
                     >
                         {message.pinned ? "\u{1F4CC}\u2715" : "\u{1F4CC}"}
+                    </button>
+                )}
+                {(isOwn || (canModerate && !senderIsStaff)) && onDelete && (
+                    <button
+                        type="button"
+                        className={styles.actionBtn}
+                        onClick={() => {
+                            if (window.confirm("Delete this message?")) {
+                                onDelete(message);
+                            }
+                        }}
+                        aria-label="Delete message"
+                        title="Delete message"
+                    >
+                        {"\u{1F5D1}"}
                     </button>
                 )}
             </div>

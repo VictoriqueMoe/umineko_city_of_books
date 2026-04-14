@@ -110,8 +110,6 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	}
 }
 
-// --- GetStats ---
-
 func TestGetStats_OK(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -163,8 +161,6 @@ func TestGetStats_ActiveUsersError(t *testing.T) {
 	require.Error(t, err)
 }
 
-// --- ListUsers ---
-
 func TestListUsers_OK(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -198,8 +194,6 @@ func TestListUsers_RepoError(t *testing.T) {
 	// then
 	require.Error(t, err)
 }
-
-// --- GetUser ---
 
 func TestGetUser_OK(t *testing.T) {
 	// given
@@ -258,8 +252,6 @@ func TestGetUser_RepoError(t *testing.T) {
 	// then
 	require.Error(t, err)
 }
-
-// --- guardedAction via SetUserRole ---
 
 func TestSetUserRole_ProtectedSuperAdmin(t *testing.T) {
 	// given
@@ -346,8 +338,6 @@ func TestSetUserRole_ChatSyncErrorsLogged(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// --- RemoveUserRole ---
-
 func TestRemoveUserRole_OK(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -397,8 +387,6 @@ func TestRemoveUserRole_RepoError(t *testing.T) {
 	// then
 	require.Error(t, err)
 }
-
-// --- BanUser ---
 
 func TestBanUser_OK(t *testing.T) {
 	// given
@@ -467,8 +455,6 @@ func TestBanUser_RepoError(t *testing.T) {
 	require.Error(t, err)
 }
 
-// --- UnbanUser ---
-
 func TestUnbanUser_OK(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -497,8 +483,6 @@ func TestUnbanUser_RepoError(t *testing.T) {
 	// then
 	require.Error(t, err)
 }
-
-// --- DeleteUser ---
 
 func TestDeleteUser_OK(t *testing.T) {
 	// given
@@ -575,8 +559,6 @@ func TestDeleteUser_RepoError(t *testing.T) {
 	require.Error(t, err)
 }
 
-// --- GetSettings ---
-
 func TestGetSettings_OK(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -593,8 +575,6 @@ func TestGetSettings_OK(t *testing.T) {
 	assert.Equal(t, "umineko", got.Settings["site_name"])
 	assert.Equal(t, "bar", got.Settings["foo"])
 }
-
-// --- UpdateSettings ---
 
 func TestUpdateSettings_OK(t *testing.T) {
 	// given
@@ -622,8 +602,6 @@ func TestUpdateSettings_Error(t *testing.T) {
 	// then
 	require.Error(t, err)
 }
-
-// --- GetAuditLog ---
 
 func TestGetAuditLog_OK(t *testing.T) {
 	// given
@@ -656,8 +634,6 @@ func TestGetAuditLog_RepoError(t *testing.T) {
 	require.Error(t, err)
 }
 
-// --- CreateInvite ---
-
 func TestCreateInvite_OK(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -686,8 +662,6 @@ func TestCreateInvite_RepoError(t *testing.T) {
 	// then
 	require.Error(t, err)
 }
-
-// --- ListInvites ---
 
 func TestListInvites_OK(t *testing.T) {
 	// given
@@ -719,8 +693,6 @@ func TestListInvites_RepoError(t *testing.T) {
 	require.Error(t, err)
 }
 
-// --- DeleteInvite ---
-
 func TestDeleteInvite_OK(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -747,8 +719,6 @@ func TestDeleteInvite_RepoError(t *testing.T) {
 	// then
 	require.Error(t, err)
 }
-
-// --- ListVanityRoles ---
 
 func TestListVanityRoles_OK(t *testing.T) {
 	// given
@@ -778,8 +748,6 @@ func TestListVanityRoles_RepoError(t *testing.T) {
 	// then
 	require.Error(t, err)
 }
-
-// --- CreateVanityRole ---
 
 func TestCreateVanityRole_ValidationErrors(t *testing.T) {
 	cases := []struct {
@@ -842,8 +810,6 @@ func TestCreateVanityRole_RepoError(t *testing.T) {
 	// then
 	require.Error(t, err)
 }
-
-// --- UpdateVanityRole ---
 
 func TestUpdateVanityRole_OK(t *testing.T) {
 	// given
@@ -926,8 +892,6 @@ func TestUpdateVanityRole_UpdateError(t *testing.T) {
 	require.Error(t, err)
 }
 
-// --- DeleteVanityRole ---
-
 func TestDeleteVanityRole_OK(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -992,8 +956,6 @@ func TestDeleteVanityRole_DeleteError(t *testing.T) {
 	require.Error(t, err)
 }
 
-// --- GetVanityRoleUsers ---
-
 func TestGetVanityRoleUsers_OK(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -1023,8 +985,6 @@ func TestGetVanityRoleUsers_RepoError(t *testing.T) {
 	// then
 	require.Error(t, err)
 }
-
-// --- AssignVanityRole ---
 
 func TestAssignVanityRole_OK(t *testing.T) {
 	// given
@@ -1091,8 +1051,6 @@ func TestAssignVanityRole_AssignError(t *testing.T) {
 	// then
 	require.Error(t, err)
 }
-
-// --- UnassignVanityRole ---
 
 func TestUnassignVanityRole_OK(t *testing.T) {
 	// given

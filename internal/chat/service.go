@@ -105,6 +105,7 @@ type (
 		ListPinnedMessages(ctx context.Context, roomID, viewerID uuid.UUID) (*dto.ChatMessageListResponse, error)
 		AddReaction(ctx context.Context, messageID, userID uuid.UUID, emoji string) error
 		RemoveReaction(ctx context.Context, messageID, userID uuid.UUID, emoji string) error
+		DeleteMessage(ctx context.Context, messageID, actorID uuid.UUID) error
 	}
 
 	service struct {
@@ -496,7 +497,7 @@ func (s *service) KickMember(ctx context.Context, hostID, roomID, targetID uuid.
 	if err != nil {
 		return fmt.Errorf("get target site role: %w", err)
 	}
-	if isSiteMod(targetSiteRole) {
+	if targetSiteRole.IsSiteStaff() {
 		return ErrTargetImmune
 	}
 
@@ -551,14 +552,14 @@ func (s *service) GetMembers(ctx context.Context, viewerID, roomID uuid.UUID) ([
 	members := make([]dto.ChatRoomMemberResponse, 0, len(rows))
 	for i := range rows {
 		m := rows[i]
-		locked := m.NicknameLocked && !isSiteMod(role.Role(m.AuthorRole))
+		locked := m.NicknameLocked && !m.AuthorRoleTyped.IsSiteStaff()
 		members = append(members, dto.ChatRoomMemberResponse{
 			User: dto.UserResponse{
 				ID:          m.UserID,
 				Username:    m.Username,
 				DisplayName: m.DisplayName,
 				AvatarURL:   m.AvatarURL,
-				Role:        role.Role(m.AuthorRole),
+				Role:        m.AuthorRoleTyped,
 				VanityRoles: s.toVanityRoleResponses(vanityMap[m.UserID]),
 			},
 			Role:            m.Role,
@@ -592,10 +593,6 @@ func (s *service) ListRooms(ctx context.Context, userID uuid.UUID) (*dto.ChatRoo
 	return &dto.ChatRoomListResponse{Rooms: rooms}, nil
 }
 
-func isSiteMod(r role.Role) bool {
-	return r == authz.RoleModerator || r == authz.RoleAdmin || r == authz.RoleSuperAdmin
-}
-
 func (s *service) canModerateRoom(ctx context.Context, roomID, userID uuid.UUID) (bool, error) {
 	memberRole, err := s.chatRepo.GetMemberRole(ctx, roomID, userID)
 	if err != nil {
@@ -608,7 +605,7 @@ func (s *service) canModerateRoom(ctx context.Context, roomID, userID uuid.UUID)
 	if err != nil {
 		return false, fmt.Errorf("get site role: %w", err)
 	}
-	return isSiteMod(siteRole), nil
+	return siteRole.IsSiteStaff(), nil
 }
 
 func (s *service) toVanityRoleResponses(rows []repository.VanityRoleRow) []dto.VanityRoleResponse {
@@ -796,7 +793,7 @@ func (s *service) messageRowToResponse(row repository.ChatMessageRow, media []dt
 			Username:    row.SenderUsername,
 			DisplayName: displayName,
 			AvatarURL:   avatarURL,
-			Role:        role.Role(row.SenderRole),
+			Role:        row.SenderRoleTyped,
 			VanityRoles: vanityRoles,
 		},
 		Body:      row.Body,
@@ -1488,7 +1485,7 @@ func (s *service) effectiveLocked(ctx context.Context, roomID, userID uuid.UUID)
 	if err != nil {
 		return false, fmt.Errorf("get site role: %w", err)
 	}
-	if isSiteMod(siteRole) {
+	if siteRole.IsSiteStaff() {
 		return false, nil
 	}
 	locked, err := s.chatRepo.IsMemberNicknameLocked(ctx, roomID, userID)
@@ -1503,7 +1500,7 @@ func (s *service) requireSiteMod(ctx context.Context, userID uuid.UUID) error {
 	if err != nil {
 		return fmt.Errorf("get site role: %w", err)
 	}
-	if !isSiteMod(siteRole) {
+	if !siteRole.IsSiteStaff() {
 		return ErrModRoleRequired
 	}
 	return nil
@@ -1521,7 +1518,7 @@ func (s *service) assertTargetEditable(ctx context.Context, roomID, targetID uui
 	if err != nil {
 		return fmt.Errorf("get target site role: %w", err)
 	}
-	if isSiteMod(siteRole) {
+	if siteRole.IsSiteStaff() {
 		return ErrTargetImmune
 	}
 	return nil
@@ -1539,14 +1536,14 @@ func (s *service) broadcastAndBuildMember(ctx context.Context, roomID, targetID 
 		if m.UserID != targetID {
 			continue
 		}
-		locked := m.NicknameLocked && !isSiteMod(role.Role(m.AuthorRole))
+		locked := m.NicknameLocked && !m.AuthorRoleTyped.IsSiteStaff()
 		resp = &dto.ChatRoomMemberResponse{
 			User: dto.UserResponse{
 				ID:          m.UserID,
 				Username:    m.Username,
 				DisplayName: m.DisplayName,
 				AvatarURL:   m.AvatarURL,
-				Role:        role.Role(m.AuthorRole),
+				Role:        m.AuthorRoleTyped,
 				VanityRoles: s.toVanityRoleResponses(vanityMap[m.UserID]),
 			},
 			Role:            m.Role,
@@ -1782,6 +1779,47 @@ func (s *service) RemoveReaction(ctx context.Context, messageID, userID uuid.UUI
 			"message_id": messageID,
 			"emoji":      emoji,
 			"user_id":    userID,
+		},
+	}
+	for _, mid := range members {
+		s.hub.SendToUser(mid, event)
+	}
+	return nil
+}
+
+func (s *service) DeleteMessage(ctx context.Context, messageID, actorID uuid.UUID) error {
+	msg, err := s.chatRepo.GetMessageByID(ctx, messageID)
+	if err != nil {
+		return fmt.Errorf("get message: %w", err)
+	}
+	if msg == nil {
+		return ErrRoomNotFound
+	}
+
+	if msg.SenderRoleTyped.IsSiteStaff() && msg.SenderID != actorID {
+		return ErrCannotDeleteStaffMessage
+	}
+
+	if msg.SenderID != actorID {
+		canMod, err := s.canModerateRoom(ctx, msg.RoomID, actorID)
+		if err != nil {
+			return err
+		}
+		if !canMod {
+			return ErrMessageDeletePermission
+		}
+	}
+
+	if err := s.chatRepo.DeleteMessage(ctx, messageID); err != nil {
+		return fmt.Errorf("delete message: %w", err)
+	}
+
+	members, _ := s.chatRepo.GetRoomMembers(ctx, msg.RoomID)
+	event := ws.Message{
+		Type: "chat_message_deleted",
+		Data: map[string]interface{}{
+			"room_id":    msg.RoomID,
+			"message_id": messageID,
 		},
 	}
 	for _, mid := range members {

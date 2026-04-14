@@ -39,12 +39,14 @@ export interface QuoteSearchResponse {
     offset: number;
 }
 
+import type { SiteRole } from "../utils/permissions";
+
 export interface User {
     id: string;
     username: string;
     display_name: string;
     avatar_url?: string;
-    role?: string;
+    role?: SiteRole;
 }
 
 export interface EvidenceItem {
@@ -134,7 +136,7 @@ export interface UserProfile {
     gender: string;
     pronoun_subject: string;
     pronoun_possessive: string;
-    role?: string;
+    role?: SiteRole;
     online: boolean;
     social_twitter: string;
     social_discord: string;
@@ -447,7 +449,7 @@ export interface AdminUserItem {
     username: string;
     display_name: string;
     avatar_url: string;
-    role?: string;
+    role?: SiteRole;
     banned: boolean;
     created_at: string;
 }

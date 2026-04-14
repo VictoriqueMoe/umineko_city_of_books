@@ -143,6 +143,18 @@ export function applyChatMessageUnpinned(
     );
 }
 
+export interface ChatMessageDeletedPayload {
+    room_id: string;
+    message_id: string;
+}
+
+export function applyChatMessageDeleted(
+    payload: ChatMessageDeletedPayload,
+    setMessages: Dispatch<SetStateAction<ChatMessage[]>>,
+): void {
+    setMessages(prev => prev.filter(m => m.id !== payload.message_id));
+}
+
 function toggleReactionInGroups(
     groups: ReactionGroup[],
     emoji: string,

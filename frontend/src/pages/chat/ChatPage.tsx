@@ -9,7 +9,9 @@ import { Modal } from "../../components/Modal/Modal";
 import { ChatComposer } from "../../components/chat/ChatComposer/ChatComposer";
 import { MessageBubble } from "../../components/chat/MessageBubble/MessageBubble";
 import { Lightbox } from "../../components/Lightbox/Lightbox";
+import { isSiteStaff } from "../../utils/permissions";
 import {
+    deleteChatMessage,
     deleteChatRoom,
     getMutualFollowers,
     getUserRooms,
@@ -19,6 +21,8 @@ import {
 } from "../../api/endpoints";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import {
+    applyChatMessageDeleted,
+    ChatMessageDeletedPayload,
     ChatMessageMediaAddedPayload,
     handleIncomingChatMessage,
     handleIncomingChatMessageMedia,
@@ -218,6 +222,13 @@ export function ChatPage() {
                 handleIncomingChatMessageMedia(payload, activeRoomIdRef.current, setMessages);
                 return;
             }
+            if (msg.type === "chat_message_deleted") {
+                const payload = msg.data as ChatMessageDeletedPayload;
+                if (payload.room_id === activeRoomIdRef.current) {
+                    applyChatMessageDeleted(payload, setMessages);
+                }
+                return;
+            }
             if (msg.type !== "chat_message") {
                 return;
             }
@@ -403,6 +414,13 @@ export function ChatPage() {
         }
     }
 
+    async function handleDeleteMessage(message: ChatMessage) {
+        try {
+            await deleteChatMessage(message.id);
+            setMessages(prev => prev.filter(m => m.id !== message.id));
+        } catch {}
+    }
+
     async function handleDeleteChat() {
         if (!activeRoomId) {
             return;
@@ -431,6 +449,7 @@ export function ChatPage() {
     }
 
     const activeRoom = rooms.find(r => r.id === activeRoomId);
+    const isSiteMod = isSiteStaff(user.role);
 
     return (
         <div className={styles.chatWrapper}>
@@ -537,6 +556,9 @@ export function ChatPage() {
                                             isOwn={isOwn}
                                             seenLabel={seenLabel}
                                             onLightbox={setLightboxSrc}
+                                            onDelete={handleDeleteMessage}
+                                            canModerate={isSiteMod}
+                                            senderIsStaff={isSiteStaff(msg.sender.role)}
                                         />
                                     );
                                 })}

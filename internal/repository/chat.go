@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/role"
 
 	"github.com/google/uuid"
 )
@@ -40,6 +41,7 @@ type (
 		AvatarURL       string
 		Role            string
 		AuthorRole      string
+		AuthorRoleTyped role.Role
 		JoinedAt        string
 		Nickname        string
 		NicknameLocked  bool
@@ -54,6 +56,7 @@ type (
 		SenderDisplayName  string
 		SenderAvatarURL    string
 		SenderRole         string
+		SenderRoleTyped    role.Role
 		Body               string
 		CreatedAt          string
 		ReplyToID          *uuid.UUID
@@ -106,6 +109,7 @@ type (
 		GetMessagesBefore(ctx context.Context, roomID uuid.UUID, before string, limit int) ([]ChatMessageRow, error)
 		GetMessageByID(ctx context.Context, messageID uuid.UUID) (*ChatMessageRow, error)
 		DeleteMessages(ctx context.Context, roomID uuid.UUID) error
+		DeleteMessage(ctx context.Context, messageID uuid.UUID) error
 		GetMessageSenderID(ctx context.Context, messageID uuid.UUID) (uuid.UUID, error)
 		GetMessageRoomID(ctx context.Context, messageID uuid.UUID) (uuid.UUID, error)
 		AddMessageMedia(ctx context.Context, messageID uuid.UUID, mediaURL, mediaType, thumbnailURL string, sortOrder int) (int64, error)
@@ -255,7 +259,8 @@ func (r *chatRepository) GetRoomTagsBatch(ctx context.Context, roomIDs []uuid.UU
 
 func (r *chatRepository) AddMemberWithRole(ctx context.Context, roomID, userID uuid.UUID, role string) error {
 	_, err := r.db.ExecContext(ctx,
-		`INSERT OR IGNORE INTO chat_room_members (room_id, user_id, role) VALUES (?, ?, ?)`,
+		`INSERT INTO chat_room_members (room_id, user_id, role) VALUES (?, ?, ?)
+		 ON CONFLICT(room_id, user_id) DO UPDATE SET left_at = NULL, role = excluded.role, joined_at = CURRENT_TIMESTAMP`,
 		roomID, userID, role,
 	)
 	if err != nil {
@@ -266,7 +271,7 @@ func (r *chatRepository) AddMemberWithRole(ctx context.Context, roomID, userID u
 
 func (r *chatRepository) SetMemberRole(ctx context.Context, roomID, userID uuid.UUID, role string) error {
 	_, err := r.db.ExecContext(ctx,
-		`UPDATE chat_room_members SET role = ? WHERE room_id = ? AND user_id = ?`,
+		`UPDATE chat_room_members SET role = ? WHERE room_id = ? AND user_id = ? AND left_at IS NULL`,
 		role, roomID, userID,
 	)
 	if err != nil {
@@ -278,7 +283,7 @@ func (r *chatRepository) SetMemberRole(ctx context.Context, roomID, userID uuid.
 func (r *chatRepository) GetMemberRole(ctx context.Context, roomID, userID uuid.UUID) (string, error) {
 	var role string
 	err := r.db.QueryRowContext(ctx,
-		`SELECT role FROM chat_room_members WHERE room_id = ? AND user_id = ?`,
+		`SELECT role FROM chat_room_members WHERE room_id = ? AND user_id = ? AND left_at IS NULL`,
 		roomID, userID,
 	).Scan(&role)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -347,7 +352,7 @@ func (r *chatRepository) CreateDMRoomAtomic(ctx context.Context, id, userA, user
 func (r *chatRepository) CountRoomMembers(ctx context.Context, roomID uuid.UUID) (int, error) {
 	var count int
 	err := r.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM chat_room_members WHERE room_id = ?`, roomID,
+		`SELECT COUNT(*) FROM chat_room_members WHERE room_id = ? AND left_at IS NULL`, roomID,
 	).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("count room members: %w", err)
@@ -365,7 +370,8 @@ func (r *chatRepository) DeleteRoom(ctx context.Context, roomID uuid.UUID) error
 
 func (r *chatRepository) AddMember(ctx context.Context, roomID, userID uuid.UUID) error {
 	_, err := r.db.ExecContext(ctx,
-		`INSERT OR IGNORE INTO chat_room_members (room_id, user_id) VALUES (?, ?)`,
+		`INSERT INTO chat_room_members (room_id, user_id) VALUES (?, ?)
+		 ON CONFLICT(room_id, user_id) DO UPDATE SET left_at = NULL, joined_at = CURRENT_TIMESTAMP`,
 		roomID, userID,
 	)
 	if err != nil {
@@ -376,7 +382,8 @@ func (r *chatRepository) AddMember(ctx context.Context, roomID, userID uuid.UUID
 
 func (r *chatRepository) RemoveMember(ctx context.Context, roomID, userID uuid.UUID) error {
 	_, err := r.db.ExecContext(ctx,
-		`DELETE FROM chat_room_members WHERE room_id = ? AND user_id = ?`, roomID, userID,
+		`UPDATE chat_room_members SET left_at = CURRENT_TIMESTAMP WHERE room_id = ? AND user_id = ? AND left_at IS NULL`,
+		roomID, userID,
 	)
 	if err != nil {
 		return fmt.Errorf("remove member: %w", err)
@@ -387,9 +394,9 @@ func (r *chatRepository) RemoveMember(ctx context.Context, roomID, userID uuid.U
 func (r *chatRepository) GetRoomsByUser(ctx context.Context, userID uuid.UUID) ([]ChatRoomRow, error) {
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT cr.id, cr.name, cr.description, cr.type, cr.is_public, cr.is_rp, cr.is_system, cr.system_kind, cr.created_by, cr.created_at, cr.last_message_at, m.last_read_at, m.role,
-		 (SELECT COUNT(*) FROM chat_room_members WHERE room_id = cr.id)
+		 (SELECT COUNT(*) FROM chat_room_members WHERE room_id = cr.id AND left_at IS NULL)
 		 FROM chat_rooms cr
-		 JOIN chat_room_members m ON cr.id = m.room_id AND m.user_id = ?
+		 JOIN chat_room_members m ON cr.id = m.room_id AND m.user_id = ? AND m.left_at IS NULL
 		 ORDER BY cr.is_system DESC, COALESCE(cr.last_message_at, cr.created_at) DESC`, userID,
 	)
 	if err != nil {
@@ -432,7 +439,7 @@ func (r *chatRepository) GetRoomsByUser(ctx context.Context, userID uuid.UUID) (
 }
 
 func (r *chatRepository) ListUserGroupRooms(ctx context.Context, userID uuid.UUID, search string, isRPOnly bool, tag, role string, limit, offset int) ([]ChatRoomRow, int, error) {
-	conditions := []string{"cr.type = 'group'", "m.user_id = ?"}
+	conditions := []string{"cr.type = 'group'", "m.user_id = ?", "m.left_at IS NULL"}
 	args := []interface{}{userID}
 	if search != "" {
 		conditions = append(conditions, "(cr.name LIKE ? OR cr.description LIKE ?)")
@@ -473,7 +480,7 @@ func (r *chatRepository) ListUserGroupRooms(ctx context.Context, userID uuid.UUI
 
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT cr.id, cr.name, cr.description, cr.type, cr.is_public, cr.is_rp, cr.is_system, cr.system_kind, cr.created_by, cr.created_at, cr.last_message_at, m.last_read_at, m.role,
-		 (SELECT COUNT(*) FROM chat_room_members WHERE room_id = cr.id)
+		 (SELECT COUNT(*) FROM chat_room_members WHERE room_id = cr.id AND left_at IS NULL)
 		 FROM chat_rooms cr
 		 JOIN chat_room_members m ON cr.id = m.room_id`+where+`
 		 ORDER BY cr.is_system DESC, COALESCE(cr.last_message_at, cr.created_at) DESC
@@ -526,9 +533,9 @@ func (r *chatRepository) GetRoomByID(ctx context.Context, roomID, viewerID uuid.
 	var viewerMuted sql.NullInt64
 	err := r.db.QueryRowContext(ctx,
 		`SELECT cr.id, cr.name, cr.description, cr.type, cr.is_public, cr.is_rp, cr.is_system, cr.system_kind, cr.created_by, cr.created_at, cr.last_message_at, m.last_read_at, m.role, m.muted,
-		 (SELECT COUNT(*) FROM chat_room_members WHERE room_id = cr.id)
+		 (SELECT COUNT(*) FROM chat_room_members WHERE room_id = cr.id AND left_at IS NULL)
 		 FROM chat_rooms cr
-		 LEFT JOIN chat_room_members m ON cr.id = m.room_id AND m.user_id = ?
+		 LEFT JOIN chat_room_members m ON cr.id = m.room_id AND m.user_id = ? AND m.left_at IS NULL
 		 WHERE cr.id = ?`,
 		viewerID, roomID,
 	).Scan(&row.ID, &row.Name, &row.Description, &row.Type, &publicInt, &rpInt, &systemInt, &systemKind, &row.CreatedBy, &row.CreatedAt, &row.LastMessageAt, &row.LastReadAt, &viewerRole, &viewerMuted, &row.MemberCount)
@@ -561,7 +568,7 @@ func (r *chatRepository) GetRoomMembersDetailed(ctx context.Context, roomID uuid
 		 FROM chat_room_members m
 		 JOIN users u ON m.user_id = u.id
 		 LEFT JOIN user_roles ur ON ur.user_id = u.id
-		 WHERE m.room_id = ?
+		 WHERE m.room_id = ? AND m.left_at IS NULL
 		 ORDER BY CASE m.role WHEN 'host' THEN 0 ELSE 1 END, m.joined_at ASC`,
 		roomID,
 	)
@@ -578,6 +585,7 @@ func (r *chatRepository) GetRoomMembersDetailed(ctx context.Context, roomID uuid
 			return nil, fmt.Errorf("scan member detailed: %w", err)
 		}
 		m.NicknameLocked = lockedInt != 0
+		m.AuthorRoleTyped = role.Role(m.AuthorRole)
 		result = append(result, m)
 	}
 	return result, rows.Err()
@@ -599,7 +607,7 @@ func (r *chatRepository) ListPublicRooms(ctx context.Context, search string, isR
 		args = append(args, tag)
 	}
 	if viewerID != uuid.Nil {
-		conditions = append(conditions, "NOT EXISTS(SELECT 1 FROM chat_room_members WHERE room_id = cr.id AND user_id = ?)")
+		conditions = append(conditions, "NOT EXISTS(SELECT 1 FROM chat_room_members WHERE room_id = cr.id AND user_id = ? AND left_at IS NULL)")
 		args = append(args, viewerID)
 	}
 	exclSQL, exclArgs := ExcludeClause("cr.created_by", excludeUserIDs)
@@ -626,8 +634,8 @@ func (r *chatRepository) ListPublicRooms(ctx context.Context, search string, isR
 
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT cr.id, cr.name, cr.description, cr.type, cr.is_public, cr.is_rp, cr.is_system, cr.system_kind, cr.created_by, cr.created_at, cr.last_message_at,
-		 (SELECT COUNT(*) FROM chat_room_members WHERE room_id = cr.id),
-		 EXISTS(SELECT 1 FROM chat_room_members WHERE room_id = cr.id AND user_id = ?)
+		 (SELECT COUNT(*) FROM chat_room_members WHERE room_id = cr.id AND left_at IS NULL),
+		 EXISTS(SELECT 1 FROM chat_room_members WHERE room_id = cr.id AND user_id = ? AND left_at IS NULL)
 		 FROM chat_rooms cr`+where+`
 		 ORDER BY COALESCE(cr.last_message_at, cr.created_at) DESC
 		 LIMIT ? OFFSET ?`,
@@ -674,7 +682,7 @@ func (r *chatRepository) ListPublicRooms(ctx context.Context, search string, isR
 
 func (r *chatRepository) GetRoomMembers(ctx context.Context, roomID uuid.UUID) ([]uuid.UUID, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT user_id FROM chat_room_members WHERE room_id = ?`, roomID,
+		`SELECT user_id FROM chat_room_members WHERE room_id = ? AND left_at IS NULL`, roomID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("get room members: %w", err)
@@ -695,7 +703,7 @@ func (r *chatRepository) GetRoomMembers(ctx context.Context, roomID uuid.UUID) (
 func (r *chatRepository) IsMember(ctx context.Context, roomID, userID uuid.UUID) (bool, error) {
 	var count int
 	err := r.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM chat_room_members WHERE room_id = ? AND user_id = ?`, roomID, userID,
+		`SELECT COUNT(*) FROM chat_room_members WHERE room_id = ? AND user_id = ? AND left_at IS NULL`, roomID, userID,
 	).Scan(&count)
 	if err != nil {
 		return false, fmt.Errorf("check membership: %w", err)
@@ -709,7 +717,7 @@ func (r *chatRepository) SetMuted(ctx context.Context, roomID, userID uuid.UUID,
 		v = 1
 	}
 	_, err := r.db.ExecContext(ctx,
-		`UPDATE chat_room_members SET muted = ? WHERE room_id = ? AND user_id = ?`, v, roomID, userID,
+		`UPDATE chat_room_members SET muted = ? WHERE room_id = ? AND user_id = ? AND left_at IS NULL`, v, roomID, userID,
 	)
 	if err != nil {
 		return fmt.Errorf("set muted: %w", err)
@@ -720,7 +728,7 @@ func (r *chatRepository) SetMuted(ctx context.Context, roomID, userID uuid.UUID,
 func (r *chatRepository) IsMuted(ctx context.Context, roomID, userID uuid.UUID) (bool, error) {
 	var muted int
 	err := r.db.QueryRowContext(ctx,
-		`SELECT muted FROM chat_room_members WHERE room_id = ? AND user_id = ?`, roomID, userID,
+		`SELECT muted FROM chat_room_members WHERE room_id = ? AND user_id = ? AND left_at IS NULL`, roomID, userID,
 	).Scan(&muted)
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
@@ -733,7 +741,7 @@ func (r *chatRepository) IsMuted(ctx context.Context, roomID, userID uuid.UUID) 
 
 func (r *chatRepository) GetRoomMembersUnmuted(ctx context.Context, roomID uuid.UUID) ([]uuid.UUID, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT user_id FROM chat_room_members WHERE room_id = ? AND muted = 0`, roomID,
+		`SELECT user_id FROM chat_room_members WHERE room_id = ? AND muted = 0 AND left_at IS NULL`, roomID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("get unmuted members: %w", err)
@@ -755,8 +763,8 @@ func (r *chatRepository) FindDMRoom(ctx context.Context, userA, userB uuid.UUID)
 	var id uuid.UUID
 	err := r.db.QueryRowContext(ctx,
 		`SELECT cr.id FROM chat_rooms cr
-		 JOIN chat_room_members m1 ON cr.id = m1.room_id AND m1.user_id = ?
-		 JOIN chat_room_members m2 ON cr.id = m2.room_id AND m2.user_id = ?
+		 JOIN chat_room_members m1 ON cr.id = m1.room_id AND m1.user_id = ? AND m1.left_at IS NULL
+		 JOIN chat_room_members m2 ON cr.id = m2.room_id AND m2.user_id = ? AND m2.left_at IS NULL
 		 WHERE cr.type = 'dm'
 		 LIMIT 1`,
 		userA, userB,
@@ -868,6 +876,7 @@ func scanMessageRow(rows *sql.Rows) (ChatMessageRow, error) {
 			msg.PinnedBy = &parsed
 		}
 	}
+	msg.SenderRoleTyped = role.Role(msg.SenderRole)
 	return msg, nil
 }
 
@@ -973,6 +982,14 @@ func (r *chatRepository) DeleteMessages(ctx context.Context, roomID uuid.UUID) e
 	return nil
 }
 
+func (r *chatRepository) DeleteMessage(ctx context.Context, messageID uuid.UUID) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM chat_messages WHERE id = ?`, messageID)
+	if err != nil {
+		return fmt.Errorf("delete message: %w", err)
+	}
+	return nil
+}
+
 func (r *chatRepository) TouchRoomActivity(ctx context.Context, roomID uuid.UUID) error {
 	_, err := r.db.ExecContext(ctx,
 		`UPDATE chat_rooms SET last_message_at = CURRENT_TIMESTAMP WHERE id = ?`,
@@ -986,7 +1003,7 @@ func (r *chatRepository) TouchRoomActivity(ctx context.Context, roomID uuid.UUID
 
 func (r *chatRepository) MarkRoomRead(ctx context.Context, roomID, userID uuid.UUID) error {
 	_, err := r.db.ExecContext(ctx,
-		`UPDATE chat_room_members SET last_read_at = CURRENT_TIMESTAMP WHERE room_id = ? AND user_id = ?`,
+		`UPDATE chat_room_members SET last_read_at = CURRENT_TIMESTAMP WHERE room_id = ? AND user_id = ? AND left_at IS NULL`,
 		roomID, userID,
 	)
 	if err != nil {
@@ -1085,7 +1102,7 @@ func (r *chatRepository) GetMessageMediaBatch(ctx context.Context, messageIDs []
 
 func (r *chatRepository) SetMemberNickname(ctx context.Context, roomID, userID uuid.UUID, nickname string) error {
 	_, err := r.db.ExecContext(ctx,
-		`UPDATE chat_room_members SET nickname = ? WHERE room_id = ? AND user_id = ?`,
+		`UPDATE chat_room_members SET nickname = ? WHERE room_id = ? AND user_id = ? AND left_at IS NULL`,
 		nickname, roomID, userID,
 	)
 	if err != nil {
@@ -1100,7 +1117,7 @@ func (r *chatRepository) SetMemberNicknameWithLock(ctx context.Context, roomID, 
 		lockedInt = 1
 	}
 	_, err := r.db.ExecContext(ctx,
-		`UPDATE chat_room_members SET nickname = ?, nickname_locked = ? WHERE room_id = ? AND user_id = ?`,
+		`UPDATE chat_room_members SET nickname = ?, nickname_locked = ? WHERE room_id = ? AND user_id = ? AND left_at IS NULL`,
 		nickname, lockedInt, roomID, userID,
 	)
 	if err != nil {
@@ -1112,7 +1129,7 @@ func (r *chatRepository) SetMemberNicknameWithLock(ctx context.Context, roomID, 
 func (r *chatRepository) IsMemberNicknameLocked(ctx context.Context, roomID, userID uuid.UUID) (bool, error) {
 	var locked int
 	err := r.db.QueryRowContext(ctx,
-		`SELECT nickname_locked FROM chat_room_members WHERE room_id = ? AND user_id = ?`,
+		`SELECT nickname_locked FROM chat_room_members WHERE room_id = ? AND user_id = ? AND left_at IS NULL`,
 		roomID, userID,
 	).Scan(&locked)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -1126,7 +1143,7 @@ func (r *chatRepository) IsMemberNicknameLocked(ctx context.Context, roomID, use
 
 func (r *chatRepository) SetMemberAvatar(ctx context.Context, roomID, userID uuid.UUID, avatarURL string) error {
 	_, err := r.db.ExecContext(ctx,
-		`UPDATE chat_room_members SET avatar_url = ? WHERE room_id = ? AND user_id = ?`,
+		`UPDATE chat_room_members SET avatar_url = ? WHERE room_id = ? AND user_id = ? AND left_at IS NULL`,
 		avatarURL, roomID, userID,
 	)
 	if err != nil {
@@ -1269,7 +1286,7 @@ func (r *chatRepository) CountUnreadRoomsForUser(ctx context.Context, userID uui
 	var count int
 	err := r.db.QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM chat_rooms cr
-		 JOIN chat_room_members m ON cr.id = m.room_id AND m.user_id = ?
+		 JOIN chat_room_members m ON cr.id = m.room_id AND m.user_id = ? AND m.left_at IS NULL
 		 WHERE cr.type = 'dm'
 		   AND cr.last_message_at IS NOT NULL
 		   AND (m.last_read_at IS NULL OR cr.last_message_at > m.last_read_at)`,
