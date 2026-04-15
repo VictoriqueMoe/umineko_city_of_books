@@ -84,6 +84,16 @@
     letter-spacing: 0.05em;
 }
 
+.timeoutBadge {
+    background: rgba(255, 102, 102, 0.15);
+    border: 1px solid rgba(255, 102, 102, 0.4);
+    color: #ff9d9d;
+    padding: 0.05rem 0.4rem;
+    border-radius: 999px;
+    font-size: 0.6rem;
+    letter-spacing: 0.03em;
+}
+
 .kickBtn {
     margin-left: auto;
     background: none;
@@ -225,6 +235,26 @@
     color: var(--text);
     padding: 0.55rem 0.7rem;
     font-size: 0.95rem;
+}
+
+.timeoutDialogRow {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.6rem;
+}
+
+.timeoutDialogRow select {
+    background: var(--bg-void);
+    border: 1px solid rgba(var(--purple-rgb), 0.4);
+    border-radius: 6px;
+    color: var(--text);
+    padding: 0.55rem 0.7rem;
+    font-size: 0.95rem;
+}
+
+.timeoutDialogRow select:focus {
+    outline: none;
+    border-color: var(--gold);
 }
 
 .nicknameDialog input:focus {

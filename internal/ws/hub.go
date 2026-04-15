@@ -3,6 +3,7 @@ package ws
 import (
 	"encoding/json"
 	"sync"
+	"time"
 
 	"github.com/fasthttp/websocket"
 	"github.com/google/uuid"
@@ -17,6 +18,7 @@ type (
 	Client struct {
 		UserID uuid.UUID
 		Conn   *websocket.Conn
+		mu     sync.Mutex
 	}
 
 	Hub struct {
@@ -26,6 +28,24 @@ type (
 		mu      sync.RWMutex
 	}
 )
+
+func (c *Client) WriteMessage(messageType int, data []byte) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.Conn.WriteMessage(messageType, data)
+}
+
+func (c *Client) WriteControl(messageType int, data []byte, deadline time.Time) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.Conn.WriteControl(messageType, data, deadline)
+}
+
+func (c *Client) Close() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.Conn.Close()
+}
 
 func NewHub() *Hub {
 	return &Hub{
@@ -120,7 +140,7 @@ func (h *Hub) SendToUser(userID uuid.UUID, msg Message) {
 
 	var dead []*Client
 	for _, client := range conns {
-		if err := client.Conn.WriteMessage(websocket.TextMessage, data); err != nil {
+		if err := client.WriteMessage(websocket.TextMessage, data); err != nil {
 			dead = append(dead, client)
 		}
 	}
@@ -148,7 +168,7 @@ func (h *Hub) Broadcast(msg Message) {
 	}
 
 	for _, client := range allConns {
-		client.Conn.WriteMessage(websocket.TextMessage, data)
+		_ = client.WriteMessage(websocket.TextMessage, data)
 	}
 }
 
@@ -211,7 +231,7 @@ func (h *Hub) BroadcastToRoom(roomID uuid.UUID, msg Message, excludeUserID uuid.
 		h.mu.RUnlock()
 
 		for _, client := range conns {
-			client.Conn.WriteMessage(websocket.TextMessage, data)
+			_ = client.WriteMessage(websocket.TextMessage, data)
 		}
 	}
 }

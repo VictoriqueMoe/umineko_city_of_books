@@ -7,6 +7,7 @@ import type { ChatMessage, ChatRoom, ChatRoomMember, User, WSMessage } from "../
 import { isSiteStaff } from "../../utils/permissions";
 import {
     addChatMessageReaction,
+    clearChatRoomMemberTimeout,
     deleteChatMessage,
     deleteChatRoom,
     getChatRoomMembers,
@@ -18,6 +19,7 @@ import {
     pinChatMessage,
     removeChatMessageReaction,
     setChatRoomMemberNickname,
+    setChatRoomMemberTimeout,
     setChatRoomMuted,
     unlockChatRoomMemberNickname,
     unpinChatMessage,
@@ -73,6 +75,11 @@ export function RoomPage() {
     const [nicknameDialogValue, setNicknameDialogValue] = useState("");
     const [nicknameDialogError, setNicknameDialogError] = useState<string>("");
     const [nicknameDialogSaving, setNicknameDialogSaving] = useState(false);
+    const [timeoutDialogTarget, setTimeoutDialogTarget] = useState<ChatRoomMember | null>(null);
+    const [timeoutDialogAmount, setTimeoutDialogAmount] = useState("1");
+    const [timeoutDialogUnit, setTimeoutDialogUnit] = useState("hours");
+    const [timeoutDialogError, setTimeoutDialogError] = useState("");
+    const [timeoutDialogSaving, setTimeoutDialogSaving] = useState(false);
     const roomIdRef = useRef(roomId);
     const handledHashRef = useRef<string | null>(null);
     const {
@@ -340,6 +347,25 @@ export function RoomPage() {
         setOpenMemberMenu(null);
     }
 
+    function openTimeoutDialog(member: ChatRoomMember) {
+        setTimeoutDialogTarget(member);
+        setTimeoutDialogAmount("1");
+        setTimeoutDialogUnit("hours");
+        setTimeoutDialogError("");
+        setOpenMemberMenu(null);
+    }
+
+    function formatTimeoutUntil(value?: string): string {
+        if (!value) {
+            return "";
+        }
+        const parsed = new Date(value);
+        if (Number.isNaN(parsed.getTime())) {
+            return value;
+        }
+        return parsed.toLocaleString();
+    }
+
     async function handleModSetNickname() {
         if (!roomId || !nicknameDialogTarget) {
             return;
@@ -372,6 +398,50 @@ export function RoomPage() {
             setMembers(prev => prev.map(m => (m.user.id === updated.user.id ? updated : m)));
         } catch (err) {
             setToast(err instanceof Error ? err.message : "Failed to unlock nickname");
+        } finally {
+            setBusy(null);
+        }
+    }
+
+    async function handleSetTimeout() {
+        if (!roomId || !timeoutDialogTarget) {
+            return;
+        }
+        const amount = Number(timeoutDialogAmount);
+        if (!Number.isInteger(amount) || amount <= 0) {
+            setTimeoutDialogError("Enter a whole number greater than zero");
+            return;
+        }
+
+        setTimeoutDialogSaving(true);
+        setTimeoutDialogError("");
+        try {
+            const updated = await setChatRoomMemberTimeout(
+                roomId,
+                timeoutDialogTarget.user.id,
+                amount,
+                timeoutDialogUnit,
+            );
+            setMembers(prev => prev.map(m => (m.user.id === updated.user.id ? updated : m)));
+            setTimeoutDialogTarget(null);
+        } catch (err) {
+            setTimeoutDialogError(err instanceof Error ? err.message : "Failed to set timeout");
+        } finally {
+            setTimeoutDialogSaving(false);
+        }
+    }
+
+    async function handleClearTimeout(targetId: string) {
+        if (!roomId) {
+            return;
+        }
+        setBusy(`timeout:${targetId}`);
+        setOpenMemberMenu(null);
+        try {
+            const updated = await clearChatRoomMemberTimeout(roomId, targetId);
+            setMembers(prev => prev.map(m => (m.user.id === updated.user.id ? updated : m)));
+        } catch (err) {
+            setToast(err instanceof Error ? err.message : "Failed to clear timeout");
         } finally {
             setBusy(null);
         }
@@ -554,15 +624,41 @@ export function RoomPage() {
                             const isSelf = m.user.id === user.id;
                             const targetIsSiteMod = isSiteStaff(m.user.role);
                             const targetIsHost = m.role === "host";
+                            const timeoutIsActive = Boolean(m.timeout_until);
                             const canKickTarget =
                                 canModerateRoom && !isSystem && !isSelf && !targetIsHost && !targetIsSiteMod;
                             const canEditTargetNickname = isSiteMod && !targetIsSiteMod && !isSelf && !isSystem;
-                            const canActOnMember = canKickTarget || canEditTargetNickname;
+                            let canTimeoutTarget = false;
+                            if (canModerateRoom && !isSystem && !isSelf && !targetIsSiteMod) {
+                                if (isSiteMod) {
+                                    canTimeoutTarget = true;
+                                } else {
+                                    canTimeoutTarget = !targetIsHost;
+                                }
+                            }
+                            if (canTimeoutTarget && timeoutIsActive && m.timeout_set_by_staff && !isSiteMod) {
+                                canTimeoutTarget = false;
+                            }
+                            const canClearTimeoutTarget =
+                                canModerateRoom &&
+                                !isSystem &&
+                                timeoutIsActive &&
+                                (isSiteMod || !m.timeout_set_by_staff);
+                            const canActOnMember =
+                                canKickTarget || canEditTargetNickname || canTimeoutTarget || canClearTimeoutTarget;
                             const menuOpen = openMemberMenu === m.user.id;
                             return (
                                 <div key={m.user.id} className={styles.memberRow}>
                                     <ProfileLink user={effectiveUser} size="small" />
                                     {m.role === "host" && <span className={styles.hostBadge}>Host</span>}
+                                    {timeoutIsActive && (
+                                        <span
+                                            className={styles.timeoutBadge}
+                                            title={`Timed out until ${formatTimeoutUntil(m.timeout_until)}`}
+                                        >
+                                            Timed out
+                                        </span>
+                                    )}
                                     {isSelf && (
                                         <button
                                             type="button"
@@ -617,6 +713,20 @@ export function RoomPage() {
                                                             disabled={busy === m.user.id}
                                                         >
                                                             Kick member
+                                                        </button>
+                                                    )}
+                                                    {canTimeoutTarget && (
+                                                        <button type="button" onClick={() => openTimeoutDialog(m)}>
+                                                            Set timeout
+                                                        </button>
+                                                    )}
+                                                    {canClearTimeoutTarget && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleClearTimeout(m.user.id)}
+                                                            disabled={busy === `timeout:${m.user.id}`}
+                                                        >
+                                                            Remove timeout
                                                         </button>
                                                     )}
                                                 </div>
@@ -812,6 +922,51 @@ export function RoomPage() {
                                 disabled={nicknameDialogSaving}
                             >
                                 {nicknameDialogSaving ? "Saving..." : "Save"}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {timeoutDialogTarget && (
+                <div className={styles.nicknameDialogOverlay} onClick={() => setTimeoutDialogTarget(null)}>
+                    <div className={styles.nicknameDialog} onClick={e => e.stopPropagation()}>
+                        <h3>Set timeout for {timeoutDialogTarget.user.display_name}</h3>
+                        <div className={styles.timeoutDialogRow}>
+                            <input
+                                type="number"
+                                min={1}
+                                step={1}
+                                value={timeoutDialogAmount}
+                                onChange={e => setTimeoutDialogAmount(e.target.value)}
+                                autoFocus
+                            />
+                            <select value={timeoutDialogUnit} onChange={e => setTimeoutDialogUnit(e.target.value)}>
+                                <option value="seconds">seconds</option>
+                                <option value="hours">hours</option>
+                                <option value="weeks">weeks</option>
+                                <option value="years">years</option>
+                                <option value="decades">decades</option>
+                                <option value="centuries">centuries</option>
+                            </select>
+                        </div>
+                        {timeoutDialogError && <div className={styles.dialogError}>{timeoutDialogError}</div>}
+                        <div className={styles.nicknameDialogActions}>
+                            <Button
+                                variant="ghost"
+                                size="small"
+                                onClick={() => setTimeoutDialogTarget(null)}
+                                disabled={timeoutDialogSaving}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                variant="danger"
+                                size="small"
+                                onClick={handleSetTimeout}
+                                disabled={timeoutDialogSaving}
+                            >
+                                {timeoutDialogSaving ? "Saving..." : "Set timeout"}
                             </Button>
                         </div>
                     </div>

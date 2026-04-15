@@ -39,6 +39,15 @@ const (
 var mentionRegex = regexp.MustCompile(`@([a-zA-Z0-9_]+)`)
 var tagAllowedRegex = regexp.MustCompile(`[^a-z0-9-]+`)
 
+var timeoutUnitYears = map[string]int{
+	"year":      1,
+	"years":     1,
+	"decade":    10,
+	"decades":   10,
+	"century":   100,
+	"centuries": 100,
+}
+
 func sanitizeTags(raw []string) []string {
 	if len(raw) == 0 {
 		return nil
@@ -68,6 +77,86 @@ func sanitizeTags(raw []string) []string {
 	return out
 }
 
+func timeoutDurationLabel(amount int, unit string) string {
+	if amount == 1 {
+		switch unit {
+		case "second", "seconds":
+			return "1 second"
+		case "hour", "hours":
+			return "1 hour"
+		case "week", "weeks":
+			return "1 week"
+		case "year", "years":
+			return "1 year"
+		case "decade", "decades":
+			return "1 decade"
+		case "century", "centuries":
+			return "1 century"
+		}
+	}
+
+	suffix := unit
+	switch unit {
+	case "second":
+		suffix = "seconds"
+	case "hour":
+		suffix = "hours"
+	case "week":
+		suffix = "weeks"
+	case "year":
+		suffix = "years"
+	case "decade":
+		suffix = "decades"
+	case "century":
+		suffix = "centuries"
+	}
+	return fmt.Sprintf("%d %s", amount, suffix)
+}
+
+func computeTimeoutUntil(now time.Time, amount int, unit string) (time.Time, string, error) {
+	if amount <= 0 {
+		return time.Time{}, "", ErrInvalidTimeoutDuration
+	}
+
+	normalized := strings.ToLower(strings.TrimSpace(unit))
+	if normalized == "" {
+		return time.Time{}, "", ErrInvalidTimeoutDuration
+	}
+
+	switch normalized {
+	case "second", "seconds":
+		return now.Add(time.Duration(amount) * time.Second), timeoutDurationLabel(amount, normalized), nil
+	case "hour", "hours":
+		return now.Add(time.Duration(amount) * time.Hour), timeoutDurationLabel(amount, normalized), nil
+	case "week", "weeks":
+		return now.Add(time.Duration(amount) * 7 * 24 * time.Hour), timeoutDurationLabel(amount, normalized), nil
+	}
+
+	years, ok := timeoutUnitYears[normalized]
+	if ok {
+		return now.AddDate(amount*years, 0, 0), timeoutDurationLabel(amount, normalized), nil
+	}
+
+	return time.Time{}, "", ErrInvalidTimeoutDuration
+}
+
+func formatTimeoutUntilForUser(raw string) string {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return ""
+	}
+
+	layouts := []string{time.RFC3339Nano, time.RFC3339, time.DateTime}
+	for i := 0; i < len(layouts); i++ {
+		parsed, err := time.Parse(layouts[i], trimmed)
+		if err == nil {
+			return parsed.UTC().Format("02 January 2006 15:04 UTC")
+		}
+	}
+
+	return trimmed
+}
+
 type (
 	Service interface {
 		EnsureSystemRooms(ctx context.Context) error
@@ -90,6 +179,8 @@ type (
 		IsRoomMuted(ctx context.Context, roomID, userID uuid.UUID) (bool, error)
 		LeaveRoom(ctx context.Context, roomID, userID uuid.UUID) error
 		KickMember(ctx context.Context, hostID, roomID, targetID uuid.UUID) error
+		SetMemberTimeout(ctx context.Context, roomID, actorID, targetID uuid.UUID, req dto.SetMemberTimeoutRequest) (*dto.ChatRoomMemberResponse, error)
+		ClearMemberTimeout(ctx context.Context, roomID, actorID, targetID uuid.UUID) (*dto.ChatRoomMemberResponse, error)
 		GetMembers(ctx context.Context, viewerID, roomID uuid.UUID) ([]dto.ChatRoomMemberResponse, error)
 		GetUnreadCount(ctx context.Context, userID uuid.UUID) (int, error)
 		MarkRead(ctx context.Context, roomID, userID uuid.UUID) error
@@ -413,6 +504,7 @@ func (s *service) JoinRoom(ctx context.Context, roomID, userID uuid.UUID) (*dto.
 	members, _ := s.chatRepo.GetRoomMembers(ctx, roomID)
 	joiner, _ := s.userRepo.GetByID(ctx, userID)
 	if joiner != nil {
+		s.postRoomActionMessage(ctx, roomID, userID, fmt.Sprintf("%s joined the room.", joiner.DisplayName))
 		event := ws.Message{
 			Type: "chat_member_joined",
 			Data: map[string]interface{}{
@@ -450,6 +542,7 @@ func (s *service) LeaveRoom(ctx context.Context, roomID, userID uuid.UUID) error
 
 	leaver, _ := s.userRepo.GetByID(ctx, userID)
 	if leaver != nil {
+		s.postRoomActionMessage(ctx, roomID, userID, fmt.Sprintf("%s left the room.", leaver.DisplayName))
 		event := ws.Message{
 			Type: "chat_member_left",
 			Data: map[string]interface{}{
@@ -507,6 +600,8 @@ func (s *service) KickMember(ctx context.Context, hostID, roomID, targetID uuid.
 		return fmt.Errorf("remove member: %w", err)
 	}
 
+	s.postRoomActionMessage(ctx, roomID, hostID, "A member was kicked from the room.")
+
 	leftEvent := ws.Message{
 		Type: "chat_member_left",
 		Data: map[string]interface{}{
@@ -527,6 +622,129 @@ func (s *service) KickMember(ctx context.Context, hostID, roomID, targetID uuid.
 		},
 	})
 	return nil
+}
+
+func (s *service) SetMemberTimeout(ctx context.Context, roomID, actorID, targetID uuid.UUID, req dto.SetMemberTimeoutRequest) (*dto.ChatRoomMemberResponse, error) {
+	row, err := s.chatRepo.GetRoomByID(ctx, roomID, actorID)
+	if err != nil {
+		return nil, fmt.Errorf("get room: %w", err)
+	}
+	if row == nil {
+		return nil, ErrRoomNotFound
+	}
+	if row.IsSystem {
+		return nil, ErrSystemRoom
+	}
+
+	canMod, err := s.canModerateRoom(ctx, roomID, actorID)
+	if err != nil {
+		return nil, err
+	}
+	if !canMod {
+		return nil, ErrNotHost
+	}
+
+	targetRole, err := s.chatRepo.GetMemberRole(ctx, roomID, targetID)
+	if err != nil {
+		return nil, fmt.Errorf("get target role: %w", err)
+	}
+	if targetRole == "" {
+		return nil, ErrNotMember
+	}
+
+	actorSiteRole, err := s.authzSvc.GetRole(ctx, actorID)
+	if err != nil {
+		return nil, fmt.Errorf("get actor site role: %w", err)
+	}
+	actorIsStaff := actorSiteRole.IsSiteStaff()
+	if !actorIsStaff && targetRole == "host" {
+		return nil, ErrCannotKickHost
+	}
+
+	targetSiteRole, err := s.authzSvc.GetRole(ctx, targetID)
+	if err != nil {
+		return nil, fmt.Errorf("get target site role: %w", err)
+	}
+	if targetSiteRole.IsSiteStaff() {
+		return nil, ErrTargetImmune
+	}
+
+	activeTimeout, _, timeoutByStaff, err := s.chatRepo.GetMemberTimeoutState(ctx, roomID, targetID)
+	if err != nil {
+		return nil, fmt.Errorf("get timeout state: %w", err)
+	}
+	if activeTimeout && timeoutByStaff && !actorIsStaff {
+		return nil, ErrTimeoutLockedByStaff
+	}
+
+	now := time.Now().UTC()
+	until, label, err := computeTimeoutUntil(now, req.Amount, req.Unit)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.chatRepo.SetMemberTimeout(ctx, roomID, targetID, until.Format(time.DateTime), actorIsStaff); err != nil {
+		return nil, fmt.Errorf("set member timeout: %w", err)
+	}
+
+	actorName := s.actionDisplayName(ctx, actorID, "A moderator")
+	targetName := s.actionDisplayName(ctx, targetID, "a member")
+	s.postRoomActionMessage(ctx, roomID, actorID, fmt.Sprintf("%s timed out %s for %s.", actorName, targetName, label))
+
+	return s.broadcastAndBuildMember(ctx, roomID, targetID)
+}
+
+func (s *service) ClearMemberTimeout(ctx context.Context, roomID, actorID, targetID uuid.UUID) (*dto.ChatRoomMemberResponse, error) {
+	row, err := s.chatRepo.GetRoomByID(ctx, roomID, actorID)
+	if err != nil {
+		return nil, fmt.Errorf("get room: %w", err)
+	}
+	if row == nil {
+		return nil, ErrRoomNotFound
+	}
+	if row.IsSystem {
+		return nil, ErrSystemRoom
+	}
+
+	canMod, err := s.canModerateRoom(ctx, roomID, actorID)
+	if err != nil {
+		return nil, err
+	}
+	if !canMod {
+		return nil, ErrNotHost
+	}
+
+	targetRole, err := s.chatRepo.GetMemberRole(ctx, roomID, targetID)
+	if err != nil {
+		return nil, fmt.Errorf("get target role: %w", err)
+	}
+	if targetRole == "" {
+		return nil, ErrNotMember
+	}
+
+	actorSiteRole, err := s.authzSvc.GetRole(ctx, actorID)
+	if err != nil {
+		return nil, fmt.Errorf("get actor site role: %w", err)
+	}
+	actorIsStaff := actorSiteRole.IsSiteStaff()
+
+	activeTimeout, _, timeoutByStaff, err := s.chatRepo.GetMemberTimeoutState(ctx, roomID, targetID)
+	if err != nil {
+		return nil, fmt.Errorf("get timeout state: %w", err)
+	}
+	if activeTimeout && timeoutByStaff && !actorIsStaff {
+		return nil, ErrTimeoutLockedByStaff
+	}
+
+	if err := s.chatRepo.ClearMemberTimeout(ctx, roomID, targetID); err != nil {
+		return nil, fmt.Errorf("clear member timeout: %w", err)
+	}
+
+	actorName := s.actionDisplayName(ctx, actorID, "A moderator")
+	targetName := s.actionDisplayName(ctx, targetID, "a member")
+	s.postRoomActionMessage(ctx, roomID, actorID, fmt.Sprintf("%s removed %s's timeout.", actorName, targetName))
+
+	return s.broadcastAndBuildMember(ctx, roomID, targetID)
 }
 
 func (s *service) GetMembers(ctx context.Context, viewerID, roomID uuid.UUID) ([]dto.ChatRoomMemberResponse, error) {
@@ -567,6 +785,8 @@ func (s *service) GetMembers(ctx context.Context, viewerID, roomID uuid.UUID) ([
 			Nickname:        m.Nickname,
 			NicknameLocked:  locked,
 			MemberAvatarURL: m.MemberAvatarURL,
+			TimeoutUntil:    m.TimeoutUntil,
+			TimeoutByStaff:  m.TimeoutByStaff,
 		})
 	}
 	return members, nil
@@ -775,6 +995,53 @@ func nullStr(ns sql.NullString) string {
 	return ""
 }
 
+func (s *service) actionDisplayName(ctx context.Context, userID uuid.UUID, fallback string) string {
+	u, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return fallback
+	}
+	if u == nil {
+		return fallback
+	}
+	name := strings.TrimSpace(u.DisplayName)
+	if name == "" {
+		return fallback
+	}
+	return name
+}
+
+func (s *service) postRoomActionMessage(ctx context.Context, roomID, actorID uuid.UUID, body string) {
+	actionBody := strings.TrimSpace(body)
+	if actionBody == "" {
+		return
+	}
+
+	messageID := uuid.New()
+	if err := s.chatRepo.InsertSystemMessage(ctx, messageID, roomID, actorID, actionBody); err != nil {
+		return
+	}
+
+	row, err := s.chatRepo.GetMessageByID(ctx, messageID)
+	if err != nil {
+		return
+	}
+	if row == nil {
+		return
+	}
+
+	vanityRows, _ := s.vanityRoleRepo.GetRolesForUser(ctx, actorID)
+	msg := s.messageRowToResponse(*row, nil, nil, s.toVanityRoleResponses(vanityRows))
+
+	members, err := s.chatRepo.GetRoomMembers(ctx, roomID)
+	if err != nil {
+		return
+	}
+	event := ws.Message{Type: "chat_message", Data: msg}
+	for i := 0; i < len(members); i++ {
+		s.hub.SendToUser(members[i], event)
+	}
+}
+
 func (s *service) messageRowToResponse(row repository.ChatMessageRow, media []dto.PostMediaResponse, reactions []repository.ReactionGroup, vanityRoles []dto.VanityRoleResponse) dto.ChatMessageResponse {
 	displayName := row.SenderDisplayName
 	if row.SenderNickname != "" {
@@ -797,6 +1064,7 @@ func (s *service) messageRowToResponse(row repository.ChatMessageRow, media []dt
 			VanityRoles: vanityRoles,
 		},
 		Body:      row.Body,
+		IsSystem:  row.IsSystem,
 		CreatedAt: row.CreatedAt,
 		Media:     media,
 		Pinned:    row.PinnedAt != nil,
@@ -945,6 +1213,16 @@ func (s *service) SendMessage(ctx context.Context, senderID, roomID uuid.UUID, r
 	}
 	if !isMember {
 		return nil, ErrNotMember
+	}
+	activeTimeout, timeoutUntil, _, err := s.chatRepo.GetMemberTimeoutState(ctx, roomID, senderID)
+	if err != nil {
+		return nil, fmt.Errorf("get timeout state: %w", err)
+	}
+	if activeTimeout {
+		if timeoutUntil != "" {
+			return nil, fmt.Errorf("%w until %s", ErrTimedOut, formatTimeoutUntilForUser(timeoutUntil))
+		}
+		return nil, ErrTimedOut
 	}
 
 	members, err := s.chatRepo.GetRoomMembers(ctx, roomID)
@@ -1551,6 +1829,8 @@ func (s *service) broadcastAndBuildMember(ctx context.Context, roomID, targetID 
 			Nickname:        m.Nickname,
 			NicknameLocked:  locked,
 			MemberAvatarURL: m.MemberAvatarURL,
+			TimeoutUntil:    m.TimeoutUntil,
+			TimeoutByStaff:  m.TimeoutByStaff,
 		}
 		break
 	}
@@ -1558,11 +1838,13 @@ func (s *service) broadcastAndBuildMember(ctx context.Context, roomID, targetID 
 	event := ws.Message{
 		Type: "chat_member_updated",
 		Data: map[string]interface{}{
-			"room_id":           roomID,
-			"user_id":           targetID,
-			"nickname":          stringOrEmpty(resp, func(r *dto.ChatRoomMemberResponse) string { return r.Nickname }),
-			"member_avatar_url": stringOrEmpty(resp, func(r *dto.ChatRoomMemberResponse) string { return r.MemberAvatarURL }),
-			"nickname_locked":   resp != nil && resp.NicknameLocked,
+			"room_id":              roomID,
+			"user_id":              targetID,
+			"nickname":             stringOrEmpty(resp, func(r *dto.ChatRoomMemberResponse) string { return r.Nickname }),
+			"member_avatar_url":    stringOrEmpty(resp, func(r *dto.ChatRoomMemberResponse) string { return r.MemberAvatarURL }),
+			"nickname_locked":      resp != nil && resp.NicknameLocked,
+			"timeout_until":        stringOrEmpty(resp, func(r *dto.ChatRoomMemberResponse) string { return r.TimeoutUntil }),
+			"timeout_set_by_staff": resp != nil && resp.TimeoutByStaff,
 		},
 	}
 	for _, r := range rows {

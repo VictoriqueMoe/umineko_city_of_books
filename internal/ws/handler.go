@@ -66,7 +66,7 @@ func Handler(hub *Hub, sessionMgr *session.Manager, roomLister RoomLister) fiber
 
 			hub.Register(client)
 			defer hub.Unregister(client)
-			defer conn.Close()
+			defer client.Close()
 
 			if roomLister != nil {
 				roomIDs, err := roomLister.GetRoomsByUser(context.Background(), userID)
@@ -84,10 +84,17 @@ func Handler(hub *Hub, sessionMgr *session.Manager, roomLister RoomLister) fiber
 
 			ticker := time.NewTicker(30 * time.Second)
 			defer ticker.Stop()
+			done := make(chan struct{})
+			defer close(done)
 
 			go func() {
-				for range ticker.C {
-					if err := conn.WriteControl(websocket.PingMessage, nil, time.Now().Add(10*time.Second)); err != nil {
+				for {
+					select {
+					case <-ticker.C:
+						if err := client.WriteControl(websocket.PingMessage, nil, time.Now().Add(10*time.Second)); err != nil {
+							return
+						}
+					case <-done:
 						return
 					}
 				}

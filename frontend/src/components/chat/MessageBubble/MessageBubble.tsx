@@ -69,9 +69,13 @@ export function MessageBubble({
     senderIsStaff,
 }: MessageBubbleProps) {
     const [pickerOpen, setPickerOpen] = useState(false);
+    const isSystemMessage = message.is_system;
     const classes = [styles.messageBubble];
-    if (isOwn) {
+    if (isOwn && !isSystemMessage) {
         classes.push(styles.ownMessage);
+    }
+    if (isSystemMessage) {
+        classes.push(styles.systemMessage);
     }
     if (highlighted) {
         classes.push(styles.messageHighlighted);
@@ -85,6 +89,15 @@ export function MessageBubble({
     function handlePick(emoji: string) {
         setPickerOpen(false);
         onReactionToggle?.(message, emoji);
+    }
+
+    if (isSystemMessage) {
+        return (
+            <div id={`chat-msg-${message.id}`} className={classes.join(" ")}>
+                <div className={styles.systemMessageText}>{linkify(message.body)}</div>
+                <div className={styles.systemMessageTime}>{formatTime(message.created_at)}</div>
+            </div>
+        );
     }
 
     return (

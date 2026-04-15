@@ -46,6 +46,8 @@ type (
 		Nickname        string
 		NicknameLocked  bool
 		MemberAvatarURL string
+		TimeoutUntil    string
+		TimeoutByStaff  bool
 	}
 
 	ChatMessageRow struct {
@@ -58,6 +60,7 @@ type (
 		SenderRole         string
 		SenderRoleTyped    role.Role
 		Body               string
+		IsSystem           bool
 		CreatedAt          string
 		ReplyToID          *uuid.UUID
 		ReplyToSenderID    *uuid.UUID
@@ -105,6 +108,7 @@ type (
 		GetRoomTagsBatch(ctx context.Context, roomIDs []uuid.UUID) (map[uuid.UUID][]string, error)
 
 		InsertMessage(ctx context.Context, id, roomID, senderID uuid.UUID, body string, replyToID *uuid.UUID) error
+		InsertSystemMessage(ctx context.Context, id, roomID, senderID uuid.UUID, body string) error
 		GetMessages(ctx context.Context, roomID uuid.UUID, limit, offset int) ([]ChatMessageRow, int, error)
 		GetMessagesBefore(ctx context.Context, roomID uuid.UUID, before string, limit int) ([]ChatMessageRow, error)
 		GetMessageByID(ctx context.Context, messageID uuid.UUID) (*ChatMessageRow, error)
@@ -125,6 +129,9 @@ type (
 		SetMemberNicknameWithLock(ctx context.Context, roomID, userID uuid.UUID, nickname string, locked bool) error
 		IsMemberNicknameLocked(ctx context.Context, roomID, userID uuid.UUID) (bool, error)
 		SetMemberAvatar(ctx context.Context, roomID, userID uuid.UUID, avatarURL string) error
+		SetMemberTimeout(ctx context.Context, roomID, userID uuid.UUID, until string, byStaff bool) error
+		ClearMemberTimeout(ctx context.Context, roomID, userID uuid.UUID) error
+		GetMemberTimeoutState(ctx context.Context, roomID, userID uuid.UUID) (bool, string, bool, error)
 		PinMessage(ctx context.Context, messageID, pinnedBy uuid.UUID) error
 		UnpinMessage(ctx context.Context, messageID uuid.UUID) error
 		ListPinnedMessages(ctx context.Context, roomID uuid.UUID) ([]ChatMessageRow, error)
@@ -564,7 +571,9 @@ func (r *chatRepository) GetRoomByID(ctx context.Context, roomID, viewerID uuid.
 
 func (r *chatRepository) GetRoomMembersDetailed(ctx context.Context, roomID uuid.UUID) ([]ChatRoomMemberRow, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT m.user_id, u.username, u.display_name, u.avatar_url, m.role, COALESCE(ur.role, ''), m.joined_at, m.nickname, m.nickname_locked, m.avatar_url
+		`SELECT m.user_id, u.username, u.display_name, u.avatar_url, m.role, COALESCE(ur.role, ''), m.joined_at, m.nickname, m.nickname_locked, m.avatar_url,
+		 COALESCE(CASE WHEN datetime(m.timeout_until) > CURRENT_TIMESTAMP THEN m.timeout_until ELSE '' END, ''),
+		 CASE WHEN datetime(m.timeout_until) > CURRENT_TIMESTAMP THEN m.timeout_set_by_staff ELSE 0 END
 		 FROM chat_room_members m
 		 JOIN users u ON m.user_id = u.id
 		 LEFT JOIN user_roles ur ON ur.user_id = u.id
@@ -581,10 +590,12 @@ func (r *chatRepository) GetRoomMembersDetailed(ctx context.Context, roomID uuid
 	for rows.Next() {
 		var m ChatRoomMemberRow
 		var lockedInt int
-		if err := rows.Scan(&m.UserID, &m.Username, &m.DisplayName, &m.AvatarURL, &m.Role, &m.AuthorRole, &m.JoinedAt, &m.Nickname, &lockedInt, &m.MemberAvatarURL); err != nil {
+		var timeoutByStaffInt int
+		if err := rows.Scan(&m.UserID, &m.Username, &m.DisplayName, &m.AvatarURL, &m.Role, &m.AuthorRole, &m.JoinedAt, &m.Nickname, &lockedInt, &m.MemberAvatarURL, &m.TimeoutUntil, &timeoutByStaffInt); err != nil {
 			return nil, fmt.Errorf("scan member detailed: %w", err)
 		}
 		m.NicknameLocked = lockedInt != 0
+		m.TimeoutByStaff = timeoutByStaffInt != 0
 		m.AuthorRoleTyped = role.Role(m.AuthorRole)
 		result = append(result, m)
 	}
@@ -779,15 +790,28 @@ func (r *chatRepository) FindDMRoom(ctx context.Context, userA, userB uuid.UUID)
 }
 
 func (r *chatRepository) InsertMessage(ctx context.Context, id, roomID, senderID uuid.UUID, body string, replyToID *uuid.UUID) error {
+	return r.insertMessage(ctx, id, roomID, senderID, body, replyToID, false)
+}
+
+func (r *chatRepository) InsertSystemMessage(ctx context.Context, id, roomID, senderID uuid.UUID, body string) error {
+	return r.insertMessage(ctx, id, roomID, senderID, body, nil, true)
+}
+
+func (r *chatRepository) insertMessage(ctx context.Context, id, roomID, senderID uuid.UUID, body string, replyToID *uuid.UUID, isSystem bool) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("insert message: begin tx: %w", err)
 	}
 	defer tx.Rollback()
 
+	isSystemInt := 0
+	if isSystem {
+		isSystemInt = 1
+	}
+
 	_, err = tx.ExecContext(ctx,
-		`INSERT INTO chat_messages (id, room_id, sender_id, body, reply_to_id) VALUES (?, ?, ?, ?, ?)`,
-		id, roomID, senderID, body, replyToID,
+		`INSERT INTO chat_messages (id, room_id, sender_id, body, reply_to_id, is_system) VALUES (?, ?, ?, ?, ?, ?)`,
+		id, roomID, senderID, body, replyToID, isSystemInt,
 	)
 	if err != nil {
 		return fmt.Errorf("insert message: %w", err)
@@ -820,7 +844,7 @@ func (r *chatRepository) GetMessages(ctx context.Context, roomID uuid.UUID, limi
 		`SELECT * FROM (
 			SELECT cm.id, cm.room_id, cm.sender_id, u.username, u.display_name, u.avatar_url,
 			 COALESCE(ur.role, ''),
-			 cm.body, cm.created_at, cm.reply_to_id,
+			 cm.body, cm.is_system, cm.created_at, cm.reply_to_id,
 			 parent.sender_id, pu.display_name, parent.body,
 			 cm.pinned_at, cm.pinned_by,
 			 COALESCE(mem.nickname, ''), COALESCE(mem.avatar_url, '')
@@ -856,11 +880,12 @@ func scanMessageRow(rows *sql.Rows) (ChatMessageRow, error) {
 	var msg ChatMessageRow
 	var pinnedAt sql.NullString
 	var pinnedBy sql.NullString
+	var isSystemInt int
 	if err := rows.Scan(
 		&msg.ID, &msg.RoomID, &msg.SenderID,
 		&msg.SenderUsername, &msg.SenderDisplayName, &msg.SenderAvatarURL,
 		&msg.SenderRole,
-		&msg.Body, &msg.CreatedAt, &msg.ReplyToID,
+		&msg.Body, &isSystemInt, &msg.CreatedAt, &msg.ReplyToID,
 		&msg.ReplyToSenderID, &msg.ReplyToSenderName, &msg.ReplyToBody,
 		&pinnedAt, &pinnedBy,
 		&msg.SenderNickname, &msg.SenderMemberAvatar,
@@ -876,6 +901,7 @@ func scanMessageRow(rows *sql.Rows) (ChatMessageRow, error) {
 			msg.PinnedBy = &parsed
 		}
 	}
+	msg.IsSystem = isSystemInt != 0
 	msg.SenderRoleTyped = role.Role(msg.SenderRole)
 	return msg, nil
 }
@@ -898,7 +924,7 @@ func (r *chatRepository) GetMessagesBefore(ctx context.Context, roomID uuid.UUID
 		`SELECT * FROM (
 			SELECT cm.id, cm.room_id, cm.sender_id, u.username, u.display_name, u.avatar_url,
 			 COALESCE(ur.role, ''),
-			 cm.body, cm.created_at, cm.reply_to_id,
+			 cm.body, cm.is_system, cm.created_at, cm.reply_to_id,
 			 parent.sender_id, pu.display_name, parent.body,
 			 cm.pinned_at, cm.pinned_by,
 			 COALESCE(mem.nickname, ''), COALESCE(mem.avatar_url, '')
@@ -936,10 +962,11 @@ func (r *chatRepository) GetMessageByID(ctx context.Context, messageID uuid.UUID
 	var msg ChatMessageRow
 	var pinnedAt sql.NullString
 	var pinnedBy sql.NullString
+	var isSystemInt int
 	err := r.db.QueryRowContext(ctx,
 		`SELECT cm.id, cm.room_id, cm.sender_id, u.username, u.display_name, u.avatar_url,
 		 COALESCE(ur.role, ''),
-		 cm.body, cm.created_at, cm.reply_to_id,
+		 cm.body, cm.is_system, cm.created_at, cm.reply_to_id,
 		 parent.sender_id, pu.display_name, parent.body,
 		 cm.pinned_at, cm.pinned_by,
 		 COALESCE(mem.nickname, ''), COALESCE(mem.avatar_url, '')
@@ -955,7 +982,7 @@ func (r *chatRepository) GetMessageByID(ctx context.Context, messageID uuid.UUID
 		&msg.ID, &msg.RoomID, &msg.SenderID,
 		&msg.SenderUsername, &msg.SenderDisplayName, &msg.SenderAvatarURL,
 		&msg.SenderRole,
-		&msg.Body, &msg.CreatedAt, &msg.ReplyToID,
+		&msg.Body, &isSystemInt, &msg.CreatedAt, &msg.ReplyToID,
 		&msg.ReplyToSenderID, &msg.ReplyToSenderName, &msg.ReplyToBody,
 		&pinnedAt, &pinnedBy,
 		&msg.SenderNickname, &msg.SenderMemberAvatar,
@@ -975,6 +1002,7 @@ func (r *chatRepository) GetMessageByID(ctx context.Context, messageID uuid.UUID
 			msg.PinnedBy = &parsed
 		}
 	}
+	msg.IsSystem = isSystemInt != 0
 	return &msg, nil
 }
 
@@ -1167,6 +1195,57 @@ func (r *chatRepository) SetMemberAvatar(ctx context.Context, roomID, userID uui
 	return nil
 }
 
+func (r *chatRepository) SetMemberTimeout(ctx context.Context, roomID, userID uuid.UUID, until string, byStaff bool) error {
+	byStaffInt := 0
+	if byStaff {
+		byStaffInt = 1
+	}
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE chat_room_members SET timeout_until = ?, timeout_set_by_staff = ? WHERE room_id = ? AND user_id = ? AND left_at IS NULL`,
+		until, byStaffInt, roomID, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("set member timeout: %w", err)
+	}
+	return nil
+}
+
+func (r *chatRepository) ClearMemberTimeout(ctx context.Context, roomID, userID uuid.UUID) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE chat_room_members SET timeout_until = NULL, timeout_set_by_staff = 0 WHERE room_id = ? AND user_id = ? AND left_at IS NULL`,
+		roomID, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("clear member timeout: %w", err)
+	}
+	return nil
+}
+
+func (r *chatRepository) GetMemberTimeoutState(ctx context.Context, roomID, userID uuid.UUID) (bool, string, bool, error) {
+	var activeInt int
+	var until sql.NullString
+	var byStaffInt int
+	err := r.db.QueryRowContext(ctx,
+		`SELECT CASE WHEN datetime(timeout_until) > CURRENT_TIMESTAMP THEN 1 ELSE 0 END,
+		 timeout_until,
+		 timeout_set_by_staff
+		 FROM chat_room_members
+		 WHERE room_id = ? AND user_id = ? AND left_at IS NULL`,
+		roomID, userID,
+	).Scan(&activeInt, &until, &byStaffInt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, "", false, nil
+	}
+	if err != nil {
+		return false, "", false, fmt.Errorf("get member timeout state: %w", err)
+	}
+	active := activeInt != 0
+	if !until.Valid {
+		return false, "", byStaffInt != 0, nil
+	}
+	return active, until.String, byStaffInt != 0, nil
+}
+
 func (r *chatRepository) PinMessage(ctx context.Context, messageID, pinnedBy uuid.UUID) error {
 	_, err := r.db.ExecContext(ctx,
 		`UPDATE chat_messages SET pinned_at = CURRENT_TIMESTAMP, pinned_by = ? WHERE id = ?`,
@@ -1193,7 +1272,7 @@ func (r *chatRepository) ListPinnedMessages(ctx context.Context, roomID uuid.UUI
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT cm.id, cm.room_id, cm.sender_id, u.username, u.display_name, u.avatar_url,
 		 COALESCE(ur.role, ''),
-		 cm.body, cm.created_at, cm.reply_to_id,
+		 cm.body, cm.is_system, cm.created_at, cm.reply_to_id,
 		 parent.sender_id, pu.display_name, parent.body,
 		 cm.pinned_at, cm.pinned_by,
 		 COALESCE(mem.nickname, ''), COALESCE(mem.avatar_url, '')

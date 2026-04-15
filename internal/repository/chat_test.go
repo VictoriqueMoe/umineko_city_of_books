@@ -2000,6 +2000,78 @@ func TestChatRepository_GetRoomMembersDetailed_PopulatesNicknameLocked(t *testin
 	assert.Equal(t, "Pinned", detailed[1].Nickname)
 }
 
+func TestChatRepository_SetMemberTimeoutAndGetMemberTimeoutState(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	ctx := context.Background()
+	owner := repotest.CreateUser(t, repos)
+	member := repotest.CreateUser(t, repos)
+	roomID := uuid.New()
+	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "R", "", "group", false, false, owner.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, roomID, member.ID))
+
+	until := "2099-01-01 00:00:00"
+
+	// when
+	err := repos.Chat.SetMemberTimeout(ctx, roomID, member.ID, until, true)
+
+	// then
+	require.NoError(t, err)
+	active, gotUntil, byStaff, err := repos.Chat.GetMemberTimeoutState(ctx, roomID, member.ID)
+	require.NoError(t, err)
+	assert.True(t, active)
+	assert.Contains(t, gotUntil, "2099-01-01")
+	assert.True(t, byStaff)
+}
+
+func TestChatRepository_ClearMemberTimeout(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	ctx := context.Background()
+	owner := repotest.CreateUser(t, repos)
+	member := repotest.CreateUser(t, repos)
+	roomID := uuid.New()
+	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "R", "", "group", false, false, owner.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, roomID, member.ID))
+	require.NoError(t, repos.Chat.SetMemberTimeout(ctx, roomID, member.ID, "2099-01-01 00:00:00", true))
+
+	// when
+	err := repos.Chat.ClearMemberTimeout(ctx, roomID, member.ID)
+
+	// then
+	require.NoError(t, err)
+	active, gotUntil, byStaff, err := repos.Chat.GetMemberTimeoutState(ctx, roomID, member.ID)
+	require.NoError(t, err)
+	assert.False(t, active)
+	assert.Equal(t, "", gotUntil)
+	assert.False(t, byStaff)
+}
+
+func TestChatRepository_GetRoomMembersDetailed_ShowsOnlyActiveTimeout(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	ctx := context.Background()
+	owner := repotest.CreateUser(t, repos)
+	member := repotest.CreateUser(t, repos)
+	roomID := uuid.New()
+	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "R", "", "group", false, false, owner.ID))
+	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, roomID, owner.ID, "host"))
+	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, roomID, member.ID, "member"))
+	require.NoError(t, repos.Chat.SetMemberTimeout(ctx, roomID, member.ID, "2099-01-01 00:00:00", true))
+
+	// when
+	detailed, err := repos.Chat.GetRoomMembersDetailed(ctx, roomID)
+
+	// then
+	require.NoError(t, err)
+	require.Len(t, detailed, 2)
+	assert.Equal(t, "", detailed[0].TimeoutUntil)
+	assert.False(t, detailed[0].TimeoutByStaff)
+	assert.Equal(t, member.ID, detailed[1].UserID)
+	assert.Equal(t, "2099-01-01 00:00:00", detailed[1].TimeoutUntil)
+	assert.True(t, detailed[1].TimeoutByStaff)
+}
+
 func TestChatRepository_RemoveMember_SoftDeletes(t *testing.T) {
 	// given
 	repos := repotest.NewRepos(t)
@@ -2106,4 +2178,25 @@ func TestChatRepository_GetMessages_UsesPerRoomOverrides(t *testing.T) {
 	require.Len(t, msgs, 1)
 	assert.Equal(t, "Beato", msgs[0].SenderNickname)
 	assert.Equal(t, "/custom.png", msgs[0].SenderMemberAvatar)
+}
+
+func TestChatRepository_InsertSystemMessage_SetsSystemFlag(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	ctx := context.Background()
+	user := repotest.CreateUser(t, repos)
+	roomID := uuid.New()
+	msgID := uuid.New()
+	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "R", "", "group", false, false, user.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
+
+	// when
+	err := repos.Chat.InsertSystemMessage(ctx, msgID, roomID, user.ID, "System test")
+
+	// then
+	require.NoError(t, err)
+	got, err := repos.Chat.GetMessageByID(ctx, msgID)
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	assert.True(t, got.IsSystem)
 }

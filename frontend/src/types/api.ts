@@ -628,6 +628,8 @@ export interface ChatRoomMember {
     nickname: string;
     member_avatar_url: string;
     nickname_locked: boolean;
+    timeout_until?: string;
+    timeout_set_by_staff?: boolean;
 }
 
 export interface ChatMessageReplyPreview {
@@ -649,6 +651,7 @@ export interface ChatMessage {
     room_id: string;
     sender: User;
     body: string;
+    is_system: boolean;
     created_at: string;
     media?: PostMedia[];
     reply_to?: ChatMessageReplyPreview;

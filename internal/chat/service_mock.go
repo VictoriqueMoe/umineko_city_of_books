@@ -110,6 +110,86 @@ func (_c *MockService_AddReaction_Call) RunAndReturn(run func(ctx context.Contex
 	return _c
 }
 
+// ClearMemberTimeout provides a mock function for the type MockService
+func (_mock *MockService) ClearMemberTimeout(ctx context.Context, roomID uuid.UUID, actorID uuid.UUID, targetID uuid.UUID) (*dto.ChatRoomMemberResponse, error) {
+	ret := _mock.Called(ctx, roomID, actorID, targetID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ClearMemberTimeout")
+	}
+
+	var r0 *dto.ChatRoomMemberResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) (*dto.ChatRoomMemberResponse, error)); ok {
+		return returnFunc(ctx, roomID, actorID, targetID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) *dto.ChatRoomMemberResponse); ok {
+		r0 = returnFunc(ctx, roomID, actorID, targetID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dto.ChatRoomMemberResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, roomID, actorID, targetID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_ClearMemberTimeout_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ClearMemberTimeout'
+type MockService_ClearMemberTimeout_Call struct {
+	*mock.Call
+}
+
+// ClearMemberTimeout is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roomID uuid.UUID
+//   - actorID uuid.UUID
+//   - targetID uuid.UUID
+func (_e *MockService_Expecter) ClearMemberTimeout(ctx interface{}, roomID interface{}, actorID interface{}, targetID interface{}) *MockService_ClearMemberTimeout_Call {
+	return &MockService_ClearMemberTimeout_Call{Call: _e.mock.On("ClearMemberTimeout", ctx, roomID, actorID, targetID)}
+}
+
+func (_c *MockService_ClearMemberTimeout_Call) Run(run func(ctx context.Context, roomID uuid.UUID, actorID uuid.UUID, targetID uuid.UUID)) *MockService_ClearMemberTimeout_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 uuid.UUID
+		if args[3] != nil {
+			arg3 = args[3].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_ClearMemberTimeout_Call) Return(chatRoomMemberResponse *dto.ChatRoomMemberResponse, err error) *MockService_ClearMemberTimeout_Call {
+	_c.Call.Return(chatRoomMemberResponse, err)
+	return _c
+}
+
+func (_c *MockService_ClearMemberTimeout_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, actorID uuid.UUID, targetID uuid.UUID) (*dto.ChatRoomMemberResponse, error)) *MockService_ClearMemberTimeout_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ClearRoomAvatar provides a mock function for the type MockService
 func (_mock *MockService) ClearRoomAvatar(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) (*dto.ChatRoomMemberResponse, error) {
 	ret := _mock.Called(ctx, roomID, userID)
@@ -1948,6 +2028,92 @@ func (_c *MockService_SetMemberNicknameAsMod_Call) Return(chatRoomMemberResponse
 }
 
 func (_c *MockService_SetMemberNicknameAsMod_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, actorID uuid.UUID, targetID uuid.UUID, nickname string) (*dto.ChatRoomMemberResponse, error)) *MockService_SetMemberNicknameAsMod_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SetMemberTimeout provides a mock function for the type MockService
+func (_mock *MockService) SetMemberTimeout(ctx context.Context, roomID uuid.UUID, actorID uuid.UUID, targetID uuid.UUID, req dto.SetMemberTimeoutRequest) (*dto.ChatRoomMemberResponse, error) {
+	ret := _mock.Called(ctx, roomID, actorID, targetID, req)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetMemberTimeout")
+	}
+
+	var r0 *dto.ChatRoomMemberResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID, dto.SetMemberTimeoutRequest) (*dto.ChatRoomMemberResponse, error)); ok {
+		return returnFunc(ctx, roomID, actorID, targetID, req)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID, dto.SetMemberTimeoutRequest) *dto.ChatRoomMemberResponse); ok {
+		r0 = returnFunc(ctx, roomID, actorID, targetID, req)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dto.ChatRoomMemberResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID, dto.SetMemberTimeoutRequest) error); ok {
+		r1 = returnFunc(ctx, roomID, actorID, targetID, req)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_SetMemberTimeout_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetMemberTimeout'
+type MockService_SetMemberTimeout_Call struct {
+	*mock.Call
+}
+
+// SetMemberTimeout is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roomID uuid.UUID
+//   - actorID uuid.UUID
+//   - targetID uuid.UUID
+//   - req dto.SetMemberTimeoutRequest
+func (_e *MockService_Expecter) SetMemberTimeout(ctx interface{}, roomID interface{}, actorID interface{}, targetID interface{}, req interface{}) *MockService_SetMemberTimeout_Call {
+	return &MockService_SetMemberTimeout_Call{Call: _e.mock.On("SetMemberTimeout", ctx, roomID, actorID, targetID, req)}
+}
+
+func (_c *MockService_SetMemberTimeout_Call) Run(run func(ctx context.Context, roomID uuid.UUID, actorID uuid.UUID, targetID uuid.UUID, req dto.SetMemberTimeoutRequest)) *MockService_SetMemberTimeout_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 uuid.UUID
+		if args[3] != nil {
+			arg3 = args[3].(uuid.UUID)
+		}
+		var arg4 dto.SetMemberTimeoutRequest
+		if args[4] != nil {
+			arg4 = args[4].(dto.SetMemberTimeoutRequest)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_SetMemberTimeout_Call) Return(chatRoomMemberResponse *dto.ChatRoomMemberResponse, err error) *MockService_SetMemberTimeout_Call {
+	_c.Call.Return(chatRoomMemberResponse, err)
+	return _c
+}
+
+func (_c *MockService_SetMemberTimeout_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, actorID uuid.UUID, targetID uuid.UUID, req dto.SetMemberTimeoutRequest) (*dto.ChatRoomMemberResponse, error)) *MockService_SetMemberTimeout_Call {
 	_c.Call.Return(run)
 	return _c
 }
