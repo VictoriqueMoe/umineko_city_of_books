@@ -39,3 +39,6 @@ frontend/vite.config.d.ts
 uploads
 PLAN.md
 inspections
+
+# macOS Finder metadata
+.DS_Store

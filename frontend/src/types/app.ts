@@ -5,6 +5,7 @@ export type ThemeType =
     | "beatrice"
     | "erika"
     | "battler"
+    | "virgilia"
     | "rika"
     | "mion"
     | "satoko";

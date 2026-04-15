@@ -7,6 +7,7 @@ import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
 import { CharacterPicker } from "../../components/CharacterPicker/CharacterPicker";
 import { ErrorBanner } from "../../components/ErrorBanner/ErrorBanner";
+import { MentionTextArea } from "../../components/MentionTextArea/MentionTextArea";
 import styles from "./ShipPages.module.css";
 
 export function CreateShipPage() {
@@ -134,12 +135,12 @@ export function CreateShipPage() {
 
             <div className={styles.formSection}>
                 <label className={styles.formLabel}>Why do you ship it? (optional)</label>
-                <textarea
-                    className={styles.formTextarea}
+                <MentionTextArea
                     value={description}
-                    onChange={e => setDescription(e.target.value)}
+                    onChange={setDescription}
                     placeholder="Tell us why this pairing works..."
                     rows={5}
+                    showColours
                 />
             </div>
 

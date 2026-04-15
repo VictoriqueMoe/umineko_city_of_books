@@ -61,6 +61,7 @@ export function ShareDialog({ isOpen, onClose, contentId, contentType, contentTi
                     onChange={setMessage}
                     placeholder="Add a comment (optional)"
                     rows={3}
+                    showColours
                 />
 
                 <p className={styles.preview}>Sharing: {contentTitle || contentType}</p>

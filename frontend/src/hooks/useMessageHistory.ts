@@ -8,6 +8,7 @@ export function useMessageHistory(roomId: string | undefined) {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [hasMore, setHasMore] = useState(false);
     const [loadingMore, setLoadingMore] = useState(false);
+    const loadingMoreRef = useRef(false);
     const containerRef = useRef<HTMLDivElement>(null);
     const endRef = useRef<HTMLDivElement>(null);
     const suppressScrollToBottom = useRef(false);
@@ -30,11 +31,15 @@ export function useMessageHistory(roomId: string | undefined) {
         if (!roomId) {
             setMessages([]);
             setHasMore(false);
+            setLoadingMore(false);
+            loadingMoreRef.current = false;
             return;
         }
         let cancelled = false;
         setMessages([]);
         setHasMore(false);
+        setLoadingMore(false);
+        loadingMoreRef.current = false;
         suppressScrollToBottom.current = false;
 
         getRoomMessages(roomId, PAGE_SIZE)
@@ -58,27 +63,37 @@ export function useMessageHistory(roomId: string | undefined) {
     }, [roomId]);
 
     const loadOlder = useCallback(async () => {
-        if (!roomId || loadingMore || !hasMore) {
+        if (!roomId || loadingMoreRef.current || !hasMore) {
             return;
         }
         const current = messages;
         if (current.length === 0) {
             return;
         }
-        const oldest = current[0].created_at;
+        const oldest = current[0];
+        const beforeCursor = `${oldest.created_at}|${oldest.id}`;
+        loadingMoreRef.current = true;
         setLoadingMore(true);
         suppressScrollToBottom.current = true;
         try {
             const container = containerRef.current;
             const prevScrollHeight = container ? container.scrollHeight : 0;
-            const res = await getRoomMessagesBefore(roomId, oldest, PAGE_SIZE);
+            const res = await getRoomMessagesBefore(roomId, beforeCursor, PAGE_SIZE);
             if (res.messages.length === 0) {
                 setHasMore(false);
             } else {
-                if (res.messages.length < PAGE_SIZE) {
-                    setHasMore(false);
-                }
-                setMessages(prev => [...res.messages, ...prev]);
+                setMessages(prev => {
+                    const existing = new Set(prev.map(message => message.id));
+                    const olderUnique: ChatMessage[] = [];
+                    for (let i = 0; i < res.messages.length; i++) {
+                        const message = res.messages[i];
+                        if (!existing.has(message.id)) {
+                            olderUnique.push(message);
+                            existing.add(message.id);
+                        }
+                    }
+                    return [...olderUnique, ...prev];
+                });
                 if (container) {
                     requestAnimationFrame(() => {
                         container.scrollTop = container.scrollHeight - prevScrollHeight;
@@ -86,14 +101,14 @@ export function useMessageHistory(roomId: string | undefined) {
                 }
             }
         } catch {
-            setHasMore(false);
         } finally {
+            loadingMoreRef.current = false;
             setLoadingMore(false);
             setTimeout(() => {
                 suppressScrollToBottom.current = false;
             }, 200);
         }
-    }, [roomId, loadingMore, hasMore, messages]);
+    }, [roomId, hasMore, messages]);
 
     const handleScroll = useCallback(() => {
         const container = containerRef.current;
@@ -104,6 +119,69 @@ export function useMessageHistory(roomId: string | undefined) {
             loadOlder();
         }
     }, [loadOlder, loadingMore, hasMore]);
+
+    const loadUntilMessage = useCallback(
+        async (messageId: string, maxPages = 20): Promise<boolean> => {
+            if (!roomId) {
+                return false;
+            }
+            let pages = 0;
+            suppressScrollToBottom.current = true;
+            try {
+                while (pages < maxPages) {
+                    let found = false;
+                    let oldestCursor = "";
+                    let keepGoing = true;
+                    setMessages(prev => {
+                        found = prev.some(m => m.id === messageId);
+                        if (prev.length === 0) {
+                            keepGoing = false;
+                        } else {
+                            const oldest = prev[0];
+                            oldestCursor = `${oldest.created_at}|${oldest.id}`;
+                        }
+                        return prev;
+                    });
+                    if (found) {
+                        return true;
+                    }
+                    if (!keepGoing) {
+                        return false;
+                    }
+                    const res = await getRoomMessagesBefore(roomId, oldestCursor, PAGE_SIZE);
+                    if (res.messages.length === 0) {
+                        setHasMore(false);
+                        return false;
+                    }
+                    let foundInBatch = false;
+                    setMessages(prev => {
+                        const existing = new Set(prev.map(m => m.id));
+                        const olderUnique: ChatMessage[] = [];
+                        for (const msg of res.messages) {
+                            if (!existing.has(msg.id)) {
+                                olderUnique.push(msg);
+                                existing.add(msg.id);
+                            }
+                            if (msg.id === messageId) {
+                                foundInBatch = true;
+                            }
+                        }
+                        return [...olderUnique, ...prev];
+                    });
+                    if (foundInBatch) {
+                        return true;
+                    }
+                    pages++;
+                }
+                return false;
+            } finally {
+                setTimeout(() => {
+                    suppressScrollToBottom.current = false;
+                }, 200);
+            }
+        },
+        [roomId, setMessages],
+    );
 
     const addMessage = useCallback((message: ChatMessage) => {
         setMessages(prev => {
@@ -128,5 +206,6 @@ export function useMessageHistory(roomId: string | undefined) {
         scrollToBottomInstant,
         handleScroll,
         addMessage,
+        loadUntilMessage,
     };
 }

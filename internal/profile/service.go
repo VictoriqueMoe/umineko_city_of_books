@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"time"
 	"umineko_city_of_books/internal/repository/model"
 
 	"umineko_city_of_books/internal/authz"
@@ -68,7 +69,31 @@ func (s *service) GetProfile(ctx context.Context, username string, viewerID uuid
 }
 
 func (s *service) UpdateProfile(ctx context.Context, userID uuid.UUID, req dto.UpdateProfileRequest) error {
+	if err := validateDOB(req.DOB); err != nil {
+		return err
+	}
 	return s.userRepo.UpdateProfile(ctx, userID, req)
+}
+
+func validateDOB(dob string) error {
+	if dob == "" {
+		return nil
+	}
+
+	parsed, err := time.Parse("2006-01-02", dob)
+	if err != nil {
+		return ErrInvalidDOB
+	}
+
+	now := time.Now().UTC()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+	dobDate := time.Date(parsed.Year(), parsed.Month(), parsed.Day(), 0, 0, 0, 0, time.UTC)
+
+	if dobDate.After(today) {
+		return ErrFutureDOB
+	}
+
+	return nil
 }
 
 func (s *service) UploadAvatar(ctx context.Context, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (string, error) {

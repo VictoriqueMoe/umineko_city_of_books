@@ -11,6 +11,7 @@ import { ToggleSwitch } from "../../components/ToggleSwitch/ToggleSwitch";
 import { BlockedUsersSection } from "./BlockedUsersSection";
 import { ChangePasswordSection } from "./ChangePasswordSection";
 import { DangerZoneSection } from "./DangerZoneSection";
+import { getSeriesConfig } from "../../utils/seriesConfig";
 import styles from "./SettingsPage.module.css";
 
 const SPECIAL_CHARACTERS: string[] = ["Goldsmith"];
@@ -205,7 +206,7 @@ export function SettingsPage() {
                                 </Select>
                             </label>
                             <label className={styles.label}>
-                                VN Progress
+                                Umineko VN Progress
                                 <Select
                                     value={String(form.episodeProgress)}
                                     onChange={e =>
@@ -219,6 +220,31 @@ export function SettingsPage() {
                                         </option>
                                     ))}
                                 </Select>
+                            </label>
+                            <label className={styles.label}>
+                                Higurashi VN Progress
+                                <Select
+                                    value={String(form.higurashiArcProgress)}
+                                    onChange={e =>
+                                        form.setHigurashiArcProgress(Number((e.target as HTMLSelectElement).value))
+                                    }
+                                >
+                                    <option value="0">I've read everything</option>
+                                    {getSeriesConfig("higurashi").arcs?.map((a, i) => (
+                                        <option key={a.value} value={String(i + 1)}>
+                                            {a.label}
+                                        </option>
+                                    ))}
+                                </Select>
+                            </label>
+                            <label className={styles.label}>
+                                Date of Birth
+                                <Input
+                                    type="date"
+                                    fullWidth
+                                    value={form.dob}
+                                    onChange={e => form.setDob(e.target.value)}
+                                />
                             </label>
                         </div>
                         <div>
@@ -287,6 +313,12 @@ export function SettingsPage() {
                             onChange={form.setDmsEnabled}
                             label="Direct Messages"
                             description="Allow other users to send you direct messages"
+                        />
+                        <ToggleSwitch
+                            enabled={form.dobPublic}
+                            onChange={form.setDobPublic}
+                            label="Public Date of Birth"
+                            description="Show your date of birth on your public profile"
                         />
                         <label className={styles.label}>
                             Bio

@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { Button } from "../../Button/Button";
 import { MediaPickerButton, MediaPreviews } from "../../MediaPicker/MediaPicker";
 import { MentionTextArea } from "../../MentionTextArea/MentionTextArea";
@@ -21,7 +21,10 @@ interface ChatComposerProps {
     mentionPool?: User[];
     replyingTo?: ReplyTarget | null;
     onCancelReply?: () => void;
+    onTyping?: () => void;
 }
+
+const TYPING_THROTTLE_MS = 2500;
 
 export function ChatComposer({
     roomId,
@@ -30,12 +33,28 @@ export function ChatComposer({
     mentionPool,
     replyingTo,
     onCancelReply,
+    onTyping,
 }: ChatComposerProps) {
     const siteInfo = useSiteInfo();
     const [body, setBody] = useState("");
     const [files, setFiles] = useState<File[]>([]);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
+    const lastTypingSentRef = useRef(0);
+
+    const handleBodyChange = useCallback(
+        (value: string) => {
+            setBody(value);
+            if (onTyping && value.length > 0) {
+                const now = Date.now();
+                if (now - lastTypingSentRef.current >= TYPING_THROTTLE_MS) {
+                    lastTypingSentRef.current = now;
+                    onTyping();
+                }
+            }
+        },
+        [onTyping],
+    );
 
     function removeFile(index: number) {
         setFiles(prev => prev.filter((_, i) => i !== index));
@@ -164,10 +183,11 @@ export function ChatComposer({
                     <MentionTextArea
                         placeholder="Type a message... (Enter to send, Shift+Enter for newline)"
                         value={body}
-                        onChange={setBody}
+                        onChange={handleBodyChange}
                         rows={1}
                         onPasteFiles={handlePasteFiles}
                         mentionPool={mentionPool}
+                        showColours
                     />
                 </div>
                 <MediaPickerButton onFiles={valid => setFiles(prev => [...prev, ...valid])} onError={setError} />

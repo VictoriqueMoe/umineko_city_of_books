@@ -7,6 +7,7 @@ import type { ChatMessage, ChatRoom, ChatRoomMember, User, WSMessage } from "../
 import { isSiteStaff } from "../../utils/permissions";
 import {
     addChatMessageReaction,
+    clearChatRoomMemberTimeout,
     deleteChatMessage,
     deleteChatRoom,
     getChatRoomMembers,
@@ -18,11 +19,15 @@ import {
     pinChatMessage,
     removeChatMessageReaction,
     setChatRoomMemberNickname,
+    setChatRoomMemberTimeout,
     setChatRoomMuted,
     unlockChatRoomMemberNickname,
     unpinChatMessage,
 } from "../../api/endpoints";
 import { useMessageHistory } from "../../hooks/useMessageHistory";
+import { usePresenceReporter } from "../../hooks/usePresenceReporter";
+import { useTypingIndicator } from "../../hooks/useTypingIndicator";
+import { TypingIndicator } from "../../components/chat/TypingIndicator/TypingIndicator";
 import { Button } from "../../components/Button/Button";
 import { ChatComposer, type ReplyTarget } from "../../components/chat/ChatComposer/ChatComposer";
 import { EditRoomProfileDialog } from "../../components/chat/EditRoomProfileDialog/EditRoomProfileDialog";
@@ -35,6 +40,7 @@ import {
     applyChatMessageDeleted,
     applyChatMessagePinned,
     applyChatMessageUnpinned,
+    applyLocalMemberChange,
     applyReactionAdded,
     applyReactionRemoved,
     ChatMemberUpdatedPayload,
@@ -64,6 +70,14 @@ export function RoomPage() {
     const [mobileView, setMobileView] = useState<"members" | "chat">("chat");
     const [replyingTo, setReplyingTo] = useState<ReplyTarget | null>(null);
     const [highlightedMsgId, setHighlightedMsgId] = useState<string | null>(null);
+    const [presenceMap, setPresenceMap] = useState<Record<string, "active" | "idle">>({});
+    usePresenceReporter({ roomId, sendWSMessage });
+    const { typingUserIds, noteTyping, clearUser: clearTypingUser, reset: resetTyping } = useTypingIndicator();
+
+    useEffect(() => {
+        setPresenceMap({});
+        resetTyping();
+    }, [roomId, resetTyping]);
     const [descExpanded, setDescExpanded] = useState(false);
     const [pinnedOpen, setPinnedOpen] = useState(false);
     const [pinnedRefreshKey, setPinnedRefreshKey] = useState(0);
@@ -73,6 +87,11 @@ export function RoomPage() {
     const [nicknameDialogValue, setNicknameDialogValue] = useState("");
     const [nicknameDialogError, setNicknameDialogError] = useState<string>("");
     const [nicknameDialogSaving, setNicknameDialogSaving] = useState(false);
+    const [timeoutDialogTarget, setTimeoutDialogTarget] = useState<ChatRoomMember | null>(null);
+    const [timeoutDialogAmount, setTimeoutDialogAmount] = useState("1");
+    const [timeoutDialogUnit, setTimeoutDialogUnit] = useState("hours");
+    const [timeoutDialogError, setTimeoutDialogError] = useState("");
+    const [timeoutDialogSaving, setTimeoutDialogSaving] = useState(false);
     const roomIdRef = useRef(roomId);
     const handledHashRef = useRef<string | null>(null);
     const {
@@ -85,6 +104,7 @@ export function RoomPage() {
         scrollToBottom,
         handleScroll: handleMessagesScroll,
         addMessage,
+        loadUntilMessage,
     } = useMessageHistory(room ? roomId : undefined);
 
     const targetMsgId = location.hash.startsWith("#msg-") ? location.hash.slice(5) : null;
@@ -159,7 +179,17 @@ export function RoomPage() {
         }
         try {
             const res = await getChatRoomMembers(roomId);
-            setMembers(res.members ?? []);
+            const list = res.members ?? [];
+            setMembers(list);
+            setPresenceMap(prev => {
+                const next = { ...prev };
+                for (const m of list) {
+                    if (m.presence === "active" || m.presence === "idle") {
+                        next[m.user.id] = m.presence;
+                    }
+                }
+                return next;
+            });
         } catch {
             setMembers([]);
         }
@@ -310,8 +340,38 @@ export function RoomPage() {
                 applyChatMessageDeleted(data, setMessages);
                 return;
             }
+            if (msg.type === "chat_presence_changed") {
+                const data = msg.data as { room_id: string; user_id: string; state: string };
+                if (data.room_id !== roomIdRef.current) {
+                    return;
+                }
+                setPresenceMap(prev => {
+                    const next = { ...prev };
+                    if (data.state === "active" || data.state === "idle") {
+                        next[data.user_id] = data.state;
+                    } else {
+                        delete next[data.user_id];
+                    }
+                    return next;
+                });
+                return;
+            }
+            if (msg.type === "typing") {
+                const data = msg.data as { room_id: string; user_id: string };
+                if (data.room_id !== roomIdRef.current) {
+                    return;
+                }
+                noteTyping(data.user_id);
+                return;
+            }
+            if (msg.type === "chat_message") {
+                const chatMsg = msg.data as ChatMessage;
+                if (chatMsg.room_id === roomIdRef.current) {
+                    clearTypingUser(chatMsg.sender.id);
+                }
+            }
         });
-    }, [user, addWSListener, scrollToBottom, setMessages, navigate, loadMembers]);
+    }, [user, addWSListener, scrollToBottom, setMessages, navigate, loadMembers, noteTyping, clearTypingUser]);
 
     function handleSentMessage(message: ChatMessage) {
         addMessage(message);
@@ -340,6 +400,25 @@ export function RoomPage() {
         setOpenMemberMenu(null);
     }
 
+    function openTimeoutDialog(member: ChatRoomMember) {
+        setTimeoutDialogTarget(member);
+        setTimeoutDialogAmount("1");
+        setTimeoutDialogUnit("hours");
+        setTimeoutDialogError("");
+        setOpenMemberMenu(null);
+    }
+
+    function formatTimeoutUntil(value?: string): string {
+        if (!value) {
+            return "";
+        }
+        const parsed = new Date(value);
+        if (Number.isNaN(parsed.getTime())) {
+            return value;
+        }
+        return parsed.toLocaleString();
+    }
+
     async function handleModSetNickname() {
         if (!roomId || !nicknameDialogTarget) {
             return;
@@ -352,7 +431,7 @@ export function RoomPage() {
                 nicknameDialogTarget.user.id,
                 nicknameDialogValue.trim(),
             );
-            setMembers(prev => prev.map(m => (m.user.id === updated.user.id ? updated : m)));
+            applyLocalMemberChange(updated, setMembers, setMessages);
             setNicknameDialogTarget(null);
         } catch (err) {
             setNicknameDialogError(err instanceof Error ? err.message : "Failed to set nickname");
@@ -369,9 +448,53 @@ export function RoomPage() {
         setOpenMemberMenu(null);
         try {
             const updated = await unlockChatRoomMemberNickname(roomId, targetId);
-            setMembers(prev => prev.map(m => (m.user.id === updated.user.id ? updated : m)));
+            applyLocalMemberChange(updated, setMembers, setMessages);
         } catch (err) {
             setToast(err instanceof Error ? err.message : "Failed to unlock nickname");
+        } finally {
+            setBusy(null);
+        }
+    }
+
+    async function handleSetTimeout() {
+        if (!roomId || !timeoutDialogTarget) {
+            return;
+        }
+        const amount = Number(timeoutDialogAmount);
+        if (!Number.isInteger(amount) || amount <= 0) {
+            setTimeoutDialogError("Enter a whole number greater than zero");
+            return;
+        }
+
+        setTimeoutDialogSaving(true);
+        setTimeoutDialogError("");
+        try {
+            const updated = await setChatRoomMemberTimeout(
+                roomId,
+                timeoutDialogTarget.user.id,
+                amount,
+                timeoutDialogUnit,
+            );
+            setMembers(prev => prev.map(m => (m.user.id === updated.user.id ? updated : m)));
+            setTimeoutDialogTarget(null);
+        } catch (err) {
+            setTimeoutDialogError(err instanceof Error ? err.message : "Failed to set timeout");
+        } finally {
+            setTimeoutDialogSaving(false);
+        }
+    }
+
+    async function handleClearTimeout(targetId: string) {
+        if (!roomId) {
+            return;
+        }
+        setBusy(`timeout:${targetId}`);
+        setOpenMemberMenu(null);
+        try {
+            const updated = await clearChatRoomMemberTimeout(roomId, targetId);
+            setMembers(prev => prev.map(m => (m.user.id === updated.user.id ? updated : m)));
+        } catch (err) {
+            setToast(err instanceof Error ? err.message : "Failed to clear timeout");
         } finally {
             setBusy(null);
         }
@@ -476,16 +599,26 @@ export function RoomPage() {
         }
     }
 
-    function handleJumpToMessage(messageId: string) {
-        if (!messages.some(m => m.id === messageId)) {
-            setToast("Message not in loaded history; scroll up to find it.");
+    async function handleJumpToMessage(messageId: string) {
+        const scrollToEl = (smooth: boolean) => {
+            const el = document.getElementById(`chat-msg-${messageId}`);
+            if (el) {
+                el.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "center" });
+                setHighlightedMsgId(messageId);
+            }
+        };
+        if (messages.some(m => m.id === messageId)) {
+            scrollToEl(true);
             return;
         }
-        const el = document.getElementById(`chat-msg-${messageId}`);
-        if (el) {
-            el.scrollIntoView({ behavior: "smooth", block: "center" });
-            setHighlightedMsgId(messageId);
+        const found = await loadUntilMessage(messageId);
+        if (!found) {
+            setToast("Couldn't locate that message.");
+            return;
         }
+        requestAnimationFrame(() => scrollToEl(false));
+        setTimeout(() => scrollToEl(false), 300);
+        setTimeout(() => scrollToEl(true), 600);
     }
 
     if (!user) {
@@ -545,7 +678,12 @@ export function RoomPage() {
                         {members.map(m => {
                             const effectiveUser: User = {
                                 ...m.user,
-                                display_name: m.nickname && m.nickname.trim() !== "" ? m.nickname : m.user.display_name,
+                                display_name:
+                                    m.nickname && m.nickname.trim() !== ""
+                                        ? m.nickname
+                                        : m.user.display_name && m.user.display_name.trim() !== ""
+                                          ? m.user.display_name
+                                          : m.user.username,
                                 avatar_url:
                                     m.member_avatar_url && m.member_avatar_url.trim() !== ""
                                         ? m.member_avatar_url
@@ -554,15 +692,59 @@ export function RoomPage() {
                             const isSelf = m.user.id === user.id;
                             const targetIsSiteMod = isSiteStaff(m.user.role);
                             const targetIsHost = m.role === "host";
+                            const timeoutIsActive = Boolean(m.timeout_until);
                             const canKickTarget =
                                 canModerateRoom && !isSystem && !isSelf && !targetIsHost && !targetIsSiteMod;
                             const canEditTargetNickname = isSiteMod && !targetIsSiteMod && !isSelf && !isSystem;
-                            const canActOnMember = canKickTarget || canEditTargetNickname;
+                            let canTimeoutTarget = false;
+                            if (canModerateRoom && !isSystem && !isSelf && !targetIsSiteMod) {
+                                if (isSiteMod) {
+                                    canTimeoutTarget = true;
+                                } else {
+                                    canTimeoutTarget = !targetIsHost;
+                                }
+                            }
+                            if (canTimeoutTarget && timeoutIsActive && m.timeout_set_by_staff && !isSiteMod) {
+                                canTimeoutTarget = false;
+                            }
+                            const canClearTimeoutTarget =
+                                canModerateRoom &&
+                                !isSystem &&
+                                timeoutIsActive &&
+                                (isSiteMod || !m.timeout_set_by_staff);
+                            const canActOnMember =
+                                canKickTarget || canEditTargetNickname || canTimeoutTarget || canClearTimeoutTarget;
                             const menuOpen = openMemberMenu === m.user.id;
+                            const presence = presenceMap[m.user.id];
+                            const presenceClass =
+                                presence === "active"
+                                    ? styles.presenceActive
+                                    : presence === "idle"
+                                      ? styles.presenceIdle
+                                      : styles.presenceAway;
+                            const presenceTitle =
+                                presence === "active"
+                                    ? "Active in this room"
+                                    : presence === "idle"
+                                      ? "Idle or tab in background"
+                                      : "Not currently viewing";
                             return (
                                 <div key={m.user.id} className={styles.memberRow}>
+                                    <span
+                                        className={`${styles.presenceDot} ${presenceClass}`}
+                                        title={presenceTitle}
+                                        aria-label={presenceTitle}
+                                    />
                                     <ProfileLink user={effectiveUser} size="small" />
                                     {m.role === "host" && <span className={styles.hostBadge}>Host</span>}
+                                    {timeoutIsActive && (
+                                        <span
+                                            className={styles.timeoutBadge}
+                                            title={`Timed out until ${formatTimeoutUntil(m.timeout_until)}`}
+                                        >
+                                            Timed out
+                                        </span>
+                                    )}
                                     {isSelf && (
                                         <button
                                             type="button"
@@ -617,6 +799,20 @@ export function RoomPage() {
                                                             disabled={busy === m.user.id}
                                                         >
                                                             Kick member
+                                                        </button>
+                                                    )}
+                                                    {canTimeoutTarget && (
+                                                        <button type="button" onClick={() => openTimeoutDialog(m)}>
+                                                            Set timeout
+                                                        </button>
+                                                    )}
+                                                    {canClearTimeoutTarget && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleClearTimeout(m.user.id)}
+                                                            disabled={busy === `timeout:${m.user.id}`}
+                                                        >
+                                                            Remove timeout
                                                         </button>
                                                     )}
                                                 </div>
@@ -742,6 +938,23 @@ export function RoomPage() {
                         ))}
                         <div ref={messagesEndRef} />
                     </div>
+                    <TypingIndicator
+                        names={typingUserIds
+                            .filter(id => id !== user.id)
+                            .map(id => {
+                                const m = members.find(mem => mem.user.id === id);
+                                if (!m) {
+                                    return "Someone";
+                                }
+                                if (m.nickname && m.nickname.trim() !== "") {
+                                    return m.nickname;
+                                }
+                                if (m.user.display_name && m.user.display_name.trim() !== "") {
+                                    return m.user.display_name;
+                                }
+                                return m.user.username;
+                            })}
+                    />
                     <ChatComposer
                         roomId={room.id}
                         draftRecipientId={null}
@@ -749,6 +962,7 @@ export function RoomPage() {
                         mentionPool={members.map(m => m.user)}
                         replyingTo={replyingTo}
                         onCancelReply={() => setReplyingTo(null)}
+                        onTyping={() => sendWSMessage({ type: "typing", data: { room_id: room.id } })}
                     />
                 </div>
             </div>
@@ -812,6 +1026,51 @@ export function RoomPage() {
                                 disabled={nicknameDialogSaving}
                             >
                                 {nicknameDialogSaving ? "Saving..." : "Save"}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {timeoutDialogTarget && (
+                <div className={styles.nicknameDialogOverlay} onClick={() => setTimeoutDialogTarget(null)}>
+                    <div className={styles.nicknameDialog} onClick={e => e.stopPropagation()}>
+                        <h3>Set timeout for {timeoutDialogTarget.user.display_name}</h3>
+                        <div className={styles.timeoutDialogRow}>
+                            <input
+                                type="number"
+                                min={1}
+                                step={1}
+                                value={timeoutDialogAmount}
+                                onChange={e => setTimeoutDialogAmount(e.target.value)}
+                                autoFocus
+                            />
+                            <select value={timeoutDialogUnit} onChange={e => setTimeoutDialogUnit(e.target.value)}>
+                                <option value="seconds">seconds</option>
+                                <option value="hours">hours</option>
+                                <option value="weeks">weeks</option>
+                                <option value="years">years</option>
+                                <option value="decades">decades</option>
+                                <option value="centuries">centuries</option>
+                            </select>
+                        </div>
+                        {timeoutDialogError && <div className={styles.dialogError}>{timeoutDialogError}</div>}
+                        <div className={styles.nicknameDialogActions}>
+                            <Button
+                                variant="ghost"
+                                size="small"
+                                onClick={() => setTimeoutDialogTarget(null)}
+                                disabled={timeoutDialogSaving}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                variant="danger"
+                                size="small"
+                                onClick={handleSetTimeout}
+                                disabled={timeoutDialogSaving}
+                            >
+                                {timeoutDialogSaving ? "Saving..." : "Set timeout"}
                             </Button>
                         </div>
                     </div>

@@ -61,6 +61,9 @@ type (
 		Nickname        string       `json:"nickname"`
 		NicknameLocked  bool         `json:"nickname_locked"`
 		MemberAvatarURL string       `json:"member_avatar_url"`
+		TimeoutUntil    string       `json:"timeout_until,omitempty"`
+		TimeoutByStaff  bool         `json:"timeout_set_by_staff"`
+		Presence        string       `json:"presence,omitempty"`
 	}
 
 	ChatMessageResponse struct {
@@ -68,6 +71,7 @@ type (
 		RoomID    uuid.UUID                `json:"room_id"`
 		Sender    UserResponse             `json:"sender"`
 		Body      string                   `json:"body"`
+		IsSystem  bool                     `json:"is_system"`
 		CreatedAt string                   `json:"created_at"`
 		Media     []PostMediaResponse      `json:"media,omitempty"`
 		ReplyTo   *ChatMessageReplyPreview `json:"reply_to,omitempty"`
@@ -86,6 +90,11 @@ type (
 
 	UpdateMemberProfileRequest struct {
 		Nickname string `json:"nickname"`
+	}
+
+	SetMemberTimeoutRequest struct {
+		Amount int    `json:"amount"`
+		Unit   string `json:"unit"`
 	}
 
 	AddReactionRequest struct {

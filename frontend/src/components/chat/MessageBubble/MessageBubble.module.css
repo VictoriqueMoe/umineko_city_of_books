@@ -14,6 +14,36 @@
     flex-direction: row-reverse;
 }
 
+.systemMessage {
+    align-self: center;
+    max-width: 100%;
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+    padding: 0.15rem 0;
+}
+
+.systemMessageText {
+    display: inline-block;
+    color: var(--text-muted);
+    font-size: 0.76rem;
+    letter-spacing: 0.03em;
+    background: rgba(var(--purple-rgb), 0.08);
+    border: 1px solid rgba(var(--purple-rgb), 0.24);
+    border-radius: 999px;
+    padding: 0.2rem 0.75rem;
+}
+
+.systemMessageText a {
+    color: var(--gold);
+}
+
+.systemMessageTime {
+    color: var(--text-muted);
+    font-size: 0.66rem;
+    margin-top: 0.2rem;
+}
+
 .messageBubble:hover .actions {
     opacity: 1;
 }

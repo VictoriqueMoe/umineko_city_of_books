@@ -69,6 +69,28 @@ export interface ChatMemberUpdatedPayload {
     nickname: string;
     member_avatar_url: string;
     nickname_locked: boolean;
+    timeout_until: string;
+    timeout_set_by_staff: boolean;
+}
+
+export function applyLocalMemberChange(
+    member: ChatRoomMember,
+    setMembers: Dispatch<SetStateAction<ChatRoomMember[]>>,
+    setMessages: Dispatch<SetStateAction<ChatMessage[]>>,
+): void {
+    setMembers(prev => prev.map(m => (m.user.id === member.user.id ? member : m)));
+    setMessages(prev =>
+        prev.map(m => {
+            if (m.sender.id !== member.user.id) {
+                return m;
+            }
+            return {
+                ...m,
+                sender_nickname: member.nickname || undefined,
+                sender_member_avatar_url: member.member_avatar_url || undefined,
+            };
+        }),
+    );
 }
 
 export function applyChatMemberUpdate(
@@ -86,6 +108,8 @@ export function applyChatMemberUpdate(
                 nickname: payload.nickname,
                 member_avatar_url: payload.member_avatar_url,
                 nickname_locked: payload.nickname_locked,
+                timeout_until: payload.timeout_until || undefined,
+                timeout_set_by_staff: payload.timeout_set_by_staff,
             };
         }),
     );

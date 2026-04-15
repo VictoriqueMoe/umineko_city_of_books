@@ -33,6 +33,8 @@ func sampleProfileRequest() dto.UpdateProfileRequest {
 		Website:            "https://example.com",
 		DmsEnabled:         true,
 		EpisodeProgress:    4,
+		DOB:                "2000-04-15",
+		DOBPublic:          true,
 		Email:              "user@example.com",
 		EmailPublic:        true,
 		EmailNotifications: true,
@@ -281,6 +283,8 @@ func TestUserRepository_UpdateProfile(t *testing.T) {
 	assert.Equal(t, req.Website, got.Website)
 	assert.Equal(t, req.DmsEnabled, got.DmsEnabled)
 	assert.Equal(t, req.EpisodeProgress, got.EpisodeProgress)
+	assert.Equal(t, req.DOB, got.DOB)
+	assert.Equal(t, req.DOBPublic, got.DOBPublic)
 	assert.Equal(t, req.Email, got.Email)
 	assert.Equal(t, req.EmailPublic, got.EmailPublic)
 	assert.Equal(t, req.EmailNotifications, got.EmailNotifications)

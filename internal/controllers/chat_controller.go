@@ -25,6 +25,8 @@ func (s *Service) getAllChatRoutes() []FSetupRoute {
 		s.setupLeaveRoomRoute,
 		s.setupGetRoomMembersRoute,
 		s.setupKickMemberRoute,
+		s.setupSetMemberTimeoutRoute,
+		s.setupClearMemberTimeoutRoute,
 		s.setupSetRoomMuteRoute,
 		s.setupGetMessagesRoute,
 		s.setupSendMessageRoute,
@@ -169,6 +171,9 @@ func (s *Service) sendMessage(ctx fiber.Ctx) error {
 	if err != nil {
 		if errors.Is(err, chat.ErrUserBlocked) {
 			return utils.Forbidden(ctx, "you cannot message this user")
+		}
+		if errors.Is(err, chat.ErrTimedOut) {
+			return utils.Forbidden(ctx, err.Error())
 		}
 		if errors.Is(err, chat.ErrMissingFields) {
 			return utils.BadRequest(ctx, "message body is required")
@@ -476,6 +481,87 @@ func (s *Service) kickMember(ctx fiber.Ctx) error {
 		return utils.InternalError(ctx, "failed to kick member")
 	}
 	return utils.OK(ctx)
+}
+
+func (s *Service) setupSetMemberTimeoutRoute(r fiber.Router) {
+	r.Put("/chat/rooms/:roomID/members/:userID/timeout", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.setMemberTimeout)
+}
+
+func (s *Service) setMemberTimeout(ctx fiber.Ctx) error {
+	actorID := utils.UserID(ctx)
+	roomID, ok := utils.ParseIDParam(ctx, "roomID")
+	if !ok {
+		return nil
+	}
+	targetID, ok := utils.ParseIDParam(ctx, "userID")
+	if !ok {
+		return nil
+	}
+	req, ok := utils.BindJSON[dto.SetMemberTimeoutRequest](ctx)
+	if !ok {
+		return nil
+	}
+
+	member, err := s.ChatService.SetMemberTimeout(ctx.Context(), roomID, actorID, targetID, req)
+	if err != nil {
+		if errors.Is(err, chat.ErrNotHost) {
+			return utils.Forbidden(ctx, "only room hosts and site moderators can set timeouts")
+		}
+		if errors.Is(err, chat.ErrNotMember) {
+			return utils.NotFound(ctx, "user is not a member")
+		}
+		if errors.Is(err, chat.ErrCannotKickHost) {
+			return utils.BadRequest(ctx, "cannot timeout the host")
+		}
+		if errors.Is(err, chat.ErrTargetImmune) {
+			return utils.Forbidden(ctx, "moderators and admins cannot be timed out")
+		}
+		if errors.Is(err, chat.ErrInvalidTimeoutDuration) {
+			return utils.BadRequest(ctx, "invalid timeout duration")
+		}
+		if errors.Is(err, chat.ErrTimeoutLockedByStaff) {
+			return utils.Forbidden(ctx, "this timeout can only be changed by site moderators or admins")
+		}
+		if errors.Is(err, chat.ErrSystemRoom) {
+			return utils.Forbidden(ctx, "this room is managed automatically")
+		}
+		return utils.InternalError(ctx, "failed to set timeout")
+	}
+	return ctx.JSON(member)
+}
+
+func (s *Service) setupClearMemberTimeoutRoute(r fiber.Router) {
+	r.Delete("/chat/rooms/:roomID/members/:userID/timeout", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.clearMemberTimeout)
+}
+
+func (s *Service) clearMemberTimeout(ctx fiber.Ctx) error {
+	actorID := utils.UserID(ctx)
+	roomID, ok := utils.ParseIDParam(ctx, "roomID")
+	if !ok {
+		return nil
+	}
+	targetID, ok := utils.ParseIDParam(ctx, "userID")
+	if !ok {
+		return nil
+	}
+
+	member, err := s.ChatService.ClearMemberTimeout(ctx.Context(), roomID, actorID, targetID)
+	if err != nil {
+		if errors.Is(err, chat.ErrNotHost) {
+			return utils.Forbidden(ctx, "only room hosts and site moderators can clear timeouts")
+		}
+		if errors.Is(err, chat.ErrNotMember) {
+			return utils.NotFound(ctx, "user is not a member")
+		}
+		if errors.Is(err, chat.ErrTimeoutLockedByStaff) {
+			return utils.Forbidden(ctx, "this timeout can only be removed by site moderators or admins")
+		}
+		if errors.Is(err, chat.ErrSystemRoom) {
+			return utils.Forbidden(ctx, "this room is managed automatically")
+		}
+		return utils.InternalError(ctx, "failed to clear timeout")
+	}
+	return ctx.JSON(member)
 }
 
 func (s *Service) setupSetRoomNicknameRoute(r fiber.Router) {

@@ -73,12 +73,25 @@ export function TheoryForm({
                 <TextArea placeholder="State your theory..." value={body} onChange={e => setBody(e.target.value)} />
 
                 <Select value={episode} onChange={e => setEpisode(Number((e.target as HTMLSelectElement).value))}>
-                    <option value={0}>General (no specific episode)</option>
-                    {Array.from({ length: cfg.episodeCount }, (_, i) => i + 1).map(ep => (
-                        <option key={ep} value={ep}>
-                            Episode {ep}
-                        </option>
-                    ))}
+                    {cfg.arcs ? (
+                        <>
+                            <option value={0}>General (no specific arc)</option>
+                            {cfg.arcs.map((a, i) => (
+                                <option key={a.value} value={i + 1}>
+                                    {a.label}
+                                </option>
+                            ))}
+                        </>
+                    ) : (
+                        <>
+                            <option value={0}>General (no specific episode)</option>
+                            {Array.from({ length: cfg.episodeCount }, (_, i) => i + 1).map(ep => (
+                                <option key={ep} value={ep}>
+                                    Episode {ep}
+                                </option>
+                            ))}
+                        </>
+                    )}
                 </Select>
 
                 {ev.evidence.length > 0 && (

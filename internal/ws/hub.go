@@ -3,6 +3,7 @@ package ws
 import (
 	"encoding/json"
 	"sync"
+	"time"
 
 	"github.com/fasthttp/websocket"
 	"github.com/google/uuid"
@@ -17,21 +18,50 @@ type (
 	Client struct {
 		UserID uuid.UUID
 		Conn   *websocket.Conn
+		mu     sync.Mutex
+	}
+
+	viewerInfo struct {
+		tabs  int
+		state string
 	}
 
 	Hub struct {
 		clients map[uuid.UUID][]*Client
 		rooms   map[uuid.UUID]map[uuid.UUID]bool
-		viewers map[uuid.UUID]map[uuid.UUID]int
+		viewers map[uuid.UUID]map[uuid.UUID]*viewerInfo
 		mu      sync.RWMutex
 	}
 )
+
+const (
+	ViewerStateActive = "active"
+	ViewerStateIdle   = "idle"
+)
+
+func (c *Client) WriteMessage(messageType int, data []byte) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.Conn.WriteMessage(messageType, data)
+}
+
+func (c *Client) WriteControl(messageType int, data []byte, deadline time.Time) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.Conn.WriteControl(messageType, data, deadline)
+}
+
+func (c *Client) Close() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.Conn.Close()
+}
 
 func NewHub() *Hub {
 	return &Hub{
 		clients: make(map[uuid.UUID][]*Client),
 		rooms:   make(map[uuid.UUID]map[uuid.UUID]bool),
-		viewers: make(map[uuid.UUID]map[uuid.UUID]int),
+		viewers: make(map[uuid.UUID]map[uuid.UUID]*viewerInfo),
 	}
 }
 
@@ -39,9 +69,15 @@ func (h *Hub) AddViewer(roomID, userID uuid.UUID) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if h.viewers[roomID] == nil {
-		h.viewers[roomID] = make(map[uuid.UUID]int)
+		h.viewers[roomID] = make(map[uuid.UUID]*viewerInfo)
 	}
-	h.viewers[roomID][userID]++
+	info := h.viewers[roomID][userID]
+	if info == nil {
+		info = &viewerInfo{}
+		h.viewers[roomID][userID] = info
+	}
+	info.tabs++
+	info.state = ViewerStateActive
 }
 
 func (h *Hub) RemoveViewer(roomID, userID uuid.UUID) {
@@ -50,13 +86,37 @@ func (h *Hub) RemoveViewer(roomID, userID uuid.UUID) {
 	if h.viewers[roomID] == nil {
 		return
 	}
-	h.viewers[roomID][userID]--
-	if h.viewers[roomID][userID] <= 0 {
+	info := h.viewers[roomID][userID]
+	if info == nil {
+		return
+	}
+	info.tabs--
+	if info.tabs <= 0 {
 		delete(h.viewers[roomID], userID)
 	}
 	if len(h.viewers[roomID]) == 0 {
 		delete(h.viewers, roomID)
 	}
+}
+
+func (h *Hub) SetViewerState(roomID, userID uuid.UUID, state string) bool {
+	if state != ViewerStateActive && state != ViewerStateIdle {
+		return false
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.viewers[roomID] == nil {
+		return false
+	}
+	info := h.viewers[roomID][userID]
+	if info == nil || info.tabs <= 0 {
+		return false
+	}
+	if info.state == state {
+		return false
+	}
+	info.state = state
+	return true
 }
 
 func (h *Hub) IsUserViewing(roomID, userID uuid.UUID) bool {
@@ -65,7 +125,33 @@ func (h *Hub) IsUserViewing(roomID, userID uuid.UUID) bool {
 	if h.viewers[roomID] == nil {
 		return false
 	}
-	return h.viewers[roomID][userID] > 0
+	info := h.viewers[roomID][userID]
+	return info != nil && info.tabs > 0
+}
+
+func (h *Hub) GetViewerState(roomID, userID uuid.UUID) string {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	if h.viewers[roomID] == nil {
+		return ""
+	}
+	info := h.viewers[roomID][userID]
+	if info == nil || info.tabs <= 0 {
+		return ""
+	}
+	return info.state
+}
+
+func (h *Hub) GetRoomPresence(roomID uuid.UUID) map[uuid.UUID]string {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	out := make(map[uuid.UUID]string)
+	for uid, info := range h.viewers[roomID] {
+		if info != nil && info.tabs > 0 {
+			out[uid] = info.state
+		}
+	}
+	return out
 }
 
 func (h *Hub) Register(client *Client) {
@@ -74,10 +160,11 @@ func (h *Hub) Register(client *Client) {
 	h.clients[client.UserID] = append(h.clients[client.UserID], client)
 }
 
-func (h *Hub) Unregister(client *Client) {
+func (h *Hub) Unregister(client *Client) []uuid.UUID {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
+	var clearedRooms []uuid.UUID
 	conns := h.clients[client.UserID]
 	for i, c := range conns {
 		if c == client {
@@ -96,12 +183,16 @@ func (h *Hub) Unregister(client *Client) {
 		}
 
 		for roomID, viewers := range h.viewers {
-			delete(viewers, client.UserID)
+			if _, ok := viewers[client.UserID]; ok {
+				delete(viewers, client.UserID)
+				clearedRooms = append(clearedRooms, roomID)
+			}
 			if len(viewers) == 0 {
 				delete(h.viewers, roomID)
 			}
 		}
 	}
+	return clearedRooms
 }
 
 func (h *Hub) SendToUser(userID uuid.UUID, msg Message) {
@@ -120,7 +211,7 @@ func (h *Hub) SendToUser(userID uuid.UUID, msg Message) {
 
 	var dead []*Client
 	for _, client := range conns {
-		if err := client.Conn.WriteMessage(websocket.TextMessage, data); err != nil {
+		if err := client.WriteMessage(websocket.TextMessage, data); err != nil {
 			dead = append(dead, client)
 		}
 	}
@@ -148,7 +239,7 @@ func (h *Hub) Broadcast(msg Message) {
 	}
 
 	for _, client := range allConns {
-		client.Conn.WriteMessage(websocket.TextMessage, data)
+		_ = client.WriteMessage(websocket.TextMessage, data)
 	}
 }
 
@@ -211,7 +302,7 @@ func (h *Hub) BroadcastToRoom(roomID uuid.UUID, msg Message, excludeUserID uuid.
 		h.mu.RUnlock()
 
 		for _, client := range conns {
-			client.Conn.WriteMessage(websocket.TextMessage, data)
+			_ = client.WriteMessage(websocket.TextMessage, data)
 		}
 	}
 }

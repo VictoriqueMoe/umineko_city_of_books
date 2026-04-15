@@ -7,6 +7,8 @@ import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
 import { Modal } from "../../components/Modal/Modal";
 import { ChatComposer } from "../../components/chat/ChatComposer/ChatComposer";
+import { TypingIndicator } from "../../components/chat/TypingIndicator/TypingIndicator";
+import { useTypingIndicator } from "../../hooks/useTypingIndicator";
 import { MessageBubble } from "../../components/chat/MessageBubble/MessageBubble";
 import { Lightbox } from "../../components/Lightbox/Lightbox";
 import { isSiteStaff } from "../../utils/permissions";
@@ -124,6 +126,7 @@ export function ChatPage() {
     const [dmError, setDmError] = useState("");
     const [dmCreating, setDmCreating] = useState(false);
     const [draftRecipient, setDraftRecipient] = useState<User | null>(null);
+    const { typingUserIds, noteTyping, clearUser: clearTypingUser, reset: resetTyping } = useTypingIndicator();
     const [mobileView, setMobileView] = useState<"list" | "room">(urlRoomId ? "room" : "list");
     const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
     const {
@@ -229,11 +232,21 @@ export function ChatPage() {
                 }
                 return;
             }
+            if (msg.type === "typing") {
+                const data = msg.data as { room_id: string; user_id: string };
+                if (data.room_id === activeRoomIdRef.current) {
+                    noteTyping(data.user_id);
+                }
+                return;
+            }
             if (msg.type !== "chat_message") {
                 return;
             }
             const chatMsg = msg.data as ChatMessage;
 
+            if (chatMsg.room_id === activeRoomIdRef.current) {
+                clearTypingUser(chatMsg.sender.id);
+            }
             handleIncomingChatMessage(chatMsg, activeRoomIdRef.current, setMessages, scrollToBottom);
 
             setRooms(prev => {
@@ -262,7 +275,11 @@ export function ChatPage() {
                 return next;
             });
         });
-    }, [user, addWSListener, scrollToBottom, setMessages]);
+    }, [user, addWSListener, scrollToBottom, setMessages, noteTyping, clearTypingUser]);
+
+    useEffect(() => {
+        resetTyping();
+    }, [activeRoomId, resetTyping]);
 
     useEffect(() => {
         if (!activeRoomId) {
@@ -564,7 +581,26 @@ export function ChatPage() {
                                 })}
                                 <div ref={messagesEndRef} />
                             </div>
-                            <ChatComposer roomId={activeRoomId} draftRecipientId={null} onSent={handleSentMessage} />
+                            <TypingIndicator
+                                names={typingUserIds
+                                    .filter(id => id !== user.id)
+                                    .map(id => {
+                                        const m = activeRoom.members.find(mem => mem.id === id);
+                                        if (!m) {
+                                            return "Someone";
+                                        }
+                                        if (m.display_name && m.display_name.trim() !== "") {
+                                            return m.display_name;
+                                        }
+                                        return m.username;
+                                    })}
+                            />
+                            <ChatComposer
+                                roomId={activeRoomId}
+                                draftRecipientId={null}
+                                onSent={handleSentMessage}
+                                onTyping={() => sendWSMessage({ type: "typing", data: { room_id: activeRoomId } })}
+                            />
                         </>
                     )}
                 </div>

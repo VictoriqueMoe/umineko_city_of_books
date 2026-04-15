@@ -73,6 +73,30 @@
     background: rgba(var(--purple-rgb), 0.1);
 }
 
+.presenceDot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    cursor: help;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+
+.presenceActive {
+    background: #3ecf5a;
+    box-shadow: 0 0 6px rgba(62, 207, 90, 0.6);
+}
+
+.presenceIdle {
+    background: #e8c14a;
+    box-shadow: 0 0 6px rgba(232, 193, 74, 0.5);
+}
+
+.presenceAway {
+    background: #c94040;
+    box-shadow: 0 0 6px rgba(201, 64, 64, 0.4);
+}
+
 .hostBadge {
     background: rgba(var(--gold-rgb), 0.18);
     border: 1px solid rgba(var(--gold-rgb), 0.4);
@@ -82,6 +106,16 @@
     font-size: 0.6rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
+}
+
+.timeoutBadge {
+    background: rgba(255, 102, 102, 0.15);
+    border: 1px solid rgba(255, 102, 102, 0.4);
+    color: #ff9d9d;
+    padding: 0.05rem 0.4rem;
+    border-radius: 999px;
+    font-size: 0.6rem;
+    letter-spacing: 0.03em;
 }
 
 .kickBtn {
@@ -225,6 +259,26 @@
     color: var(--text);
     padding: 0.55rem 0.7rem;
     font-size: 0.95rem;
+}
+
+.timeoutDialogRow {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.6rem;
+}
+
+.timeoutDialogRow select {
+    background: var(--bg-void);
+    border: 1px solid rgba(var(--purple-rgb), 0.4);
+    border-radius: 6px;
+    color: var(--text);
+    padding: 0.55rem 0.7rem;
+    font-size: 0.95rem;
+}
+
+.timeoutDialogRow select:focus {
+    outline: none;
+    border-color: var(--gold);
 }
 
 .nicknameDialog input:focus {

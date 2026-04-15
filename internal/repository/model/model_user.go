@@ -33,8 +33,11 @@ type (
 		BannerPosition         float64
 		DmsEnabled             bool
 		EpisodeProgress        int
+		HigurashiArcProgress   int
 		Email                  string
 		EmailPublic            bool
+		DOB                    string
+		DOBPublic              bool
 		EmailNotifications     bool
 		HomePage               string
 		GameBoardSort          string
@@ -76,8 +79,13 @@ func (u *User) ToProfileResponse(stats *UserStats, isSelf bool) *dto.UserProfile
 	theme := ""
 	font := ""
 	wideLayout := false
+	dob := ""
+	dobPublic := u.DOBPublic
 	if u.EmailPublic || isSelf {
 		email = u.Email
+	}
+	if u.DOBPublic || isSelf {
+		dob = u.DOB
 	}
 	if isSelf {
 		emailNotifications = u.EmailNotifications
@@ -88,31 +96,34 @@ func (u *User) ToProfileResponse(stats *UserStats, isSelf bool) *dto.UserProfile
 		wideLayout = u.WideLayout
 	}
 	return &dto.UserProfileResponse{
-		UserResponse:       *u.ToResponse(),
-		EpisodeProgress:    u.EpisodeProgress,
-		Bio:                u.Bio,
-		BannerURL:          u.BannerURL,
-		BannerPosition:     u.BannerPosition,
-		FavouriteCharacter: u.FavouriteCharacter,
-		Gender:             u.Gender,
-		PronounSubject:     u.PronounSubject,
-		PronounPossessive:  u.PronounPossessive,
-		SocialTwitter:      u.SocialTwitter,
-		SocialDiscord:      u.SocialDiscord,
-		SocialWaifulist:    u.SocialWaifulist,
-		SocialTumblr:       u.SocialTumblr,
-		SocialGithub:       u.SocialGithub,
-		Website:            u.Website,
-		DmsEnabled:         u.DmsEnabled,
-		Email:              email,
-		EmailPublic:        emailPublic,
-		EmailNotifications: emailNotifications,
-		HomePage:           homePage,
-		GameBoardSort:      gameBoardSort,
-		Theme:              theme,
-		Font:               font,
-		WideLayout:         wideLayout,
-		CreatedAt:          u.CreatedAt,
+		UserResponse:         *u.ToResponse(),
+		EpisodeProgress:      u.EpisodeProgress,
+		HigurashiArcProgress: u.HigurashiArcProgress,
+		Bio:                  u.Bio,
+		BannerURL:            u.BannerURL,
+		BannerPosition:       u.BannerPosition,
+		FavouriteCharacter:   u.FavouriteCharacter,
+		Gender:               u.Gender,
+		PronounSubject:       u.PronounSubject,
+		PronounPossessive:    u.PronounPossessive,
+		SocialTwitter:        u.SocialTwitter,
+		SocialDiscord:        u.SocialDiscord,
+		SocialWaifulist:      u.SocialWaifulist,
+		SocialTumblr:         u.SocialTumblr,
+		SocialGithub:         u.SocialGithub,
+		Website:              u.Website,
+		DmsEnabled:           u.DmsEnabled,
+		DOB:                  dob,
+		DOBPublic:            dobPublic,
+		Email:                email,
+		EmailPublic:          emailPublic,
+		EmailNotifications:   emailNotifications,
+		HomePage:             homePage,
+		GameBoardSort:        gameBoardSort,
+		Theme:                theme,
+		Font:                 font,
+		WideLayout:           wideLayout,
+		CreatedAt:            u.CreatedAt,
 		Stats: dto.UserStatsDTO{
 			TheoryCount:   stats.TheoryCount,
 			ResponseCount: stats.ResponseCount,

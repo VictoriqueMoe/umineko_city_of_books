@@ -2,6 +2,53 @@
     position: relative;
 }
 
+.editArea {
+    position: relative;
+}
+
+.colourBar {
+    display: flex;
+    gap: 0.35rem;
+    margin-bottom: 0.4rem;
+}
+
+.colourBtn {
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--gold-rgb), 0.2);
+    border-radius: 4px;
+    padding: 0.25rem 0.4rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.15s;
+}
+
+.colourBtn:hover {
+    border-color: var(--gold);
+}
+
+.colourSwatch {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
+}
+
+.backdrop :global(.tag-bracket) {
+    color: var(--text-muted);
+    opacity: 0.55;
+    font-size: 0.85em;
+}
+
+.backdrop :global(.red-truth),
+.backdrop :global(.blue-truth),
+.backdrop :global(.gold-truth),
+.backdrop :global(.purple-truth) {
+    font-weight: 700;
+}
+
 .backdrop {
     position: absolute;
     top: 0;

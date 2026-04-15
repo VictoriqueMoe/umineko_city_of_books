@@ -681,6 +681,153 @@ func TestKickMember_ServiceErrors(t *testing.T) {
 	}
 }
 
+func TestSetMemberTimeout_AuthFailures(t *testing.T) {
+	testutil.RunAuthFailureSuite(t, chatFactory, "PUT",
+		"/chat/rooms/"+uuid.NewString()+"/members/"+uuid.NewString()+"/timeout",
+		dto.SetMemberTimeoutRequest{Amount: 1, Unit: "hours"})
+}
+
+func TestSetMemberTimeout_OK(t *testing.T) {
+	// given
+	h, chatMock := newChatHarness(t)
+	actorID := uuid.New()
+	roomID := uuid.New()
+	targetID := uuid.New()
+	h.ExpectValidSession("valid-cookie", actorID)
+	req := dto.SetMemberTimeoutRequest{Amount: 1, Unit: "hours"}
+	chatMock.EXPECT().SetMemberTimeout(mock.Anything, roomID, actorID, targetID, req).Return(&dto.ChatRoomMemberResponse{}, nil)
+
+	// when
+	status, _ := h.NewRequest("PUT", "/chat/rooms/"+roomID.String()+"/members/"+targetID.String()+"/timeout").
+		WithCookie("valid-cookie").
+		WithJSONBody(req).Do()
+
+	// then
+	require.Equal(t, http.StatusOK, status)
+}
+
+func TestSetMemberTimeout_InvalidRoomID(t *testing.T) {
+	// given
+	h, _ := newChatHarness(t)
+	h.ExpectValidSession("valid-cookie", uuid.New())
+
+	// when
+	status, body := h.NewRequest("PUT", "/chat/rooms/not-a-uuid/members/"+uuid.NewString()+"/timeout").
+		WithCookie("valid-cookie").
+		WithJSONBody(dto.SetMemberTimeoutRequest{Amount: 1, Unit: "hours"}).Do()
+
+	// then
+	require.Equal(t, http.StatusBadRequest, status)
+	assert.Contains(t, string(body), "invalid roomID")
+}
+
+func TestSetMemberTimeout_ServiceErrors(t *testing.T) {
+	cases := []struct {
+		name     string
+		err      error
+		wantCode int
+		wantBody string
+	}{
+		{"not host", chatsvc.ErrNotHost, http.StatusForbidden, "only room hosts and site moderators"},
+		{"not member", chatsvc.ErrNotMember, http.StatusNotFound, "user is not a member"},
+		{"cannot timeout host", chatsvc.ErrCannotKickHost, http.StatusBadRequest, "cannot timeout the host"},
+		{"target immune", chatsvc.ErrTargetImmune, http.StatusForbidden, "cannot be timed out"},
+		{"invalid duration", chatsvc.ErrInvalidTimeoutDuration, http.StatusBadRequest, "invalid timeout duration"},
+		{"locked by staff", chatsvc.ErrTimeoutLockedByStaff, http.StatusForbidden, "can only be changed by site moderators"},
+		{"internal", errors.New("boom"), http.StatusInternalServerError, "failed to set timeout"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h, chatMock := newChatHarness(t)
+			actorID := uuid.New()
+			roomID := uuid.New()
+			targetID := uuid.New()
+			h.ExpectValidSession("valid-cookie", actorID)
+			req := dto.SetMemberTimeoutRequest{Amount: 1, Unit: "hours"}
+			chatMock.EXPECT().SetMemberTimeout(mock.Anything, roomID, actorID, targetID, req).Return(nil, tc.err)
+
+			// when
+			status, body := h.NewRequest("PUT", "/chat/rooms/"+roomID.String()+"/members/"+targetID.String()+"/timeout").
+				WithCookie("valid-cookie").
+				WithJSONBody(req).Do()
+
+			// then
+			require.Equal(t, tc.wantCode, status)
+			assert.Contains(t, string(body), tc.wantBody)
+		})
+	}
+}
+
+func TestClearMemberTimeout_AuthFailures(t *testing.T) {
+	testutil.RunAuthFailureSuite(t, chatFactory, "DELETE",
+		"/chat/rooms/"+uuid.NewString()+"/members/"+uuid.NewString()+"/timeout", nil)
+}
+
+func TestClearMemberTimeout_OK(t *testing.T) {
+	// given
+	h, chatMock := newChatHarness(t)
+	actorID := uuid.New()
+	roomID := uuid.New()
+	targetID := uuid.New()
+	h.ExpectValidSession("valid-cookie", actorID)
+	chatMock.EXPECT().ClearMemberTimeout(mock.Anything, roomID, actorID, targetID).Return(&dto.ChatRoomMemberResponse{}, nil)
+
+	// when
+	status, _ := h.NewRequest("DELETE", "/chat/rooms/"+roomID.String()+"/members/"+targetID.String()+"/timeout").
+		WithCookie("valid-cookie").Do()
+
+	// then
+	require.Equal(t, http.StatusOK, status)
+}
+
+func TestClearMemberTimeout_InvalidUserID(t *testing.T) {
+	// given
+	h, _ := newChatHarness(t)
+	h.ExpectValidSession("valid-cookie", uuid.New())
+
+	// when
+	status, body := h.NewRequest("DELETE", "/chat/rooms/"+uuid.NewString()+"/members/not-a-uuid/timeout").
+		WithCookie("valid-cookie").Do()
+
+	// then
+	require.Equal(t, http.StatusBadRequest, status)
+	assert.Contains(t, string(body), "invalid userID")
+}
+
+func TestClearMemberTimeout_ServiceErrors(t *testing.T) {
+	cases := []struct {
+		name     string
+		err      error
+		wantCode int
+		wantBody string
+	}{
+		{"not host", chatsvc.ErrNotHost, http.StatusForbidden, "only room hosts and site moderators"},
+		{"not member", chatsvc.ErrNotMember, http.StatusNotFound, "user is not a member"},
+		{"locked by staff", chatsvc.ErrTimeoutLockedByStaff, http.StatusForbidden, "can only be removed by site moderators"},
+		{"internal", errors.New("boom"), http.StatusInternalServerError, "failed to clear timeout"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h, chatMock := newChatHarness(t)
+			actorID := uuid.New()
+			roomID := uuid.New()
+			targetID := uuid.New()
+			h.ExpectValidSession("valid-cookie", actorID)
+			chatMock.EXPECT().ClearMemberTimeout(mock.Anything, roomID, actorID, targetID).Return(nil, tc.err)
+
+			// when
+			status, body := h.NewRequest("DELETE", "/chat/rooms/"+roomID.String()+"/members/"+targetID.String()+"/timeout").
+				WithCookie("valid-cookie").Do()
+
+			// then
+			require.Equal(t, tc.wantCode, status)
+			assert.Contains(t, string(body), tc.wantBody)
+		})
+	}
+}
+
 func TestSetRoomMute_AuthFailures(t *testing.T) {
 	testutil.RunAuthFailureSuite(t, chatFactory, "PUT", "/chat/rooms/"+uuid.NewString()+"/mute",
 		map[string]bool{"muted": true})
@@ -927,6 +1074,7 @@ func TestSendMessage_ServiceErrors(t *testing.T) {
 		wantBody string
 	}{
 		{"blocked", chatsvc.ErrUserBlocked, http.StatusForbidden, "cannot message"},
+		{"timed out", chatsvc.ErrTimedOut, http.StatusForbidden, chatsvc.ErrTimedOut.Error()},
 		{"missing fields", chatsvc.ErrMissingFields, http.StatusBadRequest, "message body is required"},
 		{"not member", chatsvc.ErrNotMember, http.StatusForbidden, "not a member"},
 		{"internal", errors.New("boom"), http.StatusInternalServerError, "failed to send message"},

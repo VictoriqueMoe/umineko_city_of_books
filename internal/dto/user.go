@@ -18,32 +18,35 @@ type (
 
 	UserProfileResponse struct {
 		UserResponse
-		Bio                string       `json:"bio"`
-		EpisodeProgress    int          `json:"episode_progress"`
-		BannerURL          string       `json:"banner_url"`
-		BannerPosition     float64      `json:"banner_position"`
-		FavouriteCharacter string       `json:"favourite_character"`
-		Gender             string       `json:"gender"`
-		PronounSubject     string       `json:"pronoun_subject"`
-		PronounPossessive  string       `json:"pronoun_possessive"`
-		Online             bool         `json:"online"`
-		SocialTwitter      string       `json:"social_twitter"`
-		SocialDiscord      string       `json:"social_discord"`
-		SocialWaifulist    string       `json:"social_waifulist"`
-		SocialTumblr       string       `json:"social_tumblr"`
-		SocialGithub       string       `json:"social_github"`
-		Website            string       `json:"website"`
-		DmsEnabled         bool         `json:"dms_enabled"`
-		Email              string       `json:"email,omitempty"`
-		EmailPublic        bool         `json:"email_public"`
-		EmailNotifications bool         `json:"email_notifications"`
-		HomePage           string       `json:"home_page"`
-		GameBoardSort      string       `json:"game_board_sort"`
-		Theme              string       `json:"theme"`
-		Font               string       `json:"font"`
-		WideLayout         bool         `json:"wide_layout"`
-		CreatedAt          string       `json:"created_at"`
-		Stats              UserStatsDTO `json:"stats"`
+		Bio                  string       `json:"bio"`
+		EpisodeProgress      int          `json:"episode_progress"`
+		HigurashiArcProgress int          `json:"higurashi_arc_progress"`
+		BannerURL            string       `json:"banner_url"`
+		BannerPosition       float64      `json:"banner_position"`
+		FavouriteCharacter   string       `json:"favourite_character"`
+		Gender               string       `json:"gender"`
+		PronounSubject       string       `json:"pronoun_subject"`
+		PronounPossessive    string       `json:"pronoun_possessive"`
+		Online               bool         `json:"online"`
+		SocialTwitter        string       `json:"social_twitter"`
+		SocialDiscord        string       `json:"social_discord"`
+		SocialWaifulist      string       `json:"social_waifulist"`
+		SocialTumblr         string       `json:"social_tumblr"`
+		SocialGithub         string       `json:"social_github"`
+		Website              string       `json:"website"`
+		DmsEnabled           bool         `json:"dms_enabled"`
+		DOB                  string       `json:"dob,omitempty"`
+		DOBPublic            bool         `json:"dob_public"`
+		Email                string       `json:"email,omitempty"`
+		EmailPublic          bool         `json:"email_public"`
+		EmailNotifications   bool         `json:"email_notifications"`
+		HomePage             string       `json:"home_page"`
+		GameBoardSort        string       `json:"game_board_sort"`
+		Theme                string       `json:"theme"`
+		Font                 string       `json:"font"`
+		WideLayout           bool         `json:"wide_layout"`
+		CreatedAt            string       `json:"created_at"`
+		Stats                UserStatsDTO `json:"stats"`
 	}
 
 	UserStatsDTO struct {
@@ -56,28 +59,31 @@ type (
 	}
 
 	UpdateProfileRequest struct {
-		DisplayName        string  `json:"display_name"`
-		Bio                string  `json:"bio"`
-		AvatarURL          string  `json:"avatar_url"`
-		BannerURL          string  `json:"banner_url"`
-		BannerPosition     float64 `json:"banner_position"`
-		FavouriteCharacter string  `json:"favourite_character"`
-		Gender             string  `json:"gender"`
-		PronounSubject     string  `json:"pronoun_subject"`
-		PronounPossessive  string  `json:"pronoun_possessive"`
-		SocialTwitter      string  `json:"social_twitter"`
-		SocialDiscord      string  `json:"social_discord"`
-		SocialWaifulist    string  `json:"social_waifulist"`
-		SocialTumblr       string  `json:"social_tumblr"`
-		SocialGithub       string  `json:"social_github"`
-		Website            string  `json:"website"`
-		DmsEnabled         bool    `json:"dms_enabled"`
-		EpisodeProgress    int     `json:"episode_progress"`
-		Email              string  `json:"email"`
-		EmailPublic        bool    `json:"email_public"`
-		EmailNotifications bool    `json:"email_notifications"`
-		HomePage           string  `json:"home_page"`
-		GameBoardSort      string  `json:"game_board_sort"`
+		DisplayName          string  `json:"display_name"`
+		Bio                  string  `json:"bio"`
+		AvatarURL            string  `json:"avatar_url"`
+		BannerURL            string  `json:"banner_url"`
+		BannerPosition       float64 `json:"banner_position"`
+		FavouriteCharacter   string  `json:"favourite_character"`
+		Gender               string  `json:"gender"`
+		PronounSubject       string  `json:"pronoun_subject"`
+		PronounPossessive    string  `json:"pronoun_possessive"`
+		SocialTwitter        string  `json:"social_twitter"`
+		SocialDiscord        string  `json:"social_discord"`
+		SocialWaifulist      string  `json:"social_waifulist"`
+		SocialTumblr         string  `json:"social_tumblr"`
+		SocialGithub         string  `json:"social_github"`
+		Website              string  `json:"website"`
+		DmsEnabled           bool    `json:"dms_enabled"`
+		EpisodeProgress      int     `json:"episode_progress"`
+		HigurashiArcProgress int     `json:"higurashi_arc_progress"`
+		DOB                  string  `json:"dob"`
+		DOBPublic            bool    `json:"dob_public"`
+		Email                string  `json:"email"`
+		EmailPublic          bool    `json:"email_public"`
+		EmailNotifications   bool    `json:"email_notifications"`
+		HomePage             string  `json:"home_page"`
+		GameBoardSort        string  `json:"game_board_sort"`
 	}
 
 	ChangePasswordRequest struct {

@@ -566,6 +566,22 @@ export async function unlockChatRoomMemberNickname(roomId: string, userId: strin
     return apiDelete<ChatRoomMember>(`/chat/rooms/${roomId}/members/${userId}/nickname`);
 }
 
+export async function setChatRoomMemberTimeout(
+    roomId: string,
+    userId: string,
+    amount: number,
+    unit: string,
+): Promise<ChatRoomMember> {
+    return apiPut<ChatRoomMember, { amount: number; unit: string }>(`/chat/rooms/${roomId}/members/${userId}/timeout`, {
+        amount,
+        unit,
+    });
+}
+
+export async function clearChatRoomMemberTimeout(roomId: string, userId: string): Promise<ChatRoomMember> {
+    return apiDelete<ChatRoomMember>(`/chat/rooms/${roomId}/members/${userId}/timeout`);
+}
+
 export async function uploadChatRoomAvatar(roomId: string, file: File): Promise<ChatRoomMember> {
     const formData = new FormData();
     formData.append("avatar", file);

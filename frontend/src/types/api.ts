@@ -146,6 +146,9 @@ export interface UserProfile {
     website: string;
     dms_enabled: boolean;
     episode_progress: number;
+    higurashi_arc_progress: number;
+    dob?: string;
+    dob_public?: boolean;
     email?: string;
     email_public?: boolean;
     email_notifications?: boolean;
@@ -185,6 +188,9 @@ export interface UpdateProfilePayload {
     website: string;
     dms_enabled: boolean;
     episode_progress: number;
+    higurashi_arc_progress: number;
+    dob: string;
+    dob_public: boolean;
     email: string;
     email_public: boolean;
     email_notifications: boolean;
@@ -624,6 +630,9 @@ export interface ChatRoomMember {
     nickname: string;
     member_avatar_url: string;
     nickname_locked: boolean;
+    timeout_until?: string;
+    timeout_set_by_staff?: boolean;
+    presence?: "active" | "idle" | "";
 }
 
 export interface ChatMessageReplyPreview {
@@ -645,6 +654,7 @@ export interface ChatMessage {
     room_id: string;
     sender: User;
     body: string;
+    is_system: boolean;
     created_at: string;
     media?: PostMedia[];
     reply_to?: ChatMessageReplyPreview;

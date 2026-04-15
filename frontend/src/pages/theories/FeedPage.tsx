@@ -97,12 +97,25 @@ export function FeedPage({ series = "umineko" }: { series?: Series }) {
                 </div>
 
                 <Select value={episode} onChange={e => setEpisode(Number((e.target as HTMLSelectElement).value))}>
-                    <option value={0}>All Episodes</option>
-                    {Array.from({ length: cfg.episodeCount }, (_, i) => i + 1).map(ep => (
-                        <option key={ep} value={ep}>
-                            Episode {ep}
-                        </option>
-                    ))}
+                    {cfg.arcs ? (
+                        <>
+                            <option value={0}>All Arcs</option>
+                            {cfg.arcs.map((a, i) => (
+                                <option key={a.value} value={i + 1}>
+                                    {a.label}
+                                </option>
+                            ))}
+                        </>
+                    ) : (
+                        <>
+                            <option value={0}>All Episodes</option>
+                            {Array.from({ length: cfg.episodeCount }, (_, i) => i + 1).map(ep => (
+                                <option key={ep} value={ep}>
+                                    Episode {ep}
+                                </option>
+                            ))}
+                        </>
+                    )}
                 </Select>
             </div>
 

@@ -78,6 +78,7 @@ export function JournalForm({
                     onChange={setBody}
                     rows={8}
                     placeholder="Introduce your read-through. What are you reading, what are you hoping for? You can post updates as comments below once you've created the journal."
+                    showColours
                 />
             </div>
 
