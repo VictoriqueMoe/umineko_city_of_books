@@ -113,6 +113,15 @@ func timeoutDurationLabel(amount int, unit string) string {
 	return fmt.Sprintf("%d %s", amount, suffix)
 }
 
+var maxTimeoutUntil = time.Date(9999, 12, 31, 23, 59, 59, 0, time.UTC)
+
+func capTimeout(t time.Time) time.Time {
+	if t.After(maxTimeoutUntil) {
+		return maxTimeoutUntil
+	}
+	return t
+}
+
 func computeTimeoutUntil(now time.Time, amount int, unit string) (time.Time, string, error) {
 	if amount <= 0 {
 		return time.Time{}, "", ErrInvalidTimeoutDuration
@@ -125,16 +134,16 @@ func computeTimeoutUntil(now time.Time, amount int, unit string) (time.Time, str
 
 	switch normalized {
 	case "second", "seconds":
-		return now.Add(time.Duration(amount) * time.Second), timeoutDurationLabel(amount, normalized), nil
+		return capTimeout(now.Add(time.Duration(amount) * time.Second)), timeoutDurationLabel(amount, normalized), nil
 	case "hour", "hours":
-		return now.Add(time.Duration(amount) * time.Hour), timeoutDurationLabel(amount, normalized), nil
+		return capTimeout(now.Add(time.Duration(amount) * time.Hour)), timeoutDurationLabel(amount, normalized), nil
 	case "week", "weeks":
-		return now.Add(time.Duration(amount) * 7 * 24 * time.Hour), timeoutDurationLabel(amount, normalized), nil
+		return capTimeout(now.Add(time.Duration(amount) * 7 * 24 * time.Hour)), timeoutDurationLabel(amount, normalized), nil
 	}
 
 	years, ok := timeoutUnitYears[normalized]
 	if ok {
-		return now.AddDate(amount*years, 0, 0), timeoutDurationLabel(amount, normalized), nil
+		return capTimeout(now.AddDate(amount*years, 0, 0)), timeoutDurationLabel(amount, normalized), nil
 	}
 
 	return time.Time{}, "", ErrInvalidTimeoutDuration
@@ -1054,34 +1063,27 @@ func (s *service) postRoomActionMessage(ctx context.Context, roomID, actorID uui
 }
 
 func (s *service) messageRowToResponse(row repository.ChatMessageRow, media []dto.PostMediaResponse, reactions []repository.ReactionGroup, vanityRoles []dto.VanityRoleResponse) dto.ChatMessageResponse {
-	displayName := row.SenderDisplayName
-	if row.SenderNickname != "" {
-		displayName = row.SenderNickname
-	}
-	avatarURL := row.SenderAvatarURL
-	if row.SenderMemberAvatar != "" {
-		avatarURL = row.SenderMemberAvatar
-	}
-
 	resp := dto.ChatMessageResponse{
 		ID:     row.ID,
 		RoomID: row.RoomID,
 		Sender: dto.UserResponse{
 			ID:          row.SenderID,
 			Username:    row.SenderUsername,
-			DisplayName: displayName,
-			AvatarURL:   avatarURL,
+			DisplayName: row.SenderDisplayName,
+			AvatarURL:   row.SenderAvatarURL,
 			Role:        row.SenderRoleTyped,
 			VanityRoles: vanityRoles,
 		},
-		Body:      row.Body,
-		IsSystem:  row.IsSystem,
-		CreatedAt: row.CreatedAt,
-		Media:     media,
-		Pinned:    row.PinnedAt != nil,
-		PinnedAt:  row.PinnedAt,
-		PinnedBy:  row.PinnedBy,
-		Reactions: toDTOReactions(reactions),
+		SenderNickname:        row.SenderNickname,
+		SenderMemberAvatarURL: row.SenderMemberAvatar,
+		Body:                  row.Body,
+		IsSystem:              row.IsSystem,
+		CreatedAt:             row.CreatedAt,
+		Media:                 media,
+		Pinned:                row.PinnedAt != nil,
+		PinnedAt:              row.PinnedAt,
+		PinnedBy:              row.PinnedBy,
+		Reactions:             toDTOReactions(reactions),
 	}
 	if row.ReplyToID != nil && row.ReplyToSenderID != nil && row.ReplyToSenderName != nil && row.ReplyToBody != nil {
 		preview := *row.ReplyToBody

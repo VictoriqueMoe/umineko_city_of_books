@@ -67,18 +67,20 @@ type (
 	}
 
 	ChatMessageResponse struct {
-		ID        uuid.UUID                `json:"id"`
-		RoomID    uuid.UUID                `json:"room_id"`
-		Sender    UserResponse             `json:"sender"`
-		Body      string                   `json:"body"`
-		IsSystem  bool                     `json:"is_system"`
-		CreatedAt string                   `json:"created_at"`
-		Media     []PostMediaResponse      `json:"media,omitempty"`
-		ReplyTo   *ChatMessageReplyPreview `json:"reply_to,omitempty"`
-		Pinned    bool                     `json:"pinned"`
-		PinnedAt  *string                  `json:"pinned_at,omitempty"`
-		PinnedBy  *uuid.UUID               `json:"pinned_by,omitempty"`
-		Reactions []ReactionGroup          `json:"reactions"`
+		ID                    uuid.UUID                `json:"id"`
+		RoomID                uuid.UUID                `json:"room_id"`
+		Sender                UserResponse             `json:"sender"`
+		SenderNickname        string                   `json:"sender_nickname,omitempty"`
+		SenderMemberAvatarURL string                   `json:"sender_member_avatar_url,omitempty"`
+		Body                  string                   `json:"body"`
+		IsSystem              bool                     `json:"is_system"`
+		CreatedAt             string                   `json:"created_at"`
+		Media                 []PostMediaResponse      `json:"media,omitempty"`
+		ReplyTo               *ChatMessageReplyPreview `json:"reply_to,omitempty"`
+		Pinned                bool                     `json:"pinned"`
+		PinnedAt              *string                  `json:"pinned_at,omitempty"`
+		PinnedBy              *uuid.UUID               `json:"pinned_by,omitempty"`
+		Reactions             []ReactionGroup          `json:"reactions"`
 	}
 
 	ReactionGroup struct {

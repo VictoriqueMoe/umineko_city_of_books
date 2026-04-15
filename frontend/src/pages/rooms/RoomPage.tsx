@@ -739,10 +739,11 @@ export function RoomPage() {
                                     {m.role === "host" && <span className={styles.hostBadge}>Host</span>}
                                     {timeoutIsActive && (
                                         <span
-                                            className={styles.timeoutBadge}
+                                            className={styles.timeoutIcon}
                                             title={`Timed out until ${formatTimeoutUntil(m.timeout_until)}`}
+                                            aria-label={`Timed out until ${formatTimeoutUntil(m.timeout_until)}`}
                                         >
-                                            Timed out
+                                            {"\u23F1"}
                                         </span>
                                     )}
                                     {isSelf && (

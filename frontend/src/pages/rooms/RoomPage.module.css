@@ -12,8 +12,8 @@
 }
 
 .sidebar {
-    width: 240px;
-    min-width: 240px;
+    width: 300px;
+    min-width: 300px;
     border-right: 1px solid rgba(var(--purple-rgb), 0.3);
     background: var(--bg-card);
     display: flex;
@@ -116,6 +116,14 @@
     border-radius: 999px;
     font-size: 0.6rem;
     letter-spacing: 0.03em;
+}
+
+.timeoutIcon {
+    color: #ff7070;
+    font-size: 0.95rem;
+    line-height: 1;
+    cursor: help;
+    flex-shrink: 0;
 }
 
 .kickBtn {
