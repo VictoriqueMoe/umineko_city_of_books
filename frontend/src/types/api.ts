@@ -146,6 +146,8 @@ export interface UserProfile {
     website: string;
     dms_enabled: boolean;
     episode_progress: number;
+    dob?: string;
+    dob_public?: boolean;
     email?: string;
     email_public?: boolean;
     email_notifications?: boolean;
@@ -185,6 +187,8 @@ export interface UpdateProfilePayload {
     website: string;
     dms_enabled: boolean;
     episode_progress: number;
+    dob: string;
+    dob_public: boolean;
     email: string;
     email_public: boolean;
     email_notifications: boolean;

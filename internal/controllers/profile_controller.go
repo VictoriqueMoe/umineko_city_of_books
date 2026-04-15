@@ -94,6 +94,9 @@ func (s *Service) updateProfile(ctx fiber.Ctx) error {
 	}
 
 	if err := s.ProfileService.UpdateProfile(ctx.Context(), userID, req); err != nil {
+		if errors.Is(err, profile.ErrInvalidDOB) || errors.Is(err, profile.ErrFutureDOB) {
+			return utils.BadRequest(ctx, err.Error())
+		}
 		return utils.InternalError(ctx, "failed to update profile")
 	}
 

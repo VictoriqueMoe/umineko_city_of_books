@@ -178,6 +178,25 @@ func TestUpdateProfile_ServiceError(t *testing.T) {
 	assert.Contains(t, string(body), "failed to update profile")
 }
 
+func TestUpdateProfile_InvalidDOB(t *testing.T) {
+	// given
+	h, deps := newProfileHarness(t)
+	userID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	req := dto.UpdateProfileRequest{DisplayName: "Beato", DOB: "15-04-2000"}
+	deps.profileSvc.EXPECT().UpdateProfile(mock.Anything, userID, req).Return(profile.ErrInvalidDOB)
+
+	// when
+	status, body := h.NewRequest("PUT", "/auth/profile").
+		WithCookie("valid-cookie").
+		WithJSONBody(req).
+		Do()
+
+	// then
+	require.Equal(t, http.StatusBadRequest, status)
+	assert.Contains(t, string(body), profile.ErrInvalidDOB.Error())
+}
+
 func TestUploadAvatar_AuthFailures(t *testing.T) {
 	testutil.RunAuthFailureSuite(t, newProfileHarness, "POST", "/auth/avatar", nil)
 }

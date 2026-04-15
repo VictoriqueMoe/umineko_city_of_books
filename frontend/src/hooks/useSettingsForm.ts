@@ -60,6 +60,8 @@ export function useSettingsForm() {
     const [website, setWebsite] = useState("");
     const [dmsEnabled, setDmsEnabled] = useState(true);
     const [episodeProgress, setEpisodeProgress] = useState(0);
+    const [dob, setDob] = useState("");
+    const [dobPublic, setDobPublic] = useState(false);
     const [email, setEmail] = useState("");
     const [emailPublic, setEmailPublic] = useState(false);
     const [emailNotifications, setEmailNotifications] = useState(false);
@@ -95,6 +97,8 @@ export function useSettingsForm() {
             setWebsite(profile.website);
             setDmsEnabled(profile.dms_enabled ?? true);
             setEpisodeProgress(profile.episode_progress ?? 0);
+            setDob(profile.dob ?? "");
+            setDobPublic(profile.dob_public ?? false);
             setEmail(profile.email ?? "");
             setEmailPublic(profile.email_public ?? false);
             setEmailNotifications(profile.email_notifications ?? false);
@@ -211,6 +215,8 @@ export function useSettingsForm() {
             website,
             dms_enabled: dmsEnabled,
             episode_progress: episodeProgress,
+            dob,
+            dob_public: dobPublic,
             email,
             email_public: emailPublic,
             email_notifications: emailNotifications,
@@ -280,6 +286,10 @@ export function useSettingsForm() {
         setDmsEnabled,
         episodeProgress,
         setEpisodeProgress,
+        dob,
+        setDob,
+        dobPublic,
+        setDobPublic,
         email,
         setEmail,
         emailPublic,

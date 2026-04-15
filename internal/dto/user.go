@@ -34,6 +34,8 @@ type (
 		SocialGithub       string       `json:"social_github"`
 		Website            string       `json:"website"`
 		DmsEnabled         bool         `json:"dms_enabled"`
+		DOB                string       `json:"dob,omitempty"`
+		DOBPublic          bool         `json:"dob_public"`
 		Email              string       `json:"email,omitempty"`
 		EmailPublic        bool         `json:"email_public"`
 		EmailNotifications bool         `json:"email_notifications"`
@@ -73,6 +75,8 @@ type (
 		Website            string  `json:"website"`
 		DmsEnabled         bool    `json:"dms_enabled"`
 		EpisodeProgress    int     `json:"episode_progress"`
+		DOB                string  `json:"dob"`
+		DOBPublic          bool    `json:"dob_public"`
 		Email              string  `json:"email"`
 		EmailPublic        bool    `json:"email_public"`
 		EmailNotifications bool    `json:"email_notifications"`

@@ -220,6 +220,15 @@ export function SettingsPage() {
                                     ))}
                                 </Select>
                             </label>
+                            <label className={styles.label}>
+                                Date of Birth
+                                <Input
+                                    type="date"
+                                    fullWidth
+                                    value={form.dob}
+                                    onChange={e => form.setDob(e.target.value)}
+                                />
+                            </label>
                         </div>
                         <div>
                             <label className={styles.label}>
@@ -287,6 +296,12 @@ export function SettingsPage() {
                             onChange={form.setDmsEnabled}
                             label="Direct Messages"
                             description="Allow other users to send you direct messages"
+                        />
+                        <ToggleSwitch
+                            enabled={form.dobPublic}
+                            onChange={form.setDobPublic}
+                            label="Public Date of Birth"
+                            description="Show your date of birth on your public profile"
                         />
                         <label className={styles.label}>
                             Bio

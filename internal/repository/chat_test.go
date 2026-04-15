@@ -2,6 +2,7 @@ package repository_test
 
 import (
 	"context"
+	"sort"
 	"testing"
 
 	"umineko_city_of_books/internal/repository"
@@ -1342,6 +1343,81 @@ func TestChatRepository_GetMessagesBefore_FiltersOld(t *testing.T) {
 	// then
 	require.NoError(t, err)
 	assert.Empty(t, msgs)
+}
+
+func TestChatRepository_GetMessagesBefore_RFC3339CursorUsesDatetimeComparison(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	ctx := context.Background()
+	user := repotest.CreateUser(t, repos)
+	roomID := uuid.New()
+	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "R", "", "group", false, false, user.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
+
+	olderID := uuid.New()
+	newerID := uuid.New()
+	require.NoError(t, repos.Chat.InsertMessage(ctx, olderID, roomID, user.ID, "older", nil))
+	require.NoError(t, repos.Chat.InsertMessage(ctx, newerID, roomID, user.ID, "newer", nil))
+
+	_, err := repos.DB().ExecContext(ctx,
+		`UPDATE chat_messages SET created_at = ? WHERE id = ?`,
+		"2024-01-01 00:30:00", olderID,
+	)
+	require.NoError(t, err)
+	_, err = repos.DB().ExecContext(ctx,
+		`UPDATE chat_messages SET created_at = ? WHERE id = ?`,
+		"2024-01-01 02:00:00", newerID,
+	)
+	require.NoError(t, err)
+
+	// when
+	msgs, err := repos.Chat.GetMessagesBefore(ctx, roomID, "2024-01-01T01:00:00Z", 20)
+
+	// then
+	require.NoError(t, err)
+	require.Len(t, msgs, 1)
+	assert.Equal(t, olderID, msgs[0].ID)
+}
+
+func TestChatRepository_GetMessagesBefore_CursorWithIDPaginatesSameSecondMessages(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	ctx := context.Background()
+	user := repotest.CreateUser(t, repos)
+	roomID := uuid.New()
+	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "R", "", "group", false, false, user.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
+
+	ids := []uuid.UUID{uuid.New(), uuid.New(), uuid.New()}
+	for i := 0; i < len(ids); i++ {
+		require.NoError(t, repos.Chat.InsertMessage(ctx, ids[i], roomID, user.ID, "m", nil))
+		_, err := repos.DB().ExecContext(ctx,
+			`UPDATE chat_messages SET created_at = ? WHERE id = ?`,
+			"2024-01-01 00:00:00", ids[i],
+		)
+		require.NoError(t, err)
+	}
+
+	sorted := make([]string, 0, len(ids))
+	for i := 0; i < len(ids); i++ {
+		sorted = append(sorted, ids[i].String())
+	}
+	sort.Strings(sorted)
+	expectedOldestID := sorted[0]
+
+	// when
+	firstPage, total, err := repos.Chat.GetMessages(ctx, roomID, 2, 0)
+	require.NoError(t, err)
+	require.Equal(t, 3, total)
+	require.Len(t, firstPage, 2)
+
+	cursor := firstPage[0].CreatedAt + "|" + firstPage[0].ID.String()
+	secondPage, err := repos.Chat.GetMessagesBefore(ctx, roomID, cursor, 2)
+
+	// then
+	require.NoError(t, err)
+	require.Len(t, secondPage, 1)
+	assert.Equal(t, expectedOldestID, secondPage[0].ID.String())
 }
 
 func TestChatRepository_GetMessageByID_NotFound(t *testing.T) {

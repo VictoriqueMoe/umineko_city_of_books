@@ -35,6 +35,8 @@ type (
 		EpisodeProgress        int
 		Email                  string
 		EmailPublic            bool
+		DOB                    string
+		DOBPublic              bool
 		EmailNotifications     bool
 		HomePage               string
 		GameBoardSort          string
@@ -76,8 +78,13 @@ func (u *User) ToProfileResponse(stats *UserStats, isSelf bool) *dto.UserProfile
 	theme := ""
 	font := ""
 	wideLayout := false
+	dob := ""
+	dobPublic := u.DOBPublic
 	if u.EmailPublic || isSelf {
 		email = u.Email
+	}
+	if u.DOBPublic || isSelf {
+		dob = u.DOB
 	}
 	if isSelf {
 		emailNotifications = u.EmailNotifications
@@ -104,6 +111,8 @@ func (u *User) ToProfileResponse(stats *UserStats, isSelf bool) *dto.UserProfile
 		SocialGithub:       u.SocialGithub,
 		Website:            u.Website,
 		DmsEnabled:         u.DmsEnabled,
+		DOB:                dob,
+		DOBPublic:          dobPublic,
 		Email:              email,
 		EmailPublic:        emailPublic,
 		EmailNotifications: emailNotifications,

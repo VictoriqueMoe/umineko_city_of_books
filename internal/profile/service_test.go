@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/config"
@@ -64,6 +65,8 @@ func TestGetProfile_SelfViewIncludesPrivate(t *testing.T) {
 	user := &model.User{
 		ID:                 userID,
 		Username:           "alice",
+		DOB:                "2000-04-15",
+		DOBPublic:          false,
 		Email:              "a@x.com",
 		EmailNotifications: true,
 		HomePage:           "home",
@@ -76,9 +79,32 @@ func TestGetProfile_SelfViewIncludesPrivate(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
+	assert.Equal(t, "2000-04-15", got.DOB)
+	assert.False(t, got.DOBPublic)
 	assert.Equal(t, "a@x.com", got.Email)
 	assert.True(t, got.EmailNotifications)
 	assert.Equal(t, "home", got.HomePage)
+}
+
+func TestGetProfile_NonSelfHidesPrivateDOB(t *testing.T) {
+	// given
+	svc, userRepo, _, _, _, _ := newTestService(t)
+	user := &model.User{
+		ID:        uuid.New(),
+		Username:  "alice",
+		DOB:       "2000-04-15",
+		DOBPublic: false,
+	}
+	stats := &model.UserStats{}
+	userRepo.EXPECT().GetProfileByUsername(mock.Anything, "alice").Return(user, stats, nil)
+
+	// when
+	got, err := svc.GetProfile(context.Background(), "alice", uuid.New())
+
+	// then
+	require.NoError(t, err)
+	assert.Empty(t, got.DOB)
+	assert.False(t, got.DOBPublic)
 }
 
 func TestGetProfile_NotFound(t *testing.T) {
@@ -118,6 +144,35 @@ func TestUpdateProfile_OK(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
+}
+
+func TestUpdateProfile_InvalidDOBFormat(t *testing.T) {
+	// given
+	svc, userRepo, _, _, _, _ := newTestService(t)
+	userID := uuid.New()
+	req := dto.UpdateProfileRequest{DisplayName: "New Name", DOB: "15-04-2000"}
+
+	// when
+	err := svc.UpdateProfile(context.Background(), userID, req)
+
+	// then
+	require.ErrorIs(t, err, ErrInvalidDOB)
+	userRepo.AssertNotCalled(t, "UpdateProfile", mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestUpdateProfile_FutureDOB(t *testing.T) {
+	// given
+	svc, userRepo, _, _, _, _ := newTestService(t)
+	userID := uuid.New()
+	future := time.Now().UTC().AddDate(1, 0, 0).Format("2006-01-02")
+	req := dto.UpdateProfileRequest{DisplayName: "New Name", DOB: future}
+
+	// when
+	err := svc.UpdateProfile(context.Background(), userID, req)
+
+	// then
+	require.ErrorIs(t, err, ErrFutureDOB)
+	userRepo.AssertNotCalled(t, "UpdateProfile", mock.Anything, mock.Anything, mock.Anything)
 }
 
 func TestUpdateProfile_RepoError(t *testing.T) {

@@ -831,9 +831,9 @@ func (r *chatRepository) GetMessages(ctx context.Context, roomID uuid.UUID, limi
 			 LEFT JOIN users pu ON parent.sender_id = pu.id
 			 LEFT JOIN chat_room_members mem ON mem.room_id = cm.room_id AND mem.user_id = cm.sender_id
 			 WHERE cm.room_id = ?
-			 ORDER BY cm.created_at DESC
+			 ORDER BY datetime(cm.created_at) DESC, cm.id DESC
 			 LIMIT ?
-		) sub ORDER BY sub.created_at ASC`,
+		) sub ORDER BY datetime(sub.created_at) ASC, sub.id ASC`,
 		roomID, limit,
 	)
 	if err != nil {
@@ -881,6 +881,19 @@ func scanMessageRow(rows *sql.Rows) (ChatMessageRow, error) {
 }
 
 func (r *chatRepository) GetMessagesBefore(ctx context.Context, roomID uuid.UUID, before string, limit int) ([]ChatMessageRow, error) {
+	beforeTS := before
+	beforeID := ""
+	parts := strings.SplitN(before, "|", 2)
+	if len(parts) > 0 {
+		beforeTS = strings.TrimSpace(parts[0])
+	}
+	if len(parts) == 2 {
+		candidate := strings.TrimSpace(parts[1])
+		if _, err := uuid.Parse(candidate); err == nil {
+			beforeID = candidate
+		}
+	}
+
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT * FROM (
 			SELECT cm.id, cm.room_id, cm.sender_id, u.username, u.display_name, u.avatar_url,
@@ -895,11 +908,13 @@ func (r *chatRepository) GetMessagesBefore(ctx context.Context, roomID uuid.UUID
 			 LEFT JOIN chat_messages parent ON cm.reply_to_id = parent.id
 			 LEFT JOIN users pu ON parent.sender_id = pu.id
 			 LEFT JOIN chat_room_members mem ON mem.room_id = cm.room_id AND mem.user_id = cm.sender_id
-			 WHERE cm.room_id = ? AND cm.created_at < ?
-			 ORDER BY cm.created_at DESC
+			 WHERE cm.room_id = ? AND (
+				datetime(cm.created_at) < datetime(?) OR (? != '' AND datetime(cm.created_at) = datetime(?) AND cm.id < ?)
+			 )
+			 ORDER BY datetime(cm.created_at) DESC, cm.id DESC
 			 LIMIT ?
-		) sub ORDER BY sub.created_at ASC`,
-		roomID, before, limit,
+		) sub ORDER BY datetime(sub.created_at) ASC, sub.id ASC`,
+		roomID, beforeTS, beforeID, beforeTS, beforeID, limit,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("get messages before: %w", err)

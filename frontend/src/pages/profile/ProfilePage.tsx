@@ -43,7 +43,52 @@ const SOCIAL_LABELS: Record<string, string> = {
 
 function formatDate(iso: string): string {
     const d = new Date(iso);
-    return d.toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" });
+    return d.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+}
+
+function formatDOBWithAge(value: string): string {
+    const parts = value.split("-");
+    if (parts.length !== 3) {
+        return value;
+    }
+
+    const year = Number(parts[0]);
+    const month = Number(parts[1]);
+    const day = Number(parts[2]);
+
+    if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
+        return value;
+    }
+
+    const parsed = new Date(Date.UTC(year, month - 1, day));
+    if (Number.isNaN(parsed.getTime())) {
+        return value;
+    }
+
+    const now = new Date();
+    let age = now.getUTCFullYear() - year;
+    if (now.getUTCMonth() + 1 < month || (now.getUTCMonth() + 1 === month && now.getUTCDate() < day)) {
+        age -= 1;
+    }
+
+    const ageLabel = age === 1 ? "year old" : "years old";
+    if (age < 0) {
+        return parsed.toLocaleDateString(undefined, {
+            year: "numeric",
+            month: "long",
+            day: "2-digit",
+            timeZone: "UTC",
+        });
+    }
+
+    const formatted = parsed.toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "long",
+        day: "2-digit",
+        timeZone: "UTC",
+    });
+
+    return `${formatted} (${age} ${ageLabel})`;
 }
 
 function socialUrl(key: string, value: string): string {
@@ -462,6 +507,7 @@ export function ProfilePage() {
                                 {profile.pronoun_subject}/{profile.pronoun_possessive}
                             </span>
                         )}
+                        {profile.dob && <span className={styles.metaItem}>Born {formatDOBWithAge(profile.dob)}</span>}
                         <span className={styles.metaItem}>Joined {formatDate(profile.created_at)}</span>
                         {profile.email && (
                             <a href={`mailto:${profile.email}`} className={styles.metaItem}>

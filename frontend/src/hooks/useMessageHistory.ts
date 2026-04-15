@@ -8,6 +8,7 @@ export function useMessageHistory(roomId: string | undefined) {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [hasMore, setHasMore] = useState(false);
     const [loadingMore, setLoadingMore] = useState(false);
+    const loadingMoreRef = useRef(false);
     const containerRef = useRef<HTMLDivElement>(null);
     const endRef = useRef<HTMLDivElement>(null);
     const suppressScrollToBottom = useRef(false);
@@ -30,11 +31,15 @@ export function useMessageHistory(roomId: string | undefined) {
         if (!roomId) {
             setMessages([]);
             setHasMore(false);
+            setLoadingMore(false);
+            loadingMoreRef.current = false;
             return;
         }
         let cancelled = false;
         setMessages([]);
         setHasMore(false);
+        setLoadingMore(false);
+        loadingMoreRef.current = false;
         suppressScrollToBottom.current = false;
 
         getRoomMessages(roomId, PAGE_SIZE)
@@ -58,27 +63,37 @@ export function useMessageHistory(roomId: string | undefined) {
     }, [roomId]);
 
     const loadOlder = useCallback(async () => {
-        if (!roomId || loadingMore || !hasMore) {
+        if (!roomId || loadingMoreRef.current || !hasMore) {
             return;
         }
         const current = messages;
         if (current.length === 0) {
             return;
         }
-        const oldest = current[0].created_at;
+        const oldest = current[0];
+        const beforeCursor = `${oldest.created_at}|${oldest.id}`;
+        loadingMoreRef.current = true;
         setLoadingMore(true);
         suppressScrollToBottom.current = true;
         try {
             const container = containerRef.current;
             const prevScrollHeight = container ? container.scrollHeight : 0;
-            const res = await getRoomMessagesBefore(roomId, oldest, PAGE_SIZE);
+            const res = await getRoomMessagesBefore(roomId, beforeCursor, PAGE_SIZE);
             if (res.messages.length === 0) {
                 setHasMore(false);
             } else {
-                if (res.messages.length < PAGE_SIZE) {
-                    setHasMore(false);
-                }
-                setMessages(prev => [...res.messages, ...prev]);
+                setMessages(prev => {
+                    const existing = new Set(prev.map(message => message.id));
+                    const olderUnique: ChatMessage[] = [];
+                    for (let i = 0; i < res.messages.length; i++) {
+                        const message = res.messages[i];
+                        if (!existing.has(message.id)) {
+                            olderUnique.push(message);
+                            existing.add(message.id);
+                        }
+                    }
+                    return [...olderUnique, ...prev];
+                });
                 if (container) {
                     requestAnimationFrame(() => {
                         container.scrollTop = container.scrollHeight - prevScrollHeight;
@@ -86,14 +101,14 @@ export function useMessageHistory(roomId: string | undefined) {
                 }
             }
         } catch {
-            setHasMore(false);
         } finally {
+            loadingMoreRef.current = false;
             setLoadingMore(false);
             setTimeout(() => {
                 suppressScrollToBottom.current = false;
             }, 200);
         }
-    }, [roomId, loadingMore, hasMore, messages]);
+    }, [roomId, hasMore, messages]);
 
     const handleScroll = useCallback(() => {
         const container = containerRef.current;
