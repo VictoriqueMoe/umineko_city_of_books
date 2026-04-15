@@ -766,6 +766,7 @@ func (s *service) GetMembers(ctx context.Context, viewerID, roomID uuid.UUID) ([
 		userIDs[i] = rows[i].UserID
 	}
 	vanityMap, _ := s.vanityRoleRepo.GetRolesForUsersBatch(ctx, userIDs)
+	presence := s.hub.GetRoomPresence(roomID)
 
 	members := make([]dto.ChatRoomMemberResponse, 0, len(rows))
 	for i := range rows {
@@ -787,6 +788,7 @@ func (s *service) GetMembers(ctx context.Context, viewerID, roomID uuid.UUID) ([
 			MemberAvatarURL: m.MemberAvatarURL,
 			TimeoutUntil:    m.TimeoutUntil,
 			TimeoutByStaff:  m.TimeoutByStaff,
+			Presence:        presence[m.UserID],
 		})
 	}
 	return members, nil
@@ -996,18 +998,27 @@ func nullStr(ns sql.NullString) string {
 }
 
 func (s *service) actionDisplayName(ctx context.Context, userID uuid.UUID, fallback string) string {
-	u, err := s.userRepo.GetByID(ctx, userID)
-	if err != nil {
-		return fallback
-	}
-	if u == nil {
-		return fallback
-	}
-	name := strings.TrimSpace(u.DisplayName)
+	name, _ := s.nameAndPossessive(ctx, userID)
 	if name == "" {
 		return fallback
 	}
 	return name
+}
+
+func (s *service) nameAndPossessive(ctx context.Context, userID uuid.UUID) (string, string) {
+	u, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil || u == nil {
+		return "", "their"
+	}
+	name := strings.TrimSpace(u.DisplayName)
+	if name == "" {
+		name = strings.TrimSpace(u.Username)
+	}
+	possessive := strings.TrimSpace(u.PronounPossessive)
+	if possessive == "" {
+		possessive = "their"
+	}
+	return name, possessive
 }
 
 func (s *service) postRoomActionMessage(ctx context.Context, roomID, actorID uuid.UUID, body string) {
@@ -1652,6 +1663,15 @@ func (s *service) SetRoomNickname(ctx context.Context, roomID, userID uuid.UUID,
 		return nil, fmt.Errorf("set member nickname: %w", err)
 	}
 
+	name, possessive := s.nameAndPossessive(ctx, userID)
+	if name != "" {
+		if nickname == "" {
+			s.postRoomActionMessage(ctx, roomID, userID, fmt.Sprintf("%s cleared %s alias.", name, possessive))
+		} else {
+			s.postRoomActionMessage(ctx, roomID, userID, fmt.Sprintf("%s changed %s alias to %s.", name, possessive, nickname))
+		}
+	}
+
 	return s.broadcastAndBuildMember(ctx, roomID, userID)
 }
 
@@ -1739,6 +1759,12 @@ func (s *service) SetMemberNicknameAsMod(ctx context.Context, roomID, actorID, t
 		return nil, fmt.Errorf("set member nickname as mod: %w", err)
 	}
 
+	targetName, targetPoss := s.nameAndPossessive(ctx, targetID)
+	actorName, _ := s.nameAndPossessive(ctx, actorID)
+	if targetName != "" && actorName != "" {
+		s.postRoomActionMessage(ctx, roomID, actorID, fmt.Sprintf("%s has had %s alias locked by %s.", targetName, targetPoss, actorName))
+	}
+
 	return s.broadcastAndBuildMember(ctx, roomID, targetID)
 }
 
@@ -1753,6 +1779,12 @@ func (s *service) UnlockMemberNickname(ctx context.Context, roomID, actorID, tar
 
 	if err := s.chatRepo.SetMemberNicknameWithLock(ctx, roomID, targetID, "", false); err != nil {
 		return nil, fmt.Errorf("unlock nickname: %w", err)
+	}
+
+	targetName, targetPoss := s.nameAndPossessive(ctx, targetID)
+	actorName, _ := s.nameAndPossessive(ctx, actorID)
+	if targetName != "" && actorName != "" {
+		s.postRoomActionMessage(ctx, roomID, actorID, fmt.Sprintf("%s has had %s alias reset by %s.", targetName, targetPoss, actorName))
 	}
 
 	return s.broadcastAndBuildMember(ctx, roomID, targetID)

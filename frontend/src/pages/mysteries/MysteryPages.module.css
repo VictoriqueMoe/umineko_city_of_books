@@ -487,8 +487,14 @@
     margin-bottom: 0.5rem;
     border-radius: 0 4px 4px 0;
     color: #ef9a9a;
-    font-style: italic;
     position: relative;
+}
+
+:global([data-theme="virgilia"]) .clue {
+    background: rgba(179, 0, 27, 0.08);
+    border-left-color: #b3001b;
+    color: #8b0016;
+    font-weight: 700;
 }
 
 .clueCopy {
@@ -549,6 +555,12 @@
     background: rgba(156, 39, 176, 0.08);
     border-left-color: #ab47bc;
     color: #ce93d8;
+}
+
+:global([data-theme="virgilia"]) .cluePurple {
+    background: rgba(106, 43, 209, 0.08);
+    border-left-color: #6a2bd1;
+    color: #4c1da0;
 }
 
 .spoilerGate {

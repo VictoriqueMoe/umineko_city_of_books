@@ -25,6 +25,9 @@ import {
     unpinChatMessage,
 } from "../../api/endpoints";
 import { useMessageHistory } from "../../hooks/useMessageHistory";
+import { usePresenceReporter } from "../../hooks/usePresenceReporter";
+import { useTypingIndicator } from "../../hooks/useTypingIndicator";
+import { TypingIndicator } from "../../components/chat/TypingIndicator/TypingIndicator";
 import { Button } from "../../components/Button/Button";
 import { ChatComposer, type ReplyTarget } from "../../components/chat/ChatComposer/ChatComposer";
 import { EditRoomProfileDialog } from "../../components/chat/EditRoomProfileDialog/EditRoomProfileDialog";
@@ -37,6 +40,7 @@ import {
     applyChatMessageDeleted,
     applyChatMessagePinned,
     applyChatMessageUnpinned,
+    applyLocalMemberChange,
     applyReactionAdded,
     applyReactionRemoved,
     ChatMemberUpdatedPayload,
@@ -66,6 +70,14 @@ export function RoomPage() {
     const [mobileView, setMobileView] = useState<"members" | "chat">("chat");
     const [replyingTo, setReplyingTo] = useState<ReplyTarget | null>(null);
     const [highlightedMsgId, setHighlightedMsgId] = useState<string | null>(null);
+    const [presenceMap, setPresenceMap] = useState<Record<string, "active" | "idle">>({});
+    usePresenceReporter({ roomId, sendWSMessage });
+    const { typingUserIds, noteTyping, clearUser: clearTypingUser, reset: resetTyping } = useTypingIndicator();
+
+    useEffect(() => {
+        setPresenceMap({});
+        resetTyping();
+    }, [roomId, resetTyping]);
     const [descExpanded, setDescExpanded] = useState(false);
     const [pinnedOpen, setPinnedOpen] = useState(false);
     const [pinnedRefreshKey, setPinnedRefreshKey] = useState(0);
@@ -92,6 +104,7 @@ export function RoomPage() {
         scrollToBottom,
         handleScroll: handleMessagesScroll,
         addMessage,
+        loadUntilMessage,
     } = useMessageHistory(room ? roomId : undefined);
 
     const targetMsgId = location.hash.startsWith("#msg-") ? location.hash.slice(5) : null;
@@ -166,7 +179,17 @@ export function RoomPage() {
         }
         try {
             const res = await getChatRoomMembers(roomId);
-            setMembers(res.members ?? []);
+            const list = res.members ?? [];
+            setMembers(list);
+            setPresenceMap(prev => {
+                const next = { ...prev };
+                for (const m of list) {
+                    if (m.presence === "active" || m.presence === "idle") {
+                        next[m.user.id] = m.presence;
+                    }
+                }
+                return next;
+            });
         } catch {
             setMembers([]);
         }
@@ -317,8 +340,38 @@ export function RoomPage() {
                 applyChatMessageDeleted(data, setMessages);
                 return;
             }
+            if (msg.type === "chat_presence_changed") {
+                const data = msg.data as { room_id: string; user_id: string; state: string };
+                if (data.room_id !== roomIdRef.current) {
+                    return;
+                }
+                setPresenceMap(prev => {
+                    const next = { ...prev };
+                    if (data.state === "active" || data.state === "idle") {
+                        next[data.user_id] = data.state;
+                    } else {
+                        delete next[data.user_id];
+                    }
+                    return next;
+                });
+                return;
+            }
+            if (msg.type === "typing") {
+                const data = msg.data as { room_id: string; user_id: string };
+                if (data.room_id !== roomIdRef.current) {
+                    return;
+                }
+                noteTyping(data.user_id);
+                return;
+            }
+            if (msg.type === "chat_message") {
+                const chatMsg = msg.data as ChatMessage;
+                if (chatMsg.room_id === roomIdRef.current) {
+                    clearTypingUser(chatMsg.sender.id);
+                }
+            }
         });
-    }, [user, addWSListener, scrollToBottom, setMessages, navigate, loadMembers]);
+    }, [user, addWSListener, scrollToBottom, setMessages, navigate, loadMembers, noteTyping, clearTypingUser]);
 
     function handleSentMessage(message: ChatMessage) {
         addMessage(message);
@@ -378,7 +431,7 @@ export function RoomPage() {
                 nicknameDialogTarget.user.id,
                 nicknameDialogValue.trim(),
             );
-            setMembers(prev => prev.map(m => (m.user.id === updated.user.id ? updated : m)));
+            applyLocalMemberChange(updated, setMembers, setMessages);
             setNicknameDialogTarget(null);
         } catch (err) {
             setNicknameDialogError(err instanceof Error ? err.message : "Failed to set nickname");
@@ -395,7 +448,7 @@ export function RoomPage() {
         setOpenMemberMenu(null);
         try {
             const updated = await unlockChatRoomMemberNickname(roomId, targetId);
-            setMembers(prev => prev.map(m => (m.user.id === updated.user.id ? updated : m)));
+            applyLocalMemberChange(updated, setMembers, setMessages);
         } catch (err) {
             setToast(err instanceof Error ? err.message : "Failed to unlock nickname");
         } finally {
@@ -546,16 +599,26 @@ export function RoomPage() {
         }
     }
 
-    function handleJumpToMessage(messageId: string) {
-        if (!messages.some(m => m.id === messageId)) {
-            setToast("Message not in loaded history; scroll up to find it.");
+    async function handleJumpToMessage(messageId: string) {
+        const scrollToEl = (smooth: boolean) => {
+            const el = document.getElementById(`chat-msg-${messageId}`);
+            if (el) {
+                el.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "center" });
+                setHighlightedMsgId(messageId);
+            }
+        };
+        if (messages.some(m => m.id === messageId)) {
+            scrollToEl(true);
             return;
         }
-        const el = document.getElementById(`chat-msg-${messageId}`);
-        if (el) {
-            el.scrollIntoView({ behavior: "smooth", block: "center" });
-            setHighlightedMsgId(messageId);
+        const found = await loadUntilMessage(messageId);
+        if (!found) {
+            setToast("Couldn't locate that message.");
+            return;
         }
+        requestAnimationFrame(() => scrollToEl(false));
+        setTimeout(() => scrollToEl(false), 300);
+        setTimeout(() => scrollToEl(true), 600);
     }
 
     if (!user) {
@@ -615,7 +678,12 @@ export function RoomPage() {
                         {members.map(m => {
                             const effectiveUser: User = {
                                 ...m.user,
-                                display_name: m.nickname && m.nickname.trim() !== "" ? m.nickname : m.user.display_name,
+                                display_name:
+                                    m.nickname && m.nickname.trim() !== ""
+                                        ? m.nickname
+                                        : m.user.display_name && m.user.display_name.trim() !== ""
+                                          ? m.user.display_name
+                                          : m.user.username,
                                 avatar_url:
                                     m.member_avatar_url && m.member_avatar_url.trim() !== ""
                                         ? m.member_avatar_url
@@ -647,8 +715,26 @@ export function RoomPage() {
                             const canActOnMember =
                                 canKickTarget || canEditTargetNickname || canTimeoutTarget || canClearTimeoutTarget;
                             const menuOpen = openMemberMenu === m.user.id;
+                            const presence = presenceMap[m.user.id];
+                            const presenceClass =
+                                presence === "active"
+                                    ? styles.presenceActive
+                                    : presence === "idle"
+                                      ? styles.presenceIdle
+                                      : styles.presenceAway;
+                            const presenceTitle =
+                                presence === "active"
+                                    ? "Active in this room"
+                                    : presence === "idle"
+                                      ? "Idle or tab in background"
+                                      : "Not currently viewing";
                             return (
                                 <div key={m.user.id} className={styles.memberRow}>
+                                    <span
+                                        className={`${styles.presenceDot} ${presenceClass}`}
+                                        title={presenceTitle}
+                                        aria-label={presenceTitle}
+                                    />
                                     <ProfileLink user={effectiveUser} size="small" />
                                     {m.role === "host" && <span className={styles.hostBadge}>Host</span>}
                                     {timeoutIsActive && (
@@ -852,6 +938,23 @@ export function RoomPage() {
                         ))}
                         <div ref={messagesEndRef} />
                     </div>
+                    <TypingIndicator
+                        names={typingUserIds
+                            .filter(id => id !== user.id)
+                            .map(id => {
+                                const m = members.find(mem => mem.user.id === id);
+                                if (!m) {
+                                    return "Someone";
+                                }
+                                if (m.nickname && m.nickname.trim() !== "") {
+                                    return m.nickname;
+                                }
+                                if (m.user.display_name && m.user.display_name.trim() !== "") {
+                                    return m.user.display_name;
+                                }
+                                return m.user.username;
+                            })}
+                    />
                     <ChatComposer
                         roomId={room.id}
                         draftRecipientId={null}
@@ -859,6 +962,7 @@ export function RoomPage() {
                         mentionPool={members.map(m => m.user)}
                         replyingTo={replyingTo}
                         onCancelReply={() => setReplyingTo(null)}
+                        onTyping={() => sendWSMessage({ type: "typing", data: { room_id: room.id } })}
                     />
                 </div>
             </div>

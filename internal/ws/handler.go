@@ -33,12 +33,28 @@ type roomActionData struct {
 	RoomID string `json:"room_id"`
 }
 
+type viewerStateData struct {
+	RoomID string `json:"room_id"`
+	State  string `json:"state"`
+}
+
 type typingData struct {
 	RoomID string `json:"room_id"`
 }
 
 type ChatMessageSender interface {
 	SendChatMessage(ctx context.Context, senderID uuid.UUID, roomID uuid.UUID, body string) error
+}
+
+func broadcastPresence(hub *Hub, roomID, userID uuid.UUID, state string) {
+	hub.BroadcastToRoom(roomID, Message{
+		Type: "chat_presence_changed",
+		Data: map[string]interface{}{
+			"room_id": roomID.String(),
+			"user_id": userID.String(),
+			"state":   state,
+		},
+	}, uuid.Nil)
 }
 
 func Handler(hub *Hub, sessionMgr *session.Manager, roomLister RoomLister) fiber.Handler {
@@ -65,7 +81,12 @@ func Handler(hub *Hub, sessionMgr *session.Manager, roomLister RoomLister) fiber
 			}
 
 			hub.Register(client)
-			defer hub.Unregister(client)
+			defer func() {
+				cleared := hub.Unregister(client)
+				for _, roomID := range cleared {
+					broadcastPresence(hub, roomID, userID, "")
+				}
+			}()
 			defer client.Close()
 
 			if roomLister != nil {
@@ -150,6 +171,7 @@ func Handler(hub *Hub, sessionMgr *session.Manager, roomLister RoomLister) fiber
 						continue
 					}
 					hub.AddViewer(roomID, userID)
+					broadcastPresence(hub, roomID, userID, ViewerStateActive)
 
 				case "leave_room":
 					var data roomActionData
@@ -161,6 +183,22 @@ func Handler(hub *Hub, sessionMgr *session.Manager, roomLister RoomLister) fiber
 						continue
 					}
 					hub.RemoveViewer(roomID, userID)
+					if !hub.IsUserViewing(roomID, userID) {
+						broadcastPresence(hub, roomID, userID, "")
+					}
+
+				case "viewer_state":
+					var data viewerStateData
+					if err := json.Unmarshal(msg.Data, &data); err != nil {
+						continue
+					}
+					roomID, err := uuid.Parse(data.RoomID)
+					if err != nil {
+						continue
+					}
+					if hub.SetViewerState(roomID, userID, data.State) {
+						broadcastPresence(hub, roomID, userID, data.State)
+					}
 				}
 			}
 		})

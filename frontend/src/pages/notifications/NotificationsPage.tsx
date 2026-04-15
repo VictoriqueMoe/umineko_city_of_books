@@ -27,6 +27,7 @@ export function NotificationsPage() {
     const [loading, setLoading] = useState(true);
     const [total, setTotal] = useState(0);
     const [activeFilter, setActiveFilter] = useState<NotificationCategory | "all" | "unread">("unread");
+    const [markingId, setMarkingId] = useState<number | null>(null);
 
     const fetchAll = useCallback(async (offset = 0) => {
         setLoading(true);
@@ -67,6 +68,17 @@ export function NotificationsPage() {
 
     async function handleClick(notif: Notification) {
         if (!notif.read) {
+            await handleMarkReadOnly(notif);
+        }
+        navigate(getNotificationRoute(notif));
+    }
+
+    async function handleMarkReadOnly(notif: Notification) {
+        if (notif.read || markingId === notif.id) {
+            return;
+        }
+        setMarkingId(notif.id);
+        try {
             await markRead(notif.id);
             setNotifications(prev =>
                 prev.map(n => {
@@ -76,8 +88,9 @@ export function NotificationsPage() {
                     return n;
                 }),
             );
+        } finally {
+            setMarkingId(current => (current === notif.id ? null : current));
         }
-        navigate(getNotificationRoute(notif));
     }
 
     async function handleMarkAllRead() {
@@ -157,7 +170,22 @@ export function NotificationsPage() {
                                             <div className={styles.itemText}>
                                                 <NotificationText notif={notif} />
                                             </div>
-                                            <div className={styles.itemTime}>{relativeTime(notif.created_at)}</div>
+                                            <div className={styles.itemFooter}>
+                                                <div className={styles.itemTime}>{relativeTime(notif.created_at)}</div>
+                                                {!notif.read && (
+                                                    <button
+                                                        type="button"
+                                                        className={styles.inlineMarkReadBtn}
+                                                        onClick={event => {
+                                                            event.stopPropagation();
+                                                            void handleMarkReadOnly(notif);
+                                                        }}
+                                                        disabled={markingId === notif.id}
+                                                    >
+                                                        {markingId === notif.id ? "Marking..." : "Mark as read"}
+                                                    </button>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                 ))
@@ -180,6 +208,8 @@ export function NotificationsPage() {
                                     notifications={items}
                                     unreadCount={catUnread}
                                     onClick={handleClick}
+                                    onMarkRead={handleMarkReadOnly}
+                                    markingId={markingId}
                                 />
                             );
                         })
@@ -208,11 +238,15 @@ function CategorySection({
     notifications,
     unreadCount,
     onClick,
+    onMarkRead,
+    markingId,
 }: {
     category: NotificationCategory;
     notifications: Notification[];
     unreadCount: number;
     onClick: (notif: Notification) => void;
+    onMarkRead: (notif: Notification) => Promise<void>;
+    markingId: number | null;
 }) {
     return (
         <div className={styles.categorySection}>
@@ -232,7 +266,22 @@ function CategorySection({
                             <div className={styles.itemText}>
                                 <NotificationText notif={notif} />
                             </div>
-                            <div className={styles.itemTime}>{relativeTime(notif.created_at)}</div>
+                            <div className={styles.itemFooter}>
+                                <div className={styles.itemTime}>{relativeTime(notif.created_at)}</div>
+                                {!notif.read && (
+                                    <button
+                                        type="button"
+                                        className={styles.inlineMarkReadBtn}
+                                        onClick={event => {
+                                            event.stopPropagation();
+                                            void onMarkRead(notif);
+                                        }}
+                                        disabled={markingId === notif.id}
+                                    >
+                                        {markingId === notif.id ? "Marking..." : "Mark as read"}
+                                    </button>
+                                )}
+                            </div>
                         </div>
                     </div>
                 ))}

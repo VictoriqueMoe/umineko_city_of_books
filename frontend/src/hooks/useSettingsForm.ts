@@ -60,6 +60,7 @@ export function useSettingsForm() {
     const [website, setWebsite] = useState("");
     const [dmsEnabled, setDmsEnabled] = useState(true);
     const [episodeProgress, setEpisodeProgress] = useState(0);
+    const [higurashiArcProgress, setHigurashiArcProgress] = useState(0);
     const [dob, setDob] = useState("");
     const [dobPublic, setDobPublic] = useState(false);
     const [email, setEmail] = useState("");
@@ -97,6 +98,7 @@ export function useSettingsForm() {
             setWebsite(profile.website);
             setDmsEnabled(profile.dms_enabled ?? true);
             setEpisodeProgress(profile.episode_progress ?? 0);
+            setHigurashiArcProgress(profile.higurashi_arc_progress ?? 0);
             setDob(profile.dob ?? "");
             setDobPublic(profile.dob_public ?? false);
             setEmail(profile.email ?? "");
@@ -215,6 +217,7 @@ export function useSettingsForm() {
             website,
             dms_enabled: dmsEnabled,
             episode_progress: episodeProgress,
+            higurashi_arc_progress: higurashiArcProgress,
             dob,
             dob_public: dobPublic,
             email,
@@ -286,6 +289,8 @@ export function useSettingsForm() {
         setDmsEnabled,
         episodeProgress,
         setEpisodeProgress,
+        higurashiArcProgress,
+        setHigurashiArcProgress,
         dob,
         setDob,
         dobPublic,

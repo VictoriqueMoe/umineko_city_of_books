@@ -158,6 +158,7 @@ export function ArtUploadForm({
                     value={description}
                     onChange={setDescription}
                     rows={3}
+                    showColours
                 />
             </div>
 

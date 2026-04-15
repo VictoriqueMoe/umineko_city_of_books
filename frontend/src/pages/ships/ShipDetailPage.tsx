@@ -25,6 +25,8 @@ import { CommentItem } from "../../components/post/CommentItem/CommentItem";
 import { CommentComposer } from "../../components/post/CommentComposer/CommentComposer";
 import { relativeTime } from "../../utils/notifications";
 import { CharacterPicker } from "../../components/CharacterPicker/CharacterPicker";
+import { MentionTextArea } from "../../components/MentionTextArea/MentionTextArea";
+import { linkify } from "../../utils/linkify";
 import { CharacterPills } from "./ShipsListPage";
 import { ShareButton } from "../../components/ShareButton/ShareButton";
 import { ErrorBanner } from "../../components/ErrorBanner/ErrorBanner";
@@ -225,12 +227,7 @@ export function ShipDetailPage() {
                             </div>
                             <div className={styles.formSection}>
                                 <label className={styles.formLabel}>Why do you ship it?</label>
-                                <textarea
-                                    className={styles.formTextarea}
-                                    value={editDesc}
-                                    onChange={e => setEditDesc(e.target.value)}
-                                    rows={5}
-                                />
+                                <MentionTextArea value={editDesc} onChange={setEditDesc} rows={5} showColours />
                             </div>
                             {editError && <ErrorBanner message={editError} />}
                             <div className={styles.formActions}>
@@ -279,7 +276,9 @@ export function ShipDetailPage() {
                                 </div>
                             </div>
 
-                            {ship.description && <p className={styles.detailDescription}>{ship.description}</p>}
+                            {ship.description && (
+                                <p className={styles.detailDescription}>{linkify(ship.description)}</p>
+                            )}
                         </>
                     )}
 

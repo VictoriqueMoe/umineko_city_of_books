@@ -11,6 +11,7 @@ import { ToggleSwitch } from "../../components/ToggleSwitch/ToggleSwitch";
 import { BlockedUsersSection } from "./BlockedUsersSection";
 import { ChangePasswordSection } from "./ChangePasswordSection";
 import { DangerZoneSection } from "./DangerZoneSection";
+import { getSeriesConfig } from "../../utils/seriesConfig";
 import styles from "./SettingsPage.module.css";
 
 const SPECIAL_CHARACTERS: string[] = ["Goldsmith"];
@@ -205,7 +206,7 @@ export function SettingsPage() {
                                 </Select>
                             </label>
                             <label className={styles.label}>
-                                VN Progress
+                                Umineko VN Progress
                                 <Select
                                     value={String(form.episodeProgress)}
                                     onChange={e =>
@@ -216,6 +217,22 @@ export function SettingsPage() {
                                     {[1, 2, 3, 4, 5, 6, 7, 8].map(ep => (
                                         <option key={ep} value={String(ep)}>
                                             Episode {ep}
+                                        </option>
+                                    ))}
+                                </Select>
+                            </label>
+                            <label className={styles.label}>
+                                Higurashi VN Progress
+                                <Select
+                                    value={String(form.higurashiArcProgress)}
+                                    onChange={e =>
+                                        form.setHigurashiArcProgress(Number((e.target as HTMLSelectElement).value))
+                                    }
+                                >
+                                    <option value="0">I've read everything</option>
+                                    {getSeriesConfig("higurashi").arcs?.map((a, i) => (
+                                        <option key={a.value} value={String(i + 1)}>
+                                            {a.label}
                                         </option>
                                     ))}
                                 </Select>

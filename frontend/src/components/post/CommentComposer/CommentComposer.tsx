@@ -87,6 +87,7 @@ export function CommentComposer({ postId, parentId, onCreated, createCommentFn, 
                 onChange={setBody}
                 rows={2}
                 onPasteFiles={handlePasteFiles}
+                showColours
             />
 
             <MediaPreviews files={files} onRemove={removeFile} size="small" />

@@ -73,6 +73,26 @@ export interface ChatMemberUpdatedPayload {
     timeout_set_by_staff: boolean;
 }
 
+export function applyLocalMemberChange(
+    member: ChatRoomMember,
+    setMembers: Dispatch<SetStateAction<ChatRoomMember[]>>,
+    setMessages: Dispatch<SetStateAction<ChatMessage[]>>,
+): void {
+    setMembers(prev => prev.map(m => (m.user.id === member.user.id ? member : m)));
+    setMessages(prev =>
+        prev.map(m => {
+            if (m.sender.id !== member.user.id) {
+                return m;
+            }
+            return {
+                ...m,
+                sender_nickname: member.nickname || undefined,
+                sender_member_avatar_url: member.member_avatar_url || undefined,
+            };
+        }),
+    );
+}
+
 export function applyChatMemberUpdate(
     payload: ChatMemberUpdatedPayload,
     setMembers: Dispatch<SetStateAction<ChatRoomMember[]>>,

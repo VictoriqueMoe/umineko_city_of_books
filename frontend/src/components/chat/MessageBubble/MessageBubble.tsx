@@ -48,6 +48,9 @@ function applySenderOverrides(message: ChatMessage): User {
     if (message.sender_nickname) {
         override.display_name = message.sender_nickname;
     }
+    if (!override.display_name || override.display_name.trim() === "") {
+        override.display_name = override.username;
+    }
     if (message.sender_member_avatar_url) {
         override.avatar_url = message.sender_member_avatar_url;
     }

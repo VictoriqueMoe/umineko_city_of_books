@@ -19,6 +19,7 @@ const VALID_THEMES: Set<string> = new Set([
     "beatrice",
     "erika",
     "battler",
+    "virgilia",
     "rika",
     "mion",
     "satoko",

@@ -63,6 +63,7 @@ type (
 		MemberAvatarURL string       `json:"member_avatar_url"`
 		TimeoutUntil    string       `json:"timeout_until,omitempty"`
 		TimeoutByStaff  bool         `json:"timeout_set_by_staff"`
+		Presence        string       `json:"presence,omitempty"`
 	}
 
 	ChatMessageResponse struct {

@@ -17,7 +17,7 @@ import { CredibilityBadge } from "../../components/theory/CredibilityBadge/Credi
 import { ReportButton } from "../../components/ReportButton/ReportButton";
 import { ShareButton } from "../../components/ShareButton/ShareButton";
 import { can } from "../../utils/permissions";
-import { getSeriesConfig } from "../../utils/seriesConfig";
+import { formatSeriesEpisode, getSeriesConfig, userProgressForSeries } from "../../utils/seriesConfig";
 import styles from "./TheoryPage.module.css";
 
 export function TheoryPage() {
@@ -60,11 +60,9 @@ export function TheoryPage() {
         return <div className="empty-state">Theory not found.</div>;
     }
 
-    const isSpoiler =
-        !spoilerDismissed &&
-        (user?.episode_progress ?? 0) > 0 &&
-        theory.episode > 0 &&
-        theory.episode >= (user?.episode_progress ?? 0);
+    const seriesKey = (theory.series || "umineko") as Series;
+    const userProgress = userProgressForSeries(user, seriesKey);
+    const isSpoiler = !spoilerDismissed && userProgress > 0 && theory.episode > 0 && theory.episode >= userProgress;
 
     if (isSpoiler) {
         return (
@@ -75,7 +73,8 @@ export function TheoryPage() {
                 <div className={styles.spoilerWarning}>
                     <h2>Spoiler Warning</h2>
                     <p>
-                        This theory references Episode {theory.episode}, which is beyond your current reading progress.
+                        This theory references {formatSeriesEpisode(seriesKey, theory.episode)}, which is beyond your
+                        current reading progress.
                     </p>
                     <Button variant="primary" onClick={() => setSpoilerDismissed(true)}>
                         Continue anyway
@@ -85,7 +84,6 @@ export function TheoryPage() {
         );
     }
 
-    const seriesKey = (theory.series || "umineko") as Series;
     const cfg = getSeriesConfig(seriesKey);
     const withLove = theory.responses?.filter(r => r.side === "with_love") ?? [];
     const withoutLove = theory.responses?.filter(r => r.side === "without_love") ?? [];
@@ -107,7 +105,9 @@ export function TheoryPage() {
                     <div className={styles.detailInfo}>
                         <h2 className={styles.detailTitle}>{theory.title}</h2>
                         <div className={styles.detailMeta}>
-                            {theory.episode > 0 && <span className={styles.episode}>Episode {theory.episode}</span>}
+                            {theory.episode > 0 && (
+                                <span className={styles.episode}>{formatSeriesEpisode(seriesKey, theory.episode)}</span>
+                            )}
                             <CredibilityBadge score={theory.credibility_score} />
                         </div>
                     </div>

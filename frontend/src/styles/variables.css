@@ -149,6 +149,49 @@ html[data-width="wide"] {
     --hover-glow: 0.15;
 }
 
+[data-theme="virgilia"] {
+    --bg-void: #e8eaf0;
+    --bg-purple: #dde0ea;
+    --bg-card: #ffffff;
+    --bg-card-hover: #f3f5fa;
+    --gold: #8b1a2d;
+    --gold-light: #b83048;
+    --gold-dark: #5e0e1e;
+    --purple: #6f7382;
+    --purple-light: #9ba0b0;
+    --purple-muted: #cdd1dc;
+    --text: #1a1a24;
+    --text-muted: #5a5e6c;
+    --rose: #6b0f22;
+
+    --gold-rgb: 139, 26, 45;
+    --purple-rgb: 111, 115, 130;
+    --rose-rgb: 107, 15, 34;
+    --bg-card-rgb: 255, 255, 255;
+    --bg-purple-rgb: 221, 224, 234;
+    --hover-glow: 0.08;
+}
+
+[data-theme="virgilia"] .red-truth {
+    color: #b3001b;
+    font-weight: 800;
+}
+
+[data-theme="virgilia"] .blue-truth {
+    color: #0a5bb8;
+    font-weight: 800;
+}
+
+[data-theme="virgilia"] .gold-truth {
+    color: #a36a00;
+    font-weight: 800;
+}
+
+[data-theme="virgilia"] .purple-truth {
+    color: #6a2bd1;
+    font-weight: 800;
+}
+
 [data-theme="rika"] {
     --bg-void: #080812;
     --bg-purple: #0f0f24;

@@ -2322,6 +2322,8 @@ func TestSetRoomNickname_HappyPath(t *testing.T) {
 	m.authzSvc.EXPECT().GetRole(mock.Anything, userID).Return(role.Role(""), nil)
 	m.chatRepo.EXPECT().IsMemberNicknameLocked(mock.Anything, roomID, userID).Return(false, nil)
 	m.chatRepo.EXPECT().SetMemberNickname(mock.Anything, roomID, userID, "Alice").Return(nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(sampleUser(userID), nil)
+	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, mock.Anything, roomID, userID, mock.Anything).Return(errors.New("boom"))
 	m.chatRepo.EXPECT().GetRoomMembersDetailed(mock.Anything, roomID).Return([]repository.ChatRoomMemberRow{
 		{UserID: userID, Role: "member", Nickname: "Alice"},
 	}, nil)
@@ -2354,6 +2356,8 @@ func TestSetRoomNickname_TrimsAndCapsAt32(t *testing.T) {
 	m.authzSvc.EXPECT().GetRole(mock.Anything, userID).Return(role.Role(""), nil)
 	m.chatRepo.EXPECT().IsMemberNicknameLocked(mock.Anything, roomID, userID).Return(false, nil)
 	m.chatRepo.EXPECT().SetMemberNickname(mock.Anything, roomID, userID, expected).Return(nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(sampleUser(userID), nil)
+	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, mock.Anything, roomID, userID, mock.Anything).Return(errors.New("boom"))
 	m.chatRepo.EXPECT().GetRoomMembersDetailed(mock.Anything, roomID).Return([]repository.ChatRoomMemberRow{
 		{UserID: userID, Role: "member", Nickname: expected},
 	}, nil)
@@ -3114,6 +3118,9 @@ func TestSetMemberNicknameAsMod_SiteMod_OK(t *testing.T) {
 	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, targetID).Return("member", nil)
 	m.authzSvc.EXPECT().GetRole(mock.Anything, targetID).Return(role.Role(""), nil)
 	m.chatRepo.EXPECT().SetMemberNicknameWithLock(mock.Anything, roomID, targetID, "Silence", true).Return(nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, targetID).Return(sampleUser(targetID), nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, actorID).Return(sampleUser(actorID), nil)
+	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, mock.Anything, roomID, actorID, mock.Anything).Return(errors.New("boom"))
 	m.chatRepo.EXPECT().GetRoomMembersDetailed(mock.Anything, roomID).Return([]repository.ChatRoomMemberRow{
 		{UserID: targetID, Username: "t", DisplayName: "T", Role: "member", Nickname: "Silence", NicknameLocked: true},
 	}, nil)
@@ -3214,6 +3221,9 @@ func TestSetMemberNicknameAsMod_TrimsAndCapsAt32(t *testing.T) {
 	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, targetID).Return("member", nil)
 	m.authzSvc.EXPECT().GetRole(mock.Anything, targetID).Return(role.Role(""), nil)
 	m.chatRepo.EXPECT().SetMemberNicknameWithLock(mock.Anything, roomID, targetID, expected, true).Return(nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, targetID).Return(sampleUser(targetID), nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, actorID).Return(sampleUser(actorID), nil)
+	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, mock.Anything, roomID, actorID, mock.Anything).Return(errors.New("boom"))
 	m.chatRepo.EXPECT().GetRoomMembersDetailed(mock.Anything, roomID).Return([]repository.ChatRoomMemberRow{
 		{UserID: targetID, Role: "member", Nickname: expected, NicknameLocked: true},
 	}, nil)
@@ -3257,6 +3267,9 @@ func TestUnlockMemberNickname_OK(t *testing.T) {
 	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, targetID).Return("member", nil)
 	m.authzSvc.EXPECT().GetRole(mock.Anything, targetID).Return(role.Role(""), nil)
 	m.chatRepo.EXPECT().SetMemberNicknameWithLock(mock.Anything, roomID, targetID, "", false).Return(nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, targetID).Return(sampleUser(targetID), nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, actorID).Return(sampleUser(actorID), nil)
+	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, mock.Anything, roomID, actorID, mock.Anything).Return(errors.New("boom"))
 	m.chatRepo.EXPECT().GetRoomMembersDetailed(mock.Anything, roomID).Return([]repository.ChatRoomMemberRow{
 		{UserID: targetID, Role: "member"},
 	}, nil)
@@ -3349,6 +3362,8 @@ func TestSetRoomNickname_SiteMod_BypassesLock(t *testing.T) {
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
 	m.authzSvc.EXPECT().GetRole(mock.Anything, userID).Return(authz.RoleModerator, nil)
 	m.chatRepo.EXPECT().SetMemberNickname(mock.Anything, roomID, userID, "Alice").Return(nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(sampleUser(userID), nil)
+	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, mock.Anything, roomID, userID, mock.Anything).Return(errors.New("boom"))
 	m.chatRepo.EXPECT().GetRoomMembersDetailed(mock.Anything, roomID).Return([]repository.ChatRoomMemberRow{
 		{UserID: userID, Role: "member", Nickname: "Alice"},
 	}, nil)

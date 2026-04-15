@@ -89,3 +89,38 @@ const configs: Record<Series, SeriesConfig> = {
 export function getSeriesConfig(series: Series): SeriesConfig {
     return configs[series];
 }
+
+export function seriesEpisodeOptionCount(series: Series): number {
+    const cfg = getSeriesConfig(series);
+    return cfg.arcs ? cfg.arcs.length : cfg.episodeCount;
+}
+
+export function formatSeriesEpisode(series: Series, episode: number): string {
+    if (!episode || episode <= 0) {
+        return "";
+    }
+    const cfg = getSeriesConfig(series);
+    if (cfg.arcs) {
+        const arc = cfg.arcs[episode - 1];
+        return arc ? arc.label : `Arc ${episode}`;
+    }
+    return `Episode ${episode}`;
+}
+
+export function seriesEpisodeNoun(series: Series): string {
+    const cfg = getSeriesConfig(series);
+    return cfg.arcs ? "arc" : "episode";
+}
+
+export function userProgressForSeries(
+    user: { episode_progress?: number; higurashi_arc_progress?: number } | null | undefined,
+    series: Series,
+): number {
+    if (!user) {
+        return 0;
+    }
+    if (series === "higurashi") {
+        return user.higurashi_arc_progress ?? 0;
+    }
+    return user.episode_progress ?? 0;
+}

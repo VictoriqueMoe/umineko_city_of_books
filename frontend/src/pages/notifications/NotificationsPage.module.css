@@ -167,6 +167,40 @@
     margin-top: 0.25rem;
 }
 
+.itemFooter {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.65rem;
+    margin-top: 0.25rem;
+}
+
+.inlineMarkReadBtn {
+    border: 1px solid rgba(var(--gold-rgb), 0.35);
+    background: rgba(var(--gold-rgb), 0.08);
+    color: var(--gold);
+    border-radius: 999px;
+    padding: 0.2rem 0.65rem;
+    font-size: 0.72rem;
+    font-family: var(--font-display);
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    white-space: nowrap;
+    transition:
+        background 0.15s var(--ease-out),
+        border-color 0.15s var(--ease-out);
+}
+
+.inlineMarkReadBtn:hover {
+    background: rgba(var(--gold-rgb), 0.16);
+    border-color: var(--gold);
+}
+
+.inlineMarkReadBtn:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
 .empty {
     text-align: center;
     color: var(--text-muted);
@@ -221,6 +255,11 @@
 
     .itemText {
         font-size: 0.92rem;
+    }
+
+    .itemFooter {
+        flex-wrap: wrap;
+        justify-content: flex-start;
     }
 }
 

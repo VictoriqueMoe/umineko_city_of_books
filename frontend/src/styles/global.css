@@ -258,6 +258,18 @@ body[data-chat-page="true"] .main-content {
     opacity: 0.75;
 }
 
+[data-theme="virgilia"] .butterfly {
+    color: #8b1a2d;
+    text-shadow:
+        0 0 12px rgba(139, 26, 45, 0.5),
+        0 0 24px rgba(180, 180, 200, 0.4);
+}
+
+[data-theme="virgilia"] .particle {
+    color: #9ba0b0;
+    text-shadow: 0 0 10px rgba(139, 26, 45, 0.35);
+}
+
 [data-theme="battler"] .announcement-banner {
     color: var(--text);
 }

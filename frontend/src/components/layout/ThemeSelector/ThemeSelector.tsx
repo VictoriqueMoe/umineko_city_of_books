@@ -25,6 +25,7 @@ const THEMES: ThemeDefinition[] = [
     { id: "lambdadelta", name: "Lady Lambdadelta", description: "Witch of Certainty" },
     { id: "erika", name: "Erika Furudo", description: "The Witch of Truth" },
     { id: "battler", name: "Battler Ushiromiya", description: "The Endless Sorcerer" },
+    { id: "virgilia", name: "Virgilia", description: "Witch of the Finite" },
     { id: "rika", name: "Rika Furude", description: "Nipah~!" },
     { id: "mion", name: "Mion Sonozaki", description: "The Club President" },
     { id: "satoko", name: "Satoko Houjou", description: "The Trap Master" },

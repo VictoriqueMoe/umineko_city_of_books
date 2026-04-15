@@ -11,7 +11,17 @@ interface MentionTextAreaProps {
     className?: string;
     onPasteFiles?: (files: File[]) => void;
     mentionPool?: User[];
+    showColours?: boolean;
 }
+
+type ColourTag = "red" | "blue" | "gold" | "purple";
+
+const COLOUR_BUTTONS: { tag: ColourTag; label: string; swatch: string }[] = [
+    { tag: "red", label: "Red truth", swatch: "#ff3333" },
+    { tag: "blue", label: "Blue truth", swatch: "#3399ff" },
+    { tag: "gold", label: "Gold truth", swatch: "#ffaa00" },
+    { tag: "purple", label: "Purple truth", swatch: "#aa71ff" },
+];
 
 interface SearchResult extends User {
     viewer_follows: boolean;
@@ -31,14 +41,41 @@ function followLabel(r: SearchResult): string | null {
     return null;
 }
 
+const COLOUR_CLASS: Record<ColourTag, string> = {
+    red: "red-truth",
+    blue: "blue-truth",
+    gold: "gold-truth",
+    purple: "purple-truth",
+};
+
+function escapeHtml(s: string): string {
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function highlightMentionsInSegment(segment: string): string {
+    return segment.replace(/(^|\s)(@[a-zA-Z0-9_]+)/g, '$1<span class="mention-hl">$2</span>');
+}
+
 function highlightMentions(text: string): string {
-    return (
-        text
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/(^|\s)(@[a-zA-Z0-9_]+)/g, '$1<span class="mention-hl">$2</span>') + "\n"
-    );
+    const colourRe = /\[(red|blue|gold|purple)]([\s\S]*?)\[\/\1]/g;
+    let out = "";
+    let last = 0;
+    let m: RegExpExecArray | null;
+    while ((m = colourRe.exec(text)) !== null) {
+        if (m.index > last) {
+            out += highlightMentionsInSegment(escapeHtml(text.slice(last, m.index)));
+        }
+        const tag = m[1] as ColourTag;
+        const open = escapeHtml(`[${tag}]`);
+        const close = escapeHtml(`[/${tag}]`);
+        const inner = highlightMentionsInSegment(escapeHtml(m[2]));
+        out += `<span class="tag-bracket">${open}</span><span class="${COLOUR_CLASS[tag]}">${inner}</span><span class="tag-bracket">${close}</span>`;
+        last = m.index + m[0].length;
+    }
+    if (last < text.length) {
+        out += highlightMentionsInSegment(escapeHtml(text.slice(last)));
+    }
+    return out + "\n";
 }
 
 export function MentionTextArea({
@@ -49,6 +86,7 @@ export function MentionTextArea({
     className,
     onPasteFiles,
     mentionPool,
+    showColours,
 }: MentionTextAreaProps) {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const backdropRef = useRef<HTMLDivElement>(null);
@@ -195,25 +233,91 @@ export function MentionTextArea({
         }
     }
 
+    function applyColour(tag: ColourTag) {
+        const textarea = textareaRef.current;
+        if (!textarea) {
+            return;
+        }
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const before = value.slice(0, start);
+        const selected = value.slice(start, end);
+        const after = value.slice(end);
+        const open = `[${tag}]`;
+        const close = `[/${tag}]`;
+
+        const openLen = open.length;
+        const closeLen = close.length;
+        const wrappedAlready = before.endsWith(open) && after.startsWith(close);
+        const selectionIsWrapped = selected.startsWith(open) && selected.endsWith(close);
+
+        let newValue: string;
+        let newStart: number;
+        let newEnd: number;
+
+        if (wrappedAlready) {
+            newValue = before.slice(0, before.length - openLen) + selected + after.slice(closeLen);
+            newStart = start - openLen;
+            newEnd = end - openLen;
+        } else if (selectionIsWrapped) {
+            const innerLen = selected.length - openLen - closeLen;
+            newValue = before + selected.slice(openLen, openLen + innerLen) + after;
+            newStart = start;
+            newEnd = start + innerLen;
+        } else {
+            newValue = `${before}${open}${selected}${close}${after}`;
+            newStart = start + openLen;
+            newEnd = end + openLen;
+        }
+
+        onChange(newValue);
+        requestAnimationFrame(() => {
+            textarea.focus();
+            textarea.setSelectionRange(newStart, newEnd);
+        });
+    }
+
     return (
         <div className={styles.wrapper}>
-            <div
-                ref={backdropRef}
-                className={`${styles.backdrop} ${className || ""}`}
-                style={{ minHeight: `${rows * 1.5}em` }}
-                dangerouslySetInnerHTML={{ __html: highlightMentions(value) }}
-            />
-            <textarea
-                ref={textareaRef}
-                className={`${styles.textarea} ${className || ""}`}
-                value={value}
-                onChange={e => onChange(e.target.value)}
-                onKeyDown={handleKeyDown}
-                onPaste={handlePaste}
-                onScroll={syncScroll}
-                placeholder={placeholder}
-                rows={rows}
-            />
+            {showColours && (
+                <div className={styles.colourBar}>
+                    {COLOUR_BUTTONS.map(b => (
+                        <button
+                            key={b.tag}
+                            type="button"
+                            tabIndex={-1}
+                            className={styles.colourBtn}
+                            title={b.label}
+                            aria-label={b.label}
+                            onMouseDown={e => {
+                                e.preventDefault();
+                                applyColour(b.tag);
+                            }}
+                        >
+                            <span className={styles.colourSwatch} style={{ background: b.swatch }} />
+                        </button>
+                    ))}
+                </div>
+            )}
+            <div className={styles.editArea}>
+                <div
+                    ref={backdropRef}
+                    className={`${styles.backdrop} ${className || ""}`}
+                    style={{ minHeight: `${rows * 1.5}em` }}
+                    dangerouslySetInnerHTML={{ __html: highlightMentions(value) }}
+                />
+                <textarea
+                    ref={textareaRef}
+                    className={`${styles.textarea} ${className || ""}`}
+                    value={value}
+                    onChange={e => onChange(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    onPaste={handlePaste}
+                    onScroll={syncScroll}
+                    placeholder={placeholder}
+                    rows={rows}
+                />
+            </div>
             {showDropdown && (
                 <div className={styles.dropdown}>
                     {suggestions.map((user, i) => (

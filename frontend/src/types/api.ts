@@ -146,6 +146,7 @@ export interface UserProfile {
     website: string;
     dms_enabled: boolean;
     episode_progress: number;
+    higurashi_arc_progress: number;
     dob?: string;
     dob_public?: boolean;
     email?: string;
@@ -187,6 +188,7 @@ export interface UpdateProfilePayload {
     website: string;
     dms_enabled: boolean;
     episode_progress: number;
+    higurashi_arc_progress: number;
     dob: string;
     dob_public: boolean;
     email: string;
@@ -630,6 +632,7 @@ export interface ChatRoomMember {
     nickname_locked: boolean;
     timeout_until?: string;
     timeout_set_by_staff?: boolean;
+    presence?: "active" | "idle" | "";
 }
 
 export interface ChatMessageReplyPreview {
