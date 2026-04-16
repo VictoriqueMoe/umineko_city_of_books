@@ -651,6 +651,10 @@ export function RoomPage() {
     const isSiteMod = isSiteStaff(user.role);
     const canModerateRoom = isHost || isSiteMod;
     const currentMember = members.find(m => m.user.id === user.id) ?? null;
+    const viewerTimeoutUntil = currentMember?.timeout_until ?? undefined;
+    const viewerTimedOut = viewerTimeoutUntil
+        ? new Date(viewerTimeoutUntil).getTime() > Date.now()
+        : false;
 
     return (
         <div className={styles.roomWrapper}>
@@ -934,6 +938,7 @@ export function RoomPage() {
                                 onDelete={handleDeleteMessage}
                                 canPin={canModerateRoom}
                                 canModerate={canModerateRoom}
+                                canReact={!viewerTimedOut}
                                 senderIsStaff={isSiteStaff(msg.sender.role)}
                             />
                         ))}
@@ -964,6 +969,7 @@ export function RoomPage() {
                         replyingTo={replyingTo}
                         onCancelReply={() => setReplyingTo(null)}
                         onTyping={() => sendWSMessage({ type: "typing", data: { room_id: room.id } })}
+                        timeoutUntil={viewerTimeoutUntil}
                     />
                 </div>
             </div>

@@ -1,9 +1,20 @@
 const API_BASE = "/api/v1";
 
+export class ApiError extends Error {
+    status: number;
+    body: unknown;
+    constructor(status: number, message: string, body: unknown) {
+        super(message);
+        this.status = status;
+        this.body = body;
+    }
+}
+
 async function handleResponse<T>(response: Response): Promise<T> {
     if (!response.ok) {
         const body = await response.json().catch(() => null);
-        throw new Error(body?.error ?? `API error: ${response.status}`);
+        const message = (body as { error?: string } | null)?.error ?? `API error: ${response.status}`;
+        throw new ApiError(response.status, message, body);
     }
     if (response.status === 204 || response.headers.get("content-length") === "0") {
         return undefined as T;

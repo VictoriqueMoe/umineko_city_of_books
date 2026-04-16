@@ -291,6 +291,10 @@ function CategorySection({
 }
 
 function NotificationText({ notif }: { notif: Notification }) {
+    if (notif.count > 1 && notif.type === "chat_room_message" && notif.message) {
+        return <>{notif.message}</>;
+    }
+
     if (isContentEditedNotification(notif)) {
         const { message, role, actorName } = formatContentEditedText(notif);
         return (

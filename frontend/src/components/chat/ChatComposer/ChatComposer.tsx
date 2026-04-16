@@ -6,6 +6,7 @@ import { sendChatMessage, sendFirstDMMessage, uploadChatMessageMedia } from "../
 import { useSiteInfo } from "../../../hooks/useSiteInfo";
 import { validateFileSize } from "../../../utils/fileValidation";
 import type { ChatMessage, ChatRoom, PostMedia, User } from "../../../types/api";
+import { GifPicker } from "../GifPicker/GifPicker";
 import styles from "./ChatComposer.module.css";
 
 export interface ReplyTarget {
@@ -22,6 +23,18 @@ interface ChatComposerProps {
     replyingTo?: ReplyTarget | null;
     onCancelReply?: () => void;
     onTyping?: () => void;
+    timeoutUntil?: string;
+}
+
+function isTimeoutActive(until?: string): boolean {
+    if (!until) {
+        return false;
+    }
+    const ts = new Date(until).getTime();
+    if (Number.isNaN(ts)) {
+        return false;
+    }
+    return ts > Date.now();
 }
 
 const TYPING_THROTTLE_MS = 2500;
@@ -34,12 +47,15 @@ export function ChatComposer({
     replyingTo,
     onCancelReply,
     onTyping,
+    timeoutUntil,
 }: ChatComposerProps) {
+    const timedOut = isTimeoutActive(timeoutUntil);
     const siteInfo = useSiteInfo();
     const [body, setBody] = useState("");
     const [files, setFiles] = useState<File[]>([]);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
+    const [gifPickerOpen, setGifPickerOpen] = useState(false);
     const lastTypingSentRef = useRef(0);
 
     const handleBodyChange = useCallback(
@@ -93,6 +109,45 @@ export function ChatComposer({
             }
         }
         return uploaded;
+    }
+
+    async function sendBody(content: string): Promise<ChatMessage | null> {
+        if (draftRecipientId && !roomId) {
+            const created = await sendFirstDMMessage(draftRecipientId, content);
+            onSent(created.message, created.room);
+            return created.message;
+        }
+        if (!roomId) {
+            return null;
+        }
+        const message = await sendChatMessage(roomId, {
+            body: content,
+            reply_to_id: replyingTo?.id,
+        });
+        onSent(message);
+        return message;
+    }
+
+    async function handleGifPick(gif: { id: string; url: string }) {
+        setGifPickerOpen(false);
+        if (submitting) {
+            return;
+        }
+        if (!roomId && !draftRecipientId) {
+            return;
+        }
+        setSubmitting(true);
+        setError("");
+        try {
+            await sendBody(gif.url);
+            if (onCancelReply) {
+                onCancelReply();
+            }
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to send GIF");
+        } finally {
+            setSubmitting(false);
+        }
     }
 
     async function handleSubmit() {
@@ -157,6 +212,15 @@ export function ChatComposer({
 
     const canSend = !submitting && (body.trim().length > 0 || files.length > 0);
 
+    if (timedOut) {
+        const until = new Date(timeoutUntil!).toLocaleString();
+        return (
+            <div className={styles.composer}>
+                <div className={styles.timeoutBanner}>You are timed out until {until}.</div>
+            </div>
+        );
+    }
+
     return (
         <div className={styles.composer}>
             {error && <div className={styles.error}>{error}</div>}
@@ -191,6 +255,19 @@ export function ChatComposer({
                     />
                 </div>
                 <MediaPickerButton onFiles={valid => setFiles(prev => [...prev, ...valid])} onError={setError} />
+                <div className={styles.gifAnchor}>
+                    <button
+                        type="button"
+                        className={styles.gifBtn}
+                        onClick={() => setGifPickerOpen(prev => !prev)}
+                        aria-label="Pick a GIF"
+                        title="Pick a GIF"
+                        disabled={submitting}
+                    >
+                        GIF
+                    </button>
+                    {gifPickerOpen && <GifPicker onPick={handleGifPick} onClose={() => setGifPickerOpen(false)} />}
+                </div>
                 <Button variant="primary" size="small" onClick={handleSubmit} disabled={!canSend}>
                     {submitting ? "..." : "Send"}
                 </Button>

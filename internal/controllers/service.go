@@ -9,6 +9,7 @@ import (
 	"umineko_city_of_books/internal/chat"
 	fanficsvc "umineko_city_of_books/internal/fanfic"
 	"umineko_city_of_books/internal/follow"
+	"umineko_city_of_books/internal/giphy"
 	"umineko_city_of_books/internal/journal"
 	"umineko_city_of_books/internal/media"
 	mysterysvc "umineko_city_of_books/internal/mystery"
@@ -51,6 +52,7 @@ type (
 		VanityRoleRepo      repository.VanityRoleRepository
 		AuthSession         *session.Manager
 		Hub                 *ws.Hub
+		GiphyService        giphy.Service
 		HTMLContent         string
 	}
 )
@@ -80,6 +82,7 @@ func NewService(
 	vanityRoleRepo repository.VanityRoleRepository,
 	authSession *session.Manager,
 	hub *ws.Hub,
+	giphyService giphy.Service,
 	htmlContent string,
 ) Service {
 	return Service{
@@ -107,6 +110,7 @@ func NewService(
 		VanityRoleRepo:      vanityRoleRepo,
 		AuthSession:         authSession,
 		Hub:                 hub,
+		GiphyService:        giphyService,
 		HTMLContent:         htmlContent,
 	}
 }
@@ -129,6 +133,7 @@ func (s *Service) GetAPIRoutes() []FSetupRoute {
 	all = append(all, s.getAllFanficRoutes()...)
 	all = append(all, s.getAllJournalRoutes()...)
 	all = append(all, s.getAllUserPreferencesRoutes()...)
+	all = append(all, s.getAllGiphyRoutes()...)
 	return all
 }
 

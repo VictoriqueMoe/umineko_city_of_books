@@ -811,6 +811,9 @@ func (s *Service) addReaction(ctx fiber.Ctx) error {
 		if errors.Is(err, chat.ErrNotMember) {
 			return utils.Forbidden(ctx, "not a member")
 		}
+		if errors.Is(err, chat.ErrTimedOut) {
+			return utils.Forbidden(ctx, err.Error())
+		}
 		if errors.Is(err, chat.ErrRoomNotFound) {
 			return utils.NotFound(ctx, "message not found")
 		}

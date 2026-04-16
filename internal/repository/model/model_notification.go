@@ -18,6 +18,7 @@ type (
 		Message          string
 		Read             bool
 		CreatedAt        string
+		Count            int
 		ActorUsername    string
 		ActorDisplayName string
 		ActorAvatarURL   string
@@ -41,5 +42,6 @@ func (n *NotificationRow) ToResponse() dto.NotificationResponse {
 		Message:   n.Message,
 		Read:      n.Read,
 		CreatedAt: n.CreatedAt,
+		Count:     n.Count,
 	}
 }

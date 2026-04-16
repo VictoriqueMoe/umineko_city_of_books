@@ -27,6 +27,16 @@
     font-size: 0.85rem;
 }
 
+.timeoutBanner {
+    padding: 0.75rem 1rem;
+    background: rgba(255, 107, 107, 0.12);
+    border: 1px solid rgba(255, 107, 107, 0.4);
+    border-radius: 6px;
+    color: #ff9b9b;
+    font-size: 0.9rem;
+    text-align: center;
+}
+
 .replyBar {
     display: flex;
     align-items: center;
@@ -71,6 +81,33 @@
 
 .replyCancel:hover {
     color: var(--gold);
+}
+
+.gifAnchor {
+    position: relative;
+}
+
+.gifBtn {
+    background: rgba(var(--purple-rgb), 0.2);
+    border: 1px solid rgba(var(--purple-rgb), 0.35);
+    color: var(--text-main);
+    cursor: pointer;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    padding: 0.35rem 0.55rem;
+    border-radius: 6px;
+    line-height: 1;
+}
+
+.gifBtn:hover:not(:disabled) {
+    border-color: var(--gold);
+    color: var(--gold);
+}
+
+.gifBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 @media (max-width: 480px) {

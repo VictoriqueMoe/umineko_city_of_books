@@ -201,6 +201,16 @@
     cursor: pointer;
 }
 
+.gifEmbed {
+    max-width: 260px;
+    max-height: 260px;
+    border-radius: 6px;
+    border: 1px solid rgba(var(--purple-rgb), 0.25);
+    cursor: pointer;
+    display: block;
+    margin-top: 0.2rem;
+}
+
 .messageTime {
     font-size: 0.7rem;
     color: var(--text-muted);
