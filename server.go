@@ -23,6 +23,7 @@ import (
 	fanficsvc "umineko_city_of_books/internal/fanfic"
 	"umineko_city_of_books/internal/follow"
 	"umineko_city_of_books/internal/giphy"
+	giphyfavourite "umineko_city_of_books/internal/giphy/favourite"
 	"umineko_city_of_books/internal/journal"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
@@ -55,29 +56,30 @@ var (
 )
 
 type services struct {
-	settings     settings.Service
-	auth         auth.Service
-	profile      profile.Service
-	theory       theory.Service
-	notification notification.Service
-	admin        admin.Service
-	authz        authz.Service
-	chat         chat.Service
-	report       report.Service
-	post         postsvc.Service
-	follow       follow.Service
-	art          artsvc.Service
-	ship         ship.Service
-	mystery      mysterysvc.Service
-	fanfic       fanficsvc.Service
-	journal      journal.Service
-	block        blocksvc.Service
-	email        email.Service
-	session      *session.Manager
-	upload       upload.Service
-	hub          *ws.Hub
-	mediaProc    *media.Processor
-	giphy        giphy.Service
+	settings        settings.Service
+	auth            auth.Service
+	profile         profile.Service
+	theory          theory.Service
+	notification    notification.Service
+	admin           admin.Service
+	authz           authz.Service
+	chat            chat.Service
+	report          report.Service
+	post            postsvc.Service
+	follow          follow.Service
+	art             artsvc.Service
+	ship            ship.Service
+	mystery         mysterysvc.Service
+	fanfic          fanficsvc.Service
+	journal         journal.Service
+	block           blocksvc.Service
+	email           email.Service
+	session         *session.Manager
+	upload          upload.Service
+	hub             *ws.Hub
+	mediaProc       *media.Processor
+	giphy           giphy.Service
+	giphyFavourites giphyfavourite.Service
 }
 
 func initServer() *fiber.App {
@@ -148,29 +150,30 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 	journalSvc := journal.NewService(repos.Journal, repos.User, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc)
 
 	return &services{
-		settings:     settingsSvc,
-		auth:         auth.NewService(userSvc, sessionMgr, settingsSvc, repos.Invite, repos.User),
-		profile:      profile.NewService(repos.User, repos.Theory, authzSvc, uploadSvc, settingsSvc),
-		theory:       theory.NewService(repos.Theory, repos.User, authzSvc, blockSvc, notifSvc, settingsSvc, credibilitySvc, quoteClient),
-		notification: notifSvc,
-		admin:        admin.NewService(repos.User, repos.Role, repos.Stats, repos.AuditLog, repos.Invite, repos.VanityRole, authzSvc, settingsSvc, sessionMgr, uploadSvc, hub, chatSvc),
-		authz:        authzSvc,
-		chat:         chatSvc,
-		report:       reportSvc,
-		post:         postSvc,
-		follow:       followSvc,
-		art:          artSvc,
-		ship:         shipSvc,
-		mystery:      mysterySvc,
-		fanfic:       fanficSvc,
-		journal:      journalSvc,
-		block:        blockSvc,
-		email:        emailSvc,
-		session:      sessionMgr,
-		upload:       uploadSvc,
-		hub:          hub,
-		mediaProc:    mediaProc,
-		giphy:        giphy.NewService(),
+		settings:        settingsSvc,
+		auth:            auth.NewService(userSvc, sessionMgr, settingsSvc, repos.Invite, repos.User),
+		profile:         profile.NewService(repos.User, repos.Theory, authzSvc, uploadSvc, settingsSvc),
+		theory:          theory.NewService(repos.Theory, repos.User, authzSvc, blockSvc, notifSvc, settingsSvc, credibilitySvc, quoteClient),
+		notification:    notifSvc,
+		admin:           admin.NewService(repos.User, repos.Role, repos.Stats, repos.AuditLog, repos.Invite, repos.VanityRole, authzSvc, settingsSvc, sessionMgr, uploadSvc, hub, chatSvc),
+		authz:           authzSvc,
+		chat:            chatSvc,
+		report:          reportSvc,
+		post:            postSvc,
+		follow:          followSvc,
+		art:             artSvc,
+		ship:            shipSvc,
+		mystery:         mysterySvc,
+		fanfic:          fanficSvc,
+		journal:         journalSvc,
+		block:           blockSvc,
+		email:           emailSvc,
+		session:         sessionMgr,
+		upload:          uploadSvc,
+		hub:             hub,
+		mediaProc:       mediaProc,
+		giphy:           giphy.NewService(),
+		giphyFavourites: giphyfavourite.NewService(repos.GiphyFavourite),
 	}
 }
 
@@ -249,7 +252,7 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 	ctrlService := controllers.NewService(
 		svc.auth, svc.profile, svc.theory, svc.notification, svc.admin,
 		svc.authz, settingsSvc, svc.chat, svc.report, svc.post, svc.follow,
-		svc.art, svc.block, repos.Announcement, svc.mystery, repos.User, svc.ship, svc.fanfic, svc.journal, svc.upload, svc.mediaProc, repos.VanityRole, svc.session, svc.hub, svc.giphy, string(htmlBytes),
+		svc.art, svc.block, repos.Announcement, svc.mystery, repos.User, svc.ship, svc.fanfic, svc.journal, svc.upload, svc.mediaProc, repos.VanityRole, svc.session, svc.hub, svc.giphy, svc.giphyFavourites, string(htmlBytes),
 	)
 	routes.PublicRoutes(ctrlService, app)
 

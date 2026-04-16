@@ -535,10 +535,10 @@ func (s *Service) uploadAnnouncementCommentMedia(ctx fiber.Ctx) error {
 	var urlPath string
 	if isVideo {
 		maxSize := int64(s.SettingsService.GetInt(ctx.Context(), config.SettingMaxVideoSize))
-		urlPath, err = s.UploadService.SaveVideo(ctx.Context(), "announcements", mediaID, contentType, file.Size, maxSize, reader)
+		urlPath, err = s.UploadService.SaveVideo(ctx.Context(), "announcements", mediaID, file.Size, maxSize, reader)
 	} else {
 		maxSize := int64(s.SettingsService.GetInt(ctx.Context(), config.SettingMaxImageSize))
-		urlPath, err = s.UploadService.SaveImage(ctx.Context(), "announcements", mediaID, contentType, file.Size, maxSize, reader)
+		urlPath, err = s.UploadService.SaveImage(ctx.Context(), "announcements", mediaID, file.Size, maxSize, reader)
 	}
 	if err != nil {
 		return ctrlutils.BadRequest(ctx, err.Error())

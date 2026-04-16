@@ -13,6 +13,11 @@
 .bar {
     display: flex;
     justify-content: flex-end;
+    align-items: center;
     gap: 0.5rem;
     margin-top: 0.5rem;
+}
+
+.gifAnchor {
+    position: relative;
 }

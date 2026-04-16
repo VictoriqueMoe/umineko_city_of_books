@@ -695,7 +695,7 @@ func TestUploadCoverImage_UploadError(t *testing.T) {
 	m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(userID, nil)
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(1000)
 	m.uploadSvc.EXPECT().
-		SaveImage(mock.Anything, "fanfics", mock.Anything, "image/png", int64(100), int64(1000), mock.Anything).
+		SaveImage(mock.Anything, "fanfics", mock.Anything, int64(100), int64(1000), mock.Anything).
 		Return("", errors.New("disk full"))
 
 	// when
@@ -713,7 +713,7 @@ func TestUploadCoverImage_UpdateDBError(t *testing.T) {
 	m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(userID, nil)
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(1000)
 	m.uploadSvc.EXPECT().
-		SaveImage(mock.Anything, "fanfics", mock.Anything, "image/png", int64(100), int64(1000), mock.Anything).
+		SaveImage(mock.Anything, "fanfics", mock.Anything, int64(100), int64(1000), mock.Anything).
 		Return("/uploads/fanfics/x.png", nil)
 	m.fanficRepo.EXPECT().UpdateCoverImage(mock.Anything, id, "/uploads/fanfics/x.png", "").Return(errors.New("db boom"))
 
@@ -734,7 +734,7 @@ func TestUploadCoverImage_OK_CtxCancelled(t *testing.T) {
 	m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(userID, nil)
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(1000)
 	m.uploadSvc.EXPECT().
-		SaveImage(mock.Anything, "fanfics", mock.Anything, "image/png", int64(100), int64(1000), mock.Anything).
+		SaveImage(mock.Anything, "fanfics", mock.Anything, int64(100), int64(1000), mock.Anything).
 		Return("/uploads/fanfics/x.png", nil)
 	m.fanficRepo.EXPECT().UpdateCoverImage(mock.Anything, id, "/uploads/fanfics/x.png", "").Return(nil)
 	m.uploadSvc.EXPECT().FullDiskPath("/uploads/fanfics/x.png").Return("/tmp/does-not-exist-xyz.png")
@@ -1590,7 +1590,7 @@ func TestUploadCommentMedia_UploadError(t *testing.T) {
 	m.fanficRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(userID, nil)
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(1000)
 	m.uploadSvc.EXPECT().
-		SaveImage(mock.Anything, "fanfics", mock.Anything, "image/png", int64(100), int64(1000), mock.Anything).
+		SaveImage(mock.Anything, "fanfics", mock.Anything, int64(100), int64(1000), mock.Anything).
 		Return("", errors.New("disk full"))
 
 	// when
@@ -1608,7 +1608,7 @@ func TestUploadCommentMedia_AddMediaError(t *testing.T) {
 	m.fanficRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(userID, nil)
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(1000)
 	m.uploadSvc.EXPECT().
-		SaveImage(mock.Anything, "fanfics", mock.Anything, "image/png", int64(100), int64(1000), mock.Anything).
+		SaveImage(mock.Anything, "fanfics", mock.Anything, int64(100), int64(1000), mock.Anything).
 		Return("/uploads/fanfics/x.png", nil)
 	m.fanficRepo.EXPECT().
 		AddCommentMedia(mock.Anything, commentID, "/uploads/fanfics/x.png", "image", "", 0).
@@ -1631,7 +1631,7 @@ func TestUploadCommentMedia_OK_CtxCancelled(t *testing.T) {
 	m.fanficRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(userID, nil)
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(1000)
 	m.uploadSvc.EXPECT().
-		SaveImage(mock.Anything, "fanfics", mock.Anything, "image/png", int64(100), int64(1000), mock.Anything).
+		SaveImage(mock.Anything, "fanfics", mock.Anything, int64(100), int64(1000), mock.Anything).
 		Return("/uploads/fanfics/x.png", nil)
 	m.fanficRepo.EXPECT().
 		AddCommentMedia(mock.Anything, commentID, "/uploads/fanfics/x.png", "image", "", 0).

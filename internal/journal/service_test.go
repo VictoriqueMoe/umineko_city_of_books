@@ -855,7 +855,7 @@ func TestUploadCommentMedia_UploaderError(t *testing.T) {
 	userID := uuid.New()
 	m.repo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(userID, nil)
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(1000)
-	m.uploadSvc.EXPECT().SaveImage(mock.Anything, "journals", mock.Anything, "image/png", int64(10), int64(1000), mock.Anything).Return("", errors.New("upload fail"))
+	m.uploadSvc.EXPECT().SaveImage(mock.Anything, "journals", mock.Anything, int64(10), int64(1000), mock.Anything).Return("", errors.New("upload fail"))
 
 	// when
 	_, err := svc.UploadCommentMedia(context.Background(), commentID, userID, "image/png", 10, strings.NewReader("x"))

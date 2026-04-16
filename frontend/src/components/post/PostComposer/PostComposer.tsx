@@ -5,6 +5,7 @@ import { createPost, uploadPostMedia } from "../../../api/endpoints";
 import { useSiteInfo } from "../../../hooks/useSiteInfo";
 import { validateFileSize } from "../../../utils/fileValidation";
 import { Button } from "../../Button/Button";
+import { GifPicker } from "../../chat/GifPicker/GifPicker";
 import { MediaPickerButton, MediaPreviews } from "../../MediaPicker/MediaPicker";
 import { MentionTextArea } from "../../MentionTextArea/MentionTextArea";
 import { PollCreator } from "../PollCreator/PollCreator";
@@ -24,6 +25,24 @@ export function PostComposer({ corner = "general" }: PostComposerProps) {
     const [showPoll, setShowPoll] = useState(false);
     const [pollOptions, setPollOptions] = useState<string[]>(["", ""]);
     const [pollDuration, setPollDuration] = useState(86400);
+    const [gifPickerOpen, setGifPickerOpen] = useState(false);
+
+    async function handleGifPick(gif: { url: string }) {
+        setGifPickerOpen(false);
+        if (submitting) {
+            return;
+        }
+        setSubmitting(true);
+        setError("");
+        try {
+            const { id } = await createPost(gif.url, corner);
+            navigate(`/game-board/${id}`);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to send GIF");
+        } finally {
+            setSubmitting(false);
+        }
+    }
 
     async function handleSubmit() {
         if (submitting || (!body.trim() && files.length === 0)) {
@@ -130,6 +149,17 @@ export function PostComposer({ corner = "general" }: PostComposerProps) {
             <div className={styles.bar}>
                 <div className={styles.barLeft}>
                     <MediaPickerButton onFiles={valid => setFiles(prev => [...prev, ...valid])} onError={setError} />
+                    <div className={styles.gifAnchor}>
+                        <Button
+                            variant="ghost"
+                            size="small"
+                            onClick={() => setGifPickerOpen(prev => !prev)}
+                            disabled={submitting}
+                        >
+                            + GIF
+                        </Button>
+                        {gifPickerOpen && <GifPicker onPick={handleGifPick} onClose={() => setGifPickerOpen(false)} />}
+                    </div>
                     {!showPoll && (
                         <Button variant="ghost" size="small" onClick={() => setShowPoll(true)}>
                             + Poll

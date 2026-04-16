@@ -75,6 +75,9 @@ packages:
   umineko_city_of_books/internal/giphy:
     interfaces:
       Service:
+  umineko_city_of_books/internal/giphy/favourite:
+    interfaces:
+      Service:
   umineko_city_of_books/internal/repository:
     config:
       all: true

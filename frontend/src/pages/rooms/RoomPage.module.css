@@ -455,6 +455,7 @@
 .messages {
     flex: 1;
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 1rem 1.25rem;
     display: flex;
     flex-direction: column;
@@ -538,5 +539,9 @@
 
     .roomInfoCollapsible:not([data-expanded="true"]) .roomInfoContent {
         display: none;
+    }
+
+    .messages {
+        padding: 0.75rem 0.5rem;
     }
 }

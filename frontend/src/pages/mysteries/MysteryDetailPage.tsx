@@ -25,6 +25,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { useNotifications } from "../../hooks/useNotifications";
 import { useThrottled } from "../../hooks/useThrottled";
 import { can } from "../../utils/permissions";
+import { renderRich } from "../../utils/richText";
 import { Button } from "../../components/Button/Button";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { relativeTime } from "../../utils/notifications";
@@ -703,7 +704,7 @@ export function MysteryDetailPage() {
                     </div>
                 </div>
 
-                <div className={styles.detailBody}>{mystery.body}</div>
+                <div className={styles.detailBody}>{renderRich(mystery.body)}</div>
 
                 {mystery.clues.filter(c => !c.player_id).length > 0 && (
                     <div className={styles.cluesSection}>

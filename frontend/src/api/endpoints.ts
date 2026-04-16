@@ -1671,3 +1671,30 @@ export async function trendingGiphy(offset?: number, limit?: number): Promise<Gi
     const qs = buildQueryString({ offset: offset ?? 0, limit: limit ?? 0 });
     return apiFetch<GiphyResponse>(`/giphy/trending${qs}`);
 }
+
+export interface GiphyFavourite {
+    giphy_id: string;
+    url: string;
+    title: string;
+    preview_url: string;
+    width: number;
+    height: number;
+}
+
+export interface GiphyFavouritesResponse {
+    data: GiphyFavourite[];
+    total: number;
+}
+
+export async function listGiphyFavourites(offset?: number, limit?: number): Promise<GiphyFavouritesResponse> {
+    const qs = buildQueryString({ offset: offset ?? 0, limit: limit ?? 0 });
+    return apiFetch<GiphyFavouritesResponse>(`/giphy/favourites${qs}`);
+}
+
+export async function addGiphyFavourite(fav: GiphyFavourite): Promise<void> {
+    await apiPost<unknown, GiphyFavourite>(`/giphy/favourites`, fav);
+}
+
+export async function removeGiphyFavourite(giphyId: string): Promise<void> {
+    await apiDelete(`/giphy/favourites/${encodeURIComponent(giphyId)}`);
+}

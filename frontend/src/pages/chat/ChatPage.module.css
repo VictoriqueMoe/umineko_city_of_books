@@ -214,6 +214,7 @@
 .messages {
     flex: 1;
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 1rem 1.25rem;
     display: flex;
     flex-direction: column;

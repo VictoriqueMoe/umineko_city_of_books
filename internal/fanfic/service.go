@@ -392,7 +392,7 @@ func (s *service) UploadCoverImage(ctx context.Context, fanficID, userID uuid.UU
 
 	mediaID := uuid.New()
 	maxSize := int64(s.settingsSvc.GetInt(ctx, config.SettingMaxImageSize))
-	urlPath, err := s.uploadSvc.SaveImage(ctx, "fanfics", mediaID, contentType, fileSize, maxSize, reader)
+	urlPath, err := s.uploadSvc.SaveImage(ctx, "fanfics", mediaID, fileSize, maxSize, reader)
 	if err != nil {
 		return "", err
 	}

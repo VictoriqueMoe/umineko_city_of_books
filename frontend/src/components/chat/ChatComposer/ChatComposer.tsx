@@ -242,32 +242,31 @@ export function ChatComposer({
                     <MediaPreviews files={files} onRemove={removeFile} size="small" />
                 </div>
             )}
-            <div className={styles.row} onKeyDown={handleKeyDown}>
-                <div className={styles.textareaWrapper}>
-                    <MentionTextArea
-                        placeholder="Type a message... (Enter to send, Shift+Enter for newline)"
-                        value={body}
-                        onChange={handleBodyChange}
-                        rows={1}
-                        onPasteFiles={handlePasteFiles}
-                        mentionPool={mentionPool}
-                        showColours
-                    />
-                </div>
+            <div className={styles.textareaWrapper} onKeyDown={handleKeyDown}>
+                <MentionTextArea
+                    placeholder="Type a message... (Enter to send, Shift+Enter for newline)"
+                    value={body}
+                    onChange={handleBodyChange}
+                    rows={1}
+                    onPasteFiles={handlePasteFiles}
+                    mentionPool={mentionPool}
+                    showColours
+                />
+            </div>
+            <div className={styles.actions}>
                 <MediaPickerButton onFiles={valid => setFiles(prev => [...prev, ...valid])} onError={setError} />
                 <div className={styles.gifAnchor}>
-                    <button
-                        type="button"
-                        className={styles.gifBtn}
+                    <Button
+                        variant="ghost"
+                        size="small"
                         onClick={() => setGifPickerOpen(prev => !prev)}
-                        aria-label="Pick a GIF"
-                        title="Pick a GIF"
                         disabled={submitting}
                     >
-                        GIF
-                    </button>
+                        + GIF
+                    </Button>
                     {gifPickerOpen && <GifPicker onPick={handleGifPick} onClose={() => setGifPickerOpen(false)} />}
                 </div>
+                <span className={styles.spacer} />
                 <Button variant="primary" size="small" onClick={handleSubmit} disabled={!canSend}>
                     {submitting ? "..." : "Send"}
                 </Button>

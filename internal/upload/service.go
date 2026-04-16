@@ -1,9 +1,12 @@
 package upload
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -24,21 +27,21 @@ var (
 	}
 
 	AllowedVideoTypes = map[string]string{
-		"video/mp4":              ".mp4",
-		"video/webm":             ".webm",
-		"video/quicktime":        ".mov",
-		"video/x-msvideo":        ".avi",
-		"video/x-matroska":       ".mkv",
-		"video/matroska":         ".mkv",
-		"application/x-matroska": ".mkv",
+		"video/mp4":       ".mp4",
+		"video/webm":      ".webm",
+		"video/x-msvideo": ".avi",
+	}
+
+	sniffAliases = map[string]string{
+		"video/avi": "video/x-msvideo",
 	}
 )
 
 type (
 	Service interface {
 		SaveFile(subDir string, filename string, reader io.Reader) (string, error)
-		SaveImage(ctx context.Context, subDir string, id uuid.UUID, contentType string, fileSize int64, maxSize int64, reader io.Reader) (string, error)
-		SaveVideo(ctx context.Context, subDir string, id uuid.UUID, contentType string, fileSize int64, maxSize int64, reader io.Reader) (string, error)
+		SaveImage(ctx context.Context, subDir string, id uuid.UUID, fileSize int64, maxSize int64, reader io.Reader) (string, error)
+		SaveVideo(ctx context.Context, subDir string, id uuid.UUID, fileSize int64, maxSize int64, reader io.Reader) (string, error)
 		Delete(urlPath string) error
 		DeleteByPrefix(subDir string, prefix string) error
 		GetUploadDir() string
@@ -81,7 +84,6 @@ func (s *service) SaveFile(subDir string, filename string, reader io.Reader) (st
 func (s *service) saveMedia(
 	subDir string,
 	id uuid.UUID,
-	contentType string,
 	fileSize int64,
 	maxSize int64,
 	allowedTypes map[string]string,
@@ -92,7 +94,15 @@ func (s *service) saveMedia(
 		return "", fmt.Errorf("file size %dMB exceeds maximum %dMB", fileSize/(1024*1024), maxSize/(1024*1024))
 	}
 
-	ext, ok := allowedTypes[contentType]
+	sniffed, wrapped, err := DetectContentType(reader)
+	if err != nil {
+		return "", err
+	}
+	if alias, ok := sniffAliases[sniffed]; ok {
+		sniffed = alias
+	}
+
+	ext, ok := allowedTypes[sniffed]
 	if !ok {
 		return "", typeErr
 	}
@@ -103,15 +113,15 @@ func (s *service) saveMedia(
 	}
 
 	filename := fmt.Sprintf("%s_%d%s", id.String(), time.Now().UnixMilli(), ext)
-	return s.SaveFile(subDir, filename, reader)
+	return s.SaveFile(subDir, filename, wrapped)
 }
 
-func (s *service) SaveImage(_ context.Context, subDir string, id uuid.UUID, contentType string, fileSize int64, maxSize int64, reader io.Reader) (string, error) {
-	return s.saveMedia(subDir, id, contentType, fileSize, maxSize, AllowedImageTypes, ErrInvalidFileType, reader)
+func (s *service) SaveImage(_ context.Context, subDir string, id uuid.UUID, fileSize int64, maxSize int64, reader io.Reader) (string, error) {
+	return s.saveMedia(subDir, id, fileSize, maxSize, AllowedImageTypes, ErrInvalidFileType, reader)
 }
 
-func (s *service) SaveVideo(_ context.Context, subDir string, id uuid.UUID, contentType string, fileSize int64, maxSize int64, reader io.Reader) (string, error) {
-	return s.saveMedia(subDir, id, contentType, fileSize, maxSize, AllowedVideoTypes, ErrInvalidVideoType, reader)
+func (s *service) SaveVideo(_ context.Context, subDir string, id uuid.UUID, fileSize int64, maxSize int64, reader io.Reader) (string, error) {
+	return s.saveMedia(subDir, id, fileSize, maxSize, AllowedVideoTypes, ErrInvalidVideoType, reader)
 }
 
 func (s *service) Delete(urlPath string) error {
@@ -155,4 +165,18 @@ func (s *service) DeleteByPrefix(subDir string, prefix string) error {
 		}
 	}
 	return nil
+}
+
+func DetectContentType(reader io.Reader) (string, io.Reader, error) {
+	buf := make([]byte, 512)
+	n, err := io.ReadFull(reader, buf)
+	if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) && err != io.EOF {
+		return "", nil, fmt.Errorf("read for sniff: %w", err)
+	}
+	peek := buf[:n]
+	mt := http.DetectContentType(peek)
+	if i := strings.Index(mt, ";"); i >= 0 {
+		mt = strings.TrimSpace(mt[:i])
+	}
+	return mt, io.MultiReader(bytes.NewReader(peek), reader), nil
 }

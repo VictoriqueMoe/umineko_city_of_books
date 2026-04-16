@@ -284,7 +284,7 @@ func (s *service) UploadShipImage(ctx context.Context, shipID uuid.UUID, userID 
 
 	mediaID := uuid.New()
 	maxSize := int64(s.settingsSvc.GetInt(ctx, config.SettingMaxImageSize))
-	urlPath, err := s.uploadSvc.SaveImage(ctx, "ships", mediaID, contentType, fileSize, maxSize, reader)
+	urlPath, err := s.uploadSvc.SaveImage(ctx, "ships", mediaID, fileSize, maxSize, reader)
 	if err != nil {
 		return "", err
 	}

@@ -1,12 +1,23 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ApiError } from "../../../api/client";
-import { type GiphyGif, searchGiphy, trendingGiphy } from "../../../api/endpoints";
+import { type GiphyFavourite, type GiphyGif, searchGiphy, trendingGiphy } from "../../../api/endpoints";
+import { useAuth } from "../../../hooks/useAuth";
+import { useGifFavourites } from "../../../hooks/useGifFavourites";
 import styles from "./GifPicker.module.css";
 
 interface GifPickerProps {
     onPick: (gif: { id: string; url: string; description: string }) => void;
     onClose: () => void;
 }
+
+interface Item {
+    id: string;
+    title: string;
+    url: string;
+    previewUrl: string;
+}
+
+type Tab = "browse" | "favourites";
 
 const SEARCH_DEBOUNCE_MS = 600;
 const MIN_SEARCH_LENGTH = 2;
@@ -21,14 +32,42 @@ function pickImage(gif: GiphyGif, prefer: string[]): string {
     return "";
 }
 
+function toItem(gif: GiphyGif): Item | null {
+    const url = pickImage(gif, ["fixed_height", "downsized_medium", "original"]);
+    const previewUrl = pickImage(gif, ["fixed_width_small", "fixed_width", "original"]);
+    if (!url || !previewUrl) {
+        return null;
+    }
+    return {
+        id: gif.id,
+        title: gif.title || "GIF",
+        url,
+        previewUrl,
+    };
+}
+
+function favToItem(f: GiphyFavourite): Item {
+    return {
+        id: f.giphy_id,
+        title: f.title || "GIF",
+        url: f.url,
+        previewUrl: f.preview_url || f.url,
+    };
+}
+
 export function GifPicker({ onPick, onClose }: GifPickerProps) {
+    const { user } = useAuth();
+    const { favourites: favRows, ids: favouriteIds, toggle } = useGifFavourites();
     const wrapperRef = useRef<HTMLDivElement>(null);
+    const [tab, setTab] = useState<Tab>("browse");
     const [query, setQuery] = useState("");
-    const [results, setResults] = useState<GiphyGif[]>([]);
+    const [results, setResults] = useState<Item[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string>("");
     const [rateLimitedUntil, setRateLimitedUntil] = useState<Date | null>(null);
     const activeQueryRef = useRef<string>("");
+
+    const favourites = useMemo(() => favRows.map(favToItem), [favRows]);
 
     const load = useCallback(async (q: string) => {
         activeQueryRef.current = q;
@@ -39,7 +78,14 @@ export function GifPicker({ onPick, onClose }: GifPickerProps) {
             if (activeQueryRef.current !== q) {
                 return;
             }
-            setResults(resp.data ?? []);
+            const items: Item[] = [];
+            for (const g of resp.data ?? []) {
+                const item = toItem(g);
+                if (item) {
+                    items.push(item);
+                }
+            }
+            setResults(items);
         } catch (err) {
             if (activeQueryRef.current !== q) {
                 return;
@@ -78,10 +124,16 @@ export function GifPicker({ onPick, onClose }: GifPickerProps) {
     }, [rateLimitedUntil, load]);
 
     useEffect(() => {
+        if (tab !== "browse") {
+            return;
+        }
         load("");
-    }, [load]);
+    }, [load, tab]);
 
     useEffect(() => {
+        if (tab !== "browse") {
+            return;
+        }
         const trimmed = query.trim();
         if (trimmed.length > 0 && trimmed.length < MIN_SEARCH_LENGTH) {
             return;
@@ -90,7 +142,7 @@ export function GifPicker({ onPick, onClose }: GifPickerProps) {
             load(trimmed);
         }, SEARCH_DEBOUNCE_MS);
         return () => clearTimeout(t);
-    }, [query, load]);
+    }, [query, load, tab]);
 
     useEffect(() => {
         function handleClick(event: MouseEvent) {
@@ -114,60 +166,111 @@ export function GifPicker({ onPick, onClose }: GifPickerProps) {
         };
     }, [onClose]);
 
-    function handlePick(gif: GiphyGif) {
-        const url = pickImage(gif, ["fixed_height", "downsized_medium", "original"]);
-        if (!url) {
+    function handlePick(item: Item) {
+        onPick({
+            id: item.id,
+            url: item.url,
+            description: item.title,
+        });
+    }
+
+    async function toggleFavourite(item: Item) {
+        if (!user) {
             return;
         }
-        onPick({
-            id: gif.id,
-            url,
-            description: gif.title || "GIF",
-        });
+        const fav: GiphyFavourite = {
+            giphy_id: item.id,
+            url: item.url,
+            title: item.title,
+            preview_url: item.previewUrl,
+            width: 0,
+            height: 0,
+        };
+        await toggle(fav);
     }
 
     const resetClock = rateLimitedUntil
         ? rateLimitedUntil.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
         : "";
 
+    const items = tab === "favourites" ? favourites : results;
+    const showRateLimited = tab === "browse" && rateLimitedUntil !== null;
+    const showLoading = tab === "browse" && loading && !rateLimitedUntil;
+    const showError = tab === "browse" && !!error && !loading && !rateLimitedUntil;
+    const showEmpty = !showRateLimited && !showLoading && !showError && items.length === 0;
+
     return (
         <div ref={wrapperRef} className={styles.wrapper}>
-            <input
-                className={styles.search}
-                type="text"
-                autoFocus
-                placeholder="Search GIPHY"
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-                disabled={rateLimitedUntil !== null}
-            />
+            {user && (
+                <div className={styles.tabs}>
+                    <button
+                        type="button"
+                        className={`${styles.tab} ${tab === "browse" ? styles.tabActive : ""}`}
+                        onClick={() => setTab("browse")}
+                    >
+                        Trending
+                    </button>
+                    <button
+                        type="button"
+                        className={`${styles.tab} ${tab === "favourites" ? styles.tabActive : ""}`}
+                        onClick={() => setTab("favourites")}
+                    >
+                        {"\u2605"} Favourites
+                    </button>
+                </div>
+            )}
+            {tab === "browse" && (
+                <input
+                    className={styles.search}
+                    type="text"
+                    autoFocus
+                    placeholder="Search GIPHY"
+                    value={query}
+                    onChange={e => setQuery(e.target.value)}
+                    disabled={rateLimitedUntil !== null}
+                />
+            )}
             <div className={styles.grid}>
-                {rateLimitedUntil && (
+                {showRateLimited && (
                     <div className={styles.rateLimit}>GIF search is paused. Try again at {resetClock}.</div>
                 )}
-                {!rateLimitedUntil && loading && <div className={styles.loading}>Loading...</div>}
-                {!rateLimitedUntil && !loading && error && <div className={styles.error}>{error}</div>}
-                {!rateLimitedUntil && !loading && !error && results.length === 0 && (
-                    <div className={styles.empty}>No GIFs found</div>
+                {showLoading && <div className={styles.loading}>Loading...</div>}
+                {showError && <div className={styles.error}>{error}</div>}
+                {showEmpty && (
+                    <div className={styles.empty}>
+                        {tab === "favourites" ? "No favourites yet. Star a GIF to save it." : "No GIFs found"}
+                    </div>
                 )}
-                {!rateLimitedUntil &&
-                    !loading &&
-                    !error &&
-                    results.map(g => {
-                        const thumb = pickImage(g, ["fixed_width_small", "fixed_width", "original"]);
-                        if (!thumb) {
-                            return null;
-                        }
+                {!showRateLimited &&
+                    !showLoading &&
+                    !showError &&
+                    items.map(item => {
+                        const starred = favouriteIds.has(item.id);
                         return (
-                            <button
-                                key={g.id}
-                                type="button"
-                                className={styles.gifBtn}
-                                onClick={() => handlePick(g)}
-                                title={g.title}
-                            >
-                                <img src={thumb} alt={g.title || "GIF"} loading="lazy" />
-                            </button>
+                            <div key={item.id} className={styles.tile}>
+                                <button
+                                    type="button"
+                                    className={styles.gifBtn}
+                                    onClick={() => handlePick(item)}
+                                    title={item.title}
+                                >
+                                    <img src={item.previewUrl} alt={item.title} loading="lazy" />
+                                </button>
+                                {user && (
+                                    <button
+                                        type="button"
+                                        className={`${styles.star} ${starred ? styles.starFilled : ""}`}
+                                        onClick={e => {
+                                            e.stopPropagation();
+                                            toggleFavourite(item);
+                                        }}
+                                        aria-label={starred ? "Remove from favourites" : "Add to favourites"}
+                                        title={starred ? "Remove from favourites" : "Add to favourites"}
+                                    >
+                                        {starred ? "\u2605" : "\u2606"}
+                                    </button>
+                                )}
+                            </div>
                         );
                     })}
             </div>

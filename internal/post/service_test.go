@@ -694,7 +694,7 @@ func TestUploadPostMedia_UploaderError(t *testing.T) {
 	userID := uuid.New()
 	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(userID, nil)
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(1000)
-	m.uploadSvc.EXPECT().SaveImage(mock.Anything, "posts", mock.Anything, "image/png", int64(10), int64(1000), mock.Anything).Return("", errors.New("upload fail"))
+	m.uploadSvc.EXPECT().SaveImage(mock.Anything, "posts", mock.Anything, int64(10), int64(1000), mock.Anything).Return("", errors.New("upload fail"))
 
 	// when
 	_, err := svc.UploadPostMedia(context.Background(), postID, userID, "image/png", 10, strings.NewReader("x"))
@@ -800,7 +800,7 @@ func TestUploadCommentMedia_UploaderError(t *testing.T) {
 	userID := uuid.New()
 	m.postRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(userID, nil)
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(1000)
-	m.uploadSvc.EXPECT().SaveImage(mock.Anything, "posts", mock.Anything, "image/png", int64(10), int64(1000), mock.Anything).Return("", errors.New("upload fail"))
+	m.uploadSvc.EXPECT().SaveImage(mock.Anything, "posts", mock.Anything, int64(10), int64(1000), mock.Anything).Return("", errors.New("upload fail"))
 
 	// when
 	_, err := svc.UploadCommentMedia(context.Background(), commentID, userID, "image/png", 10, strings.NewReader("x"))

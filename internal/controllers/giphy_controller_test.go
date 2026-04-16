@@ -7,6 +7,7 @@ import (
 
 	"umineko_city_of_books/internal/controllers/utils/testutil"
 	giphysvc "umineko_city_of_books/internal/giphy"
+	giphyfavourite "umineko_city_of_books/internal/giphy/favourite"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -145,4 +146,179 @@ func TestGiphyTrending_UpstreamError(t *testing.T) {
 
 	require.Equal(t, http.StatusInternalServerError, status)
 	assert.Contains(t, string(body), "gif trending failed")
+}
+
+func newGiphyFavouriteHarness(t *testing.T) (*testutil.Harness, *giphyfavourite.MockService) {
+	h := testutil.NewHarness(t)
+	fs := giphyfavourite.NewMockService(t)
+
+	s := &Service{
+		GiphyFavouriteService: fs,
+		AuthSession:           h.SessionManager,
+		AuthzService:          h.AuthzService,
+	}
+	for _, setup := range s.getAllGiphyRoutes() {
+		setup(h.App)
+	}
+	return h, fs
+}
+
+func TestGiphyFavouritesList_AuthFailures(t *testing.T) {
+	testutil.RunAuthFailureSuite(t, newGiphyFavouriteHarness, "GET", "/giphy/favourites", nil)
+}
+
+func TestGiphyFavouritesList_OK(t *testing.T) {
+	h, fs := newGiphyFavouriteHarness(t)
+	userID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	favs := []giphyfavourite.Favourite{
+		{GiphyID: "a", URL: "urlA", Title: "A"},
+		{GiphyID: "b", URL: "urlB", Title: "B"},
+	}
+	fs.EXPECT().List(mock.Anything, userID, 50, 0).Return(favs, 2, nil)
+
+	status, body := h.NewRequest("GET", "/giphy/favourites").
+		WithCookie("valid-cookie").
+		Do()
+
+	require.Equal(t, http.StatusOK, status)
+	got := testutil.UnmarshalJSON[struct {
+		Data  []giphyfavourite.Favourite `json:"data"`
+		Total int                        `json:"total"`
+	}](t, body)
+	assert.Equal(t, 2, got.Total)
+	require.Len(t, got.Data, 2)
+	assert.Equal(t, "a", got.Data[0].GiphyID)
+}
+
+func TestGiphyFavouritesList_PassesOffsetAndLimit(t *testing.T) {
+	h, fs := newGiphyFavouriteHarness(t)
+	userID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	fs.EXPECT().List(mock.Anything, userID, 10, 40).Return([]giphyfavourite.Favourite{}, 0, nil)
+
+	status, _ := h.NewRequest("GET", "/giphy/favourites?offset=40&limit=10").
+		WithCookie("valid-cookie").
+		Do()
+
+	require.Equal(t, http.StatusOK, status)
+}
+
+func TestGiphyFavouritesList_UpstreamError(t *testing.T) {
+	h, fs := newGiphyFavouriteHarness(t)
+	h.ExpectValidSession("valid-cookie", uuid.New())
+	fs.EXPECT().List(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil, 0, errors.New("boom"))
+
+	status, body := h.NewRequest("GET", "/giphy/favourites").
+		WithCookie("valid-cookie").
+		Do()
+
+	require.Equal(t, http.StatusInternalServerError, status)
+	assert.Contains(t, string(body), "failed to load favourites")
+}
+
+func TestGiphyFavouritesAdd_AuthFailures(t *testing.T) {
+	testutil.RunAuthFailureSuite(t, newGiphyFavouriteHarness, "POST", "/giphy/favourites", map[string]any{
+		"giphy_id": "abc",
+		"url":      "https://media.giphy.com/abc.gif",
+	})
+}
+
+func TestGiphyFavouritesAdd_OK(t *testing.T) {
+	h, fs := newGiphyFavouriteHarness(t)
+	userID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	fs.EXPECT().Add(mock.Anything, userID, giphyfavourite.Favourite{
+		GiphyID:    "abc",
+		URL:        "https://media.giphy.com/abc.gif",
+		Title:      "cat",
+		PreviewURL: "https://media.giphy.com/abc-preview.gif",
+		Width:      100,
+		Height:     50,
+	}).Return(nil)
+
+	status, _ := h.NewRequest("POST", "/giphy/favourites").
+		WithCookie("valid-cookie").
+		WithJSONBody(map[string]any{
+			"giphy_id":    "abc",
+			"url":         "https://media.giphy.com/abc.gif",
+			"title":       "cat",
+			"preview_url": "https://media.giphy.com/abc-preview.gif",
+			"width":       100,
+			"height":      50,
+		}).
+		Do()
+
+	require.Equal(t, http.StatusNoContent, status)
+}
+
+func TestGiphyFavouritesAdd_MissingFields(t *testing.T) {
+	h, _ := newGiphyFavouriteHarness(t)
+	h.ExpectValidSession("valid-cookie", uuid.New())
+
+	status, body := h.NewRequest("POST", "/giphy/favourites").
+		WithCookie("valid-cookie").
+		WithJSONBody(map[string]any{"giphy_id": "abc"}).
+		Do()
+
+	require.Equal(t, http.StatusBadRequest, status)
+	assert.Contains(t, string(body), "giphy_id and url are required")
+}
+
+func TestGiphyFavouritesAdd_TrimsWhitespace(t *testing.T) {
+	h, _ := newGiphyFavouriteHarness(t)
+	h.ExpectValidSession("valid-cookie", uuid.New())
+
+	status, body := h.NewRequest("POST", "/giphy/favourites").
+		WithCookie("valid-cookie").
+		WithJSONBody(map[string]any{"giphy_id": "   ", "url": "  "}).
+		Do()
+
+	require.Equal(t, http.StatusBadRequest, status)
+	assert.Contains(t, string(body), "giphy_id and url are required")
+}
+
+func TestGiphyFavouritesAdd_UpstreamError(t *testing.T) {
+	h, fs := newGiphyFavouriteHarness(t)
+	h.ExpectValidSession("valid-cookie", uuid.New())
+	fs.EXPECT().Add(mock.Anything, mock.Anything, mock.Anything).Return(errors.New("boom"))
+
+	status, body := h.NewRequest("POST", "/giphy/favourites").
+		WithCookie("valid-cookie").
+		WithJSONBody(map[string]any{"giphy_id": "abc", "url": "https://x"}).
+		Do()
+
+	require.Equal(t, http.StatusInternalServerError, status)
+	assert.Contains(t, string(body), "failed to add favourite")
+}
+
+func TestGiphyFavouritesRemove_AuthFailures(t *testing.T) {
+	testutil.RunAuthFailureSuite(t, newGiphyFavouriteHarness, "DELETE", "/giphy/favourites/abc", nil)
+}
+
+func TestGiphyFavouritesRemove_OK(t *testing.T) {
+	h, fs := newGiphyFavouriteHarness(t)
+	userID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	fs.EXPECT().Remove(mock.Anything, userID, "abc").Return(nil)
+
+	status, _ := h.NewRequest("DELETE", "/giphy/favourites/abc").
+		WithCookie("valid-cookie").
+		Do()
+
+	require.Equal(t, http.StatusNoContent, status)
+}
+
+func TestGiphyFavouritesRemove_UpstreamError(t *testing.T) {
+	h, fs := newGiphyFavouriteHarness(t)
+	h.ExpectValidSession("valid-cookie", uuid.New())
+	fs.EXPECT().Remove(mock.Anything, mock.Anything, mock.Anything).Return(errors.New("boom"))
+
+	status, body := h.NewRequest("DELETE", "/giphy/favourites/abc").
+		WithCookie("valid-cookie").
+		Do()
+
+	require.Equal(t, http.StatusInternalServerError, status)
+	assert.Contains(t, string(body), "failed to remove favourite")
 }
