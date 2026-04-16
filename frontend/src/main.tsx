@@ -5,6 +5,7 @@ import { SiteInfoProvider } from "./context/SiteInfoContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import { AuthProvider } from "./context/AuthContext";
 import { NotificationProvider } from "./context/NotificationContext";
+import { GifFavouritesProvider } from "./context/GifFavouritesContext";
 import "./styles/variables.css";
 import "./styles/global.css";
 
@@ -14,7 +15,9 @@ createRoot(document.getElementById("root")!).render(
             <AuthProvider>
                 <ThemeProvider>
                     <NotificationProvider>
-                        <App />
+                        <GifFavouritesProvider>
+                            <App />
+                        </GifFavouritesProvider>
                     </NotificationProvider>
                 </ThemeProvider>
             </AuthProvider>

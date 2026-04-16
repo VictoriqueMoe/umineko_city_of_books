@@ -123,7 +123,7 @@ func (s *service) CreateArt(ctx context.Context, userID uuid.UUID, req dto.Creat
 
 	maxSize := int64(s.settingsSvc.GetInt(ctx, config.SettingMaxImageSize))
 	mediaID := uuid.New()
-	urlPath, err := s.uploadSvc.SaveImage(ctx, "art", mediaID, contentType, fileSize, maxSize, reader)
+	urlPath, err := s.uploadSvc.SaveImage(ctx, "art", mediaID, fileSize, maxSize, reader)
 	if err != nil {
 		return uuid.Nil, err
 	}

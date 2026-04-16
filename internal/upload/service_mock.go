@@ -315,8 +315,8 @@ func (_c *MockService_SaveFile_Call) RunAndReturn(run func(subDir string, filena
 }
 
 // SaveImage provides a mock function for the type MockService
-func (_mock *MockService) SaveImage(ctx context.Context, subDir string, id uuid.UUID, contentType string, fileSize int64, maxSize int64, reader io.Reader) (string, error) {
-	ret := _mock.Called(ctx, subDir, id, contentType, fileSize, maxSize, reader)
+func (_mock *MockService) SaveImage(ctx context.Context, subDir string, id uuid.UUID, fileSize int64, maxSize int64, reader io.Reader) (string, error) {
+	ret := _mock.Called(ctx, subDir, id, fileSize, maxSize, reader)
 
 	if len(ret) == 0 {
 		panic("no return value specified for SaveImage")
@@ -324,16 +324,16 @@ func (_mock *MockService) SaveImage(ctx context.Context, subDir string, id uuid.
 
 	var r0 string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, uuid.UUID, string, int64, int64, io.Reader) (string, error)); ok {
-		return returnFunc(ctx, subDir, id, contentType, fileSize, maxSize, reader)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, uuid.UUID, int64, int64, io.Reader) (string, error)); ok {
+		return returnFunc(ctx, subDir, id, fileSize, maxSize, reader)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, uuid.UUID, string, int64, int64, io.Reader) string); ok {
-		r0 = returnFunc(ctx, subDir, id, contentType, fileSize, maxSize, reader)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, uuid.UUID, int64, int64, io.Reader) string); ok {
+		r0 = returnFunc(ctx, subDir, id, fileSize, maxSize, reader)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, uuid.UUID, string, int64, int64, io.Reader) error); ok {
-		r1 = returnFunc(ctx, subDir, id, contentType, fileSize, maxSize, reader)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, uuid.UUID, int64, int64, io.Reader) error); ok {
+		r1 = returnFunc(ctx, subDir, id, fileSize, maxSize, reader)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -349,15 +349,14 @@ type MockService_SaveImage_Call struct {
 //   - ctx context.Context
 //   - subDir string
 //   - id uuid.UUID
-//   - contentType string
 //   - fileSize int64
 //   - maxSize int64
 //   - reader io.Reader
-func (_e *MockService_Expecter) SaveImage(ctx interface{}, subDir interface{}, id interface{}, contentType interface{}, fileSize interface{}, maxSize interface{}, reader interface{}) *MockService_SaveImage_Call {
-	return &MockService_SaveImage_Call{Call: _e.mock.On("SaveImage", ctx, subDir, id, contentType, fileSize, maxSize, reader)}
+func (_e *MockService_Expecter) SaveImage(ctx interface{}, subDir interface{}, id interface{}, fileSize interface{}, maxSize interface{}, reader interface{}) *MockService_SaveImage_Call {
+	return &MockService_SaveImage_Call{Call: _e.mock.On("SaveImage", ctx, subDir, id, fileSize, maxSize, reader)}
 }
 
-func (_c *MockService_SaveImage_Call) Run(run func(ctx context.Context, subDir string, id uuid.UUID, contentType string, fileSize int64, maxSize int64, reader io.Reader)) *MockService_SaveImage_Call {
+func (_c *MockService_SaveImage_Call) Run(run func(ctx context.Context, subDir string, id uuid.UUID, fileSize int64, maxSize int64, reader io.Reader)) *MockService_SaveImage_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -371,21 +370,17 @@ func (_c *MockService_SaveImage_Call) Run(run func(ctx context.Context, subDir s
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
-		var arg3 string
+		var arg3 int64
 		if args[3] != nil {
-			arg3 = args[3].(string)
+			arg3 = args[3].(int64)
 		}
 		var arg4 int64
 		if args[4] != nil {
 			arg4 = args[4].(int64)
 		}
-		var arg5 int64
+		var arg5 io.Reader
 		if args[5] != nil {
-			arg5 = args[5].(int64)
-		}
-		var arg6 io.Reader
-		if args[6] != nil {
-			arg6 = args[6].(io.Reader)
+			arg5 = args[5].(io.Reader)
 		}
 		run(
 			arg0,
@@ -394,7 +389,6 @@ func (_c *MockService_SaveImage_Call) Run(run func(ctx context.Context, subDir s
 			arg3,
 			arg4,
 			arg5,
-			arg6,
 		)
 	})
 	return _c
@@ -405,14 +399,14 @@ func (_c *MockService_SaveImage_Call) Return(s string, err error) *MockService_S
 	return _c
 }
 
-func (_c *MockService_SaveImage_Call) RunAndReturn(run func(ctx context.Context, subDir string, id uuid.UUID, contentType string, fileSize int64, maxSize int64, reader io.Reader) (string, error)) *MockService_SaveImage_Call {
+func (_c *MockService_SaveImage_Call) RunAndReturn(run func(ctx context.Context, subDir string, id uuid.UUID, fileSize int64, maxSize int64, reader io.Reader) (string, error)) *MockService_SaveImage_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SaveVideo provides a mock function for the type MockService
-func (_mock *MockService) SaveVideo(ctx context.Context, subDir string, id uuid.UUID, contentType string, fileSize int64, maxSize int64, reader io.Reader) (string, error) {
-	ret := _mock.Called(ctx, subDir, id, contentType, fileSize, maxSize, reader)
+func (_mock *MockService) SaveVideo(ctx context.Context, subDir string, id uuid.UUID, fileSize int64, maxSize int64, reader io.Reader) (string, error) {
+	ret := _mock.Called(ctx, subDir, id, fileSize, maxSize, reader)
 
 	if len(ret) == 0 {
 		panic("no return value specified for SaveVideo")
@@ -420,16 +414,16 @@ func (_mock *MockService) SaveVideo(ctx context.Context, subDir string, id uuid.
 
 	var r0 string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, uuid.UUID, string, int64, int64, io.Reader) (string, error)); ok {
-		return returnFunc(ctx, subDir, id, contentType, fileSize, maxSize, reader)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, uuid.UUID, int64, int64, io.Reader) (string, error)); ok {
+		return returnFunc(ctx, subDir, id, fileSize, maxSize, reader)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, uuid.UUID, string, int64, int64, io.Reader) string); ok {
-		r0 = returnFunc(ctx, subDir, id, contentType, fileSize, maxSize, reader)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, uuid.UUID, int64, int64, io.Reader) string); ok {
+		r0 = returnFunc(ctx, subDir, id, fileSize, maxSize, reader)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, uuid.UUID, string, int64, int64, io.Reader) error); ok {
-		r1 = returnFunc(ctx, subDir, id, contentType, fileSize, maxSize, reader)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, uuid.UUID, int64, int64, io.Reader) error); ok {
+		r1 = returnFunc(ctx, subDir, id, fileSize, maxSize, reader)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -445,15 +439,14 @@ type MockService_SaveVideo_Call struct {
 //   - ctx context.Context
 //   - subDir string
 //   - id uuid.UUID
-//   - contentType string
 //   - fileSize int64
 //   - maxSize int64
 //   - reader io.Reader
-func (_e *MockService_Expecter) SaveVideo(ctx interface{}, subDir interface{}, id interface{}, contentType interface{}, fileSize interface{}, maxSize interface{}, reader interface{}) *MockService_SaveVideo_Call {
-	return &MockService_SaveVideo_Call{Call: _e.mock.On("SaveVideo", ctx, subDir, id, contentType, fileSize, maxSize, reader)}
+func (_e *MockService_Expecter) SaveVideo(ctx interface{}, subDir interface{}, id interface{}, fileSize interface{}, maxSize interface{}, reader interface{}) *MockService_SaveVideo_Call {
+	return &MockService_SaveVideo_Call{Call: _e.mock.On("SaveVideo", ctx, subDir, id, fileSize, maxSize, reader)}
 }
 
-func (_c *MockService_SaveVideo_Call) Run(run func(ctx context.Context, subDir string, id uuid.UUID, contentType string, fileSize int64, maxSize int64, reader io.Reader)) *MockService_SaveVideo_Call {
+func (_c *MockService_SaveVideo_Call) Run(run func(ctx context.Context, subDir string, id uuid.UUID, fileSize int64, maxSize int64, reader io.Reader)) *MockService_SaveVideo_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -467,21 +460,17 @@ func (_c *MockService_SaveVideo_Call) Run(run func(ctx context.Context, subDir s
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
-		var arg3 string
+		var arg3 int64
 		if args[3] != nil {
-			arg3 = args[3].(string)
+			arg3 = args[3].(int64)
 		}
 		var arg4 int64
 		if args[4] != nil {
 			arg4 = args[4].(int64)
 		}
-		var arg5 int64
+		var arg5 io.Reader
 		if args[5] != nil {
-			arg5 = args[5].(int64)
-		}
-		var arg6 io.Reader
-		if args[6] != nil {
-			arg6 = args[6].(io.Reader)
+			arg5 = args[5].(io.Reader)
 		}
 		run(
 			arg0,
@@ -490,7 +479,6 @@ func (_c *MockService_SaveVideo_Call) Run(run func(ctx context.Context, subDir s
 			arg3,
 			arg4,
 			arg5,
-			arg6,
 		)
 	})
 	return _c
@@ -501,7 +489,7 @@ func (_c *MockService_SaveVideo_Call) Return(s string, err error) *MockService_S
 	return _c
 }
 
-func (_c *MockService_SaveVideo_Call) RunAndReturn(run func(ctx context.Context, subDir string, id uuid.UUID, contentType string, fileSize int64, maxSize int64, reader io.Reader) (string, error)) *MockService_SaveVideo_Call {
+func (_c *MockService_SaveVideo_Call) RunAndReturn(run func(ctx context.Context, subDir string, id uuid.UUID, fileSize int64, maxSize int64, reader io.Reader) (string, error)) *MockService_SaveVideo_Call {
 	_c.Call.Return(run)
 	return _c
 }

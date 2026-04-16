@@ -195,7 +195,7 @@ func TestUploadAvatar_OK(t *testing.T) {
 	userID := uuid.New()
 	reader := strings.NewReader("img")
 	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(1024)
-	uploadSvc.EXPECT().SaveImage(mock.Anything, "avatars", userID, "image/png", int64(3), int64(1024), reader).Return("/avatars/a.png", nil)
+	uploadSvc.EXPECT().SaveImage(mock.Anything, "avatars", userID, int64(3), int64(1024), reader).Return("/avatars/a.png", nil)
 	userRepo.EXPECT().UpdateAvatarURL(mock.Anything, userID, "/avatars/a.png").Return(nil)
 
 	// when
@@ -212,7 +212,7 @@ func TestUploadAvatar_UploadError(t *testing.T) {
 	userID := uuid.New()
 	reader := strings.NewReader("img")
 	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(1024)
-	uploadSvc.EXPECT().SaveImage(mock.Anything, "avatars", userID, "image/png", int64(3), int64(1024), reader).Return("", errors.New("too big"))
+	uploadSvc.EXPECT().SaveImage(mock.Anything, "avatars", userID, int64(3), int64(1024), reader).Return("", errors.New("too big"))
 
 	// when
 	got, err := svc.UploadAvatar(context.Background(), userID, "image/png", 3, reader)
@@ -228,7 +228,7 @@ func TestUploadAvatar_UpdateRepoError(t *testing.T) {
 	userID := uuid.New()
 	reader := strings.NewReader("img")
 	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(1024)
-	uploadSvc.EXPECT().SaveImage(mock.Anything, "avatars", userID, "image/png", int64(3), int64(1024), reader).Return("/avatars/a.png", nil)
+	uploadSvc.EXPECT().SaveImage(mock.Anything, "avatars", userID, int64(3), int64(1024), reader).Return("/avatars/a.png", nil)
 	userRepo.EXPECT().UpdateAvatarURL(mock.Anything, userID, "/avatars/a.png").Return(errors.New("db down"))
 
 	// when
@@ -246,7 +246,7 @@ func TestUploadBanner_OK(t *testing.T) {
 	userID := uuid.New()
 	reader := strings.NewReader("img")
 	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(2048)
-	uploadSvc.EXPECT().SaveImage(mock.Anything, "banners", userID, "image/jpeg", int64(3), int64(2048), reader).Return("/banners/b.jpg", nil)
+	uploadSvc.EXPECT().SaveImage(mock.Anything, "banners", userID, int64(3), int64(2048), reader).Return("/banners/b.jpg", nil)
 	userRepo.EXPECT().UpdateBannerURL(mock.Anything, userID, "/banners/b.jpg").Return(nil)
 
 	// when
@@ -263,7 +263,7 @@ func TestUploadBanner_UploadError(t *testing.T) {
 	userID := uuid.New()
 	reader := strings.NewReader("img")
 	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(2048)
-	uploadSvc.EXPECT().SaveImage(mock.Anything, "banners", userID, "image/jpeg", int64(3), int64(2048), reader).Return("", errors.New("bad type"))
+	uploadSvc.EXPECT().SaveImage(mock.Anything, "banners", userID, int64(3), int64(2048), reader).Return("", errors.New("bad type"))
 
 	// when
 	got, err := svc.UploadBanner(context.Background(), userID, "image/jpeg", 3, reader)
@@ -279,7 +279,7 @@ func TestUploadBanner_UpdateRepoError(t *testing.T) {
 	userID := uuid.New()
 	reader := strings.NewReader("img")
 	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(2048)
-	uploadSvc.EXPECT().SaveImage(mock.Anything, "banners", userID, "image/jpeg", int64(3), int64(2048), reader).Return("/banners/b.jpg", nil)
+	uploadSvc.EXPECT().SaveImage(mock.Anything, "banners", userID, int64(3), int64(2048), reader).Return("/banners/b.jpg", nil)
 	userRepo.EXPECT().UpdateBannerURL(mock.Anything, userID, "/banners/b.jpg").Return(errors.New("db down"))
 
 	// when

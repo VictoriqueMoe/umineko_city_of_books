@@ -2430,7 +2430,7 @@ func TestSetRoomAvatar_HappyPath(t *testing.T) {
 	m.authzSvc.EXPECT().GetRole(mock.Anything, userID).Return(role.Role(""), nil)
 	m.chatRepo.EXPECT().IsMemberNicknameLocked(mock.Anything, roomID, userID).Return(false, nil)
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(1024)
-	m.uploadSvc.EXPECT().SaveImage(mock.Anything, mock.Anything, userID, "image/png", int64(3), int64(1024), data).Return("avatar.png", nil)
+	m.uploadSvc.EXPECT().SaveImage(mock.Anything, mock.Anything, userID, int64(3), int64(1024), data).Return("avatar.png", nil)
 	m.chatRepo.EXPECT().SetMemberAvatar(mock.Anything, roomID, userID, "avatar.png").Return(nil)
 	m.chatRepo.EXPECT().GetRoomMembersDetailed(mock.Anything, roomID).Return([]repository.ChatRoomMemberRow{
 		{UserID: userID, Role: "member", MemberAvatarURL: "avatar.png"},
@@ -2469,7 +2469,7 @@ func TestSetRoomAvatar_UploadError(t *testing.T) {
 	m.authzSvc.EXPECT().GetRole(mock.Anything, userID).Return(role.Role(""), nil)
 	m.chatRepo.EXPECT().IsMemberNicknameLocked(mock.Anything, roomID, userID).Return(false, nil)
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(1024)
-	m.uploadSvc.EXPECT().SaveImage(mock.Anything, mock.Anything, userID, "image/png", int64(3), int64(1024), mock.Anything).Return("", errors.New("too big"))
+	m.uploadSvc.EXPECT().SaveImage(mock.Anything, mock.Anything, userID, int64(3), int64(1024), mock.Anything).Return("", errors.New("too big"))
 
 	// when
 	_, err := svc.SetRoomAvatar(context.Background(), roomID, userID, "image/png", 3, bytes.NewReader([]byte("img")))
@@ -2487,7 +2487,7 @@ func TestSetRoomAvatar_RepoError(t *testing.T) {
 	m.authzSvc.EXPECT().GetRole(mock.Anything, userID).Return(role.Role(""), nil)
 	m.chatRepo.EXPECT().IsMemberNicknameLocked(mock.Anything, roomID, userID).Return(false, nil)
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(1024)
-	m.uploadSvc.EXPECT().SaveImage(mock.Anything, mock.Anything, userID, "image/png", int64(3), int64(1024), mock.Anything).Return("avatar.png", nil)
+	m.uploadSvc.EXPECT().SaveImage(mock.Anything, mock.Anything, userID, int64(3), int64(1024), mock.Anything).Return("avatar.png", nil)
 	m.chatRepo.EXPECT().SetMemberAvatar(mock.Anything, roomID, userID, "avatar.png").Return(errors.New("db"))
 
 	// when
@@ -3421,7 +3421,7 @@ func TestSetRoomAvatar_SiteMod_BypassesLock(t *testing.T) {
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
 	m.authzSvc.EXPECT().GetRole(mock.Anything, userID).Return(authz.RoleAdmin, nil)
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(1024)
-	m.uploadSvc.EXPECT().SaveImage(mock.Anything, mock.Anything, userID, "image/png", int64(3), int64(1024), data).Return("avatar.png", nil)
+	m.uploadSvc.EXPECT().SaveImage(mock.Anything, mock.Anything, userID, int64(3), int64(1024), data).Return("avatar.png", nil)
 	m.chatRepo.EXPECT().SetMemberAvatar(mock.Anything, roomID, userID, "avatar.png").Return(nil)
 	m.chatRepo.EXPECT().GetRoomMembersDetailed(mock.Anything, roomID).Return([]repository.ChatRoomMemberRow{
 		{UserID: userID, Role: "member", MemberAvatarURL: "avatar.png"},

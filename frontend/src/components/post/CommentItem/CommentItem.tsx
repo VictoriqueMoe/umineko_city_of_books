@@ -8,7 +8,9 @@ import {
 } from "../../../api/endpoints";
 import { useAuth } from "../../../hooks/useAuth";
 import { can } from "../../../utils/permissions";
-import { linkify } from "../../../utils/linkify";
+import { extractGif } from "../../../utils/gif";
+import { renderRich } from "../../../utils/richText";
+import { GifEmbed } from "../../GifEmbed/GifEmbed";
 import { ProfileLink } from "../../ProfileLink/ProfileLink";
 import { MediaGallery } from "../MediaGallery/MediaGallery";
 import { PostEmbeds } from "../PostEmbeds/PostEmbeds";
@@ -186,7 +188,13 @@ function SingleComment({
                 </div>
             ) : (
                 <>
-                    <p className={styles.body}>{linkify(comment.body)}</p>
+                    {(() => {
+                        const gifURL = extractGif(comment.body);
+                        if (gifURL) {
+                            return <GifEmbed src={gifURL} imgClassName={styles.gifEmbed} />;
+                        }
+                        return <div className={styles.body}>{renderRich(comment.body)}</div>;
+                    })()}
                     <MediaGallery media={comment.media} />
                     {comment.embeds && <PostEmbeds embeds={comment.embeds} />}
                 </>

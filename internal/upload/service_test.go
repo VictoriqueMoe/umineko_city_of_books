@@ -1,6 +1,7 @@
 package upload
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"os"
@@ -123,13 +124,28 @@ func TestSaveFile_WriteError(t *testing.T) {
 	assert.Contains(t, err.Error(), "write file")
 }
 
+var (
+	pngMagic  = []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D}
+	jpegMagic = []byte{0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46}
+	gifMagic  = []byte("GIF89a\x00\x00\x00\x00")
+	webpMagic = append(append([]byte("RIFF"), 0, 0, 0, 0), []byte("WEBPVP8 ")...)
+	mp4Magic  = append([]byte{0, 0, 0, 0x20}, []byte("ftypisom\x00\x00\x00\x00isomiso2avc1mp41")...)
+	webmMagic = []byte{0x1A, 0x45, 0xDF, 0xA3, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1F}
+	aviMagic  = append(append([]byte("RIFF"), 0, 0, 0, 0), []byte("AVI LIST")...)
+	pdfMagic  = []byte("%PDF-1.4\n")
+)
+
+func bytesReader(b []byte) *bytes.Reader {
+	return bytes.NewReader(b)
+}
+
 func TestSaveImage_TooLarge(t *testing.T) {
 	// given
 	svc, _, _ := newTestService(t)
 	id := uuid.New()
 
 	// when
-	_, err := svc.SaveImage(context.Background(), "images", id, "image/png", 200, 100, strings.NewReader("x"))
+	_, err := svc.SaveImage(context.Background(), "images", id, 200, 100, bytesReader(pngMagic))
 
 	// then
 	require.Error(t, err)
@@ -141,8 +157,21 @@ func TestSaveImage_InvalidType(t *testing.T) {
 	svc, _, _ := newTestService(t)
 	id := uuid.New()
 
+	// when — PDF bytes should be rejected from image flow
+	_, err := svc.SaveImage(context.Background(), "images", id, int64(len(pdfMagic)), 1024, bytesReader(pdfMagic))
+
+	// then
+	require.ErrorIs(t, err, ErrInvalidFileType)
+}
+
+func TestSaveImage_RejectsSpoofedContentType(t *testing.T) {
+	// given — the caller used to pass "image/png" which we trusted.
+	// Now the bytes are what count, and these bytes are PDF.
+	svc, _, _ := newTestService(t)
+	id := uuid.New()
+
 	// when
-	_, err := svc.SaveImage(context.Background(), "images", id, "application/pdf", 10, 1024, strings.NewReader("x"))
+	_, err := svc.SaveImage(context.Background(), "images", id, int64(len(pdfMagic)), 1024, bytesReader(pdfMagic))
 
 	// then
 	require.ErrorIs(t, err, ErrInvalidFileType)
@@ -150,23 +179,24 @@ func TestSaveImage_InvalidType(t *testing.T) {
 
 func TestSaveImage_AllAllowedTypes(t *testing.T) {
 	cases := []struct {
-		contentType string
-		wantExt     string
+		name    string
+		body    []byte
+		wantExt string
 	}{
-		{"image/png", ".png"},
-		{"image/jpeg", ".jpg"},
-		{"image/gif", ".gif"},
-		{"image/webp", ".webp"},
+		{"image/png", pngMagic, ".png"},
+		{"image/jpeg", jpegMagic, ".jpg"},
+		{"image/gif", gifMagic, ".gif"},
+		{"image/webp", webpMagic, ".webp"},
 	}
 
 	for _, tc := range cases {
-		t.Run(tc.contentType, func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			// given
 			svc, _, dir := newTestService(t)
 			id := uuid.New()
 
 			// when
-			url, err := svc.SaveImage(context.Background(), "images", id, tc.contentType, 10, 1024, strings.NewReader("data"))
+			url, err := svc.SaveImage(context.Background(), "images", id, int64(len(tc.body)), 1024, bytesReader(tc.body))
 
 			// then
 			require.NoError(t, err)
@@ -175,6 +205,9 @@ func TestSaveImage_AllAllowedTypes(t *testing.T) {
 			entries, err := os.ReadDir(filepath.Join(dir, "images"))
 			require.NoError(t, err)
 			assert.Len(t, entries, 1)
+			data, err := os.ReadFile(filepath.Join(dir, "images", entries[0].Name()))
+			require.NoError(t, err)
+			assert.Equal(t, tc.body, data, "sniffed stream must still write full original bytes to disk")
 		})
 	}
 }
@@ -189,7 +222,7 @@ func TestSaveImage_ReplacesExistingFileWithSameIDPrefix(t *testing.T) {
 	require.NoError(t, os.WriteFile(oldFile, []byte("old"), 0644))
 
 	// when
-	_, err := svc.SaveImage(context.Background(), "images", id, "image/png", 10, 1024, strings.NewReader("new"))
+	_, err := svc.SaveImage(context.Background(), "images", id, int64(len(pngMagic)), 1024, bytesReader(pngMagic))
 
 	// then
 	require.NoError(t, err)
@@ -206,7 +239,7 @@ func TestSaveVideo_TooLarge(t *testing.T) {
 	id := uuid.New()
 
 	// when
-	_, err := svc.SaveVideo(context.Background(), "videos", id, "video/mp4", 200, 100, strings.NewReader("x"))
+	_, err := svc.SaveVideo(context.Background(), "videos", id, 200, 100, bytesReader(mp4Magic))
 
 	// then
 	require.Error(t, err)
@@ -218,8 +251,8 @@ func TestSaveVideo_InvalidType(t *testing.T) {
 	svc, _, _ := newTestService(t)
 	id := uuid.New()
 
-	// when
-	_, err := svc.SaveVideo(context.Background(), "videos", id, "image/png", 10, 1024, strings.NewReader("x"))
+	// when — image bytes in the video flow
+	_, err := svc.SaveVideo(context.Background(), "videos", id, int64(len(pngMagic)), 1024, bytesReader(pngMagic))
 
 	// then
 	require.ErrorIs(t, err, ErrInvalidVideoType)
@@ -227,32 +260,82 @@ func TestSaveVideo_InvalidType(t *testing.T) {
 
 func TestSaveVideo_AllAllowedTypes(t *testing.T) {
 	cases := []struct {
-		contentType string
-		wantExt     string
+		name    string
+		body    []byte
+		wantExt string
 	}{
-		{"video/mp4", ".mp4"},
-		{"video/webm", ".webm"},
-		{"video/quicktime", ".mov"},
-		{"video/x-msvideo", ".avi"},
-		{"video/x-matroska", ".mkv"},
-		{"video/matroska", ".mkv"},
-		{"application/x-matroska", ".mkv"},
+		{"video/mp4", mp4Magic, ".mp4"},
+		{"video/webm", webmMagic, ".webm"},
+		{"video/x-msvideo", aviMagic, ".avi"},
 	}
 
 	for _, tc := range cases {
-		t.Run(tc.contentType, func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			// given
 			svc, _, _ := newTestService(t)
 			id := uuid.New()
 
 			// when
-			url, err := svc.SaveVideo(context.Background(), "videos", id, tc.contentType, 10, 1024, strings.NewReader("data"))
+			url, err := svc.SaveVideo(context.Background(), "videos", id, int64(len(tc.body)), 1024, bytesReader(tc.body))
 
 			// then
 			require.NoError(t, err)
 			assert.True(t, strings.HasSuffix(url, tc.wantExt))
 		})
 	}
+}
+
+func TestDetectContentType_SniffsKnownFormats(t *testing.T) {
+	cases := []struct {
+		name string
+		body []byte
+		want string
+	}{
+		{"png", pngMagic, "image/png"},
+		{"jpeg", jpegMagic, "image/jpeg"},
+		{"gif", gifMagic, "image/gif"},
+		{"webp", webpMagic, "image/webp"},
+		{"mp4", mp4Magic, "video/mp4"},
+		{"webm", webmMagic, "video/webm"},
+		{"pdf", pdfMagic, "application/pdf"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, _, err := DetectContentType(bytesReader(tc.body))
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestDetectContentType_WrappedReaderReplaysFullStream(t *testing.T) {
+	body := append([]byte{}, pngMagic...)
+	body = append(body, []byte("trailing-content-past-512-byte-sniff")...)
+
+	_, wrapped, err := DetectContentType(bytesReader(body))
+	require.NoError(t, err)
+
+	got, err := io.ReadAll(wrapped)
+	require.NoError(t, err)
+	assert.Equal(t, body, got)
+}
+
+func TestDetectContentType_StripsCharsetSuffix(t *testing.T) {
+	// text/plain sniff returns "text/plain; charset=utf-8" — we strip the charset.
+	got, _, err := DetectContentType(strings.NewReader("just plain text here"))
+	require.NoError(t, err)
+	assert.Equal(t, "text/plain", got)
+}
+
+func TestSaveImage_AviAliasNormalizedForVideo(t *testing.T) {
+	// Go sniffs AVI as "video/avi"; our allowlist key is "video/x-msvideo".
+	// The alias map must normalize so the file is accepted.
+	svc, _, _ := newTestService(t)
+	id := uuid.New()
+
+	url, err := svc.SaveVideo(context.Background(), "videos", id, int64(len(aviMagic)), 1024, bytesReader(aviMagic))
+	require.NoError(t, err)
+	assert.True(t, strings.HasSuffix(url, ".avi"))
 }
 
 func TestDelete_EmptyPathNoOp(t *testing.T) {

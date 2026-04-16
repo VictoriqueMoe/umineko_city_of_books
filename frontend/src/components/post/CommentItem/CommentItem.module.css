@@ -57,6 +57,15 @@
     word-break: break-word;
 }
 
+.gifEmbed {
+    max-width: 260px;
+    max-height: 260px;
+    border-radius: 6px;
+    border: 1px solid rgba(var(--purple-rgb), 0.25);
+    display: block;
+    margin-top: 0.2rem;
+}
+
 .actions {
     display: flex;
     align-items: center;

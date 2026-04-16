@@ -130,40 +130,49 @@ func baseParams(apiKey string, limit, offset int) url.Values {
 
 func (s *service) get(ctx context.Context, path string, params url.Values, ttl time.Duration) (*Response, error) {
 	cacheKey := cacheKeyFor(path, params)
+
 	if s.cache != nil && ttl > 0 {
 		if cached, ok := s.cache.get(cacheKey); ok {
 			return cached, nil
 		}
 	}
+
 	if resetAt, blocked := s.rateLimitResetAt(); blocked {
 		return nil, &RateLimitError{ResetAt: resetAt}
 	}
+
 	reqURL := s.baseURL + path + "?" + params.Encode()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("build giphy request: %w", err)
 	}
+
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("call giphy: %w", err)
 	}
+
 	defer resp.Body.Close()
 	if resp.StatusCode == http.StatusTooManyRequests {
 		resetAt := parseRateLimitReset(resp.Header, time.Now())
 		s.rateLimitedUntilNs.Store(resetAt.UnixNano())
 		return nil, &RateLimitError{ResetAt: resetAt}
 	}
+
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("giphy %d: %s", resp.StatusCode, string(body))
 	}
+
 	var out Response
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
 		return nil, fmt.Errorf("decode giphy response: %w", err)
 	}
+
 	if s.cache != nil && ttl > 0 {
 		s.cache.set(cacheKey, &out, ttl)
 	}
+
 	return &out, nil
 }
 

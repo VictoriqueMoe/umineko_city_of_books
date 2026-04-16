@@ -2,7 +2,8 @@ import { useState } from "react";
 import type { ChatMessage, ReactionGroup, User } from "../../../types/api";
 import { ProfileLink } from "../../ProfileLink/ProfileLink";
 import { RolePill } from "../../RolePill/RolePill";
-import { linkify } from "../../../utils/linkify";
+import { renderRich } from "../../../utils/richText";
+import { GifEmbed } from "../../GifEmbed/GifEmbed";
 import { EmojiPicker } from "../EmojiPicker/EmojiPicker";
 import styles from "./MessageBubble.module.css";
 
@@ -109,7 +110,7 @@ export function MessageBubble({
     if (isSystemMessage) {
         return (
             <div id={`chat-msg-${message.id}`} className={classes.join(" ")}>
-                <div className={styles.systemMessageText}>{linkify(message.body)}</div>
+                <div className={styles.systemMessageText}>{renderRich(message.body)}</div>
                 <div className={styles.systemMessageTime}>{formatTime(message.created_at)}</div>
             </div>
         );
@@ -131,27 +132,23 @@ export function MessageBubble({
                         <span className={styles.replyText}>{message.reply_to.body_preview}</span>
                     </div>
                 )}
-                {!isOwn && (
-                    <div className={styles.messageSender}>
-                        {effectiveSender.display_name}
-                        <RolePill role={effectiveSender.role ?? ""} userId={effectiveSender.id} />
-                    </div>
-                )}
+                <div className={`${styles.messageSender} ${isOwn ? styles.messageSenderOwn : ""}`}>
+                    {effectiveSender.display_name}
+                    <RolePill role={effectiveSender.role ?? ""} userId={effectiveSender.id} />
+                </div>
                 {(() => {
                     const gifURL = extractGif(message.body);
                     if (gifURL) {
                         return (
-                            <img
-                                className={styles.gifEmbed}
+                            <GifEmbed
                                 src={gifURL}
-                                alt="GIF"
-                                loading="lazy"
+                                imgClassName={styles.gifEmbed}
                                 onClick={() => onLightbox?.(gifURL)}
                             />
                         );
                     }
                     if (message.body.trim()) {
-                        return <div className={styles.messageText}>{linkify(message.body)}</div>;
+                        return <div className={styles.messageText}>{renderRich(message.body)}</div>;
                     }
                     return null;
                 })()}

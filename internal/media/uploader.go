@@ -52,11 +52,11 @@ func (u *Uploader) SaveAndRecord(
 	if isVideo {
 		maxSize := int64(u.settingsSvc.GetInt(ctx, config.SettingMaxVideoSize))
 		logger.Log.Debug().Str("content_type", contentType).Int64("file_size", fileSize).Int64("max_size", maxSize).Msg("uploading video")
-		urlPath, err = u.uploadSvc.SaveVideo(ctx, subDir, mediaID, contentType, fileSize, maxSize, reader)
+		urlPath, err = u.uploadSvc.SaveVideo(ctx, subDir, mediaID, fileSize, maxSize, reader)
 	} else {
 		maxSize := int64(u.settingsSvc.GetInt(ctx, config.SettingMaxImageSize))
 		logger.Log.Debug().Str("content_type", contentType).Int64("file_size", fileSize).Int64("max_size", maxSize).Msg("uploading image")
-		urlPath, err = u.uploadSvc.SaveImage(ctx, subDir, mediaID, contentType, fileSize, maxSize, reader)
+		urlPath, err = u.uploadSvc.SaveImage(ctx, subDir, mediaID, fileSize, maxSize, reader)
 	}
 	if err != nil {
 		return nil, err

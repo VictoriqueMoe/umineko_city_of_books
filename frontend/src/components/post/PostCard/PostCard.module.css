@@ -38,6 +38,21 @@
     word-break: break-word;
 }
 
+.gifEmbed {
+    max-width: 320px;
+    max-height: 320px;
+    border-radius: 6px;
+    border: 1px solid rgba(var(--purple-rgb), 0.25);
+    display: block;
+    margin-top: 0.2rem;
+}
+
+.quickReply {
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid rgba(var(--purple-rgb), 0.15);
+}
+
 .actions {
     display: flex;
     align-items: center;

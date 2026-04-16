@@ -1696,7 +1696,7 @@ func (s *service) SetRoomAvatar(ctx context.Context, roomID, userID uuid.UUID, c
 
 	maxSize := int64(s.settingsSvc.GetInt(ctx, config.SettingMaxImageSize))
 	subDir := fmt.Sprintf("chat-avatars/%s", roomID.String())
-	avatarURL, err := s.uploadSvc.SaveImage(ctx, subDir, userID, contentType, fileSize, maxSize, reader)
+	avatarURL, err := s.uploadSvc.SaveImage(ctx, subDir, userID, fileSize, maxSize, reader)
 	if err != nil {
 		return nil, err
 	}
