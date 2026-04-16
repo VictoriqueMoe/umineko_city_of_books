@@ -12,7 +12,9 @@ import {
 import { useAuth } from "../../../hooks/useAuth";
 import { useNotifications } from "../../../hooks/useNotifications";
 import { can } from "../../../utils/permissions";
-import { linkify } from "../../../utils/linkify";
+import { extractGif } from "../../../utils/gif";
+import { renderRich } from "../../../utils/richText";
+import { GifEmbed } from "../../GifEmbed/GifEmbed";
 import { ReportButton } from "../../ReportButton/ReportButton";
 import { ProfileLink } from "../../ProfileLink/ProfileLink";
 import { MediaGallery } from "../MediaGallery/MediaGallery";
@@ -22,6 +24,7 @@ import { SharedContentCard } from "../SharedContentCard/SharedContentCard";
 import { ShareDialog } from "../ShareDialog/ShareDialog";
 import { MentionTextArea } from "../../MentionTextArea/MentionTextArea";
 import { Button } from "../../Button/Button";
+import { CommentComposer } from "../CommentComposer/CommentComposer";
 import styles from "./PostCard.module.css";
 
 interface PostCardProps {
@@ -64,6 +67,7 @@ export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps
     const [displayMedia, setDisplayMedia] = useState<PostMedia[]>(post.media);
     const [saving, setSaving] = useState(false);
     const [shareOpen, setShareOpen] = useState(false);
+    const [replyOpen, setReplyOpen] = useState(false);
     const mediaInputRef = useRef<HTMLInputElement>(null);
 
     const pendingLikeRef = useRef(false);
@@ -224,7 +228,13 @@ export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps
                             }
                         }}
                     >
-                        <p className={styles.text}>{linkify(displayBody)}</p>
+                        {(() => {
+                            const gifURL = extractGif(displayBody);
+                            if (gifURL) {
+                                return <GifEmbed src={gifURL} imgClassName={styles.gifEmbed} />;
+                            }
+                            return <div className={styles.text}>{renderRich(displayBody)}</div>;
+                        })()}
                         <MediaGallery media={displayMedia} />
                         {post.embeds && <PostEmbeds embeds={post.embeds} />}
                         {post.shared_content && <SharedContentCard content={post.shared_content} />}
@@ -243,6 +253,12 @@ export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps
                         {"\uD83D\uDCAC"} {post.comment_count > 0 && post.comment_count}
                     </Button>
                 </Link>
+
+                {user && (
+                    <Button variant="ghost" size="small" onClick={() => setReplyOpen(prev => !prev)}>
+                        {"\u21B6"} Reply
+                    </Button>
+                )}
 
                 {user && (
                     <Button variant="ghost" size="small" onClick={() => setShareOpen(true)}>
@@ -277,6 +293,18 @@ export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps
                 {user && !isOwner && <ReportButton targetType="post" targetId={post.id} />}
                 {extraActions}
             </div>
+
+            {user && replyOpen && (
+                <div className={styles.quickReply}>
+                    <CommentComposer
+                        postId={post.id}
+                        onCreated={() => {
+                            setReplyOpen(false);
+                            onEdit?.();
+                        }}
+                    />
+                </div>
+            )}
 
             {shareOpen && (
                 <ShareDialog

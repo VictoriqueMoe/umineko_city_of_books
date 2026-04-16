@@ -133,7 +133,9 @@
     font-size: 1rem;
     font-family: var(--font-body);
     line-height: 1.5;
-    resize: vertical;
+    resize: none;
+    overflow-y: auto;
+    max-height: 50vh;
     transition: border-color 0.2s var(--ease-out);
 }
 

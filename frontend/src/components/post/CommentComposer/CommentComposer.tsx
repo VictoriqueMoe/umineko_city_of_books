@@ -3,6 +3,7 @@ import { createComment, uploadCommentMedia } from "../../../api/endpoints";
 import { useSiteInfo } from "../../../hooks/useSiteInfo";
 import { validateFileSize } from "../../../utils/fileValidation";
 import { Button } from "../../Button/Button";
+import { GifPicker } from "../../chat/GifPicker/GifPicker";
 import { MediaPickerButton, MediaPreviews } from "../../MediaPicker/MediaPicker";
 import { MentionTextArea } from "../../MentionTextArea/MentionTextArea";
 import styles from "./CommentComposer.module.css";
@@ -24,6 +25,7 @@ export function CommentComposer({ postId, parentId, onCreated, createCommentFn, 
     const [files, setFiles] = useState<File[]>([]);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
+    const [gifPickerOpen, setGifPickerOpen] = useState(false);
 
     function removeFile(index: number) {
         setFiles(prev => prev.filter((_, i) => i !== index));
@@ -50,6 +52,24 @@ export function CommentComposer({ postId, parentId, onCreated, createCommentFn, 
         },
         [siteInfo.max_image_size, siteInfo.max_video_size],
     );
+
+    async function handleGifPick(gif: { url: string }) {
+        setGifPickerOpen(false);
+        if (submitting) {
+            return;
+        }
+        setSubmitting(true);
+        setError("");
+        try {
+            const doCreate = createCommentFn || createComment;
+            await doCreate(postId, gif.url, parentId);
+            onCreated();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to send GIF");
+        } finally {
+            setSubmitting(false);
+        }
+    }
 
     async function handleSubmit() {
         if ((!body.trim() && files.length === 0) || submitting) {
@@ -94,6 +114,17 @@ export function CommentComposer({ postId, parentId, onCreated, createCommentFn, 
 
             <div className={styles.bar}>
                 <MediaPickerButton onFiles={valid => setFiles(prev => [...prev, ...valid])} onError={setError} />
+                <div className={styles.gifAnchor}>
+                    <Button
+                        variant="ghost"
+                        size="small"
+                        onClick={() => setGifPickerOpen(prev => !prev)}
+                        disabled={submitting}
+                    >
+                        + GIF
+                    </Button>
+                    {gifPickerOpen && <GifPicker onPick={handleGifPick} onClose={() => setGifPickerOpen(false)} />}
+                </div>
                 <Button
                     variant="primary"
                     size="small"

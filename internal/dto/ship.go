@@ -67,8 +67,8 @@ type (
 	}
 
 	CharacterListResponse struct {
-		Series     string                 `json:"series"`
-		Characters []CharacterListEntry   `json:"characters"`
+		Series     string               `json:"series"`
+		Characters []CharacterListEntry `json:"characters"`
 	}
 
 	CharacterListEntry struct {

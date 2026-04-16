@@ -18,7 +18,7 @@ import {
 } from "../../api/endpoints";
 import { useAuth } from "../../hooks/useAuth";
 import { can } from "../../utils/permissions";
-import { linkify } from "../../utils/linkify";
+import { renderRich } from "../../utils/richText";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { Button } from "../../components/Button/Button";
 import { Modal } from "../../components/Modal/Modal";
@@ -183,7 +183,7 @@ export function ArtDetailPage() {
                 ) : (
                     <>
                         <h1 className={styles.title}>{art.title}</h1>
-                        {art.description && <div className={styles.description}>{linkify(art.description)}</div>}
+                        {art.description && <div className={styles.description}>{renderRich(art.description)}</div>}
                     </>
                 )}
 

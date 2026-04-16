@@ -109,7 +109,7 @@ func validateDOB(dob string) error {
 
 func (s *service) UploadAvatar(ctx context.Context, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (string, error) {
 	maxSize := int64(s.settingsSvc.GetInt(ctx, config.SettingMaxImageSize))
-	avatarURL, err := s.uploadSvc.SaveImage(ctx, "avatars", userID, contentType, fileSize, maxSize, reader)
+	avatarURL, err := s.uploadSvc.SaveImage(ctx, "avatars", userID, fileSize, maxSize, reader)
 	if err != nil {
 		return "", err
 	}
@@ -123,7 +123,7 @@ func (s *service) UploadAvatar(ctx context.Context, userID uuid.UUID, contentTyp
 
 func (s *service) UploadBanner(ctx context.Context, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (string, error) {
 	maxSize := int64(s.settingsSvc.GetInt(ctx, config.SettingMaxImageSize))
-	bannerURL, err := s.uploadSvc.SaveImage(ctx, "banners", userID, contentType, fileSize, maxSize, reader)
+	bannerURL, err := s.uploadSvc.SaveImage(ctx, "banners", userID, fileSize, maxSize, reader)
 	if err != nil {
 		return "", err
 	}

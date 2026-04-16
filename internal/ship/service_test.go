@@ -438,7 +438,7 @@ func TestUploadShipImage_UploadError(t *testing.T) {
 	m.shipRepo.EXPECT().GetAuthorID(mock.Anything, shipID).Return(userID, nil)
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(1000)
 	m.uploadSvc.EXPECT().
-		SaveImage(mock.Anything, "ships", mock.Anything, "image/png", int64(100), int64(1000), mock.Anything).
+		SaveImage(mock.Anything, "ships", mock.Anything, int64(100), int64(1000), mock.Anything).
 		Return("", errors.New("disk full"))
 
 	// when
@@ -456,7 +456,7 @@ func TestUploadShipImage_UpdateImageError(t *testing.T) {
 	m.shipRepo.EXPECT().GetAuthorID(mock.Anything, shipID).Return(userID, nil)
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(1000)
 	m.uploadSvc.EXPECT().
-		SaveImage(mock.Anything, "ships", mock.Anything, "image/png", int64(100), int64(1000), mock.Anything).
+		SaveImage(mock.Anything, "ships", mock.Anything, int64(100), int64(1000), mock.Anything).
 		Return("/uploads/ships/x.png", nil)
 	m.shipRepo.EXPECT().UpdateImage(mock.Anything, shipID, "/uploads/ships/x.png", "").Return(errors.New("db boom"))
 
@@ -477,7 +477,7 @@ func TestUploadShipImage_OK_CtxCancelledReturnsOriginalURL(t *testing.T) {
 	m.shipRepo.EXPECT().GetAuthorID(mock.Anything, shipID).Return(userID, nil)
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(1000)
 	m.uploadSvc.EXPECT().
-		SaveImage(mock.Anything, "ships", mock.Anything, "image/png", int64(100), int64(1000), mock.Anything).
+		SaveImage(mock.Anything, "ships", mock.Anything, int64(100), int64(1000), mock.Anything).
 		Return("/uploads/ships/x.png", nil)
 	m.shipRepo.EXPECT().UpdateImage(mock.Anything, shipID, "/uploads/ships/x.png", "").Return(nil)
 	m.uploadSvc.EXPECT().FullDiskPath("/uploads/ships/x.png").Return("/tmp/does-not-exist-xyz.png")
@@ -853,7 +853,7 @@ func TestUploadCommentMedia_UploadError(t *testing.T) {
 	m.shipRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(userID, nil)
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(1000)
 	m.uploadSvc.EXPECT().
-		SaveImage(mock.Anything, "ships", mock.Anything, "image/png", int64(100), int64(1000), mock.Anything).
+		SaveImage(mock.Anything, "ships", mock.Anything, int64(100), int64(1000), mock.Anything).
 		Return("", errors.New("disk full"))
 
 	// when
@@ -871,7 +871,7 @@ func TestUploadCommentMedia_AddMediaError(t *testing.T) {
 	m.shipRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(userID, nil)
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(1000)
 	m.uploadSvc.EXPECT().
-		SaveImage(mock.Anything, "ships", mock.Anything, "image/png", int64(100), int64(1000), mock.Anything).
+		SaveImage(mock.Anything, "ships", mock.Anything, int64(100), int64(1000), mock.Anything).
 		Return("/uploads/ships/x.png", nil)
 	m.shipRepo.EXPECT().
 		AddCommentMedia(mock.Anything, commentID, "/uploads/ships/x.png", "image", "", 0).
@@ -894,7 +894,7 @@ func TestUploadCommentMedia_OK_CtxCancelled(t *testing.T) {
 	m.shipRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(userID, nil)
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(1000)
 	m.uploadSvc.EXPECT().
-		SaveImage(mock.Anything, "ships", mock.Anything, "image/png", int64(100), int64(1000), mock.Anything).
+		SaveImage(mock.Anything, "ships", mock.Anything, int64(100), int64(1000), mock.Anything).
 		Return("/uploads/ships/x.png", nil)
 	m.shipRepo.EXPECT().
 		AddCommentMedia(mock.Anything, commentID, "/uploads/ships/x.png", "image", "", 0).

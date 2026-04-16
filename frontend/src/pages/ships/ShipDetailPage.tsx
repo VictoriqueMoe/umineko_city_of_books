@@ -26,7 +26,7 @@ import { CommentComposer } from "../../components/post/CommentComposer/CommentCo
 import { relativeTime } from "../../utils/notifications";
 import { CharacterPicker } from "../../components/CharacterPicker/CharacterPicker";
 import { MentionTextArea } from "../../components/MentionTextArea/MentionTextArea";
-import { linkify } from "../../utils/linkify";
+import { renderRich } from "../../utils/richText";
 import { CharacterPills } from "./ShipsListPage";
 import { ShareButton } from "../../components/ShareButton/ShareButton";
 import { ErrorBanner } from "../../components/ErrorBanner/ErrorBanner";
@@ -277,7 +277,7 @@ export function ShipDetailPage() {
                             </div>
 
                             {ship.description && (
-                                <p className={styles.detailDescription}>{linkify(ship.description)}</p>
+                                <div className={styles.detailDescription}>{renderRich(ship.description)}</div>
                             )}
                         </>
                     )}

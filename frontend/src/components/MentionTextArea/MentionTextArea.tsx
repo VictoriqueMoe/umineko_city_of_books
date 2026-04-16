@@ -120,6 +120,15 @@ export function MentionTextArea({
 }: MentionTextAreaProps) {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const backdropRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const ta = textareaRef.current;
+        if (!ta) {
+            return;
+        }
+        ta.style.height = "auto";
+        ta.style.height = `${ta.scrollHeight}px`;
+    }, [value]);
     const [suggestions, setSuggestions] = useState<SearchResult[]>([]);
     const [showDropdown, setShowDropdown] = useState(false);
     const [mentionStart, setMentionStart] = useState(-1);

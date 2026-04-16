@@ -2,10 +2,7 @@ package controllers
 
 import (
 	"errors"
-	"io"
-	"net/http"
 	"strconv"
-	"strings"
 
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
@@ -13,6 +10,7 @@ import (
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/middleware"
 	mysterysvc "umineko_city_of_books/internal/mystery"
+	"umineko_city_of_books/internal/upload"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -514,18 +512,15 @@ func (s *Service) uploadMysteryAttachment(ctx fiber.Ctx) error {
 	}
 	defer reader.Close()
 
-	buf := make([]byte, 512)
-	n, _ := reader.Read(buf)
-	if _, err := reader.Seek(0, io.SeekStart); err != nil {
+	sniffed, wrapped, err := upload.DetectContentType(reader)
+	if err != nil {
 		return utils.InternalError(ctx, "failed to read file")
 	}
-
-	sniffed := http.DetectContentType(buf[:n])
-	if !allowedSniffedTypes[strings.SplitN(sniffed, ";", 2)[0]] {
+	if !allowedSniffedTypes[sniffed] {
 		return utils.BadRequest(ctx, "only PDF, TXT, and DOCX files are allowed")
 	}
 
-	result, err := s.MysteryService.UploadAttachment(ctx.Context(), mysteryID, userID, file.Filename, file.Size, reader)
+	result, err := s.MysteryService.UploadAttachment(ctx.Context(), mysteryID, userID, file.Filename, file.Size, wrapped)
 	if err != nil {
 		if errors.Is(err, mysterysvc.ErrNotFound) {
 			return utils.NotFound(ctx, "mystery not found")

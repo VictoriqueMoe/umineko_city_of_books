@@ -44,17 +44,31 @@
     margin-top: 0.2rem;
 }
 
-.messageBubble:hover .actions {
-    opacity: 1;
-}
-
 .actions {
+    position: absolute;
+    top: -14px;
+    right: 8px;
     display: flex;
     gap: 0.25rem;
-    align-self: center;
-    flex-shrink: 0;
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--purple-rgb), 0.35);
+    border-radius: 999px;
+    padding: 2px;
     opacity: 0;
+    pointer-events: none;
+    z-index: 2;
     transition: opacity 0.15s;
+}
+
+.ownMessage .actions {
+    right: auto;
+    left: 8px;
+}
+
+.messageBubble:hover .actions,
+.messageBubble:focus-within .actions {
+    opacity: 1;
+    pointer-events: auto;
 }
 
 .reactAnchor {
@@ -152,6 +166,7 @@
     border-radius: 8px;
     padding: 0.6rem 0.85rem;
     min-width: 0;
+    max-width: 100%;
 }
 
 .ownMessage .messageContent {
@@ -164,6 +179,14 @@
     color: var(--gold);
     font-weight: 600;
     margin-bottom: 0.2rem;
+}
+
+.messageSenderOwn {
+    display: none;
+}
+
+.ownMessage .messageSender {
+    text-align: right;
 }
 
 .messageText {
@@ -273,6 +296,16 @@
 
 @media (max-width: 768px) {
     .messageBubble {
-        max-width: 90%;
+        max-width: 100%;
+        width: 100%;
+    }
+
+    .messageContent {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .messageSenderOwn {
+        display: block;
     }
 }

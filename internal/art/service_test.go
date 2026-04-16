@@ -112,7 +112,7 @@ func TestCreateArt_UploadError(t *testing.T) {
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxArtPerDay).Return(0)
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(1000)
 	m.uploadSvc.EXPECT().
-		SaveImage(mock.Anything, "art", mock.Anything, "image/png", int64(10), int64(1000), mock.Anything).
+		SaveImage(mock.Anything, "art", mock.Anything, int64(10), int64(1000), mock.Anything).
 		Return("", errors.New("disk full"))
 
 	// when
@@ -130,7 +130,7 @@ func TestCreateArt_RepoError(t *testing.T) {
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxArtPerDay).Return(0)
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(1000)
 	m.uploadSvc.EXPECT().
-		SaveImage(mock.Anything, "art", mock.Anything, "image/png", int64(10), int64(1000), mock.Anything).
+		SaveImage(mock.Anything, "art", mock.Anything, int64(10), int64(1000), mock.Anything).
 		Return("/uploads/art/x.png", nil)
 	m.uploadSvc.EXPECT().FullDiskPath("/uploads/art/x.png").Return("/tmp/does-not-exist-xyz.png")
 	m.artRepo.EXPECT().
@@ -154,7 +154,7 @@ func TestCreateArt_OK_DefaultsAndTagCap(t *testing.T) {
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxArtPerDay).Return(0)
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(1000)
 	m.uploadSvc.EXPECT().
-		SaveImage(mock.Anything, "art", mock.Anything, "image/png", int64(10), int64(1000), mock.Anything).
+		SaveImage(mock.Anything, "art", mock.Anything, int64(10), int64(1000), mock.Anything).
 		Return("/uploads/art/x.png", nil)
 	m.uploadSvc.EXPECT().FullDiskPath("/uploads/art/x.png").Return("/tmp/does-not-exist-xyz.png")
 	m.artRepo.EXPECT().
@@ -178,7 +178,7 @@ func TestCreateArt_OK_CustomCornerAndType(t *testing.T) {
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxArtPerDay).Return(0)
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(1000)
 	m.uploadSvc.EXPECT().
-		SaveImage(mock.Anything, "art", mock.Anything, "image/png", int64(10), int64(1000), mock.Anything).
+		SaveImage(mock.Anything, "art", mock.Anything, int64(10), int64(1000), mock.Anything).
 		Return("/uploads/art/x.png", nil)
 	m.uploadSvc.EXPECT().FullDiskPath("/uploads/art/x.png").Return("/tmp/does-not-exist-xyz.png")
 	m.artRepo.EXPECT().
@@ -977,7 +977,7 @@ func TestUploadCommentMedia_UploadError(t *testing.T) {
 	m.artRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(userID, nil)
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(1000)
 	m.uploadSvc.EXPECT().
-		SaveImage(mock.Anything, "art", mock.Anything, "image/png", int64(10), int64(1000), mock.Anything).
+		SaveImage(mock.Anything, "art", mock.Anything, int64(10), int64(1000), mock.Anything).
 		Return("", errors.New("disk full"))
 
 	// when
@@ -995,7 +995,7 @@ func TestUploadCommentMedia_AddMediaError(t *testing.T) {
 	m.artRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(userID, nil)
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(1000)
 	m.uploadSvc.EXPECT().
-		SaveImage(mock.Anything, "art", mock.Anything, "image/png", int64(10), int64(1000), mock.Anything).
+		SaveImage(mock.Anything, "art", mock.Anything, int64(10), int64(1000), mock.Anything).
 		Return("/uploads/art/x.png", nil)
 	m.artRepo.EXPECT().
 		AddCommentMedia(mock.Anything, commentID, "/uploads/art/x.png", "image", "", 0).
@@ -1017,7 +1017,7 @@ func TestUploadCommentMedia_OK_CtxCancelled(t *testing.T) {
 	m.artRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(userID, nil)
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(1000)
 	m.uploadSvc.EXPECT().
-		SaveImage(mock.Anything, "art", mock.Anything, "image/png", int64(10), int64(1000), mock.Anything).
+		SaveImage(mock.Anything, "art", mock.Anything, int64(10), int64(1000), mock.Anything).
 		Return("/uploads/art/x.png", nil)
 	m.artRepo.EXPECT().
 		AddCommentMedia(mock.Anything, commentID, "/uploads/art/x.png", "image", "", 0).

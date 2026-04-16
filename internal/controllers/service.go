@@ -10,6 +10,7 @@ import (
 	fanficsvc "umineko_city_of_books/internal/fanfic"
 	"umineko_city_of_books/internal/follow"
 	"umineko_city_of_books/internal/giphy"
+	giphyfavourite "umineko_city_of_books/internal/giphy/favourite"
 	"umineko_city_of_books/internal/journal"
 	"umineko_city_of_books/internal/media"
 	mysterysvc "umineko_city_of_books/internal/mystery"
@@ -28,32 +29,33 @@ import (
 
 type (
 	Service struct {
-		AuthService         auth.Service
-		ProfileService      profile.Service
-		TheoryService       theory.Service
-		NotificationService notification.Service
-		AdminService        admin.Service
-		AuthzService        authz.Service
-		SettingsService     settings.Service
-		ChatService         chat.Service
-		ReportService       report.Service
-		PostService         postsvc.Service
-		FollowService       follow.Service
-		ArtService          artsvc.Service
-		BlockService        block.Service
-		AnnouncementRepo    repository.AnnouncementRepository
-		MysteryService      mysterysvc.Service
-		FanficService       fanficsvc.Service
-		JournalService      journal.Service
-		UserRepo            repository.UserRepository
-		ShipService         shipsvc.Service
-		UploadService       upload.Service
-		MediaProcessor      *media.Processor
-		VanityRoleRepo      repository.VanityRoleRepository
-		AuthSession         *session.Manager
-		Hub                 *ws.Hub
-		GiphyService        giphy.Service
-		HTMLContent         string
+		AuthService           auth.Service
+		ProfileService        profile.Service
+		TheoryService         theory.Service
+		NotificationService   notification.Service
+		AdminService          admin.Service
+		AuthzService          authz.Service
+		SettingsService       settings.Service
+		ChatService           chat.Service
+		ReportService         report.Service
+		PostService           postsvc.Service
+		FollowService         follow.Service
+		ArtService            artsvc.Service
+		BlockService          block.Service
+		AnnouncementRepo      repository.AnnouncementRepository
+		MysteryService        mysterysvc.Service
+		FanficService         fanficsvc.Service
+		JournalService        journal.Service
+		UserRepo              repository.UserRepository
+		ShipService           shipsvc.Service
+		UploadService         upload.Service
+		MediaProcessor        *media.Processor
+		VanityRoleRepo        repository.VanityRoleRepository
+		AuthSession           *session.Manager
+		Hub                   *ws.Hub
+		GiphyService          giphy.Service
+		GiphyFavouriteService giphyfavourite.Service
+		HTMLContent           string
 	}
 )
 
@@ -83,35 +85,37 @@ func NewService(
 	authSession *session.Manager,
 	hub *ws.Hub,
 	giphyService giphy.Service,
+	giphyFavouriteService giphyfavourite.Service,
 	htmlContent string,
 ) Service {
 	return Service{
-		AuthService:         authService,
-		ProfileService:      profileService,
-		TheoryService:       theoryService,
-		NotificationService: notificationService,
-		AdminService:        adminService,
-		AuthzService:        authzService,
-		SettingsService:     settingsService,
-		ChatService:         chatService,
-		ReportService:       reportService,
-		PostService:         postService,
-		FollowService:       followService,
-		ArtService:          artService,
-		BlockService:        blockService,
-		AnnouncementRepo:    announcementRepo,
-		MysteryService:      mysteryService,
-		UserRepo:            userRepo,
-		ShipService:         shipService,
-		FanficService:       fanficService,
-		JournalService:      journalService,
-		UploadService:       uploadService,
-		MediaProcessor:      mediaProcessor,
-		VanityRoleRepo:      vanityRoleRepo,
-		AuthSession:         authSession,
-		Hub:                 hub,
-		GiphyService:        giphyService,
-		HTMLContent:         htmlContent,
+		AuthService:           authService,
+		ProfileService:        profileService,
+		TheoryService:         theoryService,
+		NotificationService:   notificationService,
+		AdminService:          adminService,
+		AuthzService:          authzService,
+		SettingsService:       settingsService,
+		ChatService:           chatService,
+		ReportService:         reportService,
+		PostService:           postService,
+		FollowService:         followService,
+		ArtService:            artService,
+		BlockService:          blockService,
+		AnnouncementRepo:      announcementRepo,
+		MysteryService:        mysteryService,
+		UserRepo:              userRepo,
+		ShipService:           shipService,
+		FanficService:         fanficService,
+		JournalService:        journalService,
+		UploadService:         uploadService,
+		MediaProcessor:        mediaProcessor,
+		VanityRoleRepo:        vanityRoleRepo,
+		AuthSession:           authSession,
+		Hub:                   hub,
+		GiphyService:          giphyService,
+		GiphyFavouriteService: giphyFavouriteService,
+		HTMLContent:           htmlContent,
 	}
 }
 

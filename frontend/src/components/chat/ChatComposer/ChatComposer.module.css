@@ -7,15 +7,19 @@
     gap: 0.6rem;
 }
 
-.row {
-    display: flex;
-    gap: 0.6rem;
-    align-items: center;
+.textareaWrapper {
+    width: 100%;
+    min-width: 0;
 }
 
-.textareaWrapper {
+.actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.spacer {
     flex: 1;
-    min-width: 0;
 }
 
 .previews {
@@ -85,29 +89,6 @@
 
 .gifAnchor {
     position: relative;
-}
-
-.gifBtn {
-    background: rgba(var(--purple-rgb), 0.2);
-    border: 1px solid rgba(var(--purple-rgb), 0.35);
-    color: var(--text-main);
-    cursor: pointer;
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    padding: 0.35rem 0.55rem;
-    border-radius: 6px;
-    line-height: 1;
-}
-
-.gifBtn:hover:not(:disabled) {
-    border-color: var(--gold);
-    color: var(--gold);
-}
-
-.gifBtn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
 }
 
 @media (max-width: 480px) {
