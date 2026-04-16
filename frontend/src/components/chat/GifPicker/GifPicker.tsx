@@ -143,9 +143,7 @@ export function GifPicker({ onPick, onClose }: GifPickerProps) {
             />
             <div className={styles.grid}>
                 {rateLimitedUntil && (
-                    <div className={styles.rateLimit}>
-                        GIF search is paused. Try again at {resetClock}.
-                    </div>
+                    <div className={styles.rateLimit}>GIF search is paused. Try again at {resetClock}.</div>
                 )}
                 {!rateLimitedUntil && loading && <div className={styles.loading}>Loading...</div>}
                 {!rateLimitedUntil && !loading && error && <div className={styles.error}>{error}</div>}

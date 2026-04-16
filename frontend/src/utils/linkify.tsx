@@ -2,13 +2,14 @@ import type { ReactNode } from "react";
 import { Link } from "react-router";
 
 const TOKEN_REGEX = /(https?:\/\/[^\s<>"]+|@[a-zA-Z0-9_]+)/g;
-const COLOUR_REGEX = /\[(red|blue|gold|purple)\]([\s\S]*?)\[\/\1\]/g;
+const COLOUR_REGEX = /\[(red|blue|gold|purple|green)\]([\s\S]*?)\[\/\1\]/g;
 
 const COLOUR_CLASS: Record<string, string> = {
     red: "red-truth",
     blue: "blue-truth",
     gold: "gold-truth",
     purple: "purple-truth",
+    green: "green-truth",
 };
 
 function isInternalURL(url: string): string | null {

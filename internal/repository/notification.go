@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 	"umineko_city_of_books/internal/dto"
@@ -27,6 +28,7 @@ type (
 			message string,
 		) (int64, error)
 		ListByUser(ctx context.Context, userID uuid.UUID, limit, offset int) ([]model.NotificationRow, int, error)
+		GetByID(ctx context.Context, id int, userID uuid.UUID) (*model.NotificationRow, error)
 		MarkRead(ctx context.Context, id int, userID uuid.UUID) error
 		MarkAllRead(ctx context.Context, userID uuid.UUID) error
 		UnreadCount(ctx context.Context, userID uuid.UUID) (int, error)
@@ -130,6 +132,33 @@ func (r *notificationRepository) ListByUser(ctx context.Context, userID uuid.UUI
 	}
 
 	return notifications, total, rows.Err()
+}
+
+func (r *notificationRepository) GetByID(ctx context.Context, id int, userID uuid.UUID) (*model.NotificationRow, error) {
+	var n model.NotificationRow
+	var readInt int
+	err := r.db.QueryRowContext(ctx,
+		`SELECT n.id, n.user_id, n.type, n.reference_id, n.reference_type, n.actor_id,
+		        COALESCE(n.message, ''), n.read, n.created_at,
+		        u.username, u.display_name, u.avatar_url, COALESCE(ur.role, '')
+		 FROM notifications n
+		 JOIN users u ON n.actor_id = u.id
+		 LEFT JOIN user_roles ur ON n.actor_id = ur.user_id
+		 WHERE n.id = ? AND n.user_id = ?`,
+		id, userID,
+	).Scan(
+		&n.ID, &n.UserID, &n.Type, &n.ReferenceID, &n.ReferenceType, &n.ActorID, &n.Message, &readInt, &n.CreatedAt,
+		&n.ActorUsername, &n.ActorDisplayName, &n.ActorAvatarURL, &n.ActorRole,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get notification by id: %w", err)
+	}
+	n.Read = readInt == 1
+	n.Count = 1
+	return &n, nil
 }
 
 func (r *notificationRepository) MarkRead(ctx context.Context, id int, userID uuid.UUID) error {

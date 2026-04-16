@@ -175,21 +175,31 @@ html[data-width="wide"] {
 [data-theme="virgilia"] .red-truth {
     color: #b3001b;
     font-weight: 800;
+    text-shadow: 0 0 4px rgba(179, 0, 27, 0.22);
 }
 
 [data-theme="virgilia"] .blue-truth {
     color: #0a5bb8;
     font-weight: 800;
+    text-shadow: 0 0 4px rgba(10, 91, 184, 0.22);
 }
 
 [data-theme="virgilia"] .gold-truth {
     color: #a36a00;
     font-weight: 800;
+    text-shadow: 0 0 4px rgba(163, 106, 0, 0.22);
 }
 
 [data-theme="virgilia"] .purple-truth {
     color: #6a2bd1;
     font-weight: 800;
+    text-shadow: 0 0 4px rgba(106, 43, 209, 0.22);
+}
+
+[data-theme="virgilia"] .green-truth {
+    color: #1e7a40;
+    font-weight: 800;
+    text-shadow: 0 0 4px rgba(30, 122, 64, 0.22);
 }
 
 [data-theme="rika"] {

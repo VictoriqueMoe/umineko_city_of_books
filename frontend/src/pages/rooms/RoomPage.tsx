@@ -652,9 +652,7 @@ export function RoomPage() {
     const canModerateRoom = isHost || isSiteMod;
     const currentMember = members.find(m => m.user.id === user.id) ?? null;
     const viewerTimeoutUntil = currentMember?.timeout_until ?? undefined;
-    const viewerTimedOut = viewerTimeoutUntil
-        ? new Date(viewerTimeoutUntil).getTime() > Date.now()
-        : false;
+    const viewerTimedOut = viewerTimeoutUntil ? new Date(viewerTimeoutUntil).getTime() > Date.now() : false;
 
     return (
         <div className={styles.roomWrapper}>
