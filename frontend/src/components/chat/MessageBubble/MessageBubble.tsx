@@ -16,16 +16,27 @@ interface MessageBubbleProps {
     onDelete?: (msg: ChatMessage) => void;
     canPin?: boolean;
     canModerate?: boolean;
+    canReact?: boolean;
     highlighted?: boolean;
     seenLabel?: string | null;
     senderIsStaff?: boolean;
 }
+
+const GIPHY_URL_RE = /^https:\/\/(media[0-9]*|i)\.giphy\.com\/[^\s]+\.(gif|webp|mp4)(\?[^\s]*)?$/i;
 
 function formatTime(dateStr: string): string {
     if (!dateStr) {
         return "";
     }
     return new Date(dateStr).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function extractGif(body: string): string | null {
+    const trimmed = body.trim();
+    if (GIPHY_URL_RE.test(trimmed)) {
+        return trimmed;
+    }
+    return null;
 }
 
 function jumpToMessage(id: string) {
@@ -67,6 +78,7 @@ export function MessageBubble({
     onDelete,
     canPin,
     canModerate,
+    canReact = true,
     highlighted,
     seenLabel,
     senderIsStaff,
@@ -125,7 +137,24 @@ export function MessageBubble({
                         <RolePill role={effectiveSender.role ?? ""} userId={effectiveSender.id} />
                     </div>
                 )}
-                {message.body.trim() && <div className={styles.messageText}>{linkify(message.body)}</div>}
+                {(() => {
+                    const gifURL = extractGif(message.body);
+                    if (gifURL) {
+                        return (
+                            <img
+                                className={styles.gifEmbed}
+                                src={gifURL}
+                                alt="GIF"
+                                loading="lazy"
+                                onClick={() => onLightbox?.(gifURL)}
+                            />
+                        );
+                    }
+                    if (message.body.trim()) {
+                        return <div className={styles.messageText}>{linkify(message.body)}</div>;
+                    }
+                    return null;
+                })()}
                 {message.media && message.media.length > 0 && (
                     <div className={styles.messageMedia}>
                         {message.media.map(m =>
@@ -156,8 +185,13 @@ export function MessageBubble({
                                 key={r.emoji}
                                 type="button"
                                 className={`${styles.reactionChip} ${r.viewer_reacted ? styles.reactionChipMine : ""}`}
-                                onClick={() => onReactionToggle?.(message, r.emoji)}
-                                title={reactionTooltip(r)}
+                                onClick={() => {
+                                    if (canReact) {
+                                        onReactionToggle?.(message, r.emoji);
+                                    }
+                                }}
+                                disabled={!canReact}
+                                title={canReact ? reactionTooltip(r) : "You are timed out"}
                             >
                                 <span className={styles.reactionEmoji}>{r.emoji}</span>
                                 <span className={styles.reactionCount}>{r.count}</span>
@@ -171,7 +205,7 @@ export function MessageBubble({
                 </div>
             </div>
             <div className={styles.actions}>
-                {onReactionToggle && (
+                {onReactionToggle && canReact && (
                     <div className={styles.reactAnchor}>
                         <button
                             type="button"

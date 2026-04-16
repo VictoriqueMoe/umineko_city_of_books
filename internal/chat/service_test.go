@@ -2835,6 +2835,7 @@ func TestAddReaction_HappyPath(t *testing.T) {
 	userID := uuid.New()
 	m.chatRepo.EXPECT().GetMessageByID(mock.Anything, messageID).Return(&repository.ChatMessageRow{ID: messageID, RoomID: roomID}, nil)
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
+	m.chatRepo.EXPECT().GetMemberTimeoutState(mock.Anything, roomID, userID).Return(false, "", false, nil)
 	m.chatRepo.EXPECT().AddReaction(mock.Anything, messageID, userID, "👍").Return(nil)
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return(nil, nil).Maybe()
 
@@ -2843,6 +2844,23 @@ func TestAddReaction_HappyPath(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
+}
+
+func TestAddReaction_TimedOut(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	messageID := uuid.New()
+	roomID := uuid.New()
+	userID := uuid.New()
+	m.chatRepo.EXPECT().GetMessageByID(mock.Anything, messageID).Return(&repository.ChatMessageRow{ID: messageID, RoomID: roomID}, nil)
+	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
+	m.chatRepo.EXPECT().GetMemberTimeoutState(mock.Anything, roomID, userID).Return(true, "2099-01-01T00:00:00Z", false, nil)
+
+	// when
+	err := svc.AddReaction(context.Background(), messageID, userID, "👍")
+
+	// then
+	require.ErrorIs(t, err, ErrTimedOut)
 }
 
 func TestAddReaction_EmptyEmoji(t *testing.T) {
@@ -2913,6 +2931,7 @@ func TestAddReaction_RepoError(t *testing.T) {
 	userID := uuid.New()
 	m.chatRepo.EXPECT().GetMessageByID(mock.Anything, messageID).Return(&repository.ChatMessageRow{ID: messageID, RoomID: roomID}, nil)
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
+	m.chatRepo.EXPECT().GetMemberTimeoutState(mock.Anything, roomID, userID).Return(false, "", false, nil)
 	m.chatRepo.EXPECT().AddReaction(mock.Anything, messageID, userID, "👍").Return(errors.New("db"))
 
 	// when

@@ -11,7 +11,8 @@ import (
 
 type (
 	Config struct {
-		DBPath string
+		DBPath      string
+		GiphyAPIKey string
 	}
 
 	SettingType int
@@ -209,7 +210,14 @@ func init() {
 	if v, ok := os.LookupEnv("DB_PATH"); ok {
 		dbPath = v
 	}
-	Cfg = Config{DBPath: dbPath}
+	giphyKey := ""
+	if v, ok := os.LookupEnv("GIPHY_API_KEY"); ok {
+		giphyKey = v
+	}
+	Cfg = Config{
+		DBPath:      dbPath,
+		GiphyAPIKey: giphyKey,
+	}
 
 	for _, def := range AllSiteSettings {
 		envKey := strings.ToUpper(string(def.Key))

@@ -2,7 +2,6 @@ package notification
 
 import (
 	"context"
-	"umineko_city_of_books/internal/repository/model"
 
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/email"
@@ -86,19 +85,8 @@ func (s *service) sendEmail(ctx context.Context, params dto.NotifyParams) {
 }
 
 func (s *service) pushNotification(ctx context.Context, notifID int, recipientID uuid.UUID) {
-	rows, _, err := s.repo.ListByUser(ctx, recipientID, 1, 0)
-	if err != nil || len(rows) == 0 {
-		return
-	}
-
-	var row model.NotificationRow
-	for _, r := range rows {
-		if r.ID == notifID {
-			row = r
-			break
-		}
-	}
-	if row.ID == 0 {
+	row, err := s.repo.GetByID(ctx, notifID, recipientID)
+	if err != nil || row == nil {
 		return
 	}
 

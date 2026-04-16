@@ -3,11 +3,17 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+	"strings"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/repository/model"
 
 	"github.com/google/uuid"
+)
+
+const (
+	chatRoomMessagePrefix = "sent a message in "
 )
 
 type (
@@ -22,6 +28,7 @@ type (
 			message string,
 		) (int64, error)
 		ListByUser(ctx context.Context, userID uuid.UUID, limit, offset int) ([]model.NotificationRow, int, error)
+		GetByID(ctx context.Context, id int, userID uuid.UUID) (*model.NotificationRow, error)
 		MarkRead(ctx context.Context, id int, userID uuid.UUID) error
 		MarkAllRead(ctx context.Context, userID uuid.UUID) error
 		UnreadCount(ctx context.Context, userID uuid.UUID) (int, error)
@@ -56,21 +63,46 @@ func (r *notificationRepository) Create(
 func (r *notificationRepository) ListByUser(ctx context.Context, userID uuid.UUID, limit, offset int) ([]model.NotificationRow, int, error) {
 	var total int
 	err := r.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM notifications WHERE user_id = ?`, userID,
+		`SELECT
+		   (SELECT COUNT(DISTINCT reference_id) FROM notifications
+		      WHERE user_id = ? AND type = ? AND read = 0) +
+		   (SELECT COUNT(*) FROM notifications
+		      WHERE user_id = ? AND NOT (type = ? AND read = 0))`,
+		userID, dto.NotifChatRoomMessage, userID, dto.NotifChatRoomMessage,
 	).Scan(&total)
 	if err != nil {
 		return nil, 0, fmt.Errorf("count notifications: %w", err)
 	}
 
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT n.id, n.user_id, n.type, n.reference_id, n.reference_type, n.actor_id, COALESCE(n.message, ''), n.read, n.created_at,
+		`WITH chat_grouped AS (
+		   SELECT
+		     id, user_id, type, reference_id, reference_type, actor_id, message, read, created_at,
+		     ROW_NUMBER() OVER (PARTITION BY reference_id ORDER BY created_at DESC, id DESC) AS rn,
+		     COUNT(*) OVER (PARTITION BY reference_id) AS grp_count
+		   FROM notifications
+		   WHERE user_id = ? AND type = ? AND read = 0
+		 ),
+		 combined AS (
+		   SELECT id, user_id, type, reference_id, reference_type, actor_id,
+		          COALESCE(message, '') AS message, read, created_at, grp_count AS count
+		   FROM chat_grouped
+		   WHERE rn = 1
+		   UNION ALL
+		   SELECT id, user_id, type, reference_id, reference_type, actor_id,
+		          COALESCE(message, '') AS message, read, created_at, 1 AS count
+		   FROM notifications
+		   WHERE user_id = ? AND NOT (type = ? AND read = 0)
+		 )
+		 SELECT c.id, c.user_id, c.type, c.reference_id, c.reference_type, c.actor_id,
+		        c.message, c.read, c.created_at, c.count,
 		        u.username, u.display_name, u.avatar_url, COALESCE(ur.role, '')
-		 FROM notifications n
-		 JOIN users u ON n.actor_id = u.id
-		 LEFT JOIN user_roles ur ON n.actor_id = ur.user_id
-		 WHERE n.user_id = ?
-		 ORDER BY n.created_at DESC
-		 LIMIT ? OFFSET ?`, userID, limit, offset,
+		 FROM combined c
+		 JOIN users u ON c.actor_id = u.id
+		 LEFT JOIN user_roles ur ON c.actor_id = ur.user_id
+		 ORDER BY c.created_at DESC
+		 LIMIT ? OFFSET ?`,
+		userID, dto.NotifChatRoomMessage, userID, dto.NotifChatRoomMessage, limit, offset,
 	)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list notifications: %w", err)
@@ -82,7 +114,7 @@ func (r *notificationRepository) ListByUser(ctx context.Context, userID uuid.UUI
 		var n model.NotificationRow
 		var readInt int
 		if err := rows.Scan(
-			&n.ID, &n.UserID, &n.Type, &n.ReferenceID, &n.ReferenceType, &n.ActorID, &n.Message, &readInt, &n.CreatedAt,
+			&n.ID, &n.UserID, &n.Type, &n.ReferenceID, &n.ReferenceType, &n.ActorID, &n.Message, &readInt, &n.CreatedAt, &n.Count,
 			&n.ActorUsername, &n.ActorDisplayName, &n.ActorAvatarURL, &n.ActorRole,
 		); err != nil {
 			return nil, 0, fmt.Errorf("scan notification: %w", err)
@@ -91,11 +123,72 @@ func (r *notificationRepository) ListByUser(ctx context.Context, userID uuid.UUI
 		notifications = append(notifications, n)
 	}
 
+	for i := range notifications {
+		n := &notifications[i]
+		if n.Type == dto.NotifChatRoomMessage && n.Count > 1 {
+			roomName := strings.TrimPrefix(n.Message, chatRoomMessagePrefix)
+			n.Message = fmt.Sprintf("%d messages sent in %s", n.Count, roomName)
+		}
+	}
+
 	return notifications, total, rows.Err()
 }
 
+func (r *notificationRepository) GetByID(ctx context.Context, id int, userID uuid.UUID) (*model.NotificationRow, error) {
+	var n model.NotificationRow
+	var readInt int
+	err := r.db.QueryRowContext(ctx,
+		`SELECT n.id, n.user_id, n.type, n.reference_id, n.reference_type, n.actor_id,
+		        COALESCE(n.message, ''), n.read, n.created_at,
+		        u.username, u.display_name, u.avatar_url, COALESCE(ur.role, '')
+		 FROM notifications n
+		 JOIN users u ON n.actor_id = u.id
+		 LEFT JOIN user_roles ur ON n.actor_id = ur.user_id
+		 WHERE n.id = ? AND n.user_id = ?`,
+		id, userID,
+	).Scan(
+		&n.ID, &n.UserID, &n.Type, &n.ReferenceID, &n.ReferenceType, &n.ActorID, &n.Message, &readInt, &n.CreatedAt,
+		&n.ActorUsername, &n.ActorDisplayName, &n.ActorAvatarURL, &n.ActorRole,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get notification by id: %w", err)
+	}
+	n.Read = readInt == 1
+	n.Count = 1
+	return &n, nil
+}
+
 func (r *notificationRepository) MarkRead(ctx context.Context, id int, userID uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx,
+	var notifType dto.NotificationType
+	var referenceID uuid.UUID
+	var readInt int
+	err := r.db.QueryRowContext(ctx,
+		`SELECT type, reference_id, read FROM notifications WHERE id = ? AND user_id = ?`,
+		id, userID,
+	).Scan(&notifType, &referenceID, &readInt)
+	if err == sql.ErrNoRows {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("lookup notification: %w", err)
+	}
+
+	if notifType == dto.NotifChatRoomMessage && readInt == 0 {
+		_, err = r.db.ExecContext(ctx,
+			`UPDATE notifications SET read = 1
+			 WHERE user_id = ? AND type = ? AND reference_id = ? AND read = 0`,
+			userID, notifType, referenceID,
+		)
+		if err != nil {
+			return fmt.Errorf("mark grouped notifications read: %w", err)
+		}
+		return nil
+	}
+
+	_, err = r.db.ExecContext(ctx,
 		`UPDATE notifications SET read = 1 WHERE id = ? AND user_id = ?`, id, userID,
 	)
 	if err != nil {

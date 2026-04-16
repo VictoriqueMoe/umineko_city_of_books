@@ -25,6 +25,7 @@ type (
 		Message       string           `json:"message,omitempty"`
 		Read          bool             `json:"read"`
 		CreatedAt     string           `json:"created_at"`
+		Count         int              `json:"count"`
 	}
 
 	NotificationListResponse struct {

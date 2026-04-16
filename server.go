@@ -22,6 +22,7 @@ import (
 	"umineko_city_of_books/internal/email"
 	fanficsvc "umineko_city_of_books/internal/fanfic"
 	"umineko_city_of_books/internal/follow"
+	"umineko_city_of_books/internal/giphy"
 	"umineko_city_of_books/internal/journal"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
@@ -76,6 +77,7 @@ type services struct {
 	upload       upload.Service
 	hub          *ws.Hub
 	mediaProc    *media.Processor
+	giphy        giphy.Service
 }
 
 func initServer() *fiber.App {
@@ -168,6 +170,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 		upload:       uploadSvc,
 		hub:          hub,
 		mediaProc:    mediaProc,
+		giphy:        giphy.NewService(),
 	}
 }
 
@@ -246,7 +249,7 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 	ctrlService := controllers.NewService(
 		svc.auth, svc.profile, svc.theory, svc.notification, svc.admin,
 		svc.authz, settingsSvc, svc.chat, svc.report, svc.post, svc.follow,
-		svc.art, svc.block, repos.Announcement, svc.mystery, repos.User, svc.ship, svc.fanfic, svc.journal, svc.upload, svc.mediaProc, repos.VanityRole, svc.session, svc.hub, string(htmlBytes),
+		svc.art, svc.block, repos.Announcement, svc.mystery, repos.User, svc.ship, svc.fanfic, svc.journal, svc.upload, svc.mediaProc, repos.VanityRole, svc.session, svc.hub, svc.giphy, string(htmlBytes),
 	)
 	routes.PublicRoutes(ctrlService, app)
 

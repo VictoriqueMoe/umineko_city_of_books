@@ -21,19 +21,67 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    transition: border-color 0.15s;
+    transition:
+        border-color 0.15s,
+        transform 0.12s;
+    position: relative;
+    overflow: visible;
 }
 
 .colourBtn:hover {
     border-color: var(--gold);
 }
 
-.colourSwatch {
-    display: inline-block;
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    box-shadow: 0 0 4px rgba(0, 0, 0, 0.3);
+.colourBtn:active {
+    transform: scale(0.92);
+}
+
+.butterfly {
+    filter: drop-shadow(0 0 3px var(--btn-color));
+    transition: transform 0.2s ease-out;
+}
+
+.colourBtn:hover .butterfly {
+    transform: translateY(-1px) rotate(-6deg);
+}
+
+.burst {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.particle {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(1);
+    animation: butterflyFlyout 900ms ease-out forwards;
+    will-change: transform, opacity;
+}
+
+@keyframes butterflyFlyout {
+    0% {
+        transform: translate(-50%, -50%) scale(1) rotate(0deg);
+        opacity: 1;
+    }
+    30% {
+        opacity: 1;
+    }
+    100% {
+        transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) scale(var(--scale)) rotate(var(--rot));
+        opacity: 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .particle {
+        animation-duration: 1ms;
+        opacity: 0;
+    }
+    .butterfly {
+        transition: none;
+    }
 }
 
 .backdrop :global(.tag-bracket) {

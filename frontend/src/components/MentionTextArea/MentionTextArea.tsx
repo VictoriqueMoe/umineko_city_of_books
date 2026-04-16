@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { User } from "../../types/api";
 import { searchUsers } from "../../api/endpoints";
+import { Butterfly } from "../Butterfly/Butterfly";
 import styles from "./MentionTextArea.module.css";
 
 interface MentionTextAreaProps {
@@ -14,14 +15,42 @@ interface MentionTextAreaProps {
     showColours?: boolean;
 }
 
-type ColourTag = "red" | "blue" | "gold" | "purple";
+type ColourTag = "red" | "blue" | "gold" | "purple" | "green";
 
 const COLOUR_BUTTONS: { tag: ColourTag; label: string; swatch: string }[] = [
     { tag: "red", label: "Red truth", swatch: "#ff3333" },
     { tag: "blue", label: "Blue truth", swatch: "#3399ff" },
     { tag: "gold", label: "Gold truth", swatch: "#ffaa00" },
     { tag: "purple", label: "Purple truth", swatch: "#aa71ff" },
+    { tag: "green", label: "Green text", swatch: "#3ed47a" },
 ];
+
+const PARTICLE_COUNT = 6;
+const PARTICLE_LIFETIME_MS = 900;
+
+interface Particle {
+    id: number;
+    dx: number;
+    dy: number;
+    rotate: number;
+    scale: number;
+}
+
+function makeParticles(): Particle[] {
+    const out: Particle[] = [];
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+        const angle = (Math.PI * 2 * i) / PARTICLE_COUNT + (Math.random() - 0.5) * 0.6;
+        const distance = 22 + Math.random() * 18;
+        out.push({
+            id: Date.now() + i + Math.random(),
+            dx: Math.cos(angle) * distance,
+            dy: Math.sin(angle) * distance - 6,
+            rotate: (Math.random() - 0.5) * 180,
+            scale: 0.35 + Math.random() * 0.35,
+        });
+    }
+    return out;
+}
 
 interface SearchResult extends User {
     viewer_follows: boolean;
@@ -46,6 +75,7 @@ const COLOUR_CLASS: Record<ColourTag, string> = {
     blue: "blue-truth",
     gold: "gold-truth",
     purple: "purple-truth",
+    green: "green-truth",
 };
 
 function escapeHtml(s: string): string {
@@ -57,7 +87,7 @@ function highlightMentionsInSegment(segment: string): string {
 }
 
 function highlightMentions(text: string): string {
-    const colourRe = /\[(red|blue|gold|purple)]([\s\S]*?)\[\/\1]/g;
+    const colourRe = /\[(red|blue|gold|purple|green)]([\s\S]*?)\[\/\1]/g;
     let out = "";
     let last = 0;
     let m: RegExpExecArray | null;
@@ -282,20 +312,7 @@ export function MentionTextArea({
             {showColours && (
                 <div className={styles.colourBar}>
                     {COLOUR_BUTTONS.map(b => (
-                        <button
-                            key={b.tag}
-                            type="button"
-                            tabIndex={-1}
-                            className={styles.colourBtn}
-                            title={b.label}
-                            aria-label={b.label}
-                            onMouseDown={e => {
-                                e.preventDefault();
-                                applyColour(b.tag);
-                            }}
-                        >
-                            <span className={styles.colourSwatch} style={{ background: b.swatch }} />
-                        </button>
+                        <ColourButton key={b.tag} tag={b.tag} label={b.label} swatch={b.swatch} onApply={applyColour} />
                     ))}
                 </div>
             )}
@@ -347,5 +364,60 @@ export function MentionTextArea({
                 </div>
             )}
         </div>
+    );
+}
+
+interface ColourButtonProps {
+    tag: ColourTag;
+    label: string;
+    swatch: string;
+    onApply: (tag: ColourTag) => void;
+}
+
+function ColourButton({ tag, label, swatch, onApply }: ColourButtonProps) {
+    const [bursts, setBursts] = useState<{ id: number; particles: Particle[] }[]>([]);
+
+    function trigger(e: React.MouseEvent) {
+        e.preventDefault();
+        onApply(tag);
+        const burst = { id: Date.now() + Math.random(), particles: makeParticles() };
+        setBursts(prev => [...prev, burst]);
+        setTimeout(() => {
+            setBursts(prev => prev.filter(b => b.id !== burst.id));
+        }, PARTICLE_LIFETIME_MS);
+    }
+
+    return (
+        <button
+            type="button"
+            tabIndex={-1}
+            className={styles.colourBtn}
+            title={label}
+            aria-label={label}
+            onMouseDown={trigger}
+            style={{ "--btn-color": swatch } as React.CSSProperties}
+        >
+            <Butterfly color={swatch} size={16} className={styles.butterfly} />
+            {bursts.map(burst => (
+                <span key={burst.id} className={styles.burst} aria-hidden="true">
+                    {burst.particles.map(p => (
+                        <span
+                            key={p.id}
+                            className={styles.particle}
+                            style={
+                                {
+                                    "--dx": `${p.dx}px`,
+                                    "--dy": `${p.dy}px`,
+                                    "--rot": `${p.rotate}deg`,
+                                    "--scale": p.scale,
+                                } as React.CSSProperties
+                            }
+                        >
+                            <Butterfly color={swatch} size={10} />
+                        </span>
+                    ))}
+                </span>
+            ))}
+        </button>
     );
 }

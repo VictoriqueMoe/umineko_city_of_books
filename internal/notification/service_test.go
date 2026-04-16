@@ -92,8 +92,8 @@ func TestNotify_HasRecentDuplicateErrorIgnoredCreateProceeds(t *testing.T) {
 		Create(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message).
 		Return(int64(42), nil)
 	notifRepo.EXPECT().
-		ListByUser(mock.Anything, params.RecipientID, 1, 0).
-		Return(nil, 0, nil)
+		GetByID(mock.Anything, mock.Anything, params.RecipientID).
+		Return(nil, nil)
 
 	// when
 	err := svc.Notify(context.Background(), params)
@@ -120,8 +120,8 @@ func TestNotify_ChatMessageSkipsEmail(t *testing.T) {
 		Create(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message).
 		Return(int64(1), nil)
 	notifRepo.EXPECT().
-		ListByUser(mock.Anything, params.RecipientID, 1, 0).
-		Return(nil, 0, nil)
+		GetByID(mock.Anything, mock.Anything, params.RecipientID).
+		Return(nil, nil)
 
 	// when
 	err := svc.Notify(context.Background(), params)
@@ -147,8 +147,8 @@ func TestNotify_EmptyEmailSubjectSkipsEmail(t *testing.T) {
 		Create(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message).
 		Return(int64(1), nil)
 	notifRepo.EXPECT().
-		ListByUser(mock.Anything, params.RecipientID, 1, 0).
-		Return(nil, 0, nil)
+		GetByID(mock.Anything, mock.Anything, params.RecipientID).
+		Return(nil, nil)
 
 	// when
 	err := svc.Notify(context.Background(), params)
@@ -175,8 +175,8 @@ func TestNotify_EmailDupeSkipsEmail(t *testing.T) {
 		Create(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message).
 		Return(int64(1), nil)
 	notifRepo.EXPECT().
-		ListByUser(mock.Anything, params.RecipientID, 1, 0).
-		Return(nil, 0, nil)
+		GetByID(mock.Anything, mock.Anything, params.RecipientID).
+		Return(nil, nil)
 
 	// when
 	err := svc.Notify(context.Background(), params)
@@ -203,8 +203,8 @@ func TestNotify_EmailSentWhenEligible(t *testing.T) {
 		Create(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message).
 		Return(int64(1), nil)
 	notifRepo.EXPECT().
-		ListByUser(mock.Anything, params.RecipientID, 1, 0).
-		Return(nil, 0, nil)
+		GetByID(mock.Anything, mock.Anything, params.RecipientID).
+		Return(nil, nil)
 	userRepo.EXPECT().GetByID(mock.Anything, params.RecipientID).Return(&model.User{
 		Email:              "recipient@example.com",
 		EmailNotifications: true,
@@ -236,8 +236,8 @@ func TestNotify_EmailSendErrorDoesNotBubble(t *testing.T) {
 		Create(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message).
 		Return(int64(1), nil)
 	notifRepo.EXPECT().
-		ListByUser(mock.Anything, params.RecipientID, 1, 0).
-		Return(nil, 0, nil)
+		GetByID(mock.Anything, mock.Anything, params.RecipientID).
+		Return(nil, nil)
 	userRepo.EXPECT().GetByID(mock.Anything, params.RecipientID).Return(&model.User{
 		Email:              "recipient@example.com",
 		EmailNotifications: true,
@@ -269,8 +269,8 @@ func TestNotify_EmailSkippedWhenUserLookupErrors(t *testing.T) {
 		Create(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message).
 		Return(int64(1), nil)
 	notifRepo.EXPECT().
-		ListByUser(mock.Anything, params.RecipientID, 1, 0).
-		Return(nil, 0, nil)
+		GetByID(mock.Anything, mock.Anything, params.RecipientID).
+		Return(nil, nil)
 	userRepo.EXPECT().GetByID(mock.Anything, params.RecipientID).Return(nil, errors.New("boom"))
 
 	// when
@@ -298,8 +298,8 @@ func TestNotify_EmailSkippedWhenUserNil(t *testing.T) {
 		Create(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message).
 		Return(int64(1), nil)
 	notifRepo.EXPECT().
-		ListByUser(mock.Anything, params.RecipientID, 1, 0).
-		Return(nil, 0, nil)
+		GetByID(mock.Anything, mock.Anything, params.RecipientID).
+		Return(nil, nil)
 	userRepo.EXPECT().GetByID(mock.Anything, params.RecipientID).Return(nil, nil)
 
 	// when
@@ -327,8 +327,8 @@ func TestNotify_EmailSkippedWhenEmailEmpty(t *testing.T) {
 		Create(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message).
 		Return(int64(1), nil)
 	notifRepo.EXPECT().
-		ListByUser(mock.Anything, params.RecipientID, 1, 0).
-		Return(nil, 0, nil)
+		GetByID(mock.Anything, mock.Anything, params.RecipientID).
+		Return(nil, nil)
 	userRepo.EXPECT().GetByID(mock.Anything, params.RecipientID).Return(&model.User{Email: ""}, nil)
 
 	// when
@@ -356,8 +356,8 @@ func TestNotify_EmailSkippedWhenNotificationsDisabledAndNotReport(t *testing.T) 
 		Create(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message).
 		Return(int64(1), nil)
 	notifRepo.EXPECT().
-		ListByUser(mock.Anything, params.RecipientID, 1, 0).
-		Return(nil, 0, nil)
+		GetByID(mock.Anything, mock.Anything, params.RecipientID).
+		Return(nil, nil)
 	userRepo.EXPECT().GetByID(mock.Anything, params.RecipientID).Return(&model.User{
 		Email:              "r@example.com",
 		EmailNotifications: false,
@@ -388,8 +388,8 @@ func TestNotify_ReportTypeSendsEmailEvenWithNotificationsDisabled(t *testing.T) 
 		Create(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message).
 		Return(int64(1), nil)
 	notifRepo.EXPECT().
-		ListByUser(mock.Anything, params.RecipientID, 1, 0).
-		Return(nil, 0, nil)
+		GetByID(mock.Anything, mock.Anything, params.RecipientID).
+		Return(nil, nil)
 	userRepo.EXPECT().GetByID(mock.Anything, params.RecipientID).Return(&model.User{
 		Email:              "admin@example.com",
 		EmailNotifications: false,
@@ -420,8 +420,8 @@ func TestNotify_PushNotificationListErrorSilentlyIgnored(t *testing.T) {
 		Create(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message).
 		Return(int64(7), nil)
 	notifRepo.EXPECT().
-		ListByUser(mock.Anything, params.RecipientID, 1, 0).
-		Return(nil, 0, errors.New("list failed"))
+		GetByID(mock.Anything, 7, params.RecipientID).
+		Return(nil, errors.New("lookup failed"))
 
 	// when
 	err := svc.Notify(context.Background(), params)
@@ -447,8 +447,8 @@ func TestNotify_PushNotificationNoMatchingRowNoPanic(t *testing.T) {
 		Create(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message).
 		Return(int64(99), nil)
 	notifRepo.EXPECT().
-		ListByUser(mock.Anything, params.RecipientID, 1, 0).
-		Return([]model.NotificationRow{{ID: 1}}, 1, nil)
+		GetByID(mock.Anything, 99, params.RecipientID).
+		Return(nil, nil)
 
 	// when
 	err := svc.Notify(context.Background(), params)
@@ -474,8 +474,8 @@ func TestNotify_PushNotificationFindsRowSendsToHub(t *testing.T) {
 		Create(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message).
 		Return(int64(123), nil)
 	notifRepo.EXPECT().
-		ListByUser(mock.Anything, params.RecipientID, 1, 0).
-		Return([]model.NotificationRow{{ID: 123, UserID: params.RecipientID, Type: params.Type}}, 1, nil)
+		GetByID(mock.Anything, 123, params.RecipientID).
+		Return(&model.NotificationRow{ID: 123, UserID: params.RecipientID, Type: params.Type}, nil)
 
 	// when
 	err := svc.Notify(context.Background(), params)
@@ -504,8 +504,8 @@ func TestNotifyMany_IteratesAllParamsAndSwallowsErrors(t *testing.T) {
 		Create(mock.Anything, recipient, dto.NotifChatMessage, ref, "", actor, "").
 		Return(int64(1), nil).Once()
 	notifRepo.EXPECT().
-		ListByUser(mock.Anything, recipient, 1, 0).
-		Return(nil, 0, nil).Once()
+		GetByID(mock.Anything, mock.Anything, recipient).
+		Return(nil, nil).Once()
 
 	// when
 	svc.NotifyMany(context.Background(), paramsList)

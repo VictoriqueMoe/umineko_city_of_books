@@ -2042,6 +2042,17 @@ func (s *service) AddReaction(ctx context.Context, messageID, userID uuid.UUID, 
 		return ErrNotMember
 	}
 
+	activeTimeout, timeoutUntil, _, err := s.chatRepo.GetMemberTimeoutState(ctx, msg.RoomID, userID)
+	if err != nil {
+		return fmt.Errorf("get timeout state: %w", err)
+	}
+	if activeTimeout {
+		if timeoutUntil != "" {
+			return fmt.Errorf("%w until %s", ErrTimedOut, formatTimeoutUntilForUser(timeoutUntil))
+		}
+		return ErrTimedOut
+	}
+
 	if err := s.chatRepo.AddReaction(ctx, messageID, userID, emoji); err != nil {
 		return fmt.Errorf("add reaction: %w", err)
 	}

@@ -1637,3 +1637,37 @@ export async function assignVanityRole(roleId: string, userId: string): Promise<
 export async function unassignVanityRole(roleId: string, userId: string): Promise<void> {
     await apiDelete(`/admin/vanity-roles/${roleId}/users/${userId}`);
 }
+
+export interface GiphyImage {
+    url: string;
+    width: string;
+    height: string;
+}
+
+export interface GiphyGif {
+    id: string;
+    title: string;
+    url: string;
+    images: Record<string, GiphyImage>;
+}
+
+export interface GiphyPagination {
+    total_count: number;
+    count: number;
+    offset: number;
+}
+
+export interface GiphyResponse {
+    data: GiphyGif[];
+    pagination: GiphyPagination;
+}
+
+export async function searchGiphy(q: string, offset?: number, limit?: number): Promise<GiphyResponse> {
+    const qs = buildQueryString({ q, offset: offset ?? 0, limit: limit ?? 0 });
+    return apiFetch<GiphyResponse>(`/giphy/search${qs}`);
+}
+
+export async function trendingGiphy(offset?: number, limit?: number): Promise<GiphyResponse> {
+    const qs = buildQueryString({ offset: offset ?? 0, limit: limit ?? 0 });
+    return apiFetch<GiphyResponse>(`/giphy/trending${qs}`);
+}
