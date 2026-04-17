@@ -131,6 +131,9 @@ func (s *Service) createShip(ctx fiber.Ctx) error {
 
 	id, err := s.ShipService.CreateShip(ctx.Context(), userID, req)
 	if err != nil {
+		if utils.MapFilterError(ctx, err) {
+			return nil
+		}
 		if errors.Is(err, ship.ErrEmptyTitle) || errors.Is(err, ship.ErrTooFewCharacters) || errors.Is(err, ship.ErrDuplicateCharacters) {
 			return utils.BadRequest(ctx, err.Error())
 		}
@@ -152,6 +155,9 @@ func (s *Service) updateShip(ctx fiber.Ctx) error {
 	}
 
 	if err := s.ShipService.UpdateShip(ctx.Context(), id, userID, req); err != nil {
+		if utils.MapFilterError(ctx, err) {
+			return nil
+		}
 		if errors.Is(err, ship.ErrEmptyTitle) || errors.Is(err, ship.ErrTooFewCharacters) || errors.Is(err, ship.ErrDuplicateCharacters) {
 			return utils.BadRequest(ctx, err.Error())
 		}
@@ -235,6 +241,9 @@ func (s *Service) createShipComment(ctx fiber.Ctx) error {
 
 	id, err := s.ShipService.CreateComment(ctx.Context(), shipID, userID, req)
 	if err != nil {
+		if utils.MapFilterError(ctx, err) {
+			return nil
+		}
 		if errors.Is(err, block.ErrUserBlocked) {
 			return utils.Forbidden(ctx, "user is blocked")
 		}
@@ -259,6 +268,9 @@ func (s *Service) updateShipComment(ctx fiber.Ctx) error {
 	}
 
 	if err := s.ShipService.UpdateComment(ctx.Context(), id, userID, req); err != nil {
+		if utils.MapFilterError(ctx, err) {
+			return nil
+		}
 		if errors.Is(err, ship.ErrEmptyBody) {
 			return utils.BadRequest(ctx, err.Error())
 		}

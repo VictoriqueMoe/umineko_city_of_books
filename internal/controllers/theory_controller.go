@@ -107,6 +107,9 @@ func (s *Service) createTheory(ctx fiber.Ctx) error {
 
 	id, err := s.TheoryService.CreateTheory(ctx.Context(), userID, req)
 	if err != nil {
+		if utils.MapFilterError(ctx, err) {
+			return nil
+		}
 		if errors.Is(err, theory.ErrRateLimited) {
 			return ctx.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
 				"error": "daily theory limit reached",
@@ -149,6 +152,9 @@ func (s *Service) updateTheory(ctx fiber.Ctx) error {
 	}
 
 	if err := s.TheoryService.UpdateTheory(ctx.Context(), id, userID, req); err != nil {
+		if utils.MapFilterError(ctx, err) {
+			return nil
+		}
 		return utils.Forbidden(ctx, "cannot update this theory")
 	}
 
@@ -221,6 +227,9 @@ func (s *Service) createResponse(ctx fiber.Ctx) error {
 
 	id, err := s.TheoryService.CreateResponse(ctx.Context(), theoryID, userID, req)
 	if err != nil {
+		if utils.MapFilterError(ctx, err) {
+			return nil
+		}
 		if errors.Is(err, block.ErrUserBlocked) {
 			return utils.Forbidden(ctx, "user is blocked")
 		}

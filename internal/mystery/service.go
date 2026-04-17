@@ -10,6 +10,7 @@ import (
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/notification"
@@ -55,15 +56,16 @@ type (
 	}
 
 	service struct {
-		mysteryRepo  repository.MysteryRepository
-		userRepo     repository.UserRepository
-		authz        authz.Service
-		blockSvc     block.Service
-		notifService notification.Service
-		settingsSvc  settings.Service
-		uploadSvc    upload.Service
-		uploader     *media.Uploader
-		hub          *ws.Hub
+		mysteryRepo   repository.MysteryRepository
+		userRepo      repository.UserRepository
+		authz         authz.Service
+		blockSvc      block.Service
+		notifService  notification.Service
+		settingsSvc   settings.Service
+		uploadSvc     upload.Service
+		uploader      *media.Uploader
+		hub           *ws.Hub
+		contentFilter *contentfilter.Manager
 	}
 )
 
@@ -77,18 +79,35 @@ func NewService(
 	uploadSvc upload.Service,
 	mediaProc *media.Processor,
 	hub *ws.Hub,
+	contentFilter *contentfilter.Manager,
 ) Service {
 	return &service{
-		mysteryRepo:  mysteryRepo,
-		userRepo:     userRepo,
-		authz:        authzService,
-		blockSvc:     blockSvc,
-		notifService: notifService,
-		settingsSvc:  settingsSvc,
-		uploadSvc:    uploadSvc,
-		uploader:     media.NewUploader(uploadSvc, settingsSvc, mediaProc),
-		hub:          hub,
+		mysteryRepo:   mysteryRepo,
+		userRepo:      userRepo,
+		authz:         authzService,
+		blockSvc:      blockSvc,
+		notifService:  notifService,
+		settingsSvc:   settingsSvc,
+		uploadSvc:     uploadSvc,
+		uploader:      media.NewUploader(uploadSvc, settingsSvc, mediaProc),
+		hub:           hub,
+		contentFilter: contentFilter,
 	}
+}
+
+func (s *service) filterTexts(ctx context.Context, texts ...string) error {
+	if s.contentFilter == nil {
+		return nil
+	}
+	return s.contentFilter.Check(ctx, texts...)
+}
+
+func clueBodies(clues []dto.CreateClueRequest) []string {
+	out := make([]string, 0, len(clues))
+	for _, c := range clues {
+		out = append(out, c.Body)
+	}
+	return out
 }
 
 func (s *service) ListMysteries(ctx context.Context, sort string, solved *bool, viewerID uuid.UUID, limit, offset int) (*dto.MysteryListResponse, error) {
@@ -258,6 +277,9 @@ func (s *service) CreateMystery(ctx context.Context, userID uuid.UUID, req dto.C
 	if strings.TrimSpace(req.Title) == "" || strings.TrimSpace(req.Body) == "" {
 		return uuid.Nil, ErrEmptyTitle
 	}
+	if err := s.filterTexts(ctx, append([]string{req.Title, req.Body}, clueBodies(req.Clues)...)...); err != nil {
+		return uuid.Nil, err
+	}
 	if req.Difficulty == "" {
 		req.Difficulty = "medium"
 	}
@@ -286,6 +308,9 @@ func (s *service) CreateMystery(ctx context.Context, userID uuid.UUID, req dto.C
 func (s *service) UpdateMystery(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.CreateMysteryRequest) error {
 	if !s.authz.Can(ctx, userID, authz.PermEditAnyTheory) {
 		return fmt.Errorf("not authorised")
+	}
+	if err := s.filterTexts(ctx, append([]string{req.Title, req.Body}, clueBodies(req.Clues)...)...); err != nil {
+		return err
 	}
 
 	old, err := s.mysteryRepo.GetByID(ctx, id)
@@ -376,6 +401,9 @@ func (s *service) DeleteMystery(ctx context.Context, id uuid.UUID, userID uuid.U
 func (s *service) CreateAttempt(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, req dto.CreateAttemptRequest) (uuid.UUID, error) {
 	if strings.TrimSpace(req.Body) == "" {
 		return uuid.Nil, ErrEmptyBody
+	}
+	if err := s.filterTexts(ctx, req.Body); err != nil {
+		return uuid.Nil, err
 	}
 
 	authorID, err := s.mysteryRepo.GetAuthorID(ctx, mysteryID)
@@ -609,6 +637,9 @@ func (s *service) AddClue(ctx context.Context, mysteryID uuid.UUID, userID uuid.
 	if strings.TrimSpace(req.Body) == "" {
 		return ErrEmptyBody
 	}
+	if err := s.filterTexts(ctx, req.Body); err != nil {
+		return err
+	}
 
 	authorID, err := s.mysteryRepo.GetAuthorID(ctx, mysteryID)
 	if err != nil {
@@ -749,6 +780,9 @@ func (s *service) CreateComment(ctx context.Context, mysteryID uuid.UUID, userID
 	if body == "" {
 		return uuid.Nil, ErrEmptyBody
 	}
+	if err := s.filterTexts(ctx, body); err != nil {
+		return uuid.Nil, err
+	}
 
 	solved, err := s.mysteryRepo.IsSolved(ctx, mysteryID)
 	if err != nil {
@@ -816,6 +850,9 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 	body := strings.TrimSpace(req.Body)
 	if body == "" {
 		return ErrEmptyBody
+	}
+	if err := s.filterTexts(ctx, body); err != nil {
+		return err
 	}
 	if s.authz.Can(ctx, userID, authz.PermEditAnyComment) {
 		return s.mysteryRepo.UpdateCommentAsAdmin(ctx, id, body)
@@ -1066,6 +1103,9 @@ func (s *service) DeleteClue(ctx context.Context, mysteryID uuid.UUID, clueID in
 func (s *service) UpdateClue(ctx context.Context, mysteryID uuid.UUID, clueID int, userID uuid.UUID, body string) error {
 	if strings.TrimSpace(body) == "" {
 		return ErrEmptyBody
+	}
+	if err := s.filterTexts(ctx, body); err != nil {
+		return err
 	}
 	if err := s.mysteryRepo.UpdateClue(ctx, clueID, strings.TrimSpace(body)); err != nil {
 		return err

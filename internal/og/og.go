@@ -37,6 +37,8 @@ type (
 const (
 	defaultTitle       = "Umineko City of Books"
 	defaultDescription = "A social platform for Umineko no Naku Koro ni fans. Declare fan theories as blue truth, debate with evidence, and earn credibility through community response."
+	defaultImagePath   = "/Featherine.webp"
+	baseURLPlaceholder = "__BASE_URL__"
 )
 
 func NewResolver(
@@ -63,7 +65,7 @@ func NewResolver(
 		announcementRepo: announcementRepo,
 		journalRepo:      journalRepo,
 		chatRepo:         chatRepo,
-		baseHTML:         baseHTML,
+		baseHTML:         strings.ReplaceAll(baseHTML, baseURLPlaceholder, baseURL),
 		baseURL:          baseURL,
 	}
 }
@@ -78,6 +80,18 @@ func (r *Resolver) Resolve(ctx context.Context, path string) string {
 
 func (r *Resolver) metaForPath(ctx context.Context, path string) *Meta {
 	parts := strings.Split(strings.Trim(path, "/"), "/")
+
+	if len(parts) == 1 && (parts[0] == "" || parts[0] == "welcome") {
+		url := r.baseURL + "/"
+		if parts[0] == "welcome" {
+			url = r.baseURL + "/welcome"
+		}
+		return &Meta{
+			Title:       "Umineko City of Books - Fan Theory Platform",
+			Description: "Welcome to the game board. Declare blue truths, solve mysteries, debate pairings, read and write fanfiction, and chronicle your journey through When They Cry.",
+			URL:         url,
+		}
+	}
 
 	if len(parts) == 2 && parts[0] == "theory" {
 		return r.theoryMeta(ctx, parts[1])
@@ -570,23 +584,18 @@ func (r *Resolver) roomMeta(ctx context.Context, idStr string) *Meta {
 func (r *Resolver) inject(meta Meta) string {
 	html := r.baseHTML
 	html = replaceMetaContent(html, "property", "og:title", defaultTitle, escapeAttr(meta.Title))
-	html = replaceMetaContent(html, "property", "og:description", defaultDescription, escapeAttr(meta.Description))
 	html = replaceMetaContent(html, "name", "twitter:title", defaultTitle, escapeAttr(meta.Title))
 	html = replaceMetaContent(html, "name", "twitter:description", defaultDescription, escapeAttr(meta.Description))
 
 	if meta.URL != "" {
-		html = replaceMetaContent(html, "property", "og:url", "https://meta.auaurora.moe/", meta.URL)
+		html = replaceMetaContent(html, "property", "og:url", r.baseURL+"/", meta.URL)
 	}
 
 	if meta.Image != "" {
 		img := r.absoluteURL(meta.Image)
-		html = strings.Replace(html,
-			`<meta name="twitter:card" content="summary_large_image">`,
-			`<meta name="twitter:card" content="summary_large_image">`+
-				"\n    "+`<meta property="og:image" content="`+img+`">`+
-				"\n    "+`<meta name="twitter:image" content="`+img+`">`,
-			1,
-		)
+		defaultImage := r.baseURL + defaultImagePath
+		html = replaceMetaContent(html, "property", "og:image", defaultImage, img)
+		html = replaceMetaContent(html, "name", "twitter:image", defaultImage, img)
 	}
 
 	return html

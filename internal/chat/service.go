@@ -12,6 +12,7 @@ import (
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
@@ -183,11 +184,12 @@ type (
 		SendMessage(ctx context.Context, senderID, roomID uuid.UUID, req dto.SendMessageRequest) (*dto.ChatMessageResponse, error)
 		GetRoomsByUser(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error)
 		DeleteChat(ctx context.Context, roomID, userID uuid.UUID) error
-		JoinRoom(ctx context.Context, roomID, userID uuid.UUID) (*dto.ChatRoomResponse, error)
+		JoinRoom(ctx context.Context, roomID, userID uuid.UUID, ghost bool) (*dto.ChatRoomResponse, error)
 		SetRoomMuted(ctx context.Context, roomID, userID uuid.UUID, muted bool) error
 		IsRoomMuted(ctx context.Context, roomID, userID uuid.UUID) (bool, error)
 		LeaveRoom(ctx context.Context, roomID, userID uuid.UUID) error
 		KickMember(ctx context.Context, hostID, roomID, targetID uuid.UUID) error
+		InviteMembers(ctx context.Context, hostID, roomID uuid.UUID, userIDs []uuid.UUID) (*dto.InviteMembersResponse, error)
 		SetMemberTimeout(ctx context.Context, roomID, actorID, targetID uuid.UUID, req dto.SetMemberTimeoutRequest) (*dto.ChatRoomMemberResponse, error)
 		ClearMemberTimeout(ctx context.Context, roomID, actorID, targetID uuid.UUID) (*dto.ChatRoomMemberResponse, error)
 		GetMembers(ctx context.Context, viewerID, roomID uuid.UUID) ([]dto.ChatRoomMemberResponse, error)
@@ -220,6 +222,7 @@ type (
 		uploadSvc      upload.Service
 		uploader       *media.Uploader
 		hub            *ws.Hub
+		contentFilter  *contentfilter.Manager
 	}
 )
 
@@ -235,6 +238,7 @@ func NewService(
 	settingsSvc settings.Service,
 	mediaProc *media.Processor,
 	hub *ws.Hub,
+	contentFilter *contentfilter.Manager,
 ) Service {
 	return &service{
 		chatRepo:       chatRepo,
@@ -248,7 +252,15 @@ func NewService(
 		uploadSvc:      uploadSvc,
 		uploader:       media.NewUploader(uploadSvc, settingsSvc, mediaProc),
 		hub:            hub,
+		contentFilter:  contentFilter,
 	}
+}
+
+func (s *service) filterTexts(ctx context.Context, texts ...string) error {
+	if s.contentFilter == nil {
+		return nil
+	}
+	return s.contentFilter.Check(ctx, texts...)
 }
 
 func (s *service) checkDMPreconditions(ctx context.Context, senderID, recipientID uuid.UUID) (*model.User, error) {
@@ -301,6 +313,9 @@ func (s *service) SendDMMessage(ctx context.Context, senderID, recipientID uuid.
 	if body == "" {
 		return nil, ErrMissingFields
 	}
+	if err := s.filterTexts(ctx, body); err != nil {
+		return nil, err
+	}
 	if _, err := s.checkDMPreconditions(ctx, senderID, recipientID); err != nil {
 		return nil, err
 	}
@@ -331,6 +346,9 @@ func (s *service) CreateGroupRoom(ctx context.Context, creatorID uuid.UUID, req 
 	if name == "" {
 		return nil, ErrMissingFields
 	}
+	if err := s.filterTexts(ctx, name, req.Description); err != nil {
+		return nil, err
+	}
 	if len(name) > 80 {
 		name = name[:80]
 	}
@@ -349,7 +367,7 @@ func (s *service) CreateGroupRoom(ctx context.Context, creatorID uuid.UUID, req 
 			return nil, fmt.Errorf("add room tags: %w", err)
 		}
 	}
-	if err := s.chatRepo.AddMemberWithRole(ctx, roomID, creatorID, "host"); err != nil {
+	if err := s.chatRepo.AddMemberWithRole(ctx, roomID, creatorID, "host", false); err != nil {
 		return nil, fmt.Errorf("add creator to group: %w", err)
 	}
 
@@ -361,7 +379,7 @@ func (s *service) CreateGroupRoom(ctx context.Context, creatorID uuid.UUID, req 
 		if blocked, _ := s.blockSvc.IsBlockedEither(ctx, creatorID, memberID); blocked {
 			continue
 		}
-		if err := s.chatRepo.AddMemberWithRole(ctx, roomID, memberID, "member"); err != nil {
+		if err := s.chatRepo.AddMemberWithRole(ctx, roomID, memberID, "member", false); err != nil {
 			return nil, fmt.Errorf("add member to group: %w", err)
 		}
 		invitedIDs = append(invitedIDs, memberID)
@@ -402,6 +420,106 @@ func (s *service) notifyInvited(inviterID, roomID uuid.UUID, roomName string, in
 			},
 		})
 	}
+}
+
+func (s *service) InviteMembers(ctx context.Context, hostID, roomID uuid.UUID, userIDs []uuid.UUID) (*dto.InviteMembersResponse, error) {
+	row, err := s.chatRepo.GetRoomByID(ctx, roomID, hostID)
+	if err != nil {
+		return nil, fmt.Errorf("get room: %w", err)
+	}
+	if row == nil {
+		return nil, ErrRoomNotFound
+	}
+	if row.Type != "group" {
+		return nil, ErrNotGroupRoom
+	}
+	if row.IsSystem {
+		return nil, ErrSystemRoom
+	}
+
+	canMod, err := s.canModerateRoom(ctx, roomID, hostID)
+	if err != nil {
+		return nil, err
+	}
+	if !canMod {
+		return nil, ErrNotHost
+	}
+
+	cap := s.settingsSvc.GetInt(ctx, config.SettingMaxChatRoomMembers)
+	memberCount := row.MemberCount
+
+	existingMembers, _ := s.chatRepo.GetRoomMembers(ctx, roomID)
+	inviterName := "Someone"
+	if inviter, err := s.userRepo.GetByID(ctx, hostID); err == nil && inviter != nil {
+		inviterName = inviter.DisplayName
+	}
+
+	invitedIDs := make([]uuid.UUID, 0, len(userIDs))
+	seen := make(map[uuid.UUID]bool, len(userIDs))
+	skipped := 0
+
+	for _, targetID := range userIDs {
+		if targetID == hostID || seen[targetID] {
+			skipped++
+			continue
+		}
+		seen[targetID] = true
+
+		if cap > 0 && memberCount >= cap {
+			skipped++
+			continue
+		}
+
+		existingRole, err := s.chatRepo.GetMemberRole(ctx, roomID, targetID)
+		if err != nil {
+			return nil, fmt.Errorf("get member role: %w", err)
+		}
+		if existingRole != "" {
+			skipped++
+			continue
+		}
+
+		target, err := s.userRepo.GetByID(ctx, targetID)
+		if err != nil || target == nil {
+			skipped++
+			continue
+		}
+
+		if blocked, _ := s.blockSvc.IsBlockedEither(ctx, hostID, targetID); blocked {
+			skipped++
+			continue
+		}
+
+		if err := s.chatRepo.AddMemberWithRole(ctx, roomID, targetID, "member", false); err != nil {
+			return nil, fmt.Errorf("add member: %w", err)
+		}
+		memberCount++
+		invitedIDs = append(invitedIDs, targetID)
+
+		joinedEvent := ws.Message{
+			Type: "chat_member_joined",
+			Data: map[string]interface{}{
+				"room_id": roomID,
+				"user":    target.ToResponse(),
+			},
+		}
+		for _, mid := range existingMembers {
+			s.hub.SendToUser(mid, joinedEvent)
+		}
+		s.hub.SendToUser(targetID, joinedEvent)
+		existingMembers = append(existingMembers, targetID)
+
+		s.postRoomActionMessage(ctx, roomID, hostID, fmt.Sprintf("%s invited %s to the room.", inviterName, target.DisplayName))
+	}
+
+	if len(invitedIDs) > 0 {
+		go s.notifyInvited(hostID, roomID, row.Name, invitedIDs)
+	}
+
+	return &dto.InviteMembersResponse{
+		InvitedCount: len(invitedIDs),
+		SkippedCount: skipped,
+	}, nil
 }
 
 func (s *service) ListPublicRooms(ctx context.Context, search string, isRPOnly bool, tag string, viewerID uuid.UUID, limit, offset int) (*dto.ChatRoomListResponse, error) {
@@ -473,7 +591,7 @@ func (s *service) IsRoomMuted(ctx context.Context, roomID, userID uuid.UUID) (bo
 	return s.chatRepo.IsMuted(ctx, roomID, userID)
 }
 
-func (s *service) JoinRoom(ctx context.Context, roomID, userID uuid.UUID) (*dto.ChatRoomResponse, error) {
+func (s *service) JoinRoom(ctx context.Context, roomID, userID uuid.UUID, ghost bool) (*dto.ChatRoomResponse, error) {
 	row, err := s.chatRepo.GetRoomByID(ctx, roomID, userID)
 	if err != nil {
 		return nil, fmt.Errorf("get room: %w", err)
@@ -490,6 +608,15 @@ func (s *service) JoinRoom(ctx context.Context, roomID, userID uuid.UUID) (*dto.
 	if !row.IsPublic {
 		return nil, ErrNotPublic
 	}
+	if ghost {
+		viewerSiteRole, err := s.authzSvc.GetRole(ctx, userID)
+		if err != nil {
+			return nil, fmt.Errorf("get site role: %w", err)
+		}
+		if !viewerSiteRole.IsSiteStaff() {
+			return nil, ErrGhostRequiresStaff
+		}
+	}
 	if row.IsMember {
 		return s.buildRoomResponse(ctx, roomID, userID)
 	}
@@ -501,7 +628,7 @@ func (s *service) JoinRoom(ctx context.Context, roomID, userID uuid.UUID) (*dto.
 		return nil, ErrRoomFull
 	}
 
-	if err := s.chatRepo.AddMemberWithRole(ctx, roomID, userID, "member"); err != nil {
+	if err := s.chatRepo.AddMemberWithRole(ctx, roomID, userID, "member", ghost); err != nil {
 		return nil, fmt.Errorf("add member: %w", err)
 	}
 
@@ -513,19 +640,36 @@ func (s *service) JoinRoom(ctx context.Context, roomID, userID uuid.UUID) (*dto.
 	members, _ := s.chatRepo.GetRoomMembers(ctx, roomID)
 	joiner, _ := s.userRepo.GetByID(ctx, userID)
 	if joiner != nil {
-		s.postRoomActionMessage(ctx, roomID, userID, fmt.Sprintf("%s joined the room.", joiner.DisplayName))
 		event := ws.Message{
 			Type: "chat_member_joined",
 			Data: map[string]interface{}{
 				"room_id": roomID,
 				"user":    joiner.ToResponse(),
+				"ghost":   ghost,
 			},
 		}
-		for _, mid := range members {
-			s.hub.SendToUser(mid, event)
+		if ghost {
+			s.broadcastToStaff(ctx, members, event)
+		} else {
+			s.postRoomActionMessage(ctx, roomID, userID, fmt.Sprintf("%s joined the room.", joiner.DisplayName))
+			for _, mid := range members {
+				s.hub.SendToUser(mid, event)
+			}
 		}
 	}
 	return resp, nil
+}
+
+func (s *service) broadcastToStaff(ctx context.Context, memberIDs []uuid.UUID, msg ws.Message) {
+	for _, mid := range memberIDs {
+		r, err := s.authzSvc.GetRole(ctx, mid)
+		if err != nil {
+			continue
+		}
+		if r.IsSiteStaff() {
+			s.hub.SendToUser(mid, msg)
+		}
+	}
 }
 
 func (s *service) LeaveRoom(ctx context.Context, roomID, userID uuid.UUID) error {
@@ -544,6 +688,10 @@ func (s *service) LeaveRoom(ctx context.Context, roomID, userID uuid.UUID) error
 	}
 
 	members, _ := s.chatRepo.GetRoomMembers(ctx, roomID)
+	var wasGhost bool
+	if hasGhost, _ := s.chatRepo.HasGhostMembers(ctx, roomID); hasGhost {
+		wasGhost, _ = s.chatRepo.IsGhostMember(ctx, roomID, userID)
+	}
 
 	if err := s.chatRepo.RemoveMember(ctx, roomID, userID); err != nil {
 		return fmt.Errorf("remove member: %w", err)
@@ -551,16 +699,23 @@ func (s *service) LeaveRoom(ctx context.Context, roomID, userID uuid.UUID) error
 
 	leaver, _ := s.userRepo.GetByID(ctx, userID)
 	if leaver != nil {
-		s.postRoomActionMessage(ctx, roomID, userID, fmt.Sprintf("%s left the room.", leaver.DisplayName))
+		if !wasGhost {
+			s.postRoomActionMessage(ctx, roomID, userID, fmt.Sprintf("%s left the room.", leaver.DisplayName))
+		}
 		event := ws.Message{
 			Type: "chat_member_left",
 			Data: map[string]interface{}{
 				"room_id": roomID,
 				"user_id": userID,
+				"ghost":   wasGhost,
 			},
 		}
-		for _, mid := range members {
-			s.hub.SendToUser(mid, event)
+		if wasGhost {
+			s.broadcastToStaff(ctx, members, event)
+		} else {
+			for _, mid := range members {
+				s.hub.SendToUser(mid, event)
+			}
 		}
 	}
 	return nil
@@ -770,9 +925,25 @@ func (s *service) GetMembers(ctx context.Context, viewerID, roomID uuid.UUID) ([
 		return nil, fmt.Errorf("get members: %w", err)
 	}
 
-	userIDs := make([]uuid.UUID, len(rows))
+	var viewerIsStaff bool
+	hasGhost := false
 	for i := range rows {
-		userIDs[i] = rows[i].UserID
+		if rows[i].Ghost {
+			hasGhost = true
+			break
+		}
+	}
+	if hasGhost {
+		r, _ := s.authzSvc.GetRole(ctx, viewerID)
+		viewerIsStaff = r.IsSiteStaff()
+	}
+
+	userIDs := make([]uuid.UUID, 0, len(rows))
+	for i := range rows {
+		if rows[i].Ghost && !viewerIsStaff {
+			continue
+		}
+		userIDs = append(userIDs, rows[i].UserID)
 	}
 	vanityMap, _ := s.vanityRoleRepo.GetRolesForUsersBatch(ctx, userIDs)
 	presence := s.hub.GetRoomPresence(roomID)
@@ -780,6 +951,9 @@ func (s *service) GetMembers(ctx context.Context, viewerID, roomID uuid.UUID) ([
 	members := make([]dto.ChatRoomMemberResponse, 0, len(rows))
 	for i := range rows {
 		m := rows[i]
+		if m.Ghost && !viewerIsStaff {
+			continue
+		}
 		locked := m.NicknameLocked && !m.AuthorRoleTyped.IsSiteStaff()
 		members = append(members, dto.ChatRoomMemberResponse{
 			User: dto.UserResponse{
@@ -798,6 +972,7 @@ func (s *service) GetMembers(ctx context.Context, viewerID, roomID uuid.UUID) ([
 			TimeoutUntil:    m.TimeoutUntil,
 			TimeoutByStaff:  m.TimeoutByStaff,
 			Presence:        presence[m.UserID],
+			Ghost:           m.Ghost,
 		})
 	}
 	return members, nil
@@ -812,12 +987,13 @@ func (s *service) ListRooms(ctx context.Context, userID uuid.UUID) (*dto.ChatRoo
 	rooms := make([]dto.ChatRoomResponse, 0, len(rows))
 	for i := 0; i < len(rows); i++ {
 		row := rows[i]
-		members, err := s.getRoomMemberResponses(ctx, row.ID)
+		members, count, err := s.getRoomMemberResponses(ctx, row.ID, userID)
 		if err != nil {
 			return nil, err
 		}
 		resp := s.rowToResponse(row)
 		resp.Members = members
+		resp.MemberCount = count
 		rooms = append(rooms, resp)
 	}
 
@@ -953,7 +1129,7 @@ func (s *service) syncOneSystemRoom(ctx context.Context, roomID, userID uuid.UUI
 
 	switch {
 	case shouldBeMember && !wasMember:
-		if err := s.chatRepo.AddMemberWithRole(ctx, roomID, userID, desiredRole); err != nil {
+		if err := s.chatRepo.AddMemberWithRole(ctx, roomID, userID, desiredRole, false); err != nil {
 			return err
 		}
 		s.hub.JoinRoom(roomID, userID)
@@ -1218,6 +1394,9 @@ func (s *service) GetMessagesBefore(ctx context.Context, userID, roomID uuid.UUI
 func (s *service) SendMessage(ctx context.Context, senderID, roomID uuid.UUID, req dto.SendMessageRequest) (*dto.ChatMessageResponse, error) {
 	if req.Body == "" {
 		return nil, ErrMissingFields
+	}
+	if err := s.filterTexts(ctx, req.Body); err != nil {
+		return nil, err
 	}
 
 	isMember, err := s.chatRepo.IsMember(ctx, roomID, senderID)
@@ -1629,17 +1808,21 @@ func (s *service) buildRoomResponse(ctx context.Context, roomID, viewerID uuid.U
 		return nil, ErrNotMember
 	}
 
-	members, err := s.getRoomMemberResponses(ctx, roomID)
+	members, count, err := s.getRoomMemberResponses(ctx, roomID, viewerID)
 	if err != nil {
 		return nil, err
 	}
 
 	resp := s.rowToResponse(*row)
 	resp.Members = members
+	resp.MemberCount = count
 	return &resp, nil
 }
 
 func (s *service) SetRoomNickname(ctx context.Context, roomID, userID uuid.UUID, nickname string) (*dto.ChatRoomMemberResponse, error) {
+	if err := s.filterTexts(ctx, nickname); err != nil {
+		return nil, err
+	}
 	isMember, err := s.chatRepo.IsMember(ctx, roomID, userID)
 	if err != nil {
 		return nil, fmt.Errorf("check membership: %w", err)
@@ -2155,19 +2338,32 @@ func (s *service) DeleteMessage(ctx context.Context, messageID, actorID uuid.UUI
 	return nil
 }
 
-func (s *service) getRoomMemberResponses(ctx context.Context, roomID uuid.UUID) ([]dto.UserResponse, error) {
+func (s *service) getRoomMemberResponses(ctx context.Context, roomID, viewerID uuid.UUID) ([]dto.UserResponse, int, error) {
 	memberIDs, err := s.chatRepo.GetRoomMembers(ctx, roomID)
 	if err != nil {
-		return nil, fmt.Errorf("get room members: %w", err)
+		return nil, 0, fmt.Errorf("get room members: %w", err)
 	}
 
-	var members []dto.UserResponse
+	hasGhost, _ := s.chatRepo.HasGhostMembers(ctx, roomID)
+	var viewerIsStaff bool
+	if hasGhost {
+		r, _ := s.authzSvc.GetRole(ctx, viewerID)
+		viewerIsStaff = r.IsSiteStaff()
+	}
+
+	members := make([]dto.UserResponse, 0, len(memberIDs))
 	for _, memberID := range memberIDs {
+		if hasGhost && !viewerIsStaff {
+			ghost, _ := s.chatRepo.IsGhostMember(ctx, roomID, memberID)
+			if ghost {
+				continue
+			}
+		}
 		user, err := s.userRepo.GetByID(ctx, memberID)
 		if err != nil || user == nil {
 			continue
 		}
 		members = append(members, *user.ToResponse())
 	}
-	return members, nil
+	return members, len(members), nil
 }

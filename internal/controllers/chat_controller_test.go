@@ -409,7 +409,7 @@ func TestJoinRoom_OK(t *testing.T) {
 	userID := uuid.New()
 	roomID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
-	chatMock.EXPECT().JoinRoom(mock.Anything, roomID, userID).
+	chatMock.EXPECT().JoinRoom(mock.Anything, roomID, userID, false).
 		Return(&dto.ChatRoomResponse{ID: roomID}, nil)
 
 	// when
@@ -455,7 +455,7 @@ func TestJoinRoom_ServiceErrors(t *testing.T) {
 			userID := uuid.New()
 			roomID := uuid.New()
 			h.ExpectValidSession("valid-cookie", userID)
-			chatMock.EXPECT().JoinRoom(mock.Anything, roomID, userID).Return(nil, tc.err)
+			chatMock.EXPECT().JoinRoom(mock.Anything, roomID, userID, false).Return(nil, tc.err)
 
 			// when
 			status, body := h.NewRequest("POST", "/chat/rooms/"+roomID.String()+"/join").
@@ -673,6 +673,99 @@ func TestKickMember_ServiceErrors(t *testing.T) {
 			// when
 			status, body := h.NewRequest("DELETE", "/chat/rooms/"+roomID.String()+"/members/"+targetID.String()).
 				WithCookie("valid-cookie").Do()
+
+			// then
+			require.Equal(t, tc.wantCode, status)
+			assert.Contains(t, string(body), tc.wantBody)
+		})
+	}
+}
+
+func TestInviteMembers_AuthFailures(t *testing.T) {
+	testutil.RunAuthFailureSuite(t, chatFactory, "POST",
+		"/chat/rooms/"+uuid.NewString()+"/members",
+		dto.InviteMembersRequest{UserIDs: []uuid.UUID{uuid.New()}})
+}
+
+func TestInviteMembers_OK(t *testing.T) {
+	// given
+	h, chatMock := newChatHarness(t)
+	userID := uuid.New()
+	roomID := uuid.New()
+	targetID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	req := dto.InviteMembersRequest{UserIDs: []uuid.UUID{targetID}}
+	chatMock.EXPECT().InviteMembers(mock.Anything, userID, roomID, req.UserIDs).
+		Return(&dto.InviteMembersResponse{InvitedCount: 1, SkippedCount: 0}, nil)
+
+	// when
+	status, body := h.NewRequest("POST", "/chat/rooms/"+roomID.String()+"/members").
+		WithCookie("valid-cookie").
+		WithJSONBody(req).Do()
+
+	// then
+	require.Equal(t, http.StatusOK, status)
+	assert.Contains(t, string(body), `"invited_count":1`)
+}
+
+func TestInviteMembers_InvalidRoomID(t *testing.T) {
+	// given
+	h, _ := newChatHarness(t)
+	h.ExpectValidSession("valid-cookie", uuid.New())
+
+	// when
+	status, body := h.NewRequest("POST", "/chat/rooms/not-a-uuid/members").
+		WithCookie("valid-cookie").
+		WithJSONBody(dto.InviteMembersRequest{UserIDs: []uuid.UUID{uuid.New()}}).Do()
+
+	// then
+	require.Equal(t, http.StatusBadRequest, status)
+	assert.Contains(t, string(body), "invalid roomID")
+}
+
+func TestInviteMembers_EmptyUserIDs(t *testing.T) {
+	// given
+	h, _ := newChatHarness(t)
+	h.ExpectValidSession("valid-cookie", uuid.New())
+
+	// when
+	status, body := h.NewRequest("POST", "/chat/rooms/"+uuid.NewString()+"/members").
+		WithCookie("valid-cookie").
+		WithJSONBody(dto.InviteMembersRequest{UserIDs: []uuid.UUID{}}).Do()
+
+	// then
+	require.Equal(t, http.StatusBadRequest, status)
+	assert.Contains(t, string(body), "user_ids is required")
+}
+
+func TestInviteMembers_ServiceErrors(t *testing.T) {
+	cases := []struct {
+		name     string
+		err      error
+		wantCode int
+		wantBody string
+	}{
+		{"room not found", chatsvc.ErrRoomNotFound, http.StatusNotFound, "room not found"},
+		{"not group room", chatsvc.ErrNotGroupRoom, http.StatusBadRequest, "only group rooms"},
+		{"system room", chatsvc.ErrSystemRoom, http.StatusForbidden, "managed automatically"},
+		{"not host", chatsvc.ErrNotHost, http.StatusForbidden, "only the host can invite"},
+		{"internal", errors.New("boom"), http.StatusInternalServerError, "failed to invite members"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h, chatMock := newChatHarness(t)
+			userID := uuid.New()
+			roomID := uuid.New()
+			targetID := uuid.New()
+			h.ExpectValidSession("valid-cookie", userID)
+			req := dto.InviteMembersRequest{UserIDs: []uuid.UUID{targetID}}
+			chatMock.EXPECT().InviteMembers(mock.Anything, userID, roomID, req.UserIDs).Return(nil, tc.err)
+
+			// when
+			status, body := h.NewRequest("POST", "/chat/rooms/"+roomID.String()+"/members").
+				WithCookie("valid-cookie").
+				WithJSONBody(req).Do()
 
 			// then
 			require.Equal(t, tc.wantCode, status)

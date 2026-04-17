@@ -12,6 +12,7 @@ import (
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/notification"
@@ -53,18 +54,19 @@ type (
 	}
 
 	service struct {
-		db           *sql.DB
-		postRepo     repository.PostRepository
-		userRepo     repository.UserRepository
-		roleRepo     repository.RoleRepository
-		authz        authz.Service
-		blockSvc     block.Service
-		notifService notification.Service
-		uploadSvc    upload.Service
-		mediaProc    *media.Processor
-		uploader     *media.Uploader
-		settingsSvc  settings.Service
-		hub          *ws.Hub
+		db            *sql.DB
+		postRepo      repository.PostRepository
+		userRepo      repository.UserRepository
+		roleRepo      repository.RoleRepository
+		authz         authz.Service
+		blockSvc      block.Service
+		notifService  notification.Service
+		uploadSvc     upload.Service
+		mediaProc     *media.Processor
+		uploader      *media.Uploader
+		settingsSvc   settings.Service
+		hub           *ws.Hub
+		contentFilter *contentfilter.Manager
 	}
 )
 
@@ -85,21 +87,30 @@ func NewService(
 	mediaProc *media.Processor,
 	settingsSvc settings.Service,
 	hub *ws.Hub,
+	contentFilter *contentfilter.Manager,
 ) Service {
 	return &service{
-		db:           db,
-		postRepo:     postRepo,
-		userRepo:     userRepo,
-		roleRepo:     roleRepo,
-		authz:        authzService,
-		blockSvc:     blockSvc,
-		notifService: notifService,
-		uploadSvc:    uploadSvc,
-		mediaProc:    mediaProc,
-		uploader:     media.NewUploader(uploadSvc, settingsSvc, mediaProc),
-		settingsSvc:  settingsSvc,
-		hub:          hub,
+		db:            db,
+		postRepo:      postRepo,
+		userRepo:      userRepo,
+		roleRepo:      roleRepo,
+		authz:         authzService,
+		blockSvc:      blockSvc,
+		notifService:  notifService,
+		uploadSvc:     uploadSvc,
+		mediaProc:     mediaProc,
+		uploader:      media.NewUploader(uploadSvc, settingsSvc, mediaProc),
+		settingsSvc:   settingsSvc,
+		hub:           hub,
+		contentFilter: contentFilter,
 	}
+}
+
+func (s *service) filterTexts(ctx context.Context, texts ...string) error {
+	if s.contentFilter == nil {
+		return nil
+	}
+	return s.contentFilter.Check(ctx, texts...)
 }
 
 var validSharedContentTypes = map[string]bool{
@@ -117,6 +128,11 @@ func (s *service) CreatePost(ctx context.Context, userID uuid.UUID, req dto.Crea
 
 	if strings.TrimSpace(req.Body) == "" && !isShare {
 		return uuid.Nil, ErrEmptyBody
+	}
+
+	pollLabels := pollOptionLabels(req.Poll)
+	if err := s.filterTexts(ctx, append([]string{req.Body}, pollLabels...)...); err != nil {
+		return uuid.Nil, err
 	}
 
 	limit := s.settingsSvc.GetInt(ctx, config.SettingMaxPostsPerDay)
@@ -268,6 +284,9 @@ func (s *service) UpdatePost(ctx context.Context, id uuid.UUID, userID uuid.UUID
 	body := strings.TrimSpace(req.Body)
 	if body == "" {
 		return ErrEmptyBody
+	}
+	if err := s.filterTexts(ctx, body); err != nil {
+		return err
 	}
 	if s.authz.Can(ctx, userID, authz.PermEditAnyPost) {
 		if err := s.postRepo.UpdatePostAsAdmin(ctx, id, body); err != nil {
@@ -500,6 +519,9 @@ func (s *service) CreateComment(ctx context.Context, postID uuid.UUID, userID uu
 	if strings.TrimSpace(req.Body) == "" {
 		return uuid.Nil, ErrEmptyBody
 	}
+	if err := s.filterTexts(ctx, req.Body); err != nil {
+		return uuid.Nil, err
+	}
 
 	authorID, err := s.postRepo.GetPostAuthorID(ctx, postID)
 	if err != nil {
@@ -579,6 +601,9 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 	body := strings.TrimSpace(req.Body)
 	if body == "" {
 		return ErrEmptyBody
+	}
+	if err := s.filterTexts(ctx, body); err != nil {
+		return err
 	}
 	if s.authz.Can(ctx, userID, authz.PermEditAnyComment) {
 		if err := s.postRepo.UpdateCommentAsAdmin(ctx, id, body); err != nil {
@@ -769,6 +794,17 @@ func (s *service) RefreshStaleEmbeds(ctx context.Context) int {
 		}
 	}
 	return refreshed
+}
+
+func pollOptionLabels(poll *dto.CreatePollInput) []string {
+	if poll == nil {
+		return nil
+	}
+	out := make([]string, 0, len(poll.Options))
+	for _, o := range poll.Options {
+		out = append(out, o.Label)
+	}
+	return out
 }
 
 func validatePollInput(poll *dto.CreatePollInput) error {

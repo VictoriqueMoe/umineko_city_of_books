@@ -10,6 +10,7 @@ import (
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/notification"
@@ -51,7 +52,11 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	settingsSvc := settings.NewMockService(t)
 	mediaProc := &media.Processor{}
 	hub := ws.NewHub()
-	svc := NewService(chatRepo, userRepo, roleRepo, vanityRoleRepo, authzSvc, notifSvc, blockSvc, uploadSvc, settingsSvc, mediaProc, hub).(*service)
+	svc := NewService(chatRepo, userRepo, roleRepo, vanityRoleRepo, authzSvc, notifSvc, blockSvc, uploadSvc, settingsSvc, mediaProc, hub, contentfilter.New()).(*service)
+
+	chatRepo.EXPECT().HasGhostMembers(mock.Anything, mock.Anything).Return(false, nil).Maybe()
+	chatRepo.EXPECT().IsGhostMember(mock.Anything, mock.Anything, mock.Anything).Return(false, nil).Maybe()
+
 	return svc, &testMocks{
 		chatRepo:       chatRepo,
 		userRepo:       userRepo,
@@ -319,7 +324,7 @@ func TestCreateGroupRoom_AddHostError(t *testing.T) {
 	creator := uuid.New()
 	req := dto.CreateGroupRoomRequest{Name: "Room"}
 	m.chatRepo.EXPECT().CreateRoom(mock.Anything, mock.Anything, "Room", "", "group", false, false, creator).Return(nil)
-	m.chatRepo.EXPECT().AddMemberWithRole(mock.Anything, mock.Anything, creator, "host").Return(errors.New("boom"))
+	m.chatRepo.EXPECT().AddMemberWithRole(mock.Anything, mock.Anything, creator, "host", false).Return(errors.New("boom"))
 
 	// when
 	_, err := svc.CreateGroupRoom(context.Background(), creator, req)
@@ -336,10 +341,10 @@ func TestCreateGroupRoom_SkipsBlockedMembers(t *testing.T) {
 	memberB := uuid.New()
 	req := dto.CreateGroupRoomRequest{Name: "Room", MemberIDs: []uuid.UUID{creator, memberA, memberB}}
 	m.chatRepo.EXPECT().CreateRoom(mock.Anything, mock.Anything, "Room", "", "group", false, false, creator).Return(nil)
-	m.chatRepo.EXPECT().AddMemberWithRole(mock.Anything, mock.Anything, creator, "host").Return(nil)
+	m.chatRepo.EXPECT().AddMemberWithRole(mock.Anything, mock.Anything, creator, "host", false).Return(nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, creator, memberA).Return(true, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, creator, memberB).Return(false, nil)
-	m.chatRepo.EXPECT().AddMemberWithRole(mock.Anything, mock.Anything, memberB, "member").Return(nil)
+	m.chatRepo.EXPECT().AddMemberWithRole(mock.Anything, mock.Anything, memberB, "member", false).Return(nil)
 	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, mock.Anything, creator).Return(&repository.ChatRoomRow{Name: "Room"}, nil)
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, mock.Anything).Return([]uuid.UUID{creator, memberB}, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, creator).Return(sampleUser(creator), nil)
@@ -363,9 +368,9 @@ func TestCreateGroupRoom_AddMemberError(t *testing.T) {
 	memberA := uuid.New()
 	req := dto.CreateGroupRoomRequest{Name: "Room", MemberIDs: []uuid.UUID{memberA}}
 	m.chatRepo.EXPECT().CreateRoom(mock.Anything, mock.Anything, "Room", "", "group", false, false, creator).Return(nil)
-	m.chatRepo.EXPECT().AddMemberWithRole(mock.Anything, mock.Anything, creator, "host").Return(nil)
+	m.chatRepo.EXPECT().AddMemberWithRole(mock.Anything, mock.Anything, creator, "host", false).Return(nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, creator, memberA).Return(false, nil)
-	m.chatRepo.EXPECT().AddMemberWithRole(mock.Anything, mock.Anything, memberA, "member").Return(errors.New("boom"))
+	m.chatRepo.EXPECT().AddMemberWithRole(mock.Anything, mock.Anything, memberA, "member", false).Return(errors.New("boom"))
 
 	// when
 	_, err := svc.CreateGroupRoom(context.Background(), creator, req)
@@ -551,7 +556,7 @@ func TestJoinRoom_RepoError(t *testing.T) {
 	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, userID).Return(nil, errors.New("boom"))
 
 	// when
-	_, err := svc.JoinRoom(context.Background(), roomID, userID)
+	_, err := svc.JoinRoom(context.Background(), roomID, userID, false)
 
 	// then
 	require.Error(t, err)
@@ -565,7 +570,7 @@ func TestJoinRoom_NotFound(t *testing.T) {
 	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, userID).Return(nil, nil)
 
 	// when
-	_, err := svc.JoinRoom(context.Background(), roomID, userID)
+	_, err := svc.JoinRoom(context.Background(), roomID, userID, false)
 
 	// then
 	require.ErrorIs(t, err, ErrRoomNotFound)
@@ -579,7 +584,7 @@ func TestJoinRoom_NotGroup(t *testing.T) {
 	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, userID).Return(&repository.ChatRoomRow{ID: roomID, Type: "dm"}, nil)
 
 	// when
-	_, err := svc.JoinRoom(context.Background(), roomID, userID)
+	_, err := svc.JoinRoom(context.Background(), roomID, userID, false)
 
 	// then
 	require.ErrorIs(t, err, ErrNotGroupRoom)
@@ -593,7 +598,7 @@ func TestJoinRoom_SystemRoom(t *testing.T) {
 	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, userID).Return(&repository.ChatRoomRow{ID: roomID, Type: "group", IsSystem: true}, nil)
 
 	// when
-	_, err := svc.JoinRoom(context.Background(), roomID, userID)
+	_, err := svc.JoinRoom(context.Background(), roomID, userID, false)
 
 	// then
 	require.ErrorIs(t, err, ErrSystemRoom)
@@ -607,7 +612,7 @@ func TestJoinRoom_NotPublic(t *testing.T) {
 	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, userID).Return(&repository.ChatRoomRow{ID: roomID, Type: "group", IsPublic: false}, nil)
 
 	// when
-	_, err := svc.JoinRoom(context.Background(), roomID, userID)
+	_, err := svc.JoinRoom(context.Background(), roomID, userID, false)
 
 	// then
 	require.ErrorIs(t, err, ErrNotPublic)
@@ -624,7 +629,7 @@ func TestJoinRoom_AlreadyMember(t *testing.T) {
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return(nil, nil)
 
 	// when
-	got, err := svc.JoinRoom(context.Background(), roomID, userID)
+	got, err := svc.JoinRoom(context.Background(), roomID, userID, false)
 
 	// then
 	require.NoError(t, err)
@@ -641,7 +646,7 @@ func TestJoinRoom_Blocked(t *testing.T) {
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, creatorID).Return(true, nil)
 
 	// when
-	_, err := svc.JoinRoom(context.Background(), roomID, userID)
+	_, err := svc.JoinRoom(context.Background(), roomID, userID, false)
 
 	// then
 	require.ErrorIs(t, err, ErrUserBlocked)
@@ -659,7 +664,7 @@ func TestJoinRoom_RoomFull(t *testing.T) {
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxChatRoomMembers).Return(10)
 
 	// when
-	_, err := svc.JoinRoom(context.Background(), roomID, userID)
+	_, err := svc.JoinRoom(context.Background(), roomID, userID, false)
 
 	// then
 	require.ErrorIs(t, err, ErrRoomFull)
@@ -675,10 +680,10 @@ func TestJoinRoom_AddMemberError(t *testing.T) {
 	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, userID).Return(row, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, creatorID).Return(false, nil)
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxChatRoomMembers).Return(0)
-	m.chatRepo.EXPECT().AddMemberWithRole(mock.Anything, roomID, userID, "member").Return(errors.New("boom"))
+	m.chatRepo.EXPECT().AddMemberWithRole(mock.Anything, roomID, userID, "member", false).Return(errors.New("boom"))
 
 	// when
-	_, err := svc.JoinRoom(context.Background(), roomID, userID)
+	_, err := svc.JoinRoom(context.Background(), roomID, userID, false)
 
 	// then
 	require.Error(t, err)
@@ -694,7 +699,7 @@ func TestJoinRoom_OK(t *testing.T) {
 	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, userID).Return(row, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, creatorID).Return(false, nil)
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxChatRoomMembers).Return(100)
-	m.chatRepo.EXPECT().AddMemberWithRole(mock.Anything, roomID, userID, "member").Return(nil)
+	m.chatRepo.EXPECT().AddMemberWithRole(mock.Anything, roomID, userID, "member", false).Return(nil)
 	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, userID).Return(row, nil)
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return([]uuid.UUID{userID}, nil)
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return([]uuid.UUID{userID}, nil)
@@ -703,7 +708,7 @@ func TestJoinRoom_OK(t *testing.T) {
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(sampleUser(userID), nil)
 
 	// when
-	got, err := svc.JoinRoom(context.Background(), roomID, userID)
+	got, err := svc.JoinRoom(context.Background(), roomID, userID, false)
 
 	// then
 	require.NoError(t, err)
@@ -1392,9 +1397,9 @@ func TestSyncSystemRoomMembership_AdminAdded(t *testing.T) {
 	m.chatRepo.EXPECT().GetSystemRoomID(mock.Anything, SystemKindMods).Return(modsID, nil)
 	m.chatRepo.EXPECT().GetSystemRoomID(mock.Anything, SystemKindAdmins).Return(adminsID, nil)
 	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, modsID, userID).Return("", nil)
-	m.chatRepo.EXPECT().AddMemberWithRole(mock.Anything, modsID, userID, "member").Return(nil)
+	m.chatRepo.EXPECT().AddMemberWithRole(mock.Anything, modsID, userID, "member", false).Return(nil)
 	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, adminsID, userID).Return("", nil)
-	m.chatRepo.EXPECT().AddMemberWithRole(mock.Anything, adminsID, userID, "member").Return(nil)
+	m.chatRepo.EXPECT().AddMemberWithRole(mock.Anything, adminsID, userID, "member", false).Return(nil)
 
 	// when
 	err := svc.SyncSystemRoomMembership(context.Background(), userID, authz.RoleAdmin)
@@ -1412,9 +1417,9 @@ func TestSyncSystemRoomMembership_SuperAdminAsHost(t *testing.T) {
 	m.chatRepo.EXPECT().GetSystemRoomID(mock.Anything, SystemKindMods).Return(modsID, nil)
 	m.chatRepo.EXPECT().GetSystemRoomID(mock.Anything, SystemKindAdmins).Return(adminsID, nil)
 	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, modsID, userID).Return("", nil)
-	m.chatRepo.EXPECT().AddMemberWithRole(mock.Anything, modsID, userID, "host").Return(nil)
+	m.chatRepo.EXPECT().AddMemberWithRole(mock.Anything, modsID, userID, "host", false).Return(nil)
 	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, adminsID, userID).Return("", nil)
-	m.chatRepo.EXPECT().AddMemberWithRole(mock.Anything, adminsID, userID, "host").Return(nil)
+	m.chatRepo.EXPECT().AddMemberWithRole(mock.Anything, adminsID, userID, "host", false).Return(nil)
 
 	// when
 	err := svc.SyncSystemRoomMembership(context.Background(), userID, authz.RoleSuperAdmin)
@@ -2271,8 +2276,6 @@ func TestMessageRowToResponse_ReplyTruncation(t *testing.T) {
 	msgID := uuid.New()
 	senderID := uuid.New()
 	replyID := uuid.New()
-	replySenderID := uuid.New()
-	replySenderName := "Sender"
 	longBody := ""
 	for i := 0; i < 200; i++ {
 		longBody += "x"
@@ -2285,8 +2288,8 @@ func TestMessageRowToResponse_ReplyTruncation(t *testing.T) {
 		SenderDisplayName: "d",
 		Body:              "body",
 		ReplyToID:         &replyID,
-		ReplyToSenderID:   &replySenderID,
-		ReplyToSenderName: &replySenderName,
+		ReplyToSenderID:   new(uuid.New()),
+		ReplyToSenderName: new("Sender"),
 		ReplyToBody:       &longBody,
 	}
 
@@ -2682,8 +2685,7 @@ func TestUnpinMessage_HappyPath(t *testing.T) {
 	messageID := uuid.New()
 	roomID := uuid.New()
 	userID := uuid.New()
-	pinnedAt := "2024-01-01T00:00:00Z"
-	m.chatRepo.EXPECT().GetMessageByID(mock.Anything, messageID).Return(&repository.ChatMessageRow{ID: messageID, RoomID: roomID, PinnedAt: &pinnedAt}, nil)
+	m.chatRepo.EXPECT().GetMessageByID(mock.Anything, messageID).Return(&repository.ChatMessageRow{ID: messageID, RoomID: roomID, PinnedAt: new("2024-01-01T00:00:00Z")}, nil)
 	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, userID).Return("host", nil)
 	m.chatRepo.EXPECT().UnpinMessage(mock.Anything, messageID).Return(nil)
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return(nil, nil).Maybe()
@@ -2730,8 +2732,7 @@ func TestUnpinMessage_NotHost(t *testing.T) {
 	messageID := uuid.New()
 	roomID := uuid.New()
 	userID := uuid.New()
-	pinnedAt := "2024-01-01T00:00:00Z"
-	m.chatRepo.EXPECT().GetMessageByID(mock.Anything, messageID).Return(&repository.ChatMessageRow{ID: messageID, RoomID: roomID, PinnedAt: &pinnedAt}, nil)
+	m.chatRepo.EXPECT().GetMessageByID(mock.Anything, messageID).Return(&repository.ChatMessageRow{ID: messageID, RoomID: roomID, PinnedAt: new("2024-01-01T00:00:00Z")}, nil)
 	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, userID).Return("member", nil)
 	m.authzSvc.EXPECT().GetRole(mock.Anything, userID).Return("", nil)
 
@@ -2748,8 +2749,7 @@ func TestUnpinMessage_RepoError(t *testing.T) {
 	messageID := uuid.New()
 	roomID := uuid.New()
 	userID := uuid.New()
-	pinnedAt := "2024-01-01T00:00:00Z"
-	m.chatRepo.EXPECT().GetMessageByID(mock.Anything, messageID).Return(&repository.ChatMessageRow{ID: messageID, RoomID: roomID, PinnedAt: &pinnedAt}, nil)
+	m.chatRepo.EXPECT().GetMessageByID(mock.Anything, messageID).Return(&repository.ChatMessageRow{ID: messageID, RoomID: roomID, PinnedAt: new("2024-01-01T00:00:00Z")}, nil)
 	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, userID).Return("host", nil)
 	m.chatRepo.EXPECT().UnpinMessage(mock.Anything, messageID).Return(errors.New("db"))
 
@@ -3541,8 +3541,7 @@ func TestUnpinMessage_SiteMod_OK(t *testing.T) {
 	messageID := uuid.New()
 	roomID := uuid.New()
 	actorID := uuid.New()
-	pinnedAt := "2024-01-01T00:00:00Z"
-	m.chatRepo.EXPECT().GetMessageByID(mock.Anything, messageID).Return(&repository.ChatMessageRow{ID: messageID, RoomID: roomID, PinnedAt: &pinnedAt}, nil)
+	m.chatRepo.EXPECT().GetMessageByID(mock.Anything, messageID).Return(&repository.ChatMessageRow{ID: messageID, RoomID: roomID, PinnedAt: new("2024-01-01T00:00:00Z")}, nil)
 	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, actorID).Return("member", nil)
 	m.authzSvc.EXPECT().GetRole(mock.Anything, actorID).Return(authz.RoleAdmin, nil)
 	m.chatRepo.EXPECT().UnpinMessage(mock.Anything, messageID).Return(nil)
@@ -3641,4 +3640,141 @@ func TestDeleteMessage_NotFound(t *testing.T) {
 
 	// then
 	require.ErrorIs(t, err, ErrRoomNotFound)
+}
+
+func TestJoinRoom_Ghost_RequiresStaff(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	roomID := uuid.New()
+	userID := uuid.New()
+	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, userID).Return(&repository.ChatRoomRow{
+		ID: roomID, Type: "group", IsPublic: true, CreatedBy: uuid.New(),
+	}, nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, userID).Return(role.Role(""), nil)
+
+	// when
+	_, err := svc.JoinRoom(context.Background(), roomID, userID, true)
+
+	// then
+	require.ErrorIs(t, err, ErrGhostRequiresStaff)
+}
+
+func unsetGhostDefaults(repo *repository.MockChatRepository) {
+	var kept []*mock.Call
+	for _, c := range repo.ExpectedCalls {
+		if c.Method == "HasGhostMembers" || c.Method == "IsGhostMember" {
+			continue
+		}
+		kept = append(kept, c)
+	}
+	repo.ExpectedCalls = kept
+}
+
+func TestJoinRoom_Ghost_StaffAllowedAndSilent(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	unsetGhostDefaults(m.chatRepo)
+	roomID := uuid.New()
+	userID := uuid.New()
+	otherMember := uuid.New()
+	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, userID).Return(&repository.ChatRoomRow{
+		ID: roomID, Type: "group", IsPublic: true, CreatedBy: uuid.New(),
+	}, nil).Once()
+	m.authzSvc.EXPECT().GetRole(mock.Anything, userID).Return(role.Role("moderator"), nil)
+	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, mock.Anything, mock.Anything).Return(false, nil)
+	m.settingsSvc.EXPECT().GetInt(mock.Anything, mock.Anything).Return(0)
+	m.chatRepo.EXPECT().AddMemberWithRole(mock.Anything, roomID, userID, "member", true).Return(nil)
+	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, userID).Return(&repository.ChatRoomRow{
+		ID: roomID, Type: "group", IsMember: true,
+	}, nil).Once()
+	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return([]uuid.UUID{userID, otherMember}, nil)
+	m.chatRepo.EXPECT().HasGhostMembers(mock.Anything, roomID).Return(true, nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(sampleUser(userID), nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, otherMember).Return(sampleUser(otherMember), nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, otherMember).Return(role.Role(""), nil).Maybe()
+
+	// when
+	_, err := svc.JoinRoom(context.Background(), roomID, userID, true)
+
+	// then
+	require.NoError(t, err)
+	m.chatRepo.AssertNotCalled(t, "InsertSystemMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestLeaveRoom_Ghost_Silent(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	roomID := uuid.New()
+	userID := uuid.New()
+	unsetGhostDefaults(m.chatRepo)
+	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, userID).Return(&repository.ChatRoomRow{
+		ID: roomID, Type: "group", IsMember: true, ViewerRole: "member",
+	}, nil)
+	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return([]uuid.UUID{userID}, nil)
+	m.chatRepo.EXPECT().HasGhostMembers(mock.Anything, roomID).Return(true, nil).Once()
+	m.chatRepo.EXPECT().IsGhostMember(mock.Anything, roomID, userID).Return(true, nil).Once()
+	m.chatRepo.EXPECT().RemoveMember(mock.Anything, roomID, userID).Return(nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(sampleUser(userID), nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, userID).Return(role.Role(""), nil).Maybe()
+
+	// when
+	err := svc.LeaveRoom(context.Background(), roomID, userID)
+
+	// then
+	require.NoError(t, err)
+	m.chatRepo.AssertNotCalled(t, "InsertSystemMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestGetMembers_FiltersGhostsForNonStaff(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	roomID := uuid.New()
+	viewerID := uuid.New()
+	ghostID := uuid.New()
+	normalID := uuid.New()
+	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, viewerID).Return(true, nil)
+	m.chatRepo.EXPECT().GetRoomMembersDetailed(mock.Anything, roomID).Return([]repository.ChatRoomMemberRow{
+		{UserID: normalID, Username: "a", DisplayName: "A", Role: "member"},
+		{UserID: ghostID, Username: "g", DisplayName: "G", Role: "member", Ghost: true},
+	}, nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, viewerID).Return(role.Role(""), nil)
+	m.vanityRoleRepo.EXPECT().GetRolesForUsersBatch(mock.Anything, []uuid.UUID{normalID}).Return(nil, nil)
+
+	// when
+	got, err := svc.GetMembers(context.Background(), viewerID, roomID)
+
+	// then
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	assert.Equal(t, normalID, got[0].User.ID)
+}
+
+func TestGetMembers_StaffSeesGhosts(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	roomID := uuid.New()
+	viewerID := uuid.New()
+	ghostID := uuid.New()
+	normalID := uuid.New()
+	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, viewerID).Return(true, nil)
+	m.chatRepo.EXPECT().GetRoomMembersDetailed(mock.Anything, roomID).Return([]repository.ChatRoomMemberRow{
+		{UserID: normalID, Username: "a", DisplayName: "A", Role: "member"},
+		{UserID: ghostID, Username: "g", DisplayName: "G", Role: "member", Ghost: true},
+	}, nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, viewerID).Return(role.Role("moderator"), nil)
+	m.vanityRoleRepo.EXPECT().GetRolesForUsersBatch(mock.Anything, mock.Anything).Return(nil, nil)
+
+	// when
+	got, err := svc.GetMembers(context.Background(), viewerID, roomID)
+
+	// then
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+	var ghostSeen bool
+	for _, r := range got {
+		if r.Ghost {
+			ghostSeen = true
+		}
+	}
+	assert.True(t, ghostSeen)
 }

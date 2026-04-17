@@ -12,6 +12,7 @@ import (
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/notification"
@@ -60,7 +61,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	mediaProc := &media.Processor{}
 	hub := ws.NewHub()
 
-	svc := NewService(db, postRepo, userRepo, roleRepo, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, hub).(*service)
+	svc := NewService(db, postRepo, userRepo, roleRepo, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, hub, contentfilter.New()).(*service)
 
 	return svc, &testMocks{
 		db:          db,
@@ -1543,4 +1544,27 @@ func TestGetShareCount_RepoError(t *testing.T) {
 
 	// then
 	require.Error(t, err)
+}
+
+type alwaysRejectRule struct{}
+
+func (alwaysRejectRule) Name() contentfilter.RuleName { return "test_reject" }
+func (alwaysRejectRule) Check(_ context.Context, _ []string) (*contentfilter.Rejection, error) {
+	return &contentfilter.Rejection{Rule: "test_reject", Reason: "nope", Detail: "xyz"}, nil
+}
+
+func TestCreatePost_RejectedByContentFilter(t *testing.T) {
+	// given
+	svc, _ := newTestService(t)
+	svc.contentFilter = contentfilter.New(alwaysRejectRule{})
+	req := validCreatePostReq()
+	req.Body = "https://giphy.com/gifs/abc123"
+
+	// when
+	_, err := svc.CreatePost(context.Background(), uuid.New(), req)
+
+	// then
+	var rej *contentfilter.RejectedError
+	require.ErrorAs(t, err, &rej)
+	assert.Equal(t, "xyz", rej.Rejection.Detail)
 }

@@ -3,7 +3,6 @@ package giphy
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -20,6 +19,7 @@ type (
 		Enabled() bool
 		Search(ctx context.Context, q string, offset, limit int) (*Response, error)
 		Trending(ctx context.Context, offset, limit int) (*Response, error)
+		UserForGif(ctx context.Context, gifID string) (string, bool)
 	}
 
 	Image struct {
@@ -33,6 +33,7 @@ type (
 		Title  string           `json:"title"`
 		URL    string           `json:"url"`
 		Images map[string]Image `json:"images"`
+		User   *GifUser         `json:"user,omitempty"`
 	}
 
 	Pagination struct {
@@ -51,17 +52,21 @@ type (
 		baseURL            string
 		httpClient         *http.Client
 		cache              *cache
+		userCache          *userCache
 		rateLimitedUntilNs atomic.Int64
+		banlist            Banlist
 	}
 
-	RateLimitError struct {
-		ResetAt time.Time
+	Banlist interface {
+		ContainsGif(id string) bool
+		ContainsUser(username string) bool
+	}
+
+	GifUser struct {
+		Username    string `json:"username"`
+		DisplayName string `json:"display_name"`
 	}
 )
-
-func (e *RateLimitError) Error() string {
-	return fmt.Sprintf("giphy rate limited until %s", e.ResetAt.UTC().Format(time.RFC3339))
-}
 
 const (
 	defaultBaseURL       = "https://api.giphy.com/v1"
@@ -73,21 +78,21 @@ const (
 	searchTTL            = 1 * time.Hour
 	trendingTTL          = 6 * time.Hour
 	cacheMaxItems        = 500
+	userCacheMaxItems    = 4096
+	userCacheTTL         = 7 * 24 * time.Hour
 	defaultRateLimitHold = 1 * time.Hour
 )
 
-var (
-	ErrDisabled = errors.New("giphy integration is not configured")
-)
-
-func NewService() Service {
+func NewService(banlist Banlist) Service {
 	return &service{
 		apiKey:  config.Cfg.GiphyAPIKey,
 		baseURL: defaultBaseURL,
 		httpClient: &http.Client{
 			Timeout: requestTimeout,
 		},
-		cache: newCache(cacheMaxItems),
+		cache:     newCache(cacheMaxItems),
+		userCache: newUserCache(userCacheMaxItems),
+		banlist:   banlist,
 	}
 }
 
@@ -128,52 +133,102 @@ func baseParams(apiKey string, limit, offset int) url.Values {
 	return p
 }
 
+func (s *service) fetch(ctx context.Context, path string, params url.Values, out any) (int, error) {
+	if resetAt, blocked := s.rateLimitResetAt(); blocked {
+		return 0, &RateLimitError{ResetAt: resetAt}
+	}
+	reqURL := s.baseURL + path
+	if len(params) > 0 {
+		reqURL += "?" + params.Encode()
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
+	if err != nil {
+		return 0, fmt.Errorf("build giphy request: %w", err)
+	}
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return 0, fmt.Errorf("call giphy: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusTooManyRequests {
+		resetAt := parseRateLimitReset(resp.Header, time.Now())
+		s.rateLimitedUntilNs.Store(resetAt.UnixNano())
+		return resp.StatusCode, &RateLimitError{ResetAt: resetAt}
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(resp.Body)
+		return resp.StatusCode, fmt.Errorf("giphy %d: %s", resp.StatusCode, string(body))
+	}
+	if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
+		return resp.StatusCode, fmt.Errorf("decode giphy response: %w", err)
+	}
+	return resp.StatusCode, nil
+}
+
 func (s *service) get(ctx context.Context, path string, params url.Values, ttl time.Duration) (*Response, error) {
 	cacheKey := cacheKeyFor(path, params)
-
 	if s.cache != nil && ttl > 0 {
 		if cached, ok := s.cache.get(cacheKey); ok {
 			return cached, nil
 		}
 	}
-
-	if resetAt, blocked := s.rateLimitResetAt(); blocked {
-		return nil, &RateLimitError{ResetAt: resetAt}
-	}
-
-	reqURL := s.baseURL + path + "?" + params.Encode()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
-	if err != nil {
-		return nil, fmt.Errorf("build giphy request: %w", err)
-	}
-
-	resp, err := s.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("call giphy: %w", err)
-	}
-
-	defer resp.Body.Close()
-	if resp.StatusCode == http.StatusTooManyRequests {
-		resetAt := parseRateLimitReset(resp.Header, time.Now())
-		s.rateLimitedUntilNs.Store(resetAt.UnixNano())
-		return nil, &RateLimitError{ResetAt: resetAt}
-	}
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("giphy %d: %s", resp.StatusCode, string(body))
-	}
-
 	var out Response
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		return nil, fmt.Errorf("decode giphy response: %w", err)
+	if _, err := s.fetch(ctx, path, params, &out); err != nil {
+		return nil, err
 	}
-
+	s.filterBannedGifs(&out)
 	if s.cache != nil && ttl > 0 {
 		s.cache.set(cacheKey, &out, ttl)
 	}
-
 	return &out, nil
+}
+
+func (s *service) UserForGif(ctx context.Context, gifID string) (string, bool) {
+	if gifID == "" {
+		return "", false
+	}
+	if username, known, ok := s.userCache.get(gifID); ok {
+		return username, known
+	}
+	if !s.Enabled() {
+		return "", false
+	}
+	params := url.Values{}
+	params.Set("api_key", s.apiKey)
+	var payload struct {
+		Data Gif `json:"data"`
+	}
+	status, err := s.fetch(ctx, "/gifs/"+gifID, params, &payload)
+	if err != nil {
+		if status == http.StatusNotFound {
+			s.userCache.set(gifID, "", false, userCacheTTL)
+		}
+		return "", false
+	}
+	username := ""
+	if payload.Data.User != nil {
+		username = payload.Data.User.Username
+	}
+	s.userCache.set(gifID, username, username != "", userCacheTTL)
+	return username, username != ""
+}
+
+func (s *service) filterBannedGifs(resp *Response) {
+	if s.banlist == nil || resp == nil || len(resp.Data) == 0 {
+		return
+	}
+	kept := resp.Data[:0]
+	for _, g := range resp.Data {
+		if s.banlist.ContainsGif(g.ID) {
+			continue
+		}
+		if g.User != nil && s.banlist.ContainsUser(g.User.Username) {
+			continue
+		}
+		kept = append(kept, g)
+	}
+	resp.Data = kept
+	resp.Pagination.Count = len(kept)
 }
 
 func (s *service) rateLimitResetAt() (time.Time, bool) {

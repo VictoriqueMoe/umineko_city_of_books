@@ -368,6 +368,7 @@ export function SettingsPage() {
                         <label className={styles.label}>
                             Home Page
                             <Select value={form.homePage} onChange={e => form.setHomePage(e.target.value)}>
+                                <option value="landing">Welcome (Landing)</option>
                                 <option value="theories">Theories (Umineko)</option>
                                 <option value="theories_higurashi">Theories (Higurashi)</option>
                                 <option value="game_board">Game Board (General)</option>

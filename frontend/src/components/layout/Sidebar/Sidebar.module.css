@@ -43,6 +43,12 @@
     padding: 0.5rem 0;
 }
 
+.divider {
+    height: 1px;
+    background: rgba(var(--gold-rgb), 0.12);
+    margin: 0.5rem 1.25rem;
+}
+
 .sectionLabel {
     display: block;
     font-family: var(--font-display);

@@ -28,6 +28,7 @@ type (
 		Journal        JournalRepository
 		VanityRole     VanityRoleRepository
 		GiphyFavourite GiphyFavouriteRepository
+		BannedGiphy    BannedGiphyRepository
 	}
 )
 
@@ -61,5 +62,6 @@ func New(db *sql.DB) *Repositories {
 		Journal:        &journalRepository{db: db},
 		VanityRole:     &vanityRoleRepository{db: db},
 		GiphyFavourite: &giphyFavouriteRepository{db: db},
+		BannedGiphy:    &bannedGiphyRepository{db: db},
 	}
 }

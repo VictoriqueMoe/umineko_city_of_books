@@ -1,13 +1,26 @@
-import {defineConfig} from "vite";
+import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 
-declare const process: {env: Record<string, string | undefined>};
+declare const process: { env: Record<string, string | undefined> };
+
+function devBaseURLPlaceholder(): Plugin {
+    return {
+        name: "dev-base-url-placeholder",
+        apply: "serve",
+        transformIndexHtml: {
+            order: "pre",
+            handler(html) {
+                return html.replaceAll("__BASE_URL__", "http://localhost:5173");
+            },
+        },
+    };
+}
 
 export default defineConfig({
     define: {
         __APP_VERSION__: JSON.stringify(process.env.VITE_APP_VERSION ?? "dev"),
     },
-    plugins: [react()],
+    plugins: [react(), devBaseURLPlaceholder()],
     server: {
         port: 5173,
         proxy: {
@@ -48,6 +61,10 @@ export default defineConfig({
                         {
                             name: "vendor-markdown",
                             test: /marked|dompurify/,
+                        },
+                        {
+                            name: "vendor-highlight",
+                            test: /[\\/]node_modules[\\/]highlight\.js[\\/]/,
                         },
                         {
                             name: "vendor-turnstile",

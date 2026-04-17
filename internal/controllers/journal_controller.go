@@ -164,6 +164,9 @@ func (s *Service) createJournal(ctx fiber.Ctx) error {
 
 	id, err := s.JournalService.CreateJournal(ctx.Context(), userID, req)
 	if err != nil {
+		if utils.MapFilterError(ctx, err) {
+			return nil
+		}
 		if errors.Is(err, journal.ErrRateLimited) {
 			return ctx.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{"error": "daily journal limit reached"})
 		}
@@ -206,6 +209,9 @@ func (s *Service) updateJournal(ctx fiber.Ctx) error {
 	}
 
 	if err := s.JournalService.UpdateJournal(ctx.Context(), id, userID, req); err != nil {
+		if utils.MapFilterError(ctx, err) {
+			return nil
+		}
 		if errors.Is(err, journal.ErrEmptyBody) {
 			return utils.BadRequest(ctx, "title and body are required")
 		}
@@ -276,6 +282,9 @@ func (s *Service) createJournalComment(ctx fiber.Ctx) error {
 
 	id, err := s.JournalService.CreateComment(ctx.Context(), journalID, userID, req.ParentID, req.Body)
 	if err != nil {
+		if utils.MapFilterError(ctx, err) {
+			return nil
+		}
 		if errors.Is(err, journal.ErrEmptyBody) {
 			return utils.BadRequest(ctx, "body is required")
 		}
@@ -307,6 +316,9 @@ func (s *Service) updateJournalComment(ctx fiber.Ctx) error {
 	}
 
 	if err := s.JournalService.UpdateComment(ctx.Context(), id, userID, req.Body); err != nil {
+		if utils.MapFilterError(ctx, err) {
+			return nil
+		}
 		if errors.Is(err, journal.ErrEmptyBody) {
 			return utils.BadRequest(ctx, "body is required")
 		}

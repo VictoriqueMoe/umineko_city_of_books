@@ -103,16 +103,16 @@ func (_c *MockChatRepository_AddMember_Call) RunAndReturn(run func(ctx context.C
 }
 
 // AddMemberWithRole provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) AddMemberWithRole(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, role string) error {
-	ret := _mock.Called(ctx, roomID, userID, role)
+func (_mock *MockChatRepository) AddMemberWithRole(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, role string, ghost bool) error {
+	ret := _mock.Called(ctx, roomID, userID, role, ghost)
 
 	if len(ret) == 0 {
 		panic("no return value specified for AddMemberWithRole")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string) error); ok {
-		r0 = returnFunc(ctx, roomID, userID, role)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, bool) error); ok {
+		r0 = returnFunc(ctx, roomID, userID, role, ghost)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -129,11 +129,12 @@ type MockChatRepository_AddMemberWithRole_Call struct {
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
 //   - role string
-func (_e *MockChatRepository_Expecter) AddMemberWithRole(ctx interface{}, roomID interface{}, userID interface{}, role interface{}) *MockChatRepository_AddMemberWithRole_Call {
-	return &MockChatRepository_AddMemberWithRole_Call{Call: _e.mock.On("AddMemberWithRole", ctx, roomID, userID, role)}
+//   - ghost bool
+func (_e *MockChatRepository_Expecter) AddMemberWithRole(ctx interface{}, roomID interface{}, userID interface{}, role interface{}, ghost interface{}) *MockChatRepository_AddMemberWithRole_Call {
+	return &MockChatRepository_AddMemberWithRole_Call{Call: _e.mock.On("AddMemberWithRole", ctx, roomID, userID, role, ghost)}
 }
 
-func (_c *MockChatRepository_AddMemberWithRole_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, role string)) *MockChatRepository_AddMemberWithRole_Call {
+func (_c *MockChatRepository_AddMemberWithRole_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, role string, ghost bool)) *MockChatRepository_AddMemberWithRole_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -151,11 +152,16 @@ func (_c *MockChatRepository_AddMemberWithRole_Call) Run(run func(ctx context.Co
 		if args[3] != nil {
 			arg3 = args[3].(string)
 		}
+		var arg4 bool
+		if args[4] != nil {
+			arg4 = args[4].(bool)
+		}
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4,
 		)
 	})
 	return _c
@@ -166,7 +172,7 @@ func (_c *MockChatRepository_AddMemberWithRole_Call) Return(err error) *MockChat
 	return _c
 }
 
-func (_c *MockChatRepository_AddMemberWithRole_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, role string) error) *MockChatRepository_AddMemberWithRole_Call {
+func (_c *MockChatRepository_AddMemberWithRole_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, role string, ghost bool) error) *MockChatRepository_AddMemberWithRole_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2305,6 +2311,72 @@ func (_c *MockChatRepository_GetSystemRoomID_Call) RunAndReturn(run func(ctx con
 	return _c
 }
 
+// HasGhostMembers provides a mock function for the type MockChatRepository
+func (_mock *MockChatRepository) HasGhostMembers(ctx context.Context, roomID uuid.UUID) (bool, error) {
+	ret := _mock.Called(ctx, roomID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for HasGhostMembers")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (bool, error)); ok {
+		return returnFunc(ctx, roomID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) bool); ok {
+		r0 = returnFunc(ctx, roomID)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, roomID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockChatRepository_HasGhostMembers_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'HasGhostMembers'
+type MockChatRepository_HasGhostMembers_Call struct {
+	*mock.Call
+}
+
+// HasGhostMembers is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roomID uuid.UUID
+func (_e *MockChatRepository_Expecter) HasGhostMembers(ctx interface{}, roomID interface{}) *MockChatRepository_HasGhostMembers_Call {
+	return &MockChatRepository_HasGhostMembers_Call{Call: _e.mock.On("HasGhostMembers", ctx, roomID)}
+}
+
+func (_c *MockChatRepository_HasGhostMembers_Call) Run(run func(ctx context.Context, roomID uuid.UUID)) *MockChatRepository_HasGhostMembers_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatRepository_HasGhostMembers_Call) Return(b bool, err error) *MockChatRepository_HasGhostMembers_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *MockChatRepository_HasGhostMembers_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID) (bool, error)) *MockChatRepository_HasGhostMembers_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // InsertMessage provides a mock function for the type MockChatRepository
 func (_mock *MockChatRepository) InsertMessage(ctx context.Context, id uuid.UUID, roomID uuid.UUID, senderID uuid.UUID, body string, replyToID *uuid.UUID) error {
 	ret := _mock.Called(ctx, id, roomID, senderID, body, replyToID)
@@ -2457,6 +2529,78 @@ func (_c *MockChatRepository_InsertSystemMessage_Call) Return(err error) *MockCh
 }
 
 func (_c *MockChatRepository_InsertSystemMessage_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, roomID uuid.UUID, senderID uuid.UUID, body string) error) *MockChatRepository_InsertSystemMessage_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// IsGhostMember provides a mock function for the type MockChatRepository
+func (_mock *MockChatRepository) IsGhostMember(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) (bool, error) {
+	ret := _mock.Called(ctx, roomID, userID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for IsGhostMember")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) (bool, error)); ok {
+		return returnFunc(ctx, roomID, userID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) bool); ok {
+		r0 = returnFunc(ctx, roomID, userID)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, roomID, userID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockChatRepository_IsGhostMember_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IsGhostMember'
+type MockChatRepository_IsGhostMember_Call struct {
+	*mock.Call
+}
+
+// IsGhostMember is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roomID uuid.UUID
+//   - userID uuid.UUID
+func (_e *MockChatRepository_Expecter) IsGhostMember(ctx interface{}, roomID interface{}, userID interface{}) *MockChatRepository_IsGhostMember_Call {
+	return &MockChatRepository_IsGhostMember_Call{Call: _e.mock.On("IsGhostMember", ctx, roomID, userID)}
+}
+
+func (_c *MockChatRepository_IsGhostMember_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID)) *MockChatRepository_IsGhostMember_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatRepository_IsGhostMember_Call) Return(b bool, err error) *MockChatRepository_IsGhostMember_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *MockChatRepository_IsGhostMember_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) (bool, error)) *MockChatRepository_IsGhostMember_Call {
 	_c.Call.Return(run)
 	return _c
 }

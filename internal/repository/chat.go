@@ -48,6 +48,7 @@ type (
 		MemberAvatarURL string
 		TimeoutUntil    string
 		TimeoutByStaff  bool
+		Ghost           bool
 	}
 
 	ChatMessageRow struct {
@@ -85,7 +86,9 @@ type (
 		GetSystemRoomID(ctx context.Context, systemKind string) (uuid.UUID, error)
 		CreateDMRoomAtomic(ctx context.Context, id, userA, userB uuid.UUID) (uuid.UUID, error)
 		AddMember(ctx context.Context, roomID, userID uuid.UUID) error
-		AddMemberWithRole(ctx context.Context, roomID, userID uuid.UUID, role string) error
+		AddMemberWithRole(ctx context.Context, roomID, userID uuid.UUID, role string, ghost bool) error
+		IsGhostMember(ctx context.Context, roomID, userID uuid.UUID) (bool, error)
+		HasGhostMembers(ctx context.Context, roomID uuid.UUID) (bool, error)
 		SetMemberRole(ctx context.Context, roomID, userID uuid.UUID, role string) error
 		RemoveMember(ctx context.Context, roomID, userID uuid.UUID) error
 		CountRoomMembers(ctx context.Context, roomID uuid.UUID) (int, error)
@@ -264,16 +267,47 @@ func (r *chatRepository) GetRoomTagsBatch(ctx context.Context, roomIDs []uuid.UU
 	return result, rows.Err()
 }
 
-func (r *chatRepository) AddMemberWithRole(ctx context.Context, roomID, userID uuid.UUID, role string) error {
+func (r *chatRepository) AddMemberWithRole(ctx context.Context, roomID, userID uuid.UUID, role string, ghost bool) error {
+	ghostInt := 0
+	if ghost {
+		ghostInt = 1
+	}
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO chat_room_members (room_id, user_id, role) VALUES (?, ?, ?)
-		 ON CONFLICT(room_id, user_id) DO UPDATE SET left_at = NULL, role = excluded.role, joined_at = CURRENT_TIMESTAMP`,
-		roomID, userID, role,
+		`INSERT INTO chat_room_members (room_id, user_id, role, ghost) VALUES (?, ?, ?, ?)
+		 ON CONFLICT(room_id, user_id) DO UPDATE SET left_at = NULL, role = excluded.role, ghost = excluded.ghost, joined_at = CURRENT_TIMESTAMP`,
+		roomID, userID, role, ghostInt,
 	)
 	if err != nil {
 		return fmt.Errorf("add member with role: %w", err)
 	}
 	return nil
+}
+
+func (r *chatRepository) IsGhostMember(ctx context.Context, roomID, userID uuid.UUID) (bool, error) {
+	var g int
+	err := r.db.QueryRowContext(ctx,
+		`SELECT ghost FROM chat_room_members WHERE room_id = ? AND user_id = ? AND left_at IS NULL`,
+		roomID, userID,
+	).Scan(&g)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("get ghost flag: %w", err)
+	}
+	return g != 0, nil
+}
+
+func (r *chatRepository) HasGhostMembers(ctx context.Context, roomID uuid.UUID) (bool, error) {
+	var n int
+	err := r.db.QueryRowContext(ctx,
+		`SELECT COUNT(1) FROM chat_room_members WHERE room_id = ? AND ghost = 1 AND left_at IS NULL`,
+		roomID,
+	).Scan(&n)
+	if err != nil {
+		return false, fmt.Errorf("count ghost members: %w", err)
+	}
+	return n > 0, nil
 }
 
 func (r *chatRepository) SetMemberRole(ctx context.Context, roomID, userID uuid.UUID, role string) error {
@@ -573,7 +607,8 @@ func (r *chatRepository) GetRoomMembersDetailed(ctx context.Context, roomID uuid
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT m.user_id, u.username, u.display_name, u.avatar_url, m.role, COALESCE(ur.role, ''), m.joined_at, m.nickname, m.nickname_locked, m.avatar_url,
 		 COALESCE(CASE WHEN datetime(m.timeout_until) > CURRENT_TIMESTAMP THEN m.timeout_until ELSE '' END, ''),
-		 CASE WHEN datetime(m.timeout_until) > CURRENT_TIMESTAMP THEN m.timeout_set_by_staff ELSE 0 END
+		 CASE WHEN datetime(m.timeout_until) > CURRENT_TIMESTAMP THEN m.timeout_set_by_staff ELSE 0 END,
+		 m.ghost
 		 FROM chat_room_members m
 		 JOIN users u ON m.user_id = u.id
 		 LEFT JOIN user_roles ur ON ur.user_id = u.id
@@ -591,11 +626,13 @@ func (r *chatRepository) GetRoomMembersDetailed(ctx context.Context, roomID uuid
 		var m ChatRoomMemberRow
 		var lockedInt int
 		var timeoutByStaffInt int
-		if err := rows.Scan(&m.UserID, &m.Username, &m.DisplayName, &m.AvatarURL, &m.Role, &m.AuthorRole, &m.JoinedAt, &m.Nickname, &lockedInt, &m.MemberAvatarURL, &m.TimeoutUntil, &timeoutByStaffInt); err != nil {
+		var ghostInt int
+		if err := rows.Scan(&m.UserID, &m.Username, &m.DisplayName, &m.AvatarURL, &m.Role, &m.AuthorRole, &m.JoinedAt, &m.Nickname, &lockedInt, &m.MemberAvatarURL, &m.TimeoutUntil, &timeoutByStaffInt, &ghostInt); err != nil {
 			return nil, fmt.Errorf("scan member detailed: %w", err)
 		}
 		m.NicknameLocked = lockedInt != 0
 		m.TimeoutByStaff = timeoutByStaffInt != 0
+		m.Ghost = ghostInt != 0
 		m.AuthorRoleTyped = role.Role(m.AuthorRole)
 		result = append(result, m)
 	}

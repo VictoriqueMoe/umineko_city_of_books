@@ -9,6 +9,7 @@ import (
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/giphy/banlist"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/repository/model"
 	"umineko_city_of_books/internal/role"
@@ -57,11 +58,13 @@ type testMocks struct {
 	inviteRepo  *repository.MockInviteRepository
 	vanityRepo  *repository.MockVanityRoleRepository
 	sessionRepo *repository.MockSessionRepository
+	bannedRepo  *repository.MockBannedGiphyRepository
 	authz       *authz.MockService
 	settingsSvc *settings.MockService
 	uploadSvc   *upload.MockService
 	hub         *ws.Hub
 	chatSync    *fakeChatSync
+	banlist     banlist.Service
 }
 
 func newTestService(t *testing.T) (*service, *testMocks) {
@@ -72,6 +75,10 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	inviteRepo := repository.NewMockInviteRepository(t)
 	vanityRepo := repository.NewMockVanityRoleRepository(t)
 	sessionRepo := repository.NewMockSessionRepository(t)
+	bannedRepo := repository.NewMockBannedGiphyRepository(t)
+	bannedRepo.EXPECT().List(mock.Anything).Return(nil, nil).Maybe()
+	banlistSvc, err := banlist.NewService(context.Background(), bannedRepo)
+	require.NoError(t, err)
 	authzSvc := authz.NewMockService(t)
 	settingsSvc := settings.NewMockService(t)
 	uploadSvc := upload.NewMockService(t)
@@ -86,6 +93,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 		auditRepo,
 		inviteRepo,
 		vanityRepo,
+		banlistSvc,
 		authzSvc,
 		settingsSvc,
 		sessionMgr,
@@ -102,11 +110,13 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 		inviteRepo:  inviteRepo,
 		vanityRepo:  vanityRepo,
 		sessionRepo: sessionRepo,
+		bannedRepo:  bannedRepo,
 		authz:       authzSvc,
 		settingsSvc: settingsSvc,
 		uploadSvc:   uploadSvc,
 		hub:         hub,
 		chatSync:    chatSync,
+		banlist:     banlistSvc,
 	}
 }
 

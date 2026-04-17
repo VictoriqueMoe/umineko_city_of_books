@@ -24,6 +24,7 @@ func (s *Service) getAllChatRoutes() []FSetupRoute {
 		s.setupJoinRoomRoute,
 		s.setupLeaveRoomRoute,
 		s.setupGetRoomMembersRoute,
+		s.setupInviteMembersRoute,
 		s.setupKickMemberRoute,
 		s.setupSetMemberTimeoutRoute,
 		s.setupClearMemberTimeoutRoute,
@@ -115,6 +116,9 @@ func (s *Service) sendFirstDM(ctx fiber.Ctx) error {
 
 	resp, err := s.ChatService.SendDMMessage(ctx.Context(), userID, recipientID, req.Body)
 	if err != nil {
+		if utils.MapFilterError(ctx, err) {
+			return nil
+		}
 		return dmRouteError(ctx, err)
 	}
 	return ctx.Status(fiber.StatusCreated).JSON(resp)
@@ -130,6 +134,9 @@ func (s *Service) createGroupRoom(ctx fiber.Ctx) error {
 
 	room, err := s.ChatService.CreateGroupRoom(ctx.Context(), userID, req)
 	if err != nil {
+		if utils.MapFilterError(ctx, err) {
+			return nil
+		}
 		if errors.Is(err, chat.ErrMissingFields) {
 			return utils.BadRequest(ctx, "room name is required")
 		}
@@ -169,6 +176,9 @@ func (s *Service) sendMessage(ctx fiber.Ctx) error {
 
 	resp, err := s.ChatService.SendMessage(ctx.Context(), userID, roomID, req)
 	if err != nil {
+		if utils.MapFilterError(ctx, err) {
+			return nil
+		}
 		if errors.Is(err, chat.ErrUserBlocked) {
 			return utils.Forbidden(ctx, "you cannot message this user")
 		}
@@ -351,7 +361,16 @@ func (s *Service) joinRoom(ctx fiber.Ctx) error {
 		return nil
 	}
 
-	resp, err := s.ChatService.JoinRoom(ctx.Context(), roomID, userID)
+	var req dto.JoinRoomRequest
+	if len(ctx.Body()) > 0 {
+		if r, ok := utils.BindJSON[dto.JoinRoomRequest](ctx); ok {
+			req = r
+		} else {
+			return nil
+		}
+	}
+
+	resp, err := s.ChatService.JoinRoom(ctx.Context(), roomID, userID, req.Ghost)
 	if err != nil {
 		if errors.Is(err, chat.ErrRoomNotFound) {
 			return utils.NotFound(ctx, "room not found")
@@ -367,6 +386,9 @@ func (s *Service) joinRoom(ctx fiber.Ctx) error {
 		}
 		if errors.Is(err, chat.ErrUserBlocked) {
 			return utils.Forbidden(ctx, "you cannot join this room")
+		}
+		if errors.Is(err, chat.ErrGhostRequiresStaff) {
+			return utils.Forbidden(ctx, "only site moderators or admins can join as a ghost")
 		}
 		if errors.Is(err, chat.ErrSystemRoom) {
 			return utils.Forbidden(ctx, "this room is managed automatically")
@@ -445,6 +467,44 @@ func (s *Service) getRoomMembers(ctx fiber.Ctx) error {
 		return utils.InternalError(ctx, "failed to get members")
 	}
 	return ctx.JSON(fiber.Map{"members": members})
+}
+
+func (s *Service) setupInviteMembersRoute(r fiber.Router) {
+	r.Post("/chat/rooms/:roomID/members", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.inviteMembers)
+}
+
+func (s *Service) inviteMembers(ctx fiber.Ctx) error {
+	userID := utils.UserID(ctx)
+	roomID, ok := utils.ParseIDParam(ctx, "roomID")
+	if !ok {
+		return nil
+	}
+
+	req, ok := utils.BindJSON[dto.InviteMembersRequest](ctx)
+	if !ok {
+		return nil
+	}
+	if len(req.UserIDs) == 0 {
+		return utils.BadRequest(ctx, "user_ids is required")
+	}
+
+	resp, err := s.ChatService.InviteMembers(ctx.Context(), userID, roomID, req.UserIDs)
+	if err != nil {
+		if errors.Is(err, chat.ErrRoomNotFound) {
+			return utils.NotFound(ctx, "room not found")
+		}
+		if errors.Is(err, chat.ErrNotGroupRoom) {
+			return utils.BadRequest(ctx, "only group rooms support invites")
+		}
+		if errors.Is(err, chat.ErrSystemRoom) {
+			return utils.Forbidden(ctx, "this room is managed automatically")
+		}
+		if errors.Is(err, chat.ErrNotHost) {
+			return utils.Forbidden(ctx, "only the host can invite members")
+		}
+		return utils.InternalError(ctx, "failed to invite members")
+	}
+	return ctx.JSON(resp)
 }
 
 func (s *Service) setupKickMemberRoute(r fiber.Router) {
@@ -581,6 +641,9 @@ func (s *Service) setRoomNickname(ctx fiber.Ctx) error {
 
 	member, err := s.ChatService.SetRoomNickname(ctx.Context(), roomID, userID, req.Nickname)
 	if err != nil {
+		if utils.MapFilterError(ctx, err) {
+			return nil
+		}
 		if errors.Is(err, chat.ErrNotMember) {
 			return utils.Forbidden(ctx, "not a member")
 		}

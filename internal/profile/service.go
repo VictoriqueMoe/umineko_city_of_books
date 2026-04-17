@@ -9,6 +9,7 @@ import (
 
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
@@ -31,11 +32,12 @@ type (
 	}
 
 	service struct {
-		userRepo    repository.UserRepository
-		theoryRepo  repository.TheoryRepository
-		authz       authz.Service
-		uploadSvc   upload.Service
-		settingsSvc settings.Service
+		userRepo      repository.UserRepository
+		theoryRepo    repository.TheoryRepository
+		authz         authz.Service
+		uploadSvc     upload.Service
+		settingsSvc   settings.Service
+		contentFilter *contentfilter.Manager
 	}
 )
 
@@ -45,14 +47,23 @@ func NewService(
 	authzService authz.Service,
 	uploadSvc upload.Service,
 	settingsSvc settings.Service,
+	contentFilter *contentfilter.Manager,
 ) Service {
 	return &service{
-		userRepo:    userRepo,
-		theoryRepo:  theoryRepo,
-		authz:       authzService,
-		uploadSvc:   uploadSvc,
-		settingsSvc: settingsSvc,
+		userRepo:      userRepo,
+		theoryRepo:    theoryRepo,
+		authz:         authzService,
+		uploadSvc:     uploadSvc,
+		settingsSvc:   settingsSvc,
+		contentFilter: contentFilter,
 	}
+}
+
+func (s *service) filterTexts(ctx context.Context, texts ...string) error {
+	if s.contentFilter == nil {
+		return nil
+	}
+	return s.contentFilter.Check(ctx, texts...)
 }
 
 func (s *service) GetProfile(ctx context.Context, username string, viewerID uuid.UUID) (*dto.UserProfileResponse, error) {
@@ -72,6 +83,9 @@ const maxPronounLength = 10
 
 func (s *service) UpdateProfile(ctx context.Context, userID uuid.UUID, req dto.UpdateProfileRequest) error {
 	if err := validateDOB(req.DOB); err != nil {
+		return err
+	}
+	if err := s.filterTexts(ctx, req.DisplayName, req.Bio, req.Website); err != nil {
 		return err
 	}
 	req.PronounSubject = capLen(req.PronounSubject, maxPronounLength)

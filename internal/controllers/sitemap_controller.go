@@ -87,6 +87,7 @@ func (h *SitemapHandler) static(ctx fiber.Ctx) error {
 		XMLNS: "http://www.sitemaps.org/schemas/sitemap/0.9",
 		URLs: []sitemapURL{
 			{Loc: h.baseURL, LastMod: now},
+			{Loc: h.baseURL + "/welcome", LastMod: now},
 			{Loc: h.baseURL + "/theories", LastMod: now},
 			{Loc: h.baseURL + "/game-board", LastMod: now},
 			{Loc: h.baseURL + "/game-board/umineko", LastMod: now},

@@ -198,6 +198,9 @@ func (s *Service) createArt(ctx fiber.Ctx) error {
 
 	id, err := s.ArtService.CreateArt(ctx.Context(), userID, req, file.Header.Get("Content-Type"), file.Size, reader)
 	if err != nil {
+		if utils.MapFilterError(ctx, err) {
+			return nil
+		}
 		if errors.Is(err, artsvc.ErrEmptyTitle) {
 			return utils.BadRequest(ctx, err.Error())
 		}
@@ -222,6 +225,9 @@ func (s *Service) updateArt(ctx fiber.Ctx) error {
 	}
 
 	if err := s.ArtService.UpdateArt(ctx.Context(), id, userID, req); err != nil {
+		if utils.MapFilterError(ctx, err) {
+			return nil
+		}
 		if errors.Is(err, artsvc.ErrEmptyTitle) {
 			return utils.BadRequest(ctx, err.Error())
 		}
@@ -286,6 +292,9 @@ func (s *Service) createArtComment(ctx fiber.Ctx) error {
 
 	id, err := s.ArtService.CreateComment(ctx.Context(), artID, userID, req)
 	if err != nil {
+		if utils.MapFilterError(ctx, err) {
+			return nil
+		}
 		if errors.Is(err, block.ErrUserBlocked) {
 			return utils.Forbidden(ctx, "user is blocked")
 		}
@@ -307,6 +316,9 @@ func (s *Service) updateArtComment(ctx fiber.Ctx) error {
 	}
 
 	if err := s.ArtService.UpdateComment(ctx.Context(), id, userID, req); err != nil {
+		if utils.MapFilterError(ctx, err) {
+			return nil
+		}
 		return utils.InternalError(ctx, "failed to update comment")
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
@@ -437,6 +449,9 @@ func (s *Service) createGallery(ctx fiber.Ctx) error {
 
 	id, err := s.ArtService.CreateGallery(ctx.Context(), userID, req)
 	if err != nil {
+		if utils.MapFilterError(ctx, err) {
+			return nil
+		}
 		if errors.Is(err, artsvc.ErrEmptyTitle) {
 			return utils.BadRequest(ctx, err.Error())
 		}
@@ -467,6 +482,9 @@ func (s *Service) updateGallery(ctx fiber.Ctx) error {
 	}
 
 	if err := s.ArtService.UpdateGallery(ctx.Context(), id, userID, req); err != nil {
+		if utils.MapFilterError(ctx, err) {
+			return nil
+		}
 		return utils.InternalError(ctx, "failed to update gallery")
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)

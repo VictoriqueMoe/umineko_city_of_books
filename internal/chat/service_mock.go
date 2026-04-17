@@ -895,6 +895,86 @@ func (_c *MockService_GetUnreadCount_Call) RunAndReturn(run func(ctx context.Con
 	return _c
 }
 
+// InviteMembers provides a mock function for the type MockService
+func (_mock *MockService) InviteMembers(ctx context.Context, hostID uuid.UUID, roomID uuid.UUID, userIDs []uuid.UUID) (*dto.InviteMembersResponse, error) {
+	ret := _mock.Called(ctx, hostID, roomID, userIDs)
+
+	if len(ret) == 0 {
+		panic("no return value specified for InviteMembers")
+	}
+
+	var r0 *dto.InviteMembersResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, []uuid.UUID) (*dto.InviteMembersResponse, error)); ok {
+		return returnFunc(ctx, hostID, roomID, userIDs)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, []uuid.UUID) *dto.InviteMembersResponse); ok {
+		r0 = returnFunc(ctx, hostID, roomID, userIDs)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dto.InviteMembersResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, []uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, hostID, roomID, userIDs)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_InviteMembers_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'InviteMembers'
+type MockService_InviteMembers_Call struct {
+	*mock.Call
+}
+
+// InviteMembers is a helper method to define mock.On call
+//   - ctx context.Context
+//   - hostID uuid.UUID
+//   - roomID uuid.UUID
+//   - userIDs []uuid.UUID
+func (_e *MockService_Expecter) InviteMembers(ctx interface{}, hostID interface{}, roomID interface{}, userIDs interface{}) *MockService_InviteMembers_Call {
+	return &MockService_InviteMembers_Call{Call: _e.mock.On("InviteMembers", ctx, hostID, roomID, userIDs)}
+}
+
+func (_c *MockService_InviteMembers_Call) Run(run func(ctx context.Context, hostID uuid.UUID, roomID uuid.UUID, userIDs []uuid.UUID)) *MockService_InviteMembers_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 []uuid.UUID
+		if args[3] != nil {
+			arg3 = args[3].([]uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_InviteMembers_Call) Return(inviteMembersResponse *dto.InviteMembersResponse, err error) *MockService_InviteMembers_Call {
+	_c.Call.Return(inviteMembersResponse, err)
+	return _c
+}
+
+func (_c *MockService_InviteMembers_Call) RunAndReturn(run func(ctx context.Context, hostID uuid.UUID, roomID uuid.UUID, userIDs []uuid.UUID) (*dto.InviteMembersResponse, error)) *MockService_InviteMembers_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // IsRoomMuted provides a mock function for the type MockService
 func (_mock *MockService) IsRoomMuted(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) (bool, error) {
 	ret := _mock.Called(ctx, roomID, userID)
@@ -968,8 +1048,8 @@ func (_c *MockService_IsRoomMuted_Call) RunAndReturn(run func(ctx context.Contex
 }
 
 // JoinRoom provides a mock function for the type MockService
-func (_mock *MockService) JoinRoom(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) (*dto.ChatRoomResponse, error) {
-	ret := _mock.Called(ctx, roomID, userID)
+func (_mock *MockService) JoinRoom(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, ghost bool) (*dto.ChatRoomResponse, error) {
+	ret := _mock.Called(ctx, roomID, userID, ghost)
 
 	if len(ret) == 0 {
 		panic("no return value specified for JoinRoom")
@@ -977,18 +1057,18 @@ func (_mock *MockService) JoinRoom(ctx context.Context, roomID uuid.UUID, userID
 
 	var r0 *dto.ChatRoomResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) (*dto.ChatRoomResponse, error)); ok {
-		return returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, bool) (*dto.ChatRoomResponse, error)); ok {
+		return returnFunc(ctx, roomID, userID, ghost)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) *dto.ChatRoomResponse); ok {
-		r0 = returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, bool) *dto.ChatRoomResponse); ok {
+		r0 = returnFunc(ctx, roomID, userID, ghost)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*dto.ChatRoomResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, bool) error); ok {
+		r1 = returnFunc(ctx, roomID, userID, ghost)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1004,11 +1084,12 @@ type MockService_JoinRoom_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) JoinRoom(ctx interface{}, roomID interface{}, userID interface{}) *MockService_JoinRoom_Call {
-	return &MockService_JoinRoom_Call{Call: _e.mock.On("JoinRoom", ctx, roomID, userID)}
+//   - ghost bool
+func (_e *MockService_Expecter) JoinRoom(ctx interface{}, roomID interface{}, userID interface{}, ghost interface{}) *MockService_JoinRoom_Call {
+	return &MockService_JoinRoom_Call{Call: _e.mock.On("JoinRoom", ctx, roomID, userID, ghost)}
 }
 
-func (_c *MockService_JoinRoom_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID)) *MockService_JoinRoom_Call {
+func (_c *MockService_JoinRoom_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, ghost bool)) *MockService_JoinRoom_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1022,10 +1103,15 @@ func (_c *MockService_JoinRoom_Call) Run(run func(ctx context.Context, roomID uu
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 bool
+		if args[3] != nil {
+			arg3 = args[3].(bool)
+		}
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3,
 		)
 	})
 	return _c
@@ -1036,7 +1122,7 @@ func (_c *MockService_JoinRoom_Call) Return(chatRoomResponse *dto.ChatRoomRespon
 	return _c
 }
 
-func (_c *MockService_JoinRoom_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) (*dto.ChatRoomResponse, error)) *MockService_JoinRoom_Call {
+func (_c *MockService_JoinRoom_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, ghost bool) (*dto.ChatRoomResponse, error)) *MockService_JoinRoom_Call {
 	_c.Call.Return(run)
 	return _c
 }

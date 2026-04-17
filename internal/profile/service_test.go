@@ -9,6 +9,7 @@ import (
 
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/repository/model"
@@ -35,7 +36,7 @@ func newTestService(t *testing.T) (
 	authzSvc := authz.NewMockService(t)
 	uploadSvc := upload.NewMockService(t)
 	settingsSvc := settings.NewMockService(t)
-	svc := NewService(userRepo, theoryRepo, authzSvc, uploadSvc, settingsSvc).(*service)
+	svc := NewService(userRepo, theoryRepo, authzSvc, uploadSvc, settingsSvc, contentfilter.New()).(*service)
 	return svc, userRepo, theoryRepo, authzSvc, uploadSvc, settingsSvc
 }
 
@@ -497,7 +498,7 @@ func TestListPublicUsers_OK(t *testing.T) {
 	}
 	userRepo.EXPECT().ListPublic(mock.Anything).Return(users, nil)
 	authzSvc.EXPECT().GetRole(mock.Anything, id1).Return(authz.RoleAdmin, nil)
-	authzSvc.EXPECT().GetRole(mock.Anything, id2).Return(role.Role(""), errors.New("no role"))
+	authzSvc.EXPECT().GetRole(mock.Anything, id2).Return("", errors.New("no role"))
 
 	// when
 	got, err := svc.ListPublicUsers(context.Background())

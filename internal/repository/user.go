@@ -73,8 +73,8 @@ func (r *userRepository) Create(ctx context.Context, username, password, display
 	id := uuid.New()
 
 	_, err = r.db.ExecContext(ctx,
-		`INSERT INTO users (id, username, password_hash, display_name) VALUES (?, ?, ?, ?)`,
-		id, username, string(hash), displayName,
+		`INSERT INTO users (id, username, password_hash, display_name, home_page) VALUES (?, ?, ?, ?, ?)`,
+		id, username, string(hash), displayName, "landing",
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create user: %w", err)

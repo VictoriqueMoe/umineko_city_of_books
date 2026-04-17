@@ -190,7 +190,7 @@ func TestChatRepository_AddMemberWithRole(t *testing.T) {
 	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "R", "", "group", false, false, owner.ID))
 
 	// when
-	err := repos.Chat.AddMemberWithRole(ctx, roomID, joiner.ID, "host")
+	err := repos.Chat.AddMemberWithRole(ctx, roomID, joiner.ID, "host", false)
 
 	// then
 	require.NoError(t, err)
@@ -207,7 +207,7 @@ func TestChatRepository_SetMemberRole(t *testing.T) {
 	joiner := repotest.CreateUser(t, repos)
 	roomID := uuid.New()
 	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "R", "", "group", false, false, owner.ID))
-	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, roomID, joiner.ID, "member"))
+	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, roomID, joiner.ID, "member", false))
 
 	// when
 	err := repos.Chat.SetMemberRole(ctx, roomID, joiner.ID, "host")
@@ -350,7 +350,7 @@ func TestChatRepository_GetRoomByID_Member(t *testing.T) {
 	owner := repotest.CreateUser(t, repos)
 	roomID := uuid.New()
 	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "R", "", "group", true, false, owner.ID))
-	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, roomID, owner.ID, "host"))
+	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, roomID, owner.ID, "host", false))
 
 	// when
 	row, err := repos.Chat.GetRoomByID(ctx, roomID, owner.ID)
@@ -424,8 +424,8 @@ func TestChatRepository_GetRoomMembersDetailed(t *testing.T) {
 	member := repotest.CreateUser(t, repos, repotest.WithDisplayName("Member"))
 	roomID := uuid.New()
 	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "R", "", "group", false, false, owner.ID))
-	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, roomID, owner.ID, "host"))
-	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, roomID, member.ID, "member"))
+	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, roomID, owner.ID, "host", false))
+	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, roomID, member.ID, "member", false))
 
 	// when
 	detailed, err := repos.Chat.GetRoomMembersDetailed(ctx, roomID)
@@ -753,9 +753,9 @@ func TestChatRepository_GetRoomsByUser(t *testing.T) {
 	r1 := uuid.New()
 	r2 := uuid.New()
 	require.NoError(t, repos.Chat.CreateRoom(ctx, r1, "R1", "", "group", false, false, user.ID))
-	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, r1, user.ID, "host"))
+	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, r1, user.ID, "host", false))
 	require.NoError(t, repos.Chat.CreateRoom(ctx, r2, "R2", "", "group", false, false, other.ID))
-	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, r2, other.ID, "host"))
+	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, r2, other.ID, "host", false))
 
 	// when
 	rooms, err := repos.Chat.GetRoomsByUser(ctx, user.ID)
@@ -829,7 +829,7 @@ func TestChatRepository_ListUserGroupRooms_Basic(t *testing.T) {
 	user := repotest.CreateUser(t, repos)
 	roomID := uuid.New()
 	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "Alpha", "about alpha", "group", false, false, user.ID))
-	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, roomID, user.ID, "host"))
+	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, roomID, user.ID, "host", false))
 
 	// when
 	rooms, total, err := repos.Chat.ListUserGroupRooms(ctx, user.ID, "", false, "", "", 20, 0)
@@ -917,9 +917,9 @@ func TestChatRepository_ListUserGroupRooms_HostRoleFilter(t *testing.T) {
 	hosted := uuid.New()
 	joined := uuid.New()
 	require.NoError(t, repos.Chat.CreateRoom(ctx, hosted, "H", "", "group", false, false, user.ID))
-	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, hosted, user.ID, "host"))
+	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, hosted, user.ID, "host", false))
 	require.NoError(t, repos.Chat.CreateRoom(ctx, joined, "J", "", "group", false, false, other.ID))
-	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, joined, user.ID, "member"))
+	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, joined, user.ID, "member", false))
 
 	// when
 	rooms, total, err := repos.Chat.ListUserGroupRooms(ctx, user.ID, "", false, "", "host", 20, 0)
@@ -940,9 +940,9 @@ func TestChatRepository_ListUserGroupRooms_MemberRoleFilter(t *testing.T) {
 	hosted := uuid.New()
 	joined := uuid.New()
 	require.NoError(t, repos.Chat.CreateRoom(ctx, hosted, "H", "", "group", false, false, user.ID))
-	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, hosted, user.ID, "host"))
+	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, hosted, user.ID, "host", false))
 	require.NoError(t, repos.Chat.CreateRoom(ctx, joined, "J", "", "group", false, false, other.ID))
-	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, joined, user.ID, "member"))
+	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, joined, user.ID, "member", false))
 
 	// when
 	rooms, total, err := repos.Chat.ListUserGroupRooms(ctx, user.ID, "", false, "", "member", 20, 0)
@@ -1984,8 +1984,8 @@ func TestChatRepository_GetRoomMembersDetailed_PopulatesNicknameLocked(t *testin
 	other := repotest.CreateUser(t, repos)
 	roomID := uuid.New()
 	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "R", "", "group", false, false, owner.ID))
-	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, roomID, owner.ID, "host"))
-	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, roomID, other.ID, "member"))
+	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, roomID, owner.ID, "host", false))
+	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, roomID, other.ID, "member", false))
 	require.NoError(t, repos.Chat.SetMemberNicknameWithLock(ctx, roomID, other.ID, "Pinned", true))
 
 	// when
@@ -2055,8 +2055,8 @@ func TestChatRepository_GetRoomMembersDetailed_ShowsOnlyActiveTimeout(t *testing
 	member := repotest.CreateUser(t, repos)
 	roomID := uuid.New()
 	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "R", "", "group", false, false, owner.ID))
-	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, roomID, owner.ID, "host"))
-	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, roomID, member.ID, "member"))
+	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, roomID, owner.ID, "host", false))
+	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, roomID, member.ID, "member", false))
 	require.NoError(t, repos.Chat.SetMemberTimeout(ctx, roomID, member.ID, "2099-01-01 00:00:00", true))
 
 	// when
@@ -2108,13 +2108,13 @@ func TestChatRepository_AddMember_Rejoin_PreservesNickname(t *testing.T) {
 	joiner := repotest.CreateUser(t, repos)
 	roomID := uuid.New()
 	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "R", "", "group", false, false, owner.ID))
-	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, roomID, joiner.ID, "member"))
+	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, roomID, joiner.ID, "member", false))
 	require.NoError(t, repos.Chat.SetMemberNicknameWithLock(ctx, roomID, joiner.ID, "Beato", true))
 	require.NoError(t, repos.Chat.SetMemberAvatar(ctx, roomID, joiner.ID, "/custom.png"))
 	require.NoError(t, repos.Chat.RemoveMember(ctx, roomID, joiner.ID))
 
 	// when
-	err := repos.Chat.AddMemberWithRole(ctx, roomID, joiner.ID, "member")
+	err := repos.Chat.AddMemberWithRole(ctx, roomID, joiner.ID, "member", false)
 
 	// then
 	require.NoError(t, err)

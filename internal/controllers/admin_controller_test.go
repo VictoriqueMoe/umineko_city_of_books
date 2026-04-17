@@ -1455,3 +1455,107 @@ func TestAdminUnassignVanityRole_ServiceErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestAdminListBannedGifs_PermissionFailures(t *testing.T) {
+	testutil.RunPermissionFailureSuite(t, adminFactory, "GET", "/admin/banned-gifs", nil, authz.PermManageSettings)
+}
+
+func TestAdminListBannedGifs_OK(t *testing.T) {
+	// given
+	h, ms, _ := newAdminHarness(t)
+	userID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	h.ExpectHasPermission(userID, authz.PermManageSettings, true)
+	ms.EXPECT().ListBannedGifs(mock.Anything).Return(&dto.BannedGiphyListResponse{
+		Entries: []dto.BannedGiphyEntry{{Kind: "gif", Value: "abc123"}},
+	}, nil)
+
+	// when
+	status, body := h.NewRequest("GET", "/admin/banned-gifs").WithCookie("valid-cookie").Do()
+
+	// then
+	require.Equal(t, http.StatusOK, status)
+	assert.Contains(t, string(body), `"value":"abc123"`)
+}
+
+func TestAdminAddBannedGif_PermissionFailures(t *testing.T) {
+	testutil.RunPermissionFailureSuite(t, adminFactory, "POST", "/admin/banned-gifs",
+		dto.AddBannedGiphyRequest{Input: "abc"}, authz.PermManageSettings)
+}
+
+func TestAdminAddBannedGif_OK(t *testing.T) {
+	// given
+	h, ms, _ := newAdminHarness(t)
+	userID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	h.ExpectHasPermission(userID, authz.PermManageSettings, true)
+	req := dto.AddBannedGiphyRequest{Input: "https://giphy.com/gifs/cat-abc123", Reason: "spam"}
+	ms.EXPECT().AddBannedGif(mock.Anything, userID, req).
+		Return(&dto.AddBannedGiphyResponse{Entry: dto.BannedGiphyEntry{Kind: "gif", Value: "abc123"}}, nil)
+
+	// when
+	status, body := h.NewRequest("POST", "/admin/banned-gifs").
+		WithCookie("valid-cookie").
+		WithJSONBody(req).Do()
+
+	// then
+	require.Equal(t, http.StatusCreated, status)
+	assert.Contains(t, string(body), `"value":"abc123"`)
+}
+
+func TestAdminAddBannedGif_InvalidInput(t *testing.T) {
+	// given
+	h, ms, _ := newAdminHarness(t)
+	userID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	h.ExpectHasPermission(userID, authz.PermManageSettings, true)
+	req := dto.AddBannedGiphyRequest{Input: "!!!"}
+	ms.EXPECT().AddBannedGif(mock.Anything, userID, req).Return(nil, adminsvc.ErrBannedGiphyInvalidInput)
+
+	// when
+	status, body := h.NewRequest("POST", "/admin/banned-gifs").
+		WithCookie("valid-cookie").
+		WithJSONBody(req).Do()
+
+	// then
+	require.Equal(t, http.StatusBadRequest, status)
+	assert.Contains(t, string(body), "could not recognise")
+}
+
+func TestAdminAddBannedGif_KindMismatch(t *testing.T) {
+	// given
+	h, ms, _ := newAdminHarness(t)
+	userID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	h.ExpectHasPermission(userID, authz.PermManageSettings, true)
+	req := dto.AddBannedGiphyRequest{Input: "https://giphy.com/channel/foo", Kind: "gif"}
+	ms.EXPECT().AddBannedGif(mock.Anything, userID, req).Return(nil, adminsvc.ErrBannedGiphyKindMismatch)
+
+	// when
+	status, body := h.NewRequest("POST", "/admin/banned-gifs").
+		WithCookie("valid-cookie").
+		WithJSONBody(req).Do()
+
+	// then
+	require.Equal(t, http.StatusBadRequest, status)
+	assert.Contains(t, string(body), "does not match")
+}
+
+func TestAdminRemoveBannedGif_PermissionFailures(t *testing.T) {
+	testutil.RunPermissionFailureSuite(t, adminFactory, "DELETE", "/admin/banned-gifs/gif/abc123", nil, authz.PermManageSettings)
+}
+
+func TestAdminRemoveBannedGif_OK(t *testing.T) {
+	// given
+	h, ms, _ := newAdminHarness(t)
+	userID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	h.ExpectHasPermission(userID, authz.PermManageSettings, true)
+	ms.EXPECT().RemoveBannedGif(mock.Anything, userID, "gif", "abc123").Return(nil)
+
+	// when
+	status, _ := h.NewRequest("DELETE", "/admin/banned-gifs/gif/abc123").WithCookie("valid-cookie").Do()
+
+	// then
+	require.Equal(t, http.StatusOK, status)
+}

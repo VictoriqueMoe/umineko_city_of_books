@@ -172,6 +172,9 @@ func (s *Service) createPost(ctx fiber.Ctx) error {
 
 	id, err := s.PostService.CreatePost(ctx.Context(), userID, req)
 	if err != nil {
+		if utils.MapFilterError(ctx, err) {
+			return nil
+		}
 		if errors.Is(err, postsvc.ErrEmptyBody) || errors.Is(err, postsvc.ErrInvalidShareType) {
 			return utils.BadRequest(ctx, err.Error())
 		}
@@ -196,6 +199,9 @@ func (s *Service) updatePost(ctx fiber.Ctx) error {
 	}
 
 	if err := s.PostService.UpdatePost(ctx.Context(), id, userID, req); err != nil {
+		if utils.MapFilterError(ctx, err) {
+			return nil
+		}
 		if errors.Is(err, postsvc.ErrEmptyBody) {
 			return utils.BadRequest(ctx, err.Error())
 		}
@@ -335,6 +341,9 @@ func (s *Service) createComment(ctx fiber.Ctx) error {
 
 	id, err := s.PostService.CreateComment(ctx.Context(), postID, userID, req)
 	if err != nil {
+		if utils.MapFilterError(ctx, err) {
+			return nil
+		}
 		if errors.Is(err, block.ErrUserBlocked) {
 			return utils.Forbidden(ctx, "user is blocked")
 		}
@@ -372,6 +381,9 @@ func (s *Service) updateComment(ctx fiber.Ctx) error {
 	}
 
 	if err := s.PostService.UpdateComment(ctx.Context(), id, userID, req); err != nil {
+		if utils.MapFilterError(ctx, err) {
+			return nil
+		}
 		if errors.Is(err, postsvc.ErrEmptyBody) {
 			return utils.BadRequest(ctx, err.Error())
 		}

@@ -10,6 +10,7 @@ import { Input } from "../../components/Input/Input";
 import { InfoPanel } from "../../components/InfoPanel/InfoPanel";
 import { RulesBox } from "../../components/RulesBox/RulesBox";
 import { CreateRoomModal } from "../../components/chat/CreateRoomModal/CreateRoomModal";
+import { isSiteStaff } from "../../utils/permissions";
 import styles from "./RoomsPages.module.css";
 
 const PAGE_SIZE = 20;
@@ -190,10 +191,10 @@ export function RoomsListPage() {
         });
     }, [addWSListener, fetchJoined, fetchSystemRooms, search, rpOnly, tagFilter]);
 
-    async function handleJoin(room: ChatRoom) {
+    async function handleJoin(room: ChatRoom, ghost = false) {
         setJoining(room.id);
         try {
-            const joinedRoom = await joinChatRoom(room.id);
+            const joinedRoom = await joinChatRoom(room.id, { ghost });
             setJoined(prev => {
                 if (prev.items.some(r => r.id === joinedRoom.id)) {
                     return prev;
@@ -334,6 +335,17 @@ export function RoomsListPage() {
                         >
                             {joining === room.id ? "Joining..." : "Join Room"}
                         </Button>
+                        {isSiteStaff(user.role) && (
+                            <Button
+                                variant="ghost"
+                                size="small"
+                                onClick={() => handleJoin(room, true)}
+                                disabled={joining === room.id}
+                                title="Join silently — no system message, hidden from member list except to staff"
+                            >
+                                👻 Ghost
+                            </Button>
+                        )}
                     </div>
                 )}
             </div>
