@@ -12,6 +12,19 @@ type (
 		MemberIDs   []uuid.UUID `json:"member_ids"`
 	}
 
+	InviteMembersRequest struct {
+		UserIDs []uuid.UUID `json:"user_ids"`
+	}
+
+	JoinRoomRequest struct {
+		Ghost bool `json:"ghost,omitempty"`
+	}
+
+	InviteMembersResponse struct {
+		InvitedCount int `json:"invited_count"`
+		SkippedCount int `json:"skipped_count"`
+	}
+
 	SendMessageRequest struct {
 		Body      string     `json:"body"`
 		ReplyToID *uuid.UUID `json:"reply_to_id,omitempty"`
@@ -64,6 +77,7 @@ type (
 		TimeoutUntil    string       `json:"timeout_until,omitempty"`
 		TimeoutByStaff  bool         `json:"timeout_set_by_staff"`
 		Presence        string       `json:"presence,omitempty"`
+		Ghost           bool         `json:"ghost"`
 	}
 
 	ChatMessageResponse struct {

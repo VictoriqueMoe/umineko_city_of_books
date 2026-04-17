@@ -188,6 +188,9 @@ func (s *Service) createFanfic(ctx fiber.Ctx) error {
 
 	id, err := s.FanficService.CreateFanfic(ctx.Context(), userID, req)
 	if err != nil {
+		if utils.MapFilterError(ctx, err) {
+			return nil
+		}
 		if errors.Is(err, fanficsvc.ErrEmptyTitle) || errors.Is(err, fanficsvc.ErrTooManyGenres) || errors.Is(err, fanficsvc.ErrTooManyTags) || errors.Is(err, fanficsvc.ErrTagTooLong) || errors.Is(err, fanficsvc.ErrInvalidRating) {
 			return utils.BadRequest(ctx, err.Error())
 		}
@@ -209,6 +212,9 @@ func (s *Service) updateFanfic(ctx fiber.Ctx) error {
 	}
 
 	if err := s.FanficService.UpdateFanfic(ctx.Context(), id, userID, req); err != nil {
+		if utils.MapFilterError(ctx, err) {
+			return nil
+		}
 		if errors.Is(err, fanficsvc.ErrEmptyTitle) || errors.Is(err, fanficsvc.ErrTooManyGenres) || errors.Is(err, fanficsvc.ErrTooManyTags) || errors.Is(err, fanficsvc.ErrTagTooLong) || errors.Is(err, fanficsvc.ErrInvalidRating) {
 			return utils.BadRequest(ctx, err.Error())
 		}
@@ -307,6 +313,9 @@ func (s *Service) createFanficChapter(ctx fiber.Ctx) error {
 
 	id, err := s.FanficService.CreateChapter(ctx.Context(), fanficID, userID, req)
 	if err != nil {
+		if utils.MapFilterError(ctx, err) {
+			return nil
+		}
 		if errors.Is(err, fanficsvc.ErrNotAuthor) {
 			return utils.Forbidden(ctx, err.Error())
 		}
@@ -334,6 +343,9 @@ func (s *Service) updateFanficChapter(ctx fiber.Ctx) error {
 	}
 
 	if err := s.FanficService.UpdateChapter(ctx.Context(), id, userID, req); err != nil {
+		if utils.MapFilterError(ctx, err) {
+			return nil
+		}
 		if errors.Is(err, fanficsvc.ErrNotAuthor) {
 			return utils.Forbidden(ctx, err.Error())
 		}
@@ -410,6 +422,9 @@ func (s *Service) createFanficComment(ctx fiber.Ctx) error {
 
 	id, err := s.FanficService.CreateComment(ctx.Context(), fanficID, userID, req)
 	if err != nil {
+		if utils.MapFilterError(ctx, err) {
+			return nil
+		}
 		if errors.Is(err, block.ErrUserBlocked) {
 			return utils.Forbidden(ctx, "user is blocked")
 		}
@@ -434,6 +449,9 @@ func (s *Service) updateFanficComment(ctx fiber.Ctx) error {
 	}
 
 	if err := s.FanficService.UpdateComment(ctx.Context(), id, userID, req); err != nil {
+		if utils.MapFilterError(ctx, err) {
+			return nil
+		}
 		if errors.Is(err, fanficsvc.ErrEmptyBody) {
 			return utils.BadRequest(ctx, err.Error())
 		}

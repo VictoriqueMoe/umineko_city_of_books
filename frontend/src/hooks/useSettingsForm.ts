@@ -66,7 +66,7 @@ export function useSettingsForm() {
     const [email, setEmail] = useState("");
     const [emailPublic, setEmailPublic] = useState(false);
     const [emailNotifications, setEmailNotifications] = useState(false);
-    const [homePage, setHomePage] = useState("game_board");
+    const [homePage, setHomePage] = useState("landing");
     const [gameBoardSort, setGameBoardSort] = useState("relevance");
 
     const [characters, setCharacters] = useState<{
@@ -104,7 +104,7 @@ export function useSettingsForm() {
             setEmail(profile.email ?? "");
             setEmailPublic(profile.email_public ?? false);
             setEmailNotifications(profile.email_notifications ?? false);
-            setHomePage(profile.home_page ?? "game_board");
+            setHomePage(profile.home_page ?? "landing");
             setGameBoardSort(profile.game_board_sort ?? "relevance");
 
             const g = initGender(profile);

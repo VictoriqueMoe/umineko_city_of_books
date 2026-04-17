@@ -8,6 +8,7 @@ import (
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/credibility"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
@@ -42,6 +43,7 @@ type (
 		settingsSvc    settings.Service
 		credibilitySvc *credibility.Service
 		quoteClient    *quotefinder.Client
+		contentFilter  *contentfilter.Manager
 	}
 )
 
@@ -54,6 +56,7 @@ func NewService(
 	settingsSvc settings.Service,
 	credibilitySvc *credibility.Service,
 	quoteClient *quotefinder.Client,
+	contentFilter *contentfilter.Manager,
 ) Service {
 	return &service{
 		repo:           repo,
@@ -64,7 +67,23 @@ func NewService(
 		settingsSvc:    settingsSvc,
 		credibilitySvc: credibilitySvc,
 		quoteClient:    quoteClient,
+		contentFilter:  contentFilter,
 	}
+}
+
+func (s *service) filterTexts(ctx context.Context, texts ...string) error {
+	if s.contentFilter == nil {
+		return nil
+	}
+	return s.contentFilter.Check(ctx, texts...)
+}
+
+func evidenceNotes(evidence []dto.EvidenceInput) []string {
+	out := make([]string, 0, len(evidence))
+	for _, e := range evidence {
+		out = append(out, e.Note)
+	}
+	return out
 }
 
 func (s *service) actorName(ctx context.Context, userID uuid.UUID) string {
@@ -77,6 +96,10 @@ func (s *service) actorName(ctx context.Context, userID uuid.UUID) string {
 
 func (s *service) CreateTheory(ctx context.Context, userID uuid.UUID, req dto.CreateTheoryRequest) (uuid.UUID, error) {
 	logger.Log.Debug().Str("user_id", userID.String()).Str("title", req.Title).Msg("creating theory")
+
+	if err := s.filterTexts(ctx, append([]string{req.Title, req.Body}, evidenceNotes(req.Evidence)...)...); err != nil {
+		return uuid.Nil, err
+	}
 
 	limit := s.settingsSvc.GetInt(ctx, config.SettingMaxTheoriesPerDay)
 	if limit > 0 {
@@ -136,6 +159,9 @@ func (s *service) ListTheories(ctx context.Context, p params.ListParams, userID 
 }
 
 func (s *service) UpdateTheory(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.CreateTheoryRequest) error {
+	if err := s.filterTexts(ctx, append([]string{req.Title, req.Body}, evidenceNotes(req.Evidence)...)...); err != nil {
+		return err
+	}
 	if s.authz.Can(ctx, userID, authz.PermEditAnyTheory) {
 		if err := s.repo.UpdateAsAdmin(ctx, id, req); err != nil {
 			return err
@@ -170,6 +196,10 @@ func (s *service) DeleteTheory(ctx context.Context, id uuid.UUID, userID uuid.UU
 
 func (s *service) CreateResponse(ctx context.Context, theoryID uuid.UUID, userID uuid.UUID, req dto.CreateResponseRequest) (uuid.UUID, error) {
 	logger.Log.Debug().Str("theory_id", theoryID.String()).Str("user_id", userID.String()).Str("side", req.Side).Msg("creating response")
+
+	if err := s.filterTexts(ctx, append([]string{req.Body}, evidenceNotes(req.Evidence)...)...); err != nil {
+		return uuid.Nil, err
+	}
 
 	limit := s.settingsSvc.GetInt(ctx, config.SettingMaxResponsesPerDay)
 	if limit > 0 {

@@ -11,6 +11,7 @@ import (
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
@@ -57,15 +58,16 @@ type (
 	}
 
 	service struct {
-		fanficRepo  repository.FanficRepository
-		userRepo    repository.UserRepository
-		authz       authz.Service
-		blockSvc    block.Service
-		notifSvc    notification.Service
-		uploadSvc   upload.Service
-		mediaProc   *media.Processor
-		uploader    *media.Uploader
-		settingsSvc settings.Service
+		fanficRepo    repository.FanficRepository
+		userRepo      repository.UserRepository
+		authz         authz.Service
+		blockSvc      block.Service
+		notifSvc      notification.Service
+		uploadSvc     upload.Service
+		mediaProc     *media.Processor
+		uploader      *media.Uploader
+		settingsSvc   settings.Service
+		contentFilter *contentfilter.Manager
 	}
 )
 
@@ -78,18 +80,27 @@ func NewService(
 	uploadSvc upload.Service,
 	mediaProc *media.Processor,
 	settingsSvc settings.Service,
+	contentFilter *contentfilter.Manager,
 ) Service {
 	return &service{
-		fanficRepo:  fanficRepo,
-		userRepo:    userRepo,
-		authz:       authzSvc,
-		blockSvc:    blockSvc,
-		notifSvc:    notifSvc,
-		uploadSvc:   uploadSvc,
-		mediaProc:   mediaProc,
-		uploader:    media.NewUploader(uploadSvc, settingsSvc, mediaProc),
-		settingsSvc: settingsSvc,
+		fanficRepo:    fanficRepo,
+		userRepo:      userRepo,
+		authz:         authzSvc,
+		blockSvc:      blockSvc,
+		notifSvc:      notifSvc,
+		uploadSvc:     uploadSvc,
+		mediaProc:     mediaProc,
+		uploader:      media.NewUploader(uploadSvc, settingsSvc, mediaProc),
+		settingsSvc:   settingsSvc,
+		contentFilter: contentFilter,
 	}
+}
+
+func (s *service) filterTexts(ctx context.Context, texts ...string) error {
+	if s.contentFilter == nil {
+		return nil
+	}
+	return s.contentFilter.Check(ctx, texts...)
 }
 
 var (
@@ -124,6 +135,9 @@ func (s *service) CreateFanfic(ctx context.Context, userID uuid.UUID, req dto.Cr
 	title := strings.TrimSpace(req.Title)
 	if title == "" {
 		return uuid.Nil, ErrEmptyTitle
+	}
+	if err := s.filterTexts(ctx, title, req.Summary, req.Body); err != nil {
+		return uuid.Nil, err
 	}
 	if len(req.Genres) > 2 {
 		return uuid.Nil, ErrTooManyGenres
@@ -269,6 +283,9 @@ func (s *service) UpdateFanfic(ctx context.Context, id, userID uuid.UUID, req dt
 	asAdmin := s.authz.Can(ctx, userID, authz.PermEditAnyTheory)
 	if authorID != userID && !asAdmin {
 		return ErrNotAuthor
+	}
+	if err := s.filterTexts(ctx, req.Title, req.Summary); err != nil {
+		return err
 	}
 
 	title := strings.TrimSpace(req.Title)
@@ -442,6 +459,9 @@ func (s *service) CreateChapter(ctx context.Context, fanficID, userID uuid.UUID,
 	if authorID != userID {
 		return uuid.Nil, ErrNotAuthor
 	}
+	if err := s.filterTexts(ctx, req.Title, req.Body); err != nil {
+		return uuid.Nil, err
+	}
 
 	body := strings.TrimSpace(req.Body)
 	if body == "" {
@@ -502,6 +522,9 @@ func (s *service) UpdateChapter(ctx context.Context, chapterID, userID uuid.UUID
 	}
 	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyTheory) {
 		return ErrNotAuthor
+	}
+	if err := s.filterTexts(ctx, req.Title, req.Body); err != nil {
+		return err
 	}
 
 	body := strings.TrimSpace(req.Body)
@@ -606,6 +629,9 @@ func (s *service) CreateComment(ctx context.Context, fanficID, userID uuid.UUID,
 	if body == "" {
 		return uuid.Nil, ErrEmptyBody
 	}
+	if err := s.filterTexts(ctx, body); err != nil {
+		return uuid.Nil, err
+	}
 
 	authorID, err := s.fanficRepo.GetAuthorID(ctx, fanficID)
 	if err != nil {
@@ -664,6 +690,9 @@ func (s *service) UpdateComment(ctx context.Context, id, userID uuid.UUID, req d
 	body := strings.TrimSpace(req.Body)
 	if body == "" {
 		return ErrEmptyBody
+	}
+	if err := s.filterTexts(ctx, body); err != nil {
+		return err
 	}
 	if s.authz.Can(ctx, userID, authz.PermEditAnyComment) {
 		return s.fanficRepo.UpdateCommentAsAdmin(ctx, id, body)

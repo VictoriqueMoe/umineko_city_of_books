@@ -16,6 +16,8 @@ import (
 	blocksvc "umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/chat"
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/contentfilter"
+	bannedgiphyrule "umineko_city_of_books/internal/contentfilter/rules/bannedgiphy"
 	"umineko_city_of_books/internal/controllers"
 	"umineko_city_of_books/internal/credibility"
 	"umineko_city_of_books/internal/db"
@@ -23,6 +25,7 @@ import (
 	fanficsvc "umineko_city_of_books/internal/fanfic"
 	"umineko_city_of_books/internal/follow"
 	"umineko_city_of_books/internal/giphy"
+	"umineko_city_of_books/internal/giphy/banlist"
 	giphyfavourite "umineko_city_of_books/internal/giphy/favourite"
 	"umineko_city_of_books/internal/journal"
 	"umineko_city_of_books/internal/logger"
@@ -80,6 +83,8 @@ type services struct {
 	mediaProc       *media.Processor
 	giphy           giphy.Service
 	giphyFavourites giphyfavourite.Service
+	giphyBanlist    banlist.Service
+	contentFilter   *contentfilter.Manager
 }
 
 func initServer() *fiber.App {
@@ -130,6 +135,15 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 	sessionMgr := session.NewManager(repos.Session, settingsSvc)
 	uploadSvc := upload.NewService(settingsSvc)
 	authzSvc := authz.NewService(repos.Role, repos.User)
+	giphyBanlist, err := banlist.NewService(context.Background(), repos.BannedGiphy)
+	if err != nil {
+		logger.Log.Fatal().Err(err).Msg("failed to load giphy banlist")
+	}
+	giphySvc := giphy.NewService(giphyBanlist)
+	if !giphySvc.Enabled() {
+		logger.Log.Warn().Msg("GIPHY_API_KEY is not set: gif picker is disabled and direct-URL channel bans cannot resolve uploaders")
+	}
+	contentFilter := contentfilter.New(bannedgiphyrule.New(giphyBanlist, giphySvc))
 	userSvc := user.NewService(repos.User, repos.Role, authzSvc)
 	hub := ws.NewHub()
 	quoteClient := quotefinder.NewClient()
@@ -140,22 +154,22 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 	notifSvc := notification.NewService(repos.Notification, repos.User, hub, emailSvc)
 	reportSvc := report.NewService(repos.Report, repos.Role, repos.User, notifSvc, settingsSvc)
 	mediaProc := media.NewProcessor(4)
-	chatSvc := chat.NewService(repos.Chat, repos.User, repos.Role, repos.VanityRole, authzSvc, notifSvc, blockSvc, uploadSvc, settingsSvc, mediaProc, hub)
+	chatSvc := chat.NewService(repos.Chat, repos.User, repos.Role, repos.VanityRole, authzSvc, notifSvc, blockSvc, uploadSvc, settingsSvc, mediaProc, hub, contentFilter)
 	followSvc := follow.NewService(repos.Follow, repos.User, blockSvc, notifSvc, settingsSvc)
-	postSvc := postsvc.NewService(repos.DB(), repos.Post, repos.User, repos.Role, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, hub)
-	artSvc := artsvc.NewService(repos.Art, repos.Post, repos.User, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc)
-	shipSvc := ship.NewService(repos.Ship, repos.User, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, quoteClient)
-	mysterySvc := mysterysvc.NewService(repos.Mystery, repos.User, authzSvc, blockSvc, notifSvc, settingsSvc, uploadSvc, mediaProc, hub)
-	fanficSvc := fanficsvc.NewService(repos.Fanfic, repos.User, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc)
-	journalSvc := journal.NewService(repos.Journal, repos.User, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc)
+	postSvc := postsvc.NewService(repos.DB(), repos.Post, repos.User, repos.Role, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, hub, contentFilter)
+	artSvc := artsvc.NewService(repos.Art, repos.Post, repos.User, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, contentFilter)
+	shipSvc := ship.NewService(repos.Ship, repos.User, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, quoteClient, contentFilter)
+	mysterySvc := mysterysvc.NewService(repos.Mystery, repos.User, authzSvc, blockSvc, notifSvc, settingsSvc, uploadSvc, mediaProc, hub, contentFilter)
+	fanficSvc := fanficsvc.NewService(repos.Fanfic, repos.User, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, contentFilter)
+	journalSvc := journal.NewService(repos.Journal, repos.User, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, contentFilter)
 
 	return &services{
 		settings:        settingsSvc,
 		auth:            auth.NewService(userSvc, sessionMgr, settingsSvc, repos.Invite, repos.User),
-		profile:         profile.NewService(repos.User, repos.Theory, authzSvc, uploadSvc, settingsSvc),
-		theory:          theory.NewService(repos.Theory, repos.User, authzSvc, blockSvc, notifSvc, settingsSvc, credibilitySvc, quoteClient),
+		profile:         profile.NewService(repos.User, repos.Theory, authzSvc, uploadSvc, settingsSvc, contentFilter),
+		theory:          theory.NewService(repos.Theory, repos.User, authzSvc, blockSvc, notifSvc, settingsSvc, credibilitySvc, quoteClient, contentFilter),
 		notification:    notifSvc,
-		admin:           admin.NewService(repos.User, repos.Role, repos.Stats, repos.AuditLog, repos.Invite, repos.VanityRole, authzSvc, settingsSvc, sessionMgr, uploadSvc, hub, chatSvc),
+		admin:           admin.NewService(repos.User, repos.Role, repos.Stats, repos.AuditLog, repos.Invite, repos.VanityRole, giphyBanlist, authzSvc, settingsSvc, sessionMgr, uploadSvc, hub, chatSvc),
 		authz:           authzSvc,
 		chat:            chatSvc,
 		report:          reportSvc,
@@ -172,8 +186,10 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 		upload:          uploadSvc,
 		hub:             hub,
 		mediaProc:       mediaProc,
-		giphy:           giphy.NewService(),
+		giphy:           giphySvc,
 		giphyFavourites: giphyfavourite.NewService(repos.GiphyFavourite),
+		giphyBanlist:    giphyBanlist,
+		contentFilter:   contentFilter,
 	}
 }
 

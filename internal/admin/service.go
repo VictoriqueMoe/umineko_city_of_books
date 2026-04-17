@@ -9,6 +9,7 @@ import (
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/giphy/banlist"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
@@ -53,6 +54,10 @@ type (
 		GetVanityRoleUsers(ctx context.Context, roleID string, search string, limit, offset int) (*dto.VanityRoleUsersResponse, error)
 		AssignVanityRole(ctx context.Context, actorID uuid.UUID, roleID string, userID uuid.UUID) error
 		UnassignVanityRole(ctx context.Context, actorID uuid.UUID, roleID string, userID uuid.UUID) error
+
+		ListBannedGifs(ctx context.Context) (*dto.BannedGiphyListResponse, error)
+		AddBannedGif(ctx context.Context, actorID uuid.UUID, req dto.AddBannedGiphyRequest) (*dto.AddBannedGiphyResponse, error)
+		RemoveBannedGif(ctx context.Context, actorID uuid.UUID, kind, value string) error
 	}
 
 	service struct {
@@ -62,6 +67,7 @@ type (
 		auditRepo      repository.AuditLogRepository
 		inviteRepo     repository.InviteRepository
 		vanityRoleRepo repository.VanityRoleRepository
+		giphyBanlist   banlist.Service
 		authz          authz.Service
 		settingsSvc    settings.Service
 		sessionMgr     *session.Manager
@@ -89,6 +95,7 @@ func NewService(
 	auditRepo repository.AuditLogRepository,
 	inviteRepo repository.InviteRepository,
 	vanityRoleRepo repository.VanityRoleRepository,
+	giphyBanlist banlist.Service,
 	authzService authz.Service,
 	settingsSvc settings.Service,
 	sessionMgr *session.Manager,
@@ -103,6 +110,7 @@ func NewService(
 		auditRepo:      auditRepo,
 		inviteRepo:     inviteRepo,
 		vanityRoleRepo: vanityRoleRepo,
+		giphyBanlist:   giphyBanlist,
 		authz:          authzService,
 		settingsSvc:    settingsSvc,
 		sessionMgr:     sessionMgr,

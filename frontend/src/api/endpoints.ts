@@ -481,8 +481,8 @@ export async function listMyChatRooms(params: {
     return apiFetch<{ rooms: ChatRoom[]; total: number }>(`/chat/rooms/mine${qs}`);
 }
 
-export async function joinChatRoom(roomId: string): Promise<ChatRoom> {
-    return apiPost<ChatRoom, Record<string, never>>(`/chat/rooms/${roomId}/join`, {});
+export async function joinChatRoom(roomId: string, opts: { ghost?: boolean } = {}): Promise<ChatRoom> {
+    return apiPost<ChatRoom, { ghost?: boolean }>(`/chat/rooms/${roomId}/join`, { ghost: opts.ghost });
 }
 
 export async function leaveChatRoom(roomId: string): Promise<void> {
@@ -499,6 +499,16 @@ export async function getChatRoomMembers(roomId: string): Promise<{ members: Cha
 
 export async function kickChatRoomMember(roomId: string, userId: string): Promise<void> {
     await apiDelete<unknown>(`/chat/rooms/${roomId}/members/${userId}`);
+}
+
+export async function inviteChatRoomMembers(
+    roomId: string,
+    userIds: string[],
+): Promise<{ invited_count: number; skipped_count: number }> {
+    return apiPost<{ invited_count: number; skipped_count: number }, { user_ids: string[] }>(
+        `/chat/rooms/${roomId}/members`,
+        { user_ids: userIds },
+    );
 }
 
 export async function getUserRooms(): Promise<{ rooms: ChatRoom[] }> {
@@ -1587,6 +1597,26 @@ export async function listCharacters(series: string): Promise<CharacterListRespo
 
 export async function getVanityRoles(): Promise<VanityRoleDefinition[]> {
     return apiFetch<VanityRoleDefinition[]>("/admin/vanity-roles");
+}
+
+export interface BannedGiphyEntry {
+    kind: "gif" | "user";
+    value: string;
+    reason: string;
+    created_at: string;
+    created_by?: string;
+}
+
+export async function getBannedGifs(): Promise<{ entries: BannedGiphyEntry[] }> {
+    return apiFetch<{ entries: BannedGiphyEntry[] }>("/admin/banned-gifs");
+}
+
+export async function addBannedGif(data: { input: string; reason?: string }): Promise<{ entry: BannedGiphyEntry }> {
+    return apiPost<{ entry: BannedGiphyEntry }, typeof data>("/admin/banned-gifs", data);
+}
+
+export async function removeBannedGif(kind: string, value: string): Promise<void> {
+    await apiDelete(`/admin/banned-gifs/${encodeURIComponent(kind)}/${encodeURIComponent(value)}`);
 }
 
 export async function createVanityRole(data: {

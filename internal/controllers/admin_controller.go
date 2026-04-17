@@ -45,6 +45,9 @@ func (s *Service) getAllAdminRoutes() []FSetupRoute {
 		s.setupAdminGetVanityRoleUsers,
 		s.setupAdminAssignVanityRole,
 		s.setupAdminUnassignVanityRole,
+		s.setupAdminListBannedGifs,
+		s.setupAdminAddBannedGif,
+		s.setupAdminRemoveBannedGif,
 	}
 }
 
@@ -427,6 +430,55 @@ func (s *Service) adminUnassignVanityRole(ctx fiber.Ctx) error {
 		return nil
 	}
 	if err := s.AdminService.UnassignVanityRole(ctx.Context(), actorID, roleID, userID); err != nil {
+		return handleAdminError(ctx, err)
+	}
+	return utils.OK(ctx)
+}
+
+func (s *Service) setupAdminListBannedGifs(r fiber.Router) {
+	r.Get("/admin/banned-gifs", s.requirePerm(authz.PermManageSettings), s.adminListBannedGifs)
+}
+
+func (s *Service) setupAdminAddBannedGif(r fiber.Router) {
+	r.Post("/admin/banned-gifs", s.requirePerm(authz.PermManageSettings), s.adminAddBannedGif)
+}
+
+func (s *Service) setupAdminRemoveBannedGif(r fiber.Router) {
+	r.Delete("/admin/banned-gifs/:kind/:value", s.requirePerm(authz.PermManageSettings), s.adminRemoveBannedGif)
+}
+
+func (s *Service) adminListBannedGifs(ctx fiber.Ctx) error {
+	resp, err := s.AdminService.ListBannedGifs(ctx.Context())
+	if err != nil {
+		return handleAdminError(ctx, err)
+	}
+	return ctx.JSON(resp)
+}
+
+func (s *Service) adminAddBannedGif(ctx fiber.Ctx) error {
+	actorID := utils.UserID(ctx)
+	req, ok := utils.BindJSON[dto.AddBannedGiphyRequest](ctx)
+	if !ok {
+		return nil
+	}
+	resp, err := s.AdminService.AddBannedGif(ctx.Context(), actorID, req)
+	if err != nil {
+		if errors.Is(err, admin.ErrBannedGiphyInvalidInput) {
+			return utils.BadRequest(ctx, "could not recognise a Giphy URL or ID in the input")
+		}
+		if errors.Is(err, admin.ErrBannedGiphyKindMismatch) {
+			return utils.BadRequest(ctx, "supplied kind does not match the URL")
+		}
+		return handleAdminError(ctx, err)
+	}
+	return ctx.Status(fiber.StatusCreated).JSON(resp)
+}
+
+func (s *Service) adminRemoveBannedGif(ctx fiber.Ctx) error {
+	actorID := utils.UserID(ctx)
+	kind := ctx.Params("kind")
+	value := ctx.Params("value")
+	if err := s.AdminService.RemoveBannedGif(ctx.Context(), actorID, kind, value); err != nil {
 		return handleAdminError(ctx, err)
 	}
 	return utils.OK(ctx)

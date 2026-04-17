@@ -10,6 +10,7 @@ import (
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/journal/params"
 	"umineko_city_of_books/internal/logger"
@@ -49,13 +50,14 @@ type (
 	}
 
 	service struct {
-		repo         repository.JournalRepository
-		userRepo     repository.UserRepository
-		authz        authz.Service
-		blockSvc     block.Service
-		notifService notification.Service
-		settingsSvc  settings.Service
-		uploader     *media.Uploader
+		repo          repository.JournalRepository
+		userRepo      repository.UserRepository
+		authz         authz.Service
+		blockSvc      block.Service
+		notifService  notification.Service
+		settingsSvc   settings.Service
+		uploader      *media.Uploader
+		contentFilter *contentfilter.Manager
 	}
 )
 
@@ -68,16 +70,25 @@ func NewService(
 	uploadSvc upload.Service,
 	mediaProc *media.Processor,
 	settingsSvc settings.Service,
+	contentFilter *contentfilter.Manager,
 ) Service {
 	return &service{
-		repo:         repo,
-		userRepo:     userRepo,
-		authz:        authzService,
-		blockSvc:     blockSvc,
-		notifService: notifService,
-		settingsSvc:  settingsSvc,
-		uploader:     media.NewUploader(uploadSvc, settingsSvc, mediaProc),
+		repo:          repo,
+		userRepo:      userRepo,
+		authz:         authzService,
+		blockSvc:      blockSvc,
+		notifService:  notifService,
+		settingsSvc:   settingsSvc,
+		uploader:      media.NewUploader(uploadSvc, settingsSvc, mediaProc),
+		contentFilter: contentFilter,
 	}
+}
+
+func (s *service) filterTexts(ctx context.Context, texts ...string) error {
+	if s.contentFilter == nil {
+		return nil
+	}
+	return s.contentFilter.Check(ctx, texts...)
 }
 
 func (s *service) actorName(ctx context.Context, userID uuid.UUID) string {
@@ -91,6 +102,9 @@ func (s *service) actorName(ctx context.Context, userID uuid.UUID) string {
 func (s *service) CreateJournal(ctx context.Context, userID uuid.UUID, req dto.CreateJournalRequest) (uuid.UUID, error) {
 	if strings.TrimSpace(req.Title) == "" || strings.TrimSpace(req.Body) == "" {
 		return uuid.Nil, ErrEmptyBody
+	}
+	if err := s.filterTexts(ctx, req.Title, req.Body); err != nil {
+		return uuid.Nil, err
 	}
 
 	limit := s.settingsSvc.GetInt(ctx, config.SettingMaxJournalsPerDay)
@@ -190,6 +204,9 @@ func (s *service) UpdateJournal(ctx context.Context, id uuid.UUID, userID uuid.U
 	if strings.TrimSpace(req.Title) == "" || strings.TrimSpace(req.Body) == "" {
 		return ErrEmptyBody
 	}
+	if err := s.filterTexts(ctx, req.Title, req.Body); err != nil {
+		return err
+	}
 	if s.authz.Can(ctx, userID, authz.PermEditAnyJournal) {
 		return s.repo.UpdateAsAdmin(ctx, id, req)
 	}
@@ -207,6 +224,9 @@ func (s *service) CreateComment(ctx context.Context, journalID uuid.UUID, userID
 	body = strings.TrimSpace(body)
 	if body == "" {
 		return uuid.Nil, ErrEmptyBody
+	}
+	if err := s.filterTexts(ctx, body); err != nil {
+		return uuid.Nil, err
 	}
 
 	authorID, err := s.repo.GetAuthorID(ctx, journalID)
@@ -303,6 +323,9 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 	body = strings.TrimSpace(body)
 	if body == "" {
 		return ErrEmptyBody
+	}
+	if err := s.filterTexts(ctx, body); err != nil {
+		return err
 	}
 	if s.authz.Can(ctx, userID, authz.PermEditAnyComment) {
 		return s.repo.UpdateCommentAsAdmin(ctx, id, body)

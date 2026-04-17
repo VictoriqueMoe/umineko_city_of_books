@@ -48,6 +48,23 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         pathnameRef.current = location.pathname;
     }, [location.pathname]);
 
+    const [prevPath, setPrevPath] = useState(location.pathname);
+    if (prevPath !== location.pathname) {
+        setPrevPath(location.pathname);
+        if (location.pathname.startsWith("/game-board") && !isRyukishiPath) {
+            setCornersOpen(true);
+        }
+        if (isRyukishiPath) {
+            setRyukishiOpen(true);
+        }
+        if (location.pathname.startsWith("/gallery")) {
+            setGalleryOpen(true);
+        }
+        if (location.pathname.startsWith("/theor")) {
+            setTheoriesOpen(true);
+        }
+    }
+
     useEffect(() => {
         getCornerCounts()
             .then(setCornerCounts)
@@ -80,6 +97,14 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                 </div>
 
                 <nav className={styles.nav}>
+                    <NavLink
+                        to="/welcome"
+                        className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
+                        onClick={onClose}
+                    >
+                        Welcome
+                    </NavLink>
+                    <div className={styles.divider} />
                     <NavLink
                         to="/announcements"
                         className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}

@@ -56,6 +56,22 @@
     color: var(--text-muted);
 }
 
+.inviteButton {
+    background: rgba(var(--gold-rgb), 0.15);
+    border: 1px solid rgba(var(--gold-rgb), 0.4);
+    color: var(--gold);
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.25rem 0.6rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.inviteButton:hover {
+    background: rgba(var(--gold-rgb), 0.25);
+}
+
 .memberList {
     flex: 1;
     overflow-y: auto;
@@ -106,6 +122,12 @@
     font-size: 0.6rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
+}
+
+.ghostBadge {
+    font-size: 0.9rem;
+    opacity: 0.75;
+    cursor: help;
 }
 
 .timeoutBadge {

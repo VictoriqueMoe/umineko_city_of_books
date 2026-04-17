@@ -29,4 +29,5 @@ var (
 	ErrTimedOut                 = errors.New("you are timed out from this room")
 	ErrMessageDeletePermission  = errors.New("you do not have permission to delete this message")
 	ErrCannotDeleteStaffMessage = errors.New("messages from moderators and admins cannot be deleted")
+	ErrGhostRequiresStaff       = errors.New("only site moderators or admins can join as a ghost")
 )

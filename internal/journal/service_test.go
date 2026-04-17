@@ -9,6 +9,7 @@ import (
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/journal/params"
 	"umineko_city_of_books/internal/media"
@@ -42,7 +43,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	uploadSvc := upload.NewMockService(t)
 	settingsSvc := settings.NewMockService(t)
 	mediaProc := &media.Processor{}
-	svc := NewService(repo, userRepo, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc).(*service)
+	svc := NewService(repo, userRepo, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, contentfilter.New()).(*service)
 	return svc, &testMocks{
 		repo:         repo,
 		userRepo:     userRepo,

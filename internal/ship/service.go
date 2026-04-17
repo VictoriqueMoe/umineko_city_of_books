@@ -10,6 +10,7 @@ import (
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
@@ -73,16 +74,17 @@ type (
 	}
 
 	service struct {
-		shipRepo     repository.ShipRepository
-		userRepo     repository.UserRepository
-		authz        authz.Service
-		blockSvc     block.Service
-		notifService notification.Service
-		uploadSvc    upload.Service
-		mediaProc    *media.Processor
-		uploader     *media.Uploader
-		settingsSvc  settings.Service
-		quoteClient  *quotefinder.Client
+		shipRepo      repository.ShipRepository
+		userRepo      repository.UserRepository
+		authz         authz.Service
+		blockSvc      block.Service
+		notifService  notification.Service
+		uploadSvc     upload.Service
+		mediaProc     *media.Processor
+		uploader      *media.Uploader
+		settingsSvc   settings.Service
+		quoteClient   *quotefinder.Client
+		contentFilter *contentfilter.Manager
 	}
 )
 
@@ -96,19 +98,28 @@ func NewService(
 	mediaProc *media.Processor,
 	settingsSvc settings.Service,
 	quoteClient *quotefinder.Client,
+	contentFilter *contentfilter.Manager,
 ) Service {
 	return &service{
-		shipRepo:     shipRepo,
-		userRepo:     userRepo,
-		authz:        authzService,
-		blockSvc:     blockSvc,
-		notifService: notifService,
-		uploadSvc:    uploadSvc,
-		mediaProc:    mediaProc,
-		uploader:     media.NewUploader(uploadSvc, settingsSvc, mediaProc),
-		settingsSvc:  settingsSvc,
-		quoteClient:  quoteClient,
+		shipRepo:      shipRepo,
+		userRepo:      userRepo,
+		authz:         authzService,
+		blockSvc:      blockSvc,
+		notifService:  notifService,
+		uploadSvc:     uploadSvc,
+		mediaProc:     mediaProc,
+		uploader:      media.NewUploader(uploadSvc, settingsSvc, mediaProc),
+		settingsSvc:   settingsSvc,
+		quoteClient:   quoteClient,
+		contentFilter: contentFilter,
 	}
+}
+
+func (s *service) filterTexts(ctx context.Context, texts ...string) error {
+	if s.contentFilter == nil {
+		return nil
+	}
+	return s.contentFilter.Check(ctx, texts...)
 }
 
 func validateCharacters(chars []dto.ShipCharacter) error {
@@ -130,6 +141,9 @@ func (s *service) CreateShip(ctx context.Context, userID uuid.UUID, req dto.Crea
 	title := strings.TrimSpace(req.Title)
 	if title == "" {
 		return uuid.Nil, ErrEmptyTitle
+	}
+	if err := s.filterTexts(ctx, title, req.Description); err != nil {
+		return uuid.Nil, err
 	}
 	if err := validateCharacters(req.Characters); err != nil {
 		return uuid.Nil, err
@@ -190,6 +204,9 @@ func (s *service) UpdateShip(ctx context.Context, id uuid.UUID, userID uuid.UUID
 	title := strings.TrimSpace(req.Title)
 	if title == "" {
 		return ErrEmptyTitle
+	}
+	if err := s.filterTexts(ctx, title, req.Description); err != nil {
+		return err
 	}
 	if err := validateCharacters(req.Characters); err != nil {
 		return err
@@ -332,6 +349,9 @@ func (s *service) CreateComment(ctx context.Context, shipID uuid.UUID, userID uu
 	if body == "" {
 		return uuid.Nil, ErrEmptyBody
 	}
+	if err := s.filterTexts(ctx, body); err != nil {
+		return uuid.Nil, err
+	}
 
 	authorID, err := s.shipRepo.GetAuthorID(ctx, shipID)
 	if err != nil {
@@ -390,6 +410,9 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 	body := strings.TrimSpace(req.Body)
 	if body == "" {
 		return ErrEmptyBody
+	}
+	if err := s.filterTexts(ctx, body); err != nil {
+		return err
 	}
 	if s.authz.Can(ctx, userID, authz.PermEditAnyComment) {
 		return s.shipRepo.UpdateCommentAsAdmin(ctx, id, body)

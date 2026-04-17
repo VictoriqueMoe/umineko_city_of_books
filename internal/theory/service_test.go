@@ -10,6 +10,7 @@ import (
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/credibility"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/notification"
@@ -43,7 +44,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	settingsSvc := settings.NewMockService(t)
 	credSvc := credibility.NewService(repo)
 	quoteClient := quotefinder.NewClient()
-	svc := NewService(repo, userRepo, authzSvc, blockSvc, notifSvc, settingsSvc, credSvc, quoteClient).(*service)
+	svc := NewService(repo, userRepo, authzSvc, blockSvc, notifSvc, settingsSvc, credSvc, quoteClient, contentfilter.New()).(*service)
 	return svc, &testMocks{
 		repo:        repo,
 		userRepo:    userRepo,

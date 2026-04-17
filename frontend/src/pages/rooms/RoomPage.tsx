@@ -31,6 +31,7 @@ import { TypingIndicator } from "../../components/chat/TypingIndicator/TypingInd
 import { Button } from "../../components/Button/Button";
 import { ChatComposer, type ReplyTarget } from "../../components/chat/ChatComposer/ChatComposer";
 import { EditRoomProfileDialog } from "../../components/chat/EditRoomProfileDialog/EditRoomProfileDialog";
+import { InviteMembersModal } from "../../components/chat/InviteMembersModal/InviteMembersModal";
 import { MessageBubble } from "../../components/chat/MessageBubble/MessageBubble";
 import { PinnedMessagesPanel } from "../../components/chat/PinnedMessagesPanel/PinnedMessagesPanel";
 import { Lightbox } from "../../components/Lightbox/Lightbox";
@@ -82,6 +83,7 @@ export function RoomPage() {
     const [pinnedOpen, setPinnedOpen] = useState(false);
     const [pinnedRefreshKey, setPinnedRefreshKey] = useState(0);
     const [editProfileOpen, setEditProfileOpen] = useState(false);
+    const [inviteModalOpen, setInviteModalOpen] = useState(false);
     const [openMemberMenu, setOpenMemberMenu] = useState<string | null>(null);
     const [nicknameDialogTarget, setNicknameDialogTarget] = useState<ChatRoomMember | null>(null);
     const [nicknameDialogValue, setNicknameDialogValue] = useState("");
@@ -675,6 +677,15 @@ export function RoomPage() {
                         </button>
                         <span className={styles.sidebarTitle}>Members</span>
                         <span className={styles.memberCount}>{members.length}</span>
+                        {isHost && !isSystem && (
+                            <button
+                                type="button"
+                                className={styles.inviteButton}
+                                onClick={() => setInviteModalOpen(true)}
+                            >
+                                + Invite
+                            </button>
+                        )}
                     </div>
                     <div className={styles.memberList}>
                         {members.map(m => {
@@ -739,6 +750,14 @@ export function RoomPage() {
                                     />
                                     <ProfileLink user={effectiveUser} size="small" />
                                     {m.role === "host" && <span className={styles.hostBadge}>Host</span>}
+                                    {m.ghost && (
+                                        <span
+                                            className={styles.ghostBadge}
+                                            title="Ghost member — not visible to non-staff"
+                                        >
+                                            {"\u{1F47B}"}
+                                        </span>
+                                    )}
                                     {timeoutIsActive && (
                                         <span
                                             className={styles.timeoutIcon}
@@ -999,6 +1018,22 @@ export function RoomPage() {
                 onClose={() => setEditProfileOpen(false)}
                 onSaved={updated => {
                     setMembers(prev => prev.map(m => (m.user.id === updated.user.id ? updated : m)));
+                }}
+            />
+
+            <InviteMembersModal
+                isOpen={inviteModalOpen}
+                roomId={room.id}
+                existingMemberIds={new Set(members.map(m => m.user.id))}
+                onClose={() => setInviteModalOpen(false)}
+                onInvited={result => {
+                    if (result.invited_count > 0) {
+                        setToast(
+                            result.invited_count === 1 ? "1 member invited" : `${result.invited_count} members invited`,
+                        );
+                    } else if (result.skipped_count > 0) {
+                        setToast("No one invited (all were already members or blocked)");
+                    }
                 }}
             />
 

@@ -13,6 +13,7 @@ import (
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/notification"
@@ -57,16 +58,17 @@ type (
 	}
 
 	service struct {
-		artRepo      repository.ArtRepository
-		postRepo     repository.PostRepository
-		userRepo     repository.UserRepository
-		authz        authz.Service
-		blockSvc     block.Service
-		notifService notification.Service
-		uploadSvc    upload.Service
-		mediaProc    *media.Processor
-		uploader     *media.Uploader
-		settingsSvc  settings.Service
+		artRepo       repository.ArtRepository
+		postRepo      repository.PostRepository
+		userRepo      repository.UserRepository
+		authz         authz.Service
+		blockSvc      block.Service
+		notifService  notification.Service
+		uploadSvc     upload.Service
+		mediaProc     *media.Processor
+		uploader      *media.Uploader
+		settingsSvc   settings.Service
+		contentFilter *contentfilter.Manager
 	}
 )
 
@@ -80,24 +82,36 @@ func NewService(
 	uploadSvc upload.Service,
 	mediaProc *media.Processor,
 	settingsSvc settings.Service,
+	contentFilter *contentfilter.Manager,
 ) Service {
 	return &service{
-		artRepo:      artRepo,
-		postRepo:     postRepo,
-		userRepo:     userRepo,
-		authz:        authzService,
-		blockSvc:     blockSvc,
-		notifService: notifService,
-		uploadSvc:    uploadSvc,
-		mediaProc:    mediaProc,
-		uploader:     media.NewUploader(uploadSvc, settingsSvc, mediaProc),
-		settingsSvc:  settingsSvc,
+		artRepo:       artRepo,
+		postRepo:      postRepo,
+		userRepo:      userRepo,
+		authz:         authzService,
+		blockSvc:      blockSvc,
+		notifService:  notifService,
+		uploadSvc:     uploadSvc,
+		mediaProc:     mediaProc,
+		uploader:      media.NewUploader(uploadSvc, settingsSvc, mediaProc),
+		settingsSvc:   settingsSvc,
+		contentFilter: contentFilter,
 	}
+}
+
+func (s *service) filterTexts(ctx context.Context, texts ...string) error {
+	if s.contentFilter == nil {
+		return nil
+	}
+	return s.contentFilter.Check(ctx, texts...)
 }
 
 func (s *service) CreateArt(ctx context.Context, userID uuid.UUID, req dto.CreateArtRequest, contentType string, fileSize int64, reader io.Reader) (uuid.UUID, error) {
 	if strings.TrimSpace(req.Title) == "" {
 		return uuid.Nil, ErrEmptyTitle
+	}
+	if err := s.filterTexts(ctx, req.Title, req.Description); err != nil {
+		return uuid.Nil, err
 	}
 
 	limit := s.settingsSvc.GetInt(ctx, config.SettingMaxArtPerDay)
@@ -238,6 +252,9 @@ func (s *service) UpdateArt(ctx context.Context, id uuid.UUID, userID uuid.UUID,
 	title := strings.TrimSpace(req.Title)
 	if title == "" {
 		return ErrEmptyTitle
+	}
+	if err := s.filterTexts(ctx, title, req.Description); err != nil {
+		return err
 	}
 	description := strings.TrimSpace(req.Description)
 	tags := req.Tags
@@ -382,6 +399,9 @@ func (s *service) CreateComment(ctx context.Context, artID uuid.UUID, userID uui
 	if strings.TrimSpace(req.Body) == "" {
 		return uuid.Nil, fmt.Errorf("comment body cannot be empty")
 	}
+	if err := s.filterTexts(ctx, req.Body); err != nil {
+		return uuid.Nil, err
+	}
 
 	authorID, err := s.artRepo.GetArtAuthorID(ctx, artID)
 	if err != nil {
@@ -461,6 +481,9 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 	body := strings.TrimSpace(req.Body)
 	if body == "" {
 		return fmt.Errorf("comment body cannot be empty")
+	}
+	if err := s.filterTexts(ctx, body); err != nil {
+		return err
 	}
 	if s.authz.Can(ctx, userID, authz.PermEditAnyComment) {
 		if err := s.artRepo.UpdateCommentAsAdmin(ctx, id, body); err != nil {
@@ -554,6 +577,9 @@ func (s *service) CreateGallery(ctx context.Context, userID uuid.UUID, req dto.C
 	if name == "" {
 		return uuid.Nil, ErrEmptyTitle
 	}
+	if err := s.filterTexts(ctx, name, req.Description); err != nil {
+		return uuid.Nil, err
+	}
 	id := uuid.New()
 	if err := s.artRepo.CreateGallery(ctx, id, userID, name, strings.TrimSpace(req.Description)); err != nil {
 		return uuid.Nil, err
@@ -565,6 +591,9 @@ func (s *service) UpdateGallery(ctx context.Context, id uuid.UUID, userID uuid.U
 	name := strings.TrimSpace(req.Name)
 	if name == "" {
 		return ErrEmptyTitle
+	}
+	if err := s.filterTexts(ctx, name, req.Description); err != nil {
+		return err
 	}
 	return s.artRepo.UpdateGallery(ctx, id, userID, name, strings.TrimSpace(req.Description))
 }

@@ -634,6 +634,7 @@ export interface ChatRoomMember {
     timeout_until?: string;
     timeout_set_by_staff?: boolean;
     presence?: "active" | "idle" | "";
+    ghost?: boolean;
 }
 
 export interface ChatMessageReplyPreview {

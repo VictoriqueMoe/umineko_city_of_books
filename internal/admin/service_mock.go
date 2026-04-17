@@ -40,6 +40,80 @@ func (_m *MockService) EXPECT() *MockService_Expecter {
 	return &MockService_Expecter{mock: &_m.Mock}
 }
 
+// AddBannedGif provides a mock function for the type MockService
+func (_mock *MockService) AddBannedGif(ctx context.Context, actorID uuid.UUID, req dto.AddBannedGiphyRequest) (*dto.AddBannedGiphyResponse, error) {
+	ret := _mock.Called(ctx, actorID, req)
+
+	if len(ret) == 0 {
+		panic("no return value specified for AddBannedGif")
+	}
+
+	var r0 *dto.AddBannedGiphyResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, dto.AddBannedGiphyRequest) (*dto.AddBannedGiphyResponse, error)); ok {
+		return returnFunc(ctx, actorID, req)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, dto.AddBannedGiphyRequest) *dto.AddBannedGiphyResponse); ok {
+		r0 = returnFunc(ctx, actorID, req)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dto.AddBannedGiphyResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, dto.AddBannedGiphyRequest) error); ok {
+		r1 = returnFunc(ctx, actorID, req)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_AddBannedGif_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AddBannedGif'
+type MockService_AddBannedGif_Call struct {
+	*mock.Call
+}
+
+// AddBannedGif is a helper method to define mock.On call
+//   - ctx context.Context
+//   - actorID uuid.UUID
+//   - req dto.AddBannedGiphyRequest
+func (_e *MockService_Expecter) AddBannedGif(ctx interface{}, actorID interface{}, req interface{}) *MockService_AddBannedGif_Call {
+	return &MockService_AddBannedGif_Call{Call: _e.mock.On("AddBannedGif", ctx, actorID, req)}
+}
+
+func (_c *MockService_AddBannedGif_Call) Run(run func(ctx context.Context, actorID uuid.UUID, req dto.AddBannedGiphyRequest)) *MockService_AddBannedGif_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 dto.AddBannedGiphyRequest
+		if args[2] != nil {
+			arg2 = args[2].(dto.AddBannedGiphyRequest)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_AddBannedGif_Call) Return(addBannedGiphyResponse *dto.AddBannedGiphyResponse, err error) *MockService_AddBannedGif_Call {
+	_c.Call.Return(addBannedGiphyResponse, err)
+	return _c
+}
+
+func (_c *MockService_AddBannedGif_Call) RunAndReturn(run func(ctx context.Context, actorID uuid.UUID, req dto.AddBannedGiphyRequest) (*dto.AddBannedGiphyResponse, error)) *MockService_AddBannedGif_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // AssignVanityRole provides a mock function for the type MockService
 func (_mock *MockService) AssignVanityRole(ctx context.Context, actorID uuid.UUID, roleID string, userID uuid.UUID) error {
 	ret := _mock.Called(ctx, actorID, roleID, userID)
@@ -867,6 +941,68 @@ func (_c *MockService_GetVanityRoleUsers_Call) RunAndReturn(run func(ctx context
 	return _c
 }
 
+// ListBannedGifs provides a mock function for the type MockService
+func (_mock *MockService) ListBannedGifs(ctx context.Context) (*dto.BannedGiphyListResponse, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListBannedGifs")
+	}
+
+	var r0 *dto.BannedGiphyListResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (*dto.BannedGiphyListResponse, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) *dto.BannedGiphyListResponse); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dto.BannedGiphyListResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_ListBannedGifs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListBannedGifs'
+type MockService_ListBannedGifs_Call struct {
+	*mock.Call
+}
+
+// ListBannedGifs is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockService_Expecter) ListBannedGifs(ctx interface{}) *MockService_ListBannedGifs_Call {
+	return &MockService_ListBannedGifs_Call{Call: _e.mock.On("ListBannedGifs", ctx)}
+}
+
+func (_c *MockService_ListBannedGifs_Call) Run(run func(ctx context.Context)) *MockService_ListBannedGifs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_ListBannedGifs_Call) Return(bannedGiphyListResponse *dto.BannedGiphyListResponse, err error) *MockService_ListBannedGifs_Call {
+	_c.Call.Return(bannedGiphyListResponse, err)
+	return _c
+}
+
+func (_c *MockService_ListBannedGifs_Call) RunAndReturn(run func(ctx context.Context) (*dto.BannedGiphyListResponse, error)) *MockService_ListBannedGifs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListInvites provides a mock function for the type MockService
 func (_mock *MockService) ListInvites(ctx context.Context, limit int, offset int) (*dto.InviteListResponse, error) {
 	ret := _mock.Called(ctx, limit, offset)
@@ -1079,6 +1215,75 @@ func (_c *MockService_ListVanityRoles_Call) Return(vanityRoleResponses []dto.Van
 }
 
 func (_c *MockService_ListVanityRoles_Call) RunAndReturn(run func(ctx context.Context) ([]dto.VanityRoleResponse, error)) *MockService_ListVanityRoles_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// RemoveBannedGif provides a mock function for the type MockService
+func (_mock *MockService) RemoveBannedGif(ctx context.Context, actorID uuid.UUID, kind string, value string) error {
+	ret := _mock.Called(ctx, actorID, kind, value)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RemoveBannedGif")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string) error); ok {
+		r0 = returnFunc(ctx, actorID, kind, value)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_RemoveBannedGif_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RemoveBannedGif'
+type MockService_RemoveBannedGif_Call struct {
+	*mock.Call
+}
+
+// RemoveBannedGif is a helper method to define mock.On call
+//   - ctx context.Context
+//   - actorID uuid.UUID
+//   - kind string
+//   - value string
+func (_e *MockService_Expecter) RemoveBannedGif(ctx interface{}, actorID interface{}, kind interface{}, value interface{}) *MockService_RemoveBannedGif_Call {
+	return &MockService_RemoveBannedGif_Call{Call: _e.mock.On("RemoveBannedGif", ctx, actorID, kind, value)}
+}
+
+func (_c *MockService_RemoveBannedGif_Call) Run(run func(ctx context.Context, actorID uuid.UUID, kind string, value string)) *MockService_RemoveBannedGif_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_RemoveBannedGif_Call) Return(err error) *MockService_RemoveBannedGif_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_RemoveBannedGif_Call) RunAndReturn(run func(ctx context.Context, actorID uuid.UUID, kind string, value string) error) *MockService_RemoveBannedGif_Call {
 	_c.Call.Return(run)
 	return _c
 }

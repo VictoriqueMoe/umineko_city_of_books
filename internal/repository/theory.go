@@ -554,7 +554,7 @@ func (r *theoryRepository) getResponseSideCounts(ctx context.Context, theoryID u
 	err := r.db.QueryRowContext(ctx,
 		`SELECT COALESCE(SUM(CASE WHEN side = 'with_love' THEN 1 ELSE 0 END), 0),
 		        COALESCE(SUM(CASE WHEN side = 'without_love' THEN 1 ELSE 0 END), 0)
-		 FROM responses WHERE theory_id = ?`, theoryID,
+		 FROM responses WHERE theory_id = ? AND parent_id IS NULL`, theoryID,
 	).Scan(&withLove, &withoutLove)
 	return withLove, withoutLove, err
 }

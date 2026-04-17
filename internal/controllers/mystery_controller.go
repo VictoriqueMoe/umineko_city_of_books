@@ -148,6 +148,9 @@ func (s *Service) createMystery(ctx fiber.Ctx) error {
 
 	id, err := s.MysteryService.CreateMystery(ctx.Context(), userID, req)
 	if err != nil {
+		if utils.MapFilterError(ctx, err) {
+			return nil
+		}
 		if errors.Is(err, mysterysvc.ErrEmptyTitle) {
 			return utils.BadRequest(ctx, err.Error())
 		}
@@ -170,6 +173,9 @@ func (s *Service) updateMystery(ctx fiber.Ctx) error {
 	}
 
 	if err := s.MysteryService.UpdateMystery(ctx.Context(), id, userID, req); err != nil {
+		if utils.MapFilterError(ctx, err) {
+			return nil
+		}
 		return utils.InternalError(ctx, "failed to update mystery")
 	}
 	return utils.OK(ctx)
@@ -202,6 +208,9 @@ func (s *Service) createAttempt(ctx fiber.Ctx) error {
 
 	id, err := s.MysteryService.CreateAttempt(ctx.Context(), mysteryID, userID, req)
 	if err != nil {
+		if utils.MapFilterError(ctx, err) {
+			return nil
+		}
 		if errors.Is(err, mysterysvc.ErrEmptyBody) {
 			return utils.BadRequest(ctx, err.Error())
 		}
@@ -299,6 +308,9 @@ func (s *Service) addClue(ctx fiber.Ctx) error {
 	}
 
 	if err := s.MysteryService.AddClue(ctx.Context(), mysteryID, userID, req); err != nil {
+		if utils.MapFilterError(ctx, err) {
+			return nil
+		}
 		if errors.Is(err, mysterysvc.ErrEmptyBody) {
 			return utils.BadRequest(ctx, err.Error())
 		}
@@ -385,6 +397,9 @@ func (s *Service) createMysteryComment(ctx fiber.Ctx) error {
 
 	id, err := s.MysteryService.CreateComment(ctx.Context(), mysteryID, userID, req)
 	if err != nil {
+		if utils.MapFilterError(ctx, err) {
+			return nil
+		}
 		if errors.Is(err, mysterysvc.ErrEmptyBody) {
 			return utils.BadRequest(ctx, err.Error())
 		}
@@ -412,6 +427,9 @@ func (s *Service) updateMysteryComment(ctx fiber.Ctx) error {
 	}
 
 	if err := s.MysteryService.UpdateComment(ctx.Context(), id, userID, req); err != nil {
+		if utils.MapFilterError(ctx, err) {
+			return nil
+		}
 		if errors.Is(err, mysterysvc.ErrEmptyBody) {
 			return utils.BadRequest(ctx, err.Error())
 		}
@@ -663,6 +681,9 @@ func (s *Service) updateMysteryClue(ctx fiber.Ctx) error {
 	}
 
 	if err := s.MysteryService.UpdateClue(ctx.Context(), mysteryID, clueID, userID, req.Body); err != nil {
+		if utils.MapFilterError(ctx, err) {
+			return nil
+		}
 		if errors.Is(err, mysterysvc.ErrNotFound) || errors.Is(err, mysterysvc.ErrNotAuthor) || errors.Is(err, mysterysvc.ErrEmptyBody) {
 			return utils.BadRequest(ctx, err.Error())
 		}

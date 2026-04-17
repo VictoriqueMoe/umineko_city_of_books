@@ -7,6 +7,7 @@ import type { SiteSettings } from "../../types/api";
 import styles from "./AdminSettings.module.css";
 
 const pages = [
+    { key: "rules_landing", label: "Welcome (Landing)" },
     { key: "rules_theories", label: "Theories (Umineko)" },
     { key: "rules_theories_higurashi", label: "Theories (Higurashi)" },
     { key: "rules_mysteries", label: "Mysteries" },
