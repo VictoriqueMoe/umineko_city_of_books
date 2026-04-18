@@ -14,6 +14,7 @@ import { Lightbox } from "../../components/Lightbox/Lightbox";
 import { isSiteStaff } from "../../utils/permissions";
 import {
     deleteChatMessage,
+    editChatMessage,
     deleteChatRoom,
     getMutualFollowers,
     getUserRooms,
@@ -22,7 +23,12 @@ import {
     searchUsers,
 } from "../../api/endpoints";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
-import { applyChatMessageDeleted, ChatMessageDeletedPayload, handleIncomingChatMessage } from "../../utils/chatStream";
+import {
+    applyChatMessageDeleted,
+    applyChatMessageEdited,
+    ChatMessageDeletedPayload,
+    handleIncomingChatMessage,
+} from "../../utils/chatStream";
 import { useMessageHistory } from "../../hooks/useMessageHistory";
 import type { ChatMessage, ChatRoom, User, WSMessage } from "../../types/api";
 import styles from "./ChatPage.module.css";
@@ -123,6 +129,7 @@ export function ChatPage() {
     const { typingUserIds, noteTyping, clearUser: clearTypingUser, reset: resetTyping } = useTypingIndicator();
     const [mobileView, setMobileView] = useState<"list" | "room">(urlRoomId ? "room" : "list");
     const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+    const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
     const {
         messages,
         setMessages,
@@ -218,6 +225,13 @@ export function ChatPage() {
                 const payload = msg.data as ChatMessageDeletedPayload;
                 if (payload.room_id === activeRoomIdRef.current) {
                     applyChatMessageDeleted(payload, setMessages);
+                }
+                return;
+            }
+            if (msg.type === "chat_message_edited") {
+                const updated = msg.data as ChatMessage;
+                if (updated.room_id === activeRoomIdRef.current) {
+                    applyChatMessageEdited(updated, setMessages);
                 }
                 return;
             }
@@ -427,6 +441,30 @@ export function ChatPage() {
         } catch {}
     }
 
+    async function handleEditMessage(message: ChatMessage, newBody: string) {
+        const updated = await editChatMessage(message.id, newBody);
+        applyChatMessageEdited(updated, setMessages);
+    }
+
+    function handleEditLast() {
+        if (!user) {
+            return;
+        }
+        for (let i = messages.length - 1; i >= 0; i--) {
+            const candidate = messages[i];
+            if (candidate.sender.id === user.id && !candidate.is_system) {
+                setEditingMessageId(candidate.id);
+                requestAnimationFrame(() => {
+                    const el = document.getElementById(`chat-msg-${candidate.id}`);
+                    if (el) {
+                        el.scrollIntoView({ behavior: "smooth", block: "center" });
+                    }
+                });
+                return;
+            }
+        }
+    }
+
     async function handleDeleteChat() {
         if (!activeRoomId) {
             return;
@@ -563,6 +601,10 @@ export function ChatPage() {
                                             seenLabel={seenLabel}
                                             onLightbox={setLightboxSrc}
                                             onDelete={handleDeleteMessage}
+                                            onEdit={handleEditMessage}
+                                            onEditStart={m => setEditingMessageId(m.id)}
+                                            onEditCancel={() => setEditingMessageId(null)}
+                                            editing={editingMessageId === msg.id}
                                             canModerate={isSiteMod}
                                             senderIsStaff={isSiteStaff(msg.sender.role)}
                                         />
@@ -589,6 +631,7 @@ export function ChatPage() {
                                 draftRecipientId={null}
                                 onSent={handleSentMessage}
                                 onTyping={() => sendWSMessage({ type: "typing", data: { room_id: activeRoomId } })}
+                                onEditLast={handleEditLast}
                             />
                         </>
                     )}

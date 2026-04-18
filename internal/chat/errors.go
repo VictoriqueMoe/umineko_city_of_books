@@ -30,4 +30,6 @@ var (
 	ErrMessageDeletePermission  = errors.New("you do not have permission to delete this message")
 	ErrCannotDeleteStaffMessage = errors.New("messages from moderators and admins cannot be deleted")
 	ErrGhostRequiresStaff       = errors.New("only site moderators or admins can join as a ghost")
+	ErrMessageEditPermission    = errors.New("you can only edit your own messages")
+	ErrCannotEditSystemMessage  = errors.New("system messages cannot be edited")
 )

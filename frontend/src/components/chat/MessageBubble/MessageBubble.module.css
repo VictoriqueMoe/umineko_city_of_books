@@ -47,7 +47,7 @@
 .actions {
     position: absolute;
     top: -14px;
-    right: 8px;
+    left: 8px;
     display: flex;
     gap: 0.25rem;
     background: var(--bg-card);
@@ -61,8 +61,8 @@
 }
 
 .ownMessage .actions {
-    right: auto;
-    left: 8px;
+    left: auto;
+    right: 8px;
 }
 
 .messageBubble:hover .actions,
@@ -106,6 +106,11 @@
     margin-top: 0.4rem;
 }
 
+.reactionAnchor {
+    position: relative;
+    display: inline-flex;
+}
+
 .reactionChip {
     background: rgba(var(--purple-rgb), 0.2);
     border: 1px solid rgba(var(--purple-rgb), 0.4);
@@ -117,6 +122,10 @@
     display: inline-flex;
     align-items: center;
     gap: 0.3rem;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    touch-action: manipulation;
     transition:
         background 0.15s,
         border-color 0.15s;
@@ -141,6 +150,83 @@
     font-size: 0.75rem;
     color: var(--text-muted);
     font-variant-numeric: tabular-nums;
+}
+
+.reactorPopover {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    min-width: 160px;
+    max-width: 240px;
+    background: var(--bg-void);
+    border: 1px solid rgba(var(--gold-rgb), 0.45);
+    border-radius: 8px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
+    padding: 0.45rem 0.6rem;
+    z-index: 20;
+    animation: reactorPopIn 0.12s ease-out;
+}
+
+.reactorPopover::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: rgba(var(--gold-rgb), 0.45);
+}
+
+@keyframes reactorPopIn {
+    from {
+        opacity: 0;
+        transform: translate(-50%, 4px);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
+}
+
+.reactorHeader {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.75rem;
+    color: var(--gold);
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    padding-bottom: 0.35rem;
+    margin-bottom: 0.35rem;
+    border-bottom: 1px solid rgba(var(--purple-rgb), 0.3);
+}
+
+.reactorHeaderEmoji {
+    font-size: 1rem;
+}
+
+.reactorList {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: 180px;
+    overflow-y: auto;
+    font-size: 0.8rem;
+    color: var(--text);
+}
+
+.reactorList li {
+    padding: 0.15rem 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.reactorEmpty {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-style: italic;
 }
 
 .pinnedIndicator {
@@ -205,6 +291,85 @@
 
 .seenLabel {
     color: var(--text-muted);
+    font-style: italic;
+}
+
+.editedLabel {
+    color: var(--text-muted);
+    font-style: italic;
+    font-size: 0.65rem;
+    cursor: help;
+}
+
+.editRow {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin-top: 0.2rem;
+}
+
+.editTextarea {
+    width: 100%;
+    min-width: 240px;
+    max-width: 100%;
+    background: var(--bg-card);
+    color: var(--text);
+    border: 1px solid rgba(var(--gold-rgb), 0.5);
+    border-radius: 6px;
+    padding: 0.45rem 0.6rem;
+    font: inherit;
+    resize: vertical;
+    box-sizing: border-box;
+}
+
+.editTextarea:focus {
+    outline: none;
+    border-color: var(--gold);
+    box-shadow: 0 0 0 2px rgba(var(--gold-rgb), 0.25);
+}
+
+.editActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.35rem;
+}
+
+.editBtn {
+    background: var(--bg-card);
+    color: var(--text-muted);
+    border: 1px solid rgba(var(--purple-rgb), 0.4);
+    border-radius: 999px;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.editBtn:hover:not(:disabled) {
+    background: rgba(var(--purple-rgb), 0.2);
+    color: var(--text);
+}
+
+.editBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.editBtnPrimary {
+    background: rgba(var(--gold-rgb), 0.18);
+    border-color: rgba(var(--gold-rgb), 0.5);
+    color: var(--gold);
+}
+
+.editBtnPrimary:hover:not(:disabled) {
+    background: rgba(var(--gold-rgb), 0.3);
+    color: var(--gold);
+}
+
+.editHint {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    text-align: right;
     font-style: italic;
 }
 

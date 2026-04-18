@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ChatMessage, ReactionGroup, User } from "../../../types/api";
 import { ProfileLink } from "../../ProfileLink/ProfileLink";
 import { RolePill } from "../../RolePill/RolePill";
@@ -15,9 +15,14 @@ interface MessageBubbleProps {
     onReactionToggle?: (msg: ChatMessage, emoji: string) => void;
     onPinToggle?: (msg: ChatMessage) => void;
     onDelete?: (msg: ChatMessage) => void;
+    onEdit?: (msg: ChatMessage, newBody: string) => Promise<void>;
+    onEditStart?: (msg: ChatMessage) => void;
+    onEditCancel?: () => void;
+    editing?: boolean;
     canPin?: boolean;
     canModerate?: boolean;
     canReact?: boolean;
+    canEdit?: boolean;
     highlighted?: boolean;
     seenLabel?: string | null;
     senderIsStaff?: boolean;
@@ -77,14 +82,110 @@ export function MessageBubble({
     onReactionToggle,
     onPinToggle,
     onDelete,
+    onEdit,
+    onEditStart,
+    onEditCancel,
+    editing = false,
     canPin,
     canModerate,
     canReact = true,
+    canEdit = true,
     highlighted,
     seenLabel,
     senderIsStaff,
 }: MessageBubbleProps) {
     const [pickerOpen, setPickerOpen] = useState(false);
+    const [editDraft, setEditDraft] = useState(message.body);
+    const [saving, setSaving] = useState(false);
+
+    const [reactorsPopover, setReactorsPopover] = useState<string | null>(null);
+    const longPressTimerRef = useRef<number | null>(null);
+    const longPressedRef = useRef(false);
+
+    useEffect(() => {
+        if (editing) {
+            setEditDraft(message.body);
+            setSaving(false);
+        }
+    }, [editing, message.body]);
+
+    useEffect(() => {
+        if (!reactorsPopover) {
+            return;
+        }
+        function handleClickOutside(e: Event) {
+            const target = e.target as HTMLElement | null;
+            if (!target) {
+                return;
+            }
+            if (!target.closest(`[data-reactor-popover="${message.id}"]`)) {
+                setReactorsPopover(null);
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        document.addEventListener("touchstart", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+            document.removeEventListener("touchstart", handleClickOutside);
+        };
+    }, [reactorsPopover, message.id]);
+
+    function clearLongPressTimer() {
+        if (longPressTimerRef.current !== null) {
+            window.clearTimeout(longPressTimerRef.current);
+            longPressTimerRef.current = null;
+        }
+    }
+
+    function handleReactionPointerDown(emoji: string) {
+        longPressedRef.current = false;
+        clearLongPressTimer();
+        longPressTimerRef.current = window.setTimeout(() => {
+            longPressedRef.current = true;
+            setReactorsPopover(emoji);
+        }, 450);
+    }
+
+    function handleReactionPointerEnd() {
+        clearLongPressTimer();
+    }
+
+    function handleReactionClick(r: ReactionGroup) {
+        if (longPressedRef.current) {
+            longPressedRef.current = false;
+            return;
+        }
+        if (canReact) {
+            onReactionToggle?.(message, r.emoji);
+        }
+    }
+
+    function startEdit() {
+        onEditStart?.(message);
+    }
+
+    function cancelEdit() {
+        setSaving(false);
+        onEditCancel?.();
+    }
+
+    async function commitEdit() {
+        if (!onEdit) {
+            return;
+        }
+        const next = editDraft.trim();
+        if (next === "" || next === message.body.trim()) {
+            cancelEdit();
+            return;
+        }
+        setSaving(true);
+        try {
+            await onEdit(message, next);
+            onEditCancel?.();
+        } finally {
+            setSaving(false);
+        }
+    }
     const isSystemMessage = message.is_system;
     const classes = [styles.messageBubble];
     if (isOwn && !isSystemMessage) {
@@ -136,22 +237,60 @@ export function MessageBubble({
                     {effectiveSender.display_name}
                     <RolePill role={effectiveSender.role ?? ""} userId={effectiveSender.id} />
                 </div>
-                {(() => {
-                    const gifURL = extractGif(message.body);
-                    if (gifURL) {
-                        return (
-                            <GifEmbed
-                                src={gifURL}
-                                imgClassName={styles.gifEmbed}
-                                onClick={() => onLightbox?.(gifURL)}
-                            />
-                        );
-                    }
-                    if (message.body.trim()) {
-                        return <div className={styles.messageText}>{renderRich(message.body)}</div>;
-                    }
-                    return null;
-                })()}
+                {editing ? (
+                    <div className={styles.editRow}>
+                        <textarea
+                            className={styles.editTextarea}
+                            value={editDraft}
+                            onChange={e => setEditDraft(e.target.value)}
+                            onKeyDown={e => {
+                                if (e.key === "Enter" && !e.shiftKey) {
+                                    e.preventDefault();
+                                    commitEdit();
+                                    return;
+                                }
+                                if (e.key === "Escape") {
+                                    e.preventDefault();
+                                    cancelEdit();
+                                }
+                            }}
+                            disabled={saving}
+                            autoFocus
+                            rows={Math.min(8, Math.max(2, editDraft.split("\n").length))}
+                        />
+                        <div className={styles.editActions}>
+                            <button type="button" className={styles.editBtn} onClick={cancelEdit} disabled={saving}>
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                className={`${styles.editBtn} ${styles.editBtnPrimary}`}
+                                onClick={commitEdit}
+                                disabled={saving || editDraft.trim() === ""}
+                            >
+                                {saving ? "Saving..." : "Save"}
+                            </button>
+                        </div>
+                        <div className={styles.editHint}>Enter to save · Esc to cancel</div>
+                    </div>
+                ) : (
+                    (() => {
+                        const gifURL = extractGif(message.body);
+                        if (gifURL) {
+                            return (
+                                <GifEmbed
+                                    src={gifURL}
+                                    imgClassName={styles.gifEmbed}
+                                    onClick={() => onLightbox?.(gifURL)}
+                                />
+                            );
+                        }
+                        if (message.body.trim()) {
+                            return <div className={styles.messageText}>{renderRich(message.body)}</div>;
+                        }
+                        return null;
+                    })()
+                )}
                 {message.media && message.media.length > 0 && (
                     <div className={styles.messageMedia}>
                         {message.media.map(m =>
@@ -177,27 +316,62 @@ export function MessageBubble({
                 )}
                 {message.reactions && message.reactions.length > 0 && (
                     <div className={styles.reactionRow}>
-                        {message.reactions.map(r => (
-                            <button
-                                key={r.emoji}
-                                type="button"
-                                className={`${styles.reactionChip} ${r.viewer_reacted ? styles.reactionChipMine : ""}`}
-                                onClick={() => {
-                                    if (canReact) {
-                                        onReactionToggle?.(message, r.emoji);
-                                    }
-                                }}
-                                disabled={!canReact}
-                                title={canReact ? reactionTooltip(r) : "You are timed out"}
-                            >
-                                <span className={styles.reactionEmoji}>{r.emoji}</span>
-                                <span className={styles.reactionCount}>{r.count}</span>
-                            </button>
-                        ))}
+                        {message.reactions.map(r => {
+                            const names = r.display_names ?? [];
+                            const isOpen = reactorsPopover === r.emoji;
+                            return (
+                                <span key={r.emoji} className={styles.reactionAnchor} data-reactor-popover={message.id}>
+                                    <button
+                                        type="button"
+                                        className={`${styles.reactionChip} ${r.viewer_reacted ? styles.reactionChipMine : ""}`}
+                                        onClick={() => handleReactionClick(r)}
+                                        onPointerDown={() => handleReactionPointerDown(r.emoji)}
+                                        onPointerUp={handleReactionPointerEnd}
+                                        onPointerLeave={handleReactionPointerEnd}
+                                        onPointerCancel={handleReactionPointerEnd}
+                                        onContextMenu={e => {
+                                            e.preventDefault();
+                                            setReactorsPopover(r.emoji);
+                                        }}
+                                        disabled={!canReact && !names.length}
+                                        title={canReact ? reactionTooltip(r) : "You are timed out"}
+                                    >
+                                        <span className={styles.reactionEmoji}>{r.emoji}</span>
+                                        <span className={styles.reactionCount}>{r.count}</span>
+                                    </button>
+                                    {isOpen && (
+                                        <div className={styles.reactorPopover} role="dialog" aria-label="Reactors">
+                                            <div className={styles.reactorHeader}>
+                                                <span className={styles.reactorHeaderEmoji}>{r.emoji}</span>
+                                                <span>{r.count} reacted</span>
+                                            </div>
+                                            {names.length > 0 ? (
+                                                <ul className={styles.reactorList}>
+                                                    {names.map(n => (
+                                                        <li key={n}>{n}</li>
+                                                    ))}
+                                                </ul>
+                                            ) : (
+                                                <div className={styles.reactorEmpty}>No reactor names available.</div>
+                                            )}
+                                        </div>
+                                    )}
+                                </span>
+                            );
+                        })}
                     </div>
                 )}
                 <div className={styles.messageTime}>
                     {formatTime(message.created_at)}
+                    {message.edited_at && (
+                        <span
+                            className={styles.editedLabel}
+                            title={`Edited ${new Date(message.edited_at).toLocaleString()}`}
+                        >
+                            {" "}
+                            (edited)
+                        </span>
+                    )}
                     {seenLabel && <span className={styles.seenLabel}> · {seenLabel}</span>}
                 </div>
             </div>
@@ -236,6 +410,17 @@ export function MessageBubble({
                         title={message.pinned ? "Unpin message" : "Pin message"}
                     >
                         {message.pinned ? "\u{1F4CC}\u2715" : "\u{1F4CC}"}
+                    </button>
+                )}
+                {isOwn && canEdit && onEdit && !editing && (
+                    <button
+                        type="button"
+                        className={styles.actionBtn}
+                        onClick={startEdit}
+                        aria-label="Edit message"
+                        title="Edit message"
+                    >
+                        {"\u270E"}
                     </button>
                 )}
                 {(isOwn || (canModerate && !senderIsStaff)) && onDelete && (

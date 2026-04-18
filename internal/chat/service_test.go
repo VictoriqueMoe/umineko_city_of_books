@@ -3647,6 +3647,112 @@ func TestDeleteMessage_NotFound(t *testing.T) {
 	require.ErrorIs(t, err, ErrRoomNotFound)
 }
 
+func editedAtPtr(s string) *string { return &s }
+
+func TestEditMessage_Author_OK(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	messageID := uuid.New()
+	roomID := uuid.New()
+	authorID := uuid.New()
+	original := &repository.ChatMessageRow{ID: messageID, RoomID: roomID, SenderID: authorID, Body: "old"}
+	updated := &repository.ChatMessageRow{ID: messageID, RoomID: roomID, SenderID: authorID, Body: "new", EditedAt: editedAtPtr("2026-04-18T20:00:00Z")}
+	m.chatRepo.EXPECT().GetMessageByID(mock.Anything, messageID).Return(original, nil).Once()
+	m.chatRepo.EXPECT().GetMemberTimeoutState(mock.Anything, roomID, authorID).Return(false, "", false, nil)
+	m.chatRepo.EXPECT().EditMessage(mock.Anything, messageID, "new").Return(nil)
+	m.chatRepo.EXPECT().GetMessageByID(mock.Anything, messageID).Return(updated, nil).Once()
+	m.chatRepo.EXPECT().GetMessageMediaBatch(mock.Anything, []uuid.UUID{messageID}).Return(nil, nil)
+	m.chatRepo.EXPECT().GetReactionsBatch(mock.Anything, []uuid.UUID{messageID}, authorID).Return(nil, nil)
+	m.vanityRoleRepo.EXPECT().GetRolesForUser(mock.Anything, authorID).Return(nil, nil)
+	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return(nil, nil).Maybe()
+
+	// when
+	resp, err := svc.EditMessage(context.Background(), messageID, authorID, "new")
+
+	// then
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "new", resp.Body)
+	require.NotNil(t, resp.EditedAt)
+}
+
+func TestEditMessage_NotAuthor_Refused(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	messageID := uuid.New()
+	roomID := uuid.New()
+	senderID := uuid.New()
+	otherID := uuid.New()
+	m.chatRepo.EXPECT().GetMessageByID(mock.Anything, messageID).Return(&repository.ChatMessageRow{ID: messageID, RoomID: roomID, SenderID: senderID, Body: "old"}, nil)
+
+	// when
+	resp, err := svc.EditMessage(context.Background(), messageID, otherID, "new")
+
+	// then
+	require.ErrorIs(t, err, ErrMessageEditPermission)
+	assert.Nil(t, resp)
+}
+
+func TestEditMessage_SystemMessage_Refused(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	messageID := uuid.New()
+	roomID := uuid.New()
+	authorID := uuid.New()
+	m.chatRepo.EXPECT().GetMessageByID(mock.Anything, messageID).Return(&repository.ChatMessageRow{ID: messageID, RoomID: roomID, SenderID: authorID, Body: "old", IsSystem: true}, nil)
+
+	// when
+	resp, err := svc.EditMessage(context.Background(), messageID, authorID, "new")
+
+	// then
+	require.ErrorIs(t, err, ErrCannotEditSystemMessage)
+	assert.Nil(t, resp)
+}
+
+func TestEditMessage_EmptyBody_Rejected(t *testing.T) {
+	// given
+	svc, _ := newTestService(t)
+
+	// when
+	resp, err := svc.EditMessage(context.Background(), uuid.New(), uuid.New(), "")
+
+	// then
+	require.ErrorIs(t, err, ErrMissingFields)
+	assert.Nil(t, resp)
+}
+
+func TestEditMessage_NotFound(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	messageID := uuid.New()
+	actorID := uuid.New()
+	m.chatRepo.EXPECT().GetMessageByID(mock.Anything, messageID).Return(nil, nil)
+
+	// when
+	resp, err := svc.EditMessage(context.Background(), messageID, actorID, "new")
+
+	// then
+	require.ErrorIs(t, err, ErrRoomNotFound)
+	assert.Nil(t, resp)
+}
+
+func TestEditMessage_TimedOut_Refused(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	messageID := uuid.New()
+	roomID := uuid.New()
+	authorID := uuid.New()
+	m.chatRepo.EXPECT().GetMessageByID(mock.Anything, messageID).Return(&repository.ChatMessageRow{ID: messageID, RoomID: roomID, SenderID: authorID, Body: "old"}, nil)
+	m.chatRepo.EXPECT().GetMemberTimeoutState(mock.Anything, roomID, authorID).Return(true, "", false, nil)
+
+	// when
+	resp, err := svc.EditMessage(context.Background(), messageID, authorID, "new")
+
+	// then
+	require.ErrorIs(t, err, ErrTimedOut)
+	assert.Nil(t, resp)
+}
+
 func TestJoinRoom_Ghost_RequiresStaff(t *testing.T) {
 	// given
 	svc, m := newTestService(t)

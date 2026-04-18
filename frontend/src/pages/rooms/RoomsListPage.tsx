@@ -219,14 +219,33 @@ export function RoomsListPage() {
     }
 
     function renderMemberCard(room: ChatRoom) {
-        const cardClass = room.is_system ? `${styles.card} ${styles.systemCard}` : styles.card;
+        const classes = [styles.card];
+        if (room.is_system) {
+            classes.push(styles.systemCard);
+        }
+        if (room.viewer_ghost) {
+            classes.push(styles.ghostCard);
+        }
+        if (room.viewer_muted) {
+            classes.push(styles.mutedCard);
+        }
         return (
-            <Link key={room.id} to={`/rooms/${room.id}`} className={cardClass}>
+            <Link key={room.id} to={`/rooms/${room.id}`} className={classes.join(" ")}>
                 <div className={styles.cardHeader}>
                     <h3 className={styles.cardTitle}>{room.name}</h3>
                     <div className={styles.cardBadges}>
                         {room.is_system && <span className={styles.systemBadge}>Pinned</span>}
                         {room.viewer_role === "host" && <span className={styles.hostBadge}>Host</span>}
+                        {room.viewer_ghost && (
+                            <span className={styles.ghostBadge} title="You joined silently as a ghost">
+                                👻 Ghost
+                            </span>
+                        )}
+                        {room.viewer_muted && (
+                            <span className={styles.mutedBadge} title="Notifications muted">
+                                🔕 Muted
+                            </span>
+                        )}
                         {room.is_rp && <span className={styles.rpBadge}>RP</span>}
                         {!room.is_system &&
                             (room.is_public ? (

@@ -213,6 +213,7 @@ type (
 		AddReaction(ctx context.Context, messageID, userID uuid.UUID, emoji string) error
 		RemoveReaction(ctx context.Context, messageID, userID uuid.UUID, emoji string) error
 		DeleteMessage(ctx context.Context, messageID, actorID uuid.UUID) error
+		EditMessage(ctx context.Context, messageID, actorID uuid.UUID, body string) (*dto.ChatMessageResponse, error)
 	}
 
 	service struct {
@@ -1174,6 +1175,7 @@ func (s *service) rowToResponse(row repository.ChatRoomRow) dto.ChatRoomResponse
 		Tags:          row.Tags,
 		ViewerRole:    row.ViewerRole,
 		ViewerMuted:   row.ViewerMuted,
+		ViewerGhost:   row.ViewerGhost,
 		IsMember:      row.IsMember,
 		MemberCount:   row.MemberCount,
 		CreatedAt:     row.CreatedAt,
@@ -1270,6 +1272,7 @@ func (s *service) messageRowToResponse(row repository.ChatMessageRow, media []dt
 		Pinned:                row.PinnedAt != nil,
 		PinnedAt:              row.PinnedAt,
 		PinnedBy:              row.PinnedBy,
+		EditedAt:              row.EditedAt,
 		Reactions:             toDTOReactions(reactions),
 	}
 	if row.ReplyToID != nil && row.ReplyToSenderID != nil && row.ReplyToSenderName != nil && row.ReplyToBody != nil {
@@ -2362,6 +2365,65 @@ func (s *service) RemoveReaction(ctx context.Context, messageID, userID uuid.UUI
 		s.hub.SendToUser(mid, event)
 	}
 	return nil
+}
+
+func (s *service) EditMessage(ctx context.Context, messageID, actorID uuid.UUID, body string) (*dto.ChatMessageResponse, error) {
+	if body == "" {
+		return nil, ErrMissingFields
+	}
+	if err := s.filterTexts(ctx, body); err != nil {
+		return nil, err
+	}
+
+	msg, err := s.chatRepo.GetMessageByID(ctx, messageID)
+	if err != nil {
+		return nil, fmt.Errorf("get message: %w", err)
+	}
+	if msg == nil {
+		return nil, ErrRoomNotFound
+	}
+	if msg.IsSystem {
+		return nil, ErrCannotEditSystemMessage
+	}
+	if msg.SenderID != actorID {
+		return nil, ErrMessageEditPermission
+	}
+
+	activeTimeout, timeoutUntil, _, err := s.chatRepo.GetMemberTimeoutState(ctx, msg.RoomID, actorID)
+	if err != nil {
+		return nil, fmt.Errorf("get timeout state: %w", err)
+	}
+	if activeTimeout {
+		if timeoutUntil != "" {
+			return nil, fmt.Errorf("%w until %s", ErrTimedOut, formatTimeoutUntilForUser(timeoutUntil))
+		}
+		return nil, ErrTimedOut
+	}
+
+	if err := s.chatRepo.EditMessage(ctx, messageID, body); err != nil {
+		return nil, fmt.Errorf("edit message: %w", err)
+	}
+
+	updated, err := s.chatRepo.GetMessageByID(ctx, messageID)
+	if err != nil || updated == nil {
+		return nil, fmt.Errorf("reload message: %w", err)
+	}
+
+	mediaBatch, _ := s.chatRepo.GetMessageMediaBatch(ctx, []uuid.UUID{messageID})
+	reactionBatch, _ := s.chatRepo.GetReactionsBatch(ctx, []uuid.UUID{messageID}, actorID)
+	vanityRows, _ := s.vanityRoleRepo.GetRolesForUser(ctx, updated.SenderID)
+	resp := s.messageRowToResponse(*updated, mediaBatch[messageID], reactionBatch[messageID], s.toVanityRoleResponses(vanityRows))
+
+	members, _ := s.chatRepo.GetRoomMembers(ctx, msg.RoomID)
+	event := ws.Message{
+		Type: "chat_message_edited",
+		Data: resp,
+	}
+	for _, mid := range members {
+		s.hub.SendToUser(mid, event)
+	}
+
+	return &resp, nil
 }
 
 func (s *service) DeleteMessage(ctx context.Context, messageID, actorID uuid.UUID) error {

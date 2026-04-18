@@ -616,6 +616,7 @@ export interface ChatRoom {
     tags: string[];
     viewer_role?: string;
     viewer_muted: boolean;
+    viewer_ghost: boolean;
     is_member: boolean;
     member_count: number;
     members: User[];
@@ -663,6 +664,7 @@ export interface ChatMessage {
     pinned: boolean;
     pinned_at?: string;
     pinned_by?: string;
+    edited_at?: string;
     reactions: ReactionGroup[];
     sender_nickname?: string;
     sender_member_avatar_url?: string;

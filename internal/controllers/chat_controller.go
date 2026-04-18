@@ -96,6 +96,7 @@ func (s *Service) getAllChatRoutes() []FSetupRoute {
 		s.setupAddReactionRoute,
 		s.setupRemoveReactionRoute,
 		s.setupDeleteMessageRoute,
+		s.setupEditMessageRoute,
 	}
 }
 
@@ -939,6 +940,47 @@ func (s *Service) deleteMessage(ctx fiber.Ctx) error {
 		return utils.InternalError(ctx, "failed to delete message")
 	}
 	return utils.OK(ctx)
+}
+
+func (s *Service) setupEditMessageRoute(r fiber.Router) {
+	r.Patch("/chat/messages/:messageID", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.editMessage)
+}
+
+func (s *Service) editMessage(ctx fiber.Ctx) error {
+	userID := utils.UserID(ctx)
+	messageID, ok := utils.ParseIDParam(ctx, "messageID")
+	if !ok {
+		return nil
+	}
+
+	req, ok := utils.BindJSON[dto.EditMessageRequest](ctx)
+	if !ok {
+		return nil
+	}
+
+	resp, err := s.ChatService.EditMessage(ctx.Context(), messageID, userID, req.Body)
+	if err != nil {
+		if utils.MapFilterError(ctx, err) {
+			return nil
+		}
+		if errors.Is(err, chat.ErrRoomNotFound) {
+			return utils.NotFound(ctx, "message not found")
+		}
+		if errors.Is(err, chat.ErrMessageEditPermission) {
+			return utils.Forbidden(ctx, "you can only edit your own messages")
+		}
+		if errors.Is(err, chat.ErrCannotEditSystemMessage) {
+			return utils.BadRequest(ctx, "system messages cannot be edited")
+		}
+		if errors.Is(err, chat.ErrMissingFields) {
+			return utils.BadRequest(ctx, "message body is required")
+		}
+		if errors.Is(err, chat.ErrTimedOut) {
+			return utils.Forbidden(ctx, err.Error())
+		}
+		return utils.InternalError(ctx, "failed to edit message")
+	}
+	return ctx.JSON(resp)
 }
 
 func (s *Service) setupRemoveReactionRoute(r fiber.Router) {

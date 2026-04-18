@@ -59,6 +59,7 @@ type (
 		Tags          []string       `json:"tags"`
 		ViewerRole    string         `json:"viewer_role,omitempty"`
 		ViewerMuted   bool           `json:"viewer_muted"`
+		ViewerGhost   bool           `json:"viewer_ghost"`
 		IsMember      bool           `json:"is_member"`
 		MemberCount   int            `json:"member_count"`
 		Members       []UserResponse `json:"members"`
@@ -94,7 +95,12 @@ type (
 		Pinned                bool                     `json:"pinned"`
 		PinnedAt              *string                  `json:"pinned_at,omitempty"`
 		PinnedBy              *uuid.UUID               `json:"pinned_by,omitempty"`
+		EditedAt              *string                  `json:"edited_at,omitempty"`
 		Reactions             []ReactionGroup          `json:"reactions"`
+	}
+
+	EditMessageRequest struct {
+		Body string `json:"body"`
 	}
 
 	ReactionGroup struct {

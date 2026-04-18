@@ -1,4 +1,13 @@
-import { apiDelete, apiDeleteWithBody, apiFetch, apiPost, apiPostFormData, apiPut, buildQueryString } from "./client";
+import {
+    apiDelete,
+    apiDeleteWithBody,
+    apiFetch,
+    apiPatch,
+    apiPost,
+    apiPostFormData,
+    apiPut,
+    buildQueryString,
+} from "./client";
 import type {
     ActivityListResponse,
     AdminStats,
@@ -614,6 +623,10 @@ export async function clearChatRoomAvatar(roomId: string): Promise<ChatRoomMembe
 
 export async function deleteChatMessage(messageId: string): Promise<void> {
     await apiDelete<unknown>(`/chat/messages/${messageId}`);
+}
+
+export async function editChatMessage(messageId: string, body: string): Promise<ChatMessage> {
+    return apiPatch<ChatMessage, { body: string }>(`/chat/messages/${messageId}`, { body });
 }
 
 export async function pinChatMessage(messageId: string): Promise<void> {

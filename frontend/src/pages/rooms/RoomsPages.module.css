@@ -164,10 +164,78 @@
     font-weight: 600;
 }
 
+.mutedBadge {
+    background: rgba(120, 120, 140, 0.2);
+    border: 1px solid rgba(120, 120, 140, 0.5);
+    color: var(--text-muted);
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.ghostBadge {
+    background: rgba(var(--purple-rgb), 0.28);
+    border: 1px dashed rgba(var(--purple-rgb), 0.65);
+    color: #c9b8ff;
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    animation: ghostFloat 3.4s ease-in-out infinite;
+}
+
+@keyframes ghostFloat {
+    0%,
+    100% {
+        opacity: 0.7;
+        transform: translateY(0);
+    }
+    50% {
+        opacity: 1;
+        transform: translateY(-1px);
+    }
+}
+
 .systemCard {
     border-left-width: 4px;
     box-shadow: 0 0 0 1px rgba(var(--gold-rgb), 0.35);
     background: linear-gradient(180deg, rgba(var(--gold-rgb), 0.06), var(--bg-card));
+}
+
+.mutedCard {
+    opacity: 0.72;
+    border-left-color: rgba(120, 120, 140, 0.55);
+}
+
+.mutedCard:hover {
+    opacity: 1;
+}
+
+.mutedCard .cardTitle {
+    color: var(--text-muted);
+}
+
+.ghostCard {
+    border-left-style: dashed;
+    border-left-color: rgba(var(--purple-rgb), 0.7);
+    background:
+        linear-gradient(180deg, rgba(var(--purple-rgb), 0.05), var(--bg-card)),
+        repeating-linear-gradient(
+            135deg,
+            transparent 0,
+            transparent 10px,
+            rgba(var(--purple-rgb), 0.04) 10px,
+            rgba(var(--purple-rgb), 0.04) 11px
+        );
 }
 
 .pinnedGroupLabel {

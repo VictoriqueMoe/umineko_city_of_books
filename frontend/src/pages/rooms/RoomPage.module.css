@@ -354,6 +354,102 @@
     border-color: var(--gold);
 }
 
+.sidebarCollapseBtn {
+    position: relative;
+    background: rgba(var(--gold-rgb), 0.1);
+    border: 1px solid rgba(var(--gold-rgb), 0.45);
+    color: var(--gold);
+    width: 30px;
+    height: 26px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition:
+        color 0.15s,
+        border-color 0.15s,
+        background 0.15s;
+}
+
+.sidebarCollapseBtn:hover {
+    color: var(--text);
+    border-color: var(--gold);
+    background: rgba(var(--gold-rgb), 0.25);
+}
+
+.sidebarCollapseBtn::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    white-space: nowrap;
+    background: var(--bg-void);
+    color: var(--text);
+    border: 1px solid rgba(var(--gold-rgb), 0.4);
+    padding: 0.25rem 0.55rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    letter-spacing: 0.02em;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-3px);
+    transition:
+        opacity 0.15s,
+        transform 0.15s;
+    z-index: 10;
+}
+
+.sidebarCollapseBtn:hover::after,
+.sidebarCollapseBtn:focus-visible::after {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.sidebarExpandRail {
+    flex-shrink: 0;
+    width: 28px;
+    background: rgba(var(--gold-rgb), 0.1);
+    border: none;
+    border-right: 1px solid rgba(var(--gold-rgb), 0.4);
+    color: var(--gold);
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    line-height: 1;
+    align-self: stretch;
+    transition:
+        color 0.15s,
+        background 0.15s,
+        border-color 0.15s;
+}
+
+.sidebarExpandRail:hover {
+    color: var(--text);
+    background: rgba(var(--gold-rgb), 0.25);
+    border-right-color: var(--gold);
+}
+
+@media (max-width: 768px) {
+    .sidebarExpandRail,
+    .sidebarCollapseBtn {
+        display: none;
+    }
+}
+
+@media (min-width: 769px) {
+    .roomLayout[data-sidebar-collapsed="true"] .sidebar {
+        display: none;
+    }
+}
+
 .sidebarFooter {
     padding: 0.75rem 1rem;
     border-top: 1px solid rgba(var(--purple-rgb), 0.2);
@@ -541,6 +637,10 @@
     .mobileMembersBtn {
         display: inline-flex;
         align-items: center;
+    }
+
+    .sidebarToggleBtn {
+        display: none;
     }
 
     .roomInfoToggle {

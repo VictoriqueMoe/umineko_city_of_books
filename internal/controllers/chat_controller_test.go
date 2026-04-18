@@ -2231,3 +2231,94 @@ func TestDeleteMessage_ServiceErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestEditMessage_AuthFailures(t *testing.T) {
+	testutil.RunAuthFailureSuite(t, chatFactory, "PATCH",
+		"/chat/messages/"+uuid.NewString(), dto.EditMessageRequest{Body: "hi"})
+}
+
+func TestEditMessage_OK(t *testing.T) {
+	// given
+	h, chatMock := newChatHarness(t)
+	userID := uuid.New()
+	messageID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	editedAt := "2026-04-18T20:00:00Z"
+	chatMock.EXPECT().EditMessage(mock.Anything, messageID, userID, "updated").
+		Return(&dto.ChatMessageResponse{ID: messageID, Body: "updated", EditedAt: &editedAt}, nil)
+
+	// when
+	status, body := h.NewRequest("PATCH", "/chat/messages/"+messageID.String()).
+		WithCookie("valid-cookie").
+		WithJSONBody(dto.EditMessageRequest{Body: "updated"}).Do()
+
+	// then
+	require.Equal(t, http.StatusOK, status)
+	assert.Contains(t, string(body), `"body":"updated"`)
+	assert.Contains(t, string(body), `"edited_at"`)
+}
+
+func TestEditMessage_InvalidID(t *testing.T) {
+	// given
+	h, _ := newChatHarness(t)
+	h.ExpectValidSession("valid-cookie", uuid.New())
+
+	// when
+	status, body := h.NewRequest("PATCH", "/chat/messages/not-a-uuid").
+		WithCookie("valid-cookie").
+		WithJSONBody(dto.EditMessageRequest{Body: "hi"}).Do()
+
+	// then
+	require.Equal(t, http.StatusBadRequest, status)
+	assert.Contains(t, string(body), "invalid messageID")
+}
+
+func TestEditMessage_BadJSON(t *testing.T) {
+	// given
+	h, _ := newChatHarness(t)
+	h.ExpectValidSession("valid-cookie", uuid.New())
+
+	// when
+	status, body := h.NewRequest("PATCH", "/chat/messages/"+uuid.NewString()).
+		WithCookie("valid-cookie").
+		WithRawBody("not json", "application/json").Do()
+
+	// then
+	require.Equal(t, http.StatusBadRequest, status)
+	assert.Contains(t, string(body), "invalid request body")
+}
+
+func TestEditMessage_ServiceErrors(t *testing.T) {
+	cases := []struct {
+		name     string
+		err      error
+		wantCode int
+		wantBody string
+	}{
+		{"not found", chatsvc.ErrRoomNotFound, http.StatusNotFound, "message not found"},
+		{"permission", chatsvc.ErrMessageEditPermission, http.StatusForbidden, "can only edit your own messages"},
+		{"system", chatsvc.ErrCannotEditSystemMessage, http.StatusBadRequest, "system messages"},
+		{"missing fields", chatsvc.ErrMissingFields, http.StatusBadRequest, "body is required"},
+		{"timed out", chatsvc.ErrTimedOut, http.StatusForbidden, "timed out"},
+		{"internal", errors.New("boom"), http.StatusInternalServerError, "failed to edit message"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h, chatMock := newChatHarness(t)
+			userID := uuid.New()
+			messageID := uuid.New()
+			h.ExpectValidSession("valid-cookie", userID)
+			chatMock.EXPECT().EditMessage(mock.Anything, messageID, userID, "new").Return(nil, tc.err)
+
+			// when
+			status, body := h.NewRequest("PATCH", "/chat/messages/"+messageID.String()).
+				WithCookie("valid-cookie").
+				WithJSONBody(dto.EditMessageRequest{Body: "new"}).Do()
+
+			// then
+			require.Equal(t, tc.wantCode, status)
+			assert.Contains(t, string(body), tc.wantBody)
+		})
+	}
+}

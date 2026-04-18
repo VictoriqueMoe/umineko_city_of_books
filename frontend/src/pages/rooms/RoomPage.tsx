@@ -10,6 +10,7 @@ import {
     clearChatRoomMemberTimeout,
     deleteChatMessage,
     deleteChatRoom,
+    editChatMessage,
     getChatRoomMembers,
     getUserRooms,
     joinChatRoom,
@@ -39,6 +40,7 @@ import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import {
     applyChatMemberUpdate,
     applyChatMessageDeleted,
+    applyChatMessageEdited,
     applyChatMessagePinned,
     applyChatMessageUnpinned,
     applyLocalMemberChange,
@@ -68,6 +70,36 @@ export function RoomPage() {
     const [busy, setBusy] = useState<string | null>(null);
     const [mobileView, setMobileView] = useState<"members" | "chat">("chat");
     const [replyingTo, setReplyingTo] = useState<ReplyTarget | null>(null);
+    const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+    useEffect(() => {
+        if (!roomId) {
+            setSidebarCollapsed(false);
+            return;
+        }
+        const stored = localStorage.getItem(`ut-room-sidebar-collapsed-${roomId}`);
+        setSidebarCollapsed(stored === "1");
+    }, [roomId]);
+
+    function toggleSidebar() {
+        if (!roomId) {
+            return;
+        }
+        setSidebarCollapsed(prev => {
+            const next = !prev;
+            try {
+                if (next) {
+                    localStorage.setItem(`ut-room-sidebar-collapsed-${roomId}`, "1");
+                } else {
+                    localStorage.removeItem(`ut-room-sidebar-collapsed-${roomId}`);
+                }
+            } catch {
+                // storage unavailable, in-memory state still works for the session
+            }
+            return next;
+        });
+    }
     const [highlightedMsgId, setHighlightedMsgId] = useState<string | null>(null);
     const [presenceMap, setPresenceMap] = useState<Record<string, "active" | "idle">>({});
     usePresenceReporter({ roomId, sendWSMessage, wsEpoch });
@@ -335,6 +367,14 @@ export function RoomPage() {
                 applyChatMessageDeleted(data, setMessages);
                 return;
             }
+            if (msg.type === "chat_message_edited") {
+                const updated = msg.data as ChatMessage;
+                if (updated.room_id !== roomIdRef.current) {
+                    return;
+                }
+                applyChatMessageEdited(updated, setMessages);
+                return;
+            }
             if (msg.type === "chat_presence_changed") {
                 const data = msg.data as { room_id: string; user_id: string; state: string };
                 if (data.room_id !== roomIdRef.current) {
@@ -582,6 +622,35 @@ export function RoomPage() {
         }
     }
 
+    async function handleEditMessage(message: ChatMessage, newBody: string) {
+        try {
+            const updated = await editChatMessage(message.id, newBody);
+            applyChatMessageEdited(updated, setMessages);
+        } catch (err) {
+            setToast(err instanceof Error ? err.message : "Failed to edit message");
+            throw err;
+        }
+    }
+
+    function handleEditLast() {
+        if (!user || viewerTimedOut) {
+            return;
+        }
+        for (let i = messages.length - 1; i >= 0; i--) {
+            const candidate = messages[i];
+            if (candidate.sender.id === user.id && !candidate.is_system) {
+                setEditingMessageId(candidate.id);
+                requestAnimationFrame(() => {
+                    const el = document.getElementById(`chat-msg-${candidate.id}`);
+                    if (el) {
+                        el.scrollIntoView({ behavior: "smooth", block: "center" });
+                    }
+                });
+                return;
+            }
+        }
+    }
+
     async function handlePinToggle(message: ChatMessage) {
         try {
             if (message.pinned) {
@@ -651,7 +720,11 @@ export function RoomPage() {
 
     return (
         <div className={styles.roomWrapper}>
-            <div className={styles.roomLayout} data-mobile-view={mobileView}>
+            <div
+                className={styles.roomLayout}
+                data-mobile-view={mobileView}
+                data-sidebar-collapsed={sidebarCollapsed ? "true" : "false"}
+            >
                 <aside className={styles.sidebar}>
                     <div className={styles.sidebarHeader}>
                         <button
@@ -679,6 +752,15 @@ export function RoomPage() {
                                 + Invite
                             </button>
                         )}
+                        <button
+                            type="button"
+                            className={styles.sidebarCollapseBtn}
+                            onClick={toggleSidebar}
+                            aria-label="Hide members"
+                            data-tooltip="Hide members"
+                        >
+                            {"\u25C0"}
+                        </button>
                     </div>
                     <div className={styles.memberList}>
                         {members.map(m => {
@@ -865,6 +947,17 @@ export function RoomPage() {
                     </div>
                 </aside>
 
+                {sidebarCollapsed && (
+                    <button
+                        type="button"
+                        className={styles.sidebarExpandRail}
+                        onClick={toggleSidebar}
+                        aria-label="Show members"
+                        title="Show members"
+                    >
+                        {"\u25B6"}
+                    </button>
+                )}
                 <div className={styles.messageArea}>
                     <div className={styles.roomHeader}>
                         <button
@@ -946,9 +1039,14 @@ export function RoomPage() {
                                 onReactionToggle={handleReactionToggle}
                                 onPinToggle={canModerateRoom ? handlePinToggle : undefined}
                                 onDelete={handleDeleteMessage}
+                                onEdit={handleEditMessage}
+                                onEditStart={m => setEditingMessageId(m.id)}
+                                onEditCancel={() => setEditingMessageId(null)}
+                                editing={editingMessageId === msg.id}
                                 canPin={canModerateRoom}
                                 canModerate={canModerateRoom}
                                 canReact={!viewerTimedOut}
+                                canEdit={!viewerTimedOut}
                                 senderIsStaff={isSiteStaff(msg.sender.role)}
                             />
                         ))}
@@ -979,6 +1077,7 @@ export function RoomPage() {
                         replyingTo={replyingTo}
                         onCancelReply={() => setReplyingTo(null)}
                         onTyping={() => sendWSMessage({ type: "typing", data: { room_id: room.id } })}
+                        onEditLast={handleEditLast}
                         timeoutUntil={viewerTimeoutUntil}
                     />
                 </div>

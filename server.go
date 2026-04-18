@@ -276,7 +276,9 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 	sitemapHandler := controllers.NewSitemapHandler(repos.DB(), baseURL)
 	sitemapHandler.Register(app)
 
-	app.Get("/api/v1/ws", ws.Handler(svc.hub, svc.session, svc.chat))
+	app.Get("/api/v1/ws", ws.Handler(svc.hub, svc.session, svc.chat, func() string {
+		return settingsSvc.Get(context.Background(), config.SettingBaseURL)
+	}))
 	app.Get("/uploads/*", func(ctx fiber.Ctx) error {
 		filePath := filepath.Join(svc.upload.GetUploadDir(), ctx.Params("*"))
 		fasthttp.ServeFile(ctx.RequestCtx(), filePath)

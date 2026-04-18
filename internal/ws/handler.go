@@ -3,6 +3,7 @@ package ws
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"time"
 
 	"umineko_city_of_books/internal/logger"
@@ -14,36 +15,43 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-var upgrader = websocket.FastHTTPUpgrader{
-	CheckOrigin: func(ctx *fasthttp.RequestCtx) bool {
-		return true
-	},
-}
+const (
+	maxInboundMessageSize = 8 * 1024
+)
 
-type RoomLister interface {
-	GetRoomsByUser(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error)
-}
+type (
+	RoomLister interface {
+		GetRoomsByUser(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error)
+	}
 
-type incomingMessage struct {
-	Type string          `json:"type"`
-	Data json.RawMessage `json:"data"`
-}
+	ChatMessageSender interface {
+		SendChatMessage(ctx context.Context, senderID uuid.UUID, roomID uuid.UUID, body string) error
+	}
 
-type roomActionData struct {
-	RoomID string `json:"room_id"`
-}
+	incomingMessage struct {
+		Type string          `json:"type"`
+		Data json.RawMessage `json:"data"`
+	}
 
-type viewerStateData struct {
-	RoomID string `json:"room_id"`
-	State  string `json:"state"`
-}
+	roomActionData struct {
+		RoomID string `json:"room_id"`
+	}
 
-type typingData struct {
-	RoomID string `json:"room_id"`
-}
+	viewerStateData struct {
+		RoomID string `json:"room_id"`
+		State  string `json:"state"`
+	}
 
-type ChatMessageSender interface {
-	SendChatMessage(ctx context.Context, senderID uuid.UUID, roomID uuid.UUID, body string) error
+	typingData struct {
+		RoomID string `json:"room_id"`
+	}
+)
+
+func originAllowed(origin, allowed string) bool {
+	if origin == "" || allowed == "" {
+		return false
+	}
+	return origin == strings.TrimSuffix(allowed, "/")
 }
 
 func broadcastPresence(hub *Hub, roomID, userID uuid.UUID, state string) {
@@ -57,7 +65,22 @@ func broadcastPresence(hub *Hub, roomID, userID uuid.UUID, state string) {
 	}, uuid.Nil)
 }
 
-func Handler(hub *Hub, sessionMgr *session.Manager, roomLister RoomLister) fiber.Handler {
+func Handler(hub *Hub, sessionMgr *session.Manager, roomLister RoomLister, allowedOrigin func() string) fiber.Handler {
+	upgrader := websocket.FastHTTPUpgrader{
+		CheckOrigin: func(ctx *fasthttp.RequestCtx) bool {
+			origin := string(ctx.Request.Header.Peek("Origin"))
+			allowed := ""
+			if allowedOrigin != nil {
+				allowed = allowedOrigin()
+			}
+			if originAllowed(origin, allowed) {
+				return true
+			}
+			logger.Log.Warn().Str("origin", origin).Msg("ws upgrade rejected: origin not allowed")
+			return false
+		},
+	}
+
 	return func(ctx fiber.Ctx) error {
 		cookie := ctx.Cookies(session.CookieName)
 		if cookie == "" {
@@ -75,6 +98,7 @@ func Handler(hub *Hub, sessionMgr *session.Manager, roomLister RoomLister) fiber
 
 		return upgrader.Upgrade(ctx.RequestCtx(), func(conn *websocket.Conn) {
 			logger.Log.Debug().Str("user_id", userID.String()).Msg("ws client connected")
+			conn.SetReadLimit(maxInboundMessageSize)
 			client := NewClient(userID, conn)
 
 			hub.Register(client)
@@ -86,7 +110,7 @@ func Handler(hub *Hub, sessionMgr *session.Manager, roomLister RoomLister) fiber
 			}()
 
 			if roomLister != nil {
-				roomIDs, err := roomLister.GetRoomsByUser(context.Background(), userID)
+				roomIDs, err := roomLister.GetRoomsByUser(ctx.Context(), userID)
 				if err == nil {
 					for _, roomID := range roomIDs {
 						hub.JoinRoom(roomID, userID)
@@ -131,6 +155,9 @@ func Handler(hub *Hub, sessionMgr *session.Manager, roomLister RoomLister) fiber
 					if err != nil {
 						continue
 					}
+					if !hub.IsUserInRoom(roomID, userID) {
+						continue
+					}
 					hub.BroadcastToRoom(roomID, Message{
 						Type: "typing",
 						Data: map[string]interface{}{
@@ -146,6 +173,9 @@ func Handler(hub *Hub, sessionMgr *session.Manager, roomLister RoomLister) fiber
 					}
 					roomID, err := uuid.Parse(data.RoomID)
 					if err != nil {
+						continue
+					}
+					if !hub.IsUserInRoom(roomID, userID) {
 						continue
 					}
 					hub.AddViewer(roomID, userID)
@@ -172,6 +202,9 @@ func Handler(hub *Hub, sessionMgr *session.Manager, roomLister RoomLister) fiber
 					}
 					roomID, err := uuid.Parse(data.RoomID)
 					if err != nil {
+						continue
+					}
+					if !hub.IsUserInRoom(roomID, userID) {
 						continue
 					}
 					if hub.SetViewerState(roomID, userID, data.State) {

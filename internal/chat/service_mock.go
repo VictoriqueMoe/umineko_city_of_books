@@ -464,6 +464,86 @@ func (_c *MockService_DeleteMessage_Call) RunAndReturn(run func(ctx context.Cont
 	return _c
 }
 
+// EditMessage provides a mock function for the type MockService
+func (_mock *MockService) EditMessage(ctx context.Context, messageID uuid.UUID, actorID uuid.UUID, body string) (*dto.ChatMessageResponse, error) {
+	ret := _mock.Called(ctx, messageID, actorID, body)
+
+	if len(ret) == 0 {
+		panic("no return value specified for EditMessage")
+	}
+
+	var r0 *dto.ChatMessageResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string) (*dto.ChatMessageResponse, error)); ok {
+		return returnFunc(ctx, messageID, actorID, body)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string) *dto.ChatMessageResponse); ok {
+		r0 = returnFunc(ctx, messageID, actorID, body)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dto.ChatMessageResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, string) error); ok {
+		r1 = returnFunc(ctx, messageID, actorID, body)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_EditMessage_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'EditMessage'
+type MockService_EditMessage_Call struct {
+	*mock.Call
+}
+
+// EditMessage is a helper method to define mock.On call
+//   - ctx context.Context
+//   - messageID uuid.UUID
+//   - actorID uuid.UUID
+//   - body string
+func (_e *MockService_Expecter) EditMessage(ctx interface{}, messageID interface{}, actorID interface{}, body interface{}) *MockService_EditMessage_Call {
+	return &MockService_EditMessage_Call{Call: _e.mock.On("EditMessage", ctx, messageID, actorID, body)}
+}
+
+func (_c *MockService_EditMessage_Call) Run(run func(ctx context.Context, messageID uuid.UUID, actorID uuid.UUID, body string)) *MockService_EditMessage_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_EditMessage_Call) Return(chatMessageResponse *dto.ChatMessageResponse, err error) *MockService_EditMessage_Call {
+	_c.Call.Return(chatMessageResponse, err)
+	return _c
+}
+
+func (_c *MockService_EditMessage_Call) RunAndReturn(run func(ctx context.Context, messageID uuid.UUID, actorID uuid.UUID, body string) (*dto.ChatMessageResponse, error)) *MockService_EditMessage_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // EnsureSystemRooms provides a mock function for the type MockService
 func (_mock *MockService) EnsureSystemRooms(ctx context.Context) error {
 	ret := _mock.Called(ctx)

@@ -2158,6 +2158,67 @@ func TestChatRepository_DeleteMessage(t *testing.T) {
 	assert.Nil(t, got)
 }
 
+func TestChatRepository_EditMessage_UpdatesBodyAndStampsEditedAt(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	ctx := context.Background()
+	user := repotest.CreateUser(t, repos)
+	roomID := uuid.New()
+	msgID := uuid.New()
+	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "R", "", "group", false, false, user.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
+	require.NoError(t, repos.Chat.InsertMessage(ctx, msgID, roomID, user.ID, "original", nil))
+	before, err := repos.Chat.GetMessageByID(ctx, msgID)
+	require.NoError(t, err)
+	require.NotNil(t, before)
+	assert.Nil(t, before.EditedAt, "new message should have no edited_at")
+
+	// when
+	err = repos.Chat.EditMessage(ctx, msgID, "updated body")
+
+	// then
+	require.NoError(t, err)
+	after, err := repos.Chat.GetMessageByID(ctx, msgID)
+	require.NoError(t, err)
+	require.NotNil(t, after)
+	assert.Equal(t, "updated body", after.Body)
+	require.NotNil(t, after.EditedAt)
+	assert.NotEmpty(t, *after.EditedAt)
+}
+
+func TestChatRepository_EditMessage_SurfacesInListQueries(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	ctx := context.Background()
+	user := repotest.CreateUser(t, repos)
+	roomID := uuid.New()
+	msgID := uuid.New()
+	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "R", "", "group", false, false, user.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
+	require.NoError(t, repos.Chat.InsertMessage(ctx, msgID, roomID, user.ID, "hello", nil))
+	require.NoError(t, repos.Chat.EditMessage(ctx, msgID, "hello world"))
+
+	// when
+	messages, _, err := repos.Chat.GetMessages(ctx, roomID, 10, 0)
+
+	// then
+	require.NoError(t, err)
+	require.Len(t, messages, 1)
+	assert.Equal(t, "hello world", messages[0].Body)
+	require.NotNil(t, messages[0].EditedAt)
+}
+
+func TestChatRepository_EditMessage_UnknownIDIsNoop(t *testing.T) {
+	repos := repotest.NewRepos(t)
+	ctx := context.Background()
+
+	// when
+	err := repos.Chat.EditMessage(ctx, uuid.New(), "noop")
+
+	// then
+	require.NoError(t, err)
+}
+
 func TestChatRepository_GetMessages_UsesPerRoomOverrides(t *testing.T) {
 	// given
 	repos := repotest.NewRepos(t)

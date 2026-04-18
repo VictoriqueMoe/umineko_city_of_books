@@ -1019,6 +1019,69 @@ func (_c *MockChatRepository_DeleteRoom_Call) RunAndReturn(run func(ctx context.
 	return _c
 }
 
+// EditMessage provides a mock function for the type MockChatRepository
+func (_mock *MockChatRepository) EditMessage(ctx context.Context, messageID uuid.UUID, body string) error {
+	ret := _mock.Called(ctx, messageID, body)
+
+	if len(ret) == 0 {
+		panic("no return value specified for EditMessage")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) error); ok {
+		r0 = returnFunc(ctx, messageID, body)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockChatRepository_EditMessage_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'EditMessage'
+type MockChatRepository_EditMessage_Call struct {
+	*mock.Call
+}
+
+// EditMessage is a helper method to define mock.On call
+//   - ctx context.Context
+//   - messageID uuid.UUID
+//   - body string
+func (_e *MockChatRepository_Expecter) EditMessage(ctx interface{}, messageID interface{}, body interface{}) *MockChatRepository_EditMessage_Call {
+	return &MockChatRepository_EditMessage_Call{Call: _e.mock.On("EditMessage", ctx, messageID, body)}
+}
+
+func (_c *MockChatRepository_EditMessage_Call) Run(run func(ctx context.Context, messageID uuid.UUID, body string)) *MockChatRepository_EditMessage_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatRepository_EditMessage_Call) Return(err error) *MockChatRepository_EditMessage_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockChatRepository_EditMessage_Call) RunAndReturn(run func(ctx context.Context, messageID uuid.UUID, body string) error) *MockChatRepository_EditMessage_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // FindDMRoom provides a mock function for the type MockChatRepository
 func (_mock *MockChatRepository) FindDMRoom(ctx context.Context, userA uuid.UUID, userB uuid.UUID) (uuid.UUID, error) {
 	ret := _mock.Called(ctx, userA, userB)

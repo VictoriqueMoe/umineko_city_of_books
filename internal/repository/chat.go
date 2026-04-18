@@ -30,6 +30,7 @@ type (
 		MemberCount   int
 		ViewerRole    string
 		ViewerMuted   bool
+		ViewerGhost   bool
 		IsMember      bool
 		Tags          []string
 	}
@@ -69,6 +70,7 @@ type (
 		ReplyToBody        *string
 		PinnedAt           *string
 		PinnedBy           *uuid.UUID
+		EditedAt           *string
 		SenderNickname     string
 		SenderMemberAvatar string
 	}
@@ -112,6 +114,7 @@ type (
 
 		InsertMessage(ctx context.Context, id, roomID, senderID uuid.UUID, body string, replyToID *uuid.UUID) error
 		InsertSystemMessage(ctx context.Context, id, roomID, senderID uuid.UUID, body string) error
+		EditMessage(ctx context.Context, messageID uuid.UUID, body string) error
 		GetMessages(ctx context.Context, roomID uuid.UUID, limit, offset int) ([]ChatMessageRow, int, error)
 		GetMessagesBefore(ctx context.Context, roomID uuid.UUID, before string, limit int) ([]ChatMessageRow, error)
 		GetMessageByID(ctx context.Context, messageID uuid.UUID) (*ChatMessageRow, error)
@@ -435,7 +438,7 @@ func (r *chatRepository) RemoveMember(ctx context.Context, roomID, userID uuid.U
 
 func (r *chatRepository) GetRoomsByUser(ctx context.Context, userID uuid.UUID) ([]ChatRoomRow, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT cr.id, cr.name, cr.description, cr.type, cr.is_public, cr.is_rp, cr.is_system, cr.system_kind, cr.created_by, cr.created_at, cr.last_message_at, m.last_read_at, m.role,
+		`SELECT cr.id, cr.name, cr.description, cr.type, cr.is_public, cr.is_rp, cr.is_system, cr.system_kind, cr.created_by, cr.created_at, cr.last_message_at, m.last_read_at, m.role, m.muted, m.ghost,
 		 (SELECT COUNT(*) FROM chat_room_members WHERE room_id = cr.id AND left_at IS NULL)
 		 FROM chat_rooms cr
 		 JOIN chat_room_members m ON cr.id = m.room_id AND m.user_id = ? AND m.left_at IS NULL
@@ -450,13 +453,16 @@ func (r *chatRepository) GetRoomsByUser(ctx context.Context, userID uuid.UUID) (
 	for rows.Next() {
 		var row ChatRoomRow
 		var publicInt, rpInt, systemInt int
+		var mutedInt, ghostInt int
 		var systemKind sql.NullString
-		if err := rows.Scan(&row.ID, &row.Name, &row.Description, &row.Type, &publicInt, &rpInt, &systemInt, &systemKind, &row.CreatedBy, &row.CreatedAt, &row.LastMessageAt, &row.LastReadAt, &row.ViewerRole, &row.MemberCount); err != nil {
+		if err := rows.Scan(&row.ID, &row.Name, &row.Description, &row.Type, &publicInt, &rpInt, &systemInt, &systemKind, &row.CreatedBy, &row.CreatedAt, &row.LastMessageAt, &row.LastReadAt, &row.ViewerRole, &mutedInt, &ghostInt, &row.MemberCount); err != nil {
 			return nil, fmt.Errorf("scan room: %w", err)
 		}
 		row.IsPublic = publicInt != 0
 		row.IsRP = rpInt != 0
 		row.IsSystem = systemInt != 0
+		row.ViewerMuted = mutedInt != 0
+		row.ViewerGhost = ghostInt != 0
 		if systemKind.Valid {
 			row.SystemKind = systemKind.String
 		}
@@ -521,7 +527,7 @@ func (r *chatRepository) ListUserGroupRooms(ctx context.Context, userID uuid.UUI
 	queryArgs = append(queryArgs, limit, offset)
 
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT cr.id, cr.name, cr.description, cr.type, cr.is_public, cr.is_rp, cr.is_system, cr.system_kind, cr.created_by, cr.created_at, cr.last_message_at, m.last_read_at, m.role,
+		`SELECT cr.id, cr.name, cr.description, cr.type, cr.is_public, cr.is_rp, cr.is_system, cr.system_kind, cr.created_by, cr.created_at, cr.last_message_at, m.last_read_at, m.role, m.muted, m.ghost,
 		 (SELECT COUNT(*) FROM chat_room_members WHERE room_id = cr.id AND left_at IS NULL)
 		 FROM chat_rooms cr
 		 JOIN chat_room_members m ON cr.id = m.room_id`+where+`
@@ -537,13 +543,16 @@ func (r *chatRepository) ListUserGroupRooms(ctx context.Context, userID uuid.UUI
 	for rows.Next() {
 		var row ChatRoomRow
 		var publicInt, rpInt, systemInt int
+		var mutedInt, ghostInt int
 		var systemKind sql.NullString
-		if err := rows.Scan(&row.ID, &row.Name, &row.Description, &row.Type, &publicInt, &rpInt, &systemInt, &systemKind, &row.CreatedBy, &row.CreatedAt, &row.LastMessageAt, &row.LastReadAt, &row.ViewerRole, &row.MemberCount); err != nil {
+		if err := rows.Scan(&row.ID, &row.Name, &row.Description, &row.Type, &publicInt, &rpInt, &systemInt, &systemKind, &row.CreatedBy, &row.CreatedAt, &row.LastMessageAt, &row.LastReadAt, &row.ViewerRole, &mutedInt, &ghostInt, &row.MemberCount); err != nil {
 			return nil, 0, fmt.Errorf("scan user group room: %w", err)
 		}
 		row.IsPublic = publicInt != 0
 		row.IsRP = rpInt != 0
 		row.IsSystem = systemInt != 0
+		row.ViewerMuted = mutedInt != 0
+		row.ViewerGhost = ghostInt != 0
 		if systemKind.Valid {
 			row.SystemKind = systemKind.String
 		}
@@ -572,15 +581,15 @@ func (r *chatRepository) GetRoomByID(ctx context.Context, roomID, viewerID uuid.
 	var publicInt, rpInt, systemInt int
 	var systemKind sql.NullString
 	var viewerRole sql.NullString
-	var viewerMuted sql.NullInt64
+	var viewerMuted, viewerGhost sql.NullInt64
 	err := r.db.QueryRowContext(ctx,
-		`SELECT cr.id, cr.name, cr.description, cr.type, cr.is_public, cr.is_rp, cr.is_system, cr.system_kind, cr.created_by, cr.created_at, cr.last_message_at, m.last_read_at, m.role, m.muted,
+		`SELECT cr.id, cr.name, cr.description, cr.type, cr.is_public, cr.is_rp, cr.is_system, cr.system_kind, cr.created_by, cr.created_at, cr.last_message_at, m.last_read_at, m.role, m.muted, m.ghost,
 		 (SELECT COUNT(*) FROM chat_room_members WHERE room_id = cr.id AND left_at IS NULL)
 		 FROM chat_rooms cr
 		 LEFT JOIN chat_room_members m ON cr.id = m.room_id AND m.user_id = ? AND m.left_at IS NULL
 		 WHERE cr.id = ?`,
 		viewerID, roomID,
-	).Scan(&row.ID, &row.Name, &row.Description, &row.Type, &publicInt, &rpInt, &systemInt, &systemKind, &row.CreatedBy, &row.CreatedAt, &row.LastMessageAt, &row.LastReadAt, &viewerRole, &viewerMuted, &row.MemberCount)
+	).Scan(&row.ID, &row.Name, &row.Description, &row.Type, &publicInt, &rpInt, &systemInt, &systemKind, &row.CreatedBy, &row.CreatedAt, &row.LastMessageAt, &row.LastReadAt, &viewerRole, &viewerMuted, &viewerGhost, &row.MemberCount)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -599,6 +608,9 @@ func (r *chatRepository) GetRoomByID(ctx context.Context, roomID, viewerID uuid.
 	}
 	if viewerMuted.Valid {
 		row.ViewerMuted = viewerMuted.Int64 != 0
+	}
+	if viewerGhost.Valid {
+		row.ViewerGhost = viewerGhost.Int64 != 0
 	}
 	row.Tags, _ = r.GetRoomTags(ctx, roomID)
 	return &row, nil
@@ -884,7 +896,7 @@ func (r *chatRepository) GetMessages(ctx context.Context, roomID uuid.UUID, limi
 			 COALESCE(ur.role, ''),
 			 cm.body, cm.is_system, cm.created_at, cm.reply_to_id,
 			 parent.sender_id, pu.display_name, parent.body,
-			 cm.pinned_at, cm.pinned_by,
+			 cm.pinned_at, cm.pinned_by, cm.edited_at,
 			 COALESCE(mem.nickname, ''), COALESCE(mem.avatar_url, '')
 			 FROM chat_messages cm
 			 JOIN users u ON cm.sender_id = u.id
@@ -918,6 +930,7 @@ func scanMessageRow(rows *sql.Rows) (ChatMessageRow, error) {
 	var msg ChatMessageRow
 	var pinnedAt sql.NullString
 	var pinnedBy sql.NullString
+	var editedAt sql.NullString
 	var isSystemInt int
 	if err := rows.Scan(
 		&msg.ID, &msg.RoomID, &msg.SenderID,
@@ -925,7 +938,7 @@ func scanMessageRow(rows *sql.Rows) (ChatMessageRow, error) {
 		&msg.SenderRole,
 		&msg.Body, &isSystemInt, &msg.CreatedAt, &msg.ReplyToID,
 		&msg.ReplyToSenderID, &msg.ReplyToSenderName, &msg.ReplyToBody,
-		&pinnedAt, &pinnedBy,
+		&pinnedAt, &pinnedBy, &editedAt,
 		&msg.SenderNickname, &msg.SenderMemberAvatar,
 	); err != nil {
 		return msg, fmt.Errorf("scan message: %w", err)
@@ -938,6 +951,10 @@ func scanMessageRow(rows *sql.Rows) (ChatMessageRow, error) {
 		if parsed, err := uuid.Parse(pinnedBy.String); err == nil {
 			msg.PinnedBy = &parsed
 		}
+	}
+	if editedAt.Valid {
+		s := editedAt.String
+		msg.EditedAt = &s
 	}
 	msg.IsSystem = isSystemInt != 0
 	msg.SenderRoleTyped = role.Role(msg.SenderRole)
@@ -964,7 +981,7 @@ func (r *chatRepository) GetMessagesBefore(ctx context.Context, roomID uuid.UUID
 			 COALESCE(ur.role, ''),
 			 cm.body, cm.is_system, cm.created_at, cm.reply_to_id,
 			 parent.sender_id, pu.display_name, parent.body,
-			 cm.pinned_at, cm.pinned_by,
+			 cm.pinned_at, cm.pinned_by, cm.edited_at,
 			 COALESCE(mem.nickname, ''), COALESCE(mem.avatar_url, '')
 			 FROM chat_messages cm
 			 JOIN users u ON cm.sender_id = u.id
@@ -1000,13 +1017,14 @@ func (r *chatRepository) GetMessageByID(ctx context.Context, messageID uuid.UUID
 	var msg ChatMessageRow
 	var pinnedAt sql.NullString
 	var pinnedBy sql.NullString
+	var editedAt sql.NullString
 	var isSystemInt int
 	err := r.db.QueryRowContext(ctx,
 		`SELECT cm.id, cm.room_id, cm.sender_id, u.username, u.display_name, u.avatar_url,
 		 COALESCE(ur.role, ''),
 		 cm.body, cm.is_system, cm.created_at, cm.reply_to_id,
 		 parent.sender_id, pu.display_name, parent.body,
-		 cm.pinned_at, cm.pinned_by,
+		 cm.pinned_at, cm.pinned_by, cm.edited_at,
 		 COALESCE(mem.nickname, ''), COALESCE(mem.avatar_url, '')
 		 FROM chat_messages cm
 		 JOIN users u ON cm.sender_id = u.id
@@ -1022,7 +1040,7 @@ func (r *chatRepository) GetMessageByID(ctx context.Context, messageID uuid.UUID
 		&msg.SenderRole,
 		&msg.Body, &isSystemInt, &msg.CreatedAt, &msg.ReplyToID,
 		&msg.ReplyToSenderID, &msg.ReplyToSenderName, &msg.ReplyToBody,
-		&pinnedAt, &pinnedBy,
+		&pinnedAt, &pinnedBy, &editedAt,
 		&msg.SenderNickname, &msg.SenderMemberAvatar,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -1040,7 +1058,12 @@ func (r *chatRepository) GetMessageByID(ctx context.Context, messageID uuid.UUID
 			msg.PinnedBy = &parsed
 		}
 	}
+	if editedAt.Valid {
+		s := editedAt.String
+		msg.EditedAt = &s
+	}
 	msg.IsSystem = isSystemInt != 0
+	msg.SenderRoleTyped = role.Role(msg.SenderRole)
 	return &msg, nil
 }
 
@@ -1067,6 +1090,17 @@ func (r *chatRepository) DeleteMessage(ctx context.Context, messageID uuid.UUID)
 	_, err := r.db.ExecContext(ctx, `DELETE FROM chat_messages WHERE id = ?`, messageID)
 	if err != nil {
 		return fmt.Errorf("delete message: %w", err)
+	}
+	return nil
+}
+
+func (r *chatRepository) EditMessage(ctx context.Context, messageID uuid.UUID, body string) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE chat_messages SET body = ?, edited_at = CURRENT_TIMESTAMP WHERE id = ?`,
+		body, messageID,
+	)
+	if err != nil {
+		return fmt.Errorf("edit message: %w", err)
 	}
 	return nil
 }
@@ -1329,7 +1363,7 @@ func (r *chatRepository) ListPinnedMessages(ctx context.Context, roomID uuid.UUI
 		 COALESCE(ur.role, ''),
 		 cm.body, cm.is_system, cm.created_at, cm.reply_to_id,
 		 parent.sender_id, pu.display_name, parent.body,
-		 cm.pinned_at, cm.pinned_by,
+		 cm.pinned_at, cm.pinned_by, cm.edited_at,
 		 COALESCE(mem.nickname, ''), COALESCE(mem.avatar_url, '')
 		 FROM chat_messages cm
 		 JOIN users u ON cm.sender_id = u.id

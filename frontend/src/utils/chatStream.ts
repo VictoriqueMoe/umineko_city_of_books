@@ -148,6 +148,25 @@ export function applyChatMessageDeleted(
     setMessages(prev => prev.filter(m => m.id !== payload.message_id));
 }
 
+export function applyChatMessageEdited(
+    updated: ChatMessage,
+    setMessages: Dispatch<SetStateAction<ChatMessage[]>>,
+): void {
+    setMessages(prev =>
+        prev.map(m => {
+            if (m.id !== updated.id) {
+                return m;
+            }
+            return {
+                ...m,
+                body: updated.body,
+                edited_at: updated.edited_at,
+                media: updated.media ?? m.media,
+            };
+        }),
+    );
+}
+
 function toggleReactionInGroups(
     groups: ReactionGroup[],
     emoji: string,

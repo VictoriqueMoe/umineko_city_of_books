@@ -23,6 +23,7 @@ interface ChatComposerProps {
     replyingTo?: ReplyTarget | null;
     onCancelReply?: () => void;
     onTyping?: () => void;
+    onEditLast?: () => void;
     timeoutUntil?: string;
 }
 
@@ -47,6 +48,7 @@ export function ChatComposer({
     replyingTo,
     onCancelReply,
     onTyping,
+    onEditLast,
     timeoutUntil,
 }: ChatComposerProps) {
     const [, setTimeoutTick] = useState(0);
@@ -187,6 +189,13 @@ export function ChatComposer({
 
     function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
         if (e.defaultPrevented) {
+            return;
+        }
+        if (e.key === "ArrowUp" && !e.shiftKey && !e.nativeEvent.isComposing) {
+            if (body === "" && files.length === 0 && !replyingTo && onEditLast) {
+                e.preventDefault();
+                onEditLast();
+            }
             return;
         }
         if (e.key !== "Enter") {
