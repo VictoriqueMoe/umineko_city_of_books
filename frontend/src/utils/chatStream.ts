@@ -1,18 +1,13 @@
 import type { Dispatch, SetStateAction } from "react";
-import type { ChatMessage, ChatRoomMember, PostMedia, ReactionGroup } from "../types/api";
+import type { ChatMessage, ChatRoomMember, ReactionGroup } from "../types/api";
 import { markChatRoomRead } from "../api/endpoints";
-
-export interface ChatMessageMediaAddedPayload {
-    room_id: string;
-    message_id: string;
-    media: PostMedia;
-}
 
 export interface ChatReactionPayload {
     room_id: string;
     message_id: string;
     emoji: string;
     user_id: string;
+    display_name: string;
 }
 
 export function handleIncomingChatMessage(
@@ -34,32 +29,6 @@ export function handleIncomingChatMessage(
     if (document.visibilityState === "visible" && document.hasFocus()) {
         markChatRoomRead(chatMsg.room_id).catch(() => {});
     }
-    return true;
-}
-
-export function handleIncomingChatMessageMedia(
-    payload: ChatMessageMediaAddedPayload,
-    activeRoomId: string | null,
-    setMessages: Dispatch<SetStateAction<ChatMessage[]>>,
-): boolean {
-    if (payload.room_id !== activeRoomId) {
-        return false;
-    }
-    setMessages(prev => {
-        let changed = false;
-        const next = prev.map(m => {
-            if (m.id !== payload.message_id) {
-                return m;
-            }
-            const existing = m.media ?? [];
-            if (existing.some(x => x.id === payload.media.id)) {
-                return m;
-            }
-            changed = true;
-            return { ...m, media: [...existing, payload.media] };
-        });
-        return changed ? next : prev;
-    });
     return true;
 }
 
@@ -184,24 +153,41 @@ function toggleReactionInGroups(
     emoji: string,
     delta: number,
     viewerReacted: boolean | undefined,
+    displayName: string,
 ): ReactionGroup[] {
     const idx = groups.findIndex(g => g.emoji === emoji);
     if (idx === -1) {
         if (delta < 0) {
             return groups;
         }
-        return [...groups, { emoji, count: 1, viewer_reacted: viewerReacted ?? false, display_names: [] }];
+        const names = displayName ? [displayName] : [];
+        return [...groups, { emoji, count: 1, viewer_reacted: viewerReacted ?? false, display_names: names }];
     }
     const existing = groups[idx];
     const nextCount = Math.max(0, existing.count + delta);
     if (nextCount === 0) {
         return groups.filter((_, i) => i !== idx);
     }
+    const existingNames = existing.display_names ?? [];
+    let nextNames = existingNames;
+    if (displayName) {
+        if (delta > 0) {
+            if (!existingNames.includes(displayName)) {
+                nextNames = [...existingNames, displayName];
+            }
+        } else {
+            const removeAt = existingNames.indexOf(displayName);
+            if (removeAt !== -1) {
+                nextNames = existingNames.filter((_, i) => i !== removeAt);
+            }
+        }
+    }
     const next = groups.slice();
     next[idx] = {
         ...existing,
         count: nextCount,
         viewer_reacted: viewerReacted ?? existing.viewer_reacted,
+        display_names: nextNames,
     };
     return next;
 }
@@ -219,7 +205,13 @@ export function applyReactionAdded(
             }
             return {
                 ...m,
-                reactions: toggleReactionInGroups(m.reactions ?? [], payload.emoji, 1, viewerReacted),
+                reactions: toggleReactionInGroups(
+                    m.reactions ?? [],
+                    payload.emoji,
+                    1,
+                    viewerReacted,
+                    payload.display_name,
+                ),
             };
         }),
     );
@@ -238,7 +230,13 @@ export function applyReactionRemoved(
             }
             return {
                 ...m,
-                reactions: toggleReactionInGroups(m.reactions ?? [], payload.emoji, -1, viewerReacted),
+                reactions: toggleReactionInGroups(
+                    m.reactions ?? [],
+                    payload.emoji,
+                    -1,
+                    viewerReacted,
+                    payload.display_name,
+                ),
             };
         }),
     );

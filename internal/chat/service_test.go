@@ -56,6 +56,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 
 	chatRepo.EXPECT().HasGhostMembers(mock.Anything, mock.Anything).Return(false, nil).Maybe()
 	chatRepo.EXPECT().IsGhostMember(mock.Anything, mock.Anything, mock.Anything).Return(false, nil).Maybe()
+	chatRepo.EXPECT().HasActiveMemberTimeout(mock.Anything, mock.Anything, mock.Anything).Return(false, nil).Maybe()
 
 	return svc, &testMocks{
 		chatRepo:       chatRepo,
@@ -243,7 +244,7 @@ func TestSendDMMessage_EmptyBody(t *testing.T) {
 	svc, _ := newTestService(t)
 
 	// when
-	_, err := svc.SendDMMessage(context.Background(), uuid.New(), uuid.New(), "")
+	_, err := svc.SendDMMessage(context.Background(), uuid.New(), uuid.New(), "", nil)
 
 	// then
 	require.ErrorIs(t, err, ErrMissingFields)
@@ -255,7 +256,7 @@ func TestSendDMMessage_PreconditionFails(t *testing.T) {
 	id := uuid.New()
 
 	// when
-	_, err := svc.SendDMMessage(context.Background(), id, id, "hi")
+	_, err := svc.SendDMMessage(context.Background(), id, id, "hi", nil)
 
 	// then
 	require.ErrorIs(t, err, ErrCannotDMSelf)
@@ -271,7 +272,7 @@ func TestSendDMMessage_CreateRoomError(t *testing.T) {
 	m.chatRepo.EXPECT().CreateDMRoomAtomic(mock.Anything, mock.Anything, sender, recipient).Return(uuid.Nil, errors.New("boom"))
 
 	// when
-	_, err := svc.SendDMMessage(context.Background(), sender, recipient, "hi")
+	_, err := svc.SendDMMessage(context.Background(), sender, recipient, "hi", nil)
 
 	// then
 	require.Error(t, err)
@@ -1653,7 +1654,7 @@ func TestSendMessage_EmptyBody(t *testing.T) {
 	svc, _ := newTestService(t)
 
 	// when
-	_, err := svc.SendMessage(context.Background(), uuid.New(), uuid.New(), dto.SendMessageRequest{Body: ""})
+	_, err := svc.SendMessage(context.Background(), uuid.New(), uuid.New(), dto.SendMessageRequest{Body: ""}, nil)
 
 	// then
 	require.ErrorIs(t, err, ErrMissingFields)
@@ -1667,7 +1668,7 @@ func TestSendMessage_IsMemberError(t *testing.T) {
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, senderID).Return(false, errors.New("boom"))
 
 	// when
-	_, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: "hi"})
+	_, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: "hi"}, nil)
 
 	// then
 	require.Error(t, err)
@@ -1681,7 +1682,7 @@ func TestSendMessage_NotMember(t *testing.T) {
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, senderID).Return(false, nil)
 
 	// when
-	_, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: "hi"})
+	_, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: "hi"}, nil)
 
 	// then
 	require.ErrorIs(t, err, ErrNotMember)
@@ -1696,7 +1697,7 @@ func TestSendMessage_TimedOut(t *testing.T) {
 	m.chatRepo.EXPECT().GetMemberTimeoutState(mock.Anything, roomID, senderID).Return(true, "2099-01-01 00:00:00", false, nil)
 
 	// when
-	_, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: "hi"})
+	_, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: "hi"}, nil)
 
 	// then
 	require.Error(t, err)
@@ -1714,7 +1715,7 @@ func TestSendMessage_MembersError(t *testing.T) {
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return(nil, errors.New("boom"))
 
 	// when
-	_, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: "hi"})
+	_, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: "hi"}, nil)
 
 	// then
 	require.Error(t, err)
@@ -1732,7 +1733,7 @@ func TestSendMessage_BlockedByRecipient(t *testing.T) {
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, senderID, otherID).Return(true, nil)
 
 	// when
-	_, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: "hi"})
+	_, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: "hi"}, nil)
 
 	// then
 	require.ErrorIs(t, err, ErrUserBlocked)
@@ -1749,7 +1750,7 @@ func TestSendMessage_SenderLookupError(t *testing.T) {
 	m.userRepo.EXPECT().GetByID(mock.Anything, senderID).Return(nil, errors.New("boom"))
 
 	// when
-	_, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: "hi"})
+	_, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: "hi"}, nil)
 
 	// then
 	require.Error(t, err)
@@ -1766,7 +1767,7 @@ func TestSendMessage_SenderNotFound(t *testing.T) {
 	m.userRepo.EXPECT().GetByID(mock.Anything, senderID).Return(nil, nil)
 
 	// when
-	_, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: "hi"})
+	_, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: "hi"}, nil)
 
 	// then
 	require.ErrorIs(t, err, ErrUserNotFound)
@@ -1784,7 +1785,7 @@ func TestSendMessage_InsertError(t *testing.T) {
 	m.chatRepo.EXPECT().InsertMessage(mock.Anything, mock.Anything, roomID, senderID, "hi", (*uuid.UUID)(nil)).Return(errors.New("boom"))
 
 	// when
-	_, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: "hi"})
+	_, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: "hi"}, nil)
 
 	// then
 	require.Error(t, err)
@@ -1803,7 +1804,7 @@ func TestSendMessage_MarkReadError(t *testing.T) {
 	m.chatRepo.EXPECT().MarkRoomRead(mock.Anything, roomID, senderID).Return(errors.New("boom"))
 
 	// when
-	_, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: "hi"})
+	_, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: "hi"}, nil)
 
 	// then
 	require.Error(t, err)
@@ -1830,7 +1831,7 @@ func TestSendMessage_DMSuccess(t *testing.T) {
 	m.chatRepo.EXPECT().CountUnreadRoomsForUser(mock.Anything, recipientID).Return(1, nil)
 
 	// when
-	got, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: "hi"})
+	got, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: "hi"}, nil)
 
 	// then
 	require.NoError(t, err)
@@ -1870,7 +1871,7 @@ func TestSendMessage_GroupWithMentionAndReply(t *testing.T) {
 	m.chatRepo.EXPECT().CountUnreadRoomsForUser(mock.Anything, replyAuthorID).Return(1, nil)
 
 	// when
-	got, err := svc.SendMessage(context.Background(), senderID, roomID, req)
+	got, err := svc.SendMessage(context.Background(), senderID, roomID, req, nil)
 
 	// then
 	require.NoError(t, err)
@@ -1900,7 +1901,7 @@ func TestSendMessage_GroupUnmutedRoomMessage(t *testing.T) {
 	m.chatRepo.EXPECT().CountUnreadRoomsForUser(mock.Anything, otherID).Return(1, nil)
 
 	// when
-	got, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: "hi"})
+	got, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: "hi"}, nil)
 
 	// then
 	require.NoError(t, err)
@@ -1928,7 +1929,7 @@ func TestSendMessage_GroupMutedNoNotify(t *testing.T) {
 	m.chatRepo.EXPECT().CountUnreadRoomsForUser(mock.Anything, otherID).Return(1, nil)
 
 	// when
-	_, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: "hi"})
+	_, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: "hi"}, nil)
 
 	// then
 	require.NoError(t, err)
@@ -2837,6 +2838,8 @@ func TestAddReaction_HappyPath(t *testing.T) {
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
 	m.chatRepo.EXPECT().GetMemberTimeoutState(mock.Anything, roomID, userID).Return(false, "", false, nil)
 	m.chatRepo.EXPECT().AddReaction(mock.Anything, messageID, userID, "👍").Return(nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(sampleUser(userID), nil).Maybe()
+	m.chatRepo.EXPECT().GetRoomMembersDetailed(mock.Anything, roomID).Return(nil, nil).Maybe()
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return(nil, nil).Maybe()
 
 	// when
@@ -2950,6 +2953,8 @@ func TestRemoveReaction_HappyPath(t *testing.T) {
 	m.chatRepo.EXPECT().GetMessageByID(mock.Anything, messageID).Return(&repository.ChatMessageRow{ID: messageID, RoomID: roomID}, nil)
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
 	m.chatRepo.EXPECT().RemoveReaction(mock.Anything, messageID, userID, "👍").Return(nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(sampleUser(userID), nil).Maybe()
+	m.chatRepo.EXPECT().GetRoomMembersDetailed(mock.Anything, roomID).Return(nil, nil).Maybe()
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return(nil, nil).Maybe()
 
 	// when

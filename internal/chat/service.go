@@ -168,12 +168,18 @@ func formatTimeoutUntilForUser(raw string) string {
 }
 
 type (
+	FileUpload struct {
+		ContentType string
+		Size        int64
+		Open        func() (io.ReadCloser, error)
+	}
+
 	Service interface {
 		EnsureSystemRooms(ctx context.Context) error
 		SyncSystemRoomMembership(ctx context.Context, userID uuid.UUID, newRole role.Role) error
 
 		ResolveDMRoom(ctx context.Context, senderID, recipientID uuid.UUID) (*dto.ResolveDMResponse, error)
-		SendDMMessage(ctx context.Context, senderID, recipientID uuid.UUID, body string) (*dto.SendDMResponse, error)
+		SendDMMessage(ctx context.Context, senderID, recipientID uuid.UUID, body string, files []FileUpload) (*dto.SendDMResponse, error)
 		CreateGroupRoom(ctx context.Context, creatorID uuid.UUID, req dto.CreateGroupRoomRequest) (*dto.ChatRoomResponse, error)
 		ListRooms(ctx context.Context, userID uuid.UUID) (*dto.ChatRoomListResponse, error)
 		ListUserGroupRooms(ctx context.Context, userID uuid.UUID, search string, isRPOnly bool, tag, role string, limit, offset int) (*dto.ChatRoomListResponse, error)
@@ -181,7 +187,7 @@ type (
 		GetMessages(ctx context.Context, userID, roomID uuid.UUID, limit, offset int) (*dto.ChatMessageListResponse, error)
 		GetMessagesBefore(ctx context.Context, userID, roomID uuid.UUID, before string, limit int) (*dto.ChatMessageListResponse, error)
 
-		SendMessage(ctx context.Context, senderID, roomID uuid.UUID, req dto.SendMessageRequest) (*dto.ChatMessageResponse, error)
+		SendMessage(ctx context.Context, senderID, roomID uuid.UUID, req dto.SendMessageRequest, files []FileUpload) (*dto.ChatMessageResponse, error)
 		GetRoomsByUser(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error)
 		DeleteChat(ctx context.Context, roomID, userID uuid.UUID) error
 		JoinRoom(ctx context.Context, roomID, userID uuid.UUID, ghost bool) (*dto.ChatRoomResponse, error)
@@ -195,7 +201,6 @@ type (
 		GetMembers(ctx context.Context, viewerID, roomID uuid.UUID) ([]dto.ChatRoomMemberResponse, error)
 		GetUnreadCount(ctx context.Context, userID uuid.UUID) (int, error)
 		MarkRead(ctx context.Context, roomID, userID uuid.UUID) error
-		UploadMessageMedia(ctx context.Context, messageID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error)
 
 		SetRoomNickname(ctx context.Context, roomID, userID uuid.UUID, nickname string) (*dto.ChatRoomMemberResponse, error)
 		SetRoomAvatar(ctx context.Context, roomID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (*dto.ChatRoomMemberResponse, error)
@@ -309,12 +314,14 @@ func (s *service) ResolveDMRoom(ctx context.Context, senderID, recipientID uuid.
 	return resp, nil
 }
 
-func (s *service) SendDMMessage(ctx context.Context, senderID, recipientID uuid.UUID, body string) (*dto.SendDMResponse, error) {
-	if body == "" {
+func (s *service) SendDMMessage(ctx context.Context, senderID, recipientID uuid.UUID, body string, files []FileUpload) (*dto.SendDMResponse, error) {
+	if body == "" && len(files) == 0 {
 		return nil, ErrMissingFields
 	}
-	if err := s.filterTexts(ctx, body); err != nil {
-		return nil, err
+	if body != "" {
+		if err := s.filterTexts(ctx, body); err != nil {
+			return nil, err
+		}
 	}
 	if _, err := s.checkDMPreconditions(ctx, senderID, recipientID); err != nil {
 		return nil, err
@@ -325,7 +332,7 @@ func (s *service) SendDMMessage(ctx context.Context, senderID, recipientID uuid.
 		return nil, fmt.Errorf("create dm room: %w", err)
 	}
 
-	msgResp, err := s.SendMessage(ctx, senderID, roomID, dto.SendMessageRequest{Body: body})
+	msgResp, err := s.SendMessage(ctx, senderID, roomID, dto.SendMessageRequest{Body: body}, files)
 	if err != nil {
 		return nil, err
 	}
@@ -1212,6 +1219,10 @@ func (s *service) postRoomActionMessage(ctx context.Context, roomID, actorID uui
 		return
 	}
 
+	if timedOut, _ := s.chatRepo.HasActiveMemberTimeout(ctx, roomID, actorID); timedOut {
+		return
+	}
+
 	messageID := uuid.New()
 	if err := s.chatRepo.InsertSystemMessage(ctx, messageID, roomID, actorID, actionBody); err != nil {
 		return
@@ -1391,12 +1402,14 @@ func (s *service) GetMessagesBefore(ctx context.Context, userID, roomID uuid.UUI
 	}, nil
 }
 
-func (s *service) SendMessage(ctx context.Context, senderID, roomID uuid.UUID, req dto.SendMessageRequest) (*dto.ChatMessageResponse, error) {
-	if req.Body == "" {
+func (s *service) SendMessage(ctx context.Context, senderID, roomID uuid.UUID, req dto.SendMessageRequest, files []FileUpload) (*dto.ChatMessageResponse, error) {
+	if req.Body == "" && len(files) == 0 {
 		return nil, ErrMissingFields
 	}
-	if err := s.filterTexts(ctx, req.Body); err != nil {
-		return nil, err
+	if req.Body != "" {
+		if err := s.filterTexts(ctx, req.Body); err != nil {
+			return nil, err
+		}
 	}
 
 	isMember, err := s.chatRepo.IsMember(ctx, roomID, senderID)
@@ -1426,6 +1439,12 @@ func (s *service) SendMessage(ctx context.Context, senderID, roomID uuid.UUID, r
 			if blocked, _ := s.blockSvc.IsBlockedEither(ctx, senderID, memberID); blocked {
 				return nil, ErrUserBlocked
 			}
+		}
+	}
+
+	for i := 0; i < len(files); i++ {
+		if err := s.validateMediaFile(ctx, files[i]); err != nil {
+			return nil, err
 		}
 	}
 
@@ -1463,6 +1482,14 @@ func (s *service) SendMessage(ctx context.Context, senderID, roomID uuid.UUID, r
 		return nil, fmt.Errorf("insert message: %w", err)
 	}
 
+	mediaResponses, err := s.saveMessageMedia(ctx, msgID, files)
+	if err != nil {
+		if delErr := s.chatRepo.DeleteMessage(ctx, msgID); delErr != nil {
+			logger.Log.Error().Err(delErr).Str("message_id", msgID.String()).Msg("failed to roll back message after media save failure")
+		}
+		return nil, err
+	}
+
 	if err := s.chatRepo.MarkRoomRead(ctx, roomID, senderID); err != nil {
 		return nil, fmt.Errorf("mark sender read: %w", err)
 	}
@@ -1497,6 +1524,7 @@ func (s *service) SendMessage(ctx context.Context, senderID, roomID uuid.UUID, r
 		},
 		Body:      req.Body,
 		CreatedAt: time.Now().UTC().Format(time.RFC3339),
+		Media:     mediaResponses,
 		ReplyTo:   replyToPreview,
 		Reactions: []dto.ReactionGroup{},
 	}
@@ -1754,49 +1782,63 @@ func (s *service) DeleteChat(ctx context.Context, roomID, userID uuid.UUID) erro
 	return nil
 }
 
-func (s *service) UploadMessageMedia(ctx context.Context, messageID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error) {
-	senderID, err := s.chatRepo.GetMessageSenderID(ctx, messageID)
+func (s *service) validateMediaFile(ctx context.Context, f FileUpload) error {
+	isVideo := strings.HasPrefix(f.ContentType, "video/")
+	var maxSize int64
+	var allowed map[string]string
+	var typeErr error
+	if isVideo {
+		maxSize = int64(s.settingsSvc.GetInt(ctx, config.SettingMaxVideoSize))
+		allowed = upload.AllowedVideoTypes
+		typeErr = upload.ErrInvalidVideoType
+	} else {
+		maxSize = int64(s.settingsSvc.GetInt(ctx, config.SettingMaxImageSize))
+		allowed = upload.AllowedImageTypes
+		typeErr = upload.ErrInvalidFileType
+	}
+	if f.Size > maxSize {
+		return fmt.Errorf("file size %dMB exceeds maximum %dMB", f.Size/(1024*1024), maxSize/(1024*1024))
+	}
+	r, err := f.Open()
 	if err != nil {
-		return nil, ErrRoomNotFound
+		return fmt.Errorf("open media: %w", err)
 	}
-	if senderID != userID {
-		return nil, fmt.Errorf("not the message sender")
-	}
-
-	result, err := s.uploader.SaveAndRecord(ctx, "chat", contentType, fileSize, reader,
-		func(mediaURL, mediaType, thumbURL string, sortOrder int) (int64, error) {
-			return s.chatRepo.AddMessageMedia(ctx, messageID, mediaURL, mediaType, thumbURL, sortOrder)
-		},
-		s.chatRepo.UpdateMessageMediaURL,
-		s.chatRepo.UpdateMessageMediaThumbnail,
-	)
+	defer r.Close()
+	sniffed, _, err := upload.DetectContentType(r)
 	if err != nil {
-		return nil, err
+		return err
 	}
+	if _, ok := allowed[sniffed]; !ok {
+		return typeErr
+	}
+	return nil
+}
 
-	roomID, roomErr := s.chatRepo.GetMessageRoomID(ctx, messageID)
-	if roomErr == nil {
-		members, memErr := s.chatRepo.GetRoomMembers(ctx, roomID)
-		if memErr == nil {
-			msg := ws.Message{
-				Type: "chat_message_media_added",
-				Data: map[string]interface{}{
-					"room_id":    roomID,
-					"message_id": messageID,
-					"media":      result,
-				},
-			}
-			for i := 0; i < len(members); i++ {
-				memberID := members[i]
-				if memberID == senderID {
-					continue
-				}
-				s.hub.SendToUser(memberID, msg)
-			}
+func (s *service) saveMessageMedia(ctx context.Context, messageID uuid.UUID, files []FileUpload) ([]dto.PostMediaResponse, error) {
+	if len(files) == 0 {
+		return nil, nil
+	}
+	results := make([]dto.PostMediaResponse, 0, len(files))
+	for i := 0; i < len(files); i++ {
+		f := files[i]
+		r, err := f.Open()
+		if err != nil {
+			return nil, fmt.Errorf("open media: %w", err)
 		}
+		saved, saveErr := s.uploader.SaveAndRecord(ctx, "chat", f.ContentType, f.Size, r,
+			func(mediaURL, mediaType, thumbURL string, sortOrder int) (int64, error) {
+				return s.chatRepo.AddMessageMedia(ctx, messageID, mediaURL, mediaType, thumbURL, sortOrder)
+			},
+			s.chatRepo.UpdateMessageMediaURL,
+			s.chatRepo.UpdateMessageMediaThumbnail,
+		)
+		r.Close()
+		if saveErr != nil {
+			return nil, saveErr
+		}
+		results = append(results, *saved)
 	}
-
-	return result, nil
+	return results, nil
 }
 
 func (s *service) buildRoomResponse(ctx context.Context, roomID, viewerID uuid.UUID) (*dto.ChatRoomResponse, error) {
@@ -1853,7 +1895,7 @@ func (s *service) SetRoomNickname(ctx context.Context, roomID, userID uuid.UUID,
 		if nickname == "" {
 			s.postRoomActionMessage(ctx, roomID, userID, fmt.Sprintf("%s cleared %s alias.", name, possessive))
 		} else {
-			s.postRoomActionMessage(ctx, roomID, userID, fmt.Sprintf("%s changed %s alias to %s.", name, possessive, nickname))
+			s.postRoomActionMessage(ctx, roomID, userID, fmt.Sprintf("%s changed %s alias.", name, possessive))
 		}
 	}
 
@@ -2204,6 +2246,27 @@ func validateEmoji(emoji string) error {
 	return nil
 }
 
+func (s *service) resolveMemberDisplayName(ctx context.Context, roomID, userID uuid.UUID) string {
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil || user == nil {
+		return ""
+	}
+	name := user.DisplayName
+	if name == "" {
+		name = user.Username
+	}
+	rows, _ := s.chatRepo.GetRoomMembersDetailed(ctx, roomID)
+	for _, mr := range rows {
+		if mr.UserID == userID {
+			if mr.Nickname != "" {
+				name = mr.Nickname
+			}
+			break
+		}
+	}
+	return name
+}
+
 func (s *service) AddReaction(ctx context.Context, messageID, userID uuid.UUID, emoji string) error {
 	if err := validateEmoji(emoji); err != nil {
 		return err
@@ -2240,14 +2303,16 @@ func (s *service) AddReaction(ctx context.Context, messageID, userID uuid.UUID, 
 		return fmt.Errorf("add reaction: %w", err)
 	}
 
+	displayName := s.resolveMemberDisplayName(ctx, msg.RoomID, userID)
 	members, _ := s.chatRepo.GetRoomMembers(ctx, msg.RoomID)
 	event := ws.Message{
 		Type: "chat_reaction_added",
 		Data: map[string]interface{}{
-			"room_id":    msg.RoomID,
-			"message_id": messageID,
-			"emoji":      emoji,
-			"user_id":    userID,
+			"room_id":      msg.RoomID,
+			"message_id":   messageID,
+			"emoji":        emoji,
+			"user_id":      userID,
+			"display_name": displayName,
 		},
 	}
 	for _, mid := range members {
@@ -2281,14 +2346,16 @@ func (s *service) RemoveReaction(ctx context.Context, messageID, userID uuid.UUI
 		return fmt.Errorf("remove reaction: %w", err)
 	}
 
+	displayName := s.resolveMemberDisplayName(ctx, msg.RoomID, userID)
 	members, _ := s.chatRepo.GetRoomMembers(ctx, msg.RoomID)
 	event := ws.Message{
 		Type: "chat_reaction_removed",
 		Data: map[string]interface{}{
-			"room_id":    msg.RoomID,
-			"message_id": messageID,
-			"emoji":      emoji,
-			"user_id":    userID,
+			"room_id":      msg.RoomID,
+			"message_id":   messageID,
+			"emoji":        emoji,
+			"user_id":      userID,
+			"display_name": displayName,
 		},
 	}
 	for _, mid := range members {

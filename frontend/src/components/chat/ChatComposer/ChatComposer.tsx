@@ -2,10 +2,10 @@ import React, { useCallback, useRef, useState } from "react";
 import { Button } from "../../Button/Button";
 import { MediaPickerButton, MediaPreviews } from "../../MediaPicker/MediaPicker";
 import { MentionTextArea } from "../../MentionTextArea/MentionTextArea";
-import { sendChatMessage, sendFirstDMMessage, uploadChatMessageMedia } from "../../../api/endpoints";
+import { sendChatMessage, sendFirstDMMessage } from "../../../api/endpoints";
 import { useSiteInfo } from "../../../hooks/useSiteInfo";
 import { validateFileSize } from "../../../utils/fileValidation";
-import type { ChatMessage, ChatRoom, PostMedia, User } from "../../../types/api";
+import type { ChatMessage, ChatRoom, User } from "../../../types/api";
 import { GifPicker } from "../GifPicker/GifPicker";
 import styles from "./ChatComposer.module.css";
 
@@ -98,19 +98,6 @@ export function ChatComposer({
         [siteInfo.max_image_size, siteInfo.max_video_size],
     );
 
-    async function uploadAttached(messageId: string): Promise<PostMedia[]> {
-        const uploaded: PostMedia[] = [];
-        for (let i = 0; i < files.length; i++) {
-            try {
-                const m = await uploadChatMessageMedia(messageId, files[i]);
-                uploaded.push(m);
-            } catch (err) {
-                setError(err instanceof Error ? err.message : "Failed to upload media");
-            }
-        }
-        return uploaded;
-    }
-
     async function sendBody(content: string): Promise<ChatMessage | null> {
         if (draftRecipientId && !roomId) {
             const created = await sendFirstDMMessage(draftRecipientId, content);
@@ -163,22 +150,14 @@ export function ChatComposer({
         setError("");
         try {
             if (draftRecipientId && !roomId) {
-                const created = await sendFirstDMMessage(draftRecipientId, trimmed || " ");
-                let message = created.message;
-                if (files.length > 0) {
-                    const uploaded = await uploadAttached(created.message.id);
-                    message = { ...message, media: uploaded };
-                }
-                onSent(message, created.room);
+                const created = await sendFirstDMMessage(draftRecipientId, trimmed, files);
+                onSent(created.message, created.room);
             } else {
-                let message = await sendChatMessage(roomId!, {
-                    body: trimmed || " ",
+                const message = await sendChatMessage(roomId!, {
+                    body: trimmed,
                     reply_to_id: replyingTo?.id,
+                    files,
                 });
-                if (files.length > 0) {
-                    const uploaded = await uploadAttached(message.id);
-                    message = { ...message, media: uploaded };
-                }
                 onSent(message);
             }
             setBody("");

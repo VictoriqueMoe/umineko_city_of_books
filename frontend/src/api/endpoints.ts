@@ -428,10 +428,16 @@ export async function resolveDMRoom(recipientId: string): Promise<{ room: ChatRo
 export async function sendFirstDMMessage(
     recipientId: string,
     body: string,
+    files?: File[],
 ): Promise<{ room: ChatRoom; message: ChatMessage }> {
-    return apiPost<{ room: ChatRoom; message: ChatMessage }, { body: string }>(`/chat/dm/${recipientId}/messages`, {
-        body,
-    });
+    const formData = new FormData();
+    formData.append("body", body);
+    if (files) {
+        for (let i = 0; i < files.length; i++) {
+            formData.append("media", files[i]);
+        }
+    }
+    return apiPostFormData<{ room: ChatRoom; message: ChatMessage }>(`/chat/dm/${recipientId}/messages`, formData);
 }
 
 export async function createGroupRoom(payload: {
@@ -535,9 +541,19 @@ export async function getRoomMessagesBefore(
 
 export async function sendChatMessage(
     roomId: string,
-    payload: { body: string; reply_to_id?: string },
+    payload: { body: string; reply_to_id?: string; files?: File[] },
 ): Promise<ChatMessage> {
-    return apiPost<ChatMessage, typeof payload>(`/chat/rooms/${roomId}/messages`, payload);
+    const formData = new FormData();
+    formData.append("body", payload.body);
+    if (payload.reply_to_id) {
+        formData.append("reply_to_id", payload.reply_to_id);
+    }
+    if (payload.files) {
+        for (let i = 0; i < payload.files.length; i++) {
+            formData.append("media", payload.files[i]);
+        }
+    }
+    return apiPostFormData<ChatMessage>(`/chat/rooms/${roomId}/messages`, formData);
 }
 
 export async function deleteChatRoom(roomId: string): Promise<void> {
@@ -550,12 +566,6 @@ export async function getChatUnreadCount(): Promise<{ count: number }> {
 
 export async function markChatRoomRead(roomId: string): Promise<void> {
     await apiPost<unknown, Record<string, never>>(`/chat/rooms/${roomId}/read`, {});
-}
-
-export async function uploadChatMessageMedia(messageId: string, file: File): Promise<PostMedia> {
-    const formData = new FormData();
-    formData.append("media", file);
-    return apiPostFormData<PostMedia>(`/chat/messages/${messageId}/media`, formData);
 }
 
 export async function updateChatRoomNickname(roomId: string, nickname: string): Promise<ChatRoomMember> {

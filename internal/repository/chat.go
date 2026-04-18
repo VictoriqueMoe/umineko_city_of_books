@@ -135,6 +135,7 @@ type (
 		SetMemberTimeout(ctx context.Context, roomID, userID uuid.UUID, until string, byStaff bool) error
 		ClearMemberTimeout(ctx context.Context, roomID, userID uuid.UUID) error
 		GetMemberTimeoutState(ctx context.Context, roomID, userID uuid.UUID) (bool, string, bool, error)
+		HasActiveMemberTimeout(ctx context.Context, roomID, userID uuid.UUID) (bool, error)
 		PinMessage(ctx context.Context, messageID, pinnedBy uuid.UUID) error
 		UnpinMessage(ctx context.Context, messageID uuid.UUID) error
 		ListPinnedMessages(ctx context.Context, roomID uuid.UUID) ([]ChatMessageRow, error)
@@ -1256,6 +1257,23 @@ func (r *chatRepository) ClearMemberTimeout(ctx context.Context, roomID, userID 
 		return fmt.Errorf("clear member timeout: %w", err)
 	}
 	return nil
+}
+
+func (r *chatRepository) HasActiveMemberTimeout(ctx context.Context, roomID, userID uuid.UUID) (bool, error) {
+	var activeInt int
+	err := r.db.QueryRowContext(ctx,
+		`SELECT CASE WHEN datetime(timeout_until) > CURRENT_TIMESTAMP THEN 1 ELSE 0 END
+		 FROM chat_room_members
+		 WHERE room_id = ? AND user_id = ?`,
+		roomID, userID,
+	).Scan(&activeInt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("check active member timeout: %w", err)
+	}
+	return activeInt != 0, nil
 }
 
 func (r *chatRepository) GetMemberTimeoutState(ctx context.Context, roomID, userID uuid.UUID) (bool, string, bool, error) {

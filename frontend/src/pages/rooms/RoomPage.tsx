@@ -46,12 +46,10 @@ import {
     applyReactionRemoved,
     ChatMemberUpdatedPayload,
     ChatMessageDeletedPayload,
-    ChatMessageMediaAddedPayload,
     ChatMessagePinnedPayload,
     ChatMessageUnpinnedPayload,
     ChatReactionPayload,
     handleIncomingChatMessage,
-    handleIncomingChatMessageMedia,
 } from "../../utils/chatStream";
 import styles from "./RoomPage.module.css";
 
@@ -233,11 +231,6 @@ export function RoomPage() {
             if (msg.type === "chat_message") {
                 const chatMsg = msg.data as ChatMessage;
                 handleIncomingChatMessage(chatMsg, roomIdRef.current ?? null, setMessages, scrollToBottom);
-                return;
-            }
-            if (msg.type === "chat_message_media_added") {
-                const payload = msg.data as ChatMessageMediaAddedPayload;
-                handleIncomingChatMessageMedia(payload, roomIdRef.current ?? null, setMessages);
                 return;
             }
             if (msg.type === "chat_member_joined") {

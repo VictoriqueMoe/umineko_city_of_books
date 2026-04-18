@@ -40,6 +40,15 @@ func buildAvatarMultipart(t *testing.T, fieldName, fileName, contentType, conten
 	return buf.String(), w.FormDataContentType()
 }
 
+func buildSendMessageMultipart(t *testing.T, body string) (string, string) {
+	t.Helper()
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+	require.NoError(t, w.WriteField("body", body))
+	require.NoError(t, w.Close())
+	return buf.String(), w.FormDataContentType()
+}
+
 func newChatHarness(t *testing.T) (*testutil.Harness, *chatsvc.MockService) {
 	h := testutil.NewHarness(t)
 	chatMock := chatsvc.NewMockService(t)
@@ -140,13 +149,14 @@ func TestSendFirstDM_OK(t *testing.T) {
 	userID := uuid.New()
 	recipientID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
-	chatMock.EXPECT().SendDMMessage(mock.Anything, userID, recipientID, "hi").
+	chatMock.EXPECT().SendDMMessage(mock.Anything, userID, recipientID, "hi", []chatsvc.FileUpload(nil)).
 		Return(&dto.SendDMResponse{}, nil)
 
 	// when
+	rawBody, contentType := buildSendMessageMultipart(t, "hi")
 	status, _ := h.NewRequest("POST", "/chat/dm/"+recipientID.String()+"/messages").
 		WithCookie("valid-cookie").
-		WithJSONBody(dto.SendMessageRequest{Body: "hi"}).Do()
+		WithRawBody(rawBody, contentType).Do()
 
 	// then
 	require.Equal(t, http.StatusCreated, status)
@@ -158,28 +168,14 @@ func TestSendFirstDM_InvalidID(t *testing.T) {
 	h.ExpectValidSession("valid-cookie", uuid.New())
 
 	// when
+	rawBody, contentType := buildSendMessageMultipart(t, "hi")
 	status, body := h.NewRequest("POST", "/chat/dm/not-a-uuid/messages").
 		WithCookie("valid-cookie").
-		WithJSONBody(dto.SendMessageRequest{Body: "hi"}).Do()
+		WithRawBody(rawBody, contentType).Do()
 
 	// then
 	require.Equal(t, http.StatusBadRequest, status)
 	assert.Contains(t, string(body), "invalid userID")
-}
-
-func TestSendFirstDM_BadJSON(t *testing.T) {
-	// given
-	h, _ := newChatHarness(t)
-	h.ExpectValidSession("valid-cookie", uuid.New())
-
-	// when
-	status, body := h.NewRequest("POST", "/chat/dm/"+uuid.NewString()+"/messages").
-		WithCookie("valid-cookie").
-		WithRawBody("not json", "application/json").Do()
-
-	// then
-	require.Equal(t, http.StatusBadRequest, status)
-	assert.Contains(t, string(body), "invalid request body")
 }
 
 func TestSendFirstDM_ServiceErrors(t *testing.T) {
@@ -200,12 +196,13 @@ func TestSendFirstDM_ServiceErrors(t *testing.T) {
 			userID := uuid.New()
 			recipientID := uuid.New()
 			h.ExpectValidSession("valid-cookie", userID)
-			chatMock.EXPECT().SendDMMessage(mock.Anything, userID, recipientID, "hi").Return(nil, tc.err)
+			chatMock.EXPECT().SendDMMessage(mock.Anything, userID, recipientID, "hi", []chatsvc.FileUpload(nil)).Return(nil, tc.err)
 
 			// when
+			rawBody, contentType := buildSendMessageMultipart(t, "hi")
 			status, body := h.NewRequest("POST", "/chat/dm/"+recipientID.String()+"/messages").
 				WithCookie("valid-cookie").
-				WithJSONBody(dto.SendMessageRequest{Body: "hi"}).Do()
+				WithRawBody(rawBody, contentType).Do()
 
 			// then
 			require.Equal(t, tc.wantCode, status)
@@ -1117,13 +1114,14 @@ func TestSendMessage_OK(t *testing.T) {
 	roomID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
 	req := dto.SendMessageRequest{Body: "hi"}
-	chatMock.EXPECT().SendMessage(mock.Anything, userID, roomID, req).
+	chatMock.EXPECT().SendMessage(mock.Anything, userID, roomID, req, []chatsvc.FileUpload(nil)).
 		Return(&dto.ChatMessageResponse{ID: uuid.New()}, nil)
 
 	// when
+	rawBody, contentType := buildSendMessageMultipart(t, "hi")
 	status, _ := h.NewRequest("POST", "/chat/rooms/"+roomID.String()+"/messages").
 		WithCookie("valid-cookie").
-		WithJSONBody(req).Do()
+		WithRawBody(rawBody, contentType).Do()
 
 	// then
 	require.Equal(t, http.StatusCreated, status)
@@ -1135,28 +1133,14 @@ func TestSendMessage_InvalidID(t *testing.T) {
 	h.ExpectValidSession("valid-cookie", uuid.New())
 
 	// when
+	rawBody, contentType := buildSendMessageMultipart(t, "hi")
 	status, body := h.NewRequest("POST", "/chat/rooms/not-a-uuid/messages").
 		WithCookie("valid-cookie").
-		WithJSONBody(dto.SendMessageRequest{Body: "hi"}).Do()
+		WithRawBody(rawBody, contentType).Do()
 
 	// then
 	require.Equal(t, http.StatusBadRequest, status)
 	assert.Contains(t, string(body), "invalid roomID")
-}
-
-func TestSendMessage_BadJSON(t *testing.T) {
-	// given
-	h, _ := newChatHarness(t)
-	h.ExpectValidSession("valid-cookie", uuid.New())
-
-	// when
-	status, body := h.NewRequest("POST", "/chat/rooms/"+uuid.NewString()+"/messages").
-		WithCookie("valid-cookie").
-		WithRawBody("not json", "application/json").Do()
-
-	// then
-	require.Equal(t, http.StatusBadRequest, status)
-	assert.Contains(t, string(body), "invalid request body")
 }
 
 func TestSendMessage_ServiceErrors(t *testing.T) {
@@ -1170,6 +1154,7 @@ func TestSendMessage_ServiceErrors(t *testing.T) {
 		{"timed out", chatsvc.ErrTimedOut, http.StatusForbidden, chatsvc.ErrTimedOut.Error()},
 		{"missing fields", chatsvc.ErrMissingFields, http.StatusBadRequest, "message body is required"},
 		{"not member", chatsvc.ErrNotMember, http.StatusForbidden, "not a member"},
+		{"invalid file type", upload.ErrInvalidFileType, http.StatusBadRequest, upload.ErrInvalidFileType.Error()},
 		{"internal", errors.New("boom"), http.StatusInternalServerError, "failed to send message"},
 	}
 	for _, tc := range cases {
@@ -1180,12 +1165,13 @@ func TestSendMessage_ServiceErrors(t *testing.T) {
 			roomID := uuid.New()
 			h.ExpectValidSession("valid-cookie", userID)
 			req := dto.SendMessageRequest{Body: "hi"}
-			chatMock.EXPECT().SendMessage(mock.Anything, userID, roomID, req).Return(nil, tc.err)
+			chatMock.EXPECT().SendMessage(mock.Anything, userID, roomID, req, []chatsvc.FileUpload(nil)).Return(nil, tc.err)
 
 			// when
+			rawBody, contentType := buildSendMessageMultipart(t, "hi")
 			status, body := h.NewRequest("POST", "/chat/rooms/"+roomID.String()+"/messages").
 				WithCookie("valid-cookie").
-				WithJSONBody(req).Do()
+				WithRawBody(rawBody, contentType).Do()
 
 			// then
 			require.Equal(t, tc.wantCode, status)
@@ -1357,41 +1343,6 @@ func TestMarkRoomRead_ServiceErrors(t *testing.T) {
 			assert.Contains(t, string(body), tc.wantBody)
 		})
 	}
-}
-
-func TestUploadChatMessageMedia_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, chatFactory, "POST",
-		"/chat/messages/"+uuid.NewString()+"/media", nil)
-}
-
-func TestUploadChatMessageMedia_InvalidID(t *testing.T) {
-	// given
-	h, _ := newChatHarness(t)
-	h.ExpectValidSession("valid-cookie", uuid.New())
-
-	// when
-	status, body := h.NewRequest("POST", "/chat/messages/not-a-uuid/media").
-		WithCookie("valid-cookie").Do()
-
-	// then
-	require.Equal(t, http.StatusBadRequest, status)
-	assert.Contains(t, string(body), "invalid messageID")
-}
-
-func TestUploadChatMessageMedia_MissingFile(t *testing.T) {
-	// given
-	h, _ := newChatHarness(t)
-	userID := uuid.New()
-	h.ExpectValidSession("valid-cookie", userID)
-
-	// when
-	status, body := h.NewRequest("POST", "/chat/messages/"+uuid.NewString()+"/media").
-		WithCookie("valid-cookie").
-		WithRawBody("", "multipart/form-data; boundary=----xxx").Do()
-
-	// then
-	require.Equal(t, http.StatusBadRequest, status)
-	assert.Contains(t, string(body), "no media file provided")
 }
 
 func TestSetRoomNickname_AuthFailures(t *testing.T) {

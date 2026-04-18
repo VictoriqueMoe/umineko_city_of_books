@@ -2,6 +2,8 @@ package controllers
 
 import (
 	"errors"
+	"io"
+	"mime/multipart"
 	"net/url"
 
 	"umineko_city_of_books/internal/chat"
@@ -11,7 +13,56 @@ import (
 	"umineko_city_of_books/internal/upload"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
 )
+
+func collectChatFileUploads(form *multipart.Form) []chat.FileUpload {
+	if form == nil {
+		return nil
+	}
+	headers := form.File["media"]
+	if len(headers) == 0 {
+		return nil
+	}
+	uploads := make([]chat.FileUpload, 0, len(headers))
+	for i := 0; i < len(headers); i++ {
+		h := headers[i]
+		uploads = append(uploads, chat.FileUpload{
+			ContentType: h.Header.Get("Content-Type"),
+			Size:        h.Size,
+			Open: func() (io.ReadCloser, error) {
+				return h.Open()
+			},
+		})
+	}
+	return uploads
+}
+
+func parseReplyToID(form *multipart.Form) (*uuid.UUID, bool) {
+	if form == nil {
+		return nil, true
+	}
+	values := form.Value["reply_to_id"]
+	if len(values) == 0 || values[0] == "" {
+		return nil, true
+	}
+	id, err := uuid.Parse(values[0])
+	if err != nil {
+		return nil, false
+	}
+	return &id, true
+}
+
+func formValue(form *multipart.Form, key string) string {
+	if form == nil {
+		return ""
+	}
+	values := form.Value[key]
+	if len(values) == 0 {
+		return ""
+	}
+	return values[0]
+}
 
 func (s *Service) getAllChatRoutes() []FSetupRoute {
 	return []FSetupRoute{
@@ -34,7 +85,6 @@ func (s *Service) getAllChatRoutes() []FSetupRoute {
 		s.setupDeleteChatRoute,
 		s.setupChatUnreadCountRoute,
 		s.setupMarkRoomReadRoute,
-		s.setupUploadChatMessageMediaRoute,
 		s.setupSetRoomNicknameRoute,
 		s.setupSetRoomAvatarRoute,
 		s.setupClearRoomAvatarRoute,
@@ -109,15 +159,17 @@ func (s *Service) sendFirstDM(ctx fiber.Ctx) error {
 		return nil
 	}
 
-	req, ok := utils.BindJSON[dto.SendMessageRequest](ctx)
-	if !ok {
-		return nil
-	}
+	form, _ := ctx.MultipartForm()
+	body := formValue(form, "body")
+	files := collectChatFileUploads(form)
 
-	resp, err := s.ChatService.SendDMMessage(ctx.Context(), userID, recipientID, req.Body)
+	resp, err := s.ChatService.SendDMMessage(ctx.Context(), userID, recipientID, body, files)
 	if err != nil {
 		if utils.MapFilterError(ctx, err) {
 			return nil
+		}
+		if errors.Is(err, upload.ErrFileTooLarge) || errors.Is(err, upload.ErrInvalidFileType) || errors.Is(err, upload.ErrInvalidVideoType) {
+			return utils.BadRequest(ctx, err.Error())
 		}
 		return dmRouteError(ctx, err)
 	}
@@ -169,12 +221,18 @@ func (s *Service) sendMessage(ctx fiber.Ctx) error {
 		return nil
 	}
 
-	req, ok := utils.BindJSON[dto.SendMessageRequest](ctx)
+	form, _ := ctx.MultipartForm()
+	replyToID, ok := parseReplyToID(form)
 	if !ok {
-		return nil
+		return utils.BadRequest(ctx, "invalid reply_to_id")
 	}
+	req := dto.SendMessageRequest{
+		Body:      formValue(form, "body"),
+		ReplyToID: replyToID,
+	}
+	files := collectChatFileUploads(form)
 
-	resp, err := s.ChatService.SendMessage(ctx.Context(), userID, roomID, req)
+	resp, err := s.ChatService.SendMessage(ctx.Context(), userID, roomID, req, files)
 	if err != nil {
 		if utils.MapFilterError(ctx, err) {
 			return nil
@@ -190,6 +248,9 @@ func (s *Service) sendMessage(ctx fiber.Ctx) error {
 		}
 		if errors.Is(err, chat.ErrNotMember) {
 			return utils.Forbidden(ctx, "you are not a member of this room")
+		}
+		if errors.Is(err, upload.ErrFileTooLarge) || errors.Is(err, upload.ErrInvalidFileType) || errors.Is(err, upload.ErrInvalidVideoType) {
+			return utils.BadRequest(ctx, err.Error())
 		}
 		return utils.InternalError(ctx, "failed to send message")
 	}
@@ -281,34 +342,6 @@ func (s *Service) markRoomRead(ctx fiber.Ctx) error {
 		return utils.InternalError(ctx, "failed to mark room read")
 	}
 	return utils.OK(ctx)
-}
-
-func (s *Service) setupUploadChatMessageMediaRoute(r fiber.Router) {
-	r.Post("/chat/messages/:messageID/media", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.uploadChatMessageMedia)
-}
-
-func (s *Service) uploadChatMessageMedia(ctx fiber.Ctx) error {
-	messageID, ok := utils.ParseIDParam(ctx, "messageID")
-	if !ok {
-		return nil
-	}
-	userID := utils.UserID(ctx)
-
-	file, err := ctx.FormFile("media")
-	if err != nil {
-		return utils.BadRequest(ctx, "no media file provided")
-	}
-	reader, err := file.Open()
-	if err != nil {
-		return utils.InternalError(ctx, "failed to read file")
-	}
-	defer reader.Close()
-
-	result, err := s.ChatService.UploadMessageMedia(ctx.Context(), messageID, userID, file.Header.Get("Content-Type"), file.Size, reader)
-	if err != nil {
-		return utils.BadRequest(ctx, err.Error())
-	}
-	return ctx.Status(fiber.StatusCreated).JSON(result)
 }
 
 func (s *Service) setupListMyGroupRoomsRoute(r fiber.Router) {

@@ -22,13 +22,7 @@ import {
     searchUsers,
 } from "../../api/endpoints";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
-import {
-    applyChatMessageDeleted,
-    ChatMessageDeletedPayload,
-    ChatMessageMediaAddedPayload,
-    handleIncomingChatMessage,
-    handleIncomingChatMessageMedia,
-} from "../../utils/chatStream";
+import { applyChatMessageDeleted, ChatMessageDeletedPayload, handleIncomingChatMessage } from "../../utils/chatStream";
 import { useMessageHistory } from "../../hooks/useMessageHistory";
 import type { ChatMessage, ChatRoom, User, WSMessage } from "../../types/api";
 import styles from "./ChatPage.module.css";
@@ -218,11 +212,6 @@ export function ChatPage() {
                         [data.room_id]: { ...room, [data.user_id]: data.read_at },
                     };
                 });
-                return;
-            }
-            if (msg.type === "chat_message_media_added") {
-                const payload = msg.data as ChatMessageMediaAddedPayload;
-                handleIncomingChatMessageMedia(payload, activeRoomIdRef.current, setMessages);
                 return;
             }
             if (msg.type === "chat_message_deleted") {
