@@ -2068,7 +2068,7 @@ func TestChatRepository_GetRoomMembersDetailed_ShowsOnlyActiveTimeout(t *testing
 	assert.Equal(t, "", detailed[0].TimeoutUntil)
 	assert.False(t, detailed[0].TimeoutByStaff)
 	assert.Equal(t, member.ID, detailed[1].UserID)
-	assert.Equal(t, "2099-01-01 00:00:00", detailed[1].TimeoutUntil)
+	assert.Equal(t, "2099-01-01T00:00:00Z", detailed[1].TimeoutUntil)
 	assert.True(t, detailed[1].TimeoutByStaff)
 }
 

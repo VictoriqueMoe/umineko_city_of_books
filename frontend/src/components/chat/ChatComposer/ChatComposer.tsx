@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "../../Button/Button";
 import { MediaPickerButton, MediaPreviews } from "../../MediaPicker/MediaPicker";
 import { MentionTextArea } from "../../MentionTextArea/MentionTextArea";
@@ -49,12 +49,25 @@ export function ChatComposer({
     onTyping,
     timeoutUntil,
 }: ChatComposerProps) {
+    const [, setTimeoutTick] = useState(0);
     const timedOut = isTimeoutActive(timeoutUntil);
     const siteInfo = useSiteInfo();
     const [body, setBody] = useState("");
     const [files, setFiles] = useState<File[]>([]);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
+
+    useEffect(() => {
+        if (!timeoutUntil) {
+            return;
+        }
+        const ms = new Date(timeoutUntil).getTime() - Date.now();
+        if (Number.isNaN(ms) || ms <= 0) {
+            return;
+        }
+        const timer = setTimeout(() => setTimeoutTick(t => t + 1), ms);
+        return () => clearTimeout(timer);
+    }, [timeoutUntil]);
     const [gifPickerOpen, setGifPickerOpen] = useState(false);
     const lastTypingSentRef = useRef(0);
 

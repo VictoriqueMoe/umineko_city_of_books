@@ -607,7 +607,7 @@ func (r *chatRepository) GetRoomByID(ctx context.Context, roomID, viewerID uuid.
 func (r *chatRepository) GetRoomMembersDetailed(ctx context.Context, roomID uuid.UUID) ([]ChatRoomMemberRow, error) {
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT m.user_id, u.username, u.display_name, u.avatar_url, m.role, COALESCE(ur.role, ''), m.joined_at, m.nickname, m.nickname_locked, m.avatar_url,
-		 COALESCE(CASE WHEN datetime(m.timeout_until) > CURRENT_TIMESTAMP THEN m.timeout_until ELSE '' END, ''),
+		 COALESCE(CASE WHEN datetime(m.timeout_until) > CURRENT_TIMESTAMP THEN strftime('%Y-%m-%dT%H:%M:%SZ', m.timeout_until) ELSE '' END, ''),
 		 CASE WHEN datetime(m.timeout_until) > CURRENT_TIMESTAMP THEN m.timeout_set_by_staff ELSE 0 END,
 		 m.ghost
 		 FROM chat_room_members m
