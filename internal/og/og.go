@@ -36,7 +36,7 @@ type (
 
 const (
 	defaultTitle       = "Umineko City of Books"
-	defaultDescription = "A social platform for Umineko no Naku Koro ni fans. Declare fan theories as blue truth, debate with evidence, and earn credibility through community response."
+	defaultDescription = "A social platform for fans of Umineko, Higurashi, and the wider When They Cry series. Post theories, solve mysteries, share fan art, chronicle read-throughs, ship pairings, write fanfiction, and chat in live rooms."
 	defaultImagePath   = "/Featherine.webp"
 	baseURLPlaceholder = "__BASE_URL__"
 )
@@ -586,9 +586,13 @@ func (r *Resolver) inject(meta Meta) string {
 	html = replaceMetaContent(html, "property", "og:title", defaultTitle, escapeAttr(meta.Title))
 	html = replaceMetaContent(html, "name", "twitter:title", defaultTitle, escapeAttr(meta.Title))
 	html = replaceMetaContent(html, "name", "twitter:description", defaultDescription, escapeAttr(meta.Description))
+	html = replaceMetaContent(html, "property", "og:description", defaultDescription, escapeAttr(meta.Description))
+	html = replaceMetaContent(html, "name", "description", defaultDescription, escapeAttr(meta.Description))
+	html = replaceTitleTag(html, defaultTitle, escapeAttr(meta.Title))
 
 	if meta.URL != "" {
 		html = replaceMetaContent(html, "property", "og:url", r.baseURL+"/", meta.URL)
+		html = replaceCanonical(html, r.baseURL+"/", meta.URL)
 	}
 
 	if meta.Image != "" {
@@ -604,6 +608,18 @@ func (r *Resolver) inject(meta Meta) string {
 func replaceMetaContent(html, attrName, attrValue, oldContent, newContent string) string {
 	old := attrName + `="` + attrValue + `" content="` + oldContent + `"`
 	repl := attrName + `="` + attrValue + `" content="` + newContent + `"`
+	return strings.Replace(html, old, repl, 1)
+}
+
+func replaceCanonical(html, oldHref, newHref string) string {
+	old := `<link rel="canonical" href="` + oldHref + `">`
+	repl := `<link rel="canonical" href="` + newHref + `">`
+	return strings.Replace(html, old, repl, 1)
+}
+
+func replaceTitleTag(html, oldTitle, newTitle string) string {
+	old := `<title>` + oldTitle + `</title>`
+	repl := `<title>` + newTitle + `</title>`
 	return strings.Replace(html, old, repl, 1)
 }
 
