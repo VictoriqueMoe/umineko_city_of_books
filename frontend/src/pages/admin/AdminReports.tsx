@@ -69,6 +69,20 @@ export function AdminReports() {
             navigate(`/gallery/art/${report.context_id}#comment-${report.target_id}`);
         } else if (report.target_type === "mystery") {
             navigate(`/mystery/${report.target_id}`);
+        } else if (report.target_type === "ship_comment" && report.context_id) {
+            navigate(`/ships/${report.context_id}#comment-${report.target_id}`);
+        } else if (report.target_type === "fanfic_comment" && report.context_id) {
+            navigate(`/fanfiction/${report.context_id}#comment-${report.target_id}`);
+        } else if (report.target_type === "announcement_comment" && report.context_id) {
+            navigate(`/announcements/${report.context_id}#comment-${report.target_id}`);
+        } else if (report.target_type === "mystery_comment" && report.context_id) {
+            navigate(`/mystery/${report.context_id}#comment-${report.target_id}`);
+        } else if (report.target_type === "journal_comment" && report.context_id) {
+            navigate(`/journals/${report.context_id}#comment-${report.target_id}`);
+        } else if (report.target_type === "journal") {
+            navigate(`/journals/${report.target_id}`);
+        } else if (report.target_type === "mystery_attempt" && report.context_id) {
+            navigate(`/mystery/${report.context_id}#attempt-${report.target_id}`);
         }
     }
 
