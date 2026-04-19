@@ -10,6 +10,8 @@ export interface ThemeContextValue {
     setWideLayout: (enabled: boolean) => void;
     particlesEnabled: boolean;
     setParticlesEnabled: (enabled: boolean) => void;
+    hasSecret: (id: string) => boolean;
+    addSecret: (id: string) => void;
 }
 
 export const ThemeContext = createContext<ThemeContextValue | null>(null);

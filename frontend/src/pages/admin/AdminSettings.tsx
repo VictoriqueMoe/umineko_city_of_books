@@ -407,6 +407,9 @@ export function AdminSettings() {
                             <option value="rika">Rika Furude</option>
                             <option value="mion">Mion Sonozaki</option>
                             <option value="satoko">Satoko Houjou</option>
+                            <option value="miyao">Miyao</option>
+                            <option value="lingji">Lingji</option>
+                            <option value="stanislaw">Stanis&#322;aw</option>
                         </Select>
                     </div>
                 </div>

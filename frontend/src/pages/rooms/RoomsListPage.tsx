@@ -11,6 +11,7 @@ import { InfoPanel } from "../../components/InfoPanel/InfoPanel";
 import { RulesBox } from "../../components/RulesBox/RulesBox";
 import { CreateRoomModal } from "../../components/chat/CreateRoomModal/CreateRoomModal";
 import { isSiteStaff } from "../../utils/permissions";
+import { PieceTrigger } from "../../features/easterEgg";
 import styles from "./RoomsPages.module.css";
 
 const PAGE_SIZE = 20;
@@ -374,7 +375,9 @@ export function RoomsListPage() {
     return (
         <div className={styles.page}>
             <div className={styles.pageHeader}>
-                <h1 className={styles.pageTitle}>Chat Rooms</h1>
+                <h1 className={styles.pageTitle}>
+                    Chat Rooms <PieceTrigger pieceId="piece_03" />
+                </h1>
                 {user && (
                     <Button variant="primary" size="small" onClick={() => setShowCreate(true)}>
                         + New Room

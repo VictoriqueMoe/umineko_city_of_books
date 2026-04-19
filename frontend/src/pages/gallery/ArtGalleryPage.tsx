@@ -13,6 +13,7 @@ import { Button } from "../../components/Button/Button";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { RulesBox } from "../../components/RulesBox/RulesBox";
 import { InfoPanel } from "../../components/InfoPanel/InfoPanel";
+import { PieceTrigger } from "../../features/easterEgg";
 import styles from "./ArtGalleryPage.module.css";
 
 type ArtSort = "new" | "popular" | "views";
@@ -177,8 +178,16 @@ export function ArtGalleryPage({ corner = "general" }: ArtGalleryPageProps) {
 
     return (
         <div className={styles.page}>
-            {CORNER_TITLES[corner] && <h1 className={styles.cornerTitle}>{CORNER_TITLES[corner]}</h1>}
-            {!CORNER_TITLES[corner] && <h1 className={styles.cornerTitle}>Gallery</h1>}
+            {CORNER_TITLES[corner] && (
+                <h1 className={styles.cornerTitle}>
+                    {CORNER_TITLES[corner]} <PieceTrigger pieceId="piece_09" />
+                </h1>
+            )}
+            {!CORNER_TITLES[corner] && (
+                <h1 className={styles.cornerTitle}>
+                    Gallery <PieceTrigger pieceId="piece_09" />
+                </h1>
+            )}
             <RulesBox page={CORNER_RULES[corner] || "gallery"} />
 
             <InfoPanel title="How It Works">

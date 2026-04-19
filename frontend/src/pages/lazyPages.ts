@@ -90,3 +90,10 @@ export const EditJournalPage = named(() => import("./journals/EditJournalPage"),
 //  Chat Rooms
 export const RoomsListPage = named(() => import("./rooms/RoomsListPage"), "RoomsListPage");
 export const RoomPage = named(() => import("./rooms/RoomPage"), "RoomPage");
+
+//  Not Found
+export const NotFoundPage = named(() => import("./notfound/NotFoundPage"), "NotFoundPage");
+
+//  Secrets
+export const SecretsListPage = named(() => import("./secrets/SecretsListPage"), "SecretsListPage");
+export const SecretDetailPage = named(() => import("./secrets/SecretDetailPage"), "SecretDetailPage");

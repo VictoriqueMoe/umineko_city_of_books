@@ -2,7 +2,15 @@ import React, { useEffect, useState } from "react";
 import { useAuth } from "./useAuth";
 import { useProfile } from "./useProfile";
 import { useSiteInfo } from "./useSiteInfo";
-import { getCharacters, getMe, updateProfile, uploadAvatar, uploadBanner } from "../api/endpoints";
+import {
+    getCharacterGroups,
+    getCharacters,
+    getMe,
+    updateProfile,
+    uploadAvatar,
+    uploadBanner,
+    type CharacterGroups,
+} from "../api/endpoints";
 import { validateFileSize } from "../utils/fileValidation";
 import type { UpdateProfilePayload, UserProfile } from "../types/api";
 
@@ -61,6 +69,7 @@ export function useSettingsForm() {
     const [dmsEnabled, setDmsEnabled] = useState(true);
     const [episodeProgress, setEpisodeProgress] = useState(0);
     const [higurashiArcProgress, setHigurashiArcProgress] = useState(0);
+    const [ciconiaChapterProgress, setCiconiaChapterProgress] = useState(0);
     const [dob, setDob] = useState("");
     const [dobPublic, setDobPublic] = useState(false);
     const [email, setEmail] = useState("");
@@ -72,9 +81,11 @@ export function useSettingsForm() {
     const [characters, setCharacters] = useState<{
         umineko: Record<string, string>;
         higurashi: Record<string, string>;
+        ciconia: CharacterGroups;
     }>({
         umineko: {},
         higurashi: {},
+        ciconia: { main: {}, additional: {} },
     });
     const [saving, setSaving] = useState(false);
     const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -99,6 +110,7 @@ export function useSettingsForm() {
             setDmsEnabled(profile.dms_enabled ?? true);
             setEpisodeProgress(profile.episode_progress ?? 0);
             setHigurashiArcProgress(profile.higurashi_arc_progress ?? 0);
+            setCiconiaChapterProgress(profile.ciconia_chapter_progress ?? 0);
             setDob(profile.dob ?? "");
             setDobPublic(profile.dob_public ?? false);
             setEmail(profile.email ?? "");
@@ -119,9 +131,15 @@ export function useSettingsForm() {
     }, [profile]);
 
     useEffect(() => {
-        Promise.all([getCharacters("umineko"), getCharacters("higurashi")])
-            .then(([umineko, higurashi]) => setCharacters({ umineko, higurashi }))
-            .catch(() => setCharacters({ umineko: {}, higurashi: {} }));
+        Promise.all([getCharacters("umineko"), getCharacters("higurashi"), getCharacterGroups("ciconia")])
+            .then(([umineko, higurashi, ciconia]) => setCharacters({ umineko, higurashi, ciconia }))
+            .catch(() =>
+                setCharacters({
+                    umineko: {},
+                    higurashi: {},
+                    ciconia: { main: {}, additional: {} },
+                }),
+            );
     }, []);
 
     function handleGenderChange(newGender: string) {
@@ -218,6 +236,7 @@ export function useSettingsForm() {
             dms_enabled: dmsEnabled,
             episode_progress: episodeProgress,
             higurashi_arc_progress: higurashiArcProgress,
+            ciconia_chapter_progress: ciconiaChapterProgress,
             dob,
             dob_public: dobPublic,
             email,
@@ -291,6 +310,8 @@ export function useSettingsForm() {
         setEpisodeProgress,
         higurashiArcProgress,
         setHigurashiArcProgress,
+        ciconiaChapterProgress,
+        setCiconiaChapterProgress,
         dob,
         setDob,
         dobPublic,

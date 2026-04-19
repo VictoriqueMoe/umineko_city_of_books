@@ -20,29 +20,33 @@ import (
 )
 
 type authDeps struct {
-	authSvc    *authsvc.MockService
-	userRepo   *repository.MockUserRepository
-	mysterySvc *mysterysvc.MockService
-	vanityRepo *repository.MockVanityRoleRepository
+	authSvc        *authsvc.MockService
+	userRepo       *repository.MockUserRepository
+	mysterySvc     *mysterysvc.MockService
+	vanityRepo     *repository.MockVanityRoleRepository
+	userSecretRepo *repository.MockUserSecretRepository
 }
 
 func newAuthHarness(t *testing.T) (*testutil.Harness, authDeps) {
 	h := testutil.NewHarness(t)
 	deps := authDeps{
-		authSvc:    authsvc.NewMockService(t),
-		userRepo:   repository.NewMockUserRepository(t),
-		mysterySvc: mysterysvc.NewMockService(t),
-		vanityRepo: repository.NewMockVanityRoleRepository(t),
+		authSvc:        authsvc.NewMockService(t),
+		userRepo:       repository.NewMockUserRepository(t),
+		mysterySvc:     mysterysvc.NewMockService(t),
+		vanityRepo:     repository.NewMockVanityRoleRepository(t),
+		userSecretRepo: repository.NewMockUserSecretRepository(t),
 	}
 
 	h.SettingsService.EXPECT().Get(mock.Anything, mock.Anything).Return("").Maybe()
 	h.SettingsService.EXPECT().GetBool(mock.Anything, mock.Anything).Return(false).Maybe()
+	deps.userSecretRepo.EXPECT().GetUserIDsWithSecret(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 
 	s := &Service{
 		AuthService:     deps.authSvc,
 		UserRepo:        deps.userRepo,
 		MysteryService:  deps.mysterySvc,
 		VanityRoleRepo:  deps.vanityRepo,
+		UserSecretRepo:  deps.userSecretRepo,
 		SettingsService: h.SettingsService,
 		AuthSession:     h.SessionManager,
 		AuthzService:    h.AuthzService,

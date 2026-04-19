@@ -229,6 +229,16 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                                 >
                                     Higurashi
                                 </NavLink>
+                                <NavLink
+                                    to="/theories/ciconia"
+                                    end
+                                    className={({ isActive }) =>
+                                        `${styles.link} ${styles.subLink}${isActive ? ` ${styles.active}` : ""}`
+                                    }
+                                    onClick={onClose}
+                                >
+                                    Ciconia
+                                </NavLink>
                             </div>
                         )}
                         <NavLink
@@ -237,6 +247,13 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                             onClick={onClose}
                         >
                             Mysteries
+                        </NavLink>
+                        <NavLink
+                            to="/secrets"
+                            className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
+                            onClick={onClose}
+                        >
+                            Secrets
                         </NavLink>
                         <NavLink
                             to="/ships"
@@ -298,6 +315,13 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                                 onClick={onClose}
                             >
                                 New Higurashi Theory
+                            </NavLink>
+                            <NavLink
+                                to="/theory/ciconia/new"
+                                className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
+                                onClick={onClose}
+                            >
+                                New Ciconia Theory
                             </NavLink>
                             <NavLink
                                 to="/mystery/new"

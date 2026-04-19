@@ -267,3 +267,91 @@ html[data-width="wide"] {
     --bg-card-rgb: 26, 18, 8;
     --bg-purple-rgb: 30, 20, 8;
 }
+
+[data-theme="miyao"] {
+    --bg-void: #0a1528;
+    --bg-purple: #112240;
+    --bg-card: #0d1c36;
+    --bg-card-hover: #15294a;
+    --gold: #ffd700;
+    --gold-light: #ffe666;
+    --gold-dark: #c9a800;
+    --purple: #3b8fd6;
+    --purple-light: #7bb9ea;
+    --purple-muted: #1e4a78;
+    --text: #e8f0fa;
+    --text-muted: #a0c4e0;
+    --rose: #2a5a8a;
+
+    --gold-rgb: 255, 215, 0;
+    --purple-rgb: 59, 143, 214;
+    --rose-rgb: 42, 90, 138;
+    --bg-card-rgb: 13, 28, 54;
+    --bg-purple-rgb: 17, 34, 64;
+}
+
+[data-theme="lingji"] {
+    --bg-void: #1a0606;
+    --bg-purple: #2e0a0a;
+    --bg-card: #280808;
+    --bg-card-hover: #3a0d0d;
+    --gold: #e5a900;
+    --gold-light: #f5c842;
+    --gold-dark: #a67800;
+    --purple: #c8102e;
+    --purple-light: #e53d5a;
+    --purple-muted: #6a0a1a;
+    --text: #f5e8d0;
+    --text-muted: #c8a878;
+    --rose: #8b0a1e;
+
+    --gold-rgb: 229, 169, 0;
+    --purple-rgb: 200, 16, 46;
+    --rose-rgb: 139, 10, 30;
+    --bg-card-rgb: 40, 8, 8;
+    --bg-purple-rgb: 46, 10, 10;
+}
+
+[data-theme="stanislaw"] {
+    --bg-void: #050505;
+    --bg-purple: #0e0e0e;
+    --bg-card: #0a0a0a;
+    --bg-card-hover: #161616;
+    --gold: #f0f0f0;
+    --gold-light: #ffffff;
+    --gold-dark: #b8b8b8;
+    --purple: #505050;
+    --purple-light: #909090;
+    --purple-muted: #2a2a2a;
+    --text: #f0f0f0;
+    --text-muted: #909090;
+    --rose: #404040;
+
+    --gold-rgb: 240, 240, 240;
+    --purple-rgb: 80, 80, 80;
+    --rose-rgb: 64, 64, 64;
+    --bg-card-rgb: 10, 10, 10;
+    --bg-purple-rgb: 14, 14, 14;
+}
+
+[data-theme="_0x9e2a1c"] {
+    --bg-void: #150a1c;
+    --bg-purple: #241433;
+    --bg-card: #1d0f28;
+    --bg-card-hover: #2e1a3e;
+    --gold: #e89ec0;
+    --gold-light: #f5c2db;
+    --gold-dark: #b56b8c;
+    --purple: #a15fb8;
+    --purple-light: #d094e2;
+    --purple-muted: #5c2e6e;
+    --text: #f5e0ef;
+    --text-muted: #c5a5d0;
+    --rose: #d96a9a;
+
+    --gold-rgb: 232, 158, 192;
+    --purple-rgb: 161, 95, 184;
+    --rose-rgb: 217, 106, 154;
+    --bg-card-rgb: 29, 15, 40;
+    --bg-purple-rgb: 36, 20, 51;
+}

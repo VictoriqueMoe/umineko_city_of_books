@@ -45,6 +45,10 @@ type (
 	typingData struct {
 		RoomID string `json:"room_id"`
 	}
+
+	secretTopicData struct {
+		SecretID string `json:"secret_id"`
+	}
 )
 
 func originAllowed(origin, allowed string) bool {
@@ -210,6 +214,26 @@ func Handler(hub *Hub, sessionMgr *session.Manager, roomLister RoomLister, allow
 					if hub.SetViewerState(roomID, userID, data.State) {
 						broadcastPresence(hub, roomID, userID, data.State)
 					}
+
+				case "secret_join":
+					var data secretTopicData
+					if err := json.Unmarshal(msg.Data, &data); err != nil {
+						continue
+					}
+					if data.SecretID == "" {
+						continue
+					}
+					hub.JoinTopic("secret:"+data.SecretID, userID)
+
+				case "secret_leave":
+					var data secretTopicData
+					if err := json.Unmarshal(msg.Data, &data); err != nil {
+						continue
+					}
+					if data.SecretID == "" {
+						continue
+					}
+					hub.LeaveTopic("secret:"+data.SecretID, userID)
 				}
 			}
 		})

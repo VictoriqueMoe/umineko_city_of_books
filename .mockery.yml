@@ -54,6 +54,9 @@ packages:
   umineko_city_of_books/internal/mystery:
     interfaces:
       Service:
+  umineko_city_of_books/internal/secret:
+    interfaces:
+      Service:
   umineko_city_of_books/internal/fanfic:
     interfaces:
       Service:

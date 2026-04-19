@@ -10,6 +10,7 @@ import { InfoPanel } from "../../components/InfoPanel/InfoPanel";
 import { RulesBox } from "../../components/RulesBox/RulesBox";
 import { ToggleSwitch } from "../../components/ToggleSwitch/ToggleSwitch";
 import { relativeTime } from "../../utils/notifications";
+import { PieceTrigger } from "../../features/easterEgg";
 import styles from "./ShipPages.module.css";
 
 function characterPillClass(series: string): string {
@@ -76,7 +77,9 @@ export function ShipsListPage() {
 
     return (
         <div className={styles.page}>
-            <h1 className={styles.heading}>Ships</h1>
+            <h1 className={styles.heading}>
+                Ships <PieceTrigger pieceId="piece_06" />
+            </h1>
 
             <InfoPanel title="Declare Your OTP">
                 <p>

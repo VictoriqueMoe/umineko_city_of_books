@@ -11,6 +11,7 @@ import (
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/middleware"
+	"umineko_city_of_books/internal/secrets"
 	"umineko_city_of_books/internal/session"
 	usersvc "umineko_city_of_books/internal/user"
 
@@ -208,6 +209,12 @@ func (s *Service) siteInfo(ctx fiber.Ctx) error {
 	}
 	for _, uid := range topGMs {
 		assignments[uid] = append(assignments[uid], "system_top_gm")
+	}
+	for _, spec := range secrets.WithVanityRole() {
+		holders, _ := s.UserSecretRepo.GetUserIDsWithSecret(ctx.Context(), string(spec.ID))
+		for _, uid := range holders {
+			assignments[uid.String()] = append(assignments[uid.String()], spec.VanityRoleID)
+		}
 	}
 
 	vrList := make([]dto.SiteInfoVanityRole, len(vanityRoles))

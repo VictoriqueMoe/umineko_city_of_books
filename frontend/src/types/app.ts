@@ -8,7 +8,11 @@ export type ThemeType =
     | "virgilia"
     | "rika"
     | "mion"
-    | "satoko";
+    | "satoko"
+    | "miyao"
+    | "lingji"
+    | "stanislaw"
+    | "maria";
 
 export type FontType = "default" | "im-fell";
 export type TheorySort =

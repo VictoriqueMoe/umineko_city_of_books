@@ -25,8 +25,8 @@ function cardClass(quote: Quote): string {
 }
 
 function getDisplayHtml(quote: Quote, lang?: string): string {
-    if (lang === "jp" && quote.textJpHtml) {
-        return quote.textJpHtml;
+    if (lang === "ja" && (quote.textJpHtml || quote.textJp)) {
+        return quote.textJpHtml || quote.textJp || "";
     }
     return quote.textHtml;
 }

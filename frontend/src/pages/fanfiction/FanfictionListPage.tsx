@@ -19,6 +19,7 @@ import { InfoPanel } from "../../components/InfoPanel/InfoPanel";
 import { RulesBox } from "../../components/RulesBox/RulesBox";
 import { ToggleSwitch } from "../../components/ToggleSwitch/ToggleSwitch";
 import { relativeTime } from "../../utils/notifications";
+import { PieceTrigger } from "../../features/easterEgg";
 import styles from "./FanficPages.module.css";
 
 const GENRES = [
@@ -247,7 +248,9 @@ export function FanfictionListPage() {
     return (
         <div className={styles.page}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <h1 className={styles.heading}>Fanfiction</h1>
+                <h1 className={styles.heading}>
+                    Fanfiction <PieceTrigger pieceId="piece_07" />
+                </h1>
                 {user && (
                     <Button variant="primary" size="small" onClick={() => navigate("/fanfiction/new")}>
                         + New Fanfic

@@ -40,6 +40,7 @@ import (
 	"umineko_city_of_books/internal/report"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/routes"
+	secretsvc "umineko_city_of_books/internal/secret"
 	"umineko_city_of_books/internal/session"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/ship"
@@ -75,6 +76,7 @@ type services struct {
 	mystery         mysterysvc.Service
 	fanfic          fanficsvc.Service
 	journal         journal.Service
+	secret          secretsvc.Service
 	block           blocksvc.Service
 	email           email.Service
 	session         *session.Manager
@@ -103,6 +105,10 @@ func initDatabase() (*repository.Repositories, settings.Service) {
 
 	if err := db.Migrate(database); err != nil {
 		logger.Log.Fatal().Err(err).Msg("failed to run migrations")
+	}
+
+	if err := db.SeedContent(database); err != nil {
+		logger.Log.Fatal().Err(err).Msg("failed to seed content")
 	}
 
 	repos := repository.New(database)
@@ -162,11 +168,12 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 	mysterySvc := mysterysvc.NewService(repos.Mystery, repos.User, authzSvc, blockSvc, notifSvc, settingsSvc, uploadSvc, mediaProc, hub, contentFilter)
 	fanficSvc := fanficsvc.NewService(repos.Fanfic, repos.User, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, contentFilter)
 	journalSvc := journal.NewService(repos.Journal, repos.User, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, contentFilter)
+	secretSvc := secretsvc.NewService(repos.Secret, repos.UserSecret, repos.User, authzSvc, blockSvc, notifSvc, settingsSvc, uploadSvc, mediaProc, hub, contentFilter)
 
 	return &services{
 		settings:        settingsSvc,
 		auth:            auth.NewService(userSvc, sessionMgr, settingsSvc, repos.Invite, repos.User),
-		profile:         profile.NewService(repos.User, repos.Theory, authzSvc, uploadSvc, settingsSvc, contentFilter),
+		profile:         profile.NewService(repos.User, repos.UserSecret, repos.Theory, authzSvc, uploadSvc, settingsSvc, contentFilter),
 		theory:          theory.NewService(repos.Theory, repos.User, authzSvc, blockSvc, notifSvc, settingsSvc, credibilitySvc, quoteClient, contentFilter),
 		notification:    notifSvc,
 		admin:           admin.NewService(repos.User, repos.Role, repos.Stats, repos.AuditLog, repos.Invite, repos.VanityRole, giphyBanlist, authzSvc, settingsSvc, sessionMgr, uploadSvc, hub, chatSvc),
@@ -180,6 +187,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 		mystery:         mysterySvc,
 		fanfic:          fanficSvc,
 		journal:         journalSvc,
+		secret:          secretSvc,
 		block:           blockSvc,
 		email:           emailSvc,
 		session:         sessionMgr,
@@ -268,7 +276,7 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 	ctrlService := controllers.NewService(
 		svc.auth, svc.profile, svc.theory, svc.notification, svc.admin,
 		svc.authz, settingsSvc, svc.chat, svc.report, svc.post, svc.follow,
-		svc.art, svc.block, repos.Announcement, svc.mystery, repos.User, svc.ship, svc.fanfic, svc.journal, svc.upload, svc.mediaProc, repos.VanityRole, svc.session, svc.hub, svc.giphy, svc.giphyFavourites, string(htmlBytes),
+		svc.art, svc.block, repos.Announcement, svc.mystery, repos.User, svc.ship, svc.fanfic, svc.journal, svc.secret, svc.upload, svc.mediaProc, repos.VanityRole, repos.UserSecret, svc.session, svc.hub, svc.giphy, svc.giphyFavourites, string(htmlBytes),
 	)
 	routes.PublicRoutes(ctrlService, app)
 

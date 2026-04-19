@@ -6,7 +6,7 @@ import { Input } from "../Input/Input";
 import { Select } from "../Select/Select";
 import styles from "./CharacterPicker.module.css";
 
-type Series = "umineko" | "higurashi" | "oc";
+type Series = "umineko" | "higurashi" | "ciconia" | "oc";
 
 const characterCache = new Map<string, CharacterListEntry[]>();
 
@@ -168,6 +168,13 @@ export function CharacterPicker({ onAdd, existing, maxCharacters }: CharacterPic
                 </button>
                 <button
                     type="button"
+                    className={`${styles.pickerTab}${series === "ciconia" ? ` ${styles.pickerTabActive}` : ""}`}
+                    onClick={() => changeSeries("ciconia")}
+                >
+                    Ciconia
+                </button>
+                <button
+                    type="button"
                     className={`${styles.pickerTab}${series === "oc" ? ` ${styles.pickerTabActive}` : ""}`}
                     onClick={() => changeSeries("oc")}
                 >
@@ -197,11 +204,34 @@ export function CharacterPicker({ onAdd, existing, maxCharacters }: CharacterPic
                         disabled={loading}
                     >
                         <option value="">{loading ? "Loading..." : "-- choose a character --"}</option>
-                        {canonList.map(c => (
-                            <option key={c.id} value={c.id}>
-                                {c.name}
-                            </option>
-                        ))}
+                        {canonList.some(c => c.group === "additional") ? (
+                            <>
+                                <optgroup label="Main cast">
+                                    {canonList
+                                        .filter(c => c.group !== "additional")
+                                        .map(c => (
+                                            <option key={c.id} value={c.id}>
+                                                {c.name}
+                                            </option>
+                                        ))}
+                                </optgroup>
+                                <optgroup label="Additional">
+                                    {canonList
+                                        .filter(c => c.group === "additional")
+                                        .map(c => (
+                                            <option key={c.id} value={c.id}>
+                                                {c.name}
+                                            </option>
+                                        ))}
+                                </optgroup>
+                            </>
+                        ) : (
+                            canonList.map(c => (
+                                <option key={c.id} value={c.id}>
+                                    {c.name}
+                                </option>
+                            ))
+                        )}
                     </Select>
                 )}
                 <Button

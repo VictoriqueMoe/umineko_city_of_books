@@ -11,6 +11,7 @@ import { Select } from "../../components/Select/Select";
 import { RulesBox } from "../../components/RulesBox/RulesBox";
 import { InfoPanel } from "../../components/InfoPanel/InfoPanel";
 import { relativeTime } from "../../utils/notifications";
+import { PieceTrigger } from "../../features/easterEgg";
 import styles from "./MysteryPages.module.css";
 
 function formatDuration(ms: number): string {
@@ -163,7 +164,9 @@ export function MysteryListPage() {
 
     return (
         <div className={styles.page}>
-            <h1 className={styles.heading}>Mysteries</h1>
+            <h1 className={styles.heading}>
+                Mysteries <PieceTrigger pieceId="piece_04" />
+            </h1>
 
             <div className={styles.layout}>
                 <div className={styles.main}>

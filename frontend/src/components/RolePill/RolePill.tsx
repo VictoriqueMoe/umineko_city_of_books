@@ -36,19 +36,25 @@ export function RolePill({ role, userId }: RolePillProps) {
     return (
         <>
             {config && <span className={`${styles.pill} ${styles[config.className]}`}>{config.label}</span>}
-            {vanityRoles.map(vr => (
-                <span
-                    key={vr.id}
-                    className={styles.pill}
-                    style={{
-                        backgroundColor: hexToRgba(vr.color, 0.15),
-                        color: vr.color,
-                        border: `1px solid ${hexToRgba(vr.color, 0.4)}`,
-                    }}
-                >
-                    {vr.label}
-                </span>
-            ))}
+            {vanityRoles.map(vr => {
+                const classes = [styles.pill];
+                if (vr.id === "system_witch_hunter") {
+                    classes.push(styles.sparkle);
+                }
+                return (
+                    <span
+                        key={vr.id}
+                        className={classes.join(" ")}
+                        style={{
+                            backgroundColor: hexToRgba(vr.color, 0.15),
+                            color: vr.color,
+                            border: `1px solid ${hexToRgba(vr.color, 0.4)}`,
+                        }}
+                    >
+                        {vr.label}
+                    </span>
+                );
+            })}
         </>
     );
 }

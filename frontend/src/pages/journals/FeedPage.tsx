@@ -12,6 +12,7 @@ import { ToggleSwitch } from "../../components/ToggleSwitch/ToggleSwitch";
 import { RulesBox } from "../../components/RulesBox/RulesBox";
 import { InfoPanel } from "../../components/InfoPanel/InfoPanel";
 import { JOURNAL_WORKS } from "../../utils/journalWorks";
+import { PieceTrigger } from "../../features/easterEgg";
 import styles from "./FeedPage.module.css";
 
 const SORTS: { id: JournalSort; label: string }[] = [
@@ -49,7 +50,9 @@ export function JournalsFeedPage() {
     return (
         <div className={styles.page}>
             <div className={styles.pageHeader}>
-                <h1 className={styles.pageTitle}>Reading Journals</h1>
+                <h1 className={styles.pageTitle}>
+                    Reading Journals <PieceTrigger pieceId="piece_08" />
+                </h1>
                 {user && (
                     <Link to="/journals/new">
                         <Button variant="primary" size="small">

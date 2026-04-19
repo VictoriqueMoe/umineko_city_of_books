@@ -9,6 +9,7 @@ const STORAGE_KEY = "ut-theme";
 const FONT_KEY = "ut-font";
 const WIDE_LAYOUT_KEY = "ut-wide-layout";
 const PARTICLES_KEY = "ut-particles";
+const SECRETS_KEY = "ut-secrets";
 const FALLBACK_THEME: ThemeType = "featherine";
 const FALLBACK_FONT: FontType = "default";
 
@@ -23,7 +24,15 @@ const VALID_THEMES: Set<string> = new Set([
     "rika",
     "mion",
     "satoko",
+    "miyao",
+    "lingji",
+    "stanislaw",
+    "maria",
 ]);
+
+const THEME_CSS_KEYS: Partial<Record<ThemeType, string>> = {
+    maria: "_0x9e2a1c",
+};
 
 const VALID_FONTS: Set<string> = new Set(["default", "im-fell"]);
 
@@ -33,6 +42,10 @@ function isValidTheme(value: string): value is ThemeType {
 
 function isValidFont(value: string): value is FontType {
     return VALID_FONTS.has(value);
+}
+
+function dataThemeAttr(t: ThemeType): string {
+    return THEME_CSS_KEYS[t] ?? t;
 }
 
 function hasStoredTheme(): boolean {
@@ -84,6 +97,25 @@ function getStoredWideLayout(): boolean {
     return false;
 }
 
+function getStoredSecrets(): Set<string> {
+    try {
+        const raw = localStorage.getItem(SECRETS_KEY);
+        if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) {
+                return new Set(parsed.filter((v): v is string => typeof v === "string"));
+            }
+        }
+    } catch {}
+    return new Set();
+}
+
+function persistSecrets(secrets: Set<string>) {
+    try {
+        localStorage.setItem(SECRETS_KEY, JSON.stringify(Array.from(secrets)));
+    } catch {}
+}
+
 export function ThemeProvider({ children }: PropsWithChildren) {
     const siteInfo = useSiteInfo();
     const { user } = useAuth();
@@ -99,7 +131,15 @@ export function ThemeProvider({ children }: PropsWithChildren) {
     const [font, setFontState] = useState<FontType>(getStoredFont);
     const [wideLayout, setWideLayoutState] = useState(getStoredWideLayout);
     const [particlesEnabled, setParticlesEnabledState] = useState(getStoredParticles);
+    const [secrets, setSecretsState] = useState<Set<string>>(getStoredSecrets);
     const hydratedUserRef = useRef<string | null>(null);
+    const secretsRef = useRef<Set<string>>(secrets);
+
+    useEffect(() => {
+        secretsRef.current = secrets;
+    }, [secrets]);
+
+    const hasSecret = useCallback((id: string) => secrets.has(id), [secrets]);
 
     useEffect(() => {
         if (!user) {
@@ -129,13 +169,22 @@ export function ThemeProvider({ children }: PropsWithChildren) {
                 localStorage.setItem(WIDE_LAYOUT_KEY, String(user.wide_layout));
             } catch {}
         }
+        if (Array.isArray(user.secrets) && user.secrets.length > 0) {
+            const next = new Set(secretsRef.current);
+            for (const id of user.secrets) {
+                next.add(id);
+            }
+            secretsRef.current = next;
+            setSecretsState(next);
+            persistSecrets(next);
+        }
     }, [user]);
 
     useLayoutEffect(() => {
         if (theme === FALLBACK_THEME) {
             document.documentElement.removeAttribute("data-theme");
         } else {
-            document.documentElement.setAttribute("data-theme", theme);
+            document.documentElement.setAttribute("data-theme", dataThemeAttr(theme));
         }
     }, [theme]);
 
@@ -205,6 +254,17 @@ export function ThemeProvider({ children }: PropsWithChildren) {
         } catch {}
     }, []);
 
+    const addSecret = useCallback((id: string) => {
+        if (secretsRef.current.has(id)) {
+            return;
+        }
+        const next = new Set(secretsRef.current);
+        next.add(id);
+        secretsRef.current = next;
+        setSecretsState(next);
+        persistSecrets(next);
+    }, []);
+
     return (
         <ThemeContext.Provider
             value={{
@@ -216,6 +276,8 @@ export function ThemeProvider({ children }: PropsWithChildren) {
                 setWideLayout,
                 particlesEnabled,
                 setParticlesEnabled,
+                hasSecret,
+                addSecret,
             }}
         >
             {children}

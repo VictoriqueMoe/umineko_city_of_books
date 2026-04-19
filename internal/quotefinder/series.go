@@ -10,10 +10,11 @@ type Series string
 const (
 	SeriesUmineko   Series = "umineko"
 	SeriesHigurashi Series = "higurashi"
+	SeriesCiconia   Series = "ciconia"
 )
 
 func (s Series) Valid() bool {
-	return s == SeriesUmineko || s == SeriesHigurashi
+	return s == SeriesUmineko || s == SeriesHigurashi || s == SeriesCiconia
 }
 
 func ParseSeries(value string) (Series, error) {

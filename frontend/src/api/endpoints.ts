@@ -49,6 +49,8 @@ import type {
     PostMedia,
     QuoteBrowseResponse,
     QuoteSearchResponse,
+    SecretDetailResponse,
+    SecretListResponse,
     ShipCharacter,
     ShipDetail,
     ShipListResponse,
@@ -132,13 +134,19 @@ export async function getMe(): Promise<UserProfile> {
     return getUserProfile(session.username);
 }
 
-export type Series = "umineko" | "higurashi";
+export type Series = "umineko" | "higurashi" | "ciconia";
+
+export interface CharacterGroups {
+    main: Record<string, string>;
+    additional: Record<string, string>;
+}
 
 export async function searchQuotes(params: {
     query?: string;
     character?: string;
     episode?: number;
     arc?: string;
+    chapter?: string;
     truth?: string;
     lang?: string;
     limit?: number;
@@ -151,6 +159,7 @@ export async function searchQuotes(params: {
         character: params.character,
         episode: params.episode,
         arc: params.arc,
+        chapter: params.chapter,
         truth: params.truth,
         lang: series === "umineko" ? params.lang : undefined,
         limit: params.limit ?? 30,
@@ -168,6 +177,7 @@ export async function browseQuotes(params: {
     episode?: number;
     truth?: string;
     arc?: string;
+    chapter?: string;
     lang?: string;
     limit?: number;
     offset?: number;
@@ -179,6 +189,7 @@ export async function browseQuotes(params: {
         episode: params.episode,
         truth: params.truth,
         arc: params.arc,
+        chapter: params.chapter,
         lang: series === "umineko" ? params.lang : undefined,
         limit: params.limit ?? 30,
         offset: params.offset,
@@ -191,12 +202,20 @@ export async function browseQuotes(params: {
 }
 
 export async function getCharacters(series: Series = "umineko"): Promise<Record<string, string>> {
+    const groups = await getCharacterGroups(series);
+    return { ...groups.main, ...groups.additional };
+}
+
+export async function getCharacterGroups(series: Series = "umineko"): Promise<CharacterGroups> {
     const response = await fetch(`${QUOTE_API}/${series}/characters`);
     if (!response.ok) {
         throw new Error(`Quote API error: ${response.status}`);
     }
     const data = await response.json();
-    return data.characters;
+    return {
+        main: data.characters ?? {},
+        additional: data.additional ?? {},
+    };
 }
 
 export async function listTheories(params: {
@@ -270,6 +289,10 @@ export async function updateAppearance(theme: string, font: string, wideLayout: 
         font,
         wide_layout: wideLayout,
     });
+}
+
+export async function unlockSecret(secret: string, phrase: string): Promise<void> {
+    await apiPut<unknown, { secret: string; phrase: string }>("/preferences/secret-unlock", { secret, phrase });
 }
 
 export async function uploadAvatar(file: File): Promise<{ avatar_url: string }> {
@@ -1196,6 +1219,43 @@ export async function uploadMysteryCommentMedia(commentId: string, file: File): 
     const formData = new FormData();
     formData.append("media", file);
     return apiPostFormData<PostMedia>(`/mystery-comments/${commentId}/media`, formData);
+}
+
+export async function listSecrets(): Promise<SecretListResponse> {
+    return apiFetch<SecretListResponse>("/secrets");
+}
+
+export async function getSecret(id: string): Promise<SecretDetailResponse> {
+    return apiFetch<SecretDetailResponse>(`/secrets/${id}`);
+}
+
+export async function createSecretComment(secretId: string, body: string, parentId?: string): Promise<{ id: string }> {
+    return apiPost<{ id: string }, { body: string; parent_id?: string }>(`/secrets/${secretId}/comments`, {
+        body,
+        parent_id: parentId,
+    });
+}
+
+export async function updateSecretComment(id: string, body: string): Promise<void> {
+    await apiPut<unknown, { body: string }>(`/secret-comments/${id}`, { body });
+}
+
+export async function deleteSecretComment(id: string): Promise<void> {
+    await apiDelete(`/secret-comments/${id}`);
+}
+
+export async function likeSecretComment(id: string): Promise<void> {
+    await apiPost<unknown, Record<string, never>>(`/secret-comments/${id}/like`, {});
+}
+
+export async function unlikeSecretComment(id: string): Promise<void> {
+    await apiDelete(`/secret-comments/${id}/like`);
+}
+
+export async function uploadSecretCommentMedia(commentId: string, file: File): Promise<PostMedia> {
+    const formData = new FormData();
+    formData.append("media", file);
+    return apiPostFormData<PostMedia>(`/secret-comments/${commentId}/media`, formData);
 }
 
 export async function uploadMysteryAttachment(mysteryId: string, file: File): Promise<MysteryAttachment> {

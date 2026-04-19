@@ -147,6 +147,8 @@ export interface UserProfile {
     dms_enabled: boolean;
     episode_progress: number;
     higurashi_arc_progress: number;
+    ciconia_chapter_progress: number;
+    secrets: string[];
     dob?: string;
     dob_public?: boolean;
     email?: string;
@@ -189,6 +191,7 @@ export interface UpdateProfilePayload {
     dms_enabled: boolean;
     episode_progress: number;
     higurashi_arc_progress: number;
+    ciconia_chapter_progress: number;
     dob: string;
     dob_public: boolean;
     email: string;
@@ -763,6 +766,60 @@ export interface MysteryListResponse {
     offset: number;
 }
 
+export interface SecretComment {
+    id: string;
+    parent_id?: string;
+    author: User;
+    body: string;
+    media: PostMedia[];
+    like_count: number;
+    user_liked: boolean;
+    replies?: SecretComment[];
+    created_at: string;
+    updated_at?: string;
+}
+
+export interface SecretLeaderboardEntry {
+    user: User;
+    pieces_collected: number;
+    solved: boolean;
+}
+
+export interface SecretSummary {
+    id: string;
+    title: string;
+    description: string;
+    total_pieces: number;
+    solved: boolean;
+    solver?: User;
+    solved_at?: string;
+    viewer_progress: number;
+    comment_count: number;
+}
+
+export interface SecretDetailResponse extends SecretSummary {
+    riddle: string;
+    leaderboard: SecretLeaderboardEntry[];
+    comments: SecretComment[];
+}
+
+export interface SecretListResponse {
+    secrets: SecretSummary[];
+}
+
+export interface SecretProgressEvent {
+    secret_id: string;
+    user: User;
+    pieces_collected: number;
+    total_pieces: number;
+}
+
+export interface SecretSolvedEvent {
+    secret_id: string;
+    solver: User;
+    solved_at: string;
+}
+
 export interface MysteryLeaderboardEntry {
     user: User;
     score: number;
@@ -933,6 +990,7 @@ export interface ShipListResponse {
 export interface CharacterListEntry {
     id: string;
     name: string;
+    group?: "main" | "additional";
 }
 
 export interface CharacterListResponse {

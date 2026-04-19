@@ -1,0 +1,30 @@
+.trigger {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: rgba(var(--gold-rgb), 0.35);
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0.25;
+    transition:
+        opacity 180ms var(--ease-out),
+        color 180ms var(--ease-out),
+        transform 180ms var(--ease-out);
+    user-select: none;
+    vertical-align: baseline;
+}
+
+.trigger:hover,
+.trigger:focus-visible {
+    opacity: 1;
+    color: var(--gold);
+    transform: scale(1.25);
+    outline: none;
+}

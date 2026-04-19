@@ -4,6 +4,7 @@ import { listUsersPublic } from "../../api/endpoints";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { Input } from "../../components/Input/Input";
+import { PieceTrigger } from "../../features/easterEgg";
 import styles from "./UsersPage.module.css";
 
 const ROLE_GROUPS = [
@@ -58,7 +59,9 @@ export function UsersPage() {
 
     return (
         <div className={styles.page}>
-            <h1 className={styles.title}>Players</h1>
+            <h1 className={styles.title}>
+                Players <PieceTrigger pieceId="piece_12" />
+            </h1>
             <Input
                 type="text"
                 placeholder="Search players..."

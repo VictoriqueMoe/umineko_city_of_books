@@ -129,6 +129,11 @@ export function SettingsPage() {
 
     const uminekoEntries = Object.entries(form.characters.umineko).sort((a, b) => a[1].localeCompare(b[1]));
     const higurashiEntries = Object.entries(form.characters.higurashi).sort((a, b) => a[1].localeCompare(b[1]));
+    const ciconiaMainEntries = Object.entries(form.characters.ciconia.main).sort((a, b) => a[1].localeCompare(b[1]));
+    const ciconiaAdditionalEntries = Object.entries(form.characters.ciconia.additional).sort((a, b) =>
+        a[1].localeCompare(b[1]),
+    );
+    const ciconiaArcs = getSeriesConfig("ciconia").chapters ?? [];
 
     return (
         <div className={styles.page}>
@@ -196,6 +201,20 @@ export function SettingsPage() {
                                             </option>
                                         ))}
                                     </optgroup>
+                                    <optgroup label="Ciconia – Main">
+                                        {ciconiaMainEntries.map(([id, name]) => (
+                                            <option key={`ciconia-main-${id}`} value={name}>
+                                                {name}
+                                            </option>
+                                        ))}
+                                    </optgroup>
+                                    <optgroup label="Ciconia – Additional">
+                                        {ciconiaAdditionalEntries.map(([id, name]) => (
+                                            <option key={`ciconia-add-${id}`} value={name}>
+                                                {name}
+                                            </option>
+                                        ))}
+                                    </optgroup>
                                     <optgroup label="Special / Alias">
                                         {SPECIAL_CHARACTERS.map(name => (
                                             <option key={`special-${name}`} value={name}>
@@ -233,6 +252,22 @@ export function SettingsPage() {
                                     {getSeriesConfig("higurashi").arcs?.map((a, i) => (
                                         <option key={a.value} value={String(i + 1)}>
                                             {a.label}
+                                        </option>
+                                    ))}
+                                </Select>
+                            </label>
+                            <label className={styles.label}>
+                                Ciconia VN Progress
+                                <Select
+                                    value={String(form.ciconiaChapterProgress)}
+                                    onChange={e =>
+                                        form.setCiconiaChapterProgress(Number((e.target as HTMLSelectElement).value))
+                                    }
+                                >
+                                    <option value="0">I've read everything</option>
+                                    {ciconiaArcs.map((c, i) => (
+                                        <option key={c.value} value={String(i + 1)}>
+                                            {c.label}
                                         </option>
                                     ))}
                                 </Select>
@@ -371,6 +406,7 @@ export function SettingsPage() {
                                 <option value="landing">Welcome (Landing)</option>
                                 <option value="theories">Theories (Umineko)</option>
                                 <option value="theories_higurashi">Theories (Higurashi)</option>
+                                <option value="theories_ciconia">Theories (Ciconia)</option>
                                 <option value="game_board">Game Board (General)</option>
                                 <option value="game_board_umineko">Game Board (Umineko)</option>
                                 <option value="game_board_higurashi">Game Board (Higurashi)</option>

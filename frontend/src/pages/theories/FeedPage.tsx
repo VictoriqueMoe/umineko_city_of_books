@@ -9,6 +9,7 @@ import { Select } from "../../components/Select/Select";
 import { RulesBox } from "../../components/RulesBox/RulesBox";
 import type { Series } from "../../api/endpoints";
 import { getSeriesConfig } from "../../utils/seriesConfig";
+import { PieceTrigger } from "../../features/easterEgg";
 import styles from "./FeedPage.module.css";
 
 type SortCategory = "new" | "popular" | "controversial" | "credibility";
@@ -71,7 +72,9 @@ export function FeedPage({ series = "umineko" }: { series?: Series }) {
 
     return (
         <div>
-            <h1 className={styles.pageTitle}>{cfg.label} Theories</h1>
+            <h1 className={styles.pageTitle}>
+                {cfg.label} Theories <PieceTrigger pieceId="piece_05" />
+            </h1>
             <RulesBox page={series === "higurashi" ? "theories_higurashi" : "theories"} />
             <div className={styles.controls}>
                 <Input

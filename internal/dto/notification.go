@@ -92,4 +92,7 @@ const (
 	NotifSuggestionPosted         NotificationType = "suggestion_posted"
 	NotifSuggestionResolved       NotificationType = "suggestion_resolved"
 	NotifContentShared            NotificationType = "content_shared"
+	NotifSecretCommentReply       NotificationType = "secret_comment_reply"
+	NotifSecretCommented          NotificationType = "secret_commented"
+	NotifSecretCommentLiked       NotificationType = "secret_comment_liked"
 )
