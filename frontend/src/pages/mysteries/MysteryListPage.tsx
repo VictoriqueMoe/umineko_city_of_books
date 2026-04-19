@@ -164,9 +164,7 @@ export function MysteryListPage() {
 
     return (
         <div className={styles.page}>
-            <h1 className={styles.heading}>
-                Mysteries <PieceTrigger pieceId="piece_04" />
-            </h1>
+            <h1 className={styles.heading}>Mysteries</h1>
 
             <div className={styles.layout}>
                 <div className={styles.main}>
@@ -313,7 +311,7 @@ export function MysteryListPage() {
                                 className={`${styles.leaderboardTab}${leaderboardTab === "detectives" ? ` ${styles.leaderboardTabActive}` : ""}`}
                                 onClick={() => setLeaderboardTab("detectives")}
                             >
-                                Top Detectives
+                                Top Detectives <PieceTrigger pieceId="piece_04" />
                             </button>
                             <button
                                 className={`${styles.leaderboardTab}${leaderboardTab === "gm" ? ` ${styles.leaderboardTabActive}` : ""}`}

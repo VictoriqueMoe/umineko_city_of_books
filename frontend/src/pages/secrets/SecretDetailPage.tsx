@@ -43,7 +43,7 @@ export function SecretDetailPage() {
     const { id = "" } = useParams<{ id: string }>();
     usePageTitle("Secret");
     const { user } = useAuth();
-    const { addWSListener, sendWSMessage } = useNotifications();
+    const { addWSListener, sendWSMessage, wsEpoch } = useNotifications();
     const [detail, setDetail] = useState<SecretDetailResponse | null>(null);
     const [loading, setLoading] = useState(true);
     const [toast, setToast] = useState<string | null>(null);
@@ -65,14 +65,15 @@ export function SecretDetailPage() {
     const refresh = fetchDetail;
 
     useEffect(() => {
-        if (!id) {
+        if (!id || wsEpoch === 0) {
             return;
         }
         sendWSMessage({ type: "secret_join", data: { secret_id: id } });
+        fetchDetail();
         return () => {
             sendWSMessage({ type: "secret_leave", data: { secret_id: id } });
         };
-    }, [id, sendWSMessage]);
+    }, [id, sendWSMessage, wsEpoch, fetchDetail]);
 
     useEffect(() => {
         if (!id) {

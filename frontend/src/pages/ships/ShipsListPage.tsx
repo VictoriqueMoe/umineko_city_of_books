@@ -77,15 +77,13 @@ export function ShipsListPage() {
 
     return (
         <div className={styles.page}>
-            <h1 className={styles.heading}>
-                Ships <PieceTrigger pieceId="piece_06" />
-            </h1>
+            <h1 className={styles.heading}>Ships</h1>
 
             <InfoPanel title="Declare Your OTP">
                 <p>
                     This is the place to declare your favourite pairings from Umineko, Higurashi, or even your original
                     characters. Vote other ships up or down. If a ship drops below the crackship threshold, it gets
-                    branded as a certified crackship, mii~
+                    branded as a certified crackship, mii~ <PieceTrigger pieceId="piece_06" />
                 </p>
             </InfoPanel>
 

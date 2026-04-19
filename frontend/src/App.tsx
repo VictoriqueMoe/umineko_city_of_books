@@ -17,6 +17,7 @@ import {
     AdminAnnouncementsPage,
     AdminAuditLog,
     AdminBannedGifs,
+    AdminBannedWords,
     AdminContentRules,
     AdminDashboard,
     AdminInvites,
@@ -219,6 +220,7 @@ function AppLayout() {
                                     <Route path="reports" element={<AdminReports />} />
                                     <Route path="content-rules" element={<AdminContentRules />} />
                                     <Route path="banned-gifs" element={<AdminBannedGifs />} />
+                                    <Route path="banned-words" element={<AdminBannedWords />} />
                                     <Route path="announcements" element={<AdminAnnouncementsPage />} />
                                     <Route path="audit-log" element={<AdminAuditLog />} />
                                     <Route path="vanity-roles" element={<AdminVanityRoles />} />

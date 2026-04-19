@@ -37,6 +37,7 @@ export const AdminContentRules = named(() => import("./admin/AdminContentRules")
 export const AdminVanityRoles = named(() => import("./admin/AdminVanityRoles"), "AdminVanityRoles");
 export const AdminAnnouncementsPage = named(() => import("./admin/AdminAnnouncements"), "AdminAnnouncements");
 export const AdminBannedGifs = named(() => import("./admin/AdminBannedGifs"), "AdminBannedGifs");
+export const AdminBannedWords = named(() => import("./admin/AdminBannedWords"), "AdminBannedWords");
 
 //  Announcements
 export const AnnouncementsListPage = named(() => import("./announcements/AnnouncementsPage"), "AnnouncementsPage");

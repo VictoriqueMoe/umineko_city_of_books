@@ -50,13 +50,11 @@ export function JournalsFeedPage() {
     return (
         <div className={styles.page}>
             <div className={styles.pageHeader}>
-                <h1 className={styles.pageTitle}>
-                    Reading Journals <PieceTrigger pieceId="piece_08" />
-                </h1>
+                <h1 className={styles.pageTitle}>Reading Journals</h1>
                 {user && (
                     <Link to="/journals/new">
                         <Button variant="primary" size="small">
-                            + New Journal
+                            + New Journal <PieceTrigger pieceId="piece_08" />
                         </Button>
                     </Link>
                 )}

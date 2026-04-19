@@ -118,7 +118,25 @@ func (s *service) List(ctx context.Context, viewerID uuid.UUID) (*dto.SecretList
 		}
 		result = append(result, summary)
 	}
-	return &dto.SecretListResponse{Secrets: result}, nil
+
+	solverRows, _ := s.secretRepo.GetSolversLeaderboard(ctx, ids)
+	solvers := make([]dto.SecretSolverEntry, len(solverRows))
+	for i := 0; i < len(solverRows); i++ {
+		r := solverRows[i]
+		solvers[i] = dto.SecretSolverEntry{
+			User: dto.UserResponse{
+				ID:          r.UserID,
+				Username:    r.Username,
+				DisplayName: r.DisplayName,
+				AvatarURL:   r.AvatarURL,
+				Role:        role.Role(r.Role),
+			},
+			Solved:     r.SolvedCount,
+			LastSolved: r.LastSolvedAt,
+		}
+	}
+
+	return &dto.SecretListResponse{Secrets: result, SolversLeaderboard: solvers}, nil
 }
 
 func (s *service) buildSummary(ctx context.Context, spec secrets.Spec, viewerID uuid.UUID, commentCount int) (dto.SecretSummary, error) {
@@ -394,4 +412,8 @@ func (s *service) BroadcastSolved(ctx context.Context, parentID string, actor uu
 		SolvedAt: solvedAt,
 	}
 	s.hub.BroadcastToTopic(secretRoomID(parentID), ws.Message{Type: "secret_solved", Data: event})
+
+	if spec, ok := secrets.Lookup(parentID); ok && spec.VanityRoleID != "" {
+		s.hub.Broadcast(ws.Message{Type: "vanity_roles_changed", Data: map[string]interface{}{}})
+	}
 }

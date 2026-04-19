@@ -3,6 +3,7 @@ import { Button } from "../../Button/Button";
 import { MediaPickerButton, MediaPreviews } from "../../MediaPicker/MediaPicker";
 import { MentionTextArea } from "../../MentionTextArea/MentionTextArea";
 import { sendChatMessage, sendFirstDMMessage } from "../../../api/endpoints";
+import { ApiError } from "../../../api/client";
 import { useSiteInfo } from "../../../hooks/useSiteInfo";
 import { validateFileSize } from "../../../utils/fileValidation";
 import type { ChatMessage, ChatRoom, User } from "../../../types/api";
@@ -25,6 +26,23 @@ interface ChatComposerProps {
     onTyping?: () => void;
     onEditLast?: () => void;
     timeoutUntil?: string;
+}
+
+function formatSendError(err: unknown): string {
+    if (err instanceof ApiError) {
+        const body = err.body as { code?: string; pattern?: string; action?: string; error?: string } | null;
+        if (body?.code === "banned_word" && body.pattern) {
+            const suffix = body.action === "kick" ? " You have been kicked from this room." : "";
+            return `Message blocked by banned-word rule "${body.pattern}".${suffix}`;
+        }
+        if (body?.error) {
+            return body.error;
+        }
+    }
+    if (err instanceof Error) {
+        return err.message;
+    }
+    return "Failed to send message";
 }
 
 function isTimeoutActive(until?: string): boolean {
@@ -181,7 +199,7 @@ export function ChatComposer({
                 onCancelReply();
             }
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to send message");
+            setError(formatSendError(err));
         } finally {
             setSubmitting(false);
         }

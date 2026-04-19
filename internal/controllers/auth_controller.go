@@ -228,6 +228,18 @@ func (s *Service) siteInfo(ctx fiber.Ctx) error {
 		}
 	}
 
+	listedSpecs := secrets.Listed()
+	listedSecrets := make([]dto.SiteInfoSecret, len(listedSpecs))
+	for i, spec := range listedSpecs {
+		listedSecrets[i] = dto.SiteInfoSecret{
+			ID:           string(spec.ID),
+			Title:        spec.Title,
+			Description:  spec.Description,
+			VanityRoleID: spec.VanityRoleID,
+			Icon:         spec.Icon,
+		}
+	}
+
 	return ctx.JSON(dto.SiteInfoResponse{
 		SiteName:              s.SettingsService.Get(ctx.Context(), config.SettingSiteName),
 		SiteDescription:       s.SettingsService.Get(ctx.Context(), config.SettingSiteDescription),
@@ -245,6 +257,7 @@ func (s *Service) siteInfo(ctx fiber.Ctx) error {
 		TopGMIDs:              topGMs,
 		VanityRoles:           vrList,
 		VanityRoleAssignments: assignments,
+		ListedSecrets:         listedSecrets,
 		Version:               config.Version,
 	})
 }

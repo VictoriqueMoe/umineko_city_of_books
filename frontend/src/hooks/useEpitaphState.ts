@@ -1,8 +1,8 @@
 import { useCallback, useMemo } from "react";
-import { useTheme } from "../../hooks/useTheme";
-import { useAuth } from "../../hooks/useAuth";
-import { submitAnswer, submitPiece } from "./api";
-import { FINAL_SECRET_ID, PIECES } from "./config";
+import { useTheme } from "./useTheme.ts";
+import { useAuth } from "./useAuth.ts";
+import { submitAnswer, submitPiece } from "../features/easterEgg/api.ts";
+import { FINAL_SECRET_ID, PIECES } from "../features/easterEgg/config.ts";
 
 interface EpitaphState {
     collectedPieces: Set<string>;

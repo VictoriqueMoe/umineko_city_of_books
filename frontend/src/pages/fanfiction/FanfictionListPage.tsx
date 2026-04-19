@@ -248,9 +248,7 @@ export function FanfictionListPage() {
     return (
         <div className={styles.page}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <h1 className={styles.heading}>
-                    Fanfiction <PieceTrigger pieceId="piece_07" />
-                </h1>
+                <h1 className={styles.heading}>Fanfiction</h1>
                 {user && (
                     <Button variant="primary" size="small" onClick={() => navigate("/fanfiction/new")}>
                         + New Fanfic
@@ -261,7 +259,7 @@ export function FanfictionListPage() {
             <InfoPanel title="Welcome to the Archive">
                 <p>
                     Browse fanfiction from across the When They Cry universe. Filter by series, genre, characters, and
-                    more to find your next read.
+                    more to find your next read. <PieceTrigger pieceId="piece_07" />
                 </p>
             </InfoPanel>
 

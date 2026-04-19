@@ -19,6 +19,7 @@ type (
 		GetProgressLeaderboard(ctx context.Context, pieceIDs []string) ([]SecretLeaderboardRow, error)
 		GetPieceCountForUser(ctx context.Context, userID uuid.UUID, pieceIDs []string) (int, error)
 		GetUserProgressSummary(ctx context.Context, userID uuid.UUID, pieceIDs []string) (*SecretLeaderboardRow, error)
+		GetSolversLeaderboard(ctx context.Context, parentSecretIDs []string) ([]SecretSolverRow, error)
 
 		CreateComment(ctx context.Context, id uuid.UUID, secretID string, parentID *uuid.UUID, userID uuid.UUID, body string) error
 		GetComments(ctx context.Context, secretID string, viewerID uuid.UUID, excludeUserIDs []uuid.UUID) ([]SecretCommentRow, error)
@@ -57,6 +58,16 @@ type (
 		AvatarURL   string
 		Role        string
 		Pieces      int
+	}
+
+	SecretSolverRow struct {
+		UserID       uuid.UUID
+		Username     string
+		DisplayName  string
+		AvatarURL    string
+		Role         string
+		SolvedCount  int
+		LastSolvedAt string
 	}
 
 	SecretCommentRow struct {
@@ -181,6 +192,40 @@ func (r *secretRepository) GetPieceCountForUser(ctx context.Context, userID uuid
 		return 0, fmt.Errorf("count user pieces: %w", err)
 	}
 	return count, nil
+}
+
+func (r *secretRepository) GetSolversLeaderboard(ctx context.Context, parentSecretIDs []string) ([]SecretSolverRow, error) {
+	if len(parentSecretIDs) == 0 {
+		return nil, nil
+	}
+	placeholders, args := secretIDPlaceholders(parentSecretIDs)
+
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT u.id, u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''),
+			COUNT(*) AS solved,
+			MAX(us.unlocked_at) AS last_solved
+		 FROM user_secrets us
+		 JOIN users u ON us.user_id = u.id
+		 LEFT JOIN user_roles r ON r.user_id = u.id
+		 WHERE us.secret_id IN (`+placeholders+`)
+		 GROUP BY u.id, u.username, u.display_name, u.avatar_url, r.role
+		 ORDER BY solved DESC, last_solved ASC`,
+		args...,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("solvers leaderboard: %w", err)
+	}
+	defer rows.Close()
+
+	var result []SecretSolverRow
+	for rows.Next() {
+		var row SecretSolverRow
+		if err := rows.Scan(&row.UserID, &row.Username, &row.DisplayName, &row.AvatarURL, &row.Role, &row.SolvedCount, &row.LastSolvedAt); err != nil {
+			return nil, fmt.Errorf("scan solver row: %w", err)
+		}
+		result = append(result, row)
+	}
+	return result, rows.Err()
 }
 
 func (r *secretRepository) GetUserProgressSummary(ctx context.Context, userID uuid.UUID, pieceIDs []string) (*SecretLeaderboardRow, error) {

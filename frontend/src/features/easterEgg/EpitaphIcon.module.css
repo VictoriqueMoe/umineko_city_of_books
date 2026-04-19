@@ -32,6 +32,15 @@
     animation: solved-glow 2.4s ease-in-out infinite alternate;
 }
 
+.iconStatic {
+    cursor: default;
+}
+
+.iconStatic:hover,
+.iconStatic:focus-visible {
+    transform: none;
+}
+
 @keyframes solved-glow {
     0% {
         box-shadow: 0 0 6px rgba(var(--gold-rgb), 0.35);

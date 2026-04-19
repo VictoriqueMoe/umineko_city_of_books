@@ -16,54 +16,6 @@ import (
 	"github.com/google/uuid"
 )
 
-func collectChatFileUploads(form *multipart.Form) []chat.FileUpload {
-	if form == nil {
-		return nil
-	}
-	headers := form.File["media"]
-	if len(headers) == 0 {
-		return nil
-	}
-	uploads := make([]chat.FileUpload, 0, len(headers))
-	for i := 0; i < len(headers); i++ {
-		h := headers[i]
-		uploads = append(uploads, chat.FileUpload{
-			ContentType: h.Header.Get("Content-Type"),
-			Size:        h.Size,
-			Open: func() (io.ReadCloser, error) {
-				return h.Open()
-			},
-		})
-	}
-	return uploads
-}
-
-func parseReplyToID(form *multipart.Form) (*uuid.UUID, bool) {
-	if form == nil {
-		return nil, true
-	}
-	values := form.Value["reply_to_id"]
-	if len(values) == 0 || values[0] == "" {
-		return nil, true
-	}
-	id, err := uuid.Parse(values[0])
-	if err != nil {
-		return nil, false
-	}
-	return &id, true
-}
-
-func formValue(form *multipart.Form, key string) string {
-	if form == nil {
-		return ""
-	}
-	values := form.Value[key]
-	if len(values) == 0 {
-		return ""
-	}
-	return values[0]
-}
-
 func (s *Service) getAllChatRoutes() []FSetupRoute {
 	return []FSetupRoute{
 		s.setupResolveDMRoute,
@@ -97,6 +49,13 @@ func (s *Service) getAllChatRoutes() []FSetupRoute {
 		s.setupRemoveReactionRoute,
 		s.setupDeleteMessageRoute,
 		s.setupEditMessageRoute,
+		s.setupListRoomBansRoute,
+		s.setupBanMemberRoute,
+		s.setupUnbanMemberRoute,
+		s.setupListRoomBannedWordsRoute,
+		s.setupCreateRoomBannedWordRoute,
+		s.setupUpdateRoomBannedWordRoute,
+		s.setupDeleteRoomBannedWordRoute,
 	}
 }
 
@@ -237,6 +196,15 @@ func (s *Service) sendMessage(ctx fiber.Ctx) error {
 	if err != nil {
 		if utils.MapFilterError(ctx, err) {
 			return nil
+		}
+		var bw *chat.ErrBannedWordMatch
+		if errors.As(err, &bw) {
+			return utils.UnprocessableEntity(ctx, fiber.Map{
+				"error":   bw.Error(),
+				"code":    "banned_word",
+				"pattern": bw.Pattern,
+				"action":  bw.Action,
+			})
 		}
 		if errors.Is(err, chat.ErrUserBlocked) {
 			return utils.Forbidden(ctx, "you cannot message this user")
@@ -414,6 +382,9 @@ func (s *Service) joinRoom(ctx fiber.Ctx) error {
 		}
 		if errors.Is(err, chat.ErrNotPublic) {
 			return utils.Forbidden(ctx, "room is not public")
+		}
+		if errors.Is(err, chat.ErrBannedFromRoom) {
+			return utils.Forbidden(ctx, "you are banned from this room")
 		}
 		if errors.Is(err, chat.ErrRoomFull) {
 			return utils.Conflict(ctx, "room is full")
@@ -1012,4 +983,52 @@ func (s *Service) removeReaction(ctx fiber.Ctx) error {
 		return utils.InternalError(ctx, "failed to remove reaction")
 	}
 	return utils.OK(ctx)
+}
+
+func collectChatFileUploads(form *multipart.Form) []chat.FileUpload {
+	if form == nil {
+		return nil
+	}
+	headers := form.File["media"]
+	if len(headers) == 0 {
+		return nil
+	}
+	uploads := make([]chat.FileUpload, 0, len(headers))
+	for i := 0; i < len(headers); i++ {
+		h := headers[i]
+		uploads = append(uploads, chat.FileUpload{
+			ContentType: h.Header.Get("Content-Type"),
+			Size:        h.Size,
+			Open: func() (io.ReadCloser, error) {
+				return h.Open()
+			},
+		})
+	}
+	return uploads
+}
+
+func parseReplyToID(form *multipart.Form) (*uuid.UUID, bool) {
+	if form == nil {
+		return nil, true
+	}
+	values := form.Value["reply_to_id"]
+	if len(values) == 0 || values[0] == "" {
+		return nil, true
+	}
+	id, err := uuid.Parse(values[0])
+	if err != nil {
+		return nil, false
+	}
+	return &id, true
+}
+
+func formValue(form *multipart.Form, key string) string {
+	if form == nil {
+		return ""
+	}
+	values := form.Value[key]
+	if len(values) == 0 {
+		return ""
+	}
+	return values[0]
 }

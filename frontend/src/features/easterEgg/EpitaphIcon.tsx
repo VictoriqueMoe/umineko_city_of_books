@@ -1,45 +1,48 @@
 import { useState } from "react";
 import { useAuth } from "../../hooks/useAuth";
-import { useEpitaphState } from "./useEpitaphState";
+import { useEpitaphState } from "../../hooks/useEpitaphState.ts";
 import { EpitaphPanel } from "./EpitaphPanel";
 import { PIECES } from "./config";
 import styles from "./EpitaphIcon.module.css";
 
 interface EpitaphIconProps {
     profileUserId: string;
-    profileSecrets?: string[];
 }
 
-export function EpitaphIcon({ profileUserId, profileSecrets }: EpitaphIconProps) {
+export function EpitaphIcon({ profileUserId }: EpitaphIconProps) {
     const { user } = useAuth();
     const state = useEpitaphState();
     const [open, setOpen] = useState(false);
 
     const isOwner = !!user && user.id === profileUserId;
-    const otherSolved = !isOwner && (profileSecrets?.includes("witchHunter") ?? false);
 
-    if (!isOwner && !otherSolved) {
+    if (!isOwner) {
         return null;
     }
-    if (isOwner && state.collectedCount === 0 && !state.solved) {
+    if (state.collectedCount === 0 && !open) {
+        return null;
+    }
+    if (state.solved && !open) {
         return null;
     }
 
-    const solved = isOwner ? state.solved : otherSolved;
-    const count = isOwner ? state.collectedCount : PIECES.length;
+    const count = state.collectedCount;
+    const showButton = !state.solved && state.collectedCount > 0;
 
     return (
         <>
-            <button
-                type="button"
-                className={`${styles.icon}${solved ? ` ${styles.iconSolved}` : ""}`}
-                onClick={() => setOpen(true)}
-                aria-label={solved ? "The Witch's Epitaph (solved)" : `Epitaph: ${count} of ${PIECES.length} pieces`}
-                title={solved ? "The Witch's Epitaph" : `${count} / ${PIECES.length}`}
-            >
-                {"\u273F"}
-                {!solved && isOwner && count < PIECES.length && <span className={styles.badge}>{count}</span>}
-            </button>
+            {showButton && (
+                <button
+                    type="button"
+                    className={styles.icon}
+                    onClick={() => setOpen(true)}
+                    aria-label={`Epitaph: ${count} of ${PIECES.length} pieces`}
+                    title={`${count} / ${PIECES.length}`}
+                >
+                    {"\u273F"}
+                    {count < PIECES.length && <span className={styles.badge}>{count}</span>}
+                </button>
+            )}
             <EpitaphPanel isOpen={open} onClose={() => setOpen(false)} />
         </>
     );

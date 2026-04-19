@@ -42,7 +42,14 @@ type (
 	}
 
 	SecretListResponse struct {
-		Secrets []SecretSummary `json:"secrets"`
+		Secrets            []SecretSummary     `json:"secrets"`
+		SolversLeaderboard []SecretSolverEntry `json:"solvers_leaderboard"`
+	}
+
+	SecretSolverEntry struct {
+		User       UserResponse `json:"user"`
+		Solved     int          `json:"solved_count"`
+		LastSolved string       `json:"last_solved_at"`
 	}
 
 	CreateSecretCommentRequest struct {

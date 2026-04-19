@@ -72,9 +72,7 @@ export function FeedPage({ series = "umineko" }: { series?: Series }) {
 
     return (
         <div>
-            <h1 className={styles.pageTitle}>
-                {cfg.label} Theories <PieceTrigger pieceId="piece_05" />
-            </h1>
+            <h1 className={styles.pageTitle}>{cfg.label} Theories</h1>
             <RulesBox page={series === "higurashi" ? "theories_higurashi" : "theories"} />
             <div className={styles.controls}>
                 <Input
@@ -95,6 +93,7 @@ export function FeedPage({ series = "umineko" }: { series?: Series }) {
                             {activeCategory === s && (
                                 <span className={styles.sortArrow}>{ascending ? " \u25B2" : " \u25BC"}</span>
                             )}
+                            {s === "credibility" && <PieceTrigger pieceId="piece_05" />}
                         </button>
                     ))}
                 </div>

@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
+import DOMPurify from "dompurify";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import type { FanficChapter, FanficDetail } from "../../types/api";
 import { getFanfic, getFanficChapter } from "../../api/endpoints";
@@ -45,6 +46,8 @@ export function FanficChapterPage() {
     useEffect(() => {
         fetchChapter();
     }, [fetchChapter]);
+
+    const safeBody = useMemo(() => DOMPurify.sanitize(chapter?.body ?? ""), [chapter?.body]);
 
     if (loading) {
         return <div className="loading">Loading...</div>;
@@ -96,7 +99,7 @@ export function FanficChapterPage() {
 
             {!isOneshot && navButtons()}
 
-            <div className={styles.chapterBody} dangerouslySetInnerHTML={{ __html: chapter.body }} />
+            <div className={styles.chapterBody} dangerouslySetInnerHTML={{ __html: safeBody }} />
 
             <p className={styles.cardStats} style={{ marginTop: "1.5rem" }}>
                 {formatNumber(chapter.word_count)} words

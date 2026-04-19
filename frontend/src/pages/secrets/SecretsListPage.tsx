@@ -1,22 +1,37 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
-import type { SecretSummary } from "../../types/api";
+import type { SecretSolverEntry, SecretSummary } from "../../types/api";
 import { listSecrets } from "../../api/endpoints";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useAuth } from "../../hooks/useAuth";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import styles from "./SecretsListPage.module.css";
 
+function formatSolveDate(dateStr: string): string {
+    const d = new Date(dateStr);
+    if (Number.isNaN(d.getTime())) {
+        return "";
+    }
+    return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+}
+
 export function SecretsListPage() {
     usePageTitle("Secrets");
     const { user } = useAuth();
     const [secrets, setSecrets] = useState<SecretSummary[]>([]);
+    const [solvers, setSolvers] = useState<SecretSolverEntry[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         listSecrets()
-            .then(res => setSecrets(res.secrets))
-            .catch(() => setSecrets([]))
+            .then(res => {
+                setSecrets(res.secrets);
+                setSolvers(res.solvers_leaderboard ?? []);
+            })
+            .catch(() => {
+                setSecrets([]);
+                setSolvers([]);
+            })
             .finally(() => setLoading(false));
     }, []);
 
@@ -63,6 +78,27 @@ export function SecretsListPage() {
                         </Link>
                     ))}
                 </div>
+            )}
+
+            {!loading && (
+                <>
+                    <h2 className={styles.boardHeading}>Solvers</h2>
+                    <div className={styles.board}>
+                        {solvers.length === 0 && (
+                            <div className={styles.boardEmpty}>No one has solved a secret yet.</div>
+                        )}
+                        {solvers.map((s, i) => (
+                            <div key={s.user.id} className={styles.boardRow}>
+                                <span className={`${styles.boardRank}${i < 3 ? ` ${styles.boardRankTop}` : ""}`}>
+                                    {i + 1}
+                                </span>
+                                <ProfileLink user={s.user} size="small" />
+                                <span className={styles.boardCount}>{s.solved_count} solved</span>
+                                <span className={styles.boardDate}>{formatSolveDate(s.last_solved_at)}</span>
+                            </div>
+                        ))}
+                    </div>
+                </>
             )}
         </div>
     );

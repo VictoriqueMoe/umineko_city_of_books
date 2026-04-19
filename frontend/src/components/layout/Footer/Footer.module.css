@@ -1,8 +1,0 @@
-.footer {
-    background: var(--bg-purple);
-    border-top: 1px solid rgba(var(--gold-rgb), 0.1);
-    padding: 1rem 2rem;
-    text-align: center;
-    color: var(--text-muted);
-    font-size: 0.8rem;
-}

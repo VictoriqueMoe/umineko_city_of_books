@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Modal } from "../../components/Modal/Modal";
 import { Input } from "../../components/Input/Input";
 import { Button } from "../../components/Button/Button";
-import { useEpitaphState } from "./useEpitaphState";
+import { useEpitaphState } from "../../hooks/useEpitaphState.ts";
 import { EPITAPH_POINTER, JUMBLE, JUMBLE_LENGTH, PIECES } from "./config";
 import styles from "./EpitaphPanel.module.css";
 
@@ -72,7 +72,7 @@ export function EpitaphPanel({ isOpen, onClose }: EpitaphPanelProps) {
                                     fullWidth
                                     placeholder={
                                         state.allPiecesCollected
-                                            ? "Speak the witch's name..."
+                                            ? "Whisper mama's truth..."
                                             : `${state.collectedCount} / ${PIECES.length} pieces found`
                                     }
                                     value={input}

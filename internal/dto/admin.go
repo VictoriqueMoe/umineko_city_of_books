@@ -172,6 +172,7 @@ type (
 		TopGMIDs              []string             `json:"top_gm_ids"`
 		VanityRoles           []SiteInfoVanityRole `json:"vanity_roles"`
 		VanityRoleAssignments map[string][]string  `json:"vanity_role_assignments"`
+		ListedSecrets         []SiteInfoSecret     `json:"listed_secrets"`
 		Version               string               `json:"version"`
 	}
 
@@ -181,5 +182,13 @@ type (
 		Color     string `json:"color"`
 		IsSystem  bool   `json:"is_system"`
 		SortOrder int    `json:"sort_order"`
+	}
+
+	SiteInfoSecret struct {
+		ID           string `json:"id"`
+		Title        string `json:"title"`
+		Description  string `json:"description"`
+		VanityRoleID string `json:"vanity_role_id,omitempty"`
+		Icon         string `json:"icon,omitempty"`
 	}
 )

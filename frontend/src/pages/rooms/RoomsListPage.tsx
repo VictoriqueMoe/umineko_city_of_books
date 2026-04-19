@@ -375,12 +375,10 @@ export function RoomsListPage() {
     return (
         <div className={styles.page}>
             <div className={styles.pageHeader}>
-                <h1 className={styles.pageTitle}>
-                    Chat Rooms <PieceTrigger pieceId="piece_03" />
-                </h1>
+                <h1 className={styles.pageTitle}>Chat Rooms</h1>
                 {user && (
                     <Button variant="primary" size="small" onClick={() => setShowCreate(true)}>
-                        + New Room
+                        + New Room <PieceTrigger pieceId="piece_03" />
                     </Button>
                 )}
             </div>

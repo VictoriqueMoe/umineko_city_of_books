@@ -1,6 +1,9 @@
 package chat
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
 var (
 	ErrDmsDisabled              = errors.New("recipient has DMs disabled")
@@ -32,4 +35,19 @@ var (
 	ErrGhostRequiresStaff       = errors.New("only site moderators or admins can join as a ghost")
 	ErrMessageEditPermission    = errors.New("you can only edit your own messages")
 	ErrCannotEditSystemMessage  = errors.New("system messages cannot be edited")
+	ErrCannotBanStaff           = errors.New("site staff or the host cannot be banned")
+	ErrBannedFromRoom           = errors.New("you are banned from this room")
+	ErrInvalidBannedWordMode    = errors.New("invalid match mode")
+	ErrInvalidBannedWordAction  = errors.New("invalid action")
+	ErrInvalidBannedWordRegex   = errors.New("invalid regex pattern")
+	ErrBannedWordRuleMismatch   = errors.New("banned word rule does not belong to this room")
 )
+
+type ErrBannedWordMatch struct {
+	Pattern string
+	Action  string
+}
+
+func (e *ErrBannedWordMatch) Error() string {
+	return fmt.Sprintf("message blocked by banned word rule %q (%s)", e.Pattern, e.Action)
+}

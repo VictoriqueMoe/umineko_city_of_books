@@ -416,6 +416,9 @@ export type NotificationType =
     | "chat_room_message"
     | "chat_room_invite"
     | "chat_reply"
+    | "chat_room_banned"
+    | "chat_room_kicked"
+    | "chat_room_unbanned"
     | "fanfic_commented"
     | "fanfic_comment_reply"
     | "fanfic_comment_liked"
@@ -641,6 +644,36 @@ export interface ChatRoomMember {
     ghost?: boolean;
 }
 
+export interface ChatRoomBan {
+    user: User;
+    banned_by?: User;
+    reason: string;
+    created_at: string;
+}
+
+export type BannedWordMatchMode = "substring" | "whole_word" | "regex";
+export type BannedWordAction = "delete" | "kick";
+
+export interface BannedWordRule {
+    id: string;
+    scope: "global" | "room";
+    room_id?: string;
+    pattern: string;
+    match_mode: BannedWordMatchMode;
+    case_sensitive: boolean;
+    action: BannedWordAction;
+    created_by_id?: string;
+    created_by_name?: string;
+    created_at: string;
+}
+
+export interface CreateBannedWordRequest {
+    pattern: string;
+    match_mode: BannedWordMatchMode;
+    case_sensitive: boolean;
+    action: BannedWordAction;
+}
+
 export interface ChatMessageReplyPreview {
     id: string;
     sender_id: string;
@@ -803,8 +836,15 @@ export interface SecretDetailResponse extends SecretSummary {
     comments: SecretComment[];
 }
 
+export interface SecretSolverEntry {
+    user: User;
+    solved_count: number;
+    last_solved_at: string;
+}
+
 export interface SecretListResponse {
     secrets: SecretSummary[];
+    solvers_leaderboard: SecretSolverEntry[];
 }
 
 export interface SecretProgressEvent {

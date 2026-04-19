@@ -304,6 +304,10 @@ function NotificationText({ notif }: { notif: Notification }) {
         );
     }
 
+    if (!notif.actor?.display_name) {
+        return <>{getNotificationText(notif)}</>;
+    }
+
     return (
         <>
             <strong>{notif.actor.display_name}</strong> {getNotificationText(notif)}

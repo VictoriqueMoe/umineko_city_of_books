@@ -119,6 +119,81 @@ func (_c *MockAuditLogRepository_Create_Call) RunAndReturn(run func(ctx context.
 	return _c
 }
 
+// CreateSystem provides a mock function for the type MockAuditLogRepository
+func (_mock *MockAuditLogRepository) CreateSystem(ctx context.Context, action string, targetType string, targetID string, details string) error {
+	ret := _mock.Called(ctx, action, targetType, targetID, details)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateSystem")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string) error); ok {
+		r0 = returnFunc(ctx, action, targetType, targetID, details)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockAuditLogRepository_CreateSystem_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateSystem'
+type MockAuditLogRepository_CreateSystem_Call struct {
+	*mock.Call
+}
+
+// CreateSystem is a helper method to define mock.On call
+//   - ctx context.Context
+//   - action string
+//   - targetType string
+//   - targetID string
+//   - details string
+func (_e *MockAuditLogRepository_Expecter) CreateSystem(ctx interface{}, action interface{}, targetType interface{}, targetID interface{}, details interface{}) *MockAuditLogRepository_CreateSystem_Call {
+	return &MockAuditLogRepository_CreateSystem_Call{Call: _e.mock.On("CreateSystem", ctx, action, targetType, targetID, details)}
+}
+
+func (_c *MockAuditLogRepository_CreateSystem_Call) Run(run func(ctx context.Context, action string, targetType string, targetID string, details string)) *MockAuditLogRepository_CreateSystem_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		var arg4 string
+		if args[4] != nil {
+			arg4 = args[4].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+		)
+	})
+	return _c
+}
+
+func (_c *MockAuditLogRepository_CreateSystem_Call) Return(err error) *MockAuditLogRepository_CreateSystem_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockAuditLogRepository_CreateSystem_Call) RunAndReturn(run func(ctx context.Context, action string, targetType string, targetID string, details string) error) *MockAuditLogRepository_CreateSystem_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // List provides a mock function for the type MockAuditLogRepository
 func (_mock *MockAuditLogRepository) List(ctx context.Context, action string, limit int, offset int) ([]AuditLogEntry, int, error) {
 	ret := _mock.Called(ctx, action, limit, offset)

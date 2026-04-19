@@ -22,8 +22,11 @@ import type {
     CharacterListResponse,
     ChatMessage,
     ChatMessageListResponse,
+    BannedWordRule,
     ChatRoom,
+    ChatRoomBan,
     ChatRoomMember,
+    CreateBannedWordRequest,
     CreateJournalPayload,
     CreateResponsePayload,
     CreateTheoryPayload,
@@ -74,6 +77,14 @@ export interface VanityRoleDefinition {
     sort_order: number;
 }
 
+export interface SiteInfoSecret {
+    id: string;
+    title: string;
+    description: string;
+    vanity_role_id?: string;
+    icon?: string;
+}
+
 export interface SiteInfo {
     site_name: string;
     site_description: string;
@@ -91,6 +102,7 @@ export interface SiteInfo {
     top_gm_ids: string[];
     vanity_roles: VanityRoleDefinition[];
     vanity_role_assignments: Record<string, string[]>;
+    listed_secrets: SiteInfoSecret[];
     version: string;
 }
 
@@ -537,6 +549,54 @@ export async function getChatRoomMembers(roomId: string): Promise<{ members: Cha
 
 export async function kickChatRoomMember(roomId: string, userId: string): Promise<void> {
     await apiDelete<unknown>(`/chat/rooms/${roomId}/members/${userId}`);
+}
+
+export async function banChatRoomMember(roomId: string, userId: string, reason: string): Promise<void> {
+    await apiPost<unknown, { reason: string }>(`/chat/rooms/${roomId}/bans/${userId}`, { reason });
+}
+
+export async function unbanChatRoomMember(roomId: string, userId: string): Promise<void> {
+    await apiDelete<unknown>(`/chat/rooms/${roomId}/bans/${userId}`);
+}
+
+export async function listChatRoomBans(roomId: string): Promise<{ bans: ChatRoomBan[] }> {
+    return apiFetch<{ bans: ChatRoomBan[] }>(`/chat/rooms/${roomId}/bans`);
+}
+
+export async function listChatRoomBannedWords(roomId: string): Promise<{ rules: BannedWordRule[] }> {
+    return apiFetch<{ rules: BannedWordRule[] }>(`/chat/rooms/${roomId}/banned-words`);
+}
+
+export async function createChatRoomBannedWord(roomId: string, req: CreateBannedWordRequest): Promise<BannedWordRule> {
+    return apiPost<BannedWordRule, CreateBannedWordRequest>(`/chat/rooms/${roomId}/banned-words`, req);
+}
+
+export async function updateChatRoomBannedWord(
+    roomId: string,
+    ruleId: string,
+    req: CreateBannedWordRequest,
+): Promise<BannedWordRule> {
+    return apiPut<BannedWordRule, CreateBannedWordRequest>(`/chat/rooms/${roomId}/banned-words/${ruleId}`, req);
+}
+
+export async function deleteChatRoomBannedWord(roomId: string, ruleId: string): Promise<void> {
+    await apiDelete<unknown>(`/chat/rooms/${roomId}/banned-words/${ruleId}`);
+}
+
+export async function listGlobalBannedWords(): Promise<{ rules: BannedWordRule[] }> {
+    return apiFetch<{ rules: BannedWordRule[] }>("/admin/banned-words");
+}
+
+export async function createGlobalBannedWord(req: CreateBannedWordRequest): Promise<BannedWordRule> {
+    return apiPost<BannedWordRule, CreateBannedWordRequest>("/admin/banned-words", req);
+}
+
+export async function updateGlobalBannedWord(ruleId: string, req: CreateBannedWordRequest): Promise<BannedWordRule> {
+    return apiPut<BannedWordRule, CreateBannedWordRequest>(`/admin/banned-words/${ruleId}`, req);
+}
+
+export async function deleteGlobalBannedWord(ruleId: string): Promise<void> {
+    await apiDelete<unknown>(`/admin/banned-words/${ruleId}`);
 }
 
 export async function inviteChatRoomMembers(

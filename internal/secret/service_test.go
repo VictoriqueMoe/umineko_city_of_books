@@ -72,6 +72,9 @@ func TestList_ReturnsListedSecretsWithStatus(t *testing.T) {
 	m.secretRepo.EXPECT().
 		GetPieceCountForUser(mock.Anything, viewer, mock.Anything).
 		Return(3, nil)
+	m.secretRepo.EXPECT().
+		GetSolversLeaderboard(mock.Anything, mock.Anything).
+		Return(nil, nil)
 
 	// when
 	got, err := svc.List(context.Background(), viewer)
@@ -102,6 +105,7 @@ func TestList_ShowsSolver(t *testing.T) {
 			UnlockedAt:  "2026-01-01T00:00:00Z",
 		}, nil)
 	m.secretRepo.EXPECT().GetPieceCountForUser(mock.Anything, viewer, mock.Anything).Return(0, nil)
+	m.secretRepo.EXPECT().GetSolversLeaderboard(mock.Anything, mock.Anything).Return(nil, nil)
 
 	// when
 	got, err := svc.List(context.Background(), viewer)

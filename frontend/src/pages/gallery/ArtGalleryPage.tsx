@@ -178,16 +178,8 @@ export function ArtGalleryPage({ corner = "general" }: ArtGalleryPageProps) {
 
     return (
         <div className={styles.page}>
-            {CORNER_TITLES[corner] && (
-                <h1 className={styles.cornerTitle}>
-                    {CORNER_TITLES[corner]} <PieceTrigger pieceId="piece_09" />
-                </h1>
-            )}
-            {!CORNER_TITLES[corner] && (
-                <h1 className={styles.cornerTitle}>
-                    Gallery <PieceTrigger pieceId="piece_09" />
-                </h1>
-            )}
+            {CORNER_TITLES[corner] && <h1 className={styles.cornerTitle}>{CORNER_TITLES[corner]}</h1>}
+            {!CORNER_TITLES[corner] && <h1 className={styles.cornerTitle}>Gallery</h1>}
             <RulesBox page={CORNER_RULES[corner] || "gallery"} />
 
             <InfoPanel title="How It Works">
@@ -201,7 +193,7 @@ export function ArtGalleryPage({ corner = "general" }: ArtGalleryPageProps) {
                     </span>{" "}
                     (Galleries tab), then upload art into it. You can also upload directly using the Upload Art button
                     above. Share your drawings, cosplay photos, figure collections, and more. Use the &quot;All
-                    Art&quot; view to filter by type.
+                    Art&quot; view to filter by type. <PieceTrigger pieceId="piece_09" />
                 </p>
             </InfoPanel>
 

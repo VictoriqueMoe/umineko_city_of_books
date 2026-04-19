@@ -381,6 +381,21 @@ const notificationConfigs: Record<NotificationType, NotificationConfig> = {
         category: "social",
         route: chatMessageRoute,
     },
+    chat_room_banned: {
+        text: "banned you from a chat room",
+        category: "moderation",
+        route: notif => `/rooms/${notif.reference_id}`,
+    },
+    chat_room_kicked: {
+        text: "kicked you from a chat room",
+        category: "moderation",
+        route: notif => `/rooms/${notif.reference_id}`,
+    },
+    chat_room_unbanned: {
+        text: "unbanned you from a chat room",
+        category: "moderation",
+        route: notif => `/rooms/${notif.reference_id}`,
+    },
 };
 
 function chatMessageRoute(notif: Notification): string {
@@ -409,9 +424,9 @@ export function showDesktopNotification(notif: Notification): void {
     if (document.visibilityState === "visible" && document.hasFocus()) {
         return;
     }
-    const actorName = notif.actor?.display_name || "Someone";
+    const actorName = notif.actor?.display_name || "";
     const body = getNotificationText(notif);
-    const title = `${actorName} ${body}`;
+    const title = actorName ? `${actorName} ${body}` : body;
     const route = getNotificationRoute(notif);
     const osNotif = new window.Notification(title, {
         body: notif.message || "",

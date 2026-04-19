@@ -78,10 +78,10 @@ export function LandingPage() {
 
             <section className={styles.hero}>
                 <div className={styles.heroOrnament}>{"\u2666 \u2663 \u2665 \u2660"}</div>
-                <h1 className={styles.heroTitle}>
-                    Umineko City of Books <PieceTrigger pieceId="piece_01" />
-                </h1>
-                <p className={styles.heroTagline}>Without love, it cannot be seen.</p>
+                <h1 className={styles.heroTitle}>Umineko City of Books</h1>
+                <p className={styles.heroTagline}>
+                    Without love, it cannot be seen. <PieceTrigger pieceId="piece_01" />
+                </p>
                 <p className={styles.heroBlurb}>
                     Welcome, new witness. The game board is always open, the tea is always hot, and the catbox is
                     forever ajar. Here we gather to declare fan theories, nail them down in red, and shatter them when

@@ -1,0 +1,244 @@
+.tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid rgba(var(--purple-rgb), 0.3);
+}
+
+.tab {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-family: var(--font-display);
+    font-size: 0.85rem;
+    padding: 0.5rem 0.8rem;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    border-bottom: 2px solid transparent;
+}
+
+.tab:hover {
+    color: var(--text);
+}
+
+.tabActive {
+    color: var(--gold);
+    border-bottom-color: var(--gold);
+}
+
+.error {
+    color: #ff3333;
+    background: rgba(255, 51, 51, 0.1);
+    border: 1px solid rgba(255, 51, 51, 0.3);
+    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
+    margin-bottom: 0.75rem;
+    font-size: 0.85rem;
+}
+
+.muted {
+    color: var(--text-muted);
+    font-style: italic;
+    padding: 0.75rem 0;
+}
+
+.section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.intro {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    line-height: 1.45;
+}
+
+.form {
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--purple-rgb), 0.3);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: flex-end;
+}
+
+.fieldLabel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: 0.75rem;
+    font-family: var(--font-display);
+    letter-spacing: 0.04em;
+    color: var(--gold);
+    flex: 1;
+    min-width: 10rem;
+}
+
+.checkboxRow {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.8rem;
+    color: var(--text);
+    padding-bottom: 0.3rem;
+}
+
+.select {
+    background: var(--bg-void);
+    border: 1px solid rgba(var(--purple-rgb), 0.45);
+    color: var(--text);
+    font-size: 0.88rem;
+    padding: 0.4rem 0.5rem;
+    border-radius: 4px;
+}
+
+.regexError {
+    color: #ff9833;
+    font-size: 0.8rem;
+}
+
+.formActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.4rem;
+}
+
+.ruleActions {
+    display: flex;
+    gap: 0.35rem;
+}
+
+.list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.banRow,
+.ruleRow {
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--purple-rgb), 0.25);
+    border-radius: 5px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.banMain,
+.ruleMain {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.banDate {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-left: auto;
+}
+
+.banReason {
+    font-size: 0.82rem;
+    color: var(--text);
+}
+
+.banBy {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    display: flex;
+    gap: 0.35rem;
+    align-items: center;
+}
+
+.banActions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.ruleRow {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.ruleGlobal {
+    opacity: 0.75;
+    border-style: dashed;
+}
+
+.mono {
+    font-family: monospace;
+    font-size: 0.9rem;
+    color: var(--text);
+    background: rgba(var(--bg-card-rgb), 0.6);
+    padding: 0.15rem 0.4rem;
+    border-radius: 3px;
+    word-break: break-all;
+}
+
+.metaPill {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    background: rgba(var(--purple-rgb), 0.18);
+    padding: 0.1rem 0.4rem;
+    border-radius: 3px;
+    letter-spacing: 0.04em;
+}
+
+.badgeDelete,
+.badgeKick {
+    font-size: 0.7rem;
+    padding: 0.1rem 0.45rem;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 600;
+}
+
+.badgeDelete {
+    background: rgba(var(--gold-rgb), 0.15);
+    color: var(--gold);
+    border: 1px solid rgba(var(--gold-rgb), 0.35);
+}
+
+.badgeKick {
+    background: rgba(var(--rose-rgb), 0.2);
+    color: var(--rose);
+    border: 1px solid rgba(var(--rose-rgb), 0.45);
+}
+
+.scopeGlobal,
+.scopeRoom {
+    font-size: 0.65rem;
+    padding: 0.08rem 0.35rem;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.scopeGlobal {
+    background: rgba(var(--purple-rgb), 0.25);
+    color: var(--purple-light);
+    border: 1px solid rgba(var(--purple-rgb), 0.4);
+}
+
+.scopeRoom {
+    background: rgba(var(--gold-rgb), 0.15);
+    color: var(--gold);
+    border: 1px solid rgba(var(--gold-rgb), 0.35);
+}
