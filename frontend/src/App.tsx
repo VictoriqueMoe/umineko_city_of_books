@@ -17,6 +17,7 @@ import {
     AdminAnnouncementsPage,
     AdminAuditLog,
     AdminBannedGifs,
+    AdminBannedWords,
     AdminContentRules,
     AdminDashboard,
     AdminInvites,
@@ -53,8 +54,11 @@ import {
     PostDetailPage,
     ProfilePage,
     QuoteBrowserPage,
+    NotFoundPage,
     RoomPage,
     RoomsListPage,
+    SecretDetailPage,
+    SecretsListPage,
     SettingsPage,
     ShipDetailPage,
     ShipsListPage,
@@ -68,6 +72,7 @@ const homePageRoutes: Record<string, string> = {
     landing: "/welcome",
     theories: "/theories",
     theories_higurashi: "/theories/higurashi",
+    theories_ciconia: "/theories/ciconia",
     game_board: "/game-board",
     game_board_umineko: "/game-board/umineko",
     game_board_higurashi: "/game-board/higurashi",
@@ -146,6 +151,7 @@ function AppLayout() {
                             <Route path="/welcome" element={<LandingPage />} />
                             <Route path="/theories" element={<FeedPage />} />
                             <Route path="/theories/higurashi" element={<FeedPage series="higurashi" />} />
+                            <Route path="/theories/ciconia" element={<FeedPage series="ciconia" />} />
                             <Route path="/game-board" element={<SocialFeedPage />} />
                             <Route path="/game-board/umineko" element={<SocialFeedPage corner="umineko" />} />
                             <Route path="/game-board/higurashi" element={<SocialFeedPage corner="higurashi" />} />
@@ -174,6 +180,8 @@ function AppLayout() {
                             <Route path="/journals" element={<JournalsFeedPage />} />
                             <Route path="/journals/:id" element={<JournalPage />} />
                             <Route path="/rooms" element={<RoomsListPage />} />
+                            <Route path="/secrets" element={<SecretsListPage />} />
+                            <Route path="/secrets/:id" element={<SecretDetailPage />} />
                             <Route path="/quotes" element={<QuoteBrowserPage />} />
                             <Route path="/users" element={<UsersPage />} />
                             <Route path="/user/:username" element={<ProfilePage />} />
@@ -183,6 +191,7 @@ function AppLayout() {
                                 <Route path="/notifications" element={<NotificationsPage />} />
                                 <Route path="/theory/new" element={<CreateTheoryPage />} />
                                 <Route path="/theory/higurashi/new" element={<CreateTheoryPage series="higurashi" />} />
+                                <Route path="/theory/ciconia/new" element={<CreateTheoryPage series="ciconia" />} />
                                 <Route path="/mystery/new" element={<CreateMysteryPage />} />
                                 <Route element={<ProtectedRoute permission="edit_any_theory" />}>
                                     <Route path="/mystery/:id/edit" element={<CreateMysteryPage />} />
@@ -211,11 +220,14 @@ function AppLayout() {
                                     <Route path="reports" element={<AdminReports />} />
                                     <Route path="content-rules" element={<AdminContentRules />} />
                                     <Route path="banned-gifs" element={<AdminBannedGifs />} />
+                                    <Route path="banned-words" element={<AdminBannedWords />} />
                                     <Route path="announcements" element={<AdminAnnouncementsPage />} />
                                     <Route path="audit-log" element={<AdminAuditLog />} />
                                     <Route path="vanity-roles" element={<AdminVanityRoles />} />
                                 </Route>
                             </Route>
+
+                            <Route path="*" element={<NotFoundPage />} />
                         </Routes>
                     </Suspense>
                 </main>

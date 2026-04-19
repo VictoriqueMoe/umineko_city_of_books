@@ -1,6 +1,6 @@
 # Umineko City of Books
 
-A community platform for fans of Umineko no Naku Koro ni, Higurashi, and the wider When They Cry series. The original goal was a place to declare fan theories as **blue truth**, attach quotes from the game as evidence, and have them debated on two sides: **"With love, it can be seen"** and **"Without love, it cannot be seen"**. It has since grown into a full social platform: theory debates, a Twitter-style game board, mystery boards, fan art galleries, ship declarations, fanfiction, live reading journals, chat rooms and DMs, live notifications, and themed role-based moderation.
+A community platform for fans of Umineko no Naku Koro ni, Higurashi, Ciconia, and the wider When They Cry series. The original goal was a place to declare fan theories as **blue truth**, attach quotes from the game as evidence, and have them debated on two sides: **"With love, it can be seen"** and **"Without love, it cannot be seen"**. It has since grown into a full social platform: theory debates across all three series, a Twitter-style game board, mystery boards, fan art galleries, ship declarations, fanfiction, live reading journals, chat rooms and DMs, secret unlock hunts, live notifications, and themed role-based moderation.
 
 ## Table of Contents
 
@@ -13,6 +13,7 @@ A community platform for fans of Umineko no Naku Koro ni, Higurashi, and the wid
   - [Fanfiction](#fanfiction)
   - [Reading Journals](#reading-journals)
   - [Chat Rooms and DMs](#chat-rooms-and-dms)
+  - [Secrets and Unlock Hunts](#secrets-and-unlock-hunts)
   - [Announcements](#announcements)
   - [Suggestions](#suggestions)
   - [Quote Browser](#quote-browser)
@@ -34,13 +35,13 @@ A community platform for fans of Umineko no Naku Koro ni, Higurashi, and the wid
 
 The original heart of the site. Submit a fan theory as a **blue truth**, attach quote evidence, and let others refute or support it.
 
-- Theory declarations with title, body, and episode scope
-- Evidence attachment by searching any quote in the game (including narrator lines) via the Umineko Quote Finder API
+- Theory declarations with title, body, and episode / arc / chapter scope depending on series
+- Evidence attachment by searching any quote (including narrator lines) across Umineko, Higurashi, and Ciconia via the Umineko Quote Finder API, with per-series chapter/episode/arc filters and a main/additional character split for Higurashi and Ciconia
 - Two-sided debate with **"With love, it can be seen"** (support) and **"Without love, it cannot be seen"** (deny), each with its own evidence
 - **Credibility score** per theory (0 to 100), weighted by the truth type of evidence attached to responses (gold > red > purple > blue > none)
 - Threaded replies on responses with flat rendering and @username attribution
 - Upvotes and downvotes on both theories and responses, separate from the credibility score
-- Per-series filtering so Higurashi theories do not bleed into Umineko
+- Per-series feeds at `/theories/umineko`, `/theories/higurashi`, and `/theories/ciconia`, each with its own sidebar entry
 
 ### Mysteries
 
@@ -105,10 +106,11 @@ A Twitter-style social feed for off-topic posts and discussion.
 
 Write and publish multi-chapter fan stories.
 
-- Fanfic entries with title, summary, language, series tag, cover image, and OC characters
+- Fanfic entries with title, summary, language, series tag (Umineko / Higurashi / Ciconia / OC), cover image, and character tagging across all three series
 - **Chapter-based structure**: add, reorder, edit, and delete chapters individually
-- **Rich text editor** (TipTap) for chapter bodies with formatting, links, alignment, and colour
-- Word count, character tagging, and cross-series support
+- **Rich text editor** (TipTap) for chapter bodies: bold, italic, strike, headings, blockquotes, bullet/ordered lists, horizontal rule, text alignment (left/centre/right), colour swatches, and links
+- **Server-side HTML sanitisation** (bluemonday UGCPolicy) on every write, plus client-side DOMPurify before render, so the full Tiptap toolbar survives but `<script>`, event handlers, `javascript:` URLs, iframes, and SVG payloads are stripped
+- Word count, character tagging across Umineko / Higurashi / Ciconia / OC
 - Favourite fanfics to follow new chapters
 - Full comment system with threading, media, GIFs, and likes on both the fanfic and individual chapters
 - Per-fanfic sitemap inclusion
@@ -133,11 +135,33 @@ Real-time chat in two flavours: one-to-one direct messages and named group rooms
 - **Emoji reactions** on messages with live count and "you reacted" state, shown across desktop and mobile
 - **Pinning**: moderators and room owners can pin messages; a dedicated pinned messages panel surfaces them
 - **Member management**: per-room roles, timeouts, kick, and nickname profiles scoped to the room (ghost members supported)
+- **Per-room bans** that stick. Banned users cannot rejoin, send, read, list members, or see the room in their list. Available to the room host, site moderators, and admins. Banned targets receive a live WS kick event plus an optional reason.
+- **Banned-words filter** with two scopes and three match modes:
+  - **Global** rules (admin `/admin/banned-words`) apply to every chat room
+  - **Local** rules (per-room moderation dialog, open to host + mods + admins) apply only to that room and see global rules read-only
+  - Match mode `Substring` / `Whole word` / `Regex` plus a `Case sensitive` toggle; regex syntax validated on save
+  - Action `Delete message` rejects the send with an inline error; action `Kick` also evicts the sender from the room (they can rejoin; a ban is a separate, intentional moderator action)
+  - Room hosts, site moderators, admins, and superadmins are immune. Automated hits log to the audit trail with a NULL actor ("System")
+  - Rules are editable: pattern, mode, case, and action can all be changed after creation
 - **Configurable limits**: max room members and max rooms per day are site-settings driven
 - **Replies and edits** on individual messages, with a floating action bar above the bubble on hover
 - **GIF picker**, emoji picker, media uploads, and full Discord-style text formatting (backticks, quotes, spoilers, syntax highlighting) everywhere text is typed
 - WebSocket-driven real-time delivery, pin/unpin events, reaction updates, and typing presence
 - Mobile-first composer: full-width text box with Media / GIF / Send stacked below, bubbles spanning edge to edge
+
+### Secrets and Unlock Hunts
+
+Hidden puzzles scattered across the UI, declared in code (`internal/secrets/`), surfaced on a public hub page at `/secrets`.
+
+- Each hunt is a **parent secret** (e.g. `witchHunter`) plus a set of piece sub-secrets. Pieces are collected by finding tiny sparkles (`PieceTrigger`) tucked in ordinary UI spots (a tagline, a button, a rule, a subtitle, a chip, a sentence), deliberately varied so pattern-spotting doesn't shortcut the hunt
+- **Listed metadata** (title, description, riddle, icon, reward vanity role) is kept in the registry; pieces stay hidden implementation detail
+- **Server-side guard** refuses submission of the final phrase unless every piece is already unlocked for the caller, so even a leaked answer can't bypass the hunt
+- **Secrets hub page** (`/secrets`) lists every declared hunt with your viewer progress, the first solver, comment count, and a **solvers leaderboard** ranking every user with at least one solved hunt
+- **Detail page** (`/secrets/:id`) shows the riddle, a live **progress leaderboard** that reorders in real time via WebSocket as people collect pieces, a pinned first-solver row, and a full-featured discussion thread that stays open forever
+- **WS presence per secret**: viewers join a `secret:<id>` room on mount and leave on unmount. Progress and solve events only fan out to current viewers, not the whole site
+- **Global events on solve**: when a hunt with a reward role is solved, a `vanity_roles_changed` broadcast refreshes site-info on every connected client so the new role pill appears without a reload
+- **Trophy case** on every profile: solved hunts show as live-updating trophies in an Achievements section, owner-clickable to re-open the hunt panel; the in-progress rose icon lives next to the owner's display name until they solve
+- The v5 hunt is **The Witch's Epitaph**. Maria has hidden twelve letters across the site; finding all twelve unlocks the Maria theme and the sparkling Witch Hunter role
 
 ### Announcements
 
@@ -160,7 +184,7 @@ A dedicated feedback channel for site improvements and bug reports.
 
 ### Quote Browser
 
-A standalone interface for browsing the full Umineko quote corpus sourced from the Umineko Quote Finder API. Search, filter by character and episode, and use it as a reference when drafting evidence for theories.
+A standalone interface for browsing the full quote corpus across all three series, sourced from the Umineko Quote Finder API. Switch between Umineko / Higurashi / Ciconia tabs, filter by chapter/episode/arc, and filter by character with a main/additional split where the quote service exposes one. Ciconia and Higurashi quotes ship with Japanese text inline, and the language picker now honours it across all series.
 
 ### Profiles and Social Graph
 
@@ -199,9 +223,10 @@ A standalone interface for browsing the full Umineko quote corpus sourced from t
 - DB-backed site settings with hot reload: body limits, log level, registration mode, maintenance mode, turnstile, upload limits, rate limits, announcement banner, SMTP, Sentry/GlitchTip DSN, default theme
 - **Invite system**: open, invite-only, or closed registration. Admins generate one-time invite codes
 - **Maintenance mode** with custom title and message. Admins bypass it
-- **Audit log** for admin actions
+- **Audit log** for admin actions. Automated moderation events (word-filter hits) log with a NULL actor and render as "System" in the admin audit page, distinguishing them from human-initiated actions
 - **Reports**: users can report theories, responses, posts, comments, art, ships, users, fanfics, journals, and chat messages. Admins resolve from the admin panel with optional comment back to the reporter
 - **Banned GIFs**: admins block specific GIPHY IDs from being embedded anywhere on the site; the content filter rejects matches before they render
+- **Banned Words** (`/admin/banned-words`): global word-filter rules for chat rooms with regex / whole-word / substring match modes, editable in place
 - **Content Filter Pipeline** (`internal/contentfilter`): pluggable rule-based validation that runs on all user-generated text before it lands in the DB
 - **Content rules** per section (theories, general game board, each corner, mysteries, ships, gallery, fanfiction, journals, suggestions, chat rooms, announcements), admin-editable and displayed at the top of each page
 - **Per-action rate limits**: max theories, responses, posts, art, journals, and chat rooms per day, all settable from the admin panel
@@ -209,7 +234,11 @@ A standalone interface for browsing the full Umineko quote corpus sourced from t
 
 ### Platform Features
 
-- **Ten themes**: Featherine (gold/purple, default), Beatrice (warm gold/brown), Bernkastel (blue), Lambdadelta (pink), Erika Furudo (cyan/pink), Battler, Virgilia (light mode), Rika, Mion, Satoko
+- **Fourteen themes** grouped by series in the theme picker:
+  - **Umineko**: Featherine (gold/purple, default), Beatrice (warm gold/brown), Bernkastel (blue), Lambdadelta (pink), Erika Furudo (cyan/pink), Battler, Virgilia (light mode)
+  - **Higurashi**: Rika, Mion, Satoko
+  - **Ciconia**: Miyao (deep navy with gold and sky-blue), Lingji (crimson and gold), Stanis&#322;aw (silver on near-black)
+  - **Unlockable**: Maria Ushiromiya (rosy pink), granted by solving the Witch's Epitaph hunt
 - **Two font families**: default serif set or **IM Fell English** for a period-correct look, per-user preference
 - **Wide layout toggle** and **ambient particles toggle** (floating butterflies plus theme-specific motifs such as candy and lollipops on Lambdadelta)
 - **Discord-style text formatting** across posts, comments, DMs, chat rooms, mysteries, and art/ship descriptions:
@@ -510,7 +539,7 @@ Uploads are stored as-is first, then a background worker pool re-encodes them to
    └───────┬─────────────────────────────────────┘
            │
            ▼
-   callback(outputPath) — updates DB row with the encoded asset URL
+   callback(outputPath): updates DB row with the encoded asset URL
 ```
 
 If the queue is full the job is dropped and logged rather than back-pressuring the request.

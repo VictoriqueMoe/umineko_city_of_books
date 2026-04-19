@@ -110,6 +110,81 @@ func (_c *MockService_AddReaction_Call) RunAndReturn(run func(ctx context.Contex
 	return _c
 }
 
+// BanMember provides a mock function for the type MockService
+func (_mock *MockService) BanMember(ctx context.Context, actorID uuid.UUID, roomID uuid.UUID, targetID uuid.UUID, reason string) error {
+	ret := _mock.Called(ctx, actorID, roomID, targetID, reason)
+
+	if len(ret) == 0 {
+		panic("no return value specified for BanMember")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID, string) error); ok {
+		r0 = returnFunc(ctx, actorID, roomID, targetID, reason)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_BanMember_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'BanMember'
+type MockService_BanMember_Call struct {
+	*mock.Call
+}
+
+// BanMember is a helper method to define mock.On call
+//   - ctx context.Context
+//   - actorID uuid.UUID
+//   - roomID uuid.UUID
+//   - targetID uuid.UUID
+//   - reason string
+func (_e *MockService_Expecter) BanMember(ctx interface{}, actorID interface{}, roomID interface{}, targetID interface{}, reason interface{}) *MockService_BanMember_Call {
+	return &MockService_BanMember_Call{Call: _e.mock.On("BanMember", ctx, actorID, roomID, targetID, reason)}
+}
+
+func (_c *MockService_BanMember_Call) Run(run func(ctx context.Context, actorID uuid.UUID, roomID uuid.UUID, targetID uuid.UUID, reason string)) *MockService_BanMember_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 uuid.UUID
+		if args[3] != nil {
+			arg3 = args[3].(uuid.UUID)
+		}
+		var arg4 string
+		if args[4] != nil {
+			arg4 = args[4].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_BanMember_Call) Return(err error) *MockService_BanMember_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_BanMember_Call) RunAndReturn(run func(ctx context.Context, actorID uuid.UUID, roomID uuid.UUID, targetID uuid.UUID, reason string) error) *MockService_BanMember_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ClearMemberTimeout provides a mock function for the type MockService
 func (_mock *MockService) ClearMemberTimeout(ctx context.Context, roomID uuid.UUID, actorID uuid.UUID, targetID uuid.UUID) (*dto.ChatRoomMemberResponse, error) {
 	ret := _mock.Called(ctx, roomID, actorID, targetID)
@@ -264,6 +339,80 @@ func (_c *MockService_ClearRoomAvatar_Call) RunAndReturn(run func(ctx context.Co
 	return _c
 }
 
+// CreateGlobalBannedWord provides a mock function for the type MockService
+func (_mock *MockService) CreateGlobalBannedWord(ctx context.Context, actorID uuid.UUID, req dto.CreateBannedWordRequest) (*dto.BannedWordRuleResponse, error) {
+	ret := _mock.Called(ctx, actorID, req)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateGlobalBannedWord")
+	}
+
+	var r0 *dto.BannedWordRuleResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, dto.CreateBannedWordRequest) (*dto.BannedWordRuleResponse, error)); ok {
+		return returnFunc(ctx, actorID, req)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, dto.CreateBannedWordRequest) *dto.BannedWordRuleResponse); ok {
+		r0 = returnFunc(ctx, actorID, req)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dto.BannedWordRuleResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, dto.CreateBannedWordRequest) error); ok {
+		r1 = returnFunc(ctx, actorID, req)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_CreateGlobalBannedWord_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateGlobalBannedWord'
+type MockService_CreateGlobalBannedWord_Call struct {
+	*mock.Call
+}
+
+// CreateGlobalBannedWord is a helper method to define mock.On call
+//   - ctx context.Context
+//   - actorID uuid.UUID
+//   - req dto.CreateBannedWordRequest
+func (_e *MockService_Expecter) CreateGlobalBannedWord(ctx interface{}, actorID interface{}, req interface{}) *MockService_CreateGlobalBannedWord_Call {
+	return &MockService_CreateGlobalBannedWord_Call{Call: _e.mock.On("CreateGlobalBannedWord", ctx, actorID, req)}
+}
+
+func (_c *MockService_CreateGlobalBannedWord_Call) Run(run func(ctx context.Context, actorID uuid.UUID, req dto.CreateBannedWordRequest)) *MockService_CreateGlobalBannedWord_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 dto.CreateBannedWordRequest
+		if args[2] != nil {
+			arg2 = args[2].(dto.CreateBannedWordRequest)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_CreateGlobalBannedWord_Call) Return(bannedWordRuleResponse *dto.BannedWordRuleResponse, err error) *MockService_CreateGlobalBannedWord_Call {
+	_c.Call.Return(bannedWordRuleResponse, err)
+	return _c
+}
+
+func (_c *MockService_CreateGlobalBannedWord_Call) RunAndReturn(run func(ctx context.Context, actorID uuid.UUID, req dto.CreateBannedWordRequest) (*dto.BannedWordRuleResponse, error)) *MockService_CreateGlobalBannedWord_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateGroupRoom provides a mock function for the type MockService
 func (_mock *MockService) CreateGroupRoom(ctx context.Context, creatorID uuid.UUID, req dto.CreateGroupRoomRequest) (*dto.ChatRoomResponse, error) {
 	ret := _mock.Called(ctx, creatorID, req)
@@ -338,6 +487,86 @@ func (_c *MockService_CreateGroupRoom_Call) RunAndReturn(run func(ctx context.Co
 	return _c
 }
 
+// CreateRoomBannedWord provides a mock function for the type MockService
+func (_mock *MockService) CreateRoomBannedWord(ctx context.Context, actorID uuid.UUID, roomID uuid.UUID, req dto.CreateBannedWordRequest) (*dto.BannedWordRuleResponse, error) {
+	ret := _mock.Called(ctx, actorID, roomID, req)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateRoomBannedWord")
+	}
+
+	var r0 *dto.BannedWordRuleResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, dto.CreateBannedWordRequest) (*dto.BannedWordRuleResponse, error)); ok {
+		return returnFunc(ctx, actorID, roomID, req)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, dto.CreateBannedWordRequest) *dto.BannedWordRuleResponse); ok {
+		r0 = returnFunc(ctx, actorID, roomID, req)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dto.BannedWordRuleResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, dto.CreateBannedWordRequest) error); ok {
+		r1 = returnFunc(ctx, actorID, roomID, req)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_CreateRoomBannedWord_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateRoomBannedWord'
+type MockService_CreateRoomBannedWord_Call struct {
+	*mock.Call
+}
+
+// CreateRoomBannedWord is a helper method to define mock.On call
+//   - ctx context.Context
+//   - actorID uuid.UUID
+//   - roomID uuid.UUID
+//   - req dto.CreateBannedWordRequest
+func (_e *MockService_Expecter) CreateRoomBannedWord(ctx interface{}, actorID interface{}, roomID interface{}, req interface{}) *MockService_CreateRoomBannedWord_Call {
+	return &MockService_CreateRoomBannedWord_Call{Call: _e.mock.On("CreateRoomBannedWord", ctx, actorID, roomID, req)}
+}
+
+func (_c *MockService_CreateRoomBannedWord_Call) Run(run func(ctx context.Context, actorID uuid.UUID, roomID uuid.UUID, req dto.CreateBannedWordRequest)) *MockService_CreateRoomBannedWord_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 dto.CreateBannedWordRequest
+		if args[3] != nil {
+			arg3 = args[3].(dto.CreateBannedWordRequest)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_CreateRoomBannedWord_Call) Return(bannedWordRuleResponse *dto.BannedWordRuleResponse, err error) *MockService_CreateRoomBannedWord_Call {
+	_c.Call.Return(bannedWordRuleResponse, err)
+	return _c
+}
+
+func (_c *MockService_CreateRoomBannedWord_Call) RunAndReturn(run func(ctx context.Context, actorID uuid.UUID, roomID uuid.UUID, req dto.CreateBannedWordRequest) (*dto.BannedWordRuleResponse, error)) *MockService_CreateRoomBannedWord_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteChat provides a mock function for the type MockService
 func (_mock *MockService) DeleteChat(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) error {
 	ret := _mock.Called(ctx, roomID, userID)
@@ -401,6 +630,69 @@ func (_c *MockService_DeleteChat_Call) RunAndReturn(run func(ctx context.Context
 	return _c
 }
 
+// DeleteGlobalBannedWord provides a mock function for the type MockService
+func (_mock *MockService) DeleteGlobalBannedWord(ctx context.Context, actorID uuid.UUID, ruleID uuid.UUID) error {
+	ret := _mock.Called(ctx, actorID, ruleID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteGlobalBannedWord")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, actorID, ruleID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_DeleteGlobalBannedWord_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteGlobalBannedWord'
+type MockService_DeleteGlobalBannedWord_Call struct {
+	*mock.Call
+}
+
+// DeleteGlobalBannedWord is a helper method to define mock.On call
+//   - ctx context.Context
+//   - actorID uuid.UUID
+//   - ruleID uuid.UUID
+func (_e *MockService_Expecter) DeleteGlobalBannedWord(ctx interface{}, actorID interface{}, ruleID interface{}) *MockService_DeleteGlobalBannedWord_Call {
+	return &MockService_DeleteGlobalBannedWord_Call{Call: _e.mock.On("DeleteGlobalBannedWord", ctx, actorID, ruleID)}
+}
+
+func (_c *MockService_DeleteGlobalBannedWord_Call) Run(run func(ctx context.Context, actorID uuid.UUID, ruleID uuid.UUID)) *MockService_DeleteGlobalBannedWord_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_DeleteGlobalBannedWord_Call) Return(err error) *MockService_DeleteGlobalBannedWord_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_DeleteGlobalBannedWord_Call) RunAndReturn(run func(ctx context.Context, actorID uuid.UUID, ruleID uuid.UUID) error) *MockService_DeleteGlobalBannedWord_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteMessage provides a mock function for the type MockService
 func (_mock *MockService) DeleteMessage(ctx context.Context, messageID uuid.UUID, actorID uuid.UUID) error {
 	ret := _mock.Called(ctx, messageID, actorID)
@@ -460,6 +752,75 @@ func (_c *MockService_DeleteMessage_Call) Return(err error) *MockService_DeleteM
 }
 
 func (_c *MockService_DeleteMessage_Call) RunAndReturn(run func(ctx context.Context, messageID uuid.UUID, actorID uuid.UUID) error) *MockService_DeleteMessage_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteRoomBannedWord provides a mock function for the type MockService
+func (_mock *MockService) DeleteRoomBannedWord(ctx context.Context, actorID uuid.UUID, roomID uuid.UUID, ruleID uuid.UUID) error {
+	ret := _mock.Called(ctx, actorID, roomID, ruleID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteRoomBannedWord")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, actorID, roomID, ruleID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_DeleteRoomBannedWord_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteRoomBannedWord'
+type MockService_DeleteRoomBannedWord_Call struct {
+	*mock.Call
+}
+
+// DeleteRoomBannedWord is a helper method to define mock.On call
+//   - ctx context.Context
+//   - actorID uuid.UUID
+//   - roomID uuid.UUID
+//   - ruleID uuid.UUID
+func (_e *MockService_Expecter) DeleteRoomBannedWord(ctx interface{}, actorID interface{}, roomID interface{}, ruleID interface{}) *MockService_DeleteRoomBannedWord_Call {
+	return &MockService_DeleteRoomBannedWord_Call{Call: _e.mock.On("DeleteRoomBannedWord", ctx, actorID, roomID, ruleID)}
+}
+
+func (_c *MockService_DeleteRoomBannedWord_Call) Run(run func(ctx context.Context, actorID uuid.UUID, roomID uuid.UUID, ruleID uuid.UUID)) *MockService_DeleteRoomBannedWord_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 uuid.UUID
+		if args[3] != nil {
+			arg3 = args[3].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_DeleteRoomBannedWord_Call) Return(err error) *MockService_DeleteRoomBannedWord_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_DeleteRoomBannedWord_Call) RunAndReturn(run func(ctx context.Context, actorID uuid.UUID, roomID uuid.UUID, ruleID uuid.UUID) error) *MockService_DeleteRoomBannedWord_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1339,6 +1700,74 @@ func (_c *MockService_LeaveRoom_Call) RunAndReturn(run func(ctx context.Context,
 	return _c
 }
 
+// ListGlobalBannedWords provides a mock function for the type MockService
+func (_mock *MockService) ListGlobalBannedWords(ctx context.Context, actorID uuid.UUID) ([]dto.BannedWordRuleResponse, error) {
+	ret := _mock.Called(ctx, actorID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListGlobalBannedWords")
+	}
+
+	var r0 []dto.BannedWordRuleResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]dto.BannedWordRuleResponse, error)); ok {
+		return returnFunc(ctx, actorID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []dto.BannedWordRuleResponse); ok {
+		r0 = returnFunc(ctx, actorID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]dto.BannedWordRuleResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, actorID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_ListGlobalBannedWords_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListGlobalBannedWords'
+type MockService_ListGlobalBannedWords_Call struct {
+	*mock.Call
+}
+
+// ListGlobalBannedWords is a helper method to define mock.On call
+//   - ctx context.Context
+//   - actorID uuid.UUID
+func (_e *MockService_Expecter) ListGlobalBannedWords(ctx interface{}, actorID interface{}) *MockService_ListGlobalBannedWords_Call {
+	return &MockService_ListGlobalBannedWords_Call{Call: _e.mock.On("ListGlobalBannedWords", ctx, actorID)}
+}
+
+func (_c *MockService_ListGlobalBannedWords_Call) Run(run func(ctx context.Context, actorID uuid.UUID)) *MockService_ListGlobalBannedWords_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_ListGlobalBannedWords_Call) Return(bannedWordRuleResponses []dto.BannedWordRuleResponse, err error) *MockService_ListGlobalBannedWords_Call {
+	_c.Call.Return(bannedWordRuleResponses, err)
+	return _c
+}
+
+func (_c *MockService_ListGlobalBannedWords_Call) RunAndReturn(run func(ctx context.Context, actorID uuid.UUID) ([]dto.BannedWordRuleResponse, error)) *MockService_ListGlobalBannedWords_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListPinnedMessages provides a mock function for the type MockService
 func (_mock *MockService) ListPinnedMessages(ctx context.Context, roomID uuid.UUID, viewerID uuid.UUID) (*dto.ChatMessageListResponse, error) {
 	ret := _mock.Called(ctx, roomID, viewerID)
@@ -1507,6 +1936,154 @@ func (_c *MockService_ListPublicRooms_Call) Return(chatRoomListResponse *dto.Cha
 }
 
 func (_c *MockService_ListPublicRooms_Call) RunAndReturn(run func(ctx context.Context, search string, isRPOnly bool, tag string, viewerID uuid.UUID, limit int, offset int) (*dto.ChatRoomListResponse, error)) *MockService_ListPublicRooms_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListRoomBannedWords provides a mock function for the type MockService
+func (_mock *MockService) ListRoomBannedWords(ctx context.Context, actorID uuid.UUID, roomID uuid.UUID) ([]dto.BannedWordRuleResponse, error) {
+	ret := _mock.Called(ctx, actorID, roomID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListRoomBannedWords")
+	}
+
+	var r0 []dto.BannedWordRuleResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) ([]dto.BannedWordRuleResponse, error)); ok {
+		return returnFunc(ctx, actorID, roomID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) []dto.BannedWordRuleResponse); ok {
+		r0 = returnFunc(ctx, actorID, roomID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]dto.BannedWordRuleResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, actorID, roomID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_ListRoomBannedWords_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListRoomBannedWords'
+type MockService_ListRoomBannedWords_Call struct {
+	*mock.Call
+}
+
+// ListRoomBannedWords is a helper method to define mock.On call
+//   - ctx context.Context
+//   - actorID uuid.UUID
+//   - roomID uuid.UUID
+func (_e *MockService_Expecter) ListRoomBannedWords(ctx interface{}, actorID interface{}, roomID interface{}) *MockService_ListRoomBannedWords_Call {
+	return &MockService_ListRoomBannedWords_Call{Call: _e.mock.On("ListRoomBannedWords", ctx, actorID, roomID)}
+}
+
+func (_c *MockService_ListRoomBannedWords_Call) Run(run func(ctx context.Context, actorID uuid.UUID, roomID uuid.UUID)) *MockService_ListRoomBannedWords_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_ListRoomBannedWords_Call) Return(bannedWordRuleResponses []dto.BannedWordRuleResponse, err error) *MockService_ListRoomBannedWords_Call {
+	_c.Call.Return(bannedWordRuleResponses, err)
+	return _c
+}
+
+func (_c *MockService_ListRoomBannedWords_Call) RunAndReturn(run func(ctx context.Context, actorID uuid.UUID, roomID uuid.UUID) ([]dto.BannedWordRuleResponse, error)) *MockService_ListRoomBannedWords_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListRoomBans provides a mock function for the type MockService
+func (_mock *MockService) ListRoomBans(ctx context.Context, actorID uuid.UUID, roomID uuid.UUID) ([]dto.ChatRoomBanResponse, error) {
+	ret := _mock.Called(ctx, actorID, roomID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListRoomBans")
+	}
+
+	var r0 []dto.ChatRoomBanResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) ([]dto.ChatRoomBanResponse, error)); ok {
+		return returnFunc(ctx, actorID, roomID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) []dto.ChatRoomBanResponse); ok {
+		r0 = returnFunc(ctx, actorID, roomID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]dto.ChatRoomBanResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, actorID, roomID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_ListRoomBans_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListRoomBans'
+type MockService_ListRoomBans_Call struct {
+	*mock.Call
+}
+
+// ListRoomBans is a helper method to define mock.On call
+//   - ctx context.Context
+//   - actorID uuid.UUID
+//   - roomID uuid.UUID
+func (_e *MockService_Expecter) ListRoomBans(ctx interface{}, actorID interface{}, roomID interface{}) *MockService_ListRoomBans_Call {
+	return &MockService_ListRoomBans_Call{Call: _e.mock.On("ListRoomBans", ctx, actorID, roomID)}
+}
+
+func (_c *MockService_ListRoomBans_Call) Run(run func(ctx context.Context, actorID uuid.UUID, roomID uuid.UUID)) *MockService_ListRoomBans_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_ListRoomBans_Call) Return(chatRoomBanResponses []dto.ChatRoomBanResponse, err error) *MockService_ListRoomBans_Call {
+	_c.Call.Return(chatRoomBanResponses, err)
+	return _c
+}
+
+func (_c *MockService_ListRoomBans_Call) RunAndReturn(run func(ctx context.Context, actorID uuid.UUID, roomID uuid.UUID) ([]dto.ChatRoomBanResponse, error)) *MockService_ListRoomBans_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2600,6 +3177,75 @@ func (_c *MockService_SyncSystemRoomMembership_Call) RunAndReturn(run func(ctx c
 	return _c
 }
 
+// UnbanMember provides a mock function for the type MockService
+func (_mock *MockService) UnbanMember(ctx context.Context, actorID uuid.UUID, roomID uuid.UUID, targetID uuid.UUID) error {
+	ret := _mock.Called(ctx, actorID, roomID, targetID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UnbanMember")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, actorID, roomID, targetID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_UnbanMember_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UnbanMember'
+type MockService_UnbanMember_Call struct {
+	*mock.Call
+}
+
+// UnbanMember is a helper method to define mock.On call
+//   - ctx context.Context
+//   - actorID uuid.UUID
+//   - roomID uuid.UUID
+//   - targetID uuid.UUID
+func (_e *MockService_Expecter) UnbanMember(ctx interface{}, actorID interface{}, roomID interface{}, targetID interface{}) *MockService_UnbanMember_Call {
+	return &MockService_UnbanMember_Call{Call: _e.mock.On("UnbanMember", ctx, actorID, roomID, targetID)}
+}
+
+func (_c *MockService_UnbanMember_Call) Run(run func(ctx context.Context, actorID uuid.UUID, roomID uuid.UUID, targetID uuid.UUID)) *MockService_UnbanMember_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 uuid.UUID
+		if args[3] != nil {
+			arg3 = args[3].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_UnbanMember_Call) Return(err error) *MockService_UnbanMember_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_UnbanMember_Call) RunAndReturn(run func(ctx context.Context, actorID uuid.UUID, roomID uuid.UUID, targetID uuid.UUID) error) *MockService_UnbanMember_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UnlockMemberNickname provides a mock function for the type MockService
 func (_mock *MockService) UnlockMemberNickname(ctx context.Context, roomID uuid.UUID, actorID uuid.UUID, targetID uuid.UUID) (*dto.ChatRoomMemberResponse, error) {
 	ret := _mock.Called(ctx, roomID, actorID, targetID)
@@ -2739,6 +3385,172 @@ func (_c *MockService_UnpinMessage_Call) Return(err error) *MockService_UnpinMes
 }
 
 func (_c *MockService_UnpinMessage_Call) RunAndReturn(run func(ctx context.Context, messageID uuid.UUID, userID uuid.UUID) error) *MockService_UnpinMessage_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateGlobalBannedWord provides a mock function for the type MockService
+func (_mock *MockService) UpdateGlobalBannedWord(ctx context.Context, actorID uuid.UUID, ruleID uuid.UUID, req dto.UpdateBannedWordRequest) (*dto.BannedWordRuleResponse, error) {
+	ret := _mock.Called(ctx, actorID, ruleID, req)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateGlobalBannedWord")
+	}
+
+	var r0 *dto.BannedWordRuleResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, dto.UpdateBannedWordRequest) (*dto.BannedWordRuleResponse, error)); ok {
+		return returnFunc(ctx, actorID, ruleID, req)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, dto.UpdateBannedWordRequest) *dto.BannedWordRuleResponse); ok {
+		r0 = returnFunc(ctx, actorID, ruleID, req)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dto.BannedWordRuleResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, dto.UpdateBannedWordRequest) error); ok {
+		r1 = returnFunc(ctx, actorID, ruleID, req)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_UpdateGlobalBannedWord_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateGlobalBannedWord'
+type MockService_UpdateGlobalBannedWord_Call struct {
+	*mock.Call
+}
+
+// UpdateGlobalBannedWord is a helper method to define mock.On call
+//   - ctx context.Context
+//   - actorID uuid.UUID
+//   - ruleID uuid.UUID
+//   - req dto.UpdateBannedWordRequest
+func (_e *MockService_Expecter) UpdateGlobalBannedWord(ctx interface{}, actorID interface{}, ruleID interface{}, req interface{}) *MockService_UpdateGlobalBannedWord_Call {
+	return &MockService_UpdateGlobalBannedWord_Call{Call: _e.mock.On("UpdateGlobalBannedWord", ctx, actorID, ruleID, req)}
+}
+
+func (_c *MockService_UpdateGlobalBannedWord_Call) Run(run func(ctx context.Context, actorID uuid.UUID, ruleID uuid.UUID, req dto.UpdateBannedWordRequest)) *MockService_UpdateGlobalBannedWord_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 dto.UpdateBannedWordRequest
+		if args[3] != nil {
+			arg3 = args[3].(dto.UpdateBannedWordRequest)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_UpdateGlobalBannedWord_Call) Return(bannedWordRuleResponse *dto.BannedWordRuleResponse, err error) *MockService_UpdateGlobalBannedWord_Call {
+	_c.Call.Return(bannedWordRuleResponse, err)
+	return _c
+}
+
+func (_c *MockService_UpdateGlobalBannedWord_Call) RunAndReturn(run func(ctx context.Context, actorID uuid.UUID, ruleID uuid.UUID, req dto.UpdateBannedWordRequest) (*dto.BannedWordRuleResponse, error)) *MockService_UpdateGlobalBannedWord_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateRoomBannedWord provides a mock function for the type MockService
+func (_mock *MockService) UpdateRoomBannedWord(ctx context.Context, actorID uuid.UUID, roomID uuid.UUID, ruleID uuid.UUID, req dto.UpdateBannedWordRequest) (*dto.BannedWordRuleResponse, error) {
+	ret := _mock.Called(ctx, actorID, roomID, ruleID, req)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateRoomBannedWord")
+	}
+
+	var r0 *dto.BannedWordRuleResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID, dto.UpdateBannedWordRequest) (*dto.BannedWordRuleResponse, error)); ok {
+		return returnFunc(ctx, actorID, roomID, ruleID, req)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID, dto.UpdateBannedWordRequest) *dto.BannedWordRuleResponse); ok {
+		r0 = returnFunc(ctx, actorID, roomID, ruleID, req)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dto.BannedWordRuleResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID, dto.UpdateBannedWordRequest) error); ok {
+		r1 = returnFunc(ctx, actorID, roomID, ruleID, req)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_UpdateRoomBannedWord_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateRoomBannedWord'
+type MockService_UpdateRoomBannedWord_Call struct {
+	*mock.Call
+}
+
+// UpdateRoomBannedWord is a helper method to define mock.On call
+//   - ctx context.Context
+//   - actorID uuid.UUID
+//   - roomID uuid.UUID
+//   - ruleID uuid.UUID
+//   - req dto.UpdateBannedWordRequest
+func (_e *MockService_Expecter) UpdateRoomBannedWord(ctx interface{}, actorID interface{}, roomID interface{}, ruleID interface{}, req interface{}) *MockService_UpdateRoomBannedWord_Call {
+	return &MockService_UpdateRoomBannedWord_Call{Call: _e.mock.On("UpdateRoomBannedWord", ctx, actorID, roomID, ruleID, req)}
+}
+
+func (_c *MockService_UpdateRoomBannedWord_Call) Run(run func(ctx context.Context, actorID uuid.UUID, roomID uuid.UUID, ruleID uuid.UUID, req dto.UpdateBannedWordRequest)) *MockService_UpdateRoomBannedWord_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 uuid.UUID
+		if args[3] != nil {
+			arg3 = args[3].(uuid.UUID)
+		}
+		var arg4 dto.UpdateBannedWordRequest
+		if args[4] != nil {
+			arg4 = args[4].(dto.UpdateBannedWordRequest)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_UpdateRoomBannedWord_Call) Return(bannedWordRuleResponse *dto.BannedWordRuleResponse, err error) *MockService_UpdateRoomBannedWord_Call {
+	_c.Call.Return(bannedWordRuleResponse, err)
+	return _c
+}
+
+func (_c *MockService_UpdateRoomBannedWord_Call) RunAndReturn(run func(ctx context.Context, actorID uuid.UUID, roomID uuid.UUID, ruleID uuid.UUID, req dto.UpdateBannedWordRequest) (*dto.BannedWordRuleResponse, error)) *MockService_UpdateRoomBannedWord_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -49,9 +49,13 @@ func (r *notificationRepository) Create(
 	actorID uuid.UUID,
 	message string,
 ) (int64, error) {
+	var actorArg interface{} = actorID
+	if actorID == uuid.Nil {
+		actorArg = nil
+	}
 	result, err := r.db.ExecContext(ctx,
 		`INSERT INTO notifications (user_id, type, reference_id, reference_type, actor_id, message) VALUES (?, ?, ?, ?, ?, ?)`,
-		userID, notifType, referenceID, referenceType, actorID, message,
+		userID, notifType, referenceID, referenceType, actorArg, message,
 	)
 	if err != nil {
 		return 0, fmt.Errorf("insert notification: %w", err)
@@ -96,9 +100,9 @@ func (r *notificationRepository) ListByUser(ctx context.Context, userID uuid.UUI
 		 )
 		 SELECT c.id, c.user_id, c.type, c.reference_id, c.reference_type, c.actor_id,
 		        c.message, c.read, c.created_at, c.count,
-		        u.username, u.display_name, u.avatar_url, COALESCE(ur.role, '')
+		        COALESCE(u.username, ''), COALESCE(u.display_name, ''), COALESCE(u.avatar_url, ''), COALESCE(ur.role, '')
 		 FROM combined c
-		 JOIN users u ON c.actor_id = u.id
+		 LEFT JOIN users u ON c.actor_id = u.id
 		 LEFT JOIN user_roles ur ON c.actor_id = ur.user_id
 		 ORDER BY c.created_at DESC
 		 LIMIT ? OFFSET ?`,
@@ -113,11 +117,17 @@ func (r *notificationRepository) ListByUser(ctx context.Context, userID uuid.UUI
 	for rows.Next() {
 		var n model.NotificationRow
 		var readInt int
+		var actorID sql.NullString
 		if err := rows.Scan(
-			&n.ID, &n.UserID, &n.Type, &n.ReferenceID, &n.ReferenceType, &n.ActorID, &n.Message, &readInt, &n.CreatedAt, &n.Count,
+			&n.ID, &n.UserID, &n.Type, &n.ReferenceID, &n.ReferenceType, &actorID, &n.Message, &readInt, &n.CreatedAt, &n.Count,
 			&n.ActorUsername, &n.ActorDisplayName, &n.ActorAvatarURL, &n.ActorRole,
 		); err != nil {
 			return nil, 0, fmt.Errorf("scan notification: %w", err)
+		}
+		if actorID.Valid {
+			if id, err := uuid.Parse(actorID.String); err == nil {
+				n.ActorID = id
+			}
 		}
 		n.Read = readInt == 1
 		notifications = append(notifications, n)
@@ -137,17 +147,18 @@ func (r *notificationRepository) ListByUser(ctx context.Context, userID uuid.UUI
 func (r *notificationRepository) GetByID(ctx context.Context, id int, userID uuid.UUID) (*model.NotificationRow, error) {
 	var n model.NotificationRow
 	var readInt int
+	var actorID sql.NullString
 	err := r.db.QueryRowContext(ctx,
 		`SELECT n.id, n.user_id, n.type, n.reference_id, n.reference_type, n.actor_id,
 		        COALESCE(n.message, ''), n.read, n.created_at,
-		        u.username, u.display_name, u.avatar_url, COALESCE(ur.role, '')
+		        COALESCE(u.username, ''), COALESCE(u.display_name, ''), COALESCE(u.avatar_url, ''), COALESCE(ur.role, '')
 		 FROM notifications n
-		 JOIN users u ON n.actor_id = u.id
+		 LEFT JOIN users u ON n.actor_id = u.id
 		 LEFT JOIN user_roles ur ON n.actor_id = ur.user_id
 		 WHERE n.id = ? AND n.user_id = ?`,
 		id, userID,
 	).Scan(
-		&n.ID, &n.UserID, &n.Type, &n.ReferenceID, &n.ReferenceType, &n.ActorID, &n.Message, &readInt, &n.CreatedAt,
+		&n.ID, &n.UserID, &n.Type, &n.ReferenceID, &n.ReferenceType, &actorID, &n.Message, &readInt, &n.CreatedAt,
 		&n.ActorUsername, &n.ActorDisplayName, &n.ActorAvatarURL, &n.ActorRole,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -155,6 +166,11 @@ func (r *notificationRepository) GetByID(ctx context.Context, id int, userID uui
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get notification by id: %w", err)
+	}
+	if actorID.Valid {
+		if parsed, err := uuid.Parse(actorID.String); err == nil {
+			n.ActorID = parsed
+		}
 	}
 	n.Read = readInt == 1
 	n.Count = 1

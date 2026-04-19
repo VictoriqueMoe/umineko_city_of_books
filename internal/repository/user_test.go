@@ -16,30 +16,32 @@ import (
 
 func sampleProfileRequest() dto.UpdateProfileRequest {
 	return dto.UpdateProfileRequest{
-		DisplayName:        "New Name",
-		Bio:                "A bio",
-		AvatarURL:          "/avatar.png",
-		BannerURL:          "/banner.png",
-		BannerPosition:     0.5,
-		FavouriteCharacter: "beatrice",
-		Gender:             "female",
-		PronounSubject:     "she",
-		PronounPossessive:  "her",
-		SocialTwitter:      "tw",
-		SocialDiscord:      "dc",
-		SocialWaifulist:    "wl",
-		SocialTumblr:       "tb",
-		SocialGithub:       "gh",
-		Website:            "https://example.com",
-		DmsEnabled:         true,
-		EpisodeProgress:    4,
-		DOB:                "2000-04-15",
-		DOBPublic:          true,
-		Email:              "user@example.com",
-		EmailPublic:        true,
-		EmailNotifications: true,
-		HomePage:           "/home",
-		GameBoardSort:      "newest",
+		DisplayName:            "New Name",
+		Bio:                    "A bio",
+		AvatarURL:              "/avatar.png",
+		BannerURL:              "/banner.png",
+		BannerPosition:         0.5,
+		FavouriteCharacter:     "beatrice",
+		Gender:                 "female",
+		PronounSubject:         "she",
+		PronounPossessive:      "her",
+		SocialTwitter:          "tw",
+		SocialDiscord:          "dc",
+		SocialWaifulist:        "wl",
+		SocialTumblr:           "tb",
+		SocialGithub:           "gh",
+		Website:                "https://example.com",
+		DmsEnabled:             true,
+		EpisodeProgress:        4,
+		HigurashiArcProgress:   7,
+		CiconiaChapterProgress: 12,
+		DOB:                    "2000-04-15",
+		DOBPublic:              true,
+		Email:                  "user@example.com",
+		EmailPublic:            true,
+		EmailNotifications:     true,
+		HomePage:               "/home",
+		GameBoardSort:          "newest",
 	}
 }
 
@@ -283,6 +285,8 @@ func TestUserRepository_UpdateProfile(t *testing.T) {
 	assert.Equal(t, req.Website, got.Website)
 	assert.Equal(t, req.DmsEnabled, got.DmsEnabled)
 	assert.Equal(t, req.EpisodeProgress, got.EpisodeProgress)
+	assert.Equal(t, req.HigurashiArcProgress, got.HigurashiArcProgress)
+	assert.Equal(t, req.CiconiaChapterProgress, got.CiconiaChapterProgress)
 	assert.Equal(t, req.DOB, got.DOB)
 	assert.Equal(t, req.DOBPublic, got.DOBPublic)
 	assert.Equal(t, req.Email, got.Email)

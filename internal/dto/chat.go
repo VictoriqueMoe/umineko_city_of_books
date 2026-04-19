@@ -134,4 +134,50 @@ type (
 		Limit    int                   `json:"limit"`
 		Offset   int                   `json:"offset"`
 	}
+
+	ChatRoomBanResponse struct {
+		User      UserResponse  `json:"user"`
+		BannedBy  *UserResponse `json:"banned_by,omitempty"`
+		Reason    string        `json:"reason"`
+		CreatedAt string        `json:"created_at"`
+	}
+
+	BanMemberRequest struct {
+		Reason string `json:"reason"`
+	}
+
+	BannedWordRuleResponse struct {
+		ID            string  `json:"id"`
+		Scope         string  `json:"scope"`
+		RoomID        *string `json:"room_id,omitempty"`
+		Pattern       string  `json:"pattern"`
+		MatchMode     string  `json:"match_mode"`
+		CaseSensitive bool    `json:"case_sensitive"`
+		Action        string  `json:"action"`
+		CreatedByID   *string `json:"created_by_id,omitempty"`
+		CreatedByName string  `json:"created_by_name,omitempty"`
+		CreatedAt     string  `json:"created_at"`
+	}
+
+	CreateBannedWordRequest struct {
+		Pattern       string `json:"pattern"`
+		MatchMode     string `json:"match_mode"`
+		CaseSensitive bool   `json:"case_sensitive"`
+		Action        string `json:"action"`
+	}
+
+	UpdateBannedWordRequest struct {
+		Pattern       string `json:"pattern"`
+		MatchMode     string `json:"match_mode"`
+		CaseSensitive bool   `json:"case_sensitive"`
+		Action        string `json:"action"`
+	}
+
+	BannedWordRuleListResponse struct {
+		Rules []BannedWordRuleResponse `json:"rules"`
+	}
+
+	ChatRoomBanListResponse struct {
+		Bans []ChatRoomBanResponse `json:"bans"`
+	}
 )

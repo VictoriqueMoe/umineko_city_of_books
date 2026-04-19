@@ -11,6 +11,7 @@ import { Select } from "../../components/Select/Select";
 import { RulesBox } from "../../components/RulesBox/RulesBox";
 import { InfoPanel } from "../../components/InfoPanel/InfoPanel";
 import { relativeTime } from "../../utils/notifications";
+import { PieceTrigger } from "../../features/easterEgg";
 import styles from "./MysteryPages.module.css";
 
 function formatDuration(ms: number): string {
@@ -310,7 +311,7 @@ export function MysteryListPage() {
                                 className={`${styles.leaderboardTab}${leaderboardTab === "detectives" ? ` ${styles.leaderboardTabActive}` : ""}`}
                                 onClick={() => setLeaderboardTab("detectives")}
                             >
-                                Top Detectives
+                                Top Detectives <PieceTrigger pieceId="piece_04" />
                             </button>
                             <button
                                 className={`${styles.leaderboardTab}${leaderboardTab === "gm" ? ` ${styles.leaderboardTabActive}` : ""}`}

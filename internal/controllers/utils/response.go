@@ -33,3 +33,7 @@ func InternalError(ctx fiber.Ctx, msg string) error {
 func OK(ctx fiber.Ctx) error {
 	return ctx.JSON(fiber.Map{"status": "ok"})
 }
+
+func UnprocessableEntity(ctx fiber.Ctx, payload fiber.Map) error {
+	return ctx.Status(fiber.StatusUnprocessableEntity).JSON(payload)
+}

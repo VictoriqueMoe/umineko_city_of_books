@@ -29,3 +29,105 @@
     color: #d4a84b;
     border: 1px solid rgba(212, 168, 75, 0.35);
 }
+
+.witchHunter {
+    position: relative;
+    overflow: hidden;
+    padding-right: 1.1rem;
+    background:
+        linear-gradient(#1a0612, #1a0612) padding-box,
+        linear-gradient(120deg, #d96a9a 0%, #e89ec0 45%, #f0c878 100%) border-box;
+    background-size:
+        100% 100%,
+        220% 220%;
+    color: #ffd4b3;
+    border: 1.5px solid transparent;
+    text-shadow:
+        0 0 6px rgba(240, 200, 120, 0.55),
+        0 0 2px rgba(217, 106, 154, 0.6);
+    box-shadow:
+        0 0 10px rgba(217, 106, 154, 0.5),
+        inset 0 0 8px rgba(217, 106, 154, 0.25);
+    animation:
+        witch-hunter-flow 5s ease-in-out infinite alternate,
+        witch-hunter-pulse 2.8s ease-in-out infinite alternate;
+}
+
+.witchHunterLabel {
+    position: relative;
+    z-index: 1;
+}
+
+.witchHunter::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        100deg,
+        rgba(255, 255, 255, 0) 0%,
+        rgba(255, 255, 255, 0) 40%,
+        rgba(255, 255, 255, 0.55) 50%,
+        rgba(255, 255, 255, 0) 60%,
+        rgba(255, 255, 255, 0) 100%
+    );
+    background-size: 300% 100%;
+    background-position: -150% 50%;
+    animation: witch-hunter-shimmer 3.2s linear infinite;
+    pointer-events: none;
+}
+
+.witchHunter::after {
+    content: "\2726";
+    position: absolute;
+    top: -0.2em;
+    right: 0.25em;
+    font-size: 0.7em;
+    color: #fff8e7;
+    text-shadow:
+        0 0 6px #ffd9e6,
+        0 0 10px rgba(240, 200, 120, 0.8);
+    animation: witch-hunter-twinkle 1.6s ease-in-out infinite;
+    pointer-events: none;
+    z-index: 2;
+}
+
+@keyframes witch-hunter-shimmer {
+    0% {
+        background-position: -150% 50%;
+    }
+    100% {
+        background-position: 250% 50%;
+    }
+}
+
+@keyframes witch-hunter-flow {
+    0% {
+        background-position: 0% 50%;
+    }
+    100% {
+        background-position: 100% 50%;
+    }
+}
+
+@keyframes witch-hunter-pulse {
+    0% {
+        box-shadow: 0 0 6px rgba(217, 106, 154, 0.35);
+    }
+    100% {
+        box-shadow:
+            0 0 14px rgba(240, 200, 120, 0.65),
+            0 0 20px rgba(217, 106, 154, 0.5);
+    }
+}
+
+@keyframes witch-hunter-twinkle {
+    0%,
+    100% {
+        opacity: 0.4;
+        transform: scale(0.75) rotate(0deg);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.15) rotate(12deg);
+    }
+}

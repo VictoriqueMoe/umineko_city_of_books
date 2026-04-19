@@ -1,0 +1,60 @@
+.section {
+    margin: 1.5rem 0;
+    padding: 1rem 1.25rem;
+    background: rgba(var(--bg-card-rgb), 0.5);
+    border: 1px solid rgba(var(--purple-rgb), 0.25);
+    border-radius: 8px;
+}
+
+.heading {
+    margin: 0 0 0.75rem;
+    font-family: var(--font-display);
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.trophy {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.85rem;
+    background: rgba(var(--bg-card-rgb), 0.7);
+    border: 1px solid rgba(var(--gold-rgb), 0.4);
+    border-radius: 999px;
+    color: var(--text);
+    font-family: var(--font-display);
+    font-size: 0.8rem;
+    cursor: default;
+    transition:
+        transform 180ms var(--ease-spring),
+        box-shadow 240ms var(--ease-out);
+}
+
+button.trophy {
+    cursor: pointer;
+}
+
+button.trophy:hover,
+button.trophy:focus-visible {
+    transform: translateY(-1px);
+    outline: none;
+}
+
+.icon {
+    font-size: 1.15rem;
+    line-height: 1;
+}
+
+.title {
+    font-weight: 600;
+    letter-spacing: 0.03em;
+}

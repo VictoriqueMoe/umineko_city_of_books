@@ -32,11 +32,13 @@ func newTestService(t *testing.T) (
 	*settings.MockService,
 ) {
 	userRepo := repository.NewMockUserRepository(t)
+	userSecretRepo := repository.NewMockUserSecretRepository(t)
+	userSecretRepo.EXPECT().ListForUser(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 	theoryRepo := repository.NewMockTheoryRepository(t)
 	authzSvc := authz.NewMockService(t)
 	uploadSvc := upload.NewMockService(t)
 	settingsSvc := settings.NewMockService(t)
-	svc := NewService(userRepo, theoryRepo, authzSvc, uploadSvc, settingsSvc, contentfilter.New()).(*service)
+	svc := NewService(userRepo, userSecretRepo, theoryRepo, authzSvc, uploadSvc, settingsSvc, contentfilter.New()).(*service)
 	return svc, userRepo, theoryRepo, authzSvc, uploadSvc, settingsSvc
 }
 

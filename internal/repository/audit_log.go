@@ -22,6 +22,7 @@ type (
 
 	AuditLogRepository interface {
 		Create(ctx context.Context, actorID uuid.UUID, action, targetType, targetID, details string) error
+		CreateSystem(ctx context.Context, action, targetType, targetID, details string) error
 		List(ctx context.Context, action string, limit, offset int) ([]AuditLogEntry, int, error)
 	}
 
@@ -37,6 +38,17 @@ func (r *auditLogRepository) Create(ctx context.Context, actorID uuid.UUID, acti
 	)
 	if err != nil {
 		return fmt.Errorf("create audit log: %w", err)
+	}
+	return nil
+}
+
+func (r *auditLogRepository) CreateSystem(ctx context.Context, action, targetType, targetID, details string) error {
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO audit_log (actor_id, action, target_type, target_id, details) VALUES (NULL, ?, ?, ?, ?)`,
+		action, targetType, targetID, details,
+	)
+	if err != nil {
+		return fmt.Errorf("create system audit log: %w", err)
 	}
 	return nil
 }
@@ -61,9 +73,9 @@ func (r *auditLogRepository) List(ctx context.Context, action string, limit, off
 
 	args = append(args, limit, offset)
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT a.id, a.actor_id, u.display_name, a.action, a.target_type, a.target_id, a.details, a.created_at
+		`SELECT a.id, a.actor_id, COALESCE(u.display_name, ''), a.action, a.target_type, a.target_id, a.details, a.created_at
 		 FROM audit_log a
-		 JOIN users u ON a.actor_id = u.id`+where+`
+		 LEFT JOIN users u ON a.actor_id = u.id`+where+`
 		 ORDER BY a.created_at DESC
 		 LIMIT ? OFFSET ?`, args...,
 	)
@@ -75,8 +87,14 @@ func (r *auditLogRepository) List(ctx context.Context, action string, limit, off
 	var entries []AuditLogEntry
 	for rows.Next() {
 		var e AuditLogEntry
-		if err := rows.Scan(&e.ID, &e.ActorID, &e.ActorName, &e.Action, &e.TargetType, &e.TargetID, &e.Details, &e.CreatedAt); err != nil {
+		var actorID sql.NullString
+		if err := rows.Scan(&e.ID, &actorID, &e.ActorName, &e.Action, &e.TargetType, &e.TargetID, &e.Details, &e.CreatedAt); err != nil {
 			return nil, 0, fmt.Errorf("scan audit log: %w", err)
+		}
+		if actorID.Valid {
+			if id, err := uuid.Parse(actorID.String); err == nil {
+				e.ActorID = id
+			}
 		}
 		entries = append(entries, e)
 	}

@@ -37,6 +37,7 @@ export const AdminContentRules = named(() => import("./admin/AdminContentRules")
 export const AdminVanityRoles = named(() => import("./admin/AdminVanityRoles"), "AdminVanityRoles");
 export const AdminAnnouncementsPage = named(() => import("./admin/AdminAnnouncements"), "AdminAnnouncements");
 export const AdminBannedGifs = named(() => import("./admin/AdminBannedGifs"), "AdminBannedGifs");
+export const AdminBannedWords = named(() => import("./admin/AdminBannedWords"), "AdminBannedWords");
 
 //  Announcements
 export const AnnouncementsListPage = named(() => import("./announcements/AnnouncementsPage"), "AnnouncementsPage");
@@ -90,3 +91,10 @@ export const EditJournalPage = named(() => import("./journals/EditJournalPage"),
 //  Chat Rooms
 export const RoomsListPage = named(() => import("./rooms/RoomsListPage"), "RoomsListPage");
 export const RoomPage = named(() => import("./rooms/RoomPage"), "RoomPage");
+
+//  Not Found
+export const NotFoundPage = named(() => import("./notfound/NotFoundPage"), "NotFoundPage");
+
+//  Secrets
+export const SecretsListPage = named(() => import("./secrets/SecretsListPage"), "SecretsListPage");
+export const SecretDetailPage = named(() => import("./secrets/SecretDetailPage"), "SecretDetailPage");

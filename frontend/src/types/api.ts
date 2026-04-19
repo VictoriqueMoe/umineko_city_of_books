@@ -147,6 +147,8 @@ export interface UserProfile {
     dms_enabled: boolean;
     episode_progress: number;
     higurashi_arc_progress: number;
+    ciconia_chapter_progress: number;
+    secrets: string[];
     dob?: string;
     dob_public?: boolean;
     email?: string;
@@ -189,6 +191,7 @@ export interface UpdateProfilePayload {
     dms_enabled: boolean;
     episode_progress: number;
     higurashi_arc_progress: number;
+    ciconia_chapter_progress: number;
     dob: string;
     dob_public: boolean;
     email: string;
@@ -413,6 +416,9 @@ export type NotificationType =
     | "chat_room_message"
     | "chat_room_invite"
     | "chat_reply"
+    | "chat_room_banned"
+    | "chat_room_kicked"
+    | "chat_room_unbanned"
     | "fanfic_commented"
     | "fanfic_comment_reply"
     | "fanfic_comment_liked"
@@ -638,6 +644,36 @@ export interface ChatRoomMember {
     ghost?: boolean;
 }
 
+export interface ChatRoomBan {
+    user: User;
+    banned_by?: User;
+    reason: string;
+    created_at: string;
+}
+
+export type BannedWordMatchMode = "substring" | "whole_word" | "regex";
+export type BannedWordAction = "delete" | "kick";
+
+export interface BannedWordRule {
+    id: string;
+    scope: "global" | "room";
+    room_id?: string;
+    pattern: string;
+    match_mode: BannedWordMatchMode;
+    case_sensitive: boolean;
+    action: BannedWordAction;
+    created_by_id?: string;
+    created_by_name?: string;
+    created_at: string;
+}
+
+export interface CreateBannedWordRequest {
+    pattern: string;
+    match_mode: BannedWordMatchMode;
+    case_sensitive: boolean;
+    action: BannedWordAction;
+}
+
 export interface ChatMessageReplyPreview {
     id: string;
     sender_id: string;
@@ -761,6 +797,67 @@ export interface MysteryListResponse {
     total: number;
     limit: number;
     offset: number;
+}
+
+export interface SecretComment {
+    id: string;
+    parent_id?: string;
+    author: User;
+    body: string;
+    media: PostMedia[];
+    like_count: number;
+    user_liked: boolean;
+    replies?: SecretComment[];
+    created_at: string;
+    updated_at?: string;
+}
+
+export interface SecretLeaderboardEntry {
+    user: User;
+    pieces_collected: number;
+    solved: boolean;
+}
+
+export interface SecretSummary {
+    id: string;
+    title: string;
+    description: string;
+    total_pieces: number;
+    solved: boolean;
+    solver?: User;
+    solved_at?: string;
+    viewer_progress: number;
+    comment_count: number;
+}
+
+export interface SecretDetailResponse extends SecretSummary {
+    riddle: string;
+    leaderboard: SecretLeaderboardEntry[];
+    comments: SecretComment[];
+}
+
+export interface SecretSolverEntry {
+    user: User;
+    solved_count: number;
+    last_solved_at: string;
+}
+
+export interface SecretListResponse {
+    secrets: SecretSummary[];
+    solvers_leaderboard: SecretSolverEntry[];
+}
+
+export interface SecretProgressEvent {
+    secret_id: string;
+    user: User;
+    pieces_collected: number;
+    total_pieces: number;
+}
+
+export interface SecretSolvedEvent {
+    secret_id: string;
+    solver: User;
+    solved_at: string;
 }
 
 export interface MysteryLeaderboardEntry {
@@ -933,6 +1030,7 @@ export interface ShipListResponse {
 export interface CharacterListEntry {
     id: string;
     name: string;
+    group?: "main" | "additional";
 }
 
 export interface CharacterListResponse {

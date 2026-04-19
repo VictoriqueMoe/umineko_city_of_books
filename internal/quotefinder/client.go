@@ -9,7 +9,10 @@ import (
 	"time"
 )
 
-const baseURL = "https://quotes.auaurora.moe/api/v1"
+const (
+	DefaultBaseURL    = "https://quotes.auaurora.moe/api/v1"
+	characterCacheTTL = 1 * time.Hour
+)
 
 type (
 	Quote struct {
@@ -20,12 +23,14 @@ type (
 	}
 
 	Character struct {
-		ID   string `json:"id"`
-		Name string `json:"name"`
+		ID    string `json:"id"`
+		Name  string `json:"name"`
+		Group string `json:"group"`
 	}
 
 	charactersResponse struct {
 		Characters map[string]string `json:"characters"`
+		Additional map[string]string `json:"additional"`
 	}
 
 	cachedCharacters struct {
@@ -35,16 +40,20 @@ type (
 
 	Client struct {
 		http     *http.Client
+		baseURL  string
 		charMu   sync.Mutex
 		charMemo map[Series]cachedCharacters
 	}
 )
 
-const characterCacheTTL = 1 * time.Hour
-
 func NewClient() *Client {
+	return NewClientWithBaseURL(DefaultBaseURL)
+}
+
+func NewClientWithBaseURL(baseURL string) *Client {
 	return &Client{
 		http:     &http.Client{Timeout: 10 * time.Second},
+		baseURL:  baseURL,
 		charMemo: make(map[Series]cachedCharacters),
 	}
 }
@@ -61,7 +70,7 @@ func (c *Client) ListCharacters(series Series) ([]Character, error) {
 	}
 	c.charMu.Unlock()
 
-	resp, err := c.http.Get(fmt.Sprintf("%s/%s/characters", baseURL, series))
+	resp, err := c.http.Get(fmt.Sprintf("%s/%s/characters", c.baseURL, series))
 	if err != nil {
 		return nil, fmt.Errorf("fetch characters: %w", err)
 	}
@@ -76,9 +85,12 @@ func (c *Client) ListCharacters(series Series) ([]Character, error) {
 		return nil, fmt.Errorf("decode characters: %w", err)
 	}
 
-	result := make([]Character, 0, len(wrapper.Characters))
+	result := make([]Character, 0, len(wrapper.Characters)+len(wrapper.Additional))
 	for id, name := range wrapper.Characters {
-		result = append(result, Character{ID: id, Name: name})
+		result = append(result, Character{ID: id, Name: name, Group: "main"})
+	}
+	for id, name := range wrapper.Additional {
+		result = append(result, Character{ID: id, Name: name, Group: "additional"})
 	}
 
 	c.charMu.Lock()
@@ -101,7 +113,7 @@ func (c *Client) GetByAudioID(series Series, audioID string) (*Quote, error) {
 		return nil, nil
 	}
 
-	resp, err := c.http.Get(fmt.Sprintf("%s/%s/quote/%s", baseURL, series, firstID))
+	resp, err := c.http.Get(fmt.Sprintf("%s/%s/quote/%s", c.baseURL, series, firstID))
 	if err != nil {
 		return nil, fmt.Errorf("fetch quote: %w", err)
 	}
@@ -122,7 +134,7 @@ func (c *Client) GetByIndex(series Series, index int) (*Quote, error) {
 	if !series.Valid() {
 		series = SeriesUmineko
 	}
-	resp, err := c.http.Get(fmt.Sprintf("%s/%s/quote/index/%d", baseURL, series, index))
+	resp, err := c.http.Get(fmt.Sprintf("%s/%s/quote/index/%d", c.baseURL, series, index))
 	if err != nil {
 		return nil, fmt.Errorf("fetch quote by index: %w", err)
 	}

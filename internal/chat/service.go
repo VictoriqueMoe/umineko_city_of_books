@@ -37,135 +37,18 @@ const (
 	systemAdminsDesc = "Private room for admins and super admins. Membership is managed automatically."
 )
 
-var mentionRegex = regexp.MustCompile(`@([a-zA-Z0-9_]+)`)
-var tagAllowedRegex = regexp.MustCompile(`[^a-z0-9-]+`)
-
-var timeoutUnitYears = map[string]int{
-	"year":      1,
-	"years":     1,
-	"decade":    10,
-	"decades":   10,
-	"century":   100,
-	"centuries": 100,
-}
-
-func sanitizeTags(raw []string) []string {
-	if len(raw) == 0 {
-		return nil
+var (
+	mentionRegex     = regexp.MustCompile(`@([a-zA-Z0-9_]+)`)
+	tagAllowedRegex  = regexp.MustCompile(`[^a-z0-9-]+`)
+	timeoutUnitYears = map[string]int{
+		"year":      1,
+		"years":     1,
+		"decade":    10,
+		"decades":   10,
+		"century":   100,
+		"centuries": 100,
 	}
-	seen := make(map[string]struct{})
-	out := make([]string, 0, len(raw))
-	for _, t := range raw {
-		t = strings.ToLower(strings.TrimSpace(t))
-		t = strings.ReplaceAll(t, " ", "-")
-		t = tagAllowedRegex.ReplaceAllString(t, "")
-		t = strings.Trim(t, "-")
-		if t == "" {
-			continue
-		}
-		if len(t) > 30 {
-			t = t[:30]
-		}
-		if _, dup := seen[t]; dup {
-			continue
-		}
-		seen[t] = struct{}{}
-		out = append(out, t)
-		if len(out) >= 10 {
-			break
-		}
-	}
-	return out
-}
-
-func timeoutDurationLabel(amount int, unit string) string {
-	if amount == 1 {
-		switch unit {
-		case "second", "seconds":
-			return "1 second"
-		case "hour", "hours":
-			return "1 hour"
-		case "week", "weeks":
-			return "1 week"
-		case "year", "years":
-			return "1 year"
-		case "decade", "decades":
-			return "1 decade"
-		case "century", "centuries":
-			return "1 century"
-		}
-	}
-
-	suffix := unit
-	switch unit {
-	case "second":
-		suffix = "seconds"
-	case "hour":
-		suffix = "hours"
-	case "week":
-		suffix = "weeks"
-	case "year":
-		suffix = "years"
-	case "decade":
-		suffix = "decades"
-	case "century":
-		suffix = "centuries"
-	}
-	return fmt.Sprintf("%d %s", amount, suffix)
-}
-
-var maxTimeoutUntil = time.Date(9999, 12, 31, 23, 59, 59, 0, time.UTC)
-
-func capTimeout(t time.Time) time.Time {
-	if t.After(maxTimeoutUntil) {
-		return maxTimeoutUntil
-	}
-	return t
-}
-
-func computeTimeoutUntil(now time.Time, amount int, unit string) (time.Time, string, error) {
-	if amount <= 0 {
-		return time.Time{}, "", ErrInvalidTimeoutDuration
-	}
-
-	normalized := strings.ToLower(strings.TrimSpace(unit))
-	if normalized == "" {
-		return time.Time{}, "", ErrInvalidTimeoutDuration
-	}
-
-	switch normalized {
-	case "second", "seconds":
-		return capTimeout(now.Add(time.Duration(amount) * time.Second)), timeoutDurationLabel(amount, normalized), nil
-	case "hour", "hours":
-		return capTimeout(now.Add(time.Duration(amount) * time.Hour)), timeoutDurationLabel(amount, normalized), nil
-	case "week", "weeks":
-		return capTimeout(now.Add(time.Duration(amount) * 7 * 24 * time.Hour)), timeoutDurationLabel(amount, normalized), nil
-	}
-
-	years, ok := timeoutUnitYears[normalized]
-	if ok {
-		return capTimeout(now.AddDate(amount*years, 0, 0)), timeoutDurationLabel(amount, normalized), nil
-	}
-
-	return time.Time{}, "", ErrInvalidTimeoutDuration
-}
-
-func formatTimeoutUntilForUser(raw string) string {
-	trimmed := strings.TrimSpace(raw)
-	if trimmed == "" {
-		return ""
-	}
-
-	layouts := []string{time.RFC3339Nano, time.RFC3339, time.DateTime}
-	for i := 0; i < len(layouts); i++ {
-		parsed, err := time.Parse(layouts[i], trimmed)
-		if err == nil {
-			return parsed.UTC().Format("02 January 2006 15:04 UTC")
-		}
-	}
-
-	return trimmed
-}
+)
 
 type (
 	FileUpload struct {
@@ -214,21 +97,39 @@ type (
 		RemoveReaction(ctx context.Context, messageID, userID uuid.UUID, emoji string) error
 		DeleteMessage(ctx context.Context, messageID, actorID uuid.UUID) error
 		EditMessage(ctx context.Context, messageID, actorID uuid.UUID, body string) (*dto.ChatMessageResponse, error)
+
+		BanMember(ctx context.Context, actorID, roomID, targetID uuid.UUID, reason string) error
+		UnbanMember(ctx context.Context, actorID, roomID, targetID uuid.UUID) error
+		ListRoomBans(ctx context.Context, actorID, roomID uuid.UUID) ([]dto.ChatRoomBanResponse, error)
+
+		ListRoomBannedWords(ctx context.Context, actorID, roomID uuid.UUID) ([]dto.BannedWordRuleResponse, error)
+		CreateRoomBannedWord(ctx context.Context, actorID, roomID uuid.UUID, req dto.CreateBannedWordRequest) (*dto.BannedWordRuleResponse, error)
+		UpdateRoomBannedWord(ctx context.Context, actorID, roomID, ruleID uuid.UUID, req dto.UpdateBannedWordRequest) (*dto.BannedWordRuleResponse, error)
+		DeleteRoomBannedWord(ctx context.Context, actorID, roomID, ruleID uuid.UUID) error
+
+		ListGlobalBannedWords(ctx context.Context, actorID uuid.UUID) ([]dto.BannedWordRuleResponse, error)
+		CreateGlobalBannedWord(ctx context.Context, actorID uuid.UUID, req dto.CreateBannedWordRequest) (*dto.BannedWordRuleResponse, error)
+		UpdateGlobalBannedWord(ctx context.Context, actorID, ruleID uuid.UUID, req dto.UpdateBannedWordRequest) (*dto.BannedWordRuleResponse, error)
+		DeleteGlobalBannedWord(ctx context.Context, actorID, ruleID uuid.UUID) error
 	}
 
 	service struct {
-		chatRepo       repository.ChatRepository
-		userRepo       repository.UserRepository
-		roleRepo       repository.RoleRepository
-		vanityRoleRepo repository.VanityRoleRepository
-		authzSvc       authz.Service
-		notifSvc       notification.Service
-		blockSvc       block.Service
-		settingsSvc    settings.Service
-		uploadSvc      upload.Service
-		uploader       *media.Uploader
-		hub            *ws.Hub
-		contentFilter  *contentfilter.Manager
+		chatRepo        repository.ChatRepository
+		userRepo        repository.UserRepository
+		roleRepo        repository.RoleRepository
+		vanityRoleRepo  repository.VanityRoleRepository
+		banRepo         repository.ChatRoomBanRepository
+		bannedWordRepo  repository.ChatBannedWordRepository
+		auditRepo       repository.AuditLogRepository
+		authzSvc        authz.Service
+		notifSvc        notification.Service
+		blockSvc        block.Service
+		settingsSvc     settings.Service
+		uploadSvc       upload.Service
+		uploader        *media.Uploader
+		hub             *ws.Hub
+		contentFilter   *contentfilter.Manager
+		bannedWordsRule *contentfilter.ChatBannedWordsRule
 	}
 )
 
@@ -237,6 +138,9 @@ func NewService(
 	userRepo repository.UserRepository,
 	roleRepo repository.RoleRepository,
 	vanityRoleRepo repository.VanityRoleRepository,
+	banRepo repository.ChatRoomBanRepository,
+	bannedWordRepo repository.ChatBannedWordRepository,
+	auditRepo repository.AuditLogRepository,
 	authzSvc authz.Service,
 	notifSvc notification.Service,
 	blockSvc block.Service,
@@ -247,18 +151,22 @@ func NewService(
 	contentFilter *contentfilter.Manager,
 ) Service {
 	return &service{
-		chatRepo:       chatRepo,
-		userRepo:       userRepo,
-		roleRepo:       roleRepo,
-		vanityRoleRepo: vanityRoleRepo,
-		authzSvc:       authzSvc,
-		notifSvc:       notifSvc,
-		blockSvc:       blockSvc,
-		settingsSvc:    settingsSvc,
-		uploadSvc:      uploadSvc,
-		uploader:       media.NewUploader(uploadSvc, settingsSvc, mediaProc),
-		hub:            hub,
-		contentFilter:  contentFilter,
+		chatRepo:        chatRepo,
+		userRepo:        userRepo,
+		roleRepo:        roleRepo,
+		vanityRoleRepo:  vanityRoleRepo,
+		banRepo:         banRepo,
+		bannedWordRepo:  bannedWordRepo,
+		auditRepo:       auditRepo,
+		authzSvc:        authzSvc,
+		notifSvc:        notifSvc,
+		blockSvc:        blockSvc,
+		settingsSvc:     settingsSvc,
+		uploadSvc:       uploadSvc,
+		uploader:        media.NewUploader(uploadSvc, settingsSvc, mediaProc),
+		hub:             hub,
+		contentFilter:   contentFilter,
+		bannedWordsRule: contentfilter.NewChatBannedWordsRule(bannedWordRepo),
 	}
 }
 
@@ -487,6 +395,15 @@ func (s *service) InviteMembers(ctx context.Context, hostID, roomID uuid.UUID, u
 			continue
 		}
 
+		banned, err := s.banRepo.IsBanned(ctx, roomID, targetID)
+		if err != nil {
+			return nil, fmt.Errorf("check ban: %w", err)
+		}
+		if banned {
+			skipped++
+			continue
+		}
+
 		target, err := s.userRepo.GetByID(ctx, targetID)
 		if err != nil || target == nil {
 			skipped++
@@ -547,8 +464,20 @@ func (s *service) ListPublicRooms(ctx context.Context, search string, isRPOnly b
 		return nil, fmt.Errorf("list public rooms: %w", err)
 	}
 
+	bannedRoomIDs, _ := s.banRepo.BannedRoomIDsForUser(ctx, viewerID)
+	bannedSet := make(map[uuid.UUID]struct{}, len(bannedRoomIDs))
+	for _, id := range bannedRoomIDs {
+		bannedSet[id] = struct{}{}
+	}
+
 	rooms := make([]dto.ChatRoomResponse, 0, len(rows))
 	for i := range rows {
+		if _, banned := bannedSet[rows[i].ID]; banned {
+			if total > 0 {
+				total--
+			}
+			continue
+		}
 		room := s.rowToResponse(rows[i])
 		rooms = append(rooms, room)
 	}
@@ -615,6 +544,13 @@ func (s *service) JoinRoom(ctx context.Context, roomID, userID uuid.UUID, ghost 
 	}
 	if !row.IsPublic {
 		return nil, ErrNotPublic
+	}
+	banned, err := s.banRepo.IsBanned(ctx, roomID, userID)
+	if err != nil {
+		return nil, fmt.Errorf("check ban: %w", err)
+	}
+	if banned {
+		return nil, ErrBannedFromRoom
 	}
 	if ghost {
 		viewerSiteRole, err := s.authzSvc.GetRole(ctx, userID)
@@ -793,6 +729,9 @@ func (s *service) KickMember(ctx context.Context, hostID, roomID, targetID uuid.
 			"room_id": roomID,
 		},
 	})
+
+	s.notifyModerationAction(roomID, targetID, hostID, "kicked", "")
+
 	return nil
 }
 
@@ -1431,6 +1370,10 @@ func (s *service) SendMessage(ctx context.Context, senderID, roomID uuid.UUID, r
 			return nil, fmt.Errorf("%w until %s", ErrTimedOut, formatTimeoutUntilForUser(timeoutUntil))
 		}
 		return nil, ErrTimedOut
+	}
+
+	if err := s.enforceBannedWords(ctx, roomID, senderID, req.Body); err != nil {
+		return nil, err
 	}
 
 	members, err := s.chatRepo.GetRoomMembers(ctx, roomID)
@@ -2495,4 +2438,122 @@ func (s *service) getRoomMemberResponses(ctx context.Context, roomID, viewerID u
 		members = append(members, *user.ToResponse())
 	}
 	return members, len(members), nil
+}
+
+func sanitizeTags(raw []string) []string {
+	if len(raw) == 0 {
+		return nil
+	}
+	seen := make(map[string]struct{})
+	out := make([]string, 0, len(raw))
+	for _, t := range raw {
+		t = strings.ToLower(strings.TrimSpace(t))
+		t = strings.ReplaceAll(t, " ", "-")
+		t = tagAllowedRegex.ReplaceAllString(t, "")
+		t = strings.Trim(t, "-")
+		if t == "" {
+			continue
+		}
+		if len(t) > 30 {
+			t = t[:30]
+		}
+		if _, dup := seen[t]; dup {
+			continue
+		}
+		seen[t] = struct{}{}
+		out = append(out, t)
+		if len(out) >= 10 {
+			break
+		}
+	}
+	return out
+}
+
+func timeoutDurationLabel(amount int, unit string) string {
+	if amount == 1 {
+		switch unit {
+		case "second", "seconds":
+			return "1 second"
+		case "hour", "hours":
+			return "1 hour"
+		case "week", "weeks":
+			return "1 week"
+		case "year", "years":
+			return "1 year"
+		case "decade", "decades":
+			return "1 decade"
+		case "century", "centuries":
+			return "1 century"
+		}
+	}
+
+	suffix := unit
+	switch unit {
+	case "second":
+		suffix = "seconds"
+	case "hour":
+		suffix = "hours"
+	case "week":
+		suffix = "weeks"
+	case "year":
+		suffix = "years"
+	case "decade":
+		suffix = "decades"
+	case "century":
+		suffix = "centuries"
+	}
+	return fmt.Sprintf("%d %s", amount, suffix)
+}
+
+var maxTimeoutUntil = time.Date(9999, 12, 31, 23, 59, 59, 0, time.UTC)
+
+func capTimeout(t time.Time) time.Time {
+	if t.After(maxTimeoutUntil) {
+		return maxTimeoutUntil
+	}
+	return t
+}
+
+func computeTimeoutUntil(now time.Time, amount int, unit string) (time.Time, string, error) {
+	if amount <= 0 {
+		return time.Time{}, "", ErrInvalidTimeoutDuration
+	}
+
+	normalized := strings.ToLower(strings.TrimSpace(unit))
+	if normalized == "" {
+		return time.Time{}, "", ErrInvalidTimeoutDuration
+	}
+
+	switch normalized {
+	case "second", "seconds":
+		return capTimeout(now.Add(time.Duration(amount) * time.Second)), timeoutDurationLabel(amount, normalized), nil
+	case "hour", "hours":
+		return capTimeout(now.Add(time.Duration(amount) * time.Hour)), timeoutDurationLabel(amount, normalized), nil
+	case "week", "weeks":
+		return capTimeout(now.Add(time.Duration(amount) * 7 * 24 * time.Hour)), timeoutDurationLabel(amount, normalized), nil
+	}
+
+	years, ok := timeoutUnitYears[normalized]
+	if ok {
+		return capTimeout(now.AddDate(amount*years, 0, 0)), timeoutDurationLabel(amount, normalized), nil
+	}
+
+	return time.Time{}, "", ErrInvalidTimeoutDuration
+}
+
+func formatTimeoutUntilForUser(raw string) string {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return ""
+	}
+
+	layouts := []string{time.RFC3339Nano, time.RFC3339, time.DateTime}
+	for i := 0; i < len(layouts); i++ {
+		parsed, err := time.Parse(layouts[i], trimmed)
+		if err == nil {
+			return parsed.UTC().Format("02 January 2006 15:04 UTC")
+		}
+	}
+
+	return trimmed
 }

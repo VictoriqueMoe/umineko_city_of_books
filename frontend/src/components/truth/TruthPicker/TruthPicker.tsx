@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Quote } from "../../../types/api";
-import { browseQuotes, getCharacters, searchQuotes, type Series } from "../../../api/endpoints";
+import {
+    browseQuotes,
+    getCharacterGroups,
+    searchQuotes,
+    type CharacterGroups,
+    type Series,
+} from "../../../api/endpoints";
 import { getSeriesConfig } from "../../../utils/seriesConfig";
 import { Button } from "../../Button/Button";
 import { Input } from "../../Input/Input";
@@ -28,35 +34,51 @@ function quoteKey(q: Quote): string {
     return `index:${q.index}`;
 }
 
+function sortedEntries(map: Record<string, string>): [string, string][] {
+    return Object.entries(map).sort((a, b) => a[1].localeCompare(b[1]));
+}
+
 export function TruthPicker({ isOpen, onClose, onSelect, selectedKeys, series = "umineko" }: TruthPickerProps) {
     const cfg = getSeriesConfig(series);
+    const segmentNoun = cfg.chapters ? "Chapter" : cfg.arcs ? "Arc" : "Episode";
     const [query, setQuery] = useState("");
     const [episode, setEpisode] = useState(0);
     const [arc, setArc] = useState("");
+    const [chapter, setChapter] = useState("");
     const [character, setCharacter] = useState("");
     const [truth, setTruth] = useState("");
     const [lang, setLang] = useState("");
     const [quotes, setQuotes] = useState<Quote[]>([]);
     const [total, setTotal] = useState(0);
     const [offset, setOffset] = useState(0);
-    const [characters, setCharacters] = useState<Record<string, string>>({});
+    const [characters, setCharacters] = useState<CharacterGroups>({ main: {}, additional: {} });
     const [loading, setLoading] = useState(false);
     const initialLoadDone = useRef(false);
 
     useEffect(() => {
-        getCharacters(series)
+        getCharacterGroups(series)
             .then(setCharacters)
-            .catch(() => {});
+            .catch(() => setCharacters({ main: {}, additional: {} }));
     }, [series]);
 
     const doFetch = useCallback(
-        async (q: string, ep: number, arcVal: string, char: string, tr: string, ln: string, off: number) => {
+        async (
+            q: string,
+            ep: number,
+            arcVal: string,
+            chapterVal: string,
+            char: string,
+            tr: string,
+            ln: string,
+            off: number,
+        ) => {
             setLoading(true);
             try {
                 const common = {
                     character: char || undefined,
                     episode: ep || undefined,
                     arc: arcVal || undefined,
+                    chapter: chapterVal || undefined,
                     truth: tr || undefined,
                     lang: ln || undefined,
                     limit: LIMIT,
@@ -85,13 +107,14 @@ export function TruthPicker({ isOpen, onClose, onSelect, selectedKeys, series = 
     useEffect(() => {
         if (isOpen && !initialLoadDone.current) {
             initialLoadDone.current = true;
-            doFetch("", 0, "", "", "", lang, 0);
+            doFetch("", 0, "", "", "", "", lang, 0);
         }
         if (!isOpen) {
             initialLoadDone.current = false;
             setQuery("");
             setEpisode(0);
             setArc("");
+            setChapter("");
             setCharacter("");
             setTruth("");
             setQuotes([]);
@@ -102,13 +125,16 @@ export function TruthPicker({ isOpen, onClose, onSelect, selectedKeys, series = 
 
     function handleSearch() {
         setOffset(0);
-        doFetch(query, episode, arc, character, truth, lang, 0);
+        doFetch(query, episode, arc, chapter, character, truth, lang, 0);
     }
 
     function handlePageChange(newOffset: number) {
         setOffset(newOffset);
-        doFetch(query, episode, arc, character, truth, lang, newOffset);
+        doFetch(query, episode, arc, chapter, character, truth, lang, newOffset);
     }
+
+    const mainEntries = sortedEntries(characters.main);
+    const additionalEntries = sortedEntries(characters.additional);
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title="Select Evidence">
@@ -133,14 +159,31 @@ export function TruthPicker({ isOpen, onClose, onSelect, selectedKeys, series = 
             </form>
 
             <div className={styles.filters}>
-                {cfg.arcs ? (
+                {cfg.chapters ? (
+                    <Select
+                        value={chapter}
+                        onChange={e => {
+                            const val = (e.target as HTMLSelectElement).value;
+                            setChapter(val);
+                            setOffset(0);
+                            doFetch(query, 0, "", val, character, truth, lang, 0);
+                        }}
+                    >
+                        <option value="">All Chapters</option>
+                        {cfg.chapters.map(c => (
+                            <option key={c.value} value={c.value}>
+                                {c.label}
+                            </option>
+                        ))}
+                    </Select>
+                ) : cfg.arcs ? (
                     <Select
                         value={arc}
                         onChange={e => {
                             const val = (e.target as HTMLSelectElement).value;
                             setArc(val);
                             setOffset(0);
-                            doFetch(query, 0, val, character, truth, lang, 0);
+                            doFetch(query, 0, val, "", character, truth, lang, 0);
                         }}
                     >
                         <option value="">All Arcs</option>
@@ -157,7 +200,7 @@ export function TruthPicker({ isOpen, onClose, onSelect, selectedKeys, series = 
                             const val = Number((e.target as HTMLSelectElement).value);
                             setEpisode(val);
                             setOffset(0);
-                            doFetch(query, val, "", character, truth, lang, 0);
+                            doFetch(query, val, "", "", character, truth, lang, 0);
                         }}
                     >
                         <option value={0}>All Episodes</option>
@@ -175,15 +218,35 @@ export function TruthPicker({ isOpen, onClose, onSelect, selectedKeys, series = 
                         const val = (e.target as HTMLSelectElement).value;
                         setCharacter(val);
                         setOffset(0);
-                        doFetch(query, episode, arc, val, truth, lang, 0);
+                        doFetch(query, episode, arc, chapter, val, truth, lang, 0);
                     }}
+                    aria-label={`Filter by ${segmentNoun.toLowerCase()} character`}
                 >
                     <option value="">All Characters</option>
-                    {Object.entries(characters).map(([id, name]) => (
-                        <option key={id} value={id}>
-                            {name}
-                        </option>
-                    ))}
+                    {additionalEntries.length === 0 ? (
+                        mainEntries.map(([id, name]) => (
+                            <option key={id} value={id}>
+                                {name}
+                            </option>
+                        ))
+                    ) : (
+                        <>
+                            <optgroup label="Main cast">
+                                {mainEntries.map(([id, name]) => (
+                                    <option key={id} value={id}>
+                                        {name}
+                                    </option>
+                                ))}
+                            </optgroup>
+                            <optgroup label="Additional">
+                                {additionalEntries.map(([id, name]) => (
+                                    <option key={id} value={id}>
+                                        {name}
+                                    </option>
+                                ))}
+                            </optgroup>
+                        </>
+                    )}
                 </Select>
 
                 <Select
@@ -192,7 +255,7 @@ export function TruthPicker({ isOpen, onClose, onSelect, selectedKeys, series = 
                         const val = (e.target as HTMLSelectElement).value;
                         setTruth(val);
                         setOffset(0);
-                        doFetch(query, episode, arc, character, val, lang, 0);
+                        doFetch(query, episode, arc, chapter, character, val, lang, 0);
                     }}
                 >
                     <option value="">All Types</option>
@@ -209,7 +272,7 @@ export function TruthPicker({ isOpen, onClose, onSelect, selectedKeys, series = 
                         const val = (e.target as HTMLSelectElement).value;
                         setLang(val);
                         setOffset(0);
-                        doFetch(query, episode, arc, character, truth, val, 0);
+                        doFetch(query, episode, arc, chapter, character, truth, val, 0);
                     }}
                 >
                     <option value="">Default Language</option>

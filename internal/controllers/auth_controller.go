@@ -11,6 +11,7 @@ import (
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/middleware"
+	"umineko_city_of_books/internal/secrets"
 	"umineko_city_of_books/internal/session"
 	usersvc "umineko_city_of_books/internal/user"
 
@@ -209,6 +210,12 @@ func (s *Service) siteInfo(ctx fiber.Ctx) error {
 	for _, uid := range topGMs {
 		assignments[uid] = append(assignments[uid], "system_top_gm")
 	}
+	for _, spec := range secrets.WithVanityRole() {
+		holders, _ := s.UserSecretRepo.GetUserIDsWithSecret(ctx.Context(), string(spec.ID))
+		for _, uid := range holders {
+			assignments[uid.String()] = append(assignments[uid.String()], spec.VanityRoleID)
+		}
+	}
 
 	vrList := make([]dto.SiteInfoVanityRole, len(vanityRoles))
 	for i, vr := range vanityRoles {
@@ -218,6 +225,18 @@ func (s *Service) siteInfo(ctx fiber.Ctx) error {
 			Color:     vr.Color,
 			IsSystem:  vr.IsSystem,
 			SortOrder: vr.SortOrder,
+		}
+	}
+
+	listedSpecs := secrets.Listed()
+	listedSecrets := make([]dto.SiteInfoSecret, len(listedSpecs))
+	for i, spec := range listedSpecs {
+		listedSecrets[i] = dto.SiteInfoSecret{
+			ID:           string(spec.ID),
+			Title:        spec.Title,
+			Description:  spec.Description,
+			VanityRoleID: spec.VanityRoleID,
+			Icon:         spec.Icon,
 		}
 	}
 
@@ -238,6 +257,7 @@ func (s *Service) siteInfo(ctx fiber.Ctx) error {
 		TopGMIDs:              topGMs,
 		VanityRoles:           vrList,
 		VanityRoleAssignments: assignments,
+		ListedSecrets:         listedSecrets,
 		Version:               config.Version,
 	})
 }

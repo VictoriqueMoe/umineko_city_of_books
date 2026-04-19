@@ -14,6 +14,7 @@ import {
     getChatRoomMembers,
     getUserRooms,
     joinChatRoom,
+    banChatRoomMember,
     kickChatRoomMember,
     leaveChatRoom,
     markChatRoomRead,
@@ -32,6 +33,7 @@ import { TypingIndicator } from "../../components/chat/TypingIndicator/TypingInd
 import { Button } from "../../components/Button/Button";
 import { ChatComposer, type ReplyTarget } from "../../components/chat/ChatComposer/ChatComposer";
 import { EditRoomProfileDialog } from "../../components/chat/EditRoomProfileDialog/EditRoomProfileDialog";
+import { RoomModerationDialog } from "../../components/chat/RoomModerationDialog/RoomModerationDialog";
 import { InviteMembersModal } from "../../components/chat/InviteMembersModal/InviteMembersModal";
 import { MessageBubble } from "../../components/chat/MessageBubble/MessageBubble";
 import { PinnedMessagesPanel } from "../../components/chat/PinnedMessagesPanel/PinnedMessagesPanel";
@@ -114,6 +116,7 @@ export function RoomPage() {
     const [pinnedRefreshKey, setPinnedRefreshKey] = useState(0);
     const [editProfileOpen, setEditProfileOpen] = useState(false);
     const [inviteModalOpen, setInviteModalOpen] = useState(false);
+    const [moderationDialogOpen, setModerationDialogOpen] = useState(false);
     const [openMemberMenu, setOpenMemberMenu] = useState<string | null>(null);
     const [nicknameDialogTarget, setNicknameDialogTarget] = useState<ChatRoomMember | null>(null);
     const [nicknameDialogValue, setNicknameDialogValue] = useState("");
@@ -300,11 +303,12 @@ export function RoomPage() {
                 return;
             }
             if (msg.type === "chat_kicked") {
-                const data = msg.data as { room_id: string };
+                const data = msg.data as { room_id: string; reason?: string };
                 if (data.room_id !== roomIdRef.current) {
                     return;
                 }
-                setToast("You were removed from this room");
+                const baseMessage = "You were removed from this room";
+                setToast(data.reason ? `${baseMessage}: ${data.reason}` : baseMessage);
                 setTimeout(() => navigate("/rooms"), 1500);
                 return;
             }
@@ -545,6 +549,29 @@ export function RoomPage() {
             setMembers(prev => prev.filter(m => m.user.id !== targetId));
         } catch (err) {
             setToast(err instanceof Error ? err.message : "Failed to kick");
+        } finally {
+            setBusy(null);
+        }
+    }
+
+    async function handleBan(targetId: string) {
+        if (!roomId) {
+            return;
+        }
+        const reason = window.prompt(
+            "Ban this member from the room? They will not be able to rejoin or see the room. Optional reason:",
+            "",
+        );
+        if (reason === null) {
+            return;
+        }
+        setBusy(targetId);
+        try {
+            await banChatRoomMember(roomId, targetId, reason);
+            setMembers(prev => prev.filter(m => m.user.id !== targetId));
+            setToast("Member banned from the room.");
+        } catch (err) {
+            setToast(err instanceof Error ? err.message : "Failed to ban");
         } finally {
             setBusy(null);
         }
@@ -898,6 +925,19 @@ export function RoomPage() {
                                                             Kick member
                                                         </button>
                                                     )}
+                                                    {canKickTarget && (
+                                                        <button
+                                                            type="button"
+                                                            className={styles.danger}
+                                                            onClick={() => {
+                                                                setOpenMemberMenu(null);
+                                                                handleBan(m.user.id);
+                                                            }}
+                                                            disabled={busy === m.user.id}
+                                                        >
+                                                            Ban from room
+                                                        </button>
+                                                    )}
                                                     {canTimeoutTarget && (
                                                         <button type="button" onClick={() => openTimeoutDialog(m)}>
                                                             Set timeout
@@ -934,6 +974,11 @@ export function RoomPage() {
                                   ? "Unmute notifications"
                                   : "Mute notifications"}
                         </Button>
+                        {!isSystem && canModerateRoom && (
+                            <Button variant="secondary" size="small" onClick={() => setModerationDialogOpen(true)}>
+                                Moderation
+                            </Button>
+                        )}
                         {!isSystem && canModerateRoom && (
                             <Button variant="danger" size="small" onClick={handleDelete} disabled={busy === "delete"}>
                                 {busy === "delete" ? "Deleting..." : "Delete Room"}
@@ -1111,6 +1156,12 @@ export function RoomPage() {
                 onSaved={updated => {
                     setMembers(prev => prev.map(m => (m.user.id === updated.user.id ? updated : m)));
                 }}
+            />
+
+            <RoomModerationDialog
+                isOpen={moderationDialogOpen}
+                roomId={room.id}
+                onClose={() => setModerationDialogOpen(false)}
             />
 
             <InviteMembersModal

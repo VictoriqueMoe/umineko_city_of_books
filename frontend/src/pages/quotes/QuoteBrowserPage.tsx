@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import type { QuoteBrowseResponse } from "../../types/api";
 import type { Series } from "../../api/endpoints";
-import { browseQuotes, getCharacters } from "../../api/endpoints";
+import { browseQuotes, getCharacterGroups, type CharacterGroups } from "../../api/endpoints";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { getSeriesConfig } from "../../utils/seriesConfig";
 import { TruthCard } from "../../components/truth/TruthCard/TruthCard";
 import { Pagination } from "../../components/Pagination/Pagination";
 import { Select } from "../../components/Select/Select";
+import { PieceTrigger } from "../../features/easterEgg";
 import styles from "./QuoteBrowserPage.module.css";
 
 const TRUTH_TYPES = ["red", "blue", "gold", "purple"] as const;
@@ -23,10 +24,11 @@ export function QuoteBrowserPage() {
     const [series, setSeries] = useState<Series>("umineko");
     const [episode, setEpisode] = useState(0);
     const [arc, setArc] = useState("");
+    const [chapter, setChapter] = useState("");
     const [character, setCharacter] = useState("");
     const [truth, setTruth] = useState("");
     const [lang, setLang] = useState("");
-    const [characters, setCharacters] = useState<Record<string, string>>({});
+    const [characters, setCharacters] = useState<CharacterGroups>({ main: {}, additional: {} });
     const [data, setData] = useState<QuoteBrowseResponse | null>(null);
     const [loading, setLoading] = useState(false);
     const [offset, setOffset] = useState(0);
@@ -34,9 +36,9 @@ export function QuoteBrowserPage() {
     const cfg = getSeriesConfig(series);
 
     useEffect(() => {
-        getCharacters(series)
+        getCharacterGroups(series)
             .then(setCharacters)
-            .catch(() => setCharacters({}));
+            .catch(() => setCharacters({ main: {}, additional: {} }));
     }, [series]);
 
     const fetchQuotes = useCallback(
@@ -48,6 +50,7 @@ export function QuoteBrowserPage() {
                     character: character || undefined,
                     truth: truth || undefined,
                     arc: arc || undefined,
+                    chapter: chapter || undefined,
                     lang: lang || undefined,
                     limit,
                     offset: currentOffset,
@@ -60,7 +63,7 @@ export function QuoteBrowserPage() {
                 setLoading(false);
             }
         },
-        [episode, character, truth, arc, lang, series],
+        [episode, character, truth, arc, chapter, lang, series],
     );
 
     function changeSeries(next: Series) {
@@ -69,6 +72,7 @@ export function QuoteBrowserPage() {
         setTruth("");
         setEpisode(0);
         setArc("");
+        setChapter("");
         setLang("");
     }
 
@@ -87,6 +91,9 @@ export function QuoteBrowserPage() {
 
     return (
         <div>
+            <div style={{ textAlign: "right", marginBottom: "0.25rem" }}>
+                <PieceTrigger pieceId="piece_10" />
+            </div>
             <div className={styles.seriesTabs}>
                 <button
                     className={`${styles.seriesTab}${series === "umineko" ? ` ${styles.seriesTabActive}` : ""}`}
@@ -99,6 +106,12 @@ export function QuoteBrowserPage() {
                     onClick={() => changeSeries("higurashi")}
                 >
                     Higurashi
+                </button>
+                <button
+                    className={`${styles.seriesTab}${series === "ciconia" ? ` ${styles.seriesTabActive}` : ""}`}
+                    onClick={() => changeSeries("ciconia")}
+                >
+                    Ciconia
                 </button>
             </div>
 
@@ -145,15 +158,49 @@ export function QuoteBrowserPage() {
                     </Select>
                 )}
 
-                <Select value={character} onChange={e => setCharacter((e.target as HTMLSelectElement).value)}>
-                    <option value="">All Characters</option>
-                    {Object.entries(characters)
-                        .sort((a, b) => a[1].localeCompare(b[1]))
-                        .map(([id, name]) => (
-                            <option key={id} value={id}>
-                                {name}
+                {series === "ciconia" && (
+                    <Select value={chapter} onChange={e => setChapter((e.target as HTMLSelectElement).value)}>
+                        <option value="">All Chapters</option>
+                        {(cfg.chapters ?? []).map(c => (
+                            <option key={c.value} value={c.value}>
+                                {c.label}
                             </option>
                         ))}
+                    </Select>
+                )}
+
+                <Select value={character} onChange={e => setCharacter((e.target as HTMLSelectElement).value)}>
+                    <option value="">All Characters</option>
+                    {Object.entries(characters.additional).length === 0 ? (
+                        Object.entries(characters.main)
+                            .sort((a, b) => a[1].localeCompare(b[1]))
+                            .map(([id, name]) => (
+                                <option key={id} value={id}>
+                                    {name}
+                                </option>
+                            ))
+                    ) : (
+                        <>
+                            <optgroup label="Main cast">
+                                {Object.entries(characters.main)
+                                    .sort((a, b) => a[1].localeCompare(b[1]))
+                                    .map(([id, name]) => (
+                                        <option key={id} value={id}>
+                                            {name}
+                                        </option>
+                                    ))}
+                            </optgroup>
+                            <optgroup label="Additional">
+                                {Object.entries(characters.additional)
+                                    .sort((a, b) => a[1].localeCompare(b[1]))
+                                    .map(([id, name]) => (
+                                        <option key={id} value={id}>
+                                            {name}
+                                        </option>
+                                    ))}
+                            </optgroup>
+                        </>
+                    )}
                 </Select>
 
                 <Select value={lang} onChange={e => setLang((e.target as HTMLSelectElement).value)}>

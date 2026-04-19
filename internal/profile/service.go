@@ -32,17 +32,19 @@ type (
 	}
 
 	service struct {
-		userRepo      repository.UserRepository
-		theoryRepo    repository.TheoryRepository
-		authz         authz.Service
-		uploadSvc     upload.Service
-		settingsSvc   settings.Service
-		contentFilter *contentfilter.Manager
+		userRepo       repository.UserRepository
+		userSecretRepo repository.UserSecretRepository
+		theoryRepo     repository.TheoryRepository
+		authz          authz.Service
+		uploadSvc      upload.Service
+		settingsSvc    settings.Service
+		contentFilter  *contentfilter.Manager
 	}
 )
 
 func NewService(
 	userRepo repository.UserRepository,
+	userSecretRepo repository.UserSecretRepository,
 	theoryRepo repository.TheoryRepository,
 	authzService authz.Service,
 	uploadSvc upload.Service,
@@ -50,12 +52,13 @@ func NewService(
 	contentFilter *contentfilter.Manager,
 ) Service {
 	return &service{
-		userRepo:      userRepo,
-		theoryRepo:    theoryRepo,
-		authz:         authzService,
-		uploadSvc:     uploadSvc,
-		settingsSvc:   settingsSvc,
-		contentFilter: contentFilter,
+		userRepo:       userRepo,
+		userSecretRepo: userSecretRepo,
+		theoryRepo:     theoryRepo,
+		authz:          authzService,
+		uploadSvc:      uploadSvc,
+		settingsSvc:    settingsSvc,
+		contentFilter:  contentFilter,
 	}
 }
 
@@ -75,7 +78,9 @@ func (s *service) GetProfile(ctx context.Context, username string, viewerID uuid
 		return nil, ErrUserNotFound
 	}
 
+	secrets, _ := s.userSecretRepo.ListForUser(ctx, user.ID)
 	resp := user.ToProfileResponse(stats, user.ID == viewerID)
+	resp.Secrets = secrets
 	return resp, nil
 }
 

@@ -4,6 +4,7 @@ import { listUsersPublic } from "../../api/endpoints";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { Input } from "../../components/Input/Input";
+import { PieceTrigger } from "../../features/easterEgg";
 import styles from "./UsersPage.module.css";
 
 const ROLE_GROUPS = [
@@ -83,7 +84,7 @@ export function UsersPage() {
             ))}
 
             <h2 className={styles.groupTitle}>
-                Online <span className={styles.count}>({onlineUsers.length})</span>
+                Online <span className={styles.count}>({onlineUsers.length})</span> <PieceTrigger pieceId="piece_12" />
             </h2>
             <div className={styles.userList}>
                 {onlineUsers.length === 0 && <span className={styles.empty}>No one online</span>}

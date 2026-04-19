@@ -60,6 +60,14 @@ export function AdminLayout() {
                             Banned GIFs
                         </NavLink>
                     )}
+                    {can(user?.role, "manage_banned_words") && (
+                        <NavLink
+                            to="/admin/banned-words"
+                            className={({ isActive }) => `${styles.tab}${isActive ? ` ${styles.tabActive}` : ""}`}
+                        >
+                            Banned Words
+                        </NavLink>
+                    )}
                     {can(user?.role, "manage_settings") && (
                         <NavLink
                             to="/admin/announcements"

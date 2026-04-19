@@ -19,10 +19,26 @@ interface SeriesConfig {
     withoutLoveEmoji: string;
     episodeCount: number;
     arcs?: ArcOption[];
+    chapters?: ArcOption[];
     theoriesPath: string;
     newTheoryPath: string;
     label: string;
     languages: LangOption[];
+}
+
+function buildCiconiaChapters(): ArcOption[] {
+    const list: ArcOption[] = [{ value: "00", label: "Prologue" }];
+    for (let i = 1; i <= 25; i++) {
+        const value = i.toString().padStart(2, "0");
+        list.push({ value, label: `Chapter ${value}` });
+    }
+    list.push({ value: "25b", label: "Chapter 25b (Finale)" });
+    list.push({ value: "ep", label: "Epilogue" });
+    for (let i = 1; i <= 16; i++) {
+        const value = `df${i.toString().padStart(2, "0")}`;
+        list.push({ value, label: `Data Fragment ${i.toString().padStart(2, "0")}` });
+    }
+    return list;
 }
 
 const configs: Record<Series, SeriesConfig> = {
@@ -81,7 +97,24 @@ const configs: Record<Series, SeriesConfig> = {
         label: "Higurashi",
         languages: [
             { value: "en", label: "English" },
-            { value: "jp", label: "Japanese" },
+            { value: "ja", label: "Japanese" },
+        ],
+    },
+    ciconia: {
+        withLoveTitle: "By the flow of time, truth emerges",
+        withLoveSubtitle: "I support this theory",
+        withoutLoveTitle: "The miracle will not come",
+        withoutLoveSubtitle: "I deny this theory",
+        withLoveEmoji: "\uD83D\uDD4A",
+        withoutLoveEmoji: "\u2718",
+        episodeCount: 0,
+        chapters: buildCiconiaChapters(),
+        theoriesPath: "/theories/ciconia",
+        newTheoryPath: "/theory/ciconia/new",
+        label: "Ciconia",
+        languages: [
+            { value: "en", label: "English" },
+            { value: "ja", label: "Japanese" },
         ],
     },
 };
@@ -90,9 +123,20 @@ export function getSeriesConfig(series: Series): SeriesConfig {
     return configs[series];
 }
 
+function seriesSegments(cfg: SeriesConfig): ArcOption[] | undefined {
+    if (cfg.chapters) {
+        return cfg.chapters;
+    }
+    if (cfg.arcs) {
+        return cfg.arcs;
+    }
+    return undefined;
+}
+
 export function seriesEpisodeOptionCount(series: Series): number {
     const cfg = getSeriesConfig(series);
-    return cfg.arcs ? cfg.arcs.length : cfg.episodeCount;
+    const segments = seriesSegments(cfg);
+    return segments ? segments.length : cfg.episodeCount;
 }
 
 export function formatSeriesEpisode(series: Series, episode: number): string {
@@ -100,20 +144,33 @@ export function formatSeriesEpisode(series: Series, episode: number): string {
         return "";
     }
     const cfg = getSeriesConfig(series);
-    if (cfg.arcs) {
-        const arc = cfg.arcs[episode - 1];
-        return arc ? arc.label : `Arc ${episode}`;
+    const segments = seriesSegments(cfg);
+    if (segments) {
+        const seg = segments[episode - 1];
+        if (seg) {
+            return seg.label;
+        }
+        return cfg.chapters ? `Chapter ${episode}` : `Arc ${episode}`;
     }
     return `Episode ${episode}`;
 }
 
 export function seriesEpisodeNoun(series: Series): string {
     const cfg = getSeriesConfig(series);
-    return cfg.arcs ? "arc" : "episode";
+    if (cfg.chapters) {
+        return "chapter";
+    }
+    if (cfg.arcs) {
+        return "arc";
+    }
+    return "episode";
 }
 
 export function userProgressForSeries(
-    user: { episode_progress?: number; higurashi_arc_progress?: number } | null | undefined,
+    user:
+        | { episode_progress?: number; higurashi_arc_progress?: number; ciconia_chapter_progress?: number }
+        | null
+        | undefined,
     series: Series,
 ): number {
     if (!user) {
@@ -121,6 +178,9 @@ export function userProgressForSeries(
     }
     if (series === "higurashi") {
         return user.higurashi_arc_progress ?? 0;
+    }
+    if (series === "ciconia") {
+        return user.ciconia_chapter_progress ?? 0;
     }
     return user.episode_progress ?? 0;
 }

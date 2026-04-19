@@ -32,6 +32,9 @@ type testMocks struct {
 	userRepo       *repository.MockUserRepository
 	roleRepo       *repository.MockRoleRepository
 	vanityRoleRepo *repository.MockVanityRoleRepository
+	banRepo        *repository.MockChatRoomBanRepository
+	bannedWordRepo *repository.MockChatBannedWordRepository
+	auditRepo      *repository.MockAuditLogRepository
 	authzSvc       *authz.MockService
 	notifSvc       *notification.MockService
 	blockSvc       *block.MockService
@@ -45,6 +48,9 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	userRepo := repository.NewMockUserRepository(t)
 	roleRepo := repository.NewMockRoleRepository(t)
 	vanityRoleRepo := repository.NewMockVanityRoleRepository(t)
+	banRepo := repository.NewMockChatRoomBanRepository(t)
+	bannedWordRepo := repository.NewMockChatBannedWordRepository(t)
+	auditRepo := repository.NewMockAuditLogRepository(t)
 	authzSvc := authz.NewMockService(t)
 	notifSvc := notification.NewMockService(t)
 	blockSvc := block.NewMockService(t)
@@ -52,17 +58,24 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	settingsSvc := settings.NewMockService(t)
 	mediaProc := &media.Processor{}
 	hub := ws.NewHub()
-	svc := NewService(chatRepo, userRepo, roleRepo, vanityRoleRepo, authzSvc, notifSvc, blockSvc, uploadSvc, settingsSvc, mediaProc, hub, contentfilter.New()).(*service)
+	svc := NewService(chatRepo, userRepo, roleRepo, vanityRoleRepo, banRepo, bannedWordRepo, auditRepo, authzSvc, notifSvc, blockSvc, uploadSvc, settingsSvc, mediaProc, hub, contentfilter.New()).(*service)
 
 	chatRepo.EXPECT().HasGhostMembers(mock.Anything, mock.Anything).Return(false, nil).Maybe()
 	chatRepo.EXPECT().IsGhostMember(mock.Anything, mock.Anything, mock.Anything).Return(false, nil).Maybe()
 	chatRepo.EXPECT().HasActiveMemberTimeout(mock.Anything, mock.Anything, mock.Anything).Return(false, nil).Maybe()
+	banRepo.EXPECT().IsBanned(mock.Anything, mock.Anything, mock.Anything).Return(false, nil).Maybe()
+	banRepo.EXPECT().BannedRoomIDsForUser(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	notifSvc.EXPECT().Notify(mock.Anything, mock.Anything).Return(nil).Maybe()
+	chatRepo.EXPECT().GetRoomByID(mock.Anything, mock.Anything, uuid.Nil).Return(nil, nil).Maybe()
 
 	return svc, &testMocks{
 		chatRepo:       chatRepo,
 		userRepo:       userRepo,
 		roleRepo:       roleRepo,
 		vanityRoleRepo: vanityRoleRepo,
+		banRepo:        banRepo,
+		bannedWordRepo: bannedWordRepo,
+		auditRepo:      auditRepo,
 		authzSvc:       authzSvc,
 		notifSvc:       notifSvc,
 		blockSvc:       blockSvc,
@@ -1712,6 +1725,7 @@ func TestSendMessage_MembersError(t *testing.T) {
 	roomID := uuid.New()
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, senderID).Return(true, nil)
 	m.chatRepo.EXPECT().GetMemberTimeoutState(mock.Anything, roomID, senderID).Return(false, "", false, nil)
+	m.bannedWordRepo.EXPECT().ListApplicable(mock.Anything, roomID).Return(nil, nil).Maybe()
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return(nil, errors.New("boom"))
 
 	// when
@@ -1729,6 +1743,7 @@ func TestSendMessage_BlockedByRecipient(t *testing.T) {
 	otherID := uuid.New()
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, senderID).Return(true, nil)
 	m.chatRepo.EXPECT().GetMemberTimeoutState(mock.Anything, roomID, senderID).Return(false, "", false, nil)
+	m.bannedWordRepo.EXPECT().ListApplicable(mock.Anything, roomID).Return(nil, nil).Maybe()
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return([]uuid.UUID{senderID, otherID}, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, senderID, otherID).Return(true, nil)
 
@@ -1746,6 +1761,7 @@ func TestSendMessage_SenderLookupError(t *testing.T) {
 	roomID := uuid.New()
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, senderID).Return(true, nil)
 	m.chatRepo.EXPECT().GetMemberTimeoutState(mock.Anything, roomID, senderID).Return(false, "", false, nil)
+	m.bannedWordRepo.EXPECT().ListApplicable(mock.Anything, roomID).Return(nil, nil).Maybe()
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return([]uuid.UUID{senderID}, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, senderID).Return(nil, errors.New("boom"))
 
@@ -1763,6 +1779,7 @@ func TestSendMessage_SenderNotFound(t *testing.T) {
 	roomID := uuid.New()
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, senderID).Return(true, nil)
 	m.chatRepo.EXPECT().GetMemberTimeoutState(mock.Anything, roomID, senderID).Return(false, "", false, nil)
+	m.bannedWordRepo.EXPECT().ListApplicable(mock.Anything, roomID).Return(nil, nil).Maybe()
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return([]uuid.UUID{senderID}, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, senderID).Return(nil, nil)
 
@@ -1780,6 +1797,7 @@ func TestSendMessage_InsertError(t *testing.T) {
 	roomID := uuid.New()
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, senderID).Return(true, nil)
 	m.chatRepo.EXPECT().GetMemberTimeoutState(mock.Anything, roomID, senderID).Return(false, "", false, nil)
+	m.bannedWordRepo.EXPECT().ListApplicable(mock.Anything, roomID).Return(nil, nil).Maybe()
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return([]uuid.UUID{senderID}, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, senderID).Return(sampleUser(senderID), nil)
 	m.chatRepo.EXPECT().InsertMessage(mock.Anything, mock.Anything, roomID, senderID, "hi", (*uuid.UUID)(nil)).Return(errors.New("boom"))
@@ -1798,6 +1816,7 @@ func TestSendMessage_MarkReadError(t *testing.T) {
 	roomID := uuid.New()
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, senderID).Return(true, nil)
 	m.chatRepo.EXPECT().GetMemberTimeoutState(mock.Anything, roomID, senderID).Return(false, "", false, nil)
+	m.bannedWordRepo.EXPECT().ListApplicable(mock.Anything, roomID).Return(nil, nil).Maybe()
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return([]uuid.UUID{senderID}, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, senderID).Return(sampleUser(senderID), nil)
 	m.chatRepo.EXPECT().InsertMessage(mock.Anything, mock.Anything, roomID, senderID, "hi", (*uuid.UUID)(nil)).Return(nil)
@@ -1818,6 +1837,7 @@ func TestSendMessage_DMSuccess(t *testing.T) {
 	recipientID := uuid.New()
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, senderID).Return(true, nil)
 	m.chatRepo.EXPECT().GetMemberTimeoutState(mock.Anything, roomID, senderID).Return(false, "", false, nil)
+	m.bannedWordRepo.EXPECT().ListApplicable(mock.Anything, roomID).Return(nil, nil).Maybe()
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return([]uuid.UUID{senderID, recipientID}, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, senderID, recipientID).Return(false, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, senderID).Return(sampleUser(senderID), nil)
@@ -1851,6 +1871,7 @@ func TestSendMessage_GroupWithMentionAndReply(t *testing.T) {
 	req := dto.SendMessageRequest{Body: body, ReplyToID: &replyMsgID}
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, senderID).Return(true, nil)
 	m.chatRepo.EXPECT().GetMemberTimeoutState(mock.Anything, roomID, senderID).Return(false, "", false, nil)
+	m.bannedWordRepo.EXPECT().ListApplicable(mock.Anything, roomID).Return(nil, nil).Maybe()
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return([]uuid.UUID{senderID, mentionedID, replyAuthorID}, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, senderID, mentionedID).Return(false, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, senderID, replyAuthorID).Return(false, nil)
@@ -1887,6 +1908,7 @@ func TestSendMessage_GroupUnmutedRoomMessage(t *testing.T) {
 	otherID := uuid.New()
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, senderID).Return(true, nil)
 	m.chatRepo.EXPECT().GetMemberTimeoutState(mock.Anything, roomID, senderID).Return(false, "", false, nil)
+	m.bannedWordRepo.EXPECT().ListApplicable(mock.Anything, roomID).Return(nil, nil).Maybe()
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return([]uuid.UUID{senderID, otherID}, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, senderID, otherID).Return(false, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, senderID).Return(sampleUser(senderID), nil)
@@ -1916,6 +1938,7 @@ func TestSendMessage_GroupMutedNoNotify(t *testing.T) {
 	otherID := uuid.New()
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, senderID).Return(true, nil)
 	m.chatRepo.EXPECT().GetMemberTimeoutState(mock.Anything, roomID, senderID).Return(false, "", false, nil)
+	m.bannedWordRepo.EXPECT().ListApplicable(mock.Anything, roomID).Return(nil, nil).Maybe()
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return([]uuid.UUID{senderID, otherID}, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, senderID, otherID).Return(false, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, senderID).Return(sampleUser(senderID), nil)

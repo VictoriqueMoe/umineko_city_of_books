@@ -11,6 +11,11 @@ interface ThemeDefinition {
     description: string;
 }
 
+interface ThemeSection {
+    label: string;
+    themes: ThemeDefinition[];
+}
+
 interface FontDefinition {
     id: FontType;
     name: string;
@@ -18,18 +23,60 @@ interface FontDefinition {
     previewClass: string;
 }
 
-const THEMES: ThemeDefinition[] = [
-    { id: "featherine", name: "Featherine", description: "Witch of Theatergoing, Drama, and Spectating" },
-    { id: "beatrice", name: "Beatrice", description: "The Golden and Endless Witch" },
-    { id: "bernkastel", name: "Lady Bernkastel", description: "Witch of Miracles" },
-    { id: "lambdadelta", name: "Lady Lambdadelta", description: "Witch of Certainty" },
-    { id: "erika", name: "Erika Furudo", description: "The Witch of Truth" },
-    { id: "battler", name: "Battler Ushiromiya", description: "The Endless Sorcerer" },
-    { id: "virgilia", name: "Virgilia", description: "Witch of the Finite" },
-    { id: "rika", name: "Rika Furude", description: "Nipah~!" },
-    { id: "mion", name: "Mion Sonozaki", description: "The Club President" },
-    { id: "satoko", name: "Satoko Houjou", description: "The Trap Master" },
+const MARIA_THEME: ThemeDefinition = {
+    id: "maria",
+    name: "Maria Ushiromiya",
+    description: "Uu~ the Witch of Origins",
+};
+
+const THEME_SECTIONS: ThemeSection[] = [
+    {
+        label: "Umineko",
+        themes: [
+            { id: "featherine", name: "Featherine", description: "Witch of Theatergoing, Drama, and Spectating" },
+            { id: "beatrice", name: "Beatrice", description: "The Golden and Endless Witch" },
+            { id: "bernkastel", name: "Lady Bernkastel", description: "Witch of Miracles" },
+            { id: "lambdadelta", name: "Lady Lambdadelta", description: "Witch of Certainty" },
+            { id: "erika", name: "Erika Furudo", description: "The Witch of Truth" },
+            { id: "battler", name: "Battler Ushiromiya", description: "The Endless Sorcerer" },
+            { id: "virgilia", name: "Virgilia", description: "Witch of the Finite" },
+        ],
+    },
+    {
+        label: "Higurashi",
+        themes: [
+            { id: "rika", name: "Rika Furude", description: "Nipah~!" },
+            { id: "mion", name: "Mion Sonozaki", description: "The Club President" },
+            { id: "satoko", name: "Satoko Houjou", description: "The Trap Master" },
+        ],
+    },
+    {
+        label: "Ciconia",
+        themes: [
+            { id: "miyao", name: "Miyao", description: "AOU Gauntlet Knight of sky and sun" },
+            { id: "lingji", name: "Lingji", description: "COU Gauntlet Knight of red banner and gold star" },
+            {
+                id: "stanislaw",
+                name: "Stanis\u0142aw",
+                description: "ABN Gauntlet Knight of the constellation over the void",
+            },
+        ],
+    },
 ];
+
+function sectionsFor(mariaUnlocked: boolean): ThemeSection[] {
+    if (!mariaUnlocked) {
+        return THEME_SECTIONS;
+    }
+    return THEME_SECTIONS.map((section, idx) => {
+        if (idx === 0) {
+            return { ...section, themes: [...section.themes, MARIA_THEME] };
+        }
+        return section;
+    });
+}
+
+const ALL_THEMES: ThemeDefinition[] = [...THEME_SECTIONS.flatMap(s => s.themes), MARIA_THEME];
 
 const FONTS: FontDefinition[] = [
     {
@@ -47,12 +94,22 @@ const FONTS: FontDefinition[] = [
 ];
 
 export function ThemeSelector() {
-    const { theme, setTheme, font, setFont, wideLayout, setWideLayout, particlesEnabled, setParticlesEnabled } =
-        useTheme();
+    const {
+        theme,
+        setTheme,
+        font,
+        setFont,
+        wideLayout,
+        setWideLayout,
+        particlesEnabled,
+        setParticlesEnabled,
+        hasSecret,
+    } = useTheme();
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
-    const currentTheme = THEMES.find(t => t.id === theme);
+    const sections = sectionsFor(hasSecret("witchHunter"));
+    const currentTheme = ALL_THEMES.find(t => t.id === theme);
     useClickOutside(
         dropdownRef,
         useCallback(() => setIsOpen(false), []),
@@ -74,23 +131,29 @@ export function ThemeSelector() {
 
             {isOpen && (
                 <div className={styles.dropdown} role="listbox">
-                    {THEMES.map(t => (
-                        <button
-                            key={t.id}
-                            className={`${styles.option}${t.id === theme ? ` ${styles.optionActive}` : ""}`}
-                            onClick={() => {
-                                setTheme(t.id);
-                                setIsOpen(false);
-                            }}
-                            role="option"
-                            aria-selected={t.id === theme}
-                        >
-                            <div className={styles.optionInfo}>
-                                <span className={styles.optionName}>{t.name}</span>
-                                <span className={styles.optionDesc}>{t.description}</span>
-                            </div>
-                            {t.id === theme && <span className={styles.check}>{"\u2713"}</span>}
-                        </button>
+                    {sections.map((section, idx) => (
+                        <div key={section.label}>
+                            {idx > 0 && <div className={styles.divider} />}
+                            <span className={styles.sectionLabel}>{section.label}</span>
+                            {section.themes.map(t => (
+                                <button
+                                    key={t.id}
+                                    className={`${styles.option}${t.id === theme ? ` ${styles.optionActive}` : ""}`}
+                                    onClick={() => {
+                                        setTheme(t.id);
+                                        setIsOpen(false);
+                                    }}
+                                    role="option"
+                                    aria-selected={t.id === theme}
+                                >
+                                    <div className={styles.optionInfo}>
+                                        <span className={styles.optionName}>{t.name}</span>
+                                        <span className={styles.optionDesc}>{t.description}</span>
+                                    </div>
+                                    {t.id === theme && <span className={styles.check}>{"\u2713"}</span>}
+                                </button>
+                            ))}
+                        </div>
                     ))}
                     <div className={styles.divider} />
                     <span className={styles.sectionLabel}>Font</span>

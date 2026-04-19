@@ -487,6 +487,9 @@ func (s *service) UpdateVanityRole(ctx context.Context, actorID uuid.UUID, id st
 	if existing == nil {
 		return ErrVanityRoleNotFound
 	}
+	if existing.IsSystem {
+		return ErrSystemRole
+	}
 	if strings.TrimSpace(req.Label) == "" {
 		return fmt.Errorf("label is required")
 	}

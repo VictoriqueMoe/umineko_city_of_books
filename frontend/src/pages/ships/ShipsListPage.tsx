@@ -10,6 +10,7 @@ import { InfoPanel } from "../../components/InfoPanel/InfoPanel";
 import { RulesBox } from "../../components/RulesBox/RulesBox";
 import { ToggleSwitch } from "../../components/ToggleSwitch/ToggleSwitch";
 import { relativeTime } from "../../utils/notifications";
+import { PieceTrigger } from "../../features/easterEgg";
 import styles from "./ShipPages.module.css";
 
 function characterPillClass(series: string): string {
@@ -82,7 +83,7 @@ export function ShipsListPage() {
                 <p>
                     This is the place to declare your favourite pairings from Umineko, Higurashi, or even your original
                     characters. Vote other ships up or down. If a ship drops below the crackship threshold, it gets
-                    branded as a certified crackship, mii~
+                    branded as a certified crackship, mii~ <PieceTrigger pieceId="piece_06" />
                 </p>
             </InfoPanel>
 

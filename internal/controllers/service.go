@@ -19,6 +19,7 @@ import (
 	"umineko_city_of_books/internal/profile"
 	"umineko_city_of_books/internal/report"
 	"umineko_city_of_books/internal/repository"
+	secretsvc "umineko_city_of_books/internal/secret"
 	"umineko_city_of_books/internal/session"
 	"umineko_city_of_books/internal/settings"
 	shipsvc "umineko_city_of_books/internal/ship"
@@ -46,11 +47,13 @@ type (
 		MysteryService        mysterysvc.Service
 		FanficService         fanficsvc.Service
 		JournalService        journal.Service
+		SecretService         secretsvc.Service
 		UserRepo              repository.UserRepository
 		ShipService           shipsvc.Service
 		UploadService         upload.Service
 		MediaProcessor        *media.Processor
 		VanityRoleRepo        repository.VanityRoleRepository
+		UserSecretRepo        repository.UserSecretRepository
 		AuthSession           *session.Manager
 		Hub                   *ws.Hub
 		GiphyService          giphy.Service
@@ -79,9 +82,11 @@ func NewService(
 	shipService shipsvc.Service,
 	fanficService fanficsvc.Service,
 	journalService journal.Service,
+	secretService secretsvc.Service,
 	uploadService upload.Service,
 	mediaProcessor *media.Processor,
 	vanityRoleRepo repository.VanityRoleRepository,
+	userSecretRepo repository.UserSecretRepository,
 	authSession *session.Manager,
 	hub *ws.Hub,
 	giphyService giphy.Service,
@@ -108,9 +113,11 @@ func NewService(
 		ShipService:           shipService,
 		FanficService:         fanficService,
 		JournalService:        journalService,
+		SecretService:         secretService,
 		UploadService:         uploadService,
 		MediaProcessor:        mediaProcessor,
 		VanityRoleRepo:        vanityRoleRepo,
+		UserSecretRepo:        userSecretRepo,
 		AuthSession:           authSession,
 		Hub:                   hub,
 		GiphyService:          giphyService,
@@ -136,6 +143,7 @@ func (s *Service) GetAPIRoutes() []FSetupRoute {
 	all = append(all, s.getAllShipRoutes()...)
 	all = append(all, s.getAllFanficRoutes()...)
 	all = append(all, s.getAllJournalRoutes()...)
+	all = append(all, s.getAllSecretRoutes()...)
 	all = append(all, s.getAllUserPreferencesRoutes()...)
 	all = append(all, s.getAllGiphyRoutes()...)
 	return all

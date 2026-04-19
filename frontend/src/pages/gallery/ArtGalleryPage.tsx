@@ -13,6 +13,7 @@ import { Button } from "../../components/Button/Button";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { RulesBox } from "../../components/RulesBox/RulesBox";
 import { InfoPanel } from "../../components/InfoPanel/InfoPanel";
+import { PieceTrigger } from "../../features/easterEgg";
 import styles from "./ArtGalleryPage.module.css";
 
 type ArtSort = "new" | "popular" | "views";
@@ -192,7 +193,7 @@ export function ArtGalleryPage({ corner = "general" }: ArtGalleryPageProps) {
                     </span>{" "}
                     (Galleries tab), then upload art into it. You can also upload directly using the Upload Art button
                     above. Share your drawings, cosplay photos, figure collections, and more. Use the &quot;All
-                    Art&quot; view to filter by type.
+                    Art&quot; view to filter by type. <PieceTrigger pieceId="piece_09" />
                 </p>
             </InfoPanel>
 

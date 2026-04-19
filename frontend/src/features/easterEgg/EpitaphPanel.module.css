@@ -1,0 +1,123 @@
+.body {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    min-width: 320px;
+    max-width: 520px;
+}
+
+.trophy {
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    background: linear-gradient(135deg, rgba(var(--gold-rgb), 0.15), rgba(232, 158, 192, 0.2));
+    color: var(--gold);
+    font-family: var(--font-display);
+    font-size: 0.95rem;
+    text-align: center;
+    border: 1px solid rgba(var(--gold-rgb), 0.35);
+}
+
+.tiles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: center;
+}
+
+.tile {
+    width: 2.4rem;
+    height: 2.4rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.4rem;
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    border: 1px solid rgba(var(--gold-rgb), 0.35);
+    background: rgba(var(--bg-card-rgb), 0.6);
+    color: var(--text-muted);
+    transition:
+        color 180ms var(--ease-out),
+        background 180ms var(--ease-out);
+}
+
+.tileFilled {
+    color: var(--gold);
+    background: rgba(var(--gold-rgb), 0.12);
+}
+
+.tileEmpty {
+    color: transparent;
+}
+
+.pointer {
+    padding: 0.65rem 0.9rem;
+    border-radius: 0.4rem;
+    background: rgba(var(--purple-rgb), 0.12);
+    border-left: 3px solid var(--purple);
+    color: var(--text-muted);
+    font-style: italic;
+    font-size: 0.9rem;
+    line-height: 1.35;
+}
+
+.inputRow {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.inputRow input {
+    flex: 1;
+}
+
+.shake {
+    animation: shake 320ms cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+@keyframes shake {
+    10%,
+    90% {
+        transform: translate3d(-1px, 0, 0);
+    }
+    20%,
+    80% {
+        transform: translate3d(2px, 0, 0);
+    }
+    30%,
+    50%,
+    70% {
+        transform: translate3d(-4px, 0, 0);
+    }
+    40%,
+    60% {
+        transform: translate3d(4px, 0, 0);
+    }
+}
+
+.hint {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    text-align: center;
+}
+
+.error {
+    color: #e86a9b;
+    font-size: 0.85rem;
+    text-align: center;
+    min-height: 1.1rem;
+}
+
+.success {
+    padding: 1rem;
+    border-radius: 0.5rem;
+    background: linear-gradient(135deg, rgba(var(--gold-rgb), 0.2), rgba(232, 158, 192, 0.25));
+    border: 1px solid rgba(var(--gold-rgb), 0.5);
+    font-family: var(--font-display);
+    font-size: 1rem;
+    text-align: center;
+    color: var(--gold);
+}

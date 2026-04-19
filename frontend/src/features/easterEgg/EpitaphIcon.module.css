@@ -1,0 +1,69 @@
+.icon {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border: 1px solid rgba(var(--gold-rgb), 0.35);
+    border-radius: 50%;
+    background: rgba(var(--bg-card-rgb), 0.6);
+    color: var(--gold);
+    font-size: 1rem;
+    cursor: pointer;
+    transition:
+        transform 180ms var(--ease-spring),
+        box-shadow 180ms var(--ease-out),
+        border-color 180ms var(--ease-out);
+}
+
+.icon:hover,
+.icon:focus-visible {
+    transform: scale(1.1);
+    border-color: var(--gold);
+    box-shadow: 0 0 12px rgba(var(--gold-rgb), 0.45);
+    outline: none;
+}
+
+.iconSolved {
+    background: linear-gradient(135deg, rgba(var(--gold-rgb), 0.3), rgba(232, 158, 192, 0.35));
+    border-color: rgba(var(--gold-rgb), 0.6);
+    animation: solved-glow 2.4s ease-in-out infinite alternate;
+}
+
+.iconStatic {
+    cursor: default;
+}
+
+.iconStatic:hover,
+.iconStatic:focus-visible {
+    transform: none;
+}
+
+@keyframes solved-glow {
+    0% {
+        box-shadow: 0 0 6px rgba(var(--gold-rgb), 0.35);
+    }
+    100% {
+        box-shadow: 0 0 14px rgba(var(--gold-rgb), 0.7);
+    }
+}
+
+.badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 8px;
+    background: var(--purple);
+    color: #fff8e7;
+    font-family: var(--font-display);
+    font-size: 0.6rem;
+    font-weight: 700;
+    line-height: 16px;
+    text-align: center;
+    pointer-events: none;
+}

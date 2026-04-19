@@ -9,6 +9,7 @@ import { Select } from "../../components/Select/Select";
 import { RulesBox } from "../../components/RulesBox/RulesBox";
 import type { Series } from "../../api/endpoints";
 import { getSeriesConfig } from "../../utils/seriesConfig";
+import { PieceTrigger } from "../../features/easterEgg";
 import styles from "./FeedPage.module.css";
 
 type SortCategory = "new" | "popular" | "controversial" | "credibility";
@@ -92,6 +93,7 @@ export function FeedPage({ series = "umineko" }: { series?: Series }) {
                             {activeCategory === s && (
                                 <span className={styles.sortArrow}>{ascending ? " \u25B2" : " \u25BC"}</span>
                             )}
+                            {s === "credibility" && <PieceTrigger pieceId="piece_05" />}
                         </button>
                     ))}
                 </div>

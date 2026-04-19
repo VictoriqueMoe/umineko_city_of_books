@@ -19,6 +19,7 @@ import { InfoPanel } from "../../components/InfoPanel/InfoPanel";
 import { RulesBox } from "../../components/RulesBox/RulesBox";
 import { ToggleSwitch } from "../../components/ToggleSwitch/ToggleSwitch";
 import { relativeTime } from "../../utils/notifications";
+import { PieceTrigger } from "../../features/easterEgg";
 import styles from "./FanficPages.module.css";
 
 const GENRES = [
@@ -258,7 +259,7 @@ export function FanfictionListPage() {
             <InfoPanel title="Welcome to the Archive">
                 <p>
                     Browse fanfiction from across the When They Cry universe. Filter by series, genre, characters, and
-                    more to find your next read.
+                    more to find your next read. <PieceTrigger pieceId="piece_07" />
                 </p>
             </InfoPanel>
 

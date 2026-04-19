@@ -1,0 +1,42 @@
+.toast {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    padding: 0.75rem 1.25rem;
+    border-radius: 0.5rem;
+    color: #fff8e7;
+    font-family: var(--font-display);
+    font-size: 0.95rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    z-index: 10000;
+    pointer-events: none;
+    max-width: min(24rem, calc(100vw - 3rem));
+    animation: toast-in 240ms var(--ease-spring);
+}
+
+.default {
+    background: linear-gradient(135deg, #4a2068, var(--gold));
+}
+
+.success {
+    background: linear-gradient(135deg, #1e7a40, #2ab859);
+}
+
+.error {
+    background: linear-gradient(135deg, #8b1a2a, #e05c6d);
+}
+
+.arcane {
+    background: linear-gradient(135deg, #4a2068, var(--gold));
+}
+
+@keyframes toast-in {
+    0% {
+        transform: translateY(30px);
+        opacity: 0;
+    }
+    100% {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}

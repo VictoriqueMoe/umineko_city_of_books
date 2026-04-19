@@ -48,6 +48,10 @@ func (s *Service) getAllAdminRoutes() []FSetupRoute {
 		s.setupAdminListBannedGifs,
 		s.setupAdminAddBannedGif,
 		s.setupAdminRemoveBannedGif,
+		s.setupAdminListBannedWords,
+		s.setupAdminCreateBannedWord,
+		s.setupAdminUpdateBannedWord,
+		s.setupAdminDeleteBannedWord,
 	}
 }
 

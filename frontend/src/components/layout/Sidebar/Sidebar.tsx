@@ -4,6 +4,7 @@ import { useAuth } from "../../../hooks/useAuth";
 import { useNotifications } from "../../../hooks/useNotifications";
 import { getArtCornerCounts, getCornerCounts } from "../../../api/endpoints";
 import { can, canAccessAdmin } from "../../../utils/permissions";
+import { PieceTrigger } from "../../../features/easterEgg";
 import styles from "./Sidebar.module.css";
 
 interface SidebarProps {
@@ -229,6 +230,16 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                                 >
                                     Higurashi
                                 </NavLink>
+                                <NavLink
+                                    to="/theories/ciconia"
+                                    end
+                                    className={({ isActive }) =>
+                                        `${styles.link} ${styles.subLink}${isActive ? ` ${styles.active}` : ""}`
+                                    }
+                                    onClick={onClose}
+                                >
+                                    Ciconia
+                                </NavLink>
                             </div>
                         )}
                         <NavLink
@@ -237,6 +248,13 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                             onClick={onClose}
                         >
                             Mysteries
+                        </NavLink>
+                        <NavLink
+                            to="/secrets"
+                            className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
+                            onClick={onClose}
+                        >
+                            Secrets
                         </NavLink>
                         <NavLink
                             to="/ships"
@@ -298,6 +316,13 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                                 onClick={onClose}
                             >
                                 New Higurashi Theory
+                            </NavLink>
+                            <NavLink
+                                to="/theory/ciconia/new"
+                                className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
+                                onClick={onClose}
+                            >
+                                New Ciconia Theory
                             </NavLink>
                             <NavLink
                                 to="/mystery/new"
@@ -399,7 +424,8 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                         {"Made with \u2764 by "}
                         <a href="https://x.com/FeatherineFAA" target="_blank" rel="noopener">
                             Featherine Augustus Aurora
-                        </a>
+                        </a>{" "}
+                        <PieceTrigger pieceId="piece_02" />
                     </p>
                     <div className={styles.footerLinks}>
                         <a

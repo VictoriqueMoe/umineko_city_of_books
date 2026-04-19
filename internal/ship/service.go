@@ -501,7 +501,7 @@ func (s *service) ListCharacters(series quotefinder.Series) ([]dto.CharacterList
 	}
 	result := make([]dto.CharacterListEntry, len(chars))
 	for i, c := range chars {
-		result[i] = dto.CharacterListEntry{ID: c.ID, Name: c.Name}
+		result[i] = dto.CharacterListEntry{ID: c.ID, Name: c.Name, Group: c.Group}
 	}
 	return result, nil
 }
