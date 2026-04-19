@@ -14,8 +14,11 @@ CREATE TABLE notifications_new (
 );
 
 INSERT INTO notifications_new (id, user_id, type, reference_id, reference_type, actor_id, read, created_at, message)
-SELECT id, user_id, type, reference_id, reference_type, actor_id, read, created_at, message
-FROM notifications;
+SELECT n.id, n.user_id, n.type, n.reference_id, n.reference_type,
+       CASE WHEN EXISTS (SELECT 1 FROM users u WHERE u.id = n.actor_id) THEN n.actor_id ELSE NULL END,
+       n.read, n.created_at, n.message
+FROM notifications n
+WHERE EXISTS (SELECT 1 FROM users u WHERE u.id = n.user_id);
 
 DROP TABLE notifications;
 ALTER TABLE notifications_new RENAME TO notifications;
