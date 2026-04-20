@@ -33,7 +33,15 @@ export function ProfileLink({
         <>
             <span className={styles.avatarWrapper} style={{ width: px, height: px }}>
                 {user.avatar_url ? (
-                    <img className={styles.avatar} src={user.avatar_url} alt="" style={{ width: px, height: px }} />
+                    <img
+                        className={styles.avatar}
+                        src={user.avatar_url}
+                        alt=""
+                        width={px}
+                        height={px}
+                        decoding="async"
+                        loading="lazy"
+                    />
                 ) : (
                     <span className={styles.avatarPlaceholder} style={{ width: px, height: px, fontSize: px * 0.4 }}>
                         {user.display_name[0]}

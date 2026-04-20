@@ -7,6 +7,7 @@ import (
 	"io"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"umineko_city_of_books/internal/authz"
@@ -130,6 +131,7 @@ type (
 		hub             *ws.Hub
 		contentFilter   *contentfilter.Manager
 		bannedWordsRule *contentfilter.ChatBannedWordsRule
+		sideEffectsWG   sync.WaitGroup
 	}
 )
 
@@ -1489,80 +1491,99 @@ func (s *service) SendMessage(ctx context.Context, senderID, roomID uuid.UUID, r
 			Type: "chat_message",
 			Data: resp,
 		}
+		recipients := make([]uuid.UUID, 0, len(members))
 		for i := 0; i < len(members); i++ {
 			memberID := members[i]
 			if memberID == senderID {
 				continue
 			}
 			s.hub.SendToUser(memberID, msg)
-
-			inRoom := s.hub.IsUserViewing(roomID, memberID)
-
-			if !inRoom {
-				if isGroup {
-					_, isMentioned := mentionedIDs[memberID]
-					isReplyTarget := replyToAuthor != uuid.Nil && memberID == replyToAuthor
-
-					if isMentioned {
-						_ = s.notifSvc.Notify(ctx, dto.NotifyParams{
-							RecipientID:   memberID,
-							ActorID:       senderID,
-							Type:          dto.NotifChatMention,
-							ReferenceID:   roomID,
-							ReferenceType: fmt.Sprintf("chat_message:%s", msgID),
-						})
-					} else if isReplyTarget {
-						_ = s.notifSvc.Notify(ctx, dto.NotifyParams{
-							RecipientID:   memberID,
-							ActorID:       senderID,
-							Type:          dto.NotifChatReply,
-							ReferenceID:   roomID,
-							ReferenceType: fmt.Sprintf("chat_message:%s", msgID),
-						})
-					} else {
-						muted, _ := s.chatRepo.IsMuted(ctx, roomID, memberID)
-						if !muted {
-							roomName := ""
-							if roomRow != nil {
-								roomName = roomRow.Name
-							}
-							_ = s.notifSvc.Notify(ctx, dto.NotifyParams{
-								RecipientID:   memberID,
-								ActorID:       senderID,
-								Type:          dto.NotifChatRoomMessage,
-								ReferenceID:   roomID,
-								ReferenceType: fmt.Sprintf("chat_message:%s", msgID),
-								Message:       fmt.Sprintf("sent a message in %s", roomName),
-							})
-						}
-					}
-				} else {
-					_ = s.notifSvc.Notify(ctx, dto.NotifyParams{
-						RecipientID:   memberID,
-						ActorID:       senderID,
-						Type:          dto.NotifChatMessage,
-						ReferenceID:   roomID,
-						ReferenceType: "chat",
-					})
-				}
-			}
-
-			if !inRoom {
-				total, countErr := s.chatRepo.CountUnreadRoomsForUser(ctx, memberID)
-				if countErr == nil {
-					s.hub.SendToUser(memberID, ws.Message{
-						Type: "chat_unread_bumped",
-						Data: map[string]interface{}{
-							"room_id": roomID,
-							"total":   total,
-						},
-					})
-				}
-			}
+			recipients = append(recipients, memberID)
 		}
+		s.sideEffectsWG.Add(1)
+		go s.dispatchPostSendSideEffects(roomID, senderID, msgID, recipients, roomRow, mentionedIDs, replyToAuthor, isGroup)
 	}
 
 	return resp, nil
+}
+
+func (s *service) dispatchPostSendSideEffects(
+	roomID, senderID, msgID uuid.UUID,
+	recipients []uuid.UUID,
+	roomRow *repository.ChatRoomRow,
+	mentionedIDs map[uuid.UUID]struct{},
+	replyToAuthor uuid.UUID,
+	isGroup bool,
+) {
+	defer s.sideEffectsWG.Done()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	for i := 0; i < len(recipients); i++ {
+		memberID := recipients[i]
+		inRoom := s.hub.IsUserViewing(roomID, memberID)
+		if inRoom {
+			continue
+		}
+
+		if isGroup {
+			_, isMentioned := mentionedIDs[memberID]
+			isReplyTarget := replyToAuthor != uuid.Nil && memberID == replyToAuthor
+
+			if isMentioned {
+				_ = s.notifSvc.Notify(ctx, dto.NotifyParams{
+					RecipientID:   memberID,
+					ActorID:       senderID,
+					Type:          dto.NotifChatMention,
+					ReferenceID:   roomID,
+					ReferenceType: fmt.Sprintf("chat_message:%s", msgID),
+				})
+			} else if isReplyTarget {
+				_ = s.notifSvc.Notify(ctx, dto.NotifyParams{
+					RecipientID:   memberID,
+					ActorID:       senderID,
+					Type:          dto.NotifChatReply,
+					ReferenceID:   roomID,
+					ReferenceType: fmt.Sprintf("chat_message:%s", msgID),
+				})
+			} else {
+				muted, _ := s.chatRepo.IsMuted(ctx, roomID, memberID)
+				if !muted {
+					roomName := ""
+					if roomRow != nil {
+						roomName = roomRow.Name
+					}
+					_ = s.notifSvc.Notify(ctx, dto.NotifyParams{
+						RecipientID:   memberID,
+						ActorID:       senderID,
+						Type:          dto.NotifChatRoomMessage,
+						ReferenceID:   roomID,
+						ReferenceType: fmt.Sprintf("chat_message:%s", msgID),
+						Message:       fmt.Sprintf("sent a message in %s", roomName),
+					})
+				}
+			}
+		} else {
+			_ = s.notifSvc.Notify(ctx, dto.NotifyParams{
+				RecipientID:   memberID,
+				ActorID:       senderID,
+				Type:          dto.NotifChatMessage,
+				ReferenceID:   roomID,
+				ReferenceType: "chat",
+			})
+		}
+
+		total, countErr := s.chatRepo.CountUnreadRoomsForUser(ctx, memberID)
+		if countErr == nil {
+			s.hub.SendToUser(memberID, ws.Message{
+				Type: "chat_unread_bumped",
+				Data: map[string]interface{}{
+					"room_id": roomID,
+					"total":   total,
+				},
+			})
+		}
+	}
 }
 
 func (s *service) resolveMentions(ctx context.Context, body string, roomID, senderID uuid.UUID) map[uuid.UUID]struct{} {

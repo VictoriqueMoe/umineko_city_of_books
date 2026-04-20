@@ -45,7 +45,16 @@ function SharedMediaGrid({ content }: { content: SharedContentPreview }) {
                 m.media_type.startsWith("video/") ? (
                     <video key={i} src={m.media_url} className={styles.mediaGridItem} muted />
                 ) : (
-                    <img key={i} src={m.thumbnail_url || m.media_url} alt="" className={styles.mediaGridItem} />
+                    <img
+                        key={i}
+                        src={m.thumbnail_url || m.media_url}
+                        alt=""
+                        className={styles.mediaGridItem}
+                        width={320}
+                        height={150}
+                        decoding="async"
+                        loading="lazy"
+                    />
                 ),
             )}
         </div>
@@ -74,7 +83,15 @@ function ArtContent({ content }: { content: SharedContentPreview }) {
     return (
         <div className={styles.mediaRow}>
             {content.image_url && (
-                <img src={content.image_url} alt={content.title ?? ""} className={styles.thumbnail} />
+                <img
+                    src={content.image_url}
+                    alt={content.title ?? ""}
+                    className={styles.thumbnail}
+                    width={64}
+                    height={64}
+                    decoding="async"
+                    loading="lazy"
+                />
             )}
             <div className={styles.info}>
                 {content.title && <span className={styles.title}>{content.title}</span>}
@@ -88,7 +105,15 @@ function ShipContent({ content }: { content: SharedContentPreview }) {
     return (
         <div className={styles.mediaRow}>
             {content.image_url && (
-                <img src={content.image_url} alt={content.title ?? ""} className={styles.thumbnail} />
+                <img
+                    src={content.image_url}
+                    alt={content.title ?? ""}
+                    className={styles.thumbnail}
+                    width={64}
+                    height={64}
+                    decoding="async"
+                    loading="lazy"
+                />
             )}
             <div className={styles.info}>
                 {content.title && <span className={styles.title}>{content.title}</span>}
@@ -131,7 +156,15 @@ function FanficContent({ content }: { content: SharedContentPreview }) {
     return (
         <div className={styles.mediaRow}>
             {content.image_url && (
-                <img src={content.image_url} alt={content.title ?? ""} className={styles.thumbnail} />
+                <img
+                    src={content.image_url}
+                    alt={content.title ?? ""}
+                    className={styles.thumbnail}
+                    width={64}
+                    height={64}
+                    decoding="async"
+                    loading="lazy"
+                />
             )}
             <div className={styles.info}>
                 {content.title && <span className={styles.title}>{content.title}</span>}

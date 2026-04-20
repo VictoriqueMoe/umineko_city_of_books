@@ -36,9 +36,7 @@ export function useMessageHistory(roomId: string | undefined) {
         }
         isAtBottomRef.current = true;
         requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-                endRef.current?.scrollIntoView({ behavior: "smooth" });
-            });
+            endRef.current?.scrollIntoView({ behavior: "smooth" });
         });
     }, []);
 
@@ -51,9 +49,7 @@ export function useMessageHistory(roomId: string | undefined) {
         }
         isAtBottomRef.current = true;
         requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-                endRef.current?.scrollIntoView();
-            });
+            endRef.current?.scrollIntoView();
         });
     }, []);
 

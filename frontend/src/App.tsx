@@ -8,6 +8,7 @@ import { ensureNotificationPermission } from "./utils/notifications";
 import { Header } from "./components/layout/Header/Header";
 import { Sidebar } from "./components/layout/Sidebar/Sidebar";
 import { Butterflies } from "./components/layout/Butterflies/Butterflies";
+import { CanonicalTag } from "./components/CanonicalTag/CanonicalTag";
 import { ProtectedRoute } from "./components/ProtectedRoute/ProtectedRoute";
 import { StaleVersionBanner } from "./components/StaleVersionBanner/StaleVersionBanner";
 import { Toast } from "./components/Toast/Toast";
@@ -172,6 +173,7 @@ function AppLayout() {
 
     return (
         <div className="app-layout">
+            <CanonicalTag />
             {particlesEnabled && <Butterflies />}
             <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
             <div className="app-main">

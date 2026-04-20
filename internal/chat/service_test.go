@@ -1852,6 +1852,7 @@ func TestSendMessage_DMSuccess(t *testing.T) {
 
 	// when
 	got, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: "hi"}, nil)
+	svc.sideEffectsWG.Wait()
 
 	// then
 	require.NoError(t, err)
@@ -1893,6 +1894,7 @@ func TestSendMessage_GroupWithMentionAndReply(t *testing.T) {
 
 	// when
 	got, err := svc.SendMessage(context.Background(), senderID, roomID, req, nil)
+	svc.sideEffectsWG.Wait()
 
 	// then
 	require.NoError(t, err)
@@ -1924,6 +1926,7 @@ func TestSendMessage_GroupUnmutedRoomMessage(t *testing.T) {
 
 	// when
 	got, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: "hi"}, nil)
+	svc.sideEffectsWG.Wait()
 
 	// then
 	require.NoError(t, err)
@@ -1953,6 +1956,7 @@ func TestSendMessage_GroupMutedNoNotify(t *testing.T) {
 
 	// when
 	_, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: "hi"}, nil)
+	svc.sideEffectsWG.Wait()
 
 	// then
 	require.NoError(t, err)

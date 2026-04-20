@@ -34,7 +34,10 @@ export function MediaGallery({ media }: MediaGalleryProps) {
                                 className={styles.media}
                                 src={item.media_url}
                                 alt=""
+                                width={520}
+                                height={510}
                                 loading="lazy"
+                                decoding="async"
                                 onClick={() => setLightboxIdx(i)}
                             />
                         )}
