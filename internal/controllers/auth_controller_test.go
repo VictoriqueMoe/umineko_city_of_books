@@ -40,6 +40,7 @@ func newAuthHarness(t *testing.T) (*testutil.Harness, authDeps) {
 	h.SettingsService.EXPECT().Get(mock.Anything, mock.Anything).Return("").Maybe()
 	h.SettingsService.EXPECT().GetBool(mock.Anything, mock.Anything).Return(false).Maybe()
 	deps.userSecretRepo.EXPECT().GetUserIDsWithSecret(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	deps.userSecretRepo.EXPECT().IsSolvedByAnyone(mock.Anything, mock.Anything).Return(false, nil).Maybe()
 
 	s := &Service{
 		AuthService:     deps.authSvc,

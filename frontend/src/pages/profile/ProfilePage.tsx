@@ -32,7 +32,7 @@ import { Pagination } from "../../components/Pagination/Pagination";
 import { RolePill } from "../../components/RolePill/RolePill";
 import { RoleStyledName } from "../../components/RoleStyledName/RoleStyledName";
 import { TrophyCase } from "./TrophyCase";
-import { EpitaphIcon } from "../../features/easterEgg";
+import { HuntsInProgress } from "../../features/easterEgg";
 import styles from "./ProfilePage.module.css";
 
 const SOCIAL_LABELS: Record<string, string> = {
@@ -471,7 +471,7 @@ export function ProfilePage() {
                     <h1 className={styles.displayName}>
                         <RoleStyledName name={profile.display_name} role={profile.role} />
                         <RolePill role={profile.role ?? ""} userId={profile.id} />
-                        <EpitaphIcon profileUserId={profile.id} />
+                        <HuntsInProgress profileUserId={profile.id} />
                     </h1>
                     <span className={styles.username}>@{profile.username}</span>
                     {currentUser && currentUser.id !== profile.id && follow.stats && (

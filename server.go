@@ -119,6 +119,7 @@ func initDatabase() (*repository.Repositories, settings.Service) {
 	}
 
 	logger.Init(settingsSvc.Get(context.Background(), config.SettingLogLevel))
+	logger.ApplyDSN(settingsSvc.Get(context.Background(), config.SettingSentryDSN))
 
 	return repos, settingsSvc
 }

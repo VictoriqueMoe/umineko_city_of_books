@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useSiteInfo } from "../../hooks/useSiteInfo";
 import { useAuth } from "../../hooks/useAuth";
 import { useTheme } from "../../hooks/useTheme";
-import { EpitaphPanel } from "../../features/easterEgg";
+import { HuntPanel } from "../../features/easterEgg";
 import styles from "./TrophyCase.module.css";
 
 interface TrophyCaseProps {
@@ -14,7 +14,7 @@ export function TrophyCase({ profileUserId, profileSecrets }: TrophyCaseProps) {
     const siteInfo = useSiteInfo();
     const { user } = useAuth();
     const { hasSecret } = useTheme();
-    const [epitaphOpen, setEpitaphOpen] = useState(false);
+    const [openSecretId, setOpenSecretId] = useState<string | null>(null);
 
     const isOwner = !!user && user.id === profileUserId;
 
@@ -43,15 +43,6 @@ export function TrophyCase({ profileUserId, profileSecrets }: TrophyCaseProps) {
         return null;
     }
 
-    function handleClick(id: string) {
-        if (!isOwner) {
-            return;
-        }
-        if (id === "witchHunter") {
-            setEpitaphOpen(true);
-        }
-    }
-
     return (
         <>
             <div className={styles.section}>
@@ -76,7 +67,7 @@ export function TrophyCase({ profileUserId, profileSecrets }: TrophyCaseProps) {
                         );
                         if (isOwner) {
                             return (
-                                <button key={t.id} type="button" {...commonProps} onClick={() => handleClick(t.id)}>
+                                <button key={t.id} type="button" {...commonProps} onClick={() => setOpenSecretId(t.id)}>
                                     {inner}
                                 </button>
                             );
@@ -89,7 +80,9 @@ export function TrophyCase({ profileUserId, profileSecrets }: TrophyCaseProps) {
                     })}
                 </div>
             </div>
-            {isOwner && <EpitaphPanel isOpen={epitaphOpen} onClose={() => setEpitaphOpen(false)} />}
+            {isOwner && openSecretId && (
+                <HuntPanel secretId={openSecretId} isOpen={true} onClose={() => setOpenSecretId(null)} />
+            )}
         </>
     );
 }

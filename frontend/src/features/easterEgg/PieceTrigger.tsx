@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useAuth } from "../../hooks/useAuth";
+import { useSiteInfo } from "../../hooks/useSiteInfo";
 import { useTheme } from "../../hooks/useTheme";
+import { useHuntState } from "../../hooks/useHuntState";
 import { Toast } from "../../components/Toast/Toast";
-import { useEpitaphState } from "../../hooks/useEpitaphState.ts";
-import { PIECE_BY_ID, PIECES } from "./config";
 import styles from "./PieceTrigger.module.css";
 
 interface PieceTriggerProps {
@@ -14,7 +14,9 @@ interface PieceTriggerProps {
 export function PieceTrigger({ pieceId, ariaLabel }: PieceTriggerProps) {
     const { user } = useAuth();
     const { hasSecret } = useTheme();
-    const { collectPiece, collectedCount } = useEpitaphState();
+    const siteInfo = useSiteInfo();
+    const parent = siteInfo.listed_secrets?.find(s => s.pieces.some(p => p.id === pieceId));
+    const state = useHuntState(parent?.id ?? "");
     const [justFound, setJustFound] = useState(false);
     const [completed, setCompleted] = useState(false);
     const [collecting, setCollecting] = useState(false);
@@ -22,7 +24,7 @@ export function PieceTrigger({ pieceId, ariaLabel }: PieceTriggerProps) {
     if (!user) {
         return null;
     }
-    if (!PIECE_BY_ID.has(pieceId)) {
+    if (!parent || parent.solved) {
         return null;
     }
     const alreadyCollected = hasSecret(pieceId);
@@ -35,9 +37,9 @@ export function PieceTrigger({ pieceId, ariaLabel }: PieceTriggerProps) {
             return;
         }
         setCollecting(true);
-        const result = await collectPiece(pieceId);
+        const result = await state.collectPiece(pieceId);
         if (result === "new") {
-            if (collectedCount + 1 === PIECES.length) {
+            if (state.collectedCount + 1 === state.totalPieces) {
                 setCompleted(true);
             } else {
                 setJustFound(true);
@@ -62,13 +64,13 @@ export function PieceTrigger({ pieceId, ariaLabel }: PieceTriggerProps) {
             )}
             {justFound && (
                 <Toast variant="arcane" duration={4200} onDismiss={() => setJustFound(false)}>
-                    Uu~ a piece of the epitaph.
+                    Uu~ a piece of the {parent.title}.
                 </Toast>
             )}
             {completed && (
                 <Toast variant="arcane" duration={12000} onDismiss={() => setCompleted(false)}>
-                    Uu~ all twelve pieces are yours. Read mama&apos;s writing again, follow her count, then open the
-                    rose on your own profile and whisper the witch&apos;s truth.
+                    Uu~ all {state.totalPieces} pieces of {parent.title} are yours. Read the riddle again, then open the
+                    trophy on your profile to whisper the answer.
                 </Toast>
             )}
         </>

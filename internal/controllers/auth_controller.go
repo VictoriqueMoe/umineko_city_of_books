@@ -231,12 +231,27 @@ func (s *Service) siteInfo(ctx fiber.Ctx) error {
 	listedSpecs := secrets.Listed()
 	listedSecrets := make([]dto.SiteInfoSecret, len(listedSpecs))
 	for i, spec := range listedSpecs {
+		solved, _ := s.UserSecretRepo.IsSolvedByAnyone(ctx.Context(), string(spec.ID))
+		pieces := make([]dto.SiteInfoSecretPiece, len(spec.Pieces))
+		for j, p := range spec.Pieces {
+			pieces[j] = dto.SiteInfoSecretPiece{
+				ID:     string(p.ID),
+				Letter: p.Letter,
+				Tile:   p.Tile,
+			}
+		}
 		listedSecrets[i] = dto.SiteInfoSecret{
-			ID:           string(spec.ID),
-			Title:        spec.Title,
-			Description:  spec.Description,
-			VanityRoleID: spec.VanityRoleID,
-			Icon:         spec.Icon,
+			ID:               string(spec.ID),
+			Title:            spec.Title,
+			Description:      spec.Description,
+			VanityRoleID:     spec.VanityRoleID,
+			Icon:             spec.Icon,
+			Pointer:          spec.Pointer,
+			SolvedMessage:    spec.SolvedMessage,
+			ReadyPlaceholder: spec.ReadyPlaceholder,
+			PendingHint:      spec.PendingHint,
+			Solved:           solved,
+			Pieces:           pieces,
 		}
 	}
 

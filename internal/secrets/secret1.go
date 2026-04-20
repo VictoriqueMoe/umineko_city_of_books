@@ -16,9 +16,19 @@ const (
 	Piece12     ID = "piece_12"
 )
 
-var witchHunterPieces = []ID{
-	Piece01, Piece02, Piece03, Piece04, Piece05, Piece06,
-	Piece07, Piece08, Piece09, Piece10, Piece11, Piece12,
+var witchHunterPieces = []Piece{
+	{ID: Piece01, Letter: "R", Tile: 1},
+	{ID: Piece02, Letter: "M", Tile: 2},
+	{ID: Piece03, Letter: "I", Tile: 3},
+	{ID: Piece04, Letter: "A", Tile: 4},
+	{ID: Piece05, Letter: "A", Tile: 5},
+	{ID: Piece06, Letter: "K", Tile: 6},
+	{ID: Piece07, Letter: "I", Tile: 7},
+	{ID: Piece08, Letter: "G", Tile: 8},
+	{ID: Piece09, Letter: "S", Tile: 9},
+	{ID: Piece10, Letter: "L", Tile: 10},
+	{ID: Piece11, Letter: "C", Tile: 11},
+	{ID: Piece12, Letter: "E", Tile: 12},
 }
 
 var witchHunterRiddle = `Somewhere on this site, Maria Ushiromiya has scattered twelve pieces of an old epitaph.
@@ -51,14 +61,18 @@ Uu~ that's all. One of the twelve is only a mask; mama always tests me like that
 func init() {
 	Register(
 		Spec{
-			ID:           WitchHunter,
-			ExpectedHash: "31bae96b737325e614a6fd336c4bb00948db442184a7671a6d6aaff52163eb04",
-			VanityRoleID: "system_witch_hunter",
-			Title:        "The Witch's Epitaph",
-			Description:  "Maria scattered an old epitaph across the site. Collect the twelve pieces, decode mama's riddle, and speak the witch's name.",
-			Riddle:       witchHunterRiddle,
-			Icon:         "\u273F",
-			PieceIDs:     witchHunterPieces,
+			ID:               WitchHunter,
+			ExpectedHash:     "31bae96b737325e614a6fd336c4bb00948db442184a7671a6d6aaff52163eb04",
+			VanityRoleID:     "system_witch_hunter",
+			Title:            "The Witch's Epitaph",
+			Description:      "Maria scattered an old epitaph across the site. Collect the twelve pieces, decode mama's riddle, and speak the witch's name.",
+			Riddle:           witchHunterRiddle,
+			Icon:             "\u273F",
+			Pointer:          "Mama wrote something somewhere on this site. Find her words, and you'll know which letters to speak.",
+			SolvedMessage:    "Uu~ the Endless Witch has taught you her secret. The Maria theme and the Witch Hunter role are yours.",
+			ReadyPlaceholder: "Whisper mama's truth...",
+			PendingHint:      "Find all twelve pieces before the witch will hear you.",
+			Pieces:           witchHunterPieces,
 		},
 		Spec{ID: Piece01, ExpectedHash: "316ead35863841be0200c65fd455c33c1b6da7fa81874ea818e428ebe06d6152", ParentID: WitchHunter},
 		Spec{ID: Piece02, ExpectedHash: "a5d655eaa8ee17314974bad4673cbf6f70ffb2ca74a68bf5462ba7aeacd5b801", ParentID: WitchHunter},

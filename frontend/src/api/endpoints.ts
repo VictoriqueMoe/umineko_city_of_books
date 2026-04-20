@@ -77,12 +77,24 @@ export interface VanityRoleDefinition {
     sort_order: number;
 }
 
+export interface SiteInfoSecretPiece {
+    id: string;
+    letter?: string;
+    tile?: number;
+}
+
 export interface SiteInfoSecret {
     id: string;
     title: string;
     description: string;
     vanity_role_id?: string;
     icon?: string;
+    pointer?: string;
+    solved_message?: string;
+    ready_placeholder?: string;
+    pending_hint?: string;
+    solved: boolean;
+    pieces: SiteInfoSecretPiece[];
 }
 
 export interface SiteInfo {

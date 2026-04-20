@@ -34,6 +34,10 @@ const THEME_CSS_KEYS: Partial<Record<ThemeType, string>> = {
     maria: "_0x9e2a1c",
 };
 
+const THEME_REQUIRES_SECRET: Partial<Record<ThemeType, string>> = {
+    maria: "witchHunter",
+};
+
 const VALID_FONTS: Set<string> = new Set(["default", "im-fell"]);
 
 function isValidTheme(value: string): value is ThemeType {
@@ -169,16 +173,27 @@ export function ThemeProvider({ children }: PropsWithChildren) {
                 localStorage.setItem(WIDE_LAYOUT_KEY, String(user.wide_layout));
             } catch {}
         }
-        if (Array.isArray(user.secrets) && user.secrets.length > 0) {
-            const next = new Set(secretsRef.current);
-            for (const id of user.secrets) {
-                next.add(id);
-            }
+        if (Array.isArray(user.secrets)) {
+            const next = new Set<string>(user.secrets);
             secretsRef.current = next;
             setSecretsState(next);
             persistSecrets(next);
+            const currentTheme = user.theme && isValidTheme(user.theme) ? user.theme : theme;
+            const requiredSecret = THEME_REQUIRES_SECRET[currentTheme];
+            if (requiredSecret && !next.has(requiredSecret)) {
+                const fallback =
+                    siteInfo.default_theme && isValidTheme(siteInfo.default_theme)
+                        ? siteInfo.default_theme
+                        : FALLBACK_THEME;
+                setThemeState(fallback);
+                try {
+                    localStorage.setItem(STORAGE_KEY, fallback);
+                } catch {
+                    // noop
+                }
+            }
         }
-    }, [user]);
+    }, [user, theme, siteInfo.default_theme]);
 
     useLayoutEffect(() => {
         if (theme === FALLBACK_THEME) {

@@ -185,10 +185,22 @@ type (
 	}
 
 	SiteInfoSecret struct {
-		ID           string `json:"id"`
-		Title        string `json:"title"`
-		Description  string `json:"description"`
-		VanityRoleID string `json:"vanity_role_id,omitempty"`
-		Icon         string `json:"icon,omitempty"`
+		ID               string                `json:"id"`
+		Title            string                `json:"title"`
+		Description      string                `json:"description"`
+		VanityRoleID     string                `json:"vanity_role_id,omitempty"`
+		Icon             string                `json:"icon,omitempty"`
+		Pointer          string                `json:"pointer,omitempty"`
+		SolvedMessage    string                `json:"solved_message,omitempty"`
+		ReadyPlaceholder string                `json:"ready_placeholder,omitempty"`
+		PendingHint      string                `json:"pending_hint,omitempty"`
+		Solved           bool                  `json:"solved"`
+		Pieces           []SiteInfoSecretPiece `json:"pieces"`
+	}
+
+	SiteInfoSecretPiece struct {
+		ID     string `json:"id"`
+		Letter string `json:"letter,omitempty"`
+		Tile   int    `json:"tile,omitempty"`
 	}
 )

@@ -91,7 +91,7 @@ func (s *Service) unlockSecret(ctx fiber.Ctx) error {
 		}
 	}
 
-	if len(spec.PieceIDs) > 0 {
+	if len(spec.Pieces) > 0 {
 		owned, err := s.UserSecretRepo.ListForUser(ctx.Context(), userID)
 		if err != nil {
 			return utils.InternalError(ctx, "failed to check pieces")
@@ -100,8 +100,8 @@ func (s *Service) unlockSecret(ctx fiber.Ctx) error {
 		for _, id := range owned {
 			ownedSet[id] = struct{}{}
 		}
-		for _, pieceID := range spec.PieceIDs {
-			if _, ok := ownedSet[string(pieceID)]; !ok {
+		for _, piece := range spec.Pieces {
+			if _, ok := ownedSet[string(piece.ID)]; !ok {
 				return utils.BadRequest(ctx, "invalid request")
 			}
 		}

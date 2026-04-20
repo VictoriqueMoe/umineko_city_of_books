@@ -18,6 +18,7 @@ var (
 	sentryWriter  *sentryzerolog.Writer
 	shipper       *glitchtipShipper
 	currentDSN    string
+	initialised   bool
 	reconfigureMu sync.Mutex
 )
 
@@ -30,16 +31,22 @@ func Init(level string) {
 	zerolog.SetGlobalLevel(parsed)
 
 	console = zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.DateTime}
+	Log = zerolog.New(console).With().Timestamp().Logger()
 	applySentry(config.SettingSentryDSN.Default)
+}
+
+func ApplyDSN(dsn string) {
+	applySentry(dsn)
 }
 
 func applySentry(dsn string) {
 	reconfigureMu.Lock()
 	defer reconfigureMu.Unlock()
 
-	if dsn == currentDSN && (sentryWriter != nil || dsn == "") {
+	if initialised && dsn == currentDSN && (sentryWriter != nil || dsn == "") {
 		return
 	}
+	initialised = true
 	currentDSN = dsn
 
 	if sentryWriter != nil {

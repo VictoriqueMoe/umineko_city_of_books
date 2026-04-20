@@ -14,7 +14,7 @@ func TestLookup_Known(t *testing.T) {
 	assert.NotEmpty(t, spec.ExpectedHash)
 	assert.Equal(t, "system_witch_hunter", spec.VanityRoleID)
 	assert.Equal(t, "The Witch's Epitaph", spec.Title)
-	assert.Len(t, spec.PieceIDs, 12)
+	assert.Len(t, spec.Pieces, 12)
 }
 
 func TestLookup_Unknown(t *testing.T) {

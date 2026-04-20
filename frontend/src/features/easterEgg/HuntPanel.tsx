@@ -2,21 +2,23 @@ import { useState } from "react";
 import { Modal } from "../../components/Modal/Modal";
 import { Input } from "../../components/Input/Input";
 import { Button } from "../../components/Button/Button";
-import { useEpitaphState } from "../../hooks/useEpitaphState.ts";
-import { EPITAPH_POINTER, JUMBLE, JUMBLE_LENGTH, PIECES } from "./config";
-import styles from "./EpitaphPanel.module.css";
+import { useHuntState } from "../../hooks/useHuntState";
+import styles from "./HuntPanel.module.css";
 
-interface EpitaphPanelProps {
+interface HuntPanelProps {
+    secretId: string;
     isOpen: boolean;
     onClose: () => void;
 }
 
-export function EpitaphPanel({ isOpen, onClose }: EpitaphPanelProps) {
-    const state = useEpitaphState();
+export function HuntPanel({ secretId, isOpen, onClose }: HuntPanelProps) {
+    const state = useHuntState(secretId);
     const [input, setInput] = useState("");
     const [shake, setShake] = useState(false);
     const [error, setError] = useState("");
     const [submitting, setSubmitting] = useState(false);
+
+    const secret = state.secret;
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
@@ -28,7 +30,7 @@ export function EpitaphPanel({ isOpen, onClose }: EpitaphPanelProps) {
         const ok = await state.attemptAnswer(input.trim().toLowerCase());
         if (!ok) {
             setShake(true);
-            setError("Not quite. Read the epitaph again.");
+            setError("Not quite. Read the riddle again.");
             window.setTimeout(() => setShake(false), 360);
         } else {
             setInput("");
@@ -36,34 +38,49 @@ export function EpitaphPanel({ isOpen, onClose }: EpitaphPanelProps) {
         setSubmitting(false);
     }
 
+    if (!secret) {
+        return null;
+    }
+
+    const tiles = Array.from({ length: secret.pieces.length }, (_, i) => {
+        const tileNumber = i + 1;
+        const piece = secret.pieces.find(p => p.tile === tileNumber);
+        const letter = piece?.letter ?? "";
+        const found = piece && state.collectedPieces.has(piece.id);
+        return { tileNumber, letter, found: Boolean(found) };
+    });
+
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title="The Epitaph">
+        <Modal isOpen={isOpen} onClose={onClose} title={secret.title}>
             <div className={styles.body}>
-                <div className={styles.tiles}>
-                    {Array.from({ length: JUMBLE_LENGTH }, (_, i) => {
-                        const tileNumber = i + 1;
-                        const piece = PIECES.find(p => p.tile === tileNumber);
-                        const found = piece && state.collectedPieces.has(piece.id);
-                        return (
+                {tiles.length > 0 && (
+                    <div className={styles.tiles}>
+                        {tiles.map(t => (
                             <span
-                                key={tileNumber}
-                                className={`${styles.tile}${found ? ` ${styles.tileFilled}` : ` ${styles.tileEmpty}`}`}
-                                aria-label={found ? `Tile ${tileNumber}: ${JUMBLE[i]}` : `Tile ${tileNumber}: empty`}
+                                key={t.tileNumber}
+                                className={`${styles.tile}${t.found ? ` ${styles.tileFilled}` : ` ${styles.tileEmpty}`}`}
+                                aria-label={
+                                    t.found ? `Tile ${t.tileNumber}: ${t.letter}` : `Tile ${t.tileNumber}: empty`
+                                }
                             >
-                                {found ? JUMBLE[i] : "\u00b7"}
+                                {t.found ? t.letter : "\u00b7"}
                             </span>
-                        );
-                    })}
-                </div>
+                        ))}
+                    </div>
+                )}
 
                 {state.solved ? (
                     <div className={styles.success}>
-                        Uu~ the Endless Witch has taught you her secret. The Maria theme and the Witch Hunter role are
-                        yours.
+                        {secret.solved_message || "You solved the hunt. The reward has been added to your profile."}
+                    </div>
+                ) : state.closed ? (
+                    <div className={styles.success}>
+                        Someone else whispered the answer before you. The hunt is closed. Your {state.collectedCount} /{" "}
+                        {state.totalPieces} pieces stay with you as a keepsake.
                     </div>
                 ) : (
                     <>
-                        <div className={styles.pointer}>{EPITAPH_POINTER}</div>
+                        {secret.pointer && <div className={styles.pointer}>{secret.pointer}</div>}
 
                         <form onSubmit={handleSubmit} className={shake ? styles.shake : undefined}>
                             <div className={styles.inputRow}>
@@ -72,8 +89,8 @@ export function EpitaphPanel({ isOpen, onClose }: EpitaphPanelProps) {
                                     fullWidth
                                     placeholder={
                                         state.allPiecesCollected
-                                            ? "Whisper mama's truth..."
-                                            : `${state.collectedCount} / ${PIECES.length} pieces found`
+                                            ? (secret.ready_placeholder ?? "Whisper the answer...")
+                                            : `${state.collectedCount} / ${state.totalPieces} pieces found`
                                     }
                                     value={input}
                                     onChange={e => setInput(e.target.value)}
@@ -90,8 +107,8 @@ export function EpitaphPanel({ isOpen, onClose }: EpitaphPanelProps) {
                             <div className={styles.error}>{error}</div>
                         </form>
 
-                        {!state.allPiecesCollected && (
-                            <div className={styles.hint}>Find all twelve pieces before the witch will hear you.</div>
+                        {!state.allPiecesCollected && secret.pending_hint && (
+                            <div className={styles.hint}>{secret.pending_hint}</div>
                         )}
                     </>
                 )}

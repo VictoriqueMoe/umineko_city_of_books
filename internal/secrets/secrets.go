@@ -4,15 +4,25 @@ type (
 	ID string
 
 	Spec struct {
-		ID           ID
-		ExpectedHash string
-		VanityRoleID string
-		Title        string
-		Description  string
-		Riddle       string
-		Icon         string
-		ParentID     ID
-		PieceIDs     []ID
+		ID               ID
+		ExpectedHash     string
+		VanityRoleID     string
+		Title            string
+		Description      string
+		Riddle           string
+		Icon             string
+		Pointer          string
+		SolvedMessage    string
+		ReadyPlaceholder string
+		PendingHint      string
+		ParentID         ID
+		Pieces           []Piece
+	}
+
+	Piece struct {
+		ID     ID
+		Letter string
+		Tile   int
 	}
 )
 
@@ -72,9 +82,9 @@ func ParentOf(id ID) (Spec, bool) {
 }
 
 func PieceIDStrings(parent Spec) []string {
-	result := make([]string, len(parent.PieceIDs))
-	for i := 0; i < len(parent.PieceIDs); i++ {
-		result[i] = string(parent.PieceIDs[i])
+	result := make([]string, len(parent.Pieces))
+	for i := 0; i < len(parent.Pieces); i++ {
+		result[i] = string(parent.Pieces[i].ID)
 	}
 	return result
 }
