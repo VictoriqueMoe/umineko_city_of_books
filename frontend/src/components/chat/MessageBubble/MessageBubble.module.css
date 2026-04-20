@@ -153,12 +153,9 @@
 }
 
 .reactorPopover {
-    position: absolute;
-    bottom: calc(100% + 8px);
-    left: 50%;
-    transform: translateX(-50%);
+    position: fixed;
     min-width: 160px;
-    max-width: 240px;
+    max-width: min(240px, calc(100vw - 16px));
     background: var(--bg-void);
     border: 1px solid rgba(var(--gold-rgb), 0.45);
     border-radius: 8px;
@@ -168,24 +165,14 @@
     animation: reactorPopIn 0.12s ease-out;
 }
 
-.reactorPopover::after {
-    content: "";
-    position: absolute;
-    top: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    border: 6px solid transparent;
-    border-top-color: rgba(var(--gold-rgb), 0.45);
-}
-
 @keyframes reactorPopIn {
     from {
         opacity: 0;
-        transform: translate(-50%, 4px);
+        transform: translateY(4px);
     }
     to {
         opacity: 1;
-        transform: translate(-50%, 0);
+        transform: translateY(0);
     }
 }
 

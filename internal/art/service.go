@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/url"
-	"path/filepath"
 	"strings"
 	"time"
 	"umineko_city_of_books/internal/repository/model"
@@ -140,21 +139,6 @@ func (s *service) CreateArt(ctx context.Context, userID uuid.UUID, req dto.Creat
 	urlPath, err := s.uploadSvc.SaveImage(ctx, "art", mediaID, fileSize, maxSize, reader)
 	if err != nil {
 		return uuid.Nil, err
-	}
-
-	diskPath := s.uploadSvc.FullDiskPath(urlPath)
-	done := make(chan string, 1)
-	s.mediaProc.Enqueue(media.Job{
-		Type:      media.JobImage,
-		InputPath: diskPath,
-		Callback: func(outputPath string) {
-			done <- "/uploads/art/" + filepath.Base(outputPath)
-		},
-	})
-	select {
-	case newURL := <-done:
-		urlPath = newURL
-	case <-ctx.Done():
 	}
 
 	id := uuid.New()

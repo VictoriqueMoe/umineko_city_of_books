@@ -3,6 +3,11 @@ import type { ChatMessage } from "../types/api";
 import { getRoomMessages, getRoomMessagesBefore } from "../api/endpoints";
 
 const PAGE_SIZE = 50;
+const AT_BOTTOM_THRESHOLD = 80;
+
+export interface ScrollToBottomOptions {
+    force?: boolean;
+}
 
 export function useMessageHistory(roomId: string | undefined) {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -12,19 +17,44 @@ export function useMessageHistory(roomId: string | undefined) {
     const containerRef = useRef<HTMLDivElement>(null);
     const endRef = useRef<HTMLDivElement>(null);
     const suppressScrollToBottom = useRef(false);
+    const isAtBottomRef = useRef(true);
 
-    const scrollToBottom = useCallback(() => {
-        if (suppressScrollToBottom.current) {
-            return;
+    const computeIsAtBottom = useCallback(() => {
+        const container = containerRef.current;
+        if (!container) {
+            return true;
         }
-        endRef.current?.scrollIntoView({ behavior: "smooth" });
+        return container.scrollHeight - container.scrollTop - container.clientHeight < AT_BOTTOM_THRESHOLD;
     }, []);
 
-    const scrollToBottomInstant = useCallback(() => {
+    const scrollToBottom = useCallback((opts?: ScrollToBottomOptions) => {
         if (suppressScrollToBottom.current) {
             return;
         }
-        endRef.current?.scrollIntoView();
+        if (!opts?.force && !isAtBottomRef.current) {
+            return;
+        }
+        isAtBottomRef.current = true;
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                endRef.current?.scrollIntoView({ behavior: "smooth" });
+            });
+        });
+    }, []);
+
+    const scrollToBottomInstant = useCallback((opts?: ScrollToBottomOptions) => {
+        if (suppressScrollToBottom.current) {
+            return;
+        }
+        if (!opts?.force && !isAtBottomRef.current) {
+            return;
+        }
+        isAtBottomRef.current = true;
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                endRef.current?.scrollIntoView();
+            });
+        });
     }, []);
 
     useEffect(() => {
@@ -41,6 +71,7 @@ export function useMessageHistory(roomId: string | undefined) {
         setLoadingMore(false);
         loadingMoreRef.current = false;
         suppressScrollToBottom.current = false;
+        isAtBottomRef.current = true;
 
         getRoomMessages(roomId, PAGE_SIZE)
             .then(res => {
@@ -112,13 +143,17 @@ export function useMessageHistory(roomId: string | undefined) {
 
     const handleScroll = useCallback(() => {
         const container = containerRef.current;
-        if (!container || loadingMore || !hasMore) {
+        if (!container) {
+            return;
+        }
+        isAtBottomRef.current = computeIsAtBottom();
+        if (loadingMore || !hasMore) {
             return;
         }
         if (container.scrollTop < 100) {
             loadOlder();
         }
-    }, [loadOlder, loadingMore, hasMore]);
+    }, [loadOlder, loadingMore, hasMore, computeIsAtBottom]);
 
     const loadUntilMessage = useCallback(
         async (messageId: string, maxPages = 20): Promise<boolean> => {

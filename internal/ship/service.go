@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"path/filepath"
 	"strings"
 
 	"umineko_city_of_books/internal/authz"
@@ -12,7 +11,6 @@ import (
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/quotefinder"
@@ -308,25 +306,6 @@ func (s *service) UploadShipImage(ctx context.Context, shipID uuid.UUID, userID 
 
 	if err := s.shipRepo.UpdateImage(ctx, shipID, urlPath, ""); err != nil {
 		return "", err
-	}
-
-	diskPath := s.uploadSvc.FullDiskPath(urlPath)
-	done := make(chan string, 1)
-	s.mediaProc.Enqueue(media.Job{
-		Type:      media.JobImage,
-		InputPath: diskPath,
-		Callback: func(outputPath string) {
-			newURL := "/uploads/ships/" + filepath.Base(outputPath)
-			if err := s.shipRepo.UpdateImage(context.Background(), shipID, newURL, ""); err != nil {
-				logger.Log.Error().Err(err).Msg("failed to update ship image url")
-			}
-			done <- newURL
-		},
-	})
-	select {
-	case newURL := <-done:
-		urlPath = newURL
-	case <-ctx.Done():
 	}
 
 	return urlPath, nil

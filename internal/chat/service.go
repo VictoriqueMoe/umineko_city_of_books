@@ -2245,8 +2245,12 @@ func (s *service) AddReaction(ctx context.Context, messageID, userID uuid.UUID, 
 		return ErrTimedOut
 	}
 
-	if err := s.chatRepo.AddReaction(ctx, messageID, userID, emoji); err != nil {
+	inserted, err := s.chatRepo.AddReaction(ctx, messageID, userID, emoji)
+	if err != nil {
 		return fmt.Errorf("add reaction: %w", err)
+	}
+	if !inserted {
+		return nil
 	}
 
 	displayName := s.resolveMemberDisplayName(ctx, msg.RoomID, userID)
@@ -2288,8 +2292,12 @@ func (s *service) RemoveReaction(ctx context.Context, messageID, userID uuid.UUI
 		return ErrNotMember
 	}
 
-	if err := s.chatRepo.RemoveReaction(ctx, messageID, userID, emoji); err != nil {
+	deleted, err := s.chatRepo.RemoveReaction(ctx, messageID, userID, emoji)
+	if err != nil {
 		return fmt.Errorf("remove reaction: %w", err)
+	}
+	if !deleted {
+		return nil
 	}
 
 	displayName := s.resolveMemberDisplayName(ctx, msg.RoomID, userID)

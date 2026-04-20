@@ -396,6 +396,18 @@ export function SettingsPage() {
                             label="Email Notifications"
                             description="Receive email notifications for replies and upvotes on your posts"
                         />
+                        <ToggleSwitch
+                            enabled={form.playMessageSound}
+                            onChange={form.setPlayMessageSound}
+                            label="Chat Message Sound"
+                            description="Play a sound for new chat messages when the tab is in the background, except in muted rooms"
+                        />
+                        <ToggleSwitch
+                            enabled={form.playNotificationSound}
+                            onChange={form.setPlayNotificationSound}
+                            label="Notification Sound"
+                            description="Play a sound when a new notification arrives"
+                        />
                     </div>
 
                     <div className={`${styles.section} ${styles.gridFull}`}>

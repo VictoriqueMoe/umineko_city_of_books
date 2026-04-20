@@ -5,29 +5,31 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"umineko_city_of_books/internal/logger"
-
-	"github.com/disintegration/imaging"
 )
 
 const (
 	defaultWorkers  = 4
 	defaultQueueCap = 256
-	cwebpQuality    = "80"
 	ffmpegCRF       = "28"
+	imageJobTimeout = 2 * time.Minute
+	videoJobTimeout = 10 * time.Minute
 )
 
 type (
 	JobType int
 
 	Job struct {
-		Type      JobType
-		InputPath string
-		Callback  func(outputPath string)
+		Type          JobType
+		InputPath     string
+		MaxWidth      int
+		MaxHeight     int
+		Quality       int
+		Callback      func(outputPath string)
+		ErrorCallback func(err error)
 	}
 
 	Processor struct {
@@ -62,6 +64,9 @@ func (p *Processor) Enqueue(job Job) {
 	case p.jobs <- job:
 	default:
 		logger.Log.Warn().Str("path", job.InputPath).Msg("media processor queue full, dropping job")
+		if job.ErrorCallback != nil {
+			job.ErrorCallback(fmt.Errorf("media processor queue full"))
+		}
 	}
 }
 
@@ -72,13 +77,16 @@ func (p *Processor) worker(id int) {
 
 		switch job.Type {
 		case JobImage:
-			outputPath, err = encodeImage(job.InputPath)
+			outputPath, err = encodeImage(job)
 		case JobVideo:
 			outputPath, err = encodeVideo(job.InputPath)
 		}
 
 		if err != nil {
 			logger.Log.Error().Err(err).Int("worker", id).Str("input", job.InputPath).Msg("media encoding failed")
+			if job.ErrorCallback != nil {
+				job.ErrorCallback(err)
+			}
 			continue
 		}
 
@@ -90,55 +98,15 @@ func (p *Processor) worker(id int) {
 	}
 }
 
-func encodeImage(inputPath string) (string, error) {
-	lower := strings.ToLower(inputPath)
-	if strings.HasSuffix(lower, ".webp") || strings.HasSuffix(lower, ".gif") {
-		return inputPath, nil
-	}
-
-	cwebpInput := inputPath
-	orientedPath := ""
-	if strings.HasSuffix(lower, ".jpg") || strings.HasSuffix(lower, ".jpeg") {
-		oriented, err := applyExifOrientation(inputPath)
-		if err != nil {
-			logger.Log.Warn().Err(err).Str("input", inputPath).Msg("exif auto-orient failed, using original")
-		} else if oriented != "" {
-			cwebpInput = oriented
-			orientedPath = oriented
-		}
-	}
-
-	outputPath := replaceExt(inputPath, ".webp")
-
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+func encodeImage(job Job) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), imageJobTimeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "cwebp", "-q", cwebpQuality, cwebpInput, "-o", outputPath)
-	if out, err := cmd.CombinedOutput(); err != nil {
-		if orientedPath != "" {
-			_ = os.Remove(orientedPath)
-		}
-		return "", fmt.Errorf("cwebp: %w: %s", err, string(out))
-	}
-
-	if orientedPath != "" {
-		_ = os.Remove(orientedPath)
-	}
-	_ = os.Remove(inputPath)
-	return outputPath, nil
-}
-
-func applyExifOrientation(inputPath string) (string, error) {
-	img, err := imaging.Open(inputPath, imaging.AutoOrientation(true))
-	if err != nil {
-		return "", fmt.Errorf("open image: %w", err)
-	}
-
-	tmpPath := replaceExt(inputPath, ".oriented.jpg")
-	if err := imaging.Save(img, tmpPath, imaging.JPEGQuality(95)); err != nil {
-		return "", fmt.Errorf("save oriented image: %w", err)
-	}
-	return tmpPath, nil
+	return EncodeWebP(ctx, job.InputPath, WebPOptions{
+		MaxWidth:  job.MaxWidth,
+		MaxHeight: job.MaxHeight,
+		Quality:   job.Quality,
+	})
 }
 
 func encodeVideo(inputPath string) (string, error) {
@@ -153,7 +121,7 @@ func encodeVideo(inputPath string) (string, error) {
 
 	tmpOutput := replaceExt(outputPath, ".tmp.mp4")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), videoJobTimeout)
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, "ffmpeg",
@@ -178,9 +146,4 @@ func encodeVideo(inputPath string) (string, error) {
 	}
 
 	return outputPath, nil
-}
-
-func replaceExt(path, newExt string) string {
-	ext := filepath.Ext(path)
-	return path[:len(path)-len(ext)] + newExt
 }

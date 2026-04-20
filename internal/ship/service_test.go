@@ -45,6 +45,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	blockSvc := block.NewMockService(t)
 	notifSvc := notification.NewMockService(t)
 	uploadSvc := upload.NewMockService(t)
+	uploadSvc.EXPECT().FullDiskPath(mock.Anything).Return("/tmp/does-not-exist-xyz.png").Maybe()
 	settingsSvc := settings.NewMockService(t)
 	mediaProc := media.NewProcessor(1)
 	quoteClient := quotefinder.NewClient()
@@ -481,7 +482,6 @@ func TestUploadShipImage_OK_CtxCancelledReturnsOriginalURL(t *testing.T) {
 		SaveImage(mock.Anything, "ships", mock.Anything, int64(100), int64(1000), mock.Anything).
 		Return("/uploads/ships/x.png", nil)
 	m.shipRepo.EXPECT().UpdateImage(mock.Anything, shipID, "/uploads/ships/x.png", "").Return(nil)
-	m.uploadSvc.EXPECT().FullDiskPath("/uploads/ships/x.png").Return("/tmp/does-not-exist-xyz.png")
 
 	// when
 	url, err := svc.UploadShipImage(ctx, shipID, userID, "image/png", 100, bytes.NewReader(nil))
@@ -900,7 +900,6 @@ func TestUploadCommentMedia_OK_CtxCancelled(t *testing.T) {
 	m.shipRepo.EXPECT().
 		AddCommentMedia(mock.Anything, commentID, "/uploads/ships/x.png", "image", "", 0).
 		Return(int64(42), nil)
-	m.uploadSvc.EXPECT().FullDiskPath("/uploads/ships/x.png").Return("/tmp/does-not-exist-xyz.png")
 
 	// when
 	resp, err := svc.UploadCommentMedia(ctx, commentID, userID, "image/png", 100, bytes.NewReader(nil))

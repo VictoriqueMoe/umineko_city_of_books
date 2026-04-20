@@ -43,6 +43,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	blockSvc := block.NewMockService(t)
 	notifSvc := notification.NewMockService(t)
 	uploadSvc := upload.NewMockService(t)
+	uploadSvc.EXPECT().FullDiskPath(mock.Anything).Return("/tmp/does-not-exist-xyz.png").Maybe()
 	settingsSvc := settings.NewMockService(t)
 	mediaProc := media.NewProcessor(1)
 
@@ -738,7 +739,6 @@ func TestUploadCoverImage_OK_CtxCancelled(t *testing.T) {
 		SaveImage(mock.Anything, "fanfics", mock.Anything, int64(100), int64(1000), mock.Anything).
 		Return("/uploads/fanfics/x.png", nil)
 	m.fanficRepo.EXPECT().UpdateCoverImage(mock.Anything, id, "/uploads/fanfics/x.png", "").Return(nil)
-	m.uploadSvc.EXPECT().FullDiskPath("/uploads/fanfics/x.png").Return("/tmp/does-not-exist-xyz.png")
 
 	// when
 	url, err := svc.UploadCoverImage(ctx, id, userID, "image/png", 100, bytes.NewReader(nil))
@@ -1637,7 +1637,6 @@ func TestUploadCommentMedia_OK_CtxCancelled(t *testing.T) {
 	m.fanficRepo.EXPECT().
 		AddCommentMedia(mock.Anything, commentID, "/uploads/fanfics/x.png", "image", "", 0).
 		Return(int64(42), nil)
-	m.uploadSvc.EXPECT().FullDiskPath("/uploads/fanfics/x.png").Return("/tmp/does-not-exist-xyz.png")
 
 	// when
 	resp, err := svc.UploadCommentMedia(ctx, commentID, userID, "image/png", 100, bytes.NewReader(nil))

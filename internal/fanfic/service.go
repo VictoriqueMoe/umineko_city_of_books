@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -13,7 +12,6 @@ import (
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
@@ -416,25 +414,6 @@ func (s *service) UploadCoverImage(ctx context.Context, fanficID, userID uuid.UU
 
 	if err := s.fanficRepo.UpdateCoverImage(ctx, fanficID, urlPath, ""); err != nil {
 		return "", err
-	}
-
-	diskPath := s.uploadSvc.FullDiskPath(urlPath)
-	done := make(chan string, 1)
-	s.mediaProc.Enqueue(media.Job{
-		Type:      media.JobImage,
-		InputPath: diskPath,
-		Callback: func(outputPath string) {
-			newURL := "/uploads/fanfics/" + filepath.Base(outputPath)
-			if err := s.fanficRepo.UpdateCoverImage(context.Background(), fanficID, newURL, ""); err != nil {
-				logger.Log.Error().Err(err).Msg("failed to update fanfic cover image url")
-			}
-			done <- newURL
-		},
-	})
-	select {
-	case newURL := <-done:
-		urlPath = newURL
-	case <-ctx.Done():
 	}
 
 	return urlPath, nil

@@ -42,6 +42,8 @@ type (
 		Email                  string       `json:"email,omitempty"`
 		EmailPublic            bool         `json:"email_public"`
 		EmailNotifications     bool         `json:"email_notifications"`
+		PlayMessageSound       bool         `json:"play_message_sound"`
+		PlayNotificationSound  bool         `json:"play_notification_sound"`
 		HomePage               string       `json:"home_page"`
 		GameBoardSort          string       `json:"game_board_sort"`
 		Theme                  string       `json:"theme"`
@@ -85,6 +87,8 @@ type (
 		Email                  string  `json:"email"`
 		EmailPublic            bool    `json:"email_public"`
 		EmailNotifications     bool    `json:"email_notifications"`
+		PlayMessageSound       bool    `json:"play_message_sound"`
+		PlayNotificationSound  bool    `json:"play_notification_sound"`
 		HomePage               string  `json:"home_page"`
 		GameBoardSort          string  `json:"game_board_sort"`
 	}

@@ -2860,7 +2860,7 @@ func TestAddReaction_HappyPath(t *testing.T) {
 	m.chatRepo.EXPECT().GetMessageByID(mock.Anything, messageID).Return(&repository.ChatMessageRow{ID: messageID, RoomID: roomID}, nil)
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
 	m.chatRepo.EXPECT().GetMemberTimeoutState(mock.Anything, roomID, userID).Return(false, "", false, nil)
-	m.chatRepo.EXPECT().AddReaction(mock.Anything, messageID, userID, "👍").Return(nil)
+	m.chatRepo.EXPECT().AddReaction(mock.Anything, messageID, userID, "👍").Return(true, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(sampleUser(userID), nil).Maybe()
 	m.chatRepo.EXPECT().GetRoomMembersDetailed(mock.Anything, roomID).Return(nil, nil).Maybe()
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return(nil, nil).Maybe()
@@ -2958,7 +2958,7 @@ func TestAddReaction_RepoError(t *testing.T) {
 	m.chatRepo.EXPECT().GetMessageByID(mock.Anything, messageID).Return(&repository.ChatMessageRow{ID: messageID, RoomID: roomID}, nil)
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
 	m.chatRepo.EXPECT().GetMemberTimeoutState(mock.Anything, roomID, userID).Return(false, "", false, nil)
-	m.chatRepo.EXPECT().AddReaction(mock.Anything, messageID, userID, "👍").Return(errors.New("db"))
+	m.chatRepo.EXPECT().AddReaction(mock.Anything, messageID, userID, "👍").Return(false, errors.New("db"))
 
 	// when
 	err := svc.AddReaction(context.Background(), messageID, userID, "👍")
@@ -2975,7 +2975,7 @@ func TestRemoveReaction_HappyPath(t *testing.T) {
 	userID := uuid.New()
 	m.chatRepo.EXPECT().GetMessageByID(mock.Anything, messageID).Return(&repository.ChatMessageRow{ID: messageID, RoomID: roomID}, nil)
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
-	m.chatRepo.EXPECT().RemoveReaction(mock.Anything, messageID, userID, "👍").Return(nil)
+	m.chatRepo.EXPECT().RemoveReaction(mock.Anything, messageID, userID, "👍").Return(true, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(sampleUser(userID), nil).Maybe()
 	m.chatRepo.EXPECT().GetRoomMembersDetailed(mock.Anything, roomID).Return(nil, nil).Maybe()
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return(nil, nil).Maybe()
@@ -3051,7 +3051,7 @@ func TestRemoveReaction_RepoError(t *testing.T) {
 	userID := uuid.New()
 	m.chatRepo.EXPECT().GetMessageByID(mock.Anything, messageID).Return(&repository.ChatMessageRow{ID: messageID, RoomID: roomID}, nil)
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
-	m.chatRepo.EXPECT().RemoveReaction(mock.Anything, messageID, userID, "👍").Return(errors.New("db"))
+	m.chatRepo.EXPECT().RemoveReaction(mock.Anything, messageID, userID, "👍").Return(false, errors.New("db"))
 
 	// when
 	err := svc.RemoveReaction(context.Background(), messageID, userID, "👍")

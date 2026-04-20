@@ -1821,7 +1821,9 @@ func TestChatRepository_AddAndRemoveReaction(t *testing.T) {
 	require.NoError(t, repos.Chat.InsertMessage(ctx, msgID, roomID, user.ID, "hi", nil))
 
 	// when
-	require.NoError(t, repos.Chat.AddReaction(ctx, msgID, user.ID, "👍"))
+	inserted, err := repos.Chat.AddReaction(ctx, msgID, user.ID, "👍")
+	require.NoError(t, err)
+	assert.True(t, inserted)
 	groups, err := repos.Chat.GetReactionsBatch(ctx, []uuid.UUID{msgID}, user.ID)
 
 	// then
@@ -1831,7 +1833,9 @@ func TestChatRepository_AddAndRemoveReaction(t *testing.T) {
 	assert.Equal(t, 1, groups[msgID][0].Count)
 	assert.True(t, groups[msgID][0].ViewerReacted)
 
-	require.NoError(t, repos.Chat.RemoveReaction(ctx, msgID, user.ID, "👍"))
+	deleted, err := repos.Chat.RemoveReaction(ctx, msgID, user.ID, "👍")
+	require.NoError(t, err)
+	assert.True(t, deleted)
 	after, err := repos.Chat.GetReactionsBatch(ctx, []uuid.UUID{msgID}, user.ID)
 	require.NoError(t, err)
 	assert.Empty(t, after[msgID])
@@ -1849,8 +1853,12 @@ func TestChatRepository_AddReaction_Idempotent(t *testing.T) {
 	require.NoError(t, repos.Chat.InsertMessage(ctx, msgID, roomID, user.ID, "hi", nil))
 
 	// when
-	require.NoError(t, repos.Chat.AddReaction(ctx, msgID, user.ID, "🎉"))
-	require.NoError(t, repos.Chat.AddReaction(ctx, msgID, user.ID, "🎉"))
+	firstInserted, err := repos.Chat.AddReaction(ctx, msgID, user.ID, "🎉")
+	require.NoError(t, err)
+	assert.True(t, firstInserted)
+	secondInserted, err := repos.Chat.AddReaction(ctx, msgID, user.ID, "🎉")
+	require.NoError(t, err)
+	assert.False(t, secondInserted)
 	groups, err := repos.Chat.GetReactionsBatch(ctx, []uuid.UUID{msgID}, user.ID)
 
 	// then
@@ -1871,9 +1879,12 @@ func TestChatRepository_GetReactionsBatch_GroupsByEmoji(t *testing.T) {
 	require.NoError(t, repos.Chat.AddMember(ctx, roomID, userA.ID))
 	require.NoError(t, repos.Chat.AddMember(ctx, roomID, userB.ID))
 	require.NoError(t, repos.Chat.InsertMessage(ctx, msgID, roomID, userA.ID, "hi", nil))
-	require.NoError(t, repos.Chat.AddReaction(ctx, msgID, userA.ID, "👍"))
-	require.NoError(t, repos.Chat.AddReaction(ctx, msgID, userB.ID, "👍"))
-	require.NoError(t, repos.Chat.AddReaction(ctx, msgID, userA.ID, "😂"))
+	_, err := repos.Chat.AddReaction(ctx, msgID, userA.ID, "👍")
+	require.NoError(t, err)
+	_, err = repos.Chat.AddReaction(ctx, msgID, userB.ID, "👍")
+	require.NoError(t, err)
+	_, err = repos.Chat.AddReaction(ctx, msgID, userA.ID, "😂")
+	require.NoError(t, err)
 
 	// when
 	groups, err := repos.Chat.GetReactionsBatch(ctx, []uuid.UUID{msgID}, userB.ID)

@@ -44,6 +44,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	blockSvc := block.NewMockService(t)
 	notifSvc := notification.NewMockService(t)
 	uploadSvc := upload.NewMockService(t)
+	uploadSvc.EXPECT().FullDiskPath(mock.Anything).Return("/tmp/does-not-exist-xyz.png").Maybe()
 	settingsSvc := settings.NewMockService(t)
 	mediaProc := media.NewProcessor(1)
 
@@ -133,7 +134,6 @@ func TestCreateArt_RepoError(t *testing.T) {
 	m.uploadSvc.EXPECT().
 		SaveImage(mock.Anything, "art", mock.Anything, int64(10), int64(1000), mock.Anything).
 		Return("/uploads/art/x.png", nil)
-	m.uploadSvc.EXPECT().FullDiskPath("/uploads/art/x.png").Return("/tmp/does-not-exist-xyz.png")
 	m.artRepo.EXPECT().
 		CreateWithTags(mock.Anything, mock.Anything, userID, "general", "drawing", "t", "d", "/uploads/art/x.png", "", []string{"a"}, false).
 		Return(errors.New("db"))
@@ -157,7 +157,6 @@ func TestCreateArt_OK_DefaultsAndTagCap(t *testing.T) {
 	m.uploadSvc.EXPECT().
 		SaveImage(mock.Anything, "art", mock.Anything, int64(10), int64(1000), mock.Anything).
 		Return("/uploads/art/x.png", nil)
-	m.uploadSvc.EXPECT().FullDiskPath("/uploads/art/x.png").Return("/tmp/does-not-exist-xyz.png")
 	m.artRepo.EXPECT().
 		CreateWithTags(mock.Anything, mock.Anything, userID, "general", "drawing", "t", "", "/uploads/art/x.png", "", capped, true).
 		Return(nil)
@@ -181,7 +180,6 @@ func TestCreateArt_OK_CustomCornerAndType(t *testing.T) {
 	m.uploadSvc.EXPECT().
 		SaveImage(mock.Anything, "art", mock.Anything, int64(10), int64(1000), mock.Anything).
 		Return("/uploads/art/x.png", nil)
-	m.uploadSvc.EXPECT().FullDiskPath("/uploads/art/x.png").Return("/tmp/does-not-exist-xyz.png")
 	m.artRepo.EXPECT().
 		CreateWithTags(mock.Anything, mock.Anything, userID, "umineko", "sketch", "t", "", "/uploads/art/x.png", "", []string(nil), false).
 		Return(nil)
@@ -1023,7 +1021,6 @@ func TestUploadCommentMedia_OK_CtxCancelled(t *testing.T) {
 	m.artRepo.EXPECT().
 		AddCommentMedia(mock.Anything, commentID, "/uploads/art/x.png", "image", "", 0).
 		Return(int64(42), nil)
-	m.uploadSvc.EXPECT().FullDiskPath("/uploads/art/x.png").Return("/tmp/does-not-exist-xyz.png")
 
 	// when
 	resp, err := svc.UploadCommentMedia(ctx, commentID, userID, "image/png", 10, bytes.NewReader(nil))

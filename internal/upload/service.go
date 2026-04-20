@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/settings"
 
 	"github.com/google/uuid"
@@ -50,11 +51,17 @@ type (
 
 	service struct {
 		settingsSvc settings.Service
+		mediaProc   *media.Processor
 	}
 )
 
-func NewService(settingsSvc settings.Service) Service {
-	return &service{settingsSvc: settingsSvc}
+func NewService(settingsSvc settings.Service, processors ...*media.Processor) Service {
+	var mediaProc *media.Processor
+	if len(processors) > 0 {
+		mediaProc = processors[0]
+	}
+
+	return &service{settingsSvc: settingsSvc, mediaProc: mediaProc}
 }
 
 func (s *service) GetUploadDir() string {
@@ -116,8 +123,50 @@ func (s *service) saveMedia(
 	return s.SaveFile(subDir, filename, wrapped)
 }
 
-func (s *service) SaveImage(_ context.Context, subDir string, id uuid.UUID, fileSize int64, maxSize int64, reader io.Reader) (string, error) {
-	return s.saveMedia(subDir, id, fileSize, maxSize, AllowedImageTypes, ErrInvalidFileType, reader)
+func (s *service) SaveImage(ctx context.Context, subDir string, id uuid.UUID, fileSize int64, maxSize int64, reader io.Reader) (string, error) {
+	urlPath, err := s.saveMedia(subDir, id, fileSize, maxSize, AllowedImageTypes, ErrInvalidFileType, reader)
+	if err != nil {
+		return "", err
+	}
+
+	if s.mediaProc == nil || strings.HasSuffix(strings.ToLower(urlPath), ".webp") {
+		return urlPath, nil
+	}
+
+	job := media.Job{
+		Type:      media.JobImage,
+		InputPath: s.FullDiskPath(urlPath),
+	}
+	switch subDir {
+	case "avatars":
+		job.MaxWidth = media.AvatarMaxWidth
+		job.MaxHeight = media.AvatarMaxHeight
+		job.Quality = media.AvatarQuality
+	case "banners":
+		job.MaxWidth = media.BannerMaxWidth
+		job.MaxHeight = media.BannerMaxHeight
+		job.Quality = media.BannerQuality
+	}
+
+	result := make(chan string, 1)
+	errCh := make(chan error, 1)
+	job.Callback = func(outputPath string) {
+		result <- outputPath
+	}
+	job.ErrorCallback = func(encErr error) {
+		errCh <- encErr
+	}
+	s.mediaProc.Enqueue(job)
+
+	select {
+	case outputPath := <-result:
+		return fmt.Sprintf("/uploads/%s/%s", subDir, filepath.Base(outputPath)), nil
+	case encErr := <-errCh:
+		_ = os.Remove(job.InputPath)
+		return "", encErr
+	case <-ctx.Done():
+		return "", ctx.Err()
+	}
 }
 
 func (s *service) SaveVideo(_ context.Context, subDir string, id uuid.UUID, fileSize int64, maxSize int64, reader io.Reader) (string, error) {

@@ -572,24 +572,6 @@ func (s *Service) uploadAnnouncementCommentMedia(ctx fiber.Ctx) error {
 				_ = s.AnnouncementRepo.UpdateCommentMediaThumbnail(context.Background(), rowID, thumbURL)
 			},
 		})
-	} else {
-		done := make(chan string, 1)
-		s.MediaProcessor.Enqueue(media.Job{
-			Type:      media.JobImage,
-			InputPath: diskPath,
-			Callback: func(outputPath string) {
-				newURL := "/uploads/announcements/" + filepath.Base(outputPath)
-				if err := s.AnnouncementRepo.UpdateCommentMediaURL(context.Background(), rowID, newURL); err != nil {
-					logger.Log.Error().Err(err).Msg("failed to update announcement comment image url")
-				}
-				done <- newURL
-			},
-		})
-		select {
-		case newURL := <-done:
-			urlPath = newURL
-		case <-ctx.Context().Done():
-		}
 	}
 
 	return ctx.Status(fiber.StatusCreated).JSON(dto.PostMediaResponse{

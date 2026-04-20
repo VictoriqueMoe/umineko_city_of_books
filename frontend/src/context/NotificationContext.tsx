@@ -4,6 +4,7 @@ import { NotificationContext, type WSMessageHandler } from "./notificationContex
 import { useAuth } from "../hooks/useAuth";
 import * as api from "../api/endpoints";
 import { showDesktopNotification } from "../utils/notifications";
+import { playNotificationSound } from "../utils/sound";
 
 const MAX_BACKOFF = 30000;
 
@@ -58,6 +59,9 @@ export function NotificationProvider({ children }: PropsWithChildren) {
                     setNotifications(prev => [notif, ...prev]);
                     setUnreadCount(prev => prev + 1);
                     showDesktopNotification(notif);
+                    if (userRef.current?.play_notification_sound ?? true) {
+                        playNotificationSound();
+                    }
                 }
                 if (msg.type === "role_changed") {
                     const data = msg.data as { user_id?: string; role?: string };

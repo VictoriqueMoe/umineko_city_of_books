@@ -75,6 +75,8 @@ export function useSettingsForm() {
     const [email, setEmail] = useState("");
     const [emailPublic, setEmailPublic] = useState(false);
     const [emailNotifications, setEmailNotifications] = useState(false);
+    const [playMessageSound, setPlayMessageSound] = useState(true);
+    const [playNotificationSound, setPlayNotificationSound] = useState(true);
     const [homePage, setHomePage] = useState("landing");
     const [gameBoardSort, setGameBoardSort] = useState("relevance");
 
@@ -116,6 +118,8 @@ export function useSettingsForm() {
             setEmail(profile.email ?? "");
             setEmailPublic(profile.email_public ?? false);
             setEmailNotifications(profile.email_notifications ?? false);
+            setPlayMessageSound(profile.play_message_sound ?? true);
+            setPlayNotificationSound(profile.play_notification_sound ?? true);
             setHomePage(profile.home_page ?? "landing");
             setGameBoardSort(profile.game_board_sort ?? "relevance");
 
@@ -242,6 +246,8 @@ export function useSettingsForm() {
             email,
             email_public: emailPublic,
             email_notifications: emailNotifications,
+            play_message_sound: playMessageSound,
+            play_notification_sound: playNotificationSound,
             home_page: homePage,
             game_board_sort: gameBoardSort,
         };
@@ -322,6 +328,10 @@ export function useSettingsForm() {
         setEmailPublic,
         emailNotifications,
         setEmailNotifications,
+        playMessageSound,
+        setPlayMessageSound,
+        playNotificationSound,
+        setPlayNotificationSound,
         homePage,
         setHomePage,
         gameBoardSort,

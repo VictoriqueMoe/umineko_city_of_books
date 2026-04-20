@@ -140,7 +140,8 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 	}
 
 	sessionMgr := session.NewManager(repos.Session, settingsSvc)
-	uploadSvc := upload.NewService(settingsSvc)
+	mediaProc := media.NewProcessor(4)
+	uploadSvc := upload.NewService(settingsSvc, mediaProc)
 	authzSvc := authz.NewService(repos.Role, repos.User)
 	giphyBanlist, err := banlist.NewService(context.Background(), repos.BannedGiphy)
 	if err != nil {
@@ -160,7 +161,6 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 	blockSvc := blocksvc.NewService(repos.Block, repos.Follow, authzSvc)
 	notifSvc := notification.NewService(repos.Notification, repos.User, hub, emailSvc)
 	reportSvc := report.NewService(repos.Report, repos.Role, repos.User, notifSvc, settingsSvc)
-	mediaProc := media.NewProcessor(4)
 	chatSvc := chat.NewService(repos.Chat, repos.User, repos.Role, repos.VanityRole, repos.ChatRoomBan, repos.ChatBannedWord, repos.AuditLog, authzSvc, notifSvc, blockSvc, uploadSvc, settingsSvc, mediaProc, hub, contentFilter)
 	followSvc := follow.NewService(repos.Follow, repos.User, blockSvc, notifSvc, settingsSvc)
 	postSvc := postsvc.NewService(repos.DB(), repos.Post, repos.User, repos.Role, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, hub, contentFilter)

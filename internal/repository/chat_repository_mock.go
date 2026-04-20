@@ -268,20 +268,29 @@ func (_c *MockChatRepository_AddMessageMedia_Call) RunAndReturn(run func(ctx con
 }
 
 // AddReaction provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) AddReaction(ctx context.Context, messageID uuid.UUID, userID uuid.UUID, emoji string) error {
+func (_mock *MockChatRepository) AddReaction(ctx context.Context, messageID uuid.UUID, userID uuid.UUID, emoji string) (bool, error) {
 	ret := _mock.Called(ctx, messageID, userID, emoji)
 
 	if len(ret) == 0 {
 		panic("no return value specified for AddReaction")
 	}
 
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string) error); ok {
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string) (bool, error)); ok {
+		return returnFunc(ctx, messageID, userID, emoji)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string) bool); ok {
 		r0 = returnFunc(ctx, messageID, userID, emoji)
 	} else {
-		r0 = ret.Error(0)
+		r0 = ret.Get(0).(bool)
 	}
-	return r0
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, string) error); ok {
+		r1 = returnFunc(ctx, messageID, userID, emoji)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
 // MockChatRepository_AddReaction_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AddReaction'
@@ -326,12 +335,12 @@ func (_c *MockChatRepository_AddReaction_Call) Run(run func(ctx context.Context,
 	return _c
 }
 
-func (_c *MockChatRepository_AddReaction_Call) Return(err error) *MockChatRepository_AddReaction_Call {
-	_c.Call.Return(err)
+func (_c *MockChatRepository_AddReaction_Call) Return(b bool, err error) *MockChatRepository_AddReaction_Call {
+	_c.Call.Return(b, err)
 	return _c
 }
 
-func (_c *MockChatRepository_AddReaction_Call) RunAndReturn(run func(ctx context.Context, messageID uuid.UUID, userID uuid.UUID, emoji string) error) *MockChatRepository_AddReaction_Call {
+func (_c *MockChatRepository_AddReaction_Call) RunAndReturn(run func(ctx context.Context, messageID uuid.UUID, userID uuid.UUID, emoji string) (bool, error)) *MockChatRepository_AddReaction_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -3434,20 +3443,29 @@ func (_c *MockChatRepository_RemoveMember_Call) RunAndReturn(run func(ctx contex
 }
 
 // RemoveReaction provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) RemoveReaction(ctx context.Context, messageID uuid.UUID, userID uuid.UUID, emoji string) error {
+func (_mock *MockChatRepository) RemoveReaction(ctx context.Context, messageID uuid.UUID, userID uuid.UUID, emoji string) (bool, error) {
 	ret := _mock.Called(ctx, messageID, userID, emoji)
 
 	if len(ret) == 0 {
 		panic("no return value specified for RemoveReaction")
 	}
 
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string) error); ok {
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string) (bool, error)); ok {
+		return returnFunc(ctx, messageID, userID, emoji)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string) bool); ok {
 		r0 = returnFunc(ctx, messageID, userID, emoji)
 	} else {
-		r0 = ret.Error(0)
+		r0 = ret.Get(0).(bool)
 	}
-	return r0
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, string) error); ok {
+		r1 = returnFunc(ctx, messageID, userID, emoji)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
 // MockChatRepository_RemoveReaction_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RemoveReaction'
@@ -3492,12 +3510,12 @@ func (_c *MockChatRepository_RemoveReaction_Call) Run(run func(ctx context.Conte
 	return _c
 }
 
-func (_c *MockChatRepository_RemoveReaction_Call) Return(err error) *MockChatRepository_RemoveReaction_Call {
-	_c.Call.Return(err)
+func (_c *MockChatRepository_RemoveReaction_Call) Return(b bool, err error) *MockChatRepository_RemoveReaction_Call {
+	_c.Call.Return(b, err)
 	return _c
 }
 
-func (_c *MockChatRepository_RemoveReaction_Call) RunAndReturn(run func(ctx context.Context, messageID uuid.UUID, userID uuid.UUID, emoji string) error) *MockChatRepository_RemoveReaction_Call {
+func (_c *MockChatRepository_RemoveReaction_Call) RunAndReturn(run func(ctx context.Context, messageID uuid.UUID, userID uuid.UUID, emoji string) (bool, error)) *MockChatRepository_RemoveReaction_Call {
 	_c.Call.Return(run)
 	return _c
 }

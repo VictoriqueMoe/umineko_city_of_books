@@ -1,6 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
 import type { ChatMessage, ChatRoomMember, ReactionGroup } from "../types/api";
 import { markChatRoomRead } from "../api/endpoints";
+import { playMessageSound } from "./sound";
 
 export interface ChatReactionPayload {
     room_id: string;
@@ -30,6 +31,29 @@ export function handleIncomingChatMessage(
         markChatRoomRead(chatMsg.room_id).catch(() => {});
     }
     return true;
+}
+
+export interface MaybePlayChatSoundOpts {
+    senderId: string;
+    currentUserId: string;
+    roomMuted: boolean;
+    enabled: boolean;
+}
+
+export function maybePlayChatMessageSound(opts: MaybePlayChatSoundOpts): void {
+    if (!opts.enabled) {
+        return;
+    }
+    if (opts.roomMuted) {
+        return;
+    }
+    if (opts.senderId === opts.currentUserId) {
+        return;
+    }
+    if (document.visibilityState === "visible") {
+        return;
+    }
+    playMessageSound();
 }
 
 export interface ChatMemberUpdatedPayload {

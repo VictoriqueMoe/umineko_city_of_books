@@ -142,8 +142,8 @@ type (
 		PinMessage(ctx context.Context, messageID, pinnedBy uuid.UUID) error
 		UnpinMessage(ctx context.Context, messageID uuid.UUID) error
 		ListPinnedMessages(ctx context.Context, roomID uuid.UUID) ([]ChatMessageRow, error)
-		AddReaction(ctx context.Context, messageID, userID uuid.UUID, emoji string) error
-		RemoveReaction(ctx context.Context, messageID, userID uuid.UUID, emoji string) error
+		AddReaction(ctx context.Context, messageID, userID uuid.UUID, emoji string) (bool, error)
+		RemoveReaction(ctx context.Context, messageID, userID uuid.UUID, emoji string) (bool, error)
 		GetReactionsBatch(ctx context.Context, messageIDs []uuid.UUID, viewerID uuid.UUID) (map[uuid.UUID][]ReactionGroup, error)
 	}
 
@@ -1391,26 +1391,34 @@ func (r *chatRepository) ListPinnedMessages(ctx context.Context, roomID uuid.UUI
 	return messages, rows.Err()
 }
 
-func (r *chatRepository) AddReaction(ctx context.Context, messageID, userID uuid.UUID, emoji string) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *chatRepository) AddReaction(ctx context.Context, messageID, userID uuid.UUID, emoji string) (bool, error) {
+	res, err := r.db.ExecContext(ctx,
 		`INSERT OR IGNORE INTO chat_message_reactions (message_id, user_id, emoji) VALUES (?, ?, ?)`,
 		messageID, userID, emoji,
 	)
 	if err != nil {
-		return fmt.Errorf("add reaction: %w", err)
+		return false, fmt.Errorf("add reaction: %w", err)
 	}
-	return nil
+	n, err := res.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("add reaction rows: %w", err)
+	}
+	return n > 0, nil
 }
 
-func (r *chatRepository) RemoveReaction(ctx context.Context, messageID, userID uuid.UUID, emoji string) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *chatRepository) RemoveReaction(ctx context.Context, messageID, userID uuid.UUID, emoji string) (bool, error) {
+	res, err := r.db.ExecContext(ctx,
 		`DELETE FROM chat_message_reactions WHERE message_id = ? AND user_id = ? AND emoji = ?`,
 		messageID, userID, emoji,
 	)
 	if err != nil {
-		return fmt.Errorf("remove reaction: %w", err)
+		return false, fmt.Errorf("remove reaction: %w", err)
 	}
-	return nil
+	n, err := res.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("remove reaction rows: %w", err)
+	}
+	return n > 0, nil
 }
 
 func (r *chatRepository) GetReactionsBatch(ctx context.Context, messageIDs []uuid.UUID, viewerID uuid.UUID) (map[uuid.UUID][]ReactionGroup, error) {

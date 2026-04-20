@@ -28,6 +28,7 @@ import {
     applyChatMessageEdited,
     ChatMessageDeletedPayload,
     handleIncomingChatMessage,
+    maybePlayChatMessageSound,
 } from "../../utils/chatStream";
 import { useMessageHistory } from "../../hooks/useMessageHistory";
 import type { ChatMessage, ChatRoom, User, WSMessage } from "../../types/api";
@@ -183,6 +184,12 @@ export function ChatPage() {
     }, [urlRoomId, draftRecipient]);
     const dmDebounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
     const activeRoomIdRef = useRef(activeRoomId);
+    const activeRoomMutedRef = useRef(false);
+
+    useEffect(() => {
+        const active = rooms.find(r => r.id === activeRoomId);
+        activeRoomMutedRef.current = active?.viewer_muted ?? false;
+    }, [rooms, activeRoomId]);
 
     useEffect(() => {
         activeRoomIdRef.current = activeRoomId;
@@ -250,7 +257,15 @@ export function ChatPage() {
             if (chatMsg.room_id === activeRoomIdRef.current) {
                 clearTypingUser(chatMsg.sender.id);
             }
-            handleIncomingChatMessage(chatMsg, activeRoomIdRef.current, setMessages, scrollToBottom);
+            const added = handleIncomingChatMessage(chatMsg, activeRoomIdRef.current, setMessages, scrollToBottom);
+            if (added && user) {
+                maybePlayChatMessageSound({
+                    senderId: chatMsg.sender.id,
+                    currentUserId: user.id,
+                    roomMuted: activeRoomMutedRef.current,
+                    enabled: user.play_message_sound ?? true,
+                });
+            }
 
             setRooms(prev => {
                 let foundIdx = -1;
@@ -369,7 +384,7 @@ export function ChatPage() {
             setActiveRoomId(room.id);
             setDraftRecipient(null);
             navigate(`/chat/${room.id}`, { replace: true });
-            scrollToBottom();
+            scrollToBottom({ force: true });
             return;
         }
 
@@ -398,7 +413,7 @@ export function ChatPage() {
             return next;
         });
 
-        scrollToBottom();
+        scrollToBottom({ force: true });
     }
 
     async function handleSelectUser(selectedUser: User) {

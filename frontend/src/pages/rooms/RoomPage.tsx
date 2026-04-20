@@ -54,6 +54,7 @@ import {
     ChatMessageUnpinnedPayload,
     ChatReactionPayload,
     handleIncomingChatMessage,
+    maybePlayChatMessageSound,
 } from "../../utils/chatStream";
 import styles from "./RoomPage.module.css";
 
@@ -128,6 +129,7 @@ export function RoomPage() {
     const [timeoutDialogError, setTimeoutDialogError] = useState("");
     const [timeoutDialogSaving, setTimeoutDialogSaving] = useState(false);
     const roomIdRef = useRef(roomId);
+    const roomMutedRef = useRef(false);
     const handledHashRef = useRef<string | null>(null);
     const {
         messages,
@@ -150,6 +152,10 @@ export function RoomPage() {
     useEffect(() => {
         roomIdRef.current = roomId;
     }, [roomId]);
+
+    useEffect(() => {
+        roomMutedRef.current = room?.viewer_muted ?? false;
+    }, [room?.viewer_muted]);
 
     useEffect(() => {
         document.body.dataset.chatPage = "true";
@@ -265,7 +271,20 @@ export function RoomPage() {
         return addWSListener((msg: WSMessage) => {
             if (msg.type === "chat_message") {
                 const chatMsg = msg.data as ChatMessage;
-                handleIncomingChatMessage(chatMsg, roomIdRef.current ?? null, setMessages, scrollToBottom);
+                const added = handleIncomingChatMessage(
+                    chatMsg,
+                    roomIdRef.current ?? null,
+                    setMessages,
+                    scrollToBottom,
+                );
+                if (added && user) {
+                    maybePlayChatMessageSound({
+                        senderId: chatMsg.sender.id,
+                        currentUserId: user.id,
+                        roomMuted: roomMutedRef.current,
+                        enabled: user.play_message_sound ?? true,
+                    });
+                }
                 return;
             }
             if (msg.type === "chat_member_joined") {
@@ -414,7 +433,7 @@ export function RoomPage() {
 
     function handleSentMessage(message: ChatMessage) {
         addMessage(message);
-        scrollToBottom();
+        scrollToBottom({ force: true });
     }
 
     async function handleJoin() {

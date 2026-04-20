@@ -10,7 +10,6 @@ import (
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/settings"
-	"umineko_city_of_books/internal/upload"
 
 	"github.com/google/uuid"
 )
@@ -18,15 +17,20 @@ import (
 type (
 	UpdateURLFn func(ctx context.Context, id int64, url string) error
 	AddFn       func(mediaURL, mediaType, thumbURL string, sortOrder int) (int64, error)
+	uploadSvc   interface {
+		SaveImage(ctx context.Context, subDir string, id uuid.UUID, fileSize int64, maxSize int64, reader io.Reader) (string, error)
+		SaveVideo(ctx context.Context, subDir string, id uuid.UUID, fileSize int64, maxSize int64, reader io.Reader) (string, error)
+		FullDiskPath(urlPath string) string
+	}
 
 	Uploader struct {
-		uploadSvc   upload.Service
+		uploadSvc   uploadSvc
 		settingsSvc settings.Service
 		processor   *Processor
 	}
 )
 
-func NewUploader(uploadSvc upload.Service, settingsSvc settings.Service, processor *Processor) *Uploader {
+func NewUploader(uploadSvc uploadSvc, settingsSvc settings.Service, processor *Processor) *Uploader {
 	return &Uploader{
 		uploadSvc:   uploadSvc,
 		settingsSvc: settingsSvc,
@@ -93,24 +97,6 @@ func (u *Uploader) SaveAndRecord(
 				}
 			},
 		})
-	} else {
-		done := make(chan string, 1)
-		u.processor.Enqueue(Job{
-			Type:      JobImage,
-			InputPath: diskPath,
-			Callback: func(outputPath string) {
-				newURL := "/uploads/" + subDir + "/" + filepath.Base(outputPath)
-				if err := updateURL(context.Background(), rowID, newURL); err != nil {
-					logger.Log.Error().Err(err).Msg("failed to update image media url")
-				}
-				done <- newURL
-			},
-		})
-		select {
-		case newURL := <-done:
-			urlPath = newURL
-		case <-ctx.Done():
-		}
 	}
 
 	return &dto.PostMediaResponse{

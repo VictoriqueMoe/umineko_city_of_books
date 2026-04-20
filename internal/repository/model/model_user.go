@@ -40,6 +40,8 @@ type (
 		DOB                    string
 		DOBPublic              bool
 		EmailNotifications     bool
+		PlayMessageSound       bool
+		PlayNotificationSound  bool
 		HomePage               string
 		GameBoardSort          string
 		Theme                  string
@@ -75,6 +77,8 @@ func (u *User) ToProfileResponse(stats *UserStats, isSelf bool) *dto.UserProfile
 	email := ""
 	emailPublic := u.EmailPublic
 	emailNotifications := false
+	playMessageSound := false
+	playNotificationSound := false
 	homePage := ""
 	gameBoardSort := ""
 	theme := ""
@@ -90,6 +94,8 @@ func (u *User) ToProfileResponse(stats *UserStats, isSelf bool) *dto.UserProfile
 	}
 	if isSelf {
 		emailNotifications = u.EmailNotifications
+		playMessageSound = u.PlayMessageSound
+		playNotificationSound = u.PlayNotificationSound
 		homePage = u.HomePage
 		gameBoardSort = u.GameBoardSort
 		theme = u.Theme
@@ -120,6 +126,8 @@ func (u *User) ToProfileResponse(stats *UserStats, isSelf bool) *dto.UserProfile
 		Email:                  email,
 		EmailPublic:            emailPublic,
 		EmailNotifications:     emailNotifications,
+		PlayMessageSound:       playMessageSound,
+		PlayNotificationSound:  playNotificationSound,
 		HomePage:               homePage,
 		GameBoardSort:          gameBoardSort,
 		Theme:                  theme,

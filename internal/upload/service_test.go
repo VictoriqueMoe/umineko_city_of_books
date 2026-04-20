@@ -3,6 +3,11 @@ package upload
 import (
 	"bytes"
 	"context"
+	"image"
+	"image/color"
+	"image/gif"
+	"image/jpeg"
+	"image/png"
 	"io"
 	"os"
 	"path/filepath"
@@ -125,15 +130,51 @@ func TestSaveFile_WriteError(t *testing.T) {
 }
 
 var (
-	pngMagic  = []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D}
-	jpegMagic = []byte{0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46}
-	gifMagic  = []byte("GIF89a\x00\x00\x00\x00")
+	pngMagic  = mustPNGBytes()
+	jpegMagic = mustJPEGBytes()
+	gifMagic  = mustGIFBytes()
 	webpMagic = append(append([]byte("RIFF"), 0, 0, 0, 0), []byte("WEBPVP8 ")...)
 	mp4Magic  = append([]byte{0, 0, 0, 0x20}, []byte("ftypisom\x00\x00\x00\x00isomiso2avc1mp41")...)
 	webmMagic = []byte{0x1A, 0x45, 0xDF, 0xA3, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1F}
 	aviMagic  = append(append([]byte("RIFF"), 0, 0, 0, 0), []byte("AVI LIST")...)
 	pdfMagic  = []byte("%PDF-1.4\n")
 )
+
+func tinyImage() image.Image {
+	img := image.NewRGBA(image.Rect(0, 0, 2, 2))
+	img.Set(0, 0, color.RGBA{R: 255, G: 0, B: 0, A: 255})
+	img.Set(1, 0, color.RGBA{R: 0, G: 255, B: 0, A: 255})
+	img.Set(0, 1, color.RGBA{R: 0, G: 0, B: 255, A: 255})
+	img.Set(1, 1, color.RGBA{R: 255, G: 255, B: 0, A: 255})
+	return img
+}
+
+func mustPNGBytes() []byte {
+	var buf bytes.Buffer
+	err := png.Encode(&buf, tinyImage())
+	if err != nil {
+		panic(err)
+	}
+	return buf.Bytes()
+}
+
+func mustJPEGBytes() []byte {
+	var buf bytes.Buffer
+	err := jpeg.Encode(&buf, tinyImage(), &jpeg.Options{Quality: 90})
+	if err != nil {
+		panic(err)
+	}
+	return buf.Bytes()
+}
+
+func mustGIFBytes() []byte {
+	var buf bytes.Buffer
+	err := gif.Encode(&buf, tinyImage(), nil)
+	if err != nil {
+		panic(err)
+	}
+	return buf.Bytes()
+}
 
 func bytesReader(b []byte) *bytes.Reader {
 	return bytes.NewReader(b)

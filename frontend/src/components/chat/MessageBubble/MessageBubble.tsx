@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ChatMessage, ReactionGroup, User } from "../../../types/api";
 import { ProfileLink } from "../../ProfileLink/ProfileLink";
 import { RolePill } from "../../RolePill/RolePill";
@@ -129,6 +129,31 @@ export function MessageBubble({
             document.removeEventListener("touchstart", handleClickOutside);
         };
     }, [reactorsPopover, message.id]);
+
+    const popoverRef = useRef<HTMLDivElement | null>(null);
+    useLayoutEffect(() => {
+        if (!reactorsPopover) {
+            return;
+        }
+        const popover = popoverRef.current;
+        if (!popover) {
+            return;
+        }
+        const anchor = popover.parentElement;
+        if (!anchor) {
+            return;
+        }
+        const chipRect = anchor.getBoundingClientRect();
+        popover.style.position = "fixed";
+        popover.style.right = "auto";
+        popover.style.bottom = `${Math.round(window.innerHeight - chipRect.top + 8)}px`;
+        const popWidth = popover.offsetWidth;
+        const margin = 8;
+        const chipCenter = chipRect.left + chipRect.width / 2;
+        const rawLeft = chipCenter - popWidth / 2;
+        const clampedLeft = Math.max(margin, Math.min(rawLeft, window.innerWidth - popWidth - margin));
+        popover.style.left = `${Math.round(clampedLeft)}px`;
+    }, [reactorsPopover]);
 
     function clearLongPressTimer() {
         if (longPressTimerRef.current !== null) {
@@ -340,7 +365,12 @@ export function MessageBubble({
                                         <span className={styles.reactionCount}>{r.count}</span>
                                     </button>
                                     {isOpen && (
-                                        <div className={styles.reactorPopover} role="dialog" aria-label="Reactors">
+                                        <div
+                                            ref={popoverRef}
+                                            className={styles.reactorPopover}
+                                            role="dialog"
+                                            aria-label="Reactors"
+                                        >
                                             <div className={styles.reactorHeader}>
                                                 <span className={styles.reactorHeaderEmoji}>{r.emoji}</span>
                                                 <span>{r.count} reacted</span>

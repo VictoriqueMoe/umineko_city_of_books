@@ -154,6 +154,8 @@ export interface UserProfile {
     email?: string;
     email_public?: boolean;
     email_notifications?: boolean;
+    play_message_sound?: boolean;
+    play_notification_sound?: boolean;
     home_page?: string;
     game_board_sort?: string;
     theme?: string;
@@ -197,6 +199,8 @@ export interface UpdateProfilePayload {
     email: string;
     email_public: boolean;
     email_notifications: boolean;
+    play_message_sound: boolean;
+    play_notification_sound: boolean;
     home_page: string;
     game_board_sort: string;
 }
