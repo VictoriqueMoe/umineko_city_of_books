@@ -5,7 +5,9 @@ import (
 	"embed"
 	"fmt"
 
+	"github.com/XSAM/otelsql"
 	"github.com/pressly/goose/v3"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	_ "modernc.org/sqlite"
 )
 
@@ -16,7 +18,14 @@ var (
 
 func Open(dbPath string) (*sql.DB, error) {
 	dsn := dbPath + "?_pragma=journal_mode(WAL)&_pragma=foreign_keys(ON)&_pragma=busy_timeout(5000)"
-	db, err := sql.Open("sqlite", dsn)
+	db, err := otelsql.Open("sqlite", dsn,
+		otelsql.WithAttributes(semconv.DBSystemSqlite),
+		otelsql.WithSpanOptions(otelsql.SpanOptions{
+			DisableErrSkip:  true,
+			OmitConnPrepare: true,
+			OmitRows:        true,
+		}),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
