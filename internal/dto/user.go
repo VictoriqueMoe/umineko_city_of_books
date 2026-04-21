@@ -14,6 +14,8 @@ type (
 		AvatarURL   string               `json:"avatar_url,omitempty"`
 		Role        role.Role            `json:"role,omitempty"`
 		VanityRoles []VanityRoleResponse `json:"vanity_roles,omitempty"`
+		Banned      bool                 `json:"banned,omitempty"`
+		BanReason   string               `json:"ban_reason,omitempty"`
 	}
 
 	UserProfileResponse struct {

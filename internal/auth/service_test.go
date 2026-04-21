@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/contentfilter"
+	slursrule "umineko_city_of_books/internal/contentfilter/rules/slurs"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/session"
@@ -23,6 +25,7 @@ type testMocks struct {
 	settingsSvc *settings.MockService
 	inviteRepo  *repository.MockInviteRepository
 	userRepo    *repository.MockUserRepository
+	auditRepo   *repository.MockAuditLogRepository
 	sessionRepo *repository.MockSessionRepository
 }
 
@@ -31,14 +34,17 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	settingsSvc := settings.NewMockService(t)
 	inviteRepo := repository.NewMockInviteRepository(t)
 	userRepo := repository.NewMockUserRepository(t)
+	auditRepo := repository.NewMockAuditLogRepository(t)
 	sessionRepo := repository.NewMockSessionRepository(t)
 	sessionMgr := session.NewManager(sessionRepo, settingsSvc)
-	svc := NewService(userSvc, sessionMgr, settingsSvc, inviteRepo, userRepo).(*service)
+	filter := contentfilter.New(slursrule.New())
+	svc := NewService(userSvc, sessionMgr, settingsSvc, inviteRepo, userRepo, auditRepo, filter).(*service)
 	return svc, &testMocks{
 		userSvc:     userSvc,
 		settingsSvc: settingsSvc,
 		inviteRepo:  inviteRepo,
 		userRepo:    userRepo,
+		auditRepo:   auditRepo,
 		sessionRepo: sessionRepo,
 	}
 }
@@ -241,6 +247,7 @@ func TestRegister_SessionCreateError(t *testing.T) {
 	userID := uuid.New()
 	m.userSvc.EXPECT().CheckUsernameAvailable(mock.Anything, req.Username).Return(nil)
 	m.userSvc.EXPECT().Create(mock.Anything, req.Username, req.Password, req.DisplayName).Return(&dto.UserResponse{ID: userID, Username: req.Username}, nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, userID, "user_created", "user", userID.String(), "username="+req.Username).Return(nil)
 	expectSessionDuration(m)
 	m.sessionRepo.EXPECT().Create(mock.Anything, mock.Anything, userID, mock.Anything).Return(errors.New("boom"))
 
@@ -262,6 +269,7 @@ func TestRegister_OpenOK_DefaultsDisplayName(t *testing.T) {
 	userID := uuid.New()
 	m.userSvc.EXPECT().CheckUsernameAvailable(mock.Anything, req.Username).Return(nil)
 	m.userSvc.EXPECT().Create(mock.Anything, req.Username, req.Password, req.Username).Return(&dto.UserResponse{ID: userID, Username: req.Username}, nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, userID, "user_created", "user", userID.String(), "username="+req.Username).Return(nil)
 	expectSessionDuration(m)
 	m.sessionRepo.EXPECT().Create(mock.Anything, mock.Anything, userID, mock.Anything).Return(nil)
 
@@ -285,6 +293,7 @@ func TestRegister_InviteOK_MarksUsed(t *testing.T) {
 	userID := uuid.New()
 	m.userSvc.EXPECT().CheckUsernameAvailable(mock.Anything, req.Username).Return(nil)
 	m.userSvc.EXPECT().Create(mock.Anything, req.Username, req.Password, req.DisplayName).Return(&dto.UserResponse{ID: userID, Username: req.Username}, nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, userID, "user_created", "user", userID.String(), "username="+req.Username).Return(nil)
 	m.inviteRepo.EXPECT().MarkUsed(mock.Anything, "code123", userID).Return(nil)
 	expectSessionDuration(m)
 	m.sessionRepo.EXPECT().Create(mock.Anything, mock.Anything, userID, mock.Anything).Return(nil)
@@ -309,6 +318,7 @@ func TestRegister_InviteOK_MarkUsedErrorSwallowed(t *testing.T) {
 	userID := uuid.New()
 	m.userSvc.EXPECT().CheckUsernameAvailable(mock.Anything, req.Username).Return(nil)
 	m.userSvc.EXPECT().Create(mock.Anything, req.Username, req.Password, req.DisplayName).Return(&dto.UserResponse{ID: userID, Username: req.Username}, nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, userID, "user_created", "user", userID.String(), "username="+req.Username).Return(nil)
 	m.inviteRepo.EXPECT().MarkUsed(mock.Anything, "code123", userID).Return(errors.New("boom"))
 	expectSessionDuration(m)
 	m.sessionRepo.EXPECT().Create(mock.Anything, mock.Anything, userID, mock.Anything).Return(nil)
@@ -332,6 +342,7 @@ func TestRegister_MinPasswordLengthZeroSkipsCheck(t *testing.T) {
 	userID := uuid.New()
 	m.userSvc.EXPECT().CheckUsernameAvailable(mock.Anything, req.Username).Return(nil)
 	m.userSvc.EXPECT().Create(mock.Anything, req.Username, req.Password, req.DisplayName).Return(&dto.UserResponse{ID: userID, Username: req.Username}, nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, userID, "user_created", "user", userID.String(), "username="+req.Username).Return(nil)
 	expectSessionDuration(m)
 	m.sessionRepo.EXPECT().Create(mock.Anything, mock.Anything, userID, mock.Anything).Return(nil)
 

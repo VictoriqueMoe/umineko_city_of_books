@@ -152,13 +152,43 @@ export function useMessageHistory(roomId: string | undefined) {
     }, [loadOlder, loadingMore, hasMore, computeIsAtBottom]);
 
     const loadUntilMessage = useCallback(
-        async (messageId: string, maxPages = 20): Promise<boolean> => {
+        async (messageId: string, targetCreatedAt?: string, maxPages = 20): Promise<boolean> => {
             if (!roomId) {
                 return false;
             }
             let pages = 0;
             suppressScrollToBottom.current = true;
             try {
+                if (targetCreatedAt) {
+                    const cursor = `${targetCreatedAt}|ffffffff-ffff-ffff-ffff-ffffffffffff`;
+                    const res = await getRoomMessagesBefore(roomId, cursor, PAGE_SIZE);
+                    let foundInBatch = false;
+                    setMessages(prev => {
+                        const existing = new Set(prev.map(m => m.id));
+                        const merged = prev.slice();
+                        for (const msg of res.messages) {
+                            if (!existing.has(msg.id)) {
+                                merged.push(msg);
+                                existing.add(msg.id);
+                            }
+                            if (msg.id === messageId) {
+                                foundInBatch = true;
+                            }
+                        }
+                        merged.sort((a, b) => {
+                            const ta = Date.parse(a.created_at);
+                            const tb = Date.parse(b.created_at);
+                            if (ta !== tb) {
+                                return ta - tb;
+                            }
+                            return a.id.localeCompare(b.id);
+                        });
+                        return merged;
+                    });
+                    if (foundInBatch) {
+                        return true;
+                    }
+                }
                 while (pages < maxPages) {
                     let found = false;
                     let oldestCursor = "";

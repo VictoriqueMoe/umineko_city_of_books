@@ -31,6 +31,17 @@ const GALLERY_CORNERS = [
     { path: "/gallery/ciconia", label: "Ciconia", key: "ciconia" },
 ];
 
+const NEW_THEORY_LINKS = [
+    { path: "/theory/new", label: "Umineko" },
+    { path: "/theory/higurashi/new", label: "Higurashi" },
+    { path: "/theory/ciconia/new", label: "Ciconia" },
+];
+
+const GAMES_LINKS = [
+    { path: "/games/live", label: "Live Games", authRequired: false },
+    { path: "/games", label: "My Games", authRequired: true },
+];
+
 export function Sidebar({ open, onClose }: SidebarProps) {
     const { user } = useAuth();
     const { addWSListener, unreadCount: unreadNotifs, chatUnreadCount: unreadChat } = useNotifications();
@@ -41,6 +52,9 @@ export function Sidebar({ open, onClose }: SidebarProps) {
     const [ryukishiOpen, setRyukishiOpen] = useState(isRyukishiPath);
     const [galleryOpen, setGalleryOpen] = useState(location.pathname.startsWith("/gallery"));
     const [theoriesOpen, setTheoriesOpen] = useState(location.pathname.startsWith("/theor"));
+    const isNewTheoryPath = NEW_THEORY_LINKS.some(l => location.pathname === l.path);
+    const [newTheoryOpen, setNewTheoryOpen] = useState(isNewTheoryPath);
+    const [gamesOpen, setGamesOpen] = useState(location.pathname.startsWith("/games"));
     const [cornerCounts, setCornerCounts] = useState<Record<string, number>>({});
     const [artCounts, setArtCounts] = useState<Record<string, number>>({});
     const pathnameRef = useRef(location.pathname);
@@ -63,6 +77,12 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         }
         if (location.pathname.startsWith("/theor")) {
             setTheoriesOpen(true);
+        }
+        if (isNewTheoryPath) {
+            setNewTheoryOpen(true);
+        }
+        if (location.pathname.startsWith("/games")) {
+            setGamesOpen(true);
         }
     }
 
@@ -284,6 +304,30 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                         >
                             Chat Rooms
                         </NavLink>
+                        <button
+                            className={`${styles.link} ${styles.expandBtn}${gamesOpen ? ` ${styles.expandOpen}` : ""}`}
+                            onClick={() => setGamesOpen(prev => !prev)}
+                        >
+                            Games
+                            <span className={styles.expandIcon}>{gamesOpen ? "\u25B4" : "\u25BE"}</span>
+                        </button>
+                        {gamesOpen && (
+                            <div className={styles.subLinks}>
+                                {GAMES_LINKS.filter(l => !l.authRequired || user).map(l => (
+                                    <NavLink
+                                        key={l.path}
+                                        to={l.path}
+                                        end
+                                        className={({ isActive }) =>
+                                            `${styles.link} ${styles.subLink}${isActive ? ` ${styles.active}` : ""}`
+                                        }
+                                        onClick={onClose}
+                                    >
+                                        {l.label}
+                                    </NavLink>
+                                ))}
+                            </div>
+                        )}
                         <NavLink
                             to="/users"
                             className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
@@ -303,27 +347,30 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                     {user && (
                         <div className={styles.section}>
                             <span className={styles.sectionLabel}>Create</span>
-                            <NavLink
-                                to="/theory/new"
-                                className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
-                                onClick={onClose}
+                            <button
+                                className={`${styles.link} ${styles.expandBtn}${newTheoryOpen ? ` ${styles.expandOpen}` : ""}`}
+                                onClick={() => setNewTheoryOpen(prev => !prev)}
                             >
-                                New Umineko Theory
-                            </NavLink>
-                            <NavLink
-                                to="/theory/higurashi/new"
-                                className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
-                                onClick={onClose}
-                            >
-                                New Higurashi Theory
-                            </NavLink>
-                            <NavLink
-                                to="/theory/ciconia/new"
-                                className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
-                                onClick={onClose}
-                            >
-                                New Ciconia Theory
-                            </NavLink>
+                                New Theory
+                                <span className={styles.expandIcon}>{newTheoryOpen ? "\u25B4" : "\u25BE"}</span>
+                            </button>
+                            {newTheoryOpen && (
+                                <div className={styles.subLinks}>
+                                    {NEW_THEORY_LINKS.map(l => (
+                                        <NavLink
+                                            key={l.path}
+                                            to={l.path}
+                                            end
+                                            className={({ isActive }) =>
+                                                `${styles.link} ${styles.subLink}${isActive ? ` ${styles.active}` : ""}`
+                                            }
+                                            onClick={onClose}
+                                        >
+                                            {l.label}
+                                        </NavLink>
+                                    ))}
+                                </div>
+                            )}
                             <NavLink
                                 to="/mystery/new"
                                 className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}

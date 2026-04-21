@@ -9,6 +9,7 @@ export interface ChatReactionPayload {
     emoji: string;
     user_id: string;
     display_name: string;
+    count?: number;
 }
 
 export function handleIncomingChatMessage(
@@ -197,17 +198,23 @@ function toggleReactionInGroups(
     delta: number,
     viewerReacted: boolean | undefined,
     displayName: string,
+    authoritativeCount?: number,
 ): ReactionGroup[] {
     const idx = groups.findIndex(g => g.emoji === emoji);
     if (idx === -1) {
-        if (delta < 0) {
+        const initialCount = authoritativeCount !== undefined ? authoritativeCount : 1;
+        if (initialCount <= 0) {
             return groups;
         }
         const names = displayName ? [displayName] : [];
-        return [...groups, { emoji, count: 1, viewer_reacted: viewerReacted ?? false, display_names: names }];
+        return [
+            ...groups,
+            { emoji, count: initialCount, viewer_reacted: viewerReacted ?? false, display_names: names },
+        ];
     }
     const existing = groups[idx];
-    const nextCount = Math.max(0, existing.count + delta);
+    const nextCount =
+        authoritativeCount !== undefined ? Math.max(0, authoritativeCount) : Math.max(0, existing.count + delta);
     if (nextCount === 0) {
         return groups.filter((_, i) => i !== idx);
     }
@@ -254,6 +261,7 @@ export function applyReactionAdded(
                     1,
                     viewerReacted,
                     payload.display_name,
+                    payload.count,
                 ),
             };
         }),
@@ -279,6 +287,7 @@ export function applyReactionRemoved(
                     -1,
                     viewerReacted,
                     payload.display_name,
+                    payload.count,
                 ),
             };
         }),

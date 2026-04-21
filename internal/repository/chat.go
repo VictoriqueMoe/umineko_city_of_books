@@ -144,6 +144,7 @@ type (
 		ListPinnedMessages(ctx context.Context, roomID uuid.UUID) ([]ChatMessageRow, error)
 		AddReaction(ctx context.Context, messageID, userID uuid.UUID, emoji string) (bool, error)
 		RemoveReaction(ctx context.Context, messageID, userID uuid.UUID, emoji string) (bool, error)
+		CountReactions(ctx context.Context, messageID uuid.UUID, emoji string) (int, error)
 		GetReactionsBatch(ctx context.Context, messageIDs []uuid.UUID, viewerID uuid.UUID) (map[uuid.UUID][]ReactionGroup, error)
 	}
 
@@ -1419,6 +1420,18 @@ func (r *chatRepository) RemoveReaction(ctx context.Context, messageID, userID u
 		return false, fmt.Errorf("remove reaction rows: %w", err)
 	}
 	return n > 0, nil
+}
+
+func (r *chatRepository) CountReactions(ctx context.Context, messageID uuid.UUID, emoji string) (int, error) {
+	var n int
+	err := r.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM chat_message_reactions WHERE message_id = ? AND emoji = ?`,
+		messageID, emoji,
+	).Scan(&n)
+	if err != nil {
+		return 0, fmt.Errorf("count reactions: %w", err)
+	}
+	return n, nil
 }
 
 func (r *chatRepository) GetReactionsBatch(ctx context.Context, messageIDs []uuid.UUID, viewerID uuid.UUID) (map[uuid.UUID][]ReactionGroup, error) {

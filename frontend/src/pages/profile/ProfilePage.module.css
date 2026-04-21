@@ -237,6 +237,39 @@ a.socialChipValue:hover {
     text-align: center;
 }
 
+.banBanner {
+    background: rgba(226, 87, 87, 0.18);
+    color: #e25757;
+    border: 1px solid rgba(226, 87, 87, 0.55);
+    border-radius: 6px;
+    padding: 0.85rem 1.1rem;
+    margin: 0 1rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.banBannerTitle {
+    font-weight: 700;
+    font-size: 1rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.banBannerReason {
+    font-size: 0.9rem;
+    color: #f4a6a6;
+}
+
+.bannedProfile {
+    filter: grayscale(0.85);
+}
+
+.bannedDisplayName {
+    text-decoration: line-through;
+    text-decoration-thickness: 2px;
+}
+
 .followList {
     display: flex;
     flex-wrap: wrap;

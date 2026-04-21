@@ -33,6 +33,7 @@ type (
 		Secret         SecretRepository
 		ChatRoomBan    ChatRoomBanRepository
 		ChatBannedWord ChatBannedWordRepository
+		GameRoom       GameRoomRepository
 	}
 )
 
@@ -71,5 +72,6 @@ func New(db *sql.DB) *Repositories {
 		Secret:         &secretRepository{db: db},
 		ChatRoomBan:    &chatRoomBanRepository{db: db},
 		ChatBannedWord: &chatBannedWordRepository{db: db},
+		GameRoom:       &gameRoomRepository{db: db},
 	}
 }

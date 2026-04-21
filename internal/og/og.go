@@ -38,7 +38,7 @@ type (
 const (
 	defaultTitle       = "Umineko City of Books"
 	defaultDescription = "A social platform for fans of Umineko, Higurashi, and the wider When They Cry series. Post theories, solve mysteries, share fan art, chronicle read-throughs, ship pairings, write fanfiction, and chat in live rooms."
-	defaultImagePath   = "/Featherine.webp"
+	defaultImagePath   = "/Featherine.jpg"
 	baseURLPlaceholder = "__BASE_URL__"
 )
 
@@ -242,6 +242,58 @@ func (r *Resolver) metaForPath(ctx context.Context, path string) *Meta {
 		}
 	}
 
+	if len(parts) == 1 && parts[0] == "games" {
+		return &Meta{
+			Title:       "Games - Umineko City of Books",
+			Description: "Play multiplayer games with other players. Chess first, with more to come.",
+			URL:         r.baseURL + "/games",
+		}
+	}
+
+	if len(parts) == 2 && parts[0] == "games" && parts[1] == "live" {
+		return &Meta{
+			Title:       "Live Games - Umineko City of Books",
+			Description: "Watch chess matches in progress. Spectate live and chat with other viewers.",
+			URL:         r.baseURL + "/games/live",
+		}
+	}
+
+	if len(parts) == 2 && parts[0] == "games" {
+		game := parts[1]
+		name := strings.ToUpper(game[:1]) + game[1:]
+		return &Meta{
+			Title:       name + " - Umineko City of Books",
+			Description: "Play " + name + " with other players. See the scoreboard, start a new game, or spectate live matches.",
+			URL:         fmt.Sprintf("%s/games/%s", r.baseURL, game),
+		}
+	}
+
+	if len(parts) == 3 && parts[0] == "games" && parts[2] == "scoreboard" {
+		return &Meta{
+			Title:       strings.ToUpper(parts[1][:1]) + parts[1][1:] + " Scoreboard - Umineko City of Books",
+			Description: fmt.Sprintf("See the top %s players across the community.", parts[1]),
+			URL:         fmt.Sprintf("%s/games/%s/scoreboard", r.baseURL, parts[1]),
+		}
+	}
+
+	if len(parts) == 3 && parts[0] == "games" && parts[1] == "chess" && parts[2] == "new" {
+		return &Meta{
+			Title:       "New Chess Game - Umineko City of Books",
+			Description: "Invite another player to a game of chess.",
+			URL:         r.baseURL + "/games/chess/new",
+		}
+	}
+
+	if len(parts) == 3 && parts[0] == "games" && parts[1] == "chess" {
+		if _, err := uuid.Parse(parts[2]); err == nil {
+			return &Meta{
+				Title:       "Chess Game - Umineko City of Books",
+				Description: "A chess match between two players.",
+				URL:         fmt.Sprintf("%s/games/chess/%s", r.baseURL, parts[2]),
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -266,7 +318,6 @@ func (r *Resolver) theoryMeta(ctx context.Context, idStr string) *Meta {
 	return &Meta{
 		Title:       title,
 		Description: desc,
-		Image:       theory.Author.AvatarURL,
 		URL:         fmt.Sprintf("%s/theory/%s", r.baseURL, idStr),
 	}
 }
@@ -288,7 +339,7 @@ func (r *Resolver) profileMeta(ctx context.Context, username string) *Meta {
 	return &Meta{
 		Title:       fmt.Sprintf("%s (@%s)", u.DisplayName, u.Username),
 		Description: desc,
-		Image:       u.AvatarURL,
+		Image:       u.BannerURL,
 		URL:         fmt.Sprintf("%s/user/%s", r.baseURL, username),
 	}
 }
@@ -333,7 +384,6 @@ func (r *Resolver) postMeta(ctx context.Context, idStr string) *Meta {
 	meta := &Meta{
 		Title:       title,
 		Description: desc,
-		Image:       post.AuthorAvatarURL,
 		URL:         fmt.Sprintf("%s/game-board/%s", r.baseURL, idStr),
 	}
 
@@ -440,7 +490,6 @@ func (r *Resolver) mysteryMeta(ctx context.Context, idStr string) *Meta {
 	return &Meta{
 		Title:       title,
 		Description: desc,
-		Image:       mystery.AuthorAvatarURL,
 		URL:         fmt.Sprintf("%s/mystery/%s", r.baseURL, idStr),
 	}
 }
@@ -466,7 +515,6 @@ func (r *Resolver) announcementMeta(ctx context.Context, idStr string) *Meta {
 	return &Meta{
 		Title:       title,
 		Description: desc,
-		Image:       ann.AuthorAvatarURL,
 		URL:         fmt.Sprintf("%s/announcements/%s", r.baseURL, idStr),
 	}
 }
@@ -563,7 +611,6 @@ func (r *Resolver) journalMeta(ctx context.Context, idStr string) *Meta {
 	return &Meta{
 		Title:       title,
 		Description: desc,
-		Image:       journal.Author.AvatarURL,
 		URL:         fmt.Sprintf("%s/journals/%s", r.baseURL, idStr),
 	}
 }
@@ -632,9 +679,24 @@ func (r *Resolver) inject(meta Meta) string {
 		defaultImage := r.baseURL + defaultImagePath
 		html = replaceMetaContent(html, "property", "og:image", defaultImage, img)
 		html = replaceMetaContent(html, "name", "twitter:image", defaultImage, img)
+		html = stripMetaTag(html, "property", "og:image:width")
+		html = stripMetaTag(html, "property", "og:image:height")
 	}
 
 	return html
+}
+
+func stripMetaTag(html, attrName, attrValue string) string {
+	prefix := `<meta ` + attrName + `="` + attrValue + `" content="`
+	idx := strings.Index(html, prefix)
+	if idx < 0 {
+		return html
+	}
+	end := strings.Index(html[idx:], `>`)
+	if end < 0 {
+		return html
+	}
+	return html[:idx] + html[idx+end+1:]
 }
 
 func replaceMetaContent(html, attrName, attrValue, oldContent, newContent string) string {

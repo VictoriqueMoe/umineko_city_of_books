@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/repository"
@@ -23,11 +24,13 @@ type (
 	}
 
 	service struct {
-		userService user.Service
-		session     *session.Manager
-		settingsSvc settings.Service
-		inviteRepo  repository.InviteRepository
-		userRepo    repository.UserRepository
+		userService   user.Service
+		session       *session.Manager
+		settingsSvc   settings.Service
+		inviteRepo    repository.InviteRepository
+		userRepo      repository.UserRepository
+		auditRepo     repository.AuditLogRepository
+		contentFilter *contentfilter.Manager
 	}
 )
 
@@ -46,13 +49,15 @@ func isReservedUsername(username string) bool {
 	return false
 }
 
-func NewService(userService user.Service, sessionMgr *session.Manager, settingsSvc settings.Service, inviteRepo repository.InviteRepository, userRepo repository.UserRepository) Service {
+func NewService(userService user.Service, sessionMgr *session.Manager, settingsSvc settings.Service, inviteRepo repository.InviteRepository, userRepo repository.UserRepository, auditRepo repository.AuditLogRepository, contentFilter *contentfilter.Manager) Service {
 	return &service{
-		userService: userService,
-		session:     sessionMgr,
-		settingsSvc: settingsSvc,
-		inviteRepo:  inviteRepo,
-		userRepo:    userRepo,
+		userService:   userService,
+		session:       sessionMgr,
+		settingsSvc:   settingsSvc,
+		inviteRepo:    inviteRepo,
+		userRepo:      userRepo,
+		auditRepo:     auditRepo,
+		contentFilter: contentFilter,
 	}
 }
 
@@ -93,6 +98,12 @@ func (s *service) Register(ctx context.Context, req dto.RegisterRequest) (*dto.U
 		req.DisplayName = req.Username
 	}
 
+	if s.contentFilter != nil {
+		if err := s.contentFilter.Check(ctx, req.Username, req.DisplayName); err != nil {
+			return nil, "", err
+		}
+	}
+
 	if err := s.userService.CheckUsernameAvailable(ctx, req.Username); err != nil {
 		return nil, "", err
 	}
@@ -100,6 +111,12 @@ func (s *service) Register(ctx context.Context, req dto.RegisterRequest) (*dto.U
 	userResp, err := s.userService.Create(ctx, req.Username, req.Password, req.DisplayName)
 	if err != nil {
 		return nil, "", fmt.Errorf("create user: %w", err)
+	}
+
+	if s.auditRepo != nil {
+		if err := s.auditRepo.Create(ctx, userResp.ID, "user_created", "user", userResp.ID.String(), fmt.Sprintf("username=%s", req.Username)); err != nil {
+			logger.Log.Warn().Err(err).Str("username", req.Username).Msg("failed to write user_created audit log")
+		}
 	}
 
 	if regType == "invite" {

@@ -443,8 +443,16 @@ export function ProfilePage() {
 
     const showGender = profile.gender && profile.gender !== "Prefer not to say";
 
+    const isBanned = profile.banned === true;
+
     return (
-        <div className={styles.page}>
+        <div className={`${styles.page} ${isBanned ? styles.bannedProfile : ""}`}>
+            {isBanned && (
+                <div className={styles.banBanner}>
+                    <span className={styles.banBannerTitle}>This user has been banned</span>
+                    {profile.ban_reason && <span className={styles.banBannerReason}>Reason: {profile.ban_reason}</span>}
+                </div>
+            )}
             <div className={styles.banner}>
                 {profile.banner_url ? (
                     <img

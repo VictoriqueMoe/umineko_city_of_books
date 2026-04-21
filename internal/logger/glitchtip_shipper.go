@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	stdlog "log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -175,35 +177,60 @@ func (s *glitchtipShipper) flush() {
 	s.batch = nil
 	s.mu.Unlock()
 
+	if err := s.shipBatch(items); err != nil {
+		stdlog.Printf("glitchtip shipper: %v (requeuing %d items)", err, len(items))
+		s.requeue(items)
+	}
+}
+
+func (s *glitchtipShipper) shipBatch(items []glitchtipLogItem) error {
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 
 	if err := enc.Encode(glitchtipEnvelopeHeader{DSN: s.dsnURL}); err != nil {
-		return
+		return fmt.Errorf("encode envelope header: %w", err)
 	}
 	if err := enc.Encode(glitchtipItemHeader{
 		Type:        "log",
 		ItemCount:   len(items),
 		ContentType: "application/vnd.sentry.items.log+json",
 	}); err != nil {
-		return
+		return fmt.Errorf("encode item header: %w", err)
 	}
 	if err := enc.Encode(glitchtipItemPayload{Items: items}); err != nil {
-		return
+		return fmt.Errorf("encode items: %w", err)
 	}
 
 	req, err := http.NewRequest("POST", s.endpoint, &buf)
 	if err != nil {
-		return
+		return fmt.Errorf("new request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/x-sentry-envelope")
 	req.Header.Set("X-Sentry-Auth", s.authHeader)
 
 	resp, err := s.client.Do(req)
 	if err != nil {
-		return
+		return fmt.Errorf("POST %s: %w", s.endpoint, err)
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		return fmt.Errorf("POST %s returned %s: %s", s.endpoint, resp.Status, strings.TrimSpace(string(body)))
+	}
+	return nil
+}
+
+const maxBufferedItems = 2000
+
+func (s *glitchtipShipper) requeue(items []glitchtipLogItem) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	combined := append(items, s.batch...)
+	if len(combined) > maxBufferedItems {
+		combined = combined[len(combined)-maxBufferedItems:]
+	}
+	s.batch = combined
 }
 
 func toGlitchtipAttribute(v interface{}) glitchtipAttribute {

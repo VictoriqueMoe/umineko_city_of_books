@@ -142,6 +142,7 @@ func (s *service) SaveImage(ctx context.Context, subDir string, id uuid.UUID, fi
 		job.MaxWidth = media.AvatarMaxWidth
 		job.MaxHeight = media.AvatarMaxHeight
 		job.Quality = media.AvatarQuality
+		job.SquareCrop = true
 	case "banners":
 		job.MaxWidth = media.BannerMaxWidth
 		job.MaxHeight = media.BannerMaxHeight

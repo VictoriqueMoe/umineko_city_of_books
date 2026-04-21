@@ -26,9 +26,10 @@ const (
 
 type (
 	WebPOptions struct {
-		MaxWidth  int
-		MaxHeight int
-		Quality   int
+		MaxWidth   int
+		MaxHeight  int
+		Quality    int
+		SquareCrop bool
 	}
 )
 
@@ -53,41 +54,89 @@ func EncodeWebP(ctx context.Context, inputPath string, opts WebPOptions) (string
 	}
 
 	cwebpInput := inputPath
-	orientedPath := ""
+	var tempFiles []string
 	if strings.HasSuffix(lower, ".jpg") || strings.HasSuffix(lower, ".jpeg") {
 		oriented, err := applyExifOrientation(inputPath)
 		if err != nil {
 			logger.Log.Warn().Err(err).Str("input", inputPath).Msg("exif auto-orient failed, using original")
 		} else if oriented != "" {
 			cwebpInput = oriented
-			orientedPath = oriented
+			tempFiles = append(tempFiles, oriented)
+		}
+	}
+
+	if opts.SquareCrop {
+		cropped, err := centerCropSquare(cwebpInput)
+		if err != nil {
+			logger.Log.Warn().Err(err).Str("input", cwebpInput).Msg("square crop failed, using original aspect")
+		} else if cropped != "" {
+			cwebpInput = cropped
+			tempFiles = append(tempFiles, cropped)
 		}
 	}
 
 	if err := runCwebp(ctx, cwebpInput, outputPath, opts); err != nil {
-		if orientedPath != "" {
-			_ = os.Remove(orientedPath)
+		for _, p := range tempFiles {
+			_ = os.Remove(p)
 		}
 		return "", err
 	}
-	if orientedPath != "" {
-		_ = os.Remove(orientedPath)
+	for _, p := range tempFiles {
+		_ = os.Remove(p)
 	}
 	_ = os.Remove(inputPath)
 	return outputPath, nil
+}
+
+func centerCropSquare(inputPath string) (string, error) {
+	img, err := imaging.Open(inputPath, imaging.AutoOrientation(true))
+	if err != nil {
+		return "", fmt.Errorf("open image: %w", err)
+	}
+	size := img.Bounds().Dx()
+	if img.Bounds().Dy() < size {
+		size = img.Bounds().Dy()
+	}
+	if size <= 0 {
+		return "", fmt.Errorf("invalid image dimensions")
+	}
+	cropped := imaging.CropCenter(img, size, size)
+	tmpPath := replaceExt(inputPath, ".square.jpg")
+	if err := imaging.Save(cropped, tmpPath, imaging.JPEGQuality(95)); err != nil {
+		return "", fmt.Errorf("save cropped: %w", err)
+	}
+	return tmpPath, nil
 }
 
 func reencodeWebPInPlace(ctx context.Context, inputPath string, opts WebPOptions) (string, error) {
 	tmpPath := replaceExt(inputPath, ".tmp.webp")
 	_ = os.Remove(tmpPath)
 
-	if err := runCwebp(ctx, inputPath, tmpPath, opts); err != nil {
+	cwebpInput := inputPath
+	var tempFiles []string
+	if opts.SquareCrop {
+		cropped, err := centerCropSquare(inputPath)
+		if err != nil {
+			logger.Log.Warn().Err(err).Str("input", inputPath).Msg("square crop failed, using original aspect")
+		} else if cropped != "" {
+			cwebpInput = cropped
+			tempFiles = append(tempFiles, cropped)
+		}
+	}
+
+	if err := runCwebp(ctx, cwebpInput, tmpPath, opts); err != nil {
 		_ = os.Remove(tmpPath)
+		for _, p := range tempFiles {
+			_ = os.Remove(p)
+		}
 		if isAnimatedWebPError(err) {
 			logger.Log.Debug().Str("path", inputPath).Msg("skipping animated webp re-encode")
 			return inputPath, nil
 		}
 		return "", err
+	}
+	for _, p := range tempFiles {
+		_ = os.Remove(p)
 	}
 
 	if err := os.Remove(inputPath); err != nil {

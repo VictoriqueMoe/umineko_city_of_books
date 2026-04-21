@@ -26,6 +26,7 @@ const pages = [
     { key: "rules_gallery_ciconia", label: "Gallery (Ciconia)" },
     { key: "rules_suggestions", label: "Site Improvements" },
     { key: "rules_chat_rooms", label: "Chat Rooms" },
+    { key: "rules_games", label: "Games" },
 ];
 
 export function AdminContentRules() {

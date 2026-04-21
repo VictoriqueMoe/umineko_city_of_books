@@ -46,6 +46,7 @@ func httpStatusToSentry(status int) sentry.SpanStatus {
 func Setup(app *fiber.App, settingsSvc settings.Service, sessionMgr *session.Manager, authzSvc authz.Service) {
 	app.Server().MaxRequestBodySize = settingsSvc.GetInt(context.Background(), config.SettingMaxBodySize)
 
+	app.Use(SecurityHeaders())
 	app.Use(etag.New())
 
 	app.Use(func(ctx fiber.Ctx) error {

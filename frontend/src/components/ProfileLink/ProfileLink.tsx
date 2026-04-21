@@ -28,6 +28,7 @@ export function ProfileLink({
     clickable = true,
 }: ProfileLinkProps) {
     const px = sizes[size];
+    const banned = user.banned === true;
 
     const content = (
         <>
@@ -52,19 +53,24 @@ export function ProfileLink({
             {showName && (
                 <span className={styles.name}>
                     {prefix && `${prefix} `}
-                    <RoleStyledName name={user.display_name} role={user.role} />
+                    <span className={banned ? styles.bannedName : undefined}>
+                        <RoleStyledName name={user.display_name} role={user.role} />
+                    </span>
                     <RolePill role={user.role ?? ""} userId={user.id} />
+                    {banned && <span className={styles.bannedPill}>banned</span>}
                 </span>
             )}
         </>
     );
 
+    const rootClass = banned ? `${styles.link} ${styles.banned}` : styles.link;
+
     if (!clickable) {
-        return <span className={styles.link}>{content}</span>;
+        return <span className={rootClass}>{content}</span>;
     }
 
     return (
-        <Link to={`/user/${user.username}`} className={styles.link}>
+        <Link to={`/user/${user.username}`} className={rootClass}>
             {content}
         </Link>
     );

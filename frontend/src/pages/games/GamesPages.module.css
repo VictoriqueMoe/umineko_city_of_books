@@ -1,0 +1,250 @@
+.page {
+    max-width: 900px;
+    margin: 1.25rem auto;
+    padding: 1.75rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    background: rgba(var(--purple-rgb), 0.1);
+    border: 1px solid rgba(var(--purple-rgb), 0.3);
+    border-radius: 8px;
+}
+
+.heading {
+    margin: 0;
+    font-size: 1.6rem;
+    font-family: var(--font-display);
+    color: var(--gold);
+}
+
+.sectionTitle {
+    margin: 1rem 0 0.5rem;
+    font-size: 1.1rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.empty {
+    color: var(--text-muted);
+    font-style: italic;
+    padding: 0.5rem 0;
+}
+
+.gameList {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.gameRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--purple-rgb), 0.25);
+    border-radius: 6px;
+    text-decoration: none;
+    color: inherit;
+    transition: background 0.15s var(--ease-out);
+}
+
+.gameRow:hover {
+    background: var(--bg-card-hover);
+}
+
+.gameRowContent {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.opponentLine {
+    font-weight: 600;
+}
+
+.subline {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.statusBadge {
+    font-size: 0.75rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: rgba(var(--purple-rgb), 0.25);
+    color: var(--text-muted);
+}
+
+.statusPending {
+    background: rgba(var(--gold-rgb), 0.2);
+    color: var(--gold);
+}
+
+.statusActive {
+    background: rgba(120, 217, 87, 0.18);
+    color: #78d957;
+}
+
+.statusFinished {
+    background: rgba(var(--purple-rgb), 0.2);
+    color: var(--text-muted);
+}
+
+.inviteActions {
+    display: flex;
+    gap: 0.4rem;
+}
+
+.inviteForm {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--purple-rgb), 0.25);
+    border-radius: 6px;
+}
+
+.userList {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    max-height: 280px;
+    overflow-y: auto;
+}
+
+.userRow {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-card-hover);
+    border-radius: 4px;
+    cursor: pointer;
+    border: 1px solid rgba(var(--purple-rgb), 0.3);
+    color: var(--text);
+}
+
+.userRow:hover {
+    border-color: var(--gold);
+}
+
+.userRowSelected {
+    border-color: var(--gold);
+    background: rgba(var(--gold-rgb), 0.12);
+}
+
+.error {
+    padding: 0.6rem 0.9rem;
+    background: rgba(var(--rose-rgb), 0.18);
+    border: 1px solid rgba(var(--rose-rgb), 0.5);
+    border-radius: 6px;
+    color: var(--rose);
+    font-size: 0.9rem;
+}
+
+.actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
+.scoreboardTable {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--purple-rgb), 0.25);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.scoreboardTable th,
+.scoreboardTable td {
+    padding: 0.6rem 0.75rem;
+    text-align: left;
+}
+
+.scoreboardTable thead {
+    background: var(--bg-card-hover);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+}
+
+.scoreboardTable tbody tr {
+    border-top: 1px solid rgba(var(--purple-rgb), 0.2);
+}
+
+.scoreboardTable tbody tr:hover {
+    background: var(--bg-card-hover);
+}
+
+.gamePage {
+    max-width: 1200px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+    align-items: start;
+    background: transparent;
+    border: none;
+    padding: 1rem 0;
+}
+
+@media (min-width: 960px) {
+    .gamePage {
+        grid-template-columns: minmax(0, 1fr) 320px;
+    }
+}
+
+.boardColumn {
+    min-width: 0;
+}
+
+.chatColumn {
+    min-width: 0;
+    display: flex;
+}
+
+.tileRow {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 0.75rem;
+}
+
+.tile {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding: 1rem 1.1rem;
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--purple-rgb), 0.3);
+    border-radius: 6px;
+    text-decoration: none;
+    color: inherit;
+    transition:
+        background 0.15s var(--ease-out),
+        border-color 0.15s var(--ease-out);
+}
+
+.tile:hover {
+    background: var(--bg-card-hover);
+    border-color: var(--gold);
+}
+
+.tileTitle {
+    font-family: var(--font-display);
+    color: var(--gold);
+    font-size: 1.15rem;
+}
+
+.tileTagline {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    line-height: 1.35;
+}

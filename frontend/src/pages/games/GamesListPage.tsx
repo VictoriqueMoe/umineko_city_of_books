@@ -1,0 +1,240 @@
+import { useCallback, useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router";
+import { useAuth } from "../../hooks/useAuth";
+import { usePageTitle } from "../../hooks/usePageTitle";
+import * as api from "../../api/endpoints";
+import type { GameRoom } from "../../types/api";
+import { GAME_TYPES, gameTypeLabel } from "../../games/registry";
+import { Button } from "../../components/Button/Button";
+import styles from "./GamesPages.module.css";
+
+function statusBadgeClass(status: string): string {
+    if (status === "pending") {
+        return styles.statusPending;
+    }
+    if (status === "active") {
+        return styles.statusActive;
+    }
+    return styles.statusFinished;
+}
+
+export function GamesListPage() {
+    usePageTitle("Games");
+    const { user, loading: authLoading } = useAuth();
+    const navigate = useNavigate();
+    const [rooms, setRooms] = useState<GameRoom[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
+
+    const refetch = useCallback(async () => {
+        setLoading(true);
+        setError("");
+        try {
+            const resp = await api.listMyGameRooms();
+            setRooms(resp.rooms ?? []);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to load games");
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!authLoading && !user) {
+            navigate("/login");
+            return;
+        }
+        if (user) {
+            void refetch();
+        }
+    }, [user, authLoading, navigate, refetch]);
+
+    if (authLoading || !user) {
+        return null;
+    }
+
+    const pendingIncoming = rooms.filter(r => r.status === "pending" && r.created_by !== user.id);
+    const pendingOutgoing = rooms.filter(r => r.status === "pending" && r.created_by === user.id);
+    const active = rooms.filter(r => r.status === "active");
+    const finished = rooms.filter(r => r.status === "finished" || r.status === "declined" || r.status === "abandoned");
+
+    async function handleAccept(room: GameRoom) {
+        try {
+            await api.acceptGameInvite(room.id);
+            navigate(`/games/${room.game_type}/${room.id}`);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to accept");
+        }
+    }
+
+    async function handleDecline(room: GameRoom) {
+        try {
+            await api.declineGameInvite(room.id);
+            await refetch();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to decline");
+        }
+    }
+
+    async function handleCancel(room: GameRoom) {
+        if (!window.confirm("Cancel this invite?")) {
+            return;
+        }
+        try {
+            await api.cancelGameInvite(room.id);
+            await refetch();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to cancel");
+        }
+    }
+
+    return (
+        <div className={styles.page}>
+            <h2 className={styles.heading}>My Games</h2>
+
+            <div className={styles.actions}>
+                <Link to="/games/live">
+                    <Button variant="secondary">Live Games</Button>
+                </Link>
+            </div>
+
+            <h3 className={styles.sectionTitle}>Games you can play</h3>
+            <div className={styles.tileRow}>
+                {GAME_TYPES.filter(g => g.available).map(g => (
+                    <Link key={g.type} to={g.hubPath} className={styles.tile}>
+                        <span className={styles.tileTitle}>{g.label}</span>
+                        <span className={styles.tileTagline}>{g.tagline}</span>
+                    </Link>
+                ))}
+            </div>
+
+            {error && <div className={styles.error}>{error}</div>}
+
+            <h3 className={styles.sectionTitle}>Invites for you</h3>
+            {loading ? (
+                <p className={styles.empty}>Loading...</p>
+            ) : pendingIncoming.length === 0 ? (
+                <p className={styles.empty}>No pending invites.</p>
+            ) : (
+                <div className={styles.gameList}>
+                    {pendingIncoming.map(r => {
+                        const opponent = r.players.find(p => p.user_id !== user.id);
+                        return (
+                            <div key={r.id} className={styles.gameRow}>
+                                <div className={styles.gameRowContent}>
+                                    <span className={styles.opponentLine}>
+                                        {opponent?.display_name ?? "Unknown"} invited you to{" "}
+                                        {gameTypeLabel(r.game_type)}
+                                    </span>
+                                    <span className={styles.subline}>{new Date(r.created_at).toLocaleString()}</span>
+                                </div>
+                                <div className={styles.inviteActions}>
+                                    <Button variant="primary" size="small" onClick={() => handleAccept(r)}>
+                                        Accept
+                                    </Button>
+                                    <Button variant="ghost" size="small" onClick={() => handleDecline(r)}>
+                                        Decline
+                                    </Button>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+
+            <h3 className={styles.sectionTitle}>Waiting on opponent</h3>
+            {pendingOutgoing.length === 0 ? (
+                <p className={styles.empty}>None.</p>
+            ) : (
+                <div className={styles.gameList}>
+                    {pendingOutgoing.map(r => {
+                        const opponent = r.players.find(p => p.user_id !== user.id);
+                        return (
+                            <div key={r.id} className={styles.gameRow}>
+                                <div className={styles.gameRowContent}>
+                                    <span className={styles.opponentLine}>
+                                        {gameTypeLabel(r.game_type)} vs {opponent?.display_name ?? "Unknown"}
+                                    </span>
+                                    <span className={styles.subline}>
+                                        Invited {new Date(r.created_at).toLocaleString()}
+                                    </span>
+                                </div>
+                                <div className={styles.inviteActions}>
+                                    <Button variant="ghost" size="small" onClick={() => handleCancel(r)}>
+                                        Cancel
+                                    </Button>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+
+            <h3 className={styles.sectionTitle}>Active games</h3>
+            {active.length === 0 ? (
+                <p className={styles.empty}>None in progress.</p>
+            ) : (
+                <div className={styles.gameList}>
+                    {active.map(r => {
+                        const opponent = r.players.find(p => p.user_id !== user.id);
+                        const yourTurn = r.turn_user_id === user.id;
+                        return (
+                            <Link key={r.id} to={`/games/${r.game_type}/${r.id}`} className={styles.gameRow}>
+                                <div className={styles.gameRowContent}>
+                                    <span className={styles.opponentLine}>
+                                        {gameTypeLabel(r.game_type)} vs {opponent?.display_name ?? "Unknown"}
+                                    </span>
+                                    <span className={styles.subline}>
+                                        {yourTurn ? "Your turn" : "Their turn"} — updated{" "}
+                                        {new Date(r.updated_at).toLocaleString()}
+                                    </span>
+                                </div>
+                                <span className={`${styles.statusBadge} ${statusBadgeClass(r.status)}`}>
+                                    {yourTurn ? "your turn" : r.status}
+                                </span>
+                            </Link>
+                        );
+                    })}
+                </div>
+            )}
+
+            <h3 className={styles.sectionTitle}>Past games</h3>
+            {finished.length === 0 ? (
+                <p className={styles.empty}>None yet.</p>
+            ) : (
+                <div className={styles.gameList}>
+                    {finished.map(r => {
+                        const opponent = r.players.find(p => p.user_id !== user.id);
+                        let outcome = "";
+                        if (r.status === "finished") {
+                            if (!r.winner_user_id) {
+                                outcome = "Draw";
+                            } else if (r.winner_user_id === user.id) {
+                                outcome = "Won";
+                            } else {
+                                outcome = "Lost";
+                            }
+                        } else {
+                            outcome = r.status;
+                        }
+                        return (
+                            <Link key={r.id} to={`/games/${r.game_type}/${r.id}`} className={styles.gameRow}>
+                                <div className={styles.gameRowContent}>
+                                    <span className={styles.opponentLine}>
+                                        {gameTypeLabel(r.game_type)} vs {opponent?.display_name ?? "Unknown"}
+                                    </span>
+                                    <span className={styles.subline}>
+                                        {outcome} — {new Date(r.finished_at ?? r.updated_at).toLocaleString()}
+                                    </span>
+                                </div>
+                                <span className={`${styles.statusBadge} ${statusBadgeClass(r.status)}`}>
+                                    {r.status}
+                                </span>
+                            </Link>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+    );
+}

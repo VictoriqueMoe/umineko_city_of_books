@@ -123,6 +123,9 @@ func (s *Service) register(ctx fiber.Ctx) error {
 
 	user, token, err := s.AuthService.Register(ctx.Context(), req)
 	if err != nil {
+		if utils.MapFilterError(ctx, err) {
+			return nil
+		}
 		if errors.Is(err, auth.ErrInvalidUsername) {
 			return utils.BadRequest(ctx, err.Error())
 		}

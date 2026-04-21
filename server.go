@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"embed"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -15,15 +17,18 @@ import (
 	"umineko_city_of_books/internal/authz"
 	blocksvc "umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/chat"
+	"umineko_city_of_books/internal/chess"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	bannedgiphyrule "umineko_city_of_books/internal/contentfilter/rules/bannedgiphy"
+	slursrule "umineko_city_of_books/internal/contentfilter/rules/slurs"
 	"umineko_city_of_books/internal/controllers"
 	"umineko_city_of_books/internal/credibility"
 	"umineko_city_of_books/internal/db"
 	"umineko_city_of_books/internal/email"
 	fanficsvc "umineko_city_of_books/internal/fanfic"
 	"umineko_city_of_books/internal/follow"
+	"umineko_city_of_books/internal/gameroom"
 	"umineko_city_of_books/internal/giphy"
 	"umineko_city_of_books/internal/giphy/banlist"
 	giphyfavourite "umineko_city_of_books/internal/giphy/favourite"
@@ -87,6 +92,7 @@ type services struct {
 	giphyFavourites giphyfavourite.Service
 	giphyBanlist    banlist.Service
 	contentFilter   *contentfilter.Manager
+	gameRoom        gameroom.Service
 }
 
 func initServer() *fiber.App {
@@ -151,7 +157,10 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 	if !giphySvc.Enabled() {
 		logger.Log.Warn().Msg("GIPHY_API_KEY is not set: gif picker is disabled and direct-URL channel bans cannot resolve uploaders")
 	}
-	contentFilter := contentfilter.New(bannedgiphyrule.New(giphyBanlist, giphySvc))
+	contentFilter := contentfilter.New(
+		slursrule.New(),
+		bannedgiphyrule.New(giphyBanlist, giphySvc),
+	)
 	userSvc := user.NewService(repos.User, repos.Role, authzSvc)
 	hub := ws.NewHub()
 	quoteClient := quotefinder.NewClient()
@@ -170,10 +179,11 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 	fanficSvc := fanficsvc.NewService(repos.Fanfic, repos.User, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, contentFilter)
 	journalSvc := journal.NewService(repos.Journal, repos.User, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, contentFilter)
 	secretSvc := secretsvc.NewService(repos.Secret, repos.UserSecret, repos.User, authzSvc, blockSvc, notifSvc, settingsSvc, uploadSvc, mediaProc, hub, contentFilter)
+	gameRoomSvc := gameroom.NewService(repos.GameRoom, repos.User, repos.Block, notifSvc, hub, contentFilter, []gameroom.GameHandler{chess.NewHandler()})
 
 	return &services{
 		settings:        settingsSvc,
-		auth:            auth.NewService(userSvc, sessionMgr, settingsSvc, repos.Invite, repos.User),
+		auth:            auth.NewService(userSvc, sessionMgr, settingsSvc, repos.Invite, repos.User, repos.AuditLog, contentFilter),
 		profile:         profile.NewService(repos.User, repos.UserSecret, repos.Theory, authzSvc, uploadSvc, settingsSvc, contentFilter),
 		theory:          theory.NewService(repos.Theory, repos.User, authzSvc, blockSvc, notifSvc, settingsSvc, credibilitySvc, quoteClient, contentFilter),
 		notification:    notifSvc,
@@ -199,6 +209,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 		giphyFavourites: giphyfavourite.NewService(repos.GiphyFavourite),
 		giphyBanlist:    giphyBanlist,
 		contentFilter:   contentFilter,
+		gameRoom:        gameRoomSvc,
 	}
 }
 
@@ -269,6 +280,9 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 
 	middleware.Setup(app, settingsSvc, svc.session, svc.authz)
 
+	lastSeenIP := middleware.NewLastSeenIP(repos.User, time.Hour)
+	app.Use(middleware.RecordLastSeenIP(lastSeenIP))
+
 	htmlBytes, err := staticFiles.ReadFile("static/index.html")
 	if err != nil {
 		logger.Log.Fatal().Err(err).Msg("failed to read index.html from embedded files")
@@ -277,7 +291,7 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 	ctrlService := controllers.NewService(
 		svc.auth, svc.profile, svc.theory, svc.notification, svc.admin,
 		svc.authz, settingsSvc, svc.chat, svc.report, svc.post, svc.follow,
-		svc.art, svc.block, repos.Announcement, svc.mystery, repos.User, svc.ship, svc.fanfic, svc.journal, svc.secret, svc.upload, svc.mediaProc, repos.VanityRole, repos.UserSecret, svc.session, svc.hub, svc.giphy, svc.giphyFavourites, string(htmlBytes),
+		svc.art, svc.block, repos.Announcement, svc.mystery, repos.User, svc.ship, svc.fanfic, svc.journal, svc.secret, svc.upload, svc.mediaProc, repos.VanityRole, repos.UserSecret, svc.session, svc.hub, svc.giphy, svc.giphyFavourites, svc.gameRoom, string(htmlBytes),
 	)
 	routes.PublicRoutes(ctrlService, app)
 
@@ -285,7 +299,7 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 	sitemapHandler := controllers.NewSitemapHandler(repos.DB(), baseURL)
 	sitemapHandler.Register(app)
 
-	app.Get("/api/v1/ws", ws.Handler(svc.hub, svc.session, svc.chat, func() string {
+	app.Get("/api/v1/ws", ws.Handler(svc.hub, svc.session, svc.chat, svc.gameRoom, func() string {
 		return settingsSvc.Get(context.Background(), config.SettingBaseURL)
 	}))
 	app.Get("/uploads/*", func(ctx fiber.Ctx) error {
@@ -312,5 +326,46 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 		return ctx.Type("html").SendString(html)
 	})
 
+	logRoutes(app)
+
 	return app
+}
+
+func logRoutes(app *fiber.App) {
+	rs := app.GetRoutes(true)
+
+	if logger.Log.Debug().Enabled() {
+		sort.Slice(rs, func(i, j int) bool {
+			if rs[i].Path == rs[j].Path {
+				return rs[i].Method < rs[j].Method
+			}
+			return rs[i].Path < rs[j].Path
+		})
+
+		methodWidth := len("METHOD")
+		pathWidth := len("PATH")
+		for _, r := range rs {
+			if len(r.Method) > methodWidth {
+				methodWidth = len(r.Method)
+			}
+			if len(r.Path) > pathWidth {
+				pathWidth = len(r.Path)
+			}
+		}
+
+		border := "+" + strings.Repeat("-", methodWidth+2) + "+" + strings.Repeat("-", pathWidth+2) + "+"
+		var b strings.Builder
+		b.WriteString("\n")
+		b.WriteString(border + "\n")
+		b.WriteString(fmt.Sprintf("| %-*s | %-*s |\n", methodWidth, "METHOD", pathWidth, "PATH"))
+		b.WriteString(border + "\n")
+		for _, r := range rs {
+			b.WriteString(fmt.Sprintf("| %-*s | %-*s |\n", methodWidth, r.Method, pathWidth, r.Path))
+		}
+		b.WriteString(border)
+
+		logger.Log.Debug().Msgf("registered routes:%s", b.String())
+	}
+
+	logger.Log.Info().Msgf("%d routes mounted", len(rs))
 }

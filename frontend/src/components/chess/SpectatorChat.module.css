@@ -1,0 +1,100 @@
+.panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    padding: 0.75rem;
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--purple-rgb), 0.25);
+    border-radius: 6px;
+    max-height: 560px;
+    min-height: 300px;
+    height: 100%;
+    width: 100%;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    border-bottom: 1px solid rgba(var(--purple-rgb), 0.25);
+    padding-bottom: 0.4rem;
+}
+
+.messages {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    padding-right: 0.25rem;
+}
+
+.empty {
+    color: var(--text-muted);
+    font-style: italic;
+    font-size: 0.9rem;
+    text-align: center;
+    padding: 1rem 0;
+}
+
+.message {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    font-size: 0.9rem;
+}
+
+.messageHeader {
+    display: flex;
+    gap: 0.4rem;
+    align-items: baseline;
+    font-size: 0.8rem;
+}
+
+.author {
+    font-weight: 600;
+    color: var(--gold);
+}
+
+.timestamp {
+    color: var(--text-muted);
+    font-size: 0.7rem;
+}
+
+.body {
+    color: var(--text);
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
+}
+
+.inputRow {
+    display: flex;
+    gap: 0.4rem;
+}
+
+.input {
+    flex: 1;
+    padding: 0.45rem 0.6rem;
+    background: var(--bg-card-hover);
+    border: 1px solid rgba(var(--purple-rgb), 0.3);
+    border-radius: 4px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 0.9rem;
+}
+
+.input:focus {
+    outline: none;
+    border-color: var(--gold);
+}
+
+.disabled {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    text-align: center;
+    font-style: italic;
+}

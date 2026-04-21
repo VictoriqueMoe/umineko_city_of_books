@@ -430,7 +430,27 @@ const notificationConfigs: Record<NotificationType, NotificationConfig> = {
         category: "social",
         route: routeByReferenceType,
     },
+    game_invite: {
+        text: "invited you to a game",
+        category: "social",
+        route: gameRoomRoute,
+    },
+    game_your_turn: {
+        text: "it's your move",
+        category: "social",
+        route: gameRoomRoute,
+    },
+    game_finished: {
+        text: "your game has ended",
+        category: "social",
+        route: gameRoomRoute,
+    },
 };
+
+function gameRoomRoute(notif: Notification): string {
+    const gameType = notif.reference_type || "chess";
+    return `/games/${gameType}/${notif.reference_id}`;
+}
 
 function chatMessageRoute(notif: Notification): string {
     const refType = notif.reference_type;

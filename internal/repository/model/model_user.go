@@ -70,6 +70,8 @@ func (u *User) ToResponse() *dto.UserResponse {
 		DisplayName: u.DisplayName,
 		AvatarURL:   u.AvatarURL,
 		Role:        role.Role(u.Role),
+		Banned:      u.BannedAt != nil,
+		BanReason:   u.BanReason,
 	}
 }
 

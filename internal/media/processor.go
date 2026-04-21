@@ -28,6 +28,7 @@ type (
 		MaxWidth      int
 		MaxHeight     int
 		Quality       int
+		SquareCrop    bool
 		Callback      func(outputPath string)
 		ErrorCallback func(err error)
 	}
@@ -103,9 +104,10 @@ func encodeImage(job Job) (string, error) {
 	defer cancel()
 
 	return EncodeWebP(ctx, job.InputPath, WebPOptions{
-		MaxWidth:  job.MaxWidth,
-		MaxHeight: job.MaxHeight,
-		Quality:   job.Quality,
+		MaxWidth:   job.MaxWidth,
+		MaxHeight:  job.MaxHeight,
+		Quality:    job.Quality,
+		SquareCrop: job.SquareCrop,
 	})
 }
 

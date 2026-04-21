@@ -9,6 +9,7 @@ type RuleName string
 
 const (
 	RuleBannedGiphy RuleName = "banned_giphy"
+	RuleSlurs       RuleName = "slurs"
 )
 
 type (

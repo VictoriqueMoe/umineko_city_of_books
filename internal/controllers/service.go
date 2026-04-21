@@ -9,6 +9,7 @@ import (
 	"umineko_city_of_books/internal/chat"
 	fanficsvc "umineko_city_of_books/internal/fanfic"
 	"umineko_city_of_books/internal/follow"
+	"umineko_city_of_books/internal/gameroom"
 	"umineko_city_of_books/internal/giphy"
 	giphyfavourite "umineko_city_of_books/internal/giphy/favourite"
 	"umineko_city_of_books/internal/journal"
@@ -58,6 +59,7 @@ type (
 		Hub                   *ws.Hub
 		GiphyService          giphy.Service
 		GiphyFavouriteService giphyfavourite.Service
+		GameRoomService       gameroom.Service
 		HTMLContent           string
 	}
 )
@@ -91,6 +93,7 @@ func NewService(
 	hub *ws.Hub,
 	giphyService giphy.Service,
 	giphyFavouriteService giphyfavourite.Service,
+	gameRoomService gameroom.Service,
 	htmlContent string,
 ) Service {
 	return Service{
@@ -122,6 +125,7 @@ func NewService(
 		Hub:                   hub,
 		GiphyService:          giphyService,
 		GiphyFavouriteService: giphyFavouriteService,
+		GameRoomService:       gameRoomService,
 		HTMLContent:           htmlContent,
 	}
 }
@@ -146,6 +150,7 @@ func (s *Service) GetAPIRoutes() []FSetupRoute {
 	all = append(all, s.getAllSecretRoutes()...)
 	all = append(all, s.getAllUserPreferencesRoutes()...)
 	all = append(all, s.getAllGiphyRoutes()...)
+	all = append(all, s.getAllGameRoomRoutes()...)
 	return all
 }
 

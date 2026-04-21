@@ -28,6 +28,11 @@ type (
 		SendChatMessage(ctx context.Context, senderID uuid.UUID, roomID uuid.UUID, body string) error
 	}
 
+	GameRoomPresence interface {
+		HandleClientJoin(ctx context.Context, userID, roomID uuid.UUID)
+		HandleClientLeave(userID, roomID uuid.UUID)
+	}
+
 	incomingMessage struct {
 		Type string          `json:"type"`
 		Data json.RawMessage `json:"data"`
@@ -49,6 +54,10 @@ type (
 	secretTopicData struct {
 		SecretID string `json:"secret_id"`
 	}
+
+	gameRoomTopicData struct {
+		RoomID string `json:"room_id"`
+	}
 )
 
 func originAllowed(origin, allowed string) bool {
@@ -69,7 +78,7 @@ func broadcastPresence(hub *Hub, roomID, userID uuid.UUID, state string) {
 	}, uuid.Nil)
 }
 
-func Handler(hub *Hub, sessionMgr *session.Manager, roomLister RoomLister, allowedOrigin func() string) fiber.Handler {
+func Handler(hub *Hub, sessionMgr *session.Manager, roomLister RoomLister, gamePresence GameRoomPresence, allowedOrigin func() string) fiber.Handler {
 	upgrader := websocket.FastHTTPUpgrader{
 		CheckOrigin: func(ctx *fasthttp.RequestCtx) bool {
 			origin := string(ctx.Request.Header.Peek("Origin"))
@@ -106,10 +115,16 @@ func Handler(hub *Hub, sessionMgr *session.Manager, roomLister RoomLister, allow
 			client := NewClient(userID, conn)
 
 			hub.Register(client)
+			joinedGameRooms := make(map[uuid.UUID]bool)
 			defer func() {
 				cleared := hub.Unregister(client)
 				for _, roomID := range cleared {
 					broadcastPresence(hub, roomID, userID, "")
+				}
+				if gamePresence != nil {
+					for roomID := range joinedGameRooms {
+						gamePresence.HandleClientLeave(userID, roomID)
+					}
 				}
 			}()
 
@@ -234,6 +249,36 @@ func Handler(hub *Hub, sessionMgr *session.Manager, roomLister RoomLister, allow
 						continue
 					}
 					hub.LeaveTopic("secret:"+data.SecretID, userID)
+
+				case "game_room_join":
+					if gamePresence == nil {
+						continue
+					}
+					var data gameRoomTopicData
+					if err := json.Unmarshal(msg.Data, &data); err != nil {
+						continue
+					}
+					roomID, err := uuid.Parse(data.RoomID)
+					if err != nil {
+						continue
+					}
+					gamePresence.HandleClientJoin(ctx.Context(), userID, roomID)
+					joinedGameRooms[roomID] = true
+
+				case "game_room_leave":
+					if gamePresence == nil {
+						continue
+					}
+					var data gameRoomTopicData
+					if err := json.Unmarshal(msg.Data, &data); err != nil {
+						continue
+					}
+					roomID, err := uuid.Parse(data.RoomID)
+					if err != nil {
+						continue
+					}
+					gamePresence.HandleClientLeave(userID, roomID)
+					delete(joinedGameRooms, roomID)
 				}
 			}
 		})

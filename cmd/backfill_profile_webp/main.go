@@ -178,6 +178,7 @@ func convertProfileURL(ctx context.Context, uploadSvc upload.Service, urlPath st
 		opts.MaxWidth = media.AvatarMaxWidth
 		opts.MaxHeight = media.AvatarMaxHeight
 		opts.Quality = media.AvatarQuality
+		opts.SquareCrop = true
 	case "banners":
 		opts.MaxWidth = media.BannerMaxWidth
 		opts.MaxHeight = media.BannerMaxHeight

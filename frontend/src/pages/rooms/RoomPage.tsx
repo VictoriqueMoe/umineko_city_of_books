@@ -4,9 +4,10 @@ import { useAuth } from "../../hooks/useAuth";
 import { useNotifications } from "../../hooks/useNotifications";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import type { ChatMessage, ChatRoom, ChatRoomMember, User, WSMessage } from "../../types/api";
-import { isSiteStaff } from "../../utils/permissions";
+import { isSiteStaff, type SiteRole } from "../../utils/permissions";
 import {
     addChatMessageReaction,
+    banChatRoomMember,
     clearChatRoomMemberTimeout,
     deleteChatMessage,
     deleteChatRoom,
@@ -14,7 +15,6 @@ import {
     getChatRoomMembers,
     getUserRooms,
     joinChatRoom,
-    banChatRoomMember,
     kickChatRoomMember,
     leaveChatRoom,
     markChatRoomRead,
@@ -428,6 +428,29 @@ export function RoomPage() {
                     clearTypingUser(chatMsg.sender.id);
                 }
             }
+            if (msg.type === "role_changed") {
+                const data = msg.data as { user_id?: string; role?: string };
+                if (!data.user_id) {
+                    return;
+                }
+                const newRole = (data.role ?? "") as SiteRole;
+                setMembers(prev =>
+                    prev.map(m => {
+                        if (m.user.id !== data.user_id) {
+                            return m;
+                        }
+                        return { ...m, user: { ...m.user, role: newRole || undefined } };
+                    }),
+                );
+                setMessages(prev =>
+                    prev.map(m => {
+                        if (m.sender.id !== data.user_id) {
+                            return m;
+                        }
+                        return { ...m, sender: { ...m.sender, role: newRole || undefined } };
+                    }),
+                );
+            }
         });
     }, [user, addWSListener, scrollToBottom, setMessages, navigate, loadMembers, noteTyping, clearTypingUser]);
 
@@ -709,7 +732,7 @@ export function RoomPage() {
         }
     }
 
-    async function handleJumpToMessage(messageId: string) {
+    async function handleJumpToMessage(messageId: string, targetCreatedAt?: string) {
         const scrollToEl = (smooth: boolean) => {
             const el = document.getElementById(`chat-msg-${messageId}`);
             if (el) {
@@ -721,7 +744,7 @@ export function RoomPage() {
             scrollToEl(true);
             return;
         }
-        const found = await loadUntilMessage(messageId);
+        const found = await loadUntilMessage(messageId, targetCreatedAt);
         if (!found) {
             setToast("Couldn't locate that message.");
             return;

@@ -47,6 +47,8 @@ export interface User {
     display_name: string;
     avatar_url?: string;
     role?: SiteRole;
+    banned?: boolean;
+    ban_reason?: string;
 }
 
 export interface EvidenceItem {
@@ -163,6 +165,8 @@ export interface UserProfile {
     wide_layout?: boolean;
     created_at: string;
     stats: UserStats;
+    banned?: boolean;
+    ban_reason?: string;
 }
 
 export interface UserStats {
@@ -439,7 +443,10 @@ export type NotificationType =
     | "announcement_comment_liked"
     | "suggestion_posted"
     | "suggestion_resolved"
-    | "content_shared";
+    | "content_shared"
+    | "game_invite"
+    | "game_your_turn"
+    | "game_finished";
 
 export interface Notification {
     id: number;
@@ -1051,4 +1058,71 @@ export interface AnnouncementListResponse {
     total: number;
     limit: number;
     offset: number;
+}
+
+export type GameType = "chess";
+export type GameStatus = "pending" | "active" | "finished" | "declined" | "abandoned";
+
+export interface GameRoomPlayer {
+    user_id: string;
+    username: string;
+    display_name: string;
+    avatar_url: string;
+    role: string;
+    slot: number;
+    joined: boolean;
+    connected: boolean;
+    user: User;
+}
+
+export interface ChessState {
+    fen: string;
+    pgn: string;
+}
+
+export interface GameRoom {
+    id: string;
+    game_type: GameType;
+    status: GameStatus;
+    state: ChessState | Record<string, unknown>;
+    turn_user_id?: string;
+    winner_user_id?: string;
+    result?: string;
+    created_by: string;
+    created_at: string;
+    updated_at: string;
+    finished_at?: string;
+    players: GameRoomPlayer[];
+    watcher_count: number;
+}
+
+export interface SpectatorMessage {
+    id: string;
+    user_id: string;
+    user: User;
+    body: string;
+    created_at: string;
+}
+
+export interface SpectatorChatResponse {
+    messages: SpectatorMessage[];
+}
+
+export interface GameRoomListResponse {
+    rooms: GameRoom[];
+    total: number;
+}
+
+export interface GameScoreboardRow {
+    user: User;
+    wins: number;
+    losses: number;
+    draws: number;
+    games_played: number;
+    win_rate: number;
+}
+
+export interface GameScoreboardResponse {
+    game_type: GameType;
+    rows: GameScoreboardRow[];
 }

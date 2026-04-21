@@ -7,7 +7,7 @@ interface PinnedMessagesPanelProps {
     roomId: string;
     isOpen: boolean;
     onClose: () => void;
-    onJump: (messageId: string) => void;
+    onJump: (messageId: string, createdAt?: string) => void;
     canUnpin: boolean;
     refreshKey?: number;
 }
@@ -141,7 +141,7 @@ export function PinnedMessagesPanel({
                                             type="button"
                                             className={styles.jumpBtn}
                                             onClick={() => {
-                                                onJump(m.id);
+                                                onJump(m.id, m.created_at);
                                                 onClose();
                                             }}
                                         >

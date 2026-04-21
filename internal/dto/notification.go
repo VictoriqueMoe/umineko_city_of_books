@@ -99,4 +99,7 @@ const (
 	NotifChatRoomBanned           NotificationType = "chat_room_banned"
 	NotifChatRoomKicked           NotificationType = "chat_room_kicked"
 	NotifChatRoomUnbanned         NotificationType = "chat_room_unbanned"
+	NotifGameInvite               NotificationType = "game_invite"
+	NotifGameYourTurn             NotificationType = "game_your_turn"
+	NotifGameFinished             NotificationType = "game_finished"
 )

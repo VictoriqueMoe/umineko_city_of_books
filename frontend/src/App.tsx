@@ -35,6 +35,7 @@ import {
     ArtGalleryPage,
     ChapterEditorPage,
     ChatPage,
+    ChessGamePage,
     CreateJournalPage,
     CreateMysteryPage,
     CreateShipPage,
@@ -47,16 +48,20 @@ import {
     FanfictionListPage,
     FeedPage,
     GalleryDetailPage,
+    GameHubPage,
+    GamesListPage,
     JournalPage,
     JournalsFeedPage,
+    LiveGamesPage,
     LoginPage,
     MysteryDetailPage,
     MysteryListPage,
+    NewChessGamePage,
+    NotFoundPage,
     NotificationsPage,
     PostDetailPage,
     ProfilePage,
     QuoteBrowserPage,
-    NotFoundPage,
     RoomPage,
     RoomsListPage,
     SecretDetailPage,
@@ -90,6 +95,7 @@ const homePageRoutes: Record<string, string> = {
     ships: "/ships",
     fanfiction: "/fanfiction",
     journals: "/journals",
+    games: "/games",
 };
 
 function HomePage() {
@@ -220,6 +226,10 @@ function AppLayout() {
                             <Route path="/secrets" element={<SecretsListPage />} />
                             <Route path="/secrets/:id" element={<SecretDetailPage />} />
                             <Route path="/quotes" element={<QuoteBrowserPage />} />
+                            <Route path="/games/chess/scoreboard" element={<Navigate to="/games/chess" replace />} />
+                            <Route path="/games/live" element={<LiveGamesPage />} />
+                            <Route path="/games/chess/:id" element={<ChessGamePage />} />
+                            <Route path="/games/:type" element={<GameHubPage />} />
                             <Route path="/users" element={<UsersPage />} />
                             <Route path="/user/:username" element={<ProfilePage />} />
                             <Route path="/login" element={<LoginPage />} />
@@ -240,6 +250,8 @@ function AppLayout() {
                                 <Route path="/fanfiction/:id/chapter/:number/edit" element={<ChapterEditorPage />} />
                                 <Route path="/journals/new" element={<CreateJournalPage />} />
                                 <Route path="/journals/:id/edit" element={<EditJournalPage />} />
+                                <Route path="/games" element={<GamesListPage />} />
+                                <Route path="/games/chess/new" element={<NewChessGamePage />} />
                                 <Route path="/rooms/:roomId" element={<RoomPage />} />
                                 <Route path="/theory/:id/edit" element={<EditTheoryPage />} />
                                 <Route path="/settings" element={<SettingsPage />} />
