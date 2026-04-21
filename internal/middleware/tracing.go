@@ -69,9 +69,9 @@ func (c fiberHeaderCarrier) Set(key, value string) {
 
 func (c fiberHeaderCarrier) Keys() []string {
 	keys := make([]string, 0)
-	c.ctx.Request().Header.VisitAll(func(k, _ []byte) {
+	for k := range c.ctx.Request().Header.All() {
 		keys = append(keys, string(k))
-	})
+	}
 	return keys
 }
 
