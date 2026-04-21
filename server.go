@@ -4,6 +4,8 @@ import (
 	"context"
 	"embed"
 	"io/fs"
+	"net/http"
+	"net/http/pprof"
 	"os"
 	"path/filepath"
 	"strings"
@@ -44,6 +46,7 @@ import (
 	"umineko_city_of_books/internal/session"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/ship"
+	"umineko_city_of_books/internal/telemetry"
 	"umineko_city_of_books/internal/theory"
 	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/user"
@@ -98,6 +101,15 @@ func initServer() *fiber.App {
 }
 
 func initDatabase() (*repository.Repositories, settings.Service) {
+	if err := telemetry.Init(
+		context.Background(),
+		"umineko-city-of-books",
+		config.Version,
+		"",
+	); err != nil {
+		logger.Log.Warn().Err(err).Msg("otel init failed; traces disabled")
+	}
+
 	database, err := db.Open(config.Cfg.DBPath)
 	if err != nil {
 		logger.Log.Fatal().Err(err).Msg("failed to open database")
@@ -120,6 +132,19 @@ func initDatabase() (*repository.Repositories, settings.Service) {
 
 	logger.Init(settingsSvc.Get(context.Background(), config.SettingLogLevel))
 	logger.ApplyDSN(settingsSvc.Get(context.Background(), config.SettingSentryDSN))
+
+	if err := telemetry.Apply(settingsSvc.Get(context.Background(), config.SettingOTLPEndpoint)); err != nil {
+		logger.Log.Warn().Err(err).Msg("otel apply failed")
+	}
+
+	hostname, _ := os.Hostname()
+	if err := telemetry.InitProfiling(
+		"umineko-city-of-books",
+		hostname,
+		settingsSvc.Get(context.Background(), config.SettingPyroscopeURL),
+	); err != nil {
+		logger.Log.Warn().Err(err).Msg("pyroscope init failed; profiling disabled")
+	}
 
 	return repos, settingsSvc
 }
@@ -204,6 +229,8 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 
 func registerListeners(settingsSvc settings.Service, app *fiber.App, svc *services, repos *repository.Repositories) {
 	settingsSvc.Subscribe(logger.NewSettingsListener())
+	settingsSvc.Subscribe(telemetry.NewSettingsListener())
+	settingsSvc.Subscribe(telemetry.NewProfilingSettingsListener())
 	settingsSvc.Subscribe(middleware.NewBodyLimitListener(app))
 	settingsSvc.Subscribe(email.NewMailSettingListener(svc.email))
 
@@ -268,6 +295,9 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 	})
 
 	middleware.Setup(app, settingsSvc, svc.session, svc.authz)
+	app.Use(middleware.Metrics())
+	app.Get("/metrics", middleware.MetricsHandler())
+	registerPprofRoutes(app, svc.session, svc.authz)
 
 	htmlBytes, err := staticFiles.ReadFile("static/index.html")
 	if err != nil {
@@ -313,4 +343,64 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 	})
 
 	return app
+}
+
+func registerPprofRoutes(app *fiber.App, sessionMgr *session.Manager, authzSvc authz.Service) {
+	gate := middleware.RequirePermission(sessionMgr, authzSvc, authz.PermManageSettings)
+
+	pprofAdapter := func(h http.HandlerFunc) fiber.Handler {
+		return func(ctx fiber.Ctx) error {
+			handler := http.HandlerFunc(h)
+			req, err := http.NewRequest(ctx.Method(), ctx.OriginalURL(), nil)
+			if err != nil {
+				return err
+			}
+			rw := &pprofResponseWriter{ctx: ctx, header: http.Header{}}
+			handler.ServeHTTP(rw, req)
+			return nil
+		}
+	}
+
+	app.Get("/debug/pprof/", gate, pprofAdapter(pprof.Index))
+	app.Get("/debug/pprof/cmdline", gate, pprofAdapter(pprof.Cmdline))
+	app.Get("/debug/pprof/profile", gate, pprofAdapter(pprof.Profile))
+	app.Get("/debug/pprof/symbol", gate, pprofAdapter(pprof.Symbol))
+	app.Get("/debug/pprof/trace", gate, pprofAdapter(pprof.Trace))
+	app.Get("/debug/pprof/allocs", gate, pprofAdapter(pprof.Handler("allocs").ServeHTTP))
+	app.Get("/debug/pprof/block", gate, pprofAdapter(pprof.Handler("block").ServeHTTP))
+	app.Get("/debug/pprof/goroutine", gate, pprofAdapter(pprof.Handler("goroutine").ServeHTTP))
+	app.Get("/debug/pprof/heap", gate, pprofAdapter(pprof.Handler("heap").ServeHTTP))
+	app.Get("/debug/pprof/mutex", gate, pprofAdapter(pprof.Handler("mutex").ServeHTTP))
+	app.Get("/debug/pprof/threadcreate", gate, pprofAdapter(pprof.Handler("threadcreate").ServeHTTP))
+}
+
+type pprofResponseWriter struct {
+	ctx    fiber.Ctx
+	header http.Header
+	wrote  bool
+}
+
+func (w *pprofResponseWriter) Header() http.Header {
+	return w.header
+}
+
+func (w *pprofResponseWriter) WriteHeader(status int) {
+	if w.wrote {
+		return
+	}
+	w.wrote = true
+	for k, v := range w.header {
+		if len(v) > 0 {
+			w.ctx.Set(k, v[0])
+		}
+	}
+	w.ctx.Status(status)
+}
+
+func (w *pprofResponseWriter) Write(p []byte) (int, error) {
+	if !w.wrote {
+		w.WriteHeader(http.StatusOK)
+	}
+	_, err := w.ctx.Write(p)
+	return len(p), err
 }

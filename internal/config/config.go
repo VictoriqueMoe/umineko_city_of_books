@@ -41,6 +41,8 @@ var (
 	SettingBaseURL                 = &SiteSettingDef{"base_url", "http://localhost:4323", TypeString}
 	SettingLogLevel                = &SiteSettingDef{"log_level", "info", TypeString}
 	SettingSentryDSN               = &SiteSettingDef{"sentry_dsn", "", TypeString}
+	SettingOTLPEndpoint            = &SiteSettingDef{"otlp_endpoint", "", TypeString}
+	SettingPyroscopeURL            = &SiteSettingDef{"pyroscope_url", "", TypeString}
 	SettingMaxBodySize             = &SiteSettingDef{"max_body_size", "52428800", TypeInt}
 	SettingMaxImageSize            = &SiteSettingDef{"max_image_size", "10485760", TypeInt}
 	SettingMaxVideoSize            = &SiteSettingDef{"max_video_size", "104857600", TypeInt}
@@ -95,6 +97,8 @@ var (
 		SettingBaseURL,
 		SettingLogLevel,
 		SettingSentryDSN,
+		SettingOTLPEndpoint,
+		SettingPyroscopeURL,
 		SettingMaxBodySize,
 		SettingMaxImageSize,
 		SettingMaxVideoSize,

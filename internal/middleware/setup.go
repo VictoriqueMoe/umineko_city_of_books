@@ -46,6 +46,7 @@ func httpStatusToSentry(status int) sentry.SpanStatus {
 func Setup(app *fiber.App, settingsSvc settings.Service, sessionMgr *session.Manager, authzSvc authz.Service) {
 	app.Server().MaxRequestBodySize = settingsSvc.GetInt(context.Background(), config.SettingMaxBodySize)
 
+	app.Use(Tracing())
 	app.Use(etag.New())
 
 	app.Use(func(ctx fiber.Ctx) error {
@@ -116,6 +117,10 @@ func Setup(app *fiber.App, settingsSvc settings.Service, sessionMgr *session.Man
 			event = appLogger.Log.Error()
 		} else if status >= 400 {
 			event = appLogger.Log.Warn()
+		}
+
+		if traceID, _ := ctx.Locals("trace_id").(string); traceID != "" {
+			event = event.Str("trace_id", traceID)
 		}
 
 		query := string(ctx.RequestCtx().QueryArgs().QueryString())

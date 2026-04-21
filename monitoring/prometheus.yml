@@ -10,3 +10,8 @@ scrape_configs:
   - job_name: prometheus
     static_configs:
       - targets: ['localhost:9090']
+
+  - job_name: umineko-city-of-books
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['umineko-city-of-books:4323']
