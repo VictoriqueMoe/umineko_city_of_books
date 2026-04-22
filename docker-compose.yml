@@ -58,12 +58,37 @@ services:
       - '--storage.tsdb.path=/prometheus'
       - '--storage.tsdb.retention.time=30d'
 
+  tempo:
+    image: grafana/tempo:latest
+    container_name: tempo
+    restart: unless-stopped
+    command:
+      - "-config.file=/etc/tempo/tempo.yaml"
+    volumes:
+      - ./monitoring/tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
+      - tempo-data:/var/tempo
+    ports:
+      - "3200:3200"
+      - "4317:4317"
+      - "4318:4318"
+
+  pyroscope:
+    image: grafana/pyroscope:latest
+    container_name: pyroscope
+    restart: unless-stopped
+    ports:
+      - "4040:4040"
+    volumes:
+      - pyroscope-data:/var/lib/pyroscope
+
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
     restart: unless-stopped
     depends_on:
       - prometheus
+      - tempo
+      - pyroscope
     ports:
       - "3000:3000"
     environment:
@@ -77,3 +102,5 @@ volumes:
   glitchtip-uploads:
   prometheus-data:
   grafana-data:
+  tempo-data:
+  pyroscope-data:

@@ -13,10 +13,14 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 	"github.com/valyala/fasthttp"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
 	maxInboundMessageSize = 8 * 1024
+	wsTracerName          = "umineko_city_of_books/ws"
 )
 
 type (
@@ -164,123 +168,138 @@ func Handler(hub *Hub, sessionMgr *session.Manager, roomLister RoomLister, gameP
 					continue
 				}
 
-				switch msg.Type {
-				case "typing":
-					var data typingData
-					if err := json.Unmarshal(msg.Data, &data); err != nil {
-						continue
-					}
-					roomID, err := uuid.Parse(data.RoomID)
-					if err != nil {
-						continue
-					}
-					if !hub.IsUserInRoom(roomID, userID) {
-						continue
-					}
-					hub.BroadcastToRoom(roomID, Message{
-						Type: "typing",
-						Data: map[string]interface{}{
-							"room_id": data.RoomID,
-							"user_id": userID.String(),
-						},
-					}, userID)
-
-				case "join_room":
-					var data roomActionData
-					if err := json.Unmarshal(msg.Data, &data); err != nil {
-						continue
-					}
-					roomID, err := uuid.Parse(data.RoomID)
-					if err != nil {
-						continue
-					}
-					if !hub.IsUserInRoom(roomID, userID) {
-						continue
-					}
-					hub.AddViewer(roomID, userID)
-					broadcastPresence(hub, roomID, userID, ViewerStateActive)
-
-				case "leave_room":
-					var data roomActionData
-					if err := json.Unmarshal(msg.Data, &data); err != nil {
-						continue
-					}
-					roomID, err := uuid.Parse(data.RoomID)
-					if err != nil {
-						continue
-					}
-					hub.RemoveViewer(roomID, userID)
-					if !hub.IsUserViewing(roomID, userID) {
-						broadcastPresence(hub, roomID, userID, "")
-					}
-
-				case "viewer_state":
-					var data viewerStateData
-					if err := json.Unmarshal(msg.Data, &data); err != nil {
-						continue
-					}
-					roomID, err := uuid.Parse(data.RoomID)
-					if err != nil {
-						continue
-					}
-					if !hub.IsUserInRoom(roomID, userID) {
-						continue
-					}
-					if hub.SetViewerState(roomID, userID, data.State) {
-						broadcastPresence(hub, roomID, userID, data.State)
-					}
-
-				case "secret_join":
-					var data secretTopicData
-					if err := json.Unmarshal(msg.Data, &data); err != nil {
-						continue
-					}
-					if data.SecretID == "" {
-						continue
-					}
-					hub.JoinTopic("secret:"+data.SecretID, userID)
-
-				case "secret_leave":
-					var data secretTopicData
-					if err := json.Unmarshal(msg.Data, &data); err != nil {
-						continue
-					}
-					if data.SecretID == "" {
-						continue
-					}
-					hub.LeaveTopic("secret:"+data.SecretID, userID)
-
-				case "game_room_join":
-					if gamePresence == nil {
-						continue
-					}
-					var data gameRoomTopicData
-					if err := json.Unmarshal(msg.Data, &data); err != nil {
-						continue
-					}
-					roomID, err := uuid.Parse(data.RoomID)
-					if err != nil {
-						continue
-					}
-					gamePresence.HandleClientJoin(ctx.Context(), userID, roomID)
-					joinedGameRooms[roomID] = true
-
-				case "game_room_leave":
-					if gamePresence == nil {
-						continue
-					}
-					var data gameRoomTopicData
-					if err := json.Unmarshal(msg.Data, &data); err != nil {
-						continue
-					}
-					roomID, err := uuid.Parse(data.RoomID)
-					if err != nil {
-						continue
-					}
-					gamePresence.HandleClientLeave(userID, roomID)
-					delete(joinedGameRooms, roomID)
-				}
+				handleWSMessage(userID, msg, hub, gamePresence, joinedGameRooms)
 			}
 		})
+	}
+}
+
+func handleWSMessage(userID uuid.UUID, msg incomingMessage, hub *Hub, gamePresence GameRoomPresence, joinedGameRooms map[uuid.UUID]bool) {
+	spanCtx, span := otel.Tracer(wsTracerName).Start(
+		context.Background(),
+		"ws."+msg.Type,
+		trace.WithSpanKind(trace.SpanKindServer),
+		trace.WithAttributes(
+			attribute.String("ws.user_id", userID.String()),
+			attribute.String("ws.message_type", msg.Type),
+		),
+	)
+	defer span.End()
+
+	switch msg.Type {
+	case "typing":
+		var data typingData
+		if err := json.Unmarshal(msg.Data, &data); err != nil {
+			return
+		}
+		roomID, err := uuid.Parse(data.RoomID)
+		if err != nil {
+			return
+		}
+		if !hub.IsUserInRoom(roomID, userID) {
+			return
+		}
+		hub.BroadcastToRoom(roomID, Message{
+			Type: "typing",
+			Data: map[string]interface{}{
+				"room_id": data.RoomID,
+				"user_id": userID.String(),
+			},
+		}, userID)
+
+	case "join_room":
+		var data roomActionData
+		if err := json.Unmarshal(msg.Data, &data); err != nil {
+			return
+		}
+		roomID, err := uuid.Parse(data.RoomID)
+		if err != nil {
+			return
+		}
+		if !hub.IsUserInRoom(roomID, userID) {
+			return
+		}
+		hub.AddViewer(roomID, userID)
+		broadcastPresence(hub, roomID, userID, ViewerStateActive)
+
+	case "leave_room":
+		var data roomActionData
+		if err := json.Unmarshal(msg.Data, &data); err != nil {
+			return
+		}
+		roomID, err := uuid.Parse(data.RoomID)
+		if err != nil {
+			return
+		}
+		hub.RemoveViewer(roomID, userID)
+		if !hub.IsUserViewing(roomID, userID) {
+			broadcastPresence(hub, roomID, userID, "")
+		}
+
+	case "viewer_state":
+		var data viewerStateData
+		if err := json.Unmarshal(msg.Data, &data); err != nil {
+			return
+		}
+		roomID, err := uuid.Parse(data.RoomID)
+		if err != nil {
+			return
+		}
+		if !hub.IsUserInRoom(roomID, userID) {
+			return
+		}
+		if hub.SetViewerState(roomID, userID, data.State) {
+			broadcastPresence(hub, roomID, userID, data.State)
+		}
+
+	case "secret_join":
+		var data secretTopicData
+		if err := json.Unmarshal(msg.Data, &data); err != nil {
+			return
+		}
+		if data.SecretID == "" {
+			return
+		}
+		hub.JoinTopic("secret:"+data.SecretID, userID)
+
+	case "secret_leave":
+		var data secretTopicData
+		if err := json.Unmarshal(msg.Data, &data); err != nil {
+			return
+		}
+		if data.SecretID == "" {
+			return
+		}
+		hub.LeaveTopic("secret:"+data.SecretID, userID)
+
+	case "game_room_join":
+		if gamePresence == nil {
+			return
+		}
+		var data gameRoomTopicData
+		if err := json.Unmarshal(msg.Data, &data); err != nil {
+			return
+		}
+		roomID, err := uuid.Parse(data.RoomID)
+		if err != nil {
+			return
+		}
+		gamePresence.HandleClientJoin(spanCtx, userID, roomID)
+		joinedGameRooms[roomID] = true
+
+	case "game_room_leave":
+		if gamePresence == nil {
+			return
+		}
+		var data gameRoomTopicData
+		if err := json.Unmarshal(msg.Data, &data); err != nil {
+			return
+		}
+		roomID, err := uuid.Parse(data.RoomID)
+		if err != nil {
+			return
+		}
+		gamePresence.HandleClientLeave(userID, roomID)
+		delete(joinedGameRooms, roomID)
 	}
 }
