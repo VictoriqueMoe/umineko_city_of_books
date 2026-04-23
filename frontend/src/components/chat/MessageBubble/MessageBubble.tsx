@@ -24,6 +24,7 @@ interface MessageBubbleProps {
     canReact?: boolean;
     canEdit?: boolean;
     highlighted?: boolean;
+    notifiesViewer?: boolean;
     seenLabel?: string | null;
     senderIsStaff?: boolean;
 }
@@ -91,6 +92,7 @@ export function MessageBubble({
     canReact = true,
     canEdit = true,
     highlighted,
+    notifiesViewer,
     seenLabel,
     senderIsStaff,
 }: MessageBubbleProps) {
@@ -221,6 +223,9 @@ export function MessageBubble({
     }
     if (highlighted) {
         classes.push(styles.messageHighlighted);
+    }
+    if (notifiesViewer && !isOwn) {
+        classes.push(styles.notifiesViewer);
     }
     if (message.pinned) {
         classes.push(styles.messagePinned);

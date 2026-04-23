@@ -421,6 +421,8 @@ func (s *service) SubmitAction(ctx context.Context, roomID, userID uuid.UUID, ac
 		return nil, ErrUnknownGameType
 	}
 
+	s.clearForfeit(roomID, userID)
+
 	result, err := handler.ValidateAction(row.StateJSON, slot, action)
 	if err != nil {
 		return nil, err
@@ -496,6 +498,7 @@ func (s *service) Resign(ctx context.Context, roomID, userID uuid.UUID) (*dto.Ga
 	if err != nil {
 		return nil, ErrNotParticipant
 	}
+	s.clearForfeit(roomID, userID)
 	players, err := s.loadPlayers(ctx, roomID)
 	if err != nil {
 		return nil, err
@@ -863,6 +866,34 @@ func (s *service) CancelIdleGames(ctx context.Context) (int, error) {
 		s.broadcastLiveGamesCount(ctx)
 	}
 	return count, nil
+}
+
+func (s *service) clearForfeit(roomID, userID uuid.UUID) {
+	s.mu.Lock()
+	st, ok := s.rooms[roomID]
+	if !ok {
+		s.mu.Unlock()
+		return
+	}
+	timer, hadTimer := st.timers[userID]
+	if hadTimer {
+		timer.Stop()
+		delete(st.timers, userID)
+	}
+	_, wasOffline := st.disconnectedAt[userID]
+	delete(st.disconnectedAt, userID)
+	connected := st.players[userID] > 0
+	s.mu.Unlock()
+
+	if hadTimer {
+		s.hub.SendToUser(userID, ws.Message{
+			Type: "game_forfeit_cleared",
+			Data: map[string]any{"room_id": roomID.String()},
+		})
+	}
+	if wasOffline {
+		s.broadcastPresence(roomID, userID, connected, true)
+	}
 }
 
 func (s *service) graceExpired(userID, roomID uuid.UUID) {

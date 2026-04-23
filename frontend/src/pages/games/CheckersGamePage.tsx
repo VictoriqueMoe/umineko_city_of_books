@@ -3,19 +3,19 @@ import { useAuth } from "../../hooks/useAuth";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useGameRoom } from "../../hooks/useGameRoom";
 import * as api from "../../api/endpoints";
-import { ChessBoardView } from "../../components/games/chess/ChessBoardView";
+import { CheckersBoardView } from "../../components/games/checkers/CheckersBoardView";
 import { SpectatorChat } from "../../components/games/chess/SpectatorChat";
 import { PlayerChat } from "../../components/games/chess/PlayerChat";
 import { Button } from "../../components/Button/Button";
 import styles from "./GamesPages.module.css";
 
-export function ChessGamePage() {
+export function CheckersGamePage() {
     const { id } = useParams<{ id: string }>();
     const { user } = useAuth();
     const navigate = useNavigate();
     const { room, loading, error, refetch } = useGameRoom(id);
 
-    usePageTitle(room ? `Chess - ${room.players.map(p => p.display_name).join(" vs ")}` : "Chess");
+    usePageTitle(room ? `Checkers - ${room.players.map(p => p.display_name).join(" vs ")}` : "Checkers");
 
     if (!id) {
         return null;
@@ -45,8 +45,8 @@ export function ChessGamePage() {
         if (!isParticipant) {
             return (
                 <div className={styles.page}>
-                    <h2 className={styles.heading}>Chess</h2>
-                    <p>This match hasn't started yet — invites are private.</p>
+                    <h2 className={styles.heading}>Checkers</h2>
+                    <p>This match hasn't started yet - invites are private.</p>
                     <div className={styles.actions}>
                         <Button onClick={() => navigate("/games/live")}>Live Games</Button>
                     </div>
@@ -56,10 +56,10 @@ export function ChessGamePage() {
         const opponent = room.players.find(p => p.user_id !== user?.id);
         return (
             <div className={styles.page}>
-                <h2 className={styles.heading}>Chess</h2>
+                <h2 className={styles.heading}>Checkers</h2>
                 {isInvitee ? (
                     <p>
-                        {opponent?.display_name ?? "Someone"} has invited you to a chess game. Accept to start — you
+                        {opponent?.display_name ?? "Someone"} has invited you to a checkers game. Accept to start - you
                         will play as black.
                     </p>
                 ) : (
@@ -96,11 +96,10 @@ export function ChessGamePage() {
         );
     }
 
-    async function handleMove(move: { from: string; to: string; promotion?: string }) {
+    async function handleMove(move: { from: string; path: string[] }) {
         await api.submitGameAction(room!.id, {
             from: move.from,
-            to: move.to,
-            promotion: move.promotion ?? "",
+            path: move.path,
         });
     }
 
@@ -111,7 +110,7 @@ export function ChessGamePage() {
     return (
         <div className={`${styles.page} ${styles.gamePage}`}>
             <div className={styles.boardColumn}>
-                <ChessBoardView
+                <CheckersBoardView
                     room={room}
                     viewer={user}
                     isSpectator={!isParticipant}

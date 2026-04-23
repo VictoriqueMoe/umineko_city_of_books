@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { useAuth } from "../../hooks/useAuth";
 import { useNotifications } from "../../hooks/useNotifications";
@@ -11,6 +11,7 @@ import { TypingIndicator } from "../../components/chat/TypingIndicator/TypingInd
 import { useTypingIndicator } from "../../hooks/useTypingIndicator";
 import { MessageBubble } from "../../components/chat/MessageBubble/MessageBubble";
 import { Lightbox } from "../../components/Lightbox/Lightbox";
+import { buildMentionMatcher } from "../../utils/mentions";
 import { isSiteStaff } from "../../utils/permissions";
 import {
     deleteChatRoom,
@@ -108,6 +109,7 @@ export function ChatPage() {
     const location = useLocation();
     const navigate = useNavigate();
     const { user } = useAuth();
+    const matchesViewerMention = useMemo(() => buildMentionMatcher(user?.username), [user?.username]);
     const { addWSListener, sendWSMessage, wsEpoch } = useNotifications();
     const [rooms, setRooms] = useState<ChatRoom[]>([]);
     const [activeRoomId, setActiveRoomId] = useState<string | null>(urlRoomId ?? null);
@@ -570,6 +572,10 @@ export function ChatPage() {
                                             key={msg.id}
                                             message={msg}
                                             isOwn={isOwn}
+                                            notifiesViewer={
+                                                msg.reply_to?.sender_id === user.id ||
+                                                (matchesViewerMention ? matchesViewerMention(msg.body) : false)
+                                            }
                                             seenLabel={seenLabel}
                                             onLightbox={setLightboxSrc}
                                             onDelete={handleDeleteMessage}

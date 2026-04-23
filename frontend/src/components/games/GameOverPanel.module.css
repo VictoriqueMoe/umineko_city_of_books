@@ -1,0 +1,35 @@
+.gameOver {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--purple-rgb), 0.25);
+    border-radius: 6px;
+    color: var(--text);
+}
+
+.result {
+    text-align: center;
+    font-size: 1.05rem;
+    color: var(--text);
+}
+
+.resultReason {
+    color: var(--text-muted);
+}
+
+.resultWin {
+    color: #78d957;
+    font-weight: 700;
+}
+
+.resultLoss {
+    color: var(--rose);
+    font-weight: 700;
+}
+
+.resultDraw {
+    color: var(--gold);
+    font-weight: 600;
+}

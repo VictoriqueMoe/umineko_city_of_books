@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { useAuth } from "../../hooks/useAuth";
 import { useNotifications } from "../../hooks/useNotifications";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import type { ChatMessage, ChatRoom, ChatRoomMember, User, WSMessage } from "../../types/api";
+import { buildMentionMatcher } from "../../utils/mentions";
 import { isSiteStaff, type SiteRole } from "../../utils/permissions";
 import {
     addChatMessageReaction,
@@ -60,6 +61,7 @@ export function RoomPage() {
     const navigate = useNavigate();
     const location = useLocation();
     const { user } = useAuth();
+    const matchesViewerMention = useMemo(() => buildMentionMatcher(user?.username), [user?.username]);
     const { addWSListener, sendWSMessage, wsEpoch } = useNotifications();
     const [room, setRoom] = useState<ChatRoom | null>(null);
     const [members, setMembers] = useState<ChatRoomMember[]>([]);
@@ -1100,6 +1102,10 @@ export function RoomPage() {
                                 message={msg}
                                 isOwn={msg.sender.id === user.id}
                                 highlighted={msg.id === highlightedMsgId}
+                                notifiesViewer={
+                                    msg.reply_to?.sender_id === user.id ||
+                                    (matchesViewerMention ? matchesViewerMention(msg.body) : false)
+                                }
                                 onLightbox={setLightboxSrc}
                                 onReply={m =>
                                     setReplyingTo({

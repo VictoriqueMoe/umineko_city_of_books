@@ -29,6 +29,7 @@ import (
 	"umineko_city_of_books/internal/email"
 	fanficsvc "umineko_city_of_books/internal/fanfic"
 	"umineko_city_of_books/internal/follow"
+	"umineko_city_of_books/internal/game/checkers"
 	"umineko_city_of_books/internal/game/chess"
 	"umineko_city_of_books/internal/gameroom"
 	"umineko_city_of_books/internal/giphy"
@@ -204,7 +205,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 	fanficSvc := fanficsvc.NewService(repos.Fanfic, repos.User, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, contentFilter)
 	journalSvc := journal.NewService(repos.Journal, repos.User, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, contentFilter)
 	secretSvc := secretsvc.NewService(repos.Secret, repos.UserSecret, repos.User, authzSvc, blockSvc, notifSvc, settingsSvc, uploadSvc, mediaProc, hub, contentFilter)
-	gameRoomSvc := gameroom.NewService(repos.GameRoom, repos.User, repos.Block, notifSvc, hub, contentFilter, []gameroom.GameHandler{chess.NewHandler()})
+	gameRoomSvc := gameroom.NewService(repos.GameRoom, repos.User, repos.Block, notifSvc, hub, contentFilter, []gameroom.GameHandler{chess.NewHandler(), checkers.NewHandler()})
 
 	return &services{
 		settings:        settingsSvc,

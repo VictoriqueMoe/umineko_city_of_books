@@ -288,3 +288,108 @@ func TestHydrate_ExposesDisconnectedAtForOfflinePlayer(t *testing.T) {
 	require.NotNil(t, p.DisconnectedAt)
 	assert.Equal(t, disconnectedAt.Format(time.RFC3339), *p.DisconnectedAt)
 }
+
+func TestClearForfeit_StopsTimerAndClearsDisconnectedAt(t *testing.T) {
+	// given: a room where player is marked disconnected with a running forfeit timer
+	m := newTestService(t)
+	roomID := uuid.New()
+	playerID := uuid.New()
+	fired := make(chan struct{}, 1)
+
+	m.svc.mu.Lock()
+	st := m.svc.stateFor(roomID)
+	st.disconnectedAt[playerID] = time.Now()
+	st.timers[playerID] = time.AfterFunc(time.Hour, func() {
+		fired <- struct{}{}
+	})
+	m.svc.mu.Unlock()
+
+	// when
+	m.svc.clearForfeit(roomID, playerID)
+
+	// then: disconnect state is cleared, timer was stopped
+	m.svc.mu.Lock()
+	_, hasDisconnect := st.disconnectedAt[playerID]
+	_, hasTimer := st.timers[playerID]
+	m.svc.mu.Unlock()
+	assert.False(t, hasDisconnect, "disconnectedAt should be cleared")
+	assert.False(t, hasTimer, "timer should be removed from map")
+
+	select {
+	case <-fired:
+		t.Fatal("stopped timer must not fire")
+	case <-time.After(50 * time.Millisecond):
+	}
+}
+
+func TestSubmitAction_ClearsDisconnectForfeitOnMove(t *testing.T) {
+	// given: an active game where it is player1's turn but player1 was flagged disconnected
+	m := newTestService(t)
+	roomID := uuid.New()
+	player1 := uuid.New()
+	player2 := uuid.New()
+
+	row := &repository.GameRoomRow{
+		ID:         roomID,
+		GameType:   string(dto.GameTypeChess),
+		Status:     string(dto.GameStatusActive),
+		StateJSON:  `{"fen":"start","pgn":""}`,
+		TurnUserID: &player1,
+		CreatedBy:  player1,
+		CreatedAt:  "2026-04-22T10:00:00Z",
+		UpdatedAt:  "2026-04-22T10:05:00Z",
+	}
+	updatedRow := *row
+	updatedRow.StateJSON = `{"fen":"after","pgn":"e4"}`
+	updatedRow.TurnUserID = &player2
+
+	m.roomRepo.EXPECT().GetRoom(mock.Anything, roomID).Return(row, nil).Once()
+	m.roomRepo.EXPECT().GetPlayerSlot(mock.Anything, roomID, player1).Return(0, nil)
+	next := 1
+	m.handler.EXPECT().
+		ValidateAction(row.StateJSON, 0, mock.Anything).
+		Return(ActionResult{NewStateJSON: updatedRow.StateJSON, NextTurnSlot: &next}, nil)
+	m.roomRepo.EXPECT().NextPly(mock.Anything, roomID).Return(1, nil)
+	m.roomRepo.EXPECT().AppendMove(mock.Anything, roomID, 1, player1, mock.Anything).Return(nil)
+	m.roomRepo.EXPECT().GetPlayers(mock.Anything, roomID).Return([]repository.GameRoomPlayerRow{
+		{UserID: player1, Slot: 0, Joined: true},
+		{UserID: player2, Slot: 1, Joined: true},
+	}, nil).Maybe()
+	m.roomRepo.EXPECT().SetState(mock.Anything, roomID, updatedRow.StateJSON, mock.Anything).Return(nil)
+	m.roomRepo.EXPECT().GetRoom(mock.Anything, roomID).Return(&updatedRow, nil).Maybe()
+	seedUser(t, m.userRepo, player1, "Alice")
+	seedUser(t, m.userRepo, player2, "Bob")
+	m.handler.EXPECT().
+		ComputeStats(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil, nil).
+		Maybe()
+	m.notifier.EXPECT().Notify(mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	// seed the disconnect state as if player1's WS had dropped moments ago
+	fired := make(chan struct{}, 1)
+	m.svc.mu.Lock()
+	st := m.svc.stateFor(roomID)
+	st.disconnectedAt[player1] = time.Now()
+	st.timers[player1] = time.AfterFunc(time.Hour, func() {
+		fired <- struct{}{}
+	})
+	m.svc.mu.Unlock()
+
+	// when: player1 submits a move via HTTP while still flagged offline
+	_, err := m.svc.SubmitAction(context.Background(), roomID, player1, json.RawMessage(`{"from":"e2","to":"e4"}`))
+
+	// then
+	require.NoError(t, err)
+	m.svc.mu.Lock()
+	_, hasDisconnect := st.disconnectedAt[player1]
+	_, hasTimer := st.timers[player1]
+	m.svc.mu.Unlock()
+	assert.False(t, hasDisconnect, "submitting a move must clear the disconnect flag")
+	assert.False(t, hasTimer, "submitting a move must stop the pending forfeit timer")
+
+	select {
+	case <-fired:
+		t.Fatal("the forfeit timer must not fire after the player moved")
+	case <-time.After(50 * time.Millisecond):
+	}
+}

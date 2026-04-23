@@ -1,0 +1,65 @@
+.status {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--purple-rgb), 0.25);
+    border-radius: 6px;
+    font-size: 0.95rem;
+    color: var(--text);
+}
+
+.statusLeft,
+.statusRight {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.statusCenter {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    gap: 0.75rem;
+}
+
+.watcherCount {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.playerDot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: rgba(var(--purple-rgb), 0.4);
+}
+
+.playerDotOn {
+    background: #78d957;
+    box-shadow: 0 0 6px #78d957;
+}
+
+.playerName {
+    font-weight: 600;
+}
+
+.colourLabel {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.turnMarker {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.turnMarkerActive {
+    color: var(--gold);
+    font-weight: 600;
+}

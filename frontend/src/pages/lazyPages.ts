@@ -106,3 +106,5 @@ export const PastGamesPage = named(() => import("./games/PastGamesPage"), "PastG
 export const GameHubPage = named(() => import("./games/GameHubPage"), "GameHubPage");
 export const NewChessGamePage = named(() => import("./games/NewChessGamePage"), "NewChessGamePage");
 export const ChessGamePage = named(() => import("./games/ChessGamePage"), "ChessGamePage");
+export const NewCheckersGamePage = named(() => import("./games/NewCheckersGamePage"), "NewCheckersGamePage");
+export const CheckersGamePage = named(() => import("./games/CheckersGamePage"), "CheckersGamePage");

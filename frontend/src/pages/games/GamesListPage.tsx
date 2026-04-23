@@ -100,10 +100,10 @@ export function GamesListPage() {
                     directly to staff.
                 </p>
                 <p>
-                    To <strong>start a game</strong>, open the hub for the game you want to play (currently{" "}
-                    <Link to="/games/chess">Chess</Link>) and hit <em>Start a new game</em>. You invite another player
-                    by username or from your mutual followers, and the match begins as soon as they accept. Each game
-                    hub has its own <em>How to play</em> panel with the rules specific to that game.
+                    To <strong>start a game</strong>, open the hub for the game you want to play and hit{" "}
+                    <em>Start a new game</em>. You invite another player by username or from your mutual followers, and
+                    the match begins as soon as they accept. Each game hub has its own <em>How to play</em> panel with
+                    the rules specific to that game.
                 </p>
             </InfoPanel>
 

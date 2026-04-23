@@ -1060,7 +1060,7 @@ export interface AnnouncementListResponse {
     offset: number;
 }
 
-export type GameType = "chess";
+export type GameType = "chess" | "checkers";
 export type GameStatus = "pending" | "active" | "finished" | "declined" | "abandoned";
 
 export interface GameRoomPlayer {
@@ -1094,11 +1094,37 @@ export interface ChessStats {
     final_fen: string;
 }
 
+export interface CheckersState {
+    board: string;
+    turn: number;
+    total_moves: number;
+    red_captures: number;
+    black_captures: number;
+    red_crownings: number;
+    black_crownings: number;
+    moves_since_capture: number;
+}
+
+export interface CheckersStats {
+    total_moves: number;
+    red_moves: number;
+    black_moves: number;
+    red_captures: number;
+    black_captures: number;
+    red_crownings: number;
+    black_crownings: number;
+    result_reason: string;
+    duration_seconds: number;
+    final_board: string;
+    red_pieces_left: number;
+    black_pieces_left: number;
+}
+
 export interface GameRoom {
     id: string;
     game_type: GameType;
     status: GameStatus;
-    state: ChessState | Record<string, unknown>;
+    state: ChessState | CheckersState | Record<string, unknown>;
     turn_user_id?: string;
     winner_user_id?: string;
     result?: string;
@@ -1108,7 +1134,7 @@ export interface GameRoom {
     finished_at?: string;
     players: GameRoomPlayer[];
     watcher_count: number;
-    stats?: ChessStats | Record<string, unknown>;
+    stats?: ChessStats | CheckersStats | Record<string, unknown>;
 }
 
 export interface SpectatorMessage {

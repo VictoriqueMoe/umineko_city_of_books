@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import * as api from "../../api/endpoints";
-import type { SpectatorMessage, WSMessage } from "../../types/api";
-import { useAuth } from "../../hooks/useAuth";
-import { useNotifications } from "../../hooks/useNotifications";
-import { Button } from "../Button/Button";
+import * as api from "../../../api/endpoints.ts";
+import type { SpectatorMessage, WSMessage } from "../../../types/api.ts";
+import { useAuth } from "../../../hooks/useAuth.ts";
+import { useNotifications } from "../../../hooks/useNotifications.ts";
+import { Button } from "../../Button/Button.tsx";
 import styles from "./SpectatorChat.module.css";
 
 interface PlayerChatProps {

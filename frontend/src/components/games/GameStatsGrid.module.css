@@ -1,0 +1,38 @@
+.statsGrid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid rgba(var(--purple-rgb), 0.25);
+}
+
+.statsHeader,
+.statsRow {
+    display: grid;
+    grid-template-columns: 1fr 2fr 1fr;
+    align-items: center;
+    text-align: center;
+    font-size: 0.95rem;
+}
+
+.statsHeader {
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.statsLabel {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+.statsFooter {
+    display: flex;
+    justify-content: space-between;
+    padding-top: 0.35rem;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    border-top: 1px dashed rgba(var(--purple-rgb), 0.2);
+}

@@ -284,20 +284,22 @@ func (r *Resolver) metaForPath(ctx context.Context, path string) *Meta {
 		}
 	}
 
-	if len(parts) == 3 && parts[0] == "games" && parts[1] == "chess" && parts[2] == "new" {
+	if len(parts) == 3 && parts[0] == "games" && parts[2] == "new" {
+		name := strings.ToUpper(parts[1][:1]) + parts[1][1:]
 		return &Meta{
-			Title:       "New Chess Game - Umineko City of Books",
-			Description: "Invite another player to a game of chess.",
-			URL:         r.baseURL + "/games/chess/new",
+			Title:       "New " + name + " Game - Umineko City of Books",
+			Description: "Invite another player to a game of " + parts[1] + ".",
+			URL:         r.baseURL + "/games/" + parts[1] + "/new",
 		}
 	}
 
-	if len(parts) == 3 && parts[0] == "games" && parts[1] == "chess" {
+	if len(parts) == 3 && parts[0] == "games" {
 		if _, err := uuid.Parse(parts[2]); err == nil {
+			name := strings.ToUpper(parts[1][:1]) + parts[1][1:]
 			return &Meta{
-				Title:       "Chess Game - Umineko City of Books",
-				Description: "A chess match between two players.",
-				URL:         fmt.Sprintf("%s/games/chess/%s", r.baseURL, parts[2]),
+				Title:       name + " Game - Umineko City of Books",
+				Description: "A " + parts[1] + " match between two players.",
+				URL:         fmt.Sprintf("%s/games/%s/%s", r.baseURL, parts[1], parts[2]),
 			}
 		}
 	}

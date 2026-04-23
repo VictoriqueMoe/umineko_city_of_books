@@ -92,7 +92,8 @@ type (
 )
 
 const (
-	GameTypeChess GameType = "chess"
+	GameTypeChess    GameType = "chess"
+	GameTypeCheckers GameType = "checkers"
 
 	GameStatusPending   GameStatus = "pending"
 	GameStatusActive    GameStatus = "active"
