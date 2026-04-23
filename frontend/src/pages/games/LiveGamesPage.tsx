@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { usePageTitle } from "../../hooks/usePageTitle";
+import { useNotifications } from "../../hooks/useNotifications";
 import * as api from "../../api/endpoints";
 import type { GameRoom } from "../../types/api";
 import styles from "./GamesPages.module.css";
 
 export function LiveGamesPage() {
     usePageTitle("Live Games");
+    const { liveGamesCount } = useNotifications();
     const [rooms, setRooms] = useState<GameRoom[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
@@ -31,7 +33,7 @@ export function LiveGamesPage() {
         return () => {
             cancelled = true;
         };
-    }, []);
+    }, [liveGamesCount]);
 
     return (
         <div className={styles.page}>
