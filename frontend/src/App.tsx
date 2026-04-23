@@ -12,6 +12,7 @@ import { CanonicalTag } from "./components/CanonicalTag/CanonicalTag";
 import { ProtectedRoute } from "./components/ProtectedRoute/ProtectedRoute";
 import { StaleVersionBanner } from "./components/StaleVersionBanner/StaleVersionBanner";
 import { Toast } from "./components/Toast/Toast";
+import { GameForfeitWarning } from "./components/GameForfeitWarning/GameForfeitWarning";
 import { MaintenancePage } from "./pages/maintenance/MaintenancePage";
 import { LandingPage } from "./pages/landing/LandingPage";
 import { linkify } from "./utils/linkify";
@@ -188,6 +189,7 @@ function AppLayout() {
                 <StaleVersionBanner />
                 <AnnouncementBanner />
                 <SecretClosedToast />
+                <GameForfeitWarning />
                 <main className="main-content">
                     <Suspense fallback={<RouteFallback />}>
                         <Routes>

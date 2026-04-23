@@ -639,14 +639,22 @@ func (s *service) HandleClientJoin(ctx context.Context, userID, roomID uuid.UUID
 	if isParticipant {
 		s.mu.Lock()
 		st := s.stateFor(roomID)
+		timerCleared := false
 		if t := st.timers[userID]; t != nil {
 			t.Stop()
 			delete(st.timers, userID)
+			timerCleared = true
 		}
 		delete(st.disconnectedAt, userID)
 		st.players[userID]++
 		s.mu.Unlock()
 		_ = s.repo.TouchPlayerSeen(ctx, roomID, userID)
+		if timerCleared {
+			s.hub.SendToUser(userID, ws.Message{
+				Type: "game_forfeit_cleared",
+				Data: map[string]any{"room_id": roomID.String()},
+			})
+		}
 	} else {
 		if row.Status == string(dto.GameStatusPending) || row.Status == string(dto.GameStatusDeclined) {
 			s.hub.LeaveTopic(gameTopic, userID)
@@ -678,12 +686,16 @@ func (s *service) HandleClientLeave(userID, roomID uuid.UUID) {
 	}
 
 	isPlayer := false
+	var warningAt time.Time
+	var timerStarted bool
 	if st.players[userID] > 0 {
 		isPlayer = true
 		st.players[userID]--
 		if st.players[userID] <= 0 {
 			delete(st.players, userID)
-			st.disconnectedAt[userID] = time.Now()
+			warningAt = time.Now()
+			st.disconnectedAt[userID] = warningAt
+			timerStarted = true
 			st.timers[userID] = time.AfterFunc(disconnectGracePeriod, func() {
 				s.graceExpired(userID, roomID)
 			})
@@ -695,6 +707,22 @@ func (s *service) HandleClientLeave(userID, roomID uuid.UUID) {
 		}
 	}
 	s.mu.Unlock()
+
+	if timerStarted {
+		gameType := "chess"
+		if row, err := s.repo.GetRoom(context.Background(), roomID); err == nil && row != nil {
+			gameType = row.GameType
+		}
+		s.hub.SendToUser(userID, ws.Message{
+			Type: "game_forfeit_warning",
+			Data: map[string]any{
+				"room_id":         roomID.String(),
+				"game_type":       gameType,
+				"disconnected_at": warningAt.UTC().Format(time.RFC3339),
+				"grace_seconds":   int(disconnectGracePeriod.Seconds()),
+			},
+		})
+	}
 
 	s.hub.LeaveTopic(gameTopic, userID)
 	if !isPlayer {
