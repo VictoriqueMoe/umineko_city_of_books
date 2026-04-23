@@ -60,11 +60,6 @@ var chatTriggers = []chatTrigger{
 		audioURL: "https://quotes.auaurora.moe/api/v1/umineko/audio/voice/46/64501228",
 		volume:   0.5,
 	},
-	{
-		text:     "<OH YEAAAAHHH>",
-		audioURL: "https://quotes.auaurora.moe/api/v1/umineko/audio/voice/46/64501228",
-		volume:   0.5,
-	},
 }
 
 var (
