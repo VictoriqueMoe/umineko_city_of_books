@@ -58,6 +58,21 @@
     text-align: center;
 }
 
+.checkBanner {
+    padding: 0.6rem 0.9rem;
+    background: rgba(220, 30, 30, 0.2);
+    border: 1px solid rgba(255, 60, 60, 0.7);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+.checkBanner strong {
+    color: #ff5a5a;
+    margin-right: 0.3rem;
+}
+
 .playerDot {
     display: inline-block;
     width: 10px;

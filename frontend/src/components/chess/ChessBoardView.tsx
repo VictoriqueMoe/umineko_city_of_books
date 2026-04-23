@@ -118,7 +118,7 @@ export function ChessBoardView({ room, viewer, isSpectator, onMove, onResign }: 
 
     const offlinePlayer =
         room.status === "active" ? room.players.find(p => !p.connected && p.disconnected_at) : undefined;
-    const now = useSecondsTick(Boolean(offlinePlayer));
+    const now = useSecondsTick(Boolean(offlinePlayer) || room.status === "active");
     const forfeitRemaining = useMemo(() => {
         if (!offlinePlayer?.disconnected_at) {
             return null;
@@ -130,6 +130,18 @@ export function ChessBoardView({ room, viewer, isSpectator, onMove, onResign }: 
         const elapsedSec = Math.floor((now - startedAt) / 1000);
         return Math.max(0, DISCONNECT_GRACE_SECONDS - elapsedSec);
     }, [offlinePlayer, now]);
+
+    const liveDurationSeconds = useMemo(() => {
+        const start = Date.parse(room.created_at);
+        if (Number.isNaN(start)) {
+            return 0;
+        }
+        const end = room.finished_at ? Date.parse(room.finished_at) : now;
+        if (Number.isNaN(end)) {
+            return 0;
+        }
+        return Math.max(0, Math.floor((end - start) / 1000));
+    }, [room.created_at, room.finished_at, now]);
 
     const game = useMemo(() => {
         const g = new Chess();
@@ -184,7 +196,9 @@ export function ChessBoardView({ room, viewer, isSpectator, onMove, onResign }: 
         }
         if (checkSquare) {
             styles[checkSquare] = {
-                background: "radial-gradient(circle, rgba(220, 60, 60, 0.65) 0%, rgba(220, 60, 60, 0) 70%)",
+                background:
+                    "radial-gradient(circle, rgba(255, 0, 0, 0.95) 0%, rgba(230, 50, 50, 0.85) 55%, rgba(180, 20, 20, 0.7) 100%)",
+                boxShadow: "inset 0 0 0 4px rgba(255, 0, 0, 0.95)",
             };
         }
         if (hoveredSquare) {
@@ -295,6 +309,9 @@ export function ChessBoardView({ room, viewer, isSpectator, onMove, onResign }: 
                     <span className={styles.watcherCount} title="Spectators watching">
                         👁 {room.watcher_count}
                     </span>
+                    <span className={styles.watcherCount} title="Game duration">
+                        ⏱ {formatDuration(liveDurationSeconds)}
+                    </span>
                 </div>
                 <div className={styles.statusRight}>
                     <span
@@ -343,6 +360,13 @@ export function ChessBoardView({ room, viewer, isSpectator, onMove, onResign }: 
                     }}
                 />
             </div>
+
+            {checkSquare && (
+                <div className={styles.checkBanner}>
+                    <strong>Check!</strong> The highlighted king is under attack and must be moved out of check, or
+                    blocked, or the attacking piece captured.
+                </div>
+            )}
 
             {(() => {
                 const isOver = room.status === "finished" || room.status === "abandoned";
@@ -397,7 +421,7 @@ export function ChessBoardView({ room, viewer, isSpectator, onMove, onResign }: 
                                 </div>
                                 <div className={styles.statsFooter}>
                                     <span>Total ply: {room.stats.total_ply}</span>
-                                    <span>Duration: {formatDuration(room.stats.duration_seconds)}</span>
+                                    <span>Duration: {formatDuration(liveDurationSeconds)}</span>
                                 </div>
                             </div>
                         )}
