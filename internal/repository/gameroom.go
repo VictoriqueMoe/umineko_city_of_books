@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"umineko_city_of_books/internal/dto"
 
@@ -62,6 +63,7 @@ type (
 		ListFinished(ctx context.Context, gameType string, limit, offset int) ([]GameRoomRow, int, error)
 		CountLive(ctx context.Context) (int, error)
 		Scoreboard(ctx context.Context, gameType string) ([]ScoreboardRow, error)
+		ListIdleActive(ctx context.Context, idleSince time.Time) ([]GameRoomRow, error)
 	}
 
 	ScoreboardRow struct {
@@ -390,6 +392,32 @@ func (r *gameRoomRepository) Scoreboard(ctx context.Context, gameType string) ([
 			return nil, fmt.Errorf("scan scoreboard: %w", err)
 		}
 		out = append(out, sr)
+	}
+	return out, rows.Err()
+}
+
+func (r *gameRoomRepository) ListIdleActive(ctx context.Context, idleSince time.Time) ([]GameRoomRow, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT id, game_type, status, state_json, turn_user_id, winner_user_id, result, created_by, created_at, updated_at, finished_at
+         FROM game_rooms WHERE status = 'active' AND updated_at < ?`,
+		idleSince.UTC().Format("2006-01-02 15:04:05"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list idle active rooms: %w", err)
+	}
+	defer rows.Close()
+
+	var out []GameRoomRow
+	for rows.Next() {
+		var row GameRoomRow
+		var result sql.NullString
+		if err := rows.Scan(&row.ID, &row.GameType, &row.Status, &row.StateJSON, &row.TurnUserID, &row.WinnerID, &result, &row.CreatedBy, &row.CreatedAt, &row.UpdatedAt, &row.FinishedAt); err != nil {
+			return nil, fmt.Errorf("scan idle active room: %w", err)
+		}
+		if result.Valid {
+			row.Result = result.String
+		}
+		out = append(out, row)
 	}
 	return out, rows.Err()
 }

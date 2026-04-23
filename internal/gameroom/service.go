@@ -21,6 +21,7 @@ import (
 
 const (
 	disconnectGracePeriod = 60 * time.Second
+	idleGameTimeout       = 10 * time.Minute
 	maxChatMessages       = 200
 	maxChatBodyLen        = 500
 )
@@ -56,6 +57,7 @@ type (
 		GetPlayerChat(ctx context.Context, roomID, viewerID uuid.UUID) (*dto.SpectatorChatResponse, error)
 		HandleClientJoin(ctx context.Context, userID, roomID uuid.UUID)
 		HandleClientLeave(userID, roomID uuid.UUID)
+		CancelIdleGames(ctx context.Context) (int, error)
 	}
 
 	roomState struct {
@@ -808,19 +810,28 @@ func (s *service) HandleClientLeave(userID, roomID uuid.UUID) {
 	s.mu.Unlock()
 
 	if timerStarted {
-		gameType := "chess"
-		if row, err := s.repo.GetRoom(context.Background(), roomID); err == nil && row != nil {
-			gameType = row.GameType
+		row, err := s.repo.GetRoom(context.Background(), roomID)
+		if err == nil && row != nil && row.Status == string(dto.GameStatusActive) {
+			s.hub.SendToUser(userID, ws.Message{
+				Type: "game_forfeit_warning",
+				Data: map[string]any{
+					"room_id":         roomID.String(),
+					"game_type":       row.GameType,
+					"disconnected_at": warningAt.UTC().Format(time.RFC3339),
+					"grace_seconds":   int(disconnectGracePeriod.Seconds()),
+				},
+			})
+		} else {
+			s.mu.Lock()
+			if st, ok := s.rooms[roomID]; ok {
+				if t := st.timers[userID]; t != nil {
+					t.Stop()
+					delete(st.timers, userID)
+				}
+				delete(st.disconnectedAt, userID)
+			}
+			s.mu.Unlock()
 		}
-		s.hub.SendToUser(userID, ws.Message{
-			Type: "game_forfeit_warning",
-			Data: map[string]any{
-				"room_id":         roomID.String(),
-				"game_type":       gameType,
-				"disconnected_at": warningAt.UTC().Format(time.RFC3339),
-				"grace_seconds":   int(disconnectGracePeriod.Seconds()),
-			},
-		})
 	}
 
 	s.hub.LeaveTopic(gameTopic, userID)
@@ -828,6 +839,30 @@ func (s *service) HandleClientLeave(userID, roomID uuid.UUID) {
 		s.hub.LeaveTopic("spectator-chat:"+roomID.String(), userID)
 	}
 	s.broadcastPresence(roomID, userID, false, isPlayer)
+}
+
+func (s *service) CancelIdleGames(ctx context.Context) (int, error) {
+	idleSince := time.Now().Add(-idleGameTimeout)
+	rows, err := s.repo.ListIdleActive(ctx, idleSince)
+	if err != nil {
+		return 0, err
+	}
+	count := 0
+	for _, row := range rows {
+		if err := s.repo.FinishRoom(ctx, row.ID, string(dto.GameStatusAbandoned), nil, "timeout", row.StateJSON); err != nil {
+			logger.Log.Warn().Err(err).Str("room_id", row.ID.String()).Msg("cancel idle game")
+			continue
+		}
+		room, err := s.loadRoom(ctx, row.ID)
+		if err == nil {
+			s.broadcast(room, "game_room_finished", map[string]any{"reason": "timeout"})
+		}
+		count++
+	}
+	if count > 0 {
+		s.broadcastLiveGamesCount(ctx)
+	}
+	return count, nil
 }
 
 func (s *service) graceExpired(userID, roomID uuid.UUID) {

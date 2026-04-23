@@ -293,6 +293,22 @@ func registerListeners(settingsSvc settings.Service, app *fiber.App, svc *servic
 			}
 		}
 	}()
+
+	logger.Log.Info().Str("interval", "5m").Msg("registered job: cancel idle games")
+	go func() {
+		ticker := time.NewTicker(5 * time.Minute)
+		defer ticker.Stop()
+		for range ticker.C {
+			n, err := svc.gameRoom.CancelIdleGames(context.Background())
+			if err != nil {
+				logger.Log.Error().Err(err).Msg("cancel idle games failed")
+				continue
+			}
+			if n > 0 {
+				logger.Log.Info().Int("count", n).Msg("cancelled idle games")
+			}
+		}
+	}()
 }
 
 func initApp(svc *services, repos *repository.Repositories, settingsSvc settings.Service) *fiber.App {

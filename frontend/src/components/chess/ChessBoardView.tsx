@@ -43,6 +43,8 @@ function formatReason(reason: string): string {
             return "by resignation";
         case "abandoned":
             return "by abandonment";
+        case "timeout":
+            return "due to inactivity";
         case "stalemate":
             return "by stalemate";
         case "insufficient_material":
@@ -92,6 +94,9 @@ function resultLabel(
 ): { text: string; tone: "win" | "loss" | "draw" | "neutral" } {
     if (room.status !== "finished" && room.status !== "abandoned") {
         return { text: "", tone: "neutral" };
+    }
+    if (room.result === "timeout") {
+        return { text: "Game cancelled", tone: "draw" };
     }
     if (!room.winner_user_id) {
         return { text: "Draw", tone: "draw" };

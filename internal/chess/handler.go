@@ -180,6 +180,9 @@ func classifyResult(result string, game *chesslib.Game) string {
 	if result == "abandoned" {
 		return "abandoned"
 	}
+	if result == "timeout" {
+		return "timeout"
+	}
 	if result == "resign" || result == "resigned" {
 		return "resignation"
 	}
