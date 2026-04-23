@@ -522,6 +522,22 @@
 }
 
 .roomInfoToggle {
+    display: block;
+    width: 100%;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    padding: 0.4rem 1.25rem;
+    cursor: pointer;
+    text-align: center;
+}
+
+.roomInfoToggle:hover {
+    color: var(--gold);
+}
+
+.roomInfoCollapsible:not([data-expanded="true"]) .roomInfoContent {
     display: none;
 }
 
@@ -640,26 +656,6 @@
     }
 
     .sidebarToggleBtn {
-        display: none;
-    }
-
-    .roomInfoToggle {
-        display: block;
-        width: 100%;
-        background: none;
-        border: none;
-        color: var(--text-muted);
-        font-size: 0.75rem;
-        padding: 0.4rem 1.25rem;
-        cursor: pointer;
-        text-align: center;
-    }
-
-    .roomInfoToggle:hover {
-        color: var(--gold);
-    }
-
-    .roomInfoCollapsible:not([data-expanded="true"]) .roomInfoContent {
         display: none;
     }
 

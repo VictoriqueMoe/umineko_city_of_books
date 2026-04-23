@@ -34,5 +34,6 @@ type (
 		InitialState(roomID uuid.UUID, players []dto.GameRoomPlayer) (stateJSON string, firstTurnSlot int, err error)
 		ValidateAction(stateJSON string, actorSlot int, action json.RawMessage) (ActionResult, error)
 		OnGraceExpired(stateJSON string, playerSlot int) DisconnectResult
+		ComputeStats(stateJSON, result, createdAt, finishedAt string) (any, error)
 	}
 )

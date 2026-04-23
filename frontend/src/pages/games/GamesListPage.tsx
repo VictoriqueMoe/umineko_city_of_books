@@ -6,6 +6,7 @@ import * as api from "../../api/endpoints";
 import type { GameRoom } from "../../types/api";
 import { GAME_TYPES, gameTypeLabel } from "../../games/registry";
 import { Button } from "../../components/Button/Button";
+import { InfoPanel } from "../../components/InfoPanel/InfoPanel";
 import styles from "./GamesPages.module.css";
 
 function statusBadgeClass(status: string): string {
@@ -91,6 +92,20 @@ export function GamesListPage() {
     return (
         <div className={styles.page}>
             <h2 className={styles.heading}>My Games</h2>
+
+            <InfoPanel title="Games are in beta">
+                <p>
+                    The Games feature is brand new and still being iterated on. Rules, UI and the data layout for saved
+                    games may change. If something misbehaves or feels off, please report it on the suggestions page or
+                    directly to staff.
+                </p>
+                <p>
+                    To <strong>start a game</strong>, open the hub for the game you want to play (currently{" "}
+                    <Link to="/games/chess">Chess</Link>) and hit <em>Start a new game</em>. You invite another player
+                    by username or from your mutual followers, and the match begins as soon as they accept. Each game
+                    hub has its own <em>How to play</em> panel with the rules specific to that game.
+                </p>
+            </InfoPanel>
 
             <div className={styles.actions}>
                 <Link to="/games/live">

@@ -9,9 +9,7 @@ import {
     addChatMessageReaction,
     banChatRoomMember,
     clearChatRoomMemberTimeout,
-    deleteChatMessage,
     deleteChatRoom,
-    editChatMessage,
     getChatRoomMembers,
     getUserRooms,
     joinChatRoom,
@@ -26,6 +24,7 @@ import {
     unlockChatRoomMemberNickname,
     unpinChatMessage,
 } from "../../api/endpoints";
+import { useChatMessageHandlers } from "../../hooks/useChatMessageHandlers";
 import { useMessageHistory } from "../../hooks/useMessageHistory";
 import { usePresenceReporter } from "../../hooks/usePresenceReporter";
 import { useTypingIndicator } from "../../hooks/useTypingIndicator";
@@ -41,15 +40,13 @@ import { Lightbox } from "../../components/Lightbox/Lightbox";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import {
     applyChatMemberUpdate,
-    applyChatMessageDeleted,
-    applyChatMessageEdited,
     applyChatMessagePinned,
     applyChatMessageUnpinned,
     applyLocalMemberChange,
     applyReactionAdded,
     applyReactionRemoved,
+    applySharedChatWSBranch,
     ChatMemberUpdatedPayload,
-    ChatMessageDeletedPayload,
     ChatMessagePinnedPayload,
     ChatMessageUnpinnedPayload,
     ChatReactionPayload,
@@ -112,7 +109,42 @@ export function RoomPage() {
         setPresenceMap({});
         resetTyping();
     }, [roomId, resetTyping]);
-    const [descExpanded, setDescExpanded] = useState(false);
+
+    const roomInfoStorageKey = roomId ? `roomInfoExpanded:${roomId}` : null;
+    const [descExpanded, setDescExpanded] = useState<boolean>(() => {
+        if (typeof window === "undefined") {
+            return true;
+        }
+        if (roomInfoStorageKey) {
+            const stored = window.localStorage.getItem(roomInfoStorageKey);
+            if (stored !== null) {
+                return stored === "true";
+            }
+        }
+        return window.matchMedia("(min-width: 769px)").matches;
+    });
+
+    useEffect(() => {
+        if (!roomInfoStorageKey) {
+            return;
+        }
+        const stored = window.localStorage.getItem(roomInfoStorageKey);
+        if (stored !== null) {
+            setDescExpanded(stored === "true");
+            return;
+        }
+        setDescExpanded(window.matchMedia("(min-width: 769px)").matches);
+    }, [roomInfoStorageKey]);
+
+    function toggleDescExpanded() {
+        setDescExpanded(prev => {
+            const next = !prev;
+            if (roomInfoStorageKey) {
+                window.localStorage.setItem(roomInfoStorageKey, next ? "true" : "false");
+            }
+            return next;
+        });
+    }
     const [pinnedOpen, setPinnedOpen] = useState(false);
     const [pinnedRefreshKey, setPinnedRefreshKey] = useState(0);
     const [editProfileOpen, setEditProfileOpen] = useState(false);
@@ -146,6 +178,19 @@ export function RoomPage() {
 
     const targetMsgId = location.hash.startsWith("#msg-") ? location.hash.slice(5) : null;
     const pendingTargetMsgId = targetMsgId && handledHashRef.current !== targetMsgId ? targetMsgId : null;
+
+    const currentMember = members.find(m => m.user.id === user?.id) ?? null;
+    const viewerTimeoutUntil = currentMember?.timeout_until ?? undefined;
+    const viewerTimedOut = viewerTimeoutUntil ? new Date(viewerTimeoutUntil).getTime() > Date.now() : false;
+
+    const { handleDeleteMessage, handleEditMessage, handleEditLast } = useChatMessageHandlers({
+        user,
+        messages,
+        setMessages,
+        setEditingMessageId,
+        onError: (msg: string) => setToast(msg),
+        editLastBlocked: viewerTimedOut,
+    });
 
     usePageTitle(room?.name ?? "Chat Room");
 
@@ -382,22 +427,6 @@ export function RoomPage() {
                 applyReactionRemoved(data, user.id, setMessages);
                 return;
             }
-            if (msg.type === "chat_message_deleted") {
-                const data = msg.data as ChatMessageDeletedPayload;
-                if (data.room_id !== roomIdRef.current) {
-                    return;
-                }
-                applyChatMessageDeleted(data, setMessages);
-                return;
-            }
-            if (msg.type === "chat_message_edited") {
-                const updated = msg.data as ChatMessage;
-                if (updated.room_id !== roomIdRef.current) {
-                    return;
-                }
-                applyChatMessageEdited(updated, setMessages);
-                return;
-            }
             if (msg.type === "chat_presence_changed") {
                 const data = msg.data as { room_id: string; user_id: string; state: string };
                 if (data.room_id !== roomIdRef.current) {
@@ -414,12 +443,13 @@ export function RoomPage() {
                 });
                 return;
             }
-            if (msg.type === "typing") {
-                const data = msg.data as { room_id: string; user_id: string };
-                if (data.room_id !== roomIdRef.current) {
-                    return;
-                }
-                noteTyping(data.user_id);
+            if (
+                applySharedChatWSBranch(msg, {
+                    activeRoomId: roomIdRef.current ?? null,
+                    setMessages,
+                    noteTyping,
+                })
+            ) {
                 return;
             }
             if (msg.type === "chat_message") {
@@ -682,44 +712,6 @@ export function RoomPage() {
         }
     }
 
-    async function handleDeleteMessage(message: ChatMessage) {
-        try {
-            await deleteChatMessage(message.id);
-            setMessages(prev => prev.filter(m => m.id !== message.id));
-        } catch (err) {
-            setToast(err instanceof Error ? err.message : "Failed to delete message");
-        }
-    }
-
-    async function handleEditMessage(message: ChatMessage, newBody: string) {
-        try {
-            const updated = await editChatMessage(message.id, newBody);
-            applyChatMessageEdited(updated, setMessages);
-        } catch (err) {
-            setToast(err instanceof Error ? err.message : "Failed to edit message");
-            throw err;
-        }
-    }
-
-    function handleEditLast() {
-        if (!user || viewerTimedOut) {
-            return;
-        }
-        for (let i = messages.length - 1; i >= 0; i--) {
-            const candidate = messages[i];
-            if (candidate.sender.id === user.id && !candidate.is_system) {
-                setEditingMessageId(candidate.id);
-                requestAnimationFrame(() => {
-                    const el = document.getElementById(`chat-msg-${candidate.id}`);
-                    if (el) {
-                        el.scrollIntoView({ behavior: "smooth", block: "center" });
-                    }
-                });
-                return;
-            }
-        }
-    }
-
     async function handlePinToggle(message: ChatMessage) {
         try {
             if (message.pinned) {
@@ -783,9 +775,6 @@ export function RoomPage() {
     const isSystem = room.is_system;
     const isSiteMod = isSiteStaff(user.role);
     const canModerateRoom = isHost || isSiteMod;
-    const currentMember = members.find(m => m.user.id === user.id) ?? null;
-    const viewerTimeoutUntil = currentMember?.timeout_until ?? undefined;
-    const viewerTimedOut = viewerTimeoutUntil ? new Date(viewerTimeoutUntil).getTime() > Date.now() : false;
 
     return (
         <div className={styles.roomWrapper}>
@@ -1078,11 +1067,7 @@ export function RoomPage() {
                     </div>
                     {(room.description || (room.tags && room.tags.length > 0)) && (
                         <div className={styles.roomInfoCollapsible} data-expanded={descExpanded}>
-                            <button
-                                type="button"
-                                className={styles.roomInfoToggle}
-                                onClick={() => setDescExpanded(prev => !prev)}
-                            >
+                            <button type="button" className={styles.roomInfoToggle} onClick={toggleDescExpanded}>
                                 {descExpanded ? "Hide info \u25B2" : "Show info \u25BC"}
                             </button>
                             <div className={styles.roomInfoContent}>

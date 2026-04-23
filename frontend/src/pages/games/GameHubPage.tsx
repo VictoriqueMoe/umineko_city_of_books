@@ -6,6 +6,7 @@ import * as api from "../../api/endpoints";
 import type { GameRoom, GameScoreboardResponse } from "../../types/api";
 import { gameTypeFor } from "../../games/registry";
 import { Button } from "../../components/Button/Button";
+import { InfoPanel } from "../../components/InfoPanel/InfoPanel";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import styles from "./GamesPages.module.css";
 
@@ -62,6 +63,14 @@ export function GameHubPage() {
             <h2 className={styles.heading}>{def.label}</h2>
             <p className={styles.subline}>{def.tagline}</p>
 
+            {def.howToPlay && def.howToPlay.length > 0 && (
+                <InfoPanel title={`How to play ${def.label.toLowerCase()}`}>
+                    {def.howToPlay.map((line, i) => (
+                        <p key={i}>{line}</p>
+                    ))}
+                </InfoPanel>
+            )}
+
             <div className={styles.actions}>
                 {user ? (
                     <Link to={def.newPath}>
@@ -74,6 +83,9 @@ export function GameHubPage() {
                 )}
                 <Link to="/games/live">
                     <Button variant="ghost">Live games</Button>
+                </Link>
+                <Link to="/games/past">
+                    <Button variant="ghost">Past games</Button>
                 </Link>
             </div>
 

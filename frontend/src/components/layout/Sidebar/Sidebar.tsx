@@ -39,12 +39,18 @@ const NEW_THEORY_LINKS = [
 
 const GAMES_LINKS = [
     { path: "/games/live", label: "Live Games", authRequired: false },
+    { path: "/games/past", label: "Past Games", authRequired: false },
     { path: "/games", label: "My Games", authRequired: true },
 ];
 
 export function Sidebar({ open, onClose }: SidebarProps) {
     const { user } = useAuth();
-    const { addWSListener, unreadCount: unreadNotifs, chatUnreadCount: unreadChat } = useNotifications();
+    const {
+        addWSListener,
+        unreadCount: unreadNotifs,
+        chatUnreadCount: unreadChat,
+        liveGamesCount,
+    } = useNotifications();
     const location = useLocation();
     const [newAnnouncement, setNewAnnouncement] = useState(false);
     const isRyukishiPath = RYUKISHI_CORNERS.some(c => location.pathname === c.path);
@@ -324,6 +330,11 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                                         onClick={onClose}
                                     >
                                         {l.label}
+                                        {l.path === "/games/live" && liveGamesCount > 0 && (
+                                            <span className={styles.chatBadge}>
+                                                {liveGamesCount > 99 ? "99+" : liveGamesCount}
+                                            </span>
+                                        )}
                                     </NavLink>
                                 ))}
                             </div>

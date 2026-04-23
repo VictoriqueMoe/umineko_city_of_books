@@ -177,6 +177,66 @@ func (_c *MockService_Cancel_Call) RunAndReturn(run func(ctx context.Context, ro
 	return _c
 }
 
+// CountLive provides a mock function for the type MockService
+func (_mock *MockService) CountLive(ctx context.Context) (int, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CountLive")
+	}
+
+	var r0 int
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (int, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) int); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_CountLive_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CountLive'
+type MockService_CountLive_Call struct {
+	*mock.Call
+}
+
+// CountLive is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockService_Expecter) CountLive(ctx interface{}) *MockService_CountLive_Call {
+	return &MockService_CountLive_Call{Call: _e.mock.On("CountLive", ctx)}
+}
+
+func (_c *MockService_CountLive_Call) Run(run func(ctx context.Context)) *MockService_CountLive_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_CountLive_Call) Return(n int, err error) *MockService_CountLive_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *MockService_CountLive_Call) RunAndReturn(run func(ctx context.Context) (int, error)) *MockService_CountLive_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Decline provides a mock function for the type MockService
 func (_mock *MockService) Decline(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) error {
 	ret := _mock.Called(ctx, roomID, userID)
@@ -630,6 +690,86 @@ func (_c *MockService_List_Call) Return(gameRoomListResponse *dto.GameRoomListRe
 }
 
 func (_c *MockService_List_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, filter ListFilter) (*dto.GameRoomListResponse, error)) *MockService_List_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListFinished provides a mock function for the type MockService
+func (_mock *MockService) ListFinished(ctx context.Context, gameType dto.GameType, limit int, offset int) (*dto.GameRoomListResponse, error) {
+	ret := _mock.Called(ctx, gameType, limit, offset)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListFinished")
+	}
+
+	var r0 *dto.GameRoomListResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, dto.GameType, int, int) (*dto.GameRoomListResponse, error)); ok {
+		return returnFunc(ctx, gameType, limit, offset)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, dto.GameType, int, int) *dto.GameRoomListResponse); ok {
+		r0 = returnFunc(ctx, gameType, limit, offset)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dto.GameRoomListResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, dto.GameType, int, int) error); ok {
+		r1 = returnFunc(ctx, gameType, limit, offset)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_ListFinished_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListFinished'
+type MockService_ListFinished_Call struct {
+	*mock.Call
+}
+
+// ListFinished is a helper method to define mock.On call
+//   - ctx context.Context
+//   - gameType dto.GameType
+//   - limit int
+//   - offset int
+func (_e *MockService_Expecter) ListFinished(ctx interface{}, gameType interface{}, limit interface{}, offset interface{}) *MockService_ListFinished_Call {
+	return &MockService_ListFinished_Call{Call: _e.mock.On("ListFinished", ctx, gameType, limit, offset)}
+}
+
+func (_c *MockService_ListFinished_Call) Run(run func(ctx context.Context, gameType dto.GameType, limit int, offset int)) *MockService_ListFinished_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 dto.GameType
+		if args[1] != nil {
+			arg1 = args[1].(dto.GameType)
+		}
+		var arg2 int
+		if args[2] != nil {
+			arg2 = args[2].(int)
+		}
+		var arg3 int
+		if args[3] != nil {
+			arg3 = args[3].(int)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_ListFinished_Call) Return(gameRoomListResponse *dto.GameRoomListResponse, err error) *MockService_ListFinished_Call {
+	_c.Call.Return(gameRoomListResponse, err)
+	return _c
+}
+
+func (_c *MockService_ListFinished_Call) RunAndReturn(run func(ctx context.Context, gameType dto.GameType, limit int, offset int) (*dto.GameRoomListResponse, error)) *MockService_ListFinished_Call {
 	_c.Call.Return(run)
 	return _c
 }

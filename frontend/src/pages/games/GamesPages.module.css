@@ -95,6 +95,19 @@
     color: var(--text-muted);
 }
 
+.pager {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding-top: 0.5rem;
+}
+
+.pagerInfo {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
 .inviteActions {
     display: flex;
     gap: 0.4rem;

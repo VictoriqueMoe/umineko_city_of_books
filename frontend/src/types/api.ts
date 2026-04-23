@@ -1072,12 +1072,26 @@ export interface GameRoomPlayer {
     slot: number;
     joined: boolean;
     connected: boolean;
+    disconnected_at?: string;
     user: User;
 }
 
 export interface ChessState {
     fen: string;
     pgn: string;
+}
+
+export interface ChessStats {
+    total_ply: number;
+    white_moves: number;
+    black_moves: number;
+    white_captures: number;
+    black_captures: number;
+    white_checks: number;
+    black_checks: number;
+    result_reason: string;
+    duration_seconds: number;
+    final_fen: string;
 }
 
 export interface GameRoom {
@@ -1094,6 +1108,7 @@ export interface GameRoom {
     finished_at?: string;
     players: GameRoomPlayer[];
     watcher_count: number;
+    stats?: ChessStats | Record<string, unknown>;
 }
 
 export interface SpectatorMessage {

@@ -258,6 +258,14 @@ func (r *Resolver) metaForPath(ctx context.Context, path string) *Meta {
 		}
 	}
 
+	if len(parts) == 2 && parts[0] == "games" && parts[1] == "past" {
+		return &Meta{
+			Title:       "Past Games - Umineko City of Books",
+			Description: "Every finished match on the site. Review final positions, move histories and per-game stats.",
+			URL:         r.baseURL + "/games/past",
+		}
+	}
+
 	if len(parts) == 2 && parts[0] == "games" {
 		game := parts[1]
 		name := strings.ToUpper(game[:1]) + game[1:]

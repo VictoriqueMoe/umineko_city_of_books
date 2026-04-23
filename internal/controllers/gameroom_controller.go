@@ -17,6 +17,7 @@ func (s *Service) getAllGameRoomRoutes() []FSetupRoute {
 		s.setupInviteGameRoute,
 		s.setupListGameRoomsRoute,
 		s.setupListLiveGameRoomsRoute,
+		s.setupListFinishedGameRoomsRoute,
 		s.setupGetGameRoomRoute,
 		s.setupAcceptGameRoute,
 		s.setupDeclineGameRoute,
@@ -39,6 +40,10 @@ func (s *Service) setupListGameRoomsRoute(r fiber.Router) {
 
 func (s *Service) setupListLiveGameRoomsRoute(r fiber.Router) {
 	r.Get("/game-rooms/live", s.listLiveGameRooms)
+}
+
+func (s *Service) setupListFinishedGameRoomsRoute(r fiber.Router) {
+	r.Get("/game-rooms/finished", s.listFinishedGameRooms)
 }
 
 func (s *Service) setupGetGameRoomRoute(r fiber.Router) {
@@ -157,6 +162,17 @@ func (s *Service) getGameRoom(ctx fiber.Ctx) error {
 func (s *Service) listLiveGameRooms(ctx fiber.Ctx) error {
 	gameType := dto.GameType(ctx.Query("game_type"))
 	resp, err := s.GameRoomService.ListLive(ctx.Context(), gameType, 50, 0)
+	if err != nil {
+		return gameRoomError(ctx, err)
+	}
+	return ctx.JSON(resp)
+}
+
+func (s *Service) listFinishedGameRooms(ctx fiber.Ctx) error {
+	gameType := dto.GameType(ctx.Query("game_type"))
+	limit := fiber.Query[int](ctx, "limit", 20)
+	offset := fiber.Query[int](ctx, "offset", 0)
+	resp, err := s.GameRoomService.ListFinished(ctx.Context(), gameType, limit, offset)
 	if err != nil {
 		return gameRoomError(ctx, err)
 	}

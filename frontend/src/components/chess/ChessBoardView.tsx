@@ -1,9 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Chess } from "chess.js";
 import { Chessboard } from "react-chessboard";
-import type { ChessState, GameRoom, User } from "../../types/api";
+import type { ChessState, ChessStats, GameRoom, User } from "../../types/api";
 import { Button } from "../Button/Button";
 import styles from "./ChessBoardView.module.css";
+
+const DISCONNECT_GRACE_SECONDS = 60;
 
 interface ChessBoardViewProps {
     room: GameRoom;
@@ -13,12 +15,74 @@ interface ChessBoardViewProps {
     onResign: () => Promise<void>;
 }
 
+function useSecondsTick(active: boolean): number {
+    const [now, setNow] = useState(() => Date.now());
+    useEffect(() => {
+        if (!active) {
+            return;
+        }
+        const id = window.setInterval(() => setNow(Date.now()), 1000);
+        return () => window.clearInterval(id);
+    }, [active]);
+    return now;
+}
+
 function getMySlot(room: GameRoom, viewerId: string | null): number | null {
     if (!viewerId) {
         return null;
     }
     const me = room.players.find(p => p.user_id === viewerId);
     return me ? me.slot : null;
+}
+
+function formatReason(reason: string): string {
+    switch (reason) {
+        case "checkmate":
+            return "by checkmate";
+        case "resignation":
+            return "by resignation";
+        case "abandoned":
+            return "by abandonment";
+        case "stalemate":
+            return "by stalemate";
+        case "insufficient_material":
+            return "by insufficient material";
+        case "fifty_move_rule":
+            return "by fifty-move rule";
+        case "repetition":
+            return "by threefold repetition";
+        case "draw_agreed":
+            return "by agreement";
+        case "win":
+            return "";
+        case "draw":
+            return "";
+        default:
+            return reason ? `by ${reason.replace(/_/g, " ")}` : "";
+    }
+}
+
+function formatDuration(seconds: number): string {
+    if (!seconds || seconds < 0) {
+        return "-";
+    }
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    if (h > 0) {
+        return `${h}h ${m}m`;
+    }
+    if (m > 0) {
+        return `${m}m ${s}s`;
+    }
+    return `${s}s`;
+}
+
+function isChessStats(x: unknown): x is ChessStats {
+    if (!x || typeof x !== "object") {
+        return false;
+    }
+    return "total_ply" in x && "white_moves" in x;
 }
 
 function resultLabel(
@@ -51,6 +115,21 @@ export function ChessBoardView({ room, viewer, isSpectator, onMove, onResign }: 
     const mySlot = getMySlot(room, viewerId);
     const orientation: "white" | "black" = mySlot === 1 ? "black" : "white";
     const isMyTurn = !isSpectator && viewerId !== null && room.turn_user_id === viewerId && room.status === "active";
+
+    const offlinePlayer =
+        room.status === "active" ? room.players.find(p => !p.connected && p.disconnected_at) : undefined;
+    const now = useSecondsTick(Boolean(offlinePlayer));
+    const forfeitRemaining = useMemo(() => {
+        if (!offlinePlayer?.disconnected_at) {
+            return null;
+        }
+        const startedAt = Date.parse(offlinePlayer.disconnected_at);
+        if (Number.isNaN(startedAt)) {
+            return null;
+        }
+        const elapsedSec = Math.floor((now - startedAt) / 1000);
+        return Math.max(0, DISCONNECT_GRACE_SECONDS - elapsedSec);
+    }, [offlinePlayer, now]);
 
     const game = useMemo(() => {
         const g = new Chess();
@@ -141,11 +220,31 @@ export function ChessBoardView({ room, viewer, isSpectator, onMove, onResign }: 
                         {room.turn_user_id === black?.user_id && room.status === "active" ? "to move" : ""}
                     </span>
                 </div>
+                <div className={styles.statusCenter}>
+                    <span className={styles.watcherCount} title="Spectators watching">
+                        👁 {room.watcher_count}
+                    </span>
+                </div>
                 <div className={styles.statusRight}>
+                    <span
+                        className={`${styles.turnMarker} ${
+                            room.turn_user_id === white?.user_id && room.status === "active"
+                                ? styles.turnMarkerActive
+                                : ""
+                        }`}
+                    >
+                        {room.turn_user_id === white?.user_id && room.status === "active" ? "to move" : ""}
+                    </span>
                     <span className={styles.playerName}>{white?.display_name ?? "White"}</span>
                     <span className={`${styles.playerDot} ${white?.connected ? styles.playerDotOn : ""}`} />
                 </div>
             </div>
+
+            {offlinePlayer && forfeitRemaining !== null && (
+                <div className={styles.disconnectBanner}>
+                    {offlinePlayer.display_name} disconnected — forfeits in {forfeitRemaining}s
+                </div>
+            )}
 
             {error && <div className={styles.error}>{error}</div>}
 
@@ -164,19 +263,51 @@ export function ChessBoardView({ room, viewer, isSpectator, onMove, onResign }: 
             </div>
 
             {room.status === "finished" && (
-                <div className={styles.result}>
-                    <span
-                        className={
-                            result.tone === "win"
-                                ? styles.resultWin
-                                : result.tone === "loss"
-                                  ? styles.resultLoss
-                                  : styles.resultDraw
-                        }
-                    >
-                        {result.text}
-                    </span>
-                    {room.result && <span> ({room.result})</span>}
+                <div className={styles.gameOver}>
+                    <div className={styles.result}>
+                        <span
+                            className={
+                                result.tone === "win"
+                                    ? styles.resultWin
+                                    : result.tone === "loss"
+                                      ? styles.resultLoss
+                                      : styles.resultDraw
+                            }
+                        >
+                            {result.text}
+                        </span>
+                        {isChessStats(room.stats) && room.stats.result_reason && (
+                            <span className={styles.resultReason}> {formatReason(room.stats.result_reason)}</span>
+                        )}
+                    </div>
+                    {isChessStats(room.stats) && (
+                        <div className={styles.statsGrid}>
+                            <div className={styles.statsHeader}>
+                                <span>{white?.display_name ?? "White"}</span>
+                                <span />
+                                <span>{black?.display_name ?? "Black"}</span>
+                            </div>
+                            <div className={styles.statsRow}>
+                                <span>{room.stats.white_moves}</span>
+                                <span className={styles.statsLabel}>Moves</span>
+                                <span>{room.stats.black_moves}</span>
+                            </div>
+                            <div className={styles.statsRow}>
+                                <span>{room.stats.white_captures}</span>
+                                <span className={styles.statsLabel}>Captures</span>
+                                <span>{room.stats.black_captures}</span>
+                            </div>
+                            <div className={styles.statsRow}>
+                                <span>{room.stats.white_checks}</span>
+                                <span className={styles.statsLabel}>Checks given</span>
+                                <span>{room.stats.black_checks}</span>
+                            </div>
+                            <div className={styles.statsFooter}>
+                                <span>Total ply: {room.stats.total_ply}</span>
+                                <span>Duration: {formatDuration(room.stats.duration_seconds)}</span>
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
 

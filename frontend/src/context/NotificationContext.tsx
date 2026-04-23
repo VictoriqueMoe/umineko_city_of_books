@@ -13,6 +13,7 @@ export function NotificationProvider({ children }: PropsWithChildren) {
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [chatUnreadCount, setChatUnreadCount] = useState(0);
+    const [liveGamesCount, setLiveGamesCount] = useState(0);
     const [loading, setLoading] = useState(false);
     const [wsEpoch, setWsEpoch] = useState(0);
     const wsRef = useRef<WebSocket | null>(null);
@@ -82,6 +83,12 @@ export function NotificationProvider({ children }: PropsWithChildren) {
                         setChatUnreadCount(data.total);
                     }
                 }
+                if (msg.type === "live_games_count") {
+                    const data = msg.data as { count?: number };
+                    if (typeof data.count === "number") {
+                        setLiveGamesCount(data.count);
+                    }
+                }
                 if (msg.type === "secret_closed") {
                     window.dispatchEvent(new CustomEvent("secret-closed", { detail: msg.data }));
                 }
@@ -106,6 +113,16 @@ export function NotificationProvider({ children }: PropsWithChildren) {
             socket.close();
         };
     }, [closeSocket, setUser]);
+
+    useEffect(() => {
+        api.listLiveGameRooms()
+            .then(res => {
+                setLiveGamesCount(res.total ?? 0);
+            })
+            .catch(() => {
+                // ignore
+            });
+    }, [user]);
 
     useEffect(() => {
         if (!user) {
@@ -196,6 +213,7 @@ export function NotificationProvider({ children }: PropsWithChildren) {
                 notifications,
                 unreadCount,
                 chatUnreadCount,
+                liveGamesCount,
                 loading,
                 markRead,
                 markAllRead,

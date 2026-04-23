@@ -1939,6 +1939,15 @@ export async function listLiveGameRooms(gameType?: GameType): Promise<GameRoomLi
     return apiFetch<GameRoomListResponse>(`/game-rooms/live${qs}`);
 }
 
+export async function listFinishedGameRooms(
+    gameType?: GameType,
+    limit: number = 20,
+    offset: number = 0,
+): Promise<GameRoomListResponse> {
+    const qs = buildQueryString({ game_type: gameType ?? "", limit, offset });
+    return apiFetch<GameRoomListResponse>(`/game-rooms/finished${qs}`);
+}
+
 export async function getSpectatorChat(roomId: string): Promise<SpectatorChatResponse> {
     return apiFetch<SpectatorChatResponse>(`/game-rooms/${roomId}/chat`);
 }

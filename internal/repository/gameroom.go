@@ -53,12 +53,14 @@ type (
 		TouchPlayerSeen(ctx context.Context, roomID, userID uuid.UUID) error
 		SetStatus(ctx context.Context, roomID uuid.UUID, status string) error
 		SetState(ctx context.Context, roomID uuid.UUID, stateJSON string, turnUserID *uuid.UUID) error
-		FinishRoom(ctx context.Context, roomID uuid.UUID, winner *uuid.UUID, result, stateJSON string) error
+		FinishRoom(ctx context.Context, roomID uuid.UUID, status string, winner *uuid.UUID, result, stateJSON string) error
 		AppendMove(ctx context.Context, roomID uuid.UUID, ply int, userID uuid.UUID, actionJSON string) error
 		ListMoves(ctx context.Context, roomID uuid.UUID) ([]GameRoomMoveRow, error)
 		NextPly(ctx context.Context, roomID uuid.UUID) (int, error)
 		ListForUser(ctx context.Context, userID uuid.UUID, gameType string, statuses []dto.GameStatus, limit, offset int) ([]GameRoomRow, int, error)
 		ListLive(ctx context.Context, gameType string, limit, offset int) ([]GameRoomRow, int, error)
+		ListFinished(ctx context.Context, gameType string, limit, offset int) ([]GameRoomRow, int, error)
+		CountLive(ctx context.Context) (int, error)
 		Scoreboard(ctx context.Context, gameType string) ([]ScoreboardRow, error)
 	}
 
@@ -213,10 +215,10 @@ func (r *gameRoomRepository) SetState(ctx context.Context, roomID uuid.UUID, sta
 	return nil
 }
 
-func (r *gameRoomRepository) FinishRoom(ctx context.Context, roomID uuid.UUID, winner *uuid.UUID, result, stateJSON string) error {
+func (r *gameRoomRepository) FinishRoom(ctx context.Context, roomID uuid.UUID, status string, winner *uuid.UUID, result, stateJSON string) error {
 	_, err := r.db.ExecContext(ctx,
-		`UPDATE game_rooms SET status = 'finished', winner_user_id = ?, result = ?, state_json = ?, finished_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-		winner, result, stateJSON, roomID,
+		`UPDATE game_rooms SET status = ?, winner_user_id = ?, result = ?, state_json = ?, finished_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+		status, winner, result, stateJSON, roomID,
 	)
 	if err != nil {
 		return fmt.Errorf("finish room: %w", err)
@@ -311,6 +313,58 @@ func (r *gameRoomRepository) ListLive(ctx context.Context, gameType string, limi
 	return out, total, rows.Err()
 }
 
+func (r *gameRoomRepository) ListFinished(ctx context.Context, gameType string, limit, offset int) ([]GameRoomRow, int, error) {
+	var clauses []string
+	var args []any
+	clauses = append(clauses, `status IN ('finished', 'abandoned')`)
+	if gameType != "" {
+		clauses = append(clauses, `game_type = ?`)
+		args = append(args, gameType)
+	}
+	where := strings.Join(clauses, " AND ")
+
+	var total int
+	if err := r.db.QueryRowContext(ctx,
+		fmt.Sprintf(`SELECT COUNT(*) FROM game_rooms WHERE %s`, where), args...,
+	).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count finished rooms: %w", err)
+	}
+
+	args = append(args, limit, offset)
+	rows, err := r.db.QueryContext(ctx,
+		fmt.Sprintf(`SELECT id, game_type, status, state_json, turn_user_id, winner_user_id, result, created_by, created_at, updated_at, finished_at
+                     FROM game_rooms WHERE %s ORDER BY finished_at DESC LIMIT ? OFFSET ?`, where), args...,
+	)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list finished rooms: %w", err)
+	}
+	defer rows.Close()
+
+	var out []GameRoomRow
+	for rows.Next() {
+		var row GameRoomRow
+		var result sql.NullString
+		if err := rows.Scan(&row.ID, &row.GameType, &row.Status, &row.StateJSON, &row.TurnUserID, &row.WinnerID, &result, &row.CreatedBy, &row.CreatedAt, &row.UpdatedAt, &row.FinishedAt); err != nil {
+			return nil, 0, fmt.Errorf("scan finished room: %w", err)
+		}
+		if result.Valid {
+			row.Result = result.String
+		}
+		out = append(out, row)
+	}
+	return out, total, rows.Err()
+}
+
+func (r *gameRoomRepository) CountLive(ctx context.Context) (int, error) {
+	var n int
+	if err := r.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM game_rooms WHERE status = 'active'`,
+	).Scan(&n); err != nil {
+		return 0, fmt.Errorf("count live rooms: %w", err)
+	}
+	return n, nil
+}
+
 func (r *gameRoomRepository) Scoreboard(ctx context.Context, gameType string) ([]ScoreboardRow, error) {
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT p.user_id,
@@ -319,7 +373,7 @@ func (r *gameRoomRepository) Scoreboard(ctx context.Context, gameType string) ([
                 SUM(CASE WHEN r.winner_user_id IS NULL THEN 1 ELSE 0 END) AS draws
          FROM game_room_players p
          JOIN game_rooms r ON r.id = p.room_id
-         WHERE r.game_type = ? AND r.status = 'finished' AND p.joined = 1
+         WHERE r.game_type = ? AND r.status IN ('finished', 'abandoned') AND p.joined = 1
          GROUP BY p.user_id
          ORDER BY wins DESC, (wins - losses) DESC`,
 		gameType,

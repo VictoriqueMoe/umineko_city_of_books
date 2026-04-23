@@ -71,3 +71,7 @@ export function playNotificationSound(): void {
     }
     play(NOTIFICATION_SOUND);
 }
+
+export function playRemoteAudio(url: string, volume = DEFAULT_VOLUME): void {
+    play(url, volume);
+}

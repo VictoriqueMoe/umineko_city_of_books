@@ -11,15 +11,16 @@ type (
 	GameStatus string
 
 	GameRoomPlayer struct {
-		UserID      uuid.UUID    `json:"user_id"`
-		Username    string       `json:"username"`
-		DisplayName string       `json:"display_name"`
-		AvatarURL   string       `json:"avatar_url"`
-		Role        string       `json:"role"`
-		Slot        int          `json:"slot"`
-		Joined      bool         `json:"joined"`
-		Connected   bool         `json:"connected"`
-		User        UserResponse `json:"user"`
+		UserID         uuid.UUID    `json:"user_id"`
+		Username       string       `json:"username"`
+		DisplayName    string       `json:"display_name"`
+		AvatarURL      string       `json:"avatar_url"`
+		Role           string       `json:"role"`
+		Slot           int          `json:"slot"`
+		Joined         bool         `json:"joined"`
+		Connected      bool         `json:"connected"`
+		DisconnectedAt *string      `json:"disconnected_at,omitempty"`
+		User           UserResponse `json:"user"`
 	}
 
 	GameRoom struct {
@@ -36,6 +37,7 @@ type (
 		FinishedAt   *string          `json:"finished_at,omitempty"`
 		Players      []GameRoomPlayer `json:"players"`
 		WatcherCount int              `json:"watcher_count"`
+		Stats        json.RawMessage  `json:"stats,omitempty"`
 	}
 
 	SpectatorMessage struct {

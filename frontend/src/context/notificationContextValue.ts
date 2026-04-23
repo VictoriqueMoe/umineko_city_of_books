@@ -7,6 +7,7 @@ export interface NotificationContextValue {
     notifications: Notification[];
     unreadCount: number;
     chatUnreadCount: number;
+    liveGamesCount: number;
     loading: boolean;
     markRead: (id: number) => Promise<void>;
     markAllRead: () => Promise<void>;

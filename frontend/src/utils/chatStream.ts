@@ -1,7 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
-import type { ChatMessage, ChatRoomMember, ReactionGroup } from "../types/api";
+import type { ChatMessage, ChatRoomMember, ReactionGroup, WSMessage } from "../types/api";
 import { markChatRoomRead } from "../api/endpoints";
-import { playMessageSound } from "./sound";
+import { playMessageSound, playRemoteAudio } from "./sound";
 
 export interface ChatReactionPayload {
     room_id: string;
@@ -292,4 +292,42 @@ export function applyReactionRemoved(
             };
         }),
     );
+}
+
+export interface SharedWSBranchOptions {
+    activeRoomId: string | null;
+    setMessages: Dispatch<SetStateAction<ChatMessage[]>>;
+    noteTyping: (userId: string) => void;
+}
+
+export function applySharedChatWSBranch(msg: WSMessage, opts: SharedWSBranchOptions): boolean {
+    if (msg.type === "chat_message_deleted") {
+        const payload = msg.data as ChatMessageDeletedPayload;
+        if (payload.room_id === opts.activeRoomId) {
+            applyChatMessageDeleted(payload, opts.setMessages);
+        }
+        return true;
+    }
+    if (msg.type === "chat_message_edited") {
+        const updated = msg.data as ChatMessage;
+        if (updated.room_id === opts.activeRoomId) {
+            applyChatMessageEdited(updated, opts.setMessages);
+        }
+        return true;
+    }
+    if (msg.type === "typing") {
+        const data = msg.data as { room_id: string; user_id: string };
+        if (data.room_id === opts.activeRoomId) {
+            opts.noteTyping(data.user_id);
+        }
+        return true;
+    }
+    if (msg.type === "chat_audio") {
+        const data = msg.data as { room_id: string; url: string; volume?: number };
+        if (data.room_id === opts.activeRoomId && data.url) {
+            playRemoteAudio(data.url, data.volume ?? 0.5);
+        }
+        return true;
+    }
+    return false;
 }

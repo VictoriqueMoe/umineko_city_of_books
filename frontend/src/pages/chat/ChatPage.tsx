@@ -13,8 +13,6 @@ import { MessageBubble } from "../../components/chat/MessageBubble/MessageBubble
 import { Lightbox } from "../../components/Lightbox/Lightbox";
 import { isSiteStaff } from "../../utils/permissions";
 import {
-    deleteChatMessage,
-    editChatMessage,
     deleteChatRoom,
     getMutualFollowers,
     getUserRooms,
@@ -23,13 +21,8 @@ import {
     searchUsers,
 } from "../../api/endpoints";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
-import {
-    applyChatMessageDeleted,
-    applyChatMessageEdited,
-    ChatMessageDeletedPayload,
-    handleIncomingChatMessage,
-    maybePlayChatMessageSound,
-} from "../../utils/chatStream";
+import { applySharedChatWSBranch, handleIncomingChatMessage, maybePlayChatMessageSound } from "../../utils/chatStream";
+import { useChatMessageHandlers } from "../../hooks/useChatMessageHandlers";
 import { useMessageHistory } from "../../hooks/useMessageHistory";
 import type { ChatMessage, ChatRoom, User, WSMessage } from "../../types/api";
 import styles from "./ChatPage.module.css";
@@ -228,25 +221,13 @@ export function ChatPage() {
                 });
                 return;
             }
-            if (msg.type === "chat_message_deleted") {
-                const payload = msg.data as ChatMessageDeletedPayload;
-                if (payload.room_id === activeRoomIdRef.current) {
-                    applyChatMessageDeleted(payload, setMessages);
-                }
-                return;
-            }
-            if (msg.type === "chat_message_edited") {
-                const updated = msg.data as ChatMessage;
-                if (updated.room_id === activeRoomIdRef.current) {
-                    applyChatMessageEdited(updated, setMessages);
-                }
-                return;
-            }
-            if (msg.type === "typing") {
-                const data = msg.data as { room_id: string; user_id: string };
-                if (data.room_id === activeRoomIdRef.current) {
-                    noteTyping(data.user_id);
-                }
+            if (
+                applySharedChatWSBranch(msg, {
+                    activeRoomId: activeRoomIdRef.current,
+                    setMessages,
+                    noteTyping,
+                })
+            ) {
                 return;
             }
             if (msg.type !== "chat_message") {
@@ -449,36 +430,12 @@ export function ChatPage() {
         }
     }
 
-    async function handleDeleteMessage(message: ChatMessage) {
-        try {
-            await deleteChatMessage(message.id);
-            setMessages(prev => prev.filter(m => m.id !== message.id));
-        } catch {}
-    }
-
-    async function handleEditMessage(message: ChatMessage, newBody: string) {
-        const updated = await editChatMessage(message.id, newBody);
-        applyChatMessageEdited(updated, setMessages);
-    }
-
-    function handleEditLast() {
-        if (!user) {
-            return;
-        }
-        for (let i = messages.length - 1; i >= 0; i--) {
-            const candidate = messages[i];
-            if (candidate.sender.id === user.id && !candidate.is_system) {
-                setEditingMessageId(candidate.id);
-                requestAnimationFrame(() => {
-                    const el = document.getElementById(`chat-msg-${candidate.id}`);
-                    if (el) {
-                        el.scrollIntoView({ behavior: "smooth", block: "center" });
-                    }
-                });
-                return;
-            }
-        }
-    }
+    const { handleDeleteMessage, handleEditMessage, handleEditLast } = useChatMessageHandlers({
+        user,
+        messages,
+        setMessages,
+        setEditingMessageId,
+    });
 
     async function handleDeleteChat() {
         if (!activeRoomId) {

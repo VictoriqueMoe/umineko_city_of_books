@@ -36,6 +36,9 @@ const (
 	systemAdminsName = "Administrators"
 	systemModsDesc   = "Private staff room for moderators, admins, and super admins. Membership is managed automatically."
 	systemAdminsDesc = "Private room for admins and super admins. Membership is managed automatically."
+
+	veryGoodTrigger  = "<VERY GOOOOOD>"
+	veryGoodAudioURL = "https://quotes.auaurora.moe/api/v1/umineko/audio/voice/46/64501229"
 )
 
 var (
@@ -1502,6 +1505,20 @@ func (s *service) SendMessage(ctx context.Context, senderID, roomID uuid.UUID, r
 		}
 		s.sideEffectsWG.Add(1)
 		go s.dispatchPostSendSideEffects(roomID, senderID, msgID, recipients, roomRow, mentionedIDs, replyToAuthor, isGroup)
+
+		if req.Body == veryGoodTrigger {
+			audioMsg := ws.Message{
+				Type: "chat_audio",
+				Data: map[string]any{
+					"room_id": roomID.String(),
+					"url":     veryGoodAudioURL,
+					"volume":  0.5,
+				},
+			}
+			for i := 0; i < len(members); i++ {
+				s.hub.SendToUser(members[i], audioMsg)
+			}
+		}
 	}
 
 	return resp, nil

@@ -59,6 +59,7 @@ import {
     NewChessGamePage,
     NotFoundPage,
     NotificationsPage,
+    PastGamesPage,
     PostDetailPage,
     ProfilePage,
     QuoteBrowserPage,
@@ -228,6 +229,7 @@ function AppLayout() {
                             <Route path="/quotes" element={<QuoteBrowserPage />} />
                             <Route path="/games/chess/scoreboard" element={<Navigate to="/games/chess" replace />} />
                             <Route path="/games/live" element={<LiveGamesPage />} />
+                            <Route path="/games/past" element={<PastGamesPage />} />
                             <Route path="/games/chess/:id" element={<ChessGamePage />} />
                             <Route path="/games/:type" element={<GameHubPage />} />
                             <Route path="/users" element={<UsersPage />} />

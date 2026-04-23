@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	disconnectGracePeriod = 30 * time.Second
+	disconnectGracePeriod = 60 * time.Second
 	maxChatMessages       = 200
 	maxChatBodyLen        = 500
 )
@@ -45,6 +45,8 @@ type (
 		Get(ctx context.Context, roomID, viewerID uuid.UUID) (*dto.GameRoom, error)
 		List(ctx context.Context, userID uuid.UUID, filter ListFilter) (*dto.GameRoomListResponse, error)
 		ListLive(ctx context.Context, gameType dto.GameType, limit, offset int) (*dto.GameRoomListResponse, error)
+		ListFinished(ctx context.Context, gameType dto.GameType, limit, offset int) (*dto.GameRoomListResponse, error)
+		CountLive(ctx context.Context) (int, error)
 		SubmitAction(ctx context.Context, roomID, userID uuid.UUID, action json.RawMessage) (*dto.GameRoom, error)
 		Resign(ctx context.Context, roomID, userID uuid.UUID) (*dto.GameRoom, error)
 		Scoreboard(ctx context.Context, gameType dto.GameType) (*dto.GameScoreboardResponse, error)
@@ -55,10 +57,11 @@ type (
 	}
 
 	roomState struct {
-		players    map[uuid.UUID]int
-		spectators map[uuid.UUID]int
-		timers     map[uuid.UUID]*time.Timer
-		chat       []dto.SpectatorMessage
+		players        map[uuid.UUID]int
+		spectators     map[uuid.UUID]int
+		timers         map[uuid.UUID]*time.Timer
+		disconnectedAt map[uuid.UUID]time.Time
+		chat           []dto.SpectatorMessage
 	}
 
 	service struct {
@@ -104,9 +107,10 @@ func (s *service) stateFor(roomID uuid.UUID) *roomState {
 	st, ok := s.rooms[roomID]
 	if !ok {
 		st = &roomState{
-			players:    make(map[uuid.UUID]int),
-			spectators: make(map[uuid.UUID]int),
-			timers:     make(map[uuid.UUID]*time.Timer),
+			players:        make(map[uuid.UUID]int),
+			spectators:     make(map[uuid.UUID]int),
+			timers:         make(map[uuid.UUID]*time.Timer),
+			disconnectedAt: make(map[uuid.UUID]time.Time),
 		}
 		s.rooms[roomID] = st
 	}
@@ -230,6 +234,7 @@ func (s *service) Accept(ctx context.Context, roomID, userID uuid.UUID) (*dto.Ga
 
 	s.broadcast(room, "game_room_started", nil)
 	s.notifyTurn(ctx, room)
+	s.broadcastLiveGamesCount(ctx)
 
 	return room, nil
 }
@@ -353,6 +358,41 @@ func (s *service) ListLive(ctx context.Context, gameType dto.GameType, limit, of
 	return &dto.GameRoomListResponse{Rooms: out, Total: total}, nil
 }
 
+func (s *service) CountLive(ctx context.Context) (int, error) {
+	return s.repo.CountLive(ctx)
+}
+
+func (s *service) broadcastLiveGamesCount(ctx context.Context) {
+	count, err := s.repo.CountLive(ctx)
+	if err != nil {
+		logger.Log.Warn().Err(err).Msg("count live games for broadcast")
+		return
+	}
+	s.hub.Broadcast(ws.Message{
+		Type: "live_games_count",
+		Data: map[string]any{"count": count},
+	})
+}
+
+func (s *service) ListFinished(ctx context.Context, gameType dto.GameType, limit, offset int) (*dto.GameRoomListResponse, error) {
+	if limit <= 0 || limit > 50 {
+		limit = 20
+	}
+	rows, total, err := s.repo.ListFinished(ctx, string(gameType), limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]dto.GameRoom, 0, len(rows))
+	for _, row := range rows {
+		r, err := s.hydrateRoom(ctx, &row)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, *r)
+	}
+	return &dto.GameRoomListResponse{Rooms: out, Total: total}, nil
+}
+
 func (s *service) SubmitAction(ctx context.Context, roomID, userID uuid.UUID, action json.RawMessage) (*dto.GameRoom, error) {
 	row, err := s.repo.GetRoom(ctx, roomID)
 	if err != nil {
@@ -396,7 +436,7 @@ func (s *service) SubmitAction(ctx context.Context, roomID, userID uuid.UUID, ac
 
 	if result.Finished {
 		winner := winnerUserID(result.WinnerSlot, players)
-		if err := s.repo.FinishRoom(ctx, roomID, winner, result.Result, result.NewStateJSON); err != nil {
+		if err := s.repo.FinishRoom(ctx, roomID, string(dto.GameStatusFinished), winner, result.Result, result.NewStateJSON); err != nil {
 			return nil, err
 		}
 		room, err := s.loadRoom(ctx, roomID)
@@ -405,6 +445,7 @@ func (s *service) SubmitAction(ctx context.Context, roomID, userID uuid.UUID, ac
 		}
 		s.broadcast(room, "game_room_finished", nil)
 		s.notifyFinished(ctx, room, userID)
+		s.broadcastLiveGamesCount(ctx)
 		return room, nil
 	}
 
@@ -463,7 +504,7 @@ func (s *service) Resign(ctx context.Context, roomID, userID uuid.UUID) (*dto.Ga
 		}
 	}
 	result := "resign"
-	if err := s.repo.FinishRoom(ctx, roomID, winner, result, row.StateJSON); err != nil {
+	if err := s.repo.FinishRoom(ctx, roomID, string(dto.GameStatusFinished), winner, result, row.StateJSON); err != nil {
 		return nil, err
 	}
 	room, err := s.loadRoom(ctx, roomID)
@@ -472,6 +513,7 @@ func (s *service) Resign(ctx context.Context, roomID, userID uuid.UUID) (*dto.Ga
 	}
 	s.broadcast(room, "game_room_finished", map[string]any{"resigned_by": userID.String()})
 	s.notifyFinished(ctx, room, userID)
+	s.broadcastLiveGamesCount(ctx)
 	return room, nil
 }
 
@@ -601,6 +643,7 @@ func (s *service) HandleClientJoin(ctx context.Context, userID, roomID uuid.UUID
 			t.Stop()
 			delete(st.timers, userID)
 		}
+		delete(st.disconnectedAt, userID)
 		st.players[userID]++
 		s.mu.Unlock()
 		_ = s.repo.TouchPlayerSeen(ctx, roomID, userID)
@@ -640,6 +683,7 @@ func (s *service) HandleClientLeave(userID, roomID uuid.UUID) {
 		st.players[userID]--
 		if st.players[userID] <= 0 {
 			delete(st.players, userID)
+			st.disconnectedAt[userID] = time.Now()
 			st.timers[userID] = time.AfterFunc(disconnectGracePeriod, func() {
 				s.graceExpired(userID, roomID)
 			})
@@ -663,6 +707,7 @@ func (s *service) graceExpired(userID, roomID uuid.UUID) {
 	s.mu.Lock()
 	if st, ok := s.rooms[roomID]; ok {
 		delete(st.timers, userID)
+		delete(st.disconnectedAt, userID)
 	}
 	s.mu.Unlock()
 
@@ -688,7 +733,7 @@ func (s *service) graceExpired(userID, roomID uuid.UUID) {
 		return
 	}
 	winner := winnerUserID(res.WinnerSlot, players)
-	if err := s.repo.FinishRoom(ctx, roomID, winner, res.Result, row.StateJSON); err != nil {
+	if err := s.repo.FinishRoom(ctx, roomID, string(dto.GameStatusAbandoned), winner, res.Result, row.StateJSON); err != nil {
 		logger.Log.Warn().Err(err).Msg("finish room after grace expired")
 		return
 	}
@@ -698,6 +743,7 @@ func (s *service) graceExpired(userID, roomID uuid.UUID) {
 	}
 	s.broadcast(room, "game_room_finished", map[string]any{"abandoned_by": userID.String()})
 	s.notifyFinished(ctx, room, userID)
+	s.broadcastLiveGamesCount(ctx)
 }
 
 func (s *service) watcherCount(roomID uuid.UUID) int {
@@ -711,15 +757,26 @@ func (s *service) watcherCount(roomID uuid.UUID) int {
 }
 
 func (s *service) broadcastPresence(roomID, userID uuid.UUID, connected, asPlayer bool) {
+	data := map[string]any{
+		"room_id":       roomID.String(),
+		"user_id":       userID.String(),
+		"connected":     connected,
+		"as_player":     asPlayer,
+		"watcher_count": s.watcherCount(roomID),
+	}
+	if !connected && asPlayer {
+		s.mu.Lock()
+		if st, ok := s.rooms[roomID]; ok {
+			if t, offline := st.disconnectedAt[userID]; offline {
+				data["disconnected_at"] = t.UTC().Format(time.RFC3339)
+				data["grace_seconds"] = int(disconnectGracePeriod.Seconds())
+			}
+		}
+		s.mu.Unlock()
+	}
 	s.hub.BroadcastToTopic("game-room:"+roomID.String(), ws.Message{
 		Type: "game_room_presence",
-		Data: map[string]any{
-			"room_id":       roomID.String(),
-			"user_id":       userID.String(),
-			"connected":     connected,
-			"as_player":     asPlayer,
-			"watcher_count": s.watcherCount(roomID),
-		},
+		Data: data,
 	})
 }
 
@@ -740,15 +797,16 @@ func (s *service) hydrateRoom(ctx context.Context, row *repository.GameRoomRow) 
 		return nil, err
 	}
 	s.mu.Lock()
+	watchers := 0
 	if st, ok := s.rooms[row.ID]; ok {
 		for i := range players {
 			if st.players[players[i].UserID] > 0 {
 				players[i].Connected = true
+			} else if t, offline := st.disconnectedAt[players[i].UserID]; offline {
+				ts := t.UTC().Format(time.RFC3339)
+				players[i].DisconnectedAt = &ts
 			}
 		}
-	}
-	watchers := 0
-	if st, ok := s.rooms[row.ID]; ok {
 		watchers = len(st.spectators)
 	}
 	s.mu.Unlock()
@@ -757,6 +815,22 @@ func (s *service) hydrateRoom(ctx context.Context, row *repository.GameRoomRow) 
 	if row.FinishedAt != nil {
 		finishedAt = row.FinishedAt
 	}
+
+	var stats json.RawMessage
+	if row.Status == string(dto.GameStatusFinished) || row.Status == string(dto.GameStatusAbandoned) {
+		if handler, ok := s.handlers[dto.GameType(row.GameType)]; ok {
+			finished := ""
+			if finishedAt != nil {
+				finished = *finishedAt
+			}
+			if computed, err := handler.ComputeStats(row.StateJSON, row.Result, row.CreatedAt, finished); err == nil && computed != nil {
+				if raw, err := json.Marshal(computed); err == nil {
+					stats = raw
+				}
+			}
+		}
+	}
+
 	return &dto.GameRoom{
 		ID:           row.ID,
 		GameType:     dto.GameType(row.GameType),
@@ -771,6 +845,7 @@ func (s *service) hydrateRoom(ctx context.Context, row *repository.GameRoomRow) 
 		FinishedAt:   finishedAt,
 		Players:      players,
 		WatcherCount: watchers,
+		Stats:        stats,
 	}, nil
 }
 

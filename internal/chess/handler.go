@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/gameroom"
@@ -120,8 +121,131 @@ func (h *Handler) ValidateAction(stateJSON string, actorSlot int, action json.Ra
 	return result, nil
 }
 
-func (h *Handler) OnGraceExpired(_ string, _ int) gameroom.DisconnectResult {
-	return gameroom.DisconnectResult{}
+type Stats struct {
+	TotalPly        int    `json:"total_ply"`
+	WhiteMoves      int    `json:"white_moves"`
+	BlackMoves      int    `json:"black_moves"`
+	WhiteCaptures   int    `json:"white_captures"`
+	BlackCaptures   int    `json:"black_captures"`
+	WhiteChecks     int    `json:"white_checks"`
+	BlackChecks     int    `json:"black_checks"`
+	ResultReason    string `json:"result_reason"`
+	DurationSeconds int    `json:"duration_seconds"`
+	FinalFEN        string `json:"final_fen"`
+}
+
+func (h *Handler) ComputeStats(stateJSON, result, createdAt, finishedAt string) (any, error) {
+	var s state
+	if err := json.Unmarshal([]byte(stateJSON), &s); err != nil {
+		return nil, fmt.Errorf("load state: %w", err)
+	}
+	game, err := loadGame(s.PGN)
+	if err != nil {
+		return nil, err
+	}
+
+	stats := Stats{
+		ResultReason: classifyResult(result, game),
+		FinalFEN:     s.FEN,
+	}
+	for i, move := range game.Moves() {
+		stats.TotalPly++
+		whiteMove := i%2 == 0
+		if whiteMove {
+			stats.WhiteMoves++
+		} else {
+			stats.BlackMoves++
+		}
+		if move.HasTag(chesslib.Capture) || move.HasTag(chesslib.EnPassant) {
+			if whiteMove {
+				stats.WhiteCaptures++
+			} else {
+				stats.BlackCaptures++
+			}
+		}
+		if move.HasTag(chesslib.Check) {
+			if whiteMove {
+				stats.WhiteChecks++
+			} else {
+				stats.BlackChecks++
+			}
+		}
+	}
+
+	stats.DurationSeconds = durationSeconds(createdAt, finishedAt)
+	return stats, nil
+}
+
+func classifyResult(result string, game *chesslib.Game) string {
+	if result == "abandoned" {
+		return "abandoned"
+	}
+	if result == "resign" || result == "resigned" {
+		return "resignation"
+	}
+	switch game.Outcome() {
+	case chesslib.WhiteWon, chesslib.BlackWon:
+		if game.Method() == chesslib.Checkmate {
+			return "checkmate"
+		}
+		return "win"
+	case chesslib.Draw:
+		switch game.Method() {
+		case chesslib.Stalemate:
+			return "stalemate"
+		case chesslib.InsufficientMaterial:
+			return "insufficient_material"
+		case chesslib.FiftyMoveRule:
+			return "fifty_move_rule"
+		case chesslib.ThreefoldRepetition, chesslib.FivefoldRepetition:
+			return "repetition"
+		case chesslib.DrawOffer:
+			return "draw_agreed"
+		}
+		return "draw"
+	}
+	return ""
+}
+
+func durationSeconds(createdAt, finishedAt string) int {
+	if createdAt == "" || finishedAt == "" {
+		return 0
+	}
+	start, err := parseDBTime(createdAt)
+	if err != nil {
+		return 0
+	}
+	end, err := parseDBTime(finishedAt)
+	if err != nil {
+		return 0
+	}
+	d := end.Sub(start)
+	if d < 0 {
+		return 0
+	}
+	return int(d.Seconds())
+}
+
+func parseDBTime(s string) (time.Time, error) {
+	layouts := []string{time.RFC3339Nano, time.RFC3339, "2006-01-02 15:04:05", "2006-01-02T15:04:05Z"}
+	for _, layout := range layouts {
+		if t, err := time.Parse(layout, s); err == nil {
+			return t, nil
+		}
+	}
+	return time.Time{}, fmt.Errorf("unrecognised time format: %s", s)
+}
+
+func (h *Handler) OnGraceExpired(_ string, disconnectedSlot int) gameroom.DisconnectResult {
+	winnerSlot := slotWhite
+	if disconnectedSlot == slotWhite {
+		winnerSlot = slotBlack
+	}
+	return gameroom.DisconnectResult{
+		Finished:   true,
+		WinnerSlot: &winnerSlot,
+		Result:     "abandoned",
+	}
 }
 
 func loadGame(pgn string) (*chesslib.Game, error) {
