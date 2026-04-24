@@ -2,30 +2,11 @@ import { Link } from "react-router";
 import type { Journal } from "../../../types/api";
 import { ProfileLink } from "../../ProfileLink/ProfileLink";
 import { workLabel } from "../../../utils/journalWorks";
+import { relativeTime } from "../../../utils/time";
 import styles from "./JournalCard.module.css";
 
 interface JournalCardProps {
     journal: Journal;
-}
-
-function relativeDate(dateStr: string): string {
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1) {
-        return "just now";
-    }
-    if (mins < 60) {
-        return `${mins}m ago`;
-    }
-    const hours = Math.floor(mins / 60);
-    if (hours < 24) {
-        return `${hours}h ago`;
-    }
-    const days = Math.floor(hours / 24);
-    if (days < 30) {
-        return `${days}d ago`;
-    }
-    return new Date(dateStr).toLocaleDateString();
 }
 
 export function JournalCard({ journal }: JournalCardProps) {
@@ -48,7 +29,7 @@ export function JournalCard({ journal }: JournalCardProps) {
                 <span>
                     {"\uD83D\uDCAC"} {journal.comment_count}
                 </span>
-                <span className={styles.activity}>Last update {relativeDate(journal.last_author_activity_at)}</span>
+                <span className={styles.activity}>Last update {relativeTime(journal.last_author_activity_at)}</span>
             </div>
         </Link>
     );

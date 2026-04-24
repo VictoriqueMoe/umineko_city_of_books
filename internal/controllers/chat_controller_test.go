@@ -325,7 +325,7 @@ func TestListMyGroupRooms_OK(t *testing.T) {
 	h, chatMock := newChatHarness(t)
 	userID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
-	chatMock.EXPECT().ListUserGroupRooms(mock.Anything, userID, "foo", true, "tag", "admin", 10, 5).
+	chatMock.EXPECT().ListUserGroupRooms(mock.Anything, userID, "foo", true, "tag", "admin", false, 10, 5).
 		Return(&dto.ChatRoomListResponse{}, nil)
 
 	// when
@@ -341,7 +341,7 @@ func TestListMyGroupRooms_InternalError(t *testing.T) {
 	h, chatMock := newChatHarness(t)
 	userID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
-	chatMock.EXPECT().ListUserGroupRooms(mock.Anything, userID, "", false, "", "", 20, 0).
+	chatMock.EXPECT().ListUserGroupRooms(mock.Anything, userID, "", false, "", "", false, 20, 0).
 		Return(nil, errors.New("boom"))
 
 	// when
@@ -356,7 +356,7 @@ func TestListMyGroupRooms_InternalError(t *testing.T) {
 func TestListPublicRooms_OK_Anonymous(t *testing.T) {
 	// given
 	h, chatMock := newChatHarness(t)
-	chatMock.EXPECT().ListPublicRooms(mock.Anything, "", false, "", uuid.Nil, 20, 0).
+	chatMock.EXPECT().ListPublicRooms(mock.Anything, "", false, "", uuid.Nil, false, 20, 0).
 		Return(&dto.ChatRoomListResponse{}, nil)
 
 	// when
@@ -371,7 +371,7 @@ func TestListPublicRooms_OK_Authenticated(t *testing.T) {
 	h, chatMock := newChatHarness(t)
 	userID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
-	chatMock.EXPECT().ListPublicRooms(mock.Anything, "foo", true, "tag", userID, 5, 2).
+	chatMock.EXPECT().ListPublicRooms(mock.Anything, "foo", true, "tag", userID, false, 5, 2).
 		Return(&dto.ChatRoomListResponse{}, nil)
 
 	// when
@@ -385,7 +385,7 @@ func TestListPublicRooms_OK_Authenticated(t *testing.T) {
 func TestListPublicRooms_InternalError(t *testing.T) {
 	// given
 	h, chatMock := newChatHarness(t)
-	chatMock.EXPECT().ListPublicRooms(mock.Anything, "", false, "", uuid.Nil, 20, 0).
+	chatMock.EXPECT().ListPublicRooms(mock.Anything, "", false, "", uuid.Nil, false, 20, 0).
 		Return(nil, errors.New("boom"))
 
 	// when

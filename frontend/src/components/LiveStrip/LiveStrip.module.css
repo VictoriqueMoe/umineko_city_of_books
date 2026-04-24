@@ -1,0 +1,116 @@
+.strip {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.25rem;
+    padding: 0.6rem 1rem;
+    border: 1px solid rgba(var(--gold-rgb), 0.15);
+    border-radius: 8px;
+    background: rgba(var(--gold-rgb), 0.03);
+    font-size: 0.85rem;
+}
+
+.cell {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+.dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: rgb(34, 197, 94);
+    box-shadow: 0 0 6px rgba(34, 197, 94, 0.7);
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.45;
+    }
+}
+
+.count {
+    font-family: var(--font-display);
+    color: var(--gold-light);
+    font-weight: 600;
+}
+
+.label {
+    color: var(--muted);
+    font-size: 0.8rem;
+    letter-spacing: 0.02em;
+}
+
+.members {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.corners {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.cornerChip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.2rem 0.55rem;
+    border: 1px solid rgba(var(--gold-rgb), 0.2);
+    border-radius: 999px;
+    color: var(--text);
+    text-decoration: none;
+    font-size: 0.8rem;
+    transition: all 0.15s var(--ease-out);
+}
+
+.cornerChip:hover {
+    background: rgba(var(--gold-rgb), 0.08);
+    border-color: rgba(var(--gold-rgb), 0.5);
+    color: var(--gold-light);
+}
+
+.cornerCount {
+    color: var(--gold-light);
+    font-weight: 600;
+    font-size: 0.8rem;
+}
+
+.focus {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.9rem;
+}
+
+.empty {
+    color: var(--muted);
+    font-size: 0.8rem;
+    font-style: italic;
+}
+
+.more {
+    margin-left: auto;
+}
+
+.moreLink {
+    color: var(--gold-light);
+    text-decoration: none;
+    font-size: 0.8rem;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+
+.moreLink:hover {
+    color: var(--gold);
+}

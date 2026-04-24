@@ -6,6 +6,7 @@ import { usePageTitle } from "../../hooks/usePageTitle";
 import type { ChatMessage, ChatRoom, ChatRoomMember, User, WSMessage } from "../../types/api";
 import { buildMentionMatcher } from "../../utils/mentions";
 import { isSiteStaff, type SiteRole } from "../../utils/permissions";
+import { parseServerDate } from "../../utils/time";
 import {
     addChatMessageReaction,
     banChatRoomMember,
@@ -183,7 +184,8 @@ export function RoomPage() {
 
     const currentMember = members.find(m => m.user.id === user?.id) ?? null;
     const viewerTimeoutUntil = currentMember?.timeout_until ?? undefined;
-    const viewerTimedOut = viewerTimeoutUntil ? new Date(viewerTimeoutUntil).getTime() > Date.now() : false;
+    const viewerTimedOutDate = parseServerDate(viewerTimeoutUntil);
+    const viewerTimedOut = viewerTimedOutDate ? viewerTimedOutDate.getTime() > Date.now() : false;
 
     const { handleDeleteMessage, handleEditMessage, handleEditLast } = useChatMessageHandlers({
         user,
@@ -525,8 +527,8 @@ export function RoomPage() {
         if (!value) {
             return "";
         }
-        const parsed = new Date(value);
-        if (Number.isNaN(parsed.getTime())) {
+        const parsed = parseServerDate(value);
+        if (!parsed) {
             return value;
         }
         return parsed.toLocaleString();

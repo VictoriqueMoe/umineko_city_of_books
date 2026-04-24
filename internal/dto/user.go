@@ -16,6 +16,8 @@ type (
 		VanityRoles []VanityRoleResponse `json:"vanity_roles,omitempty"`
 		Banned      bool                 `json:"banned,omitempty"`
 		BanReason   string               `json:"ban_reason,omitempty"`
+		Locked      bool                 `json:"locked,omitempty"`
+		LockReason  string               `json:"lock_reason,omitempty"`
 	}
 
 	UserProfileResponse struct {

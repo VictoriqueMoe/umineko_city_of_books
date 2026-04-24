@@ -11,6 +11,7 @@ import { Butterflies } from "./components/layout/Butterflies/Butterflies";
 import { CanonicalTag } from "./components/CanonicalTag/CanonicalTag";
 import { ProtectedRoute } from "./components/ProtectedRoute/ProtectedRoute";
 import { StaleVersionBanner } from "./components/StaleVersionBanner/StaleVersionBanner";
+import { LockBanner } from "./components/LockBanner/LockBanner";
 import { Toast } from "./components/Toast/Toast";
 import { GameForfeitWarning } from "./components/GameForfeitWarning/GameForfeitWarning";
 import { MaintenancePage } from "./pages/maintenance/MaintenancePage";
@@ -189,6 +190,7 @@ function AppLayout() {
             <div className="app-main">
                 <Header onToggleSidebar={() => setSidebarOpen(prev => !prev)} />
                 <StaleVersionBanner />
+                <LockBanner />
                 <AnnouncementBanner />
                 <SecretClosedToast />
                 <GameForfeitWarning />

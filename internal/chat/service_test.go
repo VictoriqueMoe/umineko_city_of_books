@@ -67,6 +67,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	banRepo.EXPECT().BannedRoomIDsForUser(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 	notifSvc.EXPECT().Notify(mock.Anything, mock.Anything).Return(nil).Maybe()
 	chatRepo.EXPECT().GetRoomByID(mock.Anything, mock.Anything, uuid.Nil).Return(nil, nil).Maybe()
+	userRepo.EXPECT().IsLocked(mock.Anything, mock.Anything).Return(false, nil).Maybe()
 
 	return svc, &testMocks{
 		chatRepo:       chatRepo,
@@ -398,10 +399,10 @@ func TestListPublicRooms_DefaultsAndTrim(t *testing.T) {
 	svc, m := newTestService(t)
 	viewer := uuid.New()
 	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewer).Return(nil, nil)
-	m.chatRepo.EXPECT().ListPublicRooms(mock.Anything, "q", false, "tagx", viewer, []uuid.UUID(nil), 20, 0).Return([]repository.ChatRoomRow{{ID: uuid.New()}}, 1, nil)
+	m.chatRepo.EXPECT().ListPublicRooms(mock.Anything, "q", false, "tagx", viewer, []uuid.UUID(nil), false, 20, 0).Return([]repository.ChatRoomRow{{ID: uuid.New()}}, 1, nil)
 
 	// when
-	got, err := svc.ListPublicRooms(context.Background(), "q", false, "  TagX  ", viewer, 0, -5)
+	got, err := svc.ListPublicRooms(context.Background(), "q", false, "  TagX  ", viewer, false, 0, -5)
 
 	// then
 	require.NoError(t, err)
@@ -414,10 +415,10 @@ func TestListPublicRooms_LimitClamped(t *testing.T) {
 	svc, m := newTestService(t)
 	viewer := uuid.New()
 	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewer).Return(nil, nil)
-	m.chatRepo.EXPECT().ListPublicRooms(mock.Anything, "", false, "", viewer, []uuid.UUID(nil), 100, 0).Return(nil, 0, nil)
+	m.chatRepo.EXPECT().ListPublicRooms(mock.Anything, "", false, "", viewer, []uuid.UUID(nil), false, 100, 0).Return(nil, 0, nil)
 
 	// when
-	_, err := svc.ListPublicRooms(context.Background(), "", false, "", viewer, 500, 0)
+	_, err := svc.ListPublicRooms(context.Background(), "", false, "", viewer, false, 500, 0)
 
 	// then
 	require.NoError(t, err)
@@ -428,10 +429,10 @@ func TestListPublicRooms_RepoError(t *testing.T) {
 	svc, m := newTestService(t)
 	viewer := uuid.New()
 	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewer).Return(nil, nil)
-	m.chatRepo.EXPECT().ListPublicRooms(mock.Anything, "", false, "", viewer, []uuid.UUID(nil), 20, 0).Return(nil, 0, errors.New("boom"))
+	m.chatRepo.EXPECT().ListPublicRooms(mock.Anything, "", false, "", viewer, []uuid.UUID(nil), false, 20, 0).Return(nil, 0, errors.New("boom"))
 
 	// when
-	_, err := svc.ListPublicRooms(context.Background(), "", false, "", viewer, 0, 0)
+	_, err := svc.ListPublicRooms(context.Background(), "", false, "", viewer, false, 0, 0)
 
 	// then
 	require.Error(t, err)
@@ -441,10 +442,10 @@ func TestListUserGroupRooms_DefaultsAndRoleReset(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	userID := uuid.New()
-	m.chatRepo.EXPECT().ListUserGroupRooms(mock.Anything, userID, "", false, "tag", "", 20, 0).Return(nil, 0, nil)
+	m.chatRepo.EXPECT().ListUserGroupRooms(mock.Anything, userID, "", false, "tag", "", false, 20, 0).Return(nil, 0, nil)
 
 	// when
-	_, err := svc.ListUserGroupRooms(context.Background(), userID, "", false, "  Tag  ", "bogus", -1, -1)
+	_, err := svc.ListUserGroupRooms(context.Background(), userID, "", false, "  Tag  ", "bogus", false, -1, -1)
 
 	// then
 	require.NoError(t, err)
@@ -454,10 +455,10 @@ func TestListUserGroupRooms_ValidRoleHost(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	userID := uuid.New()
-	m.chatRepo.EXPECT().ListUserGroupRooms(mock.Anything, userID, "", false, "", "host", 100, 0).Return(nil, 0, nil)
+	m.chatRepo.EXPECT().ListUserGroupRooms(mock.Anything, userID, "", false, "", "host", false, 100, 0).Return(nil, 0, nil)
 
 	// when
-	_, err := svc.ListUserGroupRooms(context.Background(), userID, "", false, "", "host", 500, 0)
+	_, err := svc.ListUserGroupRooms(context.Background(), userID, "", false, "", "host", false, 500, 0)
 
 	// then
 	require.NoError(t, err)
@@ -467,10 +468,10 @@ func TestListUserGroupRooms_ValidRoleMember(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	userID := uuid.New()
-	m.chatRepo.EXPECT().ListUserGroupRooms(mock.Anything, userID, "", false, "", "member", 10, 5).Return(nil, 0, nil)
+	m.chatRepo.EXPECT().ListUserGroupRooms(mock.Anything, userID, "", false, "", "member", false, 10, 5).Return(nil, 0, nil)
 
 	// when
-	_, err := svc.ListUserGroupRooms(context.Background(), userID, "", false, "", "member", 10, 5)
+	_, err := svc.ListUserGroupRooms(context.Background(), userID, "", false, "", "member", false, 10, 5)
 
 	// then
 	require.NoError(t, err)
@@ -480,10 +481,10 @@ func TestListUserGroupRooms_RepoError(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	userID := uuid.New()
-	m.chatRepo.EXPECT().ListUserGroupRooms(mock.Anything, userID, "", false, "", "", 20, 0).Return(nil, 0, errors.New("boom"))
+	m.chatRepo.EXPECT().ListUserGroupRooms(mock.Anything, userID, "", false, "", "", false, 20, 0).Return(nil, 0, errors.New("boom"))
 
 	// when
-	_, err := svc.ListUserGroupRooms(context.Background(), userID, "", false, "", "", 0, 0)
+	_, err := svc.ListUserGroupRooms(context.Background(), userID, "", false, "", "", false, 0, 0)
 
 	// then
 	require.Error(t, err)

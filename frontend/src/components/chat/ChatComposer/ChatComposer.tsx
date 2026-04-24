@@ -6,6 +6,7 @@ import { sendChatMessage, sendFirstDMMessage } from "../../../api/endpoints";
 import { ApiError } from "../../../api/client";
 import { useSiteInfo } from "../../../hooks/useSiteInfo";
 import { validateFileSize } from "../../../utils/fileValidation";
+import { formatFullDateTime, parseServerDate } from "../../../utils/time";
 import type { ChatMessage, ChatRoom, User } from "../../../types/api";
 import { GifPicker } from "../GifPicker/GifPicker";
 import styles from "./ChatComposer.module.css";
@@ -46,14 +47,11 @@ function formatSendError(err: unknown): string {
 }
 
 function isTimeoutActive(until?: string): boolean {
-    if (!until) {
+    const d = parseServerDate(until);
+    if (!d) {
         return false;
     }
-    const ts = new Date(until).getTime();
-    if (Number.isNaN(ts)) {
-        return false;
-    }
-    return ts > Date.now();
+    return d.getTime() > Date.now();
 }
 
 const TYPING_THROTTLE_MS = 2500;
@@ -81,8 +79,12 @@ export function ChatComposer({
         if (!timeoutUntil) {
             return;
         }
-        const ms = new Date(timeoutUntil).getTime() - Date.now();
-        if (Number.isNaN(ms) || ms <= 0) {
+        const parsed = parseServerDate(timeoutUntil);
+        if (!parsed) {
+            return;
+        }
+        const ms = parsed.getTime() - Date.now();
+        if (ms <= 0) {
             return;
         }
         const timer = setTimeout(() => setTimeoutTick(t => t + 1), ms);
@@ -232,7 +234,7 @@ export function ChatComposer({
     const canSend = !submitting && (body.trim().length > 0 || files.length > 0);
 
     if (timedOut) {
-        const until = new Date(timeoutUntil!).toLocaleString();
+        const until = formatFullDateTime(timeoutUntil);
         return (
             <div className={styles.composer}>
                 <div className={styles.timeoutBanner}>You are timed out until {until}.</div>

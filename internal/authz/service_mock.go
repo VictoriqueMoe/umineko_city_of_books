@@ -224,3 +224,60 @@ func (_c *MockService_IsBanned_Call) RunAndReturn(run func(ctx context.Context, 
 	_c.Call.Return(run)
 	return _c
 }
+
+// IsLocked provides a mock function for the type MockService
+func (_mock *MockService) IsLocked(ctx context.Context, userID uuid.UUID) bool {
+	ret := _mock.Called(ctx, userID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for IsLocked")
+	}
+
+	var r0 bool
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) bool); ok {
+		r0 = returnFunc(ctx, userID)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	return r0
+}
+
+// MockService_IsLocked_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IsLocked'
+type MockService_IsLocked_Call struct {
+	*mock.Call
+}
+
+// IsLocked is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+func (_e *MockService_Expecter) IsLocked(ctx interface{}, userID interface{}) *MockService_IsLocked_Call {
+	return &MockService_IsLocked_Call{Call: _e.mock.On("IsLocked", ctx, userID)}
+}
+
+func (_c *MockService_IsLocked_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *MockService_IsLocked_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_IsLocked_Call) Return(b bool) *MockService_IsLocked_Call {
+	_c.Call.Return(b)
+	return _c
+}
+
+func (_c *MockService_IsLocked_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) bool) *MockService_IsLocked_Call {
+	_c.Call.Return(run)
+	return _c
+}

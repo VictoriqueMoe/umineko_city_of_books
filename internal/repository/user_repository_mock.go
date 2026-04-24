@@ -990,6 +990,72 @@ func (_c *MockUserRepository_IsBanned_Call) RunAndReturn(run func(ctx context.Co
 	return _c
 }
 
+// IsLocked provides a mock function for the type MockUserRepository
+func (_mock *MockUserRepository) IsLocked(ctx context.Context, userID uuid.UUID) (bool, error) {
+	ret := _mock.Called(ctx, userID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for IsLocked")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (bool, error)); ok {
+		return returnFunc(ctx, userID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) bool); ok {
+		r0 = returnFunc(ctx, userID)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, userID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockUserRepository_IsLocked_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IsLocked'
+type MockUserRepository_IsLocked_Call struct {
+	*mock.Call
+}
+
+// IsLocked is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+func (_e *MockUserRepository_Expecter) IsLocked(ctx interface{}, userID interface{}) *MockUserRepository_IsLocked_Call {
+	return &MockUserRepository_IsLocked_Call{Call: _e.mock.On("IsLocked", ctx, userID)}
+}
+
+func (_c *MockUserRepository_IsLocked_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *MockUserRepository_IsLocked_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockUserRepository_IsLocked_Call) Return(b bool, err error) *MockUserRepository_IsLocked_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *MockUserRepository_IsLocked_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) (bool, error)) *MockUserRepository_IsLocked_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListAll provides a mock function for the type MockUserRepository
 func (_mock *MockUserRepository) ListAll(ctx context.Context, search string, limit int, offset int) ([]model.User, int, error) {
 	ret := _mock.Called(ctx, search, limit, offset)
@@ -1138,6 +1204,75 @@ func (_c *MockUserRepository_ListPublic_Call) RunAndReturn(run func(ctx context.
 	return _c
 }
 
+// LockUser provides a mock function for the type MockUserRepository
+func (_mock *MockUserRepository) LockUser(ctx context.Context, userID uuid.UUID, lockedBy uuid.UUID, reason string) error {
+	ret := _mock.Called(ctx, userID, lockedBy, reason)
+
+	if len(ret) == 0 {
+		panic("no return value specified for LockUser")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string) error); ok {
+		r0 = returnFunc(ctx, userID, lockedBy, reason)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockUserRepository_LockUser_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'LockUser'
+type MockUserRepository_LockUser_Call struct {
+	*mock.Call
+}
+
+// LockUser is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+//   - lockedBy uuid.UUID
+//   - reason string
+func (_e *MockUserRepository_Expecter) LockUser(ctx interface{}, userID interface{}, lockedBy interface{}, reason interface{}) *MockUserRepository_LockUser_Call {
+	return &MockUserRepository_LockUser_Call{Call: _e.mock.On("LockUser", ctx, userID, lockedBy, reason)}
+}
+
+func (_c *MockUserRepository_LockUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, lockedBy uuid.UUID, reason string)) *MockUserRepository_LockUser_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockUserRepository_LockUser_Call) Return(err error) *MockUserRepository_LockUser_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockUserRepository_LockUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, lockedBy uuid.UUID, reason string) error) *MockUserRepository_LockUser_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SearchByName provides a mock function for the type MockUserRepository
 func (_mock *MockUserRepository) SearchByName(ctx context.Context, query string, limit int) ([]model.User, error) {
 	ret := _mock.Called(ctx, query, limit)
@@ -1265,6 +1400,63 @@ func (_c *MockUserRepository_UnbanUser_Call) Return(err error) *MockUserReposito
 }
 
 func (_c *MockUserRepository_UnbanUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) error) *MockUserRepository_UnbanUser_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UnlockUser provides a mock function for the type MockUserRepository
+func (_mock *MockUserRepository) UnlockUser(ctx context.Context, userID uuid.UUID) error {
+	ret := _mock.Called(ctx, userID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UnlockUser")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, userID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockUserRepository_UnlockUser_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UnlockUser'
+type MockUserRepository_UnlockUser_Call struct {
+	*mock.Call
+}
+
+// UnlockUser is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+func (_e *MockUserRepository_Expecter) UnlockUser(ctx interface{}, userID interface{}) *MockUserRepository_UnlockUser_Call {
+	return &MockUserRepository_UnlockUser_Call{Call: _e.mock.On("UnlockUser", ctx, userID)}
+}
+
+func (_c *MockUserRepository_UnlockUser_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *MockUserRepository_UnlockUser_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockUserRepository_UnlockUser_Call) Return(err error) *MockUserRepository_UnlockUser_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockUserRepository_UnlockUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) error) *MockUserRepository_UnlockUser_Call {
 	_c.Call.Return(run)
 	return _c
 }

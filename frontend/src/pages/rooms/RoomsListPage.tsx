@@ -12,32 +12,11 @@ import { RulesBox } from "../../components/RulesBox/RulesBox";
 import { CreateRoomModal } from "../../components/chat/CreateRoomModal/CreateRoomModal";
 import { isSiteStaff } from "../../utils/permissions";
 import { PieceTrigger } from "../../features/easterEgg";
+import { formatActiveLabel, formatFullDateTime } from "../../utils/time";
 import styles from "./RoomsPages.module.css";
 
 const PAGE_SIZE = 20;
-
-function relativeTime(dateStr?: string): string {
-    if (!dateStr) {
-        return "no activity yet";
-    }
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1) {
-        return "just now";
-    }
-    if (mins < 60) {
-        return `${mins}m ago`;
-    }
-    const hours = Math.floor(mins / 60);
-    if (hours < 24) {
-        return `${hours}h ago`;
-    }
-    const days = Math.floor(hours / 24);
-    if (days < 30) {
-        return `${days}d ago`;
-    }
-    return new Date(dateStr).toLocaleDateString();
-}
+const HOT_THRESHOLD = 50;
 
 type Page<T> = {
     items: T[];
@@ -60,12 +39,13 @@ export function RoomsListPage() {
     const [search, setSearch] = useState("");
     const [rpOnly, setRpOnly] = useState(false);
     const [tagFilter, setTagFilter] = useState("");
+    const [includeArchived, setIncludeArchived] = useState(false);
     const [showCreate, setShowCreate] = useState(false);
     const [joining, setJoining] = useState<string | null>(null);
     const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
     const fetchHosted = useCallback(
-        async (q: string, rp: boolean, tag: string, offset: number, append: boolean) => {
+        async (q: string, rp: boolean, tag: string, archived: boolean, offset: number, append: boolean) => {
             if (!user) {
                 setHosted({ items: [], total: 0, loading: false });
                 return;
@@ -77,6 +57,7 @@ export function RoomsListPage() {
                     search: q,
                     rp,
                     tag: tag || undefined,
+                    includeArchived: archived,
                     limit: PAGE_SIZE,
                     offset,
                 });
@@ -93,7 +74,7 @@ export function RoomsListPage() {
     );
 
     const fetchJoined = useCallback(
-        async (q: string, rp: boolean, tag: string, offset: number, append: boolean) => {
+        async (q: string, rp: boolean, tag: string, archived: boolean, offset: number, append: boolean) => {
             if (!user) {
                 setJoined({ items: [], total: 0, loading: false });
                 return;
@@ -105,6 +86,7 @@ export function RoomsListPage() {
                     search: q,
                     rp,
                     tag: tag || undefined,
+                    includeArchived: archived,
                     limit: PAGE_SIZE,
                     offset,
                 });
@@ -120,31 +102,35 @@ export function RoomsListPage() {
         [user],
     );
 
-    const fetchDiscover = useCallback(async (q: string, rp: boolean, tag: string, offset: number, append: boolean) => {
-        setDiscover(prev => ({ ...prev, loading: true }));
-        try {
-            const res = await listPublicChatRooms({
-                search: q,
-                rp,
-                tag: tag || undefined,
-                limit: PAGE_SIZE,
-                offset,
-            });
-            setDiscover(prev => ({
-                items: append ? [...prev.items, ...(res.rooms ?? [])] : (res.rooms ?? []),
-                total: res.total ?? 0,
-                loading: false,
-            }));
-        } catch {
-            setDiscover({ items: [], total: 0, loading: false });
-        }
-    }, []);
+    const fetchDiscover = useCallback(
+        async (q: string, rp: boolean, tag: string, archived: boolean, offset: number, append: boolean) => {
+            setDiscover(prev => ({ ...prev, loading: true }));
+            try {
+                const res = await listPublicChatRooms({
+                    search: q,
+                    rp,
+                    tag: tag || undefined,
+                    includeArchived: archived,
+                    limit: PAGE_SIZE,
+                    offset,
+                });
+                setDiscover(prev => ({
+                    items: append ? [...prev.items, ...(res.rooms ?? [])] : (res.rooms ?? []),
+                    total: res.total ?? 0,
+                    loading: false,
+                }));
+            } catch {
+                setDiscover({ items: [], total: 0, loading: false });
+            }
+        },
+        [],
+    );
 
     useEffect(() => {
-        fetchHosted(search, rpOnly, tagFilter, 0, false);
-        fetchJoined(search, rpOnly, tagFilter, 0, false);
-        fetchDiscover(search, rpOnly, tagFilter, 0, false);
-    }, [fetchHosted, fetchJoined, fetchDiscover, search, rpOnly, tagFilter]);
+        fetchHosted(search, rpOnly, tagFilter, includeArchived, 0, false);
+        fetchJoined(search, rpOnly, tagFilter, includeArchived, 0, false);
+        fetchDiscover(search, rpOnly, tagFilter, includeArchived, 0, false);
+    }, [fetchHosted, fetchJoined, fetchDiscover, search, rpOnly, tagFilter, includeArchived]);
 
     const fetchSystemRooms = useCallback(() => {
         if (!user) {
@@ -171,7 +157,7 @@ export function RoomsListPage() {
     useEffect(() => {
         return addWSListener((msg: WSMessage) => {
             if (msg.type === "chat_room_invited") {
-                fetchJoined(search, rpOnly, tagFilter, 0, false);
+                fetchJoined(search, rpOnly, tagFilter, includeArchived, 0, false);
                 fetchSystemRooms();
                 return;
             }
@@ -190,7 +176,7 @@ export function RoomsListPage() {
                 setSystemRooms(prev => prev.filter(r => r.id !== data.room_id));
             }
         });
-    }, [addWSListener, fetchJoined, fetchSystemRooms, search, rpOnly, tagFilter]);
+    }, [addWSListener, fetchJoined, fetchSystemRooms, search, rpOnly, tagFilter, includeArchived]);
 
     async function handleJoin(room: ChatRoom, ghost = false) {
         setJoining(room.id);
@@ -221,6 +207,7 @@ export function RoomsListPage() {
 
     function renderMemberCard(room: ChatRoom) {
         const classes = [styles.card];
+        const isHot = !room.archived_at && (room.hot_score ?? 0) >= HOT_THRESHOLD;
         if (room.is_system) {
             classes.push(styles.systemCard);
         }
@@ -229,6 +216,12 @@ export function RoomsListPage() {
         }
         if (room.viewer_muted) {
             classes.push(styles.mutedCard);
+        }
+        if (room.archived_at) {
+            classes.push(styles.archivedCard);
+        }
+        if (isHot) {
+            classes.push(styles.hotCard);
         }
         return (
             <Link key={room.id} to={`/rooms/${room.id}`} className={classes.join(" ")}>
@@ -254,6 +247,16 @@ export function RoomsListPage() {
                             ) : (
                                 <span className={styles.privateBadge}>Private</span>
                             ))}
+                        {room.archived_at && (
+                            <span className={styles.archivedBadge} title="No recent messages">
+                                Archived
+                            </span>
+                        )}
+                        {isHot && (
+                            <span className={styles.hotBadge} title="Lots of activity in the last 24 hours">
+                                Hot
+                            </span>
+                        )}
                     </div>
                 </div>
                 {room.description && <p className={styles.cardDesc}>{room.description}</p>}
@@ -278,7 +281,12 @@ export function RoomsListPage() {
                     <span>
                         {"\u2605"} {room.member_count ?? room.members.length} members
                     </span>
-                    <span className={styles.cardActivity}>{relativeTime(room.last_message_at)}</span>
+                    <span
+                        className={styles.cardActivity}
+                        title={room.last_message_at ? formatFullDateTime(room.last_message_at) : undefined}
+                    >
+                        {formatActiveLabel(room.last_message_at)}
+                    </span>
                 </div>
             </Link>
         );
@@ -320,13 +328,31 @@ export function RoomsListPage() {
     }
 
     function renderDiscoverCard(room: ChatRoom) {
+        const classes = [styles.card];
+        const isHot = !room.archived_at && (room.hot_score ?? 0) >= HOT_THRESHOLD;
+        if (room.archived_at) {
+            classes.push(styles.archivedCard);
+        }
+        if (isHot) {
+            classes.push(styles.hotCard);
+        }
         return (
-            <div key={room.id} className={styles.card}>
+            <div key={room.id} className={classes.join(" ")}>
                 <div className={styles.cardHeader}>
                     <h3 className={styles.cardTitle}>{room.name}</h3>
                     <div className={styles.cardBadges}>
                         {room.is_rp && <span className={styles.rpBadge}>RP</span>}
                         <span className={styles.publicBadge}>Public</span>
+                        {room.archived_at && (
+                            <span className={styles.archivedBadge} title="No recent messages">
+                                Archived
+                            </span>
+                        )}
+                        {isHot && (
+                            <span className={styles.hotBadge} title="Lots of activity in the last 24 hours">
+                                Hot
+                            </span>
+                        )}
                     </div>
                 </div>
                 {room.description && <p className={styles.cardDesc}>{room.description}</p>}
@@ -343,7 +369,12 @@ export function RoomsListPage() {
                     <span>
                         {"\u2605"} {room.member_count ?? room.members.length} members
                     </span>
-                    <span className={styles.cardActivity}>{relativeTime(room.last_message_at)}</span>
+                    <span
+                        className={styles.cardActivity}
+                        title={room.last_message_at ? formatFullDateTime(room.last_message_at) : undefined}
+                    >
+                        {formatActiveLabel(room.last_message_at)}
+                    </span>
                 </div>
                 {user && (
                     <div className={styles.cardActions}>
@@ -414,6 +445,12 @@ export function RoomsListPage() {
                     >
                         RP only
                     </button>
+                    <button
+                        className={`${styles.filterChip}${includeArchived ? ` ${styles.filterChipActive}` : ""}`}
+                        onClick={() => setIncludeArchived(prev => !prev)}
+                    >
+                        Include archived
+                    </button>
                     {tagFilter && (
                         <button
                             className={`${styles.filterChip} ${styles.filterChipActive}`}
@@ -446,7 +483,9 @@ export function RoomsListPage() {
                             <Button
                                 variant="secondary"
                                 size="small"
-                                onClick={() => fetchHosted(search, rpOnly, tagFilter, hosted.items.length, true)}
+                                onClick={() =>
+                                    fetchHosted(search, rpOnly, tagFilter, includeArchived, hosted.items.length, true)
+                                }
                                 disabled={hosted.loading}
                             >
                                 {hosted.loading ? "Loading..." : "Load more"}
@@ -486,7 +525,9 @@ export function RoomsListPage() {
                             <Button
                                 variant="secondary"
                                 size="small"
-                                onClick={() => fetchJoined(search, rpOnly, tagFilter, joined.items.length, true)}
+                                onClick={() =>
+                                    fetchJoined(search, rpOnly, tagFilter, includeArchived, joined.items.length, true)
+                                }
                                 disabled={joined.loading}
                             >
                                 {joined.loading ? "Loading..." : "Load more"}
@@ -516,7 +557,9 @@ export function RoomsListPage() {
                         <Button
                             variant="secondary"
                             size="small"
-                            onClick={() => fetchDiscover(search, rpOnly, tagFilter, discover.items.length, true)}
+                            onClick={() =>
+                                fetchDiscover(search, rpOnly, tagFilter, includeArchived, discover.items.length, true)
+                            }
                             disabled={discover.loading}
                         >
                             {discover.loading ? "Loading..." : "Load more"}

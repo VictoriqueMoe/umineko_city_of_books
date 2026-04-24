@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { createInvite, deleteInvite, getInvites, type InviteItem } from "../../api/endpoints";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { Button } from "../../components/Button/Button";
+import { formatDate } from "../../utils/time";
 import styles from "./AdminInvites.module.css";
 
 export function AdminInvites() {
@@ -85,7 +86,7 @@ export function AdminInvites() {
                                         <span className={styles.available}>Available</span>
                                     )}
                                 </td>
-                                <td>{new Date(inv.created_at).toLocaleDateString()}</td>
+                                <td>{formatDate(inv.created_at)}</td>
                                 <td>
                                     {!inv.used_by && (
                                         <Button variant="danger" size="small" onClick={() => handleDelete(inv.code)}>

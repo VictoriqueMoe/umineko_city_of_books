@@ -70,6 +70,16 @@ export function NotificationProvider({ children }: PropsWithChildren) {
                         setUser({ ...userRef.current, role: (data.role ?? "") as UserProfile["role"] });
                     }
                 }
+                if (msg.type === "lock_changed") {
+                    const data = msg.data as { user_id?: string; locked?: boolean; lock_reason?: string };
+                    if (data.user_id && userRef.current && data.user_id === userRef.current.id) {
+                        setUser({
+                            ...userRef.current,
+                            locked: !!data.locked,
+                            lock_reason: data.lock_reason ?? "",
+                        });
+                    }
+                }
                 if (
                     msg.type === "top_detective_changed" ||
                     msg.type === "top_gm_changed" ||

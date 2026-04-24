@@ -6,6 +6,7 @@ import { Input } from "../../components/Input/Input";
 import { Pagination } from "../../components/Pagination/Pagination";
 import { RolePill } from "../../components/RolePill/RolePill";
 import type { AdminUserItem } from "../../types/api";
+import { formatDate } from "../../utils/time";
 import styles from "./AdminUsers.module.css";
 
 const LIMIT = 20;
@@ -113,7 +114,7 @@ export function AdminUsers() {
                                                 <span className={styles.notBanned}>Active</span>
                                             )}
                                         </td>
-                                        <td>{new Date(u.created_at).toLocaleDateString()}</td>
+                                        <td>{formatDate(u.created_at)}</td>
                                     </tr>
                                 ))}
                             </tbody>

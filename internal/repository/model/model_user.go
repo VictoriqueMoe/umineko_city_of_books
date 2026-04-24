@@ -24,6 +24,9 @@ type (
 		BannedAt               *string
 		BannedBy               *uuid.UUID
 		BanReason              string
+		LockedAt               *string
+		LockedBy               *uuid.UUID
+		LockReason             string
 		SocialTwitter          string
 		SocialDiscord          string
 		SocialWaifulist        string
@@ -72,6 +75,8 @@ func (u *User) ToResponse() *dto.UserResponse {
 		Role:        role.Role(u.Role),
 		Banned:      u.BannedAt != nil,
 		BanReason:   u.BanReason,
+		Locked:      u.LockedAt != nil,
+		LockReason:  u.LockReason,
 	}
 }
 

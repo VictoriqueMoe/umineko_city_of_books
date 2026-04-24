@@ -41,6 +41,7 @@ var (
 	ErrInvalidBannedWordAction  = errors.New("invalid action")
 	ErrInvalidBannedWordRegex   = errors.New("invalid regex pattern")
 	ErrBannedWordRuleMismatch   = errors.New("banned word rule does not belong to this room")
+	ErrLockedNonStaffDM         = errors.New("locked accounts can only message site staff")
 )
 
 type ErrBannedWordMatch struct {

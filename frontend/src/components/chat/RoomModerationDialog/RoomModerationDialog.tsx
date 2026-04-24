@@ -18,6 +18,7 @@ import {
     unbanChatRoomMember,
     updateChatRoomBannedWord,
 } from "../../../api/endpoints";
+import { formatFullDateTime } from "../../../utils/time";
 import styles from "./RoomModerationDialog.module.css";
 
 interface RoomModerationDialogProps {
@@ -29,14 +30,7 @@ interface RoomModerationDialogProps {
 type Tab = "bans" | "words";
 
 function formatDate(s: string): string {
-    if (!s) {
-        return "";
-    }
-    try {
-        return new Date(s).toLocaleString("en-GB");
-    } catch {
-        return s;
-    }
+    return formatFullDateTime(s, "en-GB");
 }
 
 function validateRegex(pattern: string, mode: BannedWordMatchMode): string {

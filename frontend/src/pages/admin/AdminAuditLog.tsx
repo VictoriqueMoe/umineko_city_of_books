@@ -4,6 +4,7 @@ import { usePageTitle } from "../../hooks/usePageTitle";
 import { Pagination } from "../../components/Pagination/Pagination";
 import { Select } from "../../components/Select/Select";
 import type { AuditLogEntry } from "../../types/api";
+import { formatFullDateTime } from "../../utils/time";
 import styles from "./AdminAuditLog.module.css";
 
 const LIMIT = 50;
@@ -88,7 +89,7 @@ export function AdminAuditLog() {
                             <tbody>
                                 {entries.map(entry => (
                                     <tr key={entry.id}>
-                                        <td>{new Date(entry.created_at).toLocaleString()}</td>
+                                        <td>{formatFullDateTime(entry.created_at)}</td>
                                         <td>{entry.actor_name}</td>
                                         <td>{entry.action}</td>
                                         <td>{entry.target_type}</td>

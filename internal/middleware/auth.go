@@ -1,12 +1,45 @@
 package middleware
 
 import (
+	"strings"
+
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/session"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 )
+
+func isWriteMethod(method string) bool {
+	switch method {
+	case fiber.MethodPost, fiber.MethodPut, fiber.MethodPatch, fiber.MethodDelete:
+		return true
+	default:
+		return false
+	}
+}
+
+func isLockExemptPath(method, path string) bool {
+	if method != fiber.MethodPost {
+		return false
+	}
+	if strings.HasPrefix(path, "/api/v1/notifications/") && strings.HasSuffix(path, "/read") {
+		return true
+	}
+	if path == "/api/v1/notifications/read" {
+		return true
+	}
+	if strings.HasPrefix(path, "/api/v1/chat/rooms/") && strings.HasSuffix(path, "/read") {
+		return true
+	}
+	if strings.HasPrefix(path, "/api/v1/chat/rooms/") && strings.HasSuffix(path, "/messages") {
+		return true
+	}
+	if strings.HasPrefix(path, "/api/v1/chat/dm/") && strings.HasSuffix(path, "/messages") {
+		return true
+	}
+	return false
+}
 
 func RequirePermission(mgr *session.Manager, authzSvc authz.Service, perm authz.Permission) fiber.Handler {
 	return func(ctx fiber.Ctx) error {
@@ -89,6 +122,15 @@ func authenticateAndCheckBan(ctx fiber.Ctx, mgr *session.Manager, authzSvc authz
 			"error": "your account has been banned",
 		})
 		return uuid.Nil, "", false
+	}
+
+	if isWriteMethod(ctx.Method()) && !isLockExemptPath(ctx.Method(), ctx.Path()) {
+		if authzSvc.IsLocked(ctx.Context(), userID) {
+			_ = ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"error": "your account is locked",
+			})
+			return uuid.Nil, "", false
+		}
 	}
 
 	return userID, cookie, true

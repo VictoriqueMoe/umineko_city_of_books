@@ -152,6 +152,43 @@
     letter-spacing: 0.05em;
 }
 
+.archivedBadge {
+    background: rgba(120, 120, 120, 0.18);
+    border: 1px solid rgba(180, 180, 180, 0.35);
+    color: var(--muted);
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.hotBadge {
+    background: rgba(255, 120, 40, 0.2);
+    border: 1px solid rgba(255, 140, 60, 0.6);
+    color: #ffb070;
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    animation: hotPulse 2.4s ease-in-out infinite;
+}
+
+@keyframes hotPulse {
+    0%,
+    100% {
+        box-shadow: 0 0 0 rgba(255, 140, 60, 0);
+    }
+    50% {
+        box-shadow: 0 0 8px rgba(255, 140, 60, 0.55);
+    }
+}
+
 .systemBadge {
     background: rgba(var(--gold-rgb), 0.25);
     border: 1px solid var(--gold);
@@ -222,6 +259,32 @@
 
 .mutedCard .cardTitle {
     color: var(--text-muted);
+}
+
+.archivedCard {
+    opacity: 0.6;
+    border-left-style: dashed;
+    border-left-color: rgba(160, 160, 160, 0.5);
+    filter: grayscale(0.5);
+}
+
+.archivedCard:hover {
+    opacity: 0.95;
+    filter: grayscale(0);
+}
+
+.archivedCard .cardTitle {
+    color: var(--text-muted);
+}
+
+.hotCard {
+    border-left-color: rgba(255, 140, 60, 0.85);
+    background: radial-gradient(circle at top left, rgba(255, 140, 60, 0.08), transparent 60%), var(--bg-card);
+}
+
+.hotCard:hover {
+    border-color: rgba(255, 140, 60, 0.55);
+    box-shadow: 0 4px 16px rgba(255, 140, 60, 0.18);
 }
 
 .ghostCard {

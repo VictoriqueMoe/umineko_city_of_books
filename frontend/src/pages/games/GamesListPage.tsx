@@ -7,6 +7,7 @@ import type { GameRoom } from "../../types/api";
 import { GAME_TYPES, gameTypeLabel } from "../../games/registry";
 import { Button } from "../../components/Button/Button";
 import { InfoPanel } from "../../components/InfoPanel/InfoPanel";
+import { formatFullDateTime } from "../../utils/time";
 import styles from "./GamesPages.module.css";
 
 function statusBadgeClass(status: string): string {
@@ -141,7 +142,7 @@ export function GamesListPage() {
                                         {opponent?.display_name ?? "Unknown"} invited you to{" "}
                                         {gameTypeLabel(r.game_type)}
                                     </span>
-                                    <span className={styles.subline}>{new Date(r.created_at).toLocaleString()}</span>
+                                    <span className={styles.subline}>{formatFullDateTime(r.created_at)}</span>
                                 </div>
                                 <div className={styles.inviteActions}>
                                     <Button variant="primary" size="small" onClick={() => handleAccept(r)}>
@@ -170,9 +171,7 @@ export function GamesListPage() {
                                     <span className={styles.opponentLine}>
                                         {gameTypeLabel(r.game_type)} vs {opponent?.display_name ?? "Unknown"}
                                     </span>
-                                    <span className={styles.subline}>
-                                        Invited {new Date(r.created_at).toLocaleString()}
-                                    </span>
+                                    <span className={styles.subline}>Invited {formatFullDateTime(r.created_at)}</span>
                                 </div>
                                 <div className={styles.inviteActions}>
                                     <Button variant="ghost" size="small" onClick={() => handleCancel(r)}>
@@ -201,7 +200,7 @@ export function GamesListPage() {
                                     </span>
                                     <span className={styles.subline}>
                                         {yourTurn ? "Your turn" : "Their turn"} — updated{" "}
-                                        {new Date(r.updated_at).toLocaleString()}
+                                        {formatFullDateTime(r.updated_at)}
                                     </span>
                                 </div>
                                 <span className={`${styles.statusBadge} ${statusBadgeClass(r.status)}`}>
@@ -239,7 +238,7 @@ export function GamesListPage() {
                                         {gameTypeLabel(r.game_type)} vs {opponent?.display_name ?? "Unknown"}
                                     </span>
                                     <span className={styles.subline}>
-                                        {outcome} — {new Date(r.finished_at ?? r.updated_at).toLocaleString()}
+                                        {outcome} — {formatFullDateTime(r.finished_at ?? r.updated_at)}
                                     </span>
                                 </div>
                                 <span className={`${styles.statusBadge} ${statusBadgeClass(r.status)}`}>

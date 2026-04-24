@@ -1,0 +1,36 @@
+.banner {
+    background: linear-gradient(90deg, #92400e, #d97706, #92400e);
+    color: #fff;
+    padding: 0.6rem 1rem;
+    text-align: center;
+    font-weight: 600;
+    font-size: 0.95rem;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.text {
+    overflow-wrap: anywhere;
+}
+
+.button {
+    background: #fff;
+    color: #92400e;
+    border: none;
+    padding: 0.3rem 0.9rem;
+    border-radius: 4px;
+    font-weight: 700;
+    cursor: pointer;
+    font-size: 0.9rem;
+    text-decoration: none;
+    transition: opacity 0.15s ease;
+}
+
+.button:hover {
+    opacity: 0.85;
+}

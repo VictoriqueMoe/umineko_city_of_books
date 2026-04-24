@@ -19,6 +19,7 @@ import {
 import { useAuth } from "../../hooks/useAuth";
 import { can } from "../../utils/permissions";
 import { renderRich } from "../../utils/richText";
+import { parseServerDate } from "../../utils/time";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { Button } from "../../components/Button/Button";
 import { Modal } from "../../components/Modal/Modal";
@@ -190,11 +191,11 @@ export function ArtDetailPage() {
                 <div className={styles.metaRow}>
                     <ProfileLink user={art.author} size="medium" />
                     <span className={styles.date}>
-                        {new Date(art.created_at).toLocaleDateString("en-GB", {
+                        {parseServerDate(art.created_at)?.toLocaleDateString("en-GB", {
                             day: "numeric",
                             month: "short",
                             year: "numeric",
-                        })}
+                        }) ?? ""}
                     </span>
                     {art.updated_at && <span className={styles.edited}>(edited)</span>}
                 </div>

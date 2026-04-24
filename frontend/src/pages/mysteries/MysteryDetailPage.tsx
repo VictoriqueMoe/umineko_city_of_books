@@ -26,6 +26,7 @@ import { useNotifications } from "../../hooks/useNotifications";
 import { useThrottled } from "../../hooks/useThrottled";
 import { can } from "../../utils/permissions";
 import { renderRich } from "../../utils/richText";
+import { parseServerDate } from "../../utils/time";
 import { Button } from "../../components/Button/Button";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { relativeTime } from "../../utils/notifications";
@@ -498,10 +499,12 @@ export function MysteryDetailPage() {
             localStorage.setItem(`mystery-read-cursor-${id}`, new Date().toISOString());
             return;
         }
-        const cursor = new Date(cursorRaw).getTime();
+        const cursorDate = parseServerDate(cursorRaw);
+        const cursor = cursorDate ? cursorDate.getTime() : 0;
         const unread = new Set<string>();
         for (const a of mystery.attempts ?? []) {
-            const created = new Date(a.created_at).getTime();
+            const createdDate = parseServerDate(a.created_at);
+            const created = createdDate ? createdDate.getTime() : 0;
             if (created > cursor && a.author.id !== user?.id) {
                 unread.add(a.author.id);
             }

@@ -11,6 +11,7 @@ import { Pagination } from "../../components/Pagination/Pagination";
 import { Input } from "../../components/Input/Input";
 import { RulesBox } from "../../components/RulesBox/RulesBox";
 import { AnnouncementCard } from "../../components/AnnouncementCard/AnnouncementCard";
+import { LiveStrip } from "../../components/LiveStrip/LiveStrip";
 import styles from "./SocialFeedPage.module.css";
 
 type PostSort = "relevance" | "new" | "likes" | "comments" | "views";
@@ -101,6 +102,7 @@ export function SocialFeedPage({ corner = "general" }: SocialFeedPageProps) {
             {CORNER_TITLES[corner] && <h1 className={styles.cornerTitle}>{CORNER_TITLES[corner]}</h1>}
             <AnnouncementCard />
             <RulesBox page={CORNER_RULES[corner] || "game_board"} />
+            <LiveStrip corner={corner} />
 
             <div className={styles.controls}>
                 <div className={styles.tabs}>

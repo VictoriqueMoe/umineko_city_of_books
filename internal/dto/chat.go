@@ -62,9 +62,11 @@ type (
 		ViewerGhost   bool           `json:"viewer_ghost"`
 		IsMember      bool           `json:"is_member"`
 		MemberCount   int            `json:"member_count"`
+		HotScore      int            `json:"hot_score"`
 		Members       []UserResponse `json:"members"`
 		CreatedAt     string         `json:"created_at"`
 		LastMessageAt string         `json:"last_message_at,omitempty"`
+		ArchivedAt    string         `json:"archived_at,omitempty"`
 		Unread        bool           `json:"unread"`
 	}
 

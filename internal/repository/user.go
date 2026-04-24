@@ -41,6 +41,9 @@ type (
 		BanUser(ctx context.Context, userID uuid.UUID, bannedBy uuid.UUID, reason string) error
 		UnbanUser(ctx context.Context, userID uuid.UUID) error
 		IsBanned(ctx context.Context, userID uuid.UUID) (bool, error)
+		LockUser(ctx context.Context, userID uuid.UUID, lockedBy uuid.UUID, reason string) error
+		UnlockUser(ctx context.Context, userID uuid.UUID) error
+		IsLocked(ctx context.Context, userID uuid.UUID) (bool, error)
 		AdminDeleteAccount(ctx context.Context, userID uuid.UUID) error
 	}
 
@@ -50,7 +53,7 @@ type (
 )
 
 const (
-	userColumns = `u.id, u.username, u.password_hash, u.display_name, u.created_at, u.bio, u.avatar_url, u.banner_url, u.favourite_character, u.gender, u.pronoun_subject, u.pronoun_possessive, u.banned_at, u.banned_by, u.ban_reason, u.social_twitter, u.social_discord, u.social_waifulist, u.social_tumblr, u.social_github, u.website, u.banner_position, u.dms_enabled, u.episode_progress, u.higurashi_arc_progress, u.ciconia_chapter_progress, u.email, u.email_public, u.dob, u.dob_public, u.email_notifications, u.play_message_sound, u.play_notification_sound, u.home_page, u.game_board_sort, u.theme, u.font, u.wide_layout, u.ip, u.mystery_score_adjustment, u.gm_score_adjustment, COALESCE(r.role, '')`
+	userColumns = `u.id, u.username, u.password_hash, u.display_name, u.created_at, u.bio, u.avatar_url, u.banner_url, u.favourite_character, u.gender, u.pronoun_subject, u.pronoun_possessive, u.banned_at, u.banned_by, u.ban_reason, u.locked_at, u.locked_by, u.lock_reason, u.social_twitter, u.social_discord, u.social_waifulist, u.social_tumblr, u.social_github, u.website, u.banner_position, u.dms_enabled, u.episode_progress, u.higurashi_arc_progress, u.ciconia_chapter_progress, u.email, u.email_public, u.dob, u.dob_public, u.email_notifications, u.play_message_sound, u.play_notification_sound, u.home_page, u.game_board_sort, u.theme, u.font, u.wide_layout, u.ip, u.mystery_score_adjustment, u.gm_score_adjustment, COALESCE(r.role, '')`
 )
 
 func scanUser(row interface{ Scan(dest ...any) error }) (*model.User, error) {
@@ -59,6 +62,7 @@ func scanUser(row interface{ Scan(dest ...any) error }) (*model.User, error) {
 		&u.Bio, &u.AvatarURL, &u.BannerURL, &u.FavouriteCharacter, &u.Gender,
 		&u.PronounSubject, &u.PronounPossessive,
 		&u.BannedAt, &u.BannedBy, &u.BanReason,
+		&u.LockedAt, &u.LockedBy, &u.LockReason,
 		&u.SocialTwitter, &u.SocialDiscord, &u.SocialWaifulist, &u.SocialTumblr, &u.SocialGithub, &u.Website,
 		&u.BannerPosition, &u.DmsEnabled, &u.EpisodeProgress, &u.HigurashiArcProgress, &u.CiconiaChapterProgress, &u.Email, &u.EmailPublic, &u.DOB, &u.DOBPublic, &u.EmailNotifications, &u.PlayMessageSound, &u.PlayNotificationSound, &u.HomePage, &u.GameBoardSort, &u.Theme, &u.Font, &u.WideLayout, &u.IP, &u.MysteryScoreAdjustment, &u.GMScoreAdjustment, &u.Role)
 	return &u, err
@@ -507,6 +511,41 @@ func (r *userRepository) IsBanned(ctx context.Context, userID uuid.UUID) (bool, 
 		return false, fmt.Errorf("check ban: %w", err)
 	}
 	return bannedAt != nil, nil
+}
+
+func (r *userRepository) LockUser(ctx context.Context, userID uuid.UUID, lockedBy uuid.UUID, reason string) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE users SET locked_at = CURRENT_TIMESTAMP, locked_by = ?, lock_reason = ? WHERE id = ?`,
+		lockedBy, reason, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("lock user: %w", err)
+	}
+	return nil
+}
+
+func (r *userRepository) UnlockUser(ctx context.Context, userID uuid.UUID) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE users SET locked_at = NULL, locked_by = NULL, lock_reason = '' WHERE id = ?`, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("unlock user: %w", err)
+	}
+	return nil
+}
+
+func (r *userRepository) IsLocked(ctx context.Context, userID uuid.UUID) (bool, error) {
+	var lockedAt *string
+	err := r.db.QueryRowContext(ctx,
+		`SELECT locked_at FROM users WHERE id = ?`, userID,
+	).Scan(&lockedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("check lock: %w", err)
+	}
+	return lockedAt != nil, nil
 }
 
 func (r *userRepository) AdminDeleteAccount(ctx context.Context, userID uuid.UUID) error {

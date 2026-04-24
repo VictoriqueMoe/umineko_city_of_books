@@ -182,47 +182,32 @@ export function SettingsPage() {
                             </label>
                             <label className={styles.label}>
                                 Favourite Character
-                                <Select
+                                <Input
+                                    type="text"
+                                    fullWidth
+                                    list="favourite-character-suggestions"
+                                    maxLength={100}
+                                    placeholder="Pick a suggestion or type your own"
                                     value={form.favouriteCharacter}
-                                    onChange={e => form.setFavouriteCharacter((e.target as HTMLSelectElement).value)}
-                                >
-                                    <option value="">None</option>
-                                    <optgroup label="Umineko">
-                                        {uminekoEntries.map(([id, name]) => (
-                                            <option key={`umineko-${id}`} value={name}>
-                                                {name}
-                                            </option>
-                                        ))}
-                                    </optgroup>
-                                    <optgroup label="Higurashi">
-                                        {higurashiEntries.map(([id, name]) => (
-                                            <option key={`higurashi-${id}`} value={name}>
-                                                {name}
-                                            </option>
-                                        ))}
-                                    </optgroup>
-                                    <optgroup label="Ciconia – Main">
-                                        {ciconiaMainEntries.map(([id, name]) => (
-                                            <option key={`ciconia-main-${id}`} value={name}>
-                                                {name}
-                                            </option>
-                                        ))}
-                                    </optgroup>
-                                    <optgroup label="Ciconia – Additional">
-                                        {ciconiaAdditionalEntries.map(([id, name]) => (
-                                            <option key={`ciconia-add-${id}`} value={name}>
-                                                {name}
-                                            </option>
-                                        ))}
-                                    </optgroup>
-                                    <optgroup label="Special / Alias">
-                                        {SPECIAL_CHARACTERS.map(name => (
-                                            <option key={`special-${name}`} value={name}>
-                                                {name}
-                                            </option>
-                                        ))}
-                                    </optgroup>
-                                </Select>
+                                    onChange={e => form.setFavouriteCharacter(e.target.value)}
+                                />
+                                <datalist id="favourite-character-suggestions">
+                                    {uminekoEntries.map(([id, name]) => (
+                                        <option key={`umineko-${id}`} value={name} />
+                                    ))}
+                                    {higurashiEntries.map(([id, name]) => (
+                                        <option key={`higurashi-${id}`} value={name} />
+                                    ))}
+                                    {ciconiaMainEntries.map(([id, name]) => (
+                                        <option key={`ciconia-main-${id}`} value={name} />
+                                    ))}
+                                    {ciconiaAdditionalEntries.map(([id, name]) => (
+                                        <option key={`ciconia-add-${id}`} value={name} />
+                                    ))}
+                                    {SPECIAL_CHARACTERS.map(name => (
+                                        <option key={`special-${name}`} value={name} />
+                                    ))}
+                                </datalist>
                             </label>
                             <label className={styles.label}>
                                 Umineko VN Progress

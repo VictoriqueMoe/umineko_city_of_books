@@ -4,6 +4,7 @@ import { usePageTitle } from "../../hooks/usePageTitle";
 import * as api from "../../api/endpoints";
 import type { GameRoom } from "../../types/api";
 import { Button } from "../../components/Button/Button";
+import { formatFullDateTime } from "../../utils/time";
 import styles from "./GamesPages.module.css";
 
 const PAGE_SIZE = 20;
@@ -83,7 +84,7 @@ export function PastGamesPage() {
                                             {white?.display_name ?? "?"} vs {black?.display_name ?? "?"}
                                         </span>
                                         <span className={styles.subline}>
-                                            {r.game_type}, {outcome}, {new Date(when).toLocaleString()}
+                                            {r.game_type}, {outcome}, {formatFullDateTime(when)}
                                         </span>
                                     </div>
                                     <span className={`${styles.statusBadge} ${styles.statusFinished}`}>{r.status}</span>

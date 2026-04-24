@@ -22,6 +22,7 @@ import {
     getUserShips,
 } from "../../api/endpoints";
 import type { ActivityItem, Art, Fanfic, Gallery, Journal, Mystery, Post, Ship, User } from "../../types/api";
+import { parseServerDate } from "../../utils/time";
 import { Button } from "../../components/Button/Button";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { TheoryCard } from "../../components/theory/TheoryCard/TheoryCard";
@@ -44,7 +45,10 @@ const SOCIAL_LABELS: Record<string, string> = {
 };
 
 function formatDate(iso: string): string {
-    const d = new Date(iso);
+    const d = parseServerDate(iso);
+    if (!d) {
+        return "";
+    }
     return d.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
 }
 

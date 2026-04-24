@@ -4,6 +4,7 @@ import { usePageTitle } from "../../hooks/usePageTitle";
 import { useSiteInfo } from "../../hooks/useSiteInfo";
 import type { GMLeaderboardEntry, Mystery, MysteryLeaderboardEntry, User } from "../../types/api";
 import { getGMLeaderboard, getMysteryLeaderboard, listMysteries } from "../../api/endpoints";
+import { parseServerDate } from "../../utils/time";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { RoleStyledName } from "../../components/RoleStyledName/RoleStyledName";
 import { Pagination } from "../../components/Pagination/Pagination";
@@ -37,7 +38,11 @@ function timerColour(createdAt: string, solved: boolean): string {
     if (solved) {
         return "#66bb6a";
     }
-    const days = (Date.now() - new Date(createdAt).getTime()) / 86400000;
+    const d = parseServerDate(createdAt);
+    if (!d) {
+        return "#64b5f6";
+    }
+    const days = (Date.now() - d.getTime()) / 86400000;
     if (days < 1) {
         return "#64b5f6";
     }
@@ -62,9 +67,9 @@ function LiveTimer({
     pausedDurationSeconds?: number;
 }) {
     const [elapsed, setElapsed] = useState(0);
-    const end = until ? new Date(until).getTime() : null;
-    const sinceMs = new Date(since).getTime();
-    const pausedAtMs = pausedAt ? new Date(pausedAt).getTime() : null;
+    const end = parseServerDate(until)?.getTime() ?? null;
+    const sinceMs = parseServerDate(since)?.getTime() ?? 0;
+    const pausedAtMs = parseServerDate(pausedAt)?.getTime() ?? null;
     const storedPausedMs = (pausedDurationSeconds ?? 0) * 1000;
     const isStopped = end !== null;
 

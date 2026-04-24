@@ -9,17 +9,11 @@ import type { BannedWordAction, BannedWordMatchMode, BannedWordRule } from "../.
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
+import { formatFullDateTime } from "../../utils/time";
 import styles from "./AdminBannedWords.module.css";
 
 function formatDate(s: string): string {
-    if (!s) {
-        return "";
-    }
-    try {
-        return new Date(s).toLocaleString("en-GB");
-    } catch {
-        return s;
-    }
+    return formatFullDateTime(s, "en-GB");
 }
 
 function validateRegex(pattern: string, mode: BannedWordMatchMode): string {
