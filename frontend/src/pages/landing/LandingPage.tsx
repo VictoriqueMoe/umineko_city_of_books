@@ -1,8 +1,10 @@
-import { Link } from "react-router";
+import { Link, useLocation } from "react-router";
 import { useAuth } from "../../hooks/useAuth";
 import { usePageTitle } from "../../hooks/usePageTitle";
+import { useScrollToHash } from "../../hooks/useScrollToHash";
 import { RulesBox } from "../../components/RulesBox/RulesBox";
 import { PieceTrigger } from "../../features/easterEgg";
+import { LiveActivity } from "./LiveActivity";
 import styles from "./LandingPage.module.css";
 
 interface FeatureCard {
@@ -71,6 +73,9 @@ const features: FeatureCard[] = [
 export function LandingPage() {
     usePageTitle("Welcome");
     const { user } = useAuth();
+    const location = useLocation();
+    const hashTarget = location.hash.startsWith("#") ? location.hash.slice(1) : null;
+    useScrollToHash(true, hashTarget);
 
     return (
         <div className={styles.page}>
@@ -130,6 +135,8 @@ export function LandingPage() {
                     </div>
                 </div>
             </section>
+
+            <LiveActivity />
 
             <section className={styles.features}>
                 <h2 className={styles.sectionTitle}>Choose Your Seat at the Table</h2>

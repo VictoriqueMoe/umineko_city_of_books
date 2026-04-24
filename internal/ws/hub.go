@@ -341,6 +341,12 @@ func (h *Hub) IsOnline(userID uuid.UUID) bool {
 	return len(h.clients[userID]) > 0
 }
 
+func (h *Hub) OnlineCount() int {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return len(h.clients)
+}
+
 var topicNamespace = uuid.MustParse("1b671a64-40d5-491e-99b0-da01ff1f3341")
 
 func TopicUUID(topic string) uuid.UUID {

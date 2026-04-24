@@ -5,6 +5,7 @@ import { RolePill } from "../../RolePill/RolePill";
 import { renderRich } from "../../../utils/richText";
 import { GifEmbed } from "../../GifEmbed/GifEmbed";
 import { EmojiPicker } from "../EmojiPicker/EmojiPicker";
+import { formatFullDateTime, formatMessageTime } from "../../../utils/time";
 import styles from "./MessageBubble.module.css";
 
 interface MessageBubbleProps {
@@ -30,13 +31,6 @@ interface MessageBubbleProps {
 }
 
 const GIPHY_URL_RE = /^https:\/\/(media[0-9]*|i)\.giphy\.com\/[^\s]+\.(gif|webp|mp4)(\?[^\s]*)?$/i;
-
-function formatTime(dateStr: string): string {
-    if (!dateStr) {
-        return "";
-    }
-    return new Date(dateStr).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-}
 
 function extractGif(body: string): string | null {
     const trimmed = body.trim();
@@ -242,7 +236,9 @@ export function MessageBubble({
         return (
             <div id={`chat-msg-${message.id}`} className={classes.join(" ")}>
                 <div className={styles.systemMessageText}>{renderRich(message.body)}</div>
-                <div className={styles.systemMessageTime}>{formatTime(message.created_at)}</div>
+                <div className={styles.systemMessageTime} title={formatFullDateTime(message.created_at)}>
+                    {formatMessageTime(message.created_at)}
+                </div>
             </div>
         );
     }
@@ -396,13 +392,10 @@ export function MessageBubble({
                         })}
                     </div>
                 )}
-                <div className={styles.messageTime}>
-                    {formatTime(message.created_at)}
+                <div className={styles.messageTime} title={formatFullDateTime(message.created_at)}>
+                    {formatMessageTime(message.created_at)}
                     {message.edited_at && (
-                        <span
-                            className={styles.editedLabel}
-                            title={`Edited ${new Date(message.edited_at).toLocaleString()}`}
-                        >
+                        <span className={styles.editedLabel} title={`Edited ${formatFullDateTime(message.edited_at)}`}>
                             {" "}
                             (edited)
                         </span>

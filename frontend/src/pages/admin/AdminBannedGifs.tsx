@@ -3,17 +3,11 @@ import { addBannedGif, type BannedGiphyEntry, getBannedGifs, removeBannedGif } f
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
+import { formatFullDateTime } from "../../utils/time";
 import styles from "./AdminBannedGifs.module.css";
 
 function formatDate(s: string): string {
-    if (!s) {
-        return "";
-    }
-    try {
-        return new Date(s).toLocaleString("en-GB");
-    } catch {
-        return s;
-    }
+    return formatFullDateTime(s, "en-GB");
 }
 
 export function AdminBannedGifs() {

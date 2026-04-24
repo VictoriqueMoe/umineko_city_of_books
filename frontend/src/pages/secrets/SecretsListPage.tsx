@@ -5,11 +5,12 @@ import { listSecrets } from "../../api/endpoints";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useAuth } from "../../hooks/useAuth";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
+import { parseServerDate } from "../../utils/time";
 import styles from "./SecretsListPage.module.css";
 
 function formatSolveDate(dateStr: string): string {
-    const d = new Date(dateStr);
-    if (Number.isNaN(d.getTime())) {
+    const d = parseServerDate(dateStr);
+    if (!d) {
         return "";
     }
     return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });

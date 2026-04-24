@@ -90,8 +90,9 @@ type (
 		SendDMMessage(ctx context.Context, senderID, recipientID uuid.UUID, body string, files []FileUpload) (*dto.SendDMResponse, error)
 		CreateGroupRoom(ctx context.Context, creatorID uuid.UUID, req dto.CreateGroupRoomRequest) (*dto.ChatRoomResponse, error)
 		ListRooms(ctx context.Context, userID uuid.UUID) (*dto.ChatRoomListResponse, error)
-		ListUserGroupRooms(ctx context.Context, userID uuid.UUID, search string, isRPOnly bool, tag, role string, limit, offset int) (*dto.ChatRoomListResponse, error)
-		ListPublicRooms(ctx context.Context, search string, isRPOnly bool, tag string, viewerID uuid.UUID, limit, offset int) (*dto.ChatRoomListResponse, error)
+		ListUserGroupRooms(ctx context.Context, userID uuid.UUID, search string, isRPOnly bool, tag, role string, includeArchived bool, limit, offset int) (*dto.ChatRoomListResponse, error)
+		ListPublicRooms(ctx context.Context, search string, isRPOnly bool, tag string, viewerID uuid.UUID, includeArchived bool, limit, offset int) (*dto.ChatRoomListResponse, error)
+		ArchiveStale(ctx context.Context) (int, error)
 		GetMessages(ctx context.Context, userID, roomID uuid.UUID, limit, offset int) (*dto.ChatMessageListResponse, error)
 		GetMessagesBefore(ctx context.Context, userID, roomID uuid.UUID, before string, limit int) (*dto.ChatMessageListResponse, error)
 
@@ -203,6 +204,58 @@ func (s *service) filterTexts(ctx context.Context, texts ...string) error {
 	return s.contentFilter.Check(ctx, texts...)
 }
 
+func (s *service) ensureLockAllowsDMTo(ctx context.Context, senderID, recipientID uuid.UUID) error {
+	locked, err := s.userRepo.IsLocked(ctx, senderID)
+	if err != nil {
+		return fmt.Errorf("check lock: %w", err)
+	}
+	if !locked {
+		return nil
+	}
+	recipientRole, err := s.authzSvc.GetRole(ctx, recipientID)
+	if err != nil {
+		return fmt.Errorf("get recipient role: %w", err)
+	}
+	if !recipientRole.IsSiteStaff() {
+		return ErrLockedNonStaffDM
+	}
+	return nil
+}
+
+func (s *service) ensureLockAllowsRoom(ctx context.Context, senderID, roomID uuid.UUID) error {
+	locked, err := s.userRepo.IsLocked(ctx, senderID)
+	if err != nil {
+		return fmt.Errorf("check lock: %w", err)
+	}
+	if !locked {
+		return nil
+	}
+	room, err := s.chatRepo.GetRoomByID(ctx, roomID, senderID)
+	if err != nil {
+		return fmt.Errorf("get room: %w", err)
+	}
+	if room == nil || room.Type != "dm" {
+		return ErrLockedNonStaffDM
+	}
+	members, err := s.chatRepo.GetRoomMembers(ctx, roomID)
+	if err != nil {
+		return fmt.Errorf("get room members: %w", err)
+	}
+	for _, memberID := range members {
+		if memberID == senderID {
+			continue
+		}
+		r, err := s.authzSvc.GetRole(ctx, memberID)
+		if err != nil {
+			return fmt.Errorf("get member role: %w", err)
+		}
+		if r.IsSiteStaff() {
+			return nil
+		}
+	}
+	return ErrLockedNonStaffDM
+}
+
 func (s *service) checkDMPreconditions(ctx context.Context, senderID, recipientID uuid.UUID) (*model.User, error) {
 	if senderID == recipientID {
 		return nil, ErrCannotDMSelf
@@ -257,6 +310,9 @@ func (s *service) SendDMMessage(ctx context.Context, senderID, recipientID uuid.
 		if err := s.filterTexts(ctx, body); err != nil {
 			return nil, err
 		}
+	}
+	if err := s.ensureLockAllowsDMTo(ctx, senderID, recipientID); err != nil {
+		return nil, err
 	}
 	if _, err := s.checkDMPreconditions(ctx, senderID, recipientID); err != nil {
 		return nil, err
@@ -473,7 +529,7 @@ func (s *service) InviteMembers(ctx context.Context, hostID, roomID uuid.UUID, u
 	}, nil
 }
 
-func (s *service) ListPublicRooms(ctx context.Context, search string, isRPOnly bool, tag string, viewerID uuid.UUID, limit, offset int) (*dto.ChatRoomListResponse, error) {
+func (s *service) ListPublicRooms(ctx context.Context, search string, isRPOnly bool, tag string, viewerID uuid.UUID, includeArchived bool, limit, offset int) (*dto.ChatRoomListResponse, error) {
 	if limit <= 0 {
 		limit = 20
 	}
@@ -485,7 +541,7 @@ func (s *service) ListPublicRooms(ctx context.Context, search string, isRPOnly b
 	}
 	blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, viewerID)
 	tag = strings.ToLower(strings.TrimSpace(tag))
-	rows, total, err := s.chatRepo.ListPublicRooms(ctx, search, isRPOnly, tag, viewerID, blockedIDs, limit, offset)
+	rows, total, err := s.chatRepo.ListPublicRooms(ctx, search, isRPOnly, tag, viewerID, blockedIDs, includeArchived, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("list public rooms: %w", err)
 	}
@@ -510,7 +566,7 @@ func (s *service) ListPublicRooms(ctx context.Context, search string, isRPOnly b
 	return &dto.ChatRoomListResponse{Rooms: rooms, Total: total}, nil
 }
 
-func (s *service) ListUserGroupRooms(ctx context.Context, userID uuid.UUID, search string, isRPOnly bool, tag, role string, limit, offset int) (*dto.ChatRoomListResponse, error) {
+func (s *service) ListUserGroupRooms(ctx context.Context, userID uuid.UUID, search string, isRPOnly bool, tag, role string, includeArchived bool, limit, offset int) (*dto.ChatRoomListResponse, error) {
 	if limit <= 0 {
 		limit = 20
 	}
@@ -524,7 +580,7 @@ func (s *service) ListUserGroupRooms(ctx context.Context, userID uuid.UUID, sear
 		role = ""
 	}
 	tag = strings.ToLower(strings.TrimSpace(tag))
-	rows, total, err := s.chatRepo.ListUserGroupRooms(ctx, userID, search, isRPOnly, tag, role, limit, offset)
+	rows, total, err := s.chatRepo.ListUserGroupRooms(ctx, userID, search, isRPOnly, tag, role, includeArchived, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("list user group rooms: %w", err)
 	}
@@ -1020,6 +1076,15 @@ func memberRoleForSystem(r role.Role) string {
 	return "member"
 }
 
+func (s *service) ArchiveStale(ctx context.Context) (int, error) {
+	cutoff := time.Now().Add(-7 * 24 * time.Hour)
+	ids, err := s.chatRepo.ArchiveStaleGroupRooms(ctx, cutoff)
+	if err != nil {
+		return 0, fmt.Errorf("archive stale chat rooms: %w", err)
+	}
+	return len(ids), nil
+}
+
 func (s *service) EnsureSystemRooms(ctx context.Context) error {
 	modsID, err := s.chatRepo.GetSystemRoomID(ctx, SystemKindMods)
 	if err != nil {
@@ -1143,8 +1208,10 @@ func (s *service) rowToResponse(row repository.ChatRoomRow) dto.ChatRoomResponse
 		ViewerGhost:   row.ViewerGhost,
 		IsMember:      row.IsMember,
 		MemberCount:   row.MemberCount,
+		HotScore:      row.HotScore,
 		CreatedAt:     row.CreatedAt,
 		LastMessageAt: nullStr(row.LastMessageAt),
+		ArchivedAt:    nullStr(row.ArchivedAt),
 		Unread:        isUnread(row.LastMessageAt, row.LastReadAt),
 	}
 }
@@ -1386,6 +1453,9 @@ func (s *service) SendMessage(ctx context.Context, senderID, roomID uuid.UUID, r
 	}
 	if !isMember {
 		return nil, ErrNotMember
+	}
+	if err := s.ensureLockAllowsRoom(ctx, senderID, roomID); err != nil {
+		return nil, err
 	}
 	activeTimeout, timeoutUntil, _, err := s.chatRepo.GetMemberTimeoutState(ctx, roomID, senderID)
 	if err != nil {

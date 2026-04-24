@@ -3,6 +3,7 @@ import * as api from "../../../api/endpoints.ts";
 import type { SpectatorMessage, WSMessage } from "../../../types/api.ts";
 import { useAuth } from "../../../hooks/useAuth.ts";
 import { useNotifications } from "../../../hooks/useNotifications.ts";
+import { formatTimeOfDay } from "../../../utils/time.ts";
 import { Button } from "../../Button/Button.tsx";
 import styles from "./SpectatorChat.module.css";
 
@@ -97,7 +98,7 @@ export function SpectatorChat({ roomId, watcherCount }: SpectatorChatProps) {
                         <div key={m.id} className={styles.message}>
                             <div className={styles.messageHeader}>
                                 <span className={styles.author}>{m.user.display_name}</span>
-                                <span className={styles.timestamp}>{new Date(m.created_at).toLocaleTimeString()}</span>
+                                <span className={styles.timestamp}>{formatTimeOfDay(m.created_at)}</span>
                             </div>
                             <span className={styles.body}>{m.body}</span>
                         </div>

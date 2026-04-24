@@ -832,7 +832,7 @@ func TestChatRepository_ListUserGroupRooms_Basic(t *testing.T) {
 	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, roomID, user.ID, "host", false))
 
 	// when
-	rooms, total, err := repos.Chat.ListUserGroupRooms(ctx, user.ID, "", false, "", "", 20, 0)
+	rooms, total, err := repos.Chat.ListUserGroupRooms(ctx, user.ID, "", false, "", "", false, 20, 0)
 
 	// then
 	require.NoError(t, err)
@@ -854,7 +854,7 @@ func TestChatRepository_ListUserGroupRooms_SearchFilter(t *testing.T) {
 	require.NoError(t, repos.Chat.AddMember(ctx, b, user.ID))
 
 	// when
-	rooms, total, err := repos.Chat.ListUserGroupRooms(ctx, user.ID, "Apple", false, "", "", 20, 0)
+	rooms, total, err := repos.Chat.ListUserGroupRooms(ctx, user.ID, "Apple", false, "", "", false, 20, 0)
 
 	// then
 	require.NoError(t, err)
@@ -876,7 +876,7 @@ func TestChatRepository_ListUserGroupRooms_RPOnlyFilter(t *testing.T) {
 	require.NoError(t, repos.Chat.AddMember(ctx, rp, user.ID))
 
 	// when
-	rooms, total, err := repos.Chat.ListUserGroupRooms(ctx, user.ID, "", true, "", "", 20, 0)
+	rooms, total, err := repos.Chat.ListUserGroupRooms(ctx, user.ID, "", true, "", "", false, 20, 0)
 
 	// then
 	require.NoError(t, err)
@@ -899,7 +899,7 @@ func TestChatRepository_ListUserGroupRooms_TagFilter(t *testing.T) {
 	require.NoError(t, repos.Chat.AddMember(ctx, plain, user.ID))
 
 	// when
-	rooms, total, err := repos.Chat.ListUserGroupRooms(ctx, user.ID, "", false, "lore", "", 20, 0)
+	rooms, total, err := repos.Chat.ListUserGroupRooms(ctx, user.ID, "", false, "lore", "", false, 20, 0)
 
 	// then
 	require.NoError(t, err)
@@ -922,7 +922,7 @@ func TestChatRepository_ListUserGroupRooms_HostRoleFilter(t *testing.T) {
 	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, joined, user.ID, "member", false))
 
 	// when
-	rooms, total, err := repos.Chat.ListUserGroupRooms(ctx, user.ID, "", false, "", "host", 20, 0)
+	rooms, total, err := repos.Chat.ListUserGroupRooms(ctx, user.ID, "", false, "", "host", false, 20, 0)
 
 	// then
 	require.NoError(t, err)
@@ -945,7 +945,7 @@ func TestChatRepository_ListUserGroupRooms_MemberRoleFilter(t *testing.T) {
 	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, joined, user.ID, "member", false))
 
 	// when
-	rooms, total, err := repos.Chat.ListUserGroupRooms(ctx, user.ID, "", false, "", "member", 20, 0)
+	rooms, total, err := repos.Chat.ListUserGroupRooms(ctx, user.ID, "", false, "", "member", false, 20, 0)
 
 	// then
 	require.NoError(t, err)
@@ -966,7 +966,7 @@ func TestChatRepository_ListUserGroupRooms_Pagination(t *testing.T) {
 	}
 
 	// when
-	rooms, total, err := repos.Chat.ListUserGroupRooms(ctx, user.ID, "", false, "", "", 2, 0)
+	rooms, total, err := repos.Chat.ListUserGroupRooms(ctx, user.ID, "", false, "", "", false, 2, 0)
 
 	// then
 	require.NoError(t, err)
@@ -986,7 +986,7 @@ func TestChatRepository_ListPublicRooms_Basic(t *testing.T) {
 	require.NoError(t, repos.Chat.CreateRoom(ctx, private, "Private", "", "group", false, false, owner.ID))
 
 	// when
-	rooms, total, err := repos.Chat.ListPublicRooms(ctx, "", false, "", viewer.ID, nil, 20, 0)
+	rooms, total, err := repos.Chat.ListPublicRooms(ctx, "", false, "", viewer.ID, nil, false, 20, 0)
 
 	// then
 	require.NoError(t, err)
@@ -1005,7 +1005,7 @@ func TestChatRepository_ListPublicRooms_ExcludesSystem(t *testing.T) {
 	require.NoError(t, repos.Chat.CreateSystemRoom(ctx, sysID, "Sys", "", "announcements", owner.ID))
 
 	// when
-	rooms, total, err := repos.Chat.ListPublicRooms(ctx, "", false, "", viewer.ID, nil, 20, 0)
+	rooms, total, err := repos.Chat.ListPublicRooms(ctx, "", false, "", viewer.ID, nil, false, 20, 0)
 
 	// then
 	require.NoError(t, err)
@@ -1026,7 +1026,7 @@ func TestChatRepository_ListPublicRooms_ExcludesMembership(t *testing.T) {
 	require.NoError(t, repos.Chat.CreateRoom(ctx, unjoined, "Unjoined", "", "group", true, false, owner.ID))
 
 	// when
-	rooms, total, err := repos.Chat.ListPublicRooms(ctx, "", false, "", viewer.ID, nil, 20, 0)
+	rooms, total, err := repos.Chat.ListPublicRooms(ctx, "", false, "", viewer.ID, nil, false, 20, 0)
 
 	// then
 	require.NoError(t, err)
@@ -1047,7 +1047,7 @@ func TestChatRepository_ListPublicRooms_SearchFilter(t *testing.T) {
 	require.NoError(t, repos.Chat.CreateRoom(ctx, bananas, "Bananas", "", "group", true, false, owner.ID))
 
 	// when
-	rooms, total, err := repos.Chat.ListPublicRooms(ctx, "Apple", false, "", viewer.ID, nil, 20, 0)
+	rooms, total, err := repos.Chat.ListPublicRooms(ctx, "Apple", false, "", viewer.ID, nil, false, 20, 0)
 
 	// then
 	require.NoError(t, err)
@@ -1068,7 +1068,7 @@ func TestChatRepository_ListPublicRooms_RPOnly(t *testing.T) {
 	require.NoError(t, repos.Chat.CreateRoom(ctx, rp, "RP", "", "group", true, true, owner.ID))
 
 	// when
-	rooms, total, err := repos.Chat.ListPublicRooms(ctx, "", true, "", viewer.ID, nil, 20, 0)
+	rooms, total, err := repos.Chat.ListPublicRooms(ctx, "", true, "", viewer.ID, nil, false, 20, 0)
 
 	// then
 	require.NoError(t, err)
@@ -1090,7 +1090,7 @@ func TestChatRepository_ListPublicRooms_TagFilter(t *testing.T) {
 	require.NoError(t, repos.Chat.CreateRoom(ctx, plain, "P", "", "group", true, false, owner.ID))
 
 	// when
-	rooms, total, err := repos.Chat.ListPublicRooms(ctx, "", false, "lore", viewer.ID, nil, 20, 0)
+	rooms, total, err := repos.Chat.ListPublicRooms(ctx, "", false, "lore", viewer.ID, nil, false, 20, 0)
 
 	// then
 	require.NoError(t, err)
@@ -1112,7 +1112,7 @@ func TestChatRepository_ListPublicRooms_ExcludeUsers(t *testing.T) {
 	require.NoError(t, repos.Chat.CreateRoom(ctx, roomB, "B", "", "group", true, false, ownerB.ID))
 
 	// when
-	rooms, total, err := repos.Chat.ListPublicRooms(ctx, "", false, "", viewer.ID, []uuid.UUID{ownerA.ID}, 20, 0)
+	rooms, total, err := repos.Chat.ListPublicRooms(ctx, "", false, "", viewer.ID, []uuid.UUID{ownerA.ID}, false, 20, 0)
 
 	// then
 	require.NoError(t, err)
@@ -1130,7 +1130,7 @@ func TestChatRepository_ListPublicRooms_NilViewer(t *testing.T) {
 	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "R", "", "group", true, false, owner.ID))
 
 	// when
-	rooms, total, err := repos.Chat.ListPublicRooms(ctx, "", false, "", uuid.Nil, nil, 20, 0)
+	rooms, total, err := repos.Chat.ListPublicRooms(ctx, "", false, "", uuid.Nil, nil, false, 20, 0)
 
 	// then
 	require.NoError(t, err)
@@ -1149,7 +1149,7 @@ func TestChatRepository_ListPublicRooms_IsMemberFlag(t *testing.T) {
 	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "R", "", "group", true, false, owner.ID))
 
 	// when
-	rooms, _, err := repos.Chat.ListPublicRooms(ctx, "", false, "", uuid.Nil, nil, 20, 0)
+	rooms, _, err := repos.Chat.ListPublicRooms(ctx, "", false, "", uuid.Nil, nil, false, 20, 0)
 
 	// then
 	require.NoError(t, err)
@@ -1170,7 +1170,7 @@ func TestChatRepository_ListPublicRooms_Pagination(t *testing.T) {
 	}
 
 	// when
-	rooms, total, err := repos.Chat.ListPublicRooms(ctx, "", false, "", viewer.ID, nil, 2, 0)
+	rooms, total, err := repos.Chat.ListPublicRooms(ctx, "", false, "", viewer.ID, nil, false, 2, 0)
 
 	// then
 	require.NoError(t, err)

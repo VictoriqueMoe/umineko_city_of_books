@@ -252,62 +252,94 @@ func registerListeners(settingsSvc settings.Service, app *fiber.App, svc *servic
 
 	logger.Log.Info().Str("interval", "1h").Msg("registered job: refresh stale embeds")
 	go func() {
-		ticker := time.NewTicker(1 * time.Hour)
-		defer ticker.Stop()
-		for range ticker.C {
+		run := func() {
 			n := svc.post.RefreshStaleEmbeds(context.Background())
 			if n > 0 {
 				logger.Log.Info().Int("count", n).Msg("refreshed stale embeds")
 			}
+		}
+		run()
+		ticker := time.NewTicker(1 * time.Hour)
+		defer ticker.Stop()
+		for range ticker.C {
+			run()
 		}
 	}()
 
 	logger.Log.Info().Str("interval", "24h").Msg("registered job: clean orphaned uploads")
 	go func() {
 		uploadDir := svc.upload.GetUploadDir()
-		n := upload.CleanOrphanedFiles(repos.Upload, uploadDir)
-		if n > 0 {
-			logger.Log.Info().Int("count", n).Msg("cleaned orphaned upload files")
-		}
-		ticker := time.NewTicker(24 * time.Hour)
-		defer ticker.Stop()
-		for range ticker.C {
+		run := func() {
 			n := upload.CleanOrphanedFiles(repos.Upload, uploadDir)
 			if n > 0 {
 				logger.Log.Info().Int("count", n).Msg("cleaned orphaned upload files")
 			}
 		}
+		run()
+		ticker := time.NewTicker(24 * time.Hour)
+		defer ticker.Stop()
+		for range ticker.C {
+			run()
+		}
 	}()
 
 	logger.Log.Info().Str("interval", "1h").Msg("registered job: archive stale journals")
 	go func() {
-		ticker := time.NewTicker(1 * time.Hour)
-		defer ticker.Stop()
-		for range ticker.C {
+		run := func() {
 			n, err := svc.journal.ArchiveStale(context.Background())
 			if err != nil {
 				logger.Log.Error().Err(err).Msg("archive stale journals failed")
-				continue
+				return
 			}
 			if n > 0 {
 				logger.Log.Info().Int("count", n).Msg("archived stale journals")
 			}
 		}
+		run()
+		ticker := time.NewTicker(1 * time.Hour)
+		defer ticker.Stop()
+		for range ticker.C {
+			run()
+		}
+	}()
+
+	logger.Log.Info().Str("interval", "1h").Msg("registered job: archive stale chat rooms")
+	go func() {
+		run := func() {
+			n, err := svc.chat.ArchiveStale(context.Background())
+			if err != nil {
+				logger.Log.Error().Err(err).Msg("archive stale chat rooms failed")
+				return
+			}
+			if n > 0 {
+				logger.Log.Info().Int("count", n).Msg("archived stale chat rooms")
+			}
+		}
+		run()
+		ticker := time.NewTicker(1 * time.Hour)
+		defer ticker.Stop()
+		for range ticker.C {
+			run()
+		}
 	}()
 
 	logger.Log.Info().Str("interval", "5m").Msg("registered job: cancel idle games")
 	go func() {
-		ticker := time.NewTicker(5 * time.Minute)
-		defer ticker.Stop()
-		for range ticker.C {
+		run := func() {
 			n, err := svc.gameRoom.CancelIdleGames(context.Background())
 			if err != nil {
 				logger.Log.Error().Err(err).Msg("cancel idle games failed")
-				continue
+				return
 			}
 			if n > 0 {
 				logger.Log.Info().Int("count", n).Msg("cancelled idle games")
 			}
+		}
+		run()
+		ticker := time.NewTicker(5 * time.Minute)
+		defer ticker.Stop()
+		for range ticker.C {
+			run()
 		}
 	}()
 }
@@ -338,7 +370,7 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 	ctrlService := controllers.NewService(
 		svc.auth, svc.profile, svc.theory, svc.notification, svc.admin,
 		svc.authz, settingsSvc, svc.chat, svc.report, svc.post, svc.follow,
-		svc.art, svc.block, repos.Announcement, svc.mystery, repos.User, svc.ship, svc.fanfic, svc.journal, svc.secret, svc.upload, svc.mediaProc, repos.VanityRole, repos.UserSecret, svc.session, svc.hub, svc.giphy, svc.giphyFavourites, svc.gameRoom, string(htmlBytes),
+		svc.art, svc.block, repos.Announcement, svc.mystery, repos.User, svc.ship, svc.fanfic, svc.journal, svc.secret, svc.upload, svc.mediaProc, repos.VanityRole, repos.UserSecret, svc.session, svc.hub, svc.giphy, svc.giphyFavourites, svc.gameRoom, repos.HomeFeed, string(htmlBytes),
 	)
 	routes.PublicRoutes(ctrlService, app)
 

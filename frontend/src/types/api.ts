@@ -49,6 +49,8 @@ export interface User {
     role?: SiteRole;
     banned?: boolean;
     ban_reason?: string;
+    locked?: boolean;
+    lock_reason?: string;
 }
 
 export interface EvidenceItem {
@@ -167,6 +169,8 @@ export interface UserProfile {
     stats: UserStats;
     banned?: boolean;
     ban_reason?: string;
+    locked?: boolean;
+    lock_reason?: string;
 }
 
 export interface UserStats {
@@ -479,6 +483,7 @@ export interface AdminUserItem {
     avatar_url: string;
     role?: SiteRole;
     banned: boolean;
+    locked: boolean;
     created_at: string;
 }
 
@@ -493,6 +498,8 @@ export interface AdminUserDetail extends AdminUserItem {
     ip?: string;
     ban_reason?: string;
     banned_at?: string;
+    lock_reason?: string;
+    locked_at?: string;
     theory_count: number;
     response_count: number;
     mystery_score_adjustment: number;
@@ -640,9 +647,11 @@ export interface ChatRoom {
     viewer_ghost: boolean;
     is_member: boolean;
     member_count: number;
+    hot_score: number;
     members: User[];
     created_at: string;
     last_message_at?: string;
+    archived_at?: string;
     unread?: boolean;
 }
 
@@ -1166,4 +1175,57 @@ export interface GameScoreboardRow {
 export interface GameScoreboardResponse {
     game_type: GameType;
     rows: GameScoreboardRow[];
+}
+
+export interface HomeActivityAuthor {
+    id: string;
+    username: string;
+    display_name: string;
+    avatar_url: string;
+}
+
+export interface HomeActivityEntry {
+    kind: "theory" | "post" | "journal" | "art";
+    id: string;
+    title: string;
+    excerpt: string;
+    corner: string;
+    url: string;
+    created_at: string;
+    author: HomeActivityAuthor;
+}
+
+export interface HomeMember {
+    id: string;
+    username: string;
+    display_name: string;
+    avatar_url: string;
+    created_at: string;
+}
+
+export interface HomePublicRoom {
+    id: string;
+    name: string;
+    description: string;
+    member_count: number;
+    last_message_at: string | null;
+}
+
+export interface HomeCornerActivity {
+    corner: string;
+    post_count: number;
+    unique_posters: number;
+    last_post_at: string | null;
+}
+
+export interface HomeActivityResponse {
+    online_count: number;
+    recent_activity: HomeActivityEntry[];
+    recent_members: HomeMember[];
+    public_rooms: HomePublicRoom[];
+    corner_activity: HomeCornerActivity[];
+}
+
+export interface SidebarActivityResponse {
+    activity: Record<string, string>;
 }

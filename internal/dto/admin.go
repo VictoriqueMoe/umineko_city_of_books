@@ -14,6 +14,7 @@ type (
 		AvatarURL   string    `json:"avatar_url"`
 		Role        role.Role `json:"role,omitempty"`
 		Banned      bool      `json:"banned"`
+		Locked      bool      `json:"locked"`
 		CreatedAt   string    `json:"created_at"`
 	}
 
@@ -29,6 +30,8 @@ type (
 		IP                     string `json:"ip,omitempty"`
 		BanReason              string `json:"ban_reason,omitempty"`
 		BannedAt               string `json:"banned_at,omitempty"`
+		LockReason             string `json:"lock_reason,omitempty"`
+		LockedAt               string `json:"locked_at,omitempty"`
 		TheoryCount            int    `json:"theory_count"`
 		ResponseCount          int    `json:"response_count"`
 		MysteryScoreAdjustment int    `json:"mystery_score_adjustment"`
@@ -99,6 +102,10 @@ type (
 	}
 
 	BanUserRequest struct {
+		Reason string `json:"reason"`
+	}
+
+	LockUserRequest struct {
 		Reason string `json:"reason"`
 	}
 

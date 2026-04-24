@@ -90,7 +90,7 @@ func (s *service) UpdateProfile(ctx context.Context, userID uuid.UUID, req dto.U
 	if err := validateDOB(req.DOB); err != nil {
 		return err
 	}
-	if err := s.filterTexts(ctx, req.DisplayName, req.Bio, req.Website); err != nil {
+	if err := s.filterTexts(ctx, req.DisplayName, req.Bio, req.Website, req.FavouriteCharacter); err != nil {
 		return err
 	}
 	req.PronounSubject = capLen(req.PronounSubject, maxPronounLength)

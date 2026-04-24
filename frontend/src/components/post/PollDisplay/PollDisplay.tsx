@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import type { Poll } from "../../../types/api";
 import { votePoll } from "../../../api/endpoints";
 import { useAuth } from "../../../hooks/useAuth";
+import { parseServerDate } from "../../../utils/time";
 import { Button } from "../../Button/Button";
 import styles from "./PollDisplay.module.css";
 
@@ -12,7 +13,11 @@ interface PollDisplayProps {
 }
 
 function timeRemaining(expiresAt: string): string {
-    const diff = new Date(expiresAt).getTime() - Date.now();
+    const d = parseServerDate(expiresAt);
+    if (!d) {
+        return "";
+    }
+    const diff = d.getTime() - Date.now();
     if (diff <= 0) {
         return "Poll ended";
     }

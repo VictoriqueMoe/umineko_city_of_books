@@ -3,6 +3,7 @@ import { ApiError } from "../../../api/client";
 import { type GiphyFavourite, type GiphyGif, searchGiphy, trendingGiphy } from "../../../api/endpoints";
 import { useAuth } from "../../../hooks/useAuth";
 import { useGifFavourites } from "../../../hooks/useGifFavourites";
+import { parseServerDate } from "../../../utils/time";
 import styles from "./GifPicker.module.css";
 
 interface GifPickerProps {
@@ -93,7 +94,7 @@ export function GifPicker({ onPick, onClose }: GifPickerProps) {
             if (err instanceof ApiError && err.status === 429) {
                 const resetIso = (err.body as { reset_at?: string } | null)?.reset_at;
                 if (resetIso) {
-                    setRateLimitedUntil(new Date(resetIso));
+                    setRateLimitedUntil(parseServerDate(resetIso));
                 }
                 setResults([]);
                 return;

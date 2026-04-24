@@ -6,6 +6,7 @@ import { useAuth } from "../../../hooks/useAuth";
 import { ProfileLink } from "../../ProfileLink/ProfileLink";
 import { CredibilityBadge } from "../CredibilityBadge/CredibilityBadge";
 import { formatSeriesEpisode, userProgressForSeries } from "../../../utils/seriesConfig";
+import { formatFullDateTime } from "../../../utils/time";
 import styles from "./TheoryCard.module.css";
 
 interface TheoryCardProps {
@@ -64,7 +65,7 @@ export function TheoryCard({ theory }: TheoryCardProps) {
                     <span className={styles.withoutLove}>
                         {"\u2718"} {theory.without_love_count}
                     </span>
-                    <span className={styles.timestamp}>{new Date(theory.created_at).toLocaleString()}</span>
+                    <span className={styles.timestamp}>{formatFullDateTime(theory.created_at)}</span>
                 </div>
             </div>
         </Link>

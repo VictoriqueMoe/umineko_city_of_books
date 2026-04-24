@@ -60,6 +60,7 @@ type (
 		GiphyService          giphy.Service
 		GiphyFavouriteService giphyfavourite.Service
 		GameRoomService       gameroom.Service
+		HomeFeedRepo          repository.HomeFeedRepository
 		HTMLContent           string
 	}
 )
@@ -94,6 +95,7 @@ func NewService(
 	giphyService giphy.Service,
 	giphyFavouriteService giphyfavourite.Service,
 	gameRoomService gameroom.Service,
+	homeFeedRepo repository.HomeFeedRepository,
 	htmlContent string,
 ) Service {
 	return Service{
@@ -126,6 +128,7 @@ func NewService(
 		GiphyService:          giphyService,
 		GiphyFavouriteService: giphyFavouriteService,
 		GameRoomService:       gameRoomService,
+		HomeFeedRepo:          homeFeedRepo,
 		HTMLContent:           htmlContent,
 	}
 }
@@ -151,6 +154,7 @@ func (s *Service) GetAPIRoutes() []FSetupRoute {
 	all = append(all, s.getAllUserPreferencesRoutes()...)
 	all = append(all, s.getAllGiphyRoutes()...)
 	all = append(all, s.getAllGameRoomRoutes()...)
+	all = append(all, s.getAllHomeRoutes()...)
 	return all
 }
 

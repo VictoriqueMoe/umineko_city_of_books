@@ -36,6 +36,8 @@ type (
 		RemoveUserRole(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID, r role.Role) error
 		BanUser(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID, reason string) error
 		UnbanUser(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID) error
+		LockUser(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID, reason string) error
+		UnlockUser(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID) error
 		DeleteUser(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID) error
 
 		GetSettings(ctx context.Context) (*dto.SettingsResponse, error)
@@ -202,6 +204,7 @@ func (s *service) ListUsers(ctx context.Context, search string, limit, offset in
 			AvatarURL:   u.AvatarURL,
 			Role:        role.Role(u.Role),
 			Banned:      u.BannedAt != nil,
+			Locked:      u.LockedAt != nil,
 			CreatedAt:   u.CreatedAt,
 		}
 	}
@@ -231,9 +234,11 @@ func (s *service) GetUser(ctx context.Context, targetID uuid.UUID) (*dto.AdminUs
 			AvatarURL:   u.AvatarURL,
 			Role:        role.Role(u.Role),
 			Banned:      u.BannedAt != nil,
+			Locked:      u.LockedAt != nil,
 			CreatedAt:   u.CreatedAt,
 		},
-		BanReason: u.BanReason,
+		BanReason:  u.BanReason,
+		LockReason: u.LockReason,
 	}
 	if u.IP != nil {
 		resp.IP = *u.IP
@@ -241,6 +246,9 @@ func (s *service) GetUser(ctx context.Context, targetID uuid.UUID) (*dto.AdminUs
 
 	if u.BannedAt != nil {
 		resp.BannedAt = *u.BannedAt
+	}
+	if u.LockedAt != nil {
+		resp.LockedAt = *u.LockedAt
 	}
 	if stats != nil {
 		resp.TheoryCount = stats.TheoryCount
@@ -322,6 +330,37 @@ func (s *service) UnbanUser(ctx context.Context, actorID uuid.UUID, targetID uui
 	}
 	s.audit(ctx, actorID, "unban_user", "user", targetID.String())
 	return nil
+}
+
+func (s *service) LockUser(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID, reason string) error {
+	return s.guardedAction(ctx, actorID, targetID, func() error {
+		if err := s.userRepo.LockUser(ctx, targetID, actorID, reason); err != nil {
+			return fmt.Errorf("lock user: %w", err)
+		}
+		s.audit(ctx, actorID, "lock_user", "user", targetID.String())
+		s.broadcastLockChange(targetID, true, reason)
+		return nil
+	})
+}
+
+func (s *service) UnlockUser(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID) error {
+	if err := s.userRepo.UnlockUser(ctx, targetID); err != nil {
+		return fmt.Errorf("unlock user: %w", err)
+	}
+	s.audit(ctx, actorID, "unlock_user", "user", targetID.String())
+	s.broadcastLockChange(targetID, false, "")
+	return nil
+}
+
+func (s *service) broadcastLockChange(userID uuid.UUID, locked bool, reason string) {
+	s.hub.SendToUser(userID, ws.Message{
+		Type: "lock_changed",
+		Data: map[string]interface{}{
+			"user_id":     userID,
+			"locked":      locked,
+			"lock_reason": reason,
+		},
+	})
 }
 
 func (s *service) DeleteUser(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID) error {

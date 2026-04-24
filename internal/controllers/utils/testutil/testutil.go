@@ -131,6 +131,10 @@ func (h *Harness) ExpectValidSession(cookie string, userID uuid.UUID) {
 		IsBanned(mock.Anything, userID).
 		Return(false).
 		Maybe()
+	h.AuthzService.EXPECT().
+		IsLocked(mock.Anything, userID).
+		Return(false).
+		Maybe()
 }
 
 func (h *Harness) ExpectInvalidSession(cookie string) {
@@ -150,6 +154,10 @@ func (h *Harness) ExpectBannedUser(cookie string, userID uuid.UUID) {
 	h.AuthzService.EXPECT().
 		IsBanned(mock.Anything, userID).
 		Return(true).
+		Maybe()
+	h.AuthzService.EXPECT().
+		IsLocked(mock.Anything, userID).
+		Return(false).
 		Maybe()
 	h.SessionRepo.EXPECT().
 		Delete(mock.Anything, cookie).

@@ -147,6 +147,18 @@
     letter-spacing: 0.03em;
 }
 
+.unreadDot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ef4444;
+    box-shadow: 0 0 6px rgba(239, 68, 68, 0.55);
+    margin-left: 0.5rem;
+    margin-right: auto;
+    flex-shrink: 0;
+}
+
 .footer {
     padding: 1rem 1.25rem;
     border-top: 1px solid rgba(var(--gold-rgb), 0.1);

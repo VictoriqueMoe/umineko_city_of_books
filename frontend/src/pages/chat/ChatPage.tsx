@@ -13,6 +13,7 @@ import { MessageBubble } from "../../components/chat/MessageBubble/MessageBubble
 import { Lightbox } from "../../components/Lightbox/Lightbox";
 import { buildMentionMatcher } from "../../utils/mentions";
 import { isSiteStaff } from "../../utils/permissions";
+import { formatTimeOfDay } from "../../utils/time";
 import {
     deleteChatRoom,
     getMutualFollowers,
@@ -44,14 +45,6 @@ function getRoomAvatarUser(room: ChatRoom, currentUser: User): User | null {
         return room.members.find(m => m.id !== currentUser.id) ?? null;
     }
     return null;
-}
-
-function formatTime(dateStr: string): string {
-    if (!dateStr) {
-        return "";
-    }
-    const d = new Date(dateStr);
-    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
 function renderSeenLabel(
@@ -96,7 +89,7 @@ function renderSeenLabel(
     if (!latestReadAt) {
         return null;
     }
-    const time = formatTime(latestReadAt);
+    const time = formatTimeOfDay(latestReadAt);
     if (room.type === "dm") {
         return `seen ${time}`;
     }

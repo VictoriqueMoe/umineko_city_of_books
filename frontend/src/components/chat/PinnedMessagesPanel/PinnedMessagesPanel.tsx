@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ChatMessage } from "../../../types/api";
 import { getChatRoomPinnedMessages, unpinChatMessage } from "../../../api/endpoints";
+import { parseServerDate } from "../../../utils/time";
 import styles from "./PinnedMessagesPanel.module.css";
 
 interface PinnedMessagesPanelProps {
@@ -13,10 +14,11 @@ interface PinnedMessagesPanelProps {
 }
 
 function formatDateTime(iso: string): string {
-    if (!iso) {
+    const d = parseServerDate(iso);
+    if (!d) {
         return "";
     }
-    return new Date(iso).toLocaleString([], {
+    return d.toLocaleString([], {
         month: "short",
         day: "numeric",
         hour: "2-digit",

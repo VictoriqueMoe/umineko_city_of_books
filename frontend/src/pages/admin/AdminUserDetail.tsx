@@ -5,9 +5,11 @@ import {
     adminDeleteUser,
     banUser,
     getAdminUser,
+    lockUser,
     removeUserRole,
     setUserRole,
     unbanUser,
+    unlockUser,
     updateDetectiveScore,
     updateGMScore,
 } from "../../api/endpoints";
@@ -20,6 +22,7 @@ import { Select } from "../../components/Select/Select";
 import type { AdminUserDetail as AdminUserDetailType } from "../../types/api";
 import { useAuth } from "../../hooks/useAuth";
 import { can } from "../../utils/permissions";
+import { formatDate } from "../../utils/time";
 import styles from "./AdminUserDetail.module.css";
 
 export function AdminUserDetail() {
@@ -35,6 +38,7 @@ export function AdminUserDetail() {
 
     const [selectedRole, setSelectedRole] = useState("admin");
     const [banReason, setBanReason] = useState("");
+    const [lockReason, setLockReason] = useState("");
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
     const [detectiveScoreInput, setDetectiveScoreInput] = useState("0");
     const [gmScoreInput, setGMScoreInput] = useState("0");
@@ -123,6 +127,33 @@ export function AdminUserDetail() {
         }
     }
 
+    async function handleLock() {
+        if (!id || !lockReason.trim()) {
+            return;
+        }
+        try {
+            await lockUser(id, lockReason.trim());
+            setLockReason("");
+            setFeedback("User locked");
+            refresh();
+        } catch (e) {
+            setError(e instanceof Error ? e.message : "Failed to lock user");
+        }
+    }
+
+    async function handleUnlock() {
+        if (!id) {
+            return;
+        }
+        try {
+            await unlockUser(id);
+            setFeedback("User unlocked");
+            refresh();
+        } catch (e) {
+            setError(e instanceof Error ? e.message : "Failed to unlock user");
+        }
+    }
+
     async function handleDelete() {
         if (!id) {
             return;
@@ -198,7 +229,25 @@ export function AdminUserDetail() {
                     {user.banned && user.banned_at && (
                         <div className={styles.infoItem}>
                             <span className={styles.infoLabel}>Banned At</span>
-                            <span className={styles.infoValue}>{new Date(user.banned_at).toLocaleDateString()}</span>
+                            <span className={styles.infoValue}>{formatDate(user.banned_at)}</span>
+                        </div>
+                    )}
+                    {user.locked && (
+                        <div className={styles.infoItem}>
+                            <span className={styles.infoLabel}>Lock</span>
+                            <span className={styles.bannedBadge}>Locked</span>
+                        </div>
+                    )}
+                    {user.locked && user.lock_reason && (
+                        <div className={styles.infoItem}>
+                            <span className={styles.infoLabel}>Lock Reason</span>
+                            <span className={styles.infoValue}>{user.lock_reason}</span>
+                        </div>
+                    )}
+                    {user.locked && user.locked_at && (
+                        <div className={styles.infoItem}>
+                            <span className={styles.infoLabel}>Locked At</span>
+                            <span className={styles.infoValue}>{formatDate(user.locked_at)}</span>
                         </div>
                     )}
                     <div className={styles.infoItem}>
@@ -211,7 +260,7 @@ export function AdminUserDetail() {
                     </div>
                     <div className={styles.infoItem}>
                         <span className={styles.infoLabel}>Joined</span>
-                        <span className={styles.infoValue}>{new Date(user.created_at).toLocaleDateString()}</span>
+                        <span className={styles.infoValue}>{formatDate(user.created_at)}</span>
                     </div>
                 </div>
             </div>
@@ -330,6 +379,34 @@ export function AdminUserDetail() {
                             </div>
                             <Button variant="danger" onClick={handleBan} disabled={!banReason.trim()}>
                                 Ban User
+                            </Button>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {can(currentUser?.role, "ban_user") && user.role !== "super_admin" && user.role !== "admin" && (
+                <div className={styles.card}>
+                    <h2 className={styles.sectionTitle}>Lock Management</h2>
+                    <p className={styles.fieldLabel}>
+                        A locked user can read the site and DM staff, but cannot post, comment, or message other users.
+                    </p>
+                    {user.locked ? (
+                        <Button variant="primary" onClick={handleUnlock}>
+                            Unlock User
+                        </Button>
+                    ) : (
+                        <div className={styles.actionRow}>
+                            <div className={styles.actionField}>
+                                <span className={styles.fieldLabel}>Lock Reason</span>
+                                <Input
+                                    value={lockReason}
+                                    onChange={e => setLockReason(e.target.value)}
+                                    placeholder="Reason for lock..."
+                                />
+                            </div>
+                            <Button variant="danger" onClick={handleLock} disabled={!lockReason.trim()}>
+                                Lock User
                             </Button>
                         </div>
                     )}

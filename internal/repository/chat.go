@@ -6,11 +6,25 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/role"
 
 	"github.com/google/uuid"
+)
+
+const (
+	hotScoreExpr = `(
+		COALESCE((SELECT COUNT(*) + COUNT(DISTINCT sender_id) * 8
+			FROM chat_messages
+			WHERE room_id = cr.id AND is_system = 0
+			  AND created_at >= datetime('now', '-24 hours')), 0)
+		+ COALESCE((SELECT COUNT(*) * 3
+			FROM chat_messages
+			WHERE room_id = cr.id AND is_system = 0
+			  AND created_at >= datetime('now', '-1 hour')), 0)
+	)`
 )
 
 type (
@@ -27,7 +41,9 @@ type (
 		CreatedAt     string
 		LastMessageAt sql.NullString
 		LastReadAt    sql.NullString
+		ArchivedAt    sql.NullString
 		MemberCount   int
+		HotScore      int
 		ViewerRole    string
 		ViewerMuted   bool
 		ViewerGhost   bool
@@ -96,7 +112,7 @@ type (
 		CountRoomMembers(ctx context.Context, roomID uuid.UUID) (int, error)
 		DeleteRoom(ctx context.Context, roomID uuid.UUID) error
 		GetRoomsByUser(ctx context.Context, userID uuid.UUID) ([]ChatRoomRow, error)
-		ListUserGroupRooms(ctx context.Context, userID uuid.UUID, search string, isRPOnly bool, tag, role string, limit, offset int) ([]ChatRoomRow, int, error)
+		ListUserGroupRooms(ctx context.Context, userID uuid.UUID, search string, isRPOnly bool, tag, role string, includeArchived bool, limit, offset int) ([]ChatRoomRow, int, error)
 		GetRoomByID(ctx context.Context, roomID, viewerID uuid.UUID) (*ChatRoomRow, error)
 		GetRoomMembers(ctx context.Context, roomID uuid.UUID) ([]uuid.UUID, error)
 		GetRoomMembersDetailed(ctx context.Context, roomID uuid.UUID) ([]ChatRoomMemberRow, error)
@@ -105,7 +121,7 @@ type (
 		SetMuted(ctx context.Context, roomID, userID uuid.UUID, muted bool) error
 		IsMuted(ctx context.Context, roomID, userID uuid.UUID) (bool, error)
 		GetRoomMembersUnmuted(ctx context.Context, roomID uuid.UUID) ([]uuid.UUID, error)
-		ListPublicRooms(ctx context.Context, search string, isRPOnly bool, tag string, viewerID uuid.UUID, excludeUserIDs []uuid.UUID, limit, offset int) ([]ChatRoomRow, int, error)
+		ListPublicRooms(ctx context.Context, search string, isRPOnly bool, tag string, viewerID uuid.UUID, excludeUserIDs []uuid.UUID, includeArchived bool, limit, offset int) ([]ChatRoomRow, int, error)
 		FindDMRoom(ctx context.Context, userA, userB uuid.UUID) (uuid.UUID, error)
 		AddRoomTags(ctx context.Context, roomID uuid.UUID, tags []string) error
 		ReplaceRoomTags(ctx context.Context, roomID uuid.UUID, tags []string) error
@@ -128,6 +144,7 @@ type (
 		GetMessageMediaBatch(ctx context.Context, messageIDs []uuid.UUID) (map[uuid.UUID][]dto.PostMediaResponse, error)
 
 		TouchRoomActivity(ctx context.Context, roomID uuid.UUID) error
+		ArchiveStaleGroupRooms(ctx context.Context, cutoff time.Time) ([]uuid.UUID, error)
 		MarkRoomRead(ctx context.Context, roomID, userID uuid.UUID) error
 		CountUnreadRoomsForUser(ctx context.Context, userID uuid.UUID) (int, error)
 
@@ -439,7 +456,7 @@ func (r *chatRepository) RemoveMember(ctx context.Context, roomID, userID uuid.U
 
 func (r *chatRepository) GetRoomsByUser(ctx context.Context, userID uuid.UUID) ([]ChatRoomRow, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT cr.id, cr.name, cr.description, cr.type, cr.is_public, cr.is_rp, cr.is_system, cr.system_kind, cr.created_by, cr.created_at, cr.last_message_at, m.last_read_at, m.role, m.muted, m.ghost,
+		`SELECT cr.id, cr.name, cr.description, cr.type, cr.is_public, cr.is_rp, cr.is_system, cr.system_kind, cr.created_by, cr.created_at, cr.last_message_at, cr.archived_at, m.last_read_at, m.role, m.muted, m.ghost,
 		 (SELECT COUNT(*) FROM chat_room_members WHERE room_id = cr.id AND left_at IS NULL)
 		 FROM chat_rooms cr
 		 JOIN chat_room_members m ON cr.id = m.room_id AND m.user_id = ? AND m.left_at IS NULL
@@ -456,7 +473,7 @@ func (r *chatRepository) GetRoomsByUser(ctx context.Context, userID uuid.UUID) (
 		var publicInt, rpInt, systemInt int
 		var mutedInt, ghostInt int
 		var systemKind sql.NullString
-		if err := rows.Scan(&row.ID, &row.Name, &row.Description, &row.Type, &publicInt, &rpInt, &systemInt, &systemKind, &row.CreatedBy, &row.CreatedAt, &row.LastMessageAt, &row.LastReadAt, &row.ViewerRole, &mutedInt, &ghostInt, &row.MemberCount); err != nil {
+		if err := rows.Scan(&row.ID, &row.Name, &row.Description, &row.Type, &publicInt, &rpInt, &systemInt, &systemKind, &row.CreatedBy, &row.CreatedAt, &row.LastMessageAt, &row.ArchivedAt, &row.LastReadAt, &row.ViewerRole, &mutedInt, &ghostInt, &row.MemberCount); err != nil {
 			return nil, fmt.Errorf("scan room: %w", err)
 		}
 		row.IsPublic = publicInt != 0
@@ -487,9 +504,12 @@ func (r *chatRepository) GetRoomsByUser(ctx context.Context, userID uuid.UUID) (
 	return result, nil
 }
 
-func (r *chatRepository) ListUserGroupRooms(ctx context.Context, userID uuid.UUID, search string, isRPOnly bool, tag, role string, limit, offset int) ([]ChatRoomRow, int, error) {
+func (r *chatRepository) ListUserGroupRooms(ctx context.Context, userID uuid.UUID, search string, isRPOnly bool, tag, role string, includeArchived bool, limit, offset int) ([]ChatRoomRow, int, error) {
 	conditions := []string{"cr.type = 'group'", "m.user_id = ?", "m.left_at IS NULL"}
 	args := []interface{}{userID}
+	if !includeArchived {
+		conditions = append(conditions, "cr.archived_at IS NULL")
+	}
 	if search != "" {
 		conditions = append(conditions, "(cr.name LIKE ? OR cr.description LIKE ?)")
 		wc := "%" + search + "%"
@@ -528,8 +548,9 @@ func (r *chatRepository) ListUserGroupRooms(ctx context.Context, userID uuid.UUI
 	queryArgs = append(queryArgs, limit, offset)
 
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT cr.id, cr.name, cr.description, cr.type, cr.is_public, cr.is_rp, cr.is_system, cr.system_kind, cr.created_by, cr.created_at, cr.last_message_at, m.last_read_at, m.role, m.muted, m.ghost,
-		 (SELECT COUNT(*) FROM chat_room_members WHERE room_id = cr.id AND left_at IS NULL)
+		`SELECT cr.id, cr.name, cr.description, cr.type, cr.is_public, cr.is_rp, cr.is_system, cr.system_kind, cr.created_by, cr.created_at, cr.last_message_at, cr.archived_at, m.last_read_at, m.role, m.muted, m.ghost,
+		 (SELECT COUNT(*) FROM chat_room_members WHERE room_id = cr.id AND left_at IS NULL),
+		 `+hotScoreExpr+`
 		 FROM chat_rooms cr
 		 JOIN chat_room_members m ON cr.id = m.room_id`+where+`
 		 ORDER BY cr.is_system DESC, COALESCE(cr.last_message_at, cr.created_at) DESC
@@ -546,7 +567,7 @@ func (r *chatRepository) ListUserGroupRooms(ctx context.Context, userID uuid.UUI
 		var publicInt, rpInt, systemInt int
 		var mutedInt, ghostInt int
 		var systemKind sql.NullString
-		if err := rows.Scan(&row.ID, &row.Name, &row.Description, &row.Type, &publicInt, &rpInt, &systemInt, &systemKind, &row.CreatedBy, &row.CreatedAt, &row.LastMessageAt, &row.LastReadAt, &row.ViewerRole, &mutedInt, &ghostInt, &row.MemberCount); err != nil {
+		if err := rows.Scan(&row.ID, &row.Name, &row.Description, &row.Type, &publicInt, &rpInt, &systemInt, &systemKind, &row.CreatedBy, &row.CreatedAt, &row.LastMessageAt, &row.ArchivedAt, &row.LastReadAt, &row.ViewerRole, &mutedInt, &ghostInt, &row.MemberCount, &row.HotScore); err != nil {
 			return nil, 0, fmt.Errorf("scan user group room: %w", err)
 		}
 		row.IsPublic = publicInt != 0
@@ -584,13 +605,13 @@ func (r *chatRepository) GetRoomByID(ctx context.Context, roomID, viewerID uuid.
 	var viewerRole sql.NullString
 	var viewerMuted, viewerGhost sql.NullInt64
 	err := r.db.QueryRowContext(ctx,
-		`SELECT cr.id, cr.name, cr.description, cr.type, cr.is_public, cr.is_rp, cr.is_system, cr.system_kind, cr.created_by, cr.created_at, cr.last_message_at, m.last_read_at, m.role, m.muted, m.ghost,
+		`SELECT cr.id, cr.name, cr.description, cr.type, cr.is_public, cr.is_rp, cr.is_system, cr.system_kind, cr.created_by, cr.created_at, cr.last_message_at, cr.archived_at, m.last_read_at, m.role, m.muted, m.ghost,
 		 (SELECT COUNT(*) FROM chat_room_members WHERE room_id = cr.id AND left_at IS NULL)
 		 FROM chat_rooms cr
 		 LEFT JOIN chat_room_members m ON cr.id = m.room_id AND m.user_id = ? AND m.left_at IS NULL
 		 WHERE cr.id = ?`,
 		viewerID, roomID,
-	).Scan(&row.ID, &row.Name, &row.Description, &row.Type, &publicInt, &rpInt, &systemInt, &systemKind, &row.CreatedBy, &row.CreatedAt, &row.LastMessageAt, &row.LastReadAt, &viewerRole, &viewerMuted, &viewerGhost, &row.MemberCount)
+	).Scan(&row.ID, &row.Name, &row.Description, &row.Type, &publicInt, &rpInt, &systemInt, &systemKind, &row.CreatedBy, &row.CreatedAt, &row.LastMessageAt, &row.ArchivedAt, &row.LastReadAt, &viewerRole, &viewerMuted, &viewerGhost, &row.MemberCount)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -653,8 +674,11 @@ func (r *chatRepository) GetRoomMembersDetailed(ctx context.Context, roomID uuid
 	return result, rows.Err()
 }
 
-func (r *chatRepository) ListPublicRooms(ctx context.Context, search string, isRPOnly bool, tag string, viewerID uuid.UUID, excludeUserIDs []uuid.UUID, limit, offset int) ([]ChatRoomRow, int, error) {
+func (r *chatRepository) ListPublicRooms(ctx context.Context, search string, isRPOnly bool, tag string, viewerID uuid.UUID, excludeUserIDs []uuid.UUID, includeArchived bool, limit, offset int) ([]ChatRoomRow, int, error) {
 	conditions := []string{"cr.type = 'group'", "cr.is_public = 1", "cr.is_system = 0"}
+	if !includeArchived {
+		conditions = append(conditions, "cr.archived_at IS NULL")
+	}
 	var args []interface{}
 	if search != "" {
 		conditions = append(conditions, "(cr.name LIKE ? OR cr.description LIKE ?)")
@@ -695,9 +719,10 @@ func (r *chatRepository) ListPublicRooms(ctx context.Context, search string, isR
 	queryArgs = append(queryArgs, limit, offset)
 
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT cr.id, cr.name, cr.description, cr.type, cr.is_public, cr.is_rp, cr.is_system, cr.system_kind, cr.created_by, cr.created_at, cr.last_message_at,
+		`SELECT cr.id, cr.name, cr.description, cr.type, cr.is_public, cr.is_rp, cr.is_system, cr.system_kind, cr.created_by, cr.created_at, cr.last_message_at, cr.archived_at,
 		 (SELECT COUNT(*) FROM chat_room_members WHERE room_id = cr.id AND left_at IS NULL),
-		 EXISTS(SELECT 1 FROM chat_room_members WHERE room_id = cr.id AND user_id = ? AND left_at IS NULL)
+		 EXISTS(SELECT 1 FROM chat_room_members WHERE room_id = cr.id AND user_id = ? AND left_at IS NULL),
+		 `+hotScoreExpr+`
 		 FROM chat_rooms cr`+where+`
 		 ORDER BY COALESCE(cr.last_message_at, cr.created_at) DESC
 		 LIMIT ? OFFSET ?`,
@@ -713,7 +738,7 @@ func (r *chatRepository) ListPublicRooms(ctx context.Context, search string, isR
 		var row ChatRoomRow
 		var publicInt, rpInt, systemInt, isMemberInt int
 		var systemKind sql.NullString
-		if err := rows.Scan(&row.ID, &row.Name, &row.Description, &row.Type, &publicInt, &rpInt, &systemInt, &systemKind, &row.CreatedBy, &row.CreatedAt, &row.LastMessageAt, &row.MemberCount, &isMemberInt); err != nil {
+		if err := rows.Scan(&row.ID, &row.Name, &row.Description, &row.Type, &publicInt, &rpInt, &systemInt, &systemKind, &row.CreatedBy, &row.CreatedAt, &row.LastMessageAt, &row.ArchivedAt, &row.MemberCount, &isMemberInt, &row.HotScore); err != nil {
 			return nil, 0, fmt.Errorf("scan public room: %w", err)
 		}
 		row.IsPublic = publicInt != 0
@@ -868,10 +893,17 @@ func (r *chatRepository) insertMessage(ctx context.Context, id, roomID, senderID
 		return fmt.Errorf("insert message: %w", err)
 	}
 
-	_, err = tx.ExecContext(ctx,
-		`UPDATE chat_rooms SET last_message_at = CURRENT_TIMESTAMP WHERE id = ?`,
-		roomID,
-	)
+	if isSystem {
+		_, err = tx.ExecContext(ctx,
+			`UPDATE chat_rooms SET last_message_at = CURRENT_TIMESTAMP WHERE id = ?`,
+			roomID,
+		)
+	} else {
+		_, err = tx.ExecContext(ctx,
+			`UPDATE chat_rooms SET last_message_at = CURRENT_TIMESTAMP, archived_at = NULL WHERE id = ?`,
+			roomID,
+		)
+	}
 	if err != nil {
 		return fmt.Errorf("touch room activity: %w", err)
 	}
@@ -1115,6 +1147,56 @@ func (r *chatRepository) TouchRoomActivity(ctx context.Context, roomID uuid.UUID
 		return fmt.Errorf("touch room activity: %w", err)
 	}
 	return nil
+}
+
+func (r *chatRepository) ArchiveStaleGroupRooms(ctx context.Context, cutoff time.Time) ([]uuid.UUID, error) {
+	cutoffStr := cutoff.UTC().Format("2006-01-02 15:04:05")
+
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT cr.id FROM chat_rooms cr
+		 WHERE cr.type = 'group'
+		   AND cr.is_system = 0
+		   AND cr.archived_at IS NULL
+		   AND COALESCE(
+		       (SELECT MAX(cm.created_at) FROM chat_messages cm WHERE cm.room_id = cr.id AND cm.is_system = 0),
+		       cr.created_at
+		   ) < ?`,
+		cutoffStr,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("find stale chat rooms: %w", err)
+	}
+	defer rows.Close()
+
+	var ids []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("scan stale chat room id: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
+	placeholders := strings.Repeat("?,", len(ids))
+	placeholders = placeholders[:len(placeholders)-1]
+	args := make([]interface{}, len(ids))
+	for i, id := range ids {
+		args[i] = id
+	}
+	_, err = r.db.ExecContext(ctx,
+		`UPDATE chat_rooms SET archived_at = CURRENT_TIMESTAMP WHERE id IN (`+placeholders+`)`,
+		args...,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("archive stale chat rooms: %w", err)
+	}
+	return ids, nil
 }
 
 func (r *chatRepository) MarkRoomRead(ctx context.Context, roomID, userID uuid.UUID) error {

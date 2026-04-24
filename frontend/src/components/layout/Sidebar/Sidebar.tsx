@@ -2,10 +2,15 @@ import { useEffect, useRef, useState } from "react";
 import { NavLink, useLocation } from "react-router";
 import { useAuth } from "../../../hooks/useAuth";
 import { useNotifications } from "../../../hooks/useNotifications";
+import { useSidebarBadges } from "../../../hooks/useSidebarBadges";
 import { getArtCornerCounts, getCornerCounts } from "../../../api/endpoints";
 import { can, canAccessAdmin } from "../../../utils/permissions";
 import { PieceTrigger } from "../../../features/easterEgg";
 import styles from "./Sidebar.module.css";
+
+const GAME_BOARD_KEYS = ["game_board_general", "game_board_umineko", "game_board_higurashi", "game_board_ciconia"];
+const GALLERY_KEYS = ["gallery_general", "gallery_umineko", "gallery_higurashi", "gallery_ciconia"];
+const THEORY_KEYS = ["theories_umineko", "theories_higurashi", "theories_ciconia"];
 
 interface SidebarProps {
     open: boolean;
@@ -51,6 +56,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         chatUnreadCount: unreadChat,
         liveGamesCount,
     } = useNotifications();
+    const { hasUnread, hasAnyUnread, markVisited } = useSidebarBadges();
     const location = useLocation();
     const [newAnnouncement, setNewAnnouncement] = useState(false);
     const isRyukishiPath = RYUKISHI_CORNERS.some(c => location.pathname === c.path);
@@ -157,24 +163,36 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                             onClick={() => setCornersOpen(prev => !prev)}
                         >
                             Game Board
+                            {hasAnyUnread(GAME_BOARD_KEYS) && (
+                                <span className={styles.unreadDot} aria-label="new content" />
+                            )}
                             <span className={styles.expandIcon}>{cornersOpen ? "\u25B4" : "\u25BE"}</span>
                         </button>
                         {cornersOpen && (
                             <div className={styles.subLinks}>
-                                {CORNERS.map(c => (
-                                    <NavLink
-                                        key={c.path}
-                                        to={c.path}
-                                        end
-                                        className={({ isActive }) =>
-                                            `${styles.link} ${styles.subLink}${isActive ? ` ${styles.active}` : ""}`
-                                        }
-                                        onClick={onClose}
-                                    >
-                                        {c.label}
-                                        <span className={styles.cornerCount}>{cornerCounts[c.key] ?? 0}</span>
-                                    </NavLink>
-                                ))}
+                                {CORNERS.map(c => {
+                                    const badgeKey = `game_board_${c.key}`;
+                                    return (
+                                        <NavLink
+                                            key={c.path}
+                                            to={c.path}
+                                            end
+                                            className={({ isActive }) =>
+                                                `${styles.link} ${styles.subLink}${isActive ? ` ${styles.active}` : ""}`
+                                            }
+                                            onClick={() => {
+                                                markVisited(badgeKey);
+                                                onClose();
+                                            }}
+                                        >
+                                            {c.label}
+                                            {hasUnread(badgeKey) && (
+                                                <span className={styles.unreadDot} aria-label="new content" />
+                                            )}
+                                            <span className={styles.cornerCount}>{cornerCounts[c.key] ?? 0}</span>
+                                        </NavLink>
+                                    );
+                                })}
                             </div>
                         )}
                         <button
@@ -207,24 +225,36 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                             onClick={() => setGalleryOpen(prev => !prev)}
                         >
                             Gallery
+                            {hasAnyUnread(GALLERY_KEYS) && (
+                                <span className={styles.unreadDot} aria-label="new content" />
+                            )}
                             <span className={styles.expandIcon}>{galleryOpen ? "\u25B4" : "\u25BE"}</span>
                         </button>
                         {galleryOpen && (
                             <div className={styles.subLinks}>
-                                {GALLERY_CORNERS.map(c => (
-                                    <NavLink
-                                        key={c.path}
-                                        to={c.path}
-                                        end
-                                        className={({ isActive }) =>
-                                            `${styles.link} ${styles.subLink}${isActive ? ` ${styles.active}` : ""}`
-                                        }
-                                        onClick={onClose}
-                                    >
-                                        {c.label}
-                                        <span className={styles.cornerCount}>{artCounts[c.key] ?? 0}</span>
-                                    </NavLink>
-                                ))}
+                                {GALLERY_CORNERS.map(c => {
+                                    const badgeKey = `gallery_${c.key}`;
+                                    return (
+                                        <NavLink
+                                            key={c.path}
+                                            to={c.path}
+                                            end
+                                            className={({ isActive }) =>
+                                                `${styles.link} ${styles.subLink}${isActive ? ` ${styles.active}` : ""}`
+                                            }
+                                            onClick={() => {
+                                                markVisited(badgeKey);
+                                                onClose();
+                                            }}
+                                        >
+                                            {c.label}
+                                            {hasUnread(badgeKey) && (
+                                                <span className={styles.unreadDot} aria-label="new content" />
+                                            )}
+                                            <span className={styles.cornerCount}>{artCounts[c.key] ?? 0}</span>
+                                        </NavLink>
+                                    );
+                                })}
                             </div>
                         )}
                         <button
@@ -232,6 +262,9 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                             onClick={() => setTheoriesOpen(prev => !prev)}
                         >
                             Theories
+                            {hasAnyUnread(THEORY_KEYS) && (
+                                <span className={styles.unreadDot} aria-label="new content" />
+                            )}
                             <span className={styles.expandIcon}>{theoriesOpen ? "\u25B4" : "\u25BE"}</span>
                         </button>
                         {theoriesOpen && (
@@ -242,9 +275,15 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                                     className={({ isActive }) =>
                                         `${styles.link} ${styles.subLink}${isActive ? ` ${styles.active}` : ""}`
                                     }
-                                    onClick={onClose}
+                                    onClick={() => {
+                                        markVisited("theories_umineko");
+                                        onClose();
+                                    }}
                                 >
                                     Umineko
+                                    {hasUnread("theories_umineko") && (
+                                        <span className={styles.unreadDot} aria-label="new content" />
+                                    )}
                                 </NavLink>
                                 <NavLink
                                     to="/theories/higurashi"
@@ -252,9 +291,15 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                                     className={({ isActive }) =>
                                         `${styles.link} ${styles.subLink}${isActive ? ` ${styles.active}` : ""}`
                                     }
-                                    onClick={onClose}
+                                    onClick={() => {
+                                        markVisited("theories_higurashi");
+                                        onClose();
+                                    }}
                                 >
                                     Higurashi
+                                    {hasUnread("theories_higurashi") && (
+                                        <span className={styles.unreadDot} aria-label="new content" />
+                                    )}
                                 </NavLink>
                                 <NavLink
                                     to="/theories/ciconia"
@@ -262,53 +307,83 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                                     className={({ isActive }) =>
                                         `${styles.link} ${styles.subLink}${isActive ? ` ${styles.active}` : ""}`
                                     }
-                                    onClick={onClose}
+                                    onClick={() => {
+                                        markVisited("theories_ciconia");
+                                        onClose();
+                                    }}
                                 >
                                     Ciconia
+                                    {hasUnread("theories_ciconia") && (
+                                        <span className={styles.unreadDot} aria-label="new content" />
+                                    )}
                                 </NavLink>
                             </div>
                         )}
                         <NavLink
                             to="/mysteries"
                             className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
-                            onClick={onClose}
+                            onClick={() => {
+                                markVisited("mysteries");
+                                onClose();
+                            }}
                         >
                             Mysteries
+                            {hasUnread("mysteries") && <span className={styles.unreadDot} aria-label="new content" />}
                         </NavLink>
                         <NavLink
                             to="/secrets"
                             className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
-                            onClick={onClose}
+                            onClick={() => {
+                                markVisited("secrets");
+                                onClose();
+                            }}
                         >
                             Secrets
+                            {hasUnread("secrets") && <span className={styles.unreadDot} aria-label="new content" />}
                         </NavLink>
                         <NavLink
                             to="/ships"
                             className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
-                            onClick={onClose}
+                            onClick={() => {
+                                markVisited("ships");
+                                onClose();
+                            }}
                         >
                             Ships
+                            {hasUnread("ships") && <span className={styles.unreadDot} aria-label="new content" />}
                         </NavLink>
                         <NavLink
                             to="/fanfiction"
                             className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
-                            onClick={onClose}
+                            onClick={() => {
+                                markVisited("fanfiction");
+                                onClose();
+                            }}
                         >
                             Fanfictions
+                            {hasUnread("fanfiction") && <span className={styles.unreadDot} aria-label="new content" />}
                         </NavLink>
                         <NavLink
                             to="/journals"
                             className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
-                            onClick={onClose}
+                            onClick={() => {
+                                markVisited("journals");
+                                onClose();
+                            }}
                         >
                             Reading Journals
+                            {hasUnread("journals") && <span className={styles.unreadDot} aria-label="new content" />}
                         </NavLink>
                         <NavLink
                             to="/rooms"
                             className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
-                            onClick={onClose}
+                            onClick={() => {
+                                markVisited("rooms");
+                                onClose();
+                            }}
                         >
                             Chat Rooms
+                            {hasUnread("rooms") && <span className={styles.unreadDot} aria-label="new content" />}
                         </NavLink>
                         <button
                             className={`${styles.link} ${styles.expandBtn}${gamesOpen ? ` ${styles.expandOpen}` : ""}`}

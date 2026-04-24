@@ -14,6 +14,7 @@ import { useNotifications } from "../../../hooks/useNotifications";
 import { can } from "../../../utils/permissions";
 import { extractGif } from "../../../utils/gif";
 import { renderRich } from "../../../utils/richText";
+import { shortRelativeTime } from "../../../utils/time";
 import { GifEmbed } from "../../GifEmbed/GifEmbed";
 import { ReportButton } from "../../ReportButton/ReportButton";
 import { ProfileLink } from "../../ProfileLink/ProfileLink";
@@ -32,26 +33,6 @@ interface PostCardProps {
     onDelete?: () => void;
     onEdit?: () => void;
     extraActions?: React.ReactNode;
-}
-
-function timeAgo(dateStr: string): string {
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1) {
-        return "just now";
-    }
-    if (mins < 60) {
-        return `${mins}m`;
-    }
-    const hours = Math.floor(mins / 60);
-    if (hours < 24) {
-        return `${hours}h`;
-    }
-    const days = Math.floor(hours / 24);
-    if (days < 30) {
-        return `${days}d`;
-    }
-    return new Date(dateStr).toLocaleDateString();
 }
 
 export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps) {
@@ -147,7 +128,7 @@ export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps
             <div className={styles.header}>
                 <ProfileLink user={post.author} size="medium" />
                 <span className={styles.time}>
-                    {timeAgo(post.created_at)}
+                    {shortRelativeTime(post.created_at)}
                     {post.updated_at && " (edited)"}
                 </span>
             </div>

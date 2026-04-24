@@ -6,6 +6,7 @@ import { usePageTitle } from "../../hooks/usePageTitle";
 import { Button } from "../../components/Button/Button";
 import { Modal } from "../../components/Modal/Modal";
 import { Select } from "../../components/Select/Select";
+import { formatFullDateTime } from "../../utils/time";
 import styles from "./AdminReports.module.css";
 
 export function AdminReports() {
@@ -129,7 +130,7 @@ export function AdminReports() {
                                 </td>
                                 <td className={styles.type}>{report.target_type}</td>
                                 <td className={styles.reason}>{report.reason}</td>
-                                <td>{new Date(report.created_at).toLocaleString()}</td>
+                                <td>{formatFullDateTime(report.created_at)}</td>
                                 <td className={styles.actions}>
                                     <Button variant="ghost" size="small" onClick={() => handleViewTarget(report)}>
                                         View

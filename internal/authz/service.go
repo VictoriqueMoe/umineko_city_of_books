@@ -15,6 +15,7 @@ type (
 		Can(ctx context.Context, userID uuid.UUID, perm Permission) bool
 		GetRole(ctx context.Context, userID uuid.UUID) (role.Role, error)
 		IsBanned(ctx context.Context, userID uuid.UUID) bool
+		IsLocked(ctx context.Context, userID uuid.UUID) bool
 	}
 
 	service struct {
@@ -34,6 +35,15 @@ func (s *service) IsBanned(ctx context.Context, userID uuid.UUID) bool {
 		return false
 	}
 	return banned
+}
+
+func (s *service) IsLocked(ctx context.Context, userID uuid.UUID) bool {
+	locked, err := s.userRepo.IsLocked(ctx, userID)
+	if err != nil {
+		logger.Log.Error().Err(err).Str("user_id", userID.String()).Msg("failed to check lock status")
+		return false
+	}
+	return locked
 }
 
 func (s *service) Can(ctx context.Context, userID uuid.UUID, perm Permission) bool {

@@ -110,6 +110,66 @@ func (_c *MockService_AddReaction_Call) RunAndReturn(run func(ctx context.Contex
 	return _c
 }
 
+// ArchiveStale provides a mock function for the type MockService
+func (_mock *MockService) ArchiveStale(ctx context.Context) (int, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ArchiveStale")
+	}
+
+	var r0 int
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (int, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) int); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_ArchiveStale_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ArchiveStale'
+type MockService_ArchiveStale_Call struct {
+	*mock.Call
+}
+
+// ArchiveStale is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockService_Expecter) ArchiveStale(ctx interface{}) *MockService_ArchiveStale_Call {
+	return &MockService_ArchiveStale_Call{Call: _e.mock.On("ArchiveStale", ctx)}
+}
+
+func (_c *MockService_ArchiveStale_Call) Run(run func(ctx context.Context)) *MockService_ArchiveStale_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_ArchiveStale_Call) Return(n int, err error) *MockService_ArchiveStale_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *MockService_ArchiveStale_Call) RunAndReturn(run func(ctx context.Context) (int, error)) *MockService_ArchiveStale_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // BanMember provides a mock function for the type MockService
 func (_mock *MockService) BanMember(ctx context.Context, actorID uuid.UUID, roomID uuid.UUID, targetID uuid.UUID, reason string) error {
 	ret := _mock.Called(ctx, actorID, roomID, targetID, reason)
@@ -1843,8 +1903,8 @@ func (_c *MockService_ListPinnedMessages_Call) RunAndReturn(run func(ctx context
 }
 
 // ListPublicRooms provides a mock function for the type MockService
-func (_mock *MockService) ListPublicRooms(ctx context.Context, search string, isRPOnly bool, tag string, viewerID uuid.UUID, limit int, offset int) (*dto.ChatRoomListResponse, error) {
-	ret := _mock.Called(ctx, search, isRPOnly, tag, viewerID, limit, offset)
+func (_mock *MockService) ListPublicRooms(ctx context.Context, search string, isRPOnly bool, tag string, viewerID uuid.UUID, includeArchived bool, limit int, offset int) (*dto.ChatRoomListResponse, error) {
+	ret := _mock.Called(ctx, search, isRPOnly, tag, viewerID, includeArchived, limit, offset)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListPublicRooms")
@@ -1852,18 +1912,18 @@ func (_mock *MockService) ListPublicRooms(ctx context.Context, search string, is
 
 	var r0 *dto.ChatRoomListResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, bool, string, uuid.UUID, int, int) (*dto.ChatRoomListResponse, error)); ok {
-		return returnFunc(ctx, search, isRPOnly, tag, viewerID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, bool, string, uuid.UUID, bool, int, int) (*dto.ChatRoomListResponse, error)); ok {
+		return returnFunc(ctx, search, isRPOnly, tag, viewerID, includeArchived, limit, offset)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, bool, string, uuid.UUID, int, int) *dto.ChatRoomListResponse); ok {
-		r0 = returnFunc(ctx, search, isRPOnly, tag, viewerID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, bool, string, uuid.UUID, bool, int, int) *dto.ChatRoomListResponse); ok {
+		r0 = returnFunc(ctx, search, isRPOnly, tag, viewerID, includeArchived, limit, offset)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*dto.ChatRoomListResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, bool, string, uuid.UUID, int, int) error); ok {
-		r1 = returnFunc(ctx, search, isRPOnly, tag, viewerID, limit, offset)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, bool, string, uuid.UUID, bool, int, int) error); ok {
+		r1 = returnFunc(ctx, search, isRPOnly, tag, viewerID, includeArchived, limit, offset)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1881,13 +1941,14 @@ type MockService_ListPublicRooms_Call struct {
 //   - isRPOnly bool
 //   - tag string
 //   - viewerID uuid.UUID
+//   - includeArchived bool
 //   - limit int
 //   - offset int
-func (_e *MockService_Expecter) ListPublicRooms(ctx interface{}, search interface{}, isRPOnly interface{}, tag interface{}, viewerID interface{}, limit interface{}, offset interface{}) *MockService_ListPublicRooms_Call {
-	return &MockService_ListPublicRooms_Call{Call: _e.mock.On("ListPublicRooms", ctx, search, isRPOnly, tag, viewerID, limit, offset)}
+func (_e *MockService_Expecter) ListPublicRooms(ctx interface{}, search interface{}, isRPOnly interface{}, tag interface{}, viewerID interface{}, includeArchived interface{}, limit interface{}, offset interface{}) *MockService_ListPublicRooms_Call {
+	return &MockService_ListPublicRooms_Call{Call: _e.mock.On("ListPublicRooms", ctx, search, isRPOnly, tag, viewerID, includeArchived, limit, offset)}
 }
 
-func (_c *MockService_ListPublicRooms_Call) Run(run func(ctx context.Context, search string, isRPOnly bool, tag string, viewerID uuid.UUID, limit int, offset int)) *MockService_ListPublicRooms_Call {
+func (_c *MockService_ListPublicRooms_Call) Run(run func(ctx context.Context, search string, isRPOnly bool, tag string, viewerID uuid.UUID, includeArchived bool, limit int, offset int)) *MockService_ListPublicRooms_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1909,13 +1970,17 @@ func (_c *MockService_ListPublicRooms_Call) Run(run func(ctx context.Context, se
 		if args[4] != nil {
 			arg4 = args[4].(uuid.UUID)
 		}
-		var arg5 int
+		var arg5 bool
 		if args[5] != nil {
-			arg5 = args[5].(int)
+			arg5 = args[5].(bool)
 		}
 		var arg6 int
 		if args[6] != nil {
 			arg6 = args[6].(int)
+		}
+		var arg7 int
+		if args[7] != nil {
+			arg7 = args[7].(int)
 		}
 		run(
 			arg0,
@@ -1925,6 +1990,7 @@ func (_c *MockService_ListPublicRooms_Call) Run(run func(ctx context.Context, se
 			arg4,
 			arg5,
 			arg6,
+			arg7,
 		)
 	})
 	return _c
@@ -1935,7 +2001,7 @@ func (_c *MockService_ListPublicRooms_Call) Return(chatRoomListResponse *dto.Cha
 	return _c
 }
 
-func (_c *MockService_ListPublicRooms_Call) RunAndReturn(run func(ctx context.Context, search string, isRPOnly bool, tag string, viewerID uuid.UUID, limit int, offset int) (*dto.ChatRoomListResponse, error)) *MockService_ListPublicRooms_Call {
+func (_c *MockService_ListPublicRooms_Call) RunAndReturn(run func(ctx context.Context, search string, isRPOnly bool, tag string, viewerID uuid.UUID, includeArchived bool, limit int, offset int) (*dto.ChatRoomListResponse, error)) *MockService_ListPublicRooms_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2157,8 +2223,8 @@ func (_c *MockService_ListRooms_Call) RunAndReturn(run func(ctx context.Context,
 }
 
 // ListUserGroupRooms provides a mock function for the type MockService
-func (_mock *MockService) ListUserGroupRooms(ctx context.Context, userID uuid.UUID, search string, isRPOnly bool, tag string, role string, limit int, offset int) (*dto.ChatRoomListResponse, error) {
-	ret := _mock.Called(ctx, userID, search, isRPOnly, tag, role, limit, offset)
+func (_mock *MockService) ListUserGroupRooms(ctx context.Context, userID uuid.UUID, search string, isRPOnly bool, tag string, role string, includeArchived bool, limit int, offset int) (*dto.ChatRoomListResponse, error) {
+	ret := _mock.Called(ctx, userID, search, isRPOnly, tag, role, includeArchived, limit, offset)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListUserGroupRooms")
@@ -2166,18 +2232,18 @@ func (_mock *MockService) ListUserGroupRooms(ctx context.Context, userID uuid.UU
 
 	var r0 *dto.ChatRoomListResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, bool, string, string, int, int) (*dto.ChatRoomListResponse, error)); ok {
-		return returnFunc(ctx, userID, search, isRPOnly, tag, role, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, bool, string, string, bool, int, int) (*dto.ChatRoomListResponse, error)); ok {
+		return returnFunc(ctx, userID, search, isRPOnly, tag, role, includeArchived, limit, offset)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, bool, string, string, int, int) *dto.ChatRoomListResponse); ok {
-		r0 = returnFunc(ctx, userID, search, isRPOnly, tag, role, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, bool, string, string, bool, int, int) *dto.ChatRoomListResponse); ok {
+		r0 = returnFunc(ctx, userID, search, isRPOnly, tag, role, includeArchived, limit, offset)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*dto.ChatRoomListResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, bool, string, string, int, int) error); ok {
-		r1 = returnFunc(ctx, userID, search, isRPOnly, tag, role, limit, offset)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, bool, string, string, bool, int, int) error); ok {
+		r1 = returnFunc(ctx, userID, search, isRPOnly, tag, role, includeArchived, limit, offset)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -2196,13 +2262,14 @@ type MockService_ListUserGroupRooms_Call struct {
 //   - isRPOnly bool
 //   - tag string
 //   - role string
+//   - includeArchived bool
 //   - limit int
 //   - offset int
-func (_e *MockService_Expecter) ListUserGroupRooms(ctx interface{}, userID interface{}, search interface{}, isRPOnly interface{}, tag interface{}, role interface{}, limit interface{}, offset interface{}) *MockService_ListUserGroupRooms_Call {
-	return &MockService_ListUserGroupRooms_Call{Call: _e.mock.On("ListUserGroupRooms", ctx, userID, search, isRPOnly, tag, role, limit, offset)}
+func (_e *MockService_Expecter) ListUserGroupRooms(ctx interface{}, userID interface{}, search interface{}, isRPOnly interface{}, tag interface{}, role interface{}, includeArchived interface{}, limit interface{}, offset interface{}) *MockService_ListUserGroupRooms_Call {
+	return &MockService_ListUserGroupRooms_Call{Call: _e.mock.On("ListUserGroupRooms", ctx, userID, search, isRPOnly, tag, role, includeArchived, limit, offset)}
 }
 
-func (_c *MockService_ListUserGroupRooms_Call) Run(run func(ctx context.Context, userID uuid.UUID, search string, isRPOnly bool, tag string, role string, limit int, offset int)) *MockService_ListUserGroupRooms_Call {
+func (_c *MockService_ListUserGroupRooms_Call) Run(run func(ctx context.Context, userID uuid.UUID, search string, isRPOnly bool, tag string, role string, includeArchived bool, limit int, offset int)) *MockService_ListUserGroupRooms_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -2228,13 +2295,17 @@ func (_c *MockService_ListUserGroupRooms_Call) Run(run func(ctx context.Context,
 		if args[5] != nil {
 			arg5 = args[5].(string)
 		}
-		var arg6 int
+		var arg6 bool
 		if args[6] != nil {
-			arg6 = args[6].(int)
+			arg6 = args[6].(bool)
 		}
 		var arg7 int
 		if args[7] != nil {
 			arg7 = args[7].(int)
+		}
+		var arg8 int
+		if args[8] != nil {
+			arg8 = args[8].(int)
 		}
 		run(
 			arg0,
@@ -2245,6 +2316,7 @@ func (_c *MockService_ListUserGroupRooms_Call) Run(run func(ctx context.Context,
 			arg5,
 			arg6,
 			arg7,
+			arg8,
 		)
 	})
 	return _c
@@ -2255,7 +2327,7 @@ func (_c *MockService_ListUserGroupRooms_Call) Return(chatRoomListResponse *dto.
 	return _c
 }
 
-func (_c *MockService_ListUserGroupRooms_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, search string, isRPOnly bool, tag string, role string, limit int, offset int) (*dto.ChatRoomListResponse, error)) *MockService_ListUserGroupRooms_Call {
+func (_c *MockService_ListUserGroupRooms_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, search string, isRPOnly bool, tag string, role string, includeArchived bool, limit int, offset int) (*dto.ChatRoomListResponse, error)) *MockService_ListUserGroupRooms_Call {
 	_c.Call.Return(run)
 	return _c
 }

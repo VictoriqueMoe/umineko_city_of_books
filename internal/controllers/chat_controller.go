@@ -95,6 +95,9 @@ func dmRouteError(ctx fiber.Ctx, err error) error {
 	if errors.Is(err, chat.ErrMissingFields) {
 		return utils.BadRequest(ctx, "message body is required")
 	}
+	if errors.Is(err, chat.ErrLockedNonStaffDM) {
+		return utils.Forbidden(ctx, "your account is locked and can only message site staff")
+	}
 	return utils.InternalError(ctx, "chat operation failed")
 }
 
@@ -218,6 +221,9 @@ func (s *Service) sendMessage(ctx fiber.Ctx) error {
 		if errors.Is(err, chat.ErrNotMember) {
 			return utils.Forbidden(ctx, "you are not a member of this room")
 		}
+		if errors.Is(err, chat.ErrLockedNonStaffDM) {
+			return utils.Forbidden(ctx, "your account is locked and can only message site staff")
+		}
 		if errors.Is(err, upload.ErrFileTooLarge) || errors.Is(err, upload.ErrInvalidFileType) || errors.Is(err, upload.ErrInvalidVideoType) {
 			return utils.BadRequest(ctx, err.Error())
 		}
@@ -323,10 +329,11 @@ func (s *Service) listMyGroupRooms(ctx fiber.Ctx) error {
 	tag := ctx.Query("tag")
 	role := ctx.Query("role")
 	isRPOnly := ctx.Query("rp") == "true"
+	includeArchived := ctx.Query("include_archived") == "true"
 	limit := fiber.Query[int](ctx, "limit", 20)
 	offset := fiber.Query[int](ctx, "offset", 0)
 
-	resp, err := s.ChatService.ListUserGroupRooms(ctx.Context(), userID, search, isRPOnly, tag, role, limit, offset)
+	resp, err := s.ChatService.ListUserGroupRooms(ctx.Context(), userID, search, isRPOnly, tag, role, includeArchived, limit, offset)
 	if err != nil {
 		return utils.InternalError(ctx, "failed to list rooms")
 	}
@@ -342,10 +349,11 @@ func (s *Service) listPublicRooms(ctx fiber.Ctx) error {
 	search := ctx.Query("search")
 	tag := ctx.Query("tag")
 	isRPOnly := ctx.Query("rp") == "true"
+	includeArchived := ctx.Query("include_archived") == "true"
 	limit := fiber.Query[int](ctx, "limit", 20)
 	offset := fiber.Query[int](ctx, "offset", 0)
 
-	resp, err := s.ChatService.ListPublicRooms(ctx.Context(), search, isRPOnly, tag, viewerID, limit, offset)
+	resp, err := s.ChatService.ListPublicRooms(ctx.Context(), search, isRPOnly, tag, viewerID, includeArchived, limit, offset)
 	if err != nil {
 		return utils.InternalError(ctx, "failed to list public rooms")
 	}

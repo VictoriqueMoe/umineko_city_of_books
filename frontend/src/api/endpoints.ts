@@ -43,6 +43,8 @@ import type {
     GameStatus,
     GameType,
     GMLeaderboardResponse,
+    HomeActivityResponse,
+    SidebarActivityResponse,
     JournalDetail,
     JournalListResponse,
     JournalWork,
@@ -435,6 +437,14 @@ export async function unbanUser(id: string): Promise<void> {
     await apiPost<unknown, undefined>(`/admin/users/${id}/unban`, undefined);
 }
 
+export async function lockUser(id: string, reason: string): Promise<void> {
+    await apiPost<unknown, { reason: string }>(`/admin/users/${id}/lock`, { reason });
+}
+
+export async function unlockUser(id: string): Promise<void> {
+    await apiPost<unknown, undefined>(`/admin/users/${id}/unlock`, undefined);
+}
+
 export async function adminDeleteUser(id: string): Promise<void> {
     await apiDelete<unknown>(`/admin/users/${id}`);
 }
@@ -518,6 +528,7 @@ export async function listPublicChatRooms(params: {
     search?: string;
     rp?: boolean;
     tag?: string;
+    includeArchived?: boolean;
     limit?: number;
     offset?: number;
 }): Promise<{ rooms: ChatRoom[]; total: number }> {
@@ -525,6 +536,7 @@ export async function listPublicChatRooms(params: {
         search: params.search,
         rp: params.rp ? "true" : undefined,
         tag: params.tag,
+        include_archived: params.includeArchived ? "true" : undefined,
         limit: params.limit ?? 20,
         offset: params.offset,
     });
@@ -536,6 +548,7 @@ export async function listMyChatRooms(params: {
     search?: string;
     rp?: boolean;
     tag?: string;
+    includeArchived?: boolean;
     limit?: number;
     offset?: number;
 }): Promise<{ rooms: ChatRoom[]; total: number }> {
@@ -544,6 +557,7 @@ export async function listMyChatRooms(params: {
         search: params.search,
         rp: params.rp ? "true" : undefined,
         tag: params.tag,
+        include_archived: params.includeArchived ? "true" : undefined,
         limit: params.limit ?? 20,
         offset: params.offset,
     });
@@ -1962,4 +1976,12 @@ export async function getPlayerChat(roomId: string): Promise<SpectatorChatRespon
 
 export async function postPlayerChat(roomId: string, body: string): Promise<SpectatorMessage> {
     return apiPost<SpectatorMessage, { body: string }>(`/game-rooms/${roomId}/player-chat`, { body });
+}
+
+export async function getHomeActivity(): Promise<HomeActivityResponse> {
+    return apiFetch<HomeActivityResponse>("/home/activity");
+}
+
+export async function getSidebarActivity(): Promise<SidebarActivityResponse> {
+    return apiFetch<SidebarActivityResponse>("/sidebar/activity");
 }
