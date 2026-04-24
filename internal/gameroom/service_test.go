@@ -393,3 +393,266 @@ func TestSubmitAction_ClearsDisconnectForfeitOnMove(t *testing.T) {
 	case <-time.After(50 * time.Millisecond):
 	}
 }
+
+func activeRoomRow(roomID, creator uuid.UUID) *repository.GameRoomRow {
+	return &repository.GameRoomRow{
+		ID:        roomID,
+		GameType:  string(dto.GameTypeChess),
+		Status:    string(dto.GameStatusActive),
+		StateJSON: `{"fen":"start","pgn":""}`,
+		CreatedBy: creator,
+		CreatedAt: "2026-04-22T10:00:00Z",
+		UpdatedAt: "2026-04-22T10:05:00Z",
+	}
+}
+
+func expectHydrate(t *testing.T, m *testMocks, roomID, p1, p2 uuid.UUID) {
+	t.Helper()
+	m.roomRepo.EXPECT().GetPlayers(mock.Anything, roomID).Return([]repository.GameRoomPlayerRow{
+		{UserID: p1, Slot: 0, Joined: true},
+		{UserID: p2, Slot: 1, Joined: true},
+	}, nil).Maybe()
+	seedUser(t, m.userRepo, p1, "Alice")
+	seedUser(t, m.userRepo, p2, "Bob")
+	m.handler.EXPECT().
+		ComputeStats(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(nil, nil).
+		Maybe()
+}
+
+func pendingRoomRow(roomID, inviter uuid.UUID) *repository.GameRoomRow {
+	return &repository.GameRoomRow{
+		ID:        roomID,
+		GameType:  string(dto.GameTypeChess),
+		Status:    string(dto.GameStatusPending),
+		StateJSON: `{}`,
+		CreatedBy: inviter,
+		CreatedAt: "2026-04-22T10:00:00Z",
+		UpdatedAt: "2026-04-22T10:00:00Z",
+	}
+}
+
+func TestAccept_RejectsWhenInviteeNotInRoom(t *testing.T) {
+	// given: pending room, invitee has not opened the game page yet (no WS presence)
+	m := newTestService(t)
+	roomID := uuid.New()
+	inviter := uuid.New()
+	invitee := uuid.New()
+	m.roomRepo.EXPECT().GetRoom(mock.Anything, roomID).Return(pendingRoomRow(roomID, inviter), nil)
+	m.roomRepo.EXPECT().GetPlayerSlot(mock.Anything, roomID, invitee).Return(1, nil)
+	m.roomRepo.EXPECT().GetPlayers(mock.Anything, roomID).Return([]repository.GameRoomPlayerRow{
+		{UserID: inviter, Slot: 0, Joined: true},
+		{UserID: invitee, Slot: 1, Joined: false},
+	}, nil)
+	seedUser(t, m.userRepo, inviter, "Alice")
+	seedUser(t, m.userRepo, invitee, "Bob")
+
+	// when
+	_, err := m.svc.Accept(context.Background(), roomID, invitee)
+
+	// then
+	assert.ErrorIs(t, err, ErrAccepterNotInRoom)
+}
+
+func TestAccept_RejectsWhenInviterNotInRoom(t *testing.T) {
+	// given: pending room, invitee is present but inviter has closed their browser
+	m := newTestService(t)
+	roomID := uuid.New()
+	inviter := uuid.New()
+	invitee := uuid.New()
+	m.roomRepo.EXPECT().GetRoom(mock.Anything, roomID).Return(pendingRoomRow(roomID, inviter), nil)
+	m.roomRepo.EXPECT().GetPlayerSlot(mock.Anything, roomID, invitee).Return(1, nil)
+	m.roomRepo.EXPECT().GetPlayers(mock.Anything, roomID).Return([]repository.GameRoomPlayerRow{
+		{UserID: inviter, Slot: 0, Joined: true},
+		{UserID: invitee, Slot: 1, Joined: false},
+	}, nil)
+	seedUser(t, m.userRepo, inviter, "Alice")
+	seedUser(t, m.userRepo, invitee, "Bob")
+
+	// mark only the invitee as WS-present
+	m.svc.mu.Lock()
+	m.svc.stateFor(roomID).players[invitee] = 1
+	m.svc.mu.Unlock()
+
+	// when
+	_, err := m.svc.Accept(context.Background(), roomID, invitee)
+
+	// then
+	assert.ErrorIs(t, err, ErrInviterNotInRoom)
+}
+
+func TestOfferDraw_StoresOfferAndReturnsHydratedRoom(t *testing.T) {
+	m := newTestService(t)
+	roomID := uuid.New()
+	p1 := uuid.New()
+	p2 := uuid.New()
+	row := activeRoomRow(roomID, p1)
+
+	m.roomRepo.EXPECT().GetRoom(mock.Anything, roomID).Return(row, nil)
+	m.roomRepo.EXPECT().GetPlayerSlot(mock.Anything, roomID, p1).Return(0, nil)
+	expectHydrate(t, m, roomID, p1, p2)
+
+	room, err := m.svc.OfferDraw(context.Background(), roomID, p1)
+	require.NoError(t, err)
+	require.NotNil(t, room.DrawOfferFromUser)
+	assert.Equal(t, p1, *room.DrawOfferFromUser)
+
+	m.svc.mu.Lock()
+	st := m.svc.rooms[roomID]
+	m.svc.mu.Unlock()
+	require.NotNil(t, st)
+	require.NotNil(t, st.draw)
+	assert.Equal(t, 0, st.draw.fromSlot)
+}
+
+func TestOfferDraw_RejectsWhenOfferAlreadyPending(t *testing.T) {
+	m := newTestService(t)
+	roomID := uuid.New()
+	p1 := uuid.New()
+	row := activeRoomRow(roomID, p1)
+
+	m.svc.mu.Lock()
+	m.svc.stateFor(roomID).draw = &drawOffer{fromSlot: 1, offeredAt: time.Now()}
+	m.svc.mu.Unlock()
+
+	m.roomRepo.EXPECT().GetRoom(mock.Anything, roomID).Return(row, nil)
+	m.roomRepo.EXPECT().GetPlayerSlot(mock.Anything, roomID, p1).Return(0, nil)
+
+	_, err := m.svc.OfferDraw(context.Background(), roomID, p1)
+	assert.ErrorIs(t, err, ErrDrawOfferPending)
+}
+
+func TestOfferDraw_RejectsWhenRoomNotActive(t *testing.T) {
+	m := newTestService(t)
+	roomID := uuid.New()
+	row := activeRoomRow(roomID, uuid.New())
+	row.Status = string(dto.GameStatusPending)
+	m.roomRepo.EXPECT().GetRoom(mock.Anything, roomID).Return(row, nil)
+
+	_, err := m.svc.OfferDraw(context.Background(), roomID, uuid.New())
+	assert.ErrorIs(t, err, ErrRoomNotActive)
+}
+
+func TestAcceptDraw_FinishesRoomAsDrawAgreed(t *testing.T) {
+	m := newTestService(t)
+	roomID := uuid.New()
+	p1 := uuid.New()
+	p2 := uuid.New()
+	row := activeRoomRow(roomID, p1)
+
+	m.svc.mu.Lock()
+	m.svc.stateFor(roomID).draw = &drawOffer{fromSlot: 0, offeredAt: time.Now()}
+	m.svc.mu.Unlock()
+
+	m.roomRepo.EXPECT().GetRoom(mock.Anything, roomID).Return(row, nil)
+	m.roomRepo.EXPECT().GetPlayerSlot(mock.Anything, roomID, p2).Return(1, nil)
+	m.roomRepo.EXPECT().
+		FinishRoom(mock.Anything, roomID, string(dto.GameStatusFinished), (*uuid.UUID)(nil), "draw_agreed", row.StateJSON).
+		Return(nil)
+	m.roomRepo.EXPECT().CountLive(mock.Anything).Return(0, nil).Maybe()
+	expectHydrate(t, m, roomID, p1, p2)
+	m.notifier.EXPECT().Notify(mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	room, err := m.svc.AcceptDraw(context.Background(), roomID, p2)
+	require.NoError(t, err)
+	assert.Nil(t, room.DrawOfferFromUser)
+
+	m.svc.mu.Lock()
+	st := m.svc.rooms[roomID]
+	hasDraw := st != nil && st.draw != nil
+	m.svc.mu.Unlock()
+	assert.False(t, hasDraw, "accepting must clear the pending offer")
+}
+
+func TestAcceptDraw_RejectsOwnOffer(t *testing.T) {
+	m := newTestService(t)
+	roomID := uuid.New()
+	p1 := uuid.New()
+	row := activeRoomRow(roomID, p1)
+
+	m.svc.mu.Lock()
+	m.svc.stateFor(roomID).draw = &drawOffer{fromSlot: 0, offeredAt: time.Now()}
+	m.svc.mu.Unlock()
+
+	m.roomRepo.EXPECT().GetRoom(mock.Anything, roomID).Return(row, nil)
+	m.roomRepo.EXPECT().GetPlayerSlot(mock.Anything, roomID, p1).Return(0, nil)
+
+	_, err := m.svc.AcceptDraw(context.Background(), roomID, p1)
+	assert.ErrorIs(t, err, ErrCannotAcceptOwnDraw)
+}
+
+func TestAcceptDraw_RejectsWhenNoOffer(t *testing.T) {
+	m := newTestService(t)
+	roomID := uuid.New()
+	p2 := uuid.New()
+	row := activeRoomRow(roomID, uuid.New())
+	m.roomRepo.EXPECT().GetRoom(mock.Anything, roomID).Return(row, nil)
+	m.roomRepo.EXPECT().GetPlayerSlot(mock.Anything, roomID, p2).Return(1, nil)
+
+	_, err := m.svc.AcceptDraw(context.Background(), roomID, p2)
+	assert.ErrorIs(t, err, ErrNoDrawOffer)
+}
+
+func TestDeclineDraw_ClearsOffer(t *testing.T) {
+	m := newTestService(t)
+	roomID := uuid.New()
+	p1 := uuid.New()
+	p2 := uuid.New()
+	row := activeRoomRow(roomID, p1)
+
+	m.svc.mu.Lock()
+	m.svc.stateFor(roomID).draw = &drawOffer{fromSlot: 0, offeredAt: time.Now()}
+	m.svc.mu.Unlock()
+
+	m.roomRepo.EXPECT().GetRoom(mock.Anything, roomID).Return(row, nil)
+	m.roomRepo.EXPECT().GetPlayerSlot(mock.Anything, roomID, p2).Return(1, nil)
+	expectHydrate(t, m, roomID, p1, p2)
+
+	room, err := m.svc.DeclineDraw(context.Background(), roomID, p2)
+	require.NoError(t, err)
+	assert.Nil(t, room.DrawOfferFromUser)
+}
+
+func TestSubmitAction_ClearsPendingDrawOffer(t *testing.T) {
+	m := newTestService(t)
+	roomID := uuid.New()
+	p1 := uuid.New()
+	p2 := uuid.New()
+	row := activeRoomRow(roomID, p1)
+	row.TurnUserID = &p1
+	updatedRow := *row
+	updatedRow.TurnUserID = &p2
+
+	m.svc.mu.Lock()
+	m.svc.stateFor(roomID).draw = &drawOffer{fromSlot: 0, offeredAt: time.Now()}
+	m.svc.mu.Unlock()
+
+	m.roomRepo.EXPECT().GetRoom(mock.Anything, roomID).Return(row, nil).Once()
+	m.roomRepo.EXPECT().GetPlayerSlot(mock.Anything, roomID, p1).Return(0, nil)
+	nextSlot := 1
+	m.handler.EXPECT().ValidateAction(row.StateJSON, 0, mock.Anything).Return(ActionResult{
+		NewStateJSON: row.StateJSON,
+		NextTurnSlot: &nextSlot,
+	}, nil)
+	m.roomRepo.EXPECT().NextPly(mock.Anything, roomID).Return(1, nil)
+	m.roomRepo.EXPECT().AppendMove(mock.Anything, roomID, 1, p1, mock.Anything).Return(nil)
+	m.roomRepo.EXPECT().GetPlayers(mock.Anything, roomID).Return([]repository.GameRoomPlayerRow{
+		{UserID: p1, Slot: 0, Joined: true},
+		{UserID: p2, Slot: 1, Joined: true},
+	}, nil).Maybe()
+	m.roomRepo.EXPECT().SetState(mock.Anything, roomID, row.StateJSON, mock.Anything).Return(nil)
+	m.roomRepo.EXPECT().GetRoom(mock.Anything, roomID).Return(&updatedRow, nil).Maybe()
+	seedUser(t, m.userRepo, p1, "Alice")
+	seedUser(t, m.userRepo, p2, "Bob")
+	m.handler.EXPECT().ComputeStats(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	m.notifier.EXPECT().Notify(mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	_, err := m.svc.SubmitAction(context.Background(), roomID, p1, json.RawMessage(`{"from":"e2","to":"e4"}`))
+	require.NoError(t, err)
+
+	m.svc.mu.Lock()
+	st := m.svc.rooms[roomID]
+	hasDraw := st != nil && st.draw != nil
+	m.svc.mu.Unlock()
+	assert.False(t, hasDraw, "moving must clear any pending draw offer")
+}

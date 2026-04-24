@@ -7,6 +7,7 @@
     font-size: 0.8rem;
     font-style: italic;
     min-height: 1.4rem;
+    contain: layout paint;
 }
 
 .text {
@@ -26,6 +27,7 @@
     border-radius: 50%;
     background: var(--text-muted);
     animation: typingBounce 1.2s infinite ease-in-out;
+    will-change: transform;
 }
 
 .dots span:nth-child(2) {

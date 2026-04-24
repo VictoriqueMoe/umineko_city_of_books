@@ -24,20 +24,21 @@ type (
 	}
 
 	GameRoom struct {
-		ID           uuid.UUID        `json:"id"`
-		GameType     GameType         `json:"game_type"`
-		Status       GameStatus       `json:"status"`
-		State        json.RawMessage  `json:"state"`
-		TurnUserID   *uuid.UUID       `json:"turn_user_id,omitempty"`
-		WinnerID     *uuid.UUID       `json:"winner_user_id,omitempty"`
-		Result       string           `json:"result,omitempty"`
-		CreatedBy    uuid.UUID        `json:"created_by"`
-		CreatedAt    string           `json:"created_at"`
-		UpdatedAt    string           `json:"updated_at"`
-		FinishedAt   *string          `json:"finished_at,omitempty"`
-		Players      []GameRoomPlayer `json:"players"`
-		WatcherCount int              `json:"watcher_count"`
-		Stats        json.RawMessage  `json:"stats,omitempty"`
+		ID                uuid.UUID        `json:"id"`
+		GameType          GameType         `json:"game_type"`
+		Status            GameStatus       `json:"status"`
+		State             json.RawMessage  `json:"state"`
+		TurnUserID        *uuid.UUID       `json:"turn_user_id,omitempty"`
+		WinnerID          *uuid.UUID       `json:"winner_user_id,omitempty"`
+		Result            string           `json:"result,omitempty"`
+		CreatedBy         uuid.UUID        `json:"created_by"`
+		CreatedAt         string           `json:"created_at"`
+		UpdatedAt         string           `json:"updated_at"`
+		FinishedAt        *string          `json:"finished_at,omitempty"`
+		Players           []GameRoomPlayer `json:"players"`
+		WatcherCount      int              `json:"watcher_count"`
+		Stats             json.RawMessage  `json:"stats,omitempty"`
+		DrawOfferFromUser *uuid.UUID       `json:"draw_offer_from_user_id,omitempty"`
 	}
 
 	SpectatorMessage struct {

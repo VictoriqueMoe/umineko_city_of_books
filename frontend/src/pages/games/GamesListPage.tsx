@@ -60,13 +60,8 @@ export function GamesListPage() {
     const active = rooms.filter(r => r.status === "active");
     const finished = rooms.filter(r => r.status === "finished" || r.status === "declined" || r.status === "abandoned");
 
-    async function handleAccept(room: GameRoom) {
-        try {
-            await api.acceptGameInvite(room.id);
-            navigate(`/games/${room.game_type}/${room.id}`);
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to accept");
-        }
+    function handleOpenInvite(room: GameRoom) {
+        navigate(`/games/${room.game_type}/${room.id}`);
     }
 
     async function handleDecline(room: GameRoom) {
@@ -145,8 +140,8 @@ export function GamesListPage() {
                                     <span className={styles.subline}>{formatFullDateTime(r.created_at)}</span>
                                 </div>
                                 <div className={styles.inviteActions}>
-                                    <Button variant="primary" size="small" onClick={() => handleAccept(r)}>
-                                        Accept
+                                    <Button variant="primary" size="small" onClick={() => handleOpenInvite(r)}>
+                                        View and accept
                                     </Button>
                                     <Button variant="ghost" size="small" onClick={() => handleDecline(r)}>
                                         Decline

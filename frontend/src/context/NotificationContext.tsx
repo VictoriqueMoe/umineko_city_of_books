@@ -7,6 +7,8 @@ import { showDesktopNotification } from "../utils/notifications";
 import { playNotificationSound } from "../utils/sound";
 
 const MAX_BACKOFF = 30000;
+const KEEPALIVE_INTERVAL_MS = 20_000;
+const STALE_THRESHOLD_MS = 45_000;
 
 export function NotificationProvider({ children }: PropsWithChildren) {
     const { user, setUser } = useAuth();
@@ -19,6 +21,8 @@ export function NotificationProvider({ children }: PropsWithChildren) {
     const wsRef = useRef<WebSocket | null>(null);
     const backoffRef = useRef(1000);
     const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const keepaliveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const lastMessageAtRef = useRef(0);
     const wsListenersRef = useRef<Set<WSMessageHandler>>(new Set());
     const userRef = useRef(user);
     userRef.current = user;
@@ -30,13 +34,21 @@ export function NotificationProvider({ children }: PropsWithChildren) {
         }
     }, []);
 
+    const clearKeepaliveTimer = useCallback(() => {
+        if (keepaliveTimerRef.current !== null) {
+            clearInterval(keepaliveTimerRef.current);
+            keepaliveTimerRef.current = null;
+        }
+    }, []);
+
     const closeSocket = useCallback(() => {
         clearReconnectTimer();
+        clearKeepaliveTimer();
         if (wsRef.current) {
             wsRef.current.close();
             wsRef.current = null;
         }
-    }, [clearReconnectTimer]);
+    }, [clearReconnectTimer, clearKeepaliveTimer]);
 
     const connectWs = useCallback(() => {
         closeSocket();
@@ -48,13 +60,32 @@ export function NotificationProvider({ children }: PropsWithChildren) {
 
         socket.onopen = () => {
             backoffRef.current = 1000;
+            lastMessageAtRef.current = Date.now();
             setWsEpoch(n => n + 1);
             window.dispatchEvent(new CustomEvent("site-info-refresh"));
+
+            clearKeepaliveTimer();
+            keepaliveTimerRef.current = setInterval(() => {
+                if (wsRef.current !== socket) {
+                    return;
+                }
+                if (Date.now() - lastMessageAtRef.current > STALE_THRESHOLD_MS) {
+                    socket.close();
+                    return;
+                }
+                if (socket.readyState === WebSocket.OPEN) {
+                    socket.send(JSON.stringify({ type: "ping", data: {} }));
+                }
+            }, KEEPALIVE_INTERVAL_MS);
         };
 
         socket.onmessage = event => {
+            lastMessageAtRef.current = Date.now();
             try {
                 const msg: WSMessage = JSON.parse(event.data);
+                if (msg.type === "pong") {
+                    return;
+                }
                 if (msg.type === "notification") {
                     const notif = msg.data as Notification;
                     setNotifications(prev => [notif, ...prev]);
@@ -112,6 +143,7 @@ export function NotificationProvider({ children }: PropsWithChildren) {
 
         socket.onclose = () => {
             wsRef.current = null;
+            clearKeepaliveTimer();
             const delay = Math.min(backoffRef.current, MAX_BACKOFF);
             backoffRef.current = delay * 2;
             reconnectTimerRef.current = setTimeout(() => {
@@ -122,7 +154,30 @@ export function NotificationProvider({ children }: PropsWithChildren) {
         socket.onerror = () => {
             socket.close();
         };
-    }, [closeSocket, setUser]);
+    }, [closeSocket, clearKeepaliveTimer, setUser]);
+
+    useEffect(() => {
+        function onVisible() {
+            if (document.visibilityState !== "visible") {
+                return;
+            }
+            const socket = wsRef.current;
+            if (!socket) {
+                return;
+            }
+            if (Date.now() - lastMessageAtRef.current > STALE_THRESHOLD_MS) {
+                socket.close();
+                return;
+            }
+            if (socket.readyState === WebSocket.OPEN) {
+                socket.send(JSON.stringify({ type: "ping", data: {} }));
+            }
+        }
+        document.addEventListener("visibilitychange", onVisible);
+        return () => {
+            document.removeEventListener("visibilitychange", onVisible);
+        };
+    }, []);
 
     useEffect(() => {
         api.listLiveGameRooms()

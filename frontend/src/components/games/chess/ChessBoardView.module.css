@@ -45,3 +45,38 @@
     color: var(--rose);
     font-size: 0.9rem;
 }
+
+.drawBanner {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    padding: 0.65rem 0.9rem;
+    background: rgba(var(--gold-rgb), 0.1);
+    border: 1px solid rgba(var(--gold-rgb), 0.45);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 0.9rem;
+}
+
+.drawBannerText {
+    flex: 1;
+    min-width: 160px;
+}
+
+.drawBannerActions {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+}
+
+.drawPending {
+    padding: 0.55rem 0.9rem;
+    background: rgba(var(--purple-rgb), 0.18);
+    border: 1px dashed rgba(var(--purple-rgb), 0.5);
+    border-radius: 6px;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-style: italic;
+    text-align: center;
+}

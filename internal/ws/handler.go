@@ -301,5 +301,8 @@ func handleWSMessage(userID uuid.UUID, msg incomingMessage, hub *Hub, gamePresen
 		}
 		gamePresence.HandleClientLeave(userID, roomID)
 		delete(joinedGameRooms, roomID)
+
+	case "ping":
+		hub.SendToUser(userID, Message{Type: "pong", Data: map[string]interface{}{}})
 	}
 }

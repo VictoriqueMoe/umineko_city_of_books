@@ -24,6 +24,9 @@ func (s *Service) getAllGameRoomRoutes() []FSetupRoute {
 		s.setupCancelGameRoute,
 		s.setupGameActionRoute,
 		s.setupResignGameRoute,
+		s.setupOfferDrawRoute,
+		s.setupAcceptDrawRoute,
+		s.setupDeclineDrawRoute,
 		s.setupGameScoreboardRoute,
 		s.setupGetSpectatorChatRoute,
 		s.setupPostSpectatorChatRoute,
@@ -70,6 +73,18 @@ func (s *Service) setupGameActionRoute(r fiber.Router) {
 
 func (s *Service) setupResignGameRoute(r fiber.Router) {
 	r.Post("/game-rooms/:id/resign", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.resignGame)
+}
+
+func (s *Service) setupOfferDrawRoute(r fiber.Router) {
+	r.Post("/game-rooms/:id/offer-draw", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.offerDraw)
+}
+
+func (s *Service) setupAcceptDrawRoute(r fiber.Router) {
+	r.Post("/game-rooms/:id/accept-draw", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.acceptDraw)
+}
+
+func (s *Service) setupDeclineDrawRoute(r fiber.Router) {
+	r.Post("/game-rooms/:id/decline-draw", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.declineDraw)
 }
 
 func (s *Service) setupGameScoreboardRoute(r fiber.Router) {
@@ -120,6 +135,16 @@ func gameRoomError(ctx fiber.Ctx, err error) error {
 		return utils.BadRequest(ctx, "message is empty")
 	case errors.Is(err, gameroom.ErrPlayersCantChat):
 		return utils.Forbidden(ctx, "players cannot use spectator chat")
+	case errors.Is(err, gameroom.ErrDrawOfferPending):
+		return utils.BadRequest(ctx, "a draw offer is already pending")
+	case errors.Is(err, gameroom.ErrNoDrawOffer):
+		return utils.BadRequest(ctx, "no draw offer is pending")
+	case errors.Is(err, gameroom.ErrCannotAcceptOwnDraw):
+		return utils.BadRequest(ctx, "you cannot respond to your own draw offer")
+	case errors.Is(err, gameroom.ErrAccepterNotInRoom):
+		return utils.BadRequest(ctx, "you must be viewing the game to accept the invite")
+	case errors.Is(err, gameroom.ErrInviterNotInRoom):
+		return utils.BadRequest(ctx, "the player who invited you is no longer at the board. Wait for them to come back, or decline the invite")
 	}
 	return utils.InternalError(ctx, "game operation failed")
 }
@@ -331,6 +356,45 @@ func (s *Service) resignGame(ctx fiber.Ctx) error {
 		return nil
 	}
 	room, err := s.GameRoomService.Resign(ctx.Context(), roomID, userID)
+	if err != nil {
+		return gameRoomError(ctx, err)
+	}
+	return ctx.JSON(room)
+}
+
+func (s *Service) offerDraw(ctx fiber.Ctx) error {
+	userID := utils.UserID(ctx)
+	roomID, ok := utils.ParseIDParam(ctx, "id")
+	if !ok {
+		return nil
+	}
+	room, err := s.GameRoomService.OfferDraw(ctx.Context(), roomID, userID)
+	if err != nil {
+		return gameRoomError(ctx, err)
+	}
+	return ctx.JSON(room)
+}
+
+func (s *Service) acceptDraw(ctx fiber.Ctx) error {
+	userID := utils.UserID(ctx)
+	roomID, ok := utils.ParseIDParam(ctx, "id")
+	if !ok {
+		return nil
+	}
+	room, err := s.GameRoomService.AcceptDraw(ctx.Context(), roomID, userID)
+	if err != nil {
+		return gameRoomError(ctx, err)
+	}
+	return ctx.JSON(room)
+}
+
+func (s *Service) declineDraw(ctx fiber.Ctx) error {
+	userID := utils.UserID(ctx)
+	roomID, ok := utils.ParseIDParam(ctx, "id")
+	if !ok {
+		return nil
+	}
+	room, err := s.GameRoomService.DeclineDraw(ctx.Context(), roomID, userID)
 	if err != nil {
 		return gameRoomError(ctx, err)
 	}
