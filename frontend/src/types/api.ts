@@ -1144,6 +1144,7 @@ export interface GameRoom {
     players: GameRoomPlayer[];
     watcher_count: number;
     stats?: ChessStats | CheckersStats | Record<string, unknown>;
+    draw_offer_from_user_id?: string;
 }
 
 export interface SpectatorMessage {

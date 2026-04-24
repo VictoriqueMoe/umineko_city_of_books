@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useAuth } from "../../hooks/useAuth";
 import { usePageTitle } from "../../hooks/usePageTitle";
@@ -14,6 +15,7 @@ export function CheckersGamePage() {
     const { user } = useAuth();
     const navigate = useNavigate();
     const { room, loading, error, refetch } = useGameRoom(id);
+    const [acceptError, setAcceptError] = useState("");
 
     usePageTitle(room ? `Checkers - ${room.players.map(p => p.display_name).join(" vs ")}` : "Checkers");
 
@@ -71,8 +73,13 @@ export function CheckersGamePage() {
                             <Button
                                 variant="primary"
                                 onClick={async () => {
-                                    await api.acceptGameInvite(room.id);
-                                    await refetch();
+                                    setAcceptError("");
+                                    try {
+                                        await api.acceptGameInvite(room.id);
+                                        await refetch();
+                                    } catch (err) {
+                                        setAcceptError(err instanceof Error ? err.message : "Failed to accept invite");
+                                    }
                                 }}
                             >
                                 Accept
@@ -92,6 +99,7 @@ export function CheckersGamePage() {
                         Back
                     </Button>
                 </div>
+                {acceptError && <div className={styles.error}>{acceptError}</div>}
             </div>
         );
     }

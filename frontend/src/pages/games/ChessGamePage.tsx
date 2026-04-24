@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useAuth } from "../../hooks/useAuth";
 import { usePageTitle } from "../../hooks/usePageTitle";
@@ -14,6 +15,7 @@ export function ChessGamePage() {
     const { user } = useAuth();
     const navigate = useNavigate();
     const { room, loading, error, refetch } = useGameRoom(id);
+    const [acceptError, setAcceptError] = useState("");
 
     usePageTitle(room ? `Chess - ${room.players.map(p => p.display_name).join(" vs ")}` : "Chess");
 
@@ -71,8 +73,13 @@ export function ChessGamePage() {
                             <Button
                                 variant="primary"
                                 onClick={async () => {
-                                    await api.acceptGameInvite(room.id);
-                                    await refetch();
+                                    setAcceptError("");
+                                    try {
+                                        await api.acceptGameInvite(room.id);
+                                        await refetch();
+                                    } catch (err) {
+                                        setAcceptError(err instanceof Error ? err.message : "Failed to accept invite");
+                                    }
                                 }}
                             >
                                 Accept
@@ -92,6 +99,7 @@ export function ChessGamePage() {
                         Back
                     </Button>
                 </div>
+                {acceptError && <div className={styles.error}>{acceptError}</div>}
             </div>
         );
     }
@@ -108,6 +116,18 @@ export function ChessGamePage() {
         await api.resignGame(room!.id);
     }
 
+    async function handleOfferDraw() {
+        await api.offerDraw(room!.id);
+    }
+
+    async function handleAcceptDraw() {
+        await api.acceptDraw(room!.id);
+    }
+
+    async function handleDeclineDraw() {
+        await api.declineDraw(room!.id);
+    }
+
     return (
         <div className={`${styles.page} ${styles.gamePage}`}>
             <div className={styles.boardColumn}>
@@ -117,6 +137,9 @@ export function ChessGamePage() {
                     isSpectator={!isParticipant}
                     onMove={handleMove}
                     onResign={handleResign}
+                    onOfferDraw={handleOfferDraw}
+                    onAcceptDraw={handleAcceptDraw}
+                    onDeclineDraw={handleDeclineDraw}
                 />
             </div>
             <div className={styles.chatColumn}>

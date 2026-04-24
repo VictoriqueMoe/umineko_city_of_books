@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Chess } from "chess.js";
+import { Chess, Square } from "chess.js";
 import { Chessboard } from "react-chessboard";
 import type { ChessState, ChessStats, GameRoom, User } from "../../../types/api.ts";
 import { Button } from "../../Button/Button.tsx";
@@ -16,6 +16,9 @@ interface ChessBoardViewProps {
     isSpectator: boolean;
     onMove: (move: { from: string; to: string; promotion?: string }) => Promise<void>;
     onResign: () => Promise<void>;
+    onOfferDraw: () => Promise<void>;
+    onAcceptDraw: () => Promise<void>;
+    onDeclineDraw: () => Promise<void>;
 }
 
 function formatReason(reason: string): string {
@@ -54,7 +57,16 @@ function isChessStats(x: unknown): x is ChessStats {
     return "total_ply" in x && "white_moves" in x;
 }
 
-export function ChessBoardView({ room, viewer, isSpectator, onMove, onResign }: ChessBoardViewProps) {
+export function ChessBoardView({
+    room,
+    viewer,
+    isSpectator,
+    onMove,
+    onResign,
+    onOfferDraw,
+    onAcceptDraw,
+    onDeclineDraw,
+}: ChessBoardViewProps) {
     const [error, setError] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const state = room.state as ChessState;
@@ -154,7 +166,7 @@ export function ChessBoardView({ room, viewer, isSpectator, onMove, onResign }: 
         sourceSquare,
         targetSquare,
     }: {
-        sourceSquare: string;
+        sourceSquare: Square;
         targetSquare: string | null;
     }): Promise<boolean> {
         if (!targetSquare || submitting) {
@@ -164,15 +176,16 @@ export function ChessBoardView({ room, viewer, isSpectator, onMove, onResign }: 
             return false;
         }
 
-        const moves = game.moves({ square: sourceSquare as never, verbose: true }) as Array<{
+        const moves = game.moves({ square: sourceSquare, verbose: true }) as Array<{
             from: string;
             to: string;
             promotion?: string;
         }>;
-        const candidate = moves.find(m => m.to === targetSquare);
-        if (!candidate) {
+        const matches = moves.filter(m => m.to === targetSquare);
+        if (matches.length === 0) {
             return false;
         }
+        const candidate = matches.find(m => m.promotion === "q") ?? matches[0];
 
         setError("");
         setSubmitting(true);
@@ -192,6 +205,21 @@ export function ChessBoardView({ room, viewer, isSpectator, onMove, onResign }: 
             return;
         }
         await performResignWithConfirm(onResign, setSubmitting, setError);
+    }
+
+    async function handleDrawAction(fn: () => Promise<void>) {
+        if (submitting) {
+            return;
+        }
+        setError("");
+        setSubmitting(true);
+        try {
+            await fn();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Action failed");
+        } finally {
+            setSubmitting(false);
+        }
     }
 
     const result = gameResultLabel(room, viewerId, isSpectator);
@@ -228,8 +256,8 @@ export function ChessBoardView({ room, viewer, isSpectator, onMove, onResign }: 
                         onMouseOutSquare: () => {
                             setHoveredSquare(null);
                         },
-                        onPieceDrop: args => {
-                            void handleDrop(args);
+                        onPieceDrop: ({ sourceSquare, targetSquare }) => {
+                            void handleDrop({ sourceSquare: sourceSquare as Square, targetSquare });
                             setHoveredSquare(null);
                             return false;
                         },
@@ -280,8 +308,48 @@ export function ChessBoardView({ room, viewer, isSpectator, onMove, onResign }: 
                 )}
             </GameOverPanel>
 
+            {room.status === "active" && !isSpectator && room.draw_offer_from_user_id && (
+                <>
+                    {room.draw_offer_from_user_id !== viewerId ? (
+                        <div className={styles.drawBanner}>
+                            <span className={styles.drawBannerText}>
+                                Your opponent has offered a draw. Accept to end the game as a draw, or decline to keep
+                                playing.
+                            </span>
+                            <div className={styles.drawBannerActions}>
+                                <Button
+                                    variant="primary"
+                                    size="small"
+                                    onClick={() => handleDrawAction(onAcceptDraw)}
+                                    disabled={submitting}
+                                >
+                                    Accept draw
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="small"
+                                    onClick={() => handleDrawAction(onDeclineDraw)}
+                                    disabled={submitting}
+                                >
+                                    Decline
+                                </Button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className={styles.drawPending}>
+                            Draw offered. Waiting for your opponent to respond. It is withdrawn if you make a move.
+                        </div>
+                    )}
+                </>
+            )}
+
             {room.status === "active" && !isSpectator && (
                 <div className={styles.controls}>
+                    {!room.draw_offer_from_user_id && (
+                        <Button variant="ghost" onClick={() => handleDrawAction(onOfferDraw)} disabled={submitting}>
+                            Offer draw
+                        </Button>
+                    )}
                     <Button variant="danger" onClick={handleResign} disabled={submitting}>
                         Resign
                     </Button>

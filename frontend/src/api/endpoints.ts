@@ -1944,6 +1944,18 @@ export async function resignGame(id: string): Promise<GameRoom> {
     return apiPost<GameRoom, Record<string, never>>(`/game-rooms/${id}/resign`, {});
 }
 
+export async function offerDraw(id: string): Promise<GameRoom> {
+    return apiPost<GameRoom, Record<string, never>>(`/game-rooms/${id}/offer-draw`, {});
+}
+
+export async function acceptDraw(id: string): Promise<GameRoom> {
+    return apiPost<GameRoom, Record<string, never>>(`/game-rooms/${id}/accept-draw`, {});
+}
+
+export async function declineDraw(id: string): Promise<GameRoom> {
+    return apiPost<GameRoom, Record<string, never>>(`/game-rooms/${id}/decline-draw`, {});
+}
+
 export async function getGameScoreboard(gameType: GameType): Promise<GameScoreboardResponse> {
     return apiFetch<GameScoreboardResponse>(`/games/${encodeURIComponent(gameType)}/scoreboard`);
 }

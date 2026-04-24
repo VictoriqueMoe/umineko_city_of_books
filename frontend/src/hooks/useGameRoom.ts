@@ -91,7 +91,9 @@ export function useGameRoom(roomId: string | undefined): UseGameRoomResult {
                 msg.type !== "game_room_started" &&
                 msg.type !== "game_room_finished" &&
                 msg.type !== "game_room_declined" &&
-                msg.type !== "game_room_presence"
+                msg.type !== "game_room_presence" &&
+                msg.type !== "game_draw_offered" &&
+                msg.type !== "game_draw_declined"
             ) {
                 return;
             }
