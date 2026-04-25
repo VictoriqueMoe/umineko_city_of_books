@@ -956,7 +956,6 @@ func (s *service) graceExpired(userID, roomID uuid.UUID) {
 	s.mu.Lock()
 	if st, ok := s.rooms[roomID]; ok {
 		delete(st.timers, userID)
-		delete(st.disconnectedAt, userID)
 	}
 	s.mu.Unlock()
 
@@ -977,6 +976,11 @@ func (s *service) graceExpired(userID, roomID uuid.UUID) {
 	if !res.Finished {
 		return
 	}
+	s.mu.Lock()
+	if st, ok := s.rooms[roomID]; ok {
+		delete(st.disconnectedAt, userID)
+	}
+	s.mu.Unlock()
 	players, err := s.loadPlayers(ctx, roomID)
 	if err != nil {
 		return

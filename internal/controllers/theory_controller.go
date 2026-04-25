@@ -118,6 +118,9 @@ func (s *Service) createTheory(ctx fiber.Ctx) error {
 		return utils.InternalError(ctx, "failed to create theory")
 	}
 
+	if req.Series != "" {
+		s.Hub.BumpSidebarActivity("theories_" + req.Series)
+	}
 	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id})
 }
 

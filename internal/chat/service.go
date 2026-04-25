@@ -65,6 +65,21 @@ var chatTriggers = []chatTrigger{
 		audioURL: "https://quotes.auaurora.moe/api/v1/umineko/audio/voice/46/64501230",
 		volume:   0.5,
 	},
+	{
+		text:     "<Die the DEATH>",
+		audioURL: "https://quotes.auaurora.moe/api/v1/umineko/audio/voice/47/54600058",
+		volume:   0.5,
+	},
+	{
+		text:     "<Sentence to DEATH>",
+		audioURL: "https://quotes.auaurora.moe/api/v1/umineko/audio/voice/47/54600059",
+		volume:   0.5,
+	},
+	{
+		text:     "<Great equalizer is the DEATH>",
+		audioURL: "https://quotes.auaurora.moe/api/v1/umineko/audio/voice/47/54600060",
+		volume:   0.5,
+	},
 }
 
 var (
@@ -1288,6 +1303,29 @@ func (s *service) postRoomActionMessage(ctx context.Context, roomID, actorID uui
 	}
 }
 
+func (s *service) hydrateMessageRows(ctx context.Context, viewerID uuid.UUID, rows []repository.ChatMessageRow) []dto.ChatMessageResponse {
+	messageIDs := make([]uuid.UUID, len(rows))
+	senderIDs := make([]uuid.UUID, 0, len(rows))
+	seenSender := make(map[uuid.UUID]struct{})
+	for i := 0; i < len(rows); i++ {
+		messageIDs[i] = rows[i].ID
+		if _, ok := seenSender[rows[i].SenderID]; !ok {
+			seenSender[rows[i].SenderID] = struct{}{}
+			senderIDs = append(senderIDs, rows[i].SenderID)
+		}
+	}
+	mediaBatch, _ := s.chatRepo.GetMessageMediaBatch(ctx, messageIDs)
+	reactionBatch, _ := s.chatRepo.GetReactionsBatch(ctx, messageIDs, viewerID)
+	vanityMap, _ := s.vanityRoleRepo.GetRolesForUsersBatch(ctx, senderIDs)
+
+	messages := make([]dto.ChatMessageResponse, 0, len(rows))
+	for i := 0; i < len(rows); i++ {
+		row := rows[i]
+		messages = append(messages, s.messageRowToResponse(row, mediaBatch[row.ID], reactionBatch[row.ID], s.toVanityRoleResponses(vanityMap[row.SenderID])))
+	}
+	return messages
+}
+
 func (s *service) messageRowToResponse(row repository.ChatMessageRow, media []dto.PostMediaResponse, reactions []repository.ReactionGroup, vanityRoles []dto.VanityRoleResponse) dto.ChatMessageResponse {
 	resp := dto.ChatMessageResponse{
 		ID:     row.ID,
@@ -1367,28 +1405,8 @@ func (s *service) GetMessages(ctx context.Context, userID, roomID uuid.UUID, lim
 		return nil, fmt.Errorf("get messages: %w", err)
 	}
 
-	messageIDs := make([]uuid.UUID, len(rows))
-	senderIDs := make([]uuid.UUID, 0, len(rows))
-	seenSender := make(map[uuid.UUID]struct{})
-	for i := 0; i < len(rows); i++ {
-		messageIDs[i] = rows[i].ID
-		if _, ok := seenSender[rows[i].SenderID]; !ok {
-			seenSender[rows[i].SenderID] = struct{}{}
-			senderIDs = append(senderIDs, rows[i].SenderID)
-		}
-	}
-	mediaBatch, _ := s.chatRepo.GetMessageMediaBatch(ctx, messageIDs)
-	reactionBatch, _ := s.chatRepo.GetReactionsBatch(ctx, messageIDs, userID)
-	vanityMap, _ := s.vanityRoleRepo.GetRolesForUsersBatch(ctx, senderIDs)
-
-	messages := make([]dto.ChatMessageResponse, 0, len(rows))
-	for i := 0; i < len(rows); i++ {
-		row := rows[i]
-		messages = append(messages, s.messageRowToResponse(row, mediaBatch[row.ID], reactionBatch[row.ID], s.toVanityRoleResponses(vanityMap[row.SenderID])))
-	}
-
 	return &dto.ChatMessageListResponse{
-		Messages: messages,
+		Messages: s.hydrateMessageRows(ctx, userID, rows),
 		Total:    total,
 		Limit:    limit,
 		Offset:   offset,
@@ -1415,28 +1433,8 @@ func (s *service) GetMessagesBefore(ctx context.Context, userID, roomID uuid.UUI
 		return nil, fmt.Errorf("get messages before: %w", err)
 	}
 
-	messageIDs := make([]uuid.UUID, len(rows))
-	senderIDs := make([]uuid.UUID, 0, len(rows))
-	seenSender := make(map[uuid.UUID]struct{})
-	for i := 0; i < len(rows); i++ {
-		messageIDs[i] = rows[i].ID
-		if _, ok := seenSender[rows[i].SenderID]; !ok {
-			seenSender[rows[i].SenderID] = struct{}{}
-			senderIDs = append(senderIDs, rows[i].SenderID)
-		}
-	}
-	mediaBatch, _ := s.chatRepo.GetMessageMediaBatch(ctx, messageIDs)
-	reactionBatch, _ := s.chatRepo.GetReactionsBatch(ctx, messageIDs, userID)
-	vanityMap, _ := s.vanityRoleRepo.GetRolesForUsersBatch(ctx, senderIDs)
-
-	messages := make([]dto.ChatMessageResponse, 0, len(rows))
-	for i := 0; i < len(rows); i++ {
-		row := rows[i]
-		messages = append(messages, s.messageRowToResponse(row, mediaBatch[row.ID], reactionBatch[row.ID], s.toVanityRoleResponses(vanityMap[row.SenderID])))
-	}
-
 	return &dto.ChatMessageListResponse{
-		Messages: messages,
+		Messages: s.hydrateMessageRows(ctx, userID, rows),
 		Total:    -1,
 		Limit:    limit,
 	}, nil
@@ -2299,26 +2297,7 @@ func (s *service) ListPinnedMessages(ctx context.Context, roomID, viewerID uuid.
 		return nil, fmt.Errorf("list pinned messages: %w", err)
 	}
 
-	messageIDs := make([]uuid.UUID, len(rows))
-	senderIDs := make([]uuid.UUID, 0, len(rows))
-	seenSender := make(map[uuid.UUID]struct{})
-	for i := range rows {
-		messageIDs[i] = rows[i].ID
-		if _, ok := seenSender[rows[i].SenderID]; !ok {
-			seenSender[rows[i].SenderID] = struct{}{}
-			senderIDs = append(senderIDs, rows[i].SenderID)
-		}
-	}
-	mediaBatch, _ := s.chatRepo.GetMessageMediaBatch(ctx, messageIDs)
-	reactionBatch, _ := s.chatRepo.GetReactionsBatch(ctx, messageIDs, viewerID)
-	vanityMap, _ := s.vanityRoleRepo.GetRolesForUsersBatch(ctx, senderIDs)
-
-	messages := make([]dto.ChatMessageResponse, 0, len(rows))
-	for i := range rows {
-		row := rows[i]
-		messages = append(messages, s.messageRowToResponse(row, mediaBatch[row.ID], reactionBatch[row.ID], s.toVanityRoleResponses(vanityMap[row.SenderID])))
-	}
-
+	messages := s.hydrateMessageRows(ctx, viewerID, rows)
 	return &dto.ChatMessageListResponse{
 		Messages: messages,
 		Total:    len(messages),

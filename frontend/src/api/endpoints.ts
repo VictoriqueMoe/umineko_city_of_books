@@ -45,6 +45,8 @@ import type {
     GMLeaderboardResponse,
     HomeActivityResponse,
     SidebarActivityResponse,
+    SidebarLastVisitedResponse,
+    MarkSidebarVisitedRequest,
     JournalDetail,
     JournalListResponse,
     JournalWork,
@@ -1996,4 +1998,12 @@ export async function getHomeActivity(): Promise<HomeActivityResponse> {
 
 export async function getSidebarActivity(): Promise<SidebarActivityResponse> {
     return apiFetch<SidebarActivityResponse>("/sidebar/activity");
+}
+
+export async function getSidebarLastVisited(): Promise<SidebarLastVisitedResponse> {
+    return apiFetch<SidebarLastVisitedResponse>("/sidebar/last-visited");
+}
+
+export async function markSidebarVisited(key: string): Promise<void> {
+    await apiPost<unknown, MarkSidebarVisitedRequest>("/sidebar/last-visited", { key });
 }

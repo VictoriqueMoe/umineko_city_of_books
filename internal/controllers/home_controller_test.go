@@ -17,19 +17,26 @@ import (
 )
 
 func newHomeHarness(t *testing.T) (*testutil.Harness, *repository.MockHomeFeedRepository) {
+	h, homeRepo, _ := newHomeHarnessFull(t)
+	return h, homeRepo
+}
+
+func newHomeHarnessFull(t *testing.T) (*testutil.Harness, *repository.MockHomeFeedRepository, *repository.MockSidebarLastVisitedRepository) {
 	h := testutil.NewHarness(t)
 	homeRepo := repository.NewMockHomeFeedRepository(t)
+	sidebarRepo := repository.NewMockSidebarLastVisitedRepository(t)
 
 	s := &Service{
-		HomeFeedRepo: homeRepo,
-		AuthSession:  h.SessionManager,
-		AuthzService: h.AuthzService,
-		Hub:          ws.NewHub(),
+		HomeFeedRepo:       homeRepo,
+		SidebarVisitedRepo: sidebarRepo,
+		AuthSession:        h.SessionManager,
+		AuthzService:       h.AuthzService,
+		Hub:                ws.NewHub(),
 	}
 	for _, setup := range s.getAllHomeRoutes() {
 		setup(h.App)
 	}
-	return h, homeRepo
+	return h, homeRepo, sidebarRepo
 }
 
 func TestGetSidebarActivity_OK(t *testing.T) {
@@ -196,4 +203,143 @@ func TestGetHomeActivity_CornersError(t *testing.T) {
 
 func TestActivityURL_UnknownKindFallsBackToRoot(t *testing.T) {
 	assert.Equal(t, "/", activityURL("mystery", uuid.New()))
+}
+
+func TestGetSidebarLastVisited_OK(t *testing.T) {
+	// given
+	h, _, sidebarRepo := newHomeHarnessFull(t)
+	userID := uuid.New()
+	h.ExpectValidSession("valid", userID)
+	sidebarRepo.EXPECT().ListForUser(mock.Anything, userID).Return(map[string]string{
+		"mysteries": "2026-04-24T10:00:00Z",
+		"rooms":     "2026-04-24T11:00:00Z",
+	}, nil)
+
+	// when
+	status, body := h.NewRequest("GET", "/sidebar/last-visited").WithCookie("valid").Do()
+
+	// then
+	require.Equal(t, http.StatusOK, status)
+	got := testutil.UnmarshalJSON[dto.SidebarLastVisitedResponse](t, body)
+	assert.Equal(t, "2026-04-24T10:00:00Z", got.Visited["mysteries"])
+	assert.Equal(t, "2026-04-24T11:00:00Z", got.Visited["rooms"])
+}
+
+func TestGetSidebarLastVisited_RepoError(t *testing.T) {
+	// given
+	h, _, sidebarRepo := newHomeHarnessFull(t)
+	userID := uuid.New()
+	h.ExpectValidSession("valid", userID)
+	sidebarRepo.EXPECT().ListForUser(mock.Anything, userID).Return(nil, errors.New("db down"))
+
+	// when
+	status, body := h.NewRequest("GET", "/sidebar/last-visited").WithCookie("valid").Do()
+
+	// then
+	require.Equal(t, http.StatusInternalServerError, status)
+	assert.Contains(t, string(body), "failed to load sidebar last visited")
+}
+
+func TestGetSidebarLastVisited_AuthFailures(t *testing.T) {
+	testutil.RunAuthFailureSuite(t, func(t *testing.T) (*testutil.Harness, *repository.MockSidebarLastVisitedRepository) {
+		h, _, sidebarRepo := newHomeHarnessFull(t)
+		return h, sidebarRepo
+	}, "GET", "/sidebar/last-visited", nil)
+}
+
+func TestMarkSidebarVisited_OK(t *testing.T) {
+	// given
+	h, _, sidebarRepo := newHomeHarnessFull(t)
+	userID := uuid.New()
+	h.ExpectValidSession("valid", userID)
+	sidebarRepo.EXPECT().Upsert(mock.Anything, userID, "mysteries").Return(nil)
+
+	// when
+	status, _ := h.NewRequest("POST", "/sidebar/last-visited").
+		WithCookie("valid").
+		WithJSONBody(dto.MarkSidebarVisitedRequest{Key: "mysteries"}).
+		Do()
+
+	// then
+	require.Equal(t, http.StatusNoContent, status)
+}
+
+func TestMarkSidebarVisited_EmptyKey(t *testing.T) {
+	// given
+	h, _, _ := newHomeHarnessFull(t)
+	userID := uuid.New()
+	h.ExpectValidSession("valid", userID)
+
+	// when
+	status, body := h.NewRequest("POST", "/sidebar/last-visited").
+		WithCookie("valid").
+		WithJSONBody(dto.MarkSidebarVisitedRequest{Key: ""}).
+		Do()
+
+	// then
+	require.Equal(t, http.StatusBadRequest, status)
+	assert.Contains(t, string(body), "key is required")
+}
+
+func TestMarkSidebarVisited_KeyTooLong(t *testing.T) {
+	// given
+	h, _, _ := newHomeHarnessFull(t)
+	userID := uuid.New()
+	h.ExpectValidSession("valid", userID)
+	longKey := make([]byte, 101)
+	for i := 0; i < len(longKey); i++ {
+		longKey[i] = 'a'
+	}
+
+	// when
+	status, body := h.NewRequest("POST", "/sidebar/last-visited").
+		WithCookie("valid").
+		WithJSONBody(dto.MarkSidebarVisitedRequest{Key: string(longKey)}).
+		Do()
+
+	// then
+	require.Equal(t, http.StatusBadRequest, status)
+	assert.Contains(t, string(body), "key too long")
+}
+
+func TestMarkSidebarVisited_InvalidBody(t *testing.T) {
+	// given
+	h, _, _ := newHomeHarnessFull(t)
+	userID := uuid.New()
+	h.ExpectValidSession("valid", userID)
+
+	// when
+	status, body := h.NewRequest("POST", "/sidebar/last-visited").
+		WithCookie("valid").
+		WithRawBody("not-json", "application/json").
+		Do()
+
+	// then
+	require.Equal(t, http.StatusBadRequest, status)
+	assert.Contains(t, string(body), "invalid request body")
+}
+
+func TestMarkSidebarVisited_RepoError(t *testing.T) {
+	// given
+	h, _, sidebarRepo := newHomeHarnessFull(t)
+	userID := uuid.New()
+	h.ExpectValidSession("valid", userID)
+	sidebarRepo.EXPECT().Upsert(mock.Anything, userID, "mysteries").Return(errors.New("db down"))
+
+	// when
+	status, body := h.NewRequest("POST", "/sidebar/last-visited").
+		WithCookie("valid").
+		WithJSONBody(dto.MarkSidebarVisitedRequest{Key: "mysteries"}).
+		Do()
+
+	// then
+	require.Equal(t, http.StatusInternalServerError, status)
+	assert.Contains(t, string(body), "failed to mark sidebar visited")
+}
+
+func TestMarkSidebarVisited_AuthFailures(t *testing.T) {
+	testutil.RunAuthFailureSuite(t, func(t *testing.T) (*testutil.Harness, *repository.MockSidebarLastVisitedRepository) {
+		h, _, sidebarRepo := newHomeHarnessFull(t)
+		return h, sidebarRepo
+	}, "POST", "/sidebar/last-visited", dto.MarkSidebarVisitedRequest{Key: "mysteries"})
 }

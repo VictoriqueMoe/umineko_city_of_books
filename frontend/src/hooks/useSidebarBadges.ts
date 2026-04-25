@@ -1,87 +1,126 @@
 import { useCallback, useEffect, useState } from "react";
-import { getSidebarActivity } from "../api/endpoints";
+import { getSidebarActivity, getSidebarLastVisited, markSidebarVisited } from "../api/endpoints";
+import type { WSMessage } from "../types/api";
 import { parseServerDate } from "../utils/time";
 import { useAuth } from "./useAuth";
+import { useNotifications } from "./useNotifications";
 
-const POLL_INTERVAL_MS = 30_000;
-const STORAGE_PREFIX = "sidebarLastVisited";
+const LEGACY_STORAGE_PREFIX = "sidebarLastVisited";
 
-function storageKey(userId: string): string {
-    return `${STORAGE_PREFIX}:${userId}`;
+function legacyStorageKey(userId: string): string {
+    return `${LEGACY_STORAGE_PREFIX}:${userId}`;
 }
 
-function readLastVisited(userId: string): Record<string, string> {
+function readLegacyVisited(userId: string): Record<string, string> | null {
     try {
-        const raw = window.localStorage.getItem(storageKey(userId));
+        const raw = window.localStorage.getItem(legacyStorageKey(userId));
         if (!raw) {
-            return {};
+            return null;
         }
         const parsed = JSON.parse(raw);
         if (parsed && typeof parsed === "object") {
             return parsed as Record<string, string>;
         }
-        return {};
+        return null;
     } catch {
-        return {};
+        return null;
     }
 }
 
-function writeLastVisited(userId: string, map: Record<string, string>): void {
+function clearLegacyVisited(userId: string): void {
     try {
-        window.localStorage.setItem(storageKey(userId), JSON.stringify(map));
+        window.localStorage.removeItem(legacyStorageKey(userId));
     } catch {
         /* quota or disabled storage, silently ignore */
     }
 }
 
-interface VisitedState {
-    userId: string | null;
-    lastVisited: Record<string, string>;
+async function migrateLegacyVisited(userId: string): Promise<void> {
+    const legacy = readLegacyVisited(userId);
+    if (!legacy) {
+        return;
+    }
+    const keys = Object.keys(legacy);
+    if (keys.length === 0) {
+        clearLegacyVisited(userId);
+        return;
+    }
+    const results = await Promise.allSettled(keys.map(key => markSidebarVisited(key)));
+    for (let i = 0; i < results.length; i++) {
+        if (results[i].status === "rejected") {
+            return;
+        }
+    }
+    clearLegacyVisited(userId);
 }
 
 export function useSidebarBadges() {
     const { user } = useAuth();
-    const [latestActivity, setLatestActivity] = useState<Record<string, string>>({});
+    const { addWSListener, wsEpoch } = useNotifications();
     const userId = user?.id ?? null;
-    const [visitedState, setVisitedState] = useState<VisitedState>(() => ({
-        userId,
-        lastVisited: userId ? readLastVisited(userId) : {},
-    }));
-    if (visitedState.userId !== userId) {
-        setVisitedState({
-            userId,
-            lastVisited: userId ? readLastVisited(userId) : {},
-        });
-    }
+    const [latestActivity, setLatestActivity] = useState<Record<string, string>>({});
+    const [lastVisited, setLastVisited] = useState<Record<string, string>>({});
 
     useEffect(() => {
-        if (!user) {
+        if (!userId) {
             return;
         }
         let cancelled = false;
-        const load = async () => {
+
+        const run = async () => {
             try {
-                const resp = await getSidebarActivity();
-                if (!cancelled) {
-                    setLatestActivity(resp.activity ?? {});
+                await migrateLegacyVisited(userId);
+            } catch {
+                /* silent; next mount retries */
+            }
+            if (cancelled) {
+                return;
+            }
+            try {
+                const [activityResp, visitedResp] = await Promise.all([getSidebarActivity(), getSidebarLastVisited()]);
+                if (cancelled) {
+                    return;
                 }
+                setLatestActivity(activityResp.activity ?? {});
+                setLastVisited(visitedResp.visited ?? {});
             } catch {
                 /* silent */
             }
         };
-        load();
-        const timer = window.setInterval(load, POLL_INTERVAL_MS);
+
+        void run();
         return () => {
             cancelled = true;
-            window.clearInterval(timer);
         };
-    }, [user]);
+    }, [userId, wsEpoch]);
 
-    const lastVisited = visitedState.lastVisited;
+    useEffect(() => {
+        if (!userId) {
+            return;
+        }
+        return addWSListener((msg: WSMessage) => {
+            if (msg.type !== "sidebar_activity") {
+                return;
+            }
+            const data = msg.data as { key?: string; at?: string };
+            if (!data.key || !data.at) {
+                return;
+            }
+            const key = data.key;
+            const at = data.at;
+            setLatestActivity(prev => {
+                const existing = prev[key];
+                if (existing && existing >= at) {
+                    return prev;
+                }
+                return { ...prev, [key]: at };
+            });
+        });
+    }, [userId, addWSListener]);
 
     const hasUnread = useCallback(
         (key: string): boolean => {
-            if (!user) {
+            if (!userId) {
                 return false;
             }
             const latest = latestActivity[key];
@@ -102,7 +141,7 @@ export function useSidebarBadges() {
             }
             return latestDate.getTime() > visitedDate.getTime();
         },
-        [user, latestActivity, lastVisited],
+        [userId, latestActivity, lastVisited],
     );
 
     const hasAnyUnread = useCallback(
@@ -123,10 +162,10 @@ export function useSidebarBadges() {
                 return;
             }
             const now = new Date().toISOString();
-            const current = readLastVisited(userId);
-            const next = { ...current, [key]: now };
-            writeLastVisited(userId, next);
-            setVisitedState({ userId, lastVisited: next });
+            setLastVisited(prev => ({ ...prev, [key]: now }));
+            markSidebarVisited(key).catch(() => {
+                /* silent; next poll reconciles */
+            });
         },
         [userId],
     );

@@ -299,6 +299,9 @@ func handleWSMessage(userID uuid.UUID, msg incomingMessage, hub *Hub, gamePresen
 		if err != nil {
 			return
 		}
+		if !joinedGameRooms[roomID] {
+			return
+		}
 		gamePresence.HandleClientLeave(userID, roomID)
 		delete(joinedGameRooms, roomID)
 

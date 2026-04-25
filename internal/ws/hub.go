@@ -335,6 +335,19 @@ func (h *Hub) Broadcast(msg Message) {
 	}
 }
 
+func (h *Hub) BumpSidebarActivity(key string) {
+	if h == nil {
+		return
+	}
+	h.Broadcast(Message{
+		Type: "sidebar_activity",
+		Data: map[string]interface{}{
+			"key": key,
+			"at":  time.Now().UTC().Format(time.RFC3339),
+		},
+	})
+}
+
 func (h *Hub) IsOnline(userID uuid.UUID) bool {
 	h.mu.RLock()
 	defer h.mu.RUnlock()

@@ -5,7 +5,9 @@ import { RolePill } from "../../RolePill/RolePill";
 import { renderRich } from "../../../utils/richText";
 import { GifEmbed } from "../../GifEmbed/GifEmbed";
 import { EmojiPicker } from "../EmojiPicker/EmojiPicker";
+import { YouTubeEmbed } from "../YouTubeEmbed/YouTubeEmbed";
 import { formatFullDateTime, formatMessageTime } from "../../../utils/time";
+import { extractYouTubeIDs } from "../../../utils/youtube";
 import styles from "./MessageBubble.module.css";
 
 interface MessageBubbleProps {
@@ -311,10 +313,15 @@ export function MessageBubble({
                                 />
                             );
                         }
-                        if (message.body.trim()) {
-                            return <div className={styles.messageText}>{renderRich(message.body)}</div>;
-                        }
-                        return null;
+                        const youtubeIds = extractYouTubeIDs(message.body);
+                        return (
+                            <>
+                                {message.body.trim() && (
+                                    <div className={styles.messageText}>{renderRich(message.body)}</div>
+                                )}
+                                {youtubeIds.length > 0 && <YouTubeEmbed videoIds={youtubeIds} />}
+                            </>
+                        );
                     })()
                 )}
                 {message.media && message.media.length > 0 && (

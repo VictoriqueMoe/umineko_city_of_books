@@ -61,9 +61,6 @@ func TestNotify_CreateErrorPropagates(t *testing.T) {
 		Message:       "liked your post",
 	}
 	notifRepo.EXPECT().
-		HasRecentDuplicate(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ActorID).
-		Return(false, nil)
-	notifRepo.EXPECT().
 		Create(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message).
 		Return(int64(0), errors.New("db down"))
 
@@ -77,13 +74,15 @@ func TestNotify_CreateErrorPropagates(t *testing.T) {
 
 func TestNotify_HasRecentDuplicateErrorIgnoredCreateProceeds(t *testing.T) {
 	// given
-	svc, notifRepo, _, _, _ := newTestService(t)
+	svc, notifRepo, userRepo, _, _ := newTestService(t)
 	params := dto.NotifyParams{
 		RecipientID:   uuid.New(),
 		ActorID:       uuid.New(),
-		Type:          dto.NotifChatMessage,
+		Type:          dto.NotifPostLiked,
 		ReferenceID:   uuid.New(),
-		ReferenceType: "chat",
+		ReferenceType: "post",
+		EmailSubject:  "subj",
+		EmailBody:     "body",
 	}
 	notifRepo.EXPECT().
 		HasRecentDuplicate(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ActorID).
@@ -93,6 +92,9 @@ func TestNotify_HasRecentDuplicateErrorIgnoredCreateProceeds(t *testing.T) {
 		Return(int64(42), nil)
 	notifRepo.EXPECT().
 		GetByID(mock.Anything, mock.Anything, params.RecipientID).
+		Return(nil, nil)
+	userRepo.EXPECT().
+		GetByID(mock.Anything, params.RecipientID).
 		Return(nil, nil)
 
 	// when
@@ -113,9 +115,6 @@ func TestNotify_ChatMessageSkipsEmail(t *testing.T) {
 		EmailSubject: "new message",
 		EmailBody:    "body",
 	}
-	notifRepo.EXPECT().
-		HasRecentDuplicate(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ActorID).
-		Return(false, nil)
 	notifRepo.EXPECT().
 		Create(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message).
 		Return(int64(1), nil)
@@ -140,9 +139,6 @@ func TestNotify_EmptyEmailSubjectSkipsEmail(t *testing.T) {
 		ReferenceID:  uuid.New(),
 		EmailSubject: "",
 	}
-	notifRepo.EXPECT().
-		HasRecentDuplicate(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ActorID).
-		Return(false, nil)
 	notifRepo.EXPECT().
 		Create(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message).
 		Return(int64(1), nil)
@@ -414,9 +410,6 @@ func TestNotify_PushNotificationListErrorSilentlyIgnored(t *testing.T) {
 		EmailSubject: "",
 	}
 	notifRepo.EXPECT().
-		HasRecentDuplicate(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ActorID).
-		Return(false, nil)
-	notifRepo.EXPECT().
 		Create(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message).
 		Return(int64(7), nil)
 	notifRepo.EXPECT().
@@ -440,9 +433,6 @@ func TestNotify_PushNotificationNoMatchingRowNoPanic(t *testing.T) {
 		ReferenceID:  uuid.New(),
 		EmailSubject: "",
 	}
-	notifRepo.EXPECT().
-		HasRecentDuplicate(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ActorID).
-		Return(false, nil)
 	notifRepo.EXPECT().
 		Create(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message).
 		Return(int64(99), nil)
@@ -468,9 +458,6 @@ func TestNotify_PushNotificationFindsRowSendsToHub(t *testing.T) {
 		EmailSubject: "",
 	}
 	notifRepo.EXPECT().
-		HasRecentDuplicate(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ActorID).
-		Return(false, nil)
-	notifRepo.EXPECT().
 		Create(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message).
 		Return(int64(123), nil)
 	notifRepo.EXPECT().
@@ -494,9 +481,6 @@ func TestNotifyMany_IteratesAllParamsAndSwallowsErrors(t *testing.T) {
 		{RecipientID: recipient, ActorID: actor, Type: dto.NotifChatMessage, ReferenceID: ref},
 		{RecipientID: recipient, ActorID: actor, Type: dto.NotifChatMessage, ReferenceID: ref},
 	}
-	notifRepo.EXPECT().
-		HasRecentDuplicate(mock.Anything, recipient, dto.NotifChatMessage, ref, actor).
-		Return(false, nil).Twice()
 	notifRepo.EXPECT().
 		Create(mock.Anything, recipient, dto.NotifChatMessage, ref, "", actor, "").
 		Return(int64(0), errors.New("boom")).Once()

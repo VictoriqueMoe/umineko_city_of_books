@@ -157,6 +157,7 @@ func (s *Service) createMystery(ctx fiber.Ctx) error {
 		return utils.InternalError(ctx, "failed to create mystery")
 	}
 
+	s.Hub.BumpSidebarActivity("mysteries")
 	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id})
 }
 

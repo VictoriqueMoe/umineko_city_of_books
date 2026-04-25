@@ -209,6 +209,11 @@ func (s *Service) createArt(ctx fiber.Ctx) error {
 		}
 		return utils.BadRequest(ctx, err.Error())
 	}
+	corner := req.Corner
+	if corner == "" {
+		corner = "general"
+	}
+	s.Hub.BumpSidebarActivity("gallery_" + corner)
 	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id})
 }
 

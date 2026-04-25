@@ -44,7 +44,11 @@ func (s *service) Notify(ctx context.Context, params dto.NotifyParams) error {
 		return nil
 	}
 
-	emailDupe, _ := s.repo.HasRecentDuplicate(ctx, params.RecipientID, params.Type, params.ReferenceID, params.ActorID)
+	willConsiderEmail := params.Type != dto.NotifChatMessage && params.EmailSubject != ""
+	var emailDupe bool
+	if willConsiderEmail {
+		emailDupe, _ = s.repo.HasRecentDuplicate(ctx, params.RecipientID, params.Type, params.ReferenceID, params.ActorID)
+	}
 
 	id, err := s.repo.Create(ctx, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message)
 	if err != nil {
@@ -54,7 +58,7 @@ func (s *service) Notify(ctx context.Context, params dto.NotifyParams) error {
 	logger.Log.Debug().Str("type", string(params.Type)).Str("recipient", params.RecipientID.String()).Msg("notification sent")
 	s.pushNotification(ctx, int(id), params.RecipientID)
 
-	if params.Type != dto.NotifChatMessage && params.EmailSubject != "" && !emailDupe {
+	if willConsiderEmail && !emailDupe {
 		s.sendEmail(ctx, params)
 	}
 

@@ -158,6 +158,9 @@ func (s *Service) createGroupRoom(ctx fiber.Ctx) error {
 		return utils.InternalError(ctx, "failed to create group room")
 	}
 
+	if room.Type == "group" && room.IsPublic && !room.IsSystem {
+		s.Hub.BumpSidebarActivity("rooms")
+	}
 	return ctx.Status(fiber.StatusCreated).JSON(room)
 }
 

@@ -370,7 +370,7 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 	ctrlService := controllers.NewService(
 		svc.auth, svc.profile, svc.theory, svc.notification, svc.admin,
 		svc.authz, settingsSvc, svc.chat, svc.report, svc.post, svc.follow,
-		svc.art, svc.block, repos.Announcement, svc.mystery, repos.User, svc.ship, svc.fanfic, svc.journal, svc.secret, svc.upload, svc.mediaProc, repos.VanityRole, repos.UserSecret, svc.session, svc.hub, svc.giphy, svc.giphyFavourites, svc.gameRoom, repos.HomeFeed, string(htmlBytes),
+		svc.art, svc.block, repos.Announcement, svc.mystery, repos.User, svc.ship, svc.fanfic, svc.journal, svc.secret, svc.upload, svc.mediaProc, repos.VanityRole, repos.UserSecret, svc.session, svc.hub, svc.giphy, svc.giphyFavourites, svc.gameRoom, repos.HomeFeed, repos.SidebarVisited, string(htmlBytes),
 	)
 	routes.PublicRoutes(ctrlService, app)
 

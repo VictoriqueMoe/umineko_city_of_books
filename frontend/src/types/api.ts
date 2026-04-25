@@ -1230,3 +1230,11 @@ export interface HomeActivityResponse {
 export interface SidebarActivityResponse {
     activity: Record<string, string>;
 }
+
+export interface SidebarLastVisitedResponse {
+    visited: Record<string, string>;
+}
+
+export interface MarkSidebarVisitedRequest {
+    key: string;
+}

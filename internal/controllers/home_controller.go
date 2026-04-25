@@ -5,21 +5,25 @@ import (
 
 	ctrlutils "umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/middleware"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 )
 
 const (
-	homeActivityLimit = 10
-	homeMembersLimit  = 5
-	homeRoomsLimit    = 5
+	homeActivityLimit      = 10
+	homeMembersLimit       = 5
+	homeRoomsLimit         = 5
+	sidebarVisitedKeyLimit = 100
 )
 
 func (s *Service) getAllHomeRoutes() []FSetupRoute {
 	return []FSetupRoute{
 		s.setupGetHomeActivity,
 		s.setupGetSidebarActivity,
+		s.setupGetSidebarLastVisited,
+		s.setupMarkSidebarVisited,
 	}
 }
 
@@ -29,6 +33,41 @@ func (s *Service) setupGetHomeActivity(r fiber.Router) {
 
 func (s *Service) setupGetSidebarActivity(r fiber.Router) {
 	r.Get("/sidebar/activity", s.getSidebarActivity)
+}
+
+func (s *Service) setupGetSidebarLastVisited(r fiber.Router) {
+	r.Get("/sidebar/last-visited", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.getSidebarLastVisited)
+}
+
+func (s *Service) setupMarkSidebarVisited(r fiber.Router) {
+	r.Post("/sidebar/last-visited", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.markSidebarVisited)
+}
+
+func (s *Service) getSidebarLastVisited(ctx fiber.Ctx) error {
+	userID := ctrlutils.UserID(ctx)
+	visited, err := s.SidebarVisitedRepo.ListForUser(ctx.Context(), userID)
+	if err != nil {
+		return ctrlutils.InternalError(ctx, "failed to load sidebar last visited")
+	}
+	return ctx.JSON(dto.SidebarLastVisitedResponse{Visited: visited})
+}
+
+func (s *Service) markSidebarVisited(ctx fiber.Ctx) error {
+	userID := ctrlutils.UserID(ctx)
+	var body dto.MarkSidebarVisitedRequest
+	if err := ctx.Bind().JSON(&body); err != nil {
+		return ctrlutils.BadRequest(ctx, "invalid request body")
+	}
+	if body.Key == "" {
+		return ctrlutils.BadRequest(ctx, "key is required")
+	}
+	if len(body.Key) > sidebarVisitedKeyLimit {
+		return ctrlutils.BadRequest(ctx, "key too long")
+	}
+	if err := s.SidebarVisitedRepo.Upsert(ctx.Context(), userID, body.Key); err != nil {
+		return ctrlutils.InternalError(ctx, "failed to mark sidebar visited")
+	}
+	return ctx.SendStatus(fiber.StatusNoContent)
 }
 
 func (s *Service) getSidebarActivity(ctx fiber.Ctx) error {

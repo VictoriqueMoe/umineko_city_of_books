@@ -139,6 +139,7 @@ func (s *Service) createShip(ctx fiber.Ctx) error {
 		}
 		return utils.InternalError(ctx, "failed to create ship")
 	}
+	s.Hub.BumpSidebarActivity("ships")
 	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id})
 }
 

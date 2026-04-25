@@ -176,6 +176,7 @@ func (s *Service) createJournal(ctx fiber.Ctx) error {
 		return utils.InternalError(ctx, "failed to create journal")
 	}
 
+	s.Hub.BumpSidebarActivity("journals")
 	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id})
 }
 

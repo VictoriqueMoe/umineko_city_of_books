@@ -61,6 +61,7 @@ type (
 		GiphyFavouriteService giphyfavourite.Service
 		GameRoomService       gameroom.Service
 		HomeFeedRepo          repository.HomeFeedRepository
+		SidebarVisitedRepo    repository.SidebarLastVisitedRepository
 		HTMLContent           string
 	}
 )
@@ -96,6 +97,7 @@ func NewService(
 	giphyFavouriteService giphyfavourite.Service,
 	gameRoomService gameroom.Service,
 	homeFeedRepo repository.HomeFeedRepository,
+	sidebarVisitedRepo repository.SidebarLastVisitedRepository,
 	htmlContent string,
 ) Service {
 	return Service{
@@ -129,6 +131,7 @@ func NewService(
 		GiphyFavouriteService: giphyFavouriteService,
 		GameRoomService:       gameRoomService,
 		HomeFeedRepo:          homeFeedRepo,
+		SidebarVisitedRepo:    sidebarVisitedRepo,
 		HTMLContent:           htmlContent,
 	}
 }

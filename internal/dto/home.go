@@ -55,4 +55,12 @@ type (
 	SidebarActivityResponse struct {
 		Activity map[string]string `json:"activity"`
 	}
+
+	SidebarLastVisitedResponse struct {
+		Visited map[string]string `json:"visited"`
+	}
+
+	MarkSidebarVisitedRequest struct {
+		Key string `json:"key"`
+	}
 )
