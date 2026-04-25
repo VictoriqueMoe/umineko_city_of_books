@@ -4,11 +4,13 @@ import (
 	"database/sql"
 	"embed"
 	"fmt"
+	"time"
 
 	"github.com/XSAM/otelsql"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
-	_ "modernc.org/sqlite"
 )
 
 var (
@@ -16,19 +18,26 @@ var (
 	migrationsFS embed.FS
 )
 
-func Open(dbPath string) (*sql.DB, error) {
-	dsn := dbPath + "?_pragma=journal_mode(WAL)&_pragma=foreign_keys(ON)&_pragma=busy_timeout(5000)"
-	db, err := otelsql.Open("sqlite", dsn,
-		otelsql.WithAttributes(semconv.DBSystemSqlite),
+func Open(dsn string) (*sql.DB, error) {
+	pgConfig, err := pgx.ParseConfig(dsn)
+	if err != nil {
+		return nil, fmt.Errorf("parse postgres dsn: %w", err)
+	}
+
+	connector := stdlib.GetConnector(*pgConfig)
+
+	db := otelsql.OpenDB(connector,
+		otelsql.WithAttributes(semconv.DBSystemPostgreSQL),
 		otelsql.WithSpanOptions(otelsql.SpanOptions{
 			DisableErrSkip:  true,
 			OmitConnPrepare: true,
 			OmitRows:        true,
 		}),
 	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open database: %w", err)
-	}
+
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(5 * time.Minute)
 
 	return db, nil
 }
@@ -36,7 +45,7 @@ func Open(dbPath string) (*sql.DB, error) {
 func Migrate(db *sql.DB) error {
 	goose.SetBaseFS(migrationsFS)
 
-	if err := goose.SetDialect("sqlite3"); err != nil {
+	if err := goose.SetDialect("postgres"); err != nil {
 		return fmt.Errorf("failed to set goose dialect: %w", err)
 	}
 

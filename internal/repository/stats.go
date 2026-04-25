@@ -84,23 +84,23 @@ func (r *statsRepository) GetOverview(ctx context.Context) (*SiteStats, error) {
 		responses *int
 		posts     *int
 	}{
-		{"-1 day", &s.NewUsers24h, &s.NewTheories24h, &s.NewResponses24h, &s.NewPosts24h},
-		{"-7 days", &s.NewUsers7d, &s.NewTheories7d, &s.NewResponses7d, &s.NewPosts7d},
-		{"-30 days", &s.NewUsers30d, &s.NewTheories30d, &s.NewResponses30d, &s.NewPosts30d},
+		{"1 day", &s.NewUsers24h, &s.NewTheories24h, &s.NewResponses24h, &s.NewPosts24h},
+		{"7 days", &s.NewUsers7d, &s.NewTheories7d, &s.NewResponses7d, &s.NewPosts7d},
+		{"30 days", &s.NewUsers30d, &s.NewTheories30d, &s.NewResponses30d, &s.NewPosts30d},
 	}
 
 	for _, p := range periods {
 		_ = r.db.QueryRowContext(ctx,
-			`SELECT COUNT(*) FROM users WHERE created_at > datetime('now', ?)`, p.interval,
+			`SELECT COUNT(*) FROM users WHERE created_at > NOW() - $1::interval`, p.interval,
 		).Scan(p.users)
 		_ = r.db.QueryRowContext(ctx,
-			`SELECT COUNT(*) FROM theories WHERE created_at > datetime('now', ?)`, p.interval,
+			`SELECT COUNT(*) FROM theories WHERE created_at > NOW() - $1::interval`, p.interval,
 		).Scan(p.theories)
 		_ = r.db.QueryRowContext(ctx,
-			`SELECT COUNT(*) FROM responses WHERE created_at > datetime('now', ?)`, p.interval,
+			`SELECT COUNT(*) FROM responses WHERE created_at > NOW() - $1::interval`, p.interval,
 		).Scan(p.responses)
 		_ = r.db.QueryRowContext(ctx,
-			`SELECT COUNT(*) FROM posts WHERE created_at > datetime('now', ?)`, p.interval,
+			`SELECT COUNT(*) FROM posts WHERE created_at > NOW() - $1::interval`, p.interval,
 		).Scan(p.posts)
 	}
 
@@ -135,7 +135,7 @@ func (r *statsRepository) GetMostActiveUsers(ctx context.Context, limit int) ([]
 		 JOIN users u ON actions.user_id = u.id
 		 GROUP BY u.id
 		 ORDER BY action_count DESC
-		 LIMIT ?`, limit,
+		 LIMIT $1`, limit,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("most active users: %w", err)

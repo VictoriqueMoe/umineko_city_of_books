@@ -3,14 +3,13 @@ package repotest
 import (
 	"context"
 	"database/sql"
-	"io"
-	"os"
-	"path/filepath"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
 
 	appdb "umineko_city_of_books/internal/db"
+	"umineko_city_of_books/internal/db/dbtest"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/repository/model"
 
@@ -19,11 +18,17 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-const TestUserPassword = "password123"
+const (
+	TestUserPassword = "password123"
+	templateDBName   = "umineko_template"
+)
 
 var (
 	hashOnce   sync.Once
 	cachedHash string
+
+	templateOnce sync.Once
+	templateErr  error
 )
 
 func testPasswordHash(t *testing.T) string {
@@ -38,73 +43,53 @@ func testPasswordHash(t *testing.T) string {
 	return cachedHash
 }
 
-var (
-	templateOnce sync.Once
-	templatePath string
-	templateErr  error
-)
+func ensureTemplate() {
+	templateOnce.Do(func() {
+		if err := dbtest.EnsureRunning(); err != nil {
+			templateErr = err
+			return
+		}
 
-func buildTemplate() {
-	dir, err := os.MkdirTemp("", "repotest-template-*")
-	if err != nil {
-		templateErr = err
-		return
-	}
-	templatePath = filepath.Join(dir, "template.db")
+		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		defer cancel()
 
-	db, err := appdb.Open(templatePath)
-	if err != nil {
-		templateErr = err
-		return
-	}
-	defer db.Close()
+		if err := dbtest.CreateDatabase(ctx, templateDBName); err != nil {
+			templateErr = err
+			return
+		}
 
-	if err := appdb.Migrate(db); err != nil {
-		templateErr = err
-		return
-	}
+		templateDB, err := appdb.Open(dbtest.DSNFor(templateDBName))
+		if err != nil {
+			templateErr = fmt.Errorf("open template db: %w", err)
+			return
+		}
+
+		if err := appdb.Migrate(templateDB); err != nil {
+			_ = templateDB.Close()
+			templateErr = fmt.Errorf("migrate template db: %w", err)
+			return
+		}
+
+		if err := templateDB.Close(); err != nil {
+			templateErr = fmt.Errorf("close template db: %w", err)
+			return
+		}
+
+		if err := dbtest.MarkAsTemplate(ctx, templateDBName); err != nil {
+			templateErr = err
+			return
+		}
+	})
 }
 
 func CleanupTemplate() {
-	if templatePath == "" {
-		return
-	}
-	_ = os.RemoveAll(filepath.Dir(templatePath))
 }
 
 func NewDB(t *testing.T) *sql.DB {
 	t.Helper()
-	templateOnce.Do(buildTemplate)
+	ensureTemplate()
 	require.NoError(t, templateErr)
-
-	dbPath := filepath.Join(t.TempDir(), "test.db")
-	require.NoError(t, copyFile(templatePath, dbPath))
-
-	db, err := appdb.Open(dbPath)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		_ = db.Close()
-	})
-	return db
-}
-
-func copyFile(src, dst string) error {
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer in.Close()
-
-	out, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-
-	if _, err := io.Copy(out, in); err != nil {
-		return err
-	}
-	return out.Sync()
+	return dbtest.NewDatabaseFromTemplate(t, templateDBName)
 }
 
 func NewRepos(t *testing.T) *repository.Repositories {
@@ -112,17 +97,33 @@ func NewRepos(t *testing.T) *repository.Repositories {
 	return repository.New(NewDB(t))
 }
 
-type UserOpt func(*userOpts)
+type (
+	UserOpt func(*userOpts)
 
-type userOpts struct {
-	username    string
-	password    string
-	displayName string
+	userOpts struct {
+		username    string
+		password    string
+		displayName string
+	}
+)
+
+func WithUsername(u string) UserOpt {
+	return func(o *userOpts) {
+		o.username = u
+	}
 }
 
-func WithUsername(u string) UserOpt    { return func(o *userOpts) { o.username = u } }
-func WithDisplayName(d string) UserOpt { return func(o *userOpts) { o.displayName = d } }
-func WithPassword(p string) UserOpt    { return func(o *userOpts) { o.password = p } }
+func WithDisplayName(d string) UserOpt {
+	return func(o *userOpts) {
+		o.displayName = d
+	}
+}
+
+func WithPassword(p string) UserOpt {
+	return func(o *userOpts) {
+		o.password = p
+	}
+}
 
 func CreateUser(t *testing.T, repos *repository.Repositories, opts ...UserOpt) *model.User {
 	t.Helper()
@@ -143,7 +144,7 @@ func CreateUser(t *testing.T, repos *repository.Repositories, opts ...UserOpt) *
 	id := uuid.New()
 	_, err := repos.DB().ExecContext(
 		context.Background(),
-		`INSERT INTO users (id, username, password_hash, display_name) VALUES (?, ?, ?, ?)`,
+		`INSERT INTO users (id, username, password_hash, display_name) VALUES ($1, $2, $3, $4)`,
 		id, o.username, testPasswordHash(t), o.displayName,
 	)
 	require.NoError(t, err)

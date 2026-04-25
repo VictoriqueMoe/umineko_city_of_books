@@ -88,7 +88,7 @@ FROM feed f
 JOIN users u ON u.id = f.author_id
 WHERE u.banned_at IS NULL
 ORDER BY f.created_at DESC
-LIMIT ?
+LIMIT $1
 `
 
 func (r *homeFeedRepository) ListRecentActivity(ctx context.Context, limit int) ([]HomeActivityRow, error) {
@@ -116,7 +116,7 @@ func (r *homeFeedRepository) ListRecentMembers(ctx context.Context, limit int) (
 		 FROM users
 		 WHERE banned_at IS NULL
 		 ORDER BY created_at DESC
-		 LIMIT ?`, limit,
+		 LIMIT $1`, limit,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("home feed members: %w", err)
@@ -142,7 +142,7 @@ func (r *homeFeedRepository) ListCornerActivity24h(ctx context.Context) ([]HomeC
 		        MAX(p.created_at) AS last_post_at
 		 FROM posts p
 		 JOIN users u ON u.id = p.user_id
-		 WHERE p.created_at > datetime('now', '-1 day') AND u.banned_at IS NULL
+		 WHERE p.created_at > NOW() - INTERVAL '1 day' AND u.banned_at IS NULL
 		 GROUP BY p.corner`,
 	)
 	if err != nil {
@@ -178,7 +178,7 @@ SELECT 'fanfiction' AS key, MAX(created_at) AS latest_at FROM fanfics
 UNION ALL
 SELECT 'journals' AS key, MAX(created_at) AS latest_at FROM journals WHERE archived_at IS NULL
 UNION ALL
-SELECT 'rooms' AS key, MAX(created_at) AS latest_at FROM chat_rooms WHERE type = 'group' AND is_public = 1 AND is_system = 0
+SELECT 'rooms' AS key, MAX(created_at) AS latest_at FROM chat_rooms WHERE type = 'group' AND is_public = TRUE AND is_system = FALSE
 `
 
 func (r *homeFeedRepository) ListSidebarActivity(ctx context.Context) ([]SidebarActivityEntry, error) {
@@ -209,9 +209,9 @@ func (r *homeFeedRepository) ListPublicRooms(ctx context.Context, limit int) ([]
 		        (SELECT COUNT(*) FROM chat_room_members m WHERE m.room_id = cr.id) AS member_count,
 		        cr.last_message_at
 		 FROM chat_rooms cr
-		 WHERE cr.type = 'group' AND cr.is_public = 1
+		 WHERE cr.type = 'group' AND cr.is_public = TRUE
 		 ORDER BY COALESCE(cr.last_message_at, cr.created_at) DESC
-		 LIMIT ?`, limit,
+		 LIMIT $1`, limit,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("home feed public rooms: %w", err)

@@ -28,7 +28,7 @@ type (
 func (r *roleRepository) GetRole(ctx context.Context, userID uuid.UUID) (role.Role, error) {
 	var result string
 	err := r.db.QueryRowContext(ctx,
-		`SELECT role FROM user_roles WHERE user_id = ? LIMIT 1`, userID,
+		`SELECT role FROM user_roles WHERE user_id = $1 LIMIT 1`, userID,
 	).Scan(&result)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", nil
@@ -42,7 +42,7 @@ func (r *roleRepository) GetRole(ctx context.Context, userID uuid.UUID) (role.Ro
 func (r *roleRepository) HasRole(ctx context.Context, userID uuid.UUID, rl role.Role) (bool, error) {
 	var count int
 	err := r.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM user_roles WHERE user_id = ? AND role = ?`, userID, string(rl),
+		`SELECT COUNT(*) FROM user_roles WHERE user_id = $1 AND role = $2`, userID, string(rl),
 	).Scan(&count)
 	if err != nil {
 		return false, fmt.Errorf("check role: %w", err)
@@ -52,14 +52,14 @@ func (r *roleRepository) HasRole(ctx context.Context, userID uuid.UUID, rl role.
 
 func (r *roleRepository) SetRole(ctx context.Context, userID uuid.UUID, rl role.Role) error {
 	_, err := r.db.ExecContext(ctx,
-		`DELETE FROM user_roles WHERE user_id = ?`, userID,
+		`DELETE FROM user_roles WHERE user_id = $1`, userID,
 	)
 	if err != nil {
 		return fmt.Errorf("clear existing role: %w", err)
 	}
 
 	_, err = r.db.ExecContext(ctx,
-		`INSERT INTO user_roles (user_id, role) VALUES (?, ?)`, userID, string(rl),
+		`INSERT INTO user_roles (user_id, role) VALUES ($1, $2)`, userID, string(rl),
 	)
 	if err != nil {
 		return fmt.Errorf("set role: %w", err)
@@ -69,7 +69,7 @@ func (r *roleRepository) SetRole(ctx context.Context, userID uuid.UUID, rl role.
 
 func (r *roleRepository) RemoveRole(ctx context.Context, userID uuid.UUID, rl role.Role) error {
 	_, err := r.db.ExecContext(ctx,
-		`DELETE FROM user_roles WHERE user_id = ? AND role = ?`, userID, string(rl),
+		`DELETE FROM user_roles WHERE user_id = $1 AND role = $2`, userID, string(rl),
 	)
 	if err != nil {
 		return fmt.Errorf("remove role: %w", err)
@@ -81,11 +81,11 @@ func (r *roleRepository) GetUsersByRoles(ctx context.Context, roles []role.Role)
 	if len(roles) == 0 {
 		return nil, nil
 	}
-	placeholders := "?"
+	placeholders := "$1"
 	args := []interface{}{string(roles[0])}
-	for _, rl := range roles[1:] {
-		placeholders += ", ?"
-		args = append(args, string(rl))
+	for i := 1; i < len(roles); i++ {
+		args = append(args, string(roles[i]))
+		placeholders += fmt.Sprintf(", $%d", len(args))
 	}
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT DISTINCT user_id FROM user_roles WHERE role IN (`+placeholders+`)`, args...,

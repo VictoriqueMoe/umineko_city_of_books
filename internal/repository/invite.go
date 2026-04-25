@@ -33,7 +33,7 @@ type (
 
 func (r *inviteRepository) Create(ctx context.Context, code string, createdBy uuid.UUID) error {
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO invites (code, created_by) VALUES (?, ?)`, code, createdBy,
+		`INSERT INTO invites (code, created_by) VALUES ($1, $2)`, code, createdBy,
 	)
 	if err != nil {
 		return fmt.Errorf("create invite: %w", err)
@@ -44,7 +44,7 @@ func (r *inviteRepository) Create(ctx context.Context, code string, createdBy uu
 func (r *inviteRepository) GetByCode(ctx context.Context, code string) (*Invite, error) {
 	var inv Invite
 	err := r.db.QueryRowContext(ctx,
-		`SELECT code, created_by, used_by, used_at, created_at FROM invites WHERE code = ?`, code,
+		`SELECT code, created_by, used_by, used_at, created_at FROM invites WHERE code = $1`, code,
 	).Scan(&inv.Code, &inv.CreatedBy, &inv.UsedBy, &inv.UsedAt, &inv.CreatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
@@ -57,7 +57,7 @@ func (r *inviteRepository) GetByCode(ctx context.Context, code string) (*Invite,
 
 func (r *inviteRepository) MarkUsed(ctx context.Context, code string, usedBy uuid.UUID) error {
 	_, err := r.db.ExecContext(ctx,
-		`UPDATE invites SET used_by = ?, used_at = CURRENT_TIMESTAMP WHERE code = ?`, usedBy, code,
+		`UPDATE invites SET used_by = $1, used_at = NOW() WHERE code = $2`, usedBy, code,
 	)
 	if err != nil {
 		return fmt.Errorf("mark invite used: %w", err)
@@ -73,7 +73,7 @@ func (r *inviteRepository) List(ctx context.Context, limit, offset int) ([]Invit
 	}
 
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT code, created_by, used_by, used_at, created_at FROM invites ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+		`SELECT code, created_by, used_by, used_at, created_at FROM invites ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
 		limit, offset,
 	)
 	if err != nil {
@@ -93,7 +93,7 @@ func (r *inviteRepository) List(ctx context.Context, limit, offset int) ([]Invit
 }
 
 func (r *inviteRepository) Delete(ctx context.Context, code string) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM invites WHERE code = ?`, code)
+	_, err := r.db.ExecContext(ctx, `DELETE FROM invites WHERE code = $1`, code)
 	if err != nil {
 		return fmt.Errorf("delete invite: %w", err)
 	}

@@ -40,11 +40,11 @@ type (
 func (r *chatRoomBanRepository) Ban(ctx context.Context, roomID, userID uuid.UUID, bannedBy *uuid.UUID, reason string) error {
 	_, err := r.db.ExecContext(ctx,
 		`INSERT INTO chat_room_bans (room_id, user_id, banned_by, reason)
-		 VALUES (?, ?, ?, ?)
+		 VALUES ($1, $2, $3, $4)
 		 ON CONFLICT (room_id, user_id) DO UPDATE SET
-		     banned_by = excluded.banned_by,
-		     reason    = excluded.reason,
-		     created_at = CURRENT_TIMESTAMP`,
+		     banned_by = EXCLUDED.banned_by,
+		     reason    = EXCLUDED.reason,
+		     created_at = NOW()`,
 		roomID, userID, bannedBy, reason,
 	)
 	if err != nil {
@@ -55,7 +55,7 @@ func (r *chatRoomBanRepository) Ban(ctx context.Context, roomID, userID uuid.UUI
 
 func (r *chatRoomBanRepository) Unban(ctx context.Context, roomID, userID uuid.UUID) error {
 	_, err := r.db.ExecContext(ctx,
-		`DELETE FROM chat_room_bans WHERE room_id = ? AND user_id = ?`,
+		`DELETE FROM chat_room_bans WHERE room_id = $1 AND user_id = $2`,
 		roomID, userID,
 	)
 	if err != nil {
@@ -67,7 +67,7 @@ func (r *chatRoomBanRepository) Unban(ctx context.Context, roomID, userID uuid.U
 func (r *chatRoomBanRepository) IsBanned(ctx context.Context, roomID, userID uuid.UUID) (bool, error) {
 	var exists int
 	err := r.db.QueryRowContext(ctx,
-		`SELECT 1 FROM chat_room_bans WHERE room_id = ? AND user_id = ? LIMIT 1`,
+		`SELECT 1 FROM chat_room_bans WHERE room_id = $1 AND user_id = $2 LIMIT 1`,
 		roomID, userID,
 	).Scan(&exists)
 	if err == sql.ErrNoRows {
@@ -91,7 +91,7 @@ func (r *chatRoomBanRepository) ListForRoom(ctx context.Context, roomID uuid.UUI
 		 JOIN users u ON b.user_id = u.id
 		 LEFT JOIN user_roles ur ON ur.user_id = u.id
 		 LEFT JOIN users bu ON b.banned_by = bu.id
-		 WHERE b.room_id = ?
+		 WHERE b.room_id = $1
 		 ORDER BY b.created_at DESC`,
 		roomID,
 	)
@@ -119,7 +119,7 @@ func (r *chatRoomBanRepository) ListForRoom(ctx context.Context, roomID uuid.UUI
 
 func (r *chatRoomBanRepository) BannedRoomIDsForUser(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT room_id FROM chat_room_bans WHERE user_id = ?`,
+		`SELECT room_id FROM chat_room_bans WHERE user_id = $1`,
 		userID,
 	)
 	if err != nil {

@@ -117,7 +117,7 @@ func initDatabase() (*repository.Repositories, settings.Service) {
 		logger.Log.Warn().Err(err).Msg("otel init failed; traces disabled")
 	}
 
-	database, err := db.Open(config.Cfg.DBPath)
+	database, err := db.Open(config.Cfg.PostgresDSN())
 	if err != nil {
 		logger.Log.Fatal().Err(err).Msg("failed to open database")
 	}

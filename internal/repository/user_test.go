@@ -49,7 +49,7 @@ func insertSolvedMystery(t *testing.T, repos *repository.Repositories, gmID, win
 	t.Helper()
 	id := uuid.New()
 	_, err := repos.DB().ExecContext(context.Background(),
-		`INSERT INTO mysteries (id, user_id, title, body, difficulty, solved, winner_id) VALUES (?, ?, ?, ?, ?, 1, ?)`,
+		`INSERT INTO mysteries (id, user_id, title, body, difficulty, solved, winner_id) VALUES ($1, $2, $3, $4, $5, TRUE, $6)`,
 		id, gmID, "title", "body", difficulty, winnerID,
 	)
 	require.NoError(t, err)
@@ -59,7 +59,7 @@ func insertSolvedMystery(t *testing.T, repos *repository.Repositories, gmID, win
 func insertMysteryAttempt(t *testing.T, repos *repository.Repositories, mysteryID, userID uuid.UUID) {
 	t.Helper()
 	_, err := repos.DB().ExecContext(context.Background(),
-		`INSERT INTO mystery_attempts (id, mystery_id, user_id, body) VALUES (?, ?, ?, ?)`,
+		`INSERT INTO mystery_attempts (id, mystery_id, user_id, body) VALUES ($1, $2, $3, $4)`,
 		uuid.New(), mysteryID, userID, "guess",
 	)
 	require.NoError(t, err)

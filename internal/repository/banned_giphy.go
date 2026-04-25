@@ -39,13 +39,9 @@ func (r *bannedGiphyRepository) List(ctx context.Context) ([]BannedGiphyRow, err
 	var result []BannedGiphyRow
 	for rows.Next() {
 		var row BannedGiphyRow
-		var createdAt string
 		var reason sql.NullString
-		if err := rows.Scan(&row.Kind, &row.Value, &createdAt, &row.CreatedBy, &reason); err != nil {
+		if err := rows.Scan(&row.Kind, &row.Value, &row.CreatedAt, &row.CreatedBy, &reason); err != nil {
 			return nil, fmt.Errorf("scan banned giphy: %w", err)
-		}
-		if t, err := time.Parse("2006-01-02 15:04:05", createdAt); err == nil {
-			row.CreatedAt = t
 		}
 		if reason.Valid {
 			row.Reason = reason.String
@@ -63,7 +59,7 @@ func (r *bannedGiphyRepository) Add(ctx context.Context, kind, value, reason str
 		reasonVal = reason
 	}
 	_, err := r.db.ExecContext(ctx,
-		`INSERT OR IGNORE INTO banned_giphy (kind, value, created_by, reason) VALUES (?, ?, ?, ?)`,
+		`INSERT INTO banned_giphy (kind, value, created_by, reason) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING`,
 		kind, value, createdBy, reasonVal,
 	)
 	if err != nil {
@@ -74,7 +70,7 @@ func (r *bannedGiphyRepository) Add(ctx context.Context, kind, value, reason str
 
 func (r *bannedGiphyRepository) Remove(ctx context.Context, kind, value string) error {
 	_, err := r.db.ExecContext(ctx,
-		`DELETE FROM banned_giphy WHERE kind = ? AND value = ?`,
+		`DELETE FROM banned_giphy WHERE kind = $1 AND value = $2`,
 		kind, value,
 	)
 	if err != nil {

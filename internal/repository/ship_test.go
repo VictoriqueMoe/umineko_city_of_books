@@ -431,7 +431,7 @@ func TestShipRepository_List_SortOld(t *testing.T) {
 	repos := repotest.NewRepos(t)
 	owner := repotest.CreateUser(t, repos)
 	first := createShip(t, repos, owner.ID, "First", makeChars())
-	_, err := repos.DB().ExecContext(context.Background(), `UPDATE ships SET created_at = '2020-01-01 00:00:00' WHERE id = ?`, first)
+	_, err := repos.DB().ExecContext(context.Background(), `UPDATE ships SET created_at = '2020-01-01 00:00:00' WHERE id = $1`, first)
 	require.NoError(t, err)
 	second := createShip(t, repos, owner.ID, "Second", makeChars())
 

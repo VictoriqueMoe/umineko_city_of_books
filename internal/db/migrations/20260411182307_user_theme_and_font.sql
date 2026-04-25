@@ -1,7 +1,0 @@
--- +goose Up
-ALTER TABLE users ADD COLUMN theme TEXT NOT NULL DEFAULT '';
-ALTER TABLE users ADD COLUMN font TEXT NOT NULL DEFAULT '';
-
--- +goose Down
-ALTER TABLE users DROP COLUMN theme;
-ALTER TABLE users DROP COLUMN font;

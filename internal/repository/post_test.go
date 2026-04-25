@@ -1391,7 +1391,7 @@ func TestPostRepository_GetStaleEmbeds(t *testing.T) {
 	postID := createPost(t, repos, user.ID, "general", "b")
 	require.NoError(t, repos.Post.AddEmbed(context.Background(), postID.String(), "post", "https://x.com", "link", "T", "D", "", "", "", 0))
 	db := repos.DB()
-	_, err := db.Exec(`UPDATE embeds SET fetched_at = datetime('now', '-30 day')`)
+	_, err := db.Exec(`UPDATE embeds SET fetched_at = NOW() - INTERVAL '30 days'`)
 	require.NoError(t, err)
 
 	// when
@@ -1424,7 +1424,7 @@ func TestPostRepository_GetStaleEmbeds_SkipsYouTube(t *testing.T) {
 	postID := createPost(t, repos, user.ID, "general", "b")
 	require.NoError(t, repos.Post.AddEmbed(context.Background(), postID.String(), "post", "https://youtu.be/abc", "youtube", "T", "D", "", "", "abc", 0))
 	db := repos.DB()
-	_, err := db.Exec(`UPDATE embeds SET fetched_at = datetime('now', '-30 day')`)
+	_, err := db.Exec(`UPDATE embeds SET fetched_at = NOW() - INTERVAL '30 days'`)
 	require.NoError(t, err)
 
 	// when

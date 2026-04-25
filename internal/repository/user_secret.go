@@ -25,7 +25,7 @@ type (
 
 func (r *userSecretRepository) Unlock(ctx context.Context, userID uuid.UUID, secretID string) error {
 	_, err := r.db.ExecContext(ctx,
-		`INSERT OR IGNORE INTO user_secrets (user_id, secret_id) VALUES (?, ?)`,
+		`INSERT INTO user_secrets (user_id, secret_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
 		userID, secretID,
 	)
 	if err != nil {
@@ -36,7 +36,7 @@ func (r *userSecretRepository) Unlock(ctx context.Context, userID uuid.UUID, sec
 
 func (r *userSecretRepository) ListForUser(ctx context.Context, userID uuid.UUID) ([]string, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT secret_id FROM user_secrets WHERE user_id = ? ORDER BY secret_id`,
+		`SELECT secret_id FROM user_secrets WHERE user_id = $1 ORDER BY secret_id`,
 		userID,
 	)
 	if err != nil {
@@ -59,11 +59,11 @@ func (r *userSecretRepository) GetUserIDsWithAnyPiece(ctx context.Context, piece
 	if len(pieceIDs) == 0 {
 		return nil, nil
 	}
-	placeholders := "?"
+	placeholders := "$1"
 	args := []interface{}{pieceIDs[0]}
 	for i := 1; i < len(pieceIDs); i++ {
-		placeholders += ",?"
 		args = append(args, pieceIDs[i])
+		placeholders += fmt.Sprintf(",$%d", len(args))
 	}
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT DISTINCT user_id FROM user_secrets WHERE secret_id IN (`+placeholders+`)`,
@@ -88,7 +88,7 @@ func (r *userSecretRepository) GetUserIDsWithAnyPiece(ctx context.Context, piece
 func (r *userSecretRepository) IsSolvedByAnyone(ctx context.Context, secretID string) (bool, error) {
 	var exists int
 	err := r.db.QueryRowContext(ctx,
-		`SELECT 1 FROM user_secrets WHERE secret_id = ? LIMIT 1`,
+		`SELECT 1 FROM user_secrets WHERE secret_id = $1 LIMIT 1`,
 		secretID,
 	).Scan(&exists)
 	if err == sql.ErrNoRows {
@@ -104,11 +104,11 @@ func (r *userSecretRepository) DeleteSecrets(ctx context.Context, secretIDs []st
 	if len(secretIDs) == 0 {
 		return nil
 	}
-	placeholders := "?"
+	placeholders := "$1"
 	args := []interface{}{secretIDs[0]}
 	for i := 1; i < len(secretIDs); i++ {
-		placeholders += ",?"
 		args = append(args, secretIDs[i])
+		placeholders += fmt.Sprintf(",$%d", len(args))
 	}
 	_, err := r.db.ExecContext(ctx,
 		`DELETE FROM user_secrets WHERE secret_id IN (`+placeholders+`)`,
@@ -122,7 +122,7 @@ func (r *userSecretRepository) DeleteSecrets(ctx context.Context, secretIDs []st
 
 func (r *userSecretRepository) GetUserIDsWithSecret(ctx context.Context, secretID string) ([]uuid.UUID, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT user_id FROM user_secrets WHERE secret_id = ?`,
+		`SELECT user_id FROM user_secrets WHERE secret_id = $1`,
 		secretID,
 	)
 	if err != nil {

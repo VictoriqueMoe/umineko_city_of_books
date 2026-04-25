@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -33,7 +34,8 @@ type (
 
 func (r *blockRepository) Block(ctx context.Context, blockerID uuid.UUID, blockedID uuid.UUID) error {
 	_, err := r.db.ExecContext(ctx,
-		`INSERT OR IGNORE INTO blocks (blocker_id, blocked_id) VALUES (?, ?)`,
+		`INSERT INTO blocks (blocker_id, blocked_id) VALUES ($1, $2)
+		 ON CONFLICT DO NOTHING`,
 		blockerID, blockedID,
 	)
 	if err != nil {
@@ -44,7 +46,7 @@ func (r *blockRepository) Block(ctx context.Context, blockerID uuid.UUID, blocke
 
 func (r *blockRepository) Unblock(ctx context.Context, blockerID uuid.UUID, blockedID uuid.UUID) error {
 	_, err := r.db.ExecContext(ctx,
-		`DELETE FROM blocks WHERE blocker_id = ? AND blocked_id = ?`,
+		`DELETE FROM blocks WHERE blocker_id = $1 AND blocked_id = $2`,
 		blockerID, blockedID,
 	)
 	if err != nil {
@@ -56,7 +58,7 @@ func (r *blockRepository) Unblock(ctx context.Context, blockerID uuid.UUID, bloc
 func (r *blockRepository) IsBlocked(ctx context.Context, blockerID uuid.UUID, blockedID uuid.UUID) (bool, error) {
 	var count int
 	err := r.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM blocks WHERE blocker_id = ? AND blocked_id = ?`,
+		`SELECT COUNT(*) FROM blocks WHERE blocker_id = $1 AND blocked_id = $2`,
 		blockerID, blockedID,
 	).Scan(&count)
 	if err != nil {
@@ -68,7 +70,7 @@ func (r *blockRepository) IsBlocked(ctx context.Context, blockerID uuid.UUID, bl
 func (r *blockRepository) IsBlockedEither(ctx context.Context, userA uuid.UUID, userB uuid.UUID) (bool, error) {
 	var count int
 	err := r.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM blocks WHERE (blocker_id = ? AND blocked_id = ?) OR (blocker_id = ? AND blocked_id = ?)`,
+		`SELECT COUNT(*) FROM blocks WHERE (blocker_id = $1 AND blocked_id = $2) OR (blocker_id = $3 AND blocked_id = $4)`,
 		userA, userB, userB, userA,
 	).Scan(&count)
 	if err != nil {
@@ -79,9 +81,9 @@ func (r *blockRepository) IsBlockedEither(ctx context.Context, userA uuid.UUID, 
 
 func (r *blockRepository) GetBlockedIDs(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT blocked_id FROM blocks WHERE blocker_id = ?
+		`SELECT blocked_id FROM blocks WHERE blocker_id = $1
 		UNION
-		SELECT blocker_id FROM blocks WHERE blocked_id = ?`,
+		SELECT blocker_id FROM blocks WHERE blocked_id = $2`,
 		userID, userID,
 	)
 	if err != nil {
@@ -105,7 +107,7 @@ func (r *blockRepository) GetBlockedUsers(ctx context.Context, blockerID uuid.UU
 		`SELECT u.id, u.username, u.display_name, u.avatar_url, b.created_at
 		FROM blocks b
 		JOIN users u ON b.blocked_id = u.id
-		WHERE b.blocker_id = ?
+		WHERE b.blocker_id = $1
 		ORDER BY b.created_at DESC`,
 		blockerID,
 	)
@@ -116,10 +118,14 @@ func (r *blockRepository) GetBlockedUsers(ctx context.Context, blockerID uuid.UU
 
 	var users []BlockedUser
 	for rows.Next() {
-		var u BlockedUser
-		if err := rows.Scan(&u.ID, &u.Username, &u.DisplayName, &u.AvatarURL, &u.BlockedAt); err != nil {
+		var (
+			u         BlockedUser
+			blockedAt time.Time
+		)
+		if err := rows.Scan(&u.ID, &u.Username, &u.DisplayName, &u.AvatarURL, &blockedAt); err != nil {
 			return nil, fmt.Errorf("scan blocked user: %w", err)
 		}
+		u.BlockedAt = blockedAt.UTC().Format(time.RFC3339)
 		users = append(users, u)
 	}
 	return users, rows.Err()

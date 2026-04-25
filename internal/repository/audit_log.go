@@ -33,7 +33,7 @@ type (
 
 func (r *auditLogRepository) Create(ctx context.Context, actorID uuid.UUID, action, targetType, targetID, details string) error {
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO audit_log (actor_id, action, target_type, target_id, details) VALUES (?, ?, ?, ?, ?)`,
+		`INSERT INTO audit_log (actor_id, action, target_type, target_id, details) VALUES ($1, $2, $3, $4, $5)`,
 		actorID, action, targetType, targetID, details,
 	)
 	if err != nil {
@@ -44,7 +44,7 @@ func (r *auditLogRepository) Create(ctx context.Context, actorID uuid.UUID, acti
 
 func (r *auditLogRepository) CreateSystem(ctx context.Context, action, targetType, targetID, details string) error {
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO audit_log (actor_id, action, target_type, target_id, details) VALUES (NULL, ?, ?, ?, ?)`,
+		`INSERT INTO audit_log (actor_id, action, target_type, target_id, details) VALUES (NULL, $1, $2, $3, $4)`,
 		action, targetType, targetID, details,
 	)
 	if err != nil {
@@ -57,7 +57,7 @@ func (r *auditLogRepository) List(ctx context.Context, action string, limit, off
 	where := ""
 	var args []interface{}
 	if action != "" {
-		where = " WHERE a.action = ?"
+		where = " WHERE a.action = $1"
 		args = append(args, action)
 	}
 
@@ -71,13 +71,15 @@ func (r *auditLogRepository) List(ctx context.Context, action string, limit, off
 		return nil, 0, fmt.Errorf("count audit log: %w", err)
 	}
 
+	limitPlaceholder := fmt.Sprintf("$%d", len(args)+1)
+	offsetPlaceholder := fmt.Sprintf("$%d", len(args)+2)
 	args = append(args, limit, offset)
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT a.id, a.actor_id, COALESCE(u.display_name, ''), a.action, a.target_type, a.target_id, a.details, a.created_at
 		 FROM audit_log a
 		 LEFT JOIN users u ON a.actor_id = u.id`+where+`
 		 ORDER BY a.created_at DESC
-		 LIMIT ? OFFSET ?`, args...,
+		 LIMIT `+limitPlaceholder+` OFFSET `+offsetPlaceholder, args...,
 	)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list audit log: %w", err)
@@ -87,14 +89,12 @@ func (r *auditLogRepository) List(ctx context.Context, action string, limit, off
 	var entries []AuditLogEntry
 	for rows.Next() {
 		var e AuditLogEntry
-		var actorID sql.NullString
+		var actorID *uuid.UUID
 		if err := rows.Scan(&e.ID, &actorID, &e.ActorName, &e.Action, &e.TargetType, &e.TargetID, &e.Details, &e.CreatedAt); err != nil {
 			return nil, 0, fmt.Errorf("scan audit log: %w", err)
 		}
-		if actorID.Valid {
-			if id, err := uuid.Parse(actorID.String); err == nil {
-				e.ActorID = id
-			}
+		if actorID != nil {
+			e.ActorID = *actorID
 		}
 		entries = append(entries, e)
 	}

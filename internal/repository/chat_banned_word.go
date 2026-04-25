@@ -57,14 +57,10 @@ type (
 
 func (r *chatBannedWordRepository) Create(ctx context.Context, spec ChatBannedWordSpec) (uuid.UUID, error) {
 	id := uuid.New()
-	caseFlag := 0
-	if spec.CaseSensitive {
-		caseFlag = 1
-	}
 	_, err := r.db.ExecContext(ctx,
 		`INSERT INTO chat_banned_words (id, scope, room_id, pattern, match_mode, case_sensitive, action, created_by)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		id, spec.Scope, spec.RoomID, spec.Pattern, spec.MatchMode, caseFlag, spec.Action, spec.CreatedBy,
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+		id, spec.Scope, spec.RoomID, spec.Pattern, spec.MatchMode, spec.CaseSensitive, spec.Action, spec.CreatedBy,
 	)
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("create banned word: %w", err)
@@ -73,13 +69,9 @@ func (r *chatBannedWordRepository) Create(ctx context.Context, spec ChatBannedWo
 }
 
 func (r *chatBannedWordRepository) Update(ctx context.Context, id uuid.UUID, spec ChatBannedWordUpdate) error {
-	caseFlag := 0
-	if spec.CaseSensitive {
-		caseFlag = 1
-	}
 	res, err := r.db.ExecContext(ctx,
-		`UPDATE chat_banned_words SET pattern = ?, match_mode = ?, case_sensitive = ?, action = ? WHERE id = ?`,
-		spec.Pattern, spec.MatchMode, caseFlag, spec.Action, id,
+		`UPDATE chat_banned_words SET pattern = $1, match_mode = $2, case_sensitive = $3, action = $4 WHERE id = $5`,
+		spec.Pattern, spec.MatchMode, spec.CaseSensitive, spec.Action, id,
 	)
 	if err != nil {
 		return fmt.Errorf("update banned word: %w", err)
@@ -92,7 +84,7 @@ func (r *chatBannedWordRepository) Update(ctx context.Context, id uuid.UUID, spe
 }
 
 func (r *chatBannedWordRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM chat_banned_words WHERE id = ?`, id)
+	_, err := r.db.ExecContext(ctx, `DELETE FROM chat_banned_words WHERE id = $1`, id)
 	if err != nil {
 		return fmt.Errorf("delete banned word: %w", err)
 	}
@@ -101,16 +93,15 @@ func (r *chatBannedWordRepository) Delete(ctx context.Context, id uuid.UUID) err
 
 func (r *chatBannedWordRepository) GetByID(ctx context.Context, id uuid.UUID) (*ChatBannedWordRow, error) {
 	var row ChatBannedWordRow
-	var caseFlag int
 	var createdByName sql.NullString
 	err := r.db.QueryRowContext(ctx,
 		`SELECT w.id, w.scope, w.room_id, w.pattern, w.match_mode, w.case_sensitive, w.action,
 		        w.created_by, COALESCE(u.display_name, u.username), w.created_at
 		 FROM chat_banned_words w
 		 LEFT JOIN users u ON w.created_by = u.id
-		 WHERE w.id = ?`,
+		 WHERE w.id = $1`,
 		id,
-	).Scan(&row.ID, &row.Scope, &row.RoomID, &row.Pattern, &row.MatchMode, &caseFlag, &row.Action,
+	).Scan(&row.ID, &row.Scope, &row.RoomID, &row.Pattern, &row.MatchMode, &row.CaseSensitive, &row.Action,
 		&row.CreatedBy, &createdByName, &row.CreatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
@@ -118,7 +109,6 @@ func (r *chatBannedWordRepository) GetByID(ctx context.Context, id uuid.UUID) (*
 	if err != nil {
 		return nil, fmt.Errorf("get banned word: %w", err)
 	}
-	row.CaseSensitive = caseFlag != 0
 	if createdByName.Valid {
 		row.CreatedByName = createdByName.String
 	}
@@ -142,7 +132,7 @@ func (r *chatBannedWordRepository) ListForRoom(ctx context.Context, roomID uuid.
 		        w.created_by, COALESCE(u.display_name, u.username, ''), w.created_at
 		 FROM chat_banned_words w
 		 LEFT JOIN users u ON w.created_by = u.id
-		 WHERE w.scope = 'room' AND w.room_id = ?
+		 WHERE w.scope = 'room' AND w.room_id = $1
 		 ORDER BY w.created_at DESC`,
 		roomID,
 	)
@@ -154,7 +144,7 @@ func (r *chatBannedWordRepository) ListApplicable(ctx context.Context, roomID uu
 		        w.created_by, COALESCE(u.display_name, u.username, ''), w.created_at
 		 FROM chat_banned_words w
 		 LEFT JOIN users u ON w.created_by = u.id
-		 WHERE w.scope = 'global' OR (w.scope = 'room' AND w.room_id = ?)`,
+		 WHERE w.scope = 'global' OR (w.scope = 'room' AND w.room_id = $1)`,
 		roomID,
 	)
 }
@@ -169,13 +159,11 @@ func (r *chatBannedWordRepository) queryRows(ctx context.Context, query string, 
 	var result []ChatBannedWordRow
 	for rows.Next() {
 		var row ChatBannedWordRow
-		var caseFlag int
 		var createdByName sql.NullString
-		if err := rows.Scan(&row.ID, &row.Scope, &row.RoomID, &row.Pattern, &row.MatchMode, &caseFlag,
+		if err := rows.Scan(&row.ID, &row.Scope, &row.RoomID, &row.Pattern, &row.MatchMode, &row.CaseSensitive,
 			&row.Action, &row.CreatedBy, &createdByName, &row.CreatedAt); err != nil {
 			return nil, fmt.Errorf("scan banned word: %w", err)
 		}
-		row.CaseSensitive = caseFlag != 0
 		if createdByName.Valid {
 			row.CreatedByName = createdByName.String
 		}

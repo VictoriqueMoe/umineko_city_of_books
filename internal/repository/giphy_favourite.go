@@ -34,8 +34,15 @@ type (
 
 func (r *giphyFavouriteRepository) Add(ctx context.Context, userID uuid.UUID, fav GiphyFavourite) error {
 	_, err := r.db.ExecContext(ctx,
-		`INSERT OR REPLACE INTO giphy_favourites (user_id, giphy_id, url, title, preview_url, width, height)
-		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO giphy_favourites (user_id, giphy_id, url, title, preview_url, width, height, created_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+		 ON CONFLICT (user_id, giphy_id) DO UPDATE SET
+		     url = EXCLUDED.url,
+		     title = EXCLUDED.title,
+		     preview_url = EXCLUDED.preview_url,
+		     width = EXCLUDED.width,
+		     height = EXCLUDED.height,
+		     created_at = EXCLUDED.created_at`,
 		userID, fav.GiphyID, fav.URL, fav.Title, fav.PreviewURL, fav.Width, fav.Height,
 	)
 	if err != nil {
@@ -46,7 +53,7 @@ func (r *giphyFavouriteRepository) Add(ctx context.Context, userID uuid.UUID, fa
 
 func (r *giphyFavouriteRepository) Remove(ctx context.Context, userID uuid.UUID, giphyID string) error {
 	_, err := r.db.ExecContext(ctx,
-		`DELETE FROM giphy_favourites WHERE user_id = ? AND giphy_id = ?`,
+		`DELETE FROM giphy_favourites WHERE user_id = $1 AND giphy_id = $2`,
 		userID, giphyID,
 	)
 	if err != nil {
@@ -64,7 +71,7 @@ func (r *giphyFavouriteRepository) List(ctx context.Context, userID uuid.UUID, l
 	}
 	var total int
 	err := r.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM giphy_favourites WHERE user_id = ?`,
+		`SELECT COUNT(*) FROM giphy_favourites WHERE user_id = $1`,
 		userID,
 	).Scan(&total)
 	if err != nil {
@@ -72,8 +79,8 @@ func (r *giphyFavouriteRepository) List(ctx context.Context, userID uuid.UUID, l
 	}
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT giphy_id, url, title, preview_url, width, height, created_at
-		 FROM giphy_favourites WHERE user_id = ?
-		 ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+		 FROM giphy_favourites WHERE user_id = $1
+		 ORDER BY created_at DESC LIMIT $2 OFFSET $3`,
 		userID, limit, offset,
 	)
 	if err != nil {
@@ -96,7 +103,7 @@ func (r *giphyFavouriteRepository) List(ctx context.Context, userID uuid.UUID, l
 
 func (r *giphyFavouriteRepository) ListIDs(ctx context.Context, userID uuid.UUID) ([]string, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT giphy_id FROM giphy_favourites WHERE user_id = ?`,
+		`SELECT giphy_id FROM giphy_favourites WHERE user_id = $1`,
 		userID,
 	)
 	if err != nil {

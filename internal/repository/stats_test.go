@@ -21,7 +21,7 @@ func insertTheory(t *testing.T, db *sql.DB, userID uuid.UUID, createdAt string) 
 		created = time.Now().UTC().Format("2006-01-02 15:04:05")
 	}
 	_, err := db.Exec(
-		`INSERT INTO theories (id, user_id, title, body, episode, created_at, updated_at) VALUES (?, ?, ?, ?, 0, ?, ?)`,
+		`INSERT INTO theories (id, user_id, title, body, episode, created_at, updated_at) VALUES ($1, $2, $3, $4, 0, $5, $6)`,
 		id, userID, "title", "body", created, created,
 	)
 	require.NoError(t, err)
@@ -36,7 +36,7 @@ func insertResponse(t *testing.T, db *sql.DB, theoryID, userID uuid.UUID, create
 		created = time.Now().UTC().Format("2006-01-02 15:04:05")
 	}
 	_, err := db.Exec(
-		`INSERT INTO responses (id, theory_id, user_id, side, body, created_at) VALUES (?, ?, ?, 'with_love', 'b', ?)`,
+		`INSERT INTO responses (id, theory_id, user_id, side, body, created_at) VALUES ($1, $2, $3, 'with_love', 'b', $4)`,
 		id, theoryID, userID, created,
 	)
 	require.NoError(t, err)
@@ -51,7 +51,7 @@ func insertPost(t *testing.T, db *sql.DB, userID uuid.UUID, corner, createdAt st
 		created = time.Now().UTC().Format("2006-01-02 15:04:05")
 	}
 	_, err := db.Exec(
-		`INSERT INTO posts (id, user_id, body, corner, created_at) VALUES (?, ?, 'b', ?, ?)`,
+		`INSERT INTO posts (id, user_id, body, corner, created_at) VALUES ($1, $2, 'b', $3, $4)`,
 		id, userID, corner, created,
 	)
 	require.NoError(t, err)
@@ -61,7 +61,7 @@ func insertPost(t *testing.T, db *sql.DB, userID uuid.UUID, corner, createdAt st
 func insertPostComment(t *testing.T, db *sql.DB, postID, userID uuid.UUID) {
 	t.Helper()
 	_, err := db.Exec(
-		`INSERT INTO post_comments (id, post_id, user_id, body) VALUES (?, ?, ?, 'b')`,
+		`INSERT INTO post_comments (id, post_id, user_id, body) VALUES ($1, $2, $3, 'b')`,
 		uuid.New(), postID, userID,
 	)
 	require.NoError(t, err)
@@ -70,7 +70,7 @@ func insertPostComment(t *testing.T, db *sql.DB, postID, userID uuid.UUID) {
 func insertTheoryVote(t *testing.T, db *sql.DB, userID, theoryID uuid.UUID) {
 	t.Helper()
 	_, err := db.Exec(
-		`INSERT INTO theory_votes (user_id, theory_id, value) VALUES (?, ?, 1)`,
+		`INSERT INTO theory_votes (user_id, theory_id, value) VALUES ($1, $2, 1)`,
 		userID, theoryID,
 	)
 	require.NoError(t, err)
@@ -79,7 +79,7 @@ func insertTheoryVote(t *testing.T, db *sql.DB, userID, theoryID uuid.UUID) {
 func insertResponseVote(t *testing.T, db *sql.DB, userID, responseID uuid.UUID) {
 	t.Helper()
 	_, err := db.Exec(
-		`INSERT INTO response_votes (user_id, response_id, value) VALUES (?, ?, 1)`,
+		`INSERT INTO response_votes (user_id, response_id, value) VALUES ($1, $2, 1)`,
 		userID, responseID,
 	)
 	require.NoError(t, err)
@@ -312,7 +312,7 @@ func TestStatsRepository_GetMostActiveUsers_PopulatesUserFields(t *testing.T) {
 		repotest.WithUsername("acehunter"),
 		repotest.WithDisplayName("Ace Hunter"),
 	)
-	_, err := db.Exec(`UPDATE users SET avatar_url = ? WHERE id = ?`, "https://example.com/a.png", user.ID)
+	_, err := db.Exec(`UPDATE users SET avatar_url = $1 WHERE id = $2`, "https://example.com/a.png", user.ID)
 	require.NoError(t, err)
 	insertTheory(t, db, user.ID, "")
 

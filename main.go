@@ -14,7 +14,8 @@ func main() {
 	defer telemetry.ShutdownProfiling()
 
 	logger.Log.Info().
-		Str("db_path", config.Cfg.DBPath).
+		Str("db_host", config.Cfg.Postgres.Host).
+		Str("db_name", config.Cfg.Postgres.DB).
 		Msg("starting")
 
 	app := initServer()

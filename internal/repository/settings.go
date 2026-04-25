@@ -27,7 +27,7 @@ type (
 func (r *settingsRepository) Get(ctx context.Context, key string) (string, error) {
 	var value string
 	err := r.db.QueryRowContext(ctx,
-		`SELECT value FROM site_settings WHERE key = ?`, key,
+		`SELECT value FROM site_settings WHERE key = $1`, key,
 	).Scan(&value)
 	if err != nil {
 		return "", fmt.Errorf("get setting %q: %w", key, err)
@@ -59,8 +59,8 @@ func (r *settingsRepository) Set(ctx context.Context, key, value string, updated
 		actor = updatedBy
 	}
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO site_settings (key, value, updated_by, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-		 ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_by = excluded.updated_by, updated_at = CURRENT_TIMESTAMP`,
+		`INSERT INTO site_settings (key, value, updated_by, updated_at) VALUES ($1, $2, $3, NOW())
+		 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_by = EXCLUDED.updated_by, updated_at = NOW()`,
 		key, value, actor,
 	)
 	if err != nil {
@@ -77,8 +77,8 @@ func (r *settingsRepository) SetMultiple(ctx context.Context, settings map[strin
 	return db.WithTx(ctx, r.db, func(tx *sql.Tx) error {
 		for key, value := range settings {
 			_, err := tx.ExecContext(ctx,
-				`INSERT INTO site_settings (key, value, updated_by, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-				 ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_by = excluded.updated_by, updated_at = CURRENT_TIMESTAMP`,
+				`INSERT INTO site_settings (key, value, updated_by, updated_at) VALUES ($1, $2, $3, NOW())
+				 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_by = EXCLUDED.updated_by, updated_at = NOW()`,
 				key, value, actor,
 			)
 			if err != nil {
@@ -90,7 +90,7 @@ func (r *settingsRepository) SetMultiple(ctx context.Context, settings map[strin
 }
 
 func (r *settingsRepository) Delete(ctx context.Context, key string) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM site_settings WHERE key = ?`, key)
+	_, err := r.db.ExecContext(ctx, `DELETE FROM site_settings WHERE key = $1`, key)
 	if err != nil {
 		return fmt.Errorf("delete setting %q: %w", key, err)
 	}

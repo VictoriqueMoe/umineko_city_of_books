@@ -15,6 +15,11 @@ func CleanOrphanedFiles(repo repository.UploadRepository, uploadDir string) int 
 		return 0
 	}
 
+	if len(referenced) == 0 {
+		logger.Log.Warn().Msg("orphan cleanup skipped: zero referenced files in DB")
+		return 0
+	}
+
 	refSet := make(map[string]bool, len(referenced))
 	for _, ref := range referenced {
 		refSet[ref] = true

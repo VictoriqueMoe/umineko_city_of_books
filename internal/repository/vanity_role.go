@@ -57,11 +57,9 @@ func (r *vanityRoleRepository) List(ctx context.Context) ([]VanityRoleRow, error
 	var result []VanityRoleRow
 	for rows.Next() {
 		var row VanityRoleRow
-		var sysInt int
-		if err := rows.Scan(&row.ID, &row.Label, &row.Color, &sysInt, &row.SortOrder); err != nil {
+		if err := rows.Scan(&row.ID, &row.Label, &row.Color, &row.IsSystem, &row.SortOrder); err != nil {
 			return nil, fmt.Errorf("scan vanity role: %w", err)
 		}
-		row.IsSystem = sysInt != 0
 		result = append(result, row)
 	}
 	return result, rows.Err()
@@ -69,23 +67,21 @@ func (r *vanityRoleRepository) List(ctx context.Context) ([]VanityRoleRow, error
 
 func (r *vanityRoleRepository) GetByID(ctx context.Context, id string) (*VanityRoleRow, error) {
 	var row VanityRoleRow
-	var sysInt int
 	err := r.db.QueryRowContext(ctx,
-		`SELECT id, label, color, is_system, sort_order FROM vanity_roles WHERE id = ?`, id,
-	).Scan(&row.ID, &row.Label, &row.Color, &sysInt, &row.SortOrder)
+		`SELECT id, label, color, is_system, sort_order FROM vanity_roles WHERE id = $1`, id,
+	).Scan(&row.ID, &row.Label, &row.Color, &row.IsSystem, &row.SortOrder)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get vanity role: %w", err)
 	}
-	row.IsSystem = sysInt != 0
 	return &row, nil
 }
 
 func (r *vanityRoleRepository) Create(ctx context.Context, id, label, color string, sortOrder int) error {
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO vanity_roles (id, label, color, sort_order) VALUES (?, ?, ?, ?)`,
+		`INSERT INTO vanity_roles (id, label, color, sort_order) VALUES ($1, $2, $3, $4)`,
 		id, label, color, sortOrder,
 	)
 	if err != nil {
@@ -96,7 +92,7 @@ func (r *vanityRoleRepository) Create(ctx context.Context, id, label, color stri
 
 func (r *vanityRoleRepository) Update(ctx context.Context, id, label, color string, sortOrder int) error {
 	_, err := r.db.ExecContext(ctx,
-		`UPDATE vanity_roles SET label = ?, color = ?, sort_order = ? WHERE id = ?`,
+		`UPDATE vanity_roles SET label = $1, color = $2, sort_order = $3 WHERE id = $4`,
 		label, color, sortOrder, id,
 	)
 	if err != nil {
@@ -107,7 +103,7 @@ func (r *vanityRoleRepository) Update(ctx context.Context, id, label, color stri
 
 func (r *vanityRoleRepository) Delete(ctx context.Context, id string) error {
 	_, err := r.db.ExecContext(ctx,
-		`DELETE FROM vanity_roles WHERE id = ? AND is_system = 0`, id,
+		`DELETE FROM vanity_roles WHERE id = $1 AND is_system = FALSE`, id,
 	)
 	if err != nil {
 		return fmt.Errorf("delete vanity role: %w", err)
@@ -117,7 +113,7 @@ func (r *vanityRoleRepository) Delete(ctx context.Context, id string) error {
 
 func (r *vanityRoleRepository) AssignToUser(ctx context.Context, userID uuid.UUID, roleID string) error {
 	_, err := r.db.ExecContext(ctx,
-		`INSERT OR IGNORE INTO user_vanity_roles (user_id, vanity_role_id) VALUES (?, ?)`,
+		`INSERT INTO user_vanity_roles (user_id, vanity_role_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
 		userID, roleID,
 	)
 	if err != nil {
@@ -128,7 +124,7 @@ func (r *vanityRoleRepository) AssignToUser(ctx context.Context, userID uuid.UUI
 
 func (r *vanityRoleRepository) UnassignFromUser(ctx context.Context, userID uuid.UUID, roleID string) error {
 	_, err := r.db.ExecContext(ctx,
-		`DELETE FROM user_vanity_roles WHERE user_id = ? AND vanity_role_id = ?`,
+		`DELETE FROM user_vanity_roles WHERE user_id = $1 AND vanity_role_id = $2`,
 		userID, roleID,
 	)
 	if err != nil {
@@ -138,12 +134,12 @@ func (r *vanityRoleRepository) UnassignFromUser(ctx context.Context, userID uuid
 }
 
 func (r *vanityRoleRepository) GetUsersForRole(ctx context.Context, roleID string, search string, limit, offset int) ([]VanityRoleUserRow, int, error) {
-	where := " WHERE uvr.vanity_role_id = ?"
 	args := []interface{}{roleID}
+	where := " WHERE uvr.vanity_role_id = $1"
 	if search != "" {
-		where += " AND (u.username LIKE ? OR u.display_name LIKE ?)"
 		wc := "%" + search + "%"
 		args = append(args, wc, wc)
+		where += fmt.Sprintf(" AND (u.username LIKE $%d OR u.display_name LIKE $%d)", len(args)-1, len(args))
 	}
 
 	var total int
@@ -155,12 +151,14 @@ func (r *vanityRoleRepository) GetUsersForRole(ctx context.Context, roleID strin
 		return nil, 0, fmt.Errorf("count vanity role users: %w", err)
 	}
 
+	limitIdx := len(args) + 1
+	offsetIdx := len(args) + 2
 	queryArgs := append(args, limit, offset)
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT u.id, u.username, u.display_name, u.avatar_url
+		fmt.Sprintf(`SELECT u.id, u.username, u.display_name, u.avatar_url
 		 FROM user_vanity_roles uvr JOIN users u ON uvr.user_id = u.id`+where+`
-		 ORDER BY u.display_name COLLATE NOCASE
-		 LIMIT ? OFFSET ?`, queryArgs...,
+		 ORDER BY LOWER(u.display_name)
+		 LIMIT $%d OFFSET $%d`, limitIdx, offsetIdx), queryArgs...,
 	)
 	if err != nil {
 		return nil, 0, fmt.Errorf("get vanity role users: %w", err)
@@ -183,7 +181,7 @@ func (r *vanityRoleRepository) GetRolesForUser(ctx context.Context, userID uuid.
 		`SELECT vr.id, vr.label, vr.color, vr.is_system, vr.sort_order
 		 FROM vanity_roles vr
 		 JOIN user_vanity_roles uvr ON vr.id = uvr.vanity_role_id
-		 WHERE uvr.user_id = ?
+		 WHERE uvr.user_id = $1
 		 ORDER BY vr.sort_order, vr.label`, userID,
 	)
 	if err != nil {
@@ -194,11 +192,9 @@ func (r *vanityRoleRepository) GetRolesForUser(ctx context.Context, userID uuid.
 	var result []VanityRoleRow
 	for rows.Next() {
 		var row VanityRoleRow
-		var sysInt int
-		if err := rows.Scan(&row.ID, &row.Label, &row.Color, &sysInt, &row.SortOrder); err != nil {
+		if err := rows.Scan(&row.ID, &row.Label, &row.Color, &row.IsSystem, &row.SortOrder); err != nil {
 			return nil, fmt.Errorf("scan vanity role: %w", err)
 		}
-		row.IsSystem = sysInt != 0
 		result = append(result, row)
 	}
 	return result, rows.Err()
@@ -212,7 +208,7 @@ func (r *vanityRoleRepository) GetRolesForUsersBatch(ctx context.Context, userID
 	placeholders := make([]string, len(userIDs))
 	args := make([]interface{}, len(userIDs))
 	for i := range userIDs {
-		placeholders[i] = "?"
+		placeholders[i] = fmt.Sprintf("$%d", i+1)
 		args[i] = userIDs[i]
 	}
 	rows, err := r.db.QueryContext(ctx,
@@ -230,11 +226,9 @@ func (r *vanityRoleRepository) GetRolesForUsersBatch(ctx context.Context, userID
 	for rows.Next() {
 		var userID uuid.UUID
 		var row VanityRoleRow
-		var sysInt int
-		if err := rows.Scan(&userID, &row.ID, &row.Label, &row.Color, &sysInt, &row.SortOrder); err != nil {
+		if err := rows.Scan(&userID, &row.ID, &row.Label, &row.Color, &row.IsSystem, &row.SortOrder); err != nil {
 			return nil, fmt.Errorf("scan batch vanity role: %w", err)
 		}
-		row.IsSystem = sysInt != 0
 		result[userID] = append(result[userID], row)
 	}
 	return result, rows.Err()
@@ -260,14 +254,14 @@ func (r *vanityRoleRepository) GetAllAssignments(ctx context.Context) (map[strin
 	return result, rows.Err()
 }
 
-func ExcludeVanityRoleIDs(ids []string) (string, []interface{}) {
+func ExcludeVanityRoleIDs(ids []string, startIndex int) (string, []interface{}) {
 	if len(ids) == 0 {
 		return "", nil
 	}
 	placeholders := make([]string, len(ids))
 	args := make([]interface{}, len(ids))
 	for i, id := range ids {
-		placeholders[i] = "?"
+		placeholders[i] = fmt.Sprintf("$%d", startIndex+i)
 		args[i] = id
 	}
 	return " AND id NOT IN (" + strings.Join(placeholders, ", ") + ")", args

@@ -53,15 +53,15 @@ func (r *notificationRepository) Create(
 	if actorID == uuid.Nil {
 		actorArg = nil
 	}
-	result, err := r.db.ExecContext(ctx,
-		`INSERT INTO notifications (user_id, type, reference_id, reference_type, actor_id, message) VALUES (?, ?, ?, ?, ?, ?)`,
+	var id int64
+	err := r.db.QueryRowContext(ctx,
+		`INSERT INTO notifications (user_id, type, reference_id, reference_type, actor_id, message) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
 		userID, notifType, referenceID, referenceType, actorArg, message,
-	)
+	).Scan(&id)
 	if err != nil {
 		return 0, fmt.Errorf("insert notification: %w", err)
 	}
-
-	return result.LastInsertId()
+	return id, nil
 }
 
 func (r *notificationRepository) ListByUser(ctx context.Context, userID uuid.UUID, limit, offset int) ([]model.NotificationRow, int, error) {
@@ -69,9 +69,9 @@ func (r *notificationRepository) ListByUser(ctx context.Context, userID uuid.UUI
 	err := r.db.QueryRowContext(ctx,
 		`SELECT
 		   (SELECT COUNT(DISTINCT reference_id) FROM notifications
-		      WHERE user_id = ? AND type = ? AND read = 0) +
+		      WHERE user_id = $1 AND type = $2 AND read = FALSE) +
 		   (SELECT COUNT(*) FROM notifications
-		      WHERE user_id = ? AND NOT (type = ? AND read = 0))`,
+		      WHERE user_id = $3 AND NOT (type = $4 AND read = FALSE))`,
 		userID, dto.NotifChatRoomMessage, userID, dto.NotifChatRoomMessage,
 	).Scan(&total)
 	if err != nil {
@@ -85,7 +85,7 @@ func (r *notificationRepository) ListByUser(ctx context.Context, userID uuid.UUI
 		     ROW_NUMBER() OVER (PARTITION BY reference_id ORDER BY created_at DESC, id DESC) AS rn,
 		     COUNT(*) OVER (PARTITION BY reference_id) AS grp_count
 		   FROM notifications
-		   WHERE user_id = ? AND type = ? AND read = 0
+		   WHERE user_id = $1 AND type = $2 AND read = FALSE
 		 ),
 		 combined AS (
 		   SELECT id, user_id, type, reference_id, reference_type, actor_id,
@@ -96,7 +96,7 @@ func (r *notificationRepository) ListByUser(ctx context.Context, userID uuid.UUI
 		   SELECT id, user_id, type, reference_id, reference_type, actor_id,
 		          COALESCE(message, '') AS message, read, created_at, 1 AS count
 		   FROM notifications
-		   WHERE user_id = ? AND NOT (type = ? AND read = 0)
+		   WHERE user_id = $3 AND NOT (type = $4 AND read = FALSE)
 		 )
 		 SELECT c.id, c.user_id, c.type, c.reference_id, c.reference_type, c.actor_id,
 		        c.message, c.read, c.created_at, c.count,
@@ -105,7 +105,7 @@ func (r *notificationRepository) ListByUser(ctx context.Context, userID uuid.UUI
 		 LEFT JOIN users u ON c.actor_id = u.id
 		 LEFT JOIN user_roles ur ON c.actor_id = ur.user_id
 		 ORDER BY c.created_at DESC
-		 LIMIT ? OFFSET ?`,
+		 LIMIT $5 OFFSET $6`,
 		userID, dto.NotifChatRoomMessage, userID, dto.NotifChatRoomMessage, limit, offset,
 	)
 	if err != nil {
@@ -116,20 +116,16 @@ func (r *notificationRepository) ListByUser(ctx context.Context, userID uuid.UUI
 	var notifications []model.NotificationRow
 	for rows.Next() {
 		var n model.NotificationRow
-		var readInt int
-		var actorID sql.NullString
+		var actorID *uuid.UUID
 		if err := rows.Scan(
-			&n.ID, &n.UserID, &n.Type, &n.ReferenceID, &n.ReferenceType, &actorID, &n.Message, &readInt, &n.CreatedAt, &n.Count,
+			&n.ID, &n.UserID, &n.Type, &n.ReferenceID, &n.ReferenceType, &actorID, &n.Message, &n.Read, &n.CreatedAt, &n.Count,
 			&n.ActorUsername, &n.ActorDisplayName, &n.ActorAvatarURL, &n.ActorRole,
 		); err != nil {
 			return nil, 0, fmt.Errorf("scan notification: %w", err)
 		}
-		if actorID.Valid {
-			if id, err := uuid.Parse(actorID.String); err == nil {
-				n.ActorID = id
-			}
+		if actorID != nil {
+			n.ActorID = *actorID
 		}
-		n.Read = readInt == 1
 		notifications = append(notifications, n)
 	}
 
@@ -146,8 +142,7 @@ func (r *notificationRepository) ListByUser(ctx context.Context, userID uuid.UUI
 
 func (r *notificationRepository) GetByID(ctx context.Context, id int, userID uuid.UUID) (*model.NotificationRow, error) {
 	var n model.NotificationRow
-	var readInt int
-	var actorID sql.NullString
+	var actorID *uuid.UUID
 	err := r.db.QueryRowContext(ctx,
 		`SELECT n.id, n.user_id, n.type, n.reference_id, n.reference_type, n.actor_id,
 		        COALESCE(n.message, ''), n.read, n.created_at,
@@ -155,10 +150,10 @@ func (r *notificationRepository) GetByID(ctx context.Context, id int, userID uui
 		 FROM notifications n
 		 LEFT JOIN users u ON n.actor_id = u.id
 		 LEFT JOIN user_roles ur ON n.actor_id = ur.user_id
-		 WHERE n.id = ? AND n.user_id = ?`,
+		 WHERE n.id = $1 AND n.user_id = $2`,
 		id, userID,
 	).Scan(
-		&n.ID, &n.UserID, &n.Type, &n.ReferenceID, &n.ReferenceType, &actorID, &n.Message, &readInt, &n.CreatedAt,
+		&n.ID, &n.UserID, &n.Type, &n.ReferenceID, &n.ReferenceType, &actorID, &n.Message, &n.Read, &n.CreatedAt,
 		&n.ActorUsername, &n.ActorDisplayName, &n.ActorAvatarURL, &n.ActorRole,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -167,12 +162,9 @@ func (r *notificationRepository) GetByID(ctx context.Context, id int, userID uui
 	if err != nil {
 		return nil, fmt.Errorf("get notification by id: %w", err)
 	}
-	if actorID.Valid {
-		if parsed, err := uuid.Parse(actorID.String); err == nil {
-			n.ActorID = parsed
-		}
+	if actorID != nil {
+		n.ActorID = *actorID
 	}
-	n.Read = readInt == 1
 	n.Count = 1
 	return &n, nil
 }
@@ -180,11 +172,11 @@ func (r *notificationRepository) GetByID(ctx context.Context, id int, userID uui
 func (r *notificationRepository) MarkRead(ctx context.Context, id int, userID uuid.UUID) error {
 	var notifType dto.NotificationType
 	var referenceID uuid.UUID
-	var readInt int
+	var read bool
 	err := r.db.QueryRowContext(ctx,
-		`SELECT type, reference_id, read FROM notifications WHERE id = ? AND user_id = ?`,
+		`SELECT type, reference_id, read FROM notifications WHERE id = $1 AND user_id = $2`,
 		id, userID,
-	).Scan(&notifType, &referenceID, &readInt)
+	).Scan(&notifType, &referenceID, &read)
 	if err == sql.ErrNoRows {
 		return nil
 	}
@@ -192,10 +184,10 @@ func (r *notificationRepository) MarkRead(ctx context.Context, id int, userID uu
 		return fmt.Errorf("lookup notification: %w", err)
 	}
 
-	if notifType == dto.NotifChatRoomMessage && readInt == 0 {
+	if notifType == dto.NotifChatRoomMessage && !read {
 		_, err = r.db.ExecContext(ctx,
-			`UPDATE notifications SET read = 1
-			 WHERE user_id = ? AND type = ? AND reference_id = ? AND read = 0`,
+			`UPDATE notifications SET read = TRUE
+			 WHERE user_id = $1 AND type = $2 AND reference_id = $3 AND read = FALSE`,
 			userID, notifType, referenceID,
 		)
 		if err != nil {
@@ -205,7 +197,7 @@ func (r *notificationRepository) MarkRead(ctx context.Context, id int, userID uu
 	}
 
 	_, err = r.db.ExecContext(ctx,
-		`UPDATE notifications SET read = 1 WHERE id = ? AND user_id = ?`, id, userID,
+		`UPDATE notifications SET read = TRUE WHERE id = $1 AND user_id = $2`, id, userID,
 	)
 	if err != nil {
 		return fmt.Errorf("mark notification read: %w", err)
@@ -215,7 +207,7 @@ func (r *notificationRepository) MarkRead(ctx context.Context, id int, userID uu
 
 func (r *notificationRepository) MarkAllRead(ctx context.Context, userID uuid.UUID) error {
 	_, err := r.db.ExecContext(ctx,
-		`UPDATE notifications SET read = 1 WHERE user_id = ?`, userID,
+		`UPDATE notifications SET read = TRUE WHERE user_id = $1`, userID,
 	)
 	if err != nil {
 		return fmt.Errorf("mark all notifications read: %w", err)
@@ -226,7 +218,7 @@ func (r *notificationRepository) MarkAllRead(ctx context.Context, userID uuid.UU
 func (r *notificationRepository) UnreadCount(ctx context.Context, userID uuid.UUID) (int, error) {
 	var count int
 	err := r.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM notifications WHERE user_id = ? AND read = 0`, userID,
+		`SELECT COUNT(*) FROM notifications WHERE user_id = $1 AND read = FALSE`, userID,
 	).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("count unread notifications: %w", err)
@@ -244,8 +236,8 @@ func (r *notificationRepository) HasRecentDuplicate(
 	var count int
 	err := r.db.QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM notifications
-		 WHERE user_id = ? AND type = ? AND reference_id = ? AND actor_id = ?
-		 AND created_at > datetime('now', '-1 hour')`,
+		 WHERE user_id = $1 AND type = $2 AND reference_id = $3 AND actor_id = $4
+		 AND created_at > NOW() - INTERVAL '1 hour'`,
 		userID, notifType, referenceID, actorID,
 	).Scan(&count)
 	if err != nil {

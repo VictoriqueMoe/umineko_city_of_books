@@ -35,7 +35,7 @@ type (
 
 func (r *followRepository) Follow(ctx context.Context, followerID uuid.UUID, followingID uuid.UUID) error {
 	_, err := r.db.ExecContext(ctx,
-		`INSERT OR IGNORE INTO follows (follower_id, following_id) VALUES (?, ?)`,
+		`INSERT INTO follows (follower_id, following_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
 		followerID, followingID,
 	)
 	if err != nil {
@@ -46,7 +46,7 @@ func (r *followRepository) Follow(ctx context.Context, followerID uuid.UUID, fol
 
 func (r *followRepository) Unfollow(ctx context.Context, followerID uuid.UUID, followingID uuid.UUID) error {
 	_, err := r.db.ExecContext(ctx,
-		`DELETE FROM follows WHERE follower_id = ? AND following_id = ?`,
+		`DELETE FROM follows WHERE follower_id = $1 AND following_id = $2`,
 		followerID, followingID,
 	)
 	if err != nil {
@@ -58,7 +58,7 @@ func (r *followRepository) Unfollow(ctx context.Context, followerID uuid.UUID, f
 func (r *followRepository) IsFollowing(ctx context.Context, followerID uuid.UUID, followingID uuid.UUID) (bool, error) {
 	var count int
 	err := r.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM follows WHERE follower_id = ? AND following_id = ?`,
+		`SELECT COUNT(*) FROM follows WHERE follower_id = $1 AND following_id = $2`,
 		followerID, followingID,
 	).Scan(&count)
 	if err != nil {
@@ -70,7 +70,7 @@ func (r *followRepository) IsFollowing(ctx context.Context, followerID uuid.UUID
 func (r *followRepository) GetFollowerCount(ctx context.Context, userID uuid.UUID) (int, error) {
 	var count int
 	err := r.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM follows WHERE following_id = ?`, userID,
+		`SELECT COUNT(*) FROM follows WHERE following_id = $1`, userID,
 	).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("follower count: %w", err)
@@ -81,7 +81,7 @@ func (r *followRepository) GetFollowerCount(ctx context.Context, userID uuid.UUI
 func (r *followRepository) GetFollowingCount(ctx context.Context, userID uuid.UUID) (int, error) {
 	var count int
 	err := r.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM follows WHERE follower_id = ?`, userID,
+		`SELECT COUNT(*) FROM follows WHERE follower_id = $1`, userID,
 	).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("following count: %w", err)
@@ -91,7 +91,7 @@ func (r *followRepository) GetFollowingCount(ctx context.Context, userID uuid.UU
 
 func (r *followRepository) GetFollowers(ctx context.Context, userID uuid.UUID, limit, offset int) ([]FollowUser, int, error) {
 	var total int
-	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM follows WHERE following_id = ?`, userID).Scan(&total); err != nil {
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM follows WHERE following_id = $1`, userID).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count followers: %w", err)
 	}
 
@@ -100,9 +100,9 @@ func (r *followRepository) GetFollowers(ctx context.Context, userID uuid.UUID, l
 		FROM follows f
 		JOIN users u ON f.follower_id = u.id
 		LEFT JOIN user_roles r ON r.user_id = u.id
-		WHERE f.following_id = ?
+		WHERE f.following_id = $1
 		ORDER BY f.created_at DESC
-		LIMIT ? OFFSET ?`,
+		LIMIT $2 OFFSET $3`,
 		userID, limit, offset,
 	)
 	if err != nil {
@@ -123,7 +123,7 @@ func (r *followRepository) GetFollowers(ctx context.Context, userID uuid.UUID, l
 
 func (r *followRepository) GetFollowing(ctx context.Context, userID uuid.UUID, limit, offset int) ([]FollowUser, int, error) {
 	var total int
-	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM follows WHERE follower_id = ?`, userID).Scan(&total); err != nil {
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM follows WHERE follower_id = $1`, userID).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count following: %w", err)
 	}
 
@@ -132,9 +132,9 @@ func (r *followRepository) GetFollowing(ctx context.Context, userID uuid.UUID, l
 		FROM follows f
 		JOIN users u ON f.following_id = u.id
 		LEFT JOIN user_roles r ON r.user_id = u.id
-		WHERE f.follower_id = ?
+		WHERE f.follower_id = $1
 		ORDER BY f.created_at DESC
-		LIMIT ? OFFSET ?`,
+		LIMIT $2 OFFSET $3`,
 		userID, limit, offset,
 	)
 	if err != nil {
@@ -160,8 +160,8 @@ func (r *followRepository) GetMutualFollowers(ctx context.Context, userID uuid.U
 		JOIN follows f2 ON f1.following_id = f2.follower_id AND f2.following_id = f1.follower_id
 		JOIN users u ON f1.following_id = u.id
 		LEFT JOIN user_roles r ON r.user_id = u.id
-		WHERE f1.follower_id = ?
-		ORDER BY u.display_name COLLATE NOCASE`,
+		WHERE f1.follower_id = $1
+		ORDER BY LOWER(u.display_name)`,
 		userID,
 	)
 	if err != nil {

@@ -226,7 +226,7 @@ func TestBlockRepository_GetBlockedUsers_OrderedByBlockedAtDesc(t *testing.T) {
 	second := repotest.CreateUser(t, repos)
 	third := repotest.CreateUser(t, repos)
 	ctx := context.Background()
-	insert := `INSERT INTO blocks (blocker_id, blocked_id, created_at) VALUES (?, ?, ?)`
+	insert := `INSERT INTO blocks (blocker_id, blocked_id, created_at) VALUES ($1, $2, $3)`
 	_, err := repos.DB().ExecContext(ctx, insert, user.ID, first.ID, "2026-01-01 10:00:00")
 	require.NoError(t, err)
 	_, err = repos.DB().ExecContext(ctx, insert, user.ID, second.ID, "2026-01-02 10:00:00")

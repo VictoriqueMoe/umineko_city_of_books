@@ -1360,12 +1360,12 @@ func TestChatRepository_GetMessagesBefore_RFC3339CursorUsesDatetimeComparison(t 
 	require.NoError(t, repos.Chat.InsertMessage(ctx, newerID, roomID, user.ID, "newer", nil))
 
 	_, err := repos.DB().ExecContext(ctx,
-		`UPDATE chat_messages SET created_at = ? WHERE id = ?`,
+		`UPDATE chat_messages SET created_at = $1 WHERE id = $2`,
 		"2024-01-01 00:30:00", olderID,
 	)
 	require.NoError(t, err)
 	_, err = repos.DB().ExecContext(ctx,
-		`UPDATE chat_messages SET created_at = ? WHERE id = ?`,
+		`UPDATE chat_messages SET created_at = $1 WHERE id = $2`,
 		"2024-01-01 02:00:00", newerID,
 	)
 	require.NoError(t, err)
@@ -1392,7 +1392,7 @@ func TestChatRepository_GetMessagesBefore_CursorWithIDPaginatesSameSecondMessage
 	for i := 0; i < len(ids); i++ {
 		require.NoError(t, repos.Chat.InsertMessage(ctx, ids[i], roomID, user.ID, "m", nil))
 		_, err := repos.DB().ExecContext(ctx,
-			`UPDATE chat_messages SET created_at = ? WHERE id = ?`,
+			`UPDATE chat_messages SET created_at = $1 WHERE id = $2`,
 			"2024-01-01 00:00:00", ids[i],
 		)
 		require.NoError(t, err)
@@ -1798,7 +1798,7 @@ func TestChatRepository_ListPinnedMessages_OrdersByPinnedAtDesc(t *testing.T) {
 
 	// when
 	require.NoError(t, repos.Chat.PinMessage(ctx, first, user.ID))
-	_, _ = repos.DB().ExecContext(ctx, `UPDATE chat_messages SET pinned_at = datetime(pinned_at, '-1 second') WHERE id = ?`, first)
+	_, _ = repos.DB().ExecContext(ctx, `UPDATE chat_messages SET pinned_at = pinned_at - INTERVAL '1 second' WHERE id = $1`, first)
 	require.NoError(t, repos.Chat.PinMessage(ctx, second, user.ID))
 	pinned, err := repos.Chat.ListPinnedMessages(ctx, roomID)
 
@@ -2105,7 +2105,7 @@ func TestChatRepository_RemoveMember_SoftDeletes(t *testing.T) {
 
 	var count int
 	require.NoError(t, repos.DB().QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM chat_room_members WHERE room_id = ? AND user_id = ? AND left_at IS NOT NULL`,
+		`SELECT COUNT(*) FROM chat_room_members WHERE room_id = $1 AND user_id = $2 AND left_at IS NOT NULL`,
 		roomID, joiner.ID,
 	).Scan(&count))
 	assert.Equal(t, 1, count)

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/repository/model"
@@ -112,14 +113,14 @@ func (r *SecretCommentRow) ToResponse(media []model.CommentMediaRow) dto.SecretC
 	}
 }
 
-func secretIDPlaceholders(ids []string) (string, []interface{}) {
+func secretIDPlaceholders(ids []string, startIndex int) (string, []interface{}) {
 	if len(ids) == 0 {
 		return "", nil
 	}
-	placeholders := "?"
+	placeholders := fmt.Sprintf("$%d", startIndex)
 	args := []interface{}{ids[0]}
 	for i := 1; i < len(ids); i++ {
-		placeholders += ",?"
+		placeholders += fmt.Sprintf(",$%d", startIndex+i)
 		args = append(args, ids[i])
 	}
 	return placeholders, args
@@ -127,22 +128,24 @@ func secretIDPlaceholders(ids []string) (string, []interface{}) {
 
 func (r *secretRepository) GetFirstSolver(ctx context.Context, secretID string) (*SecretSolver, error) {
 	var s SecretSolver
+	var unlockedAt time.Time
 	err := r.db.QueryRowContext(ctx,
 		`SELECT u.id, u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''), us.unlocked_at
 		 FROM user_secrets us
 		 JOIN users u ON us.user_id = u.id
 		 LEFT JOIN user_roles r ON r.user_id = u.id
-		 WHERE us.secret_id = ?
+		 WHERE us.secret_id = $1
 		 ORDER BY us.unlocked_at ASC
 		 LIMIT 1`,
 		secretID,
-	).Scan(&s.UserID, &s.Username, &s.DisplayName, &s.AvatarURL, &s.Role, &s.UnlockedAt)
+	).Scan(&s.UserID, &s.Username, &s.DisplayName, &s.AvatarURL, &s.Role, &unlockedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get first solver: %w", err)
 	}
+	s.UnlockedAt = unlockedAt.UTC().Format(time.RFC3339)
 	return &s, nil
 }
 
@@ -150,7 +153,7 @@ func (r *secretRepository) GetProgressLeaderboard(ctx context.Context, pieceIDs 
 	if len(pieceIDs) == 0 {
 		return nil, nil
 	}
-	placeholders, args := secretIDPlaceholders(pieceIDs)
+	placeholders, args := secretIDPlaceholders(pieceIDs, 1)
 
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT u.id, u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''), COUNT(*) AS pieces
@@ -182,11 +185,11 @@ func (r *secretRepository) GetPieceCountForUser(ctx context.Context, userID uuid
 	if len(pieceIDs) == 0 {
 		return 0, nil
 	}
-	placeholders, args := secretIDPlaceholders(pieceIDs)
+	placeholders, args := secretIDPlaceholders(pieceIDs, 2)
 	args = append([]interface{}{userID}, args...)
 	var count int
 	err := r.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM user_secrets WHERE user_id = ? AND secret_id IN (`+placeholders+`)`,
+		`SELECT COUNT(*) FROM user_secrets WHERE user_id = $1 AND secret_id IN (`+placeholders+`)`,
 		args...,
 	).Scan(&count)
 	if err != nil {
@@ -199,7 +202,7 @@ func (r *secretRepository) GetSolversLeaderboard(ctx context.Context, parentSecr
 	if len(parentSecretIDs) == 0 {
 		return nil, nil
 	}
-	placeholders, args := secretIDPlaceholders(parentSecretIDs)
+	placeholders, args := secretIDPlaceholders(parentSecretIDs, 1)
 
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT u.id, u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''),
@@ -221,9 +224,11 @@ func (r *secretRepository) GetSolversLeaderboard(ctx context.Context, parentSecr
 	var result []SecretSolverRow
 	for rows.Next() {
 		var row SecretSolverRow
-		if err := rows.Scan(&row.UserID, &row.Username, &row.DisplayName, &row.AvatarURL, &row.Role, &row.SolvedCount, &row.LastSolvedAt); err != nil {
+		var lastSolvedAt time.Time
+		if err := rows.Scan(&row.UserID, &row.Username, &row.DisplayName, &row.AvatarURL, &row.Role, &row.SolvedCount, &lastSolvedAt); err != nil {
 			return nil, fmt.Errorf("scan solver row: %w", err)
 		}
+		row.LastSolvedAt = lastSolvedAt.UTC().Format(time.RFC3339)
 		result = append(result, row)
 	}
 	return result, rows.Err()
@@ -233,7 +238,8 @@ func (r *secretRepository) GetUserProgressSummary(ctx context.Context, userID uu
 	if len(pieceIDs) == 0 {
 		return nil, nil
 	}
-	placeholders, args := secretIDPlaceholders(pieceIDs)
+	placeholders, args := secretIDPlaceholders(pieceIDs, 1)
+	userIDPH := fmt.Sprintf("$%d", len(pieceIDs)+1)
 	queryArgs := append(args, userID)
 
 	var row SecretLeaderboardRow
@@ -242,7 +248,7 @@ func (r *secretRepository) GetUserProgressSummary(ctx context.Context, userID uu
 			(SELECT COUNT(*) FROM user_secrets us WHERE us.user_id = u.id AND us.secret_id IN (`+placeholders+`))
 		 FROM users u
 		 LEFT JOIN user_roles r ON r.user_id = u.id
-		 WHERE u.id = ?`,
+		 WHERE u.id = `+userIDPH,
 		queryArgs...,
 	).Scan(&row.UserID, &row.Username, &row.DisplayName, &row.AvatarURL, &row.Role, &row.Pieces)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -256,7 +262,7 @@ func (r *secretRepository) GetUserProgressSummary(ctx context.Context, userID uu
 
 func (r *secretRepository) CreateComment(ctx context.Context, id uuid.UUID, secretID string, parentID *uuid.UUID, userID uuid.UUID, body string) error {
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO secret_comments (id, secret_id, parent_id, user_id, body) VALUES (?, ?, ?, ?, ?)`,
+		`INSERT INTO secret_comments (id, secret_id, parent_id, user_id, body) VALUES ($1, $2, $3, $4, $5)`,
 		id, secretID, parentID, userID, body,
 	)
 	if err != nil {
@@ -266,7 +272,7 @@ func (r *secretRepository) CreateComment(ctx context.Context, id uuid.UUID, secr
 }
 
 func (r *secretRepository) GetComments(ctx context.Context, secretID string, viewerID uuid.UUID, excludeUserIDs []uuid.UUID) ([]SecretCommentRow, error) {
-	exclSQL, exclArgs := ExcludeClause("c.user_id", excludeUserIDs)
+	exclSQL, exclArgs := ExcludeClause("c.user_id", excludeUserIDs, 3)
 	args := []interface{}{viewerID, secretID}
 	args = append(args, exclArgs...)
 
@@ -274,11 +280,11 @@ func (r *secretRepository) GetComments(ctx context.Context, secretID string, vie
 		`SELECT c.id, c.secret_id, c.parent_id, c.user_id, c.body, c.created_at, c.updated_at,
 			u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''),
 			(SELECT COUNT(*) FROM secret_comment_likes WHERE comment_id = c.id),
-			EXISTS(SELECT 1 FROM secret_comment_likes WHERE comment_id = c.id AND user_id = ?)
+			EXISTS(SELECT 1 FROM secret_comment_likes WHERE comment_id = c.id AND user_id = $1)
 		 FROM secret_comments c
 		 JOIN users u ON c.user_id = u.id
 		 LEFT JOIN user_roles r ON r.user_id = u.id
-		 WHERE c.secret_id = ?`+exclSQL+`
+		 WHERE c.secret_id = $2`+exclSQL+`
 		 ORDER BY c.created_at ASC`,
 		args...,
 	)
@@ -290,13 +296,17 @@ func (r *secretRepository) GetComments(ctx context.Context, secretID string, vie
 	var comments []SecretCommentRow
 	for rows.Next() {
 		var c SecretCommentRow
+		var createdAt time.Time
+		var updatedAt *time.Time
 		if err := rows.Scan(
-			&c.ID, &c.SecretID, &c.ParentID, &c.UserID, &c.Body, &c.CreatedAt, &c.UpdatedAt,
+			&c.ID, &c.SecretID, &c.ParentID, &c.UserID, &c.Body, &createdAt, &updatedAt,
 			&c.AuthorUsername, &c.AuthorDisplayName, &c.AuthorAvatarURL, &c.AuthorRole,
 			&c.LikeCount, &c.UserLiked,
 		); err != nil {
 			return nil, fmt.Errorf("scan secret comment: %w", err)
 		}
+		c.CreatedAt = createdAt.UTC().Format(time.RFC3339)
+		c.UpdatedAt = timePtrToString(updatedAt)
 		comments = append(comments, c)
 	}
 	return comments, rows.Err()
@@ -304,18 +314,20 @@ func (r *secretRepository) GetComments(ctx context.Context, secretID string, vie
 
 func (r *secretRepository) GetCommentByID(ctx context.Context, id uuid.UUID) (*SecretCommentRow, error) {
 	var c SecretCommentRow
+	var createdAt time.Time
+	var updatedAt *time.Time
 	err := r.db.QueryRowContext(ctx,
 		`SELECT c.id, c.secret_id, c.parent_id, c.user_id, c.body, c.created_at, c.updated_at,
 			u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''),
 			(SELECT COUNT(*) FROM secret_comment_likes WHERE comment_id = c.id),
-			0
+			FALSE
 		 FROM secret_comments c
 		 JOIN users u ON c.user_id = u.id
 		 LEFT JOIN user_roles r ON r.user_id = u.id
-		 WHERE c.id = ?`,
+		 WHERE c.id = $1`,
 		id,
 	).Scan(
-		&c.ID, &c.SecretID, &c.ParentID, &c.UserID, &c.Body, &c.CreatedAt, &c.UpdatedAt,
+		&c.ID, &c.SecretID, &c.ParentID, &c.UserID, &c.Body, &createdAt, &updatedAt,
 		&c.AuthorUsername, &c.AuthorDisplayName, &c.AuthorAvatarURL, &c.AuthorRole,
 		&c.LikeCount, &c.UserLiked,
 	)
@@ -325,12 +337,14 @@ func (r *secretRepository) GetCommentByID(ctx context.Context, id uuid.UUID) (*S
 	if err != nil {
 		return nil, fmt.Errorf("get secret comment by id: %w", err)
 	}
+	c.CreatedAt = createdAt.UTC().Format(time.RFC3339)
+	c.UpdatedAt = timePtrToString(updatedAt)
 	return &c, nil
 }
 
 func (r *secretRepository) GetCommentAuthorID(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error) {
 	var userID uuid.UUID
-	err := r.db.QueryRowContext(ctx, `SELECT user_id FROM secret_comments WHERE id = ?`, commentID).Scan(&userID)
+	err := r.db.QueryRowContext(ctx, `SELECT user_id FROM secret_comments WHERE id = $1`, commentID).Scan(&userID)
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("get secret comment author: %w", err)
 	}
@@ -339,7 +353,7 @@ func (r *secretRepository) GetCommentAuthorID(ctx context.Context, commentID uui
 
 func (r *secretRepository) GetCommentSecretID(ctx context.Context, commentID uuid.UUID) (string, error) {
 	var secretID string
-	err := r.db.QueryRowContext(ctx, `SELECT secret_id FROM secret_comments WHERE id = ?`, commentID).Scan(&secretID)
+	err := r.db.QueryRowContext(ctx, `SELECT secret_id FROM secret_comments WHERE id = $1`, commentID).Scan(&secretID)
 	if err != nil {
 		return "", fmt.Errorf("get secret comment secret id: %w", err)
 	}
@@ -348,7 +362,7 @@ func (r *secretRepository) GetCommentSecretID(ctx context.Context, commentID uui
 
 func (r *secretRepository) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string) error {
 	res, err := r.db.ExecContext(ctx,
-		`UPDATE secret_comments SET body = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?`,
+		`UPDATE secret_comments SET body = $1, updated_at = NOW() WHERE id = $2 AND user_id = $3`,
 		body, id, userID,
 	)
 	if err != nil {
@@ -363,7 +377,7 @@ func (r *secretRepository) UpdateComment(ctx context.Context, id uuid.UUID, user
 
 func (r *secretRepository) UpdateCommentAsAdmin(ctx context.Context, id uuid.UUID, body string) error {
 	_, err := r.db.ExecContext(ctx,
-		`UPDATE secret_comments SET body = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+		`UPDATE secret_comments SET body = $1, updated_at = NOW() WHERE id = $2`,
 		body, id,
 	)
 	if err != nil {
@@ -373,7 +387,7 @@ func (r *secretRepository) UpdateCommentAsAdmin(ctx context.Context, id uuid.UUI
 }
 
 func (r *secretRepository) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	res, err := r.db.ExecContext(ctx, `DELETE FROM secret_comments WHERE id = ? AND user_id = ?`, id, userID)
+	res, err := r.db.ExecContext(ctx, `DELETE FROM secret_comments WHERE id = $1 AND user_id = $2`, id, userID)
 	if err != nil {
 		return fmt.Errorf("delete secret comment: %w", err)
 	}
@@ -385,7 +399,7 @@ func (r *secretRepository) DeleteComment(ctx context.Context, id uuid.UUID, user
 }
 
 func (r *secretRepository) DeleteCommentAsAdmin(ctx context.Context, id uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM secret_comments WHERE id = ?`, id)
+	_, err := r.db.ExecContext(ctx, `DELETE FROM secret_comments WHERE id = $1`, id)
 	if err != nil {
 		return fmt.Errorf("admin delete secret comment: %w", err)
 	}
@@ -394,7 +408,7 @@ func (r *secretRepository) DeleteCommentAsAdmin(ctx context.Context, id uuid.UUI
 
 func (r *secretRepository) LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
 	_, err := r.db.ExecContext(ctx,
-		`INSERT OR IGNORE INTO secret_comment_likes (user_id, comment_id) VALUES (?, ?)`,
+		`INSERT INTO secret_comment_likes (user_id, comment_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
 		userID, commentID,
 	)
 	if err != nil {
@@ -405,7 +419,7 @@ func (r *secretRepository) LikeComment(ctx context.Context, userID uuid.UUID, co
 
 func (r *secretRepository) UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
 	_, err := r.db.ExecContext(ctx,
-		`DELETE FROM secret_comment_likes WHERE user_id = ? AND comment_id = ?`,
+		`DELETE FROM secret_comment_likes WHERE user_id = $1 AND comment_id = $2`,
 		userID, commentID,
 	)
 	if err != nil {
@@ -415,18 +429,19 @@ func (r *secretRepository) UnlikeComment(ctx context.Context, userID uuid.UUID, 
 }
 
 func (r *secretRepository) AddCommentMedia(ctx context.Context, commentID uuid.UUID, mediaURL, mediaType, thumbnailURL string, sortOrder int) (int64, error) {
-	res, err := r.db.ExecContext(ctx,
-		`INSERT INTO secret_comment_media (comment_id, media_url, media_type, thumbnail_url, sort_order) VALUES (?, ?, ?, ?, ?)`,
+	var id int64
+	err := r.db.QueryRowContext(ctx,
+		`INSERT INTO secret_comment_media (comment_id, media_url, media_type, thumbnail_url, sort_order) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
 		commentID, mediaURL, mediaType, thumbnailURL, sortOrder,
-	)
+	).Scan(&id)
 	if err != nil {
 		return 0, fmt.Errorf("add secret comment media: %w", err)
 	}
-	return res.LastInsertId()
+	return id, nil
 }
 
 func (r *secretRepository) UpdateCommentMediaURL(ctx context.Context, id int64, mediaURL string) error {
-	_, err := r.db.ExecContext(ctx, `UPDATE secret_comment_media SET media_url = ? WHERE id = ?`, mediaURL, id)
+	_, err := r.db.ExecContext(ctx, `UPDATE secret_comment_media SET media_url = $1 WHERE id = $2`, mediaURL, id)
 	if err != nil {
 		return fmt.Errorf("update secret comment media url: %w", err)
 	}
@@ -434,7 +449,7 @@ func (r *secretRepository) UpdateCommentMediaURL(ctx context.Context, id int64, 
 }
 
 func (r *secretRepository) UpdateCommentMediaThumbnail(ctx context.Context, id int64, thumbnailURL string) error {
-	_, err := r.db.ExecContext(ctx, `UPDATE secret_comment_media SET thumbnail_url = ? WHERE id = ?`, thumbnailURL, id)
+	_, err := r.db.ExecContext(ctx, `UPDATE secret_comment_media SET thumbnail_url = $1 WHERE id = $2`, thumbnailURL, id)
 	if err != nil {
 		return fmt.Errorf("update secret comment media thumbnail: %w", err)
 	}
@@ -443,7 +458,7 @@ func (r *secretRepository) UpdateCommentMediaThumbnail(ctx context.Context, id i
 
 func (r *secretRepository) GetCommentMedia(ctx context.Context, commentID uuid.UUID) ([]model.CommentMediaRow, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, comment_id, media_url, media_type, thumbnail_url, sort_order FROM secret_comment_media WHERE comment_id = ? ORDER BY sort_order`,
+		`SELECT id, comment_id, media_url, media_type, thumbnail_url, sort_order FROM secret_comment_media WHERE comment_id = $1 ORDER BY sort_order`,
 		commentID,
 	)
 	if err != nil {
@@ -466,10 +481,10 @@ func (r *secretRepository) GetCommentMediaBatch(ctx context.Context, commentIDs 
 	if len(commentIDs) == 0 {
 		return nil, nil
 	}
-	placeholders := "?"
+	placeholders := "$1"
 	args := []interface{}{commentIDs[0]}
 	for i := 1; i < len(commentIDs); i++ {
-		placeholders += ",?"
+		placeholders += fmt.Sprintf(",$%d", i+1)
 		args = append(args, commentIDs[i])
 	}
 	rows, err := r.db.QueryContext(ctx,
@@ -494,7 +509,7 @@ func (r *secretRepository) GetCommentMediaBatch(ctx context.Context, commentIDs 
 
 func (r *secretRepository) GetCommenterIDs(ctx context.Context, secretID string) ([]uuid.UUID, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT DISTINCT user_id FROM secret_comments WHERE secret_id = ?`,
+		`SELECT DISTINCT user_id FROM secret_comments WHERE secret_id = $1`,
 		secretID,
 	)
 	if err != nil {
@@ -518,7 +533,7 @@ func (r *secretRepository) CountCommentsBySecret(ctx context.Context, secretIDs 
 	if len(secretIDs) == 0 {
 		return result, nil
 	}
-	placeholders, args := secretIDPlaceholders(secretIDs)
+	placeholders, args := secretIDPlaceholders(secretIDs, 1)
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT secret_id, COUNT(*) FROM secret_comments WHERE secret_id IN (`+placeholders+`) GROUP BY secret_id`,
 		args...,

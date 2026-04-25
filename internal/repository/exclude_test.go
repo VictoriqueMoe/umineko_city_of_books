@@ -10,64 +10,48 @@ import (
 )
 
 func TestExcludeClause_Empty(t *testing.T) {
-	// given
 	var ids []uuid.UUID
 
-	// when
-	clause, args := repository.ExcludeClause("user_id", ids)
+	clause, args := repository.ExcludeClause("user_id", ids, 1)
 
-	// then
 	assert.Equal(t, "", clause)
 	assert.Nil(t, args)
 }
 
 func TestExcludeClause_Nil(t *testing.T) {
-	// given
+	clause, args := repository.ExcludeClause("user_id", nil, 1)
 
-	// when
-	clause, args := repository.ExcludeClause("user_id", nil)
-
-	// then
 	assert.Equal(t, "", clause)
 	assert.Nil(t, args)
 }
 
 func TestExcludeClause_SingleID(t *testing.T) {
-	// given
 	id := uuid.New()
 	ids := []uuid.UUID{id}
 
-	// when
-	clause, args := repository.ExcludeClause("user_id", ids)
+	clause, args := repository.ExcludeClause("user_id", ids, 1)
 
-	// then
-	assert.Equal(t, " AND user_id NOT IN (?)", clause)
+	assert.Equal(t, " AND user_id NOT IN ($1)", clause)
 	assert.Equal(t, []interface{}{id}, args)
 }
 
 func TestExcludeClause_MultipleIDs(t *testing.T) {
-	// given
 	a := uuid.New()
 	b := uuid.New()
 	c := uuid.New()
 	ids := []uuid.UUID{a, b, c}
 
-	// when
-	clause, args := repository.ExcludeClause("author_id", ids)
+	clause, args := repository.ExcludeClause("author_id", ids, 1)
 
-	// then
-	assert.Equal(t, " AND author_id NOT IN (?,?,?)", clause)
+	assert.Equal(t, " AND author_id NOT IN ($1,$2,$3)", clause)
 	assert.Equal(t, []interface{}{a, b, c}, args)
 }
 
 func TestExcludeClause_ColumnNameInterpolation(t *testing.T) {
-	// given
 	ids := []uuid.UUID{uuid.New()}
 
-	// when
-	clause, _ := repository.ExcludeClause("p.posted_by", ids)
+	clause, _ := repository.ExcludeClause("p.posted_by", ids, 5)
 
-	// then
 	assert.Contains(t, clause, "p.posted_by NOT IN")
-	assert.Equal(t, " AND p.posted_by NOT IN (?)", clause)
+	assert.Equal(t, " AND p.posted_by NOT IN ($5)", clause)
 }

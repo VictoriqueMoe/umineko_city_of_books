@@ -43,7 +43,7 @@ func main() {
 	logger.Init(config.SettingLogLevel.Default)
 	defer logger.Shutdown()
 
-	database, err := db.Open(config.Cfg.DBPath)
+	database, err := db.Open(config.Cfg.PostgresDSN())
 	if err != nil {
 		logger.Log.Fatal().Err(err).Msg("failed to open database")
 	}

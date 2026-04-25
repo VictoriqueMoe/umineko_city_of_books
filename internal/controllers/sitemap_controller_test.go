@@ -8,28 +8,27 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"umineko_city_of_books/internal/db/dbtest"
+
 	"github.com/gofiber/fiber/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	_ "modernc.org/sqlite"
 )
 
 const sitemapBaseURL = "https://example.test"
 
 func newSitemapDB(t *testing.T) *sql.DB {
 	t.Helper()
-	db, err := sql.Open("sqlite", ":memory:")
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = db.Close() })
+	db, _ := dbtest.NewEmptyDatabase(t)
 
 	schema := []string{
-		`CREATE TABLE theories (id TEXT PRIMARY KEY, created_at TEXT)`,
-		`CREATE TABLE posts    (id TEXT PRIMARY KEY, created_at TEXT)`,
-		`CREATE TABLE art      (id TEXT PRIMARY KEY, created_at TEXT)`,
-		`CREATE TABLE users    (username TEXT PRIMARY KEY, created_at TEXT)`,
-		`CREATE TABLE mysteries(id TEXT PRIMARY KEY, created_at TEXT)`,
-		`CREATE TABLE ships    (id TEXT PRIMARY KEY, created_at TEXT)`,
-		`CREATE TABLE fanfics  (id TEXT PRIMARY KEY, created_at TEXT)`,
+		`CREATE TABLE theories  (id TEXT PRIMARY KEY, created_at TEXT)`,
+		`CREATE TABLE posts     (id TEXT PRIMARY KEY, created_at TEXT)`,
+		`CREATE TABLE art       (id TEXT PRIMARY KEY, created_at TEXT)`,
+		`CREATE TABLE users     (username TEXT PRIMARY KEY, created_at TEXT)`,
+		`CREATE TABLE mysteries (id TEXT PRIMARY KEY, created_at TEXT)`,
+		`CREATE TABLE ships     (id TEXT PRIMARY KEY, created_at TEXT)`,
+		`CREATE TABLE fanfics   (id TEXT PRIMARY KEY, created_at TEXT)`,
 	}
 	for _, stmt := range schema {
 		_, err := db.Exec(stmt)
@@ -133,7 +132,7 @@ func TestSitemap_Theories_OK(t *testing.T) {
 	// given
 	db := newSitemapDB(t)
 	_, err := db.Exec(
-		`INSERT INTO theories (id, created_at) VALUES (?, ?), (?, ?)`,
+		`INSERT INTO theories (id, created_at) VALUES ($1, $2), ($3, $4)`,
 		"theory-a", "2024-01-02 10:00:00",
 		"theory-b", "2024-02-03 11:30:00",
 	)
@@ -175,7 +174,7 @@ func TestSitemap_Posts_OK(t *testing.T) {
 	// given
 	db := newSitemapDB(t)
 	_, err := db.Exec(
-		`INSERT INTO posts (id, created_at) VALUES (?, ?)`,
+		`INSERT INTO posts (id, created_at) VALUES ($1, $2)`,
 		"post-1", "2024-05-01 09:15:00",
 	)
 	require.NoError(t, err)
@@ -212,7 +211,7 @@ func TestSitemap_Art_OK(t *testing.T) {
 	// given
 	db := newSitemapDB(t)
 	_, err := db.Exec(
-		`INSERT INTO art (id, created_at) VALUES (?, ?)`,
+		`INSERT INTO art (id, created_at) VALUES ($1, $2)`,
 		"art-xyz", "2024-06-07 08:00:00",
 	)
 	require.NoError(t, err)
@@ -249,7 +248,7 @@ func TestSitemap_Users_OK(t *testing.T) {
 	// given
 	db := newSitemapDB(t)
 	_, err := db.Exec(
-		`INSERT INTO users (username, created_at) VALUES (?, ?), (?, ?)`,
+		`INSERT INTO users (username, created_at) VALUES ($1, $2), ($3, $4)`,
 		"alice", "2024-01-01 00:00:00",
 		"bob", "2024-01-02 00:00:00",
 	)
@@ -292,7 +291,7 @@ func TestSitemap_Mysteries_OK(t *testing.T) {
 	// given
 	db := newSitemapDB(t)
 	_, err := db.Exec(
-		`INSERT INTO mysteries (id, created_at) VALUES (?, ?)`,
+		`INSERT INTO mysteries (id, created_at) VALUES ($1, $2)`,
 		"mystery-1", "2024-07-08 12:34:56",
 	)
 	require.NoError(t, err)
@@ -329,7 +328,7 @@ func TestSitemap_Ships_OK(t *testing.T) {
 	// given
 	db := newSitemapDB(t)
 	_, err := db.Exec(
-		`INSERT INTO ships (id, created_at) VALUES (?, ?)`,
+		`INSERT INTO ships (id, created_at) VALUES ($1, $2)`,
 		"ship-1", "2024-08-09 01:02:03",
 	)
 	require.NoError(t, err)
@@ -366,7 +365,7 @@ func TestSitemap_Fanfics_OK(t *testing.T) {
 	// given
 	db := newSitemapDB(t)
 	_, err := db.Exec(
-		`INSERT INTO fanfics (id, created_at) VALUES (?, ?)`,
+		`INSERT INTO fanfics (id, created_at) VALUES ($1, $2)`,
 		"fic-1", "2024-09-10 04:05:06",
 	)
 	require.NoError(t, err)

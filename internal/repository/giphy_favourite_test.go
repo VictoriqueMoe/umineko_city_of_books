@@ -116,11 +116,11 @@ func TestGiphyFavouriteRepository_List_OrdersByCreatedDesc(t *testing.T) {
 	_, err := repos.DB().ExecContext(ctx,
 		`UPDATE giphy_favourites SET created_at =
 			CASE giphy_id
-				WHEN 'first'  THEN '2026-01-01 10:00:00'
-				WHEN 'second' THEN '2026-01-01 11:00:00'
-				WHEN 'third'  THEN '2026-01-01 12:00:00'
+				WHEN 'first'  THEN TIMESTAMPTZ '2026-01-01 10:00:00'
+				WHEN 'second' THEN TIMESTAMPTZ '2026-01-01 11:00:00'
+				WHEN 'third'  THEN TIMESTAMPTZ '2026-01-01 12:00:00'
 			END
-		 WHERE user_id = ?`, user.ID)
+		 WHERE user_id = $1`, user.ID)
 	require.NoError(t, err)
 
 	list, total, err := repos.GiphyFavourite.List(ctx, user.ID, 10, 0)
@@ -188,7 +188,7 @@ func TestGiphyFavouriteRepository_CascadesOnUserDelete(t *testing.T) {
 	ctx := context.Background()
 
 	require.NoError(t, repos.GiphyFavourite.Add(ctx, user.ID, repository.GiphyFavourite{GiphyID: "a", URL: "u"}))
-	_, err := repos.DB().ExecContext(ctx, `DELETE FROM users WHERE id = ?`, user.ID)
+	_, err := repos.DB().ExecContext(ctx, `DELETE FROM users WHERE id = $1`, user.ID)
 	require.NoError(t, err)
 
 	_, total, err := repos.GiphyFavourite.List(ctx, user.ID, 10, 0)

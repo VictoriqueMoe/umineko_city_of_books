@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -11,8 +12,18 @@ import (
 
 type (
 	Config struct {
-		DBPath      string
+		Postgres    PostgresConfig
+		DatabaseURL string
 		GiphyAPIKey string
+	}
+
+	PostgresConfig struct {
+		Host     string
+		Port     string
+		User     string
+		Password string
+		DB       string
+		SSLMode  string
 	}
 
 	SettingType int
@@ -25,6 +36,20 @@ type (
 		Type    SettingType
 	}
 )
+
+func (c Config) PostgresDSN() string {
+	if c.DatabaseURL != "" {
+		return c.DatabaseURL
+	}
+	u := url.URL{
+		Scheme:   "postgres",
+		User:     url.UserPassword(c.Postgres.User, c.Postgres.Password),
+		Host:     c.Postgres.Host + ":" + c.Postgres.Port,
+		Path:     "/" + c.Postgres.DB,
+		RawQuery: "sslmode=" + url.QueryEscape(c.Postgres.SSLMode),
+	}
+	return u.String()
+}
 
 const (
 	TypeString SettingType = iota
@@ -208,18 +233,22 @@ func ValidateSettings(all map[SiteSettingKey]string) error {
 }
 
 func init() {
-	_ = godotenv.Load()
+	_ = godotenv.Load(".env", "postgres.env")
 
-	dbPath := "truths.db"
-	if v, ok := os.LookupEnv("DB_PATH"); ok {
-		dbPath = v
+	pg := PostgresConfig{
+		Host:     envOr("POSTGRES_HOST", "localhost"),
+		Port:     envOr("POSTGRES_PORT", "5432"),
+		User:     os.Getenv("POSTGRES_USER"),
+		Password: os.Getenv("POSTGRES_PASSWORD"),
+		DB:       os.Getenv("POSTGRES_DB"),
+		SSLMode:  envOr("POSTGRES_SSL_MODE", "disable"),
 	}
-	giphyKey := ""
-	if v, ok := os.LookupEnv("GIPHY_API_KEY"); ok {
-		giphyKey = v
-	}
+	databaseURL := os.Getenv("DATABASE_URL")
+	giphyKey := os.Getenv("GIPHY_API_KEY")
+
 	Cfg = Config{
-		DBPath:      dbPath,
+		Postgres:    pg,
+		DatabaseURL: databaseURL,
 		GiphyAPIKey: giphyKey,
 	}
 
@@ -229,4 +258,11 @@ func init() {
 			def.Default = v
 		}
 	}
+}
+
+func envOr(key, fallback string) string {
+	if v, ok := os.LookupEnv(key); ok {
+		return v
+	}
+	return fallback
 }

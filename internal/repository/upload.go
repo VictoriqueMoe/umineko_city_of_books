@@ -49,45 +49,34 @@ func (r *uploadRepository) GetAllReferencedFiles() ([]string, error) {
 }
 
 func (r *uploadRepository) buildUnionQuery() (string, error) {
-	tables, err := r.db.Query(`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'goose_%'`)
+	rows, err := r.db.Query(
+		`SELECT table_name, column_name
+		 FROM information_schema.columns
+		 WHERE table_schema = 'public'
+		   AND data_type IN ('text', 'character varying', 'citext')
+		   AND table_name NOT LIKE 'goose_%'`,
+	)
 	if err != nil {
-		return "", fmt.Errorf("list tables: %w", err)
+		return "", fmt.Errorf("list text columns: %w", err)
 	}
-	defer tables.Close()
+	defer rows.Close()
 
 	var parts []string
-	for tables.Next() {
-		var table string
-		if err := tables.Scan(&table); err != nil {
+	for rows.Next() {
+		var table, column string
+		if err := rows.Scan(&table, &column); err != nil {
 			continue
 		}
 		if !safeIdentifier.MatchString(table) {
 			continue
 		}
-
-		cols, err := r.db.Query(fmt.Sprintf(`PRAGMA table_info("%s")`, table))
-		if err != nil {
+		if !safeIdentifier.MatchString(column) {
 			continue
 		}
-
-		for cols.Next() {
-			var (
-				cid           int
-				name, colType string
-				notNull, pk   int
-				dflt          *string
-			)
-			if err := cols.Scan(&cid, &name, &colType, &notNull, &dflt, &pk); err != nil {
-				continue
-			}
-			if !safeIdentifier.MatchString(name) {
-				continue
-			}
-			if strings.EqualFold(colType, "TEXT") {
-				parts = append(parts, fmt.Sprintf(`SELECT DISTINCT "%s" FROM "%s" WHERE "%s" LIKE '/uploads/%%'`, name, table, name))
-			}
-		}
-		_ = cols.Close()
+		parts = append(parts, fmt.Sprintf(`SELECT DISTINCT "%s" FROM "%s" WHERE "%s" LIKE '/uploads/%%'`, column, table, column))
+	}
+	if err := rows.Err(); err != nil {
+		return "", fmt.Errorf("iterate text columns: %w", err)
 	}
 
 	if len(parts) == 0 {

@@ -88,9 +88,9 @@ func TestAuditLogRepository_List_OrderedByCreatedAtDesc(t *testing.T) {
 	ctx := context.Background()
 	_, err := repos.DB().ExecContext(ctx,
 		`INSERT INTO audit_log (actor_id, action, target_type, target_id, details, created_at) VALUES
-		(?, 'a1', 'user', 't1', '', '2026-01-01 10:00:00'),
-		(?, 'a2', 'user', 't2', '', '2026-01-02 10:00:00'),
-		(?, 'a3', 'user', 't3', '', '2026-01-03 10:00:00')`,
+		($1, 'a1', 'user', 't1', '', '2026-01-01 10:00:00'),
+		($2, 'a2', 'user', 't2', '', '2026-01-02 10:00:00'),
+		($3, 'a3', 'user', 't3', '', '2026-01-03 10:00:00')`,
 		user.ID, user.ID, user.ID,
 	)
 	require.NoError(t, err)

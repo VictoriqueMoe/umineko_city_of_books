@@ -48,11 +48,11 @@ func TestHomeFeedRepository_ListRecentActivity_OrderedByCreatedAtDesc(t *testing
 	second := createPost(t, repos, user.ID, "general", "second")
 
 	_, err := repos.DB().ExecContext(ctx,
-		`UPDATE posts SET created_at = datetime('now', '-2 hours') WHERE id = ?`, first,
+		`UPDATE posts SET created_at = NOW() - INTERVAL '2 hours' WHERE id = $1`, first,
 	)
 	require.NoError(t, err)
 	_, err = repos.DB().ExecContext(ctx,
-		`UPDATE posts SET created_at = datetime('now', '-1 hour') WHERE id = ?`, second,
+		`UPDATE posts SET created_at = NOW() - INTERVAL '1 hour' WHERE id = $1`, second,
 	)
 	require.NoError(t, err)
 
@@ -103,7 +103,7 @@ func TestHomeFeedRepository_ListRecentActivity_ExcludesArchivedJournals(t *testi
 	createJournal(t, repos, user.ID, "archived", "body", "umineko")
 
 	_, err := repos.DB().ExecContext(ctx,
-		`UPDATE journals SET archived_at = CURRENT_TIMESTAMP WHERE title = 'archived'`,
+		`UPDATE journals SET archived_at = NOW() WHERE title = 'archived'`,
 	)
 	require.NoError(t, err)
 
@@ -122,13 +122,13 @@ func TestHomeFeedRepository_ListRecentMembers_OrderedAndLimited(t *testing.T) {
 	third := repotest.CreateUser(t, repos, repotest.WithDisplayName("Third"))
 
 	_, err := repos.DB().ExecContext(ctx,
-		`UPDATE users SET created_at = datetime('now', '-3 days') WHERE id = ?`, first.ID)
+		`UPDATE users SET created_at = NOW() - INTERVAL '3 days' WHERE id = $1`, first.ID)
 	require.NoError(t, err)
 	_, err = repos.DB().ExecContext(ctx,
-		`UPDATE users SET created_at = datetime('now', '-2 days') WHERE id = ?`, second.ID)
+		`UPDATE users SET created_at = NOW() - INTERVAL '2 days' WHERE id = $1`, second.ID)
 	require.NoError(t, err)
 	_, err = repos.DB().ExecContext(ctx,
-		`UPDATE users SET created_at = datetime('now', '-1 day') WHERE id = ?`, third.ID)
+		`UPDATE users SET created_at = NOW() - INTERVAL '1 day' WHERE id = $1`, third.ID)
 	require.NoError(t, err)
 
 	rows, err := repos.HomeFeed.ListRecentMembers(ctx, 2)
@@ -195,7 +195,7 @@ func TestHomeFeedRepository_ListCornerActivity24h_ExcludesOlderThan24h(t *testin
 	old := createPost(t, repos, user.ID, "umineko", "old")
 
 	_, err := repos.DB().ExecContext(ctx,
-		`UPDATE posts SET created_at = datetime('now', '-2 days') WHERE id = ?`, old)
+		`UPDATE posts SET created_at = NOW() - INTERVAL '2 days' WHERE id = $1`, old)
 	require.NoError(t, err)
 
 	rows, err := repos.HomeFeed.ListCornerActivity24h(ctx)
@@ -296,10 +296,10 @@ func TestHomeFeedRepository_ListPublicRooms_OrderedByLastMessage(t *testing.T) {
 	require.NoError(t, repos.Chat.CreateRoom(ctx, newer, "Newer", "", "group", true, false, user.ID))
 
 	_, err := repos.DB().ExecContext(ctx,
-		`UPDATE chat_rooms SET last_message_at = datetime('now', '-2 hours') WHERE id = ?`, older)
+		`UPDATE chat_rooms SET last_message_at = NOW() - INTERVAL '2 hours' WHERE id = $1`, older)
 	require.NoError(t, err)
 	_, err = repos.DB().ExecContext(ctx,
-		`UPDATE chat_rooms SET last_message_at = datetime('now', '-1 hour') WHERE id = ?`, newer)
+		`UPDATE chat_rooms SET last_message_at = NOW() - INTERVAL '1 hour' WHERE id = $1`, newer)
 	require.NoError(t, err)
 
 	rows, err := repos.HomeFeed.ListPublicRooms(ctx, 10)

@@ -26,8 +26,9 @@ const (
 
 func SeedContent(db *sql.DB) error {
 	if _, err := db.Exec(
-		`INSERT OR IGNORE INTO users (id, username, password_hash, display_name, bio)
-		 VALUES (?, ?, ?, ?, ?)`,
+		`INSERT INTO users (id, username, password_hash, display_name, bio)
+		 VALUES ($1, $2, $3, $4, $5)
+		 ON CONFLICT (id) DO NOTHING`,
 		MariaSeedUserID,
 		"maria_u",
 		mariaSeedPwdHash,
@@ -38,8 +39,9 @@ func SeedContent(db *sql.DB) error {
 	}
 
 	if _, err := db.Exec(
-		`INSERT OR IGNORE INTO fanfics (id, user_id, title, summary, series, rating, language, status, is_oneshot)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO fanfics (id, user_id, title, summary, series, rating, language, status, is_oneshot)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		 ON CONFLICT (id) DO NOTHING`,
 		EpitaphSeedFanficID,
 		MariaSeedUserID,
 		"The Witch's Epitaph",
@@ -48,14 +50,15 @@ func SeedContent(db *sql.DB) error {
 		"K",
 		"English",
 		"complete",
-		1,
+		true,
 	); err != nil {
 		return fmt.Errorf("seed epitaph fanfic: %w", err)
 	}
 
 	if _, err := db.Exec(
-		`INSERT OR IGNORE INTO fanfic_chapters (id, fanfic_id, chapter_number, title, body, word_count)
-		 VALUES (?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO fanfic_chapters (id, fanfic_id, chapter_number, title, body, word_count)
+		 VALUES ($1, $2, $3, $4, $5, $6)
+		 ON CONFLICT (id) DO NOTHING`,
 		epitaphSeedChapterID,
 		EpitaphSeedFanficID,
 		1,

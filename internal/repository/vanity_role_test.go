@@ -300,7 +300,7 @@ func TestExcludeVanityRoleIDs_Empty(t *testing.T) {
 	var ids []string
 
 	// when
-	clause, args := repository.ExcludeVanityRoleIDs(ids)
+	clause, args := repository.ExcludeVanityRoleIDs(ids, 1)
 
 	// then
 	assert.Empty(t, clause)
@@ -312,9 +312,9 @@ func TestExcludeVanityRoleIDs_BuildsClause(t *testing.T) {
 	ids := []string{"a", "b", "c"}
 
 	// when
-	clause, args := repository.ExcludeVanityRoleIDs(ids)
+	clause, args := repository.ExcludeVanityRoleIDs(ids, 1)
 
 	// then
-	assert.Equal(t, " AND id NOT IN (?, ?, ?)", clause)
+	assert.Equal(t, " AND id NOT IN ($1, $2, $3)", clause)
 	assert.Equal(t, []interface{}{"a", "b", "c"}, args)
 }
