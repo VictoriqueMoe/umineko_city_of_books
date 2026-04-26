@@ -160,6 +160,53 @@ func TestUserRepository_GetByUsername_NotFound(t *testing.T) {
 	assert.Nil(t, got)
 }
 
+func TestUserRepository_GetByUsernames(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	a := repotest.CreateUser(t, repos, repotest.WithUsername("alice"))
+	b := repotest.CreateUser(t, repos, repotest.WithUsername("bob"))
+	repotest.CreateUser(t, repos, repotest.WithUsername("carol"))
+
+	// when
+	got, err := repos.User.GetByUsernames(context.Background(), []string{"alice", "bob", "ghost"})
+
+	// then
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+	byID := map[uuid.UUID]string{}
+	for i := 0; i < len(got); i++ {
+		byID[got[i].ID] = got[i].Username
+	}
+	assert.Equal(t, "alice", byID[a.ID])
+	assert.Equal(t, "bob", byID[b.ID])
+}
+
+func TestUserRepository_GetByUsernames_CaseInsensitive(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	repotest.CreateUser(t, repos, repotest.WithUsername("MixedCase"))
+
+	// when
+	got, err := repos.User.GetByUsernames(context.Background(), []string{"mixedcase", "MIXEDCASE"})
+
+	// then
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	assert.Equal(t, "MixedCase", got[0].Username)
+}
+
+func TestUserRepository_GetByUsernames_EmptyInput(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+
+	// when
+	got, err := repos.User.GetByUsernames(context.Background(), nil)
+
+	// then
+	require.NoError(t, err)
+	assert.Nil(t, got)
+}
+
 func TestUserRepository_ExistsByUsername(t *testing.T) {
 	// given
 	repos := repotest.NewRepos(t)

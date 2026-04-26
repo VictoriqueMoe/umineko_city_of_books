@@ -640,6 +640,74 @@ func (_c *MockUserRepository_GetByUsername_Call) RunAndReturn(run func(ctx conte
 	return _c
 }
 
+// GetByUsernames provides a mock function for the type MockUserRepository
+func (_mock *MockUserRepository) GetByUsernames(ctx context.Context, usernames []string) ([]model.User, error) {
+	ret := _mock.Called(ctx, usernames)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetByUsernames")
+	}
+
+	var r0 []model.User
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []string) ([]model.User, error)); ok {
+		return returnFunc(ctx, usernames)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []string) []model.User); ok {
+		r0 = returnFunc(ctx, usernames)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]model.User)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, []string) error); ok {
+		r1 = returnFunc(ctx, usernames)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockUserRepository_GetByUsernames_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetByUsernames'
+type MockUserRepository_GetByUsernames_Call struct {
+	*mock.Call
+}
+
+// GetByUsernames is a helper method to define mock.On call
+//   - ctx context.Context
+//   - usernames []string
+func (_e *MockUserRepository_Expecter) GetByUsernames(ctx interface{}, usernames interface{}) *MockUserRepository_GetByUsernames_Call {
+	return &MockUserRepository_GetByUsernames_Call{Call: _e.mock.On("GetByUsernames", ctx, usernames)}
+}
+
+func (_c *MockUserRepository_GetByUsernames_Call) Run(run func(ctx context.Context, usernames []string)) *MockUserRepository_GetByUsernames_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []string
+		if args[1] != nil {
+			arg1 = args[1].([]string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockUserRepository_GetByUsernames_Call) Return(users []model.User, err error) *MockUserRepository_GetByUsernames_Call {
+	_c.Call.Return(users, err)
+	return _c
+}
+
+func (_c *MockUserRepository_GetByUsernames_Call) RunAndReturn(run func(ctx context.Context, usernames []string) ([]model.User, error)) *MockUserRepository_GetByUsernames_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetDetectiveRawScore provides a mock function for the type MockUserRepository
 func (_mock *MockUserRepository) GetDetectiveRawScore(ctx context.Context, userID uuid.UUID) (int, error) {
 	ret := _mock.Called(ctx, userID)
