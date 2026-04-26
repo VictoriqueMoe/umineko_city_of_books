@@ -1,6 +1,10 @@
 package utils
 
-import "github.com/gofiber/fiber/v3"
+import (
+	"umineko_city_of_books/internal/logger"
+
+	"github.com/gofiber/fiber/v3"
+)
 
 func BadRequest(ctx fiber.Ctx, msg string) error {
 	return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": msg})
@@ -26,7 +30,17 @@ func TooLarge(ctx fiber.Ctx, msg string) error {
 	return ctx.Status(fiber.StatusRequestEntityTooLarge).JSON(fiber.Map{"error": msg})
 }
 
-func InternalError(ctx fiber.Ctx, msg string) error {
+func InternalError(ctx fiber.Ctx, msg string, cause ...error) error {
+	for i := 0; i < len(cause); i++ {
+		if cause[i] == nil {
+			continue
+		}
+		logger.Log.Error().
+			Err(cause[i]).
+			Str("method", ctx.Method()).
+			Str("path", ctx.Path()).
+			Msg(msg)
+	}
 	return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": msg})
 }
 

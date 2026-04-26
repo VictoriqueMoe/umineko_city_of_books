@@ -371,14 +371,17 @@ func (r *gameRoomRepository) CountLive(ctx context.Context) (int, error) {
 
 func (r *gameRoomRepository) Scoreboard(ctx context.Context, gameType string) ([]ScoreboardRow, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT p.user_id,
-                SUM(CASE WHEN r.winner_user_id = p.user_id THEN 1 ELSE 0 END) AS wins,
-                SUM(CASE WHEN r.winner_user_id IS NOT NULL AND r.winner_user_id != p.user_id THEN 1 ELSE 0 END) AS losses,
-                SUM(CASE WHEN r.winner_user_id IS NULL THEN 1 ELSE 0 END) AS draws
-         FROM game_room_players p
-         JOIN game_rooms r ON r.id = p.room_id
-         WHERE r.game_type = $1 AND r.status IN ('finished', 'abandoned') AND p.joined = TRUE
-         GROUP BY p.user_id
+		`SELECT user_id, wins, losses, draws
+         FROM (
+             SELECT p.user_id,
+                    SUM(CASE WHEN r.winner_user_id = p.user_id THEN 1 ELSE 0 END) AS wins,
+                    SUM(CASE WHEN r.winner_user_id IS NOT NULL AND r.winner_user_id != p.user_id THEN 1 ELSE 0 END) AS losses,
+                    SUM(CASE WHEN r.winner_user_id IS NULL THEN 1 ELSE 0 END) AS draws
+             FROM game_room_players p
+             JOIN game_rooms r ON r.id = p.room_id
+             WHERE r.game_type = $1 AND r.status IN ('finished', 'abandoned') AND p.joined = TRUE
+             GROUP BY p.user_id
+         ) s
          ORDER BY wins DESC, (wins - losses) DESC`,
 		gameType,
 	)

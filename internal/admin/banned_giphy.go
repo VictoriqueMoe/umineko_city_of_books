@@ -2,17 +2,10 @@ package admin
 
 import (
 	"context"
-	"errors"
-
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/giphy/banlist"
 
 	"github.com/google/uuid"
-)
-
-var (
-	ErrBannedGiphyInvalidInput = errors.New("could not recognise a Giphy URL or ID in the input")
-	ErrBannedGiphyKindMismatch = errors.New("supplied kind does not match what was extracted from the URL")
 )
 
 func (s *service) ListBannedGifs(ctx context.Context) (*dto.BannedGiphyListResponse, error) {

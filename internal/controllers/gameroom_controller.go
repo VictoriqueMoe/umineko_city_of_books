@@ -146,7 +146,7 @@ func gameRoomError(ctx fiber.Ctx, err error) error {
 	case errors.Is(err, gameroom.ErrInviterNotInRoom):
 		return utils.BadRequest(ctx, "the player who invited you is no longer at the board. Wait for them to come back, or decline the invite")
 	}
-	return utils.InternalError(ctx, "game operation failed")
+	return utils.InternalError(ctx, "game operation failed", err)
 }
 
 func (s *Service) inviteGame(ctx fiber.Ctx) error {
