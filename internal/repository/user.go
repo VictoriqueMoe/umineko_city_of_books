@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"umineko_city_of_books/internal/repository/model"
 
 	"umineko_city_of_books/internal/dto"
@@ -18,6 +19,7 @@ type (
 		Create(ctx context.Context, username, password, displayName string) (*model.User, error)
 		GetByID(ctx context.Context, id uuid.UUID) (*model.User, error)
 		GetByUsername(ctx context.Context, username string) (*model.User, error)
+		GetByUsernames(ctx context.Context, usernames []string) ([]model.User, error)
 		ExistsByUsername(ctx context.Context, username string) (bool, error)
 		Count(ctx context.Context) (int, error)
 		ValidatePassword(ctx context.Context, username, password string) (*model.User, error)
@@ -115,6 +117,36 @@ func (r *userRepository) GetByUsername(ctx context.Context, username string) (*m
 		return nil, fmt.Errorf("get user by username: %w", err)
 	}
 	return u, nil
+}
+
+func (r *userRepository) GetByUsernames(ctx context.Context, usernames []string) ([]model.User, error) {
+	if len(usernames) == 0 {
+		return nil, nil
+	}
+	args := make([]any, len(usernames))
+	placeholders := make([]string, len(usernames))
+	for i := 0; i < len(usernames); i++ {
+		args[i] = strings.ToLower(usernames[i])
+		placeholders[i] = fmt.Sprintf("$%d", i+1)
+	}
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT `+userColumns+` FROM users u LEFT JOIN user_roles r ON r.user_id = u.id WHERE LOWER(u.username) IN (`+strings.Join(placeholders, ",")+`)`,
+		args...,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("get users by usernames: %w", err)
+	}
+	defer rows.Close()
+
+	var users []model.User
+	for rows.Next() {
+		u, err := scanUser(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan user: %w", err)
+		}
+		users = append(users, *u)
+	}
+	return users, rows.Err()
 }
 
 func (r *userRepository) ExistsByUsername(ctx context.Context, username string) (bool, error) {

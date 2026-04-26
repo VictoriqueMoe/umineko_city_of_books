@@ -28,9 +28,6 @@ services:
     env_file:
       - .env
       - postgres.env
-    environment:
-      - POSTGRES_HOST=postgres
-      - POSTGRES_PORT=5432
     volumes:
       - ./data:/app/data
 

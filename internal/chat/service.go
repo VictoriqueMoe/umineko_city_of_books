@@ -1479,9 +1479,27 @@ func (s *service) SendMessage(ctx context.Context, senderID, roomID uuid.UUID, r
 	if err != nil {
 		return nil, fmt.Errorf("get room members: %w", err)
 	}
-	for _, memberID := range members {
-		if memberID != senderID {
-			if blocked, _ := s.blockSvc.IsBlockedEither(ctx, senderID, memberID); blocked {
+
+	hasOtherMembers := false
+	for i := 0; i < len(members); i++ {
+		if members[i] != senderID {
+			hasOtherMembers = true
+			break
+		}
+	}
+
+	blockedSet := make(map[uuid.UUID]struct{})
+	if hasOtherMembers {
+		if blockedIDs, err := s.blockSvc.GetBlockedIDs(ctx, senderID); err == nil {
+			for i := 0; i < len(blockedIDs); i++ {
+				blockedSet[blockedIDs[i]] = struct{}{}
+			}
+		}
+		for i := 0; i < len(members); i++ {
+			if members[i] == senderID {
+				continue
+			}
+			if _, isBlocked := blockedSet[members[i]]; isBlocked {
 				return nil, ErrUserBlocked
 			}
 		}
@@ -1579,11 +1597,10 @@ func (s *service) SendMessage(ctx context.Context, senderID, roomID uuid.UUID, r
 
 	var mentionedIDs map[uuid.UUID]struct{}
 	if isGroup {
-		mentionedIDs = s.resolveMentions(ctx, req.Body, roomID, senderID)
+		mentionedIDs = s.resolveMentions(ctx, req.Body, senderID, members, blockedSet)
 	}
 
-	members, err = s.chatRepo.GetRoomMembers(ctx, roomID)
-	if err == nil {
+	{
 		msg := ws.Message{
 			Type: "chat_message",
 			Data: resp,
@@ -1699,34 +1716,49 @@ func (s *service) dispatchPostSendSideEffects(
 	}
 }
 
-func (s *service) resolveMentions(ctx context.Context, body string, roomID, senderID uuid.UUID) map[uuid.UUID]struct{} {
+func (s *service) resolveMentions(ctx context.Context, body string, senderID uuid.UUID, members []uuid.UUID, blockedSet map[uuid.UUID]struct{}) map[uuid.UUID]struct{} {
 	matches := mentionRegex.FindAllStringSubmatch(body, -1)
 	if len(matches) == 0 {
 		return nil
 	}
-	seen := make(map[string]struct{})
-	mentioned := make(map[uuid.UUID]struct{})
-	for _, m := range matches {
-		username := m[1]
+
+	seen := make(map[string]struct{}, len(matches))
+	usernames := make([]string, 0, len(matches))
+	for i := 0; i < len(matches); i++ {
+		username := matches[i][1]
 		if _, dup := seen[username]; dup {
 			continue
 		}
 		seen[username] = struct{}{}
-		u, err := s.userRepo.GetByUsername(ctx, username)
-		if err != nil || u == nil {
+		usernames = append(usernames, username)
+	}
+	if len(usernames) == 0 {
+		return nil
+	}
+
+	users, err := s.userRepo.GetByUsernames(ctx, usernames)
+	if err != nil || len(users) == 0 {
+		return nil
+	}
+
+	memberSet := make(map[uuid.UUID]struct{}, len(members))
+	for i := 0; i < len(members); i++ {
+		memberSet[members[i]] = struct{}{}
+	}
+
+	mentioned := make(map[uuid.UUID]struct{}, len(users))
+	for i := 0; i < len(users); i++ {
+		uid := users[i].ID
+		if uid == senderID {
 			continue
 		}
-		if u.ID == senderID {
+		if _, isMember := memberSet[uid]; !isMember {
 			continue
 		}
-		isMember, err := s.chatRepo.IsMember(ctx, roomID, u.ID)
-		if err != nil || !isMember {
+		if _, isBlocked := blockedSet[uid]; isBlocked {
 			continue
 		}
-		if blocked, _ := s.blockSvc.IsBlockedEither(ctx, senderID, u.ID); blocked {
-			continue
-		}
-		mentioned[u.ID] = struct{}{}
+		mentioned[uid] = struct{}{}
 	}
 	return mentioned
 }
