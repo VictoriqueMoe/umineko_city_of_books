@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import type { ChatRoom, User } from "../../../types/api";
-import { createGroupRoom, getMutualFollowers, searchUsers } from "../../../api/endpoints";
+import { useMutualFollowers, useSearchUsers } from "../../../api/queries/misc";
+import { useCreateGroupRoom } from "../../../api/mutations/chat";
 import { Modal } from "../../Modal/Modal";
 import { Input } from "../../Input/Input";
 import { Button } from "../../Button/Button";
@@ -15,6 +16,15 @@ interface CreateRoomModalProps {
 }
 
 export function CreateRoomModal({ isOpen, onClose, onCreated }: CreateRoomModalProps) {
+    const [openInstance, setOpenInstance] = useState(0);
+    const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+    if (isOpen !== prevIsOpen) {
+        setPrevIsOpen(isOpen);
+        if (isOpen) {
+            setOpenInstance(n => n + 1);
+        }
+    }
+
     const [name, setName] = useState("");
     const [description, setDescription] = useState("");
     const [isPublic, setIsPublic] = useState(true);
@@ -22,36 +32,31 @@ export function CreateRoomModal({ isOpen, onClose, onCreated }: CreateRoomModalP
     const [tagInput, setTagInput] = useState("");
     const [tags, setTags] = useState<string[]>([]);
     const [search, setSearch] = useState("");
-    const [results, setResults] = useState<User[]>([]);
-    const [mutuals, setMutuals] = useState<User[]>([]);
     const [selected, setSelected] = useState<User[]>([]);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
-    const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-    useEffect(() => {
-        if (!isOpen) {
-            return;
-        }
-        getMutualFollowers()
-            .then(setMutuals)
-            .catch(() => setMutuals([]));
-    }, [isOpen]);
+    const [resetForOpenInstance, setResetForOpenInstance] = useState(0);
+    if (resetForOpenInstance !== openInstance && !isOpen) {
+        setResetForOpenInstance(openInstance);
+        setName("");
+        setDescription("");
+        setIsPublic(true);
+        setIsRP(false);
+        setTagInput("");
+        setTags([]);
+        setSearch("");
+        setSelected([]);
+        setError("");
+    }
 
-    useEffect(() => {
-        if (!isOpen) {
-            setName("");
-            setDescription("");
-            setIsPublic(true);
-            setIsRP(false);
-            setTagInput("");
-            setTags([]);
-            setSearch("");
-            setResults([]);
-            setSelected([]);
-            setError("");
-        }
-    }, [isOpen]);
+    const mutualsQuery = useMutualFollowers(isOpen);
+    const mutuals = mutualsQuery.mutuals;
+
+    const searchTrimmed = search.trim();
+    const searchQuery = useSearchUsers(searchTrimmed, isOpen && !!searchTrimmed);
+    const results = searchQuery.users;
+    const createRoomMutation = useCreateGroupRoom();
 
     function normalizeTag(raw: string): string {
         return raw
@@ -100,20 +105,6 @@ export function CreateRoomModal({ isOpen, onClose, onCreated }: CreateRoomModalP
         }
     }
 
-    useEffect(() => {
-        clearTimeout(debounceRef.current);
-        if (!search.trim()) {
-            setResults([]);
-            return;
-        }
-        debounceRef.current = setTimeout(() => {
-            searchUsers(search)
-                .then(setResults)
-                .catch(() => setResults([]));
-        }, 200);
-        return () => clearTimeout(debounceRef.current);
-    }, [search]);
-
     function toggleSelected(u: User) {
         setSelected(prev => {
             if (prev.some(p => p.id === u.id)) {
@@ -135,7 +126,7 @@ export function CreateRoomModal({ isOpen, onClose, onCreated }: CreateRoomModalP
         setSubmitting(true);
         setError("");
         try {
-            const room = await createGroupRoom({
+            const room = await createRoomMutation.mutateAsync({
                 name: name.trim(),
                 description: description.trim(),
                 is_public: isPublic,

@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
-import { getAuditLog } from "../../api/endpoints";
+import { useState } from "react";
+import { useAuditLog } from "../../api/queries/admin";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { Pagination } from "../../components/Pagination/Pagination";
 import { Select } from "../../components/Select/Select";
-import type { AuditLogEntry } from "../../types/api";
 import { formatFullDateTime } from "../../utils/time";
 import styles from "./AdminAuditLog.module.css";
 
@@ -11,37 +10,10 @@ const LIMIT = 50;
 
 export function AdminAuditLog() {
     usePageTitle("Admin - Audit Log");
-    const [entries, setEntries] = useState<AuditLogEntry[]>([]);
-    const [total, setTotal] = useState(0);
     const [offset, setOffset] = useState(0);
     const [actionFilter, setActionFilter] = useState("");
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState("");
-
-    const fetchLog = useCallback(
-        async (currentOffset: number) => {
-            setLoading(true);
-            setError("");
-            try {
-                const res = await getAuditLog({
-                    action: actionFilter || undefined,
-                    limit: LIMIT,
-                    offset: currentOffset,
-                });
-                setEntries(res.entries);
-                setTotal(res.total);
-            } catch (e) {
-                setError(e instanceof Error ? e.message : "Failed to load audit log");
-            } finally {
-                setLoading(false);
-            }
-        },
-        [actionFilter],
-    );
-
-    useEffect(() => {
-        fetchLog(offset);
-    }, [fetchLog, offset]);
+    const { entries, total, loading } = useAuditLog(actionFilter, LIMIT, offset);
+    const error = "";
 
     function handleFilterChange(value: string) {
         setActionFilter(value);

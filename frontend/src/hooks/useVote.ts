@@ -1,16 +1,19 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 export function useVote(initialScore: number, initialUserVote: number, voteFn: (value: number) => Promise<void>) {
     const [score, setScore] = useState(initialScore);
     const [userVote, setUserVote] = useState(initialUserVote);
+    const [prevInitialScore, setPrevInitialScore] = useState(initialScore);
+    const [prevInitialUserVote, setPrevInitialUserVote] = useState(initialUserVote);
 
-    useEffect(() => {
+    if (prevInitialScore !== initialScore) {
+        setPrevInitialScore(initialScore);
         setScore(initialScore);
-    }, [initialScore]);
-
-    useEffect(() => {
+    }
+    if (prevInitialUserVote !== initialUserVote) {
+        setPrevInitialUserVote(initialUserVote);
         setUserVote(initialUserVote);
-    }, [initialUserVote]);
+    }
 
     const vote = useCallback(
         async (value: number) => {

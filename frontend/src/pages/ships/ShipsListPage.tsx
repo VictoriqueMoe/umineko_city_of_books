@@ -1,8 +1,8 @@
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useState } from "react";
 import { Link } from "react-router";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import type { Ship, ShipCharacter } from "../../types/api";
-import { listShips } from "../../api/endpoints";
+import type { ShipCharacter } from "../../types/api";
+import { useShipList } from "../../api/queries/ship";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { Pagination } from "../../components/Pagination/Pagination";
 import { Select } from "../../components/Select/Select";
@@ -39,41 +39,18 @@ export function CharacterPills({ characters }: { characters: ShipCharacter[] }) 
 
 export function ShipsListPage() {
     usePageTitle("Ships");
-    const [ships, setShips] = useState<Ship[]>([]);
-    const [total, setTotal] = useState(0);
     const [offset, setOffset] = useState(0);
     const [sort, setSort] = useState("new");
     const [series, setSeries] = useState("");
     const [crackshipsOnly, setCrackshipsOnly] = useState(false);
-    const [loading, setLoading] = useState(true);
     const limit = 20;
-
-    useEffect(() => {
-        let cancelled = false;
-        listShips({
-            sort,
-            series: series || undefined,
-            crackships: crackshipsOnly,
-            limit,
-            offset,
-        })
-            .then(data => {
-                if (!cancelled) {
-                    setShips(data.ships ?? []);
-                    setTotal(data.total);
-                    setLoading(false);
-                }
-            })
-            .catch(() => {
-                if (!cancelled) {
-                    setShips([]);
-                    setLoading(false);
-                }
-            });
-        return () => {
-            cancelled = true;
-        };
-    }, [sort, series, crackshipsOnly, offset]);
+    const { ships, total, loading } = useShipList({
+        sort,
+        series: series || undefined,
+        crackships: crackshipsOnly,
+        limit,
+        offset,
+    });
 
     return (
         <div className={styles.page}>

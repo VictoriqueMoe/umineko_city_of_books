@@ -1,39 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
-import type { CharacterListEntry, ShipCharacter } from "../../types/api";
-import { listCharacters } from "../../api/endpoints";
+import { useMemo, useState } from "react";
+import type { ShipCharacter } from "../../types/api";
+import { useCharacterList } from "../../api/queries/character";
 import { Button } from "../Button/Button";
 import { Input } from "../Input/Input";
 import { Select } from "../Select/Select";
 import styles from "./CharacterPicker.module.css";
 
 type Series = "umineko" | "higurashi" | "ciconia" | "oc";
-
-const characterCache = new Map<string, CharacterListEntry[]>();
-
-async function getCharactersCached(series: string): Promise<CharacterListEntry[]> {
-    const cached = characterCache.get(series);
-    if (cached) {
-        return cached;
-    }
-    const response = await listCharacters(series);
-    const sorted = [...response.characters].sort((a, b) => a.name.localeCompare(b.name));
-    characterCache.set(series, sorted);
-    return sorted;
-}
-
-interface SeriesState {
-    series: Series;
-    list: CharacterListEntry[];
-    loading: boolean;
-}
-
-function initialState(): SeriesState {
-    const cached = characterCache.get("umineko");
-    if (cached) {
-        return { series: "umineko", list: cached, loading: false };
-    }
-    return { series: "umineko", list: [], loading: true };
-}
 
 interface CharacterPickerProps {
     onAdd: (character: ShipCharacter) => void;
@@ -42,56 +15,17 @@ interface CharacterPickerProps {
 }
 
 export function CharacterPicker({ onAdd, existing, maxCharacters }: CharacterPickerProps) {
-    const [state, setState] = useState<SeriesState>(initialState);
+    const [series, setSeries] = useState<Series>("umineko");
     const [selectedCanonId, setSelectedCanonId] = useState("");
     const [ocName, setOcName] = useState("");
 
-    const series = state.series;
-    const canonList = state.list;
-    const loading = state.loading;
+    const { characters: rawList, loading } = useCharacterList(series, series !== "oc");
+    const canonList = useMemo(() => [...rawList].sort((a, b) => a.name.localeCompare(b.name)), [rawList]);
     const atLimit = maxCharacters !== undefined && existing.length >= maxCharacters;
-
-    useEffect(() => {
-        if (!state.loading || state.series === "oc") {
-            return;
-        }
-        let cancelled = false;
-        getCharactersCached(state.series)
-            .then(chars => {
-                if (!cancelled) {
-                    setState(prev =>
-                        prev.loading && prev.series === state.series
-                            ? { series: prev.series, list: chars, loading: false }
-                            : prev,
-                    );
-                }
-            })
-            .catch(() => {
-                if (!cancelled) {
-                    setState(prev =>
-                        prev.loading && prev.series === state.series
-                            ? { series: prev.series, list: [], loading: false }
-                            : prev,
-                    );
-                }
-            });
-        return () => {
-            cancelled = true;
-        };
-    }, [state.series, state.loading]);
 
     function changeSeries(next: Series) {
         setSelectedCanonId("");
-        if (next === "oc") {
-            setState({ series: "oc", list: [], loading: false });
-            return;
-        }
-        const cached = characterCache.get(next);
-        if (cached) {
-            setState({ series: next, list: cached, loading: false });
-            return;
-        }
-        setState({ series: next, list: [], loading: true });
+        setSeries(next);
     }
 
     const existingKeys = useMemo(() => {

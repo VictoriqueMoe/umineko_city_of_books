@@ -1,12 +1,9 @@
-import { useEffect, useState } from "react";
 import { Link } from "react-router";
-import { getHomeActivity } from "../../api/endpoints";
-import type { HomeActivityEntry, HomeActivityResponse, HomeMember, HomePublicRoom } from "../../types/api";
+import { useHomeActivity } from "../../api/queries/sidebar";
+import type { HomeActivityEntry, HomeMember, HomePublicRoom } from "../../types/api";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { relativeTime } from "../../utils/time";
 import styles from "./LiveActivity.module.css";
-
-const POLL_INTERVAL_MS = 30_000;
 
 const kindLabel: Record<HomeActivityEntry["kind"], string> = {
     theory: "Theory",
@@ -89,37 +86,7 @@ function RoomCard({ room }: RoomCardProps) {
 }
 
 export function LiveActivity() {
-    const [data, setData] = useState<HomeActivityResponse | null>(null);
-    const [error, setError] = useState(false);
-
-    useEffect(() => {
-        let cancelled = false;
-
-        const load = async () => {
-            try {
-                const resp = await getHomeActivity();
-                if (!cancelled) {
-                    setData(resp);
-                    setError(false);
-                }
-            } catch {
-                if (!cancelled) {
-                    setError(true);
-                }
-            }
-        };
-
-        load();
-        const timer = window.setInterval(load, POLL_INTERVAL_MS);
-        return () => {
-            cancelled = true;
-            window.clearInterval(timer);
-        };
-    }, []);
-
-    if (error && !data) {
-        return null;
-    }
+    const { data } = useHomeActivity();
 
     if (!data) {
         return (

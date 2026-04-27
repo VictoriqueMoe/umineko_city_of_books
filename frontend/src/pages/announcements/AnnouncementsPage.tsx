@@ -1,8 +1,7 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import type { Announcement } from "../../types/api";
-import { listAnnouncements } from "../../api/endpoints";
+import { useAnnouncementList } from "../../api/queries/announcement";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { Pagination } from "../../components/Pagination/Pagination";
 import { relativeTime } from "../../utils/notifications";
@@ -10,32 +9,9 @@ import styles from "./AnnouncementsPage.module.css";
 
 export function AnnouncementsPage() {
     usePageTitle("Announcements");
-    const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-    const [total, setTotal] = useState(0);
     const [offset, setOffset] = useState(0);
-    const [loading, setLoading] = useState(true);
     const limit = 20;
-
-    useEffect(() => {
-        let cancelled = false;
-        listAnnouncements(limit, offset)
-            .then(data => {
-                if (!cancelled) {
-                    setAnnouncements(data.announcements);
-                    setTotal(data.total);
-                    setLoading(false);
-                }
-            })
-            .catch(() => {
-                if (!cancelled) {
-                    setAnnouncements([]);
-                    setLoading(false);
-                }
-            });
-        return () => {
-            cancelled = true;
-        };
-    }, [offset]);
+    const { announcements, total, loading } = useAnnouncementList(limit, offset);
 
     function preview(body: string): string {
         const plain = body.replace(/[#*_~`>[\]()!-]/g, "").replace(/\n+/g, " ");

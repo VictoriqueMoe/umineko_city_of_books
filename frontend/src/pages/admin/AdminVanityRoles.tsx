@@ -1,17 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useState } from "react";
+import type { VanityRoleDefinition } from "../../api/endpoints";
+import { useVanityRoleUsers, useVanityRoles } from "../../api/queries/admin";
 import {
-    assignVanityRole,
-    createVanityRole,
-    deleteVanityRole,
-    getVanityRoles,
-    getVanityRoleUsers,
-    searchUsers,
-    unassignVanityRole,
-    updateVanityRole,
-    type VanityRoleDefinition,
-    type VanityRoleUsersResponse,
-} from "../../api/endpoints";
-import type { User } from "../../types/api";
+    useAssignVanityRole,
+    useCreateVanityRole,
+    useDeleteVanityRole,
+    useUnassignVanityRole,
+    useUpdateVanityRole,
+} from "../../api/mutations/admin";
+import { useSearchUsers } from "../../api/queries/misc";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
@@ -28,8 +25,12 @@ function hexToRgba(hex: string, alpha: number): string {
 
 export function AdminVanityRoles() {
     usePageTitle("Admin - Vanity Roles");
-    const [roles, setRoles] = useState<VanityRoleDefinition[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { roles, loading } = useVanityRoles();
+    const createRoleMutation = useCreateVanityRole();
+    const updateRoleMutation = useUpdateVanityRole();
+    const deleteRoleMutation = useDeleteVanityRole();
+    const assignMutation = useAssignVanityRole();
+    const unassignMutation = useUnassignVanityRole();
     const [error, setError] = useState("");
 
     const [editingRole, setEditingRole] = useState<VanityRoleDefinition | null>(null);
@@ -37,30 +38,19 @@ export function AdminVanityRoles() {
     const [formLabel, setFormLabel] = useState("");
     const [formColor, setFormColor] = useState("#888888");
     const [formOrder, setFormOrder] = useState(0);
-    const [saving, setSaving] = useState(false);
 
     const [managingRole, setManagingRole] = useState<VanityRoleDefinition | null>(null);
-    const [assignedUsers, setAssignedUsers] = useState<VanityRoleUsersResponse | null>(null);
     const [userSearch, setUserSearch] = useState("");
-    const [searchResults, setSearchResults] = useState<User[]>([]);
     const [assigning, setAssigning] = useState<string | null>(null);
-    const searchDebounce = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-    const fetchRoles = useCallback(async () => {
-        setLoading(true);
-        try {
-            const result = await getVanityRoles();
-            setRoles(result ?? []);
-        } catch (e) {
-            setError(e instanceof Error ? e.message : "Failed to load vanity roles");
-        } finally {
-            setLoading(false);
-        }
-    }, []);
+    const saving = createRoleMutation.isPending || updateRoleMutation.isPending;
 
-    useEffect(() => {
-        fetchRoles();
-    }, [fetchRoles]);
+    const assignedQuery = useVanityRoleUsers(managingRole?.id ?? "", "", 50, 0);
+    const assignedUsers = managingRole ? { users: assignedQuery.users, total: assignedQuery.total } : null;
+
+    const userSearchEnabled = !!managingRole && !managingRole.is_system && userSearch.length >= 2;
+    const { users: searchResultsRaw } = useSearchUsers(userSearch, userSearchEnabled);
+    const searchResults = userSearchEnabled ? searchResultsRaw : [];
 
     function openCreate() {
         setEditingRole(null);
@@ -84,28 +74,27 @@ export function AdminVanityRoles() {
     }
 
     async function handleSave() {
-        setSaving(true);
         setError("");
         try {
             if (editingRole) {
-                await updateVanityRole(editingRole.id, {
-                    label: formLabel,
-                    color: formColor,
-                    sort_order: formOrder,
+                await updateRoleMutation.mutateAsync({
+                    id: editingRole.id,
+                    data: {
+                        label: formLabel,
+                        color: formColor,
+                        sort_order: formOrder,
+                    },
                 });
             } else {
-                await createVanityRole({
+                await createRoleMutation.mutateAsync({
                     label: formLabel,
                     color: formColor,
                     sort_order: formOrder,
                 });
             }
             closeForm();
-            await fetchRoles();
         } catch (e) {
             setError(e instanceof Error ? e.message : "Failed to save");
-        } finally {
-            setSaving(false);
         }
     }
 
@@ -114,51 +103,21 @@ export function AdminVanityRoles() {
             return;
         }
         try {
-            await deleteVanityRole(id);
-            await fetchRoles();
+            await deleteRoleMutation.mutateAsync(id);
         } catch (e) {
             setError(e instanceof Error ? e.message : "Failed to delete");
         }
     }
 
-    async function openManageUsers(role: VanityRoleDefinition) {
+    function openManageUsers(role: VanityRoleDefinition) {
         setManagingRole(role);
         setUserSearch("");
-        setSearchResults([]);
-        try {
-            const result = await getVanityRoleUsers(role.id, { limit: 50 });
-            setAssignedUsers(result);
-        } catch {
-            setAssignedUsers({ users: [], total: 0, limit: 50, offset: 0 });
-        }
     }
 
     function closeManage() {
         setManagingRole(null);
-        setAssignedUsers(null);
         setUserSearch("");
-        setSearchResults([]);
     }
-
-    useEffect(() => {
-        if (!managingRole || managingRole.is_system) {
-            return;
-        }
-        clearTimeout(searchDebounce.current);
-        if (userSearch.length < 2) {
-            setSearchResults([]);
-            return;
-        }
-        searchDebounce.current = setTimeout(async () => {
-            try {
-                const results = await searchUsers(userSearch);
-                setSearchResults(results ?? []);
-            } catch {
-                setSearchResults([]);
-            }
-        }, 250);
-        return () => clearTimeout(searchDebounce.current);
-    }, [userSearch, managingRole]);
 
     async function handleAssign(userId: string) {
         if (!managingRole) {
@@ -166,11 +125,8 @@ export function AdminVanityRoles() {
         }
         setAssigning(userId);
         try {
-            await assignVanityRole(managingRole.id, userId);
-            const result = await getVanityRoleUsers(managingRole.id, { limit: 50 });
-            setAssignedUsers(result);
+            await assignMutation.mutateAsync({ roleId: managingRole.id, userId });
             setUserSearch("");
-            setSearchResults([]);
         } catch (e) {
             setError(e instanceof Error ? e.message : "Failed to assign");
         } finally {
@@ -184,9 +140,7 @@ export function AdminVanityRoles() {
         }
         setAssigning(userId);
         try {
-            await unassignVanityRole(managingRole.id, userId);
-            const result = await getVanityRoleUsers(managingRole.id, { limit: 50 });
-            setAssignedUsers(result);
+            await unassignMutation.mutateAsync({ roleId: managingRole.id, userId });
         } catch (e) {
             setError(e instanceof Error ? e.message : "Failed to remove");
         } finally {

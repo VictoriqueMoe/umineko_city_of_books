@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "../../Button/Button";
 import { Input } from "../../Input/Input";
 import { Modal } from "../../Modal/Modal";
@@ -7,17 +7,15 @@ import type {
     BannedWordAction,
     BannedWordMatchMode,
     BannedWordRule,
-    ChatRoomBan,
     CreateBannedWordRequest,
 } from "../../../types/api";
+import { useChatRoomBannedWords, useChatRoomBans } from "../../../api/queries/chat";
 import {
-    createChatRoomBannedWord,
-    deleteChatRoomBannedWord,
-    listChatRoomBannedWords,
-    listChatRoomBans,
-    unbanChatRoomMember,
-    updateChatRoomBannedWord,
-} from "../../../api/endpoints";
+    useCreateChatRoomBannedWord,
+    useDeleteChatRoomBannedWord,
+    useUnbanChatRoomMember,
+    useUpdateChatRoomBannedWord,
+} from "../../../api/mutations/chat";
 import { formatFullDateTime } from "../../../utils/time";
 import styles from "./RoomModerationDialog.module.css";
 
@@ -47,9 +45,18 @@ function validateRegex(pattern: string, mode: BannedWordMatchMode): string {
 
 export function RoomModerationDialog({ isOpen, roomId, onClose }: RoomModerationDialogProps) {
     const [tab, setTab] = useState<Tab>("bans");
-    const [bans, setBans] = useState<ChatRoomBan[]>([]);
-    const [rules, setRules] = useState<BannedWordRule[]>([]);
-    const [loading, setLoading] = useState(false);
+    const bansQuery = useChatRoomBans(roomId, isOpen);
+    const rulesQuery = useChatRoomBannedWords(roomId, isOpen);
+    const bans = bansQuery.bans;
+    const rules = rulesQuery.rules;
+    const loading = bansQuery.loading || rulesQuery.loading;
+    const refreshBans = bansQuery.refresh;
+    const refreshRules = rulesQuery.refresh;
+    const unbanMutation = useUnbanChatRoomMember(roomId);
+    const createWordMutation = useCreateChatRoomBannedWord(roomId);
+    const updateWordMutation = useUpdateChatRoomBannedWord(roomId);
+    const deleteWordMutation = useDeleteChatRoomBannedWord(roomId);
+
     const [error, setError] = useState("");
     const [pattern, setPattern] = useState("");
     const [mode, setMode] = useState<BannedWordMatchMode>("substring");
@@ -76,40 +83,13 @@ export function RoomModerationDialog({ isOpen, roomId, onClose }: RoomModeration
         setError("");
     }
 
-    const refreshBans = useCallback(async () => {
-        try {
-            const res = await listChatRoomBans(roomId);
-            setBans(res.bans ?? []);
-        } catch (e) {
-            setError(e instanceof Error ? e.message : "Failed to load bans");
-        }
-    }, [roomId]);
-
-    const refreshRules = useCallback(async () => {
-        try {
-            const res = await listChatRoomBannedWords(roomId);
-            setRules(res.rules ?? []);
-        } catch (e) {
-            setError(e instanceof Error ? e.message : "Failed to load rules");
-        }
-    }, [roomId]);
-
-    useEffect(() => {
-        if (!isOpen) {
-            return;
-        }
-        setError("");
-        setLoading(true);
-        Promise.all([refreshBans(), refreshRules()]).finally(() => setLoading(false));
-    }, [isOpen, refreshBans, refreshRules]);
-
     const regexError = validateRegex(pattern, mode);
 
     async function handleUnban(userId: string) {
         setBusyId(userId);
         try {
-            await unbanChatRoomMember(roomId, userId);
-            setBans(prev => prev.filter(b => b.user.id !== userId));
+            await unbanMutation.mutateAsync(userId);
+            await refreshBans();
         } catch (e) {
             setError(e instanceof Error ? e.message : "Failed to unban");
         } finally {
@@ -131,9 +111,9 @@ export function RoomModerationDialog({ isOpen, roomId, onClose }: RoomModeration
                 action,
             };
             if (editingId) {
-                await updateChatRoomBannedWord(roomId, editingId, req);
+                await updateWordMutation.mutateAsync({ ruleId: editingId, req });
             } else {
-                await createChatRoomBannedWord(roomId, req);
+                await createWordMutation.mutateAsync(req);
             }
             resetForm();
             await refreshRules();
@@ -153,8 +133,8 @@ export function RoomModerationDialog({ isOpen, roomId, onClose }: RoomModeration
         }
         setBusyId(rule.id);
         try {
-            await deleteChatRoomBannedWord(roomId, rule.id);
-            setRules(prev => prev.filter(r => r.id !== rule.id));
+            await deleteWordMutation.mutateAsync(rule.id);
+            await refreshRules();
         } catch (e) {
             setError(e instanceof Error ? e.message : "Failed to delete rule");
         } finally {

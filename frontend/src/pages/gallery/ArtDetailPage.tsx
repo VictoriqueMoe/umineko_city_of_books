@@ -1,21 +1,23 @@
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useScrollToHash } from "../../hooks/useScrollToHash";
 import type { ArtDetail } from "../../types/api";
+import { useArt } from "../../api/queries/art";
+import { queryKeys } from "../../api/queryKeys";
 import {
-    createArtComment,
-    deleteArt as apiDeleteArt,
-    deleteArtComment,
-    getArt,
-    likeArt,
-    likeArtComment,
-    unlikeArt,
-    unlikeArtComment,
-    updateArt as apiUpdateArt,
-    updateArtComment,
-    uploadArtCommentMedia,
-} from "../../api/endpoints";
+    useCreateArtComment,
+    useDeleteArt,
+    useDeleteArtComment,
+    useLikeArt,
+    useLikeArtComment,
+    useUnlikeArt,
+    useUnlikeArtComment,
+    useUpdateArt,
+    useUpdateArtComment,
+    useUploadArtCommentMedia,
+} from "../../api/mutations/art";
 import { useAuth } from "../../hooks/useAuth";
 import { can } from "../../utils/permissions";
 import { renderRich } from "../../utils/richText";
@@ -38,11 +40,11 @@ export function ArtDetailPage() {
     const navigate = useNavigate();
     const location = useLocation();
     const { user } = useAuth();
-    const [art, setArt] = useState<ArtDetail | null>(null);
+    const qc = useQueryClient();
+    const { art, loading, refresh } = useArt(id ?? "");
     usePageTitle(art?.title ?? "Art");
-    const [loading, setLoading] = useState(true);
-    const [liked, setLiked] = useState(false);
-    const [likeCount, setLikeCount] = useState(0);
+    const liked = art?.user_liked ?? false;
+    const likeCount = art?.like_count ?? 0;
     const [editing, setEditing] = useState(false);
     const [editTitle, setEditTitle] = useState("");
     const [editDesc, setEditDesc] = useState("");
@@ -54,44 +56,38 @@ export function ArtDetailPage() {
     const hash = location.hash;
     const highlightedComment = hash.startsWith("#comment-") ? hash.replace("#comment-", "") : null;
 
-    const fetchArt = useCallback(() => {
+    const likeArtMutation = useLikeArt();
+    const unlikeArtMutation = useUnlikeArt();
+    const deleteArtMutation = useDeleteArt();
+    const updateArtMutation = useUpdateArt(id ?? "");
+    const createCommentMutation = useCreateArtComment(id ?? "");
+    const updateCommentMutation = useUpdateArtComment(id ?? "");
+    const deleteCommentMutation = useDeleteArtComment(id ?? "");
+    const likeCommentMutation = useLikeArtComment(id ?? "");
+    const unlikeCommentMutation = useUnlikeArtComment(id ?? "");
+    const uploadMediaMutation = useUploadArtCommentMedia(id ?? "");
+
+    useScrollToHash(!loading && !!art, highlightedComment ? `comment-${highlightedComment}` : null);
+
+    function applyLikeOverlay(delta: number, nextLiked: boolean) {
         if (!id) {
             return;
         }
-        getArt(id)
-            .then(data => {
-                setArt(data);
-                setLiked(data.user_liked);
-                setLikeCount(data.like_count);
-            })
-            .catch(() => setArt(null))
-            .finally(() => setLoading(false));
-    }, [id]);
-
-    useEffect(() => {
-        fetchArt();
-    }, [fetchArt]);
-
-    useScrollToHash(!loading && !!art, highlightedComment ? `comment-${highlightedComment}` : null);
+        qc.setQueryData<ArtDetail>(queryKeys.art.detail(id), prev =>
+            prev ? { ...prev, user_liked: nextLiked, like_count: prev.like_count + delta } : prev,
+        );
+    }
 
     async function handleLike() {
         if (!id) {
             return;
         }
         if (liked) {
-            setLiked(false);
-            setLikeCount(c => c - 1);
-            await unlikeArt(id).catch(() => {
-                setLiked(true);
-                setLikeCount(c => c + 1);
-            });
+            applyLikeOverlay(-1, false);
+            await unlikeArtMutation.mutateAsync(id).catch(() => applyLikeOverlay(1, true));
         } else {
-            setLiked(true);
-            setLikeCount(c => c + 1);
-            await likeArt(id).catch(() => {
-                setLiked(false);
-                setLikeCount(c => c - 1);
-            });
+            applyLikeOverlay(1, true);
+            await likeArtMutation.mutateAsync(id).catch(() => applyLikeOverlay(-1, false));
         }
     }
 
@@ -99,7 +95,7 @@ export function ArtDetailPage() {
         if (!id) {
             return;
         }
-        await apiDeleteArt(id);
+        await deleteArtMutation.mutateAsync(id);
         navigate(-1);
     }
 
@@ -118,14 +114,14 @@ export function ArtDetailPage() {
         if (!id || !editTitle.trim()) {
             return;
         }
-        await apiUpdateArt(id, {
+        await updateArtMutation.mutateAsync({
             title: editTitle.trim(),
             description: editDesc.trim(),
             tags: editTags,
             is_spoiler: editSpoiler,
         });
         setEditing(false);
-        fetchArt();
+        refresh();
     }
 
     if (loading) {
@@ -139,6 +135,15 @@ export function ArtDetailPage() {
     const isAuthor = user && user.id === art.author.id;
     const canEdit = isAuthor || can(user?.role, "edit_any_post");
     const canDelete = isAuthor || can(user?.role, "delete_any_post");
+
+    const likeCommentFn = (commentId: string) => likeCommentMutation.mutateAsync(commentId);
+    const unlikeCommentFn = (commentId: string) => unlikeCommentMutation.mutateAsync(commentId);
+    const deleteCommentFn = (commentId: string) => deleteCommentMutation.mutateAsync(commentId);
+    const updateCommentFn = (commentId: string, body: string) =>
+        updateCommentMutation.mutateAsync({ commentId, body }).then(() => undefined);
+    const createCommentFn = (_postId: string, body: string, parentId?: string) =>
+        createCommentMutation.mutateAsync({ body, parentId });
+    const uploadMediaFn = (commentId: string, file: File) => uploadMediaMutation.mutateAsync({ commentId, file });
 
     return (
         <div className={styles.page}>
@@ -270,16 +275,16 @@ export function ArtDetailPage() {
                         key={c.id}
                         comment={c}
                         postId={art.id}
-                        onDelete={fetchArt}
+                        onDelete={() => refresh()}
                         highlightedId={highlightedComment ?? undefined}
                         linkPrefix="/gallery/art"
                         reportType="art_comment"
-                        likeFn={likeArtComment}
-                        unlikeFn={unlikeArtComment}
-                        deleteFn={deleteArtComment}
-                        updateFn={updateArtComment}
-                        createCommentFn={createArtComment}
-                        uploadMediaFn={uploadArtCommentMedia}
+                        likeFn={likeCommentFn}
+                        unlikeFn={unlikeCommentFn}
+                        deleteFn={deleteCommentFn}
+                        updateFn={updateCommentFn}
+                        createCommentFn={createCommentFn}
+                        uploadMediaFn={uploadMediaFn}
                         viewerBlocked={art.viewer_blocked}
                     />
                 ))}
@@ -288,9 +293,9 @@ export function ArtDetailPage() {
                 {user && id && !art.viewer_blocked && (
                     <CommentComposer
                         postId={id}
-                        onCreated={fetchArt}
-                        createCommentFn={createArtComment}
-                        uploadMediaFn={uploadArtCommentMedia}
+                        onCreated={() => refresh()}
+                        createCommentFn={createCommentFn}
+                        uploadMediaFn={uploadMediaFn}
                     />
                 )}
             </div>

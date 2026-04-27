@@ -1,7 +1,5 @@
-import { useEffect, useState } from "react";
 import { Link } from "react-router";
-import type { SecretSolverEntry, SecretSummary } from "../../types/api";
-import { listSecrets } from "../../api/endpoints";
+import { useSecretList } from "../../api/queries/secret";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useAuth } from "../../hooks/useAuth";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
@@ -19,22 +17,9 @@ function formatSolveDate(dateStr: string): string {
 export function SecretsListPage() {
     usePageTitle("Secrets");
     const { user } = useAuth();
-    const [secrets, setSecrets] = useState<SecretSummary[]>([]);
-    const [solvers, setSolvers] = useState<SecretSolverEntry[]>([]);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        listSecrets()
-            .then(res => {
-                setSecrets(res.secrets);
-                setSolvers(res.solvers_leaderboard ?? []);
-            })
-            .catch(() => {
-                setSecrets([]);
-                setSolvers([]);
-            })
-            .finally(() => setLoading(false));
-    }, []);
+    const { data, loading } = useSecretList();
+    const secrets = data?.secrets ?? [];
+    const solvers = data?.solvers_leaderboard ?? [];
 
     return (
         <div className={styles.page}>

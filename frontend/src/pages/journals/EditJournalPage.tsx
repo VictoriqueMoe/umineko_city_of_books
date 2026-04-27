@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
-import type { JournalDetail } from "../../types/api";
-import { getJournal, updateJournal } from "../../api/endpoints";
+import { useJournal } from "../../api/queries/journal";
+import { useUpdateJournal } from "../../api/mutations/journal";
 import { useAuth } from "../../hooks/useAuth";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { can } from "../../utils/permissions";
@@ -13,18 +13,8 @@ export function EditJournalPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { user, loading: authLoading } = useAuth();
-    const [journal, setJournal] = useState<JournalDetail | null>(null);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        if (!id) {
-            return;
-        }
-        getJournal(id)
-            .then(setJournal)
-            .catch(() => setJournal(null))
-            .finally(() => setLoading(false));
-    }, [id]);
+    const { journal, loading } = useJournal(id ?? "");
+    const updateMutation = useUpdateJournal(id ?? "");
 
     useEffect(() => {
         if (!authLoading && !user) {
@@ -55,7 +45,7 @@ export function EditJournalPage() {
                 submitLabel="Save"
                 submittingLabel="Saving..."
                 onSubmit={async data => {
-                    await updateJournal(journal.id, data);
+                    await updateMutation.mutateAsync(data);
                     navigate(`/journals/${journal.id}`);
                 }}
             />

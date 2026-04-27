@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { getRules } from "../../api/endpoints";
+import { useRules } from "../../api/queries/misc";
 import styles from "./RulesBox.module.css";
 
 interface RulesBoxProps {
@@ -7,13 +6,7 @@ interface RulesBoxProps {
 }
 
 export function RulesBox({ page }: RulesBoxProps) {
-    const [rules, setRules] = useState("");
-
-    useEffect(() => {
-        getRules(page)
-            .then(r => setRules(r.rules))
-            .catch(() => {});
-    }, [page]);
+    const { rules } = useRules(page);
 
     if (!rules) {
         return null;

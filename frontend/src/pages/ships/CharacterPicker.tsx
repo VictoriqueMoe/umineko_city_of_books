@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { CharacterListEntry, ShipCharacter } from "../../types/api";
-import { listCharacters } from "../../api/endpoints";
+import { useCharacterList } from "../../api/queries/character";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
 import { Select } from "../../components/Select/Select";
@@ -8,96 +8,22 @@ import styles from "./ShipPages.module.css";
 
 type Series = "umineko" | "higurashi" | "ciconia" | "oc";
 
-const characterCache = new Map<string, CharacterListEntry[]>();
-
-async function getCharactersCached(series: string): Promise<CharacterListEntry[]> {
-    const cached = characterCache.get(series);
-    if (cached) {
-        return cached;
-    }
-    const response = await listCharacters(series);
-    const sorted = [...response.characters].sort((a, b) => a.name.localeCompare(b.name));
-    characterCache.set(series, sorted);
-    return sorted;
-}
-
-interface SeriesState {
-    series: Series;
-    list: CharacterListEntry[];
-    loading: boolean;
-}
-
-function initialState(): SeriesState {
-    const cached = characterCache.get("umineko");
-    if (cached) {
-        return { series: "umineko", list: cached, loading: false };
-    }
-    return { series: "umineko", list: [], loading: true };
-}
-
 interface CharacterPickerProps {
     onAdd: (character: ShipCharacter) => void;
     existing: ShipCharacter[];
 }
 
 export function CharacterPicker({ onAdd, existing }: CharacterPickerProps) {
-    const [state, setState] = useState<SeriesState>(initialState);
+    const [series, setSeries] = useState<Series>("umineko");
     const [selectedCanonId, setSelectedCanonId] = useState("");
     const [ocName, setOcName] = useState("");
 
-    const series = state.series;
-    const canonList = state.list;
-    const loading = state.loading;
-
-    useEffect(() => {
-        if (!state.loading || state.series === "oc") {
-            return;
-        }
-        let cancelled = false;
-        getCharactersCached(state.series)
-            .then(chars => {
-                if (!cancelled) {
-                    setState(prev =>
-                        prev.loading && prev.series === state.series
-                            ? { series: prev.series, list: chars, loading: false }
-                            : prev,
-                    );
-                }
-            })
-            .catch(() => {
-                if (!cancelled) {
-                    setState(prev =>
-                        prev.loading && prev.series === state.series
-                            ? { series: prev.series, list: [], loading: false }
-                            : prev,
-                    );
-                }
-            });
-        return () => {
-            cancelled = true;
-        };
-    }, [state.series, state.loading]);
-
-    function changeSeries(next: Series) {
-        setSelectedCanonId("");
-        if (next === "oc") {
-            setState({ series: "oc", list: [], loading: false });
-            return;
-        }
-        const cached = characterCache.get(next);
-        if (cached) {
-            setState({ series: next, list: cached, loading: false });
-            return;
-        }
-        setState({ series: next, list: [], loading: true });
-        getCharactersCached(next)
-            .then(chars => {
-                setState(prev => (prev.series === next ? { series: next, list: chars, loading: false } : prev));
-            })
-            .catch(() => {
-                setState(prev => (prev.series === next ? { series: next, list: [], loading: false } : prev));
-            });
-    }
+    const { characters, loading } = useCharacterList(series, series !== "oc");
+    const canonList: CharacterListEntry[] = useMemo(() => {
+        const list = [...characters];
+        list.sort((a, b) => a.name.localeCompare(b.name));
+        return list;
+    }, [characters]);
 
     const existingKeys = useMemo(() => {
         const set = new Set<string>();
@@ -106,6 +32,11 @@ export function CharacterPicker({ onAdd, existing }: CharacterPickerProps) {
         }
         return set;
     }, [existing]);
+
+    function changeSeries(next: Series) {
+        setSelectedCanonId("");
+        setSeries(next);
+    }
 
     function handleAdd() {
         if (series === "oc") {

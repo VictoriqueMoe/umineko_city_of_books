@@ -3,12 +3,37 @@ import { Chess, Square } from "chess.js";
 import { Chessboard } from "react-chessboard";
 import type { ChessState, ChessStats, GameRoom, User } from "../../../types/api.ts";
 import { Button } from "../../Button/Button.tsx";
+import { Input } from "../../Input/Input.tsx";
 import { DisconnectBanner } from "../DisconnectBanner.tsx";
 import { GameOverPanel } from "../GameOverPanel.tsx";
 import { GamePlayerBar } from "../GamePlayerBar.tsx";
 import { GameStatsGrid } from "../GameStatsGrid.tsx";
 import { gameResultLabel, getMySlot, performResignWithConfirm, useDisconnectForfeit } from "../gameRoomHelpers.ts";
 import styles from "./ChessBoardView.module.css";
+
+const UCI_RE = /^([a-h][1-8])([a-h][1-8])([qrbn])?$/;
+
+type PromotionPiece = "q" | "r" | "b" | "n";
+
+type ParsedUci = {
+    from: Square;
+    to: Square;
+    promotion?: PromotionPiece;
+};
+
+function parseUci(input: string): ParsedUci | null {
+    const m = input.trim().toLowerCase().match(UCI_RE);
+
+    if (!m) {
+        return null;
+    }
+
+    return {
+        from: m[1] as Square,
+        to: m[2] as Square,
+        promotion: m[3] as PromotionPiece | undefined,
+    };
+}
 
 interface ChessBoardViewProps {
     room: GameRoom;
@@ -69,6 +94,7 @@ export function ChessBoardView({
 }: ChessBoardViewProps) {
     const [error, setError] = useState("");
     const [submitting, setSubmitting] = useState(false);
+    const [coordInput, setCoordInput] = useState("");
     const state = room.state as ChessState;
 
     const viewerId = viewer?.id ?? null;
@@ -78,33 +104,36 @@ export function ChessBoardView({
 
     const { offlinePlayer, forfeitRemaining, liveDurationSeconds } = useDisconnectForfeit(room);
 
+    const stateFen = state?.fen;
+    const statePgn = state?.pgn;
+
     const game = useMemo(() => {
         const g = new Chess();
-        if (state?.fen) {
+        if (stateFen) {
             try {
-                g.load(state.fen);
+                g.load(stateFen);
             } catch {
                 // stale state; fall back to initial
             }
         }
         return g;
-    }, [state?.fen]);
+    }, [stateFen]);
 
     const [hoveredSquare, setHoveredSquare] = useState<string | null>(null);
 
     const lastMove = useMemo(() => {
-        if (!state?.pgn) {
+        if (!statePgn) {
             return null;
         }
         try {
             const replay = new Chess();
-            replay.loadPgn(state.pgn);
+            replay.loadPgn(statePgn);
             const history = replay.history({ verbose: true }) as Array<{ from: string; to: string }>;
             return history.length > 0 ? history[history.length - 1] : null;
         } catch {
             return null;
         }
-    }, [state?.pgn]);
+    }, [statePgn]);
 
     const checkSquare = useMemo(() => {
         if (!game.isCheck()) {
@@ -195,6 +224,53 @@ export function ChessBoardView({
         } catch (err) {
             setError(err instanceof Error ? err.message : "Move failed");
             return false;
+        } finally {
+            setSubmitting(false);
+        }
+    }
+
+    async function handleCoordSubmit() {
+        if (submitting || !isMyTurn) {
+            return;
+        }
+        const parsed = parseUci(coordInput);
+        if (!parsed) {
+            setError("Invalid coordinate. Use e.g. e2e4 or e7e8q.");
+            return;
+        }
+        const legal = game.moves({ square: parsed.from, verbose: true }) as Array<{
+            from: string;
+            to: string;
+            promotion?: string;
+        }>;
+        const candidates = legal.filter(m => m.to === parsed.to);
+        if (candidates.length === 0) {
+            setError(`Illegal move: ${parsed.from}${parsed.to}`);
+            return;
+        }
+        let chosen = candidates[0];
+        if (candidates.some(m => m.promotion)) {
+            if (!parsed.promotion) {
+                setError("Promotion required: append q, r, b, or n.");
+                return;
+            }
+            const match = candidates.find(m => m.promotion === parsed.promotion);
+            if (!match) {
+                setError(`No promotion to ${parsed.promotion} available.`);
+                return;
+            }
+            chosen = match;
+        } else if (parsed.promotion) {
+            setError("That move is not a promotion.");
+            return;
+        }
+        setError("");
+        setSubmitting(true);
+        try {
+            await onMove({ from: chosen.from, to: chosen.to, promotion: chosen.promotion });
+            setCoordInput("");
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Move failed");
         } finally {
             setSubmitting(false);
         }
@@ -344,16 +420,44 @@ export function ChessBoardView({
             )}
 
             {room.status === "active" && !isSpectator && (
-                <div className={styles.controls}>
-                    {!room.draw_offer_from_user_id && (
-                        <Button variant="ghost" onClick={() => handleDrawAction(onOfferDraw)} disabled={submitting}>
-                            Offer draw
+                <>
+                    <form
+                        className={styles.coordForm}
+                        onSubmit={e => {
+                            e.preventDefault();
+                            void handleCoordSubmit();
+                        }}
+                    >
+                        <Input
+                            type="text"
+                            value={coordInput}
+                            onChange={e => setCoordInput(e.target.value)}
+                            placeholder="Type a move (e.g. e2e4, e1g1, e7e8q)"
+                            autoComplete="off"
+                            spellCheck={false}
+                            disabled={!isMyTurn || submitting}
+                            maxLength={5}
+                            fullWidth
+                        />
+                        <Button
+                            type="submit"
+                            variant="primary"
+                            disabled={!isMyTurn || submitting || coordInput.trim() === ""}
+                        >
+                            Play
                         </Button>
-                    )}
-                    <Button variant="danger" onClick={handleResign} disabled={submitting}>
-                        Resign
-                    </Button>
-                </div>
+                    </form>
+                    <div className={styles.controls}>
+                        {!room.draw_offer_from_user_id && (
+                            <Button variant="ghost" onClick={() => handleDrawAction(onOfferDraw)} disabled={submitting}>
+                                Offer draw
+                            </Button>
+                        )}
+                        <Button variant="danger" onClick={handleResign} disabled={submitting}>
+                            Resign
+                        </Button>
+                    </div>
+                </>
             )}
         </div>
     );

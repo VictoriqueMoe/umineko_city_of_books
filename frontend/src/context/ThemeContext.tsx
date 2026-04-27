@@ -2,7 +2,7 @@ import { type PropsWithChildren, useCallback, useEffect, useLayoutEffect, useRef
 import type { FontType, ThemeType } from "../types/app";
 import { useSiteInfo } from "../hooks/useSiteInfo";
 import { useAuth } from "../hooks/useAuth";
-import { updateAppearance } from "../api/endpoints";
+import { useUpdateAppearance } from "../api/mutations/auth";
 import { ThemeContext } from "./themeContextValue";
 
 const STORAGE_KEY = "ut-theme";
@@ -123,77 +123,101 @@ function persistSecrets(secrets: Set<string>) {
 export function ThemeProvider({ children }: PropsWithChildren) {
     const siteInfo = useSiteInfo();
     const { user } = useAuth();
-    const [theme, setThemeState] = useState<ThemeType>(() => {
-        if (hasStoredTheme()) {
-            return getStoredTheme();
-        }
-        if (siteInfo.default_theme && isValidTheme(siteInfo.default_theme)) {
-            return siteInfo.default_theme;
-        }
-        return FALLBACK_THEME;
-    });
-    const [font, setFontState] = useState<FontType>(getStoredFont);
-    const [wideLayout, setWideLayoutState] = useState(getStoredWideLayout);
+    const [overrides, setOverrides] = useState<{
+        userId: string | null;
+        theme: ThemeType | null;
+        font: FontType | null;
+        wideLayout: boolean | null;
+        secrets: Set<string> | null;
+    }>(() => ({
+        userId: null,
+        theme: hasStoredTheme()
+            ? getStoredTheme()
+            : siteInfo.default_theme && isValidTheme(siteInfo.default_theme)
+              ? siteInfo.default_theme
+              : null,
+        font: getStoredFont(),
+        wideLayout: getStoredWideLayout(),
+        secrets: getStoredSecrets(),
+    }));
     const [particlesEnabled, setParticlesEnabledState] = useState(getStoredParticles);
-    const [secrets, setSecretsState] = useState<Set<string>>(getStoredSecrets);
-    const hydratedUserRef = useRef<string | null>(null);
-    const secretsRef = useRef<Set<string>>(secrets);
 
+    const activeUserId = user?.id ?? null;
+    const activeOverrides = overrides.userId === activeUserId ? overrides : null;
+
+    const fallbackTheme: ThemeType =
+        siteInfo.default_theme && isValidTheme(siteInfo.default_theme) ? siteInfo.default_theme : FALLBACK_THEME;
+
+    const userTheme = user?.theme && isValidTheme(user.theme) ? user.theme : null;
+    const userFont = user?.font && isValidFont(user.font) ? user.font : null;
+    const userWideLayout = typeof user?.wide_layout === "boolean" ? user.wide_layout : null;
+    const userSecrets = user && Array.isArray(user.secrets) ? new Set<string>(user.secrets) : null;
+
+    const storedTheme = hasStoredTheme() ? getStoredTheme() : null;
+
+    let theme: ThemeType = activeOverrides?.theme ?? userTheme ?? storedTheme ?? fallbackTheme;
+    const font: FontType = activeOverrides?.font ?? userFont ?? getStoredFont();
+    const wideLayout: boolean = activeOverrides?.wideLayout ?? userWideLayout ?? getStoredWideLayout();
+    const secrets: Set<string> = activeOverrides?.secrets ?? userSecrets ?? getStoredSecrets();
+
+    const requiredSecret = THEME_REQUIRES_SECRET[theme];
+    if (requiredSecret && !secrets.has(requiredSecret)) {
+        theme = fallbackTheme;
+    }
+
+    const secretsRef = useRef<Set<string>>(secrets);
     useEffect(() => {
         secretsRef.current = secrets;
     }, [secrets]);
 
-    const hasSecret = useCallback((id: string) => secrets.has(id), [secrets]);
+    useEffect(() => {
+        try {
+            localStorage.setItem(STORAGE_KEY, theme);
+        } catch {}
+    }, [theme]);
 
     useEffect(() => {
-        if (!user) {
-            hydratedUserRef.current = null;
-            return;
-        }
-        if (hydratedUserRef.current === user.id) {
-            return;
-        }
-        hydratedUserRef.current = user.id;
-        if (user.theme && isValidTheme(user.theme)) {
-            // eslint-disable-next-line react-hooks/set-state-in-effect
-            setThemeState(user.theme);
-            try {
-                localStorage.setItem(STORAGE_KEY, user.theme);
-            } catch {}
-        }
-        if (user.font && isValidFont(user.font)) {
-            setFontState(user.font);
-            try {
-                localStorage.setItem(FONT_KEY, user.font);
-            } catch {}
-        }
-        if (typeof user.wide_layout === "boolean") {
-            setWideLayoutState(user.wide_layout);
-            try {
-                localStorage.setItem(WIDE_LAYOUT_KEY, String(user.wide_layout));
-            } catch {}
-        }
-        if (Array.isArray(user.secrets)) {
-            const next = new Set<string>(user.secrets);
-            secretsRef.current = next;
-            setSecretsState(next);
-            persistSecrets(next);
-            const currentTheme = user.theme && isValidTheme(user.theme) ? user.theme : theme;
-            const requiredSecret = THEME_REQUIRES_SECRET[currentTheme];
-            if (requiredSecret && !next.has(requiredSecret)) {
-                const fallback =
-                    siteInfo.default_theme && isValidTheme(siteInfo.default_theme)
-                        ? siteInfo.default_theme
-                        : FALLBACK_THEME;
-                setThemeState(fallback);
-                try {
-                    localStorage.setItem(STORAGE_KEY, fallback);
-                } catch {
-                    // noop
-                }
-            }
-        }
-    }, [user, theme, siteInfo.default_theme]);
+        try {
+            localStorage.setItem(FONT_KEY, font);
+        } catch {}
+    }, [font]);
+
+    useEffect(() => {
+        try {
+            localStorage.setItem(WIDE_LAYOUT_KEY, String(wideLayout));
+        } catch {}
+    }, [wideLayout]);
+
+    useEffect(() => {
+        persistSecrets(secrets);
+    }, [secrets]);
+
+    const hasSecret = useCallback((id: string) => secrets.has(id), [secrets]);
+
+    const patchOverrides = useCallback(
+        (update: { theme?: ThemeType; font?: FontType; wideLayout?: boolean; secrets?: Set<string> }) => {
+            setOverrides(prev => {
+                const base =
+                    prev.userId === activeUserId
+                        ? prev
+                        : {
+                              userId: activeUserId,
+                              theme: null,
+                              font: null,
+                              wideLayout: null,
+                              secrets: null,
+                          };
+                return {
+                    userId: activeUserId,
+                    theme: update.theme ?? base.theme,
+                    font: update.font ?? base.font,
+                    wideLayout: update.wideLayout ?? base.wideLayout,
+                    secrets: update.secrets ?? base.secrets,
+                };
+            });
+        },
+        [activeUserId],
+    );
 
     useLayoutEffect(() => {
         if (theme === FALLBACK_THEME) {
@@ -219,47 +243,39 @@ export function ThemeProvider({ children }: PropsWithChildren) {
         }
     }, [wideLayout]);
 
+    const updateAppearanceMutation = useUpdateAppearance();
     const persistAppearance = useCallback(
         (nextTheme: ThemeType, nextFont: FontType, nextWide: boolean) => {
             if (!user) {
                 return;
             }
-            updateAppearance(nextTheme, nextFont, nextWide).catch(() => {});
+            updateAppearanceMutation.mutate({ theme: nextTheme, font: nextFont, wideLayout: nextWide });
         },
-        [user],
+        [user, updateAppearanceMutation],
     );
 
     const setTheme = useCallback(
         (newTheme: ThemeType) => {
-            setThemeState(newTheme);
-            try {
-                localStorage.setItem(STORAGE_KEY, newTheme);
-            } catch {}
+            patchOverrides({ theme: newTheme });
             persistAppearance(newTheme, font, wideLayout);
         },
-        [font, wideLayout, persistAppearance],
+        [font, wideLayout, persistAppearance, patchOverrides],
     );
 
     const setFont = useCallback(
         (newFont: FontType) => {
-            setFontState(newFont);
-            try {
-                localStorage.setItem(FONT_KEY, newFont);
-            } catch {}
+            patchOverrides({ font: newFont });
             persistAppearance(theme, newFont, wideLayout);
         },
-        [theme, wideLayout, persistAppearance],
+        [theme, wideLayout, persistAppearance, patchOverrides],
     );
 
     const setWideLayout = useCallback(
         (enabled: boolean) => {
-            setWideLayoutState(enabled);
-            try {
-                localStorage.setItem(WIDE_LAYOUT_KEY, String(enabled));
-            } catch {}
+            patchOverrides({ wideLayout: enabled });
             persistAppearance(theme, font, enabled);
         },
-        [theme, font, persistAppearance],
+        [theme, font, persistAppearance, patchOverrides],
     );
 
     const setParticlesEnabled = useCallback((enabled: boolean) => {
@@ -269,16 +285,18 @@ export function ThemeProvider({ children }: PropsWithChildren) {
         } catch {}
     }, []);
 
-    const addSecret = useCallback((id: string) => {
-        if (secretsRef.current.has(id)) {
-            return;
-        }
-        const next = new Set(secretsRef.current);
-        next.add(id);
-        secretsRef.current = next;
-        setSecretsState(next);
-        persistSecrets(next);
-    }, []);
+    const addSecret = useCallback(
+        (id: string) => {
+            if (secretsRef.current.has(id)) {
+                return;
+            }
+            const next = new Set(secretsRef.current);
+            next.add(id);
+            secretsRef.current = next;
+            patchOverrides({ secrets: next });
+        },
+        [patchOverrides],
+    );
 
     return (
         <ThemeContext.Provider

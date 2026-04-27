@@ -1,8 +1,13 @@
 import { type PropsWithChildren, useCallback, useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import type { Notification, UserProfile, WSMessage } from "../types/api";
 import { NotificationContext, type WSMessageHandler } from "./notificationContextValue";
 import { useAuth } from "../hooks/useAuth";
-import * as api from "../api/endpoints";
+import { useUnreadCount } from "../api/queries/notification";
+import { useChatUnreadCount } from "../api/queries/chat";
+import { useLiveGameRooms } from "../api/queries/gameRoom";
+import { useMarkAllNotificationsRead, useMarkNotificationRead } from "../api/mutations/notification";
+import { queryKeys } from "../api/queryKeys";
 import { showDesktopNotification } from "../utils/notifications";
 import { playNotificationSound } from "../utils/sound";
 
@@ -12,12 +17,19 @@ const STALE_THRESHOLD_MS = 45_000;
 
 export function NotificationProvider({ children }: PropsWithChildren) {
     const { user, setUser } = useAuth();
-    const [notifications, setNotifications] = useState<Notification[]>([]);
-    const [unreadCount, setUnreadCount] = useState(0);
-    const [chatUnreadCount, setChatUnreadCount] = useState(0);
-    const [liveGamesCount, setLiveGamesCount] = useState(0);
-    const [loading, setLoading] = useState(false);
+    const qc = useQueryClient();
     const [wsEpoch, setWsEpoch] = useState(0);
+
+    const unreadCountQuery = useUnreadCount();
+    const chatUnreadCountQuery = useChatUnreadCount();
+    const liveGamesQuery = useLiveGameRooms();
+    const unreadCount = user ? unreadCountQuery.count : 0;
+    const chatUnreadCount = user ? chatUnreadCountQuery.count : 0;
+    const liveGamesCount = liveGamesQuery.total ?? 0;
+
+    const markReadMutation = useMarkNotificationRead();
+    const markAllReadMutation = useMarkAllNotificationsRead();
+
     const wsRef = useRef<WebSocket | null>(null);
     const backoffRef = useRef(1000);
     const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -25,7 +37,9 @@ export function NotificationProvider({ children }: PropsWithChildren) {
     const lastMessageAtRef = useRef(0);
     const wsListenersRef = useRef<Set<WSMessageHandler>>(new Set());
     const userRef = useRef(user);
-    userRef.current = user;
+    useEffect(() => {
+        userRef.current = user;
+    }, [user]);
 
     const clearReconnectTimer = useCallback(() => {
         if (reconnectTimerRef.current !== null) {
@@ -49,6 +63,31 @@ export function NotificationProvider({ children }: PropsWithChildren) {
             wsRef.current = null;
         }
     }, [clearReconnectTimer, clearKeepaliveTimer]);
+
+    const connectWsRef = useRef<() => void>(() => {});
+
+    const bumpUnread = useCallback(() => {
+        qc.setQueryData<{ count: number }>(queryKeys.notifications.unreadCount(), prev => ({
+            count: (prev?.count ?? 0) + 1,
+        }));
+    }, [qc]);
+
+    const setChatUnreadCount = useCallback(
+        (total: number) => {
+            qc.setQueryData<{ count: number }>(["chat", "unread-count"], { count: total });
+        },
+        [qc],
+    );
+
+    const setLiveGamesCount = useCallback(
+        (count: number) => {
+            qc.setQueryData<{ rooms: unknown[]; total: number }>(["game-rooms", "live", ""], prev => ({
+                rooms: prev?.rooms ?? [],
+                total: count,
+            }));
+        },
+        [qc],
+    );
 
     const connectWs = useCallback(() => {
         closeSocket();
@@ -88,8 +127,7 @@ export function NotificationProvider({ children }: PropsWithChildren) {
                 }
                 if (msg.type === "notification") {
                     const notif = msg.data as Notification;
-                    setNotifications(prev => [notif, ...prev]);
-                    setUnreadCount(prev => prev + 1);
+                    bumpUnread();
                     showDesktopNotification(notif);
                     if (userRef.current?.play_notification_sound ?? true) {
                         playNotificationSound();
@@ -137,7 +175,7 @@ export function NotificationProvider({ children }: PropsWithChildren) {
                     handler(msg);
                 }
             } catch {
-                // ignore
+                return;
             }
         };
 
@@ -147,14 +185,18 @@ export function NotificationProvider({ children }: PropsWithChildren) {
             const delay = Math.min(backoffRef.current, MAX_BACKOFF);
             backoffRef.current = delay * 2;
             reconnectTimerRef.current = setTimeout(() => {
-                connectWs();
+                connectWsRef.current();
             }, delay);
         };
 
         socket.onerror = () => {
             socket.close();
         };
-    }, [closeSocket, clearKeepaliveTimer, setUser]);
+    }, [closeSocket, clearKeepaliveTimer, setUser, bumpUnread, setChatUnreadCount, setLiveGamesCount]);
+
+    useEffect(() => {
+        connectWsRef.current = connectWs;
+    }, [connectWs]);
 
     useEffect(() => {
         function onVisible() {
@@ -179,85 +221,30 @@ export function NotificationProvider({ children }: PropsWithChildren) {
         };
     }, []);
 
+    const userId = user?.id;
     useEffect(() => {
-        api.listLiveGameRooms()
-            .then(res => {
-                setLiveGamesCount(res.total ?? 0);
-            })
-            .catch(() => {
-                // ignore
-            });
-    }, [user]);
-
-    useEffect(() => {
-        if (!user) {
+        if (!userId) {
             closeSocket();
-            setNotifications([]);
-            setUnreadCount(0);
-            setChatUnreadCount(0);
             return;
         }
-
-        api.getUnreadCount()
-            .then(res => {
-                setUnreadCount(res.count);
-            })
-            .catch(() => {
-                // ignore
-            });
-
-        api.getChatUnreadCount()
-            .then(res => {
-                setChatUnreadCount(res.count);
-            })
-            .catch(() => {
-                // ignore
-            });
-
         connectWs();
-
         return () => {
             closeSocket();
         };
-    }, [user, connectWs, closeSocket]);
+    }, [userId, closeSocket, connectWs]);
 
-    // Page titles are now handled by usePageTitle hook per page
-
-    const markRead = useCallback(async (id: number) => {
-        await api.markNotificationRead(id);
-        setNotifications(prev =>
-            prev.map(n => {
-                if (n.id === id) {
-                    return { ...n, read: true };
-                }
-                return n;
-            }),
-        );
-        setUnreadCount(prev => Math.max(0, prev - 1));
-        api.getUnreadCount()
-            .then(res => setUnreadCount(res.count))
-            .catch(() => {});
-    }, []);
+    const markRead = useCallback(
+        async (id: number) => {
+            await markReadMutation.mutateAsync(id);
+            await unreadCountQuery.refresh();
+        },
+        [markReadMutation, unreadCountQuery],
+    );
 
     const markAllRead = useCallback(async () => {
-        await api.markAllNotificationsRead();
-        setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-        setUnreadCount(0);
-    }, []);
-
-    const refreshNotifications = useCallback(async () => {
-        setLoading(true);
-        try {
-            const res = await api.getNotifications({ limit: 20 });
-            setNotifications(res.notifications);
-            const unread = res.notifications.filter(n => !n.read).length;
-            setUnreadCount(unread);
-        } catch {
-            // ignore
-        } finally {
-            setLoading(false);
-        }
-    }, []);
+        await markAllReadMutation.mutateAsync();
+        qc.setQueryData<{ count: number }>(queryKeys.notifications.unreadCount(), { count: 0 });
+    }, [markAllReadMutation, qc]);
 
     const addWSListener = useCallback((handler: WSMessageHandler) => {
         wsListenersRef.current.add(handler);
@@ -275,14 +262,11 @@ export function NotificationProvider({ children }: PropsWithChildren) {
     return (
         <NotificationContext.Provider
             value={{
-                notifications,
                 unreadCount,
                 chatUnreadCount,
                 liveGamesCount,
-                loading,
                 markRead,
                 markAllRead,
-                refreshNotifications,
                 addWSListener,
                 sendWSMessage,
                 wsEpoch,

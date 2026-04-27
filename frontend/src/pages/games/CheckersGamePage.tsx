@@ -2,8 +2,13 @@ import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useAuth } from "../../hooks/useAuth";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import { useGameRoom } from "../../hooks/useGameRoom";
-import * as api from "../../api/endpoints";
+import { useGameRoom } from "../../api/queries/gameRoom";
+import {
+    useAcceptGameInvite,
+    useDeclineGameInvite,
+    useResignGame,
+    useSubmitGameAction,
+} from "../../api/mutations/gameRoom";
 import { CheckersBoardView } from "../../components/games/checkers/CheckersBoardView";
 import { SpectatorChat } from "../../components/games/chess/SpectatorChat";
 import { PlayerChat } from "../../components/games/chess/PlayerChat";
@@ -16,6 +21,10 @@ export function CheckersGamePage() {
     const navigate = useNavigate();
     const { room, loading, error, refetch } = useGameRoom(id);
     const [acceptError, setAcceptError] = useState("");
+    const acceptInvite = useAcceptGameInvite();
+    const declineInvite = useDeclineGameInvite();
+    const submitAction = useSubmitGameAction(room?.id ?? "");
+    const resign = useResignGame();
 
     usePageTitle(room ? `Checkers - ${room.players.map(p => p.display_name).join(" vs ")}` : "Checkers");
 
@@ -75,7 +84,7 @@ export function CheckersGamePage() {
                                 onClick={async () => {
                                     setAcceptError("");
                                     try {
-                                        await api.acceptGameInvite(room.id);
+                                        await acceptInvite.mutateAsync(room.id);
                                         await refetch();
                                     } catch (err) {
                                         setAcceptError(err instanceof Error ? err.message : "Failed to accept invite");
@@ -87,7 +96,7 @@ export function CheckersGamePage() {
                             <Button
                                 variant="ghost"
                                 onClick={async () => {
-                                    await api.declineGameInvite(room.id);
+                                    await declineInvite.mutateAsync(room.id);
                                     navigate("/games");
                                 }}
                             >
@@ -105,14 +114,14 @@ export function CheckersGamePage() {
     }
 
     async function handleMove(move: { from: string; path: string[] }) {
-        await api.submitGameAction(room!.id, {
+        await submitAction.mutateAsync({
             from: move.from,
             path: move.path,
         });
     }
 
     async function handleResign() {
-        await api.resignGame(room!.id);
+        await resign.mutateAsync(room!.id);
     }
 
     return (

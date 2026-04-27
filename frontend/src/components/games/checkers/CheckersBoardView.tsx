@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { CheckersState, CheckersStats, GameRoom, User } from "../../../types/api.ts";
 import { Button } from "../../Button/Button.tsx";
 import { DisconnectBanner } from "../DisconnectBanner.tsx";
@@ -235,12 +235,13 @@ export function CheckersBoardView({ room, viewer, isSpectator, onMove, onResign 
     const [jumpOriginPiece, setJumpOriginPiece] = useState<CellChar | null>(null);
 
     const state = room.state as Partial<CheckersState> | undefined;
+    const stateBoard = state?.board;
     const persistedGrid = useMemo(() => {
-        if (state?.board && state.board.length === 64) {
-            return parseBoard(state.board);
+        if (stateBoard && stateBoard.length === 64) {
+            return parseBoard(stateBoard);
         }
         return initialBoard();
-    }, [state?.board]);
+    }, [stateBoard]);
 
     const viewerId = viewer?.id ?? null;
     const mySlot = getMySlot(room, viewerId);
@@ -249,12 +250,15 @@ export function CheckersBoardView({ room, viewer, isSpectator, onMove, onResign 
 
     const { offlinePlayer, forfeitRemaining, liveDurationSeconds } = useDisconnectForfeit(room);
 
-    useEffect(() => {
+    const [resetKey, setResetKey] = useState<string>("");
+    const desiredResetKey = `${room.id}|${room.turn_user_id ?? ""}|${room.status}|${stateBoard ?? ""}`;
+    if (resetKey !== desiredResetKey) {
+        setResetKey(desiredResetKey);
         setSelected(null);
         setJumpPath([]);
         setJumpOriginPiece(null);
         setError("");
-    }, [room.id, room.turn_user_id, room.status, state?.board]);
+    }
 
     const inProgressJump = jumpPath.length > 0 && selected !== null;
     const displayGrid = useMemo(() => {

@@ -1,18 +1,19 @@
-import { useCallback, useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import type { JournalDetail, PostComment } from "../../types/api";
+import { useJournal } from "../../api/queries/journal";
+import { queryKeys } from "../../api/queryKeys";
 import {
-    createJournalComment,
-    deleteJournal,
-    deleteJournalComment,
-    followJournal,
-    getJournal,
-    likeJournalComment,
-    unfollowJournal,
-    unlikeJournalComment,
-    updateJournalComment,
-    uploadJournalCommentMedia,
-} from "../../api/endpoints";
+    useCreateJournalComment,
+    useDeleteJournal,
+    useDeleteJournalComment,
+    useFollowJournal,
+    useLikeJournalComment,
+    useUnfollowJournal,
+    useUnlikeJournalComment,
+    useUpdateJournalComment,
+    useUploadJournalCommentMedia,
+} from "../../api/mutations/journal";
 import { useAuth } from "../../hooks/useAuth";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useScrollToHash } from "../../hooks/useScrollToHash";
@@ -32,30 +33,23 @@ export function JournalPage() {
     const navigate = useNavigate();
     const location = useLocation();
     const { user } = useAuth();
-    const [journal, setJournal] = useState<JournalDetail | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [following, setFollowing] = useState(false);
+    const qc = useQueryClient();
+    const { journal, loading, refresh } = useJournal(id ?? "");
+    const following = journal?.is_following ?? false;
     usePageTitle(journal?.title ?? "Journal");
 
     const hash = location.hash;
     const highlightedComment = hash.startsWith("#comment-") ? hash.replace("#comment-", "") : null;
 
-    const fetchJournal = useCallback(() => {
-        if (!id) {
-            return;
-        }
-        getJournal(id)
-            .then(j => {
-                setJournal(j);
-                setFollowing(j.is_following);
-            })
-            .catch(() => setJournal(null))
-            .finally(() => setLoading(false));
-    }, [id]);
-
-    useEffect(() => {
-        fetchJournal();
-    }, [fetchJournal]);
+    const followMutation = useFollowJournal();
+    const unfollowMutation = useUnfollowJournal();
+    const deleteJournalMutation = useDeleteJournal();
+    const createCommentMutation = useCreateJournalComment(id ?? "");
+    const updateCommentMutation = useUpdateJournalComment(id ?? "");
+    const deleteCommentMutation = useDeleteJournalComment(id ?? "");
+    const likeCommentMutation = useLikeJournalComment(id ?? "");
+    const unlikeCommentMutation = useUnlikeJournalComment(id ?? "");
+    const uploadMediaMutation = useUploadJournalCommentMedia(id ?? "");
 
     useScrollToHash(!loading && !!journal, highlightedComment ? `comment-${highlightedComment}` : null);
 
@@ -64,15 +58,16 @@ export function JournalPage() {
             return;
         }
         const wasFollowing = following;
-        setFollowing(!wasFollowing);
+        const journalKey = queryKeys.journal.detail(id);
+        qc.setQueryData<JournalDetail>(journalKey, prev => (prev ? { ...prev, is_following: !wasFollowing } : prev));
         try {
             if (wasFollowing) {
-                await unfollowJournal(id);
+                await unfollowMutation.mutateAsync(id);
             } else {
-                await followJournal(id);
+                await followMutation.mutateAsync(id);
             }
         } catch {
-            setFollowing(wasFollowing);
+            qc.setQueryData<JournalDetail>(journalKey, prev => (prev ? { ...prev, is_following: wasFollowing } : prev));
         }
     }
 
@@ -81,7 +76,7 @@ export function JournalPage() {
             return;
         }
         try {
-            await deleteJournal(id);
+            await deleteJournalMutation.mutateAsync(id);
             navigate("/journals");
         } catch {}
     }
@@ -99,6 +94,15 @@ export function JournalPage() {
     const canDelete = isOwner || can(user?.role, "delete_any_journal");
     const comments = journal.comments ?? [];
     const canComment = user && !journal.is_archived;
+
+    const likeFn = (commentId: string) => likeCommentMutation.mutateAsync(commentId);
+    const unlikeFn = (commentId: string) => unlikeCommentMutation.mutateAsync(commentId);
+    const deleteFn = (commentId: string) => deleteCommentMutation.mutateAsync(commentId);
+    const updateFn = (commentId: string, body: string) =>
+        updateCommentMutation.mutateAsync({ id: commentId, body }).then(() => undefined);
+    const createCommentFn = (_postId: string, body: string, parentId?: string) =>
+        createCommentMutation.mutateAsync({ body, parentId });
+    const uploadMediaFn = (commentId: string, file: File) => uploadMediaMutation.mutateAsync({ commentId, file });
 
     return (
         <div className={styles.page}>
@@ -160,16 +164,16 @@ export function JournalPage() {
                         key={c.id}
                         comment={c as unknown as PostComment}
                         postId={journal.id}
-                        onDelete={fetchJournal}
+                        onDelete={() => refresh()}
                         highlightedId={highlightedComment ?? undefined}
                         linkPrefix="/journals"
                         reportType="journal_comment"
-                        likeFn={likeJournalComment}
-                        unlikeFn={unlikeJournalComment}
-                        deleteFn={deleteJournalComment}
-                        updateFn={updateJournalComment}
-                        createCommentFn={createJournalComment}
-                        uploadMediaFn={uploadJournalCommentMedia}
+                        likeFn={likeFn}
+                        unlikeFn={unlikeFn}
+                        deleteFn={deleteFn}
+                        updateFn={updateFn}
+                        createCommentFn={createCommentFn}
+                        uploadMediaFn={uploadMediaFn}
                     />
                 ))}
                 {comments.length === 0 && !journal.is_archived && (
@@ -178,9 +182,9 @@ export function JournalPage() {
                 {canComment && (
                     <CommentComposer
                         postId={journal.id}
-                        onCreated={fetchJournal}
-                        createCommentFn={createJournalComment}
-                        uploadMediaFn={uploadJournalCommentMedia}
+                        onCreated={() => refresh()}
+                        createCommentFn={createCommentFn}
+                        uploadMediaFn={uploadMediaFn}
                     />
                 )}
             </div>

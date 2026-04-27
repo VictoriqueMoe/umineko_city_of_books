@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
-import { getAdminSettings, updateAdminSettings } from "../../api/endpoints";
+import { useState } from "react";
+import { useAdminSettings } from "../../api/queries/admin";
+import { useUpdateAdminSettings } from "../../api/mutations/admin";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { Button } from "../../components/Button/Button";
 import { TextArea } from "../../components/TextArea/TextArea";
@@ -31,36 +32,30 @@ const pages = [
 
 export function AdminContentRules() {
     usePageTitle("Admin - Content Rules");
-    const [settings, setSettings] = useState<SiteSettings>({});
-    const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
+    const { settings: loadedSettings, loading } = useAdminSettings();
+    const updateSettingsMutation = useUpdateAdminSettings();
+    const [draft, setDraft] = useState<SiteSettings>({});
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
 
-    useEffect(() => {
-        getAdminSettings()
-            .then(setSettings)
-            .catch(e => setError(e.message))
-            .finally(() => setLoading(false));
-    }, []);
+    const settings: SiteSettings = { ...(loadedSettings ?? {}), ...draft };
 
     async function handleSave() {
-        setSaving(true);
         setError("");
         setSuccess("");
         try {
-            await updateAdminSettings(settings);
+            await updateSettingsMutation.mutateAsync(settings);
             setSuccess("Rules saved successfully");
         } catch (e) {
             setError(e instanceof Error ? e.message : "Failed to save rules");
-        } finally {
-            setSaving(false);
         }
     }
 
     if (loading) {
         return <div className={styles.loading}>Loading rules...</div>;
     }
+
+    const saving = updateSettingsMutation.isPending;
 
     return (
         <div className={styles.page}>
@@ -77,7 +72,7 @@ export function AdminContentRules() {
                             <TextArea
                                 value={settings[page.key] ?? ""}
                                 onChange={e => {
-                                    setSettings(prev => ({ ...prev, [page.key]: e.target.value }));
+                                    setDraft(prev => ({ ...prev, [page.key]: e.target.value }));
                                     setSuccess("");
                                 }}
                                 rows={5}

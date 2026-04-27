@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
+import { useGlobalBannedWords } from "../../api/queries/admin";
 import {
-    createGlobalBannedWord,
-    deleteGlobalBannedWord,
-    listGlobalBannedWords,
-    updateGlobalBannedWord,
-} from "../../api/endpoints";
+    useCreateGlobalBannedWord,
+    useDeleteGlobalBannedWord,
+    useUpdateGlobalBannedWord,
+} from "../../api/mutations/admin";
 import type { BannedWordAction, BannedWordMatchMode, BannedWordRule } from "../../types/api";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { Button } from "../../components/Button/Button";
@@ -30,16 +30,19 @@ function validateRegex(pattern: string, mode: BannedWordMatchMode): string {
 
 export function AdminBannedWords() {
     usePageTitle("Admin - Banned Words");
-    const [rules, setRules] = useState<BannedWordRule[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { rules, loading } = useGlobalBannedWords();
+    const createMutation = useCreateGlobalBannedWord();
+    const updateMutation = useUpdateGlobalBannedWord();
+    const deleteMutation = useDeleteGlobalBannedWord();
     const [error, setError] = useState("");
     const [pattern, setPattern] = useState("");
     const [mode, setMode] = useState<BannedWordMatchMode>("substring");
     const [caseSensitive, setCaseSensitive] = useState(false);
     const [action, setAction] = useState<BannedWordAction>("delete");
-    const [saving, setSaving] = useState(false);
     const [removing, setRemoving] = useState<string | null>(null);
     const [editingId, setEditingId] = useState<string | null>(null);
+
+    const saving = createMutation.isPending || updateMutation.isPending;
 
     function resetForm() {
         setPattern("");
@@ -58,22 +61,6 @@ export function AdminBannedWords() {
         setError("");
     }
 
-    const fetchRules = useCallback(async () => {
-        setLoading(true);
-        try {
-            const result = await listGlobalBannedWords();
-            setRules(result.rules ?? []);
-        } catch (e) {
-            setError(e instanceof Error ? e.message : "Failed to load rules");
-        } finally {
-            setLoading(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        fetchRules();
-    }, [fetchRules]);
-
     const regexError = validateRegex(pattern, mode);
 
     async function handleSave() {
@@ -84,7 +71,6 @@ export function AdminBannedWords() {
             setError(regexError);
             return;
         }
-        setSaving(true);
         setError("");
         try {
             const payload = {
@@ -94,16 +80,13 @@ export function AdminBannedWords() {
                 action,
             };
             if (editingId) {
-                await updateGlobalBannedWord(editingId, payload);
+                await updateMutation.mutateAsync({ ruleId: editingId, req: payload });
             } else {
-                await createGlobalBannedWord(payload);
+                await createMutation.mutateAsync(payload);
             }
             resetForm();
-            await fetchRules();
         } catch (e) {
             setError(e instanceof Error ? e.message : "Failed to save rule");
-        } finally {
-            setSaving(false);
         }
     }
 
@@ -113,8 +96,7 @@ export function AdminBannedWords() {
         }
         setRemoving(rule.id);
         try {
-            await deleteGlobalBannedWord(rule.id);
-            await fetchRules();
+            await deleteMutation.mutateAsync(rule.id);
         } catch (e) {
             setError(e instanceof Error ? e.message : "Failed to remove rule");
         } finally {

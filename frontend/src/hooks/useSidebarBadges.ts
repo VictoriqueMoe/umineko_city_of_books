@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
-import { getSidebarActivity, getSidebarLastVisited, markSidebarVisited } from "../api/endpoints";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSidebarActivity, useSidebarLastVisited } from "../api/queries/sidebar";
+import { useMarkSidebarVisited } from "../api/mutations/sidebar";
 import type { WSMessage } from "../types/api";
 import { parseServerDate } from "../utils/time";
 import { useAuth } from "./useAuth";
@@ -31,68 +32,62 @@ function clearLegacyVisited(userId: string): void {
     try {
         window.localStorage.removeItem(legacyStorageKey(userId));
     } catch {
-        /* quota or disabled storage, silently ignore */
-    }
-}
-
-async function migrateLegacyVisited(userId: string): Promise<void> {
-    const legacy = readLegacyVisited(userId);
-    if (!legacy) {
         return;
     }
-    const keys = Object.keys(legacy);
-    if (keys.length === 0) {
-        clearLegacyVisited(userId);
-        return;
-    }
-    const results = await Promise.allSettled(keys.map(key => markSidebarVisited(key)));
-    for (let i = 0; i < results.length; i++) {
-        if (results[i].status === "rejected") {
-            return;
-        }
-    }
-    clearLegacyVisited(userId);
 }
 
 export function useSidebarBadges() {
     const { user } = useAuth();
-    const { addWSListener, wsEpoch } = useNotifications();
+    const { addWSListener } = useNotifications();
     const userId = user?.id ?? null;
-    const [latestActivity, setLatestActivity] = useState<Record<string, string>>({});
-    const [lastVisited, setLastVisited] = useState<Record<string, string>>({});
+
+    const { data: activityResp } = useSidebarActivity();
+    const { data: visitedResp, refresh: refreshVisited } = useSidebarLastVisited();
+    const markVisitedMutation = useMarkSidebarVisited();
+
+    const [activityOverlay, setActivityOverlay] = useState<Record<string, string>>({});
+
+    const latestActivity = useMemo<Record<string, string>>(
+        () => ({
+            ...(activityResp?.activity ?? {}),
+            ...activityOverlay,
+        }),
+        [activityResp, activityOverlay],
+    );
+    const lastVisited = useMemo<Record<string, string>>(() => visitedResp?.visited ?? {}, [visitedResp]);
 
     useEffect(() => {
         if (!userId) {
             return;
         }
+        const legacy = readLegacyVisited(userId);
+        if (!legacy) {
+            return;
+        }
+        const keys = Object.keys(legacy);
+        if (keys.length === 0) {
+            clearLegacyVisited(userId);
+            return;
+        }
         let cancelled = false;
-
         const run = async () => {
-            try {
-                await migrateLegacyVisited(userId);
-            } catch {
-                /* silent; next mount retries */
-            }
+            const results = await Promise.allSettled(keys.map(key => markVisitedMutation.mutateAsync(key)));
             if (cancelled) {
                 return;
             }
-            try {
-                const [activityResp, visitedResp] = await Promise.all([getSidebarActivity(), getSidebarLastVisited()]);
-                if (cancelled) {
+            for (const r of results) {
+                if (r.status === "rejected") {
                     return;
                 }
-                setLatestActivity(activityResp.activity ?? {});
-                setLastVisited(visitedResp.visited ?? {});
-            } catch {
-                /* silent */
             }
+            clearLegacyVisited(userId);
+            void refreshVisited();
         };
-
         void run();
         return () => {
             cancelled = true;
         };
-    }, [userId, wsEpoch]);
+    }, [userId, markVisitedMutation, refreshVisited]);
 
     useEffect(() => {
         if (!userId) {
@@ -108,15 +103,15 @@ export function useSidebarBadges() {
             }
             const key = data.key;
             const at = data.at;
-            setLatestActivity(prev => {
-                const existing = prev[key];
+            setActivityOverlay(prev => {
+                const existing = prev[key] ?? activityResp?.activity?.[key];
                 if (existing && existing >= at) {
                     return prev;
                 }
                 return { ...prev, [key]: at };
             });
         });
-    }, [userId, addWSListener]);
+    }, [userId, addWSListener, activityResp]);
 
     const hasUnread = useCallback(
         (key: string): boolean => {
@@ -146,8 +141,8 @@ export function useSidebarBadges() {
 
     const hasAnyUnread = useCallback(
         (keys: string[]): boolean => {
-            for (let i = 0; i < keys.length; i++) {
-                if (hasUnread(keys[i])) {
+            for (const key of keys) {
+                if (hasUnread(key)) {
                     return true;
                 }
             }
@@ -161,13 +156,12 @@ export function useSidebarBadges() {
             if (!userId) {
                 return;
             }
-            const now = new Date().toISOString();
-            setLastVisited(prev => ({ ...prev, [key]: now }));
-            markSidebarVisited(key).catch(() => {
-                /* silent; next poll reconciles */
-            });
+            if (!hasUnread(key)) {
+                return;
+            }
+            markVisitedMutation.mutate(key);
         },
-        [userId],
+        [userId, hasUnread, markVisitedMutation],
     );
 
     return { hasUnread, hasAnyUnread, markVisited };

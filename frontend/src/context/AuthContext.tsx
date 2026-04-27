@@ -1,24 +1,33 @@
-import { type PropsWithChildren, useCallback, useEffect, useState } from "react";
+import { type PropsWithChildren, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import type { UserProfile } from "../types/api";
 import { AuthContext } from "./authContextValue";
-import * as api from "../api/endpoints";
+import { useMe } from "../api/queries/auth";
+import { useLogin, useLogout, useRegister } from "../api/mutations/auth";
 
 export function AuthProvider({ children }: PropsWithChildren) {
-    const [user, setUser] = useState<UserProfile | null>(null);
-    const [loading, setLoading] = useState(true);
+    const qc = useQueryClient();
+    const { me, loading: meLoading, refresh } = useMe();
+    const user = me;
 
-    useEffect(() => {
-        api.getMe()
-            .then(setUser)
-            .catch(() => setUser(null))
-            .finally(() => setLoading(false));
-    }, []);
+    const setUser = useCallback(
+        (next: UserProfile | null) => {
+            qc.setQueryData<UserProfile | null>(["auth", "me"], next);
+        },
+        [qc],
+    );
 
-    const loginUser = useCallback(async (username: string, password: string, turnstileToken?: string) => {
-        await api.login(username, password, turnstileToken);
-        const me = await api.getMe();
-        setUser(me);
-    }, []);
+    const loginMutation = useLogin();
+    const registerMutation = useRegister();
+    const logoutMutation = useLogout();
+
+    const loginUser = useCallback(
+        async (username: string, password: string, turnstileToken?: string) => {
+            await loginMutation.mutateAsync({ username, password, turnstileToken });
+            await refresh();
+        },
+        [loginMutation, refresh],
+    );
 
     const registerUser = useCallback(
         async (
@@ -28,20 +37,19 @@ export function AuthProvider({ children }: PropsWithChildren) {
             inviteCode?: string,
             turnstileToken?: string,
         ) => {
-            await api.register(username, password, displayName, inviteCode, turnstileToken);
-            const me = await api.getMe();
-            setUser(me);
+            await registerMutation.mutateAsync({ username, password, displayName, inviteCode, turnstileToken });
+            await refresh();
         },
-        [],
+        [registerMutation, refresh],
     );
 
     const logoutUser = useCallback(async () => {
-        await api.logout();
+        await logoutMutation.mutateAsync();
         setUser(null);
-    }, []);
+    }, [logoutMutation, setUser]);
 
     return (
-        <AuthContext.Provider value={{ user, loading, setUser, loginUser, registerUser, logoutUser }}>
+        <AuthContext.Provider value={{ user, loading: meLoading, setUser, loginUser, registerUser, logoutUser }}>
             {children}
         </AuthContext.Provider>
     );

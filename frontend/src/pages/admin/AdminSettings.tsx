@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
-import { getAdminSettings, updateAdminSettings } from "../../api/endpoints";
+import { useState } from "react";
+import { useAdminSettings } from "../../api/queries/admin";
+import { useUpdateAdminSettings } from "../../api/mutations/admin";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
@@ -12,21 +13,17 @@ const BYTES_PER_MB = 1024 * 1024;
 
 export function AdminSettings() {
     usePageTitle("Admin - Settings");
-    const [settings, setSettings] = useState<SiteSettings>({});
-    const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
+    const { settings: loadedSettings, loading } = useAdminSettings();
+    const updateSettingsMutation = useUpdateAdminSettings();
+    const [draft, setDraft] = useState<SiteSettings>({});
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
 
-    useEffect(() => {
-        getAdminSettings()
-            .then(setSettings)
-            .catch(e => setError(e.message))
-            .finally(() => setLoading(false));
-    }, []);
+    const saving = updateSettingsMutation.isPending;
+    const settings: SiteSettings = { ...(loadedSettings ?? {}), ...draft };
 
     function updateField(key: string, value: string) {
-        setSettings(prev => ({ ...prev, [key]: value }));
+        setDraft(prev => ({ ...prev, [key]: value }));
         setSuccess("");
     }
 
@@ -102,16 +99,13 @@ export function AdminSettings() {
             return;
         }
 
-        setSaving(true);
         setError("");
         setSuccess("");
         try {
-            await updateAdminSettings(settings);
+            await updateSettingsMutation.mutateAsync(settings);
             setSuccess("Settings saved successfully");
         } catch (e) {
             setError(e instanceof Error ? e.message : "Failed to save settings");
-        } finally {
-            setSaving(false);
         }
     }
 

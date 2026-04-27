@@ -1,12 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useAuth } from "../../hooks/useAuth";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import type { Series } from "../../api/endpoints";
-import { getTheory, updateTheory } from "../../api/endpoints";
+import { useTheory } from "../../api/queries/theory";
+import { useUpdateTheory } from "../../api/mutations/theory";
 import { Button } from "../../components/Button/Button";
 import { TheoryForm } from "../../components/theory/TheoryForm/TheoryForm";
-import type { EvidenceItem } from "../../types/api";
 import formStyles from "../../components/theory/TheoryForm/TheoryForm.module.css";
 
 export function EditTheoryPage() {
@@ -15,34 +15,14 @@ export function EditTheoryPage() {
     const navigate = useNavigate();
     const { user, loading: authLoading } = useAuth();
     const theoryId = id ?? "";
-    const [initialData, setInitialData] = useState<{
-        title: string;
-        body: string;
-        episode: number;
-        series: string;
-        evidence: EvidenceItem[];
-    } | null>(null);
-    const [loading, setLoading] = useState(true);
+    const { theory, loading: theoryLoading } = useTheory(theoryId);
+    const updateMutation = useUpdateTheory(theoryId);
 
     useEffect(() => {
-        if (!theoryId) {
-            return;
+        if (!theoryLoading && !theory && theoryId) {
+            navigate("/");
         }
-        getTheory(theoryId)
-            .then(theory => {
-                setInitialData({
-                    title: theory.title,
-                    body: theory.body,
-                    episode: theory.episode,
-                    series: theory.series || "umineko",
-                    evidence: theory.evidence ?? [],
-                });
-                setLoading(false);
-            })
-            .catch(() => {
-                navigate("/");
-            });
-    }, [theoryId, navigate]);
+    }, [theoryLoading, theory, theoryId, navigate]);
 
     useEffect(() => {
         if (!authLoading && !user) {
@@ -54,9 +34,11 @@ export function EditTheoryPage() {
         return null;
     }
 
-    if (loading || !initialData) {
+    if (theoryLoading || !theory) {
         return <div className="loading">Loading theory...</div>;
     }
+
+    const series = (theory.series || "umineko") as Series;
 
     return (
         <div className={formStyles.page}>
@@ -66,15 +48,16 @@ export function EditTheoryPage() {
             <h2 className={formStyles.heading}>Edit Theory</h2>
 
             <TheoryForm
-                initialTitle={initialData.title}
-                initialBody={initialData.body}
-                initialEpisode={initialData.episode}
-                initialEvidence={initialData.evidence}
+                key={theory.id}
+                initialTitle={theory.title}
+                initialBody={theory.body}
+                initialEpisode={theory.episode}
+                initialEvidence={theory.evidence ?? []}
                 submitLabel="Save Changes"
                 submittingLabel="Saving..."
-                series={(initialData.series || "umineko") as Series}
+                series={series}
                 onSubmit={async data => {
-                    await updateTheory(theoryId, { ...data, series: initialData.series || "umineko" });
+                    await updateMutation.mutateAsync({ ...data, series });
                     navigate(`/theory/${theoryId}`);
                 }}
             />

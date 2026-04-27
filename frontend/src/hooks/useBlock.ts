@@ -1,50 +1,27 @@
-import { useCallback, useEffect, useState } from "react";
-import { blockUser, getBlockStatus, unblockUser, type BlockStatus } from "../api/endpoints";
+import { useCallback } from "react";
+import { useBlockStatus } from "../api/queries/misc";
+import { useBlockUser, useUnblockUser } from "../api/mutations/misc";
 
 export function useBlock(userId: string) {
-    const [status, setStatus] = useState<BlockStatus | null>(null);
-    const [loading, setLoading] = useState(!!userId);
-
-    useEffect(() => {
-        if (!userId) {
-            return;
-        }
-        let cancelled = false;
-        getBlockStatus(userId)
-            .then(data => {
-                if (!cancelled) {
-                    setStatus(data);
-                }
-            })
-            .catch(() => {})
-            .finally(() => {
-                if (!cancelled) {
-                    setLoading(false);
-                }
-            });
-        return () => {
-            cancelled = true;
-        };
-    }, [userId]);
+    const { status, loading, refresh } = useBlockStatus(userId);
+    const blockMutation = useBlockUser();
+    const unblockMutation = useUnblockUser();
 
     const toggleBlock = useCallback(async () => {
-        if (!status) {
+        if (!status || !userId) {
             return;
         }
-        const wasBlocking = status.blocking;
-        setStatus({ ...status, blocking: !wasBlocking });
         try {
-            if (wasBlocking) {
-                await unblockUser(userId);
+            if (status.blocking) {
+                await unblockMutation.mutateAsync(userId);
             } else {
-                await blockUser(userId);
+                await blockMutation.mutateAsync(userId);
             }
-            const updated = await getBlockStatus(userId);
-            setStatus(updated);
+            await refresh();
         } catch {
-            setStatus(status);
+            return;
         }
-    }, [status, userId]);
+    }, [status, userId, blockMutation, unblockMutation, refresh]);
 
     return { status, loading, toggleBlock };
 }

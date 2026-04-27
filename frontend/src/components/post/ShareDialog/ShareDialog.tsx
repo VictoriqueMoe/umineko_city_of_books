@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { createPost } from "../../../api/endpoints";
+import { useCreatePost } from "../../../api/mutations/post";
 import { Modal } from "../../Modal/Modal";
 import { Select } from "../../Select/Select";
 import { MentionTextArea } from "../../MentionTextArea/MentionTextArea";
@@ -22,6 +22,7 @@ export function ShareDialog({ isOpen, onClose, contentId, contentType, contentTi
     const [message, setMessage] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
+    const createMutation = useCreatePost();
 
     async function handleSubmit() {
         if (loading) {
@@ -30,7 +31,12 @@ export function ShareDialog({ isOpen, onClose, contentId, contentType, contentTi
         setLoading(true);
         setError("");
         try {
-            const result = await createPost(message, corner, undefined, contentId, contentType);
+            const result = await createMutation.mutateAsync({
+                body: message,
+                corner,
+                sharedContentId: contentId,
+                sharedContentType: contentType,
+            });
             if (onShared) {
                 onShared();
             }

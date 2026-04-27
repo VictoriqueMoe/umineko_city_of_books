@@ -1,9 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useScrollToHash } from "../../hooks/useScrollToHash";
-import type { PostDetail } from "../../types/api";
-import { getPost } from "../../api/endpoints";
+import { usePost } from "../../api/queries/post";
 import { useAuth } from "../../hooks/useAuth";
 import { PostCard } from "../../components/post/PostCard/PostCard";
 import { CommentItem } from "../../components/post/CommentItem/CommentItem";
@@ -17,24 +15,13 @@ export function PostDetailPage() {
     const navigate = useNavigate();
     const location = useLocation();
     const { user } = useAuth();
-    const [post, setPost] = useState<PostDetail | null>(null);
-    const [loading, setLoading] = useState(true);
+    const { post, loading, refresh } = usePost(id ?? "");
     const hash = location.hash;
     const highlightedComment = hash.startsWith("#comment-") ? hash.replace("#comment-", "") : null;
 
-    const fetchPost = useCallback(() => {
-        if (!id) {
-            return;
-        }
-        getPost(id)
-            .then(setPost)
-            .catch(() => setPost(null))
-            .finally(() => setLoading(false));
-    }, [id]);
-
-    useEffect(() => {
-        fetchPost();
-    }, [fetchPost]);
+    const fetchPost = () => {
+        refresh();
+    };
 
     useScrollToHash(!loading && !!post, highlightedComment ? `comment-${highlightedComment}` : null);
 

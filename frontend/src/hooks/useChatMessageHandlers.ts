@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import type { ChatMessage, UserProfile } from "../types/api";
-import { deleteChatMessage, editChatMessage } from "../api/endpoints";
+import { useDeleteChatMessage, useEditChatMessage } from "../api/mutations/chat";
 import { applyChatMessageEdited } from "../utils/chatStream";
 
 interface UseChatMessageHandlersOptions {
@@ -26,10 +26,13 @@ export function useChatMessageHandlers({
     onError,
     editLastBlocked = false,
 }: UseChatMessageHandlersOptions): UseChatMessageHandlersResult {
+    const deleteMessageMutation = useDeleteChatMessage();
+    const editMessageMutation = useEditChatMessage();
+
     const handleDeleteMessage = useCallback(
         async (message: ChatMessage) => {
             try {
-                await deleteChatMessage(message.id);
+                await deleteMessageMutation.mutateAsync(message.id);
                 setMessages(prev => prev.filter(m => m.id !== message.id));
             } catch (err) {
                 if (onError) {
@@ -37,13 +40,13 @@ export function useChatMessageHandlers({
                 }
             }
         },
-        [setMessages, onError],
+        [setMessages, onError, deleteMessageMutation],
     );
 
     const handleEditMessage = useCallback(
         async (message: ChatMessage, newBody: string) => {
             try {
-                const updated = await editChatMessage(message.id, newBody);
+                const updated = await editMessageMutation.mutateAsync({ messageId: message.id, body: newBody });
                 applyChatMessageEdited(updated, setMessages);
             } catch (err) {
                 if (onError) {
@@ -52,7 +55,7 @@ export function useChatMessageHandlers({
                 throw err;
             }
         },
-        [setMessages, onError],
+        [setMessages, onError, editMessageMutation],
     );
 
     const handleEditLast = useCallback(() => {

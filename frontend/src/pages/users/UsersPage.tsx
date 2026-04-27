@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { PublicUser } from "../../api/endpoints";
-import { listUsersPublic } from "../../api/endpoints";
+import { useUsersPublic } from "../../api/queries/misc";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { Input } from "../../components/Input/Input";
@@ -15,16 +15,8 @@ const ROLE_GROUPS = [
 
 export function UsersPage() {
     usePageTitle("Users");
-    const [users, setUsers] = useState<PublicUser[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { users, loading } = useUsersPublic();
     const [search, setSearch] = useState("");
-
-    useEffect(() => {
-        listUsersPublic()
-            .then(setUsers)
-            .catch(() => {})
-            .finally(() => setLoading(false));
-    }, []);
 
     const filtered = useMemo(() => {
         if (!search.trim()) {

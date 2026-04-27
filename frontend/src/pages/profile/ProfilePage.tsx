@@ -1,27 +1,25 @@
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { useAuth } from "../../hooks/useAuth";
-import { useProfile } from "../../hooks/useProfile";
+import { useProfile } from "../../api/queries/profile";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import { useTheoryFeed } from "../../hooks/useTheoryFeed";
+import { useTheoryFeed } from "../../api/queries/theory";
 import { useFollow } from "../../hooks/useFollow";
 import { useBlock } from "../../hooks/useBlock";
 import {
-    createGallery,
-    getFollowers,
-    getFollowing,
-    getUserActivity,
-    getUserArt,
-    getUserFanficFavourites,
-    getUserFanfics,
-    getUserFollowedJournals,
-    getUserGalleries,
-    getUserJournals,
-    getUserMysteries,
-    getUserPosts,
-    getUserShips,
-} from "../../api/endpoints";
-import type { ActivityItem, Art, Fanfic, Gallery, Journal, Mystery, Post, Ship, User } from "../../types/api";
+    useUserActivity,
+    useUserArt,
+    useUserFanficFavourites,
+    useUserFanfics,
+    useUserFollowedJournals,
+    useUserGalleries,
+    useUserJournals,
+    useUserMysteries,
+    useUserPosts,
+    useUserShips,
+} from "../../api/queries/user";
+import { useFollowers, useFollowing } from "../../api/queries/misc";
+import { useCreateGallery } from "../../api/mutations/art";
 import { parseServerDate } from "../../utils/time";
 import { Button } from "../../components/Button/Button";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
@@ -152,266 +150,91 @@ export function ProfilePage() {
         hasPrev,
     } = useTheoryFeed("new", 0, profile?.id);
 
-    const [userPosts, setUserPosts] = useState<Post[]>([]);
-    const [postsTotal, setPostsTotal] = useState(0);
+    const profileID = profile?.id ?? "";
     const [postsOffset, setPostsOffset] = useState(0);
-    const [postsLoading, setPostsLoading] = useState(false);
     const postsLimit = 20;
+    const postsQuery = useUserPosts(activeTab === "posts" ? profileID : "", postsLimit, postsOffset);
+    const userPosts = postsQuery.posts;
+    const postsTotal = postsQuery.total;
+    const postsLoading = postsQuery.loading;
 
-    const fetchPosts = useCallback(async (id: string, off: number) => {
-        setPostsLoading(true);
-        try {
-            const result = await getUserPosts(id, postsLimit, off);
-            setUserPosts(result.posts ?? []);
-            setPostsTotal(result.total);
-        } catch {
-            setUserPosts([]);
-            setPostsTotal(0);
-        } finally {
-            setPostsLoading(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        if (activeTab === "posts" && profile?.id) {
-            fetchPosts(profile.id, postsOffset);
-        }
-    }, [activeTab, profile?.id, postsOffset, fetchPosts]);
-
-    const [userArt, setUserArt] = useState<Art[]>([]);
-    const [artTotal, setArtTotal] = useState(0);
     const [artOffset, setArtOffset] = useState(0);
-    const [artLoading, setArtLoading] = useState(false);
     const artLimit = 24;
+    const artQuery = useUserArt(activeTab === "art" ? profileID : "", artLimit, artOffset);
+    const userArt = artQuery.art;
+    const artTotal = artQuery.total;
+    const artLoading = artQuery.loading;
 
-    const fetchUserArt = useCallback(async (id: string, off: number) => {
-        setArtLoading(true);
-        try {
-            const result = await getUserArt(id, artLimit, off);
-            setUserArt(result.art ?? []);
-            setArtTotal(result.total);
-        } catch {
-            setUserArt([]);
-            setArtTotal(0);
-        } finally {
-            setArtLoading(false);
-        }
-    }, []);
+    const galleriesQuery = useUserGalleries(activeTab === "galleries" ? profileID : "");
+    const userGalleries = galleriesQuery.galleries;
+    const galleriesLoading = galleriesQuery.loading;
 
-    useEffect(() => {
-        if (activeTab === "art" && profile?.id) {
-            fetchUserArt(profile.id, artOffset);
-        }
-    }, [activeTab, profile?.id, artOffset, fetchUserArt]);
-
-    const [userGalleries, setUserGalleries] = useState<Gallery[]>([]);
-    const [galleriesLoading, setGalleriesLoading] = useState(false);
-
-    useEffect(() => {
-        if (activeTab === "galleries" && profile?.id) {
-            setGalleriesLoading(true);
-            getUserGalleries(profile.id)
-                .then(g => setUserGalleries(g ?? []))
-                .catch(() => setUserGalleries([]))
-                .finally(() => setGalleriesLoading(false));
-        }
-    }, [activeTab, profile?.id]);
-
-    const [userShips, setUserShips] = useState<Ship[]>([]);
-    const [shipsTotal, setShipsTotal] = useState(0);
     const [shipsOffset, setShipsOffset] = useState(0);
-    const [shipsLoading, setShipsLoading] = useState(false);
     const shipsLimit = 20;
+    const shipsQuery = useUserShips(activeTab === "ships" ? profileID : "", shipsLimit, shipsOffset);
+    const userShips = shipsQuery.ships;
+    const shipsTotal = shipsQuery.total;
+    const shipsLoading = shipsQuery.loading;
 
-    const fetchUserShips = useCallback(async (id: string, off: number) => {
-        setShipsLoading(true);
-        try {
-            const result = await getUserShips(id, shipsLimit, off);
-            setUserShips(result.ships ?? []);
-            setShipsTotal(result.total);
-        } catch {
-            setUserShips([]);
-            setShipsTotal(0);
-        } finally {
-            setShipsLoading(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        if (activeTab === "ships" && profile?.id) {
-            fetchUserShips(profile.id, shipsOffset);
-        }
-    }, [activeTab, profile?.id, shipsOffset, fetchUserShips]);
-
-    const [userMysteries, setUserMysteries] = useState<Mystery[]>([]);
-    const [mysteriesTotal, setMysteriesTotal] = useState(0);
     const [mysteriesOffset, setMysteriesOffset] = useState(0);
-    const [mysteriesLoading, setMysteriesLoading] = useState(false);
     const mysteriesLimit = 20;
+    const mysteriesQuery = useUserMysteries(
+        activeTab === "mysteries" ? profileID : "",
+        mysteriesLimit,
+        mysteriesOffset,
+    );
+    const userMysteries = mysteriesQuery.mysteries;
+    const mysteriesTotal = mysteriesQuery.total;
+    const mysteriesLoading = mysteriesQuery.loading;
 
-    const fetchUserMysteries = useCallback(async (id: string, off: number) => {
-        setMysteriesLoading(true);
-        try {
-            const result = await getUserMysteries(id, mysteriesLimit, off);
-            setUserMysteries(result.mysteries ?? []);
-            setMysteriesTotal(result.total);
-        } catch {
-            setUserMysteries([]);
-            setMysteriesTotal(0);
-        } finally {
-            setMysteriesLoading(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        if (activeTab === "mysteries" && profile?.id) {
-            fetchUserMysteries(profile.id, mysteriesOffset);
-        }
-    }, [activeTab, profile?.id, mysteriesOffset, fetchUserMysteries]);
-
-    const [userFanfics, setUserFanfics] = useState<Fanfic[]>([]);
-    const [fanficsTotal, setFanficsTotal] = useState(0);
     const [fanficsOffset, setFanficsOffset] = useState(0);
-    const [fanficsLoading, setFanficsLoading] = useState(false);
     const fanficsLimit = 20;
+    const fanficsQuery = useUserFanfics(activeTab === "fanfics" ? profileID : "", fanficsLimit, fanficsOffset);
+    const userFanfics = fanficsQuery.fanfics;
+    const fanficsTotal = fanficsQuery.total;
+    const fanficsLoading = fanficsQuery.loading;
 
-    const fetchUserFanfics = useCallback(async (id: string, off: number) => {
-        setFanficsLoading(true);
-        try {
-            const result = await getUserFanfics(id, fanficsLimit, off);
-            setUserFanfics(result.fanfics ?? []);
-            setFanficsTotal(result.total);
-        } catch {
-            setUserFanfics([]);
-            setFanficsTotal(0);
-        } finally {
-            setFanficsLoading(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        if (activeTab === "fanfics" && profile?.id) {
-            fetchUserFanfics(profile.id, fanficsOffset);
-        }
-    }, [activeTab, profile?.id, fanficsOffset, fetchUserFanfics]);
-
-    const [userFavourites, setUserFavourites] = useState<Fanfic[]>([]);
-    const [favouritesTotal, setFavouritesTotal] = useState(0);
     const [favouritesOffset, setFavouritesOffset] = useState(0);
-    const [favouritesLoading, setFavouritesLoading] = useState(false);
     const favouritesLimit = 20;
+    const favouritesQuery = useUserFanficFavourites(
+        activeTab === "fanfic-favourites" ? profileID : "",
+        favouritesLimit,
+        favouritesOffset,
+    );
+    const userFavourites = favouritesQuery.fanfics;
+    const favouritesTotal = favouritesQuery.total;
+    const favouritesLoading = favouritesQuery.loading;
 
-    const fetchUserFavourites = useCallback(async (id: string, off: number) => {
-        setFavouritesLoading(true);
-        try {
-            const result = await getUserFanficFavourites(id, favouritesLimit, off);
-            setUserFavourites(result.fanfics ?? []);
-            setFavouritesTotal(result.total);
-        } catch {
-            setUserFavourites([]);
-            setFavouritesTotal(0);
-        } finally {
-            setFavouritesLoading(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        if (activeTab === "fanfic-favourites" && profile?.id) {
-            fetchUserFavourites(profile.id, favouritesOffset);
-        }
-    }, [activeTab, profile?.id, favouritesOffset, fetchUserFavourites]);
-
-    const [userJournals, setUserJournals] = useState<Journal[]>([]);
-    const [journalsTotal, setJournalsTotal] = useState(0);
     const [journalsOffset, setJournalsOffset] = useState(0);
-    const [journalsLoading, setJournalsLoading] = useState(false);
     const journalsLimit = 20;
+    const journalsQuery = useUserJournals(activeTab === "journals" ? profileID : "", journalsLimit, journalsOffset);
+    const userJournals = journalsQuery.journals;
+    const journalsTotal = journalsQuery.total;
+    const journalsLoading = journalsQuery.loading;
 
-    const fetchUserJournals = useCallback(async (id: string, off: number) => {
-        setJournalsLoading(true);
-        try {
-            const result = await getUserJournals(id, journalsLimit, off);
-            setUserJournals(result.journals ?? []);
-            setJournalsTotal(result.total);
-        } catch {
-            setUserJournals([]);
-            setJournalsTotal(0);
-        } finally {
-            setJournalsLoading(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        if (activeTab === "journals" && profile?.id) {
-            fetchUserJournals(profile.id, journalsOffset);
-        }
-    }, [activeTab, profile?.id, journalsOffset, fetchUserJournals]);
-
-    const [followedJournals, setFollowedJournals] = useState<Journal[]>([]);
-    const [followedJournalsTotal, setFollowedJournalsTotal] = useState(0);
     const [followedJournalsOffset, setFollowedJournalsOffset] = useState(0);
-    const [followedJournalsLoading, setFollowedJournalsLoading] = useState(false);
     const followedJournalsLimit = 20;
+    const followedJournalsQuery = useUserFollowedJournals(
+        activeTab === "journal-follows" ? profileID : "",
+        followedJournalsLimit,
+        followedJournalsOffset,
+    );
+    const followedJournals = followedJournalsQuery.journals;
+    const followedJournalsTotal = followedJournalsQuery.total;
+    const followedJournalsLoading = followedJournalsQuery.loading;
 
-    const fetchFollowedJournals = useCallback(async (id: string, off: number) => {
-        setFollowedJournalsLoading(true);
-        try {
-            const result = await getUserFollowedJournals(id, followedJournalsLimit, off);
-            setFollowedJournals(result.journals ?? []);
-            setFollowedJournalsTotal(result.total);
-        } catch {
-            setFollowedJournals([]);
-            setFollowedJournalsTotal(0);
-        } finally {
-            setFollowedJournalsLoading(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        if (activeTab === "journal-follows" && profile?.id) {
-            fetchFollowedJournals(profile.id, followedJournalsOffset);
-        }
-    }, [activeTab, profile?.id, followedJournalsOffset, fetchFollowedJournals]);
-
-    const [activityItems, setActivityItems] = useState<ActivityItem[]>([]);
-    const [activityTotal, setActivityTotal] = useState(0);
     const [activityOffset, setActivityOffset] = useState(0);
-    const [activityLoading, setActivityLoading] = useState(false);
     const activityLimit = 20;
+    const activityQuery = useUserActivity(activeTab === "activity" ? (username ?? "") : "");
+    const activityItems = activityQuery.activity;
+    const activityTotal = activityItems.length;
+    const activityLoading = activityQuery.loading;
 
-    const fetchActivity = useCallback(async (name: string, off: number) => {
-        setActivityLoading(true);
-        try {
-            const result = await getUserActivity(name, activityLimit, off);
-            setActivityItems(result.items ?? []);
-            setActivityTotal(result.total);
-        } catch {
-            setActivityItems([]);
-            setActivityTotal(0);
-        } finally {
-            setActivityLoading(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        if (activeTab === "activity" && username) {
-            fetchActivity(username, activityOffset);
-        }
-    }, [activeTab, username, activityOffset, fetchActivity]);
-
-    const [followList, setFollowList] = useState<User[]>([]);
-    const [followListLoading, setFollowListLoading] = useState(false);
-
-    useEffect(() => {
-        if ((activeTab === "followers" || activeTab === "following") && profile?.id) {
-            setFollowListLoading(true);
-            const fn = activeTab === "followers" ? getFollowers : getFollowing;
-            fn(profile.id, 200, 0)
-                .then(r => setFollowList(r.users ?? []))
-                .catch(() => setFollowList([]))
-                .finally(() => setFollowListLoading(false));
-        }
-    }, [activeTab, profile?.id]);
+    const followersQuery = useFollowers(activeTab === "followers" && profile?.id ? profile.id : "");
+    const followingQuery = useFollowing(activeTab === "following" && profile?.id ? profile.id : "");
+    const followList = activeTab === "followers" ? followersQuery.users : followingQuery.users;
+    const followListLoading =
+        activeTab === "followers" ? followersQuery.loading : activeTab === "following" ? followingQuery.loading : false;
 
     if (loading) {
         return <div className="loading">Consulting the game board...</div>;
@@ -694,9 +517,7 @@ export function ProfilePage() {
                     {postsLoading && <div className="loading">Loading posts...</div>}
                     {!postsLoading && userPosts.length === 0 && <div className="empty-state">No posts yet.</div>}
                     {!postsLoading &&
-                        userPosts.map(p => (
-                            <PostCard key={p.id} post={p} onDelete={() => fetchPosts(profile.id, postsOffset)} />
-                        ))}
+                        userPosts.map(p => <PostCard key={p.id} post={p} onDelete={() => postsQuery.refresh()} />)}
                     {!postsLoading && postsTotal > postsLimit && (
                         <Pagination
                             offset={postsOffset}
@@ -757,13 +578,7 @@ export function ProfilePage() {
             {activeTab === "galleries" && (
                 <div className={styles.tabContent}>
                     {currentUser && profile && currentUser.id === profile.id && (
-                        <CreateGalleryInline
-                            onCreated={() => {
-                                getUserGalleries(profile.id)
-                                    .then(g => setUserGalleries(g ?? []))
-                                    .catch(() => {});
-                            }}
-                        />
+                        <CreateGalleryInline onCreated={() => galleriesQuery.refresh()} />
                     )}
                     {galleriesLoading && <div className="loading">Loading galleries...</div>}
                     {!galleriesLoading && userGalleries.length === 0 && (
@@ -1069,21 +884,21 @@ function CreateGalleryInline({ onCreated }: { onCreated: () => void }) {
     const [open, setOpen] = useState(false);
     const [name, setName] = useState("");
     const [description, setDescription] = useState("");
-    const [submitting, setSubmitting] = useState(false);
+    const createGalleryMutation = useCreateGallery();
+    const submitting = createGalleryMutation.isPending;
 
     async function handleCreate() {
         if (!name.trim() || submitting) {
             return;
         }
-        setSubmitting(true);
         try {
-            await createGallery(name.trim(), description.trim());
+            await createGalleryMutation.mutateAsync({ name: name.trim(), description: description.trim() });
             setName("");
             setDescription("");
             setOpen(false);
             onCreated();
-        } finally {
-            setSubmitting(false);
+        } catch {
+            return;
         }
     }
 

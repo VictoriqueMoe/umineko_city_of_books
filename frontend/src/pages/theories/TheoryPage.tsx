@@ -1,11 +1,11 @@
 import { useCallback, useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { useTheory } from "../../hooks/useTheory";
+import { useTheory } from "../../api/queries/theory";
+import { useDeleteTheory, useVoteTheory } from "../../api/mutations/theory";
 import { useVote } from "../../hooks/useVote";
 import { useAuth } from "../../hooks/useAuth";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import type { Series } from "../../api/endpoints";
-import { deleteTheory, voteTheory } from "../../api/endpoints";
 import { Button } from "../../components/Button/Button";
 import { Modal } from "../../components/Modal/Modal";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
@@ -28,12 +28,14 @@ export function TheoryPage() {
     const { theory, loading, refresh } = useTheory(theoryId);
     usePageTitle(theory?.title ?? "Theory");
     const [spoilerDismissed, setSpoilerDismissed] = useState(false);
+    const voteMutation = useVoteTheory(theoryId);
+    const deleteMutation = useDeleteTheory();
 
     const voteFn = useCallback(
         async (value: number) => {
-            await voteTheory(theoryId, value);
+            await voteMutation.mutateAsync(value);
         },
-        [theoryId],
+        [voteMutation],
     );
 
     const { score, userVote, vote } = useVote(theory?.vote_score ?? 0, theory?.user_vote ?? 0, voteFn);
@@ -47,7 +49,7 @@ export function TheoryPage() {
         if (!window.confirm("Are you sure you want to delete this theory?")) {
             return;
         }
-        await deleteTheory(theoryId);
+        await deleteMutation.mutateAsync(theoryId);
         const s = (theory?.series || "umineko") as Series;
         navigate(getSeriesConfig(s).theoriesPath);
     }

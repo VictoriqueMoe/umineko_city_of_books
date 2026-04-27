@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Link, useNavigate } from "react-router";
 import { useAuth } from "../../hooks/useAuth";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import * as api from "../../api/endpoints";
+import { useMyGameRooms } from "../../api/queries/gameRoom";
+import { useDeclineGameInvite, useCancelGameInvite } from "../../api/mutations/gameRoom";
 import type { GameRoom } from "../../types/api";
 import { GAME_TYPES, gameTypeLabel } from "../../games/registry";
 import { Button } from "../../components/Button/Button";
@@ -24,32 +25,15 @@ export function GamesListPage() {
     usePageTitle("Games");
     const { user, loading: authLoading } = useAuth();
     const navigate = useNavigate();
-    const [rooms, setRooms] = useState<GameRoom[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState("");
-
-    const refetch = useCallback(async () => {
-        setLoading(true);
-        setError("");
-        try {
-            const resp = await api.listMyGameRooms();
-            setRooms(resp.rooms ?? []);
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to load games");
-        } finally {
-            setLoading(false);
-        }
-    }, []);
+    const { rooms, loading, error, refresh } = useMyGameRooms();
+    const declineInvite = useDeclineGameInvite();
+    const cancelInvite = useCancelGameInvite();
 
     useEffect(() => {
         if (!authLoading && !user) {
             navigate("/login");
-            return;
         }
-        if (user) {
-            void refetch();
-        }
-    }, [user, authLoading, navigate, refetch]);
+    }, [user, authLoading, navigate]);
 
     if (authLoading || !user) {
         return null;
@@ -66,10 +50,10 @@ export function GamesListPage() {
 
     async function handleDecline(room: GameRoom) {
         try {
-            await api.declineGameInvite(room.id);
-            await refetch();
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to decline");
+            await declineInvite.mutateAsync(room.id);
+            await refresh();
+        } catch {
+            // ignore
         }
     }
 
@@ -78,10 +62,10 @@ export function GamesListPage() {
             return;
         }
         try {
-            await api.cancelGameInvite(room.id);
-            await refetch();
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to cancel");
+            await cancelInvite.mutateAsync(room.id);
+            await refresh();
+        } catch {
+            // ignore
         }
     }
 
@@ -214,7 +198,7 @@ export function GamesListPage() {
                 <div className={styles.gameList}>
                     {finished.map(r => {
                         const opponent = r.players.find(p => p.user_id !== user.id);
-                        let outcome = "";
+                        let outcome: string;
                         if (r.status === "finished") {
                             if (!r.winner_user_id) {
                                 outcome = "Draw";

@@ -3,7 +3,7 @@ import { useLocation } from "react-router";
 import type { Response as TheoryResponse } from "../../../types/api";
 import { useAuth } from "../../../hooks/useAuth";
 import { useVote } from "../../../hooks/useVote";
-import { deleteResponse, voteResponse } from "../../../api/endpoints";
+import { useDeleteResponse, useVoteResponse } from "../../../api/mutations/theory";
 import type { Series } from "../../../api/endpoints";
 import { Button } from "../../Button/Button";
 import { ProfileLink } from "../../ProfileLink/ProfileLink";
@@ -39,11 +39,13 @@ function ResponseCard({
     const location = useLocation();
     const isHighlighted = location.hash === `#response-${response.id}`;
 
+    const voteMutation = useVoteResponse(theoryId);
+    const deleteMutation = useDeleteResponse(theoryId);
     const voteFn = useCallback(
         async (value: number) => {
-            await voteResponse(response.id, value);
+            await voteMutation.mutateAsync({ responseId: response.id, value });
         },
-        [response.id],
+        [response.id, voteMutation],
     );
 
     const { score, userVote, vote } = useVote(response.vote_score, response.user_vote ?? 0, voteFn);
@@ -52,7 +54,7 @@ function ResponseCard({
         if (!window.confirm("Are you sure you want to delete this response?")) {
             return;
         }
-        await deleteResponse(response.id);
+        await deleteMutation.mutateAsync(response.id);
         onDeleted?.();
     }
 

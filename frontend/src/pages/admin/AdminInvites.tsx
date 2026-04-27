@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
-import { createInvite, deleteInvite, getInvites, type InviteItem } from "../../api/endpoints";
+import { useState } from "react";
+import { useInvites } from "../../api/queries/admin";
+import { useCreateInvite, useDeleteInvite } from "../../api/mutations/admin";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { Button } from "../../components/Button/Button";
 import { formatDate } from "../../utils/time";
@@ -7,30 +8,14 @@ import styles from "./AdminInvites.module.css";
 
 export function AdminInvites() {
     usePageTitle("Admin - Invites");
-    const [invites, setInvites] = useState<InviteItem[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { invites, loading } = useInvites(50, 0);
+    const createInviteMutation = useCreateInvite();
+    const deleteInviteMutation = useDeleteInvite();
     const [error, setError] = useState("");
-
-    const fetchInvites = useCallback(async () => {
-        setLoading(true);
-        try {
-            const result = await getInvites({ limit: 50 });
-            setInvites(result.invites ?? []);
-        } catch (e) {
-            setError(e instanceof Error ? e.message : "Failed to load invites");
-        } finally {
-            setLoading(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        fetchInvites();
-    }, [fetchInvites]);
 
     async function handleCreate() {
         try {
-            await createInvite();
-            await fetchInvites();
+            await createInviteMutation.mutateAsync();
         } catch (e) {
             setError(e instanceof Error ? e.message : "Failed to create invite");
         }
@@ -41,8 +26,7 @@ export function AdminInvites() {
             return;
         }
         try {
-            await deleteInvite(code);
-            await fetchInvites();
+            await deleteInviteMutation.mutateAsync(code);
         } catch (e) {
             setError(e instanceof Error ? e.message : "Failed to delete invite");
         }

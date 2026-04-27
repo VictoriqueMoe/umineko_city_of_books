@@ -1,9 +1,7 @@
-import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { useAuth } from "../../hooks/useAuth";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import * as api from "../../api/endpoints";
-import type { GameRoom, GameScoreboardResponse } from "../../types/api";
+import { useGameScoreboard, useLiveGameRooms } from "../../api/queries/gameRoom";
 import { gameTypeFor } from "../../games/registry";
 import { Button } from "../../components/Button/Button";
 import { InfoPanel } from "../../components/InfoPanel/InfoPanel";
@@ -16,33 +14,9 @@ export function GameHubPage() {
     const { user } = useAuth();
     const def = type ? gameTypeFor(type) : undefined;
     usePageTitle(def ? def.label : "Games");
-    const [scoreboard, setScoreboard] = useState<GameScoreboardResponse | null>(null);
-    const [liveRooms, setLiveRooms] = useState<GameRoom[]>([]);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        if (!def) {
-            return;
-        }
-        let cancelled = false;
-        Promise.all([api.getGameScoreboard(def.type), api.listLiveGameRooms(def.type)])
-            .then(([s, l]) => {
-                if (cancelled) {
-                    return;
-                }
-                setScoreboard(s);
-                setLiveRooms(l.rooms ?? []);
-                setLoading(false);
-            })
-            .catch(() => {
-                if (!cancelled) {
-                    setLoading(false);
-                }
-            });
-        return () => {
-            cancelled = true;
-        };
-    }, [def]);
+    const { data: scoreboard, loading: scoreboardLoading } = useGameScoreboard(def?.type);
+    const { rooms: liveRooms, loading: liveLoading } = useLiveGameRooms(def?.type);
+    const loading = scoreboardLoading || liveLoading;
 
     if (!def) {
         return (

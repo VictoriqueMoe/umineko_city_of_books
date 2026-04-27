@@ -1,15 +1,9 @@
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { useAuth } from "../../hooks/useAuth";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import type { Fanfic } from "../../types/api";
-import {
-    getCharacters,
-    getFanficLanguages,
-    getFanficSeries,
-    listFanfics,
-    searchOCCharacters,
-} from "../../api/endpoints";
+import { useFanficLanguages, useFanficList, useFanficSeries } from "../../api/queries/fanfic";
+import { useCharactersFlat, useOCCharacters } from "../../api/queries/characters";
 import { Button } from "../../components/Button/Button";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { Pagination } from "../../components/Pagination/Pagination";
@@ -93,15 +87,32 @@ export function FanfictionListPage() {
     const offset = parseInt(p("offset", "0"), 10);
     const limit = 25;
 
-    const [fanfics, setFanfics] = useState<Fanfic[]>([]);
-    const [total, setTotal] = useState(0);
-    const [loading, setLoading] = useState(true);
-
-    const [seriesOptions, setSeriesOptions] = useState<string[]>([]);
-    const [languageOptions, setLanguageOptions] = useState<string[]>([]);
-    const [uminekoChars, setUminekoChars] = useState<string[]>([]);
-    const [higuChars, setHiguChars] = useState<string[]>([]);
-    const [ocChars, setOcChars] = useState<string[]>([]);
+    const { fanfics, total, loading } = useFanficList({
+        sort,
+        series: series || undefined,
+        rating: rating || undefined,
+        status: status || undefined,
+        language: language || undefined,
+        genre_a: genreA || undefined,
+        genre_b: genreB || undefined,
+        tag: tag || undefined,
+        char_a: charA || undefined,
+        char_b: charB || undefined,
+        char_c: charC || undefined,
+        char_d: charD || undefined,
+        pairing: pairing || undefined,
+        lemons: lemons || undefined,
+        search: search || undefined,
+        limit,
+        offset,
+    });
+    const { series: seriesOptions } = useFanficSeries();
+    const { languages: languageOptions } = useFanficLanguages();
+    const { characters: uminekoMap } = useCharactersFlat("umineko");
+    const { characters: higuMap } = useCharactersFlat("higurashi");
+    const { characters: ocChars } = useOCCharacters("");
+    const uminekoChars = useMemo(() => Object.values(uminekoMap).sort((a, b) => a.localeCompare(b)), [uminekoMap]);
+    const higuChars = useMemo(() => Object.values(higuMap).sort((a, b) => a.localeCompare(b)), [higuMap]);
 
     const [searchInput, setSearchInput] = useState(search);
     const [filtersOpen, setFiltersOpen] = useState(false);
@@ -112,7 +123,6 @@ export function FanfictionListPage() {
         (lemons ? 1 : 0);
 
     function setParam(key: string, value: string) {
-        setLoading(true);
         setSearchParams(prev => {
             const next = new URLSearchParams(prev);
             if (value) {
@@ -126,7 +136,6 @@ export function FanfictionListPage() {
     }
 
     function setOffsetParam(value: number) {
-        setLoading(true);
         setSearchParams(prev => {
             const next = new URLSearchParams(prev);
             if (value > 0) {
@@ -137,82 +146,6 @@ export function FanfictionListPage() {
             return next;
         });
     }
-
-    useEffect(() => {
-        Promise.all([getFanficSeries(), getFanficLanguages()])
-            .then(([s, l]) => {
-                setSeriesOptions(s);
-                setLanguageOptions(l);
-            })
-            .catch(() => {});
-    }, []);
-
-    useEffect(() => {
-        Promise.all([getCharacters("umineko"), getCharacters("higurashi"), searchOCCharacters("")])
-            .then(([umi, higu, ocs]) => {
-                setUminekoChars(Object.values(umi).sort((a, b) => a.localeCompare(b)));
-                setHiguChars(Object.values(higu).sort((a, b) => a.localeCompare(b)));
-                setOcChars(ocs);
-            })
-            .catch(() => {});
-    }, []);
-
-    useEffect(() => {
-        let cancelled = false;
-        listFanfics({
-            sort,
-            series: series || undefined,
-            rating: rating || undefined,
-            status: status || undefined,
-            language: language || undefined,
-            genre_a: genreA || undefined,
-            genre_b: genreB || undefined,
-            tag: tag || undefined,
-            char_a: charA || undefined,
-            char_b: charB || undefined,
-            char_c: charC || undefined,
-            char_d: charD || undefined,
-            pairing: pairing || undefined,
-            lemons: lemons || undefined,
-            search: search || undefined,
-            limit,
-            offset,
-        })
-            .then(data => {
-                if (!cancelled) {
-                    setFanfics(data.fanfics ?? []);
-                    setTotal(data.total);
-                    setLoading(false);
-                }
-            })
-            .catch(() => {
-                if (!cancelled) {
-                    setFanfics([]);
-                    setTotal(0);
-                    setLoading(false);
-                }
-            });
-        return () => {
-            cancelled = true;
-        };
-    }, [
-        sort,
-        series,
-        rating,
-        status,
-        language,
-        genreA,
-        genreB,
-        tag,
-        charA,
-        charB,
-        charC,
-        charD,
-        pairing,
-        lemons,
-        search,
-        offset,
-    ]);
 
     function renderCharacterSelect(label: string, paramKey: string, value: string) {
         return (

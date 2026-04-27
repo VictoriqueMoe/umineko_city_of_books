@@ -1,20 +1,20 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import type { FanficDetail, PostComment } from "../../types/api";
+import type { PostComment } from "../../types/api";
+import { useFanfic } from "../../api/queries/fanfic";
 import {
-    createFanficComment,
-    deleteFanfic,
-    deleteFanficChapter,
-    deleteFanficComment,
-    favouriteFanfic,
-    getFanfic,
-    likeFanficComment,
-    unfavouriteFanfic,
-    unlikeFanficComment,
-    updateFanficComment,
-    uploadFanficCommentMedia,
-} from "../../api/endpoints";
+    useCreateFanficComment,
+    useDeleteFanfic,
+    useDeleteFanficChapter,
+    useDeleteFanficComment,
+    useFavouriteFanfic,
+    useLikeFanficComment,
+    useUnfavouriteFanfic,
+    useUnlikeFanficComment,
+    useUpdateFanficComment,
+    useUploadFanficCommentMedia,
+} from "../../api/mutations/fanfic";
 import { useAuth } from "../../hooks/useAuth";
 import { can } from "../../utils/permissions";
 import { Button } from "../../components/Button/Button";
@@ -63,32 +63,51 @@ export function FanficDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { user } = useAuth();
-    const [fanfic, setFanfic] = useState<FanficDetail | null>(null);
-    const [loading, setLoading] = useState(true);
+    const fanficId = id ?? "";
+    const { fanfic, loading, refresh } = useFanfic(fanficId);
     const [lightboxOpen, setLightboxOpen] = useState(false);
     const [favouriting, setFavouriting] = useState(false);
     usePageTitle(fanfic?.title ?? "Fanfic");
 
     const fetchFanfic = useCallback(() => {
-        if (!id) {
-            return;
-        }
-        getFanfic(id)
-            .then(data => {
-                data.comments = data.comments ?? [];
-                data.chapters = data.chapters ?? [];
-                data.genres = data.genres ?? [];
-                data.tags = data.tags ?? [];
-                data.characters = data.characters ?? [];
-                setFanfic(data);
-            })
-            .catch(() => setFanfic(null))
-            .finally(() => setLoading(false));
-    }, [id]);
+        void refresh();
+    }, [refresh]);
 
-    useEffect(() => {
-        fetchFanfic();
-    }, [fetchFanfic]);
+    const favouriteMutation = useFavouriteFanfic();
+    const unfavouriteMutation = useUnfavouriteFanfic();
+    const deleteFanficMutation = useDeleteFanfic();
+    const deleteChapterMutation = useDeleteFanficChapter(fanficId);
+    const createCommentMutation = useCreateFanficComment(fanficId);
+    const updateCommentMutation = useUpdateFanficComment(fanficId);
+    const deleteCommentMutation = useDeleteFanficComment(fanficId);
+    const likeCommentMutation = useLikeFanficComment(fanficId);
+    const unlikeCommentMutation = useUnlikeFanficComment(fanficId);
+    const uploadCommentMediaMutation = useUploadFanficCommentMedia(fanficId);
+    const likeCommentFn = useCallback(
+        (commentId: string) => likeCommentMutation.mutateAsync(commentId).then(() => {}),
+        [likeCommentMutation],
+    );
+    const unlikeCommentFn = useCallback(
+        (commentId: string) => unlikeCommentMutation.mutateAsync(commentId).then(() => {}),
+        [unlikeCommentMutation],
+    );
+    const deleteCommentFn = useCallback(
+        (commentId: string) => deleteCommentMutation.mutateAsync(commentId).then(() => {}),
+        [deleteCommentMutation],
+    );
+    const updateCommentFn = useCallback(
+        (commentId: string, body: string) => updateCommentMutation.mutateAsync({ id: commentId, body }).then(() => {}),
+        [updateCommentMutation],
+    );
+    const createCommentFn = useCallback(
+        (_postId: string, body: string, parentId?: string) =>
+            createCommentMutation.mutateAsync({ body, parentId }).then(c => ({ id: c.id })),
+        [createCommentMutation],
+    );
+    const uploadCommentMediaFn = useCallback(
+        (commentId: string, file: File) => uploadCommentMediaMutation.mutateAsync({ commentId, file }),
+        [uploadCommentMediaMutation],
+    );
 
     async function handleFavourite() {
         if (!fanfic || favouriting) {
@@ -97,20 +116,11 @@ export function FanficDetailPage() {
         setFavouriting(true);
         try {
             if (fanfic.user_favourited) {
-                await unfavouriteFanfic(fanfic.id);
-                setFanfic({
-                    ...fanfic,
-                    user_favourited: false,
-                    favourite_count: fanfic.favourite_count - 1,
-                });
+                await unfavouriteMutation.mutateAsync(fanfic.id);
             } else {
-                await favouriteFanfic(fanfic.id);
-                setFanfic({
-                    ...fanfic,
-                    user_favourited: true,
-                    favourite_count: fanfic.favourite_count + 1,
-                });
+                await favouriteMutation.mutateAsync(fanfic.id);
             }
+            fetchFanfic();
         } catch {
             // ignore
         } finally {
@@ -122,7 +132,7 @@ export function FanficDetailPage() {
         if (!fanfic || !window.confirm("Delete this fanfic? This cannot be undone.")) {
             return;
         }
-        await deleteFanfic(fanfic.id);
+        await deleteFanficMutation.mutateAsync(fanfic.id);
         navigate("/fanfiction");
     }
 
@@ -325,7 +335,7 @@ export function FanficDetailPage() {
                                                         ) {
                                                             return;
                                                         }
-                                                        await deleteFanficChapter(ch.id);
+                                                        await deleteChapterMutation.mutateAsync(ch.id);
                                                         fetchFanfic();
                                                     }}
                                                 >
@@ -354,12 +364,12 @@ export function FanficDetailPage() {
                         highlightedId={undefined}
                         linkPrefix="/fanfiction"
                         reportType="fanfic_comment"
-                        likeFn={likeFanficComment}
-                        unlikeFn={unlikeFanficComment}
-                        deleteFn={deleteFanficComment}
-                        updateFn={updateFanficComment}
-                        createCommentFn={createFanficComment}
-                        uploadMediaFn={uploadFanficCommentMedia}
+                        likeFn={likeCommentFn}
+                        unlikeFn={unlikeCommentFn}
+                        deleteFn={deleteCommentFn}
+                        updateFn={updateCommentFn}
+                        createCommentFn={createCommentFn}
+                        uploadMediaFn={uploadCommentMediaFn}
                         viewerBlocked={fanfic.viewer_blocked}
                     />
                 ))}
@@ -369,8 +379,8 @@ export function FanficDetailPage() {
                     <CommentComposer
                         postId={id}
                         onCreated={fetchFanfic}
-                        createCommentFn={createFanficComment}
-                        uploadMediaFn={uploadFanficCommentMedia}
+                        createCommentFn={createCommentFn}
+                        uploadMediaFn={uploadCommentMediaFn}
                     />
                 )}
             </div>

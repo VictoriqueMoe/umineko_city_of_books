@@ -14,14 +14,9 @@ import { Lightbox } from "../../components/Lightbox/Lightbox";
 import { buildMentionMatcher } from "../../utils/mentions";
 import { isSiteStaff } from "../../utils/permissions";
 import { formatTimeOfDay } from "../../utils/time";
-import {
-    deleteChatRoom,
-    getMutualFollowers,
-    getUserRooms,
-    markChatRoomRead,
-    resolveDMRoom,
-    searchUsers,
-} from "../../api/endpoints";
+import { fetchResolveDMRoom, fetchUserRooms } from "../../api/queries/chat";
+import { fetchMutualFollowers, fetchSearchUsers } from "../../api/queries/misc";
+import { useDeleteChatRoom, useMarkChatRoomRead } from "../../api/mutations/chat";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { applySharedChatWSBranch, handleIncomingChatMessage, maybePlayChatMessageSound } from "../../utils/chatStream";
 import { useChatMessageHandlers } from "../../hooks/useChatMessageHandlers";
@@ -116,7 +111,7 @@ export function ChatPage() {
     const [dmCreating, setDmCreating] = useState(false);
     const [draftRecipient, setDraftRecipient] = useState<User | null>(null);
     const { typingUserIds, noteTyping, clearUser: clearTypingUser, reset: resetTyping } = useTypingIndicator();
-    const [mobileView, setMobileView] = useState<"list" | "room">(urlRoomId ? "room" : "list");
+    const mobileView: "list" | "room" = urlRoomId || draftRecipient ? "room" : "list";
     const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
     const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
     const {
@@ -130,6 +125,9 @@ export function ChatPage() {
         handleScroll: handleDmScroll,
         addMessage,
     } = useMessageHistory(activeRoomId ?? undefined);
+
+    const deleteChatRoomMutation = useDeleteChatRoom();
+    const markChatRoomReadMutation = useMarkChatRoomRead();
 
     useEffect(() => {
         document.body.dataset.chatPage = "true";
@@ -146,7 +144,7 @@ export function ChatPage() {
         const targetId = state.dmUserId;
         navigate(location.pathname, { replace: true, state: null });
 
-        resolveDMRoom(targetId)
+        fetchResolveDMRoom(targetId)
             .then(resolved => {
                 if (resolved.room) {
                     setRooms(prev => {
@@ -167,9 +165,6 @@ export function ChatPage() {
             .catch(() => {});
     }, [location.state, location.pathname, navigate]);
 
-    useEffect(() => {
-        setMobileView(urlRoomId || draftRecipient ? "room" : "list");
-    }, [urlRoomId, draftRecipient]);
     const dmDebounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
     const activeRoomIdRef = useRef(activeRoomId);
     const activeRoomMutedRef = useRef(false);
@@ -188,7 +183,7 @@ export function ChatPage() {
             return;
         }
 
-        getUserRooms()
+        fetchUserRooms()
             .then(res => {
                 setRooms((res.rooms ?? []).filter(r => r.type === "dm"));
             })
@@ -252,7 +247,7 @@ export function ChatPage() {
                     }
                 }
                 if (foundIdx === -1) {
-                    getUserRooms()
+                    fetchUserRooms()
                         .then(res => setRooms((res.rooms ?? []).filter(r => r.type === "dm")))
                         .catch(() => {});
                     return prev;
@@ -291,8 +286,8 @@ export function ChatPage() {
         if (!activeRoomId) {
             return;
         }
-        markChatRoomRead(activeRoomId).catch(() => {});
-    }, [activeRoomId]);
+        markChatRoomReadMutation.mutateAsync(activeRoomId).catch(() => {});
+    }, [activeRoomId, markChatRoomReadMutation]);
 
     useEffect(() => {
         if (!activeRoomId) {
@@ -300,18 +295,18 @@ export function ChatPage() {
         }
         function handleFocus() {
             if (activeRoomIdRef.current) {
-                markChatRoomRead(activeRoomIdRef.current).catch(() => {});
+                markChatRoomReadMutation.mutateAsync(activeRoomIdRef.current).catch(() => {});
             }
         }
         window.addEventListener("focus", handleFocus);
         return () => {
             window.removeEventListener("focus", handleFocus);
         };
-    }, [activeRoomId]);
+    }, [activeRoomId, markChatRoomReadMutation]);
 
     useEffect(() => {
         if (showNewDm) {
-            getMutualFollowers()
+            fetchMutualFollowers()
                 .then(setDmMutuals)
                 .catch(() => setDmMutuals([]));
         }
@@ -326,7 +321,7 @@ export function ChatPage() {
             return () => clearTimeout(dmDebounceRef.current);
         }
         dmDebounceRef.current = setTimeout(() => {
-            searchUsers(dmSearch)
+            fetchSearchUsers(dmSearch)
                 .then(setDmResults)
                 .catch(() => setDmResults([]));
         }, 200);
@@ -336,12 +331,10 @@ export function ChatPage() {
     function handleRoomSelect(roomId: string) {
         setActiveRoomId(roomId);
         setRooms(prev => prev.map(r => (r.id === roomId ? { ...r, unread: false } : r)));
-        setMobileView("room");
         navigate(`/chat/${roomId}`, { replace: true });
     }
 
     function handleMobileBack() {
-        setMobileView("list");
         setActiveRoomId(null);
         setDraftRecipient(null);
         navigate("/chat", { replace: true });
@@ -397,7 +390,7 @@ export function ChatPage() {
         setDmError("");
 
         try {
-            const resolved = await resolveDMRoom(selectedUser.id);
+            const resolved = await fetchResolveDMRoom(selectedUser.id);
             setShowNewDm(false);
             setDmSearch("");
             setDmResults([]);
@@ -441,7 +434,7 @@ export function ChatPage() {
         }
 
         try {
-            await deleteChatRoom(activeRoomId);
+            await deleteChatRoomMutation.mutateAsync(activeRoomId);
             setRooms(prev => prev.filter(r => r.id !== activeRoomId));
             setMessages([]);
             setActiveRoomId(null);

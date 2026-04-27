@@ -2,8 +2,16 @@ import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useAuth } from "../../hooks/useAuth";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import { useGameRoom } from "../../hooks/useGameRoom";
-import * as api from "../../api/endpoints";
+import { useGameRoom } from "../../api/queries/gameRoom";
+import {
+    useAcceptDraw,
+    useAcceptGameInvite,
+    useDeclineDraw,
+    useDeclineGameInvite,
+    useOfferDraw,
+    useResignGame,
+    useSubmitGameAction,
+} from "../../api/mutations/gameRoom";
 import { ChessBoardView } from "../../components/games/chess/ChessBoardView";
 import { SpectatorChat } from "../../components/games/chess/SpectatorChat";
 import { PlayerChat } from "../../components/games/chess/PlayerChat";
@@ -16,6 +24,13 @@ export function ChessGamePage() {
     const navigate = useNavigate();
     const { room, loading, error, refetch } = useGameRoom(id);
     const [acceptError, setAcceptError] = useState("");
+    const acceptInvite = useAcceptGameInvite();
+    const declineInvite = useDeclineGameInvite();
+    const submitAction = useSubmitGameAction(room?.id ?? "");
+    const resign = useResignGame();
+    const offerDraw = useOfferDraw();
+    const acceptDraw = useAcceptDraw();
+    const declineDraw = useDeclineDraw();
 
     usePageTitle(room ? `Chess - ${room.players.map(p => p.display_name).join(" vs ")}` : "Chess");
 
@@ -75,7 +90,7 @@ export function ChessGamePage() {
                                 onClick={async () => {
                                     setAcceptError("");
                                     try {
-                                        await api.acceptGameInvite(room.id);
+                                        await acceptInvite.mutateAsync(room.id);
                                         await refetch();
                                     } catch (err) {
                                         setAcceptError(err instanceof Error ? err.message : "Failed to accept invite");
@@ -87,7 +102,7 @@ export function ChessGamePage() {
                             <Button
                                 variant="ghost"
                                 onClick={async () => {
-                                    await api.declineGameInvite(room.id);
+                                    await declineInvite.mutateAsync(room.id);
                                     navigate("/games");
                                 }}
                             >
@@ -105,7 +120,7 @@ export function ChessGamePage() {
     }
 
     async function handleMove(move: { from: string; to: string; promotion?: string }) {
-        await api.submitGameAction(room!.id, {
+        await submitAction.mutateAsync({
             from: move.from,
             to: move.to,
             promotion: move.promotion ?? "",
@@ -113,19 +128,19 @@ export function ChessGamePage() {
     }
 
     async function handleResign() {
-        await api.resignGame(room!.id);
+        await resign.mutateAsync(room!.id);
     }
 
     async function handleOfferDraw() {
-        await api.offerDraw(room!.id);
+        await offerDraw.mutateAsync(room!.id);
     }
 
     async function handleAcceptDraw() {
-        await api.acceptDraw(room!.id);
+        await acceptDraw.mutateAsync(room!.id);
     }
 
     async function handleDeclineDraw() {
-        await api.declineDraw(room!.id);
+        await declineDraw.mutateAsync(room!.id);
     }
 
     return (

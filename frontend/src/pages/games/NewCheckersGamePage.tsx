@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { useAuth } from "../../hooks/useAuth";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import * as api from "../../api/endpoints";
+import { useMutualFollowers, useSearchUsers } from "../../api/queries/misc";
+import { useInviteToGame } from "../../api/mutations/gameRoom";
 import type { User } from "../../types/api";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
@@ -13,12 +14,17 @@ export function NewCheckersGamePage() {
     const { user, loading: authLoading } = useAuth();
     const navigate = useNavigate();
     const [search, setSearch] = useState("");
-    const [results, setResults] = useState<User[]>([]);
-    const [mutuals, setMutuals] = useState<User[]>([]);
-    const [selected, setSelected] = useState<User | null>(null);
-    const [submitting, setSubmitting] = useState(false);
-    const [error, setError] = useState("");
+    const [debouncedSearch, setDebouncedSearch] = useState("");
     const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+    const [selected, setSelected] = useState<User | null>(null);
+    const [error, setError] = useState("");
+    const inviteMutation = useInviteToGame();
+
+    function handleSearchChange(value: string) {
+        setSearch(value);
+        clearTimeout(debounceRef.current);
+        debounceRef.current = setTimeout(() => setDebouncedSearch(value.trim()), 200);
+    }
 
     useEffect(() => {
         if (!authLoading && !user) {
@@ -26,25 +32,8 @@ export function NewCheckersGamePage() {
         }
     }, [user, authLoading, navigate]);
 
-    useEffect(() => {
-        api.getMutualFollowers()
-            .then(setMutuals)
-            .catch(() => setMutuals([]));
-    }, []);
-
-    useEffect(() => {
-        clearTimeout(debounceRef.current);
-        if (!search.trim()) {
-            setResults([]);
-            return;
-        }
-        debounceRef.current = setTimeout(() => {
-            api.searchUsers(search)
-                .then(setResults)
-                .catch(() => setResults([]));
-        }, 200);
-        return () => clearTimeout(debounceRef.current);
-    }, [search]);
+    const { mutuals } = useMutualFollowers(!!user);
+    const { users: results } = useSearchUsers(debouncedSearch, !!user);
 
     if (authLoading || !user) {
         return null;
@@ -54,18 +43,15 @@ export function NewCheckersGamePage() {
     const candidates = rawCandidates.filter(u => u.id !== user.id);
 
     async function handleInvite() {
-        if (!selected || submitting) {
+        if (!selected || inviteMutation.isPending) {
             return;
         }
-        setSubmitting(true);
         setError("");
         try {
-            const room = await api.inviteToGame(selected.id, "checkers");
+            const room = await inviteMutation.mutateAsync({ opponentId: selected.id, gameType: "checkers" });
             navigate(`/games/checkers/${room.id}`);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to invite");
-        } finally {
-            setSubmitting(false);
         }
     }
 
@@ -78,7 +64,7 @@ export function NewCheckersGamePage() {
                 <Input
                     placeholder="Search for a player by username..."
                     value={search}
-                    onChange={e => setSearch(e.target.value)}
+                    onChange={e => handleSearchChange(e.target.value)}
                 />
 
                 {error && <div className={styles.error}>{error}</div>}
@@ -101,8 +87,12 @@ export function NewCheckersGamePage() {
                     <Button variant="ghost" onClick={() => navigate("/games")}>
                         Cancel
                     </Button>
-                    <Button variant="primary" onClick={handleInvite} disabled={!selected || submitting}>
-                        {submitting ? "Sending..." : selected ? `Invite ${selected.display_name}` : "Pick a player"}
+                    <Button variant="primary" onClick={handleInvite} disabled={!selected || inviteMutation.isPending}>
+                        {inviteMutation.isPending
+                            ? "Sending..."
+                            : selected
+                              ? `Invite ${selected.display_name}`
+                              : "Pick a player"}
                     </Button>
                 </div>
             </div>

@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
-import { addBannedGif, type BannedGiphyEntry, getBannedGifs, removeBannedGif } from "../../api/endpoints";
+import { useState } from "react";
+import type { BannedGiphyEntry } from "../../api/endpoints";
+import { useBannedGifs } from "../../api/queries/admin";
+import { useAddBannedGif, useRemoveBannedGif } from "../../api/mutations/admin";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
@@ -12,45 +14,27 @@ function formatDate(s: string): string {
 
 export function AdminBannedGifs() {
     usePageTitle("Admin - Banned GIFs");
-    const [entries, setEntries] = useState<BannedGiphyEntry[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { entries, loading } = useBannedGifs();
+    const addMutation = useAddBannedGif();
+    const removeMutation = useRemoveBannedGif();
     const [error, setError] = useState("");
     const [input, setInput] = useState("");
     const [reason, setReason] = useState("");
-    const [saving, setSaving] = useState(false);
     const [removing, setRemoving] = useState<string | null>(null);
 
-    const fetchEntries = useCallback(async () => {
-        setLoading(true);
-        try {
-            const result = await getBannedGifs();
-            setEntries(result.entries ?? []);
-        } catch (e) {
-            setError(e instanceof Error ? e.message : "Failed to load banlist");
-        } finally {
-            setLoading(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        fetchEntries();
-    }, [fetchEntries]);
+    const saving = addMutation.isPending;
 
     async function handleAdd() {
         if (!input.trim() || saving) {
             return;
         }
-        setSaving(true);
         setError("");
         try {
-            await addBannedGif({ input: input.trim(), reason: reason.trim() });
+            await addMutation.mutateAsync({ input: input.trim(), reason: reason.trim() });
             setInput("");
             setReason("");
-            await fetchEntries();
         } catch (e) {
             setError(e instanceof Error ? e.message : "Failed to add");
-        } finally {
-            setSaving(false);
         }
     }
 
@@ -61,8 +45,7 @@ export function AdminBannedGifs() {
         const key = `${entry.kind}:${entry.value}`;
         setRemoving(key);
         try {
-            await removeBannedGif(entry.kind, entry.value);
-            await fetchEntries();
+            await removeMutation.mutateAsync({ kind: entry.kind, value: entry.value });
         } catch (e) {
             setError(e instanceof Error ? e.message : "Failed to remove");
         } finally {

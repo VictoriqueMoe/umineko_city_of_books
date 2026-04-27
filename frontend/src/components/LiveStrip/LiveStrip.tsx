@@ -1,12 +1,10 @@
-import { useEffect, useState } from "react";
 import { Link } from "react-router";
-import { getHomeActivity } from "../../api/endpoints";
-import type { HomeActivityResponse, HomeCornerActivity } from "../../types/api";
+import { useHomeActivity } from "../../api/queries/sidebar";
+import type { HomeCornerActivity } from "../../types/api";
 import { ProfileLink } from "../ProfileLink/ProfileLink";
 import { relativeTime } from "../../utils/time";
 import styles from "./LiveStrip.module.css";
 
-const POLL_INTERVAL_MS = 30_000;
 const MAX_MEMBERS = 3;
 
 interface LiveStripProps {
@@ -95,29 +93,7 @@ function CornerFocus({ stats }: CornerFocusProps) {
 }
 
 export function LiveStrip({ corner }: LiveStripProps) {
-    const [data, setData] = useState<HomeActivityResponse | null>(null);
-
-    useEffect(() => {
-        let cancelled = false;
-
-        const load = async () => {
-            try {
-                const resp = await getHomeActivity();
-                if (!cancelled) {
-                    setData(resp);
-                }
-            } catch {
-                /* silent */
-            }
-        };
-
-        load();
-        const timer = window.setInterval(load, POLL_INTERVAL_MS);
-        return () => {
-            cancelled = true;
-            window.clearInterval(timer);
-        };
-    }, []);
+    const { data } = useHomeActivity();
 
     if (!data) {
         return null;

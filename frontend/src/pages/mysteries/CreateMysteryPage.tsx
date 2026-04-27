@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useAuth } from "../../hooks/useAuth";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import { createMystery, getMystery, updateMystery, uploadMysteryAttachment } from "../../api/endpoints";
+import { useMystery } from "../../api/queries/mystery";
+import { useCreateMystery, useUpdateMystery, useUploadMysteryAttachmentToAny } from "../../api/mutations/mystery";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
 import { TextArea } from "../../components/TextArea/TextArea";
@@ -17,22 +18,31 @@ interface ClueInput {
     truth_type: string;
 }
 
+interface MysteryDraft {
+    sourceId: string | null;
+    title?: string;
+    body?: string;
+    difficulty?: string;
+    freeForAll?: boolean;
+    clues?: ClueInput[];
+}
+
 export function CreateMysteryPage() {
     const { id: editId } = useParams<{ id: string }>();
     const isEdit = !!editId;
     usePageTitle(isEdit ? "Edit Mystery" : "New Mystery");
     const navigate = useNavigate();
     const { user, loading: authLoading } = useAuth();
-    const [title, setTitle] = useState("");
-    const [body, setBody] = useState("");
-    const [difficulty, setDifficulty] = useState("medium");
-    const [freeForAll, setFreeForAll] = useState(false);
-    const [clues, setClues] = useState<ClueInput[]>([{ body: "", truth_type: "red" }]);
+    const [draft, setDraft] = useState<MysteryDraft>({ sourceId: null });
     const [attachments, setAttachments] = useState<File[]>([]);
     const attachmentInputRef = useRef<HTMLInputElement>(null);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
-    const [editLoading, setEditLoading] = useState(isEdit);
+    const { mystery: editMystery, loading: editFetchLoading } = useMystery(isEdit ? (editId ?? "") : "");
+    const editLoading = isEdit && editFetchLoading;
+    const createMutation = useCreateMystery();
+    const updateMutation = useUpdateMystery(editId ?? "");
+    const uploadAttachmentMutation = useUploadMysteryAttachmentToAny();
 
     useEffect(() => {
         if (!authLoading && !user) {
@@ -40,26 +50,42 @@ export function CreateMysteryPage() {
         }
     }, [user, authLoading, navigate]);
 
-    useEffect(() => {
-        if (!isEdit || !editId) {
-            return;
-        }
-        getMystery(editId)
-            .then(data => {
-                setTitle(data.title);
-                setBody(data.body);
-                setDifficulty(data.difficulty);
-                setFreeForAll(data.free_for_all);
-                const gmClues = (data.clues ?? []).filter(c => !c.player_id);
-                if (gmClues.length > 0) {
-                    setClues(gmClues.map(c => ({ body: c.body, truth_type: c.truth_type })));
-                }
-                setEditLoading(false);
-            })
-            .catch(() => {
-                setEditLoading(false);
-            });
-    }, [isEdit, editId]);
+    const sourceId = isEdit ? (editMystery?.id ?? null) : "new";
+    const activeDraft = draft.sourceId === sourceId ? draft : { sourceId };
+    const editGmClues = isEdit
+        ? (editMystery?.clues ?? []).filter(c => !c.player_id).map(c => ({ body: c.body, truth_type: c.truth_type }))
+        : [];
+    const baseClues: ClueInput[] = isEdit && editGmClues.length > 0 ? editGmClues : [{ body: "", truth_type: "red" }];
+
+    const title = activeDraft.title ?? (isEdit ? (editMystery?.title ?? "") : "");
+    const body = activeDraft.body ?? (isEdit ? (editMystery?.body ?? "") : "");
+    const difficulty = activeDraft.difficulty ?? (isEdit ? (editMystery?.difficulty ?? "medium") : "medium");
+    const freeForAll = activeDraft.freeForAll ?? (isEdit ? (editMystery?.free_for_all ?? false) : false);
+    const clues = activeDraft.clues ?? baseClues;
+
+    function patch(update: Partial<MysteryDraft>) {
+        setDraft(prev => {
+            const base = prev.sourceId === sourceId ? prev : { sourceId };
+            return { ...base, ...update };
+        });
+    }
+
+    function setTitle(value: string) {
+        patch({ title: value });
+    }
+    function setBody(value: string) {
+        patch({ body: value });
+    }
+    function setDifficulty(value: string) {
+        patch({ difficulty: value });
+    }
+    function setFreeForAll(value: boolean) {
+        patch({ freeForAll: value });
+    }
+    function setClues(updater: ClueInput[] | ((prev: ClueInput[]) => ClueInput[])) {
+        const next = typeof updater === "function" ? updater(clues) : updater;
+        patch({ clues: next });
+    }
 
     function addClue() {
         setClues(prev => [...prev, { body: "", truth_type: "red" }]);
@@ -87,7 +113,7 @@ export function CreateMysteryPage() {
         try {
             const validClues = clues.filter(c => c.body.trim());
             if (isEdit && editId) {
-                await updateMystery(editId, {
+                await updateMutation.mutateAsync({
                     title: title.trim(),
                     body: body.trim(),
                     difficulty,
@@ -96,12 +122,12 @@ export function CreateMysteryPage() {
                 });
                 for (const file of attachments) {
                     try {
-                        await uploadMysteryAttachment(editId, file);
+                        await uploadAttachmentMutation.mutateAsync({ mysteryId: editId, file });
                     } catch {}
                 }
                 navigate(`/mystery/${editId}`);
             } else {
-                const result = await createMystery({
+                const result = await createMutation.mutateAsync({
                     title: title.trim(),
                     body: body.trim(),
                     difficulty,
@@ -110,7 +136,7 @@ export function CreateMysteryPage() {
                 });
                 for (const file of attachments) {
                     try {
-                        await uploadMysteryAttachment(result.id, file);
+                        await uploadAttachmentMutation.mutateAsync({ mysteryId: result.id, file });
                     } catch {}
                 }
                 navigate(`/mystery/${result.id}`);

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { createReport } from "../../api/endpoints";
+import { useCreateReport } from "../../api/mutations/misc";
 import { useAuth } from "../../hooks/useAuth";
 import { Button } from "../Button/Button";
 import { Input } from "../Input/Input";
@@ -16,28 +16,25 @@ export function ReportButton({ targetType, targetId, contextId }: ReportButtonPr
     const { user } = useAuth();
     const [open, setOpen] = useState(false);
     const [reason, setReason] = useState("");
-    const [submitting, setSubmitting] = useState(false);
     const [submitted, setSubmitted] = useState(false);
     const [error, setError] = useState("");
+    const reportMutation = useCreateReport();
 
     if (!user) {
         return null;
     }
 
     async function handleSubmit() {
-        if (!reason.trim() || submitting) {
+        if (!reason.trim() || reportMutation.isPending) {
             return;
         }
-        setSubmitting(true);
         setError("");
         try {
-            await createReport(targetType, targetId, reason.trim(), contextId);
+            await reportMutation.mutateAsync({ targetType, targetId, reason: reason.trim(), contextId });
             setSubmitted(true);
             setReason("");
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to submit report");
-        } finally {
-            setSubmitting(false);
         }
     }
 
@@ -77,8 +74,12 @@ export function ReportButton({ targetType, targetId, contextId }: ReportButtonPr
                             <Button variant="secondary" onClick={handleClose}>
                                 Cancel
                             </Button>
-                            <Button variant="danger" onClick={handleSubmit} disabled={submitting || !reason.trim()}>
-                                {submitting ? "Submitting..." : "Submit Report"}
+                            <Button
+                                variant="danger"
+                                onClick={handleSubmit}
+                                disabled={reportMutation.isPending || !reason.trim()}
+                            >
+                                {reportMutation.isPending ? "Submitting..." : "Submit Report"}
                             </Button>
                         </div>
                     </div>

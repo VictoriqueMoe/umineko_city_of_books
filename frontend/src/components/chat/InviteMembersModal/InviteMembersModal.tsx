@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import type { User } from "../../../types/api";
-import { getMutualFollowers, inviteChatRoomMembers, searchUsers } from "../../../api/endpoints";
+import { useMutualFollowers, useSearchUsers } from "../../../api/queries/misc";
+import { useInviteChatRoomMembers } from "../../../api/mutations/chat";
 import { Modal } from "../../Modal/Modal";
 import { Input } from "../../Input/Input";
 import { Button } from "../../Button/Button";
@@ -17,44 +18,41 @@ interface InviteMembersModalProps {
 
 export function InviteMembersModal({ isOpen, roomId, existingMemberIds, onClose, onInvited }: InviteMembersModalProps) {
     const [search, setSearch] = useState("");
-    const [results, setResults] = useState<User[]>([]);
-    const [mutuals, setMutuals] = useState<User[]>([]);
+    const [debouncedSearch, setDebouncedSearch] = useState("");
+    const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
     const [selected, setSelected] = useState<User[]>([]);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
-    const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-    useEffect(() => {
-        if (!isOpen) {
-            return;
+    const [openInstance, setOpenInstance] = useState(0);
+    const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+    if (isOpen !== prevIsOpen) {
+        setPrevIsOpen(isOpen);
+        if (isOpen) {
+            setOpenInstance(n => n + 1);
         }
-        getMutualFollowers()
-            .then(setMutuals)
-            .catch(() => setMutuals([]));
-    }, [isOpen]);
+    }
+    const [resetForOpenInstance, setResetForOpenInstance] = useState(0);
+    if (resetForOpenInstance !== openInstance && !isOpen) {
+        setResetForOpenInstance(openInstance);
+        setSearch("");
+        setDebouncedSearch("");
+        setSelected([]);
+        setError("");
+    }
 
-    useEffect(() => {
-        if (!isOpen) {
-            setSearch("");
-            setResults([]);
-            setSelected([]);
-            setError("");
-        }
-    }, [isOpen]);
-
-    useEffect(() => {
+    function handleSearchChange(value: string) {
+        setSearch(value);
         clearTimeout(debounceRef.current);
-        if (!search.trim()) {
-            setResults([]);
-            return;
-        }
-        debounceRef.current = setTimeout(() => {
-            searchUsers(search)
-                .then(setResults)
-                .catch(() => setResults([]));
-        }, 200);
-        return () => clearTimeout(debounceRef.current);
-    }, [search]);
+        debounceRef.current = setTimeout(() => setDebouncedSearch(value.trim()), 200);
+    }
+
+    const mutualsQuery = useMutualFollowers(isOpen);
+    const mutuals = mutualsQuery.mutuals;
+
+    const searchQuery = useSearchUsers(debouncedSearch, isOpen && !!debouncedSearch);
+    const results = searchQuery.users;
+    const inviteMutation = useInviteChatRoomMembers(roomId);
 
     function toggleSelected(u: User) {
         setSelected(prev => {
@@ -72,10 +70,7 @@ export function InviteMembersModal({ isOpen, roomId, existingMemberIds, onClose,
         setSubmitting(true);
         setError("");
         try {
-            const result = await inviteChatRoomMembers(
-                roomId,
-                selected.map(u => u.id),
-            );
+            const result = await inviteMutation.mutateAsync(selected.map(u => u.id));
             onInvited?.(result);
             onClose();
         } catch (err) {
@@ -111,7 +106,7 @@ export function InviteMembersModal({ isOpen, roomId, existingMemberIds, onClose,
                         type="text"
                         placeholder="Search users..."
                         value={search}
-                        onChange={e => setSearch(e.target.value)}
+                        onChange={e => handleSearchChange(e.target.value)}
                     />
                 </div>
 

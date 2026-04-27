@@ -93,19 +93,10 @@ export function MessageBubble({
     senderIsStaff,
 }: MessageBubbleProps) {
     const [pickerOpen, setPickerOpen] = useState(false);
-    const [editDraft, setEditDraft] = useState(message.body);
-    const [saving, setSaving] = useState(false);
 
     const [reactorsPopover, setReactorsPopover] = useState<string | null>(null);
     const longPressTimerRef = useRef<number | null>(null);
     const longPressedRef = useRef(false);
-
-    useEffect(() => {
-        if (editing) {
-            setEditDraft(message.body);
-            setSaving(false);
-        }
-    }, [editing, message.body]);
 
     useEffect(() => {
         if (!reactorsPopover) {
@@ -186,29 +177,6 @@ export function MessageBubble({
     function startEdit() {
         onEditStart?.(message);
     }
-
-    function cancelEdit() {
-        setSaving(false);
-        onEditCancel?.();
-    }
-
-    async function commitEdit() {
-        if (!onEdit) {
-            return;
-        }
-        const next = editDraft.trim();
-        if (next === "" || next === message.body.trim()) {
-            cancelEdit();
-            return;
-        }
-        setSaving(true);
-        try {
-            await onEdit(message, next);
-            onEditCancel?.();
-        } finally {
-            setSaving(false);
-        }
-    }
     const isSystemMessage = message.is_system;
     const classes = [styles.messageBubble];
     if (isOwn && !isSystemMessage) {
@@ -266,41 +234,18 @@ export function MessageBubble({
                     <RolePill role={effectiveSender.role ?? ""} userId={effectiveSender.id} />
                 </div>
                 {editing ? (
-                    <div className={styles.editRow}>
-                        <textarea
-                            className={styles.editTextarea}
-                            value={editDraft}
-                            onChange={e => setEditDraft(e.target.value)}
-                            onKeyDown={e => {
-                                if (e.key === "Enter" && !e.shiftKey) {
-                                    e.preventDefault();
-                                    commitEdit();
-                                    return;
-                                }
-                                if (e.key === "Escape") {
-                                    e.preventDefault();
-                                    cancelEdit();
-                                }
-                            }}
-                            disabled={saving}
-                            autoFocus
-                            rows={Math.min(8, Math.max(2, editDraft.split("\n").length))}
-                        />
-                        <div className={styles.editActions}>
-                            <button type="button" className={styles.editBtn} onClick={cancelEdit} disabled={saving}>
-                                Cancel
-                            </button>
-                            <button
-                                type="button"
-                                className={`${styles.editBtn} ${styles.editBtnPrimary}`}
-                                onClick={commitEdit}
-                                disabled={saving || editDraft.trim() === ""}
-                            >
-                                {saving ? "Saving..." : "Save"}
-                            </button>
-                        </div>
-                        <div className={styles.editHint}>Enter to save · Esc to cancel</div>
-                    </div>
+                    <EditRow
+                        key={message.id}
+                        initialBody={message.body}
+                        onCommit={async next => {
+                            if (!onEdit) {
+                                return;
+                            }
+                            await onEdit(message, next);
+                            onEditCancel?.();
+                        }}
+                        onCancel={() => onEditCancel?.()}
+                    />
                 ) : (
                     (() => {
                         const gifURL = extractGif(message.body);
@@ -474,6 +419,69 @@ export function MessageBubble({
                     </button>
                 )}
             </div>
+        </div>
+    );
+}
+
+interface EditRowProps {
+    initialBody: string;
+    onCommit: (next: string) => Promise<void>;
+    onCancel: () => void;
+}
+
+function EditRow({ initialBody, onCommit, onCancel }: EditRowProps) {
+    const [draft, setDraft] = useState(initialBody);
+    const [saving, setSaving] = useState(false);
+
+    async function commit() {
+        const next = draft.trim();
+        if (next === "" || next === initialBody.trim()) {
+            onCancel();
+            return;
+        }
+        setSaving(true);
+        try {
+            await onCommit(next);
+        } finally {
+            setSaving(false);
+        }
+    }
+
+    return (
+        <div className={styles.editRow}>
+            <textarea
+                className={styles.editTextarea}
+                value={draft}
+                onChange={e => setDraft(e.target.value)}
+                onKeyDown={e => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        void commit();
+                        return;
+                    }
+                    if (e.key === "Escape") {
+                        e.preventDefault();
+                        onCancel();
+                    }
+                }}
+                disabled={saving}
+                autoFocus
+                rows={Math.min(8, Math.max(2, draft.split("\n").length))}
+            />
+            <div className={styles.editActions}>
+                <button type="button" className={styles.editBtn} onClick={onCancel} disabled={saving}>
+                    Cancel
+                </button>
+                <button
+                    type="button"
+                    className={`${styles.editBtn} ${styles.editBtnPrimary}`}
+                    onClick={() => void commit()}
+                    disabled={saving || draft.trim() === ""}
+                >
+                    {saving ? "Saving..." : "Save"}
+                </button>
+            </div>
+            <div className={styles.editHint}>Enter to save · Esc to cancel</div>
         </div>
     );
 }

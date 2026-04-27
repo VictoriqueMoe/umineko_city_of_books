@@ -1,20 +1,19 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router";
 import type { ShipCharacter } from "../../types/api";
 import { useAuth } from "../../hooks/useAuth";
 import { usePageTitle } from "../../hooks/usePageTitle";
+import { fanficQueryFns, useFanfic, useFanficLanguages, useFanficSeries } from "../../api/queries/fanfic";
 import {
-    createFanfic,
-    createFanficChapter,
-    deleteFanficCover,
-    getFanfic,
-    getFanficChapter,
-    getFanficLanguages,
-    getFanficSeries,
-    updateFanfic,
-    updateFanficChapter,
-    uploadFanficCover,
-} from "../../api/endpoints";
+    useCreateFanfic,
+    useCreateFanficChapter,
+    useDeleteFanficCover,
+    useUpdateFanfic,
+    useUpdateFanficChapter,
+    useUploadFanficCover,
+    useUploadFanficCoverFor,
+} from "../../api/mutations/fanfic";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
 import { Select } from "../../components/Select/Select";
@@ -96,121 +95,195 @@ export function FanficEditorPage() {
     usePageTitle(isEdit ? "Edit Fanfic" : "New Fanfic");
     const navigate = useNavigate();
     const { user } = useAuth();
+    const qc = useQueryClient();
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const [draftPrompt, setDraftPrompt] = useState<DraftData | null>(null);
-    const [initialised, setInitialised] = useState(isEdit);
-    const [editLoading, setEditLoading] = useState(isEdit);
-
-    const [step, setStep] = useState(1);
-    const [status, setStatus] = useState("in_progress");
-    const [title, setTitle] = useState("");
-    const [summary, setSummary] = useState("");
-    const [series, setSeries] = useState("Umineko");
-    const [customSeries, setCustomSeries] = useState("");
-    const [rating, setRating] = useState("K");
-    const [language, setLanguage] = useState("English");
-    const [customLanguage, setCustomLanguage] = useState("");
-    const [genreA, setGenreA] = useState("");
-    const [genreB, setGenreB] = useState("");
-    const [tags, setTags] = useState<string[]>([]);
-    const [tagInput, setTagInput] = useState("");
-    const [characters, setCharacters] = useState<ShipCharacter[]>([]);
-    const [isPairing, setIsPairing] = useState(false);
-    const [isOneshot, setIsOneshot] = useState(true);
-    const [containsLemons, setContainsLemons] = useState(false);
-    const [body, setBody] = useState("");
-    const [coverFile, setCoverFile] = useState<File | null>(null);
-    const [coverPreview, setCoverPreview] = useState("");
-    const [coverRemoved, setCoverRemoved] = useState(false);
-    const [editChapterId, setEditChapterId] = useState("");
-    const [editChapterCount, setEditChapterCount] = useState(0);
-    const [submitting, setSubmitting] = useState(false);
-    const [error, setError] = useState("");
-
-    const [dynamicSeries, setDynamicSeries] = useState<string[]>([]);
-    const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
-
-    const showCustomSeries = series === OTHER_VALUE;
-    const showCustomLanguage = language === OTHER_VALUE;
-
-    useEffect(() => {
-        getFanficSeries()
-            .then(setDynamicSeries)
-            .catch(() => setDynamicSeries([]));
-        getFanficLanguages()
-            .then(setAvailableLanguages)
-            .catch(() => setAvailableLanguages([]));
-    }, []);
-
-    useEffect(() => {
-        if (!isEdit || !editId) {
-            return;
-        }
-        getFanfic(editId)
-            .then(data => {
-                if (data.author.id !== user?.id && !can(user?.role, "edit_any_theory")) {
-                    navigate(`/fanfiction/${editId}`);
-                    return;
-                }
-                setTitle(data.title);
-                setSummary(data.summary);
-                setRating(data.rating);
-                setIsOneshot(data.is_oneshot);
-                setContainsLemons(data.contains_lemons);
-                setIsPairing(data.is_pairing);
-                setStatus(data.status);
-                setCharacters(
-                    data.characters?.map((c, i) => ({
-                        series: c.series,
-                        character_id: c.character_id,
-                        character_name: c.character_name,
-                        sort_order: i,
-                    })) ?? [],
-                );
-                setGenreA(data.genres?.[0] ?? "");
-                setGenreB(data.genres?.[1] ?? "");
-                setTags(data.tags ?? []);
-
-                if (PINNED_SERIES.includes(data.series)) {
-                    setSeries(data.series);
-                } else {
-                    setSeries(OTHER_VALUE);
-                    setCustomSeries(data.series);
-                }
-
-                getFanficLanguages()
-                    .then(langs => {
-                        if (langs.includes(data.language)) {
-                            setLanguage(data.language);
-                        } else {
-                            setLanguage(OTHER_VALUE);
-                            setCustomLanguage(data.language);
-                        }
-                    })
-                    .catch(() => {
-                        setLanguage(data.language);
-                    });
-
-                if (data.cover_image_url) {
-                    setCoverPreview(data.cover_image_url);
-                }
-                setEditChapterCount(data.chapter_count ?? 0);
-                setEditLoading(false);
-            })
-            .catch(() => setEditLoading(false));
-    }, [isEdit, editId, user?.id, user?.role, navigate]);
-
-    useEffect(() => {
+    const [draftPrompt, setDraftPrompt] = useState<DraftData | null>(() => {
         if (isEdit) {
-            return;
+            return null;
         }
         const existing = loadDraft();
         if (existing && existing.title) {
-            setDraftPrompt(existing);
-        } else {
-            setInitialised(true);
+            return existing;
         }
-    }, [isEdit]);
+        return null;
+    });
+    const [initialised, setInitialised] = useState(() => {
+        if (isEdit) {
+            return false;
+        }
+        const existing = loadDraft();
+        if (existing && existing.title) {
+            return false;
+        }
+        return true;
+    });
+
+    const { series: dynamicSeries } = useFanficSeries();
+    const { languages: availableLanguages } = useFanficLanguages();
+    const { fanfic: editData, loading: editLoading } = useFanfic(isEdit ? (editId ?? "") : "");
+
+    const updateMutation = useUpdateFanfic(editId ?? "");
+    const createMutation = useCreateFanfic();
+    const uploadCoverMutation = useUploadFanficCover(editId ?? "");
+    const uploadCoverForMutation = useUploadFanficCoverFor();
+    const deleteCoverMutation = useDeleteFanficCover(editId ?? "");
+    const updateChapterMutation = useUpdateFanficChapter(editId ?? "");
+    const createChapterMutation = useCreateFanficChapter(editId ?? "");
+
+    const seedFromEdit = useMemo(() => {
+        if (!editData) {
+            return null;
+        }
+        let seedSeries = editData.series;
+        let seedCustomSeries = "";
+        if (!PINNED_SERIES.includes(editData.series)) {
+            seedSeries = OTHER_VALUE;
+            seedCustomSeries = editData.series;
+        }
+        let seedLanguage = editData.language;
+        let seedCustomLanguage = "";
+        if (availableLanguages.length > 0 && !availableLanguages.includes(editData.language)) {
+            seedLanguage = OTHER_VALUE;
+            seedCustomLanguage = editData.language;
+        }
+        return {
+            title: editData.title,
+            summary: editData.summary,
+            rating: editData.rating,
+            isOneshot: editData.is_oneshot,
+            containsLemons: editData.contains_lemons,
+            isPairing: editData.is_pairing,
+            status: editData.status,
+            characters:
+                editData.characters?.map((c, i) => ({
+                    series: c.series,
+                    character_id: c.character_id,
+                    character_name: c.character_name,
+                    sort_order: i,
+                })) ?? [],
+            genreA: editData.genres?.[0] ?? "",
+            genreB: editData.genres?.[1] ?? "",
+            tags: editData.tags ?? [],
+            series: seedSeries,
+            customSeries: seedCustomSeries,
+            language: seedLanguage,
+            customLanguage: seedCustomLanguage,
+            coverPreview: editData.cover_image_url ?? "",
+            chapterCount: editData.chapter_count ?? 0,
+        };
+    }, [editData, availableLanguages]);
+
+    useEffect(() => {
+        if (editData && editData.author.id !== user?.id && !can(user?.role, "edit_any_theory")) {
+            navigate(`/fanfiction/${editId}`);
+        }
+    }, [editData, user?.id, user?.role, navigate, editId]);
+
+    const [step, setStep] = useState(1);
+    const [titleDraft, setTitleDraft] = useState<string | null>(null);
+    const [summaryDraft, setSummaryDraft] = useState<string | null>(null);
+    const [ratingDraft, setRatingDraft] = useState<string | null>(null);
+    const [isOneshotDraft, setIsOneshotDraft] = useState<boolean | null>(null);
+    const [containsLemonsDraft, setContainsLemonsDraft] = useState<boolean | null>(null);
+    const [isPairingDraft, setIsPairingDraft] = useState<boolean | null>(null);
+    const [statusDraft, setStatusDraft] = useState<string | null>(null);
+    const [charactersDraft, setCharactersDraft] = useState<ShipCharacter[] | null>(null);
+    const [genreADraft, setGenreADraft] = useState<string | null>(null);
+    const [genreBDraft, setGenreBDraft] = useState<string | null>(null);
+    const [tagsDraft, setTagsDraft] = useState<string[] | null>(null);
+    const [seriesDraft, setSeriesDraft] = useState<string | null>(null);
+    const [customSeriesDraft, setCustomSeriesDraft] = useState<string | null>(null);
+    const [languageDraft, setLanguageDraft] = useState<string | null>(null);
+    const [customLanguageDraft, setCustomLanguageDraft] = useState<string | null>(null);
+    const [coverPreviewDraft, setCoverPreviewDraft] = useState<string | null>(null);
+    const [tagInput, setTagInput] = useState("");
+    const [body, setBody] = useState("");
+    const [coverFile, setCoverFile] = useState<File | null>(null);
+    const [coverRemoved, setCoverRemoved] = useState(false);
+    const [editChapterId, setEditChapterId] = useState("");
+    const [submitting, setSubmitting] = useState(false);
+    const [error, setError] = useState("");
+
+    const title = titleDraft ?? seedFromEdit?.title ?? "";
+    const summary = summaryDraft ?? seedFromEdit?.summary ?? "";
+    const rating = ratingDraft ?? seedFromEdit?.rating ?? "K";
+    const isOneshot = isOneshotDraft ?? seedFromEdit?.isOneshot ?? true;
+    const containsLemons = containsLemonsDraft ?? seedFromEdit?.containsLemons ?? false;
+    const isPairing = isPairingDraft ?? seedFromEdit?.isPairing ?? false;
+    const status = statusDraft ?? seedFromEdit?.status ?? "in_progress";
+    const characters = useMemo(
+        () => charactersDraft ?? seedFromEdit?.characters ?? [],
+        [charactersDraft, seedFromEdit?.characters],
+    );
+    const genreA = genreADraft ?? seedFromEdit?.genreA ?? "";
+    const genreB = genreBDraft ?? seedFromEdit?.genreB ?? "";
+    const tags = useMemo(() => tagsDraft ?? seedFromEdit?.tags ?? [], [tagsDraft, seedFromEdit?.tags]);
+    const series = seriesDraft ?? seedFromEdit?.series ?? "Umineko";
+    const customSeries = customSeriesDraft ?? seedFromEdit?.customSeries ?? "";
+    const language = languageDraft ?? seedFromEdit?.language ?? "English";
+    const customLanguage = customLanguageDraft ?? seedFromEdit?.customLanguage ?? "";
+    const coverPreview = coverPreviewDraft ?? seedFromEdit?.coverPreview ?? "";
+    const editChapterCount = seedFromEdit?.chapterCount ?? 0;
+
+    function setTitle(v: string) {
+        setTitleDraft(v);
+    }
+    function setSummary(v: string) {
+        setSummaryDraft(v);
+    }
+    function setRating(v: string) {
+        setRatingDraft(v);
+    }
+    function setIsOneshot(v: boolean) {
+        setIsOneshotDraft(v);
+    }
+    function setContainsLemons(v: boolean) {
+        setContainsLemonsDraft(v);
+    }
+    function setIsPairing(v: boolean) {
+        setIsPairingDraft(v);
+    }
+    function setStatus(v: string) {
+        setStatusDraft(v);
+    }
+    function setCharacters(updater: ShipCharacter[] | ((prev: ShipCharacter[]) => ShipCharacter[])) {
+        if (typeof updater === "function") {
+            setCharactersDraft(prev => updater(prev ?? seedFromEdit?.characters ?? []));
+        } else {
+            setCharactersDraft(updater);
+        }
+    }
+    function setGenreA(v: string) {
+        setGenreADraft(v);
+    }
+    function setGenreB(v: string) {
+        setGenreBDraft(v);
+    }
+    function setTags(updater: string[] | ((prev: string[]) => string[])) {
+        if (typeof updater === "function") {
+            setTagsDraft(prev => updater(prev ?? seedFromEdit?.tags ?? []));
+        } else {
+            setTagsDraft(updater);
+        }
+    }
+    function setSeries(v: string) {
+        setSeriesDraft(v);
+    }
+    function setCustomSeries(v: string) {
+        setCustomSeriesDraft(v);
+    }
+    function setLanguage(v: string) {
+        setLanguageDraft(v);
+    }
+    function setCustomLanguage(v: string) {
+        setCustomLanguageDraft(v);
+    }
+    function setCoverPreview(v: string) {
+        setCoverPreviewDraft(v);
+    }
+
+    const showCustomSeries = series === OTHER_VALUE;
+    const showCustomLanguage = language === OTHER_VALUE;
 
     function restoreDraft(draft: DraftData) {
         setTitle(draft.title);
@@ -359,7 +432,7 @@ export function FanficEditorPage() {
 
         setSubmitting(true);
         try {
-            await updateFanfic(editId!, {
+            await updateMutation.mutateAsync({
                 title: title.trim(),
                 summary: summary.trim(),
                 series: resolvedSeries,
@@ -376,18 +449,18 @@ export function FanficEditorPage() {
 
             if (coverFile && editId) {
                 try {
-                    await uploadFanficCover(editId, coverFile);
+                    await uploadCoverMutation.mutateAsync(coverFile);
                 } catch {}
             } else if (coverRemoved && editId) {
                 try {
-                    await deleteFanficCover(editId);
+                    await deleteCoverMutation.mutateAsync();
                 } catch {}
             }
 
             if (isOneshot && editId) {
-                const fanficData = await getFanfic(editId);
+                const fanficData = await qc.fetchQuery(fanficQueryFns.fanfic(editId));
                 if (fanficData.chapters?.length > 0) {
-                    const ch = await getFanficChapter(editId, 1);
+                    const ch = await qc.fetchQuery(fanficQueryFns.chapter(editId, 1));
                     setBody(ch.body);
                     setEditChapterId(ch.id);
                 }
@@ -417,7 +490,7 @@ export function FanficEditorPage() {
         setSubmitting(true);
         try {
             if (isEdit && editId) {
-                await updateFanfic(editId, {
+                await updateMutation.mutateAsync({
                     title: title.trim(),
                     summary: summary.trim(),
                     series: resolvedSeries,
@@ -433,18 +506,18 @@ export function FanficEditorPage() {
                 });
                 if (coverFile) {
                     try {
-                        await uploadFanficCover(editId, coverFile);
+                        await uploadCoverMutation.mutateAsync(coverFile);
                     } catch {}
                 } else if (coverRemoved) {
                     try {
-                        await deleteFanficCover(editId);
+                        await deleteCoverMutation.mutateAsync();
                     } catch {}
                 }
                 navigate(`/fanfiction/${editId}`);
                 return;
             }
 
-            const result = await createFanfic({
+            const result = await createMutation.mutateAsync({
                 title: title.trim(),
                 summary: summary.trim(),
                 series: resolvedSeries,
@@ -462,10 +535,8 @@ export function FanficEditorPage() {
 
             if (coverFile) {
                 try {
-                    await uploadFanficCover(result.id, coverFile);
-                } catch {
-                    // cover upload failure should not block creation
-                }
+                    await uploadCoverForMutation.mutateAsync({ id: result.id, file: coverFile });
+                } catch {}
             }
 
             clearDraft();
@@ -835,9 +906,13 @@ export function FanficEditorPage() {
                             setSubmitting(true);
                             try {
                                 if (editChapterId) {
-                                    await updateFanficChapter(editChapterId, "", body);
+                                    await updateChapterMutation.mutateAsync({
+                                        chapterId: editChapterId,
+                                        title: "",
+                                        body,
+                                    });
                                 } else {
-                                    await createFanficChapter(editId!, "", body);
+                                    await createChapterMutation.mutateAsync({ title: "", body });
                                 }
                                 navigate(`/fanfiction/${editId}`);
                             } catch (e) {

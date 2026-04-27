@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { User } from "../../types/api";
-import { searchUsers } from "../../api/endpoints";
+import { fetchSearchUsers } from "../../api/queries/misc";
 import { Butterfly } from "../Butterfly/Butterfly";
 import styles from "./MentionTextArea.module.css";
 
@@ -188,7 +188,7 @@ export function MentionTextArea({
                     return;
                 }
 
-                searchUsers(mention.query)
+                fetchSearchUsers(mention.query)
                     .then(users => {
                         const results = users as SearchResult[];
                         results.sort((a, b) => {

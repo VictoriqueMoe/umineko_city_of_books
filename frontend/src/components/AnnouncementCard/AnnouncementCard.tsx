@@ -1,9 +1,8 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router";
 import { marked } from "marked";
 import DOMPurify from "dompurify";
-import type { Announcement } from "../../types/api";
-import { getLatestAnnouncement } from "../../api/endpoints";
+import { useLatestAnnouncement } from "../../api/queries/announcement";
 import { ProfileLink } from "../ProfileLink/ProfileLink";
 import { relativeTime } from "../../utils/notifications";
 import styles from "./AnnouncementCard.module.css";
@@ -17,26 +16,13 @@ function renderMarkdown(md: string): string {
 
 export function AnnouncementCard() {
     const navigate = useNavigate();
-    const [announcement, setAnnouncement] = useState<Announcement | null>(null);
+    const { announcement } = useLatestAnnouncement();
     const [dismissed, setDismissed] = useState(false);
 
-    useEffect(() => {
-        getLatestAnnouncement()
-            .then(data => {
-                if (!data.announcement) {
-                    return;
-                }
-                const dismissedId = localStorage.getItem(DISMISSED_KEY);
-                if (dismissedId === data.announcement.id) {
-                    setDismissed(true);
-                } else {
-                    setAnnouncement(data.announcement);
-                }
-            })
-            .catch(() => {});
-    }, []);
+    const dismissedId = typeof localStorage !== "undefined" ? localStorage.getItem(DISMISSED_KEY) : null;
+    const visible = announcement && !dismissed && dismissedId !== announcement.id;
 
-    if (!announcement || dismissed) {
+    if (!visible || !announcement) {
         return null;
     }
 
@@ -55,7 +41,7 @@ export function AnnouncementCard() {
                     {announcement.title}
                 </span>
                 <button className={styles.dismiss} onClick={handleDismiss} title="Dismiss">
-                    {"\u2715"}
+                    {"✕"}
                 </button>
             </div>
             <div className={styles.body} dangerouslySetInnerHTML={{ __html: renderMarkdown(announcement.body) }} />

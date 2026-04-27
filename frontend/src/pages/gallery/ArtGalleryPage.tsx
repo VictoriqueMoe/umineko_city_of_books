@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { useAuth } from "../../hooks/useAuth";
-import { useArtFeed } from "../../hooks/useArtFeed";
+import { useAllGalleries, useArtFeed } from "../../api/queries/art";
+import { usePopularTags } from "../../api/queries/misc";
+import { useUserGalleries } from "../../api/queries/user";
+import { useCreateGallery } from "../../api/mutations/art";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import { createGallery, getPopularTags, getUserGalleries, listAllGalleries } from "../../api/endpoints";
-import type { Gallery, TagCount } from "../../types/api";
+import type { Gallery } from "../../types/api";
 import { ArtGrid } from "../../components/art/ArtGrid/ArtGrid";
 import { ArtUploadForm } from "../../components/art/ArtUploadForm/ArtUploadForm";
 import { Pagination } from "../../components/Pagination/Pagination";
@@ -55,18 +57,12 @@ export function ArtGalleryPage({ corner = "general" }: ArtGalleryPageProps) {
     const page = parseInt(searchParams.get("page") || "1", 10);
 
     const [searchInput, setSearchInput] = useState(search);
-    const [popularTags, setPopularTags] = useState<TagCount[]>([]);
     const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
     const [refreshKey, setRefreshKey] = useState(0);
 
-    const [userGalleries, setUserGalleries] = useState<Gallery[]>([]);
-    const [selectedGallery, setSelectedGallery] = useState("");
+    const [selectedGalleryOverride, setSelectedGalleryOverride] = useState<string | null>(null);
     const [showUpload, setShowUpload] = useState(false);
-    const [creatingGallery, setCreatingGallery] = useState(false);
     const [newGalleryName, setNewGalleryName] = useState("");
-
-    const [allGalleries, setAllGalleries] = useState<Gallery[]>([]);
-    const [galleriesLoading, setGalleriesLoading] = useState(false);
 
     const feed = useArtFeed(
         corner,
@@ -78,55 +74,27 @@ export function ArtGalleryPage({ corner = "general" }: ArtGalleryPageProps) {
         refreshKey,
     );
 
+    const { tags: popularTags } = usePopularTags(corner);
+    const { galleries: userGalleries, refresh: refreshUserGalleries } = useUserGalleries(user?.id ?? "");
+    const { galleries: allGalleries, loading: galleriesLoading } = useAllGalleries(corner, viewMode === "galleries");
+    const createGalleryMutation = useCreateGallery();
+
+    const selectedGallery = selectedGalleryOverride ?? userGalleries[0]?.id ?? "";
+
     function refresh() {
         setRefreshKey(k => k + 1);
     }
-
-    useEffect(() => {
-        getPopularTags(corner)
-            .then(setPopularTags)
-            .catch(() => setPopularTags([]));
-    }, [corner]);
-
-    useEffect(() => {
-        if (user?.id) {
-            getUserGalleries(user.id)
-                .then(g => {
-                    setUserGalleries(g ?? []);
-                    if (g && g.length > 0) {
-                        setSelectedGallery(prev => prev || g[0].id);
-                    }
-                })
-                .catch(() => {});
-        }
-    }, [user?.id]);
-
-    useEffect(() => {
-        if (viewMode === "galleries") {
-            setGalleriesLoading(true);
-            listAllGalleries(corner)
-                .then(g => setAllGalleries(g ?? []))
-                .catch(() => setAllGalleries([]))
-                .finally(() => setGalleriesLoading(false));
-        }
-    }, [viewMode, corner]);
 
     async function handleCreateGallery() {
         if (!newGalleryName.trim()) {
             return;
         }
-        setCreatingGallery(true);
         try {
-            const { id } = await createGallery(newGalleryName.trim());
+            const { id } = await createGalleryMutation.mutateAsync({ name: newGalleryName.trim() });
             setNewGalleryName("");
-            if (user?.id) {
-                const updated = await getUserGalleries(user.id);
-                setUserGalleries(updated ?? []);
-                setSelectedGallery(id);
-            }
-        } finally {
-            setCreatingGallery(false);
-        }
+            await refreshUserGalleries();
+            setSelectedGalleryOverride(id);
+        } catch {}
     }
 
     const updateParams = useCallback(
@@ -245,9 +213,9 @@ export function ArtGalleryPage({ corner = "general" }: ArtGalleryPageProps) {
                                     variant="primary"
                                     size="small"
                                     onClick={handleCreateGallery}
-                                    disabled={!newGalleryName.trim() || creatingGallery}
+                                    disabled={!newGalleryName.trim() || createGalleryMutation.isPending}
                                 >
-                                    {creatingGallery ? "Creating..." : "Create"}
+                                    {createGalleryMutation.isPending ? "Creating..." : "Create"}
                                 </Button>
                             </div>
                         </div>
@@ -262,7 +230,7 @@ export function ArtGalleryPage({ corner = "general" }: ArtGalleryPageProps) {
                             }}
                             galleries={userGalleries}
                             selectedGallery={selectedGallery}
-                            onGalleryChange={setSelectedGallery}
+                            onGalleryChange={setSelectedGalleryOverride}
                         />
                     ) : null}
                 </div>

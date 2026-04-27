@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useSiteInfo } from "../../hooks/useSiteInfo";
 import { validateFileSize } from "../../utils/fileValidation";
 import { Button } from "../Button/Button";
@@ -13,21 +13,21 @@ interface MediaPreviewsProps {
 }
 
 export function MediaPreviews({ files, onRemove, size = "normal" }: MediaPreviewsProps) {
-    const [previews, setPreviews] = useState<string[]>([]);
-
-    useEffect(() => {
+    const previews = useMemo(() => {
         const urls: string[] = [];
         for (let i = 0; i < files.length; i++) {
             urls.push(URL.createObjectURL(files[i]));
         }
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setPreviews(urls);
+        return urls;
+    }, [files]);
+
+    useEffect(() => {
         return () => {
-            for (let i = 0; i < urls.length; i++) {
-                URL.revokeObjectURL(urls[i]);
+            for (let i = 0; i < previews.length; i++) {
+                URL.revokeObjectURL(previews[i]);
             }
         };
-    }, [files]);
+    }, [previews]);
 
     if (files.length === 0) {
         return null;

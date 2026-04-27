@@ -1,8 +1,7 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import * as api from "../../api/endpoints";
-import type { GameRoom } from "../../types/api";
+import { useFinishedGameRooms } from "../../api/queries/gameRoom";
 import { Button } from "../../components/Button/Button";
 import { formatFullDateTime } from "../../utils/time";
 import styles from "./GamesPages.module.css";
@@ -11,42 +10,14 @@ const PAGE_SIZE = 20;
 
 export function PastGamesPage() {
     usePageTitle("Past Games");
-    const [rooms, setRooms] = useState<GameRoom[]>([]);
-    const [total, setTotal] = useState(0);
     const [offset, setOffset] = useState(0);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState("");
-
-    useEffect(() => {
-        let cancelled = false;
-        api.listFinishedGameRooms(undefined, PAGE_SIZE, offset)
-            .then(resp => {
-                if (cancelled) {
-                    return;
-                }
-                setRooms(resp.rooms ?? []);
-                setTotal(resp.total ?? 0);
-                setLoading(false);
-            })
-            .catch(err => {
-                if (cancelled) {
-                    return;
-                }
-                setError(err instanceof Error ? err.message : "Failed to load past games");
-                setLoading(false);
-            });
-        return () => {
-            cancelled = true;
-        };
-    }, [offset]);
+    const { rooms, total, loading } = useFinishedGameRooms(undefined, PAGE_SIZE, offset);
 
     function goPrev() {
-        setLoading(true);
         setOffset(Math.max(0, offset - PAGE_SIZE));
     }
 
     function goNext() {
-        setLoading(true);
         setOffset(offset + PAGE_SIZE);
     }
 
@@ -57,7 +28,6 @@ export function PastGamesPage() {
         <div className={styles.page}>
             <h2 className={styles.heading}>Past Games</h2>
             <p>Every finished match, newest first. Click into any game to see the final board, move list, and stats.</p>
-            {error && <div className={styles.error}>{error}</div>}
             {loading ? (
                 <p className={styles.empty}>Loading...</p>
             ) : rooms.length === 0 ? (

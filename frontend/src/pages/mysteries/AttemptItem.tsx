@@ -1,6 +1,11 @@
 import { useState } from "react";
 import type { MysteryAttempt } from "../../types/api";
-import { createMysteryAttempt, deleteMysteryAttempt, markMysterySolved, voteMysteryAttempt } from "../../api/endpoints";
+import {
+    useCreateMysteryAttempt,
+    useDeleteMysteryAttempt,
+    useMarkMysterySolved,
+    useVoteMysteryAttempt,
+} from "../../api/mutations/mystery";
 import { useAuth } from "../../hooks/useAuth";
 import { can } from "../../utils/permissions";
 import { Button } from "../../components/Button/Button";
@@ -46,6 +51,10 @@ function SingleAttempt({
     const [submitting, setSubmitting] = useState(false);
     const [voteScore, setVoteScore] = useState(attempt.vote_score);
     const [userVote, setUserVote] = useState(attempt.user_vote ?? 0);
+    const voteMutation = useVoteMysteryAttempt(mysteryId);
+    const createReplyMutation = useCreateMysteryAttempt(mysteryId);
+    const deleteAttemptMutation = useDeleteMysteryAttempt(mysteryId);
+    const markSolvedMutation = useMarkMysterySolved(mysteryId);
 
     async function handleVote(value: number) {
         const newValue = userVote === value ? 0 : value;
@@ -54,7 +63,7 @@ function SingleAttempt({
         setVoteScore(voteScore - oldVote + newValue);
         setUserVote(newValue);
         try {
-            await voteMysteryAttempt(attempt.id, newValue);
+            await voteMutation.mutateAsync({ id: attempt.id, value: newValue });
         } catch {
             setVoteScore(oldScore);
             setUserVote(oldVote);
@@ -67,7 +76,7 @@ function SingleAttempt({
         }
         setSubmitting(true);
         try {
-            await createMysteryAttempt(mysteryId, replyBody.trim(), attempt.id);
+            await createReplyMutation.mutateAsync({ body: replyBody.trim(), parentId: attempt.id });
             setReplyBody("");
             setShowReply(false);
             onRefresh();
@@ -82,7 +91,7 @@ function SingleAttempt({
         if (!window.confirm("Delete this attempt?")) {
             return;
         }
-        await deleteMysteryAttempt(attempt.id);
+        await deleteAttemptMutation.mutateAsync(attempt.id);
         onRefresh();
     }
 
@@ -90,7 +99,7 @@ function SingleAttempt({
         if (!window.confirm(`Select this attempt by ${attempt.author.display_name} as the winner?`)) {
             return;
         }
-        await markMysterySolved(mysteryId, attempt.id);
+        await markSolvedMutation.mutateAsync(attempt.id);
         onRefresh();
     }
 

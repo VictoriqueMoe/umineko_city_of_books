@@ -2,25 +2,25 @@ import { type MouseEvent, useCallback, useEffect, useMemo, useRef, useState } fr
 import { useLocation, useNavigate, useParams } from "react-router";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useScrollToHash } from "../../hooks/useScrollToHash";
-import type { MysteryAttachment, MysteryAttempt, MysteryClue, MysteryDetail, PostComment } from "../../types/api";
+import type { MysteryAttachment, MysteryAttempt, MysteryClue, PostComment } from "../../types/api";
+import { useMystery } from "../../api/queries/mystery";
 import {
-    addMysteryClue,
-    createMysteryAttempt,
-    createMysteryComment,
-    deleteMystery,
-    deleteMysteryAttachment,
-    deleteMysteryClue,
-    deleteMysteryComment,
-    getMystery,
-    likeMysteryComment,
-    setMysteryGmAway,
-    setMysteryPaused,
-    unlikeMysteryComment,
-    updateMysteryClue,
-    updateMysteryComment,
-    uploadMysteryAttachment,
-    uploadMysteryCommentMedia,
-} from "../../api/endpoints";
+    useAddMysteryClue,
+    useCreateMysteryAttempt,
+    useCreateMysteryComment,
+    useDeleteMystery,
+    useDeleteMysteryAttachment,
+    useDeleteMysteryClue,
+    useDeleteMysteryComment,
+    useLikeMysteryComment,
+    useSetMysteryGmAway,
+    useSetMysteryPaused,
+    useUnlikeMysteryComment,
+    useUpdateMysteryClue,
+    useUpdateMysteryComment,
+    useUploadMysteryAttachment,
+    useUploadMysteryCommentMedia,
+} from "../../api/mutations/mystery";
 import { useAuth } from "../../hooks/useAuth";
 import { useNotifications } from "../../hooks/useNotifications";
 import { useThrottled } from "../../hooks/useThrottled";
@@ -97,6 +97,8 @@ function PrivateCluesDisplay({
             return false;
         }
     });
+    const deleteClueMutation = useDeleteMysteryClue(mysteryId);
+    const updateClueMutation = useUpdateMysteryClue(mysteryId);
     const playerClues = clues.filter(c => c.player_id === playerId);
 
     function toggleCollapsed() {
@@ -119,7 +121,7 @@ function PrivateCluesDisplay({
         if (!window.confirm("Delete this red truth? This cannot be undone.")) {
             return;
         }
-        await deleteMysteryClue(mysteryId, clueId);
+        await deleteClueMutation.mutateAsync(clueId);
         onAdded();
     }
 
@@ -127,7 +129,7 @@ function PrivateCluesDisplay({
         if (!editClueBody.trim()) {
             return;
         }
-        await updateMysteryClue(mysteryId, clueId, editClueBody.trim());
+        await updateClueMutation.mutateAsync({ clueId, body: editClueBody.trim() });
         setEditingClueId(null);
         onAdded();
     }
@@ -249,6 +251,7 @@ function PrivateClueInput({
     const [body, setBody] = useState("");
     const [adding, setAdding] = useState(false);
     const [added, setAdded] = useState(false);
+    const addClueMutation = useAddMysteryClue(mysteryId);
 
     async function handleAdd() {
         if (!body.trim() || adding) {
@@ -256,7 +259,7 @@ function PrivateClueInput({
         }
         setAdding(true);
         try {
-            await addMysteryClue(mysteryId, body.trim(), "red", playerId);
+            await addClueMutation.mutateAsync({ body: body.trim(), truthType: "red", playerId });
             setBody("");
             setAdded(true);
             setTimeout(() => setAdded(false), 2000);
@@ -326,16 +329,53 @@ export function MysteryDetailPage() {
     const location = useLocation();
     const { user } = useAuth();
     const { addWSListener } = useNotifications();
-    const [mystery, setMystery] = useState<MysteryDetail | null>(null);
-    const [loading, setLoading] = useState(true);
+    const mysteryId = id ?? "";
+    const { mystery, loading, refresh } = useMystery(mysteryId);
     usePageTitle(mystery?.title ?? "Mystery");
+    const createAttemptMutation = useCreateMysteryAttempt(mysteryId);
+    const addClueMutation = useAddMysteryClue(mysteryId);
+    const deleteMysteryMutation = useDeleteMystery();
+    const setPausedMutation = useSetMysteryPaused(mysteryId);
+    const setGmAwayMutation = useSetMysteryGmAway(mysteryId);
+    const uploadAttachmentMutation = useUploadMysteryAttachment(mysteryId);
+    const deleteAttachmentMutation = useDeleteMysteryAttachment(mysteryId);
+    const createCommentMutation = useCreateMysteryComment(mysteryId);
+    const updateCommentMutation = useUpdateMysteryComment(mysteryId);
+    const deleteCommentMutation = useDeleteMysteryComment(mysteryId);
+    const likeCommentMutation = useLikeMysteryComment(mysteryId);
+    const unlikeCommentMutation = useUnlikeMysteryComment(mysteryId);
+    const uploadCommentMediaMutation = useUploadMysteryCommentMedia(mysteryId);
+    const likeCommentFn = useCallback(
+        (commentId: string) => likeCommentMutation.mutateAsync(commentId).then(() => {}),
+        [likeCommentMutation],
+    );
+    const unlikeCommentFn = useCallback(
+        (commentId: string) => unlikeCommentMutation.mutateAsync(commentId).then(() => {}),
+        [unlikeCommentMutation],
+    );
+    const deleteCommentFn = useCallback(
+        (commentId: string) => deleteCommentMutation.mutateAsync(commentId).then(() => {}),
+        [deleteCommentMutation],
+    );
+    const updateCommentFn = useCallback(
+        (commentId: string, body: string) => updateCommentMutation.mutateAsync({ id: commentId, body }).then(() => {}),
+        [updateCommentMutation],
+    );
+    const createCommentFn = useCallback(
+        (_postId: string, body: string, parentId?: string) =>
+            createCommentMutation.mutateAsync({ body, parentId }).then(c => ({ id: c.id })),
+        [createCommentMutation],
+    );
+    const uploadCommentMediaFn = useCallback(
+        (commentId: string, file: File) => uploadCommentMediaMutation.mutateAsync({ commentId, file }),
+        [uploadCommentMediaMutation],
+    );
     const hash = location.hash;
     const highlightedAttempt = hash.startsWith("#attempt-") ? hash.replace("#attempt-", "") : null;
     const [attemptBody, setAttemptBody] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const [collapsedPlayers, setCollapsedPlayers] = useState<Set<string>>(new Set());
     const [unreadPlayers, setUnreadPlayers] = useState<Set<string>>(new Set());
-    const initialUnreadComputedFor = useRef<string | null>(null);
     const [newClueBody, setNewClueBody] = useState("");
     const [addingClue, setAddingClue] = useState(false);
     const [uploadingAttachment, setUploadingAttachment] = useState(false);
@@ -417,20 +457,10 @@ export function MysteryDetailPage() {
     }, [mystery, user]);
 
     const fetchMystery = useCallback(() => {
-        if (!id) {
-            return;
-        }
-        getMystery(id)
-            .then(setMystery)
-            .catch(() => setMystery(null))
-            .finally(() => setLoading(false));
-    }, [id]);
+        void refresh();
+    }, [refresh]);
 
     const throttledFetchMystery = useThrottled(fetchMystery, 200);
-
-    useEffect(() => {
-        fetchMystery();
-    }, [fetchMystery]);
 
     useEffect(() => {
         if (!id) {
@@ -481,38 +511,31 @@ export function MysteryDetailPage() {
         });
     }, [id, addWSListener, throttledFetchMystery, user?.id]);
 
-    useEffect(() => {
-        if (!mystery || !id) {
-            return;
-        }
-        if (initialUnreadComputedFor.current === id) {
-            return;
-        }
-        initialUnreadComputedFor.current = id;
-
+    const [unreadComputedForMystery, setUnreadComputedForMystery] = useState<string | null>(null);
+    if (mystery && id && unreadComputedForMystery !== id) {
+        setUnreadComputedForMystery(id);
         const isGM = user?.id === mystery.author.id || user?.role === "super_admin";
-        if (!isGM || mystery.solved) {
-            return;
-        }
-        const cursorRaw = localStorage.getItem(`mystery-read-cursor-${id}`);
-        if (!cursorRaw) {
-            localStorage.setItem(`mystery-read-cursor-${id}`, new Date().toISOString());
-            return;
-        }
-        const cursorDate = parseServerDate(cursorRaw);
-        const cursor = cursorDate ? cursorDate.getTime() : 0;
-        const unread = new Set<string>();
-        for (const a of mystery.attempts ?? []) {
-            const createdDate = parseServerDate(a.created_at);
-            const created = createdDate ? createdDate.getTime() : 0;
-            if (created > cursor && a.author.id !== user?.id) {
-                unread.add(a.author.id);
+        if (isGM && !mystery.solved) {
+            const cursorRaw = localStorage.getItem(`mystery-read-cursor-${id}`);
+            if (!cursorRaw) {
+                localStorage.setItem(`mystery-read-cursor-${id}`, new Date().toISOString());
+            } else {
+                const cursorDate = parseServerDate(cursorRaw);
+                const cursor = cursorDate ? cursorDate.getTime() : 0;
+                const unread = new Set<string>();
+                for (const a of mystery.attempts ?? []) {
+                    const createdDate = parseServerDate(a.created_at);
+                    const created = createdDate ? createdDate.getTime() : 0;
+                    if (created > cursor && a.author.id !== user?.id) {
+                        unread.add(a.author.id);
+                    }
+                }
+                if (unread.size > 0) {
+                    setUnreadPlayers(unread);
+                }
             }
         }
-        if (unread.size > 0) {
-            setUnreadPlayers(unread);
-        }
-    }, [mystery, id, user?.id, user?.role]);
+    }
 
     useEffect(() => {
         if (!id) {
@@ -544,7 +567,7 @@ export function MysteryDetailPage() {
         }
         setSubmitting(true);
         try {
-            await createMysteryAttempt(id, attemptBody.trim());
+            await createAttemptMutation.mutateAsync({ body: attemptBody.trim() });
             setAttemptBody("");
             fetchMystery();
         } catch {
@@ -560,7 +583,7 @@ export function MysteryDetailPage() {
         }
         setAddingClue(true);
         try {
-            await addMysteryClue(id, newClueBody.trim(), "red");
+            await addClueMutation.mutateAsync({ body: newClueBody.trim(), truthType: "red" });
             setNewClueBody("");
             fetchMystery();
         } catch {
@@ -574,7 +597,7 @@ export function MysteryDetailPage() {
         if (!window.confirm("Delete this mystery? This cannot be undone.")) {
             return;
         }
-        await deleteMystery(mystery!.id);
+        await deleteMysteryMutation.mutateAsync(mystery!.id);
         navigate("/mysteries");
     }
 
@@ -586,7 +609,7 @@ export function MysteryDetailPage() {
         setUploadingAttachment(true);
         setAttachmentError("");
         try {
-            await uploadMysteryAttachment(id, file);
+            await uploadAttachmentMutation.mutateAsync(file);
             fetchMystery();
         } catch (err) {
             setAttachmentError(err instanceof Error ? err.message : "Failed to upload attachment");
@@ -603,7 +626,7 @@ export function MysteryDetailPage() {
             return;
         }
         try {
-            await deleteMysteryAttachment(mystery!.id, attachment.id);
+            await deleteAttachmentMutation.mutateAsync(attachment.id);
             fetchMystery();
         } catch {}
     }
@@ -683,7 +706,7 @@ export function MysteryDetailPage() {
                                 variant={mystery.paused ? "primary" : "ghost"}
                                 size="small"
                                 onClick={async () => {
-                                    await setMysteryPaused(mystery.id, !mystery.paused);
+                                    await setPausedMutation.mutateAsync(!mystery.paused);
                                     fetchMystery();
                                 }}
                             >
@@ -695,7 +718,7 @@ export function MysteryDetailPage() {
                                 variant={mystery.gm_away ? "primary" : "ghost"}
                                 size="small"
                                 onClick={async () => {
-                                    await setMysteryGmAway(mystery.id, !mystery.gm_away);
+                                    await setGmAwayMutation.mutateAsync(!mystery.gm_away);
                                     fetchMystery();
                                 }}
                             >
@@ -1021,12 +1044,12 @@ export function MysteryDetailPage() {
                             highlightedId={undefined}
                             linkPrefix="/mystery"
                             reportType="mystery_comment"
-                            likeFn={likeMysteryComment}
-                            unlikeFn={unlikeMysteryComment}
-                            deleteFn={deleteMysteryComment}
-                            updateFn={updateMysteryComment}
-                            createCommentFn={createMysteryComment}
-                            uploadMediaFn={uploadMysteryCommentMedia}
+                            likeFn={likeCommentFn}
+                            unlikeFn={unlikeCommentFn}
+                            deleteFn={deleteCommentFn}
+                            updateFn={updateCommentFn}
+                            createCommentFn={createCommentFn}
+                            uploadMediaFn={uploadCommentMediaFn}
                         />
                     ))}
                     {mystery.comments.length === 0 && (
@@ -1036,8 +1059,8 @@ export function MysteryDetailPage() {
                         <CommentComposer
                             postId={id}
                             onCreated={fetchMystery}
-                            createCommentFn={createMysteryComment}
-                            uploadMediaFn={uploadMysteryCommentMedia}
+                            createCommentFn={createCommentFn}
+                            uploadMediaFn={uploadCommentMediaFn}
                         />
                     )}
                 </div>

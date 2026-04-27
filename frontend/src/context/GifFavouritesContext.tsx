@@ -1,45 +1,20 @@
-import { type PropsWithChildren, useCallback, useEffect, useMemo, useState } from "react";
-import { addGiphyFavourite, type GiphyFavourite, listGiphyFavourites, removeGiphyFavourite } from "../api/endpoints";
+import { type PropsWithChildren, useCallback, useMemo } from "react";
+import type { GiphyFavourite } from "../api/endpoints";
+import { useGiphyFavourites } from "../api/queries/giphy";
+import { useAddGiphyFavourite, useRemoveGiphyFavourite } from "../api/mutations/giphy";
 import { useAuth } from "../hooks/useAuth";
 import { GifFavouritesContext } from "./gifFavouritesContextValue";
 
 export function GifFavouritesProvider({ children }: PropsWithChildren) {
     const { user } = useAuth();
-    const [favourites, setFavourites] = useState<GiphyFavourite[]>([]);
+    const { favourites: rawFavourites, refresh: refreshQuery } = useGiphyFavourites(0, 500);
+    const favourites = useMemo<GiphyFavourite[]>(() => (user ? rawFavourites : []), [user, rawFavourites]);
+    const addMutation = useAddGiphyFavourite();
+    const removeMutation = useRemoveGiphyFavourite();
 
     const refresh = useCallback(async () => {
-        if (!user) {
-            setFavourites([]);
-            return;
-        }
-        try {
-            const r = await listGiphyFavourites(0, 500);
-            setFavourites(r.data ?? []);
-        } catch {
-            setFavourites([]);
-        }
-    }, [user]);
-
-    useEffect(() => {
-        let cancelled = false;
-        const fetcher = user
-            ? listGiphyFavourites(0, 500).then(r => r.data ?? [])
-            : Promise.resolve<GiphyFavourite[]>([]);
-        fetcher
-            .then(rows => {
-                if (!cancelled) {
-                    setFavourites(rows);
-                }
-            })
-            .catch(() => {
-                if (!cancelled) {
-                    setFavourites([]);
-                }
-            });
-        return () => {
-            cancelled = true;
-        };
-    }, [user]);
+        await refreshQuery();
+    }, [refreshQuery]);
 
     const ids = useMemo(() => new Set(favourites.map(f => f.giphy_id)), [favourites]);
 
@@ -52,21 +27,19 @@ export function GifFavouritesProvider({ children }: PropsWithChildren) {
             }
             if (ids.has(fav.giphy_id)) {
                 try {
-                    await removeGiphyFavourite(fav.giphy_id);
+                    await removeMutation.mutateAsync(fav.giphy_id);
                 } catch {
                     return;
                 }
-                setFavourites(prev => prev.filter(f => f.giphy_id !== fav.giphy_id));
                 return;
             }
             try {
-                await addGiphyFavourite(fav);
+                await addMutation.mutateAsync(fav);
             } catch {
                 return;
             }
-            setFavourites(prev => [fav, ...prev.filter(f => f.giphy_id !== fav.giphy_id)]);
         },
-        [ids, user],
+        [ids, user, removeMutation, addMutation],
     );
 
     const value = useMemo(

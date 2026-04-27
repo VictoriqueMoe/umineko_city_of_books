@@ -1,25 +1,24 @@
-import { useEffect, useReducer, useState } from "react";
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { usePageTitle } from "../../hooks/usePageTitle";
+import { useAdminUser } from "../../api/queries/admin";
 import {
-    adminDeleteUser,
-    banUser,
-    getAdminUser,
-    lockUser,
-    removeUserRole,
-    setUserRole,
-    unbanUser,
-    unlockUser,
-    updateDetectiveScore,
-    updateGMScore,
-} from "../../api/endpoints";
+    useAdminDeleteUser,
+    useBanUser,
+    useLockUser,
+    useRemoveUserRole,
+    useSetUserRole,
+    useUnbanUser,
+    useUnlockUser,
+    useUpdateDetectiveScore,
+    useUpdateGMScore,
+} from "../../api/mutations/admin";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
 import { Modal } from "../../components/Modal/Modal";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { RolePill } from "../../components/RolePill/RolePill";
 import { Select } from "../../components/Select/Select";
-import type { AdminUserDetail as AdminUserDetailType } from "../../types/api";
 import { useAuth } from "../../hooks/useAuth";
 import { can } from "../../utils/permissions";
 import { formatDate } from "../../utils/time";
@@ -29,59 +28,61 @@ export function AdminUserDetail() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { user: currentUser } = useAuth();
-    const [user, setUser] = useState<AdminUserDetailType | null>(null);
+    const { user, loading } = useAdminUser(id ?? "");
     usePageTitle(user ? `Admin - ${user.display_name}` : "Admin - User");
-    const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [feedback, setFeedback] = useState("");
-    const [refreshKey, refresh] = useReducer((x: number) => x + 1, 0);
+
+    const setRoleMutation = useSetUserRole();
+    const removeRoleMutation = useRemoveUserRole();
+    const banUserMutation = useBanUser();
+    const unbanUserMutation = useUnbanUser();
+    const lockUserMutation = useLockUser();
+    const unlockUserMutation = useUnlockUser();
+    const deleteUserMutation = useAdminDeleteUser();
+    const updateDetectiveScoreMutation = useUpdateDetectiveScore();
+    const updateGMScoreMutation = useUpdateGMScore();
 
     const [selectedRole, setSelectedRole] = useState("admin");
     const [banReason, setBanReason] = useState("");
     const [lockReason, setLockReason] = useState("");
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-    const [detectiveScoreInput, setDetectiveScoreInput] = useState("0");
-    const [gmScoreInput, setGMScoreInput] = useState("0");
+    const [scoreDraft, setScoreDraft] = useState<{
+        userId: string | null;
+        detective: string | null;
+        gm: string | null;
+    }>({
+        userId: null,
+        detective: null,
+        gm: null,
+    });
+    const activeScoreDraft =
+        scoreDraft.userId === (user?.id ?? null) ? scoreDraft : { userId: user?.id ?? null, detective: null, gm: null };
+    const detectiveScoreInput = activeScoreDraft.detective ?? (user ? String(user.detective_score) : "0");
+    const gmScoreInput = activeScoreDraft.gm ?? (user ? String(user.gm_score) : "0");
 
-    useEffect(() => {
-        if (!id) {
-            return;
-        }
-        let cancelled = false;
-        async function load() {
-            setLoading(true);
-            setError("");
-            try {
-                const data = await getAdminUser(id!);
-                if (!cancelled) {
-                    setUser(data);
-                    setDetectiveScoreInput(String(data.detective_score));
-                    setGMScoreInput(String(data.gm_score));
-                }
-            } catch (e) {
-                if (!cancelled) {
-                    setError(e instanceof Error ? e.message : "Failed to load user");
-                }
-            } finally {
-                if (!cancelled) {
-                    setLoading(false);
-                }
-            }
-        }
-        load();
-        return () => {
-            cancelled = true;
-        };
-    }, [id, refreshKey]);
+    function setDetectiveScoreInput(value: string) {
+        setScoreDraft(prev => {
+            const base =
+                prev.userId === (user?.id ?? null) ? prev : { userId: user?.id ?? null, detective: null, gm: null };
+            return { ...base, detective: value };
+        });
+    }
+    function setGMScoreInput(value: string) {
+        setScoreDraft(prev => {
+            const base =
+                prev.userId === (user?.id ?? null) ? prev : { userId: user?.id ?? null, detective: null, gm: null };
+            return { ...base, gm: value };
+        });
+    }
 
     async function handleSetRole() {
         if (!id) {
             return;
         }
         try {
-            await setUserRole(id, selectedRole);
+            await setRoleMutation.mutateAsync({ id, role: selectedRole });
             setFeedback("Role assigned");
-            refresh();
         } catch (e) {
             setError(e instanceof Error ? e.message : "Failed to set role");
         }
@@ -92,9 +93,8 @@ export function AdminUserDetail() {
             return;
         }
         try {
-            await removeUserRole(id, user.role);
+            await removeRoleMutation.mutateAsync({ id, role: user.role });
             setFeedback("Role removed");
-            refresh();
         } catch (e) {
             setError(e instanceof Error ? e.message : "Failed to remove role");
         }
@@ -105,10 +105,9 @@ export function AdminUserDetail() {
             return;
         }
         try {
-            await banUser(id, banReason.trim());
+            await banUserMutation.mutateAsync({ id, reason: banReason.trim() });
             setBanReason("");
             setFeedback("User banned");
-            refresh();
         } catch (e) {
             setError(e instanceof Error ? e.message : "Failed to ban user");
         }
@@ -119,9 +118,8 @@ export function AdminUserDetail() {
             return;
         }
         try {
-            await unbanUser(id);
+            await unbanUserMutation.mutateAsync(id);
             setFeedback("User unbanned");
-            refresh();
         } catch (e) {
             setError(e instanceof Error ? e.message : "Failed to unban user");
         }
@@ -132,10 +130,9 @@ export function AdminUserDetail() {
             return;
         }
         try {
-            await lockUser(id, lockReason.trim());
+            await lockUserMutation.mutateAsync({ id, reason: lockReason.trim() });
             setLockReason("");
             setFeedback("User locked");
-            refresh();
         } catch (e) {
             setError(e instanceof Error ? e.message : "Failed to lock user");
         }
@@ -146,9 +143,8 @@ export function AdminUserDetail() {
             return;
         }
         try {
-            await unlockUser(id);
+            await unlockUserMutation.mutateAsync(id);
             setFeedback("User unlocked");
-            refresh();
         } catch (e) {
             setError(e instanceof Error ? e.message : "Failed to unlock user");
         }
@@ -162,7 +158,7 @@ export function AdminUserDetail() {
             return;
         }
         try {
-            await adminDeleteUser(id);
+            await deleteUserMutation.mutateAsync(id);
             navigate("/admin/users");
         } catch (e) {
             setError(e instanceof Error ? e.message : "Failed to delete user");
@@ -290,8 +286,10 @@ export function AdminUserDetail() {
                                     onClick={async () => {
                                         const num = parseInt(detectiveScoreInput, 10) || 0;
                                         try {
-                                            await updateDetectiveScore(user.id, num);
-                                            refresh();
+                                            await updateDetectiveScoreMutation.mutateAsync({
+                                                id: user.id,
+                                                desiredScore: num,
+                                            });
                                         } catch {}
                                     }}
                                 >
@@ -320,8 +318,10 @@ export function AdminUserDetail() {
                                     onClick={async () => {
                                         const num = parseInt(gmScoreInput, 10) || 0;
                                         try {
-                                            await updateGMScore(user.id, num);
-                                            refresh();
+                                            await updateGMScoreMutation.mutateAsync({
+                                                id: user.id,
+                                                desiredScore: num,
+                                            });
                                         } catch {}
                                     }}
                                 >

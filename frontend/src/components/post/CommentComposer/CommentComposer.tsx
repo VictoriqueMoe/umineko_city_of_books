@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { createComment, uploadCommentMedia } from "../../../api/endpoints";
+import { useCreateComment, useUploadCommentMedia } from "../../../api/mutations/post";
 import { useSiteInfo } from "../../../hooks/useSiteInfo";
 import { validateFileSize } from "../../../utils/fileValidation";
 import { Button } from "../../Button/Button";
@@ -26,6 +26,11 @@ export function CommentComposer({ postId, parentId, onCreated, createCommentFn, 
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
     const [gifPickerOpen, setGifPickerOpen] = useState(false);
+    const createCommentMutation = useCreateComment(postId);
+    const uploadMediaMutation = useUploadCommentMedia(postId);
+    const defaultCreate: CreateCommentFn = (_postId, b, parent) =>
+        createCommentMutation.mutateAsync({ body: b, parentId: parent });
+    const defaultUpload: UploadMediaFn = (commentId, file) => uploadMediaMutation.mutateAsync({ commentId, file });
 
     function removeFile(index: number) {
         setFiles(prev => prev.filter((_, i) => i !== index));
@@ -61,7 +66,7 @@ export function CommentComposer({ postId, parentId, onCreated, createCommentFn, 
         setSubmitting(true);
         setError("");
         try {
-            const doCreate = createCommentFn || createComment;
+            const doCreate = createCommentFn || defaultCreate;
             await doCreate(postId, gif.url, parentId);
             onCreated();
         } catch (err) {
@@ -78,8 +83,8 @@ export function CommentComposer({ postId, parentId, onCreated, createCommentFn, 
         setSubmitting(true);
         setError("");
         try {
-            const doCreate = createCommentFn || createComment;
-            const doUpload = uploadMediaFn || uploadCommentMedia;
+            const doCreate = createCommentFn || defaultCreate;
+            const doUpload = uploadMediaFn || defaultUpload;
             const { id } = await doCreate(postId, body.trim(), parentId);
             for (const file of files) {
                 try {

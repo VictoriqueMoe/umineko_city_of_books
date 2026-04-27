@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router";
 import type {
     PostComment,
@@ -8,15 +9,15 @@ import type {
     SecretProgressEvent,
     SecretSolvedEvent,
 } from "../../types/api";
+import { useSecret } from "../../api/queries/secret";
 import {
-    createSecretComment,
-    deleteSecretComment,
-    getSecret,
-    likeSecretComment,
-    unlikeSecretComment,
-    updateSecretComment,
-    uploadSecretCommentMedia,
-} from "../../api/endpoints";
+    useCreateSecretComment,
+    useDeleteSecretComment,
+    useLikeSecretComment,
+    useUnlikeSecretComment,
+    useUpdateSecretComment,
+    useUploadSecretCommentMedia,
+} from "../../api/mutations/secret";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useAuth } from "../../hooks/useAuth";
 import { useNotifications } from "../../hooks/useNotifications";
@@ -44,36 +45,30 @@ export function SecretDetailPage() {
     usePageTitle("Secret");
     const { user } = useAuth();
     const { addWSListener, sendWSMessage, wsEpoch } = useNotifications();
-    const [detail, setDetail] = useState<SecretDetailResponse | null>(null);
-    const [loading, setLoading] = useState(true);
+    const qc = useQueryClient();
+    const { data: rawDetail, loading, refresh } = useSecret(id);
+    const detail = rawDetail
+        ? ({ ...rawDetail, leaderboard: sortLeaderboard(rawDetail.leaderboard) } as SecretDetailResponse)
+        : null;
     const [toast, setToast] = useState<string | null>(null);
 
-    const fetchDetail = useCallback(() => {
-        if (!id) {
-            return;
-        }
-        getSecret(id)
-            .then(d => setDetail({ ...d, leaderboard: sortLeaderboard(d.leaderboard) }))
-            .catch(() => setDetail(null))
-            .finally(() => setLoading(false));
-    }, [id]);
-
-    useEffect(() => {
-        fetchDetail();
-    }, [fetchDetail]);
-
-    const refresh = fetchDetail;
+    const createCommentMutation = useCreateSecretComment(id);
+    const updateCommentMutation = useUpdateSecretComment(id);
+    const deleteCommentMutation = useDeleteSecretComment(id);
+    const likeCommentMutation = useLikeSecretComment(id);
+    const unlikeCommentMutation = useUnlikeSecretComment(id);
+    const uploadMediaMutation = useUploadSecretCommentMedia(id);
 
     useEffect(() => {
         if (!id || wsEpoch === 0) {
             return;
         }
         sendWSMessage({ type: "secret_join", data: { secret_id: id } });
-        fetchDetail();
+        refresh();
         return () => {
             sendWSMessage({ type: "secret_leave", data: { secret_id: id } });
         };
-    }, [id, sendWSMessage, wsEpoch, fetchDetail]);
+    }, [id, sendWSMessage, wsEpoch, refresh]);
 
     useEffect(() => {
         if (!id) {
@@ -85,7 +80,7 @@ export function SecretDetailPage() {
                 if (data.secret_id !== id) {
                     return;
                 }
-                setDetail(prev => {
+                qc.setQueryData<SecretDetailResponse>(["secrets", "detail", id], prev => {
                     if (!prev) {
                         return prev;
                     }
@@ -99,7 +94,7 @@ export function SecretDetailPage() {
                     } else {
                         next.push({ user: data.user, pieces_collected: data.pieces_collected, solved: false });
                     }
-                    return { ...prev, leaderboard: sortLeaderboard(next) };
+                    return { ...prev, leaderboard: next };
                 });
             } else if (msg.type === "secret_solved") {
                 const data = msg.data as SecretSolvedEvent;
@@ -107,7 +102,7 @@ export function SecretDetailPage() {
                     return;
                 }
                 setToast(`${data.solver.display_name} spoke the witch's name.`);
-                setDetail(prev => {
+                qc.setQueryData<SecretDetailResponse>(["secrets", "detail", id], prev => {
                     if (!prev) {
                         return prev;
                     }
@@ -117,12 +112,12 @@ export function SecretDetailPage() {
                         solved: true,
                         solver: data.solver,
                         solved_at: data.solved_at,
-                        leaderboard: sortLeaderboard(next),
+                        leaderboard: next,
                     };
                 });
             }
         });
-    }, [id, addWSListener]);
+    }, [id, addWSListener, qc]);
 
     if (loading) {
         return <div className="loading">Consulting the game board...</div>;
@@ -140,6 +135,15 @@ export function SecretDetailPage() {
     }
 
     const leaderboard = detail.leaderboard;
+
+    const likeFn = (commentId: string) => likeCommentMutation.mutateAsync(commentId);
+    const unlikeFn = (commentId: string) => unlikeCommentMutation.mutateAsync(commentId);
+    const deleteFn = (commentId: string) => deleteCommentMutation.mutateAsync(commentId);
+    const updateFn = (commentId: string, body: string) =>
+        updateCommentMutation.mutateAsync({ id: commentId, body }).then(() => undefined);
+    const createCommentFn = (_postId: string, body: string, parentId?: string) =>
+        createCommentMutation.mutateAsync({ body, parentId });
+    const uploadMediaFn = (commentId: string, file: File) => uploadMediaMutation.mutateAsync({ commentId, file });
 
     return (
         <div className={styles.page}>
@@ -204,9 +208,9 @@ export function SecretDetailPage() {
                 {user && (
                     <CommentComposer
                         postId={detail.id}
-                        onCreated={refresh}
-                        createCommentFn={createSecretComment}
-                        uploadMediaFn={uploadSecretCommentMedia}
+                        onCreated={() => refresh()}
+                        createCommentFn={createCommentFn}
+                        uploadMediaFn={uploadMediaFn}
                     />
                 )}
                 <div className={styles.comments}>
@@ -218,15 +222,15 @@ export function SecretDetailPage() {
                                 key={c.id}
                                 comment={secretCommentToPostComment(c)}
                                 postId={detail.id}
-                                onDelete={refresh}
+                                onDelete={() => refresh()}
                                 linkPrefix={`/secrets/${detail.id}`}
                                 reportType="secret_comment"
-                                likeFn={likeSecretComment}
-                                unlikeFn={unlikeSecretComment}
-                                deleteFn={deleteSecretComment}
-                                updateFn={updateSecretComment}
-                                createCommentFn={createSecretComment}
-                                uploadMediaFn={uploadSecretCommentMedia}
+                                likeFn={likeFn}
+                                unlikeFn={unlikeFn}
+                                deleteFn={deleteFn}
+                                updateFn={updateFn}
+                                createCommentFn={createCommentFn}
+                                uploadMediaFn={uploadMediaFn}
                             />
                         ))
                     )}

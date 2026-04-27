@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "../../Button/Button";
 import { MediaPickerButton, MediaPreviews } from "../../MediaPicker/MediaPicker";
 import { MentionTextArea } from "../../MentionTextArea/MentionTextArea";
-import { sendChatMessage, sendFirstDMMessage } from "../../../api/endpoints";
+import { useSendChatMessage, useSendFirstDMMessage } from "../../../api/mutations/chat";
 import { ApiError } from "../../../api/client";
 import { useSiteInfo } from "../../../hooks/useSiteInfo";
 import { validateFileSize } from "../../../utils/fileValidation";
@@ -74,6 +74,8 @@ export function ChatComposer({
     const [files, setFiles] = useState<File[]>([]);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
+    const sendChatMessageMutation = useSendChatMessage(roomId ?? "");
+    const sendFirstDMMessageMutation = useSendFirstDMMessage();
 
     useEffect(() => {
         if (!timeoutUntil) {
@@ -135,14 +137,17 @@ export function ChatComposer({
 
     async function sendBody(content: string): Promise<ChatMessage | null> {
         if (draftRecipientId && !roomId) {
-            const created = await sendFirstDMMessage(draftRecipientId, content);
+            const created = await sendFirstDMMessageMutation.mutateAsync({
+                recipientId: draftRecipientId,
+                body: content,
+            });
             onSent(created.message, created.room);
             return created.message;
         }
         if (!roomId) {
             return null;
         }
-        const message = await sendChatMessage(roomId, {
+        const message = await sendChatMessageMutation.mutateAsync({
             body: content,
             reply_to_id: replyingTo?.id,
         });
@@ -185,10 +190,14 @@ export function ChatComposer({
         setError("");
         try {
             if (draftRecipientId && !roomId) {
-                const created = await sendFirstDMMessage(draftRecipientId, trimmed, files);
+                const created = await sendFirstDMMessageMutation.mutateAsync({
+                    recipientId: draftRecipientId,
+                    body: trimmed,
+                    files,
+                });
                 onSent(created.message, created.room);
             } else {
-                const message = await sendChatMessage(roomId!, {
+                const message = await sendChatMessageMutation.mutateAsync({
                     body: trimmed,
                     reply_to_id: replyingTo?.id,
                     files,

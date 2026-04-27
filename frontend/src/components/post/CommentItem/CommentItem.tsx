@@ -1,11 +1,6 @@
 import { useState } from "react";
 import type { PostComment } from "../../../types/api";
-import {
-    deleteComment as apiDeleteComment,
-    likeComment as apiLikeComment,
-    unlikeComment as apiUnlikeComment,
-    updateComment as apiUpdateComment,
-} from "../../../api/endpoints";
+import { useDeleteComment, useLikeComment, useUnlikeComment, useUpdateComment } from "../../../api/mutations/post";
 import { useAuth } from "../../../hooks/useAuth";
 import { can } from "../../../utils/permissions";
 import { extractGif } from "../../../utils/gif";
@@ -78,10 +73,16 @@ function SingleComment({
     const canEditComment = isOwner || can(user?.role, "edit_any_comment");
     const canDeleteComment = isOwner || can(user?.role, "delete_any_comment");
 
-    const doLike = likeFn || apiLikeComment;
-    const doUnlike = unlikeFn || apiUnlikeComment;
-    const doDelete = deleteFn || apiDeleteComment;
-    const doUpdate = updateFn || apiUpdateComment;
+    const likeMutation = useLikeComment(postId);
+    const unlikeMutation = useUnlikeComment(postId);
+    const deleteMutation = useDeleteComment(postId);
+    const updateMutation = useUpdateComment(postId);
+
+    const doLike = likeFn || ((id: string) => likeMutation.mutateAsync(id));
+    const doUnlike = unlikeFn || ((id: string) => unlikeMutation.mutateAsync(id));
+    const doDelete = deleteFn || ((id: string) => deleteMutation.mutateAsync(id));
+    const doUpdate =
+        updateFn || ((id: string, body: string) => updateMutation.mutateAsync({ commentId: id, body }).then(() => {}));
 
     const [liked, setLiked] = useState(comment.user_liked);
     const [likeCount, setLikeCount] = useState(comment.like_count);

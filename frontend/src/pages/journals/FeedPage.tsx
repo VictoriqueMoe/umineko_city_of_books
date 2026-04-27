@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import type { JournalWork } from "../../types/api";
-import { useJournalFeed, type JournalSort } from "../../hooks/useJournalFeed";
+import { useJournalFeed, type JournalSort } from "../../api/queries/journal";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useAuth } from "../../hooks/useAuth";
 import { JournalCard } from "../../components/journal/JournalCard/JournalCard";

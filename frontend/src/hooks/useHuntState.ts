@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from "react";
 import type { SiteInfoSecret } from "../api/endpoints";
-import { unlockSecret } from "../api/endpoints";
+import { useUnlockSecret } from "../api/mutations/secret";
 import { useTheme } from "./useTheme.ts";
 import { useAuth } from "./useAuth.ts";
 import { useSiteInfo } from "./useSiteInfo";
@@ -25,6 +25,8 @@ export function useHuntState(secretId: string): HuntState {
     const { hasSecret, addSecret } = useTheme();
     const { user } = useAuth();
     const siteInfo = useSiteInfo();
+    const unlockSecretMutation = useUnlockSecret();
+    const unlockMutate = unlockSecretMutation.mutateAsync;
 
     const secret = useMemo(
         () => siteInfo.listed_secrets?.find(s => s.id === secretId) ?? null,
@@ -66,14 +68,14 @@ export function useHuntState(secretId: string): HuntState {
                 return "error";
             }
             try {
-                await unlockSecret(pieceId, piecePhrase(pieceId, piece.letter));
+                await unlockMutate({ id: pieceId, phrase: piecePhrase(pieceId, piece.letter) });
                 addSecret(pieceId);
                 return "new";
             } catch {
                 return "error";
             }
         },
-        [user, hasSecret, addSecret, secret],
+        [user, hasSecret, addSecret, secret, unlockMutate],
     );
 
     const attemptAnswer = useCallback(
@@ -82,14 +84,14 @@ export function useHuntState(secretId: string): HuntState {
                 return false;
             }
             try {
-                await unlockSecret(secretId, phrase);
+                await unlockMutate({ id: secretId, phrase });
                 addSecret(secretId);
                 return true;
             } catch {
                 return false;
             }
         },
-        [addSecret, secret, secretId],
+        [addSecret, secret, secretId, unlockMutate],
     );
 
     return {

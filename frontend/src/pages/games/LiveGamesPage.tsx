@@ -1,39 +1,20 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Link } from "react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useNotifications } from "../../hooks/useNotifications";
-import * as api from "../../api/endpoints";
-import type { GameRoom } from "../../types/api";
+import { useLiveGameRooms } from "../../api/queries/gameRoom";
 import styles from "./GamesPages.module.css";
 
 export function LiveGamesPage() {
     usePageTitle("Live Games");
     const { liveGamesCount } = useNotifications();
-    const [rooms, setRooms] = useState<GameRoom[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState("");
+    const { rooms, loading, error } = useLiveGameRooms();
+    const queryClient = useQueryClient();
 
     useEffect(() => {
-        let cancelled = false;
-        api.listLiveGameRooms()
-            .then(resp => {
-                if (cancelled) {
-                    return;
-                }
-                setRooms(resp.rooms ?? []);
-                setLoading(false);
-            })
-            .catch(err => {
-                if (cancelled) {
-                    return;
-                }
-                setError(err instanceof Error ? err.message : "Failed to load live games");
-                setLoading(false);
-            });
-        return () => {
-            cancelled = true;
-        };
-    }, [liveGamesCount]);
+        void queryClient.invalidateQueries({ queryKey: ["game-rooms", "live", ""] });
+    }, [liveGamesCount, queryClient]);
 
     return (
         <div className={styles.page}>

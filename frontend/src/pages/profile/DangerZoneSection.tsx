@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { useAuth } from "../../hooks/useAuth";
-import { deleteAccount } from "../../api/endpoints";
+import { useDeleteAccount } from "../../api/mutations/auth";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
 import { Modal } from "../../components/Modal/Modal";
@@ -12,20 +12,18 @@ export function DangerZoneSection() {
     const { setUser } = useAuth();
     const [showModal, setShowModal] = useState(false);
     const [password, setPassword] = useState("");
-    const [deleting, setDeleting] = useState(false);
     const [error, setError] = useState("");
+    const deleteMutation = useDeleteAccount();
+    const deleting = deleteMutation.isPending;
 
     async function handleDelete() {
         setError("");
-        setDeleting(true);
         try {
-            await deleteAccount({ password });
+            await deleteMutation.mutateAsync({ password });
             setUser(null);
             navigate("/");
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to delete account.");
-        } finally {
-            setDeleting(false);
         }
     }
 

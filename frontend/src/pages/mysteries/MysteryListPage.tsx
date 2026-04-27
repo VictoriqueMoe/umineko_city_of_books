@@ -2,8 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useSiteInfo } from "../../hooks/useSiteInfo";
-import type { GMLeaderboardEntry, Mystery, MysteryLeaderboardEntry, User } from "../../types/api";
-import { getGMLeaderboard, getMysteryLeaderboard, listMysteries } from "../../api/endpoints";
+import type { User } from "../../types/api";
+import { useGMLeaderboard, useMysteryLeaderboard, useMysteryList } from "../../api/queries/mystery";
 import { parseServerDate } from "../../utils/time";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { RoleStyledName } from "../../components/RoleStyledName/RoleStyledName";
@@ -116,18 +116,16 @@ export function MysteryListPage() {
     const detectiveRole = siteInfo.vanity_roles?.find(v => v.id === "system_top_detective");
     const gmRole = siteInfo.vanity_roles?.find(v => v.id === "system_top_gm");
     const [searchParams, setSearchParams] = useSearchParams();
-    const [mysteries, setMysteries] = useState<Mystery[]>([]);
-    const [total, setTotal] = useState(0);
     const [offset, setOffset] = useState(0);
     const [sort, setSort] = useState(searchParams.get("sort") || "new");
     const [solved, setSolved] = useState(searchParams.get("solved") ?? "false");
-    const [loading, setLoading] = useState(true);
-    const [leaderboard, setLeaderboard] = useState<MysteryLeaderboardEntry[]>([]);
-    const [gmLeaderboard, setGMLeaderboard] = useState<GMLeaderboardEntry[]>([]);
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [gmExpandedId, setGMExpandedId] = useState<string | null>(null);
     const [leaderboardTab, setLeaderboardTab] = useState<"detectives" | "gm">("detectives");
     const limit = 20;
+    const { mysteries, total, loading } = useMysteryList({ sort, solved: solved || undefined, limit, offset });
+    const { entries: leaderboard } = useMysteryLeaderboard(10);
+    const { entries: gmLeaderboard } = useGMLeaderboard(10);
 
     const toggleExpand = useCallback((id: string) => {
         setExpandedId(prev => (prev === id ? null : id));
@@ -136,36 +134,6 @@ export function MysteryListPage() {
     const toggleGMExpand = useCallback((id: string) => {
         setGMExpandedId(prev => (prev === id ? null : id));
     }, []);
-
-    useEffect(() => {
-        getMysteryLeaderboard(10)
-            .then(res => setLeaderboard(res.entries ?? []))
-            .catch(() => setLeaderboard([]));
-        getGMLeaderboard(10)
-            .then(res => setGMLeaderboard(res.entries ?? []))
-            .catch(() => setGMLeaderboard([]));
-    }, []);
-
-    useEffect(() => {
-        let cancelled = false;
-        listMysteries({ sort, solved: solved || undefined, limit, offset })
-            .then(data => {
-                if (!cancelled) {
-                    setMysteries(data.mysteries ?? []);
-                    setTotal(data.total);
-                    setLoading(false);
-                }
-            })
-            .catch(() => {
-                if (!cancelled) {
-                    setMysteries([]);
-                    setLoading(false);
-                }
-            });
-        return () => {
-            cancelled = true;
-        };
-    }, [sort, solved, offset]);
 
     return (
         <div className={styles.page}>

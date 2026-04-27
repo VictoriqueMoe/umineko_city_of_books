@@ -1,55 +1,27 @@
-import { useCallback, useEffect, useState } from "react";
-import type { FollowStats } from "../types/api";
-import { followUser, getFollowStats, unfollowUser } from "../api/endpoints";
+import { useCallback } from "react";
+import { useFollowStats } from "../api/queries/misc";
+import { useFollowUser, useUnfollowUser } from "../api/mutations/misc";
 
 export function useFollow(userId: string) {
-    const [stats, setStats] = useState<FollowStats | null>(null);
-    const [loading, setLoading] = useState(!!userId);
-
-    useEffect(() => {
-        if (!userId) {
-            return;
-        }
-        let cancelled = false;
-        getFollowStats(userId)
-            .then(data => {
-                if (!cancelled) {
-                    setStats(data);
-                }
-            })
-            .catch(() => {})
-            .finally(() => {
-                if (!cancelled) {
-                    setLoading(false);
-                }
-            });
-        return () => {
-            cancelled = true;
-        };
-    }, [userId]);
+    const { stats, loading, refresh } = useFollowStats(userId);
+    const followMutation = useFollowUser();
+    const unfollowMutation = useUnfollowUser();
 
     const toggleFollow = useCallback(async () => {
-        if (!stats) {
+        if (!stats || !userId) {
             return;
         }
-        const wasFollowing = stats.is_following;
-        setStats({
-            ...stats,
-            is_following: !wasFollowing,
-            follower_count: stats.follower_count + (wasFollowing ? -1 : 1),
-        });
         try {
-            if (wasFollowing) {
-                await unfollowUser(userId);
+            if (stats.is_following) {
+                await unfollowMutation.mutateAsync(userId);
             } else {
-                await followUser(userId);
+                await followMutation.mutateAsync(userId);
             }
-            const updated = await getFollowStats(userId);
-            setStats(updated);
+            await refresh();
         } catch {
-            setStats(stats);
+            return;
         }
-    }, [stats, userId]);
+    }, [stats, userId, followMutation, unfollowMutation, refresh]);
 
     return { stats, loading, toggleFollow };
 }

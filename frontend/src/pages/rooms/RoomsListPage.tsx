@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useAuth } from "../../hooks/useAuth";
 import { useNotifications } from "../../hooks/useNotifications";
 import type { ChatRoom, WSMessage } from "../../types/api";
-import { getUserRooms, joinChatRoom, listMyChatRooms, listPublicChatRooms } from "../../api/endpoints";
+import { getUserRooms, listMyChatRooms, listPublicChatRooms } from "../../api/endpoints";
+import { useJoinChatRoom } from "../../api/mutations/chat";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
 import { InfoPanel } from "../../components/InfoPanel/InfoPanel";
@@ -18,133 +20,141 @@ import styles from "./RoomsPages.module.css";
 const PAGE_SIZE = 20;
 const HOT_THRESHOLD = 50;
 
-type Page<T> = {
-    items: T[];
-    total: number;
-    loading: boolean;
-};
+interface FilterState {
+    search: string;
+    rpOnly: boolean;
+    tagFilter: string;
+    includeArchived: boolean;
+}
 
-const emptyPage: Page<ChatRoom> = { items: [], total: 0, loading: true };
+function listKey(scope: string, filters: FilterState, pages: number): readonly unknown[] {
+    return [
+        "chat",
+        "rooms-list",
+        scope,
+        filters.search,
+        filters.rpOnly,
+        filters.tagFilter,
+        filters.includeArchived,
+        pages,
+    ];
+}
 
 export function RoomsListPage() {
     usePageTitle("Chat Rooms");
     const navigate = useNavigate();
+    const qc = useQueryClient();
     const { user } = useAuth();
     const { addWSListener } = useNotifications();
-    const [hosted, setHosted] = useState<Page<ChatRoom>>(emptyPage);
-    const [joined, setJoined] = useState<Page<ChatRoom>>(emptyPage);
-    const [discover, setDiscover] = useState<Page<ChatRoom>>(emptyPage);
-    const [systemRooms, setSystemRooms] = useState<ChatRoom[]>([]);
     const [searchInput, setSearchInput] = useState("");
     const [search, setSearch] = useState("");
     const [rpOnly, setRpOnly] = useState(false);
     const [tagFilter, setTagFilter] = useState("");
     const [includeArchived, setIncludeArchived] = useState(false);
+    const [pages, setPages] = useState<{ key: string; hosted: number; joined: number; discover: number }>({
+        key: "",
+        hosted: 1,
+        joined: 1,
+        discover: 1,
+    });
     const [showCreate, setShowCreate] = useState(false);
     const [joining, setJoining] = useState<string | null>(null);
     const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+    const joinRoomMutation = useJoinChatRoom();
 
-    const fetchHosted = useCallback(
-        async (q: string, rp: boolean, tag: string, archived: boolean, offset: number, append: boolean) => {
-            if (!user) {
-                setHosted({ items: [], total: 0, loading: false });
-                return;
-            }
-            setHosted(prev => ({ ...prev, loading: true }));
-            try {
-                const res = await listMyChatRooms({
-                    role: "host",
-                    search: q,
-                    rp,
-                    tag: tag || undefined,
-                    includeArchived: archived,
-                    limit: PAGE_SIZE,
-                    offset,
-                });
-                setHosted(prev => ({
-                    items: append ? [...prev.items, ...(res.rooms ?? [])] : (res.rooms ?? []),
-                    total: res.total ?? 0,
-                    loading: false,
-                }));
-            } catch {
-                setHosted({ items: [], total: 0, loading: false });
-            }
-        },
-        [user],
+    const filters: FilterState = useMemo(
+        () => ({ search, rpOnly, tagFilter, includeArchived }),
+        [search, rpOnly, tagFilter, includeArchived],
     );
 
-    const fetchJoined = useCallback(
-        async (q: string, rp: boolean, tag: string, archived: boolean, offset: number, append: boolean) => {
-            if (!user) {
-                setJoined({ items: [], total: 0, loading: false });
-                return;
-            }
-            setJoined(prev => ({ ...prev, loading: true }));
-            try {
-                const res = await listMyChatRooms({
-                    role: "member",
-                    search: q,
-                    rp,
-                    tag: tag || undefined,
-                    includeArchived: archived,
-                    limit: PAGE_SIZE,
-                    offset,
-                });
-                setJoined(prev => ({
-                    items: append ? [...prev.items, ...(res.rooms ?? [])] : (res.rooms ?? []),
-                    total: res.total ?? 0,
-                    loading: false,
-                }));
-            } catch {
-                setJoined({ items: [], total: 0, loading: false });
-            }
-        },
-        [user],
-    );
+    const filtersKey = `${filters.search}|${filters.rpOnly}|${filters.tagFilter}|${filters.includeArchived}`;
+    const activePages = pages.key === filtersKey ? pages : { key: filtersKey, hosted: 1, joined: 1, discover: 1 };
+    const hostedPages = activePages.hosted;
+    const joinedPages = activePages.joined;
+    const discoverPages = activePages.discover;
 
-    const fetchDiscover = useCallback(
-        async (q: string, rp: boolean, tag: string, archived: boolean, offset: number, append: boolean) => {
-            setDiscover(prev => ({ ...prev, loading: true }));
-            try {
-                const res = await listPublicChatRooms({
-                    search: q,
-                    rp,
-                    tag: tag || undefined,
-                    includeArchived: archived,
-                    limit: PAGE_SIZE,
-                    offset,
-                });
-                setDiscover(prev => ({
-                    items: append ? [...prev.items, ...(res.rooms ?? [])] : (res.rooms ?? []),
-                    total: res.total ?? 0,
-                    loading: false,
-                }));
-            } catch {
-                setDiscover({ items: [], total: 0, loading: false });
-            }
-        },
-        [],
-    );
+    function loadMoreHosted() {
+        setPages(prev => {
+            const base = prev.key === filtersKey ? prev : { key: filtersKey, hosted: 1, joined: 1, discover: 1 };
+            return { ...base, hosted: base.hosted + 1 };
+        });
+    }
+    function loadMoreJoined() {
+        setPages(prev => {
+            const base = prev.key === filtersKey ? prev : { key: filtersKey, hosted: 1, joined: 1, discover: 1 };
+            return { ...base, joined: base.joined + 1 };
+        });
+    }
+    function loadMoreDiscover() {
+        setPages(prev => {
+            const base = prev.key === filtersKey ? prev : { key: filtersKey, hosted: 1, joined: 1, discover: 1 };
+            return { ...base, discover: base.discover + 1 };
+        });
+    }
 
-    useEffect(() => {
-        fetchHosted(search, rpOnly, tagFilter, includeArchived, 0, false);
-        fetchJoined(search, rpOnly, tagFilter, includeArchived, 0, false);
-        fetchDiscover(search, rpOnly, tagFilter, includeArchived, 0, false);
-    }, [fetchHosted, fetchJoined, fetchDiscover, search, rpOnly, tagFilter, includeArchived]);
+    const hostedQuery = useQuery({
+        queryKey: listKey("hosted", filters, hostedPages),
+        queryFn: () =>
+            listMyChatRooms({
+                role: "host",
+                search: filters.search,
+                rp: filters.rpOnly,
+                tag: filters.tagFilter || undefined,
+                includeArchived: filters.includeArchived,
+                limit: PAGE_SIZE * hostedPages,
+                offset: 0,
+            }),
+        enabled: !!user,
+    });
+    const joinedQuery = useQuery({
+        queryKey: listKey("joined", filters, joinedPages),
+        queryFn: () =>
+            listMyChatRooms({
+                role: "member",
+                search: filters.search,
+                rp: filters.rpOnly,
+                tag: filters.tagFilter || undefined,
+                includeArchived: filters.includeArchived,
+                limit: PAGE_SIZE * joinedPages,
+                offset: 0,
+            }),
+        enabled: !!user,
+    });
+    const discoverQuery = useQuery({
+        queryKey: listKey("discover", filters, discoverPages),
+        queryFn: () =>
+            listPublicChatRooms({
+                search: filters.search,
+                rp: filters.rpOnly,
+                tag: filters.tagFilter || undefined,
+                includeArchived: filters.includeArchived,
+                limit: PAGE_SIZE * discoverPages,
+                offset: 0,
+            }),
+    });
 
-    const fetchSystemRooms = useCallback(() => {
-        if (!user) {
-            setSystemRooms([]);
-            return;
-        }
-        getUserRooms()
-            .then(res => setSystemRooms((res.rooms ?? []).filter(r => r.is_system)))
-            .catch(() => setSystemRooms([]));
-    }, [user]);
+    const systemRoomsQuery = useQuery({
+        queryKey: ["chat", "rooms", "user", "system"],
+        queryFn: () => getUserRooms(),
+        enabled: !!user,
+    });
 
-    useEffect(() => {
-        fetchSystemRooms();
-    }, [fetchSystemRooms]);
+    const hosted = {
+        items: hostedQuery.data?.rooms ?? [],
+        total: hostedQuery.data?.total ?? 0,
+        loading: hostedQuery.isFetching,
+    };
+    const joined = {
+        items: joinedQuery.data?.rooms ?? [],
+        total: joinedQuery.data?.total ?? 0,
+        loading: joinedQuery.isFetching,
+    };
+    const discover = {
+        items: discoverQuery.data?.rooms ?? [],
+        total: discoverQuery.data?.total ?? 0,
+        loading: discoverQuery.isFetching,
+    };
+    const systemRooms = (systemRoomsQuery.data?.rooms ?? []).filter(r => r.is_system);
 
     useEffect(() => {
         clearTimeout(debounceRef.current);
@@ -157,49 +167,26 @@ export function RoomsListPage() {
     useEffect(() => {
         return addWSListener((msg: WSMessage) => {
             if (msg.type === "chat_room_invited") {
-                fetchJoined(search, rpOnly, tagFilter, includeArchived, 0, false);
-                fetchSystemRooms();
+                qc.invalidateQueries({ queryKey: ["chat", "rooms-list", "joined"] });
+                qc.invalidateQueries({ queryKey: ["chat", "rooms", "user", "system"] });
                 return;
             }
             if (msg.type === "chat_kicked" || msg.type === "chat_room_deleted") {
-                const data = msg.data as { room_id: string };
-                setHosted(prev => ({
-                    ...prev,
-                    items: prev.items.filter(r => r.id !== data.room_id),
-                    total: Math.max(0, prev.total - 1),
-                }));
-                setJoined(prev => ({
-                    ...prev,
-                    items: prev.items.filter(r => r.id !== data.room_id),
-                    total: Math.max(0, prev.total - 1),
-                }));
-                setSystemRooms(prev => prev.filter(r => r.id !== data.room_id));
+                qc.invalidateQueries({ queryKey: ["chat", "rooms-list"] });
+                qc.invalidateQueries({ queryKey: ["chat", "rooms", "user", "system"] });
             }
         });
-    }, [addWSListener, fetchJoined, fetchSystemRooms, search, rpOnly, tagFilter, includeArchived]);
+    }, [addWSListener, qc]);
 
     async function handleJoin(room: ChatRoom, ghost = false) {
         setJoining(room.id);
         try {
-            const joinedRoom = await joinChatRoom(room.id, { ghost });
-            setJoined(prev => {
-                if (prev.items.some(r => r.id === joinedRoom.id)) {
-                    return prev;
-                }
-                return {
-                    ...prev,
-                    items: [joinedRoom, ...prev.items],
-                    total: prev.total + 1,
-                };
-            });
-            setDiscover(prev => ({
-                ...prev,
-                items: prev.items.filter(r => r.id !== joinedRoom.id),
-                total: Math.max(0, prev.total - 1),
-            }));
+            const joinedRoom = await joinRoomMutation.mutateAsync({ roomId: room.id, ghost });
+            qc.invalidateQueries({ queryKey: ["chat", "rooms-list", "joined"] });
+            qc.invalidateQueries({ queryKey: ["chat", "rooms-list", "discover"] });
             navigate(`/rooms/${joinedRoom.id}`);
         } catch {
-            // handled server-side
+            void 0;
         } finally {
             setJoining(null);
         }
@@ -480,14 +467,7 @@ export function RoomsListPage() {
                     {hostedFiltered.length > 0 && renderGroupedGrid(hostedFiltered, renderMemberCard)}
                     {hosted.items.length < hosted.total && (
                         <div className={styles.loadMoreRow}>
-                            <Button
-                                variant="secondary"
-                                size="small"
-                                onClick={() =>
-                                    fetchHosted(search, rpOnly, tagFilter, includeArchived, hosted.items.length, true)
-                                }
-                                disabled={hosted.loading}
-                            >
+                            <Button variant="secondary" size="small" onClick={loadMoreHosted} disabled={hosted.loading}>
                                 {hosted.loading ? "Loading..." : "Load more"}
                             </Button>
                         </div>
@@ -522,14 +502,7 @@ export function RoomsListPage() {
                     {joinedFiltered.length > 0 && renderGroupedGrid(joinedFiltered, renderMemberCard)}
                     {joined.items.length < joined.total && (
                         <div className={styles.loadMoreRow}>
-                            <Button
-                                variant="secondary"
-                                size="small"
-                                onClick={() =>
-                                    fetchJoined(search, rpOnly, tagFilter, includeArchived, joined.items.length, true)
-                                }
-                                disabled={joined.loading}
-                            >
+                            <Button variant="secondary" size="small" onClick={loadMoreJoined} disabled={joined.loading}>
                                 {joined.loading ? "Loading..." : "Load more"}
                             </Button>
                         </div>
@@ -554,14 +527,7 @@ export function RoomsListPage() {
                 {discover.items.length > 0 && renderGroupedGrid(discover.items, renderDiscoverCard)}
                 {discover.items.length < discover.total && (
                     <div className={styles.loadMoreRow}>
-                        <Button
-                            variant="secondary"
-                            size="small"
-                            onClick={() =>
-                                fetchDiscover(search, rpOnly, tagFilter, includeArchived, discover.items.length, true)
-                            }
-                            disabled={discover.loading}
-                        >
+                        <Button variant="secondary" size="small" onClick={loadMoreDiscover} disabled={discover.loading}>
                             {discover.loading ? "Loading..." : "Load more"}
                         </Button>
                     </div>
@@ -572,11 +538,7 @@ export function RoomsListPage() {
                 isOpen={showCreate}
                 onClose={() => setShowCreate(false)}
                 onCreated={room => {
-                    setHosted(prev => ({
-                        ...prev,
-                        items: [room, ...prev.items],
-                        total: prev.total + 1,
-                    }));
+                    qc.invalidateQueries({ queryKey: ["chat", "rooms-list", "hosted"] });
                     navigate(`/rooms/${room.id}`);
                 }}
             />

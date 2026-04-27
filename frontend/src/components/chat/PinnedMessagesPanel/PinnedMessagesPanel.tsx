@@ -1,6 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import type { ChatMessage } from "../../../types/api";
-import { getChatRoomPinnedMessages, unpinChatMessage } from "../../../api/endpoints";
+import { useChatRoomPinnedMessages } from "../../../api/queries/chat";
+import { useUnpinChatMessage } from "../../../api/mutations/chat";
+import { queryKeys } from "../../../api/queryKeys";
 import { parseServerDate } from "../../../utils/time";
 import styles from "./PinnedMessagesPanel.module.css";
 
@@ -48,40 +51,38 @@ export function PinnedMessagesPanel({
     canUnpin,
     refreshKey,
 }: PinnedMessagesPanelProps) {
-    const [pins, setPins] = useState<ChatMessage[]>([]);
-    const [loading, setLoading] = useState(false);
+    const queryClient = useQueryClient();
     const [busyId, setBusyId] = useState<string | null>(null);
-
-    const load = useCallback(async () => {
-        setLoading(true);
-        try {
-            const res = await getChatRoomPinnedMessages(roomId);
-            const list = res.messages ?? [];
-            list.sort((a, b) => {
-                const at = a.pinned_at ? Date.parse(a.pinned_at) : 0;
-                const bt = b.pinned_at ? Date.parse(b.pinned_at) : 0;
-                return bt - at;
-            });
-            setPins(list);
-        } catch {
-            setPins([]);
-        } finally {
-            setLoading(false);
-        }
-    }, [roomId]);
+    const pinnedQuery = useChatRoomPinnedMessages(roomId, isOpen);
+    const unpinMutation = useUnpinChatMessage(roomId);
+    const loading = pinnedQuery.loading;
+    const pins = useMemo(() => {
+        const list = pinnedQuery.messages.slice();
+        list.sort((a, b) => {
+            const at = a.pinned_at ? Date.parse(a.pinned_at) : 0;
+            const bt = b.pinned_at ? Date.parse(b.pinned_at) : 0;
+            return bt - at;
+        });
+        return list;
+    }, [pinnedQuery.messages]);
 
     useEffect(() => {
-        if (!isOpen) {
+        if (refreshKey === undefined) {
             return;
         }
-        load();
-    }, [isOpen, load, refreshKey]);
+        if (!isOpen || !roomId) {
+            return;
+        }
+        void pinnedQuery.refresh();
+    }, [refreshKey, isOpen, roomId, pinnedQuery]);
 
     async function handleUnpin(messageId: string) {
         setBusyId(messageId);
         try {
-            await unpinChatMessage(messageId);
-            setPins(prev => prev.filter(m => m.id !== messageId));
+            await unpinMutation.mutateAsync(messageId);
+            queryClient.setQueryData<{ messages: ChatMessage[] }>(queryKeys.chat.pinned(roomId), prev =>
+                prev ? { ...prev, messages: prev.messages.filter(m => m.id !== messageId) } : prev,
+            );
         } catch {
             // leave list unchanged
         } finally {

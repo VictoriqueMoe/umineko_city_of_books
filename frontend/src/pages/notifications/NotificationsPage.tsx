@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import type { Notification, WSMessage } from "../../types/api";
-import { getNotifications } from "../../api/endpoints";
+import { useNotifications as useNotificationsQuery } from "../../api/queries/notification";
+import { queryKeys } from "../../api/queryKeys";
 import { useNotifications } from "../../hooks/useNotifications";
 import {
     formatContentEditedText,
@@ -23,32 +25,18 @@ export function NotificationsPage() {
     usePageTitle("Notifications");
     const navigate = useNavigate();
     const { markRead, markAllRead, unreadCount, addWSListener } = useNotifications();
-    const [notifications, setNotifications] = useState<Notification[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [total, setTotal] = useState(0);
+    const queryClient = useQueryClient();
     const [activeFilter, setActiveFilter] = useState<NotificationCategory | "all" | "unread">("unread");
     const [markingId, setMarkingId] = useState<number | null>(null);
 
-    const fetchAll = useCallback(async (offset = 0) => {
-        setLoading(true);
-        try {
-            const res = await getNotifications({ limit: 50, offset });
-            if (offset === 0) {
-                setNotifications(res.notifications);
-            } else {
-                setNotifications(prev => [...prev, ...res.notifications]);
-            }
-            setTotal(res.total);
-        } catch {
-            // ignore
-        } finally {
-            setLoading(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        fetchAll();
-    }, [fetchAll]);
+    const notifQuery = useNotificationsQuery(50, 0);
+    const notifications = notifQuery.notifications;
+    const total = notifQuery.total;
+    const loading = notifQuery.loading;
+    const fetchAll = async () => {
+        await notifQuery.refresh();
+    };
+    const listKey = queryKeys.notifications.list({ limit: 50, offset: 0 });
 
     useEffect(() => {
         return addWSListener((msg: WSMessage) => {
@@ -56,15 +44,17 @@ export function NotificationsPage() {
                 return;
             }
             const notif = msg.data as Notification;
-            setNotifications(prev => {
-                if (prev.some(n => n.id === notif.id)) {
+            queryClient.setQueryData<{ notifications: Notification[]; total: number }>(listKey, prev => {
+                if (!prev) {
                     return prev;
                 }
-                return [notif, ...prev];
+                if (prev.notifications.some(n => n.id === notif.id)) {
+                    return prev;
+                }
+                return { notifications: [notif, ...prev.notifications], total: prev.total + 1 };
             });
-            setTotal(prev => prev + 1);
         });
-    }, [addWSListener]);
+    }, [addWSListener, queryClient, listKey]);
 
     async function handleClick(notif: Notification) {
         if (!notif.read) {
@@ -80,14 +70,20 @@ export function NotificationsPage() {
         setMarkingId(notif.id);
         try {
             await markRead(notif.id);
-            setNotifications(prev =>
-                prev.map(n => {
-                    if (n.id === notif.id) {
-                        return { ...n, read: true };
-                    }
-                    return n;
-                }),
-            );
+            queryClient.setQueryData<{ notifications: Notification[]; total: number }>(listKey, prev => {
+                if (!prev) {
+                    return prev;
+                }
+                return {
+                    ...prev,
+                    notifications: prev.notifications.map(n => {
+                        if (n.id === notif.id) {
+                            return { ...n, read: true };
+                        }
+                        return n;
+                    }),
+                };
+            });
         } finally {
             setMarkingId(current => (current === notif.id ? null : current));
         }
@@ -95,7 +91,9 @@ export function NotificationsPage() {
 
     async function handleMarkAllRead() {
         await markAllRead();
-        setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+        queryClient.setQueryData<{ notifications: Notification[]; total: number }>(listKey, prev =>
+            prev ? { ...prev, notifications: prev.notifications.map(n => ({ ...n, read: true })) } : prev,
+        );
     }
 
     const grouped = groupByCategory(notifications);
@@ -217,12 +215,7 @@ export function NotificationsPage() {
 
                     {hasMore && (
                         <div className={styles.loadMore}>
-                            <Button
-                                variant="ghost"
-                                size="small"
-                                onClick={() => fetchAll(notifications.length)}
-                                disabled={loading}
-                            >
+                            <Button variant="ghost" size="small" onClick={() => fetchAll()} disabled={loading}>
                                 {loading ? "Loading..." : "Load more"}
                             </Button>
                         </div>

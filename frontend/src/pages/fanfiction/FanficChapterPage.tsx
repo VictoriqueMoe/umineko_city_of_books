@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useNavigate, useParams } from "react-router";
 import DOMPurify from "dompurify";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import type { FanficChapter, FanficDetail } from "../../types/api";
-import { getFanfic, getFanficChapter } from "../../api/endpoints";
+import { useFanfic, useFanficChapter } from "../../api/queries/fanfic";
 import { Button } from "../../components/Button/Button";
 import styles from "./FanficPages.module.css";
 
@@ -20,32 +19,11 @@ function formatNumber(n: number): string {
 export function FanficChapterPage() {
     const { id: fanficId, number: numParam } = useParams<{ id: string; number: string }>();
     const navigate = useNavigate();
-    const [chapter, setChapter] = useState<FanficChapter | null>(null);
-    const [fanfic, setFanfic] = useState<FanficDetail | null>(null);
-    const [loading, setLoading] = useState(true);
-    usePageTitle(chapter?.title || (chapter ? `Chapter ${chapter.chapter_number}` : "Chapter"));
-
     const chapterNumber = Number(numParam);
-
-    const fetchChapter = useCallback(() => {
-        if (!fanficId || !numParam || isNaN(chapterNumber)) {
-            return;
-        }
-        Promise.all([getFanficChapter(fanficId, chapterNumber), getFanfic(fanficId)])
-            .then(([ch, f]) => {
-                setChapter(ch);
-                setFanfic(f);
-            })
-            .catch(() => {
-                setChapter(null);
-                setFanfic(null);
-            })
-            .finally(() => setLoading(false));
-    }, [fanficId, numParam, chapterNumber]);
-
-    useEffect(() => {
-        fetchChapter();
-    }, [fetchChapter]);
+    const { chapter, loading: chapterLoading } = useFanficChapter(fanficId ?? "", chapterNumber);
+    const { fanfic, loading: fanficLoading } = useFanfic(fanficId ?? "");
+    const loading = chapterLoading || fanficLoading;
+    usePageTitle(chapter?.title || (chapter ? `Chapter ${chapter.chapter_number}` : "Chapter"));
 
     const safeBody = useMemo(() => DOMPurify.sanitize(chapter?.body ?? ""), [chapter?.body]);
 

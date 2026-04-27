@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ApiError } from "../../../api/client";
-import { type GiphyFavourite, type GiphyGif, searchGiphy, trendingGiphy } from "../../../api/endpoints";
+import type { GiphyFavourite, GiphyGif } from "../../../api/endpoints";
+import { useGiphySearch, useGiphyTrending } from "../../../api/queries/giphy";
 import { useAuth } from "../../../hooks/useAuth";
 import { useGifFavourites } from "../../../hooks/useGifFavourites";
 import { parseServerDate } from "../../../utils/time";
@@ -62,51 +63,54 @@ export function GifPicker({ onPick, onClose }: GifPickerProps) {
     const wrapperRef = useRef<HTMLDivElement>(null);
     const [tab, setTab] = useState<Tab>("browse");
     const [query, setQuery] = useState("");
-    const [results, setResults] = useState<Item[]>([]);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string>("");
+    const [debouncedQuery, setDebouncedQuery] = useState("");
+    const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
     const [rateLimitedUntil, setRateLimitedUntil] = useState<Date | null>(null);
-    const activeQueryRef = useRef<string>("");
 
     const favourites = useMemo(() => favRows.map(favToItem), [favRows]);
 
-    const load = useCallback(async (q: string) => {
-        activeQueryRef.current = q;
-        setLoading(true);
-        setError("");
-        try {
-            const resp = q ? await searchGiphy(q) : await trendingGiphy();
-            if (activeQueryRef.current !== q) {
-                return;
-            }
-            const items: Item[] = [];
-            for (const g of resp.data ?? []) {
-                const item = toItem(g);
-                if (item) {
-                    items.push(item);
-                }
-            }
-            setResults(items);
-        } catch (err) {
-            if (activeQueryRef.current !== q) {
-                return;
-            }
-            if (err instanceof ApiError && err.status === 429) {
-                const resetIso = (err.body as { reset_at?: string } | null)?.reset_at;
-                if (resetIso) {
-                    setRateLimitedUntil(parseServerDate(resetIso));
-                }
-                setResults([]);
-                return;
-            }
-            setError(err instanceof Error ? err.message : "Failed to load GIFs");
-            setResults([]);
-        } finally {
-            if (activeQueryRef.current === q) {
-                setLoading(false);
+    function handleQueryChange(value: string) {
+        setQuery(value);
+        clearTimeout(debounceRef.current);
+        const trimmed = value.trim();
+        if (trimmed.length > 0 && trimmed.length < MIN_SEARCH_LENGTH) {
+            return;
+        }
+        debounceRef.current = setTimeout(() => setDebouncedQuery(trimmed), SEARCH_DEBOUNCE_MS);
+    }
+
+    const browseEnabled = tab === "browse" && !rateLimitedUntil;
+    const searchQuery = useGiphySearch(debouncedQuery, 0, 0, browseEnabled && !!debouncedQuery);
+    const trendingQuery = useGiphyTrending(0, 0, browseEnabled && !debouncedQuery);
+    const giphyData = debouncedQuery ? searchQuery.data : trendingQuery.data;
+    const giphyError = debouncedQuery ? searchQuery.error : trendingQuery.error;
+    const giphyLoading = debouncedQuery ? searchQuery.loading : trendingQuery.loading;
+    const giphyRefetch = debouncedQuery ? searchQuery.refresh : trendingQuery.refresh;
+
+    if (giphyError instanceof ApiError && giphyError.status === 429 && rateLimitedUntil === null) {
+        const resetIso = (giphyError.body as { reset_at?: string } | null)?.reset_at;
+        if (resetIso) {
+            setRateLimitedUntil(parseServerDate(resetIso));
+        }
+    }
+
+    const results: Item[] = useMemo(() => {
+        const items: Item[] = [];
+        for (const g of giphyData?.data ?? []) {
+            const item = toItem(g);
+            if (item) {
+                items.push(item);
             }
         }
-    }, []);
+        return items;
+    }, [giphyData]);
+    const loading = giphyLoading;
+    const error =
+        giphyError instanceof ApiError && giphyError.status === 429
+            ? ""
+            : giphyError instanceof Error
+              ? giphyError.message
+              : "";
 
     useEffect(() => {
         if (!rateLimitedUntil) {
@@ -114,36 +118,14 @@ export function GifPicker({ onPick, onClose }: GifPickerProps) {
         }
         const ms = rateLimitedUntil.getTime() - Date.now();
         if (ms <= 0) {
-            setRateLimitedUntil(null);
             return;
         }
         const t = setTimeout(() => {
             setRateLimitedUntil(null);
-            load(activeQueryRef.current);
+            void giphyRefetch();
         }, ms + 500);
         return () => clearTimeout(t);
-    }, [rateLimitedUntil, load]);
-
-    useEffect(() => {
-        if (tab !== "browse") {
-            return;
-        }
-        load("");
-    }, [load, tab]);
-
-    useEffect(() => {
-        if (tab !== "browse") {
-            return;
-        }
-        const trimmed = query.trim();
-        if (trimmed.length > 0 && trimmed.length < MIN_SEARCH_LENGTH) {
-            return;
-        }
-        const t = setTimeout(() => {
-            load(trimmed);
-        }, SEARCH_DEBOUNCE_MS);
-        return () => clearTimeout(t);
-    }, [query, load, tab]);
+    }, [rateLimitedUntil, giphyRefetch]);
 
     useEffect(() => {
         function handleClick(event: MouseEvent) {
@@ -227,7 +209,7 @@ export function GifPicker({ onPick, onClose }: GifPickerProps) {
                     autoFocus
                     placeholder="Search GIPHY"
                     value={query}
-                    onChange={e => setQuery(e.target.value)}
+                    onChange={e => handleQueryChange(e.target.value)}
                     disabled={rateLimitedUntil !== null}
                 />
             )}

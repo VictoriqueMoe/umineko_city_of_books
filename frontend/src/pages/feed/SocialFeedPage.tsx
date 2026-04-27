@@ -2,9 +2,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import type { FeedTab } from "../../types/api";
-import { updateGameBoardSort } from "../../api/endpoints";
+import { useUpdateGameBoardSort } from "../../api/mutations/auth";
 import { useAuth } from "../../hooks/useAuth";
-import { usePostFeed } from "../../hooks/usePostFeed";
+import { usePostFeed } from "../../api/queries/post";
 import { PostCard } from "../../components/post/PostCard/PostCard";
 import { PostComposer } from "../../components/post/PostComposer/PostComposer";
 import { Pagination } from "../../components/Pagination/Pagination";
@@ -59,6 +59,7 @@ export function SocialFeedPage({ corner = "general" }: SocialFeedPageProps) {
     const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
     const feed = usePostFeed(tab, corner, search || undefined, sort, page);
+    const updateGameBoardSortMutation = useUpdateGameBoardSort();
 
     const updateParams = useCallback(
         (updates: Record<string, string | undefined>) => {
@@ -138,7 +139,7 @@ export function SocialFeedPage({ corner = "general" }: SocialFeedPageProps) {
                             updateParams({ sort: opt.value, page: "1" });
                             if (user) {
                                 setUser({ ...user, game_board_sort: opt.value });
-                                updateGameBoardSort(opt.value).catch(() => {});
+                                updateGameBoardSortMutation.mutate(opt.value);
                             }
                         }}
                     >

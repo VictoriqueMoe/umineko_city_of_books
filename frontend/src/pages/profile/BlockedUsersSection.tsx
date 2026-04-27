@@ -1,34 +1,20 @@
-import { useCallback, useEffect, useState } from "react";
-import { getBlockedUsers, unblockUser, type BlockedUserItem } from "../../api/endpoints";
+import { useBlockedUsers } from "../../api/queries/user";
+import { useUnblockUser } from "../../api/mutations/misc";
 import { Button } from "../../components/Button/Button";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
+import { useAuth } from "../../hooks/useAuth";
 import styles from "./SettingsPage.module.css";
 
 export function BlockedUsersSection() {
-    const [users, setUsers] = useState<BlockedUserItem[]>([]);
-    const [loading, setLoading] = useState(true);
-
-    const fetchBlocked = useCallback(async () => {
-        try {
-            const data = await getBlockedUsers();
-            setUsers(data.users);
-        } catch {
-            setUsers([]);
-        } finally {
-            setLoading(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        fetchBlocked();
-    }, [fetchBlocked]);
+    const { user } = useAuth();
+    const { blocked: users, loading } = useBlockedUsers(user?.id ?? "");
+    const unblockMutation = useUnblockUser();
 
     async function handleUnblock(id: string) {
         try {
-            await unblockUser(id);
-            setUsers(prev => prev.filter(u => u.id !== id));
+            await unblockMutation.mutateAsync(id);
         } catch {
-            // ignore
+            return;
         }
     }
 

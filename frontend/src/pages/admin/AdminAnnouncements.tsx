@@ -1,15 +1,15 @@
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { marked } from "marked";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import DOMPurify from "dompurify";
 import type { Announcement } from "../../types/api";
+import { useAdminAnnouncements } from "../../api/queries/admin";
 import {
-    createAnnouncement,
-    deleteAnnouncement,
-    listAnnouncements,
-    pinAnnouncement,
-    updateAnnouncement,
-} from "../../api/endpoints";
+    useCreateAnnouncement,
+    useDeleteAnnouncement,
+    usePinAnnouncement,
+    useUpdateAnnouncement,
+} from "../../api/mutations/admin";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
@@ -23,28 +23,17 @@ function renderMarkdown(md: string): string {
 
 export function AdminAnnouncements() {
     usePageTitle("Admin - Announcements");
-    const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { announcements, loading } = useAdminAnnouncements();
+    const createMutation = useCreateAnnouncement();
+    const updateMutation = useUpdateAnnouncement();
+    const deleteMutation = useDeleteAnnouncement();
+    const pinMutation = usePinAnnouncement();
     const [editingId, setEditingId] = useState<string | null>(null);
     const [title, setTitle] = useState("");
     const [body, setBody] = useState("");
-    const [saving, setSaving] = useState(false);
     const [showPreview, setShowPreview] = useState(false);
 
-    const fetchAll = useCallback(async () => {
-        try {
-            const data = await listAnnouncements(100, 0);
-            setAnnouncements(data.announcements);
-        } catch {
-            setAnnouncements([]);
-        } finally {
-            setLoading(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        fetchAll();
-    }, [fetchAll]);
+    const saving = createMutation.isPending || updateMutation.isPending;
 
     function startCreate() {
         setEditingId("new");
@@ -70,19 +59,15 @@ export function AdminAnnouncements() {
         if (!title.trim() || !body.trim() || saving) {
             return;
         }
-        setSaving(true);
         try {
             if (editingId === "new") {
-                await createAnnouncement(title.trim(), body.trim());
+                await createMutation.mutateAsync({ title: title.trim(), body: body.trim() });
             } else if (editingId) {
-                await updateAnnouncement(editingId, title.trim(), body.trim());
+                await updateMutation.mutateAsync({ id: editingId, title: title.trim(), body: body.trim() });
             }
             cancelEdit();
-            await fetchAll();
         } catch {
             // ignore
-        } finally {
-            setSaving(false);
         }
     }
 
@@ -90,13 +75,11 @@ export function AdminAnnouncements() {
         if (!window.confirm("Delete this announcement?")) {
             return;
         }
-        await deleteAnnouncement(id);
-        await fetchAll();
+        await deleteMutation.mutateAsync(id);
     }
 
     async function handlePin(id: string, pinned: boolean) {
-        await pinAnnouncement(id, !pinned);
-        await fetchAll();
+        await pinMutation.mutateAsync({ id, pinned: !pinned });
     }
 
     if (loading) {

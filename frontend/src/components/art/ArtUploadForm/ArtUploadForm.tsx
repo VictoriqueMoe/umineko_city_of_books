@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import type { Gallery } from "../../../types/api";
-import { createArt, setArtGallery } from "../../../api/endpoints";
+import { useCreateArt, useSetArtGallery } from "../../../api/mutations/art";
 import { useSiteInfo } from "../../../hooks/useSiteInfo";
 import { validateFileSize } from "../../../utils/fileValidation";
 import { Button } from "../../Button/Button";
@@ -41,6 +41,8 @@ export function ArtUploadForm({
     const [error, setError] = useState("");
     const [open, setOpen] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const createArtMutation = useCreateArt();
+    const setArtGalleryMutation = useSetArtGallery();
 
     async function handleSubmit() {
         if (submitting || !title.trim() || !file) {
@@ -50,8 +52,8 @@ export function ArtUploadForm({
         setError("");
 
         try {
-            const { id } = await createArt(
-                {
+            const { id } = await createArtMutation.mutateAsync({
+                metadata: {
                     title: title.trim(),
                     description: description.trim(),
                     corner,
@@ -60,9 +62,13 @@ export function ArtUploadForm({
                     is_spoiler: isSpoiler,
                     gallery_id: galleryId,
                 },
-                file,
-            );
-            await setArtGallery(id, galleryId).catch(() => {});
+                imageFile: file,
+            });
+            try {
+                await setArtGalleryMutation.mutateAsync({ artId: id, galleryId });
+            } catch {
+                void 0;
+            }
             onCreated();
             navigate(`/gallery/art/${id}`);
         } catch (err) {

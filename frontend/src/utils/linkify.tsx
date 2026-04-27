@@ -74,7 +74,7 @@ export function linkify(text: string): ReactNode[] {
         lastIndex = match.index + match[0].length;
     }
     if (lastIndex < text.length) {
-        nodes.push(...linkifyPlain(text.slice(lastIndex), `p${idx++}`));
+        nodes.push(...linkifyPlain(text.slice(lastIndex), `p${idx}`));
     }
     return nodes;
 }

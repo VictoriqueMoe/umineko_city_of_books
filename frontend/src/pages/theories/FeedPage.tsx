@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { TheorySort } from "../../types/app";
-import { useTheoryFeed } from "../../hooks/useTheoryFeed";
+import { useTheoryFeed } from "../../api/queries/theory";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { TheoryCard } from "../../components/theory/TheoryCard/TheoryCard";
 import { Pagination } from "../../components/Pagination/Pagination";

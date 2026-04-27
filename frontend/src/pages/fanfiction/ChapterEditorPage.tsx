@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { createFanficChapter, getFanficChapter, updateFanficChapter } from "../../api/endpoints";
+import { useFanficChapter } from "../../api/queries/fanfic";
+import { useCreateFanficChapter, useUpdateFanficChapter } from "../../api/mutations/fanfic";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
@@ -16,26 +17,19 @@ export function ChapterEditorPage() {
     const chapterNumber = isEdit ? Number(numParam) : 0;
     usePageTitle(isEdit ? `Edit Chapter ${chapterNumber}` : "New Chapter");
 
-    const [chapterId, setChapterId] = useState("");
-    const [title, setTitle] = useState("");
-    const [body, setBody] = useState("");
-    const [loading, setLoading] = useState(isEdit);
+    const { chapter, loading: chapterLoading } = useFanficChapter(isEdit ? (fanficId ?? "") : "", chapterNumber);
+    const createMutation = useCreateFanficChapter(fanficId ?? "");
+    const updateMutation = useUpdateFanficChapter(fanficId ?? "");
+
+    const [titleDraft, setTitleDraft] = useState<string | null>(null);
+    const [bodyDraft, setBodyDraft] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
+    const loading = isEdit && chapterLoading;
 
-    useEffect(() => {
-        if (!isEdit || !fanficId || isNaN(chapterNumber)) {
-            return;
-        }
-        getFanficChapter(fanficId, chapterNumber)
-            .then(ch => {
-                setChapterId(ch.id);
-                setTitle(ch.title);
-                setBody(ch.body);
-                setLoading(false);
-            })
-            .catch(() => setLoading(false));
-    }, [isEdit, fanficId, chapterNumber]);
+    const title = titleDraft ?? chapter?.title ?? "";
+    const body = bodyDraft ?? chapter?.body ?? "";
+    const chapterId = chapter?.id ?? "";
 
     async function handleSubmit() {
         if (!body.trim() || submitting || !fanficId) {
@@ -45,10 +39,10 @@ export function ChapterEditorPage() {
         setError("");
         try {
             if (isEdit) {
-                await updateFanficChapter(chapterId, title.trim(), body);
+                await updateMutation.mutateAsync({ chapterId, title: title.trim(), body });
                 navigate(`/fanfiction/${fanficId}/chapter/${chapterNumber}`);
             } else {
-                await createFanficChapter(fanficId, title.trim(), body);
+                await createMutation.mutateAsync({ title: title.trim(), body });
                 navigate(`/fanfiction/${fanficId}`);
             }
         } catch (e) {
@@ -80,7 +74,7 @@ export function ChapterEditorPage() {
                 <Input
                     type="text"
                     value={title}
-                    onChange={e => setTitle(e.target.value)}
+                    onChange={e => setTitleDraft(e.target.value)}
                     placeholder="Chapter title..."
                     fullWidth
                 />
@@ -88,7 +82,7 @@ export function ChapterEditorPage() {
 
             <div className={styles.formRow}>
                 <label className={styles.formLabel}>Content</label>
-                <RichTextEditor content={body} onChange={setBody} placeholder="Write your chapter here..." />
+                <RichTextEditor content={body} onChange={setBodyDraft} placeholder="Write your chapter here..." />
             </div>
 
             {error && <ErrorBanner message={error} />}

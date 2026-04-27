@@ -37,6 +37,17 @@
     justify-content: flex-end;
 }
 
+.coordForm {
+    display: flex;
+    gap: 0.5rem;
+    align-items: stretch;
+}
+
+.coordForm > :first-child {
+    flex: 1;
+    min-width: 0;
+}
+
 .error {
     padding: 0.6rem 0.9rem;
     background: rgba(var(--rose-rgb), 0.18);

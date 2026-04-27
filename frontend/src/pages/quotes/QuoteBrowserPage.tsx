@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
-import type { QuoteBrowseResponse } from "../../types/api";
+import { useState } from "react";
 import type { Series } from "../../api/endpoints";
-import { browseQuotes, getCharacterGroups, type CharacterGroups } from "../../api/endpoints";
+import { useBrowseQuotes } from "../../api/queries/quote";
+import { useCharacterGroups } from "../../api/queries/characters";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { getSeriesConfig } from "../../utils/seriesConfig";
 import { TruthCard } from "../../components/truth/TruthCard/TruthCard";
@@ -28,43 +28,26 @@ export function QuoteBrowserPage() {
     const [character, setCharacter] = useState("");
     const [truth, setTruth] = useState("");
     const [lang, setLang] = useState("");
-    const [characters, setCharacters] = useState<CharacterGroups>({ main: {}, additional: {} });
-    const [data, setData] = useState<QuoteBrowseResponse | null>(null);
-    const [loading, setLoading] = useState(false);
     const [offset, setOffset] = useState(0);
     const limit = 30;
     const cfg = getSeriesConfig(series);
 
-    useEffect(() => {
-        getCharacterGroups(series)
-            .then(setCharacters)
-            .catch(() => setCharacters({ main: {}, additional: {} }));
-    }, [series]);
+    const { groups: characters } = useCharacterGroups(series);
 
-    const fetchQuotes = useCallback(
-        async (currentOffset: number) => {
-            setLoading(true);
-            try {
-                const result = await browseQuotes({
-                    episode: episode || undefined,
-                    character: character || undefined,
-                    truth: truth || undefined,
-                    arc: arc || undefined,
-                    chapter: chapter || undefined,
-                    lang: lang || undefined,
-                    limit,
-                    offset: currentOffset,
-                    series,
-                });
-                setData(result);
-            } catch {
-                setData(null);
-            } finally {
-                setLoading(false);
-            }
-        },
-        [episode, character, truth, arc, chapter, lang, series],
-    );
+    const { data, loading } = useBrowseQuotes({
+        episode: episode || undefined,
+        character: character || undefined,
+        truth: truth || undefined,
+        arc: arc || undefined,
+        chapter: chapter || undefined,
+        lang: lang || undefined,
+        limit,
+        offset,
+        series,
+    });
+    const fetchQuotes = (newOffset: number) => {
+        setOffset(newOffset);
+    };
 
     function changeSeries(next: Series) {
         setSeries(next);
@@ -74,12 +57,8 @@ export function QuoteBrowserPage() {
         setArc("");
         setChapter("");
         setLang("");
-    }
-
-    useEffect(() => {
         setOffset(0);
-        fetchQuotes(0);
-    }, [fetchQuotes]);
+    }
 
     function truthBtnClass(t: string): string {
         const colour = TRUTH_COLOURS[t];

@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useAuth } from "../../hooks/useAuth";
-import { usePostFeed } from "../../hooks/usePostFeed";
+import { usePostFeed } from "../../api/queries/post";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import { resolveSuggestion, unresolveSuggestion } from "../../api/endpoints";
+import { useResolveSuggestion, useUnresolveSuggestion } from "../../api/mutations/post";
 import { can } from "../../utils/permissions";
 import { PostCard } from "../../components/post/PostCard/PostCard";
 import { PostComposer } from "../../components/post/PostComposer/PostComposer";
@@ -20,14 +20,16 @@ export function SuggestionsPage() {
     const [filter, setFilter] = useState("open");
     const feed = usePostFeed("everyone", "suggestions", undefined, "new", page, filter || undefined);
     const canResolve = can(user?.role, "resolve_suggestion");
+    const resolveMutation = useResolveSuggestion();
+    const unresolveMutation = useUnresolveSuggestion();
 
     async function handleResolve(postId: string, status: string) {
-        await resolveSuggestion(postId, status);
+        await resolveMutation.mutateAsync({ id: postId, status });
         feed.refresh();
     }
 
     async function handleUnresolve(postId: string) {
-        await unresolveSuggestion(postId);
+        await unresolveMutation.mutateAsync(postId);
         feed.refresh();
     }
 

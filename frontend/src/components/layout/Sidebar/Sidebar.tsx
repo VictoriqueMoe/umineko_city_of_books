@@ -3,7 +3,7 @@ import { NavLink, useLocation } from "react-router";
 import { useAuth } from "../../../hooks/useAuth";
 import { useNotifications } from "../../../hooks/useNotifications";
 import { useSidebarBadges } from "../../../hooks/useSidebarBadges";
-import { getArtCornerCounts, getCornerCounts } from "../../../api/endpoints";
+import { useArtCornerCounts, useCornerCounts } from "../../../api/queries/misc";
 import { can, canAccessAdmin } from "../../../utils/permissions";
 import { PieceTrigger } from "../../../features/easterEgg";
 import styles from "./Sidebar.module.css";
@@ -60,52 +60,75 @@ export function Sidebar({ open, onClose }: SidebarProps) {
     const location = useLocation();
     const [newAnnouncement, setNewAnnouncement] = useState(false);
     const isRyukishiPath = RYUKISHI_CORNERS.some(c => location.pathname === c.path);
-    const [cornersOpen, setCornersOpen] = useState(location.pathname.startsWith("/game-board") && !isRyukishiPath);
-    const [ryukishiOpen, setRyukishiOpen] = useState(isRyukishiPath);
-    const [galleryOpen, setGalleryOpen] = useState(location.pathname.startsWith("/gallery"));
-    const [theoriesOpen, setTheoriesOpen] = useState(location.pathname.startsWith("/theor"));
     const isNewTheoryPath = NEW_THEORY_LINKS.some(l => location.pathname === l.path);
-    const [newTheoryOpen, setNewTheoryOpen] = useState(isNewTheoryPath);
-    const [gamesOpen, setGamesOpen] = useState(location.pathname.startsWith("/games"));
-    const [cornerCounts, setCornerCounts] = useState<Record<string, number>>({});
-    const [artCounts, setArtCounts] = useState<Record<string, number>>({});
+    const autoCornersOpen = location.pathname.startsWith("/game-board") && !isRyukishiPath;
+    const autoRyukishiOpen = isRyukishiPath;
+    const autoGalleryOpen = location.pathname.startsWith("/gallery");
+    const autoTheoriesOpen = location.pathname.startsWith("/theor");
+    const autoNewTheoryOpen = isNewTheoryPath;
+    const autoGamesOpen = location.pathname.startsWith("/games");
+    const [overrides, setOverrides] = useState<{
+        path: string;
+        corners: boolean | null;
+        ryukishi: boolean | null;
+        gallery: boolean | null;
+        theories: boolean | null;
+        newTheory: boolean | null;
+        games: boolean | null;
+    }>(() => ({
+        path: location.pathname,
+        corners: null,
+        ryukishi: null,
+        gallery: null,
+        theories: null,
+        newTheory: null,
+        games: null,
+    }));
+    const effectiveOverrides =
+        overrides.path === location.pathname
+            ? overrides
+            : {
+                  path: location.pathname,
+                  corners: null,
+                  ryukishi: null,
+                  gallery: null,
+                  theories: null,
+                  newTheory: null,
+                  games: null,
+              };
+    const cornersOpen = effectiveOverrides.corners ?? autoCornersOpen;
+    const ryukishiOpen = effectiveOverrides.ryukishi ?? autoRyukishiOpen;
+    const galleryOpen = effectiveOverrides.gallery ?? autoGalleryOpen;
+    const theoriesOpen = effectiveOverrides.theories ?? autoTheoriesOpen;
+    const newTheoryOpen = effectiveOverrides.newTheory ?? autoNewTheoryOpen;
+    const gamesOpen = effectiveOverrides.games ?? autoGamesOpen;
+    const setOverride = (
+        key: "corners" | "ryukishi" | "gallery" | "theories" | "newTheory" | "games",
+        value: boolean,
+    ) => {
+        setOverrides(prev => {
+            const base =
+                prev.path === location.pathname
+                    ? prev
+                    : {
+                          path: location.pathname,
+                          corners: null,
+                          ryukishi: null,
+                          gallery: null,
+                          theories: null,
+                          newTheory: null,
+                          games: null,
+                      };
+            return { ...base, [key]: value };
+        });
+    };
+    const { counts: cornerCounts } = useCornerCounts();
+    const { counts: artCounts } = useArtCornerCounts();
     const pathnameRef = useRef(location.pathname);
 
     useEffect(() => {
         pathnameRef.current = location.pathname;
     }, [location.pathname]);
-
-    const [prevPath, setPrevPath] = useState(location.pathname);
-    if (prevPath !== location.pathname) {
-        setPrevPath(location.pathname);
-        if (location.pathname.startsWith("/game-board") && !isRyukishiPath) {
-            setCornersOpen(true);
-        }
-        if (isRyukishiPath) {
-            setRyukishiOpen(true);
-        }
-        if (location.pathname.startsWith("/gallery")) {
-            setGalleryOpen(true);
-        }
-        if (location.pathname.startsWith("/theor")) {
-            setTheoriesOpen(true);
-        }
-        if (isNewTheoryPath) {
-            setNewTheoryOpen(true);
-        }
-        if (location.pathname.startsWith("/games")) {
-            setGamesOpen(true);
-        }
-    }
-
-    useEffect(() => {
-        getCornerCounts()
-            .then(setCornerCounts)
-            .catch(() => {});
-        getArtCornerCounts()
-            .then(setArtCounts)
-            .catch(() => {});
-    }, []);
 
     useEffect(() => {
         return addWSListener(msg => {
@@ -160,7 +183,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                         <span className={styles.sectionLabel}>Browse</span>
                         <button
                             className={`${styles.link} ${styles.expandBtn}${cornersOpen ? ` ${styles.expandOpen}` : ""}`}
-                            onClick={() => setCornersOpen(prev => !prev)}
+                            onClick={() => setOverride("corners", !cornersOpen)}
                         >
                             Game Board
                             {hasAnyUnread(GAME_BOARD_KEYS) && (
@@ -197,7 +220,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                         )}
                         <button
                             className={`${styles.link} ${styles.expandBtn}${ryukishiOpen ? ` ${styles.expandOpen}` : ""}`}
-                            onClick={() => setRyukishiOpen(prev => !prev)}
+                            onClick={() => setOverride("ryukishi", !ryukishiOpen)}
                         >
                             Ryukishi's Other Works
                             <span className={styles.expandIcon}>{ryukishiOpen ? "\u25B4" : "\u25BE"}</span>
@@ -222,7 +245,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                         )}
                         <button
                             className={`${styles.link} ${styles.expandBtn}${galleryOpen ? ` ${styles.expandOpen}` : ""}`}
-                            onClick={() => setGalleryOpen(prev => !prev)}
+                            onClick={() => setOverride("gallery", !galleryOpen)}
                         >
                             Gallery
                             {hasAnyUnread(GALLERY_KEYS) && (
@@ -259,7 +282,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                         )}
                         <button
                             className={`${styles.link} ${styles.expandBtn}${theoriesOpen ? ` ${styles.expandOpen}` : ""}`}
-                            onClick={() => setTheoriesOpen(prev => !prev)}
+                            onClick={() => setOverride("theories", !theoriesOpen)}
                         >
                             Theories
                             {hasAnyUnread(THEORY_KEYS) && (
@@ -387,7 +410,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                         </NavLink>
                         <button
                             className={`${styles.link} ${styles.expandBtn}${gamesOpen ? ` ${styles.expandOpen}` : ""}`}
-                            onClick={() => setGamesOpen(prev => !prev)}
+                            onClick={() => setOverride("games", !gamesOpen)}
                         >
                             Games
                             <span className={styles.expandIcon}>{gamesOpen ? "\u25B4" : "\u25BE"}</span>
@@ -435,7 +458,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                             <span className={styles.sectionLabel}>Create</span>
                             <button
                                 className={`${styles.link} ${styles.expandBtn}${newTheoryOpen ? ` ${styles.expandOpen}` : ""}`}
-                                onClick={() => setNewTheoryOpen(prev => !prev)}
+                                onClick={() => setOverride("newTheory", !newTheoryOpen)}
                             >
                                 New Theory
                                 <span className={styles.expandIcon}>{newTheoryOpen ? "\u25B4" : "\u25BE"}</span>

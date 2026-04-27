@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import type { Poll } from "../../../types/api";
-import { votePoll } from "../../../api/endpoints";
+import { useVotePoll } from "../../../api/mutations/post";
 import { useAuth } from "../../../hooks/useAuth";
 import { parseServerDate } from "../../../utils/time";
 import { Button } from "../../Button/Button";
@@ -38,6 +38,7 @@ export function PollDisplay({ poll: initialPoll, postId, onVoted }: PollDisplayP
     const [poll, setPoll] = useState(initialPoll);
     const [selected, setSelected] = useState<number | null>(null);
     const [submitting, setSubmitting] = useState(false);
+    const voteMutation = useVotePoll();
 
     const hasVoted = poll.user_voted_option !== null;
     const showResults = hasVoted || poll.expired;
@@ -49,7 +50,7 @@ export function PollDisplay({ poll: initialPoll, postId, onVoted }: PollDisplayP
         }
         setSubmitting(true);
         try {
-            const updatedPoll = await votePoll(postId, selected);
+            const updatedPoll = await voteMutation.mutateAsync({ postId, optionIdx: selected });
             setPoll(updatedPoll);
             onVoted?.();
         } catch {

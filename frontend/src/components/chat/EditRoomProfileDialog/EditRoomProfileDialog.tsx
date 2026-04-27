@@ -1,8 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "../../Button/Button";
 import { Modal } from "../../Modal/Modal";
 import type { ChatRoomMember } from "../../../types/api";
-import { clearChatRoomAvatar, updateChatRoomNickname, uploadChatRoomAvatar } from "../../../api/endpoints";
+import {
+    useClearChatRoomAvatar,
+    useUpdateChatRoomNickname,
+    useUploadChatRoomAvatar,
+} from "../../../api/mutations/chat";
 import styles from "./EditRoomProfileDialog.module.css";
 
 interface EditRoomProfileDialogProps {
@@ -16,22 +20,18 @@ interface EditRoomProfileDialogProps {
 const NICKNAME_MAX = 32;
 
 export function EditRoomProfileDialog({ isOpen, roomId, currentMember, onClose, onSaved }: EditRoomProfileDialogProps) {
-    const [nickname, setNickname] = useState("");
-    const [avatarPreview, setAvatarPreview] = useState<string>("");
+    const [nickname, setNickname] = useState(currentMember?.nickname ?? "");
+    const [avatarPreview, setAvatarPreview] = useState<string>(
+        currentMember?.member_avatar_url || currentMember?.user.avatar_url || "",
+    );
     const [pendingFile, setPendingFile] = useState<File | null>(null);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string>("");
     const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-    useEffect(() => {
-        if (!isOpen) {
-            return;
-        }
-        setNickname(currentMember?.nickname ?? "");
-        setAvatarPreview(currentMember?.member_avatar_url || currentMember?.user.avatar_url || "");
-        setPendingFile(null);
-        setError("");
-    }, [isOpen, currentMember]);
+    const updateNicknameMutation = useUpdateChatRoomNickname(roomId);
+    const uploadAvatarMutation = useUploadChatRoomAvatar(roomId);
+    const clearAvatarMutation = useClearChatRoomAvatar(roomId);
 
     function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
         const file = event.target.files?.[0];
@@ -53,10 +53,10 @@ export function EditRoomProfileDialog({ isOpen, roomId, currentMember, onClose, 
             let member = currentMember;
             const trimmed = nickname.trim();
             if (trimmed !== (currentMember.nickname ?? "")) {
-                member = await updateChatRoomNickname(roomId, trimmed);
+                member = await updateNicknameMutation.mutateAsync(trimmed);
             }
             if (pendingFile) {
-                member = await uploadChatRoomAvatar(roomId, pendingFile);
+                member = await uploadAvatarMutation.mutateAsync(pendingFile);
             }
             onSaved(member);
             onClose();
@@ -74,9 +74,9 @@ export function EditRoomProfileDialog({ isOpen, roomId, currentMember, onClose, 
         setSaving(true);
         setError("");
         try {
-            let member = await updateChatRoomNickname(roomId, "");
+            let member = await updateNicknameMutation.mutateAsync("");
             try {
-                member = await clearChatRoomAvatar(roomId);
+                member = await clearAvatarMutation.mutateAsync();
             } catch {
                 // avatar may already be absent
             }

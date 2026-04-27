@@ -1,11 +1,10 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router";
-import { getAdminUsers } from "../../api/endpoints";
+import { useAdminUsers } from "../../api/queries/admin";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { Input } from "../../components/Input/Input";
 import { Pagination } from "../../components/Pagination/Pagination";
 import { RolePill } from "../../components/RolePill/RolePill";
-import type { AdminUserItem } from "../../types/api";
 import { formatDate } from "../../utils/time";
 import styles from "./AdminUsers.module.css";
 
@@ -14,38 +13,11 @@ const LIMIT = 20;
 export function AdminUsers() {
     usePageTitle("Admin - Users");
     const navigate = useNavigate();
-    const [users, setUsers] = useState<AdminUserItem[]>([]);
-    const [total, setTotal] = useState(0);
     const [offset, setOffset] = useState(0);
     const [search, setSearch] = useState("");
     const [committed, setCommitted] = useState("");
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState("");
-
-    const fetchUsers = useCallback(
-        async (currentOffset: number) => {
-            setLoading(true);
-            setError("");
-            try {
-                const res = await getAdminUsers({
-                    search: committed || undefined,
-                    limit: LIMIT,
-                    offset: currentOffset,
-                });
-                setUsers(res.users);
-                setTotal(res.total);
-            } catch (e) {
-                setError(e instanceof Error ? e.message : "Failed to load users");
-            } finally {
-                setLoading(false);
-            }
-        },
-        [committed],
-    );
-
-    useEffect(() => {
-        fetchUsers(offset);
-    }, [fetchUsers, offset]);
+    const { users, total, loading } = useAdminUsers(committed, LIMIT, offset);
+    const error = "";
 
     function handleSearch(e: React.SubmitEvent) {
         e.preventDefault();

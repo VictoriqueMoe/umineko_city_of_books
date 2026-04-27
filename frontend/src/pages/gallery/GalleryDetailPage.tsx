@@ -1,14 +1,8 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import type { Art, Gallery } from "../../types/api";
-import {
-    deleteGallery as apiDeleteGallery,
-    getGallery,
-    setArtGallery,
-    setGalleryCover,
-    updateGallery,
-} from "../../api/endpoints";
+import { useGallery } from "../../api/queries/art";
+import { useDeleteGallery, useSetArtGallery, useSetGalleryCover, useUpdateGallery } from "../../api/mutations/art";
 import { useAuth } from "../../hooks/useAuth";
 import { ArtUploadForm } from "../../components/art/ArtUploadForm/ArtUploadForm";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
@@ -21,57 +15,26 @@ export function GalleryDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
     const { user } = useAuth();
-    const [gallery, setGallery] = useState<Gallery | null>(null);
-    usePageTitle(gallery?.name ?? "Gallery");
-    const [art, setArt] = useState<Art[]>([]);
-    const [total, setTotal] = useState(0);
-    const [loading, setLoading] = useState(true);
+    const limit = 24;
     const [offset, setOffset] = useState(0);
-    const [refreshKey, setRefreshKey] = useState(0);
+    const { gallery, art, total, loading, refresh } = useGallery(id ?? "", limit, offset);
+    usePageTitle(gallery?.name ?? "Gallery");
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const [editing, setEditing] = useState(false);
     const [editName, setEditName] = useState("");
     const [editDesc, setEditDesc] = useState("");
     const [managing, setManaging] = useState(false);
-    const limit = 24;
 
-    useEffect(() => {
-        if (!id) {
-            return;
-        }
-        let cancelled = false;
-        getGallery(id, limit, offset)
-            .then(data => {
-                if (!cancelled) {
-                    setGallery(data.gallery);
-                    setArt(data.art ?? []);
-                    setTotal(data.total);
-                }
-            })
-            .catch(() => {
-                if (!cancelled) {
-                    setGallery(null);
-                }
-            })
-            .finally(() => {
-                if (!cancelled) {
-                    setLoading(false);
-                }
-            });
-        return () => {
-            cancelled = true;
-        };
-    }, [id, offset, refreshKey]);
-
-    function refresh() {
-        setRefreshKey(k => k + 1);
-    }
+    const deleteGalleryMutation = useDeleteGallery();
+    const updateGalleryMutation = useUpdateGallery(id ?? "");
+    const setGalleryCoverMutation = useSetGalleryCover(id ?? "");
+    const setArtGalleryMutation = useSetArtGallery();
 
     async function handleDelete() {
         if (!id) {
             return;
         }
-        await apiDeleteGallery(id);
+        await deleteGalleryMutation.mutateAsync(id);
         navigate(-1);
     }
 
@@ -88,7 +51,7 @@ export function GalleryDetailPage() {
         if (!id || !editName.trim()) {
             return;
         }
-        await updateGallery(id, editName.trim(), editDesc.trim());
+        await updateGalleryMutation.mutateAsync({ name: editName.trim(), description: editDesc.trim() });
         setEditing(false);
         refresh();
     }
@@ -97,12 +60,12 @@ export function GalleryDetailPage() {
         if (!id) {
             return;
         }
-        await setGalleryCover(id, artId);
+        await setGalleryCoverMutation.mutateAsync(artId);
         refresh();
     }
 
     async function handleRemoveArt(artId: string) {
-        await setArtGallery(artId, null);
+        await setArtGalleryMutation.mutateAsync({ artId, galleryId: null });
         refresh();
     }
 

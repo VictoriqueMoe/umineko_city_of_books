@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import type { ShipCharacter } from "../../types/api";
-import { createShip, uploadShipImage } from "../../api/endpoints";
+import { useCreateShip, useUploadShipImageById } from "../../api/mutations/ship";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
 import { CharacterPicker } from "../../components/CharacterPicker/CharacterPicker";
@@ -21,6 +21,8 @@ export function CreateShipPage() {
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const createShipMutation = useCreateShip();
+    const uploadImageMutation = useUploadShipImageById();
 
     function addCharacter(character: ShipCharacter) {
         setCharacters(prev => [...prev, { ...character, sort_order: prev.length }]);
@@ -60,16 +62,16 @@ export function CreateShipPage() {
 
         setSubmitting(true);
         try {
-            const result = await createShip({
+            const result = await createShipMutation.mutateAsync({
                 title: title.trim(),
                 description: description.trim(),
                 characters,
             });
             if (imageFile) {
                 try {
-                    await uploadShipImage(result.id, imageFile);
+                    await uploadImageMutation.mutateAsync({ id: result.id, file: imageFile });
                 } catch {
-                    // image failure shouldn't block ship creation
+                    void 0;
                 }
             }
             navigate(`/ships/${result.id}`);

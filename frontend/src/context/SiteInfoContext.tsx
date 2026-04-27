@@ -1,36 +1,26 @@
-import { type PropsWithChildren, useEffect, useState } from "react";
-import type { SiteInfo } from "../api/endpoints";
-import { getSiteInfo } from "../api/endpoints";
+import { type PropsWithChildren, useEffect } from "react";
+import { useSiteInfoQuery } from "../api/queries/auth";
 import { SiteInfoContext } from "./siteInfoContextValue";
 
 export function SiteInfoProvider({ children }: PropsWithChildren) {
-    const [siteInfo, setSiteInfo] = useState<SiteInfo | null>(null);
+    const { siteInfo, refresh } = useSiteInfoQuery();
 
     useEffect(() => {
-        getSiteInfo()
-            .then(setSiteInfo)
-            .catch(() => {});
-
         function handleRefresh() {
-            getSiteInfo()
-                .then(setSiteInfo)
-                .catch(() => {});
+            void refresh();
         }
         function handleVisibility() {
             if (document.visibilityState === "visible") {
                 handleRefresh();
             }
         }
-        const pollId = setInterval(handleRefresh, 5 * 60 * 1000);
-
         window.addEventListener("site-info-refresh", handleRefresh);
         document.addEventListener("visibilitychange", handleVisibility);
         return () => {
-            clearInterval(pollId);
             window.removeEventListener("site-info-refresh", handleRefresh);
             document.removeEventListener("visibilitychange", handleVisibility);
         };
-    }, []);
+    }, [refresh]);
 
     if (!siteInfo) {
         return null;

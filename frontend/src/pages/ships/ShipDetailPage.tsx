@@ -1,20 +1,20 @@
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useScrollToHash } from "../../hooks/useScrollToHash";
-import type { PostComment, ShipCharacter, ShipDetail } from "../../types/api";
+import type { PostComment, ShipCharacter } from "../../types/api";
+import { useShip } from "../../api/queries/ship";
 import {
-    createShipComment,
-    deleteShip,
-    deleteShipComment,
-    getShip,
-    likeShipComment,
-    unlikeShipComment,
-    updateShip,
-    updateShipComment,
-    uploadShipCommentMedia,
-    voteShip,
-} from "../../api/endpoints";
+    useCreateShipComment,
+    useDeleteShip,
+    useDeleteShipComment,
+    useLikeShipComment,
+    useUnlikeShipComment,
+    useUpdateShip,
+    useUpdateShipComment,
+    useUploadShipCommentMedia,
+    useVoteShip,
+} from "../../api/mutations/ship";
 import { useAuth } from "../../hooks/useAuth";
 import { can } from "../../utils/permissions";
 import { Button } from "../../components/Button/Button";
@@ -47,9 +47,8 @@ export function ShipDetailPage() {
     const navigate = useNavigate();
     const location = useLocation();
     const { user } = useAuth();
-    const [ship, setShip] = useState<ShipDetail | null>(null);
+    const { ship, loading, refresh } = useShip(id ?? "");
     usePageTitle(ship?.title ?? "Ship");
-    const [loading, setLoading] = useState(true);
     const [voting, setVoting] = useState(false);
     const [lightboxOpen, setLightboxOpen] = useState(false);
     const [editing, setEditing] = useState(false);
@@ -61,19 +60,19 @@ export function ShipDetailPage() {
     const hash = location.hash;
     const highlightedComment = hash.startsWith("#comment-") ? hash.replace("#comment-", "") : null;
 
-    const fetchShip = useCallback(() => {
-        if (!id) {
-            return;
-        }
-        getShip(id)
-            .then(setShip)
-            .catch(() => setShip(null))
-            .finally(() => setLoading(false));
-    }, [id]);
+    const voteShipMutation = useVoteShip(ship?.id ?? "");
+    const deleteShipMutation = useDeleteShip();
+    const updateShipMutation = useUpdateShip(ship?.id ?? "");
+    const likeCommentMutation = useLikeShipComment(ship?.id ?? "");
+    const unlikeCommentMutation = useUnlikeShipComment(ship?.id ?? "");
+    const deleteCommentMutation = useDeleteShipComment(ship?.id ?? "");
+    const updateCommentMutation = useUpdateShipComment(ship?.id ?? "");
+    const createCommentMutation = useCreateShipComment(ship?.id ?? "");
+    const uploadCommentMediaMutation = useUploadShipCommentMedia(ship?.id ?? "");
 
-    useEffect(() => {
-        fetchShip();
-    }, [fetchShip]);
+    const fetchShip = () => {
+        refresh();
+    };
 
     useScrollToHash(!loading && !!ship, highlightedComment ? `comment-${highlightedComment}` : null);
 
@@ -85,25 +84,18 @@ export function ShipDetailPage() {
         const newValue = current === value ? 0 : value;
         setVoting(true);
         try {
-            await voteShip(ship.id, newValue);
-            setShip({
-                ...ship,
-                vote_score: ship.vote_score - current + newValue,
-                user_vote: newValue,
-                is_crackship: ship.vote_score - current + newValue <= -3,
-            });
+            await voteShipMutation.mutateAsync(newValue);
         } catch {
-            // ignore
-        } finally {
-            setVoting(false);
+            void 0;
         }
+        setVoting(false);
     }
 
     async function handleDelete() {
         if (!ship || !window.confirm("Delete this ship? This cannot be undone.")) {
             return;
         }
-        await deleteShip(ship.id);
+        await deleteShipMutation.mutateAsync(ship.id);
         navigate("/ships");
     }
 
@@ -146,7 +138,7 @@ export function ShipDetailPage() {
         }
         setSaving(true);
         try {
-            await updateShip(ship.id, {
+            await updateShipMutation.mutateAsync({
                 title: editTitle.trim(),
                 description: editDesc.trim(),
                 characters: editChars,
@@ -311,12 +303,18 @@ export function ShipDetailPage() {
                         highlightedId={highlightedComment ?? undefined}
                         linkPrefix="/ships"
                         reportType="ship_comment"
-                        likeFn={likeShipComment}
-                        unlikeFn={unlikeShipComment}
-                        deleteFn={deleteShipComment}
-                        updateFn={updateShipComment}
-                        createCommentFn={createShipComment}
-                        uploadMediaFn={uploadShipCommentMedia}
+                        likeFn={(commentId: string) => likeCommentMutation.mutateAsync(commentId).then(() => {})}
+                        unlikeFn={(commentId: string) => unlikeCommentMutation.mutateAsync(commentId).then(() => {})}
+                        deleteFn={(commentId: string) => deleteCommentMutation.mutateAsync(commentId).then(() => {})}
+                        updateFn={(commentId: string, body: string) =>
+                            updateCommentMutation.mutateAsync({ id: commentId, body }).then(() => {})
+                        }
+                        createCommentFn={(_shipId: string, body: string, parentId?: string) =>
+                            createCommentMutation.mutateAsync({ body, parentId })
+                        }
+                        uploadMediaFn={(commentId: string, file: File) =>
+                            uploadCommentMediaMutation.mutateAsync({ commentId, file })
+                        }
                         viewerBlocked={ship.viewer_blocked}
                     />
                 ))}
@@ -326,8 +324,12 @@ export function ShipDetailPage() {
                     <CommentComposer
                         postId={id}
                         onCreated={fetchShip}
-                        createCommentFn={createShipComment}
-                        uploadMediaFn={uploadShipCommentMedia}
+                        createCommentFn={(_shipId: string, body: string, parentId?: string) =>
+                            createCommentMutation.mutateAsync({ body, parentId })
+                        }
+                        uploadMediaFn={(commentId: string, file: File) =>
+                            uploadCommentMediaMutation.mutateAsync({ commentId, file })
+                        }
                     />
                 )}
             </div>

@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { useNavigate } from "react-router";
 import type { CreatePollPayload } from "../../../api/endpoints";
-import { createPost, uploadPostMedia } from "../../../api/endpoints";
+import { useCreatePost, useUploadPostMediaById } from "../../../api/mutations/post";
 import { useSiteInfo } from "../../../hooks/useSiteInfo";
 import { validateFileSize } from "../../../utils/fileValidation";
 import { Button } from "../../Button/Button";
@@ -26,6 +26,8 @@ export function PostComposer({ corner = "general" }: PostComposerProps) {
     const [pollOptions, setPollOptions] = useState<string[]>(["", ""]);
     const [pollDuration, setPollDuration] = useState(86400);
     const [gifPickerOpen, setGifPickerOpen] = useState(false);
+    const createPostMutation = useCreatePost();
+    const uploadMediaMutation = useUploadPostMediaById();
 
     async function handleGifPick(gif: { url: string }) {
         setGifPickerOpen(false);
@@ -35,7 +37,7 @@ export function PostComposer({ corner = "general" }: PostComposerProps) {
         setSubmitting(true);
         setError("");
         try {
-            const { id } = await createPost(gif.url, corner);
+            const { id } = await createPostMutation.mutateAsync({ body: gif.url, corner });
             navigate(`/game-board/${id}`);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to send GIF");
@@ -66,11 +68,11 @@ export function PostComposer({ corner = "general" }: PostComposerProps) {
                     duration_seconds: pollDuration,
                 };
             }
-            const { id } = await createPost(body.trim(), corner, pollPayload);
+            const { id } = await createPostMutation.mutateAsync({ body: body.trim(), corner, poll: pollPayload });
             const mediaErrors: string[] = [];
             for (const file of files) {
                 try {
-                    await uploadPostMedia(id, file);
+                    await uploadMediaMutation.mutateAsync({ id, file });
                 } catch (err) {
                     mediaErrors.push(err instanceof Error ? err.message : `Failed to upload ${file.name}`);
                 }

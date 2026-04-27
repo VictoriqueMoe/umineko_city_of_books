@@ -2,13 +2,13 @@ import React, { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import type { Post, PostMedia } from "../../../types/api";
 import {
-    deletePost as apiDeletePost,
-    deletePostMedia,
-    likePost,
-    unlikePost,
-    updatePost,
-    uploadPostMedia,
-} from "../../../api/endpoints";
+    useDeletePost,
+    useDeletePostMedia,
+    useLikePost,
+    useUnlikePost,
+    useUpdatePost,
+    useUploadPostMedia,
+} from "../../../api/mutations/post";
 import { useAuth } from "../../../hooks/useAuth";
 import { useNotifications } from "../../../hooks/useNotifications";
 import { can } from "../../../utils/permissions";
@@ -52,6 +52,12 @@ export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps
     const mediaInputRef = useRef<HTMLInputElement>(null);
 
     const pendingLikeRef = useRef(false);
+    const likeMutation = useLikePost();
+    const unlikeMutation = useUnlikePost();
+    const deleteMutation = useDeletePost();
+    const updateMutation = useUpdatePost(post.id);
+    const uploadMediaMutation = useUploadPostMedia(post.id);
+    const deleteMediaMutation = useDeletePostMedia(post.id);
 
     useEffect(() => {
         return addWSListener(msg => {
@@ -76,7 +82,7 @@ export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps
         if (liked) {
             setLiked(false);
             setLikeCount(c => c - 1);
-            await unlikePost(post.id).catch(() => {
+            await unlikeMutation.mutateAsync(post.id).catch(() => {
                 setLiked(true);
                 setLikeCount(c => c + 1);
                 pendingLikeRef.current = false;
@@ -84,7 +90,7 @@ export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps
         } else {
             setLiked(true);
             setLikeCount(c => c + 1);
-            await likePost(post.id).catch(() => {
+            await likeMutation.mutateAsync(post.id).catch(() => {
                 setLiked(false);
                 setLikeCount(c => c - 1);
                 pendingLikeRef.current = false;
@@ -97,8 +103,10 @@ export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps
             return;
         }
         try {
-            await apiDeletePost(post.id);
-        } catch {}
+            await deleteMutation.mutateAsync(post.id);
+        } catch {
+            // ignore
+        }
         onDelete?.();
     }
 
@@ -108,12 +116,13 @@ export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps
         }
         setSaving(true);
         try {
-            await updatePost(post.id, editBody.trim());
+            await updateMutation.mutateAsync(editBody.trim());
             setDisplayBody(editBody.trim());
             setDisplayMedia([...editMedia]);
             setEditing(false);
             onEdit?.();
         } catch {
+            // ignore
         } finally {
             setSaving(false);
         }
@@ -145,7 +154,7 @@ export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps
                                         type="button"
                                         className={styles.editMediaRemove}
                                         onClick={async () => {
-                                            await deletePostMedia(post.id, m.id);
+                                            await deleteMediaMutation.mutateAsync(m.id);
                                             setEditMedia(prev => prev.filter(x => x.id !== m.id));
                                         }}
                                     >
@@ -167,7 +176,7 @@ export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps
                                     return;
                                 }
                                 e.target.value = "";
-                                const result = await uploadPostMedia(post.id, file);
+                                const result = await uploadMediaMutation.mutateAsync(file);
                                 setEditMedia(prev => [...prev, result]);
                             }}
                         />

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { createResponse, type Series } from "../../../api/endpoints";
+import type { Series } from "../../../api/endpoints";
+import { useCreateResponse } from "../../../api/mutations/theory";
 import { useEvidence } from "../../../hooks/useEvidence";
 import { getSeriesConfig } from "../../../utils/seriesConfig";
 import { Button } from "../../Button/Button";
@@ -31,6 +32,7 @@ export function ResponseEditor({
     const [error, setError] = useState("");
     const ev = useEvidence(undefined, series);
     const isReply = parentId !== undefined;
+    const createMutation = useCreateResponse(theoryId);
 
     async function handleSubmit(e: React.SubmitEvent) {
         e.preventDefault();
@@ -41,7 +43,12 @@ export function ResponseEditor({
         setError("");
         setSubmitting(true);
         try {
-            await createResponse(theoryId, { parent_id: parentId, side, body: body.trim(), evidence: ev.toInput() });
+            await createMutation.mutateAsync({
+                parent_id: parentId,
+                side,
+                body: body.trim(),
+                evidence: ev.toInput(),
+            });
             setBody("");
             if (!isReply) {
                 setSide(null);

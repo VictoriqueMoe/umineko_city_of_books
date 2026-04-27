@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router";
-import type { ReportItem } from "../../api/endpoints";
-import { getReports, resolveReport } from "../../api/endpoints";
+import { useReports } from "../../api/queries/admin";
+import { useResolveReport } from "../../api/mutations/admin";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { Button } from "../../components/Button/Button";
 import { Modal } from "../../components/Modal/Modal";
@@ -12,28 +12,12 @@ import styles from "./AdminReports.module.css";
 export function AdminReports() {
     usePageTitle("Admin - Reports");
     const navigate = useNavigate();
-    const [reports, setReports] = useState<ReportItem[]>([]);
     const [status, setStatus] = useState("open");
-    const [loading, setLoading] = useState(true);
+    const { reports, loading } = useReports(status);
+    const resolveReportMutation = useResolveReport();
     const [resolvingId, setResolvingId] = useState<number | null>(null);
     const [comment, setComment] = useState("");
     const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-    const fetchReports = useCallback(async (filterStatus: string) => {
-        try {
-            const res = await getReports(filterStatus);
-            setReports(res.reports);
-        } catch {
-            setReports([]);
-        } finally {
-            setLoading(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        setLoading(true);
-        fetchReports(status);
-    }, [status, fetchReports]);
 
     function openResolveModal(id: number) {
         setResolvingId(id);
@@ -46,8 +30,7 @@ export function AdminReports() {
             return;
         }
         try {
-            await resolveReport(resolvingId, comment);
-            setReports(prev => prev.filter(r => r.id !== resolvingId));
+            await resolveReportMutation.mutateAsync({ id: resolvingId, comment });
         } catch {
             // ignore
         }
@@ -55,7 +38,7 @@ export function AdminReports() {
         setComment("");
     }
 
-    function handleViewTarget(report: ReportItem) {
+    function handleViewTarget(report: import("../../api/endpoints").ReportItem) {
         if (report.target_type === "theory") {
             navigate(`/theory/${report.target_id}`);
         } else if (report.target_type === "response" && report.context_id) {

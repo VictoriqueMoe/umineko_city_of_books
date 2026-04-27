@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { changePassword } from "../../api/endpoints";
+import { useChangePassword } from "../../api/mutations/auth";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
 import styles from "./SettingsPage.module.css";
@@ -8,9 +8,10 @@ export function ChangePasswordSection() {
     const [oldPassword, setOldPassword] = useState("");
     const [newPassword, setNewPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
-    const [changing, setChanging] = useState(false);
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
+    const changeMutation = useChangePassword();
+    const changing = changeMutation.isPending;
 
     async function handleSubmit() {
         setError("");
@@ -25,17 +26,14 @@ export function ChangePasswordSection() {
             return;
         }
 
-        setChanging(true);
         try {
-            await changePassword({ old_password: oldPassword, new_password: newPassword });
+            await changeMutation.mutateAsync({ old_password: oldPassword, new_password: newPassword });
             setSuccess("Password changed successfully.");
             setOldPassword("");
             setNewPassword("");
             setConfirmPassword("");
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to change password.");
-        } finally {
-            setChanging(false);
         }
     }
 
