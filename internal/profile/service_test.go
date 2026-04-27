@@ -499,8 +499,9 @@ func TestListPublicUsers_OK(t *testing.T) {
 		{ID: id2, Username: "bob", DisplayName: "Bob"},
 	}
 	userRepo.EXPECT().ListPublic(mock.Anything).Return(users, nil)
-	authzSvc.EXPECT().GetRole(mock.Anything, id1).Return(authz.RoleAdmin, nil)
-	authzSvc.EXPECT().GetRole(mock.Anything, id2).Return("", errors.New("no role"))
+	authzSvc.EXPECT().GetRoles(mock.Anything, mock.Anything).Return(map[uuid.UUID]role.Role{
+		id1: authz.RoleAdmin,
+	}, nil)
 
 	// when
 	got, err := svc.ListPublicUsers(context.Background())
@@ -545,7 +546,9 @@ func TestSearchUsers_OK(t *testing.T) {
 	id1 := uuid.New()
 	users := []model.User{{ID: id1, Username: "alice", DisplayName: "Alice"}}
 	userRepo.EXPECT().SearchByName(mock.Anything, "ali", 5).Return(users, nil)
-	authzSvc.EXPECT().GetRole(mock.Anything, id1).Return(authz.RoleModerator, nil)
+	authzSvc.EXPECT().GetRoles(mock.Anything, mock.Anything).Return(map[uuid.UUID]role.Role{
+		id1: authz.RoleModerator,
+	}, nil)
 
 	// when
 	got, err := svc.SearchUsers(context.Background(), "ali", 5)

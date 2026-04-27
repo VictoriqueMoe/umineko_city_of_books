@@ -160,6 +160,40 @@ func TestUserRepository_GetByUsername_NotFound(t *testing.T) {
 	assert.Nil(t, got)
 }
 
+func TestUserRepository_GetByIDs(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	a := repotest.CreateUser(t, repos, repotest.WithUsername("alice"))
+	b := repotest.CreateUser(t, repos, repotest.WithUsername("bob"))
+	repotest.CreateUser(t, repos, repotest.WithUsername("carol"))
+	ghost := uuid.New()
+
+	// when
+	got, err := repos.User.GetByIDs(context.Background(), []uuid.UUID{a.ID, b.ID, ghost})
+
+	// then
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+	byID := map[uuid.UUID]string{}
+	for i := 0; i < len(got); i++ {
+		byID[got[i].ID] = got[i].Username
+	}
+	assert.Equal(t, "alice", byID[a.ID])
+	assert.Equal(t, "bob", byID[b.ID])
+}
+
+func TestUserRepository_GetByIDs_EmptyInput(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+
+	// when
+	got, err := repos.User.GetByIDs(context.Background(), nil)
+
+	// then
+	require.NoError(t, err)
+	assert.Nil(t, got)
+}
+
 func TestUserRepository_GetByUsernames(t *testing.T) {
 	// given
 	repos := repotest.NewRepos(t)

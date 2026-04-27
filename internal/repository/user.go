@@ -18,6 +18,7 @@ type (
 	UserRepository interface {
 		Create(ctx context.Context, username, password, displayName string) (*model.User, error)
 		GetByID(ctx context.Context, id uuid.UUID) (*model.User, error)
+		GetByIDs(ctx context.Context, ids []uuid.UUID) ([]model.User, error)
 		GetByUsername(ctx context.Context, username string) (*model.User, error)
 		GetByUsernames(ctx context.Context, usernames []string) ([]model.User, error)
 		ExistsByUsername(ctx context.Context, username string) (bool, error)
@@ -104,6 +105,36 @@ func (r *userRepository) GetByID(ctx context.Context, id uuid.UUID) (*model.User
 		return nil, fmt.Errorf("get user by id: %w", err)
 	}
 	return u, nil
+}
+
+func (r *userRepository) GetByIDs(ctx context.Context, ids []uuid.UUID) ([]model.User, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	args := make([]any, len(ids))
+	placeholders := make([]string, len(ids))
+	for i := 0; i < len(ids); i++ {
+		args[i] = ids[i]
+		placeholders[i] = fmt.Sprintf("$%d", i+1)
+	}
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT `+userColumns+` FROM users u LEFT JOIN user_roles r ON r.user_id = u.id WHERE u.id IN (`+strings.Join(placeholders, ",")+`)`,
+		args...,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("get users by ids: %w", err)
+	}
+	defer rows.Close()
+
+	var users []model.User
+	for rows.Next() {
+		u, err := scanUser(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan user: %w", err)
+		}
+		users = append(users, *u)
+	}
+	return users, rows.Err()
 }
 
 func (r *userRepository) GetByUsername(ctx context.Context, username string) (*model.User, error) {

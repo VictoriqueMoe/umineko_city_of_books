@@ -221,14 +221,22 @@ func (s *service) SearchUsers(ctx context.Context, query string, limit int) ([]d
 
 func (s *service) usersToResponses(ctx context.Context, users []model.User) []dto.UserResponse {
 	result := make([]dto.UserResponse, len(users))
-	for i, u := range users {
-		rl, _ := s.authz.GetRole(ctx, u.ID)
+	if len(users) == 0 {
+		return result
+	}
+	ids := make([]uuid.UUID, len(users))
+	for i := 0; i < len(users); i++ {
+		ids[i] = users[i].ID
+	}
+	roles, _ := s.authz.GetRoles(ctx, ids)
+	for i := 0; i < len(users); i++ {
+		u := users[i]
 		result[i] = dto.UserResponse{
 			ID:          u.ID,
 			Username:    u.Username,
 			DisplayName: u.DisplayName,
 			AvatarURL:   u.AvatarURL,
-			Role:        rl,
+			Role:        roles[u.ID],
 		}
 	}
 	return result

@@ -46,6 +46,39 @@ func TestRoleRepository_SetAndGetRole(t *testing.T) {
 	assert.Equal(t, roleAdmin, got)
 }
 
+func TestRoleRepository_GetRoles(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	a := repotest.CreateUser(t, repos)
+	b := repotest.CreateUser(t, repos)
+	c := repotest.CreateUser(t, repos)
+	require.NoError(t, repos.Role.SetRole(context.Background(), a.ID, roleAdmin))
+	require.NoError(t, repos.Role.SetRole(context.Background(), b.ID, roleModerator))
+
+	// when
+	got, err := repos.Role.GetRoles(context.Background(), []uuid.UUID{a.ID, b.ID, c.ID})
+
+	// then
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+	assert.Equal(t, roleAdmin, got[a.ID])
+	assert.Equal(t, roleModerator, got[b.ID])
+	_, hasC := got[c.ID]
+	assert.False(t, hasC, "user c has no role and should be absent from the map")
+}
+
+func TestRoleRepository_GetRoles_EmptyInput(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+
+	// when
+	got, err := repos.Role.GetRoles(context.Background(), nil)
+
+	// then
+	require.NoError(t, err)
+	assert.Nil(t, got)
+}
+
 func TestRoleRepository_SetRole_ReplacesExisting(t *testing.T) {
 	// given
 	repos := repotest.NewRepos(t)

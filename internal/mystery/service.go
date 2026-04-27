@@ -594,11 +594,13 @@ func (s *service) MarkSolved(ctx context.Context, mysteryID uuid.UUID, userID uu
 		playerIDs, _ := s.mysteryRepo.GetPlayerIDs(bgCtx, mysteryID)
 		solvedLink := fmt.Sprintf("%s/mystery/%s", baseURL, mysteryID)
 		solvedSubject, solvedBody := notification.NotifEmail("The Game Master", "solved a mystery you were playing", "", solvedLink)
-		for _, pid := range playerIDs {
+		params := make([]dto.NotifyParams, 0, len(playerIDs))
+		for i := 0; i < len(playerIDs); i++ {
+			pid := playerIDs[i]
 			if pid == attemptAuthorID {
 				continue
 			}
-			_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
+			params = append(params, dto.NotifyParams{
 				RecipientID:   pid,
 				Type:          dto.NotifMysterySolvedAll,
 				ReferenceID:   mysteryID,
@@ -609,6 +611,7 @@ func (s *service) MarkSolved(ctx context.Context, mysteryID uuid.UUID, userID uu
 				EmailBody:     solvedBody,
 			})
 		}
+		s.notifService.NotifyMany(bgCtx, params)
 
 		topIDs, err := s.mysteryRepo.GetTopDetectiveIDs(bgCtx)
 		if err == nil {

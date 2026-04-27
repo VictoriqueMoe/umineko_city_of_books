@@ -10,8 +10,8 @@ import (
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/gameroom"
 
+	chesslib "github.com/corentings/chess/v2"
 	"github.com/google/uuid"
-	chesslib "github.com/notnil/chess"
 )
 
 const (
@@ -86,7 +86,7 @@ func (h *Handler) ValidateAction(stateJSON string, actorSlot int, action json.Ra
 	if err != nil {
 		return gameroom.ActionResult{}, fmt.Errorf("illegal move: %w", err)
 	}
-	if err := game.Move(move); err != nil {
+	if err := game.Move(move, nil); err != nil {
 		return gameroom.ActionResult{}, fmt.Errorf("illegal move: %w", err)
 	}
 
@@ -256,7 +256,8 @@ func (h *Handler) OnGraceExpired(_ string, disconnectedSlot int) gameroom.Discon
 }
 
 func loadGame(pgn string) (*chesslib.Game, error) {
-	if pgn == "" {
+	trimmed := strings.TrimSpace(pgn)
+	if trimmed == "" || trimmed == "*" {
 		return chesslib.NewGame(), nil
 	}
 	fn, err := chesslib.PGN(strings.NewReader(pgn + "\n"))

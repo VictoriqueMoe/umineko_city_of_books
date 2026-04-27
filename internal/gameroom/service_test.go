@@ -20,12 +20,13 @@ import (
 )
 
 type testMocks struct {
-	svc       *service
-	roomRepo  *repository.MockGameRoomRepository
-	userRepo  *repository.MockUserRepository
-	blockRepo *repository.MockBlockRepository
-	notifier  *MockNotifier
-	handler   *MockGameHandler
+	svc        *service
+	roomRepo   *repository.MockGameRoomRepository
+	userRepo   *repository.MockUserRepository
+	blockRepo  *repository.MockBlockRepository
+	notifier   *MockNotifier
+	handler    *MockGameHandler
+	seededByID map[uuid.UUID]model.User
 }
 
 func newTestService(t *testing.T) *testMocks {
@@ -46,24 +47,37 @@ func newTestService(t *testing.T) *testMocks {
 		contentfilter.New(),
 		[]GameHandler{handler},
 	).(*service)
-	return &testMocks{
-		svc:       svc,
-		roomRepo:  roomRepo,
-		userRepo:  userRepo,
-		blockRepo: blockRepo,
-		notifier:  notifier,
-		handler:   handler,
+	m := &testMocks{
+		svc:        svc,
+		roomRepo:   roomRepo,
+		userRepo:   userRepo,
+		blockRepo:  blockRepo,
+		notifier:   notifier,
+		handler:    handler,
+		seededByID: map[uuid.UUID]model.User{},
 	}
+	userRepo.EXPECT().GetByIDs(mock.Anything, mock.Anything).RunAndReturn(func(_ context.Context, ids []uuid.UUID) ([]model.User, error) {
+		out := make([]model.User, 0, len(ids))
+		for i := 0; i < len(ids); i++ {
+			if u, ok := m.seededByID[ids[i]]; ok {
+				out = append(out, u)
+			}
+		}
+		return out, nil
+	}).Maybe()
+	return m
 }
 
-func seedUser(t *testing.T, userRepo *repository.MockUserRepository, id uuid.UUID, name string) {
+func seedUser(t *testing.T, m *testMocks, id uuid.UUID, name string) {
 	t.Helper()
-	userRepo.EXPECT().GetByID(mock.Anything, id).Return(&model.User{
+	u := model.User{
 		ID:          id,
 		Username:    name,
 		DisplayName: name,
 		Role:        "user",
-	}, nil).Maybe()
+	}
+	m.seededByID[id] = u
+	m.userRepo.EXPECT().GetByID(mock.Anything, id).Return(&u, nil).Maybe()
 }
 
 func finishedRow(t *testing.T, id, creator uuid.UUID, finishedAt string) repository.GameRoomRow {
@@ -157,8 +171,8 @@ func TestListFinished_HydratesRoomsWithComputedStats(t *testing.T) {
 		{UserID: whiteID, Slot: 0, Joined: true},
 		{UserID: blackID, Slot: 1, Joined: true},
 	}, nil)
-	seedUser(t, m.userRepo, whiteID, "Alice")
-	seedUser(t, m.userRepo, blackID, "Bob")
+	seedUser(t, m, whiteID, "Alice")
+	seedUser(t, m, blackID, "Bob")
 
 	statsPayload := map[string]any{
 		"total_ply":        42,
@@ -204,7 +218,7 @@ func TestListFinished_SkipsStatsWhenHandlerFails(t *testing.T) {
 	m.roomRepo.EXPECT().GetPlayers(mock.Anything, roomID).Return([]repository.GameRoomPlayerRow{
 		{UserID: creator, Slot: 0, Joined: true},
 	}, nil)
-	seedUser(t, m.userRepo, creator, "Alice")
+	seedUser(t, m, creator, "Alice")
 	m.handler.EXPECT().
 		ComputeStats(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(nil, errors.New("bad pgn"))
@@ -235,7 +249,7 @@ func TestHydrate_ComputesStatsForActiveRoom(t *testing.T) {
 	m.roomRepo.EXPECT().GetPlayers(mock.Anything, roomID).Return([]repository.GameRoomPlayerRow{
 		{UserID: creator, Slot: 0, Joined: true},
 	}, nil)
-	seedUser(t, m.userRepo, creator, "Alice")
+	seedUser(t, m, creator, "Alice")
 	m.handler.EXPECT().
 		ComputeStats(row.StateJSON, row.Result, row.CreatedAt, "").
 		Return(map[string]any{"total_ply": 4}, nil)
@@ -265,7 +279,7 @@ func TestHydrate_ExposesDisconnectedAtForOfflinePlayer(t *testing.T) {
 	m.roomRepo.EXPECT().GetPlayers(mock.Anything, roomID).Return([]repository.GameRoomPlayerRow{
 		{UserID: playerID, Slot: 0, Joined: true},
 	}, nil)
-	seedUser(t, m.userRepo, playerID, "Alice")
+	seedUser(t, m, playerID, "Alice")
 	m.handler.EXPECT().
 		ComputeStats(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(nil, nil).
@@ -357,8 +371,8 @@ func TestSubmitAction_ClearsDisconnectForfeitOnMove(t *testing.T) {
 	}, nil).Maybe()
 	m.roomRepo.EXPECT().SetState(mock.Anything, roomID, updatedRow.StateJSON, mock.Anything).Return(nil)
 	m.roomRepo.EXPECT().GetRoom(mock.Anything, roomID).Return(&updatedRow, nil).Maybe()
-	seedUser(t, m.userRepo, player1, "Alice")
-	seedUser(t, m.userRepo, player2, "Bob")
+	seedUser(t, m, player1, "Alice")
+	seedUser(t, m, player2, "Bob")
 	m.handler.EXPECT().
 		ComputeStats(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(nil, nil).
@@ -412,8 +426,8 @@ func expectHydrate(t *testing.T, m *testMocks, roomID, p1, p2 uuid.UUID) {
 		{UserID: p1, Slot: 0, Joined: true},
 		{UserID: p2, Slot: 1, Joined: true},
 	}, nil).Maybe()
-	seedUser(t, m.userRepo, p1, "Alice")
-	seedUser(t, m.userRepo, p2, "Bob")
+	seedUser(t, m, p1, "Alice")
+	seedUser(t, m, p2, "Bob")
 	m.handler.EXPECT().
 		ComputeStats(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 		Return(nil, nil).
@@ -444,8 +458,8 @@ func TestAccept_RejectsWhenInviteeNotInRoom(t *testing.T) {
 		{UserID: inviter, Slot: 0, Joined: true},
 		{UserID: invitee, Slot: 1, Joined: false},
 	}, nil)
-	seedUser(t, m.userRepo, inviter, "Alice")
-	seedUser(t, m.userRepo, invitee, "Bob")
+	seedUser(t, m, inviter, "Alice")
+	seedUser(t, m, invitee, "Bob")
 
 	// when
 	_, err := m.svc.Accept(context.Background(), roomID, invitee)
@@ -466,8 +480,8 @@ func TestAccept_RejectsWhenInviterNotInRoom(t *testing.T) {
 		{UserID: inviter, Slot: 0, Joined: true},
 		{UserID: invitee, Slot: 1, Joined: false},
 	}, nil)
-	seedUser(t, m.userRepo, inviter, "Alice")
-	seedUser(t, m.userRepo, invitee, "Bob")
+	seedUser(t, m, inviter, "Alice")
+	seedUser(t, m, invitee, "Bob")
 
 	// mark only the invitee as WS-present
 	m.svc.mu.Lock()
@@ -642,8 +656,8 @@ func TestSubmitAction_ClearsPendingDrawOffer(t *testing.T) {
 	}, nil).Maybe()
 	m.roomRepo.EXPECT().SetState(mock.Anything, roomID, row.StateJSON, mock.Anything).Return(nil)
 	m.roomRepo.EXPECT().GetRoom(mock.Anything, roomID).Return(&updatedRow, nil).Maybe()
-	seedUser(t, m.userRepo, p1, "Alice")
-	seedUser(t, m.userRepo, p2, "Bob")
+	seedUser(t, m, p1, "Alice")
+	seedUser(t, m, p2, "Bob")
 	m.handler.EXPECT().ComputeStats(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 	m.notifier.EXPECT().Notify(mock.Anything, mock.Anything).Return(nil).Maybe()
 

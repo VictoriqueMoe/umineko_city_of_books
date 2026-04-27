@@ -456,7 +456,9 @@ func expectBackgroundCommentNotify(m *testMocks) {
 	m.repo.EXPECT().GetFollowerIDs(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 	m.repo.EXPECT().GetCommentAuthorID(mock.Anything, mock.Anything).Return(uuid.Nil, errors.New("ignored")).Maybe()
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, mock.Anything, mock.Anything).Return(false, nil).Maybe()
+	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 	m.notifService.EXPECT().Notify(mock.Anything, mock.Anything).Return(nil).Maybe()
+	m.notifService.EXPECT().NotifyMany(mock.Anything, mock.Anything).Return().Maybe()
 }
 
 func TestCreateComment_EmptyBody(t *testing.T) {

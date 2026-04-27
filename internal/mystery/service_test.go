@@ -48,6 +48,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	mediaProc := &media.Processor{}
 	hub := ws.NewHub()
 	svc := NewService(repo, userRepo, authzSvc, blockSvc, notifSvc, settingsSvc, uploadSvc, mediaProc, hub, contentfilter.New()).(*service)
+	notifSvc.EXPECT().NotifyMany(mock.Anything, mock.Anything).Return().Maybe()
 	return svc, &testMocks{
 		repo:         repo,
 		userRepo:     userRepo,

@@ -1118,18 +1118,32 @@ func (s *service) loadPlayers(ctx context.Context, roomID uuid.UUID) ([]dto.Game
 	if err != nil {
 		return nil, err
 	}
+	if len(rows) == 0 {
+		return nil, nil
+	}
+
+	ids := make([]uuid.UUID, len(rows))
+	for i := 0; i < len(rows); i++ {
+		ids[i] = rows[i].UserID
+	}
+	users, err := s.userRepo.GetByIDs(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	byID := make(map[uuid.UUID]*model.User, len(users))
+	for i := 0; i < len(users); i++ {
+		byID[users[i].ID] = &users[i]
+	}
+
 	out := make([]dto.GameRoomPlayer, 0, len(rows))
-	for _, row := range rows {
-		u, err := s.userRepo.GetByID(ctx, row.UserID)
-		if err != nil {
-			return nil, err
-		}
+	for i := 0; i < len(rows); i++ {
+		row := rows[i]
 		player := dto.GameRoomPlayer{
 			UserID: row.UserID,
 			Slot:   row.Slot,
 			Joined: row.Joined,
 		}
-		if u != nil {
+		if u := byID[row.UserID]; u != nil {
 			resp := userToResponse(u)
 			player.User = *resp
 			player.Username = resp.Username

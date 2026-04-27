@@ -261,14 +261,20 @@ func (s *service) ensureLockAllowsRoom(ctx context.Context, senderID, roomID uui
 	if err != nil {
 		return fmt.Errorf("get room members: %w", err)
 	}
-	for _, memberID := range members {
-		if memberID == senderID {
-			continue
+	others := make([]uuid.UUID, 0, len(members))
+	for i := 0; i < len(members); i++ {
+		if members[i] != senderID {
+			others = append(others, members[i])
 		}
-		r, err := s.authzSvc.GetRole(ctx, memberID)
-		if err != nil {
-			return fmt.Errorf("get member role: %w", err)
-		}
+	}
+	if len(others) == 0 {
+		return ErrLockedNonStaffDM
+	}
+	roles, err := s.authzSvc.GetRoles(ctx, others)
+	if err != nil {
+		return fmt.Errorf("get member roles: %w", err)
+	}
+	for _, r := range roles {
 		if r.IsSiteStaff() {
 			return nil
 		}

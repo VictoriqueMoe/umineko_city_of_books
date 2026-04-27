@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 
 	"umineko_city_of_books/internal/role"
 
@@ -14,6 +15,7 @@ import (
 type (
 	RoleRepository interface {
 		GetRole(ctx context.Context, userID uuid.UUID) (role.Role, error)
+		GetRoles(ctx context.Context, userIDs []uuid.UUID) (map[uuid.UUID]role.Role, error)
 		HasRole(ctx context.Context, userID uuid.UUID, r role.Role) (bool, error)
 		SetRole(ctx context.Context, userID uuid.UUID, r role.Role) error
 		RemoveRole(ctx context.Context, userID uuid.UUID, r role.Role) error
@@ -37,6 +39,37 @@ func (r *roleRepository) GetRole(ctx context.Context, userID uuid.UUID) (role.Ro
 		return "", fmt.Errorf("get role: %w", err)
 	}
 	return role.Role(result), nil
+}
+
+func (r *roleRepository) GetRoles(ctx context.Context, userIDs []uuid.UUID) (map[uuid.UUID]role.Role, error) {
+	if len(userIDs) == 0 {
+		return nil, nil
+	}
+	args := make([]any, len(userIDs))
+	placeholders := make([]string, len(userIDs))
+	for i := 0; i < len(userIDs); i++ {
+		args[i] = userIDs[i]
+		placeholders[i] = fmt.Sprintf("$%d", i+1)
+	}
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT user_id, role FROM user_roles WHERE user_id IN (`+strings.Join(placeholders, ",")+`)`,
+		args...,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("get roles: %w", err)
+	}
+	defer rows.Close()
+
+	out := make(map[uuid.UUID]role.Role, len(userIDs))
+	for rows.Next() {
+		var uid uuid.UUID
+		var rl string
+		if err := rows.Scan(&uid, &rl); err != nil {
+			return nil, fmt.Errorf("scan role: %w", err)
+		}
+		out[uid] = role.Role(rl)
+	}
+	return out, rows.Err()
 }
 
 func (r *roleRepository) HasRole(ctx context.Context, userID uuid.UUID, rl role.Role) (bool, error) {

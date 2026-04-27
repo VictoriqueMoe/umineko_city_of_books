@@ -14,6 +14,7 @@ type (
 	Service interface {
 		Can(ctx context.Context, userID uuid.UUID, perm Permission) bool
 		GetRole(ctx context.Context, userID uuid.UUID) (role.Role, error)
+		GetRoles(ctx context.Context, userIDs []uuid.UUID) (map[uuid.UUID]role.Role, error)
 		IsBanned(ctx context.Context, userID uuid.UUID) bool
 		IsLocked(ctx context.Context, userID uuid.UUID) bool
 	}
@@ -75,4 +76,8 @@ func (s *service) Can(ctx context.Context, userID uuid.UUID, perm Permission) bo
 
 func (s *service) GetRole(ctx context.Context, userID uuid.UUID) (role.Role, error) {
 	return s.roleRepo.GetRole(ctx, userID)
+}
+
+func (s *service) GetRoles(ctx context.Context, userIDs []uuid.UUID) (map[uuid.UUID]role.Role, error) {
+	return s.roleRepo.GetRoles(ctx, userIDs)
 }

@@ -269,14 +269,22 @@ func (s *service) CreateComment(ctx context.Context, journalID uuid.UUID, userID
 				return
 			}
 			subject, emailBody := notification.NotifEmail(actor, "posted a new update on", title, linkURL)
-			for _, followerID := range followerIDs {
+			blockedSet := make(map[uuid.UUID]struct{})
+			if blockedIDs, err := s.blockSvc.GetBlockedIDs(bgCtx, userID); err == nil {
+				for i := 0; i < len(blockedIDs); i++ {
+					blockedSet[blockedIDs[i]] = struct{}{}
+				}
+			}
+			params := make([]dto.NotifyParams, 0, len(followerIDs))
+			for i := 0; i < len(followerIDs); i++ {
+				followerID := followerIDs[i]
 				if followerID == userID {
 					continue
 				}
-				if blocked, _ := s.blockSvc.IsBlockedEither(bgCtx, userID, followerID); blocked {
+				if _, isBlocked := blockedSet[followerID]; isBlocked {
 					continue
 				}
-				_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
+				params = append(params, dto.NotifyParams{
 					RecipientID:   followerID,
 					Type:          dto.NotifJournalUpdate,
 					ReferenceID:   journalID,
@@ -286,6 +294,7 @@ func (s *service) CreateComment(ctx context.Context, journalID uuid.UUID, userID
 					EmailBody:     emailBody,
 				})
 			}
+			s.notifService.NotifyMany(bgCtx, params)
 		} else {
 			subject, emailBody := notification.NotifEmail(actor, "commented on your journal", title, linkURL)
 			_ = s.notifService.Notify(bgCtx, dto.NotifyParams{

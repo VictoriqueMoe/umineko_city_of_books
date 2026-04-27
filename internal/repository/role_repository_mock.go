@@ -105,6 +105,74 @@ func (_c *MockRoleRepository_GetRole_Call) RunAndReturn(run func(ctx context.Con
 	return _c
 }
 
+// GetRoles provides a mock function for the type MockRoleRepository
+func (_mock *MockRoleRepository) GetRoles(ctx context.Context, userIDs []uuid.UUID) (map[uuid.UUID]role.Role, error) {
+	ret := _mock.Called(ctx, userIDs)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetRoles")
+	}
+
+	var r0 map[uuid.UUID]role.Role
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) (map[uuid.UUID]role.Role, error)); ok {
+		return returnFunc(ctx, userIDs)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) map[uuid.UUID]role.Role); ok {
+		r0 = returnFunc(ctx, userIDs)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[uuid.UUID]role.Role)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, []uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, userIDs)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockRoleRepository_GetRoles_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetRoles'
+type MockRoleRepository_GetRoles_Call struct {
+	*mock.Call
+}
+
+// GetRoles is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userIDs []uuid.UUID
+func (_e *MockRoleRepository_Expecter) GetRoles(ctx interface{}, userIDs interface{}) *MockRoleRepository_GetRoles_Call {
+	return &MockRoleRepository_GetRoles_Call{Call: _e.mock.On("GetRoles", ctx, userIDs)}
+}
+
+func (_c *MockRoleRepository_GetRoles_Call) Run(run func(ctx context.Context, userIDs []uuid.UUID)) *MockRoleRepository_GetRoles_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].([]uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockRoleRepository_GetRoles_Call) Return(uUIDToRole map[uuid.UUID]role.Role, err error) *MockRoleRepository_GetRoles_Call {
+	_c.Call.Return(uUIDToRole, err)
+	return _c
+}
+
+func (_c *MockRoleRepository_GetRoles_Call) RunAndReturn(run func(ctx context.Context, userIDs []uuid.UUID) (map[uuid.UUID]role.Role, error)) *MockRoleRepository_GetRoles_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetUsersByRoles provides a mock function for the type MockRoleRepository
 func (_mock *MockRoleRepository) GetUsersByRoles(ctx context.Context, roles []role.Role) ([]uuid.UUID, error) {
 	ret := _mock.Called(ctx, roles)
