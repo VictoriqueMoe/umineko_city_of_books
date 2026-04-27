@@ -558,7 +558,7 @@ export function FanficEditorPage() {
         navigate("/fanfiction");
     }
 
-    if (editLoading) {
+    if (isEdit && editLoading) {
         return <div className="loading">Loading...</div>;
     }
 

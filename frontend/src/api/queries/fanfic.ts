@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+﻿import { useQuery } from "@tanstack/react-query";
 import {
     getFanfic,
     getFanficChapter,
@@ -14,7 +14,7 @@ export function useFanficList(params: Parameters<typeof listFanfics>[0]) {
         queryKey: queryKeys.fanfic.feed(params),
         queryFn: () => listFanfics(params),
     });
-    return { fanfics: q.data?.fanfics ?? [], total: q.data?.total ?? 0, loading: q.isPending };
+    return { fanfics: q.data?.fanfics ?? [], total: q.data?.total ?? 0, loading: q.isLoading };
 }
 
 export function useFanfic(id: string) {
@@ -23,7 +23,7 @@ export function useFanfic(id: string) {
         queryFn: () => getFanfic(id),
         enabled: !!id,
     });
-    return { fanfic: q.data ?? null, loading: q.isPending, refresh: q.refetch };
+    return { fanfic: q.data ?? null, loading: q.isLoading, refresh: q.refetch };
 }
 
 export function useFanficChapter(fanficId: string, chapterNumber: number) {
@@ -32,7 +32,7 @@ export function useFanficChapter(fanficId: string, chapterNumber: number) {
         queryFn: () => getFanficChapter(fanficId, chapterNumber),
         enabled: !!fanficId && chapterNumber > 0,
     });
-    return { chapter: q.data ?? null, loading: q.isPending, refresh: q.refetch };
+    return { chapter: q.data ?? null, loading: q.isLoading, refresh: q.refetch };
 }
 
 export const fanficQueryFns = {
@@ -70,5 +70,5 @@ export function useSearchOCCharacters(query: string, enabled = true) {
         queryFn: () => searchOCCharacters(query),
         enabled: enabled && !!query,
     });
-    return { characters: q.data ?? [], loading: q.isPending };
+    return { characters: q.data ?? [], loading: q.isLoading };
 }

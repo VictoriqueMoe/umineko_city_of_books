@@ -81,7 +81,7 @@ export function NotificationProvider({ children }: PropsWithChildren) {
 
     const setLiveGamesCount = useCallback(
         (count: number) => {
-            qc.setQueryData<{ rooms: unknown[]; total: number }>(["game-rooms", "live", ""], prev => ({
+            qc.setQueryData<{ rooms: unknown[]; total: number }>(["game-rooms", "live"], prev => ({
                 rooms: prev?.rooms ?? [],
                 total: count,
             }));
@@ -128,6 +128,7 @@ export function NotificationProvider({ children }: PropsWithChildren) {
                 if (msg.type === "notification") {
                     const notif = msg.data as Notification;
                     bumpUnread();
+                    qc.invalidateQueries({ queryKey: ["notifications", "list"] });
                     showDesktopNotification(notif);
                     if (userRef.current?.play_notification_sound ?? true) {
                         playNotificationSound();
@@ -192,7 +193,7 @@ export function NotificationProvider({ children }: PropsWithChildren) {
         socket.onerror = () => {
             socket.close();
         };
-    }, [closeSocket, clearKeepaliveTimer, setUser, bumpUnread, setChatUnreadCount, setLiveGamesCount]);
+    }, [closeSocket, clearKeepaliveTimer, setUser, bumpUnread, setChatUnreadCount, setLiveGamesCount, qc]);
 
     useEffect(() => {
         connectWsRef.current = connectWs;

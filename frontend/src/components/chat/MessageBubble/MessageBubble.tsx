@@ -456,7 +456,7 @@ function EditRow({ initialBody, onCommit, onCancel }: EditRowProps) {
                 onKeyDown={e => {
                     if (e.key === "Enter" && !e.shiftKey) {
                         e.preventDefault();
-                        void commit();
+                        commit();
                         return;
                     }
                     if (e.key === "Escape") {
@@ -475,7 +475,7 @@ function EditRow({ initialBody, onCommit, onCancel }: EditRowProps) {
                 <button
                     type="button"
                     className={`${styles.editBtn} ${styles.editBtnPrimary}`}
-                    onClick={() => void commit()}
+                    onClick={() => commit()}
                     disabled={saving || draft.trim() === ""}
                 >
                     {saving ? "Saving..." : "Save"}

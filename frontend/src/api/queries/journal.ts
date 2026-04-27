@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+﻿import { useCallback, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { Journal, JournalWork } from "../../types/api";
 import { getJournal, listJournals } from "../endpoints";
@@ -14,7 +14,7 @@ export function useJournal(id: string) {
     });
     return {
         journal: q.data ?? null,
-        loading: q.isPending,
+        loading: q.isLoading,
         refresh: q.refetch,
     };
 }
@@ -61,7 +61,7 @@ export function useJournalFeed(
     return {
         journals: data?.journals ?? ([] as Journal[]),
         total: data?.total ?? 0,
-        loading: query.isPending,
+        loading: query.isLoading,
         offset,
         limit,
         goNext,

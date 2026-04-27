@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+﻿import { useQuery } from "@tanstack/react-query";
 import { getCharacterGroups, getCharacters, searchOCCharacters, type CharacterGroups, type Series } from "../endpoints";
 
 const EMPTY: { umineko: Record<string, string>; higurashi: Record<string, string>; ciconia: CharacterGroups } = {
@@ -29,7 +29,7 @@ export function useCharactersFlat(series: Series) {
         queryFn: () => getCharacters(series),
         staleTime: Infinity,
     });
-    return { characters: q.data ?? {}, loading: q.isPending };
+    return { characters: q.data ?? {}, loading: q.isLoading };
 }
 
 export function useOCCharacters(query = "") {
@@ -38,7 +38,7 @@ export function useOCCharacters(query = "") {
         queryFn: () => searchOCCharacters(query),
         staleTime: Infinity,
     });
-    return { characters: q.data ?? [], loading: q.isPending };
+    return { characters: q.data ?? [], loading: q.isLoading };
 }
 
 const EMPTY_GROUPS: CharacterGroups = { main: {}, additional: {} };
@@ -49,5 +49,5 @@ export function useCharacterGroups(series: Series) {
         queryFn: () => getCharacterGroups(series),
         staleTime: Infinity,
     });
-    return { groups: q.data ?? EMPTY_GROUPS, loading: q.isPending };
+    return { groups: q.data ?? EMPTY_GROUPS, loading: q.isLoading };
 }

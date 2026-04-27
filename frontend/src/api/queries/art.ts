@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+﻿import { useQuery } from "@tanstack/react-query";
 import type { Art } from "../../types/api";
 import { getArt, getGallery, listAllGalleries, listArt } from "../endpoints";
 import { queryKeys } from "../queryKeys";
@@ -34,7 +34,7 @@ export function useArtFeed(
     return {
         art: data?.art ?? ([] as Art[]),
         total: data?.total ?? 0,
-        loading: query.isPending,
+        loading: query.isLoading,
         offset,
         limit,
         hasNext: data ? offset + limit < data.total : false,
@@ -49,7 +49,7 @@ export function useArt(id: string) {
         queryFn: () => getArt(id),
         enabled: !!id,
     });
-    return { art: query.data ?? null, loading: query.isPending, refresh: query.refetch };
+    return { art: query.data ?? null, loading: query.isLoading, refresh: query.refetch };
 }
 
 export function useGallery(id: string, limit: number = 24, offset: number = 0) {
@@ -62,7 +62,7 @@ export function useGallery(id: string, limit: number = 24, offset: number = 0) {
         gallery: query.data?.gallery ?? null,
         art: query.data?.art ?? [],
         total: query.data?.total ?? 0,
-        loading: query.isPending,
+        loading: query.isLoading,
         refresh: query.refetch,
     };
 }
@@ -73,5 +73,5 @@ export function useAllGalleries(corner?: string, enabled = true) {
         queryFn: () => listAllGalleries(corner),
         enabled,
     });
-    return { galleries: query.data ?? [], loading: query.isPending, refresh: query.refetch };
+    return { galleries: query.data ?? [], loading: query.isLoading, refresh: query.refetch };
 }

@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+﻿import { useCallback, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { Theory } from "../../types/api";
 import type { TheorySort } from "../../types/app";
@@ -13,7 +13,7 @@ export function useTheory(id: string) {
     });
     return {
         theory: query.data ?? null,
-        loading: query.isPending,
+        loading: query.isLoading,
         refresh: query.refetch,
     };
 }
@@ -54,7 +54,7 @@ export function useTheoryFeed(sort: TheorySort, episode: number, authorId?: stri
     return {
         theories: data?.theories ?? ([] as Theory[]),
         total: data?.total ?? 0,
-        loading: query.isPending,
+        loading: query.isLoading,
         offset,
         limit,
         goNext,

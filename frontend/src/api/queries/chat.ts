@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+﻿import { useQuery } from "@tanstack/react-query";
 import {
     getChatRoomMembers,
     getChatRoomPinnedMessages,
@@ -85,7 +85,7 @@ export function useResolveDMRoom(recipientId: string, enabled = true) {
         queryFn: () => resolveDMRoom(recipientId),
         enabled: enabled && !!recipientId,
     });
-    return { data: query.data ?? null, loading: query.isPending };
+    return { data: query.data ?? null, loading: query.isLoading };
 }
 
 export function usePublicChatRooms(params: {
@@ -103,7 +103,7 @@ export function usePublicChatRooms(params: {
     return {
         rooms: query.data?.rooms ?? [],
         total: query.data?.total ?? 0,
-        loading: query.isPending,
+        loading: query.isLoading,
         refresh: query.refetch,
     };
 }
@@ -124,7 +124,7 @@ export function useMyChatRooms(params: {
     return {
         rooms: query.data?.rooms ?? [],
         total: query.data?.total ?? 0,
-        loading: query.isPending,
+        loading: query.isLoading,
         refresh: query.refetch,
     };
 }
@@ -134,7 +134,7 @@ export function useUserRooms() {
         queryKey: ["chat", "rooms", "user"],
         queryFn: () => getUserRooms(),
     });
-    return { rooms: query.data?.rooms ?? [], loading: query.isPending, refresh: query.refetch };
+    return { rooms: query.data?.rooms ?? [], loading: query.isLoading, refresh: query.refetch };
 }
 
 export function useChatRoomMembers(roomId: string, enabled = true) {
@@ -143,7 +143,7 @@ export function useChatRoomMembers(roomId: string, enabled = true) {
         queryFn: () => getChatRoomMembers(roomId),
         enabled: enabled && !!roomId,
     });
-    return { members: query.data?.members ?? [], loading: query.isPending, refresh: query.refetch };
+    return { members: query.data?.members ?? [], loading: query.isLoading, refresh: query.refetch };
 }
 
 export function useRoomMessages(roomId: string, limit?: number, offset?: number, enabled = true) {
@@ -155,7 +155,7 @@ export function useRoomMessages(roomId: string, limit?: number, offset?: number,
     return {
         messages: query.data?.messages ?? [],
         total: query.data?.total ?? 0,
-        loading: query.isPending,
+        loading: query.isLoading,
         refresh: query.refetch,
     };
 }
@@ -174,7 +174,7 @@ export function useChatRoomBans(roomId: string, enabled = true) {
         queryFn: () => listChatRoomBans(roomId),
         enabled: enabled && !!roomId,
     });
-    return { bans: query.data?.bans ?? [], loading: query.isPending, refresh: query.refetch };
+    return { bans: query.data?.bans ?? [], loading: query.isLoading, refresh: query.refetch };
 }
 
 export function useChatRoomBannedWords(roomId: string, enabled = true) {
@@ -183,7 +183,7 @@ export function useChatRoomBannedWords(roomId: string, enabled = true) {
         queryFn: () => listChatRoomBannedWords(roomId),
         enabled: enabled && !!roomId,
     });
-    return { rules: query.data?.rules ?? [], loading: query.isPending, refresh: query.refetch };
+    return { rules: query.data?.rules ?? [], loading: query.isLoading, refresh: query.refetch };
 }
 
 export function useChatRoomPinnedMessages(roomId: string, enabled = true) {
@@ -192,5 +192,5 @@ export function useChatRoomPinnedMessages(roomId: string, enabled = true) {
         queryFn: () => getChatRoomPinnedMessages(roomId),
         enabled: enabled && !!roomId,
     });
-    return { messages: query.data?.messages ?? [], loading: query.isPending, refresh: query.refetch };
+    return { messages: query.data?.messages ?? [], loading: query.isLoading, refresh: query.refetch };
 }

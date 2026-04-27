@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+﻿import { useQuery } from "@tanstack/react-query";
 import { browseQuotes, searchQuotes, type Series } from "../endpoints";
 import { queryClient } from "../queryClient";
 
@@ -57,7 +57,7 @@ export function useSearchQuotes(
         queryFn: () => searchQuotes(params),
         enabled,
     });
-    return { data: q.data ?? null, loading: q.isPending };
+    return { data: q.data ?? null, loading: q.isLoading };
 }
 
 export function useBrowseQuotes(
@@ -79,5 +79,5 @@ export function useBrowseQuotes(
         queryFn: () => browseQuotes(params),
         enabled,
     });
-    return { data: q.data ?? null, loading: q.isPending };
+    return { data: q.data ?? null, loading: q.isLoading };
 }

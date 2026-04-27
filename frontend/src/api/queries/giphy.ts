@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+﻿import { useQuery } from "@tanstack/react-query";
 import { listGiphyFavourites, searchGiphy, trendingGiphy } from "../endpoints";
 
 export function useGiphySearch(query: string, offset = 0, limit = 0, enabled = true) {
@@ -8,7 +8,7 @@ export function useGiphySearch(query: string, offset = 0, limit = 0, enabled = t
         enabled: enabled && !!query,
         staleTime: 5 * 60_000,
     });
-    return { data: q.data, loading: q.isPending, error: q.error, refresh: q.refetch };
+    return { data: q.data, loading: q.isLoading, error: q.error, refresh: q.refetch };
 }
 
 export function useGiphyTrending(offset = 0, limit = 0, enabled = true) {
@@ -18,7 +18,7 @@ export function useGiphyTrending(offset = 0, limit = 0, enabled = true) {
         enabled,
         staleTime: 5 * 60_000,
     });
-    return { data: q.data, loading: q.isPending, error: q.error, refresh: q.refetch };
+    return { data: q.data, loading: q.isLoading, error: q.error, refresh: q.refetch };
 }
 
 export function useGiphyFavourites(offset = 0, limit = 0) {
@@ -29,7 +29,7 @@ export function useGiphyFavourites(offset = 0, limit = 0) {
     return {
         favourites: q.data?.data ?? [],
         total: q.data?.total ?? 0,
-        loading: q.isPending,
+        loading: q.isLoading,
         refresh: q.refetch,
     };
 }

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+﻿import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as api from "../endpoints";
 import { queryKeys } from "../queryKeys";
@@ -13,7 +13,7 @@ export function useMyGameRooms(params?: { game_type?: GameType; status?: GameSta
     return {
         rooms: q.data?.rooms ?? [],
         total: q.data?.total ?? 0,
-        loading: q.isPending,
+        loading: q.isLoading,
         error: q.error instanceof Error ? q.error.message : "",
         refresh: q.refetch,
     };
@@ -27,7 +27,7 @@ export function useLiveGameRooms(gameType?: GameType) {
     return {
         rooms: q.data?.rooms ?? [],
         total: q.data?.total ?? 0,
-        loading: q.isPending,
+        loading: q.isLoading,
         error: q.error instanceof Error ? q.error.message : "",
         refresh: q.refetch,
     };
@@ -38,7 +38,7 @@ export function useFinishedGameRooms(gameType?: GameType, limit = 20, offset = 0
         queryKey: ["game-rooms", "finished", gameType ?? "", { limit, offset }],
         queryFn: () => api.listFinishedGameRooms(gameType, limit, offset),
     });
-    return { rooms: q.data?.rooms ?? [], total: q.data?.total ?? 0, loading: q.isPending };
+    return { rooms: q.data?.rooms ?? [], total: q.data?.total ?? 0, loading: q.isLoading };
 }
 
 export function useGameScoreboard(gameType: GameType | undefined) {
@@ -47,7 +47,7 @@ export function useGameScoreboard(gameType: GameType | undefined) {
         queryFn: () => api.getGameScoreboard(gameType!),
         enabled: !!gameType,
     });
-    return { data: q.data ?? null, loading: q.isPending };
+    return { data: q.data ?? null, loading: q.isLoading };
 }
 
 export function useSpectatorChat(roomId: string, enabled = true) {
@@ -56,7 +56,7 @@ export function useSpectatorChat(roomId: string, enabled = true) {
         queryFn: () => api.getSpectatorChat(roomId),
         enabled: enabled && !!roomId,
     });
-    return { data: q.data ?? null, loading: q.isPending, refresh: q.refetch };
+    return { data: q.data ?? null, loading: q.isLoading, refresh: q.refetch };
 }
 
 export function usePlayerChat(roomId: string, enabled = true) {
@@ -65,7 +65,7 @@ export function usePlayerChat(roomId: string, enabled = true) {
         queryFn: () => api.getPlayerChat(roomId),
         enabled: enabled && !!roomId,
     });
-    return { data: q.data ?? null, loading: q.isPending, refresh: q.refetch };
+    return { data: q.data ?? null, loading: q.isLoading, refresh: q.refetch };
 }
 
 interface UseGameRoomResult {
@@ -154,7 +154,7 @@ export function useGameRoom(roomId: string | undefined): UseGameRoomResult {
 
     return {
         room: query.data ?? null,
-        loading: query.isPending,
+        loading: query.isLoading,
         error: query.error instanceof Error ? query.error.message : "",
         refetch: async () => {
             await query.refetch();

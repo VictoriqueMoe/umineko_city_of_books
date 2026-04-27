@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+﻿import { useQuery } from "@tanstack/react-query";
 import { getNotifications, getPushPublicKey, getPushStatus, getUnreadCount } from "../endpoints";
 import { queryKeys } from "../queryKeys";
 
@@ -10,7 +10,7 @@ export function useNotifications(limit = 20, offset = 0) {
     return {
         notifications: query.data?.notifications ?? [],
         total: query.data?.total ?? 0,
-        loading: query.isPending,
+        loading: query.isLoading,
         refresh: query.refetch,
     };
 }
@@ -29,7 +29,7 @@ export function usePushPublicKey() {
         queryFn: () => getPushPublicKey(),
         staleTime: Infinity,
     });
-    return { publicKey: query.data?.public_key ?? "", loading: query.isPending };
+    return { publicKey: query.data?.public_key ?? "", loading: query.isLoading };
 }
 
 export function usePushStatus(endpoint: string) {
@@ -38,5 +38,5 @@ export function usePushStatus(endpoint: string) {
         queryFn: () => getPushStatus(endpoint),
         enabled: !!endpoint,
     });
-    return { subscribed: query.data?.subscribed ?? false, loading: query.isPending };
+    return { subscribed: query.data?.subscribed ?? false, loading: query.isLoading };
 }

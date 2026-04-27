@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+﻿import { useQuery } from "@tanstack/react-query";
 import { getUserProfile } from "../endpoints";
 import { queryKeys } from "../queryKeys";
 
@@ -10,6 +10,6 @@ export function useProfile(username: string) {
     });
     return {
         profile: query.data ?? null,
-        loading: query.isPending,
+        loading: query.isLoading,
     };
 }

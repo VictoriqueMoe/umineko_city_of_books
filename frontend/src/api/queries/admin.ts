@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+﻿import { useQuery } from "@tanstack/react-query";
 import {
     getAdminSettings,
     getAdminStats,
@@ -23,7 +23,7 @@ export function useAdminAnnouncements() {
     });
     return {
         announcements: query.data?.announcements ?? [],
-        loading: query.isPending,
+        loading: query.isLoading,
         refresh: query.refetch,
     };
 }
@@ -36,7 +36,7 @@ export function useAdminUsers(search: string, limit: number, offset: number) {
     return {
         users: query.data?.users ?? [],
         total: query.data?.total ?? 0,
-        loading: query.isPending,
+        loading: query.isLoading,
         refresh: query.refetch,
     };
 }
@@ -47,7 +47,7 @@ export function useAdminUser(id: string) {
         queryFn: () => getAdminUser(id),
         enabled: !!id,
     });
-    return { user: query.data ?? null, loading: query.isPending };
+    return { user: query.data ?? null, loading: query.isLoading };
 }
 
 export function useAdminStats() {
@@ -55,7 +55,7 @@ export function useAdminStats() {
         queryKey: ["admin", "stats"],
         queryFn: () => getAdminStats(),
     });
-    return { stats: query.data ?? null, loading: query.isPending };
+    return { stats: query.data ?? null, loading: query.isLoading };
 }
 
 export function useAdminSettings() {
@@ -63,7 +63,7 @@ export function useAdminSettings() {
         queryKey: ["admin", "settings"],
         queryFn: () => getAdminSettings(),
     });
-    return { settings: query.data ?? null, loading: query.isPending, refresh: query.refetch };
+    return { settings: query.data ?? null, loading: query.isLoading, refresh: query.refetch };
 }
 
 export function useAuditLog(action: string, limit: number, offset: number) {
@@ -74,7 +74,7 @@ export function useAuditLog(action: string, limit: number, offset: number) {
     return {
         entries: query.data?.entries ?? [],
         total: query.data?.total ?? 0,
-        loading: query.isPending,
+        loading: query.isLoading,
         refresh: query.refetch,
     };
 }
@@ -84,7 +84,7 @@ export function useInvites(limit: number, offset: number) {
         queryKey: queryKeys.admin.invites(),
         queryFn: () => getInvites({ limit, offset }),
     });
-    return { invites: query.data?.invites ?? [], loading: query.isPending, refresh: query.refetch };
+    return { invites: query.data?.invites ?? [], loading: query.isLoading, refresh: query.refetch };
 }
 
 export function useReports(status: string) {
@@ -92,7 +92,7 @@ export function useReports(status: string) {
         queryKey: queryKeys.admin.reports({ status }),
         queryFn: () => getReports(status),
     });
-    return { reports: query.data?.reports ?? [], loading: query.isPending, refresh: query.refetch };
+    return { reports: query.data?.reports ?? [], loading: query.isLoading, refresh: query.refetch };
 }
 
 export function useBannedGifs() {
@@ -100,7 +100,7 @@ export function useBannedGifs() {
         queryKey: queryKeys.admin.bannedGifs(),
         queryFn: () => getBannedGifs(),
     });
-    return { entries: query.data?.entries ?? [], loading: query.isPending, refresh: query.refetch };
+    return { entries: query.data?.entries ?? [], loading: query.isLoading, refresh: query.refetch };
 }
 
 export function useGlobalBannedWords() {
@@ -108,7 +108,7 @@ export function useGlobalBannedWords() {
         queryKey: queryKeys.admin.bannedWords("global"),
         queryFn: () => listGlobalBannedWords(),
     });
-    return { rules: query.data?.rules ?? [], loading: query.isPending, refresh: query.refetch };
+    return { rules: query.data?.rules ?? [], loading: query.isLoading, refresh: query.refetch };
 }
 
 export function useChatRoomBannedWords(roomID: string) {
@@ -117,7 +117,7 @@ export function useChatRoomBannedWords(roomID: string) {
         queryFn: () => listChatRoomBannedWords(roomID),
         enabled: !!roomID,
     });
-    return { rules: query.data?.rules ?? [], loading: query.isPending, refresh: query.refetch };
+    return { rules: query.data?.rules ?? [], loading: query.isLoading, refresh: query.refetch };
 }
 
 export function useVanityRoles() {
@@ -125,7 +125,7 @@ export function useVanityRoles() {
         queryKey: queryKeys.admin.vanityRoles(),
         queryFn: () => getVanityRoles(),
     });
-    return { roles: query.data ?? [], loading: query.isPending, refresh: query.refetch };
+    return { roles: query.data ?? [], loading: query.isLoading, refresh: query.refetch };
 }
 
 export function useVanityRoleUsers(id: string, search: string, limit: number, offset: number) {
@@ -137,7 +137,7 @@ export function useVanityRoleUsers(id: string, search: string, limit: number, of
     return {
         users: query.data?.users ?? [],
         total: query.data?.total ?? 0,
-        loading: query.isPending,
+        loading: query.isLoading,
         refresh: query.refetch,
     };
 }

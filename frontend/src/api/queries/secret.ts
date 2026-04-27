@@ -1,9 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
+﻿import { useQuery } from "@tanstack/react-query";
 import { getSecret, listSecrets } from "../endpoints";
 
 export function useSecretList() {
     const q = useQuery({ queryKey: ["secrets", "list"], queryFn: () => listSecrets() });
-    return { data: q.data ?? null, loading: q.isPending, refresh: q.refetch };
+    return { data: q.data ?? null, loading: q.isLoading, refresh: q.refetch };
 }
 
 export function useSecret(id: string) {
@@ -12,5 +12,5 @@ export function useSecret(id: string) {
         queryFn: () => getSecret(id),
         enabled: !!id,
     });
-    return { data: q.data ?? null, loading: q.isPending, refresh: q.refetch };
+    return { data: q.data ?? null, loading: q.isLoading, refresh: q.refetch };
 }

@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+﻿import { useQuery } from "@tanstack/react-query";
 import { listCharacters } from "../endpoints";
 
 export function useCharacterList(series: string, enabled = true) {
@@ -8,5 +8,5 @@ export function useCharacterList(series: string, enabled = true) {
         enabled: enabled && !!series && series !== "oc",
         staleTime: Infinity,
     });
-    return { characters: q.data?.characters ?? [], loading: q.isPending };
+    return { characters: q.data?.characters ?? [], loading: q.isLoading };
 }

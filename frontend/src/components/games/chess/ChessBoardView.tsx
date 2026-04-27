@@ -425,7 +425,7 @@ export function ChessBoardView({
                         className={styles.coordForm}
                         onSubmit={e => {
                             e.preventDefault();
-                            void handleCoordSubmit();
+                            handleCoordSubmit();
                         }}
                     >
                         <Input

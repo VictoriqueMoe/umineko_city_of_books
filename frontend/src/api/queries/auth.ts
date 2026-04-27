@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+﻿import { useQuery } from "@tanstack/react-query";
 import { getMe, getSiteInfo } from "../endpoints";
 
 export function useMe() {
@@ -6,7 +6,7 @@ export function useMe() {
         queryKey: ["auth", "me"],
         queryFn: () => getMe(),
     });
-    return { me: query.data ?? null, loading: query.isPending, refresh: query.refetch };
+    return { me: query.data ?? null, loading: query.isLoading, refresh: query.refetch };
 }
 
 export function useSiteInfoQuery() {
@@ -14,5 +14,5 @@ export function useSiteInfoQuery() {
         queryKey: ["site-info"],
         queryFn: () => getSiteInfo(),
     });
-    return { siteInfo: query.data ?? null, loading: query.isPending, refresh: query.refetch };
+    return { siteInfo: query.data ?? null, loading: query.isLoading, refresh: query.refetch };
 }

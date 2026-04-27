@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+﻿import { useQuery } from "@tanstack/react-query";
 import { getShip, listShips } from "../endpoints";
 import { queryKeys } from "../queryKeys";
 
@@ -14,7 +14,7 @@ export function useShipList(params: {
         queryKey: queryKeys.ship.feed(params),
         queryFn: () => listShips(params),
     });
-    return { ships: q.data?.ships ?? [], total: q.data?.total ?? 0, loading: q.isPending };
+    return { ships: q.data?.ships ?? [], total: q.data?.total ?? 0, loading: q.isLoading };
 }
 
 export function useShip(id: string) {
@@ -23,5 +23,5 @@ export function useShip(id: string) {
         queryFn: () => getShip(id),
         enabled: !!id,
     });
-    return { ship: q.data ?? null, loading: q.isPending, refresh: q.refetch };
+    return { ship: q.data ?? null, loading: q.isLoading, refresh: q.refetch };
 }

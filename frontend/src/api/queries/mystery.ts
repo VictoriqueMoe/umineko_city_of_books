@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+﻿import { useQuery } from "@tanstack/react-query";
 import { getGMLeaderboard, getMystery, getMysteryLeaderboard, listMysteries } from "../endpoints";
 import { queryKeys } from "../queryKeys";
 
@@ -10,7 +10,7 @@ export function useMysteryList(params: { sort?: string; solved?: string; limit?:
     return {
         mysteries: q.data?.mysteries ?? [],
         total: q.data?.total ?? 0,
-        loading: q.isPending,
+        loading: q.isLoading,
         refresh: q.refetch,
     };
 }
@@ -21,7 +21,7 @@ export function useMystery(id: string) {
         queryFn: () => getMystery(id),
         enabled: !!id,
     });
-    return { mystery: q.data ?? null, loading: q.isPending, refresh: q.refetch };
+    return { mystery: q.data ?? null, loading: q.isLoading, refresh: q.refetch };
 }
 
 export function useMysteryLeaderboard(limit?: number) {
@@ -29,7 +29,7 @@ export function useMysteryLeaderboard(limit?: number) {
         queryKey: ["mysteries", "leaderboard", limit ?? null],
         queryFn: () => getMysteryLeaderboard(limit),
     });
-    return { entries: q.data?.entries ?? [], loading: q.isPending };
+    return { entries: q.data?.entries ?? [], loading: q.isLoading };
 }
 
 export function useGMLeaderboard(limit?: number) {
@@ -37,5 +37,5 @@ export function useGMLeaderboard(limit?: number) {
         queryKey: ["mysteries", "gm-leaderboard", limit ?? null],
         queryFn: () => getGMLeaderboard(limit),
     });
-    return { entries: q.data?.entries ?? [], loading: q.isPending };
+    return { entries: q.data?.entries ?? [], loading: q.isLoading };
 }

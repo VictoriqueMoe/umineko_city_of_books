@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+﻿import { useQuery } from "@tanstack/react-query";
 import {
     getBlockedUsers,
     getFollowStats,
@@ -29,7 +29,7 @@ export function useUserPosts(userID: string, limit: number, offset: number) {
     return {
         posts: query.data?.posts ?? [],
         total: query.data?.total ?? 0,
-        loading: query.isPending,
+        loading: query.isLoading,
         refresh: query.refetch,
     };
 }
@@ -43,7 +43,7 @@ export function useUserArt(userID: string, limit: number, offset: number) {
     return {
         art: query.data?.art ?? [],
         total: query.data?.total ?? 0,
-        loading: query.isPending,
+        loading: query.isLoading,
     };
 }
 
@@ -53,7 +53,7 @@ export function useUserGalleries(userID: string) {
         queryFn: () => getUserGalleries(userID),
         enabled: !!userID,
     });
-    return { galleries: query.data ?? [], loading: query.isPending, refresh: query.refetch };
+    return { galleries: query.data ?? [], loading: query.isLoading, refresh: query.refetch };
 }
 
 export function useUserShips(userID: string, limit: number, offset: number) {
@@ -65,7 +65,7 @@ export function useUserShips(userID: string, limit: number, offset: number) {
     return {
         ships: query.data?.ships ?? [],
         total: query.data?.total ?? 0,
-        loading: query.isPending,
+        loading: query.isLoading,
     };
 }
 
@@ -78,7 +78,7 @@ export function useUserMysteries(userID: string, limit: number, offset: number) 
     return {
         mysteries: query.data?.mysteries ?? [],
         total: query.data?.total ?? 0,
-        loading: query.isPending,
+        loading: query.isLoading,
     };
 }
 
@@ -91,7 +91,7 @@ export function useUserFanfics(userID: string, limit: number, offset: number) {
     return {
         fanfics: query.data?.fanfics ?? [],
         total: query.data?.total ?? 0,
-        loading: query.isPending,
+        loading: query.isLoading,
     };
 }
 
@@ -104,7 +104,7 @@ export function useUserFanficFavourites(userID: string, limit: number, offset: n
     return {
         fanfics: query.data?.fanfics ?? [],
         total: query.data?.total ?? 0,
-        loading: query.isPending,
+        loading: query.isLoading,
     };
 }
 
@@ -117,7 +117,7 @@ export function useUserJournals(userID: string, limit: number, offset: number) {
     return {
         journals: query.data?.journals ?? [],
         total: query.data?.total ?? 0,
-        loading: query.isPending,
+        loading: query.isLoading,
     };
 }
 
@@ -130,7 +130,7 @@ export function useUserFollowedJournals(userID: string, limit: number, offset: n
     return {
         journals: query.data?.journals ?? [],
         total: query.data?.total ?? 0,
-        loading: query.isPending,
+        loading: query.isLoading,
     };
 }
 
@@ -140,7 +140,7 @@ export function useBlockedUsers(userID: string) {
         queryFn: () => getBlockedUsers(),
         enabled: !!userID,
     });
-    return { blocked: query.data?.users ?? [], loading: query.isPending, refresh: query.refetch };
+    return { blocked: query.data?.users ?? [], loading: query.isLoading, refresh: query.refetch };
 }
 
 export function useFollowStats(userID: string) {
@@ -149,7 +149,7 @@ export function useFollowStats(userID: string) {
         queryFn: () => getFollowStats(userID),
         enabled: !!userID,
     });
-    return { stats: query.data ?? null, loading: query.isPending, refresh: query.refetch };
+    return { stats: query.data ?? null, loading: query.isLoading, refresh: query.refetch };
 }
 
 export function useUserActivity(username: string, limit = 20, offset = 0) {
@@ -161,7 +161,7 @@ export function useUserActivity(username: string, limit = 20, offset = 0) {
     return {
         activity: query.data?.items ?? [],
         total: query.data?.total ?? 0,
-        loading: query.isPending,
+        loading: query.isLoading,
     };
 }
 
@@ -180,5 +180,5 @@ export function useUserRooms() {
         queryKey: ["user", "chat-rooms"],
         queryFn: () => getUserRooms(),
     });
-    return { rooms: query.data?.rooms ?? [], loading: query.isPending };
+    return { rooms: query.data?.rooms ?? [], loading: query.isLoading };
 }

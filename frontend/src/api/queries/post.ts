@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+﻿import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { FeedTab, Post } from "../../types/api";
 import { getCornerCounts, getPost, getShareCount, listPosts } from "../endpoints";
@@ -38,7 +38,7 @@ export function usePostFeed(
     return {
         posts: data?.posts ?? ([] as Post[]),
         total: data?.total ?? 0,
-        loading: query.isPending,
+        loading: query.isLoading,
         offset,
         limit,
         hasNext: data ? offset + limit < data.total : false,
@@ -53,7 +53,7 @@ export function usePost(id: string) {
         queryFn: () => getPost(id),
         enabled: !!id,
     });
-    return { post: query.data ?? null, loading: query.isPending, refresh: query.refetch };
+    return { post: query.data ?? null, loading: query.isLoading, refresh: query.refetch };
 }
 
 export function useShareCount(contentType: string, contentId: string, enabled = true) {
@@ -62,7 +62,7 @@ export function useShareCount(contentType: string, contentId: string, enabled = 
         queryFn: () => getShareCount(contentType, contentId),
         enabled: enabled && !!contentId,
     });
-    return { shareCount: query.data?.share_count ?? 0, loading: query.isPending };
+    return { shareCount: query.data?.share_count ?? 0, loading: query.isLoading };
 }
 
 export function useCornerCounts() {
@@ -70,5 +70,5 @@ export function useCornerCounts() {
         queryKey: ["post", "corner-counts"],
         queryFn: () => getCornerCounts(),
     });
-    return { counts: query.data ?? null, loading: query.isPending };
+    return { counts: query.data ?? null, loading: query.isLoading };
 }
