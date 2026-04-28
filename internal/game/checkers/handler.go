@@ -31,14 +31,21 @@ type (
 	Handler struct{}
 
 	state struct {
-		Board             string `json:"board"`
-		Turn              int    `json:"turn"`
-		TotalMoves        int    `json:"total_moves"`
-		RedCaptures       int    `json:"red_captures"`
-		BlackCaptures     int    `json:"black_captures"`
-		RedCrownings      int    `json:"red_crownings"`
-		BlackCrownings    int    `json:"black_crownings"`
-		MovesSinceCapture int    `json:"moves_since_capture"`
+		Board             string    `json:"board"`
+		Turn              int       `json:"turn"`
+		TotalMoves        int       `json:"total_moves"`
+		RedCaptures       int       `json:"red_captures"`
+		BlackCaptures     int       `json:"black_captures"`
+		RedCrownings      int       `json:"red_crownings"`
+		BlackCrownings    int       `json:"black_crownings"`
+		MovesSinceCapture int       `json:"moves_since_capture"`
+		LastMove          *lastMove `json:"last_move,omitempty"`
+	}
+
+	lastMove struct {
+		From     string   `json:"from"`
+		Path     []string `json:"path"`
+		Captured []string `json:"captured"`
 	}
 
 	moveAction struct {
@@ -180,6 +187,22 @@ func (h *Handler) ValidateAction(stateJSON string, actorSlot int, action json.Ra
 		}
 	} else {
 		s.MovesSinceCapture++
+	}
+
+	capturedSquares := make([]string, 0, len(path))
+	if isJump {
+		curR, curC := fromR, fromC
+		for _, step := range path {
+			nr, nc := step[0], step[1]
+			midR, midC := (curR+nr)/2, (curC+nc)/2
+			capturedSquares = append(capturedSquares, formatSquare(midR, midC))
+			curR, curC = nr, nc
+		}
+	}
+	s.LastMove = &lastMove{
+		From:     mv.From,
+		Path:     append([]string(nil), mv.Path...),
+		Captured: capturedSquares,
 	}
 	if crowned {
 		if actorSlot == slotRed {

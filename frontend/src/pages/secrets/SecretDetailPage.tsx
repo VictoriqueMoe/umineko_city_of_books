@@ -23,8 +23,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { useNotifications } from "../../hooks/useNotifications";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { RoleStyledName } from "../../components/RoleStyledName/RoleStyledName";
-import { CommentComposer } from "../../components/post/CommentComposer/CommentComposer";
-import { CommentItem } from "../../components/post/CommentItem/CommentItem";
+import { CommentsSection } from "../../components/post/CommentsSection/CommentsSection";
 import { Toast } from "../../components/Toast/Toast";
 import styles from "./SecretDetailPage.module.css";
 
@@ -203,39 +202,23 @@ export function SecretDetailPage() {
                 )}
             </section>
 
-            <section className={styles.section}>
-                <h2 className={styles.sectionTitle}>Discussion</h2>
-                {user && (
-                    <CommentComposer
-                        postId={detail.id}
-                        onCreated={() => refresh()}
-                        createCommentFn={createCommentFn}
-                        uploadMediaFn={uploadMediaFn}
-                    />
-                )}
-                <div className={styles.comments}>
-                    {detail.comments.length === 0 ? (
-                        <div className={styles.empty}>No one has left a word yet.</div>
-                    ) : (
-                        detail.comments.map(c => (
-                            <CommentItem
-                                key={c.id}
-                                comment={secretCommentToPostComment(c)}
-                                postId={detail.id}
-                                onDelete={() => refresh()}
-                                linkPrefix={`/secrets/${detail.id}`}
-                                reportType="secret_comment"
-                                likeFn={likeFn}
-                                unlikeFn={unlikeFn}
-                                deleteFn={deleteFn}
-                                updateFn={updateFn}
-                                createCommentFn={createCommentFn}
-                                uploadMediaFn={uploadMediaFn}
-                            />
-                        ))
-                    )}
-                </div>
-            </section>
+            <CommentsSection
+                comments={(detail.comments ?? []).map(secretCommentToPostComment)}
+                targetId={detail.id}
+                user={user}
+                onChanged={() => refresh()}
+                title="Discussion"
+                emptyText="No one has left a word yet."
+                composerPosition="top"
+                linkPrefix={`/secrets/${detail.id}`}
+                reportType="secret_comment"
+                likeFn={likeFn}
+                unlikeFn={unlikeFn}
+                deleteFn={deleteFn}
+                updateFn={updateFn}
+                createCommentFn={createCommentFn}
+                uploadMediaFn={uploadMediaFn}
+            />
 
             {toast && (
                 <Toast variant="arcane" duration={6000} onDismiss={() => setToast(null)}>

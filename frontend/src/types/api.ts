@@ -1103,6 +1103,12 @@ export interface ChessStats {
     final_fen: string;
 }
 
+export interface CheckersLastMove {
+    from: string;
+    path: string[];
+    captured: string[];
+}
+
 export interface CheckersState {
     board: string;
     turn: number;
@@ -1112,6 +1118,7 @@ export interface CheckersState {
     red_crownings: number;
     black_crownings: number;
     moves_since_capture: number;
+    last_move?: CheckersLastMove;
 }
 
 export interface CheckersStats {

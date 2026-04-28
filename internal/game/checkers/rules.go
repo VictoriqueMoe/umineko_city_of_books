@@ -45,6 +45,10 @@ func boardString(b board) string {
 	return string(out)
 }
 
+func formatSquare(row, col int) string {
+	return fmt.Sprintf("%c%c", byte('a'+col), byte('1'+row))
+}
+
 func parseSquare(s string) (int, int, error) {
 	if len(s) != 2 {
 		return 0, 0, fmt.Errorf("bad square %q", s)

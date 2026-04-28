@@ -4,8 +4,7 @@ import { useScrollToHash } from "../../hooks/useScrollToHash";
 import { usePost } from "../../api/queries/post";
 import { useAuth } from "../../hooks/useAuth";
 import { PostCard } from "../../components/post/PostCard/PostCard";
-import { CommentItem } from "../../components/post/CommentItem/CommentItem";
-import { CommentComposer } from "../../components/post/CommentComposer/CommentComposer";
+import { CommentsSection } from "../../components/post/CommentsSection/CommentsSection";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import styles from "./PostDetailPage.module.css";
 
@@ -51,24 +50,15 @@ export function PostDetailPage() {
                 </div>
             )}
 
-            <div className={styles.comments}>
-                <h3 className={styles.commentsTitle}>
-                    Comments {post.comments.length > 0 && `(${post.comments.length})`}
-                </h3>
-                {post.comments.map(c => (
-                    <CommentItem
-                        key={c.id}
-                        comment={c}
-                        postId={post.id}
-                        onDelete={fetchPost}
-                        highlightedId={highlightedComment ?? undefined}
-                        viewerBlocked={post.viewer_blocked}
-                    />
-                ))}
-                {post.comments.length === 0 && <p className={styles.noComments}>No comments yet.</p>}
-                {post.viewer_blocked && <p className={styles.blockedNotice}>You cannot interact with this post.</p>}
-                {user && !post.viewer_blocked && <CommentComposer postId={post.id} onCreated={fetchPost} />}
-            </div>
+            <CommentsSection
+                comments={post.comments}
+                targetId={post.id}
+                user={user}
+                onChanged={fetchPost}
+                blockedText="You cannot interact with this post."
+                viewerBlocked={post.viewer_blocked}
+                highlightedId={highlightedComment ?? undefined}
+            />
         </div>
     );
 }

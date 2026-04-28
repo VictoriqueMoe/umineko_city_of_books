@@ -21,8 +21,7 @@ import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
 import { Lightbox } from "../../components/Lightbox/Lightbox";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
-import { CommentItem } from "../../components/post/CommentItem/CommentItem";
-import { CommentComposer } from "../../components/post/CommentComposer/CommentComposer";
+import { CommentsSection } from "../../components/post/CommentsSection/CommentsSection";
 import { relativeTime } from "../../utils/notifications";
 import { CharacterPicker } from "../../components/CharacterPicker/CharacterPicker";
 import { MentionTextArea } from "../../components/MentionTextArea/MentionTextArea";
@@ -290,49 +289,25 @@ export function ShipDetailPage() {
                 </div>
             </div>
 
-            <div className={styles.commentsSection}>
-                <h3 className={styles.commentsTitle}>
-                    Comments {ship.comments.length > 0 && `(${ship.comments.length})`}
-                </h3>
-                {ship.comments.map(c => (
-                    <CommentItem
-                        key={c.id}
-                        comment={c as unknown as PostComment}
-                        postId={ship.id}
-                        onDelete={fetchShip}
-                        highlightedId={highlightedComment ?? undefined}
-                        linkPrefix="/ships"
-                        reportType="ship_comment"
-                        likeFn={(commentId: string) => likeCommentMutation.mutateAsync(commentId).then(() => {})}
-                        unlikeFn={(commentId: string) => unlikeCommentMutation.mutateAsync(commentId).then(() => {})}
-                        deleteFn={(commentId: string) => deleteCommentMutation.mutateAsync(commentId).then(() => {})}
-                        updateFn={(commentId: string, body: string) =>
-                            updateCommentMutation.mutateAsync({ id: commentId, body }).then(() => {})
-                        }
-                        createCommentFn={(_shipId: string, body: string, parentId?: string) =>
-                            createCommentMutation.mutateAsync({ body, parentId })
-                        }
-                        uploadMediaFn={(commentId: string, file: File) =>
-                            uploadCommentMediaMutation.mutateAsync({ commentId, file })
-                        }
-                        viewerBlocked={ship.viewer_blocked}
-                    />
-                ))}
-                {ship.comments.length === 0 && <p className="empty-state">No comments yet.</p>}
-                {ship.viewer_blocked && <p className="empty-state">You cannot interact with this ship.</p>}
-                {user && id && !ship.viewer_blocked && (
-                    <CommentComposer
-                        postId={id}
-                        onCreated={fetchShip}
-                        createCommentFn={(_shipId: string, body: string, parentId?: string) =>
-                            createCommentMutation.mutateAsync({ body, parentId })
-                        }
-                        uploadMediaFn={(commentId: string, file: File) =>
-                            uploadCommentMediaMutation.mutateAsync({ commentId, file })
-                        }
-                    />
-                )}
-            </div>
+            <CommentsSection
+                comments={(ship.comments ?? []) as unknown as PostComment[]}
+                targetId={ship.id}
+                user={user}
+                onChanged={fetchShip}
+                blockedText="You cannot interact with this ship."
+                viewerBlocked={ship.viewer_blocked}
+                highlightedId={highlightedComment ?? undefined}
+                linkPrefix="/ships"
+                reportType="ship_comment"
+                likeFn={commentId => likeCommentMutation.mutateAsync(commentId).then(() => {})}
+                unlikeFn={commentId => unlikeCommentMutation.mutateAsync(commentId).then(() => {})}
+                deleteFn={commentId => deleteCommentMutation.mutateAsync(commentId).then(() => {})}
+                updateFn={(commentId, body) =>
+                    updateCommentMutation.mutateAsync({ id: commentId, body }).then(() => {})
+                }
+                createCommentFn={(_shipId, body, parentId) => createCommentMutation.mutateAsync({ body, parentId })}
+                uploadMediaFn={(commentId, file) => uploadCommentMediaMutation.mutateAsync({ commentId, file })}
+            />
 
             {lightboxOpen && (ship.image_url || ship.thumbnail_url) && (
                 <Lightbox

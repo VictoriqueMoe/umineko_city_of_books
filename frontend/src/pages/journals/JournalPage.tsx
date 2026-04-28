@@ -20,8 +20,7 @@ import { useScrollToHash } from "../../hooks/useScrollToHash";
 import { can } from "../../utils/permissions";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { Button } from "../../components/Button/Button";
-import { CommentItem } from "../../components/post/CommentItem/CommentItem";
-import { CommentComposer } from "../../components/post/CommentComposer/CommentComposer";
+import { CommentsSection } from "../../components/post/CommentsSection/CommentsSection";
 import { ReportButton } from "../../components/ReportButton/ReportButton";
 import { linkify } from "../../utils/linkify";
 import { relativeTime } from "../../utils/notifications";
@@ -155,39 +154,23 @@ export function JournalPage() {
                 )}
             </div>
 
-            <div className={styles.commentsSection}>
-                <h3 className={styles.commentsTitle}>
-                    Updates &amp; Discussion {comments.length > 0 && `(${comments.length})`}
-                </h3>
-                {comments.map(c => (
-                    <CommentItem
-                        key={c.id}
-                        comment={c as unknown as PostComment}
-                        postId={journal.id}
-                        onDelete={() => refresh()}
-                        highlightedId={highlightedComment ?? undefined}
-                        linkPrefix="/journals"
-                        reportType="journal_comment"
-                        likeFn={likeFn}
-                        unlikeFn={unlikeFn}
-                        deleteFn={deleteFn}
-                        updateFn={updateFn}
-                        createCommentFn={createCommentFn}
-                        uploadMediaFn={uploadMediaFn}
-                    />
-                ))}
-                {comments.length === 0 && !journal.is_archived && (
-                    <p className="empty-state">No entries yet. {isOwner && "Post the first update!"}</p>
-                )}
-                {canComment && (
-                    <CommentComposer
-                        postId={journal.id}
-                        onCreated={() => refresh()}
-                        createCommentFn={createCommentFn}
-                        uploadMediaFn={uploadMediaFn}
-                    />
-                )}
-            </div>
+            <CommentsSection
+                comments={comments as unknown as PostComment[]}
+                targetId={journal.id}
+                user={canComment ? user : null}
+                onChanged={() => refresh()}
+                title="Updates & Discussion"
+                emptyText={journal.is_archived ? null : `No entries yet.${isOwner ? " Post the first update!" : ""}`}
+                highlightedId={highlightedComment ?? undefined}
+                linkPrefix="/journals"
+                reportType="journal_comment"
+                likeFn={likeFn}
+                unlikeFn={unlikeFn}
+                deleteFn={deleteFn}
+                updateFn={updateFn}
+                createCommentFn={createCommentFn}
+                uploadMediaFn={uploadMediaFn}
+            />
         </div>
     );
 }

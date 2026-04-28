@@ -30,8 +30,7 @@ import { parseServerDate } from "../../utils/time";
 import { Button } from "../../components/Button/Button";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { relativeTime } from "../../utils/notifications";
-import { CommentComposer } from "../../components/post/CommentComposer/CommentComposer";
-import { CommentItem } from "../../components/post/CommentItem/CommentItem";
+import { CommentsSection } from "../../components/post/CommentsSection/CommentsSection";
 import { AttemptItem } from "./AttemptItem";
 import { ShareButton } from "../../components/ShareButton/ShareButton";
 import { ReportButton } from "../../components/ReportButton/ReportButton";
@@ -1031,39 +1030,22 @@ export function MysteryDetailPage() {
             </div>
 
             {mystery.solved && (
-                <div className={styles.discussionSection}>
-                    <h3 className={styles.attemptsTitle}>
-                        Post-Game Discussion {mystery.comments.length > 0 && `(${mystery.comments.length})`}
-                    </h3>
-                    {mystery.comments.map(c => (
-                        <CommentItem
-                            key={c.id}
-                            comment={c as unknown as PostComment}
-                            postId={mystery.id}
-                            onDelete={fetchMystery}
-                            highlightedId={undefined}
-                            linkPrefix="/mystery"
-                            reportType="mystery_comment"
-                            likeFn={likeCommentFn}
-                            unlikeFn={unlikeCommentFn}
-                            deleteFn={deleteCommentFn}
-                            updateFn={updateCommentFn}
-                            createCommentFn={createCommentFn}
-                            uploadMediaFn={uploadCommentMediaFn}
-                        />
-                    ))}
-                    {mystery.comments.length === 0 && (
-                        <p className="empty-state">The mystery is solved. Share your thoughts on the game!</p>
-                    )}
-                    {user && id && (
-                        <CommentComposer
-                            postId={id}
-                            onCreated={fetchMystery}
-                            createCommentFn={createCommentFn}
-                            uploadMediaFn={uploadCommentMediaFn}
-                        />
-                    )}
-                </div>
+                <CommentsSection
+                    comments={(mystery.comments ?? []) as unknown as PostComment[]}
+                    targetId={mystery.id}
+                    user={user}
+                    onChanged={fetchMystery}
+                    title="Post-Game Discussion"
+                    emptyText="The mystery is solved. Share your thoughts on the game!"
+                    linkPrefix="/mystery"
+                    reportType="mystery_comment"
+                    likeFn={likeCommentFn}
+                    unlikeFn={unlikeCommentFn}
+                    deleteFn={deleteCommentFn}
+                    updateFn={updateCommentFn}
+                    createCommentFn={createCommentFn}
+                    uploadMediaFn={uploadCommentMediaFn}
+                />
             )}
         </div>
     );

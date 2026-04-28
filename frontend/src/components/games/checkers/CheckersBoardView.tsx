@@ -452,6 +452,38 @@ export function CheckersBoardView({ room, viewer, isSpectator, onMove, onResign 
         highlightTargets.add(`${s.row}-${s.col}`);
     }
 
+    const lastMovePathSet = new Set<string>();
+    const lastMoveCapturedSet = new Set<string>();
+    if (state?.last_move) {
+        const squareToKey = (sq: string): string | null => {
+            if (sq.length !== 2) {
+                return null;
+            }
+            const col = sq.charCodeAt(0) - "a".charCodeAt(0);
+            const row = sq.charCodeAt(1) - "1".charCodeAt(0);
+            if (col < 0 || col >= BOARD_SIZE || row < 0 || row >= BOARD_SIZE) {
+                return null;
+            }
+            return `${row}-${col}`;
+        };
+        const fromKey = squareToKey(state.last_move.from);
+        if (fromKey) {
+            lastMovePathSet.add(fromKey);
+        }
+        for (const sq of state.last_move.path) {
+            const k = squareToKey(sq);
+            if (k) {
+                lastMovePathSet.add(k);
+            }
+        }
+        for (const sq of state.last_move.captured) {
+            const k = squareToKey(sq);
+            if (k) {
+                lastMoveCapturedSet.add(k);
+            }
+        }
+    }
+
     const displayRows: number[] = [];
     for (let r = 0; r < BOARD_SIZE; r++) {
         displayRows.push(r);
@@ -500,17 +532,22 @@ export function CheckersBoardView({ room, viewer, isSpectator, onMove, onResign 
                             {displayCols.map(c => {
                                 const dark = isDarkSquare(r, c);
                                 const isSelected = activeCoord && activeCoord.row === r && activeCoord.col === c;
-                                const isTarget = highlightTargets.has(`${r}-${c}`);
+                                const key = `${r}-${c}`;
+                                const isTarget = highlightTargets.has(key);
+                                const isLastMovePath = lastMovePathSet.has(key);
+                                const isLastMoveCaptured = lastMoveCapturedSet.has(key);
                                 const cell = displayGrid[r][c];
                                 return (
                                     <button
                                         type="button"
-                                        key={`${r}-${c}`}
+                                        key={key}
                                         className={[
                                             styles.square,
                                             dark ? styles.squareDark : styles.squareLight,
                                             isSelected ? styles.squareSelected : "",
                                             isTarget ? styles.squareTarget : "",
+                                            isLastMovePath ? styles.squareLastMove : "",
+                                            isLastMoveCaptured ? styles.squareLastCapture : "",
                                         ]
                                             .filter(Boolean)
                                             .join(" ")}
@@ -519,6 +556,11 @@ export function CheckersBoardView({ room, viewer, isSpectator, onMove, onResign 
                                         aria-label={squareFromCoord({ row: r, col: c })}
                                     >
                                         {cellContent(cell)}
+                                        {isLastMoveCaptured && (
+                                            <span className={styles.captureMark} aria-hidden="true">
+                                                ×
+                                            </span>
+                                        )}
                                     </button>
                                 );
                             })}
