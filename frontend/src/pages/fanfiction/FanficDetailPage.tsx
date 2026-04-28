@@ -19,8 +19,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { can } from "../../utils/permissions";
 import { Button } from "../../components/Button/Button";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
-import { CommentItem } from "../../components/post/CommentItem/CommentItem";
-import { CommentComposer } from "../../components/post/CommentComposer/CommentComposer";
+import { CommentsSection } from "../../components/post/CommentsSection/CommentsSection";
 import { Lightbox } from "../../components/Lightbox/Lightbox";
 import { ShareButton } from "../../components/ShareButton/ShareButton";
 import { relativeTime } from "../../utils/notifications";
@@ -351,39 +350,22 @@ export function FanficDetailPage() {
                 </div>
             </div>
 
-            <div className={styles.commentsSection}>
-                <h3 className={styles.commentsTitle}>
-                    Comments {fanfic.comments.length > 0 && `(${fanfic.comments.length})`}
-                </h3>
-                {fanfic.comments.map(c => (
-                    <CommentItem
-                        key={c.id}
-                        comment={c as unknown as PostComment}
-                        postId={fanfic.id}
-                        onDelete={fetchFanfic}
-                        highlightedId={undefined}
-                        linkPrefix="/fanfiction"
-                        reportType="fanfic_comment"
-                        likeFn={likeCommentFn}
-                        unlikeFn={unlikeCommentFn}
-                        deleteFn={deleteCommentFn}
-                        updateFn={updateCommentFn}
-                        createCommentFn={createCommentFn}
-                        uploadMediaFn={uploadCommentMediaFn}
-                        viewerBlocked={fanfic.viewer_blocked}
-                    />
-                ))}
-                {fanfic.comments.length === 0 && <p className="empty-state">No comments yet.</p>}
-                {fanfic.viewer_blocked && <p className="empty-state">You cannot interact with this fanfic.</p>}
-                {user && id && !fanfic.viewer_blocked && (
-                    <CommentComposer
-                        postId={id}
-                        onCreated={fetchFanfic}
-                        createCommentFn={createCommentFn}
-                        uploadMediaFn={uploadCommentMediaFn}
-                    />
-                )}
-            </div>
+            <CommentsSection
+                comments={(fanfic.comments ?? []) as unknown as PostComment[]}
+                targetId={fanfic.id}
+                user={user}
+                onChanged={fetchFanfic}
+                blockedText="You cannot interact with this fanfic."
+                viewerBlocked={fanfic.viewer_blocked}
+                linkPrefix="/fanfiction"
+                reportType="fanfic_comment"
+                likeFn={likeCommentFn}
+                unlikeFn={unlikeCommentFn}
+                deleteFn={deleteCommentFn}
+                updateFn={updateCommentFn}
+                createCommentFn={createCommentFn}
+                uploadMediaFn={uploadCommentMediaFn}
+            />
 
             {lightboxOpen && fanfic.cover_image_url && (
                 <Lightbox src={fanfic.cover_image_url} alt={fanfic.title} onClose={() => setLightboxOpen(false)} />

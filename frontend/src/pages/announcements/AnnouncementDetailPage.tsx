@@ -15,8 +15,7 @@ import {
 } from "../../api/mutations/announcement";
 import { useAuth } from "../../hooks/useAuth";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
-import { CommentItem } from "../../components/post/CommentItem/CommentItem";
-import { CommentComposer } from "../../components/post/CommentComposer/CommentComposer";
+import { CommentsSection } from "../../components/post/CommentsSection/CommentsSection";
 import { relativeTime } from "../../utils/notifications";
 import styles from "./AnnouncementsPage.module.css";
 
@@ -79,35 +78,21 @@ export function AnnouncementDetailPage() {
                 <div className={styles.body} dangerouslySetInnerHTML={{ __html: renderMarkdown(announcement.body) }} />
             </div>
 
-            <div className={styles.commentsSection}>
-                <h3 className={styles.commentsTitle}>Comments {comments.length > 0 && `(${comments.length})`}</h3>
-                {comments.map(c => (
-                    <CommentItem
-                        key={c.id}
-                        comment={c as unknown as PostComment}
-                        postId={announcement.id}
-                        onDelete={() => refresh()}
-                        highlightedId={highlightedComment ?? undefined}
-                        linkPrefix="/announcements"
-                        reportType="announcement_comment"
-                        likeFn={likeFn}
-                        unlikeFn={unlikeFn}
-                        deleteFn={deleteFn}
-                        updateFn={updateFn}
-                        createCommentFn={createCommentFn}
-                        uploadMediaFn={uploadMediaFn}
-                    />
-                ))}
-                {comments.length === 0 && <p className="empty-state">No comments yet.</p>}
-                {user && id && (
-                    <CommentComposer
-                        postId={id}
-                        onCreated={() => refresh()}
-                        createCommentFn={createCommentFn}
-                        uploadMediaFn={uploadMediaFn}
-                    />
-                )}
-            </div>
+            <CommentsSection
+                comments={comments as unknown as PostComment[]}
+                targetId={announcement.id}
+                user={user}
+                onChanged={() => refresh()}
+                highlightedId={highlightedComment ?? undefined}
+                linkPrefix="/announcements"
+                reportType="announcement_comment"
+                likeFn={likeFn}
+                unlikeFn={unlikeFn}
+                deleteFn={deleteFn}
+                updateFn={updateFn}
+                createCommentFn={createCommentFn}
+                uploadMediaFn={uploadMediaFn}
+            />
         </div>
     );
 }

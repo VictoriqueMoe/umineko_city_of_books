@@ -25,8 +25,7 @@ import { parseServerDate } from "../../utils/time";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { Button } from "../../components/Button/Button";
 import { Modal } from "../../components/Modal/Modal";
-import { CommentComposer } from "../../components/post/CommentComposer/CommentComposer";
-import { CommentItem } from "../../components/post/CommentItem/CommentItem";
+import { CommentsSection } from "../../components/post/CommentsSection/CommentsSection";
 import { MentionTextArea } from "../../components/MentionTextArea/MentionTextArea";
 import { TagInput } from "../../components/art/TagInput/TagInput";
 import { SpoilerImage } from "../../components/SpoilerImage/SpoilerImage";
@@ -266,39 +265,22 @@ export function ArtDetailPage() {
                 </div>
             )}
 
-            <div className={styles.comments}>
-                <h3 className={styles.sectionTitle}>
-                    Comments {art.comments.length > 0 && `(${art.comments.length})`}
-                </h3>
-                {art.comments.map(c => (
-                    <CommentItem
-                        key={c.id}
-                        comment={c}
-                        postId={art.id}
-                        onDelete={() => refresh()}
-                        highlightedId={highlightedComment ?? undefined}
-                        linkPrefix="/gallery/art"
-                        reportType="art_comment"
-                        likeFn={likeCommentFn}
-                        unlikeFn={unlikeCommentFn}
-                        deleteFn={deleteCommentFn}
-                        updateFn={updateCommentFn}
-                        createCommentFn={createCommentFn}
-                        uploadMediaFn={uploadMediaFn}
-                        viewerBlocked={art.viewer_blocked}
-                    />
-                ))}
-                {art.comments.length === 0 && <p className={styles.noComments}>No comments yet.</p>}
-                {art.viewer_blocked && <p className={styles.blockedNotice}>You cannot interact with this post.</p>}
-                {user && id && !art.viewer_blocked && (
-                    <CommentComposer
-                        postId={id}
-                        onCreated={() => refresh()}
-                        createCommentFn={createCommentFn}
-                        uploadMediaFn={uploadMediaFn}
-                    />
-                )}
-            </div>
+            <CommentsSection
+                comments={art.comments}
+                targetId={art.id}
+                user={user}
+                onChanged={() => refresh()}
+                viewerBlocked={art.viewer_blocked}
+                highlightedId={highlightedComment ?? undefined}
+                linkPrefix="/gallery/art"
+                reportType="art_comment"
+                likeFn={likeCommentFn}
+                unlikeFn={unlikeCommentFn}
+                deleteFn={deleteCommentFn}
+                updateFn={updateCommentFn}
+                createCommentFn={createCommentFn}
+                uploadMediaFn={uploadMediaFn}
+            />
 
             <Modal isOpen={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)} title="Delete Art">
                 <div style={{ padding: "1.25rem" }}>
