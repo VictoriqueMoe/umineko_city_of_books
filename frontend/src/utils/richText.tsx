@@ -62,30 +62,111 @@ function parseBlocks(text: string): Block[] {
     return blocks;
 }
 
-function splitInlineCode(text: string): Array<{ type: "text" | "code"; content: string }> {
-    const parts: Array<{ type: "text" | "code"; content: string }> = [];
+function splitInlineCode(text: string): Array<{
+    type:
+        | "text"
+        | "code"
+        | "italics"
+        | "underline_italics"
+        | "bold"
+        | "underline_bold"
+        | "bold_italics"
+        | "underline_bold_italics"
+        | "underline"
+        | "strikethrough";
+    content: string;
+}> {
+    const parts: Array<{
+        type:
+            | "text"
+            | "code"
+            | "italics"
+            | "underline_italics"
+            | "bold"
+            | "underline_bold"
+            | "bold_italics"
+            | "underline_bold_italics"
+            | "underline"
+            | "strikethrough";
+        content: string;
+    }> = [];
+
+    // Note - order of rules is important; needs to be longest first
+    const rules: Array<{
+        open: string;
+        close: string;
+        type:
+            | "italics"
+            | "underline_italics"
+            | "bold"
+            | "underline_bold"
+            | "bold_italics"
+            | "underline_bold_italics"
+            | "underline"
+            | "strikethrough";
+    }> = [
+        { open: "__***", close: "***__", type: "underline_bold_italics" },
+        { open: "__**", close: "**__", type: "underline_bold" },
+        { open: "__*", close: "*__", type: "underline_italics" },
+        { open: "***", close: "***", type: "bold_italics" },
+        { open: "**", close: "**", type: "bold" },
+        { open: "__", close: "__", type: "underline" },
+        { open: "~~", close: "~~", type: "strikethrough" },
+        { open: "*", close: "*", type: "italics" },
+        { open: "_", close: "_", type: "italics" },
+    ];
+
     let i = 0;
     let textStart = 0;
+
     while (i < text.length) {
         if (text[i] === "`") {
             const end = text.indexOf("`", i + 1);
+
             if (end === -1) {
                 i++;
                 continue;
             }
+
             if (i > textStart) {
                 parts.push({ type: "text", content: text.slice(textStart, i) });
             }
+
             parts.push({ type: "code", content: text.slice(i + 1, end) });
             i = end + 1;
             textStart = i;
-        } else {
-            i++;
+            continue;
         }
+
+        const rule = rules.find(r => text.startsWith(r.open, i));
+
+        if (rule) {
+            const contentStart = i + rule.open.length;
+            const end = text.indexOf(rule.close, contentStart);
+
+            if (end !== -1) {
+                if (i > textStart) {
+                    parts.push({ type: "text", content: text.slice(textStart, i) });
+                }
+
+                parts.push({
+                    type: rule.type,
+                    content: text.slice(contentStart, end),
+                });
+
+                i = end + rule.close.length;
+                textStart = i;
+                continue;
+            }
+        }
+
+        i++;
     }
+
     if (textStart < text.length) {
         parts.push({ type: "text", content: text.slice(textStart) });
     }
+
     return parts;
 }
 
@@ -119,19 +200,76 @@ function splitSpoilers(text: string): Array<{ type: "text" | "spoiler"; content:
 function renderNonSpoiler(text: string, keyPrefix: string): ReactNode[] {
     const parts = splitInlineCode(text);
     const nodes: ReactNode[] = [];
+
     for (let i = 0; i < parts.length; i++) {
         const part = parts[i];
         const key = `${keyPrefix}-${i}`;
-        if (part.type === "code") {
-            nodes.push(
-                <code key={key} className="rich-inline-code">
-                    {part.content}
-                </code>,
-            );
-        } else {
-            nodes.push(<span key={key}>{linkify(part.content)}</span>);
+
+        switch (part.type) {
+            case "code":
+                nodes.push(
+                    <code key={key} className="rich-inline-code">
+                        {part.content}
+                    </code>,
+                );
+                break;
+
+            case "italics":
+                nodes.push(<em key={key}>{linkify(part.content)}</em>);
+                break;
+
+            case "bold":
+                nodes.push(<strong key={key}>{linkify(part.content)}</strong>);
+                break;
+
+            case "bold_italics":
+                nodes.push(
+                    <strong key={key}>
+                        <em>{linkify(part.content)}</em>
+                    </strong>,
+                );
+                break;
+
+            case "underline":
+                nodes.push(<u key={key}>{linkify(part.content)}</u>);
+                break;
+
+            case "underline_italics":
+                nodes.push(
+                    <u key={key}>
+                        <em>{linkify(part.content)}</em>
+                    </u>,
+                );
+                break;
+
+            case "underline_bold":
+                nodes.push(
+                    <u key={key}>
+                        <strong>{linkify(part.content)}</strong>
+                    </u>,
+                );
+                break;
+
+            case "underline_bold_italics":
+                nodes.push(
+                    <u key={key}>
+                        <strong>
+                            <em>{linkify(part.content)}</em>
+                        </strong>
+                    </u>,
+                );
+                break;
+
+            case "strikethrough":
+                nodes.push(<s key={key}>{linkify(part.content)}</s>);
+                break;
+
+            default:
+                nodes.push(<span key={key}>{linkify(part.content)}</span>);
+                break;
         }
     }
+
     return nodes;
 }
 
