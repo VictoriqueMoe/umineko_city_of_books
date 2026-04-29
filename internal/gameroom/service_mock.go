@@ -730,6 +730,74 @@ func (_c *MockService_GetSpectatorChat_Call) RunAndReturn(run func(ctx context.C
 	return _c
 }
 
+// GetTopWinnerIDs provides a mock function for the type MockService
+func (_mock *MockService) GetTopWinnerIDs(ctx context.Context, gameType dto.GameType) ([]string, error) {
+	ret := _mock.Called(ctx, gameType)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetTopWinnerIDs")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, dto.GameType) ([]string, error)); ok {
+		return returnFunc(ctx, gameType)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, dto.GameType) []string); ok {
+		r0 = returnFunc(ctx, gameType)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, dto.GameType) error); ok {
+		r1 = returnFunc(ctx, gameType)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_GetTopWinnerIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetTopWinnerIDs'
+type MockService_GetTopWinnerIDs_Call struct {
+	*mock.Call
+}
+
+// GetTopWinnerIDs is a helper method to define mock.On call
+//   - ctx context.Context
+//   - gameType dto.GameType
+func (_e *MockService_Expecter) GetTopWinnerIDs(ctx interface{}, gameType interface{}) *MockService_GetTopWinnerIDs_Call {
+	return &MockService_GetTopWinnerIDs_Call{Call: _e.mock.On("GetTopWinnerIDs", ctx, gameType)}
+}
+
+func (_c *MockService_GetTopWinnerIDs_Call) Run(run func(ctx context.Context, gameType dto.GameType)) *MockService_GetTopWinnerIDs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 dto.GameType
+		if args[1] != nil {
+			arg1 = args[1].(dto.GameType)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_GetTopWinnerIDs_Call) Return(strings []string, err error) *MockService_GetTopWinnerIDs_Call {
+	_c.Call.Return(strings, err)
+	return _c
+}
+
+func (_c *MockService_GetTopWinnerIDs_Call) RunAndReturn(run func(ctx context.Context, gameType dto.GameType) ([]string, error)) *MockService_GetTopWinnerIDs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // HandleClientJoin provides a mock function for the type MockService
 func (_mock *MockService) HandleClientJoin(ctx context.Context, userID uuid.UUID, roomID uuid.UUID) {
 	_mock.Called(ctx, userID, roomID)

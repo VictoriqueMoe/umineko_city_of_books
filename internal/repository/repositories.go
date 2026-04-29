@@ -36,6 +36,7 @@ type (
 		GameRoom       GameRoomRepository
 		HomeFeed       HomeFeedRepository
 		SidebarVisited SidebarLastVisitedRepository
+		Search         SearchRepository
 	}
 )
 
@@ -77,5 +78,6 @@ func New(db *sql.DB) *Repositories {
 		GameRoom:       &gameRoomRepository{db: db},
 		HomeFeed:       &homeFeedRepository{db: db},
 		SidebarVisited: &sidebarLastVisitedRepository{db: db},
+		Search:         &searchRepository{db: db},
 	}
 }

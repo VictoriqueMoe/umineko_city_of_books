@@ -18,6 +18,15 @@ type (
 		GetByID(ctx context.Context, id uuid.UUID) (*dto.UserResponse, error)
 		ValidateCredentials(ctx context.Context, username, password string) (*dto.UserResponse, error)
 		CheckUsernameAvailable(ctx context.Context, username string) error
+
+		UpdateIP(ctx context.Context, id uuid.UUID, ip string) error
+		UpdateGameBoardSort(ctx context.Context, id uuid.UUID, sort string) error
+		UpdateAppearance(ctx context.Context, id uuid.UUID, theme, font string, wideLayout bool) error
+
+		GetDetectiveRawScore(ctx context.Context, id uuid.UUID) (int, error)
+		GetGMRawScore(ctx context.Context, id uuid.UUID) (int, error)
+		UpdateMysteryScoreAdjustment(ctx context.Context, id uuid.UUID, adjustment int) error
+		UpdateGMScoreAdjustment(ctx context.Context, id uuid.UUID, adjustment int) error
 	}
 
 	service struct {
@@ -84,4 +93,32 @@ func (s *service) CheckUsernameAvailable(ctx context.Context, username string) e
 		return ErrUsernameTaken
 	}
 	return nil
+}
+
+func (s *service) UpdateIP(ctx context.Context, id uuid.UUID, ip string) error {
+	return s.repo.UpdateIP(ctx, id, ip)
+}
+
+func (s *service) UpdateGameBoardSort(ctx context.Context, id uuid.UUID, sort string) error {
+	return s.repo.UpdateGameBoardSort(ctx, id, sort)
+}
+
+func (s *service) UpdateAppearance(ctx context.Context, id uuid.UUID, theme, font string, wideLayout bool) error {
+	return s.repo.UpdateAppearance(ctx, id, theme, font, wideLayout)
+}
+
+func (s *service) GetDetectiveRawScore(ctx context.Context, id uuid.UUID) (int, error) {
+	return s.repo.GetDetectiveRawScore(ctx, id)
+}
+
+func (s *service) GetGMRawScore(ctx context.Context, id uuid.UUID) (int, error) {
+	return s.repo.GetGMRawScore(ctx, id)
+}
+
+func (s *service) UpdateMysteryScoreAdjustment(ctx context.Context, id uuid.UUID, adjustment int) error {
+	return s.repo.UpdateMysteryScoreAdjustment(ctx, id, adjustment)
+}
+
+func (s *service) UpdateGMScoreAdjustment(ctx context.Context, id uuid.UUID, adjustment int) error {
+	return s.repo.UpdateGMScoreAdjustment(ctx, id, adjustment)
 }

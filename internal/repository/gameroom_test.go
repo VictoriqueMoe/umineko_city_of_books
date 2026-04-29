@@ -188,3 +188,73 @@ func TestGameRoomRepository_Scoreboard_ExcludesUnjoinedPlayers(t *testing.T) {
 	assert.Equal(t, 0, rows[0].Losses)
 	assert.Equal(t, 1, rows[0].Draws)
 }
+
+func TestGameRoomRepository_GetTopWinnerIDs_NoWinners(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+
+	// when
+	ids, err := repos.GameRoom.GetTopWinnerIDs(context.Background(), "chess")
+
+	// then
+	require.NoError(t, err)
+	assert.Empty(t, ids)
+}
+
+func TestGameRoomRepository_GetTopWinnerIDs_PicksMaxWins(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	alice := repotest.CreateUser(t, repos)
+	bob := repotest.CreateUser(t, repos)
+	createFinishedRoom(t, repos, "chess", alice.ID, bob.ID, &alice.ID, "finished")
+	createFinishedRoom(t, repos, "chess", alice.ID, bob.ID, &alice.ID, "finished")
+	createFinishedRoom(t, repos, "chess", alice.ID, bob.ID, &bob.ID, "finished")
+
+	// when
+	ids, err := repos.GameRoom.GetTopWinnerIDs(context.Background(), "chess")
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, []string{alice.ID.String()}, ids)
+}
+
+func TestGameRoomRepository_GetTopWinnerIDs_TieBreaksOnDifferential(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	alice := repotest.CreateUser(t, repos)
+	bob := repotest.CreateUser(t, repos)
+	carol := repotest.CreateUser(t, repos)
+	createFinishedRoom(t, repos, "chess", alice.ID, bob.ID, &alice.ID, "finished")
+	createFinishedRoom(t, repos, "chess", alice.ID, bob.ID, &alice.ID, "finished")
+	createFinishedRoom(t, repos, "chess", alice.ID, bob.ID, &alice.ID, "finished")
+	createFinishedRoom(t, repos, "chess", carol.ID, bob.ID, &carol.ID, "finished")
+	createFinishedRoom(t, repos, "chess", carol.ID, bob.ID, &carol.ID, "finished")
+	createFinishedRoom(t, repos, "chess", carol.ID, bob.ID, &carol.ID, "finished")
+	createFinishedRoom(t, repos, "chess", carol.ID, bob.ID, &bob.ID, "finished")
+
+	// when
+	ids, err := repos.GameRoom.GetTopWinnerIDs(context.Background(), "chess")
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, []string{alice.ID.String()}, ids, "alice has 3-0, carol has 3-1; alice wins on differential")
+}
+
+func TestGameRoomRepository_GetTopWinnerIDs_FiltersByGameType(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	alice := repotest.CreateUser(t, repos)
+	bob := repotest.CreateUser(t, repos)
+	createFinishedRoom(t, repos, "chess", alice.ID, bob.ID, &alice.ID, "finished")
+	createFinishedRoom(t, repos, "checkers", alice.ID, bob.ID, &bob.ID, "finished")
+
+	// when
+	chessIDs, err := repos.GameRoom.GetTopWinnerIDs(context.Background(), "chess")
+	require.NoError(t, err)
+	checkersIDs, err := repos.GameRoom.GetTopWinnerIDs(context.Background(), "checkers")
+	require.NoError(t, err)
+
+	// then
+	assert.Equal(t, []string{alice.ID.String()}, chessIDs)
+	assert.Equal(t, []string{bob.ID.String()}, checkersIDs)
+}

@@ -1,0 +1,97 @@
+.page {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem 4rem;
+}
+
+.heading {
+    font-size: 1.6rem;
+    margin: 0 0 1rem;
+    color: var(--gold);
+}
+
+.searchForm {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    align-items: center;
+}
+
+.filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-bottom: 1.25rem;
+}
+
+.chip {
+    padding: 0.35rem 0.85rem;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(var(--gold-rgb), 0.18);
+    color: rgba(var(--gold-rgb), 0.75);
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.chip:hover {
+    border-color: rgba(var(--gold-rgb), 0.45);
+    color: var(--gold);
+}
+
+.chipActive {
+    background: rgba(var(--gold-rgb), 0.18);
+    border-color: var(--gold);
+    color: var(--gold);
+}
+
+.hint,
+.empty {
+    padding: 2rem 1rem;
+    text-align: center;
+    color: rgba(var(--gold-rgb), 0.6);
+    font-size: 0.95rem;
+}
+
+.summary {
+    font-size: 0.88rem;
+    color: rgba(var(--gold-rgb), 0.7);
+    margin-bottom: 0.85rem;
+}
+
+.refetch {
+    font-style: italic;
+    margin-left: 0.4rem;
+    color: rgba(var(--gold-rgb), 0.45);
+}
+
+.results {
+    display: flex;
+    flex-direction: column;
+}
+
+.syntaxList {
+    list-style: none;
+    padding: 0;
+    margin: 0.5rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.syntaxList li {
+    font-size: 0.88rem;
+}
+
+.syntaxList code {
+    display: inline-block;
+    padding: 0.1rem 0.4rem;
+    margin-right: 0.4rem;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(var(--gold-rgb), 0.18);
+    border-radius: 4px;
+    color: var(--gold);
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.82rem;
+}

@@ -6,10 +6,19 @@ interface RolePillProps {
     userId?: string;
 }
 
-const roleConfig: Record<string, { label: string; className: string }> = {
-    super_admin: { label: "Reality Author", className: "superAdmin" },
-    admin: { label: "Voyager Witch", className: "admin" },
-    moderator: { label: "Witch", className: "moderator" },
+const roleConfig: Record<string, { label: string; className: string; tooltip: string }> = {
+    super_admin: { label: "Reality Author", className: "superAdmin", tooltip: "Site owner — super administrator" },
+    admin: { label: "Voyager Witch", className: "admin", tooltip: "Administrator" },
+    moderator: { label: "Witch", className: "moderator", tooltip: "Moderator" },
+};
+
+const systemVanityTooltips: Record<string, string> = {
+    system_top_detective: "Top mystery solver — the player with the most points from solved mysteries",
+    system_top_gm: "Top mystery host — the player with the most points from hosting mysteries",
+    system_top_chess: "Top chess player — the player with the most chess wins (ties broken by win-loss differential)",
+    system_top_checkers:
+        "Top checkers player — the player with the most checkers wins (ties broken by win-loss differential)",
+    system_witch_hunter: "Solved the Witch Hunter secret",
 };
 
 function hexToRgba(hex: string, alpha: number): string {
@@ -53,11 +62,16 @@ export function RolePill({ role, userId }: RolePillProps) {
 
     return (
         <>
-            {config && <span className={`${styles.pill} ${styles[config.className]}`}>{config.label}</span>}
+            {config && (
+                <span className={`${styles.pill} ${styles[config.className]}`} title={config.tooltip}>
+                    {config.label}
+                </span>
+            )}
             {vanityRoles.map(vr => {
+                const tooltip = systemVanityTooltips[vr.id] ?? vr.label;
                 if (vr.id === "system_witch_hunter") {
                     return (
-                        <span key={vr.id} className={`${styles.pill} ${styles.witchHunter}`}>
+                        <span key={vr.id} className={`${styles.pill} ${styles.witchHunter}`} title={tooltip}>
                             <span className={styles.witchHunterLabel}>{vr.label}</span>
                         </span>
                     );
@@ -66,6 +80,7 @@ export function RolePill({ role, userId }: RolePillProps) {
                     <span
                         key={vr.id}
                         className={styles.pill}
+                        title={tooltip}
                         style={{
                             backgroundColor: hexToRgba(vr.color, 0.18),
                             color: darkenForText(vr.color),

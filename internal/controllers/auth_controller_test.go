@@ -8,10 +8,12 @@ import (
 	authsvc "umineko_city_of_books/internal/auth"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/gameroom"
 	mysterysvc "umineko_city_of_books/internal/mystery"
 	"umineko_city_of_books/internal/repository"
-	"umineko_city_of_books/internal/repository/model"
 	usersvc "umineko_city_of_books/internal/user"
+	"umineko_city_of_books/internal/usersecret"
+	"umineko_city_of_books/internal/vanityrole"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -20,37 +22,41 @@ import (
 )
 
 type authDeps struct {
-	authSvc        *authsvc.MockService
-	userRepo       *repository.MockUserRepository
-	mysterySvc     *mysterysvc.MockService
-	vanityRepo     *repository.MockVanityRoleRepository
-	userSecretRepo *repository.MockUserSecretRepository
+	authSvc       *authsvc.MockService
+	userSvc       *usersvc.MockService
+	mysterySvc    *mysterysvc.MockService
+	gameRoomSvc   *gameroom.MockService
+	vanityRoleSvc *vanityrole.MockService
+	userSecretSvc *usersecret.MockService
 }
 
 func newAuthHarness(t *testing.T) (*testutil.Harness, authDeps) {
 	h := testutil.NewHarness(t)
 	deps := authDeps{
-		authSvc:        authsvc.NewMockService(t),
-		userRepo:       repository.NewMockUserRepository(t),
-		mysterySvc:     mysterysvc.NewMockService(t),
-		vanityRepo:     repository.NewMockVanityRoleRepository(t),
-		userSecretRepo: repository.NewMockUserSecretRepository(t),
+		authSvc:       authsvc.NewMockService(t),
+		userSvc:       usersvc.NewMockService(t),
+		mysterySvc:    mysterysvc.NewMockService(t),
+		gameRoomSvc:   gameroom.NewMockService(t),
+		vanityRoleSvc: vanityrole.NewMockService(t),
+		userSecretSvc: usersecret.NewMockService(t),
 	}
 
 	h.SettingsService.EXPECT().Get(mock.Anything, mock.Anything).Return("").Maybe()
 	h.SettingsService.EXPECT().GetBool(mock.Anything, mock.Anything).Return(false).Maybe()
-	deps.userSecretRepo.EXPECT().GetUserIDsWithSecret(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
-	deps.userSecretRepo.EXPECT().IsSolvedByAnyone(mock.Anything, mock.Anything).Return(false, nil).Maybe()
+	deps.userSecretSvc.EXPECT().GetUserIDsWithSecret(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	deps.userSecretSvc.EXPECT().IsSolvedByAnyone(mock.Anything, mock.Anything).Return(false, nil).Maybe()
+	deps.gameRoomSvc.EXPECT().GetTopWinnerIDs(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 
 	s := &Service{
-		AuthService:     deps.authSvc,
-		UserRepo:        deps.userRepo,
-		MysteryService:  deps.mysterySvc,
-		VanityRoleRepo:  deps.vanityRepo,
-		UserSecretRepo:  deps.userSecretRepo,
-		SettingsService: h.SettingsService,
-		AuthSession:     h.SessionManager,
-		AuthzService:    h.AuthzService,
+		AuthService:       deps.authSvc,
+		UserService:       deps.userSvc,
+		MysteryService:    deps.mysterySvc,
+		GameRoomService:   deps.gameRoomSvc,
+		VanityRoleService: deps.vanityRoleSvc,
+		UserSecretService: deps.userSecretSvc,
+		SettingsService:   h.SettingsService,
+		AuthSession:       h.SessionManager,
+		AuthzService:      h.AuthzService,
 	}
 	for _, setup := range s.getAllAuthRoutes() {
 		setup(h.App)
@@ -72,7 +78,7 @@ func TestRegister_OK(t *testing.T) {
 	userID := uuid.New()
 	user := &dto.UserResponse{ID: userID, Username: "beato", DisplayName: "Beatrice"}
 	deps.authSvc.EXPECT().Register(mock.Anything, req).Return(user, "session-token", nil)
-	deps.userRepo.EXPECT().UpdateIP(mock.Anything, userID, mock.Anything).Return(nil).Maybe()
+	deps.userSvc.EXPECT().UpdateIP(mock.Anything, userID, mock.Anything).Return(nil).Maybe()
 
 	// when
 	status, body := h.NewRequest("POST", "/auth/register").WithJSONBody(req).Do()
@@ -161,7 +167,7 @@ func TestLogin_OK(t *testing.T) {
 	userID := uuid.New()
 	user := &dto.UserResponse{ID: userID, Username: "beato"}
 	deps.authSvc.EXPECT().Login(mock.Anything, req).Return(user, "session-token", nil)
-	deps.userRepo.EXPECT().UpdateIP(mock.Anything, userID, mock.Anything).Return(nil).Maybe()
+	deps.userSvc.EXPECT().UpdateIP(mock.Anything, userID, mock.Anything).Return(nil).Maybe()
 
 	// when
 	status, body := h.NewRequest("POST", "/auth/login").WithJSONBody(req).Do()
@@ -283,7 +289,7 @@ func TestGetSession_OK(t *testing.T) {
 	h, deps := newAuthHarness(t)
 	userID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
-	deps.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, Username: "beato"}, nil)
+	deps.userSvc.EXPECT().GetByID(mock.Anything, userID).Return(&dto.UserResponse{ID: userID, Username: "beato"}, nil)
 
 	// when
 	status, body := h.NewRequest("GET", "/auth/session").WithCookie("valid-cookie").Do()
@@ -296,12 +302,12 @@ func TestGetSession_OK(t *testing.T) {
 
 func TestGetSession_ServiceErrors(t *testing.T) {
 	cases := []struct {
-		name    string
-		user    *model.User
-		repoErr error
+		name string
+		user *dto.UserResponse
+		err  error
 	}{
 		{"user not found", nil, nil},
-		{"repo error", nil, errors.New("boom")},
+		{"service error", nil, errors.New("boom")},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -309,7 +315,7 @@ func TestGetSession_ServiceErrors(t *testing.T) {
 			h, deps := newAuthHarness(t)
 			userID := uuid.New()
 			h.ExpectValidSession("valid-cookie", userID)
-			deps.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(tc.user, tc.repoErr)
+			deps.userSvc.EXPECT().GetByID(mock.Anything, userID).Return(tc.user, tc.err)
 
 			// when
 			status, body := h.NewRequest("GET", "/auth/session").WithCookie("valid-cookie").Do()
@@ -326,10 +332,10 @@ func TestSiteInfo_OK(t *testing.T) {
 	h, deps := newAuthHarness(t)
 	deps.mysterySvc.EXPECT().GetTopDetectiveIDs(mock.Anything).Return([]string{"det-1"}, nil)
 	deps.mysterySvc.EXPECT().GetTopGMIDs(mock.Anything).Return([]string{"gm-1"}, nil)
-	deps.vanityRepo.EXPECT().List(mock.Anything).Return([]repository.VanityRoleRow{
+	deps.vanityRoleSvc.EXPECT().List(mock.Anything).Return([]repository.VanityRoleRow{
 		{ID: "role-1", Label: "VIP", Color: "#fff", IsSystem: false, SortOrder: 1},
 	}, nil)
-	deps.vanityRepo.EXPECT().GetAllAssignments(mock.Anything).Return(map[string][]string{
+	deps.vanityRoleSvc.EXPECT().GetAllAssignments(mock.Anything).Return(map[string][]string{
 		"user-1": {"role-1"},
 	}, nil)
 
@@ -353,8 +359,8 @@ func TestSiteInfo_ServiceErrors(t *testing.T) {
 	h, deps := newAuthHarness(t)
 	deps.mysterySvc.EXPECT().GetTopDetectiveIDs(mock.Anything).Return(nil, errors.New("boom"))
 	deps.mysterySvc.EXPECT().GetTopGMIDs(mock.Anything).Return(nil, errors.New("boom"))
-	deps.vanityRepo.EXPECT().List(mock.Anything).Return(nil, errors.New("boom"))
-	deps.vanityRepo.EXPECT().GetAllAssignments(mock.Anything).Return(nil, errors.New("boom"))
+	deps.vanityRoleSvc.EXPECT().List(mock.Anything).Return(nil, errors.New("boom"))
+	deps.vanityRoleSvc.EXPECT().GetAllAssignments(mock.Anything).Return(nil, errors.New("boom"))
 
 	// when
 	status, body := h.NewRequest("GET", "/site-info").Do()

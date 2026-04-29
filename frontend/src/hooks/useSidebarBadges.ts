@@ -43,7 +43,7 @@ export function useSidebarBadges() {
 
     const { data: activityResp } = useSidebarActivity();
     const { data: visitedResp, refresh: refreshVisited } = useSidebarLastVisited();
-    const markVisitedMutation = useMarkSidebarVisited();
+    const { mutate: markVisitedMutate, mutateAsync: markVisitedAsync } = useMarkSidebarVisited();
 
     const [activityOverlay, setActivityOverlay] = useState<Record<string, string>>({});
 
@@ -71,7 +71,7 @@ export function useSidebarBadges() {
         }
         let cancelled = false;
         const run = async () => {
-            const results = await Promise.allSettled(keys.map(key => markVisitedMutation.mutateAsync(key)));
+            const results = await Promise.allSettled(keys.map(key => markVisitedAsync(key)));
             if (cancelled) {
                 return;
             }
@@ -87,7 +87,7 @@ export function useSidebarBadges() {
         return () => {
             cancelled = true;
         };
-    }, [userId, markVisitedMutation, refreshVisited]);
+    }, [userId, markVisitedAsync, refreshVisited]);
 
     useEffect(() => {
         if (!userId) {
@@ -159,9 +159,9 @@ export function useSidebarBadges() {
             if (!hasUnread(key)) {
                 return;
             }
-            markVisitedMutation.mutate(key);
+            markVisitedMutate(key);
         },
-        [userId, hasUnread, markVisitedMutation],
+        [userId, hasUnread, markVisitedMutate],
     );
 
     return { hasUnread, hasAnyUnread, markVisited };

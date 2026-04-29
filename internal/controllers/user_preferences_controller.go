@@ -1,15 +1,14 @@
 package controllers
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
+	"errors"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
 
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/middleware"
-	"umineko_city_of_books/internal/secrets"
+	"umineko_city_of_books/internal/usersecret"
 )
 
 func (s *Service) getAllUserPreferencesRoutes() []FSetupRoute {
@@ -40,7 +39,7 @@ func (s *Service) updateGameBoardSort(ctx fiber.Ctx) error {
 	if err := ctx.Bind().JSON(&req); err != nil {
 		return utils.BadRequest(ctx, "invalid request")
 	}
-	if err := s.UserRepo.UpdateGameBoardSort(ctx.Context(), userID, req.Sort); err != nil {
+	if err := s.UserService.UpdateGameBoardSort(ctx.Context(), userID, req.Sort); err != nil {
 		return utils.InternalError(ctx, "failed to save")
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
@@ -56,7 +55,7 @@ func (s *Service) updateAppearance(ctx fiber.Ctx) error {
 	if err := ctx.Bind().JSON(&req); err != nil {
 		return utils.BadRequest(ctx, "invalid request")
 	}
-	if err := s.UserRepo.UpdateAppearance(ctx.Context(), userID, req.Theme, req.Font, req.WideLayout); err != nil {
+	if err := s.UserService.UpdateAppearance(ctx.Context(), userID, req.Theme, req.Font, req.WideLayout); err != nil {
 		return utils.InternalError(ctx, "failed to save")
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
@@ -71,48 +70,21 @@ func (s *Service) unlockSecret(ctx fiber.Ctx) error {
 	if err := ctx.Bind().JSON(&req); err != nil {
 		return utils.BadRequest(ctx, "invalid request")
 	}
-	spec, ok := secrets.Lookup(req.Secret)
-	if !ok {
-		return utils.BadRequest(ctx, "invalid request")
-	}
-	sum := sha256.Sum256([]byte(req.Phrase))
-	if hex.EncodeToString(sum[:]) != spec.ExpectedHash {
-		return utils.BadRequest(ctx, "invalid request")
-	}
 
-	parent, hasParent := secrets.ParentOf(spec.ID)
-	if hasParent && parent.Title != "" {
-		alreadySolved, err := s.UserSecretRepo.IsSolvedByAnyone(ctx.Context(), string(parent.ID))
-		if err != nil {
-			return utils.InternalError(ctx, "failed to check hunt state")
-		}
-		if alreadySolved {
+	result, err := s.UserSecretService.Unlock(ctx.Context(), userID, req.Secret, req.Phrase)
+	if err != nil {
+		switch {
+		case errors.Is(err, usersecret.ErrInvalidRequest):
+			return utils.BadRequest(ctx, "invalid request")
+		case errors.Is(err, usersecret.ErrHuntAlreadySolved):
 			return utils.BadRequest(ctx, "hunt already solved")
 		}
+		return utils.InternalError(ctx, "failed to save", err)
 	}
 
-	if len(spec.Pieces) > 0 {
-		owned, err := s.UserSecretRepo.ListForUser(ctx.Context(), userID)
-		if err != nil {
-			return utils.InternalError(ctx, "failed to check pieces")
-		}
-		ownedSet := make(map[string]struct{}, len(owned))
-		for _, id := range owned {
-			ownedSet[id] = struct{}{}
-		}
-		for _, piece := range spec.Pieces {
-			if _, ok := ownedSet[string(piece.ID)]; !ok {
-				return utils.BadRequest(ctx, "invalid request")
-			}
-		}
-	}
-	if err := s.UserSecretRepo.Unlock(ctx.Context(), userID, string(spec.ID)); err != nil {
-		return utils.InternalError(ctx, "failed to save")
-	}
-
-	if hasParent && parent.Title != "" && s.SecretService != nil {
-		parentID := string(parent.ID)
-		if spec.ID == parent.ID {
+	if result.HasParent && s.SecretService != nil {
+		parentID := string(result.Parent.ID)
+		if result.IsParent {
 			s.SecretService.BroadcastSolved(ctx.Context(), parentID, userID, time.Now().UTC().Format(time.RFC3339))
 		} else {
 			s.SecretService.BroadcastProgress(ctx.Context(), parentID, userID)

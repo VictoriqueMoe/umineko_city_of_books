@@ -37,6 +37,7 @@ func newTestService(t *testing.T) *testMocks {
 	notifier := NewMockNotifier(t)
 	handler := NewMockGameHandler(t)
 	handler.EXPECT().GameType().Return(dto.GameTypeChess).Maybe()
+	roomRepo.EXPECT().GetTopWinnerIDs(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 
 	svc := NewService(
 		roomRepo,

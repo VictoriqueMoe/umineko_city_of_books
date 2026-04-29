@@ -44,12 +44,10 @@ import type {
     GameType,
     GMLeaderboardResponse,
     HomeActivityResponse,
-    SidebarActivityResponse,
-    SidebarLastVisitedResponse,
-    MarkSidebarVisitedRequest,
     JournalDetail,
     JournalListResponse,
     JournalWork,
+    MarkSidebarVisitedRequest,
     MysteryAttachment,
     MysteryDetail,
     MysteryLeaderboardResponse,
@@ -59,13 +57,17 @@ import type {
     PostDetail,
     PostListResponse,
     PostMedia,
+    QuickSearchResponse,
     QuoteBrowseResponse,
     QuoteSearchResponse,
+    SearchResponse,
     SecretDetailResponse,
     SecretListResponse,
     ShipCharacter,
     ShipDetail,
     ShipListResponse,
+    SidebarActivityResponse,
+    SidebarLastVisitedResponse,
     SiteSettings,
     SpectatorChatResponse,
     SpectatorMessage,
@@ -123,6 +125,8 @@ export interface SiteInfo {
     max_video_size: number;
     top_detective_ids: string[];
     top_gm_ids: string[];
+    top_chess_ids: string[];
+    top_checkers_ids: string[];
     vanity_roles: VanityRoleDefinition[];
     vanity_role_assignments: Record<string, string[]>;
     listed_secrets: SiteInfoSecret[];
@@ -2006,4 +2010,19 @@ export async function getSidebarLastVisited(): Promise<SidebarLastVisitedRespons
 
 export async function markSidebarVisited(key: string): Promise<void> {
     await apiPost<unknown, MarkSidebarVisitedRequest>("/sidebar/last-visited", { key });
+}
+
+export async function quickSearch(q: string, perType: number = 3): Promise<QuickSearchResponse> {
+    const qs = buildQueryString({ q, perType });
+    return apiFetch<QuickSearchResponse>(`/search/quick${qs}`);
+}
+
+export async function searchSite(
+    q: string,
+    types?: string,
+    limit: number = 20,
+    offset: number = 0,
+): Promise<SearchResponse> {
+    const qs = buildQueryString({ q, types: types ?? "", limit, offset });
+    return apiFetch<SearchResponse>(`/search${qs}`);
 }

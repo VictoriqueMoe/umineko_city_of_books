@@ -108,6 +108,7 @@ func (h *SitemapHandler) static(ctx fiber.Ctx) error {
 			{Loc: h.baseURL + "/games/live", LastMod: now},
 			{Loc: h.baseURL + "/games/past", LastMod: now},
 			{Loc: h.baseURL + "/games/chess", LastMod: now},
+			{Loc: h.baseURL + "/search", LastMod: now},
 			{Loc: h.baseURL + "/login", LastMod: now},
 		},
 	}

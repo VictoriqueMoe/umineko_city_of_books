@@ -244,6 +244,465 @@ func (_c *MockService_GetByID_Call) RunAndReturn(run func(ctx context.Context, i
 	return _c
 }
 
+// GetDetectiveRawScore provides a mock function for the type MockService
+func (_mock *MockService) GetDetectiveRawScore(ctx context.Context, id uuid.UUID) (int, error) {
+	ret := _mock.Called(ctx, id)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetDetectiveRawScore")
+	}
+
+	var r0 int
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (int, error)); ok {
+		return returnFunc(ctx, id)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) int); ok {
+		r0 = returnFunc(ctx, id)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, id)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_GetDetectiveRawScore_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetDetectiveRawScore'
+type MockService_GetDetectiveRawScore_Call struct {
+	*mock.Call
+}
+
+// GetDetectiveRawScore is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id uuid.UUID
+func (_e *MockService_Expecter) GetDetectiveRawScore(ctx interface{}, id interface{}) *MockService_GetDetectiveRawScore_Call {
+	return &MockService_GetDetectiveRawScore_Call{Call: _e.mock.On("GetDetectiveRawScore", ctx, id)}
+}
+
+func (_c *MockService_GetDetectiveRawScore_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockService_GetDetectiveRawScore_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_GetDetectiveRawScore_Call) Return(n int, err error) *MockService_GetDetectiveRawScore_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *MockService_GetDetectiveRawScore_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) (int, error)) *MockService_GetDetectiveRawScore_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetGMRawScore provides a mock function for the type MockService
+func (_mock *MockService) GetGMRawScore(ctx context.Context, id uuid.UUID) (int, error) {
+	ret := _mock.Called(ctx, id)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetGMRawScore")
+	}
+
+	var r0 int
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (int, error)); ok {
+		return returnFunc(ctx, id)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) int); ok {
+		r0 = returnFunc(ctx, id)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, id)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_GetGMRawScore_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetGMRawScore'
+type MockService_GetGMRawScore_Call struct {
+	*mock.Call
+}
+
+// GetGMRawScore is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id uuid.UUID
+func (_e *MockService_Expecter) GetGMRawScore(ctx interface{}, id interface{}) *MockService_GetGMRawScore_Call {
+	return &MockService_GetGMRawScore_Call{Call: _e.mock.On("GetGMRawScore", ctx, id)}
+}
+
+func (_c *MockService_GetGMRawScore_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockService_GetGMRawScore_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_GetGMRawScore_Call) Return(n int, err error) *MockService_GetGMRawScore_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *MockService_GetGMRawScore_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) (int, error)) *MockService_GetGMRawScore_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateAppearance provides a mock function for the type MockService
+func (_mock *MockService) UpdateAppearance(ctx context.Context, id uuid.UUID, theme string, font string, wideLayout bool) error {
+	ret := _mock.Called(ctx, id, theme, font, wideLayout)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateAppearance")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, bool) error); ok {
+		r0 = returnFunc(ctx, id, theme, font, wideLayout)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_UpdateAppearance_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateAppearance'
+type MockService_UpdateAppearance_Call struct {
+	*mock.Call
+}
+
+// UpdateAppearance is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id uuid.UUID
+//   - theme string
+//   - font string
+//   - wideLayout bool
+func (_e *MockService_Expecter) UpdateAppearance(ctx interface{}, id interface{}, theme interface{}, font interface{}, wideLayout interface{}) *MockService_UpdateAppearance_Call {
+	return &MockService_UpdateAppearance_Call{Call: _e.mock.On("UpdateAppearance", ctx, id, theme, font, wideLayout)}
+}
+
+func (_c *MockService_UpdateAppearance_Call) Run(run func(ctx context.Context, id uuid.UUID, theme string, font string, wideLayout bool)) *MockService_UpdateAppearance_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		var arg4 bool
+		if args[4] != nil {
+			arg4 = args[4].(bool)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_UpdateAppearance_Call) Return(err error) *MockService_UpdateAppearance_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_UpdateAppearance_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, theme string, font string, wideLayout bool) error) *MockService_UpdateAppearance_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateGMScoreAdjustment provides a mock function for the type MockService
+func (_mock *MockService) UpdateGMScoreAdjustment(ctx context.Context, id uuid.UUID, adjustment int) error {
+	ret := _mock.Called(ctx, id, adjustment)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateGMScoreAdjustment")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int) error); ok {
+		r0 = returnFunc(ctx, id, adjustment)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_UpdateGMScoreAdjustment_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateGMScoreAdjustment'
+type MockService_UpdateGMScoreAdjustment_Call struct {
+	*mock.Call
+}
+
+// UpdateGMScoreAdjustment is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id uuid.UUID
+//   - adjustment int
+func (_e *MockService_Expecter) UpdateGMScoreAdjustment(ctx interface{}, id interface{}, adjustment interface{}) *MockService_UpdateGMScoreAdjustment_Call {
+	return &MockService_UpdateGMScoreAdjustment_Call{Call: _e.mock.On("UpdateGMScoreAdjustment", ctx, id, adjustment)}
+}
+
+func (_c *MockService_UpdateGMScoreAdjustment_Call) Run(run func(ctx context.Context, id uuid.UUID, adjustment int)) *MockService_UpdateGMScoreAdjustment_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 int
+		if args[2] != nil {
+			arg2 = args[2].(int)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_UpdateGMScoreAdjustment_Call) Return(err error) *MockService_UpdateGMScoreAdjustment_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_UpdateGMScoreAdjustment_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, adjustment int) error) *MockService_UpdateGMScoreAdjustment_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateGameBoardSort provides a mock function for the type MockService
+func (_mock *MockService) UpdateGameBoardSort(ctx context.Context, id uuid.UUID, sort string) error {
+	ret := _mock.Called(ctx, id, sort)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateGameBoardSort")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) error); ok {
+		r0 = returnFunc(ctx, id, sort)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_UpdateGameBoardSort_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateGameBoardSort'
+type MockService_UpdateGameBoardSort_Call struct {
+	*mock.Call
+}
+
+// UpdateGameBoardSort is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id uuid.UUID
+//   - sort string
+func (_e *MockService_Expecter) UpdateGameBoardSort(ctx interface{}, id interface{}, sort interface{}) *MockService_UpdateGameBoardSort_Call {
+	return &MockService_UpdateGameBoardSort_Call{Call: _e.mock.On("UpdateGameBoardSort", ctx, id, sort)}
+}
+
+func (_c *MockService_UpdateGameBoardSort_Call) Run(run func(ctx context.Context, id uuid.UUID, sort string)) *MockService_UpdateGameBoardSort_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_UpdateGameBoardSort_Call) Return(err error) *MockService_UpdateGameBoardSort_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_UpdateGameBoardSort_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, sort string) error) *MockService_UpdateGameBoardSort_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateIP provides a mock function for the type MockService
+func (_mock *MockService) UpdateIP(ctx context.Context, id uuid.UUID, ip string) error {
+	ret := _mock.Called(ctx, id, ip)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateIP")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) error); ok {
+		r0 = returnFunc(ctx, id, ip)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_UpdateIP_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateIP'
+type MockService_UpdateIP_Call struct {
+	*mock.Call
+}
+
+// UpdateIP is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id uuid.UUID
+//   - ip string
+func (_e *MockService_Expecter) UpdateIP(ctx interface{}, id interface{}, ip interface{}) *MockService_UpdateIP_Call {
+	return &MockService_UpdateIP_Call{Call: _e.mock.On("UpdateIP", ctx, id, ip)}
+}
+
+func (_c *MockService_UpdateIP_Call) Run(run func(ctx context.Context, id uuid.UUID, ip string)) *MockService_UpdateIP_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_UpdateIP_Call) Return(err error) *MockService_UpdateIP_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_UpdateIP_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, ip string) error) *MockService_UpdateIP_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateMysteryScoreAdjustment provides a mock function for the type MockService
+func (_mock *MockService) UpdateMysteryScoreAdjustment(ctx context.Context, id uuid.UUID, adjustment int) error {
+	ret := _mock.Called(ctx, id, adjustment)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateMysteryScoreAdjustment")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int) error); ok {
+		r0 = returnFunc(ctx, id, adjustment)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_UpdateMysteryScoreAdjustment_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateMysteryScoreAdjustment'
+type MockService_UpdateMysteryScoreAdjustment_Call struct {
+	*mock.Call
+}
+
+// UpdateMysteryScoreAdjustment is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id uuid.UUID
+//   - adjustment int
+func (_e *MockService_Expecter) UpdateMysteryScoreAdjustment(ctx interface{}, id interface{}, adjustment interface{}) *MockService_UpdateMysteryScoreAdjustment_Call {
+	return &MockService_UpdateMysteryScoreAdjustment_Call{Call: _e.mock.On("UpdateMysteryScoreAdjustment", ctx, id, adjustment)}
+}
+
+func (_c *MockService_UpdateMysteryScoreAdjustment_Call) Run(run func(ctx context.Context, id uuid.UUID, adjustment int)) *MockService_UpdateMysteryScoreAdjustment_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 int
+		if args[2] != nil {
+			arg2 = args[2].(int)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_UpdateMysteryScoreAdjustment_Call) Return(err error) *MockService_UpdateMysteryScoreAdjustment_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_UpdateMysteryScoreAdjustment_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, adjustment int) error) *MockService_UpdateMysteryScoreAdjustment_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ValidateCredentials provides a mock function for the type MockService
 func (_mock *MockService) ValidateCredentials(ctx context.Context, username string, password string) (*dto.UserResponse, error) {
 	ret := _mock.Called(ctx, username, password)

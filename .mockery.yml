@@ -12,6 +12,9 @@ require-template-schema-exists: true
 template: testify
 template-schema: "{{.Template}}.schema.json"
 packages:
+  umineko_city_of_books/internal/announcement:
+    interfaces:
+      Service:
   umineko_city_of_books/internal/auth:
     interfaces:
       Service:
@@ -79,6 +82,21 @@ packages:
     interfaces:
       Service:
   umineko_city_of_books/internal/giphy/favourite:
+    interfaces:
+      Service:
+  umineko_city_of_books/internal/homefeed:
+    interfaces:
+      Service:
+  umineko_city_of_books/internal/sidebar:
+    interfaces:
+      Service:
+  umineko_city_of_books/internal/search:
+    interfaces:
+      Service:
+  umineko_city_of_books/internal/usersecret:
+    interfaces:
+      Service:
+  umineko_city_of_books/internal/vanityrole:
     interfaces:
       Service:
   umineko_city_of_books/internal/gameroom:

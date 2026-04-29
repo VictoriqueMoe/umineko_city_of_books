@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/controllers/utils/testutil"
-	"umineko_city_of_books/internal/repository"
+	usersvc "umineko_city_of_books/internal/user"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -15,22 +15,22 @@ import (
 )
 
 type userPrefsDeps struct {
-	UserRepo *repository.MockUserRepository
+	UserSvc *usersvc.MockService
 }
 
 func newUserPrefsHarness(t *testing.T) (*testutil.Harness, userPrefsDeps) {
 	h := testutil.NewHarness(t)
-	ur := repository.NewMockUserRepository(t)
+	us := usersvc.NewMockService(t)
 
 	s := &Service{
-		UserRepo:     ur,
+		UserService:  us,
 		AuthSession:  h.SessionManager,
 		AuthzService: h.AuthzService,
 	}
 	for _, setup := range s.getAllUserPreferencesRoutes() {
 		setup(h.App)
 	}
-	return h, userPrefsDeps{UserRepo: ur}
+	return h, userPrefsDeps{UserSvc: us}
 }
 
 func userPrefsFactory(t *testing.T) (*testutil.Harness, userPrefsDeps) {
@@ -46,7 +46,7 @@ func TestUpdateGameBoardSort_OK(t *testing.T) {
 	h, deps := newUserPrefsHarness(t)
 	userID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
-	deps.UserRepo.EXPECT().UpdateGameBoardSort(mock.Anything, userID, "newest").Return(nil)
+	deps.UserSvc.EXPECT().UpdateGameBoardSort(mock.Anything, userID, "newest").Return(nil)
 
 	// when
 	status, body := h.NewRequest("PUT", "/preferences/game-board-sort").
@@ -91,7 +91,7 @@ func TestUpdateGameBoardSort_ServiceErrors(t *testing.T) {
 			h, deps := newUserPrefsHarness(t)
 			userID := uuid.New()
 			h.ExpectValidSession("valid-cookie", userID)
-			deps.UserRepo.EXPECT().UpdateGameBoardSort(mock.Anything, userID, "oldest").Return(tc.repoErr)
+			deps.UserSvc.EXPECT().UpdateGameBoardSort(mock.Anything, userID, "oldest").Return(tc.repoErr)
 
 			// when
 			status, body := h.NewRequest("PUT", "/preferences/game-board-sort").
@@ -116,7 +116,7 @@ func TestUpdateAppearance_OK(t *testing.T) {
 	h, deps := newUserPrefsHarness(t)
 	userID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
-	deps.UserRepo.EXPECT().
+	deps.UserSvc.EXPECT().
 		UpdateAppearance(mock.Anything, userID, "dark", "serif", true).
 		Return(nil)
 
@@ -136,7 +136,7 @@ func TestUpdateAppearance_DefaultValues(t *testing.T) {
 	h, deps := newUserPrefsHarness(t)
 	userID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
-	deps.UserRepo.EXPECT().
+	deps.UserSvc.EXPECT().
 		UpdateAppearance(mock.Anything, userID, "", "", false).
 		Return(nil)
 
@@ -182,7 +182,7 @@ func TestUpdateAppearance_ServiceErrors(t *testing.T) {
 			h, deps := newUserPrefsHarness(t)
 			userID := uuid.New()
 			h.ExpectValidSession("valid-cookie", userID)
-			deps.UserRepo.EXPECT().
+			deps.UserSvc.EXPECT().
 				UpdateAppearance(mock.Anything, userID, "light", "mono", false).
 				Return(tc.repoErr)
 

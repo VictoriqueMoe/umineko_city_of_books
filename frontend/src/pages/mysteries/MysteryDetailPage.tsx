@@ -371,6 +371,7 @@ export function MysteryDetailPage() {
     );
     const hash = location.hash;
     const highlightedAttempt = hash.startsWith("#attempt-") ? hash.replace("#attempt-", "") : null;
+    const highlightedComment = hash.startsWith("#comment-") ? hash.replace("#comment-", "") : null;
     const [attemptBody, setAttemptBody] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const [collapsedPlayers, setCollapsedPlayers] = useState<Set<string>>(new Set());
@@ -545,7 +546,14 @@ export function MysteryDetailPage() {
         };
     }, [id]);
 
-    useScrollToHash(!loading && !!mystery, highlightedAttempt ? `attempt-${highlightedAttempt}` : null);
+    useScrollToHash(
+        !loading && !!mystery,
+        highlightedAttempt
+            ? `attempt-${highlightedAttempt}`
+            : highlightedComment
+              ? `comment-${highlightedComment}`
+              : null,
+    );
 
     if (loading) {
         return <div className="loading">Investigating the mystery...</div>;
@@ -1039,6 +1047,7 @@ export function MysteryDetailPage() {
                     emptyText="The mystery is solved. Share your thoughts on the game!"
                     linkPrefix="/mystery"
                     reportType="mystery_comment"
+                    highlightedId={highlightedComment ?? undefined}
                     likeFn={likeCommentFn}
                     unlikeFn={unlikeCommentFn}
                     deleteFn={deleteCommentFn}

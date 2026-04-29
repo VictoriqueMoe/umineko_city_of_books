@@ -15,6 +15,7 @@ const THEORY_KEYS = ["theories_umineko", "theories_higurashi", "theories_ciconia
 interface SidebarProps {
     open: boolean;
     onClose: () => void;
+    onCollapse: () => void;
 }
 
 const CORNERS = [
@@ -48,7 +49,7 @@ const GAMES_LINKS = [
     { path: "/games", label: "My Games", authRequired: true },
 ];
 
-export function Sidebar({ open, onClose }: SidebarProps) {
+export function Sidebar({ open, onClose, onCollapse }: SidebarProps) {
     const { user } = useAuth();
     const {
         addWSListener,
@@ -145,6 +146,15 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         <>
             {open && <div className={styles.overlay} onClick={onClose} />}
             <aside className={`${styles.sidebar} ${open ? styles.open : ""}`}>
+                <button
+                    type="button"
+                    className={styles.collapseBtn}
+                    onClick={onCollapse}
+                    aria-label="Collapse sidebar"
+                    title="Collapse sidebar"
+                >
+                    {"‹"}
+                </button>
                 <div className={styles.brand}>
                     <NavLink to="/" className={styles.title} onClick={onClose}>
                         Umineko Game Board

@@ -68,7 +68,7 @@ func (s *Service) setupSessionRoute(r fiber.Router) {
 
 func (s *Service) getSession(ctx fiber.Ctx) error {
 	userID := utils.UserID(ctx)
-	user, err := s.UserRepo.GetByID(ctx.Context(), userID)
+	user, err := s.UserService.GetByID(ctx.Context(), userID)
 	if err != nil || user == nil {
 		return utils.Unauthorized(ctx, "not authenticated")
 	}
@@ -147,7 +147,7 @@ func (s *Service) register(ctx fiber.Ctx) error {
 
 	ip, _ := ctx.Locals("client_ip").(string)
 	go func() {
-		_ = s.UserRepo.UpdateIP(context.Background(), user.ID, ip)
+		_ = s.UserService.UpdateIP(context.Background(), user.ID, ip)
 	}()
 
 	s.setSessionCookie(ctx, token)
@@ -176,7 +176,7 @@ func (s *Service) login(ctx fiber.Ctx) error {
 
 	ip, _ := ctx.Locals("client_ip").(string)
 	go func() {
-		_ = s.UserRepo.UpdateIP(context.Background(), user.ID, ip)
+		_ = s.UserService.UpdateIP(context.Background(), user.ID, ip)
 	}()
 
 	s.setSessionCookie(ctx, token)
@@ -199,9 +199,11 @@ func (s *Service) setupSiteInfoRoute(r fiber.Router) {
 func (s *Service) siteInfo(ctx fiber.Ctx) error {
 	topDetectives, _ := s.MysteryService.GetTopDetectiveIDs(ctx.Context())
 	topGMs, _ := s.MysteryService.GetTopGMIDs(ctx.Context())
+	topChess, _ := s.GameRoomService.GetTopWinnerIDs(ctx.Context(), dto.GameTypeChess)
+	topCheckers, _ := s.GameRoomService.GetTopWinnerIDs(ctx.Context(), dto.GameTypeCheckers)
 
-	vanityRoles, _ := s.VanityRoleRepo.List(ctx.Context())
-	manualAssignments, _ := s.VanityRoleRepo.GetAllAssignments(ctx.Context())
+	vanityRoles, _ := s.VanityRoleService.List(ctx.Context())
+	manualAssignments, _ := s.VanityRoleService.GetAllAssignments(ctx.Context())
 
 	assignments := make(map[string][]string)
 	for uid, roleIDs := range manualAssignments {
@@ -213,8 +215,14 @@ func (s *Service) siteInfo(ctx fiber.Ctx) error {
 	for _, uid := range topGMs {
 		assignments[uid] = append(assignments[uid], "system_top_gm")
 	}
+	for _, uid := range topChess {
+		assignments[uid] = append(assignments[uid], "system_top_chess")
+	}
+	for _, uid := range topCheckers {
+		assignments[uid] = append(assignments[uid], "system_top_checkers")
+	}
 	for _, spec := range secrets.WithVanityRole() {
-		holders, _ := s.UserSecretRepo.GetUserIDsWithSecret(ctx.Context(), string(spec.ID))
+		holders, _ := s.UserSecretService.GetUserIDsWithSecret(ctx.Context(), string(spec.ID))
 		for _, uid := range holders {
 			assignments[uid.String()] = append(assignments[uid.String()], spec.VanityRoleID)
 		}
@@ -234,7 +242,7 @@ func (s *Service) siteInfo(ctx fiber.Ctx) error {
 	listedSpecs := secrets.Listed()
 	listedSecrets := make([]dto.SiteInfoSecret, len(listedSpecs))
 	for i, spec := range listedSpecs {
-		solved, _ := s.UserSecretRepo.IsSolvedByAnyone(ctx.Context(), string(spec.ID))
+		solved, _ := s.UserSecretService.IsSolvedByAnyone(ctx.Context(), string(spec.ID))
 		pieces := make([]dto.SiteInfoSecretPiece, len(spec.Pieces))
 		for j, p := range spec.Pieces {
 			pieces[j] = dto.SiteInfoSecretPiece{
@@ -273,6 +281,8 @@ func (s *Service) siteInfo(ctx fiber.Ctx) error {
 		MaxVideoSize:          s.SettingsService.GetInt(ctx.Context(), config.SettingMaxVideoSize),
 		TopDetectiveIDs:       topDetectives,
 		TopGMIDs:              topGMs,
+		TopChessIDs:           topChess,
+		TopCheckersIDs:        topCheckers,
 		VanityRoles:           vrList,
 		VanityRoleAssignments: assignments,
 		ListedSecrets:         listedSecrets,

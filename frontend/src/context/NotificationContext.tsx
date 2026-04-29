@@ -153,6 +153,8 @@ export function NotificationProvider({ children }: PropsWithChildren) {
                 if (
                     msg.type === "top_detective_changed" ||
                     msg.type === "top_gm_changed" ||
+                    msg.type === "top_chess_changed" ||
+                    msg.type === "top_checkers_changed" ||
                     msg.type === "vanity_roles_changed"
                 ) {
                     window.dispatchEvent(new CustomEvent("site-info-refresh"));

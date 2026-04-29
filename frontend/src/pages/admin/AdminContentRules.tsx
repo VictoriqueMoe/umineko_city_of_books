@@ -28,6 +28,7 @@ const pages = [
     { key: "rules_suggestions", label: "Site Improvements" },
     { key: "rules_chat_rooms", label: "Chat Rooms" },
     { key: "rules_games", label: "Games" },
+    { key: "rules_search", label: "Search" },
 ];
 
 export function AdminContentRules() {

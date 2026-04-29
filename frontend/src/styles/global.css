@@ -66,6 +66,11 @@ body {
     display: flex;
     flex-direction: column;
     min-height: 100vh;
+    transition: margin-left 0.25s var(--ease-out);
+}
+
+.app-layout[data-sidebar-collapsed="true"] .app-main {
+    margin-left: 0;
 }
 
 html[data-width="wide"] [class*="_page_"] {

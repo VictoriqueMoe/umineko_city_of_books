@@ -3,6 +3,7 @@ import { BrowserRouter, Link, Navigate, Route, Routes } from "react-router";
 import { useSiteInfo } from "./hooks/useSiteInfo";
 import { useTheme } from "./hooks/useTheme";
 import { useAuth } from "./hooks/useAuth";
+import { useSidebarCollapsed } from "./hooks/useSidebarCollapsed";
 import { canAccessAdmin } from "./utils/permissions";
 import { ensureNotificationPermission } from "./utils/notifications";
 import { Header } from "./components/layout/Header/Header";
@@ -69,6 +70,7 @@ import {
     QuoteBrowserPage,
     RoomPage,
     RoomsListPage,
+    SearchPage,
     SecretDetailPage,
     SecretsListPage,
     SettingsPage,
@@ -165,6 +167,7 @@ function AppLayout() {
     const { particlesEnabled } = useTheme();
     const { user, loading: authLoading } = useAuth();
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [sidebarCollapsed, setSidebarCollapsed] = useSidebarCollapsed();
 
     useEffect(() => {
         if (user) {
@@ -182,13 +185,25 @@ function AppLayout() {
         );
     }
 
+    const toggleSidebar = () => {
+        if (window.matchMedia("(max-width: 960px)").matches) {
+            setSidebarOpen(prev => !prev);
+        } else {
+            setSidebarCollapsed(prev => !prev);
+        }
+    };
+
     return (
-        <div className="app-layout">
+        <div className="app-layout" data-sidebar-collapsed={sidebarCollapsed ? "true" : undefined}>
             <CanonicalTag />
             {particlesEnabled && <Butterflies />}
-            <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+            <Sidebar
+                open={sidebarOpen}
+                onClose={() => setSidebarOpen(false)}
+                onCollapse={() => setSidebarCollapsed(true)}
+            />
             <div className="app-main">
-                <Header onToggleSidebar={() => setSidebarOpen(prev => !prev)} />
+                <Header onToggleSidebar={toggleSidebar} />
                 <StaleVersionBanner />
                 <LockBanner />
                 <AnnouncementBanner />
@@ -233,6 +248,7 @@ function AppLayout() {
                             <Route path="/secrets" element={<SecretsListPage />} />
                             <Route path="/secrets/:id" element={<SecretDetailPage />} />
                             <Route path="/quotes" element={<QuoteBrowserPage />} />
+                            <Route path="/search" element={<SearchPage />} />
                             <Route path="/games/chess/scoreboard" element={<Navigate to="/games/chess" replace />} />
                             <Route
                                 path="/games/checkers/scoreboard"

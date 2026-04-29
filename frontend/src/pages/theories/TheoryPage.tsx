@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useLocation, useNavigate, useParams } from "react-router";
 import { useTheory } from "../../api/queries/theory";
+import { useScrollToHash } from "../../hooks/useScrollToHash";
 import { useDeleteTheory, useVoteTheory } from "../../api/mutations/theory";
 import { useVote } from "../../hooks/useVote";
 import { useAuth } from "../../hooks/useAuth";
@@ -25,7 +26,10 @@ export function TheoryPage() {
     const navigate = useNavigate();
     const { user } = useAuth();
     const theoryId = id ?? "";
+    const { hash } = useLocation();
+    const highlightedResponse = hash.startsWith("#response-") ? hash.replace("#response-", "") : null;
     const { theory, loading, refresh } = useTheory(theoryId);
+    useScrollToHash(!loading && !!theory, highlightedResponse ? `response-${highlightedResponse}` : null);
     usePageTitle(theory?.title ?? "Theory");
     const [spoilerDismissed, setSpoilerDismissed] = useState(false);
     const voteMutation = useVoteTheory(theoryId);
