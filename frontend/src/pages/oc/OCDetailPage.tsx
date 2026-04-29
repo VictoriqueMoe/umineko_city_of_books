@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Link, useNavigate, useParams } from "react-router";
+import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { usePageTitle } from "../../hooks/usePageTitle";
+import { useScrollToHash } from "../../hooks/useScrollToHash";
 import { useOC } from "../../api/queries/oc";
 import {
     useCreateOCComment,
@@ -24,6 +25,7 @@ import shipStyles from "../ships/ShipPages.module.css";
 
 export function OCDetailPage() {
     const { id } = useParams<{ id: string }>();
+    const location = useLocation();
     const { oc, loading, refresh } = useOC(id ?? "");
     const { user: currentUser } = useAuth();
     const navigate = useNavigate();
@@ -39,6 +41,9 @@ export function OCDetailPage() {
     const uploadCommentMedia = useUploadOCCommentMedia();
     const [error, setError] = useState("");
     const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null);
+    const hash = location.hash;
+    const highlightedComment = hash.startsWith("#comment-") ? hash.replace("#comment-", "") : null;
+    useScrollToHash(!loading && !!oc, highlightedComment ? `comment-${highlightedComment}` : null);
 
     if (loading) {
         return (
@@ -80,45 +85,38 @@ export function OCDetailPage() {
         <div className={shipStyles.page}>
             {error && <ErrorBanner message={error} />}
 
-            <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+            <div className={shipStyles.detailHeader}>
                 {oc.image_url && (
                     <img
+                        className={shipStyles.detailImage}
                         src={oc.image_url}
                         alt={oc.name}
-                        style={{ maxWidth: "300px", borderRadius: "8px", flex: "0 0 auto", cursor: "zoom-in" }}
+                        style={{ cursor: "zoom-in" }}
                         onClick={() => setLightbox({ src: oc.image_url ?? "", alt: oc.name })}
                     />
                 )}
-                <div style={{ flex: 1, minWidth: "260px" }}>
-                    <h1 className={shipStyles.heading}>{oc.name}</h1>
-                    <div style={{ marginBottom: "0.5rem" }}>
+                <div className={shipStyles.detailBody}>
+                    <h1 className={shipStyles.detailTitle}>{oc.name}</h1>
+                    <div className={shipStyles.detailMeta}>
+                        <ProfileLink user={oc.author} size="small" />
                         <span className={`${shipStyles.characterPill} ${shipStyles.characterPillOc}`}>
                             {seriesLabel}
                         </span>
                     </div>
-                    <ProfileLink user={oc.author} size="small" />
-                    {oc.description && <div style={{ marginTop: "0.75rem" }}>{renderRich(oc.description)}</div>}
-
-                    <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem", alignItems: "center" }}>
-                        <Button
-                            variant={oc.user_vote === 1 ? "primary" : "secondary"}
-                            size="small"
-                            onClick={() => handleVote(1)}
-                            disabled={!currentUser}
-                        >
-                            ▲
+                    {oc.description && <div className={shipStyles.detailDescription}>{renderRich(oc.description)}</div>}
+                    <div className={shipStyles.voteRow}>
+                        <Button variant="ghost" size="small" onClick={() => handleVote(1)} disabled={!currentUser}>
+                            {oc.user_vote === 1 ? "▲" : "△"}
                         </Button>
-                        <span>{oc.vote_score}</span>
-                        <Button
-                            variant={oc.user_vote === -1 ? "primary" : "secondary"}
-                            size="small"
-                            onClick={() => handleVote(-1)}
-                            disabled={!currentUser}
-                        >
-                            ▼
+                        <span className={shipStyles.voteScore}>
+                            {oc.vote_score > 0 ? "+" : ""}
+                            {oc.vote_score}
+                        </span>
+                        <Button variant="ghost" size="small" onClick={() => handleVote(-1)} disabled={!currentUser}>
+                            {oc.user_vote === -1 ? "▼" : "▽"}
                         </Button>
                         <Button
-                            variant={oc.user_favourited ? "primary" : "secondary"}
+                            variant={oc.user_favourited ? "primary" : "ghost"}
                             size="small"
                             onClick={handleFavourite}
                             disabled={!currentUser}
@@ -166,6 +164,7 @@ export function OCDetailPage() {
                 onChanged={refresh}
                 blockedText="You cannot interact with this OC."
                 viewerBlocked={oc.viewer_blocked}
+                highlightedId={highlightedComment ?? undefined}
                 linkPrefix="/oc"
                 reportType="oc_comment"
                 likeFn={commentId => likeComment.mutateAsync(commentId).then(() => {})}

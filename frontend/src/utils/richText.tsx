@@ -273,6 +273,53 @@ function renderNonSpoiler(text: string, keyPrefix: string): ReactNode[] {
     return nodes;
 }
 
+type ColourTag = "red" | "blue" | "gold" | "purple" | "green";
+
+const COLOUR_CLASS: Record<ColourTag, string> = {
+    red: "red-truth",
+    blue: "blue-truth",
+    gold: "gold-truth",
+    purple: "purple-truth",
+    green: "green-truth",
+};
+
+function splitColours(text: string): Array<{ type: "text" | "colour"; tag?: ColourTag; content: string }> {
+    const re = /\[(red|blue|gold|purple|green)]([\s\S]*?)\[\/\1]/g;
+    const parts: Array<{ type: "text" | "colour"; tag?: ColourTag; content: string }> = [];
+    let last = 0;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(text)) !== null) {
+        if (m.index > last) {
+            parts.push({ type: "text", content: text.slice(last, m.index) });
+        }
+        parts.push({ type: "colour", tag: m[1] as ColourTag, content: m[2] });
+        last = m.index + m[0].length;
+    }
+    if (last < text.length) {
+        parts.push({ type: "text", content: text.slice(last) });
+    }
+    return parts;
+}
+
+function renderColoured(text: string, keyPrefix: string): ReactNode[] {
+    const parts = splitColours(text);
+    const nodes: ReactNode[] = [];
+    for (let i = 0; i < parts.length; i++) {
+        const part = parts[i];
+        const key = `${keyPrefix}-${i}`;
+        if (part.type === "colour" && part.tag) {
+            nodes.push(
+                <span key={key} className={COLOUR_CLASS[part.tag]}>
+                    {renderNonSpoiler(part.content, `${key}c`)}
+                </span>,
+            );
+        } else {
+            nodes.push(<Fragment key={key}>{renderNonSpoiler(part.content, `${key}n`)}</Fragment>);
+        }
+    }
+    return nodes;
+}
+
 function renderInline(text: string, keyPrefix: string): ReactNode[] {
     const parts = splitSpoilers(text);
     const nodes: ReactNode[] = [];
@@ -282,11 +329,11 @@ function renderInline(text: string, keyPrefix: string): ReactNode[] {
         if (part.type === "spoiler") {
             nodes.push(
                 <span key={key} className="rich-spoiler" title="Hover to reveal">
-                    {renderNonSpoiler(part.content, `${key}s`)}
+                    {renderColoured(part.content, `${key}s`)}
                 </span>,
             );
         } else {
-            nodes.push(<Fragment key={key}>{renderNonSpoiler(part.content, `${key}n`)}</Fragment>);
+            nodes.push(<Fragment key={key}>{renderColoured(part.content, `${key}n`)}</Fragment>);
         }
     }
     return nodes;

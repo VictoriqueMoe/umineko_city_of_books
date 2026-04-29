@@ -219,6 +219,8 @@ function OCForm({ editing, initial, id }: FormProps) {
                         value={description}
                         onChange={setDescription}
                         placeholder="Tell us about this OC. **bold**, *italic*, > quotes, [links](url)."
+                        rows={5}
+                        showColours
                     />
                 </label>
 
