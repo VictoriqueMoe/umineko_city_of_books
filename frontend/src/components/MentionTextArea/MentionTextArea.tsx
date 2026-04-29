@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { User } from "../../types/api";
 import { fetchSearchUsers } from "../../api/queries/misc";
+import { COLOUR_CLASS, type ColourTag, colourRegex } from "../../utils/colours";
 import { Butterfly } from "../Butterfly/Butterfly";
 import styles from "./MentionTextArea.module.css";
 
@@ -14,8 +15,6 @@ interface MentionTextAreaProps {
     mentionPool?: User[];
     showColours?: boolean;
 }
-
-type ColourTag = "red" | "blue" | "gold" | "purple" | "green";
 
 const COLOUR_BUTTONS: { tag: ColourTag; label: string; swatch: string }[] = [
     { tag: "red", label: "Red truth", swatch: "#ff3333" },
@@ -70,14 +69,6 @@ function followLabel(r: SearchResult): string | null {
     return null;
 }
 
-const COLOUR_CLASS: Record<ColourTag, string> = {
-    red: "red-truth",
-    blue: "blue-truth",
-    gold: "gold-truth",
-    purple: "purple-truth",
-    green: "green-truth",
-};
-
 function escapeHtml(s: string): string {
     return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
@@ -87,7 +78,7 @@ function highlightMentionsInSegment(segment: string): string {
 }
 
 function highlightMentions(text: string): string {
-    const colourRe = /\[(red|blue|gold|purple|green)]([\s\S]*?)\[\/\1]/g;
+    const colourRe = colourRegex();
     let out = "";
     let last = 0;
     let m: RegExpExecArray | null;

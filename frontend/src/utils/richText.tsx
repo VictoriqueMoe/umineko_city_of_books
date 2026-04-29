@@ -1,11 +1,38 @@
 import { Fragment, type ReactNode } from "react";
 import hljs from "highlight.js/lib/common";
+import { renderColours } from "./colours";
 import { linkify } from "./linkify";
 
 type Block =
     | { type: "code"; content: string; lang: string }
     | { type: "quote"; content: string }
     | { type: "plain"; content: string };
+
+type InlineMark = "bold" | "italic" | "underline" | "strike";
+
+type InlineNode =
+    | { kind: "text"; text: string }
+    | { kind: "code"; text: string }
+    | { kind: "mark"; tag: InlineMark; children: InlineNode[] };
+
+interface InlineRule {
+    open: string;
+    close: string;
+    build: (children: InlineNode[]) => InlineNode;
+}
+
+const INLINE_RULES: InlineRule[] = [
+    {
+        open: "***",
+        close: "***",
+        build: c => ({ kind: "mark", tag: "bold", children: [{ kind: "mark", tag: "italic", children: c }] }),
+    },
+    { open: "**", close: "**", build: c => ({ kind: "mark", tag: "bold", children: c }) },
+    { open: "__", close: "__", build: c => ({ kind: "mark", tag: "underline", children: c }) },
+    { open: "~~", close: "~~", build: c => ({ kind: "mark", tag: "strike", children: c }) },
+    { open: "*", close: "*", build: c => ({ kind: "mark", tag: "italic", children: c }) },
+    { open: "_", close: "_", build: c => ({ kind: "mark", tag: "italic", children: c }) },
+];
 
 function parseBlocks(text: string): Block[] {
     const lines = text.split("\n");
@@ -62,112 +89,76 @@ function parseBlocks(text: string): Block[] {
     return blocks;
 }
 
-function splitInlineCode(text: string): Array<{
-    type:
-        | "text"
-        | "code"
-        | "italics"
-        | "underline_italics"
-        | "bold"
-        | "underline_bold"
-        | "bold_italics"
-        | "underline_bold_italics"
-        | "underline"
-        | "strikethrough";
-    content: string;
-}> {
-    const parts: Array<{
-        type:
-            | "text"
-            | "code"
-            | "italics"
-            | "underline_italics"
-            | "bold"
-            | "underline_bold"
-            | "bold_italics"
-            | "underline_bold_italics"
-            | "underline"
-            | "strikethrough";
-        content: string;
-    }> = [];
-
-    // Note - order of rules is important; needs to be longest first
-    const rules: Array<{
-        open: string;
-        close: string;
-        type:
-            | "italics"
-            | "underline_italics"
-            | "bold"
-            | "underline_bold"
-            | "bold_italics"
-            | "underline_bold_italics"
-            | "underline"
-            | "strikethrough";
-    }> = [
-        { open: "__***", close: "***__", type: "underline_bold_italics" },
-        { open: "__**", close: "**__", type: "underline_bold" },
-        { open: "__*", close: "*__", type: "underline_italics" },
-        { open: "***", close: "***", type: "bold_italics" },
-        { open: "**", close: "**", type: "bold" },
-        { open: "__", close: "__", type: "underline" },
-        { open: "~~", close: "~~", type: "strikethrough" },
-        { open: "*", close: "*", type: "italics" },
-        { open: "_", close: "_", type: "italics" },
-    ];
-
+function parseInline(text: string): InlineNode[] {
+    const nodes: InlineNode[] = [];
     let i = 0;
     let textStart = 0;
-
+    const flushText = (end: number) => {
+        if (end > textStart) {
+            nodes.push({ kind: "text", text: text.slice(textStart, end) });
+        }
+    };
     while (i < text.length) {
         if (text[i] === "`") {
             const end = text.indexOf("`", i + 1);
-
             if (end === -1) {
                 i++;
                 continue;
             }
-
-            if (i > textStart) {
-                parts.push({ type: "text", content: text.slice(textStart, i) });
-            }
-
-            parts.push({ type: "code", content: text.slice(i + 1, end) });
+            flushText(i);
+            nodes.push({ kind: "code", text: text.slice(i + 1, end) });
             i = end + 1;
             textStart = i;
             continue;
         }
-
-        const rule = rules.find(r => text.startsWith(r.open, i));
-
-        if (rule) {
-            const contentStart = i + rule.open.length;
-            const end = text.indexOf(rule.close, contentStart);
-
-            if (end !== -1) {
-                if (i > textStart) {
-                    parts.push({ type: "text", content: text.slice(textStart, i) });
-                }
-
-                parts.push({
-                    type: rule.type,
-                    content: text.slice(contentStart, end),
-                });
-
-                i = end + rule.close.length;
-                textStart = i;
+        let matched = false;
+        for (const rule of INLINE_RULES) {
+            if (!text.startsWith(rule.open, i)) {
                 continue;
             }
+            const contentStart = i + rule.open.length;
+            const closeIdx = text.indexOf(rule.close, contentStart);
+            if (closeIdx === -1) {
+                continue;
+            }
+            flushText(i);
+            const inner = parseInline(text.slice(contentStart, closeIdx));
+            nodes.push(rule.build(inner));
+            i = closeIdx + rule.close.length;
+            textStart = i;
+            matched = true;
+            break;
         }
-
-        i++;
+        if (!matched) {
+            i++;
+        }
     }
+    flushText(text.length);
+    return nodes;
+}
 
-    if (textStart < text.length) {
-        parts.push({ type: "text", content: text.slice(textStart) });
+function renderInlineNode(node: InlineNode, key: string): ReactNode {
+    if (node.kind === "text") {
+        return <Fragment key={key}>{linkify(node.text, key)}</Fragment>;
     }
-
-    return parts;
+    if (node.kind === "code") {
+        return (
+            <code key={key} className="rich-inline-code">
+                {node.text}
+            </code>
+        );
+    }
+    const inner = node.children.map((child, i) => renderInlineNode(child, `${key}-${i}`));
+    switch (node.tag) {
+        case "bold":
+            return <strong key={key}>{inner}</strong>;
+        case "italic":
+            return <em key={key}>{inner}</em>;
+        case "underline":
+            return <u key={key}>{inner}</u>;
+        case "strike":
+            return <s key={key}>{inner}</s>;
+    }
 }
 
 function splitSpoilers(text: string): Array<{ type: "text" | "spoiler"; content: string }> {
@@ -198,126 +189,7 @@ function splitSpoilers(text: string): Array<{ type: "text" | "spoiler"; content:
 }
 
 function renderNonSpoiler(text: string, keyPrefix: string): ReactNode[] {
-    const parts = splitInlineCode(text);
-    const nodes: ReactNode[] = [];
-
-    for (let i = 0; i < parts.length; i++) {
-        const part = parts[i];
-        const key = `${keyPrefix}-${i}`;
-
-        switch (part.type) {
-            case "code":
-                nodes.push(
-                    <code key={key} className="rich-inline-code">
-                        {part.content}
-                    </code>,
-                );
-                break;
-
-            case "italics":
-                nodes.push(<em key={key}>{linkify(part.content)}</em>);
-                break;
-
-            case "bold":
-                nodes.push(<strong key={key}>{linkify(part.content)}</strong>);
-                break;
-
-            case "bold_italics":
-                nodes.push(
-                    <strong key={key}>
-                        <em>{linkify(part.content)}</em>
-                    </strong>,
-                );
-                break;
-
-            case "underline":
-                nodes.push(<u key={key}>{linkify(part.content)}</u>);
-                break;
-
-            case "underline_italics":
-                nodes.push(
-                    <u key={key}>
-                        <em>{linkify(part.content)}</em>
-                    </u>,
-                );
-                break;
-
-            case "underline_bold":
-                nodes.push(
-                    <u key={key}>
-                        <strong>{linkify(part.content)}</strong>
-                    </u>,
-                );
-                break;
-
-            case "underline_bold_italics":
-                nodes.push(
-                    <u key={key}>
-                        <strong>
-                            <em>{linkify(part.content)}</em>
-                        </strong>
-                    </u>,
-                );
-                break;
-
-            case "strikethrough":
-                nodes.push(<s key={key}>{linkify(part.content)}</s>);
-                break;
-
-            default:
-                nodes.push(<span key={key}>{linkify(part.content)}</span>);
-                break;
-        }
-    }
-
-    return nodes;
-}
-
-type ColourTag = "red" | "blue" | "gold" | "purple" | "green";
-
-const COLOUR_CLASS: Record<ColourTag, string> = {
-    red: "red-truth",
-    blue: "blue-truth",
-    gold: "gold-truth",
-    purple: "purple-truth",
-    green: "green-truth",
-};
-
-function splitColours(text: string): Array<{ type: "text" | "colour"; tag?: ColourTag; content: string }> {
-    const re = /\[(red|blue|gold|purple|green)]([\s\S]*?)\[\/\1]/g;
-    const parts: Array<{ type: "text" | "colour"; tag?: ColourTag; content: string }> = [];
-    let last = 0;
-    let m: RegExpExecArray | null;
-    while ((m = re.exec(text)) !== null) {
-        if (m.index > last) {
-            parts.push({ type: "text", content: text.slice(last, m.index) });
-        }
-        parts.push({ type: "colour", tag: m[1] as ColourTag, content: m[2] });
-        last = m.index + m[0].length;
-    }
-    if (last < text.length) {
-        parts.push({ type: "text", content: text.slice(last) });
-    }
-    return parts;
-}
-
-function renderColoured(text: string, keyPrefix: string): ReactNode[] {
-    const parts = splitColours(text);
-    const nodes: ReactNode[] = [];
-    for (let i = 0; i < parts.length; i++) {
-        const part = parts[i];
-        const key = `${keyPrefix}-${i}`;
-        if (part.type === "colour" && part.tag) {
-            nodes.push(
-                <span key={key} className={COLOUR_CLASS[part.tag]}>
-                    {renderNonSpoiler(part.content, `${key}c`)}
-                </span>,
-            );
-        } else {
-            nodes.push(<Fragment key={key}>{renderNonSpoiler(part.content, `${key}n`)}</Fragment>);
-        }
-    }
-    return nodes;
+    return parseInline(text).map((node, i) => renderInlineNode(node, `${keyPrefix}-${i}`));
 }
 
 function renderInline(text: string, keyPrefix: string): ReactNode[] {
@@ -329,11 +201,11 @@ function renderInline(text: string, keyPrefix: string): ReactNode[] {
         if (part.type === "spoiler") {
             nodes.push(
                 <span key={key} className="rich-spoiler" title="Hover to reveal">
-                    {renderColoured(part.content, `${key}s`)}
+                    {renderColours(part.content, renderNonSpoiler, `${key}s`)}
                 </span>,
             );
         } else {
-            nodes.push(<Fragment key={key}>{renderColoured(part.content, `${key}n`)}</Fragment>);
+            nodes.push(<Fragment key={key}>{renderColours(part.content, renderNonSpoiler, `${key}n`)}</Fragment>);
         }
     }
     return nodes;

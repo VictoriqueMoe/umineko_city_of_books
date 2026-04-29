@@ -18,6 +18,7 @@ import { GameForfeitWarning } from "./components/GameForfeitWarning/GameForfeitW
 import { MaintenancePage } from "./pages/maintenance/MaintenancePage";
 import { LandingPage } from "./pages/landing/LandingPage";
 import { linkify } from "./utils/linkify";
+import { renderColours } from "./utils/colours";
 import {
     AdminAnnouncementsPage,
     AdminAuditLog,
@@ -125,7 +126,7 @@ function AnnouncementBanner() {
         return null;
     }
 
-    return <div className="announcement-banner">{linkify(banner)}</div>;
+    return <div className="announcement-banner">{renderColours(banner, linkify, "ab")}</div>;
 }
 
 function RouteFallback() {

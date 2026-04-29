@@ -23,7 +23,8 @@ import { Button } from "../../components/Button/Button";
 import { CommentsSection } from "../../components/post/CommentsSection/CommentsSection";
 import { ReportButton } from "../../components/ReportButton/ReportButton";
 import { linkify } from "../../utils/linkify";
-import { relativeTime } from "../../utils/notifications";
+import { renderColours } from "../../utils/colours";
+import { relativeTime } from "../../utils/time.ts";
 import { workLabel } from "../../utils/journalWorks";
 import styles from "./JournalPage.module.css";
 
@@ -124,7 +125,7 @@ export function JournalPage() {
                     </span>
                 </div>
 
-                <p className={styles.body}>{linkify(journal.body)}</p>
+                <p className={styles.body}>{renderColours(journal.body, linkify, "jb")}</p>
 
                 <div className={styles.actions}>
                     {user && !isOwner && (
