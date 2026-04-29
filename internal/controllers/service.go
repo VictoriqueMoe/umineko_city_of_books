@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"umineko_city_of_books/internal/admin"
+	announcementsvc "umineko_city_of_books/internal/announcement"
 	artsvc "umineko_city_of_books/internal/art"
 	"umineko_city_of_books/internal/auth"
 	"umineko_city_of_books/internal/authz"
@@ -12,6 +13,7 @@ import (
 	"umineko_city_of_books/internal/gameroom"
 	"umineko_city_of_books/internal/giphy"
 	giphyfavourite "umineko_city_of_books/internal/giphy/favourite"
+	"umineko_city_of_books/internal/homefeed"
 	"umineko_city_of_books/internal/journal"
 	"umineko_city_of_books/internal/media"
 	mysterysvc "umineko_city_of_books/internal/mystery"
@@ -20,12 +22,17 @@ import (
 	"umineko_city_of_books/internal/profile"
 	"umineko_city_of_books/internal/report"
 	"umineko_city_of_books/internal/repository"
+	searchsvc "umineko_city_of_books/internal/search"
 	secretsvc "umineko_city_of_books/internal/secret"
 	"umineko_city_of_books/internal/session"
 	"umineko_city_of_books/internal/settings"
 	shipsvc "umineko_city_of_books/internal/ship"
+	"umineko_city_of_books/internal/sidebar"
 	"umineko_city_of_books/internal/theory"
 	"umineko_city_of_books/internal/upload"
+	usersvc "umineko_city_of_books/internal/user"
+	"umineko_city_of_books/internal/usersecret"
+	"umineko_city_of_books/internal/vanityrole"
 	"umineko_city_of_books/internal/ws"
 )
 
@@ -44,24 +51,26 @@ type (
 		FollowService         follow.Service
 		ArtService            artsvc.Service
 		BlockService          block.Service
-		AnnouncementRepo      repository.AnnouncementRepository
+		AnnouncementService   announcementsvc.Service
 		MysteryService        mysterysvc.Service
 		FanficService         fanficsvc.Service
 		JournalService        journal.Service
 		SecretService         secretsvc.Service
 		UserRepo              repository.UserRepository
+		UserService           usersvc.Service
 		ShipService           shipsvc.Service
 		UploadService         upload.Service
 		MediaProcessor        *media.Processor
-		VanityRoleRepo        repository.VanityRoleRepository
-		UserSecretRepo        repository.UserSecretRepository
+		VanityRoleService     vanityrole.Service
+		UserSecretService     usersecret.Service
 		AuthSession           *session.Manager
 		Hub                   *ws.Hub
 		GiphyService          giphy.Service
 		GiphyFavouriteService giphyfavourite.Service
 		GameRoomService       gameroom.Service
-		HomeFeedRepo          repository.HomeFeedRepository
-		SidebarVisitedRepo    repository.SidebarLastVisitedRepository
+		HomeFeedService       homefeed.Service
+		SidebarService        sidebar.Service
+		SearchService         searchsvc.Service
 		HTMLContent           string
 	}
 )
@@ -80,24 +89,26 @@ func NewService(
 	followService follow.Service,
 	artService artsvc.Service,
 	blockService block.Service,
-	announcementRepo repository.AnnouncementRepository,
+	announcementService announcementsvc.Service,
 	mysteryService mysterysvc.Service,
 	userRepo repository.UserRepository,
+	userService usersvc.Service,
 	shipService shipsvc.Service,
 	fanficService fanficsvc.Service,
 	journalService journal.Service,
 	secretService secretsvc.Service,
 	uploadService upload.Service,
 	mediaProcessor *media.Processor,
-	vanityRoleRepo repository.VanityRoleRepository,
-	userSecretRepo repository.UserSecretRepository,
+	vanityRoleService vanityrole.Service,
+	userSecretService usersecret.Service,
 	authSession *session.Manager,
 	hub *ws.Hub,
 	giphyService giphy.Service,
 	giphyFavouriteService giphyfavourite.Service,
 	gameRoomService gameroom.Service,
-	homeFeedRepo repository.HomeFeedRepository,
-	sidebarVisitedRepo repository.SidebarLastVisitedRepository,
+	homeFeedService homefeed.Service,
+	sidebarService sidebar.Service,
+	searchService searchsvc.Service,
 	htmlContent string,
 ) Service {
 	return Service{
@@ -114,24 +125,26 @@ func NewService(
 		FollowService:         followService,
 		ArtService:            artService,
 		BlockService:          blockService,
-		AnnouncementRepo:      announcementRepo,
+		AnnouncementService:   announcementService,
 		MysteryService:        mysteryService,
 		UserRepo:              userRepo,
+		UserService:           userService,
 		ShipService:           shipService,
 		FanficService:         fanficService,
 		JournalService:        journalService,
 		SecretService:         secretService,
 		UploadService:         uploadService,
 		MediaProcessor:        mediaProcessor,
-		VanityRoleRepo:        vanityRoleRepo,
-		UserSecretRepo:        userSecretRepo,
+		VanityRoleService:     vanityRoleService,
+		UserSecretService:     userSecretService,
 		AuthSession:           authSession,
 		Hub:                   hub,
 		GiphyService:          giphyService,
 		GiphyFavouriteService: giphyFavouriteService,
 		GameRoomService:       gameRoomService,
-		HomeFeedRepo:          homeFeedRepo,
-		SidebarVisitedRepo:    sidebarVisitedRepo,
+		HomeFeedService:       homeFeedService,
+		SidebarService:        sidebarService,
+		SearchService:         searchService,
 		HTMLContent:           htmlContent,
 	}
 }
@@ -158,6 +171,7 @@ func (s *Service) GetAPIRoutes() []FSetupRoute {
 	all = append(all, s.getAllGiphyRoutes()...)
 	all = append(all, s.getAllGameRoomRoutes()...)
 	all = append(all, s.getAllHomeRoutes()...)
+	all = append(all, s.getAllSearchRoutes()...)
 	return all
 }
 

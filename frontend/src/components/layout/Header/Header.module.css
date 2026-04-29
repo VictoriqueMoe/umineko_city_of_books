@@ -5,6 +5,7 @@
     display: flex;
     align-items: center;
     justify-content: flex-end;
+    flex-wrap: wrap;
     gap: 0.75rem;
     position: sticky;
     top: 0;
@@ -34,6 +35,10 @@
     height: 2px;
     background: var(--gold);
     border-radius: 2px;
+}
+
+:global(.app-layout[data-sidebar-collapsed="true"]) .hamburger {
+    display: flex;
 }
 
 @media (max-width: 960px) {

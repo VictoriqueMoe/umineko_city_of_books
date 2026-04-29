@@ -4,6 +4,7 @@ import { NotificationBell } from "../NotificationBell/NotificationBell";
 import { ChatBell } from "../../chat/ChatBell/ChatBell";
 import { LoginButton } from "../../auth/LoginButton/LoginButton";
 import { UserMenu } from "../../auth/UserMenu/UserMenu";
+import { GlobalSearch } from "../GlobalSearch/GlobalSearch";
 import styles from "./Header.module.css";
 
 interface HeaderProps {
@@ -20,6 +21,8 @@ export function Header({ onToggleSidebar }: HeaderProps) {
                 <span className={styles.hamburgerLine} />
                 <span className={styles.hamburgerLine} />
             </button>
+
+            <GlobalSearch />
 
             <div className={styles.actions}>
                 {!loading && user && <NotificationBell />}

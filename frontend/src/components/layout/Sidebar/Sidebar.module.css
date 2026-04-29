@@ -10,6 +10,40 @@
     flex-direction: column;
     z-index: 100;
     overflow-y: auto;
+    transition: transform 0.25s var(--ease-out);
+}
+
+.collapseBtn {
+    display: none;
+    position: absolute;
+    top: 0.6rem;
+    right: 0.6rem;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 1px solid rgba(var(--gold-rgb), 0.25);
+    background: rgba(0, 0, 0, 0.25);
+    color: var(--gold);
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    z-index: 1;
+    transition:
+        background 0.15s var(--ease-out),
+        border-color 0.15s var(--ease-out);
+}
+
+.collapseBtn:hover {
+    background: rgba(var(--gold-rgb), 0.18);
+    border-color: var(--gold);
+}
+
+@media (min-width: 961px) {
+    .collapseBtn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
 }
 
 .brand {
@@ -210,10 +244,15 @@
     display: none;
 }
 
+@media (min-width: 961px) {
+    :global(.app-layout[data-sidebar-collapsed="true"]) .sidebar {
+        transform: translateX(-100%);
+    }
+}
+
 @media (max-width: 960px) {
     .sidebar {
         transform: translateX(-100%);
-        transition: transform 0.3s var(--ease-out);
         z-index: 1000;
     }
 

@@ -95,6 +95,9 @@ export const RoomPage = named(() => import("./rooms/RoomPage"), "RoomPage");
 //  Not Found
 export const NotFoundPage = named(() => import("./notfound/NotFoundPage"), "NotFoundPage");
 
+//  Search
+export const SearchPage = named(() => import("./search/SearchPage"), "SearchPage");
+
 //  Secrets
 export const SecretsListPage = named(() => import("./secrets/SecretsListPage"), "SecretsListPage");
 export const SecretDetailPage = named(() => import("./secrets/SecretDetailPage"), "SecretDetailPage");

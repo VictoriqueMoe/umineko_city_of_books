@@ -63,6 +63,7 @@ type (
 		ListFinished(ctx context.Context, gameType string, limit, offset int) ([]GameRoomRow, int, error)
 		CountLive(ctx context.Context) (int, error)
 		Scoreboard(ctx context.Context, gameType string) ([]ScoreboardRow, error)
+		GetTopWinnerIDs(ctx context.Context, gameType string) ([]string, error)
 		ListIdleActive(ctx context.Context, idleSince time.Time) ([]GameRoomRow, error)
 	}
 
@@ -399,6 +400,39 @@ func (r *gameRoomRepository) Scoreboard(ctx context.Context, gameType string) ([
 		out = append(out, sr)
 	}
 	return out, rows.Err()
+}
+
+func (r *gameRoomRepository) GetTopWinnerIDs(ctx context.Context, gameType string) ([]string, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`WITH ranked AS (
+            SELECT p.user_id,
+                SUM(CASE WHEN r.winner_user_id = p.user_id THEN 1 ELSE 0 END) AS wins,
+                SUM(CASE WHEN r.winner_user_id IS NOT NULL AND r.winner_user_id != p.user_id THEN 1 ELSE 0 END) AS losses
+            FROM game_room_players p
+            JOIN game_rooms r ON r.id = p.room_id
+            WHERE r.game_type = $1 AND r.status IN ('finished', 'abandoned') AND p.joined = TRUE
+            GROUP BY p.user_id
+            HAVING SUM(CASE WHEN r.winner_user_id = p.user_id THEN 1 ELSE 0 END) > 0
+        )
+        SELECT user_id FROM ranked
+        WHERE wins = (SELECT MAX(wins) FROM ranked)
+          AND (wins - losses) = (SELECT MAX(wins - losses) FROM ranked WHERE wins = (SELECT MAX(wins) FROM ranked))`,
+		gameType,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("get top winner ids: %w", err)
+	}
+	defer rows.Close()
+
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("scan top winner id: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
 }
 
 func (r *gameRoomRepository) ListIdleActive(ctx context.Context, idleSince time.Time) ([]GameRoomRow, error) {

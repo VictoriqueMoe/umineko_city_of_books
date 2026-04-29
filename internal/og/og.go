@@ -250,6 +250,14 @@ func (r *Resolver) metaForPath(ctx context.Context, path string) *Meta {
 		}
 	}
 
+	if len(parts) == 1 && parts[0] == "search" {
+		return &Meta{
+			Title:       "Search - Umineko City of Books",
+			Description: "Search posts, comments, theories, mysteries, art, fanfiction, journals, ships, and users across the site.",
+			URL:         r.baseURL + "/search",
+		}
+	}
+
 	if len(parts) == 2 && parts[0] == "games" && parts[1] == "live" {
 		return &Meta{
 			Title:       "Live Games - Umineko City of Books",

@@ -311,11 +311,11 @@ func (s *Service) handleScoreUpdate(ctx fiber.Ctx, getRaw scoreReader, setAdjust
 }
 
 func (s *Service) adminUpdateMysteryScore(ctx fiber.Ctx) error {
-	return s.handleScoreUpdate(ctx, s.UserRepo.GetDetectiveRawScore, s.UserRepo.UpdateMysteryScoreAdjustment)
+	return s.handleScoreUpdate(ctx, s.UserService.GetDetectiveRawScore, s.UserService.UpdateMysteryScoreAdjustment)
 }
 
 func (s *Service) adminUpdateGMScore(ctx fiber.Ctx) error {
-	return s.handleScoreUpdate(ctx, s.UserRepo.GetGMRawScore, s.UserRepo.UpdateGMScoreAdjustment)
+	return s.handleScoreUpdate(ctx, s.UserService.GetGMRawScore, s.UserService.UpdateGMScoreAdjustment)
 }
 
 func (s *Service) adminCreateInvite(ctx fiber.Ctx) error {

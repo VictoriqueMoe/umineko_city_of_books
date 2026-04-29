@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useLocation, useNavigate, useParams } from "react-router";
 import { usePageTitle } from "../../hooks/usePageTitle";
+import { useScrollToHash } from "../../hooks/useScrollToHash";
 import type { PostComment } from "../../types/api";
 import { useFanfic } from "../../api/queries/fanfic";
 import {
@@ -63,7 +64,10 @@ export function FanficDetailPage() {
     const navigate = useNavigate();
     const { user } = useAuth();
     const fanficId = id ?? "";
+    const { hash } = useLocation();
+    const highlightedComment = hash.startsWith("#comment-") ? hash.replace("#comment-", "") : null;
     const { fanfic, loading, refresh } = useFanfic(fanficId);
+    useScrollToHash(!loading && !!fanfic, highlightedComment ? `comment-${highlightedComment}` : null);
     const [lightboxOpen, setLightboxOpen] = useState(false);
     const [favouriting, setFavouriting] = useState(false);
     usePageTitle(fanfic?.title ?? "Fanfic");
@@ -359,6 +363,7 @@ export function FanficDetailPage() {
                 viewerBlocked={fanfic.viewer_blocked}
                 linkPrefix="/fanfiction"
                 reportType="fanfic_comment"
+                highlightedId={highlightedComment ?? undefined}
                 likeFn={likeCommentFn}
                 unlikeFn={unlikeCommentFn}
                 deleteFn={deleteCommentFn}

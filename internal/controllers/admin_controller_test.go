@@ -9,8 +9,8 @@ import (
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
+	usersvc "umineko_city_of_books/internal/user"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -18,21 +18,21 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newAdminHarness(t *testing.T) (*testutil.Harness, *adminsvc.MockService, *repository.MockUserRepository) {
+func newAdminHarness(t *testing.T) (*testutil.Harness, *adminsvc.MockService, *usersvc.MockService) {
 	h := testutil.NewHarness(t)
 	ms := adminsvc.NewMockService(t)
-	ur := repository.NewMockUserRepository(t)
+	us := usersvc.NewMockService(t)
 
 	s := &Service{
 		AdminService: ms,
-		UserRepo:     ur,
+		UserService:  us,
 		AuthSession:  h.SessionManager,
 		AuthzService: h.AuthzService,
 	}
 	for _, setup := range s.getAllAdminRoutes() {
 		setup(h.App)
 	}
-	return h, ms, ur
+	return h, ms, us
 }
 
 func adminFactory(t *testing.T) (*testutil.Harness, *adminsvc.MockService) {
@@ -907,13 +907,13 @@ func TestAdminUpdateMysteryScore_BadJSON(t *testing.T) {
 
 func TestAdminUpdateMysteryScore_OK(t *testing.T) {
 	// given
-	h, _, ur := newAdminHarness(t)
+	h, _, us := newAdminHarness(t)
 	userID := uuid.New()
 	targetID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
 	h.ExpectHasPermission(userID, authz.PermEditMysteryScore, true)
-	ur.EXPECT().GetDetectiveRawScore(mock.Anything, targetID).Return(30, nil)
-	ur.EXPECT().UpdateMysteryScoreAdjustment(mock.Anything, targetID, 70).Return(nil)
+	us.EXPECT().GetDetectiveRawScore(mock.Anything, targetID).Return(30, nil)
+	us.EXPECT().UpdateMysteryScoreAdjustment(mock.Anything, targetID, 70).Return(nil)
 
 	// when
 	status, _ := h.NewRequest("PUT", "/admin/users/"+targetID.String()+"/mystery-score").
@@ -927,13 +927,13 @@ func TestAdminUpdateMysteryScore_OK(t *testing.T) {
 
 func TestAdminUpdateMysteryScore_UpdateFails(t *testing.T) {
 	// given
-	h, _, ur := newAdminHarness(t)
+	h, _, us := newAdminHarness(t)
 	userID := uuid.New()
 	targetID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
 	h.ExpectHasPermission(userID, authz.PermEditMysteryScore, true)
-	ur.EXPECT().GetDetectiveRawScore(mock.Anything, targetID).Return(0, nil)
-	ur.EXPECT().UpdateMysteryScoreAdjustment(mock.Anything, targetID, 100).Return(errors.New("boom"))
+	us.EXPECT().GetDetectiveRawScore(mock.Anything, targetID).Return(0, nil)
+	us.EXPECT().UpdateMysteryScoreAdjustment(mock.Anything, targetID, 100).Return(errors.New("boom"))
 
 	// when
 	status, body := h.NewRequest("PUT", "/admin/users/"+targetID.String()+"/mystery-score").
@@ -988,13 +988,13 @@ func TestAdminUpdateGMScore_BadJSON(t *testing.T) {
 
 func TestAdminUpdateGMScore_OK(t *testing.T) {
 	// given
-	h, _, ur := newAdminHarness(t)
+	h, _, us := newAdminHarness(t)
 	userID := uuid.New()
 	targetID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
 	h.ExpectHasPermission(userID, authz.PermEditMysteryScore, true)
-	ur.EXPECT().GetGMRawScore(mock.Anything, targetID).Return(10, nil)
-	ur.EXPECT().UpdateGMScoreAdjustment(mock.Anything, targetID, 40).Return(nil)
+	us.EXPECT().GetGMRawScore(mock.Anything, targetID).Return(10, nil)
+	us.EXPECT().UpdateGMScoreAdjustment(mock.Anything, targetID, 40).Return(nil)
 
 	// when
 	status, _ := h.NewRequest("PUT", "/admin/users/"+targetID.String()+"/gm-score").
@@ -1008,13 +1008,13 @@ func TestAdminUpdateGMScore_OK(t *testing.T) {
 
 func TestAdminUpdateGMScore_UpdateFails(t *testing.T) {
 	// given
-	h, _, ur := newAdminHarness(t)
+	h, _, us := newAdminHarness(t)
 	userID := uuid.New()
 	targetID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
 	h.ExpectHasPermission(userID, authz.PermEditMysteryScore, true)
-	ur.EXPECT().GetGMRawScore(mock.Anything, targetID).Return(0, nil)
-	ur.EXPECT().UpdateGMScoreAdjustment(mock.Anything, targetID, 50).Return(errors.New("boom"))
+	us.EXPECT().GetGMRawScore(mock.Anything, targetID).Return(0, nil)
+	us.EXPECT().UpdateGMScoreAdjustment(mock.Anything, targetID, 50).Return(errors.New("boom"))
 
 	// when
 	status, body := h.NewRequest("PUT", "/admin/users/"+targetID.String()+"/gm-score").

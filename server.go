@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/admin"
+	announcementsvc "umineko_city_of_books/internal/announcement"
 	artsvc "umineko_city_of_books/internal/art"
 	"umineko_city_of_books/internal/auth"
 	"umineko_city_of_books/internal/authz"
@@ -35,6 +36,7 @@ import (
 	"umineko_city_of_books/internal/giphy"
 	"umineko_city_of_books/internal/giphy/banlist"
 	giphyfavourite "umineko_city_of_books/internal/giphy/favourite"
+	"umineko_city_of_books/internal/homefeed"
 	"umineko_city_of_books/internal/journal"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
@@ -48,14 +50,18 @@ import (
 	"umineko_city_of_books/internal/report"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/routes"
+	searchsvc "umineko_city_of_books/internal/search"
 	secretsvc "umineko_city_of_books/internal/secret"
 	"umineko_city_of_books/internal/session"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/ship"
+	"umineko_city_of_books/internal/sidebar"
 	"umineko_city_of_books/internal/telemetry"
 	"umineko_city_of_books/internal/theory"
 	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/user"
+	"umineko_city_of_books/internal/usersecret"
+	"umineko_city_of_books/internal/vanityrole"
 	"umineko_city_of_books/internal/ws"
 
 	"github.com/gofiber/fiber/v3"
@@ -97,6 +103,13 @@ type services struct {
 	giphyBanlist    banlist.Service
 	contentFilter   *contentfilter.Manager
 	gameRoom        gameroom.Service
+	announcement    announcementsvc.Service
+	homeFeed        homefeed.Service
+	sidebar         sidebar.Service
+	vanityRole      vanityrole.Service
+	userSecret      usersecret.Service
+	search          searchsvc.Service
+	user            user.Service
 }
 
 func initServer() *fiber.App {
@@ -206,6 +219,13 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 	journalSvc := journal.NewService(repos.Journal, repos.User, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, contentFilter)
 	secretSvc := secretsvc.NewService(repos.Secret, repos.UserSecret, repos.User, authzSvc, blockSvc, notifSvc, settingsSvc, uploadSvc, mediaProc, hub, contentFilter)
 	gameRoomSvc := gameroom.NewService(repos.GameRoom, repos.User, repos.Block, notifSvc, hub, contentFilter, []gameroom.GameHandler{chess.NewHandler(), checkers.NewHandler()})
+	announcementUploader := media.NewUploader(uploadSvc, settingsSvc, mediaProc)
+	announcementSvc := announcementsvc.NewService(repos.Announcement, repos.User, blockSvc, notifSvc, settingsSvc, authzSvc, hub, announcementUploader)
+	homeFeedSvc := homefeed.NewService(repos.HomeFeed, hub)
+	sidebarSvc := sidebar.NewService(repos.SidebarVisited)
+	vanityRoleSvc := vanityrole.NewService(repos.VanityRole)
+	userSecretSvc := usersecret.NewService(repos.UserSecret)
+	searchSvc := searchsvc.NewService(repos.Search)
 
 	return &services{
 		settings:        settingsSvc,
@@ -236,6 +256,13 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 		giphyBanlist:    giphyBanlist,
 		contentFilter:   contentFilter,
 		gameRoom:        gameRoomSvc,
+		announcement:    announcementSvc,
+		homeFeed:        homeFeedSvc,
+		sidebar:         sidebarSvc,
+		vanityRole:      vanityRoleSvc,
+		userSecret:      userSecretSvc,
+		search:          searchSvc,
+		user:            userSvc,
 	}
 }
 
@@ -370,7 +397,7 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 	ctrlService := controllers.NewService(
 		svc.auth, svc.profile, svc.theory, svc.notification, svc.admin,
 		svc.authz, settingsSvc, svc.chat, svc.report, svc.post, svc.follow,
-		svc.art, svc.block, repos.Announcement, svc.mystery, repos.User, svc.ship, svc.fanfic, svc.journal, svc.secret, svc.upload, svc.mediaProc, repos.VanityRole, repos.UserSecret, svc.session, svc.hub, svc.giphy, svc.giphyFavourites, svc.gameRoom, repos.HomeFeed, repos.SidebarVisited, string(htmlBytes),
+		svc.art, svc.block, svc.announcement, svc.mystery, repos.User, svc.user, svc.ship, svc.fanfic, svc.journal, svc.secret, svc.upload, svc.mediaProc, svc.vanityRole, svc.userSecret, svc.session, svc.hub, svc.giphy, svc.giphyFavourites, svc.gameRoom, svc.homeFeed, svc.sidebar, svc.search, string(htmlBytes),
 	)
 	routes.PublicRoutes(ctrlService, app)
 

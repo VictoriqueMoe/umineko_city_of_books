@@ -177,6 +177,8 @@ type (
 		MaxVideoSize          int                  `json:"max_video_size"`
 		TopDetectiveIDs       []string             `json:"top_detective_ids"`
 		TopGMIDs              []string             `json:"top_gm_ids"`
+		TopChessIDs           []string             `json:"top_chess_ids"`
+		TopCheckersIDs        []string             `json:"top_checkers_ids"`
 		VanityRoles           []SiteInfoVanityRole `json:"vanity_roles"`
 		VanityRoleAssignments map[string][]string  `json:"vanity_role_assignments"`
 		ListedSecrets         []SiteInfoSecret     `json:"listed_secrets"`

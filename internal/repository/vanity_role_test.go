@@ -20,14 +20,18 @@ func TestVanityRoleRepository_List_SeedsSystemRoles(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	require.Len(t, roles, 3)
+	require.Len(t, roles, 5)
 	assert.Equal(t, "system_top_detective", roles[0].ID)
 	assert.True(t, roles[0].IsSystem)
 	assert.Equal(t, 0, roles[0].SortOrder)
 	assert.Equal(t, "system_top_gm", roles[1].ID)
 	assert.True(t, roles[1].IsSystem)
-	assert.Equal(t, "system_witch_hunter", roles[2].ID)
+	assert.Equal(t, "system_top_chess", roles[2].ID)
 	assert.True(t, roles[2].IsSystem)
+	assert.Equal(t, "system_top_checkers", roles[3].ID)
+	assert.True(t, roles[3].IsSystem)
+	assert.Equal(t, "system_witch_hunter", roles[4].ID)
+	assert.True(t, roles[4].IsSystem)
 }
 
 func TestVanityRoleRepository_Create_AndGetByID(t *testing.T) {
@@ -126,13 +130,15 @@ func TestVanityRoleRepository_List_OrdersBySortOrderThenLabel(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	require.Len(t, roles, 6)
+	require.Len(t, roles, 8)
 	assert.Equal(t, "system_top_detective", roles[0].ID)
 	assert.Equal(t, "system_top_gm", roles[1].ID)
-	assert.Equal(t, "c", roles[2].ID)
-	assert.Equal(t, "a", roles[3].ID)
-	assert.Equal(t, "b", roles[4].ID)
-	assert.Equal(t, "system_witch_hunter", roles[5].ID)
+	assert.Equal(t, "system_top_chess", roles[2].ID)
+	assert.Equal(t, "system_top_checkers", roles[3].ID)
+	assert.Equal(t, "c", roles[4].ID)
+	assert.Equal(t, "a", roles[5].ID)
+	assert.Equal(t, "b", roles[6].ID)
+	assert.Equal(t, "system_witch_hunter", roles[7].ID)
 }
 
 func TestVanityRoleRepository_AssignToUser_AndGetRolesForUser(t *testing.T) {

@@ -54,6 +54,7 @@ type (
 		AcceptDraw(ctx context.Context, roomID, userID uuid.UUID) (*dto.GameRoom, error)
 		DeclineDraw(ctx context.Context, roomID, userID uuid.UUID) (*dto.GameRoom, error)
 		Scoreboard(ctx context.Context, gameType dto.GameType) (*dto.GameScoreboardResponse, error)
+		GetTopWinnerIDs(ctx context.Context, gameType dto.GameType) ([]string, error)
 		PostSpectatorChat(ctx context.Context, roomID, userID uuid.UUID, body string) (*dto.SpectatorMessage, error)
 		GetSpectatorChat(ctx context.Context, roomID, viewerID uuid.UUID) (*dto.SpectatorChatResponse, error)
 		PostPlayerChat(ctx context.Context, roomID, userID uuid.UUID, body string) (*dto.SpectatorMessage, error)
@@ -187,7 +188,31 @@ func (s *service) finishAndBroadcast(ctx context.Context, roomID uuid.UUID, winn
 	s.broadcast(room, "game_room_finished", extras)
 	s.notifyFinished(ctx, room, actorID)
 	s.broadcastLiveGamesCount(ctx)
+	go s.broadcastTopWinner(room.GameType)
 	return room, nil
+}
+
+func (s *service) broadcastTopWinner(gameType dto.GameType) {
+	bgCtx := context.Background()
+	ids, err := s.repo.GetTopWinnerIDs(bgCtx, string(gameType))
+	if err != nil {
+		return
+	}
+	var msgType string
+	switch gameType {
+	case dto.GameTypeChess:
+		msgType = "top_chess_changed"
+	case dto.GameTypeCheckers:
+		msgType = "top_checkers_changed"
+	default:
+		return
+	}
+	s.hub.Broadcast(ws.Message{
+		Type: msgType,
+		Data: map[string]interface{}{
+			"user_ids": ids,
+		},
+	})
 }
 
 func (s *service) Invite(ctx context.Context, inviterID, opponentID uuid.UUID, gameType dto.GameType) (*dto.GameRoom, error) {
@@ -610,6 +635,10 @@ func (s *service) Scoreboard(ctx context.Context, gameType dto.GameType) (*dto.G
 		})
 	}
 	return &dto.GameScoreboardResponse{GameType: gameType, Rows: out}, nil
+}
+
+func (s *service) GetTopWinnerIDs(ctx context.Context, gameType dto.GameType) ([]string, error) {
+	return s.repo.GetTopWinnerIDs(ctx, string(gameType))
 }
 
 func (s *service) PostSpectatorChat(ctx context.Context, roomID, userID uuid.UUID, body string) (*dto.SpectatorMessage, error) {
