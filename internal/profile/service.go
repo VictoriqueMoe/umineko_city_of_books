@@ -93,9 +93,32 @@ func (s *service) UpdateProfile(ctx context.Context, userID uuid.UUID, req dto.U
 	if err := s.filterTexts(ctx, req.DisplayName, req.Bio, req.Website, req.FavouriteCharacter); err != nil {
 		return err
 	}
+	if req.DefaultProfileTab == "" {
+		req.DefaultProfileTab = "posts"
+	}
+	if !validProfileTabs[req.DefaultProfileTab] {
+		return ErrInvalidDefaultProfileTab
+	}
 	req.PronounSubject = capLen(req.PronounSubject, maxPronounLength)
 	req.PronounPossessive = capLen(req.PronounPossessive, maxPronounLength)
 	return s.userRepo.UpdateProfile(ctx, userID, req)
+}
+
+var validProfileTabs = map[string]bool{
+	"posts":             true,
+	"theories":          true,
+	"art":               true,
+	"galleries":         true,
+	"ships":             true,
+	"mysteries":         true,
+	"fanfics":           true,
+	"fanfic-favourites": true,
+	"journals":          true,
+	"journal-follows":   true,
+	"activity":          true,
+	"followers":         true,
+	"following":         true,
+	"ocs":               true,
 }
 
 func capLen(s string, max int) string {

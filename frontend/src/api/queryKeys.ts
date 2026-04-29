@@ -19,6 +19,13 @@ export const queryKeys = {
         detail: (id: string) => ["ship", "detail", id] as const,
         feed: (params: Record<string, unknown> = {}) => ["ship", "feed", params] as const,
     },
+    oc: {
+        all: ["oc"] as const,
+        detail: (id: string) => ["oc", "detail", id] as const,
+        feed: (params: Record<string, unknown> = {}) => ["oc", "feed", params] as const,
+        userList: (userId: string) => ["oc", "userList", userId] as const,
+        userSummaries: (userId: string) => ["oc", "userSummaries", userId] as const,
+    },
     journal: {
         all: ["journal"] as const,
         detail: (id: string) => ["journal", "detail", id] as const,

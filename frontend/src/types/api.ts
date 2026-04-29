@@ -162,6 +162,7 @@ export interface UserProfile {
     play_notification_sound?: boolean;
     home_page?: string;
     game_board_sort?: string;
+    default_profile_tab?: string;
     theme?: string;
     font?: string;
     wide_layout?: boolean;
@@ -211,6 +212,7 @@ export interface UpdateProfilePayload {
     play_notification_sound: boolean;
     home_page: string;
     game_board_sort: string;
+    default_profile_tab: string;
 }
 
 export interface ChangePasswordPayload {
@@ -442,6 +444,10 @@ export type NotificationType =
     | "ship_commented"
     | "ship_comment_reply"
     | "ship_comment_liked"
+    | "oc_commented"
+    | "oc_comment_reply"
+    | "oc_comment_liked"
+    | "oc_favourited"
     | "announcement_commented"
     | "announcement_comment_reply"
     | "announcement_comment_liked"
@@ -1051,6 +1057,67 @@ export interface ShipListResponse {
     offset: number;
 }
 
+export interface OCImage {
+    id: number;
+    image_url: string;
+    thumbnail_url?: string;
+    caption?: string;
+    sort_order: number;
+}
+
+export interface OC {
+    id: string;
+    author: User;
+    name: string;
+    description: string;
+    series: string;
+    custom_series_name?: string;
+    image_url?: string;
+    thumbnail_url?: string;
+    gallery: OCImage[];
+    vote_score: number;
+    user_vote?: number;
+    favourite_count: number;
+    user_favourited: boolean;
+    comment_count: number;
+    is_crack_oc: boolean;
+    created_at: string;
+    updated_at?: string;
+}
+
+export interface OCComment {
+    id: string;
+    parent_id?: string;
+    author: User;
+    body: string;
+    media: PostMedia[];
+    like_count: number;
+    user_liked: boolean;
+    replies?: OCComment[];
+    created_at: string;
+    updated_at?: string;
+}
+
+export interface OCDetail extends OC {
+    comments: OCComment[];
+    viewer_blocked: boolean;
+}
+
+export interface OCListResponse {
+    ocs: OC[];
+    total: number;
+    limit: number;
+    offset: number;
+}
+
+export interface OCSummary {
+    id: string;
+    name: string;
+    series: string;
+    custom_series_name?: string;
+    thumbnail_url?: string;
+}
+
 export interface CharacterListEntry {
     id: string;
     name: string;
@@ -1258,6 +1325,8 @@ export type SearchEntityType =
     | "mystery_comment"
     | "ship"
     | "ship_comment"
+    | "oc"
+    | "oc_comment"
     | "announcement"
     | "announcement_comment"
     | "fanfic"

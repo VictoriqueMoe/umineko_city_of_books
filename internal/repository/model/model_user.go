@@ -47,6 +47,7 @@ type (
 		PlayNotificationSound  bool
 		HomePage               string
 		GameBoardSort          string
+		DefaultProfileTab      string
 		Theme                  string
 		Font                   string
 		WideLayout             bool
@@ -88,6 +89,7 @@ func (u *User) ToProfileResponse(stats *UserStats, isSelf bool) *dto.UserProfile
 	playNotificationSound := false
 	homePage := ""
 	gameBoardSort := ""
+	defaultProfileTab := u.DefaultProfileTab
 	theme := ""
 	font := ""
 	wideLayout := false
@@ -137,6 +139,7 @@ func (u *User) ToProfileResponse(stats *UserStats, isSelf bool) *dto.UserProfile
 		PlayNotificationSound:  playNotificationSound,
 		HomePage:               homePage,
 		GameBoardSort:          gameBoardSort,
+		DefaultProfileTab:      defaultProfileTab,
 		Theme:                  theme,
 		Font:                   font,
 		WideLayout:             wideLayout,

@@ -130,14 +130,17 @@ func TestSaveFile_WriteError(t *testing.T) {
 }
 
 var (
-	pngMagic  = mustPNGBytes()
-	jpegMagic = mustJPEGBytes()
-	gifMagic  = mustGIFBytes()
-	webpMagic = append(append([]byte("RIFF"), 0, 0, 0, 0), []byte("WEBPVP8 ")...)
-	mp4Magic  = append([]byte{0, 0, 0, 0x20}, []byte("ftypisom\x00\x00\x00\x00isomiso2avc1mp41")...)
-	webmMagic = []byte{0x1A, 0x45, 0xDF, 0xA3, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1F}
-	aviMagic  = append(append([]byte("RIFF"), 0, 0, 0, 0), []byte("AVI LIST")...)
-	pdfMagic  = []byte("%PDF-1.4\n")
+	pngMagic      = mustPNGBytes()
+	jpegMagic     = mustJPEGBytes()
+	gifMagic      = mustGIFBytes()
+	webpMagic     = append(append([]byte("RIFF"), 0, 0, 0, 0), []byte("WEBPVP8 ")...)
+	mp4Magic      = append([]byte{0, 0, 0, 0x20}, []byte("ftypisom\x00\x00\x00\x00isomiso2avc1mp41")...)
+	mp4IsomOnly   = append([]byte{0, 0, 0, 0x18}, []byte("ftypisom\x00\x00\x00\x01isomiso4")...)
+	webmMagic     = []byte{0x1A, 0x45, 0xDF, 0xA3, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1F}
+	webmFullMagic = append([]byte{0x1A, 0x45, 0xDF, 0xA3, 0x9F, 0x42, 0x82, 0x84}, []byte("webm")...)
+	mkvMagic      = append([]byte{0x1A, 0x45, 0xDF, 0xA3, 0x9F, 0x42, 0x82, 0x88}, []byte("matroska")...)
+	aviMagic      = append(append([]byte("RIFF"), 0, 0, 0, 0), []byte("AVI LIST")...)
+	pdfMagic      = []byte("%PDF-1.4\n")
 )
 
 func tinyImage() image.Image {
@@ -306,7 +309,9 @@ func TestSaveVideo_AllAllowedTypes(t *testing.T) {
 		wantExt string
 	}{
 		{"video/mp4", mp4Magic, ".mp4"},
+		{"video/mp4 isom-only fallback", mp4IsomOnly, ".mp4"},
 		{"video/webm", webmMagic, ".webm"},
+		{"video/x-matroska", mkvMagic, ".mkv"},
 		{"video/x-msvideo", aviMagic, ".avi"},
 	}
 
@@ -337,7 +342,10 @@ func TestDetectContentType_SniffsKnownFormats(t *testing.T) {
 		{"gif", gifMagic, "image/gif"},
 		{"webp", webpMagic, "image/webp"},
 		{"mp4", mp4Magic, "video/mp4"},
+		{"mp4 isom-only fallback", mp4IsomOnly, "video/mp4"},
 		{"webm", webmMagic, "video/webm"},
+		{"webm via fallback doctype", webmFullMagic, "video/webm"},
+		{"matroska", mkvMagic, "video/x-matroska"},
 		{"pdf", pdfMagic, "application/pdf"},
 	}
 	for _, tc := range cases {

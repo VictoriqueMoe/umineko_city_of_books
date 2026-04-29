@@ -3,6 +3,7 @@ package upload
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -28,13 +29,21 @@ var (
 	}
 
 	AllowedVideoTypes = map[string]string{
-		"video/mp4":       ".mp4",
-		"video/webm":      ".webm",
-		"video/x-msvideo": ".avi",
+		"video/mp4":        ".mp4",
+		"video/webm":       ".webm",
+		"video/x-msvideo":  ".avi",
+		"video/x-matroska": ".mkv",
 	}
 
 	sniffAliases = map[string]string{
-		"video/avi": "video/x-msvideo",
+		"video/avi":      "video/x-msvideo",
+		"video/matroska": "video/x-matroska",
+	}
+
+	mp4FallbackBrands = map[string]bool{
+		"isom": true, "iso2": true, "iso4": true, "iso5": true, "iso6": true,
+		"mp41": true, "mp42": true, "mp71": true, "avc1": true, "dash": true,
+		"msdh": true, "msix": true, "M4V ": true, "M4A ": true, "qt  ": true,
 	}
 )
 
@@ -228,5 +237,58 @@ func DetectContentType(reader io.Reader) (string, io.Reader, error) {
 	if i := strings.Index(mt, ";"); i >= 0 {
 		mt = strings.TrimSpace(mt[:i])
 	}
+	if mt == "application/octet-stream" {
+		if alt := sniffVideoFallback(peek); alt != "" {
+			mt = alt
+		}
+	}
+	if mt == "video/webm" && bytes.Contains(peek, []byte("matroska")) {
+		mt = "video/x-matroska"
+	}
 	return mt, io.MultiReader(bytes.NewReader(peek), reader), nil
+}
+
+func sniffVideoFallback(b []byte) string {
+	if alt := sniffMP4(b); alt != "" {
+		return alt
+	}
+	if alt := sniffMatroska(b); alt != "" {
+		return alt
+	}
+	return ""
+}
+
+func sniffMP4(b []byte) string {
+	if len(b) < 12 {
+		return ""
+	}
+	boxSize := int(binary.BigEndian.Uint32(b[:4]))
+	if boxSize < 8 || boxSize%4 != 0 || boxSize > len(b) {
+		return ""
+	}
+	if !bytes.Equal(b[4:8], []byte("ftyp")) {
+		return ""
+	}
+	for st := 8; st+4 <= boxSize; st += 4 {
+		if st == 12 {
+			continue
+		}
+		if mp4FallbackBrands[string(b[st:st+4])] {
+			return "video/mp4"
+		}
+	}
+	return ""
+}
+
+func sniffMatroska(b []byte) string {
+	if len(b) < 4 || !bytes.Equal(b[:4], []byte{0x1a, 0x45, 0xdf, 0xa3}) {
+		return ""
+	}
+	if bytes.Contains(b, []byte("matroska")) {
+		return "video/x-matroska"
+	}
+	if bytes.Contains(b, []byte("webm")) {
+		return "video/webm"
+	}
+	return ""
 }

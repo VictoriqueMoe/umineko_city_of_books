@@ -88,6 +88,13 @@ function routeByReferenceType(notif: Notification): string {
         }
         return `/ships/${notif.reference_id}`;
     }
+    if (refType === "oc" || refType.startsWith("oc_comment:")) {
+        const parts = refType.split(":");
+        if (parts.length === 2) {
+            return `/oc/${notif.reference_id}#comment-${parts[1]}`;
+        }
+        return `/oc/${notif.reference_id}`;
+    }
     if (refType === "announcement" || refType.startsWith("announcement_comment:")) {
         const parts = refType.split(":");
         if (parts.length === 2) {
@@ -134,6 +141,9 @@ function categoryFromReferenceType(notif: Notification): NotificationCategory {
         return "game_board";
     }
     if (refType === "ship" || refType.startsWith("ship_comment:")) {
+        return "social";
+    }
+    if (refType === "oc" || refType.startsWith("oc_comment:")) {
         return "social";
     }
     return "social";
@@ -317,6 +327,26 @@ const notificationConfigs: Record<NotificationType, NotificationConfig> = {
     },
     ship_comment_liked: {
         text: "liked your comment",
+        category: "social",
+        route: routeByReferenceType,
+    },
+    oc_commented: {
+        text: "commented on your OC",
+        category: "social",
+        route: routeByReferenceType,
+    },
+    oc_comment_reply: {
+        text: "replied to your comment",
+        category: "social",
+        route: routeByReferenceType,
+    },
+    oc_comment_liked: {
+        text: "liked your comment",
+        category: "social",
+        route: routeByReferenceType,
+    },
+    oc_favourited: {
+        text: "favourited your OC",
         category: "social",
         route: routeByReferenceType,
     },

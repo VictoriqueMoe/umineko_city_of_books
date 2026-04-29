@@ -56,6 +56,11 @@ export const ShipsListPage = named(() => import("./ships/ShipsListPage"), "Ships
 export const ShipDetailPage = named(() => import("./ships/ShipDetailPage"), "ShipDetailPage");
 export const CreateShipPage = named(() => import("./ships/CreateShipPage"), "CreateShipPage");
 
+//  Original Characters
+export const OCListPage = named(() => import("./oc/OCListPage"), "OCListPage");
+export const OCDetailPage = named(() => import("./oc/OCDetailPage"), "OCDetailPage");
+export const CreateOCPage = named(() => import("./oc/CreateOCPage"), "CreateOCPage");
+
 //  Fanfiction
 export const FanfictionListPage = named(() => import("./fanfiction/FanfictionListPage"), "FanfictionListPage");
 export const FanficDetailPage = named(() => import("./fanfiction/FanficDetailPage"), "FanficDetailPage");

@@ -12,6 +12,7 @@ import { BlockedUsersSection } from "./BlockedUsersSection";
 import { ChangePasswordSection } from "./ChangePasswordSection";
 import { DangerZoneSection } from "./DangerZoneSection";
 import { getSeriesConfig } from "../../utils/seriesConfig";
+import { useUserOCSummaries } from "../../api/queries/oc";
 import styles from "./SettingsPage.module.css";
 
 const SPECIAL_CHARACTERS: string[] = ["Goldsmith"];
@@ -112,6 +113,7 @@ export function SettingsPage() {
     const navigate = useNavigate();
     const { user, loading: authLoading } = useAuth();
     const form = useSettingsForm();
+    const ocSummaries = useUserOCSummaries(user?.id ?? "", user?.id);
 
     useEffect(() => {
         if (!authLoading && !user) {
@@ -134,6 +136,17 @@ export function SettingsPage() {
         a[1].localeCompare(b[1]),
     );
     const ciconiaArcs = getSeriesConfig("ciconia").chapters ?? [];
+    const favouriteCharacterValue = form.favouriteCharacter;
+    const knownNames = new Set<string>([
+        ...uminekoEntries.map(([, name]) => name),
+        ...higurashiEntries.map(([, name]) => name),
+        ...ciconiaMainEntries.map(([, name]) => name),
+        ...ciconiaAdditionalEntries.map(([, name]) => name),
+        ...SPECIAL_CHARACTERS,
+        ...ocSummaries.summaries.map(o => o.name),
+    ]);
+    const isCustomFavourite = favouriteCharacterValue !== "" && !knownNames.has(favouriteCharacterValue);
+    const favouriteSelectValue = isCustomFavourite ? "__custom__" : favouriteCharacterValue;
 
     return (
         <div className={styles.page}>
@@ -182,32 +195,76 @@ export function SettingsPage() {
                             </label>
                             <label className={styles.label}>
                                 Favourite Character
-                                <Input
-                                    type="text"
-                                    fullWidth
-                                    list="favourite-character-suggestions"
-                                    maxLength={100}
-                                    placeholder="Pick a suggestion or type your own"
-                                    value={form.favouriteCharacter}
-                                    onChange={e => form.setFavouriteCharacter(e.target.value)}
-                                />
-                                <datalist id="favourite-character-suggestions">
-                                    {uminekoEntries.map(([id, name]) => (
-                                        <option key={`umineko-${id}`} value={name} />
-                                    ))}
-                                    {higurashiEntries.map(([id, name]) => (
-                                        <option key={`higurashi-${id}`} value={name} />
-                                    ))}
-                                    {ciconiaMainEntries.map(([id, name]) => (
-                                        <option key={`ciconia-main-${id}`} value={name} />
-                                    ))}
-                                    {ciconiaAdditionalEntries.map(([id, name]) => (
-                                        <option key={`ciconia-add-${id}`} value={name} />
-                                    ))}
-                                    {SPECIAL_CHARACTERS.map(name => (
-                                        <option key={`special-${name}`} value={name} />
-                                    ))}
-                                </datalist>
+                                <Select
+                                    value={favouriteSelectValue}
+                                    onChange={e => {
+                                        const value = (e.target as HTMLSelectElement).value;
+                                        if (value === "__custom__") {
+                                            form.setFavouriteCharacter(
+                                                isCustomFavourite ? favouriteCharacterValue : "",
+                                            );
+                                            return;
+                                        }
+                                        form.setFavouriteCharacter(value);
+                                    }}
+                                >
+                                    <option value="">(none)</option>
+                                    {ocSummaries.summaries.length > 0 && (
+                                        <optgroup label="Your OCs">
+                                            {ocSummaries.summaries.map(o => (
+                                                <option key={`oc-${o.id}`} value={o.name}>
+                                                    {o.name}
+                                                </option>
+                                            ))}
+                                        </optgroup>
+                                    )}
+                                    <optgroup label="Umineko">
+                                        {uminekoEntries.map(([id, name]) => (
+                                            <option key={`umineko-${id}`} value={name}>
+                                                {name}
+                                            </option>
+                                        ))}
+                                    </optgroup>
+                                    <optgroup label="Higurashi">
+                                        {higurashiEntries.map(([id, name]) => (
+                                            <option key={`higurashi-${id}`} value={name}>
+                                                {name}
+                                            </option>
+                                        ))}
+                                    </optgroup>
+                                    <optgroup label="Ciconia (main)">
+                                        {ciconiaMainEntries.map(([id, name]) => (
+                                            <option key={`ciconia-main-${id}`} value={name}>
+                                                {name}
+                                            </option>
+                                        ))}
+                                    </optgroup>
+                                    <optgroup label="Ciconia (additional)">
+                                        {ciconiaAdditionalEntries.map(([id, name]) => (
+                                            <option key={`ciconia-add-${id}`} value={name}>
+                                                {name}
+                                            </option>
+                                        ))}
+                                    </optgroup>
+                                    <optgroup label="Special">
+                                        {SPECIAL_CHARACTERS.map(name => (
+                                            <option key={`special-${name}`} value={name}>
+                                                {name}
+                                            </option>
+                                        ))}
+                                    </optgroup>
+                                    <option value="__custom__">Type your own...</option>
+                                </Select>
+                                {(isCustomFavourite || favouriteSelectValue === "__custom__") && (
+                                    <Input
+                                        type="text"
+                                        fullWidth
+                                        maxLength={100}
+                                        placeholder="Custom character name"
+                                        value={favouriteCharacterValue}
+                                        onChange={e => form.setFavouriteCharacter(e.target.value)}
+                                    />
+                                )}
                             </label>
                             <label className={styles.label}>
                                 Umineko VN Progress
@@ -420,6 +477,28 @@ export function SettingsPage() {
                                 <option value="fanfiction">Fanfiction</option>
                                 <option value="journals">Reading Journals</option>
                                 <option value="games">Games</option>
+                            </Select>
+                        </label>
+                        <label className={styles.label}>
+                            Default profile tab
+                            <Select
+                                value={form.defaultProfileTab}
+                                onChange={e => form.setDefaultProfileTab(e.target.value)}
+                            >
+                                <option value="posts">Posts</option>
+                                <option value="theories">Theories</option>
+                                <option value="art">Art</option>
+                                <option value="galleries">Galleries</option>
+                                <option value="ships">Ships</option>
+                                <option value="ocs">OCs</option>
+                                <option value="mysteries">Mysteries</option>
+                                <option value="fanfics">Fanfics</option>
+                                <option value="fanfic-favourites">Favourited Fanfics</option>
+                                <option value="journals">Journals</option>
+                                <option value="journal-follows">Followed Journals</option>
+                                <option value="activity">Activity</option>
+                                <option value="followers">Followers</option>
+                                <option value="following">Following</option>
                             </Select>
                         </label>
                     </div>

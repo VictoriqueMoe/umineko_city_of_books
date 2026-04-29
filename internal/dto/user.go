@@ -50,6 +50,7 @@ type (
 		PlayNotificationSound  bool         `json:"play_notification_sound"`
 		HomePage               string       `json:"home_page"`
 		GameBoardSort          string       `json:"game_board_sort"`
+		DefaultProfileTab      string       `json:"default_profile_tab"`
 		Theme                  string       `json:"theme"`
 		Font                   string       `json:"font"`
 		WideLayout             bool         `json:"wide_layout"`
@@ -95,6 +96,7 @@ type (
 		PlayNotificationSound  bool    `json:"play_notification_sound"`
 		HomePage               string  `json:"home_page"`
 		GameBoardSort          string  `json:"game_board_sort"`
+		DefaultProfileTab      string  `json:"default_profile_tab"`
 	}
 
 	ChangePasswordRequest struct {

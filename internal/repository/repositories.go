@@ -24,6 +24,7 @@ type (
 		Announcement   AnnouncementRepository
 		Mystery        MysteryRepository
 		Ship           ShipRepository
+		OC             OCRepository
 		Fanfic         FanficRepository
 		Journal        JournalRepository
 		VanityRole     VanityRoleRepository
@@ -66,6 +67,7 @@ func New(db *sql.DB) *Repositories {
 		Announcement:   &announcementRepository{db: db},
 		Mystery:        &mysteryRepository{db: db},
 		Ship:           &shipRepository{db: db},
+		OC:             &ocRepository{db: db},
 		Fanfic:         &fanficRepository{db: db},
 		Journal:        &journalRepository{db: db},
 		VanityRole:     &vanityRoleRepository{db: db},

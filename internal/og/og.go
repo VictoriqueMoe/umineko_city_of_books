@@ -19,6 +19,7 @@ type (
 		artRepo          repository.ArtRepository
 		mysteryRepo      repository.MysteryRepository
 		shipRepo         repository.ShipRepository
+		ocRepo           repository.OCRepository
 		fanficRepo       repository.FanficRepository
 		announcementRepo repository.AnnouncementRepository
 		journalRepo      repository.JournalRepository
@@ -49,6 +50,7 @@ func NewResolver(
 	artRepo repository.ArtRepository,
 	mysteryRepo repository.MysteryRepository,
 	shipRepo repository.ShipRepository,
+	ocRepo repository.OCRepository,
 	fanficRepo repository.FanficRepository,
 	announcementRepo repository.AnnouncementRepository,
 	journalRepo repository.JournalRepository,
@@ -62,6 +64,7 @@ func NewResolver(
 		artRepo:          artRepo,
 		mysteryRepo:      mysteryRepo,
 		shipRepo:         shipRepo,
+		ocRepo:           ocRepo,
 		fanficRepo:       fanficRepo,
 		announcementRepo: announcementRepo,
 		journalRepo:      journalRepo,
@@ -146,6 +149,20 @@ func (r *Resolver) metaForPath(ctx context.Context, path string) *Meta {
 	if len(parts) == 2 && parts[0] == "ships" {
 		if _, err := uuid.Parse(parts[1]); err == nil {
 			return r.shipMeta(ctx, parts[1])
+		}
+	}
+
+	if len(parts) == 1 && parts[0] == "oc" {
+		return &Meta{
+			Title:       "Original Characters - Umineko City of Books",
+			Description: "Browse Original Characters created by the community. Tag them as Umineko, Higurashi, Ciconia, or a custom series.",
+			URL:         r.baseURL + "/oc",
+		}
+	}
+
+	if len(parts) == 2 && parts[0] == "oc" {
+		if _, err := uuid.Parse(parts[1]); err == nil {
+			return r.ocMeta(ctx, parts[1])
 		}
 	}
 
@@ -574,6 +591,42 @@ func (r *Resolver) shipMeta(ctx context.Context, idStr string) *Meta {
 		meta.Image = ship.ImageURL
 	} else {
 		meta.Image = ship.AuthorAvatarURL
+	}
+	return meta
+}
+
+func (r *Resolver) ocMeta(ctx context.Context, idStr string) *Meta {
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		return nil
+	}
+
+	row, err := r.ocRepo.GetByID(ctx, id, uuid.Nil)
+	if err != nil || row == nil {
+		return nil
+	}
+
+	desc := row.Description
+	if desc == "" {
+		seriesLabel := row.Series
+		if row.Series == "custom" && row.CustomSeriesName != "" {
+			seriesLabel = row.CustomSeriesName
+		}
+		desc = fmt.Sprintf("%s, an OC by %s (%s)", row.Name, row.AuthorDisplayName, seriesLabel)
+	}
+	if len(desc) > 200 {
+		desc = desc[:197] + "..."
+	}
+
+	meta := &Meta{
+		Title:       fmt.Sprintf("%s - OC by %s", row.Name, row.AuthorDisplayName),
+		Description: desc,
+		URL:         fmt.Sprintf("%s/oc/%s", r.baseURL, idStr),
+	}
+	if row.ImageURL != "" {
+		meta.Image = row.ImageURL
+	} else {
+		meta.Image = row.AuthorAvatarURL
 	}
 	return meta
 }

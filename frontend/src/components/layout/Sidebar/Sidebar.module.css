@@ -119,6 +119,27 @@
     justify-content: space-between;
 }
 
+.markAllReadBtn {
+    cursor: pointer;
+    background: none;
+    border: none;
+    width: 100%;
+    text-align: left;
+    font-family: var(--font-body);
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    font-weight: normal;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding-top: 0.25rem;
+    padding-bottom: 0.4rem;
+}
+
+.markAllReadBtn:hover {
+    color: var(--gold);
+    background: rgba(var(--gold-rgb), 0.06);
+}
+
 .expandIcon {
     font-size: 0.7rem;
     color: var(--text-muted);
