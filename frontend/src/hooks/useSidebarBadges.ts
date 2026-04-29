@@ -164,5 +164,23 @@ export function useSidebarBadges() {
         [userId, hasUnread, markVisitedMutate],
     );
 
-    return { hasUnread, hasAnyUnread, markVisited };
+    const markAllVisited = useCallback(() => {
+        if (!userId) {
+            return;
+        }
+        const unreadKeys = Object.keys(latestActivity).filter(key => hasUnread(key));
+        if (unreadKeys.length === 0) {
+            return;
+        }
+        for (const key of unreadKeys) {
+            markVisitedMutate(key);
+        }
+    }, [userId, latestActivity, hasUnread, markVisitedMutate]);
+
+    const anyUnread = useMemo(
+        () => Object.keys(latestActivity).some(key => hasUnread(key)),
+        [latestActivity, hasUnread],
+    );
+
+    return { hasUnread, hasAnyUnread, markVisited, markAllVisited, anyUnread };
 }

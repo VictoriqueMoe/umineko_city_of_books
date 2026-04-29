@@ -69,6 +69,8 @@ const (
 	SearchEntityMysteryComment      SearchEntityType = "mystery_comment"
 	SearchEntityShip                SearchEntityType = "ship"
 	SearchEntityShipComment         SearchEntityType = "ship_comment"
+	SearchEntityOC                  SearchEntityType = "oc"
+	SearchEntityOCComment           SearchEntityType = "oc_comment"
 	SearchEntityAnnouncement        SearchEntityType = "announcement"
 	SearchEntityAnnouncementComment SearchEntityType = "announcement_comment"
 	SearchEntityFanfic              SearchEntityType = "fanfic"
@@ -212,6 +214,30 @@ var searchSources = []SearchSource{
 		CreatedAt:       "c.created_at",
 		ParentIDExpr:    "c.ship_id::text",
 		ParentTitleExpr: "s.title",
+	},
+	{
+		Type:           SearchEntityOC,
+		From:           "ocs o",
+		AuthorJoin:     "JOIN users u ON o.user_id = u.id",
+		IDExpr:         "o.id::text",
+		TitleExpr:      "o.name",
+		BodyExpr:       "o.description",
+		SearchVector:   "o.search_vector",
+		CreatedAt:      "o.created_at",
+		TrigramOnTitle: true,
+	},
+	{
+		Type:            SearchEntityOCComment,
+		From:            "oc_comments c",
+		AuthorJoin:      "JOIN users u ON c.user_id = u.id",
+		ParentJoin:      "JOIN ocs o ON c.oc_id = o.id",
+		IDExpr:          "c.id::text",
+		TitleExpr:       "o.name",
+		BodyExpr:        "c.body",
+		SearchVector:    "c.search_vector",
+		CreatedAt:       "c.created_at",
+		ParentIDExpr:    "c.oc_id::text",
+		ParentTitleExpr: "o.name",
 	},
 	{
 		Type:           SearchEntityAnnouncement,

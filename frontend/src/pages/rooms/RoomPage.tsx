@@ -1232,6 +1232,7 @@ export function RoomPage() {
                 onJump={handleJumpToMessage}
                 canUnpin={canModerateRoom}
                 refreshKey={pinnedRefreshKey}
+                onLightbox={setLightboxSrc}
             />
 
             <EditRoomProfileDialog

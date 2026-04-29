@@ -81,6 +81,7 @@ interface FormDraft {
     play_notification_sound?: boolean;
     home_page?: string;
     game_board_sort?: string;
+    default_profile_tab?: string;
 }
 
 export function useSettingsForm() {
@@ -137,6 +138,7 @@ export function useSettingsForm() {
     const playNotificationSound = activeDraft.play_notification_sound ?? profile?.play_notification_sound ?? true;
     const homePage = activeDraft.home_page ?? profile?.home_page ?? "landing";
     const gameBoardSort = activeDraft.game_board_sort ?? profile?.game_board_sort ?? "relevance";
+    const defaultProfileTab = activeDraft.default_profile_tab ?? profile?.default_profile_tab ?? "posts";
 
     function patch(update: Partial<FormDraft>) {
         setDraft(prev => {
@@ -222,6 +224,9 @@ export function useSettingsForm() {
     }
     function setGameBoardSort(value: string) {
         patch({ game_board_sort: value });
+    }
+    function setDefaultProfileTab(value: string) {
+        patch({ default_profile_tab: value });
     }
 
     function handleGenderChange(newGender: string) {
@@ -330,6 +335,7 @@ export function useSettingsForm() {
             play_notification_sound: playNotificationSound,
             home_page: homePage,
             game_board_sort: gameBoardSort,
+            default_profile_tab: defaultProfileTab,
         };
 
         try {
@@ -413,6 +419,8 @@ export function useSettingsForm() {
         setHomePage,
         gameBoardSort,
         setGameBoardSort,
+        defaultProfileTab,
+        setDefaultProfileTab,
         characters,
 
         handleSubmit,

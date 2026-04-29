@@ -14,6 +14,7 @@ interface PinnedMessagesPanelProps {
     onJump: (messageId: string, createdAt?: string) => void;
     canUnpin: boolean;
     refreshKey?: number;
+    onLightbox?: (src: string) => void;
 }
 
 function formatDateTime(iso: string): string {
@@ -50,6 +51,7 @@ export function PinnedMessagesPanel({
     onJump,
     canUnpin,
     refreshKey,
+    onLightbox,
 }: PinnedMessagesPanelProps) {
     const queryClient = useQueryClient();
     const [busyId, setBusyId] = useState<string | null>(null);
@@ -135,8 +137,26 @@ export function PinnedMessagesPanel({
                                     </div>
                                     {m.body && <div className={styles.pinBody}>{m.body}</div>}
                                     {m.media && m.media.length > 0 && (
-                                        <div className={styles.pinMediaNote}>
-                                            {m.media.length} attachment{m.media.length > 1 ? "s" : ""}
+                                        <div className={styles.pinMedia}>
+                                            {m.media.map(media =>
+                                                media.media_type === "video" ? (
+                                                    <video
+                                                        key={media.id}
+                                                        className={`${styles.pinMediaItem} ${styles.pinMediaItemVideo}`}
+                                                        src={media.media_url}
+                                                        controls
+                                                        poster={media.thumbnail_url || undefined}
+                                                    />
+                                                ) : (
+                                                    <img
+                                                        key={media.id}
+                                                        className={styles.pinMediaItem}
+                                                        src={media.media_url}
+                                                        alt=""
+                                                        onClick={() => onLightbox?.(media.media_url)}
+                                                    />
+                                                ),
+                                            )}
                                         </div>
                                     )}
                                     <div className={styles.pinActions}>

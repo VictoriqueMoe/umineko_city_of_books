@@ -74,6 +74,9 @@ import {
     SecretDetailPage,
     SecretsListPage,
     SettingsPage,
+    OCDetailPage,
+    OCListPage,
+    CreateOCPage,
     ShipDetailPage,
     ShipsListPage,
     SocialFeedPage,
@@ -239,6 +242,8 @@ function AppLayout() {
                             <Route path="/mystery/:id" element={<MysteryDetailPage />} />
                             <Route path="/ships" element={<ShipsListPage />} />
                             <Route path="/ships/:id" element={<ShipDetailPage />} />
+                            <Route path="/oc" element={<OCListPage />} />
+                            <Route path="/oc/:id" element={<OCDetailPage />} />
                             <Route path="/fanfiction" element={<FanfictionListPage />} />
                             <Route path="/fanfiction/:id" element={<FanficDetailPage />} />
                             <Route path="/fanfiction/:id/chapter/:number" element={<FanficChapterPage />} />
@@ -273,6 +278,8 @@ function AppLayout() {
                                     <Route path="/mystery/:id/edit" element={<CreateMysteryPage />} />
                                 </Route>
                                 <Route path="/ships/new" element={<CreateShipPage />} />
+                                <Route path="/oc/new" element={<CreateOCPage mode="create" />} />
+                                <Route path="/oc/:id/edit" element={<CreateOCPage mode="edit" />} />
                                 <Route path="/fanfiction/new" element={<FanficEditorPage />} />
                                 <Route path="/fanfiction/:id/edit" element={<FanficEditorPage />} />
                                 <Route path="/fanfiction/:id/chapter/new" element={<ChapterEditorPage />} />

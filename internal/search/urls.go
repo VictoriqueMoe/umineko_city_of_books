@@ -26,6 +26,8 @@ var urlBuilders = map[repository.SearchEntityType]func(repository.SearchResult) 
 	repository.SearchEntityMysteryComment:      parentURL("/mystery/", "#comment-"),
 	repository.SearchEntityShip:                selfURL("/ships/"),
 	repository.SearchEntityShipComment:         parentURL("/ships/", "#comment-"),
+	repository.SearchEntityOC:                  selfURL("/oc/"),
+	repository.SearchEntityOCComment:           parentURL("/oc/", "#comment-"),
 	repository.SearchEntityAnnouncement:        selfURL("/announcements/"),
 	repository.SearchEntityAnnouncementComment: parentURL("/announcements/", "#comment-"),
 	repository.SearchEntityFanfic:              selfURL("/fanfiction/"),

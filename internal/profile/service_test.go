@@ -140,7 +140,9 @@ func TestUpdateProfile_OK(t *testing.T) {
 	svc, userRepo, _, _, _, _ := newTestService(t)
 	userID := uuid.New()
 	req := dto.UpdateProfileRequest{DisplayName: "New Name"}
-	userRepo.EXPECT().UpdateProfile(mock.Anything, userID, req).Return(nil)
+	expected := req
+	expected.DefaultProfileTab = "posts"
+	userRepo.EXPECT().UpdateProfile(mock.Anything, userID, expected).Return(nil)
 
 	// when
 	err := svc.UpdateProfile(context.Background(), userID, req)
@@ -183,13 +185,43 @@ func TestUpdateProfile_RepoError(t *testing.T) {
 	svc, userRepo, _, _, _, _ := newTestService(t)
 	userID := uuid.New()
 	req := dto.UpdateProfileRequest{DisplayName: "New Name"}
-	userRepo.EXPECT().UpdateProfile(mock.Anything, userID, req).Return(errors.New("boom"))
+	expected := req
+	expected.DefaultProfileTab = "posts"
+	userRepo.EXPECT().UpdateProfile(mock.Anything, userID, expected).Return(errors.New("boom"))
 
 	// when
 	err := svc.UpdateProfile(context.Background(), userID, req)
 
 	// then
 	require.Error(t, err)
+}
+
+func TestUpdateProfile_RejectsInvalidDefaultTab(t *testing.T) {
+	// given
+	svc, userRepo, _, _, _, _ := newTestService(t)
+	userID := uuid.New()
+	req := dto.UpdateProfileRequest{DisplayName: "New Name", DefaultProfileTab: "not-a-real-tab"}
+
+	// when
+	err := svc.UpdateProfile(context.Background(), userID, req)
+
+	// then
+	require.ErrorIs(t, err, ErrInvalidDefaultProfileTab)
+	userRepo.AssertNotCalled(t, "UpdateProfile", mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestUpdateProfile_AcceptsOCsAsDefaultTab(t *testing.T) {
+	// given
+	svc, userRepo, _, _, _, _ := newTestService(t)
+	userID := uuid.New()
+	req := dto.UpdateProfileRequest{DisplayName: "New Name", DefaultProfileTab: "ocs"}
+	userRepo.EXPECT().UpdateProfile(mock.Anything, userID, req).Return(nil)
+
+	// when
+	err := svc.UpdateProfile(context.Background(), userID, req)
+
+	// then
+	require.NoError(t, err)
 }
 
 func TestUploadAvatar_OK(t *testing.T) {

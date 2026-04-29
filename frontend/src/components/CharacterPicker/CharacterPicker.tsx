@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import type { ShipCharacter } from "../../types/api";
 import { useCharacterList } from "../../api/queries/character";
+import { useUserOCSummaries } from "../../api/queries/oc";
+import { useAuth } from "../../hooks/useAuth";
 import { Button } from "../Button/Button";
 import { Input } from "../Input/Input";
 import { Select } from "../Select/Select";
@@ -17,7 +19,11 @@ interface CharacterPickerProps {
 export function CharacterPicker({ onAdd, existing, maxCharacters }: CharacterPickerProps) {
     const [series, setSeries] = useState<Series>("umineko");
     const [selectedCanonId, setSelectedCanonId] = useState("");
+    const [selectedOcId, setSelectedOcId] = useState("");
     const [ocName, setOcName] = useState("");
+    const { user: currentUser } = useAuth();
+    const ocSummariesHook = useUserOCSummaries(currentUser?.id ?? "", currentUser?.id);
+    const ocSummaries = ocSummariesHook.summaries;
 
     const { characters: rawList, loading } = useCharacterList(series, series !== "oc");
     const canonList = useMemo(() => [...rawList].sort((a, b) => a.name.localeCompare(b.name)), [rawList]);
@@ -25,6 +31,7 @@ export function CharacterPicker({ onAdd, existing, maxCharacters }: CharacterPic
 
     function changeSeries(next: Series) {
         setSelectedCanonId("");
+        setSelectedOcId("");
         setSeries(next);
     }
 
@@ -41,6 +48,24 @@ export function CharacterPicker({ onAdd, existing, maxCharacters }: CharacterPic
             return;
         }
         if (series === "oc") {
+            if (selectedOcId) {
+                const chosen = ocSummaries.find(o => o.id === selectedOcId);
+                if (!chosen) {
+                    return;
+                }
+                const key = `oc::${chosen.name.toLowerCase()}`;
+                if (existingKeys.has(key)) {
+                    return;
+                }
+                onAdd({
+                    series: "oc",
+                    character_id: chosen.id,
+                    character_name: chosen.name,
+                    sort_order: existing.length,
+                });
+                setSelectedOcId("");
+                return;
+            }
             const name = ocName.trim();
             if (!name) {
                 return;
@@ -118,19 +143,46 @@ export function CharacterPicker({ onAdd, existing, maxCharacters }: CharacterPic
 
             <div className={styles.pickerBody}>
                 {series === "oc" ? (
-                    <Input
-                        type="text"
-                        placeholder="Character name..."
-                        value={ocName}
-                        onChange={e => setOcName(e.target.value)}
-                        onKeyDown={e => {
-                            if (e.key === "Enter") {
-                                e.preventDefault();
-                                handleAdd();
-                            }
-                        }}
-                        fullWidth
-                    />
+                    <>
+                        {ocSummaries.length > 0 && (
+                            <Select
+                                value={selectedOcId}
+                                onChange={e => {
+                                    setSelectedOcId(e.target.value);
+                                    if (e.target.value) {
+                                        setOcName("");
+                                    }
+                                }}
+                            >
+                                <option value="">-- pick from your saved OCs --</option>
+                                <optgroup label="Your OCs">
+                                    {ocSummaries.map(o => (
+                                        <option key={o.id} value={o.id}>
+                                            {o.name}
+                                        </option>
+                                    ))}
+                                </optgroup>
+                            </Select>
+                        )}
+                        <Input
+                            type="text"
+                            placeholder={ocSummaries.length > 0 ? "Or type a one-off OC name..." : "Character name..."}
+                            value={ocName}
+                            onChange={e => {
+                                setOcName(e.target.value);
+                                if (e.target.value) {
+                                    setSelectedOcId("");
+                                }
+                            }}
+                            onKeyDown={e => {
+                                if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    handleAdd();
+                                }
+                            }}
+                            fullWidth
+                        />
+                    </>
                 ) : (
                     <Select
                         value={selectedCanonId}
@@ -172,7 +224,7 @@ export function CharacterPicker({ onAdd, existing, maxCharacters }: CharacterPic
                     variant="primary"
                     size="small"
                     onClick={handleAdd}
-                    disabled={series === "oc" ? !ocName.trim() : !selectedCanonId}
+                    disabled={series === "oc" ? !selectedOcId && !ocName.trim() : !selectedCanonId}
                 >
                     Add
                 </Button>

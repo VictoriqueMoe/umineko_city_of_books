@@ -18,6 +18,7 @@ import {
     useUserPosts,
     useUserShips,
 } from "../../api/queries/user";
+import { useUserOCs } from "../../api/queries/oc";
 import { useFollowers, useFollowing } from "../../api/queries/misc";
 import { useCreateGallery } from "../../api/mutations/art";
 import { parseServerDate } from "../../utils/time";
@@ -119,6 +120,7 @@ type TabType =
     | "art"
     | "galleries"
     | "ships"
+    | "ocs"
     | "mysteries"
     | "fanfics"
     | "fanfic-favourites"
@@ -134,7 +136,9 @@ export function ProfilePage() {
     const { user: currentUser } = useAuth();
     const { profile, loading } = useProfile(username ?? "");
     usePageTitle(profile?.display_name ?? "Profile");
-    const [activeTab, setActiveTab] = useState<TabType>("posts");
+    const [explicitTab, setExplicitTab] = useState<TabType | null>(null);
+    const activeTab: TabType = explicitTab ?? (profile?.default_profile_tab as TabType | undefined) ?? "posts";
+    const setActiveTab = setExplicitTab as (tab: TabType) => void;
     const follow = useFollow(profile?.id ?? "");
     const blockHook = useBlock(profile?.id ?? "");
 
@@ -175,6 +179,10 @@ export function ProfilePage() {
     const userShips = shipsQuery.ships;
     const shipsTotal = shipsQuery.total;
     const shipsLoading = shipsQuery.loading;
+
+    const ocsQuery = useUserOCs(activeTab === "ocs" ? profileID : "");
+    const userOCs = ocsQuery.ocs;
+    const ocsLoading = ocsQuery.loading;
 
     const [mysteriesOffset, setMysteriesOffset] = useState(0);
     const mysteriesLimit = 20;
@@ -475,6 +483,12 @@ export function ProfilePage() {
                     Ships
                 </button>
                 <button
+                    className={`${styles.tab} ${activeTab === "ocs" ? styles.tabActive : ""}`}
+                    onClick={() => setActiveTab("ocs")}
+                >
+                    OCs
+                </button>
+                <button
                     className={`${styles.tab} ${activeTab === "mysteries" ? styles.tabActive : ""}`}
                     onClick={() => setActiveTab("mysteries")}
                 >
@@ -604,6 +618,40 @@ export function ProfilePage() {
                                     <div className={styles.galleryInfo}>
                                         <span className={styles.galleryName}>{g.name}</span>
                                         <span className={styles.galleryCount}>{g.art_count} pieces</span>
+                                    </div>
+                                </Link>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {activeTab === "ocs" && (
+                <div className={styles.tabContent}>
+                    {ocsLoading && <div className="loading">Loading OCs...</div>}
+                    {!ocsLoading && userOCs.length === 0 && <div className="empty-state">No OCs created yet.</div>}
+                    {!ocsLoading && userOCs.length > 0 && (
+                        <div className={styles.shipList}>
+                            {userOCs.map(oc => (
+                                <Link key={oc.id} to={`/oc/${oc.id}`} className={styles.shipCard}>
+                                    {(oc.thumbnail_url || oc.image_url) && (
+                                        <img
+                                            className={styles.shipThumb}
+                                            src={oc.thumbnail_url || oc.image_url}
+                                            alt={oc.name}
+                                        />
+                                    )}
+                                    <div className={styles.shipInfo}>
+                                        <span className={styles.shipTitle}>{oc.name}</span>
+                                        <span className={styles.shipMeta}>
+                                            {oc.series === "custom" ? (oc.custom_series_name ?? "Custom") : oc.series}
+                                        </span>
+                                        <span className={styles.shipMeta}>
+                                            {oc.vote_score > 0 ? "+" : ""}
+                                            {oc.vote_score} &middot; ♥ {oc.favourite_count} &middot; {oc.comment_count}{" "}
+                                            comment
+                                            {oc.comment_count !== 1 ? "s" : ""}
+                                        </span>
                                     </div>
                                 </Link>
                             ))}

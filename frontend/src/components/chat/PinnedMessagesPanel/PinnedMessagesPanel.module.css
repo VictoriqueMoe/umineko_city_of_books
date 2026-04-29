@@ -129,6 +129,26 @@
     font-style: italic;
 }
 
+.pinMedia {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.25rem;
+}
+
+.pinMediaItem {
+    max-width: 100%;
+    max-height: 200px;
+    border-radius: 6px;
+    cursor: zoom-in;
+    object-fit: cover;
+    background: var(--bg-void);
+}
+
+.pinMediaItemVideo {
+    cursor: default;
+}
+
 .pinActions {
     display: flex;
     gap: 0.4rem;

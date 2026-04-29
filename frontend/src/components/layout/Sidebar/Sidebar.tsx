@@ -57,7 +57,7 @@ export function Sidebar({ open, onClose, onCollapse }: SidebarProps) {
         chatUnreadCount: unreadChat,
         liveGamesCount,
     } = useNotifications();
-    const { hasUnread, hasAnyUnread, markVisited } = useSidebarBadges();
+    const { hasUnread, hasAnyUnread, markVisited, markAllVisited, anyUnread } = useSidebarBadges();
     const location = useLocation();
     const [newAnnouncement, setNewAnnouncement] = useState(false);
     const isRyukishiPath = RYUKISHI_CORNERS.some(c => location.pathname === c.path);
@@ -191,6 +191,15 @@ export function Sidebar({ open, onClose, onCollapse }: SidebarProps) {
                     </NavLink>
                     <div className={styles.section}>
                         <span className={styles.sectionLabel}>Browse</span>
+                        {anyUnread && (
+                            <button
+                                type="button"
+                                className={`${styles.link} ${styles.markAllReadBtn}`}
+                                onClick={markAllVisited}
+                            >
+                                Mark all as read
+                            </button>
+                        )}
                         <button
                             className={`${styles.link} ${styles.expandBtn}${cornersOpen ? ` ${styles.expandOpen}` : ""}`}
                             onClick={() => setOverride("corners", !cornersOpen)}
@@ -386,6 +395,17 @@ export function Sidebar({ open, onClose, onCollapse }: SidebarProps) {
                             {hasUnread("ships") && <span className={styles.unreadDot} aria-label="new content" />}
                         </NavLink>
                         <NavLink
+                            to="/oc"
+                            className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
+                            onClick={() => {
+                                markVisited("ocs");
+                                onClose();
+                            }}
+                        >
+                            OCs
+                            {hasUnread("ocs") && <span className={styles.unreadDot} aria-label="new content" />}
+                        </NavLink>
+                        <NavLink
                             to="/fanfiction"
                             className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
                             onClick={() => {
@@ -503,6 +523,13 @@ export function Sidebar({ open, onClose, onCollapse }: SidebarProps) {
                                 onClick={onClose}
                             >
                                 New Ship
+                            </NavLink>
+                            <NavLink
+                                to="/oc/new"
+                                className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
+                                onClick={onClose}
+                            >
+                                New OC
                             </NavLink>
                             <NavLink
                                 to="/fanfiction/new"

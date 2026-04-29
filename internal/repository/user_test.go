@@ -42,6 +42,7 @@ func sampleProfileRequest() dto.UpdateProfileRequest {
 		EmailNotifications:     true,
 		HomePage:               "/home",
 		GameBoardSort:          "newest",
+		DefaultProfileTab:      "ocs",
 	}
 }
 
@@ -375,6 +376,7 @@ func TestUserRepository_UpdateProfile(t *testing.T) {
 	assert.Equal(t, req.EmailNotifications, got.EmailNotifications)
 	assert.Equal(t, req.HomePage, got.HomePage)
 	assert.Equal(t, req.GameBoardSort, got.GameBoardSort)
+	assert.Equal(t, req.DefaultProfileTab, got.DefaultProfileTab)
 }
 
 func TestUserRepository_UpdateProfile_NonExistentUser(t *testing.T) {

@@ -6,6 +6,7 @@ export type SearchTypeGroup =
     | "art"
     | "mysteries"
     | "ships"
+    | "ocs"
     | "announcements"
     | "fanfics"
     | "journals"
@@ -36,6 +37,8 @@ const SEARCH_REGISTRY: SearchTypeMeta[] = [
     { type: "mystery_comment", label: "Mystery comment", short: "Comment", color: "#fb923c", group: "mysteries" },
     { type: "ship", label: "Ship", short: "Ship", color: "#fb7185", group: "ships" },
     { type: "ship_comment", label: "Ship comment", short: "Comment", color: "#fb7185", group: "ships" },
+    { type: "oc", label: "OC", short: "OC", color: "#c084fc", group: "ocs" },
+    { type: "oc_comment", label: "OC comment", short: "Comment", color: "#c084fc", group: "ocs" },
     { type: "announcement", label: "Announcement", short: "News", color: "#facc15", group: "announcements" },
     {
         type: "announcement_comment",
@@ -57,6 +60,7 @@ const SEARCH_GROUP_DEFS: SearchTypeGroupDef[] = [
     { id: "art", label: "Art" },
     { id: "mysteries", label: "Mysteries" },
     { id: "ships", label: "Ships" },
+    { id: "ocs", label: "OCs" },
     { id: "fanfics", label: "Fanfiction" },
     { id: "journals", label: "Journals" },
     { id: "announcements", label: "Announcements" },
