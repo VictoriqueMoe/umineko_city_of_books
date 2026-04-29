@@ -282,12 +282,14 @@ export function ChatPage() {
         };
     }, [activeRoomId, sendWSMessage, wsEpoch]);
 
+    const markChatRoomReadAsync = markChatRoomReadMutation.mutateAsync;
+
     useEffect(() => {
         if (!activeRoomId) {
             return;
         }
-        markChatRoomReadMutation.mutateAsync(activeRoomId).catch(() => {});
-    }, [activeRoomId, markChatRoomReadMutation]);
+        markChatRoomReadAsync(activeRoomId).catch(() => {});
+    }, [activeRoomId, markChatRoomReadAsync]);
 
     useEffect(() => {
         if (!activeRoomId) {
@@ -295,14 +297,14 @@ export function ChatPage() {
         }
         function handleFocus() {
             if (activeRoomIdRef.current) {
-                markChatRoomReadMutation.mutateAsync(activeRoomIdRef.current).catch(() => {});
+                markChatRoomReadAsync(activeRoomIdRef.current).catch(() => {});
             }
         }
         window.addEventListener("focus", handleFocus);
         return () => {
             window.removeEventListener("focus", handleFocus);
         };
-    }, [activeRoomId, markChatRoomReadMutation]);
+    }, [activeRoomId, markChatRoomReadAsync]);
 
     useEffect(() => {
         if (showNewDm) {
