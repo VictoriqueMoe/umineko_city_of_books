@@ -13,8 +13,7 @@ import {
     useSubmitGameAction,
 } from "../../api/mutations/gameRoom";
 import { ChessBoardView } from "../../components/games/chess/ChessBoardView";
-import { SpectatorChat } from "../../components/games/chess/SpectatorChat";
-import { PlayerChat } from "../../components/games/chess/PlayerChat";
+import { GameChat } from "../../components/games/chess/GameChat";
 import { Button } from "../../components/Button/Button";
 import styles from "./GamesPages.module.css";
 
@@ -158,11 +157,11 @@ export function ChessGamePage() {
                 />
             </div>
             <div className={styles.chatColumn}>
-                {isParticipant ? (
-                    <PlayerChat roomId={room.id} />
-                ) : (
-                    <SpectatorChat roomId={room.id} watcherCount={room.watcher_count} />
-                )}
+                <GameChat
+                    roomId={room.id}
+                    variant={isParticipant ? "player" : "spectator"}
+                    watcherCount={room.watcher_count}
+                />
             </div>
         </div>
     );

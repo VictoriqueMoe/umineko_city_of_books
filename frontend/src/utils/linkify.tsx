@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router";
+import { WaifuvaultEmbed } from "../components/WaifuvaultEmbed/WaifuvaultEmbed";
+import { detectWaifuvaultMedia } from "../components/WaifuvaultEmbed/detect";
 
 const LINK_TOKEN_REGEX = /(https?:\/\/[^\s<>"]+|@[a-zA-Z0-9_]+)/g;
 
@@ -18,6 +20,10 @@ export function linkify(text: string, keyPrefix = "lk"): ReactNode[] {
     return parts.map((part, i) => {
         const key = `${keyPrefix}-${i}`;
         if (part.startsWith("http://") || part.startsWith("https://")) {
+            const waifuvaultKind = detectWaifuvaultMedia(part);
+            if (waifuvaultKind) {
+                return <WaifuvaultEmbed key={key} url={part} kind={waifuvaultKind} />;
+            }
             const internalPath = isInternalURL(part);
             if (internalPath) {
                 return (

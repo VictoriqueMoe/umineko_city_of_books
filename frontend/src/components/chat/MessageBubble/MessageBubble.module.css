@@ -374,12 +374,20 @@
 }
 
 .messageMediaItem {
-    max-width: 220px;
-    max-height: 220px;
+    max-width: 520px;
+    max-height: 510px;
     border-radius: 6px;
     border: 1px solid rgba(var(--purple-rgb), 0.25);
     object-fit: cover;
+}
+
+img.messageMediaItem {
     cursor: pointer;
+}
+
+video.messageMediaItem {
+    cursor: default;
+    background: #000;
 }
 
 .gifEmbed {

@@ -1,12 +1,16 @@
 package ws
 
 import (
+	"context"
 	"encoding/json"
 	"sync"
 	"time"
 
 	"github.com/fasthttp/websocket"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -375,7 +379,20 @@ func (h *Hub) LeaveTopic(topic string, userID uuid.UUID) {
 }
 
 func (h *Hub) BroadcastToTopic(topic string, msg Message) {
-	h.BroadcastToRoom(TopicUUID(topic), msg, uuid.Nil)
+	_, span := otel.Tracer(wsTracerName).Start(
+		context.Background(),
+		"ws.broadcast_topic",
+		trace.WithSpanKind(trace.SpanKindInternal),
+		trace.WithAttributes(
+			attribute.String("ws.topic", topic),
+			attribute.String("ws.message_type", msg.Type),
+		),
+	)
+	defer span.End()
+
+	roomID := TopicUUID(topic)
+	recipients := h.broadcastToRoomTraced(roomID, msg, uuid.Nil)
+	span.SetAttributes(attribute.Int("ws.recipients", recipients))
 }
 
 func (h *Hub) JoinRoom(roomID, userID uuid.UUID) {
@@ -410,6 +427,10 @@ func (h *Hub) IsUserInRoom(roomID, userID uuid.UUID) bool {
 }
 
 func (h *Hub) BroadcastToRoom(roomID uuid.UUID, msg Message, excludeUserID uuid.UUID) {
+	h.broadcastToRoomTraced(roomID, msg, excludeUserID)
+}
+
+func (h *Hub) broadcastToRoomTraced(roomID uuid.UUID, msg Message, excludeUserID uuid.UUID) int {
 	h.mu.RLock()
 	members := h.rooms[roomID]
 	targetUserIDs := make([]uuid.UUID, 0, len(members))
@@ -421,12 +442,12 @@ func (h *Hub) BroadcastToRoom(roomID uuid.UUID, msg Message, excludeUserID uuid.
 	h.mu.RUnlock()
 
 	if len(targetUserIDs) == 0 {
-		return
+		return 0
 	}
 
 	data, err := json.Marshal(msg)
 	if err != nil {
-		return
+		return 0
 	}
 
 	conns := h.snapshotConnsForUsers(targetUserIDs)
@@ -440,4 +461,5 @@ func (h *Hub) BroadcastToRoom(roomID uuid.UUID, msg Message, excludeUserID uuid.
 	if len(dead) > 0 {
 		h.reapDead(dead)
 	}
+	return len(targetUserIDs)
 }

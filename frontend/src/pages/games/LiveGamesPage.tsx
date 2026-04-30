@@ -13,7 +13,7 @@ export function LiveGamesPage() {
     const queryClient = useQueryClient();
 
     useEffect(() => {
-        void queryClient.invalidateQueries({ queryKey: ["game-rooms", "live", ""] });
+        void queryClient.invalidateQueries({ queryKey: ["game-rooms", "live"] });
     }, [liveGamesCount, queryClient]);
 
     return (

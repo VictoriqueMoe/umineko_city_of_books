@@ -5,9 +5,6 @@ import (
 	"embed"
 	"fmt"
 	"io/fs"
-	"net/http"
-	"net/http/pprof"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -22,16 +19,10 @@ import (
 	"umineko_city_of_books/internal/chat"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
-	bannedgiphyrule "umineko_city_of_books/internal/contentfilter/rules/bannedgiphy"
-	slursrule "umineko_city_of_books/internal/contentfilter/rules/slurs"
 	"umineko_city_of_books/internal/controllers"
-	"umineko_city_of_books/internal/credibility"
-	"umineko_city_of_books/internal/db"
 	"umineko_city_of_books/internal/email"
 	fanficsvc "umineko_city_of_books/internal/fanfic"
 	"umineko_city_of_books/internal/follow"
-	"umineko_city_of_books/internal/game/checkers"
-	"umineko_city_of_books/internal/game/chess"
 	"umineko_city_of_books/internal/gameroom"
 	"umineko_city_of_books/internal/giphy"
 	"umineko_city_of_books/internal/giphy/banlist"
@@ -47,7 +38,6 @@ import (
 	"umineko_city_of_books/internal/og"
 	postsvc "umineko_city_of_books/internal/post"
 	"umineko_city_of_books/internal/profile"
-	"umineko_city_of_books/internal/quotefinder"
 	"umineko_city_of_books/internal/report"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/routes"
@@ -57,7 +47,6 @@ import (
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/ship"
 	"umineko_city_of_books/internal/sidebar"
-	"umineko_city_of_books/internal/telemetry"
 	"umineko_city_of_books/internal/theory"
 	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/user"
@@ -75,44 +64,46 @@ var (
 	staticFiles embed.FS
 )
 
-type services struct {
-	settings        settings.Service
-	auth            auth.Service
-	profile         profile.Service
-	theory          theory.Service
-	notification    notification.Service
-	admin           admin.Service
-	authz           authz.Service
-	chat            chat.Service
-	report          report.Service
-	post            postsvc.Service
-	follow          follow.Service
-	art             artsvc.Service
-	ship            ship.Service
-	oc              ocsvc.Service
-	mystery         mysterysvc.Service
-	fanfic          fanficsvc.Service
-	journal         journal.Service
-	secret          secretsvc.Service
-	block           blocksvc.Service
-	email           email.Service
-	session         *session.Manager
-	upload          upload.Service
-	hub             *ws.Hub
-	mediaProc       *media.Processor
-	giphy           giphy.Service
-	giphyFavourites giphyfavourite.Service
-	giphyBanlist    banlist.Service
-	contentFilter   *contentfilter.Manager
-	gameRoom        gameroom.Service
-	announcement    announcementsvc.Service
-	homeFeed        homefeed.Service
-	sidebar         sidebar.Service
-	vanityRole      vanityrole.Service
-	userSecret      usersecret.Service
-	search          searchsvc.Service
-	user            user.Service
-}
+type (
+	services struct {
+		settings        settings.Service
+		auth            auth.Service
+		profile         profile.Service
+		theory          theory.Service
+		notification    notification.Service
+		admin           admin.Service
+		authz           authz.Service
+		chat            chat.Service
+		report          report.Service
+		post            postsvc.Service
+		follow          follow.Service
+		art             artsvc.Service
+		ship            ship.Service
+		oc              ocsvc.Service
+		mystery         mysterysvc.Service
+		fanfic          fanficsvc.Service
+		journal         journal.Service
+		secret          secretsvc.Service
+		block           blocksvc.Service
+		email           email.Service
+		session         *session.Manager
+		upload          upload.Service
+		hub             *ws.Hub
+		mediaProc       *media.Processor
+		giphy           giphy.Service
+		giphyFavourites giphyfavourite.Service
+		giphyBanlist    banlist.Service
+		contentFilter   *contentfilter.Manager
+		gameRoom        gameroom.Service
+		announcement    announcementsvc.Service
+		homeFeed        homefeed.Service
+		sidebar         sidebar.Service
+		vanityRole      vanityrole.Service
+		userSecret      usersecret.Service
+		search          searchsvc.Service
+		user            user.Service
+	}
+)
 
 func initServer() *fiber.App {
 	repos, settingsSvc := initDatabase()
@@ -120,259 +111,6 @@ func initServer() *fiber.App {
 	app := initApp(svc, repos, settingsSvc)
 	registerListeners(settingsSvc, app, svc, repos)
 	return app
-}
-
-func initDatabase() (*repository.Repositories, settings.Service) {
-	if err := telemetry.Init(
-		context.Background(),
-		"umineko-city-of-books",
-		config.Version,
-		"",
-	); err != nil {
-		logger.Log.Warn().Err(err).Msg("otel init failed; traces disabled")
-	}
-
-	database, err := db.Open(config.Cfg.PostgresDSN())
-	if err != nil {
-		logger.Log.Fatal().Err(err).Msg("failed to open database")
-	}
-
-	if err := db.Migrate(database); err != nil {
-		logger.Log.Fatal().Err(err).Msg("failed to run migrations")
-	}
-
-	if err := db.SeedContent(database); err != nil {
-		logger.Log.Fatal().Err(err).Msg("failed to seed content")
-	}
-
-	repos := repository.New(database)
-
-	settingsSvc := settings.NewService(repos.Settings)
-	if err := settingsSvc.Refresh(context.Background()); err != nil {
-		logger.Log.Fatal().Err(err).Msg("failed to load settings")
-	}
-
-	logger.Init(settingsSvc.Get(context.Background(), config.SettingLogLevel))
-	logger.ApplyDSN(settingsSvc.Get(context.Background(), config.SettingSentryDSN))
-
-	if err := telemetry.Apply(settingsSvc.Get(context.Background(), config.SettingOTLPEndpoint)); err != nil {
-		logger.Log.Warn().Err(err).Msg("otel apply failed")
-	}
-
-	hostname, _ := os.Hostname()
-	if err := telemetry.InitProfiling(
-		"umineko-city-of-books",
-		hostname,
-		settingsSvc.Get(context.Background(), config.SettingPyroscopeURL),
-	); err != nil {
-		logger.Log.Warn().Err(err).Msg("pyroscope init failed; profiling disabled")
-	}
-
-	return repos, settingsSvc
-}
-
-func initServices(repos *repository.Repositories, settingsSvc settings.Service) *services {
-	uploadDir := settingsSvc.Get(context.Background(), config.SettingUploadDir)
-	if err := os.MkdirAll(filepath.Join(uploadDir, "avatars"), 0755); err != nil {
-		logger.Log.Fatal().Err(err).Msg("failed to create uploads directory")
-	}
-	if err := os.MkdirAll(filepath.Join(uploadDir, "banners"), 0755); err != nil {
-		logger.Log.Fatal().Err(err).Msg("failed to create banners directory")
-	}
-	if err := os.MkdirAll(filepath.Join(uploadDir, "posts"), 0755); err != nil {
-		logger.Log.Fatal().Err(err).Msg("failed to create posts directory")
-	}
-	if err := os.MkdirAll(filepath.Join(uploadDir, "art"), 0755); err != nil {
-		logger.Log.Fatal().Err(err).Msg("failed to create art directory")
-	}
-
-	sessionMgr := session.NewManager(repos.Session, settingsSvc)
-	mediaProc := media.NewProcessor(4)
-	uploadSvc := upload.NewService(settingsSvc, mediaProc)
-	authzSvc := authz.NewService(repos.Role, repos.User)
-	giphyBanlist, err := banlist.NewService(context.Background(), repos.BannedGiphy)
-	if err != nil {
-		logger.Log.Fatal().Err(err).Msg("failed to load giphy banlist")
-	}
-	giphySvc := giphy.NewService(giphyBanlist)
-	if !giphySvc.Enabled() {
-		logger.Log.Warn().Msg("GIPHY_API_KEY is not set: gif picker is disabled and direct-URL channel bans cannot resolve uploaders")
-	}
-	contentFilter := contentfilter.New(
-		slursrule.New(),
-		bannedgiphyrule.New(giphyBanlist, giphySvc),
-	)
-	userSvc := user.NewService(repos.User, repos.Role, authzSvc)
-	hub := ws.NewHub()
-	quoteClient := quotefinder.NewClient()
-	credibilitySvc := credibility.NewService(repos.Theory)
-
-	emailSvc := email.NewService(settingsSvc)
-	blockSvc := blocksvc.NewService(repos.Block, repos.Follow, authzSvc)
-	notifSvc := notification.NewService(repos.Notification, repos.User, hub, emailSvc)
-	reportSvc := report.NewService(repos.Report, repos.Role, repos.User, notifSvc, settingsSvc)
-	chatSvc := chat.NewService(repos.Chat, repos.User, repos.Role, repos.VanityRole, repos.ChatRoomBan, repos.ChatBannedWord, repos.AuditLog, authzSvc, notifSvc, blockSvc, uploadSvc, settingsSvc, mediaProc, hub, contentFilter)
-	followSvc := follow.NewService(repos.Follow, repos.User, blockSvc, notifSvc, settingsSvc)
-	postSvc := postsvc.NewService(repos.DB(), repos.Post, repos.User, repos.Role, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, hub, contentFilter)
-	artSvc := artsvc.NewService(repos.Art, repos.Post, repos.User, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, contentFilter)
-	shipSvc := ship.NewService(repos.Ship, repos.User, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, quoteClient, contentFilter)
-	ocSvc := ocsvc.NewService(repos.OC, repos.User, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, hub, contentFilter)
-	mysterySvc := mysterysvc.NewService(repos.Mystery, repos.User, authzSvc, blockSvc, notifSvc, settingsSvc, uploadSvc, mediaProc, hub, contentFilter)
-	fanficSvc := fanficsvc.NewService(repos.Fanfic, repos.User, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, contentFilter)
-	journalSvc := journal.NewService(repos.Journal, repos.User, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, contentFilter)
-	secretSvc := secretsvc.NewService(repos.Secret, repos.UserSecret, repos.User, authzSvc, blockSvc, notifSvc, settingsSvc, uploadSvc, mediaProc, hub, contentFilter)
-	gameRoomSvc := gameroom.NewService(repos.GameRoom, repos.User, repos.Block, notifSvc, hub, contentFilter, []gameroom.GameHandler{chess.NewHandler(), checkers.NewHandler()})
-	announcementUploader := media.NewUploader(uploadSvc, settingsSvc, mediaProc)
-	announcementSvc := announcementsvc.NewService(repos.Announcement, repos.User, blockSvc, notifSvc, settingsSvc, authzSvc, hub, announcementUploader)
-	homeFeedSvc := homefeed.NewService(repos.HomeFeed, hub)
-	sidebarSvc := sidebar.NewService(repos.SidebarVisited)
-	vanityRoleSvc := vanityrole.NewService(repos.VanityRole)
-	userSecretSvc := usersecret.NewService(repos.UserSecret)
-	searchSvc := searchsvc.NewService(repos.Search)
-
-	return &services{
-		settings:        settingsSvc,
-		auth:            auth.NewService(userSvc, sessionMgr, settingsSvc, repos.Invite, repos.User, repos.AuditLog, contentFilter),
-		profile:         profile.NewService(repos.User, repos.UserSecret, repos.Theory, authzSvc, uploadSvc, settingsSvc, contentFilter),
-		theory:          theory.NewService(repos.Theory, repos.User, authzSvc, blockSvc, notifSvc, settingsSvc, credibilitySvc, quoteClient, contentFilter),
-		notification:    notifSvc,
-		admin:           admin.NewService(repos.User, repos.Role, repos.Stats, repos.AuditLog, repos.Invite, repos.VanityRole, giphyBanlist, authzSvc, settingsSvc, sessionMgr, uploadSvc, hub, chatSvc),
-		authz:           authzSvc,
-		chat:            chatSvc,
-		report:          reportSvc,
-		post:            postSvc,
-		follow:          followSvc,
-		art:             artSvc,
-		ship:            shipSvc,
-		oc:              ocSvc,
-		mystery:         mysterySvc,
-		fanfic:          fanficSvc,
-		journal:         journalSvc,
-		secret:          secretSvc,
-		block:           blockSvc,
-		email:           emailSvc,
-		session:         sessionMgr,
-		upload:          uploadSvc,
-		hub:             hub,
-		mediaProc:       mediaProc,
-		giphy:           giphySvc,
-		giphyFavourites: giphyfavourite.NewService(repos.GiphyFavourite),
-		giphyBanlist:    giphyBanlist,
-		contentFilter:   contentFilter,
-		gameRoom:        gameRoomSvc,
-		announcement:    announcementSvc,
-		homeFeed:        homeFeedSvc,
-		sidebar:         sidebarSvc,
-		vanityRole:      vanityRoleSvc,
-		userSecret:      userSecretSvc,
-		search:          searchSvc,
-		user:            userSvc,
-	}
-}
-
-func registerListeners(settingsSvc settings.Service, app *fiber.App, svc *services, repos *repository.Repositories) {
-	settingsSvc.Subscribe(logger.NewSettingsListener())
-	settingsSvc.Subscribe(telemetry.NewSettingsListener())
-	settingsSvc.Subscribe(telemetry.NewProfilingSettingsListener())
-	settingsSvc.Subscribe(middleware.NewBodyLimitListener(app))
-	settingsSvc.Subscribe(email.NewMailSettingListener(svc.email))
-
-	if err := svc.chat.EnsureSystemRooms(context.Background()); err != nil {
-		logger.Log.Error().Err(err).Msg("ensure system chat rooms at startup")
-	}
-
-	logger.Log.Info().Str("interval", "1h").Msg("registered job: refresh stale embeds")
-	go func() {
-		run := func() {
-			n := svc.post.RefreshStaleEmbeds(context.Background())
-			if n > 0 {
-				logger.Log.Info().Int("count", n).Msg("refreshed stale embeds")
-			}
-		}
-		run()
-		ticker := time.NewTicker(1 * time.Hour)
-		defer ticker.Stop()
-		for range ticker.C {
-			run()
-		}
-	}()
-
-	logger.Log.Info().Str("interval", "24h").Msg("registered job: clean orphaned uploads")
-	go func() {
-		uploadDir := svc.upload.GetUploadDir()
-		run := func() {
-			n := upload.CleanOrphanedFiles(repos.Upload, uploadDir)
-			if n > 0 {
-				logger.Log.Info().Int("count", n).Msg("cleaned orphaned upload files")
-			}
-		}
-		run()
-		ticker := time.NewTicker(24 * time.Hour)
-		defer ticker.Stop()
-		for range ticker.C {
-			run()
-		}
-	}()
-
-	logger.Log.Info().Str("interval", "1h").Msg("registered job: archive stale journals")
-	go func() {
-		run := func() {
-			n, err := svc.journal.ArchiveStale(context.Background())
-			if err != nil {
-				logger.Log.Error().Err(err).Msg("archive stale journals failed")
-				return
-			}
-			if n > 0 {
-				logger.Log.Info().Int("count", n).Msg("archived stale journals")
-			}
-		}
-		run()
-		ticker := time.NewTicker(1 * time.Hour)
-		defer ticker.Stop()
-		for range ticker.C {
-			run()
-		}
-	}()
-
-	logger.Log.Info().Str("interval", "1h").Msg("registered job: archive stale chat rooms")
-	go func() {
-		run := func() {
-			n, err := svc.chat.ArchiveStale(context.Background())
-			if err != nil {
-				logger.Log.Error().Err(err).Msg("archive stale chat rooms failed")
-				return
-			}
-			if n > 0 {
-				logger.Log.Info().Int("count", n).Msg("archived stale chat rooms")
-			}
-		}
-		run()
-		ticker := time.NewTicker(1 * time.Hour)
-		defer ticker.Stop()
-		for range ticker.C {
-			run()
-		}
-	}()
-
-	logger.Log.Info().Str("interval", "5m").Msg("registered job: cancel idle games")
-	go func() {
-		run := func() {
-			n, err := svc.gameRoom.CancelIdleGames(context.Background())
-			if err != nil {
-				logger.Log.Error().Err(err).Msg("cancel idle games failed")
-				return
-			}
-			if n > 0 {
-				logger.Log.Info().Int("count", n).Msg("cancelled idle games")
-			}
-		}
-		run()
-		ticker := time.NewTicker(5 * time.Minute)
-		defer ticker.Stop()
-		for range ticker.C {
-			run()
-		}
-	}()
 }
 
 func initApp(svc *services, repos *repository.Repositories, settingsSvc settings.Service) *fiber.App {
@@ -478,64 +216,4 @@ func logRoutes(app *fiber.App) {
 	}
 
 	logger.Log.Info().Msgf("%d routes mounted", len(rs))
-}
-
-func registerPprofRoutes(app *fiber.App, sessionMgr *session.Manager, authzSvc authz.Service) {
-	gate := middleware.RequirePermission(sessionMgr, authzSvc, authz.PermManageSettings)
-
-	pprofAdapter := func(h http.HandlerFunc) fiber.Handler {
-		return func(ctx fiber.Ctx) error {
-			handler := http.HandlerFunc(h)
-			req, err := http.NewRequest(ctx.Method(), ctx.OriginalURL(), nil)
-			if err != nil {
-				return err
-			}
-			rw := &pprofResponseWriter{ctx: ctx, header: http.Header{}}
-			handler.ServeHTTP(rw, req)
-			return nil
-		}
-	}
-
-	app.Get("/debug/pprof/", gate, pprofAdapter(pprof.Index))
-	app.Get("/debug/pprof/cmdline", gate, pprofAdapter(pprof.Cmdline))
-	app.Get("/debug/pprof/profile", gate, pprofAdapter(pprof.Profile))
-	app.Get("/debug/pprof/symbol", gate, pprofAdapter(pprof.Symbol))
-	app.Get("/debug/pprof/trace", gate, pprofAdapter(pprof.Trace))
-	app.Get("/debug/pprof/allocs", gate, pprofAdapter(pprof.Handler("allocs").ServeHTTP))
-	app.Get("/debug/pprof/block", gate, pprofAdapter(pprof.Handler("block").ServeHTTP))
-	app.Get("/debug/pprof/goroutine", gate, pprofAdapter(pprof.Handler("goroutine").ServeHTTP))
-	app.Get("/debug/pprof/heap", gate, pprofAdapter(pprof.Handler("heap").ServeHTTP))
-	app.Get("/debug/pprof/mutex", gate, pprofAdapter(pprof.Handler("mutex").ServeHTTP))
-	app.Get("/debug/pprof/threadcreate", gate, pprofAdapter(pprof.Handler("threadcreate").ServeHTTP))
-}
-
-type pprofResponseWriter struct {
-	ctx    fiber.Ctx
-	header http.Header
-	wrote  bool
-}
-
-func (w *pprofResponseWriter) Header() http.Header {
-	return w.header
-}
-
-func (w *pprofResponseWriter) WriteHeader(status int) {
-	if w.wrote {
-		return
-	}
-	w.wrote = true
-	for k, v := range w.header {
-		if len(v) > 0 {
-			w.ctx.Set(k, v[0])
-		}
-	}
-	w.ctx.Status(status)
-}
-
-func (w *pprofResponseWriter) Write(p []byte) (int, error) {
-	if !w.wrote {
-		w.WriteHeader(http.StatusOK)
-	}
-	_, err := w.ctx.Write(p)
-	return len(p), err
 }
