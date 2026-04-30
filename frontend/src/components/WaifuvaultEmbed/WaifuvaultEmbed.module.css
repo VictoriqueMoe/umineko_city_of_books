@@ -1,0 +1,28 @@
+.wrapper {
+    display: block;
+    margin: 0.5rem 0;
+    max-width: 520px;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid rgba(var(--purple-rgb), 0.2);
+}
+
+.image {
+    display: block;
+    width: 100%;
+    max-height: 510px;
+    object-fit: cover;
+    cursor: pointer;
+    transition: opacity 0.15s var(--ease-out);
+}
+
+.image:hover {
+    opacity: 0.9;
+}
+
+.video {
+    display: block;
+    width: 100%;
+    max-height: 510px;
+    background: #000;
+}
