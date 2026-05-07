@@ -1,6 +1,7 @@
 package model
 
 import (
+	"time"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/role"
 
@@ -17,7 +18,7 @@ type (
 		ActorID          uuid.UUID
 		Message          string
 		Read             bool
-		CreatedAt        string
+		CreatedAt        time.Time
 		Count            int
 		ActorUsername    string
 		ActorDisplayName string
@@ -41,7 +42,7 @@ func (n *NotificationRow) ToResponse() dto.NotificationResponse {
 		},
 		Message:   n.Message,
 		Read:      n.Read,
-		CreatedAt: n.CreatedAt,
+		CreatedAt: n.CreatedAt.UTC().Format(time.RFC3339Nano),
 		Count:     n.Count,
 	}
 }
