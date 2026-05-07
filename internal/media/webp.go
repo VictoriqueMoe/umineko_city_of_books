@@ -12,6 +12,7 @@ import (
 	"umineko_city_of_books/internal/logger"
 
 	"github.com/disintegration/imaging"
+	"github.com/rwcarlsen/goexif/exif"
 )
 
 const (
@@ -204,6 +205,14 @@ func encodeAnimatedWebP(ctx context.Context, inputPath, outputPath string, opts 
 }
 
 func applyExifOrientation(inputPath string) (string, error) {
+	needsRotation, err := jpegNeedsRotation(inputPath)
+	if err != nil {
+		return "", err
+	}
+	if !needsRotation {
+		return "", nil
+	}
+
 	img, err := imaging.Open(inputPath, imaging.AutoOrientation(true))
 	if err != nil {
 		return "", fmt.Errorf("open image: %w", err)
@@ -214,6 +223,33 @@ func applyExifOrientation(inputPath string) (string, error) {
 		return "", fmt.Errorf("save oriented image: %w", err)
 	}
 	return tmpPath, nil
+}
+
+func jpegNeedsRotation(path string) (bool, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return false, fmt.Errorf("open jpeg: %w", err)
+	}
+	defer f.Close()
+
+	x, err := exif.Decode(f)
+	if err != nil {
+		if exif.IsCriticalError(err) {
+			return false, fmt.Errorf("decode exif: %w", err)
+		}
+	}
+	tag, err := x.Get(exif.Orientation)
+	if err != nil {
+		if exif.IsTagNotPresentError(err) {
+			return false, nil
+		}
+		return false, fmt.Errorf("read orientation tag: %w", err)
+	}
+	val, err := tag.Int(0)
+	if err != nil {
+		return false, fmt.Errorf("parse orientation: %w", err)
+	}
+	return val > 1, nil
 }
 
 func replaceExt(path, newExt string) string {
