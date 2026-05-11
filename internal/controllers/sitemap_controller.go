@@ -3,6 +3,7 @@ package controllers
 import (
 	"database/sql"
 	"encoding/xml"
+	"fmt"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
@@ -52,6 +53,7 @@ func (h *SitemapHandler) Register(app fiber.Router) {
 	app.Get("/sitemap-mysteries.xml", h.mysteries)
 	app.Get("/sitemap-ships.xml", h.ships)
 	app.Get("/sitemap-fanfics.xml", h.fanfics)
+	app.Get("/sitemap-journals.xml", h.journals)
 }
 
 func (h *SitemapHandler) sendXML(ctx fiber.Ctx, v interface{}) error {
@@ -76,6 +78,7 @@ func (h *SitemapHandler) index(ctx fiber.Ctx) error {
 			{Loc: h.baseURL + "/sitemap-mysteries.xml"},
 			{Loc: h.baseURL + "/sitemap-ships.xml"},
 			{Loc: h.baseURL + "/sitemap-fanfics.xml"},
+			{Loc: h.baseURL + "/sitemap-journals.xml"},
 		},
 	}
 	return h.sendXML(ctx, idx)
@@ -307,6 +310,53 @@ func (h *SitemapHandler) fanfics(ctx fiber.Ctx) error {
 			Loc:     h.baseURL + "/fanfiction/" + id,
 			LastMod: t.Format("2006-01-02"),
 		})
+	}
+
+	return h.sendXML(ctx, sitemapURLSet{
+		XMLNS: "http://www.sitemaps.org/schemas/sitemap/0.9",
+		URLs:  urls,
+	})
+}
+
+func (h *SitemapHandler) journals(ctx fiber.Ctx) error {
+	rows, err := h.db.QueryContext(ctx.Context(),
+		`SELECT j.id, j.updated_at, e.entry_number, e.updated_at
+		FROM journals j
+		LEFT JOIN journal_entries e ON e.journal_id = j.id
+		WHERE j.archived_at IS NULL
+		ORDER BY j.id, e.entry_number`)
+	if err != nil {
+		return ctx.Status(fiber.StatusInternalServerError).SendString("failed to query journals")
+	}
+	defer rows.Close()
+
+	var urls []sitemapURL
+	seenJournals := make(map[string]bool)
+	for rows.Next() {
+		var journalID string
+		var journalUpdatedAt time.Time
+		var entryNumber sql.NullInt64
+		var entryUpdatedAt sql.NullTime
+		if err := rows.Scan(&journalID, &journalUpdatedAt, &entryNumber, &entryUpdatedAt); err != nil {
+			continue
+		}
+		if !seenJournals[journalID] {
+			urls = append(urls, sitemapURL{
+				Loc:     h.baseURL + "/journals/" + journalID,
+				LastMod: journalUpdatedAt.Format("2006-01-02"),
+			})
+			seenJournals[journalID] = true
+		}
+		if entryNumber.Valid {
+			lastMod := journalUpdatedAt
+			if entryUpdatedAt.Valid {
+				lastMod = entryUpdatedAt.Time
+			}
+			urls = append(urls, sitemapURL{
+				Loc:     fmt.Sprintf("%s/journals/%s/entry/%d", h.baseURL, journalID, entryNumber.Int64),
+				LastMod: lastMod.Format("2006-01-02"),
+			})
+		}
 	}
 
 	return h.sendXML(ctx, sitemapURLSet{

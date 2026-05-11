@@ -15,11 +15,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func createJournal(t *testing.T, repos *repository.Repositories, userID uuid.UUID, title, body, work string) uuid.UUID {
+func createJournal(t *testing.T, repos *repository.Repositories, userID uuid.UUID, title, _body, work string) uuid.UUID {
 	t.Helper()
 	id, err := repos.Journal.Create(context.Background(), userID, dto.CreateJournalRequest{
 		Title: title,
-		Body:  body,
 		Work:  work,
 	})
 	require.NoError(t, err)
@@ -29,7 +28,7 @@ func createJournal(t *testing.T, repos *repository.Repositories, userID uuid.UUI
 func createJournalComment(t *testing.T, repos *repository.Repositories, journalID, userID uuid.UUID, parentID *uuid.UUID, body string) uuid.UUID {
 	t.Helper()
 	id := uuid.New()
-	require.NoError(t, repos.Journal.CreateComment(context.Background(), id, journalID, parentID, userID, body))
+	require.NoError(t, repos.Journal.CreateComment(context.Background(), id, journalID, nil, parentID, userID, body))
 	return id
 }
 
@@ -45,7 +44,6 @@ func TestJournalRepository_Create_AssignsDefaultWork(t *testing.T) {
 	// when
 	id, err := repos.Journal.Create(context.Background(), user.ID, dto.CreateJournalRequest{
 		Title: "Hello",
-		Body:  "World",
 		Work:  "",
 	})
 
@@ -71,7 +69,6 @@ func TestJournalRepository_GetByID_HappyPath(t *testing.T) {
 	require.NotNil(t, got)
 	assert.Equal(t, id, got.ID)
 	assert.Equal(t, "Title", got.Title)
-	assert.Equal(t, "Body", got.Body)
 	assert.Equal(t, "umineko", got.Work)
 	assert.Equal(t, user.ID, got.Author.ID)
 	assert.Equal(t, "Author", got.Author.DisplayName)
@@ -164,13 +161,12 @@ func TestJournalRepository_List_FilterByAuthor(t *testing.T) {
 	assert.Equal(t, aID, journals[0].ID)
 }
 
-func TestJournalRepository_List_Search(t *testing.T) {
+func TestJournalRepository_List_SearchByTitle(t *testing.T) {
 	// given
 	repos := repotest.NewRepos(t)
 	user := repotest.CreateUser(t, repos)
-	matchTitle := createJournal(t, repos, user.ID, "Witches and Magic", "body", "general")
-	matchBody := createJournal(t, repos, user.ID, "Other", "contains magic inside", "general")
-	createJournal(t, repos, user.ID, "Unrelated", "other body", "general")
+	matchTitle := createJournal(t, repos, user.ID, "Witches and Magic", "", "general")
+	createJournal(t, repos, user.ID, "Unrelated", "", "general")
 
 	// when
 	p := defaultJournalListParams()
@@ -179,10 +175,9 @@ func TestJournalRepository_List_Search(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	assert.Equal(t, 2, total)
-	ids := []uuid.UUID{journals[0].ID, journals[1].ID}
-	assert.Contains(t, ids, matchTitle)
-	assert.Contains(t, ids, matchBody)
+	assert.Equal(t, 1, total)
+	require.Len(t, journals, 1)
+	assert.Equal(t, matchTitle, journals[0].ID)
 }
 
 func TestJournalRepository_List_ExcludesArchivedByDefault(t *testing.T) {
@@ -291,15 +286,16 @@ func TestJournalRepository_List_Pagination(t *testing.T) {
 	assert.Len(t, journals, 1)
 }
 
-func TestJournalRepository_List_TruncatesBody(t *testing.T) {
+func TestJournalRepository_List_TruncatesLatestEntryExcerpt(t *testing.T) {
 	// given
 	repos := repotest.NewRepos(t)
 	user := repotest.CreateUser(t, repos)
+	id := createJournal(t, repos, user.ID, "T", "", "general")
 	longBody := ""
 	for i := 0; i < 400; i++ {
 		longBody += "a"
 	}
-	createJournal(t, repos, user.ID, "T", longBody, "general")
+	require.NoError(t, repos.Journal.CreateEntry(context.Background(), uuid.New(), id, 1, nil, longBody, 1))
 
 	// when
 	journals, _, err := repos.Journal.List(context.Background(), defaultJournalListParams(), uuid.Nil, nil)
@@ -307,8 +303,7 @@ func TestJournalRepository_List_TruncatesBody(t *testing.T) {
 	// then
 	require.NoError(t, err)
 	require.Len(t, journals, 1)
-	assert.Len(t, journals[0].Body, 303)
-	assert.Contains(t, journals[0].Body, "...")
+	assert.Len(t, journals[0].LatestEntryExcerpt, 303)
 }
 
 func TestJournalRepository_List_ExcludesBlockedUsers(t *testing.T) {
@@ -338,7 +333,6 @@ func TestJournalRepository_Update_Owned(t *testing.T) {
 	// when
 	err := repos.Journal.Update(context.Background(), id, user.ID, dto.CreateJournalRequest{
 		Title: "New",
-		Body:  "NewBody",
 		Work:  "higurashi",
 	})
 
@@ -348,7 +342,6 @@ func TestJournalRepository_Update_Owned(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	assert.Equal(t, "New", got.Title)
-	assert.Equal(t, "NewBody", got.Body)
 	assert.Equal(t, "higurashi", got.Work)
 	require.NotNil(t, got.UpdatedAt)
 }
@@ -363,7 +356,6 @@ func TestJournalRepository_Update_NotOwned(t *testing.T) {
 	// when
 	err := repos.Journal.Update(context.Background(), id, other.ID, dto.CreateJournalRequest{
 		Title: "Hacked",
-		Body:  "Hacked",
 		Work:  "general",
 	})
 
@@ -382,7 +374,6 @@ func TestJournalRepository_Update_UnarchivesJournal(t *testing.T) {
 	// when
 	err = repos.Journal.Update(context.Background(), id, user.ID, dto.CreateJournalRequest{
 		Title: "T2",
-		Body:  "B2",
 		Work:  "general",
 	})
 
@@ -402,7 +393,6 @@ func TestJournalRepository_UpdateAsAdmin(t *testing.T) {
 	// when
 	err := repos.Journal.UpdateAsAdmin(context.Background(), id, dto.CreateJournalRequest{
 		Title: "Admin Title",
-		Body:  "Admin Body",
 		Work:  "general",
 	})
 
@@ -412,7 +402,6 @@ func TestJournalRepository_UpdateAsAdmin(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	assert.Equal(t, "Admin Title", got.Title)
-	assert.Equal(t, "Admin Body", got.Body)
 }
 
 func TestJournalRepository_Delete_Owned(t *testing.T) {
@@ -1066,4 +1055,142 @@ func TestJournalRepository_CommentCountReflectedInJournal(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	assert.Equal(t, 2, got.CommentCount)
+}
+
+func TestJournalRepository_CreateAndGetEntry(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	user := repotest.CreateUser(t, repos)
+	jid := createJournal(t, repos, user.ID, "Title", "", "general")
+	entryID := uuid.New()
+	title := "Day 1"
+	require.NoError(t, repos.Journal.CreateEntry(context.Background(), entryID, jid, 1, &title, "the body", 2))
+
+	// when
+	got, err := repos.Journal.GetEntry(context.Background(), jid, 1)
+
+	// then
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	assert.Equal(t, entryID, got.ID)
+	assert.Equal(t, 1, got.EntryNumber)
+	require.NotNil(t, got.Title)
+	assert.Equal(t, "Day 1", *got.Title)
+	assert.Equal(t, "the body", got.Body)
+	assert.False(t, got.HasPrev)
+	assert.False(t, got.HasNext)
+}
+
+func TestJournalRepository_GetEntry_PrevNext(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	user := repotest.CreateUser(t, repos)
+	jid := createJournal(t, repos, user.ID, "Title", "", "general")
+	for i := 1; i <= 3; i++ {
+		require.NoError(t, repos.Journal.CreateEntry(context.Background(), uuid.New(), jid, i, nil, "body", 1))
+	}
+
+	// when
+	first, _ := repos.Journal.GetEntry(context.Background(), jid, 1)
+	middle, _ := repos.Journal.GetEntry(context.Background(), jid, 2)
+	last, _ := repos.Journal.GetEntry(context.Background(), jid, 3)
+
+	// then
+	assert.False(t, first.HasPrev)
+	assert.True(t, first.HasNext)
+	assert.True(t, middle.HasPrev)
+	assert.True(t, middle.HasNext)
+	assert.True(t, last.HasPrev)
+	assert.False(t, last.HasNext)
+}
+
+func TestJournalRepository_ListEntries_NewestFirst(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	user := repotest.CreateUser(t, repos)
+	jid := createJournal(t, repos, user.ID, "Title", "", "general")
+	for i := 1; i <= 3; i++ {
+		require.NoError(t, repos.Journal.CreateEntry(context.Background(), uuid.New(), jid, i, nil, "b", 1))
+	}
+
+	// when
+	entries, err := repos.Journal.ListEntries(context.Background(), jid)
+
+	// then
+	require.NoError(t, err)
+	require.Len(t, entries, 3)
+	assert.Equal(t, 3, entries[0].EntryNumber)
+	assert.Equal(t, 2, entries[1].EntryNumber)
+	assert.Equal(t, 1, entries[2].EntryNumber)
+}
+
+func TestJournalRepository_GetNextEntryNumber(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	user := repotest.CreateUser(t, repos)
+	jid := createJournal(t, repos, user.ID, "Title", "", "general")
+	next, err := repos.Journal.GetNextEntryNumber(context.Background(), jid)
+	require.NoError(t, err)
+	assert.Equal(t, 1, next)
+
+	require.NoError(t, repos.Journal.CreateEntry(context.Background(), uuid.New(), jid, 1, nil, "b", 1))
+	require.NoError(t, repos.Journal.CreateEntry(context.Background(), uuid.New(), jid, 2, nil, "b", 1))
+
+	// when
+	next, err = repos.Journal.GetNextEntryNumber(context.Background(), jid)
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, 3, next)
+}
+
+func TestJournalRepository_GetByID_PopulatesLatestEntry(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	user := repotest.CreateUser(t, repos)
+	jid := createJournal(t, repos, user.ID, "Title", "", "general")
+	title := "Latest"
+	require.NoError(t, repos.Journal.CreateEntry(context.Background(), uuid.New(), jid, 1, nil, "first body", 2))
+	require.NoError(t, repos.Journal.CreateEntry(context.Background(), uuid.New(), jid, 2, &title, "newest body", 2))
+
+	// when
+	got, err := repos.Journal.GetByID(context.Background(), jid, uuid.Nil)
+
+	// then
+	require.NoError(t, err)
+	require.NotNil(t, got.LatestEntryNumber)
+	assert.Equal(t, 2, *got.LatestEntryNumber)
+	require.NotNil(t, got.LatestEntryTitle)
+	assert.Equal(t, "Latest", *got.LatestEntryTitle)
+	assert.Equal(t, "newest body", got.LatestEntryExcerpt)
+	assert.Equal(t, 2, got.EntryCount)
+}
+
+func TestJournalRepository_EntryComments_ScopedSeparately(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	user := repotest.CreateUser(t, repos)
+	jid := createJournal(t, repos, user.ID, "Title", "", "general")
+	entryID := uuid.New()
+	require.NoError(t, repos.Journal.CreateEntry(context.Background(), entryID, jid, 1, nil, "b", 1))
+
+	// when
+	topLevelComment := uuid.New()
+	require.NoError(t, repos.Journal.CreateComment(context.Background(), topLevelComment, jid, nil, nil, user.ID, "on journal"))
+	entryComment := uuid.New()
+	require.NoError(t, repos.Journal.CreateComment(context.Background(), entryComment, jid, &entryID, nil, user.ID, "on entry"))
+
+	jrComments, _, err := repos.Journal.GetComments(context.Background(), jid, uuid.Nil, 100, 0, nil)
+	require.NoError(t, err)
+	enComments, _, err := repos.Journal.GetEntryComments(context.Background(), entryID, uuid.Nil, 100, 0, nil)
+	require.NoError(t, err)
+
+	// then: title-page query only returns the journal-level comment
+	require.Len(t, jrComments, 1)
+	assert.Equal(t, topLevelComment, jrComments[0].ID)
+	// entry query only returns the entry-scoped comment
+	require.Len(t, enComments, 1)
+	assert.Equal(t, entryComment, enComments[0].ID)
+	require.NotNil(t, enComments[0].EntryID)
+	assert.Equal(t, entryID, *enComments[0].EntryID)
 }

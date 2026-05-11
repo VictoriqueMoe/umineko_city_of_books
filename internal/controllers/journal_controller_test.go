@@ -199,7 +199,7 @@ func TestListUserFollowedJournals_InternalError(t *testing.T) {
 }
 
 func TestCreateJournal_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, newJournalHarness, "POST", "/journals", dto.CreateJournalRequest{Title: "t", Body: "b"})
+	testutil.RunAuthFailureSuite(t, newJournalHarness, "POST", "/journals", dto.CreateJournalRequest{Title: "t"})
 }
 
 func TestCreateJournal_OK(t *testing.T) {
@@ -208,7 +208,7 @@ func TestCreateJournal_OK(t *testing.T) {
 	userID := uuid.New()
 	newID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
-	req := dto.CreateJournalRequest{Title: "t", Body: "b", Work: "umineko"}
+	req := dto.CreateJournalRequest{Title: "t", Work: "umineko"}
 	js.EXPECT().CreateJournal(mock.Anything, userID, req).Return(newID, nil)
 
 	// when
@@ -246,7 +246,7 @@ func TestCreateJournal_ServiceErrors(t *testing.T) {
 		wantBody string
 	}{
 		{"rate limited", journalsvc.ErrRateLimited, http.StatusTooManyRequests, "daily journal limit reached"},
-		{"empty body", journalsvc.ErrEmptyBody, http.StatusBadRequest, "title and body are required"},
+		{"empty title", journalsvc.ErrEmptyTitle, http.StatusBadRequest, "title is required"},
 		{"internal", errors.New("boom"), http.StatusInternalServerError, "failed to create journal"},
 	}
 	for _, tc := range cases {
@@ -255,7 +255,7 @@ func TestCreateJournal_ServiceErrors(t *testing.T) {
 			h, js := newJournalHarness(t)
 			userID := uuid.New()
 			h.ExpectValidSession("valid-cookie", userID)
-			req := dto.CreateJournalRequest{Title: "t", Body: "b"}
+			req := dto.CreateJournalRequest{Title: "t"}
 			js.EXPECT().CreateJournal(mock.Anything, userID, req).Return(uuid.Nil, tc.svcErr)
 
 			// when
@@ -340,7 +340,7 @@ func TestGetJournal_InternalError(t *testing.T) {
 }
 
 func TestUpdateJournal_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, newJournalHarness, "PUT", "/journals/"+uuid.NewString(), dto.CreateJournalRequest{Title: "t", Body: "b"})
+	testutil.RunAuthFailureSuite(t, newJournalHarness, "PUT", "/journals/"+uuid.NewString(), dto.CreateJournalRequest{Title: "t"})
 }
 
 func TestUpdateJournal_InvalidID(t *testing.T) {
@@ -351,7 +351,7 @@ func TestUpdateJournal_InvalidID(t *testing.T) {
 	// when
 	status, body := h.NewRequest("PUT", "/journals/not-a-uuid").
 		WithCookie("valid-cookie").
-		WithJSONBody(dto.CreateJournalRequest{Title: "t", Body: "b"}).
+		WithJSONBody(dto.CreateJournalRequest{Title: "t"}).
 		Do()
 
 	// then
@@ -380,7 +380,7 @@ func TestUpdateJournal_OK(t *testing.T) {
 	userID := uuid.New()
 	id := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
-	req := dto.CreateJournalRequest{Title: "updated", Body: "body"}
+	req := dto.CreateJournalRequest{Title: "updated"}
 	js.EXPECT().UpdateJournal(mock.Anything, id, userID, req).Return(nil)
 
 	// when
@@ -400,7 +400,7 @@ func TestUpdateJournal_ServiceErrors(t *testing.T) {
 		wantCode int
 		wantBody string
 	}{
-		{"empty body", journalsvc.ErrEmptyBody, http.StatusBadRequest, "title and body are required"},
+		{"empty title", journalsvc.ErrEmptyTitle, http.StatusBadRequest, "title is required"},
 		{"forbidden", errors.New("not owner"), http.StatusForbidden, "cannot update this journal"},
 	}
 	for _, tc := range cases {
@@ -410,7 +410,7 @@ func TestUpdateJournal_ServiceErrors(t *testing.T) {
 			userID := uuid.New()
 			id := uuid.New()
 			h.ExpectValidSession("valid-cookie", userID)
-			req := dto.CreateJournalRequest{Title: "t", Body: "b"}
+			req := dto.CreateJournalRequest{Title: "t"}
 			js.EXPECT().UpdateJournal(mock.Anything, id, userID, req).Return(tc.svcErr)
 
 			// when
@@ -638,7 +638,7 @@ func TestCreateJournalComment_OK(t *testing.T) {
 	newID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
 	req := dto.CreateCommentRequest{Body: "hello"}
-	js.EXPECT().CreateComment(mock.Anything, journalID, userID, (*uuid.UUID)(nil), "hello").Return(newID, nil)
+	js.EXPECT().CreateComment(mock.Anything, journalID, userID, (*uuid.UUID)(nil), (*uuid.UUID)(nil), "hello").Return(newID, nil)
 
 	// when
 	status, body := h.NewRequest("POST", "/journals/"+journalID.String()+"/comments").
@@ -672,7 +672,7 @@ func TestCreateJournalComment_ServiceErrors(t *testing.T) {
 			journalID := uuid.New()
 			h.ExpectValidSession("valid-cookie", userID)
 			req := dto.CreateCommentRequest{Body: "hi"}
-			js.EXPECT().CreateComment(mock.Anything, journalID, userID, (*uuid.UUID)(nil), "hi").
+			js.EXPECT().CreateComment(mock.Anything, journalID, userID, (*uuid.UUID)(nil), (*uuid.UUID)(nil), "hi").
 				Return(uuid.Nil, tc.svcErr)
 
 			// when

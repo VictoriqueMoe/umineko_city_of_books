@@ -71,7 +71,7 @@ func TestSitemap_Index_OK(t *testing.T) {
 	var idx sitemapIndex
 	require.NoError(t, xml.Unmarshal(body, &idx))
 	assert.Equal(t, "http://www.sitemaps.org/schemas/sitemap/0.9", idx.XMLNS)
-	require.Len(t, idx.Sitemaps, 8)
+	require.Len(t, idx.Sitemaps, 9)
 
 	want := []string{
 		sitemapBaseURL + "/sitemap-static.xml",
@@ -82,6 +82,7 @@ func TestSitemap_Index_OK(t *testing.T) {
 		sitemapBaseURL + "/sitemap-mysteries.xml",
 		sitemapBaseURL + "/sitemap-ships.xml",
 		sitemapBaseURL + "/sitemap-fanfics.xml",
+		sitemapBaseURL + "/sitemap-journals.xml",
 	}
 	got := make([]string, 0, len(idx.Sitemaps))
 	for _, s := range idx.Sitemaps {

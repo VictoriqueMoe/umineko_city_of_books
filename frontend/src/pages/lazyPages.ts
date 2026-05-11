@@ -96,6 +96,11 @@ export const JournalsFeedPage = named(() => import("./journals/FeedPage"), "Jour
 export const JournalPage = named(() => import("./journals/JournalPage"), "JournalPage");
 export const CreateJournalPage = named(() => import("./journals/CreateJournalPage"), "CreateJournalPage");
 export const EditJournalPage = named(() => import("./journals/EditJournalPage"), "EditJournalPage");
+export const JournalEntryPage = named(() => import("./journals/JournalEntryPage"), "JournalEntryPage");
+export const JournalEntryEditorPage = named(
+    () => import("./journals/JournalEntryEditorPage"),
+    "JournalEntryEditorPage",
+);
 
 //  Chat Rooms
 export const RoomsListPage = named(() => import("./rooms/RoomsListPage"), "RoomsListPage");

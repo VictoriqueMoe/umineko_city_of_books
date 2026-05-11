@@ -340,16 +340,16 @@ func (_c *MockJournalRepository_Create_Call) RunAndReturn(run func(ctx context.C
 }
 
 // CreateComment provides a mock function for the type MockJournalRepository
-func (_mock *MockJournalRepository) CreateComment(ctx context.Context, id uuid.UUID, journalID uuid.UUID, parentID *uuid.UUID, userID uuid.UUID, body string) error {
-	ret := _mock.Called(ctx, id, journalID, parentID, userID, body)
+func (_mock *MockJournalRepository) CreateComment(ctx context.Context, id uuid.UUID, journalID uuid.UUID, entryID *uuid.UUID, parentID *uuid.UUID, userID uuid.UUID, body string) error {
+	ret := _mock.Called(ctx, id, journalID, entryID, parentID, userID, body)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateComment")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, *uuid.UUID, uuid.UUID, string) error); ok {
-		r0 = returnFunc(ctx, id, journalID, parentID, userID, body)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, *uuid.UUID, *uuid.UUID, uuid.UUID, string) error); ok {
+		r0 = returnFunc(ctx, id, journalID, entryID, parentID, userID, body)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -365,14 +365,15 @@ type MockJournalRepository_CreateComment_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - journalID uuid.UUID
+//   - entryID *uuid.UUID
 //   - parentID *uuid.UUID
 //   - userID uuid.UUID
 //   - body string
-func (_e *MockJournalRepository_Expecter) CreateComment(ctx interface{}, id interface{}, journalID interface{}, parentID interface{}, userID interface{}, body interface{}) *MockJournalRepository_CreateComment_Call {
-	return &MockJournalRepository_CreateComment_Call{Call: _e.mock.On("CreateComment", ctx, id, journalID, parentID, userID, body)}
+func (_e *MockJournalRepository_Expecter) CreateComment(ctx interface{}, id interface{}, journalID interface{}, entryID interface{}, parentID interface{}, userID interface{}, body interface{}) *MockJournalRepository_CreateComment_Call {
+	return &MockJournalRepository_CreateComment_Call{Call: _e.mock.On("CreateComment", ctx, id, journalID, entryID, parentID, userID, body)}
 }
 
-func (_c *MockJournalRepository_CreateComment_Call) Run(run func(ctx context.Context, id uuid.UUID, journalID uuid.UUID, parentID *uuid.UUID, userID uuid.UUID, body string)) *MockJournalRepository_CreateComment_Call {
+func (_c *MockJournalRepository_CreateComment_Call) Run(run func(ctx context.Context, id uuid.UUID, journalID uuid.UUID, entryID *uuid.UUID, parentID *uuid.UUID, userID uuid.UUID, body string)) *MockJournalRepository_CreateComment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -390,13 +391,17 @@ func (_c *MockJournalRepository_CreateComment_Call) Run(run func(ctx context.Con
 		if args[3] != nil {
 			arg3 = args[3].(*uuid.UUID)
 		}
-		var arg4 uuid.UUID
+		var arg4 *uuid.UUID
 		if args[4] != nil {
-			arg4 = args[4].(uuid.UUID)
+			arg4 = args[4].(*uuid.UUID)
 		}
-		var arg5 string
+		var arg5 uuid.UUID
 		if args[5] != nil {
-			arg5 = args[5].(string)
+			arg5 = args[5].(uuid.UUID)
+		}
+		var arg6 string
+		if args[6] != nil {
+			arg6 = args[6].(string)
 		}
 		run(
 			arg0,
@@ -405,6 +410,7 @@ func (_c *MockJournalRepository_CreateComment_Call) Run(run func(ctx context.Con
 			arg3,
 			arg4,
 			arg5,
+			arg6,
 		)
 	})
 	return _c
@@ -415,7 +421,94 @@ func (_c *MockJournalRepository_CreateComment_Call) Return(err error) *MockJourn
 	return _c
 }
 
-func (_c *MockJournalRepository_CreateComment_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, journalID uuid.UUID, parentID *uuid.UUID, userID uuid.UUID, body string) error) *MockJournalRepository_CreateComment_Call {
+func (_c *MockJournalRepository_CreateComment_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, journalID uuid.UUID, entryID *uuid.UUID, parentID *uuid.UUID, userID uuid.UUID, body string) error) *MockJournalRepository_CreateComment_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CreateEntry provides a mock function for the type MockJournalRepository
+func (_mock *MockJournalRepository) CreateEntry(ctx context.Context, id uuid.UUID, journalID uuid.UUID, entryNumber int, title *string, body string, wordCount int) error {
+	ret := _mock.Called(ctx, id, journalID, entryNumber, title, body, wordCount)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateEntry")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, *string, string, int) error); ok {
+		r0 = returnFunc(ctx, id, journalID, entryNumber, title, body, wordCount)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockJournalRepository_CreateEntry_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateEntry'
+type MockJournalRepository_CreateEntry_Call struct {
+	*mock.Call
+}
+
+// CreateEntry is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id uuid.UUID
+//   - journalID uuid.UUID
+//   - entryNumber int
+//   - title *string
+//   - body string
+//   - wordCount int
+func (_e *MockJournalRepository_Expecter) CreateEntry(ctx interface{}, id interface{}, journalID interface{}, entryNumber interface{}, title interface{}, body interface{}, wordCount interface{}) *MockJournalRepository_CreateEntry_Call {
+	return &MockJournalRepository_CreateEntry_Call{Call: _e.mock.On("CreateEntry", ctx, id, journalID, entryNumber, title, body, wordCount)}
+}
+
+func (_c *MockJournalRepository_CreateEntry_Call) Run(run func(ctx context.Context, id uuid.UUID, journalID uuid.UUID, entryNumber int, title *string, body string, wordCount int)) *MockJournalRepository_CreateEntry_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 int
+		if args[3] != nil {
+			arg3 = args[3].(int)
+		}
+		var arg4 *string
+		if args[4] != nil {
+			arg4 = args[4].(*string)
+		}
+		var arg5 string
+		if args[5] != nil {
+			arg5 = args[5].(string)
+		}
+		var arg6 int
+		if args[6] != nil {
+			arg6 = args[6].(int)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+			arg5,
+			arg6,
+		)
+	})
+	return _c
+}
+
+func (_c *MockJournalRepository_CreateEntry_Call) Return(err error) *MockJournalRepository_CreateEntry_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockJournalRepository_CreateEntry_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, journalID uuid.UUID, entryNumber int, title *string, body string, wordCount int) error) *MockJournalRepository_CreateEntry_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -656,6 +749,63 @@ func (_c *MockJournalRepository_DeleteCommentAsAdmin_Call) Return(err error) *Mo
 }
 
 func (_c *MockJournalRepository_DeleteCommentAsAdmin_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) error) *MockJournalRepository_DeleteCommentAsAdmin_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteEntry provides a mock function for the type MockJournalRepository
+func (_mock *MockJournalRepository) DeleteEntry(ctx context.Context, id uuid.UUID) error {
+	ret := _mock.Called(ctx, id)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteEntry")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, id)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockJournalRepository_DeleteEntry_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteEntry'
+type MockJournalRepository_DeleteEntry_Call struct {
+	*mock.Call
+}
+
+// DeleteEntry is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id uuid.UUID
+func (_e *MockJournalRepository_Expecter) DeleteEntry(ctx interface{}, id interface{}) *MockJournalRepository_DeleteEntry_Call {
+	return &MockJournalRepository_DeleteEntry_Call{Call: _e.mock.On("DeleteEntry", ctx, id)}
+}
+
+func (_c *MockJournalRepository_DeleteEntry_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockJournalRepository_DeleteEntry_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockJournalRepository_DeleteEntry_Call) Return(err error) *MockJournalRepository_DeleteEntry_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockJournalRepository_DeleteEntry_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) error) *MockJournalRepository_DeleteEntry_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1167,6 +1317,314 @@ func (_c *MockJournalRepository_GetComments_Call) RunAndReturn(run func(ctx cont
 	return _c
 }
 
+// GetEntry provides a mock function for the type MockJournalRepository
+func (_mock *MockJournalRepository) GetEntry(ctx context.Context, journalID uuid.UUID, entryNumber int) (*JournalEntryRow, error) {
+	ret := _mock.Called(ctx, journalID, entryNumber)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetEntry")
+	}
+
+	var r0 *JournalEntryRow
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int) (*JournalEntryRow, error)); ok {
+		return returnFunc(ctx, journalID, entryNumber)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int) *JournalEntryRow); ok {
+		r0 = returnFunc(ctx, journalID, entryNumber)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*JournalEntryRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, int) error); ok {
+		r1 = returnFunc(ctx, journalID, entryNumber)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockJournalRepository_GetEntry_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetEntry'
+type MockJournalRepository_GetEntry_Call struct {
+	*mock.Call
+}
+
+// GetEntry is a helper method to define mock.On call
+//   - ctx context.Context
+//   - journalID uuid.UUID
+//   - entryNumber int
+func (_e *MockJournalRepository_Expecter) GetEntry(ctx interface{}, journalID interface{}, entryNumber interface{}) *MockJournalRepository_GetEntry_Call {
+	return &MockJournalRepository_GetEntry_Call{Call: _e.mock.On("GetEntry", ctx, journalID, entryNumber)}
+}
+
+func (_c *MockJournalRepository_GetEntry_Call) Run(run func(ctx context.Context, journalID uuid.UUID, entryNumber int)) *MockJournalRepository_GetEntry_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 int
+		if args[2] != nil {
+			arg2 = args[2].(int)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockJournalRepository_GetEntry_Call) Return(journalEntryRow *JournalEntryRow, err error) *MockJournalRepository_GetEntry_Call {
+	_c.Call.Return(journalEntryRow, err)
+	return _c
+}
+
+func (_c *MockJournalRepository_GetEntry_Call) RunAndReturn(run func(ctx context.Context, journalID uuid.UUID, entryNumber int) (*JournalEntryRow, error)) *MockJournalRepository_GetEntry_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetEntryAuthorID provides a mock function for the type MockJournalRepository
+func (_mock *MockJournalRepository) GetEntryAuthorID(ctx context.Context, entryID uuid.UUID) (uuid.UUID, error) {
+	ret := _mock.Called(ctx, entryID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetEntryAuthorID")
+	}
+
+	var r0 uuid.UUID
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (uuid.UUID, error)); ok {
+		return returnFunc(ctx, entryID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) uuid.UUID); ok {
+		r0 = returnFunc(ctx, entryID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(uuid.UUID)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, entryID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockJournalRepository_GetEntryAuthorID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetEntryAuthorID'
+type MockJournalRepository_GetEntryAuthorID_Call struct {
+	*mock.Call
+}
+
+// GetEntryAuthorID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - entryID uuid.UUID
+func (_e *MockJournalRepository_Expecter) GetEntryAuthorID(ctx interface{}, entryID interface{}) *MockJournalRepository_GetEntryAuthorID_Call {
+	return &MockJournalRepository_GetEntryAuthorID_Call{Call: _e.mock.On("GetEntryAuthorID", ctx, entryID)}
+}
+
+func (_c *MockJournalRepository_GetEntryAuthorID_Call) Run(run func(ctx context.Context, entryID uuid.UUID)) *MockJournalRepository_GetEntryAuthorID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockJournalRepository_GetEntryAuthorID_Call) Return(uUID uuid.UUID, err error) *MockJournalRepository_GetEntryAuthorID_Call {
+	_c.Call.Return(uUID, err)
+	return _c
+}
+
+func (_c *MockJournalRepository_GetEntryAuthorID_Call) RunAndReturn(run func(ctx context.Context, entryID uuid.UUID) (uuid.UUID, error)) *MockJournalRepository_GetEntryAuthorID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetEntryComments provides a mock function for the type MockJournalRepository
+func (_mock *MockJournalRepository) GetEntryComments(ctx context.Context, entryID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID) ([]JournalCommentRow, int, error) {
+	ret := _mock.Called(ctx, entryID, viewerID, limit, offset, excludeUserIDs)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetEntryComments")
+	}
+
+	var r0 []JournalCommentRow
+	var r1 int
+	var r2 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID) ([]JournalCommentRow, int, error)); ok {
+		return returnFunc(ctx, entryID, viewerID, limit, offset, excludeUserIDs)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID) []JournalCommentRow); ok {
+		r0 = returnFunc(ctx, entryID, viewerID, limit, offset, excludeUserIDs)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]JournalCommentRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID) int); ok {
+		r1 = returnFunc(ctx, entryID, viewerID, limit, offset, excludeUserIDs)
+	} else {
+		r1 = ret.Get(1).(int)
+	}
+	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID) error); ok {
+		r2 = returnFunc(ctx, entryID, viewerID, limit, offset, excludeUserIDs)
+	} else {
+		r2 = ret.Error(2)
+	}
+	return r0, r1, r2
+}
+
+// MockJournalRepository_GetEntryComments_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetEntryComments'
+type MockJournalRepository_GetEntryComments_Call struct {
+	*mock.Call
+}
+
+// GetEntryComments is a helper method to define mock.On call
+//   - ctx context.Context
+//   - entryID uuid.UUID
+//   - viewerID uuid.UUID
+//   - limit int
+//   - offset int
+//   - excludeUserIDs []uuid.UUID
+func (_e *MockJournalRepository_Expecter) GetEntryComments(ctx interface{}, entryID interface{}, viewerID interface{}, limit interface{}, offset interface{}, excludeUserIDs interface{}) *MockJournalRepository_GetEntryComments_Call {
+	return &MockJournalRepository_GetEntryComments_Call{Call: _e.mock.On("GetEntryComments", ctx, entryID, viewerID, limit, offset, excludeUserIDs)}
+}
+
+func (_c *MockJournalRepository_GetEntryComments_Call) Run(run func(ctx context.Context, entryID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID)) *MockJournalRepository_GetEntryComments_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 int
+		if args[3] != nil {
+			arg3 = args[3].(int)
+		}
+		var arg4 int
+		if args[4] != nil {
+			arg4 = args[4].(int)
+		}
+		var arg5 []uuid.UUID
+		if args[5] != nil {
+			arg5 = args[5].([]uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+			arg5,
+		)
+	})
+	return _c
+}
+
+func (_c *MockJournalRepository_GetEntryComments_Call) Return(journalCommentRows []JournalCommentRow, n int, err error) *MockJournalRepository_GetEntryComments_Call {
+	_c.Call.Return(journalCommentRows, n, err)
+	return _c
+}
+
+func (_c *MockJournalRepository_GetEntryComments_Call) RunAndReturn(run func(ctx context.Context, entryID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID) ([]JournalCommentRow, int, error)) *MockJournalRepository_GetEntryComments_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetEntryJournalID provides a mock function for the type MockJournalRepository
+func (_mock *MockJournalRepository) GetEntryJournalID(ctx context.Context, entryID uuid.UUID) (uuid.UUID, error) {
+	ret := _mock.Called(ctx, entryID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetEntryJournalID")
+	}
+
+	var r0 uuid.UUID
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (uuid.UUID, error)); ok {
+		return returnFunc(ctx, entryID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) uuid.UUID); ok {
+		r0 = returnFunc(ctx, entryID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(uuid.UUID)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, entryID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockJournalRepository_GetEntryJournalID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetEntryJournalID'
+type MockJournalRepository_GetEntryJournalID_Call struct {
+	*mock.Call
+}
+
+// GetEntryJournalID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - entryID uuid.UUID
+func (_e *MockJournalRepository_Expecter) GetEntryJournalID(ctx interface{}, entryID interface{}) *MockJournalRepository_GetEntryJournalID_Call {
+	return &MockJournalRepository_GetEntryJournalID_Call{Call: _e.mock.On("GetEntryJournalID", ctx, entryID)}
+}
+
+func (_c *MockJournalRepository_GetEntryJournalID_Call) Run(run func(ctx context.Context, entryID uuid.UUID)) *MockJournalRepository_GetEntryJournalID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockJournalRepository_GetEntryJournalID_Call) Return(uUID uuid.UUID, err error) *MockJournalRepository_GetEntryJournalID_Call {
+	_c.Call.Return(uUID, err)
+	return _c
+}
+
+func (_c *MockJournalRepository_GetEntryJournalID_Call) RunAndReturn(run func(ctx context.Context, entryID uuid.UUID) (uuid.UUID, error)) *MockJournalRepository_GetEntryJournalID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetFollowerCount provides a mock function for the type MockJournalRepository
 func (_mock *MockJournalRepository) GetFollowerCount(ctx context.Context, journalID uuid.UUID) (int, error) {
 	ret := _mock.Called(ctx, journalID)
@@ -1297,6 +1755,72 @@ func (_c *MockJournalRepository_GetFollowerIDs_Call) Return(uUIDs []uuid.UUID, e
 }
 
 func (_c *MockJournalRepository_GetFollowerIDs_Call) RunAndReturn(run func(ctx context.Context, journalID uuid.UUID) ([]uuid.UUID, error)) *MockJournalRepository_GetFollowerIDs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetNextEntryNumber provides a mock function for the type MockJournalRepository
+func (_mock *MockJournalRepository) GetNextEntryNumber(ctx context.Context, journalID uuid.UUID) (int, error) {
+	ret := _mock.Called(ctx, journalID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetNextEntryNumber")
+	}
+
+	var r0 int
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (int, error)); ok {
+		return returnFunc(ctx, journalID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) int); ok {
+		r0 = returnFunc(ctx, journalID)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, journalID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockJournalRepository_GetNextEntryNumber_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetNextEntryNumber'
+type MockJournalRepository_GetNextEntryNumber_Call struct {
+	*mock.Call
+}
+
+// GetNextEntryNumber is a helper method to define mock.On call
+//   - ctx context.Context
+//   - journalID uuid.UUID
+func (_e *MockJournalRepository_Expecter) GetNextEntryNumber(ctx interface{}, journalID interface{}) *MockJournalRepository_GetNextEntryNumber_Call {
+	return &MockJournalRepository_GetNextEntryNumber_Call{Call: _e.mock.On("GetNextEntryNumber", ctx, journalID)}
+}
+
+func (_c *MockJournalRepository_GetNextEntryNumber_Call) Run(run func(ctx context.Context, journalID uuid.UUID)) *MockJournalRepository_GetNextEntryNumber_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockJournalRepository_GetNextEntryNumber_Call) Return(n int, err error) *MockJournalRepository_GetNextEntryNumber_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *MockJournalRepository_GetNextEntryNumber_Call) RunAndReturn(run func(ctx context.Context, journalID uuid.UUID) (int, error)) *MockJournalRepository_GetNextEntryNumber_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1650,6 +2174,74 @@ func (_c *MockJournalRepository_List_Call) Return(journalResponses []dto.Journal
 }
 
 func (_c *MockJournalRepository_List_Call) RunAndReturn(run func(ctx context.Context, p params.ListParams, viewerID uuid.UUID, excludeUserIDs []uuid.UUID) ([]dto.JournalResponse, int, error)) *MockJournalRepository_List_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListEntries provides a mock function for the type MockJournalRepository
+func (_mock *MockJournalRepository) ListEntries(ctx context.Context, journalID uuid.UUID) ([]JournalEntrySummaryRow, error) {
+	ret := _mock.Called(ctx, journalID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListEntries")
+	}
+
+	var r0 []JournalEntrySummaryRow
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]JournalEntrySummaryRow, error)); ok {
+		return returnFunc(ctx, journalID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []JournalEntrySummaryRow); ok {
+		r0 = returnFunc(ctx, journalID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]JournalEntrySummaryRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, journalID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockJournalRepository_ListEntries_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListEntries'
+type MockJournalRepository_ListEntries_Call struct {
+	*mock.Call
+}
+
+// ListEntries is a helper method to define mock.On call
+//   - ctx context.Context
+//   - journalID uuid.UUID
+func (_e *MockJournalRepository_Expecter) ListEntries(ctx interface{}, journalID interface{}) *MockJournalRepository_ListEntries_Call {
+	return &MockJournalRepository_ListEntries_Call{Call: _e.mock.On("ListEntries", ctx, journalID)}
+}
+
+func (_c *MockJournalRepository_ListEntries_Call) Run(run func(ctx context.Context, journalID uuid.UUID)) *MockJournalRepository_ListEntries_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockJournalRepository_ListEntries_Call) Return(journalEntrySummaryRows []JournalEntrySummaryRow, err error) *MockJournalRepository_ListEntries_Call {
+	_c.Call.Return(journalEntrySummaryRows, err)
+	return _c
+}
+
+func (_c *MockJournalRepository_ListEntries_Call) RunAndReturn(run func(ctx context.Context, journalID uuid.UUID) ([]JournalEntrySummaryRow, error)) *MockJournalRepository_ListEntries_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2258,6 +2850,81 @@ func (_c *MockJournalRepository_UpdateCommentMediaURL_Call) Return(err error) *M
 }
 
 func (_c *MockJournalRepository_UpdateCommentMediaURL_Call) RunAndReturn(run func(ctx context.Context, id int64, mediaURL string) error) *MockJournalRepository_UpdateCommentMediaURL_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateEntry provides a mock function for the type MockJournalRepository
+func (_mock *MockJournalRepository) UpdateEntry(ctx context.Context, id uuid.UUID, title *string, body string, wordCount int) error {
+	ret := _mock.Called(ctx, id, title, body, wordCount)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateEntry")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, *string, string, int) error); ok {
+		r0 = returnFunc(ctx, id, title, body, wordCount)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockJournalRepository_UpdateEntry_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateEntry'
+type MockJournalRepository_UpdateEntry_Call struct {
+	*mock.Call
+}
+
+// UpdateEntry is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id uuid.UUID
+//   - title *string
+//   - body string
+//   - wordCount int
+func (_e *MockJournalRepository_Expecter) UpdateEntry(ctx interface{}, id interface{}, title interface{}, body interface{}, wordCount interface{}) *MockJournalRepository_UpdateEntry_Call {
+	return &MockJournalRepository_UpdateEntry_Call{Call: _e.mock.On("UpdateEntry", ctx, id, title, body, wordCount)}
+}
+
+func (_c *MockJournalRepository_UpdateEntry_Call) Run(run func(ctx context.Context, id uuid.UUID, title *string, body string, wordCount int)) *MockJournalRepository_UpdateEntry_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 *string
+		if args[2] != nil {
+			arg2 = args[2].(*string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		var arg4 int
+		if args[4] != nil {
+			arg4 = args[4].(int)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+		)
+	})
+	return _c
+}
+
+func (_c *MockJournalRepository_UpdateEntry_Call) Return(err error) *MockJournalRepository_UpdateEntry_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockJournalRepository_UpdateEntry_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, title *string, body string, wordCount int) error) *MockJournalRepository_UpdateEntry_Call {
 	_c.Call.Return(run)
 	return _c
 }

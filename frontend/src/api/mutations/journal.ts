@@ -2,17 +2,20 @@
 import {
     createJournal,
     createJournalComment,
+    createJournalEntry,
     deleteJournal,
     deleteJournalComment,
+    deleteJournalEntry,
     followJournal,
     likeJournalComment,
     unfollowJournal,
     unlikeJournalComment,
     updateJournal,
     updateJournalComment,
+    updateJournalEntry,
     uploadJournalCommentMedia,
 } from "../endpoints";
-import type { CreateJournalPayload } from "../../types/api";
+import type { CreateJournalPayload, JournalEntryPayload } from "../../types/api";
 import { queryKeys } from "../queryKeys";
 
 export function useCreateJournal() {
@@ -55,11 +58,35 @@ export function useUnfollowJournal() {
     });
 }
 
-export function useCreateJournalComment(journalId: string) {
+export function useCreateJournalComment(journalId: string, entryId?: string) {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: ({ body, parentId }: { body: string; parentId?: string }) =>
-            createJournalComment(journalId, body, parentId),
+            createJournalComment(journalId, body, parentId, entryId),
+        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.journal.all }),
+    });
+}
+
+export function useCreateJournalEntry(journalId: string) {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (payload: JournalEntryPayload) => createJournalEntry(journalId, payload),
+        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.journal.all }),
+    });
+}
+
+export function useUpdateJournalEntry(_journalId: string) {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: ({ id, payload }: { id: string; payload: JournalEntryPayload }) => updateJournalEntry(id, payload),
+        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.journal.all }),
+    });
+}
+
+export function useDeleteJournalEntry(_journalId: string) {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (id: string) => deleteJournalEntry(id),
         onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.journal.all }),
     });
 }

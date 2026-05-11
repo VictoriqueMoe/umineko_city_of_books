@@ -33,6 +33,7 @@ var urlBuilders = map[repository.SearchEntityType]func(repository.SearchResult) 
 	repository.SearchEntityFanfic:              selfURL("/fanfiction/"),
 	repository.SearchEntityFanficComment:       parentURL("/fanfiction/", "#comment-"),
 	repository.SearchEntityJournal:             selfURL("/journals/"),
+	repository.SearchEntityJournalEntry:        parentURL("/journals/", "/entry/"),
 	repository.SearchEntityJournalComment:      parentURL("/journals/", "#comment-"),
 	repository.SearchEntityUser: func(r repository.SearchResult) string {
 		return "/user/" + r.AuthorUsername

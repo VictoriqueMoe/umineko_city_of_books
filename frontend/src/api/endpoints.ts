@@ -44,7 +44,10 @@ import type {
     GameType,
     GMLeaderboardResponse,
     HomeActivityResponse,
+    JournalComment,
     JournalDetail,
+    JournalEntry,
+    JournalEntryPayload,
     JournalListResponse,
     JournalWork,
     MarkSidebarVisitedRequest,
@@ -1660,11 +1663,39 @@ export async function createJournalComment(
     journalId: string,
     body: string,
     parentId?: string,
+    entryId?: string,
 ): Promise<{ id: string }> {
-    return apiPost<{ id: string }, { body: string; parent_id?: string }>(`/journals/${journalId}/comments`, {
-        body,
-        parent_id: parentId,
-    });
+    return apiPost<{ id: string }, { body: string; parent_id?: string; entry_id?: string }>(
+        `/journals/${journalId}/comments`,
+        { body, parent_id: parentId, entry_id: entryId },
+    );
+}
+
+export async function getJournalEntry(
+    journalId: string,
+    entryNumber: number,
+): Promise<{ entry: JournalEntry; comments: JournalComment[] }> {
+    return apiFetch<{ entry: JournalEntry; comments: JournalComment[] }>(
+        `/journals/${journalId}/entries/${entryNumber}`,
+    );
+}
+
+export async function createJournalEntry(
+    journalId: string,
+    payload: JournalEntryPayload,
+): Promise<{ id: string; entry_number: number }> {
+    return apiPost<{ id: string; entry_number: number }, JournalEntryPayload>(
+        `/journals/${journalId}/entries`,
+        payload,
+    );
+}
+
+export async function updateJournalEntry(entryId: string, payload: JournalEntryPayload): Promise<void> {
+    await apiPut<unknown, JournalEntryPayload>(`/journal-entries/${entryId}`, payload);
+}
+
+export async function deleteJournalEntry(entryId: string): Promise<void> {
+    await apiDelete(`/journal-entries/${entryId}`);
 }
 
 export async function updateJournalComment(id: string, body: string): Promise<void> {

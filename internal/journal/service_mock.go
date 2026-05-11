@@ -102,8 +102,8 @@ func (_c *MockService_ArchiveStale_Call) RunAndReturn(run func(ctx context.Conte
 }
 
 // CreateComment provides a mock function for the type MockService
-func (_mock *MockService) CreateComment(ctx context.Context, journalID uuid.UUID, userID uuid.UUID, parentID *uuid.UUID, body string) (uuid.UUID, error) {
-	ret := _mock.Called(ctx, journalID, userID, parentID, body)
+func (_mock *MockService) CreateComment(ctx context.Context, journalID uuid.UUID, userID uuid.UUID, entryID *uuid.UUID, parentID *uuid.UUID, body string) (uuid.UUID, error) {
+	ret := _mock.Called(ctx, journalID, userID, entryID, parentID, body)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateComment")
@@ -111,18 +111,18 @@ func (_mock *MockService) CreateComment(ctx context.Context, journalID uuid.UUID
 
 	var r0 uuid.UUID
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, *uuid.UUID, string) (uuid.UUID, error)); ok {
-		return returnFunc(ctx, journalID, userID, parentID, body)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, *uuid.UUID, *uuid.UUID, string) (uuid.UUID, error)); ok {
+		return returnFunc(ctx, journalID, userID, entryID, parentID, body)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, *uuid.UUID, string) uuid.UUID); ok {
-		r0 = returnFunc(ctx, journalID, userID, parentID, body)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, *uuid.UUID, *uuid.UUID, string) uuid.UUID); ok {
+		r0 = returnFunc(ctx, journalID, userID, entryID, parentID, body)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(uuid.UUID)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, *uuid.UUID, string) error); ok {
-		r1 = returnFunc(ctx, journalID, userID, parentID, body)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, *uuid.UUID, *uuid.UUID, string) error); ok {
+		r1 = returnFunc(ctx, journalID, userID, entryID, parentID, body)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -138,13 +138,14 @@ type MockService_CreateComment_Call struct {
 //   - ctx context.Context
 //   - journalID uuid.UUID
 //   - userID uuid.UUID
+//   - entryID *uuid.UUID
 //   - parentID *uuid.UUID
 //   - body string
-func (_e *MockService_Expecter) CreateComment(ctx interface{}, journalID interface{}, userID interface{}, parentID interface{}, body interface{}) *MockService_CreateComment_Call {
-	return &MockService_CreateComment_Call{Call: _e.mock.On("CreateComment", ctx, journalID, userID, parentID, body)}
+func (_e *MockService_Expecter) CreateComment(ctx interface{}, journalID interface{}, userID interface{}, entryID interface{}, parentID interface{}, body interface{}) *MockService_CreateComment_Call {
+	return &MockService_CreateComment_Call{Call: _e.mock.On("CreateComment", ctx, journalID, userID, entryID, parentID, body)}
 }
 
-func (_c *MockService_CreateComment_Call) Run(run func(ctx context.Context, journalID uuid.UUID, userID uuid.UUID, parentID *uuid.UUID, body string)) *MockService_CreateComment_Call {
+func (_c *MockService_CreateComment_Call) Run(run func(ctx context.Context, journalID uuid.UUID, userID uuid.UUID, entryID *uuid.UUID, parentID *uuid.UUID, body string)) *MockService_CreateComment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -162,9 +163,13 @@ func (_c *MockService_CreateComment_Call) Run(run func(ctx context.Context, jour
 		if args[3] != nil {
 			arg3 = args[3].(*uuid.UUID)
 		}
-		var arg4 string
+		var arg4 *uuid.UUID
 		if args[4] != nil {
-			arg4 = args[4].(string)
+			arg4 = args[4].(*uuid.UUID)
+		}
+		var arg5 string
+		if args[5] != nil {
+			arg5 = args[5].(string)
 		}
 		run(
 			arg0,
@@ -172,6 +177,7 @@ func (_c *MockService_CreateComment_Call) Run(run func(ctx context.Context, jour
 			arg2,
 			arg3,
 			arg4,
+			arg5,
 		)
 	})
 	return _c
@@ -182,7 +188,93 @@ func (_c *MockService_CreateComment_Call) Return(uUID uuid.UUID, err error) *Moc
 	return _c
 }
 
-func (_c *MockService_CreateComment_Call) RunAndReturn(run func(ctx context.Context, journalID uuid.UUID, userID uuid.UUID, parentID *uuid.UUID, body string) (uuid.UUID, error)) *MockService_CreateComment_Call {
+func (_c *MockService_CreateComment_Call) RunAndReturn(run func(ctx context.Context, journalID uuid.UUID, userID uuid.UUID, entryID *uuid.UUID, parentID *uuid.UUID, body string) (uuid.UUID, error)) *MockService_CreateComment_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CreateEntry provides a mock function for the type MockService
+func (_mock *MockService) CreateEntry(ctx context.Context, journalID uuid.UUID, userID uuid.UUID, req dto.CreateJournalEntryRequest) (uuid.UUID, int, error) {
+	ret := _mock.Called(ctx, journalID, userID, req)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateEntry")
+	}
+
+	var r0 uuid.UUID
+	var r1 int
+	var r2 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, dto.CreateJournalEntryRequest) (uuid.UUID, int, error)); ok {
+		return returnFunc(ctx, journalID, userID, req)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, dto.CreateJournalEntryRequest) uuid.UUID); ok {
+		r0 = returnFunc(ctx, journalID, userID, req)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(uuid.UUID)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, dto.CreateJournalEntryRequest) int); ok {
+		r1 = returnFunc(ctx, journalID, userID, req)
+	} else {
+		r1 = ret.Get(1).(int)
+	}
+	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, uuid.UUID, dto.CreateJournalEntryRequest) error); ok {
+		r2 = returnFunc(ctx, journalID, userID, req)
+	} else {
+		r2 = ret.Error(2)
+	}
+	return r0, r1, r2
+}
+
+// MockService_CreateEntry_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateEntry'
+type MockService_CreateEntry_Call struct {
+	*mock.Call
+}
+
+// CreateEntry is a helper method to define mock.On call
+//   - ctx context.Context
+//   - journalID uuid.UUID
+//   - userID uuid.UUID
+//   - req dto.CreateJournalEntryRequest
+func (_e *MockService_Expecter) CreateEntry(ctx interface{}, journalID interface{}, userID interface{}, req interface{}) *MockService_CreateEntry_Call {
+	return &MockService_CreateEntry_Call{Call: _e.mock.On("CreateEntry", ctx, journalID, userID, req)}
+}
+
+func (_c *MockService_CreateEntry_Call) Run(run func(ctx context.Context, journalID uuid.UUID, userID uuid.UUID, req dto.CreateJournalEntryRequest)) *MockService_CreateEntry_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 dto.CreateJournalEntryRequest
+		if args[3] != nil {
+			arg3 = args[3].(dto.CreateJournalEntryRequest)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_CreateEntry_Call) Return(uUID uuid.UUID, n int, err error) *MockService_CreateEntry_Call {
+	_c.Call.Return(uUID, n, err)
+	return _c
+}
+
+func (_c *MockService_CreateEntry_Call) RunAndReturn(run func(ctx context.Context, journalID uuid.UUID, userID uuid.UUID, req dto.CreateJournalEntryRequest) (uuid.UUID, int, error)) *MockService_CreateEntry_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -324,6 +416,69 @@ func (_c *MockService_DeleteComment_Call) RunAndReturn(run func(ctx context.Cont
 	return _c
 }
 
+// DeleteEntry provides a mock function for the type MockService
+func (_mock *MockService) DeleteEntry(ctx context.Context, entryID uuid.UUID, userID uuid.UUID) error {
+	ret := _mock.Called(ctx, entryID, userID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteEntry")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, entryID, userID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_DeleteEntry_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteEntry'
+type MockService_DeleteEntry_Call struct {
+	*mock.Call
+}
+
+// DeleteEntry is a helper method to define mock.On call
+//   - ctx context.Context
+//   - entryID uuid.UUID
+//   - userID uuid.UUID
+func (_e *MockService_Expecter) DeleteEntry(ctx interface{}, entryID interface{}, userID interface{}) *MockService_DeleteEntry_Call {
+	return &MockService_DeleteEntry_Call{Call: _e.mock.On("DeleteEntry", ctx, entryID, userID)}
+}
+
+func (_c *MockService_DeleteEntry_Call) Run(run func(ctx context.Context, entryID uuid.UUID, userID uuid.UUID)) *MockService_DeleteEntry_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_DeleteEntry_Call) Return(err error) *MockService_DeleteEntry_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_DeleteEntry_Call) RunAndReturn(run func(ctx context.Context, entryID uuid.UUID, userID uuid.UUID) error) *MockService_DeleteEntry_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteJournal provides a mock function for the type MockService
 func (_mock *MockService) DeleteJournal(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
 	ret := _mock.Called(ctx, id, userID)
@@ -446,6 +601,94 @@ func (_c *MockService_FollowJournal_Call) Return(err error) *MockService_FollowJ
 }
 
 func (_c *MockService_FollowJournal_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID) error) *MockService_FollowJournal_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetEntry provides a mock function for the type MockService
+func (_mock *MockService) GetEntry(ctx context.Context, journalID uuid.UUID, entryNumber int, viewerID uuid.UUID) (*dto.JournalEntryResponse, []dto.JournalCommentResponse, error) {
+	ret := _mock.Called(ctx, journalID, entryNumber, viewerID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetEntry")
+	}
+
+	var r0 *dto.JournalEntryResponse
+	var r1 []dto.JournalCommentResponse
+	var r2 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, uuid.UUID) (*dto.JournalEntryResponse, []dto.JournalCommentResponse, error)); ok {
+		return returnFunc(ctx, journalID, entryNumber, viewerID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, uuid.UUID) *dto.JournalEntryResponse); ok {
+		r0 = returnFunc(ctx, journalID, entryNumber, viewerID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dto.JournalEntryResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, int, uuid.UUID) []dto.JournalCommentResponse); ok {
+		r1 = returnFunc(ctx, journalID, entryNumber, viewerID)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).([]dto.JournalCommentResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, int, uuid.UUID) error); ok {
+		r2 = returnFunc(ctx, journalID, entryNumber, viewerID)
+	} else {
+		r2 = ret.Error(2)
+	}
+	return r0, r1, r2
+}
+
+// MockService_GetEntry_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetEntry'
+type MockService_GetEntry_Call struct {
+	*mock.Call
+}
+
+// GetEntry is a helper method to define mock.On call
+//   - ctx context.Context
+//   - journalID uuid.UUID
+//   - entryNumber int
+//   - viewerID uuid.UUID
+func (_e *MockService_Expecter) GetEntry(ctx interface{}, journalID interface{}, entryNumber interface{}, viewerID interface{}) *MockService_GetEntry_Call {
+	return &MockService_GetEntry_Call{Call: _e.mock.On("GetEntry", ctx, journalID, entryNumber, viewerID)}
+}
+
+func (_c *MockService_GetEntry_Call) Run(run func(ctx context.Context, journalID uuid.UUID, entryNumber int, viewerID uuid.UUID)) *MockService_GetEntry_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 int
+		if args[2] != nil {
+			arg2 = args[2].(int)
+		}
+		var arg3 uuid.UUID
+		if args[3] != nil {
+			arg3 = args[3].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_GetEntry_Call) Return(journalEntryResponse *dto.JournalEntryResponse, journalCommentResponses []dto.JournalCommentResponse, err error) *MockService_GetEntry_Call {
+	_c.Call.Return(journalEntryResponse, journalCommentResponses, err)
+	return _c
+}
+
+func (_c *MockService_GetEntry_Call) RunAndReturn(run func(ctx context.Context, journalID uuid.UUID, entryNumber int, viewerID uuid.UUID) (*dto.JournalEntryResponse, []dto.JournalCommentResponse, error)) *MockService_GetEntry_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1024,6 +1267,75 @@ func (_c *MockService_UpdateComment_Call) Return(err error) *MockService_UpdateC
 }
 
 func (_c *MockService_UpdateComment_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string) error) *MockService_UpdateComment_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateEntry provides a mock function for the type MockService
+func (_mock *MockService) UpdateEntry(ctx context.Context, entryID uuid.UUID, userID uuid.UUID, req dto.UpdateJournalEntryRequest) error {
+	ret := _mock.Called(ctx, entryID, userID, req)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateEntry")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, dto.UpdateJournalEntryRequest) error); ok {
+		r0 = returnFunc(ctx, entryID, userID, req)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_UpdateEntry_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateEntry'
+type MockService_UpdateEntry_Call struct {
+	*mock.Call
+}
+
+// UpdateEntry is a helper method to define mock.On call
+//   - ctx context.Context
+//   - entryID uuid.UUID
+//   - userID uuid.UUID
+//   - req dto.UpdateJournalEntryRequest
+func (_e *MockService_Expecter) UpdateEntry(ctx interface{}, entryID interface{}, userID interface{}, req interface{}) *MockService_UpdateEntry_Call {
+	return &MockService_UpdateEntry_Call{Call: _e.mock.On("UpdateEntry", ctx, entryID, userID, req)}
+}
+
+func (_c *MockService_UpdateEntry_Call) Run(run func(ctx context.Context, entryID uuid.UUID, userID uuid.UUID, req dto.UpdateJournalEntryRequest)) *MockService_UpdateEntry_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 dto.UpdateJournalEntryRequest
+		if args[3] != nil {
+			arg3 = args[3].(dto.UpdateJournalEntryRequest)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_UpdateEntry_Call) Return(err error) *MockService_UpdateEntry_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_UpdateEntry_Call) RunAndReturn(run func(ctx context.Context, entryID uuid.UUID, userID uuid.UUID, req dto.UpdateJournalEntryRequest) error) *MockService_UpdateEntry_Call {
 	_c.Call.Return(run)
 	return _c
 }

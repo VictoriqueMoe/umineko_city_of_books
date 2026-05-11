@@ -3,42 +3,38 @@ import type { JournalWork } from "../../../types/api";
 import { Input } from "../../Input/Input";
 import { Select } from "../../Select/Select";
 import { Button } from "../../Button/Button";
-import { MentionTextArea } from "../../MentionTextArea/MentionTextArea";
 import { JOURNAL_WORKS } from "../../../utils/journalWorks";
 import styles from "./JournalForm.module.css";
 
 interface JournalFormProps {
     initialTitle?: string;
-    initialBody?: string;
     initialWork?: JournalWork;
     submitLabel: string;
     submittingLabel: string;
-    onSubmit: (data: { title: string; body: string; work: JournalWork }) => Promise<void>;
+    onSubmit: (data: { title: string; work: JournalWork }) => Promise<void>;
 }
 
 export function JournalForm({
     initialTitle = "",
-    initialBody = "",
     initialWork = "general",
     submitLabel,
     submittingLabel,
     onSubmit,
 }: JournalFormProps) {
     const [title, setTitle] = useState(initialTitle);
-    const [body, setBody] = useState(initialBody);
     const [work, setWork] = useState<JournalWork>(initialWork);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
-        if (!title.trim() || !body.trim() || submitting) {
+        if (!title.trim() || submitting) {
             return;
         }
         setSubmitting(true);
         setError("");
         try {
-            await onSubmit({ title: title.trim(), body: body.trim(), work });
+            await onSubmit({ title: title.trim(), work });
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to save");
             setSubmitting(false);
@@ -71,19 +67,8 @@ export function JournalForm({
                 </Select>
             </div>
 
-            <div className={styles.field}>
-                <label className={styles.label}>Intro</label>
-                <MentionTextArea
-                    value={body}
-                    onChange={setBody}
-                    rows={8}
-                    placeholder="Introduce your read-through. What are you reading, what are you hoping for? You can post updates as comments below once you've created the journal."
-                    showColours
-                />
-            </div>
-
             <div className={styles.actions}>
-                <Button variant="primary" size="medium" disabled={submitting || !title.trim() || !body.trim()}>
+                <Button variant="primary" size="medium" disabled={submitting || !title.trim()}>
                     {submitting ? submittingLabel : submitLabel}
                 </Button>
             </div>

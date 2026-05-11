@@ -3,6 +3,7 @@ package og
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"umineko_city_of_books/internal/repository"
@@ -228,6 +229,12 @@ func (r *Resolver) metaForPath(ctx context.Context, path string) *Meta {
 	if len(parts) == 2 && parts[0] == "journals" {
 		if _, err := uuid.Parse(parts[1]); err == nil {
 			return r.journalMeta(ctx, parts[1])
+		}
+	}
+
+	if len(parts) == 4 && parts[0] == "journals" && parts[2] == "entry" {
+		if _, err := uuid.Parse(parts[1]); err == nil {
+			return r.journalEntryMeta(ctx, parts[1], parts[3])
 		}
 	}
 
@@ -680,9 +687,12 @@ func (r *Resolver) journalMeta(ctx context.Context, idStr string) *Meta {
 		return nil
 	}
 
-	desc := journal.Body
+	desc := journal.LatestEntryExcerpt
 	if len(desc) > 200 {
 		desc = desc[:197] + "..."
+	}
+	if desc == "" {
+		desc = fmt.Sprintf("%s's Reading Journal", journal.Author.DisplayName)
 	}
 
 	title := fmt.Sprintf("%s - %s's Reading Journal", journal.Title, journal.Author.DisplayName)
@@ -691,6 +701,48 @@ func (r *Resolver) journalMeta(ctx context.Context, idStr string) *Meta {
 		Title:       title,
 		Description: desc,
 		URL:         fmt.Sprintf("%s/journals/%s", r.baseURL, idStr),
+	}
+}
+
+func (r *Resolver) journalEntryMeta(ctx context.Context, journalIDStr, numberStr string) *Meta {
+	journalID, err := uuid.Parse(journalIDStr)
+	if err != nil {
+		return nil
+	}
+	number, err := strconv.Atoi(numberStr)
+	if err != nil || number < 1 {
+		return nil
+	}
+
+	journal, err := r.journalRepo.GetByID(ctx, journalID, uuid.Nil)
+	if err != nil || journal == nil {
+		return nil
+	}
+
+	entry, err := r.journalRepo.GetEntry(ctx, journalID, number)
+	if err != nil || entry == nil {
+		return nil
+	}
+
+	desc := entry.Body
+	if len(desc) > 200 {
+		desc = desc[:197] + "..."
+	}
+	if desc == "" {
+		desc = fmt.Sprintf("Entry %d in %s's Reading Journal", number, journal.Author.DisplayName)
+	}
+
+	entryLabel := fmt.Sprintf("Entry %d", number)
+	if entry.Title != nil && *entry.Title != "" {
+		entryLabel = fmt.Sprintf("Entry %d: %s", number, *entry.Title)
+	}
+
+	title := fmt.Sprintf("%s - %s - %s's Reading Journal", entryLabel, journal.Title, journal.Author.DisplayName)
+
+	return &Meta{
+		Title:       title,
+		Description: desc,
+		URL:         fmt.Sprintf("%s/journals/%s/entry/%d", r.baseURL, journalIDStr, number),
 	}
 }
 

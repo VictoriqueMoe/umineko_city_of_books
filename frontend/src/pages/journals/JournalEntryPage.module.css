@@ -1,0 +1,74 @@
+.page {
+    max-width: var(--page-max-width);
+    margin: 0 auto;
+}
+
+.back {
+    display: inline-block;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    cursor: pointer;
+    margin-bottom: 1rem;
+}
+
+.back:hover {
+    color: var(--gold);
+}
+
+.entry {
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--purple-rgb), 0.3);
+    border-left: 3px solid var(--gold);
+    border-radius: 6px;
+    padding: 1.5rem 1.75rem;
+    margin-bottom: 1.5rem;
+}
+
+.meta {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin-bottom: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.title {
+    font-family: var(--font-display);
+    font-size: 1.6rem;
+    color: var(--gold);
+    margin: 0 0 1rem;
+}
+
+.body {
+    color: var(--text);
+    font-size: 1.05rem;
+    line-height: 1.7;
+    margin: 1rem 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 0;
+    border-top: 1px solid rgba(var(--purple-rgb), 0.18);
+    border-bottom: 1px solid rgba(var(--purple-rgb), 0.18);
+    flex-wrap: wrap;
+}
+
+.navWordCount {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+
+.actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    padding-top: 0.75rem;
+}

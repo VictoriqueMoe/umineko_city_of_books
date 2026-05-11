@@ -73,6 +73,33 @@
     overflow-wrap: anywhere;
 }
 
+.latest {
+    background: rgba(var(--gold-rgb), 0.06);
+    border-left: 2px solid rgba(var(--gold-rgb), 0.45);
+    padding: 0.35rem 0.6rem;
+    margin-bottom: 0.5rem;
+    border-radius: 3px;
+    font-size: 0.85rem;
+}
+
+.latestLabel {
+    color: var(--gold);
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 0.7rem;
+}
+
+.latestEntry {
+    color: var(--text);
+}
+
+.latestWhen {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    margin-left: 0.35rem;
+}
+
 .meta {
     display: flex;
     flex-wrap: wrap;

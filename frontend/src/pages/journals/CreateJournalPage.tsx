@@ -26,15 +26,15 @@ export function CreateJournalPage() {
         <div className={styles.page}>
             <h2 className={styles.heading}>Start a Reading Journal</h2>
             <p className={styles.intro}>
-                Document your read-through. After creating the journal, post updates by commenting on it. Your followers
-                will be notified each time you do.
+                Set up the cover for your read-through. After creating the journal, you'll add your first entry. Each
+                entry is its own page, and your followers get notified each time you post a new one.
             </p>
             <JournalForm
                 submitLabel="Create Journal"
                 submittingLabel="Creating..."
                 onSubmit={async data => {
                     const result = await createMutation.mutateAsync(data);
-                    navigate(`/journals/${result.id}`);
+                    navigate(`/journals/${result.id}/entry/new`);
                 }}
             />
         </div>

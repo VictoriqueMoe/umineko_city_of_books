@@ -28,6 +28,13 @@ import { relativeTime } from "../../utils/time.ts";
 import { workLabel } from "../../utils/journalWorks";
 import styles from "./JournalPage.module.css";
 
+function entryHeading(number: number, title?: string | null): string {
+    if (title && title.trim() !== "") {
+        return `Entry ${number}: ${title}`;
+    }
+    return `Entry ${number}`;
+}
+
 export function JournalPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
@@ -94,6 +101,8 @@ export function JournalPage() {
     const canDelete = isOwner || can(user?.role, "delete_any_journal");
     const comments = journal.comments ?? [];
     const canComment = user && !journal.is_archived;
+    const entries = journal.entries ?? [];
+    const latestEntry = journal.latest_entry;
 
     const likeFn = (commentId: string) => likeCommentMutation.mutateAsync(commentId);
     const unlikeFn = (commentId: string) => unlikeCommentMutation.mutateAsync(commentId);
@@ -121,11 +130,9 @@ export function JournalPage() {
                     <span>{relativeTime(journal.created_at)}</span>
                     {journal.updated_at && <span>(edited)</span>}
                     <span className={styles.followerCount}>
-                        {"\u2605"} {journal.follower_count} follower{journal.follower_count === 1 ? "" : "s"}
+                        {"★"} {journal.follower_count} follower{journal.follower_count === 1 ? "" : "s"}
                     </span>
                 </div>
-
-                <p className={styles.body}>{renderColours(journal.body, linkify, "jb")}</p>
 
                 <div className={styles.actions}>
                     {user && !isOwner && (
@@ -155,13 +162,80 @@ export function JournalPage() {
                 )}
             </div>
 
+            {latestEntry ? (
+                <div className={styles.latestSpotlight}>
+                    <div className={styles.spotlightHeader}>
+                        <span className={styles.spotlightTag}>Latest update</span>
+                        <span className={styles.spotlightWhen}>{relativeTime(latestEntry.created_at)}</span>
+                    </div>
+                    <h2 className={styles.spotlightTitle}>
+                        <Link to={`/journals/${journal.id}/entry/${latestEntry.entry_number}`}>
+                            {entryHeading(latestEntry.entry_number, latestEntry.title)}
+                        </Link>
+                    </h2>
+                    <div className={styles.spotlightBody}>
+                        {renderColours(latestEntry.body, linkify, `le-${latestEntry.entry_number}`)}
+                    </div>
+                    <div className={styles.spotlightFooter}>
+                        <Link to={`/journals/${journal.id}/entry/${latestEntry.entry_number}`}>
+                            <Button variant="primary" size="small">
+                                Read full entry &rarr;
+                            </Button>
+                        </Link>
+                        <span className={styles.spotlightWordCount}>{latestEntry.word_count} words</span>
+                    </div>
+                </div>
+            ) : (
+                <div className={styles.noEntries}>
+                    No entries yet.
+                    {isOwner ? " Add the first one below." : " Check back soon."}
+                </div>
+            )}
+
+            <div className={styles.tocSection}>
+                <div className={styles.tocHeader}>
+                    <h3 className={styles.tocTitle}>All entries ({entries.length})</h3>
+                    {canEdit && !journal.is_archived && (
+                        <Link to={`/journals/${journal.id}/entry/new`}>
+                            <Button variant="primary" size="small">
+                                + New Entry
+                            </Button>
+                        </Link>
+                    )}
+                </div>
+                {entries.length === 0 ? (
+                    <div className={styles.tocEmpty}>No entries to list yet.</div>
+                ) : (
+                    <ol className={styles.tocList}>
+                        {entries.map(e => (
+                            <li key={e.id} className={styles.tocItem}>
+                                <Link
+                                    to={`/journals/${journal.id}/entry/${e.entry_number}`}
+                                    className={styles.tocItemLink}
+                                >
+                                    <span className={styles.tocItemNumber}>#{e.entry_number}</span>
+                                    <span className={styles.tocItemTitle}>{entryHeading(e.entry_number, e.title)}</span>
+                                    <span className={styles.tocItemMeta}>
+                                        {e.word_count} words {"·"} {relativeTime(e.created_at)}
+                                    </span>
+                                </Link>
+                            </li>
+                        ))}
+                    </ol>
+                )}
+            </div>
+
             <CommentsSection
                 comments={comments as unknown as PostComment[]}
                 targetId={journal.id}
                 user={canComment ? user : null}
                 onChanged={() => refresh()}
-                title="Updates & Discussion"
-                emptyText={journal.is_archived ? null : `No entries yet.${isOwner ? " Post the first update!" : ""}`}
+                title="Journal discussion"
+                emptyText={
+                    journal.is_archived
+                        ? null
+                        : "No discussion yet. Comments here are about the journal as a whole — entry-specific comments live on each entry's page."
+                }
                 highlightedId={highlightedComment ?? undefined}
                 linkPrefix="/journals"
                 reportType="journal_comment"
