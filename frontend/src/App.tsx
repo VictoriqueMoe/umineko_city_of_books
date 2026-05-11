@@ -29,6 +29,7 @@ import {
     AdminInvites,
     AdminLayout,
     AdminReports,
+    AdminRulesPage,
     AdminSettings,
     AdminUserDetail,
     AdminUsers,
@@ -43,6 +44,7 @@ import {
     ChessGamePage,
     CreateJournalPage,
     CreateMysteryPage,
+    CreateOCPage,
     CreateShipPage,
     CreateTheoryPage,
     EditJournalPage,
@@ -55,6 +57,8 @@ import {
     GalleryDetailPage,
     GameHubPage,
     GamesListPage,
+    JournalEntryEditorPage,
+    JournalEntryPage,
     JournalPage,
     JournalsFeedPage,
     LiveGamesPage,
@@ -65,19 +69,19 @@ import {
     NewChessGamePage,
     NotFoundPage,
     NotificationsPage,
+    OCDetailPage,
+    OCListPage,
     PastGamesPage,
     PostDetailPage,
     ProfilePage,
     QuoteBrowserPage,
     RoomPage,
     RoomsListPage,
+    RulesPage,
     SearchPage,
     SecretDetailPage,
     SecretsListPage,
     SettingsPage,
-    OCDetailPage,
-    OCListPage,
-    CreateOCPage,
     ShipDetailPage,
     ShipsListPage,
     SocialFeedPage,
@@ -88,6 +92,7 @@ import {
 
 const homePageRoutes: Record<string, string> = {
     landing: "/welcome",
+    rules: "/rules",
     theories: "/theories",
     theories_higurashi: "/theories/higurashi",
     theories_ciconia: "/theories/ciconia",
@@ -237,6 +242,7 @@ function AppLayout() {
                             <Route path="/theory/:id" element={<TheoryPage />} />
                             <Route path="/announcements" element={<AnnouncementsListPage />} />
                             <Route path="/announcements/:id" element={<AnnouncementDetailPage />} />
+                            <Route path="/rules" element={<RulesPage />} />
                             <Route path="/suggestions" element={<SuggestionsPage />} />
                             <Route path="/suggestions/:id" element={<PostDetailPage />} />
                             <Route path="/mysteries" element={<MysteryListPage />} />
@@ -250,6 +256,7 @@ function AppLayout() {
                             <Route path="/fanfiction/:id/chapter/:number" element={<FanficChapterPage />} />
                             <Route path="/journals" element={<JournalsFeedPage />} />
                             <Route path="/journals/:id" element={<JournalPage />} />
+                            <Route path="/journals/:id/entry/:number" element={<JournalEntryPage />} />
                             <Route path="/rooms" element={<RoomsListPage />} />
                             <Route path="/secrets" element={<SecretsListPage />} />
                             <Route path="/secrets/:id" element={<SecretDetailPage />} />
@@ -287,6 +294,8 @@ function AppLayout() {
                                 <Route path="/fanfiction/:id/chapter/:number/edit" element={<ChapterEditorPage />} />
                                 <Route path="/journals/new" element={<CreateJournalPage />} />
                                 <Route path="/journals/:id/edit" element={<EditJournalPage />} />
+                                <Route path="/journals/:id/entry/new" element={<JournalEntryEditorPage />} />
+                                <Route path="/journals/:id/entry/:number/edit" element={<JournalEntryEditorPage />} />
                                 <Route path="/games" element={<GamesListPage />} />
                                 <Route path="/games/chess/new" element={<NewChessGamePage />} />
                                 <Route path="/games/checkers/new" element={<NewCheckersGamePage />} />
@@ -306,6 +315,7 @@ function AppLayout() {
                                     <Route path="settings" element={<AdminSettings />} />
                                     <Route path="reports" element={<AdminReports />} />
                                     <Route path="content-rules" element={<AdminContentRules />} />
+                                    <Route path="rules" element={<AdminRulesPage />} />
                                     <Route path="banned-gifs" element={<AdminBannedGifs />} />
                                     <Route path="banned-words" element={<AdminBannedWords />} />
                                     <Route path="announcements" element={<AdminAnnouncementsPage />} />

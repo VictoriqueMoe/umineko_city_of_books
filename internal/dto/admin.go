@@ -182,6 +182,7 @@ type (
 		VanityRoles           []SiteInfoVanityRole `json:"vanity_roles"`
 		VanityRoleAssignments map[string][]string  `json:"vanity_role_assignments"`
 		ListedSecrets         []SiteInfoSecret     `json:"listed_secrets"`
+		RulesPage             string               `json:"rules_page"`
 		Version               string               `json:"version"`
 	}
 

@@ -35,6 +35,7 @@ type (
 		DeleteAttempt(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		VoteAttempt(ctx context.Context, attemptID uuid.UUID, userID uuid.UUID, value int) error
 		MarkSolved(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, attemptID uuid.UUID) error
+		MarkPermanentlySolved(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID) error
 		AddClue(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, req dto.CreateClueRequest) error
 		GetLeaderboard(ctx context.Context, limit int) (*dto.MysteryLeaderboardResponse, error)
 		GetTopDetectiveIDs(ctx context.Context) ([]string, error)
@@ -234,6 +235,11 @@ func (s *service) GetMystery(ctx context.Context, id uuid.UUID, viewerID uuid.UU
 		attachments = []dto.MysteryAttachment{}
 	}
 
+	viewerHasSolved := false
+	if viewerID != uuid.Nil && viewerID != row.UserID {
+		viewerHasSolved, _ = s.mysteryRepo.UserHasWinningAttempt(ctx, id, viewerID)
+	}
+
 	resp := dto.MysteryDetailResponse{
 		ID:                    row.ID,
 		Title:                 row.Title,
@@ -243,6 +249,9 @@ func (s *service) GetMystery(ctx context.Context, id uuid.UUID, viewerID uuid.UU
 		Paused:                row.Paused,
 		GmAway:                row.GmAway,
 		FreeForAll:            row.FreeForAll,
+		KeepOpenAfterSolve:    row.KeepOpenAfterSolve,
+		SolverCount:           row.SolverCount,
+		ViewerHasSolved:       viewerHasSolved,
 		SolvedAt:              row.SolvedAt,
 		PausedAt:              row.PausedAt,
 		PausedDurationSeconds: row.PausedDurationSeconds,
@@ -285,7 +294,7 @@ func (s *service) CreateMystery(ctx context.Context, userID uuid.UUID, req dto.C
 	}
 
 	id := uuid.New()
-	if err := s.mysteryRepo.Create(ctx, id, userID, req.Title, req.Body, req.Difficulty, req.FreeForAll); err != nil {
+	if err := s.mysteryRepo.Create(ctx, id, userID, req.Title, req.Body, req.Difficulty, req.FreeForAll, req.KeepOpenAfterSolve); err != nil {
 		return uuid.Nil, err
 	}
 
@@ -319,7 +328,7 @@ func (s *service) UpdateMystery(ctx context.Context, id uuid.UUID, userID uuid.U
 	}
 	oldClues, _ := s.mysteryRepo.GetClues(ctx, id)
 
-	if err := s.mysteryRepo.UpdateAsAdmin(ctx, id, req.Title, req.Body, req.Difficulty, req.FreeForAll); err != nil {
+	if err := s.mysteryRepo.UpdateAsAdmin(ctx, id, req.Title, req.Body, req.Difficulty, req.FreeForAll, req.KeepOpenAfterSolve); err != nil {
 		return err
 	}
 
@@ -414,6 +423,13 @@ func (s *service) CreateAttempt(ctx context.Context, mysteryID uuid.UUID, userID
 		return uuid.Nil, err
 	} else if solved {
 		return uuid.Nil, ErrAlreadySolved
+	}
+	if userID != authorID {
+		if won, err := s.mysteryRepo.UserHasWinningAttempt(ctx, mysteryID, userID); err != nil {
+			return uuid.Nil, err
+		} else if won {
+			return uuid.Nil, ErrAlreadySolved
+		}
 	}
 	if paused, _ := s.mysteryRepo.IsPaused(ctx, mysteryID); paused && authorID != userID {
 		return uuid.Nil, ErrMysteryPaused
@@ -563,18 +579,43 @@ func (s *service) MarkSolved(ctx context.Context, mysteryID uuid.UUID, userID uu
 		return fmt.Errorf("cannot select your own attempt as the winner")
 	}
 
-	if err := s.mysteryRepo.MarkSolved(ctx, mysteryID, attemptID); err != nil {
+	row, err := s.mysteryRepo.GetByID(ctx, mysteryID)
+	if err != nil || row == nil {
+		return ErrNotFound
+	}
+	if row.Solved {
+		return ErrAlreadySolved
+	}
+	ongoing := row.KeepOpenAfterSolve
+
+	if alreadyWon, err := s.mysteryRepo.UserHasWinningAttempt(ctx, mysteryID, attemptAuthorID); err != nil {
+		return err
+	} else if alreadyWon {
+		return fmt.Errorf("user has already solved this mystery")
+	}
+
+	if err := s.mysteryRepo.MarkSolved(ctx, mysteryID, attemptID, !ongoing); err != nil {
 		return err
 	}
 
-	s.hub.Broadcast(ws.Message{
-		Type: "mystery_solved",
-		Data: map[string]interface{}{
-			"mystery_id": mysteryID,
-			"attempt_id": attemptID,
-			"winner_id":  attemptAuthorID,
-		},
-	})
+	if ongoing {
+		s.hub.Broadcast(ws.Message{
+			Type: "mystery_winner_added",
+			Data: map[string]interface{}{
+				"mystery_id": mysteryID,
+				"winner_id":  attemptAuthorID,
+			},
+		})
+	} else {
+		s.hub.Broadcast(ws.Message{
+			Type: "mystery_solved",
+			Data: map[string]interface{}{
+				"mystery_id": mysteryID,
+				"attempt_id": attemptID,
+				"winner_id":  attemptAuthorID,
+			},
+		})
+	}
 
 	go func() {
 		bgCtx := context.Background()
@@ -591,27 +632,29 @@ func (s *service) MarkSolved(ctx context.Context, mysteryID uuid.UUID, userID uu
 			EmailBody:     body,
 		})
 
-		playerIDs, _ := s.mysteryRepo.GetPlayerIDs(bgCtx, mysteryID)
-		solvedLink := fmt.Sprintf("%s/mystery/%s", baseURL, mysteryID)
-		solvedSubject, solvedBody := notification.NotifEmail("The Game Master", "solved a mystery you were playing", "", solvedLink)
-		params := make([]dto.NotifyParams, 0, len(playerIDs))
-		for i := 0; i < len(playerIDs); i++ {
-			pid := playerIDs[i]
-			if pid == attemptAuthorID {
-				continue
+		if !ongoing {
+			playerIDs, _ := s.mysteryRepo.GetPlayerIDs(bgCtx, mysteryID)
+			solvedLink := fmt.Sprintf("%s/mystery/%s", baseURL, mysteryID)
+			solvedSubject, solvedBody := notification.NotifEmail("The Game Master", "solved a mystery you were playing", "", solvedLink)
+			params := make([]dto.NotifyParams, 0, len(playerIDs))
+			for i := 0; i < len(playerIDs); i++ {
+				pid := playerIDs[i]
+				if pid == attemptAuthorID {
+					continue
+				}
+				params = append(params, dto.NotifyParams{
+					RecipientID:   pid,
+					Type:          dto.NotifMysterySolvedAll,
+					ReferenceID:   mysteryID,
+					ReferenceType: "mystery",
+					ActorID:       userID,
+					Message:       "a mystery you were playing has been solved",
+					EmailSubject:  solvedSubject,
+					EmailBody:     solvedBody,
+				})
 			}
-			params = append(params, dto.NotifyParams{
-				RecipientID:   pid,
-				Type:          dto.NotifMysterySolvedAll,
-				ReferenceID:   mysteryID,
-				ReferenceType: "mystery",
-				ActorID:       userID,
-				Message:       "a mystery you were playing has been solved",
-				EmailSubject:  solvedSubject,
-				EmailBody:     solvedBody,
-			})
+			s.notifService.NotifyMany(bgCtx, params)
 		}
-		s.notifService.NotifyMany(bgCtx, params)
 
 		topIDs, err := s.mysteryRepo.GetTopDetectiveIDs(bgCtx)
 		if err == nil {
@@ -622,6 +665,73 @@ func (s *service) MarkSolved(ctx context.Context, mysteryID uuid.UUID, userID uu
 				},
 			})
 		}
+		if !ongoing {
+			topGMIDs, err := s.mysteryRepo.GetTopGMIDs(bgCtx)
+			if err == nil {
+				s.hub.Broadcast(ws.Message{
+					Type: "top_gm_changed",
+					Data: map[string]interface{}{
+						"user_ids": topGMIDs,
+					},
+				})
+			}
+		}
+	}()
+
+	return nil
+}
+
+func (s *service) MarkPermanentlySolved(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID) error {
+	authorID, err := s.mysteryRepo.GetAuthorID(ctx, mysteryID)
+	if err != nil {
+		return ErrNotFound
+	}
+	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyTheory) {
+		return ErrNotAuthor
+	}
+
+	if err := s.mysteryRepo.MarkPermanentlySolved(ctx, mysteryID); err != nil {
+		return err
+	}
+
+	s.hub.Broadcast(ws.Message{
+		Type: "mystery_solved",
+		Data: map[string]interface{}{
+			"mystery_id": mysteryID,
+		},
+	})
+
+	go func() {
+		bgCtx := context.Background()
+		baseURL := s.settingsSvc.Get(bgCtx, config.SettingBaseURL)
+		solvedLink := fmt.Sprintf("%s/mystery/%s", baseURL, mysteryID)
+		solvedSubject, solvedBody := notification.NotifEmail("The Game Master", "closed a mystery you were playing", "", solvedLink)
+
+		solverIDs, _ := s.mysteryRepo.GetSolverIDs(bgCtx, mysteryID)
+		solverSet := make(map[uuid.UUID]struct{}, len(solverIDs))
+		for _, sid := range solverIDs {
+			solverSet[sid] = struct{}{}
+		}
+
+		playerIDs, _ := s.mysteryRepo.GetPlayerIDs(bgCtx, mysteryID)
+		params := make([]dto.NotifyParams, 0, len(playerIDs))
+		for _, pid := range playerIDs {
+			if _, isSolver := solverSet[pid]; isSolver {
+				continue
+			}
+			params = append(params, dto.NotifyParams{
+				RecipientID:   pid,
+				Type:          dto.NotifMysterySolvedAll,
+				ReferenceID:   mysteryID,
+				ReferenceType: "mystery",
+				ActorID:       userID,
+				Message:       "a mystery you were playing has been closed",
+				EmailSubject:  solvedSubject,
+				EmailBody:     solvedBody,
+			})
+		}
+		s.notifService.NotifyMany(bgCtx, params)
+
 		topGMIDs, err := s.mysteryRepo.GetTopGMIDs(bgCtx)
 		if err == nil {
 			s.hub.Broadcast(ws.Message{

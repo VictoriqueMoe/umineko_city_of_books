@@ -427,16 +427,16 @@ func (_c *MockMysteryRepository_CountClues_Call) RunAndReturn(run func(ctx conte
 }
 
 // Create provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) Create(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, body string, difficulty string, freeForAll bool) error {
-	ret := _mock.Called(ctx, id, userID, title, body, difficulty, freeForAll)
+func (_mock *MockMysteryRepository) Create(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, body string, difficulty string, freeForAll bool, keepOpenAfterSolve bool) error {
+	ret := _mock.Called(ctx, id, userID, title, body, difficulty, freeForAll, keepOpenAfterSolve)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Create")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, string, string, bool) error); ok {
-		r0 = returnFunc(ctx, id, userID, title, body, difficulty, freeForAll)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, string, string, bool, bool) error); ok {
+		r0 = returnFunc(ctx, id, userID, title, body, difficulty, freeForAll, keepOpenAfterSolve)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -456,11 +456,12 @@ type MockMysteryRepository_Create_Call struct {
 //   - body string
 //   - difficulty string
 //   - freeForAll bool
-func (_e *MockMysteryRepository_Expecter) Create(ctx interface{}, id interface{}, userID interface{}, title interface{}, body interface{}, difficulty interface{}, freeForAll interface{}) *MockMysteryRepository_Create_Call {
-	return &MockMysteryRepository_Create_Call{Call: _e.mock.On("Create", ctx, id, userID, title, body, difficulty, freeForAll)}
+//   - keepOpenAfterSolve bool
+func (_e *MockMysteryRepository_Expecter) Create(ctx interface{}, id interface{}, userID interface{}, title interface{}, body interface{}, difficulty interface{}, freeForAll interface{}, keepOpenAfterSolve interface{}) *MockMysteryRepository_Create_Call {
+	return &MockMysteryRepository_Create_Call{Call: _e.mock.On("Create", ctx, id, userID, title, body, difficulty, freeForAll, keepOpenAfterSolve)}
 }
 
-func (_c *MockMysteryRepository_Create_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, body string, difficulty string, freeForAll bool)) *MockMysteryRepository_Create_Call {
+func (_c *MockMysteryRepository_Create_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, body string, difficulty string, freeForAll bool, keepOpenAfterSolve bool)) *MockMysteryRepository_Create_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -490,6 +491,10 @@ func (_c *MockMysteryRepository_Create_Call) Run(run func(ctx context.Context, i
 		if args[6] != nil {
 			arg6 = args[6].(bool)
 		}
+		var arg7 bool
+		if args[7] != nil {
+			arg7 = args[7].(bool)
+		}
 		run(
 			arg0,
 			arg1,
@@ -498,6 +503,7 @@ func (_c *MockMysteryRepository_Create_Call) Run(run func(ctx context.Context, i
 			arg4,
 			arg5,
 			arg6,
+			arg7,
 		)
 	})
 	return _c
@@ -508,7 +514,7 @@ func (_c *MockMysteryRepository_Create_Call) Return(err error) *MockMysteryRepos
 	return _c
 }
 
-func (_c *MockMysteryRepository_Create_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, body string, difficulty string, freeForAll bool) error) *MockMysteryRepository_Create_Call {
+func (_c *MockMysteryRepository_Create_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, body string, difficulty string, freeForAll bool, keepOpenAfterSolve bool) error) *MockMysteryRepository_Create_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2250,6 +2256,74 @@ func (_c *MockMysteryRepository_GetPlayerIDs_Call) RunAndReturn(run func(ctx con
 	return _c
 }
 
+// GetSolverIDs provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) GetSolverIDs(ctx context.Context, mysteryID uuid.UUID) ([]uuid.UUID, error) {
+	ret := _mock.Called(ctx, mysteryID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetSolverIDs")
+	}
+
+	var r0 []uuid.UUID
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]uuid.UUID, error)); ok {
+		return returnFunc(ctx, mysteryID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []uuid.UUID); ok {
+		r0 = returnFunc(ctx, mysteryID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]uuid.UUID)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, mysteryID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockMysteryRepository_GetSolverIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSolverIDs'
+type MockMysteryRepository_GetSolverIDs_Call struct {
+	*mock.Call
+}
+
+// GetSolverIDs is a helper method to define mock.On call
+//   - ctx context.Context
+//   - mysteryID uuid.UUID
+func (_e *MockMysteryRepository_Expecter) GetSolverIDs(ctx interface{}, mysteryID interface{}) *MockMysteryRepository_GetSolverIDs_Call {
+	return &MockMysteryRepository_GetSolverIDs_Call{Call: _e.mock.On("GetSolverIDs", ctx, mysteryID)}
+}
+
+func (_c *MockMysteryRepository_GetSolverIDs_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID)) *MockMysteryRepository_GetSolverIDs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_GetSolverIDs_Call) Return(uUIDs []uuid.UUID, err error) *MockMysteryRepository_GetSolverIDs_Call {
+	_c.Call.Return(uUIDs, err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_GetSolverIDs_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID) ([]uuid.UUID, error)) *MockMysteryRepository_GetSolverIDs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetTopDetectiveIDs provides a mock function for the type MockMysteryRepository
 func (_mock *MockMysteryRepository) GetTopDetectiveIDs(ctx context.Context) ([]string, error) {
 	ret := _mock.Called(ctx)
@@ -2753,17 +2827,74 @@ func (_c *MockMysteryRepository_ListByUser_Call) RunAndReturn(run func(ctx conte
 	return _c
 }
 
+// MarkPermanentlySolved provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) MarkPermanentlySolved(ctx context.Context, mysteryID uuid.UUID) error {
+	ret := _mock.Called(ctx, mysteryID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for MarkPermanentlySolved")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, mysteryID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockMysteryRepository_MarkPermanentlySolved_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MarkPermanentlySolved'
+type MockMysteryRepository_MarkPermanentlySolved_Call struct {
+	*mock.Call
+}
+
+// MarkPermanentlySolved is a helper method to define mock.On call
+//   - ctx context.Context
+//   - mysteryID uuid.UUID
+func (_e *MockMysteryRepository_Expecter) MarkPermanentlySolved(ctx interface{}, mysteryID interface{}) *MockMysteryRepository_MarkPermanentlySolved_Call {
+	return &MockMysteryRepository_MarkPermanentlySolved_Call{Call: _e.mock.On("MarkPermanentlySolved", ctx, mysteryID)}
+}
+
+func (_c *MockMysteryRepository_MarkPermanentlySolved_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID)) *MockMysteryRepository_MarkPermanentlySolved_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_MarkPermanentlySolved_Call) Return(err error) *MockMysteryRepository_MarkPermanentlySolved_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_MarkPermanentlySolved_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID) error) *MockMysteryRepository_MarkPermanentlySolved_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // MarkSolved provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) MarkSolved(ctx context.Context, mysteryID uuid.UUID, attemptID uuid.UUID) error {
-	ret := _mock.Called(ctx, mysteryID, attemptID)
+func (_mock *MockMysteryRepository) MarkSolved(ctx context.Context, mysteryID uuid.UUID, attemptID uuid.UUID, lockMystery bool) error {
+	ret := _mock.Called(ctx, mysteryID, attemptID, lockMystery)
 
 	if len(ret) == 0 {
 		panic("no return value specified for MarkSolved")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, mysteryID, attemptID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, bool) error); ok {
+		r0 = returnFunc(ctx, mysteryID, attemptID, lockMystery)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -2779,11 +2910,12 @@ type MockMysteryRepository_MarkSolved_Call struct {
 //   - ctx context.Context
 //   - mysteryID uuid.UUID
 //   - attemptID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) MarkSolved(ctx interface{}, mysteryID interface{}, attemptID interface{}) *MockMysteryRepository_MarkSolved_Call {
-	return &MockMysteryRepository_MarkSolved_Call{Call: _e.mock.On("MarkSolved", ctx, mysteryID, attemptID)}
+//   - lockMystery bool
+func (_e *MockMysteryRepository_Expecter) MarkSolved(ctx interface{}, mysteryID interface{}, attemptID interface{}, lockMystery interface{}) *MockMysteryRepository_MarkSolved_Call {
+	return &MockMysteryRepository_MarkSolved_Call{Call: _e.mock.On("MarkSolved", ctx, mysteryID, attemptID, lockMystery)}
 }
 
-func (_c *MockMysteryRepository_MarkSolved_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID, attemptID uuid.UUID)) *MockMysteryRepository_MarkSolved_Call {
+func (_c *MockMysteryRepository_MarkSolved_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID, attemptID uuid.UUID, lockMystery bool)) *MockMysteryRepository_MarkSolved_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -2797,10 +2929,15 @@ func (_c *MockMysteryRepository_MarkSolved_Call) Run(run func(ctx context.Contex
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 bool
+		if args[3] != nil {
+			arg3 = args[3].(bool)
+		}
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3,
 		)
 	})
 	return _c
@@ -2811,7 +2948,7 @@ func (_c *MockMysteryRepository_MarkSolved_Call) Return(err error) *MockMysteryR
 	return _c
 }
 
-func (_c *MockMysteryRepository_MarkSolved_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID, attemptID uuid.UUID) error) *MockMysteryRepository_MarkSolved_Call {
+func (_c *MockMysteryRepository_MarkSolved_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID, attemptID uuid.UUID, lockMystery bool) error) *MockMysteryRepository_MarkSolved_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -3087,16 +3224,16 @@ func (_c *MockMysteryRepository_Update_Call) RunAndReturn(run func(ctx context.C
 }
 
 // UpdateAsAdmin provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) UpdateAsAdmin(ctx context.Context, id uuid.UUID, title string, body string, difficulty string, freeForAll bool) error {
-	ret := _mock.Called(ctx, id, title, body, difficulty, freeForAll)
+func (_mock *MockMysteryRepository) UpdateAsAdmin(ctx context.Context, id uuid.UUID, title string, body string, difficulty string, freeForAll bool, keepOpenAfterSolve bool) error {
+	ret := _mock.Called(ctx, id, title, body, difficulty, freeForAll, keepOpenAfterSolve)
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateAsAdmin")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, string, bool) error); ok {
-		r0 = returnFunc(ctx, id, title, body, difficulty, freeForAll)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, string, bool, bool) error); ok {
+		r0 = returnFunc(ctx, id, title, body, difficulty, freeForAll, keepOpenAfterSolve)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -3115,11 +3252,12 @@ type MockMysteryRepository_UpdateAsAdmin_Call struct {
 //   - body string
 //   - difficulty string
 //   - freeForAll bool
-func (_e *MockMysteryRepository_Expecter) UpdateAsAdmin(ctx interface{}, id interface{}, title interface{}, body interface{}, difficulty interface{}, freeForAll interface{}) *MockMysteryRepository_UpdateAsAdmin_Call {
-	return &MockMysteryRepository_UpdateAsAdmin_Call{Call: _e.mock.On("UpdateAsAdmin", ctx, id, title, body, difficulty, freeForAll)}
+//   - keepOpenAfterSolve bool
+func (_e *MockMysteryRepository_Expecter) UpdateAsAdmin(ctx interface{}, id interface{}, title interface{}, body interface{}, difficulty interface{}, freeForAll interface{}, keepOpenAfterSolve interface{}) *MockMysteryRepository_UpdateAsAdmin_Call {
+	return &MockMysteryRepository_UpdateAsAdmin_Call{Call: _e.mock.On("UpdateAsAdmin", ctx, id, title, body, difficulty, freeForAll, keepOpenAfterSolve)}
 }
 
-func (_c *MockMysteryRepository_UpdateAsAdmin_Call) Run(run func(ctx context.Context, id uuid.UUID, title string, body string, difficulty string, freeForAll bool)) *MockMysteryRepository_UpdateAsAdmin_Call {
+func (_c *MockMysteryRepository_UpdateAsAdmin_Call) Run(run func(ctx context.Context, id uuid.UUID, title string, body string, difficulty string, freeForAll bool, keepOpenAfterSolve bool)) *MockMysteryRepository_UpdateAsAdmin_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -3145,6 +3283,10 @@ func (_c *MockMysteryRepository_UpdateAsAdmin_Call) Run(run func(ctx context.Con
 		if args[5] != nil {
 			arg5 = args[5].(bool)
 		}
+		var arg6 bool
+		if args[6] != nil {
+			arg6 = args[6].(bool)
+		}
 		run(
 			arg0,
 			arg1,
@@ -3152,6 +3294,7 @@ func (_c *MockMysteryRepository_UpdateAsAdmin_Call) Run(run func(ctx context.Con
 			arg3,
 			arg4,
 			arg5,
+			arg6,
 		)
 	})
 	return _c
@@ -3162,7 +3305,7 @@ func (_c *MockMysteryRepository_UpdateAsAdmin_Call) Return(err error) *MockMyste
 	return _c
 }
 
-func (_c *MockMysteryRepository_UpdateAsAdmin_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, title string, body string, difficulty string, freeForAll bool) error) *MockMysteryRepository_UpdateAsAdmin_Call {
+func (_c *MockMysteryRepository_UpdateAsAdmin_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, title string, body string, difficulty string, freeForAll bool, keepOpenAfterSolve bool) error) *MockMysteryRepository_UpdateAsAdmin_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -3484,6 +3627,78 @@ func (_c *MockMysteryRepository_UpdateCommentMediaURL_Call) Return(err error) *M
 }
 
 func (_c *MockMysteryRepository_UpdateCommentMediaURL_Call) RunAndReturn(run func(ctx context.Context, id int64, mediaURL string) error) *MockMysteryRepository_UpdateCommentMediaURL_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UserHasWinningAttempt provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) UserHasWinningAttempt(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID) (bool, error) {
+	ret := _mock.Called(ctx, mysteryID, userID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UserHasWinningAttempt")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) (bool, error)); ok {
+		return returnFunc(ctx, mysteryID, userID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) bool); ok {
+		r0 = returnFunc(ctx, mysteryID, userID)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, mysteryID, userID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockMysteryRepository_UserHasWinningAttempt_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UserHasWinningAttempt'
+type MockMysteryRepository_UserHasWinningAttempt_Call struct {
+	*mock.Call
+}
+
+// UserHasWinningAttempt is a helper method to define mock.On call
+//   - ctx context.Context
+//   - mysteryID uuid.UUID
+//   - userID uuid.UUID
+func (_e *MockMysteryRepository_Expecter) UserHasWinningAttempt(ctx interface{}, mysteryID interface{}, userID interface{}) *MockMysteryRepository_UserHasWinningAttempt_Call {
+	return &MockMysteryRepository_UserHasWinningAttempt_Call{Call: _e.mock.On("UserHasWinningAttempt", ctx, mysteryID, userID)}
+}
+
+func (_c *MockMysteryRepository_UserHasWinningAttempt_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID)) *MockMysteryRepository_UserHasWinningAttempt_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_UserHasWinningAttempt_Call) Return(b bool, err error) *MockMysteryRepository_UserHasWinningAttempt_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_UserHasWinningAttempt_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID) (bool, error)) *MockMysteryRepository_UserHasWinningAttempt_Call {
 	_c.Call.Return(run)
 	return _c
 }

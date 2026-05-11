@@ -1,9 +1,11 @@
+import { useEffect, useRef, useState } from "react";
 import { useSiteInfo } from "../../hooks/useSiteInfo";
 import styles from "./RolePill.module.css";
 
 interface RolePillProps {
     role: string;
     userId?: string;
+    compactOnMobile?: boolean;
 }
 
 const roleConfig: Record<string, { label: string; className: string; tooltip: string }> = {
@@ -46,9 +48,19 @@ function darkenForText(hex: string): string {
     return `#${toHex(nr)}${toHex(ng)}${toHex(nb)}`;
 }
 
-export function RolePill({ role, userId }: RolePillProps) {
+export function RolePill({ role, userId, compactOnMobile }: RolePillProps) {
     const siteInfo = useSiteInfo();
     const config = roleConfig[role];
+    const [mobileExpanded, setMobileExpanded] = useState(false);
+    const collapseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    useEffect(() => {
+        return () => {
+            if (collapseTimerRef.current) {
+                clearTimeout(collapseTimerRef.current);
+            }
+        };
+    }, []);
 
     const userVanityRoleIds = (userId && siteInfo.vanity_role_assignments?.[userId]) ?? [];
     const allVanityRoles = siteInfo.vanity_roles ?? [];
@@ -60,10 +72,35 @@ export function RolePill({ role, userId }: RolePillProps) {
     }
     vanityRoles.sort((a, b) => a.sort_order - b.sort_order);
 
+    const renderAsCompact = compactOnMobile && !mobileExpanded;
+    const compactClass = renderAsCompact ? ` ${styles.compactMobile}` : "";
+
+    const onPillClick = compactOnMobile
+        ? (e: React.MouseEvent) => {
+              e.stopPropagation();
+              e.preventDefault();
+              if (collapseTimerRef.current) {
+                  clearTimeout(collapseTimerRef.current);
+                  collapseTimerRef.current = null;
+              }
+              setMobileExpanded(prev => {
+                  const next = !prev;
+                  if (next) {
+                      collapseTimerRef.current = setTimeout(() => setMobileExpanded(false), 5000);
+                  }
+                  return next;
+              });
+          }
+        : undefined;
+
     return (
         <>
             {config && (
-                <span className={`${styles.pill} ${styles[config.className]}`} title={config.tooltip}>
+                <span
+                    className={`${styles.pill} ${styles[config.className]}${compactClass}`}
+                    title={config.tooltip}
+                    onClick={onPillClick}
+                >
                     {config.label}
                 </span>
             )}
@@ -71,7 +108,13 @@ export function RolePill({ role, userId }: RolePillProps) {
                 const tooltip = systemVanityTooltips[vr.id] ?? vr.label;
                 if (vr.id === "system_witch_hunter") {
                     return (
-                        <span key={vr.id} className={`${styles.pill} ${styles.witchHunter}`} title={tooltip}>
+                        <span
+                            key={vr.id}
+                            className={`${styles.pill} ${styles.witchHunter}${compactClass}`}
+                            title={tooltip}
+                            style={{ ["--dot-color" as string]: "#f0c878" }}
+                            onClick={onPillClick}
+                        >
                             <span className={styles.witchHunterLabel}>{vr.label}</span>
                         </span>
                     );
@@ -79,13 +122,15 @@ export function RolePill({ role, userId }: RolePillProps) {
                 return (
                     <span
                         key={vr.id}
-                        className={styles.pill}
+                        className={`${styles.pill}${compactClass}`}
                         title={tooltip}
                         style={{
                             backgroundColor: hexToRgba(vr.color, 0.18),
                             color: darkenForText(vr.color),
                             border: `1px solid ${hexToRgba(vr.color, 0.55)}`,
+                            ["--dot-color" as string]: vr.color,
                         }}
+                        onClick={onPillClick}
                     >
                         {vr.label}
                     </span>

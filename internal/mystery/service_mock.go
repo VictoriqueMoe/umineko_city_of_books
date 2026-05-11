@@ -1239,6 +1239,69 @@ func (_c *MockService_ListMysteries_Call) RunAndReturn(run func(ctx context.Cont
 	return _c
 }
 
+// MarkPermanentlySolved provides a mock function for the type MockService
+func (_mock *MockService) MarkPermanentlySolved(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID) error {
+	ret := _mock.Called(ctx, mysteryID, userID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for MarkPermanentlySolved")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, mysteryID, userID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_MarkPermanentlySolved_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MarkPermanentlySolved'
+type MockService_MarkPermanentlySolved_Call struct {
+	*mock.Call
+}
+
+// MarkPermanentlySolved is a helper method to define mock.On call
+//   - ctx context.Context
+//   - mysteryID uuid.UUID
+//   - userID uuid.UUID
+func (_e *MockService_Expecter) MarkPermanentlySolved(ctx interface{}, mysteryID interface{}, userID interface{}) *MockService_MarkPermanentlySolved_Call {
+	return &MockService_MarkPermanentlySolved_Call{Call: _e.mock.On("MarkPermanentlySolved", ctx, mysteryID, userID)}
+}
+
+func (_c *MockService_MarkPermanentlySolved_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID)) *MockService_MarkPermanentlySolved_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_MarkPermanentlySolved_Call) Return(err error) *MockService_MarkPermanentlySolved_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_MarkPermanentlySolved_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID) error) *MockService_MarkPermanentlySolved_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // MarkSolved provides a mock function for the type MockService
 func (_mock *MockService) MarkSolved(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, attemptID uuid.UUID) error {
 	ret := _mock.Called(ctx, mysteryID, userID, attemptID)

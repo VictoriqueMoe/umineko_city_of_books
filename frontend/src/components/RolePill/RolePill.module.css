@@ -131,3 +131,41 @@
         transform: scale(1.15) rotate(12deg);
     }
 }
+
+@media (max-width: 768px) {
+    .pill.compactMobile {
+        width: 0.55rem;
+        height: 0.55rem;
+        padding: 0;
+        border-radius: 50%;
+        font-size: 0;
+        line-height: 0;
+        overflow: hidden;
+        flex-shrink: 0;
+        margin-left: 0.25rem;
+        vertical-align: middle;
+        background-color: var(--dot-color, currentColor) !important;
+        border: 1px solid var(--dot-color, currentColor) !important;
+        text-shadow: none;
+        box-shadow: none;
+        animation: none;
+        cursor: pointer;
+    }
+
+    .pill.compactMobile.superAdmin {
+        --dot-color: rgb(var(--purple-rgb));
+    }
+
+    .pill.compactMobile.admin {
+        --dot-color: #db559b;
+    }
+
+    .pill.compactMobile.moderator {
+        --dot-color: #d4a84b;
+    }
+
+    .pill.compactMobile.witchHunter::before,
+    .pill.compactMobile.witchHunter::after {
+        display: none;
+    }
+}

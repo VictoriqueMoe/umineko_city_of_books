@@ -231,7 +231,7 @@ export function MessageBubble({
                 )}
                 <div className={`${styles.messageSender} ${isOwn ? styles.messageSenderOwn : ""}`}>
                     {effectiveSender.display_name}
-                    <RolePill role={effectiveSender.role ?? ""} userId={effectiveSender.id} />
+                    <RolePill role={effectiveSender.role ?? ""} userId={effectiveSender.id} compactOnMobile />
                 </div>
                 {editing ? (
                     <EditRow

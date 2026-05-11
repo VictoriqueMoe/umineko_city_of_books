@@ -50,6 +50,7 @@ const SEARCH_REGISTRY: SearchTypeMeta[] = [
     { type: "fanfic", label: "Fanfiction", short: "Fanfic", color: "#34d399", group: "fanfics" },
     { type: "fanfic_comment", label: "Fanfic comment", short: "Comment", color: "#34d399", group: "fanfics" },
     { type: "journal", label: "Journal", short: "Journal", color: "#60a5fa", group: "journals" },
+    { type: "journal_entry", label: "Journal entry", short: "Entry", color: "#60a5fa", group: "journals" },
     { type: "journal_comment", label: "Journal comment", short: "Comment", color: "#60a5fa", group: "journals" },
     { type: "user", label: "User", short: "User", color: "#e89ec0", group: "users" },
 ];

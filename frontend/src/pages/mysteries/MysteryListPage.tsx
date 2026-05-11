@@ -2,9 +2,11 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useSiteInfo } from "../../hooks/useSiteInfo";
+import { useAuth } from "../../hooks/useAuth";
 import type { User } from "../../types/api";
 import { useGMLeaderboard, useMysteryLeaderboard, useMysteryList } from "../../api/queries/mystery";
 import { parseServerDate } from "../../utils/time";
+import { Button } from "../../components/Button/Button";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { RoleStyledName } from "../../components/RoleStyledName/RoleStyledName";
 import { Pagination } from "../../components/Pagination/Pagination";
@@ -112,6 +114,7 @@ function LeaderboardAvatar({ user }: { user: User }) {
 
 export function MysteryListPage() {
     usePageTitle("Mysteries");
+    const { user } = useAuth();
     const siteInfo = useSiteInfo();
     const detectiveRole = siteInfo.vanity_roles?.find(v => v.id === "system_top_detective");
     const gmRole = siteInfo.vanity_roles?.find(v => v.id === "system_top_gm");
@@ -194,6 +197,13 @@ export function MysteryListPage() {
                             <option value="false">Unsolved</option>
                             <option value="true">Solved</option>
                         </Select>
+                        {user && (
+                            <Link to="/mystery/new">
+                                <Button variant="primary" size="small">
+                                    + New Mystery
+                                </Button>
+                            </Link>
+                        )}
                     </div>
 
                     {loading && <div className="loading">Loading mysteries...</div>}

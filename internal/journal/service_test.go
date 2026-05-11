@@ -58,7 +58,6 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 func validCreateReq() dto.CreateJournalRequest {
 	return dto.CreateJournalRequest{
 		Title: "Title",
-		Body:  "Body",
 		Work:  "umineko",
 	}
 }
@@ -73,20 +72,7 @@ func TestCreateJournal_EmptyTitle(t *testing.T) {
 	_, err := svc.CreateJournal(context.Background(), uuid.New(), req)
 
 	// then
-	require.ErrorIs(t, err, ErrEmptyBody)
-}
-
-func TestCreateJournal_EmptyBody(t *testing.T) {
-	// given
-	svc, _ := newTestService(t)
-	req := validCreateReq()
-	req.Body = "\n\t"
-
-	// when
-	_, err := svc.CreateJournal(context.Background(), uuid.New(), req)
-
-	// then
-	require.ErrorIs(t, err, ErrEmptyBody)
+	require.ErrorIs(t, err, ErrEmptyTitle)
 }
 
 func TestCreateJournal_NoLimit(t *testing.T) {
@@ -222,6 +208,7 @@ func TestGetJournalDetail_OK(t *testing.T) {
 	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewer).Return([]uuid.UUID{uuid.New()}, nil)
 	m.repo.EXPECT().GetComments(mock.Anything, id, viewer, 500, 0, mock.Anything).Return(rows, 1, nil)
 	m.repo.EXPECT().GetCommentMediaBatch(mock.Anything, []uuid.UUID{commentID}).Return(nil, nil)
+	m.repo.EXPECT().ListEntries(mock.Anything, id).Return(nil, nil)
 
 	// when
 	got, err := svc.GetJournalDetail(context.Background(), id, viewer)
@@ -332,19 +319,6 @@ func TestListFollowedByUser_RepoError(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestUpdateJournal_EmptyBody(t *testing.T) {
-	// given
-	svc, _ := newTestService(t)
-	req := validCreateReq()
-	req.Body = ""
-
-	// when
-	err := svc.UpdateJournal(context.Background(), uuid.New(), uuid.New(), req)
-
-	// then
-	require.ErrorIs(t, err, ErrEmptyBody)
-}
-
 func TestUpdateJournal_EmptyTitle(t *testing.T) {
 	// given
 	svc, _ := newTestService(t)
@@ -355,7 +329,7 @@ func TestUpdateJournal_EmptyTitle(t *testing.T) {
 	err := svc.UpdateJournal(context.Background(), uuid.New(), uuid.New(), req)
 
 	// then
-	require.ErrorIs(t, err, ErrEmptyBody)
+	require.ErrorIs(t, err, ErrEmptyTitle)
 }
 
 func TestUpdateJournal_AsAdmin(t *testing.T) {
@@ -466,7 +440,7 @@ func TestCreateComment_EmptyBody(t *testing.T) {
 	svc, _ := newTestService(t)
 
 	// when
-	_, err := svc.CreateComment(context.Background(), uuid.New(), uuid.New(), nil, "   ")
+	_, err := svc.CreateComment(context.Background(), uuid.New(), uuid.New(), nil, nil, "   ")
 
 	// then
 	require.ErrorIs(t, err, ErrEmptyBody)
@@ -480,7 +454,7 @@ func TestCreateComment_JournalNotFound(t *testing.T) {
 	m.repo.EXPECT().GetAuthorID(mock.Anything, journalID).Return(uuid.Nil, errors.New("nope"))
 
 	// when
-	_, err := svc.CreateComment(context.Background(), journalID, userID, nil, "hi")
+	_, err := svc.CreateComment(context.Background(), journalID, userID, nil, nil, "hi")
 
 	// then
 	require.ErrorIs(t, err, ErrNotFound)
@@ -496,7 +470,7 @@ func TestCreateComment_IsArchivedError(t *testing.T) {
 	m.repo.EXPECT().IsArchived(mock.Anything, journalID).Return(false, errors.New("boom"))
 
 	// when
-	_, err := svc.CreateComment(context.Background(), journalID, userID, nil, "hi")
+	_, err := svc.CreateComment(context.Background(), journalID, userID, nil, nil, "hi")
 
 	// then
 	require.Error(t, err)
@@ -512,7 +486,7 @@ func TestCreateComment_Archived(t *testing.T) {
 	m.repo.EXPECT().IsArchived(mock.Anything, journalID).Return(true, nil)
 
 	// when
-	_, err := svc.CreateComment(context.Background(), journalID, userID, nil, "hi")
+	_, err := svc.CreateComment(context.Background(), journalID, userID, nil, nil, "hi")
 
 	// then
 	require.ErrorIs(t, err, ErrArchived)
@@ -529,7 +503,7 @@ func TestCreateComment_Blocked(t *testing.T) {
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(true, nil)
 
 	// when
-	_, err := svc.CreateComment(context.Background(), journalID, userID, nil, "hi")
+	_, err := svc.CreateComment(context.Background(), journalID, userID, nil, nil, "hi")
 
 	// then
 	require.ErrorIs(t, err, block.ErrUserBlocked)
@@ -544,10 +518,10 @@ func TestCreateComment_CreateRepoError(t *testing.T) {
 	m.repo.EXPECT().GetAuthorID(mock.Anything, journalID).Return(authorID, nil)
 	m.repo.EXPECT().IsArchived(mock.Anything, journalID).Return(false, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.repo.EXPECT().CreateComment(mock.Anything, mock.Anything, journalID, (*uuid.UUID)(nil), userID, "hi").Return(errors.New("boom"))
+	m.repo.EXPECT().CreateComment(mock.Anything, mock.Anything, journalID, (*uuid.UUID)(nil), (*uuid.UUID)(nil), userID, "hi").Return(errors.New("boom"))
 
 	// when
-	_, err := svc.CreateComment(context.Background(), journalID, userID, nil, "hi")
+	_, err := svc.CreateComment(context.Background(), journalID, userID, nil, nil, "hi")
 
 	// then
 	require.Error(t, err)
@@ -562,11 +536,11 @@ func TestCreateComment_OK_NotAuthor(t *testing.T) {
 	m.repo.EXPECT().GetAuthorID(mock.Anything, journalID).Return(authorID, nil)
 	m.repo.EXPECT().IsArchived(mock.Anything, journalID).Return(false, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.repo.EXPECT().CreateComment(mock.Anything, mock.Anything, journalID, (*uuid.UUID)(nil), userID, "hi").Return(nil)
+	m.repo.EXPECT().CreateComment(mock.Anything, mock.Anything, journalID, (*uuid.UUID)(nil), (*uuid.UUID)(nil), userID, "hi").Return(nil)
 	expectBackgroundCommentNotify(m)
 
 	// when
-	got, err := svc.CreateComment(context.Background(), journalID, userID, nil, "hi")
+	got, err := svc.CreateComment(context.Background(), journalID, userID, nil, nil, "hi")
 
 	// then
 	require.NoError(t, err)
@@ -582,11 +556,11 @@ func TestCreateComment_OK_AuthorReplyWithParent(t *testing.T) {
 	m.repo.EXPECT().GetAuthorID(mock.Anything, journalID).Return(userID, nil)
 	m.repo.EXPECT().IsArchived(mock.Anything, journalID).Return(false, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, userID).Return(false, nil)
-	m.repo.EXPECT().CreateComment(mock.Anything, mock.Anything, journalID, &parentID, userID, "hi").Return(nil)
+	m.repo.EXPECT().CreateComment(mock.Anything, mock.Anything, journalID, (*uuid.UUID)(nil), &parentID, userID, "hi").Return(nil)
 	expectBackgroundCommentNotify(m)
 
 	// when
-	got, err := svc.CreateComment(context.Background(), journalID, userID, &parentID, "hi")
+	got, err := svc.CreateComment(context.Background(), journalID, userID, nil, &parentID, "hi")
 
 	// then
 	require.NoError(t, err)
@@ -1024,4 +998,192 @@ func TestArchiveStale_NotifiesAuthors(t *testing.T) {
 	// then
 	require.NoError(t, err)
 	assert.Equal(t, 2, count)
+}
+
+func TestCreateEntry_EmptyBody(t *testing.T) {
+	// given
+	svc, _ := newTestService(t)
+
+	// when
+	_, _, err := svc.CreateEntry(context.Background(), uuid.New(), uuid.New(), dto.CreateJournalEntryRequest{Title: "x", Body: "  "})
+
+	// then
+	require.ErrorIs(t, err, ErrEmptyBody)
+}
+
+func TestCreateEntry_NotAuthor(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	journalID := uuid.New()
+	userID := uuid.New()
+	authorID := uuid.New()
+	m.repo.EXPECT().GetAuthorID(mock.Anything, journalID).Return(authorID, nil)
+	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyJournal).Return(false)
+
+	// when
+	_, _, err := svc.CreateEntry(context.Background(), journalID, userID, dto.CreateJournalEntryRequest{Body: "body"})
+
+	// then
+	require.ErrorIs(t, err, ErrNotAuthor)
+}
+
+func TestCreateEntry_OK_TitleOptional(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	journalID := uuid.New()
+	userID := uuid.New()
+	m.repo.EXPECT().GetAuthorID(mock.Anything, journalID).Return(userID, nil)
+	m.repo.EXPECT().GetNextEntryNumber(mock.Anything, journalID).Return(7, nil)
+	m.repo.EXPECT().CreateEntry(mock.Anything, mock.Anything, journalID, 7, (*string)(nil), "an entry", mock.Anything).Return(nil)
+	m.repo.EXPECT().UpdateLastAuthorActivity(mock.Anything, journalID).Return(nil)
+	m.repo.EXPECT().GetTitle(mock.Anything, journalID).Return("j", nil).Maybe()
+	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("http://b").Maybe()
+	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(nil, nil).Maybe()
+	m.repo.EXPECT().GetFollowerIDs(mock.Anything, journalID).Return(nil, nil).Maybe()
+	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, userID).Return(nil, nil).Maybe()
+	m.notifService.EXPECT().NotifyMany(mock.Anything, mock.Anything).Return().Maybe()
+
+	// when
+	id, num, err := svc.CreateEntry(context.Background(), journalID, userID, dto.CreateJournalEntryRequest{Body: "an entry"})
+
+	// then
+	require.NoError(t, err)
+	assert.NotEqual(t, uuid.Nil, id)
+	assert.Equal(t, 7, num)
+}
+
+func TestCreateEntry_OK_WithTitle(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	journalID := uuid.New()
+	userID := uuid.New()
+	title := "Day 1"
+	m.repo.EXPECT().GetAuthorID(mock.Anything, journalID).Return(userID, nil)
+	m.repo.EXPECT().GetNextEntryNumber(mock.Anything, journalID).Return(1, nil)
+	m.repo.EXPECT().CreateEntry(mock.Anything, mock.Anything, journalID, 1, &title, "the body", mock.Anything).Return(nil)
+	m.repo.EXPECT().UpdateLastAuthorActivity(mock.Anything, journalID).Return(nil)
+	m.repo.EXPECT().GetTitle(mock.Anything, journalID).Return("j", nil).Maybe()
+	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("http://b").Maybe()
+	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(nil, nil).Maybe()
+	m.repo.EXPECT().GetFollowerIDs(mock.Anything, journalID).Return(nil, nil).Maybe()
+	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, userID).Return(nil, nil).Maybe()
+	m.notifService.EXPECT().NotifyMany(mock.Anything, mock.Anything).Return().Maybe()
+
+	// when
+	_, num, err := svc.CreateEntry(context.Background(), journalID, userID, dto.CreateJournalEntryRequest{Title: "Day 1", Body: "the body"})
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, 1, num)
+}
+
+func TestGetEntry_NotFound(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	journalID := uuid.New()
+	m.repo.EXPECT().GetEntry(mock.Anything, journalID, 5).Return(nil, nil)
+
+	// when
+	_, _, err := svc.GetEntry(context.Background(), journalID, 5, uuid.Nil)
+
+	// then
+	require.ErrorIs(t, err, ErrEntryNotFound)
+}
+
+func TestGetEntry_OK(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	journalID := uuid.New()
+	authorID := uuid.New()
+	entryID := uuid.New()
+	row := &repository.JournalEntryRow{ID: entryID, JournalID: journalID, EntryNumber: 3, Body: "b", HasPrev: true}
+	m.repo.EXPECT().GetEntry(mock.Anything, journalID, 3).Return(row, nil)
+	m.repo.EXPECT().GetAuthorID(mock.Anything, journalID).Return(authorID, nil)
+	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, uuid.Nil).Return(nil, nil)
+	m.repo.EXPECT().GetEntryComments(mock.Anything, entryID, uuid.Nil, 500, 0, []uuid.UUID(nil)).Return(nil, 0, nil)
+	m.repo.EXPECT().GetCommentMediaBatch(mock.Anything, []uuid.UUID{}).Return(nil, nil)
+
+	// when
+	entry, comments, err := svc.GetEntry(context.Background(), journalID, 3, uuid.Nil)
+
+	// then
+	require.NoError(t, err)
+	require.NotNil(t, entry)
+	assert.Equal(t, 3, entry.EntryNumber)
+	assert.True(t, entry.HasPrev)
+	assert.Empty(t, comments)
+}
+
+func TestUpdateEntry_NotAuthor(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	entryID := uuid.New()
+	userID := uuid.New()
+	authorID := uuid.New()
+	m.repo.EXPECT().GetEntryAuthorID(mock.Anything, entryID).Return(authorID, nil)
+	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyJournal).Return(false)
+
+	// when
+	err := svc.UpdateEntry(context.Background(), entryID, userID, dto.UpdateJournalEntryRequest{Body: "x"})
+
+	// then
+	require.ErrorIs(t, err, ErrNotAuthor)
+}
+
+func TestDeleteEntry_OK(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	entryID := uuid.New()
+	userID := uuid.New()
+	m.repo.EXPECT().GetEntryAuthorID(mock.Anything, entryID).Return(userID, nil)
+	m.repo.EXPECT().DeleteEntry(mock.Anything, entryID).Return(nil)
+
+	// when
+	err := svc.DeleteEntry(context.Background(), entryID, userID)
+
+	// then
+	require.NoError(t, err)
+}
+
+func TestCreateComment_EntryMismatch(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	journalID := uuid.New()
+	otherJournalID := uuid.New()
+	entryID := uuid.New()
+	userID := uuid.New()
+	m.repo.EXPECT().GetAuthorID(mock.Anything, journalID).Return(uuid.New(), nil)
+	m.repo.EXPECT().IsArchived(mock.Anything, journalID).Return(false, nil)
+	m.repo.EXPECT().GetEntryJournalID(mock.Anything, entryID).Return(otherJournalID, nil)
+
+	// when
+	_, err := svc.CreateComment(context.Background(), journalID, userID, &entryID, nil, "body")
+
+	// then
+	require.ErrorIs(t, err, ErrEntryMismatch)
+}
+
+func TestCreateComment_OnEntry_OK(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	journalID := uuid.New()
+	entryID := uuid.New()
+	userID := uuid.New()
+	authorID := uuid.New()
+	m.repo.EXPECT().GetAuthorID(mock.Anything, journalID).Return(authorID, nil)
+	m.repo.EXPECT().IsArchived(mock.Anything, journalID).Return(false, nil)
+	m.repo.EXPECT().GetEntryJournalID(mock.Anything, entryID).Return(journalID, nil)
+	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
+	m.repo.EXPECT().CreateComment(mock.Anything, mock.Anything, journalID, &entryID, (*uuid.UUID)(nil), userID, "body").Return(nil)
+	m.repo.EXPECT().GetTitle(mock.Anything, journalID).Return("j", nil).Maybe()
+	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("http://b").Maybe()
+	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(nil, nil).Maybe()
+	m.notifService.EXPECT().Notify(mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	// when
+	id, err := svc.CreateComment(context.Background(), journalID, userID, &entryID, nil, "body")
+
+	// then
+	require.NoError(t, err)
+	assert.NotEqual(t, uuid.Nil, id)
 }

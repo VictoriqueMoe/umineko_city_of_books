@@ -464,14 +464,52 @@ video.messageMediaItem {
     .messageBubble {
         max-width: 100%;
         width: 100%;
+        gap: 0.45rem;
     }
 
     .messageContent {
         flex: 1;
         min-width: 0;
+        padding: 0.4rem 0.6rem;
     }
 
     .messageSenderOwn {
         display: block;
+    }
+
+    .messageSender {
+        font-size: 0.72rem;
+        margin-bottom: 0.1rem;
+        line-height: 1.25;
+    }
+
+    .messageText {
+        font-size: 0.9rem;
+        line-height: 1.35;
+    }
+
+    .messageTime {
+        font-size: 0.62rem;
+        margin-top: 0.1rem;
+    }
+
+    .replyPreview {
+        padding: 0.2rem 0.4rem;
+        margin-bottom: 0.25rem;
+        font-size: 0.7rem;
+    }
+
+    .pinnedIndicator {
+        font-size: 0.65rem;
+        margin-bottom: 0.15rem;
+    }
+
+    .messageMediaItem {
+        max-width: 100%;
+        height: auto;
+    }
+
+    .gifEmbed {
+        max-width: 100%;
     }
 }

@@ -36,6 +36,7 @@ func (s *Service) getAllMysteryRoutes() []FSetupRoute {
 		s.setupDeleteAttempt,
 		s.setupVoteAttempt,
 		s.setupMarkSolved,
+		s.setupMarkPermanentlySolved,
 		s.setupAddClue,
 		s.setupCreateMysteryComment,
 		s.setupUpdateMysteryComment,
@@ -86,6 +87,10 @@ func (s *Service) setupVoteAttempt(r fiber.Router) {
 
 func (s *Service) setupMarkSolved(r fiber.Router) {
 	r.Post("/mysteries/:id/solve", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.markSolved)
+}
+
+func (s *Service) setupMarkPermanentlySolved(r fiber.Router) {
+	r.Post("/mysteries/:id/close", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.markPermanentlySolved)
 }
 
 func (s *Service) setupAddClue(r fiber.Router) {
@@ -291,7 +296,29 @@ func (s *Service) markSolved(ctx fiber.Ctx) error {
 		if errors.Is(err, mysterysvc.ErrNotAuthor) {
 			return utils.Forbidden(ctx, err.Error())
 		}
+		if errors.Is(err, mysterysvc.ErrAlreadySolved) {
+			return utils.BadRequest(ctx, err.Error())
+		}
 		return utils.InternalError(ctx, "failed to mark as solved")
+	}
+	return utils.OK(ctx)
+}
+
+func (s *Service) markPermanentlySolved(ctx fiber.Ctx) error {
+	mysteryID, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
+	}
+	userID := utils.UserID(ctx)
+
+	if err := s.MysteryService.MarkPermanentlySolved(ctx.Context(), mysteryID, userID); err != nil {
+		if errors.Is(err, mysterysvc.ErrNotFound) {
+			return utils.NotFound(ctx, err.Error())
+		}
+		if errors.Is(err, mysterysvc.ErrNotAuthor) {
+			return utils.Forbidden(ctx, err.Error())
+		}
+		return utils.InternalError(ctx, "failed to close mystery")
 	}
 	return utils.OK(ctx)
 }

@@ -44,7 +44,10 @@ import type {
     GameType,
     GMLeaderboardResponse,
     HomeActivityResponse,
+    JournalComment,
     JournalDetail,
+    JournalEntry,
+    JournalEntryPayload,
     JournalListResponse,
     JournalWork,
     MarkSidebarVisitedRequest,
@@ -53,6 +56,10 @@ import type {
     MysteryLeaderboardResponse,
     MysteryListResponse,
     NotificationListResponse,
+    OCDetail,
+    OCImage,
+    OCListResponse,
+    OCSummary,
     Poll,
     PostDetail,
     PostListResponse,
@@ -63,10 +70,6 @@ import type {
     SearchResponse,
     SecretDetailResponse,
     SecretListResponse,
-    OCDetail,
-    OCImage,
-    OCListResponse,
-    OCSummary,
     ShipCharacter,
     ShipDetail,
     ShipListResponse,
@@ -134,6 +137,7 @@ export interface SiteInfo {
     vanity_roles: VanityRoleDefinition[];
     vanity_role_assignments: Record<string, string[]>;
     listed_secrets: SiteInfoSecret[];
+    rules_page: string;
     version: string;
 }
 
@@ -1217,6 +1221,7 @@ export async function createMystery(data: {
     body: string;
     difficulty: string;
     free_for_all: boolean;
+    keep_open_after_solve: boolean;
     clues: { body: string; truth_type: string }[];
 }): Promise<{ id: string }> {
     return apiPost<{ id: string }, typeof data>("/mysteries", data);
@@ -1229,6 +1234,7 @@ export async function updateMystery(
         body: string;
         difficulty: string;
         free_for_all: boolean;
+        keep_open_after_solve: boolean;
         clues: { body: string; truth_type: string }[];
     },
 ): Promise<void> {
@@ -1260,6 +1266,10 @@ export async function voteMysteryAttempt(id: string, value: number): Promise<voi
 
 export async function markMysterySolved(mysteryId: string, attemptId: string): Promise<void> {
     await apiPost<unknown, { attempt_id: string }>(`/mysteries/${mysteryId}/solve`, { attempt_id: attemptId });
+}
+
+export async function closeMystery(mysteryId: string): Promise<void> {
+    await apiPost<unknown, Record<string, never>>(`/mysteries/${mysteryId}/close`, {});
 }
 
 export async function setMysteryPaused(mysteryId: string, paused: boolean): Promise<void> {
@@ -1653,11 +1663,39 @@ export async function createJournalComment(
     journalId: string,
     body: string,
     parentId?: string,
+    entryId?: string,
 ): Promise<{ id: string }> {
-    return apiPost<{ id: string }, { body: string; parent_id?: string }>(`/journals/${journalId}/comments`, {
-        body,
-        parent_id: parentId,
-    });
+    return apiPost<{ id: string }, { body: string; parent_id?: string; entry_id?: string }>(
+        `/journals/${journalId}/comments`,
+        { body, parent_id: parentId, entry_id: entryId },
+    );
+}
+
+export async function getJournalEntry(
+    journalId: string,
+    entryNumber: number,
+): Promise<{ entry: JournalEntry; comments: JournalComment[] }> {
+    return apiFetch<{ entry: JournalEntry; comments: JournalComment[] }>(
+        `/journals/${journalId}/entries/${entryNumber}`,
+    );
+}
+
+export async function createJournalEntry(
+    journalId: string,
+    payload: JournalEntryPayload,
+): Promise<{ id: string; entry_number: number }> {
+    return apiPost<{ id: string; entry_number: number }, JournalEntryPayload>(
+        `/journals/${journalId}/entries`,
+        payload,
+    );
+}
+
+export async function updateJournalEntry(entryId: string, payload: JournalEntryPayload): Promise<void> {
+    await apiPut<unknown, JournalEntryPayload>(`/journal-entries/${entryId}`, payload);
+}
+
+export async function deleteJournalEntry(entryId: string): Promise<void> {
+    await apiDelete(`/journal-entries/${entryId}`);
 }
 
 export async function updateJournalComment(id: string, body: string): Promise<void> {

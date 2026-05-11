@@ -34,6 +34,24 @@ const INLINE_RULES: InlineRule[] = [
     { open: "_", close: "_", build: c => ({ kind: "mark", tag: "italic", children: c }) },
 ];
 
+const LINK_TOKEN_PATTERN = /^(?:https?:\/\/[^\s<>"]+|@[a-zA-Z0-9_]+)/;
+
+function findInlineClose(text: string, close: string, from: number): number {
+    let i = from;
+    while (i < text.length) {
+        const link = LINK_TOKEN_PATTERN.exec(text.slice(i));
+        if (link) {
+            i += link[0].length;
+            continue;
+        }
+        if (text.startsWith(close, i)) {
+            return i;
+        }
+        i++;
+    }
+    return -1;
+}
+
 function parseBlocks(text: string): Block[] {
     const lines = text.split("\n");
     const blocks: Block[] = [];
@@ -99,6 +117,11 @@ function parseInline(text: string): InlineNode[] {
         }
     };
     while (i < text.length) {
+        const link = LINK_TOKEN_PATTERN.exec(text.slice(i));
+        if (link) {
+            i += link[0].length;
+            continue;
+        }
         if (text[i] === "`") {
             const end = text.indexOf("`", i + 1);
             if (end === -1) {
@@ -117,7 +140,7 @@ function parseInline(text: string): InlineNode[] {
                 continue;
             }
             const contentStart = i + rule.open.length;
-            const closeIdx = text.indexOf(rule.close, contentStart);
+            const closeIdx = findInlineClose(text, rule.close, contentStart);
             if (closeIdx === -1) {
                 continue;
             }

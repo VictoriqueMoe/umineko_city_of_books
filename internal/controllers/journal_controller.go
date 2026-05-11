@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"errors"
+	"strconv"
 	"strings"
 
 	"umineko_city_of_books/internal/block"
@@ -32,6 +33,10 @@ func (s *Service) getAllJournalRoutes() []FSetupRoute {
 		s.setupLikeJournalCommentRoute,
 		s.setupUnlikeJournalCommentRoute,
 		s.setupUploadJournalCommentMediaRoute,
+		s.setupGetJournalEntryRoute,
+		s.setupCreateJournalEntryRoute,
+		s.setupUpdateJournalEntryRoute,
+		s.setupDeleteJournalEntryRoute,
 	}
 }
 
@@ -93,6 +98,22 @@ func (s *Service) setupUnlikeJournalCommentRoute(r fiber.Router) {
 
 func (s *Service) setupUploadJournalCommentMediaRoute(r fiber.Router) {
 	r.Post("/journal-comments/:id/media", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.uploadJournalCommentMedia)
+}
+
+func (s *Service) setupGetJournalEntryRoute(r fiber.Router) {
+	r.Get("/journals/:id/entries/:number", middleware.OptionalAuth(s.AuthSession, s.AuthzService), s.getJournalEntry)
+}
+
+func (s *Service) setupCreateJournalEntryRoute(r fiber.Router) {
+	r.Post("/journals/:id/entries", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.createJournalEntry)
+}
+
+func (s *Service) setupUpdateJournalEntryRoute(r fiber.Router) {
+	r.Put("/journal-entries/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.updateJournalEntry)
+}
+
+func (s *Service) setupDeleteJournalEntryRoute(r fiber.Router) {
+	r.Delete("/journal-entries/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.deleteJournalEntry)
 }
 
 func (s *Service) listUserJournals(ctx fiber.Ctx) error {
@@ -170,8 +191,8 @@ func (s *Service) createJournal(ctx fiber.Ctx) error {
 		if errors.Is(err, journal.ErrRateLimited) {
 			return ctx.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{"error": "daily journal limit reached"})
 		}
-		if errors.Is(err, journal.ErrEmptyBody) {
-			return utils.BadRequest(ctx, "title and body are required")
+		if errors.Is(err, journal.ErrEmptyTitle) {
+			return utils.BadRequest(ctx, "title is required")
 		}
 		return utils.InternalError(ctx, "failed to create journal")
 	}
@@ -213,8 +234,8 @@ func (s *Service) updateJournal(ctx fiber.Ctx) error {
 		if utils.MapFilterError(ctx, err) {
 			return nil
 		}
-		if errors.Is(err, journal.ErrEmptyBody) {
-			return utils.BadRequest(ctx, "title and body are required")
+		if errors.Is(err, journal.ErrEmptyTitle) {
+			return utils.BadRequest(ctx, "title is required")
 		}
 		return utils.Forbidden(ctx, "cannot update this journal")
 	}
@@ -276,12 +297,16 @@ func (s *Service) createJournalComment(ctx fiber.Ctx) error {
 	}
 	userID := utils.UserID(ctx)
 
-	req, ok := utils.BindJSON[dto.CreateCommentRequest](ctx)
-	if !ok {
-		return nil
+	var req struct {
+		Body     string     `json:"body"`
+		ParentID *uuid.UUID `json:"parent_id,omitempty"`
+		EntryID  *uuid.UUID `json:"entry_id,omitempty"`
+	}
+	if err := ctx.Bind().JSON(&req); err != nil {
+		return utils.BadRequest(ctx, "invalid request body")
 	}
 
-	id, err := s.JournalService.CreateComment(ctx.Context(), journalID, userID, req.ParentID, req.Body)
+	id, err := s.JournalService.CreateComment(ctx.Context(), journalID, userID, req.EntryID, req.ParentID, req.Body)
 	if err != nil {
 		if utils.MapFilterError(ctx, err) {
 			return nil
@@ -294,6 +319,12 @@ func (s *Service) createJournalComment(ctx fiber.Ctx) error {
 		}
 		if errors.Is(err, journal.ErrNotFound) {
 			return utils.NotFound(ctx, "journal not found")
+		}
+		if errors.Is(err, journal.ErrEntryNotFound) {
+			return utils.NotFound(ctx, "entry not found")
+		}
+		if errors.Is(err, journal.ErrEntryMismatch) {
+			return utils.BadRequest(ctx, "entry does not belong to this journal")
 		}
 		if errors.Is(err, block.ErrUserBlocked) {
 			return utils.Forbidden(ctx, "user is blocked")
@@ -405,4 +436,108 @@ func (s *Service) uploadJournalCommentMedia(ctx fiber.Ctx) error {
 		return utils.InternalError(ctx, "failed to upload media")
 	}
 	return ctx.Status(fiber.StatusCreated).JSON(result)
+}
+
+func (s *Service) getJournalEntry(ctx fiber.Ctx) error {
+	journalID, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
+	}
+	numStr := ctx.Params("number")
+	number, err := strconv.Atoi(numStr)
+	if err != nil || number < 1 {
+		return utils.BadRequest(ctx, "invalid entry number")
+	}
+	viewerID := utils.UserID(ctx)
+
+	entry, comments, err := s.JournalService.GetEntry(ctx.Context(), journalID, number, viewerID)
+	if err != nil {
+		if errors.Is(err, journal.ErrEntryNotFound) || errors.Is(err, journal.ErrNotFound) {
+			return utils.NotFound(ctx, "entry not found")
+		}
+		return utils.InternalError(ctx, "failed to get entry")
+	}
+	return ctx.JSON(fiber.Map{"entry": entry, "comments": comments})
+}
+
+func (s *Service) createJournalEntry(ctx fiber.Ctx) error {
+	journalID, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
+	}
+	userID := utils.UserID(ctx)
+
+	req, ok := utils.BindJSON[dto.CreateJournalEntryRequest](ctx)
+	if !ok {
+		return nil
+	}
+
+	id, entryNumber, err := s.JournalService.CreateEntry(ctx.Context(), journalID, userID, req)
+	if err != nil {
+		if utils.MapFilterError(ctx, err) {
+			return nil
+		}
+		if errors.Is(err, journal.ErrEmptyBody) {
+			return utils.BadRequest(ctx, "body is required")
+		}
+		if errors.Is(err, journal.ErrNotFound) {
+			return utils.NotFound(ctx, "journal not found")
+		}
+		if errors.Is(err, journal.ErrNotAuthor) {
+			return utils.Forbidden(ctx, "not the journal author")
+		}
+		return utils.InternalError(ctx, "failed to create entry")
+	}
+
+	s.Hub.BumpSidebarActivity("journals")
+	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id, "entry_number": entryNumber})
+}
+
+func (s *Service) updateJournalEntry(ctx fiber.Ctx) error {
+	entryID, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
+	}
+	userID := utils.UserID(ctx)
+
+	req, ok := utils.BindJSON[dto.UpdateJournalEntryRequest](ctx)
+	if !ok {
+		return nil
+	}
+
+	if err := s.JournalService.UpdateEntry(ctx.Context(), entryID, userID, req); err != nil {
+		if utils.MapFilterError(ctx, err) {
+			return nil
+		}
+		if errors.Is(err, journal.ErrEmptyBody) {
+			return utils.BadRequest(ctx, "body is required")
+		}
+		if errors.Is(err, journal.ErrEntryNotFound) {
+			return utils.NotFound(ctx, "entry not found")
+		}
+		if errors.Is(err, journal.ErrNotAuthor) {
+			return utils.Forbidden(ctx, "not the entry author")
+		}
+		return utils.InternalError(ctx, "failed to update entry")
+	}
+	return ctx.SendStatus(fiber.StatusNoContent)
+}
+
+func (s *Service) deleteJournalEntry(ctx fiber.Ctx) error {
+	entryID, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
+	}
+	userID := utils.UserID(ctx)
+
+	if err := s.JournalService.DeleteEntry(ctx.Context(), entryID, userID); err != nil {
+		if errors.Is(err, journal.ErrEntryNotFound) {
+			return utils.NotFound(ctx, "entry not found")
+		}
+		if errors.Is(err, journal.ErrNotAuthor) {
+			return utils.Forbidden(ctx, "not the entry author")
+		}
+		return utils.InternalError(ctx, "failed to delete entry")
+	}
+	return ctx.SendStatus(fiber.StatusNoContent)
 }

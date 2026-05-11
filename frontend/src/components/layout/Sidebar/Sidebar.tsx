@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { NavLink, useLocation } from "react-router";
 import { useAuth } from "../../../hooks/useAuth";
 import { useNotifications } from "../../../hooks/useNotifications";
+import { useSiteInfo } from "../../../hooks/useSiteInfo";
 import { useSidebarBadges } from "../../../hooks/useSidebarBadges";
 import { useArtCornerCounts, useCornerCounts } from "../../../api/queries/misc";
 import { can, canAccessAdmin } from "../../../utils/permissions";
@@ -58,6 +59,8 @@ export function Sidebar({ open, onClose, onCollapse }: SidebarProps) {
         liveGamesCount,
     } = useNotifications();
     const { hasUnread, hasAnyUnread, markVisited, markAllVisited, anyUnread } = useSidebarBadges();
+    const siteInfo = useSiteInfo();
+    const hasRulesPage = (siteInfo.rules_page ?? "").trim().length > 0;
     const location = useLocation();
     const [newAnnouncement, setNewAnnouncement] = useState(false);
     const isRyukishiPath = RYUKISHI_CORNERS.some(c => location.pathname === c.path);
@@ -170,6 +173,15 @@ export function Sidebar({ open, onClose, onCollapse }: SidebarProps) {
                     >
                         Welcome
                     </NavLink>
+                    {hasRulesPage && (
+                        <NavLink
+                            to="/rules"
+                            className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
+                            onClick={onClose}
+                        >
+                            Rules
+                        </NavLink>
+                    )}
                     <div className={styles.divider} />
                     <NavLink
                         to="/announcements"

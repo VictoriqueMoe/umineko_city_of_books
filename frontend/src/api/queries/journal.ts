@@ -1,7 +1,7 @@
 ﻿import { useCallback, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { Journal, JournalWork } from "../../types/api";
-import { getJournal, listJournals } from "../endpoints";
+import { getJournal, getJournalEntry, listJournals } from "../endpoints";
 import { queryKeys } from "../queryKeys";
 
 export type JournalSort = "new" | "old" | "recently_active" | "most_followed";
@@ -14,6 +14,20 @@ export function useJournal(id: string) {
     });
     return {
         journal: q.data ?? null,
+        loading: q.isLoading,
+        refresh: q.refetch,
+    };
+}
+
+export function useJournalEntry(journalId: string, entryNumber: number) {
+    const q = useQuery({
+        queryKey: [...queryKeys.journal.detail(journalId), "entry", entryNumber] as const,
+        queryFn: () => getJournalEntry(journalId, entryNumber),
+        enabled: !!journalId && entryNumber > 0,
+    });
+    return {
+        entry: q.data?.entry ?? null,
+        comments: q.data?.comments ?? [],
         loading: q.isLoading,
         refresh: q.refetch,
     };

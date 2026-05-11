@@ -76,6 +76,7 @@ const (
 	SearchEntityFanfic              SearchEntityType = "fanfic"
 	SearchEntityFanficComment       SearchEntityType = "fanfic_comment"
 	SearchEntityJournal             SearchEntityType = "journal"
+	SearchEntityJournalEntry        SearchEntityType = "journal_entry"
 	SearchEntityJournalComment      SearchEntityType = "journal_comment"
 	SearchEntityUser                SearchEntityType = "user"
 )
@@ -295,11 +296,24 @@ var searchSources = []SearchSource{
 		AuthorJoin:     "JOIN users u ON j.user_id = u.id",
 		IDExpr:         "j.id::text",
 		TitleExpr:      "j.title",
-		BodyExpr:       "j.body",
+		BodyExpr:       "j.title",
 		SearchVector:   "j.search_vector",
 		CreatedAt:      "j.created_at",
 		TrigramOnTitle: true,
 		ExtraWhere:     "j.archived_at IS NULL",
+	},
+	{
+		Type:            SearchEntityJournalEntry,
+		From:            "journal_entries e",
+		AuthorJoin:      "JOIN journals j ON e.journal_id = j.id JOIN users u ON j.user_id = u.id",
+		IDExpr:          "e.entry_number::text",
+		TitleExpr:       "COALESCE(e.title, j.title)",
+		BodyExpr:        "e.body",
+		SearchVector:    "e.search_vector",
+		CreatedAt:       "e.created_at",
+		ParentIDExpr:    "e.journal_id::text",
+		ParentTitleExpr: "j.title",
+		ExtraWhere:      "j.archived_at IS NULL",
 	},
 	{
 		Type:            SearchEntityJournalComment,

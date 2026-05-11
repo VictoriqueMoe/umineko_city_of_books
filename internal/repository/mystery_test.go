@@ -15,7 +15,7 @@ import (
 func createMystery(t *testing.T, repos *repository.Repositories, userID uuid.UUID, title string, difficulty string, freeForAll bool) uuid.UUID {
 	t.Helper()
 	id := uuid.New()
-	require.NoError(t, repos.Mystery.Create(context.Background(), id, userID, title, "body", difficulty, freeForAll))
+	require.NoError(t, repos.Mystery.Create(context.Background(), id, userID, title, "body", difficulty, freeForAll, false))
 	return id
 }
 
@@ -40,7 +40,7 @@ func TestMysteryRepository_Create(t *testing.T) {
 	id := uuid.New()
 
 	// when
-	err := repos.Mystery.Create(context.Background(), id, user.ID, "The Murder", "Who did it?", "hard", false)
+	err := repos.Mystery.Create(context.Background(), id, user.ID, "The Murder", "Who did it?", "hard", false, false)
 
 	// then
 	require.NoError(t, err)
@@ -61,7 +61,7 @@ func TestMysteryRepository_Create_FreeForAll(t *testing.T) {
 	id := uuid.New()
 
 	// when
-	err := repos.Mystery.Create(context.Background(), id, user.ID, "FFA", "body", "medium", true)
+	err := repos.Mystery.Create(context.Background(), id, user.ID, "FFA", "body", "medium", true, false)
 
 	// then
 	require.NoError(t, err)
@@ -138,7 +138,7 @@ func TestMysteryRepository_UpdateAsAdmin(t *testing.T) {
 	id := createMystery(t, repos, owner.ID, "T", "easy", false)
 
 	// when
-	err := repos.Mystery.UpdateAsAdmin(context.Background(), id, "Admin Title", "Admin Body", "nightmare", true)
+	err := repos.Mystery.UpdateAsAdmin(context.Background(), id, "Admin Title", "Admin Body", "nightmare", true, false)
 
 	// then
 	require.NoError(t, err)
@@ -268,7 +268,7 @@ func TestMysteryRepository_List_FilterSolved(t *testing.T) {
 	solvedID := createMystery(t, repos, gm.ID, "solved", "easy", false)
 	_ = createMystery(t, repos, gm.ID, "unsolved", "easy", false)
 	attemptID := createAttempt(t, repos, solvedID, solver.ID, nil, "answer")
-	require.NoError(t, repos.Mystery.MarkSolved(context.Background(), solvedID, attemptID))
+	require.NoError(t, repos.Mystery.MarkSolved(context.Background(), solvedID, attemptID, true))
 	truthy := true
 	falsy := false
 
@@ -678,7 +678,7 @@ func TestMysteryRepository_MarkSolved(t *testing.T) {
 	attemptID := createAttempt(t, repos, id, player.ID, nil, "a")
 
 	// when
-	err := repos.Mystery.MarkSolved(context.Background(), id, attemptID)
+	err := repos.Mystery.MarkSolved(context.Background(), id, attemptID, true)
 
 	// then
 	require.NoError(t, err)
@@ -694,7 +694,7 @@ func TestMysteryRepository_MarkSolved(t *testing.T) {
 	assert.True(t, attempts[0].IsWinner)
 }
 
-func TestMysteryRepository_MarkSolved_ClearsPreviousWinner(t *testing.T) {
+func TestMysteryRepository_MarkSolved_PreservesPreviousWinner(t *testing.T) {
 	// given
 	repos := repotest.NewRepos(t)
 	gm := repotest.CreateUser(t, repos)
@@ -703,10 +703,10 @@ func TestMysteryRepository_MarkSolved_ClearsPreviousWinner(t *testing.T) {
 	id := createMystery(t, repos, gm.ID, "T", "easy", false)
 	a1 := createAttempt(t, repos, id, p1.ID, nil, "first")
 	a2 := createAttempt(t, repos, id, p2.ID, nil, "second")
-	require.NoError(t, repos.Mystery.MarkSolved(context.Background(), id, a1))
+	require.NoError(t, repos.Mystery.MarkSolved(context.Background(), id, a1, true))
 
 	// when
-	err := repos.Mystery.MarkSolved(context.Background(), id, a2)
+	err := repos.Mystery.MarkSolved(context.Background(), id, a2, true)
 
 	// then
 	require.NoError(t, err)
@@ -715,7 +715,7 @@ func TestMysteryRepository_MarkSolved_ClearsPreviousWinner(t *testing.T) {
 	require.Len(t, attempts, 2)
 	for _, a := range attempts {
 		if a.ID == a1 {
-			assert.False(t, a.IsWinner)
+			assert.True(t, a.IsWinner)
 		}
 		if a.ID == a2 {
 			assert.True(t, a.IsWinner)
@@ -733,7 +733,7 @@ func TestMysteryRepository_MarkSolved_MismatchMysteryFails(t *testing.T) {
 	attemptID := createAttempt(t, repos, m1, player.ID, nil, "a")
 
 	// when
-	err := repos.Mystery.MarkSolved(context.Background(), m2, attemptID)
+	err := repos.Mystery.MarkSolved(context.Background(), m2, attemptID, true)
 
 	// then
 	require.Error(t, err)
@@ -749,7 +749,7 @@ func TestMysteryRepository_IsSolved(t *testing.T) {
 	// when
 	before, err1 := repos.Mystery.IsSolved(context.Background(), id)
 	attemptID := createAttempt(t, repos, id, player.ID, nil, "a")
-	require.NoError(t, repos.Mystery.MarkSolved(context.Background(), id, attemptID))
+	require.NoError(t, repos.Mystery.MarkSolved(context.Background(), id, attemptID, true))
 	after, err2 := repos.Mystery.IsSolved(context.Background(), id)
 
 	// then
@@ -880,8 +880,8 @@ func TestMysteryRepository_GetLeaderboard_ScoresByDifficulty(t *testing.T) {
 	hardID := createMystery(t, repos, gm.ID, "h", "hard", false)
 	a1 := createAttempt(t, repos, easyID, winner.ID, nil, "a")
 	a2 := createAttempt(t, repos, hardID, winner.ID, nil, "b")
-	require.NoError(t, repos.Mystery.MarkSolved(context.Background(), easyID, a1))
-	require.NoError(t, repos.Mystery.MarkSolved(context.Background(), hardID, a2))
+	require.NoError(t, repos.Mystery.MarkSolved(context.Background(), easyID, a1, true))
+	require.NoError(t, repos.Mystery.MarkSolved(context.Background(), hardID, a2, true))
 
 	// when
 	entries, err := repos.Mystery.GetLeaderboard(context.Background(), 10)
@@ -905,8 +905,8 @@ func TestMysteryRepository_GetLeaderboard_Ordering(t *testing.T) {
 	highM := createMystery(t, repos, gm.ID, "h", "nightmare", false)
 	la := createAttempt(t, repos, lowM, low.ID, nil, "a")
 	ha := createAttempt(t, repos, highM, high.ID, nil, "a")
-	require.NoError(t, repos.Mystery.MarkSolved(context.Background(), lowM, la))
-	require.NoError(t, repos.Mystery.MarkSolved(context.Background(), highM, ha))
+	require.NoError(t, repos.Mystery.MarkSolved(context.Background(), lowM, la, true))
+	require.NoError(t, repos.Mystery.MarkSolved(context.Background(), highM, ha, true))
 
 	// when
 	entries, err := repos.Mystery.GetLeaderboard(context.Background(), 10)
@@ -925,7 +925,7 @@ func TestMysteryRepository_GetTopDetectiveIDs(t *testing.T) {
 	winner := repotest.CreateUser(t, repos)
 	mID := createMystery(t, repos, gm.ID, "T", "easy", false)
 	attemptID := createAttempt(t, repos, mID, winner.ID, nil, "a")
-	require.NoError(t, repos.Mystery.MarkSolved(context.Background(), mID, attemptID))
+	require.NoError(t, repos.Mystery.MarkSolved(context.Background(), mID, attemptID, true))
 
 	// when
 	ids, err := repos.Mystery.GetTopDetectiveIDs(context.Background())
@@ -955,7 +955,7 @@ func TestMysteryRepository_GetGMLeaderboard_ScoresSolvedMysteries(t *testing.T) 
 	player := repotest.CreateUser(t, repos)
 	id := createMystery(t, repos, gm.ID, "T", "hard", false)
 	attemptID := createAttempt(t, repos, id, player.ID, nil, "a")
-	require.NoError(t, repos.Mystery.MarkSolved(context.Background(), id, attemptID))
+	require.NoError(t, repos.Mystery.MarkSolved(context.Background(), id, attemptID, true))
 
 	// when
 	entries, err := repos.Mystery.GetGMLeaderboard(context.Background(), 10)
@@ -976,7 +976,7 @@ func TestMysteryRepository_GetTopGMIDs(t *testing.T) {
 	player := repotest.CreateUser(t, repos)
 	id := createMystery(t, repos, gm.ID, "T", "easy", false)
 	attemptID := createAttempt(t, repos, id, player.ID, nil, "a")
-	require.NoError(t, repos.Mystery.MarkSolved(context.Background(), id, attemptID))
+	require.NoError(t, repos.Mystery.MarkSolved(context.Background(), id, attemptID, true))
 
 	// when
 	ids, err := repos.Mystery.GetTopGMIDs(context.Background())

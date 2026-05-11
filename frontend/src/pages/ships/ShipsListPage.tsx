@@ -1,8 +1,10 @@
 import { Fragment, useState } from "react";
 import { Link } from "react-router";
 import { usePageTitle } from "../../hooks/usePageTitle";
+import { useAuth } from "../../hooks/useAuth";
 import type { ShipCharacter } from "../../types/api";
 import { useShipList } from "../../api/queries/ship";
+import { Button } from "../../components/Button/Button";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { Pagination } from "../../components/Pagination/Pagination";
 import { Select } from "../../components/Select/Select";
@@ -39,6 +41,7 @@ export function CharacterPills({ characters }: { characters: ShipCharacter[] }) 
 
 export function ShipsListPage() {
     usePageTitle("Ships");
+    const { user } = useAuth();
     const [offset, setOffset] = useState(0);
     const [sort, setSort] = useState("new");
     const [series, setSeries] = useState("");
@@ -103,6 +106,13 @@ export function ShipsListPage() {
                         label="Crackships only"
                     />
                 </div>
+                {user && (
+                    <Link to="/ships/new">
+                        <Button variant="primary" size="small">
+                            + New Ship
+                        </Button>
+                    </Link>
+                )}
             </div>
 
             {loading && <div className="loading">Loading ships...</div>}

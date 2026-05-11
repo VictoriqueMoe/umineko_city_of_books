@@ -40,7 +40,6 @@ export function EditJournalPage() {
             <h2 className={styles.heading}>Edit Journal</h2>
             <JournalForm
                 initialTitle={journal.title}
-                initialBody={journal.body}
                 initialWork={journal.work}
                 submitLabel="Save"
                 submittingLabel="Saving..."

@@ -36,6 +36,7 @@ function SingleAttempt({
     replyToName,
     mysterySolved,
     mysteryPaused,
+    authorAlreadyWon,
 }: {
     attempt: MysteryAttempt;
     mysteryId: string;
@@ -44,6 +45,7 @@ function SingleAttempt({
     replyToName?: string;
     mysterySolved: boolean;
     mysteryPaused: boolean;
+    authorAlreadyWon: boolean;
 }) {
     const { user } = useAuth();
     const [showReply, setShowReply] = useState(false);
@@ -132,7 +134,7 @@ function SingleAttempt({
                                 Reply
                             </Button>
                         )}
-                        {isAuthor && !mysterySolved && user?.id !== attempt.author.id && (
+                        {isAuthor && !mysterySolved && user?.id !== attempt.author.id && !authorAlreadyWon && (
                             <Button variant="ghost" size="small" onClick={handleSelectWinner}>
                                 Select Winner
                             </Button>
@@ -194,6 +196,7 @@ export function AttemptItem({
     onRefresh,
     mysterySolved,
     mysteryPaused,
+    authorAlreadyWon,
 }: {
     attempt: MysteryAttempt;
     mysteryId: string;
@@ -201,6 +204,7 @@ export function AttemptItem({
     onRefresh: () => void;
     mysterySolved: boolean;
     mysteryPaused: boolean;
+    authorAlreadyWon: boolean;
 }) {
     const allReplies = flattenReplies(attempt);
     const [collapsed, setCollapsed] = useState(false);
@@ -214,6 +218,7 @@ export function AttemptItem({
                 onRefresh={onRefresh}
                 mysterySolved={mysterySolved}
                 mysteryPaused={mysteryPaused}
+                authorAlreadyWon={authorAlreadyWon}
             />
             {allReplies.length > 0 && (
                 <div className={styles.threadContainer}>
@@ -234,6 +239,7 @@ export function AttemptItem({
                                     replyToName={replyToName}
                                     mysterySolved={mysterySolved}
                                     mysteryPaused={mysteryPaused}
+                                    authorAlreadyWon={authorAlreadyWon}
                                 />
                             ))}
                         </div>

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 	"time"
 
@@ -26,6 +27,8 @@ import (
 
 const archiveAfter = 7 * 24 * time.Hour
 
+var htmlTagRe = regexp.MustCompile(`<[^>]*>`)
+
 type (
 	Service interface {
 		CreateJournal(ctx context.Context, userID uuid.UUID, req dto.CreateJournalRequest) (uuid.UUID, error)
@@ -36,7 +39,12 @@ type (
 		UpdateJournal(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.CreateJournalRequest) error
 		DeleteJournal(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 
-		CreateComment(ctx context.Context, journalID uuid.UUID, userID uuid.UUID, parentID *uuid.UUID, body string) (uuid.UUID, error)
+		CreateEntry(ctx context.Context, journalID uuid.UUID, userID uuid.UUID, req dto.CreateJournalEntryRequest) (uuid.UUID, int, error)
+		GetEntry(ctx context.Context, journalID uuid.UUID, entryNumber int, viewerID uuid.UUID) (*dto.JournalEntryResponse, []dto.JournalCommentResponse, error)
+		UpdateEntry(ctx context.Context, entryID uuid.UUID, userID uuid.UUID, req dto.UpdateJournalEntryRequest) error
+		DeleteEntry(ctx context.Context, entryID uuid.UUID, userID uuid.UUID) error
+
+		CreateComment(ctx context.Context, journalID uuid.UUID, userID uuid.UUID, entryID *uuid.UUID, parentID *uuid.UUID, body string) (uuid.UUID, error)
 		UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string) error
 		DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		LikeComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
@@ -99,11 +107,16 @@ func (s *service) actorName(ctx context.Context, userID uuid.UUID) string {
 	return u.DisplayName
 }
 
+func countWords(html string) int {
+	text := htmlTagRe.ReplaceAllString(html, " ")
+	return len(strings.Fields(text))
+}
+
 func (s *service) CreateJournal(ctx context.Context, userID uuid.UUID, req dto.CreateJournalRequest) (uuid.UUID, error) {
-	if strings.TrimSpace(req.Title) == "" || strings.TrimSpace(req.Body) == "" {
-		return uuid.Nil, ErrEmptyBody
+	if strings.TrimSpace(req.Title) == "" {
+		return uuid.Nil, ErrEmptyTitle
 	}
-	if err := s.filterTexts(ctx, req.Title, req.Body); err != nil {
+	if err := s.filterTexts(ctx, req.Title); err != nil {
 		return uuid.Nil, err
 	}
 
@@ -153,8 +166,31 @@ func (s *service) GetJournalDetail(ctx context.Context, id uuid.UUID, viewerID u
 		func(c *dto.JournalCommentResponse, replies []dto.JournalCommentResponse) { c.Replies = replies },
 	)
 
+	entryRows, err := s.repo.ListEntries(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	entries := make([]dto.JournalEntrySummary, len(entryRows))
+	for i, e := range entryRows {
+		entries[i] = repository.JournalEntrySummaryToDTO(e)
+	}
+
+	var latestEntry *dto.JournalEntryResponse
+	if journal.LatestEntryNumber != nil {
+		entry, err := s.repo.GetEntry(ctx, id, *journal.LatestEntryNumber)
+		if err != nil {
+			return nil, err
+		}
+		if entry != nil {
+			resp := repository.JournalEntryToDTO(entry)
+			latestEntry = &resp
+		}
+	}
+
 	return &dto.JournalDetailResponse{
 		JournalResponse: *journal,
+		Entries:         entries,
+		LatestEntry:     latestEntry,
 		Comments:        tree,
 	}, nil
 }
@@ -201,10 +237,10 @@ func (s *service) ListFollowedByUser(ctx context.Context, followerID uuid.UUID, 
 }
 
 func (s *service) UpdateJournal(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.CreateJournalRequest) error {
-	if strings.TrimSpace(req.Title) == "" || strings.TrimSpace(req.Body) == "" {
-		return ErrEmptyBody
+	if strings.TrimSpace(req.Title) == "" {
+		return ErrEmptyTitle
 	}
-	if err := s.filterTexts(ctx, req.Title, req.Body); err != nil {
+	if err := s.filterTexts(ctx, req.Title); err != nil {
 		return err
 	}
 	if s.authz.Can(ctx, userID, authz.PermEditAnyJournal) {
@@ -220,7 +256,164 @@ func (s *service) DeleteJournal(ctx context.Context, id uuid.UUID, userID uuid.U
 	return s.repo.Delete(ctx, id, userID)
 }
 
-func (s *service) CreateComment(ctx context.Context, journalID uuid.UUID, userID uuid.UUID, parentID *uuid.UUID, body string) (uuid.UUID, error) {
+func (s *service) CreateEntry(ctx context.Context, journalID uuid.UUID, userID uuid.UUID, req dto.CreateJournalEntryRequest) (uuid.UUID, int, error) {
+	body := strings.TrimSpace(req.Body)
+	if body == "" {
+		return uuid.Nil, 0, ErrEmptyBody
+	}
+	titleTrim := strings.TrimSpace(req.Title)
+	if err := s.filterTexts(ctx, titleTrim, body); err != nil {
+		return uuid.Nil, 0, err
+	}
+
+	authorID, err := s.repo.GetAuthorID(ctx, journalID)
+	if err != nil {
+		return uuid.Nil, 0, ErrNotFound
+	}
+	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyJournal) {
+		return uuid.Nil, 0, ErrNotAuthor
+	}
+
+	nextNumber, err := s.repo.GetNextEntryNumber(ctx, journalID)
+	if err != nil {
+		return uuid.Nil, 0, err
+	}
+
+	var titlePtr *string
+	if titleTrim != "" {
+		titlePtr = &titleTrim
+	}
+	id := uuid.New()
+	if err := s.repo.CreateEntry(ctx, id, journalID, nextNumber, titlePtr, body, countWords(body)); err != nil {
+		return uuid.Nil, 0, err
+	}
+
+	if err := s.repo.UpdateLastAuthorActivity(ctx, journalID); err != nil {
+		logger.Log.Error().Err(err).Msg("update journal activity after entry create failed")
+	}
+
+	go func() {
+		bgCtx := context.Background()
+		title, _ := s.repo.GetTitle(bgCtx, journalID)
+		baseURL := s.settingsSvc.Get(bgCtx, config.SettingBaseURL)
+		linkURL := fmt.Sprintf("%s/journals/%s/entry/%d", baseURL, journalID, nextNumber)
+		actor := s.actorName(bgCtx, userID)
+
+		followerIDs, err := s.repo.GetFollowerIDs(bgCtx, journalID)
+		if err != nil {
+			logger.Log.Error().Err(err).Msg("get follower ids failed on entry create")
+			return
+		}
+		subject, emailBody := notification.NotifEmail(actor, "posted a new entry on", title, linkURL)
+		blockedSet := make(map[uuid.UUID]struct{})
+		if blockedIDs, err := s.blockSvc.GetBlockedIDs(bgCtx, userID); err == nil {
+			for i := 0; i < len(blockedIDs); i++ {
+				blockedSet[blockedIDs[i]] = struct{}{}
+			}
+		}
+		notifyParams := make([]dto.NotifyParams, 0, len(followerIDs))
+		for i := 0; i < len(followerIDs); i++ {
+			followerID := followerIDs[i]
+			if followerID == userID {
+				continue
+			}
+			if _, isBlocked := blockedSet[followerID]; isBlocked {
+				continue
+			}
+			notifyParams = append(notifyParams, dto.NotifyParams{
+				RecipientID:   followerID,
+				Type:          dto.NotifJournalUpdate,
+				ReferenceID:   journalID,
+				ReferenceType: fmt.Sprintf("journal_entry:%s", id),
+				ActorID:       userID,
+				EmailSubject:  subject,
+				EmailBody:     emailBody,
+			})
+		}
+		s.notifService.NotifyMany(bgCtx, notifyParams)
+	}()
+
+	return id, nextNumber, nil
+}
+
+func (s *service) GetEntry(ctx context.Context, journalID uuid.UUID, entryNumber int, viewerID uuid.UUID) (*dto.JournalEntryResponse, []dto.JournalCommentResponse, error) {
+	entry, err := s.repo.GetEntry(ctx, journalID, entryNumber)
+	if err != nil {
+		return nil, nil, err
+	}
+	if entry == nil {
+		return nil, nil, ErrEntryNotFound
+	}
+
+	authorID, err := s.repo.GetAuthorID(ctx, journalID)
+	if err != nil {
+		return nil, nil, ErrNotFound
+	}
+
+	blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, viewerID)
+	commentRows, _, err := s.repo.GetEntryComments(ctx, entry.ID, viewerID, 500, 0, blockedIDs)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	commentIDs := make([]uuid.UUID, len(commentRows))
+	for i := range commentRows {
+		commentIDs[i] = commentRows[i].ID
+	}
+	mediaMap, _ := s.repo.GetCommentMediaBatch(ctx, commentIDs)
+
+	flatComments := make([]dto.JournalCommentResponse, len(commentRows))
+	for i, c := range commentRows {
+		flatComments[i] = repository.JournalCommentToDTO(c, mediaMap[c.ID], authorID)
+	}
+
+	tree := utils.BuildTree(flatComments,
+		func(c dto.JournalCommentResponse) uuid.UUID { return c.ID },
+		func(c dto.JournalCommentResponse) *uuid.UUID { return c.ParentID },
+		func(c *dto.JournalCommentResponse, replies []dto.JournalCommentResponse) { c.Replies = replies },
+	)
+
+	resp := repository.JournalEntryToDTO(entry)
+	return &resp, tree, nil
+}
+
+func (s *service) UpdateEntry(ctx context.Context, entryID uuid.UUID, userID uuid.UUID, req dto.UpdateJournalEntryRequest) error {
+	body := strings.TrimSpace(req.Body)
+	if body == "" {
+		return ErrEmptyBody
+	}
+	titleTrim := strings.TrimSpace(req.Title)
+	if err := s.filterTexts(ctx, titleTrim, body); err != nil {
+		return err
+	}
+
+	authorID, err := s.repo.GetEntryAuthorID(ctx, entryID)
+	if err != nil {
+		return ErrEntryNotFound
+	}
+	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyJournal) {
+		return ErrNotAuthor
+	}
+
+	var titlePtr *string
+	if titleTrim != "" {
+		titlePtr = &titleTrim
+	}
+	return s.repo.UpdateEntry(ctx, entryID, titlePtr, body, countWords(body))
+}
+
+func (s *service) DeleteEntry(ctx context.Context, entryID uuid.UUID, userID uuid.UUID) error {
+	authorID, err := s.repo.GetEntryAuthorID(ctx, entryID)
+	if err != nil {
+		return ErrEntryNotFound
+	}
+	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermDeleteAnyJournal) {
+		return ErrNotAuthor
+	}
+	return s.repo.DeleteEntry(ctx, entryID)
+}
+
+func (s *service) CreateComment(ctx context.Context, journalID uuid.UUID, userID uuid.UUID, entryID *uuid.UUID, parentID *uuid.UUID, body string) (uuid.UUID, error) {
 	body = strings.TrimSpace(body)
 	if body == "" {
 		return uuid.Nil, ErrEmptyBody
@@ -242,12 +435,22 @@ func (s *service) CreateComment(ctx context.Context, journalID uuid.UUID, userID
 		return uuid.Nil, ErrArchived
 	}
 
+	if entryID != nil {
+		entryJournalID, err := s.repo.GetEntryJournalID(ctx, *entryID)
+		if err != nil {
+			return uuid.Nil, ErrEntryNotFound
+		}
+		if entryJournalID != journalID {
+			return uuid.Nil, ErrEntryMismatch
+		}
+	}
+
 	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, authorID); blocked {
 		return uuid.Nil, block.ErrUserBlocked
 	}
 
 	id := uuid.New()
-	if err := s.repo.CreateComment(ctx, id, journalID, parentID, userID, body); err != nil {
+	if err := s.repo.CreateComment(ctx, id, journalID, entryID, parentID, userID, body); err != nil {
 		return uuid.Nil, err
 	}
 
@@ -257,7 +460,7 @@ func (s *service) CreateComment(ctx context.Context, journalID uuid.UUID, userID
 		bgCtx := context.Background()
 		title, _ := s.repo.GetTitle(bgCtx, journalID)
 		baseURL := s.settingsSvc.Get(bgCtx, config.SettingBaseURL)
-		linkURL := fmt.Sprintf("%s/journals/%s#comment-%s", baseURL, journalID, id)
+		linkURL := commentLinkURL(baseURL, journalID, entryID, id)
 		actor := s.actorName(bgCtx, userID)
 
 		if isAuthorComment {
@@ -275,7 +478,7 @@ func (s *service) CreateComment(ctx context.Context, journalID uuid.UUID, userID
 					blockedSet[blockedIDs[i]] = struct{}{}
 				}
 			}
-			params := make([]dto.NotifyParams, 0, len(followerIDs))
+			notifyParams := make([]dto.NotifyParams, 0, len(followerIDs))
 			for i := 0; i < len(followerIDs); i++ {
 				followerID := followerIDs[i]
 				if followerID == userID {
@@ -284,7 +487,7 @@ func (s *service) CreateComment(ctx context.Context, journalID uuid.UUID, userID
 				if _, isBlocked := blockedSet[followerID]; isBlocked {
 					continue
 				}
-				params = append(params, dto.NotifyParams{
+				notifyParams = append(notifyParams, dto.NotifyParams{
 					RecipientID:   followerID,
 					Type:          dto.NotifJournalUpdate,
 					ReferenceID:   journalID,
@@ -294,7 +497,7 @@ func (s *service) CreateComment(ctx context.Context, journalID uuid.UUID, userID
 					EmailBody:     emailBody,
 				})
 			}
-			s.notifService.NotifyMany(bgCtx, params)
+			s.notifService.NotifyMany(bgCtx, notifyParams)
 		} else {
 			subject, emailBody := notification.NotifEmail(actor, "commented on your journal", title, linkURL)
 			_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
@@ -326,6 +529,13 @@ func (s *service) CreateComment(ctx context.Context, journalID uuid.UUID, userID
 	}()
 
 	return id, nil
+}
+
+func commentLinkURL(baseURL string, journalID uuid.UUID, entryID *uuid.UUID, commentID uuid.UUID) string {
+	if entryID != nil {
+		return fmt.Sprintf("%s/journals/%s#comment-%s", baseURL, journalID, commentID)
+	}
+	return fmt.Sprintf("%s/journals/%s#comment-%s", baseURL, journalID, commentID)
 }
 
 func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string) error {
