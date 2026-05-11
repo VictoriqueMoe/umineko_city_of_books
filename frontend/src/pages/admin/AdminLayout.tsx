@@ -54,6 +54,14 @@ export function AdminLayout() {
                     )}
                     {can(user?.role, "manage_settings") && (
                         <NavLink
+                            to="/admin/rules"
+                            className={({ isActive }) => `${styles.tab}${isActive ? ` ${styles.tabActive}` : ""}`}
+                        >
+                            Rules Page
+                        </NavLink>
+                    )}
+                    {can(user?.role, "manage_settings") && (
+                        <NavLink
                             to="/admin/banned-gifs"
                             className={({ isActive }) => `${styles.tab}${isActive ? ` ${styles.tabActive}` : ""}`}
                         >

@@ -1,6 +1,7 @@
 ﻿import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
     addMysteryClue,
+    closeMystery,
     createMystery,
     createMysteryAttempt,
     createMysteryComment,
@@ -76,6 +77,14 @@ export function useMarkMysterySolved(mysteryId: string) {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (attemptId: string) => markMysterySolved(mysteryId, attemptId),
+        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.mystery.all }),
+    });
+}
+
+export function useCloseMystery(mysteryId: string) {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: () => closeMystery(mysteryId),
         onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.mystery.all }),
     });
 }

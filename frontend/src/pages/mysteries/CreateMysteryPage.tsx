@@ -24,6 +24,7 @@ interface MysteryDraft {
     body?: string;
     difficulty?: string;
     freeForAll?: boolean;
+    keepOpenAfterSolve?: boolean;
     clues?: ClueInput[];
 }
 
@@ -61,6 +62,8 @@ export function CreateMysteryPage() {
     const body = activeDraft.body ?? (isEdit ? (editMystery?.body ?? "") : "");
     const difficulty = activeDraft.difficulty ?? (isEdit ? (editMystery?.difficulty ?? "medium") : "medium");
     const freeForAll = activeDraft.freeForAll ?? (isEdit ? (editMystery?.free_for_all ?? false) : false);
+    const keepOpenAfterSolve =
+        activeDraft.keepOpenAfterSolve ?? (isEdit ? (editMystery?.keep_open_after_solve ?? false) : false);
     const clues = activeDraft.clues ?? baseClues;
 
     function patch(update: Partial<MysteryDraft>) {
@@ -81,6 +84,9 @@ export function CreateMysteryPage() {
     }
     function setFreeForAll(value: boolean) {
         patch({ freeForAll: value });
+    }
+    function setKeepOpenAfterSolve(value: boolean) {
+        patch({ keepOpenAfterSolve: value });
     }
     function setClues(updater: ClueInput[] | ((prev: ClueInput[]) => ClueInput[])) {
         const next = typeof updater === "function" ? updater(clues) : updater;
@@ -118,6 +124,7 @@ export function CreateMysteryPage() {
                     body: body.trim(),
                     difficulty,
                     free_for_all: freeForAll,
+                    keep_open_after_solve: keepOpenAfterSolve,
                     clues: validClues,
                 });
                 for (const file of attachments) {
@@ -132,6 +139,7 @@ export function CreateMysteryPage() {
                     body: body.trim(),
                     difficulty,
                     free_for_all: freeForAll,
+                    keep_open_after_solve: keepOpenAfterSolve,
                     clues: validClues,
                 });
                 for (const file of attachments) {
@@ -214,6 +222,15 @@ export function CreateMysteryPage() {
                         onChange={setFreeForAll}
                         label="Free-for-all mode"
                         description="All players can see each other's attempts. By default, each player only sees their own thread with the Game Master."
+                    />
+                </div>
+
+                <div style={{ marginTop: "1rem" }}>
+                    <ToggleSwitch
+                        enabled={keepOpenAfterSolve}
+                        onChange={setKeepOpenAfterSolve}
+                        label="Ongoing mode"
+                        description="The mystery stays open after each correct solution. Solvers get their points privately and a public counter ticks up, but the truth and other attempts stay hidden until you mark the mystery permanently solved."
                     />
                 </div>
 

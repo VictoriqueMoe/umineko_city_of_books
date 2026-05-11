@@ -111,6 +111,7 @@ var (
 	SettingRulesJournals           = &SiteSettingDef{"rules_journals", "", TypeString}
 	SettingRulesSuggestions        = &SiteSettingDef{"rules_suggestions", "", TypeString}
 	SettingRulesChatRooms          = &SiteSettingDef{"rules_chat_rooms", "", TypeString}
+	SettingRulesPage               = &SiteSettingDef{"rules_page", "", TypeString}
 	SettingSMTPHost                = &SiteSettingDef{"smtp_host", "", TypeString}
 	SettingSMTPPort                = &SiteSettingDef{"smtp_port", "25", TypeInt}
 	SettingSMTPFrom                = &SiteSettingDef{"smtp_from", "", TypeString}
@@ -167,6 +168,7 @@ var (
 		SettingRulesJournals,
 		SettingRulesSuggestions,
 		SettingRulesChatRooms,
+		SettingRulesPage,
 		SettingSMTPHost,
 		SettingSMTPPort,
 		SettingSMTPFrom,

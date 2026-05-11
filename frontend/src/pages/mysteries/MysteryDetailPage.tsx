@@ -6,6 +6,7 @@ import type { MysteryAttachment, MysteryAttempt, MysteryClue, PostComment } from
 import { useMystery } from "../../api/queries/mystery";
 import {
     useAddMysteryClue,
+    useCloseMystery,
     useCreateMysteryAttempt,
     useCreateMysteryComment,
     useDeleteMystery,
@@ -335,6 +336,7 @@ export function MysteryDetailPage() {
     const addClueMutation = useAddMysteryClue(mysteryId);
     const deleteMysteryMutation = useDeleteMystery();
     const setPausedMutation = useSetMysteryPaused(mysteryId);
+    const closeMysteryMutation = useCloseMystery(mysteryId);
     const setGmAwayMutation = useSetMysteryGmAway(mysteryId);
     const uploadAttachmentMutation = useUploadMysteryAttachment(mysteryId);
     const deleteAttachmentMutation = useDeleteMysteryAttachment(mysteryId);
@@ -483,6 +485,14 @@ export function MysteryDetailPage() {
                 }
                 return;
             }
+            if (msg.type === "mystery_winner_added") {
+                const data = msg.data as { mystery_id?: string };
+                if (data.mystery_id !== id) {
+                    return;
+                }
+                throttledFetchMystery();
+                return;
+            }
             if (msg.type === "mystery_attempt_created") {
                 const data = msg.data as { mystery_id?: string; author_id?: string };
                 if (data.mystery_id !== id) {
@@ -567,6 +577,12 @@ export function MysteryDetailPage() {
     const canEdit = can(user?.role, "edit_any_theory");
     const canDelete = isAuthor || can(user?.role, "delete_any_theory");
     const canSeeAsGameMaster = isAuthor || user?.role === "super_admin";
+    const winningAuthorIds = new Set<string>();
+    for (const a of mystery.attempts ?? []) {
+        if (a.is_winner) {
+            winningAuthorIds.add(a.author.id);
+        }
+    }
 
     async function handleSubmitAttempt() {
         if (!attemptBody.trim() || submitting || !id) {
@@ -688,6 +704,14 @@ export function MysteryDetailPage() {
                             {mystery.free_for_all && (
                                 <span className={`${styles.badge} ${styles.badgeFreeForAll}`}>Free-for-all</span>
                             )}
+                            {mystery.keep_open_after_solve && !mystery.solved && (
+                                <span className={`${styles.badge} ${styles.badgeFreeForAll}`}>Ongoing</span>
+                            )}
+                            {mystery.solver_count > 0 && (
+                                <span className={`${styles.badge} ${styles.badgeSolved}`}>
+                                    {mystery.solver_count} solver{mystery.solver_count !== 1 ? "s" : ""}
+                                </span>
+                            )}
                             <span className={`${styles.badge} ${styles.badgePieces}`}>
                                 {mystery.player_count} piece{mystery.player_count !== 1 ? "s" : ""} attempting
                             </span>
@@ -730,6 +754,25 @@ export function MysteryDetailPage() {
                                 }}
                             >
                                 {mystery.gm_away ? "I'm back" : "Mark as away"}
+                            </Button>
+                        )}
+                        {(isAuthor || canEdit) && !mystery.solved && mystery.keep_open_after_solve && (
+                            <Button
+                                variant="primary"
+                                size="small"
+                                onClick={async () => {
+                                    if (
+                                        !window.confirm(
+                                            "Mark this mystery as permanently solved? All attempts will be revealed and the post-mystery discussion will open. This cannot be undone.",
+                                        )
+                                    ) {
+                                        return;
+                                    }
+                                    await closeMysteryMutation.mutateAsync();
+                                    fetchMystery();
+                                }}
+                            >
+                                Mark Permanently Solved
                             </Button>
                         )}
                         <ShareButton contentId={mystery.id} contentType="mystery" contentTitle={mystery.title} />
@@ -942,6 +985,7 @@ export function MysteryDetailPage() {
                                                 onRefresh={fetchMystery}
                                                 mysterySolved={mystery.solved}
                                                 mysteryPaused={mystery.paused}
+                                                authorAlreadyWon={winningAuthorIds.has(a.author.id)}
                                             />
                                         ))}
                                         {isAuthor && (
@@ -977,6 +1021,7 @@ export function MysteryDetailPage() {
                                 onRefresh={fetchMystery}
                                 mysterySolved={mystery.solved}
                                 mysteryPaused={mystery.paused}
+                                authorAlreadyWon={winningAuthorIds.has(a.author.id)}
                             />
                         ))}
                     </>

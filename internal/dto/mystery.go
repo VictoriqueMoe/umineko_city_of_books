@@ -13,6 +13,8 @@ type (
 		Paused                bool          `json:"paused"`
 		GmAway                bool          `json:"gm_away"`
 		FreeForAll            bool          `json:"free_for_all"`
+		KeepOpenAfterSolve    bool          `json:"keep_open_after_solve"`
+		SolverCount           int           `json:"solver_count"`
 		Winner                *UserResponse `json:"winner,omitempty"`
 		SolvedAt              *string       `json:"solved_at,omitempty"`
 		PausedAt              *string       `json:"paused_at,omitempty"`
@@ -32,6 +34,9 @@ type (
 		Paused                bool                     `json:"paused"`
 		GmAway                bool                     `json:"gm_away"`
 		FreeForAll            bool                     `json:"free_for_all"`
+		KeepOpenAfterSolve    bool                     `json:"keep_open_after_solve"`
+		SolverCount           int                      `json:"solver_count"`
+		ViewerHasSolved       bool                     `json:"viewer_has_solved"`
 		Winner                *UserResponse            `json:"winner,omitempty"`
 		SolvedAt              *string                  `json:"solved_at,omitempty"`
 		PausedAt              *string                  `json:"paused_at,omitempty"`
@@ -92,11 +97,12 @@ type (
 	}
 
 	CreateMysteryRequest struct {
-		Title      string              `json:"title"`
-		Body       string              `json:"body"`
-		Difficulty string              `json:"difficulty"`
-		FreeForAll bool                `json:"free_for_all"`
-		Clues      []CreateClueRequest `json:"clues"`
+		Title              string              `json:"title"`
+		Body               string              `json:"body"`
+		Difficulty         string              `json:"difficulty"`
+		FreeForAll         bool                `json:"free_for_all"`
+		KeepOpenAfterSolve bool                `json:"keep_open_after_solve"`
+		Clues              []CreateClueRequest `json:"clues"`
 	}
 
 	CreateClueRequest struct {

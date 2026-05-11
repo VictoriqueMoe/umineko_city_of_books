@@ -83,36 +83,49 @@ func (h *SitemapHandler) index(ctx fiber.Ctx) error {
 
 func (h *SitemapHandler) static(ctx fiber.Ctx) error {
 	now := time.Now().Format("2006-01-02")
+	urls := []sitemapURL{
+		{Loc: h.baseURL, LastMod: now},
+		{Loc: h.baseURL + "/welcome", LastMod: now},
+		{Loc: h.baseURL + "/theories", LastMod: now},
+		{Loc: h.baseURL + "/game-board", LastMod: now},
+		{Loc: h.baseURL + "/game-board/umineko", LastMod: now},
+		{Loc: h.baseURL + "/game-board/higurashi", LastMod: now},
+		{Loc: h.baseURL + "/game-board/ciconia", LastMod: now},
+		{Loc: h.baseURL + "/game-board/higanbana", LastMod: now},
+		{Loc: h.baseURL + "/game-board/roseguns", LastMod: now},
+		{Loc: h.baseURL + "/gallery", LastMod: now},
+		{Loc: h.baseURL + "/gallery/umineko", LastMod: now},
+		{Loc: h.baseURL + "/gallery/higurashi", LastMod: now},
+		{Loc: h.baseURL + "/gallery/ciconia", LastMod: now},
+		{Loc: h.baseURL + "/quotes", LastMod: now},
+		{Loc: h.baseURL + "/mysteries", LastMod: now},
+		{Loc: h.baseURL + "/ships", LastMod: now},
+		{Loc: h.baseURL + "/fanfiction", LastMod: now},
+		{Loc: h.baseURL + "/suggestions", LastMod: now},
+		{Loc: h.baseURL + "/games", LastMod: now},
+		{Loc: h.baseURL + "/games/live", LastMod: now},
+		{Loc: h.baseURL + "/games/past", LastMod: now},
+		{Loc: h.baseURL + "/games/chess", LastMod: now},
+		{Loc: h.baseURL + "/search", LastMod: now},
+		{Loc: h.baseURL + "/login", LastMod: now},
+	}
+	if h.hasRulesPage(ctx) {
+		urls = append(urls, sitemapURL{Loc: h.baseURL + "/rules", LastMod: now})
+	}
 	set := sitemapURLSet{
 		XMLNS: "http://www.sitemaps.org/schemas/sitemap/0.9",
-		URLs: []sitemapURL{
-			{Loc: h.baseURL, LastMod: now},
-			{Loc: h.baseURL + "/welcome", LastMod: now},
-			{Loc: h.baseURL + "/theories", LastMod: now},
-			{Loc: h.baseURL + "/game-board", LastMod: now},
-			{Loc: h.baseURL + "/game-board/umineko", LastMod: now},
-			{Loc: h.baseURL + "/game-board/higurashi", LastMod: now},
-			{Loc: h.baseURL + "/game-board/ciconia", LastMod: now},
-			{Loc: h.baseURL + "/game-board/higanbana", LastMod: now},
-			{Loc: h.baseURL + "/game-board/roseguns", LastMod: now},
-			{Loc: h.baseURL + "/gallery", LastMod: now},
-			{Loc: h.baseURL + "/gallery/umineko", LastMod: now},
-			{Loc: h.baseURL + "/gallery/higurashi", LastMod: now},
-			{Loc: h.baseURL + "/gallery/ciconia", LastMod: now},
-			{Loc: h.baseURL + "/quotes", LastMod: now},
-			{Loc: h.baseURL + "/mysteries", LastMod: now},
-			{Loc: h.baseURL + "/ships", LastMod: now},
-			{Loc: h.baseURL + "/fanfiction", LastMod: now},
-			{Loc: h.baseURL + "/suggestions", LastMod: now},
-			{Loc: h.baseURL + "/games", LastMod: now},
-			{Loc: h.baseURL + "/games/live", LastMod: now},
-			{Loc: h.baseURL + "/games/past", LastMod: now},
-			{Loc: h.baseURL + "/games/chess", LastMod: now},
-			{Loc: h.baseURL + "/search", LastMod: now},
-			{Loc: h.baseURL + "/login", LastMod: now},
-		},
+		URLs:  urls,
 	}
 	return h.sendXML(ctx, set)
+}
+
+func (h *SitemapHandler) hasRulesPage(ctx fiber.Ctx) bool {
+	var value string
+	err := h.db.QueryRowContext(ctx.Context(), "SELECT value FROM site_settings WHERE key = 'rules_page'").Scan(&value)
+	if err != nil {
+		return false
+	}
+	return value != ""
 }
 
 func (h *SitemapHandler) theories(ctx fiber.Ctx) error {

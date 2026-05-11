@@ -174,6 +174,14 @@ func (r *Resolver) metaForPath(ctx context.Context, path string) *Meta {
 		}
 	}
 
+	if len(parts) == 1 && parts[0] == "rules" {
+		return &Meta{
+			Title:       "Rules - Umineko City of Books",
+			Description: "Community rules and posting guidelines for the Umineko City of Books.",
+			URL:         r.baseURL + "/rules",
+		}
+	}
+
 	if len(parts) == 2 && parts[0] == "announcements" {
 		if _, err := uuid.Parse(parts[1]); err == nil {
 			return r.announcementMeta(ctx, parts[1])

@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router";
 import type { TheorySort } from "../../types/app";
 import { useTheoryFeed } from "../../api/queries/theory";
 import { usePageTitle } from "../../hooks/usePageTitle";
+import { useAuth } from "../../hooks/useAuth";
 import { TheoryCard } from "../../components/theory/TheoryCard/TheoryCard";
 import { Pagination } from "../../components/Pagination/Pagination";
+import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
 import { Select } from "../../components/Select/Select";
 import { RulesBox } from "../../components/RulesBox/RulesBox";
@@ -34,7 +37,9 @@ function isAsc(sort: TheorySort): boolean {
 
 export function FeedPage({ series = "umineko" }: { series?: Series }) {
     usePageTitle("Theories");
+    const { user } = useAuth();
     const cfg = getSeriesConfig(series);
+    const newTheoryRoute = series === "umineko" ? "/theory/new" : `/theory/${series}/new`;
     const [sort, setSort] = useState<TheorySort>("new");
     const [episode, setEpisode] = useState(0);
     const [searchInput, setSearchInput] = useState("");
@@ -119,6 +124,14 @@ export function FeedPage({ series = "umineko" }: { series?: Series }) {
                         </>
                     )}
                 </Select>
+
+                {user && (
+                    <Link to={newTheoryRoute}>
+                        <Button variant="primary" size="small">
+                            + New Theory
+                        </Button>
+                    </Link>
+                )}
             </div>
 
             {loading && <div className="loading">Consulting the game board...</div>}

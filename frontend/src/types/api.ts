@@ -751,6 +751,8 @@ export interface Mystery {
     paused: boolean;
     gm_away: boolean;
     free_for_all: boolean;
+    keep_open_after_solve: boolean;
+    solver_count: number;
     winner?: User;
     solved_at?: string;
     paused_at?: string;
@@ -810,6 +812,9 @@ export interface MysteryDetail {
     paused: boolean;
     gm_away: boolean;
     free_for_all: boolean;
+    keep_open_after_solve: boolean;
+    solver_count: number;
+    viewer_has_solved: boolean;
     winner?: User;
     solved_at?: string;
     paused_at?: string;

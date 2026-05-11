@@ -53,6 +53,10 @@ import type {
     MysteryLeaderboardResponse,
     MysteryListResponse,
     NotificationListResponse,
+    OCDetail,
+    OCImage,
+    OCListResponse,
+    OCSummary,
     Poll,
     PostDetail,
     PostListResponse,
@@ -63,10 +67,6 @@ import type {
     SearchResponse,
     SecretDetailResponse,
     SecretListResponse,
-    OCDetail,
-    OCImage,
-    OCListResponse,
-    OCSummary,
     ShipCharacter,
     ShipDetail,
     ShipListResponse,
@@ -134,6 +134,7 @@ export interface SiteInfo {
     vanity_roles: VanityRoleDefinition[];
     vanity_role_assignments: Record<string, string[]>;
     listed_secrets: SiteInfoSecret[];
+    rules_page: string;
     version: string;
 }
 
@@ -1217,6 +1218,7 @@ export async function createMystery(data: {
     body: string;
     difficulty: string;
     free_for_all: boolean;
+    keep_open_after_solve: boolean;
     clues: { body: string; truth_type: string }[];
 }): Promise<{ id: string }> {
     return apiPost<{ id: string }, typeof data>("/mysteries", data);
@@ -1229,6 +1231,7 @@ export async function updateMystery(
         body: string;
         difficulty: string;
         free_for_all: boolean;
+        keep_open_after_solve: boolean;
         clues: { body: string; truth_type: string }[];
     },
 ): Promise<void> {
@@ -1260,6 +1263,10 @@ export async function voteMysteryAttempt(id: string, value: number): Promise<voi
 
 export async function markMysterySolved(mysteryId: string, attemptId: string): Promise<void> {
     await apiPost<unknown, { attempt_id: string }>(`/mysteries/${mysteryId}/solve`, { attempt_id: attemptId });
+}
+
+export async function closeMystery(mysteryId: string): Promise<void> {
+    await apiPost<unknown, Record<string, never>>(`/mysteries/${mysteryId}/close`, {});
 }
 
 export async function setMysteryPaused(mysteryId: string, paused: boolean): Promise<void> {

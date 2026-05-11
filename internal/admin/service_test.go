@@ -590,6 +590,7 @@ func TestUpdateSettings_OK(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	actor := uuid.New()
+	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingRulesPage).Return("").Maybe()
 	m.settingsSvc.EXPECT().SetMultiple(mock.Anything, mock.Anything, actor).Return(nil)
 	m.auditRepo.EXPECT().Create(mock.Anything, actor, "update_settings", "settings", "", "").Return(nil)
 
@@ -604,6 +605,7 @@ func TestUpdateSettings_Error(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	actor := uuid.New()
+	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingRulesPage).Return("").Maybe()
 	m.settingsSvc.EXPECT().SetMultiple(mock.Anything, mock.Anything, actor).Return(errors.New("boom"))
 
 	// when

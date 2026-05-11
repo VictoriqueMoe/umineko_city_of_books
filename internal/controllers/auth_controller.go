@@ -286,6 +286,7 @@ func (s *Service) siteInfo(ctx fiber.Ctx) error {
 		VanityRoles:           vrList,
 		VanityRoleAssignments: assignments,
 		ListedSecrets:         listedSecrets,
+		RulesPage:             s.SettingsService.Get(ctx.Context(), config.SettingRulesPage),
 		Version:               config.Version,
 	})
 }

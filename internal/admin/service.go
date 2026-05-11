@@ -394,8 +394,17 @@ func (s *service) UpdateSettings(ctx context.Context, actorID uuid.UUID, setting
 		typed[config.SiteSettingKey(k)] = v
 	}
 
+	prevRules := s.settingsSvc.Get(ctx, config.SettingRulesPage)
+
 	if err := s.settingsSvc.SetMultiple(ctx, typed, actorID); err != nil {
 		return fmt.Errorf("update settings: %w", err)
+	}
+
+	if newRules, ok := settings[string(config.SettingRulesPage.Key)]; ok && newRules != prevRules {
+		s.hub.Broadcast(ws.Message{
+			Type: "rules_page_changed",
+			Data: map[string]interface{}{},
+		})
 	}
 
 	s.audit(ctx, actorID, "update_settings", "settings", "")

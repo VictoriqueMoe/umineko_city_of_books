@@ -209,6 +209,7 @@ func TestGetMystery_NonGM_NotSolved_FiltersAttemptsAndClues(t *testing.T) {
 		{ID: 3, Body: "other", PlayerID: &otherPlayer},
 	}
 	m.repo.EXPECT().GetByID(mock.Anything, id).Return(row, nil)
+	m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, id, viewer).Return(false, nil)
 	m.repo.EXPECT().GetClues(mock.Anything, id).Return(clues, nil)
 	m.repo.EXPECT().GetAttempts(mock.Anything, id, viewer).Return(attempts, nil)
 	m.authz.EXPECT().GetRole(mock.Anything, viewer).Return("", nil)
@@ -237,6 +238,7 @@ func TestGetMystery_FreeForAll_NonGM_SeesAllAttempts(t *testing.T) {
 		{ID: uuid.New(), UserID: other, Body: "other"},
 	}
 	m.repo.EXPECT().GetByID(mock.Anything, id).Return(row, nil)
+	m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, id, viewer).Return(false, nil)
 	m.repo.EXPECT().GetClues(mock.Anything, id).Return(nil, nil)
 	m.repo.EXPECT().GetAttempts(mock.Anything, id, viewer).Return(attempts, nil)
 	m.authz.EXPECT().GetRole(mock.Anything, viewer).Return("", nil)
@@ -274,6 +276,7 @@ func TestGetMystery_Solved_LoadsCommentsAndWinner(t *testing.T) {
 	commentID := uuid.New()
 	comments := []repository.MysteryCommentRow{{ID: commentID, UserID: author, Body: "post"}}
 	m.repo.EXPECT().GetByID(mock.Anything, id).Return(row, nil)
+	m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, id, viewer).Return(false, nil)
 	m.repo.EXPECT().GetClues(mock.Anything, id).Return(nil, nil)
 	m.repo.EXPECT().GetAttempts(mock.Anything, id, viewer).Return(nil, nil)
 	m.authz.EXPECT().GetRole(mock.Anything, viewer).Return("", nil)
@@ -302,6 +305,7 @@ func TestGetMystery_SuperAdmin_SeesAll(t *testing.T) {
 	row := &repository.MysteryRow{ID: id, UserID: author, Solved: false, FreeForAll: false}
 	attempts := []repository.MysteryAttemptRow{{ID: uuid.New(), UserID: other, Body: "x"}}
 	m.repo.EXPECT().GetByID(mock.Anything, id).Return(row, nil)
+	m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, id, admin).Return(false, nil)
 	m.repo.EXPECT().GetClues(mock.Anything, id).Return(nil, nil)
 	m.repo.EXPECT().GetAttempts(mock.Anything, id, admin).Return(attempts, nil)
 	m.authz.EXPECT().GetRole(mock.Anything, admin).Return(authz.RoleSuperAdmin, nil)
@@ -345,7 +349,7 @@ func TestCreateMystery_RepoError(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	userID := uuid.New()
-	m.repo.EXPECT().Create(mock.Anything, mock.Anything, userID, "Title", "Body", "medium", false).Return(errors.New("boom"))
+	m.repo.EXPECT().Create(mock.Anything, mock.Anything, userID, "Title", "Body", "medium", false, false).Return(errors.New("boom"))
 
 	// when
 	_, err := svc.CreateMystery(context.Background(), userID, validCreateReq())
@@ -360,7 +364,7 @@ func TestCreateMystery_DefaultDifficulty(t *testing.T) {
 	userID := uuid.New()
 	req := validCreateReq()
 	req.Difficulty = ""
-	m.repo.EXPECT().Create(mock.Anything, mock.Anything, userID, "Title", "Body", "medium", false).Return(nil)
+	m.repo.EXPECT().Create(mock.Anything, mock.Anything, userID, "Title", "Body", "medium", false, false).Return(nil)
 
 	// when
 	_, err := svc.CreateMystery(context.Background(), userID, req)
@@ -379,7 +383,7 @@ func TestCreateMystery_WithClues(t *testing.T) {
 		{Body: "  "},
 		{Body: "clue2", TruthType: "blue"},
 	}
-	m.repo.EXPECT().Create(mock.Anything, mock.Anything, userID, "Title", "Body", "medium", false).Return(nil)
+	m.repo.EXPECT().Create(mock.Anything, mock.Anything, userID, "Title", "Body", "medium", false, false).Return(nil)
 	m.repo.EXPECT().AddClue(mock.Anything, mock.Anything, "clue1", "red", 0, (*uuid.UUID)(nil)).Return(nil)
 	m.repo.EXPECT().AddClue(mock.Anything, mock.Anything, "clue2", "blue", 2, (*uuid.UUID)(nil)).Return(nil)
 
@@ -397,7 +401,7 @@ func TestCreateMystery_ClueError(t *testing.T) {
 	userID := uuid.New()
 	req := validCreateReq()
 	req.Clues = []dto.CreateClueRequest{{Body: "c"}}
-	m.repo.EXPECT().Create(mock.Anything, mock.Anything, userID, "Title", "Body", "medium", false).Return(nil)
+	m.repo.EXPECT().Create(mock.Anything, mock.Anything, userID, "Title", "Body", "medium", false, false).Return(nil)
 	m.repo.EXPECT().AddClue(mock.Anything, mock.Anything, "c", "red", 0, (*uuid.UUID)(nil)).Return(errors.New("boom"))
 
 	// when
@@ -460,7 +464,7 @@ func TestUpdateMystery_UpdateAsAdminError(t *testing.T) {
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(true)
 	m.repo.EXPECT().GetByID(mock.Anything, id).Return(old, nil)
 	m.repo.EXPECT().GetClues(mock.Anything, id).Return(nil, nil)
-	m.repo.EXPECT().UpdateAsAdmin(mock.Anything, id, "Title", "Body", "medium", false).Return(errors.New("boom"))
+	m.repo.EXPECT().UpdateAsAdmin(mock.Anything, id, "Title", "Body", "medium", false, false).Return(errors.New("boom"))
 
 	// when
 	err := svc.UpdateMystery(context.Background(), id, userID, validCreateReq())
@@ -478,7 +482,7 @@ func TestUpdateMystery_OwnerNoChanges_NoNotification(t *testing.T) {
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(true)
 	m.repo.EXPECT().GetByID(mock.Anything, id).Return(old, nil)
 	m.repo.EXPECT().GetClues(mock.Anything, id).Return(nil, nil)
-	m.repo.EXPECT().UpdateAsAdmin(mock.Anything, id, "Title", "Body", "medium", false).Return(nil)
+	m.repo.EXPECT().UpdateAsAdmin(mock.Anything, id, "Title", "Body", "medium", false, false).Return(nil)
 	m.repo.EXPECT().DeleteClues(mock.Anything, id).Return(nil)
 
 	// when
@@ -498,7 +502,7 @@ func TestUpdateMystery_AdminChange_SendsNotification(t *testing.T) {
 	m.authz.EXPECT().Can(mock.Anything, admin, authz.PermEditAnyTheory).Return(true)
 	m.repo.EXPECT().GetByID(mock.Anything, id).Return(old, nil)
 	m.repo.EXPECT().GetClues(mock.Anything, id).Return(nil, nil)
-	m.repo.EXPECT().UpdateAsAdmin(mock.Anything, id, "Title", "Body", "medium", false).Return(nil)
+	m.repo.EXPECT().UpdateAsAdmin(mock.Anything, id, "Title", "Body", "medium", false, false).Return(nil)
 	m.repo.EXPECT().DeleteClues(mock.Anything, id).Return(nil)
 
 	var wg sync.WaitGroup
@@ -527,7 +531,7 @@ func TestUpdateMystery_WithClues_Replaces(t *testing.T) {
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(true)
 	m.repo.EXPECT().GetByID(mock.Anything, id).Return(old, nil)
 	m.repo.EXPECT().GetClues(mock.Anything, id).Return(nil, nil)
-	m.repo.EXPECT().UpdateAsAdmin(mock.Anything, id, "Title", "Body", "medium", false).Return(nil)
+	m.repo.EXPECT().UpdateAsAdmin(mock.Anything, id, "Title", "Body", "medium", false, false).Return(nil)
 	m.repo.EXPECT().DeleteClues(mock.Anything, id).Return(nil)
 	m.repo.EXPECT().AddClue(mock.Anything, id, "new1", "red", 0, (*uuid.UUID)(nil)).Return(nil)
 	m.repo.EXPECT().AddClue(mock.Anything, id, "new2", "blue", 2, (*uuid.UUID)(nil)).Return(nil)
@@ -649,6 +653,7 @@ func TestCreateAttempt_PausedBlocksNonAuthor(t *testing.T) {
 	authorID := uuid.New()
 	m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(authorID, nil)
 	m.repo.EXPECT().IsSolved(mock.Anything, mid).Return(false, nil)
+	m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, mid, userID).Return(false, nil)
 	m.repo.EXPECT().IsPaused(mock.Anything, mid).Return(true, nil)
 
 	// when
@@ -666,6 +671,7 @@ func TestCreateAttempt_Blocked(t *testing.T) {
 	authorID := uuid.New()
 	m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(authorID, nil)
 	m.repo.EXPECT().IsSolved(mock.Anything, mid).Return(false, nil)
+	m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, mid, userID).Return(false, nil)
 	m.repo.EXPECT().IsPaused(mock.Anything, mid).Return(false, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(true, nil)
 
@@ -685,6 +691,7 @@ func TestCreateAttempt_ReplyParentNotFound(t *testing.T) {
 	parentID := uuid.New()
 	m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(authorID, nil)
 	m.repo.EXPECT().IsSolved(mock.Anything, mid).Return(false, nil)
+	m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, mid, userID).Return(false, nil)
 	m.repo.EXPECT().IsPaused(mock.Anything, mid).Return(false, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
 	m.repo.EXPECT().GetAttemptAuthorID(mock.Anything, parentID).Return(uuid.Nil, errors.New("boom"))
@@ -706,6 +713,7 @@ func TestCreateAttempt_ReplyByOtherUser_NotAllowed(t *testing.T) {
 	parentID := uuid.New()
 	m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(authorID, nil)
 	m.repo.EXPECT().IsSolved(mock.Anything, mid).Return(false, nil)
+	m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, mid, userID).Return(false, nil)
 	m.repo.EXPECT().IsPaused(mock.Anything, mid).Return(false, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
 	m.repo.EXPECT().GetAttemptAuthorID(mock.Anything, parentID).Return(parentAuthor, nil)
@@ -725,6 +733,7 @@ func TestCreateAttempt_RepoError(t *testing.T) {
 	authorID := uuid.New()
 	m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(authorID, nil)
 	m.repo.EXPECT().IsSolved(mock.Anything, mid).Return(false, nil)
+	m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, mid, userID).Return(false, nil)
 	m.repo.EXPECT().IsPaused(mock.Anything, mid).Return(false, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
 	m.repo.EXPECT().CreateAttempt(mock.Anything, mock.Anything, mid, userID, (*uuid.UUID)(nil), "body").Return(errors.New("boom"))
@@ -744,6 +753,7 @@ func TestCreateAttempt_OK(t *testing.T) {
 	authorID := uuid.New()
 	m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(authorID, nil)
 	m.repo.EXPECT().IsSolved(mock.Anything, mid).Return(false, nil)
+	m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, mid, userID).Return(false, nil)
 	m.repo.EXPECT().IsPaused(mock.Anything, mid).Return(false, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
 	m.repo.EXPECT().CreateAttempt(mock.Anything, mock.Anything, mid, userID, (*uuid.UUID)(nil), "body").Return(nil)
@@ -1003,7 +1013,9 @@ func TestMarkSolved_RepoError(t *testing.T) {
 	m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(userID, nil)
 	m.repo.EXPECT().GetAttemptAuthorID(mock.Anything, aid).Return(attemptAuthor, nil)
 	m.repo.EXPECT().GetAttemptMysteryID(mock.Anything, aid).Return(mid, nil)
-	m.repo.EXPECT().MarkSolved(mock.Anything, mid, aid).Return(errors.New("boom"))
+	m.repo.EXPECT().GetByID(mock.Anything, mid).Return(&repository.MysteryRow{ID: mid, UserID: userID}, nil)
+	m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, mid, attemptAuthor).Return(false, nil)
+	m.repo.EXPECT().MarkSolved(mock.Anything, mid, aid, true).Return(errors.New("boom"))
 
 	// when
 	err := svc.MarkSolved(context.Background(), mid, userID, aid)
@@ -1022,7 +1034,9 @@ func TestMarkSolved_OK_Broadcasts(t *testing.T) {
 	m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(userID, nil)
 	m.repo.EXPECT().GetAttemptAuthorID(mock.Anything, aid).Return(attemptAuthor, nil)
 	m.repo.EXPECT().GetAttemptMysteryID(mock.Anything, aid).Return(mid, nil)
-	m.repo.EXPECT().MarkSolved(mock.Anything, mid, aid).Return(nil)
+	m.repo.EXPECT().GetByID(mock.Anything, mid).Return(&repository.MysteryRow{ID: mid, UserID: userID}, nil)
+	m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, mid, attemptAuthor).Return(false, nil)
+	m.repo.EXPECT().MarkSolved(mock.Anything, mid, aid, true).Return(nil)
 	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("http://e.test").Maybe()
 	m.notifService.EXPECT().Notify(mock.Anything, mock.Anything).Return(nil).Maybe()
 	m.repo.EXPECT().GetPlayerIDs(mock.Anything, mid).Return(nil, nil).Maybe()
@@ -1048,7 +1062,9 @@ func TestMarkSolved_Admin_CanSolve(t *testing.T) {
 	m.authz.EXPECT().Can(mock.Anything, admin, authz.PermEditAnyTheory).Return(true)
 	m.repo.EXPECT().GetAttemptAuthorID(mock.Anything, aid).Return(attemptAuthor, nil)
 	m.repo.EXPECT().GetAttemptMysteryID(mock.Anything, aid).Return(mid, nil)
-	m.repo.EXPECT().MarkSolved(mock.Anything, mid, aid).Return(nil)
+	m.repo.EXPECT().GetByID(mock.Anything, mid).Return(&repository.MysteryRow{ID: mid, UserID: author}, nil)
+	m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, mid, attemptAuthor).Return(false, nil)
+	m.repo.EXPECT().MarkSolved(mock.Anything, mid, aid, true).Return(nil)
 	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("http://e.test").Maybe()
 	m.notifService.EXPECT().Notify(mock.Anything, mock.Anything).Return(nil).Maybe()
 	m.repo.EXPECT().GetPlayerIDs(mock.Anything, mid).Return(nil, nil).Maybe()
