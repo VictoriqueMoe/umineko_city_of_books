@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { VanityRoleDefinition } from "../../api/endpoints";
-import { useVanityRoleUsers, useVanityRoles } from "../../api/queries/admin";
+import { useVanityRoles, useVanityRoleUsers } from "../../api/queries/admin";
 import {
     useAssignVanityRole,
     useCreateVanityRole,
@@ -168,64 +168,66 @@ export function AdminVanityRoles() {
             {roles.length === 0 ? (
                 <div className={styles.empty}>No vanity roles yet.</div>
             ) : (
-                <table className={styles.table}>
-                    <thead>
-                        <tr>
-                            <th>Preview</th>
-                            <th>Label</th>
-                            <th>Color</th>
-                            <th>Order</th>
-                            <th>Type</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {roles.map(role => (
-                            <tr key={role.id}>
-                                <td>
-                                    <span
-                                        className={styles.preview}
-                                        style={{
-                                            backgroundColor: hexToRgba(role.color, 0.15),
-                                            color: role.color,
-                                            border: `1px solid ${hexToRgba(role.color, 0.4)}`,
-                                        }}
-                                    >
-                                        {role.label}
-                                    </span>
-                                </td>
-                                <td>{role.label}</td>
-                                <td>
-                                    <span className={styles.colorCell}>
-                                        <span className={styles.colorDot} style={{ backgroundColor: role.color }} />
-                                        {role.color}
-                                    </span>
-                                </td>
-                                <td>{role.sort_order}</td>
-                                <td>
-                                    {role.is_system ? (
-                                        <span className={styles.systemBadge}>System</span>
-                                    ) : (
-                                        <span className={styles.customBadge}>Custom</span>
-                                    )}
-                                </td>
-                                <td className={styles.actions}>
-                                    <Button variant="secondary" size="small" onClick={() => openEdit(role)}>
-                                        Edit
-                                    </Button>
-                                    <Button variant="secondary" size="small" onClick={() => openManageUsers(role)}>
-                                        Users
-                                    </Button>
-                                    {!role.is_system && (
-                                        <Button variant="danger" size="small" onClick={() => handleDelete(role.id)}>
-                                            Delete
-                                        </Button>
-                                    )}
-                                </td>
+                <div className={styles.tableWrap}>
+                    <table className={styles.table}>
+                        <thead>
+                            <tr>
+                                <th>Preview</th>
+                                <th>Label</th>
+                                <th>Color</th>
+                                <th>Order</th>
+                                <th>Type</th>
+                                <th></th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {roles.map(role => (
+                                <tr key={role.id}>
+                                    <td>
+                                        <span
+                                            className={styles.preview}
+                                            style={{
+                                                backgroundColor: hexToRgba(role.color, 0.15),
+                                                color: role.color,
+                                                border: `1px solid ${hexToRgba(role.color, 0.4)}`,
+                                            }}
+                                        >
+                                            {role.label}
+                                        </span>
+                                    </td>
+                                    <td>{role.label}</td>
+                                    <td>
+                                        <span className={styles.colorCell}>
+                                            <span className={styles.colorDot} style={{ backgroundColor: role.color }} />
+                                            {role.color}
+                                        </span>
+                                    </td>
+                                    <td>{role.sort_order}</td>
+                                    <td>
+                                        {role.is_system ? (
+                                            <span className={styles.systemBadge}>System</span>
+                                        ) : (
+                                            <span className={styles.customBadge}>Custom</span>
+                                        )}
+                                    </td>
+                                    <td className={styles.actions}>
+                                        <Button variant="secondary" size="small" onClick={() => openEdit(role)}>
+                                            Edit
+                                        </Button>
+                                        <Button variant="secondary" size="small" onClick={() => openManageUsers(role)}>
+                                            Users
+                                        </Button>
+                                        {!role.is_system && (
+                                            <Button variant="danger" size="small" onClick={() => handleDelete(role.id)}>
+                                                Delete
+                                            </Button>
+                                        )}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             )}
 
             <Modal

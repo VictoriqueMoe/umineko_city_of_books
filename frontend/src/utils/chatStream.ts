@@ -61,6 +61,8 @@ export interface ChatMemberUpdatedPayload {
     room_id: string;
     user_id: string;
     nickname: string;
+    display_name: string;
+    username: string;
     member_avatar_url: string;
     nickname_locked: boolean;
     timeout_until: string;
@@ -109,16 +111,35 @@ export function applyChatMemberUpdate(
     );
     setMessages(prev =>
         prev.map(m => {
-            if (m.sender.id !== payload.user_id) {
+            const senderMatches = m.sender.id === payload.user_id;
+            const replyMatches = m.reply_to?.sender_id === payload.user_id;
+            if (!senderMatches && !replyMatches) {
                 return m;
             }
-            return {
-                ...m,
-                sender_nickname: payload.nickname || undefined,
-                sender_member_avatar_url: payload.member_avatar_url || undefined,
-            };
+            const next = { ...m };
+            if (senderMatches) {
+                next.sender_nickname = payload.nickname || undefined;
+                next.sender_member_avatar_url = payload.member_avatar_url || undefined;
+            }
+            if (replyMatches && m.reply_to) {
+                next.reply_to = {
+                    ...m.reply_to,
+                    sender_name: resolveReplySenderName(payload),
+                };
+            }
+            return next;
         }),
     );
+}
+
+function resolveReplySenderName(payload: ChatMemberUpdatedPayload): string {
+    if (payload.nickname.trim() !== "") {
+        return payload.nickname;
+    }
+    if (payload.display_name.trim() !== "") {
+        return payload.display_name;
+    }
+    return payload.username;
 }
 
 export interface ChatMessagePinnedPayload {

@@ -46,6 +46,11 @@ func (s *service) Create(ctx context.Context, username, password, displayName st
 		return nil, fmt.Errorf("count users: %w", err)
 	}
 
+	displayName = ClampDisplayName(displayName)
+	if displayName == "" {
+		displayName = username
+	}
+
 	user, err := s.repo.Create(ctx, username, password, displayName)
 	if err != nil {
 		return nil, fmt.Errorf("create user: %w", err)

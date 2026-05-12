@@ -93,8 +93,16 @@ export function RolePill({ role, userId, compactOnMobile }: RolePillProps) {
           }
         : undefined;
 
+    if (!config && vanityRoles.length === 0) {
+        return null;
+    }
+
+    const groupClass = `${styles.group}${compactOnMobile ? ` ${styles.groupCompactMobile}` : ""}${
+        renderAsCompact ? "" : ` ${styles.groupExpanded}`
+    }`;
+
     return (
-        <>
+        <span className={groupClass} aria-label="User roles">
             {config && (
                 <span
                     className={`${styles.pill} ${styles[config.className]}${compactClass}`}
@@ -136,6 +144,6 @@ export function RolePill({ role, userId, compactOnMobile }: RolePillProps) {
                     </span>
                 );
             })}
-        </>
+        </span>
     );
 }

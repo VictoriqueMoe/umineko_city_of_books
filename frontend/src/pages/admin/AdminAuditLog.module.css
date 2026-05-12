@@ -23,13 +23,18 @@
     color: var(--text-muted);
 }
 
-.table {
+.tableWrap {
     width: 100%;
-    border-collapse: collapse;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
     background: var(--bg-card);
     border: 1px solid rgba(var(--purple-rgb), 0.3);
     border-radius: 6px;
-    overflow: hidden;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
 }
 
 .table th,
@@ -58,12 +63,29 @@
 }
 
 .details {
+    display: inline-block;
     max-width: 250px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     color: var(--text-muted);
     font-size: 0.8rem;
+    vertical-align: middle;
+}
+
+.targetId {
+    display: inline-block;
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: monospace;
+    font-size: 0.8rem;
+    vertical-align: middle;
+}
+
+.timestampCell {
+    white-space: nowrap;
 }
 
 .loading {
@@ -84,12 +106,6 @@
 }
 
 @media (max-width: 768px) {
-    .table {
-        display: block;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-
     .filterRow {
         flex-wrap: wrap;
     }

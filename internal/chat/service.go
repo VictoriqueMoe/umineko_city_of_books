@@ -224,6 +224,16 @@ func (s *service) filterTexts(ctx context.Context, texts ...string) error {
 	return s.contentFilter.Check(ctx, texts...)
 }
 
+func resolveSenderName(nickname, displayName, username string) string {
+	if strings.TrimSpace(nickname) != "" {
+		return nickname
+	}
+	if strings.TrimSpace(displayName) != "" {
+		return displayName
+	}
+	return username
+}
+
 func (s *service) ensureLockAllowsDMTo(ctx context.Context, senderID, recipientID uuid.UUID) error {
 	locked, err := s.userRepo.IsLocked(ctx, senderID)
 	if err != nil {
@@ -1540,7 +1550,7 @@ func (s *service) SendMessage(ctx context.Context, senderID, roomID uuid.UUID, r
 			replyToPreview = &dto.ChatMessageReplyPreview{
 				ID:          parent.ID,
 				SenderID:    parent.SenderID,
-				SenderName:  parent.SenderDisplayName,
+				SenderName:  resolveSenderName(parent.SenderNickname, parent.SenderDisplayName, parent.SenderUsername),
 				BodyPreview: preview,
 			}
 		}
@@ -2222,6 +2232,8 @@ func (s *service) broadcastAndBuildMember(ctx context.Context, roomID, targetID 
 			"room_id":              roomID,
 			"user_id":              targetID,
 			"nickname":             stringOrEmpty(resp, func(r *dto.ChatRoomMemberResponse) string { return r.Nickname }),
+			"display_name":         stringOrEmpty(resp, func(r *dto.ChatRoomMemberResponse) string { return r.User.DisplayName }),
+			"username":             stringOrEmpty(resp, func(r *dto.ChatRoomMemberResponse) string { return r.User.Username }),
 			"member_avatar_url":    stringOrEmpty(resp, func(r *dto.ChatRoomMemberResponse) string { return r.MemberAvatarURL }),
 			"nickname_locked":      resp != nil && resp.NicknameLocked,
 			"timeout_until":        stringOrEmpty(resp, func(r *dto.ChatRoomMemberResponse) string { return r.TimeoutUntil }),

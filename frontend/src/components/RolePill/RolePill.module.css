@@ -1,3 +1,36 @@
+.group {
+    display: inline;
+    word-break: normal;
+    overflow-wrap: normal;
+}
+
+@media (max-width: 768px) {
+    .group.groupCompactMobile:not(.groupExpanded) {
+        display: inline-flex;
+        align-items: center;
+        vertical-align: middle;
+        padding: 2px 6px 2px 4px;
+        margin-left: 0.35rem;
+        border-radius: 999px;
+        background: rgba(var(--gold-rgb), 0.1);
+        border: 1px solid rgba(var(--gold-rgb), 0.45);
+        gap: 3px;
+        white-space: nowrap;
+    }
+
+    .group.groupCompactMobile:not(.groupExpanded)::before {
+        content: "✦";
+        color: var(--gold);
+        font-size: 0.7rem;
+        line-height: 1;
+        margin-right: 1px;
+    }
+
+    .group.groupCompactMobile:not(.groupExpanded) .pill {
+        margin-left: 0;
+    }
+}
+
 .pill {
     display: inline-flex;
     align-items: center;
@@ -10,6 +43,10 @@
     text-transform: uppercase;
     vertical-align: middle;
     margin-left: 0.35rem;
+    white-space: nowrap;
+    word-break: normal;
+    overflow-wrap: normal;
+    flex-shrink: 0;
 }
 
 .superAdmin {

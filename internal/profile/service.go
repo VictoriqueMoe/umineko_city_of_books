@@ -14,6 +14,7 @@ import (
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/upload"
+	userpkg "umineko_city_of_books/internal/user"
 
 	"github.com/google/uuid"
 )
@@ -39,6 +40,27 @@ type (
 		uploadSvc      upload.Service
 		settingsSvc    settings.Service
 		contentFilter  *contentfilter.Manager
+	}
+)
+
+const maxPronounLength = 10
+
+var (
+	validProfileTabs = map[string]bool{
+		"posts":             true,
+		"theories":          true,
+		"art":               true,
+		"galleries":         true,
+		"ships":             true,
+		"mysteries":         true,
+		"fanfics":           true,
+		"fanfic-favourites": true,
+		"journals":          true,
+		"journal-follows":   true,
+		"activity":          true,
+		"followers":         true,
+		"following":         true,
+		"ocs":               true,
 	}
 )
 
@@ -84,11 +106,13 @@ func (s *service) GetProfile(ctx context.Context, username string, viewerID uuid
 	return resp, nil
 }
 
-const maxPronounLength = 10
-
 func (s *service) UpdateProfile(ctx context.Context, userID uuid.UUID, req dto.UpdateProfileRequest) error {
 	if err := validateDOB(req.DOB); err != nil {
 		return err
+	}
+	req.DisplayName = userpkg.ClampDisplayName(req.DisplayName)
+	if req.DisplayName == "" {
+		return ErrEmptyDisplayName
 	}
 	if err := s.filterTexts(ctx, req.DisplayName, req.Bio, req.Website, req.FavouriteCharacter); err != nil {
 		return err
@@ -102,23 +126,6 @@ func (s *service) UpdateProfile(ctx context.Context, userID uuid.UUID, req dto.U
 	req.PronounSubject = capLen(req.PronounSubject, maxPronounLength)
 	req.PronounPossessive = capLen(req.PronounPossessive, maxPronounLength)
 	return s.userRepo.UpdateProfile(ctx, userID, req)
-}
-
-var validProfileTabs = map[string]bool{
-	"posts":             true,
-	"theories":          true,
-	"art":               true,
-	"galleries":         true,
-	"ships":             true,
-	"mysteries":         true,
-	"fanfics":           true,
-	"fanfic-favourites": true,
-	"journals":          true,
-	"journal-follows":   true,
-	"activity":          true,
-	"followers":         true,
-	"following":         true,
-	"ocs":               true,
 }
 
 func capLen(s string, max int) string {

@@ -125,6 +125,30 @@ func TestSanitizeTags(t *testing.T) {
 	}
 }
 
+func TestResolveSenderName(t *testing.T) {
+	cases := []struct {
+		name     string
+		nickname string
+		display  string
+		username string
+		want     string
+	}{
+		{"nickname wins", "alias", "Display", "user", "alias"},
+		{"display when no nickname", "", "Display", "user", "Display"},
+		{"display when whitespace nickname", "   ", "Display", "user", "Display"},
+		{"username when both empty", "", "", "user", "user"},
+		{"username when both whitespace", " ", "  ", "user", "user"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given / when
+			got := resolveSenderName(tc.nickname, tc.display, tc.username)
+			// then
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
 func TestResolveDMRoom_CannotDMSelf(t *testing.T) {
 	// given
 	svc, _ := newTestService(t)

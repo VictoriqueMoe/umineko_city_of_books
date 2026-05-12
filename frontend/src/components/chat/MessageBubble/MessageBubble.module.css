@@ -2,6 +2,7 @@
     display: flex;
     gap: 0.75rem;
     max-width: 75%;
+    min-width: 0;
     align-self: flex-start;
     align-items: flex-start;
     position: relative;
@@ -246,6 +247,7 @@
     padding: 0.6rem 0.85rem;
     min-width: 0;
     max-width: 100%;
+    overflow: hidden;
 }
 
 .ownMessage .messageContent {
@@ -258,6 +260,20 @@
     color: var(--gold);
     font-weight: 600;
     margin-bottom: 0.2rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.senderName {
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .messageSenderOwn {
@@ -432,7 +448,12 @@ video.messageMediaItem {
 .replySender {
     color: var(--gold);
     font-weight: 600;
-    flex-shrink: 0;
+    flex-shrink: 1;
+    min-width: 0;
+    max-width: 50%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .replyText {

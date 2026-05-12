@@ -975,7 +975,7 @@ func (r *chatRepository) GetMessages(ctx context.Context, roomID uuid.UUID, limi
 			SELECT cm.id, cm.room_id, cm.sender_id, u.username, u.display_name, u.avatar_url,
 			 COALESCE(ur.role, ''),
 			 cm.body, cm.is_system, cm.created_at, cm.reply_to_id,
-			 parent.sender_id, pu.display_name, parent.body,
+			 parent.sender_id, COALESCE(NULLIF(pmem.nickname, ''), NULLIF(pu.display_name, ''), pu.username), parent.body,
 			 cm.pinned_at, cm.pinned_by, cm.edited_at,
 			 COALESCE(mem.nickname, ''), COALESCE(mem.avatar_url, '')
 			 FROM chat_messages cm
@@ -983,6 +983,7 @@ func (r *chatRepository) GetMessages(ctx context.Context, roomID uuid.UUID, limi
 			 LEFT JOIN user_roles ur ON ur.user_id = u.id
 			 LEFT JOIN chat_messages parent ON cm.reply_to_id = parent.id
 			 LEFT JOIN users pu ON parent.sender_id = pu.id
+			 LEFT JOIN chat_room_members pmem ON pmem.room_id = cm.room_id AND pmem.user_id = parent.sender_id
 			 LEFT JOIN chat_room_members mem ON mem.room_id = cm.room_id AND mem.user_id = cm.sender_id
 			 WHERE cm.room_id = $1
 			 ORDER BY cm.created_at DESC, cm.id DESC
@@ -1063,7 +1064,7 @@ func (r *chatRepository) GetMessagesBefore(ctx context.Context, roomID uuid.UUID
 			SELECT cm.id, cm.room_id, cm.sender_id, u.username, u.display_name, u.avatar_url,
 			 COALESCE(ur.role, ''),
 			 cm.body, cm.is_system, cm.created_at, cm.reply_to_id,
-			 parent.sender_id, pu.display_name, parent.body,
+			 parent.sender_id, COALESCE(NULLIF(pmem.nickname, ''), NULLIF(pu.display_name, ''), pu.username), parent.body,
 			 cm.pinned_at, cm.pinned_by, cm.edited_at,
 			 COALESCE(mem.nickname, ''), COALESCE(mem.avatar_url, '')
 			 FROM chat_messages cm
@@ -1071,6 +1072,7 @@ func (r *chatRepository) GetMessagesBefore(ctx context.Context, roomID uuid.UUID
 			 LEFT JOIN user_roles ur ON ur.user_id = u.id
 			 LEFT JOIN chat_messages parent ON cm.reply_to_id = parent.id
 			 LEFT JOIN users pu ON parent.sender_id = pu.id
+			 LEFT JOIN chat_room_members pmem ON pmem.room_id = cm.room_id AND pmem.user_id = parent.sender_id
 			 LEFT JOIN chat_room_members mem ON mem.room_id = cm.room_id AND mem.user_id = cm.sender_id
 			 WHERE cm.room_id = $1 AND (
 				cm.created_at < $2 OR ($3 != '' AND cm.created_at = $2 AND cm.id::text < $3)
@@ -1105,7 +1107,7 @@ func (r *chatRepository) GetMessageByID(ctx context.Context, messageID uuid.UUID
 		`SELECT cm.id, cm.room_id, cm.sender_id, u.username, u.display_name, u.avatar_url,
 		 COALESCE(ur.role, ''),
 		 cm.body, cm.is_system, cm.created_at, cm.reply_to_id,
-		 parent.sender_id, pu.display_name, parent.body,
+		 parent.sender_id, COALESCE(NULLIF(pmem.nickname, ''), NULLIF(pu.display_name, ''), pu.username), parent.body,
 		 cm.pinned_at, cm.pinned_by, cm.edited_at,
 		 COALESCE(mem.nickname, ''), COALESCE(mem.avatar_url, '')
 		 FROM chat_messages cm
@@ -1113,6 +1115,7 @@ func (r *chatRepository) GetMessageByID(ctx context.Context, messageID uuid.UUID
 		 LEFT JOIN user_roles ur ON ur.user_id = u.id
 		 LEFT JOIN chat_messages parent ON cm.reply_to_id = parent.id
 		 LEFT JOIN users pu ON parent.sender_id = pu.id
+		 LEFT JOIN chat_room_members pmem ON pmem.room_id = cm.room_id AND pmem.user_id = parent.sender_id
 		 LEFT JOIN chat_room_members mem ON mem.room_id = cm.room_id AND mem.user_id = cm.sender_id
 		 WHERE cm.id = $1`,
 		messageID,
@@ -1483,7 +1486,7 @@ func (r *chatRepository) ListPinnedMessages(ctx context.Context, roomID uuid.UUI
 		`SELECT cm.id, cm.room_id, cm.sender_id, u.username, u.display_name, u.avatar_url,
 		 COALESCE(ur.role, ''),
 		 cm.body, cm.is_system, cm.created_at, cm.reply_to_id,
-		 parent.sender_id, pu.display_name, parent.body,
+		 parent.sender_id, COALESCE(NULLIF(pmem.nickname, ''), NULLIF(pu.display_name, ''), pu.username), parent.body,
 		 cm.pinned_at, cm.pinned_by, cm.edited_at,
 		 COALESCE(mem.nickname, ''), COALESCE(mem.avatar_url, '')
 		 FROM chat_messages cm
@@ -1491,6 +1494,7 @@ func (r *chatRepository) ListPinnedMessages(ctx context.Context, roomID uuid.UUI
 		 LEFT JOIN user_roles ur ON ur.user_id = u.id
 		 LEFT JOIN chat_messages parent ON cm.reply_to_id = parent.id
 		 LEFT JOIN users pu ON parent.sender_id = pu.id
+		 LEFT JOIN chat_room_members pmem ON pmem.room_id = cm.room_id AND pmem.user_id = parent.sender_id
 		 LEFT JOIN chat_room_members mem ON mem.room_id = cm.room_id AND mem.user_id = cm.sender_id
 		 WHERE cm.room_id = $1 AND cm.pinned_at IS NOT NULL
 		 ORDER BY cm.pinned_at DESC`,

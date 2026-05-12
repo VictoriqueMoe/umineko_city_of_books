@@ -47,34 +47,42 @@ export function AdminAuditLog() {
                     {entries.length === 0 ? (
                         <div className={styles.empty}>No audit log entries found</div>
                     ) : (
-                        <table className={styles.table}>
-                            <thead>
-                                <tr>
-                                    <th>Timestamp</th>
-                                    <th>Actor</th>
-                                    <th>Action</th>
-                                    <th>Target Type</th>
-                                    <th>Target ID</th>
-                                    <th>Details</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {entries.map(entry => (
-                                    <tr key={entry.id}>
-                                        <td>{formatFullDateTime(entry.created_at)}</td>
-                                        <td>{entry.actor_name}</td>
-                                        <td>{entry.action}</td>
-                                        <td>{entry.target_type}</td>
-                                        <td>{entry.target_id}</td>
-                                        <td>
-                                            <span className={styles.details} title={entry.details}>
-                                                {entry.details}
-                                            </span>
-                                        </td>
+                        <div className={styles.tableWrap}>
+                            <table className={styles.table}>
+                                <thead>
+                                    <tr>
+                                        <th>Timestamp</th>
+                                        <th>Actor</th>
+                                        <th>Action</th>
+                                        <th>Target Type</th>
+                                        <th>Target ID</th>
+                                        <th>Details</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {entries.map(entry => (
+                                        <tr key={entry.id}>
+                                            <td className={styles.timestampCell}>
+                                                {formatFullDateTime(entry.created_at)}
+                                            </td>
+                                            <td>{entry.actor_name}</td>
+                                            <td>{entry.action}</td>
+                                            <td>{entry.target_type}</td>
+                                            <td>
+                                                <span className={styles.targetId} title={entry.target_id}>
+                                                    {entry.target_id}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span className={styles.details} title={entry.details}>
+                                                    {entry.details}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     )}
 
                     <Pagination

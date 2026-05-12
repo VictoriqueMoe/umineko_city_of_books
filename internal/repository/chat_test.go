@@ -1248,6 +1248,55 @@ func TestChatRepository_InsertMessage_WithReply(t *testing.T) {
 	assert.Equal(t, "Sender", *got.ReplyToSenderName)
 }
 
+func TestChatRepository_ReplyPreview_UsesRoomAliasWhenSet(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	ctx := context.Background()
+	parentAuthor := repotest.CreateUser(t, repos, repotest.WithDisplayName("RealName"))
+	replier := repotest.CreateUser(t, repos)
+	roomID := uuid.New()
+	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "R", "", "group", false, false, parentAuthor.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, roomID, parentAuthor.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, roomID, replier.ID))
+	require.NoError(t, repos.Chat.SetMemberNickname(ctx, roomID, parentAuthor.ID, "Battler"))
+	parentID := uuid.New()
+	require.NoError(t, repos.Chat.InsertMessage(ctx, parentID, roomID, parentAuthor.ID, "parent", nil))
+	replyID := uuid.New()
+	require.NoError(t, repos.Chat.InsertMessage(ctx, replyID, roomID, replier.ID, "reply", &parentID))
+
+	// when
+	got, err := repos.Chat.GetMessageByID(ctx, replyID)
+
+	// then
+	require.NoError(t, err)
+	require.NotNil(t, got.ReplyToSenderName)
+	assert.Equal(t, "Battler", *got.ReplyToSenderName)
+}
+
+func TestChatRepository_ReplyPreview_FallsBackToDisplayNameWhenNoAlias(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	ctx := context.Background()
+	parentAuthor := repotest.CreateUser(t, repos, repotest.WithDisplayName("RealName"))
+	replier := repotest.CreateUser(t, repos)
+	roomID := uuid.New()
+	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "R", "", "group", false, false, parentAuthor.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, roomID, parentAuthor.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, roomID, replier.ID))
+	parentID := uuid.New()
+	require.NoError(t, repos.Chat.InsertMessage(ctx, parentID, roomID, parentAuthor.ID, "parent", nil))
+	replyID := uuid.New()
+	require.NoError(t, repos.Chat.InsertMessage(ctx, replyID, roomID, replier.ID, "reply", &parentID))
+
+	// when
+	got, err := repos.Chat.GetMessageByID(ctx, replyID)
+
+	// then
+	require.NoError(t, err)
+	require.NotNil(t, got.ReplyToSenderName)
+	assert.Equal(t, "RealName", *got.ReplyToSenderName)
+}
+
 func TestChatRepository_GetMessages(t *testing.T) {
 	// given
 	repos := repotest.NewRepos(t)
