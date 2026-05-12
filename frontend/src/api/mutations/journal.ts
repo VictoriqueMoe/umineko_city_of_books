@@ -6,6 +6,7 @@ import {
     deleteJournal,
     deleteJournalComment,
     deleteJournalEntry,
+    deleteJournalEntryMedia,
     followJournal,
     likeJournalComment,
     unfollowJournal,
@@ -137,6 +138,15 @@ export function useUploadJournalEntryMedia(_journalId: string) {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: ({ entryId, file }: { entryId: string; file: File }) => uploadJournalEntryMedia(entryId, file),
+        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.journal.all }),
+    });
+}
+
+export function useDeleteJournalEntryMedia(_journalId: string) {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: ({ entryId, mediaId }: { entryId: string; mediaId: number }) =>
+            deleteJournalEntryMedia(entryId, mediaId),
         onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.journal.all }),
     });
 }

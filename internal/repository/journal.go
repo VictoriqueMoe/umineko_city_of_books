@@ -67,6 +67,7 @@ type (
 		UpdateEntryMediaURL(ctx context.Context, id int64, mediaURL string) error
 		UpdateEntryMediaThumbnail(ctx context.Context, id int64, thumbnailURL string) error
 		GetEntryMediaBatch(ctx context.Context, entryIDs []uuid.UUID) (map[uuid.UUID][]JournalEntryMediaRow, error)
+		DeleteEntryMedia(ctx context.Context, id int64, entryID uuid.UUID) (string, error)
 	}
 
 	JournalEntryRow struct {
@@ -982,6 +983,18 @@ func (r *journalRepository) GetEntryMediaBatch(ctx context.Context, entryIDs []u
 		result[m.EntryID] = append(result[m.EntryID], m)
 	}
 	return result, rows.Err()
+}
+
+func (r *journalRepository) DeleteEntryMedia(ctx context.Context, id int64, entryID uuid.UUID) (string, error) {
+	var mediaURL string
+	err := r.db.QueryRowContext(ctx, `SELECT media_url FROM journal_entry_media WHERE id = $1 AND entry_id = $2`, id, entryID).Scan(&mediaURL)
+	if err != nil {
+		return "", fmt.Errorf("journal entry media not found: %w", err)
+	}
+	if _, err := r.db.ExecContext(ctx, `DELETE FROM journal_entry_media WHERE id = $1 AND entry_id = $2`, id, entryID); err != nil {
+		return "", fmt.Errorf("delete journal entry media: %w", err)
+	}
+	return mediaURL, nil
 }
 
 func JournalCommentToDTO(c JournalCommentRow, media []JournalCommentMediaRow, authorID uuid.UUID) dto.JournalCommentResponse {

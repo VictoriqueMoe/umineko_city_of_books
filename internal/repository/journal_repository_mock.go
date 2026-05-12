@@ -900,6 +900,78 @@ func (_c *MockJournalRepository_DeleteEntry_Call) RunAndReturn(run func(ctx cont
 	return _c
 }
 
+// DeleteEntryMedia provides a mock function for the type MockJournalRepository
+func (_mock *MockJournalRepository) DeleteEntryMedia(ctx context.Context, id int64, entryID uuid.UUID) (string, error) {
+	ret := _mock.Called(ctx, id, entryID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteEntryMedia")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, uuid.UUID) (string, error)); ok {
+		return returnFunc(ctx, id, entryID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, uuid.UUID) string); ok {
+		r0 = returnFunc(ctx, id, entryID)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, int64, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, id, entryID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockJournalRepository_DeleteEntryMedia_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteEntryMedia'
+type MockJournalRepository_DeleteEntryMedia_Call struct {
+	*mock.Call
+}
+
+// DeleteEntryMedia is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id int64
+//   - entryID uuid.UUID
+func (_e *MockJournalRepository_Expecter) DeleteEntryMedia(ctx interface{}, id interface{}, entryID interface{}) *MockJournalRepository_DeleteEntryMedia_Call {
+	return &MockJournalRepository_DeleteEntryMedia_Call{Call: _e.mock.On("DeleteEntryMedia", ctx, id, entryID)}
+}
+
+func (_c *MockJournalRepository_DeleteEntryMedia_Call) Run(run func(ctx context.Context, id int64, entryID uuid.UUID)) *MockJournalRepository_DeleteEntryMedia_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 int64
+		if args[1] != nil {
+			arg1 = args[1].(int64)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockJournalRepository_DeleteEntryMedia_Call) Return(s string, err error) *MockJournalRepository_DeleteEntryMedia_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *MockJournalRepository_DeleteEntryMedia_Call) RunAndReturn(run func(ctx context.Context, id int64, entryID uuid.UUID) (string, error)) *MockJournalRepository_DeleteEntryMedia_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Follow provides a mock function for the type MockJournalRepository
 func (_mock *MockJournalRepository) Follow(ctx context.Context, userID uuid.UUID, journalID uuid.UUID) error {
 	ret := _mock.Called(ctx, userID, journalID)

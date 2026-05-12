@@ -11,7 +11,12 @@ import { Input } from "../../components/Input/Input";
 import { MentionTextArea } from "../../components/MentionTextArea/MentionTextArea";
 import { MediaPickerButton, MediaPreviews } from "../../components/MediaPicker/MediaPicker";
 import { GifPicker } from "../../components/chat/GifPicker/GifPicker";
-import { useCreateJournalEntry, useUpdateJournalEntry, useUploadJournalEntryMedia } from "../../api/mutations/journal";
+import {
+    useCreateJournalEntry,
+    useDeleteJournalEntryMedia,
+    useUpdateJournalEntry,
+    useUploadJournalEntryMedia,
+} from "../../api/mutations/journal";
 import styles from "./JournalEntryEditorPage.module.css";
 
 export function JournalEntryEditorPage() {
@@ -27,10 +32,12 @@ export function JournalEntryEditorPage() {
     const createMutation = useCreateJournalEntry(journalId ?? "");
     const updateMutation = useUpdateJournalEntry(journalId ?? "");
     const uploadMediaMutation = useUploadJournalEntryMedia(journalId ?? "");
+    const deleteMediaMutation = useDeleteJournalEntryMedia(journalId ?? "");
 
     const [titleDraft, setTitleDraft] = useState<string | null>(null);
     const [bodyDraft, setBodyDraft] = useState<string | null>(null);
     const [files, setFiles] = useState<File[]>([]);
+    const [pendingDeletions, setPendingDeletions] = useState<number[]>([]);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
     const [gifPickerOpen, setGifPickerOpen] = useState(false);
@@ -99,6 +106,20 @@ export function JournalEntryEditorPage() {
         }
     }
 
+    async function deletePendingFrom(entryId: string) {
+        for (const mediaId of pendingDeletions) {
+            try {
+                await deleteMediaMutation.mutateAsync({ entryId, mediaId });
+            } catch (err) {
+                setError(err instanceof Error ? err.message : "Failed to remove attachment");
+            }
+        }
+    }
+
+    function togglePendingDeletion(mediaId: number) {
+        setPendingDeletions(prev => (prev.includes(mediaId) ? prev.filter(id => id !== mediaId) : [...prev, mediaId]));
+    }
+
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
         if ((!body.trim() && files.length === 0) || submitting) {
@@ -112,6 +133,7 @@ export function JournalEntryEditorPage() {
                     id: entry.id,
                     payload: { title: title.trim(), body: body.trim() },
                 });
+                await deletePendingFrom(entry.id);
                 await uploadAllTo(entry.id);
                 navigate(`/journals/${journalId}/entry/${entry.entry_number}`);
             } else {
@@ -167,12 +189,40 @@ export function JournalEntryEditorPage() {
                     />
                 </div>
 
+                {isEdit && entry && entry.media.length > 0 && (
+                    <div className={styles.existingMedia}>
+                        {entry.media.map(m => {
+                            const markedForRemoval = pendingDeletions.includes(m.id);
+                            const itemClass = `${styles.existingMediaItem}${markedForRemoval ? ` ${styles.existingMediaItemPending}` : ""}`;
+                            return (
+                                <div key={m.id} className={itemClass}>
+                                    {m.media_type === "video" ? (
+                                        <video src={m.media_url} className={styles.existingMediaThumb} />
+                                    ) : (
+                                        <img src={m.media_url} className={styles.existingMediaThumb} alt="" />
+                                    )}
+                                    <button
+                                        type="button"
+                                        className={styles.existingMediaRemove}
+                                        onClick={() => togglePendingDeletion(m.id)}
+                                        aria-label={markedForRemoval ? "Undo remove" : "Remove attachment"}
+                                        title={markedForRemoval ? "Undo remove" : "Remove on save"}
+                                    >
+                                        {markedForRemoval ? "↺" : "×"}
+                                    </button>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+
                 <MediaPreviews files={files} onRemove={removeFile} />
 
                 <div className={styles.toolbar}>
                     <MediaPickerButton onFiles={valid => setFiles(prev => [...prev, ...valid])} onError={setError} />
                     <div className={styles.gifAnchor}>
                         <Button
+                            type="button"
                             variant="ghost"
                             size="small"
                             onClick={() => setGifPickerOpen(prev => !prev)}

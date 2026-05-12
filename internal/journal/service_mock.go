@@ -479,6 +479,75 @@ func (_c *MockService_DeleteEntry_Call) RunAndReturn(run func(ctx context.Contex
 	return _c
 }
 
+// DeleteEntryMedia provides a mock function for the type MockService
+func (_mock *MockService) DeleteEntryMedia(ctx context.Context, entryID uuid.UUID, mediaID int64, userID uuid.UUID) error {
+	ret := _mock.Called(ctx, entryID, mediaID, userID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteEntryMedia")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int64, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, entryID, mediaID, userID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_DeleteEntryMedia_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteEntryMedia'
+type MockService_DeleteEntryMedia_Call struct {
+	*mock.Call
+}
+
+// DeleteEntryMedia is a helper method to define mock.On call
+//   - ctx context.Context
+//   - entryID uuid.UUID
+//   - mediaID int64
+//   - userID uuid.UUID
+func (_e *MockService_Expecter) DeleteEntryMedia(ctx interface{}, entryID interface{}, mediaID interface{}, userID interface{}) *MockService_DeleteEntryMedia_Call {
+	return &MockService_DeleteEntryMedia_Call{Call: _e.mock.On("DeleteEntryMedia", ctx, entryID, mediaID, userID)}
+}
+
+func (_c *MockService_DeleteEntryMedia_Call) Run(run func(ctx context.Context, entryID uuid.UUID, mediaID int64, userID uuid.UUID)) *MockService_DeleteEntryMedia_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 int64
+		if args[2] != nil {
+			arg2 = args[2].(int64)
+		}
+		var arg3 uuid.UUID
+		if args[3] != nil {
+			arg3 = args[3].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_DeleteEntryMedia_Call) Return(err error) *MockService_DeleteEntryMedia_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_DeleteEntryMedia_Call) RunAndReturn(run func(ctx context.Context, entryID uuid.UUID, mediaID int64, userID uuid.UUID) error) *MockService_DeleteEntryMedia_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteJournal provides a mock function for the type MockService
 func (_mock *MockService) DeleteJournal(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
 	ret := _mock.Called(ctx, id, userID)

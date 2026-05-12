@@ -51,6 +51,7 @@ type (
 		UnlikeComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		UploadCommentMedia(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error)
 		UploadEntryMedia(ctx context.Context, entryID uuid.UUID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error)
+		DeleteEntryMedia(ctx context.Context, entryID uuid.UUID, mediaID int64, userID uuid.UUID) error
 
 		FollowJournal(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		UnfollowJournal(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
@@ -65,6 +66,7 @@ type (
 		blockSvc      block.Service
 		notifService  notification.Service
 		settingsSvc   settings.Service
+		uploadSvc     upload.Service
 		uploader      *media.Uploader
 		contentFilter *contentfilter.Manager
 	}
@@ -88,6 +90,7 @@ func NewService(
 		blockSvc:      blockSvc,
 		notifService:  notifService,
 		settingsSvc:   settingsSvc,
+		uploadSvc:     uploadSvc,
 		uploader:      media.NewUploader(uploadSvc, settingsSvc, mediaProc),
 		contentFilter: contentFilter,
 	}
@@ -650,6 +653,24 @@ func (s *service) UploadEntryMedia(ctx context.Context, entryID uuid.UUID, userI
 		s.repo.UpdateEntryMediaURL,
 		s.repo.UpdateEntryMediaThumbnail,
 	)
+}
+
+func (s *service) DeleteEntryMedia(ctx context.Context, entryID uuid.UUID, mediaID int64, userID uuid.UUID) error {
+	authorID, err := s.repo.GetEntryAuthorID(ctx, entryID)
+	if err != nil {
+		return ErrNotFound
+	}
+	if authorID != userID {
+		return ErrNotAuthor
+	}
+
+	mediaURL, err := s.repo.DeleteEntryMedia(ctx, mediaID, entryID)
+	if err != nil {
+		return err
+	}
+
+	_ = s.uploadSvc.Delete(mediaURL)
+	return nil
 }
 
 func (s *service) FollowJournal(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {

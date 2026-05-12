@@ -1726,6 +1726,10 @@ export async function uploadJournalEntryMedia(entryId: string, file: File): Prom
     return apiPostFormData<PostMedia>(`/journal-entries/${entryId}/media`, formData);
 }
 
+export async function deleteJournalEntryMedia(entryId: string, mediaId: number): Promise<void> {
+    await apiDelete(`/journal-entries/${entryId}/media/${mediaId}`);
+}
+
 export async function getUserJournals(userId: string, limit = 20, offset = 0): Promise<JournalListResponse> {
     const qs = buildQueryString({ limit, offset });
     return apiFetch<JournalListResponse>(`/users/${userId}/journals${qs}`);

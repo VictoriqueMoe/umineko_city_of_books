@@ -38,6 +38,7 @@ func (s *Service) getAllJournalRoutes() []FSetupRoute {
 		s.setupUpdateJournalEntryRoute,
 		s.setupDeleteJournalEntryRoute,
 		s.setupUploadJournalEntryMediaRoute,
+		s.setupDeleteJournalEntryMediaRoute,
 	}
 }
 
@@ -119,6 +120,10 @@ func (s *Service) setupDeleteJournalEntryRoute(r fiber.Router) {
 
 func (s *Service) setupUploadJournalEntryMediaRoute(r fiber.Router) {
 	r.Post("/journal-entries/:id/media", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.uploadJournalEntryMedia)
+}
+
+func (s *Service) setupDeleteJournalEntryMediaRoute(r fiber.Router) {
+	r.Delete("/journal-entries/:id/media/:mediaId", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.deleteJournalEntryMedia)
 }
 
 func (s *Service) listUserJournals(ctx fiber.Ctx) error {
@@ -441,6 +446,29 @@ func (s *Service) uploadJournalCommentMedia(ctx fiber.Ctx) error {
 		return utils.InternalError(ctx, "failed to upload media")
 	}
 	return ctx.Status(fiber.StatusCreated).JSON(result)
+}
+
+func (s *Service) deleteJournalEntryMedia(ctx fiber.Ctx) error {
+	entryID, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
+	}
+	mediaID, err := strconv.ParseInt(ctx.Params("mediaId"), 10, 64)
+	if err != nil {
+		return utils.BadRequest(ctx, "invalid media id")
+	}
+	userID := utils.UserID(ctx)
+
+	if err := s.JournalService.DeleteEntryMedia(ctx.Context(), entryID, mediaID, userID); err != nil {
+		if errors.Is(err, journal.ErrNotAuthor) {
+			return utils.Forbidden(ctx, "not the entry author")
+		}
+		if errors.Is(err, journal.ErrNotFound) {
+			return utils.NotFound(ctx, "entry not found")
+		}
+		return utils.InternalError(ctx, "failed to delete media")
+	}
+	return ctx.SendStatus(fiber.StatusNoContent)
 }
 
 func (s *Service) uploadJournalEntryMedia(ctx fiber.Ctx) error {

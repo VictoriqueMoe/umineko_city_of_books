@@ -103,7 +103,7 @@ export function MediaPickerButton({ onFiles, onError, multiple = true, label = "
                 onChange={handleChange}
                 hidden
             />
-            <Button variant="ghost" size="small" onClick={() => inputRef.current?.click()}>
+            <Button type="button" variant="ghost" size="small" onClick={() => inputRef.current?.click()}>
                 {label}
             </Button>
         </>

@@ -39,6 +39,64 @@
     color: var(--text-muted);
 }
 
+.existingMedia {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.existingMediaItem {
+    position: relative;
+    width: 96px;
+    height: 96px;
+    border-radius: 6px;
+    overflow: hidden;
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.existingMediaItemPending .existingMediaThumb {
+    opacity: 0.35;
+    filter: grayscale(1);
+}
+
+.existingMediaItemPending {
+    outline: 2px solid rgba(220, 80, 80, 0.7);
+}
+
+.existingMediaThumb {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.existingMediaRemove {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(0, 0, 0, 0.7);
+    color: #fff;
+    font-size: 0.9rem;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.existingMediaRemove:hover:not(:disabled) {
+    background: rgba(220, 80, 80, 0.85);
+}
+
+.existingMediaRemove:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 .toolbar {
     display: flex;
     align-items: center;
