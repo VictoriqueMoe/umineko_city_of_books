@@ -1102,6 +1102,7 @@ func TestGetEntry_OK(t *testing.T) {
 	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, uuid.Nil).Return(nil, nil)
 	m.repo.EXPECT().GetEntryComments(mock.Anything, entryID, uuid.Nil, 500, 0, []uuid.UUID(nil)).Return(nil, 0, nil)
 	m.repo.EXPECT().GetCommentMediaBatch(mock.Anything, []uuid.UUID{}).Return(nil, nil)
+	m.repo.EXPECT().GetEntryMediaBatch(mock.Anything, []uuid.UUID{entryID}).Return(nil, nil)
 
 	// when
 	entry, comments, err := svc.GetEntry(context.Background(), journalID, 3, uuid.Nil)

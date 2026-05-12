@@ -50,6 +50,7 @@ type (
 		LikeComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		UnlikeComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		UploadCommentMedia(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error)
+		UploadEntryMedia(ctx context.Context, entryID uuid.UUID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error)
 
 		FollowJournal(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		UnfollowJournal(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
@@ -182,7 +183,8 @@ func (s *service) GetJournalDetail(ctx context.Context, id uuid.UUID, viewerID u
 			return nil, err
 		}
 		if entry != nil {
-			resp := repository.JournalEntryToDTO(entry)
+			entryMediaMap, _ := s.repo.GetEntryMediaBatch(ctx, []uuid.UUID{entry.ID})
+			resp := repository.JournalEntryToDTO(entry, entryMediaMap[entry.ID])
 			latestEntry = &resp
 		}
 	}
@@ -373,7 +375,8 @@ func (s *service) GetEntry(ctx context.Context, journalID uuid.UUID, entryNumber
 		func(c *dto.JournalCommentResponse, replies []dto.JournalCommentResponse) { c.Replies = replies },
 	)
 
-	resp := repository.JournalEntryToDTO(entry)
+	entryMediaMap, _ := s.repo.GetEntryMediaBatch(ctx, []uuid.UUID{entry.ID})
+	resp := repository.JournalEntryToDTO(entry, entryMediaMap[entry.ID])
 	return &resp, tree, nil
 }
 
@@ -623,6 +626,29 @@ func (s *service) UploadCommentMedia(ctx context.Context, commentID uuid.UUID, u
 		},
 		s.repo.UpdateCommentMediaURL,
 		s.repo.UpdateCommentMediaThumbnail,
+	)
+}
+
+func (s *service) UploadEntryMedia(ctx context.Context, entryID uuid.UUID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error) {
+	authorID, err := s.repo.GetEntryAuthorID(ctx, entryID)
+	if err != nil {
+		return nil, ErrNotFound
+	}
+	if authorID != userID {
+		return nil, ErrNotAuthor
+	}
+
+	return s.uploader.SaveAndRecord(
+		ctx,
+		"journals",
+		contentType,
+		fileSize,
+		reader,
+		func(mediaURL, mediaType, thumbURL string, sortOrder int) (int64, error) {
+			return s.repo.AddEntryMedia(ctx, entryID, mediaURL, mediaType, thumbURL, sortOrder)
+		},
+		s.repo.UpdateEntryMediaURL,
+		s.repo.UpdateEntryMediaThumbnail,
 	)
 }
 

@@ -17,7 +17,10 @@ import {
 } from "../../api/mutations/journal";
 import { linkify } from "../../utils/linkify";
 import { renderColours } from "../../utils/colours";
+import { extractGif } from "../../utils/gif";
 import { relativeTime } from "../../utils/time.ts";
+import { GifEmbed } from "../../components/GifEmbed/GifEmbed";
+import { MediaGallery } from "../../components/post/MediaGallery/MediaGallery";
 import type { PostComment } from "../../types/api";
 import styles from "./JournalEntryPage.module.css";
 
@@ -122,7 +125,15 @@ export function JournalEntryPage() {
 
                 {navButtons()}
 
-                <div className={styles.body}>{renderColours(entry.body, linkify, `entry-${entry.id}`)}</div>
+                {(() => {
+                    const gifURL = extractGif(entry.body);
+                    if (gifURL) {
+                        return <GifEmbed src={gifURL} />;
+                    }
+                    return <div className={styles.body}>{renderColours(entry.body, linkify, `entry-${entry.id}`)}</div>;
+                })()}
+
+                <MediaGallery media={entry.media} />
 
                 <div className={styles.actions}>
                     {canEdit && (

@@ -14,6 +14,7 @@ import {
     updateJournalComment,
     updateJournalEntry,
     uploadJournalCommentMedia,
+    uploadJournalEntryMedia,
 } from "../endpoints";
 import type { CreateJournalPayload, JournalEntryPayload } from "../../types/api";
 import { queryKeys } from "../queryKeys";
@@ -128,6 +129,14 @@ export function useUploadJournalCommentMedia(_journalId: string) {
     return useMutation({
         mutationFn: ({ commentId, file }: { commentId: string; file: File }) =>
             uploadJournalCommentMedia(commentId, file),
+        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.journal.all }),
+    });
+}
+
+export function useUploadJournalEntryMedia(_journalId: string) {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: ({ entryId, file }: { entryId: string; file: File }) => uploadJournalEntryMedia(entryId, file),
         onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.journal.all }),
     });
 }

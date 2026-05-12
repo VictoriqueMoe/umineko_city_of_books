@@ -1500,3 +1500,95 @@ func (_c *MockService_UploadCommentMedia_Call) RunAndReturn(run func(ctx context
 	_c.Call.Return(run)
 	return _c
 }
+
+// UploadEntryMedia provides a mock function for the type MockService
+func (_mock *MockService) UploadEntryMedia(ctx context.Context, entryID uuid.UUID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error) {
+	ret := _mock.Called(ctx, entryID, userID, contentType, fileSize, reader)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UploadEntryMedia")
+	}
+
+	var r0 *dto.PostMediaResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, int64, io.Reader) (*dto.PostMediaResponse, error)); ok {
+		return returnFunc(ctx, entryID, userID, contentType, fileSize, reader)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, int64, io.Reader) *dto.PostMediaResponse); ok {
+		r0 = returnFunc(ctx, entryID, userID, contentType, fileSize, reader)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dto.PostMediaResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, string, int64, io.Reader) error); ok {
+		r1 = returnFunc(ctx, entryID, userID, contentType, fileSize, reader)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_UploadEntryMedia_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UploadEntryMedia'
+type MockService_UploadEntryMedia_Call struct {
+	*mock.Call
+}
+
+// UploadEntryMedia is a helper method to define mock.On call
+//   - ctx context.Context
+//   - entryID uuid.UUID
+//   - userID uuid.UUID
+//   - contentType string
+//   - fileSize int64
+//   - reader io.Reader
+func (_e *MockService_Expecter) UploadEntryMedia(ctx interface{}, entryID interface{}, userID interface{}, contentType interface{}, fileSize interface{}, reader interface{}) *MockService_UploadEntryMedia_Call {
+	return &MockService_UploadEntryMedia_Call{Call: _e.mock.On("UploadEntryMedia", ctx, entryID, userID, contentType, fileSize, reader)}
+}
+
+func (_c *MockService_UploadEntryMedia_Call) Run(run func(ctx context.Context, entryID uuid.UUID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader)) *MockService_UploadEntryMedia_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		var arg4 int64
+		if args[4] != nil {
+			arg4 = args[4].(int64)
+		}
+		var arg5 io.Reader
+		if args[5] != nil {
+			arg5 = args[5].(io.Reader)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+			arg5,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_UploadEntryMedia_Call) Return(postMediaResponse *dto.PostMediaResponse, err error) *MockService_UploadEntryMedia_Call {
+	_c.Call.Return(postMediaResponse, err)
+	return _c
+}
+
+func (_c *MockService_UploadEntryMedia_Call) RunAndReturn(run func(ctx context.Context, entryID uuid.UUID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error)) *MockService_UploadEntryMedia_Call {
+	_c.Call.Return(run)
+	return _c
+}

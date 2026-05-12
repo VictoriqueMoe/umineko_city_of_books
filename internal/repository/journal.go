@@ -62,6 +62,11 @@ type (
 		UpdateCommentMediaURL(ctx context.Context, id int64, mediaURL string) error
 		UpdateCommentMediaThumbnail(ctx context.Context, id int64, thumbnailURL string) error
 		GetCommentMediaBatch(ctx context.Context, commentIDs []uuid.UUID) (map[uuid.UUID][]JournalCommentMediaRow, error)
+
+		AddEntryMedia(ctx context.Context, entryID uuid.UUID, mediaURL, mediaType, thumbnailURL string, sortOrder int) (int64, error)
+		UpdateEntryMediaURL(ctx context.Context, id int64, mediaURL string) error
+		UpdateEntryMediaThumbnail(ctx context.Context, id int64, thumbnailURL string) error
+		GetEntryMediaBatch(ctx context.Context, entryIDs []uuid.UUID) (map[uuid.UUID][]JournalEntryMediaRow, error)
 	}
 
 	JournalEntryRow struct {
@@ -105,6 +110,15 @@ type (
 	JournalCommentMediaRow struct {
 		ID           int
 		CommentID    uuid.UUID
+		MediaURL     string
+		MediaType    string
+		ThumbnailURL string
+		SortOrder    int
+	}
+
+	JournalEntryMediaRow struct {
+		ID           int
+		EntryID      uuid.UUID
 		MediaURL     string
 		MediaType    string
 		ThumbnailURL string
@@ -910,6 +924,66 @@ func (r *journalRepository) GetCommentMediaBatch(ctx context.Context, commentIDs
 	return result, rows.Err()
 }
 
+func (r *journalRepository) AddEntryMedia(ctx context.Context, entryID uuid.UUID, mediaURL, mediaType, thumbnailURL string, sortOrder int) (int64, error) {
+	var id int64
+	err := r.db.QueryRowContext(ctx,
+		`INSERT INTO journal_entry_media (entry_id, media_url, media_type, thumbnail_url, sort_order) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+		entryID, mediaURL, mediaType, thumbnailURL, sortOrder,
+	).Scan(&id)
+	if err != nil {
+		return 0, fmt.Errorf("add journal entry media: %w", err)
+	}
+	return id, nil
+}
+
+func (r *journalRepository) UpdateEntryMediaURL(ctx context.Context, id int64, mediaURL string) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE journal_entry_media SET media_url = $1 WHERE id = $2`, mediaURL, id)
+	if err != nil {
+		return fmt.Errorf("update journal entry media url: %w", err)
+	}
+	return nil
+}
+
+func (r *journalRepository) UpdateEntryMediaThumbnail(ctx context.Context, id int64, thumbnailURL string) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE journal_entry_media SET thumbnail_url = $1 WHERE id = $2`, thumbnailURL, id)
+	if err != nil {
+		return fmt.Errorf("update journal entry media thumbnail: %w", err)
+	}
+	return nil
+}
+
+func (r *journalRepository) GetEntryMediaBatch(ctx context.Context, entryIDs []uuid.UUID) (map[uuid.UUID][]JournalEntryMediaRow, error) {
+	if len(entryIDs) == 0 {
+		return nil, nil
+	}
+
+	placeholders := "$1"
+	args := []interface{}{entryIDs[0]}
+	for i, id := range entryIDs[1:] {
+		placeholders += fmt.Sprintf(", $%d", i+2)
+		args = append(args, id)
+	}
+
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT id, entry_id, media_url, media_type, thumbnail_url, sort_order FROM journal_entry_media WHERE entry_id IN (`+placeholders+`) ORDER BY sort_order`,
+		args...,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("batch get journal entry media: %w", err)
+	}
+	defer rows.Close()
+
+	result := make(map[uuid.UUID][]JournalEntryMediaRow)
+	for rows.Next() {
+		var m JournalEntryMediaRow
+		if err := rows.Scan(&m.ID, &m.EntryID, &m.MediaURL, &m.MediaType, &m.ThumbnailURL, &m.SortOrder); err != nil {
+			return nil, fmt.Errorf("scan journal entry media: %w", err)
+		}
+		result[m.EntryID] = append(result[m.EntryID], m)
+	}
+	return result, rows.Err()
+}
+
 func JournalCommentToDTO(c JournalCommentRow, media []JournalCommentMediaRow, authorID uuid.UUID) dto.JournalCommentResponse {
 	mediaList := make([]dto.PostMediaResponse, len(media))
 	for i, m := range media {
@@ -942,7 +1016,17 @@ func JournalCommentToDTO(c JournalCommentRow, media []JournalCommentMediaRow, au
 	}
 }
 
-func JournalEntryToDTO(e *JournalEntryRow) dto.JournalEntryResponse {
+func JournalEntryToDTO(e *JournalEntryRow, media []JournalEntryMediaRow) dto.JournalEntryResponse {
+	mediaList := make([]dto.PostMediaResponse, len(media))
+	for i, m := range media {
+		mediaList[i] = dto.PostMediaResponse{
+			ID:           m.ID,
+			MediaURL:     m.MediaURL,
+			MediaType:    m.MediaType,
+			ThumbnailURL: m.ThumbnailURL,
+			SortOrder:    m.SortOrder,
+		}
+	}
 	return dto.JournalEntryResponse{
 		ID:          e.ID,
 		JournalID:   e.JournalID,
@@ -954,6 +1038,7 @@ func JournalEntryToDTO(e *JournalEntryRow) dto.JournalEntryResponse {
 		HasNext:     e.HasNext,
 		CreatedAt:   e.CreatedAt,
 		UpdatedAt:   e.UpdatedAt,
+		Media:       mediaList,
 	}
 }
 

@@ -37,6 +37,7 @@ func (s *Service) getAllJournalRoutes() []FSetupRoute {
 		s.setupCreateJournalEntryRoute,
 		s.setupUpdateJournalEntryRoute,
 		s.setupDeleteJournalEntryRoute,
+		s.setupUploadJournalEntryMediaRoute,
 	}
 }
 
@@ -114,6 +115,10 @@ func (s *Service) setupUpdateJournalEntryRoute(r fiber.Router) {
 
 func (s *Service) setupDeleteJournalEntryRoute(r fiber.Router) {
 	r.Delete("/journal-entries/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.deleteJournalEntry)
+}
+
+func (s *Service) setupUploadJournalEntryMediaRoute(r fiber.Router) {
+	r.Post("/journal-entries/:id/media", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.uploadJournalEntryMedia)
 }
 
 func (s *Service) listUserJournals(ctx fiber.Ctx) error {
@@ -429,6 +434,40 @@ func (s *Service) uploadJournalCommentMedia(ctx fiber.Ctx) error {
 		}
 		if errors.Is(err, journal.ErrNotFound) {
 			return utils.NotFound(ctx, "comment not found")
+		}
+		if strings.Contains(err.Error(), "too large") {
+			return utils.BadRequest(ctx, err.Error())
+		}
+		return utils.InternalError(ctx, "failed to upload media")
+	}
+	return ctx.Status(fiber.StatusCreated).JSON(result)
+}
+
+func (s *Service) uploadJournalEntryMedia(ctx fiber.Ctx) error {
+	entryID, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
+	}
+	userID := utils.UserID(ctx)
+
+	file, err := ctx.FormFile("media")
+	if err != nil {
+		return utils.BadRequest(ctx, "no media file provided")
+	}
+	reader, err := file.Open()
+	if err != nil {
+		return utils.InternalError(ctx, "failed to read file")
+	}
+	defer reader.Close()
+
+	contentType := file.Header.Get("Content-Type")
+	result, err := s.JournalService.UploadEntryMedia(ctx.Context(), entryID, userID, contentType, file.Size, reader)
+	if err != nil {
+		if errors.Is(err, journal.ErrNotAuthor) {
+			return utils.Forbidden(ctx, "not the entry author")
+		}
+		if errors.Is(err, journal.ErrNotFound) {
+			return utils.NotFound(ctx, "entry not found")
 		}
 		if strings.Contains(err.Error(), "too large") {
 			return utils.BadRequest(ctx, err.Error())

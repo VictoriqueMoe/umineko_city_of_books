@@ -24,8 +24,11 @@ import { CommentsSection } from "../../components/post/CommentsSection/CommentsS
 import { ReportButton } from "../../components/ReportButton/ReportButton";
 import { linkify } from "../../utils/linkify";
 import { renderColours } from "../../utils/colours";
+import { extractGif } from "../../utils/gif";
 import { relativeTime } from "../../utils/time.ts";
 import { workLabel } from "../../utils/journalWorks";
+import { GifEmbed } from "../../components/GifEmbed/GifEmbed";
+import { MediaGallery } from "../../components/post/MediaGallery/MediaGallery";
 import styles from "./JournalPage.module.css";
 
 function entryHeading(number: number, title?: string | null): string {
@@ -173,9 +176,18 @@ export function JournalPage() {
                             {entryHeading(latestEntry.entry_number, latestEntry.title)}
                         </Link>
                     </h2>
-                    <div className={styles.spotlightBody}>
-                        {renderColours(latestEntry.body, linkify, `le-${latestEntry.entry_number}`)}
-                    </div>
+                    {(() => {
+                        const gifURL = extractGif(latestEntry.body);
+                        if (gifURL) {
+                            return <GifEmbed src={gifURL} />;
+                        }
+                        return (
+                            <div className={styles.spotlightBody}>
+                                {renderColours(latestEntry.body, linkify, `le-${latestEntry.entry_number}`)}
+                            </div>
+                        );
+                    })()}
+                    {latestEntry.media.length > 0 && <MediaGallery media={latestEntry.media} />}
                     <div className={styles.spotlightFooter}>
                         <Link to={`/journals/${journal.id}/entry/${latestEntry.entry_number}`}>
                             <Button variant="primary" size="small">

@@ -43,16 +43,17 @@ type (
 	}
 
 	JournalEntryResponse struct {
-		ID          uuid.UUID `json:"id"`
-		JournalID   uuid.UUID `json:"journal_id"`
-		EntryNumber int       `json:"entry_number"`
-		Title       *string   `json:"title,omitempty"`
-		Body        string    `json:"body"`
-		WordCount   int       `json:"word_count"`
-		HasPrev     bool      `json:"has_prev"`
-		HasNext     bool      `json:"has_next"`
-		CreatedAt   string    `json:"created_at"`
-		UpdatedAt   *string   `json:"updated_at,omitempty"`
+		ID          uuid.UUID           `json:"id"`
+		JournalID   uuid.UUID           `json:"journal_id"`
+		EntryNumber int                 `json:"entry_number"`
+		Title       *string             `json:"title,omitempty"`
+		Body        string              `json:"body"`
+		WordCount   int                 `json:"word_count"`
+		HasPrev     bool                `json:"has_prev"`
+		HasNext     bool                `json:"has_next"`
+		CreatedAt   string              `json:"created_at"`
+		UpdatedAt   *string             `json:"updated_at,omitempty"`
+		Media       []PostMediaResponse `json:"media"`
 	}
 
 	JournalEntrySummary struct {

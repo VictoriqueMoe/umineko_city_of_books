@@ -1720,6 +1720,12 @@ export async function uploadJournalCommentMedia(commentId: string, file: File): 
     return apiPostFormData<PostMedia>(`/journal-comments/${commentId}/media`, formData);
 }
 
+export async function uploadJournalEntryMedia(entryId: string, file: File): Promise<PostMedia> {
+    const formData = new FormData();
+    formData.append("media", file);
+    return apiPostFormData<PostMedia>(`/journal-entries/${entryId}/media`, formData);
+}
+
 export async function getUserJournals(userId: string, limit = 20, offset = 0): Promise<JournalListResponse> {
     const qs = buildQueryString({ limit, offset });
     return apiFetch<JournalListResponse>(`/users/${userId}/journals${qs}`);

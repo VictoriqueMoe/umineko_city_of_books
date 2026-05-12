@@ -396,6 +396,7 @@ export interface JournalEntry {
     has_next: boolean;
     created_at: string;
     updated_at?: string;
+    media: PostMedia[];
 }
 
 export interface JournalDetail extends Journal {
