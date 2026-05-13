@@ -26,6 +26,7 @@ type testMocks struct {
 	secretRepo     *repository.MockSecretRepository
 	userSecretRepo *repository.MockUserSecretRepository
 	userRepo       *repository.MockUserRepository
+	auditRepo      *repository.MockAuditLogRepository
 	authz          *authz.MockService
 	blockSvc       *block.MockService
 	notif          *notification.MockService
@@ -37,6 +38,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	secretRepo := repository.NewMockSecretRepository(t)
 	userSecretRepo := repository.NewMockUserSecretRepository(t)
 	userRepo := repository.NewMockUserRepository(t)
+	auditRepo := repository.NewMockAuditLogRepository(t)
 	authzSvc := authz.NewMockService(t)
 	blockSvc := block.NewMockService(t)
 	notif := notification.NewMockService(t)
@@ -45,7 +47,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 
 	hub := ws.NewHub()
 	mediaProc := &media.Processor{}
-	svc := NewService(secretRepo, userSecretRepo, userRepo, authzSvc, blockSvc, notif, settingsSvc, uploadSvc, mediaProc, hub, contentfilter.New()).(*service)
+	svc := NewService(secretRepo, userSecretRepo, userRepo, auditRepo, authzSvc, blockSvc, notif, settingsSvc, uploadSvc, mediaProc, hub, contentfilter.New()).(*service)
 
 	secretRepo.EXPECT().GetCommentSecretID(mock.Anything, mock.Anything).Return("", nil).Maybe()
 	userRepo.EXPECT().GetByID(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
@@ -56,6 +58,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 		secretRepo:     secretRepo,
 		userSecretRepo: userSecretRepo,
 		userRepo:       userRepo,
+		auditRepo:      auditRepo,
 		authz:          authzSvc,
 		blockSvc:       blockSvc,
 		notif:          notif,
@@ -298,6 +301,7 @@ func TestDeleteComment_AdminPath(t *testing.T) {
 	commentID := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, user, authz.PermDeleteAnyComment).Return(true)
 	m.secretRepo.EXPECT().DeleteCommentAsAdmin(mock.Anything, commentID).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, user, "secret_comment_delete_admin", "secret_comment", commentID.String(), "").Return(nil)
 
 	// when
 	err := svc.DeleteComment(context.Background(), commentID, user)

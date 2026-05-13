@@ -26,6 +26,7 @@ import (
 type harness struct {
 	repo         *repository.MockAnnouncementRepository
 	userRepo     *repository.MockUserRepository
+	auditRepo    *repository.MockAuditLogRepository
 	blockSvc     *block.MockService
 	notifService *notification.MockService
 	settingsSvc  *settings.MockService
@@ -38,6 +39,7 @@ type harness struct {
 func newHarness(t *testing.T) *harness {
 	repo := repository.NewMockAnnouncementRepository(t)
 	userRepo := repository.NewMockUserRepository(t)
+	auditRepo := repository.NewMockAuditLogRepository(t)
 	blockSvc := block.NewMockService(t)
 	notifService := notification.NewMockService(t)
 	settingsSvc := settings.NewMockService(t)
@@ -47,20 +49,20 @@ func newHarness(t *testing.T) *harness {
 
 	uploader := media.NewUploader(uploadSvc, settingsSvc, nil)
 
-	// goroutine notifications fire with background context; use Maybe so timing isn't asserted
 	settingsSvc.EXPECT().Get(mock.Anything, mock.Anything).Return("http://test").Maybe()
 	notifService.EXPECT().Notify(mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	return &harness{
 		repo:         repo,
 		userRepo:     userRepo,
+		auditRepo:    auditRepo,
 		blockSvc:     blockSvc,
 		notifService: notifService,
 		settingsSvc:  settingsSvc,
 		authzSvc:     authzSvc,
 		uploadSvc:    uploadSvc,
 		hub:          hub,
-		svc:          announcement.NewService(repo, userRepo, blockSvc, notifService, settingsSvc, authzSvc, hub, uploader),
+		svc:          announcement.NewService(repo, userRepo, auditRepo, blockSvc, notifService, settingsSvc, authzSvc, hub, uploader),
 	}
 }
 
@@ -351,6 +353,7 @@ func TestService_DeleteComment_AsAuthor(t *testing.T) {
 	userID := uuid.New()
 	h.authzSvc.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(false)
 	h.repo.EXPECT().DeleteComment(mock.Anything, id, userID).Return(nil)
+	h.auditRepo.EXPECT().Create(mock.Anything, userID, "announcement_comment_delete", "announcement_comment", id.String(), "").Return(nil)
 
 	// when
 	err := h.svc.DeleteComment(context.Background(), id, userID)
@@ -366,6 +369,7 @@ func TestService_DeleteComment_AsAdmin(t *testing.T) {
 	userID := uuid.New()
 	h.authzSvc.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(true)
 	h.repo.EXPECT().DeleteCommentAsAdmin(mock.Anything, id).Return(nil)
+	h.auditRepo.EXPECT().Create(mock.Anything, userID, "announcement_comment_delete_admin", "announcement_comment", id.String(), "").Return(nil)
 
 	// when
 	err := h.svc.DeleteComment(context.Background(), id, userID)

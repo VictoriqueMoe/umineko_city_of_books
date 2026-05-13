@@ -58,6 +58,7 @@ type (
 	service struct {
 		fanficRepo    repository.FanficRepository
 		userRepo      repository.UserRepository
+		auditRepo     repository.AuditLogRepository
 		authz         authz.Service
 		blockSvc      block.Service
 		notifSvc      notification.Service
@@ -72,6 +73,7 @@ type (
 func NewService(
 	fanficRepo repository.FanficRepository,
 	userRepo repository.UserRepository,
+	auditRepo repository.AuditLogRepository,
 	authzSvc authz.Service,
 	blockSvc block.Service,
 	notifSvc notification.Service,
@@ -83,6 +85,7 @@ func NewService(
 	return &service{
 		fanficRepo:    fanficRepo,
 		userRepo:      userRepo,
+		auditRepo:     auditRepo,
 		authz:         authzSvc,
 		blockSvc:      blockSvc,
 		notifSvc:      notifSvc,
@@ -680,10 +683,22 @@ func (s *service) UpdateComment(ctx context.Context, id, userID uuid.UUID, req d
 }
 
 func (s *service) DeleteComment(ctx context.Context, id, userID uuid.UUID) error {
-	if s.authz.Can(ctx, userID, authz.PermDeleteAnyComment) {
-		return s.fanficRepo.DeleteCommentAsAdmin(ctx, id)
+	isAdmin := s.authz.Can(ctx, userID, authz.PermDeleteAnyComment)
+	action := "fanfic_comment_delete"
+	if isAdmin {
+		if err := s.fanficRepo.DeleteCommentAsAdmin(ctx, id); err != nil {
+			return err
+		}
+		action = "fanfic_comment_delete_admin"
+	} else {
+		if err := s.fanficRepo.DeleteComment(ctx, id, userID); err != nil {
+			return err
+		}
 	}
-	return s.fanficRepo.DeleteComment(ctx, id, userID)
+	if err := s.auditRepo.Create(ctx, userID, action, "fanfic_comment", id.String(), ""); err != nil {
+		return fmt.Errorf("audit comment delete: %w", err)
+	}
+	return nil
 }
 
 func (s *service) LikeComment(ctx context.Context, userID, commentID uuid.UUID) error {

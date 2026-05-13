@@ -58,6 +58,7 @@ type (
 		postRepo      repository.PostRepository
 		userRepo      repository.UserRepository
 		roleRepo      repository.RoleRepository
+		auditRepo     repository.AuditLogRepository
 		authz         authz.Service
 		blockSvc      block.Service
 		notifService  notification.Service
@@ -80,6 +81,7 @@ func NewService(
 	postRepo repository.PostRepository,
 	userRepo repository.UserRepository,
 	roleRepo repository.RoleRepository,
+	auditRepo repository.AuditLogRepository,
 	authzService authz.Service,
 	blockSvc block.Service,
 	notifService notification.Service,
@@ -94,6 +96,7 @@ func NewService(
 		postRepo:      postRepo,
 		userRepo:      userRepo,
 		roleRepo:      roleRepo,
+		auditRepo:     auditRepo,
 		authz:         authzService,
 		blockSvc:      blockSvc,
 		notifService:  notifService,
@@ -621,10 +624,22 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 }
 
 func (s *service) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	if s.authz.Can(ctx, userID, authz.PermDeleteAnyComment) {
-		return s.postRepo.DeleteCommentAsAdmin(ctx, id)
+	isAdmin := s.authz.Can(ctx, userID, authz.PermDeleteAnyComment)
+	action := "post_comment_delete"
+	if isAdmin {
+		if err := s.postRepo.DeleteCommentAsAdmin(ctx, id); err != nil {
+			return err
+		}
+		action = "post_comment_delete_admin"
+	} else {
+		if err := s.postRepo.DeleteComment(ctx, id, userID); err != nil {
+			return err
+		}
 	}
-	return s.postRepo.DeleteComment(ctx, id, userID)
+	if err := s.auditRepo.Create(ctx, userID, action, "post_comment", id.String(), ""); err != nil {
+		return fmt.Errorf("audit comment delete: %w", err)
+	}
+	return nil
 }
 
 func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {

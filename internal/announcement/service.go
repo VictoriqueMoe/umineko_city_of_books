@@ -44,6 +44,7 @@ type (
 	service struct {
 		repo         repository.AnnouncementRepository
 		userRepo     repository.UserRepository
+		auditRepo    repository.AuditLogRepository
 		blockSvc     block.Service
 		notifService notification.Service
 		settingsSvc  settings.Service
@@ -56,6 +57,7 @@ type (
 func NewService(
 	repo repository.AnnouncementRepository,
 	userRepo repository.UserRepository,
+	auditRepo repository.AuditLogRepository,
 	blockSvc block.Service,
 	notifService notification.Service,
 	settingsSvc settings.Service,
@@ -66,6 +68,7 @@ func NewService(
 	return &service{
 		repo:         repo,
 		userRepo:     userRepo,
+		auditRepo:    auditRepo,
 		blockSvc:     blockSvc,
 		notifService: notifService,
 		settingsSvc:  settingsSvc,
@@ -290,11 +293,20 @@ func (s *service) UpdateComment(ctx context.Context, id, userID uuid.UUID, body 
 }
 
 func (s *service) DeleteComment(ctx context.Context, id, userID uuid.UUID) error {
-	if s.authzSvc.Can(ctx, userID, authz.PermDeleteAnyComment) {
-		return s.repo.DeleteCommentAsAdmin(ctx, id)
+	isAdmin := s.authzSvc.Can(ctx, userID, authz.PermDeleteAnyComment)
+	action := "announcement_comment_delete"
+	if isAdmin {
+		if err := s.repo.DeleteCommentAsAdmin(ctx, id); err != nil {
+			return err
+		}
+		action = "announcement_comment_delete_admin"
+	} else {
+		if err := s.repo.DeleteComment(ctx, id, userID); err != nil {
+			return ErrForbidden
+		}
 	}
-	if err := s.repo.DeleteComment(ctx, id, userID); err != nil {
-		return ErrForbidden
+	if err := s.auditRepo.Create(ctx, userID, action, "announcement_comment", id.String(), ""); err != nil {
+		return fmt.Errorf("audit comment delete: %w", err)
 	}
 	return nil
 }

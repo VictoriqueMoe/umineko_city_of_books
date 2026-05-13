@@ -28,6 +28,7 @@ type testMocks struct {
 	artRepo     *repository.MockArtRepository
 	postRepo    *repository.MockPostRepository
 	userRepo    *repository.MockUserRepository
+	auditRepo   *repository.MockAuditLogRepository
 	authz       *authz.MockService
 	blockSvc    *block.MockService
 	notifSvc    *notification.MockService
@@ -40,6 +41,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	artRepo := repository.NewMockArtRepository(t)
 	postRepo := repository.NewMockPostRepository(t)
 	userRepo := repository.NewMockUserRepository(t)
+	auditRepo := repository.NewMockAuditLogRepository(t)
 	authzSvc := authz.NewMockService(t)
 	blockSvc := block.NewMockService(t)
 	notifSvc := notification.NewMockService(t)
@@ -48,11 +50,12 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	settingsSvc := settings.NewMockService(t)
 	mediaProc := media.NewProcessor(1)
 
-	svc := NewService(artRepo, postRepo, userRepo, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, contentfilter.New()).(*service)
+	svc := NewService(artRepo, postRepo, userRepo, auditRepo, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, contentfilter.New()).(*service)
 	return svc, &testMocks{
 		artRepo:     artRepo,
 		postRepo:    postRepo,
 		userRepo:    userRepo,
+		auditRepo:   auditRepo,
 		authz:       authzSvc,
 		blockSvc:    blockSvc,
 		notifSvc:    notifSvc,
@@ -822,6 +825,7 @@ func TestDeleteComment_AsAdmin(t *testing.T) {
 	userID := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(true)
 	m.artRepo.EXPECT().DeleteCommentAsAdmin(mock.Anything, commentID).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, userID, "art_comment_delete_admin", "art_comment", commentID.String(), "").Return(nil)
 
 	// when
 	err := svc.DeleteComment(context.Background(), commentID, userID)

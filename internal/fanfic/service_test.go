@@ -28,6 +28,7 @@ import (
 type testMocks struct {
 	fanficRepo  *repository.MockFanficRepository
 	userRepo    *repository.MockUserRepository
+	auditRepo   *repository.MockAuditLogRepository
 	authz       *authz.MockService
 	blockSvc    *block.MockService
 	notifSvc    *notification.MockService
@@ -39,6 +40,7 @@ type testMocks struct {
 func newTestService(t *testing.T) (*service, *testMocks) {
 	fanficRepo := repository.NewMockFanficRepository(t)
 	userRepo := repository.NewMockUserRepository(t)
+	auditRepo := repository.NewMockAuditLogRepository(t)
 	authzSvc := authz.NewMockService(t)
 	blockSvc := block.NewMockService(t)
 	notifSvc := notification.NewMockService(t)
@@ -47,10 +49,11 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	settingsSvc := settings.NewMockService(t)
 	mediaProc := media.NewProcessor(1)
 
-	svc := NewService(fanficRepo, userRepo, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, contentfilter.New()).(*service)
+	svc := NewService(fanficRepo, userRepo, auditRepo, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, contentfilter.New()).(*service)
 	return svc, &testMocks{
 		fanficRepo:  fanficRepo,
 		userRepo:    userRepo,
+		auditRepo:   auditRepo,
 		authz:       authzSvc,
 		blockSvc:    blockSvc,
 		notifSvc:    notifSvc,
@@ -1422,6 +1425,7 @@ func TestDeleteComment_AsAdmin(t *testing.T) {
 	userID := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(true)
 	m.fanficRepo.EXPECT().DeleteCommentAsAdmin(mock.Anything, id).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, userID, "fanfic_comment_delete_admin", "fanfic_comment", id.String(), "").Return(nil)
 
 	// when
 	err := svc.DeleteComment(context.Background(), id, userID)

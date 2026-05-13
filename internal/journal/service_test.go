@@ -27,6 +27,7 @@ import (
 type testMocks struct {
 	repo         *repository.MockJournalRepository
 	userRepo     *repository.MockUserRepository
+	auditRepo    *repository.MockAuditLogRepository
 	authz        *authz.MockService
 	blockSvc     *block.MockService
 	notifService *notification.MockService
@@ -37,16 +38,18 @@ type testMocks struct {
 func newTestService(t *testing.T) (*service, *testMocks) {
 	repo := repository.NewMockJournalRepository(t)
 	userRepo := repository.NewMockUserRepository(t)
+	auditRepo := repository.NewMockAuditLogRepository(t)
 	authzSvc := authz.NewMockService(t)
 	blockSvc := block.NewMockService(t)
 	notifSvc := notification.NewMockService(t)
 	uploadSvc := upload.NewMockService(t)
 	settingsSvc := settings.NewMockService(t)
 	mediaProc := &media.Processor{}
-	svc := NewService(repo, userRepo, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, contentfilter.New()).(*service)
+	svc := NewService(repo, userRepo, auditRepo, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, contentfilter.New()).(*service)
 	return svc, &testMocks{
 		repo:         repo,
 		userRepo:     userRepo,
+		auditRepo:    auditRepo,
 		authz:        authzSvc,
 		blockSvc:     blockSvc,
 		notifService: notifSvc,
@@ -645,6 +648,7 @@ func TestDeleteComment_AsAdmin(t *testing.T) {
 	userID := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(true)
 	m.repo.EXPECT().DeleteCommentAsAdmin(mock.Anything, id).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, userID, "journal_comment_delete_admin", "journal_comment", id.String(), "").Return(nil)
 
 	// when
 	err := svc.DeleteComment(context.Background(), id, userID)
@@ -660,6 +664,7 @@ func TestDeleteComment_AsOwner(t *testing.T) {
 	userID := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(false)
 	m.repo.EXPECT().DeleteComment(mock.Anything, id, userID).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, userID, "journal_comment_delete", "journal_comment", id.String(), "").Return(nil)
 
 	// when
 	err := svc.DeleteComment(context.Background(), id, userID)

@@ -34,6 +34,7 @@ type testMocks struct {
 	postRepo    *repository.MockPostRepository
 	userRepo    *repository.MockUserRepository
 	roleRepo    *repository.MockRoleRepository
+	auditRepo   *repository.MockAuditLogRepository
 	authz       *authz.MockService
 	blockSvc    *block.MockService
 	notifSvc    *notification.MockService
@@ -49,6 +50,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	postRepo := repository.NewMockPostRepository(t)
 	userRepo := repository.NewMockUserRepository(t)
 	roleRepo := repository.NewMockRoleRepository(t)
+	auditRepo := repository.NewMockAuditLogRepository(t)
 	authzSvc := authz.NewMockService(t)
 	blockSvc := block.NewMockService(t)
 	notifSvc := notification.NewMockService(t)
@@ -57,13 +59,14 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	mediaProc := &media.Processor{}
 	hub := ws.NewHub()
 
-	svc := NewService(db, postRepo, userRepo, roleRepo, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, hub, contentfilter.New()).(*service)
+	svc := NewService(db, postRepo, userRepo, roleRepo, auditRepo, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, hub, contentfilter.New()).(*service)
 
 	return svc, &testMocks{
 		db:          db,
 		postRepo:    postRepo,
 		userRepo:    userRepo,
 		roleRepo:    roleRepo,
+		auditRepo:   auditRepo,
 		authz:       authzSvc,
 		blockSvc:    blockSvc,
 		notifSvc:    notifSvc,
@@ -1076,6 +1079,7 @@ func TestDeleteComment_AsAdmin(t *testing.T) {
 	userID := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(true)
 	m.postRepo.EXPECT().DeleteCommentAsAdmin(mock.Anything, id).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, userID, "post_comment_delete_admin", "post_comment", id.String(), "").Return(nil)
 
 	// when
 	err := svc.DeleteComment(context.Background(), id, userID)
@@ -1091,6 +1095,7 @@ func TestDeleteComment_AsOwner(t *testing.T) {
 	userID := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(false)
 	m.postRepo.EXPECT().DeleteComment(mock.Anything, id, userID).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, userID, "post_comment_delete", "post_comment", id.String(), "").Return(nil)
 
 	// when
 	err := svc.DeleteComment(context.Background(), id, userID)
