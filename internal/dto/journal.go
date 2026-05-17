@@ -49,6 +49,7 @@ type (
 		Title       *string             `json:"title,omitempty"`
 		Body        string              `json:"body"`
 		WordCount   int                 `json:"word_count"`
+		IsDraft     bool                `json:"is_draft"`
 		HasPrev     bool                `json:"has_prev"`
 		HasNext     bool                `json:"has_next"`
 		CreatedAt   string              `json:"created_at"`
@@ -61,17 +62,20 @@ type (
 		EntryNumber int       `json:"entry_number"`
 		Title       *string   `json:"title,omitempty"`
 		WordCount   int       `json:"word_count"`
+		IsDraft     bool      `json:"is_draft"`
 		CreatedAt   string    `json:"created_at"`
 	}
 
 	CreateJournalEntryRequest struct {
-		Title string `json:"title"`
-		Body  string `json:"body"`
+		Title   string `json:"title"`
+		Body    string `json:"body"`
+		IsDraft bool   `json:"is_draft"`
 	}
 
 	UpdateJournalEntryRequest struct {
-		Title string `json:"title"`
-		Body  string `json:"body"`
+		Title   string `json:"title"`
+		Body    string `json:"body"`
+		IsDraft bool   `json:"is_draft"`
 	}
 
 	JournalCommentResponse struct {

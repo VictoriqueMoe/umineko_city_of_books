@@ -1,7 +1,8 @@
-import { useNavigate, useParams } from "react-router";
+import { useLocation, useNavigate, useParams } from "react-router";
 import { useJournal, useJournalEntry } from "../../api/queries/journal";
 import { useAuth } from "../../hooks/useAuth";
 import { usePageTitle } from "../../hooks/usePageTitle";
+import { useScrollToHash } from "../../hooks/useScrollToHash";
 import { can } from "../../utils/permissions";
 import { Button } from "../../components/Button/Button";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
@@ -34,12 +35,17 @@ function entryHeading(number: number, title?: string | null): string {
 export function JournalEntryPage() {
     const { id: journalId, number: numberParam } = useParams<{ id: string; number: string }>();
     const navigate = useNavigate();
+    const location = useLocation();
     const { user } = useAuth();
     const entryNumber = Number(numberParam);
     const { journal, loading: jLoading } = useJournal(journalId ?? "");
     const { entry, comments, loading: eLoading, refresh } = useJournalEntry(journalId ?? "", entryNumber);
     const loading = jLoading || eLoading;
     usePageTitle(entry ? entryHeading(entry.entry_number, entry.title) : "Entry");
+
+    const hash = location.hash;
+    const highlightedComment = hash.startsWith("#comment-") ? hash.replace("#comment-", "") : null;
+    useScrollToHash(!loading && !!entry, highlightedComment ? `comment-${highlightedComment}` : null);
 
     const createCommentMutation = useCreateJournalComment(journalId ?? "", entry?.id);
     const updateCommentMutation = useUpdateJournalComment(journalId ?? "");
@@ -121,7 +127,17 @@ export function JournalEntryPage() {
                     <span>{relativeTime(entry.created_at)}</span>
                     {entry.updated_at && entry.updated_at !== entry.created_at && <span>(edited)</span>}
                 </div>
-                <h1 className={styles.title}>{entryHeading(entry.entry_number, entry.title)}</h1>
+                <h1 className={styles.title}>
+                    {entryHeading(entry.entry_number, entry.title)}
+                    {entry.is_draft && <span className={styles.draftBadge}>Draft</span>}
+                </h1>
+
+                {entry.is_draft && (
+                    <div className={styles.draftBanner}>
+                        Only you can see this draft. Open it in the editor to publish — that's what notifies your
+                        followers.
+                    </div>
+                )}
 
                 {navButtons()}
 
@@ -162,6 +178,7 @@ export function JournalEntryPage() {
                 onChanged={() => refresh()}
                 title={`Comments on entry ${entry.entry_number}`}
                 emptyText={journal.is_archived ? null : "No comments on this entry yet."}
+                highlightedId={highlightedComment ?? undefined}
                 linkPrefix={`/journals/${journalId}/entry/${entry.entry_number}`}
                 reportType="journal_comment"
                 likeFn={likeFn}

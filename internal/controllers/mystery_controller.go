@@ -46,6 +46,8 @@ func (s *Service) getAllMysteryRoutes() []FSetupRoute {
 		s.setupUploadMysteryCommentMedia,
 		s.setupUploadMysteryAttachment,
 		s.setupDeleteMysteryAttachment,
+		s.setupUploadMysteryMedia,
+		s.setupDeleteMysteryMedia,
 		s.setupToggleMysteryPause,
 		s.setupToggleMysteryGmAway,
 		s.setupDeleteMysteryClue,
@@ -598,6 +600,67 @@ func (s *Service) deleteMysteryAttachment(ctx fiber.Ctx) error {
 			return utils.Forbidden(ctx, err.Error())
 		}
 		return utils.InternalError(ctx, "failed to delete attachment")
+	}
+	return ctx.SendStatus(fiber.StatusNoContent)
+}
+
+func (s *Service) setupUploadMysteryMedia(r fiber.Router) {
+	r.Post("/mysteries/:id/media", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.uploadMysteryMedia)
+}
+
+func (s *Service) setupDeleteMysteryMedia(r fiber.Router) {
+	r.Delete("/mysteries/:id/media/:mediaId", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.deleteMysteryMedia)
+}
+
+func (s *Service) uploadMysteryMedia(ctx fiber.Ctx) error {
+	mysteryID, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
+	}
+	userID := utils.UserID(ctx)
+
+	file, err := ctx.FormFile("media")
+	if err != nil {
+		return utils.BadRequest(ctx, "no media file provided")
+	}
+	reader, err := file.Open()
+	if err != nil {
+		return utils.InternalError(ctx, "failed to read file")
+	}
+	defer reader.Close()
+
+	result, err := s.MysteryService.UploadMedia(ctx.Context(), mysteryID, userID, file.Header.Get("Content-Type"), file.Size, reader)
+	if err != nil {
+		if errors.Is(err, mysterysvc.ErrNotFound) {
+			return utils.NotFound(ctx, "mystery not found")
+		}
+		if errors.Is(err, mysterysvc.ErrNotAuthor) {
+			return utils.Forbidden(ctx, err.Error())
+		}
+		return utils.BadRequest(ctx, err.Error())
+	}
+	return ctx.Status(fiber.StatusCreated).JSON(result)
+}
+
+func (s *Service) deleteMysteryMedia(ctx fiber.Ctx) error {
+	mysteryID, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
+	}
+	mediaID, err := strconv.ParseInt(ctx.Params("mediaId"), 10, 64)
+	if err != nil {
+		return utils.BadRequest(ctx, "invalid media id")
+	}
+	userID := utils.UserID(ctx)
+
+	if err := s.MysteryService.DeleteMedia(ctx.Context(), mediaID, mysteryID, userID); err != nil {
+		if errors.Is(err, mysterysvc.ErrNotFound) {
+			return utils.NotFound(ctx, "mystery not found")
+		}
+		if errors.Is(err, mysterysvc.ErrNotAuthor) {
+			return utils.Forbidden(ctx, err.Error())
+		}
+		return utils.InternalError(ctx, "failed to delete media")
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }

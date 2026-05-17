@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type SubmitEvent, useState } from "react";
 import type { JournalWork } from "../../../types/api";
 import { Input } from "../../Input/Input";
 import { Select } from "../../Select/Select";
@@ -26,7 +26,7 @@ export function JournalForm({
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
 
-    async function handleSubmit(e: React.FormEvent) {
+    async function handleSubmit(e: SubmitEvent) {
         e.preventDefault();
         if (!title.trim() || submitting) {
             return;

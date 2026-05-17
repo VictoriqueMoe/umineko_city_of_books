@@ -13,6 +13,7 @@ import {
     useDeleteMysteryAttachment,
     useDeleteMysteryClue,
     useDeleteMysteryComment,
+    useDeleteMysteryMedia,
     useLikeMysteryComment,
     useSetMysteryGmAway,
     useSetMysteryPaused,
@@ -21,6 +22,7 @@ import {
     useUpdateMysteryComment,
     useUploadMysteryAttachment,
     useUploadMysteryCommentMedia,
+    useUploadMysteryMedia,
 } from "../../api/mutations/mystery";
 import { useAuth } from "../../hooks/useAuth";
 import { useNotifications } from "../../hooks/useNotifications";
@@ -32,6 +34,8 @@ import { Button } from "../../components/Button/Button";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { relativeTime } from "../../utils/notifications";
 import { CommentsSection } from "../../components/post/CommentsSection/CommentsSection";
+import { MediaGallery } from "../../components/post/MediaGallery/MediaGallery";
+import { MediaPickerButton, MediaPreviews } from "../../components/MediaPicker/MediaPicker";
 import { AttemptItem } from "./AttemptItem";
 import { ShareButton } from "../../components/ShareButton/ShareButton";
 import { ReportButton } from "../../components/ReportButton/ReportButton";
@@ -340,6 +344,8 @@ export function MysteryDetailPage() {
     const setGmAwayMutation = useSetMysteryGmAway(mysteryId);
     const uploadAttachmentMutation = useUploadMysteryAttachment(mysteryId);
     const deleteAttachmentMutation = useDeleteMysteryAttachment(mysteryId);
+    const uploadMediaMutation = useUploadMysteryMedia(mysteryId);
+    const deleteMediaMutation = useDeleteMysteryMedia(mysteryId);
     const createCommentMutation = useCreateMysteryComment(mysteryId);
     const updateCommentMutation = useUpdateMysteryComment(mysteryId);
     const deleteCommentMutation = useDeleteMysteryComment(mysteryId);
@@ -383,6 +389,9 @@ export function MysteryDetailPage() {
     const [uploadingAttachment, setUploadingAttachment] = useState(false);
     const [attachmentError, setAttachmentError] = useState("");
     const attachmentInputRef = useRef<HTMLInputElement>(null);
+    const [pendingMedia, setPendingMedia] = useState<File[]>([]);
+    const [uploadingMedia, setUploadingMedia] = useState(false);
+    const [mediaError, setMediaError] = useState("");
 
     function togglePlayerCollapse(authorId: string) {
         setCollapsedPlayers(prev => {
@@ -654,6 +663,35 @@ export function MysteryDetailPage() {
         } catch {}
     }
 
+    async function handleMediaUpload() {
+        if (pendingMedia.length === 0 || uploadingMedia) {
+            return;
+        }
+        setUploadingMedia(true);
+        setMediaError("");
+        try {
+            for (const file of pendingMedia) {
+                await uploadMediaMutation.mutateAsync(file);
+            }
+            setPendingMedia([]);
+            fetchMystery();
+        } catch (err) {
+            setMediaError(err instanceof Error ? err.message : "Failed to upload image");
+        } finally {
+            setUploadingMedia(false);
+        }
+    }
+
+    async function handleDeleteMedia(mediaId: number) {
+        if (!window.confirm("Remove this image?")) {
+            return;
+        }
+        try {
+            await deleteMediaMutation.mutateAsync(mediaId);
+            fetchMystery();
+        } catch {}
+    }
+
     function formatFileSize(bytes: number): string {
         if (bytes < 1024) {
             return `${bytes} B`;
@@ -781,6 +819,54 @@ export function MysteryDetailPage() {
                 </div>
 
                 <div className={styles.detailBody}>{renderRich(mystery.body)}</div>
+
+                {mystery.media && mystery.media.length > 0 && (
+                    <div className={styles.mediaSection}>
+                        <MediaGallery media={mystery.media} />
+                        {(isAuthor || canEdit) && (
+                            <div className={styles.mediaAuthorActions}>
+                                {mystery.media.map(m => (
+                                    <button
+                                        key={m.id}
+                                        type="button"
+                                        className={styles.mediaDelete}
+                                        onClick={() => handleDeleteMedia(m.id)}
+                                        title="Remove image"
+                                    >
+                                        Remove {m.media_type === "video" ? "video" : "image"} #{m.id}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {(isAuthor || canEdit) && (
+                    <div className={styles.mediaUploader}>
+                        <MediaPreviews
+                            files={pendingMedia}
+                            onRemove={i => setPendingMedia(prev => prev.filter((_, j) => j !== i))}
+                        />
+                        <div className={styles.mediaUploaderActions}>
+                            <MediaPickerButton
+                                onFiles={valid => setPendingMedia(prev => [...prev, ...valid])}
+                                onError={setMediaError}
+                            />
+                            {pendingMedia.length > 0 && (
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    size="small"
+                                    onClick={handleMediaUpload}
+                                    disabled={uploadingMedia}
+                                >
+                                    {uploadingMedia ? "Uploading..." : `Upload ${pendingMedia.length}`}
+                                </Button>
+                            )}
+                        </div>
+                        {mediaError && <ErrorBanner message={mediaError} />}
+                    </div>
+                )}
 
                 {mystery.clues.filter(c => !c.player_id).length > 0 && (
                     <div className={styles.cluesSection}>

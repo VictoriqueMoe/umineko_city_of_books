@@ -10,6 +10,7 @@ import {
     deleteMysteryAttempt,
     deleteMysteryClue,
     deleteMysteryComment,
+    deleteMysteryMedia,
     likeMysteryComment,
     markMysterySolved,
     setMysteryGmAway,
@@ -20,6 +21,7 @@ import {
     updateMysteryComment,
     uploadMysteryAttachment,
     uploadMysteryCommentMedia,
+    uploadMysteryMedia,
     voteMysteryAttempt,
 } from "../endpoints";
 import { queryKeys } from "../queryKeys";
@@ -201,6 +203,30 @@ export function useDeleteMysteryAttachment(mysteryId: string) {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (attachmentId: number) => deleteMysteryAttachment(mysteryId, attachmentId),
+        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.mystery.all }),
+    });
+}
+
+export function useUploadMysteryMedia(mysteryId: string) {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (file: File) => uploadMysteryMedia(mysteryId, file),
+        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.mystery.all }),
+    });
+}
+
+export function useUploadMysteryMediaToAny() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: ({ mysteryId, file }: { mysteryId: string; file: File }) => uploadMysteryMedia(mysteryId, file),
+        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.mystery.all }),
+    });
+}
+
+export function useDeleteMysteryMedia(mysteryId: string) {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (mediaId: number) => deleteMysteryMedia(mysteryId, mediaId),
         onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.mystery.all }),
     });
 }

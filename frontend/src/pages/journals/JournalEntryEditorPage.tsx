@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { type SubmitEvent, useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useJournal, useJournalEntry } from "../../api/queries/journal";
 import { useAuth } from "../../hooks/useAuth";
@@ -120,8 +120,7 @@ export function JournalEntryEditorPage() {
         setPendingDeletions(prev => (prev.includes(mediaId) ? prev.filter(id => id !== mediaId) : [...prev, mediaId]));
     }
 
-    async function handleSubmit(e: React.FormEvent) {
-        e.preventDefault();
+    async function save(asDraft: boolean) {
         if ((!body.trim() && files.length === 0) || submitting) {
             return;
         }
@@ -131,20 +130,40 @@ export function JournalEntryEditorPage() {
             if (isEdit && entry) {
                 await updateMutation.mutateAsync({
                     id: entry.id,
-                    payload: { title: title.trim(), body: body.trim() },
+                    payload: { title: title.trim(), body: body.trim(), is_draft: asDraft },
                 });
                 await deletePendingFrom(entry.id);
                 await uploadAllTo(entry.id);
-                navigate(`/journals/${journalId}/entry/${entry.entry_number}`);
+                if (asDraft) {
+                    navigate(`/journals/${journalId}`);
+                } else {
+                    navigate(`/journals/${journalId}/entry/${entry.entry_number}`);
+                }
             } else {
-                const result = await createMutation.mutateAsync({ title: title.trim(), body: body.trim() });
+                const result = await createMutation.mutateAsync({
+                    title: title.trim(),
+                    body: body.trim(),
+                    is_draft: asDraft,
+                });
                 await uploadAllTo(result.id);
-                navigate(`/journals/${journalId}/entry/${result.entry_number}`);
+                if (asDraft) {
+                    navigate(`/journals/${journalId}`);
+                } else {
+                    navigate(`/journals/${journalId}/entry/${result.entry_number}`);
+                }
             }
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to save entry");
             setSubmitting(false);
         }
+    }
+
+    const wasDraft = isEdit && entry ? entry.is_draft : false;
+    const canSaveAsDraft = !isEdit || (isEdit && entry !== null && entry !== undefined && entry.is_draft);
+
+    async function handleSubmit(e: SubmitEvent) {
+        e.preventDefault();
+        await save(false);
     }
 
     async function handleGifPick(gif: { url: string }) {
@@ -234,13 +253,36 @@ export function JournalEntryEditorPage() {
                     </div>
                 </div>
 
+                {isEdit && wasDraft && (
+                    <p className={styles.draftHint}>
+                        This entry is a draft. Save keeps it private; Publish notifies your followers.
+                    </p>
+                )}
+
                 <div className={styles.actions}>
+                    {canSaveAsDraft && (
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="medium"
+                            onClick={() => void save(true)}
+                            disabled={submitting || (!body.trim() && files.length === 0)}
+                        >
+                            {submitting ? "Saving..." : "Save as draft"}
+                        </Button>
+                    )}
                     <Button
                         variant="primary"
                         size="medium"
                         disabled={submitting || (!body.trim() && files.length === 0)}
                     >
-                        {submitting ? "Saving..." : isEdit ? "Save entry" : "Publish entry"}
+                        {submitting
+                            ? "Saving..."
+                            : isEdit
+                              ? wasDraft
+                                  ? "Publish entry"
+                                  : "Save entry"
+                              : "Publish entry"}
                     </Button>
                 </div>
             </form>

@@ -102,6 +102,20 @@ function routeByReferenceType(notif: Notification): string {
         }
         return `/announcements/${notif.reference_id}`;
     }
+    if (refType.startsWith("journal_entry_comment:")) {
+        const parts = refType.split(":");
+        if (parts.length === 3 && parts[1] !== "" && parts[2] !== "") {
+            return `/journals/${notif.reference_id}/entry/${parts[1]}#comment-${parts[2]}`;
+        }
+        return `/journals/${notif.reference_id}`;
+    }
+    if (refType.startsWith("journal_entry:")) {
+        const parts = refType.split(":");
+        if (parts.length === 2 && parts[1] !== "") {
+            return `/journals/${notif.reference_id}/entry/${parts[1]}`;
+        }
+        return `/journals/${notif.reference_id}`;
+    }
     if (refType === "journal" || refType.startsWith("journal_comment:")) {
         const parts = refType.split(":");
         if (parts.length === 2) {

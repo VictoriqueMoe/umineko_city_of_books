@@ -1915,3 +1915,165 @@ func TestUpdateMysteryClue_ServiceErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestUploadMysteryMedia_NoCookie_Unauthorized(t *testing.T) {
+	// given
+	h, _ := newMysteryHarness(t)
+
+	// when
+	status, _ := h.NewRequest("POST", "/mysteries/"+uuid.NewString()+"/media").Do()
+
+	// then
+	require.Equal(t, http.StatusUnauthorized, status)
+}
+
+func TestUploadMysteryMedia_InvalidSession_Unauthorized(t *testing.T) {
+	// given
+	h, _ := newMysteryHarness(t)
+	h.ExpectInvalidSession("bogus")
+
+	// when
+	status, _ := h.NewRequest("POST", "/mysteries/"+uuid.NewString()+"/media").WithCookie("bogus").Do()
+
+	// then
+	require.Equal(t, http.StatusUnauthorized, status)
+}
+
+func TestUploadMysteryMedia_BannedUser_Forbidden(t *testing.T) {
+	// given
+	h, _ := newMysteryHarness(t)
+	userID := uuid.New()
+	h.ExpectBannedUser("banned-cookie", userID)
+
+	// when
+	status, _ := h.NewRequest("POST", "/mysteries/"+uuid.NewString()+"/media").WithCookie("banned-cookie").Do()
+
+	// then
+	require.Equal(t, http.StatusForbidden, status)
+}
+
+func TestUploadMysteryMedia_InvalidID(t *testing.T) {
+	// given
+	h, _ := newMysteryHarness(t)
+	userID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+
+	// when
+	status, body := h.NewRequest("POST", "/mysteries/not-a-uuid/media").WithCookie("valid-cookie").Do()
+
+	// then
+	require.Equal(t, http.StatusBadRequest, status)
+	assert.Contains(t, string(body), "invalid id")
+}
+
+func TestUploadMysteryMedia_NoFile_BadRequest(t *testing.T) {
+	// given
+	h, _ := newMysteryHarness(t)
+	userID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+
+	// when
+	status, body := h.NewRequest("POST", "/mysteries/"+uuid.NewString()+"/media").
+		WithCookie("valid-cookie").
+		Do()
+
+	// then
+	require.Equal(t, http.StatusBadRequest, status)
+	assert.Contains(t, string(body), "no media file provided")
+}
+
+func TestDeleteMysteryMedia_NoCookie_Unauthorized(t *testing.T) {
+	// given
+	h, _ := newMysteryHarness(t)
+
+	// when
+	status, _ := h.NewRequest("DELETE", "/mysteries/"+uuid.NewString()+"/media/1").Do()
+
+	// then
+	require.Equal(t, http.StatusUnauthorized, status)
+}
+
+func TestDeleteMysteryMedia_InvalidSession_Unauthorized(t *testing.T) {
+	// given
+	h, _ := newMysteryHarness(t)
+	h.ExpectInvalidSession("bogus")
+
+	// when
+	status, _ := h.NewRequest("DELETE", "/mysteries/"+uuid.NewString()+"/media/1").WithCookie("bogus").Do()
+
+	// then
+	require.Equal(t, http.StatusUnauthorized, status)
+}
+
+func TestDeleteMysteryMedia_InvalidMysteryID(t *testing.T) {
+	// given
+	h, _ := newMysteryHarness(t)
+	userID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+
+	// when
+	status, body := h.NewRequest("DELETE", "/mysteries/not-a-uuid/media/1").WithCookie("valid-cookie").Do()
+
+	// then
+	require.Equal(t, http.StatusBadRequest, status)
+	assert.Contains(t, string(body), "invalid id")
+}
+
+func TestDeleteMysteryMedia_InvalidMediaID(t *testing.T) {
+	// given
+	h, _ := newMysteryHarness(t)
+	userID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+
+	// when
+	status, body := h.NewRequest("DELETE", "/mysteries/"+uuid.NewString()+"/media/not-an-int").WithCookie("valid-cookie").Do()
+
+	// then
+	require.Equal(t, http.StatusBadRequest, status)
+	assert.Contains(t, string(body), "invalid media id")
+}
+
+func TestDeleteMysteryMedia_OK(t *testing.T) {
+	// given
+	h, ms := newMysteryHarness(t)
+	userID := uuid.New()
+	mysteryID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	ms.EXPECT().DeleteMedia(mock.Anything, int64(42), mysteryID, userID).Return(nil)
+
+	// when
+	status, _ := h.NewRequest("DELETE", "/mysteries/"+mysteryID.String()+"/media/42").WithCookie("valid-cookie").Do()
+
+	// then
+	require.Equal(t, http.StatusNoContent, status)
+}
+
+func TestDeleteMysteryMedia_NotFound(t *testing.T) {
+	// given
+	h, ms := newMysteryHarness(t)
+	userID := uuid.New()
+	mysteryID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	ms.EXPECT().DeleteMedia(mock.Anything, int64(1), mysteryID, userID).Return(mysterysvc.ErrNotFound)
+
+	// when
+	status, _ := h.NewRequest("DELETE", "/mysteries/"+mysteryID.String()+"/media/1").WithCookie("valid-cookie").Do()
+
+	// then
+	require.Equal(t, http.StatusNotFound, status)
+}
+
+func TestDeleteMysteryMedia_NotAuthor_Forbidden(t *testing.T) {
+	// given
+	h, ms := newMysteryHarness(t)
+	userID := uuid.New()
+	mysteryID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	ms.EXPECT().DeleteMedia(mock.Anything, int64(1), mysteryID, userID).Return(mysterysvc.ErrNotAuthor)
+
+	// when
+	status, _ := h.NewRequest("DELETE", "/mysteries/"+mysteryID.String()+"/media/1").WithCookie("valid-cookie").Do()
+
+	// then
+	require.Equal(t, http.StatusForbidden, status)
+}

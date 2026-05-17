@@ -181,6 +181,7 @@ func TestGetMystery_AsGameMasterOwner_SeesAll(t *testing.T) {
 	m.repo.EXPECT().GetAttempts(mock.Anything, id, author).Return(attempts, nil)
 	m.authz.EXPECT().GetRole(mock.Anything, author).Return("", nil)
 	m.repo.EXPECT().GetAttachments(mock.Anything, id).Return(nil, nil)
+	m.repo.EXPECT().GetMysteryMedia(mock.Anything, id).Return(nil, nil).Maybe()
 
 	// when
 	got, err := svc.GetMystery(context.Background(), id, author)
@@ -217,6 +218,7 @@ func TestGetMystery_NonGM_NotSolved_FiltersAttemptsAndClues(t *testing.T) {
 	m.repo.EXPECT().GetAttempts(mock.Anything, id, viewer).Return(attempts, nil)
 	m.authz.EXPECT().GetRole(mock.Anything, viewer).Return("", nil)
 	m.repo.EXPECT().GetAttachments(mock.Anything, id).Return(nil, nil)
+	m.repo.EXPECT().GetMysteryMedia(mock.Anything, id).Return(nil, nil).Maybe()
 
 	// when
 	got, err := svc.GetMystery(context.Background(), id, viewer)
@@ -246,6 +248,7 @@ func TestGetMystery_FreeForAll_NonGM_SeesAllAttempts(t *testing.T) {
 	m.repo.EXPECT().GetAttempts(mock.Anything, id, viewer).Return(attempts, nil)
 	m.authz.EXPECT().GetRole(mock.Anything, viewer).Return("", nil)
 	m.repo.EXPECT().GetAttachments(mock.Anything, id).Return(nil, nil)
+	m.repo.EXPECT().GetMysteryMedia(mock.Anything, id).Return(nil, nil).Maybe()
 
 	// when
 	got, err := svc.GetMystery(context.Background(), id, viewer)
@@ -287,6 +290,7 @@ func TestGetMystery_Solved_LoadsCommentsAndWinner(t *testing.T) {
 	m.repo.EXPECT().GetComments(mock.Anything, id, viewer, []uuid.UUID(nil)).Return(comments, nil)
 	m.repo.EXPECT().GetCommentMediaBatch(mock.Anything, []uuid.UUID{commentID}).Return(nil, nil)
 	m.repo.EXPECT().GetAttachments(mock.Anything, id).Return(nil, nil)
+	m.repo.EXPECT().GetMysteryMedia(mock.Anything, id).Return(nil, nil).Maybe()
 
 	// when
 	got, err := svc.GetMystery(context.Background(), id, viewer)
@@ -313,6 +317,7 @@ func TestGetMystery_SuperAdmin_SeesAll(t *testing.T) {
 	m.repo.EXPECT().GetAttempts(mock.Anything, id, admin).Return(attempts, nil)
 	m.authz.EXPECT().GetRole(mock.Anything, admin).Return(authz.RoleSuperAdmin, nil)
 	m.repo.EXPECT().GetAttachments(mock.Anything, id).Return(nil, nil)
+	m.repo.EXPECT().GetMysteryMedia(mock.Anything, id).Return(nil, nil).Maybe()
 
 	// when
 	got, err := svc.GetMystery(context.Background(), id, admin)
@@ -1993,6 +1998,95 @@ func TestUpdateClue_OK_Trims(t *testing.T) {
 
 	// when
 	err := svc.UpdateClue(context.Background(), uuid.New(), 3, uuid.New(), "  new  ")
+
+	// then
+	require.NoError(t, err)
+}
+
+func TestUploadMedia_MysteryNotFound(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	mid := uuid.New()
+	userID := uuid.New()
+	m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(uuid.Nil, errors.New("boom"))
+
+	// when
+	_, err := svc.UploadMedia(context.Background(), mid, userID, "image/png", 10, bytes.NewReader(nil))
+
+	// then
+	require.ErrorIs(t, err, ErrNotFound)
+}
+
+func TestUploadMedia_NotAuthor(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	mid := uuid.New()
+	userID := uuid.New()
+	m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(uuid.New(), nil)
+	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(false)
+
+	// when
+	_, err := svc.UploadMedia(context.Background(), mid, userID, "image/png", 10, bytes.NewReader(nil))
+
+	// then
+	require.ErrorIs(t, err, ErrNotAuthor)
+}
+
+func TestDeleteMedia_MysteryNotFound(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	mid := uuid.New()
+	userID := uuid.New()
+	m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(uuid.Nil, errors.New("boom"))
+
+	// when
+	err := svc.DeleteMedia(context.Background(), 1, mid, userID)
+
+	// then
+	require.ErrorIs(t, err, ErrNotFound)
+}
+
+func TestDeleteMedia_NotAuthor(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	mid := uuid.New()
+	userID := uuid.New()
+	m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(uuid.New(), nil)
+	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(false)
+
+	// when
+	err := svc.DeleteMedia(context.Background(), 1, mid, userID)
+
+	// then
+	require.ErrorIs(t, err, ErrNotAuthor)
+}
+
+func TestDeleteMedia_RepoError(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	mid := uuid.New()
+	userID := uuid.New()
+	m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(userID, nil)
+	m.repo.EXPECT().DeleteMysteryMedia(mock.Anything, int64(1), mid).Return("", errors.New("boom"))
+
+	// when
+	err := svc.DeleteMedia(context.Background(), 1, mid, userID)
+
+	// then
+	require.Error(t, err)
+}
+
+func TestDeleteMedia_OK_DeletesFile(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	mid := uuid.New()
+	userID := uuid.New()
+	m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(userID, nil)
+	m.repo.EXPECT().DeleteMysteryMedia(mock.Anything, int64(1), mid).Return("/uploads/mysteries/x.png", nil)
+	m.uploadSvc.EXPECT().Delete("/uploads/mysteries/x.png").Return(nil)
+
+	// when
+	err := svc.DeleteMedia(context.Background(), 1, mid, userID)
 
 	// then
 	require.NoError(t, err)

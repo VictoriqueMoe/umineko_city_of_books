@@ -74,7 +74,7 @@ WITH feed AS (
     FROM posts p
     UNION ALL
     SELECT 'journal' AS kind, j.id AS id, j.title AS title,
-           substr(COALESCE((SELECT body FROM journal_entries WHERE journal_id = j.id ORDER BY entry_number DESC LIMIT 1), ''), 1, 200) AS body,
+           substr(COALESCE((SELECT body FROM journal_entries WHERE journal_id = j.id AND NOT is_draft ORDER BY entry_number DESC LIMIT 1), ''), 1, 200) AS body,
            j.work AS corner, j.created_at AS created_at, j.user_id AS author_id
     FROM journals j
     WHERE j.archived_at IS NULL

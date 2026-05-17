@@ -761,6 +761,7 @@ func TestLikeComment_OKNotifies(t *testing.T) {
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
 	m.repo.EXPECT().LikeComment(mock.Anything, userID, id).Return(nil)
 	m.repo.EXPECT().GetCommentJournalID(mock.Anything, id).Return(uuid.New(), nil).Maybe()
+	m.repo.EXPECT().GetCommentEntryNumber(mock.Anything, id).Return(nil, nil).Maybe()
 	m.repo.EXPECT().GetTitle(mock.Anything, mock.Anything).Return("title", nil).Maybe()
 	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("http://base").Maybe()
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(nil, nil).Maybe()
@@ -1039,7 +1040,7 @@ func TestCreateEntry_OK_TitleOptional(t *testing.T) {
 	userID := uuid.New()
 	m.repo.EXPECT().GetAuthorID(mock.Anything, journalID).Return(userID, nil)
 	m.repo.EXPECT().GetNextEntryNumber(mock.Anything, journalID).Return(7, nil)
-	m.repo.EXPECT().CreateEntry(mock.Anything, mock.Anything, journalID, 7, (*string)(nil), "an entry", mock.Anything).Return(nil)
+	m.repo.EXPECT().CreateEntry(mock.Anything, mock.Anything, journalID, 7, (*string)(nil), "an entry", mock.Anything, false).Return(nil)
 	m.repo.EXPECT().UpdateLastAuthorActivity(mock.Anything, journalID).Return(nil)
 	m.repo.EXPECT().GetTitle(mock.Anything, journalID).Return("j", nil).Maybe()
 	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("http://b").Maybe()
@@ -1065,7 +1066,7 @@ func TestCreateEntry_OK_WithTitle(t *testing.T) {
 	title := "Day 1"
 	m.repo.EXPECT().GetAuthorID(mock.Anything, journalID).Return(userID, nil)
 	m.repo.EXPECT().GetNextEntryNumber(mock.Anything, journalID).Return(1, nil)
-	m.repo.EXPECT().CreateEntry(mock.Anything, mock.Anything, journalID, 1, &title, "the body", mock.Anything).Return(nil)
+	m.repo.EXPECT().CreateEntry(mock.Anything, mock.Anything, journalID, 1, &title, "the body", mock.Anything, false).Return(nil)
 	m.repo.EXPECT().UpdateLastAuthorActivity(mock.Anything, journalID).Return(nil)
 	m.repo.EXPECT().GetTitle(mock.Anything, journalID).Return("j", nil).Maybe()
 	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("http://b").Maybe()
@@ -1124,9 +1125,11 @@ func TestUpdateEntry_NotAuthor(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	entryID := uuid.New()
+	journalID := uuid.New()
 	userID := uuid.New()
 	authorID := uuid.New()
-	m.repo.EXPECT().GetEntryAuthorID(mock.Anything, entryID).Return(authorID, nil)
+	m.repo.EXPECT().GetEntryByID(mock.Anything, entryID).Return(&repository.JournalEntryRow{ID: entryID, JournalID: journalID}, nil)
+	m.repo.EXPECT().GetAuthorID(mock.Anything, journalID).Return(authorID, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyJournal).Return(false)
 
 	// when
@@ -1180,6 +1183,7 @@ func TestCreateComment_OnEntry_OK(t *testing.T) {
 	m.repo.EXPECT().IsArchived(mock.Anything, journalID).Return(false, nil)
 	m.repo.EXPECT().GetEntryJournalID(mock.Anything, entryID).Return(journalID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
+	m.repo.EXPECT().GetEntryByID(mock.Anything, entryID).Return(&repository.JournalEntryRow{ID: entryID, JournalID: journalID, EntryNumber: 4}, nil)
 	m.repo.EXPECT().CreateComment(mock.Anything, mock.Anything, journalID, &entryID, (*uuid.UUID)(nil), userID, "body").Return(nil)
 	m.repo.EXPECT().GetTitle(mock.Anything, journalID).Return("j", nil).Maybe()
 	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("http://b").Maybe()

@@ -382,6 +382,7 @@ export interface JournalEntrySummary {
     entry_number: number;
     title?: string | null;
     word_count: number;
+    is_draft: boolean;
     created_at: string;
 }
 
@@ -392,6 +393,7 @@ export interface JournalEntry {
     title?: string | null;
     body: string;
     word_count: number;
+    is_draft: boolean;
     has_prev: boolean;
     has_next: boolean;
     created_at: string;
@@ -420,6 +422,7 @@ export interface CreateJournalPayload {
 export interface JournalEntryPayload {
     title: string;
     body: string;
+    is_draft: boolean;
 }
 
 export type FeedTab = "following" | "everyone";
@@ -856,6 +859,7 @@ export interface MysteryDetail {
     attempts: MysteryAttempt[];
     comments: MysteryComment[];
     attachments?: MysteryAttachment[];
+    media?: PostMedia[];
     player_count: number;
     created_at: string;
 }
@@ -1174,7 +1178,7 @@ export interface AnnouncementListResponse {
     offset: number;
 }
 
-export type GameType = "chess" | "checkers";
+export type GameType = "chess" | "checkers" | "othello";
 export type GameStatus = "pending" | "active" | "finished" | "declined" | "abandoned";
 
 export interface GameRoomPlayer {
@@ -1241,11 +1245,46 @@ export interface CheckersStats {
     black_pieces_left: number;
 }
 
+export interface OthelloLastMove {
+    square: string;
+    slot: number;
+    flipped: string[];
+}
+
+export interface OthelloState {
+    board: string;
+    turn: number;
+    black_moves: number;
+    white_moves: number;
+    black_passes: number;
+    white_passes: number;
+    black_flips: number;
+    white_flips: number;
+    last_move?: OthelloLastMove;
+}
+
+export interface OthelloStats {
+    total_moves: number;
+    black_moves: number;
+    white_moves: number;
+    black_passes: number;
+    white_passes: number;
+    black_discs: number;
+    white_discs: number;
+    black_flips: number;
+    white_flips: number;
+    black_corners: number;
+    white_corners: number;
+    result_reason: string;
+    duration_seconds: number;
+    final_board: string;
+}
+
 export interface GameRoom {
     id: string;
     game_type: GameType;
     status: GameStatus;
-    state: ChessState | CheckersState | Record<string, unknown>;
+    state: ChessState | CheckersState | OthelloState | Record<string, unknown>;
     turn_user_id?: string;
     winner_user_id?: string;
     result?: string;
@@ -1255,7 +1294,7 @@ export interface GameRoom {
     finished_at?: string;
     players: GameRoomPlayer[];
     watcher_count: number;
-    stats?: ChessStats | CheckersStats | Record<string, unknown>;
+    stats?: ChessStats | CheckersStats | OthelloStats | Record<string, unknown>;
     draw_offer_from_user_id?: string;
 }
 

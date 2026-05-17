@@ -313,7 +313,7 @@ var searchSources = []SearchSource{
 		CreatedAt:       "e.created_at",
 		ParentIDExpr:    "e.journal_id::text",
 		ParentTitleExpr: "j.title",
-		ExtraWhere:      "j.archived_at IS NULL",
+		ExtraWhere:      "j.archived_at IS NULL AND NOT e.is_draft",
 	},
 	{
 		Type:            SearchEntityJournalComment,

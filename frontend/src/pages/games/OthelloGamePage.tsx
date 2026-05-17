@@ -9,12 +9,12 @@ import {
     useResignGame,
     useSubmitGameAction,
 } from "../../api/mutations/gameRoom";
-import { CheckersBoardView } from "../../components/games/checkers/CheckersBoardView";
+import { OthelloBoardView } from "../../components/games/othello/OthelloBoardView";
 import { GameChat } from "../../components/games/chat/GameChat.tsx";
 import { Button } from "../../components/Button/Button";
 import styles from "./GamesPages.module.css";
 
-export function CheckersGamePage() {
+export function OthelloGamePage() {
     const { id } = useParams<{ id: string }>();
     const { user } = useAuth();
     const navigate = useNavigate();
@@ -25,7 +25,7 @@ export function CheckersGamePage() {
     const submitAction = useSubmitGameAction(room?.id ?? "");
     const resign = useResignGame();
 
-    usePageTitle(room ? `Checkers - ${room.players.map(p => p.display_name).join(" vs ")}` : "Checkers");
+    usePageTitle(room ? `Othello - ${room.players.map(p => p.display_name).join(" vs ")}` : "Othello");
 
     if (!id) {
         return null;
@@ -55,7 +55,7 @@ export function CheckersGamePage() {
         if (!isParticipant) {
             return (
                 <div className={styles.page}>
-                    <h2 className={styles.heading}>Checkers</h2>
+                    <h2 className={styles.heading}>Othello</h2>
                     <p>This match hasn't started yet - invites are private.</p>
                     <div className={styles.actions}>
                         <Button onClick={() => navigate("/games/live")}>Live Games</Button>
@@ -66,11 +66,11 @@ export function CheckersGamePage() {
         const opponent = room.players.find(p => p.user_id !== user?.id);
         return (
             <div className={styles.page}>
-                <h2 className={styles.heading}>Checkers</h2>
+                <h2 className={styles.heading}>Othello</h2>
                 {isInvitee ? (
                     <p>
-                        {opponent?.display_name ?? "Someone"} has invited you to a checkers game. Accept to start - you
-                        will play as black.
+                        {opponent?.display_name ?? "Someone"} has invited you to an othello game. Accept to start - you
+                        will play as white.
                     </p>
                 ) : (
                     <p>Waiting for {opponent?.display_name ?? "opponent"} to accept.</p>
@@ -112,11 +112,8 @@ export function CheckersGamePage() {
         );
     }
 
-    async function handleMove(move: { from: string; path: string[] }) {
-        await submitAction.mutateAsync({
-            from: move.from,
-            path: move.path,
-        });
+    async function handleMove(move: { square: string }) {
+        await submitAction.mutateAsync({ square: move.square });
     }
 
     async function handleResign() {
@@ -126,7 +123,7 @@ export function CheckersGamePage() {
     return (
         <div className={`${styles.page} ${styles.gamePage}`}>
             <div className={styles.boardColumn}>
-                <CheckersBoardView
+                <OthelloBoardView
                     room={room}
                     viewer={user}
                     isSpectator={!isParticipant}

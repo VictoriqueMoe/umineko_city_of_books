@@ -37,10 +37,11 @@ type (
 		GetFollowerCount(ctx context.Context, journalID uuid.UUID) (int, error)
 		ListFollowedByUser(ctx context.Context, followerID uuid.UUID, viewerID uuid.UUID, limit, offset int) ([]dto.JournalResponse, int, error)
 
-		CreateEntry(ctx context.Context, id uuid.UUID, journalID uuid.UUID, entryNumber int, title *string, body string, wordCount int) error
-		UpdateEntry(ctx context.Context, id uuid.UUID, title *string, body string, wordCount int) error
+		CreateEntry(ctx context.Context, id uuid.UUID, journalID uuid.UUID, entryNumber int, title *string, body string, wordCount int, isDraft bool) error
+		UpdateEntry(ctx context.Context, id uuid.UUID, title *string, body string, wordCount int, isDraft bool) error
 		DeleteEntry(ctx context.Context, id uuid.UUID) error
 		GetEntry(ctx context.Context, journalID uuid.UUID, entryNumber int) (*JournalEntryRow, error)
+		GetEntryByID(ctx context.Context, entryID uuid.UUID) (*JournalEntryRow, error)
 		ListEntries(ctx context.Context, journalID uuid.UUID) ([]JournalEntrySummaryRow, error)
 		GetNextEntryNumber(ctx context.Context, journalID uuid.UUID) (int, error)
 		GetEntryJournalID(ctx context.Context, entryID uuid.UUID) (uuid.UUID, error)
@@ -55,6 +56,7 @@ type (
 		GetEntryComments(ctx context.Context, entryID uuid.UUID, viewerID uuid.UUID, limit, offset int, excludeUserIDs []uuid.UUID) ([]JournalCommentRow, int, error)
 		GetCommentJournalID(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error)
 		GetCommentAuthorID(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error)
+		GetCommentEntryNumber(ctx context.Context, commentID uuid.UUID) (*int, error)
 		LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error
 		UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error
 
@@ -77,6 +79,7 @@ type (
 		Title       *string
 		Body        string
 		WordCount   int
+		IsDraft     bool
 		HasPrev     bool
 		HasNext     bool
 		CreatedAt   string
@@ -88,6 +91,7 @@ type (
 		EntryNumber int
 		Title       *string
 		WordCount   int
+		IsDraft     bool
 		CreatedAt   string
 	}
 
@@ -143,7 +147,7 @@ const journalSelectBase = `SELECT j.id, j.title, j.work, j.created_at, j.updated
 	LEFT JOIN LATERAL (
 		SELECT entry_number, title, body, created_at
 		FROM journal_entries
-		WHERE journal_id = j.id
+		WHERE journal_id = j.id AND NOT is_draft
 		ORDER BY entry_number DESC
 		LIMIT 1
 	) le ON TRUE`
@@ -541,10 +545,10 @@ func (r *journalRepository) ListFollowedByUser(ctx context.Context, followerID u
 	return journals, total, rows.Err()
 }
 
-func (r *journalRepository) CreateEntry(ctx context.Context, id uuid.UUID, journalID uuid.UUID, entryNumber int, title *string, body string, wordCount int) error {
+func (r *journalRepository) CreateEntry(ctx context.Context, id uuid.UUID, journalID uuid.UUID, entryNumber int, title *string, body string, wordCount int, isDraft bool) error {
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO journal_entries (id, journal_id, entry_number, title, body, word_count) VALUES ($1, $2, $3, $4, $5, $6)`,
-		id, journalID, entryNumber, title, body, wordCount,
+		`INSERT INTO journal_entries (id, journal_id, entry_number, title, body, word_count, is_draft) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+		id, journalID, entryNumber, title, body, wordCount, isDraft,
 	)
 	if err != nil {
 		return fmt.Errorf("create journal entry: %w", err)
@@ -552,10 +556,10 @@ func (r *journalRepository) CreateEntry(ctx context.Context, id uuid.UUID, journ
 	return nil
 }
 
-func (r *journalRepository) UpdateEntry(ctx context.Context, id uuid.UUID, title *string, body string, wordCount int) error {
+func (r *journalRepository) UpdateEntry(ctx context.Context, id uuid.UUID, title *string, body string, wordCount int, isDraft bool) error {
 	res, err := r.db.ExecContext(ctx,
-		`UPDATE journal_entries SET title = $1, body = $2, word_count = $3, updated_at = NOW() WHERE id = $4`,
-		title, body, wordCount, id,
+		`UPDATE journal_entries SET title = $1, body = $2, word_count = $3, is_draft = $4, updated_at = NOW() WHERE id = $5`,
+		title, body, wordCount, isDraft, id,
 	)
 	if err != nil {
 		return fmt.Errorf("update journal entry: %w", err)
@@ -584,13 +588,13 @@ func (r *journalRepository) GetEntry(ctx context.Context, journalID uuid.UUID, e
 	var createdAt time.Time
 	var updatedAt *time.Time
 	err := r.db.QueryRowContext(ctx,
-		`SELECT id, journal_id, entry_number, title, body, word_count, created_at, updated_at,
-			EXISTS(SELECT 1 FROM journal_entries WHERE journal_id = $1 AND entry_number < $2),
-			EXISTS(SELECT 1 FROM journal_entries WHERE journal_id = $1 AND entry_number > $2)
+		`SELECT id, journal_id, entry_number, title, body, word_count, is_draft, created_at, updated_at,
+			EXISTS(SELECT 1 FROM journal_entries WHERE journal_id = $1 AND entry_number < $2 AND NOT is_draft),
+			EXISTS(SELECT 1 FROM journal_entries WHERE journal_id = $1 AND entry_number > $2 AND NOT is_draft)
 		FROM journal_entries
 		WHERE journal_id = $1 AND entry_number = $2`,
 		journalID, entryNumber,
-	).Scan(&e.ID, &e.JournalID, &e.EntryNumber, &e.Title, &e.Body, &e.WordCount, &createdAt, &updatedAt, &e.HasPrev, &e.HasNext)
+	).Scan(&e.ID, &e.JournalID, &e.EntryNumber, &e.Title, &e.Body, &e.WordCount, &e.IsDraft, &createdAt, &updatedAt, &e.HasPrev, &e.HasNext)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -602,9 +606,30 @@ func (r *journalRepository) GetEntry(ctx context.Context, journalID uuid.UUID, e
 	return &e, nil
 }
 
+func (r *journalRepository) GetEntryByID(ctx context.Context, entryID uuid.UUID) (*JournalEntryRow, error) {
+	var e JournalEntryRow
+	var createdAt time.Time
+	var updatedAt *time.Time
+	err := r.db.QueryRowContext(ctx,
+		`SELECT id, journal_id, entry_number, title, body, word_count, is_draft, created_at, updated_at
+		FROM journal_entries
+		WHERE id = $1`,
+		entryID,
+	).Scan(&e.ID, &e.JournalID, &e.EntryNumber, &e.Title, &e.Body, &e.WordCount, &e.IsDraft, &createdAt, &updatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get journal entry by id: %w", err)
+	}
+	e.CreatedAt = createdAt.UTC().Format(time.RFC3339)
+	e.UpdatedAt = timePtrToString(updatedAt)
+	return &e, nil
+}
+
 func (r *journalRepository) ListEntries(ctx context.Context, journalID uuid.UUID) ([]JournalEntrySummaryRow, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, entry_number, title, word_count, created_at FROM journal_entries WHERE journal_id = $1 ORDER BY entry_number DESC`,
+		`SELECT id, entry_number, title, word_count, is_draft, created_at FROM journal_entries WHERE journal_id = $1 ORDER BY entry_number DESC`,
 		journalID,
 	)
 	if err != nil {
@@ -616,7 +641,7 @@ func (r *journalRepository) ListEntries(ctx context.Context, journalID uuid.UUID
 	for rows.Next() {
 		var s JournalEntrySummaryRow
 		var createdAt time.Time
-		if err := rows.Scan(&s.ID, &s.EntryNumber, &s.Title, &s.WordCount, &createdAt); err != nil {
+		if err := rows.Scan(&s.ID, &s.EntryNumber, &s.Title, &s.WordCount, &s.IsDraft, &createdAt); err != nil {
 			return nil, fmt.Errorf("scan entry summary: %w", err)
 		}
 		s.CreatedAt = createdAt.UTC().Format(time.RFC3339)
@@ -843,6 +868,24 @@ func (r *journalRepository) GetCommentAuthorID(ctx context.Context, commentID uu
 	return userID, nil
 }
 
+func (r *journalRepository) GetCommentEntryNumber(ctx context.Context, commentID uuid.UUID) (*int, error) {
+	var entryNumber *int
+	err := r.db.QueryRowContext(ctx,
+		`SELECT e.entry_number
+		FROM journal_comments c
+		LEFT JOIN journal_entries e ON e.id = c.entry_id
+		WHERE c.id = $1`,
+		commentID,
+	).Scan(&entryNumber)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get comment entry number: %w", err)
+	}
+	return entryNumber, nil
+}
+
 func (r *journalRepository) LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
 	_, err := r.db.ExecContext(ctx,
 		`INSERT INTO journal_comment_likes (user_id, comment_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
@@ -1047,6 +1090,7 @@ func JournalEntryToDTO(e *JournalEntryRow, media []JournalEntryMediaRow) dto.Jou
 		Title:       e.Title,
 		Body:        e.Body,
 		WordCount:   e.WordCount,
+		IsDraft:     e.IsDraft,
 		HasPrev:     e.HasPrev,
 		HasNext:     e.HasNext,
 		CreatedAt:   e.CreatedAt,
@@ -1061,6 +1105,7 @@ func JournalEntrySummaryToDTO(s JournalEntrySummaryRow) dto.JournalEntrySummary 
 		EntryNumber: s.EntryNumber,
 		Title:       s.Title,
 		WordCount:   s.WordCount,
+		IsDraft:     s.IsDraft,
 		CreatedAt:   s.CreatedAt,
 	}
 }

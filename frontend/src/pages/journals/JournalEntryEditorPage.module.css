@@ -111,6 +111,13 @@
 .actions {
     display: flex;
     justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+.draftHint {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin: 0;
 }
 
 .error {

@@ -79,6 +79,12 @@ type (
 		AddAttachment(ctx context.Context, mysteryID uuid.UUID, fileURL string, fileName string, fileSize int) (int64, error)
 		DeleteAttachment(ctx context.Context, id int64, mysteryID uuid.UUID) error
 		GetAttachments(ctx context.Context, mysteryID uuid.UUID) ([]dto.MysteryAttachment, error)
+
+		AddMysteryMedia(ctx context.Context, mysteryID uuid.UUID, mediaURL, mediaType, thumbnailURL string, sortOrder int) (int64, error)
+		UpdateMysteryMediaURL(ctx context.Context, id int64, mediaURL string) error
+		UpdateMysteryMediaThumbnail(ctx context.Context, id int64, thumbnailURL string) error
+		GetMysteryMedia(ctx context.Context, mysteryID uuid.UUID) ([]MysteryMediaRow, error)
+		DeleteMysteryMedia(ctx context.Context, id int64, mysteryID uuid.UUID) (string, error)
 	}
 
 	MysteryRow struct {
@@ -144,6 +150,15 @@ type (
 	}
 
 	MysteryCommentMediaRow = model.CommentMediaRow
+
+	MysteryMediaRow struct {
+		ID           int64
+		MysteryID    uuid.UUID
+		MediaURL     string
+		MediaType    string
+		ThumbnailURL string
+		SortOrder    int
+	}
 
 	LeaderboardEntry struct {
 		UserID          uuid.UUID
@@ -1255,4 +1270,65 @@ func (r *mysteryRepository) GetAttachments(ctx context.Context, mysteryID uuid.U
 		attachments = append(attachments, a)
 	}
 	return attachments, rows.Err()
+}
+
+func (r *mysteryRepository) AddMysteryMedia(ctx context.Context, mysteryID uuid.UUID, mediaURL, mediaType, thumbnailURL string, sortOrder int) (int64, error) {
+	var id int64
+	err := r.db.QueryRowContext(ctx,
+		`INSERT INTO mystery_media (mystery_id, media_url, media_type, thumbnail_url, sort_order) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+		mysteryID, mediaURL, mediaType, thumbnailURL, sortOrder,
+	).Scan(&id)
+	if err != nil {
+		return 0, fmt.Errorf("add mystery media: %w", err)
+	}
+	return id, nil
+}
+
+func (r *mysteryRepository) UpdateMysteryMediaURL(ctx context.Context, id int64, mediaURL string) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE mystery_media SET media_url = $1 WHERE id = $2`, mediaURL, id)
+	if err != nil {
+		return fmt.Errorf("update mystery media url: %w", err)
+	}
+	return nil
+}
+
+func (r *mysteryRepository) UpdateMysteryMediaThumbnail(ctx context.Context, id int64, thumbnailURL string) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE mystery_media SET thumbnail_url = $1 WHERE id = $2`, thumbnailURL, id)
+	if err != nil {
+		return fmt.Errorf("update mystery media thumbnail: %w", err)
+	}
+	return nil
+}
+
+func (r *mysteryRepository) GetMysteryMedia(ctx context.Context, mysteryID uuid.UUID) ([]MysteryMediaRow, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT id, mystery_id, media_url, media_type, thumbnail_url, sort_order FROM mystery_media WHERE mystery_id = $1 ORDER BY sort_order, id`,
+		mysteryID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("get mystery media: %w", err)
+	}
+	defer rows.Close()
+
+	var media []MysteryMediaRow
+	for rows.Next() {
+		var m MysteryMediaRow
+		if err := rows.Scan(&m.ID, &m.MysteryID, &m.MediaURL, &m.MediaType, &m.ThumbnailURL, &m.SortOrder); err != nil {
+			return nil, fmt.Errorf("scan mystery media: %w", err)
+		}
+		media = append(media, m)
+	}
+	return media, rows.Err()
+}
+
+func (r *mysteryRepository) DeleteMysteryMedia(ctx context.Context, id int64, mysteryID uuid.UUID) (string, error) {
+	var mediaURL string
+	err := r.db.QueryRowContext(ctx, `SELECT media_url FROM mystery_media WHERE id = $1 AND mystery_id = $2`, id, mysteryID).Scan(&mediaURL)
+	if err != nil {
+		return "", fmt.Errorf("mystery media not found: %w", err)
+	}
+	if _, err := r.db.ExecContext(ctx, `DELETE FROM mystery_media WHERE id = $1 AND mystery_id = $2`, id, mysteryID); err != nil {
+		return "", fmt.Errorf("delete mystery media: %w", err)
+	}
+	return mediaURL, nil
 }

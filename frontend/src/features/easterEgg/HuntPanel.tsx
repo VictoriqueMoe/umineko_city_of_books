@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type SubmitEvent, useState } from "react";
 import { Modal } from "../../components/Modal/Modal";
 import { Input } from "../../components/Input/Input";
 import { Button } from "../../components/Button/Button";
@@ -20,7 +20,7 @@ export function HuntPanel({ secretId, isOpen, onClose }: HuntPanelProps) {
 
     const secret = state.secret;
 
-    async function handleSubmit(e: React.FormEvent) {
+    async function handleSubmit(e: SubmitEvent) {
         e.preventDefault();
         if (!state.allPiecesCollected || submitting) {
             return;

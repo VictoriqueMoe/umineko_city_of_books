@@ -204,6 +204,8 @@ func (s *service) broadcastTopWinner(gameType dto.GameType) {
 		msgType = "top_chess_changed"
 	case dto.GameTypeCheckers:
 		msgType = "top_checkers_changed"
+	case dto.GameTypeOthello:
+		msgType = "top_othello_changed"
 	default:
 		return
 	}

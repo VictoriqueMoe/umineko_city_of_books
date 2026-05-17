@@ -1,9 +1,15 @@
-import { useEffect, useRef, useState } from "react";
+import { type SubmitEvent, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useAuth } from "../../hooks/useAuth";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useMystery } from "../../api/queries/mystery";
-import { useCreateMystery, useUpdateMystery, useUploadMysteryAttachmentToAny } from "../../api/mutations/mystery";
+import {
+    useCreateMystery,
+    useDeleteMysteryMedia,
+    useUpdateMystery,
+    useUploadMysteryAttachmentToAny,
+    useUploadMysteryMediaToAny,
+} from "../../api/mutations/mystery";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
 import { TextArea } from "../../components/TextArea/TextArea";
@@ -11,6 +17,7 @@ import { Select } from "../../components/Select/Select";
 import { InfoPanel } from "../../components/InfoPanel/InfoPanel";
 import { ErrorBanner } from "../../components/ErrorBanner/ErrorBanner";
 import { ToggleSwitch } from "../../components/ToggleSwitch/ToggleSwitch";
+import { MediaPickerButton, MediaPreviews } from "../../components/MediaPicker/MediaPicker";
 import styles from "./MysteryPages.module.css";
 
 interface ClueInput {
@@ -36,6 +43,8 @@ export function CreateMysteryPage() {
     const { user, loading: authLoading } = useAuth();
     const [draft, setDraft] = useState<MysteryDraft>({ sourceId: null });
     const [attachments, setAttachments] = useState<File[]>([]);
+    const [mediaFiles, setMediaFiles] = useState<File[]>([]);
+    const [pendingMediaDeletions, setPendingMediaDeletions] = useState<number[]>([]);
     const attachmentInputRef = useRef<HTMLInputElement>(null);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
@@ -44,6 +53,16 @@ export function CreateMysteryPage() {
     const createMutation = useCreateMystery();
     const updateMutation = useUpdateMystery(editId ?? "");
     const uploadAttachmentMutation = useUploadMysteryAttachmentToAny();
+    const uploadMediaMutation = useUploadMysteryMediaToAny();
+    const deleteMediaMutation = useDeleteMysteryMedia(editId ?? "");
+
+    const existingMedia = isEdit ? (editMystery?.media ?? []) : [];
+
+    function togglePendingMediaDeletion(mediaId: number) {
+        setPendingMediaDeletions(prev =>
+            prev.includes(mediaId) ? prev.filter(id => id !== mediaId) : [...prev, mediaId],
+        );
+    }
 
     useEffect(() => {
         if (!authLoading && !user) {
@@ -109,7 +128,7 @@ export function CreateMysteryPage() {
         });
     }
 
-    async function handleSubmit(e: React.FormEvent) {
+    async function handleSubmit(e: SubmitEvent) {
         e.preventDefault();
         if (!title.trim() || !body.trim() || submitting) {
             return;
@@ -127,9 +146,19 @@ export function CreateMysteryPage() {
                     keep_open_after_solve: keepOpenAfterSolve,
                     clues: validClues,
                 });
+                for (const mediaId of pendingMediaDeletions) {
+                    try {
+                        await deleteMediaMutation.mutateAsync(mediaId);
+                    } catch {}
+                }
                 for (const file of attachments) {
                     try {
                         await uploadAttachmentMutation.mutateAsync({ mysteryId: editId, file });
+                    } catch {}
+                }
+                for (const file of mediaFiles) {
+                    try {
+                        await uploadMediaMutation.mutateAsync({ mysteryId: editId, file });
                     } catch {}
                 }
                 navigate(`/mystery/${editId}`);
@@ -145,6 +174,11 @@ export function CreateMysteryPage() {
                 for (const file of attachments) {
                     try {
                         await uploadAttachmentMutation.mutateAsync({ mysteryId: result.id, file });
+                    } catch {}
+                }
+                for (const file of mediaFiles) {
+                    try {
+                        await uploadMediaMutation.mutateAsync({ mysteryId: result.id, file });
                     } catch {}
                 }
                 navigate(`/mystery/${result.id}`);
@@ -271,6 +305,51 @@ export function CreateMysteryPage() {
                 <Button variant="ghost" type="button" onClick={addClue}>
                     + Add Clue
                 </Button>
+
+                <div className={styles.attachments} style={{ marginTop: "1.5rem" }}>
+                    <h3 className={styles.attachmentsTitle}>Images (optional)</h3>
+                    <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginBottom: "0.75rem" }}>
+                        Attach images or videos. They render as a gallery on the mystery page.
+                    </p>
+                    {existingMedia.length > 0 && (
+                        <div className={styles.existingMediaRow}>
+                            {existingMedia.map(m => {
+                                const marked = pendingMediaDeletions.includes(m.id);
+                                const itemClass = `${styles.existingMediaItem}${marked ? ` ${styles.existingMediaItemPending}` : ""}`;
+                                return (
+                                    <div key={m.id} className={itemClass}>
+                                        {m.media_type === "video" ? (
+                                            <video src={m.media_url} className={styles.existingMediaThumb} />
+                                        ) : (
+                                            <img
+                                                src={m.thumbnail_url || m.media_url}
+                                                alt=""
+                                                className={styles.existingMediaThumb}
+                                            />
+                                        )}
+                                        <button
+                                            type="button"
+                                            className={styles.existingMediaRemove}
+                                            onClick={() => togglePendingMediaDeletion(m.id)}
+                                            aria-label={marked ? "Undo remove" : "Remove on save"}
+                                            title={marked ? "Undo remove" : "Remove on save"}
+                                        >
+                                            {marked ? "↺" : "×"}
+                                        </button>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                    <MediaPreviews
+                        files={mediaFiles}
+                        onRemove={i => setMediaFiles(prev => prev.filter((_, j) => j !== i))}
+                    />
+                    <MediaPickerButton
+                        onFiles={valid => setMediaFiles(prev => [...prev, ...valid])}
+                        onError={setError}
+                    />
+                </div>
 
                 <div className={styles.attachments} style={{ marginTop: "1.5rem" }}>
                     <h3 className={styles.attachmentsTitle}>Attachments (optional)</h3>

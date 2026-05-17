@@ -295,7 +295,7 @@ func TestJournalRepository_List_TruncatesLatestEntryExcerpt(t *testing.T) {
 	for i := 0; i < 400; i++ {
 		longBody += "a"
 	}
-	require.NoError(t, repos.Journal.CreateEntry(context.Background(), uuid.New(), id, 1, nil, longBody, 1))
+	require.NoError(t, repos.Journal.CreateEntry(context.Background(), uuid.New(), id, 1, nil, longBody, 1, false))
 
 	// when
 	journals, _, err := repos.Journal.List(context.Background(), defaultJournalListParams(), uuid.Nil, nil)
@@ -1064,7 +1064,7 @@ func TestJournalRepository_CreateAndGetEntry(t *testing.T) {
 	jid := createJournal(t, repos, user.ID, "Title", "", "general")
 	entryID := uuid.New()
 	title := "Day 1"
-	require.NoError(t, repos.Journal.CreateEntry(context.Background(), entryID, jid, 1, &title, "the body", 2))
+	require.NoError(t, repos.Journal.CreateEntry(context.Background(), entryID, jid, 1, &title, "the body", 2, false))
 
 	// when
 	got, err := repos.Journal.GetEntry(context.Background(), jid, 1)
@@ -1087,7 +1087,7 @@ func TestJournalRepository_GetEntry_PrevNext(t *testing.T) {
 	user := repotest.CreateUser(t, repos)
 	jid := createJournal(t, repos, user.ID, "Title", "", "general")
 	for i := 1; i <= 3; i++ {
-		require.NoError(t, repos.Journal.CreateEntry(context.Background(), uuid.New(), jid, i, nil, "body", 1))
+		require.NoError(t, repos.Journal.CreateEntry(context.Background(), uuid.New(), jid, i, nil, "body", 1, false))
 	}
 
 	// when
@@ -1110,7 +1110,7 @@ func TestJournalRepository_ListEntries_NewestFirst(t *testing.T) {
 	user := repotest.CreateUser(t, repos)
 	jid := createJournal(t, repos, user.ID, "Title", "", "general")
 	for i := 1; i <= 3; i++ {
-		require.NoError(t, repos.Journal.CreateEntry(context.Background(), uuid.New(), jid, i, nil, "b", 1))
+		require.NoError(t, repos.Journal.CreateEntry(context.Background(), uuid.New(), jid, i, nil, "b", 1, false))
 	}
 
 	// when
@@ -1133,8 +1133,8 @@ func TestJournalRepository_GetNextEntryNumber(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, next)
 
-	require.NoError(t, repos.Journal.CreateEntry(context.Background(), uuid.New(), jid, 1, nil, "b", 1))
-	require.NoError(t, repos.Journal.CreateEntry(context.Background(), uuid.New(), jid, 2, nil, "b", 1))
+	require.NoError(t, repos.Journal.CreateEntry(context.Background(), uuid.New(), jid, 1, nil, "b", 1, false))
+	require.NoError(t, repos.Journal.CreateEntry(context.Background(), uuid.New(), jid, 2, nil, "b", 1, false))
 
 	// when
 	next, err = repos.Journal.GetNextEntryNumber(context.Background(), jid)
@@ -1150,8 +1150,8 @@ func TestJournalRepository_GetByID_PopulatesLatestEntry(t *testing.T) {
 	user := repotest.CreateUser(t, repos)
 	jid := createJournal(t, repos, user.ID, "Title", "", "general")
 	title := "Latest"
-	require.NoError(t, repos.Journal.CreateEntry(context.Background(), uuid.New(), jid, 1, nil, "first body", 2))
-	require.NoError(t, repos.Journal.CreateEntry(context.Background(), uuid.New(), jid, 2, &title, "newest body", 2))
+	require.NoError(t, repos.Journal.CreateEntry(context.Background(), uuid.New(), jid, 1, nil, "first body", 2, false))
+	require.NoError(t, repos.Journal.CreateEntry(context.Background(), uuid.New(), jid, 2, &title, "newest body", 2, false))
 
 	// when
 	got, err := repos.Journal.GetByID(context.Background(), jid, uuid.Nil)
@@ -1172,7 +1172,7 @@ func TestJournalRepository_EntryComments_ScopedSeparately(t *testing.T) {
 	user := repotest.CreateUser(t, repos)
 	jid := createJournal(t, repos, user.ID, "Title", "", "general")
 	entryID := uuid.New()
-	require.NoError(t, repos.Journal.CreateEntry(context.Background(), entryID, jid, 1, nil, "b", 1))
+	require.NoError(t, repos.Journal.CreateEntry(context.Background(), entryID, jid, 1, nil, "b", 1, false))
 
 	// when
 	topLevelComment := uuid.New()

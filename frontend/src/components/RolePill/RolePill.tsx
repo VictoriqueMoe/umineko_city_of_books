@@ -20,6 +20,8 @@ const systemVanityTooltips: Record<string, string> = {
     system_top_chess: "Top chess player — the player with the most chess wins (ties broken by win-loss differential)",
     system_top_checkers:
         "Top checkers player — the player with the most checkers wins (ties broken by win-loss differential)",
+    system_top_othello:
+        "Top othello player — the player with the most othello wins (ties broken by win-loss differential)",
     system_witch_hunter: "Solved the Witch Hunter secret",
 };
 

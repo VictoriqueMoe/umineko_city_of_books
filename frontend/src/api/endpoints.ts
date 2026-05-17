@@ -134,6 +134,7 @@ export interface SiteInfo {
     top_gm_ids: string[];
     top_chess_ids: string[];
     top_checkers_ids: string[];
+    top_othello_ids: string[];
     vanity_roles: VanityRoleDefinition[];
     vanity_role_assignments: Record<string, string[]>;
     listed_secrets: SiteInfoSecret[];
@@ -1379,6 +1380,16 @@ export async function uploadMysteryAttachment(mysteryId: string, file: File): Pr
 
 export async function deleteMysteryAttachment(mysteryId: string, attachmentId: number): Promise<void> {
     await apiDelete(`/mysteries/${mysteryId}/attachments/${attachmentId}`);
+}
+
+export async function uploadMysteryMedia(mysteryId: string, file: File): Promise<PostMedia> {
+    const formData = new FormData();
+    formData.append("media", file);
+    return apiPostFormData<PostMedia>(`/mysteries/${mysteryId}/media`, formData);
+}
+
+export async function deleteMysteryMedia(mysteryId: string, mediaId: number): Promise<void> {
+    await apiDelete(`/mysteries/${mysteryId}/media/${mediaId}`);
 }
 
 export async function getMysteryLeaderboard(limit?: number): Promise<MysteryLeaderboardResponse> {

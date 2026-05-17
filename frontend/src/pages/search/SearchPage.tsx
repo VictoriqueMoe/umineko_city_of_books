@@ -1,3 +1,4 @@
+import type { SubmitEvent } from "react";
 import { useSearchParams } from "react-router";
 import { useSiteSearch } from "../../api/queries/search";
 import { Pagination } from "../../components/Pagination/Pagination";
@@ -55,7 +56,7 @@ export function SearchPage() {
         setParams(newParams);
     }
 
-    function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
         e.preventDefault();
         const data = new FormData(e.currentTarget);
         setQ(String(data.get("q") ?? ""));

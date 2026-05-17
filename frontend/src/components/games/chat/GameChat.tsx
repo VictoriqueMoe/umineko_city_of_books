@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as api from "../../../api/endpoints.ts";
 import type { SpectatorChatResponse, SpectatorMessage, WSMessage } from "../../../types/api.ts";
 import { useAuth } from "../../../hooks/useAuth.ts";

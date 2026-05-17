@@ -227,6 +227,7 @@ export function JournalPage() {
                                 >
                                     <span className={styles.tocItemNumber}>#{e.entry_number}</span>
                                     <span className={styles.tocItemTitle}>{entryHeading(e.entry_number, e.title)}</span>
+                                    {e.is_draft && <span className={styles.draftBadge}>Draft</span>}
                                     <span className={styles.tocItemMeta}>
                                         {e.word_count} words {"·"} {relativeTime(e.created_at)}
                                     </span>

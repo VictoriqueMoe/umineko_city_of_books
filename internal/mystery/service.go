@@ -50,6 +50,8 @@ type (
 		UploadCommentMedia(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error)
 		UploadAttachment(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, fileName string, fileSize int64, reader io.Reader) (*dto.MysteryAttachment, error)
 		DeleteAttachment(ctx context.Context, attachmentID int64, mysteryID uuid.UUID, userID uuid.UUID) error
+		UploadMedia(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error)
+		DeleteMedia(ctx context.Context, mediaID int64, mysteryID uuid.UUID, userID uuid.UUID) error
 		SetPaused(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, paused bool) error
 		SetGmAway(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, away bool) error
 		DeleteClue(ctx context.Context, mysteryID uuid.UUID, clueID int, userID uuid.UUID) error
@@ -238,6 +240,18 @@ func (s *service) GetMystery(ctx context.Context, id uuid.UUID, viewerID uuid.UU
 		attachments = []dto.MysteryAttachment{}
 	}
 
+	mediaRows, _ := s.mysteryRepo.GetMysteryMedia(ctx, id)
+	mediaList := make([]dto.PostMediaResponse, len(mediaRows))
+	for i, m := range mediaRows {
+		mediaList[i] = dto.PostMediaResponse{
+			ID:           int(m.ID),
+			MediaURL:     m.MediaURL,
+			MediaType:    m.MediaType,
+			ThumbnailURL: m.ThumbnailURL,
+			SortOrder:    m.SortOrder,
+		}
+	}
+
 	viewerHasSolved := false
 	if viewerID != uuid.Nil && viewerID != row.UserID {
 		viewerHasSolved, _ = s.mysteryRepo.UserHasWinningAttempt(ctx, id, viewerID)
@@ -269,6 +283,7 @@ func (s *service) GetMystery(ctx context.Context, id uuid.UUID, viewerID uuid.UU
 		Attempts:    attempts,
 		Comments:    comments,
 		Attachments: attachments,
+		Media:       mediaList,
 		PlayerCount: len(playerSet),
 		CreatedAt:   row.CreatedAt,
 	}
@@ -1081,6 +1096,57 @@ func (s *service) UploadAttachment(ctx context.Context, mysteryID uuid.UUID, use
 		FileName: fileName,
 		FileSize: int(fileSize),
 	}, nil
+}
+
+func (s *service) UploadMedia(
+	ctx context.Context,
+	mysteryID uuid.UUID,
+	userID uuid.UUID,
+	contentType string,
+	fileSize int64,
+	reader io.Reader,
+) (*dto.PostMediaResponse, error) {
+	authorID, err := s.mysteryRepo.GetAuthorID(ctx, mysteryID)
+	if err != nil {
+		return nil, ErrNotFound
+	}
+	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyTheory) {
+		return nil, ErrNotAuthor
+	}
+
+	existing, _ := s.mysteryRepo.GetMysteryMedia(ctx, mysteryID)
+	sortOrder := len(existing)
+
+	resp, err := s.uploader.SaveAndRecord(ctx, "mysteries", contentType, fileSize, reader,
+		func(mediaURL, mediaType, _ string, _ int) (int64, error) {
+			return s.mysteryRepo.AddMysteryMedia(ctx, mysteryID, mediaURL, mediaType, "", sortOrder)
+		},
+		s.mysteryRepo.UpdateMysteryMediaURL,
+		s.mysteryRepo.UpdateMysteryMediaThumbnail,
+	)
+	if err != nil {
+		return nil, err
+	}
+	resp.SortOrder = sortOrder
+	return resp, nil
+}
+
+func (s *service) DeleteMedia(ctx context.Context, mediaID int64, mysteryID uuid.UUID, userID uuid.UUID) error {
+	authorID, err := s.mysteryRepo.GetAuthorID(ctx, mysteryID)
+	if err != nil {
+		return ErrNotFound
+	}
+	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyTheory) {
+		return ErrNotAuthor
+	}
+
+	mediaURL, err := s.mysteryRepo.DeleteMysteryMedia(ctx, mediaID, mysteryID)
+	if err != nil {
+		return err
+	}
+
+	_ = s.uploadSvc.Delete(mediaURL)
+	return nil
 }
 
 func (s *service) DeleteAttachment(ctx context.Context, attachmentID int64, mysteryID uuid.UUID, userID uuid.UUID) error {

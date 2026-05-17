@@ -109,6 +109,7 @@ func (h *SitemapHandler) static(ctx fiber.Ctx) error {
 		{Loc: h.baseURL + "/games/live", LastMod: now},
 		{Loc: h.baseURL + "/games/past", LastMod: now},
 		{Loc: h.baseURL + "/games/chess", LastMod: now},
+		{Loc: h.baseURL + "/games/othello", LastMod: now},
 		{Loc: h.baseURL + "/search", LastMod: now},
 		{Loc: h.baseURL + "/login", LastMod: now},
 	}
@@ -322,7 +323,7 @@ func (h *SitemapHandler) journals(ctx fiber.Ctx) error {
 	rows, err := h.db.QueryContext(ctx.Context(),
 		`SELECT j.id, j.updated_at, e.entry_number, e.updated_at
 		FROM journals j
-		LEFT JOIN journal_entries e ON e.journal_id = j.id
+		LEFT JOIN journal_entries e ON e.journal_id = j.id AND NOT e.is_draft
 		WHERE j.archived_at IS NULL
 		ORDER BY j.id, e.entry_number`)
 	if err != nil {

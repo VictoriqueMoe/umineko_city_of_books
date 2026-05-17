@@ -45,6 +45,7 @@ type (
 		Attempts              []MysteryAttempt         `json:"attempts"`
 		Comments              []MysteryCommentResponse `json:"comments"`
 		Attachments           []MysteryAttachment      `json:"attachments"`
+		Media                 []PostMediaResponse      `json:"media"`
 		PlayerCount           int                      `json:"player_count"`
 		CreatedAt             string                   `json:"created_at"`
 	}

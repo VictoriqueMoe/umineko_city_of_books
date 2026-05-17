@@ -607,6 +607,75 @@ func (_c *MockService_DeleteComment_Call) RunAndReturn(run func(ctx context.Cont
 	return _c
 }
 
+// DeleteMedia provides a mock function for the type MockService
+func (_mock *MockService) DeleteMedia(ctx context.Context, mediaID int64, mysteryID uuid.UUID, userID uuid.UUID) error {
+	ret := _mock.Called(ctx, mediaID, mysteryID, userID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteMedia")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, uuid.UUID, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, mediaID, mysteryID, userID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_DeleteMedia_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteMedia'
+type MockService_DeleteMedia_Call struct {
+	*mock.Call
+}
+
+// DeleteMedia is a helper method to define mock.On call
+//   - ctx context.Context
+//   - mediaID int64
+//   - mysteryID uuid.UUID
+//   - userID uuid.UUID
+func (_e *MockService_Expecter) DeleteMedia(ctx interface{}, mediaID interface{}, mysteryID interface{}, userID interface{}) *MockService_DeleteMedia_Call {
+	return &MockService_DeleteMedia_Call{Call: _e.mock.On("DeleteMedia", ctx, mediaID, mysteryID, userID)}
+}
+
+func (_c *MockService_DeleteMedia_Call) Run(run func(ctx context.Context, mediaID int64, mysteryID uuid.UUID, userID uuid.UUID)) *MockService_DeleteMedia_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 int64
+		if args[1] != nil {
+			arg1 = args[1].(int64)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 uuid.UUID
+		if args[3] != nil {
+			arg3 = args[3].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_DeleteMedia_Call) Return(err error) *MockService_DeleteMedia_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_DeleteMedia_Call) RunAndReturn(run func(ctx context.Context, mediaID int64, mysteryID uuid.UUID, userID uuid.UUID) error) *MockService_DeleteMedia_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteMystery provides a mock function for the type MockService
 func (_mock *MockService) DeleteMystery(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
 	ret := _mock.Called(ctx, id, userID)
@@ -1965,6 +2034,98 @@ func (_c *MockService_UploadCommentMedia_Call) Return(postMediaResponse *dto.Pos
 }
 
 func (_c *MockService_UploadCommentMedia_Call) RunAndReturn(run func(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error)) *MockService_UploadCommentMedia_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UploadMedia provides a mock function for the type MockService
+func (_mock *MockService) UploadMedia(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error) {
+	ret := _mock.Called(ctx, mysteryID, userID, contentType, fileSize, reader)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UploadMedia")
+	}
+
+	var r0 *dto.PostMediaResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, int64, io.Reader) (*dto.PostMediaResponse, error)); ok {
+		return returnFunc(ctx, mysteryID, userID, contentType, fileSize, reader)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, int64, io.Reader) *dto.PostMediaResponse); ok {
+		r0 = returnFunc(ctx, mysteryID, userID, contentType, fileSize, reader)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dto.PostMediaResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, string, int64, io.Reader) error); ok {
+		r1 = returnFunc(ctx, mysteryID, userID, contentType, fileSize, reader)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_UploadMedia_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UploadMedia'
+type MockService_UploadMedia_Call struct {
+	*mock.Call
+}
+
+// UploadMedia is a helper method to define mock.On call
+//   - ctx context.Context
+//   - mysteryID uuid.UUID
+//   - userID uuid.UUID
+//   - contentType string
+//   - fileSize int64
+//   - reader io.Reader
+func (_e *MockService_Expecter) UploadMedia(ctx interface{}, mysteryID interface{}, userID interface{}, contentType interface{}, fileSize interface{}, reader interface{}) *MockService_UploadMedia_Call {
+	return &MockService_UploadMedia_Call{Call: _e.mock.On("UploadMedia", ctx, mysteryID, userID, contentType, fileSize, reader)}
+}
+
+func (_c *MockService_UploadMedia_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader)) *MockService_UploadMedia_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		var arg4 int64
+		if args[4] != nil {
+			arg4 = args[4].(int64)
+		}
+		var arg5 io.Reader
+		if args[5] != nil {
+			arg5 = args[5].(io.Reader)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+			arg5,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_UploadMedia_Call) Return(postMediaResponse *dto.PostMediaResponse, err error) *MockService_UploadMedia_Call {
+	_c.Call.Return(postMediaResponse, err)
+	return _c
+}
+
+func (_c *MockService_UploadMedia_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error)) *MockService_UploadMedia_Call {
 	_c.Call.Return(run)
 	return _c
 }

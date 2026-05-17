@@ -13,7 +13,7 @@ import {
     useSubmitGameAction,
 } from "../../api/mutations/gameRoom";
 import { ChessBoardView } from "../../components/games/chess/ChessBoardView";
-import { GameChat } from "../../components/games/chess/GameChat";
+import { GameChat } from "../../components/games/chat/GameChat.tsx";
 import { Button } from "../../components/Button/Button";
 import styles from "./GamesPages.module.css";
 

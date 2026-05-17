@@ -179,6 +179,7 @@ type (
 		TopGMIDs              []string             `json:"top_gm_ids"`
 		TopChessIDs           []string             `json:"top_chess_ids"`
 		TopCheckersIDs        []string             `json:"top_checkers_ids"`
+		TopOthelloIDs         []string             `json:"top_othello_ids"`
 		VanityRoles           []SiteInfoVanityRole `json:"vanity_roles"`
 		VanityRoleAssignments map[string][]string  `json:"vanity_role_assignments"`
 		ListedSecrets         []SiteInfoSecret     `json:"listed_secrets"`

@@ -22,6 +22,7 @@ import (
 	"umineko_city_of_books/internal/follow"
 	"umineko_city_of_books/internal/game/checkers"
 	"umineko_city_of_books/internal/game/chess"
+	"umineko_city_of_books/internal/game/othello"
 	"umineko_city_of_books/internal/gameroom"
 	"umineko_city_of_books/internal/giphy"
 	"umineko_city_of_books/internal/giphy/banlist"
@@ -95,7 +96,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 	fanficSvc := fanficsvc.NewService(repos.Fanfic, repos.User, repos.AuditLog, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, contentFilter)
 	journalSvc := journal.NewService(repos.Journal, repos.User, repos.AuditLog, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, contentFilter)
 	secretSvc := secretsvc.NewService(repos.Secret, repos.UserSecret, repos.User, repos.AuditLog, authzSvc, blockSvc, notifSvc, settingsSvc, uploadSvc, mediaProc, hub, contentFilter)
-	gameRoomSvc := gameroom.NewService(repos.GameRoom, repos.User, repos.Block, notifSvc, hub, contentFilter, []gameroom.GameHandler{chess.NewHandler(), checkers.NewHandler()})
+	gameRoomSvc := gameroom.NewService(repos.GameRoom, repos.User, repos.Block, notifSvc, hub, contentFilter, []gameroom.GameHandler{chess.NewHandler(), checkers.NewHandler(), othello.NewHandler()})
 	announcementUploader := media.NewUploader(uploadSvc, settingsSvc, mediaProc)
 	announcementSvc := announcementsvc.NewService(repos.Announcement, repos.User, repos.AuditLog, blockSvc, notifSvc, settingsSvc, authzSvc, hub, announcementUploader)
 	homeFeedSvc := homefeed.NewService(repos.HomeFeed, hub)

@@ -137,17 +137,33 @@ export function OCDetailPage() {
                     <h2>Gallery</h2>
                     <div
                         style={{
-                            display: "grid",
-                            gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
-                            gap: "0.75rem",
+                            columnWidth: "200px",
+                            columnGap: "0.75rem",
                         }}
                     >
                         {oc.gallery.map(img => (
-                            <figure key={img.id} style={{ margin: 0 }}>
+                            <figure
+                                key={img.id}
+                                style={{
+                                    margin: "0 0 0.75rem 0",
+                                    breakInside: "avoid",
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    gap: "0.4rem",
+                                }}
+                            >
                                 <img
                                     src={img.thumbnail_url || img.image_url}
                                     alt={img.caption ?? ""}
-                                    style={{ width: "100%", borderRadius: "6px", cursor: "zoom-in" }}
+                                    loading="lazy"
+                                    decoding="async"
+                                    style={{
+                                        width: "100%",
+                                        height: "auto",
+                                        display: "block",
+                                        borderRadius: "6px",
+                                        cursor: "zoom-in",
+                                    }}
                                     onClick={() => setLightbox({ src: img.image_url, alt: img.caption ?? "" })}
                                 />
                                 {img.caption && <figcaption style={{ fontSize: "0.85rem" }}>{img.caption}</figcaption>}

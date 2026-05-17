@@ -45,6 +45,23 @@ export const GAME_TYPES: GameTypeDefinition[] = [
             "Games are correspondence-style with no clocks. Disconnects trigger a 60-second forfeit timer. Active games are public to spectators; finished games are archived under Past Games.",
         ],
     },
+    {
+        type: "othello",
+        label: "Othello",
+        tagline: "The modern Reversi. Place a disc to flank, then watch the colours flip.",
+        hubPath: "/games/othello",
+        newPath: "/games/othello/new",
+        detailPath: (id: string) => `/games/othello/${id}`,
+        available: true,
+        howToPlay: [
+            "Click Start a new othello game, pick a player by username or from your mutual followers and send the invite. Your opponent plays white; you play black.",
+            "Black moves first. The four centre squares start with the standard cross: white on D4 and E5, black on E4 and D5.",
+            "On your turn, place a disc on an empty square so that it flanks at least one straight line (orthogonal or diagonal) of your opponent's discs between the new disc and one of yours. Every flanked disc flips to your colour.",
+            "If you have no legal placement, the server passes for you automatically and the turn returns to your opponent. The game ends when both sides have no legal moves in a row, or when the board fills up.",
+            "Whoever holds the most discs at the end wins. An equal split is a draw. Corners are permanent once captured, so plan your edge play around them.",
+            "Games are correspondence-style with no clocks. Disconnects trigger a 60-second forfeit timer. Active games are public to spectators; finished games are archived under Past Games.",
+        ],
+    },
 ];
 
 export function gameTypeLabel(type: string): string {

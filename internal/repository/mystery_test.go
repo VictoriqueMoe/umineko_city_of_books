@@ -1479,3 +1479,117 @@ func TestMysteryRepository_GetByID_ClueCount(t *testing.T) {
 	require.NotNil(t, row)
 	assert.Equal(t, 2, row.ClueCount)
 }
+
+func TestMysteryRepository_AddMysteryMedia_AndGet(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	gm := repotest.CreateUser(t, repos)
+	id := createMystery(t, repos, gm.ID, "T", "easy", false)
+
+	// when
+	mediaID, err := repos.Mystery.AddMysteryMedia(context.Background(), id, "/img.png", "image", "/t.png", 0)
+
+	// then
+	require.NoError(t, err)
+	assert.NotZero(t, mediaID)
+	media, err := repos.Mystery.GetMysteryMedia(context.Background(), id)
+	require.NoError(t, err)
+	require.Len(t, media, 1)
+	assert.Equal(t, "/img.png", media[0].MediaURL)
+	assert.Equal(t, "image", media[0].MediaType)
+	assert.Equal(t, "/t.png", media[0].ThumbnailURL)
+	assert.Equal(t, 0, media[0].SortOrder)
+}
+
+func TestMysteryRepository_UpdateMysteryMediaURL(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	gm := repotest.CreateUser(t, repos)
+	id := createMystery(t, repos, gm.ID, "T", "easy", false)
+	mediaID, err := repos.Mystery.AddMysteryMedia(context.Background(), id, "/old.png", "image", "", 0)
+	require.NoError(t, err)
+
+	// when
+	err = repos.Mystery.UpdateMysteryMediaURL(context.Background(), mediaID, "/new.png")
+
+	// then
+	require.NoError(t, err)
+	media, err := repos.Mystery.GetMysteryMedia(context.Background(), id)
+	require.NoError(t, err)
+	require.Len(t, media, 1)
+	assert.Equal(t, "/new.png", media[0].MediaURL)
+}
+
+func TestMysteryRepository_UpdateMysteryMediaThumbnail(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	gm := repotest.CreateUser(t, repos)
+	id := createMystery(t, repos, gm.ID, "T", "easy", false)
+	mediaID, err := repos.Mystery.AddMysteryMedia(context.Background(), id, "/v.mp4", "video", "/old.png", 0)
+	require.NoError(t, err)
+
+	// when
+	err = repos.Mystery.UpdateMysteryMediaThumbnail(context.Background(), mediaID, "/new.png")
+
+	// then
+	require.NoError(t, err)
+	media, err := repos.Mystery.GetMysteryMedia(context.Background(), id)
+	require.NoError(t, err)
+	require.Len(t, media, 1)
+	assert.Equal(t, "/new.png", media[0].ThumbnailURL)
+}
+
+func TestMysteryRepository_GetMysteryMedia_Ordering(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	gm := repotest.CreateUser(t, repos)
+	id := createMystery(t, repos, gm.ID, "T", "easy", false)
+	_, err := repos.Mystery.AddMysteryMedia(context.Background(), id, "/b.png", "image", "", 2)
+	require.NoError(t, err)
+	_, err = repos.Mystery.AddMysteryMedia(context.Background(), id, "/a.png", "image", "", 1)
+	require.NoError(t, err)
+
+	// when
+	media, err := repos.Mystery.GetMysteryMedia(context.Background(), id)
+
+	// then
+	require.NoError(t, err)
+	require.Len(t, media, 2)
+	assert.Equal(t, "/a.png", media[0].MediaURL)
+	assert.Equal(t, "/b.png", media[1].MediaURL)
+}
+
+func TestMysteryRepository_DeleteMysteryMedia(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	gm := repotest.CreateUser(t, repos)
+	id := createMystery(t, repos, gm.ID, "T", "easy", false)
+	mediaID, err := repos.Mystery.AddMysteryMedia(context.Background(), id, "/x.png", "image", "", 0)
+	require.NoError(t, err)
+
+	// when
+	url, err := repos.Mystery.DeleteMysteryMedia(context.Background(), mediaID, id)
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, "/x.png", url)
+	media, err := repos.Mystery.GetMysteryMedia(context.Background(), id)
+	require.NoError(t, err)
+	assert.Empty(t, media)
+}
+
+func TestMysteryRepository_DeleteMysteryMedia_WrongMystery(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	gm := repotest.CreateUser(t, repos)
+	id := createMystery(t, repos, gm.ID, "T", "easy", false)
+	otherID := createMystery(t, repos, gm.ID, "Other", "easy", false)
+	mediaID, err := repos.Mystery.AddMysteryMedia(context.Background(), id, "/x.png", "image", "", 0)
+	require.NoError(t, err)
+
+	// when
+	_, err = repos.Mystery.DeleteMysteryMedia(context.Background(), mediaID, otherID)
+
+	// then
+	require.Error(t, err)
+}

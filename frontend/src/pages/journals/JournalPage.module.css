@@ -277,3 +277,18 @@
     color: var(--text-muted);
     font-size: 0.75rem;
 }
+
+.draftBadge {
+    display: inline-block;
+    background: rgba(var(--gold-rgb), 0.18);
+    border: 1px solid rgba(var(--gold-rgb), 0.55);
+    color: var(--gold);
+    font-family: var(--font-display);
+    font-size: 0.65rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 0.05rem 0.4rem;
+    border-radius: 999px;
+    margin-left: 0.4rem;
+    vertical-align: middle;
+}
