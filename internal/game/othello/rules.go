@@ -81,16 +81,6 @@ func discFor(slot int) byte {
 	return cellWhite
 }
 
-func slotForCell(c byte) int {
-	switch c {
-	case cellBlack:
-		return slotBlack
-	case cellWhite:
-		return slotWhite
-	}
-	return -1
-}
-
 func flipsForPlacement(b board, row, col, slot int) []coord {
 	if !inBounds(row, col) || b[row][col] != cellEmpty {
 		return nil
