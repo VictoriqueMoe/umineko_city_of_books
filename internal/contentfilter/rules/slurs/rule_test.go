@@ -181,6 +181,32 @@ func TestRule_SlurVariantsTrigger(t *testing.T) {
 	}
 }
 
+func TestRule_InvisibleCharBypassFails(t *testing.T) {
+	// given
+	rule := New()
+	badInputs := []string{
+		"n\u00adigger",
+		"nig\u200bger",
+		"n\u200cigger",
+		"nig\u200dger",
+		"\uFEFFnigger",
+		"nig\u2060ger",
+		"ｆａｇｇｏｔ",
+		"ＮＩＧＧＥＲ",
+	}
+
+	for i := 0; i < len(badInputs); i++ {
+		text := badInputs[i]
+		// when
+		rej, err := rule.Check(context.Background(), []string{text})
+
+		// then
+		require.NoError(t, err, "input: %q", text)
+		require.NotNil(t, rej, "should flag %q but did not", text)
+		assert.Equal(t, contentfilter.RuleSlurs, rej.Rule)
+	}
+}
+
 func TestRule_EmptyInput(t *testing.T) {
 	// given
 	rule := New()

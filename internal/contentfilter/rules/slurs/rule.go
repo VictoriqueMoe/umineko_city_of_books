@@ -24,9 +24,10 @@ func (r *Rule) Name() contentfilter.RuleName {
 }
 
 func (r *Rule) Check(_ context.Context, texts []string) (*contentfilter.Rejection, error) {
-	for _, text := range texts {
-		for _, re := range r.patterns {
-			if re.MatchString(text) {
+	for i := 0; i < len(texts); i++ {
+		normalised := contentfilter.Normalise(texts[i])
+		for j := 0; j < len(r.patterns); j++ {
+			if r.patterns[j].MatchString(normalised) {
 				return &contentfilter.Rejection{
 					Rule:   contentfilter.RuleSlurs,
 					Reason: "Your message contains language that is not allowed on this site.",
