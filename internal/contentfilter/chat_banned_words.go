@@ -38,11 +38,12 @@ type (
 	}
 
 	compiledRule struct {
-		id      uuid.UUID
-		scope   string
-		pattern string
-		action  string
-		re      *regexp.Regexp
+		id         uuid.UUID
+		scope      string
+		pattern    string
+		action     string
+		re         *regexp.Regexp
+		normaliser func(string) string
 	}
 )
 
@@ -69,7 +70,11 @@ func (r *ChatBannedWordsRule) CheckForRoom(ctx context.Context, roomID uuid.UUID
 			if text == "" {
 				continue
 			}
-			if match := compiled.re.FindString(text); match != "" {
+			normalised := compiled.normaliser(text)
+			if normalised == "" {
+				continue
+			}
+			if match := compiled.re.FindString(normalised); match != "" {
 				return &ChatBannedWordMatch{
 					RuleID:    compiled.id,
 					Scope:     compiled.scope,
@@ -92,14 +97,22 @@ func (r *ChatBannedWordsRule) compile(row repository.ChatBannedWordRow) (*compil
 		return nil, err
 	}
 	compiled := &compiledRule{
-		id:      row.ID,
-		scope:   row.Scope,
-		pattern: row.Pattern,
-		action:  row.Action,
-		re:      expr,
+		id:         row.ID,
+		scope:      row.Scope,
+		pattern:    row.Pattern,
+		action:     row.Action,
+		re:         expr,
+		normaliser: normaliserForMode(row.MatchMode),
 	}
 	r.cache.Store(row.ID, compiled)
 	return compiled, nil
+}
+
+func normaliserForMode(mode string) func(string) string {
+	if mode == MatchModeSubstring {
+		return NormaliseLiteral
+	}
+	return Normalise
 }
 
 func (r *ChatBannedWordsRule) Invalidate(id uuid.UUID) {
@@ -110,9 +123,17 @@ func CompileBannedWordPattern(pattern, mode string, caseSensitive bool) (*regexp
 	var expr string
 	switch mode {
 	case MatchModeSubstring:
-		expr = regexp.QuoteMeta(pattern)
+		literal := NormaliseLiteral(pattern)
+		if literal == "" {
+			return nil, fmt.Errorf("%w: pattern is empty after normalisation", ErrInvalidRegex)
+		}
+		expr = regexp.QuoteMeta(literal)
 	case MatchModeWholeWord:
-		expr = `\b` + regexp.QuoteMeta(pattern) + `\b`
+		word := Normalise(pattern)
+		if word == "" {
+			return nil, fmt.Errorf("%w: pattern is empty after normalisation", ErrInvalidRegex)
+		}
+		expr = `\b` + regexp.QuoteMeta(word) + `\b`
 	case MatchModeRegex:
 		expr = pattern
 	default:

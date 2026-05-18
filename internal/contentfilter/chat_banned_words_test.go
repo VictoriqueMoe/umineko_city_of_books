@@ -94,6 +94,73 @@ func TestCheckForRoom_KickAction(t *testing.T) {
 	assert.Equal(t, BannedWordActionKick, match.Action)
 }
 
+func TestCheckForRoom_InvisibleCharBypassFails_Substring(t *testing.T) {
+	// given
+	repo := repository.NewMockChatBannedWordRepository(t)
+	roomID := uuid.New()
+	ruleID := uuid.New()
+	repo.EXPECT().ListApplicable(mock.Anything, roomID).Return([]repository.ChatBannedWordRow{
+		{ID: ruleID, Pattern: "badword", MatchMode: MatchModeSubstring, Action: BannedWordActionDelete, Scope: "global"},
+	}, nil)
+	rule := NewChatBannedWordsRule(repo)
+	bypassAttempts := []string{
+		"bad\u00adword",
+		"bad\u200bword",
+		"b a d w o r d",
+		"ｂａｄｗｏｒｄ",
+		"BAD\uFEFFWORD",
+	}
+
+	for i := 0; i < len(bypassAttempts); i++ {
+		text := bypassAttempts[i]
+		// when
+		match, err := rule.CheckForRoom(context.Background(), roomID, text)
+
+		// then
+		require.NoError(t, err, "input: %q", text)
+		require.NotNil(t, match, "should flag %q but did not", text)
+		assert.Equal(t, ruleID, match.RuleID)
+	}
+}
+
+func TestCheckForRoom_InvisibleCharBypassFails_WholeWord(t *testing.T) {
+	// given
+	repo := repository.NewMockChatBannedWordRepository(t)
+	roomID := uuid.New()
+	ruleID := uuid.New()
+	repo.EXPECT().ListApplicable(mock.Anything, roomID).Return([]repository.ChatBannedWordRow{
+		{ID: ruleID, Pattern: "bomb", MatchMode: MatchModeWholeWord, Action: BannedWordActionKick, Scope: "global"},
+	}, nil)
+	rule := NewChatBannedWordsRule(repo)
+	bypassAttempts := []string{
+		"the bo\u00admb is here",
+		"the bo\u200bmb is here",
+		"the ｂｏｍｂ is here",
+	}
+
+	for i := 0; i < len(bypassAttempts); i++ {
+		text := bypassAttempts[i]
+		// when
+		match, err := rule.CheckForRoom(context.Background(), roomID, text)
+
+		// then
+		require.NoError(t, err, "input: %q", text)
+		require.NotNil(t, match, "should flag %q but did not", text)
+		assert.Equal(t, ruleID, match.RuleID)
+	}
+}
+
+func TestCompileBannedWordPattern_RejectsEmptyAfterNormalisation(t *testing.T) {
+	// given
+	pattern := "\u00ad\u200b\u200c"
+
+	// when
+	_, err := CompileBannedWordPattern(pattern, MatchModeSubstring, false)
+
+	// then
+	require.Error(t, err)
+}
+
 func TestCheckForRoom_InvalidRulesSkipped(t *testing.T) {
 	repo := repository.NewMockChatBannedWordRepository(t)
 	roomID := uuid.New()
