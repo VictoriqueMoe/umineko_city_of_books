@@ -56,6 +56,15 @@ func (s *Service) getAllChatRoutes() []FSetupRoute {
 		s.setupCreateRoomBannedWordRoute,
 		s.setupUpdateRoomBannedWordRoute,
 		s.setupDeleteRoomBannedWordRoute,
+		s.setupListWatchPartiesRoute,
+		s.setupStartWatchPartyRoute,
+		s.setupJoinWatchPartyRoute,
+		s.setupLeaveWatchPartyRoute,
+		s.setupGrantWatchPartyControlRoute,
+		s.setupEndWatchPartyRoute,
+		s.setupListWatchPartyMessagesRoute,
+		s.setupSendWatchPartyMessageRoute,
+		s.setupIdentifyWatchPartyRoute,
 	}
 }
 

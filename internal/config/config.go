@@ -12,9 +12,11 @@ import (
 
 type (
 	Config struct {
-		Postgres    PostgresConfig
-		DatabaseURL string
-		GiphyAPIKey string
+		Postgres        PostgresConfig
+		DatabaseURL     string
+		GiphyAPIKey     string
+		HyperbeamAPIKey string
+		HyperbeamRegion string
 	}
 
 	PostgresConfig struct {
@@ -247,11 +249,15 @@ func init() {
 	}
 	databaseURL := os.Getenv("DATABASE_URL")
 	giphyKey := os.Getenv("GIPHY_API_KEY")
+	hyperbeamKey := os.Getenv("HYPERBEAM_API_KEY")
+	hyperbeamRegion := envOr("HYPERBEAM_REGION", "EU")
 
 	Cfg = Config{
-		Postgres:    pg,
-		DatabaseURL: databaseURL,
-		GiphyAPIKey: giphyKey,
+		Postgres:        pg,
+		DatabaseURL:     databaseURL,
+		GiphyAPIKey:     giphyKey,
+		HyperbeamAPIKey: hyperbeamKey,
+		HyperbeamRegion: hyperbeamRegion,
 	}
 
 	for _, def := range AllSiteSettings {

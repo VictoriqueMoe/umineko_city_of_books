@@ -28,6 +28,7 @@ import (
 	"umineko_city_of_books/internal/giphy/banlist"
 	giphyfavourite "umineko_city_of_books/internal/giphy/favourite"
 	"umineko_city_of_books/internal/homefeed"
+	"umineko_city_of_books/internal/hyperbeam"
 	"umineko_city_of_books/internal/journal"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
@@ -86,7 +87,9 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 	blockSvc := blocksvc.NewService(repos.Block, repos.Follow, authzSvc)
 	notifSvc := notification.NewService(repos.Notification, repos.User, hub, emailSvc)
 	reportSvc := report.NewService(repos.Report, repos.Role, repos.User, notifSvc, settingsSvc)
-	chatSvc := chat.NewService(repos.Chat, repos.User, repos.Role, repos.VanityRole, repos.ChatRoomBan, repos.ChatBannedWord, repos.AuditLog, authzSvc, notifSvc, blockSvc, uploadSvc, settingsSvc, mediaProc, hub, contentFilter)
+	hyperbeamSvc := hyperbeam.NewService()
+	chatSvc := chat.NewService(repos.Chat, repos.User, repos.Role, repos.VanityRole, repos.ChatRoomBan, repos.ChatBannedWord, repos.ChatWatchParty, repos.AuditLog, authzSvc, notifSvc, blockSvc, uploadSvc, settingsSvc, mediaProc, hub, hyperbeamSvc, contentFilter)
+	chatSvc.StartWatchPartyReconcileLoop(context.Background())
 	followSvc := follow.NewService(repos.Follow, repos.User, blockSvc, notifSvc, settingsSvc)
 	postSvc := postsvc.NewService(repos.DB(), repos.Post, repos.User, repos.Role, repos.AuditLog, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, hub, contentFilter)
 	artSvc := artsvc.NewService(repos.Art, repos.Post, repos.User, repos.AuditLog, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, contentFilter)

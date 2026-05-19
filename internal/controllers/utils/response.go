@@ -51,3 +51,7 @@ func OK(ctx fiber.Ctx) error {
 func UnprocessableEntity(ctx fiber.Ctx, payload fiber.Map) error {
 	return ctx.Status(fiber.StatusUnprocessableEntity).JSON(payload)
 }
+
+func ServiceUnavailable(ctx fiber.Ctx, msg string) error {
+	return ctx.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": msg})
+}

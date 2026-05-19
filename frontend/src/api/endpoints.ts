@@ -25,6 +25,11 @@ import type {
     ChatMessageListResponse,
     ChatRoom,
     ChatRoomBan,
+    JoinWatchPartyResponse,
+    StartWatchPartyResponse,
+    WatchPartyListResponse,
+    WatchPartyMessage,
+    WatchPartyMessagesResponse,
     ChatRoomMember,
     CreateBannedWordRequest,
     CreateJournalPayload,
@@ -655,6 +660,66 @@ export async function inviteChatRoomMembers(
         `/chat/rooms/${roomId}/members`,
         { user_ids: userIds },
     );
+}
+
+export async function listWatchParties(roomId: string): Promise<WatchPartyListResponse> {
+    return apiFetch<WatchPartyListResponse>(`/chat/rooms/${roomId}/watch-parties`);
+}
+
+export async function startWatchParty(
+    roomId: string,
+    options: { start_url?: string; region?: string; title?: string },
+): Promise<StartWatchPartyResponse> {
+    return apiPost<StartWatchPartyResponse, { start_url?: string; region?: string; title?: string }>(
+        `/chat/rooms/${roomId}/watch-parties`,
+        options,
+    );
+}
+
+export async function joinWatchParty(roomId: string, sessionId: string): Promise<JoinWatchPartyResponse> {
+    return apiPost<JoinWatchPartyResponse, Record<string, never>>(
+        `/chat/rooms/${roomId}/watch-parties/${sessionId}/join`,
+        {},
+    );
+}
+
+export async function leaveWatchParty(roomId: string, sessionId: string): Promise<void> {
+    await apiDelete<unknown>(`/chat/rooms/${roomId}/watch-parties/${sessionId}/participants/me`);
+}
+
+export async function endWatchParty(roomId: string, sessionId: string): Promise<void> {
+    await apiDelete<unknown>(`/chat/rooms/${roomId}/watch-parties/${sessionId}`);
+}
+
+export async function transferWatchPartyControl(roomId: string, sessionId: string, userId: string): Promise<void> {
+    await apiPatch<unknown, Record<string, never>>(
+        `/chat/rooms/${roomId}/watch-parties/${sessionId}/participants/${userId}`,
+        {},
+    );
+}
+
+export async function identifyWatchPartyParticipant(
+    roomId: string,
+    sessionId: string,
+    identifier: string,
+): Promise<void> {
+    await apiPost<unknown, { identifier: string }>(`/chat/rooms/${roomId}/watch-parties/${sessionId}/identify`, {
+        identifier,
+    });
+}
+
+export async function listWatchPartyMessages(roomId: string, sessionId: string): Promise<WatchPartyMessagesResponse> {
+    return apiFetch<WatchPartyMessagesResponse>(`/chat/rooms/${roomId}/watch-parties/${sessionId}/messages`);
+}
+
+export async function sendWatchPartyMessage(
+    roomId: string,
+    sessionId: string,
+    body: string,
+): Promise<WatchPartyMessage> {
+    return apiPost<WatchPartyMessage, { body: string }>(`/chat/rooms/${roomId}/watch-parties/${sessionId}/messages`, {
+        body,
+    });
 }
 
 export async function getUserRooms(): Promise<{ rooms: ChatRoom[] }> {

@@ -12,6 +12,7 @@ import (
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/hyperbeam"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
@@ -34,12 +35,14 @@ type testMocks struct {
 	vanityRoleRepo *repository.MockVanityRoleRepository
 	banRepo        *repository.MockChatRoomBanRepository
 	bannedWordRepo *repository.MockChatBannedWordRepository
+	watchPartyRepo *repository.MockChatWatchPartyRepository
 	auditRepo      *repository.MockAuditLogRepository
 	authzSvc       *authz.MockService
 	notifSvc       *notification.MockService
 	blockSvc       *block.MockService
 	uploadSvc      *upload.MockService
 	settingsSvc    *settings.MockService
+	hyperbeamSvc   *hyperbeam.MockService
 	hub            *ws.Hub
 }
 
@@ -50,6 +53,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	vanityRoleRepo := repository.NewMockVanityRoleRepository(t)
 	banRepo := repository.NewMockChatRoomBanRepository(t)
 	bannedWordRepo := repository.NewMockChatBannedWordRepository(t)
+	watchPartyRepo := repository.NewMockChatWatchPartyRepository(t)
 	auditRepo := repository.NewMockAuditLogRepository(t)
 	authzSvc := authz.NewMockService(t)
 	notifSvc := notification.NewMockService(t)
@@ -58,7 +62,8 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	settingsSvc := settings.NewMockService(t)
 	mediaProc := &media.Processor{}
 	hub := ws.NewHub()
-	svc := NewService(chatRepo, userRepo, roleRepo, vanityRoleRepo, banRepo, bannedWordRepo, auditRepo, authzSvc, notifSvc, blockSvc, uploadSvc, settingsSvc, mediaProc, hub, contentfilter.New()).(*service)
+	hyperbeamSvc := hyperbeam.NewMockService(t)
+	svc := NewService(chatRepo, userRepo, roleRepo, vanityRoleRepo, banRepo, bannedWordRepo, watchPartyRepo, auditRepo, authzSvc, notifSvc, blockSvc, uploadSvc, settingsSvc, mediaProc, hub, hyperbeamSvc, contentfilter.New()).(*service)
 
 	chatRepo.EXPECT().HasGhostMembers(mock.Anything, mock.Anything).Return(false, nil).Maybe()
 	chatRepo.EXPECT().IsGhostMember(mock.Anything, mock.Anything, mock.Anything).Return(false, nil).Maybe()
@@ -76,12 +81,14 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 		vanityRoleRepo: vanityRoleRepo,
 		banRepo:        banRepo,
 		bannedWordRepo: bannedWordRepo,
+		watchPartyRepo: watchPartyRepo,
 		auditRepo:      auditRepo,
 		authzSvc:       authzSvc,
 		notifSvc:       notifSvc,
 		blockSvc:       blockSvc,
 		uploadSvc:      uploadSvc,
 		settingsSvc:    settingsSvc,
+		hyperbeamSvc:   hyperbeamSvc,
 		hub:            hub,
 	}
 }
