@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Hyperbeam from "@hyperbeam/web";
 import { Button } from "../../Button/Button";
 import type { ActiveWatchPartySession } from "./useWatchParty";
@@ -128,7 +129,7 @@ export function WatchPartyModal({
         }
     };
 
-    return (
+    return createPortal(
         <div className={styles.overlay}>
             <div className={styles.shell}>
                 <header className={styles.header}>
@@ -187,6 +188,7 @@ export function WatchPartyModal({
                     />
                 </footer>
             </div>
-        </div>
+        </div>,
+        document.body,
     );
 }
