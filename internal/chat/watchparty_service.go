@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"umineko_city_of_books/internal/watchparty"
 
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
@@ -34,16 +35,7 @@ const (
 	wsWatchPartyParticipantLeft = "watch_party_participant_left"
 	wsWatchPartyControlChanged  = "watch_party_control_changed"
 	wsWatchPartyMessage         = "watch_party_message"
-)
-
-var (
-	ErrWatchPartyDisabled       = errors.New("watch parties are not configured")
-	ErrWatchPartyNotActive      = errors.New("no such active watch party")
-	ErrWatchPartyNotController  = errors.New("only the watch party controller can do that")
-	ErrWatchPartyNotParticipant = errors.New("user is not an active watch party participant")
-	ErrWatchPartyWrongRoomType  = errors.New("watch parties are only available in group chat rooms")
-	ErrWatchPartyMessageEmpty   = errors.New("message body is required")
-	ErrWatchPartyMessageTooLong = errors.New("message body exceeds maximum length")
+	wsWatchPartyKicked          = "watch_party_kicked"
 )
 
 func (s *service) StartWatchParty(ctx context.Context, roomID, actorID uuid.UUID, startURL, region, title string) (*dto.StartWatchPartyResponse, error) {
@@ -234,6 +226,8 @@ func (s *service) LeaveWatchParty(ctx context.Context, roomID, sessionID, actorI
 	if participant.HasControl {
 		if err := s.transferControlTo(ctx, roomID, session, session.StartedBy); err != nil {
 			logger.Log.Warn().Err(err).Msg("auto-return control to owner on leave failed")
+		} else {
+			s.postControlChangeSystemMessage(ctx, roomID, session.ID, actorID, session.StartedBy, "auto_owner_return")
 		}
 	}
 
@@ -253,6 +247,71 @@ func (s *service) LeaveWatchParty(ctx context.Context, roomID, sessionID, actorI
 	return nil
 }
 
+func (s *service) KickWatchPartyParticipant(ctx context.Context, roomID, sessionID, callerID, targetID uuid.UUID) error {
+	if callerID == targetID {
+		return ErrWatchPartyCannotKickSelf
+	}
+
+	session, err := s.loadActiveSession(ctx, roomID, sessionID)
+	if err != nil {
+		return err
+	}
+
+	target, err := s.watchPartyRepo.GetParticipant(ctx, session.ID, targetID)
+	if err != nil {
+		return err
+	}
+	if target == nil || target.LeftAt.Valid {
+		return ErrWatchPartyNotParticipant
+	}
+
+	callerRank := s.watchPartyRankOf(ctx, session, callerID)
+	targetRank := s.watchPartyRankOf(ctx, session, targetID)
+	if callerRank <= targetRank {
+		return ErrWatchPartyCannotKick
+	}
+
+	if target.HasControl {
+		if err := s.transferControlTo(ctx, roomID, session, session.StartedBy); err != nil {
+			logger.Log.Warn().Err(err).Msg("auto-return control on kick failed")
+		} else if session.StartedBy != targetID {
+			s.postControlChangeSystemMessage(ctx, roomID, session.ID, callerID, session.StartedBy, "auto_owner_return")
+		}
+	}
+
+	if err := s.watchPartyRepo.MarkParticipantLeft(ctx, session.ID, targetID); err != nil {
+		return err
+	}
+
+	s.hub.BroadcastToRoom(roomID, ws.Message{
+		Type: wsWatchPartyParticipantLeft,
+		Data: dto.WatchPartyParticipantLeftEvent{
+			SessionID: session.ID,
+			RoomID:    roomID,
+			UserID:    targetID,
+		},
+	}, uuid.Nil)
+
+	s.hub.SendToUser(targetID, ws.Message{
+		Type: wsWatchPartyKicked,
+		Data: dto.WatchPartyKickedEvent{
+			SessionID: session.ID,
+			RoomID:    roomID,
+			ActorID:   callerID,
+		},
+	})
+
+	body := fmt.Sprintf("%s was kicked by %s.", s.displayNameFor(ctx, targetID, roomID), s.displayNameFor(ctx, callerID, roomID))
+	s.postWatchPartySystemMessage(ctx, roomID, session.ID, body)
+
+	details := mustJSON(map[string]any{"room_id": roomID, "target_user_id": targetID})
+	if err := s.auditRepo.Create(ctx, callerID, "watch_party.kick", "chat_watch_party_session", session.ID.String(), details); err != nil {
+		logger.Log.Warn().Err(err).Msg("audit watch_party.kick failed")
+	}
+
+	return nil
+}
+
 func (s *service) GrantWatchPartyControl(ctx context.Context, roomID, sessionID, callerID, targetID uuid.UUID) error {
 	if s.hyperbeamSvc == nil || !s.hyperbeamSvc.Enabled() {
 		return ErrWatchPartyDisabled
@@ -267,15 +326,14 @@ func (s *service) GrantWatchPartyControl(ctx context.Context, roomID, sessionID,
 	if err != nil {
 		return err
 	}
-	isOwner := session.StartedBy == callerID
-	isCurrentController := caller != nil && !caller.LeftAt.Valid && caller.HasControl
-	isSiteStaff := false
-	if !isOwner && !isCurrentController {
-		callerRole, _ := s.roleRepo.GetRole(ctx, callerID)
-		isSiteStaff = callerRole.IsSiteStaff()
-	}
-	if !isOwner && !isCurrentController && !isSiteStaff {
-		return ErrWatchPartyNotController
+	callerIsController := caller != nil && !caller.LeftAt.Valid && caller.HasControl
+
+	if !callerIsController {
+		callerRank := s.watchPartyRankOf(ctx, session, callerID)
+		controllerRank := s.watchPartyRankOf(ctx, session, session.ControllerID)
+		if callerRank <= controllerRank {
+			return ErrWatchPartyOutranked
+		}
 	}
 
 	target, err := s.watchPartyRepo.GetParticipant(ctx, session.ID, targetID)
@@ -292,6 +350,12 @@ func (s *service) GrantWatchPartyControl(ctx context.Context, roomID, sessionID,
 	if err := s.transferControlTo(ctx, roomID, session, targetID); err != nil {
 		return err
 	}
+
+	reason := "pass"
+	if callerID == targetID {
+		reason = "reclaim"
+	}
+	s.postControlChangeSystemMessage(ctx, roomID, session.ID, callerID, targetID, reason)
 
 	details := mustJSON(map[string]any{"room_id": roomID, "target_user_id": targetID})
 	if err := s.auditRepo.Create(ctx, callerID, "watch_party.grant_control", "chat_watch_party_session", session.ID.String(), details); err != nil {
@@ -791,22 +855,31 @@ func (s *service) buildWatchPartyParticipantDTO(ctx context.Context, sessionID, 
 }
 
 func (s *service) buildWatchPartyMessageDTO(ctx context.Context, row *repository.ChatWatchPartyMessageRow) dto.WatchPartyMessage {
-	senderRole, _ := s.roleRepo.GetRole(ctx, row.SenderID)
-	vanity, _ := s.vanityRoleRepo.GetRolesForUser(ctx, row.SenderID)
-	return dto.WatchPartyMessage{
+	kind := row.Kind
+	if kind == "" {
+		kind = watchparty.MessageKindUser
+	}
+	out := dto.WatchPartyMessage{
 		ID:        row.ID,
 		SessionID: row.SessionID,
-		Sender: dto.UserResponse{
-			ID:          row.SenderID,
-			Username:    row.SenderUsername,
-			DisplayName: row.SenderDisplayName,
-			AvatarURL:   row.SenderAvatarURL,
-			Role:        senderRole,
-			VanityRoles: s.toVanityRoleResponses(vanity),
-		},
+		Kind:      kind,
 		Body:      row.Body,
 		CreatedAt: row.CreatedAt,
 	}
+	if kind == watchparty.MessageKindSystem || !row.SenderID.Valid {
+		return out
+	}
+	senderRole, _ := s.roleRepo.GetRole(ctx, row.SenderID.UUID)
+	vanity, _ := s.vanityRoleRepo.GetRolesForUser(ctx, row.SenderID.UUID)
+	out.Sender = &dto.UserResponse{
+		ID:          row.SenderID.UUID,
+		Username:    row.SenderUsername.String,
+		DisplayName: row.SenderDisplayName.String,
+		AvatarURL:   row.SenderAvatarURL.String,
+		Role:        senderRole,
+		VanityRoles: s.toVanityRoleResponses(vanity),
+	}
+	return out
 }
 
 func stringToNull(s string) sql.NullString {

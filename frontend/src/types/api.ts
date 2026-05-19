@@ -744,10 +744,13 @@ export interface WatchPartySession {
     viewer?: WatchPartyViewerContext;
 }
 
+export type WatchPartyMessageKind = "user" | "system";
+
 export interface WatchPartyMessage {
     id: string;
     session_id: string;
-    sender: User;
+    kind: WatchPartyMessageKind;
+    sender?: User;
     body: string;
     created_at: string;
 }
@@ -810,6 +813,13 @@ export interface WatchPartyMessageEvent {
     session_id: string;
     room_id: string;
     message: WatchPartyMessage;
+}
+
+export interface WatchPartyKickedEvent {
+    session_id: string;
+    room_id: string;
+    actor_id: string;
+    reason?: string;
 }
 
 export type BannedWordMatchMode = "substring" | "whole_word" | "regex";

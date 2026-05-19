@@ -53,6 +53,17 @@ export function WatchPartyChat({ messages, viewerUserId, onSend }: WatchPartyCha
             <div className={styles.chatScroll} ref={scrollRef}>
                 {messages.length === 0 && <div className={styles.chatEmpty}>No messages yet. Say hi.</div>}
                 {messages.map(m => {
+                    if (m.kind === "system") {
+                        return (
+                            <div key={m.id} className={styles.chatSystem}>
+                                <span className={styles.chatSystemBody}>{m.body}</span>
+                                <span className={styles.chatSystemTime}>{formatTimeOfDay(m.created_at)}</span>
+                            </div>
+                        );
+                    }
+                    if (!m.sender) {
+                        return null;
+                    }
                     const isSelf = m.sender.id === viewerUserId;
                     return (
                         <div key={m.id} className={`${styles.chatMsg}${isSelf ? ` ${styles.chatMsgSelf}` : ""}`}>

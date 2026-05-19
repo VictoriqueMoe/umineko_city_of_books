@@ -95,7 +95,7 @@ func (s *service) Create(ctx context.Context, reporterID uuid.UUID, req CreateRe
 
 		reporterName := "Someone"
 		if u, err := s.userRepo.GetByID(ctx, reporterID); err == nil && u != nil {
-			reporterName = u.DisplayName
+			reporterName = u.DisplayLabel()
 		}
 
 		baseURL := s.settingsSvc.Get(ctx, config.SettingBaseURL)
@@ -163,7 +163,7 @@ func (s *service) Resolve(ctx context.Context, id int, resolvedBy uuid.UUID, com
 	go func() {
 		resolverName := "A moderator"
 		if u, err := s.userRepo.GetByID(ctx, resolvedBy); err == nil && u != nil {
-			resolverName = u.DisplayName
+			resolverName = u.DisplayLabel()
 		}
 
 		baseURL := s.settingsSvc.Get(ctx, config.SettingBaseURL)

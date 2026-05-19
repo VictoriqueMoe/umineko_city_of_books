@@ -15,17 +15,6 @@ import (
 	"github.com/google/uuid"
 )
 
-func (s *service) lookupDisplayName(ctx context.Context, userID uuid.UUID) string {
-	user, err := s.userRepo.GetByID(ctx, userID)
-	if err != nil || user == nil {
-		return "A member"
-	}
-	if user.DisplayName != "" {
-		return user.DisplayName
-	}
-	return user.Username
-}
-
 func (s *service) isTargetProtected(ctx context.Context, roomID, targetID uuid.UUID) (bool, error) {
 	memberRole, err := s.chatRepo.GetMemberRole(ctx, roomID, targetID)
 	if err != nil {
@@ -62,7 +51,7 @@ func (s *service) enforceBannedWords(ctx context.Context, roomID, senderID uuid.
 	details := fmt.Sprintf("room=%s user=%s pattern=%q match=%q", roomID, senderID, match.Pattern, match.MatchedOn)
 	_ = s.auditRepo.CreateSystem(ctx, "chat_word_filter_"+match.Action, "chat_room", roomID.String(), details)
 	if match.Action == contentfilter.BannedWordActionKick {
-		targetName := s.lookupDisplayName(ctx, senderID)
+		targetName := s.displayNameFor(ctx, senderID, roomID)
 		s.postRoomActionMessage(ctx, roomID, senderID, fmt.Sprintf("%s was kicked by the word filter.", targetName))
 		_ = s.evictUserFromRoom(ctx, roomID, senderID, "the word filter matched a banned word")
 		s.notifyAutomatedKick(roomID, senderID, match.Pattern)
@@ -209,7 +198,7 @@ func (s *service) BanMember(ctx context.Context, actorID, roomID, targetID uuid.
 		return ErrCannotBanStaff
 	}
 
-	targetName := s.lookupDisplayName(ctx, targetID)
+	targetName := s.displayNameFor(ctx, targetID, roomID)
 	var message string
 	trimmed := strings.TrimSpace(reason)
 	if trimmed != "" {
@@ -251,7 +240,7 @@ func (s *service) UnbanMember(ctx context.Context, actorID, roomID, targetID uui
 		return err
 	}
 
-	targetName := s.lookupDisplayName(ctx, targetID)
+	targetName := s.displayNameFor(ctx, targetID, roomID)
 	s.postRoomActionMessage(ctx, roomID, actorID, fmt.Sprintf("%s was unbanned.", targetName))
 
 	s.notifyModerationAction(roomID, targetID, actorID, "unbanned", "")

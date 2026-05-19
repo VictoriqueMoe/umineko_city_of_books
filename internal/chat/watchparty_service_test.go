@@ -8,6 +8,8 @@ import (
 
 	"umineko_city_of_books/internal/hyperbeam"
 	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/role"
+	"umineko_city_of_books/internal/watchparty"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/mock"
@@ -209,12 +211,13 @@ func TestGrantWatchPartyControl_NotController(t *testing.T) {
 	}, nil)
 	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, controllerID).Return(&repository.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: controllerID, HasControl: false}, nil)
 	m.roleRepo.EXPECT().GetRole(mock.Anything, controllerID).Return("", nil)
+	m.roleRepo.EXPECT().GetRole(mock.Anything, targetID).Return("", nil)
 
 	// when
 	err := svc.GrantWatchPartyControl(context.Background(), roomID, sessionID, controllerID, targetID)
 
 	// then
-	require.ErrorIs(t, err, ErrWatchPartyNotController)
+	require.ErrorIs(t, err, ErrWatchPartyOutranked)
 }
 
 func TestGrantWatchPartyControl_OK(t *testing.T) {
@@ -241,10 +244,195 @@ func TestGrantWatchPartyControl_OK(t *testing.T) {
 	m.hyperbeamSvc.EXPECT().SetControlRole(mock.Anything, "https://hb.example/sess", "id-target", true).Return(nil)
 	m.watchPartyRepo.EXPECT().SetParticipantControl(mock.Anything, sessionID, targetID, true).Return(nil)
 	m.watchPartyRepo.EXPECT().SetControllerID(mock.Anything, sessionID, targetID).Return(nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, controllerID).Return(nil, nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, targetID).Return(nil, nil)
+	m.watchPartyRepo.EXPECT().InsertSystemMessage(mock.Anything, mock.Anything, sessionID, mock.Anything).Return(errors.New("skip"))
 	m.auditRepo.EXPECT().Create(mock.Anything, controllerID, "watch_party.grant_control", "chat_watch_party_session", sessionID.String(), mock.Anything).Return(nil)
 
 	// when
 	err := svc.GrantWatchPartyControl(context.Background(), roomID, sessionID, controllerID, targetID)
+
+	// then
+	require.NoError(t, err)
+}
+
+func TestGrantWatchPartyControl_AdminOutranksMod(t *testing.T) {
+	// given an admin caller and a moderator controller — admin should reclaim
+	svc, m := newTestService(t)
+	roomID := uuid.New()
+	sessionID := uuid.New()
+	adminID := uuid.New()
+	modID := uuid.New()
+	ownerID := uuid.New()
+
+	m.hyperbeamSvc.EXPECT().Enabled().Return(true)
+	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(&repository.ChatWatchPartySessionRow{
+		ID: sessionID, RoomID: roomID, StartedBy: ownerID, ControllerID: modID, HyperbeamSessionID: "hb", Status: "active",
+	}, nil)
+	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, adminID).Return(&repository.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: adminID, HasControl: false}, nil)
+	m.roleRepo.EXPECT().GetRole(mock.Anything, adminID).Return(role.RoleAdmin, nil)
+	m.roleRepo.EXPECT().GetRole(mock.Anything, modID).Return(role.RoleModerator, nil)
+	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, adminID).Return(&repository.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: adminID, HasControl: false}, nil)
+	m.watchPartyRepo.EXPECT().GetActiveParticipants(mock.Anything, sessionID).Return([]repository.ChatWatchPartyParticipantRow{
+		{SessionID: sessionID, UserID: modID, HasControl: true},
+		{SessionID: sessionID, UserID: adminID, HasControl: false},
+	}, nil)
+	m.watchPartyRepo.EXPECT().SetParticipantControl(mock.Anything, sessionID, modID, false).Return(nil)
+	m.watchPartyRepo.EXPECT().SetParticipantControl(mock.Anything, sessionID, adminID, true).Return(nil)
+	m.watchPartyRepo.EXPECT().SetControllerID(mock.Anything, sessionID, adminID).Return(nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, adminID).Return(nil, nil)
+	m.watchPartyRepo.EXPECT().InsertSystemMessage(mock.Anything, mock.Anything, sessionID, mock.Anything).Return(errors.New("skip"))
+	m.auditRepo.EXPECT().Create(mock.Anything, adminID, "watch_party.grant_control", "chat_watch_party_session", sessionID.String(), mock.Anything).Return(nil)
+
+	// when
+	err := svc.GrantWatchPartyControl(context.Background(), roomID, sessionID, adminID, adminID)
+
+	// then admin reclaims successfully
+	require.NoError(t, err)
+}
+
+func TestGrantWatchPartyControl_ModCannotReclaimFromAdmin(t *testing.T) {
+	// given a moderator caller and an admin controller — mod should be rejected
+	svc, m := newTestService(t)
+	roomID := uuid.New()
+	sessionID := uuid.New()
+	modID := uuid.New()
+	adminID := uuid.New()
+	ownerID := uuid.New()
+
+	m.hyperbeamSvc.EXPECT().Enabled().Return(true)
+	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(&repository.ChatWatchPartySessionRow{
+		ID: sessionID, RoomID: roomID, StartedBy: ownerID, ControllerID: adminID, HyperbeamSessionID: "hb", Status: "active",
+	}, nil)
+	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, modID).Return(&repository.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: modID, HasControl: false}, nil)
+	m.roleRepo.EXPECT().GetRole(mock.Anything, modID).Return(role.RoleModerator, nil)
+	m.roleRepo.EXPECT().GetRole(mock.Anything, adminID).Return(role.RoleAdmin, nil)
+
+	// when
+	err := svc.GrantWatchPartyControl(context.Background(), roomID, sessionID, modID, modID)
+
+	// then mod cannot outrank admin
+	require.ErrorIs(t, err, ErrWatchPartyOutranked)
+}
+
+func TestGrantWatchPartyControl_SuperAdminControllerIsUntouchable(t *testing.T) {
+	// given a super_admin currently has control, an admin attempts to reclaim
+	svc, m := newTestService(t)
+	roomID := uuid.New()
+	sessionID := uuid.New()
+	adminID := uuid.New()
+	superID := uuid.New()
+	ownerID := uuid.New()
+
+	m.hyperbeamSvc.EXPECT().Enabled().Return(true)
+	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(&repository.ChatWatchPartySessionRow{
+		ID: sessionID, RoomID: roomID, StartedBy: ownerID, ControllerID: superID, HyperbeamSessionID: "hb", Status: "active",
+	}, nil)
+	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, adminID).Return(&repository.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: adminID, HasControl: false}, nil)
+	m.roleRepo.EXPECT().GetRole(mock.Anything, adminID).Return(role.RoleAdmin, nil)
+	m.roleRepo.EXPECT().GetRole(mock.Anything, superID).Return(role.RoleSuperAdmin, nil)
+
+	// when
+	err := svc.GrantWatchPartyControl(context.Background(), roomID, sessionID, adminID, adminID)
+
+	// then admin cannot outrank super_admin
+	require.ErrorIs(t, err, ErrWatchPartyOutranked)
+}
+
+func TestGrantWatchPartyControl_OwnerCanReclaimFromRegular(t *testing.T) {
+	// given the party owner (no site role) reclaims from a regular participant
+	svc, m := newTestService(t)
+	roomID := uuid.New()
+	sessionID := uuid.New()
+	ownerID := uuid.New()
+	memberID := uuid.New()
+
+	m.hyperbeamSvc.EXPECT().Enabled().Return(true)
+	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(&repository.ChatWatchPartySessionRow{
+		ID: sessionID, RoomID: roomID, StartedBy: ownerID, ControllerID: memberID, HyperbeamSessionID: "hb", Status: "active",
+	}, nil)
+	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, ownerID).Return(&repository.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: ownerID, HasControl: false}, nil)
+	m.roleRepo.EXPECT().GetRole(mock.Anything, ownerID).Return(role.Role(""), nil)
+	m.roleRepo.EXPECT().GetRole(mock.Anything, memberID).Return(role.Role(""), nil)
+	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, ownerID).Return(&repository.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: ownerID, HasControl: false}, nil)
+	m.watchPartyRepo.EXPECT().GetActiveParticipants(mock.Anything, sessionID).Return([]repository.ChatWatchPartyParticipantRow{
+		{SessionID: sessionID, UserID: memberID, HasControl: true},
+		{SessionID: sessionID, UserID: ownerID, HasControl: false},
+	}, nil)
+	m.watchPartyRepo.EXPECT().SetParticipantControl(mock.Anything, sessionID, memberID, false).Return(nil)
+	m.watchPartyRepo.EXPECT().SetParticipantControl(mock.Anything, sessionID, ownerID, true).Return(nil)
+	m.watchPartyRepo.EXPECT().SetControllerID(mock.Anything, sessionID, ownerID).Return(nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, ownerID).Return(nil, nil)
+	m.watchPartyRepo.EXPECT().InsertSystemMessage(mock.Anything, mock.Anything, sessionID, mock.Anything).Return(errors.New("skip"))
+	m.auditRepo.EXPECT().Create(mock.Anything, ownerID, "watch_party.grant_control", "chat_watch_party_session", sessionID.String(), mock.Anything).Return(nil)
+
+	// when
+	err := svc.GrantWatchPartyControl(context.Background(), roomID, sessionID, ownerID, ownerID)
+
+	// then owner reclaims successfully
+	require.NoError(t, err)
+}
+
+func TestKickWatchPartyParticipant_CannotKickSelf(t *testing.T) {
+	// given a caller targeting themselves
+	svc, _ := newTestService(t)
+	roomID := uuid.New()
+	sessionID := uuid.New()
+	userID := uuid.New()
+
+	// when
+	err := svc.KickWatchPartyParticipant(context.Background(), roomID, sessionID, userID, userID)
+
+	// then
+	require.ErrorIs(t, err, ErrWatchPartyCannotKickSelf)
+}
+
+func TestKickWatchPartyParticipant_CannotOutrankTarget(t *testing.T) {
+	// given a regular member tries to kick an admin
+	svc, m := newTestService(t)
+	roomID := uuid.New()
+	sessionID := uuid.New()
+	memberID := uuid.New()
+	adminID := uuid.New()
+	ownerID := uuid.New()
+
+	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(&repository.ChatWatchPartySessionRow{
+		ID: sessionID, RoomID: roomID, StartedBy: ownerID, ControllerID: ownerID, HyperbeamSessionID: "hb", Status: "active",
+	}, nil)
+	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, adminID).Return(&repository.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: adminID, HasControl: false}, nil)
+	m.roleRepo.EXPECT().GetRole(mock.Anything, memberID).Return(role.Role(""), nil)
+	m.roleRepo.EXPECT().GetRole(mock.Anything, adminID).Return(role.RoleAdmin, nil)
+
+	// when
+	err := svc.KickWatchPartyParticipant(context.Background(), roomID, sessionID, memberID, adminID)
+
+	// then
+	require.ErrorIs(t, err, ErrWatchPartyCannotKick)
+}
+
+func TestKickWatchPartyParticipant_OK(t *testing.T) {
+	// given an admin kicks a regular member; member did not have control
+	svc, m := newTestService(t)
+	roomID := uuid.New()
+	sessionID := uuid.New()
+	adminID := uuid.New()
+	memberID := uuid.New()
+	ownerID := uuid.New()
+
+	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(&repository.ChatWatchPartySessionRow{
+		ID: sessionID, RoomID: roomID, StartedBy: ownerID, ControllerID: ownerID, HyperbeamSessionID: "hb", Status: "active",
+	}, nil)
+	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, memberID).Return(&repository.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: memberID, HasControl: false}, nil)
+	m.roleRepo.EXPECT().GetRole(mock.Anything, adminID).Return(role.RoleAdmin, nil)
+	m.roleRepo.EXPECT().GetRole(mock.Anything, memberID).Return(role.Role(""), nil)
+	m.watchPartyRepo.EXPECT().MarkParticipantLeft(mock.Anything, sessionID, memberID).Return(nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, memberID).Return(nil, nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, adminID).Return(nil, nil)
+	m.watchPartyRepo.EXPECT().InsertSystemMessage(mock.Anything, mock.Anything, sessionID, mock.Anything).Return(errors.New("skip"))
+	m.auditRepo.EXPECT().Create(mock.Anything, adminID, "watch_party.kick", "chat_watch_party_session", sessionID.String(), mock.Anything).Return(nil)
+
+	// when
+	err := svc.KickWatchPartyParticipant(context.Background(), roomID, sessionID, adminID, memberID)
 
 	// then
 	require.NoError(t, err)
@@ -314,7 +502,13 @@ func TestSendWatchPartyMessage_OK(t *testing.T) {
 	}, nil)
 	m.watchPartyRepo.EXPECT().InsertMessage(mock.Anything, mock.Anything, sessionID, senderID, "hello").Return(nil)
 	m.watchPartyRepo.EXPECT().GetMessageByID(mock.Anything, mock.Anything).Return(&repository.ChatWatchPartyMessageRow{
-		ID: uuid.New(), SessionID: sessionID, SenderID: senderID, SenderUsername: "sender", SenderDisplayName: "Sender", Body: "hello",
+		ID:                uuid.New(),
+		SessionID:         sessionID,
+		Kind:              watchparty.MessageKindUser,
+		SenderID:          uuid.NullUUID{UUID: senderID, Valid: true},
+		SenderUsername:    sql.NullString{String: "sender", Valid: true},
+		SenderDisplayName: sql.NullString{String: "Sender", Valid: true},
+		Body:              "hello",
 	}, nil)
 	m.roleRepo.EXPECT().GetRole(mock.Anything, senderID).Return("", nil)
 	m.vanityRoleRepo.EXPECT().GetRolesForUser(mock.Anything, senderID).Return(nil, nil)

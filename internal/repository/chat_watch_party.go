@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 
+	"umineko_city_of_books/internal/watchparty"
+
 	"github.com/google/uuid"
 )
 
@@ -43,10 +45,11 @@ type (
 	ChatWatchPartyMessageRow struct {
 		ID                uuid.UUID
 		SessionID         uuid.UUID
-		SenderID          uuid.UUID
-		SenderUsername    string
-		SenderDisplayName string
-		SenderAvatarURL   string
+		Kind              watchparty.MessageKind
+		SenderID          uuid.NullUUID
+		SenderUsername    sql.NullString
+		SenderDisplayName sql.NullString
+		SenderAvatarURL   sql.NullString
 		Body              string
 		CreatedAt         string
 	}
@@ -68,6 +71,7 @@ type (
 		CountActiveParticipants(ctx context.Context, sessionID uuid.UUID) (int, error)
 
 		InsertMessage(ctx context.Context, id, sessionID, senderID uuid.UUID, body string) error
+		InsertSystemMessage(ctx context.Context, id, sessionID uuid.UUID, body string) error
 		ListMessages(ctx context.Context, sessionID uuid.UUID, limit int) ([]ChatWatchPartyMessageRow, error)
 		GetMessageByID(ctx context.Context, messageID uuid.UUID) (*ChatWatchPartyMessageRow, error)
 
@@ -322,11 +326,22 @@ func (r *chatWatchPartyRepository) ListIdleActiveSessions(ctx context.Context, i
 
 func (r *chatWatchPartyRepository) InsertMessage(ctx context.Context, id, sessionID, senderID uuid.UUID, body string) error {
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO chat_watch_party_messages (id, session_id, sender_id, body) VALUES ($1, $2, $3, $4)`,
+		`INSERT INTO chat_watch_party_messages (id, session_id, sender_id, body, kind) VALUES ($1, $2, $3, $4, 'user')`,
 		id, sessionID, senderID, body,
 	)
 	if err != nil {
 		return fmt.Errorf("insert watch party message: %w", err)
+	}
+	return nil
+}
+
+func (r *chatWatchPartyRepository) InsertSystemMessage(ctx context.Context, id, sessionID uuid.UUID, body string) error {
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO chat_watch_party_messages (id, session_id, sender_id, body, kind) VALUES ($1, $2, NULL, $3, 'system')`,
+		id, sessionID, body,
+	)
+	if err != nil {
+		return fmt.Errorf("insert watch party system message: %w", err)
 	}
 	return nil
 }
@@ -336,9 +351,9 @@ func (r *chatWatchPartyRepository) ListMessages(ctx context.Context, sessionID u
 		limit = 100
 	}
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT m.id, m.session_id, m.sender_id, u.username, u.display_name, u.avatar_url, m.body, m.created_at
+		`SELECT m.id, m.session_id, m.kind, m.sender_id, u.username, u.display_name, u.avatar_url, m.body, m.created_at
 		   FROM chat_watch_party_messages m
-		   JOIN users u ON u.id = m.sender_id
+		   LEFT JOIN users u ON u.id = m.sender_id
 		  WHERE m.session_id = $1
 		  ORDER BY m.created_at ASC
 		  LIMIT $2`,
@@ -351,7 +366,7 @@ func (r *chatWatchPartyRepository) ListMessages(ctx context.Context, sessionID u
 	var result []ChatWatchPartyMessageRow
 	for rows.Next() {
 		var m ChatWatchPartyMessageRow
-		if err := rows.Scan(&m.ID, &m.SessionID, &m.SenderID, &m.SenderUsername, &m.SenderDisplayName, &m.SenderAvatarURL, &m.Body, &m.CreatedAt); err != nil {
+		if err := rows.Scan(&m.ID, &m.SessionID, &m.Kind, &m.SenderID, &m.SenderUsername, &m.SenderDisplayName, &m.SenderAvatarURL, &m.Body, &m.CreatedAt); err != nil {
 			return nil, fmt.Errorf("scan watch party message: %w", err)
 		}
 		result = append(result, m)
@@ -361,14 +376,14 @@ func (r *chatWatchPartyRepository) ListMessages(ctx context.Context, sessionID u
 
 func (r *chatWatchPartyRepository) GetMessageByID(ctx context.Context, messageID uuid.UUID) (*ChatWatchPartyMessageRow, error) {
 	row := r.db.QueryRowContext(ctx,
-		`SELECT m.id, m.session_id, m.sender_id, u.username, u.display_name, u.avatar_url, m.body, m.created_at
+		`SELECT m.id, m.session_id, m.kind, m.sender_id, u.username, u.display_name, u.avatar_url, m.body, m.created_at
 		   FROM chat_watch_party_messages m
-		   JOIN users u ON u.id = m.sender_id
+		   LEFT JOIN users u ON u.id = m.sender_id
 		  WHERE m.id = $1`,
 		messageID,
 	)
 	var m ChatWatchPartyMessageRow
-	err := row.Scan(&m.ID, &m.SessionID, &m.SenderID, &m.SenderUsername, &m.SenderDisplayName, &m.SenderAvatarURL, &m.Body, &m.CreatedAt)
+	err := row.Scan(&m.ID, &m.SessionID, &m.Kind, &m.SenderID, &m.SenderUsername, &m.SenderDisplayName, &m.SenderAvatarURL, &m.Body, &m.CreatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}

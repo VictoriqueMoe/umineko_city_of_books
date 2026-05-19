@@ -42,6 +42,17 @@ var (
 	ErrInvalidBannedWordRegex   = errors.New("invalid regex pattern")
 	ErrBannedWordRuleMismatch   = errors.New("banned word rule does not belong to this room")
 	ErrLockedNonStaffDM         = errors.New("locked accounts can only message site staff")
+
+	ErrWatchPartyDisabled       = errors.New("watch parties are not configured")
+	ErrWatchPartyNotActive      = errors.New("no such active watch party")
+	ErrWatchPartyNotController  = errors.New("only the watch party controller can do that")
+	ErrWatchPartyNotParticipant = errors.New("user is not an active watch party participant")
+	ErrWatchPartyWrongRoomType  = errors.New("watch parties are only available in group chat rooms")
+	ErrWatchPartyMessageEmpty   = errors.New("message body is required")
+	ErrWatchPartyMessageTooLong = errors.New("message body exceeds maximum length")
+	ErrWatchPartyOutranked      = errors.New("you do not outrank the current controller")
+	ErrWatchPartyCannotKickSelf = errors.New("use leave to remove yourself from a watch party")
+	ErrWatchPartyCannotKick     = errors.New("you do not outrank this participant")
 )
 
 type ErrBannedWordMatch struct {

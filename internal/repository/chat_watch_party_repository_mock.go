@@ -588,6 +588,75 @@ func (_c *MockChatWatchPartyRepository_InsertMessage_Call) RunAndReturn(run func
 	return _c
 }
 
+// InsertSystemMessage provides a mock function for the type MockChatWatchPartyRepository
+func (_mock *MockChatWatchPartyRepository) InsertSystemMessage(ctx context.Context, id uuid.UUID, sessionID uuid.UUID, body string) error {
+	ret := _mock.Called(ctx, id, sessionID, body)
+
+	if len(ret) == 0 {
+		panic("no return value specified for InsertSystemMessage")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string) error); ok {
+		r0 = returnFunc(ctx, id, sessionID, body)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockChatWatchPartyRepository_InsertSystemMessage_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'InsertSystemMessage'
+type MockChatWatchPartyRepository_InsertSystemMessage_Call struct {
+	*mock.Call
+}
+
+// InsertSystemMessage is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id uuid.UUID
+//   - sessionID uuid.UUID
+//   - body string
+func (_e *MockChatWatchPartyRepository_Expecter) InsertSystemMessage(ctx interface{}, id interface{}, sessionID interface{}, body interface{}) *MockChatWatchPartyRepository_InsertSystemMessage_Call {
+	return &MockChatWatchPartyRepository_InsertSystemMessage_Call{Call: _e.mock.On("InsertSystemMessage", ctx, id, sessionID, body)}
+}
+
+func (_c *MockChatWatchPartyRepository_InsertSystemMessage_Call) Run(run func(ctx context.Context, id uuid.UUID, sessionID uuid.UUID, body string)) *MockChatWatchPartyRepository_InsertSystemMessage_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatWatchPartyRepository_InsertSystemMessage_Call) Return(err error) *MockChatWatchPartyRepository_InsertSystemMessage_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockChatWatchPartyRepository_InsertSystemMessage_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, sessionID uuid.UUID, body string) error) *MockChatWatchPartyRepository_InsertSystemMessage_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListActiveByRoom provides a mock function for the type MockChatWatchPartyRepository
 func (_mock *MockChatWatchPartyRepository) ListActiveByRoom(ctx context.Context, roomID uuid.UUID) ([]ChatWatchPartySessionRow, error) {
 	ret := _mock.Called(ctx, roomID)

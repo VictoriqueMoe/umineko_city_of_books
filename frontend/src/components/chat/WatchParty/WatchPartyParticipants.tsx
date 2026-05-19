@@ -1,33 +1,65 @@
 import { useState } from "react";
 import type { WatchPartyParticipant } from "../../../types/api";
+import type { SiteRole } from "../../../utils/permissions";
 import { ProfileLink } from "../../ProfileLink/ProfileLink";
 import styles from "./WatchParty.module.css";
 
 interface WatchPartyParticipantsProps {
     participants: WatchPartyParticipant[];
     viewerUserId: string;
-    viewerIsOwner: boolean;
-    viewerIsStaff: boolean;
+    viewerRole: SiteRole | undefined;
     viewerHasControl: boolean;
     ownerUserId: string;
     onTransferControl: (userId: string) => Promise<void>;
+    onKick: (userId: string) => Promise<void>;
+}
+
+function siteRoleRank(role: SiteRole | undefined): number {
+    switch (role) {
+        case "super_admin": {
+            return 4;
+        }
+        case "admin": {
+            return 3;
+        }
+        case "moderator": {
+            return 2;
+        }
+        default: {
+            return 0;
+        }
+    }
+}
+
+function effectiveRank(role: SiteRole | undefined, isOwner: boolean): number {
+    const rank = siteRoleRank(role);
+    if (isOwner && rank < 1) {
+        return 1;
+    }
+    return rank;
 }
 
 export function WatchPartyParticipants({
     participants,
     viewerUserId,
-    viewerIsOwner,
-    viewerIsStaff,
+    viewerRole,
     viewerHasControl,
     ownerUserId,
     onTransferControl,
+    onKick,
 }: WatchPartyParticipantsProps) {
     const [busyUserId, setBusyUserId] = useState<string | null>(null);
 
-    const handleTransfer = async (rowUserId: string, targetUserId: string) => {
+    const viewerIsOwner = viewerUserId === ownerUserId;
+    const viewerRank = effectiveRank(viewerRole, viewerIsOwner);
+    const controller = participants.find(p => p.has_control);
+    const controllerRank = controller ? effectiveRank(controller.user.role, controller.user.id === ownerUserId) : 0;
+    const canOutrankController = !controller || viewerRank > controllerRank;
+
+    const runAction = async (rowUserId: string, action: () => Promise<void>) => {
         setBusyUserId(rowUserId);
         try {
-            await onTransferControl(targetUserId);
+            await action();
         } finally {
             setBusyUserId(null);
         }
@@ -42,34 +74,50 @@ export function WatchPartyParticipants({
                 {participants.map(p => {
                     const isSelf = p.user.id === viewerUserId;
                     const isOwner = p.user.id === ownerUserId;
-                    let actionLabel: string | null = null;
-                    let actionTarget: string | null = null;
-                    const hasOverride = viewerIsOwner || viewerIsStaff;
+                    const targetRank = effectiveRank(p.user.role, isOwner);
+
+                    let transferLabel: string | null = null;
+                    let transferTarget: string | null = null;
                     if (isSelf) {
-                        if (hasOverride && !p.has_control) {
-                            actionLabel = "Reclaim control";
-                            actionTarget = viewerUserId;
+                        if (!p.has_control && canOutrankController) {
+                            transferLabel = "Reclaim control";
+                            transferTarget = viewerUserId;
                         }
-                    } else if (p.has_control && hasOverride) {
-                        actionLabel = "Reclaim";
-                        actionTarget = viewerUserId;
-                    } else if (!p.has_control && (viewerHasControl || hasOverride)) {
-                        actionLabel = "Pass control";
-                        actionTarget = p.user.id;
+                    } else if (p.has_control) {
+                        if (canOutrankController) {
+                            transferLabel = "Reclaim";
+                            transferTarget = viewerUserId;
+                        }
+                    } else if (viewerHasControl || canOutrankController) {
+                        transferLabel = "Pass control";
+                        transferTarget = p.user.id;
                     }
+
+                    const canKick = !isSelf && viewerRank > targetRank;
+
                     return (
                         <li key={p.user.id} className={styles.participantPill}>
                             <ProfileLink user={p.user} size="small" />
                             {isOwner && <span className={styles.ownerPill}>owner</span>}
                             {p.has_control && <span className={styles.controlPill}>control</span>}
-                            {actionLabel && actionTarget && (
+                            {transferLabel && transferTarget && (
                                 <button
                                     type="button"
                                     className={styles.controlToggle}
-                                    onClick={() => handleTransfer(p.user.id, actionTarget)}
+                                    onClick={() => runAction(p.user.id, () => onTransferControl(transferTarget))}
                                     disabled={busyUserId === p.user.id}
                                 >
-                                    {actionLabel}
+                                    {transferLabel}
+                                </button>
+                            )}
+                            {canKick && (
+                                <button
+                                    type="button"
+                                    className={styles.kickToggle}
+                                    onClick={() => runAction(p.user.id, () => onKick(p.user.id))}
+                                    disabled={busyUserId === p.user.id}
+                                >
+                                    Kick
                                 </button>
                             )}
                         </li>

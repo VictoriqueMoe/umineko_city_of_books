@@ -698,6 +698,10 @@ export async function transferWatchPartyControl(roomId: string, sessionId: strin
     );
 }
 
+export async function kickWatchPartyParticipant(roomId: string, sessionId: string, userId: string): Promise<void> {
+    await apiDelete<unknown>(`/chat/rooms/${roomId}/watch-parties/${sessionId}/participants/${userId}`);
+}
+
 export async function identifyWatchPartyParticipant(
     roomId: string,
     sessionId: string,

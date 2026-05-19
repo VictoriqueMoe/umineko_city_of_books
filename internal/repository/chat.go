@@ -151,6 +151,7 @@ type (
 		GetRoomMembers(ctx context.Context, roomID uuid.UUID) ([]uuid.UUID, error)
 		GetRoomMembersDetailed(ctx context.Context, roomID uuid.UUID) ([]ChatRoomMemberRow, error)
 		GetMemberRole(ctx context.Context, roomID, userID uuid.UUID) (string, error)
+		GetMemberNickname(ctx context.Context, roomID, userID uuid.UUID) (string, error)
 		IsMember(ctx context.Context, roomID, userID uuid.UUID) (bool, error)
 		SetMuted(ctx context.Context, roomID, userID uuid.UUID, muted bool) error
 		IsMuted(ctx context.Context, roomID, userID uuid.UUID) (bool, error)
@@ -363,6 +364,21 @@ func (r *chatRepository) SetMemberRole(ctx context.Context, roomID, userID uuid.
 		return fmt.Errorf("set member role: %w", err)
 	}
 	return nil
+}
+
+func (r *chatRepository) GetMemberNickname(ctx context.Context, roomID, userID uuid.UUID) (string, error) {
+	var nickname string
+	err := r.db.QueryRowContext(ctx,
+		`SELECT COALESCE(nickname, '') FROM chat_room_members WHERE room_id = $1 AND user_id = $2 AND left_at IS NULL`,
+		roomID, userID,
+	).Scan(&nickname)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	if err != nil {
+		return "", fmt.Errorf("get member nickname: %w", err)
+	}
+	return nickname, nil
 }
 
 func (r *chatRepository) GetMemberRole(ctx context.Context, roomID, userID uuid.UUID) (string, error) {

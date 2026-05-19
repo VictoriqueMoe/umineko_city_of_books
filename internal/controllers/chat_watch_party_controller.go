@@ -31,6 +31,10 @@ func (s *Service) setupGrantWatchPartyControlRoute(r fiber.Router) {
 	r.Patch("/chat/rooms/:roomID/watch-parties/:sessionID/participants/:userID", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.grantWatchPartyControl)
 }
 
+func (s *Service) setupKickWatchPartyParticipantRoute(r fiber.Router) {
+	r.Delete("/chat/rooms/:roomID/watch-parties/:sessionID/participants/:userID", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.kickWatchPartyParticipant)
+}
+
 func (s *Service) setupEndWatchPartyRoute(r fiber.Router) {
 	r.Delete("/chat/rooms/:roomID/watch-parties/:sessionID", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.endWatchParty)
 }
@@ -80,6 +84,18 @@ func mapWatchPartyError(ctx fiber.Ctx, err error) error {
 	case errors.Is(err, chat.ErrWatchPartyMessageTooLong):
 		{
 			return utils.BadRequest(ctx, "message is too long")
+		}
+	case errors.Is(err, chat.ErrWatchPartyOutranked):
+		{
+			return utils.Forbidden(ctx, "you do not outrank the current controller")
+		}
+	case errors.Is(err, chat.ErrWatchPartyCannotKickSelf):
+		{
+			return utils.BadRequest(ctx, "use leave to remove yourself")
+		}
+	case errors.Is(err, chat.ErrWatchPartyCannotKick):
+		{
+			return utils.Forbidden(ctx, "you do not outrank this participant")
 		}
 	case errors.Is(err, chat.ErrRoomNotFound):
 		{
@@ -171,6 +187,26 @@ func (s *Service) grantWatchPartyControl(ctx fiber.Ctx) error {
 		return nil
 	}
 	if err := s.ChatService.GrantWatchPartyControl(ctx.Context(), roomID, sessionID, actorID, targetID); err != nil {
+		return mapWatchPartyError(ctx, err)
+	}
+	return utils.OK(ctx)
+}
+
+func (s *Service) kickWatchPartyParticipant(ctx fiber.Ctx) error {
+	actorID := utils.UserID(ctx)
+	roomID, ok := utils.ParseIDParam(ctx, "roomID")
+	if !ok {
+		return nil
+	}
+	sessionID, ok := utils.ParseIDParam(ctx, "sessionID")
+	if !ok {
+		return nil
+	}
+	targetID, ok := utils.ParseIDParam(ctx, "userID")
+	if !ok {
+		return nil
+	}
+	if err := s.ChatService.KickWatchPartyParticipant(ctx.Context(), roomID, sessionID, actorID, targetID); err != nil {
 		return mapWatchPartyError(ctx, err)
 	}
 	return utils.OK(ctx)

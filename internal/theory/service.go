@@ -91,7 +91,7 @@ func (s *service) actorName(ctx context.Context, userID uuid.UUID) string {
 	if err != nil || u == nil {
 		return "Someone"
 	}
-	return u.DisplayName
+	return u.DisplayLabel()
 }
 
 func (s *service) CreateTheory(ctx context.Context, userID uuid.UUID, req dto.CreateTheoryRequest) (uuid.UUID, error) {

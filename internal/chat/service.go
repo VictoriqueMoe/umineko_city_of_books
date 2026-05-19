@@ -164,6 +164,7 @@ type (
 		JoinWatchParty(ctx context.Context, roomID, sessionID, actorID uuid.UUID) (*dto.JoinWatchPartyResponse, error)
 		LeaveWatchParty(ctx context.Context, roomID, sessionID, actorID uuid.UUID) error
 		GrantWatchPartyControl(ctx context.Context, roomID, sessionID, callerID, targetID uuid.UUID) error
+		KickWatchPartyParticipant(ctx context.Context, roomID, sessionID, callerID, targetID uuid.UUID) error
 		EndWatchParty(ctx context.Context, roomID, sessionID, actorID uuid.UUID, reason string) error
 		ListWatchParties(ctx context.Context, roomID, viewerID uuid.UUID) (*dto.WatchPartyListResponse, error)
 		IdentifyWatchPartyParticipant(ctx context.Context, roomID, sessionID, userID uuid.UUID, identifier string) error
@@ -1291,15 +1292,11 @@ func (s *service) nameAndPossessive(ctx context.Context, userID uuid.UUID) (stri
 	if err != nil || u == nil {
 		return "", "their"
 	}
-	name := strings.TrimSpace(u.DisplayName)
-	if name == "" {
-		name = strings.TrimSpace(u.Username)
-	}
 	possessive := strings.TrimSpace(u.PronounPossessive)
 	if possessive == "" {
 		possessive = "their"
 	}
-	return name, possessive
+	return u.DisplayLabel(), possessive
 }
 
 func (s *service) postRoomActionMessage(ctx context.Context, roomID, actorID uuid.UUID, body string) {

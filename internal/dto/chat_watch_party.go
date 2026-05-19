@@ -1,6 +1,10 @@
 package dto
 
-import "github.com/google/uuid"
+import (
+	"umineko_city_of_books/internal/watchparty"
+
+	"github.com/google/uuid"
+)
 
 type (
 	WatchPartySession struct {
@@ -31,11 +35,12 @@ type (
 	}
 
 	WatchPartyMessage struct {
-		ID        uuid.UUID    `json:"id"`
-		SessionID uuid.UUID    `json:"session_id"`
-		Sender    UserResponse `json:"sender"`
-		Body      string       `json:"body"`
-		CreatedAt string       `json:"created_at"`
+		ID        uuid.UUID              `json:"id"`
+		SessionID uuid.UUID              `json:"session_id"`
+		Kind      watchparty.MessageKind `json:"kind"`
+		Sender    *UserResponse          `json:"sender,omitempty"`
+		Body      string                 `json:"body"`
+		CreatedAt string                 `json:"created_at"`
 	}
 
 	StartWatchPartyRequest struct {
@@ -106,5 +111,12 @@ type (
 		SessionID uuid.UUID         `json:"session_id"`
 		RoomID    uuid.UUID         `json:"room_id"`
 		Message   WatchPartyMessage `json:"message"`
+	}
+
+	WatchPartyKickedEvent struct {
+		SessionID uuid.UUID `json:"session_id"`
+		RoomID    uuid.UUID `json:"room_id"`
+		ActorID   uuid.UUID `json:"actor_id"`
+		Reason    string    `json:"reason,omitempty"`
 	}
 )

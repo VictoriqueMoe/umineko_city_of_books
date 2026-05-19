@@ -1,6 +1,8 @@
 package model
 
 import (
+	"strings"
+
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/role"
 
@@ -66,6 +68,19 @@ type (
 		FanficCount   int
 	}
 )
+
+func (u *User) DisplayLabel() string {
+	if u == nil {
+		return "A user"
+	}
+	if name := strings.TrimSpace(u.DisplayName); name != "" {
+		return name
+	}
+	if name := strings.TrimSpace(u.Username); name != "" {
+		return name
+	}
+	return "A user"
+}
 
 func (u *User) ToResponse() *dto.UserResponse {
 	return &dto.UserResponse{

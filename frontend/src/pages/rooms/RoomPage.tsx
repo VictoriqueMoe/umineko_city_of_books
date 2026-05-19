@@ -1275,11 +1275,13 @@ export function RoomPage() {
                     onClose={() => watchParty.close()}
                     active={watchParty.activeSession}
                     viewerUserId={user.id}
+                    viewerRole={user.role}
                     isStarter={watchParty.activeSession.session.started_by === user.id}
                     viewerIsStaff={isSiteStaff(user.role)}
                     onLeave={watchParty.leave}
                     onEnd={watchParty.end}
                     onTransferControl={watchParty.transferControl}
+                    onKick={watchParty.kick}
                     onIdentify={watchParty.identify}
                     onSendMessage={watchParty.sendMessage}
                 />

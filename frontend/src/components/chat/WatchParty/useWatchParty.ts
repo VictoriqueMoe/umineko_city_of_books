@@ -4,6 +4,7 @@ import {
     endWatchParty as endWatchPartyApi,
     identifyWatchPartyParticipant as identifyWatchPartyParticipantApi,
     joinWatchParty as joinWatchPartyApi,
+    kickWatchPartyParticipant as kickWatchPartyParticipantApi,
     leaveWatchParty as leaveWatchPartyApi,
     listWatchParties,
     listWatchPartyMessages,
@@ -14,6 +15,7 @@ import {
 import type {
     WatchPartyControlChangedEvent,
     WatchPartyEndedEvent,
+    WatchPartyKickedEvent,
     WatchPartyMessage,
     WatchPartyMessageEvent,
     WatchPartyParticipant,
@@ -43,6 +45,7 @@ interface UseWatchPartyResult {
     leave: () => Promise<void>;
     end: () => Promise<void>;
     transferControl: (userId: string) => Promise<void>;
+    kick: (userId: string) => Promise<void>;
     identify: (identifier: string) => Promise<void>;
     sendMessage: (body: string) => Promise<void>;
     openExisting: (sessionId: string) => void;
@@ -230,6 +233,23 @@ export function useWatchParty(roomId: string | null, viewerUserId: string | null
                 });
                 return;
             }
+            if (msg.type === "watch_party_kicked") {
+                const payload = msg.data as WatchPartyKickedEvent;
+                if (payload.room_id !== roomId) {
+                    return;
+                }
+                setError("You were removed from the watch party.");
+                setData(prev => {
+                    if (prev.roomId !== roomId) {
+                        return prev;
+                    }
+                    if (prev.activeSessionId !== payload.session_id) {
+                        return prev;
+                    }
+                    return { ...prev, activeSessionId: null, embedURL: "", messages: [] };
+                });
+                return;
+            }
         });
         return unsubscribe;
     }, [addWSListener, roomId, viewerUserId]);
@@ -352,6 +372,22 @@ export function useWatchParty(roomId: string | null, viewerUserId: string | null
         [roomId, activeSessionId],
     );
 
+    const kick = useCallback(
+        async (userId: string) => {
+            if (!roomId || !activeSessionId) {
+                return;
+            }
+            setError(null);
+            try {
+                await kickWatchPartyParticipantApi(roomId, activeSessionId, userId);
+            } catch (err: unknown) {
+                setError(messageFromError(err, "Failed to kick participant"));
+                throw err;
+            }
+        },
+        [roomId, activeSessionId],
+    );
+
     const identify = useCallback(
         async (identifier: string) => {
             if (!roomId || !activeSessionId || !identifier) {
@@ -437,6 +473,7 @@ export function useWatchParty(roomId: string | null, viewerUserId: string | null
         leave,
         end,
         transferControl,
+        kick,
         identify,
         sendMessage,
         openExisting,

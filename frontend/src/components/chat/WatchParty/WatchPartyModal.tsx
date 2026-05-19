@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Hyperbeam from "@hyperbeam/web";
 import { Button } from "../../Button/Button";
+import type { SiteRole } from "../../../utils/permissions";
 import type { ActiveWatchPartySession } from "./useWatchParty";
 import { WatchPartyChat } from "./WatchPartyChat";
 import { WatchPartyParticipants } from "./WatchPartyParticipants";
@@ -14,11 +15,13 @@ interface WatchPartyModalProps {
     onClose: () => void;
     active: ActiveWatchPartySession;
     viewerUserId: string;
+    viewerRole: SiteRole | undefined;
     isStarter: boolean;
     viewerIsStaff: boolean;
     onLeave: () => Promise<void>;
     onEnd: () => Promise<void>;
     onTransferControl: (userId: string) => Promise<void>;
+    onKick: (userId: string) => Promise<void>;
     onIdentify: (identifier: string) => Promise<void>;
     onSendMessage: (body: string) => Promise<void>;
 }
@@ -28,11 +31,13 @@ export function WatchPartyModal({
     onClose,
     active,
     viewerUserId,
+    viewerRole,
     isStarter,
     viewerIsStaff,
     onLeave,
     onEnd,
     onTransferControl,
+    onKick,
     onIdentify,
     onSendMessage,
 }: WatchPartyModalProps) {
@@ -180,11 +185,11 @@ export function WatchPartyModal({
                     <WatchPartyParticipants
                         participants={session.participants}
                         viewerUserId={viewerUserId}
-                        viewerIsOwner={isStarter}
-                        viewerIsStaff={viewerIsStaff}
+                        viewerRole={viewerRole}
                         viewerHasControl={hasControl}
                         ownerUserId={session.started_by}
                         onTransferControl={onTransferControl}
+                        onKick={onKick}
                     />
                 </footer>
             </div>

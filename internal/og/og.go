@@ -380,14 +380,14 @@ func (r *Resolver) profileMeta(ctx context.Context, username string) *Meta {
 
 	desc := u.Bio
 	if desc == "" {
-		desc = fmt.Sprintf("%s's profile on Umineko City of Books", u.DisplayName)
+		desc = fmt.Sprintf("%s's profile on Umineko City of Books", u.DisplayLabel())
 	}
 	if len(desc) > 200 {
 		desc = desc[:197] + "..."
 	}
 
 	return &Meta{
-		Title:       fmt.Sprintf("%s (@%s)", u.DisplayName, u.Username),
+		Title:       fmt.Sprintf("%s (@%s)", u.DisplayLabel(), u.Username),
 		Description: desc,
 		Image:       u.BannerURL,
 		URL:         fmt.Sprintf("%s/user/%s", r.baseURL, username),

@@ -279,6 +279,28 @@
     margin-left: auto;
 }
 
+.chatSystem {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    padding: 0.2rem 0.5rem;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    font-style: italic;
+    text-align: center;
+    justify-content: center;
+}
+
+.chatSystemBody {
+    overflow-wrap: anywhere;
+}
+
+.chatSystemTime {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    opacity: 0.7;
+}
+
 .chatMsgBody {
     color: var(--text);
     font-size: 0.88rem;
@@ -387,6 +409,26 @@
 }
 
 .controlToggle:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.kickToggle {
+    background: transparent;
+    border: 1px solid rgba(255, 51, 51, 0.45);
+    color: #ff6666;
+    padding: 0.2rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    cursor: pointer;
+}
+
+.kickToggle:hover:not(:disabled) {
+    background: rgba(255, 51, 51, 0.15);
+    color: #ff8888;
+}
+
+.kickToggle:disabled {
     opacity: 0.5;
     cursor: not-allowed;
 }
