@@ -37,6 +37,9 @@ import { RoomModerationDialog } from "../../components/chat/RoomModerationDialog
 import { InviteMembersModal } from "../../components/chat/InviteMembersModal/InviteMembersModal";
 import { MessageBubble } from "../../components/chat/MessageBubble/MessageBubble";
 import { PinnedMessagesPanel } from "../../components/chat/PinnedMessagesPanel/PinnedMessagesPanel";
+import { useWatchParty } from "../../components/chat/WatchParty/useWatchParty";
+import { WatchPartyButton } from "../../components/chat/WatchParty/WatchPartyButton";
+import { WatchPartyModal } from "../../components/chat/WatchParty/WatchPartyModal";
 import { Lightbox } from "../../components/Lightbox/Lightbox";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import {
@@ -164,6 +167,7 @@ export function RoomPage() {
     }
     const [pinnedOpen, setPinnedOpen] = useState(false);
     const [pinnedRefreshKey, setPinnedRefreshKey] = useState(0);
+    const watchParty = useWatchParty(roomId ?? null, user?.id ?? null);
     const [editProfileOpen, setEditProfileOpen] = useState(false);
     const [inviteModalOpen, setInviteModalOpen] = useState(false);
     const [moderationDialogOpen, setModerationDialogOpen] = useState(false);
@@ -1210,6 +1214,19 @@ export function RoomPage() {
                         onTyping={() => sendWSMessage({ type: "typing", data: { room_id: room.id } })}
                         onEditLast={handleEditLast}
                         timeoutUntil={viewerTimeoutUntil}
+                        extraActions={
+                            !isSystem && user ? (
+                                <WatchPartyButton
+                                    enabled={watchParty.enabled}
+                                    sessions={watchParty.sessions}
+                                    activeSessionId={watchParty.openSessionId}
+                                    viewerUserId={user.id}
+                                    onStart={opts => watchParty.start(opts)}
+                                    onJoin={sid => watchParty.join(sid)}
+                                    onOpenExisting={sid => watchParty.openExisting(sid)}
+                                />
+                            ) : null
+                        }
                     />
                 </div>
             </div>
@@ -1251,6 +1268,22 @@ export function RoomPage() {
                 roomId={room.id}
                 onClose={() => setModerationDialogOpen(false)}
             />
+
+            {watchParty.activeSession && user && (
+                <WatchPartyModal
+                    isOpen={true}
+                    onClose={() => watchParty.close()}
+                    active={watchParty.activeSession}
+                    viewerUserId={user.id}
+                    isStarter={watchParty.activeSession.session.started_by === user.id}
+                    viewerIsStaff={isSiteStaff(user.role)}
+                    onLeave={watchParty.leave}
+                    onEnd={watchParty.end}
+                    onTransferControl={watchParty.transferControl}
+                    onIdentify={watchParty.identify}
+                    onSendMessage={watchParty.sendMessage}
+                />
+            )}
 
             <InviteMembersModal
                 isOpen={inviteModalOpen}

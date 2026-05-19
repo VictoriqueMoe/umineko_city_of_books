@@ -34,6 +34,7 @@ type (
 		Secret         SecretRepository
 		ChatRoomBan    ChatRoomBanRepository
 		ChatBannedWord ChatBannedWordRepository
+		ChatWatchParty ChatWatchPartyRepository
 		GameRoom       GameRoomRepository
 		HomeFeed       HomeFeedRepository
 		SidebarVisited SidebarLastVisitedRepository
@@ -77,6 +78,7 @@ func New(db *sql.DB) *Repositories {
 		Secret:         &secretRepository{db: db},
 		ChatRoomBan:    &chatRoomBanRepository{db: db},
 		ChatBannedWord: &chatBannedWordRepository{db: db},
+		ChatWatchParty: &chatWatchPartyRepository{db: db},
 		GameRoom:       &gameRoomRepository{db: db},
 		HomeFeed:       &homeFeedRepository{db: db},
 		SidebarVisited: &sidebarLastVisitedRepository{db: db},

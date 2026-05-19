@@ -965,6 +965,81 @@ func (_c *MockService_EditMessage_Call) RunAndReturn(run func(ctx context.Contex
 	return _c
 }
 
+// EndWatchParty provides a mock function for the type MockService
+func (_mock *MockService) EndWatchParty(ctx context.Context, roomID uuid.UUID, sessionID uuid.UUID, actorID uuid.UUID, reason string) error {
+	ret := _mock.Called(ctx, roomID, sessionID, actorID, reason)
+
+	if len(ret) == 0 {
+		panic("no return value specified for EndWatchParty")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID, string) error); ok {
+		r0 = returnFunc(ctx, roomID, sessionID, actorID, reason)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_EndWatchParty_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'EndWatchParty'
+type MockService_EndWatchParty_Call struct {
+	*mock.Call
+}
+
+// EndWatchParty is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roomID uuid.UUID
+//   - sessionID uuid.UUID
+//   - actorID uuid.UUID
+//   - reason string
+func (_e *MockService_Expecter) EndWatchParty(ctx interface{}, roomID interface{}, sessionID interface{}, actorID interface{}, reason interface{}) *MockService_EndWatchParty_Call {
+	return &MockService_EndWatchParty_Call{Call: _e.mock.On("EndWatchParty", ctx, roomID, sessionID, actorID, reason)}
+}
+
+func (_c *MockService_EndWatchParty_Call) Run(run func(ctx context.Context, roomID uuid.UUID, sessionID uuid.UUID, actorID uuid.UUID, reason string)) *MockService_EndWatchParty_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 uuid.UUID
+		if args[3] != nil {
+			arg3 = args[3].(uuid.UUID)
+		}
+		var arg4 string
+		if args[4] != nil {
+			arg4 = args[4].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_EndWatchParty_Call) Return(err error) *MockService_EndWatchParty_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_EndWatchParty_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, sessionID uuid.UUID, actorID uuid.UUID, reason string) error) *MockService_EndWatchParty_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // EnsureSystemRooms provides a mock function for the type MockService
 func (_mock *MockService) EnsureSystemRooms(ctx context.Context) error {
 	ret := _mock.Called(ctx)
@@ -1396,6 +1471,236 @@ func (_c *MockService_GetUnreadCount_Call) RunAndReturn(run func(ctx context.Con
 	return _c
 }
 
+// GetWatchPartyMessages provides a mock function for the type MockService
+func (_mock *MockService) GetWatchPartyMessages(ctx context.Context, roomID uuid.UUID, sessionID uuid.UUID, viewerID uuid.UUID) (*dto.WatchPartyMessagesResponse, error) {
+	ret := _mock.Called(ctx, roomID, sessionID, viewerID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetWatchPartyMessages")
+	}
+
+	var r0 *dto.WatchPartyMessagesResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) (*dto.WatchPartyMessagesResponse, error)); ok {
+		return returnFunc(ctx, roomID, sessionID, viewerID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) *dto.WatchPartyMessagesResponse); ok {
+		r0 = returnFunc(ctx, roomID, sessionID, viewerID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dto.WatchPartyMessagesResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, roomID, sessionID, viewerID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_GetWatchPartyMessages_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetWatchPartyMessages'
+type MockService_GetWatchPartyMessages_Call struct {
+	*mock.Call
+}
+
+// GetWatchPartyMessages is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roomID uuid.UUID
+//   - sessionID uuid.UUID
+//   - viewerID uuid.UUID
+func (_e *MockService_Expecter) GetWatchPartyMessages(ctx interface{}, roomID interface{}, sessionID interface{}, viewerID interface{}) *MockService_GetWatchPartyMessages_Call {
+	return &MockService_GetWatchPartyMessages_Call{Call: _e.mock.On("GetWatchPartyMessages", ctx, roomID, sessionID, viewerID)}
+}
+
+func (_c *MockService_GetWatchPartyMessages_Call) Run(run func(ctx context.Context, roomID uuid.UUID, sessionID uuid.UUID, viewerID uuid.UUID)) *MockService_GetWatchPartyMessages_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 uuid.UUID
+		if args[3] != nil {
+			arg3 = args[3].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_GetWatchPartyMessages_Call) Return(watchPartyMessagesResponse *dto.WatchPartyMessagesResponse, err error) *MockService_GetWatchPartyMessages_Call {
+	_c.Call.Return(watchPartyMessagesResponse, err)
+	return _c
+}
+
+func (_c *MockService_GetWatchPartyMessages_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, sessionID uuid.UUID, viewerID uuid.UUID) (*dto.WatchPartyMessagesResponse, error)) *MockService_GetWatchPartyMessages_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GrantWatchPartyControl provides a mock function for the type MockService
+func (_mock *MockService) GrantWatchPartyControl(ctx context.Context, roomID uuid.UUID, sessionID uuid.UUID, callerID uuid.UUID, targetID uuid.UUID) error {
+	ret := _mock.Called(ctx, roomID, sessionID, callerID, targetID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GrantWatchPartyControl")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, roomID, sessionID, callerID, targetID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_GrantWatchPartyControl_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GrantWatchPartyControl'
+type MockService_GrantWatchPartyControl_Call struct {
+	*mock.Call
+}
+
+// GrantWatchPartyControl is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roomID uuid.UUID
+//   - sessionID uuid.UUID
+//   - callerID uuid.UUID
+//   - targetID uuid.UUID
+func (_e *MockService_Expecter) GrantWatchPartyControl(ctx interface{}, roomID interface{}, sessionID interface{}, callerID interface{}, targetID interface{}) *MockService_GrantWatchPartyControl_Call {
+	return &MockService_GrantWatchPartyControl_Call{Call: _e.mock.On("GrantWatchPartyControl", ctx, roomID, sessionID, callerID, targetID)}
+}
+
+func (_c *MockService_GrantWatchPartyControl_Call) Run(run func(ctx context.Context, roomID uuid.UUID, sessionID uuid.UUID, callerID uuid.UUID, targetID uuid.UUID)) *MockService_GrantWatchPartyControl_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 uuid.UUID
+		if args[3] != nil {
+			arg3 = args[3].(uuid.UUID)
+		}
+		var arg4 uuid.UUID
+		if args[4] != nil {
+			arg4 = args[4].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_GrantWatchPartyControl_Call) Return(err error) *MockService_GrantWatchPartyControl_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_GrantWatchPartyControl_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, sessionID uuid.UUID, callerID uuid.UUID, targetID uuid.UUID) error) *MockService_GrantWatchPartyControl_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// IdentifyWatchPartyParticipant provides a mock function for the type MockService
+func (_mock *MockService) IdentifyWatchPartyParticipant(ctx context.Context, roomID uuid.UUID, sessionID uuid.UUID, userID uuid.UUID, identifier string) error {
+	ret := _mock.Called(ctx, roomID, sessionID, userID, identifier)
+
+	if len(ret) == 0 {
+		panic("no return value specified for IdentifyWatchPartyParticipant")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID, string) error); ok {
+		r0 = returnFunc(ctx, roomID, sessionID, userID, identifier)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_IdentifyWatchPartyParticipant_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IdentifyWatchPartyParticipant'
+type MockService_IdentifyWatchPartyParticipant_Call struct {
+	*mock.Call
+}
+
+// IdentifyWatchPartyParticipant is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roomID uuid.UUID
+//   - sessionID uuid.UUID
+//   - userID uuid.UUID
+//   - identifier string
+func (_e *MockService_Expecter) IdentifyWatchPartyParticipant(ctx interface{}, roomID interface{}, sessionID interface{}, userID interface{}, identifier interface{}) *MockService_IdentifyWatchPartyParticipant_Call {
+	return &MockService_IdentifyWatchPartyParticipant_Call{Call: _e.mock.On("IdentifyWatchPartyParticipant", ctx, roomID, sessionID, userID, identifier)}
+}
+
+func (_c *MockService_IdentifyWatchPartyParticipant_Call) Run(run func(ctx context.Context, roomID uuid.UUID, sessionID uuid.UUID, userID uuid.UUID, identifier string)) *MockService_IdentifyWatchPartyParticipant_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 uuid.UUID
+		if args[3] != nil {
+			arg3 = args[3].(uuid.UUID)
+		}
+		var arg4 string
+		if args[4] != nil {
+			arg4 = args[4].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_IdentifyWatchPartyParticipant_Call) Return(err error) *MockService_IdentifyWatchPartyParticipant_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_IdentifyWatchPartyParticipant_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, sessionID uuid.UUID, userID uuid.UUID, identifier string) error) *MockService_IdentifyWatchPartyParticipant_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // InviteMembers provides a mock function for the type MockService
 func (_mock *MockService) InviteMembers(ctx context.Context, hostID uuid.UUID, roomID uuid.UUID, userIDs []uuid.UUID) (*dto.InviteMembersResponse, error) {
 	ret := _mock.Called(ctx, hostID, roomID, userIDs)
@@ -1628,6 +1933,86 @@ func (_c *MockService_JoinRoom_Call) RunAndReturn(run func(ctx context.Context, 
 	return _c
 }
 
+// JoinWatchParty provides a mock function for the type MockService
+func (_mock *MockService) JoinWatchParty(ctx context.Context, roomID uuid.UUID, sessionID uuid.UUID, actorID uuid.UUID) (*dto.JoinWatchPartyResponse, error) {
+	ret := _mock.Called(ctx, roomID, sessionID, actorID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for JoinWatchParty")
+	}
+
+	var r0 *dto.JoinWatchPartyResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) (*dto.JoinWatchPartyResponse, error)); ok {
+		return returnFunc(ctx, roomID, sessionID, actorID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) *dto.JoinWatchPartyResponse); ok {
+		r0 = returnFunc(ctx, roomID, sessionID, actorID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dto.JoinWatchPartyResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, roomID, sessionID, actorID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_JoinWatchParty_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'JoinWatchParty'
+type MockService_JoinWatchParty_Call struct {
+	*mock.Call
+}
+
+// JoinWatchParty is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roomID uuid.UUID
+//   - sessionID uuid.UUID
+//   - actorID uuid.UUID
+func (_e *MockService_Expecter) JoinWatchParty(ctx interface{}, roomID interface{}, sessionID interface{}, actorID interface{}) *MockService_JoinWatchParty_Call {
+	return &MockService_JoinWatchParty_Call{Call: _e.mock.On("JoinWatchParty", ctx, roomID, sessionID, actorID)}
+}
+
+func (_c *MockService_JoinWatchParty_Call) Run(run func(ctx context.Context, roomID uuid.UUID, sessionID uuid.UUID, actorID uuid.UUID)) *MockService_JoinWatchParty_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 uuid.UUID
+		if args[3] != nil {
+			arg3 = args[3].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_JoinWatchParty_Call) Return(joinWatchPartyResponse *dto.JoinWatchPartyResponse, err error) *MockService_JoinWatchParty_Call {
+	_c.Call.Return(joinWatchPartyResponse, err)
+	return _c
+}
+
+func (_c *MockService_JoinWatchParty_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, sessionID uuid.UUID, actorID uuid.UUID) (*dto.JoinWatchPartyResponse, error)) *MockService_JoinWatchParty_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // KickMember provides a mock function for the type MockService
 func (_mock *MockService) KickMember(ctx context.Context, hostID uuid.UUID, roomID uuid.UUID, targetID uuid.UUID) error {
 	ret := _mock.Called(ctx, hostID, roomID, targetID)
@@ -1756,6 +2141,75 @@ func (_c *MockService_LeaveRoom_Call) Return(err error) *MockService_LeaveRoom_C
 }
 
 func (_c *MockService_LeaveRoom_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) error) *MockService_LeaveRoom_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// LeaveWatchParty provides a mock function for the type MockService
+func (_mock *MockService) LeaveWatchParty(ctx context.Context, roomID uuid.UUID, sessionID uuid.UUID, actorID uuid.UUID) error {
+	ret := _mock.Called(ctx, roomID, sessionID, actorID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for LeaveWatchParty")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, roomID, sessionID, actorID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_LeaveWatchParty_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'LeaveWatchParty'
+type MockService_LeaveWatchParty_Call struct {
+	*mock.Call
+}
+
+// LeaveWatchParty is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roomID uuid.UUID
+//   - sessionID uuid.UUID
+//   - actorID uuid.UUID
+func (_e *MockService_Expecter) LeaveWatchParty(ctx interface{}, roomID interface{}, sessionID interface{}, actorID interface{}) *MockService_LeaveWatchParty_Call {
+	return &MockService_LeaveWatchParty_Call{Call: _e.mock.On("LeaveWatchParty", ctx, roomID, sessionID, actorID)}
+}
+
+func (_c *MockService_LeaveWatchParty_Call) Run(run func(ctx context.Context, roomID uuid.UUID, sessionID uuid.UUID, actorID uuid.UUID)) *MockService_LeaveWatchParty_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 uuid.UUID
+		if args[3] != nil {
+			arg3 = args[3].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_LeaveWatchParty_Call) Return(err error) *MockService_LeaveWatchParty_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_LeaveWatchParty_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, sessionID uuid.UUID, actorID uuid.UUID) error) *MockService_LeaveWatchParty_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2332,6 +2786,80 @@ func (_c *MockService_ListUserGroupRooms_Call) RunAndReturn(run func(ctx context
 	return _c
 }
 
+// ListWatchParties provides a mock function for the type MockService
+func (_mock *MockService) ListWatchParties(ctx context.Context, roomID uuid.UUID, viewerID uuid.UUID) (*dto.WatchPartyListResponse, error) {
+	ret := _mock.Called(ctx, roomID, viewerID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListWatchParties")
+	}
+
+	var r0 *dto.WatchPartyListResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) (*dto.WatchPartyListResponse, error)); ok {
+		return returnFunc(ctx, roomID, viewerID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) *dto.WatchPartyListResponse); ok {
+		r0 = returnFunc(ctx, roomID, viewerID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dto.WatchPartyListResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, roomID, viewerID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_ListWatchParties_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListWatchParties'
+type MockService_ListWatchParties_Call struct {
+	*mock.Call
+}
+
+// ListWatchParties is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roomID uuid.UUID
+//   - viewerID uuid.UUID
+func (_e *MockService_Expecter) ListWatchParties(ctx interface{}, roomID interface{}, viewerID interface{}) *MockService_ListWatchParties_Call {
+	return &MockService_ListWatchParties_Call{Call: _e.mock.On("ListWatchParties", ctx, roomID, viewerID)}
+}
+
+func (_c *MockService_ListWatchParties_Call) Run(run func(ctx context.Context, roomID uuid.UUID, viewerID uuid.UUID)) *MockService_ListWatchParties_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_ListWatchParties_Call) Return(watchPartyListResponse *dto.WatchPartyListResponse, err error) *MockService_ListWatchParties_Call {
+	_c.Call.Return(watchPartyListResponse, err)
+	return _c
+}
+
+func (_c *MockService_ListWatchParties_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, viewerID uuid.UUID) (*dto.WatchPartyListResponse, error)) *MockService_ListWatchParties_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // MarkRead provides a mock function for the type MockService
 func (_mock *MockService) MarkRead(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) error {
 	ret := _mock.Called(ctx, roomID, userID)
@@ -2773,6 +3301,92 @@ func (_c *MockService_SendMessage_Call) RunAndReturn(run func(ctx context.Contex
 	return _c
 }
 
+// SendWatchPartyMessage provides a mock function for the type MockService
+func (_mock *MockService) SendWatchPartyMessage(ctx context.Context, roomID uuid.UUID, sessionID uuid.UUID, senderID uuid.UUID, body string) (*dto.WatchPartyMessage, error) {
+	ret := _mock.Called(ctx, roomID, sessionID, senderID, body)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SendWatchPartyMessage")
+	}
+
+	var r0 *dto.WatchPartyMessage
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID, string) (*dto.WatchPartyMessage, error)); ok {
+		return returnFunc(ctx, roomID, sessionID, senderID, body)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID, string) *dto.WatchPartyMessage); ok {
+		r0 = returnFunc(ctx, roomID, sessionID, senderID, body)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dto.WatchPartyMessage)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID, string) error); ok {
+		r1 = returnFunc(ctx, roomID, sessionID, senderID, body)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_SendWatchPartyMessage_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SendWatchPartyMessage'
+type MockService_SendWatchPartyMessage_Call struct {
+	*mock.Call
+}
+
+// SendWatchPartyMessage is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roomID uuid.UUID
+//   - sessionID uuid.UUID
+//   - senderID uuid.UUID
+//   - body string
+func (_e *MockService_Expecter) SendWatchPartyMessage(ctx interface{}, roomID interface{}, sessionID interface{}, senderID interface{}, body interface{}) *MockService_SendWatchPartyMessage_Call {
+	return &MockService_SendWatchPartyMessage_Call{Call: _e.mock.On("SendWatchPartyMessage", ctx, roomID, sessionID, senderID, body)}
+}
+
+func (_c *MockService_SendWatchPartyMessage_Call) Run(run func(ctx context.Context, roomID uuid.UUID, sessionID uuid.UUID, senderID uuid.UUID, body string)) *MockService_SendWatchPartyMessage_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 uuid.UUID
+		if args[3] != nil {
+			arg3 = args[3].(uuid.UUID)
+		}
+		var arg4 string
+		if args[4] != nil {
+			arg4 = args[4].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_SendWatchPartyMessage_Call) Return(watchPartyMessage *dto.WatchPartyMessage, err error) *MockService_SendWatchPartyMessage_Call {
+	_c.Call.Return(watchPartyMessage, err)
+	return _c
+}
+
+func (_c *MockService_SendWatchPartyMessage_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, sessionID uuid.UUID, senderID uuid.UUID, body string) (*dto.WatchPartyMessage, error)) *MockService_SendWatchPartyMessage_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SetMemberNicknameAsMod provides a mock function for the type MockService
 func (_mock *MockService) SetMemberNicknameAsMod(ctx context.Context, roomID uuid.UUID, actorID uuid.UUID, targetID uuid.UUID, nickname string) (*dto.ChatRoomMemberResponse, error) {
 	ret := _mock.Called(ctx, roomID, actorID, targetID, nickname)
@@ -3183,6 +3797,138 @@ func (_c *MockService_SetRoomNickname_Call) Return(chatRoomMemberResponse *dto.C
 
 func (_c *MockService_SetRoomNickname_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, nickname string) (*dto.ChatRoomMemberResponse, error)) *MockService_SetRoomNickname_Call {
 	_c.Call.Return(run)
+	return _c
+}
+
+// StartWatchParty provides a mock function for the type MockService
+func (_mock *MockService) StartWatchParty(ctx context.Context, roomID uuid.UUID, actorID uuid.UUID, startURL string, region string, title string) (*dto.StartWatchPartyResponse, error) {
+	ret := _mock.Called(ctx, roomID, actorID, startURL, region, title)
+
+	if len(ret) == 0 {
+		panic("no return value specified for StartWatchParty")
+	}
+
+	var r0 *dto.StartWatchPartyResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, string, string) (*dto.StartWatchPartyResponse, error)); ok {
+		return returnFunc(ctx, roomID, actorID, startURL, region, title)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, string, string) *dto.StartWatchPartyResponse); ok {
+		r0 = returnFunc(ctx, roomID, actorID, startURL, region, title)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dto.StartWatchPartyResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, string, string, string) error); ok {
+		r1 = returnFunc(ctx, roomID, actorID, startURL, region, title)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_StartWatchParty_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'StartWatchParty'
+type MockService_StartWatchParty_Call struct {
+	*mock.Call
+}
+
+// StartWatchParty is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roomID uuid.UUID
+//   - actorID uuid.UUID
+//   - startURL string
+//   - region string
+//   - title string
+func (_e *MockService_Expecter) StartWatchParty(ctx interface{}, roomID interface{}, actorID interface{}, startURL interface{}, region interface{}, title interface{}) *MockService_StartWatchParty_Call {
+	return &MockService_StartWatchParty_Call{Call: _e.mock.On("StartWatchParty", ctx, roomID, actorID, startURL, region, title)}
+}
+
+func (_c *MockService_StartWatchParty_Call) Run(run func(ctx context.Context, roomID uuid.UUID, actorID uuid.UUID, startURL string, region string, title string)) *MockService_StartWatchParty_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		var arg4 string
+		if args[4] != nil {
+			arg4 = args[4].(string)
+		}
+		var arg5 string
+		if args[5] != nil {
+			arg5 = args[5].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+			arg5,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_StartWatchParty_Call) Return(startWatchPartyResponse *dto.StartWatchPartyResponse, err error) *MockService_StartWatchParty_Call {
+	_c.Call.Return(startWatchPartyResponse, err)
+	return _c
+}
+
+func (_c *MockService_StartWatchParty_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, actorID uuid.UUID, startURL string, region string, title string) (*dto.StartWatchPartyResponse, error)) *MockService_StartWatchParty_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// StartWatchPartyReconcileLoop provides a mock function for the type MockService
+func (_mock *MockService) StartWatchPartyReconcileLoop(ctx context.Context) {
+	_mock.Called(ctx)
+	return
+}
+
+// MockService_StartWatchPartyReconcileLoop_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'StartWatchPartyReconcileLoop'
+type MockService_StartWatchPartyReconcileLoop_Call struct {
+	*mock.Call
+}
+
+// StartWatchPartyReconcileLoop is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockService_Expecter) StartWatchPartyReconcileLoop(ctx interface{}) *MockService_StartWatchPartyReconcileLoop_Call {
+	return &MockService_StartWatchPartyReconcileLoop_Call{Call: _e.mock.On("StartWatchPartyReconcileLoop", ctx)}
+}
+
+func (_c *MockService_StartWatchPartyReconcileLoop_Call) Run(run func(ctx context.Context)) *MockService_StartWatchPartyReconcileLoop_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_StartWatchPartyReconcileLoop_Call) Return() *MockService_StartWatchPartyReconcileLoop_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *MockService_StartWatchPartyReconcileLoop_Call) RunAndReturn(run func(ctx context.Context)) *MockService_StartWatchPartyReconcileLoop_Call {
+	_c.Run(run)
 	return _c
 }
 
@@ -3623,6 +4369,50 @@ func (_c *MockService_UpdateRoomBannedWord_Call) Return(bannedWordRuleResponse *
 }
 
 func (_c *MockService_UpdateRoomBannedWord_Call) RunAndReturn(run func(ctx context.Context, actorID uuid.UUID, roomID uuid.UUID, ruleID uuid.UUID, req dto.UpdateBannedWordRequest) (*dto.BannedWordRuleResponse, error)) *MockService_UpdateRoomBannedWord_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// WatchPartyEnabled provides a mock function for the type MockService
+func (_mock *MockService) WatchPartyEnabled() bool {
+	ret := _mock.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for WatchPartyEnabled")
+	}
+
+	var r0 bool
+	if returnFunc, ok := ret.Get(0).(func() bool); ok {
+		r0 = returnFunc()
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	return r0
+}
+
+// MockService_WatchPartyEnabled_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'WatchPartyEnabled'
+type MockService_WatchPartyEnabled_Call struct {
+	*mock.Call
+}
+
+// WatchPartyEnabled is a helper method to define mock.On call
+func (_e *MockService_Expecter) WatchPartyEnabled() *MockService_WatchPartyEnabled_Call {
+	return &MockService_WatchPartyEnabled_Call{Call: _e.mock.On("WatchPartyEnabled")}
+}
+
+func (_c *MockService_WatchPartyEnabled_Call) Run(run func()) *MockService_WatchPartyEnabled_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *MockService_WatchPartyEnabled_Call) Return(b bool) *MockService_WatchPartyEnabled_Call {
+	_c.Call.Return(b)
+	return _c
+}
+
+func (_c *MockService_WatchPartyEnabled_Call) RunAndReturn(run func() bool) *MockService_WatchPartyEnabled_Call {
 	_c.Call.Return(run)
 	return _c
 }

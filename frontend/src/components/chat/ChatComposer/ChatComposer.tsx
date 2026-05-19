@@ -27,6 +27,7 @@ interface ChatComposerProps {
     onTyping?: () => void;
     onEditLast?: () => void;
     timeoutUntil?: string;
+    extraActions?: React.ReactNode;
 }
 
 function formatSendError(err: unknown): string {
@@ -66,6 +67,7 @@ export function ChatComposer({
     onTyping,
     onEditLast,
     timeoutUntil,
+    extraActions,
 }: ChatComposerProps) {
     const [, setTimeoutTick] = useState(0);
     const timedOut = isTimeoutActive(timeoutUntil);
@@ -296,6 +298,7 @@ export function ChatComposer({
                     </Button>
                     {gifPickerOpen && <GifPicker onPick={handleGifPick} onClose={() => setGifPickerOpen(false)} />}
                 </div>
+                {extraActions}
                 <span className={styles.spacer} />
                 <Button variant="primary" size="small" onClick={handleSubmit} disabled={!canSend}>
                     {submitting ? "..." : "Send"}

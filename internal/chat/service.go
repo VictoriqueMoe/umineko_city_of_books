@@ -15,6 +15,7 @@ import (
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/hyperbeam"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/notification"
@@ -157,6 +158,18 @@ type (
 		CreateGlobalBannedWord(ctx context.Context, actorID uuid.UUID, req dto.CreateBannedWordRequest) (*dto.BannedWordRuleResponse, error)
 		UpdateGlobalBannedWord(ctx context.Context, actorID, ruleID uuid.UUID, req dto.UpdateBannedWordRequest) (*dto.BannedWordRuleResponse, error)
 		DeleteGlobalBannedWord(ctx context.Context, actorID, ruleID uuid.UUID) error
+
+		WatchPartyEnabled() bool
+		StartWatchParty(ctx context.Context, roomID, actorID uuid.UUID, startURL, region, title string) (*dto.StartWatchPartyResponse, error)
+		JoinWatchParty(ctx context.Context, roomID, sessionID, actorID uuid.UUID) (*dto.JoinWatchPartyResponse, error)
+		LeaveWatchParty(ctx context.Context, roomID, sessionID, actorID uuid.UUID) error
+		GrantWatchPartyControl(ctx context.Context, roomID, sessionID, callerID, targetID uuid.UUID) error
+		EndWatchParty(ctx context.Context, roomID, sessionID, actorID uuid.UUID, reason string) error
+		ListWatchParties(ctx context.Context, roomID, viewerID uuid.UUID) (*dto.WatchPartyListResponse, error)
+		IdentifyWatchPartyParticipant(ctx context.Context, roomID, sessionID, userID uuid.UUID, identifier string) error
+		SendWatchPartyMessage(ctx context.Context, roomID, sessionID, senderID uuid.UUID, body string) (*dto.WatchPartyMessage, error)
+		GetWatchPartyMessages(ctx context.Context, roomID, sessionID, viewerID uuid.UUID) (*dto.WatchPartyMessagesResponse, error)
+		StartWatchPartyReconcileLoop(ctx context.Context)
 	}
 
 	service struct {
@@ -166,6 +179,7 @@ type (
 		vanityRoleRepo  repository.VanityRoleRepository
 		banRepo         repository.ChatRoomBanRepository
 		bannedWordRepo  repository.ChatBannedWordRepository
+		watchPartyRepo  repository.ChatWatchPartyRepository
 		auditRepo       repository.AuditLogRepository
 		authzSvc        authz.Service
 		notifSvc        notification.Service
@@ -174,6 +188,7 @@ type (
 		uploadSvc       upload.Service
 		uploader        *media.Uploader
 		hub             *ws.Hub
+		hyperbeamSvc    hyperbeam.Service
 		contentFilter   *contentfilter.Manager
 		bannedWordsRule *contentfilter.ChatBannedWordsRule
 		sideEffectsWG   sync.WaitGroup
@@ -187,6 +202,7 @@ func NewService(
 	vanityRoleRepo repository.VanityRoleRepository,
 	banRepo repository.ChatRoomBanRepository,
 	bannedWordRepo repository.ChatBannedWordRepository,
+	watchPartyRepo repository.ChatWatchPartyRepository,
 	auditRepo repository.AuditLogRepository,
 	authzSvc authz.Service,
 	notifSvc notification.Service,
@@ -195,6 +211,7 @@ func NewService(
 	settingsSvc settings.Service,
 	mediaProc *media.Processor,
 	hub *ws.Hub,
+	hyperbeamSvc hyperbeam.Service,
 	contentFilter *contentfilter.Manager,
 ) Service {
 	return &service{
@@ -204,6 +221,7 @@ func NewService(
 		vanityRoleRepo:  vanityRoleRepo,
 		banRepo:         banRepo,
 		bannedWordRepo:  bannedWordRepo,
+		watchPartyRepo:  watchPartyRepo,
 		auditRepo:       auditRepo,
 		authzSvc:        authzSvc,
 		notifSvc:        notifSvc,
@@ -212,6 +230,7 @@ func NewService(
 		uploadSvc:       uploadSvc,
 		uploader:        media.NewUploader(uploadSvc, settingsSvc, mediaProc),
 		hub:             hub,
+		hyperbeamSvc:    hyperbeamSvc,
 		contentFilter:   contentFilter,
 		bannedWordsRule: contentfilter.NewChatBannedWordsRule(bannedWordRepo),
 	}

@@ -1,0 +1,832 @@
+package chat
+
+import (
+	"context"
+	"database/sql"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"strings"
+	"time"
+
+	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/hyperbeam"
+	"umineko_city_of_books/internal/logger"
+	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/ws"
+
+	"github.com/google/uuid"
+)
+
+const (
+	defaultOfflineTimeout = 1800
+	defaultSessionTimeout = 14400
+	maxWatchPartyTitleLen = 80
+	maxWatchPartyBodyLen  = 2000
+
+	watchPartyReconcileEvery     = 5 * time.Minute
+	watchPartyReconcileIdleAfter = 6 * time.Minute
+
+	wsWatchPartyStarted         = "watch_party_started"
+	wsWatchPartyEnded           = "watch_party_ended"
+	wsWatchPartyParticipantJoin = "watch_party_participant_joined"
+	wsWatchPartyParticipantLeft = "watch_party_participant_left"
+	wsWatchPartyControlChanged  = "watch_party_control_changed"
+	wsWatchPartyMessage         = "watch_party_message"
+)
+
+var (
+	ErrWatchPartyDisabled       = errors.New("watch parties are not configured")
+	ErrWatchPartyNotActive      = errors.New("no such active watch party")
+	ErrWatchPartyNotController  = errors.New("only the watch party controller can do that")
+	ErrWatchPartyNotParticipant = errors.New("user is not an active watch party participant")
+	ErrWatchPartyWrongRoomType  = errors.New("watch parties are only available in group chat rooms")
+	ErrWatchPartyMessageEmpty   = errors.New("message body is required")
+	ErrWatchPartyMessageTooLong = errors.New("message body exceeds maximum length")
+)
+
+func (s *service) StartWatchParty(ctx context.Context, roomID, actorID uuid.UUID, startURL, region, title string) (*dto.StartWatchPartyResponse, error) {
+	if s.hyperbeamSvc == nil || !s.hyperbeamSvc.Enabled() {
+		return nil, ErrWatchPartyDisabled
+	}
+
+	if err := s.assertActiveRoomMember(ctx, roomID, actorID); err != nil {
+		return nil, err
+	}
+
+	room, err := s.chatRepo.GetRoomByID(ctx, roomID, actorID)
+	if err != nil {
+		return nil, fmt.Errorf("load room for watch party: %w", err)
+	}
+	if room == nil {
+		return nil, ErrRoomNotFound
+	}
+	if room.Type != "group" || room.IsSystem {
+		return nil, ErrWatchPartyWrongRoomType
+	}
+
+	selectedRegion := region
+	if selectedRegion == "" {
+		selectedRegion = config.Cfg.HyperbeamRegion
+	}
+	trimmedTitle := strings.TrimSpace(title)
+	if len(trimmedTitle) > maxWatchPartyTitleLen {
+		trimmedTitle = trimmedTitle[:maxWatchPartyTitleLen]
+	}
+
+	vm, err := s.hyperbeamSvc.CreateVM(ctx, hyperbeam.CreateVMOptions{
+		StartURL: startURL,
+		Region:   selectedRegion,
+		Timeout: &hyperbeam.VMTimeoutOpts{
+			Offline:  defaultOfflineTimeout,
+			Absolute: defaultSessionTimeout,
+		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("create hyperbeam vm: %w", err)
+	}
+
+	vmBaseURL, baseErr := hyperbeam.ExtractVMBaseURL(vm.EmbedURL)
+	if baseErr != nil {
+		s.terminateHyperbeam(vm.SessionID)
+		return nil, fmt.Errorf("extract vm base url: %w", baseErr)
+	}
+
+	sessionRow := repository.ChatWatchPartySessionRow{
+		RoomID:              roomID,
+		StartedBy:           actorID,
+		ControllerID:        actorID,
+		HyperbeamSessionID:  vm.SessionID,
+		HyperbeamAdminToken: vm.AdminToken,
+		EmbedURL:            vm.EmbedURL,
+		VMBaseURL:           vmBaseURL,
+		Title:               trimmedTitle,
+		StartURL:            stringToNull(startURL),
+		Region:              stringToNull(selectedRegion),
+	}
+	sessionID, err := s.watchPartyRepo.CreateSession(ctx, sessionRow)
+	if err != nil {
+		s.terminateHyperbeam(vm.SessionID)
+		return nil, err
+	}
+
+	if err := s.watchPartyRepo.UpsertParticipant(ctx, sessionID, actorID, true, ""); err != nil {
+		s.terminateHyperbeam(vm.SessionID)
+		_ = s.watchPartyRepo.EndSession(ctx, sessionID, "controller_setup_failed")
+		return nil, err
+	}
+
+	details := mustJSON(map[string]any{"room_id": roomID, "start_url": startURL, "title": trimmedTitle})
+	if err := s.auditRepo.Create(ctx, actorID, "watch_party.start", "chat_watch_party_session", sessionID.String(), details); err != nil {
+		logger.Log.Warn().Err(err).Msg("audit watch_party.start failed")
+	}
+
+	stored, err := s.watchPartyRepo.GetByID(ctx, sessionID)
+	if err != nil || stored == nil {
+		return nil, fmt.Errorf("reload watch party session: %w", err)
+	}
+
+	sessionDTO, err := s.buildWatchPartySessionDTO(ctx, stored, actorID, vm.EmbedURL, true)
+	if err != nil {
+		return nil, err
+	}
+
+	broadcast := s.buildWatchPartySessionDTO_forBroadcast(ctx, stored)
+	s.hub.BroadcastToRoom(roomID, ws.Message{
+		Type: wsWatchPartyStarted,
+		Data: dto.WatchPartyStartedEvent{Session: broadcast},
+	}, uuid.Nil)
+
+	hostName, _ := s.nameAndPossessive(ctx, actorID)
+	if hostName == "" {
+		hostName = "Someone"
+	}
+	partyLabel := trimmedTitle
+	if partyLabel == "" {
+		partyLabel = "Untitled party"
+	}
+	s.postRoomActionMessage(ctx, roomID, actorID, fmt.Sprintf("%s is hosting a watch party: %s", hostName, partyLabel))
+
+	return &dto.StartWatchPartyResponse{
+		Session:  *sessionDTO,
+		EmbedURL: vm.EmbedURL,
+	}, nil
+}
+
+func (s *service) JoinWatchParty(ctx context.Context, roomID, sessionID, actorID uuid.UUID) (*dto.JoinWatchPartyResponse, error) {
+	if s.hyperbeamSvc == nil || !s.hyperbeamSvc.Enabled() {
+		return nil, ErrWatchPartyDisabled
+	}
+	if err := s.assertActiveRoomMember(ctx, roomID, actorID); err != nil {
+		return nil, err
+	}
+
+	session, err := s.loadActiveSession(ctx, roomID, sessionID)
+	if err != nil {
+		return nil, err
+	}
+
+	if _, statusErr := s.hyperbeamSvc.GetVMStatus(ctx, session.HyperbeamSessionID); statusErr != nil {
+		if hyperbeamSessionGone(statusErr) {
+			s.cleanupDeadSession(session, "vm_gone")
+			return nil, ErrWatchPartyNotActive
+		}
+		logger.Log.Warn().Err(statusErr).Str("hyperbeam_session_id", session.HyperbeamSessionID).Msg("vm status check failed (continuing)")
+	}
+
+	isController := session.ControllerID == actorID
+	existing, err := s.watchPartyRepo.GetParticipant(ctx, session.ID, actorID)
+	if err != nil {
+		return nil, err
+	}
+	hasControl := isController || (existing != nil && existing.HasControl && !existing.LeftAt.Valid)
+
+	if err := s.watchPartyRepo.UpsertParticipant(ctx, session.ID, actorID, hasControl, ""); err != nil {
+		return nil, err
+	}
+
+	participantDTO, err := s.buildWatchPartyParticipantDTO(ctx, session.ID, actorID, hasControl)
+	if err != nil {
+		return nil, err
+	}
+	s.hub.BroadcastToRoom(roomID, ws.Message{
+		Type: wsWatchPartyParticipantJoin,
+		Data: dto.WatchPartyParticipantEvent{
+			SessionID:   session.ID,
+			RoomID:      roomID,
+			Participant: *participantDTO,
+		},
+	}, actorID)
+
+	sessionDTO, err := s.buildWatchPartySessionDTO(ctx, session, actorID, session.EmbedURL, hasControl)
+	if err != nil {
+		return nil, err
+	}
+
+	return &dto.JoinWatchPartyResponse{
+		Session:  *sessionDTO,
+		EmbedURL: session.EmbedURL,
+	}, nil
+}
+
+func (s *service) LeaveWatchParty(ctx context.Context, roomID, sessionID, actorID uuid.UUID) error {
+	session, err := s.watchPartyRepo.GetByID(ctx, sessionID)
+	if err != nil {
+		return err
+	}
+	if session == nil || session.RoomID != roomID || session.Status != "active" {
+		return nil
+	}
+
+	participant, err := s.watchPartyRepo.GetParticipant(ctx, session.ID, actorID)
+	if err != nil {
+		return err
+	}
+	if participant == nil || participant.LeftAt.Valid {
+		return nil
+	}
+
+	if session.StartedBy == actorID {
+		return s.EndWatchParty(ctx, roomID, sessionID, actorID, "owner_left")
+	}
+
+	if participant.HasControl {
+		if err := s.transferControlTo(ctx, roomID, session, session.StartedBy); err != nil {
+			logger.Log.Warn().Err(err).Msg("auto-return control to owner on leave failed")
+		}
+	}
+
+	if err := s.watchPartyRepo.MarkParticipantLeft(ctx, session.ID, actorID); err != nil {
+		return err
+	}
+
+	s.hub.BroadcastToRoom(roomID, ws.Message{
+		Type: wsWatchPartyParticipantLeft,
+		Data: dto.WatchPartyParticipantLeftEvent{
+			SessionID: session.ID,
+			RoomID:    roomID,
+			UserID:    actorID,
+		},
+	}, uuid.Nil)
+
+	return nil
+}
+
+func (s *service) GrantWatchPartyControl(ctx context.Context, roomID, sessionID, callerID, targetID uuid.UUID) error {
+	if s.hyperbeamSvc == nil || !s.hyperbeamSvc.Enabled() {
+		return ErrWatchPartyDisabled
+	}
+
+	session, err := s.loadActiveSession(ctx, roomID, sessionID)
+	if err != nil {
+		return err
+	}
+
+	caller, err := s.watchPartyRepo.GetParticipant(ctx, session.ID, callerID)
+	if err != nil {
+		return err
+	}
+	isOwner := session.StartedBy == callerID
+	isCurrentController := caller != nil && !caller.LeftAt.Valid && caller.HasControl
+	isSiteStaff := false
+	if !isOwner && !isCurrentController {
+		callerRole, _ := s.roleRepo.GetRole(ctx, callerID)
+		isSiteStaff = callerRole.IsSiteStaff()
+	}
+	if !isOwner && !isCurrentController && !isSiteStaff {
+		return ErrWatchPartyNotController
+	}
+
+	target, err := s.watchPartyRepo.GetParticipant(ctx, session.ID, targetID)
+	if err != nil {
+		return err
+	}
+	if target == nil || target.LeftAt.Valid {
+		return ErrWatchPartyNotParticipant
+	}
+	if target.HasControl {
+		return nil
+	}
+
+	if err := s.transferControlTo(ctx, roomID, session, targetID); err != nil {
+		return err
+	}
+
+	details := mustJSON(map[string]any{"room_id": roomID, "target_user_id": targetID})
+	if err := s.auditRepo.Create(ctx, callerID, "watch_party.grant_control", "chat_watch_party_session", session.ID.String(), details); err != nil {
+		logger.Log.Warn().Err(err).Msg("audit watch_party.grant_control failed")
+	}
+
+	return nil
+}
+
+func (s *service) transferControlTo(ctx context.Context, roomID uuid.UUID, session *repository.ChatWatchPartySessionRow, targetID uuid.UUID) error {
+	participants, err := s.watchPartyRepo.GetActiveParticipants(ctx, session.ID)
+	if err != nil {
+		return err
+	}
+	for i := range participants {
+		p := participants[i]
+		if !p.HasControl || p.UserID == targetID {
+			continue
+		}
+		if p.HyperbeamIdentifier != "" && session.VMBaseURL != "" {
+			if err := s.hyperbeamSvc.SetControlRole(ctx, session.VMBaseURL, p.HyperbeamIdentifier, false); err != nil {
+				logger.Log.Warn().Err(err).Str("user_id", p.UserID.String()).Msg("transfer: demote previous controller failed")
+			}
+		}
+		if err := s.watchPartyRepo.SetParticipantControl(ctx, session.ID, p.UserID, false); err != nil {
+			return err
+		}
+		s.hub.BroadcastToRoom(roomID, ws.Message{
+			Type: wsWatchPartyControlChanged,
+			Data: dto.WatchPartyControlChangedEvent{
+				SessionID:  session.ID,
+				RoomID:     roomID,
+				UserID:     p.UserID,
+				HasControl: false,
+			},
+		}, uuid.Nil)
+	}
+
+	var targetIdentifier string
+	for i := range participants {
+		if participants[i].UserID == targetID {
+			targetIdentifier = participants[i].HyperbeamIdentifier
+			break
+		}
+	}
+	if targetIdentifier != "" && session.VMBaseURL != "" {
+		if err := s.hyperbeamSvc.SetControlRole(ctx, session.VMBaseURL, targetIdentifier, true); err != nil {
+			logger.Log.Warn().Err(err).Str("user_id", targetID.String()).Msg("transfer: promote target permissions failed (continuing)")
+		}
+	}
+	if err := s.watchPartyRepo.SetParticipantControl(ctx, session.ID, targetID, true); err != nil {
+		return err
+	}
+	if err := s.watchPartyRepo.SetControllerID(ctx, session.ID, targetID); err != nil {
+		logger.Log.Warn().Err(err).Msg("transfer: update controller_id failed")
+	}
+	s.hub.BroadcastToRoom(roomID, ws.Message{
+		Type: wsWatchPartyControlChanged,
+		Data: dto.WatchPartyControlChangedEvent{
+			SessionID:  session.ID,
+			RoomID:     roomID,
+			UserID:     targetID,
+			HasControl: true,
+		},
+	}, uuid.Nil)
+	return nil
+}
+
+func (s *service) EndWatchParty(ctx context.Context, roomID, sessionID, actorID uuid.UUID, reason string) error {
+	session, err := s.loadActiveSession(ctx, roomID, sessionID)
+	if err != nil {
+		return err
+	}
+
+	if actorID != uuid.Nil {
+		caller, err := s.watchPartyRepo.GetParticipant(ctx, session.ID, actorID)
+		if err != nil {
+			return err
+		}
+		if caller == nil || caller.LeftAt.Valid || !caller.HasControl {
+			actorRole, _ := s.roleRepo.GetRole(ctx, actorID)
+			if !actorRole.IsSiteStaff() {
+				return ErrWatchPartyNotController
+			}
+		}
+	}
+
+	if s.hyperbeamSvc != nil {
+		if err := s.hyperbeamSvc.TerminateVM(ctx, session.HyperbeamSessionID); err != nil {
+			logger.Log.Warn().Err(err).Str("hyperbeam_session_id", session.HyperbeamSessionID).Msg("terminate hyperbeam vm failed")
+		}
+	}
+
+	if err := s.watchPartyRepo.MarkAllParticipantsLeft(ctx, session.ID); err != nil {
+		return err
+	}
+	if err := s.watchPartyRepo.EndSession(ctx, session.ID, reason); err != nil {
+		return err
+	}
+
+	if actorID != uuid.Nil {
+		details := mustJSON(map[string]any{"room_id": roomID, "reason": reason})
+		if err := s.auditRepo.Create(ctx, actorID, "watch_party.end", "chat_watch_party_session", session.ID.String(), details); err != nil {
+			logger.Log.Warn().Err(err).Msg("audit watch_party.end failed")
+		}
+	}
+
+	s.hub.BroadcastToRoom(roomID, ws.Message{
+		Type: wsWatchPartyEnded,
+		Data: dto.WatchPartyEndedEvent{
+			SessionID: session.ID,
+			RoomID:    roomID,
+			Reason:    reason,
+		},
+	}, uuid.Nil)
+
+	if actorID != uuid.Nil {
+		hostName, _ := s.nameAndPossessive(ctx, session.StartedBy)
+		if hostName == "" {
+			hostName = "Someone"
+		}
+		partyLabel := strings.TrimSpace(session.Title)
+		if partyLabel == "" {
+			partyLabel = "Untitled party"
+		}
+		s.postRoomActionMessage(ctx, roomID, actorID, fmt.Sprintf("%s's watch party ended: %s", hostName, partyLabel))
+	}
+
+	return nil
+}
+
+func (s *service) IdentifyWatchPartyParticipant(ctx context.Context, roomID, sessionID, userID uuid.UUID, identifier string) error {
+	if identifier == "" {
+		return ErrWatchPartyMessageEmpty
+	}
+	session, err := s.loadActiveSession(ctx, roomID, sessionID)
+	if err != nil {
+		return err
+	}
+	participant, err := s.watchPartyRepo.GetParticipant(ctx, session.ID, userID)
+	if err != nil {
+		return err
+	}
+	if participant == nil || participant.LeftAt.Valid {
+		return ErrWatchPartyNotParticipant
+	}
+	if err := s.watchPartyRepo.SetParticipantIdentifier(ctx, session.ID, userID, identifier); err != nil {
+		return err
+	}
+	if s.hyperbeamSvc != nil && s.hyperbeamSvc.Enabled() && session.VMBaseURL != "" {
+		if err := s.hyperbeamSvc.SetControlRole(ctx, session.VMBaseURL, identifier, participant.HasControl); err != nil {
+			logger.Log.Warn().Err(err).Str("hyperbeam_session_id", session.HyperbeamSessionID).Msg("identify: set user permissions failed")
+		}
+	}
+	return nil
+}
+
+func (s *service) ListWatchParties(ctx context.Context, roomID, viewerID uuid.UUID) (*dto.WatchPartyListResponse, error) {
+	if err := s.assertActiveRoomMember(ctx, roomID, viewerID); err != nil {
+		return nil, err
+	}
+	rows, err := s.watchPartyRepo.ListActiveByRoom(ctx, roomID)
+	if err != nil {
+		return nil, err
+	}
+	sessions := make([]dto.WatchPartySession, 0, len(rows))
+	for i := range rows {
+		row := rows[i]
+		if s.hyperbeamSvc != nil && s.hyperbeamSvc.Enabled() {
+			if _, statusErr := s.hyperbeamSvc.GetVMStatus(ctx, row.HyperbeamSessionID); statusErr != nil {
+				if hyperbeamSessionGone(statusErr) {
+					s.cleanupDeadSession(&row, "vm_gone")
+					continue
+				}
+				logger.Log.Warn().Err(statusErr).Str("hyperbeam_session_id", row.HyperbeamSessionID).Msg("list watch parties: vm status check failed")
+			}
+		}
+		s2, err := s.buildWatchPartySessionDTO(ctx, &row, viewerID, "", false)
+		if err != nil {
+			return nil, err
+		}
+		sessions = append(sessions, *s2)
+	}
+	return &dto.WatchPartyListResponse{
+		Sessions: sessions,
+		Enabled:  s.WatchPartyEnabled(),
+	}, nil
+}
+
+func (s *service) SendWatchPartyMessage(ctx context.Context, roomID, sessionID, senderID uuid.UUID, body string) (*dto.WatchPartyMessage, error) {
+	trimmed := strings.TrimSpace(body)
+	if trimmed == "" {
+		return nil, ErrWatchPartyMessageEmpty
+	}
+	if len(trimmed) > maxWatchPartyBodyLen {
+		return nil, ErrWatchPartyMessageTooLong
+	}
+	if err := s.filterTexts(ctx, trimmed); err != nil {
+		return nil, err
+	}
+
+	session, err := s.loadActiveSession(ctx, roomID, sessionID)
+	if err != nil {
+		return nil, err
+	}
+
+	participant, err := s.watchPartyRepo.GetParticipant(ctx, session.ID, senderID)
+	if err != nil {
+		return nil, err
+	}
+	if participant == nil || participant.LeftAt.Valid {
+		return nil, ErrWatchPartyNotParticipant
+	}
+
+	msgID := uuid.New()
+	if err := s.watchPartyRepo.InsertMessage(ctx, msgID, session.ID, senderID, trimmed); err != nil {
+		return nil, err
+	}
+
+	row, err := s.watchPartyRepo.GetMessageByID(ctx, msgID)
+	if err != nil || row == nil {
+		return nil, fmt.Errorf("reload watch party message: %w", err)
+	}
+	msgDTO := s.buildWatchPartyMessageDTO(ctx, row)
+
+	s.broadcastWatchPartyMessage(ctx, session.ID, roomID, msgDTO)
+
+	return &msgDTO, nil
+}
+
+func (s *service) GetWatchPartyMessages(ctx context.Context, roomID, sessionID, viewerID uuid.UUID) (*dto.WatchPartyMessagesResponse, error) {
+	session, err := s.loadActiveSession(ctx, roomID, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	participant, err := s.watchPartyRepo.GetParticipant(ctx, session.ID, viewerID)
+	if err != nil {
+		return nil, err
+	}
+	if participant == nil || participant.LeftAt.Valid {
+		return nil, ErrWatchPartyNotParticipant
+	}
+	rows, err := s.watchPartyRepo.ListMessages(ctx, session.ID, 200)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]dto.WatchPartyMessage, 0, len(rows))
+	for i := range rows {
+		out = append(out, s.buildWatchPartyMessageDTO(ctx, &rows[i]))
+	}
+	return &dto.WatchPartyMessagesResponse{Messages: out}, nil
+}
+
+func (s *service) WatchPartyEnabled() bool {
+	return s.hyperbeamSvc != nil && s.hyperbeamSvc.Enabled()
+}
+
+func (s *service) ReconcileWatchPartiesOnce(ctx context.Context) {
+	if s.watchPartyRepo == nil {
+		return
+	}
+	cutoff := time.Now().UTC().Add(-watchPartyReconcileIdleAfter).Format(time.RFC3339Nano)
+	sessions, err := s.watchPartyRepo.ListIdleActiveSessions(ctx, cutoff)
+	if err != nil {
+		logger.Log.Warn().Err(err).Msg("reconcile watch parties: list failed")
+		return
+	}
+	for i := range sessions {
+		session := sessions[i]
+		if s.hyperbeamSvc != nil {
+			if err := s.hyperbeamSvc.TerminateVM(ctx, session.HyperbeamSessionID); err != nil {
+				logger.Log.Warn().Err(err).Str("hyperbeam_session_id", session.HyperbeamSessionID).Msg("reconcile: terminate vm failed")
+			}
+		}
+		if err := s.watchPartyRepo.EndSession(ctx, session.ID, "idle_reconcile"); err != nil {
+			logger.Log.Warn().Err(err).Msg("reconcile: end session failed")
+			continue
+		}
+		s.hub.BroadcastToRoom(session.RoomID, ws.Message{
+			Type: wsWatchPartyEnded,
+			Data: dto.WatchPartyEndedEvent{
+				SessionID: session.ID,
+				RoomID:    session.RoomID,
+				Reason:    "idle_reconcile",
+			},
+		}, uuid.Nil)
+	}
+}
+
+func (s *service) StartWatchPartyReconcileLoop(ctx context.Context) {
+	go func() {
+		ticker := time.NewTicker(watchPartyReconcileEvery)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				{
+					return
+				}
+			case <-ticker.C:
+				{
+					s.ReconcileWatchPartiesOnce(ctx)
+				}
+			}
+		}
+	}()
+}
+
+func (s *service) assertActiveRoomMember(ctx context.Context, roomID, userID uuid.UUID) error {
+	isMember, err := s.chatRepo.IsMember(ctx, roomID, userID)
+	if err != nil {
+		return fmt.Errorf("check membership: %w", err)
+	}
+	if !isMember {
+		return ErrNotMember
+	}
+	return nil
+}
+
+func (s *service) loadActiveSession(ctx context.Context, roomID, sessionID uuid.UUID) (*repository.ChatWatchPartySessionRow, error) {
+	session, err := s.watchPartyRepo.GetByID(ctx, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	if session == nil || session.RoomID != roomID || session.Status != "active" {
+		return nil, ErrWatchPartyNotActive
+	}
+	return session, nil
+}
+
+func (s *service) terminateHyperbeam(sessionID string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := s.hyperbeamSvc.TerminateVM(ctx, sessionID); err != nil {
+		logger.Log.Warn().Err(err).Str("hyperbeam_session_id", sessionID).Msg("cleanup terminate vm failed")
+	}
+}
+
+func hyperbeamSessionGone(err error) bool {
+	var apiErr *hyperbeam.APIError
+	if errors.As(err, &apiErr) {
+		return apiErr.StatusCode == 404 || apiErr.StatusCode == 410
+	}
+	return false
+}
+
+func (s *service) cleanupDeadSession(session *repository.ChatWatchPartySessionRow, reason string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := s.watchPartyRepo.MarkAllParticipantsLeft(ctx, session.ID); err != nil {
+		logger.Log.Warn().Err(err).Msg("cleanup dead session: mark participants left failed")
+	}
+	if err := s.watchPartyRepo.EndSession(ctx, session.ID, reason); err != nil {
+		logger.Log.Warn().Err(err).Msg("cleanup dead session: end session failed")
+	}
+	s.hub.BroadcastToRoom(session.RoomID, ws.Message{
+		Type: wsWatchPartyEnded,
+		Data: dto.WatchPartyEndedEvent{
+			SessionID: session.ID,
+			RoomID:    session.RoomID,
+			Reason:    reason,
+		},
+	}, uuid.Nil)
+}
+
+func (s *service) broadcastWatchPartyMessage(ctx context.Context, sessionID, roomID uuid.UUID, msg dto.WatchPartyMessage) {
+	participants, err := s.watchPartyRepo.GetActiveParticipants(ctx, sessionID)
+	if err != nil {
+		logger.Log.Warn().Err(err).Msg("broadcast watch party message: list participants failed")
+		return
+	}
+	event := ws.Message{
+		Type: wsWatchPartyMessage,
+		Data: dto.WatchPartyMessageEvent{
+			SessionID: sessionID,
+			RoomID:    roomID,
+			Message:   msg,
+		},
+	}
+	for i := range participants {
+		s.hub.SendToUser(participants[i].UserID, event)
+	}
+}
+
+func (s *service) buildWatchPartySessionDTO(ctx context.Context, session *repository.ChatWatchPartySessionRow, viewerID uuid.UUID, viewerEmbedURL string, viewerHasControl bool) (*dto.WatchPartySession, error) {
+	participants, err := s.buildParticipantsDTO(ctx, session.ID)
+	if err != nil {
+		return nil, err
+	}
+	out := dto.WatchPartySession{
+		ID:           session.ID,
+		RoomID:       session.RoomID,
+		StartedBy:    session.StartedBy,
+		ControllerID: session.ControllerID,
+		Title:        session.Title,
+		StartURL:     nullToString(session.StartURL),
+		Region:       nullToString(session.Region),
+		Status:       session.Status,
+		StartedAt:    session.StartedAt,
+		EndedAt:      nullToString(session.EndedAt),
+		Participants: participants,
+	}
+	if viewerID != uuid.Nil {
+		participant, err := s.watchPartyRepo.GetParticipant(ctx, session.ID, viewerID)
+		if err != nil {
+			return nil, err
+		}
+		isParticipant := participant != nil && !participant.LeftAt.Valid
+		hasControl := false
+		if isParticipant {
+			hasControl = participant.HasControl
+		}
+		if !hasControl {
+			hasControl = viewerHasControl
+		}
+		out.Viewer = &dto.WatchPartyViewerContext{
+			IsParticipant: isParticipant,
+			HasControl:    hasControl,
+			EmbedURL:      viewerEmbedURL,
+		}
+	}
+	return &out, nil
+}
+
+func (s *service) buildWatchPartySessionDTO_forBroadcast(ctx context.Context, session *repository.ChatWatchPartySessionRow) dto.WatchPartySession {
+	participants, _ := s.buildParticipantsDTO(ctx, session.ID)
+	return dto.WatchPartySession{
+		ID:           session.ID,
+		RoomID:       session.RoomID,
+		StartedBy:    session.StartedBy,
+		ControllerID: session.ControllerID,
+		Title:        session.Title,
+		StartURL:     nullToString(session.StartURL),
+		Region:       nullToString(session.Region),
+		Status:       session.Status,
+		StartedAt:    session.StartedAt,
+		Participants: participants,
+	}
+}
+
+func (s *service) buildParticipantsDTO(ctx context.Context, sessionID uuid.UUID) ([]dto.WatchPartyParticipant, error) {
+	rows, err := s.watchPartyRepo.GetActiveParticipants(ctx, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	if len(rows) == 0 {
+		return []dto.WatchPartyParticipant{}, nil
+	}
+	userIDs := make([]uuid.UUID, 0, len(rows))
+	for i := range rows {
+		userIDs = append(userIDs, rows[i].UserID)
+	}
+	roleMap, _ := s.roleRepo.GetRoles(ctx, userIDs)
+	vanityMap, _ := s.vanityRoleRepo.GetRolesForUsersBatch(ctx, userIDs)
+
+	out := make([]dto.WatchPartyParticipant, 0, len(rows))
+	for i := range rows {
+		p := rows[i]
+		out = append(out, dto.WatchPartyParticipant{
+			User: dto.UserResponse{
+				ID:          p.UserID,
+				Username:    p.Username,
+				DisplayName: p.DisplayName,
+				AvatarURL:   p.AvatarURL,
+				Role:        roleMap[p.UserID],
+				VanityRoles: s.toVanityRoleResponses(vanityMap[p.UserID]),
+			},
+			HasControl: p.HasControl,
+			JoinedAt:   p.JoinedAt,
+		})
+	}
+	return out, nil
+}
+
+func (s *service) buildWatchPartyParticipantDTO(ctx context.Context, sessionID, userID uuid.UUID, hasControl bool) (*dto.WatchPartyParticipant, error) {
+	row, err := s.watchPartyRepo.GetParticipant(ctx, sessionID, userID)
+	if err != nil {
+		return nil, err
+	}
+	if row == nil {
+		return nil, ErrWatchPartyNotParticipant
+	}
+	userRole, _ := s.roleRepo.GetRole(ctx, userID)
+	vanityRows, _ := s.vanityRoleRepo.GetRolesForUser(ctx, userID)
+	return &dto.WatchPartyParticipant{
+		User: dto.UserResponse{
+			ID:          row.UserID,
+			Username:    row.Username,
+			DisplayName: row.DisplayName,
+			AvatarURL:   row.AvatarURL,
+			Role:        userRole,
+			VanityRoles: s.toVanityRoleResponses(vanityRows),
+		},
+		HasControl: hasControl,
+		JoinedAt:   row.JoinedAt,
+	}, nil
+}
+
+func (s *service) buildWatchPartyMessageDTO(ctx context.Context, row *repository.ChatWatchPartyMessageRow) dto.WatchPartyMessage {
+	senderRole, _ := s.roleRepo.GetRole(ctx, row.SenderID)
+	vanity, _ := s.vanityRoleRepo.GetRolesForUser(ctx, row.SenderID)
+	return dto.WatchPartyMessage{
+		ID:        row.ID,
+		SessionID: row.SessionID,
+		Sender: dto.UserResponse{
+			ID:          row.SenderID,
+			Username:    row.SenderUsername,
+			DisplayName: row.SenderDisplayName,
+			AvatarURL:   row.SenderAvatarURL,
+			Role:        senderRole,
+			VanityRoles: s.toVanityRoleResponses(vanity),
+		},
+		Body:      row.Body,
+		CreatedAt: row.CreatedAt,
+	}
+}
+
+func stringToNull(s string) sql.NullString {
+	if s == "" {
+		return sql.NullString{}
+	}
+	return sql.NullString{Valid: true, String: s}
+}
+
+func nullToString(n sql.NullString) string {
+	if !n.Valid {
+		return ""
+	}
+	return n.String
+}
+
+func mustJSON(v any) string {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return "{}"
+	}
+	return string(b)
+}

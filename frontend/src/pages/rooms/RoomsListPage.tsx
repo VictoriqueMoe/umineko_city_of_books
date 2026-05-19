@@ -283,7 +283,11 @@ export function RoomsListPage() {
     const hostedFiltered = hosted.items.filter(r => !r.is_system);
     const joinedFiltered = joined.items.filter(r => !r.is_system);
 
-    function renderGroupedGrid(rooms: ChatRoom[], renderCard: (room: ChatRoom) => React.ReactNode) {
+    function renderGroupedGrid(
+        rooms: ChatRoom[],
+        renderCard: (room: ChatRoom) => React.ReactNode,
+        forceLabels = false,
+    ) {
         const rpRooms: ChatRoom[] = [];
         const chatRooms: ChatRoom[] = [];
         for (const room of rooms) {
@@ -295,7 +299,7 @@ export function RoomsListPage() {
         }
         const hasRP = rpRooms.length > 0;
         const hasChat = chatRooms.length > 0;
-        const showLabels = hasRP && hasChat;
+        const showLabels = forceLabels || (hasRP && hasChat);
         return (
             <>
                 {hasRP && (
@@ -499,7 +503,8 @@ export function RoomsListPage() {
                                 : "You haven't joined any rooms yet. Browse below or create one."}
                         </div>
                     )}
-                    {joinedFiltered.length > 0 && renderGroupedGrid(joinedFiltered, renderMemberCard)}
+                    {joinedFiltered.length > 0 &&
+                        renderGroupedGrid(joinedFiltered, renderMemberCard, systemRooms.length > 0)}
                     {joined.items.length < joined.total && (
                         <div className={styles.loadMoreRow}>
                             <Button variant="secondary" size="small" onClick={loadMoreJoined} disabled={joined.loading}>
