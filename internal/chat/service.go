@@ -166,6 +166,7 @@ type (
 		GrantWatchPartyControl(ctx context.Context, roomID, sessionID, callerID, targetID uuid.UUID) error
 		KickWatchPartyParticipant(ctx context.Context, roomID, sessionID, callerID, targetID uuid.UUID) error
 		EndWatchParty(ctx context.Context, roomID, sessionID, actorID uuid.UUID, reason string) error
+		HandleClientDisconnect(ctx context.Context, userID uuid.UUID, roomIDs []uuid.UUID)
 		ListWatchParties(ctx context.Context, roomID, viewerID uuid.UUID) (*dto.WatchPartyListResponse, error)
 		IdentifyWatchPartyParticipant(ctx context.Context, roomID, sessionID, userID uuid.UUID, identifier string) error
 		SendWatchPartyMessage(ctx context.Context, roomID, sessionID, senderID uuid.UUID, body string) (*dto.WatchPartyMessage, error)

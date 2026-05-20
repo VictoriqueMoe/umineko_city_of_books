@@ -37,6 +37,10 @@ type (
 		HandleClientLeave(userID, roomID uuid.UUID)
 	}
 
+	WatchPartyDisconnectHandler interface {
+		HandleClientDisconnect(ctx context.Context, userID uuid.UUID, roomIDs []uuid.UUID)
+	}
+
 	incomingMessage struct {
 		Type string          `json:"type"`
 		Data json.RawMessage `json:"data"`
@@ -82,7 +86,7 @@ func broadcastPresence(hub *Hub, roomID, userID uuid.UUID, state string) {
 	}, uuid.Nil)
 }
 
-func Handler(hub *Hub, sessionMgr *session.Manager, roomLister RoomLister, gamePresence GameRoomPresence, allowedOrigin func() string) fiber.Handler {
+func Handler(hub *Hub, sessionMgr *session.Manager, roomLister RoomLister, gamePresence GameRoomPresence, watchPartyDisconnect WatchPartyDisconnectHandler, allowedOrigin func() string) fiber.Handler {
 	upgrader := websocket.FastHTTPUpgrader{
 		CheckOrigin: func(ctx *fasthttp.RequestCtx) bool {
 			origin := string(ctx.Request.Header.Peek("Origin"))
@@ -129,6 +133,9 @@ func Handler(hub *Hub, sessionMgr *session.Manager, roomLister RoomLister, gameP
 					for roomID := range joinedGameRooms {
 						gamePresence.HandleClientLeave(userID, roomID)
 					}
+				}
+				if watchPartyDisconnect != nil && len(cleared) > 0 {
+					watchPartyDisconnect.HandleClientDisconnect(context.Background(), userID, cleared)
 				}
 			}()
 
