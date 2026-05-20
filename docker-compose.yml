@@ -1,3 +1,7 @@
+networks:
+  observability:
+    external: true
+
 services:
   postgres:
     image: postgres:latest
@@ -30,99 +34,14 @@ services:
       - postgres.env
     volumes:
       - ./data:/app/data
-
-  glitchtip-postgres:
-    image: postgres:18
-    container_name: glitchtip-postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_HOST_AUTH_METHOD: "trust"
-    volumes:
-      - glitchtip-pg-data:/var/lib/postgresql
-
-  glitchtip:
-    image: glitchtip/glitchtip:6
-    container_name: glitchtip
-    restart: unless-stopped
-    depends_on:
-      - glitchtip-postgres
-    ports:
-      - "8000:8000"
-    env_file:
-      - .env.glitchtip
-    volumes:
-      - glitchtip-uploads:/code/uploads
-
-  cadvisor:
-    image: gcr.io/cadvisor/cadvisor:latest
-    container_name: cadvisor
-    restart: unless-stopped
-    volumes:
-      - /:/rootfs:ro
-      - /var/run:/var/run:ro
-      - /sys:/sys:ro
-      - /var/lib/docker/:/var/lib/docker:ro
-    ports:
-      - "8080:8080"
-
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: prometheus
-    restart: unless-stopped
-    volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus-data:/prometheus
-    ports:
-      - "9090:9090"
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--storage.tsdb.retention.time=30d'
-
-  tempo:
-    image: grafana/tempo:latest
-    container_name: tempo
-    restart: unless-stopped
-    command:
-      - "-config.file=/etc/tempo/tempo.yaml"
-    volumes:
-      - ./monitoring/tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
-      - tempo-data:/var/tempo
-    ports:
-      - "3200:3200"
-      - "4317:4317"
-      - "4318:4318"
-
-  pyroscope:
-    image: grafana/pyroscope:latest
-    container_name: pyroscope
-    restart: unless-stopped
-    ports:
-      - "4040:4040"
-    volumes:
-      - pyroscope-data:/var/lib/pyroscope
-
-  grafana:
-    image: grafana/grafana:latest
-    container_name: grafana
-    restart: unless-stopped
-    depends_on:
-      - prometheus
-      - tempo
-      - pyroscope
-    ports:
-      - "3000:3000"
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
-    volumes:
-      - grafana-data:/var/lib/grafana
-      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    networks:
+      - default
+      - observability
+    labels:
+      prometheus-scrape: "true"
+      prometheus-job: "umineko-city-of-books"
+      prometheus-port: "4323"
+      prometheus-path: "/metrics"
 
 volumes:
   postgres_data:
-  glitchtip-pg-data:
-  glitchtip-uploads:
-  prometheus-data:
-  grafana-data:
-  tempo-data:
-  pyroscope-data:

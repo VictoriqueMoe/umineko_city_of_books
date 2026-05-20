@@ -145,7 +145,7 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 	sitemapHandler := controllers.NewSitemapHandler(repos.DB(), baseURL)
 	sitemapHandler.Register(app)
 
-	app.Get("/api/v1/ws", ws.Handler(svc.hub, svc.session, svc.chat, svc.gameRoom, func() string {
+	app.Get("/api/v1/ws", ws.Handler(svc.hub, svc.session, svc.chat, svc.gameRoom, svc.chat, func() string {
 		return settingsSvc.Get(context.Background(), config.SettingBaseURL)
 	}))
 	uploadsHandler := static.New(svc.upload.GetUploadDir(), static.Config{

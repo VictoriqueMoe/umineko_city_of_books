@@ -71,11 +71,21 @@ const emptyState: RoomScopedState = {
     messages: [],
 };
 
+const HIDDEN_LEAVE_AFTER_MS = 10 * 60 * 1000;
+
+function sendLeaveBeacon(roomId: string, sessionId: string) {
+    const url = `/api/v1/chat/rooms/${roomId}/watch-parties/${sessionId}/participants/me`;
+    try {
+        void fetch(url, { method: "DELETE", credentials: "include", keepalive: true });
+    } catch {}
+}
+
 export function useWatchParty(roomId: string | null, viewerUserId: string | null): UseWatchPartyResult {
     const { addWSListener } = useNotifications();
     const [data, setData] = useState<RoomScopedState>(emptyState);
     const [error, setError] = useState<string | null>(null);
     const activeIdRef = useRef<string | null>(null);
+    const roomIdRef = useRef<string | null>(null);
 
     const stateMatches = data.roomId === roomId;
     const sessions = stateMatches ? data.sessions : [];
@@ -85,6 +95,52 @@ export function useWatchParty(roomId: string | null, viewerUserId: string | null
     useEffect(() => {
         activeIdRef.current = activeSessionId;
     }, [activeSessionId]);
+
+    useEffect(() => {
+        roomIdRef.current = roomId;
+    }, [roomId]);
+
+    useEffect(() => {
+        if (!roomId || !activeSessionId) {
+            return;
+        }
+        const sid = activeSessionId;
+        const rid = roomId;
+
+        const handleBeforeUnload = () => {
+            sendLeaveBeacon(rid, sid);
+        };
+
+        let hiddenTimer: ReturnType<typeof setTimeout> | null = null;
+        const handleVisibility = () => {
+            if (document.visibilityState === "hidden") {
+                if (hiddenTimer) {
+                    return;
+                }
+                hiddenTimer = setTimeout(() => {
+                    hiddenTimer = null;
+                    if (activeIdRef.current === sid && roomIdRef.current === rid) {
+                        sendLeaveBeacon(rid, sid);
+                    }
+                }, HIDDEN_LEAVE_AFTER_MS);
+                return;
+            }
+            if (hiddenTimer) {
+                clearTimeout(hiddenTimer);
+                hiddenTimer = null;
+            }
+        };
+
+        window.addEventListener("beforeunload", handleBeforeUnload);
+        document.addEventListener("visibilitychange", handleVisibility);
+        return () => {
+            window.removeEventListener("beforeunload", handleBeforeUnload);
+            document.removeEventListener("visibilitychange", handleVisibility);
+            if (hiddenTimer) {
+                clearTimeout(hiddenTimer);
+            }
+        };
+    }, [roomId, activeSessionId]);
 
     useEffect(() => {
         if (!roomId) {

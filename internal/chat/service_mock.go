@@ -1626,6 +1626,58 @@ func (_c *MockService_GrantWatchPartyControl_Call) RunAndReturn(run func(ctx con
 	return _c
 }
 
+// HandleClientDisconnect provides a mock function for the type MockService
+func (_mock *MockService) HandleClientDisconnect(ctx context.Context, userID uuid.UUID, roomIDs []uuid.UUID) {
+	_mock.Called(ctx, userID, roomIDs)
+	return
+}
+
+// MockService_HandleClientDisconnect_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'HandleClientDisconnect'
+type MockService_HandleClientDisconnect_Call struct {
+	*mock.Call
+}
+
+// HandleClientDisconnect is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+//   - roomIDs []uuid.UUID
+func (_e *MockService_Expecter) HandleClientDisconnect(ctx interface{}, userID interface{}, roomIDs interface{}) *MockService_HandleClientDisconnect_Call {
+	return &MockService_HandleClientDisconnect_Call{Call: _e.mock.On("HandleClientDisconnect", ctx, userID, roomIDs)}
+}
+
+func (_c *MockService_HandleClientDisconnect_Call) Run(run func(ctx context.Context, userID uuid.UUID, roomIDs []uuid.UUID)) *MockService_HandleClientDisconnect_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 []uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].([]uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_HandleClientDisconnect_Call) Return() *MockService_HandleClientDisconnect_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *MockService_HandleClientDisconnect_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, roomIDs []uuid.UUID)) *MockService_HandleClientDisconnect_Call {
+	_c.Run(run)
+	return _c
+}
+
 // IdentifyWatchPartyParticipant provides a mock function for the type MockService
 func (_mock *MockService) IdentifyWatchPartyParticipant(ctx context.Context, roomID uuid.UUID, sessionID uuid.UUID, userID uuid.UUID, identifier string) error {
 	ret := _mock.Called(ctx, roomID, sessionID, userID, identifier)
