@@ -9,7 +9,7 @@ interface RolePillProps {
 }
 
 const roleConfig: Record<string, { label: string; className: string; tooltip: string }> = {
-    super_admin: { label: "Reality Author", className: "superAdmin", tooltip: "Site owner — super administrator" },
+    super_admin: { label: "Reality Author", className: "superAdmin", tooltip: "Site owner - super administrator" },
     admin: { label: "Voyager Witch", className: "admin", tooltip: "Administrator" },
     moderator: { label: "Witch", className: "moderator", tooltip: "Moderator" },
 };

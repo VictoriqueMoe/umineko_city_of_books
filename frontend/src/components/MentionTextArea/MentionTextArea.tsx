@@ -397,7 +397,7 @@ function ColourButton({ tag, label, swatch, onApply }: ColourButtonProps) {
             onMouseDown={trigger}
             style={{ "--btn-color": swatch } as React.CSSProperties}
         >
-            <Butterfly color={swatch} size={16} className={styles.butterfly} />
+            <Butterfly colour={swatch} size={16} className={styles.butterfly} />
             {bursts.map(burst => (
                 <span key={burst.id} className={styles.burst} aria-hidden="true">
                     {burst.particles.map(p => (
@@ -413,7 +413,7 @@ function ColourButton({ tag, label, swatch, onApply }: ColourButtonProps) {
                                 } as React.CSSProperties
                             }
                         >
-                            <Butterfly color={swatch} size={10} />
+                            <Butterfly colour={swatch} size={10} />
                         </span>
                     ))}
                 </span>

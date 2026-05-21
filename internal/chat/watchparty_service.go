@@ -124,7 +124,7 @@ func (s *service) StartWatchParty(ctx context.Context, roomID, actorID uuid.UUID
 		return nil, err
 	}
 
-	broadcast := s.buildWatchPartySessionDTO_forBroadcast(ctx, stored)
+	broadcast := s.buildWatchPartySessionDTOForBroadcast(ctx, stored)
 	s.hub.BroadcastToRoom(roomID, ws.Message{
 		Type: wsWatchPartyStarted,
 		Data: dto.WatchPartyStartedEvent{Session: broadcast},
@@ -823,7 +823,7 @@ func (s *service) buildWatchPartySessionDTO(ctx context.Context, session *reposi
 	return &out, nil
 }
 
-func (s *service) buildWatchPartySessionDTO_forBroadcast(ctx context.Context, session *repository.ChatWatchPartySessionRow) dto.WatchPartySession {
+func (s *service) buildWatchPartySessionDTOForBroadcast(ctx context.Context, session *repository.ChatWatchPartySessionRow) dto.WatchPartySession {
 	participants, _ := s.buildParticipantsDTO(ctx, session.ID)
 	return dto.WatchPartySession{
 		ID:           session.ID,

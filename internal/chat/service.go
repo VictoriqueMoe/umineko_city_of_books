@@ -216,7 +216,7 @@ func NewService(
 	hyperbeamSvc hyperbeam.Service,
 	contentFilter *contentfilter.Manager,
 ) Service {
-	return &service{
+	svs := &service{
 		chatRepo:        chatRepo,
 		userRepo:        userRepo,
 		roleRepo:        roleRepo,
@@ -236,6 +236,9 @@ func NewService(
 		contentFilter:   contentFilter,
 		bannedWordsRule: contentfilter.NewChatBannedWordsRule(bannedWordRepo),
 	}
+
+	svs.StartWatchPartyReconcileLoop(context.Background())
+	return svs
 }
 
 func (s *service) filterTexts(ctx context.Context, texts ...string) error {

@@ -174,7 +174,7 @@ export function AdminVanityRoles() {
                             <tr>
                                 <th>Preview</th>
                                 <th>Label</th>
-                                <th>Color</th>
+                                <th>Colour</th>
                                 <th>Order</th>
                                 <th>Type</th>
                                 <th></th>

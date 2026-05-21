@@ -154,13 +154,16 @@ func ExtractVMBaseURL(embedURL string) (string, error) {
 	if embedURL == "" {
 		return "", fmt.Errorf("empty embed_url")
 	}
+
 	u, err := url.Parse(embedURL)
 	if err != nil {
 		return "", fmt.Errorf("parse embed_url: %w", err)
 	}
+
 	if u.Scheme == "" || u.Host == "" {
 		return "", fmt.Errorf("embed_url missing scheme/host")
 	}
+
 	path := strings.TrimRight(u.Path, "/")
 	return fmt.Sprintf("%s://%s%s", u.Scheme, u.Host, path), nil
 }
@@ -174,14 +177,17 @@ func (s *service) do(ctx context.Context, method, fullURL string, body any, out 
 		}
 		reqBody = bytes.NewReader(buf)
 	}
+
 	req, err := http.NewRequestWithContext(ctx, method, fullURL, reqBody)
 	if err != nil {
 		return fmt.Errorf("build hyperbeam request: %w", err)
 	}
+
 	req.Header.Set("Authorization", "Bearer "+s.apiKey)
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
+
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("call hyperbeam: %w", err)
@@ -191,11 +197,13 @@ func (s *service) do(ctx context.Context, method, fullURL string, body any, out 
 		raw, _ := io.ReadAll(resp.Body)
 		return &APIError{StatusCode: resp.StatusCode, Body: string(raw)}
 	}
+
 	if out == nil || resp.StatusCode == http.StatusNoContent {
 		return nil
 	}
 	if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
 		return fmt.Errorf("decode hyperbeam response: %w", err)
 	}
+
 	return nil
 }

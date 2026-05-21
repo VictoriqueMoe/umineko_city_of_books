@@ -49,10 +49,152 @@
     flex-shrink: 0;
 }
 
+@property --super-admin-angle {
+    syntax: "<angle>";
+    inherits: false;
+    initial-value: 0deg;
+}
+
 .superAdmin {
-    background: rgba(var(--purple-rgb), 0.2);
-    color: var(--purple);
-    border: 1px solid rgba(var(--purple-rgb), 0.4);
+    position: relative;
+    overflow: hidden;
+    padding-right: 1.25rem;
+    background:
+        linear-gradient(180deg, #0a0420 0%, #1a0838 100%) padding-box,
+        conic-gradient(
+                from var(--super-admin-angle),
+                #6d28d9 0deg,
+                #a855f7 90deg,
+                #38bdf8 180deg,
+                #c084fc 270deg,
+                #6d28d9 360deg
+            )
+            border-box;
+    color: #f3e8ff;
+    border: 1.5px solid transparent;
+    text-shadow:
+        -1px 0 0 rgba(168, 85, 247, 0.9),
+        1px 0 0 rgba(56, 189, 248, 0.9),
+        0 0 8px rgba(196, 163, 255, 0.6);
+    box-shadow:
+        0 0 12px rgba(168, 85, 247, 0.55),
+        0 0 26px rgba(56, 189, 248, 0.22),
+        inset 0 0 12px rgba(88, 28, 135, 0.45);
+    animation:
+        super-admin-spin 4.5s linear infinite,
+        super-admin-pulse 2.6s ease-in-out infinite alternate,
+        super-admin-glitch 3.2s ease-in-out infinite;
+}
+
+.superAdmin::after {
+    content: "\2756";
+    position: absolute;
+    top: 50%;
+    right: 0.3em;
+    transform: translate(0, -50%) rotate(0deg);
+    transform-origin: center center;
+    font-size: 0.7em;
+    color: #f5e8ff;
+    text-shadow:
+        0 0 6px #c4a3ff,
+        0 0 10px rgba(56, 189, 248, 0.85);
+    animation: super-admin-orbit 4s linear infinite;
+    pointer-events: none;
+    z-index: 2;
+}
+
+@keyframes super-admin-spin {
+    to {
+        --super-admin-angle: 360deg;
+    }
+}
+
+@keyframes super-admin-pulse {
+    0% {
+        box-shadow:
+            0 0 8px rgba(147, 51, 234, 0.4),
+            0 0 16px rgba(56, 189, 248, 0.15),
+            inset 0 0 8px rgba(88, 28, 135, 0.35);
+    }
+    100% {
+        box-shadow:
+            0 0 18px rgba(168, 85, 247, 0.75),
+            0 0 32px rgba(56, 189, 248, 0.35),
+            inset 0 0 12px rgba(88, 28, 135, 0.55);
+    }
+}
+
+@keyframes super-admin-glitch {
+    0%,
+    100% {
+        text-shadow:
+            -1px 0 0 rgba(168, 85, 247, 0.9),
+            1px 0 0 rgba(56, 189, 248, 0.9),
+            0 0 8px rgba(196, 163, 255, 0.6);
+    }
+    50% {
+        text-shadow:
+            -2px 0 0 rgba(168, 85, 247, 0.95),
+            2px 0 0 rgba(56, 189, 248, 0.95),
+            0 0 12px rgba(196, 163, 255, 0.85);
+    }
+}
+
+@keyframes super-admin-orbit {
+    from {
+        transform: translate(0, -50%) rotate(0deg);
+    }
+    to {
+        transform: translate(0, -50%) rotate(360deg);
+    }
+}
+
+.superAdmin,
+.witchHunter {
+    outline: 1.5px solid transparent;
+    outline-offset: 0;
+    transition:
+        outline-color 0.25s ease,
+        outline-offset 0.25s ease,
+        filter 0.25s ease,
+        letter-spacing 0.25s ease;
+}
+
+.superAdmin:hover {
+    outline-color: rgba(168, 85, 247, 0.85);
+    outline-offset: 3px;
+    filter: brightness(1.25) saturate(1.3);
+    letter-spacing: 0.08em;
+    animation-duration: 2s, 1.4s, 1.6s;
+}
+
+.superAdmin:hover::after {
+    animation-duration: 1.5s;
+}
+
+.witchHunter:hover {
+    outline-color: rgba(240, 200, 120, 0.85);
+    outline-offset: 3px;
+    letter-spacing: 0.08em;
+    animation-duration: 2s, 1.2s, 5s;
+}
+
+.witchHunter:hover::before {
+    animation-duration: 1.4s;
+}
+
+.witchHunter:hover::after {
+    animation-duration: 0.9s;
+}
+
+@media (max-width: 768px) {
+    .pill.compactMobile.superAdmin:hover,
+    .pill.compactMobile.witchHunter:hover {
+        outline-color: transparent;
+        outline-offset: 0;
+        filter: none;
+        letter-spacing: normal;
+    }
 }
 
 .admin {
@@ -72,22 +214,24 @@
     overflow: hidden;
     padding-right: 1.1rem;
     background:
-        linear-gradient(#1a0612, #1a0612) padding-box,
-        linear-gradient(120deg, #d96a9a 0%, #e89ec0 45%, #f0c878 100%) border-box;
+        linear-gradient(180deg, #1a0612 0%, #2a0a1f 50%, #1a0612 100%) padding-box,
+        linear-gradient(120deg, #d96a9a 0%, #e89ec0 25%, #f0c878 50%, #d96a9a 70%, #f0c878 100%) border-box;
     background-size:
-        100% 100%,
-        220% 220%;
+        100% 200%,
+        300% 300%;
     color: #ffd4b3;
     border: 1.5px solid transparent;
     text-shadow:
-        0 0 6px rgba(240, 200, 120, 0.55),
-        0 0 2px rgba(217, 106, 154, 0.6);
+        0 0 6px rgba(240, 200, 120, 0.65),
+        0 0 2px rgba(217, 106, 154, 0.7);
     box-shadow:
-        0 0 10px rgba(217, 106, 154, 0.5),
-        inset 0 0 8px rgba(217, 106, 154, 0.25);
+        0 0 12px rgba(217, 106, 154, 0.6),
+        0 0 24px rgba(240, 200, 120, 0.25),
+        inset 0 0 10px rgba(217, 106, 154, 0.35);
     animation:
-        witch-hunter-flow 5s ease-in-out infinite alternate,
-        witch-hunter-pulse 2.8s ease-in-out infinite alternate;
+        witch-hunter-flow 4.5s ease-in-out infinite alternate,
+        witch-hunter-pulse 2.4s ease-in-out infinite alternate,
+        witch-hunter-aura 10s ease-in-out infinite;
 }
 
 .witchHunterLabel {
@@ -169,6 +313,16 @@
     }
 }
 
+@keyframes witch-hunter-aura {
+    0%,
+    100% {
+        filter: brightness(1) saturate(1);
+    }
+    50% {
+        filter: brightness(1.15) saturate(1.25);
+    }
+}
+
 @media (max-width: 768px) {
     .pill.compactMobile {
         width: 0.55rem;
@@ -202,7 +356,8 @@
     }
 
     .pill.compactMobile.witchHunter::before,
-    .pill.compactMobile.witchHunter::after {
+    .pill.compactMobile.witchHunter::after,
+    .pill.compactMobile.superAdmin::after {
         display: none;
     }
 }
