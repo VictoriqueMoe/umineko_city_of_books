@@ -175,9 +175,8 @@ func TestListUsers_OK(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	uid := uuid.New()
-	bannedAt := "2026-01-01"
 	m.userRepo.EXPECT().ListAll(mock.Anything, "query", 10, 0).Return([]model.User{
-		{ID: uid, Username: "a", DisplayName: "A", Role: string(authz.RoleAdmin), BannedAt: &bannedAt},
+		{ID: uid, Username: "a", DisplayName: "A", Role: string(authz.RoleAdmin), BannedAt: new("2026-01-01")},
 		{ID: uuid.New(), Username: "b", DisplayName: "B"},
 	}, 2, nil)
 
@@ -209,13 +208,11 @@ func TestGetUser_OK(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	uid := uuid.New()
-	ip := "127.0.0.1"
-	bannedAt := "2026-01-01"
 	m.userRepo.EXPECT().GetProfileByID(mock.Anything, uid).Return(&model.User{
 		ID:                     uid,
 		Username:               "a",
-		IP:                     &ip,
-		BannedAt:               &bannedAt,
+		IP:                     new("127.0.0.1"),
+		BannedAt:               new("2026-01-01"),
 		BanReason:              "spam",
 		MysteryScoreAdjustment: 5,
 		GMScoreAdjustment:      3,

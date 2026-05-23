@@ -202,6 +202,7 @@ func (s *Service) siteInfo(ctx fiber.Ctx) error {
 	topChess, _ := s.GameRoomService.GetTopWinnerIDs(ctx.Context(), dto.GameTypeChess)
 	topCheckers, _ := s.GameRoomService.GetTopWinnerIDs(ctx.Context(), dto.GameTypeCheckers)
 	topOthello, _ := s.GameRoomService.GetTopWinnerIDs(ctx.Context(), dto.GameTypeOthello)
+	topMinesweeper, _ := s.GameRoomService.GetTopWinnerIDs(ctx.Context(), dto.GameTypeMinesweeper)
 
 	vanityRoles, _ := s.VanityRoleService.List(ctx.Context())
 	manualAssignments, _ := s.VanityRoleService.GetAllAssignments(ctx.Context())
@@ -224,6 +225,9 @@ func (s *Service) siteInfo(ctx fiber.Ctx) error {
 	}
 	for _, uid := range topOthello {
 		assignments[uid] = append(assignments[uid], "system_top_othello")
+	}
+	for _, uid := range topMinesweeper {
+		assignments[uid] = append(assignments[uid], "system_top_minesweeper")
 	}
 	for _, spec := range secrets.WithVanityRole() {
 		holders, _ := s.UserSecretService.GetUserIDsWithSecret(ctx.Context(), string(spec.ID))
@@ -288,6 +292,7 @@ func (s *Service) siteInfo(ctx fiber.Ctx) error {
 		TopChessIDs:           topChess,
 		TopCheckersIDs:        topCheckers,
 		TopOthelloIDs:         topOthello,
+		TopMinesweeperIDs:     topMinesweeper,
 		VanityRoles:           vrList,
 		VanityRoleAssignments: assignments,
 		ListedSecrets:         listedSecrets,

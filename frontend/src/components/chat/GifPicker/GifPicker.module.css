@@ -1,7 +1,7 @@
 .wrapper {
     position: absolute;
     bottom: calc(100% + 0.5rem);
-    right: 0;
+    left: 0;
     width: min(360px, calc(100vw - 2rem));
     max-height: 420px;
     background: var(--bg-card);

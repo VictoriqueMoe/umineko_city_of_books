@@ -197,9 +197,7 @@ func evaluateOutcome(b board) (outcomeResult, string) {
 		return outcomeResult{finished: true}, "draw"
 	}
 	if black > white {
-		w := slotBlack
-		return outcomeResult{finished: true, winnerSlot: &w}, reason
+		return outcomeResult{finished: true, winnerSlot: new(slotBlack)}, reason
 	}
-	w := slotWhite
-	return outcomeResult{finished: true, winnerSlot: &w}, reason
+	return outcomeResult{finished: true, winnerSlot: new(slotWhite)}, reason
 }

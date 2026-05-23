@@ -156,6 +156,7 @@ export function NotificationProvider({ children }: PropsWithChildren) {
                     msg.type === "top_chess_changed" ||
                     msg.type === "top_checkers_changed" ||
                     msg.type === "top_othello_changed" ||
+                    msg.type === "top_minesweeper_changed" ||
                     msg.type === "vanity_roles_changed" ||
                     msg.type === "rules_page_changed"
                 ) {

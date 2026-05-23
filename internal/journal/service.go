@@ -194,8 +194,7 @@ func (s *service) GetJournalDetail(ctx context.Context, id uuid.UUID, viewerID u
 		}
 		if entry != nil {
 			entryMediaMap, _ := s.repo.GetEntryMediaBatch(ctx, []uuid.UUID{entry.ID})
-			resp := repository.JournalEntryToDTO(entry, entryMediaMap[entry.ID])
-			latestEntry = &resp
+			latestEntry = new(repository.JournalEntryToDTO(entry, entryMediaMap[entry.ID]))
 		}
 	}
 
@@ -394,8 +393,7 @@ func (s *service) GetEntry(ctx context.Context, journalID uuid.UUID, entryNumber
 	)
 
 	entryMediaMap, _ := s.repo.GetEntryMediaBatch(ctx, []uuid.UUID{entry.ID})
-	resp := repository.JournalEntryToDTO(entry, entryMediaMap[entry.ID])
-	return &resp, tree, nil
+	return new(repository.JournalEntryToDTO(entry, entryMediaMap[entry.ID])), tree, nil
 }
 
 func (s *service) UpdateEntry(ctx context.Context, entryID uuid.UUID, userID uuid.UUID, req dto.UpdateJournalEntryRequest) error {
@@ -491,8 +489,7 @@ func (s *service) CreateComment(ctx context.Context, journalID uuid.UUID, userID
 	var entryNumber *int
 	if entryID != nil {
 		if entry, err := s.repo.GetEntryByID(ctx, *entryID); err == nil && entry != nil {
-			n := entry.EntryNumber
-			entryNumber = &n
+			entryNumber = new(entry.EntryNumber)
 		}
 	}
 

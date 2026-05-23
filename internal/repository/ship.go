@@ -75,8 +75,7 @@ func scanShipRow(row interface{ Scan(...interface{}) error }, s *model.ShipRow) 
 		return err
 	}
 	s.CreatedAt = createdAt.UTC().Format(time.RFC3339)
-	updated := updatedAt.UTC().Format(time.RFC3339)
-	s.UpdatedAt = &updated
+	s.UpdatedAt = new(updatedAt.UTC().Format(time.RFC3339))
 	return nil
 }
 

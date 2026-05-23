@@ -99,8 +99,7 @@ func (s *service) Unlock(ctx context.Context, userID uuid.UUID, secretRef, phras
 		HasParent: hasParent && parent.Title != "",
 	}
 	if result.HasParent {
-		parentCopy := parent
-		result.Parent = &parentCopy
+		result.Parent = new(parent)
 		result.IsParent = spec.ID == parent.ID
 	}
 	return result, nil

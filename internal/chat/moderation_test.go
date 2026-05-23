@@ -226,13 +226,12 @@ func TestUpdateRoomBannedWord_RejectsMismatchedScope(t *testing.T) {
 	svc, m := newTestService(t)
 	actor := uuid.New()
 	room := uuid.New()
-	other := uuid.New()
 	ruleID := uuid.New()
 
 	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, room, actor).Return(stubRoom(room), nil)
 	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, room, actor).Return("host", nil)
 	m.bannedWordRepo.EXPECT().GetByID(mock.Anything, ruleID).Return(&repository.ChatBannedWordRow{
-		ID: ruleID, Scope: "room", RoomID: &other,
+		ID: ruleID, Scope: "room", RoomID: new(uuid.New()),
 	}, nil)
 
 	_, err := svc.UpdateRoomBannedWord(context.Background(), actor, room, ruleID, dto.UpdateBannedWordRequest{
@@ -257,12 +256,11 @@ func TestUpdateGlobalBannedWord_RequiresPermission(t *testing.T) {
 func TestUpdateGlobalBannedWord_RejectsRoomScopeRule(t *testing.T) {
 	svc, m := newTestService(t)
 	actor := uuid.New()
-	room := uuid.New()
 	ruleID := uuid.New()
 
 	m.authzSvc.EXPECT().Can(mock.Anything, actor, authz.PermManageBannedWords).Return(true)
 	m.bannedWordRepo.EXPECT().GetByID(mock.Anything, ruleID).Return(&repository.ChatBannedWordRow{
-		ID: ruleID, Scope: "room", RoomID: &room,
+		ID: ruleID, Scope: "room", RoomID: new(uuid.New()),
 	}, nil)
 
 	_, err := svc.UpdateGlobalBannedWord(context.Background(), actor, ruleID, dto.UpdateBannedWordRequest{
@@ -291,13 +289,12 @@ func TestDeleteRoomBannedWord_RejectsMismatchedScope(t *testing.T) {
 	svc, m := newTestService(t)
 	actor := uuid.New()
 	room := uuid.New()
-	other := uuid.New()
 	ruleID := uuid.New()
 
 	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, room, actor).Return(stubRoom(room), nil)
 	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, room, actor).Return("host", nil)
 	m.bannedWordRepo.EXPECT().GetByID(mock.Anything, ruleID).Return(&repository.ChatBannedWordRow{
-		ID: ruleID, Scope: "room", RoomID: &other,
+		ID: ruleID, Scope: "room", RoomID: new(uuid.New()),
 	}, nil)
 
 	err := svc.DeleteRoomBannedWord(context.Background(), actor, room, ruleID)

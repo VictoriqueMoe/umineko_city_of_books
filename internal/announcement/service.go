@@ -177,8 +177,7 @@ func (s *service) GetLatest(ctx context.Context) (*dto.AnnouncementResponse, err
 	if row == nil {
 		return nil, nil
 	}
-	resp := rowToResponse(*row)
-	return &resp, nil
+	return new(rowToResponse(*row)), nil
 }
 
 func (s *service) Create(ctx context.Context, userID uuid.UUID, title, body string) (uuid.UUID, error) {

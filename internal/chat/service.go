@@ -94,6 +94,7 @@ var (
 		"century":   100,
 		"centuries": 100,
 	}
+	maxTimeoutUntil = time.Date(9999, 12, 31, 23, 59, 59, 0, time.UTC)
 )
 
 type (
@@ -672,33 +673,41 @@ func (s *service) IsRoomMuted(ctx context.Context, roomID, userID uuid.UUID) (bo
 
 func (s *service) JoinRoom(ctx context.Context, roomID, userID uuid.UUID, ghost bool) (*dto.ChatRoomResponse, error) {
 	row, err := s.chatRepo.GetRoomByID(ctx, roomID, userID)
+
 	if err != nil {
 		return nil, fmt.Errorf("get room: %w", err)
 	}
 	if row == nil {
 		return nil, ErrRoomNotFound
 	}
+
 	if row.Type != "group" {
 		return nil, ErrNotGroupRoom
 	}
+
 	if row.IsSystem {
 		return nil, ErrSystemRoom
 	}
+
 	if !row.IsPublic {
 		return nil, ErrNotPublic
 	}
+
 	banned, err := s.banRepo.IsBanned(ctx, roomID, userID)
 	if err != nil {
 		return nil, fmt.Errorf("check ban: %w", err)
 	}
+
 	if banned {
 		return nil, ErrBannedFromRoom
 	}
+
 	if ghost {
 		viewerSiteRole, err := s.authzSvc.GetRole(ctx, userID)
 		if err != nil {
 			return nil, fmt.Errorf("get site role: %w", err)
 		}
+
 		if !viewerSiteRole.IsSiteStaff() {
 			return nil, ErrGhostRequiresStaff
 		}
@@ -706,9 +715,11 @@ func (s *service) JoinRoom(ctx context.Context, roomID, userID uuid.UUID, ghost 
 	if row.IsMember {
 		return s.buildRoomResponse(ctx, roomID, userID)
 	}
+
 	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, row.CreatedBy); blocked {
 		return nil, ErrUserBlocked
 	}
+
 	cap := s.settingsSvc.GetInt(ctx, config.SettingMaxChatRoomMembers)
 	if cap > 0 && row.MemberCount >= cap {
 		return nil, ErrRoomFull
@@ -2705,8 +2716,6 @@ func timeoutDurationLabel(amount int, unit string) string {
 	}
 	return fmt.Sprintf("%d %s", amount, suffix)
 }
-
-var maxTimeoutUntil = time.Date(9999, 12, 31, 23, 59, 59, 0, time.UTC)
 
 func capTimeout(t time.Time) time.Time {
 	if t.After(maxTimeoutUntil) {

@@ -77,6 +77,7 @@ type (
 		chat           []dto.SpectatorMessage
 		playerChat     []dto.SpectatorMessage
 		draw           *drawOffer
+		submitMu       sync.Mutex
 	}
 
 	service struct {
@@ -206,6 +207,8 @@ func (s *service) broadcastTopWinner(gameType dto.GameType) {
 		msgType = "top_checkers_changed"
 	case dto.GameTypeOthello:
 		msgType = "top_othello_changed"
+	case dto.GameTypeMinesweeper:
+		msgType = "top_minesweeper_changed"
 	default:
 		return
 	}
@@ -322,8 +325,7 @@ func (s *service) Accept(ctx context.Context, roomID, userID uuid.UUID) (*dto.Ga
 	var firstTurnUser *uuid.UUID
 	for i := range players {
 		if players[i].Slot == firstTurnSlot {
-			uid := players[i].UserID
-			firstTurnUser = &uid
+			firstTurnUser = new(players[i].UserID)
 			break
 		}
 	}
@@ -447,16 +449,24 @@ func (s *service) ListFinished(ctx context.Context, gameType dto.GameType, limit
 }
 
 func (s *service) SubmitAction(ctx context.Context, roomID, userID uuid.UUID, action json.RawMessage) (*dto.GameRoom, error) {
+	s.mu.Lock()
+	submitMu := &s.stateFor(roomID).submitMu
+	s.mu.Unlock()
+	submitMu.Lock()
+	defer submitMu.Unlock()
+
 	row, slot, err := s.loadActiveRoomForActor(ctx, roomID, userID)
 	if err != nil {
 		return nil, err
 	}
-	if row.TurnUserID == nil || *row.TurnUserID != userID {
-		return nil, ErrNotYourTurn
-	}
 	handler, ok := s.handlers[dto.GameType(row.GameType)]
 	if !ok {
 		return nil, ErrUnknownGameType
+	}
+	if handler.Mode() == ModeTurnBased {
+		if row.TurnUserID == nil || *row.TurnUserID != userID {
+			return nil, ErrNotYourTurn
+		}
 	}
 
 	s.clearForfeit(roomID, userID)
@@ -489,8 +499,7 @@ func (s *service) SubmitAction(ctx context.Context, roomID, userID uuid.UUID, ac
 	if result.NextTurnSlot != nil {
 		for i := range players {
 			if players[i].Slot == *result.NextTurnSlot {
-				uid := players[i].UserID
-				nextTurn = &uid
+				nextTurn = new(players[i].UserID)
 				break
 			}
 		}
@@ -513,9 +522,12 @@ func (s *service) SubmitAction(ctx context.Context, roomID, userID uuid.UUID, ac
 }
 
 func (s *service) OfferDraw(ctx context.Context, roomID, userID uuid.UUID) (*dto.GameRoom, error) {
-	_, slot, err := s.loadActiveRoomForActor(ctx, roomID, userID)
+	row, slot, err := s.loadActiveRoomForActor(ctx, roomID, userID)
 	if err != nil {
 		return nil, err
+	}
+	if handler, ok := s.handlers[dto.GameType(row.GameType)]; ok && !handler.SupportsDraw() {
+		return nil, ErrDrawNotSupported
 	}
 
 	s.mu.Lock()
@@ -600,8 +612,7 @@ func (s *service) Resign(ctx context.Context, roomID, userID uuid.UUID) (*dto.Ga
 	var winner *uuid.UUID
 	for i := range players {
 		if players[i].Slot != slot {
-			uid := players[i].UserID
-			winner = &uid
+			winner = new(players[i].UserID)
 			break
 		}
 	}
@@ -1088,16 +1099,14 @@ func (s *service) hydrateRoom(ctx context.Context, row *repository.GameRoomRow) 
 			if st.players[players[i].UserID] > 0 {
 				players[i].Connected = true
 			} else if t, offline := st.disconnectedAt[players[i].UserID]; offline {
-				ts := t.UTC().Format(time.RFC3339)
-				players[i].DisconnectedAt = &ts
+				players[i].DisconnectedAt = new(t.UTC().Format(time.RFC3339))
 			}
 		}
 		watchers = len(st.spectators)
 		if st.draw != nil {
 			for i := range players {
 				if players[i].Slot == st.draw.fromSlot {
-					uid := players[i].UserID
-					drawOfferFrom = &uid
+					drawOfferFrom = new(players[i].UserID)
 					break
 				}
 			}
@@ -1111,7 +1120,9 @@ func (s *service) hydrateRoom(ctx context.Context, row *repository.GameRoomRow) 
 	}
 
 	var stats json.RawMessage
-	if row.Status == string(dto.GameStatusActive) || row.Status == string(dto.GameStatusFinished) || row.Status == string(dto.GameStatusAbandoned) {
+	projectedState := row.StateJSON
+	finishedStatus := row.Status == string(dto.GameStatusFinished) || row.Status == string(dto.GameStatusAbandoned)
+	if row.Status == string(dto.GameStatusActive) || finishedStatus {
 		if handler, ok := s.handlers[dto.GameType(row.GameType)]; ok {
 			finished := ""
 			if finishedAt != nil {
@@ -1122,6 +1133,9 @@ func (s *service) hydrateRoom(ctx context.Context, row *repository.GameRoomRow) 
 					stats = raw
 				}
 			}
+			if proj, err := handler.ProjectState(row.StateJSON, finishedStatus); err == nil {
+				projectedState = proj
+			}
 		}
 	}
 
@@ -1129,7 +1143,7 @@ func (s *service) hydrateRoom(ctx context.Context, row *repository.GameRoomRow) 
 		ID:                row.ID,
 		GameType:          dto.GameType(row.GameType),
 		Status:            dto.GameStatus(row.Status),
-		State:             json.RawMessage(row.StateJSON),
+		State:             json.RawMessage(projectedState),
 		TurnUserID:        row.TurnUserID,
 		WinnerID:          row.WinnerID,
 		Result:            row.Result,
@@ -1276,8 +1290,7 @@ func winnerUserID(slot *int, players []dto.GameRoomPlayer) *uuid.UUID {
 	}
 	for i := range players {
 		if players[i].Slot == *slot {
-			uid := players[i].UserID
-			return &uid
+			return new(players[i].UserID)
 		}
 	}
 	return nil

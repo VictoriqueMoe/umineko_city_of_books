@@ -298,8 +298,7 @@ func (r *announcementRepository) GetComments(ctx context.Context, announcementID
 		}
 		c.CreatedAt = createdAt.UTC().Format(time.RFC3339)
 		if updatedAt.Valid {
-			s := updatedAt.Time.UTC().Format(time.RFC3339)
-			c.UpdatedAt = &s
+			c.UpdatedAt = new(updatedAt.Time.UTC().Format(time.RFC3339))
 		}
 		comments = append(comments, c)
 	}

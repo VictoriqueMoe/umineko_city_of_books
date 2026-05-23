@@ -4,8 +4,11 @@ import { useAuth } from "../../hooks/useAuth";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useGameRoom } from "../../api/queries/gameRoom";
 import {
+    useAcceptDraw,
     useAcceptGameInvite,
+    useDeclineDraw,
     useDeclineGameInvite,
+    useOfferDraw,
     useResignGame,
     useSubmitGameAction,
 } from "../../api/mutations/gameRoom";
@@ -24,6 +27,9 @@ export function CheckersGamePage() {
     const declineInvite = useDeclineGameInvite();
     const submitAction = useSubmitGameAction(room?.id ?? "");
     const resign = useResignGame();
+    const offerDraw = useOfferDraw();
+    const acceptDraw = useAcceptDraw();
+    const declineDraw = useDeclineDraw();
 
     usePageTitle(room ? `Checkers - ${room.players.map(p => p.display_name).join(" vs ")}` : "Checkers");
 
@@ -123,6 +129,18 @@ export function CheckersGamePage() {
         await resign.mutateAsync(room!.id);
     }
 
+    async function handleOfferDraw() {
+        await offerDraw.mutateAsync(room!.id);
+    }
+
+    async function handleAcceptDraw() {
+        await acceptDraw.mutateAsync(room!.id);
+    }
+
+    async function handleDeclineDraw() {
+        await declineDraw.mutateAsync(room!.id);
+    }
+
     return (
         <div className={`${styles.page} ${styles.gamePage}`}>
             <div className={styles.boardColumn}>
@@ -132,6 +150,9 @@ export function CheckersGamePage() {
                     isSpectator={!isParticipant}
                     onMove={handleMove}
                     onResign={handleResign}
+                    onOfferDraw={handleOfferDraw}
+                    onAcceptDraw={handleAcceptDraw}
+                    onDeclineDraw={handleDeclineDraw}
                 />
             </div>
             <div className={styles.chatColumn}>

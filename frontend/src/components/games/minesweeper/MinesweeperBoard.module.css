@@ -1,0 +1,54 @@
+.boardWrap {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+    position: relative;
+}
+
+.board {
+    display: grid;
+    grid-template-columns: repeat(var(--cols), var(--cell-size));
+    grid-template-rows: repeat(var(--rows), var(--cell-size));
+    gap: 1px;
+    background: rgba(var(--purple-rgb), 0.5);
+    border: 2px solid rgba(var(--purple-rgb), 0.5);
+    box-shadow: 0 0 30px rgba(var(--purple-rgb), 0.18);
+    transition: box-shadow 0.3s ease;
+}
+
+.boardMini {
+    box-shadow: 0 0 16px rgba(var(--purple-rgb), 0.18);
+}
+
+.boardWinner .board {
+    border-color: rgba(var(--gold-rgb), 0.85);
+    box-shadow: 0 0 36px rgba(var(--gold-rgb), 0.35);
+}
+
+.boardLoser .board {
+    border-color: rgba(var(--rose-rgb), 0.85);
+    box-shadow: 0 0 36px rgba(var(--rose-rgb), 0.35);
+}
+
+.outcomeBadge {
+    padding: 0.3rem 1.1rem;
+    font-family: var(--font-display, inherit);
+    font-size: 0.85rem;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    font-weight: 700;
+    border-radius: 999px;
+}
+
+.outcomeWinner {
+    background: rgba(var(--gold-rgb), 0.85);
+    color: #1a0f30;
+    box-shadow: 0 4px 14px rgba(var(--gold-rgb), 0.5);
+}
+
+.outcomeLoser {
+    background: rgba(var(--rose-rgb), 0.9);
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(var(--rose-rgb), 0.5);
+}

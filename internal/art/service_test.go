@@ -1314,9 +1314,8 @@ func TestListUserGalleries_OK_NoPreviewsWhenCoverPresent(t *testing.T) {
 	svc, m := newTestService(t)
 	userID := uuid.New()
 	galleryID := uuid.New()
-	coverID := uuid.New()
 	rows := []model.GalleryRow{
-		{ID: galleryID, Name: "G", ArtCount: 3, CoverArtID: &coverID, CoverImageURL: "/u/cover.png"},
+		{ID: galleryID, Name: "G", ArtCount: 3, CoverArtID: new(uuid.New()), CoverImageURL: "/u/cover.png"},
 	}
 	m.artRepo.EXPECT().ListGalleriesByUser(mock.Anything, userID).Return(rows, nil)
 	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("https://example.com")

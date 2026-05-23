@@ -292,7 +292,6 @@ func TestCreate_OK_NoModeratorsStillCallsNotifyManyWithEmptyList(t *testing.T) {
 func TestList_OK(t *testing.T) {
 	// given
 	svc, reportRepo, _, _, _, _ := newTestService(t)
-	resolver := uuid.New()
 	rows := []repository.ReportRow{
 		{
 			ID:             1,
@@ -316,7 +315,7 @@ func TestList_OK(t *testing.T) {
 			ContextID:      "",
 			Reason:         "abuse",
 			Status:         "resolved",
-			ResolvedByID:   &resolver,
+			ResolvedByID:   new(uuid.New()),
 			ResolvedByName: "Mod",
 			CreatedAt:      "2026-01-02",
 		},

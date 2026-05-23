@@ -1283,7 +1283,7 @@ export interface AnnouncementListResponse {
     offset: number;
 }
 
-export type GameType = "chess" | "checkers" | "othello";
+export type GameType = "chess" | "checkers" | "othello" | "minesweeper";
 export type GameStatus = "pending" | "active" | "finished" | "declined" | "abandoned";
 
 export interface GameRoomPlayer {
@@ -1385,11 +1385,44 @@ export interface OthelloStats {
     final_board: string;
 }
 
+export type MinesweeperPhase = "char_select" | "playing" | "finished";
+export type MinesweeperCharacter = "bernkastel" | "erika" | "lambdadelta" | "dlanor";
+
+export interface MinesweeperState {
+    phase: MinesweeperPhase;
+    width: number;
+    height: number;
+    mine_count: number;
+    characters: [string, string];
+    started_at?: string;
+    finished_at?: string;
+    revealed: [boolean[], boolean[]];
+    flagged: [boolean[], boolean[]];
+    revealed_count: [number, number];
+    values: [number[], number[]];
+    mines?: boolean[];
+    mines_placed: boolean;
+    pending_clicks: [[number, number] | null, [number, number] | null];
+    winner_slot?: number;
+    reason?: string;
+    hit_mine_x?: number;
+    hit_mine_y?: number;
+}
+
+export interface MinesweeperStats {
+    duration_seconds: number;
+    revealed_p0: number;
+    revealed_p1: number;
+    flags_p0: number;
+    flags_p1: number;
+    reason: string;
+}
+
 export interface GameRoom {
     id: string;
     game_type: GameType;
     status: GameStatus;
-    state: ChessState | CheckersState | OthelloState | Record<string, unknown>;
+    state: ChessState | CheckersState | OthelloState | MinesweeperState | Record<string, unknown>;
     turn_user_id?: string;
     winner_user_id?: string;
     result?: string;
@@ -1399,7 +1432,7 @@ export interface GameRoom {
     finished_at?: string;
     players: GameRoomPlayer[];
     watcher_count: number;
-    stats?: ChessStats | CheckersStats | OthelloStats | Record<string, unknown>;
+    stats?: ChessStats | CheckersStats | OthelloStats | MinesweeperStats | Record<string, unknown>;
     draw_offer_from_user_id?: string;
 }
 

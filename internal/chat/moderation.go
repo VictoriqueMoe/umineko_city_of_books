@@ -324,12 +324,10 @@ func bannedWordRowToResponse(row repository.ChatBannedWordRow) dto.BannedWordRul
 		CreatedAt:     row.CreatedAt,
 	}
 	if row.RoomID != nil {
-		s := row.RoomID.String()
-		resp.RoomID = &s
+		resp.RoomID = new(row.RoomID.String())
 	}
 	if row.CreatedBy != nil {
-		s := row.CreatedBy.String()
-		resp.CreatedByID = &s
+		resp.CreatedByID = new(row.CreatedBy.String())
 	}
 	return resp
 }
@@ -399,8 +397,7 @@ func (s *service) CreateRoomBannedWord(ctx context.Context, actorID, roomID uuid
 	if err := s.auditRepo.Create(ctx, actorID, "chat_room_banned_word_create", "chat_room", roomID.String(), details); err != nil {
 		return nil, fmt.Errorf("audit create banned word: %w", err)
 	}
-	resp := bannedWordRowToResponse(*created)
-	return &resp, nil
+	return new(bannedWordRowToResponse(*created)), nil
 }
 
 func (s *service) UpdateRoomBannedWord(ctx context.Context, actorID, roomID, ruleID uuid.UUID, req dto.UpdateBannedWordRequest) (*dto.BannedWordRuleResponse, error) {
@@ -520,8 +517,7 @@ func (s *service) CreateGlobalBannedWord(ctx context.Context, actorID uuid.UUID,
 	if err := s.auditRepo.Create(ctx, actorID, "chat_global_banned_word_create", "banned_word", id.String(), details); err != nil {
 		return nil, fmt.Errorf("audit create banned word: %w", err)
 	}
-	resp := bannedWordRowToResponse(*created)
-	return &resp, nil
+	return new(bannedWordRowToResponse(*created)), nil
 }
 
 func (s *service) UpdateGlobalBannedWord(ctx context.Context, actorID, ruleID uuid.UUID, req dto.UpdateBannedWordRequest) (*dto.BannedWordRuleResponse, error) {
@@ -567,8 +563,7 @@ func (s *service) updateBannedWord(ctx context.Context, ruleID uuid.UUID, req dt
 	if err != nil || row == nil {
 		return nil, fmt.Errorf("fetch updated banned word: %w", err)
 	}
-	resp := bannedWordRowToResponse(*row)
-	return &resp, nil
+	return new(bannedWordRowToResponse(*row)), nil
 }
 
 func (s *service) DeleteGlobalBannedWord(ctx context.Context, actorID, ruleID uuid.UUID) error {

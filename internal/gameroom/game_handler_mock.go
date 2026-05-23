@@ -235,6 +235,50 @@ func (_c *MockGameHandler_InitialState_Call) RunAndReturn(run func(roomID uuid.U
 	return _c
 }
 
+// Mode provides a mock function for the type MockGameHandler
+func (_mock *MockGameHandler) Mode() Mode {
+	ret := _mock.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for Mode")
+	}
+
+	var r0 Mode
+	if returnFunc, ok := ret.Get(0).(func() Mode); ok {
+		r0 = returnFunc()
+	} else {
+		r0 = ret.Get(0).(Mode)
+	}
+	return r0
+}
+
+// MockGameHandler_Mode_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Mode'
+type MockGameHandler_Mode_Call struct {
+	*mock.Call
+}
+
+// Mode is a helper method to define mock.On call
+func (_e *MockGameHandler_Expecter) Mode() *MockGameHandler_Mode_Call {
+	return &MockGameHandler_Mode_Call{Call: _e.mock.On("Mode")}
+}
+
+func (_c *MockGameHandler_Mode_Call) Run(run func()) *MockGameHandler_Mode_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *MockGameHandler_Mode_Call) Return(mode Mode) *MockGameHandler_Mode_Call {
+	_c.Call.Return(mode)
+	return _c
+}
+
+func (_c *MockGameHandler_Mode_Call) RunAndReturn(run func() Mode) *MockGameHandler_Mode_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // OnGraceExpired provides a mock function for the type MockGameHandler
 func (_mock *MockGameHandler) OnGraceExpired(stateJSON string, playerSlot int) DisconnectResult {
 	ret := _mock.Called(stateJSON, playerSlot)
@@ -288,6 +332,116 @@ func (_c *MockGameHandler_OnGraceExpired_Call) Return(disconnectResult Disconnec
 }
 
 func (_c *MockGameHandler_OnGraceExpired_Call) RunAndReturn(run func(stateJSON string, playerSlot int) DisconnectResult) *MockGameHandler_OnGraceExpired_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ProjectState provides a mock function for the type MockGameHandler
+func (_mock *MockGameHandler) ProjectState(stateJSON string, finished bool) (string, error) {
+	ret := _mock.Called(stateJSON, finished)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ProjectState")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(string, bool) (string, error)); ok {
+		return returnFunc(stateJSON, finished)
+	}
+	if returnFunc, ok := ret.Get(0).(func(string, bool) string); ok {
+		r0 = returnFunc(stateJSON, finished)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(string, bool) error); ok {
+		r1 = returnFunc(stateJSON, finished)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockGameHandler_ProjectState_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ProjectState'
+type MockGameHandler_ProjectState_Call struct {
+	*mock.Call
+}
+
+// ProjectState is a helper method to define mock.On call
+//   - stateJSON string
+//   - finished bool
+func (_e *MockGameHandler_Expecter) ProjectState(stateJSON interface{}, finished interface{}) *MockGameHandler_ProjectState_Call {
+	return &MockGameHandler_ProjectState_Call{Call: _e.mock.On("ProjectState", stateJSON, finished)}
+}
+
+func (_c *MockGameHandler_ProjectState_Call) Run(run func(stateJSON string, finished bool)) *MockGameHandler_ProjectState_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		var arg1 bool
+		if args[1] != nil {
+			arg1 = args[1].(bool)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockGameHandler_ProjectState_Call) Return(s string, err error) *MockGameHandler_ProjectState_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *MockGameHandler_ProjectState_Call) RunAndReturn(run func(stateJSON string, finished bool) (string, error)) *MockGameHandler_ProjectState_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SupportsDraw provides a mock function for the type MockGameHandler
+func (_mock *MockGameHandler) SupportsDraw() bool {
+	ret := _mock.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for SupportsDraw")
+	}
+
+	var r0 bool
+	if returnFunc, ok := ret.Get(0).(func() bool); ok {
+		r0 = returnFunc()
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	return r0
+}
+
+// MockGameHandler_SupportsDraw_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SupportsDraw'
+type MockGameHandler_SupportsDraw_Call struct {
+	*mock.Call
+}
+
+// SupportsDraw is a helper method to define mock.On call
+func (_e *MockGameHandler_Expecter) SupportsDraw() *MockGameHandler_SupportsDraw_Call {
+	return &MockGameHandler_SupportsDraw_Call{Call: _e.mock.On("SupportsDraw")}
+}
+
+func (_c *MockGameHandler_SupportsDraw_Call) Run(run func()) *MockGameHandler_SupportsDraw_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *MockGameHandler_SupportsDraw_Call) Return(b bool) *MockGameHandler_SupportsDraw_Call {
+	_c.Call.Return(b)
+	return _c
+}
+
+func (_c *MockGameHandler_SupportsDraw_Call) RunAndReturn(run func() bool) *MockGameHandler_SupportsDraw_Call {
 	_c.Call.Return(run)
 	return _c
 }
