@@ -28,9 +28,6 @@ func TestService_HomeActivity_ComposesAllSections(t *testing.T) {
 	authorID := uuid.New()
 	memberID := uuid.New()
 	roomID := uuid.New()
-	lastMsg := "2026-04-24T12:00:00Z"
-	lastPost := "2026-04-24T11:00:00Z"
-
 	repo.EXPECT().ListRecentActivity(mock.Anything, 10).Return([]repository.HomeActivityRow{
 		{Kind: "theory", ID: theoryID, Title: "T", Body: "x", Corner: "umineko", AuthorID: authorID, Username: "u", DisplayName: "U"},
 		{Kind: "post", ID: postID, Title: "", Body: "p", Corner: "general", AuthorID: authorID, Username: "u", DisplayName: "U"},
@@ -41,10 +38,10 @@ func TestService_HomeActivity_ComposesAllSections(t *testing.T) {
 		{ID: memberID, Username: "newbie", DisplayName: "Newbie"},
 	}, nil)
 	repo.EXPECT().ListPublicRooms(mock.Anything, 5).Return([]repository.HomePublicRoomRow{
-		{ID: roomID, Name: "Hangout", Description: "d", MemberCount: 3, LastMessageAt: &lastMsg},
+		{ID: roomID, Name: "Hangout", Description: "d", MemberCount: 3, LastMessageAt: new("2026-04-24T12:00:00Z")},
 	}, nil)
 	repo.EXPECT().ListCornerActivity24h(mock.Anything).Return([]repository.HomeCornerActivityRow{
-		{Corner: "umineko", PostCount: 7, UniquePosters: 3, LastPostAt: &lastPost},
+		{Corner: "umineko", PostCount: 7, UniquePosters: 3, LastPostAt: new("2026-04-24T11:00:00Z")},
 	}, nil)
 
 	// when

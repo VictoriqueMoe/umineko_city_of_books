@@ -268,13 +268,9 @@ func TestMysteryRepository_List_FilterSolved(t *testing.T) {
 	solvedID := createMystery(t, repos, gm.ID, "solved", "easy", false)
 	_ = createMystery(t, repos, gm.ID, "unsolved", "easy", false)
 	attemptID := createAttempt(t, repos, solvedID, solver.ID, nil, "answer")
-	require.NoError(t, repos.Mystery.MarkSolved(context.Background(), solvedID, attemptID, true))
-	truthy := true
-	falsy := false
-
-	// when
-	solved, _, errS := repos.Mystery.List(context.Background(), "new", &truthy, 10, 0, nil)
-	unsolved, _, errU := repos.Mystery.List(context.Background(), "new", &falsy, 10, 0, nil)
+	require.NoError(t, repos.Mystery.MarkSolved(context.Background(), solvedID, attemptID, true)) // when
+	solved, _, errS := repos.Mystery.List(context.Background(), "new", new(true), 10, 0, nil)
+	unsolved, _, errU := repos.Mystery.List(context.Background(), "new", new(false), 10, 0, nil)
 
 	// then
 	require.NoError(t, errS)
@@ -1451,8 +1447,7 @@ func TestMysteryRepository_GetByID_AttemptCount_ExcludesAuthor(t *testing.T) {
 	createAttempt(t, repos, id, p1.ID, nil, "a")
 	createAttempt(t, repos, id, p2.ID, nil, "b")
 	createAttempt(t, repos, id, gm.ID, nil, "gm")
-	parent := createAttempt(t, repos, id, p1.ID, nil, "parent")
-	createAttempt(t, repos, id, p1.ID, &parent, "reply")
+	createAttempt(t, repos, id, p1.ID, new(createAttempt(t, repos, id, p1.ID, nil, "parent")), "reply")
 
 	// when
 	row, err := repos.Mystery.GetByID(context.Background(), id)

@@ -285,16 +285,13 @@ func applyJumpSequence(b *board, fromR, fromC int, path [][2]int, slot int) (int
 func evaluateOutcome(b board, nextSlot, movesSinceCapture int) (outcomeResult, string) {
 	red, black := countPiecesBoard(b)
 	if red == 0 {
-		winner := slotBlack
-		return outcomeResult{finished: true, winnerSlot: &winner}, "no_pieces"
+		return outcomeResult{finished: true, winnerSlot: new(slotBlack)}, "no_pieces"
 	}
 	if black == 0 {
-		winner := slotRed
-		return outcomeResult{finished: true, winnerSlot: &winner}, "no_pieces"
+		return outcomeResult{finished: true, winnerSlot: new(slotRed)}, "no_pieces"
 	}
 	if !playerHasAnyMove(b, nextSlot) {
-		winner := 1 - nextSlot
-		return outcomeResult{finished: true, winnerSlot: &winner}, "no_moves"
+		return outcomeResult{finished: true, winnerSlot: new(1 - nextSlot)}, "no_moves"
 	}
 	if movesSinceCapture >= drawMoveLimit {
 		return outcomeResult{finished: true}, "forty_move_rule"

@@ -63,10 +63,12 @@ import {
     JournalsFeedPage,
     LiveGamesPage,
     LoginPage,
+    MinesweeperGamePage,
     MysteryDetailPage,
     MysteryListPage,
     NewCheckersGamePage,
     NewChessGamePage,
+    NewMinesweeperGamePage,
     NewOthelloGamePage,
     NotFoundPage,
     NotificationsPage,
@@ -273,11 +275,16 @@ function AppLayout() {
                                 path="/games/othello/scoreboard"
                                 element={<Navigate to="/games/othello" replace />}
                             />
+                            <Route
+                                path="/games/minesweeper/scoreboard"
+                                element={<Navigate to="/games/minesweeper" replace />}
+                            />
                             <Route path="/games/live" element={<LiveGamesPage />} />
                             <Route path="/games/past" element={<PastGamesPage />} />
                             <Route path="/games/chess/:id" element={<ChessGamePage />} />
                             <Route path="/games/checkers/:id" element={<CheckersGamePage />} />
                             <Route path="/games/othello/:id" element={<OthelloGamePage />} />
+                            <Route path="/games/minesweeper/:id" element={<MinesweeperGamePage />} />
                             <Route path="/games/:type" element={<GameHubPage />} />
                             <Route path="/users" element={<UsersPage />} />
                             <Route path="/user/:username" element={<ProfilePage />} />
@@ -307,6 +314,7 @@ function AppLayout() {
                                 <Route path="/games/chess/new" element={<NewChessGamePage />} />
                                 <Route path="/games/checkers/new" element={<NewCheckersGamePage />} />
                                 <Route path="/games/othello/new" element={<NewOthelloGamePage />} />
+                                <Route path="/games/minesweeper/new" element={<NewMinesweeperGamePage />} />
                                 <Route path="/rooms/:roomId" element={<RoomPage />} />
                                 <Route path="/theory/:id/edit" element={<EditTheoryPage />} />
                                 <Route path="/settings" element={<SettingsPage />} />

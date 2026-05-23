@@ -273,8 +273,7 @@ func TestOCRepository_GalleryRoundTrip(t *testing.T) {
 	assert.Len(t, images, 2)
 
 	// when (update first caption)
-	caption := "Updated"
-	require.NoError(t, repos.OC.UpdateGalleryImage(context.Background(), first, id, &caption, nil))
+	require.NoError(t, repos.OC.UpdateGalleryImage(context.Background(), first, id, new("Updated"), nil))
 
 	// then
 	got, err := repos.OC.GetGallery(context.Background(), id)

@@ -20,7 +20,9 @@ const (
 )
 
 type (
-	Handler struct{}
+	Handler struct {
+		gameroom.BaseHandler
+	}
 
 	state struct {
 		FEN string `json:"fen"`
@@ -105,11 +107,9 @@ func (h *Handler) ValidateAction(stateJSON string, actorSlot int, action json.Ra
 		result.Result = string(outcome)
 		switch outcome {
 		case chesslib.WhiteWon:
-			slot := slotWhite
-			result.WinnerSlot = &slot
+			result.WinnerSlot = new(slotWhite)
 		case chesslib.BlackWon:
-			slot := slotBlack
-			result.WinnerSlot = &slot
+			result.WinnerSlot = new(slotBlack)
 		}
 		return result, nil
 	}

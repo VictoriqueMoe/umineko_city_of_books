@@ -194,8 +194,7 @@ func mysteryNullTimePtr(t sql.NullTime) *string {
 	if !t.Valid {
 		return nil
 	}
-	s := t.Time.UTC().Format(time.RFC3339)
-	return &s
+	return new(t.Time.UTC().Format(time.RFC3339))
 }
 
 func (r *MysteryRow) ToResponse() dto.MysteryResponse {

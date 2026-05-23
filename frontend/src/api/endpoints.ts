@@ -140,6 +140,7 @@ export interface SiteInfo {
     top_chess_ids: string[];
     top_checkers_ids: string[];
     top_othello_ids: string[];
+    top_minesweeper_ids: string[];
     vanity_roles: VanityRoleDefinition[];
     vanity_role_assignments: Record<string, string[]>;
     listed_secrets: SiteInfoSecret[];

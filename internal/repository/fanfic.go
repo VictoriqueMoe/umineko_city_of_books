@@ -121,8 +121,7 @@ func fanficNullTimePtr(t sql.NullTime) *string {
 	if !t.Valid {
 		return nil
 	}
-	s := t.Time.UTC().Format(time.RFC3339)
-	return &s
+	return new(t.Time.UTC().Format(time.RFC3339))
 }
 
 const fanficSelectBase = `

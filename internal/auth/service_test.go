@@ -133,8 +133,7 @@ func TestRegister_InviteAlreadyUsed(t *testing.T) {
 	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingRegistrationType).Return("invite")
 	req := validRegisterRequest()
 	req.InviteCode = "code123"
-	usedBy := uuid.New()
-	m.inviteRepo.EXPECT().GetByCode(mock.Anything, "code123").Return(&repository.Invite{Code: "code123", UsedBy: &usedBy}, nil)
+	m.inviteRepo.EXPECT().GetByCode(mock.Anything, "code123").Return(&repository.Invite{Code: "code123", UsedBy: new(uuid.New())}, nil)
 
 	// when
 	_, _, err := svc.Register(context.Background(), req)

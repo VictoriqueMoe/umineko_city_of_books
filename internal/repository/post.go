@@ -157,8 +157,7 @@ func scanPostRow(row interface{ Scan(...interface{}) error }, p *model.PostRow) 
 	}
 	p.CreatedAt = createdAt.UTC().Format(time.RFC3339)
 	if updatedAt.Valid {
-		s := updatedAt.Time.UTC().Format(time.RFC3339)
-		p.UpdatedAt = &s
+		p.UpdatedAt = new(updatedAt.Time.UTC().Format(time.RFC3339))
 	}
 	return nil
 }
@@ -695,8 +694,7 @@ func (r *postRepository) GetComments(ctx context.Context, postID uuid.UUID, view
 		}
 		c.CreatedAt = createdAt.UTC().Format(time.RFC3339)
 		if updatedAt.Valid {
-			s := updatedAt.Time.UTC().Format(time.RFC3339)
-			c.UpdatedAt = &s
+			c.UpdatedAt = new(updatedAt.Time.UTC().Format(time.RFC3339))
 		}
 		comments = append(comments, c)
 	}
@@ -1605,8 +1603,7 @@ func (r *postRepository) GetPollsByPostIDs(ctx context.Context, postIDs []uuid.U
 				return nil, nil, nil, fmt.Errorf("scan poll vote: %w", err)
 			}
 			postUUID := pollToPost[pollID]
-			v := optID
-			votes[postUUID] = &v
+			votes[postUUID] = new(optID)
 		}
 	}
 

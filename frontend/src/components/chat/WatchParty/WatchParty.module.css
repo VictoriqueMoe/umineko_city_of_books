@@ -441,8 +441,8 @@
 .picker {
     position: absolute;
     bottom: calc(100% + 0.4rem);
-    right: 0;
-    width: 320px;
+    left: 0;
+    width: min(320px, calc(100vw - 2rem));
     max-height: 320px;
     background: var(--bg-purple);
     border: 1px solid rgba(var(--gold-rgb), 0.25);

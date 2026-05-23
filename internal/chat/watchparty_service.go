@@ -738,8 +738,7 @@ func (s *service) terminateHyperbeam(sessionID string) {
 }
 
 func hyperbeamSessionGone(err error) bool {
-	var apiErr *hyperbeam.APIError
-	if errors.As(err, &apiErr) {
+	if apiErr, ok := errors.AsType[*hyperbeam.APIError](err); ok {
 		return apiErr.StatusCode == 404 || apiErr.StatusCode == 410
 	}
 	return false

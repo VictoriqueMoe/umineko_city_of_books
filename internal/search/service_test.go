@@ -17,12 +17,11 @@ func TestService_Search_DelegatesAndDecoratesURLs(t *testing.T) {
 	// given
 	repo := repository.NewMockSearchRepository(t)
 	svc := search.NewService(repo)
-	parentID := "parent-id"
 	repo.EXPECT().
 		Search(mock.Anything, "battler", []repository.SearchEntityType{repository.SearchEntityTheory}, 20, 0).
 		Return([]repository.SearchResult{
 			{EntityType: repository.SearchEntityTheory, ID: "t1"},
-			{EntityType: repository.SearchEntityPostComment, ID: "c1", ParentID: &parentID},
+			{EntityType: repository.SearchEntityPostComment, ID: "c1", ParentID: new("parent-id")},
 		}, 2, nil)
 
 	// when
@@ -202,7 +201,6 @@ func TestService_ChildEntityTypes(t *testing.T) {
 
 func TestBuildURL(t *testing.T) {
 	// given
-	parentID := "p1"
 	cases := []struct {
 		name string
 		r    repository.SearchResult
@@ -210,7 +208,7 @@ func TestBuildURL(t *testing.T) {
 	}{
 		{"theory", repository.SearchResult{EntityType: repository.SearchEntityTheory, ID: "t1"}, "/theory/t1"},
 		{"post", repository.SearchResult{EntityType: repository.SearchEntityPost, ID: "p1"}, "/game-board/p1"},
-		{"post comment", repository.SearchResult{EntityType: repository.SearchEntityPostComment, ID: "c1", ParentID: &parentID}, "/game-board/p1#comment-c1"},
+		{"post comment", repository.SearchResult{EntityType: repository.SearchEntityPostComment, ID: "c1", ParentID: new("p1")}, "/game-board/p1#comment-c1"},
 		{"user", repository.SearchResult{EntityType: repository.SearchEntityUser, AuthorUsername: "beato"}, "/user/beato"},
 		{"unknown", repository.SearchResult{EntityType: "nonsense"}, ""},
 		{"comment without parent", repository.SearchResult{EntityType: repository.SearchEntityPostComment, ID: "c1", ParentID: nil}, ""},

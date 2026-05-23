@@ -38,8 +38,7 @@ func timePtrToString(t *time.Time) *string {
 	if t == nil {
 		return nil
 	}
-	s := t.UTC().Format(time.RFC3339)
-	return &s
+	return new(t.UTC().Format(time.RFC3339))
 }
 
 func parseTimestampInput(s string) (time.Time, error) {
@@ -1041,16 +1040,13 @@ func scanMessageRow(rows *sql.Rows) (ChatMessageRow, error) {
 	}
 	msg.CreatedAt = createdAt.UTC().Format(time.RFC3339)
 	if pinnedAt.Valid {
-		s := pinnedAt.Time.UTC().Format(time.RFC3339)
-		msg.PinnedAt = &s
+		msg.PinnedAt = new(pinnedAt.Time.UTC().Format(time.RFC3339))
 	}
 	if pinnedBy.Valid {
-		id := pinnedBy.UUID
-		msg.PinnedBy = &id
+		msg.PinnedBy = new(pinnedBy.UUID)
 	}
 	if editedAt.Valid {
-		s := editedAt.Time.UTC().Format(time.RFC3339)
-		msg.EditedAt = &s
+		msg.EditedAt = new(editedAt.Time.UTC().Format(time.RFC3339))
 	}
 	msg.SenderRoleTyped = role.Role(msg.SenderRole)
 	return msg, nil
@@ -1152,16 +1148,13 @@ func (r *chatRepository) GetMessageByID(ctx context.Context, messageID uuid.UUID
 	}
 	msg.CreatedAt = createdAt.UTC().Format(time.RFC3339)
 	if pinnedAt.Valid {
-		s := pinnedAt.Time.UTC().Format(time.RFC3339)
-		msg.PinnedAt = &s
+		msg.PinnedAt = new(pinnedAt.Time.UTC().Format(time.RFC3339))
 	}
 	if pinnedBy.Valid {
-		id := pinnedBy.UUID
-		msg.PinnedBy = &id
+		msg.PinnedBy = new(pinnedBy.UUID)
 	}
 	if editedAt.Valid {
-		s := editedAt.Time.UTC().Format(time.RFC3339)
-		msg.EditedAt = &s
+		msg.EditedAt = new(editedAt.Time.UTC().Format(time.RFC3339))
 	}
 	msg.SenderRoleTyped = role.Role(msg.SenderRole)
 	return &msg, nil

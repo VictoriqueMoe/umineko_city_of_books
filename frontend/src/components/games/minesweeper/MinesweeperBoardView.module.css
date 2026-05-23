@@ -1,0 +1,165 @@
+.wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.error {
+    padding: 0.6rem 0.9rem;
+    background: rgba(var(--rose-rgb), 0.18);
+    border: 1px solid rgba(var(--rose-rgb), 0.5);
+    border-radius: 6px;
+    color: var(--rose);
+    font-size: 0.9rem;
+}
+
+.battlefield {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 2rem;
+    padding: 0.5rem 0;
+    width: 100%;
+    position: relative;
+}
+
+.lightningOverlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 50;
+    overflow: hidden;
+}
+
+.column {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+}
+
+.banner {
+    width: 100%;
+    height: 240px;
+    position: relative;
+    overflow: hidden;
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--purple-rgb), 0.45);
+    border-bottom: 2px solid rgba(var(--gold-rgb), 0.55);
+}
+
+.bannerOpp {
+    border-bottom-color: rgba(var(--purple-rgb), 0.55);
+}
+
+.bannerImg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 18%;
+    mask-image: linear-gradient(to bottom, black 65%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, black 65%, transparent 100%);
+}
+
+.nameplate {
+    position: absolute;
+    bottom: 0.6rem;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-family: var(--font-display, inherit);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.1rem;
+}
+
+.nameplatePlayer {
+    font-size: 1.1rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    line-height: 1;
+}
+
+.nameplateChar {
+    font-size: 0.7rem;
+    font-style: italic;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.7);
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8);
+}
+
+.nameplateSelf {
+    color: rgba(var(--gold-rgb), 1);
+    text-shadow:
+        0 0 22px rgba(var(--gold-rgb), 0.6),
+        0 2px 10px rgba(0, 0, 0, 0.9);
+}
+
+.nameplateOpp {
+    color: rgba(var(--purple-rgb), 1);
+    text-shadow:
+        0 0 22px rgba(var(--purple-rgb), 0.6),
+        0 2px 10px rgba(0, 0, 0, 0.9);
+}
+
+.bannerNeutral {
+    border-bottom-color: rgba(var(--purple-rgb), 0.55);
+}
+
+.nameplateNeutral {
+    color: rgba(255, 255, 255, 0.95);
+    text-shadow:
+        0 0 18px rgba(var(--purple-rgb), 0.5),
+        0 2px 10px rgba(0, 0, 0, 0.9);
+}
+
+.statsRow {
+    display: flex;
+    gap: 1.25rem;
+    padding: 0.25rem 0;
+    justify-content: center;
+}
+
+.stat {
+    display: flex;
+    align-items: baseline;
+    gap: 0.45rem;
+}
+
+.statLabel {
+    font-family: var(--font-display, inherit);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+}
+
+.statValue {
+    font-family: var(--font-display, inherit);
+    font-size: 1rem;
+    font-weight: 600;
+    color: rgba(var(--gold-rgb), 1);
+    letter-spacing: 0.05em;
+}
+
+.statValueFlag {
+    color: rgba(var(--rose-rgb), 1);
+}
+
+.controls {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+}
+
+@media (max-width: 900px) {
+    .battlefield {
+        gap: 1.25rem;
+    }
+}

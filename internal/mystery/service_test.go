@@ -172,10 +172,9 @@ func TestGetMystery_AsGameMasterOwner_SeesAll(t *testing.T) {
 	id := uuid.New()
 	author := uuid.New()
 	other := uuid.New()
-	playerID := uuid.New()
 	row := &repository.MysteryRow{ID: id, UserID: author, Solved: false, FreeForAll: false}
 	attempts := []repository.MysteryAttemptRow{{ID: uuid.New(), UserID: other, Body: "guess"}}
-	clues := []dto.MysteryClue{{ID: 1, Body: "c1"}, {ID: 2, Body: "c2", PlayerID: &playerID}}
+	clues := []dto.MysteryClue{{ID: 1, Body: "c1"}, {ID: 2, Body: "c2", PlayerID: new(uuid.New())}}
 	m.repo.EXPECT().GetByID(mock.Anything, id).Return(row, nil)
 	m.repo.EXPECT().GetClues(mock.Anything, id).Return(clues, nil)
 	m.repo.EXPECT().GetAttempts(mock.Anything, id, author).Return(attempts, nil)
@@ -206,11 +205,10 @@ func TestGetMystery_NonGM_NotSolved_FiltersAttemptsAndClues(t *testing.T) {
 		{ID: uuid.New(), UserID: viewer, Body: "mine"},
 		{ID: uuid.New(), UserID: other, Body: "not mine"},
 	}
-	otherPlayer := uuid.New()
 	clues := []dto.MysteryClue{
 		{ID: 1, Body: "public"},
 		{ID: 2, Body: "mine", PlayerID: &viewer},
-		{ID: 3, Body: "other", PlayerID: &otherPlayer},
+		{ID: 3, Body: "other", PlayerID: new(uuid.New())},
 	}
 	m.repo.EXPECT().GetByID(mock.Anything, id).Return(row, nil)
 	m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, id, viewer).Return(false, nil)
@@ -265,19 +263,15 @@ func TestGetMystery_Solved_LoadsCommentsAndWinner(t *testing.T) {
 	author := uuid.New()
 	viewer := uuid.New()
 	winnerID := uuid.New()
-	winnerName := "win"
-	winnerDisplay := "Winner"
-	winnerAvatar := ""
-	winnerRole := "user"
 	row := &repository.MysteryRow{
 		ID:                id,
 		UserID:            author,
 		Solved:            true,
 		WinnerID:          &winnerID,
-		WinnerUsername:    &winnerName,
-		WinnerDisplayName: &winnerDisplay,
-		WinnerAvatarURL:   &winnerAvatar,
-		WinnerRole:        &winnerRole,
+		WinnerUsername:    new("win"),
+		WinnerDisplayName: new("Winner"),
+		WinnerAvatarURL:   new(""),
+		WinnerRole:        new("user"),
 	}
 	commentID := uuid.New()
 	comments := []repository.MysteryCommentRow{{ID: commentID, UserID: author, Body: "post"}}

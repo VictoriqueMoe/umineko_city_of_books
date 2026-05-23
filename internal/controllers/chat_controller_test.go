@@ -2243,9 +2243,8 @@ func TestEditMessage_OK(t *testing.T) {
 	userID := uuid.New()
 	messageID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
-	editedAt := "2026-04-18T20:00:00Z"
 	chatMock.EXPECT().EditMessage(mock.Anything, messageID, userID, "updated").
-		Return(&dto.ChatMessageResponse{ID: messageID, Body: "updated", EditedAt: &editedAt}, nil)
+		Return(&dto.ChatMessageResponse{ID: messageID, Body: "updated", EditedAt: new("2026-04-18T20:00:00Z")}, nil)
 
 	// when
 	status, body := h.NewRequest("PATCH", "/chat/messages/"+messageID.String()).

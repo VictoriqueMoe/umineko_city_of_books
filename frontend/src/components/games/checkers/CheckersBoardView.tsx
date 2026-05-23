@@ -18,6 +18,9 @@ interface CheckersBoardViewProps {
     isSpectator: boolean;
     onMove: (move: { from: string; path: string[] }) => Promise<void>;
     onResign: () => Promise<void>;
+    onOfferDraw: () => Promise<void>;
+    onAcceptDraw: () => Promise<void>;
+    onDeclineDraw: () => Promise<void>;
 }
 
 type CellChar = "." | "r" | "R" | "b" | "B";
@@ -215,6 +218,8 @@ function formatReason(reason: string): string {
             return "due to inactivity";
         case "forty_move_rule":
             return "by forty-move rule";
+        case "draw_agreed":
+            return "by agreement";
         default:
             return reason ? `by ${reason.replace(/_/g, " ")}` : "";
     }
@@ -227,7 +232,16 @@ function isCheckersStats(x: unknown): x is CheckersStats {
     return "total_moves" in x && "red_captures" in x;
 }
 
-export function CheckersBoardView({ room, viewer, isSpectator, onMove, onResign }: CheckersBoardViewProps) {
+export function CheckersBoardView({
+    room,
+    viewer,
+    isSpectator,
+    onMove,
+    onResign,
+    onOfferDraw,
+    onAcceptDraw,
+    onDeclineDraw,
+}: CheckersBoardViewProps) {
     const [error, setError] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const [selected, setSelected] = useState<Coord | null>(null);
@@ -438,6 +452,21 @@ export function CheckersBoardView({ room, viewer, isSpectator, onMove, onResign 
         await performResignWithConfirm(onResign, setSubmitting, setError);
     }
 
+    async function handleDrawAction(fn: () => Promise<void>) {
+        if (submitting) {
+            return;
+        }
+        setError("");
+        setSubmitting(true);
+        try {
+            await fn();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Action failed");
+        } finally {
+            setSubmitting(false);
+        }
+    }
+
     const result = gameResultLabel(room, viewerId, isSpectator);
     const isOver = room.status === "finished" || room.status === "abandoned";
     const statsAvailable = isCheckersStats(room.stats);
@@ -610,8 +639,48 @@ export function CheckersBoardView({ room, viewer, isSpectator, onMove, onResign 
                 )}
             </GameOverPanel>
 
+            {room.status === "active" && !isSpectator && room.draw_offer_from_user_id && (
+                <>
+                    {room.draw_offer_from_user_id !== viewerId ? (
+                        <div className={styles.drawBanner}>
+                            <span className={styles.drawBannerText}>
+                                Your opponent has offered a draw. Accept to end the game as a draw, or decline to keep
+                                playing.
+                            </span>
+                            <div className={styles.drawBannerActions}>
+                                <Button
+                                    variant="primary"
+                                    size="small"
+                                    onClick={() => handleDrawAction(onAcceptDraw)}
+                                    disabled={submitting}
+                                >
+                                    Accept draw
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="small"
+                                    onClick={() => handleDrawAction(onDeclineDraw)}
+                                    disabled={submitting}
+                                >
+                                    Decline
+                                </Button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className={styles.drawPending}>
+                            Draw offered. Waiting for your opponent to respond. It is withdrawn if you make a move.
+                        </div>
+                    )}
+                </>
+            )}
+
             {room.status === "active" && !isSpectator && (
                 <div className={styles.controls}>
+                    {!room.draw_offer_from_user_id && (
+                        <Button variant="ghost" onClick={() => handleDrawAction(onOfferDraw)} disabled={submitting}>
+                            Offer draw
+                        </Button>
+                    )}
                     <Button variant="danger" onClick={handleResign} disabled={submitting}>
                         Resign
                     </Button>

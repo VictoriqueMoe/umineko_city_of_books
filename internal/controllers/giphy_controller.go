@@ -17,8 +17,7 @@ func giphyError(ctx fiber.Ctx, err error, fallback string) error {
 	if errors.Is(err, giphy.ErrDisabled) {
 		return utils.NotFound(ctx, "gif search is not configured")
 	}
-	var rl *giphy.RateLimitError
-	if errors.As(err, &rl) {
+	if rl, ok := errors.AsType[*giphy.RateLimitError](err); ok {
 		return ctx.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
 			"error":    "rate limited",
 			"reset_at": rl.ResetAt.UTC().Format(time.RFC3339),

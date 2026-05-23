@@ -62,6 +62,23 @@ export const GAME_TYPES: GameTypeDefinition[] = [
             "Games are correspondence-style with no clocks. Disconnects trigger a 60-second forfeit timer. Active games are public to spectators; finished games are archived under Past Games.",
         ],
     },
+    {
+        type: "minesweeper",
+        label: "Minesweeper",
+        tagline: "Real-time duel on a shared minefield. Pick a character, race to clear the board.",
+        hubPath: "/games/minesweeper",
+        newPath: "/games/minesweeper/new",
+        detailPath: (id: string) => `/games/minesweeper/${id}`,
+        available: true,
+        howToPlay: [
+            "Click Start a new minesweeper game, pick a player and send the invite. Once they accept, you both pick a character from the Umineko cast: Bernkastel, Erika, Dlanor or Lambdadelta.",
+            "After both characters are chosen, the match begins. You both play simultaneously on the same minefield, with independent reveal grids.",
+            "Left-click a cell to reveal it. Right-click to toggle a flag on suspected mines. The first reveal is always safe; mines are placed lazily after both players' first clicks.",
+            "Clear all safe cells before your opponent to win. Hitting a mine instantly hands the win to your opponent.",
+            "If either player disconnects mid-game, a 60-second forfeit timer runs before the connected player wins automatically.",
+            "Active games are public to spectators, who see both boards via mini-views. Mine positions stay hidden until the game ends.",
+        ],
+    },
 ];
 
 export function gameTypeLabel(type: string): string {

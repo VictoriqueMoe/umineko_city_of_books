@@ -1,0 +1,13 @@
+.sparkleCanvas {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 5;
+}
+
+.lightningCanvas {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 4;
+}

@@ -1063,10 +1063,9 @@ func TestCreateEntry_OK_WithTitle(t *testing.T) {
 	svc, m := newTestService(t)
 	journalID := uuid.New()
 	userID := uuid.New()
-	title := "Day 1"
 	m.repo.EXPECT().GetAuthorID(mock.Anything, journalID).Return(userID, nil)
 	m.repo.EXPECT().GetNextEntryNumber(mock.Anything, journalID).Return(1, nil)
-	m.repo.EXPECT().CreateEntry(mock.Anything, mock.Anything, journalID, 1, &title, "the body", mock.Anything, false).Return(nil)
+	m.repo.EXPECT().CreateEntry(mock.Anything, mock.Anything, journalID, 1, new("Day 1"), "the body", mock.Anything, false).Return(nil)
 	m.repo.EXPECT().UpdateLastAuthorActivity(mock.Anything, journalID).Return(nil)
 	m.repo.EXPECT().GetTitle(mock.Anything, journalID).Return("j", nil).Maybe()
 	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("http://b").Maybe()

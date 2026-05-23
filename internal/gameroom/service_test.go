@@ -37,6 +37,11 @@ func newTestService(t *testing.T) *testMocks {
 	notifier := NewMockNotifier(t)
 	handler := NewMockGameHandler(t)
 	handler.EXPECT().GameType().Return(dto.GameTypeChess).Maybe()
+	handler.EXPECT().Mode().Return(ModeTurnBased).Maybe()
+	handler.EXPECT().SupportsDraw().Return(true).Maybe()
+	handler.EXPECT().ProjectState(mock.Anything, mock.Anything).RunAndReturn(func(s string, _ bool) (string, error) {
+		return s, nil
+	}).Maybe()
 	roomRepo.EXPECT().GetTopWinnerIDs(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 
 	svc := NewService(
@@ -360,10 +365,9 @@ func TestSubmitAction_ClearsDisconnectForfeitOnMove(t *testing.T) {
 
 	m.roomRepo.EXPECT().GetRoom(mock.Anything, roomID).Return(row, nil).Once()
 	m.roomRepo.EXPECT().GetPlayerSlot(mock.Anything, roomID, player1).Return(0, nil)
-	next := 1
 	m.handler.EXPECT().
 		ValidateAction(row.StateJSON, 0, mock.Anything).
-		Return(ActionResult{NewStateJSON: updatedRow.StateJSON, NextTurnSlot: &next}, nil)
+		Return(ActionResult{NewStateJSON: updatedRow.StateJSON, NextTurnSlot: new(1)}, nil)
 	m.roomRepo.EXPECT().NextPly(mock.Anything, roomID).Return(1, nil)
 	m.roomRepo.EXPECT().AppendMove(mock.Anything, roomID, 1, player1, mock.Anything).Return(nil)
 	m.roomRepo.EXPECT().GetPlayers(mock.Anything, roomID).Return([]repository.GameRoomPlayerRow{
@@ -644,10 +648,9 @@ func TestSubmitAction_ClearsPendingDrawOffer(t *testing.T) {
 
 	m.roomRepo.EXPECT().GetRoom(mock.Anything, roomID).Return(row, nil).Once()
 	m.roomRepo.EXPECT().GetPlayerSlot(mock.Anything, roomID, p1).Return(0, nil)
-	nextSlot := 1
 	m.handler.EXPECT().ValidateAction(row.StateJSON, 0, mock.Anything).Return(ActionResult{
 		NewStateJSON: row.StateJSON,
-		NextTurnSlot: &nextSlot,
+		NextTurnSlot: new(1),
 	}, nil)
 	m.roomRepo.EXPECT().NextPly(mock.Anything, roomID).Return(1, nil)
 	m.roomRepo.EXPECT().AppendMove(mock.Anything, roomID, 1, p1, mock.Anything).Return(nil)

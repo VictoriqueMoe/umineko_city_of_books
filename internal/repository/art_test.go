@@ -1115,11 +1115,10 @@ func TestArtRepository_SetGallery_NotOwner_Fails(t *testing.T) {
 	repos := repotest.NewRepos(t)
 	owner := repotest.CreateUser(t, repos)
 	other := repotest.CreateUser(t, repos)
-	galleryID := createGallery(t, repos, owner.ID, "G")
 	artID := createArt(t, repos, owner.ID, "general", "drawing", "A", nil, false)
 
 	// when
-	err := repos.Art.SetGallery(context.Background(), artID, other.ID, &galleryID)
+	err := repos.Art.SetGallery(context.Background(), artID, other.ID, new(createGallery(t, repos, owner.ID, "G")))
 
 	// then
 	require.Error(t, err)
@@ -1197,11 +1196,10 @@ func TestArtRepository_ListAllGalleries_FilterByCorner(t *testing.T) {
 	repos := repotest.NewRepos(t)
 	user := repotest.CreateUser(t, repos)
 	g1 := createGallery(t, repos, user.ID, "G1")
-	g2 := createGallery(t, repos, user.ID, "G2")
 	a1 := createArt(t, repos, user.ID, "general", "drawing", "A", nil, false)
 	a2 := createArt(t, repos, user.ID, "alt", "drawing", "B", nil, false)
 	require.NoError(t, repos.Art.SetGallery(context.Background(), a1, user.ID, &g1))
-	require.NoError(t, repos.Art.SetGallery(context.Background(), a2, user.ID, &g2))
+	require.NoError(t, repos.Art.SetGallery(context.Background(), a2, user.ID, new(createGallery(t, repos, user.ID, "G2"))))
 
 	// when
 	galleries, err := repos.Art.ListAllGalleries(context.Background(), "general")
@@ -1249,13 +1247,12 @@ func TestArtRepository_ListArtInGallery(t *testing.T) {
 	repos := repotest.NewRepos(t)
 	user := repotest.CreateUser(t, repos)
 	galleryID := createGallery(t, repos, user.ID, "G")
-	otherGallery := createGallery(t, repos, user.ID, "H")
 	for i := 0; i < 3; i++ {
 		artID := createArt(t, repos, user.ID, "general", "drawing", "A", nil, false)
 		require.NoError(t, repos.Art.SetGallery(context.Background(), artID, user.ID, &galleryID))
 	}
 	otherArt := createArt(t, repos, user.ID, "general", "drawing", "X", nil, false)
-	require.NoError(t, repos.Art.SetGallery(context.Background(), otherArt, user.ID, &otherGallery))
+	require.NoError(t, repos.Art.SetGallery(context.Background(), otherArt, user.ID, new(createGallery(t, repos, user.ID, "H"))))
 
 	// when
 	arts, total, err := repos.Art.ListArtInGallery(context.Background(), galleryID, user.ID, 10, 0)

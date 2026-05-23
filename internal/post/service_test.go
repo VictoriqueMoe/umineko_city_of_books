@@ -1298,8 +1298,7 @@ func TestVotePoll_AlreadyVoted(t *testing.T) {
 	userID := uuid.New()
 	pollID := uuid.New().String()
 	poll := &model.PollRow{ID: pollID, ExpiresAt: time.Now().Add(time.Hour).UTC().Format(time.RFC3339)}
-	voted := 1
-	m.postRepo.EXPECT().GetPollByPostID(mock.Anything, postID, userID).Return(poll, nil, &voted, nil)
+	m.postRepo.EXPECT().GetPollByPostID(mock.Anything, postID, userID).Return(poll, nil, new(1), nil)
 
 	// when
 	_, err := svc.VotePoll(context.Background(), postID, userID, 1)
@@ -1403,10 +1402,9 @@ func TestVotePoll_OK(t *testing.T) {
 	expiresAt := time.Now().Add(time.Hour).UTC().Format(time.RFC3339)
 	poll := &model.PollRow{ID: pollID.String(), ExpiresAt: expiresAt}
 	options := []model.PollOptionRow{{ID: 1}}
-	voted := 1
 	m.postRepo.EXPECT().GetPollByPostID(mock.Anything, postID, userID).Return(poll, options, nil, nil).Once()
 	m.postRepo.EXPECT().VotePoll(mock.Anything, pollID, userID, 1).Return(nil)
-	m.postRepo.EXPECT().GetPollByPostID(mock.Anything, postID, userID).Return(poll, options, &voted, nil).Once()
+	m.postRepo.EXPECT().GetPollByPostID(mock.Anything, postID, userID).Return(poll, options, new(1), nil).Once()
 
 	// when
 	got, err := svc.VotePoll(context.Background(), postID, userID, 1)

@@ -24,7 +24,9 @@ const (
 )
 
 type (
-	Handler struct{}
+	Handler struct {
+		gameroom.BaseHandler
+	}
 
 	state struct {
 		Board       string    `json:"board"`
@@ -161,8 +163,7 @@ func (h *Handler) ValidateAction(stateJSON string, actorSlot int, action json.Ra
 			Result:       reason,
 		}
 		if outcome.winnerSlot != nil {
-			w := *outcome.winnerSlot
-			res.WinnerSlot = &w
+			res.WinnerSlot = new(*outcome.winnerSlot)
 		}
 		return res, nil
 	}
@@ -189,10 +190,9 @@ func (h *Handler) ValidateAction(stateJSON string, actorSlot int, action json.Ra
 }
 
 func (h *Handler) OnGraceExpired(_ string, disconnectedSlot int) gameroom.DisconnectResult {
-	winnerSlot := 1 - disconnectedSlot
 	return gameroom.DisconnectResult{
 		Finished:   true,
-		WinnerSlot: &winnerSlot,
+		WinnerSlot: new(1 - disconnectedSlot),
 		Result:     "abandoned",
 	}
 }

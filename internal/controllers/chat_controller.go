@@ -213,8 +213,7 @@ func (s *Service) sendMessage(ctx fiber.Ctx) error {
 		if utils.MapFilterError(ctx, err) {
 			return nil
 		}
-		var bw *chat.ErrBannedWordMatch
-		if errors.As(err, &bw) {
+		if bw, ok2 := errors.AsType[*chat.ErrBannedWordMatch](err); ok2 {
 			return utils.UnprocessableEntity(ctx, fiber.Map{
 				"error":   bw.Error(),
 				"code":    "banned_word",

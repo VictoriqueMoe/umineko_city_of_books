@@ -56,7 +56,7 @@ func TestPostRepository_Create_WithSharedContent(t *testing.T) {
 	id := uuid.New()
 
 	// when
-	err := repos.Post.Create(context.Background(), id, user.ID, "general", "shared", strPtr("abc123"), strPtr("theory"))
+	err := repos.Post.Create(context.Background(), id, user.ID, "general", "shared", new("abc123"), new("theory"))
 
 	// then
 	require.NoError(t, err)

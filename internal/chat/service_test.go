@@ -3711,7 +3711,7 @@ func TestEditMessage_Author_OK(t *testing.T) {
 	roomID := uuid.New()
 	authorID := uuid.New()
 	original := &repository.ChatMessageRow{ID: messageID, RoomID: roomID, SenderID: authorID, Body: "old"}
-	updated := &repository.ChatMessageRow{ID: messageID, RoomID: roomID, SenderID: authorID, Body: "new", EditedAt: editedAtPtr("2026-04-18T20:00:00Z")}
+	updated := &repository.ChatMessageRow{ID: messageID, RoomID: roomID, SenderID: authorID, Body: "new", EditedAt: new("2026-04-18T20:00:00Z")}
 	m.chatRepo.EXPECT().GetMessageByID(mock.Anything, messageID).Return(original, nil).Once()
 	m.chatRepo.EXPECT().GetMemberTimeoutState(mock.Anything, roomID, authorID).Return(false, "", false, nil)
 	m.chatRepo.EXPECT().EditMessage(mock.Anything, messageID, "new").Return(nil)

@@ -23,4 +23,5 @@ var (
 	ErrCannotAcceptOwnDraw = errors.New("you cannot respond to your own draw offer")
 	ErrAccepterNotInRoom   = errors.New("you must be viewing the game to accept")
 	ErrInviterNotInRoom    = errors.New("the player who invited you is not at the board")
+	ErrDrawNotSupported    = errors.New("this game does not support draw offers")
 )

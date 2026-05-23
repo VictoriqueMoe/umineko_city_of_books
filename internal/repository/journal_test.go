@@ -1063,8 +1063,7 @@ func TestJournalRepository_CreateAndGetEntry(t *testing.T) {
 	user := repotest.CreateUser(t, repos)
 	jid := createJournal(t, repos, user.ID, "Title", "", "general")
 	entryID := uuid.New()
-	title := "Day 1"
-	require.NoError(t, repos.Journal.CreateEntry(context.Background(), entryID, jid, 1, &title, "the body", 2, false))
+	require.NoError(t, repos.Journal.CreateEntry(context.Background(), entryID, jid, 1, new("Day 1"), "the body", 2, false))
 
 	// when
 	got, err := repos.Journal.GetEntry(context.Background(), jid, 1)
@@ -1149,9 +1148,8 @@ func TestJournalRepository_GetByID_PopulatesLatestEntry(t *testing.T) {
 	repos := repotest.NewRepos(t)
 	user := repotest.CreateUser(t, repos)
 	jid := createJournal(t, repos, user.ID, "Title", "", "general")
-	title := "Latest"
 	require.NoError(t, repos.Journal.CreateEntry(context.Background(), uuid.New(), jid, 1, nil, "first body", 2, false))
-	require.NoError(t, repos.Journal.CreateEntry(context.Background(), uuid.New(), jid, 2, &title, "newest body", 2, false))
+	require.NoError(t, repos.Journal.CreateEntry(context.Background(), uuid.New(), jid, 2, new("Latest"), "newest body", 2, false))
 
 	// when
 	got, err := repos.Journal.GetByID(context.Background(), jid, uuid.Nil)

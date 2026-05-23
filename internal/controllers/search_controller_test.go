@@ -52,7 +52,6 @@ func TestSearchController_EmptyQuery_ReturnsEmpty(t *testing.T) {
 func TestSearchController_FullSearch_PassesParamsAndShapesResponse(t *testing.T) {
 	// given
 	h, deps := newSearchHarness(t)
-	parentID := "parent-uuid"
 	deps.svc.EXPECT().ParseTypes("theory").
 		Return([]repository.SearchEntityType{repository.SearchEntityTheory})
 	deps.svc.EXPECT().
@@ -62,7 +61,7 @@ func TestSearchController_FullSearch_PassesParamsAndShapesResponse(t *testing.T)
 				SearchResult: repository.SearchResult{
 					EntityType:        repository.SearchEntityPostComment,
 					ID:                "comment-id",
-					ParentID:          &parentID,
+					ParentID:          new("parent-uuid"),
 					Title:             "On a post",
 					Snippet:           "matched <mark>beatrice</mark>",
 					AuthorUsername:    "loliduck",

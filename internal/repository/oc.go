@@ -87,8 +87,7 @@ func scanOCRow(row interface{ Scan(...interface{}) error }, o *model.OCRow) erro
 		return err
 	}
 	o.CreatedAt = createdAt.UTC().Format(time.RFC3339)
-	updated := updatedAt.UTC().Format(time.RFC3339)
-	o.UpdatedAt = &updated
+	o.UpdatedAt = new(updatedAt.UTC().Format(time.RFC3339))
 	return nil
 }
 
