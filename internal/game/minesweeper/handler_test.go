@@ -483,7 +483,3 @@ func TestHandler_ComputeStats(t *testing.T) {
 	assert.Equal(t, resultComplete, stats.Reason)
 	assert.GreaterOrEqual(t, stats.DurationSeconds, 110)
 }
-
-func intPtr(v int) *int {
-	return &v
-}

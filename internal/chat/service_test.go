@@ -3702,8 +3702,6 @@ func TestDeleteMessage_NotFound(t *testing.T) {
 	require.ErrorIs(t, err, ErrRoomNotFound)
 }
 
-func editedAtPtr(s string) *string { return &s }
-
 func TestEditMessage_Author_OK(t *testing.T) {
 	// given
 	svc, m := newTestService(t)

@@ -27,10 +27,6 @@ func createComment(t *testing.T, repos *repository.Repositories, postID, userID 
 	return id
 }
 
-func strPtr(s string) *string {
-	return &s
-}
-
 func TestPostRepository_CreateAndGetByID(t *testing.T) {
 	// given
 	repos := repotest.NewRepos(t)
