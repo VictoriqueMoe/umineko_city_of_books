@@ -30,7 +30,7 @@ export function useAcceptGameInvite() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (id: string) => acceptGameInvite(id),
-        onSuccess: (_d, id) => qc.invalidateQueries({ queryKey: detail(id) }),
+        onSuccess: (room, id) => qc.setQueryData(detail(id), room),
     });
 }
 
@@ -54,7 +54,7 @@ export function useSubmitGameAction(id: string) {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (action: Record<string, unknown>) => submitGameAction(id, action),
-        onSuccess: () => qc.invalidateQueries({ queryKey: detail(id) }),
+        onSuccess: room => qc.setQueryData(detail(id), room),
     });
 }
 
@@ -62,7 +62,7 @@ export function useResignGame() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (id: string) => resignGame(id),
-        onSuccess: (_d, id) => qc.invalidateQueries({ queryKey: detail(id) }),
+        onSuccess: (room, id) => qc.setQueryData(detail(id), room),
     });
 }
 
@@ -70,7 +70,7 @@ export function useOfferDraw() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (id: string) => offerDraw(id),
-        onSuccess: (_d, id) => qc.invalidateQueries({ queryKey: detail(id) }),
+        onSuccess: (room, id) => qc.setQueryData(detail(id), room),
     });
 }
 
@@ -78,7 +78,7 @@ export function useAcceptDraw() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (id: string) => acceptDraw(id),
-        onSuccess: (_d, id) => qc.invalidateQueries({ queryKey: detail(id) }),
+        onSuccess: (room, id) => qc.setQueryData(detail(id), room),
     });
 }
 
@@ -86,7 +86,7 @@ export function useDeclineDraw() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (id: string) => declineDraw(id),
-        onSuccess: (_d, id) => qc.invalidateQueries({ queryKey: detail(id) }),
+        onSuccess: (room, id) => qc.setQueryData(detail(id), room),
     });
 }
 

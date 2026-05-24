@@ -61,6 +61,8 @@ func Setup(app *fiber.App, settingsSvc settings.Service, sessionMgr *session.Man
 			ctx.Set("Cache-Control", "public, max-age=31536000, immutable")
 		case strings.HasPrefix(path, "/uploads/"):
 			ctx.Set("Cache-Control", "public, max-age=2592000")
+		case strings.HasPrefix(path, "/characters/") || strings.HasPrefix(path, "/sounds/") || strings.HasPrefix(path, "/favicon/"):
+			ctx.Set("Cache-Control", "public, max-age=2592000")
 		case strings.HasPrefix(path, "/api"):
 			ctx.Set("Cache-Control", "no-cache, must-revalidate")
 		default:
