@@ -11,7 +11,7 @@
   </sub>
 </p>
 
-A community platform for fans of Umineko no Naku Koro ni, Higurashi, Ciconia, and the wider When They Cry series. The original goal was a place to declare fan theories as **blue truth**, attach quotes from the game as evidence, and have them debated on two sides: **"With love, it can be seen"** and **"Without love, it cannot be seen"**. It has since grown into a full social platform: theory debates across all three series, a Twitter-style game board, mystery boards, fan art galleries, ship declarations, fanfiction, live reading journals, chat rooms and DMs, secret unlock hunts, live notifications, and themed role-based moderation.
+A community platform for fans of Umineko no Naku Koro ni, Higurashi, Ciconia, and the wider When They Cry series. The original goal was a place to declare fan theories as **blue truth**, attach quotes from the game as evidence, and have them debated on two sides: **"With love, it can be seen"** and **"Without love, it cannot be seen"**. It has since grown into a full social platform: theory debates across all three series, a Twitter-style game board, mystery boards, fan art galleries, ship and OC declarations, fanfiction, live reading journals, chat rooms with shared-browser watch parties, DMs, secret unlock hunts, multiplayer games (chess, checkers, othello, minesweeper) with their own vanity titles, site-wide search, live notifications, and themed role-based moderation.
 
 ## Table of Contents
 
@@ -20,13 +20,17 @@ A community platform for fans of Umineko no Naku Koro ni, Higurashi, Ciconia, an
   - [Mysteries](#mysteries)
   - [Gallery and Art](#gallery-and-art)
   - [Ships](#ships)
+  - [Original Characters](#original-characters)
   - [Game Board](#game-board)
   - [Fanfiction](#fanfiction)
   - [Reading Journals](#reading-journals)
   - [Chat Rooms and DMs](#chat-rooms-and-dms)
+  - [Watch Parties](#watch-parties)
+  - [Games](#games)
   - [Secrets and Unlock Hunts](#secrets-and-unlock-hunts)
   - [Announcements](#announcements)
   - [Suggestions](#suggestions)
+  - [Search](#search)
   - [Quote Browser](#quote-browser)
   - [Profiles and Social Graph](#profiles-and-social-graph)
   - [Notifications](#notifications)
@@ -39,6 +43,7 @@ A community platform for fans of Umineko no Naku Koro ni, Higurashi, Ciconia, an
 - [Development Workflow](#development-workflow)
 - [Deployment](#deployment)
 - [Adding a New Page](#adding-a-new-page)
+- [License](#license)
 
 ## Features
 
@@ -94,6 +99,17 @@ Declare character pairings and rally votes for them.
 - Full comment system with threading, media, GIFs, and likes
 - Filter by series or by individual character
 - Sort modes: new, top, crackships only, most commented, controversial
+
+### Original Characters
+
+A dedicated home for player-created OCs, separate from the canon-character ship list.
+
+- Create OCs with name, series tag (Umineko / Higurashi / Ciconia / Custom), optional custom-series label, description, and avatar with automatic WebP conversion
+- Each OC has its own detail page that lists ships they appear in and the fanfics they're tagged in
+- Browse the OC index at `/oc` filtered by series, owner, or sorted by new / top / most commented
+- OC summaries appear on the owner's profile alongside their ships
+- Full comment system with threading, media, GIFs, and likes
+- Edit and delete by owners and admins
 
 ### Game Board
 
@@ -158,7 +174,34 @@ Real-time chat in two flavours: one-to-one direct messages and named group rooms
 - **Replies and edits** on individual messages, with a floating action bar above the bubble on hover
 - **GIF picker**, emoji picker, media uploads, and full Discord-style text formatting (backticks, quotes, spoilers, syntax highlighting) everywhere text is typed
 - WebSocket-driven real-time delivery, pin/unpin events, reaction updates, and typing presence
+- **Watch parties** launchable from any group room: spin up a shared Hyperbeam browser VM that everyone in the room can watch and take turns controlling (see [Watch Parties](#watch-parties))
 - Mobile-first composer: full-width text box with Media / GIF / Send stacked below, bubbles spanning edge to edge
+
+### Watch Parties
+
+Hyperbeam-powered shared-browser sessions launched from inside a group chat room. Everyone in the party loads the same remote Chromium VM, so anyone can stream a video together, browse a site together, or play a web game together without anyone screen-sharing locally.
+
+- Started by a room member from the chat composer with a URL, optional title, and region (defaults to `HYPERBEAM_REGION`)
+- A side panel renders the live VM iframe with a participants list, control-handoff request, and party chat that's separate from the room's main message timeline
+- **Control passing**: the host hands the keyboard/mouse to a specific participant; everyone else watches. Control swaps emit a live WS event so the cursor follows the new driver
+- **Kick** by host or room mods, broadcast as a `watch_party_kicked` event that closes the panel for the target without dropping them from the room
+- Server-side reconciliation: idle parties past `watchPartyReconcileIdleAfter` are torn down automatically so abandoned VMs don't burn Hyperbeam minutes
+- Disabled cleanly when `HYPERBEAM_API_KEY` is unset — the start button is hidden and the API returns `ErrWatchPartyDisabled`
+
+### Games
+
+Multiplayer mini-games hosted entirely inside the site. Each game has live games, past games, and a personal "My Games" view in the sidebar.
+
+- **Chess**, **Checkers**, **Othello**: correspondence-style matches with no clocks. Invite a user by username or pick from your mutual followers, the invitee plays the second-mover side. Drag-to-move, server-side legality, full move history. Disconnects start a 60-second forfeit timer.
+- **Minesweeper**: real-time duel on a shared minefield. After both players pick an Umineko character (Bernkastel, Erika, Dlanor, Lambdadelta), independent reveal grids run in parallel — first to clear all safe cells wins, hitting a mine instantly loses. Mines are placed lazily after both first clicks so opening reveals are always safe.
+- **Spectators**: active games are public. Anyone can open the board and watch live; spectators have their own side chat invisible to the players. Finished games are archived to **Past Games**.
+- **Vanity titles** awarded to the top player of each game (most wins, ties broken by win-loss differential), shown as a pill next to their display name:
+  - **Grandmaster** — chess
+  - **King of the Board** — checkers
+  - **Discmaster** — othello
+  - **Minemaster** — minesweeper
+- **Notifications** for invites, your-turn nudges, forfeit warnings on disconnect, and game-over results
+- Hub page (`/games`), per-game hub (`/games/chess`, etc.), scoreboards, and live games count badge in the sidebar
 
 ### Secrets and Unlock Hunts
 
@@ -193,6 +236,15 @@ A dedicated feedback channel for site improvements and bug reports.
 - Admins can resolve a suggestion (mark done) or archive it, with the status reflected back to the reporter
 - Follows the same commenting, voting, and notification rules as the game board
 
+### Search
+
+A single search bar covers the whole site. Backed by Postgres `tsvector` columns on every searchable entity, with a `SearchSource` registry mapping each entity type back to its canonical URL.
+
+- **Full search** (`/search?q=...`) returns paginated hits across theories, posts, post comments, mysteries, ships, OCs, art, galleries, fanfics, fanfic chapters, journals, journal entries, chat rooms, and users
+- **Quick search** in the header returns up to a small number of hits per entity type, with the right deep link (e.g. a post comment links to `#comment-<id>` on its parent post)
+- Type filters narrow results; "child" entity types (comments, chapters, journal entries) can be opted in or out
+- Adding a new searchable entity means registering a `SearchSource` and URL builder; nothing else in the search pipeline needs to change
+
 ### Quote Browser
 
 A standalone interface for browsing the full quote corpus across all three series, sourced from the Umineko Quote Finder API. Switch between Umineko / Higurashi / Ciconia tabs, filter by chapter/episode/arc, and filter by character with a main/additional split where the quote service exposes one. Ciconia and Higurashi quotes ship with Japanese text inline, and the language picker now honours it across all series.
@@ -202,8 +254,8 @@ A standalone interface for browsing the full quote corpus across all three serie
 - Avatar, draggable banner positioning, bio, pronouns, gender, social links (Twitter, Discord, Tumblr, Waifulist, GitHub, personal site), favourite character
 - **Per-user theme, font, wide layout, and particles preferences** persisted on the profile so it follows you across devices
 - Activity feed with recent theories, responses, posts, and comments
-- Tabs for posts, theories, art, ships, mysteries, galleries, fanfics, and journals
-- Stats box: theory count, response count, votes received, ship count, mystery count
+- Tabs for posts, theories, art, ships, OCs, mysteries, galleries, fanfics, and journals
+- Stats box: theory count, response count, votes received, ship count, mystery count, fanfic count, follower/following counts
 - Follow system with follower and following lists, "Follows you" label, follower counts
 - Online/offline status
 - **Players Page**: browse all users grouped by role (Reality Authors, Voyager Witches, Witches) and online/offline status
@@ -217,8 +269,9 @@ A standalone interface for browsing the full quote corpus across all three serie
 
 - Real-time WebSocket push with automatic reconnection
 - Email notifications with HTML templates, deep links, and per-user opt-out
-- Grouped by category on the notifications page: Game Board, Gallery, Theories, Mysteries (as GM), Mysteries (as Player), Fanfiction, Journals, Chat, Social, Moderation
-- Types covered: theory response, response reply, theory upvote, response upvote, chat message, chat reaction, report, report resolved, new follower, post liked, post commented, post comment reply, mention, art liked, art commented, art comment reply, comment liked, content edited, mystery attempt, mystery reply, mystery attempt vote, mystery solved, ship commented, ship comment reply, ship comment liked, announcement commented, announcement comment reply, announcement comment liked, fanfic chapter published, fanfic commented, journal updated, journal commented
+- Grouped by category on the notifications page: Game Board, Gallery, Theories, Mysteries (as GM), Mysteries (as Player), Fanfiction, Journals, Chat, Games, Social, Moderation
+- Types covered: theory response, response reply, theory upvote, response upvote, chat message, chat reaction, report, report resolved, new follower, post liked, post commented, post comment reply, mention, art liked, art commented, art comment reply, comment liked, content edited, mystery attempt, mystery reply, mystery attempt vote, mystery solved, ship commented, ship comment reply, ship comment liked, OC commented, OC comment reply, OC comment liked, announcement commented, announcement comment reply, announcement comment liked, fanfic chapter published, fanfic commented, journal updated, journal commented, game invite, your turn, opponent disconnected, game forfeited, game over, watch party started, watch party kicked
+- **Live identity events**: bans, unbans, role assignments, vanity-role changes, display-name changes, and avatar uploads broadcast `user_updated` / `vanity_roles_changed` events. Every viewer sees the banned pill, new colour, new name, or new avatar update in place on every post, comment, chat bubble, and profile card without a refresh
 - ETag-based polling fallback when the WebSocket drops
 
 ### Moderation and Admin
@@ -230,12 +283,12 @@ A standalone interface for browsing the full quote corpus across all three serie
 - **Vanity Roles**: admin-defined custom roles with bespoke colour, label, and sort order. Assign one or more to a user independently of their moderation role. System-level vanity roles are distinguished from user-created ones
 - Permission-based authorisation layer (`internal/authz`), not a raw role check
 - Admin dashboard with site stats: total users, theories, responses, posts, comments, per-corner breakdown, 24h/7d/30d growth windows, most active users
-- User management: assign or revoke roles, ban with reason, unban, assign vanity roles
+- User management: assign or revoke roles, ban with reason, unban, assign vanity roles. The admin user detail page records and displays **Banned By** (linked profile) alongside Ban Reason and Banned At, so it's clear which admin or moderator issued the ban
 - DB-backed site settings with hot reload: body limits, log level, registration mode, maintenance mode, turnstile, upload limits, rate limits, announcement banner, SMTP, Sentry/GlitchTip DSN, default theme
 - **Invite system**: open, invite-only, or closed registration. Admins generate one-time invite codes
 - **Maintenance mode** with custom title and message. Admins bypass it
 - **Audit log** for admin actions. Automated moderation events (word-filter hits) log with a NULL actor and render as "System" in the admin audit page, distinguishing them from human-initiated actions
-- **Reports**: users can report theories, responses, posts, comments, art, ships, users, fanfics, journals, and chat messages. Admins resolve from the admin panel with optional comment back to the reporter
+- **Reports**: users can report theories, responses, posts, comments, art, ships, OCs, users, fanfics, journals, and chat messages. Admins resolve from the admin panel with optional comment back to the reporter
 - **Banned GIFs**: admins block specific GIPHY IDs from being embedded anywhere on the site; the content filter rejects matches before they render
 - **Banned Words** (`/admin/banned-words`): global word-filter rules for chat rooms with regex / whole-word / substring match modes, editable in place
 - **Content Filter Pipeline** (`internal/contentfilter`): pluggable rule-based validation that runs on all user-generated text before it lands in the DB
@@ -307,6 +360,7 @@ A standalone interface for browsing the full quote corpus across all three serie
 
 - [Umineko Quote Finder API](https://quotes.auaurora.moe/swagger/index.html) for game quote search and evidence attachment
 - GIPHY API for GIF search, trending, and favourites
+- [Hyperbeam](https://hyperbeam.com/) for the shared-browser VM that powers watch parties
 
 ## Architecture
 
@@ -642,17 +696,19 @@ Two env files live next to each other:
   ```bash
   cp .env.example .env
   ```
-  | Variable            | Default                 | Description                                                                       |
-  |---------------------|-------------------------|-----------------------------------------------------------------------------------|
-  | `BASE_URL`          | `http://localhost:4323` | Public base URL, used for CORS and absolute links                                 |
-  | `UPLOAD_DIR`        | `uploads`               | Directory for uploaded files (relative to working dir)                            |
-  | `LOG_LEVEL`         | `info`                  | Initial log level (overridable from admin panel at runtime)                       |
-  | `POSTGRES_HOST`     | `localhost`             | Postgres host. `postgres` (the compose service name) under docker-compose         |
-  | `POSTGRES_PORT`     | `5432`                  | Postgres port. The internal container port — not the host-mapped 5007             |
-  | `POSTGRES_SSL_MODE` | `disable`               | Postgres SSL mode (`disable`, `require`, `verify-ca`, `verify-full`)              |
-  | `DATABASE_URL`      | (empty)                 | Full connection string. If set, overrides the discrete `POSTGRES_*` vars          |
-  | `GIPHY_API_KEY`     | (empty)                 | GIPHY API key, required to enable the GIF picker                                  |
-  | `SENTRY_DSN`        | (empty)                 | GlitchTip / Sentry DSN for error shipping (optional)                              |
+  | Variable            | Default                 | Description                                                                                    |
+  |---------------------|-------------------------|------------------------------------------------------------------------------------------------|
+  | `BASE_URL`          | `http://localhost:4323` | Public base URL, used for CORS and absolute links                                              |
+  | `UPLOAD_DIR`        | `uploads`               | Directory for uploaded files (relative to working dir)                                         |
+  | `LOG_LEVEL`         | `info`                  | Initial log level (overridable from admin panel at runtime)                                    |
+  | `POSTGRES_HOST`     | `localhost`             | Postgres host. `postgres` (the compose service name) under docker-compose                      |
+  | `POSTGRES_PORT`     | `5432`                  | Postgres port. The internal container port — not the host-mapped 5007                          |
+  | `POSTGRES_SSL_MODE` | `disable`               | Postgres SSL mode (`disable`, `require`, `verify-ca`, `verify-full`)                           |
+  | `DATABASE_URL`      | (empty)                 | Full connection string. If set, overrides the discrete `POSTGRES_*` vars                       |
+  | `GIPHY_API_KEY`     | (empty)                 | GIPHY API key, required to enable the GIF picker                                               |
+  | `HYPERBEAM_API_KEY` | (empty)                 | Hyperbeam API key; required to enable chat-room watch parties. If unset, the feature is hidden |
+  | `HYPERBEAM_REGION`  | `EU`                    | Default Hyperbeam VM region (overridable per session from the start-party dialog)              |
+  | `SENTRY_DSN`        | (empty)                 | GlitchTip / Sentry DSN for error shipping (optional)                                           |
 
 Most runtime behaviour (registration mode, maintenance mode, turnstile keys, upload limits, rate limits, log level, email SMTP settings, default theme, Sentry DSN) is stored in the database via the `site_settings` table and editable from the admin panel at runtime with hot reload. The env file is only for things that must exist before the DB is reachable, or secrets that should not round-trip through the DB.
 
@@ -785,3 +841,8 @@ When creating a new page or section, update **all** of the following:
 5. **Home page routes** - `frontend/src/App.tsx`: add to the `homePageRoutes` object and add a `<Route>` element.
 6. **Sitemap** - `internal/controllers/sitemap_controller.go`: add the URL to `static()` or create a dynamic sitemap handler for collections.
 7. **Content filter rules** - `internal/contentfilter`: if the new page accepts user text, make sure its service runs input through the content filter pipeline.
+8. **Search** - `internal/search`: if the new page introduces a searchable entity, register a `SearchSource` and a URL builder so it surfaces in `/search` and the header quick search.
+
+## License
+
+Released under the [MIT License](LICENSE). Umineko no Naku Koro ni and the wider When They Cry series are © 07th Expansion; this project is an unofficial fan platform with no affiliation.

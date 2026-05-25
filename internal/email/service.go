@@ -10,7 +10,7 @@ import (
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/settings"
 
-	mail "github.com/wneessen/go-mail"
+	"github.com/wneessen/go-mail"
 )
 
 type (
