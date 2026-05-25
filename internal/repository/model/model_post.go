@@ -42,6 +42,7 @@ type (
 		AuthorDisplayName string
 		AuthorAvatarURL   string
 		AuthorRole        string
+		AuthorBanned      bool
 		LikeCount         int
 		UserLiked         bool
 	}
@@ -95,6 +96,7 @@ func (c *PostCommentRow) ToResponse(media []PostMediaRow, embeds []EmbedRow) dto
 			DisplayName: c.AuthorDisplayName,
 			AvatarURL:   c.AuthorAvatarURL,
 			Role:        role.Role(c.AuthorRole),
+			Banned:      c.AuthorBanned,
 		},
 		Body:      c.Body,
 		Media:     MediaRowsToResponse(media),

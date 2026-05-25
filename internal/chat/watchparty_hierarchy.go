@@ -23,12 +23,12 @@ func watchPartyEffectiveRank(siteRole role.Role, isOwner bool) int {
 	return rank
 }
 
-func (s *service) watchPartyRankOf(ctx context.Context, session *repository.ChatWatchPartySessionRow, userID uuid.UUID) int {
+func (s *watchPartyService) watchPartyRankOf(ctx context.Context, session *repository.ChatWatchPartySessionRow, userID uuid.UUID) int {
 	siteRole, _ := s.roleRepo.GetRole(ctx, userID)
 	return watchPartyEffectiveRank(siteRole, session.StartedBy == userID)
 }
 
-func (s *service) postWatchPartySystemMessage(ctx context.Context, roomID, sessionID uuid.UUID, body string) {
+func (s *watchPartyService) postWatchPartySystemMessage(ctx context.Context, roomID, sessionID uuid.UUID, body string) {
 	if body == "" {
 		return
 	}
@@ -53,7 +53,7 @@ func (s *service) postWatchPartySystemMessage(ctx context.Context, roomID, sessi
 	}, uuid.Nil)
 }
 
-func (s *service) postControlChangeSystemMessage(ctx context.Context, roomID, sessionID, callerID, targetID uuid.UUID, reason string) {
+func (s *watchPartyService) postControlChangeSystemMessage(ctx context.Context, roomID, sessionID, callerID, targetID uuid.UUID, reason string) {
 	switch reason {
 	case "reclaim":
 		body := fmt.Sprintf("%s took control.", s.displayNameFor(ctx, callerID, roomID))

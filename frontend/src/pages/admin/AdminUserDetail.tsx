@@ -222,6 +222,14 @@ export function AdminUserDetail() {
                             <span className={styles.infoValue}>{user.ban_reason}</span>
                         </div>
                     )}
+                    {user.banned && user.banned_by && (
+                        <div className={styles.infoItem}>
+                            <span className={styles.infoLabel}>Banned By</span>
+                            <span className={styles.infoValue}>
+                                <ProfileLink user={user.banned_by} size="small" />
+                            </span>
+                        </div>
+                    )}
                     {user.banned && user.banned_at && (
                         <div className={styles.infoItem}>
                             <span className={styles.infoLabel}>Banned At</span>

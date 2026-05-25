@@ -663,6 +663,7 @@ func (r *postRepository) GetComments(ctx context.Context, postID uuid.UUID, view
 		rebind(`SELECT c.id, c.post_id, c.parent_id, c.user_id, c.body, c.created_at, c.updated_at,
 			u.username, u.display_name, u.avatar_url,
 			COALESCE(r.role, ''),
+			u.banned_at IS NOT NULL,
 			(SELECT COUNT(*) FROM post_comment_likes WHERE comment_id = c.id),
 			EXISTS(SELECT 1 FROM post_comment_likes WHERE comment_id = c.id AND user_id = ?)
 		FROM post_comments c
@@ -688,7 +689,7 @@ func (r *postRepository) GetComments(ctx context.Context, postID uuid.UUID, view
 		if err := rows.Scan(
 			&c.ID, &c.PostID, &c.ParentID, &c.UserID, &c.Body, &createdAt, &updatedAt,
 			&c.AuthorUsername, &c.AuthorDisplayName, &c.AuthorAvatarURL,
-			&c.AuthorRole, &c.LikeCount, &c.UserLiked,
+			&c.AuthorRole, &c.AuthorBanned, &c.LikeCount, &c.UserLiked,
 		); err != nil {
 			return nil, 0, fmt.Errorf("scan comment: %w", err)
 		}

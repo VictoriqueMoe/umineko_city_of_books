@@ -1,18 +1,32 @@
 package middleware
 
-import "github.com/gofiber/fiber/v3"
+import (
+	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/helmet"
+)
 
 func SecurityHeaders() fiber.Handler {
+	h := helmet.New(helmet.Config{
+		XFrameOptions:             "DENY",
+		ContentTypeNosniff:        "nosniff",
+		ReferrerPolicy:            "strict-origin-when-cross-origin",
+		ContentSecurityPolicy:     "frame-ancestors 'none'",
+		PermissionPolicy:          "geolocation=(), camera=(), microphone=()",
+		CrossOriginEmbedderPolicy: "unsafe-none",
+		CrossOriginOpenerPolicy:   "same-origin-allow-popups",
+		CrossOriginResourcePolicy: "cross-origin",
+		OriginAgentCluster:        "?1",
+		XDNSPrefetchControl:       "off",
+		XDownloadOptions:          "noopen",
+		XPermittedCrossDomain:     "none",
+		XSSProtection:             "0",
+		HSTSMaxAge:                15552000,
+		HSTSPreloadEnabled:        true,
+	})
+
 	return func(ctx fiber.Ctx) error {
-		if err := ctx.Next(); err != nil {
-			return err
-		}
-		ctx.Set("X-Frame-Options", "DENY")
-		ctx.Set("X-Content-Type-Options", "nosniff")
-		ctx.Set("Referrer-Policy", "strict-origin-when-cross-origin")
-		ctx.Set("Permissions-Policy", "geolocation=(), camera=(), microphone=()")
-		ctx.Set("Content-Security-Policy", "frame-ancestors 'none'")
+		err := h(ctx)
 		ctx.Response().Header.Del("Server")
-		return nil
+		return err
 	}
 }

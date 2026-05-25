@@ -3,16 +3,17 @@ package ws
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"runtime/debug"
 	"strings"
 	"time"
 
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/session"
 
-	"github.com/fasthttp/websocket"
+	"github.com/gofiber/contrib/v3/websocket"
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
-	"github.com/valyala/fasthttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
@@ -21,6 +22,7 @@ import (
 const (
 	maxInboundMessageSize = 8 * 1024
 	wsTracerName          = "umineko_city_of_books/ws"
+	localsUserIDKey       = "ws.user_id"
 )
 
 type (
@@ -68,6 +70,26 @@ type (
 	}
 )
 
+func recoverHandler(conn *websocket.Conn) {
+	r := recover()
+	if r == nil {
+		return
+	}
+
+	userID := ""
+	if uid, ok := conn.Locals(localsUserIDKey).(uuid.UUID); ok {
+		userID = uid.String()
+	}
+
+	logger.Log.Error().
+		Str("user_id", userID).
+		Str("panic", fmt.Sprintf("%v", r)).
+		Bytes("stack", debug.Stack()).
+		Msg("ws handler panic")
+
+	_ = conn.WriteJSON(fiber.Map{"error": "internal error"})
+}
+
 func originAllowed(origin, allowed string) bool {
 	if origin == "" || allowed == "" {
 		return false
@@ -87,22 +109,91 @@ func broadcastPresence(hub *Hub, roomID, userID uuid.UUID, state string) {
 }
 
 func Handler(hub *Hub, sessionMgr *session.Manager, roomLister RoomLister, gamePresence GameRoomPresence, watchPartyDisconnect WatchPartyDisconnectHandler, allowedOrigin func() string) fiber.Handler {
-	upgrader := websocket.FastHTTPUpgrader{
-		CheckOrigin: func(ctx *fasthttp.RequestCtx) bool {
-			origin := string(ctx.Request.Header.Peek("Origin"))
-			allowed := ""
-			if allowedOrigin != nil {
-				allowed = allowedOrigin()
+	wsHandler := websocket.New(func(conn *websocket.Conn) {
+		userID, ok := conn.Locals(localsUserIDKey).(uuid.UUID)
+		if !ok {
+			return
+		}
+
+		logger.Log.Debug().Str("user_id", userID.String()).Msg("ws client connected")
+		conn.SetReadLimit(maxInboundMessageSize)
+		client := NewClient(userID, conn)
+
+		hub.Register(client)
+		joinedGameRooms := make(map[uuid.UUID]bool)
+		defer func() {
+			cleared := hub.Unregister(client)
+			for _, roomID := range cleared {
+				broadcastPresence(hub, roomID, userID, "")
 			}
-			if originAllowed(origin, allowed) {
-				return true
+			if gamePresence != nil {
+				for roomID := range joinedGameRooms {
+					gamePresence.HandleClientLeave(userID, roomID)
+				}
 			}
-			logger.Log.Warn().Str("origin", origin).Msg("ws upgrade rejected: origin not allowed")
-			return false
-		},
-	}
+			if watchPartyDisconnect != nil && len(cleared) > 0 {
+				watchPartyDisconnect.HandleClientDisconnect(context.Background(), userID, cleared)
+			}
+		}()
+
+		if roomLister != nil {
+			roomIDs, err := roomLister.GetRoomsByUser(context.Background(), userID)
+			if err == nil {
+				for _, roomID := range roomIDs {
+					hub.JoinRoom(roomID, userID)
+				}
+			}
+		}
+
+		conn.SetPongHandler(func(string) error {
+			return conn.SetReadDeadline(time.Now().Add(90 * time.Second))
+		})
+		_ = conn.SetReadDeadline(time.Now().Add(90 * time.Second))
+
+		for {
+			_, raw, err := conn.ReadMessage()
+			if err != nil {
+				if websocket.IsUnexpectedCloseError(err,
+					websocket.CloseNormalClosure,
+					websocket.CloseGoingAway,
+					websocket.CloseNoStatusReceived,
+					websocket.CloseAbnormalClosure,
+					websocket.CloseServiceRestart,
+					websocket.CloseTryAgainLater,
+					websocket.CloseTLSHandshake,
+				) {
+					logger.Log.Warn().Err(err).Str("user_id", userID.String()).Msg("unexpected ws close")
+				}
+				break
+			}
+
+			var msg incomingMessage
+			if err := json.Unmarshal(raw, &msg); err != nil {
+				continue
+			}
+
+			handleWSMessage(userID, msg, hub, gamePresence, joinedGameRooms)
+		}
+	}, websocket.Config{
+		Origins:           []string{"*"},
+		RecoverHandler:    recoverHandler,
+		HandshakeTimeout:  10 * time.Second,
+		EnableCompression: true,
+	})
 
 	return func(ctx fiber.Ctx) error {
+		origin := ctx.Get("Origin")
+		allowed := ""
+		if allowedOrigin != nil {
+			allowed = allowedOrigin()
+		}
+		if !originAllowed(origin, allowed) {
+			logger.Log.Warn().Str("origin", origin).Msg("ws upgrade rejected: origin not allowed")
+			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"error": "origin not allowed",
+			})
+		}
+
 		cookie := ctx.Cookies(session.CookieName)
 		if cookie == "" {
 			return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
@@ -117,67 +208,8 @@ func Handler(hub *Hub, sessionMgr *session.Manager, roomLister RoomLister, gameP
 			})
 		}
 
-		return upgrader.Upgrade(ctx.RequestCtx(), func(conn *websocket.Conn) {
-			logger.Log.Debug().Str("user_id", userID.String()).Msg("ws client connected")
-			conn.SetReadLimit(maxInboundMessageSize)
-			client := NewClient(userID, conn)
-
-			hub.Register(client)
-			joinedGameRooms := make(map[uuid.UUID]bool)
-			defer func() {
-				cleared := hub.Unregister(client)
-				for _, roomID := range cleared {
-					broadcastPresence(hub, roomID, userID, "")
-				}
-				if gamePresence != nil {
-					for roomID := range joinedGameRooms {
-						gamePresence.HandleClientLeave(userID, roomID)
-					}
-				}
-				if watchPartyDisconnect != nil && len(cleared) > 0 {
-					watchPartyDisconnect.HandleClientDisconnect(context.Background(), userID, cleared)
-				}
-			}()
-
-			if roomLister != nil {
-				roomIDs, err := roomLister.GetRoomsByUser(ctx.Context(), userID)
-				if err == nil {
-					for _, roomID := range roomIDs {
-						hub.JoinRoom(roomID, userID)
-					}
-				}
-			}
-
-			conn.SetPongHandler(func(string) error {
-				return conn.SetReadDeadline(time.Now().Add(90 * time.Second))
-			})
-			_ = conn.SetReadDeadline(time.Now().Add(90 * time.Second))
-
-			for {
-				_, raw, err := conn.ReadMessage()
-				if err != nil {
-					if websocket.IsUnexpectedCloseError(err,
-						websocket.CloseNormalClosure,
-						websocket.CloseGoingAway,
-						websocket.CloseNoStatusReceived,
-						websocket.CloseAbnormalClosure,
-						websocket.CloseServiceRestart,
-						websocket.CloseTryAgainLater,
-						websocket.CloseTLSHandshake,
-					) {
-						logger.Log.Warn().Err(err).Str("user_id", userID.String()).Msg("unexpected ws close")
-					}
-					break
-				}
-
-				var msg incomingMessage
-				if err := json.Unmarshal(raw, &msg); err != nil {
-					continue
-				}
-
-				handleWSMessage(userID, msg, hub, gamePresence, joinedGameRooms)
-			}
-		})
+		ctx.Locals(localsUserIDKey, userID)
+		return wsHandler(ctx)
 	}
 }
 

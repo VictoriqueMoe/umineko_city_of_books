@@ -540,6 +540,7 @@ export interface AdminUserDetail extends AdminUserItem {
     ip?: string;
     ban_reason?: string;
     banned_at?: string;
+    banned_by?: User;
     lock_reason?: string;
     locked_at?: string;
     theory_count: number;

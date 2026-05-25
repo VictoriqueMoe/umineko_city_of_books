@@ -15,7 +15,11 @@ import (
 	"github.com/google/uuid"
 )
 
-func (s *service) isTargetProtected(ctx context.Context, roomID, targetID uuid.UUID) (bool, error) {
+type moderationService struct {
+	*core
+}
+
+func (s *moderationService) isTargetProtected(ctx context.Context, roomID, targetID uuid.UUID) (bool, error) {
 	memberRole, err := s.chatRepo.GetMemberRole(ctx, roomID, targetID)
 	if err != nil {
 		return false, fmt.Errorf("get target role: %w", err)
@@ -30,7 +34,7 @@ func (s *service) isTargetProtected(ctx context.Context, roomID, targetID uuid.U
 	return siteRole.IsSiteStaff(), nil
 }
 
-func (s *service) enforceBannedWords(ctx context.Context, roomID, senderID uuid.UUID, body string) error {
+func (s *moderationService) enforceBannedWords(ctx context.Context, roomID, senderID uuid.UUID, body string) error {
 	if body == "" {
 		return nil
 	}
@@ -59,7 +63,7 @@ func (s *service) enforceBannedWords(ctx context.Context, roomID, senderID uuid.
 	return &ErrBannedWordMatch{Pattern: match.Pattern, Action: match.Action}
 }
 
-func (s *service) evictUserFromRoom(ctx context.Context, roomID, targetID uuid.UUID, reason string) error {
+func (s *moderationService) evictUserFromRoom(ctx context.Context, roomID, targetID uuid.UUID, reason string) error {
 	members, _ := s.chatRepo.GetRoomMembers(ctx, roomID)
 
 	if err := s.chatRepo.RemoveMember(ctx, roomID, targetID); err != nil {
@@ -93,7 +97,7 @@ func (s *service) evictUserFromRoom(ctx context.Context, roomID, targetID uuid.U
 	return nil
 }
 
-func (s *service) banUserFromRoom(ctx context.Context, roomID, targetID uuid.UUID, actorID *uuid.UUID, reason string) error {
+func (s *moderationService) banUserFromRoom(ctx context.Context, roomID, targetID uuid.UUID, actorID *uuid.UUID, reason string) error {
 	if err := s.banRepo.Ban(ctx, roomID, targetID, actorID, reason); err != nil {
 		return err
 	}
@@ -109,7 +113,7 @@ func (s *service) banUserFromRoom(ctx context.Context, roomID, targetID uuid.UUI
 	return nil
 }
 
-func (s *service) notifyModerationAction(roomID, targetID, actorID uuid.UUID, action, reason string) {
+func (s *moderationService) notifyModerationAction(roomID, targetID, actorID uuid.UUID, action, reason string) {
 	roomName := s.lookupRoomName(context.Background(), roomID)
 	var message string
 	if strings.TrimSpace(reason) != "" {
@@ -142,7 +146,7 @@ func (s *service) notifyModerationAction(roomID, targetID, actorID uuid.UUID, ac
 	}(message)
 }
 
-func (s *service) notifyAutomatedKick(roomID, targetID uuid.UUID, pattern string) {
+func (s *moderationService) notifyAutomatedKick(roomID, targetID uuid.UUID, pattern string) {
 	roomName := s.lookupRoomName(context.Background(), roomID)
 	message := fmt.Sprintf("You were kicked from %s by the word filter.", roomName)
 	go func(msg string) {
@@ -158,7 +162,7 @@ func (s *service) notifyAutomatedKick(roomID, targetID uuid.UUID, pattern string
 	_ = pattern
 }
 
-func (s *service) lookupRoomName(ctx context.Context, roomID uuid.UUID) string {
+func (s *moderationService) lookupRoomName(ctx context.Context, roomID uuid.UUID) string {
 	row, err := s.chatRepo.GetRoomByID(ctx, roomID, uuid.Nil)
 	if err != nil || row == nil || row.Name == "" {
 		return "the chat room"
@@ -166,24 +170,9 @@ func (s *service) lookupRoomName(ctx context.Context, roomID uuid.UUID) string {
 	return row.Name
 }
 
-func (s *service) BanMember(ctx context.Context, actorID, roomID, targetID uuid.UUID, reason string) error {
-	row, err := s.chatRepo.GetRoomByID(ctx, roomID, actorID)
-	if err != nil {
-		return fmt.Errorf("get room: %w", err)
-	}
-	if row == nil {
-		return ErrRoomNotFound
-	}
-	if row.IsSystem {
-		return ErrSystemRoom
-	}
-
-	canMod, err := s.canModerateRoom(ctx, roomID, actorID)
-	if err != nil {
+func (s *moderationService) BanMember(ctx context.Context, actorID, roomID, targetID uuid.UUID, reason string) error {
+	if _, err := s.loadRoomForMod(ctx, roomID, actorID); err != nil {
 		return err
-	}
-	if !canMod {
-		return ErrNotHost
 	}
 
 	if actorID == targetID {
@@ -219,7 +208,7 @@ func (s *service) BanMember(ctx context.Context, actorID, roomID, targetID uuid.
 	return nil
 }
 
-func (s *service) UnbanMember(ctx context.Context, actorID, roomID, targetID uuid.UUID) error {
+func (s *moderationService) UnbanMember(ctx context.Context, actorID, roomID, targetID uuid.UUID) error {
 	row, err := s.chatRepo.GetRoomByID(ctx, roomID, actorID)
 	if err != nil {
 		return fmt.Errorf("get room: %w", err)
@@ -248,7 +237,7 @@ func (s *service) UnbanMember(ctx context.Context, actorID, roomID, targetID uui
 	return s.auditRepo.Create(ctx, actorID, "chat_room_unban", "chat_room", roomID.String(), "target="+targetID.String())
 }
 
-func (s *service) ListRoomBans(ctx context.Context, actorID, roomID uuid.UUID) ([]dto.ChatRoomBanResponse, error) {
+func (s *moderationService) ListRoomBans(ctx context.Context, actorID, roomID uuid.UUID) ([]dto.ChatRoomBanResponse, error) {
 	row, err := s.chatRepo.GetRoomByID(ctx, roomID, actorID)
 	if err != nil {
 		return nil, fmt.Errorf("get room: %w", err)
@@ -332,7 +321,7 @@ func bannedWordRowToResponse(row repository.ChatBannedWordRow) dto.BannedWordRul
 	return resp
 }
 
-func (s *service) ListRoomBannedWords(ctx context.Context, actorID, roomID uuid.UUID) ([]dto.BannedWordRuleResponse, error) {
+func (s *moderationService) ListRoomBannedWords(ctx context.Context, actorID, roomID uuid.UUID) ([]dto.BannedWordRuleResponse, error) {
 	row, err := s.chatRepo.GetRoomByID(ctx, roomID, actorID)
 	if err != nil {
 		return nil, fmt.Errorf("get room: %w", err)
@@ -358,7 +347,7 @@ func (s *service) ListRoomBannedWords(ctx context.Context, actorID, roomID uuid.
 	return out, nil
 }
 
-func (s *service) CreateRoomBannedWord(ctx context.Context, actorID, roomID uuid.UUID, req dto.CreateBannedWordRequest) (*dto.BannedWordRuleResponse, error) {
+func (s *moderationService) CreateRoomBannedWord(ctx context.Context, actorID, roomID uuid.UUID, req dto.CreateBannedWordRequest) (*dto.BannedWordRuleResponse, error) {
 	row, err := s.chatRepo.GetRoomByID(ctx, roomID, actorID)
 	if err != nil {
 		return nil, fmt.Errorf("get room: %w", err)
@@ -400,7 +389,7 @@ func (s *service) CreateRoomBannedWord(ctx context.Context, actorID, roomID uuid
 	return new(bannedWordRowToResponse(*created)), nil
 }
 
-func (s *service) UpdateRoomBannedWord(ctx context.Context, actorID, roomID, ruleID uuid.UUID, req dto.UpdateBannedWordRequest) (*dto.BannedWordRuleResponse, error) {
+func (s *moderationService) UpdateRoomBannedWord(ctx context.Context, actorID, roomID, ruleID uuid.UUID, req dto.UpdateBannedWordRequest) (*dto.BannedWordRuleResponse, error) {
 	row, err := s.chatRepo.GetRoomByID(ctx, roomID, actorID)
 	if err != nil {
 		return nil, fmt.Errorf("get room: %w", err)
@@ -436,7 +425,7 @@ func (s *service) UpdateRoomBannedWord(ctx context.Context, actorID, roomID, rul
 	return updated, nil
 }
 
-func (s *service) DeleteRoomBannedWord(ctx context.Context, actorID, roomID, ruleID uuid.UUID) error {
+func (s *moderationService) DeleteRoomBannedWord(ctx context.Context, actorID, roomID, ruleID uuid.UUID) error {
 	row, err := s.chatRepo.GetRoomByID(ctx, roomID, actorID)
 	if err != nil {
 		return fmt.Errorf("get room: %w", err)
@@ -468,14 +457,14 @@ func (s *service) DeleteRoomBannedWord(ctx context.Context, actorID, roomID, rul
 	return s.auditRepo.Create(ctx, actorID, "chat_room_banned_word_delete", "chat_room", roomID.String(), "rule="+ruleID.String())
 }
 
-func (s *service) ensureCanManageGlobalBannedWords(ctx context.Context, actorID uuid.UUID) error {
+func (s *moderationService) ensureCanManageGlobalBannedWords(ctx context.Context, actorID uuid.UUID) error {
 	if !s.authzSvc.Can(ctx, actorID, authz.PermManageBannedWords) {
 		return ErrModRoleRequired
 	}
 	return nil
 }
 
-func (s *service) ListGlobalBannedWords(ctx context.Context, actorID uuid.UUID) ([]dto.BannedWordRuleResponse, error) {
+func (s *moderationService) ListGlobalBannedWords(ctx context.Context, actorID uuid.UUID) ([]dto.BannedWordRuleResponse, error) {
 	if err := s.ensureCanManageGlobalBannedWords(ctx, actorID); err != nil {
 		return nil, err
 	}
@@ -490,7 +479,7 @@ func (s *service) ListGlobalBannedWords(ctx context.Context, actorID uuid.UUID) 
 	return out, nil
 }
 
-func (s *service) CreateGlobalBannedWord(ctx context.Context, actorID uuid.UUID, req dto.CreateBannedWordRequest) (*dto.BannedWordRuleResponse, error) {
+func (s *moderationService) CreateGlobalBannedWord(ctx context.Context, actorID uuid.UUID, req dto.CreateBannedWordRequest) (*dto.BannedWordRuleResponse, error) {
 	if err := s.ensureCanManageGlobalBannedWords(ctx, actorID); err != nil {
 		return nil, err
 	}
@@ -520,7 +509,7 @@ func (s *service) CreateGlobalBannedWord(ctx context.Context, actorID uuid.UUID,
 	return new(bannedWordRowToResponse(*created)), nil
 }
 
-func (s *service) UpdateGlobalBannedWord(ctx context.Context, actorID, ruleID uuid.UUID, req dto.UpdateBannedWordRequest) (*dto.BannedWordRuleResponse, error) {
+func (s *moderationService) UpdateGlobalBannedWord(ctx context.Context, actorID, ruleID uuid.UUID, req dto.UpdateBannedWordRequest) (*dto.BannedWordRuleResponse, error) {
 	if err := s.ensureCanManageGlobalBannedWords(ctx, actorID); err != nil {
 		return nil, err
 	}
@@ -545,7 +534,7 @@ func (s *service) UpdateGlobalBannedWord(ctx context.Context, actorID, ruleID uu
 	return updated, nil
 }
 
-func (s *service) updateBannedWord(ctx context.Context, ruleID uuid.UUID, req dto.CreateBannedWordRequest) (*dto.BannedWordRuleResponse, error) {
+func (s *moderationService) updateBannedWord(ctx context.Context, ruleID uuid.UUID, req dto.CreateBannedWordRequest) (*dto.BannedWordRuleResponse, error) {
 	if err := validateCreateBannedWord(req); err != nil {
 		return nil, err
 	}
@@ -566,7 +555,7 @@ func (s *service) updateBannedWord(ctx context.Context, ruleID uuid.UUID, req dt
 	return new(bannedWordRowToResponse(*row)), nil
 }
 
-func (s *service) DeleteGlobalBannedWord(ctx context.Context, actorID, ruleID uuid.UUID) error {
+func (s *moderationService) DeleteGlobalBannedWord(ctx context.Context, actorID, ruleID uuid.UUID) error {
 	if err := s.ensureCanManageGlobalBannedWords(ctx, actorID); err != nil {
 		return err
 	}

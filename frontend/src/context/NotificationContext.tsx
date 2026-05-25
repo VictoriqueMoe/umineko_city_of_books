@@ -10,6 +10,7 @@ import { useMarkAllNotificationsRead, useMarkNotificationRead } from "../api/mut
 import { queryKeys } from "../api/queryKeys";
 import { showDesktopNotification } from "../utils/notifications";
 import { playNotificationSound } from "../utils/sound";
+import { patchUserInCache, type UserPatch } from "../utils/userCache";
 
 const MAX_BACKOFF = 30000;
 const KEEPALIVE_INTERVAL_MS = 20_000;
@@ -136,18 +137,54 @@ export function NotificationProvider({ children }: PropsWithChildren) {
                 }
                 if (msg.type === "role_changed") {
                     const data = msg.data as { user_id?: string; role?: string };
-                    if (data.user_id && userRef.current && data.user_id === userRef.current.id) {
-                        setUser({ ...userRef.current, role: (data.role ?? "") as UserProfile["role"] });
+                    if (data.user_id) {
+                        const patch: UserPatch = { role: (data.role ?? "") as UserProfile["role"] };
+                        patchUserInCache(qc, data.user_id, patch);
+                        if (userRef.current && data.user_id === userRef.current.id) {
+                            setUser({ ...userRef.current, ...patch });
+                        }
                     }
                 }
                 if (msg.type === "lock_changed") {
                     const data = msg.data as { user_id?: string; locked?: boolean; lock_reason?: string };
-                    if (data.user_id && userRef.current && data.user_id === userRef.current.id) {
-                        setUser({
-                            ...userRef.current,
+                    if (data.user_id) {
+                        const patch: UserPatch = {
                             locked: !!data.locked,
                             lock_reason: data.lock_reason ?? "",
-                        });
+                        };
+                        patchUserInCache(qc, data.user_id, patch);
+                        if (userRef.current && data.user_id === userRef.current.id) {
+                            setUser({ ...userRef.current, ...patch });
+                        }
+                    }
+                }
+                if (msg.type === "profile_changed") {
+                    const data = msg.data as { user_id?: string; display_name?: string; avatar_url?: string };
+                    if (data.user_id) {
+                        const patch: UserPatch = {};
+                        if (typeof data.display_name === "string") {
+                            patch.display_name = data.display_name;
+                        }
+                        if (typeof data.avatar_url === "string") {
+                            patch.avatar_url = data.avatar_url;
+                        }
+                        patchUserInCache(qc, data.user_id, patch);
+                        if (userRef.current && data.user_id === userRef.current.id) {
+                            setUser({ ...userRef.current, ...patch });
+                        }
+                    }
+                }
+                if (msg.type === "ban_changed") {
+                    const data = msg.data as { user_id?: string; banned?: boolean; ban_reason?: string };
+                    if (data.user_id) {
+                        const patch: UserPatch = {
+                            banned: !!data.banned,
+                            ban_reason: data.ban_reason ?? "",
+                        };
+                        patchUserInCache(qc, data.user_id, patch);
+                        if (userRef.current && data.user_id === userRef.current.id) {
+                            setUser({ ...userRef.current, ...patch });
+                        }
                     }
                 }
                 if (

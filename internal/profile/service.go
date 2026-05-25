@@ -15,6 +15,7 @@ import (
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/upload"
 	userpkg "umineko_city_of_books/internal/user"
+	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
 )
@@ -40,6 +41,7 @@ type (
 		uploadSvc      upload.Service
 		settingsSvc    settings.Service
 		contentFilter  *contentfilter.Manager
+		hub            *ws.Hub
 	}
 )
 
@@ -72,6 +74,7 @@ func NewService(
 	uploadSvc upload.Service,
 	settingsSvc settings.Service,
 	contentFilter *contentfilter.Manager,
+	hub *ws.Hub,
 ) Service {
 	return &service{
 		userRepo:       userRepo,
@@ -81,6 +84,7 @@ func NewService(
 		uploadSvc:      uploadSvc,
 		settingsSvc:    settingsSvc,
 		contentFilter:  contentFilter,
+		hub:            hub,
 	}
 }
 
@@ -125,7 +129,28 @@ func (s *service) UpdateProfile(ctx context.Context, userID uuid.UUID, req dto.U
 	}
 	req.PronounSubject = capLen(req.PronounSubject, maxPronounLength)
 	req.PronounPossessive = capLen(req.PronounPossessive, maxPronounLength)
-	return s.userRepo.UpdateProfile(ctx, userID, req)
+	if err := s.userRepo.UpdateProfile(ctx, userID, req); err != nil {
+		return err
+	}
+
+	s.broadcastProfileChange(userID, map[string]any{
+		"display_name": req.DisplayName,
+	})
+	return nil
+}
+
+func (s *service) broadcastProfileChange(userID uuid.UUID, fields map[string]any) {
+	if s.hub == nil {
+		return
+	}
+	data := map[string]any{"user_id": userID}
+	for k, v := range fields {
+		data[k] = v
+	}
+	s.hub.Broadcast(ws.Message{
+		Type: "profile_changed",
+		Data: data,
+	})
 }
 
 func capLen(s string, max int) string {
@@ -167,6 +192,9 @@ func (s *service) UploadAvatar(ctx context.Context, userID uuid.UUID, contentTyp
 		return "", fmt.Errorf("update avatar url: %w", err)
 	}
 
+	s.broadcastProfileChange(userID, map[string]any{
+		"avatar_url": avatarURL,
+	})
 	return avatarURL, nil
 }
 

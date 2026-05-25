@@ -247,6 +247,15 @@ func (s *service) GetUser(ctx context.Context, targetID uuid.UUID) (*dto.AdminUs
 	if u.BannedAt != nil {
 		resp.BannedAt = *u.BannedAt
 	}
+	if u.BannedBy != nil {
+		banner, err := s.userRepo.GetByID(ctx, *u.BannedBy)
+		if err != nil {
+			return nil, fmt.Errorf("get banned_by user: %w", err)
+		}
+		if banner != nil {
+			resp.BannedBy = banner.ToResponse()
+		}
+	}
 	if u.LockedAt != nil {
 		resp.LockedAt = *u.LockedAt
 	}
@@ -320,6 +329,7 @@ func (s *service) BanUser(ctx context.Context, actorID uuid.UUID, targetID uuid.
 			logger.Log.Error().Err(err).Str("user_id", targetID.String()).Msg("failed to invalidate sessions after ban")
 		}
 		s.audit(ctx, actorID, "ban_user", "user", targetID.String())
+		s.broadcastBanChange(targetID, true, reason)
 		return nil
 	})
 }
@@ -329,7 +339,19 @@ func (s *service) UnbanUser(ctx context.Context, actorID uuid.UUID, targetID uui
 		return fmt.Errorf("unban user: %w", err)
 	}
 	s.audit(ctx, actorID, "unban_user", "user", targetID.String())
+	s.broadcastBanChange(targetID, false, "")
 	return nil
+}
+
+func (s *service) broadcastBanChange(userID uuid.UUID, banned bool, reason string) {
+	s.hub.Broadcast(ws.Message{
+		Type: "ban_changed",
+		Data: map[string]interface{}{
+			"user_id":    userID,
+			"banned":     banned,
+			"ban_reason": reason,
+		},
+	})
 }
 
 func (s *service) LockUser(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID, reason string) error {

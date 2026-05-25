@@ -38,7 +38,7 @@ func newTestService(t *testing.T) (
 	authzSvc := authz.NewMockService(t)
 	uploadSvc := upload.NewMockService(t)
 	settingsSvc := settings.NewMockService(t)
-	svc := NewService(userRepo, userSecretRepo, theoryRepo, authzSvc, uploadSvc, settingsSvc, contentfilter.New()).(*service)
+	svc := NewService(userRepo, userSecretRepo, theoryRepo, authzSvc, uploadSvc, settingsSvc, contentfilter.New(), nil).(*service)
 	return svc, userRepo, theoryRepo, authzSvc, uploadSvc, settingsSvc
 }
 
