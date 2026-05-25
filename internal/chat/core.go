@@ -606,8 +606,7 @@ func (c *core) broadcastAndBuildMember(ctx context.Context, roomID, targetID uui
 		if m.UserID != targetID {
 			continue
 		}
-		r := c.memberRowToMemberResponse(m, c.toVanityRoleResponses(vanityMap[m.UserID]), "")
-		resp = &r
+		resp = new(c.memberRowToMemberResponse(m, c.toVanityRoleResponses(vanityMap[m.UserID]), ""))
 		break
 	}
 

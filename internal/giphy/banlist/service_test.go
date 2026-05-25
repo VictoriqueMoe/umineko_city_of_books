@@ -85,7 +85,7 @@ func TestAdd_InvalidKind(t *testing.T) {
 	svc, _ := newTestService(t, nil)
 
 	// when
-	err := svc.Add(context.Background(), Kind("other"), "val", "", nil)
+	err := svc.Add(context.Background(), "other", "val", "", nil)
 
 	// then
 	assert.ErrorIs(t, err, ErrInvalidKind)

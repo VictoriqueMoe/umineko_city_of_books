@@ -120,9 +120,9 @@ func TestHandler_ValidateAction_SingleJump(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(res.NewStateJSON), &ns))
 	assert.Equal(t, 1, ns.RedCaptures)
 	// d4 captured
-	assert.Equal(t, byte(cellEmpty), ns.Board[3*boardSize+3])
+	assert.Equal(t, cellEmpty, ns.Board[3*boardSize+3])
 	// e5 holds red man
-	assert.Equal(t, byte(cellRedMan), ns.Board[4*boardSize+4])
+	assert.Equal(t, cellRedMan, ns.Board[4*boardSize+4])
 }
 
 func TestHandler_ValidateAction_MultiJump(t *testing.T) {
@@ -178,7 +178,7 @@ func TestHandler_ValidateAction_Crowning(t *testing.T) {
 	require.NoError(t, err)
 	var ns state
 	require.NoError(t, json.Unmarshal([]byte(res.NewStateJSON), &ns))
-	assert.Equal(t, byte(cellRedKing), ns.Board[7*boardSize+1])
+	assert.Equal(t, cellRedKing, ns.Board[7*boardSize+1])
 	assert.Equal(t, 1, ns.RedCrownings)
 }
 

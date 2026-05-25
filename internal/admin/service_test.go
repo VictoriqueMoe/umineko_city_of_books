@@ -188,7 +188,7 @@ func TestListUsers_OK(t *testing.T) {
 	assert.Equal(t, 2, got.Total)
 	assert.Len(t, got.Users, 2)
 	assert.True(t, got.Users[0].Banned)
-	assert.Equal(t, role.Role(authz.RoleAdmin), got.Users[0].Role)
+	assert.Equal(t, authz.RoleAdmin, got.Users[0].Role)
 	assert.False(t, got.Users[1].Banned)
 }
 
@@ -296,7 +296,7 @@ func TestSetUserRole_OK(t *testing.T) {
 	actor := uuid.New()
 	target := uuid.New()
 	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleSuperAdmin, nil)
-	m.authz.EXPECT().GetRole(mock.Anything, target).Return(role.Role(""), nil)
+	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
 	m.roleRepo.EXPECT().SetRole(mock.Anything, target, authz.RoleAdmin).Return(nil)
 	m.auditRepo.EXPECT().Create(mock.Anything, actor, "set_role", "user", target.String(), "").Return(nil)
 
@@ -316,7 +316,7 @@ func TestSetUserRole_SetRoleError(t *testing.T) {
 	actor := uuid.New()
 	target := uuid.New()
 	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleSuperAdmin, nil)
-	m.authz.EXPECT().GetRole(mock.Anything, target).Return(role.Role(""), nil)
+	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
 	m.roleRepo.EXPECT().SetRole(mock.Anything, target, authz.RoleAdmin).Return(errors.New("boom"))
 
 	// when
@@ -334,7 +334,7 @@ func TestSetUserRole_ChatSyncErrorsLogged(t *testing.T) {
 	m.chatSync.ensureErr = errors.New("ensure boom")
 	m.chatSync.syncErr = errors.New("sync boom")
 	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleSuperAdmin, nil)
-	m.authz.EXPECT().GetRole(mock.Anything, target).Return(role.Role(""), nil)
+	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
 	m.roleRepo.EXPECT().SetRole(mock.Anything, target, authz.RoleAdmin).Return(nil)
 	m.auditRepo.EXPECT().Create(mock.Anything, actor, "set_role", "user", target.String(), "").Return(nil)
 
@@ -401,7 +401,7 @@ func TestBanUser_OK(t *testing.T) {
 	actor := uuid.New()
 	target := uuid.New()
 	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleSuperAdmin, nil)
-	m.authz.EXPECT().GetRole(mock.Anything, target).Return(role.Role(""), nil)
+	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
 	m.userRepo.EXPECT().BanUser(mock.Anything, target, actor, "reason").Return(nil)
 	m.sessionRepo.EXPECT().DeleteAllForUser(mock.Anything, target).Return(nil)
 	m.auditRepo.EXPECT().Create(mock.Anything, actor, "ban_user", "user", target.String(), "").Return(nil)
@@ -419,7 +419,7 @@ func TestBanUser_SessionDeleteErrorSwallowed(t *testing.T) {
 	actor := uuid.New()
 	target := uuid.New()
 	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleSuperAdmin, nil)
-	m.authz.EXPECT().GetRole(mock.Anything, target).Return(role.Role(""), nil)
+	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
 	m.userRepo.EXPECT().BanUser(mock.Anything, target, actor, "reason").Return(nil)
 	m.sessionRepo.EXPECT().DeleteAllForUser(mock.Anything, target).Return(errors.New("session boom"))
 	m.auditRepo.EXPECT().Create(mock.Anything, actor, "ban_user", "user", target.String(), "").Return(nil)
@@ -452,7 +452,7 @@ func TestBanUser_RepoError(t *testing.T) {
 	actor := uuid.New()
 	target := uuid.New()
 	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleSuperAdmin, nil)
-	m.authz.EXPECT().GetRole(mock.Anything, target).Return(role.Role(""), nil)
+	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
 	m.userRepo.EXPECT().BanUser(mock.Anything, target, actor, "r").Return(errors.New("boom"))
 
 	// when
@@ -502,7 +502,7 @@ func TestDeleteUser_OK(t *testing.T) {
 		BannerURL: "/b.png",
 	}, nil)
 	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleSuperAdmin, nil)
-	m.authz.EXPECT().GetRole(mock.Anything, target).Return(role.Role(""), nil)
+	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
 	m.userRepo.EXPECT().AdminDeleteAccount(mock.Anything, target).Return(nil)
 	m.uploadSvc.EXPECT().Delete("/a.png").Return(nil)
 	m.uploadSvc.EXPECT().Delete("/b.png").Return(nil)
@@ -522,7 +522,7 @@ func TestDeleteUser_UserLookupFailsStillDeletes(t *testing.T) {
 	target := uuid.New()
 	m.userRepo.EXPECT().GetByID(mock.Anything, target).Return(nil, errors.New("not found"))
 	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleSuperAdmin, nil)
-	m.authz.EXPECT().GetRole(mock.Anything, target).Return(role.Role(""), nil)
+	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
 	m.userRepo.EXPECT().AdminDeleteAccount(mock.Anything, target).Return(nil)
 	m.auditRepo.EXPECT().Create(mock.Anything, actor, "delete_user", "user", target.String(), "").Return(nil)
 
@@ -556,7 +556,7 @@ func TestDeleteUser_RepoError(t *testing.T) {
 	target := uuid.New()
 	m.userRepo.EXPECT().GetByID(mock.Anything, target).Return(&model.User{ID: target}, nil)
 	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleSuperAdmin, nil)
-	m.authz.EXPECT().GetRole(mock.Anything, target).Return(role.Role(""), nil)
+	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
 	m.userRepo.EXPECT().AdminDeleteAccount(mock.Anything, target).Return(errors.New("boom"))
 
 	// when

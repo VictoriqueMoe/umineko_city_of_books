@@ -33,10 +33,10 @@ func TestHandler_InitialState(t *testing.T) {
 	black, white := countDiscs(s.Board)
 	assert.Equal(t, 2, black)
 	assert.Equal(t, 2, white)
-	assert.Equal(t, byte(cellWhite), s.Board[3*boardSize+3])
-	assert.Equal(t, byte(cellBlack), s.Board[3*boardSize+4])
-	assert.Equal(t, byte(cellBlack), s.Board[4*boardSize+3])
-	assert.Equal(t, byte(cellWhite), s.Board[4*boardSize+4])
+	assert.Equal(t, cellWhite, s.Board[3*boardSize+3])
+	assert.Equal(t, cellBlack, s.Board[3*boardSize+4])
+	assert.Equal(t, cellBlack, s.Board[4*boardSize+3])
+	assert.Equal(t, cellWhite, s.Board[4*boardSize+4])
 }
 
 func TestHandler_ValidateAction_LegalOpening(t *testing.T) {
@@ -55,8 +55,8 @@ func TestHandler_ValidateAction_LegalOpening(t *testing.T) {
 	assert.Equal(t, slotWhite, *res.NextTurnSlot)
 	var ns state
 	require.NoError(t, json.Unmarshal([]byte(res.NewStateJSON), &ns))
-	assert.Equal(t, byte(cellBlack), ns.Board[2*boardSize+3])
-	assert.Equal(t, byte(cellBlack), ns.Board[3*boardSize+3])
+	assert.Equal(t, cellBlack, ns.Board[2*boardSize+3])
+	assert.Equal(t, cellBlack, ns.Board[3*boardSize+3])
 	assert.Equal(t, 1, ns.BlackMoves)
 	assert.Equal(t, 1, ns.BlackFlips)
 	require.NotNil(t, ns.LastMove)
@@ -124,8 +124,8 @@ func TestHandler_ValidateAction_MultiDirectionFlip(t *testing.T) {
 	require.NoError(t, err)
 	var ns state
 	require.NoError(t, json.Unmarshal([]byte(res.NewStateJSON), &ns))
-	assert.Equal(t, byte(cellBlack), ns.Board[2*boardSize+2]) // c3 flipped
-	assert.Equal(t, byte(cellBlack), ns.Board[3*boardSize+3]) // d4 flipped
+	assert.Equal(t, cellBlack, ns.Board[2*boardSize+2]) // c3 flipped
+	assert.Equal(t, cellBlack, ns.Board[3*boardSize+3]) // d4 flipped
 	assert.Equal(t, 2, ns.BlackFlips)
 	require.NotNil(t, ns.LastMove)
 	assert.ElementsMatch(t, []string{"c3", "d4"}, ns.LastMove.Flipped)

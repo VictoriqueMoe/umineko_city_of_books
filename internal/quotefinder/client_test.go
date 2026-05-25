@@ -71,7 +71,7 @@ func TestListCharacters_OnlyMain(t *testing.T) {
 
 func TestListCharacters_InvalidSeries(t *testing.T) {
 	c := NewClientWithBaseURL("http://never-called.invalid")
-	if _, err := c.ListCharacters(Series("roseguns")); err == nil {
+	if _, err := c.ListCharacters("roseguns"); err == nil {
 		t.Fatal("expected error for unsupported series, got nil")
 	}
 }

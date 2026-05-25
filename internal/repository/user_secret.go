@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -91,7 +92,7 @@ func (r *userSecretRepository) IsSolvedByAnyone(ctx context.Context, secretID st
 		`SELECT 1 FROM user_secrets WHERE secret_id = $1 LIMIT 1`,
 		secretID,
 	).Scan(&exists)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	}
 	if err != nil {

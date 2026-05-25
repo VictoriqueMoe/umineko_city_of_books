@@ -54,7 +54,7 @@ func TestParentOf_Parent(t *testing.T) {
 }
 
 func TestParentOf_Unknown(t *testing.T) {
-	_, ok := ParentOf(ID("nonsense"))
+	_, ok := ParentOf("nonsense")
 	assert.False(t, ok)
 }
 

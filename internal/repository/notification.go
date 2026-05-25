@@ -177,7 +177,7 @@ func (r *notificationRepository) MarkRead(ctx context.Context, id int, userID uu
 		`SELECT type, reference_id, read FROM notifications WHERE id = $1 AND user_id = $2`,
 		id, userID,
 	).Scan(&notifType, &referenceID, &read)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil
 	}
 	if err != nil {

@@ -330,7 +330,7 @@ func (s *Service) gameAction(ctx fiber.Ctx) error {
 	if len(req.Action) == 0 {
 		return utils.BadRequest(ctx, "action is required")
 	}
-	room, err := s.GameRoomService.SubmitAction(ctx.Context(), roomID, userID, json.RawMessage(req.Action))
+	room, err := s.GameRoomService.SubmitAction(ctx.Context(), roomID, userID, req.Action)
 	if err != nil {
 		if errors.Is(err, gameroom.ErrNotFound) || errors.Is(err, gameroom.ErrNotParticipant) || errors.Is(err, gameroom.ErrNotYourTurn) || errors.Is(err, gameroom.ErrRoomNotActive) || errors.Is(err, gameroom.ErrUnknownGameType) {
 			return gameRoomError(ctx, err)

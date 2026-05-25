@@ -352,8 +352,8 @@ func TestGrantWatchPartyControl_OwnerCanReclaimFromRegular(t *testing.T) {
 		ID: sessionID, RoomID: roomID, StartedBy: ownerID, ControllerID: memberID, HyperbeamSessionID: "hb", Status: "active",
 	}, nil)
 	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, ownerID).Return(&repository.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: ownerID, HasControl: false}, nil)
-	m.roleRepo.EXPECT().GetRole(mock.Anything, ownerID).Return(role.Role(""), nil)
-	m.roleRepo.EXPECT().GetRole(mock.Anything, memberID).Return(role.Role(""), nil)
+	m.roleRepo.EXPECT().GetRole(mock.Anything, ownerID).Return("", nil)
+	m.roleRepo.EXPECT().GetRole(mock.Anything, memberID).Return("", nil)
 	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, ownerID).Return(&repository.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: ownerID, HasControl: false}, nil)
 	m.watchPartyRepo.EXPECT().GetActiveParticipants(mock.Anything, sessionID).Return([]repository.ChatWatchPartyParticipantRow{
 		{SessionID: sessionID, UserID: memberID, HasControl: true},
@@ -400,7 +400,7 @@ func TestKickWatchPartyParticipant_CannotOutrankTarget(t *testing.T) {
 		ID: sessionID, RoomID: roomID, StartedBy: ownerID, ControllerID: ownerID, HyperbeamSessionID: "hb", Status: "active",
 	}, nil)
 	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, adminID).Return(&repository.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: adminID, HasControl: false}, nil)
-	m.roleRepo.EXPECT().GetRole(mock.Anything, memberID).Return(role.Role(""), nil)
+	m.roleRepo.EXPECT().GetRole(mock.Anything, memberID).Return("", nil)
 	m.roleRepo.EXPECT().GetRole(mock.Anything, adminID).Return(role.RoleAdmin, nil)
 
 	// when
@@ -424,7 +424,7 @@ func TestKickWatchPartyParticipant_OK(t *testing.T) {
 	}, nil)
 	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, memberID).Return(&repository.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: memberID, HasControl: false}, nil)
 	m.roleRepo.EXPECT().GetRole(mock.Anything, adminID).Return(role.RoleAdmin, nil)
-	m.roleRepo.EXPECT().GetRole(mock.Anything, memberID).Return(role.Role(""), nil)
+	m.roleRepo.EXPECT().GetRole(mock.Anything, memberID).Return("", nil)
 	m.watchPartyRepo.EXPECT().MarkParticipantLeft(mock.Anything, sessionID, memberID).Return(nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, memberID).Return(nil, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, adminID).Return(nil, nil)

@@ -222,7 +222,7 @@ func TestGetAll_OverlaysCachedValues(t *testing.T) {
 	got := svc.GetAll(context.Background())
 
 	// then
-	assert.Equal(t, "Overlay", string(got[config.SettingSiteName.Key]))
+	assert.Equal(t, "Overlay", got[config.SettingSiteName.Key])
 	assert.Equal(t, "true", got[config.SettingMaintenanceMode.Key])
 	assert.Equal(t, config.SettingBaseURL.Default, got[config.SettingBaseURL.Key])
 }

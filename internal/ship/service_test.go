@@ -919,7 +919,7 @@ func TestListCharacters_InvalidSeries(t *testing.T) {
 	svc, _ := newTestService(t)
 
 	// when
-	_, err := svc.ListCharacters(quotefinder.Series("nonsense"))
+	_, err := svc.ListCharacters("nonsense")
 
 	// then
 	require.Error(t, err)

@@ -10,7 +10,6 @@ import (
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/repository/model"
-	"umineko_city_of_books/internal/role"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -50,7 +49,7 @@ func TestBanMember_Succeeds(t *testing.T) {
 	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, room, actor).Return(stubRoom(room), nil)
 	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, room, actor).Return("host", nil)
 	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, room, target).Return("member", nil)
-	m.authzSvc.EXPECT().GetRole(mock.Anything, target).Return(role.Role(""), nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, target).Return("", nil)
 
 	stubSystemMessage(m, actor, target)
 
@@ -93,7 +92,7 @@ func TestBanMember_PostsSystemMessageWithReason(t *testing.T) {
 	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, room, actor).Return(stubRoom(room), nil)
 	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, room, actor).Return("host", nil)
 	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, room, target).Return("member", nil)
-	m.authzSvc.EXPECT().GetRole(mock.Anything, target).Return(role.Role(""), nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, target).Return("", nil)
 
 	m.userRepo.EXPECT().GetByID(mock.Anything, target).Return(&model.User{
 		ID: target, Username: "bar", DisplayName: "Bar",
@@ -120,7 +119,7 @@ func TestBanMember_PostsSystemMessageWithoutReason(t *testing.T) {
 	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, room, actor).Return(stubRoom(room), nil)
 	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, room, actor).Return("host", nil)
 	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, room, target).Return("member", nil)
-	m.authzSvc.EXPECT().GetRole(mock.Anything, target).Return(role.Role(""), nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, target).Return("", nil)
 
 	m.userRepo.EXPECT().GetByID(mock.Anything, target).Return(&model.User{
 		ID: target, Username: "bar", DisplayName: "Bar",
@@ -313,7 +312,7 @@ func TestSendMessage_BannedWordKickFires(t *testing.T) {
 			Action: contentfilter.BannedWordActionKick, Scope: "room", RoomID: &room},
 	}, nil).Maybe()
 	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, room, sender).Return("member", nil)
-	m.authzSvc.EXPECT().GetRole(mock.Anything, sender).Return(role.Role(""), nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, sender).Return("", nil)
 	m.auditRepo.EXPECT().CreateSystem(mock.Anything, "chat_word_filter_kick", "chat_room", room.String(), mock.Anything).Return(nil)
 	stubSystemMessage(m, sender, sender)
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, room).Return(nil, nil)

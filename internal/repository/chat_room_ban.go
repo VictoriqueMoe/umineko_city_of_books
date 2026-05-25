@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -70,7 +71,7 @@ func (r *chatRoomBanRepository) IsBanned(ctx context.Context, roomID, userID uui
 		`SELECT 1 FROM chat_room_bans WHERE room_id = $1 AND user_id = $2 LIMIT 1`,
 		roomID, userID,
 	).Scan(&exists)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	}
 	if err != nil {

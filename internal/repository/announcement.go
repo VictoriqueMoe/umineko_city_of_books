@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -136,7 +137,7 @@ func (r *announcementRepository) GetByID(ctx context.Context, id uuid.UUID) (*An
 		r.db.QueryRowContext(ctx, announcementSelectBase+` WHERE a.id = $1`, id),
 		&row,
 	)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
@@ -177,7 +178,7 @@ func (r *announcementRepository) GetLatest(ctx context.Context) (*AnnouncementRo
 		r.db.QueryRowContext(ctx, announcementSelectBase+` ORDER BY a.pinned DESC, a.created_at DESC LIMIT 1`),
 		&row,
 	)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
