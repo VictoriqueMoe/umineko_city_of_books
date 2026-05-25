@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"encoding/json"
 	"errors"
 
 	"umineko_city_of_books/internal/controllers/utils"
