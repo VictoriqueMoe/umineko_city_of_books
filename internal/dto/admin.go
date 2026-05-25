@@ -27,17 +27,18 @@ type (
 
 	AdminUserDetailResponse struct {
 		AdminUserItem
-		IP                     string `json:"ip,omitempty"`
-		BanReason              string `json:"ban_reason,omitempty"`
-		BannedAt               string `json:"banned_at,omitempty"`
-		LockReason             string `json:"lock_reason,omitempty"`
-		LockedAt               string `json:"locked_at,omitempty"`
-		TheoryCount            int    `json:"theory_count"`
-		ResponseCount          int    `json:"response_count"`
-		MysteryScoreAdjustment int    `json:"mystery_score_adjustment"`
-		DetectiveScore         int    `json:"detective_score"`
-		GMScoreAdjustment      int    `json:"gm_score_adjustment"`
-		GMScore                int    `json:"gm_score"`
+		IP                     string        `json:"ip,omitempty"`
+		BanReason              string        `json:"ban_reason,omitempty"`
+		BannedAt               string        `json:"banned_at,omitempty"`
+		BannedBy               *UserResponse `json:"banned_by,omitempty"`
+		LockReason             string        `json:"lock_reason,omitempty"`
+		LockedAt               string        `json:"locked_at,omitempty"`
+		TheoryCount            int           `json:"theory_count"`
+		ResponseCount          int           `json:"response_count"`
+		MysteryScoreAdjustment int           `json:"mystery_score_adjustment"`
+		DetectiveScore         int           `json:"detective_score"`
+		GMScoreAdjustment      int           `json:"gm_score_adjustment"`
+		GMScore                int           `json:"gm_score"`
 	}
 
 	AdminStatsResponse struct {

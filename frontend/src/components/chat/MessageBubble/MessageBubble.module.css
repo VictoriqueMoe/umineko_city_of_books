@@ -47,7 +47,7 @@
 
 .actions {
     position: absolute;
-    top: -14px;
+    bottom: 100%;
     left: 8px;
     display: flex;
     gap: 0.25rem;

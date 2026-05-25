@@ -1507,7 +1507,7 @@ func TestSyncSystemRoomMembership_DemotedUserRemovedFromBoth(t *testing.T) {
 	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, adminsID, userID).Return("", nil)
 
 	// when
-	err := svc.SyncSystemRoomMembership(context.Background(), userID, role.Role("user"))
+	err := svc.SyncSystemRoomMembership(context.Background(), userID, "user")
 
 	// then
 	require.NoError(t, err)
@@ -2310,7 +2310,7 @@ func TestEligibleForMods(t *testing.T) {
 	assert.True(t, eligibleForMods(authz.RoleModerator))
 	assert.True(t, eligibleForMods(authz.RoleAdmin))
 	assert.True(t, eligibleForMods(authz.RoleSuperAdmin))
-	assert.False(t, eligibleForMods(role.Role("user")))
+	assert.False(t, eligibleForMods("user"))
 }
 
 func TestEligibleForAdmins(t *testing.T) {
@@ -2376,7 +2376,7 @@ func TestSetRoomNickname_HappyPath(t *testing.T) {
 	roomID := uuid.New()
 	userID := uuid.New()
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
-	m.authzSvc.EXPECT().GetRole(mock.Anything, userID).Return(role.Role(""), nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, userID).Return("", nil)
 	m.chatRepo.EXPECT().IsMemberNicknameLocked(mock.Anything, roomID, userID).Return(false, nil)
 	m.chatRepo.EXPECT().SetMemberNickname(mock.Anything, roomID, userID, "Alice").Return(nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(sampleUser(userID), nil)
@@ -2410,7 +2410,7 @@ func TestSetRoomNickname_TrimsAndCapsAt32(t *testing.T) {
 		expected += "a"
 	}
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
-	m.authzSvc.EXPECT().GetRole(mock.Anything, userID).Return(role.Role(""), nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, userID).Return("", nil)
 	m.chatRepo.EXPECT().IsMemberNicknameLocked(mock.Anything, roomID, userID).Return(false, nil)
 	m.chatRepo.EXPECT().SetMemberNickname(mock.Anything, roomID, userID, expected).Return(nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(sampleUser(userID), nil)
@@ -2465,7 +2465,7 @@ func TestSetRoomNickname_RepoError(t *testing.T) {
 	roomID := uuid.New()
 	userID := uuid.New()
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
-	m.authzSvc.EXPECT().GetRole(mock.Anything, userID).Return(role.Role(""), nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, userID).Return("", nil)
 	m.chatRepo.EXPECT().IsMemberNicknameLocked(mock.Anything, roomID, userID).Return(false, nil)
 	m.chatRepo.EXPECT().SetMemberNickname(mock.Anything, roomID, userID, "nick").Return(errors.New("db"))
 
@@ -2484,7 +2484,7 @@ func TestSetRoomAvatar_HappyPath(t *testing.T) {
 	userID := uuid.New()
 	data := bytes.NewReader([]byte("img"))
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
-	m.authzSvc.EXPECT().GetRole(mock.Anything, userID).Return(role.Role(""), nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, userID).Return("", nil)
 	m.chatRepo.EXPECT().IsMemberNicknameLocked(mock.Anything, roomID, userID).Return(false, nil)
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(1024)
 	m.uploadSvc.EXPECT().SaveImage(mock.Anything, mock.Anything, userID, int64(3), int64(1024), data).Return("avatar.png", nil)
@@ -2523,7 +2523,7 @@ func TestSetRoomAvatar_UploadError(t *testing.T) {
 	roomID := uuid.New()
 	userID := uuid.New()
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
-	m.authzSvc.EXPECT().GetRole(mock.Anything, userID).Return(role.Role(""), nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, userID).Return("", nil)
 	m.chatRepo.EXPECT().IsMemberNicknameLocked(mock.Anything, roomID, userID).Return(false, nil)
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(1024)
 	m.uploadSvc.EXPECT().SaveImage(mock.Anything, mock.Anything, userID, int64(3), int64(1024), mock.Anything).Return("", errors.New("too big"))
@@ -2541,7 +2541,7 @@ func TestSetRoomAvatar_RepoError(t *testing.T) {
 	roomID := uuid.New()
 	userID := uuid.New()
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
-	m.authzSvc.EXPECT().GetRole(mock.Anything, userID).Return(role.Role(""), nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, userID).Return("", nil)
 	m.chatRepo.EXPECT().IsMemberNicknameLocked(mock.Anything, roomID, userID).Return(false, nil)
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(1024)
 	m.uploadSvc.EXPECT().SaveImage(mock.Anything, mock.Anything, userID, int64(3), int64(1024), mock.Anything).Return("avatar.png", nil)
@@ -2560,7 +2560,7 @@ func TestClearRoomAvatar_HappyPath(t *testing.T) {
 	roomID := uuid.New()
 	userID := uuid.New()
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
-	m.authzSvc.EXPECT().GetRole(mock.Anything, userID).Return(role.Role(""), nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, userID).Return("", nil)
 	m.chatRepo.EXPECT().IsMemberNicknameLocked(mock.Anything, roomID, userID).Return(false, nil)
 	m.chatRepo.EXPECT().GetRoomMembersDetailed(mock.Anything, roomID).Return([]repository.ChatRoomMemberRow{
 		{UserID: userID, Role: "member", MemberAvatarURL: "old.png"},
@@ -2587,7 +2587,7 @@ func TestClearRoomAvatar_NoExistingAvatar(t *testing.T) {
 	roomID := uuid.New()
 	userID := uuid.New()
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
-	m.authzSvc.EXPECT().GetRole(mock.Anything, userID).Return(role.Role(""), nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, userID).Return("", nil)
 	m.chatRepo.EXPECT().IsMemberNicknameLocked(mock.Anything, roomID, userID).Return(false, nil)
 	m.chatRepo.EXPECT().GetRoomMembersDetailed(mock.Anything, roomID).Return([]repository.ChatRoomMemberRow{
 		{UserID: userID, Role: "member", MemberAvatarURL: ""},
@@ -2624,7 +2624,7 @@ func TestClearRoomAvatar_RepoError(t *testing.T) {
 	roomID := uuid.New()
 	userID := uuid.New()
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
-	m.authzSvc.EXPECT().GetRole(mock.Anything, userID).Return(role.Role(""), nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, userID).Return("", nil)
 	m.chatRepo.EXPECT().IsMemberNicknameLocked(mock.Anything, roomID, userID).Return(false, nil)
 	m.chatRepo.EXPECT().GetRoomMembersDetailed(mock.Anything, roomID).Return(nil, errors.New("db"))
 	m.chatRepo.EXPECT().SetMemberAvatar(mock.Anything, roomID, userID, "").Return(errors.New("db"))
@@ -3161,7 +3161,7 @@ func TestCanModerateRoom_RegularMember(t *testing.T) {
 	roomID := uuid.New()
 	userID := uuid.New()
 	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, userID).Return("member", nil)
-	m.authzSvc.EXPECT().GetRole(mock.Anything, userID).Return(role.Role(""), nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, userID).Return("", nil)
 
 	// when
 	got, err := svc.canModerateRoom(context.Background(), roomID, userID)
@@ -3177,7 +3177,7 @@ func TestCanModerateRoom_NonMember(t *testing.T) {
 	roomID := uuid.New()
 	userID := uuid.New()
 	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, userID).Return("", nil)
-	m.authzSvc.EXPECT().GetRole(mock.Anything, userID).Return(role.Role(""), nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, userID).Return("", nil)
 
 	// when
 	got, err := svc.canModerateRoom(context.Background(), roomID, userID)
@@ -3195,7 +3195,7 @@ func TestSetMemberNicknameAsMod_SiteMod_OK(t *testing.T) {
 	targetID := uuid.New()
 	m.authzSvc.EXPECT().GetRole(mock.Anything, actorID).Return(authz.RoleModerator, nil)
 	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, targetID).Return("member", nil)
-	m.authzSvc.EXPECT().GetRole(mock.Anything, targetID).Return(role.Role(""), nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, targetID).Return("", nil)
 	m.chatRepo.EXPECT().SetMemberNicknameWithLock(mock.Anything, roomID, targetID, "Silence", true).Return(nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, targetID).Return(sampleUser(targetID), nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, actorID).Return(sampleUser(actorID), nil)
@@ -3221,7 +3221,7 @@ func TestSetMemberNicknameAsMod_HostOnlyRefused(t *testing.T) {
 	roomID := uuid.New()
 	actorID := uuid.New()
 	targetID := uuid.New()
-	m.authzSvc.EXPECT().GetRole(mock.Anything, actorID).Return(role.Role(""), nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, actorID).Return("", nil)
 
 	// when
 	got, err := svc.SetMemberNicknameAsMod(context.Background(), roomID, actorID, targetID, "x")
@@ -3237,7 +3237,7 @@ func TestSetMemberNicknameAsMod_RegularMemberRefused(t *testing.T) {
 	roomID := uuid.New()
 	actorID := uuid.New()
 	targetID := uuid.New()
-	m.authzSvc.EXPECT().GetRole(mock.Anything, actorID).Return(role.Role(""), nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, actorID).Return("", nil)
 
 	// when
 	got, err := svc.SetMemberNicknameAsMod(context.Background(), roomID, actorID, targetID, "x")
@@ -3298,7 +3298,7 @@ func TestSetMemberNicknameAsMod_TrimsAndCapsAt32(t *testing.T) {
 	}
 	m.authzSvc.EXPECT().GetRole(mock.Anything, actorID).Return(authz.RoleAdmin, nil)
 	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, targetID).Return("member", nil)
-	m.authzSvc.EXPECT().GetRole(mock.Anything, targetID).Return(role.Role(""), nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, targetID).Return("", nil)
 	m.chatRepo.EXPECT().SetMemberNicknameWithLock(mock.Anything, roomID, targetID, expected, true).Return(nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, targetID).Return(sampleUser(targetID), nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, actorID).Return(sampleUser(actorID), nil)
@@ -3325,7 +3325,7 @@ func TestSetMemberNicknameAsMod_RepoError(t *testing.T) {
 	targetID := uuid.New()
 	m.authzSvc.EXPECT().GetRole(mock.Anything, actorID).Return(authz.RoleAdmin, nil)
 	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, targetID).Return("member", nil)
-	m.authzSvc.EXPECT().GetRole(mock.Anything, targetID).Return(role.Role(""), nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, targetID).Return("", nil)
 	m.chatRepo.EXPECT().SetMemberNicknameWithLock(mock.Anything, roomID, targetID, "x", true).Return(errors.New("db"))
 
 	// when
@@ -3344,7 +3344,7 @@ func TestUnlockMemberNickname_OK(t *testing.T) {
 	targetID := uuid.New()
 	m.authzSvc.EXPECT().GetRole(mock.Anything, actorID).Return(authz.RoleModerator, nil)
 	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, targetID).Return("member", nil)
-	m.authzSvc.EXPECT().GetRole(mock.Anything, targetID).Return(role.Role(""), nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, targetID).Return("", nil)
 	m.chatRepo.EXPECT().SetMemberNicknameWithLock(mock.Anything, roomID, targetID, "", false).Return(nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, targetID).Return(sampleUser(targetID), nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, actorID).Return(sampleUser(actorID), nil)
@@ -3369,7 +3369,7 @@ func TestUnlockMemberNickname_NonModRefused(t *testing.T) {
 	roomID := uuid.New()
 	actorID := uuid.New()
 	targetID := uuid.New()
-	m.authzSvc.EXPECT().GetRole(mock.Anything, actorID).Return(role.Role(""), nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, actorID).Return("", nil)
 
 	// when
 	got, err := svc.UnlockMemberNickname(context.Background(), roomID, actorID, targetID)
@@ -3405,7 +3405,7 @@ func TestUnlockMemberNickname_RepoError(t *testing.T) {
 	targetID := uuid.New()
 	m.authzSvc.EXPECT().GetRole(mock.Anything, actorID).Return(authz.RoleAdmin, nil)
 	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, targetID).Return("member", nil)
-	m.authzSvc.EXPECT().GetRole(mock.Anything, targetID).Return(role.Role(""), nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, targetID).Return("", nil)
 	m.chatRepo.EXPECT().SetMemberNicknameWithLock(mock.Anything, roomID, targetID, "", false).Return(errors.New("db"))
 
 	// when
@@ -3422,7 +3422,7 @@ func TestSetRoomNickname_Locked(t *testing.T) {
 	roomID := uuid.New()
 	userID := uuid.New()
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
-	m.authzSvc.EXPECT().GetRole(mock.Anything, userID).Return(role.Role(""), nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, userID).Return("", nil)
 	m.chatRepo.EXPECT().IsMemberNicknameLocked(mock.Anything, roomID, userID).Return(true, nil)
 
 	// when
@@ -3462,7 +3462,7 @@ func TestSetRoomAvatar_Locked(t *testing.T) {
 	roomID := uuid.New()
 	userID := uuid.New()
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
-	m.authzSvc.EXPECT().GetRole(mock.Anything, userID).Return(role.Role(""), nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, userID).Return("", nil)
 	m.chatRepo.EXPECT().IsMemberNicknameLocked(mock.Anything, roomID, userID).Return(true, nil)
 
 	// when
@@ -3503,7 +3503,7 @@ func TestClearRoomAvatar_Locked(t *testing.T) {
 	roomID := uuid.New()
 	userID := uuid.New()
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
-	m.authzSvc.EXPECT().GetRole(mock.Anything, userID).Return(role.Role(""), nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, userID).Return("", nil)
 	m.chatRepo.EXPECT().IsMemberNicknameLocked(mock.Anything, roomID, userID).Return(true, nil)
 
 	// when
@@ -3679,7 +3679,7 @@ func TestDeleteMessage_NotAuthorNotMod_Refused(t *testing.T) {
 	actorID := uuid.New()
 	m.chatRepo.EXPECT().GetMessageByID(mock.Anything, messageID).Return(&repository.ChatMessageRow{ID: messageID, RoomID: roomID, SenderID: senderID}, nil)
 	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, actorID).Return("member", nil)
-	m.authzSvc.EXPECT().GetRole(mock.Anything, actorID).Return(role.Role(""), nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, actorID).Return("", nil)
 
 	// when
 	err := svc.DeleteMessage(context.Background(), messageID, actorID)
@@ -3814,7 +3814,7 @@ func TestJoinRoom_Ghost_RequiresStaff(t *testing.T) {
 	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, userID).Return(&repository.ChatRoomRow{
 		ID: roomID, Type: "group", IsPublic: true, CreatedBy: uuid.New(),
 	}, nil)
-	m.authzSvc.EXPECT().GetRole(mock.Anything, userID).Return(role.Role(""), nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, userID).Return("", nil)
 
 	// when
 	_, err := svc.JoinRoom(context.Background(), roomID, userID, true)
@@ -3844,7 +3844,7 @@ func TestJoinRoom_Ghost_StaffAllowedAndSilent(t *testing.T) {
 	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, userID).Return(&repository.ChatRoomRow{
 		ID: roomID, Type: "group", IsPublic: true, CreatedBy: uuid.New(),
 	}, nil).Once()
-	m.authzSvc.EXPECT().GetRole(mock.Anything, userID).Return(role.Role("moderator"), nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, userID).Return("moderator", nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, mock.Anything, mock.Anything).Return(false, nil)
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, mock.Anything).Return(0)
 	m.chatRepo.EXPECT().AddMemberWithRole(mock.Anything, roomID, userID, "member", true).Return(nil)
@@ -3855,7 +3855,7 @@ func TestJoinRoom_Ghost_StaffAllowedAndSilent(t *testing.T) {
 	m.chatRepo.EXPECT().HasGhostMembers(mock.Anything, roomID).Return(true, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(sampleUser(userID), nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, otherMember).Return(sampleUser(otherMember), nil)
-	m.authzSvc.EXPECT().GetRole(mock.Anything, otherMember).Return(role.Role(""), nil).Maybe()
+	m.authzSvc.EXPECT().GetRole(mock.Anything, otherMember).Return("", nil).Maybe()
 
 	// when
 	_, err := svc.JoinRoom(context.Background(), roomID, userID, true)
@@ -3879,7 +3879,7 @@ func TestLeaveRoom_Ghost_Silent(t *testing.T) {
 	m.chatRepo.EXPECT().IsGhostMember(mock.Anything, roomID, userID).Return(true, nil).Once()
 	m.chatRepo.EXPECT().RemoveMember(mock.Anything, roomID, userID).Return(nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(sampleUser(userID), nil)
-	m.authzSvc.EXPECT().GetRole(mock.Anything, userID).Return(role.Role(""), nil).Maybe()
+	m.authzSvc.EXPECT().GetRole(mock.Anything, userID).Return("", nil).Maybe()
 
 	// when
 	err := svc.LeaveRoom(context.Background(), roomID, userID)
@@ -3901,7 +3901,7 @@ func TestGetMembers_FiltersGhostsForNonStaff(t *testing.T) {
 		{UserID: normalID, Username: "a", DisplayName: "A", Role: "member"},
 		{UserID: ghostID, Username: "g", DisplayName: "G", Role: "member", Ghost: true},
 	}, nil)
-	m.authzSvc.EXPECT().GetRole(mock.Anything, viewerID).Return(role.Role(""), nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, viewerID).Return("", nil)
 	m.vanityRoleRepo.EXPECT().GetRolesForUsersBatch(mock.Anything, []uuid.UUID{normalID}).Return(nil, nil)
 
 	// when
@@ -3925,7 +3925,7 @@ func TestGetMembers_StaffSeesGhosts(t *testing.T) {
 		{UserID: normalID, Username: "a", DisplayName: "A", Role: "member"},
 		{UserID: ghostID, Username: "g", DisplayName: "G", Role: "member", Ghost: true},
 	}, nil)
-	m.authzSvc.EXPECT().GetRole(mock.Anything, viewerID).Return(role.Role("moderator"), nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, viewerID).Return("moderator", nil)
 	m.vanityRoleRepo.EXPECT().GetRolesForUsersBatch(mock.Anything, mock.Anything).Return(nil, nil)
 
 	// when

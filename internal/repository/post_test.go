@@ -939,6 +939,31 @@ func TestPostRepository_GetComments_ExcludeUsers(t *testing.T) {
 	assert.Len(t, comments, 1)
 }
 
+func TestPostRepository_GetComments_AuthorBanned(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	mod := repotest.CreateUser(t, repos)
+	bannedUser := repotest.CreateUser(t, repos)
+	activeUser := repotest.CreateUser(t, repos)
+	postID := createPost(t, repos, activeUser.ID, "general", "b")
+	bannedCommentID := createComment(t, repos, postID, bannedUser.ID, nil, "banned author")
+	activeCommentID := createComment(t, repos, postID, activeUser.ID, nil, "active author")
+	require.NoError(t, repos.User.BanUser(context.Background(), bannedUser.ID, mod.ID, "spam"))
+
+	// when
+	comments, _, err := repos.Post.GetComments(context.Background(), postID, activeUser.ID, 10, 0, nil)
+
+	// then
+	require.NoError(t, err)
+	require.Len(t, comments, 2)
+	byID := map[uuid.UUID]bool{}
+	for i := 0; i < len(comments); i++ {
+		byID[comments[i].ID] = comments[i].AuthorBanned
+	}
+	assert.True(t, byID[bannedCommentID], "expected banned author comment to report AuthorBanned=true")
+	assert.False(t, byID[activeCommentID], "expected active author comment to report AuthorBanned=false")
+}
+
 func TestPostRepository_GetCommentPostID(t *testing.T) {
 	// given
 	repos := repotest.NewRepos(t)

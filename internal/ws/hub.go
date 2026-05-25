@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/fasthttp/websocket"
+	"github.com/gofiber/contrib/v3/websocket"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
