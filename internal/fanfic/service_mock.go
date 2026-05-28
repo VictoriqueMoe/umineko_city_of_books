@@ -8,7 +8,7 @@ import (
 	"context"
 	"io"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/fanfic/params"
 
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
@@ -875,8 +875,8 @@ func (_c *MockService_LikeComment_Call) RunAndReturn(run func(ctx context.Contex
 }
 
 // ListFanfics provides a mock function for the type MockService
-func (_mock *MockService) ListFanfics(ctx context.Context, viewerID uuid.UUID, params repository.FanficListParams) (*dto.FanficListResponse, error) {
-	ret := _mock.Called(ctx, viewerID, params)
+func (_mock *MockService) ListFanfics(ctx context.Context, viewerID uuid.UUID, params1 params.ListParams) (*dto.FanficListResponse, error) {
+	ret := _mock.Called(ctx, viewerID, params1)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListFanfics")
@@ -884,18 +884,18 @@ func (_mock *MockService) ListFanfics(ctx context.Context, viewerID uuid.UUID, p
 
 	var r0 *dto.FanficListResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, repository.FanficListParams) (*dto.FanficListResponse, error)); ok {
-		return returnFunc(ctx, viewerID, params)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, params.ListParams) (*dto.FanficListResponse, error)); ok {
+		return returnFunc(ctx, viewerID, params1)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, repository.FanficListParams) *dto.FanficListResponse); ok {
-		r0 = returnFunc(ctx, viewerID, params)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, params.ListParams) *dto.FanficListResponse); ok {
+		r0 = returnFunc(ctx, viewerID, params1)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*dto.FanficListResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, repository.FanficListParams) error); ok {
-		r1 = returnFunc(ctx, viewerID, params)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, params.ListParams) error); ok {
+		r1 = returnFunc(ctx, viewerID, params1)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -910,12 +910,12 @@ type MockService_ListFanfics_Call struct {
 // ListFanfics is a helper method to define mock.On call
 //   - ctx context.Context
 //   - viewerID uuid.UUID
-//   - params repository.FanficListParams
-func (_e *MockService_Expecter) ListFanfics(ctx interface{}, viewerID interface{}, params interface{}) *MockService_ListFanfics_Call {
-	return &MockService_ListFanfics_Call{Call: _e.mock.On("ListFanfics", ctx, viewerID, params)}
+//   - params1 params.ListParams
+func (_e *MockService_Expecter) ListFanfics(ctx interface{}, viewerID interface{}, params1 interface{}) *MockService_ListFanfics_Call {
+	return &MockService_ListFanfics_Call{Call: _e.mock.On("ListFanfics", ctx, viewerID, params1)}
 }
 
-func (_c *MockService_ListFanfics_Call) Run(run func(ctx context.Context, viewerID uuid.UUID, params repository.FanficListParams)) *MockService_ListFanfics_Call {
+func (_c *MockService_ListFanfics_Call) Run(run func(ctx context.Context, viewerID uuid.UUID, params1 params.ListParams)) *MockService_ListFanfics_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -925,9 +925,9 @@ func (_c *MockService_ListFanfics_Call) Run(run func(ctx context.Context, viewer
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
-		var arg2 repository.FanficListParams
+		var arg2 params.ListParams
 		if args[2] != nil {
-			arg2 = args[2].(repository.FanficListParams)
+			arg2 = args[2].(params.ListParams)
 		}
 		run(
 			arg0,
@@ -943,7 +943,7 @@ func (_c *MockService_ListFanfics_Call) Return(fanficListResponse *dto.FanficLis
 	return _c
 }
 
-func (_c *MockService_ListFanfics_Call) RunAndReturn(run func(ctx context.Context, viewerID uuid.UUID, params repository.FanficListParams) (*dto.FanficListResponse, error)) *MockService_ListFanfics_Call {
+func (_c *MockService_ListFanfics_Call) RunAndReturn(run func(ctx context.Context, viewerID uuid.UUID, params1 params.ListParams) (*dto.FanficListResponse, error)) *MockService_ListFanfics_Call {
 	_c.Call.Return(run)
 	return _c
 }

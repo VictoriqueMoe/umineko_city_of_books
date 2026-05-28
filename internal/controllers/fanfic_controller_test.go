@@ -9,7 +9,7 @@ import (
 	"umineko_city_of_books/internal/controllers/utils/testutil"
 	"umineko_city_of_books/internal/dto"
 	fanficsvc "umineko_city_of_books/internal/fanfic"
-	"umineko_city_of_books/internal/repository"
+	fanficparams "umineko_city_of_books/internal/fanfic/params"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -32,8 +32,8 @@ func newFanficHarness(t *testing.T) (*testutil.Harness, *fanficsvc.MockService) 
 	return h, fs
 }
 
-func defaultFanficListParams() repository.FanficListParams {
-	return repository.FanficListParams{
+func defaultFanficListParams() fanficparams.ListParams {
+	return fanficparams.ListParams{
 		Sort:   "updated",
 		Limit:  25,
 		Offset: 0,
@@ -58,7 +58,7 @@ func TestListFanfics_Anonymous_OK(t *testing.T) {
 func TestListFanfics_CustomQuery_OK(t *testing.T) {
 	// given
 	h, fs := newFanficHarness(t)
-	params := repository.FanficListParams{
+	params := fanficparams.ListParams{
 		Sort:       "top",
 		Series:     "umineko",
 		Rating:     "teen",

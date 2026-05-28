@@ -1,10 +1,9 @@
 package controllers
 
 import (
-	"database/sql"
 	"encoding/xml"
-	"fmt"
-	"time"
+
+	"umineko_city_of_books/internal/sitemap"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -34,13 +33,14 @@ type (
 	}
 
 	SitemapHandler struct {
-		db      *sql.DB
-		baseURL string
+		svc sitemap.Service
 	}
 )
 
-func NewSitemapHandler(db *sql.DB, baseURL string) *SitemapHandler {
-	return &SitemapHandler{db: db, baseURL: baseURL}
+const sitemapNS = "http://www.sitemaps.org/schemas/sitemap/0.9"
+
+func NewSitemapHandler(svc sitemap.Service) *SitemapHandler {
+	return &SitemapHandler{svc: svc}
 }
 
 func (h *SitemapHandler) Register(app fiber.Router) {
@@ -61,307 +61,74 @@ func (h *SitemapHandler) sendXML(ctx fiber.Ctx, v interface{}) error {
 	if err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).SendString("failed to generate sitemap")
 	}
-
 	ctx.Set("Content-Type", "application/xml; charset=utf-8")
 	return ctx.Send(append([]byte(xml.Header), out...))
 }
 
-func (h *SitemapHandler) index(ctx fiber.Ctx) error {
-	idx := sitemapIndex{
-		XMLNS: "http://www.sitemaps.org/schemas/sitemap/0.9",
-		Sitemaps: []sitemapIndexURL{
-			{Loc: h.baseURL + "/sitemap-static.xml"},
-			{Loc: h.baseURL + "/sitemap-theories.xml"},
-			{Loc: h.baseURL + "/sitemap-posts.xml"},
-			{Loc: h.baseURL + "/sitemap-art.xml"},
-			{Loc: h.baseURL + "/sitemap-users.xml"},
-			{Loc: h.baseURL + "/sitemap-mysteries.xml"},
-			{Loc: h.baseURL + "/sitemap-ships.xml"},
-			{Loc: h.baseURL + "/sitemap-fanfics.xml"},
-			{Loc: h.baseURL + "/sitemap-journals.xml"},
-		},
+func toURLs(entries []sitemap.Entry) []sitemapURL {
+	urls := make([]sitemapURL, 0, len(entries))
+	for _, e := range entries {
+		urls = append(urls, sitemapURL{Loc: e.URL, LastMod: e.LastMod})
 	}
-	return h.sendXML(ctx, idx)
+	return urls
+}
+
+func (h *SitemapHandler) index(ctx fiber.Ctx) error {
+	indexEntries := h.svc.IndexEntries()
+	sitemaps := make([]sitemapIndexURL, 0, len(indexEntries))
+	for _, e := range indexEntries {
+		sitemaps = append(sitemaps, sitemapIndexURL{Loc: e.Loc})
+	}
+	return h.sendXML(ctx, sitemapIndex{XMLNS: sitemapNS, Sitemaps: sitemaps})
 }
 
 func (h *SitemapHandler) static(ctx fiber.Ctx) error {
-	now := time.Now().Format("2006-01-02")
-	urls := []sitemapURL{
-		{Loc: h.baseURL, LastMod: now},
-		{Loc: h.baseURL + "/welcome", LastMod: now},
-		{Loc: h.baseURL + "/theories", LastMod: now},
-		{Loc: h.baseURL + "/game-board", LastMod: now},
-		{Loc: h.baseURL + "/game-board/umineko", LastMod: now},
-		{Loc: h.baseURL + "/game-board/higurashi", LastMod: now},
-		{Loc: h.baseURL + "/game-board/ciconia", LastMod: now},
-		{Loc: h.baseURL + "/game-board/higanbana", LastMod: now},
-		{Loc: h.baseURL + "/game-board/roseguns", LastMod: now},
-		{Loc: h.baseURL + "/gallery", LastMod: now},
-		{Loc: h.baseURL + "/gallery/umineko", LastMod: now},
-		{Loc: h.baseURL + "/gallery/higurashi", LastMod: now},
-		{Loc: h.baseURL + "/gallery/ciconia", LastMod: now},
-		{Loc: h.baseURL + "/quotes", LastMod: now},
-		{Loc: h.baseURL + "/mysteries", LastMod: now},
-		{Loc: h.baseURL + "/ships", LastMod: now},
-		{Loc: h.baseURL + "/fanfiction", LastMod: now},
-		{Loc: h.baseURL + "/suggestions", LastMod: now},
-		{Loc: h.baseURL + "/games", LastMod: now},
-		{Loc: h.baseURL + "/games/live", LastMod: now},
-		{Loc: h.baseURL + "/games/past", LastMod: now},
-		{Loc: h.baseURL + "/games/chess", LastMod: now},
-		{Loc: h.baseURL + "/games/othello", LastMod: now},
-		{Loc: h.baseURL + "/search", LastMod: now},
-		{Loc: h.baseURL + "/login", LastMod: now},
-	}
-	if h.hasRulesPage(ctx) {
-		urls = append(urls, sitemapURL{Loc: h.baseURL + "/rules", LastMod: now})
-	}
-	set := sitemapURLSet{
-		XMLNS: "http://www.sitemaps.org/schemas/sitemap/0.9",
-		URLs:  urls,
-	}
-	return h.sendXML(ctx, set)
+	return h.sendXML(ctx, sitemapURLSet{XMLNS: sitemapNS, URLs: toURLs(h.svc.StaticEntries(ctx.Context()))})
 }
 
-func (h *SitemapHandler) hasRulesPage(ctx fiber.Ctx) bool {
-	var value string
-	err := h.db.QueryRowContext(ctx.Context(), "SELECT value FROM site_settings WHERE key = 'rules_page'").Scan(&value)
+func (h *SitemapHandler) renderList(ctx fiber.Ctx, entries []sitemap.Entry, err error, label string) error {
 	if err != nil {
-		return false
+		return ctx.Status(fiber.StatusInternalServerError).SendString("failed to query " + label)
 	}
-	return value != ""
+	return h.sendXML(ctx, sitemapURLSet{XMLNS: sitemapNS, URLs: toURLs(entries)})
 }
 
 func (h *SitemapHandler) theories(ctx fiber.Ctx) error {
-	rows, err := h.db.QueryContext(ctx.Context(),
-		`SELECT id, created_at FROM theories ORDER BY created_at DESC`)
-	if err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).SendString("failed to query theories")
-	}
-	defer rows.Close()
-
-	var urls []sitemapURL
-	for rows.Next() {
-		var id, createdAt string
-		if err := rows.Scan(&id, &createdAt); err != nil {
-			continue
-		}
-		t, _ := time.Parse("2006-01-02 15:04:05", createdAt)
-		urls = append(urls, sitemapURL{
-			Loc:     h.baseURL + "/theory/" + id,
-			LastMod: t.Format("2006-01-02"),
-		})
-	}
-
-	return h.sendXML(ctx, sitemapURLSet{
-		XMLNS: "http://www.sitemaps.org/schemas/sitemap/0.9",
-		URLs:  urls,
-	})
+	entries, err := h.svc.Theories(ctx.Context())
+	return h.renderList(ctx, entries, err, "theories")
 }
 
 func (h *SitemapHandler) posts(ctx fiber.Ctx) error {
-	rows, err := h.db.QueryContext(ctx.Context(),
-		`SELECT id, created_at FROM posts ORDER BY created_at DESC`)
-	if err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).SendString("failed to query posts")
-	}
-	defer rows.Close()
-
-	var urls []sitemapURL
-	for rows.Next() {
-		var id, createdAt string
-		if err := rows.Scan(&id, &createdAt); err != nil {
-			continue
-		}
-		t, _ := time.Parse("2006-01-02 15:04:05", createdAt)
-		urls = append(urls, sitemapURL{
-			Loc:     h.baseURL + "/game-board/" + id,
-			LastMod: t.Format("2006-01-02"),
-		})
-	}
-
-	return h.sendXML(ctx, sitemapURLSet{
-		XMLNS: "http://www.sitemaps.org/schemas/sitemap/0.9",
-		URLs:  urls,
-	})
+	entries, err := h.svc.Posts(ctx.Context())
+	return h.renderList(ctx, entries, err, "posts")
 }
 
 func (h *SitemapHandler) art(ctx fiber.Ctx) error {
-	rows, err := h.db.QueryContext(ctx.Context(),
-		`SELECT id, created_at FROM art ORDER BY created_at DESC`)
-	if err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).SendString("failed to query art")
-	}
-	defer rows.Close()
-
-	var urls []sitemapURL
-	for rows.Next() {
-		var id, createdAt string
-		if err := rows.Scan(&id, &createdAt); err != nil {
-			continue
-		}
-		t, _ := time.Parse("2006-01-02 15:04:05", createdAt)
-		urls = append(urls, sitemapURL{
-			Loc:     h.baseURL + "/gallery/art/" + id,
-			LastMod: t.Format("2006-01-02"),
-		})
-	}
-
-	return h.sendXML(ctx, sitemapURLSet{
-		XMLNS: "http://www.sitemaps.org/schemas/sitemap/0.9",
-		URLs:  urls,
-	})
+	entries, err := h.svc.Art(ctx.Context())
+	return h.renderList(ctx, entries, err, "art")
 }
 
 func (h *SitemapHandler) users(ctx fiber.Ctx) error {
-	rows, err := h.db.QueryContext(ctx.Context(),
-		`SELECT username FROM users ORDER BY created_at DESC`)
-	if err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).SendString("failed to query users")
-	}
-	defer rows.Close()
-
-	var urls []sitemapURL
-	for rows.Next() {
-		var username string
-		if err := rows.Scan(&username); err != nil {
-			continue
-		}
-		urls = append(urls, sitemapURL{
-			Loc: h.baseURL + "/user/" + username,
-		})
-	}
-
-	return h.sendXML(ctx, sitemapURLSet{
-		XMLNS: "http://www.sitemaps.org/schemas/sitemap/0.9",
-		URLs:  urls,
-	})
+	entries, err := h.svc.Users(ctx.Context())
+	return h.renderList(ctx, entries, err, "users")
 }
 
 func (h *SitemapHandler) mysteries(ctx fiber.Ctx) error {
-	rows, err := h.db.QueryContext(ctx.Context(),
-		`SELECT id, created_at FROM mysteries ORDER BY created_at DESC`)
-	if err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).SendString("failed to query mysteries")
-	}
-	defer rows.Close()
-
-	var urls []sitemapURL
-	for rows.Next() {
-		var id, createdAt string
-		if err := rows.Scan(&id, &createdAt); err != nil {
-			continue
-		}
-		t, _ := time.Parse("2006-01-02 15:04:05", createdAt)
-		urls = append(urls, sitemapURL{
-			Loc:     h.baseURL + "/mystery/" + id,
-			LastMod: t.Format("2006-01-02"),
-		})
-	}
-
-	return h.sendXML(ctx, sitemapURLSet{
-		XMLNS: "http://www.sitemaps.org/schemas/sitemap/0.9",
-		URLs:  urls,
-	})
+	entries, err := h.svc.Mysteries(ctx.Context())
+	return h.renderList(ctx, entries, err, "mysteries")
 }
 
 func (h *SitemapHandler) ships(ctx fiber.Ctx) error {
-	rows, err := h.db.QueryContext(ctx.Context(),
-		`SELECT id, created_at FROM ships ORDER BY created_at DESC`)
-	if err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).SendString("failed to query ships")
-	}
-	defer rows.Close()
-
-	var urls []sitemapURL
-	for rows.Next() {
-		var id, createdAt string
-		if err := rows.Scan(&id, &createdAt); err != nil {
-			continue
-		}
-		t, _ := time.Parse("2006-01-02 15:04:05", createdAt)
-		urls = append(urls, sitemapURL{
-			Loc:     h.baseURL + "/ships/" + id,
-			LastMod: t.Format("2006-01-02"),
-		})
-	}
-
-	return h.sendXML(ctx, sitemapURLSet{
-		XMLNS: "http://www.sitemaps.org/schemas/sitemap/0.9",
-		URLs:  urls,
-	})
+	entries, err := h.svc.Ships(ctx.Context())
+	return h.renderList(ctx, entries, err, "ships")
 }
 
 func (h *SitemapHandler) fanfics(ctx fiber.Ctx) error {
-	rows, err := h.db.QueryContext(ctx.Context(),
-		`SELECT id, created_at FROM fanfics ORDER BY created_at DESC`)
-	if err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).SendString("failed to query fanfics")
-	}
-	defer rows.Close()
-
-	var urls []sitemapURL
-	for rows.Next() {
-		var id, createdAt string
-		if err := rows.Scan(&id, &createdAt); err != nil {
-			continue
-		}
-		t, _ := time.Parse("2006-01-02 15:04:05", createdAt)
-		urls = append(urls, sitemapURL{
-			Loc:     h.baseURL + "/fanfiction/" + id,
-			LastMod: t.Format("2006-01-02"),
-		})
-	}
-
-	return h.sendXML(ctx, sitemapURLSet{
-		XMLNS: "http://www.sitemaps.org/schemas/sitemap/0.9",
-		URLs:  urls,
-	})
+	entries, err := h.svc.Fanfics(ctx.Context())
+	return h.renderList(ctx, entries, err, "fanfics")
 }
 
 func (h *SitemapHandler) journals(ctx fiber.Ctx) error {
-	rows, err := h.db.QueryContext(ctx.Context(),
-		`SELECT j.id, j.updated_at, e.entry_number, e.updated_at
-		FROM journals j
-		LEFT JOIN journal_entries e ON e.journal_id = j.id AND NOT e.is_draft
-		WHERE j.archived_at IS NULL
-		ORDER BY j.id, e.entry_number`)
-	if err != nil {
-		return ctx.Status(fiber.StatusInternalServerError).SendString("failed to query journals")
-	}
-	defer rows.Close()
-
-	var urls []sitemapURL
-	seenJournals := make(map[string]bool)
-	for rows.Next() {
-		var journalID string
-		var journalUpdatedAt time.Time
-		var entryNumber sql.NullInt64
-		var entryUpdatedAt sql.NullTime
-		if err := rows.Scan(&journalID, &journalUpdatedAt, &entryNumber, &entryUpdatedAt); err != nil {
-			continue
-		}
-		if !seenJournals[journalID] {
-			urls = append(urls, sitemapURL{
-				Loc:     h.baseURL + "/journals/" + journalID,
-				LastMod: journalUpdatedAt.Format("2006-01-02"),
-			})
-			seenJournals[journalID] = true
-		}
-		if entryNumber.Valid {
-			lastMod := journalUpdatedAt
-			if entryUpdatedAt.Valid {
-				lastMod = entryUpdatedAt.Time
-			}
-			urls = append(urls, sitemapURL{
-				Loc:     fmt.Sprintf("%s/journals/%s/entry/%d", h.baseURL, journalID, entryNumber.Int64),
-				LastMod: lastMod.Format("2006-01-02"),
-			})
-		}
-	}
-
-	return h.sendXML(ctx, sitemapURLSet{
-		XMLNS: "http://www.sitemaps.org/schemas/sitemap/0.9",
-		URLs:  urls,
-	})
+	entries, err := h.svc.Journals(ctx.Context())
+	return h.renderList(ctx, entries, err, "journals")
 }

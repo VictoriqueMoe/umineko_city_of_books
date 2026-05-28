@@ -46,6 +46,7 @@ import (
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/ship"
 	"umineko_city_of_books/internal/sidebar"
+	"umineko_city_of_books/internal/sitemap"
 	"umineko_city_of_books/internal/theory"
 	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/user"
@@ -137,12 +138,13 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 	ctrlService := controllers.NewService(
 		svc.auth, svc.profile, svc.theory, svc.notification, svc.admin,
 		svc.authz, settingsSvc, svc.chat, svc.report, svc.post, svc.follow,
-		svc.art, svc.block, svc.announcement, svc.mystery, repos.User, svc.user, svc.ship, svc.oc, svc.fanfic, svc.journal, svc.secret, svc.upload, svc.mediaProc, svc.vanityRole, svc.userSecret, svc.session, svc.hub, svc.giphy, svc.giphyFavourites, svc.gameRoom, svc.homeFeed, svc.sidebar, svc.search, string(htmlBytes),
+		svc.art, svc.block, svc.announcement, svc.mystery, svc.user, svc.ship, svc.oc, svc.fanfic, svc.journal, svc.secret, svc.upload, svc.mediaProc, svc.vanityRole, svc.userSecret, svc.session, svc.hub, svc.giphy, svc.giphyFavourites, svc.gameRoom, svc.homeFeed, svc.sidebar, svc.search, string(htmlBytes),
 	)
 	routes.PublicRoutes(ctrlService, app)
 
 	baseURL := settingsSvc.Get(context.Background(), config.SettingBaseURL)
-	sitemapHandler := controllers.NewSitemapHandler(repos.DB(), baseURL)
+	sitemapSvc := sitemap.NewService(repos.Sitemap, settingsSvc, baseURL)
+	sitemapHandler := controllers.NewSitemapHandler(sitemapSvc)
 	sitemapHandler.Register(app)
 
 	app.Get("/api/v1/ws", ws.Handler(svc.hub, svc.session, svc.chat, svc.gameRoom, svc.chat, func() string {

@@ -1250,6 +1250,42 @@ func TestPostRepository_DecrementShareCount_ClampsToZero(t *testing.T) {
 	assert.Equal(t, 0, count)
 }
 
+func TestPostRepository_GetSharedContentAuthor_Post(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	user := repotest.CreateUser(t, repos)
+	postID := createPost(t, repos, user.ID, "general", "body")
+
+	// when
+	authorID, err := repos.Post.GetSharedContentAuthor(context.Background(), postID.String(), "post")
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, user.ID, authorID)
+}
+
+func TestPostRepository_GetSharedContentAuthor_UnknownType(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+
+	// when
+	_, err := repos.Post.GetSharedContentAuthor(context.Background(), uuid.New().String(), "nonsense")
+
+	// then
+	require.Error(t, err)
+}
+
+func TestPostRepository_GetSharedContentAuthor_NotFound(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+
+	// when
+	_, err := repos.Post.GetSharedContentAuthor(context.Background(), uuid.New().String(), "post")
+
+	// then
+	require.Error(t, err)
+}
+
 func TestPostRepository_GetShareCount_NotFound(t *testing.T) {
 	// given
 	repos := repotest.NewRepos(t)
@@ -1605,7 +1641,7 @@ func TestGetSharedContentPreviews_Post(t *testing.T) {
 	_, _ = repos.Post.AddMedia(context.Background(), postID, "/m.jpg", "image", "", 0)
 
 	// when
-	result := repository.GetSharedContentPreviews(repos.DB(), []repository.SharedContentRef{
+	result := repos.Post.GetSharedContentPreviews([]repository.SharedContentRef{
 		{ID: postID.String(), Type: "post"},
 	})
 
@@ -1625,7 +1661,7 @@ func TestGetSharedContentPreviews_MissingContentFlaggedDeleted(t *testing.T) {
 	missingID := uuid.New().String()
 
 	// when
-	result := repository.GetSharedContentPreviews(repos.DB(), []repository.SharedContentRef{
+	result := repos.Post.GetSharedContentPreviews([]repository.SharedContentRef{
 		{ID: missingID, Type: "post"},
 	})
 
@@ -1641,7 +1677,7 @@ func TestGetSharedContentPreviews_EmptyRefs(t *testing.T) {
 	repos := repotest.NewRepos(t)
 
 	// when
-	result := repository.GetSharedContentPreviews(repos.DB(), nil)
+	result := repos.Post.GetSharedContentPreviews(nil)
 
 	// then
 	assert.Empty(t, result)
@@ -1652,7 +1688,7 @@ func TestGetSharedContentPreviews_UnknownType(t *testing.T) {
 	repos := repotest.NewRepos(t)
 
 	// when
-	result := repository.GetSharedContentPreviews(repos.DB(), []repository.SharedContentRef{
+	result := repos.Post.GetSharedContentPreviews([]repository.SharedContentRef{
 		{ID: "xyz", Type: "nonsense"},
 	})
 

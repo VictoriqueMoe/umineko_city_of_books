@@ -2,7 +2,6 @@ package post
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"io"
 	"strings"
@@ -14,6 +13,7 @@ import (
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
@@ -54,7 +54,6 @@ type (
 	}
 
 	service struct {
-		db            *sql.DB
 		postRepo      repository.PostRepository
 		userRepo      repository.UserRepository
 		roleRepo      repository.RoleRepository
@@ -77,7 +76,6 @@ var validPollDurations = map[int]bool{
 }
 
 func NewService(
-	db *sql.DB,
 	postRepo repository.PostRepository,
 	userRepo repository.UserRepository,
 	roleRepo repository.RoleRepository,
@@ -92,7 +90,6 @@ func NewService(
 	contentFilter *contentfilter.Manager,
 ) Service {
 	return &service{
-		db:            db,
 		postRepo:      postRepo,
 		userRepo:      userRepo,
 		roleRepo:      roleRepo,
@@ -267,7 +264,7 @@ func (s *service) GetPost(ctx context.Context, id uuid.UUID, viewerID uuid.UUID,
 
 	if row.SharedContentID != nil && row.SharedContentType != nil {
 		refs := []repository.SharedContentRef{{ID: *row.SharedContentID, Type: *row.SharedContentType}}
-		previews := repository.GetSharedContentPreviews(s.db, refs)
+		previews := s.postRepo.GetSharedContentPreviews(refs)
 		key := *row.SharedContentType + ":" + *row.SharedContentID
 		postResp.SharedContent = previews[key]
 	}
@@ -378,7 +375,7 @@ func (s *service) buildPostList(ctx context.Context, rows []model.PostRow, total
 			})
 		}
 	}
-	sharedPreviews := repository.GetSharedContentPreviews(s.db, sharedRefs)
+	sharedPreviews := s.postRepo.GetSharedContentPreviews(sharedRefs)
 
 	postShareCounts, _ := s.postRepo.GetShareCountsBatch(ctx, postIDStrs, "post")
 
@@ -887,21 +884,13 @@ func (s *service) GetShareCount(ctx context.Context, contentID string, contentTy
 func (s *service) notifyContentShared(sharerID uuid.UUID, postID uuid.UUID, contentID string, contentType string) {
 	bgCtx := context.Background()
 
-	tableMap := map[string]string{
-		"post":    "posts",
-		"art":     "art_pieces",
-		"ship":    "ships",
-		"mystery": "mysteries",
-		"theory":  "theories",
-		"fanfic":  "fanfics",
-	}
-	table, ok := tableMap[contentType]
-	if !ok {
-		return
-	}
-
-	var authorID uuid.UUID
-	if err := s.db.QueryRowContext(bgCtx, `SELECT user_id FROM `+table+` WHERE id = ?`, contentID).Scan(&authorID); err != nil {
+	authorID, err := s.postRepo.GetSharedContentAuthor(bgCtx, contentID, contentType)
+	if err != nil {
+		logger.Log.
+			Err(err).
+			Str("content_id", contentID).
+			Str("content_type", contentType).
+			Msg("notify content shared: lookup author failed")
 		return
 	}
 	if authorID == sharerID {

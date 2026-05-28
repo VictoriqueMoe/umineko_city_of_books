@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/dto"
+	fanficparams "umineko_city_of_books/internal/fanfic/params"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/repository/repotest"
 
@@ -365,7 +366,7 @@ func TestFanficRepository_List_Defaults(t *testing.T) {
 	createFanfic(t, repos, user.ID, "B")
 
 	// when
-	rows, total, err := repos.Fanfic.List(context.Background(), user.ID, repository.FanficListParams{Limit: 10}, nil)
+	rows, total, err := repos.Fanfic.List(context.Background(), user.ID, fanficparams.ListParams{Limit: 10}, nil)
 
 	// then
 	require.NoError(t, err)
@@ -385,9 +386,9 @@ func TestFanficRepository_List_HidesDraftsFromOthers(t *testing.T) {
 	))
 
 	// when
-	_, totalOther, err := repos.Fanfic.List(context.Background(), other.ID, repository.FanficListParams{Limit: 10}, nil)
+	_, totalOther, err := repos.Fanfic.List(context.Background(), other.ID, fanficparams.ListParams{Limit: 10}, nil)
 	require.NoError(t, err)
-	_, totalOwner, err := repos.Fanfic.List(context.Background(), owner.ID, repository.FanficListParams{Limit: 10}, nil)
+	_, totalOwner, err := repos.Fanfic.List(context.Background(), owner.ID, fanficparams.ListParams{Limit: 10}, nil)
 
 	// then
 	require.NoError(t, err)
@@ -407,9 +408,9 @@ func TestFanficRepository_List_FiltersLemons(t *testing.T) {
 	))
 
 	// when
-	_, totalNoLemons, err := repos.Fanfic.List(context.Background(), user.ID, repository.FanficListParams{Limit: 10}, nil)
+	_, totalNoLemons, err := repos.Fanfic.List(context.Background(), user.ID, fanficparams.ListParams{Limit: 10}, nil)
 	require.NoError(t, err)
-	_, totalWithLemons, err := repos.Fanfic.List(context.Background(), user.ID, repository.FanficListParams{Limit: 10, ShowLemons: true}, nil)
+	_, totalWithLemons, err := repos.Fanfic.List(context.Background(), user.ID, fanficparams.ListParams{Limit: 10, ShowLemons: true}, nil)
 
 	// then
 	require.NoError(t, err)
@@ -429,7 +430,7 @@ func TestFanficRepository_List_FilterSeries(t *testing.T) {
 	))
 
 	// when
-	rows, total, err := repos.Fanfic.List(context.Background(), user.ID, repository.FanficListParams{Series: "Higurashi", Limit: 10}, nil)
+	rows, total, err := repos.Fanfic.List(context.Background(), user.ID, fanficparams.ListParams{Series: "Higurashi", Limit: 10}, nil)
 
 	// then
 	require.NoError(t, err)
@@ -450,7 +451,7 @@ func TestFanficRepository_List_FilterRating(t *testing.T) {
 	))
 
 	// when
-	_, total, err := repos.Fanfic.List(context.Background(), user.ID, repository.FanficListParams{Rating: "M", Limit: 10}, nil)
+	_, total, err := repos.Fanfic.List(context.Background(), user.ID, fanficparams.ListParams{Rating: "M", Limit: 10}, nil)
 
 	// then
 	require.NoError(t, err)
@@ -469,7 +470,7 @@ func TestFanficRepository_List_FilterLanguage(t *testing.T) {
 	))
 
 	// when
-	_, total, err := repos.Fanfic.List(context.Background(), user.ID, repository.FanficListParams{Language: "Japanese", Limit: 10}, nil)
+	_, total, err := repos.Fanfic.List(context.Background(), user.ID, fanficparams.ListParams{Language: "Japanese", Limit: 10}, nil)
 
 	// then
 	require.NoError(t, err)
@@ -488,7 +489,7 @@ func TestFanficRepository_List_FilterStatus(t *testing.T) {
 	))
 
 	// when
-	_, total, err := repos.Fanfic.List(context.Background(), user.ID, repository.FanficListParams{Status: "completed", Limit: 10}, nil)
+	_, total, err := repos.Fanfic.List(context.Background(), user.ID, fanficparams.ListParams{Status: "completed", Limit: 10}, nil)
 
 	// then
 	require.NoError(t, err)
@@ -511,7 +512,7 @@ func TestFanficRepository_List_FilterGenres(t *testing.T) {
 	))
 
 	// when
-	_, total, err := repos.Fanfic.List(context.Background(), user.ID, repository.FanficListParams{GenreA: "Drama", GenreB: "Mystery", Limit: 10}, nil)
+	_, total, err := repos.Fanfic.List(context.Background(), user.ID, fanficparams.ListParams{GenreA: "Drama", GenreB: "Mystery", Limit: 10}, nil)
 
 	// then
 	require.NoError(t, err)
@@ -534,7 +535,7 @@ func TestFanficRepository_List_FilterTag(t *testing.T) {
 	))
 
 	// when
-	_, total, err := repos.Fanfic.List(context.Background(), user.ID, repository.FanficListParams{Tag: "angst", Limit: 10}, nil)
+	_, total, err := repos.Fanfic.List(context.Background(), user.ID, fanficparams.ListParams{Tag: "angst", Limit: 10}, nil)
 
 	// then
 	require.NoError(t, err)
@@ -561,7 +562,7 @@ func TestFanficRepository_List_FilterCharacter(t *testing.T) {
 	))
 
 	// when
-	_, total, err := repos.Fanfic.List(context.Background(), user.ID, repository.FanficListParams{CharacterA: "Battler", Limit: 10}, nil)
+	_, total, err := repos.Fanfic.List(context.Background(), user.ID, fanficparams.ListParams{CharacterA: "Battler", Limit: 10}, nil)
 
 	// then
 	require.NoError(t, err)
@@ -591,7 +592,7 @@ func TestFanficRepository_List_FilterPairing(t *testing.T) {
 	))
 
 	// when
-	_, total, err := repos.Fanfic.List(context.Background(), user.ID, repository.FanficListParams{CharacterA: "Battler", IsPairing: true, Limit: 10}, nil)
+	_, total, err := repos.Fanfic.List(context.Background(), user.ID, fanficparams.ListParams{CharacterA: "Battler", IsPairing: true, Limit: 10}, nil)
 
 	// then
 	require.NoError(t, err)
@@ -614,7 +615,7 @@ func TestFanficRepository_List_Search(t *testing.T) {
 	))
 
 	// when
-	_, total, err := repos.Fanfic.List(context.Background(), user.ID, repository.FanficListParams{Search: "golden", Limit: 10}, nil)
+	_, total, err := repos.Fanfic.List(context.Background(), user.ID, fanficparams.ListParams{Search: "golden", Limit: 10}, nil)
 
 	// then
 	require.NoError(t, err)
@@ -631,7 +632,7 @@ func TestFanficRepository_List_SortFavourites(t *testing.T) {
 	require.NoError(t, repos.Fanfic.Favourite(context.Background(), voter.ID, b))
 
 	// when
-	rows, _, err := repos.Fanfic.List(context.Background(), user.ID, repository.FanficListParams{Sort: "favourites", Limit: 10}, nil)
+	rows, _, err := repos.Fanfic.List(context.Background(), user.ID, fanficparams.ListParams{Sort: "favourites", Limit: 10}, nil)
 
 	// then
 	require.NoError(t, err)
@@ -649,7 +650,7 @@ func TestFanficRepository_List_Pagination(t *testing.T) {
 	}
 
 	// when
-	rows, total, err := repos.Fanfic.List(context.Background(), user.ID, repository.FanficListParams{Limit: 2, Offset: 1}, nil)
+	rows, total, err := repos.Fanfic.List(context.Background(), user.ID, fanficparams.ListParams{Limit: 2, Offset: 1}, nil)
 
 	// then
 	require.NoError(t, err)
@@ -666,7 +667,7 @@ func TestFanficRepository_List_ExcludeUsers(t *testing.T) {
 	createFanfic(t, repos, blocked.ID, "Blocked")
 
 	// when
-	_, total, err := repos.Fanfic.List(context.Background(), user.ID, repository.FanficListParams{Limit: 10}, []uuid.UUID{blocked.ID})
+	_, total, err := repos.Fanfic.List(context.Background(), user.ID, fanficparams.ListParams{Limit: 10}, []uuid.UUID{blocked.ID})
 
 	// then
 	require.NoError(t, err)

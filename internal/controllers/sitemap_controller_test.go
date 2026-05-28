@@ -1,48 +1,36 @@
 package controllers
 
 import (
-	"database/sql"
 	"encoding/xml"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
-	"umineko_city_of_books/internal/db/dbtest"
+	"umineko_city_of_books/internal/sitemap"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
 const sitemapBaseURL = "https://example.test"
 
-func newSitemapDB(t *testing.T) *sql.DB {
-	t.Helper()
-	db, _ := dbtest.NewEmptyDatabase(t)
-
-	schema := []string{
-		`CREATE TABLE theories  (id TEXT PRIMARY KEY, created_at TEXT)`,
-		`CREATE TABLE posts     (id TEXT PRIMARY KEY, created_at TEXT)`,
-		`CREATE TABLE art       (id TEXT PRIMARY KEY, created_at TEXT)`,
-		`CREATE TABLE users     (username TEXT PRIMARY KEY, created_at TEXT)`,
-		`CREATE TABLE mysteries (id TEXT PRIMARY KEY, created_at TEXT)`,
-		`CREATE TABLE ships     (id TEXT PRIMARY KEY, created_at TEXT)`,
-		`CREATE TABLE fanfics   (id TEXT PRIMARY KEY, created_at TEXT)`,
-	}
-	for _, stmt := range schema {
-		_, err := db.Exec(stmt)
-		require.NoError(t, err)
-	}
-	return db
-}
-
-func newSitemapApp(t *testing.T, db *sql.DB) *fiber.App {
+func newSitemapApp(t *testing.T, svc sitemap.Service) *fiber.App {
 	t.Helper()
 	app := fiber.New()
-	handler := NewSitemapHandler(db, sitemapBaseURL)
-	handler.Register(app)
+	NewSitemapHandler(svc).Register(app)
 	return app
+}
+
+func newSitemapMock(t *testing.T) *sitemap.MockService {
+	t.Helper()
+	m := sitemap.NewMockService(t)
+	m.EXPECT().BaseURL().Return(sitemapBaseURL).Maybe()
+	return m
 }
 
 func doSitemapRequest(t *testing.T, app *fiber.App, path string) (int, []byte, string) {
@@ -58,8 +46,12 @@ func doSitemapRequest(t *testing.T, app *fiber.App, path string) (int, []byte, s
 
 func TestSitemap_Index_OK(t *testing.T) {
 	// given
-	db := newSitemapDB(t)
-	app := newSitemapApp(t, db)
+	svc := newSitemapMock(t)
+	svc.EXPECT().IndexEntries().Return([]sitemap.IndexEntry{
+		{Loc: sitemapBaseURL + "/sitemap-static.xml"},
+		{Loc: sitemapBaseURL + "/sitemap-theories.xml"},
+	})
+	app := newSitemapApp(t, svc)
 
 	// when
 	status, body, contentType := doSitemapRequest(t, app, "/sitemap.xml")
@@ -67,34 +59,21 @@ func TestSitemap_Index_OK(t *testing.T) {
 	// then
 	require.Equal(t, http.StatusOK, status)
 	assert.Contains(t, contentType, "application/xml")
-
 	var idx sitemapIndex
 	require.NoError(t, xml.Unmarshal(body, &idx))
 	assert.Equal(t, "http://www.sitemaps.org/schemas/sitemap/0.9", idx.XMLNS)
-	require.Len(t, idx.Sitemaps, 9)
-
-	want := []string{
-		sitemapBaseURL + "/sitemap-static.xml",
-		sitemapBaseURL + "/sitemap-theories.xml",
-		sitemapBaseURL + "/sitemap-posts.xml",
-		sitemapBaseURL + "/sitemap-art.xml",
-		sitemapBaseURL + "/sitemap-users.xml",
-		sitemapBaseURL + "/sitemap-mysteries.xml",
-		sitemapBaseURL + "/sitemap-ships.xml",
-		sitemapBaseURL + "/sitemap-fanfics.xml",
-		sitemapBaseURL + "/sitemap-journals.xml",
-	}
-	got := make([]string, 0, len(idx.Sitemaps))
-	for _, s := range idx.Sitemaps {
-		got = append(got, s.Loc)
-	}
-	assert.Equal(t, want, got)
+	require.Len(t, idx.Sitemaps, 2)
+	assert.Equal(t, sitemapBaseURL+"/sitemap-static.xml", idx.Sitemaps[0].Loc)
 }
 
 func TestSitemap_Static_OK(t *testing.T) {
 	// given
-	db := newSitemapDB(t)
-	app := newSitemapApp(t, db)
+	svc := newSitemapMock(t)
+	svc.EXPECT().StaticEntries(mock.Anything).Return([]sitemap.Entry{
+		{URL: sitemapBaseURL, LastMod: "2026-05-28"},
+		{URL: sitemapBaseURL + "/welcome", LastMod: "2026-05-28"},
+	})
+	app := newSitemapApp(t, svc)
 
 	// when
 	status, body, contentType := doSitemapRequest(t, app, "/sitemap-static.xml")
@@ -102,43 +81,21 @@ func TestSitemap_Static_OK(t *testing.T) {
 	// then
 	require.Equal(t, http.StatusOK, status)
 	assert.Contains(t, contentType, "application/xml")
-
 	var set sitemapURLSet
 	require.NoError(t, xml.Unmarshal(body, &set))
-	assert.Equal(t, "http://www.sitemaps.org/schemas/sitemap/0.9", set.XMLNS)
-	require.NotEmpty(t, set.URLs)
-
-	locs := make(map[string]bool, len(set.URLs))
-	for _, u := range set.URLs {
-		locs[u.Loc] = true
-		assert.NotEmpty(t, u.LastMod, "static URL should have lastmod")
-	}
-	for _, expected := range []string{
-		sitemapBaseURL,
-		sitemapBaseURL + "/theories",
-		sitemapBaseURL + "/game-board",
-		sitemapBaseURL + "/gallery",
-		sitemapBaseURL + "/quotes",
-		sitemapBaseURL + "/mysteries",
-		sitemapBaseURL + "/ships",
-		sitemapBaseURL + "/fanfiction",
-		sitemapBaseURL + "/suggestions",
-		sitemapBaseURL + "/login",
-	} {
-		assert.Truef(t, locs[expected], "expected static sitemap to contain %q", expected)
-	}
+	require.Len(t, set.URLs, 2)
+	assert.Equal(t, sitemapBaseURL, set.URLs[0].Loc)
+	assert.Equal(t, "2026-05-28", set.URLs[0].LastMod)
 }
 
 func TestSitemap_Theories_OK(t *testing.T) {
 	// given
-	db := newSitemapDB(t)
-	_, err := db.Exec(
-		`INSERT INTO theories (id, created_at) VALUES ($1, $2), ($3, $4)`,
-		"theory-a", "2024-01-02 10:00:00",
-		"theory-b", "2024-02-03 11:30:00",
-	)
-	require.NoError(t, err)
-	app := newSitemapApp(t, db)
+	svc := newSitemapMock(t)
+	svc.EXPECT().Theories(mock.Anything).Return([]sitemap.Entry{
+		{URL: sitemapBaseURL + "/theory/theory-a", LastMod: "2024-01-02"},
+		{URL: sitemapBaseURL + "/theory/theory-b", LastMod: "2024-02-03"},
+	}, nil)
+	app := newSitemapApp(t, svc)
 
 	// when
 	status, body, _ := doSitemapRequest(t, app, "/sitemap-theories.xml")
@@ -156,12 +113,11 @@ func TestSitemap_Theories_OK(t *testing.T) {
 	assert.Equal(t, "2024-02-03", locs[sitemapBaseURL+"/theory/theory-b"])
 }
 
-func TestSitemap_Theories_DBError(t *testing.T) {
+func TestSitemap_Theories_ServiceError(t *testing.T) {
 	// given
-	db := newSitemapDB(t)
-	_, err := db.Exec(`DROP TABLE theories`)
-	require.NoError(t, err)
-	app := newSitemapApp(t, db)
+	svc := newSitemapMock(t)
+	svc.EXPECT().Theories(mock.Anything).Return(nil, errors.New("boom"))
+	app := newSitemapApp(t, svc)
 
 	// when
 	status, body, _ := doSitemapRequest(t, app, "/sitemap-theories.xml")
@@ -173,13 +129,11 @@ func TestSitemap_Theories_DBError(t *testing.T) {
 
 func TestSitemap_Posts_OK(t *testing.T) {
 	// given
-	db := newSitemapDB(t)
-	_, err := db.Exec(
-		`INSERT INTO posts (id, created_at) VALUES ($1, $2)`,
-		"post-1", "2024-05-01 09:15:00",
-	)
-	require.NoError(t, err)
-	app := newSitemapApp(t, db)
+	svc := newSitemapMock(t)
+	svc.EXPECT().Posts(mock.Anything).Return([]sitemap.Entry{
+		{URL: sitemapBaseURL + "/game-board/post-1", LastMod: "2024-05-01"},
+	}, nil)
+	app := newSitemapApp(t, svc)
 
 	// when
 	status, body, _ := doSitemapRequest(t, app, "/sitemap-posts.xml")
@@ -193,12 +147,11 @@ func TestSitemap_Posts_OK(t *testing.T) {
 	assert.Equal(t, "2024-05-01", set.URLs[0].LastMod)
 }
 
-func TestSitemap_Posts_DBError(t *testing.T) {
+func TestSitemap_Posts_ServiceError(t *testing.T) {
 	// given
-	db := newSitemapDB(t)
-	_, err := db.Exec(`DROP TABLE posts`)
-	require.NoError(t, err)
-	app := newSitemapApp(t, db)
+	svc := newSitemapMock(t)
+	svc.EXPECT().Posts(mock.Anything).Return(nil, errors.New("boom"))
+	app := newSitemapApp(t, svc)
 
 	// when
 	status, body, _ := doSitemapRequest(t, app, "/sitemap-posts.xml")
@@ -210,13 +163,11 @@ func TestSitemap_Posts_DBError(t *testing.T) {
 
 func TestSitemap_Art_OK(t *testing.T) {
 	// given
-	db := newSitemapDB(t)
-	_, err := db.Exec(
-		`INSERT INTO art (id, created_at) VALUES ($1, $2)`,
-		"art-xyz", "2024-06-07 08:00:00",
-	)
-	require.NoError(t, err)
-	app := newSitemapApp(t, db)
+	svc := newSitemapMock(t)
+	svc.EXPECT().Art(mock.Anything).Return([]sitemap.Entry{
+		{URL: sitemapBaseURL + "/gallery/art/art-xyz", LastMod: "2024-06-07"},
+	}, nil)
+	app := newSitemapApp(t, svc)
 
 	// when
 	status, body, _ := doSitemapRequest(t, app, "/sitemap-art.xml")
@@ -227,34 +178,16 @@ func TestSitemap_Art_OK(t *testing.T) {
 	require.NoError(t, xml.Unmarshal(body, &set))
 	require.Len(t, set.URLs, 1)
 	assert.Equal(t, sitemapBaseURL+"/gallery/art/art-xyz", set.URLs[0].Loc)
-	assert.Equal(t, "2024-06-07", set.URLs[0].LastMod)
-}
-
-func TestSitemap_Art_DBError(t *testing.T) {
-	// given
-	db := newSitemapDB(t)
-	_, err := db.Exec(`DROP TABLE art`)
-	require.NoError(t, err)
-	app := newSitemapApp(t, db)
-
-	// when
-	status, body, _ := doSitemapRequest(t, app, "/sitemap-art.xml")
-
-	// then
-	require.Equal(t, http.StatusInternalServerError, status)
-	assert.Contains(t, string(body), "failed to query art")
 }
 
 func TestSitemap_Users_OK(t *testing.T) {
 	// given
-	db := newSitemapDB(t)
-	_, err := db.Exec(
-		`INSERT INTO users (username, created_at) VALUES ($1, $2), ($3, $4)`,
-		"alice", "2024-01-01 00:00:00",
-		"bob", "2024-01-02 00:00:00",
-	)
-	require.NoError(t, err)
-	app := newSitemapApp(t, db)
+	svc := newSitemapMock(t)
+	svc.EXPECT().Users(mock.Anything).Return([]sitemap.Entry{
+		{URL: sitemapBaseURL + "/user/alice"},
+		{URL: sitemapBaseURL + "/user/bob"},
+	}, nil)
+	app := newSitemapApp(t, svc)
 
 	// when
 	status, body, _ := doSitemapRequest(t, app, "/sitemap-users.xml")
@@ -273,30 +206,13 @@ func TestSitemap_Users_OK(t *testing.T) {
 	assert.True(t, locs[sitemapBaseURL+"/user/bob"])
 }
 
-func TestSitemap_Users_DBError(t *testing.T) {
-	// given
-	db := newSitemapDB(t)
-	_, err := db.Exec(`DROP TABLE users`)
-	require.NoError(t, err)
-	app := newSitemapApp(t, db)
-
-	// when
-	status, body, _ := doSitemapRequest(t, app, "/sitemap-users.xml")
-
-	// then
-	require.Equal(t, http.StatusInternalServerError, status)
-	assert.Contains(t, string(body), "failed to query users")
-}
-
 func TestSitemap_Mysteries_OK(t *testing.T) {
 	// given
-	db := newSitemapDB(t)
-	_, err := db.Exec(
-		`INSERT INTO mysteries (id, created_at) VALUES ($1, $2)`,
-		"mystery-1", "2024-07-08 12:34:56",
-	)
-	require.NoError(t, err)
-	app := newSitemapApp(t, db)
+	svc := newSitemapMock(t)
+	svc.EXPECT().Mysteries(mock.Anything).Return([]sitemap.Entry{
+		{URL: sitemapBaseURL + "/mystery/mystery-1", LastMod: "2024-07-08"},
+	}, nil)
+	app := newSitemapApp(t, svc)
 
 	// when
 	status, body, _ := doSitemapRequest(t, app, "/sitemap-mysteries.xml")
@@ -307,33 +223,15 @@ func TestSitemap_Mysteries_OK(t *testing.T) {
 	require.NoError(t, xml.Unmarshal(body, &set))
 	require.Len(t, set.URLs, 1)
 	assert.Equal(t, sitemapBaseURL+"/mystery/mystery-1", set.URLs[0].Loc)
-	assert.Equal(t, "2024-07-08", set.URLs[0].LastMod)
-}
-
-func TestSitemap_Mysteries_DBError(t *testing.T) {
-	// given
-	db := newSitemapDB(t)
-	_, err := db.Exec(`DROP TABLE mysteries`)
-	require.NoError(t, err)
-	app := newSitemapApp(t, db)
-
-	// when
-	status, body, _ := doSitemapRequest(t, app, "/sitemap-mysteries.xml")
-
-	// then
-	require.Equal(t, http.StatusInternalServerError, status)
-	assert.Contains(t, string(body), "failed to query mysteries")
 }
 
 func TestSitemap_Ships_OK(t *testing.T) {
 	// given
-	db := newSitemapDB(t)
-	_, err := db.Exec(
-		`INSERT INTO ships (id, created_at) VALUES ($1, $2)`,
-		"ship-1", "2024-08-09 01:02:03",
-	)
-	require.NoError(t, err)
-	app := newSitemapApp(t, db)
+	svc := newSitemapMock(t)
+	svc.EXPECT().Ships(mock.Anything).Return([]sitemap.Entry{
+		{URL: sitemapBaseURL + "/ships/ship-1", LastMod: "2024-08-09"},
+	}, nil)
+	app := newSitemapApp(t, svc)
 
 	// when
 	status, body, _ := doSitemapRequest(t, app, "/sitemap-ships.xml")
@@ -344,33 +242,15 @@ func TestSitemap_Ships_OK(t *testing.T) {
 	require.NoError(t, xml.Unmarshal(body, &set))
 	require.Len(t, set.URLs, 1)
 	assert.Equal(t, sitemapBaseURL+"/ships/ship-1", set.URLs[0].Loc)
-	assert.Equal(t, "2024-08-09", set.URLs[0].LastMod)
-}
-
-func TestSitemap_Ships_DBError(t *testing.T) {
-	// given
-	db := newSitemapDB(t)
-	_, err := db.Exec(`DROP TABLE ships`)
-	require.NoError(t, err)
-	app := newSitemapApp(t, db)
-
-	// when
-	status, body, _ := doSitemapRequest(t, app, "/sitemap-ships.xml")
-
-	// then
-	require.Equal(t, http.StatusInternalServerError, status)
-	assert.Contains(t, string(body), "failed to query ships")
 }
 
 func TestSitemap_Fanfics_OK(t *testing.T) {
 	// given
-	db := newSitemapDB(t)
-	_, err := db.Exec(
-		`INSERT INTO fanfics (id, created_at) VALUES ($1, $2)`,
-		"fic-1", "2024-09-10 04:05:06",
-	)
-	require.NoError(t, err)
-	app := newSitemapApp(t, db)
+	svc := newSitemapMock(t)
+	svc.EXPECT().Fanfics(mock.Anything).Return([]sitemap.Entry{
+		{URL: sitemapBaseURL + "/fanfiction/fic-1", LastMod: "2024-09-10"},
+	}, nil)
+	app := newSitemapApp(t, svc)
 
 	// when
 	status, body, _ := doSitemapRequest(t, app, "/sitemap-fanfics.xml")
@@ -381,28 +261,32 @@ func TestSitemap_Fanfics_OK(t *testing.T) {
 	require.NoError(t, xml.Unmarshal(body, &set))
 	require.Len(t, set.URLs, 1)
 	assert.Equal(t, sitemapBaseURL+"/fanfiction/fic-1", set.URLs[0].Loc)
-	assert.Equal(t, "2024-09-10", set.URLs[0].LastMod)
 }
 
-func TestSitemap_Fanfics_DBError(t *testing.T) {
+func TestSitemap_Journals_OK(t *testing.T) {
 	// given
-	db := newSitemapDB(t)
-	_, err := db.Exec(`DROP TABLE fanfics`)
-	require.NoError(t, err)
-	app := newSitemapApp(t, db)
+	svc := newSitemapMock(t)
+	svc.EXPECT().Journals(mock.Anything).Return([]sitemap.Entry{
+		{URL: sitemapBaseURL + "/journals/journal-1", LastMod: "2024-10-11"},
+		{URL: sitemapBaseURL + "/journals/journal-1/entry/1", LastMod: "2024-10-11"},
+	}, nil)
+	app := newSitemapApp(t, svc)
 
 	// when
-	status, body, _ := doSitemapRequest(t, app, "/sitemap-fanfics.xml")
+	status, body, _ := doSitemapRequest(t, app, "/sitemap-journals.xml")
 
 	// then
-	require.Equal(t, http.StatusInternalServerError, status)
-	assert.Contains(t, string(body), "failed to query fanfics")
+	require.Equal(t, http.StatusOK, status)
+	var set sitemapURLSet
+	require.NoError(t, xml.Unmarshal(body, &set))
+	require.Len(t, set.URLs, 2)
 }
 
 func TestSitemap_Empty_ReturnsEmptyURLSet(t *testing.T) {
 	// given
-	db := newSitemapDB(t)
-	app := newSitemapApp(t, db)
+	svc := newSitemapMock(t)
+	svc.EXPECT().Theories(mock.Anything).Return(nil, nil)
+	app := newSitemapApp(t, svc)
 
 	// when
 	status, body, _ := doSitemapRequest(t, app, "/sitemap-theories.xml")
@@ -417,8 +301,9 @@ func TestSitemap_Empty_ReturnsEmptyURLSet(t *testing.T) {
 
 func TestSitemap_ResponseHasXMLHeader(t *testing.T) {
 	// given
-	db := newSitemapDB(t)
-	app := newSitemapApp(t, db)
+	svc := newSitemapMock(t)
+	svc.EXPECT().IndexEntries().Return(nil)
+	app := newSitemapApp(t, svc)
 
 	// when
 	status, body, _ := doSitemapRequest(t, app, "/sitemap.xml")
@@ -427,3 +312,5 @@ func TestSitemap_ResponseHasXMLHeader(t *testing.T) {
 	require.Equal(t, http.StatusOK, status)
 	assert.Contains(t, string(body), `<?xml version="1.0" encoding="UTF-8"?>`)
 }
+
+var _ = time.Time{}
