@@ -7,6 +7,7 @@ package repository
 import (
 	"context"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/fanfic/params"
 	"umineko_city_of_books/internal/repository/model"
 
 	"github.com/google/uuid"
@@ -2297,8 +2298,8 @@ func (_c *MockFanficRepository_LikeComment_Call) RunAndReturn(run func(ctx conte
 }
 
 // List provides a mock function for the type MockFanficRepository
-func (_mock *MockFanficRepository) List(ctx context.Context, viewerID uuid.UUID, params FanficListParams, excludeUserIDs []uuid.UUID) ([]model.FanficRow, int, error) {
-	ret := _mock.Called(ctx, viewerID, params, excludeUserIDs)
+func (_mock *MockFanficRepository) List(ctx context.Context, viewerID uuid.UUID, params1 params.ListParams, excludeUserIDs []uuid.UUID) ([]model.FanficRow, int, error) {
+	ret := _mock.Called(ctx, viewerID, params1, excludeUserIDs)
 
 	if len(ret) == 0 {
 		panic("no return value specified for List")
@@ -2307,23 +2308,23 @@ func (_mock *MockFanficRepository) List(ctx context.Context, viewerID uuid.UUID,
 	var r0 []model.FanficRow
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, FanficListParams, []uuid.UUID) ([]model.FanficRow, int, error)); ok {
-		return returnFunc(ctx, viewerID, params, excludeUserIDs)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, params.ListParams, []uuid.UUID) ([]model.FanficRow, int, error)); ok {
+		return returnFunc(ctx, viewerID, params1, excludeUserIDs)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, FanficListParams, []uuid.UUID) []model.FanficRow); ok {
-		r0 = returnFunc(ctx, viewerID, params, excludeUserIDs)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, params.ListParams, []uuid.UUID) []model.FanficRow); ok {
+		r0 = returnFunc(ctx, viewerID, params1, excludeUserIDs)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]model.FanficRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, FanficListParams, []uuid.UUID) int); ok {
-		r1 = returnFunc(ctx, viewerID, params, excludeUserIDs)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, params.ListParams, []uuid.UUID) int); ok {
+		r1 = returnFunc(ctx, viewerID, params1, excludeUserIDs)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, FanficListParams, []uuid.UUID) error); ok {
-		r2 = returnFunc(ctx, viewerID, params, excludeUserIDs)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, params.ListParams, []uuid.UUID) error); ok {
+		r2 = returnFunc(ctx, viewerID, params1, excludeUserIDs)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -2338,13 +2339,13 @@ type MockFanficRepository_List_Call struct {
 // List is a helper method to define mock.On call
 //   - ctx context.Context
 //   - viewerID uuid.UUID
-//   - params FanficListParams
+//   - params1 params.ListParams
 //   - excludeUserIDs []uuid.UUID
-func (_e *MockFanficRepository_Expecter) List(ctx interface{}, viewerID interface{}, params interface{}, excludeUserIDs interface{}) *MockFanficRepository_List_Call {
-	return &MockFanficRepository_List_Call{Call: _e.mock.On("List", ctx, viewerID, params, excludeUserIDs)}
+func (_e *MockFanficRepository_Expecter) List(ctx interface{}, viewerID interface{}, params1 interface{}, excludeUserIDs interface{}) *MockFanficRepository_List_Call {
+	return &MockFanficRepository_List_Call{Call: _e.mock.On("List", ctx, viewerID, params1, excludeUserIDs)}
 }
 
-func (_c *MockFanficRepository_List_Call) Run(run func(ctx context.Context, viewerID uuid.UUID, params FanficListParams, excludeUserIDs []uuid.UUID)) *MockFanficRepository_List_Call {
+func (_c *MockFanficRepository_List_Call) Run(run func(ctx context.Context, viewerID uuid.UUID, params1 params.ListParams, excludeUserIDs []uuid.UUID)) *MockFanficRepository_List_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -2354,9 +2355,9 @@ func (_c *MockFanficRepository_List_Call) Run(run func(ctx context.Context, view
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
-		var arg2 FanficListParams
+		var arg2 params.ListParams
 		if args[2] != nil {
-			arg2 = args[2].(FanficListParams)
+			arg2 = args[2].(params.ListParams)
 		}
 		var arg3 []uuid.UUID
 		if args[3] != nil {
@@ -2377,7 +2378,7 @@ func (_c *MockFanficRepository_List_Call) Return(fanficRows []model.FanficRow, n
 	return _c
 }
 
-func (_c *MockFanficRepository_List_Call) RunAndReturn(run func(ctx context.Context, viewerID uuid.UUID, params FanficListParams, excludeUserIDs []uuid.UUID) ([]model.FanficRow, int, error)) *MockFanficRepository_List_Call {
+func (_c *MockFanficRepository_List_Call) RunAndReturn(run func(ctx context.Context, viewerID uuid.UUID, params1 params.ListParams, excludeUserIDs []uuid.UUID) ([]model.FanficRow, int, error)) *MockFanficRepository_List_Call {
 	_c.Call.Return(run)
 	return _c
 }

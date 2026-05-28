@@ -41,6 +41,7 @@ type (
 		GetLikedBy(ctx context.Context, postID uuid.UUID, excludeUserIDs []uuid.UUID) ([]model.PostLikeUser, error)
 		RecordView(ctx context.Context, postID uuid.UUID, viewerHash string) (bool, error)
 		GetPostAuthorID(ctx context.Context, postID uuid.UUID) (uuid.UUID, error)
+		GetSharedContentAuthor(ctx context.Context, contentID string, contentType string) (uuid.UUID, error)
 
 		ResolveSuggestion(ctx context.Context, postID uuid.UUID, resolvedBy uuid.UUID, status string) error
 		UnresolveSuggestion(ctx context.Context, postID uuid.UUID) error
@@ -69,6 +70,7 @@ type (
 		IncrementShareCount(ctx context.Context, contentID string, contentType string) error
 		DecrementShareCount(ctx context.Context, contentID string, contentType string) error
 		GetSharedContentFields(ctx context.Context, postID uuid.UUID) (*string, *string, error)
+		GetSharedContentPreviews(refs []SharedContentRef) map[string]*dto.SharedContentPreview
 
 		CreatePollWithOptions(ctx context.Context, pollID uuid.UUID, postID uuid.UUID, durationSeconds int, expiresAt string, options []string) error
 		GetPollByPostID(ctx context.Context, postID uuid.UUID, viewerID uuid.UUID) (*model.PollRow, []model.PollOptionRow, *int, error)
@@ -92,6 +94,15 @@ type (
 		Type string
 	}
 )
+
+var sharedContentTables = map[string]string{
+	"post":    "posts",
+	"art":     "art_pieces",
+	"ship":    "ships",
+	"mystery": "mysteries",
+	"theory":  "theories",
+	"fanfic":  "fanfics",
+}
 
 func rebind(query string) string {
 	var (
@@ -564,6 +575,19 @@ func (r *postRepository) GetPostAuthorID(ctx context.Context, postID uuid.UUID) 
 	return userID, nil
 }
 
+func (r *postRepository) GetSharedContentAuthor(ctx context.Context, contentID string, contentType string) (uuid.UUID, error) {
+	table, ok := sharedContentTables[contentType]
+	if !ok {
+		return uuid.Nil, fmt.Errorf("unknown shared content type: %s", contentType)
+	}
+	var userID uuid.UUID
+	err := r.db.QueryRowContext(ctx, `SELECT user_id FROM `+table+` WHERE id = $1`, contentID).Scan(&userID)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("get shared content author: %w", err)
+	}
+	return userID, nil
+}
+
 func (r *postRepository) ResolveSuggestion(ctx context.Context, postID uuid.UUID, resolvedBy uuid.UUID, status string) error {
 	_, err := r.db.ExecContext(ctx,
 		`INSERT INTO suggestion_resolved (post_id, resolved_by, status) VALUES ($1, $2, $3)
@@ -946,7 +970,7 @@ func (r *postRepository) GetSharedContentFields(ctx context.Context, postID uuid
 	return contentID, contentType, nil
 }
 
-func GetSharedContentPreviews(db *sql.DB, refs []SharedContentRef) map[string]*dto.SharedContentPreview {
+func (r *postRepository) GetSharedContentPreviews(refs []SharedContentRef) map[string]*dto.SharedContentPreview {
 	result := make(map[string]*dto.SharedContentPreview)
 	if len(refs) == 0 {
 		return result
@@ -961,17 +985,17 @@ func GetSharedContentPreviews(db *sql.DB, refs []SharedContentRef) map[string]*d
 	for contentType, ids := range grouped {
 		switch contentType {
 		case "post":
-			fetchPostPreviews(db, ids, result)
+			r.fetchPostPreviews(ids, result)
 		case "art":
-			fetchArtPreviews(db, ids, result)
+			r.fetchArtPreviews(ids, result)
 		case "ship":
-			fetchShipPreviews(db, ids, result)
+			r.fetchShipPreviews(ids, result)
 		case "mystery":
-			fetchMysteryPreviews(db, ids, result)
+			r.fetchMysteryPreviews(ids, result)
 		case "theory":
-			fetchTheoryPreviews(db, ids, result)
+			r.fetchTheoryPreviews(ids, result)
 		case "fanfic":
-			fetchFanficPreviews(db, ids, result)
+			r.fetchFanficPreviews(ids, result)
 		}
 	}
 
@@ -1027,9 +1051,9 @@ func truncateBody(body string, maxLen int) string {
 	return body[:maxLen] + "..."
 }
 
-func fetchPostPreviews(db *sql.DB, ids []string, result map[string]*dto.SharedContentPreview) {
+func (r *postRepository) fetchPostPreviews(ids []string, result map[string]*dto.SharedContentPreview) {
 	placeholders, args := buildPlaceholders(ids)
-	rows, err := db.Query(
+	rows, err := r.db.Query(
 		rebind(`SELECT p.id, p.body, p.user_id, u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''),
 			(SELECT COUNT(*) FROM post_likes WHERE post_id = p.id) as like_count,
 			(SELECT COUNT(*) FROM post_comments WHERE post_id = p.id) as comment_count,
@@ -1071,7 +1095,7 @@ func fetchPostPreviews(db *sql.DB, ids []string, result map[string]*dto.SharedCo
 		}
 	}
 
-	mediaRows, err := db.Query(
+	mediaRows, err := r.db.Query(
 		rebind(`SELECT post_id, media_url, media_type, thumbnail_url, sort_order
 		FROM post_media WHERE post_id IN (`+placeholders+`) ORDER BY sort_order LIMIT 4`), args...,
 	)
@@ -1102,9 +1126,9 @@ func fetchPostPreviews(db *sql.DB, ids []string, result map[string]*dto.SharedCo
 	}
 }
 
-func fetchArtPreviews(db *sql.DB, ids []string, result map[string]*dto.SharedContentPreview) {
+func (r *postRepository) fetchArtPreviews(ids []string, result map[string]*dto.SharedContentPreview) {
 	placeholders, args := buildPlaceholders(ids)
-	rows, err := db.Query(
+	rows, err := r.db.Query(
 		rebind(`SELECT a.id, a.title, a.description, a.image_url, a.thumbnail_url, a.user_id, u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''), a.corner
 		FROM art a
 		JOIN users u ON a.user_id = u.id
@@ -1145,9 +1169,9 @@ func fetchArtPreviews(db *sql.DB, ids []string, result map[string]*dto.SharedCon
 	}
 }
 
-func fetchShipPreviews(db *sql.DB, ids []string, result map[string]*dto.SharedContentPreview) {
+func (r *postRepository) fetchShipPreviews(ids []string, result map[string]*dto.SharedContentPreview) {
 	placeholders, args := buildPlaceholders(ids)
-	rows, err := db.Query(
+	rows, err := r.db.Query(
 		rebind(`SELECT s.id, s.title, s.description, s.image_url, s.thumbnail_url, s.user_id, u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''),
 			COALESCE((SELECT SUM(value) FROM ship_votes WHERE ship_id = s.id), 0)
 		FROM ships s
@@ -1192,9 +1216,9 @@ func fetchShipPreviews(db *sql.DB, ids []string, result map[string]*dto.SharedCo
 	}
 }
 
-func fetchMysteryPreviews(db *sql.DB, ids []string, result map[string]*dto.SharedContentPreview) {
+func (r *postRepository) fetchMysteryPreviews(ids []string, result map[string]*dto.SharedContentPreview) {
 	placeholders, args := buildPlaceholders(ids)
-	rows, err := db.Query(
+	rows, err := r.db.Query(
 		rebind(`SELECT m.id, m.title, m.body, m.difficulty, m.solved, m.user_id, u.username, u.display_name, u.avatar_url, COALESCE(r.role, '')
 		FROM mysteries m
 		JOIN users u ON m.user_id = u.id
@@ -1234,9 +1258,9 @@ func fetchMysteryPreviews(db *sql.DB, ids []string, result map[string]*dto.Share
 	}
 }
 
-func fetchTheoryPreviews(db *sql.DB, ids []string, result map[string]*dto.SharedContentPreview) {
+func (r *postRepository) fetchTheoryPreviews(ids []string, result map[string]*dto.SharedContentPreview) {
 	placeholders, args := buildPlaceholders(ids)
-	rows, err := db.Query(
+	rows, err := r.db.Query(
 		rebind(`SELECT t.id, t.title, t.body, t.series, t.credibility_score, t.user_id, u.username, u.display_name, u.avatar_url, COALESCE(r.role, '')
 		FROM theories t
 		JOIN users u ON t.user_id = u.id
@@ -1276,9 +1300,9 @@ func fetchTheoryPreviews(db *sql.DB, ids []string, result map[string]*dto.Shared
 	}
 }
 
-func fetchFanficPreviews(db *sql.DB, ids []string, result map[string]*dto.SharedContentPreview) {
+func (r *postRepository) fetchFanficPreviews(ids []string, result map[string]*dto.SharedContentPreview) {
 	placeholders, args := buildPlaceholders(ids)
-	rows, err := db.Query(
+	rows, err := r.db.Query(
 		rebind(`SELECT f.id, f.title, f.summary, f.series, f.rating, f.cover_image_url, f.cover_thumbnail_url, f.word_count,
 			(SELECT COUNT(*) FROM fanfic_chapters WHERE fanfic_id = f.id),
 			f.user_id, u.username, u.display_name, u.avatar_url, COALESCE(r.role, '')

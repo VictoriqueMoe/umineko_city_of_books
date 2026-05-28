@@ -12,6 +12,7 @@ import (
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
+	fanficparams "umineko_city_of_books/internal/fanfic/params"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
@@ -29,7 +30,7 @@ type (
 		GetFanfic(ctx context.Context, id, viewerID uuid.UUID, viewerHash string) (*dto.FanficDetailResponse, error)
 		UpdateFanfic(ctx context.Context, id, userID uuid.UUID, req dto.UpdateFanficRequest) error
 		DeleteFanfic(ctx context.Context, id, userID uuid.UUID) error
-		ListFanfics(ctx context.Context, viewerID uuid.UUID, params repository.FanficListParams) (*dto.FanficListResponse, error)
+		ListFanfics(ctx context.Context, viewerID uuid.UUID, params fanficparams.ListParams) (*dto.FanficListResponse, error)
 		ListFanficsByUser(ctx context.Context, userID, viewerID uuid.UUID, limit, offset int) (*dto.FanficListResponse, error)
 		UploadCoverImage(ctx context.Context, fanficID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (string, error)
 		RemoveCoverImage(ctx context.Context, fanficID, userID uuid.UUID) error
@@ -347,7 +348,7 @@ func (s *service) DeleteFanfic(ctx context.Context, id, userID uuid.UUID) error 
 	return s.fanficRepo.Delete(ctx, id, userID)
 }
 
-func (s *service) ListFanfics(ctx context.Context, viewerID uuid.UUID, params repository.FanficListParams) (*dto.FanficListResponse, error) {
+func (s *service) ListFanfics(ctx context.Context, viewerID uuid.UUID, params fanficparams.ListParams) (*dto.FanficListResponse, error) {
 	blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, viewerID)
 
 	rows, total, err := s.fanficRepo.List(ctx, viewerID, params, blockedIDs)

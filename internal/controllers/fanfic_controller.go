@@ -7,8 +7,8 @@ import (
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
 	fanficsvc "umineko_city_of_books/internal/fanfic"
+	fanficparams "umineko_city_of_books/internal/fanfic/params"
 	"umineko_city_of_books/internal/middleware"
-	"umineko_city_of_books/internal/repository"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -136,7 +136,7 @@ func (s *Service) setupListUserFanfics(r fiber.Router) {
 
 func (s *Service) listFanfics(ctx fiber.Ctx) error {
 	viewerID := utils.UserID(ctx)
-	params := repository.FanficListParams{
+	params := fanficparams.ListParams{
 		Sort:       ctx.Query("sort", "updated"),
 		Series:     ctx.Query("series"),
 		Rating:     ctx.Query("rating"),

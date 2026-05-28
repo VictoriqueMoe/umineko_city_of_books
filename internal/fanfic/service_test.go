@@ -12,6 +12,7 @@ import (
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
+	fanficparams "umineko_city_of_books/internal/fanfic/params"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
@@ -553,7 +554,7 @@ func TestListFanfics_RepoError(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	viewer := uuid.New()
-	params := repository.FanficListParams{Limit: 10, Offset: 0}
+	params := fanficparams.ListParams{Limit: 10, Offset: 0}
 	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewer).Return(nil, nil)
 	m.fanficRepo.EXPECT().List(mock.Anything, viewer, params, []uuid.UUID(nil)).Return(nil, 0, errors.New("db"))
 
@@ -574,7 +575,7 @@ func TestListFanfics_OK_TruncatesLongSummary(t *testing.T) {
 		longSummary += "x"
 	}
 	rows := []model.FanficRow{{ID: id, UserID: uuid.New(), Title: "A", Summary: longSummary}}
-	params := repository.FanficListParams{Limit: 10, Offset: 5}
+	params := fanficparams.ListParams{Limit: 10, Offset: 5}
 	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewer).Return(nil, nil)
 	m.fanficRepo.EXPECT().List(mock.Anything, viewer, params, []uuid.UUID(nil)).Return(rows, 1, nil)
 	m.fanficRepo.EXPECT().GetGenresBatch(mock.Anything, []uuid.UUID{id}).Return(nil, nil)

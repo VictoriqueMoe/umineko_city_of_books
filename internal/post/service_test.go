@@ -2,7 +2,6 @@ package post
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"strings"
 	"sync"
@@ -13,7 +12,6 @@ import (
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
-	"umineko_city_of_books/internal/db/dbtest"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/notification"
@@ -30,7 +28,6 @@ import (
 )
 
 type testMocks struct {
-	db          *sql.DB
 	postRepo    *repository.MockPostRepository
 	userRepo    *repository.MockUserRepository
 	roleRepo    *repository.MockRoleRepository
@@ -45,7 +42,6 @@ type testMocks struct {
 
 func newTestService(t *testing.T) (*service, *testMocks) {
 	t.Helper()
-	db, _ := dbtest.NewEmptyDatabase(t)
 
 	postRepo := repository.NewMockPostRepository(t)
 	userRepo := repository.NewMockUserRepository(t)
@@ -59,10 +55,9 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	mediaProc := &media.Processor{}
 	hub := ws.NewHub()
 
-	svc := NewService(db, postRepo, userRepo, roleRepo, auditRepo, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, hub, contentfilter.New()).(*service)
+	svc := NewService(postRepo, userRepo, roleRepo, auditRepo, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, hub, contentfilter.New()).(*service)
 
 	return svc, &testMocks{
-		db:          db,
 		postRepo:    postRepo,
 		userRepo:    userRepo,
 		roleRepo:    roleRepo,
@@ -103,6 +98,8 @@ func expectBackgroundSocial(m *testMocks) {
 	m.postRepo.EXPECT().IncrementShareCount(mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	m.postRepo.EXPECT().DecrementShareCount(mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, mock.Anything).Return(uuid.Nil, errors.New("ignored")).Maybe()
+	m.postRepo.EXPECT().GetSharedContentAuthor(mock.Anything, mock.Anything, mock.Anything).Return(uuid.Nil, errors.New("ignored")).Maybe()
+	m.postRepo.EXPECT().GetSharedContentPreviews(mock.Anything).Return(nil).Maybe()
 	m.postRepo.EXPECT().GetCommentAuthorID(mock.Anything, mock.Anything).Return(uuid.Nil, errors.New("ignored")).Maybe()
 	m.postRepo.EXPECT().GetCommentPostID(mock.Anything, mock.Anything).Return(uuid.Nil, errors.New("ignored")).Maybe()
 	m.userRepo.EXPECT().GetByID(mock.Anything, mock.Anything).Return(nil, errors.New("ignored")).Maybe()
@@ -581,6 +578,7 @@ func TestListFeed_FollowingTab(t *testing.T) {
 	m.postRepo.EXPECT().GetEmbedsBatch(mock.Anything, mock.Anything, "post").Return(nil, nil)
 	m.postRepo.EXPECT().GetPollsByPostIDs(mock.Anything, mock.Anything, viewer).Return(nil, nil, nil, nil)
 	m.postRepo.EXPECT().GetShareCountsBatch(mock.Anything, mock.Anything, "post").Return(nil, nil)
+	m.postRepo.EXPECT().GetSharedContentPreviews(mock.Anything).Return(nil)
 
 	// when
 	got, err := svc.ListFeed(context.Background(), "following", viewer, "", "", "new", 0, 10, 0, "")
@@ -601,6 +599,7 @@ func TestListFeed_AllTab(t *testing.T) {
 	m.postRepo.EXPECT().GetEmbedsBatch(mock.Anything, mock.Anything, "post").Return(nil, nil)
 	m.postRepo.EXPECT().GetPollsByPostIDs(mock.Anything, mock.Anything, viewer).Return(nil, nil, nil, nil)
 	m.postRepo.EXPECT().GetShareCountsBatch(mock.Anything, mock.Anything, "post").Return(nil, nil)
+	m.postRepo.EXPECT().GetSharedContentPreviews(mock.Anything).Return(nil)
 
 	// when
 	got, err := svc.ListFeed(context.Background(), "all", viewer, "", "q", "new", 0, 5, 0, "resolved")
@@ -634,6 +633,7 @@ func TestListUserPosts_OK(t *testing.T) {
 	m.postRepo.EXPECT().GetEmbedsBatch(mock.Anything, mock.Anything, "post").Return(nil, nil)
 	m.postRepo.EXPECT().GetPollsByPostIDs(mock.Anything, mock.Anything, viewer).Return(nil, nil, nil, nil)
 	m.postRepo.EXPECT().GetShareCountsBatch(mock.Anything, mock.Anything, "post").Return(nil, nil)
+	m.postRepo.EXPECT().GetSharedContentPreviews(mock.Anything).Return(nil)
 
 	// when
 	got, err := svc.ListUserPosts(context.Background(), target, viewer, 10, 0)

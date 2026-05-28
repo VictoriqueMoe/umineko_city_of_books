@@ -39,6 +39,7 @@ type (
 		HomeFeed       HomeFeedRepository
 		SidebarVisited SidebarLastVisitedRepository
 		Search         SearchRepository
+		Sitemap        SitemapRepository
 	}
 )
 
@@ -83,5 +84,6 @@ func New(db *sql.DB) *Repositories {
 		HomeFeed:       &homeFeedRepository{db: db},
 		SidebarVisited: &sidebarLastVisitedRepository{db: db},
 		Search:         &searchRepository{db: db},
+		Sitemap:        &sitemapRepository{db: db},
 	}
 }

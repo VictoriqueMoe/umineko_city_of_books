@@ -10,6 +10,7 @@ import (
 
 	"umineko_city_of_books/internal/db"
 	"umineko_city_of_books/internal/dto"
+	fanficparams "umineko_city_of_books/internal/fanfic/params"
 	"umineko_city_of_books/internal/repository/model"
 
 	"github.com/google/uuid"
@@ -26,7 +27,7 @@ type (
 		GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID) (*model.FanficRow, error)
 		GetAuthorID(ctx context.Context, fanficID uuid.UUID) (uuid.UUID, error)
 
-		List(ctx context.Context, viewerID uuid.UUID, params FanficListParams, excludeUserIDs []uuid.UUID) ([]model.FanficRow, int, error)
+		List(ctx context.Context, viewerID uuid.UUID, params fanficparams.ListParams, excludeUserIDs []uuid.UUID) ([]model.FanficRow, int, error)
 		ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit int, offset int) ([]model.FanficRow, int, error)
 
 		CreateChapter(ctx context.Context, id uuid.UUID, fanficID uuid.UUID, chapterNumber int, title string, body string, wordCount int) error
@@ -75,26 +76,6 @@ type (
 		UpdateCommentMediaThumbnail(ctx context.Context, id int64, thumbnailURL string) error
 		GetCommentMedia(ctx context.Context, commentID uuid.UUID) ([]model.FanficCommentMediaRow, error)
 		GetCommentMediaBatch(ctx context.Context, commentIDs []uuid.UUID) (map[uuid.UUID][]model.FanficCommentMediaRow, error)
-	}
-
-	FanficListParams struct {
-		Sort       string
-		Series     string
-		Rating     string
-		GenreA     string
-		GenreB     string
-		Language   string
-		Status     string
-		Tag        string
-		CharacterA string
-		CharacterB string
-		CharacterC string
-		CharacterD string
-		IsPairing  bool
-		ShowLemons bool
-		Search     string
-		Limit      int
-		Offset     int
 	}
 
 	fanficRepository struct {
@@ -330,7 +311,7 @@ func fanficOrderClause(sort string) string {
 	}
 }
 
-func (r *fanficRepository) List(ctx context.Context, viewerID uuid.UUID, params FanficListParams, excludeUserIDs []uuid.UUID) ([]model.FanficRow, int, error) {
+func (r *fanficRepository) List(ctx context.Context, viewerID uuid.UUID, params fanficparams.ListParams, excludeUserIDs []uuid.UUID) ([]model.FanficRow, int, error) {
 	whereParts := []string{"(f.status != 'draft' OR f.user_id = ?)"}
 	args := []interface{}{viewerID}
 

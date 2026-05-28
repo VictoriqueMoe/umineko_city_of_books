@@ -22,7 +22,6 @@ import (
 	postsvc "umineko_city_of_books/internal/post"
 	"umineko_city_of_books/internal/profile"
 	"umineko_city_of_books/internal/report"
-	"umineko_city_of_books/internal/repository"
 	searchsvc "umineko_city_of_books/internal/search"
 	secretsvc "umineko_city_of_books/internal/secret"
 	"umineko_city_of_books/internal/session"
@@ -57,7 +56,6 @@ type (
 		FanficService         fanficsvc.Service
 		JournalService        journal.Service
 		SecretService         secretsvc.Service
-		UserRepo              repository.UserRepository
 		UserService           usersvc.Service
 		ShipService           shipsvc.Service
 		OCService             ocsvc.Service
@@ -93,7 +91,6 @@ func NewService(
 	blockService block.Service,
 	announcementService announcementsvc.Service,
 	mysteryService mysterysvc.Service,
-	userRepo repository.UserRepository,
 	userService usersvc.Service,
 	shipService shipsvc.Service,
 	ocService ocsvc.Service,
@@ -130,7 +127,6 @@ func NewService(
 		BlockService:          blockService,
 		AnnouncementService:   announcementService,
 		MysteryService:        mysteryService,
-		UserRepo:              userRepo,
 		UserService:           userService,
 		ShipService:           shipService,
 		OCService:             ocService,

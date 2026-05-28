@@ -6,6 +6,7 @@ package repository
 
 import (
 	"context"
+	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/repository/model"
 
 	"github.com/google/uuid"
@@ -2341,6 +2342,80 @@ func (_c *MockPostRepository_GetShareCountsBatch_Call) RunAndReturn(run func(ctx
 	return _c
 }
 
+// GetSharedContentAuthor provides a mock function for the type MockPostRepository
+func (_mock *MockPostRepository) GetSharedContentAuthor(ctx context.Context, contentID string, contentType string) (uuid.UUID, error) {
+	ret := _mock.Called(ctx, contentID, contentType)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetSharedContentAuthor")
+	}
+
+	var r0 uuid.UUID
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) (uuid.UUID, error)); ok {
+		return returnFunc(ctx, contentID, contentType)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) uuid.UUID); ok {
+		r0 = returnFunc(ctx, contentID, contentType)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(uuid.UUID)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = returnFunc(ctx, contentID, contentType)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockPostRepository_GetSharedContentAuthor_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSharedContentAuthor'
+type MockPostRepository_GetSharedContentAuthor_Call struct {
+	*mock.Call
+}
+
+// GetSharedContentAuthor is a helper method to define mock.On call
+//   - ctx context.Context
+//   - contentID string
+//   - contentType string
+func (_e *MockPostRepository_Expecter) GetSharedContentAuthor(ctx interface{}, contentID interface{}, contentType interface{}) *MockPostRepository_GetSharedContentAuthor_Call {
+	return &MockPostRepository_GetSharedContentAuthor_Call{Call: _e.mock.On("GetSharedContentAuthor", ctx, contentID, contentType)}
+}
+
+func (_c *MockPostRepository_GetSharedContentAuthor_Call) Run(run func(ctx context.Context, contentID string, contentType string)) *MockPostRepository_GetSharedContentAuthor_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockPostRepository_GetSharedContentAuthor_Call) Return(uUID uuid.UUID, err error) *MockPostRepository_GetSharedContentAuthor_Call {
+	_c.Call.Return(uUID, err)
+	return _c
+}
+
+func (_c *MockPostRepository_GetSharedContentAuthor_Call) RunAndReturn(run func(ctx context.Context, contentID string, contentType string) (uuid.UUID, error)) *MockPostRepository_GetSharedContentAuthor_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetSharedContentFields provides a mock function for the type MockPostRepository
 func (_mock *MockPostRepository) GetSharedContentFields(ctx context.Context, postID uuid.UUID) (*string, *string, error) {
 	ret := _mock.Called(ctx, postID)
@@ -2413,6 +2488,59 @@ func (_c *MockPostRepository_GetSharedContentFields_Call) Return(s *string, s1 *
 }
 
 func (_c *MockPostRepository_GetSharedContentFields_Call) RunAndReturn(run func(ctx context.Context, postID uuid.UUID) (*string, *string, error)) *MockPostRepository_GetSharedContentFields_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetSharedContentPreviews provides a mock function for the type MockPostRepository
+func (_mock *MockPostRepository) GetSharedContentPreviews(refs []SharedContentRef) map[string]*dto.SharedContentPreview {
+	ret := _mock.Called(refs)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetSharedContentPreviews")
+	}
+
+	var r0 map[string]*dto.SharedContentPreview
+	if returnFunc, ok := ret.Get(0).(func([]SharedContentRef) map[string]*dto.SharedContentPreview); ok {
+		r0 = returnFunc(refs)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[string]*dto.SharedContentPreview)
+		}
+	}
+	return r0
+}
+
+// MockPostRepository_GetSharedContentPreviews_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSharedContentPreviews'
+type MockPostRepository_GetSharedContentPreviews_Call struct {
+	*mock.Call
+}
+
+// GetSharedContentPreviews is a helper method to define mock.On call
+//   - refs []SharedContentRef
+func (_e *MockPostRepository_Expecter) GetSharedContentPreviews(refs interface{}) *MockPostRepository_GetSharedContentPreviews_Call {
+	return &MockPostRepository_GetSharedContentPreviews_Call{Call: _e.mock.On("GetSharedContentPreviews", refs)}
+}
+
+func (_c *MockPostRepository_GetSharedContentPreviews_Call) Run(run func(refs []SharedContentRef)) *MockPostRepository_GetSharedContentPreviews_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 []SharedContentRef
+		if args[0] != nil {
+			arg0 = args[0].([]SharedContentRef)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockPostRepository_GetSharedContentPreviews_Call) Return(stringToSharedContentPreview map[string]*dto.SharedContentPreview) *MockPostRepository_GetSharedContentPreviews_Call {
+	_c.Call.Return(stringToSharedContentPreview)
+	return _c
+}
+
+func (_c *MockPostRepository_GetSharedContentPreviews_Call) RunAndReturn(run func(refs []SharedContentRef) map[string]*dto.SharedContentPreview) *MockPostRepository_GetSharedContentPreviews_Call {
 	_c.Call.Return(run)
 	return _c
 }
