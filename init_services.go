@@ -106,7 +106,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 	sidebarSvc := sidebar.NewService(repos.SidebarVisited)
 	vanityRoleSvc := vanityrole.NewService(repos.VanityRole)
 	userSecretSvc := usersecret.NewService(repos.UserSecret)
-	searchSvc := searchsvc.NewService(repos.Search)
+	searchSvc := searchsvc.NewService(repos.Search, repos.Chat)
 
 	return &services{
 		settings:        settingsSvc,

@@ -166,6 +166,7 @@ type (
 		InsertSystemMessage(ctx context.Context, id, roomID, senderID uuid.UUID, body string) error
 		EditMessage(ctx context.Context, messageID uuid.UUID, body string) error
 		GetMessages(ctx context.Context, roomID uuid.UUID, limit, offset int) ([]ChatMessageRow, int, error)
+		SearchMessagesForViewer(ctx context.Context, viewerID, roomID uuid.UUID, query string, limit, offset int) ([]SearchResult, int, error)
 		GetMessagesBefore(ctx context.Context, roomID uuid.UUID, before string, limit int) ([]ChatMessageRow, error)
 		GetMessageByID(ctx context.Context, messageID uuid.UUID) (*ChatMessageRow, error)
 		DeleteMessages(ctx context.Context, roomID uuid.UUID) error
@@ -1022,6 +1023,51 @@ func (r *chatRepository) GetMessages(ctx context.Context, roomID uuid.UUID, limi
 	return messages, total, rows.Err()
 }
 
+func (r *chatRepository) SearchMessagesForViewer(ctx context.Context, viewerID, roomID uuid.UUID, query string, limit, offset int) ([]SearchResult, int, error) {
+	const (
+		fromWhere = `FROM chat_messages cm
+		 JOIN chat_room_members crm ON crm.room_id = cm.room_id AND crm.user_id = $1 AND crm.left_at IS NULL
+		 JOIN chat_rooms cr ON cr.id = cm.room_id
+		 JOIN users u ON cm.sender_id = u.id
+		 CROSS JOIN q
+		 WHERE cm.is_system = false
+		   AND u.banned_at IS NULL AND u.locked_at IS NULL
+		   AND ($3 = '00000000-0000-0000-0000-000000000000'::uuid OR cm.room_id = $3)
+		   AND (cm.search_vector @@ q.tsq OR cm.body % q.qstr)`
+		cte = `WITH q AS (SELECT websearch_to_tsquery('english', $2) AS tsq, $2 AS qstr)`
+	)
+
+	var total int
+	if err := r.db.QueryRowContext(ctx, cte+`
+		SELECT COUNT(*) `+fromWhere, viewerID, query, roomID).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("search chat messages count: %w", err)
+	}
+
+	rows, err := r.db.QueryContext(ctx, cte+`
+		SELECT 'chat_message' AS entity_type, cm.id::text, cm.room_id::text,
+		 COALESCE(NULLIF(cr.name, ''), 'Direct message') AS parent_title,
+		 COALESCE(NULLIF(cr.name, ''), 'Direct message') AS title,
+		 ts_headline('english', cm.body, q.tsq, `+searchHeadlineOptions+`) AS snippet,
+		 u.id::text, u.username, u.display_name, u.avatar_url,
+		 cm.created_at,
+		 (ts_rank_cd(cm.search_vector, q.tsq) + COALESCE(similarity(cm.body, q.qstr), 0))::float8 AS rank
+		 `+fromWhere+`
+		 ORDER BY rank DESC, cm.created_at DESC
+		 LIMIT $4 OFFSET $5`,
+		viewerID, query, roomID, limit, offset,
+	)
+	if err != nil {
+		return nil, 0, fmt.Errorf("search chat messages: %w", err)
+	}
+	defer rows.Close()
+
+	results, err := scanSearchRows(rows, limit)
+	if err != nil {
+		return nil, 0, err
+	}
+	return results, total, nil
+}
+
 func scanMessageRow(rows *sql.Rows) (ChatMessageRow, error) {
 	var msg ChatMessageRow
 	var pinnedAt, editedAt sql.NullTime
@@ -1038,7 +1084,7 @@ func scanMessageRow(rows *sql.Rows) (ChatMessageRow, error) {
 	); err != nil {
 		return msg, fmt.Errorf("scan message: %w", err)
 	}
-	msg.CreatedAt = createdAt.UTC().Format(time.RFC3339)
+	msg.CreatedAt = createdAt.UTC().Format(time.RFC3339Nano)
 	if pinnedAt.Valid {
 		msg.PinnedAt = new(pinnedAt.Time.UTC().Format(time.RFC3339))
 	}
@@ -1146,7 +1192,7 @@ func (r *chatRepository) GetMessageByID(ctx context.Context, messageID uuid.UUID
 	if err != nil {
 		return nil, fmt.Errorf("get message by id: %w", err)
 	}
-	msg.CreatedAt = createdAt.UTC().Format(time.RFC3339)
+	msg.CreatedAt = createdAt.UTC().Format(time.RFC3339Nano)
 	if pinnedAt.Valid {
 		msg.PinnedAt = new(pinnedAt.Time.UTC().Format(time.RFC3339))
 	}

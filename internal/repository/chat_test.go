@@ -1200,6 +1200,127 @@ func TestChatRepository_InsertMessage(t *testing.T) {
 	assert.Equal(t, user.ID, got.SenderID)
 }
 
+func TestChatRepository_SearchMessagesForViewer_FindsMatchInMemberRoom(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	ctx := context.Background()
+	user := repotest.CreateUser(t, repos)
+	roomID := uuid.New()
+	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "R", "", "group", false, false, user.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
+	matchID := uuid.New()
+	require.NoError(t, repos.Chat.InsertMessage(ctx, matchID, roomID, user.ID, "the golden witch beatrice laughs", nil))
+	require.NoError(t, repos.Chat.InsertMessage(ctx, uuid.New(), roomID, user.ID, "an ordinary mundane lunch", nil))
+
+	// when
+	results, total, err := repos.Chat.SearchMessagesForViewer(ctx, user.ID, uuid.Nil, "beatrice", 20, 0)
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, 1, total)
+	require.Len(t, results, 1)
+	assert.Equal(t, matchID.String(), results[0].ID)
+	require.NotNil(t, results[0].ParentID)
+	assert.Equal(t, roomID.String(), *results[0].ParentID)
+}
+
+func TestChatRepository_SearchMessagesForViewer_ExcludesNonMemberRooms(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	ctx := context.Background()
+	viewer := repotest.CreateUser(t, repos)
+	owner := repotest.CreateUser(t, repos)
+	roomID := uuid.New()
+	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "Private", "", "group", false, false, owner.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, roomID, owner.ID))
+	require.NoError(t, repos.Chat.InsertMessage(ctx, uuid.New(), roomID, owner.ID, "secret beatrice plans", nil))
+
+	// when
+	results, total, err := repos.Chat.SearchMessagesForViewer(ctx, viewer.ID, uuid.Nil, "beatrice", 20, 0)
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, 0, total)
+	assert.Empty(t, results)
+}
+
+func TestChatRepository_SearchMessagesForViewer_RoomFilter(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	ctx := context.Background()
+	user := repotest.CreateUser(t, repos)
+	room1 := uuid.New()
+	room2 := uuid.New()
+	require.NoError(t, repos.Chat.CreateRoom(ctx, room1, "R1", "", "group", false, false, user.ID))
+	require.NoError(t, repos.Chat.CreateRoom(ctx, room2, "R2", "", "group", false, false, user.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, room1, user.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, room2, user.ID))
+	msg1 := uuid.New()
+	require.NoError(t, repos.Chat.InsertMessage(ctx, msg1, room1, user.ID, "phoenix rises", nil))
+	require.NoError(t, repos.Chat.InsertMessage(ctx, uuid.New(), room2, user.ID, "phoenix falls", nil))
+
+	// when
+	scoped, scopedTotal, err := repos.Chat.SearchMessagesForViewer(ctx, user.ID, room1, "phoenix", 20, 0)
+	require.NoError(t, err)
+	all, allTotal, err := repos.Chat.SearchMessagesForViewer(ctx, user.ID, uuid.Nil, "phoenix", 20, 0)
+	require.NoError(t, err)
+
+	// then
+	assert.Equal(t, 1, scopedTotal)
+	require.Len(t, scoped, 1)
+	assert.Equal(t, msg1.String(), scoped[0].ID)
+	assert.Equal(t, 2, allTotal)
+	assert.Len(t, all, 2)
+}
+
+func TestChatRepository_SearchMessagesForViewer_ExcludesSystemMessages(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	ctx := context.Background()
+	user := repotest.CreateUser(t, repos)
+	roomID := uuid.New()
+	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "R", "", "group", false, false, user.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
+	require.NoError(t, repos.Chat.InsertSystemMessage(ctx, uuid.New(), roomID, user.ID, "beatrice joined the room"))
+
+	// when
+	results, total, err := repos.Chat.SearchMessagesForViewer(ctx, user.ID, uuid.Nil, "beatrice", 20, 0)
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, 0, total)
+	assert.Empty(t, results)
+}
+
+func TestChatRepository_SearchMessagesForViewer_CreatedAtSupportsJumpCursor(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	ctx := context.Background()
+	user := repotest.CreateUser(t, repos)
+	roomID := uuid.New()
+	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "R", "", "group", false, false, user.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
+	msgID := uuid.New()
+	require.NoError(t, repos.Chat.InsertMessage(ctx, msgID, roomID, user.ID, "unicorn sighting reported", nil))
+
+	// when: the created_at returned by search is used to build a jump cursor
+	results, _, err := repos.Chat.SearchMessagesForViewer(ctx, user.ID, uuid.Nil, "unicorn", 20, 0)
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	cursor := results[0].CreatedAt + "|ffffffff-ffff-ffff-ffff-ffffffffffff"
+	before, err := repos.Chat.GetMessagesBefore(ctx, roomID, cursor, 50)
+	require.NoError(t, err)
+
+	// then: the target message is inside that cursor window (full-precision round-trip)
+	found := false
+	for _, m := range before {
+		if m.ID == msgID {
+			found = true
+		}
+	}
+	assert.True(t, found, "jump cursor built from the search created_at must include the target message")
+}
+
 func TestChatRepository_InsertMessage_UpdatesRoomLastMessage(t *testing.T) {
 	// given
 	repos := repotest.NewRepos(t)

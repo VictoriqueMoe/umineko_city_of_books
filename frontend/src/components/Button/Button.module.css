@@ -2,6 +2,7 @@
     font-family: var(--font-body);
     cursor: pointer;
     border-radius: 4px;
+    white-space: nowrap;
     transition: all 0.2s var(--ease-out);
 }
 

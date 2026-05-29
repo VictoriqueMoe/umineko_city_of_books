@@ -10,6 +10,7 @@ export type SearchTypeGroup =
     | "announcements"
     | "fanfics"
     | "journals"
+    | "chats"
     | "users";
 
 export interface SearchTypeMeta {
@@ -52,6 +53,7 @@ const SEARCH_REGISTRY: SearchTypeMeta[] = [
     { type: "journal", label: "Journal", short: "Journal", color: "#60a5fa", group: "journals" },
     { type: "journal_entry", label: "Journal entry", short: "Entry", color: "#60a5fa", group: "journals" },
     { type: "journal_comment", label: "Journal comment", short: "Comment", color: "#60a5fa", group: "journals" },
+    { type: "chat_message", label: "Chat message", short: "Chat", color: "#22d3ee", group: "chats" },
     { type: "user", label: "User", short: "User", color: "#e89ec0", group: "users" },
 ];
 
@@ -65,6 +67,7 @@ const SEARCH_GROUP_DEFS: SearchTypeGroupDef[] = [
     { id: "fanfics", label: "Fanfiction" },
     { id: "journals", label: "Journals" },
     { id: "announcements", label: "Announcements" },
+    { id: "chats", label: "Chats" },
     { id: "users", label: "Users" },
 ];
 

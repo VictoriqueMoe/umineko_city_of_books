@@ -3808,6 +3808,104 @@ func (_c *MockChatRepository_ReplaceRoomTags_Call) RunAndReturn(run func(ctx con
 	return _c
 }
 
+// SearchMessagesForViewer provides a mock function for the type MockChatRepository
+func (_mock *MockChatRepository) SearchMessagesForViewer(ctx context.Context, viewerID uuid.UUID, roomID uuid.UUID, query string, limit int, offset int) ([]SearchResult, int, error) {
+	ret := _mock.Called(ctx, viewerID, roomID, query, limit, offset)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SearchMessagesForViewer")
+	}
+
+	var r0 []SearchResult
+	var r1 int
+	var r2 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, int, int) ([]SearchResult, int, error)); ok {
+		return returnFunc(ctx, viewerID, roomID, query, limit, offset)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, int, int) []SearchResult); ok {
+		r0 = returnFunc(ctx, viewerID, roomID, query, limit, offset)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]SearchResult)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, string, int, int) int); ok {
+		r1 = returnFunc(ctx, viewerID, roomID, query, limit, offset)
+	} else {
+		r1 = ret.Get(1).(int)
+	}
+	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, uuid.UUID, string, int, int) error); ok {
+		r2 = returnFunc(ctx, viewerID, roomID, query, limit, offset)
+	} else {
+		r2 = ret.Error(2)
+	}
+	return r0, r1, r2
+}
+
+// MockChatRepository_SearchMessagesForViewer_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SearchMessagesForViewer'
+type MockChatRepository_SearchMessagesForViewer_Call struct {
+	*mock.Call
+}
+
+// SearchMessagesForViewer is a helper method to define mock.On call
+//   - ctx context.Context
+//   - viewerID uuid.UUID
+//   - roomID uuid.UUID
+//   - query string
+//   - limit int
+//   - offset int
+func (_e *MockChatRepository_Expecter) SearchMessagesForViewer(ctx interface{}, viewerID interface{}, roomID interface{}, query interface{}, limit interface{}, offset interface{}) *MockChatRepository_SearchMessagesForViewer_Call {
+	return &MockChatRepository_SearchMessagesForViewer_Call{Call: _e.mock.On("SearchMessagesForViewer", ctx, viewerID, roomID, query, limit, offset)}
+}
+
+func (_c *MockChatRepository_SearchMessagesForViewer_Call) Run(run func(ctx context.Context, viewerID uuid.UUID, roomID uuid.UUID, query string, limit int, offset int)) *MockChatRepository_SearchMessagesForViewer_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		var arg4 int
+		if args[4] != nil {
+			arg4 = args[4].(int)
+		}
+		var arg5 int
+		if args[5] != nil {
+			arg5 = args[5].(int)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+			arg5,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatRepository_SearchMessagesForViewer_Call) Return(searchResults []SearchResult, n int, err error) *MockChatRepository_SearchMessagesForViewer_Call {
+	_c.Call.Return(searchResults, n, err)
+	return _c
+}
+
+func (_c *MockChatRepository_SearchMessagesForViewer_Call) RunAndReturn(run func(ctx context.Context, viewerID uuid.UUID, roomID uuid.UUID, query string, limit int, offset int) ([]SearchResult, int, error)) *MockChatRepository_SearchMessagesForViewer_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SetMemberAvatar provides a mock function for the type MockChatRepository
 func (_mock *MockChatRepository) SetMemberAvatar(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, avatarURL string) error {
 	ret := _mock.Called(ctx, roomID, userID, avatarURL)

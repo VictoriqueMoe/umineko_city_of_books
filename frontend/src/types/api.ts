@@ -1550,6 +1550,7 @@ export type SearchEntityType =
     | "journal"
     | "journal_entry"
     | "journal_comment"
+    | "chat_message"
     | "user";
 
 export interface SearchResultAuthor {
