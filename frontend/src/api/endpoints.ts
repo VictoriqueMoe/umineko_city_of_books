@@ -25,11 +25,6 @@ import type {
     ChatMessageListResponse,
     ChatRoom,
     ChatRoomBan,
-    JoinWatchPartyResponse,
-    StartWatchPartyResponse,
-    WatchPartyListResponse,
-    WatchPartyMessage,
-    WatchPartyMessagesResponse,
     ChatRoomMember,
     CreateBannedWordRequest,
     CreateJournalPayload,
@@ -49,6 +44,7 @@ import type {
     GameType,
     GMLeaderboardResponse,
     HomeActivityResponse,
+    JoinWatchPartyResponse,
     JournalComment,
     JournalDetail,
     JournalEntry,
@@ -83,6 +79,7 @@ import type {
     SiteSettings,
     SpectatorChatResponse,
     SpectatorMessage,
+    StartWatchPartyResponse,
     TagCount,
     TheoryDetail,
     TheoryListResponse,
@@ -90,6 +87,9 @@ import type {
     User,
     UserProfile,
     VotePayload,
+    WatchPartyListResponse,
+    WatchPartyMessage,
+    WatchPartyMessagesResponse,
 } from "../types/api";
 
 const QUOTE_API = "https://quotes.auaurora.moe/api/v1";
@@ -2278,7 +2278,8 @@ export async function searchSite(
     types?: string,
     limit: number = 20,
     offset: number = 0,
+    room?: string,
 ): Promise<SearchResponse> {
-    const qs = buildQueryString({ q, types: types ?? "", limit, offset });
+    const qs = buildQueryString({ q, types: types ?? "", limit, offset, room });
     return apiFetch<SearchResponse>(`/search${qs}`);
 }

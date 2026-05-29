@@ -79,6 +79,7 @@ const (
 	SearchEntityJournalEntry        SearchEntityType = "journal_entry"
 	SearchEntityJournalComment      SearchEntityType = "journal_comment"
 	SearchEntityUser                SearchEntityType = "user"
+	SearchEntityChatMessage         SearchEntityType = "chat_message"
 )
 
 const searchHeadlineOptions = `'MaxFragments=1, MaxWords=18, MinWords=5, ShortWord=3, HighlightAll=false, StartSel=<mark>, StopSel=</mark>'`
@@ -516,7 +517,7 @@ func scanSearchRows(rows *sql.Rows, capacity int) ([]SearchResult, error) {
 			return nil, fmt.Errorf("search scan: %w", err)
 		}
 		r.EntityType = SearchEntityType(entityT)
-		r.CreatedAt = createdAt.UTC().Format(time.RFC3339)
+		r.CreatedAt = createdAt.UTC().Format(time.RFC3339Nano)
 		results = append(results, r)
 	}
 	if err := rows.Err(); err != nil {

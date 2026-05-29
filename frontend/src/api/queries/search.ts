@@ -15,6 +15,22 @@ export function useQuickSearch(query: string, enabled: boolean) {
     };
 }
 
+export function useRoomMessageSearch(roomId: string, query: string, limit: number, offset: number, enabled: boolean) {
+    const trimmed = query.trim();
+    const q = useQuery({
+        queryKey: ["search", "room", roomId, trimmed, limit, offset],
+        queryFn: () => searchSite(trimmed, "chat_message", limit, offset, roomId),
+        enabled: enabled && !!roomId && trimmed.length >= 2,
+        placeholderData: keepPreviousData,
+        staleTime: 15_000,
+    });
+    return {
+        results: q.data?.results ?? [],
+        total: q.data?.total ?? 0,
+        loading: q.isLoading,
+    };
+}
+
 export function useSiteSearch(query: string, types: string, limit: number, offset: number) {
     const trimmed = query.trim();
     const q = useQuery({

@@ -32,3 +32,14 @@
     color: var(--text-muted);
     font-size: 0.85rem;
 }
+
+.compact {
+    margin-top: 0;
+    padding: 0;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+}
+
+.compact .info {
+    white-space: nowrap;
+}

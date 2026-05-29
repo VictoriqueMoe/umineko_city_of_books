@@ -2,6 +2,7 @@ package search
 
 import (
 	"fmt"
+	"net/url"
 
 	"umineko_city_of_books/internal/repository"
 )
@@ -37,6 +38,16 @@ var urlBuilders = map[repository.SearchEntityType]func(repository.SearchResult) 
 	repository.SearchEntityJournalComment:      parentURL("/journals/", "#comment-"),
 	repository.SearchEntityUser: func(r repository.SearchResult) string {
 		return "/user/" + r.AuthorUsername
+	},
+	repository.SearchEntityChatMessage: func(r repository.SearchResult) string {
+		if r.ParentID == nil {
+			return ""
+		}
+		u := "/rooms/" + *r.ParentID
+		if r.CreatedAt != "" {
+			u += "?at=" + url.QueryEscape(r.CreatedAt)
+		}
+		return u + "#msg-" + r.ID
 	},
 }
 

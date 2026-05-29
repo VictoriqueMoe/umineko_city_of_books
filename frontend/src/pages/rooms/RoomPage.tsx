@@ -37,6 +37,7 @@ import { RoomModerationDialog } from "../../components/chat/RoomModerationDialog
 import { InviteMembersModal } from "../../components/chat/InviteMembersModal/InviteMembersModal";
 import { MessageBubble } from "../../components/chat/MessageBubble/MessageBubble";
 import { PinnedMessagesPanel } from "../../components/chat/PinnedMessagesPanel/PinnedMessagesPanel";
+import { MessageSearchPanel } from "../../components/chat/MessageSearchPanel/MessageSearchPanel";
 import { useWatchParty } from "../../components/chat/WatchParty/useWatchParty";
 import { WatchPartyButton } from "../../components/chat/WatchParty/WatchPartyButton";
 import { WatchPartyModal } from "../../components/chat/WatchParty/WatchPartyModal";
@@ -166,6 +167,7 @@ export function RoomPage() {
         setDescExpandedOverride({ key: roomInfoStorageKey, value: next });
     }
     const [pinnedOpen, setPinnedOpen] = useState(false);
+    const [searchOpen, setSearchOpen] = useState(false);
     const [pinnedRefreshKey, setPinnedRefreshKey] = useState(0);
     const watchParty = useWatchParty(roomId ?? null, user?.id ?? null);
     const [editProfileOpen, setEditProfileOpen] = useState(false);
@@ -246,7 +248,9 @@ export function RoomPage() {
     } = useMessageHistory(room ? roomId : undefined);
 
     const targetMsgId = location.hash.startsWith("#msg-") ? location.hash.slice(5) : null;
+    const targetMsgCreatedAt = new URLSearchParams(location.search).get("at") ?? undefined;
     const [handledHash, setHandledHash] = useState<string | null>(null);
+    const hashLoadRef = useRef<string | null>(null);
     const pendingTargetMsgId = targetMsgId && handledHash !== targetMsgId ? targetMsgId : null;
 
     const [nowTick, setNowTick] = useState(() => Date.now());
@@ -299,6 +303,14 @@ export function RoomPage() {
             return;
         }
         if (!messages.some(m => m.id === pendingTargetMsgId)) {
+            if (hashLoadRef.current !== pendingTargetMsgId) {
+                hashLoadRef.current = pendingTargetMsgId;
+                void loadUntilMessage(pendingTargetMsgId, targetMsgCreatedAt).then(found => {
+                    if (!found) {
+                        setHandledHash(pendingTargetMsgId);
+                    }
+                });
+            }
             return;
         }
         const t = setTimeout(() => {
@@ -310,7 +322,7 @@ export function RoomPage() {
             }
         }, 300);
         return () => clearTimeout(t);
-    }, [pendingTargetMsgId, messages]);
+    }, [pendingTargetMsgId, targetMsgCreatedAt, messages, loadUntilMessage]);
 
     useEffect(() => {
         if (!highlightedMsgId) {
@@ -1117,6 +1129,15 @@ export function RoomPage() {
                         <button
                             type="button"
                             className={styles.pinHeaderBtn}
+                            onClick={() => setSearchOpen(true)}
+                            aria-label="Search messages"
+                            title="Search messages"
+                        >
+                            {"\u{1F50D}"}
+                        </button>
+                        <button
+                            type="button"
+                            className={styles.pinHeaderBtn}
                             onClick={() => setPinnedOpen(true)}
                             aria-label="Pinned messages"
                             title="Pinned messages"
@@ -1240,6 +1261,15 @@ export function RoomPage() {
                 >
                     {"\u2190 Back to chat"}
                 </button>
+            )}
+
+            {searchOpen && (
+                <MessageSearchPanel
+                    roomId={room.id}
+                    isOpen={searchOpen}
+                    onClose={() => setSearchOpen(false)}
+                    onJump={handleJumpToMessage}
+                />
             )}
 
             <PinnedMessagesPanel

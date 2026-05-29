@@ -8,6 +8,7 @@ import (
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/search"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -55,7 +56,7 @@ func TestSearchController_FullSearch_PassesParamsAndShapesResponse(t *testing.T)
 	deps.svc.EXPECT().ParseTypes("theory").
 		Return([]repository.SearchEntityType{repository.SearchEntityTheory})
 	deps.svc.EXPECT().
-		Search(mock.Anything, "beatrice", []repository.SearchEntityType{repository.SearchEntityTheory}, 10, 5).
+		Search(mock.Anything, "beatrice", []repository.SearchEntityType{repository.SearchEntityTheory}, 10, 5, uuid.Nil, uuid.Nil).
 		Return([]search.Result{
 			{
 				SearchResult: repository.SearchResult{
@@ -91,7 +92,7 @@ func TestSearchController_FullSearch_PassesParamsAndShapesResponse(t *testing.T)
 func TestSearchController_QuickSearch_DelegatesToService(t *testing.T) {
 	// given
 	h, deps := newSearchHarness(t)
-	deps.svc.EXPECT().QuickSearch(mock.Anything, "kinzo", 5).
+	deps.svc.EXPECT().QuickSearch(mock.Anything, "kinzo", 5, uuid.Nil).
 		Return([]search.Result{
 			{
 				SearchResult: repository.SearchResult{EntityType: repository.SearchEntityTheory, ID: "theory-id", Title: "Kinzo"},
