@@ -7,7 +7,7 @@ export function useMarkNotificationRead() {
     return useMutation({
         mutationFn: (id: number) => markNotificationRead(id),
         onSuccess: () => {
-            void qc.invalidateQueries({ queryKey: queryKeys.notifications.all });
+            qc.invalidateQueries({ queryKey: queryKeys.notifications.all });
         },
     });
 }
@@ -17,7 +17,7 @@ export function useMarkAllNotificationsRead() {
     return useMutation({
         mutationFn: () => markAllNotificationsRead(),
         onSuccess: () => {
-            void qc.invalidateQueries({ queryKey: queryKeys.notifications.all });
+            qc.invalidateQueries({ queryKey: queryKeys.notifications.all });
         },
     });
 }

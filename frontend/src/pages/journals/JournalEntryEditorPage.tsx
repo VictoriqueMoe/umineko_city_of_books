@@ -265,7 +265,7 @@ export function JournalEntryEditorPage() {
                             type="button"
                             variant="ghost"
                             size="medium"
-                            onClick={() => void save(true)}
+                            onClick={() => save(true)}
                             disabled={submitting || (!body.trim() && files.length === 0)}
                         >
                             {submitting ? "Saving..." : "Save as draft"}

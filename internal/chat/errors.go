@@ -53,6 +53,8 @@ var (
 	ErrWatchPartyOutranked      = errors.New("you do not outrank the current controller")
 	ErrWatchPartyCannotKickSelf = errors.New("use leave to remove yourself from a watch party")
 	ErrWatchPartyCannotKick     = errors.New("you do not outrank this participant")
+
+	ErrVoiceDisabled = errors.New("voice chat is not configured")
 )
 
 type ErrBannedWordMatch struct {

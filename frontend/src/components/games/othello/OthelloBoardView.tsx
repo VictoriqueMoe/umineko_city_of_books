@@ -319,7 +319,7 @@ export function OthelloBoardView({ room, viewer, isSpectator, onMove, onResign }
                                         ]
                                             .filter(Boolean)
                                             .join(" ")}
-                                        onClick={() => void handleSquareClick(r, c)}
+                                        onClick={() => handleSquareClick(r, c)}
                                         disabled={!isMyTurn || !isLegal || submitting}
                                         aria-label={squareFromCoord({ row: r, col: c })}
                                     >

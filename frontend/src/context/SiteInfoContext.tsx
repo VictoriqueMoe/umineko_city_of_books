@@ -7,7 +7,7 @@ export function SiteInfoProvider({ children }: PropsWithChildren) {
 
     useEffect(() => {
         function handleRefresh() {
-            void refresh();
+            refresh();
         }
         function handleVisibility() {
             if (document.visibilityState === "visible") {

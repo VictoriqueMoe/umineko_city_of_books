@@ -1,5 +1,7 @@
 const MESSAGE_SOUND = "/sounds/message.wav";
 const NOTIFICATION_SOUND = "/sounds/notification.wav";
+const VOICE_JOIN_SOUND = "/sounds/voice-join.wav";
+const VOICE_LEAVE_SOUND = "/sounds/voice-leave.wav";
 const NOTIFICATION_SUPPRESS_MS = 1500;
 const DEFAULT_VOLUME = 0.15;
 
@@ -59,6 +61,8 @@ function play(src: string, volume = DEFAULT_VOLUME): void {
 
 ensureAudio(MESSAGE_SOUND);
 ensureAudio(NOTIFICATION_SOUND);
+ensureAudio(VOICE_JOIN_SOUND);
+ensureAudio(VOICE_LEAVE_SOUND);
 
 export function playMessageSound(): void {
     lastMessageSoundAt = Date.now();
@@ -74,4 +78,12 @@ export function playNotificationSound(): void {
 
 export function playRemoteAudio(url: string, volume = DEFAULT_VOLUME): void {
     play(url, volume);
+}
+
+export function playVoiceJoinSound(): void {
+    play(VOICE_JOIN_SOUND, 0.3);
+}
+
+export function playVoiceLeaveSound(): void {
+    play(VOICE_LEAVE_SOUND, 0.3);
 }

@@ -1,0 +1,26 @@
+port: 7880
+prometheus:
+  port: 6789
+bind_addresses:
+  - ""
+
+rtc:
+  tcp_port: 7881
+  udp_port: 7882
+  use_external_ip: true
+
+keys:
+  # CHANGE THIS for production, then enter the SAME key + secret in
+  # Admin -> Settings -> Voice Chat so the app and the server agree.
+  devkey: devsecret_change_me_to_a_long_random_value
+
+webhook:
+  api_key: devkey
+  urls:
+    # Reached server-to-server inside the compose network; no TLS/proxy needed.
+    - http://umineko-city-of-books:4323/api/v1/livekit/webhook
+
+# For reliable calls behind strict NATs, enable the embedded TURN server with
+# a public hostname and TLS certs, and open the udp/tls ports on the host.
+turn:
+  enabled: false

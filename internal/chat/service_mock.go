@@ -1678,6 +1678,69 @@ func (_c *MockService_HandleClientDisconnect_Call) RunAndReturn(run func(ctx con
 	return _c
 }
 
+// HandleVoiceWebhook provides a mock function for the type MockService
+func (_mock *MockService) HandleVoiceWebhook(ctx context.Context, authHeader string, body []byte) error {
+	ret := _mock.Called(ctx, authHeader, body)
+
+	if len(ret) == 0 {
+		panic("no return value specified for HandleVoiceWebhook")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, []byte) error); ok {
+		r0 = returnFunc(ctx, authHeader, body)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_HandleVoiceWebhook_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'HandleVoiceWebhook'
+type MockService_HandleVoiceWebhook_Call struct {
+	*mock.Call
+}
+
+// HandleVoiceWebhook is a helper method to define mock.On call
+//   - ctx context.Context
+//   - authHeader string
+//   - body []byte
+func (_e *MockService_Expecter) HandleVoiceWebhook(ctx interface{}, authHeader interface{}, body interface{}) *MockService_HandleVoiceWebhook_Call {
+	return &MockService_HandleVoiceWebhook_Call{Call: _e.mock.On("HandleVoiceWebhook", ctx, authHeader, body)}
+}
+
+func (_c *MockService_HandleVoiceWebhook_Call) Run(run func(ctx context.Context, authHeader string, body []byte)) *MockService_HandleVoiceWebhook_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 []byte
+		if args[2] != nil {
+			arg2 = args[2].([]byte)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_HandleVoiceWebhook_Call) Return(err error) *MockService_HandleVoiceWebhook_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_HandleVoiceWebhook_Call) RunAndReturn(run func(ctx context.Context, authHeader string, body []byte) error) *MockService_HandleVoiceWebhook_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // IdentifyWatchPartyParticipant provides a mock function for the type MockService
 func (_mock *MockService) IdentifyWatchPartyParticipant(ctx context.Context, roomID uuid.UUID, sessionID uuid.UUID, userID uuid.UUID, identifier string) error {
 	ret := _mock.Called(ctx, roomID, sessionID, userID, identifier)
@@ -3050,6 +3113,84 @@ func (_c *MockService_MarkRead_Call) RunAndReturn(run func(ctx context.Context, 
 	return _c
 }
 
+// MintVoiceToken provides a mock function for the type MockService
+func (_mock *MockService) MintVoiceToken(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) (string, string, error) {
+	ret := _mock.Called(ctx, roomID, userID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for MintVoiceToken")
+	}
+
+	var r0 string
+	var r1 string
+	var r2 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) (string, string, error)); ok {
+		return returnFunc(ctx, roomID, userID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) string); ok {
+		r0 = returnFunc(ctx, roomID, userID)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID) string); ok {
+		r1 = returnFunc(ctx, roomID, userID)
+	} else {
+		r1 = ret.Get(1).(string)
+	}
+	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
+		r2 = returnFunc(ctx, roomID, userID)
+	} else {
+		r2 = ret.Error(2)
+	}
+	return r0, r1, r2
+}
+
+// MockService_MintVoiceToken_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MintVoiceToken'
+type MockService_MintVoiceToken_Call struct {
+	*mock.Call
+}
+
+// MintVoiceToken is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roomID uuid.UUID
+//   - userID uuid.UUID
+func (_e *MockService_Expecter) MintVoiceToken(ctx interface{}, roomID interface{}, userID interface{}) *MockService_MintVoiceToken_Call {
+	return &MockService_MintVoiceToken_Call{Call: _e.mock.On("MintVoiceToken", ctx, roomID, userID)}
+}
+
+func (_c *MockService_MintVoiceToken_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID)) *MockService_MintVoiceToken_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_MintVoiceToken_Call) Return(token string, url string, err error) *MockService_MintVoiceToken_Call {
+	_c.Call.Return(token, url, err)
+	return _c
+}
+
+func (_c *MockService_MintVoiceToken_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) (string, string, error)) *MockService_MintVoiceToken_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // PinMessage provides a mock function for the type MockService
 func (_mock *MockService) PinMessage(ctx context.Context, messageID uuid.UUID, userID uuid.UUID) error {
 	ret := _mock.Called(ctx, messageID, userID)
@@ -3109,6 +3250,66 @@ func (_c *MockService_PinMessage_Call) Return(err error) *MockService_PinMessage
 }
 
 func (_c *MockService_PinMessage_Call) RunAndReturn(run func(ctx context.Context, messageID uuid.UUID, userID uuid.UUID) error) *MockService_PinMessage_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ReconcilePresence provides a mock function for the type MockService
+func (_mock *MockService) ReconcilePresence(ctx context.Context) (int, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ReconcilePresence")
+	}
+
+	var r0 int
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (int, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) int); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_ReconcilePresence_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ReconcilePresence'
+type MockService_ReconcilePresence_Call struct {
+	*mock.Call
+}
+
+// ReconcilePresence is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockService_Expecter) ReconcilePresence(ctx interface{}) *MockService_ReconcilePresence_Call {
+	return &MockService_ReconcilePresence_Call{Call: _e.mock.On("ReconcilePresence", ctx)}
+}
+
+func (_c *MockService_ReconcilePresence_Call) Run(run func(ctx context.Context)) *MockService_ReconcilePresence_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_ReconcilePresence_Call) Return(n int, err error) *MockService_ReconcilePresence_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *MockService_ReconcilePresence_Call) RunAndReturn(run func(ctx context.Context) (int, error)) *MockService_ReconcilePresence_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -4496,6 +4697,154 @@ func (_c *MockService_UpdateRoomBannedWord_Call) Return(bannedWordRuleResponse *
 }
 
 func (_c *MockService_UpdateRoomBannedWord_Call) RunAndReturn(run func(ctx context.Context, actorID uuid.UUID, roomID uuid.UUID, ruleID uuid.UUID, req dto.UpdateBannedWordRequest) (*dto.BannedWordRuleResponse, error)) *MockService_UpdateRoomBannedWord_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// VoiceCount provides a mock function for the type MockService
+func (_mock *MockService) VoiceCount(roomID uuid.UUID) int {
+	ret := _mock.Called(roomID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for VoiceCount")
+	}
+
+	var r0 int
+	if returnFunc, ok := ret.Get(0).(func(uuid.UUID) int); ok {
+		r0 = returnFunc(roomID)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+	return r0
+}
+
+// MockService_VoiceCount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'VoiceCount'
+type MockService_VoiceCount_Call struct {
+	*mock.Call
+}
+
+// VoiceCount is a helper method to define mock.On call
+//   - roomID uuid.UUID
+func (_e *MockService_Expecter) VoiceCount(roomID interface{}) *MockService_VoiceCount_Call {
+	return &MockService_VoiceCount_Call{Call: _e.mock.On("VoiceCount", roomID)}
+}
+
+func (_c *MockService_VoiceCount_Call) Run(run func(roomID uuid.UUID)) *MockService_VoiceCount_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 uuid.UUID
+		if args[0] != nil {
+			arg0 = args[0].(uuid.UUID)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_VoiceCount_Call) Return(n int) *MockService_VoiceCount_Call {
+	_c.Call.Return(n)
+	return _c
+}
+
+func (_c *MockService_VoiceCount_Call) RunAndReturn(run func(roomID uuid.UUID) int) *MockService_VoiceCount_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// VoiceEnabled provides a mock function for the type MockService
+func (_mock *MockService) VoiceEnabled() bool {
+	ret := _mock.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for VoiceEnabled")
+	}
+
+	var r0 bool
+	if returnFunc, ok := ret.Get(0).(func() bool); ok {
+		r0 = returnFunc()
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	return r0
+}
+
+// MockService_VoiceEnabled_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'VoiceEnabled'
+type MockService_VoiceEnabled_Call struct {
+	*mock.Call
+}
+
+// VoiceEnabled is a helper method to define mock.On call
+func (_e *MockService_Expecter) VoiceEnabled() *MockService_VoiceEnabled_Call {
+	return &MockService_VoiceEnabled_Call{Call: _e.mock.On("VoiceEnabled")}
+}
+
+func (_c *MockService_VoiceEnabled_Call) Run(run func()) *MockService_VoiceEnabled_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *MockService_VoiceEnabled_Call) Return(b bool) *MockService_VoiceEnabled_Call {
+	_c.Call.Return(b)
+	return _c
+}
+
+func (_c *MockService_VoiceEnabled_Call) RunAndReturn(run func() bool) *MockService_VoiceEnabled_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// VoiceParticipants provides a mock function for the type MockService
+func (_mock *MockService) VoiceParticipants(roomID uuid.UUID) []uuid.UUID {
+	ret := _mock.Called(roomID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for VoiceParticipants")
+	}
+
+	var r0 []uuid.UUID
+	if returnFunc, ok := ret.Get(0).(func(uuid.UUID) []uuid.UUID); ok {
+		r0 = returnFunc(roomID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]uuid.UUID)
+		}
+	}
+	return r0
+}
+
+// MockService_VoiceParticipants_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'VoiceParticipants'
+type MockService_VoiceParticipants_Call struct {
+	*mock.Call
+}
+
+// VoiceParticipants is a helper method to define mock.On call
+//   - roomID uuid.UUID
+func (_e *MockService_Expecter) VoiceParticipants(roomID interface{}) *MockService_VoiceParticipants_Call {
+	return &MockService_VoiceParticipants_Call{Call: _e.mock.On("VoiceParticipants", roomID)}
+}
+
+func (_c *MockService_VoiceParticipants_Call) Run(run func(roomID uuid.UUID)) *MockService_VoiceParticipants_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 uuid.UUID
+		if args[0] != nil {
+			arg0 = args[0].(uuid.UUID)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_VoiceParticipants_Call) Return(uUIDs []uuid.UUID) *MockService_VoiceParticipants_Call {
+	_c.Call.Return(uUIDs)
+	return _c
+}
+
+func (_c *MockService_VoiceParticipants_Call) RunAndReturn(run func(roomID uuid.UUID) []uuid.UUID) *MockService_VoiceParticipants_Call {
 	_c.Call.Return(run)
 	return _c
 }

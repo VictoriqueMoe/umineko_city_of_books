@@ -66,6 +66,8 @@ func (s *Service) getAllChatRoutes() []FSetupRoute {
 		s.setupListWatchPartyMessagesRoute,
 		s.setupSendWatchPartyMessageRoute,
 		s.setupIdentifyWatchPartyRoute,
+		s.setupVoiceTokenRoute,
+		s.setupLiveKitWebhookRoute,
 	}
 }
 
@@ -182,6 +184,7 @@ func (s *Service) listRooms(ctx fiber.Ctx) error {
 		return utils.InternalError(ctx, "failed to list rooms")
 	}
 
+	s.decorateVoiceCounts(resp)
 	return ctx.JSON(resp)
 }
 
@@ -349,6 +352,8 @@ func (s *Service) listMyGroupRooms(ctx fiber.Ctx) error {
 	if err != nil {
 		return utils.InternalError(ctx, "failed to list rooms")
 	}
+
+	s.decorateVoiceCounts(resp)
 	return ctx.JSON(resp)
 }
 
@@ -369,6 +374,8 @@ func (s *Service) listPublicRooms(ctx fiber.Ctx) error {
 	if err != nil {
 		return utils.InternalError(ctx, "failed to list public rooms")
 	}
+
+	s.decorateVoiceCounts(resp)
 	return ctx.JSON(resp)
 }
 

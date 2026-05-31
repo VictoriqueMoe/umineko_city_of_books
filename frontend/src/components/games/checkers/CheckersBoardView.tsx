@@ -400,7 +400,7 @@ export function CheckersBoardView({
                 setJumpPath(nextPath);
                 return;
             }
-            void submitMove(selected!, nextPath);
+            submitMove(selected!, nextPath);
             return;
         }
 
@@ -429,13 +429,13 @@ export function CheckersBoardView({
                 setJumpOriginPiece(persistedGrid[selected.row][selected.col]);
                 return;
             }
-            void submitMove(selected, [{ row, col }]);
+            submitMove(selected, [{ row, col }]);
             return;
         }
 
         const simpleHit = availableTargets.simples.find(s => s.row === row && s.col === col);
         if (simpleHit) {
-            void submitMove(selected, [{ row, col }]);
+            submitMove(selected, [{ row, col }]);
             return;
         }
 

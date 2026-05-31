@@ -179,6 +179,20 @@
     animation: hotPulse 2.4s ease-in-out infinite;
 }
 
+.voiceBadge {
+    background: rgba(102, 187, 106, 0.18);
+    border: 1px solid rgba(102, 187, 106, 0.55);
+    color: #8edf92;
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.65rem;
+    letter-spacing: 0.05em;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+}
+
 @keyframes hotPulse {
     0%,
     100% {

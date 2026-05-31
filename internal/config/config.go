@@ -88,6 +88,10 @@ var (
 	SettingSessionDurationDays     = &SiteSettingDef{"session_duration_days", "30", TypeInt}
 	SettingDefaultTheme            = &SiteSettingDef{"default_theme", "featherine", TypeString}
 	SettingDMsEnabled              = &SiteSettingDef{"dms_enabled", "true", TypeBool}
+	SettingVoiceEnabled            = &SiteSettingDef{"voice_enabled", "false", TypeBool}
+	SettingLiveKitURL              = &SiteSettingDef{"livekit_url", "", TypeString}
+	SettingLiveKitAPIKey           = &SiteSettingDef{"livekit_api_key", "", TypeString}
+	SettingLiveKitAPISecret        = &SiteSettingDef{"livekit_api_secret", "", TypeString}
 	SettingTurnstileEnabled        = &SiteSettingDef{"turnstile_enabled", "false", TypeBool}
 	SettingTurnstileSiteKey        = &SiteSettingDef{"turnstile_site_key", "", TypeString}
 	SettingTurnstileSecretKey      = &SiteSettingDef{"turnstile_secret_key", "", TypeString}
@@ -145,6 +149,10 @@ var (
 		SettingSessionDurationDays,
 		SettingDefaultTheme,
 		SettingDMsEnabled,
+		SettingVoiceEnabled,
+		SettingLiveKitURL,
+		SettingLiveKitAPIKey,
+		SettingLiveKitAPISecret,
 		SettingTurnstileEnabled,
 		SettingTurnstileSiteKey,
 		SettingTurnstileSecretKey,
@@ -231,6 +239,12 @@ func ValidateSettings(all map[SiteSettingKey]string) error {
 	regType := all[SettingRegistrationType.Key]
 	if regType != "open" && regType != "invite" && regType != "closed" {
 		return fmt.Errorf("registration type must be 'open', 'invite', or 'closed'")
+	}
+
+	if all[SettingVoiceEnabled.Key] == "true" {
+		if all[SettingLiveKitURL.Key] == "" || all[SettingLiveKitAPIKey.Key] == "" || all[SettingLiveKitAPISecret.Key] == "" {
+			return fmt.Errorf("voice chat requires LiveKit URL, API key and API secret")
+		}
 	}
 
 	return nil

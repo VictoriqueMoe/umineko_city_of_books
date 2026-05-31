@@ -73,7 +73,7 @@ export function FanficDetailPage() {
     usePageTitle(fanfic?.title ?? "Fanfic");
 
     const fetchFanfic = useCallback(() => {
-        void refresh();
+        refresh();
     }, [refresh]);
 
     const favouriteMutation = useFavouriteFanfic();

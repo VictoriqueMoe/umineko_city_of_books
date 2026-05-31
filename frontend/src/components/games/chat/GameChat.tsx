@@ -125,7 +125,7 @@ export function GameChat({ roomId, variant, watcherCount = 0 }: GameChatProps) {
     function handleKey(e: React.KeyboardEvent<HTMLInputElement>) {
         if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
-            void handleSend();
+            handleSend();
         }
     }
 

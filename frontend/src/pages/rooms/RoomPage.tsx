@@ -1,11 +1,11 @@
-import { type Dispatch, type SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type Dispatch, Fragment, type SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { useAuth } from "../../hooks/useAuth";
 import { useNotifications } from "../../hooks/useNotifications";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import type { ChatMessage, ChatRoom, ChatRoomMember, User, WSMessage } from "../../types/api";
 import { buildMentionMatcher } from "../../utils/mentions";
-import { isSiteStaff, type SiteRole } from "../../utils/permissions";
+import { isSiteStaff, ROLE_GROUPS, type SiteRole } from "../../utils/permissions";
 import { parseServerDate } from "../../utils/time";
 import { useChatRoomMembers, useUserRooms } from "../../api/queries/chat";
 import {
@@ -41,6 +41,10 @@ import { MessageSearchPanel } from "../../components/chat/MessageSearchPanel/Mes
 import { useWatchParty } from "../../components/chat/WatchParty/useWatchParty";
 import { WatchPartyButton } from "../../components/chat/WatchParty/WatchPartyButton";
 import { WatchPartyModal } from "../../components/chat/WatchParty/WatchPartyModal";
+import { useVoiceChat } from "../../components/chat/Voice/useVoiceChat";
+import { VoiceBar } from "../../components/chat/Voice/VoiceBar";
+import { VoiceButton } from "../../components/chat/Voice/VoiceButton";
+import { useSiteInfo } from "../../hooks/useSiteInfo";
 import { Lightbox } from "../../components/Lightbox/Lightbox";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import {
@@ -170,6 +174,7 @@ export function RoomPage() {
     const [searchOpen, setSearchOpen] = useState(false);
     const [pinnedRefreshKey, setPinnedRefreshKey] = useState(0);
     const watchParty = useWatchParty(roomId ?? null, user?.id ?? null);
+    const voiceEnabled = useSiteInfo()?.voice_enabled ?? false;
     const [editProfileOpen, setEditProfileOpen] = useState(false);
     const [inviteModalOpen, setInviteModalOpen] = useState(false);
     const [moderationDialogOpen, setModerationDialogOpen] = useState(false);
@@ -191,6 +196,8 @@ export function RoomPage() {
     const userRoomsList = userRoomsQuery.rooms;
     const baseRoom = roomId ? (userRoomsList.find(r => r.id === roomId) ?? null) : null;
     const room = roomOverride.roomId === roomId && roomOverride.room ? roomOverride.room : baseRoom;
+    const voice = useVoiceChat(roomId ?? "", room?.voice_participants ?? []);
+    const voiceIdSet = new Set(voice.participantIds);
     const loading = !!roomId && userRoomsLoading;
     const setRoom: Dispatch<SetStateAction<ChatRoom | null>> = useCallback(
         updater => {
@@ -208,8 +215,7 @@ export function RoomPage() {
 
     const membersQuery = useChatRoomMembers(roomId ?? "", !!roomId && !!room);
     const membersRefresh = membersQuery.refresh;
-    const membersList = membersQuery.members;
-    const baseMembers = membersList;
+    const baseMembers = membersQuery.members;
     const members =
         membersOverride.roomId === roomId && membersOverride.members ? membersOverride.members : baseMembers;
     const setMembers: Dispatch<SetStateAction<ChatRoomMember[]>> = useCallback(
@@ -233,6 +239,85 @@ export function RoomPage() {
         }
     }
     const presenceMapMerged = { ...presenceSeed, ...presenceMap };
+
+    const memberOnlineWeight = (id: string) => {
+        const p = presenceMapMerged[id];
+        if (p === "active" || p === "idle") {
+            return 0;
+        }
+        return 1;
+    };
+    const memberRankWeight = (m: ChatRoomMember) => {
+        if (m.user.role === "super_admin") {
+            return 0;
+        }
+
+        if (m.role === "host") {
+            return 1;
+        }
+
+        const idx = ROLE_GROUPS.findIndex(g => g.role === m.user.role);
+        if (idx >= 0) {
+            return idx + 1;
+        }
+
+        return ROLE_GROUPS.length + 1;
+    };
+    const memberSortName = (m: ChatRoomMember) => {
+        const nickname = m.nickname?.trim();
+        if (nickname) {
+            return nickname.toLowerCase();
+        }
+        const displayName = m.user.display_name?.trim();
+        if (displayName) {
+            return displayName.toLowerCase();
+        }
+        return m.user.username.toLowerCase();
+    };
+    const memberRankLabel = (m: ChatRoomMember) => {
+        const group = ROLE_GROUPS.find(g => g.role === m.user.role);
+        if (m.user.role === "super_admin" && group) {
+            return group.label;
+        }
+
+        if (m.role === "host") {
+            return "Host";
+        }
+
+        if (group) {
+            return group.label;
+        }
+
+        return "Members";
+    };
+    const sortedMembers = [...members].sort((a, b) => {
+        const rank = memberRankWeight(a) - memberRankWeight(b);
+        if (rank !== 0) {
+            return rank;
+        }
+
+        const online = memberOnlineWeight(a.user.id) - memberOnlineWeight(b.user.id);
+        if (online !== 0) {
+            return online;
+        }
+
+        return memberSortName(a).localeCompare(memberSortName(b));
+    });
+    const memberGroups: { label: string; members: ChatRoomMember[] }[] = [];
+    for (const m of sortedMembers) {
+        const label = memberRankLabel(m);
+        const last = memberGroups[memberGroups.length - 1];
+        if (last && last.label === label) {
+            last.members.push(m);
+        } else {
+            memberGroups.push({ label, members: [m] });
+        }
+    }
+
+    const inVoiceMembers = sortedMembers.filter(m => voiceIdSet.has(m.user.id));
+    if (inVoiceMembers.length > 0) {
+        memberGroups.unshift({ label: "In Voice", members: inVoiceMembers });
+    }
 
     const {
         messages,
@@ -305,7 +390,7 @@ export function RoomPage() {
         if (!messages.some(m => m.id === pendingTargetMsgId)) {
             if (hashLoadRef.current !== pendingTargetMsgId) {
                 hashLoadRef.current = pendingTargetMsgId;
-                void loadUntilMessage(pendingTargetMsgId, targetMsgCreatedAt).then(found => {
+                loadUntilMessage(pendingTargetMsgId, targetMsgCreatedAt).then(found => {
                     if (!found) {
                         setHandledHash(pendingTargetMsgId);
                     }
@@ -892,175 +977,205 @@ export function RoomPage() {
                         </button>
                     </div>
                     <div className={styles.memberList}>
-                        {members.map(m => {
-                            const effectiveUser: User = {
-                                ...m.user,
-                                display_name:
-                                    m.nickname && m.nickname.trim() !== ""
-                                        ? m.nickname
-                                        : m.user.display_name && m.user.display_name.trim() !== ""
-                                          ? m.user.display_name
-                                          : m.user.username,
-                                avatar_url:
-                                    m.member_avatar_url && m.member_avatar_url.trim() !== ""
-                                        ? m.member_avatar_url
-                                        : m.user.avatar_url,
-                            };
-                            const isSelf = m.user.id === user.id;
-                            const targetIsSiteMod = isSiteStaff(m.user.role);
-                            const targetIsHost = m.role === "host";
-                            const timeoutIsActive = Boolean(m.timeout_until);
-                            const canKickTarget =
-                                canModerateRoom && !isSystem && !isSelf && !targetIsHost && !targetIsSiteMod;
-                            const canEditTargetNickname = isSiteMod && !targetIsSiteMod && !isSelf && !isSystem;
-                            let canTimeoutTarget = false;
-                            if (canModerateRoom && !isSystem && !isSelf && !targetIsSiteMod) {
-                                if (isSiteMod) {
-                                    canTimeoutTarget = true;
-                                } else {
-                                    canTimeoutTarget = !targetIsHost;
-                                }
-                            }
-                            if (canTimeoutTarget && timeoutIsActive && m.timeout_set_by_staff && !isSiteMod) {
-                                canTimeoutTarget = false;
-                            }
-                            const canClearTimeoutTarget =
-                                canModerateRoom &&
-                                !isSystem &&
-                                timeoutIsActive &&
-                                (isSiteMod || !m.timeout_set_by_staff);
-                            const canActOnMember =
-                                canKickTarget || canEditTargetNickname || canTimeoutTarget || canClearTimeoutTarget;
-                            const menuOpen = openMemberMenu === m.user.id;
-                            const presence = presenceMapMerged[m.user.id];
-                            const presenceClass =
-                                presence === "active"
-                                    ? styles.presenceActive
-                                    : presence === "idle"
-                                      ? styles.presenceIdle
-                                      : styles.presenceAway;
-                            const presenceTitle =
-                                presence === "active"
-                                    ? "Active in this room"
-                                    : presence === "idle"
-                                      ? "Idle or tab in background"
-                                      : "Not currently viewing";
-                            return (
-                                <div key={m.user.id} className={styles.memberRow}>
-                                    <span
-                                        className={`${styles.presenceDot} ${presenceClass}`}
-                                        title={presenceTitle}
-                                        aria-label={presenceTitle}
-                                    />
-                                    <ProfileLink user={effectiveUser} size="small" />
-                                    {m.role === "host" && <span className={styles.hostBadge}>Host</span>}
-                                    {m.ghost && (
-                                        <span
-                                            className={styles.ghostBadge}
-                                            title="Ghost member — not visible to non-staff"
-                                        >
-                                            {"\u{1F47B}"}
-                                        </span>
-                                    )}
-                                    {timeoutIsActive && (
-                                        <span
-                                            className={styles.timeoutIcon}
-                                            title={`Timed out until ${formatTimeoutUntil(m.timeout_until)}`}
-                                            aria-label={`Timed out until ${formatTimeoutUntil(m.timeout_until)}`}
-                                        >
-                                            {"\u23F1"}
-                                        </span>
-                                    )}
-                                    {isSelf && (
-                                        <button
-                                            type="button"
-                                            className={styles.editSelfBtn}
-                                            onClick={() => setEditProfileOpen(true)}
-                                            title="Edit profile in this room"
-                                            aria-label="Edit profile in this room"
-                                        >
-                                            {"\u270E"}
-                                        </button>
-                                    )}
-                                    {canActOnMember && (
-                                        <div className={styles.memberActions}>
-                                            <button
-                                                type="button"
-                                                className={styles.modActionsBtn}
-                                                onClick={() =>
-                                                    setOpenMemberMenu(prev => (prev === m.user.id ? null : m.user.id))
-                                                }
-                                                aria-label="Moderator actions"
-                                                title="Moderator actions"
-                                            >
-                                                {"\u22EE"}
-                                            </button>
-                                            {menuOpen && (
-                                                <div
-                                                    className={styles.modActionsMenu}
-                                                    onMouseLeave={() => setOpenMemberMenu(null)}
-                                                >
-                                                    {canEditTargetNickname && (
-                                                        <button type="button" onClick={() => openNicknameDialog(m)}>
-                                                            Change nickname
-                                                        </button>
-                                                    )}
-                                                    {canEditTargetNickname && m.nickname_locked && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleModUnlockNickname(m.user.id)}
-                                                            disabled={busy === m.user.id}
-                                                        >
-                                                            Reset/unlock nickname
-                                                        </button>
-                                                    )}
-                                                    {canKickTarget && (
-                                                        <button
-                                                            type="button"
-                                                            className={styles.danger}
-                                                            onClick={() => {
-                                                                setOpenMemberMenu(null);
-                                                                handleKick(m.user.id);
-                                                            }}
-                                                            disabled={busy === m.user.id}
-                                                        >
-                                                            Kick member
-                                                        </button>
-                                                    )}
-                                                    {canKickTarget && (
-                                                        <button
-                                                            type="button"
-                                                            className={styles.danger}
-                                                            onClick={() => {
-                                                                setOpenMemberMenu(null);
-                                                                handleBan(m.user.id);
-                                                            }}
-                                                            disabled={busy === m.user.id}
-                                                        >
-                                                            Ban from room
-                                                        </button>
-                                                    )}
-                                                    {canTimeoutTarget && (
-                                                        <button type="button" onClick={() => openTimeoutDialog(m)}>
-                                                            Set timeout
-                                                        </button>
-                                                    )}
-                                                    {canClearTimeoutTarget && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleClearTimeout(m.user.id)}
-                                                            disabled={busy === `timeout:${m.user.id}`}
-                                                        >
-                                                            Remove timeout
-                                                        </button>
-                                                    )}
+                        {memberGroups.map(group => (
+                            <div key={group.label} className={styles.memberGroup}>
+                                <div className={styles.memberGroupHeader}>{group.label}</div>
+                                {group.members.map((m, memberIndex) => {
+                                    const effectiveUser: User = {
+                                        ...m.user,
+                                        display_name:
+                                            m.nickname && m.nickname.trim() !== ""
+                                                ? m.nickname
+                                                : m.user.display_name && m.user.display_name.trim() !== ""
+                                                  ? m.user.display_name
+                                                  : m.user.username,
+                                        avatar_url:
+                                            m.member_avatar_url && m.member_avatar_url.trim() !== ""
+                                                ? m.member_avatar_url
+                                                : m.user.avatar_url,
+                                    };
+                                    const isSelf = m.user.id === user.id;
+                                    const targetIsSiteMod = isSiteStaff(m.user.role);
+                                    const targetIsHost = m.role === "host";
+                                    const timeoutIsActive = Boolean(m.timeout_until);
+                                    const canKickTarget =
+                                        canModerateRoom && !isSystem && !isSelf && !targetIsHost && !targetIsSiteMod;
+                                    const canEditTargetNickname = isSiteMod && !targetIsSiteMod && !isSelf && !isSystem;
+                                    let canTimeoutTarget = false;
+                                    if (canModerateRoom && !isSystem && !isSelf && !targetIsSiteMod) {
+                                        if (isSiteMod) {
+                                            canTimeoutTarget = true;
+                                        } else {
+                                            canTimeoutTarget = !targetIsHost;
+                                        }
+                                    }
+                                    if (canTimeoutTarget && timeoutIsActive && m.timeout_set_by_staff && !isSiteMod) {
+                                        canTimeoutTarget = false;
+                                    }
+                                    const canClearTimeoutTarget =
+                                        canModerateRoom &&
+                                        !isSystem &&
+                                        timeoutIsActive &&
+                                        (isSiteMod || !m.timeout_set_by_staff);
+                                    const canActOnMember =
+                                        canKickTarget ||
+                                        canEditTargetNickname ||
+                                        canTimeoutTarget ||
+                                        canClearTimeoutTarget;
+                                    const menuOpen = openMemberMenu === m.user.id;
+                                    const presence = presenceMapMerged[m.user.id];
+                                    const presenceClass =
+                                        presence === "active"
+                                            ? styles.presenceActive
+                                            : presence === "idle"
+                                              ? styles.presenceIdle
+                                              : styles.presenceAway;
+                                    const presenceTitle =
+                                        presence === "active"
+                                            ? "Active in this room"
+                                            : presence === "idle"
+                                              ? "Idle or tab in background"
+                                              : "Not currently viewing";
+                                    const isOnline = memberOnlineWeight(m.user.id) === 0;
+                                    const prevMember = memberIndex > 0 ? group.members[memberIndex - 1] : null;
+                                    const prevOnline = prevMember ? memberOnlineWeight(prevMember.user.id) === 0 : null;
+                                    const showStatusHeader =
+                                        group.label !== "In Voice" && (memberIndex === 0 || isOnline !== prevOnline);
+                                    return (
+                                        <Fragment key={m.user.id}>
+                                            {showStatusHeader && (
+                                                <div className={styles.memberStatusHeader}>
+                                                    {isOnline ? "Online" : "Offline"}
                                                 </div>
                                             )}
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })}
+                                            <div className={styles.memberRow}>
+                                                <span
+                                                    className={`${styles.presenceDot} ${presenceClass}`}
+                                                    title={presenceTitle}
+                                                    aria-label={presenceTitle}
+                                                />
+                                                <ProfileLink user={effectiveUser} size="small" />
+                                                {m.role === "host" && <span className={styles.hostBadge}>Host</span>}
+                                                {m.ghost && (
+                                                    <span
+                                                        className={styles.ghostBadge}
+                                                        title="Ghost member — not visible to non-staff"
+                                                    >
+                                                        {"\u{1F47B}"}
+                                                    </span>
+                                                )}
+                                                {timeoutIsActive && (
+                                                    <span
+                                                        className={styles.timeoutIcon}
+                                                        title={`Timed out until ${formatTimeoutUntil(m.timeout_until)}`}
+                                                        aria-label={`Timed out until ${formatTimeoutUntil(m.timeout_until)}`}
+                                                    >
+                                                        {"\u23F1"}
+                                                    </span>
+                                                )}
+                                                {isSelf && (
+                                                    <button
+                                                        type="button"
+                                                        className={styles.editSelfBtn}
+                                                        onClick={() => setEditProfileOpen(true)}
+                                                        title="Edit profile in this room"
+                                                        aria-label="Edit profile in this room"
+                                                    >
+                                                        {"\u270E"}
+                                                    </button>
+                                                )}
+                                                {canActOnMember && (
+                                                    <div className={styles.memberActions}>
+                                                        <button
+                                                            type="button"
+                                                            className={styles.modActionsBtn}
+                                                            onClick={() =>
+                                                                setOpenMemberMenu(prev =>
+                                                                    prev === m.user.id ? null : m.user.id,
+                                                                )
+                                                            }
+                                                            aria-label="Moderator actions"
+                                                            title="Moderator actions"
+                                                        >
+                                                            {"\u22EE"}
+                                                        </button>
+                                                        {menuOpen && (
+                                                            <div
+                                                                className={styles.modActionsMenu}
+                                                                onMouseLeave={() => setOpenMemberMenu(null)}
+                                                            >
+                                                                {canEditTargetNickname && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => openNicknameDialog(m)}
+                                                                    >
+                                                                        Change nickname
+                                                                    </button>
+                                                                )}
+                                                                {canEditTargetNickname && m.nickname_locked && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() =>
+                                                                            handleModUnlockNickname(m.user.id)
+                                                                        }
+                                                                        disabled={busy === m.user.id}
+                                                                    >
+                                                                        Reset/unlock nickname
+                                                                    </button>
+                                                                )}
+                                                                {canKickTarget && (
+                                                                    <button
+                                                                        type="button"
+                                                                        className={styles.danger}
+                                                                        onClick={() => {
+                                                                            setOpenMemberMenu(null);
+                                                                            handleKick(m.user.id);
+                                                                        }}
+                                                                        disabled={busy === m.user.id}
+                                                                    >
+                                                                        Kick member
+                                                                    </button>
+                                                                )}
+                                                                {canKickTarget && (
+                                                                    <button
+                                                                        type="button"
+                                                                        className={styles.danger}
+                                                                        onClick={() => {
+                                                                            setOpenMemberMenu(null);
+                                                                            handleBan(m.user.id);
+                                                                        }}
+                                                                        disabled={busy === m.user.id}
+                                                                    >
+                                                                        Ban from room
+                                                                    </button>
+                                                                )}
+                                                                {canTimeoutTarget && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => openTimeoutDialog(m)}
+                                                                    >
+                                                                        Set timeout
+                                                                    </button>
+                                                                )}
+                                                                {canClearTimeoutTarget && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => handleClearTimeout(m.user.id)}
+                                                                        disabled={busy === `timeout:${m.user.id}`}
+                                                                    >
+                                                                        Remove timeout
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </Fragment>
+                                    );
+                                })}
+                            </div>
+                        ))}
                     </div>
                     <div className={styles.sidebarFooter}>
                         <Button
@@ -1165,6 +1280,8 @@ export function RoomPage() {
                         </div>
                     )}
 
+                    {voice.status === "connected" && voice.room && <VoiceBar room={voice.room} onLeave={voice.leave} />}
+
                     <div className={styles.messages} ref={messagesContainerRef} onScroll={handleMessagesScroll}>
                         {hasMore && (
                             <div className={styles.loadMoreBar}>
@@ -1237,15 +1354,24 @@ export function RoomPage() {
                         timeoutUntil={viewerTimeoutUntil}
                         extraActions={
                             !isSystem && user ? (
-                                <WatchPartyButton
-                                    enabled={watchParty.enabled}
-                                    sessions={watchParty.sessions}
-                                    activeSessionId={watchParty.openSessionId}
-                                    viewerUserId={user.id}
-                                    onStart={opts => watchParty.start(opts)}
-                                    onJoin={sid => watchParty.join(sid)}
-                                    onOpenExisting={sid => watchParty.openExisting(sid)}
-                                />
+                                <>
+                                    <VoiceButton
+                                        enabled={voiceEnabled}
+                                        status={voice.status}
+                                        presenceCount={voice.presenceCount}
+                                        onJoin={voice.join}
+                                        onLeave={voice.leave}
+                                    />
+                                    <WatchPartyButton
+                                        enabled={watchParty.enabled}
+                                        sessions={watchParty.sessions}
+                                        activeSessionId={watchParty.openSessionId}
+                                        viewerUserId={user.id}
+                                        onStart={opts => watchParty.start(opts)}
+                                        onJoin={sid => watchParty.join(sid)}
+                                        onOpenExisting={sid => watchParty.openExisting(sid)}
+                                    />
+                                </>
                             ) : null
                         }
                     />

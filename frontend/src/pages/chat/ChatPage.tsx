@@ -7,6 +7,10 @@ import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
 import { Modal } from "../../components/Modal/Modal";
 import { ChatComposer } from "../../components/chat/ChatComposer/ChatComposer";
+import { useVoiceChat } from "../../components/chat/Voice/useVoiceChat";
+import { VoiceBar } from "../../components/chat/Voice/VoiceBar";
+import { VoiceButton } from "../../components/chat/Voice/VoiceButton";
+import { useSiteInfo } from "../../hooks/useSiteInfo";
 import { TypingIndicator } from "../../components/chat/TypingIndicator/TypingIndicator";
 import { useTypingIndicator } from "../../hooks/useTypingIndicator";
 import { MessageBubble } from "../../components/chat/MessageBubble/MessageBubble";
@@ -101,6 +105,8 @@ export function ChatPage() {
     const { addWSListener, sendWSMessage, wsEpoch } = useNotifications();
     const [rooms, setRooms] = useState<ChatRoom[]>([]);
     const [activeRoomId, setActiveRoomId] = useState<string | null>(urlRoomId ?? null);
+    const voice = useVoiceChat(activeRoomId ?? "");
+    const voiceEnabled = useSiteInfo()?.voice_enabled ?? false;
     const [readReceipts, setReadReceipts] = useState<Record<string, Record<string, string>>>({});
     const [loading, setLoading] = useState(true);
     const [showNewDm, setShowNewDm] = useState(false);
@@ -544,6 +550,9 @@ export function ChatPage() {
                                     Delete Chat
                                 </Button>
                             </div>
+                            {voice.status === "connected" && voice.room && (
+                                <VoiceBar room={voice.room} onLeave={voice.leave} />
+                            )}
                             <div className={styles.messages} ref={messagesContainerRef} onScroll={handleDmScroll}>
                                 {hasMore && (
                                     <div className={styles.loadMoreBar}>
@@ -598,6 +607,15 @@ export function ChatPage() {
                                 onSent={handleSentMessage}
                                 onTyping={() => sendWSMessage({ type: "typing", data: { room_id: activeRoomId } })}
                                 onEditLast={handleEditLast}
+                                extraActions={
+                                    <VoiceButton
+                                        enabled={voiceEnabled}
+                                        status={voice.status}
+                                        presenceCount={voice.presenceCount}
+                                        onJoin={voice.join}
+                                        onLeave={voice.leave}
+                                    />
+                                }
                             />
                         </>
                     )}

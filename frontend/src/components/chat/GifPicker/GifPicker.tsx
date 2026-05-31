@@ -122,7 +122,7 @@ export function GifPicker({ onPick, onClose }: GifPickerProps) {
         }
         const t = setTimeout(() => {
             setRateLimitedUntil(null);
-            void giphyRefetch();
+            giphyRefetch();
         }, ms + 500);
         return () => clearTimeout(t);
     }, [rateLimitedUntil, giphyRefetch]);

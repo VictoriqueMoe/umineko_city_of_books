@@ -66,9 +66,7 @@ export function ArtUploadForm({
             });
             try {
                 await setArtGalleryMutation.mutateAsync({ artId: id, galleryId });
-            } catch {
-                void 0;
-            }
+            } catch {}
             onCreated();
             navigate(`/gallery/art/${id}`);
         } catch (err) {

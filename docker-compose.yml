@@ -31,5 +31,19 @@ services:
     volumes:
       - ./data:/app/data
 
+  livekit:
+    image: livekit/livekit-server:latest
+    container_name: umineko-livekit
+    restart: unless-stopped
+    command: --config /etc/livekit.yaml
+    environment:
+      NODE_IP: 127.0.0.1
+    ports:
+      - "7880:7880"
+      - "7881:7881"
+      - "7882:7882/udp"
+    volumes:
+      - ./livekit.yaml:/etc/livekit.yaml:ro
+
 volumes:
   postgres_data:

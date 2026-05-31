@@ -61,8 +61,8 @@ export function useUpdateProfile() {
     return useMutation({
         mutationFn: (payload: UpdateProfilePayload) => updateProfile(payload),
         onSuccess: () => {
-            void qc.invalidateQueries({ queryKey: ["auth", "me"] });
-            void qc.invalidateQueries({ queryKey: ["profile"] });
+            qc.invalidateQueries({ queryKey: ["auth", "me"] });
+            qc.invalidateQueries({ queryKey: ["profile"] });
         },
     });
 }
@@ -88,7 +88,7 @@ export function useUploadAvatar() {
     return useMutation({
         mutationFn: (file: File) => uploadAvatar(file),
         onSuccess: () => {
-            void qc.invalidateQueries({ queryKey: ["auth", "me"] });
+            qc.invalidateQueries({ queryKey: ["auth", "me"] });
         },
     });
 }
@@ -98,7 +98,7 @@ export function useUploadBanner() {
     return useMutation({
         mutationFn: (file: File) => uploadBanner(file),
         onSuccess: () => {
-            void qc.invalidateQueries({ queryKey: ["auth", "me"] });
+            qc.invalidateQueries({ queryKey: ["auth", "me"] });
         },
     });
 }
@@ -108,7 +108,7 @@ export function useUpdateGameBoardSort() {
     return useMutation({
         mutationFn: (sort: string) => updateGameBoardSort(sort),
         onSuccess: () => {
-            void qc.invalidateQueries({ queryKey: ["auth", "me"] });
+            qc.invalidateQueries({ queryKey: ["auth", "me"] });
         },
     });
 }
@@ -119,7 +119,7 @@ export function useUpdateAppearance() {
         mutationFn: ({ theme, font, wideLayout }: { theme: string; font: string; wideLayout: boolean }) =>
             updateAppearance(theme, font, wideLayout),
         onSuccess: () => {
-            void qc.invalidateQueries({ queryKey: ["auth", "me"] });
+            qc.invalidateQueries({ queryKey: ["auth", "me"] });
         },
     });
 }
@@ -129,8 +129,8 @@ export function useUnlockSecret() {
     return useMutation({
         mutationFn: ({ secret, phrase }: { secret: string; phrase: string }) => unlockSecret(secret, phrase),
         onSuccess: () => {
-            void qc.invalidateQueries({ queryKey: ["auth", "me"] });
-            void qc.invalidateQueries({ queryKey: ["site-info"] });
+            qc.invalidateQueries({ queryKey: ["auth", "me"] });
+            qc.invalidateQueries({ queryKey: ["site-info"] });
         },
     });
 }

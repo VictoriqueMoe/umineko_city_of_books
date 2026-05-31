@@ -696,6 +696,8 @@ export interface ChatRoom {
     last_message_at?: string;
     archived_at?: string;
     unread?: boolean;
+    voice_count?: number;
+    voice_participants?: string[];
 }
 
 export interface ChatRoomMember {

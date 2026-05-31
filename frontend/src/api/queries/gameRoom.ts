@@ -147,7 +147,7 @@ export function useGameRoom(roomId: string | undefined): UseGameRoomResult {
             if (data.room) {
                 queryClient.setQueryData(queryKeys.gameRoom.detail(roomId), data.room);
             } else if (msg.type === "game_room_presence") {
-                void queryClient.invalidateQueries({ queryKey: queryKeys.gameRoom.detail(roomId) });
+                queryClient.invalidateQueries({ queryKey: queryKeys.gameRoom.detail(roomId) });
             }
         });
     }, [addWSListener, roomId, queryClient]);

@@ -89,6 +89,11 @@ export function AdminSettings() {
         if (maxResponses < 0) {
             return "Max responses per day cannot be negative";
         }
+        if (settings.voice_enabled === "true") {
+            if (!settings.livekit_url || !settings.livekit_api_key || !settings.livekit_api_secret) {
+                return "Voice chat requires LiveKit URL, API key and API secret";
+            }
+        }
         return null;
     }
 
@@ -190,6 +195,50 @@ export function AdminSettings() {
                                     onChange={e => updateField("turnstile_secret_key", e.target.value)}
                                     fullWidth
                                     placeholder="0x..."
+                                />
+                            </div>
+                        </>
+                    )}
+                </div>
+            </div>
+
+            <div className={styles.card}>
+                <h2 className={styles.sectionTitle}>Voice Chat (LiveKit)</h2>
+                <div className={styles.fieldGroup}>
+                    <ToggleSwitch
+                        label="Enable Voice Chat"
+                        description="Allow voice calls in chat rooms and DMs (requires a self-hosted LiveKit server)"
+                        enabled={settings.voice_enabled === "true"}
+                        onChange={v => toggleField("voice_enabled", v)}
+                    />
+                    {settings.voice_enabled === "true" && (
+                        <>
+                            <div className={styles.field}>
+                                <span className={styles.fieldLabel}>LiveKit URL</span>
+                                <Input
+                                    value={settings.livekit_url ?? ""}
+                                    onChange={e => updateField("livekit_url", e.target.value)}
+                                    fullWidth
+                                    placeholder="wss://livekit.example.com"
+                                />
+                            </div>
+                            <div className={styles.field}>
+                                <span className={styles.fieldLabel}>API Key</span>
+                                <Input
+                                    value={settings.livekit_api_key ?? ""}
+                                    onChange={e => updateField("livekit_api_key", e.target.value)}
+                                    fullWidth
+                                    placeholder="APIxxxxxxxx"
+                                />
+                            </div>
+                            <div className={styles.field}>
+                                <span className={styles.fieldLabel}>API Secret</span>
+                                <Input
+                                    type="password"
+                                    value={settings.livekit_api_secret ?? ""}
+                                    onChange={e => updateField("livekit_api_secret", e.target.value)}
+                                    fullWidth
+                                    placeholder="secret"
                                 />
                             </div>
                         </>

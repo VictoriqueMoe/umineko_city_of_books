@@ -468,7 +468,7 @@ export function MysteryDetailPage() {
     }, [mystery, user]);
 
     const fetchMystery = useCallback(() => {
-        void refresh();
+        refresh();
     }, [refresh]);
 
     const throttledFetchMystery = useThrottled(fetchMystery, 200);

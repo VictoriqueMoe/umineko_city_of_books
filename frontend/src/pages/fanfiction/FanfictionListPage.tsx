@@ -325,12 +325,16 @@ export function FanfictionListPage() {
                 <div className={styles.list}>
                     {fanfics.map(f => (
                         <Link key={f.id} to={`/fanfiction/${f.id}`} className={styles.card}>
-                            {(f.cover_thumbnail_url || f.cover_image_url) && (
+                            {f.cover_thumbnail_url || f.cover_image_url ? (
                                 <img
                                     className={styles.cardCover}
                                     src={f.cover_thumbnail_url || f.cover_image_url}
                                     alt=""
                                 />
+                            ) : (
+                                <div className={styles.cardCoverPlaceholder} aria-hidden="true">
+                                    {f.title.charAt(0)}
+                                </div>
                             )}
                             <div className={styles.cardContent}>
                                 <div className={styles.cardTitleRow}>

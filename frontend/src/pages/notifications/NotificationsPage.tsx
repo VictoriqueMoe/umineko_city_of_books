@@ -176,7 +176,7 @@ export function NotificationsPage() {
                                                         className={styles.inlineMarkReadBtn}
                                                         onClick={event => {
                                                             event.stopPropagation();
-                                                            void handleMarkReadOnly(notif);
+                                                            handleMarkReadOnly(notif);
                                                         }}
                                                         disabled={markingId === notif.id}
                                                     >
@@ -267,7 +267,7 @@ function CategorySection({
                                         className={styles.inlineMarkReadBtn}
                                         onClick={event => {
                                             event.stopPropagation();
-                                            void onMarkRead(notif);
+                                            onMarkRead(notif);
                                         }}
                                         disabled={markingId === notif.id}
                                     >
