@@ -76,7 +76,7 @@ const HIDDEN_LEAVE_AFTER_MS = 10 * 60 * 1000;
 function sendLeaveBeacon(roomId: string, sessionId: string) {
     const url = `/api/v1/chat/rooms/${roomId}/watch-parties/${sessionId}/participants/me`;
     try {
-        void fetch(url, { method: "DELETE", credentials: "include", keepalive: true });
+        fetch(url, { method: "DELETE", credentials: "include", keepalive: true });
     } catch {}
 }
 

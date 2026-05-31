@@ -26,6 +26,7 @@ A community platform for fans of Umineko no Naku Koro ni, Higurashi, Ciconia, an
   - [Reading Journals](#reading-journals)
   - [Chat Rooms and DMs](#chat-rooms-and-dms)
   - [Watch Parties](#watch-parties)
+  - [Voice Chat](#voice-chat)
   - [Games](#games)
   - [Secrets and Unlock Hunts](#secrets-and-unlock-hunts)
   - [Announcements](#announcements)
@@ -175,6 +176,7 @@ Real-time chat in two flavours: one-to-one direct messages and named group rooms
 - **GIF picker**, emoji picker, media uploads, and full Discord-style text formatting (backticks, quotes, spoilers, syntax highlighting) everywhere text is typed
 - WebSocket-driven real-time delivery, pin/unpin events, reaction updates, and typing presence
 - **Watch parties** launchable from any group room: spin up a shared Hyperbeam browser VM that everyone in the room can watch and take turns controlling (see [Watch Parties](#watch-parties))
+- **Voice chat** in group rooms and DMs via a self-hosted LiveKit SFU, shown as a slim in-room bar so you can talk and chat at once (see [Voice Chat](#voice-chat))
 - Mobile-first composer: full-width text box with Media / GIF / Send stacked below, bubbles spanning edge to edge
 
 ### Watch Parties
@@ -187,6 +189,15 @@ Hyperbeam-powered shared-browser sessions launched from inside a group chat room
 - **Kick** by host or room mods, broadcast as a `watch_party_kicked` event that closes the panel for the target without dropping them from the room
 - Server-side reconciliation: idle parties past `watchPartyReconcileIdleAfter` are torn down automatically so abandoned VMs don't burn Hyperbeam minutes
 - Disabled cleanly when `HYPERBEAM_API_KEY` is unset — the start button is hidden and the API returns `ErrWatchPartyDisabled`
+
+### Voice Chat
+
+Real-time voice in group rooms and DMs, backed by a self-hosted [LiveKit](https://livekit.io/) SFU so calls scale past the handful of people a peer-to-peer mesh can manage. Audio flows through LiveKit; the Go backend only mints signed join tokens and tracks who is in each call.
+
+- **Join Voice** lives in the chat composer next to the watch-party button; the call renders as a slim bar above the message list (with speaking indicators, mute, and leave), never a takeover modal, so chatting continues during the call
+- Joining is gated by the same room membership check as messaging, and DMs additionally respect blocks
+- LiveKit room name = chat room UUID, participant identity = user UUID; presence is tracked from signed LiveKit webhooks (`participant_joined` / `participant_left` / `room_finished`) and broadcast as a `voice_presence` WS event, which also drives an "in call" badge in the room list
+- Admin-managed and off by default: enable it and set the LiveKit URL / API key / secret under **Admin → Settings → Voice Chat** (the `voice_enabled` toggle reveals the fields). The Join button is hidden and the token endpoint returns `ErrVoiceDisabled` until configured. See [Deployment → Voice Chat](#voice-chat-livekit) for the server side
 
 ### Games
 
@@ -361,6 +372,7 @@ A standalone interface for browsing the full quote corpus across all three serie
 - [Umineko Quote Finder API](https://quotes.auaurora.moe/swagger/index.html) for game quote search and evidence attachment
 - GIPHY API for GIF search, trending, and favourites
 - [Hyperbeam](https://hyperbeam.com/) for the shared-browser VM that powers watch parties
+- [LiveKit](https://livekit.io/) (self-hosted) as the SFU that carries chat-room and DM voice calls
 
 ## Architecture
 
@@ -828,7 +840,33 @@ For backups: a daily `pg_dump | gzip` cron is the recommended path for the datab
 
 ### Reverse Proxy
 
-Run behind Caddy, Nginx, or similar for TLS. The server sets the right cache headers itself (`/static/assets/*` immutable, HTML `no-store`, API `no-cache`), so the proxy only needs to forward requests and upgrade WebSocket connections on `/ws`.
+Run behind Caddy, Nginx, or similar for TLS. The server sets the right cache headers itself (`/static/assets/*` immutable, HTML `no-store`, API `no-cache`), so the proxy only needs to forward requests and upgrade WebSocket connections on `/ws`. If you enable voice chat, also add a `wss://` route to the `livekit` container (see below).
+
+### Voice Chat (LiveKit)
+
+Voice chat needs the bundled `livekit` service (already in `docker-compose.yml` / `docker-compose.prod.yml`) plus a small amount of host setup. The code ships disabled, so none of this is required unless you want voice.
+
+1. **Create the config file.** The compose file bind-mounts `./livekit.yaml`, which is gitignored. Copy the template first (otherwise Docker creates an empty directory in its place):
+
+   ```bash
+   cp livekit.yaml.example livekit.yaml
+   ```
+
+2. **Set the server key/secret.** Edit the `keys:` block in `livekit.yaml` and replace the `devkey` / placeholder secret with a real key name and a long random secret.
+
+3. **Enter the matching values in the app.** In **Admin → Settings → Voice Chat**, toggle voice on and fill in:
+   - **LiveKit URL** — the public `wss://` URL browsers connect to (see step 4)
+   - **API Key** / **API Secret** — the **same** key name and secret you put in `livekit.yaml`
+
+   The app reads these from the database (hot-reloaded, no restart), so they are never stored in `.env`.
+
+4. **Reverse-proxy the signalling.** Point a public `wss://livekit.example.com` at the `livekit` container's port `7880` and use that URL as the LiveKit URL above.
+
+5. **Open the media port on the host firewall.** LiveKit carries all WebRTC audio over a single UDP port `7882` (with TCP `7881` as a fallback), advertised via `rtc.use_external_ip: true`. Open `7882/udp` on the host; without it, calls fail to connect. (A single fixed port avoids the Windows reserved-range binding errors and the slow per-port proxying you get when publishing a large range on Docker Desktop.)
+
+6. **TURN (recommended).** Roughly 15-25% of users behind strict NATs need a relay. Enable LiveKit's embedded TURN with a public hostname and TLS certs in `livekit.yaml`, or accept reduced connectivity.
+
+The webhook LiveKit posts back to (`/api/v1/livekit/webhook`) is reached server-to-server inside the compose network and is verified by the shared secret, so it does not need to be exposed through the proxy.
 
 ## Adding a New Page
 

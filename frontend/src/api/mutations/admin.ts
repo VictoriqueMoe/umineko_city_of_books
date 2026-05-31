@@ -109,8 +109,8 @@ export function useUpdateAdminSettings() {
     return useMutation({
         mutationFn: (settings: SiteSettings) => updateAdminSettings(settings),
         onSuccess: () => {
-            void qc.invalidateQueries({ queryKey: ["admin", "settings"] });
-            void qc.invalidateQueries({ queryKey: ["site-info"] });
+            qc.invalidateQueries({ queryKey: ["admin", "settings"] });
+            qc.invalidateQueries({ queryKey: ["site-info"] });
         },
     });
 }

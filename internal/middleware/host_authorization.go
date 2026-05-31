@@ -15,7 +15,7 @@ import (
 func HostAuthorization(settingsSvc settings.Service) fiber.Handler {
 	return hostauthorization.New(hostauthorization.Config{
 		Next: func(ctx fiber.Ctx) bool {
-			return ctx.Path() == "/health"
+			return ctx.Path() == "/health" || ctx.Path() == "/api/v1/livekit/webhook"
 		},
 		AllowedHostsFunc: func(host string) bool {
 			base := settingsSvc.Get(context.Background(), config.SettingBaseURL)

@@ -133,6 +133,7 @@ export interface SiteInfo {
     maintenance_message: string;
     turnstile_enabled: boolean;
     turnstile_site_key: string;
+    voice_enabled: boolean;
     max_image_size: number;
     max_video_size: number;
     top_detective_ids: string[];
@@ -661,6 +662,15 @@ export async function inviteChatRoomMembers(
         `/chat/rooms/${roomId}/members`,
         { user_ids: userIds },
     );
+}
+
+export interface VoiceTokenResponse {
+    token: string;
+    url: string;
+}
+
+export async function getVoiceToken(roomId: string): Promise<VoiceTokenResponse> {
+    return apiPost<VoiceTokenResponse, Record<string, never>>(`/chat/rooms/${roomId}/voice/token`, {});
 }
 
 export async function listWatchParties(roomId: string): Promise<WatchPartyListResponse> {

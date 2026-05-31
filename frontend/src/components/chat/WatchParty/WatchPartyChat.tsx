@@ -43,7 +43,7 @@ export function WatchPartyChat({ messages, viewerUserId, onSend }: WatchPartyCha
     const handleKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
             e.preventDefault();
-            void handleSend();
+            handleSend();
         }
     };
 

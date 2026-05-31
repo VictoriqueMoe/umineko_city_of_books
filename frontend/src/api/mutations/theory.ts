@@ -18,7 +18,7 @@ export function useCreateTheory() {
     return useMutation({
         mutationFn: (payload: CreateTheoryPayload) => createTheory(payload),
         onSuccess: () => {
-            void qc.invalidateQueries({ queryKey: queryKeys.theory.all });
+            qc.invalidateQueries({ queryKey: queryKeys.theory.all });
         },
     });
 }
@@ -28,8 +28,8 @@ export function useUpdateTheory(id: string) {
     return useMutation({
         mutationFn: (payload: UpdateTheoryPayload) => updateTheory(id, payload),
         onSuccess: () => {
-            void qc.invalidateQueries({ queryKey: queryKeys.theory.detail(id) });
-            void qc.invalidateQueries({ queryKey: queryKeys.theory.all });
+            qc.invalidateQueries({ queryKey: queryKeys.theory.detail(id) });
+            qc.invalidateQueries({ queryKey: queryKeys.theory.all });
         },
     });
 }
@@ -39,7 +39,7 @@ export function useDeleteTheory() {
     return useMutation({
         mutationFn: (id: string) => deleteTheory(id),
         onSuccess: () => {
-            void qc.invalidateQueries({ queryKey: queryKeys.theory.all });
+            qc.invalidateQueries({ queryKey: queryKeys.theory.all });
         },
     });
 }
@@ -49,7 +49,7 @@ export function useVoteTheory(id: string) {
     return useMutation({
         mutationFn: (value: number) => voteTheory(id, value),
         onSuccess: () => {
-            void qc.invalidateQueries({ queryKey: queryKeys.theory.detail(id) });
+            qc.invalidateQueries({ queryKey: queryKeys.theory.detail(id) });
         },
     });
 }
@@ -59,7 +59,7 @@ export function useCreateResponse(theoryId: string) {
     return useMutation({
         mutationFn: (payload: CreateResponsePayload) => createResponse(theoryId, payload),
         onSuccess: () => {
-            void qc.invalidateQueries({ queryKey: queryKeys.theory.detail(theoryId) });
+            qc.invalidateQueries({ queryKey: queryKeys.theory.detail(theoryId) });
         },
     });
 }
@@ -69,7 +69,7 @@ export function useDeleteResponse(theoryId: string) {
     return useMutation({
         mutationFn: (responseId: string) => deleteResponse(responseId),
         onSuccess: () => {
-            void qc.invalidateQueries({ queryKey: queryKeys.theory.detail(theoryId) });
+            qc.invalidateQueries({ queryKey: queryKeys.theory.detail(theoryId) });
         },
     });
 }
@@ -79,7 +79,7 @@ export function useVoteResponse(theoryId: string) {
     return useMutation({
         mutationFn: ({ responseId, value }: { responseId: string; value: number }) => voteResponse(responseId, value),
         onSuccess: () => {
-            void qc.invalidateQueries({ queryKey: queryKeys.theory.detail(theoryId) });
+            qc.invalidateQueries({ queryKey: queryKeys.theory.detail(theoryId) });
         },
     });
 }

@@ -80,7 +80,7 @@ export function WatchPartyModal({
                 activeHandle = handle;
                 handleRef.current = handle;
                 if (handle.userId) {
-                    void identifyRef.current(handle.userId);
+                    identifyRef.current(handle.userId);
                 }
             })
             .catch((err: unknown) => {

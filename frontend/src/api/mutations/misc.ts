@@ -6,8 +6,8 @@ export function useFollowUser() {
     return useMutation({
         mutationFn: (id: string) => followUser(id),
         onSuccess: (_d, id) => {
-            void qc.invalidateQueries({ queryKey: ["follow-stats", id] });
-            void qc.invalidateQueries({ queryKey: ["users", id] });
+            qc.invalidateQueries({ queryKey: ["follow-stats", id] });
+            qc.invalidateQueries({ queryKey: ["users", id] });
         },
     });
 }
@@ -17,8 +17,8 @@ export function useUnfollowUser() {
     return useMutation({
         mutationFn: (id: string) => unfollowUser(id),
         onSuccess: (_d, id) => {
-            void qc.invalidateQueries({ queryKey: ["follow-stats", id] });
-            void qc.invalidateQueries({ queryKey: ["users", id] });
+            qc.invalidateQueries({ queryKey: ["follow-stats", id] });
+            qc.invalidateQueries({ queryKey: ["users", id] });
         },
     });
 }
@@ -28,8 +28,8 @@ export function useBlockUser() {
     return useMutation({
         mutationFn: (id: string) => blockUser(id),
         onSuccess: (_d, id) => {
-            void qc.invalidateQueries({ queryKey: ["block-status", id] });
-            void qc.invalidateQueries({ queryKey: ["blocked-users"] });
+            qc.invalidateQueries({ queryKey: ["block-status", id] });
+            qc.invalidateQueries({ queryKey: ["blocked-users"] });
         },
     });
 }
@@ -39,8 +39,8 @@ export function useUnblockUser() {
     return useMutation({
         mutationFn: (id: string) => unblockUser(id),
         onSuccess: (_d, id) => {
-            void qc.invalidateQueries({ queryKey: ["block-status", id] });
-            void qc.invalidateQueries({ queryKey: ["blocked-users"] });
+            qc.invalidateQueries({ queryKey: ["block-status", id] });
+            qc.invalidateQueries({ queryKey: ["blocked-users"] });
         },
     });
 }

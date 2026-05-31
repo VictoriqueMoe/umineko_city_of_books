@@ -8,6 +8,7 @@ import (
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/hyperbeam"
+	"umineko_city_of_books/internal/livekit"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
@@ -89,6 +90,13 @@ type (
 		SendWatchPartyMessage(ctx context.Context, roomID, sessionID, senderID uuid.UUID, body string) (*dto.WatchPartyMessage, error)
 		GetWatchPartyMessages(ctx context.Context, roomID, sessionID, viewerID uuid.UUID) (*dto.WatchPartyMessagesResponse, error)
 		StartWatchPartyReconcileLoop(ctx context.Context)
+
+		VoiceEnabled() bool
+		MintVoiceToken(ctx context.Context, roomID, userID uuid.UUID) (token, url string, err error)
+		HandleVoiceWebhook(ctx context.Context, authHeader string, body []byte) error
+		VoiceParticipants(roomID uuid.UUID) []uuid.UUID
+		VoiceCount(roomID uuid.UUID) int
+		ReconcilePresence(ctx context.Context) (int, error)
 	}
 
 	service struct {
@@ -101,6 +109,7 @@ type (
 		*messagesService
 		*moderationService
 		*watchPartyService
+		*voiceService
 	}
 )
 
@@ -121,6 +130,7 @@ func NewService(
 	mediaProc *media.Processor,
 	hub *ws.Hub,
 	hyperbeamSvc hyperbeam.Service,
+	livekitSvc livekit.Service,
 	contentFilter *contentfilter.Manager,
 ) Service {
 	c := &core{
@@ -151,6 +161,7 @@ func NewService(
 		roomsService:      &roomsService{core: c},
 		moderationService: &moderationService{core: c},
 		watchPartyService: &watchPartyService{core: c},
+		voiceService:      newVoiceService(c, livekitSvc),
 	}
 	svs.dmService = &dmService{core: c, parent: svs}
 	svs.membersService = &membersService{core: c, parent: svs}

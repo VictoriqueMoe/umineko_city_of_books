@@ -70,9 +70,7 @@ export function CreateShipPage() {
             if (imageFile) {
                 try {
                     await uploadImageMutation.mutateAsync({ id: result.id, file: imageFile });
-                } catch {
-                    void 0;
-                }
+                } catch {}
             }
             navigate(`/ships/${result.id}`);
         } catch (e) {

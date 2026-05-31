@@ -79,7 +79,7 @@ export function MinesweeperCharacterSelect({
                             key={c.id}
                             className={classes.join(" ")}
                             disabled={isSpectator || submitting || pending !== null || isOpp}
-                            onClick={() => void pick(c.id)}
+                            onClick={() => pick(c.id)}
                             aria-pressed={isMine}
                             style={{ "--i": i } as CSSProperties}
                         >

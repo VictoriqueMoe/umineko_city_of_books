@@ -48,26 +48,39 @@ type (
 	}
 
 	ChatRoomResponse struct {
-		ID            uuid.UUID      `json:"id"`
-		Name          string         `json:"name"`
-		Description   string         `json:"description"`
-		Type          string         `json:"type"`
-		IsPublic      bool           `json:"is_public"`
-		IsRP          bool           `json:"is_rp"`
-		IsSystem      bool           `json:"is_system"`
-		SystemKind    string         `json:"system_kind,omitempty"`
-		Tags          []string       `json:"tags"`
-		ViewerRole    string         `json:"viewer_role,omitempty"`
-		ViewerMuted   bool           `json:"viewer_muted"`
-		ViewerGhost   bool           `json:"viewer_ghost"`
-		IsMember      bool           `json:"is_member"`
-		MemberCount   int            `json:"member_count"`
-		HotScore      int            `json:"hot_score"`
-		Members       []UserResponse `json:"members"`
-		CreatedAt     string         `json:"created_at"`
-		LastMessageAt string         `json:"last_message_at,omitempty"`
-		ArchivedAt    string         `json:"archived_at,omitempty"`
-		Unread        bool           `json:"unread"`
+		ID                uuid.UUID      `json:"id"`
+		Name              string         `json:"name"`
+		Description       string         `json:"description"`
+		Type              string         `json:"type"`
+		IsPublic          bool           `json:"is_public"`
+		IsRP              bool           `json:"is_rp"`
+		IsSystem          bool           `json:"is_system"`
+		SystemKind        string         `json:"system_kind,omitempty"`
+		Tags              []string       `json:"tags"`
+		ViewerRole        string         `json:"viewer_role,omitempty"`
+		ViewerMuted       bool           `json:"viewer_muted"`
+		ViewerGhost       bool           `json:"viewer_ghost"`
+		IsMember          bool           `json:"is_member"`
+		MemberCount       int            `json:"member_count"`
+		HotScore          int            `json:"hot_score"`
+		Members           []UserResponse `json:"members"`
+		CreatedAt         string         `json:"created_at"`
+		LastMessageAt     string         `json:"last_message_at,omitempty"`
+		ArchivedAt        string         `json:"archived_at,omitempty"`
+		Unread            bool           `json:"unread"`
+		VoiceCount        int            `json:"voice_count"`
+		VoiceParticipants []uuid.UUID    `json:"voice_participants"`
+	}
+
+	VoicePresenceEvent struct {
+		RoomID       uuid.UUID   `json:"room_id"`
+		Participants []uuid.UUID `json:"participants"`
+		Count        int         `json:"count"`
+	}
+
+	VoiceTokenResponse struct {
+		Token string `json:"token"`
+		URL   string `json:"url"`
 	}
 
 	ChatRoomMemberResponse struct {

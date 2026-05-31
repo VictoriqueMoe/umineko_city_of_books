@@ -45,7 +45,7 @@ export function useCreateGroupRoom() {
             member_ids: string[];
         }): Promise<ChatRoom> => createGroupRoom(payload),
         onSuccess: () => {
-            void qc.invalidateQueries({ queryKey: ROOM_KEY });
+            qc.invalidateQueries({ queryKey: ROOM_KEY });
         },
     });
 }
@@ -55,7 +55,7 @@ export function useJoinChatRoom() {
     return useMutation({
         mutationFn: ({ roomId, ghost }: { roomId: string; ghost?: boolean }) => joinChatRoom(roomId, { ghost }),
         onSuccess: () => {
-            void qc.invalidateQueries({ queryKey: ROOM_KEY });
+            qc.invalidateQueries({ queryKey: ROOM_KEY });
         },
     });
 }
@@ -65,7 +65,7 @@ export function useLeaveChatRoom() {
     return useMutation({
         mutationFn: (roomId: string) => leaveChatRoom(roomId),
         onSuccess: () => {
-            void qc.invalidateQueries({ queryKey: ROOM_KEY });
+            qc.invalidateQueries({ queryKey: ROOM_KEY });
         },
     });
 }
@@ -75,7 +75,7 @@ export function useDeleteChatRoom() {
     return useMutation({
         mutationFn: (roomId: string) => deleteChatRoom(roomId),
         onSuccess: () => {
-            void qc.invalidateQueries({ queryKey: ROOM_KEY });
+            qc.invalidateQueries({ queryKey: ROOM_KEY });
         },
     });
 }
@@ -85,7 +85,7 @@ export function useSetChatRoomMuted() {
     return useMutation({
         mutationFn: ({ roomId, muted }: { roomId: string; muted: boolean }) => setChatRoomMuted(roomId, muted),
         onSuccess: () => {
-            void qc.invalidateQueries({ queryKey: ROOM_KEY });
+            qc.invalidateQueries({ queryKey: ROOM_KEY });
         },
     });
 }
@@ -95,7 +95,7 @@ export function useKickChatRoomMember(roomId: string) {
     return useMutation({
         mutationFn: (userId: string) => kickChatRoomMember(roomId, userId),
         onSuccess: () => {
-            void qc.invalidateQueries({ queryKey: ["chat", "rooms", roomId] });
+            qc.invalidateQueries({ queryKey: ["chat", "rooms", roomId] });
         },
     });
 }
@@ -106,7 +106,7 @@ export function useBanChatRoomMember(roomId: string) {
         mutationFn: ({ userId, reason }: { userId: string; reason: string }) =>
             banChatRoomMember(roomId, userId, reason),
         onSuccess: () => {
-            void qc.invalidateQueries({ queryKey: ["chat", "rooms", roomId] });
+            qc.invalidateQueries({ queryKey: ["chat", "rooms", roomId] });
         },
     });
 }
@@ -116,7 +116,7 @@ export function useUnbanChatRoomMember(roomId: string) {
     return useMutation({
         mutationFn: (userId: string) => unbanChatRoomMember(roomId, userId),
         onSuccess: () => {
-            void qc.invalidateQueries({ queryKey: ["chat", "rooms", roomId] });
+            qc.invalidateQueries({ queryKey: ["chat", "rooms", roomId] });
         },
     });
 }
@@ -126,7 +126,7 @@ export function useCreateChatRoomBannedWord(roomId: string) {
     return useMutation({
         mutationFn: (req: CreateBannedWordRequest) => createChatRoomBannedWord(roomId, req),
         onSuccess: () => {
-            void qc.invalidateQueries({ queryKey: ["chat", "rooms", roomId, "banned-words"] });
+            qc.invalidateQueries({ queryKey: ["chat", "rooms", roomId, "banned-words"] });
         },
     });
 }
@@ -137,7 +137,7 @@ export function useUpdateChatRoomBannedWord(roomId: string) {
         mutationFn: ({ ruleId, req }: { ruleId: string; req: CreateBannedWordRequest }) =>
             updateChatRoomBannedWord(roomId, ruleId, req),
         onSuccess: () => {
-            void qc.invalidateQueries({ queryKey: ["chat", "rooms", roomId, "banned-words"] });
+            qc.invalidateQueries({ queryKey: ["chat", "rooms", roomId, "banned-words"] });
         },
     });
 }
@@ -147,7 +147,7 @@ export function useDeleteChatRoomBannedWord(roomId: string) {
     return useMutation({
         mutationFn: (ruleId: string) => deleteChatRoomBannedWord(roomId, ruleId),
         onSuccess: () => {
-            void qc.invalidateQueries({ queryKey: ["chat", "rooms", roomId, "banned-words"] });
+            qc.invalidateQueries({ queryKey: ["chat", "rooms", roomId, "banned-words"] });
         },
     });
 }
@@ -157,7 +157,7 @@ export function useInviteChatRoomMembers(roomId: string) {
     return useMutation({
         mutationFn: (userIds: string[]) => inviteChatRoomMembers(roomId, userIds),
         onSuccess: () => {
-            void qc.invalidateQueries({ queryKey: ["chat", "rooms", roomId] });
+            qc.invalidateQueries({ queryKey: ["chat", "rooms", roomId] });
         },
     });
 }
@@ -244,7 +244,7 @@ export function usePinChatMessage(roomId?: string) {
         mutationFn: (messageId: string) => pinChatMessage(messageId),
         onSuccess: () => {
             if (roomId) {
-                void qc.invalidateQueries({ queryKey: ["chat", "room", roomId, "pinned"] });
+                qc.invalidateQueries({ queryKey: ["chat", "room", roomId, "pinned"] });
             }
         },
     });
@@ -256,7 +256,7 @@ export function useUnpinChatMessage(roomId?: string) {
         mutationFn: (messageId: string) => unpinChatMessage(messageId),
         onSuccess: () => {
             if (roomId) {
-                void qc.invalidateQueries({ queryKey: ["chat", "room", roomId, "pinned"] });
+                qc.invalidateQueries({ queryKey: ["chat", "room", roomId, "pinned"] });
             }
         },
     });

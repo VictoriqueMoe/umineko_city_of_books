@@ -174,6 +174,10 @@ export function RoomsListPage() {
             if (msg.type === "chat_kicked" || msg.type === "chat_room_deleted") {
                 qc.invalidateQueries({ queryKey: ["chat", "rooms-list"] });
                 qc.invalidateQueries({ queryKey: ["chat", "rooms", "user", "system"] });
+                return;
+            }
+            if (msg.type === "voice_presence") {
+                qc.invalidateQueries({ queryKey: ["chat", "rooms-list"] });
             }
         });
     }, [addWSListener, qc]);
@@ -186,7 +190,6 @@ export function RoomsListPage() {
             qc.invalidateQueries({ queryKey: ["chat", "rooms-list", "discover"] });
             navigate(`/rooms/${joinedRoom.id}`);
         } catch {
-            void 0;
         } finally {
             setJoining(null);
         }
@@ -216,6 +219,11 @@ export function RoomsListPage() {
                     <h3 className={styles.cardTitle}>{room.name}</h3>
                     <div className={styles.cardBadges}>
                         {room.is_system && <span className={styles.systemBadge}>Pinned</span>}
+                        {(room.voice_count ?? 0) > 0 && (
+                            <span className={styles.voiceBadge} title="Voice chat active">
+                                {"\u{1F50A}"} {room.voice_count}
+                            </span>
+                        )}
                         {room.viewer_role === "host" && <span className={styles.hostBadge}>Host</span>}
                         {room.viewer_ghost && (
                             <span className={styles.ghostBadge} title="You joined silently as a ghost">
@@ -332,6 +340,11 @@ export function RoomsListPage() {
                 <div className={styles.cardHeader}>
                     <h3 className={styles.cardTitle}>{room.name}</h3>
                     <div className={styles.cardBadges}>
+                        {(room.voice_count ?? 0) > 0 && (
+                            <span className={styles.voiceBadge} title="Voice chat active">
+                                {"\u{1F50A}"} {room.voice_count}
+                            </span>
+                        )}
                         {room.is_rp && <span className={styles.rpBadge}>RP</span>}
                         <span className={styles.publicBadge}>Public</span>
                         {room.archived_at && (

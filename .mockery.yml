@@ -87,6 +87,9 @@ packages:
   umineko_city_of_books/internal/hyperbeam:
     interfaces:
       Service:
+  umineko_city_of_books/internal/livekit:
+    interfaces:
+      Service:
   umineko_city_of_books/internal/giphy/favourite:
     interfaces:
       Service:

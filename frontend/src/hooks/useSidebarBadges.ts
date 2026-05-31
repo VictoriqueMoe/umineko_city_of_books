@@ -81,9 +81,9 @@ export function useSidebarBadges() {
                 }
             }
             clearLegacyVisited(userId);
-            void refreshVisited();
+            refreshVisited();
         };
-        void run();
+        run();
         return () => {
             cancelled = true;
         };

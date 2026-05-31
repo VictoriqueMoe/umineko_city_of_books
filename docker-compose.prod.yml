@@ -43,5 +43,25 @@ services:
       prometheus-port: "4323"
       prometheus-path: "/metrics"
 
+  livekit:
+    image: livekit/livekit-server:latest
+    container_name: umineko-livekit
+    restart: unless-stopped
+    command: --config /etc/livekit.yaml
+    ports:
+      - "127.0.0.1:7880:7880"
+      - "7881:7881"
+      - "7882:7882/udp"
+    volumes:
+      - ./livekit.yaml:/etc/livekit.yaml:ro
+    networks:
+      - default
+      - observability
+    labels:
+      prometheus-scrape: "true"
+      prometheus-job: "livekit"
+      prometheus-port: "6789"
+      prometheus-path: "/metrics"
+
 volumes:
   postgres_data:

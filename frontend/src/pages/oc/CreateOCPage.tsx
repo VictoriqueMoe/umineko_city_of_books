@@ -152,23 +152,17 @@ function OCForm({ editing, initial, id }: FormProps) {
             if (imageReplaced && imageFile && targetId) {
                 try {
                     await uploadImageMutation.mutateAsync({ id: targetId, file: imageFile });
-                } catch {
-                    void 0;
-                }
+                } catch {}
             }
             for (const removedID of removedExistingIDs) {
                 try {
                     await deleteGalleryMutation.mutateAsync({ ocId: targetId, imageId: removedID });
-                } catch {
-                    void 0;
-                }
+                } catch {}
             }
             for (const item of pendingGallery) {
                 try {
                     await addGalleryMutation.mutateAsync({ id: targetId, file: item.file, caption: item.caption });
-                } catch {
-                    void 0;
-                }
+                } catch {}
             }
             navigate(`/oc/${targetId}`);
         } catch (e) {

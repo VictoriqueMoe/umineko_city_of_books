@@ -5,13 +5,8 @@ import { usePageTitle } from "../../hooks/usePageTitle";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { Input } from "../../components/Input/Input";
 import { PieceTrigger } from "../../features/easterEgg";
+import { ROLE_GROUPS } from "../../utils/permissions";
 import styles from "./UsersPage.module.css";
-
-const ROLE_GROUPS = [
-    { role: "super_admin", label: "Reality Author" },
-    { role: "admin", label: "Voyager Witches" },
-    { role: "moderator", label: "Witches" },
-];
 
 export function UsersPage() {
     usePageTitle("Users");

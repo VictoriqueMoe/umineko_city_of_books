@@ -84,9 +84,7 @@ export function ShipDetailPage() {
         setVoting(true);
         try {
             await voteShipMutation.mutateAsync(newValue);
-        } catch {
-            void 0;
-        }
+        } catch {}
         setVoting(false);
     }
 

@@ -285,6 +285,7 @@ func (s *Service) siteInfo(ctx fiber.Ctx) error {
 		MaintenanceMessage:    s.SettingsService.Get(ctx.Context(), config.SettingMaintenanceMessage),
 		TurnstileEnabled:      s.SettingsService.GetBool(ctx.Context(), config.SettingTurnstileEnabled),
 		TurnstileSiteKey:      s.SettingsService.Get(ctx.Context(), config.SettingTurnstileSiteKey),
+		VoiceEnabled:          s.SettingsService.GetBool(ctx.Context(), config.SettingVoiceEnabled),
 		MaxImageSize:          s.SettingsService.GetInt(ctx.Context(), config.SettingMaxImageSize),
 		MaxVideoSize:          s.SettingsService.GetInt(ctx.Context(), config.SettingMaxVideoSize),
 		TopDetectiveIDs:       topDetectives,

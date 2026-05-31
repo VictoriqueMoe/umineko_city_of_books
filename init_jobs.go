@@ -43,6 +43,9 @@ func registerListeners(settingsSvc settings.Service, app *fiber.App, svc *servic
 	scheduleJob("cancel idle games", "cancelled idle games", 5*time.Minute, func() (int, error) {
 		return svc.gameRoom.CancelIdleGames(context.Background())
 	})
+	scheduleJob("reconcile voice presence", "reconciled voice presence", 30*time.Second, func() (int, error) {
+		return svc.chat.ReconcilePresence(context.Background())
+	})
 }
 
 func scheduleJob(name string, successMsg string, interval time.Duration, fn func() (int, error)) {

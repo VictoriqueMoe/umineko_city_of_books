@@ -333,7 +333,7 @@ export function ChessBoardView({
                             setHoveredSquare(null);
                         },
                         onPieceDrop: ({ sourceSquare, targetSquare }) => {
-                            void handleDrop({ sourceSquare: sourceSquare as Square, targetSquare });
+                            handleDrop({ sourceSquare: sourceSquare as Square, targetSquare });
                             setHoveredSquare(null);
                             return false;
                         },

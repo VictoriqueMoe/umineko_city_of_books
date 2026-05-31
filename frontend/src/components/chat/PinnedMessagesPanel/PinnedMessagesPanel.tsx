@@ -75,7 +75,7 @@ export function PinnedMessagesPanel({
         if (!isOpen || !roomId) {
             return;
         }
-        void pinnedQuery.refresh();
+        pinnedQuery.refresh();
     }, [refreshKey, isOpen, roomId, pinnedQuery]);
 
     async function handleUnpin(messageId: string) {
