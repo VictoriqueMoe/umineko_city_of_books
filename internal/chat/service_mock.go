@@ -1091,6 +1091,162 @@ func (_c *MockService_EnsureSystemRooms_Call) RunAndReturn(run func(ctx context.
 	return _c
 }
 
+// ForceMuteSessionVoice provides a mock function for the type MockService
+func (_mock *MockService) ForceMuteSessionVoice(ctx context.Context, roomID uuid.UUID, sessionID uuid.UUID, actorID uuid.UUID, targetID uuid.UUID, muted bool) error {
+	ret := _mock.Called(ctx, roomID, sessionID, actorID, targetID, muted)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ForceMuteSessionVoice")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID, uuid.UUID, bool) error); ok {
+		r0 = returnFunc(ctx, roomID, sessionID, actorID, targetID, muted)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_ForceMuteSessionVoice_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ForceMuteSessionVoice'
+type MockService_ForceMuteSessionVoice_Call struct {
+	*mock.Call
+}
+
+// ForceMuteSessionVoice is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roomID uuid.UUID
+//   - sessionID uuid.UUID
+//   - actorID uuid.UUID
+//   - targetID uuid.UUID
+//   - muted bool
+func (_e *MockService_Expecter) ForceMuteSessionVoice(ctx interface{}, roomID interface{}, sessionID interface{}, actorID interface{}, targetID interface{}, muted interface{}) *MockService_ForceMuteSessionVoice_Call {
+	return &MockService_ForceMuteSessionVoice_Call{Call: _e.mock.On("ForceMuteSessionVoice", ctx, roomID, sessionID, actorID, targetID, muted)}
+}
+
+func (_c *MockService_ForceMuteSessionVoice_Call) Run(run func(ctx context.Context, roomID uuid.UUID, sessionID uuid.UUID, actorID uuid.UUID, targetID uuid.UUID, muted bool)) *MockService_ForceMuteSessionVoice_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 uuid.UUID
+		if args[3] != nil {
+			arg3 = args[3].(uuid.UUID)
+		}
+		var arg4 uuid.UUID
+		if args[4] != nil {
+			arg4 = args[4].(uuid.UUID)
+		}
+		var arg5 bool
+		if args[5] != nil {
+			arg5 = args[5].(bool)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+			arg5,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_ForceMuteSessionVoice_Call) Return(err error) *MockService_ForceMuteSessionVoice_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_ForceMuteSessionVoice_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, sessionID uuid.UUID, actorID uuid.UUID, targetID uuid.UUID, muted bool) error) *MockService_ForceMuteSessionVoice_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ForceMuteVoice provides a mock function for the type MockService
+func (_mock *MockService) ForceMuteVoice(ctx context.Context, roomID uuid.UUID, actorID uuid.UUID, targetID uuid.UUID, muted bool) error {
+	ret := _mock.Called(ctx, roomID, actorID, targetID, muted)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ForceMuteVoice")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID, bool) error); ok {
+		r0 = returnFunc(ctx, roomID, actorID, targetID, muted)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_ForceMuteVoice_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ForceMuteVoice'
+type MockService_ForceMuteVoice_Call struct {
+	*mock.Call
+}
+
+// ForceMuteVoice is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roomID uuid.UUID
+//   - actorID uuid.UUID
+//   - targetID uuid.UUID
+//   - muted bool
+func (_e *MockService_Expecter) ForceMuteVoice(ctx interface{}, roomID interface{}, actorID interface{}, targetID interface{}, muted interface{}) *MockService_ForceMuteVoice_Call {
+	return &MockService_ForceMuteVoice_Call{Call: _e.mock.On("ForceMuteVoice", ctx, roomID, actorID, targetID, muted)}
+}
+
+func (_c *MockService_ForceMuteVoice_Call) Run(run func(ctx context.Context, roomID uuid.UUID, actorID uuid.UUID, targetID uuid.UUID, muted bool)) *MockService_ForceMuteVoice_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 uuid.UUID
+		if args[3] != nil {
+			arg3 = args[3].(uuid.UUID)
+		}
+		var arg4 bool
+		if args[4] != nil {
+			arg4 = args[4].(bool)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_ForceMuteVoice_Call) Return(err error) *MockService_ForceMuteVoice_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_ForceMuteVoice_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, actorID uuid.UUID, targetID uuid.UUID, muted bool) error) *MockService_ForceMuteVoice_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetMembers provides a mock function for the type MockService
 func (_mock *MockService) GetMembers(ctx context.Context, viewerID uuid.UUID, roomID uuid.UUID) ([]dto.ChatRoomMemberResponse, error) {
 	ret := _mock.Called(ctx, viewerID, roomID)
@@ -3113,6 +3269,90 @@ func (_c *MockService_MarkRead_Call) RunAndReturn(run func(ctx context.Context, 
 	return _c
 }
 
+// MintSessionVoiceToken provides a mock function for the type MockService
+func (_mock *MockService) MintSessionVoiceToken(ctx context.Context, roomID uuid.UUID, sessionID uuid.UUID, userID uuid.UUID) (string, string, error) {
+	ret := _mock.Called(ctx, roomID, sessionID, userID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for MintSessionVoiceToken")
+	}
+
+	var r0 string
+	var r1 string
+	var r2 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) (string, string, error)); ok {
+		return returnFunc(ctx, roomID, sessionID, userID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) string); ok {
+		r0 = returnFunc(ctx, roomID, sessionID, userID)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) string); ok {
+		r1 = returnFunc(ctx, roomID, sessionID, userID)
+	} else {
+		r1 = ret.Get(1).(string)
+	}
+	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) error); ok {
+		r2 = returnFunc(ctx, roomID, sessionID, userID)
+	} else {
+		r2 = ret.Error(2)
+	}
+	return r0, r1, r2
+}
+
+// MockService_MintSessionVoiceToken_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MintSessionVoiceToken'
+type MockService_MintSessionVoiceToken_Call struct {
+	*mock.Call
+}
+
+// MintSessionVoiceToken is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roomID uuid.UUID
+//   - sessionID uuid.UUID
+//   - userID uuid.UUID
+func (_e *MockService_Expecter) MintSessionVoiceToken(ctx interface{}, roomID interface{}, sessionID interface{}, userID interface{}) *MockService_MintSessionVoiceToken_Call {
+	return &MockService_MintSessionVoiceToken_Call{Call: _e.mock.On("MintSessionVoiceToken", ctx, roomID, sessionID, userID)}
+}
+
+func (_c *MockService_MintSessionVoiceToken_Call) Run(run func(ctx context.Context, roomID uuid.UUID, sessionID uuid.UUID, userID uuid.UUID)) *MockService_MintSessionVoiceToken_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 uuid.UUID
+		if args[3] != nil {
+			arg3 = args[3].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_MintSessionVoiceToken_Call) Return(token string, url string, err error) *MockService_MintSessionVoiceToken_Call {
+	_c.Call.Return(token, url, err)
+	return _c
+}
+
+func (_c *MockService_MintSessionVoiceToken_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, sessionID uuid.UUID, userID uuid.UUID) (string, string, error)) *MockService_MintSessionVoiceToken_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // MintVoiceToken provides a mock function for the type MockService
 func (_mock *MockService) MintVoiceToken(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) (string, string, error) {
 	ret := _mock.Called(ctx, roomID, userID)
@@ -4129,8 +4369,8 @@ func (_c *MockService_SetRoomNickname_Call) RunAndReturn(run func(ctx context.Co
 }
 
 // StartWatchParty provides a mock function for the type MockService
-func (_mock *MockService) StartWatchParty(ctx context.Context, roomID uuid.UUID, actorID uuid.UUID, startURL string, region string, title string) (*dto.StartWatchPartyResponse, error) {
-	ret := _mock.Called(ctx, roomID, actorID, startURL, region, title)
+func (_mock *MockService) StartWatchParty(ctx context.Context, roomID uuid.UUID, actorID uuid.UUID, startURL string, region string, title string, sessionType string) (*dto.StartWatchPartyResponse, error) {
+	ret := _mock.Called(ctx, roomID, actorID, startURL, region, title, sessionType)
 
 	if len(ret) == 0 {
 		panic("no return value specified for StartWatchParty")
@@ -4138,18 +4378,18 @@ func (_mock *MockService) StartWatchParty(ctx context.Context, roomID uuid.UUID,
 
 	var r0 *dto.StartWatchPartyResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, string, string) (*dto.StartWatchPartyResponse, error)); ok {
-		return returnFunc(ctx, roomID, actorID, startURL, region, title)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, string, string, string) (*dto.StartWatchPartyResponse, error)); ok {
+		return returnFunc(ctx, roomID, actorID, startURL, region, title, sessionType)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, string, string) *dto.StartWatchPartyResponse); ok {
-		r0 = returnFunc(ctx, roomID, actorID, startURL, region, title)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, string, string, string) *dto.StartWatchPartyResponse); ok {
+		r0 = returnFunc(ctx, roomID, actorID, startURL, region, title, sessionType)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*dto.StartWatchPartyResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, string, string, string) error); ok {
-		r1 = returnFunc(ctx, roomID, actorID, startURL, region, title)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, string, string, string, string) error); ok {
+		r1 = returnFunc(ctx, roomID, actorID, startURL, region, title, sessionType)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -4168,11 +4408,12 @@ type MockService_StartWatchParty_Call struct {
 //   - startURL string
 //   - region string
 //   - title string
-func (_e *MockService_Expecter) StartWatchParty(ctx interface{}, roomID interface{}, actorID interface{}, startURL interface{}, region interface{}, title interface{}) *MockService_StartWatchParty_Call {
-	return &MockService_StartWatchParty_Call{Call: _e.mock.On("StartWatchParty", ctx, roomID, actorID, startURL, region, title)}
+//   - sessionType string
+func (_e *MockService_Expecter) StartWatchParty(ctx interface{}, roomID interface{}, actorID interface{}, startURL interface{}, region interface{}, title interface{}, sessionType interface{}) *MockService_StartWatchParty_Call {
+	return &MockService_StartWatchParty_Call{Call: _e.mock.On("StartWatchParty", ctx, roomID, actorID, startURL, region, title, sessionType)}
 }
 
-func (_c *MockService_StartWatchParty_Call) Run(run func(ctx context.Context, roomID uuid.UUID, actorID uuid.UUID, startURL string, region string, title string)) *MockService_StartWatchParty_Call {
+func (_c *MockService_StartWatchParty_Call) Run(run func(ctx context.Context, roomID uuid.UUID, actorID uuid.UUID, startURL string, region string, title string, sessionType string)) *MockService_StartWatchParty_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -4198,6 +4439,10 @@ func (_c *MockService_StartWatchParty_Call) Run(run func(ctx context.Context, ro
 		if args[5] != nil {
 			arg5 = args[5].(string)
 		}
+		var arg6 string
+		if args[6] != nil {
+			arg6 = args[6].(string)
+		}
 		run(
 			arg0,
 			arg1,
@@ -4205,6 +4450,7 @@ func (_c *MockService_StartWatchParty_Call) Run(run func(ctx context.Context, ro
 			arg3,
 			arg4,
 			arg5,
+			arg6,
 		)
 	})
 	return _c
@@ -4215,7 +4461,7 @@ func (_c *MockService_StartWatchParty_Call) Return(startWatchPartyResponse *dto.
 	return _c
 }
 
-func (_c *MockService_StartWatchParty_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, actorID uuid.UUID, startURL string, region string, title string) (*dto.StartWatchPartyResponse, error)) *MockService_StartWatchParty_Call {
+func (_c *MockService_StartWatchParty_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, actorID uuid.UUID, startURL string, region string, title string, sessionType string) (*dto.StartWatchPartyResponse, error)) *MockService_StartWatchParty_Call {
 	_c.Call.Return(run)
 	return _c
 }

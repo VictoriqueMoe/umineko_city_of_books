@@ -144,8 +144,8 @@ func (_c *MockService_Enabled_Call) RunAndReturn(run func() bool) *MockService_E
 }
 
 // MintToken provides a mock function for the type MockService
-func (_mock *MockService) MintToken(roomName string, identity string, displayName string) (string, error) {
-	ret := _mock.Called(roomName, identity, displayName)
+func (_mock *MockService) MintToken(roomName string, identity string, displayName string, canMic bool, canScreen bool) (string, error) {
+	ret := _mock.Called(roomName, identity, displayName, canMic, canScreen)
 
 	if len(ret) == 0 {
 		panic("no return value specified for MintToken")
@@ -153,16 +153,16 @@ func (_mock *MockService) MintToken(roomName string, identity string, displayNam
 
 	var r0 string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(string, string, string) (string, error)); ok {
-		return returnFunc(roomName, identity, displayName)
+	if returnFunc, ok := ret.Get(0).(func(string, string, string, bool, bool) (string, error)); ok {
+		return returnFunc(roomName, identity, displayName, canMic, canScreen)
 	}
-	if returnFunc, ok := ret.Get(0).(func(string, string, string) string); ok {
-		r0 = returnFunc(roomName, identity, displayName)
+	if returnFunc, ok := ret.Get(0).(func(string, string, string, bool, bool) string); ok {
+		r0 = returnFunc(roomName, identity, displayName, canMic, canScreen)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
-	if returnFunc, ok := ret.Get(1).(func(string, string, string) error); ok {
-		r1 = returnFunc(roomName, identity, displayName)
+	if returnFunc, ok := ret.Get(1).(func(string, string, string, bool, bool) error); ok {
+		r1 = returnFunc(roomName, identity, displayName, canMic, canScreen)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -178,11 +178,13 @@ type MockService_MintToken_Call struct {
 //   - roomName string
 //   - identity string
 //   - displayName string
-func (_e *MockService_Expecter) MintToken(roomName interface{}, identity interface{}, displayName interface{}) *MockService_MintToken_Call {
-	return &MockService_MintToken_Call{Call: _e.mock.On("MintToken", roomName, identity, displayName)}
+//   - canMic bool
+//   - canScreen bool
+func (_e *MockService_Expecter) MintToken(roomName interface{}, identity interface{}, displayName interface{}, canMic interface{}, canScreen interface{}) *MockService_MintToken_Call {
+	return &MockService_MintToken_Call{Call: _e.mock.On("MintToken", roomName, identity, displayName, canMic, canScreen)}
 }
 
-func (_c *MockService_MintToken_Call) Run(run func(roomName string, identity string, displayName string)) *MockService_MintToken_Call {
+func (_c *MockService_MintToken_Call) Run(run func(roomName string, identity string, displayName string, canMic bool, canScreen bool)) *MockService_MintToken_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 string
 		if args[0] != nil {
@@ -196,10 +198,20 @@ func (_c *MockService_MintToken_Call) Run(run func(roomName string, identity str
 		if args[2] != nil {
 			arg2 = args[2].(string)
 		}
+		var arg3 bool
+		if args[3] != nil {
+			arg3 = args[3].(bool)
+		}
+		var arg4 bool
+		if args[4] != nil {
+			arg4 = args[4].(bool)
+		}
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3,
+			arg4,
 		)
 	})
 	return _c
@@ -210,7 +222,7 @@ func (_c *MockService_MintToken_Call) Return(s string, err error) *MockService_M
 	return _c
 }
 
-func (_c *MockService_MintToken_Call) RunAndReturn(run func(roomName string, identity string, displayName string) (string, error)) *MockService_MintToken_Call {
+func (_c *MockService_MintToken_Call) RunAndReturn(run func(roomName string, identity string, displayName string, canMic bool, canScreen bool) (string, error)) *MockService_MintToken_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -279,6 +291,81 @@ func (_c *MockService_ParseWebhook_Call) Return(event *Event, err error) *MockSe
 }
 
 func (_c *MockService_ParseWebhook_Call) RunAndReturn(run func(authHeader string, body []byte) (*Event, error)) *MockService_ParseWebhook_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SetCanPublish provides a mock function for the type MockService
+func (_mock *MockService) SetCanPublish(ctx context.Context, roomName string, identity string, canMic bool, canScreen bool) error {
+	ret := _mock.Called(ctx, roomName, identity, canMic, canScreen)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetCanPublish")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, bool, bool) error); ok {
+		r0 = returnFunc(ctx, roomName, identity, canMic, canScreen)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_SetCanPublish_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetCanPublish'
+type MockService_SetCanPublish_Call struct {
+	*mock.Call
+}
+
+// SetCanPublish is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roomName string
+//   - identity string
+//   - canMic bool
+//   - canScreen bool
+func (_e *MockService_Expecter) SetCanPublish(ctx interface{}, roomName interface{}, identity interface{}, canMic interface{}, canScreen interface{}) *MockService_SetCanPublish_Call {
+	return &MockService_SetCanPublish_Call{Call: _e.mock.On("SetCanPublish", ctx, roomName, identity, canMic, canScreen)}
+}
+
+func (_c *MockService_SetCanPublish_Call) Run(run func(ctx context.Context, roomName string, identity string, canMic bool, canScreen bool)) *MockService_SetCanPublish_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 bool
+		if args[3] != nil {
+			arg3 = args[3].(bool)
+		}
+		var arg4 bool
+		if args[4] != nil {
+			arg4 = args[4].(bool)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_SetCanPublish_Call) Return(err error) *MockService_SetCanPublish_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_SetCanPublish_Call) RunAndReturn(run func(ctx context.Context, roomName string, identity string, canMic bool, canScreen bool) error) *MockService_SetCanPublish_Call {
 	_c.Call.Return(run)
 	return _c
 }

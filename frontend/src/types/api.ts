@@ -732,12 +732,15 @@ export interface WatchPartyViewerContext {
     embed_url?: string;
 }
 
+export type WatchPartyType = "hyperbeam" | "screenshare";
+
 export interface WatchPartySession {
     id: string;
     room_id: string;
     started_by: string;
     controller_id: string;
     title: string;
+    type: WatchPartyType;
     start_url?: string;
     region?: string;
     status: "active" | "ended" | "expired";
@@ -761,6 +764,7 @@ export interface WatchPartyMessage {
 export interface WatchPartyListResponse {
     sessions: WatchPartySession[];
     enabled: boolean;
+    screen_share_enabled: boolean;
 }
 
 export interface WatchPartyMessagesResponse {

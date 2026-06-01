@@ -299,8 +299,13 @@ export function ChatComposer({
                     {gifPickerOpen && <GifPicker onPick={handleGifPick} onClose={() => setGifPickerOpen(false)} />}
                 </div>
                 {extraActions}
-                <span className={styles.spacer} />
-                <Button variant="primary" size="small" onClick={handleSubmit} disabled={!canSend}>
+                <Button
+                    variant="primary"
+                    size="small"
+                    className={styles.send}
+                    onClick={handleSubmit}
+                    disabled={!canSend}
+                >
                     {submitting ? "..." : "Send"}
                 </Button>
             </div>

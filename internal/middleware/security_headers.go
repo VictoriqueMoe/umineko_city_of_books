@@ -11,7 +11,7 @@ func SecurityHeaders() fiber.Handler {
 		ContentTypeNosniff:        "nosniff",
 		ReferrerPolicy:            "strict-origin-when-cross-origin",
 		ContentSecurityPolicy:     "frame-ancestors 'none'",
-		PermissionPolicy:          "geolocation=(), camera=(), microphone=(self)",
+		PermissionPolicy:          "geolocation=(), camera=(), microphone=(self), display-capture=(self)",
 		CrossOriginEmbedderPolicy: "unsafe-none",
 		CrossOriginOpenerPolicy:   "same-origin-allow-popups",
 		CrossOriginResourcePolicy: "cross-origin",

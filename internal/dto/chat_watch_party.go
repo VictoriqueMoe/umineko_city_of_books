@@ -13,6 +13,7 @@ type (
 		StartedBy    uuid.UUID                `json:"started_by"`
 		ControllerID uuid.UUID                `json:"controller_id"`
 		Title        string                   `json:"title"`
+		Type         string                   `json:"type"`
 		StartURL     string                   `json:"start_url,omitempty"`
 		Region       string                   `json:"region,omitempty"`
 		Status       string                   `json:"status"`
@@ -47,6 +48,7 @@ type (
 		StartURL string `json:"start_url,omitempty"`
 		Region   string `json:"region,omitempty"`
 		Title    string `json:"title,omitempty"`
+		Type     string `json:"type,omitempty"`
 	}
 
 	StartWatchPartyResponse struct {
@@ -70,8 +72,9 @@ type (
 	}
 
 	WatchPartyListResponse struct {
-		Sessions []WatchPartySession `json:"sessions"`
-		Enabled  bool                `json:"enabled"`
+		Sessions           []WatchPartySession `json:"sessions"`
+		Enabled            bool                `json:"enabled"`
+		ScreenShareEnabled bool                `json:"screen_share_enabled"`
 	}
 
 	WatchPartyMessagesResponse struct {

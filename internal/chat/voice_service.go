@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 
 	"umineko_city_of_books/internal/config"
@@ -17,21 +18,21 @@ import (
 
 const (
 	wsVoicePresence = "voice_presence"
+
+	voiceSessionRoomPrefix = "wp_"
 )
 
 type voiceService struct {
 	*core
 
-	livekitSvc livekit.Service
-	mu         sync.Mutex
-	presence   map[uuid.UUID]map[uuid.UUID]any
+	mu       sync.Mutex
+	presence map[uuid.UUID]map[uuid.UUID]any
 }
 
-func newVoiceService(c *core, livekitSvc livekit.Service) *voiceService {
+func newVoiceService(c *core) *voiceService {
 	return &voiceService{
-		core:       c,
-		livekitSvc: livekitSvc,
-		presence:   make(map[uuid.UUID]map[uuid.UUID]any),
+		core:     c,
+		presence: make(map[uuid.UUID]map[uuid.UUID]any),
 	}
 }
 
@@ -67,13 +68,32 @@ func (s *voiceService) MintVoiceToken(ctx context.Context, roomID, userID uuid.U
 	}
 
 	displayName := s.displayNameFor(ctx, userID, roomID)
+	canMic := !s.isVoiceMuted(roomID.String(), userID)
 
-	token, err = s.livekitSvc.MintToken(roomID.String(), userID.String(), displayName)
+	token, err = s.livekitSvc.MintToken(roomID.String(), userID.String(), displayName, canMic, false)
 	if err != nil {
 		return "", "", err
 	}
 
 	return token, s.livekitSvc.URL(), nil
+}
+
+func (s *voiceService) ForceMuteVoice(ctx context.Context, roomID, actorID, targetID uuid.UUID, muted bool) error {
+	if !s.VoiceEnabled() {
+		return ErrVoiceDisabled
+	}
+
+	canMod, err := s.canModerateRoom(ctx, roomID, actorID)
+	if err != nil {
+		return err
+	}
+	if !canMod {
+		return ErrVoiceMuteForbidden
+	}
+
+	s.setVoiceMuted(roomID.String(), targetID, muted)
+
+	return s.livekitSvc.SetCanPublish(ctx, roomID.String(), targetID.String(), !muted, false)
 }
 
 func (s *voiceService) assertDMNotBlocked(ctx context.Context, roomID, userID uuid.UUID) error {
@@ -103,6 +123,10 @@ func (s *voiceService) HandleVoiceWebhook(ctx context.Context, authHeader string
 
 	logger.Log.Debug().Str("event", event.Type).Str("room", event.RoomName).Str("identity", event.Identity).Msg("livekit webhook received")
 
+	if strings.HasPrefix(event.RoomName, voiceSessionRoomPrefix) {
+		return nil
+	}
+
 	roomID, err := uuid.Parse(event.RoomName)
 	if err != nil {
 		return nil
@@ -129,6 +153,7 @@ func (s *voiceService) HandleVoiceWebhook(ctx context.Context, authHeader string
 
 	case livekit.EventRoomFinished:
 		s.clearRoom(roomID)
+		s.clearVoiceMuted(roomID.String())
 		s.broadcastVoicePresence(ctx, roomID)
 	}
 

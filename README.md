@@ -175,28 +175,31 @@ Real-time chat in two flavours: one-to-one direct messages and named group rooms
 - **Replies and edits** on individual messages, with a floating action bar above the bubble on hover
 - **GIF picker**, emoji picker, media uploads, and full Discord-style text formatting (backticks, quotes, spoilers, syntax highlighting) everywhere text is typed
 - WebSocket-driven real-time delivery, pin/unpin events, reaction updates, and typing presence
-- **Watch parties** launchable from any group room: spin up a shared Hyperbeam browser VM that everyone in the room can watch and take turns controlling (see [Watch Parties](#watch-parties))
-- **Voice chat** in group rooms and DMs via a self-hosted LiveKit SFU, shown as a slim in-room bar so you can talk and chat at once (see [Voice Chat](#voice-chat))
+- **Watch parties** launchable from any group room: share a remote Hyperbeam browser VM or broadcast your own screen, with optional in-party voice, for everyone in the room to watch together (see [Watch Parties](#watch-parties))
+- **Voice chat** in group rooms, DMs, and watch parties via a self-hosted LiveKit SFU, shown as a slim in-room bar so you can talk and chat at once, with local and moderator mute controls (see [Voice Chat](#voice-chat))
 - Mobile-first composer: full-width text box with Media / GIF / Send stacked below, bubbles spanning edge to edge
 
 ### Watch Parties
 
-Hyperbeam-powered shared-browser sessions launched from inside a group chat room. Everyone in the party loads the same remote Chromium VM, so anyone can stream a video together, browse a site together, or play a web game together without anyone screen-sharing locally.
+Shared-viewing sessions launched from inside a group chat room. A party is one of two `type`s: a **virtual browser** (a remote Hyperbeam Chromium VM everyone loads and takes turns driving, so you can stream a video, browse, or play a web game together without anyone capturing their own screen) or a **screen share** (the starter broadcasts their own screen, with tab/system audio, over LiveKit). Either way the whole room watches together.
 
-- Started by a room member from the chat composer with a URL, optional title, and region (defaults to `HYPERBEAM_REGION`)
-- A side panel renders the live VM iframe with a participants list, control-handoff request, and party chat that's separate from the room's main message timeline
-- **Control passing**: the host hands the keyboard/mouse to a specific participant; everyone else watches. Control swaps emit a live WS event so the cursor follows the new driver
+- Started by a room member from the chat composer, picking **Virtual browser** (URL, optional title, region defaulting to `HYPERBEAM_REGION`) or **Screen share** (the starter is the sole sharer; the grant's `CanPublishSources` enforces that no one else can publish a screen)
+- A side panel renders the live VM iframe or the shared-screen video (with a **fullscreen** toggle), plus a participants list, control-handoff request, and party chat that's separate from the room's main message timeline
+- **In-party voice**: an opt-in **Join Voice** inside any party connects to a session-scoped LiveKit room (`wp_<sessionID>`), so people can talk over what they're watching; everyone in the party hears talkers, with the same local and moderator mute controls as room voice (see [Voice Chat](#voice-chat))
+- **Control passing** (virtual-browser parties): the host hands the keyboard/mouse to a specific participant; everyone else watches. Control swaps emit a live WS event so the cursor follows the new driver
 - **Kick** by host or room mods, broadcast as a `watch_party_kicked` event that closes the panel for the target without dropping them from the room
 - Server-side reconciliation: idle parties past `watchPartyReconcileIdleAfter` are torn down automatically so abandoned VMs don't burn Hyperbeam minutes
-- Disabled cleanly when `HYPERBEAM_API_KEY` is unset — the start button is hidden and the API returns `ErrWatchPartyDisabled`
+- Virtual-browser parties need `HYPERBEAM_API_KEY`; screen-share parties and in-party voice need LiveKit configured — each option hides itself when its backend is absent, and the API returns `ErrWatchPartyDisabled`
 
 ### Voice Chat
 
-Real-time voice in group rooms and DMs, backed by a self-hosted [LiveKit](https://livekit.io/) SFU so calls scale past the handful of people a peer-to-peer mesh can manage. Audio flows through LiveKit; the Go backend only mints signed join tokens and tracks who is in each call.
+Real-time voice in group rooms, DMs, and watch parties, backed by a self-hosted [LiveKit](https://livekit.io/) SFU so calls scale past the handful of people a peer-to-peer mesh can manage. Audio flows through LiveKit; the Go backend only mints signed join tokens and tracks who is in each call.
 
 - **Join Voice** lives in the chat composer next to the watch-party button; the call renders as a slim bar above the message list (with speaking indicators, mute, and leave), never a takeover modal, so chatting continues during the call
 - Joining is gated by the same room membership check as messaging, and DMs additionally respect blocks
-- LiveKit room name = chat room UUID, participant identity = user UUID; presence is tracked from signed LiveKit webhooks (`participant_joined` / `participant_left` / `room_finished`) and broadcast as a `voice_presence` WS event, which also drives an "in call" badge in the room list
+- Room/DM call: LiveKit room name = chat room UUID, participant identity = user UUID; presence is tracked from signed LiveKit webhooks (`participant_joined` / `participant_left` / `room_finished`) and broadcast as a `voice_presence` WS event, which also drives an "in call" badge in the room list
+- Watch-party call: a separate session-scoped room named `wp_<sessionID>` (so two parties in one room never share a channel); the webhook ignores `wp_` rooms and party presence is read live from LiveKit, so it never pollutes the room's "in call" badge
+- **Mute controls**: each listener can mute a single participant or everyone just for themselves (client-side volume, nobody else affected); hosts/mods/staff get a **mute-for-everyone** that is permission-based (`UpdateParticipant` revokes the mic publish grant) and remembered server-side, so it survives a leave/rejoin and a moderator can lift it again — a privacy-safe mute that a user can't escape by reconnecting
 - Admin-managed and off by default: enable it and set the LiveKit URL / API key / secret under **Admin → Settings → Voice Chat** (the `voice_enabled` toggle reveals the fields). The Join button is hidden and the token endpoint returns `ErrVoiceDisabled` until configured. See [Deployment → Voice Chat](#voice-chat-livekit) for the server side
 
 ### Games
@@ -371,8 +374,8 @@ A standalone interface for browsing the full quote corpus across all three serie
 
 - [Umineko Quote Finder API](https://quotes.auaurora.moe/swagger/index.html) for game quote search and evidence attachment
 - GIPHY API for GIF search, trending, and favourites
-- [Hyperbeam](https://hyperbeam.com/) for the shared-browser VM that powers watch parties
-- [LiveKit](https://livekit.io/) (self-hosted) as the SFU that carries chat-room and DM voice calls
+- [Hyperbeam](https://hyperbeam.com/) for the shared-browser VM that powers virtual-browser watch parties
+- [LiveKit](https://livekit.io/) (self-hosted) as the SFU that carries voice in chat rooms, DMs, and watch parties, plus screen-share watch parties
 
 ## Architecture
 
@@ -844,7 +847,7 @@ Run behind Caddy, Nginx, or similar for TLS. The server sets the right cache hea
 
 ### Voice Chat (LiveKit)
 
-Voice chat needs the bundled `livekit` service (already in `docker-compose.yml` / `docker-compose.prod.yml`) plus a small amount of host setup. The code ships disabled, so none of this is required unless you want voice.
+Voice chat needs the bundled `livekit` service (already in `docker-compose.yml` / `docker-compose.prod.yml`) plus a small amount of host setup. The code ships disabled, so none of this is required unless you want voice. The same LiveKit setup also powers **in-party voice and screen-share watch parties** — once voice is configured there is no extra server-side work for those (screen capture is a browser feature served over the existing `wss://`).
 
 1. **Create the config file.** The compose file bind-mounts `./livekit.yaml`, which is gitignored. Copy the template first (otherwise Docker creates an empty directory in its place):
 

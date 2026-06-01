@@ -15,6 +15,10 @@ func (s *Service) setupVoiceTokenRoute(r fiber.Router) {
 	r.Post("/chat/rooms/:roomID/voice/token", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.voiceToken)
 }
 
+func (s *Service) setupVoiceMuteRoute(r fiber.Router) {
+	r.Post("/chat/rooms/:roomID/voice/participants/:userID/mute", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.voiceMute)
+}
+
 func (s *Service) setupLiveKitWebhookRoute(r fiber.Router) {
 	r.Post("/livekit/webhook", s.livekitWebhook)
 }
@@ -33,6 +37,31 @@ func (s *Service) voiceToken(ctx fiber.Ctx) error {
 	}
 
 	return ctx.JSON(dto.VoiceTokenResponse{Token: token, URL: url})
+}
+
+func (s *Service) voiceMute(ctx fiber.Ctx) error {
+	actorID := utils.UserID(ctx)
+
+	roomID, ok := utils.ParseIDParam(ctx, "roomID")
+	if !ok {
+		return nil
+	}
+
+	targetID, ok := utils.ParseIDParam(ctx, "userID")
+	if !ok {
+		return nil
+	}
+
+	req, ok := utils.BindJSON[dto.VoiceMuteRequest](ctx)
+	if !ok {
+		return nil
+	}
+
+	if err := s.ChatService.ForceMuteVoice(ctx.Context(), roomID, actorID, targetID, req.Muted); err != nil {
+		return mapVoiceError(ctx, err)
+	}
+
+	return utils.OK(ctx)
 }
 
 func (s *Service) decorateVoiceCounts(list *dto.ChatRoomListResponse) {
@@ -73,6 +102,10 @@ func mapVoiceError(ctx fiber.Ctx, err error) error {
 	case errors.Is(err, chat.ErrUserBlocked):
 		{
 			return utils.Forbidden(ctx, "you cannot call this user")
+		}
+	case errors.Is(err, chat.ErrVoiceMuteForbidden):
+		{
+			return utils.Forbidden(ctx, "you cannot mute participants here")
 		}
 	}
 	return utils.InternalError(ctx, "voice request failed: "+err.Error(), err)

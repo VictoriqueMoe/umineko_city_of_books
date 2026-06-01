@@ -36,14 +36,43 @@ const (
 	wsWatchPartyControlChanged  = "watch_party_control_changed"
 	wsWatchPartyMessage         = "watch_party_message"
 	wsWatchPartyKicked          = "watch_party_kicked"
+
+	watchPartyTypeHyperbeam   = "hyperbeam"
+	watchPartyTypeScreenShare = "screenshare"
 )
 
 type watchPartyService struct {
 	*core
 }
 
-func (s *watchPartyService) StartWatchParty(ctx context.Context, roomID, actorID uuid.UUID, startURL, region, title string) (*dto.StartWatchPartyResponse, error) {
-	if s.hyperbeamSvc == nil || !s.hyperbeamSvc.Enabled() {
+func normaliseWatchPartyType(t string) (string, error) {
+	switch t {
+	case "", watchPartyTypeHyperbeam:
+		return watchPartyTypeHyperbeam, nil
+
+	case watchPartyTypeScreenShare:
+		return watchPartyTypeScreenShare, nil
+
+	default:
+		return "", ErrWatchPartyInvalidType
+	}
+}
+
+func (s *watchPartyService) screenShareEnabled() bool {
+	return s.livekitSvc != nil && s.livekitSvc.Enabled()
+}
+
+func (s *watchPartyService) StartWatchParty(ctx context.Context, roomID, actorID uuid.UUID, startURL, region, title, sessionType string) (*dto.StartWatchPartyResponse, error) {
+	partyType, err := normaliseWatchPartyType(sessionType)
+	if err != nil {
+		return nil, err
+	}
+
+	if partyType == watchPartyTypeScreenShare {
+		if !s.screenShareEnabled() {
+			return nil, ErrWatchPartyDisabled
+		}
+	} else if s.hyperbeamSvc == nil || !s.hyperbeamSvc.Enabled() {
 		return nil, ErrWatchPartyDisabled
 	}
 
@@ -62,58 +91,70 @@ func (s *watchPartyService) StartWatchParty(ctx context.Context, roomID, actorID
 		return nil, ErrWatchPartyWrongRoomType
 	}
 
-	selectedRegion := region
-	if selectedRegion == "" {
-		selectedRegion = config.Cfg.HyperbeamRegion
-	}
 	trimmedTitle := strings.TrimSpace(title)
 	if len(trimmedTitle) > maxWatchPartyTitleLen {
 		trimmedTitle = trimmedTitle[:maxWatchPartyTitleLen]
 	}
 
-	vm, err := s.hyperbeamSvc.CreateVM(ctx, hyperbeam.CreateVMOptions{
-		StartURL: startURL,
-		Region:   selectedRegion,
-		Timeout: &hyperbeam.VMTimeoutOpts{
-			Offline:  defaultOfflineTimeout,
-			Absolute: defaultSessionTimeout,
-		},
-	})
-	if err != nil {
-		return nil, fmt.Errorf("create hyperbeam vm: %w", err)
-	}
-
-	vmBaseURL, baseErr := hyperbeam.ExtractVMBaseURL(vm.EmbedURL)
-	if baseErr != nil {
-		s.terminateHyperbeam(vm.SessionID)
-		return nil, fmt.Errorf("extract vm base url: %w", baseErr)
-	}
-
 	sessionRow := repository.ChatWatchPartySessionRow{
-		RoomID:              roomID,
-		StartedBy:           actorID,
-		ControllerID:        actorID,
-		HyperbeamSessionID:  vm.SessionID,
-		HyperbeamAdminToken: vm.AdminToken,
-		EmbedURL:            vm.EmbedURL,
-		VMBaseURL:           vmBaseURL,
-		Title:               trimmedTitle,
-		StartURL:            stringToNull(startURL),
-		Region:              stringToNull(selectedRegion),
+		RoomID:       roomID,
+		StartedBy:    actorID,
+		ControllerID: actorID,
+		Title:        trimmedTitle,
+		Type:         partyType,
 	}
+
+	embedURL := ""
+	if partyType == watchPartyTypeHyperbeam {
+		selectedRegion := region
+		if selectedRegion == "" {
+			selectedRegion = config.Cfg.HyperbeamRegion
+		}
+
+		vm, err := s.hyperbeamSvc.CreateVM(ctx, hyperbeam.CreateVMOptions{
+			StartURL: startURL,
+			Region:   selectedRegion,
+			Timeout: &hyperbeam.VMTimeoutOpts{
+				Offline:  defaultOfflineTimeout,
+				Absolute: defaultSessionTimeout,
+			},
+		})
+		if err != nil {
+			return nil, fmt.Errorf("create hyperbeam vm: %w", err)
+		}
+
+		vmBaseURL, baseErr := hyperbeam.ExtractVMBaseURL(vm.EmbedURL)
+		if baseErr != nil {
+			s.terminateHyperbeam(vm.SessionID)
+			return nil, fmt.Errorf("extract vm base url: %w", baseErr)
+		}
+
+		sessionRow.HyperbeamSessionID = vm.SessionID
+		sessionRow.HyperbeamAdminToken = vm.AdminToken
+		sessionRow.EmbedURL = vm.EmbedURL
+		sessionRow.VMBaseURL = vmBaseURL
+		sessionRow.StartURL = stringToNull(startURL)
+		sessionRow.Region = stringToNull(selectedRegion)
+		embedURL = vm.EmbedURL
+	}
+
 	sessionID, err := s.watchPartyRepo.CreateSession(ctx, sessionRow)
 	if err != nil {
-		s.terminateHyperbeam(vm.SessionID)
+		if sessionRow.HyperbeamSessionID != "" {
+			s.terminateHyperbeam(sessionRow.HyperbeamSessionID)
+		}
 		return nil, err
 	}
 
 	if err := s.watchPartyRepo.UpsertParticipant(ctx, sessionID, actorID, true, ""); err != nil {
-		s.terminateHyperbeam(vm.SessionID)
+		if sessionRow.HyperbeamSessionID != "" {
+			s.terminateHyperbeam(sessionRow.HyperbeamSessionID)
+		}
 		_ = s.watchPartyRepo.EndSession(ctx, sessionID, "controller_setup_failed")
 		return nil, err
 	}
 
-	details := mustJSON(map[string]any{"room_id": roomID, "start_url": startURL, "title": trimmedTitle})
+	details := mustJSON(map[string]any{"room_id": roomID, "start_url": startURL, "title": trimmedTitle, "type": partyType})
 	if err := s.auditRepo.Create(ctx, actorID, "watch_party.start", "chat_watch_party_session", sessionID.String(), details); err != nil {
 		logger.Log.Warn().Err(err).Msg("audit watch_party.start failed")
 	}
@@ -123,7 +164,7 @@ func (s *watchPartyService) StartWatchParty(ctx context.Context, roomID, actorID
 		return nil, fmt.Errorf("reload watch party session: %w", err)
 	}
 
-	sessionDTO, err := s.buildWatchPartySessionDTO(ctx, stored, actorID, vm.EmbedURL, true)
+	sessionDTO, err := s.buildWatchPartySessionDTO(ctx, stored, actorID, embedURL, true)
 	if err != nil {
 		return nil, err
 	}
@@ -146,14 +187,11 @@ func (s *watchPartyService) StartWatchParty(ctx context.Context, roomID, actorID
 
 	return &dto.StartWatchPartyResponse{
 		Session:  *sessionDTO,
-		EmbedURL: vm.EmbedURL,
+		EmbedURL: embedURL,
 	}, nil
 }
 
 func (s *watchPartyService) JoinWatchParty(ctx context.Context, roomID, sessionID, actorID uuid.UUID) (*dto.JoinWatchPartyResponse, error) {
-	if s.hyperbeamSvc == nil || !s.hyperbeamSvc.Enabled() {
-		return nil, ErrWatchPartyDisabled
-	}
 	if err := s.assertActiveRoomMember(ctx, roomID, actorID); err != nil {
 		return nil, err
 	}
@@ -163,12 +201,21 @@ func (s *watchPartyService) JoinWatchParty(ctx context.Context, roomID, sessionI
 		return nil, err
 	}
 
-	if _, statusErr := s.hyperbeamSvc.GetVMStatus(ctx, session.HyperbeamSessionID); statusErr != nil {
-		if hyperbeamSessionGone(statusErr) {
-			s.cleanupDeadSession(session, "vm_gone")
-			return nil, ErrWatchPartyNotActive
+	if session.Type == watchPartyTypeScreenShare {
+		if !s.screenShareEnabled() {
+			return nil, ErrWatchPartyDisabled
 		}
-		logger.Log.Warn().Err(statusErr).Str("hyperbeam_session_id", session.HyperbeamSessionID).Msg("vm status check failed (continuing)")
+	} else {
+		if s.hyperbeamSvc == nil || !s.hyperbeamSvc.Enabled() {
+			return nil, ErrWatchPartyDisabled
+		}
+		if _, statusErr := s.hyperbeamSvc.GetVMStatus(ctx, session.HyperbeamSessionID); statusErr != nil {
+			if hyperbeamSessionGone(statusErr) {
+				s.cleanupDeadSession(session, "vm_gone")
+				return nil, ErrWatchPartyNotActive
+			}
+			logger.Log.Warn().Err(statusErr).Str("hyperbeam_session_id", session.HyperbeamSessionID).Msg("vm status check failed (continuing)")
+		}
 	}
 
 	isController := session.ControllerID == actorID
@@ -490,7 +537,7 @@ func (s *watchPartyService) EndWatchParty(ctx context.Context, roomID, sessionID
 		}
 	}
 
-	if s.hyperbeamSvc != nil {
+	if s.hyperbeamSvc != nil && session.Type != watchPartyTypeScreenShare {
 		if err := s.hyperbeamSvc.TerminateVM(ctx, session.HyperbeamSessionID); err != nil {
 			logger.Log.Warn().Err(err).Str("hyperbeam_session_id", session.HyperbeamSessionID).Msg("terminate hyperbeam vm failed")
 		}
@@ -502,6 +549,8 @@ func (s *watchPartyService) EndWatchParty(ctx context.Context, roomID, sessionID
 	if err := s.watchPartyRepo.EndSession(ctx, session.ID, reason); err != nil {
 		return err
 	}
+
+	s.clearVoiceMuted(voiceSessionRoomPrefix + session.ID.String())
 
 	if actorID != uuid.Nil {
 		details := mustJSON(map[string]any{"room_id": roomID, "reason": reason})
@@ -571,7 +620,7 @@ func (s *watchPartyService) ListWatchParties(ctx context.Context, roomID, viewer
 	sessions := make([]dto.WatchPartySession, 0, len(rows))
 	for i := range rows {
 		row := rows[i]
-		if s.hyperbeamSvc != nil && s.hyperbeamSvc.Enabled() {
+		if row.Type != watchPartyTypeScreenShare && s.hyperbeamSvc != nil && s.hyperbeamSvc.Enabled() {
 			if _, statusErr := s.hyperbeamSvc.GetVMStatus(ctx, row.HyperbeamSessionID); statusErr != nil {
 				if hyperbeamSessionGone(statusErr) {
 					s.cleanupDeadSession(&row, "vm_gone")
@@ -587,9 +636,65 @@ func (s *watchPartyService) ListWatchParties(ctx context.Context, roomID, viewer
 		sessions = append(sessions, *s2)
 	}
 	return &dto.WatchPartyListResponse{
-		Sessions: sessions,
-		Enabled:  s.WatchPartyEnabled(),
+		Sessions:           sessions,
+		Enabled:            s.WatchPartyEnabled(),
+		ScreenShareEnabled: s.screenShareEnabled(),
 	}, nil
+}
+
+func (s *watchPartyService) MintSessionVoiceToken(ctx context.Context, roomID, sessionID, userID uuid.UUID) (token, url string, err error) {
+	if !s.screenShareEnabled() {
+		return "", "", ErrVoiceDisabled
+	}
+
+	session, err := s.loadActiveSession(ctx, roomID, sessionID)
+	if err != nil {
+		return "", "", err
+	}
+
+	participant, err := s.watchPartyRepo.GetParticipant(ctx, session.ID, userID)
+	if err != nil {
+		return "", "", err
+	}
+	if participant == nil || participant.LeftAt.Valid {
+		return "", "", ErrWatchPartyNotParticipant
+	}
+
+	allowScreenShare := session.Type == watchPartyTypeScreenShare && session.StartedBy == userID
+	roomName := voiceSessionRoomPrefix + session.ID.String()
+	displayName := s.displayNameFor(ctx, userID, roomID)
+	canMic := !s.isVoiceMuted(roomName, userID)
+
+	token, err = s.livekitSvc.MintToken(roomName, userID.String(), displayName, canMic, allowScreenShare)
+	if err != nil {
+		return "", "", err
+	}
+
+	return token, s.livekitSvc.URL(), nil
+}
+
+func (s *watchPartyService) ForceMuteSessionVoice(ctx context.Context, roomID, sessionID, actorID, targetID uuid.UUID, muted bool) error {
+	if !s.screenShareEnabled() {
+		return ErrVoiceDisabled
+	}
+
+	session, err := s.loadActiveSession(ctx, roomID, sessionID)
+	if err != nil {
+		return err
+	}
+
+	callerRank := s.watchPartyRankOf(ctx, session, actorID)
+	targetRank := s.watchPartyRankOf(ctx, session, targetID)
+	if callerRank <= targetRank {
+		return ErrVoiceMuteForbidden
+	}
+
+	roomName := voiceSessionRoomPrefix + session.ID.String()
+	allowScreenShare := session.Type == watchPartyTypeScreenShare && session.StartedBy == targetID
+
+	s.setVoiceMuted(roomName, targetID, muted)
+
+	return s.livekitSvc.SetCanPublish(ctx, roomName, targetID.String(), !muted, allowScreenShare)
 }
 
 func (s *watchPartyService) SendWatchPartyMessage(ctx context.Context, roomID, sessionID, senderID uuid.UUID, body string) (*dto.WatchPartyMessage, error) {
@@ -672,7 +777,7 @@ func (s *watchPartyService) ReconcileWatchPartiesOnce(ctx context.Context) {
 	}
 	for i := range sessions {
 		session := sessions[i]
-		if s.hyperbeamSvc != nil {
+		if s.hyperbeamSvc != nil && session.Type != watchPartyTypeScreenShare {
 			if err := s.hyperbeamSvc.TerminateVM(ctx, session.HyperbeamSessionID); err != nil {
 				logger.Log.Warn().Err(err).Str("hyperbeam_session_id", session.HyperbeamSessionID).Msg("reconcile: terminate vm failed")
 			}
@@ -797,6 +902,7 @@ func (s *watchPartyService) buildWatchPartySessionDTO(ctx context.Context, sessi
 		StartedBy:    session.StartedBy,
 		ControllerID: session.ControllerID,
 		Title:        session.Title,
+		Type:         session.Type,
 		StartURL:     nullToString(session.StartURL),
 		Region:       nullToString(session.Region),
 		Status:       session.Status,
@@ -834,6 +940,7 @@ func (s *watchPartyService) buildWatchPartySessionDTOForBroadcast(ctx context.Co
 		StartedBy:    session.StartedBy,
 		ControllerID: session.ControllerID,
 		Title:        session.Title,
+		Type:         session.Type,
 		StartURL:     nullToString(session.StartURL),
 		Region:       nullToString(session.Region),
 		Status:       session.Status,

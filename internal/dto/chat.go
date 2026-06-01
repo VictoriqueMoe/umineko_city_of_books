@@ -83,6 +83,10 @@ type (
 		URL   string `json:"url"`
 	}
 
+	VoiceMuteRequest struct {
+		Muted bool `json:"muted"`
+	}
+
 	ChatRoomMemberResponse struct {
 		User            UserResponse `json:"user"`
 		Role            string       `json:"role"`

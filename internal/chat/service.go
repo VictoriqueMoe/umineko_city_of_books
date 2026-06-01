@@ -78,7 +78,7 @@ type (
 		DeleteGlobalBannedWord(ctx context.Context, actorID, ruleID uuid.UUID) error
 
 		WatchPartyEnabled() bool
-		StartWatchParty(ctx context.Context, roomID, actorID uuid.UUID, startURL, region, title string) (*dto.StartWatchPartyResponse, error)
+		StartWatchParty(ctx context.Context, roomID, actorID uuid.UUID, startURL, region, title, sessionType string) (*dto.StartWatchPartyResponse, error)
 		JoinWatchParty(ctx context.Context, roomID, sessionID, actorID uuid.UUID) (*dto.JoinWatchPartyResponse, error)
 		LeaveWatchParty(ctx context.Context, roomID, sessionID, actorID uuid.UUID) error
 		GrantWatchPartyControl(ctx context.Context, roomID, sessionID, callerID, targetID uuid.UUID) error
@@ -89,10 +89,13 @@ type (
 		IdentifyWatchPartyParticipant(ctx context.Context, roomID, sessionID, userID uuid.UUID, identifier string) error
 		SendWatchPartyMessage(ctx context.Context, roomID, sessionID, senderID uuid.UUID, body string) (*dto.WatchPartyMessage, error)
 		GetWatchPartyMessages(ctx context.Context, roomID, sessionID, viewerID uuid.UUID) (*dto.WatchPartyMessagesResponse, error)
+		MintSessionVoiceToken(ctx context.Context, roomID, sessionID, userID uuid.UUID) (token, url string, err error)
+		ForceMuteSessionVoice(ctx context.Context, roomID, sessionID, actorID, targetID uuid.UUID, muted bool) error
 		StartWatchPartyReconcileLoop(ctx context.Context)
 
 		VoiceEnabled() bool
 		MintVoiceToken(ctx context.Context, roomID, userID uuid.UUID) (token, url string, err error)
+		ForceMuteVoice(ctx context.Context, roomID, actorID, targetID uuid.UUID, muted bool) error
 		HandleVoiceWebhook(ctx context.Context, authHeader string, body []byte) error
 		VoiceParticipants(roomID uuid.UUID) []uuid.UUID
 		VoiceCount(roomID uuid.UUID) int
@@ -150,8 +153,10 @@ func NewService(
 		uploader:        media.NewUploader(uploadSvc, settingsSvc, mediaProc),
 		hub:             hub,
 		hyperbeamSvc:    hyperbeamSvc,
+		livekitSvc:      livekitSvc,
 		contentFilter:   contentFilter,
 		bannedWordsRule: contentfilter.NewChatBannedWordsRule(bannedWordRepo),
+		voiceMuted:      make(map[string]map[uuid.UUID]struct{}),
 	}
 
 	svs := &service{
@@ -161,7 +166,7 @@ func NewService(
 		roomsService:      &roomsService{core: c},
 		moderationService: &moderationService{core: c},
 		watchPartyService: &watchPartyService{core: c},
-		voiceService:      newVoiceService(c, livekitSvc),
+		voiceService:      newVoiceService(c),
 	}
 	svs.dmService = &dmService{core: c, parent: svs}
 	svs.membersService = &membersService{core: c, parent: svs}

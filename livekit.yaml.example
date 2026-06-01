@@ -7,7 +7,21 @@ bind_addresses:
 rtc:
   tcp_port: 7881
   udp_port: 7882
-  use_external_ip: true
+  # In production the livekit service runs with network_mode: host, so the
+  # container sees every host interface: all docker bridges (172.x) and the
+  # host IPv6. Left unfiltered, LiveKit advertises those as ICE candidates;
+  # remote peers cannot reach a docker-bridge address, and many networks have
+  # broken/asymmetric IPv6, so calls end up with one-way or no audio.
+  # Pin a single public IPv4 and drop everything else:
+  use_external_ip: false
+  node_ip: 203.0.113.10        # CHANGE to this server's public IPv4
+  ips:
+    excludes:
+      - "::/0"                 # drop all IPv6 candidates
+      - "172.16.0.0/12"        # drop docker bridge candidates
+  #
+  # For local dev (livekit on the default bridge network, not host) leave this
+  # block out and use:  use_external_ip: false  with NODE_IP set in compose.
 
 keys:
   # CHANGE THIS for production, then enter the SAME key + secret in

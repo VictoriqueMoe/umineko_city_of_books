@@ -17,6 +17,7 @@ import { MessageBubble } from "../../components/chat/MessageBubble/MessageBubble
 import { Lightbox } from "../../components/Lightbox/Lightbox";
 import { buildMentionMatcher } from "../../utils/mentions";
 import { isSiteStaff } from "../../utils/permissions";
+import { forceMuteVoiceParticipant } from "../../api/endpoints";
 import { formatTimeOfDay } from "../../utils/time";
 import { fetchResolveDMRoom, fetchUserRooms } from "../../api/queries/chat";
 import { fetchMutualFollowers, fetchSearchUsers } from "../../api/queries/misc";
@@ -551,7 +552,14 @@ export function ChatPage() {
                                 </Button>
                             </div>
                             {voice.status === "connected" && voice.room && (
-                                <VoiceBar room={voice.room} onLeave={voice.leave} />
+                                <VoiceBar
+                                    room={voice.room}
+                                    onLeave={voice.leave}
+                                    canModerate={user ? isSiteStaff(user.role) : false}
+                                    onForceMute={(id, muted) => {
+                                        forceMuteVoiceParticipant(activeRoomId ?? "", id, muted).catch(() => {});
+                                    }}
+                                />
                             )}
                             <div className={styles.messages} ref={messagesContainerRef} onScroll={handleDmScroll}>
                                 {hasMore && (

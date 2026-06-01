@@ -1,30 +1,34 @@
-import {
-    RoomAudioRenderer,
-    RoomContext,
-    useIsSpeaking,
-    useLocalParticipant,
-    useParticipants,
-} from "@livekit/components-react";
-import type { Participant, Room } from "livekit-client";
+import { RoomAudioRenderer, RoomContext, useLocalParticipant } from "@livekit/components-react";
+import type { Room } from "livekit-client";
 
+import { VoiceParticipantList } from "./VoiceParticipants";
 import styles from "./Voice.module.css";
 
 interface VoiceBarProps {
     room: Room;
     onLeave: () => void;
+    canModerate?: boolean;
+    onForceMute?: (identity: string, muted: boolean) => void;
 }
 
-export function VoiceBar({ room, onLeave }: VoiceBarProps) {
+export function VoiceBar({ room, onLeave, canModerate = false, onForceMute }: VoiceBarProps) {
     return (
         <RoomContext.Provider value={room}>
             <RoomAudioRenderer />
-            <VoiceBarInner onLeave={onLeave} />
+            <VoiceBarInner onLeave={onLeave} canModerate={canModerate} onForceMute={onForceMute} />
         </RoomContext.Provider>
     );
 }
 
-function VoiceBarInner({ onLeave }: { onLeave: () => void }) {
-    const participants = useParticipants();
+function VoiceBarInner({
+    onLeave,
+    canModerate,
+    onForceMute,
+}: {
+    onLeave: () => void;
+    canModerate: boolean;
+    onForceMute?: (identity: string, muted: boolean) => void;
+}) {
     const { localParticipant, isMicrophoneEnabled } = useLocalParticipant();
 
     const toggleMute = () => {
@@ -35,11 +39,7 @@ function VoiceBarInner({ onLeave }: { onLeave: () => void }) {
         <div className={styles.bar}>
             <span className={styles.icon}>{"\u{1F50A}"}</span>
 
-            <div className={styles.participants}>
-                {participants.map(p => (
-                    <VoiceParticipant key={p.identity} participant={p} />
-                ))}
-            </div>
+            <VoiceParticipantList canModerate={canModerate} onForceMute={onForceMute} />
 
             <button type="button" className={styles.control} onClick={toggleMute}>
                 {isMicrophoneEnabled ? "Mute" : "Unmute"}
@@ -48,17 +48,5 @@ function VoiceBarInner({ onLeave }: { onLeave: () => void }) {
                 Leave
             </button>
         </div>
-    );
-}
-
-function VoiceParticipant({ participant }: { participant: Participant }) {
-    const isSpeaking = useIsSpeaking(participant);
-    const name = participant.name || participant.identity;
-
-    return (
-        <span className={`${styles.participant} ${isSpeaking ? styles.speaking : ""}`} title={name}>
-            <span className={styles.dot} />
-            {name}
-        </span>
     );
 }
