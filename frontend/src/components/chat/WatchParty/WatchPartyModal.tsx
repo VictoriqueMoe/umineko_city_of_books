@@ -1,9 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Hyperbeam from "@hyperbeam/web";
+import { RoomAudioRenderer, RoomContext } from "@livekit/components-react";
 import { Button } from "../../Button/Button";
+import { forceMuteWatchPartyVoiceParticipant } from "../../../api/endpoints";
 import type { SiteRole } from "../../../utils/permissions";
+import { VoiceParticipantList } from "../Voice/VoiceParticipants";
 import type { ActiveWatchPartySession } from "./useWatchParty";
+import { ScreenShareView } from "./ScreenShareView";
+import { useSessionMedia } from "./useSessionMedia";
 import { WatchPartyChat } from "./WatchPartyChat";
 import { WatchPartyParticipants } from "./WatchPartyParticipants";
 import styles from "./WatchParty.module.css";
@@ -18,6 +23,7 @@ interface WatchPartyModalProps {
     viewerRole: SiteRole | undefined;
     isStarter: boolean;
     viewerIsStaff: boolean;
+    voiceEnabled: boolean;
     onLeave: () => Promise<void>;
     onEnd: () => Promise<void>;
     onTransferControl: (userId: string) => Promise<void>;
@@ -34,6 +40,7 @@ export function WatchPartyModal({
     viewerRole,
     isStarter,
     viewerIsStaff,
+    voiceEnabled,
     onLeave,
     onEnd,
     onTransferControl,
@@ -48,6 +55,38 @@ export function WatchPartyModal({
     const [busy, setBusy] = useState(false);
     const [mountError, setMountError] = useState<string | null>(null);
     const { session, embedURL, messages, hasControl } = active;
+
+    const isScreenShare = session.type === "screenshare";
+    const canModerate = isStarter || viewerIsStaff;
+    const media = useSessionMedia({
+        roomId: session.room_id,
+        sessionId: session.id,
+        type: session.type,
+        isStarter,
+    });
+
+    const forceMuteVoice = (identity: string, muted: boolean) => {
+        forceMuteWatchPartyVoiceParticipant(session.room_id, session.id, identity, muted).catch(() => {});
+    };
+
+    const mediaRef = useRef<HTMLElement | null>(null);
+    const [isFullscreen, setIsFullscreen] = useState(false);
+
+    useEffect(() => {
+        const onFsChange = () => {
+            setIsFullscreen(document.fullscreenElement === mediaRef.current);
+        };
+        document.addEventListener("fullscreenchange", onFsChange);
+        return () => document.removeEventListener("fullscreenchange", onFsChange);
+    }, []);
+
+    const toggleFullscreen = () => {
+        if (document.fullscreenElement) {
+            document.exitFullscreen().catch(() => {});
+            return;
+        }
+        mediaRef.current?.requestFullscreen().catch(() => {});
+    };
 
     useEffect(() => {
         identifyRef.current = onIdentify;
@@ -167,21 +206,93 @@ export function WatchPartyModal({
                     </div>
                 </header>
                 <div className={styles.body}>
-                    <section className={styles.iframeWrap} ref={wrapRef}>
-                        {!embedURL && <div className={styles.empty}>Loading virtual browser...</div>}
-                        {mountError && (
-                            <div className={styles.mountError}>
-                                <div className={styles.mountErrorTitle}>Virtual browser failed to connect</div>
-                                <div className={styles.mountErrorBody}>{mountError}</div>
-                                <div className={styles.mountErrorHint}>
-                                    The VM may have expired. Try ending this party and starting a fresh one.
+                    {isScreenShare ? (
+                        <section className={styles.iframeWrap} ref={mediaRef}>
+                            {media.room ? (
+                                <RoomContext.Provider value={media.room}>
+                                    <ScreenShareView
+                                        placeholder={
+                                            isStarter
+                                                ? "Click Share screen to start sharing."
+                                                : "Waiting for the host to share their screen."
+                                        }
+                                    />
+                                </RoomContext.Provider>
+                            ) : (
+                                <div className={styles.empty}>Connecting...</div>
+                            )}
+                            <button
+                                type="button"
+                                className={styles.fullscreenBtn}
+                                onClick={toggleFullscreen}
+                                title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+                            >
+                                {isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+                            </button>
+                        </section>
+                    ) : (
+                        <section className={styles.iframeWrap} ref={wrapRef}>
+                            {!embedURL && <div className={styles.empty}>Loading virtual browser...</div>}
+                            {mountError && (
+                                <div className={styles.mountError}>
+                                    <div className={styles.mountErrorTitle}>Virtual browser failed to connect</div>
+                                    <div className={styles.mountErrorBody}>{mountError}</div>
+                                    <div className={styles.mountErrorHint}>
+                                        The VM may have expired. Try ending this party and starting a fresh one.
+                                    </div>
                                 </div>
-                            </div>
-                        )}
-                    </section>
+                            )}
+                        </section>
+                    )}
                     <WatchPartyChat messages={messages} viewerUserId={viewerUserId} onSend={onSendMessage} />
                 </div>
                 <footer className={styles.footer}>
+                    {voiceEnabled && (
+                        <div className={styles.voiceStrip}>
+                            <div className={styles.voiceControls}>
+                                <span className={styles.voiceStripLabel}>{"\u{1F50A}"} Voice</span>
+                                {media.inVoice ? (
+                                    <Button
+                                        variant="secondary"
+                                        size="small"
+                                        onClick={() => {
+                                            media.leaveVoice().catch(() => {});
+                                        }}
+                                    >
+                                        Leave voice
+                                    </Button>
+                                ) : (
+                                    <Button
+                                        variant="primary"
+                                        size="small"
+                                        disabled={media.status === "connecting"}
+                                        onClick={() => {
+                                            media.joinVoice().catch(() => {});
+                                        }}
+                                    >
+                                        Join voice
+                                    </Button>
+                                )}
+                                {isScreenShare && isStarter && (
+                                    <Button
+                                        variant="ghost"
+                                        size="small"
+                                        onClick={() => {
+                                            media.shareScreen(!media.isSharing).catch(() => {});
+                                        }}
+                                    >
+                                        {media.isSharing ? "Stop sharing" : "Share screen"}
+                                    </Button>
+                                )}
+                            </div>
+                            {media.room && (
+                                <RoomContext.Provider value={media.room}>
+                                    <RoomAudioRenderer />
+                                    <VoiceParticipantList canModerate={canModerate} onForceMute={forceMuteVoice} />
+                                </RoomContext.Provider>
+                            )}
+                        </div>
+                    )}
                     <WatchPartyParticipants
                         participants={session.participants}
                         viewerUserId={viewerUserId}

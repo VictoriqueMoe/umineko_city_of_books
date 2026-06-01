@@ -66,7 +66,10 @@ func (s *Service) getAllChatRoutes() []FSetupRoute {
 		s.setupListWatchPartyMessagesRoute,
 		s.setupSendWatchPartyMessageRoute,
 		s.setupIdentifyWatchPartyRoute,
+		s.setupWatchPartyVoiceTokenRoute,
+		s.setupWatchPartyVoiceMuteRoute,
 		s.setupVoiceTokenRoute,
+		s.setupVoiceMuteRoute,
 		s.setupLiveKitWebhookRoute,
 	}
 }

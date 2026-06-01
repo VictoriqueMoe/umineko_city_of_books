@@ -30,7 +30,7 @@ func TestStartWatchParty_Disabled(t *testing.T) {
 	m.hyperbeamSvc.EXPECT().Enabled().Return(false)
 
 	// when
-	_, err := svc.StartWatchParty(context.Background(), roomID, userID, "", "", "")
+	_, err := svc.StartWatchParty(context.Background(), roomID, userID, "", "", "", "")
 
 	// then
 	require.ErrorIs(t, err, ErrWatchPartyDisabled)
@@ -45,7 +45,7 @@ func TestStartWatchParty_NotMember(t *testing.T) {
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(false, nil)
 
 	// when
-	_, err := svc.StartWatchParty(context.Background(), roomID, userID, "", "", "")
+	_, err := svc.StartWatchParty(context.Background(), roomID, userID, "", "", "", "")
 
 	// then
 	require.ErrorIs(t, err, ErrNotMember)
@@ -63,7 +63,7 @@ func TestStartWatchParty_RejectsDM(t *testing.T) {
 	}, nil)
 
 	// when
-	_, err := svc.StartWatchParty(context.Background(), roomID, userID, "", "", "")
+	_, err := svc.StartWatchParty(context.Background(), roomID, userID, "", "", "", "")
 
 	// then
 	require.ErrorIs(t, err, ErrWatchPartyWrongRoomType)
@@ -81,7 +81,7 @@ func TestStartWatchParty_RejectsSystemRoom(t *testing.T) {
 	}, nil)
 
 	// when
-	_, err := svc.StartWatchParty(context.Background(), roomID, userID, "", "", "")
+	_, err := svc.StartWatchParty(context.Background(), roomID, userID, "", "", "", "")
 
 	// then
 	require.ErrorIs(t, err, ErrWatchPartyWrongRoomType)
@@ -118,7 +118,7 @@ func TestStartWatchParty_OK(t *testing.T) {
 	m.chatRepo.EXPECT().GetMessageByID(mock.Anything, mock.Anything).Return(nil, nil)
 
 	// when
-	resp, err := svc.StartWatchParty(context.Background(), roomID, userID, "", "", "Movie night")
+	resp, err := svc.StartWatchParty(context.Background(), roomID, userID, "", "", "Movie night", "")
 
 	// then
 	require.NoError(t, err)
@@ -141,7 +141,7 @@ func TestStartWatchParty_HyperbeamFailureCleansUp(t *testing.T) {
 	m.hyperbeamSvc.EXPECT().CreateVM(mock.Anything, mock.Anything).Return(nil, errors.New("hyperbeam down"))
 
 	// when
-	_, err := svc.StartWatchParty(context.Background(), roomID, userID, "", "", "")
+	_, err := svc.StartWatchParty(context.Background(), roomID, userID, "", "", "", "")
 
 	// then
 	require.Error(t, err)
@@ -185,7 +185,6 @@ func TestJoinWatchParty_NotFound(t *testing.T) {
 	roomID := uuid.New()
 	sessionID := uuid.New()
 	userID := uuid.New()
-	m.hyperbeamSvc.EXPECT().Enabled().Return(true)
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
 	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(nil, nil)
 

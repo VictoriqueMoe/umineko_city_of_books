@@ -71,7 +71,7 @@ func TestStartWatchParty_OK(t *testing.T) {
 	h, chatMock := newChatHarness(t)
 	userID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
-	chatMock.EXPECT().StartWatchParty(mock.Anything, wpRoomID(), userID, "https://example.com", "EU", "Movie").
+	chatMock.EXPECT().StartWatchParty(mock.Anything, wpRoomID(), userID, "https://example.com", "EU", "Movie", "").
 		Return(&dto.StartWatchPartyResponse{EmbedURL: "https://hb/embed"}, nil)
 
 	// when
@@ -102,7 +102,7 @@ func TestStartWatchParty_ServiceErrors(t *testing.T) {
 			h, chatMock := newChatHarness(t)
 			userID := uuid.New()
 			h.ExpectValidSession("valid-cookie", userID)
-			chatMock.EXPECT().StartWatchParty(mock.Anything, wpRoomID(), userID, "", "", "").
+			chatMock.EXPECT().StartWatchParty(mock.Anything, wpRoomID(), userID, "", "", "", "").
 				Return(nil, tc.err)
 
 			// when

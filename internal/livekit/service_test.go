@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/livekit/protocol/auth"
+	"github.com/livekit/protocol/livekit"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -63,7 +64,7 @@ func TestMintToken_Disabled(t *testing.T) {
 	svc := configuredService(t, "", "", "")
 
 	// when
-	_, err := svc.MintToken("room", "user", "User")
+	_, err := svc.MintToken("room", "user", "User", true, false)
 
 	// then
 	require.ErrorIs(t, err, ErrDisabled)
@@ -76,7 +77,7 @@ func TestMintToken_SignsGrant(t *testing.T) {
 	userID := uuid.New().String()
 
 	// when
-	token, err := svc.MintToken(roomID, userID, "Beatrice")
+	token, err := svc.MintToken(roomID, userID, "Beatrice", true, false)
 	require.NoError(t, err)
 
 	// then
@@ -89,6 +90,8 @@ func TestMintToken_SignsGrant(t *testing.T) {
 	require.NotNil(t, grants.Video)
 	assert.True(t, grants.Video.RoomJoin)
 	assert.Equal(t, roomID, grants.Video.Room)
+	assert.True(t, grants.Video.GetCanPublishSource(livekit.TrackSource_MICROPHONE))
+	assert.False(t, grants.Video.GetCanPublishSource(livekit.TrackSource_SCREEN_SHARE))
 }
 
 func TestParseWebhook_Disabled(t *testing.T) {

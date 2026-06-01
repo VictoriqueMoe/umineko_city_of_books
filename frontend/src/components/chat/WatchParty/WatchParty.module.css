@@ -151,11 +151,11 @@
     .iframeWrap {
         width: 100%;
         max-width: 100%;
-        aspect-ratio: 16 / 9;
-        flex-shrink: 0;
+        flex: 3 1 0;
+        min-height: 0;
     }
     .chatPanel {
-        flex: 1 1 0;
+        flex: 2 1 0;
         min-width: 0;
         min-height: 0;
     }
@@ -207,6 +207,59 @@
     align-items: center;
     justify-content: center;
     color: var(--text-muted);
+}
+
+.screenVideo {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: #000;
+}
+
+.fullscreenBtn {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    z-index: 3;
+    background: rgba(0, 0, 0, 0.55);
+    border: 1px solid rgba(var(--gold-rgb), 0.3);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 0.25rem 0.6rem;
+    font-size: 0.78rem;
+    cursor: pointer;
+}
+
+.fullscreenBtn:hover {
+    border-color: var(--gold);
+    color: var(--gold);
+}
+
+.voiceStrip {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    padding-bottom: 0.4rem;
+    margin-bottom: 0.4rem;
+    border-bottom: 1px solid rgba(var(--gold-rgb), 0.12);
+    min-width: 0;
+}
+
+.voiceControls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.voiceStripLabel {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
 }
 
 .chatPanel {
@@ -317,6 +370,12 @@
     align-items: end;
 }
 
+@media (max-width: 600px) {
+    .chatComposer {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
 .chatTextarea {
     resize: none;
     background: rgba(0, 0, 0, 0.35);
@@ -341,6 +400,8 @@
     border-top: 1px solid rgba(var(--gold-rgb), 0.15);
     background: rgba(0, 0, 0, 0.25);
     padding: 0.4rem 0.75rem;
+    min-width: 0;
+    overflow: hidden;
 }
 
 .participantStrip {
@@ -348,6 +409,8 @@
     align-items: center;
     gap: 0.75rem;
     overflow-x: auto;
+    min-width: 0;
+    max-width: 100%;
 }
 
 .participantStripLabel {
@@ -513,6 +576,36 @@
 
 .pickerDivider {
     border-top: 1px solid rgba(var(--gold-rgb), 0.15);
+}
+
+.pickerTypes {
+    display: flex;
+    gap: 0.4rem;
+    padding: 0.6rem 0.75rem 0;
+}
+
+.pickerType {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(var(--gold-rgb), 0.25);
+    color: var(--text-muted);
+    border-radius: 6px;
+    padding: 0.3rem 0.5rem;
+    font: inherit;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition:
+        border-color 0.15s,
+        color 0.15s;
+}
+
+.pickerType:hover:not(:disabled) {
+    border-color: rgba(var(--gold-rgb), 0.5);
+}
+
+.pickerTypeActive {
+    border-color: var(--gold);
+    color: var(--gold);
 }
 
 .pickerStart {

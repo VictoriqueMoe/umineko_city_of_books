@@ -22,7 +22,8 @@ type (
 	Service interface {
 		Enabled() bool
 		URL() string
-		MintToken(roomName, identity, displayName string) (string, error)
+		MintToken(roomName, identity, displayName string, canMic, canScreen bool) (string, error)
+		SetCanPublish(ctx context.Context, roomName, identity string, canMic, canScreen bool) error
 		ParseWebhook(authHeader string, body []byte) (*Event, error)
 		ActiveRooms(ctx context.Context) (map[string][]string, error)
 	}
@@ -74,7 +75,7 @@ func (s *service) URL() string {
 	return s.settingsSvc.Get(context.Background(), config.SettingLiveKitURL)
 }
 
-func (s *service) MintToken(roomName, identity, displayName string) (string, error) {
+func (s *service) MintToken(roomName, identity, displayName string, canMic, canScreen bool) (string, error) {
 	_, key, secret := s.creds()
 
 	if key == "" || secret == "" {
@@ -85,6 +86,7 @@ func (s *service) MintToken(roomName, identity, displayName string) (string, err
 		RoomJoin: true,
 		Room:     roomName,
 	}
+	grant.SetCanPublishSources(publishSources(canMic, canScreen))
 
 	at := auth.NewAccessToken(key, secret).
 		SetVideoGrant(grant).
@@ -98,6 +100,45 @@ func (s *service) MintToken(roomName, identity, displayName string) (string, err
 	}
 
 	return token, nil
+}
+
+func publishSources(canMic, canScreen bool) []livekit.TrackSource {
+	sources := make([]livekit.TrackSource, 0, 3)
+	if canMic {
+		sources = append(sources, livekit.TrackSource_MICROPHONE)
+	}
+	if canScreen {
+		sources = append(sources, livekit.TrackSource_SCREEN_SHARE, livekit.TrackSource_SCREEN_SHARE_AUDIO)
+	}
+
+	return sources
+}
+
+func (s *service) SetCanPublish(ctx context.Context, roomName, identity string, canMic, canScreen bool) error {
+	url, key, secret := s.creds()
+
+	if url == "" || key == "" || secret == "" {
+		return ErrDisabled
+	}
+
+	client := lksdk.NewRoomServiceClient(toHTTPURL(url), key, secret)
+
+	sources := publishSources(canMic, canScreen)
+
+	if _, err := client.UpdateParticipant(ctx, &livekit.UpdateParticipantRequest{
+		Room:     roomName,
+		Identity: identity,
+		Permission: &livekit.ParticipantPermission{
+			CanSubscribe:      true,
+			CanPublish:        len(sources) > 0,
+			CanPublishData:    true,
+			CanPublishSources: sources,
+		},
+	}); err != nil {
+		return fmt.Errorf("update livekit participant: %w", err)
+	}
+
+	return nil
 }
 
 func (s *service) ParseWebhook(authHeader string, body []byte) (*Event, error) {

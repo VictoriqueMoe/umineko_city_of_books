@@ -139,10 +139,12 @@
 .cardByline {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    flex-wrap: wrap;
+    gap: 0.25rem 0.5rem;
     font-size: 0.85rem;
     color: var(--text-muted);
     margin-bottom: 0.5rem;
+    min-width: 0;
 }
 
 .cardSummary {
@@ -162,6 +164,7 @@
     flex-wrap: wrap;
     gap: 0.35rem;
     margin-bottom: 0.5rem;
+    min-width: 0;
 }
 
 .badge {

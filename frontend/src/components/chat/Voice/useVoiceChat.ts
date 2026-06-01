@@ -78,11 +78,12 @@ export function useVoiceChat(roomId: string, initialParticipants: string[] = [])
             });
 
             await livekitRoom.connect(url, token);
-            await livekitRoom.localParticipant.setMicrophoneEnabled(true);
 
             setRoom(livekitRoom);
             setStatus("connected");
             playVoiceJoinSound();
+
+            livekitRoom.localParticipant.setMicrophoneEnabled(true).catch(() => {});
         };
 
         connect().catch(() => {

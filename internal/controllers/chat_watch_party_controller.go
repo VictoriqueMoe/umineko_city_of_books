@@ -51,6 +51,14 @@ func (s *Service) setupIdentifyWatchPartyRoute(r fiber.Router) {
 	r.Post("/chat/rooms/:roomID/watch-parties/:sessionID/identify", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.identifyWatchPartyParticipant)
 }
 
+func (s *Service) setupWatchPartyVoiceTokenRoute(r fiber.Router) {
+	r.Post("/chat/rooms/:roomID/watch-parties/:sessionID/voice/token", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.watchPartyVoiceToken)
+}
+
+func (s *Service) setupWatchPartyVoiceMuteRoute(r fiber.Router) {
+	r.Post("/chat/rooms/:roomID/watch-parties/:sessionID/voice/participants/:userID/mute", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.watchPartyVoiceMute)
+}
+
 func mapWatchPartyError(ctx fiber.Ctx, err error) error {
 	switch {
 	case errors.Is(err, chat.ErrWatchPartyDisabled):
@@ -101,6 +109,18 @@ func mapWatchPartyError(ctx fiber.Ctx, err error) error {
 		{
 			return utils.NotFound(ctx, "room not found")
 		}
+	case errors.Is(err, chat.ErrWatchPartyInvalidType):
+		{
+			return utils.BadRequest(ctx, "invalid watch party type")
+		}
+	case errors.Is(err, chat.ErrVoiceDisabled):
+		{
+			return utils.ServiceUnavailable(ctx, "voice chat is not configured")
+		}
+	case errors.Is(err, chat.ErrVoiceMuteForbidden):
+		{
+			return utils.Forbidden(ctx, "you cannot mute participants here")
+		}
 	}
 	return utils.InternalError(ctx, "watch party request failed: "+err.Error(), err)
 }
@@ -132,11 +152,52 @@ func (s *Service) startWatchParty(ctx fiber.Ctx) error {
 			return nil
 		}
 	}
-	resp, err := s.ChatService.StartWatchParty(ctx.Context(), roomID, actorID, req.StartURL, req.Region, req.Title)
+	resp, err := s.ChatService.StartWatchParty(ctx.Context(), roomID, actorID, req.StartURL, req.Region, req.Title, req.Type)
 	if err != nil {
 		return mapWatchPartyError(ctx, err)
 	}
 	return ctx.Status(fiber.StatusCreated).JSON(resp)
+}
+
+func (s *Service) watchPartyVoiceToken(ctx fiber.Ctx) error {
+	actorID := utils.UserID(ctx)
+	roomID, ok := utils.ParseIDParam(ctx, "roomID")
+	if !ok {
+		return nil
+	}
+	sessionID, ok := utils.ParseIDParam(ctx, "sessionID")
+	if !ok {
+		return nil
+	}
+	token, url, err := s.ChatService.MintSessionVoiceToken(ctx.Context(), roomID, sessionID, actorID)
+	if err != nil {
+		return mapWatchPartyError(ctx, err)
+	}
+	return ctx.JSON(dto.VoiceTokenResponse{Token: token, URL: url})
+}
+
+func (s *Service) watchPartyVoiceMute(ctx fiber.Ctx) error {
+	actorID := utils.UserID(ctx)
+	roomID, ok := utils.ParseIDParam(ctx, "roomID")
+	if !ok {
+		return nil
+	}
+	sessionID, ok := utils.ParseIDParam(ctx, "sessionID")
+	if !ok {
+		return nil
+	}
+	targetID, ok := utils.ParseIDParam(ctx, "userID")
+	if !ok {
+		return nil
+	}
+	req, ok := utils.BindJSON[dto.VoiceMuteRequest](ctx)
+	if !ok {
+		return nil
+	}
+	if err := s.ChatService.ForceMuteSessionVoice(ctx.Context(), roomID, sessionID, actorID, targetID, req.Muted); err != nil {
+		return mapWatchPartyError(ctx, err)
+	}
+	return utils.OK(ctx)
 }
 
 func (s *Service) joinWatchParty(ctx fiber.Ctx) error {

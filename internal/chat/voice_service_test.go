@@ -160,7 +160,7 @@ func TestReconcilePresence_Disabled(t *testing.T) {
 	settingsSvc := settings.NewMockService(t)
 	settingsSvc.EXPECT().GetBool(mock.Anything, config.SettingVoiceEnabled).Return(false).Maybe()
 	lk := livekit.NewMockService(t)
-	vs := newVoiceService(&core{settingsSvc: settingsSvc}, lk)
+	vs := newVoiceService(&core{settingsSvc: settingsSvc, livekitSvc: lk})
 
 	// when
 	n, err := vs.ReconcilePresence(context.Background())
@@ -177,7 +177,7 @@ func TestReconcilePresence_RebuildsFromLiveKit(t *testing.T) {
 	lk := livekit.NewMockService(t)
 	lk.EXPECT().Enabled().Return(true).Maybe()
 	chatRepo := repository.NewMockChatRepository(t)
-	vs := newVoiceService(&core{chatRepo: chatRepo, hub: ws.NewHub(), settingsSvc: settingsSvc}, lk)
+	vs := newVoiceService(&core{chatRepo: chatRepo, hub: ws.NewHub(), settingsSvc: settingsSvc, livekitSvc: lk})
 
 	liveRoom := uuid.New()
 	liveUser := uuid.New()

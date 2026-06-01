@@ -5,16 +5,18 @@ import styles from "./WatchParty.module.css";
 
 interface WatchPartyButtonProps {
     enabled: boolean;
+    screenShareEnabled: boolean;
     sessions: WatchPartySession[];
     activeSessionId: string | null;
     viewerUserId: string | null;
-    onStart: (opts: { title?: string }) => Promise<unknown>;
+    onStart: (opts: { title?: string; type?: "hyperbeam" | "screenshare" }) => Promise<unknown>;
     onJoin: (sessionId: string) => Promise<void>;
     onOpenExisting: (sessionId: string) => void;
 }
 
 export function WatchPartyButton({
     enabled,
+    screenShareEnabled,
     sessions,
     activeSessionId,
     viewerUserId,
@@ -24,6 +26,7 @@ export function WatchPartyButton({
 }: WatchPartyButtonProps) {
     const [open, setOpen] = useState(false);
     const [titleDraft, setTitleDraft] = useState("");
+    const [partyType, setPartyType] = useState<"hyperbeam" | "screenshare">(enabled ? "hyperbeam" : "screenshare");
     const [busy, setBusy] = useState(false);
     const popoverRef = useRef<HTMLDivElement | null>(null);
 
@@ -43,17 +46,18 @@ export function WatchPartyButton({
         return () => document.removeEventListener("mousedown", handleDocClick);
     }, [open]);
 
-    if (!enabled) {
+    if (!enabled && !screenShareEnabled) {
         return null;
     }
 
+    const showTypeSelector = enabled && screenShareEnabled;
     const activeCount = sessions.length;
     const buttonLabel = activeCount === 0 ? "+ Watch Party" : `Watch Parties (${activeCount})`;
 
     const handleStart = async () => {
         setBusy(true);
         try {
-            await onStart({ title: titleDraft.trim() || undefined });
+            await onStart({ title: titleDraft.trim() || undefined, type: partyType });
             setTitleDraft("");
             setOpen(false);
         } finally {
@@ -129,6 +133,26 @@ export function WatchPartyButton({
                         );
                     })}
                     <div className={styles.pickerDivider} />
+                    {showTypeSelector && (
+                        <div className={styles.pickerTypes}>
+                            <button
+                                type="button"
+                                className={`${styles.pickerType} ${partyType === "hyperbeam" ? styles.pickerTypeActive : ""}`}
+                                onClick={() => setPartyType("hyperbeam")}
+                                disabled={busy}
+                            >
+                                Virtual browser
+                            </button>
+                            <button
+                                type="button"
+                                className={`${styles.pickerType} ${partyType === "screenshare" ? styles.pickerTypeActive : ""}`}
+                                onClick={() => setPartyType("screenshare")}
+                                disabled={busy}
+                            >
+                                Screen share
+                            </button>
+                        </div>
+                    )}
                     <div className={styles.pickerStart}>
                         <input
                             className={styles.pickerInput}

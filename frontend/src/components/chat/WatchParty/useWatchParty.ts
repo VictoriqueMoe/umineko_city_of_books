@@ -36,11 +36,16 @@ export interface ActiveWatchPartySession {
 
 interface UseWatchPartyResult {
     enabled: boolean;
+    screenShareEnabled: boolean;
     sessions: WatchPartySession[];
     activeSession: ActiveWatchPartySession | null;
     openSessionId: string | null;
     error: string | null;
-    start: (opts: { title?: string; startURL?: string }) => Promise<WatchPartySession | null>;
+    start: (opts: {
+        title?: string;
+        startURL?: string;
+        type?: "hyperbeam" | "screenshare";
+    }) => Promise<WatchPartySession | null>;
     join: (sessionId: string) => Promise<void>;
     leave: () => Promise<void>;
     end: () => Promise<void>;
@@ -57,6 +62,7 @@ interface RoomScopedState {
     roomId: string | null;
     sessions: WatchPartySession[];
     enabled: boolean;
+    screenShareEnabled: boolean;
     activeSessionId: string | null;
     embedURL: string;
     messages: WatchPartyMessage[];
@@ -66,6 +72,7 @@ const emptyState: RoomScopedState = {
     roomId: null,
     sessions: [],
     enabled: false,
+    screenShareEnabled: false,
     activeSessionId: null,
     embedURL: "",
     messages: [],
@@ -90,6 +97,7 @@ export function useWatchParty(roomId: string | null, viewerUserId: string | null
     const stateMatches = data.roomId === roomId;
     const sessions = stateMatches ? data.sessions : [];
     const enabled = stateMatches ? data.enabled : false;
+    const screenShareEnabled = stateMatches ? data.screenShareEnabled : false;
     const activeSessionId = stateMatches ? data.activeSessionId : null;
 
     useEffect(() => {
@@ -157,6 +165,7 @@ export function useWatchParty(roomId: string | null, viewerUserId: string | null
                     roomId,
                     sessions: resp.sessions,
                     enabled: resp.enabled,
+                    screenShareEnabled: resp.screen_share_enabled,
                     activeSessionId: null,
                     embedURL: "",
                     messages: [],
@@ -311,17 +320,22 @@ export function useWatchParty(roomId: string | null, viewerUserId: string | null
     }, [addWSListener, roomId, viewerUserId]);
 
     const start = useCallback(
-        async (opts: { title?: string; startURL?: string }) => {
+        async (opts: { title?: string; startURL?: string; type?: "hyperbeam" | "screenshare" }) => {
             if (!roomId) {
                 return null;
             }
             setError(null);
             try {
-                const region = await resolveOptimalRegion();
+                const partyType = opts.type ?? "hyperbeam";
+                let region = "";
+                if (partyType !== "screenshare") {
+                    region = (await resolveOptimalRegion()) ?? "";
+                }
                 const resp = await startWatchPartyApi(roomId, {
                     start_url: opts.startURL,
                     region: region || undefined,
                     title: opts.title,
+                    type: partyType,
                 });
                 let messages: WatchPartyMessage[] = [];
                 try {
@@ -334,6 +348,7 @@ export function useWatchParty(roomId: string | null, viewerUserId: string | null
                     roomId,
                     sessions: upsertSession(prev.roomId === roomId ? prev.sessions : [], resp.session),
                     enabled: true,
+                    screenShareEnabled: prev.roomId === roomId ? prev.screenShareEnabled : true,
                     activeSessionId: resp.session.id,
                     embedURL: resp.embed_url,
                     messages,
@@ -366,6 +381,7 @@ export function useWatchParty(roomId: string | null, viewerUserId: string | null
                     roomId,
                     sessions: upsertSession(prev.roomId === roomId ? prev.sessions : [], resp.session),
                     enabled: true,
+                    screenShareEnabled: prev.roomId === roomId ? prev.screenShareEnabled : true,
                     activeSessionId: resp.session.id,
                     embedURL: resp.embed_url,
                     messages,
@@ -520,6 +536,7 @@ export function useWatchParty(roomId: string | null, viewerUserId: string | null
 
     return {
         enabled,
+        screenShareEnabled,
         sessions,
         activeSession,
         openSessionId: activeSessionId,

@@ -673,18 +673,41 @@ export async function getVoiceToken(roomId: string): Promise<VoiceTokenResponse>
     return apiPost<VoiceTokenResponse, Record<string, never>>(`/chat/rooms/${roomId}/voice/token`, {});
 }
 
+export async function forceMuteVoiceParticipant(roomId: string, userId: string, muted: boolean): Promise<void> {
+    await apiPost<unknown, { muted: boolean }>(`/chat/rooms/${roomId}/voice/participants/${userId}/mute`, { muted });
+}
+
+export async function getWatchPartyVoiceToken(roomId: string, sessionId: string): Promise<VoiceTokenResponse> {
+    return apiPost<VoiceTokenResponse, Record<string, never>>(
+        `/chat/rooms/${roomId}/watch-parties/${sessionId}/voice/token`,
+        {},
+    );
+}
+
+export async function forceMuteWatchPartyVoiceParticipant(
+    roomId: string,
+    sessionId: string,
+    userId: string,
+    muted: boolean,
+): Promise<void> {
+    await apiPost<unknown, { muted: boolean }>(
+        `/chat/rooms/${roomId}/watch-parties/${sessionId}/voice/participants/${userId}/mute`,
+        { muted },
+    );
+}
+
 export async function listWatchParties(roomId: string): Promise<WatchPartyListResponse> {
     return apiFetch<WatchPartyListResponse>(`/chat/rooms/${roomId}/watch-parties`);
 }
 
 export async function startWatchParty(
     roomId: string,
-    options: { start_url?: string; region?: string; title?: string },
+    options: { start_url?: string; region?: string; title?: string; type?: "hyperbeam" | "screenshare" },
 ): Promise<StartWatchPartyResponse> {
-    return apiPost<StartWatchPartyResponse, { start_url?: string; region?: string; title?: string }>(
-        `/chat/rooms/${roomId}/watch-parties`,
-        options,
-    );
+    return apiPost<
+        StartWatchPartyResponse,
+        { start_url?: string; region?: string; title?: string; type?: "hyperbeam" | "screenshare" }
+    >(`/chat/rooms/${roomId}/watch-parties`, options);
 }
 
 export async function joinWatchParty(roomId: string, sessionId: string): Promise<JoinWatchPartyResponse> {

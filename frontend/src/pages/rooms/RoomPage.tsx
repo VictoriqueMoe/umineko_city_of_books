@@ -25,6 +25,7 @@ import {
     useUnlockChatRoomMemberNickname,
     useUnpinChatMessage,
 } from "../../api/mutations/chat";
+import { forceMuteVoiceParticipant } from "../../api/endpoints";
 import { useChatMessageHandlers } from "../../hooks/useChatMessageHandlers";
 import { useMessageHistory } from "../../hooks/useMessageHistory";
 import { usePresenceReporter } from "../../hooks/usePresenceReporter";
@@ -1280,7 +1281,16 @@ export function RoomPage() {
                         </div>
                     )}
 
-                    {voice.status === "connected" && voice.room && <VoiceBar room={voice.room} onLeave={voice.leave} />}
+                    {voice.status === "connected" && voice.room && (
+                        <VoiceBar
+                            room={voice.room}
+                            onLeave={voice.leave}
+                            canModerate={canModerateRoom}
+                            onForceMute={(id, muted) => {
+                                forceMuteVoiceParticipant(roomId ?? "", id, muted).catch(() => {});
+                            }}
+                        />
+                    )}
 
                     <div className={styles.messages} ref={messagesContainerRef} onScroll={handleMessagesScroll}>
                         {hasMore && (
@@ -1364,6 +1374,7 @@ export function RoomPage() {
                                     />
                                     <WatchPartyButton
                                         enabled={watchParty.enabled}
+                                        screenShareEnabled={watchParty.screenShareEnabled}
                                         sessions={watchParty.sessions}
                                         activeSessionId={watchParty.openSessionId}
                                         viewerUserId={user.id}
@@ -1434,6 +1445,7 @@ export function RoomPage() {
                     viewerRole={user.role}
                     isStarter={watchParty.activeSession.session.started_by === user.id}
                     viewerIsStaff={isSiteStaff(user.role)}
+                    voiceEnabled={watchParty.screenShareEnabled}
                     onLeave={watchParty.leave}
                     onEnd={watchParty.end}
                     onTransferControl={watchParty.transferControl}

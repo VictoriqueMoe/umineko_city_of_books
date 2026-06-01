@@ -29,6 +29,14 @@
     background: rgba(var(--purple-rgb), 0.2);
     color: var(--text);
     white-space: nowrap;
+    max-width: 100%;
+}
+
+.name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 8rem;
 }
 
 .dot {
@@ -70,6 +78,55 @@
 .control:hover {
     border-color: var(--gold);
     color: var(--gold);
+}
+
+.controlActive {
+    border-color: var(--gold);
+    color: var(--gold);
+}
+
+.miniBtn {
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 0.8rem;
+    line-height: 1;
+    padding: 0 0.1rem;
+    cursor: pointer;
+    opacity: 0.75;
+    transition: opacity 0.15s;
+}
+
+.miniBtn:hover {
+    opacity: 1;
+}
+
+.modMuteBtn {
+    border: 1px solid rgba(229, 57, 53, 0.5);
+    background: transparent;
+    color: #ef9a9a;
+    font: inherit;
+    font-size: 0.7rem;
+    line-height: 1;
+    padding: 0.12rem 0.4rem;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.modMuteBtn:hover {
+    border-color: #e53935;
+    color: #e53935;
+}
+
+.modMuteBtnActive {
+    background: rgba(229, 57, 53, 0.85);
+    border-color: #e53935;
+    color: #fff;
+}
+
+.modMuteBtnActive:hover {
+    color: #fff;
 }
 
 .leave {

@@ -16,6 +16,7 @@ import (
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/hyperbeam"
+	"umineko_city_of_books/internal/livekit"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
@@ -57,9 +58,12 @@ type (
 		uploader        *media.Uploader
 		hub             *ws.Hub
 		hyperbeamSvc    hyperbeam.Service
+		livekitSvc      livekit.Service
 		contentFilter   *contentfilter.Manager
 		bannedWordsRule *contentfilter.ChatBannedWordsRule
 		sideEffectsWG   sync.WaitGroup
+		voiceMu         sync.Mutex
+		voiceMuted      map[string]map[uuid.UUID]struct{}
 	}
 
 	FileUpload struct {
@@ -68,6 +72,41 @@ type (
 		Open        func() (io.ReadCloser, error)
 	}
 )
+
+func (c *core) setVoiceMuted(roomName string, userID uuid.UUID, muted bool) {
+	c.voiceMu.Lock()
+	defer c.voiceMu.Unlock()
+
+	if muted {
+		if c.voiceMuted[roomName] == nil {
+			c.voiceMuted[roomName] = make(map[uuid.UUID]struct{})
+		}
+		c.voiceMuted[roomName][userID] = struct{}{}
+
+		return
+	}
+
+	delete(c.voiceMuted[roomName], userID)
+	if len(c.voiceMuted[roomName]) == 0 {
+		delete(c.voiceMuted, roomName)
+	}
+}
+
+func (c *core) isVoiceMuted(roomName string, userID uuid.UUID) bool {
+	c.voiceMu.Lock()
+	defer c.voiceMu.Unlock()
+
+	_, ok := c.voiceMuted[roomName][userID]
+
+	return ok
+}
+
+func (c *core) clearVoiceMuted(roomName string) {
+	c.voiceMu.Lock()
+	defer c.voiceMu.Unlock()
+
+	delete(c.voiceMuted, roomName)
+}
 
 func (c *core) filterTexts(ctx context.Context, texts ...string) error {
 	if c.contentFilter == nil {
