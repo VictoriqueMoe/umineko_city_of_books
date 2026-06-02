@@ -14,7 +14,7 @@ import (
 
 type (
 	Service interface {
-		Create(ctx context.Context, username, password, displayName string) (*dto.UserResponse, error)
+		Create(ctx context.Context, username, email, password, displayName string) (*dto.UserResponse, error)
 		GetByID(ctx context.Context, id uuid.UUID) (*dto.UserResponse, error)
 		ValidateCredentials(ctx context.Context, username, password string) (*dto.UserResponse, error)
 		CheckUsernameAvailable(ctx context.Context, username string) error
@@ -40,7 +40,7 @@ func NewService(repo repository.UserRepository, roleRepo repository.RoleReposito
 	return &service{repo: repo, roleRepo: roleRepo, authz: authzService}
 }
 
-func (s *service) Create(ctx context.Context, username, password, displayName string) (*dto.UserResponse, error) {
+func (s *service) Create(ctx context.Context, username, email, password, displayName string) (*dto.UserResponse, error) {
 	count, err := s.repo.Count(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("count users: %w", err)
@@ -51,7 +51,7 @@ func (s *service) Create(ctx context.Context, username, password, displayName st
 		displayName = username
 	}
 
-	user, err := s.repo.Create(ctx, username, password, displayName)
+	user, err := s.repo.Create(ctx, username, email, password, displayName)
 	if err != nil {
 		return nil, fmt.Errorf("create user: %w", err)
 	}

@@ -16,7 +16,7 @@ import (
 
 type (
 	UserRepository interface {
-		Create(ctx context.Context, username, password, displayName string) (*model.User, error)
+		Create(ctx context.Context, username, email, password, displayName string) (*model.User, error)
 		GetByID(ctx context.Context, id uuid.UUID) (*model.User, error)
 		GetByIDs(ctx context.Context, ids []uuid.UUID) ([]model.User, error)
 		GetByUsername(ctx context.Context, username string) (*model.User, error)
@@ -35,6 +35,11 @@ type (
 		GetDetectiveRawScore(ctx context.Context, userID uuid.UUID) (int, error)
 		GetGMRawScore(ctx context.Context, userID uuid.UUID) (int, error)
 		ChangePassword(ctx context.Context, userID uuid.UUID, oldPassword, newPassword string) error
+		SetPassword(ctx context.Context, userID uuid.UUID, newPassword string) error
+		SetEmail(ctx context.Context, userID uuid.UUID, email string) error
+		MarkEmailVerified(ctx context.Context, userID uuid.UUID) error
+		EmailInUse(ctx context.Context, email string, excludeUserID uuid.UUID) (bool, error)
+		RequiresEmailVerification(ctx context.Context, userID uuid.UUID) (bool, error)
 		DeleteAccount(ctx context.Context, userID uuid.UUID, password string) error
 		GetProfileByUsername(ctx context.Context, username string) (*model.User, *model.UserStats, error)
 		GetProfileByID(ctx context.Context, id uuid.UUID) (*model.User, *model.UserStats, error)
@@ -56,7 +61,7 @@ type (
 )
 
 const (
-	userColumns = `u.id, u.username, u.password_hash, u.display_name, u.created_at, u.bio, u.avatar_url, u.banner_url, u.favourite_character, u.gender, u.pronoun_subject, u.pronoun_possessive, u.banned_at, u.banned_by, u.ban_reason, u.locked_at, u.locked_by, u.lock_reason, u.social_twitter, u.social_discord, u.social_waifulist, u.social_tumblr, u.social_github, u.website, u.banner_position, u.dms_enabled, u.episode_progress, u.higurashi_arc_progress, u.ciconia_chapter_progress, u.email, u.email_public, u.dob, u.dob_public, u.email_notifications, u.play_message_sound, u.play_notification_sound, u.home_page, u.game_board_sort, u.default_profile_tab, u.theme, u.font, u.wide_layout, u.ip, u.mystery_score_adjustment, u.gm_score_adjustment, COALESCE(r.role, '')`
+	userColumns = `u.id, u.username, u.password_hash, u.display_name, u.created_at, u.bio, u.avatar_url, u.banner_url, u.favourite_character, u.gender, u.pronoun_subject, u.pronoun_possessive, u.banned_at, u.banned_by, u.ban_reason, u.locked_at, u.locked_by, u.lock_reason, u.social_twitter, u.social_discord, u.social_waifulist, u.social_tumblr, u.social_github, u.website, u.banner_position, u.dms_enabled, u.episode_progress, u.higurashi_arc_progress, u.ciconia_chapter_progress, u.email, u.email_public, u.email_verified, u.verify_grace_until, u.dob, u.dob_public, u.email_notifications, u.play_message_sound, u.play_notification_sound, u.home_page, u.game_board_sort, u.default_profile_tab, u.theme, u.font, u.wide_layout, u.ip, u.mystery_score_adjustment, u.gm_score_adjustment, COALESCE(r.role, '')`
 )
 
 func scanUser(row interface{ Scan(dest ...any) error }) (*model.User, error) {
@@ -67,11 +72,11 @@ func scanUser(row interface{ Scan(dest ...any) error }) (*model.User, error) {
 		&u.BannedAt, &u.BannedBy, &u.BanReason,
 		&u.LockedAt, &u.LockedBy, &u.LockReason,
 		&u.SocialTwitter, &u.SocialDiscord, &u.SocialWaifulist, &u.SocialTumblr, &u.SocialGithub, &u.Website,
-		&u.BannerPosition, &u.DmsEnabled, &u.EpisodeProgress, &u.HigurashiArcProgress, &u.CiconiaChapterProgress, &u.Email, &u.EmailPublic, &u.DOB, &u.DOBPublic, &u.EmailNotifications, &u.PlayMessageSound, &u.PlayNotificationSound, &u.HomePage, &u.GameBoardSort, &u.DefaultProfileTab, &u.Theme, &u.Font, &u.WideLayout, &u.IP, &u.MysteryScoreAdjustment, &u.GMScoreAdjustment, &u.Role)
+		&u.BannerPosition, &u.DmsEnabled, &u.EpisodeProgress, &u.HigurashiArcProgress, &u.CiconiaChapterProgress, &u.Email, &u.EmailPublic, &u.EmailVerified, &u.VerifyGraceUntil, &u.DOB, &u.DOBPublic, &u.EmailNotifications, &u.PlayMessageSound, &u.PlayNotificationSound, &u.HomePage, &u.GameBoardSort, &u.DefaultProfileTab, &u.Theme, &u.Font, &u.WideLayout, &u.IP, &u.MysteryScoreAdjustment, &u.GMScoreAdjustment, &u.Role)
 	return &u, err
 }
 
-func (r *userRepository) Create(ctx context.Context, username, password, displayName string) (*model.User, error) {
+func (r *userRepository) Create(ctx context.Context, username, email, password, displayName string) (*model.User, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, fmt.Errorf("hash password: %w", err)
@@ -80,8 +85,8 @@ func (r *userRepository) Create(ctx context.Context, username, password, display
 	id := uuid.New()
 
 	_, err = r.db.ExecContext(ctx,
-		`INSERT INTO users (id, username, password_hash, display_name, home_page) VALUES ($1, $2, $3, $4, $5)`,
-		id, username, string(hash), displayName, "landing",
+		`INSERT INTO users (id, username, email, password_hash, display_name, home_page) VALUES ($1, $2, $3, $4, $5, $6)`,
+		id, username, email, string(hash), displayName, "landing",
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create user: %w", err)
@@ -90,8 +95,55 @@ func (r *userRepository) Create(ctx context.Context, username, password, display
 	return &model.User{
 		ID:          id,
 		Username:    username,
+		Email:       email,
 		DisplayName: displayName,
 	}, nil
+}
+
+func (r *userRepository) SetEmail(ctx context.Context, userID uuid.UUID, email string) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE users SET email = $1, email_verified = FALSE WHERE id = $2`, email, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("set email: %w", err)
+	}
+	return nil
+}
+
+func (r *userRepository) MarkEmailVerified(ctx context.Context, userID uuid.UUID) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE users SET email_verified = TRUE WHERE id = $1`, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("mark email verified: %w", err)
+	}
+	return nil
+}
+
+func (r *userRepository) EmailInUse(ctx context.Context, email string, excludeUserID uuid.UUID) (bool, error) {
+	var exists bool
+	err := r.db.QueryRowContext(ctx,
+		`SELECT EXISTS(SELECT 1 FROM users WHERE LOWER(email) = LOWER($1) AND email <> '' AND id <> $2)`,
+		email, excludeUserID,
+	).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("check email in use: %w", err)
+	}
+	return exists, nil
+}
+
+func (r *userRepository) RequiresEmailVerification(ctx context.Context, userID uuid.UUID) (bool, error) {
+	var blocked bool
+	err := r.db.QueryRowContext(ctx,
+		`SELECT NOT email_verified AND NOW() >= verify_grace_until FROM users WHERE id = $1`, userID,
+	).Scan(&blocked)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("check email verification: %w", err)
+	}
+	return blocked, nil
 }
 
 func (r *userRepository) GetByID(ctx context.Context, id uuid.UUID) (*model.User, error) {
@@ -353,6 +405,21 @@ func (r *userRepository) ChangePassword(ctx context.Context, userID uuid.UUID, o
 		return fmt.Errorf("incorrect password")
 	}
 
+	hash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("hash password: %w", err)
+	}
+
+	_, err = r.db.ExecContext(ctx,
+		`UPDATE users SET password_hash = $1 WHERE id = $2`, string(hash), userID,
+	)
+	if err != nil {
+		return fmt.Errorf("update password: %w", err)
+	}
+	return nil
+}
+
+func (r *userRepository) SetPassword(ctx context.Context, userID uuid.UUID, newPassword string) error {
 	hash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 	if err != nil {
 		return fmt.Errorf("hash password: %w", err)

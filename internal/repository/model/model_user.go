@@ -42,6 +42,8 @@ type (
 		CiconiaChapterProgress int
 		Email                  string
 		EmailPublic            bool
+		EmailVerified          bool
+		VerifyGraceUntil       string
 		DOB                    string
 		DOBPublic              bool
 		EmailNotifications     bool
@@ -108,6 +110,8 @@ func (u *User) ToProfileResponse(stats *UserStats, isSelf bool) *dto.UserProfile
 	theme := ""
 	font := ""
 	wideLayout := false
+	emailVerified := false
+	verifyGraceUntil := ""
 	dob := ""
 	dobPublic := u.DOBPublic
 	if u.EmailPublic || isSelf {
@@ -125,6 +129,8 @@ func (u *User) ToProfileResponse(stats *UserStats, isSelf bool) *dto.UserProfile
 		theme = u.Theme
 		font = u.Font
 		wideLayout = u.WideLayout
+		emailVerified = u.EmailVerified
+		verifyGraceUntil = u.VerifyGraceUntil
 	}
 	return &dto.UserProfileResponse{
 		UserResponse:           *u.ToResponse(),
@@ -149,6 +155,8 @@ func (u *User) ToProfileResponse(stats *UserStats, isSelf bool) *dto.UserProfile
 		DOBPublic:              dobPublic,
 		Email:                  email,
 		EmailPublic:            emailPublic,
+		EmailVerified:          emailVerified,
+		VerifyGraceUntil:       verifyGraceUntil,
 		EmailNotifications:     emailNotifications,
 		PlayMessageSound:       playMessageSound,
 		PlayNotificationSound:  playNotificationSound,

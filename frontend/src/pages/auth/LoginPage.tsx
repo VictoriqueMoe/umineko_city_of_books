@@ -15,6 +15,7 @@ export function LoginPage() {
     const siteInfo = useSiteInfo();
     const [isRegister, setIsRegister] = useState(false);
     const [username, setUsername] = useState("");
+    const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [displayName, setDisplayName] = useState("");
     const [inviteCode, setInviteCode] = useState("");
@@ -42,6 +43,7 @@ export function LoginPage() {
             if (isRegister) {
                 await registerUser(
                     username,
+                    email,
                     password,
                     displayName || username,
                     inviteCode || undefined,
@@ -89,6 +91,14 @@ export function LoginPage() {
                     {isRegister && (
                         <>
                             <Input
+                                type="email"
+                                fullWidth
+                                placeholder="Email"
+                                value={email}
+                                onChange={e => setEmail(e.target.value)}
+                                autoComplete="email"
+                            />
+                            <Input
                                 type="text"
                                 fullWidth
                                 placeholder="Display Name (optional)"
@@ -129,6 +139,7 @@ export function LoginPage() {
                             !username ||
                             !password ||
                             loading ||
+                            (isRegister && !email) ||
                             (isRegister && regType === "invite" && !inviteCode) ||
                             (turnstileEnabled && !turnstileToken)
                         }
@@ -148,6 +159,16 @@ export function LoginPage() {
                     </Button>
                 ) : (
                     !isRegister && <p className={styles.disabledNotice}>Registration is currently closed.</p>
+                )}
+
+                {!isRegister && siteInfo.email_enabled && (
+                    <Button
+                        variant="ghost"
+                        onClick={() => navigate("/forgot-password")}
+                        style={{ width: "100%", marginTop: "0.5rem" }}
+                    >
+                        Forgot your password?
+                    </Button>
                 )}
             </div>
         </div>

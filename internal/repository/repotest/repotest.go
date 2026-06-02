@@ -104,12 +104,19 @@ type (
 		username    string
 		password    string
 		displayName string
+		email       string
 	}
 )
 
 func WithUsername(u string) UserOpt {
 	return func(o *userOpts) {
 		o.username = u
+	}
+}
+
+func WithEmail(e string) UserOpt {
+	return func(o *userOpts) {
+		o.email = e
 	}
 }
 
@@ -136,7 +143,7 @@ func CreateUser(t *testing.T, repos *repository.Repositories, opts ...UserOpt) *
 		opt(&o)
 	}
 	if o.password != TestUserPassword {
-		u, err := repos.User.Create(context.Background(), o.username, o.password, o.displayName)
+		u, err := repos.User.Create(context.Background(), o.username, o.email, o.password, o.displayName)
 		require.NoError(t, err)
 		return u
 	}
@@ -144,11 +151,11 @@ func CreateUser(t *testing.T, repos *repository.Repositories, opts ...UserOpt) *
 	id := uuid.New()
 	_, err := repos.DB().ExecContext(
 		context.Background(),
-		`INSERT INTO users (id, username, password_hash, display_name) VALUES ($1, $2, $3, $4)`,
-		id, o.username, testPasswordHash(t), o.displayName,
+		`INSERT INTO users (id, username, email, password_hash, display_name) VALUES ($1, $2, $3, $4, $5)`,
+		id, o.username, o.email, testPasswordHash(t), o.displayName,
 	)
 	require.NoError(t, err)
-	return &model.User{ID: id, Username: o.username, DisplayName: o.displayName}
+	return &model.User{ID: id, Username: o.username, Email: o.email, DisplayName: o.displayName}
 }
 
 func CreateSession(t *testing.T, repos *repository.Repositories, userID uuid.UUID) string {

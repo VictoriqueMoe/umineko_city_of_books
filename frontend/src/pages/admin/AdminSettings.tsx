@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAdminSettings } from "../../api/queries/admin";
-import { useUpdateAdminSettings } from "../../api/mutations/admin";
+import { useSendTestEmail, useUpdateAdminSettings } from "../../api/mutations/admin";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
@@ -11,13 +11,20 @@ import styles from "./AdminSettings.module.css";
 
 const BYTES_PER_MB = 1024 * 1024;
 
+type EmailProvider = "smtp" | "cloudflare";
+const EMAIL_PROVIDER_SMTP: EmailProvider = "smtp";
+const EMAIL_PROVIDER_CLOUDFLARE: EmailProvider = "cloudflare";
+
 export function AdminSettings() {
     usePageTitle("Admin - Settings");
     const { settings: loadedSettings, loading } = useAdminSettings();
     const updateSettingsMutation = useUpdateAdminSettings();
+    const sendTestEmailMutation = useSendTestEmail();
     const [draft, setDraft] = useState<SiteSettings>({});
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
+    const [testMessage, setTestMessage] = useState("");
+    const [testError, setTestError] = useState("");
 
     const saving = updateSettingsMutation.isPending;
     const settings: SiteSettings = { ...(loadedSettings ?? {}), ...draft };
@@ -94,6 +101,11 @@ export function AdminSettings() {
                 return "Voice chat requires LiveKit URL, API key and API secret";
             }
         }
+        if (settings.email_provider === EMAIL_PROVIDER_CLOUDFLARE) {
+            if (!settings.cloudflare_account_id || !settings.cloudflare_api_token || !settings.cloudflare_email_from) {
+                return "Cloudflare email requires account ID, API token and from address";
+            }
+        }
         return null;
     }
 
@@ -111,6 +123,17 @@ export function AdminSettings() {
             setSuccess("Settings saved successfully");
         } catch (e) {
             setError(e instanceof Error ? e.message : "Failed to save settings");
+        }
+    }
+
+    async function handleSendTestEmail() {
+        setTestMessage("");
+        setTestError("");
+        try {
+            await sendTestEmailMutation.mutateAsync();
+            setTestMessage("Test email sent. Check your inbox.");
+        } catch (e) {
+            setTestError(e instanceof Error ? e.message : "Failed to send test email");
         }
     }
 
@@ -353,52 +376,112 @@ export function AdminSettings() {
             </div>
 
             <div className={styles.card}>
-                <h2 className={styles.sectionTitle}>SMTP (Email)</h2>
+                <h2 className={styles.sectionTitle}>Email</h2>
                 <div className={styles.fieldGroup}>
                     <div className={styles.field}>
-                        <span className={styles.fieldLabel}>SMTP Host</span>
-                        <Input
-                            value={settings.smtp_host ?? ""}
-                            onChange={e => updateField("smtp_host", e.target.value)}
-                            fullWidth
-                            placeholder="127.0.0.1"
-                        />
+                        <span className={styles.fieldLabel}>Email Provider</span>
+                        <Select
+                            value={settings.email_provider ?? EMAIL_PROVIDER_SMTP}
+                            onChange={e => updateField("email_provider", e.target.value)}
+                        >
+                            <option value={EMAIL_PROVIDER_SMTP}>SMTP</option>
+                            <option value={EMAIL_PROVIDER_CLOUDFLARE}>Cloudflare Email Service</option>
+                        </Select>
                     </div>
+                    {(settings.email_provider ?? EMAIL_PROVIDER_SMTP) === EMAIL_PROVIDER_SMTP && (
+                        <>
+                            <div className={styles.field}>
+                                <span className={styles.fieldLabel}>SMTP Host</span>
+                                <Input
+                                    value={settings.smtp_host ?? ""}
+                                    onChange={e => updateField("smtp_host", e.target.value)}
+                                    fullWidth
+                                    placeholder="127.0.0.1"
+                                />
+                            </div>
+                            <div className={styles.field}>
+                                <span className={styles.fieldLabel}>SMTP Port</span>
+                                <Input
+                                    type="number"
+                                    value={getNumber("smtp_port")}
+                                    onChange={e => updateField("smtp_port", e.target.value)}
+                                />
+                            </div>
+                            <div className={styles.field}>
+                                <span className={styles.fieldLabel}>From Address</span>
+                                <Input
+                                    value={settings.smtp_from ?? ""}
+                                    onChange={e => updateField("smtp_from", e.target.value)}
+                                    fullWidth
+                                    placeholder="noreply@example.com"
+                                />
+                            </div>
+                            <div className={styles.field}>
+                                <span className={styles.fieldLabel}>SMTP Username</span>
+                                <Input
+                                    value={settings.smtp_username ?? ""}
+                                    onChange={e => updateField("smtp_username", e.target.value)}
+                                    fullWidth
+                                    placeholder="Leave empty for no auth"
+                                />
+                            </div>
+                            <div className={styles.field}>
+                                <span className={styles.fieldLabel}>SMTP Password</span>
+                                <Input
+                                    type="password"
+                                    value={settings.smtp_password ?? ""}
+                                    onChange={e => updateField("smtp_password", e.target.value)}
+                                    fullWidth
+                                    placeholder="Leave empty for no auth"
+                                />
+                            </div>
+                        </>
+                    )}
+                    {settings.email_provider === EMAIL_PROVIDER_CLOUDFLARE && (
+                        <>
+                            <div className={styles.field}>
+                                <span className={styles.fieldLabel}>Account ID</span>
+                                <Input
+                                    value={settings.cloudflare_account_id ?? ""}
+                                    onChange={e => updateField("cloudflare_account_id", e.target.value)}
+                                    fullWidth
+                                    placeholder="Cloudflare account ID"
+                                />
+                            </div>
+                            <div className={styles.field}>
+                                <span className={styles.fieldLabel}>API Token</span>
+                                <Input
+                                    type="password"
+                                    value={settings.cloudflare_api_token ?? ""}
+                                    onChange={e => updateField("cloudflare_api_token", e.target.value)}
+                                    fullWidth
+                                    placeholder="Token with email sending permission"
+                                />
+                            </div>
+                            <div className={styles.field}>
+                                <span className={styles.fieldLabel}>From Address</span>
+                                <Input
+                                    value={settings.cloudflare_email_from ?? ""}
+                                    onChange={e => updateField("cloudflare_email_from", e.target.value)}
+                                    fullWidth
+                                    placeholder="noreply@yourdomain.com"
+                                />
+                            </div>
+                        </>
+                    )}
                     <div className={styles.field}>
-                        <span className={styles.fieldLabel}>SMTP Port</span>
-                        <Input
-                            type="number"
-                            value={getNumber("smtp_port")}
-                            onChange={e => updateField("smtp_port", e.target.value)}
-                        />
-                    </div>
-                    <div className={styles.field}>
-                        <span className={styles.fieldLabel}>From Address</span>
-                        <Input
-                            value={settings.smtp_from ?? ""}
-                            onChange={e => updateField("smtp_from", e.target.value)}
-                            fullWidth
-                            placeholder="noreply@example.com"
-                        />
-                    </div>
-                    <div className={styles.field}>
-                        <span className={styles.fieldLabel}>SMTP Username</span>
-                        <Input
-                            value={settings.smtp_username ?? ""}
-                            onChange={e => updateField("smtp_username", e.target.value)}
-                            fullWidth
-                            placeholder="Leave empty for no auth"
-                        />
-                    </div>
-                    <div className={styles.field}>
-                        <span className={styles.fieldLabel}>SMTP Password</span>
-                        <Input
-                            type="password"
-                            value={settings.smtp_password ?? ""}
-                            onChange={e => updateField("smtp_password", e.target.value)}
-                            fullWidth
-                            placeholder="Leave empty for no auth"
-                        />
+                        <span className={styles.fieldLabel}>
+                            Sends a test email to your own account using the saved settings. Save changes first.
+                        </span>
+                        <Button
+                            variant="secondary"
+                            onClick={handleSendTestEmail}
+                            disabled={sendTestEmailMutation.isPending}
+                        >
+                            {sendTestEmailMutation.isPending ? "Sending..." : "Send test email"}
+                        </Button>
+                        {testMessage && <span className={styles.success}>{testMessage}</span>}
+                        {testError && <span className={styles.saveError}>{testError}</span>}
                     </div>
                 </div>
             </div>

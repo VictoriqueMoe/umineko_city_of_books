@@ -9,6 +9,7 @@ import (
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/email"
 	"umineko_city_of_books/internal/giphy/banlist"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/repository/model"
@@ -65,6 +66,7 @@ type testMocks struct {
 	hub         *ws.Hub
 	chatSync    *fakeChatSync
 	banlist     banlist.Service
+	emailSvc    *email.MockService
 }
 
 func newTestService(t *testing.T) (*service, *testMocks) {
@@ -85,6 +87,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	hub := ws.NewHub()
 	chatSync := &fakeChatSync{}
 	sessionMgr := session.NewManager(sessionRepo, settingsSvc)
+	emailSvc := email.NewMockService(t)
 
 	svc := NewService(
 		userRepo,
@@ -100,6 +103,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 		uploadSvc,
 		hub,
 		chatSync,
+		emailSvc,
 	).(*service)
 
 	return svc, &testMocks{
@@ -117,6 +121,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 		hub:         hub,
 		chatSync:    chatSync,
 		banlist:     banlistSvc,
+		emailSvc:    emailSvc,
 	}
 }
 
@@ -607,6 +612,50 @@ func TestUpdateSettings_Error(t *testing.T) {
 
 	// when
 	err := svc.UpdateSettings(context.Background(), actor, map[string]string{"site_name": "umineko"})
+
+	// then
+	require.Error(t, err)
+}
+
+func TestSendTestEmail_OK(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	actor := uuid.New()
+	m.userRepo.EXPECT().GetByID(mock.Anything, actor).Return(&model.User{ID: actor, Email: "admin@example.com"}, nil)
+	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingSiteName).Return("City of Books")
+	m.emailSvc.EXPECT().SendTest(mock.Anything, "admin@example.com", mock.Anything, mock.Anything).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, actor, "send_test_email", "settings", "", "").Return(nil)
+
+	// when
+	err := svc.SendTestEmail(context.Background(), actor)
+
+	// then
+	require.NoError(t, err)
+}
+
+func TestSendTestEmail_NoEmailAddress(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	actor := uuid.New()
+	m.userRepo.EXPECT().GetByID(mock.Anything, actor).Return(&model.User{ID: actor, Email: ""}, nil)
+
+	// when
+	err := svc.SendTestEmail(context.Background(), actor)
+
+	// then
+	require.ErrorIs(t, err, ErrNoEmailAddress)
+}
+
+func TestSendTestEmail_SendError(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	actor := uuid.New()
+	m.userRepo.EXPECT().GetByID(mock.Anything, actor).Return(&model.User{ID: actor, Email: "admin@example.com"}, nil)
+	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingSiteName).Return("City of Books")
+	m.emailSvc.EXPECT().SendTest(mock.Anything, "admin@example.com", mock.Anything, mock.Anything).Return(email.ErrNotConfigured)
+
+	// when
+	err := svc.SendTestEmail(context.Background(), actor)
 
 	// then
 	require.Error(t, err)

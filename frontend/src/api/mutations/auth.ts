@@ -2,9 +2,14 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
     changePassword,
     deleteAccount,
+    forgotPassword,
     login,
     logout,
     register,
+    resendVerification,
+    resetPassword,
+    setEmail,
+    verifyEmail,
     unlockSecret,
     updateAppearance,
     updateGameBoardSort,
@@ -18,17 +23,19 @@ export function useRegister() {
     return useMutation({
         mutationFn: ({
             username,
+            email,
             password,
             displayName,
             inviteCode,
             turnstileToken,
         }: {
             username: string;
+            email: string;
             password: string;
             displayName: string;
             inviteCode?: string;
             turnstileToken?: string;
-        }) => register(username, password, displayName, inviteCode, turnstileToken),
+        }) => register(username, email, password, displayName, inviteCode, turnstileToken),
     });
 }
 
@@ -70,6 +77,42 @@ export function useUpdateProfile() {
 export function useChangePassword() {
     return useMutation({
         mutationFn: (payload: ChangePasswordPayload) => changePassword(payload),
+    });
+}
+
+export function useSetEmail() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (email: string) => setEmail(email),
+        onSuccess: () => qc.invalidateQueries({ queryKey: ["auth", "me"] }),
+    });
+}
+
+export function useVerifyEmail() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (token: string) => verifyEmail(token),
+        onSuccess: () => qc.invalidateQueries({ queryKey: ["auth", "me"] }),
+    });
+}
+
+export function useResendVerification() {
+    return useMutation({
+        mutationFn: () => resendVerification(),
+    });
+}
+
+export function useForgotPassword() {
+    return useMutation({
+        mutationFn: ({ username, turnstileToken }: { username: string; turnstileToken?: string }) =>
+            forgotPassword(username, turnstileToken),
+    });
+}
+
+export function useResetPassword() {
+    return useMutation({
+        mutationFn: ({ token, newPassword }: { token: string; newPassword: string }) =>
+            resetPassword(token, newPassword),
     });
 }
 

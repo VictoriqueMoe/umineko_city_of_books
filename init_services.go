@@ -112,11 +112,11 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 
 	return &services{
 		settings:        settingsSvc,
-		auth:            auth.NewService(userSvc, sessionMgr, settingsSvc, repos.Invite, repos.User, repos.AuditLog, contentFilter),
+		auth:            auth.NewService(userSvc, sessionMgr, settingsSvc, repos.Invite, repos.User, repos.AuditLog, repos.PasswordReset, repos.EmailVerification, emailSvc, contentFilter),
 		profile:         profile.NewService(repos.User, repos.UserSecret, repos.Theory, authzSvc, uploadSvc, settingsSvc, contentFilter, hub),
 		theory:          theory.NewService(repos.Theory, repos.User, authzSvc, blockSvc, notifSvc, settingsSvc, credibilitySvc, quoteClient, contentFilter),
 		notification:    notifSvc,
-		admin:           admin.NewService(repos.User, repos.Role, repos.Stats, repos.AuditLog, repos.Invite, repos.VanityRole, giphyBanlist, authzSvc, settingsSvc, sessionMgr, uploadSvc, hub, chatSvc),
+		admin:           admin.NewService(repos.User, repos.Role, repos.Stats, repos.AuditLog, repos.Invite, repos.VanityRole, giphyBanlist, authzSvc, settingsSvc, sessionMgr, uploadSvc, hub, chatSvc, emailSvc),
 		authz:           authzSvc,
 		chat:            chatSvc,
 		report:          reportSvc,

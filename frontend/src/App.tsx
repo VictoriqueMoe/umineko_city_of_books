@@ -13,6 +13,7 @@ import { CanonicalTag } from "./components/CanonicalTag/CanonicalTag";
 import { ProtectedRoute } from "./components/ProtectedRoute/ProtectedRoute";
 import { StaleVersionBanner } from "./components/StaleVersionBanner/StaleVersionBanner";
 import { LockBanner } from "./components/LockBanner/LockBanner";
+import { VerifyEmailBanner } from "./components/VerifyEmailBanner/VerifyEmailBanner";
 import { Toast } from "./components/Toast/Toast";
 import { GameForfeitWarning } from "./components/GameForfeitWarning/GameForfeitWarning";
 import { MaintenancePage } from "./pages/maintenance/MaintenancePage";
@@ -54,6 +55,7 @@ import {
     FanficEditorPage,
     FanfictionListPage,
     FeedPage,
+    ForgotPasswordPage,
     GalleryDetailPage,
     GameHubPage,
     GamesListPage,
@@ -79,6 +81,8 @@ import {
     PostDetailPage,
     ProfilePage,
     QuoteBrowserPage,
+    ResetPasswordPage,
+    SetEmailPage,
     RoomPage,
     RoomsListPage,
     RulesPage,
@@ -92,6 +96,7 @@ import {
     SuggestionsPage,
     TheoryPage,
     UsersPage,
+    VerifyEmailPage,
 } from "./pages/lazyPages";
 
 const homePageRoutes: Record<string, string> = {
@@ -219,6 +224,7 @@ function AppLayout() {
                 <Header onToggleSidebar={toggleSidebar} />
                 <StaleVersionBanner />
                 <LockBanner />
+                <VerifyEmailBanner />
                 <AnnouncementBanner />
                 <SecretClosedToast />
                 <GameForfeitWarning />
@@ -289,6 +295,10 @@ function AppLayout() {
                             <Route path="/users" element={<UsersPage />} />
                             <Route path="/user/:username" element={<ProfilePage />} />
                             <Route path="/login" element={<LoginPage />} />
+                            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                            <Route path="/reset-password" element={<ResetPasswordPage />} />
+                            <Route path="/set-email" element={<SetEmailPage />} />
+                            <Route path="/verify-email" element={<VerifyEmailPage />} />
 
                             <Route element={<ProtectedRoute />}>
                                 <Route path="/notifications" element={<NotificationsPage />} />

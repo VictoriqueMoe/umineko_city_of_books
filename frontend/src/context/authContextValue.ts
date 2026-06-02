@@ -8,6 +8,7 @@ export interface AuthContextValue {
     loginUser: (username: string, password: string, turnstileToken?: string) => Promise<void>;
     registerUser: (
         username: string,
+        email: string,
         password: string,
         displayName: string,
         inviteCode?: string,

@@ -34,6 +34,16 @@ type ReportResolvedEmailData struct {
 	LinkURL      string
 }
 
+type PasswordResetEmailData struct {
+	SiteName string
+	LinkURL  string
+}
+
+type VerificationEmailData struct {
+	SiteName string
+	LinkURL  string
+}
+
 func NotifEmail(actorName, action, title, linkURL string) (subject string, body string) {
 	subject = fmt.Sprintf("%s %s", actorName, action)
 
@@ -83,6 +93,38 @@ func ReportResolvedEmail(resolverName, targetType, comment, linkURL string) (sub
 
 	var buf bytes.Buffer
 	if err := tmpl.ExecuteTemplate(&buf, "report_resolved.tmpl", data); err != nil {
+		return subject, fmt.Sprintf("<p>%s</p>", subject)
+	}
+
+	return subject, buf.String()
+}
+
+func PasswordResetEmail(siteName, linkURL string) (subject string, body string) {
+	subject = fmt.Sprintf("Reset your %s password", siteName)
+
+	data := PasswordResetEmailData{
+		SiteName: siteName,
+		LinkURL:  linkURL,
+	}
+
+	var buf bytes.Buffer
+	if err := tmpl.ExecuteTemplate(&buf, "password_reset.tmpl", data); err != nil {
+		return subject, fmt.Sprintf("<p>%s</p>", subject)
+	}
+
+	return subject, buf.String()
+}
+
+func VerificationEmail(siteName, linkURL string) (subject string, body string) {
+	subject = fmt.Sprintf("Confirm your %s email", siteName)
+
+	data := VerificationEmailData{
+		SiteName: siteName,
+		LinkURL:  linkURL,
+	}
+
+	var buf bytes.Buffer
+	if err := tmpl.ExecuteTemplate(&buf, "verify_email.tmpl", data); err != nil {
 		return subject, fmt.Sprintf("<p>%s</p>", subject)
 	}
 

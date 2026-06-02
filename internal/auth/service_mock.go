@@ -8,6 +8,7 @@ import (
 	"context"
 	"umineko_city_of_books/internal/dto"
 
+	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -36,6 +37,114 @@ type MockService_Expecter struct {
 
 func (_m *MockService) EXPECT() *MockService_Expecter {
 	return &MockService_Expecter{mock: &_m.Mock}
+}
+
+// EmailEnabled provides a mock function for the type MockService
+func (_mock *MockService) EmailEnabled(ctx context.Context) bool {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for EmailEnabled")
+	}
+
+	var r0 bool
+	if returnFunc, ok := ret.Get(0).(func(context.Context) bool); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	return r0
+}
+
+// MockService_EmailEnabled_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'EmailEnabled'
+type MockService_EmailEnabled_Call struct {
+	*mock.Call
+}
+
+// EmailEnabled is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockService_Expecter) EmailEnabled(ctx interface{}) *MockService_EmailEnabled_Call {
+	return &MockService_EmailEnabled_Call{Call: _e.mock.On("EmailEnabled", ctx)}
+}
+
+func (_c *MockService_EmailEnabled_Call) Run(run func(ctx context.Context)) *MockService_EmailEnabled_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_EmailEnabled_Call) Return(b bool) *MockService_EmailEnabled_Call {
+	_c.Call.Return(b)
+	return _c
+}
+
+func (_c *MockService_EmailEnabled_Call) RunAndReturn(run func(ctx context.Context) bool) *MockService_EmailEnabled_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ForgotPassword provides a mock function for the type MockService
+func (_mock *MockService) ForgotPassword(ctx context.Context, username string) error {
+	ret := _mock.Called(ctx, username)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ForgotPassword")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = returnFunc(ctx, username)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_ForgotPassword_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ForgotPassword'
+type MockService_ForgotPassword_Call struct {
+	*mock.Call
+}
+
+// ForgotPassword is a helper method to define mock.On call
+//   - ctx context.Context
+//   - username string
+func (_e *MockService_Expecter) ForgotPassword(ctx interface{}, username interface{}) *MockService_ForgotPassword_Call {
+	return &MockService_ForgotPassword_Call{Call: _e.mock.On("ForgotPassword", ctx, username)}
+}
+
+func (_c *MockService_ForgotPassword_Call) Run(run func(ctx context.Context, username string)) *MockService_ForgotPassword_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_ForgotPassword_Call) Return(err error) *MockService_ForgotPassword_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_ForgotPassword_Call) RunAndReturn(run func(ctx context.Context, username string) error) *MockService_ForgotPassword_Call {
+	_c.Call.Return(run)
+	return _c
 }
 
 // Login provides a mock function for the type MockService
@@ -239,6 +348,246 @@ func (_c *MockService_Register_Call) Return(userResponse *dto.UserResponse, s st
 }
 
 func (_c *MockService_Register_Call) RunAndReturn(run func(ctx context.Context, req dto.RegisterRequest) (*dto.UserResponse, string, error)) *MockService_Register_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ResendVerification provides a mock function for the type MockService
+func (_mock *MockService) ResendVerification(ctx context.Context, userID uuid.UUID) error {
+	ret := _mock.Called(ctx, userID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ResendVerification")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, userID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_ResendVerification_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ResendVerification'
+type MockService_ResendVerification_Call struct {
+	*mock.Call
+}
+
+// ResendVerification is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+func (_e *MockService_Expecter) ResendVerification(ctx interface{}, userID interface{}) *MockService_ResendVerification_Call {
+	return &MockService_ResendVerification_Call{Call: _e.mock.On("ResendVerification", ctx, userID)}
+}
+
+func (_c *MockService_ResendVerification_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *MockService_ResendVerification_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_ResendVerification_Call) Return(err error) *MockService_ResendVerification_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_ResendVerification_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) error) *MockService_ResendVerification_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ResetPassword provides a mock function for the type MockService
+func (_mock *MockService) ResetPassword(ctx context.Context, token string, newPassword string) error {
+	ret := _mock.Called(ctx, token, newPassword)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ResetPassword")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
+		r0 = returnFunc(ctx, token, newPassword)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_ResetPassword_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ResetPassword'
+type MockService_ResetPassword_Call struct {
+	*mock.Call
+}
+
+// ResetPassword is a helper method to define mock.On call
+//   - ctx context.Context
+//   - token string
+//   - newPassword string
+func (_e *MockService_Expecter) ResetPassword(ctx interface{}, token interface{}, newPassword interface{}) *MockService_ResetPassword_Call {
+	return &MockService_ResetPassword_Call{Call: _e.mock.On("ResetPassword", ctx, token, newPassword)}
+}
+
+func (_c *MockService_ResetPassword_Call) Run(run func(ctx context.Context, token string, newPassword string)) *MockService_ResetPassword_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_ResetPassword_Call) Return(err error) *MockService_ResetPassword_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_ResetPassword_Call) RunAndReturn(run func(ctx context.Context, token string, newPassword string) error) *MockService_ResetPassword_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SetEmail provides a mock function for the type MockService
+func (_mock *MockService) SetEmail(ctx context.Context, userID uuid.UUID, email string) error {
+	ret := _mock.Called(ctx, userID, email)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetEmail")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) error); ok {
+		r0 = returnFunc(ctx, userID, email)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_SetEmail_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetEmail'
+type MockService_SetEmail_Call struct {
+	*mock.Call
+}
+
+// SetEmail is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+//   - email string
+func (_e *MockService_Expecter) SetEmail(ctx interface{}, userID interface{}, email interface{}) *MockService_SetEmail_Call {
+	return &MockService_SetEmail_Call{Call: _e.mock.On("SetEmail", ctx, userID, email)}
+}
+
+func (_c *MockService_SetEmail_Call) Run(run func(ctx context.Context, userID uuid.UUID, email string)) *MockService_SetEmail_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_SetEmail_Call) Return(err error) *MockService_SetEmail_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_SetEmail_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, email string) error) *MockService_SetEmail_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// VerifyEmail provides a mock function for the type MockService
+func (_mock *MockService) VerifyEmail(ctx context.Context, token string) error {
+	ret := _mock.Called(ctx, token)
+
+	if len(ret) == 0 {
+		panic("no return value specified for VerifyEmail")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = returnFunc(ctx, token)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_VerifyEmail_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'VerifyEmail'
+type MockService_VerifyEmail_Call struct {
+	*mock.Call
+}
+
+// VerifyEmail is a helper method to define mock.On call
+//   - ctx context.Context
+//   - token string
+func (_e *MockService_Expecter) VerifyEmail(ctx interface{}, token interface{}) *MockService_VerifyEmail_Call {
+	return &MockService_VerifyEmail_Call{Call: _e.mock.On("VerifyEmail", ctx, token)}
+}
+
+func (_c *MockService_VerifyEmail_Call) Run(run func(ctx context.Context, token string)) *MockService_VerifyEmail_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_VerifyEmail_Call) Return(err error) *MockService_VerifyEmail_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_VerifyEmail_Call) RunAndReturn(run func(ctx context.Context, token string) error) *MockService_VerifyEmail_Call {
 	_c.Call.Return(run)
 	return _c
 }

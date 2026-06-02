@@ -32,12 +32,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
     const registerUser = useCallback(
         async (
             username: string,
+            email: string,
             password: string,
             displayName: string,
             inviteCode?: string,
             turnstileToken?: string,
         ) => {
-            await registerMutation.mutateAsync({ username, password, displayName, inviteCode, turnstileToken });
+            await registerMutation.mutateAsync({ username, email, password, displayName, inviteCode, turnstileToken });
             await refresh();
         },
         [registerMutation, refresh],
