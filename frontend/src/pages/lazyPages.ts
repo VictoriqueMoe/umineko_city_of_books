@@ -18,6 +18,10 @@ export const EditTheoryPage = named(() => import("./theories/EditTheoryPage"), "
 
 //  Auth & Quotes
 export const LoginPage = named(() => import("./auth/LoginPage"), "LoginPage");
+export const ForgotPasswordPage = named(() => import("./auth/ForgotPasswordPage"), "ForgotPasswordPage");
+export const ResetPasswordPage = named(() => import("./auth/ResetPasswordPage"), "ResetPasswordPage");
+export const SetEmailPage = named(() => import("./auth/SetEmailPage"), "SetEmailPage");
+export const VerifyEmailPage = named(() => import("./auth/VerifyEmailPage"), "VerifyEmailPage");
 export const QuoteBrowserPage = named(() => import("./quotes/QuoteBrowserPage"), "QuoteBrowserPage");
 
 //  Profile

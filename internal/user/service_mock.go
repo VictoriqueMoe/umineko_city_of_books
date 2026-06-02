@@ -97,8 +97,8 @@ func (_c *MockService_CheckUsernameAvailable_Call) RunAndReturn(run func(ctx con
 }
 
 // Create provides a mock function for the type MockService
-func (_mock *MockService) Create(ctx context.Context, username string, password string, displayName string) (*dto.UserResponse, error) {
-	ret := _mock.Called(ctx, username, password, displayName)
+func (_mock *MockService) Create(ctx context.Context, username string, email string, password string, displayName string) (*dto.UserResponse, error) {
+	ret := _mock.Called(ctx, username, email, password, displayName)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Create")
@@ -106,18 +106,18 @@ func (_mock *MockService) Create(ctx context.Context, username string, password 
 
 	var r0 *dto.UserResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string) (*dto.UserResponse, error)); ok {
-		return returnFunc(ctx, username, password, displayName)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string) (*dto.UserResponse, error)); ok {
+		return returnFunc(ctx, username, email, password, displayName)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string) *dto.UserResponse); ok {
-		r0 = returnFunc(ctx, username, password, displayName)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string) *dto.UserResponse); ok {
+		r0 = returnFunc(ctx, username, email, password, displayName)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*dto.UserResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
-		r1 = returnFunc(ctx, username, password, displayName)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, string) error); ok {
+		r1 = returnFunc(ctx, username, email, password, displayName)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -132,13 +132,14 @@ type MockService_Create_Call struct {
 // Create is a helper method to define mock.On call
 //   - ctx context.Context
 //   - username string
+//   - email string
 //   - password string
 //   - displayName string
-func (_e *MockService_Expecter) Create(ctx interface{}, username interface{}, password interface{}, displayName interface{}) *MockService_Create_Call {
-	return &MockService_Create_Call{Call: _e.mock.On("Create", ctx, username, password, displayName)}
+func (_e *MockService_Expecter) Create(ctx interface{}, username interface{}, email interface{}, password interface{}, displayName interface{}) *MockService_Create_Call {
+	return &MockService_Create_Call{Call: _e.mock.On("Create", ctx, username, email, password, displayName)}
 }
 
-func (_c *MockService_Create_Call) Run(run func(ctx context.Context, username string, password string, displayName string)) *MockService_Create_Call {
+func (_c *MockService_Create_Call) Run(run func(ctx context.Context, username string, email string, password string, displayName string)) *MockService_Create_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -156,11 +157,16 @@ func (_c *MockService_Create_Call) Run(run func(ctx context.Context, username st
 		if args[3] != nil {
 			arg3 = args[3].(string)
 		}
+		var arg4 string
+		if args[4] != nil {
+			arg4 = args[4].(string)
+		}
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4,
 		)
 	})
 	return _c
@@ -171,7 +177,7 @@ func (_c *MockService_Create_Call) Return(userResponse *dto.UserResponse, err er
 	return _c
 }
 
-func (_c *MockService_Create_Call) RunAndReturn(run func(ctx context.Context, username string, password string, displayName string) (*dto.UserResponse, error)) *MockService_Create_Call {
+func (_c *MockService_Create_Call) RunAndReturn(run func(ctx context.Context, username string, email string, password string, displayName string) (*dto.UserResponse, error)) *MockService_Create_Call {
 	_c.Call.Return(run)
 	return _c
 }

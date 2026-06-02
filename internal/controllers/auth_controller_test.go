@@ -46,6 +46,7 @@ func newAuthHarness(t *testing.T) (*testutil.Harness, authDeps) {
 	deps.userSecretSvc.EXPECT().GetUserIDsWithSecret(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 	deps.userSecretSvc.EXPECT().IsSolvedByAnyone(mock.Anything, mock.Anything).Return(false, nil).Maybe()
 	deps.gameRoomSvc.EXPECT().GetTopWinnerIDs(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	deps.authSvc.EXPECT().EmailEnabled(mock.Anything).Return(false).Maybe()
 
 	s := &Service{
 		AuthService:       deps.authSvc,
@@ -152,6 +153,243 @@ func TestRegister_ServiceErrors(t *testing.T) {
 
 			// when
 			status, body := h.NewRequest("POST", "/auth/register").WithJSONBody(req).Do()
+
+			// then
+			require.Equal(t, tc.wantCode, status)
+			assert.Contains(t, string(body), tc.wantBody)
+		})
+	}
+}
+
+func TestForgotPassword_OK(t *testing.T) {
+	// given
+	h, deps := newAuthHarness(t)
+	deps.authSvc.EXPECT().ForgotPassword(mock.Anything, "alice").Return(nil)
+
+	// when
+	status, _ := h.NewRequest("POST", "/auth/forgot-password").WithJSONBody(dto.ForgotPasswordRequest{Username: "alice"}).Do()
+
+	// then
+	require.Equal(t, http.StatusOK, status)
+}
+
+func TestForgotPassword_MissingUsername(t *testing.T) {
+	// given
+	h, _ := newAuthHarness(t)
+
+	// when
+	status, body := h.NewRequest("POST", "/auth/forgot-password").WithJSONBody(dto.ForgotPasswordRequest{Username: ""}).Do()
+
+	// then
+	require.Equal(t, http.StatusBadRequest, status)
+	assert.Contains(t, string(body), "username is required")
+}
+
+func TestForgotPassword_ServiceErrors(t *testing.T) {
+	cases := []struct {
+		name     string
+		svcErr   error
+		wantCode int
+		wantBody string
+	}{
+		{"user not found", authsvc.ErrUserNotFound, http.StatusNotFound, "user not found"},
+		{"no email set", authsvc.ErrNoEmailAddress, http.StatusBadRequest, "user has no email set"},
+		{"email disabled", authsvc.ErrEmailDisabled, http.StatusBadRequest, "password reset is not available"},
+		{"internal", errors.New("boom"), http.StatusInternalServerError, "failed to send reset email"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h, deps := newAuthHarness(t)
+			deps.authSvc.EXPECT().ForgotPassword(mock.Anything, "alice").Return(tc.svcErr)
+
+			// when
+			status, body := h.NewRequest("POST", "/auth/forgot-password").WithJSONBody(dto.ForgotPasswordRequest{Username: "alice"}).Do()
+
+			// then
+			require.Equal(t, tc.wantCode, status)
+			assert.Contains(t, string(body), tc.wantBody)
+		})
+	}
+}
+
+func TestResetPassword_OK(t *testing.T) {
+	// given
+	h, deps := newAuthHarness(t)
+	deps.authSvc.EXPECT().ResetPassword(mock.Anything, "tok-123", "newpassword123").Return(nil)
+
+	// when
+	status, _ := h.NewRequest("POST", "/auth/reset-password").WithJSONBody(dto.ResetPasswordRequest{Token: "tok-123", NewPassword: "newpassword123"}).Do()
+
+	// then
+	require.Equal(t, http.StatusOK, status)
+}
+
+func TestResetPassword_MissingFields(t *testing.T) {
+	cases := []struct {
+		name string
+		req  dto.ResetPasswordRequest
+	}{
+		{"empty token", dto.ResetPasswordRequest{Token: "", NewPassword: "newpassword123"}},
+		{"empty password", dto.ResetPasswordRequest{Token: "tok", NewPassword: ""}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h, _ := newAuthHarness(t)
+
+			// when
+			status, body := h.NewRequest("POST", "/auth/reset-password").WithJSONBody(tc.req).Do()
+
+			// then
+			require.Equal(t, http.StatusBadRequest, status)
+			assert.Contains(t, string(body), "token and new password are required")
+		})
+	}
+}
+
+func TestResetPassword_ServiceErrors(t *testing.T) {
+	cases := []struct {
+		name     string
+		svcErr   error
+		wantCode int
+		wantBody string
+	}{
+		{"invalid token", authsvc.ErrInvalidResetToken, http.StatusBadRequest, "reset link is invalid or has expired"},
+		{"password too short", authsvc.ErrPasswordTooShort, http.StatusBadRequest, "password must be at least"},
+		{"internal", errors.New("boom"), http.StatusInternalServerError, "failed to reset password"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h, deps := newAuthHarness(t)
+			deps.authSvc.EXPECT().ResetPassword(mock.Anything, "tok-123", "newpassword123").Return(tc.svcErr)
+
+			// when
+			status, body := h.NewRequest("POST", "/auth/reset-password").WithJSONBody(dto.ResetPasswordRequest{Token: "tok-123", NewPassword: "newpassword123"}).Do()
+
+			// then
+			require.Equal(t, tc.wantCode, status)
+			assert.Contains(t, string(body), tc.wantBody)
+		})
+	}
+}
+
+func TestSetEmail_OK(t *testing.T) {
+	// given
+	h, deps := newAuthHarness(t)
+	userID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	deps.authSvc.EXPECT().SetEmail(mock.Anything, userID, "new@example.com").Return(nil)
+
+	// when
+	status, _ := h.NewRequest("POST", "/auth/set-email").WithCookie("valid-cookie").WithJSONBody(dto.SetEmailRequest{Email: "new@example.com"}).Do()
+
+	// then
+	require.Equal(t, http.StatusOK, status)
+}
+
+func TestSetEmail_ServiceErrors(t *testing.T) {
+	cases := []struct {
+		name     string
+		svcErr   error
+		wantCode int
+		wantBody string
+	}{
+		{"invalid email", authsvc.ErrInvalidEmail, http.StatusBadRequest, "a valid email address is required"},
+		{"email taken", authsvc.ErrEmailTaken, http.StatusConflict, "already in use"},
+		{"internal", errors.New("boom"), http.StatusInternalServerError, "failed to set email"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h, deps := newAuthHarness(t)
+			userID := uuid.New()
+			h.ExpectValidSession("valid-cookie", userID)
+			deps.authSvc.EXPECT().SetEmail(mock.Anything, userID, "new@example.com").Return(tc.svcErr)
+
+			// when
+			status, body := h.NewRequest("POST", "/auth/set-email").WithCookie("valid-cookie").WithJSONBody(dto.SetEmailRequest{Email: "new@example.com"}).Do()
+
+			// then
+			require.Equal(t, tc.wantCode, status)
+			assert.Contains(t, string(body), tc.wantBody)
+		})
+	}
+}
+
+func TestVerifyEmail_OK(t *testing.T) {
+	// given
+	h, deps := newAuthHarness(t)
+	deps.authSvc.EXPECT().VerifyEmail(mock.Anything, "tok-123").Return(nil)
+
+	// when
+	status, _ := h.NewRequest("POST", "/auth/verify-email").WithJSONBody(dto.VerifyEmailRequest{Token: "tok-123"}).Do()
+
+	// then
+	require.Equal(t, http.StatusOK, status)
+}
+
+func TestVerifyEmail_MissingToken(t *testing.T) {
+	// given
+	h, _ := newAuthHarness(t)
+
+	// when
+	status, body := h.NewRequest("POST", "/auth/verify-email").WithJSONBody(dto.VerifyEmailRequest{Token: ""}).Do()
+
+	// then
+	require.Equal(t, http.StatusBadRequest, status)
+	assert.Contains(t, string(body), "token is required")
+}
+
+func TestVerifyEmail_InvalidToken(t *testing.T) {
+	// given
+	h, deps := newAuthHarness(t)
+	deps.authSvc.EXPECT().VerifyEmail(mock.Anything, "tok-123").Return(authsvc.ErrInvalidVerificationToken)
+
+	// when
+	status, body := h.NewRequest("POST", "/auth/verify-email").WithJSONBody(dto.VerifyEmailRequest{Token: "tok-123"}).Do()
+
+	// then
+	require.Equal(t, http.StatusBadRequest, status)
+	assert.Contains(t, string(body), "verification link is invalid or has expired")
+}
+
+func TestResendVerification_OK(t *testing.T) {
+	// given
+	h, deps := newAuthHarness(t)
+	userID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	deps.authSvc.EXPECT().ResendVerification(mock.Anything, userID).Return(nil)
+
+	// when
+	status, _ := h.NewRequest("POST", "/auth/resend-verification").WithCookie("valid-cookie").Do()
+
+	// then
+	require.Equal(t, http.StatusOK, status)
+}
+
+func TestResendVerification_ServiceErrors(t *testing.T) {
+	cases := []struct {
+		name     string
+		svcErr   error
+		wantCode int
+		wantBody string
+	}{
+		{"no email", authsvc.ErrNoEmailAddress, http.StatusBadRequest, "set an email address first"},
+		{"already verified", authsvc.ErrEmailAlreadyVerified, http.StatusBadRequest, "already verified"},
+		{"internal", errors.New("boom"), http.StatusInternalServerError, "failed to resend verification email"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h, deps := newAuthHarness(t)
+			userID := uuid.New()
+			h.ExpectValidSession("valid-cookie", userID)
+			deps.authSvc.EXPECT().ResendVerification(mock.Anything, userID).Return(tc.svcErr)
+
+			// when
+			status, body := h.NewRequest("POST", "/auth/resend-verification").WithCookie("valid-cookie").Do()
 
 			// then
 			require.Equal(t, tc.wantCode, status)

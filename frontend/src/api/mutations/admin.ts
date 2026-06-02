@@ -17,6 +17,7 @@ import {
     removeBannedGif,
     removeUserRole,
     resolveReport,
+    sendTestEmail,
     setUserRole,
     unassignVanityRole,
     unbanUser,
@@ -112,6 +113,12 @@ export function useUpdateAdminSettings() {
             qc.invalidateQueries({ queryKey: ["admin", "settings"] });
             qc.invalidateQueries({ queryKey: ["site-info"] });
         },
+    });
+}
+
+export function useSendTestEmail() {
+    return useMutation({
+        mutationFn: () => sendTestEmail(),
     });
 }
 

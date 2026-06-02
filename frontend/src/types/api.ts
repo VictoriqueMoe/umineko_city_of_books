@@ -157,6 +157,8 @@ export interface UserProfile {
     dob_public?: boolean;
     email?: string;
     email_public?: boolean;
+    email_verified?: boolean;
+    verify_grace_until?: string;
     email_notifications?: boolean;
     play_message_sound?: boolean;
     play_notification_sound?: boolean;

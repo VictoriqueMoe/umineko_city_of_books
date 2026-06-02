@@ -134,6 +134,7 @@ export interface SiteInfo {
     turnstile_enabled: boolean;
     turnstile_site_key: string;
     voice_enabled: boolean;
+    email_enabled: boolean;
     max_image_size: number;
     max_video_size: number;
     top_detective_ids: string[];
@@ -155,6 +156,7 @@ export async function getSiteInfo(): Promise<SiteInfo> {
 
 export async function register(
     username: string,
+    email: string,
     password: string,
     displayName: string,
     inviteCode?: string,
@@ -162,9 +164,17 @@ export async function register(
 ): Promise<User> {
     return apiPost<
         User,
-        { username: string; password: string; display_name: string; invite_code?: string; turnstile_token?: string }
+        {
+            username: string;
+            email: string;
+            password: string;
+            display_name: string;
+            invite_code?: string;
+            turnstile_token?: string;
+        }
     >("/auth/register", {
         username,
+        email,
         password,
         display_name: displayName,
         invite_code: inviteCode,
@@ -172,11 +182,37 @@ export async function register(
     });
 }
 
+export async function setEmail(email: string): Promise<void> {
+    await apiPost<unknown, { email: string }>("/auth/set-email", { email });
+}
+
+export async function verifyEmail(token: string): Promise<void> {
+    await apiPost<unknown, { token: string }>("/auth/verify-email", { token });
+}
+
+export async function resendVerification(): Promise<void> {
+    await apiPost<unknown, undefined>("/auth/resend-verification", undefined);
+}
+
 export async function login(username: string, password: string, turnstileToken?: string): Promise<User> {
     return apiPost<User, { username: string; password: string; turnstile_token?: string }>("/auth/login", {
         username,
         password,
         turnstile_token: turnstileToken,
+    });
+}
+
+export async function forgotPassword(username: string, turnstileToken?: string): Promise<void> {
+    await apiPost<unknown, { username: string; turnstile_token?: string }>("/auth/forgot-password", {
+        username,
+        turnstile_token: turnstileToken,
+    });
+}
+
+export async function resetPassword(token: string, newPassword: string): Promise<void> {
+    await apiPost<unknown, { token: string; new_password: string }>("/auth/reset-password", {
+        token,
+        new_password: newPassword,
     });
 }
 
@@ -477,6 +513,10 @@ export async function getAdminSettings(): Promise<SiteSettings> {
 
 export async function updateAdminSettings(settings: SiteSettings): Promise<void> {
     await apiPut<unknown, { settings: SiteSettings }>("/admin/settings", { settings });
+}
+
+export async function sendTestEmail(): Promise<void> {
+    await apiPost<unknown, undefined>("/admin/settings/test-email", undefined);
 }
 
 export async function getAuditLog(params: {

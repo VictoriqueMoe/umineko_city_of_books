@@ -35,6 +35,7 @@ func (s *Service) getAllAdminRoutes() []FSetupRoute {
 		s.setupAdminDeleteUser,
 		s.setupAdminGetSettings,
 		s.setupAdminUpdateSettings,
+		s.setupAdminSendTestEmail,
 		s.setupAdminGetAuditLog,
 		s.setupAdminCreateInvite,
 		s.setupAdminListInvites,
@@ -107,6 +108,10 @@ func (s *Service) setupAdminGetSettings(r fiber.Router) {
 
 func (s *Service) setupAdminUpdateSettings(r fiber.Router) {
 	r.Put("/admin/settings", s.requirePerm(authz.PermManageSettings), s.adminUpdateSettings)
+}
+
+func (s *Service) setupAdminSendTestEmail(r fiber.Router) {
+	r.Post("/admin/settings/test-email", s.requirePerm(authz.PermManageSettings), s.adminSendTestEmail)
 }
 
 func (s *Service) setupAdminGetAuditLog(r fiber.Router) {
@@ -263,6 +268,15 @@ func (s *Service) adminUpdateSettings(ctx fiber.Ctx) error {
 	return utils.OK(ctx)
 }
 
+func (s *Service) adminSendTestEmail(ctx fiber.Ctx) error {
+	actorID := utils.UserID(ctx)
+
+	if err := s.AdminService.SendTestEmail(ctx.Context(), actorID); err != nil {
+		return handleAdminError(ctx, err)
+	}
+	return utils.OK(ctx)
+}
+
 func (s *Service) adminGetAuditLog(ctx fiber.Ctx) error {
 	action := ctx.Query("action")
 	limit := fiber.Query[int](ctx, "limit", 50)
@@ -361,6 +375,9 @@ func handleAdminError(ctx fiber.Ctx, err error) error {
 	}
 	if errors.Is(err, admin.ErrSystemRole) {
 		return utils.Forbidden(ctx, "cannot modify system role assignments")
+	}
+	if errors.Is(err, admin.ErrNoEmailAddress) {
+		return utils.BadRequest(ctx, "your account has no email address set")
 	}
 	return utils.InternalError(ctx, err.Error())
 }

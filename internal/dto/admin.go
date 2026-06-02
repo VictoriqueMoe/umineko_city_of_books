@@ -175,6 +175,7 @@ type (
 		TurnstileEnabled      bool                 `json:"turnstile_enabled"`
 		TurnstileSiteKey      string               `json:"turnstile_site_key"`
 		VoiceEnabled          bool                 `json:"voice_enabled"`
+		EmailEnabled          bool                 `json:"email_enabled"`
 		MaxImageSize          int                  `json:"max_image_size"`
 		MaxVideoSize          int                  `json:"max_video_size"`
 		TopDetectiveIDs       []string             `json:"top_detective_ids"`

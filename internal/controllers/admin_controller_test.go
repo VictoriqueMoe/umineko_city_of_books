@@ -689,6 +689,56 @@ func TestAdminUpdateSettings_InternalError(t *testing.T) {
 	require.Equal(t, http.StatusInternalServerError, status)
 }
 
+func TestAdminSendTestEmail_PermissionFailures(t *testing.T) {
+	testutil.RunPermissionFailureSuite(t, adminFactory, "POST", "/admin/settings/test-email", nil, authz.PermManageSettings)
+}
+
+func TestAdminSendTestEmail_OK(t *testing.T) {
+	// given
+	h, ms, _ := newAdminHarness(t)
+	userID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	h.ExpectHasPermission(userID, authz.PermManageSettings, true)
+	ms.EXPECT().SendTestEmail(mock.Anything, userID).Return(nil)
+
+	// when
+	status, _ := h.NewRequest("POST", "/admin/settings/test-email").WithCookie("valid-cookie").Do()
+
+	// then
+	require.Equal(t, http.StatusOK, status)
+}
+
+func TestAdminSendTestEmail_NoEmailAddress(t *testing.T) {
+	// given
+	h, ms, _ := newAdminHarness(t)
+	userID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	h.ExpectHasPermission(userID, authz.PermManageSettings, true)
+	ms.EXPECT().SendTestEmail(mock.Anything, userID).Return(adminsvc.ErrNoEmailAddress)
+
+	// when
+	status, body := h.NewRequest("POST", "/admin/settings/test-email").WithCookie("valid-cookie").Do()
+
+	// then
+	require.Equal(t, http.StatusBadRequest, status)
+	assert.Contains(t, string(body), "your account has no email address set")
+}
+
+func TestAdminSendTestEmail_InternalError(t *testing.T) {
+	// given
+	h, ms, _ := newAdminHarness(t)
+	userID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	h.ExpectHasPermission(userID, authz.PermManageSettings, true)
+	ms.EXPECT().SendTestEmail(mock.Anything, userID).Return(errors.New("boom"))
+
+	// when
+	status, _ := h.NewRequest("POST", "/admin/settings/test-email").WithCookie("valid-cookie").Do()
+
+	// then
+	require.Equal(t, http.StatusInternalServerError, status)
+}
+
 func TestAdminGetAuditLog_PermissionFailures(t *testing.T) {
 	testutil.RunPermissionFailureSuite(t, adminFactory, "GET", "/admin/audit-log", nil, authz.PermViewAuditLog)
 }

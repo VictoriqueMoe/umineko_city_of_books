@@ -9,6 +9,7 @@ import (
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/email"
 	"umineko_city_of_books/internal/giphy/banlist"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/repository"
@@ -42,6 +43,7 @@ type (
 
 		GetSettings(ctx context.Context) (*dto.SettingsResponse, error)
 		UpdateSettings(ctx context.Context, actorID uuid.UUID, settings map[string]string) error
+		SendTestEmail(ctx context.Context, actorID uuid.UUID) error
 
 		GetAuditLog(ctx context.Context, action string, limit, offset int) (*dto.AuditLogListResponse, error)
 
@@ -76,6 +78,7 @@ type (
 		uploadSvc      upload.Service
 		hub            *ws.Hub
 		chatSync       SystemRoomSync
+		emailSvc       email.Service
 	}
 )
 
@@ -104,6 +107,7 @@ func NewService(
 	uploadSvc upload.Service,
 	hub *ws.Hub,
 	chatSync SystemRoomSync,
+	emailSvc email.Service,
 ) Service {
 	return &service{
 		userRepo:       userRepo,
@@ -119,6 +123,7 @@ func NewService(
 		uploadSvc:      uploadSvc,
 		hub:            hub,
 		chatSync:       chatSync,
+		emailSvc:       emailSvc,
 	}
 }
 
@@ -430,6 +435,30 @@ func (s *service) UpdateSettings(ctx context.Context, actorID uuid.UUID, setting
 	}
 
 	s.audit(ctx, actorID, "update_settings", "settings", "")
+	return nil
+}
+
+func (s *service) SendTestEmail(ctx context.Context, actorID uuid.UUID) error {
+	actor, err := s.userRepo.GetByID(ctx, actorID)
+	if err != nil {
+		return fmt.Errorf("get actor: %w", err)
+	}
+	if actor == nil {
+		return ErrUserNotFound
+	}
+	if actor.Email == "" {
+		return ErrNoEmailAddress
+	}
+
+	siteName := s.settingsSvc.Get(ctx, config.SettingSiteName)
+	subject := "Test email from " + siteName
+	body := fmt.Sprintf("<p>This is a test email from %s confirming your email settings are working.</p>", siteName)
+
+	if err := s.emailSvc.SendTest(ctx, actor.Email, subject, body); err != nil {
+		return fmt.Errorf("send test email: %w", err)
+	}
+
+	s.audit(ctx, actorID, "send_test_email", "settings", "")
 	return nil
 }
 

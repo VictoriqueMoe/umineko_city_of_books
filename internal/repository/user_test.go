@@ -71,7 +71,7 @@ func TestUserRepository_Create(t *testing.T) {
 	repos := repotest.NewRepos(t)
 
 	// when
-	u, err := repos.User.Create(context.Background(), "alice", "secret123", "Alice")
+	u, err := repos.User.Create(context.Background(), "alice", "alice@example.com", "secret123", "Alice")
 
 	// then
 	require.NoError(t, err)
@@ -84,11 +84,11 @@ func TestUserRepository_Create(t *testing.T) {
 func TestUserRepository_Create_DuplicateUsername(t *testing.T) {
 	// given
 	repos := repotest.NewRepos(t)
-	_, err := repos.User.Create(context.Background(), "dup", "pw1", "First")
+	_, err := repos.User.Create(context.Background(), "dup", "", "pw1", "First")
 	require.NoError(t, err)
 
 	// when
-	_, err = repos.User.Create(context.Background(), "dup", "pw2", "Second")
+	_, err = repos.User.Create(context.Background(), "dup", "", "pw2", "Second")
 
 	// then
 	require.Error(t, err)

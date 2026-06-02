@@ -2,18 +2,27 @@ package auth
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
+	"net/mail"
 	"regexp"
 	"strings"
+	"time"
 
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/email"
 	"umineko_city_of_books/internal/logger"
+	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/session"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/user"
+
+	"github.com/google/uuid"
 )
 
 type (
@@ -21,6 +30,12 @@ type (
 		Register(ctx context.Context, req dto.RegisterRequest) (*dto.UserResponse, string, error)
 		Login(ctx context.Context, req dto.LoginRequest) (*dto.UserResponse, string, error)
 		Logout(ctx context.Context, token string) error
+		ForgotPassword(ctx context.Context, username string) error
+		ResetPassword(ctx context.Context, token, newPassword string) error
+		EmailEnabled(ctx context.Context) bool
+		SetEmail(ctx context.Context, userID uuid.UUID, email string) error
+		VerifyEmail(ctx context.Context, token string) error
+		ResendVerification(ctx context.Context, userID uuid.UUID) error
 	}
 
 	service struct {
@@ -30,8 +45,16 @@ type (
 		inviteRepo    repository.InviteRepository
 		userRepo      repository.UserRepository
 		auditRepo     repository.AuditLogRepository
+		resetRepo     repository.PasswordResetRepository
+		verifyRepo    repository.EmailVerificationRepository
+		emailSvc      email.Service
 		contentFilter *contentfilter.Manager
 	}
+)
+
+const (
+	resetTokenTTL  = time.Hour
+	verifyTokenTTL = 24 * time.Hour
 )
 
 var (
@@ -49,7 +72,7 @@ func isReservedUsername(username string) bool {
 	return false
 }
 
-func NewService(userService user.Service, sessionMgr *session.Manager, settingsSvc settings.Service, inviteRepo repository.InviteRepository, userRepo repository.UserRepository, auditRepo repository.AuditLogRepository, contentFilter *contentfilter.Manager) Service {
+func NewService(userService user.Service, sessionMgr *session.Manager, settingsSvc settings.Service, inviteRepo repository.InviteRepository, userRepo repository.UserRepository, auditRepo repository.AuditLogRepository, resetRepo repository.PasswordResetRepository, verifyRepo repository.EmailVerificationRepository, emailSvc email.Service, contentFilter *contentfilter.Manager) Service {
 	return &service{
 		userService:   userService,
 		session:       sessionMgr,
@@ -57,6 +80,9 @@ func NewService(userService user.Service, sessionMgr *session.Manager, settingsS
 		inviteRepo:    inviteRepo,
 		userRepo:      userRepo,
 		auditRepo:     auditRepo,
+		resetRepo:     resetRepo,
+		verifyRepo:    verifyRepo,
+		emailSvc:      emailSvc,
 		contentFilter: contentFilter,
 	}
 }
@@ -93,6 +119,19 @@ func (s *service) Register(ctx context.Context, req dto.RegisterRequest) (*dto.U
 		return nil, "", ErrPasswordTooShort
 	}
 
+	email := normalizeEmail(req.Email)
+	if !isValidEmail(email) {
+		return nil, "", ErrInvalidEmail
+	}
+
+	inUse, err := s.userRepo.EmailInUse(ctx, email, uuid.Nil)
+	if err != nil {
+		return nil, "", fmt.Errorf("check email: %w", err)
+	}
+	if inUse {
+		return nil, "", ErrEmailTaken
+	}
+
 	logger.Log.Debug().Str("username", req.Username).Msg("registering user")
 	if req.DisplayName == "" {
 		req.DisplayName = req.Username
@@ -108,10 +147,12 @@ func (s *service) Register(ctx context.Context, req dto.RegisterRequest) (*dto.U
 		return nil, "", err
 	}
 
-	userResp, err := s.userService.Create(ctx, req.Username, req.Password, req.DisplayName)
+	userResp, err := s.userService.Create(ctx, req.Username, email, req.Password, req.DisplayName)
 	if err != nil {
 		return nil, "", fmt.Errorf("create user: %w", err)
 	}
+
+	s.sendVerification(ctx, userResp.ID, email)
 
 	if s.auditRepo != nil {
 		if err := s.auditRepo.Create(ctx, userResp.ID, "user_created", "user", userResp.ID.String(), fmt.Sprintf("username=%s", req.Username)); err != nil {
@@ -158,6 +199,217 @@ func (s *service) Logout(ctx context.Context, token string) error {
 		return s.session.Delete(ctx, token)
 	}
 	return nil
+}
+
+func (s *service) EmailEnabled(ctx context.Context) bool {
+	return s.emailSvc.Enabled(ctx)
+}
+
+func (s *service) ForgotPassword(ctx context.Context, username string) error {
+	if !s.emailSvc.Enabled(ctx) {
+		return ErrEmailDisabled
+	}
+
+	usr, err := s.userRepo.GetByUsername(ctx, username)
+	if err != nil {
+		return fmt.Errorf("get user: %w", err)
+	}
+	if usr == nil {
+		return ErrUserNotFound
+	}
+	if usr.Email == "" {
+		return ErrNoEmailAddress
+	}
+
+	raw, hash, err := generateResetToken()
+	if err != nil {
+		return fmt.Errorf("generate reset token: %w", err)
+	}
+
+	if err := s.resetRepo.DeleteUnusedForUser(ctx, usr.ID); err != nil {
+		logger.Log.Warn().Err(err).Str("user_id", usr.ID.String()).Msg("failed to clear previous reset tokens")
+	}
+
+	expiresAt := time.Now().Add(resetTokenTTL)
+	if err := s.resetRepo.Create(ctx, hash, usr.ID, expiresAt); err != nil {
+		return fmt.Errorf("store reset token: %w", err)
+	}
+
+	baseURL := strings.TrimRight(s.settingsSvc.Get(ctx, config.SettingBaseURL), "/")
+	siteName := s.settingsSvc.Get(ctx, config.SettingSiteName)
+	link := fmt.Sprintf("%s/reset-password?token=%s", baseURL, raw)
+
+	subject, body := notification.PasswordResetEmail(siteName, link)
+	if err := s.emailSvc.Send(ctx, usr.Email, subject, body); err != nil {
+		return fmt.Errorf("send reset email: %w", err)
+	}
+
+	logger.Log.Info().Str("user_id", usr.ID.String()).Msg("password reset email sent")
+	return nil
+}
+
+func (s *service) ResetPassword(ctx context.Context, token, newPassword string) error {
+	if token == "" {
+		return ErrInvalidResetToken
+	}
+
+	minLen := s.settingsSvc.GetInt(ctx, config.SettingMinPasswordLength)
+	if minLen > 0 && len(newPassword) < minLen {
+		return ErrPasswordTooShort
+	}
+
+	hash := hashResetToken(token)
+	rec, err := s.resetRepo.GetByTokenHash(ctx, hash)
+	if err != nil {
+		return fmt.Errorf("get reset token: %w", err)
+	}
+	if rec == nil || rec.UsedAt != nil || time.Now().After(rec.ExpiresAt) {
+		return ErrInvalidResetToken
+	}
+
+	if err := s.userRepo.SetPassword(ctx, rec.UserID, newPassword); err != nil {
+		return fmt.Errorf("set password: %w", err)
+	}
+
+	if err := s.resetRepo.MarkUsed(ctx, hash); err != nil {
+		logger.Log.Warn().Err(err).Msg("failed to mark reset token used")
+	}
+
+	if err := s.session.DeleteAllForUser(ctx, rec.UserID); err != nil {
+		logger.Log.Warn().Err(err).Str("user_id", rec.UserID.String()).Msg("failed to invalidate sessions after password reset")
+	}
+
+	if s.auditRepo != nil {
+		if err := s.auditRepo.Create(ctx, rec.UserID, "password_reset", "user", rec.UserID.String(), ""); err != nil {
+			logger.Log.Warn().Err(err).Msg("failed to write password_reset audit log")
+		}
+	}
+
+	return nil
+}
+
+func generateResetToken() (raw string, hash string, err error) {
+	buf := make([]byte, 32)
+	if _, err := rand.Read(buf); err != nil {
+		return "", "", err
+	}
+
+	raw = hex.EncodeToString(buf)
+	return raw, hashResetToken(raw), nil
+}
+
+func hashResetToken(raw string) string {
+	sum := sha256.Sum256([]byte(raw))
+	return hex.EncodeToString(sum[:])
+}
+
+func (s *service) SetEmail(ctx context.Context, userID uuid.UUID, email string) error {
+	email = normalizeEmail(email)
+	if !isValidEmail(email) {
+		return ErrInvalidEmail
+	}
+
+	inUse, err := s.userRepo.EmailInUse(ctx, email, userID)
+	if err != nil {
+		return fmt.Errorf("check email: %w", err)
+	}
+	if inUse {
+		return ErrEmailTaken
+	}
+
+	if err := s.userRepo.SetEmail(ctx, userID, email); err != nil {
+		return fmt.Errorf("set email: %w", err)
+	}
+
+	s.sendVerification(ctx, userID, email)
+	return nil
+}
+
+func (s *service) VerifyEmail(ctx context.Context, token string) error {
+	if token == "" {
+		return ErrInvalidVerificationToken
+	}
+
+	hash := hashResetToken(token)
+	rec, err := s.verifyRepo.GetByTokenHash(ctx, hash)
+	if err != nil {
+		return fmt.Errorf("get verification token: %w", err)
+	}
+	if rec == nil || rec.UsedAt != nil || time.Now().After(rec.ExpiresAt) {
+		return ErrInvalidVerificationToken
+	}
+
+	if err := s.userRepo.MarkEmailVerified(ctx, rec.UserID); err != nil {
+		return fmt.Errorf("mark email verified: %w", err)
+	}
+
+	if err := s.verifyRepo.MarkUsed(ctx, hash); err != nil {
+		logger.Log.Warn().Err(err).Msg("failed to mark verification token used")
+	}
+
+	return nil
+}
+
+func (s *service) ResendVerification(ctx context.Context, userID uuid.UUID) error {
+	usr, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("get user: %w", err)
+	}
+	if usr == nil {
+		return ErrUserNotFound
+	}
+	if usr.Email == "" {
+		return ErrNoEmailAddress
+	}
+	if usr.EmailVerified {
+		return ErrEmailAlreadyVerified
+	}
+
+	s.sendVerification(ctx, userID, usr.Email)
+	return nil
+}
+
+func (s *service) sendVerification(ctx context.Context, userID uuid.UUID, email string) {
+	raw, hash, err := generateResetToken()
+	if err != nil {
+		logger.Log.Error().Err(err).Msg("failed to generate verification token")
+		return
+	}
+
+	if err := s.verifyRepo.DeleteUnusedForUser(ctx, userID); err != nil {
+		logger.Log.Warn().Err(err).Str("user_id", userID.String()).Msg("failed to clear previous verification tokens")
+	}
+
+	if err := s.verifyRepo.Create(ctx, hash, userID, time.Now().Add(verifyTokenTTL)); err != nil {
+		logger.Log.Error().Err(err).Str("user_id", userID.String()).Msg("failed to store verification token")
+		return
+	}
+
+	baseURL := strings.TrimRight(s.settingsSvc.Get(ctx, config.SettingBaseURL), "/")
+	siteName := s.settingsSvc.Get(ctx, config.SettingSiteName)
+	link := fmt.Sprintf("%s/verify-email?token=%s", baseURL, raw)
+
+	subject, body := notification.VerificationEmail(siteName, link)
+	if err := s.emailSvc.Send(ctx, email, subject, body); err != nil {
+		logger.Log.Error().Err(err).Str("user_id", userID.String()).Msg("failed to send verification email")
+	}
+}
+
+func normalizeEmail(email string) string {
+	return strings.ToLower(strings.TrimSpace(email))
+}
+
+func isValidEmail(email string) bool {
+	if email == "" || len(email) > 254 {
+		return false
+	}
+
+	addr, err := mail.ParseAddress(email)
+	if err != nil {
+		return false
+	}
+
+	return addr.Address == email
 }
 
 func isValidUsername(username string) bool {

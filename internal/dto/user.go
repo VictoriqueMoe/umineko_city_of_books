@@ -45,6 +45,8 @@ type (
 		DOBPublic              bool         `json:"dob_public"`
 		Email                  string       `json:"email,omitempty"`
 		EmailPublic            bool         `json:"email_public"`
+		EmailVerified          bool         `json:"email_verified"`
+		VerifyGraceUntil       string       `json:"verify_grace_until,omitempty"`
 		EmailNotifications     bool         `json:"email_notifications"`
 		PlayMessageSound       bool         `json:"play_message_sound"`
 		PlayNotificationSound  bool         `json:"play_notification_sound"`
@@ -104,6 +106,16 @@ type (
 		NewPassword string `json:"new_password"`
 	}
 
+	ForgotPasswordRequest struct {
+		Username       string `json:"username"`
+		TurnstileToken string `json:"turnstile_token,omitempty"`
+	}
+
+	ResetPasswordRequest struct {
+		Token       string `json:"token"`
+		NewPassword string `json:"new_password"`
+	}
+
 	DeleteAccountRequest struct {
 		Password string `json:"password"`
 	}
@@ -121,8 +133,17 @@ type (
 
 	RegisterRequest struct {
 		LoginRequest
+		Email       string `json:"email"`
 		DisplayName string `json:"display_name"`
 		InviteCode  string `json:"invite_code,omitempty"`
+	}
+
+	SetEmailRequest struct {
+		Email string `json:"email"`
+	}
+
+	VerifyEmailRequest struct {
+		Token string `json:"token"`
 	}
 )
 

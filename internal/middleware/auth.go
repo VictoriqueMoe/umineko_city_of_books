@@ -19,6 +19,25 @@ func isWriteMethod(method string) bool {
 	}
 }
 
+func isVerifyExemptPath(method, path string) bool {
+	if method != fiber.MethodPost {
+		return false
+	}
+	switch path {
+	case "/api/v1/auth/set-email", "/api/v1/auth/verify-email", "/api/v1/auth/resend-verification":
+		return true
+	case "/api/v1/notifications/read":
+		return true
+	}
+	if strings.HasPrefix(path, "/api/v1/notifications/") && strings.HasSuffix(path, "/read") {
+		return true
+	}
+	if strings.HasPrefix(path, "/api/v1/chat/rooms/") && strings.HasSuffix(path, "/read") {
+		return true
+	}
+	return false
+}
+
 func isLockExemptPath(method, path string) bool {
 	if method != fiber.MethodPost {
 		return false
@@ -128,6 +147,16 @@ func authenticateAndCheckBan(ctx fiber.Ctx, mgr *session.Manager, authzSvc authz
 		if authzSvc.IsLocked(ctx.Context(), userID) {
 			_ = ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
 				"error": "your account is locked",
+			})
+			return uuid.Nil, "", false
+		}
+	}
+
+	if isWriteMethod(ctx.Method()) && !isVerifyExemptPath(ctx.Method(), ctx.Path()) {
+		if authzSvc.RequiresEmailVerification(ctx.Context(), userID) {
+			_ = ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"error": "please verify your email address to continue",
+				"code":  "email_unverified",
 			})
 			return uuid.Nil, "", false
 		}

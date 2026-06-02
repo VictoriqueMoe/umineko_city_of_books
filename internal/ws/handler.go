@@ -178,7 +178,7 @@ func Handler(hub *Hub, sessionMgr *session.Manager, roomLister RoomLister, gameP
 		Origins:           []string{"*"},
 		RecoverHandler:    recoverHandler,
 		HandshakeTimeout:  10 * time.Second,
-		EnableCompression: true,
+		EnableCompression: false,
 	})
 
 	return func(ctx fiber.Ctx) error {

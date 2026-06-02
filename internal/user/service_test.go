@@ -34,11 +34,11 @@ func TestCreate_FirstUserAssignsSuperAdmin(t *testing.T) {
 	userID := uuid.New()
 	created := &model.User{ID: userID, Username: "alice", DisplayName: "Alice"}
 	userRepo.EXPECT().Count(mock.Anything).Return(0, nil)
-	userRepo.EXPECT().Create(mock.Anything, "alice", "pw", "Alice").Return(created, nil)
+	userRepo.EXPECT().Create(mock.Anything, "alice", "alice@example.com", "pw", "Alice").Return(created, nil)
 	roleRepo.EXPECT().SetRole(mock.Anything, userID, authz.RoleSuperAdmin).Return(nil)
 
 	// when
-	got, err := svc.Create(context.Background(), "alice", "pw", "Alice")
+	got, err := svc.Create(context.Background(), "alice", "alice@example.com", "pw", "Alice")
 
 	// then
 	require.NoError(t, err)
@@ -52,11 +52,11 @@ func TestCreate_FirstUserSetRoleErrorSwallowed(t *testing.T) {
 	userID := uuid.New()
 	created := &model.User{ID: userID, Username: "alice", DisplayName: "Alice"}
 	userRepo.EXPECT().Count(mock.Anything).Return(0, nil)
-	userRepo.EXPECT().Create(mock.Anything, "alice", "pw", "Alice").Return(created, nil)
+	userRepo.EXPECT().Create(mock.Anything, "alice", "alice@example.com", "pw", "Alice").Return(created, nil)
 	roleRepo.EXPECT().SetRole(mock.Anything, userID, authz.RoleSuperAdmin).Return(errors.New("boom"))
 
 	// when
-	got, err := svc.Create(context.Background(), "alice", "pw", "Alice")
+	got, err := svc.Create(context.Background(), "alice", "alice@example.com", "pw", "Alice")
 
 	// then
 	require.NoError(t, err)
@@ -69,10 +69,10 @@ func TestCreate_SubsequentUserNoRoleAssigned(t *testing.T) {
 	userID := uuid.New()
 	created := &model.User{ID: userID, Username: "bob", DisplayName: "Bob"}
 	userRepo.EXPECT().Count(mock.Anything).Return(5, nil)
-	userRepo.EXPECT().Create(mock.Anything, "bob", "pw", "Bob").Return(created, nil)
+	userRepo.EXPECT().Create(mock.Anything, "bob", "bob@example.com", "pw", "Bob").Return(created, nil)
 
 	// when
-	got, err := svc.Create(context.Background(), "bob", "pw", "Bob")
+	got, err := svc.Create(context.Background(), "bob", "bob@example.com", "pw", "Bob")
 
 	// then
 	require.NoError(t, err)
@@ -85,7 +85,7 @@ func TestCreate_CountErrorBubbles(t *testing.T) {
 	userRepo.EXPECT().Count(mock.Anything).Return(0, errors.New("db down"))
 
 	// when
-	_, err := svc.Create(context.Background(), "alice", "pw", "Alice")
+	_, err := svc.Create(context.Background(), "alice", "alice@example.com", "pw", "Alice")
 
 	// then
 	require.Error(t, err)
@@ -96,10 +96,10 @@ func TestCreate_CreateErrorBubbles(t *testing.T) {
 	// given
 	svc, userRepo, _, _ := newTestService(t)
 	userRepo.EXPECT().Count(mock.Anything).Return(3, nil)
-	userRepo.EXPECT().Create(mock.Anything, "alice", "pw", "Alice").Return(nil, errors.New("dup"))
+	userRepo.EXPECT().Create(mock.Anything, "alice", "alice@example.com", "pw", "Alice").Return(nil, errors.New("dup"))
 
 	// when
-	_, err := svc.Create(context.Background(), "alice", "pw", "Alice")
+	_, err := svc.Create(context.Background(), "alice", "alice@example.com", "pw", "Alice")
 
 	// then
 	require.Error(t, err)

@@ -17,6 +17,7 @@ type (
 		GetRoles(ctx context.Context, userIDs []uuid.UUID) (map[uuid.UUID]role.Role, error)
 		IsBanned(ctx context.Context, userID uuid.UUID) bool
 		IsLocked(ctx context.Context, userID uuid.UUID) bool
+		RequiresEmailVerification(ctx context.Context, userID uuid.UUID) bool
 	}
 
 	service struct {
@@ -45,6 +46,15 @@ func (s *service) IsLocked(ctx context.Context, userID uuid.UUID) bool {
 		return false
 	}
 	return locked
+}
+
+func (s *service) RequiresEmailVerification(ctx context.Context, userID uuid.UUID) bool {
+	blocked, err := s.userRepo.RequiresEmailVerification(ctx, userID)
+	if err != nil {
+		logger.Log.Error().Err(err).Str("user_id", userID.String()).Msg("failed to check email verification status")
+		return false
+	}
+	return blocked
 }
 
 func (s *service) Can(ctx context.Context, userID uuid.UUID, perm Permission) bool {

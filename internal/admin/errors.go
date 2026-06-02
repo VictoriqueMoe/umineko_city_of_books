@@ -8,6 +8,7 @@ var (
 	ErrProtectedUser           = errors.New("this user cannot be modified")
 	ErrSystemRole              = errors.New("cannot modify system role assignments")
 	ErrVanityRoleNotFound      = errors.New("vanity role not found")
+	ErrNoEmailAddress          = errors.New("your account has no email address set")
 	ErrBannedGiphyInvalidInput = errors.New("could not recognise a Giphy URL or ID in the input")
 	ErrBannedGiphyKindMismatch = errors.New("supplied kind does not match what was extracted from the URL")
 )

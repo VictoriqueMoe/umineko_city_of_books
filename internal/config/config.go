@@ -32,6 +32,8 @@ type (
 
 	SiteSettingKey string
 
+	EmailProvider string
+
 	SiteSettingDef struct {
 		Key     SiteSettingKey
 		Default string
@@ -39,24 +41,15 @@ type (
 	}
 )
 
-func (c Config) PostgresDSN() string {
-	if c.DatabaseURL != "" {
-		return c.DatabaseURL
-	}
-	u := url.URL{
-		Scheme:   "postgres",
-		User:     url.UserPassword(c.Postgres.User, c.Postgres.Password),
-		Host:     c.Postgres.Host + ":" + c.Postgres.Port,
-		Path:     "/" + c.Postgres.DB,
-		RawQuery: "sslmode=" + url.QueryEscape(c.Postgres.SSLMode),
-	}
-	return u.String()
-}
-
 const (
 	TypeString SettingType = iota
 	TypeBool
 	TypeInt
+)
+
+const (
+	EmailProviderSMTP       EmailProvider = "smtp"
+	EmailProviderCloudflare EmailProvider = "cloudflare"
 )
 
 var (
@@ -123,6 +116,10 @@ var (
 	SettingSMTPFrom                = &SiteSettingDef{"smtp_from", "", TypeString}
 	SettingSMTPUsername            = &SiteSettingDef{"smtp_username", "", TypeString}
 	SettingSMTPPassword            = &SiteSettingDef{"smtp_password", "", TypeString}
+	SettingEmailProvider           = &SiteSettingDef{"email_provider", string(EmailProviderSMTP), TypeString}
+	SettingCloudflareAccountID     = &SiteSettingDef{"cloudflare_account_id", "", TypeString}
+	SettingCloudflareAPIToken      = &SiteSettingDef{"cloudflare_api_token", "", TypeString}
+	SettingCloudflareEmailFrom     = &SiteSettingDef{"cloudflare_email_from", "", TypeString}
 
 	AllSiteSettings = []*SiteSettingDef{
 		SettingUploadDir,
@@ -184,6 +181,10 @@ var (
 		SettingSMTPFrom,
 		SettingSMTPUsername,
 		SettingSMTPPassword,
+		SettingEmailProvider,
+		SettingCloudflareAccountID,
+		SettingCloudflareAPIToken,
+		SettingCloudflareEmailFrom,
 	}
 )
 
@@ -247,6 +248,17 @@ func ValidateSettings(all map[SiteSettingKey]string) error {
 		}
 	}
 
+	emailProvider := EmailProvider(all[SettingEmailProvider.Key])
+	if emailProvider != EmailProviderSMTP && emailProvider != EmailProviderCloudflare {
+		return fmt.Errorf("email provider must be '%s' or '%s'", EmailProviderSMTP, EmailProviderCloudflare)
+	}
+
+	if emailProvider == EmailProviderCloudflare {
+		if all[SettingCloudflareAccountID.Key] == "" || all[SettingCloudflareAPIToken.Key] == "" || all[SettingCloudflareEmailFrom.Key] == "" {
+			return fmt.Errorf("cloudflare email requires account ID, API token and from address")
+		}
+	}
+
 	return nil
 }
 
@@ -287,4 +299,18 @@ func envOr(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+func (c Config) PostgresDSN() string {
+	if c.DatabaseURL != "" {
+		return c.DatabaseURL
+	}
+	u := url.URL{
+		Scheme:   "postgres",
+		User:     url.UserPassword(c.Postgres.User, c.Postgres.Password),
+		Host:     c.Postgres.Host + ":" + c.Postgres.Port,
+		Path:     "/" + c.Postgres.DB,
+		RawQuery: "sslmode=" + url.QueryEscape(c.Postgres.SSLMode),
+	}
+	return u.String()
 }

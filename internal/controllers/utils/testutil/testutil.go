@@ -135,6 +135,10 @@ func (h *Harness) ExpectValidSession(cookie string, userID uuid.UUID) {
 		IsLocked(mock.Anything, userID).
 		Return(false).
 		Maybe()
+	h.AuthzService.EXPECT().
+		RequiresEmailVerification(mock.Anything, userID).
+		Return(false).
+		Maybe()
 }
 
 func (h *Harness) ExpectInvalidSession(cookie string) {
