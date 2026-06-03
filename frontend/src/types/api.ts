@@ -539,6 +539,7 @@ export interface AdminUserListResponse {
 }
 
 export interface AdminUserDetail extends AdminUserItem {
+    email?: string;
     ip?: string;
     ban_reason?: string;
     banned_at?: string;

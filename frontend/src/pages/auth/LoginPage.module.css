@@ -92,6 +92,33 @@
     margin-bottom: 1rem;
 }
 
+.staffContact {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+}
+
+.staffList {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.staffList li {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.staffRole {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+}
+
 .toggle {
     display: block;
     width: 100%;

@@ -27,6 +27,7 @@ type (
 
 	AdminUserDetailResponse struct {
 		AdminUserItem
+		Email                  string        `json:"email,omitempty"`
 		IP                     string        `json:"ip,omitempty"`
 		BanReason              string        `json:"ban_reason,omitempty"`
 		BannedAt               string        `json:"banned_at,omitempty"`
@@ -108,6 +109,10 @@ type (
 
 	LockUserRequest struct {
 		Reason string `json:"reason"`
+	}
+
+	AdminResetPasswordResponse struct {
+		Password string `json:"password"`
 	}
 
 	InviteResponse struct {

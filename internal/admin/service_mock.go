@@ -1426,6 +1426,78 @@ func (_c *MockService_RemoveUserRole_Call) RunAndReturn(run func(ctx context.Con
 	return _c
 }
 
+// ResetUserPassword provides a mock function for the type MockService
+func (_mock *MockService) ResetUserPassword(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID) (string, error) {
+	ret := _mock.Called(ctx, actorID, targetID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ResetUserPassword")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) (string, error)); ok {
+		return returnFunc(ctx, actorID, targetID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) string); ok {
+		r0 = returnFunc(ctx, actorID, targetID)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, actorID, targetID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_ResetUserPassword_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ResetUserPassword'
+type MockService_ResetUserPassword_Call struct {
+	*mock.Call
+}
+
+// ResetUserPassword is a helper method to define mock.On call
+//   - ctx context.Context
+//   - actorID uuid.UUID
+//   - targetID uuid.UUID
+func (_e *MockService_Expecter) ResetUserPassword(ctx interface{}, actorID interface{}, targetID interface{}) *MockService_ResetUserPassword_Call {
+	return &MockService_ResetUserPassword_Call{Call: _e.mock.On("ResetUserPassword", ctx, actorID, targetID)}
+}
+
+func (_c *MockService_ResetUserPassword_Call) Run(run func(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID)) *MockService_ResetUserPassword_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_ResetUserPassword_Call) Return(s string, err error) *MockService_ResetUserPassword_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *MockService_ResetUserPassword_Call) RunAndReturn(run func(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID) (string, error)) *MockService_ResetUserPassword_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SendTestEmail provides a mock function for the type MockService
 func (_mock *MockService) SendTestEmail(ctx context.Context, actorID uuid.UUID) error {
 	ret := _mock.Called(ctx, actorID)

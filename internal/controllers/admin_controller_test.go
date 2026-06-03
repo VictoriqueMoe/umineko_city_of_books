@@ -593,6 +593,72 @@ func TestAdminDeleteUser_ServiceErrors(t *testing.T) {
 	}
 }
 
+func TestAdminResetPassword_PermissionFailures(t *testing.T) {
+	testutil.RunPermissionFailureSuite(t, adminFactory, "POST", "/admin/users/"+uuid.NewString()+"/reset-password", nil, authz.PermResetPassword)
+}
+
+func TestAdminResetPassword_InvalidID(t *testing.T) {
+	// given
+	h, _, _ := newAdminHarness(t)
+	userID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	h.ExpectHasPermission(userID, authz.PermResetPassword, true)
+
+	// when
+	status, body := h.NewRequest("POST", "/admin/users/not-a-uuid/reset-password").WithCookie("valid-cookie").Do()
+
+	// then
+	require.Equal(t, http.StatusBadRequest, status)
+	assert.Contains(t, string(body), "invalid id")
+}
+
+func TestAdminResetPassword_OK(t *testing.T) {
+	// given
+	h, ms, _ := newAdminHarness(t)
+	userID := uuid.New()
+	targetID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	h.ExpectHasPermission(userID, authz.PermResetPassword, true)
+	ms.EXPECT().ResetUserPassword(mock.Anything, userID, targetID).Return("hunter2hunter2hu", nil)
+
+	// when
+	status, body := h.NewRequest("POST", "/admin/users/"+targetID.String()+"/reset-password").WithCookie("valid-cookie").Do()
+
+	// then
+	require.Equal(t, http.StatusOK, status)
+	got := testutil.UnmarshalJSON[dto.AdminResetPasswordResponse](t, body)
+	assert.Equal(t, "hunter2hunter2hu", got.Password)
+}
+
+func TestAdminResetPassword_ServiceErrors(t *testing.T) {
+	cases := []struct {
+		name     string
+		svcErr   error
+		wantCode int
+	}{
+		{"user not found", adminsvc.ErrUserNotFound, http.StatusNotFound},
+		{"protected user", adminsvc.ErrProtectedUser, http.StatusForbidden},
+		{"internal", errors.New("boom"), http.StatusInternalServerError},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h, ms, _ := newAdminHarness(t)
+			userID := uuid.New()
+			targetID := uuid.New()
+			h.ExpectValidSession("valid-cookie", userID)
+			h.ExpectHasPermission(userID, authz.PermResetPassword, true)
+			ms.EXPECT().ResetUserPassword(mock.Anything, userID, targetID).Return("", tc.svcErr)
+
+			// when
+			status, _ := h.NewRequest("POST", "/admin/users/"+targetID.String()+"/reset-password").WithCookie("valid-cookie").Do()
+
+			// then
+			require.Equal(t, tc.wantCode, status)
+		})
+	}
+}
+
 func TestAdminGetSettings_PermissionFailures(t *testing.T) {
 	testutil.RunPermissionFailureSuite(t, adminFactory, "GET", "/admin/settings", nil, authz.PermManageSettings)
 }

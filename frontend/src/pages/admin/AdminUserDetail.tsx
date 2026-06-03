@@ -7,6 +7,7 @@ import {
     useBanUser,
     useLockUser,
     useRemoveUserRole,
+    useResetUserPassword,
     useSetUserRole,
     useUnbanUser,
     useUnlockUser,
@@ -42,11 +43,13 @@ export function AdminUserDetail() {
     const deleteUserMutation = useAdminDeleteUser();
     const updateDetectiveScoreMutation = useUpdateDetectiveScore();
     const updateGMScoreMutation = useUpdateGMScore();
+    const resetPasswordMutation = useResetUserPassword();
 
     const [selectedRole, setSelectedRole] = useState("admin");
     const [banReason, setBanReason] = useState("");
     const [lockReason, setLockReason] = useState("");
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [resetPasswordResult, setResetPasswordResult] = useState<string | null>(null);
     const [scoreDraft, setScoreDraft] = useState<{
         userId: string | null;
         detective: string | null;
@@ -166,6 +169,25 @@ export function AdminUserDetail() {
         }
     }
 
+    async function handleResetPassword() {
+        if (!id) {
+            return;
+        }
+        if (
+            !window.confirm(
+                "Reset this user's password? Their current password will stop working and all their sessions will be logged out.",
+            )
+        ) {
+            return;
+        }
+        try {
+            const result = await resetPasswordMutation.mutateAsync(id);
+            setResetPasswordResult(result.password);
+        } catch (e) {
+            setError(e instanceof Error ? e.message : "Failed to reset password");
+        }
+    }
+
     if (loading) {
         return <div className={styles.loading}>Loading user...</div>;
     }
@@ -204,6 +226,14 @@ export function AdminUserDetail() {
                 </div>
 
                 <div className={styles.infoGrid}>
+                    <div className={styles.infoItem}>
+                        <span className={styles.infoLabel}>Email</span>
+                        {user.email ? (
+                            <span className={styles.infoValue}>{user.email}</span>
+                        ) : (
+                            <span className={styles.bannedBadge}>No email set</span>
+                        )}
+                    </div>
                     {user.ip && (
                         <div className={styles.infoItem}>
                             <span className={styles.infoLabel}>IP Address</span>
@@ -421,6 +451,19 @@ export function AdminUserDetail() {
                 </div>
             )}
 
+            {can(currentUser?.role, "reset_password") && user.role !== "super_admin" && (
+                <div className={styles.card}>
+                    <h2 className={styles.sectionTitle}>Password</h2>
+                    <p className={styles.fieldLabel}>
+                        Generates a new random password and logs the user out everywhere. Use this for users who are
+                        locked out and have no email to self-reset.
+                    </p>
+                    <Button variant="danger" onClick={handleResetPassword} disabled={resetPasswordMutation.isPending}>
+                        Reset Password
+                    </Button>
+                </div>
+            )}
+
             {can(currentUser?.role, "delete_any_user") && user.role !== "super_admin" && (
                 <div className={`${styles.card} ${styles.dangerZone}`}>
                     <h2 className={styles.sectionTitle}>Danger Zone</h2>
@@ -429,6 +472,36 @@ export function AdminUserDetail() {
                     </Button>
                 </div>
             )}
+
+            <Modal
+                isOpen={resetPasswordResult !== null}
+                onClose={() => setResetPasswordResult(null)}
+                title="New Password"
+            >
+                <div className={styles.modalBody}>
+                    Share this new password with <strong>{user.display_name}</strong> securely. It will not be shown
+                    again.
+                    <div className={styles.infoItem} style={{ marginTop: "1rem" }}>
+                        <span className={styles.infoLabel}>Password</span>
+                        <code className={styles.infoValue}>{resetPasswordResult}</code>
+                    </div>
+                </div>
+                <div className={styles.modalActions}>
+                    <Button
+                        variant="secondary"
+                        onClick={() => {
+                            if (resetPasswordResult) {
+                                navigator.clipboard.writeText(resetPasswordResult);
+                            }
+                        }}
+                    >
+                        Copy
+                    </Button>
+                    <Button variant="primary" onClick={() => setResetPasswordResult(null)}>
+                        Done
+                    </Button>
+                </div>
+            </Modal>
 
             <Modal isOpen={deleteModalOpen} onClose={() => setDeleteModalOpen(false)} title="Confirm Delete">
                 <div className={styles.modalBody}>

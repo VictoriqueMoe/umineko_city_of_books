@@ -2,6 +2,7 @@ package admin
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"regexp"
 	"strings"
@@ -40,6 +41,7 @@ type (
 		LockUser(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID, reason string) error
 		UnlockUser(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID) error
 		DeleteUser(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID) error
+		ResetUserPassword(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID) (string, error)
 
 		GetSettings(ctx context.Context) (*dto.SettingsResponse, error)
 		UpdateSettings(ctx context.Context, actorID uuid.UUID, settings map[string]string) error
@@ -242,6 +244,7 @@ func (s *service) GetUser(ctx context.Context, targetID uuid.UUID) (*dto.AdminUs
 			Locked:      u.LockedAt != nil,
 			CreatedAt:   u.CreatedAt,
 		},
+		Email:      u.Email,
 		BanReason:  u.BanReason,
 		LockReason: u.LockReason,
 	}
@@ -404,6 +407,45 @@ func (s *service) DeleteUser(ctx context.Context, actorID uuid.UUID, targetID uu
 		s.audit(ctx, actorID, "delete_user", "user", targetID.String())
 		return nil
 	})
+}
+
+func (s *service) ResetUserPassword(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID) (string, error) {
+	var newPassword string
+	err := s.guardedAction(ctx, actorID, targetID, func() error {
+		generated, err := generatePassword()
+		if err != nil {
+			return fmt.Errorf("generate password: %w", err)
+		}
+		if err := s.userRepo.SetPassword(ctx, targetID, generated); err != nil {
+			return fmt.Errorf("set password: %w", err)
+		}
+		if err := s.sessionMgr.DeleteAllForUser(ctx, targetID); err != nil {
+			logger.Log.Warn().Err(err).Str("user_id", targetID.String()).Msg("failed to invalidate sessions after password reset")
+		}
+		s.audit(ctx, actorID, "reset_password", "user", targetID.String())
+		newPassword = generated
+		return nil
+	})
+	if err != nil {
+		return "", err
+	}
+	return newPassword, nil
+}
+
+func generatePassword() (string, error) {
+	const alphabet = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+	const length = 16
+
+	buf := make([]byte, length)
+	if _, err := rand.Read(buf); err != nil {
+		return "", err
+	}
+
+	out := make([]byte, length)
+	for i, b := range buf {
+		out[i] = alphabet[int(b)%len(alphabet)]
+	}
+	return string(out), nil
 }
 
 func (s *service) GetSettings(ctx context.Context) (*dto.SettingsResponse, error) {

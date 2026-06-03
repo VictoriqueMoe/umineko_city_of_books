@@ -1,5 +1,5 @@
 ﻿import { useQuery } from "@tanstack/react-query";
-import { getMe, getSiteInfo } from "../endpoints";
+import { getMe, getSiteInfo, getStaff } from "../endpoints";
 
 export function useMe() {
     const query = useQuery({
@@ -15,4 +15,12 @@ export function useSiteInfoQuery() {
         queryFn: () => getSiteInfo(),
     });
     return { siteInfo: query.data ?? null, loading: query.isLoading, refresh: query.refetch };
+}
+
+export function useStaff() {
+    const query = useQuery({
+        queryKey: ["staff"],
+        queryFn: () => getStaff(),
+    });
+    return { staff: query.data ?? [], loading: query.isLoading };
 }

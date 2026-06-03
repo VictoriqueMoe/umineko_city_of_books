@@ -8,6 +8,7 @@ import (
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/repository/model"
+	"umineko_city_of_books/internal/role"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -61,6 +62,68 @@ func TestCreate_FirstUserSetRoleErrorSwallowed(t *testing.T) {
 	// then
 	require.NoError(t, err)
 	assert.Equal(t, userID, got.ID)
+}
+
+func TestListStaff_OK_FiltersBannedAndSorts(t *testing.T) {
+	// given
+	svc, userRepo, roleRepo, _ := newTestService(t)
+	ids := []uuid.UUID{uuid.New(), uuid.New(), uuid.New(), uuid.New()}
+	roleRepo.EXPECT().GetUsersByRoles(mock.Anything, []role.Role{authz.RoleSuperAdmin, authz.RoleAdmin}).Return(ids, nil)
+	userRepo.EXPECT().GetByIDs(mock.Anything, ids).Return([]model.User{
+		{ID: ids[0], Username: "bob", DisplayName: "Bob", Role: string(authz.RoleAdmin)},
+		{ID: ids[1], Username: "zelda", DisplayName: "Zelda", Role: string(authz.RoleSuperAdmin)},
+		{ID: ids[2], Username: "anna", DisplayName: "Anna", Role: string(authz.RoleSuperAdmin)},
+		{ID: ids[3], Username: "evil", DisplayName: "Evil", Role: string(authz.RoleAdmin), BannedAt: new("2026-01-01")},
+	}, nil)
+
+	// when
+	staff, err := svc.ListStaff(context.Background())
+
+	// then
+	require.NoError(t, err)
+	require.Len(t, staff, 3)
+	assert.Equal(t, "Anna", staff[0].DisplayName)
+	assert.Equal(t, "Zelda", staff[1].DisplayName)
+	assert.Equal(t, "Bob", staff[2].DisplayName)
+}
+
+func TestListStaff_NoStaff(t *testing.T) {
+	// given
+	svc, _, roleRepo, _ := newTestService(t)
+	roleRepo.EXPECT().GetUsersByRoles(mock.Anything, []role.Role{authz.RoleSuperAdmin, authz.RoleAdmin}).Return(nil, nil)
+
+	// when
+	staff, err := svc.ListStaff(context.Background())
+
+	// then
+	require.NoError(t, err)
+	assert.Empty(t, staff)
+}
+
+func TestListStaff_RoleRepoError(t *testing.T) {
+	// given
+	svc, _, roleRepo, _ := newTestService(t)
+	roleRepo.EXPECT().GetUsersByRoles(mock.Anything, mock.Anything).Return(nil, errors.New("boom"))
+
+	// when
+	_, err := svc.ListStaff(context.Background())
+
+	// then
+	require.Error(t, err)
+}
+
+func TestListStaff_UserRepoError(t *testing.T) {
+	// given
+	svc, userRepo, roleRepo, _ := newTestService(t)
+	ids := []uuid.UUID{uuid.New()}
+	roleRepo.EXPECT().GetUsersByRoles(mock.Anything, mock.Anything).Return(ids, nil)
+	userRepo.EXPECT().GetByIDs(mock.Anything, ids).Return(nil, errors.New("boom"))
+
+	// when
+	_, err := svc.ListStaff(context.Background())
+
+	// then
+	require.Error(t, err)
 }
 
 func TestCreate_SubsequentUserNoRoleAssigned(t *testing.T) {

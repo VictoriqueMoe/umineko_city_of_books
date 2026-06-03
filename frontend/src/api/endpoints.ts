@@ -154,6 +154,10 @@ export async function getSiteInfo(): Promise<SiteInfo> {
     return apiFetch<SiteInfo>("/site-info");
 }
 
+export async function getStaff(): Promise<User[]> {
+    return apiFetch<User[]>("/staff");
+}
+
 export async function register(
     username: string,
     email: string,
@@ -505,6 +509,10 @@ export async function unlockUser(id: string): Promise<void> {
 
 export async function adminDeleteUser(id: string): Promise<void> {
     await apiDelete<unknown>(`/admin/users/${id}`);
+}
+
+export async function resetUserPassword(id: string): Promise<{ password: string }> {
+    return apiPost<{ password: string }, undefined>(`/admin/users/${id}/reset-password`, undefined);
 }
 
 export async function getAdminSettings(): Promise<SiteSettings> {

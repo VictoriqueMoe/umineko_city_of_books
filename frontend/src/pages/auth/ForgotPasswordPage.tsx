@@ -1,17 +1,22 @@
 import React, { useRef, useState } from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { useForgotPassword } from "../../api/mutations/auth";
+import { useStaff } from "../../api/queries/auth";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useSiteInfo } from "../../hooks/useSiteInfo";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
+import { ROLE_GROUPS } from "../../utils/permissions";
 import styles from "./LoginPage.module.css";
+
+const roleLabels = Object.fromEntries(ROLE_GROUPS.map(g => [g.role, g.label]));
 
 export function ForgotPasswordPage() {
     usePageTitle("Forgot Password");
     const navigate = useNavigate();
     const siteInfo = useSiteInfo();
+    const { staff } = useStaff();
     const forgotPasswordMutation = useForgotPassword();
     const [username, setUsername] = useState("");
     const [error, setError] = useState("");
@@ -98,6 +103,23 @@ export function ForgotPasswordPage() {
                             </Button>
                         </form>
                     </>
+                )}
+
+                {staff.length > 0 && (
+                    <div className={styles.staffContact}>
+                        <p className={styles.hint}>
+                            No email on your account? You will not be able to reset your password yourself. Please
+                            contact one of our admins:
+                        </p>
+                        <ul className={styles.staffList}>
+                            {staff.map(member => (
+                                <li key={member.id}>
+                                    <Link to={`/user/${member.username}`}>{member.display_name}</Link>
+                                    {member.role && <span className={styles.staffRole}>{roleLabels[member.role]}</span>}
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
                 )}
 
                 <Button variant="ghost" onClick={() => navigate("/login")} style={{ width: "100%", marginTop: "1rem" }}>

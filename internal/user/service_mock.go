@@ -382,6 +382,68 @@ func (_c *MockService_GetGMRawScore_Call) RunAndReturn(run func(ctx context.Cont
 	return _c
 }
 
+// ListStaff provides a mock function for the type MockService
+func (_mock *MockService) ListStaff(ctx context.Context) ([]*dto.UserResponse, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListStaff")
+	}
+
+	var r0 []*dto.UserResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]*dto.UserResponse, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []*dto.UserResponse); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*dto.UserResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_ListStaff_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListStaff'
+type MockService_ListStaff_Call struct {
+	*mock.Call
+}
+
+// ListStaff is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockService_Expecter) ListStaff(ctx interface{}) *MockService_ListStaff_Call {
+	return &MockService_ListStaff_Call{Call: _e.mock.On("ListStaff", ctx)}
+}
+
+func (_c *MockService_ListStaff_Call) Run(run func(ctx context.Context)) *MockService_ListStaff_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_ListStaff_Call) Return(userResponses []*dto.UserResponse, err error) *MockService_ListStaff_Call {
+	_c.Call.Return(userResponses, err)
+	return _c
+}
+
+func (_c *MockService_ListStaff_Call) RunAndReturn(run func(ctx context.Context) ([]*dto.UserResponse, error)) *MockService_ListStaff_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateAppearance provides a mock function for the type MockService
 func (_mock *MockService) UpdateAppearance(ctx context.Context, id uuid.UUID, theme string, font string, wideLayout bool) error {
 	ret := _mock.Called(ctx, id, theme, font, wideLayout)

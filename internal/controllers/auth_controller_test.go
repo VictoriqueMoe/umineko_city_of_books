@@ -11,6 +11,7 @@ import (
 	"umineko_city_of_books/internal/gameroom"
 	mysterysvc "umineko_city_of_books/internal/mystery"
 	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/role"
 	usersvc "umineko_city_of_books/internal/user"
 	"umineko_city_of_books/internal/usersecret"
 	"umineko_city_of_books/internal/vanityrole"
@@ -608,6 +609,37 @@ func TestSiteInfo_ServiceErrors(t *testing.T) {
 	got := testutil.UnmarshalJSON[dto.SiteInfoResponse](t, body)
 	assert.Empty(t, got.TopDetectiveIDs)
 	assert.Empty(t, got.VanityRoles)
+}
+
+func TestStaff_OK(t *testing.T) {
+	// given
+	h, deps := newAuthHarness(t)
+	deps.userSvc.EXPECT().ListStaff(mock.Anything).Return([]*dto.UserResponse{
+		{ID: uuid.New(), Username: "featherine", DisplayName: "Featherine", Role: role.RoleSuperAdmin},
+		{ID: uuid.New(), Username: "beato", DisplayName: "Beatrice", Role: role.RoleAdmin},
+	}, nil)
+
+	// when
+	status, body := h.NewRequest("GET", "/staff").Do()
+
+	// then
+	require.Equal(t, http.StatusOK, status)
+	got := testutil.UnmarshalJSON[[]dto.UserResponse](t, body)
+	require.Len(t, got, 2)
+	assert.Equal(t, "featherine", got[0].Username)
+	assert.Equal(t, role.RoleAdmin, got[1].Role)
+}
+
+func TestStaff_ServiceError(t *testing.T) {
+	// given
+	h, deps := newAuthHarness(t)
+	deps.userSvc.EXPECT().ListStaff(mock.Anything).Return(nil, errors.New("boom"))
+
+	// when
+	status, _ := h.NewRequest("GET", "/staff").Do()
+
+	// then
+	require.Equal(t, http.StatusInternalServerError, status)
 }
 
 func TestGetRules_OK(t *testing.T) {

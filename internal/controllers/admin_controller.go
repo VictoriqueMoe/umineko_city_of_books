@@ -33,6 +33,7 @@ func (s *Service) getAllAdminRoutes() []FSetupRoute {
 		s.setupAdminLockUser,
 		s.setupAdminUnlockUser,
 		s.setupAdminDeleteUser,
+		s.setupAdminResetPassword,
 		s.setupAdminGetSettings,
 		s.setupAdminUpdateSettings,
 		s.setupAdminSendTestEmail,
@@ -100,6 +101,10 @@ func (s *Service) setupAdminUnlockUser(r fiber.Router) {
 
 func (s *Service) setupAdminDeleteUser(r fiber.Router) {
 	r.Delete("/admin/users/:id", s.requirePerm(authz.PermDeleteAnyUser), s.adminDeleteUser)
+}
+
+func (s *Service) setupAdminResetPassword(r fiber.Router) {
+	r.Post("/admin/users/:id/reset-password", s.requirePerm(authz.PermResetPassword), s.adminResetPassword)
 }
 
 func (s *Service) setupAdminGetSettings(r fiber.Router) {
@@ -244,6 +249,19 @@ func (s *Service) adminDeleteUser(ctx fiber.Ctx) error {
 		return handleAdminError(ctx, err)
 	}
 	return utils.OK(ctx)
+}
+
+func (s *Service) adminResetPassword(ctx fiber.Ctx) error {
+	actorID, targetID, ok := utils.ActorAndTarget(ctx)
+	if !ok {
+		return nil
+	}
+
+	password, err := s.AdminService.ResetUserPassword(ctx.Context(), actorID, targetID)
+	if err != nil {
+		return handleAdminError(ctx, err)
+	}
+	return ctx.JSON(dto.AdminResetPasswordResponse{Password: password})
 }
 
 func (s *Service) adminGetSettings(ctx fiber.Ctx) error {

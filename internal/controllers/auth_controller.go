@@ -52,6 +52,7 @@ func (s *Service) getAllAuthRoutes() []FSetupRoute {
 		s.setupSessionRoute,
 		s.setupSiteInfoRoute,
 		s.setupGetRulesRoute,
+		s.setupStaffRoute,
 	}
 }
 
@@ -334,6 +335,18 @@ func (s *Service) resendVerification(ctx fiber.Ctx) error {
 
 func (s *Service) setupSiteInfoRoute(r fiber.Router) {
 	r.Get("/site-info", s.siteInfo)
+}
+
+func (s *Service) setupStaffRoute(r fiber.Router) {
+	r.Get("/staff", s.staff)
+}
+
+func (s *Service) staff(ctx fiber.Ctx) error {
+	staff, err := s.UserService.ListStaff(ctx.Context())
+	if err != nil {
+		return utils.InternalError(ctx, "failed to load staff")
+	}
+	return ctx.JSON(staff)
 }
 
 func (s *Service) siteInfo(ctx fiber.Ctx) error {

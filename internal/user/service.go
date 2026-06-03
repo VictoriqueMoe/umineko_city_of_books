@@ -3,11 +3,14 @@ package user
 import (
 	"context"
 	"fmt"
+	"slices"
+	"strings"
 
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/role"
 
 	"github.com/google/uuid"
 )
@@ -16,6 +19,7 @@ type (
 	Service interface {
 		Create(ctx context.Context, username, email, password, displayName string) (*dto.UserResponse, error)
 		GetByID(ctx context.Context, id uuid.UUID) (*dto.UserResponse, error)
+		ListStaff(ctx context.Context) ([]*dto.UserResponse, error)
 		ValidateCredentials(ctx context.Context, username, password string) (*dto.UserResponse, error)
 		CheckUsernameAvailable(ctx context.Context, username string) error
 
@@ -76,6 +80,40 @@ func (s *service) GetByID(ctx context.Context, id uuid.UUID) (*dto.UserResponse,
 		return nil, ErrUserNotFound
 	}
 	return user.ToResponse(), nil
+}
+
+func (s *service) ListStaff(ctx context.Context) ([]*dto.UserResponse, error) {
+	ids, err := s.roleRepo.GetUsersByRoles(ctx, []role.Role{authz.RoleSuperAdmin, authz.RoleAdmin})
+	if err != nil {
+		return nil, fmt.Errorf("get staff ids: %w", err)
+	}
+	if len(ids) == 0 {
+		return []*dto.UserResponse{}, nil
+	}
+
+	users, err := s.repo.GetByIDs(ctx, ids)
+	if err != nil {
+		return nil, fmt.Errorf("get staff users: %w", err)
+	}
+
+	staff := make([]*dto.UserResponse, 0, len(users))
+	for i := range users {
+		if users[i].BannedAt != nil {
+			continue
+		}
+		staff = append(staff, users[i].ToResponse())
+	}
+
+	slices.SortFunc(staff, func(a, b *dto.UserResponse) int {
+		if a.Role != b.Role {
+			if a.Role == authz.RoleSuperAdmin {
+				return -1
+			}
+			return 1
+		}
+		return strings.Compare(strings.ToLower(a.DisplayName), strings.ToLower(b.DisplayName))
+	})
+	return staff, nil
 }
 
 func (s *service) ValidateCredentials(ctx context.Context, username, password string) (*dto.UserResponse, error) {

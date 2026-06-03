@@ -16,6 +16,7 @@ import {
     pinAnnouncement,
     removeBannedGif,
     removeUserRole,
+    resetUserPassword,
     resolveReport,
     sendTestEmail,
     setUserRole,
@@ -102,6 +103,12 @@ export function useAdminDeleteUser() {
     return useMutation({
         mutationFn: (id: string) => adminDeleteUser(id),
         onSuccess: () => qc.invalidateQueries({ queryKey: ["admin"] }),
+    });
+}
+
+export function useResetUserPassword() {
+    return useMutation({
+        mutationFn: (id: string) => resetUserPassword(id),
     });
 }
 

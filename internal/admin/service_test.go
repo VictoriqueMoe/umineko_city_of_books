@@ -216,6 +216,7 @@ func TestGetUser_OK(t *testing.T) {
 	m.userRepo.EXPECT().GetProfileByID(mock.Anything, uid).Return(&model.User{
 		ID:                     uid,
 		Username:               "a",
+		Email:                  "a@example.com",
 		IP:                     new("127.0.0.1"),
 		BannedAt:               new("2026-01-01"),
 		BanReason:              "spam",
@@ -231,6 +232,7 @@ func TestGetUser_OK(t *testing.T) {
 	// then
 	require.NoError(t, err)
 	assert.Equal(t, uid, got.ID)
+	assert.Equal(t, "a@example.com", got.Email)
 	assert.True(t, got.Banned)
 	assert.Equal(t, "127.0.0.1", got.IP)
 	assert.Equal(t, "spam", got.BanReason)
@@ -569,6 +571,77 @@ func TestDeleteUser_RepoError(t *testing.T) {
 
 	// then
 	require.Error(t, err)
+}
+
+func TestResetUserPassword_OK(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	actor := uuid.New()
+	target := uuid.New()
+	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleSuperAdmin, nil)
+	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
+	m.userRepo.EXPECT().SetPassword(mock.Anything, target, mock.Anything).Return(nil)
+	m.sessionRepo.EXPECT().DeleteAllForUser(mock.Anything, target).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, actor, "reset_password", "user", target.String(), "").Return(nil)
+
+	// when
+	password, err := svc.ResetUserPassword(context.Background(), actor, target)
+
+	// then
+	require.NoError(t, err)
+	assert.Len(t, password, 16)
+}
+
+func TestResetUserPassword_SessionDeleteErrorSwallowed(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	actor := uuid.New()
+	target := uuid.New()
+	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleSuperAdmin, nil)
+	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
+	m.userRepo.EXPECT().SetPassword(mock.Anything, target, mock.Anything).Return(nil)
+	m.sessionRepo.EXPECT().DeleteAllForUser(mock.Anything, target).Return(errors.New("session boom"))
+	m.auditRepo.EXPECT().Create(mock.Anything, actor, "reset_password", "user", target.String(), "").Return(nil)
+
+	// when
+	password, err := svc.ResetUserPassword(context.Background(), actor, target)
+
+	// then
+	require.NoError(t, err)
+	assert.Len(t, password, 16)
+}
+
+func TestResetUserPassword_Protected(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	actor := uuid.New()
+	target := uuid.New()
+	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleAdmin, nil)
+	m.authz.EXPECT().GetRole(mock.Anything, target).Return(authz.RoleSuperAdmin, nil)
+
+	// when
+	password, err := svc.ResetUserPassword(context.Background(), actor, target)
+
+	// then
+	assert.ErrorIs(t, err, ErrProtectedUser)
+	assert.Empty(t, password)
+}
+
+func TestResetUserPassword_SetPasswordError(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	actor := uuid.New()
+	target := uuid.New()
+	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleSuperAdmin, nil)
+	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
+	m.userRepo.EXPECT().SetPassword(mock.Anything, target, mock.Anything).Return(errors.New("boom"))
+
+	// when
+	password, err := svc.ResetUserPassword(context.Background(), actor, target)
+
+	// then
+	require.Error(t, err)
+	assert.Empty(t, password)
 }
 
 func TestGetSettings_OK(t *testing.T) {
