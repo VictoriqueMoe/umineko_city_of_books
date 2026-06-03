@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { useForgotPassword } from "../../api/mutations/auth";
 import { useStaff } from "../../api/queries/auth";
@@ -7,10 +7,9 @@ import { usePageTitle } from "../../hooks/usePageTitle";
 import { useSiteInfo } from "../../hooks/useSiteInfo";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
+import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { ROLE_GROUPS } from "../../utils/permissions";
 import styles from "./LoginPage.module.css";
-
-const roleLabels = Object.fromEntries(ROLE_GROUPS.map(g => [g.role, g.label]));
 
 export function ForgotPasswordPage() {
     usePageTitle("Forgot Password");
@@ -111,14 +110,24 @@ export function ForgotPasswordPage() {
                             No email on your account? You will not be able to reset your password yourself. Please
                             contact one of our admins:
                         </p>
-                        <ul className={styles.staffList}>
-                            {staff.map(member => (
-                                <li key={member.id}>
-                                    <Link to={`/user/${member.username}`}>{member.display_name}</Link>
-                                    {member.role && <span className={styles.staffRole}>{roleLabels[member.role]}</span>}
-                                </li>
-                            ))}
-                        </ul>
+                        {ROLE_GROUPS.map(group => {
+                            const members = staff.filter(member => member.role === group.role);
+                            if (members.length === 0) {
+                                return null;
+                            }
+                            return (
+                                <div key={group.role} className={styles.staffGroup}>
+                                    <span className={styles.staffGroupLabel}>{group.label}</span>
+                                    <ul className={styles.staffList}>
+                                        {members.map(member => (
+                                            <li key={member.id}>
+                                                <ProfileLink user={member} size="small" showRoles={false} />
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            );
+                        })}
                     </div>
                 )}
 
