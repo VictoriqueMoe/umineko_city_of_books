@@ -2,11 +2,14 @@ package profile
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 	"umineko_city_of_books/internal/repository/model"
 
+	"umineko_city_of_books/internal/auth"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
@@ -42,6 +45,7 @@ type (
 		settingsSvc    settings.Service
 		contentFilter  *contentfilter.Manager
 		hub            *ws.Hub
+		authService    auth.Service
 	}
 )
 
@@ -75,6 +79,7 @@ func NewService(
 	settingsSvc settings.Service,
 	contentFilter *contentfilter.Manager,
 	hub *ws.Hub,
+	authService auth.Service,
 ) Service {
 	return &service{
 		userRepo:       userRepo,
@@ -85,6 +90,7 @@ func NewService(
 		settingsSvc:    settingsSvc,
 		contentFilter:  contentFilter,
 		hub:            hub,
+		authService:    authService,
 	}
 }
 
@@ -129,6 +135,29 @@ func (s *service) UpdateProfile(ctx context.Context, userID uuid.UUID, req dto.U
 	}
 	req.PronounSubject = capLen(req.PronounSubject, maxPronounLength)
 	req.PronounPossessive = capLen(req.PronounPossessive, maxPronounLength)
+
+	current, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("get user: %w", err)
+	}
+	if current == nil {
+		return ErrUserNotFound
+	}
+
+	req.Email = strings.ToLower(strings.TrimSpace(req.Email))
+	if req.Email != current.Email {
+		if err := s.authService.SetEmail(ctx, userID, req.Email); err != nil {
+			switch {
+			case errors.Is(err, auth.ErrInvalidEmail):
+				return ErrInvalidEmail
+			case errors.Is(err, auth.ErrEmailTaken):
+				return ErrEmailTaken
+			default:
+				return fmt.Errorf("set email: %w", err)
+			}
+		}
+	}
+
 	if err := s.userRepo.UpdateProfile(ctx, userID, req); err != nil {
 		return err
 	}

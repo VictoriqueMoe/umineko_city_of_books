@@ -9,4 +9,6 @@ var (
 	ErrFutureDOB                = errors.New("dob cannot be in the future")
 	ErrInvalidDefaultProfileTab = errors.New("default_profile_tab is not a valid tab id")
 	ErrEmptyDisplayName         = errors.New("display name is required")
+	ErrInvalidEmail             = errors.New("a valid email address is required")
+	ErrEmailTaken               = errors.New("that email address is already in use")
 )

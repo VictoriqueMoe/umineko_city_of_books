@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"umineko_city_of_books/internal/auth"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
@@ -38,7 +39,8 @@ func newTestService(t *testing.T) (
 	authzSvc := authz.NewMockService(t)
 	uploadSvc := upload.NewMockService(t)
 	settingsSvc := settings.NewMockService(t)
-	svc := NewService(userRepo, userSecretRepo, theoryRepo, authzSvc, uploadSvc, settingsSvc, contentfilter.New(), nil).(*service)
+	authSvc := auth.NewMockService(t)
+	svc := NewService(userRepo, userSecretRepo, theoryRepo, authzSvc, uploadSvc, settingsSvc, contentfilter.New(), nil, authSvc).(*service)
 	return svc, userRepo, theoryRepo, authzSvc, uploadSvc, settingsSvc
 }
 
@@ -142,6 +144,7 @@ func TestUpdateProfile_OK(t *testing.T) {
 	req := dto.UpdateProfileRequest{DisplayName: "New Name"}
 	expected := req
 	expected.DefaultProfileTab = "posts"
+	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID}, nil)
 	userRepo.EXPECT().UpdateProfile(mock.Anything, userID, expected).Return(nil)
 
 	// when
@@ -187,6 +190,7 @@ func TestUpdateProfile_RepoError(t *testing.T) {
 	req := dto.UpdateProfileRequest{DisplayName: "New Name"}
 	expected := req
 	expected.DefaultProfileTab = "posts"
+	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID}, nil)
 	userRepo.EXPECT().UpdateProfile(mock.Anything, userID, expected).Return(errors.New("boom"))
 
 	// when
@@ -215,6 +219,7 @@ func TestUpdateProfile_AcceptsOCsAsDefaultTab(t *testing.T) {
 	svc, userRepo, _, _, _, _ := newTestService(t)
 	userID := uuid.New()
 	req := dto.UpdateProfileRequest{DisplayName: "New Name", DefaultProfileTab: "ocs"}
+	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID}, nil)
 	userRepo.EXPECT().UpdateProfile(mock.Anything, userID, req).Return(nil)
 
 	// when
@@ -222,6 +227,60 @@ func TestUpdateProfile_AcceptsOCsAsDefaultTab(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
+}
+
+func TestUpdateProfile_EmailChangeTriggersReverification(t *testing.T) {
+	// given
+	svc, userRepo, _, _, _, _ := newTestService(t)
+	userID := uuid.New()
+	req := dto.UpdateProfileRequest{DisplayName: "New Name", Email: "New@Example.com"}
+	expected := req
+	expected.DefaultProfileTab = "posts"
+	expected.Email = "new@example.com"
+	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, Email: "old@example.com"}, nil)
+	svc.authService.(*auth.MockService).EXPECT().SetEmail(mock.Anything, userID, "new@example.com").Return(nil)
+	userRepo.EXPECT().UpdateProfile(mock.Anything, userID, expected).Return(nil)
+
+	// when
+	err := svc.UpdateProfile(context.Background(), userID, req)
+
+	// then
+	require.NoError(t, err)
+}
+
+func TestUpdateProfile_UnchangedEmailSkipsReverification(t *testing.T) {
+	// given
+	svc, userRepo, _, _, _, _ := newTestService(t)
+	userID := uuid.New()
+	req := dto.UpdateProfileRequest{DisplayName: "New Name", Email: "Same@Example.com"}
+	expected := req
+	expected.DefaultProfileTab = "posts"
+	expected.Email = "same@example.com"
+	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, Email: "same@example.com"}, nil)
+	userRepo.EXPECT().UpdateProfile(mock.Anything, userID, expected).Return(nil)
+
+	// when
+	err := svc.UpdateProfile(context.Background(), userID, req)
+
+	// then
+	require.NoError(t, err)
+	svc.authService.(*auth.MockService).AssertNotCalled(t, "SetEmail", mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestUpdateProfile_EmailTakenIsTranslated(t *testing.T) {
+	// given
+	svc, userRepo, _, _, _, _ := newTestService(t)
+	userID := uuid.New()
+	req := dto.UpdateProfileRequest{DisplayName: "New Name", Email: "taken@example.com"}
+	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, Email: "old@example.com"}, nil)
+	svc.authService.(*auth.MockService).EXPECT().SetEmail(mock.Anything, userID, "taken@example.com").Return(auth.ErrEmailTaken)
+
+	// when
+	err := svc.UpdateProfile(context.Background(), userID, req)
+
+	// then
+	require.ErrorIs(t, err, ErrEmailTaken)
+	userRepo.AssertNotCalled(t, "UpdateProfile", mock.Anything, mock.Anything, mock.Anything)
 }
 
 func TestUploadAvatar_OK(t *testing.T) {

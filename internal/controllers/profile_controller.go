@@ -97,7 +97,7 @@ func (s *Service) updateProfile(ctx fiber.Ctx) error {
 		if utils.MapFilterError(ctx, err) {
 			return nil
 		}
-		if errors.Is(err, profile.ErrInvalidDOB) || errors.Is(err, profile.ErrFutureDOB) || errors.Is(err, profile.ErrInvalidDefaultProfileTab) {
+		if errors.Is(err, profile.ErrInvalidDOB) || errors.Is(err, profile.ErrFutureDOB) || errors.Is(err, profile.ErrInvalidDefaultProfileTab) || errors.Is(err, profile.ErrInvalidEmail) || errors.Is(err, profile.ErrEmailTaken) {
 			return utils.BadRequest(ctx, err.Error())
 		}
 		return utils.InternalError(ctx, "failed to update profile")

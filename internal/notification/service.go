@@ -39,12 +39,21 @@ func NewService(repo repository.NotificationRepository, userRepo repository.User
 	}
 }
 
+func isChatRoomNotif(t dto.NotificationType) bool {
+	switch t {
+	case dto.NotifChatRoomMessage, dto.NotifChatMention, dto.NotifChatReply:
+		return true
+	default:
+		return false
+	}
+}
+
 func (s *service) Notify(ctx context.Context, params dto.NotifyParams) error {
 	if params.RecipientID == params.ActorID {
 		return nil
 	}
 
-	willConsiderEmail := params.Type != dto.NotifChatMessage && params.EmailSubject != ""
+	willConsiderEmail := !isChatRoomNotif(params.Type) && params.EmailSubject != ""
 	var emailDupe bool
 	if willConsiderEmail {
 		emailDupe, _ = s.repo.HasRecentDuplicate(ctx, params.RecipientID, params.Type, params.ReferenceID, params.ActorID)
