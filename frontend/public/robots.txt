@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://meta.auaurora.moe/sitemap.xml
+Sitemap: https://whentheycry.social/sitemap.xml
