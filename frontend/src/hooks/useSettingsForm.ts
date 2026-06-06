@@ -133,12 +133,13 @@ export function useSettingsForm() {
     const dobPublic = activeDraft.dob_public ?? profile?.dob_public ?? false;
     const email = activeDraft.email ?? profile?.email ?? "";
     const emailPublic = activeDraft.email_public ?? profile?.email_public ?? false;
-    const emailNotifications = activeDraft.email_notifications ?? profile?.email_notifications ?? false;
-    const playMessageSound = activeDraft.play_message_sound ?? profile?.play_message_sound ?? true;
-    const playNotificationSound = activeDraft.play_notification_sound ?? profile?.play_notification_sound ?? true;
-    const homePage = activeDraft.home_page ?? profile?.home_page ?? "landing";
-    const gameBoardSort = activeDraft.game_board_sort ?? profile?.game_board_sort ?? "relevance";
-    const defaultProfileTab = activeDraft.default_profile_tab ?? profile?.default_profile_tab ?? "posts";
+    const emailNotifications = activeDraft.email_notifications ?? profile?.private?.email_notifications ?? false;
+    const playMessageSound = activeDraft.play_message_sound ?? profile?.private?.play_message_sound ?? true;
+    const playNotificationSound =
+        activeDraft.play_notification_sound ?? profile?.private?.play_notification_sound ?? true;
+    const homePage = activeDraft.home_page ?? profile?.private?.home_page ?? "landing";
+    const gameBoardSort = activeDraft.game_board_sort ?? profile?.private?.game_board_sort ?? "relevance";
+    const defaultProfileTab = activeDraft.default_profile_tab ?? profile?.private?.default_profile_tab ?? "posts";
 
     function patch(update: Partial<FormDraft>) {
         setDraft(prev => {

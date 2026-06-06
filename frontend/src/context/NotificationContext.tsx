@@ -131,7 +131,7 @@ export function NotificationProvider({ children }: PropsWithChildren) {
                     bumpUnread();
                     qc.invalidateQueries({ queryKey: ["notifications", "list"] });
                     showDesktopNotification(notif);
-                    if (userRef.current?.play_notification_sound ?? true) {
+                    if (userRef.current?.private?.play_notification_sound ?? true) {
                         playNotificationSound();
                     }
                 }

@@ -36,6 +36,15 @@ export function CommentComposer({ postId, parentId, onCreated, createCommentFn, 
         setFiles(prev => prev.filter((_, i) => i !== index));
     }
 
+    function reorderFile(from: number, to: number) {
+        setFiles(prev => {
+            const next = prev.slice();
+            const [moved] = next.splice(from, 1);
+            next.splice(to, 0, moved);
+            return next;
+        });
+    }
+
     const handlePasteFiles = useCallback(
         (pasted: File[]) => {
             const errors: string[] = [];
@@ -115,7 +124,7 @@ export function CommentComposer({ postId, parentId, onCreated, createCommentFn, 
                 showColours
             />
 
-            <MediaPreviews files={files} onRemove={removeFile} size="small" />
+            <MediaPreviews files={files} onRemove={removeFile} onReorder={reorderFile} size="small" />
 
             <div className={styles.bar}>
                 <MediaPickerButton onFiles={valid => setFiles(prev => [...prev, ...valid])} onError={setError} />

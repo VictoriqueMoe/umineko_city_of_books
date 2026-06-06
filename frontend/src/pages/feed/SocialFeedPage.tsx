@@ -51,7 +51,7 @@ export function SocialFeedPage({ corner = "general" }: SocialFeedPageProps) {
     const [searchParams, setSearchParams] = useSearchParams();
 
     const tab = (searchParams.get("tab") as FeedTab) || "everyone";
-    const sort = (searchParams.get("sort") as PostSort) || (user?.game_board_sort as PostSort) || "relevance";
+    const sort = (searchParams.get("sort") as PostSort) || (user?.private?.game_board_sort as PostSort) || "relevance";
     const search = searchParams.get("search") || "";
     const page = parseInt(searchParams.get("page") || "1", 10);
 
@@ -138,7 +138,7 @@ export function SocialFeedPage({ corner = "general" }: SocialFeedPageProps) {
                         onClick={() => {
                             updateParams({ sort: opt.value, page: "1" });
                             if (user) {
-                                setUser({ ...user, game_board_sort: opt.value });
+                                setUser({ ...user, private: { ...user.private, game_board_sort: opt.value } });
                                 updateGameBoardSortMutation.mutate(opt.value);
                             }
                         }}

@@ -406,7 +406,9 @@ func (r *postRepository) ListByUser(ctx context.Context, userID uuid.UUID, viewe
 func (r *postRepository) AddMedia(ctx context.Context, postID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, sortOrder int) (int64, error) {
 	var id int64
 	err := r.db.QueryRowContext(ctx,
-		`INSERT INTO post_media (post_id, media_url, media_type, thumbnail_url, sort_order) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+		`INSERT INTO post_media (post_id, media_url, media_type, thumbnail_url, sort_order)
+		VALUES ($1, $2, $3, $4, COALESCE((SELECT MAX(sort_order) + 1 FROM post_media WHERE post_id = $1), $5))
+		RETURNING id`,
 		postID, mediaURL, mediaType, thumbnailURL, sortOrder,
 	).Scan(&id)
 	if err != nil {
@@ -769,7 +771,9 @@ func (r *postRepository) GetCommentAuthorID(ctx context.Context, commentID uuid.
 func (r *postRepository) AddCommentMedia(ctx context.Context, commentID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, sortOrder int) (int64, error) {
 	var id int64
 	err := r.db.QueryRowContext(ctx,
-		`INSERT INTO post_comment_media (comment_id, media_url, media_type, thumbnail_url, sort_order) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+		`INSERT INTO post_comment_media (comment_id, media_url, media_type, thumbnail_url, sort_order)
+		VALUES ($1, $2, $3, $4, COALESCE((SELECT MAX(sort_order) + 1 FROM post_comment_media WHERE comment_id = $1), $5))
+		RETURNING id`,
 		commentID, mediaURL, mediaType, thumbnailURL, sortOrder,
 	).Scan(&id)
 	if err != nil {

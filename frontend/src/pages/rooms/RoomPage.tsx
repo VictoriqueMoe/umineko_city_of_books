@@ -474,7 +474,7 @@ export function RoomPage() {
                         senderId: chatMsg.sender.id,
                         currentUserId: user.id,
                         roomMuted: roomMutedRef.current,
-                        enabled: user.play_message_sound ?? true,
+                        enabled: user.private?.play_message_sound ?? true,
                     });
                 }
                 return;

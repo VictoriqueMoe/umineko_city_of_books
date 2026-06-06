@@ -98,6 +98,15 @@ export function PostComposer({ corner = "general" }: PostComposerProps) {
         setFiles(prev => prev.filter((_, i) => i !== index));
     }
 
+    function reorderFile(from: number, to: number) {
+        setFiles(prev => {
+            const next = prev.slice();
+            const [moved] = next.splice(from, 1);
+            next.splice(to, 0, moved);
+            return next;
+        });
+    }
+
     const handlePasteFiles = useCallback(
         (pasted: File[]) => {
             const errors: string[] = [];
@@ -132,7 +141,7 @@ export function PostComposer({ corner = "general" }: PostComposerProps) {
                 showColours
             />
 
-            <MediaPreviews files={files} onRemove={removeFile} />
+            <MediaPreviews files={files} onRemove={removeFile} onReorder={reorderFile} />
 
             {showPoll && (
                 <PollCreator

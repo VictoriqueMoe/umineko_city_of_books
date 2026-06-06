@@ -99,45 +99,12 @@ func (u *User) ToResponse() *dto.UserResponse {
 }
 
 func (u *User) ToProfileResponse(stats *UserStats, isSelf bool) *dto.UserProfileResponse {
-	email := ""
-	emailPublic := u.EmailPublic
-	emailNotifications := false
-	playMessageSound := false
-	playNotificationSound := false
-	homePage := ""
-	gameBoardSort := ""
-	defaultProfileTab := u.DefaultProfileTab
-	theme := ""
-	font := ""
-	wideLayout := false
-	emailVerified := false
-	verifyGraceUntil := ""
-	dob := ""
-	dobPublic := u.DOBPublic
-	if u.EmailPublic || isSelf {
-		email = u.Email
-	}
-	if u.DOBPublic || isSelf {
-		dob = u.DOB
-	}
-	if isSelf {
-		emailNotifications = u.EmailNotifications
-		playMessageSound = u.PlayMessageSound
-		playNotificationSound = u.PlayNotificationSound
-		homePage = u.HomePage
-		gameBoardSort = u.GameBoardSort
-		theme = u.Theme
-		font = u.Font
-		wideLayout = u.WideLayout
-		emailVerified = u.EmailVerified
-		verifyGraceUntil = u.VerifyGraceUntil
-	}
-	return &dto.UserProfileResponse{
+	resp := &dto.UserProfileResponse{
 		UserResponse:           *u.ToResponse(),
+		Bio:                    u.Bio,
 		EpisodeProgress:        u.EpisodeProgress,
 		HigurashiArcProgress:   u.HigurashiArcProgress,
 		CiconiaChapterProgress: u.CiconiaChapterProgress,
-		Bio:                    u.Bio,
 		BannerURL:              u.BannerURL,
 		BannerPosition:         u.BannerPosition,
 		FavouriteCharacter:     u.FavouriteCharacter,
@@ -151,21 +118,8 @@ func (u *User) ToProfileResponse(stats *UserStats, isSelf bool) *dto.UserProfile
 		SocialGithub:           u.SocialGithub,
 		Website:                u.Website,
 		DmsEnabled:             u.DmsEnabled,
-		DOB:                    dob,
-		DOBPublic:              dobPublic,
-		Email:                  email,
-		EmailPublic:            emailPublic,
-		EmailVerified:          emailVerified,
-		VerifyGraceUntil:       verifyGraceUntil,
-		EmailNotifications:     emailNotifications,
-		PlayMessageSound:       playMessageSound,
-		PlayNotificationSound:  playNotificationSound,
-		HomePage:               homePage,
-		GameBoardSort:          gameBoardSort,
-		DefaultProfileTab:      defaultProfileTab,
-		Theme:                  theme,
-		Font:                   font,
-		WideLayout:             wideLayout,
+		DOBPublic:              u.DOBPublic,
+		EmailPublic:            u.EmailPublic,
 		CreatedAt:              u.CreatedAt,
 		Stats: dto.UserStatsDTO{
 			TheoryCount:   stats.TheoryCount,
@@ -176,4 +130,28 @@ func (u *User) ToProfileResponse(stats *UserStats, isSelf bool) *dto.UserProfile
 			FanficCount:   stats.FanficCount,
 		},
 	}
+
+	if u.EmailPublic || isSelf {
+		resp.Email = u.Email
+	}
+	if u.DOBPublic || isSelf {
+		resp.DOB = u.DOB
+	}
+	if isSelf {
+		resp.Private = &dto.UserPrivateFields{
+			EmailVerified:         u.EmailVerified,
+			VerifyGraceUntil:      u.VerifyGraceUntil,
+			EmailNotifications:    u.EmailNotifications,
+			PlayMessageSound:      u.PlayMessageSound,
+			PlayNotificationSound: u.PlayNotificationSound,
+			HomePage:              u.HomePage,
+			GameBoardSort:         u.GameBoardSort,
+			DefaultProfileTab:     u.DefaultProfileTab,
+			Theme:                 u.Theme,
+			Font:                  u.Font,
+			WideLayout:            u.WideLayout,
+		}
+	}
+
+	return resp
 }

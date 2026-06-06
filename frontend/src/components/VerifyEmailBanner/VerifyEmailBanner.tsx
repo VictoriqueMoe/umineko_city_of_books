@@ -23,12 +23,12 @@ export function VerifyEmailBanner() {
     if (!user) {
         return null;
     }
-    if (user.email && user.email_verified !== false) {
+    if (user.email && user.private?.email_verified !== false) {
         return null;
     }
 
     const noEmail = !user.email;
-    const remaining = user.verify_grace_until ? daysLeft(user.verify_grace_until) : 0;
+    const remaining = user.private?.verify_grace_until ? daysLeft(user.private.verify_grace_until) : 0;
     const action = noEmail ? "Add an email address to your account" : `Verify your email (${user.email})`;
     const message =
         remaining > 0

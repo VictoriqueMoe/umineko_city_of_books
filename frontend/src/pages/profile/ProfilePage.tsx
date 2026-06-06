@@ -137,7 +137,7 @@ export function ProfilePage() {
     const { profile, loading } = useProfile(username ?? "");
     usePageTitle(profile?.display_name ?? "Profile");
     const [explicitTab, setExplicitTab] = useState<TabType | null>(null);
-    const activeTab: TabType = explicitTab ?? (profile?.default_profile_tab as TabType | undefined) ?? "posts";
+    const activeTab: TabType = explicitTab ?? (profile?.private?.default_profile_tab as TabType | undefined) ?? "posts";
     const setActiveTab = setExplicitTab as (tab: TabType) => void;
     const follow = useFollow(profile?.id ?? "");
     const blockHook = useBlock(profile?.id ?? "");
@@ -276,6 +276,14 @@ export function ProfilePage() {
         });
     }
 
+    if (profile.email) {
+        socialEntries.push({
+            key: "email",
+            label: "Email",
+            value: profile.email,
+        });
+    }
+
     const showGender = profile.gender && profile.gender !== "Prefer not to say";
 
     const isBanned = profile.banned === true;
@@ -355,11 +363,6 @@ export function ProfilePage() {
                         )}
                         {profile.dob && <span className={styles.metaItem}>Born {formatDOBWithAge(profile.dob)}</span>}
                         <span className={styles.metaItem}>Joined {formatDate(profile.created_at)}</span>
-                        {profile.email && (
-                            <a href={`mailto:${profile.email}`} className={styles.metaItem}>
-                                {profile.email}
-                            </a>
-                        )}
                     </div>
                 </div>
             </div>
@@ -381,7 +384,9 @@ export function ProfilePage() {
                                             ? entry.value.startsWith("http")
                                                 ? entry.value
                                                 : `https://${entry.value}`
-                                            : socialUrl(entry.key, entry.value)
+                                            : entry.key === "email"
+                                              ? `mailto:${entry.value}`
+                                              : socialUrl(entry.key, entry.value)
                                     }
                                     target="_blank"
                                     rel="noopener noreferrer"

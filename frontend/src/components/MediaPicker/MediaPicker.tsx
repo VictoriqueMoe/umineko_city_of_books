@@ -9,10 +9,13 @@ type Size = "normal" | "small";
 interface MediaPreviewsProps {
     files: File[];
     onRemove: (index: number) => void;
+    onReorder?: (from: number, to: number) => void;
     size?: Size;
 }
 
-export function MediaPreviews({ files, onRemove, size = "normal" }: MediaPreviewsProps) {
+export function MediaPreviews({ files, onRemove, onReorder, size = "normal" }: MediaPreviewsProps) {
+    const dragIndex = useRef<number | null>(null);
+
     const previews = useMemo(() => {
         const urls: string[] = [];
         for (let i = 0; i < files.length; i++) {
@@ -33,6 +36,19 @@ export function MediaPreviews({ files, onRemove, size = "normal" }: MediaPreview
         return null;
     }
 
+    const canReorder = !!onReorder && files.length > 1;
+
+    function handleDrop(to: number) {
+        const from = dragIndex.current;
+        dragIndex.current = null;
+
+        if (from === null || from === to || !onReorder) {
+            return;
+        }
+
+        onReorder(from, to);
+    }
+
     const previewClass = size === "small" ? `${styles.preview} ${styles.previewSmall}` : styles.preview;
     const removeClass =
         size === "small" ? `${styles.previewRemove} ${styles.previewRemoveSmall}` : styles.previewRemove;
@@ -42,14 +58,55 @@ export function MediaPreviews({ files, onRemove, size = "normal" }: MediaPreview
             {files.map((file, i) => {
                 const url = previews[i];
                 return (
-                    <div key={i} className={previewClass}>
+                    <div
+                        key={i}
+                        className={canReorder ? `${previewClass} ${styles.previewDraggable}` : previewClass}
+                        draggable={canReorder}
+                        onDragStart={
+                            canReorder
+                                ? () => {
+                                      dragIndex.current = i;
+                                  }
+                                : undefined
+                        }
+                        onDragOver={
+                            canReorder
+                                ? e => {
+                                      e.preventDefault();
+                                  }
+                                : undefined
+                        }
+                        onDrop={canReorder ? () => handleDrop(i) : undefined}
+                    >
                         {url && file.type.startsWith("video/") && <video className={styles.previewMedia} src={url} />}
                         {url && !file.type.startsWith("video/") && (
                             <img className={styles.previewMedia} src={url} alt="" />
                         )}
-                        <button className={removeClass} onClick={() => onRemove(i)}>
+                        <button className={removeClass} onClick={() => onRemove(i)} aria-label="Remove">
                             x
                         </button>
+                        {canReorder && (
+                            <div className={styles.previewReorder}>
+                                <button
+                                    type="button"
+                                    className={styles.previewMove}
+                                    disabled={i === 0}
+                                    onClick={() => onReorder!(i, i - 1)}
+                                    aria-label="Move earlier"
+                                >
+                                    {"‹"}
+                                </button>
+                                <button
+                                    type="button"
+                                    className={styles.previewMove}
+                                    disabled={i === files.length - 1}
+                                    onClick={() => onReorder!(i, i + 1)}
+                                    aria-label="Move later"
+                                >
+                                    {"›"}
+                                </button>
+                            </div>
+                        )}
                     </div>
                 );
             })}
