@@ -87,8 +87,74 @@ func TestGetProfile_SelfViewIncludesPrivate(t *testing.T) {
 	assert.Equal(t, "2000-04-15", got.DOB)
 	assert.False(t, got.DOBPublic)
 	assert.Equal(t, "a@x.com", got.Email)
-	assert.True(t, got.EmailNotifications)
-	assert.Equal(t, "home", got.HomePage)
+
+	require.NotNil(t, got.Private)
+	assert.True(t, got.Private.EmailNotifications)
+	assert.Equal(t, "home", got.Private.HomePage)
+}
+
+func TestGetProfile_NonSelfOmitsPrivate(t *testing.T) {
+	// given
+	svc, userRepo, _, _, _, _ := newTestService(t)
+	user := &model.User{
+		ID:                 uuid.New(),
+		Username:           "alice",
+		EmailNotifications: true,
+		HomePage:           "home",
+		Theme:              "rokkenjima",
+	}
+	stats := &model.UserStats{}
+	userRepo.EXPECT().GetProfileByUsername(mock.Anything, "alice").Return(user, stats, nil)
+
+	// when
+	got, err := svc.GetProfile(context.Background(), "alice", uuid.New())
+
+	// then
+	require.NoError(t, err)
+	assert.Nil(t, got.Private)
+}
+
+func TestGetProfile_PublicEmailVisibleToOthers(t *testing.T) {
+	// given
+	svc, userRepo, _, _, _, _ := newTestService(t)
+	user := &model.User{
+		ID:          uuid.New(),
+		Username:    "alice",
+		Email:       "a@x.com",
+		EmailPublic: true,
+	}
+	stats := &model.UserStats{}
+	userRepo.EXPECT().GetProfileByUsername(mock.Anything, "alice").Return(user, stats, nil)
+
+	// when
+	got, err := svc.GetProfile(context.Background(), "alice", uuid.New())
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, "a@x.com", got.Email)
+	assert.True(t, got.EmailPublic)
+	assert.Nil(t, got.Private)
+}
+
+func TestGetProfile_PrivateEmailHiddenFromOthers(t *testing.T) {
+	// given
+	svc, userRepo, _, _, _, _ := newTestService(t)
+	user := &model.User{
+		ID:          uuid.New(),
+		Username:    "alice",
+		Email:       "a@x.com",
+		EmailPublic: false,
+	}
+	stats := &model.UserStats{}
+	userRepo.EXPECT().GetProfileByUsername(mock.Anything, "alice").Return(user, stats, nil)
+
+	// when
+	got, err := svc.GetProfile(context.Background(), "alice", uuid.New())
+
+	// then
+	require.NoError(t, err)
+	assert.Empty(t, got.Email)
+	assert.False(t, got.EmailPublic)
 }
 
 func TestGetProfile_NonSelfHidesPrivateDOB(t *testing.T) {

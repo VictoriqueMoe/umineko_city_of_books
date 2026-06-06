@@ -157,6 +157,16 @@ export interface UserProfile {
     dob_public?: boolean;
     email?: string;
     email_public?: boolean;
+    created_at: string;
+    stats: UserStats;
+    banned?: boolean;
+    ban_reason?: string;
+    locked?: boolean;
+    lock_reason?: string;
+    private?: UserPrivateFields;
+}
+
+export interface UserPrivateFields {
     email_verified?: boolean;
     verify_grace_until?: string;
     email_notifications?: boolean;
@@ -168,12 +178,6 @@ export interface UserProfile {
     theme?: string;
     font?: string;
     wide_layout?: boolean;
-    created_at: string;
-    stats: UserStats;
-    banned?: boolean;
-    ban_reason?: string;
-    locked?: boolean;
-    lock_reason?: string;
 }
 
 export interface UserStats {

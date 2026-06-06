@@ -25,6 +25,16 @@
     max-height: 510px;
 }
 
+.lastSpan {
+    grid-column: 1 / -1;
+}
+
+.lastCentered {
+    grid-column: 1 / -1;
+    justify-self: center;
+    width: calc(50% - 1px);
+}
+
 .media {
     width: 100%;
     height: 100%;

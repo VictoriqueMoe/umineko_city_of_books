@@ -125,7 +125,7 @@ const homePageRoutes: Record<string, string> = {
 
 function HomePage() {
     const { user } = useAuth();
-    const target = homePageRoutes[user?.home_page ?? "landing"] ?? "/welcome";
+    const target = homePageRoutes[user?.private?.home_page ?? "landing"] ?? "/welcome";
     if (target === "/welcome") {
         return <LandingPage />;
     }

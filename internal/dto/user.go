@@ -45,19 +45,24 @@ type (
 		DOBPublic              bool         `json:"dob_public"`
 		Email                  string       `json:"email,omitempty"`
 		EmailPublic            bool         `json:"email_public"`
-		EmailVerified          bool         `json:"email_verified"`
-		VerifyGraceUntil       string       `json:"verify_grace_until,omitempty"`
-		EmailNotifications     bool         `json:"email_notifications"`
-		PlayMessageSound       bool         `json:"play_message_sound"`
-		PlayNotificationSound  bool         `json:"play_notification_sound"`
-		HomePage               string       `json:"home_page"`
-		GameBoardSort          string       `json:"game_board_sort"`
-		DefaultProfileTab      string       `json:"default_profile_tab"`
-		Theme                  string       `json:"theme"`
-		Font                   string       `json:"font"`
-		WideLayout             bool         `json:"wide_layout"`
 		CreatedAt              string       `json:"created_at"`
 		Stats                  UserStatsDTO `json:"stats"`
+		// Only present when viewing own profile
+		Private *UserPrivateFields `json:"private,omitempty"`
+	}
+
+	UserPrivateFields struct {
+		EmailVerified         bool   `json:"email_verified"`
+		VerifyGraceUntil      string `json:"verify_grace_until,omitempty"`
+		EmailNotifications    bool   `json:"email_notifications"`
+		PlayMessageSound      bool   `json:"play_message_sound"`
+		PlayNotificationSound bool   `json:"play_notification_sound"`
+		HomePage              string `json:"home_page"`
+		GameBoardSort         string `json:"game_board_sort"`
+		DefaultProfileTab     string `json:"default_profile_tab"`
+		Theme                 string `json:"theme"`
+		Font                  string `json:"font"`
+		WideLayout            bool   `json:"wide_layout"`
 	}
 
 	UserStatsDTO struct {

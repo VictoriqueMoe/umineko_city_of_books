@@ -148,9 +148,9 @@ export function ThemeProvider({ children }: PropsWithChildren) {
     const fallbackTheme: ThemeType =
         siteInfo.default_theme && isValidTheme(siteInfo.default_theme) ? siteInfo.default_theme : FALLBACK_THEME;
 
-    const userTheme = user?.theme && isValidTheme(user.theme) ? user.theme : null;
-    const userFont = user?.font && isValidFont(user.font) ? user.font : null;
-    const userWideLayout = typeof user?.wide_layout === "boolean" ? user.wide_layout : null;
+    const userTheme = user?.private?.theme && isValidTheme(user.private.theme) ? user.private.theme : null;
+    const userFont = user?.private?.font && isValidFont(user.private.font) ? user.private.font : null;
+    const userWideLayout = typeof user?.private?.wide_layout === "boolean" ? user.private.wide_layout : null;
     const userSecrets = user && Array.isArray(user.secrets) ? new Set<string>(user.secrets) : null;
 
     const storedTheme = hasStoredTheme() ? getStoredTheme() : null;

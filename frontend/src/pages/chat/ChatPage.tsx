@@ -6,7 +6,7 @@ import { usePageTitle } from "../../hooks/usePageTitle";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
 import { Modal } from "../../components/Modal/Modal";
-import { ChatComposer } from "../../components/chat/ChatComposer/ChatComposer";
+import { ChatComposer, type ReplyTarget } from "../../components/chat/ChatComposer/ChatComposer";
 import { useVoiceChat } from "../../components/chat/Voice/useVoiceChat";
 import { VoiceBar } from "../../components/chat/Voice/VoiceBar";
 import { VoiceButton } from "../../components/chat/Voice/VoiceButton";
@@ -121,6 +121,7 @@ export function ChatPage() {
     const mobileView: "list" | "room" = urlRoomId || draftRecipient ? "room" : "list";
     const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
     const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+    const [replyingTo, setReplyingTo] = useState<ReplyTarget | null>(null);
     const {
         messages,
         setMessages,
@@ -241,7 +242,7 @@ export function ChatPage() {
                     senderId: chatMsg.sender.id,
                     currentUserId: user.id,
                     roomMuted: activeRoomMutedRef.current,
-                    enabled: user.play_message_sound ?? true,
+                    enabled: user.private?.play_message_sound ?? true,
                 });
             }
 
@@ -339,12 +340,14 @@ export function ChatPage() {
 
     function handleRoomSelect(roomId: string) {
         setActiveRoomId(roomId);
+        setReplyingTo(null);
         setRooms(prev => prev.map(r => (r.id === roomId ? { ...r, unread: false } : r)));
         navigate(`/chat/${roomId}`, { replace: true });
     }
 
     function handleMobileBack() {
         setActiveRoomId(null);
+        setReplyingTo(null);
         setDraftRecipient(null);
         navigate("/chat", { replace: true });
     }
@@ -583,6 +586,14 @@ export function ChatPage() {
                                             }
                                             seenLabel={seenLabel}
                                             onLightbox={setLightboxSrc}
+                                            onReply={m =>
+                                                setReplyingTo({
+                                                    id: m.id,
+                                                    senderName: m.sender.display_name,
+                                                    bodyPreview:
+                                                        m.body.length > 80 ? m.body.slice(0, 80) + "..." : m.body,
+                                                })
+                                            }
                                             onDelete={handleDeleteMessage}
                                             onEdit={handleEditMessage}
                                             onEditStart={m => setEditingMessageId(m.id)}
@@ -613,6 +624,8 @@ export function ChatPage() {
                                 roomId={activeRoomId}
                                 draftRecipientId={null}
                                 onSent={handleSentMessage}
+                                replyingTo={replyingTo}
+                                onCancelReply={() => setReplyingTo(null)}
                                 onTyping={() => sendWSMessage({ type: "typing", data: { room_id: activeRoomId } })}
                                 onEditLast={handleEditLast}
                                 extraActions={
