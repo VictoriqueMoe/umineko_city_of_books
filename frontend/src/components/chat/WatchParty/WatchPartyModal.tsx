@@ -8,6 +8,7 @@ import type { SiteRole } from "../../../utils/permissions";
 import { VoiceParticipantList } from "../Voice/VoiceParticipants";
 import type { ActiveWatchPartySession } from "./useWatchParty";
 import { ScreenShareView } from "./ScreenShareView";
+import { useAudioPlaybackGuard } from "./useAudioPlaybackGuard";
 import { useSessionMedia } from "./useSessionMedia";
 import { WatchPartyChat } from "./WatchPartyChat";
 import { WatchPartyParticipants } from "./WatchPartyParticipants";
@@ -64,6 +65,8 @@ export function WatchPartyModal({
         type: session.type,
         isStarter,
     });
+
+    useAudioPlaybackGuard(media.room);
 
     const forceMuteVoice = (identity: string, muted: boolean) => {
         forceMuteWatchPartyVoiceParticipant(session.room_id, session.id, identity, muted).catch(() => {});
@@ -216,6 +219,9 @@ export function WatchPartyModal({
                                                 ? "Click Share screen to start sharing."
                                                 : "Waiting for the host to share their screen."
                                         }
+                                        onReload={() => {
+                                            media.reload().catch(() => {});
+                                        }}
                                     />
                                 </RoomContext.Provider>
                             ) : (

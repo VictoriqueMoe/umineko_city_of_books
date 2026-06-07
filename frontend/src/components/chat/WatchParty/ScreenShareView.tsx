@@ -4,7 +4,12 @@ import { RemoteAudioTrack, Track } from "livekit-client";
 
 import styles from "./WatchParty.module.css";
 
-export function ScreenShareView({ placeholder }: { placeholder: string }) {
+interface ScreenShareViewProps {
+    placeholder: string;
+    onReload?: () => void;
+}
+
+export function ScreenShareView({ placeholder, onReload }: ScreenShareViewProps) {
     const videoTracks = useTracks([Track.Source.ScreenShare]);
     const audioTracks = useTracks([Track.Source.ScreenShareAudio]);
     const screen = videoTracks.length > 0 ? videoTracks[0] : null;
@@ -25,6 +30,16 @@ export function ScreenShareView({ placeholder }: { placeholder: string }) {
     return (
         <>
             <VideoTrack trackRef={screen} className={styles.screenVideo} />
+            {!screen.participant.isLocal && onReload && (
+                <button
+                    type="button"
+                    className={styles.reloadBtn}
+                    onClick={onReload}
+                    title="Reload if the screen is black"
+                >
+                    {"↻"} Reload stream
+                </button>
+            )}
             {audioTrack && (
                 <label className={styles.volumeControl}>
                     <span aria-hidden="true">{volume === 0 ? "\u{1F507}" : "\u{1F50A}"}</span>
