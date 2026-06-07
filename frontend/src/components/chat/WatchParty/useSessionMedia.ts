@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Room, RoomEvent } from "livekit-client";
+import { AudioPresets, Room, RoomEvent } from "livekit-client";
 
 import { getWatchPartyVoiceToken } from "../../../api/endpoints";
 import type { WatchPartyType } from "../../../types/api";
@@ -139,7 +139,22 @@ export function useSessionMedia({ roomId, sessionId, type, isStarter }: UseSessi
                 return;
             }
 
-            await lkRoom.localParticipant.setScreenShareEnabled(on, { audio: true });
+            await lkRoom.localParticipant.setScreenShareEnabled(
+                on,
+                {
+                    audio: {
+                        echoCancellation: false,
+                        noiseSuppression: false,
+                        autoGainControl: false,
+                    },
+                },
+                {
+                    audioPreset: AudioPresets.musicHighQualityStereo,
+                    dtx: false,
+                    red: false,
+                    forceStereo: true,
+                },
+            );
             setIsSharing(on);
         },
         [ensureConnected, isStarter],
