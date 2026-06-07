@@ -71,7 +71,8 @@ export function useSessionMedia({ roomId, sessionId, type, isStarter }: UseSessi
             const lkRoom = buildRoom();
             await lkRoom.connect(url, token);
             return lkRoom;
-        } catch {
+        } catch (err) {
+            console.error("[watchparty] LiveKit connect failed", err);
             roomRef.current = null;
             return null;
         } finally {
@@ -160,5 +161,21 @@ export function useSessionMedia({ roomId, sessionId, type, isStarter }: UseSessi
         [ensureConnected, isStarter],
     );
 
-    return { room, status, inVoice, isSharing, joinVoice, leaveVoice, shareScreen };
+    const reload = useCallback(async () => {
+        const existing = roomRef.current;
+        if (existing) {
+            roomRef.current = null;
+            await existing.disconnect();
+        }
+
+        const lkRoom = await ensureConnected();
+        if (lkRoom && wantMicRef.current) {
+            lkRoom.localParticipant
+                .setMicrophoneEnabled(true)
+                .then(() => setInVoice(true))
+                .catch(() => {});
+        }
+    }, [ensureConnected]);
+
+    return { room, status, inVoice, isSharing, joinVoice, leaveVoice, shareScreen, reload };
 }

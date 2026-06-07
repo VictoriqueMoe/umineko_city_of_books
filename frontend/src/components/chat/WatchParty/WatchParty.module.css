@@ -237,6 +237,25 @@
     color: var(--gold);
 }
 
+.reloadBtn {
+    position: absolute;
+    top: 0.5rem;
+    left: 0.5rem;
+    z-index: 3;
+    background: rgba(0, 0, 0, 0.55);
+    border: 1px solid rgba(var(--gold-rgb), 0.3);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 0.25rem 0.6rem;
+    font-size: 0.78rem;
+    cursor: pointer;
+}
+
+.reloadBtn:hover {
+    border-color: var(--gold);
+    color: var(--gold);
+}
+
 .volumeControl {
     position: absolute;
     bottom: 0.5rem;

@@ -15,6 +15,7 @@ export function WatchPartyChat({ messages, viewerUserId, onSend }: WatchPartyCha
     const [draft, setDraft] = useState("");
     const [busy, setBusy] = useState(false);
     const scrollRef = useRef<HTMLDivElement | null>(null);
+    const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
     useEffect(() => {
         const el = scrollRef.current;
@@ -37,6 +38,7 @@ export function WatchPartyChat({ messages, viewerUserId, onSend }: WatchPartyCha
             setDraft("");
         } finally {
             setBusy(false);
+            textareaRef.current?.focus();
         }
     };
 
@@ -78,13 +80,13 @@ export function WatchPartyChat({ messages, viewerUserId, onSend }: WatchPartyCha
             </div>
             <div className={styles.chatComposer}>
                 <textarea
+                    ref={textareaRef}
                     className={styles.chatTextarea}
                     placeholder="Type a message..."
                     value={draft}
                     onChange={e => setDraft(e.target.value)}
                     onKeyDown={handleKey}
                     rows={2}
-                    disabled={busy}
                     maxLength={2000}
                 />
                 <Button variant="primary" size="small" onClick={handleSend} disabled={!canSend}>
