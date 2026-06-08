@@ -6,6 +6,11 @@
     "scripts": {
         "dev": "vite",
         "build": "tsc -b && vite build",
+        "build:app": "tsc -b && vite build --mode app --outDir dist-app --emptyOutDir",
+        "cap:sync": "npm run build:app && cap sync",
+        "cap:android": "npm run build:app && cap sync android && cap open android",
+        "assets": "capacitor-assets generate --android --iconBackgroundColor \"#0A0612\" --iconBackgroundColorDark \"#0A0612\" --splashBackgroundColor \"#0A0612\" --splashBackgroundColorDark \"#0A0612\"",
+        "test": "vitest run",
         "preview": "vite preview",
         "lint": "eslint --max-warnings=0 .",
         "lint:fix": "eslint . --fix",
@@ -13,6 +18,15 @@
         "prettier:fix": "prettier ./src --write"
     },
     "dependencies": {
+        "@capacitor/android": "^8.4.0",
+        "@capacitor/app": "^8.1.0",
+        "@capacitor/cli": "^8.4.0",
+        "@capacitor/core": "^8.4.0",
+        "@capacitor/ios": "^8.4.0",
+        "@capacitor/preferences": "^8.0.1",
+        "@capacitor/push-notifications": "^8.1.1",
+        "@capacitor/splash-screen": "^8.0.1",
+        "@capacitor/status-bar": "^8.0.2",
         "@hyperbeam/web": "^0.0.38",
         "@livekit/components-react": "^2.9.21",
         "@marsidev/react-turnstile": "^1.5.2",
@@ -37,6 +51,7 @@
         "react-router": "^7.16.0"
     },
     "devDependencies": {
+        "@capacitor/assets": "^3.0.5",
         "@eslint/js": "^10.0.1",
         "@types/dompurify": "^3.2.0",
         "@types/react": "^19.2.16",
@@ -45,9 +60,11 @@
         "eslint": "^10.4.1",
         "eslint-plugin-react-hooks": "^7.1.1",
         "eslint-plugin-react-refresh": "^0.5.2",
+        "jsdom": "^29.1.1",
         "prettier": "^3.8.3",
         "typescript": "^6.0.3",
         "typescript-eslint": "^8.60.1",
-        "vite": "^8.0.16"
+        "vite": "^8.0.16",
+        "vitest": "^4.1.8"
     }
 }

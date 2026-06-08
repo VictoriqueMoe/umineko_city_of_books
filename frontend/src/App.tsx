@@ -1,11 +1,12 @@
 import { Suspense, useEffect, useState } from "react";
-import { BrowserRouter, Link, Navigate, Route, Routes } from "react-router";
+import { BrowserRouter, Link, Navigate, Route, Routes, useNavigate } from "react-router";
 import { useSiteInfo } from "./hooks/useSiteInfo";
 import { useTheme } from "./hooks/useTheme";
 import { useAuth } from "./hooks/useAuth";
 import { useSidebarCollapsed } from "./hooks/useSidebarCollapsed";
 import { canAccessAdmin } from "./utils/permissions";
 import { ensureNotificationPermission } from "./utils/notifications";
+import { initPush } from "./utils/push";
 import { Header } from "./components/layout/Header/Header";
 import { Sidebar } from "./components/layout/Sidebar/Sidebar";
 import { Butterflies } from "./components/layout/Butterflies/Butterflies";
@@ -186,12 +187,14 @@ function AppLayout() {
     const { user, loading: authLoading } = useAuth();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [sidebarCollapsed, setSidebarCollapsed] = useSidebarCollapsed();
+    const navigate = useNavigate();
 
     useEffect(() => {
         if (user) {
             ensureNotificationPermission().catch(() => {});
+            initPush(navigate).catch(() => {});
         }
-    }, [user]);
+    }, [user, navigate]);
 
     if (authLoading) {
         return null;

@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"strings"
 	"time"
 
 	"umineko_city_of_books/internal/config"
@@ -16,6 +17,7 @@ import (
 
 const (
 	CookieName      = "ut_session"
+	bearerPrefix    = "Bearer "
 	defaultDuration = 30 * 24 * time.Hour
 )
 
@@ -78,4 +80,16 @@ func generateToken() (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(bytes), nil
+}
+
+func BearerToken(authorization string) string {
+	if len(authorization) < len(bearerPrefix) {
+		return ""
+	}
+
+	if !strings.EqualFold(authorization[:len(bearerPrefix)], bearerPrefix) {
+		return ""
+	}
+
+	return strings.TrimSpace(authorization[len(bearerPrefix):])
 }

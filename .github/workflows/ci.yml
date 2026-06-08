@@ -27,6 +27,9 @@ jobs:
       - name: ESLint
         run: cd frontend && npm run lint
 
+      - name: Test
+        run: cd frontend && npm run test
+
       - name: Build frontend
         run: cd frontend && npm run build
 

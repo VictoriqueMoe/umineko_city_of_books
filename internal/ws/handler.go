@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/session"
 
@@ -91,10 +92,15 @@ func recoverHandler(conn *websocket.Conn) {
 }
 
 func originAllowed(origin, allowed string) bool {
-	if origin == "" || allowed == "" {
+	if origin == "" {
 		return false
 	}
-	return origin == strings.TrimSuffix(allowed, "/")
+
+	if allowed != "" && origin == strings.TrimSuffix(allowed, "/") {
+		return true
+	}
+
+	return config.IsAppOrigin(origin)
 }
 
 func broadcastPresence(hub *Hub, roomID, userID uuid.UUID, state string) {
@@ -194,14 +200,17 @@ func Handler(hub *Hub, sessionMgr *session.Manager, roomLister RoomLister, gameP
 			})
 		}
 
-		cookie := ctx.Cookies(session.CookieName)
-		if cookie == "" {
+		token := ctx.Cookies(session.CookieName)
+		if token == "" {
+			token = ctx.Query("token")
+		}
+		if token == "" {
 			return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"error": "authentication required",
 			})
 		}
 
-		userID, err := sessionMgr.Validate(ctx.Context(), cookie)
+		userID, err := sessionMgr.Validate(ctx.Context(), token)
 		if err != nil {
 			return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"error": "invalid or expired session",

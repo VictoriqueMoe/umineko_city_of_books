@@ -10,6 +10,14 @@ import (
 	"github.com/google/uuid"
 )
 
+func sessionToken(ctx fiber.Ctx) string {
+	if bearer := session.BearerToken(ctx.Get("Authorization")); bearer != "" {
+		return bearer
+	}
+
+	return ctx.Cookies(session.CookieName)
+}
+
 func isWriteMethod(method string) bool {
 	switch method {
 	case fiber.MethodPost, fiber.MethodPut, fiber.MethodPatch, fiber.MethodDelete:
@@ -80,20 +88,20 @@ func RequirePermission(mgr *session.Manager, authzSvc authz.Service, perm authz.
 
 func OptionalAuth(mgr *session.Manager, authzSvc authz.Service) fiber.Handler {
 	return func(ctx fiber.Ctx) error {
-		cookie := ctx.Cookies(session.CookieName)
-		if cookie == "" {
+		token := sessionToken(ctx)
+		if token == "" {
 			ctx.Locals("userID", uuid.Nil)
 			return ctx.Next()
 		}
 
-		userID, err := mgr.Validate(ctx.Context(), cookie)
+		userID, err := mgr.Validate(ctx.Context(), token)
 		if err != nil {
 			ctx.Locals("userID", uuid.Nil)
 			return ctx.Next()
 		}
 
 		if authzSvc.IsBanned(ctx.Context(), userID) {
-			mgr.Delete(ctx.Context(), cookie)
+			mgr.Delete(ctx.Context(), token)
 			ctx.Locals("userID", uuid.Nil)
 			return ctx.Next()
 		}
@@ -119,15 +127,15 @@ func RequireAuth(mgr *session.Manager, authzSvc authz.Service) fiber.Handler {
 // failure it writes the appropriate response and returns ok=false; callers
 // must then `return nil` so fiber does not run subsequent handlers.
 func authenticateAndCheckBan(ctx fiber.Ctx, mgr *session.Manager, authzSvc authz.Service) (uuid.UUID, string, bool) {
-	cookie := ctx.Cookies(session.CookieName)
-	if cookie == "" {
+	token := sessionToken(ctx)
+	if token == "" {
 		_ = ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "authentication required",
 		})
 		return uuid.Nil, "", false
 	}
 
-	userID, err := mgr.Validate(ctx.Context(), cookie)
+	userID, err := mgr.Validate(ctx.Context(), token)
 	if err != nil {
 		_ = ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "invalid or expired session",
@@ -136,7 +144,7 @@ func authenticateAndCheckBan(ctx fiber.Ctx, mgr *session.Manager, authzSvc authz
 	}
 
 	if authzSvc.IsBanned(ctx.Context(), userID) {
-		mgr.Delete(ctx.Context(), cookie)
+		mgr.Delete(ctx.Context(), token)
 		_ = ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"error": "your account has been banned",
 		})
@@ -162,5 +170,5 @@ func authenticateAndCheckBan(ctx fiber.Ctx, mgr *session.Manager, authzSvc authz
 		}
 	}
 
-	return userID, cookie, true
+	return userID, token, true
 }

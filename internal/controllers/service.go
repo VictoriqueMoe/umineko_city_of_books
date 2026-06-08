@@ -21,6 +21,7 @@ import (
 	ocsvc "umineko_city_of_books/internal/oc"
 	postsvc "umineko_city_of_books/internal/post"
 	"umineko_city_of_books/internal/profile"
+	"umineko_city_of_books/internal/push"
 	"umineko_city_of_books/internal/report"
 	searchsvc "umineko_city_of_books/internal/search"
 	secretsvc "umineko_city_of_books/internal/secret"
@@ -71,6 +72,7 @@ type (
 		HomeFeedService       homefeed.Service
 		SidebarService        sidebar.Service
 		SearchService         searchsvc.Service
+		PushService           push.Service
 		HTMLContent           string
 	}
 )
@@ -109,6 +111,7 @@ func NewService(
 	homeFeedService homefeed.Service,
 	sidebarService sidebar.Service,
 	searchService searchsvc.Service,
+	pushService push.Service,
 	htmlContent string,
 ) Service {
 	return Service{
@@ -145,6 +148,7 @@ func NewService(
 		HomeFeedService:       homeFeedService,
 		SidebarService:        sidebarService,
 		SearchService:         searchService,
+		PushService:           pushService,
 		HTMLContent:           htmlContent,
 	}
 }
@@ -155,6 +159,7 @@ func (s *Service) GetAPIRoutes() []FSetupRoute {
 	all = append(all, s.getAllProfileRoutes()...)
 	all = append(all, s.getAllTheoryRoutes()...)
 	all = append(all, s.getAllNotificationRoutes()...)
+	all = append(all, s.getAllPushRoutes()...)
 	all = append(all, s.getAllAdminRoutes()...)
 	all = append(all, s.getAllChatRoutes()...)
 	all = append(all, s.getAllReportRoutes()...)

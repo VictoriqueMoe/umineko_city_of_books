@@ -120,6 +120,12 @@ func (s *Service) setSessionCookie(ctx fiber.Ctx, token string) {
 	})
 }
 
+func (s *Service) setAppSessionToken(ctx fiber.Ctx, token string) {
+	if ctx.Get("X-Client-Platform") != "" {
+		ctx.Set("X-Session-Token", token)
+	}
+}
+
 func (s *Service) clearSessionCookie(ctx fiber.Ctx) {
 	ctx.Cookie(&fiber.Cookie{
 		Name:     session.CookieName,
@@ -183,6 +189,7 @@ func (s *Service) register(ctx fiber.Ctx) error {
 	}()
 
 	s.setSessionCookie(ctx, token)
+	s.setAppSessionToken(ctx, token)
 	return ctx.Status(fiber.StatusCreated).JSON(user)
 }
 
@@ -212,12 +219,16 @@ func (s *Service) login(ctx fiber.Ctx) error {
 	}()
 
 	s.setSessionCookie(ctx, token)
+	s.setAppSessionToken(ctx, token)
 	return ctx.JSON(user)
 }
 
 func (s *Service) logout(ctx fiber.Ctx) error {
-	cookie := ctx.Cookies(session.CookieName)
-	if err := s.AuthService.Logout(ctx.Context(), cookie); err != nil {
+	token := ctx.Cookies(session.CookieName)
+	if bearer := session.BearerToken(ctx.Get("Authorization")); bearer != "" {
+		token = bearer
+	}
+	if err := s.AuthService.Logout(ctx.Context(), token); err != nil {
 		return utils.InternalError(ctx, "failed to logout")
 	}
 	s.clearSessionCookie(ctx)

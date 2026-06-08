@@ -12,6 +12,7 @@ import {
     startWatchParty as startWatchPartyApi,
     transferWatchPartyControl as transferWatchPartyControlApi,
 } from "../../../api/endpoints";
+import { apiUrl, authHeaders } from "../../../api/client";
 import type {
     WatchPartyControlChangedEvent,
     WatchPartyEndedEvent,
@@ -81,9 +82,11 @@ const emptyState: RoomScopedState = {
 const HIDDEN_LEAVE_AFTER_MS = 10 * 60 * 1000;
 
 function sendLeaveBeacon(roomId: string, sessionId: string) {
-    const url = `/api/v1/chat/rooms/${roomId}/watch-parties/${sessionId}/participants/me`;
+    const url = apiUrl(`/api/v1/chat/rooms/${roomId}/watch-parties/${sessionId}/participants/me`);
     try {
-        fetch(url, { method: "DELETE", credentials: "include", keepalive: true });
+        fetch(url, { method: "DELETE", credentials: "include", keepalive: true, headers: authHeaders() }).catch(
+            () => {},
+        );
     } catch {}
 }
 

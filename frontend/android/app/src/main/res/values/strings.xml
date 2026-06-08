@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Umineko City of Books</string>
+    <string name="title_activity_main">Umineko City of Books</string>
+    <string name="package_name">moe.auaurora.cityofbooks</string>
+    <string name="custom_url_scheme">moe.auaurora.cityofbooks</string>
+</resources>

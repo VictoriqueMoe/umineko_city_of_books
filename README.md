@@ -814,6 +814,39 @@ npm run prettier:fix
 
 Run lint and build before committing frontend changes. Both need to pass cleanly.
 
+### Mobile app (Capacitor)
+
+The same React frontend is packaged as a native iOS/Android app via [Capacitor](https://capacitorjs.com/). The Capacitor project lives in `frontend/` (config in `frontend/capacitor.config.ts`, generated native project in `frontend/android/`).
+
+```bash
+cd frontend
+npm run build:app   # builds the app bundle into frontend/dist-app/ using .env.app
+npm run cap:sync    # build:app + copy assets into the native projects
+npm run cap:android # build:app + sync + open Android Studio (build/run the APK there)
+```
+
+The web build (`npm run build`) and the app build (`npm run build:app`) are separate artefacts: the web build goes to `../static/` (served by the Go server, same-origin), the app build goes to `dist-app/` (bundled into the app). iOS must be built on macOS (`npx cap add ios` then Xcode); Android builds on any OS with Android Studio installed.
+
+#### Changing the app's API base URL
+
+The website's base URL is dynamic (`base_url` site setting). The packaged **app** is different: it has no server origin, so it needs an absolute API URL that is baked into the bundle at build time.
+
+That URL comes from `VITE_API_BASE` in `frontend/.env.app`:
+
+```
+VITE_API_BASE=https://whentheycry.social
+```
+
+To point the app at a different domain:
+
+1. Edit `VITE_API_BASE` in `frontend/.env.app`.
+2. Rebuild the app: `npm run build:app` (or `cap:android`).
+3. Ship a new app version to the stores.
+
+Because the value is compiled into the bundle, already-installed apps keep the old domain until users update. If you migrate domains, keep the old one reachable (even as a redirect/proxy to the API) until old installs age out. The backend allows the app to connect cross-origin via `config.IsAppOrigin` (the fixed Capacitor webview origins) in addition to `base_url`.
+
+The web build leaves `VITE_API_BASE` unset, so the website continues to use same-origin relative URLs with no change.
+
 ## Deployment
 
 ### Self-hosted Docker
