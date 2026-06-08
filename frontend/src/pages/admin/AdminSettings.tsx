@@ -270,6 +270,18 @@ export function AdminSettings() {
             </div>
 
             <div className={styles.card}>
+                <h2 className={styles.sectionTitle}>Push Notifications (Mobile App)</h2>
+                <div className={styles.fieldGroup}>
+                    <ToggleSwitch
+                        label="Enable Push Notifications"
+                        description="Send native push notifications to the mobile app when a recipient is offline (requires FCM_CREDENTIALS_FILE on the server)"
+                        enabled={settings.push_enabled === "true"}
+                        onChange={v => toggleField("push_enabled", v)}
+                    />
+                </div>
+            </div>
+
+            <div className={styles.card}>
                 <h2 className={styles.sectionTitle}>General</h2>
                 <div className={styles.fieldGroup}>
                     <div className={styles.field}>
