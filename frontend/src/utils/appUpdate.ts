@@ -40,10 +40,27 @@ async function downloadLatest(): Promise<void> {
         }
 
         pending = await CapacitorUpdater.download({ url: apiUrl(manifest.path), version: manifest.version });
+        window.dispatchEvent(new CustomEvent("ota-update-ready"));
     } catch {
     } finally {
         checking = false;
     }
+}
+
+export function hasOtaUpdate(): boolean {
+    return pending !== null;
+}
+
+export async function applyOtaUpdate(): Promise<void> {
+    if (!pending) {
+        return;
+    }
+
+    const bundle = pending;
+    pending = null;
+    try {
+        await CapacitorUpdater.set(bundle);
+    } catch {}
 }
 
 async function applyPending(): Promise<void> {
