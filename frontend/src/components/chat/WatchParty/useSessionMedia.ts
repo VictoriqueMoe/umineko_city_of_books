@@ -6,6 +6,33 @@ import type { WatchPartyType } from "../../../types/api";
 
 export type SessionMediaStatus = "idle" | "connecting" | "connected";
 
+export type ScreenShareMode = "gaming" | "screenshare";
+
+interface ScreenSharePreset {
+    contentHint: "motion" | "detail";
+    resolution: { width: number; height: number; frameRate: number };
+    videoCodec: "vp9";
+    degradationPreference: "maintain-framerate" | "maintain-resolution";
+    maxBitrate: number;
+}
+
+const SCREEN_SHARE_PRESETS: Record<ScreenShareMode, ScreenSharePreset> = {
+    gaming: {
+        contentHint: "motion",
+        resolution: { width: 1920, height: 1080, frameRate: 60 },
+        videoCodec: "vp9",
+        degradationPreference: "maintain-framerate",
+        maxBitrate: 6_000_000,
+    },
+    screenshare: {
+        contentHint: "detail",
+        resolution: { width: 1920, height: 1080, frameRate: 15 },
+        videoCodec: "vp9",
+        degradationPreference: "maintain-resolution",
+        maxBitrate: 2_500_000,
+    },
+};
+
 interface UseSessionMediaArgs {
     roomId: string;
     sessionId: string;
@@ -130,7 +157,7 @@ export function useSessionMedia({ roomId, sessionId, type, isStarter }: UseSessi
     }, [type]);
 
     const shareScreen = useCallback(
-        async (on: boolean) => {
+        async (on: boolean, mode: ScreenShareMode) => {
             if (!isStarter) {
                 return;
             }
@@ -140,6 +167,8 @@ export function useSessionMedia({ roomId, sessionId, type, isStarter }: UseSessi
                 return;
             }
 
+            const preset = SCREEN_SHARE_PRESETS[mode];
+
             await lkRoom.localParticipant.setScreenShareEnabled(
                 on,
                 {
@@ -148,12 +177,20 @@ export function useSessionMedia({ roomId, sessionId, type, isStarter }: UseSessi
                         noiseSuppression: false,
                         autoGainControl: false,
                     },
+                    contentHint: preset.contentHint,
+                    resolution: preset.resolution,
                 },
                 {
                     audioPreset: AudioPresets.musicHighQualityStereo,
                     dtx: false,
                     red: false,
                     forceStereo: true,
+                    videoCodec: preset.videoCodec,
+                    degradationPreference: preset.degradationPreference,
+                    screenShareEncoding: {
+                        maxBitrate: preset.maxBitrate,
+                        maxFramerate: preset.resolution.frameRate,
+                    },
                 },
             );
             setIsSharing(on);

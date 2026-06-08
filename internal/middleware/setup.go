@@ -75,9 +75,11 @@ func Setup(app *fiber.App, settingsSvc settings.Service, sessionMgr *session.Man
 
 	app.Use(cors.New(cors.Config{
 		AllowCredentials: true,
+		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization", "X-Client-Platform"},
+		ExposeHeaders:    []string{"X-Session-Token"},
 		AllowOriginsFunc: func(origin string) bool {
 			allowed := settingsSvc.Get(context.Background(), config.SettingBaseURL)
-			return origin == allowed
+			return origin == allowed || config.IsAppOrigin(origin)
 		},
 	}))
 
@@ -170,9 +172,9 @@ func maintenanceMiddleware(settingsSvc settings.Service, sessionMgr *session.Man
 			return ctx.Next()
 		}
 
-		cookie := ctx.Cookies(session.CookieName)
-		if cookie != "" {
-			if userID, err := sessionMgr.Validate(ctx.Context(), cookie); err == nil {
+		token := sessionToken(ctx)
+		if token != "" {
+			if userID, err := sessionMgr.Validate(ctx.Context(), token); err == nil {
 				if authzSvc.Can(ctx.Context(), userID, authz.PermManageSettings) {
 					return ctx.Next()
 				}

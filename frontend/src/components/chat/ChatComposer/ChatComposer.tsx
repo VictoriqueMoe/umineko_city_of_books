@@ -28,6 +28,8 @@ interface ChatComposerProps {
     onEditLast?: () => void;
     timeoutUntil?: string;
     extraActions?: React.ReactNode;
+    sendOnEnter?: boolean;
+    compact?: boolean;
 }
 
 function formatSendError(err: unknown): string {
@@ -68,8 +70,11 @@ export function ChatComposer({
     onEditLast,
     timeoutUntil,
     extraActions,
+    sendOnEnter = true,
+    compact = false,
 }: ChatComposerProps) {
     const [, setTimeoutTick] = useState(0);
+    const [toolbarOpen, setToolbarOpen] = useState(false);
     const timedOut = isTimeoutActive(timeoutUntil);
     const siteInfo = useSiteInfo();
     const [body, setBody] = useState("");
@@ -232,6 +237,9 @@ export function ChatComposer({
         if (e.key !== "Enter") {
             return;
         }
+        if (!sendOnEnter) {
+            return;
+        }
         if (e.shiftKey) {
             return;
         }
@@ -243,6 +251,10 @@ export function ChatComposer({
     }
 
     const canSend = !submitting && (body.trim().length > 0 || files.length > 0);
+    const showToolbarItems = !compact || toolbarOpen;
+    const placeholder = sendOnEnter
+        ? "Type a message... (Enter to send, Shift+Enter for newline)"
+        : "Type a message...";
 
     if (timedOut) {
         const until = formatFullDateTime(timeoutUntil);
@@ -276,29 +288,50 @@ export function ChatComposer({
             )}
             <div className={styles.textareaWrapper} onKeyDown={handleKeyDown}>
                 <MentionTextArea
-                    placeholder="Type a message... (Enter to send, Shift+Enter for newline)"
+                    placeholder={placeholder}
                     value={body}
                     onChange={handleBodyChange}
                     rows={1}
                     onPasteFiles={handlePasteFiles}
                     mentionPool={mentionPool}
                     showColours
+                    colourBarOpen={showToolbarItems}
                 />
             </div>
             <div className={styles.actions}>
-                <MediaPickerButton onFiles={valid => setFiles(prev => [...prev, ...valid])} onError={setError} />
-                <div className={styles.gifAnchor}>
+                {compact && (
                     <Button
                         variant="ghost"
                         size="small"
-                        onClick={() => setGifPickerOpen(prev => !prev)}
-                        disabled={submitting}
+                        onClick={() => setToolbarOpen(prev => !prev)}
+                        aria-expanded={toolbarOpen}
+                        aria-label="More options"
                     >
-                        + GIF
+                        {toolbarOpen ? "×" : "+"}
                     </Button>
-                    {gifPickerOpen && <GifPicker onPick={handleGifPick} onClose={() => setGifPickerOpen(false)} />}
-                </div>
-                {extraActions}
+                )}
+                {showToolbarItems && (
+                    <>
+                        <MediaPickerButton
+                            onFiles={valid => setFiles(prev => [...prev, ...valid])}
+                            onError={setError}
+                        />
+                        <div className={styles.gifAnchor}>
+                            <Button
+                                variant="ghost"
+                                size="small"
+                                onClick={() => setGifPickerOpen(prev => !prev)}
+                                disabled={submitting}
+                            >
+                                + GIF
+                            </Button>
+                            {gifPickerOpen && (
+                                <GifPicker onPick={handleGifPick} onClose={() => setGifPickerOpen(false)} />
+                            )}
+                        </div>
+                        {extraActions}
+                    </>
+                )}
                 <Button
                     variant="primary"
                     size="small"

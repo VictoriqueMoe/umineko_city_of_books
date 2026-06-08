@@ -9,6 +9,7 @@ interface MinesweeperBoardProps {
     slot: number;
     interactive: boolean;
     cellSize?: number;
+    flagMode?: boolean;
     pendingClick?: { x: number; y: number } | null;
     onReveal?: (x: number, y: number) => void;
     onFlag?: (x: number, y: number) => void;
@@ -19,6 +20,7 @@ export function MinesweeperBoard({
     slot,
     interactive,
     cellSize = 32,
+    flagMode = false,
     pendingClick,
     onReveal,
     onFlag,
@@ -62,7 +64,7 @@ export function MinesweeperBoard({
     const boardClass = isMini ? `${styles.board} ${styles.boardMini}` : styles.board;
 
     const cssVars: CSSProperties = {
-        ["--cell-size" as string]: `${cellSize}px`,
+        ["--cell-max" as string]: `${cellSize}px`,
         ["--cols" as string]: String(state.width),
         ["--rows" as string]: String(state.height),
     };
@@ -93,7 +95,9 @@ export function MinesweeperBoard({
                                 forceShowMine={isFinished && c.mine}
                                 hideContent={isMini}
                                 disabled={!interactive || state.phase !== "playing" || c.revealed}
-                                onClick={isMini ? undefined : () => onReveal?.(c.x, c.y)}
+                                onClick={
+                                    isMini ? undefined : () => (flagMode ? onFlag?.(c.x, c.y) : onReveal?.(c.x, c.y))
+                                }
                                 onRightClick={isMini ? undefined : () => onFlag?.(c.x, c.y)}
                             />
                         );

@@ -34,6 +34,7 @@ services:
       - postgres.env
     volumes:
       - ./data:/app/data
+      - ./fcm-service-account.json:/app/fcm-service-account.json:ro
     networks:
       - default
       - observability

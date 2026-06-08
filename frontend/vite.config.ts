@@ -22,6 +22,8 @@ export default defineConfig({
     },
     plugins: [react(), devBaseURLPlaceholder()],
     server: {
+        host: true,
+        allowedHosts: true,
         port: 5173,
         proxy: {
             "/api/v1/ws": {

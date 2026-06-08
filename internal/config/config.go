@@ -12,11 +12,12 @@ import (
 
 type (
 	Config struct {
-		Postgres        PostgresConfig
-		DatabaseURL     string
-		GiphyAPIKey     string
-		HyperbeamAPIKey string
-		HyperbeamRegion string
+		Postgres           PostgresConfig
+		DatabaseURL        string
+		GiphyAPIKey        string
+		HyperbeamAPIKey    string
+		HyperbeamRegion    string
+		FCMCredentialsFile string
 	}
 
 	PostgresConfig struct {
@@ -120,6 +121,9 @@ var (
 	SettingCloudflareAccountID     = &SiteSettingDef{"cloudflare_account_id", "", TypeString}
 	SettingCloudflareAPIToken      = &SiteSettingDef{"cloudflare_api_token", "", TypeString}
 	SettingCloudflareEmailFrom     = &SiteSettingDef{"cloudflare_email_from", "", TypeString}
+	SettingPushEnabled             = &SiteSettingDef{"push_enabled", "false", TypeBool}
+	SettingAppLatestVersion        = &SiteSettingDef{"app_latest_version", "", TypeString}
+	SettingAppDownloadURL          = &SiteSettingDef{"app_download_url", "", TypeString}
 
 	AllSiteSettings = []*SiteSettingDef{
 		SettingUploadDir,
@@ -185,6 +189,9 @@ var (
 		SettingCloudflareAccountID,
 		SettingCloudflareAPIToken,
 		SettingCloudflareEmailFrom,
+		SettingPushEnabled,
+		SettingAppLatestVersion,
+		SettingAppDownloadURL,
 	}
 )
 
@@ -277,13 +284,15 @@ func init() {
 	giphyKey := os.Getenv("GIPHY_API_KEY")
 	hyperbeamKey := os.Getenv("HYPERBEAM_API_KEY")
 	hyperbeamRegion := envOr("HYPERBEAM_REGION", "EU")
+	fcmCredentialsFile := os.Getenv("FCM_CREDENTIALS_FILE")
 
 	Cfg = Config{
-		Postgres:        pg,
-		DatabaseURL:     databaseURL,
-		GiphyAPIKey:     giphyKey,
-		HyperbeamAPIKey: hyperbeamKey,
-		HyperbeamRegion: hyperbeamRegion,
+		Postgres:           pg,
+		DatabaseURL:        databaseURL,
+		GiphyAPIKey:        giphyKey,
+		HyperbeamAPIKey:    hyperbeamKey,
+		HyperbeamRegion:    hyperbeamRegion,
+		FCMCredentialsFile: fcmCredentialsFile,
 	}
 
 	for _, def := range AllSiteSettings {
@@ -299,6 +308,15 @@ func envOr(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+func IsAppOrigin(origin string) bool {
+	switch origin {
+	case "capacitor://localhost", "ionic://localhost", "https://localhost", "http://localhost":
+		return true
+	default:
+		return false
+	}
 }
 
 func (c Config) PostgresDSN() string {

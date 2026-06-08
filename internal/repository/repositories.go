@@ -42,6 +42,7 @@ type (
 		SidebarVisited    SidebarLastVisitedRepository
 		Search            SearchRepository
 		Sitemap           SitemapRepository
+		DeviceToken       DeviceTokenRepository
 	}
 )
 
@@ -89,5 +90,6 @@ func New(db *sql.DB) *Repositories {
 		SidebarVisited:    &sidebarLastVisitedRepository{db: db},
 		Search:            &searchRepository{db: db},
 		Sitemap:           &sitemapRepository{db: db},
+		DeviceToken:       &deviceTokenRepository{db: db},
 	}
 }

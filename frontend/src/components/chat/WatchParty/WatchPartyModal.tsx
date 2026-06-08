@@ -9,7 +9,7 @@ import { VoiceParticipantList } from "../Voice/VoiceParticipants";
 import type { ActiveWatchPartySession } from "./useWatchParty";
 import { ScreenShareView } from "./ScreenShareView";
 import { useAudioPlaybackGuard } from "./useAudioPlaybackGuard";
-import { useSessionMedia } from "./useSessionMedia";
+import { useSessionMedia, type ScreenShareMode } from "./useSessionMedia";
 import { WatchPartyChat } from "./WatchPartyChat";
 import { WatchPartyParticipants } from "./WatchPartyParticipants";
 import styles from "./WatchParty.module.css";
@@ -55,6 +55,7 @@ export function WatchPartyModal({
     const hasControlRef = useRef(false);
     const [busy, setBusy] = useState(false);
     const [mountError, setMountError] = useState<string | null>(null);
+    const [shareMode, setShareMode] = useState<ScreenShareMode>("gaming");
     const { session, embedURL, messages, hasControl } = active;
 
     const isScreenShare = session.type === "screenshare";
@@ -279,17 +280,53 @@ export function WatchPartyModal({
                                         Join voice
                                     </Button>
                                 )}
-                                {isScreenShare && isStarter && (
-                                    <Button
-                                        variant="ghost"
-                                        size="small"
-                                        onClick={() => {
-                                            media.shareScreen(!media.isSharing).catch(() => {});
-                                        }}
-                                    >
-                                        {media.isSharing ? "Stop sharing" : "Share screen"}
-                                    </Button>
-                                )}
+                                {isScreenShare &&
+                                    isStarter &&
+                                    (media.isSharing ? (
+                                        <Button
+                                            variant="ghost"
+                                            size="small"
+                                            onClick={() => {
+                                                media.shareScreen(false, shareMode).catch(() => {});
+                                            }}
+                                        >
+                                            Stop sharing
+                                        </Button>
+                                    ) : (
+                                        <div className={styles.shareControls}>
+                                            <div
+                                                className={styles.shareModeToggle}
+                                                role="group"
+                                                aria-label="Stream mode"
+                                            >
+                                                <button
+                                                    type="button"
+                                                    className={`${styles.shareMode} ${shareMode === "gaming" ? styles.shareModeActive : ""}`}
+                                                    onClick={() => setShareMode("gaming")}
+                                                    title="Smoother video, 1080p 60fps. Best for games and video."
+                                                >
+                                                    Gaming
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className={`${styles.shareMode} ${shareMode === "screenshare" ? styles.shareModeActive : ""}`}
+                                                    onClick={() => setShareMode("screenshare")}
+                                                    title="Clearer text, 1080p 15fps. Best for documents or code."
+                                                >
+                                                    Screenshare
+                                                </button>
+                                            </div>
+                                            <Button
+                                                variant="ghost"
+                                                size="small"
+                                                onClick={() => {
+                                                    media.shareScreen(true, shareMode).catch(() => {});
+                                                }}
+                                            >
+                                                Share screen
+                                            </Button>
+                                        </div>
+                                    ))}
                             </div>
                             {media.room && (
                                 <RoomContext.Provider value={media.room}>

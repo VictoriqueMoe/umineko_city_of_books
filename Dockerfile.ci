@@ -9,7 +9,7 @@ WORKDIR /app/frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 COPY frontend/ .
-RUN npm run build
+RUN npm run build && npm run build:ota
 
 FROM golang:1.26-alpine AS builder
 

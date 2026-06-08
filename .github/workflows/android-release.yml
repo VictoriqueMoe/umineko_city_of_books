@@ -1,0 +1,76 @@
+name: Android Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['android-v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build & Release APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: cd frontend && npm ci
+
+      - name: Build web app bundle
+        run: cd frontend && npm run build:app
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Capacitor sync
+        run: cd frontend && npx cap sync android
+
+      - name: Decode keystore
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > frontend/android/cityofbooks-release.keystore
+
+      - name: Create keystore.properties
+        run: |
+          cat > frontend/android/keystore.properties <<EOF
+          storeFile=cityofbooks-release.keystore
+          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
+          keyAlias=${{ secrets.KEY_ALIAS }}
+          keyPassword=${{ secrets.KEYSTORE_PASSWORD }}
+          EOF
+
+      - name: Build release APK
+        run: cd frontend/android && ./gradlew assembleRelease
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: city-of-books-apk
+          path: frontend/android/app/build/outputs/apk/release/*.apk
+
+      - name: Get version from tag
+        id: version
+        if: startsWith(github.ref, 'refs/tags/')
+        run: echo "version=${GITHUB_REF_NAME#android-v}" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Android ${{ steps.version.outputs.version }}"
+          body: |
+            ## Umineko City of Books Android ${{ steps.version.outputs.version }}
+
+            Download the APK below and install it on your Android device.
+          files: frontend/android/app/build/outputs/apk/release/*.apk

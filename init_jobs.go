@@ -7,6 +7,7 @@ import (
 	"umineko_city_of_books/internal/email"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/middleware"
+	"umineko_city_of_books/internal/push"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/telemetry"
@@ -21,6 +22,7 @@ func registerListeners(settingsSvc settings.Service, app *fiber.App, svc *servic
 	settingsSvc.Subscribe(telemetry.NewProfilingSettingsListener())
 	settingsSvc.Subscribe(middleware.NewBodyLimitListener(app))
 	settingsSvc.Subscribe(email.NewMailSettingListener(svc.email))
+	settingsSvc.Subscribe(push.NewSettingListener(svc.push))
 
 	if err := svc.chat.EnsureSystemRooms(context.Background()); err != nil {
 		logger.Log.Error().Err(err).Msg("ensure system chat rooms at startup")

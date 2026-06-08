@@ -1,0 +1,76 @@
+package repository
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+
+	"github.com/google/uuid"
+)
+
+type (
+	DeviceTokenRepository interface {
+		Upsert(ctx context.Context, userID uuid.UUID, token, platform string) error
+		TokensForUser(ctx context.Context, userID uuid.UUID) ([]string, error)
+		Delete(ctx context.Context, token string) error
+		DeleteMany(ctx context.Context, tokens []string) error
+	}
+
+	deviceTokenRepository struct {
+		db *sql.DB
+	}
+)
+
+func (r *deviceTokenRepository) Upsert(ctx context.Context, userID uuid.UUID, token, platform string) error {
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO device_tokens (token, user_id, platform, last_seen)
+		 VALUES ($1, $2, $3, NOW())
+		 ON CONFLICT (token) DO UPDATE SET user_id = EXCLUDED.user_id, platform = EXCLUDED.platform, last_seen = NOW()`,
+		token, userID, platform,
+	)
+	if err != nil {
+		return fmt.Errorf("upsert device token: %w", err)
+	}
+	return nil
+}
+
+func (r *deviceTokenRepository) TokensForUser(ctx context.Context, userID uuid.UUID) ([]string, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT token FROM device_tokens WHERE user_id = $1`, userID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list device tokens: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var tokens []string
+	for rows.Next() {
+		var token string
+		if err := rows.Scan(&token); err != nil {
+			return nil, fmt.Errorf("scan device token: %w", err)
+		}
+		tokens = append(tokens, token)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate device tokens: %w", err)
+	}
+
+	return tokens, nil
+}
+
+func (r *deviceTokenRepository) Delete(ctx context.Context, token string) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM device_tokens WHERE token = $1`, token)
+	if err != nil {
+		return fmt.Errorf("delete device token: %w", err)
+	}
+	return nil
+}
+
+func (r *deviceTokenRepository) DeleteMany(ctx context.Context, tokens []string) error {
+	for _, token := range tokens {
+		if err := r.Delete(ctx, token); err != nil {
+			return err
+		}
+	}
+	return nil
+}

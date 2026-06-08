@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "126123047528",
+    "project_id": "city-of-books-edd54",
+    "storage_bucket": "city-of-books-edd54.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:126123047528:android:fdbb8087be9ee630e399dd",
+        "android_client_info": {
+          "package_name": "moe.auaurora.cityofbooks"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBRsuf_sKoYSp7gTW6ZGii5gOxGrNfdqfU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

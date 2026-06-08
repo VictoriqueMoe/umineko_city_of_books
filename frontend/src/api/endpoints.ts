@@ -8,6 +8,7 @@ import {
     apiPut,
     buildQueryString,
 } from "./client";
+import { clearAuthToken } from "../utils/authToken";
 import type {
     ActivityListResponse,
     AdminStats,
@@ -148,6 +149,8 @@ export interface SiteInfo {
     listed_secrets: SiteInfoSecret[];
     rules_page: string;
     version: string;
+    app_latest_version: string;
+    app_download_url: string;
 }
 
 export async function getSiteInfo(): Promise<SiteInfo> {
@@ -222,6 +225,15 @@ export async function resetPassword(token: string, newPassword: string): Promise
 
 export async function logout(): Promise<void> {
     await apiPost<unknown, undefined>("/auth/logout", undefined);
+    clearAuthToken();
+}
+
+export async function registerDeviceToken(token: string, platform: string): Promise<void> {
+    await apiPost<unknown, { token: string; platform: string }>("/push/device", { token, platform });
+}
+
+export async function unregisterDeviceToken(token: string): Promise<void> {
+    await apiDeleteWithBody<unknown, { token: string }>("/push/device", { token });
 }
 
 export async function getMe(): Promise<UserProfile> {

@@ -28,7 +28,7 @@ func newTestService(t *testing.T) (
 	userRepo := repository.NewMockUserRepository(t)
 	emailSvc := email.NewMockService(t)
 	hub := ws.NewHub()
-	svc := NewService(notifRepo, userRepo, hub, emailSvc).(*service)
+	svc := NewService(notifRepo, userRepo, hub, emailSvc, nil).(*service)
 	return svc, notifRepo, userRepo, emailSvc, hub
 }
 

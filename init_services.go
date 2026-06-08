@@ -39,6 +39,7 @@ import (
 	ocsvc "umineko_city_of_books/internal/oc"
 	postsvc "umineko_city_of_books/internal/post"
 	"umineko_city_of_books/internal/profile"
+	"umineko_city_of_books/internal/push"
 	"umineko_city_of_books/internal/quotefinder"
 	"umineko_city_of_books/internal/report"
 	"umineko_city_of_books/internal/repository"
@@ -86,8 +87,9 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 	credibilitySvc := credibility.NewService(repos.Theory)
 
 	emailSvc := email.NewService(settingsSvc)
+	pushSvc := push.NewService(settingsSvc, repos.DeviceToken, config.Cfg.FCMCredentialsFile)
 	blockSvc := blocksvc.NewService(repos.Block, repos.Follow, authzSvc)
-	notifSvc := notification.NewService(repos.Notification, repos.User, hub, emailSvc)
+	notifSvc := notification.NewService(repos.Notification, repos.User, hub, emailSvc, pushSvc)
 	reportSvc := report.NewService(repos.Report, repos.Role, repos.User, notifSvc, settingsSvc)
 	hyperbeamSvc := hyperbeam.NewService()
 	livekitSvc := livekit.NewService(settingsSvc)
@@ -149,5 +151,6 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 		userSecret:      userSecretSvc,
 		search:          searchSvc,
 		user:            userSvc,
+		push:            pushSvc,
 	}
 }

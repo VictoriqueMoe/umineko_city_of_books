@@ -37,6 +37,7 @@ import (
 	"umineko_city_of_books/internal/og"
 	postsvc "umineko_city_of_books/internal/post"
 	"umineko_city_of_books/internal/profile"
+	"umineko_city_of_books/internal/push"
 	"umineko_city_of_books/internal/report"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/routes"
@@ -101,6 +102,7 @@ type (
 		userSecret      usersecret.Service
 		search          searchsvc.Service
 		user            user.Service
+		push            push.Service
 	}
 )
 
@@ -138,7 +140,7 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 	ctrlService := controllers.NewService(
 		svc.auth, svc.profile, svc.theory, svc.notification, svc.admin,
 		svc.authz, settingsSvc, svc.chat, svc.report, svc.post, svc.follow,
-		svc.art, svc.block, svc.announcement, svc.mystery, svc.user, svc.ship, svc.oc, svc.fanfic, svc.journal, svc.secret, svc.upload, svc.mediaProc, svc.vanityRole, svc.userSecret, svc.session, svc.hub, svc.giphy, svc.giphyFavourites, svc.gameRoom, svc.homeFeed, svc.sidebar, svc.search, string(htmlBytes),
+		svc.art, svc.block, svc.announcement, svc.mystery, svc.user, svc.ship, svc.oc, svc.fanfic, svc.journal, svc.secret, svc.upload, svc.mediaProc, svc.vanityRole, svc.userSecret, svc.session, svc.hub, svc.giphy, svc.giphyFavourites, svc.gameRoom, svc.homeFeed, svc.sidebar, svc.search, svc.push, string(htmlBytes),
 	)
 	routes.PublicRoutes(ctrlService, app)
 

@@ -194,6 +194,8 @@ type (
 		ListedSecrets         []SiteInfoSecret     `json:"listed_secrets"`
 		RulesPage             string               `json:"rules_page"`
 		Version               string               `json:"version"`
+		AppLatestVersion      string               `json:"app_latest_version"`
+		AppDownloadURL        string               `json:"app_download_url"`
 	}
 
 	SiteInfoVanityRole struct {

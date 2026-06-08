@@ -302,6 +302,41 @@
     white-space: nowrap;
 }
 
+.shareControls {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.shareModeToggle {
+    display: inline-flex;
+    gap: 0.3rem;
+}
+
+.shareMode {
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(var(--gold-rgb), 0.25);
+    color: var(--text-muted);
+    border-radius: 6px;
+    padding: 0.2rem 0.55rem;
+    font: inherit;
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition:
+        border-color 0.15s,
+        color 0.15s;
+}
+
+.shareMode:hover {
+    border-color: rgba(var(--gold-rgb), 0.5);
+}
+
+.shareModeActive {
+    border-color: var(--gold);
+    color: var(--gold);
+}
+
 .chatPanel {
     display: grid;
     grid-template-columns: minmax(0, 1fr);

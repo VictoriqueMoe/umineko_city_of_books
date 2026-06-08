@@ -11,6 +11,7 @@ import { queryKeys } from "../api/queryKeys";
 import { showDesktopNotification } from "../utils/notifications";
 import { playNotificationSound } from "../utils/sound";
 import { patchUserInCache, type UserPatch } from "../utils/userCache";
+import { getAuthToken } from "../utils/authToken";
 
 const MAX_BACKOFF = 30000;
 const KEEPALIVE_INTERVAL_MS = 20_000;
@@ -93,8 +94,14 @@ export function NotificationProvider({ children }: PropsWithChildren) {
     const connectWs = useCallback(() => {
         closeSocket();
 
-        const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-        const wsUrl = `${protocol}//${window.location.host}/api/v1/ws`;
+        const apiBase = import.meta.env.VITE_API_BASE ?? "";
+        const httpOrigin = apiBase || window.location.origin;
+        const wsOrigin = httpOrigin.replace(/^http/, "ws");
+        let wsUrl = `${wsOrigin}/api/v1/ws`;
+        const token = getAuthToken();
+        if (token) {
+            wsUrl += `?token=${encodeURIComponent(token)}`;
+        }
         const socket = new WebSocket(wsUrl);
         wsRef.current = socket;
 
