@@ -4,6 +4,8 @@
     left: 0;
     right: 0;
     height: var(--chat-vh, 100svh);
+    padding-top: env(safe-area-inset-top, 0px);
+    box-sizing: border-box;
     display: flex;
     flex-direction: column;
     background: var(--bg-void);

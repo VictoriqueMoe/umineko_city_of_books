@@ -1,7 +1,7 @@
 .header {
     background: var(--bg-purple);
     border-bottom: 1px solid rgba(var(--gold-rgb), 0.15);
-    padding: 0.75rem 1.5rem;
+    padding: calc(0.75rem + env(safe-area-inset-top, 0px)) 1.5rem 0.75rem;
     display: flex;
     align-items: center;
     justify-content: flex-end;

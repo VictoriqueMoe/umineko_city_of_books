@@ -8,6 +8,7 @@ import { useChatUnreadCount } from "../api/queries/chat";
 import { useLiveGameRooms } from "../api/queries/gameRoom";
 import { useMarkAllNotificationsRead, useMarkNotificationRead } from "../api/mutations/notification";
 import { queryKeys } from "../api/queryKeys";
+import { absolutizeMedia } from "../api/client";
 import { showDesktopNotification } from "../utils/notifications";
 import { playNotificationSound } from "../utils/sound";
 import { patchUserInCache, type UserPatch } from "../utils/userCache";
@@ -129,7 +130,7 @@ export function NotificationProvider({ children }: PropsWithChildren) {
         socket.onmessage = event => {
             lastMessageAtRef.current = Date.now();
             try {
-                const msg: WSMessage = JSON.parse(event.data);
+                const msg: WSMessage = absolutizeMedia(JSON.parse(event.data) as WSMessage);
                 if (msg.type === "pong") {
                     return;
                 }
