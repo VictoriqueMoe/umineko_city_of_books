@@ -11,6 +11,7 @@ import type { CharacterDef, CharacterId } from "../../../games/minesweeper/types
 import { useCharacterMood } from "../../../games/minesweeper/hooks/useCharacterMood";
 import { useGameAudio } from "../../../games/minesweeper/hooks/useGameAudio";
 import { useMinesweeperView } from "../../../games/minesweeper/hooks/useMinesweeperView";
+import { useIsMobile } from "../../../hooks/useIsMobile";
 import { MinesweeperBoard } from "./MinesweeperBoard";
 import { MinesweeperCharacterSelect } from "./MinesweeperCharacterSelect";
 import { MinesweeperLightningCanvas } from "./MinesweeperLightningCanvas";
@@ -56,6 +57,8 @@ export function MinesweeperBoardView({ room, viewer, isSpectator, onAction, onRe
     const [submitting, setSubmitting] = useState(false);
     const [explosionActive, setExplosionActive] = useState(false);
     const [localPendingClick, setLocalPendingClick] = useState<{ x: number; y: number } | null>(null);
+    const [flagMode, setFlagMode] = useState(false);
+    const isMobile = useIsMobile();
     const lastAudioPhaseRef = useRef<string | null>(null);
     const lastExplosionKeyRef = useRef<string | null>(null);
 
@@ -280,11 +283,32 @@ export function MinesweeperBoardView({ room, viewer, isSpectator, onAction, onRe
                                 </span>
                             </div>
                         </div>
+                        {isMobile && !isSpectator && clientPhase === "playing" && (
+                            <div className={styles.modeToggle}>
+                                <button
+                                    type="button"
+                                    className={`${styles.modeButton} ${!flagMode ? styles.modeButtonActive : ""}`}
+                                    onClick={() => setFlagMode(false)}
+                                    aria-pressed={!flagMode}
+                                >
+                                    Reveal
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`${styles.modeButton} ${flagMode ? styles.modeButtonActive : ""}`}
+                                    onClick={() => setFlagMode(true)}
+                                    aria-pressed={flagMode}
+                                >
+                                    ⚑ Flag
+                                </button>
+                            </div>
+                        )}
                         <MinesweeperBoard
                             state={state}
                             slot={visibleSlot}
                             interactive={!isSpectator && clientPhase === "playing"}
                             cellSize={leftCellSize}
+                            flagMode={isMobile && flagMode}
                             pendingClick={isSpectator ? null : localPendingClick}
                             onReveal={handleReveal}
                             onFlag={handleFlag}

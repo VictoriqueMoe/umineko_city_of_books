@@ -149,6 +149,8 @@ export interface SiteInfo {
     listed_secrets: SiteInfoSecret[];
     rules_page: string;
     version: string;
+    app_latest_version: string;
+    app_download_url: string;
 }
 
 export async function getSiteInfo(): Promise<SiteInfo> {

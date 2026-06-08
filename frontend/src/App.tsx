@@ -13,6 +13,7 @@ import { Butterflies } from "./components/layout/Butterflies/Butterflies";
 import { CanonicalTag } from "./components/CanonicalTag/CanonicalTag";
 import { ProtectedRoute } from "./components/ProtectedRoute/ProtectedRoute";
 import { StaleVersionBanner } from "./components/StaleVersionBanner/StaleVersionBanner";
+import { NativeUpdateBanner } from "./components/NativeUpdateBanner/NativeUpdateBanner";
 import { LockBanner } from "./components/LockBanner/LockBanner";
 import { VerifyEmailBanner } from "./components/VerifyEmailBanner/VerifyEmailBanner";
 import { Toast } from "./components/Toast/Toast";
@@ -226,6 +227,7 @@ function AppLayout() {
             <div className="app-main">
                 <Header onToggleSidebar={toggleSidebar} />
                 <StaleVersionBanner />
+                <NativeUpdateBanner />
                 <LockBanner />
                 <VerifyEmailBanner />
                 <AnnouncementBanner />

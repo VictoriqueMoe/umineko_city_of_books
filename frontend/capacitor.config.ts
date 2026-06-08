@@ -20,6 +20,9 @@ const config: CapacitorConfig = {
             backgroundColor: "#0A0612",
             showSpinner: false,
         },
+        CapacitorUpdater: {
+            autoUpdate: false,
+        },
     },
     ...(devServerUrl ? { server: { url: devServerUrl, cleartext: true } } : {}),
 };

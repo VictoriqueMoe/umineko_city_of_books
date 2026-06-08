@@ -158,6 +158,33 @@
     justify-content: center;
 }
 
+.modeToggle {
+    display: flex;
+    gap: 0;
+    align-self: center;
+    border: 1px solid rgba(var(--gold-rgb), 0.45);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.modeButton {
+    appearance: none;
+    border: none;
+    background: var(--bg-card);
+    color: var(--text-muted);
+    font-family: var(--font-display, inherit);
+    font-weight: 700;
+    font-size: 0.9rem;
+    letter-spacing: 0.04em;
+    padding: 0.5rem 1.4rem;
+    cursor: pointer;
+}
+
+.modeButtonActive {
+    background: rgba(var(--gold-rgb), 0.85);
+    color: #1a0f30;
+}
+
 @media (max-width: 900px) {
     .battlefield {
         gap: 1.25rem;

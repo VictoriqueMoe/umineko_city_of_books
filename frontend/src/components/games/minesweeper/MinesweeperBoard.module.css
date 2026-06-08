@@ -7,6 +7,7 @@
 }
 
 .board {
+    --cell-size: min(var(--cell-max, 32px), calc((100vw - 2.5rem - (var(--cols) * 1px)) / var(--cols)));
     display: grid;
     grid-template-columns: repeat(var(--cols), var(--cell-size));
     grid-template-rows: repeat(var(--rows), var(--cell-size));

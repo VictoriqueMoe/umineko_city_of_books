@@ -14,6 +14,7 @@ interface MentionTextAreaProps {
     onPasteFiles?: (files: File[]) => void;
     mentionPool?: User[];
     showColours?: boolean;
+    colourBarOpen?: boolean;
 }
 
 const COLOUR_BUTTONS: { tag: ColourTag; label: string; swatch: string }[] = [
@@ -108,6 +109,7 @@ export function MentionTextArea({
     onPasteFiles,
     mentionPool,
     showColours,
+    colourBarOpen = true,
 }: MentionTextAreaProps) {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const backdropRef = useRef<HTMLDivElement>(null);
@@ -309,7 +311,7 @@ export function MentionTextArea({
 
     return (
         <div className={styles.wrapper}>
-            {showColours && (
+            {showColours && colourBarOpen && (
                 <div className={styles.colourBar}>
                     {COLOUR_BUTTONS.map(b => (
                         <ColourButton key={b.tag} tag={b.tag} label={b.label} swatch={b.swatch} onApply={applyColour} />

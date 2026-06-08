@@ -122,6 +122,8 @@ var (
 	SettingCloudflareAPIToken      = &SiteSettingDef{"cloudflare_api_token", "", TypeString}
 	SettingCloudflareEmailFrom     = &SiteSettingDef{"cloudflare_email_from", "", TypeString}
 	SettingPushEnabled             = &SiteSettingDef{"push_enabled", "false", TypeBool}
+	SettingAppLatestVersion        = &SiteSettingDef{"app_latest_version", "", TypeString}
+	SettingAppDownloadURL          = &SiteSettingDef{"app_download_url", "", TypeString}
 
 	AllSiteSettings = []*SiteSettingDef{
 		SettingUploadDir,
@@ -188,6 +190,8 @@ var (
 		SettingCloudflareAPIToken,
 		SettingCloudflareEmailFrom,
 		SettingPushEnabled,
+		SettingAppLatestVersion,
+		SettingAppDownloadURL,
 	}
 )
 

@@ -96,6 +96,16 @@
     position: relative;
 }
 
+@media (max-width: 960px) {
+    .composer {
+        min-height: 0;
+    }
+
+    .composer textarea {
+        max-height: 30dvh;
+    }
+}
+
 @media (max-width: 480px) {
     .composer {
         padding: 0.6rem 0.75rem;

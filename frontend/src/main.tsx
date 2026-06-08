@@ -9,6 +9,7 @@ import { AuthProvider } from "./context/AuthContext";
 import { NotificationProvider } from "./context/NotificationContext";
 import { GifFavouritesProvider } from "./context/GifFavouritesContext";
 import { loadAuthToken } from "./utils/authToken";
+import { initAppUpdates } from "./utils/appUpdate";
 import "./styles/variables.css";
 import "./styles/global.css";
 
@@ -35,4 +36,5 @@ function renderApp() {
 loadAuthToken()
     .catch(() => {})
     .then(renderApp)
+    .then(initAppUpdates)
     .catch(() => {});

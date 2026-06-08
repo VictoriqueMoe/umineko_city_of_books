@@ -464,6 +464,8 @@ func (s *Service) siteInfo(ctx fiber.Ctx) error {
 		ListedSecrets:         listedSecrets,
 		RulesPage:             s.SettingsService.Get(ctx.Context(), config.SettingRulesPage),
 		Version:               config.Version,
+		AppLatestVersion:      s.SettingsService.Get(ctx.Context(), config.SettingAppLatestVersion),
+		AppDownloadURL:        s.SettingsService.Get(ctx.Context(), config.SettingAppDownloadURL),
 	})
 }
 
