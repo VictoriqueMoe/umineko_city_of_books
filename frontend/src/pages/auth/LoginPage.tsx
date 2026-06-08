@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useLocation } from "react-router";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { useAuth } from "../../hooks/useAuth";
 import { usePageTitle } from "../../hooks/usePageTitle";
@@ -11,6 +11,7 @@ import styles from "./LoginPage.module.css";
 export function LoginPage() {
     usePageTitle("Sign In");
     const navigate = useNavigate();
+    const location = useLocation();
     const { loginUser, registerUser } = useAuth();
     const siteInfo = useSiteInfo();
     const [isRegister, setIsRegister] = useState(false);
@@ -52,7 +53,7 @@ export function LoginPage() {
             } else {
                 await loginUser(username, password, turnstileEnabled ? turnstileToken : undefined);
             }
-            navigate("/");
+            navigate(location.state?.from?.pathname || "/", { replace: true });
         } catch (err) {
             setError(err instanceof Error ? err.message : "Something went wrong.");
             setTurnstileToken("");
