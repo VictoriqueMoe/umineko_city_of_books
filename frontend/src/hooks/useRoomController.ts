@@ -316,7 +316,18 @@ export function useRoomController() {
         handleScroll: handleMessagesScroll,
         addMessage,
         loadUntilMessage,
+        resync,
     } = useMessageHistory(room ? roomId : undefined);
+
+    const didResyncMountRef = useRef(false);
+    useEffect(() => {
+        if (!didResyncMountRef.current) {
+            didResyncMountRef.current = true;
+            return;
+        }
+
+        resync().catch(() => {});
+    }, [wsEpoch, resync]);
 
     const targetMsgId = location.hash.startsWith("#msg-") ? location.hash.slice(5) : null;
     const targetMsgCreatedAt = new URLSearchParams(location.search).get("at") ?? undefined;

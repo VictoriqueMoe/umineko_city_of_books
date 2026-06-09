@@ -133,7 +133,18 @@ export function useDmController() {
         scrollToBottom,
         handleScroll: handleDmScroll,
         addMessage,
+        resync,
     } = useMessageHistory(activeRoomId ?? undefined);
+
+    const didResyncMountRef = useRef(false);
+    useEffect(() => {
+        if (!didResyncMountRef.current) {
+            didResyncMountRef.current = true;
+            return;
+        }
+
+        resync().catch(() => {});
+    }, [wsEpoch, resync]);
 
     const deleteChatRoomMutation = useDeleteChatRoom();
     const markChatRoomReadMutation = useMarkChatRoomRead();

@@ -283,6 +283,48 @@ export function useMessageHistory(roomId: string | undefined) {
         [setMessages],
     );
 
+    const resync = useCallback(async () => {
+        const rid = currentRoomIdRef.current;
+        if (!rid) {
+            return;
+        }
+
+        try {
+            const res = await fetchRoomMessages(rid, PAGE_SIZE);
+            if (currentRoomIdRef.current !== rid) {
+                return;
+            }
+
+            setMessages(prev => {
+                const existing = new Set(prev.map(m => m.id));
+                let added = false;
+                const merged = prev.slice();
+                for (let i = 0; i < res.messages.length; i++) {
+                    const message = res.messages[i];
+                    if (!existing.has(message.id)) {
+                        merged.push(message);
+                        existing.add(message.id);
+                        added = true;
+                    }
+                }
+
+                if (!added) {
+                    return prev;
+                }
+
+                merged.sort((a, b) => {
+                    const ta = Date.parse(a.created_at);
+                    const tb = Date.parse(b.created_at);
+                    if (ta !== tb) {
+                        return ta - tb;
+                    }
+                    return a.id.localeCompare(b.id);
+                });
+                return merged;
+            });
+        } catch {}
+    }, [setMessages]);
+
     return {
         messages,
         setMessages,
@@ -295,5 +337,6 @@ export function useMessageHistory(roomId: string | undefined) {
         handleScroll,
         addMessage,
         loadUntilMessage,
+        resync,
     };
 }
