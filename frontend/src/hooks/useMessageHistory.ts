@@ -297,30 +297,19 @@ export function useMessageHistory(roomId: string | undefined) {
 
             setMessages(prev => {
                 const existing = new Set(prev.map(m => m.id));
-                let added = false;
-                const merged = prev.slice();
+                const fresh: ChatMessage[] = [];
                 for (let i = 0; i < res.messages.length; i++) {
                     const message = res.messages[i];
                     if (!existing.has(message.id)) {
-                        merged.push(message);
-                        existing.add(message.id);
-                        added = true;
+                        fresh.push(message);
                     }
                 }
 
-                if (!added) {
+                if (fresh.length === 0) {
                     return prev;
                 }
 
-                merged.sort((a, b) => {
-                    const ta = Date.parse(a.created_at);
-                    const tb = Date.parse(b.created_at);
-                    if (ta !== tb) {
-                        return ta - tb;
-                    }
-                    return a.id.localeCompare(b.id);
-                });
-                return merged;
+                return [...prev, ...fresh];
             });
         } catch {}
     }, [setMessages]);
