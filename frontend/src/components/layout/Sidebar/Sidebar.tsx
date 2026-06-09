@@ -7,6 +7,7 @@ import { useSidebarBadges } from "../../../hooks/useSidebarBadges";
 import { useArtCornerCounts, useCornerCounts } from "../../../api/queries/misc";
 import { can, canAccessAdmin } from "../../../utils/permissions";
 import { PieceTrigger } from "../../../features/easterEgg";
+import { AppVersionInfo } from "../../AppVersionInfo/AppVersionInfo";
 import styles from "./Sidebar.module.css";
 
 const GAME_BOARD_KEYS = ["game_board_general", "game_board_umineko", "game_board_higurashi", "game_board_ciconia"];
@@ -654,6 +655,7 @@ export function Sidebar({ open, onClose, onCollapse }: SidebarProps) {
                             get the game on Steam
                         </a>
                     </p>
+                    <AppVersionInfo />
                 </div>
             </aside>
         </>

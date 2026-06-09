@@ -1,0 +1,9 @@
+.version {
+    margin-top: 0.6rem;
+    font-family: monospace;
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    opacity: 0.65;
+    letter-spacing: 0.02em;
+    word-break: break-all;
+}
