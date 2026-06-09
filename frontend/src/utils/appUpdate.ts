@@ -39,7 +39,9 @@ async function downloadLatest(): Promise<void> {
             return;
         }
 
-        pending = await CapacitorUpdater.download({ url: apiUrl(manifest.path), version: manifest.version });
+        const bundle = await CapacitorUpdater.download({ url: apiUrl(manifest.path), version: manifest.version });
+        await CapacitorUpdater.next({ id: bundle.id });
+        pending = bundle;
         window.dispatchEvent(new CustomEvent("ota-update-ready"));
     } catch {
     } finally {
@@ -56,22 +58,8 @@ export async function applyOtaUpdate(): Promise<void> {
         return;
     }
 
-    const bundle = pending;
-    pending = null;
     try {
-        await CapacitorUpdater.set(bundle);
-    } catch {}
-}
-
-async function applyPending(): Promise<void> {
-    if (!pending) {
-        return;
-    }
-
-    const bundle = pending;
-    pending = null;
-    try {
-        await CapacitorUpdater.set(bundle);
+        await CapacitorUpdater.set({ id: pending.id });
     } catch {}
 }
 
@@ -87,8 +75,6 @@ export function initAppUpdates(): void {
     App.addListener("appStateChange", state => {
         if (state.isActive) {
             downloadLatest().catch(() => {});
-        } else {
-            applyPending().catch(() => {});
         }
     }).catch(() => {});
 }

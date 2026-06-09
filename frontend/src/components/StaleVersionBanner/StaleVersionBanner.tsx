@@ -40,7 +40,7 @@ export function StaleVersionBanner() {
 
         return (
             <div className={styles.banner} role="alert">
-                <span className={styles.text}>An update is ready.</span>
+                <span className={styles.text}>A new version is available. Tap to update now.</span>
                 <button type="button" onClick={handleApply} className={styles.button}>
                     Update now
                 </button>
