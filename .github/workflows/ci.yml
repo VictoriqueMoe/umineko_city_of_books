@@ -41,6 +41,9 @@ jobs:
       - name: Create static placeholder
         run: mkdir -p static && touch static/.gitkeep
 
+      - name: Install media tools
+        run: sudo apt-get update && sudo apt-get install -y webp
+
       - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod

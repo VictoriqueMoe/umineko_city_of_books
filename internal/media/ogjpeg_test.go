@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"image/jpeg"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -28,15 +29,22 @@ func writeFixture(t *testing.T, hexData string) string {
 
 func TestWebPToJPEG(t *testing.T) {
 	tests := []struct {
-		name string
-		hex  string
+		name            string
+		hex             string
+		requiresWebpmux bool
 	}{
 		{name: "static webp", hex: tinyWebPHex},
-		{name: "animated webp via first frame", hex: tinyAnimWebPHex},
+		{name: "animated webp via first frame", hex: tinyAnimWebPHex, requiresWebpmux: true},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			if tc.requiresWebpmux {
+				if _, err := exec.LookPath("webpmux"); err != nil {
+					t.Skip("webpmux not installed")
+				}
+			}
+
 			// given
 			path := writeFixture(t, tc.hex)
 
