@@ -48,6 +48,9 @@ func registerListeners(settingsSvc settings.Service, app *fiber.App, svc *servic
 	scheduleJob("reconcile voice presence", "reconciled voice presence", 30*time.Second, func() (int, error) {
 		return svc.chat.ReconcilePresence(context.Background())
 	})
+	scheduleJob("reconcile live streams", "reconciled live streams", time.Minute, func() (int, error) {
+		return svc.stream.ReconcileOnce(context.Background())
+	})
 }
 
 func scheduleJob(name string, successMsg string, interval time.Duration, fn func() (int, error)) {

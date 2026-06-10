@@ -90,6 +90,9 @@ packages:
   umineko_city_of_books/internal/livekit:
     interfaces:
       Service:
+  umineko_city_of_books/internal/stream:
+    interfaces:
+      Service:
   umineko_city_of_books/internal/giphy/favourite:
     interfaces:
       Service:

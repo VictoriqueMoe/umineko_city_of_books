@@ -86,6 +86,8 @@ var (
 	SettingLiveKitURL              = &SiteSettingDef{"livekit_url", "", TypeString}
 	SettingLiveKitAPIKey           = &SiteSettingDef{"livekit_api_key", "", TypeString}
 	SettingLiveKitAPISecret        = &SiteSettingDef{"livekit_api_secret", "", TypeString}
+	SettingStreamingEnabled        = &SiteSettingDef{"streaming_enabled", "false", TypeBool}
+	SettingStreamMaxConcurrent     = &SiteSettingDef{"stream_max_concurrent", "3", TypeInt}
 	SettingTurnstileEnabled        = &SiteSettingDef{"turnstile_enabled", "false", TypeBool}
 	SettingTurnstileSiteKey        = &SiteSettingDef{"turnstile_site_key", "", TypeString}
 	SettingTurnstileSecretKey      = &SiteSettingDef{"turnstile_secret_key", "", TypeString}
@@ -155,6 +157,8 @@ var (
 		SettingLiveKitURL,
 		SettingLiveKitAPIKey,
 		SettingLiveKitAPISecret,
+		SettingStreamingEnabled,
+		SettingStreamMaxConcurrent,
 		SettingTurnstileEnabled,
 		SettingTurnstileSiteKey,
 		SettingTurnstileSecretKey,

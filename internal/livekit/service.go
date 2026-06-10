@@ -26,6 +26,8 @@ type (
 		SetCanPublish(ctx context.Context, roomName, identity string, canMic, canScreen bool) error
 		ParseWebhook(authHeader string, body []byte) (*Event, error)
 		ActiveRooms(ctx context.Context) (map[string][]string, error)
+		CreateIngress(ctx context.Context, roomName, identity, displayName string) (ingressID, url, streamKey string, err error)
+		DeleteIngress(ctx context.Context, ingressID string) error
 	}
 
 	Event struct {
@@ -58,9 +60,9 @@ func NewService(settingsSvc settings.Service) Service {
 func (s *service) creds() (url, key, secret string) {
 	ctx := context.Background()
 
-	url = s.settingsSvc.Get(ctx, config.SettingLiveKitURL)
-	key = s.settingsSvc.Get(ctx, config.SettingLiveKitAPIKey)
-	secret = s.settingsSvc.Get(ctx, config.SettingLiveKitAPISecret)
+	url = strings.TrimSpace(s.settingsSvc.Get(ctx, config.SettingLiveKitURL))
+	key = strings.TrimSpace(s.settingsSvc.Get(ctx, config.SettingLiveKitAPIKey))
+	secret = strings.TrimSpace(s.settingsSvc.Get(ctx, config.SettingLiveKitAPISecret))
 
 	return
 }
@@ -72,7 +74,7 @@ func (s *service) Enabled() bool {
 }
 
 func (s *service) URL() string {
-	return s.settingsSvc.Get(context.Background(), config.SettingLiveKitURL)
+	return strings.TrimSpace(s.settingsSvc.Get(context.Background(), config.SettingLiveKitURL))
 }
 
 func (s *service) MintToken(roomName, identity, displayName string, canMic, canScreen bool) (string, error) {
@@ -86,7 +88,11 @@ func (s *service) MintToken(roomName, identity, displayName string, canMic, canS
 		RoomJoin: true,
 		Room:     roomName,
 	}
-	grant.SetCanPublishSources(publishSources(canMic, canScreen))
+
+	sources := publishSources(canMic, canScreen)
+	grant.SetCanPublish(len(sources) > 0)
+	grant.SetCanSubscribe(true)
+	grant.SetCanPublishSources(sources)
 
 	at := auth.NewAccessToken(key, secret).
 		SetVideoGrant(grant).
@@ -203,6 +209,48 @@ func (s *service) ActiveRooms(ctx context.Context) (map[string][]string, error) 
 	}
 
 	return result, nil
+}
+
+func (s *service) CreateIngress(ctx context.Context, roomName, identity, displayName string) (string, string, string, error) {
+	url, key, secret := s.creds()
+
+	if url == "" || key == "" || secret == "" {
+		return "", "", "", ErrDisabled
+	}
+
+	client := lksdk.NewIngressClient(toHTTPURL(url), key, secret)
+
+	info, err := client.CreateIngress(ctx, &livekit.CreateIngressRequest{
+		InputType:           livekit.IngressInput_WHIP_INPUT,
+		Name:                roomName,
+		RoomName:            roomName,
+		ParticipantIdentity: identity,
+		ParticipantName:     displayName,
+		EnableTranscoding:   new(false),
+		Video:               &livekit.IngressVideoOptions{Source: livekit.TrackSource_CAMERA},
+		Audio:               &livekit.IngressAudioOptions{Source: livekit.TrackSource_MICROPHONE},
+	})
+	if err != nil {
+		return "", "", "", fmt.Errorf("create livekit ingress: %w", err)
+	}
+
+	return info.GetIngressId(), info.GetUrl(), info.GetStreamKey(), nil
+}
+
+func (s *service) DeleteIngress(ctx context.Context, ingressID string) error {
+	url, key, secret := s.creds()
+
+	if url == "" || key == "" || secret == "" {
+		return ErrDisabled
+	}
+
+	client := lksdk.NewIngressClient(toHTTPURL(url), key, secret)
+
+	if _, err := client.DeleteIngress(ctx, &livekit.DeleteIngressRequest{IngressId: ingressID}); err != nil {
+		return fmt.Errorf("delete livekit ingress: %w", err)
+	}
+
+	return nil
 }
 
 func toHTTPURL(u string) string {

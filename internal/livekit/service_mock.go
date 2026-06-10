@@ -99,6 +99,153 @@ func (_c *MockService_ActiveRooms_Call) RunAndReturn(run func(ctx context.Contex
 	return _c
 }
 
+// CreateIngress provides a mock function for the type MockService
+func (_mock *MockService) CreateIngress(ctx context.Context, roomName string, identity string, displayName string) (string, string, string, error) {
+	ret := _mock.Called(ctx, roomName, identity, displayName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateIngress")
+	}
+
+	var r0 string
+	var r1 string
+	var r2 string
+	var r3 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string) (string, string, string, error)); ok {
+		return returnFunc(ctx, roomName, identity, displayName)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string) string); ok {
+		r0 = returnFunc(ctx, roomName, identity, displayName)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string) string); ok {
+		r1 = returnFunc(ctx, roomName, identity, displayName)
+	} else {
+		r1 = ret.Get(1).(string)
+	}
+	if returnFunc, ok := ret.Get(2).(func(context.Context, string, string, string) string); ok {
+		r2 = returnFunc(ctx, roomName, identity, displayName)
+	} else {
+		r2 = ret.Get(2).(string)
+	}
+	if returnFunc, ok := ret.Get(3).(func(context.Context, string, string, string) error); ok {
+		r3 = returnFunc(ctx, roomName, identity, displayName)
+	} else {
+		r3 = ret.Error(3)
+	}
+	return r0, r1, r2, r3
+}
+
+// MockService_CreateIngress_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateIngress'
+type MockService_CreateIngress_Call struct {
+	*mock.Call
+}
+
+// CreateIngress is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roomName string
+//   - identity string
+//   - displayName string
+func (_e *MockService_Expecter) CreateIngress(ctx interface{}, roomName interface{}, identity interface{}, displayName interface{}) *MockService_CreateIngress_Call {
+	return &MockService_CreateIngress_Call{Call: _e.mock.On("CreateIngress", ctx, roomName, identity, displayName)}
+}
+
+func (_c *MockService_CreateIngress_Call) Run(run func(ctx context.Context, roomName string, identity string, displayName string)) *MockService_CreateIngress_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_CreateIngress_Call) Return(ingressID string, url string, streamKey string, err error) *MockService_CreateIngress_Call {
+	_c.Call.Return(ingressID, url, streamKey, err)
+	return _c
+}
+
+func (_c *MockService_CreateIngress_Call) RunAndReturn(run func(ctx context.Context, roomName string, identity string, displayName string) (string, string, string, error)) *MockService_CreateIngress_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteIngress provides a mock function for the type MockService
+func (_mock *MockService) DeleteIngress(ctx context.Context, ingressID string) error {
+	ret := _mock.Called(ctx, ingressID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteIngress")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = returnFunc(ctx, ingressID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_DeleteIngress_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteIngress'
+type MockService_DeleteIngress_Call struct {
+	*mock.Call
+}
+
+// DeleteIngress is a helper method to define mock.On call
+//   - ctx context.Context
+//   - ingressID string
+func (_e *MockService_Expecter) DeleteIngress(ctx interface{}, ingressID interface{}) *MockService_DeleteIngress_Call {
+	return &MockService_DeleteIngress_Call{Call: _e.mock.On("DeleteIngress", ctx, ingressID)}
+}
+
+func (_c *MockService_DeleteIngress_Call) Run(run func(ctx context.Context, ingressID string)) *MockService_DeleteIngress_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_DeleteIngress_Call) Return(err error) *MockService_DeleteIngress_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_DeleteIngress_Call) RunAndReturn(run func(ctx context.Context, ingressID string) error) *MockService_DeleteIngress_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Enabled provides a mock function for the type MockService
 func (_mock *MockService) Enabled() bool {
 	ret := _mock.Called()

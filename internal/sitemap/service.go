@@ -37,6 +37,7 @@ var staticPaths = []string{
 	"/games/chess",
 	"/games/othello",
 	"/search",
+	"/live",
 	"/login",
 }
 

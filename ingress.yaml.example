@@ -1,0 +1,38 @@
+logging:
+  level: info
+
+# Must match the key + secret in livekit.yaml's `keys:` block AND the values in
+# Admin -> Settings (LiveKit API Key / Secret). Use a long random secret in prod.
+api_key: devkey
+api_secret: devsecret_change_me_to_a_long_random_value
+
+# How the ingress publishes into the SFU.
+#   Local dev (ingress on the default bridge network):  ws://livekit:7880
+#   Production (ingress runs network_mode: host):        ws://127.0.0.1:7880
+ws_url: ws://livekit:7880
+
+# Coordination bus shared with livekit-server (a Valkey/Redis the SFU also uses,
+# so livekit.yaml needs a matching `redis:` block pointing at the same instance).
+#   Local dev:    valkey:6379
+#   Production:   127.0.0.1:6380   (host networking; match whatever port valkey binds)
+redis:
+  address: valkey:6379
+
+# WHIP signalling port (OBS 30+ / Streamlabs "WHIP Service"). Front it with TLS via
+# a reverse proxy and set livekit.yaml's `ingress.whip_base_url` to the public URL.
+# Pick a free port in production if 8080 is already taken on the host.
+whip_port: 8080
+rtc_config:
+  # WHIP media (UDP). Open this port on the host firewall.
+  udp_port: 7885
+  # Production: true, so the ingress advertises the host's PUBLIC IP to remote
+  # broadcasters. Local dev: false.
+  use_external_ip: false
+
+# Per-input CPU budget so the node advertises real capacity. WHIP with transcoding
+# bypassed (our path) is cheap; RTMP/URL would transcode and cost more.
+cpu_cost:
+  whip_bypass_transcoding_cpu_cost: 0.1
+  whip_cpu_cost: 2
+  rtmp_cpu_cost: 2
+  url_cpu_cost: 2
