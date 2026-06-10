@@ -29,6 +29,7 @@ import {
     updateGlobalBannedWord,
     updateGMScore,
     updateVanityRole,
+    uploadOGDefaultImage,
 } from "../endpoints";
 import type { CreateBannedWordRequest, SiteSettings } from "../../types/api";
 import { queryKeys } from "../queryKeys";
@@ -126,6 +127,12 @@ export function useUpdateAdminSettings() {
 export function useSendTestEmail() {
     return useMutation({
         mutationFn: () => sendTestEmail(),
+    });
+}
+
+export function useUploadOGDefaultImage() {
+    return useMutation({
+        mutationFn: (file: File) => uploadOGDefaultImage(file),
     });
 }
 

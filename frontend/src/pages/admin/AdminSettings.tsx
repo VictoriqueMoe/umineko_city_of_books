@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+import type { ChangeEvent } from "react";
 import { useAdminSettings } from "../../api/queries/admin";
-import { useSendTestEmail, useUpdateAdminSettings } from "../../api/mutations/admin";
+import { useSendTestEmail, useUpdateAdminSettings, useUploadOGDefaultImage } from "../../api/mutations/admin";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
@@ -20,11 +21,14 @@ export function AdminSettings() {
     const { settings: loadedSettings, loading } = useAdminSettings();
     const updateSettingsMutation = useUpdateAdminSettings();
     const sendTestEmailMutation = useSendTestEmail();
+    const uploadOGImageMutation = useUploadOGDefaultImage();
+    const ogImageInputRef = useRef<HTMLInputElement>(null);
     const [draft, setDraft] = useState<SiteSettings>({});
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
     const [testMessage, setTestMessage] = useState("");
     const [testError, setTestError] = useState("");
+    const [ogImageError, setOGImageError] = useState("");
 
     const saving = updateSettingsMutation.isPending;
     const settings: SiteSettings = { ...(loadedSettings ?? {}), ...draft };
@@ -123,6 +127,22 @@ export function AdminSettings() {
             setSuccess("Settings saved successfully");
         } catch (e) {
             setError(e instanceof Error ? e.message : "Failed to save settings");
+        }
+    }
+
+    async function handleOGImageSelected(e: ChangeEvent<HTMLInputElement>) {
+        const file = e.target.files?.[0];
+        e.target.value = "";
+        if (!file) {
+            return;
+        }
+
+        setOGImageError("");
+        try {
+            const res = await uploadOGImageMutation.mutateAsync(file);
+            updateField("og_default_image", res.url);
+        } catch (err) {
+            setOGImageError(err instanceof Error ? err.message : "Failed to upload image");
         }
     }
 
@@ -593,12 +613,87 @@ export function AdminSettings() {
                 </div>
             </div>
 
+            <div className={styles.card}>
+                <h2 className={styles.sectionTitle}>Link Previews</h2>
+                <div className={styles.fieldGroup}>
+                    <div className={styles.field}>
+                        <span className={styles.fieldLabel}>
+                            Default embed image shown when a link to the site is shared on Discord, X, and other
+                            platforms, and the page has no image of its own. JPG only.
+                        </span>
+                        <div className={styles.embedActions}>
+                            <Button
+                                variant="secondary"
+                                onClick={() => ogImageInputRef.current?.click()}
+                                disabled={uploadOGImageMutation.isPending}
+                            >
+                                {uploadOGImageMutation.isPending ? "Uploading..." : "Upload image"}
+                            </Button>
+                            {(settings.og_default_image ?? "") !== "" && (
+                                <Button variant="secondary" onClick={() => updateField("og_default_image", "")}>
+                                    Reset to built-in
+                                </Button>
+                            )}
+                            {ogImageError && <span className={styles.saveError}>{ogImageError}</span>}
+                        </div>
+                        <input
+                            ref={ogImageInputRef}
+                            type="file"
+                            accept="image/jpeg,.jpg"
+                            className={styles.hiddenInput}
+                            onChange={handleOGImageSelected}
+                        />
+                    </div>
+                    <EmbedPreviews
+                        image={settings.og_default_image || "/Featherine.jpg"}
+                        siteName={settings.site_name ?? "Umineko City of Books"}
+                        baseURL={settings.base_url ?? ""}
+                    />
+                </div>
+            </div>
+
             <div className={styles.saveRow}>
                 <Button variant="primary" onClick={handleSave} disabled={saving}>
                     {saving ? "Saving..." : "Save Settings"}
                 </Button>
                 {error && <span className={styles.saveError}>{error}</span>}
                 {success && <span className={styles.success}>{success}</span>}
+            </div>
+        </div>
+    );
+}
+
+const EMBED_PREVIEW_TITLE = "Umineko City of Books - Fan Theory Platform";
+const EMBED_PREVIEW_DESCRIPTION =
+    "Welcome to the game board. Declare blue truths, solve mysteries, debate pairings, read and write fanfiction, and chronicle your journey through When They Cry.";
+
+function EmbedPreviews({ image, siteName, baseURL }: { image: string; siteName: string; baseURL: string }) {
+    const domain = baseURL.replace(/^https?:\/\//, "").replace(/\/$/, "") || "whentheycry.social";
+
+    return (
+        <div className={styles.embedPreviews}>
+            <div className={styles.embedPreviewColumn}>
+                <span className={styles.embedPreviewLabel}>Discord</span>
+                <div className={styles.discordPreview}>
+                    <div className={styles.discordBar} />
+                    <div className={styles.discordBody}>
+                        <span className={styles.discordSite}>{siteName}</span>
+                        <span className={styles.discordTitle}>{EMBED_PREVIEW_TITLE}</span>
+                        <span className={styles.discordDesc}>{EMBED_PREVIEW_DESCRIPTION}</span>
+                        <img src={image} alt="Embed preview" className={styles.discordImage} />
+                    </div>
+                </div>
+            </div>
+            <div className={styles.embedPreviewColumn}>
+                <span className={styles.embedPreviewLabel}>X / Twitter</span>
+                <div className={styles.twitterPreview}>
+                    <img src={image} alt="Embed preview" className={styles.twitterImage} />
+                    <div className={styles.twitterBody}>
+                        <span className={styles.twitterDomain}>{domain}</span>
+                        <span className={styles.twitterTitle}>{EMBED_PREVIEW_TITLE}</span>
+                        <span className={styles.twitterDesc}>{EMBED_PREVIEW_DESCRIPTION}</span>
+                    </div>
+                </div>
             </div>
         </div>
     );

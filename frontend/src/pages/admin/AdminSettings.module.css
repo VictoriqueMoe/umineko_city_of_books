@@ -71,3 +71,114 @@
     color: #e74c3c;
     font-size: 0.85rem;
 }
+
+.embedActions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.hiddenInput {
+    display: none;
+}
+
+.embedPreviews {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+}
+
+.embedPreviewColumn {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    flex: 1 1 300px;
+    min-width: 260px;
+    max-width: 440px;
+}
+
+.embedPreviewLabel {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.discordPreview {
+    display: flex;
+    background: #2b2d31;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.discordBar {
+    width: 4px;
+    flex-shrink: 0;
+    background: var(--gold);
+}
+
+.discordBody {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding: 0.75rem 1rem;
+    min-width: 0;
+}
+
+.discordSite {
+    font-size: 0.7rem;
+    color: #b5bac1;
+}
+
+.discordTitle {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #00a8fc;
+}
+
+.discordDesc {
+    font-size: 0.8rem;
+    color: #dbdee1;
+}
+
+.discordImage {
+    width: 100%;
+    border-radius: 4px;
+    margin-top: 0.35rem;
+    object-fit: cover;
+    max-height: 220px;
+}
+
+.twitterPreview {
+    border: 1px solid #38444d;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #15202b;
+}
+
+.twitterImage {
+    width: 100%;
+    aspect-ratio: 1.91 / 1;
+    object-fit: cover;
+    display: block;
+}
+
+.twitterBody {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    padding: 0.6rem 0.8rem;
+}
+
+.twitterDomain {
+    font-size: 0.75rem;
+    color: #8b98a5;
+}
+
+.twitterTitle {
+    font-size: 0.85rem;
+    color: #f7f9f9;
+}
+
+.twitterDesc {
+    font-size: 0.8rem;
+    color: #8b98a5;
+}

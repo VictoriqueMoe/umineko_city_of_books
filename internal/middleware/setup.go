@@ -59,7 +59,7 @@ func Setup(app *fiber.App, settingsSvc settings.Service, sessionMgr *session.Man
 		switch {
 		case strings.HasPrefix(path, "/static/assets/") || strings.HasPrefix(path, "/assets/"):
 			ctx.Set("Cache-Control", "public, max-age=31536000, immutable")
-		case strings.HasPrefix(path, "/uploads/"):
+		case strings.HasPrefix(path, "/uploads/") || strings.HasPrefix(path, "/og-image/"):
 			ctx.Set("Cache-Control", "public, max-age=2592000")
 		case strings.HasPrefix(path, "/characters/") || strings.HasPrefix(path, "/sounds/") || strings.HasPrefix(path, "/favicon/"):
 			ctx.Set("Cache-Control", "public, max-age=2592000")

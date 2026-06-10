@@ -3,13 +3,17 @@ package controllers
 import (
 	"context"
 	"errors"
+	"fmt"
+	"time"
 
 	"umineko_city_of_books/internal/admin"
 	"umineko_city_of_books/internal/authz"
+	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/middleware"
 	"umineko_city_of_books/internal/role"
+	"umineko_city_of_books/internal/upload"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -36,6 +40,7 @@ func (s *Service) getAllAdminRoutes() []FSetupRoute {
 		s.setupAdminResetPassword,
 		s.setupAdminGetSettings,
 		s.setupAdminUpdateSettings,
+		s.setupAdminUploadOGImage,
 		s.setupAdminSendTestEmail,
 		s.setupAdminGetAuditLog,
 		s.setupAdminCreateInvite,
@@ -113,6 +118,10 @@ func (s *Service) setupAdminGetSettings(r fiber.Router) {
 
 func (s *Service) setupAdminUpdateSettings(r fiber.Router) {
 	r.Put("/admin/settings", s.requirePerm(authz.PermManageSettings), s.adminUpdateSettings)
+}
+
+func (s *Service) setupAdminUploadOGImage(r fiber.Router) {
+	r.Post("/admin/settings/og-image", s.requirePerm(authz.PermManageSettings), s.adminUploadOGImage)
 }
 
 func (s *Service) setupAdminSendTestEmail(r fiber.Router) {
@@ -284,6 +293,40 @@ func (s *Service) adminUpdateSettings(ctx fiber.Ctx) error {
 		return handleAdminError(ctx, err)
 	}
 	return utils.OK(ctx)
+}
+
+func (s *Service) adminUploadOGImage(ctx fiber.Ctx) error {
+	file, err := ctx.FormFile("image")
+	if err != nil {
+		return utils.BadRequest(ctx, "image file is required")
+	}
+
+	maxSize := int64(s.SettingsService.GetInt(ctx.Context(), config.SettingMaxImageSize))
+	if file.Size > maxSize {
+		return utils.BadRequest(ctx, "file too large")
+	}
+
+	src, err := file.Open()
+	if err != nil {
+		return utils.BadRequest(ctx, "failed to read file")
+	}
+	defer src.Close()
+
+	sniffed, wrapped, err := upload.DetectContentType(src)
+	if err != nil {
+		return utils.BadRequest(ctx, "failed to read file")
+	}
+	if sniffed != "image/jpeg" {
+		return utils.BadRequest(ctx, "only jpg images are allowed")
+	}
+
+	filename := fmt.Sprintf("og_default_%d.jpg", time.Now().UnixMilli())
+	url, err := s.UploadService.SaveFile("branding", filename, wrapped)
+	if err != nil {
+		return utils.InternalError(ctx, "failed to save image")
+	}
+
+	return ctx.JSON(fiber.Map{"url": url})
 }
 
 func (s *Service) adminSendTestEmail(ctx fiber.Ctx) error {

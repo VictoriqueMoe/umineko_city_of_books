@@ -535,6 +535,12 @@ export async function updateAdminSettings(settings: SiteSettings): Promise<void>
     await apiPut<unknown, { settings: SiteSettings }>("/admin/settings", { settings });
 }
 
+export async function uploadOGDefaultImage(file: File): Promise<{ url: string }> {
+    const formData = new FormData();
+    formData.append("image", file);
+    return apiPostFormData<{ url: string }>("/admin/settings/og-image", formData);
+}
+
 export async function sendTestEmail(): Promise<void> {
     await apiPost<unknown, undefined>("/admin/settings/test-email", undefined);
 }

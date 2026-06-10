@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/repository/repotest"
 
 	"github.com/stretchr/testify/assert"
@@ -37,6 +38,23 @@ func TestSitemapRepository_ListUsernames(t *testing.T) {
 	// then
 	require.NoError(t, err)
 	assert.Contains(t, usernames, user.Username)
+}
+
+func TestSitemapRepository_ListJournalRows_NullUpdatedAt(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	user := repotest.CreateUser(t, repos)
+	journalID, err := repos.Journal.Create(context.Background(), user.ID, dto.CreateJournalRequest{Title: "Reading Umineko"})
+	require.NoError(t, err)
+
+	// when
+	rows, err := repos.Sitemap.ListJournalRows(context.Background())
+
+	// then
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	assert.Equal(t, journalID.String(), rows[0].JournalID)
+	assert.False(t, rows[0].JournalUpdatedAt.IsZero())
 }
 
 func TestSitemapRepository_ListPosts_Empty(t *testing.T) {

@@ -157,6 +157,9 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 	})
 	app.Get("/uploads/*", uploadsHandler)
 
+	ogImageHandler := controllers.NewOGImageHandler(svc.upload.GetUploadDir())
+	ogImageHandler.Register(app)
+
 	staticFS, err := fs.Sub(staticFiles, "static")
 	if err != nil {
 		logger.Log.Fatal().Err(err).Msg("failed to create static sub-filesystem")
@@ -166,7 +169,7 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 		FS: staticFS,
 	})
 
-	ogResolver := og.NewResolver(repos.Theory, repos.User, repos.Post, repos.Art, repos.Mystery, repos.Ship, repos.OC, repos.Fanfic, repos.Announcement, repos.Journal, repos.Chat, string(htmlBytes), baseURL)
+	ogResolver := og.NewResolver(repos.Theory, repos.User, repos.Post, repos.Art, repos.Mystery, repos.Ship, repos.OC, repos.Fanfic, repos.Announcement, repos.Journal, repos.Chat, settingsSvc, string(htmlBytes), baseURL)
 
 	app.Get("/*", func(ctx fiber.Ctx) error {
 		path := ctx.Path()

@@ -124,6 +124,7 @@ var (
 	SettingPushEnabled             = &SiteSettingDef{"push_enabled", "false", TypeBool}
 	SettingAppLatestVersion        = &SiteSettingDef{"app_latest_version", "", TypeString}
 	SettingAppDownloadURL          = &SiteSettingDef{"app_download_url", "", TypeString}
+	SettingOGDefaultImage          = &SiteSettingDef{"og_default_image", "", TypeString}
 
 	AllSiteSettings = []*SiteSettingDef{
 		SettingUploadDir,
@@ -192,6 +193,7 @@ var (
 		SettingPushEnabled,
 		SettingAppLatestVersion,
 		SettingAppDownloadURL,
+		SettingOGDefaultImage,
 	}
 )
 
@@ -247,6 +249,13 @@ func ValidateSettings(all map[SiteSettingKey]string) error {
 	regType := all[SettingRegistrationType.Key]
 	if regType != "open" && regType != "invite" && regType != "closed" {
 		return fmt.Errorf("registration type must be 'open', 'invite', or 'closed'")
+	}
+
+	ogImage := all[SettingOGDefaultImage.Key]
+	if ogImage != "" {
+		if !strings.HasPrefix(ogImage, "/uploads/") || !strings.HasSuffix(strings.ToLower(ogImage), ".jpg") {
+			return fmt.Errorf("default embed image must be an uploaded .jpg file")
+		}
 	}
 
 	if all[SettingVoiceEnabled.Key] == "true" {

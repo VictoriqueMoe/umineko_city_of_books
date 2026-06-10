@@ -98,7 +98,7 @@ func (r *sitemapRepository) ListUsernames(ctx context.Context) ([]string, error)
 
 func (r *sitemapRepository) ListJournalRows(ctx context.Context) ([]SitemapJournalRow, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT j.id, j.updated_at, e.entry_number, e.updated_at
+		`SELECT j.id, COALESCE(j.updated_at, j.created_at), e.entry_number, e.updated_at
 		FROM journals j
 		LEFT JOIN journal_entries e ON e.journal_id = j.id AND NOT e.is_draft
 		WHERE j.archived_at IS NULL

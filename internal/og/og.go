@@ -6,8 +6,10 @@ import (
 	"strconv"
 	"strings"
 
+	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/secrets"
+	"umineko_city_of_books/internal/settings"
 
 	"github.com/google/uuid"
 )
@@ -25,6 +27,7 @@ type (
 		announcementRepo repository.AnnouncementRepository
 		journalRepo      repository.JournalRepository
 		chatRepo         repository.ChatRepository
+		settingsSvc      settings.Service
 		baseHTML         string
 		baseURL          string
 	}
@@ -56,6 +59,7 @@ func NewResolver(
 	announcementRepo repository.AnnouncementRepository,
 	journalRepo repository.JournalRepository,
 	chatRepo repository.ChatRepository,
+	settingsSvc settings.Service,
 	baseHTML, baseURL string,
 ) *Resolver {
 	return &Resolver{
@@ -70,17 +74,34 @@ func NewResolver(
 		announcementRepo: announcementRepo,
 		journalRepo:      journalRepo,
 		chatRepo:         chatRepo,
+		settingsSvc:      settingsSvc,
 		baseHTML:         strings.ReplaceAll(baseHTML, baseURLPlaceholder, baseURL),
 		baseURL:          baseURL,
 	}
 }
 
 func (r *Resolver) Resolve(ctx context.Context, path string) string {
+	html, defaultImage := r.withDefaultImage(ctx)
 	meta := r.metaForPath(ctx, path)
 	if meta == nil {
-		return r.baseHTML
+		return html
 	}
-	return r.inject(*meta)
+	return r.inject(html, *meta, defaultImage)
+}
+
+func (r *Resolver) withDefaultImage(ctx context.Context) (string, string) {
+	builtin := r.baseURL + defaultImagePath
+	custom := r.settingsSvc.Get(ctx, config.SettingOGDefaultImage)
+	if custom == "" {
+		return r.baseHTML, builtin
+	}
+
+	img := r.absoluteURL(custom)
+	html := replaceMetaContent(r.baseHTML, "property", "og:image", builtin, img)
+	html = replaceMetaContent(html, "name", "twitter:image", builtin, img)
+	html = stripMetaTag(html, "property", "og:image:width")
+	html = stripMetaTag(html, "property", "og:image:height")
+	return html, img
 }
 
 func (r *Resolver) metaForPath(ctx context.Context, path string) *Meta {
@@ -791,8 +812,7 @@ func (r *Resolver) roomMeta(ctx context.Context, idStr string) *Meta {
 	}
 }
 
-func (r *Resolver) inject(meta Meta) string {
-	html := r.baseHTML
+func (r *Resolver) inject(html string, meta Meta, defaultImage string) string {
 	html = replaceMetaContent(html, "property", "og:title", defaultTitle, escapeAttr(meta.Title))
 	html = replaceMetaContent(html, "name", "twitter:title", defaultTitle, escapeAttr(meta.Title))
 	html = replaceMetaContent(html, "name", "twitter:description", defaultDescription, escapeAttr(meta.Description))
@@ -806,8 +826,7 @@ func (r *Resolver) inject(meta Meta) string {
 	}
 
 	if meta.Image != "" {
-		img := r.absoluteURL(meta.Image)
-		defaultImage := r.baseURL + defaultImagePath
+		img := r.ogImageURL(r.absoluteURL(meta.Image))
 		html = replaceMetaContent(html, "property", "og:image", defaultImage, img)
 		html = replaceMetaContent(html, "name", "twitter:image", defaultImage, img)
 		html = stripMetaTag(html, "property", "og:image:width")
@@ -853,6 +872,16 @@ func (r *Resolver) absoluteURL(u string) string {
 		return u
 	}
 	return r.baseURL + u
+}
+
+func (r *Resolver) ogImageURL(img string) string {
+	prefix := r.baseURL + "/uploads/"
+	if !strings.HasPrefix(img, prefix) || !strings.HasSuffix(strings.ToLower(img), ".webp") {
+		return img
+	}
+
+	rel := strings.TrimPrefix(img, prefix)
+	return r.baseURL + "/og-image/" + rel[:len(rel)-len(".webp")] + ".jpg"
 }
 
 func escapeAttr(s string) string {
