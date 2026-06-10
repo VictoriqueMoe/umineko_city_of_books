@@ -26,7 +26,7 @@ type (
 
 var (
 	urlRegex = regexp.MustCompile(`https?://[^\s<>"]+`)
-	ytRegex  = regexp.MustCompile(`(?:youtube\.com/watch\?v=|youtu\.be/|youtube\.com/embed/|youtube\.com/shorts/)([a-zA-Z0-9_-]{11})`)
+	ytRegex  = regexp.MustCompile(`^https?://(?:[a-z0-9-]+\.)*(?:youtube\.com/(?:watch\?v=|embed/|shorts/)|youtu\.be/)([a-zA-Z0-9_-]{11})`)
 )
 
 func ExtractURLs(body string) []string {
