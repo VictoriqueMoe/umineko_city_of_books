@@ -1161,7 +1161,7 @@ func (s *service) DeleteAttachment(ctx context.Context, attachmentID int64, myst
 	attachments, _ := s.mysteryRepo.GetAttachments(ctx, mysteryID)
 	var fileURL string
 	for _, a := range attachments {
-		if a.ID == int(attachmentID) {
+		if int64(a.ID) == attachmentID {
 			fileURL = a.FileURL
 			break
 		}
