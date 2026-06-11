@@ -94,6 +94,31 @@ func TestMintToken_SignsGrant(t *testing.T) {
 	assert.False(t, grants.Video.GetCanPublishSource(livekit.TrackSource_SCREEN_SHARE))
 }
 
+func TestMintToken_SubscribeOnly(t *testing.T) {
+	// given
+	svc := configuredService(t, testURL, testKey, testSecret)
+	roomID := uuid.New().String()
+	viewerID := "viewer_" + uuid.New().String()
+
+	// when
+	token, err := svc.MintToken(roomID, viewerID, "", false, false)
+	require.NoError(t, err)
+
+	// then
+	verifier, err := auth.ParseAPIToken(token)
+	require.NoError(t, err)
+
+	_, grants, err := verifier.Verify(testSecret)
+	require.NoError(t, err)
+	require.NotNil(t, grants.Video)
+	assert.True(t, grants.Video.RoomJoin)
+	assert.Equal(t, roomID, grants.Video.Room)
+	assert.False(t, grants.Video.GetCanPublish())
+	assert.False(t, grants.Video.GetCanPublishSource(livekit.TrackSource_MICROPHONE))
+	assert.False(t, grants.Video.GetCanPublishSource(livekit.TrackSource_CAMERA))
+	assert.False(t, grants.Video.GetCanPublishSource(livekit.TrackSource_SCREEN_SHARE))
+}
+
 func TestParseWebhook_Disabled(t *testing.T) {
 	// given
 	svc := configuredService(t, "", "", "")
