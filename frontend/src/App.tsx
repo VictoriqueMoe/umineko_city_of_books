@@ -65,7 +65,9 @@ import {
     JournalEntryPage,
     JournalPage,
     JournalsFeedPage,
+    LiveDirectoryPage,
     LiveGamesPage,
+    LiveWatchPage,
     LoginPage,
     MinesweeperGamePage,
     MysteryDetailPage,
@@ -277,6 +279,8 @@ function AppLayout() {
                             <Route path="/secrets/:id" element={<SecretDetailPage />} />
                             <Route path="/quotes" element={<QuoteBrowserPage />} />
                             <Route path="/search" element={<SearchPage />} />
+                            <Route path="/live" element={<LiveDirectoryPage />} />
+                            <Route path="/live/:streamID" element={<LiveWatchPage />} />
                             <Route path="/games/chess/scoreboard" element={<Navigate to="/games/chess" replace />} />
                             <Route
                                 path="/games/checkers/scoreboard"

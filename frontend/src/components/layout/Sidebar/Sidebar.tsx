@@ -451,6 +451,13 @@ export function Sidebar({ open, onClose, onCollapse }: SidebarProps) {
                             Chat Rooms
                             {hasUnread("rooms") && <span className={styles.unreadDot} aria-label="new content" />}
                         </NavLink>
+                        <NavLink
+                            to="/live"
+                            className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
+                            onClick={onClose}
+                        >
+                            Live
+                        </NavLink>
                         <button
                             className={`${styles.link} ${styles.expandBtn}${gamesOpen ? ` ${styles.expandOpen}` : ""}`}
                             onClick={() => setOverride("games", !gamesOpen)}

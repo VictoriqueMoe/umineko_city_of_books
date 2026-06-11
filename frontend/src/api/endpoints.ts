@@ -743,6 +743,53 @@ export async function forceMuteVoiceParticipant(roomId: string, userId: string, 
     await apiPost<unknown, { muted: boolean }>(`/chat/rooms/${roomId}/voice/participants/${userId}/mute`, { muted });
 }
 
+export interface LiveStream {
+    id: string;
+    userId: string;
+    title: string;
+    status: string;
+    viewerCount: number;
+    startedAt?: string;
+    streamerUsername: string;
+    streamerDisplayName: string;
+    streamerAvatarUrl: string;
+}
+
+export interface StreamOwner {
+    stream: LiveStream;
+    whipUrl: string;
+    streamKey: string;
+}
+
+export interface LiveStreamListResponse {
+    streams: LiveStream[];
+    enabled: boolean;
+}
+
+export async function listLiveStreams(): Promise<LiveStreamListResponse> {
+    return apiFetch<LiveStreamListResponse>("/streams/live");
+}
+
+export async function getStream(id: string): Promise<LiveStream> {
+    return apiFetch<LiveStream>(`/streams/${id}`);
+}
+
+export async function getMyStream(): Promise<StreamOwner | null> {
+    return apiFetch<StreamOwner | null>("/streams/mine");
+}
+
+export async function startStream(title: string): Promise<StreamOwner> {
+    return apiPost<StreamOwner, { title: string }>("/streams", { title });
+}
+
+export async function stopStream(id: string): Promise<void> {
+    await apiDelete<unknown>(`/streams/${id}`);
+}
+
+export async function getStreamViewerToken(id: string): Promise<VoiceTokenResponse> {
+    return apiPost<VoiceTokenResponse, Record<string, never>>(`/streams/${id}/token`, {});
+}
+
 export async function getWatchPartyVoiceToken(roomId: string, sessionId: string): Promise<VoiceTokenResponse> {
     return apiPost<VoiceTokenResponse, Record<string, never>>(
         `/chat/rooms/${roomId}/watch-parties/${sessionId}/voice/token`,

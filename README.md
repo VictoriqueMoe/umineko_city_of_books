@@ -904,6 +904,42 @@ Voice chat needs the bundled `livekit` service (already in `docker-compose.yml` 
 
 The webhook LiveKit posts back to (`/api/v1/livekit/webhook`) is reached server-to-server inside the compose network and is verified by the shared secret, so it does not need to be exposed through the proxy.
 
+### Live Streaming (LiveKit Ingress)
+
+The `/live` page lets any member broadcast from OBS 30+ / Streamlabs (over WHIP) to a public viewer directory anyone can watch without an account. It builds on the Voice Chat setup above and adds the bundled `livekit-ingress` service plus a Valkey (Redis-compatible) coordination bus (both already in the compose files). Disabled by default.
+
+1. **Create the ingress config.** The compose bind-mounts `./ingress.yaml`, which is gitignored. Copy the template (otherwise Docker creates an empty directory in its place):
+
+   ```bash
+   cp ingress.yaml.example ingress.yaml
+   ```
+
+   Set `api_key` / `api_secret` to the **same** key + secret as `livekit.yaml`.
+
+2. **Wire up the coordination bus.** The ingress and the SFU coordinate over Valkey, so `livekit.yaml` now needs a `redis:` block pointing at the **same** instance as `ingress.yaml`. In production both run `network_mode: host`, so they must use `127.0.0.1:<port>` (a host-networked container cannot resolve the `valkey` service name). If `6379` is already taken on the host, run valkey on another port (e.g. `6380`) and match it in both files.
+
+3. **Set the public WHIP endpoint.** Add an `ingress` block to `livekit.yaml` with the public URL OBS/Streamlabs will point at, and reverse-proxy that host to the ingress `whip_port`:
+
+   ```yaml
+   # livekit.yaml
+   ingress:
+     whip_base_url: "https://ingress.example.com/w"
+   ```
+
+   ```caddy
+   ingress.example.com {
+       reverse_proxy :8090   # whatever whip_port you set (use a free one if 8080 is taken)
+   }
+   ```
+
+4. **Open the media port.** WHIP media is a single UDP port (`rtc_config.udp_port`, default `7885`); open it **directly** on the host firewall (UDP cannot go through the HTTP proxy). Set `rtc_config.use_external_ip: true` so the ingress advertises the host's public IP. The WHIP signalling port itself only needs to be reachable by your reverse proxy, not the public internet.
+
+5. **Enable it in the app.** **Admin → Settings → Voice Chat (LiveKit)** → toggle **Enable Live Streaming** (and optionally set max concurrent streams). It reuses the same LiveKit URL + key/secret as voice.
+
+Broadcasters then hit **Go live** on `/live`, paste the returned WHIP URL + stream key into OBS / Streamlabs (Service: **WHIP**), and appear on the public directory.
+
+> WHIP media (WebRTC over UDP) requires the ingress on **host networking**. That works on a Linux host but not reliably on Docker Desktop (Windows/Mac), where the broadcaster app lives outside the container's network namespace, test broadcasting on the Linux host.
+
 ## Adding a New Page
 
 When creating a new page or section, update **all** of the following:

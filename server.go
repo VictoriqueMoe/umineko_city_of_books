@@ -48,6 +48,7 @@ import (
 	"umineko_city_of_books/internal/ship"
 	"umineko_city_of_books/internal/sidebar"
 	"umineko_city_of_books/internal/sitemap"
+	"umineko_city_of_books/internal/stream"
 	"umineko_city_of_books/internal/theory"
 	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/user"
@@ -103,6 +104,7 @@ type (
 		search          searchsvc.Service
 		user            user.Service
 		push            push.Service
+		stream          stream.Service
 	}
 )
 
@@ -140,7 +142,7 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 	ctrlService := controllers.NewService(
 		svc.auth, svc.profile, svc.theory, svc.notification, svc.admin,
 		svc.authz, settingsSvc, svc.chat, svc.report, svc.post, svc.follow,
-		svc.art, svc.block, svc.announcement, svc.mystery, svc.user, svc.ship, svc.oc, svc.fanfic, svc.journal, svc.secret, svc.upload, svc.mediaProc, svc.vanityRole, svc.userSecret, svc.session, svc.hub, svc.giphy, svc.giphyFavourites, svc.gameRoom, svc.homeFeed, svc.sidebar, svc.search, svc.push, string(htmlBytes),
+		svc.art, svc.block, svc.announcement, svc.mystery, svc.user, svc.ship, svc.oc, svc.fanfic, svc.journal, svc.secret, svc.upload, svc.mediaProc, svc.vanityRole, svc.userSecret, svc.session, svc.hub, svc.giphy, svc.giphyFavourites, svc.gameRoom, svc.homeFeed, svc.sidebar, svc.search, svc.push, svc.stream, string(htmlBytes),
 	)
 	routes.PublicRoutes(ctrlService, app)
 
@@ -169,7 +171,7 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 		FS: staticFS,
 	})
 
-	ogResolver := og.NewResolver(repos.Theory, repos.User, repos.Post, repos.Art, repos.Mystery, repos.Ship, repos.OC, repos.Fanfic, repos.Announcement, repos.Journal, repos.Chat, settingsSvc, string(htmlBytes), baseURL)
+	ogResolver := og.NewResolver(repos.Theory, repos.User, repos.Post, repos.Art, repos.Mystery, repos.Ship, repos.OC, repos.Fanfic, repos.Announcement, repos.Journal, repos.Chat, repos.LiveStream, settingsSvc, string(htmlBytes), baseURL)
 
 	app.Get("/*", func(ctx fiber.Ctx) error {
 		path := ctx.Path()

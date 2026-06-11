@@ -254,7 +254,13 @@ export function AdminSettings() {
                         enabled={settings.voice_enabled === "true"}
                         onChange={v => toggleField("voice_enabled", v)}
                     />
-                    {settings.voice_enabled === "true" && (
+                    <ToggleSwitch
+                        label="Enable Live Streaming"
+                        description="Let members broadcast from OBS (WHIP) to a public /live page anyone can watch (requires the LiveKit ingress service)"
+                        enabled={settings.streaming_enabled === "true"}
+                        onChange={v => toggleField("streaming_enabled", v)}
+                    />
+                    {(settings.voice_enabled === "true" || settings.streaming_enabled === "true") && (
                         <>
                             <div className={styles.field}>
                                 <span className={styles.fieldLabel}>LiveKit URL</span>
@@ -285,6 +291,18 @@ export function AdminSettings() {
                                 />
                             </div>
                         </>
+                    )}
+                    {settings.streaming_enabled === "true" && (
+                        <div className={styles.field}>
+                            <span className={styles.fieldLabel}>Max Concurrent Streams</span>
+                            <Input
+                                type="number"
+                                value={settings.stream_max_concurrent ?? ""}
+                                onChange={e => updateField("stream_max_concurrent", e.target.value)}
+                                fullWidth
+                                placeholder="3"
+                            />
+                        </div>
                     )}
                 </div>
             </div>

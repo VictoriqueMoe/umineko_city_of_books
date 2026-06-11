@@ -32,11 +32,21 @@ services:
       - ./data:/app/data
       - ./fcm-service-account.json:/app/fcm-service-account.json:ro
 
+  valkey:
+    image: valkey/valkey:latest
+    container_name: umineko-valkey
+    restart: unless-stopped
+    command: valkey-server --save "" --appendonly no
+    ports:
+      - "127.0.0.1:6379:6379"
+
   livekit:
     image: livekit/livekit-server:latest
     container_name: umineko-livekit
     restart: unless-stopped
     command: --config /etc/livekit.yaml
+    depends_on:
+      - valkey
     environment:
       NODE_IP: 127.0.0.1
     ports:
@@ -45,6 +55,22 @@ services:
       - "7882:7882/udp"
     volumes:
       - ./livekit.yaml:/etc/livekit.yaml:ro
+
+  # Host-networked: LiveKit requires host networking for WHIP UDP media (a bridge
+  # container advertises an internal IP the host's OBS/Streamlabs cannot reach).
+  # It reaches the bridged livekit + valkey via their published 127.0.0.1 ports.
+  livekit-ingress:
+    image: livekit/ingress:latest
+    container_name: umineko-livekit-ingress
+    restart: unless-stopped
+    network_mode: host
+    depends_on:
+      - valkey
+      - livekit
+    environment:
+      INGRESS_CONFIG_FILE: /etc/ingress.yaml
+    volumes:
+      - ./ingress.yaml:/etc/ingress.yaml:ro
 
 volumes:
   postgres_data:

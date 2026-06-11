@@ -49,6 +49,7 @@ import (
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/ship"
 	"umineko_city_of_books/internal/sidebar"
+	"umineko_city_of_books/internal/stream"
 	"umineko_city_of_books/internal/theory"
 	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/user"
@@ -93,6 +94,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 	reportSvc := report.NewService(repos.Report, repos.Role, repos.User, notifSvc, settingsSvc)
 	hyperbeamSvc := hyperbeam.NewService()
 	livekitSvc := livekit.NewService(settingsSvc)
+	streamSvc := stream.NewService(repos.LiveStream, livekitSvc, settingsSvc, hub)
 	chatSvc := chat.NewService(repos.Chat, repos.User, repos.Role, repos.VanityRole, repos.ChatRoomBan, repos.ChatBannedWord, repos.ChatWatchParty, repos.AuditLog, authzSvc, notifSvc, blockSvc, uploadSvc, settingsSvc, mediaProc, hub, hyperbeamSvc, livekitSvc, contentFilter)
 	followSvc := follow.NewService(repos.Follow, repos.User, blockSvc, notifSvc, settingsSvc)
 	postSvc := postsvc.NewService(repos.Post, repos.User, repos.Role, repos.AuditLog, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, hub, contentFilter)
@@ -152,5 +154,6 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 		search:          searchSvc,
 		user:            userSvc,
 		push:            pushSvc,
+		stream:          streamSvc,
 	}
 }

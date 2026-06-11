@@ -80,6 +80,7 @@ const (
 	SearchEntityJournalComment      SearchEntityType = "journal_comment"
 	SearchEntityUser                SearchEntityType = "user"
 	SearchEntityChatMessage         SearchEntityType = "chat_message"
+	SearchEntityLiveStream          SearchEntityType = "live_stream"
 )
 
 const searchHeadlineOptions = `'MaxFragments=1, MaxWords=18, MinWords=5, ShortWord=3, HighlightAll=false, StartSel=<mark>, StopSel=</mark>'`
@@ -340,6 +341,18 @@ var searchSources = []SearchSource{
 		CreatedAt:      "u.created_at",
 		TrigramOnTitle: true,
 		TrigramExprs:   []string{"u.username"},
+	},
+	{
+		Type:           SearchEntityLiveStream,
+		From:           "live_streams ls",
+		AuthorJoin:     "JOIN users u ON ls.user_id = u.id",
+		IDExpr:         "ls.id::text",
+		TitleExpr:      "ls.title",
+		BodyExpr:       "ls.title",
+		SearchVector:   "ls.search_vector",
+		CreatedAt:      "ls.created_at",
+		TrigramOnTitle: true,
+		ExtraWhere:     "ls.status = 'live'",
 	},
 }
 

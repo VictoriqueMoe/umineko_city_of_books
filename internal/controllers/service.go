@@ -29,6 +29,7 @@ import (
 	"umineko_city_of_books/internal/settings"
 	shipsvc "umineko_city_of_books/internal/ship"
 	"umineko_city_of_books/internal/sidebar"
+	"umineko_city_of_books/internal/stream"
 	"umineko_city_of_books/internal/theory"
 	"umineko_city_of_books/internal/upload"
 	usersvc "umineko_city_of_books/internal/user"
@@ -73,6 +74,7 @@ type (
 		SidebarService        sidebar.Service
 		SearchService         searchsvc.Service
 		PushService           push.Service
+		StreamService         stream.Service
 		HTMLContent           string
 	}
 )
@@ -112,6 +114,7 @@ func NewService(
 	sidebarService sidebar.Service,
 	searchService searchsvc.Service,
 	pushService push.Service,
+	streamService stream.Service,
 	htmlContent string,
 ) Service {
 	return Service{
@@ -149,6 +152,7 @@ func NewService(
 		SidebarService:        sidebarService,
 		SearchService:         searchService,
 		PushService:           pushService,
+		StreamService:         streamService,
 		HTMLContent:           htmlContent,
 	}
 }
@@ -178,6 +182,7 @@ func (s *Service) GetAPIRoutes() []FSetupRoute {
 	all = append(all, s.getAllGameRoomRoutes()...)
 	all = append(all, s.getAllHomeRoutes()...)
 	all = append(all, s.getAllSearchRoutes()...)
+	all = append(all, s.getAllStreamRoutes()...)
 	return all
 }
 

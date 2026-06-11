@@ -77,8 +77,17 @@ func (s *Service) decorateVoiceCounts(list *dto.ChatRoomListResponse) {
 
 func (s *Service) livekitWebhook(ctx fiber.Ctx) error {
 	authHeader := ctx.Get("Authorization")
+	body := ctx.Body()
 
-	if err := s.ChatService.HandleVoiceWebhook(ctx.Context(), authHeader, ctx.Body()); err != nil {
+	handled, err := s.StreamService.HandleWebhook(ctx.Context(), authHeader, body)
+	if err != nil {
+		return utils.BadRequest(ctx, "invalid webhook")
+	}
+	if handled {
+		return utils.OK(ctx)
+	}
+
+	if err := s.ChatService.HandleVoiceWebhook(ctx.Context(), authHeader, body); err != nil {
 		return utils.BadRequest(ctx, "invalid webhook")
 	}
 

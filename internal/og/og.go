@@ -27,6 +27,7 @@ type (
 		announcementRepo repository.AnnouncementRepository
 		journalRepo      repository.JournalRepository
 		chatRepo         repository.ChatRepository
+		liveStreamRepo   repository.LiveStreamRepository
 		settingsSvc      settings.Service
 		baseHTML         string
 		baseURL          string
@@ -59,6 +60,7 @@ func NewResolver(
 	announcementRepo repository.AnnouncementRepository,
 	journalRepo repository.JournalRepository,
 	chatRepo repository.ChatRepository,
+	liveStreamRepo repository.LiveStreamRepository,
 	settingsSvc settings.Service,
 	baseHTML, baseURL string,
 ) *Resolver {
@@ -74,6 +76,7 @@ func NewResolver(
 		announcementRepo: announcementRepo,
 		journalRepo:      journalRepo,
 		chatRepo:         chatRepo,
+		liveStreamRepo:   liveStreamRepo,
 		settingsSvc:      settingsSvc,
 		baseHTML:         strings.ReplaceAll(baseHTML, baseURLPlaceholder, baseURL),
 		baseURL:          baseURL,
@@ -283,6 +286,20 @@ func (r *Resolver) metaForPath(ctx context.Context, path string) *Meta {
 
 	if len(parts) == 2 && parts[0] == "secrets" {
 		return r.secretMeta(parts[1])
+	}
+
+	if len(parts) == 1 && parts[0] == "live" {
+		return &Meta{
+			Title:       "Live Streams - Umineko City of Books",
+			Description: "Watch live streams from the community. Reading parties, playthroughs, and real-time discussion about When They Cry.",
+			URL:         r.baseURL + "/live",
+		}
+	}
+
+	if len(parts) == 2 && parts[0] == "live" {
+		if _, err := uuid.Parse(parts[1]); err == nil {
+			return r.liveStreamMeta(ctx, parts[1])
+		}
 	}
 
 	if len(parts) == 2 && parts[0] == "gallery" {
@@ -810,6 +827,44 @@ func (r *Resolver) roomMeta(ctx context.Context, idStr string) *Meta {
 		Description: desc,
 		URL:         fmt.Sprintf("%s/rooms/%s", r.baseURL, idStr),
 	}
+}
+
+func (r *Resolver) liveStreamMeta(ctx context.Context, idStr string) *Meta {
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		return nil
+	}
+
+	stream, err := r.liveStreamRepo.GetByID(ctx, id)
+	if err != nil || stream == nil || stream.Status != "live" {
+		return nil
+	}
+
+	name := stream.DisplayName
+	if name == "" {
+		name = stream.Username
+	}
+
+	desc := stream.Title
+	if desc == "" {
+		desc = fmt.Sprintf("A live stream by %s on Umineko City of Books", name)
+	}
+
+	runes := []rune(desc)
+	if len(runes) > 200 {
+		desc = string(runes[:197]) + "..."
+	}
+
+	meta := &Meta{
+		Title:       fmt.Sprintf("%s - %s's live stream", stream.Title, name),
+		Description: desc,
+		URL:         fmt.Sprintf("%s/live/%s", r.baseURL, idStr),
+	}
+	if stream.AvatarURL != "" {
+		meta.Image = r.absoluteURL(stream.AvatarURL)
+	}
+
+	return meta
 }
 
 func (r *Resolver) inject(html string, meta Meta, defaultImage string) string {
