@@ -2,7 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Room, RoomEvent, Track } from "livekit-client";
-import { RoomAudioRenderer, RoomContext, VideoTrack, useParticipants, useTracks } from "@livekit/components-react";
+import {
+    RoomAudioRenderer,
+    RoomContext,
+    StartAudio,
+    VideoTrack,
+    useParticipants,
+    useTracks,
+} from "@livekit/components-react";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useNotifications } from "../../hooks/useNotifications";
 import { getStream, getStreamViewerToken, type LiveStream } from "../../api/endpoints";
@@ -111,6 +118,7 @@ export function LiveWatchPage() {
                     <RoomContext.Provider value={room}>
                         <StreamStage />
                         <RoomAudioRenderer />
+                        <StartAudio label="Click to enable sound" className={styles.startAudio} />
                     </RoomContext.Provider>
                 ) : (
                     <div className={styles.offline}>
