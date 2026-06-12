@@ -64,7 +64,7 @@ type MockService_CheckUsernameAvailable_Call struct {
 // CheckUsernameAvailable is a helper method to define mock.On call
 //   - ctx context.Context
 //   - username string
-func (_e *MockService_Expecter) CheckUsernameAvailable(ctx interface{}, username interface{}) *MockService_CheckUsernameAvailable_Call {
+func (_e *MockService_Expecter) CheckUsernameAvailable(ctx any, username any) *MockService_CheckUsernameAvailable_Call {
 	return &MockService_CheckUsernameAvailable_Call{Call: _e.mock.On("CheckUsernameAvailable", ctx, username)}
 }
 
@@ -135,7 +135,7 @@ type MockService_Create_Call struct {
 //   - email string
 //   - password string
 //   - displayName string
-func (_e *MockService_Expecter) Create(ctx interface{}, username interface{}, email interface{}, password interface{}, displayName interface{}) *MockService_Create_Call {
+func (_e *MockService_Expecter) Create(ctx any, username any, email any, password any, displayName any) *MockService_Create_Call {
 	return &MockService_Create_Call{Call: _e.mock.On("Create", ctx, username, email, password, displayName)}
 }
 
@@ -218,7 +218,7 @@ type MockService_GetByID_Call struct {
 // GetByID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockService_Expecter) GetByID(ctx interface{}, id interface{}) *MockService_GetByID_Call {
+func (_e *MockService_Expecter) GetByID(ctx any, id any) *MockService_GetByID_Call {
 	return &MockService_GetByID_Call{Call: _e.mock.On("GetByID", ctx, id)}
 }
 
@@ -284,7 +284,7 @@ type MockService_GetDetectiveRawScore_Call struct {
 // GetDetectiveRawScore is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockService_Expecter) GetDetectiveRawScore(ctx interface{}, id interface{}) *MockService_GetDetectiveRawScore_Call {
+func (_e *MockService_Expecter) GetDetectiveRawScore(ctx any, id any) *MockService_GetDetectiveRawScore_Call {
 	return &MockService_GetDetectiveRawScore_Call{Call: _e.mock.On("GetDetectiveRawScore", ctx, id)}
 }
 
@@ -350,7 +350,7 @@ type MockService_GetGMRawScore_Call struct {
 // GetGMRawScore is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockService_Expecter) GetGMRawScore(ctx interface{}, id interface{}) *MockService_GetGMRawScore_Call {
+func (_e *MockService_Expecter) GetGMRawScore(ctx any, id any) *MockService_GetGMRawScore_Call {
 	return &MockService_GetGMRawScore_Call{Call: _e.mock.On("GetGMRawScore", ctx, id)}
 }
 
@@ -417,7 +417,7 @@ type MockService_ListStaff_Call struct {
 
 // ListStaff is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockService_Expecter) ListStaff(ctx interface{}) *MockService_ListStaff_Call {
+func (_e *MockService_Expecter) ListStaff(ctx any) *MockService_ListStaff_Call {
 	return &MockService_ListStaff_Call{Call: _e.mock.On("ListStaff", ctx)}
 }
 
@@ -472,7 +472,7 @@ type MockService_UpdateAppearance_Call struct {
 //   - theme string
 //   - font string
 //   - wideLayout bool
-func (_e *MockService_Expecter) UpdateAppearance(ctx interface{}, id interface{}, theme interface{}, font interface{}, wideLayout interface{}) *MockService_UpdateAppearance_Call {
+func (_e *MockService_Expecter) UpdateAppearance(ctx any, id any, theme any, font any, wideLayout any) *MockService_UpdateAppearance_Call {
 	return &MockService_UpdateAppearance_Call{Call: _e.mock.On("UpdateAppearance", ctx, id, theme, font, wideLayout)}
 }
 
@@ -545,7 +545,7 @@ type MockService_UpdateGMScoreAdjustment_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - adjustment int
-func (_e *MockService_Expecter) UpdateGMScoreAdjustment(ctx interface{}, id interface{}, adjustment interface{}) *MockService_UpdateGMScoreAdjustment_Call {
+func (_e *MockService_Expecter) UpdateGMScoreAdjustment(ctx any, id any, adjustment any) *MockService_UpdateGMScoreAdjustment_Call {
 	return &MockService_UpdateGMScoreAdjustment_Call{Call: _e.mock.On("UpdateGMScoreAdjustment", ctx, id, adjustment)}
 }
 
@@ -608,7 +608,7 @@ type MockService_UpdateGameBoardSort_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - sort string
-func (_e *MockService_Expecter) UpdateGameBoardSort(ctx interface{}, id interface{}, sort interface{}) *MockService_UpdateGameBoardSort_Call {
+func (_e *MockService_Expecter) UpdateGameBoardSort(ctx any, id any, sort any) *MockService_UpdateGameBoardSort_Call {
 	return &MockService_UpdateGameBoardSort_Call{Call: _e.mock.On("UpdateGameBoardSort", ctx, id, sort)}
 }
 
@@ -671,7 +671,7 @@ type MockService_UpdateIP_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - ip string
-func (_e *MockService_Expecter) UpdateIP(ctx interface{}, id interface{}, ip interface{}) *MockService_UpdateIP_Call {
+func (_e *MockService_Expecter) UpdateIP(ctx any, id any, ip any) *MockService_UpdateIP_Call {
 	return &MockService_UpdateIP_Call{Call: _e.mock.On("UpdateIP", ctx, id, ip)}
 }
 
@@ -734,7 +734,7 @@ type MockService_UpdateMysteryScoreAdjustment_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - adjustment int
-func (_e *MockService_Expecter) UpdateMysteryScoreAdjustment(ctx interface{}, id interface{}, adjustment interface{}) *MockService_UpdateMysteryScoreAdjustment_Call {
+func (_e *MockService_Expecter) UpdateMysteryScoreAdjustment(ctx any, id any, adjustment any) *MockService_UpdateMysteryScoreAdjustment_Call {
 	return &MockService_UpdateMysteryScoreAdjustment_Call{Call: _e.mock.On("UpdateMysteryScoreAdjustment", ctx, id, adjustment)}
 }
 
@@ -808,7 +808,7 @@ type MockService_ValidateCredentials_Call struct {
 //   - ctx context.Context
 //   - username string
 //   - password string
-func (_e *MockService_Expecter) ValidateCredentials(ctx interface{}, username interface{}, password interface{}) *MockService_ValidateCredentials_Call {
+func (_e *MockService_Expecter) ValidateCredentials(ctx any, username any, password any) *MockService_ValidateCredentials_Call {
 	return &MockService_ValidateCredentials_Call{Call: _e.mock.On("ValidateCredentials", ctx, username, password)}
 }
 

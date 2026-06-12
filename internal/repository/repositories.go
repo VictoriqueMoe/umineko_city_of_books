@@ -38,6 +38,7 @@ type (
 		ChatBannedWord    ChatBannedWordRepository
 		ChatWatchParty    ChatWatchPartyRepository
 		LiveStream        LiveStreamRepository
+		StreamCredentials StreamCredentialsRepository
 		GameRoom          GameRoomRepository
 		HomeFeed          HomeFeedRepository
 		SidebarVisited    SidebarLastVisitedRepository
@@ -87,6 +88,7 @@ func New(db *sql.DB) *Repositories {
 		ChatBannedWord:    &chatBannedWordRepository{db: db},
 		ChatWatchParty:    &chatWatchPartyRepository{db: db},
 		LiveStream:        &liveStreamRepository{db: db},
+		StreamCredentials: &streamCredentialsRepository{db: db},
 		GameRoom:          &gameRoomRepository{db: db},
 		HomeFeed:          &homeFeedRepository{db: db},
 		SidebarVisited:    &sidebarLastVisitedRepository{db: db},

@@ -762,6 +762,11 @@ export interface StreamOwner {
     streamKey: string;
 }
 
+export interface StreamCredentials {
+    whipUrl: string;
+    streamKey: string;
+}
+
 export interface LiveStreamListResponse {
     streams: LiveStream[];
     enabled: boolean;
@@ -777,6 +782,14 @@ export async function getStream(id: string): Promise<LiveStream> {
 
 export async function getMyStream(): Promise<StreamOwner | null> {
     return apiFetch<StreamOwner | null>("/streams/mine");
+}
+
+export async function getStreamCredentials(): Promise<StreamCredentials> {
+    return apiFetch<StreamCredentials>("/streams/credentials");
+}
+
+export async function resetStreamCredentials(): Promise<StreamCredentials> {
+    return apiPost<StreamCredentials, Record<string, never>>("/streams/credentials/reset", {});
 }
 
 export async function startStream(title: string): Promise<StreamOwner> {

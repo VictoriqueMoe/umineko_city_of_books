@@ -77,7 +77,7 @@ type MockGameHandler_ComputeStats_Call struct {
 //   - result string
 //   - createdAt string
 //   - finishedAt string
-func (_e *MockGameHandler_Expecter) ComputeStats(stateJSON interface{}, result interface{}, createdAt interface{}, finishedAt interface{}) *MockGameHandler_ComputeStats_Call {
+func (_e *MockGameHandler_Expecter) ComputeStats(stateJSON any, result any, createdAt any, finishedAt any) *MockGameHandler_ComputeStats_Call {
 	return &MockGameHandler_ComputeStats_Call{Call: _e.mock.On("ComputeStats", stateJSON, result, createdAt, finishedAt)}
 }
 
@@ -203,7 +203,7 @@ type MockGameHandler_InitialState_Call struct {
 // InitialState is a helper method to define mock.On call
 //   - roomID uuid.UUID
 //   - players []dto.GameRoomPlayer
-func (_e *MockGameHandler_Expecter) InitialState(roomID interface{}, players interface{}) *MockGameHandler_InitialState_Call {
+func (_e *MockGameHandler_Expecter) InitialState(roomID any, players any) *MockGameHandler_InitialState_Call {
 	return &MockGameHandler_InitialState_Call{Call: _e.mock.On("InitialState", roomID, players)}
 }
 
@@ -304,7 +304,7 @@ type MockGameHandler_OnGraceExpired_Call struct {
 // OnGraceExpired is a helper method to define mock.On call
 //   - stateJSON string
 //   - playerSlot int
-func (_e *MockGameHandler_Expecter) OnGraceExpired(stateJSON interface{}, playerSlot interface{}) *MockGameHandler_OnGraceExpired_Call {
+func (_e *MockGameHandler_Expecter) OnGraceExpired(stateJSON any, playerSlot any) *MockGameHandler_OnGraceExpired_Call {
 	return &MockGameHandler_OnGraceExpired_Call{Call: _e.mock.On("OnGraceExpired", stateJSON, playerSlot)}
 }
 
@@ -370,7 +370,7 @@ type MockGameHandler_ProjectState_Call struct {
 // ProjectState is a helper method to define mock.On call
 //   - stateJSON string
 //   - finished bool
-func (_e *MockGameHandler_Expecter) ProjectState(stateJSON interface{}, finished interface{}) *MockGameHandler_ProjectState_Call {
+func (_e *MockGameHandler_Expecter) ProjectState(stateJSON any, finished any) *MockGameHandler_ProjectState_Call {
 	return &MockGameHandler_ProjectState_Call{Call: _e.mock.On("ProjectState", stateJSON, finished)}
 }
 
@@ -481,7 +481,7 @@ type MockGameHandler_ValidateAction_Call struct {
 //   - stateJSON string
 //   - actorSlot int
 //   - action json.RawMessage
-func (_e *MockGameHandler_Expecter) ValidateAction(stateJSON interface{}, actorSlot interface{}, action interface{}) *MockGameHandler_ValidateAction_Call {
+func (_e *MockGameHandler_Expecter) ValidateAction(stateJSON any, actorSlot any, action any) *MockGameHandler_ValidateAction_Call {
 	return &MockGameHandler_ValidateAction_Call{Call: _e.mock.On("ValidateAction", stateJSON, actorSlot, action)}
 }
 

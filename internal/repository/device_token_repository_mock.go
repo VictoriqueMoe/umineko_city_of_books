@@ -63,7 +63,7 @@ type MockDeviceTokenRepository_Delete_Call struct {
 // Delete is a helper method to define mock.On call
 //   - ctx context.Context
 //   - token string
-func (_e *MockDeviceTokenRepository_Expecter) Delete(ctx interface{}, token interface{}) *MockDeviceTokenRepository_Delete_Call {
+func (_e *MockDeviceTokenRepository_Expecter) Delete(ctx any, token any) *MockDeviceTokenRepository_Delete_Call {
 	return &MockDeviceTokenRepository_Delete_Call{Call: _e.mock.On("Delete", ctx, token)}
 }
 
@@ -120,7 +120,7 @@ type MockDeviceTokenRepository_DeleteMany_Call struct {
 // DeleteMany is a helper method to define mock.On call
 //   - ctx context.Context
 //   - tokens []string
-func (_e *MockDeviceTokenRepository_Expecter) DeleteMany(ctx interface{}, tokens interface{}) *MockDeviceTokenRepository_DeleteMany_Call {
+func (_e *MockDeviceTokenRepository_Expecter) DeleteMany(ctx any, tokens any) *MockDeviceTokenRepository_DeleteMany_Call {
 	return &MockDeviceTokenRepository_DeleteMany_Call{Call: _e.mock.On("DeleteMany", ctx, tokens)}
 }
 
@@ -188,7 +188,7 @@ type MockDeviceTokenRepository_TokensForUser_Call struct {
 // TokensForUser is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockDeviceTokenRepository_Expecter) TokensForUser(ctx interface{}, userID interface{}) *MockDeviceTokenRepository_TokensForUser_Call {
+func (_e *MockDeviceTokenRepository_Expecter) TokensForUser(ctx any, userID any) *MockDeviceTokenRepository_TokensForUser_Call {
 	return &MockDeviceTokenRepository_TokensForUser_Call{Call: _e.mock.On("TokensForUser", ctx, userID)}
 }
 
@@ -247,7 +247,7 @@ type MockDeviceTokenRepository_Upsert_Call struct {
 //   - userID uuid.UUID
 //   - token string
 //   - platform string
-func (_e *MockDeviceTokenRepository_Expecter) Upsert(ctx interface{}, userID interface{}, token interface{}, platform interface{}) *MockDeviceTokenRepository_Upsert_Call {
+func (_e *MockDeviceTokenRepository_Expecter) Upsert(ctx any, userID any, token any, platform any) *MockDeviceTokenRepository_Upsert_Call {
 	return &MockDeviceTokenRepository_Upsert_Call{Call: _e.mock.On("Upsert", ctx, userID, token, platform)}
 }
 

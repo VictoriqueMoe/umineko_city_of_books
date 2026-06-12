@@ -77,7 +77,7 @@ type MockSecretRepository_AddCommentMedia_Call struct {
 //   - mediaType string
 //   - thumbnailURL string
 //   - sortOrder int
-func (_e *MockSecretRepository_Expecter) AddCommentMedia(ctx interface{}, commentID interface{}, mediaURL interface{}, mediaType interface{}, thumbnailURL interface{}, sortOrder interface{}) *MockSecretRepository_AddCommentMedia_Call {
+func (_e *MockSecretRepository_Expecter) AddCommentMedia(ctx any, commentID any, mediaURL any, mediaType any, thumbnailURL any, sortOrder any) *MockSecretRepository_AddCommentMedia_Call {
 	return &MockSecretRepository_AddCommentMedia_Call{Call: _e.mock.On("AddCommentMedia", ctx, commentID, mediaURL, mediaType, thumbnailURL, sortOrder)}
 }
 
@@ -165,7 +165,7 @@ type MockSecretRepository_CountCommentsBySecret_Call struct {
 // CountCommentsBySecret is a helper method to define mock.On call
 //   - ctx context.Context
 //   - secretIDs []string
-func (_e *MockSecretRepository_Expecter) CountCommentsBySecret(ctx interface{}, secretIDs interface{}) *MockSecretRepository_CountCommentsBySecret_Call {
+func (_e *MockSecretRepository_Expecter) CountCommentsBySecret(ctx any, secretIDs any) *MockSecretRepository_CountCommentsBySecret_Call {
 	return &MockSecretRepository_CountCommentsBySecret_Call{Call: _e.mock.On("CountCommentsBySecret", ctx, secretIDs)}
 }
 
@@ -226,7 +226,7 @@ type MockSecretRepository_CreateComment_Call struct {
 //   - parentID *uuid.UUID
 //   - userID uuid.UUID
 //   - body string
-func (_e *MockSecretRepository_Expecter) CreateComment(ctx interface{}, id interface{}, secretID interface{}, parentID interface{}, userID interface{}, body interface{}) *MockSecretRepository_CreateComment_Call {
+func (_e *MockSecretRepository_Expecter) CreateComment(ctx any, id any, secretID any, parentID any, userID any, body any) *MockSecretRepository_CreateComment_Call {
 	return &MockSecretRepository_CreateComment_Call{Call: _e.mock.On("CreateComment", ctx, id, secretID, parentID, userID, body)}
 }
 
@@ -304,7 +304,7 @@ type MockSecretRepository_DeleteComment_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockSecretRepository_Expecter) DeleteComment(ctx interface{}, id interface{}, userID interface{}) *MockSecretRepository_DeleteComment_Call {
+func (_e *MockSecretRepository_Expecter) DeleteComment(ctx any, id any, userID any) *MockSecretRepository_DeleteComment_Call {
 	return &MockSecretRepository_DeleteComment_Call{Call: _e.mock.On("DeleteComment", ctx, id, userID)}
 }
 
@@ -366,7 +366,7 @@ type MockSecretRepository_DeleteCommentAsAdmin_Call struct {
 // DeleteCommentAsAdmin is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockSecretRepository_Expecter) DeleteCommentAsAdmin(ctx interface{}, id interface{}) *MockSecretRepository_DeleteCommentAsAdmin_Call {
+func (_e *MockSecretRepository_Expecter) DeleteCommentAsAdmin(ctx any, id any) *MockSecretRepository_DeleteCommentAsAdmin_Call {
 	return &MockSecretRepository_DeleteCommentAsAdmin_Call{Call: _e.mock.On("DeleteCommentAsAdmin", ctx, id)}
 }
 
@@ -434,7 +434,7 @@ type MockSecretRepository_GetCommentAuthorID_Call struct {
 // GetCommentAuthorID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - commentID uuid.UUID
-func (_e *MockSecretRepository_Expecter) GetCommentAuthorID(ctx interface{}, commentID interface{}) *MockSecretRepository_GetCommentAuthorID_Call {
+func (_e *MockSecretRepository_Expecter) GetCommentAuthorID(ctx any, commentID any) *MockSecretRepository_GetCommentAuthorID_Call {
 	return &MockSecretRepository_GetCommentAuthorID_Call{Call: _e.mock.On("GetCommentAuthorID", ctx, commentID)}
 }
 
@@ -502,7 +502,7 @@ type MockSecretRepository_GetCommentByID_Call struct {
 // GetCommentByID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockSecretRepository_Expecter) GetCommentByID(ctx interface{}, id interface{}) *MockSecretRepository_GetCommentByID_Call {
+func (_e *MockSecretRepository_Expecter) GetCommentByID(ctx any, id any) *MockSecretRepository_GetCommentByID_Call {
 	return &MockSecretRepository_GetCommentByID_Call{Call: _e.mock.On("GetCommentByID", ctx, id)}
 }
 
@@ -570,7 +570,7 @@ type MockSecretRepository_GetCommentMedia_Call struct {
 // GetCommentMedia is a helper method to define mock.On call
 //   - ctx context.Context
 //   - commentID uuid.UUID
-func (_e *MockSecretRepository_Expecter) GetCommentMedia(ctx interface{}, commentID interface{}) *MockSecretRepository_GetCommentMedia_Call {
+func (_e *MockSecretRepository_Expecter) GetCommentMedia(ctx any, commentID any) *MockSecretRepository_GetCommentMedia_Call {
 	return &MockSecretRepository_GetCommentMedia_Call{Call: _e.mock.On("GetCommentMedia", ctx, commentID)}
 }
 
@@ -638,7 +638,7 @@ type MockSecretRepository_GetCommentMediaBatch_Call struct {
 // GetCommentMediaBatch is a helper method to define mock.On call
 //   - ctx context.Context
 //   - commentIDs []uuid.UUID
-func (_e *MockSecretRepository_Expecter) GetCommentMediaBatch(ctx interface{}, commentIDs interface{}) *MockSecretRepository_GetCommentMediaBatch_Call {
+func (_e *MockSecretRepository_Expecter) GetCommentMediaBatch(ctx any, commentIDs any) *MockSecretRepository_GetCommentMediaBatch_Call {
 	return &MockSecretRepository_GetCommentMediaBatch_Call{Call: _e.mock.On("GetCommentMediaBatch", ctx, commentIDs)}
 }
 
@@ -704,7 +704,7 @@ type MockSecretRepository_GetCommentSecretID_Call struct {
 // GetCommentSecretID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - commentID uuid.UUID
-func (_e *MockSecretRepository_Expecter) GetCommentSecretID(ctx interface{}, commentID interface{}) *MockSecretRepository_GetCommentSecretID_Call {
+func (_e *MockSecretRepository_Expecter) GetCommentSecretID(ctx any, commentID any) *MockSecretRepository_GetCommentSecretID_Call {
 	return &MockSecretRepository_GetCommentSecretID_Call{Call: _e.mock.On("GetCommentSecretID", ctx, commentID)}
 }
 
@@ -772,7 +772,7 @@ type MockSecretRepository_GetCommenterIDs_Call struct {
 // GetCommenterIDs is a helper method to define mock.On call
 //   - ctx context.Context
 //   - secretID string
-func (_e *MockSecretRepository_Expecter) GetCommenterIDs(ctx interface{}, secretID interface{}) *MockSecretRepository_GetCommenterIDs_Call {
+func (_e *MockSecretRepository_Expecter) GetCommenterIDs(ctx any, secretID any) *MockSecretRepository_GetCommenterIDs_Call {
 	return &MockSecretRepository_GetCommenterIDs_Call{Call: _e.mock.On("GetCommenterIDs", ctx, secretID)}
 }
 
@@ -842,7 +842,7 @@ type MockSecretRepository_GetComments_Call struct {
 //   - secretID string
 //   - viewerID uuid.UUID
 //   - excludeUserIDs []uuid.UUID
-func (_e *MockSecretRepository_Expecter) GetComments(ctx interface{}, secretID interface{}, viewerID interface{}, excludeUserIDs interface{}) *MockSecretRepository_GetComments_Call {
+func (_e *MockSecretRepository_Expecter) GetComments(ctx any, secretID any, viewerID any, excludeUserIDs any) *MockSecretRepository_GetComments_Call {
 	return &MockSecretRepository_GetComments_Call{Call: _e.mock.On("GetComments", ctx, secretID, viewerID, excludeUserIDs)}
 }
 
@@ -920,7 +920,7 @@ type MockSecretRepository_GetFirstSolver_Call struct {
 // GetFirstSolver is a helper method to define mock.On call
 //   - ctx context.Context
 //   - secretID string
-func (_e *MockSecretRepository_Expecter) GetFirstSolver(ctx interface{}, secretID interface{}) *MockSecretRepository_GetFirstSolver_Call {
+func (_e *MockSecretRepository_Expecter) GetFirstSolver(ctx any, secretID any) *MockSecretRepository_GetFirstSolver_Call {
 	return &MockSecretRepository_GetFirstSolver_Call{Call: _e.mock.On("GetFirstSolver", ctx, secretID)}
 }
 
@@ -987,7 +987,7 @@ type MockSecretRepository_GetPieceCountForUser_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - pieceIDs []string
-func (_e *MockSecretRepository_Expecter) GetPieceCountForUser(ctx interface{}, userID interface{}, pieceIDs interface{}) *MockSecretRepository_GetPieceCountForUser_Call {
+func (_e *MockSecretRepository_Expecter) GetPieceCountForUser(ctx any, userID any, pieceIDs any) *MockSecretRepository_GetPieceCountForUser_Call {
 	return &MockSecretRepository_GetPieceCountForUser_Call{Call: _e.mock.On("GetPieceCountForUser", ctx, userID, pieceIDs)}
 }
 
@@ -1060,7 +1060,7 @@ type MockSecretRepository_GetProgressLeaderboard_Call struct {
 // GetProgressLeaderboard is a helper method to define mock.On call
 //   - ctx context.Context
 //   - pieceIDs []string
-func (_e *MockSecretRepository_Expecter) GetProgressLeaderboard(ctx interface{}, pieceIDs interface{}) *MockSecretRepository_GetProgressLeaderboard_Call {
+func (_e *MockSecretRepository_Expecter) GetProgressLeaderboard(ctx any, pieceIDs any) *MockSecretRepository_GetProgressLeaderboard_Call {
 	return &MockSecretRepository_GetProgressLeaderboard_Call{Call: _e.mock.On("GetProgressLeaderboard", ctx, pieceIDs)}
 }
 
@@ -1128,7 +1128,7 @@ type MockSecretRepository_GetSolversLeaderboard_Call struct {
 // GetSolversLeaderboard is a helper method to define mock.On call
 //   - ctx context.Context
 //   - parentSecretIDs []string
-func (_e *MockSecretRepository_Expecter) GetSolversLeaderboard(ctx interface{}, parentSecretIDs interface{}) *MockSecretRepository_GetSolversLeaderboard_Call {
+func (_e *MockSecretRepository_Expecter) GetSolversLeaderboard(ctx any, parentSecretIDs any) *MockSecretRepository_GetSolversLeaderboard_Call {
 	return &MockSecretRepository_GetSolversLeaderboard_Call{Call: _e.mock.On("GetSolversLeaderboard", ctx, parentSecretIDs)}
 }
 
@@ -1197,7 +1197,7 @@ type MockSecretRepository_GetUserProgressSummary_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - pieceIDs []string
-func (_e *MockSecretRepository_Expecter) GetUserProgressSummary(ctx interface{}, userID interface{}, pieceIDs interface{}) *MockSecretRepository_GetUserProgressSummary_Call {
+func (_e *MockSecretRepository_Expecter) GetUserProgressSummary(ctx any, userID any, pieceIDs any) *MockSecretRepository_GetUserProgressSummary_Call {
 	return &MockSecretRepository_GetUserProgressSummary_Call{Call: _e.mock.On("GetUserProgressSummary", ctx, userID, pieceIDs)}
 }
 
@@ -1260,7 +1260,7 @@ type MockSecretRepository_LikeComment_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - commentID uuid.UUID
-func (_e *MockSecretRepository_Expecter) LikeComment(ctx interface{}, userID interface{}, commentID interface{}) *MockSecretRepository_LikeComment_Call {
+func (_e *MockSecretRepository_Expecter) LikeComment(ctx any, userID any, commentID any) *MockSecretRepository_LikeComment_Call {
 	return &MockSecretRepository_LikeComment_Call{Call: _e.mock.On("LikeComment", ctx, userID, commentID)}
 }
 
@@ -1323,7 +1323,7 @@ type MockSecretRepository_UnlikeComment_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - commentID uuid.UUID
-func (_e *MockSecretRepository_Expecter) UnlikeComment(ctx interface{}, userID interface{}, commentID interface{}) *MockSecretRepository_UnlikeComment_Call {
+func (_e *MockSecretRepository_Expecter) UnlikeComment(ctx any, userID any, commentID any) *MockSecretRepository_UnlikeComment_Call {
 	return &MockSecretRepository_UnlikeComment_Call{Call: _e.mock.On("UnlikeComment", ctx, userID, commentID)}
 }
 
@@ -1387,7 +1387,7 @@ type MockSecretRepository_UpdateComment_Call struct {
 //   - id uuid.UUID
 //   - userID uuid.UUID
 //   - body string
-func (_e *MockSecretRepository_Expecter) UpdateComment(ctx interface{}, id interface{}, userID interface{}, body interface{}) *MockSecretRepository_UpdateComment_Call {
+func (_e *MockSecretRepository_Expecter) UpdateComment(ctx any, id any, userID any, body any) *MockSecretRepository_UpdateComment_Call {
 	return &MockSecretRepository_UpdateComment_Call{Call: _e.mock.On("UpdateComment", ctx, id, userID, body)}
 }
 
@@ -1455,7 +1455,7 @@ type MockSecretRepository_UpdateCommentAsAdmin_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - body string
-func (_e *MockSecretRepository_Expecter) UpdateCommentAsAdmin(ctx interface{}, id interface{}, body interface{}) *MockSecretRepository_UpdateCommentAsAdmin_Call {
+func (_e *MockSecretRepository_Expecter) UpdateCommentAsAdmin(ctx any, id any, body any) *MockSecretRepository_UpdateCommentAsAdmin_Call {
 	return &MockSecretRepository_UpdateCommentAsAdmin_Call{Call: _e.mock.On("UpdateCommentAsAdmin", ctx, id, body)}
 }
 
@@ -1518,7 +1518,7 @@ type MockSecretRepository_UpdateCommentMediaThumbnail_Call struct {
 //   - ctx context.Context
 //   - id int64
 //   - thumbnailURL string
-func (_e *MockSecretRepository_Expecter) UpdateCommentMediaThumbnail(ctx interface{}, id interface{}, thumbnailURL interface{}) *MockSecretRepository_UpdateCommentMediaThumbnail_Call {
+func (_e *MockSecretRepository_Expecter) UpdateCommentMediaThumbnail(ctx any, id any, thumbnailURL any) *MockSecretRepository_UpdateCommentMediaThumbnail_Call {
 	return &MockSecretRepository_UpdateCommentMediaThumbnail_Call{Call: _e.mock.On("UpdateCommentMediaThumbnail", ctx, id, thumbnailURL)}
 }
 
@@ -1581,7 +1581,7 @@ type MockSecretRepository_UpdateCommentMediaURL_Call struct {
 //   - ctx context.Context
 //   - id int64
 //   - mediaURL string
-func (_e *MockSecretRepository_Expecter) UpdateCommentMediaURL(ctx interface{}, id interface{}, mediaURL interface{}) *MockSecretRepository_UpdateCommentMediaURL_Call {
+func (_e *MockSecretRepository_Expecter) UpdateCommentMediaURL(ctx any, id any, mediaURL any) *MockSecretRepository_UpdateCommentMediaURL_Call {
 	return &MockSecretRepository_UpdateCommentMediaURL_Call{Call: _e.mock.On("UpdateCommentMediaURL", ctx, id, mediaURL)}
 }
 

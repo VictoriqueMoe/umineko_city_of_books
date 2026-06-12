@@ -73,7 +73,7 @@ type MockService_GetAllAssignments_Call struct {
 
 // GetAllAssignments is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockService_Expecter) GetAllAssignments(ctx interface{}) *MockService_GetAllAssignments_Call {
+func (_e *MockService_Expecter) GetAllAssignments(ctx any) *MockService_GetAllAssignments_Call {
 	return &MockService_GetAllAssignments_Call{Call: _e.mock.On("GetAllAssignments", ctx)}
 }
 
@@ -135,7 +135,7 @@ type MockService_List_Call struct {
 
 // List is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockService_Expecter) List(ctx interface{}) *MockService_List_Call {
+func (_e *MockService_Expecter) List(ctx any) *MockService_List_Call {
 	return &MockService_List_Call{Call: _e.mock.On("List", ctx)}
 }
 

@@ -66,7 +66,7 @@ type MockEmailVerificationRepository_Create_Call struct {
 //   - tokenHash string
 //   - userID uuid.UUID
 //   - expiresAt time.Time
-func (_e *MockEmailVerificationRepository_Expecter) Create(ctx interface{}, tokenHash interface{}, userID interface{}, expiresAt interface{}) *MockEmailVerificationRepository_Create_Call {
+func (_e *MockEmailVerificationRepository_Expecter) Create(ctx any, tokenHash any, userID any, expiresAt any) *MockEmailVerificationRepository_Create_Call {
 	return &MockEmailVerificationRepository_Create_Call{Call: _e.mock.On("Create", ctx, tokenHash, userID, expiresAt)}
 }
 
@@ -133,7 +133,7 @@ type MockEmailVerificationRepository_DeleteUnusedForUser_Call struct {
 // DeleteUnusedForUser is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockEmailVerificationRepository_Expecter) DeleteUnusedForUser(ctx interface{}, userID interface{}) *MockEmailVerificationRepository_DeleteUnusedForUser_Call {
+func (_e *MockEmailVerificationRepository_Expecter) DeleteUnusedForUser(ctx any, userID any) *MockEmailVerificationRepository_DeleteUnusedForUser_Call {
 	return &MockEmailVerificationRepository_DeleteUnusedForUser_Call{Call: _e.mock.On("DeleteUnusedForUser", ctx, userID)}
 }
 
@@ -201,7 +201,7 @@ type MockEmailVerificationRepository_GetByTokenHash_Call struct {
 // GetByTokenHash is a helper method to define mock.On call
 //   - ctx context.Context
 //   - tokenHash string
-func (_e *MockEmailVerificationRepository_Expecter) GetByTokenHash(ctx interface{}, tokenHash interface{}) *MockEmailVerificationRepository_GetByTokenHash_Call {
+func (_e *MockEmailVerificationRepository_Expecter) GetByTokenHash(ctx any, tokenHash any) *MockEmailVerificationRepository_GetByTokenHash_Call {
 	return &MockEmailVerificationRepository_GetByTokenHash_Call{Call: _e.mock.On("GetByTokenHash", ctx, tokenHash)}
 }
 
@@ -258,7 +258,7 @@ type MockEmailVerificationRepository_MarkUsed_Call struct {
 // MarkUsed is a helper method to define mock.On call
 //   - ctx context.Context
 //   - tokenHash string
-func (_e *MockEmailVerificationRepository_Expecter) MarkUsed(ctx interface{}, tokenHash interface{}) *MockEmailVerificationRepository_MarkUsed_Call {
+func (_e *MockEmailVerificationRepository_Expecter) MarkUsed(ctx any, tokenHash any) *MockEmailVerificationRepository_MarkUsed_Call {
 	return &MockEmailVerificationRepository_MarkUsed_Call{Call: _e.mock.On("MarkUsed", ctx, tokenHash)}
 }
 

@@ -65,7 +65,7 @@ type MockUserRepository_AdminDeleteAccount_Call struct {
 // AdminDeleteAccount is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockUserRepository_Expecter) AdminDeleteAccount(ctx interface{}, userID interface{}) *MockUserRepository_AdminDeleteAccount_Call {
+func (_e *MockUserRepository_Expecter) AdminDeleteAccount(ctx any, userID any) *MockUserRepository_AdminDeleteAccount_Call {
 	return &MockUserRepository_AdminDeleteAccount_Call{Call: _e.mock.On("AdminDeleteAccount", ctx, userID)}
 }
 
@@ -124,7 +124,7 @@ type MockUserRepository_BanUser_Call struct {
 //   - userID uuid.UUID
 //   - bannedBy uuid.UUID
 //   - reason string
-func (_e *MockUserRepository_Expecter) BanUser(ctx interface{}, userID interface{}, bannedBy interface{}, reason interface{}) *MockUserRepository_BanUser_Call {
+func (_e *MockUserRepository_Expecter) BanUser(ctx any, userID any, bannedBy any, reason any) *MockUserRepository_BanUser_Call {
 	return &MockUserRepository_BanUser_Call{Call: _e.mock.On("BanUser", ctx, userID, bannedBy, reason)}
 }
 
@@ -193,7 +193,7 @@ type MockUserRepository_ChangePassword_Call struct {
 //   - userID uuid.UUID
 //   - oldPassword string
 //   - newPassword string
-func (_e *MockUserRepository_Expecter) ChangePassword(ctx interface{}, userID interface{}, oldPassword interface{}, newPassword interface{}) *MockUserRepository_ChangePassword_Call {
+func (_e *MockUserRepository_Expecter) ChangePassword(ctx any, userID any, oldPassword any, newPassword any) *MockUserRepository_ChangePassword_Call {
 	return &MockUserRepository_ChangePassword_Call{Call: _e.mock.On("ChangePassword", ctx, userID, oldPassword, newPassword)}
 }
 
@@ -268,7 +268,7 @@ type MockUserRepository_Count_Call struct {
 
 // Count is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockUserRepository_Expecter) Count(ctx interface{}) *MockUserRepository_Count_Call {
+func (_e *MockUserRepository_Expecter) Count(ctx any) *MockUserRepository_Count_Call {
 	return &MockUserRepository_Count_Call{Call: _e.mock.On("Count", ctx)}
 }
 
@@ -334,7 +334,7 @@ type MockUserRepository_Create_Call struct {
 //   - email string
 //   - password string
 //   - displayName string
-func (_e *MockUserRepository_Expecter) Create(ctx interface{}, username interface{}, email interface{}, password interface{}, displayName interface{}) *MockUserRepository_Create_Call {
+func (_e *MockUserRepository_Expecter) Create(ctx any, username any, email any, password any, displayName any) *MockUserRepository_Create_Call {
 	return &MockUserRepository_Create_Call{Call: _e.mock.On("Create", ctx, username, email, password, displayName)}
 }
 
@@ -407,7 +407,7 @@ type MockUserRepository_DeleteAccount_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - password string
-func (_e *MockUserRepository_Expecter) DeleteAccount(ctx interface{}, userID interface{}, password interface{}) *MockUserRepository_DeleteAccount_Call {
+func (_e *MockUserRepository_Expecter) DeleteAccount(ctx any, userID any, password any) *MockUserRepository_DeleteAccount_Call {
 	return &MockUserRepository_DeleteAccount_Call{Call: _e.mock.On("DeleteAccount", ctx, userID, password)}
 }
 
@@ -479,7 +479,7 @@ type MockUserRepository_EmailInUse_Call struct {
 //   - ctx context.Context
 //   - email string
 //   - excludeUserID uuid.UUID
-func (_e *MockUserRepository_Expecter) EmailInUse(ctx interface{}, email interface{}, excludeUserID interface{}) *MockUserRepository_EmailInUse_Call {
+func (_e *MockUserRepository_Expecter) EmailInUse(ctx any, email any, excludeUserID any) *MockUserRepository_EmailInUse_Call {
 	return &MockUserRepository_EmailInUse_Call{Call: _e.mock.On("EmailInUse", ctx, email, excludeUserID)}
 }
 
@@ -550,7 +550,7 @@ type MockUserRepository_ExistsByUsername_Call struct {
 // ExistsByUsername is a helper method to define mock.On call
 //   - ctx context.Context
 //   - username string
-func (_e *MockUserRepository_Expecter) ExistsByUsername(ctx interface{}, username interface{}) *MockUserRepository_ExistsByUsername_Call {
+func (_e *MockUserRepository_Expecter) ExistsByUsername(ctx any, username any) *MockUserRepository_ExistsByUsername_Call {
 	return &MockUserRepository_ExistsByUsername_Call{Call: _e.mock.On("ExistsByUsername", ctx, username)}
 }
 
@@ -618,7 +618,7 @@ type MockUserRepository_GetByID_Call struct {
 // GetByID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockUserRepository_Expecter) GetByID(ctx interface{}, id interface{}) *MockUserRepository_GetByID_Call {
+func (_e *MockUserRepository_Expecter) GetByID(ctx any, id any) *MockUserRepository_GetByID_Call {
 	return &MockUserRepository_GetByID_Call{Call: _e.mock.On("GetByID", ctx, id)}
 }
 
@@ -686,7 +686,7 @@ type MockUserRepository_GetByIDs_Call struct {
 // GetByIDs is a helper method to define mock.On call
 //   - ctx context.Context
 //   - ids []uuid.UUID
-func (_e *MockUserRepository_Expecter) GetByIDs(ctx interface{}, ids interface{}) *MockUserRepository_GetByIDs_Call {
+func (_e *MockUserRepository_Expecter) GetByIDs(ctx any, ids any) *MockUserRepository_GetByIDs_Call {
 	return &MockUserRepository_GetByIDs_Call{Call: _e.mock.On("GetByIDs", ctx, ids)}
 }
 
@@ -754,7 +754,7 @@ type MockUserRepository_GetByUsername_Call struct {
 // GetByUsername is a helper method to define mock.On call
 //   - ctx context.Context
 //   - username string
-func (_e *MockUserRepository_Expecter) GetByUsername(ctx interface{}, username interface{}) *MockUserRepository_GetByUsername_Call {
+func (_e *MockUserRepository_Expecter) GetByUsername(ctx any, username any) *MockUserRepository_GetByUsername_Call {
 	return &MockUserRepository_GetByUsername_Call{Call: _e.mock.On("GetByUsername", ctx, username)}
 }
 
@@ -822,7 +822,7 @@ type MockUserRepository_GetByUsernames_Call struct {
 // GetByUsernames is a helper method to define mock.On call
 //   - ctx context.Context
 //   - usernames []string
-func (_e *MockUserRepository_Expecter) GetByUsernames(ctx interface{}, usernames interface{}) *MockUserRepository_GetByUsernames_Call {
+func (_e *MockUserRepository_Expecter) GetByUsernames(ctx any, usernames any) *MockUserRepository_GetByUsernames_Call {
 	return &MockUserRepository_GetByUsernames_Call{Call: _e.mock.On("GetByUsernames", ctx, usernames)}
 }
 
@@ -888,7 +888,7 @@ type MockUserRepository_GetDetectiveRawScore_Call struct {
 // GetDetectiveRawScore is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockUserRepository_Expecter) GetDetectiveRawScore(ctx interface{}, userID interface{}) *MockUserRepository_GetDetectiveRawScore_Call {
+func (_e *MockUserRepository_Expecter) GetDetectiveRawScore(ctx any, userID any) *MockUserRepository_GetDetectiveRawScore_Call {
 	return &MockUserRepository_GetDetectiveRawScore_Call{Call: _e.mock.On("GetDetectiveRawScore", ctx, userID)}
 }
 
@@ -954,7 +954,7 @@ type MockUserRepository_GetGMRawScore_Call struct {
 // GetGMRawScore is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockUserRepository_Expecter) GetGMRawScore(ctx interface{}, userID interface{}) *MockUserRepository_GetGMRawScore_Call {
+func (_e *MockUserRepository_Expecter) GetGMRawScore(ctx any, userID any) *MockUserRepository_GetGMRawScore_Call {
 	return &MockUserRepository_GetGMRawScore_Call{Call: _e.mock.On("GetGMRawScore", ctx, userID)}
 }
 
@@ -1030,7 +1030,7 @@ type MockUserRepository_GetProfileByID_Call struct {
 // GetProfileByID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockUserRepository_Expecter) GetProfileByID(ctx interface{}, id interface{}) *MockUserRepository_GetProfileByID_Call {
+func (_e *MockUserRepository_Expecter) GetProfileByID(ctx any, id any) *MockUserRepository_GetProfileByID_Call {
 	return &MockUserRepository_GetProfileByID_Call{Call: _e.mock.On("GetProfileByID", ctx, id)}
 }
 
@@ -1106,7 +1106,7 @@ type MockUserRepository_GetProfileByUsername_Call struct {
 // GetProfileByUsername is a helper method to define mock.On call
 //   - ctx context.Context
 //   - username string
-func (_e *MockUserRepository_Expecter) GetProfileByUsername(ctx interface{}, username interface{}) *MockUserRepository_GetProfileByUsername_Call {
+func (_e *MockUserRepository_Expecter) GetProfileByUsername(ctx any, username any) *MockUserRepository_GetProfileByUsername_Call {
 	return &MockUserRepository_GetProfileByUsername_Call{Call: _e.mock.On("GetProfileByUsername", ctx, username)}
 }
 
@@ -1172,7 +1172,7 @@ type MockUserRepository_IsBanned_Call struct {
 // IsBanned is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockUserRepository_Expecter) IsBanned(ctx interface{}, userID interface{}) *MockUserRepository_IsBanned_Call {
+func (_e *MockUserRepository_Expecter) IsBanned(ctx any, userID any) *MockUserRepository_IsBanned_Call {
 	return &MockUserRepository_IsBanned_Call{Call: _e.mock.On("IsBanned", ctx, userID)}
 }
 
@@ -1238,7 +1238,7 @@ type MockUserRepository_IsLocked_Call struct {
 // IsLocked is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockUserRepository_Expecter) IsLocked(ctx interface{}, userID interface{}) *MockUserRepository_IsLocked_Call {
+func (_e *MockUserRepository_Expecter) IsLocked(ctx any, userID any) *MockUserRepository_IsLocked_Call {
 	return &MockUserRepository_IsLocked_Call{Call: _e.mock.On("IsLocked", ctx, userID)}
 }
 
@@ -1314,7 +1314,7 @@ type MockUserRepository_ListAll_Call struct {
 //   - search string
 //   - limit int
 //   - offset int
-func (_e *MockUserRepository_Expecter) ListAll(ctx interface{}, search interface{}, limit interface{}, offset interface{}) *MockUserRepository_ListAll_Call {
+func (_e *MockUserRepository_Expecter) ListAll(ctx any, search any, limit any, offset any) *MockUserRepository_ListAll_Call {
 	return &MockUserRepository_ListAll_Call{Call: _e.mock.On("ListAll", ctx, search, limit, offset)}
 }
 
@@ -1391,7 +1391,7 @@ type MockUserRepository_ListPublic_Call struct {
 
 // ListPublic is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockUserRepository_Expecter) ListPublic(ctx interface{}) *MockUserRepository_ListPublic_Call {
+func (_e *MockUserRepository_Expecter) ListPublic(ctx any) *MockUserRepository_ListPublic_Call {
 	return &MockUserRepository_ListPublic_Call{Call: _e.mock.On("ListPublic", ctx)}
 }
 
@@ -1445,7 +1445,7 @@ type MockUserRepository_LockUser_Call struct {
 //   - userID uuid.UUID
 //   - lockedBy uuid.UUID
 //   - reason string
-func (_e *MockUserRepository_Expecter) LockUser(ctx interface{}, userID interface{}, lockedBy interface{}, reason interface{}) *MockUserRepository_LockUser_Call {
+func (_e *MockUserRepository_Expecter) LockUser(ctx any, userID any, lockedBy any, reason any) *MockUserRepository_LockUser_Call {
 	return &MockUserRepository_LockUser_Call{Call: _e.mock.On("LockUser", ctx, userID, lockedBy, reason)}
 }
 
@@ -1512,7 +1512,7 @@ type MockUserRepository_MarkEmailVerified_Call struct {
 // MarkEmailVerified is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockUserRepository_Expecter) MarkEmailVerified(ctx interface{}, userID interface{}) *MockUserRepository_MarkEmailVerified_Call {
+func (_e *MockUserRepository_Expecter) MarkEmailVerified(ctx any, userID any) *MockUserRepository_MarkEmailVerified_Call {
 	return &MockUserRepository_MarkEmailVerified_Call{Call: _e.mock.On("MarkEmailVerified", ctx, userID)}
 }
 
@@ -1578,7 +1578,7 @@ type MockUserRepository_RequiresEmailVerification_Call struct {
 // RequiresEmailVerification is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockUserRepository_Expecter) RequiresEmailVerification(ctx interface{}, userID interface{}) *MockUserRepository_RequiresEmailVerification_Call {
+func (_e *MockUserRepository_Expecter) RequiresEmailVerification(ctx any, userID any) *MockUserRepository_RequiresEmailVerification_Call {
 	return &MockUserRepository_RequiresEmailVerification_Call{Call: _e.mock.On("RequiresEmailVerification", ctx, userID)}
 }
 
@@ -1647,7 +1647,7 @@ type MockUserRepository_SearchByName_Call struct {
 //   - ctx context.Context
 //   - query string
 //   - limit int
-func (_e *MockUserRepository_Expecter) SearchByName(ctx interface{}, query interface{}, limit interface{}) *MockUserRepository_SearchByName_Call {
+func (_e *MockUserRepository_Expecter) SearchByName(ctx any, query any, limit any) *MockUserRepository_SearchByName_Call {
 	return &MockUserRepository_SearchByName_Call{Call: _e.mock.On("SearchByName", ctx, query, limit)}
 }
 
@@ -1710,7 +1710,7 @@ type MockUserRepository_SetEmail_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - email string
-func (_e *MockUserRepository_Expecter) SetEmail(ctx interface{}, userID interface{}, email interface{}) *MockUserRepository_SetEmail_Call {
+func (_e *MockUserRepository_Expecter) SetEmail(ctx any, userID any, email any) *MockUserRepository_SetEmail_Call {
 	return &MockUserRepository_SetEmail_Call{Call: _e.mock.On("SetEmail", ctx, userID, email)}
 }
 
@@ -1773,7 +1773,7 @@ type MockUserRepository_SetPassword_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - newPassword string
-func (_e *MockUserRepository_Expecter) SetPassword(ctx interface{}, userID interface{}, newPassword interface{}) *MockUserRepository_SetPassword_Call {
+func (_e *MockUserRepository_Expecter) SetPassword(ctx any, userID any, newPassword any) *MockUserRepository_SetPassword_Call {
 	return &MockUserRepository_SetPassword_Call{Call: _e.mock.On("SetPassword", ctx, userID, newPassword)}
 }
 
@@ -1835,7 +1835,7 @@ type MockUserRepository_UnbanUser_Call struct {
 // UnbanUser is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockUserRepository_Expecter) UnbanUser(ctx interface{}, userID interface{}) *MockUserRepository_UnbanUser_Call {
+func (_e *MockUserRepository_Expecter) UnbanUser(ctx any, userID any) *MockUserRepository_UnbanUser_Call {
 	return &MockUserRepository_UnbanUser_Call{Call: _e.mock.On("UnbanUser", ctx, userID)}
 }
 
@@ -1892,7 +1892,7 @@ type MockUserRepository_UnlockUser_Call struct {
 // UnlockUser is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockUserRepository_Expecter) UnlockUser(ctx interface{}, userID interface{}) *MockUserRepository_UnlockUser_Call {
+func (_e *MockUserRepository_Expecter) UnlockUser(ctx any, userID any) *MockUserRepository_UnlockUser_Call {
 	return &MockUserRepository_UnlockUser_Call{Call: _e.mock.On("UnlockUser", ctx, userID)}
 }
 
@@ -1952,7 +1952,7 @@ type MockUserRepository_UpdateAppearance_Call struct {
 //   - theme string
 //   - font string
 //   - wideLayout bool
-func (_e *MockUserRepository_Expecter) UpdateAppearance(ctx interface{}, userID interface{}, theme interface{}, font interface{}, wideLayout interface{}) *MockUserRepository_UpdateAppearance_Call {
+func (_e *MockUserRepository_Expecter) UpdateAppearance(ctx any, userID any, theme any, font any, wideLayout any) *MockUserRepository_UpdateAppearance_Call {
 	return &MockUserRepository_UpdateAppearance_Call{Call: _e.mock.On("UpdateAppearance", ctx, userID, theme, font, wideLayout)}
 }
 
@@ -2025,7 +2025,7 @@ type MockUserRepository_UpdateAvatarURL_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - avatarURL string
-func (_e *MockUserRepository_Expecter) UpdateAvatarURL(ctx interface{}, userID interface{}, avatarURL interface{}) *MockUserRepository_UpdateAvatarURL_Call {
+func (_e *MockUserRepository_Expecter) UpdateAvatarURL(ctx any, userID any, avatarURL any) *MockUserRepository_UpdateAvatarURL_Call {
 	return &MockUserRepository_UpdateAvatarURL_Call{Call: _e.mock.On("UpdateAvatarURL", ctx, userID, avatarURL)}
 }
 
@@ -2088,7 +2088,7 @@ type MockUserRepository_UpdateBannerURL_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - bannerURL string
-func (_e *MockUserRepository_Expecter) UpdateBannerURL(ctx interface{}, userID interface{}, bannerURL interface{}) *MockUserRepository_UpdateBannerURL_Call {
+func (_e *MockUserRepository_Expecter) UpdateBannerURL(ctx any, userID any, bannerURL any) *MockUserRepository_UpdateBannerURL_Call {
 	return &MockUserRepository_UpdateBannerURL_Call{Call: _e.mock.On("UpdateBannerURL", ctx, userID, bannerURL)}
 }
 
@@ -2151,7 +2151,7 @@ type MockUserRepository_UpdateGMScoreAdjustment_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - adjustment int
-func (_e *MockUserRepository_Expecter) UpdateGMScoreAdjustment(ctx interface{}, userID interface{}, adjustment interface{}) *MockUserRepository_UpdateGMScoreAdjustment_Call {
+func (_e *MockUserRepository_Expecter) UpdateGMScoreAdjustment(ctx any, userID any, adjustment any) *MockUserRepository_UpdateGMScoreAdjustment_Call {
 	return &MockUserRepository_UpdateGMScoreAdjustment_Call{Call: _e.mock.On("UpdateGMScoreAdjustment", ctx, userID, adjustment)}
 }
 
@@ -2214,7 +2214,7 @@ type MockUserRepository_UpdateGameBoardSort_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - sort string
-func (_e *MockUserRepository_Expecter) UpdateGameBoardSort(ctx interface{}, userID interface{}, sort interface{}) *MockUserRepository_UpdateGameBoardSort_Call {
+func (_e *MockUserRepository_Expecter) UpdateGameBoardSort(ctx any, userID any, sort any) *MockUserRepository_UpdateGameBoardSort_Call {
 	return &MockUserRepository_UpdateGameBoardSort_Call{Call: _e.mock.On("UpdateGameBoardSort", ctx, userID, sort)}
 }
 
@@ -2277,7 +2277,7 @@ type MockUserRepository_UpdateIP_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - ip string
-func (_e *MockUserRepository_Expecter) UpdateIP(ctx interface{}, userID interface{}, ip interface{}) *MockUserRepository_UpdateIP_Call {
+func (_e *MockUserRepository_Expecter) UpdateIP(ctx any, userID any, ip any) *MockUserRepository_UpdateIP_Call {
 	return &MockUserRepository_UpdateIP_Call{Call: _e.mock.On("UpdateIP", ctx, userID, ip)}
 }
 
@@ -2340,7 +2340,7 @@ type MockUserRepository_UpdateMysteryScoreAdjustment_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - adjustment int
-func (_e *MockUserRepository_Expecter) UpdateMysteryScoreAdjustment(ctx interface{}, userID interface{}, adjustment interface{}) *MockUserRepository_UpdateMysteryScoreAdjustment_Call {
+func (_e *MockUserRepository_Expecter) UpdateMysteryScoreAdjustment(ctx any, userID any, adjustment any) *MockUserRepository_UpdateMysteryScoreAdjustment_Call {
 	return &MockUserRepository_UpdateMysteryScoreAdjustment_Call{Call: _e.mock.On("UpdateMysteryScoreAdjustment", ctx, userID, adjustment)}
 }
 
@@ -2403,7 +2403,7 @@ type MockUserRepository_UpdateProfile_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - req dto.UpdateProfileRequest
-func (_e *MockUserRepository_Expecter) UpdateProfile(ctx interface{}, userID interface{}, req interface{}) *MockUserRepository_UpdateProfile_Call {
+func (_e *MockUserRepository_Expecter) UpdateProfile(ctx any, userID any, req any) *MockUserRepository_UpdateProfile_Call {
 	return &MockUserRepository_UpdateProfile_Call{Call: _e.mock.On("UpdateProfile", ctx, userID, req)}
 }
 
@@ -2477,7 +2477,7 @@ type MockUserRepository_ValidatePassword_Call struct {
 //   - ctx context.Context
 //   - username string
 //   - password string
-func (_e *MockUserRepository_Expecter) ValidatePassword(ctx interface{}, username interface{}, password interface{}) *MockUserRepository_ValidatePassword_Call {
+func (_e *MockUserRepository_Expecter) ValidatePassword(ctx any, username any, password any) *MockUserRepository_ValidatePassword_Call {
 	return &MockUserRepository_ValidatePassword_Call{Call: _e.mock.On("ValidatePassword", ctx, username, password)}
 }
 

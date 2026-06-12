@@ -68,7 +68,7 @@ type MockGameRoomRepository_AddPlayer_Call struct {
 //   - userID uuid.UUID
 //   - slot int
 //   - joined bool
-func (_e *MockGameRoomRepository_Expecter) AddPlayer(ctx interface{}, roomID interface{}, userID interface{}, slot interface{}, joined interface{}) *MockGameRoomRepository_AddPlayer_Call {
+func (_e *MockGameRoomRepository_Expecter) AddPlayer(ctx any, roomID any, userID any, slot any, joined any) *MockGameRoomRepository_AddPlayer_Call {
 	return &MockGameRoomRepository_AddPlayer_Call{Call: _e.mock.On("AddPlayer", ctx, roomID, userID, slot, joined)}
 }
 
@@ -143,7 +143,7 @@ type MockGameRoomRepository_AppendMove_Call struct {
 //   - ply int
 //   - userID uuid.UUID
 //   - actionJSON string
-func (_e *MockGameRoomRepository_Expecter) AppendMove(ctx interface{}, roomID interface{}, ply interface{}, userID interface{}, actionJSON interface{}) *MockGameRoomRepository_AppendMove_Call {
+func (_e *MockGameRoomRepository_Expecter) AppendMove(ctx any, roomID any, ply any, userID any, actionJSON any) *MockGameRoomRepository_AppendMove_Call {
 	return &MockGameRoomRepository_AppendMove_Call{Call: _e.mock.On("AppendMove", ctx, roomID, ply, userID, actionJSON)}
 }
 
@@ -223,7 +223,7 @@ type MockGameRoomRepository_CountLive_Call struct {
 
 // CountLive is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockGameRoomRepository_Expecter) CountLive(ctx interface{}) *MockGameRoomRepository_CountLive_Call {
+func (_e *MockGameRoomRepository_Expecter) CountLive(ctx any) *MockGameRoomRepository_CountLive_Call {
 	return &MockGameRoomRepository_CountLive_Call{Call: _e.mock.On("CountLive", ctx)}
 }
 
@@ -278,7 +278,7 @@ type MockGameRoomRepository_CreateRoom_Call struct {
 //   - gameType string
 //   - initialStateJSON string
 //   - createdBy uuid.UUID
-func (_e *MockGameRoomRepository_Expecter) CreateRoom(ctx interface{}, id interface{}, gameType interface{}, initialStateJSON interface{}, createdBy interface{}) *MockGameRoomRepository_CreateRoom_Call {
+func (_e *MockGameRoomRepository_Expecter) CreateRoom(ctx any, id any, gameType any, initialStateJSON any, createdBy any) *MockGameRoomRepository_CreateRoom_Call {
 	return &MockGameRoomRepository_CreateRoom_Call{Call: _e.mock.On("CreateRoom", ctx, id, gameType, initialStateJSON, createdBy)}
 }
 
@@ -354,7 +354,7 @@ type MockGameRoomRepository_FinishRoom_Call struct {
 //   - winner *uuid.UUID
 //   - result string
 //   - stateJSON string
-func (_e *MockGameRoomRepository_Expecter) FinishRoom(ctx interface{}, roomID interface{}, status interface{}, winner interface{}, result interface{}, stateJSON interface{}) *MockGameRoomRepository_FinishRoom_Call {
+func (_e *MockGameRoomRepository_Expecter) FinishRoom(ctx any, roomID any, status any, winner any, result any, stateJSON any) *MockGameRoomRepository_FinishRoom_Call {
 	return &MockGameRoomRepository_FinishRoom_Call{Call: _e.mock.On("FinishRoom", ctx, roomID, status, winner, result, stateJSON)}
 }
 
@@ -441,7 +441,7 @@ type MockGameRoomRepository_GetPlayerSlot_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockGameRoomRepository_Expecter) GetPlayerSlot(ctx interface{}, roomID interface{}, userID interface{}) *MockGameRoomRepository_GetPlayerSlot_Call {
+func (_e *MockGameRoomRepository_Expecter) GetPlayerSlot(ctx any, roomID any, userID any) *MockGameRoomRepository_GetPlayerSlot_Call {
 	return &MockGameRoomRepository_GetPlayerSlot_Call{Call: _e.mock.On("GetPlayerSlot", ctx, roomID, userID)}
 }
 
@@ -514,7 +514,7 @@ type MockGameRoomRepository_GetPlayers_Call struct {
 // GetPlayers is a helper method to define mock.On call
 //   - ctx context.Context
 //   - roomID uuid.UUID
-func (_e *MockGameRoomRepository_Expecter) GetPlayers(ctx interface{}, roomID interface{}) *MockGameRoomRepository_GetPlayers_Call {
+func (_e *MockGameRoomRepository_Expecter) GetPlayers(ctx any, roomID any) *MockGameRoomRepository_GetPlayers_Call {
 	return &MockGameRoomRepository_GetPlayers_Call{Call: _e.mock.On("GetPlayers", ctx, roomID)}
 }
 
@@ -582,7 +582,7 @@ type MockGameRoomRepository_GetRoom_Call struct {
 // GetRoom is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockGameRoomRepository_Expecter) GetRoom(ctx interface{}, id interface{}) *MockGameRoomRepository_GetRoom_Call {
+func (_e *MockGameRoomRepository_Expecter) GetRoom(ctx any, id any) *MockGameRoomRepository_GetRoom_Call {
 	return &MockGameRoomRepository_GetRoom_Call{Call: _e.mock.On("GetRoom", ctx, id)}
 }
 
@@ -650,7 +650,7 @@ type MockGameRoomRepository_GetTopWinnerIDs_Call struct {
 // GetTopWinnerIDs is a helper method to define mock.On call
 //   - ctx context.Context
 //   - gameType string
-func (_e *MockGameRoomRepository_Expecter) GetTopWinnerIDs(ctx interface{}, gameType interface{}) *MockGameRoomRepository_GetTopWinnerIDs_Call {
+func (_e *MockGameRoomRepository_Expecter) GetTopWinnerIDs(ctx any, gameType any) *MockGameRoomRepository_GetTopWinnerIDs_Call {
 	return &MockGameRoomRepository_GetTopWinnerIDs_Call{Call: _e.mock.On("GetTopWinnerIDs", ctx, gameType)}
 }
 
@@ -717,7 +717,7 @@ type MockGameRoomRepository_IsParticipant_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockGameRoomRepository_Expecter) IsParticipant(ctx interface{}, roomID interface{}, userID interface{}) *MockGameRoomRepository_IsParticipant_Call {
+func (_e *MockGameRoomRepository_Expecter) IsParticipant(ctx any, roomID any, userID any) *MockGameRoomRepository_IsParticipant_Call {
 	return &MockGameRoomRepository_IsParticipant_Call{Call: _e.mock.On("IsParticipant", ctx, roomID, userID)}
 }
 
@@ -798,7 +798,7 @@ type MockGameRoomRepository_ListFinished_Call struct {
 //   - gameType string
 //   - limit int
 //   - offset int
-func (_e *MockGameRoomRepository_Expecter) ListFinished(ctx interface{}, gameType interface{}, limit interface{}, offset interface{}) *MockGameRoomRepository_ListFinished_Call {
+func (_e *MockGameRoomRepository_Expecter) ListFinished(ctx any, gameType any, limit any, offset any) *MockGameRoomRepository_ListFinished_Call {
 	return &MockGameRoomRepository_ListFinished_Call{Call: _e.mock.On("ListFinished", ctx, gameType, limit, offset)}
 }
 
@@ -886,7 +886,7 @@ type MockGameRoomRepository_ListForUser_Call struct {
 //   - statuses []dto.GameStatus
 //   - limit int
 //   - offset int
-func (_e *MockGameRoomRepository_Expecter) ListForUser(ctx interface{}, userID interface{}, gameType interface{}, statuses interface{}, limit interface{}, offset interface{}) *MockGameRoomRepository_ListForUser_Call {
+func (_e *MockGameRoomRepository_Expecter) ListForUser(ctx any, userID any, gameType any, statuses any, limit any, offset any) *MockGameRoomRepository_ListForUser_Call {
 	return &MockGameRoomRepository_ListForUser_Call{Call: _e.mock.On("ListForUser", ctx, userID, gameType, statuses, limit, offset)}
 }
 
@@ -974,7 +974,7 @@ type MockGameRoomRepository_ListIdleActive_Call struct {
 // ListIdleActive is a helper method to define mock.On call
 //   - ctx context.Context
 //   - idleSince time.Time
-func (_e *MockGameRoomRepository_Expecter) ListIdleActive(ctx interface{}, idleSince interface{}) *MockGameRoomRepository_ListIdleActive_Call {
+func (_e *MockGameRoomRepository_Expecter) ListIdleActive(ctx any, idleSince any) *MockGameRoomRepository_ListIdleActive_Call {
 	return &MockGameRoomRepository_ListIdleActive_Call{Call: _e.mock.On("ListIdleActive", ctx, idleSince)}
 }
 
@@ -1050,7 +1050,7 @@ type MockGameRoomRepository_ListLive_Call struct {
 //   - gameType string
 //   - limit int
 //   - offset int
-func (_e *MockGameRoomRepository_Expecter) ListLive(ctx interface{}, gameType interface{}, limit interface{}, offset interface{}) *MockGameRoomRepository_ListLive_Call {
+func (_e *MockGameRoomRepository_Expecter) ListLive(ctx any, gameType any, limit any, offset any) *MockGameRoomRepository_ListLive_Call {
 	return &MockGameRoomRepository_ListLive_Call{Call: _e.mock.On("ListLive", ctx, gameType, limit, offset)}
 }
 
@@ -1128,7 +1128,7 @@ type MockGameRoomRepository_ListMoves_Call struct {
 // ListMoves is a helper method to define mock.On call
 //   - ctx context.Context
 //   - roomID uuid.UUID
-func (_e *MockGameRoomRepository_Expecter) ListMoves(ctx interface{}, roomID interface{}) *MockGameRoomRepository_ListMoves_Call {
+func (_e *MockGameRoomRepository_Expecter) ListMoves(ctx any, roomID any) *MockGameRoomRepository_ListMoves_Call {
 	return &MockGameRoomRepository_ListMoves_Call{Call: _e.mock.On("ListMoves", ctx, roomID)}
 }
 
@@ -1194,7 +1194,7 @@ type MockGameRoomRepository_NextPly_Call struct {
 // NextPly is a helper method to define mock.On call
 //   - ctx context.Context
 //   - roomID uuid.UUID
-func (_e *MockGameRoomRepository_Expecter) NextPly(ctx interface{}, roomID interface{}) *MockGameRoomRepository_NextPly_Call {
+func (_e *MockGameRoomRepository_Expecter) NextPly(ctx any, roomID any) *MockGameRoomRepository_NextPly_Call {
 	return &MockGameRoomRepository_NextPly_Call{Call: _e.mock.On("NextPly", ctx, roomID)}
 }
 
@@ -1262,7 +1262,7 @@ type MockGameRoomRepository_Scoreboard_Call struct {
 // Scoreboard is a helper method to define mock.On call
 //   - ctx context.Context
 //   - gameType string
-func (_e *MockGameRoomRepository_Expecter) Scoreboard(ctx interface{}, gameType interface{}) *MockGameRoomRepository_Scoreboard_Call {
+func (_e *MockGameRoomRepository_Expecter) Scoreboard(ctx any, gameType any) *MockGameRoomRepository_Scoreboard_Call {
 	return &MockGameRoomRepository_Scoreboard_Call{Call: _e.mock.On("Scoreboard", ctx, gameType)}
 }
 
@@ -1320,7 +1320,7 @@ type MockGameRoomRepository_SetPlayerJoined_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockGameRoomRepository_Expecter) SetPlayerJoined(ctx interface{}, roomID interface{}, userID interface{}) *MockGameRoomRepository_SetPlayerJoined_Call {
+func (_e *MockGameRoomRepository_Expecter) SetPlayerJoined(ctx any, roomID any, userID any) *MockGameRoomRepository_SetPlayerJoined_Call {
 	return &MockGameRoomRepository_SetPlayerJoined_Call{Call: _e.mock.On("SetPlayerJoined", ctx, roomID, userID)}
 }
 
@@ -1384,7 +1384,7 @@ type MockGameRoomRepository_SetState_Call struct {
 //   - roomID uuid.UUID
 //   - stateJSON string
 //   - turnUserID *uuid.UUID
-func (_e *MockGameRoomRepository_Expecter) SetState(ctx interface{}, roomID interface{}, stateJSON interface{}, turnUserID interface{}) *MockGameRoomRepository_SetState_Call {
+func (_e *MockGameRoomRepository_Expecter) SetState(ctx any, roomID any, stateJSON any, turnUserID any) *MockGameRoomRepository_SetState_Call {
 	return &MockGameRoomRepository_SetState_Call{Call: _e.mock.On("SetState", ctx, roomID, stateJSON, turnUserID)}
 }
 
@@ -1452,7 +1452,7 @@ type MockGameRoomRepository_SetStatus_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - status string
-func (_e *MockGameRoomRepository_Expecter) SetStatus(ctx interface{}, roomID interface{}, status interface{}) *MockGameRoomRepository_SetStatus_Call {
+func (_e *MockGameRoomRepository_Expecter) SetStatus(ctx any, roomID any, status any) *MockGameRoomRepository_SetStatus_Call {
 	return &MockGameRoomRepository_SetStatus_Call{Call: _e.mock.On("SetStatus", ctx, roomID, status)}
 }
 
@@ -1515,7 +1515,7 @@ type MockGameRoomRepository_TouchPlayerSeen_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockGameRoomRepository_Expecter) TouchPlayerSeen(ctx interface{}, roomID interface{}, userID interface{}) *MockGameRoomRepository_TouchPlayerSeen_Call {
+func (_e *MockGameRoomRepository_Expecter) TouchPlayerSeen(ctx any, roomID any, userID any) *MockGameRoomRepository_TouchPlayerSeen_Call {
 	return &MockGameRoomRepository_TouchPlayerSeen_Call{Call: _e.mock.On("TouchPlayerSeen", ctx, roomID, userID)}
 }
 

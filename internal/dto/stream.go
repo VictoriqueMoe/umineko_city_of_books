@@ -26,6 +26,11 @@ type (
 		StreamKey string             `json:"streamKey"`
 	}
 
+	StreamCredentialsResponse struct {
+		WhipURL   string `json:"whipUrl"`
+		StreamKey string `json:"streamKey"`
+	}
+
 	LiveStreamListResponse struct {
 		Streams []LiveStreamResponse `json:"streams"`
 		Enabled bool                 `json:"enabled"`

@@ -79,7 +79,7 @@ type MockFanficRepository_AddCommentMedia_Call struct {
 //   - mediaType string
 //   - thumbnailURL string
 //   - sortOrder int
-func (_e *MockFanficRepository_Expecter) AddCommentMedia(ctx interface{}, commentID interface{}, mediaURL interface{}, mediaType interface{}, thumbnailURL interface{}, sortOrder interface{}) *MockFanficRepository_AddCommentMedia_Call {
+func (_e *MockFanficRepository_Expecter) AddCommentMedia(ctx any, commentID any, mediaURL any, mediaType any, thumbnailURL any, sortOrder any) *MockFanficRepository_AddCommentMedia_Call {
 	return &MockFanficRepository_AddCommentMedia_Call{Call: _e.mock.On("AddCommentMedia", ctx, commentID, mediaURL, mediaType, thumbnailURL, sortOrder)}
 }
 
@@ -161,7 +161,7 @@ type MockFanficRepository_CreateChapter_Call struct {
 //   - title string
 //   - body string
 //   - wordCount int
-func (_e *MockFanficRepository_Expecter) CreateChapter(ctx interface{}, id interface{}, fanficID interface{}, chapterNumber interface{}, title interface{}, body interface{}, wordCount interface{}) *MockFanficRepository_CreateChapter_Call {
+func (_e *MockFanficRepository_Expecter) CreateChapter(ctx any, id any, fanficID any, chapterNumber any, title any, body any, wordCount any) *MockFanficRepository_CreateChapter_Call {
 	return &MockFanficRepository_CreateChapter_Call{Call: _e.mock.On("CreateChapter", ctx, id, fanficID, chapterNumber, title, body, wordCount)}
 }
 
@@ -247,7 +247,7 @@ type MockFanficRepository_CreateComment_Call struct {
 //   - parentID *uuid.UUID
 //   - userID uuid.UUID
 //   - body string
-func (_e *MockFanficRepository_Expecter) CreateComment(ctx interface{}, id interface{}, fanficID interface{}, parentID interface{}, userID interface{}, body interface{}) *MockFanficRepository_CreateComment_Call {
+func (_e *MockFanficRepository_Expecter) CreateComment(ctx any, id any, fanficID any, parentID any, userID any, body any) *MockFanficRepository_CreateComment_Call {
 	return &MockFanficRepository_CreateComment_Call{Call: _e.mock.On("CreateComment", ctx, id, fanficID, parentID, userID, body)}
 }
 
@@ -337,7 +337,7 @@ type MockFanficRepository_CreateWithDetails_Call struct {
 //   - tags []string
 //   - characters []dto.FanficCharacter
 //   - isPairing bool
-func (_e *MockFanficRepository_Expecter) CreateWithDetails(ctx interface{}, id interface{}, userID interface{}, title interface{}, summary interface{}, series interface{}, rating interface{}, language interface{}, status interface{}, isOneshot interface{}, containsLemons interface{}, genres interface{}, tags interface{}, characters interface{}, isPairing interface{}) *MockFanficRepository_CreateWithDetails_Call {
+func (_e *MockFanficRepository_Expecter) CreateWithDetails(ctx any, id any, userID any, title any, summary any, series any, rating any, language any, status any, isOneshot any, containsLemons any, genres any, tags any, characters any, isPairing any) *MockFanficRepository_CreateWithDetails_Call {
 	return &MockFanficRepository_CreateWithDetails_Call{Call: _e.mock.On("CreateWithDetails", ctx, id, userID, title, summary, series, rating, language, status, isOneshot, containsLemons, genres, tags, characters, isPairing)}
 }
 
@@ -460,7 +460,7 @@ type MockFanficRepository_Delete_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockFanficRepository_Expecter) Delete(ctx interface{}, id interface{}, userID interface{}) *MockFanficRepository_Delete_Call {
+func (_e *MockFanficRepository_Expecter) Delete(ctx any, id any, userID any) *MockFanficRepository_Delete_Call {
 	return &MockFanficRepository_Delete_Call{Call: _e.mock.On("Delete", ctx, id, userID)}
 }
 
@@ -522,7 +522,7 @@ type MockFanficRepository_DeleteAsAdmin_Call struct {
 // DeleteAsAdmin is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockFanficRepository_Expecter) DeleteAsAdmin(ctx interface{}, id interface{}) *MockFanficRepository_DeleteAsAdmin_Call {
+func (_e *MockFanficRepository_Expecter) DeleteAsAdmin(ctx any, id any) *MockFanficRepository_DeleteAsAdmin_Call {
 	return &MockFanficRepository_DeleteAsAdmin_Call{Call: _e.mock.On("DeleteAsAdmin", ctx, id)}
 }
 
@@ -579,7 +579,7 @@ type MockFanficRepository_DeleteChapter_Call struct {
 // DeleteChapter is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockFanficRepository_Expecter) DeleteChapter(ctx interface{}, id interface{}) *MockFanficRepository_DeleteChapter_Call {
+func (_e *MockFanficRepository_Expecter) DeleteChapter(ctx any, id any) *MockFanficRepository_DeleteChapter_Call {
 	return &MockFanficRepository_DeleteChapter_Call{Call: _e.mock.On("DeleteChapter", ctx, id)}
 }
 
@@ -637,7 +637,7 @@ type MockFanficRepository_DeleteComment_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockFanficRepository_Expecter) DeleteComment(ctx interface{}, id interface{}, userID interface{}) *MockFanficRepository_DeleteComment_Call {
+func (_e *MockFanficRepository_Expecter) DeleteComment(ctx any, id any, userID any) *MockFanficRepository_DeleteComment_Call {
 	return &MockFanficRepository_DeleteComment_Call{Call: _e.mock.On("DeleteComment", ctx, id, userID)}
 }
 
@@ -699,7 +699,7 @@ type MockFanficRepository_DeleteCommentAsAdmin_Call struct {
 // DeleteCommentAsAdmin is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockFanficRepository_Expecter) DeleteCommentAsAdmin(ctx interface{}, id interface{}) *MockFanficRepository_DeleteCommentAsAdmin_Call {
+func (_e *MockFanficRepository_Expecter) DeleteCommentAsAdmin(ctx any, id any) *MockFanficRepository_DeleteCommentAsAdmin_Call {
 	return &MockFanficRepository_DeleteCommentAsAdmin_Call{Call: _e.mock.On("DeleteCommentAsAdmin", ctx, id)}
 }
 
@@ -757,7 +757,7 @@ type MockFanficRepository_Favourite_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - fanficID uuid.UUID
-func (_e *MockFanficRepository_Expecter) Favourite(ctx interface{}, userID interface{}, fanficID interface{}) *MockFanficRepository_Favourite_Call {
+func (_e *MockFanficRepository_Expecter) Favourite(ctx any, userID any, fanficID any) *MockFanficRepository_Favourite_Call {
 	return &MockFanficRepository_Favourite_Call{Call: _e.mock.On("Favourite", ctx, userID, fanficID)}
 }
 
@@ -830,7 +830,7 @@ type MockFanficRepository_GetAuthorID_Call struct {
 // GetAuthorID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - fanficID uuid.UUID
-func (_e *MockFanficRepository_Expecter) GetAuthorID(ctx interface{}, fanficID interface{}) *MockFanficRepository_GetAuthorID_Call {
+func (_e *MockFanficRepository_Expecter) GetAuthorID(ctx any, fanficID any) *MockFanficRepository_GetAuthorID_Call {
 	return &MockFanficRepository_GetAuthorID_Call{Call: _e.mock.On("GetAuthorID", ctx, fanficID)}
 }
 
@@ -899,7 +899,7 @@ type MockFanficRepository_GetByID_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - viewerID uuid.UUID
-func (_e *MockFanficRepository_Expecter) GetByID(ctx interface{}, id interface{}, viewerID interface{}) *MockFanficRepository_GetByID_Call {
+func (_e *MockFanficRepository_Expecter) GetByID(ctx any, id any, viewerID any) *MockFanficRepository_GetByID_Call {
 	return &MockFanficRepository_GetByID_Call{Call: _e.mock.On("GetByID", ctx, id, viewerID)}
 }
 
@@ -973,7 +973,7 @@ type MockFanficRepository_GetChapter_Call struct {
 //   - ctx context.Context
 //   - fanficID uuid.UUID
 //   - chapterNumber int
-func (_e *MockFanficRepository_Expecter) GetChapter(ctx interface{}, fanficID interface{}, chapterNumber interface{}) *MockFanficRepository_GetChapter_Call {
+func (_e *MockFanficRepository_Expecter) GetChapter(ctx any, fanficID any, chapterNumber any) *MockFanficRepository_GetChapter_Call {
 	return &MockFanficRepository_GetChapter_Call{Call: _e.mock.On("GetChapter", ctx, fanficID, chapterNumber)}
 }
 
@@ -1046,7 +1046,7 @@ type MockFanficRepository_GetChapterAuthorID_Call struct {
 // GetChapterAuthorID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - chapterID uuid.UUID
-func (_e *MockFanficRepository_Expecter) GetChapterAuthorID(ctx interface{}, chapterID interface{}) *MockFanficRepository_GetChapterAuthorID_Call {
+func (_e *MockFanficRepository_Expecter) GetChapterAuthorID(ctx any, chapterID any) *MockFanficRepository_GetChapterAuthorID_Call {
 	return &MockFanficRepository_GetChapterAuthorID_Call{Call: _e.mock.On("GetChapterAuthorID", ctx, chapterID)}
 }
 
@@ -1112,7 +1112,7 @@ type MockFanficRepository_GetChapterCount_Call struct {
 // GetChapterCount is a helper method to define mock.On call
 //   - ctx context.Context
 //   - fanficID uuid.UUID
-func (_e *MockFanficRepository_Expecter) GetChapterCount(ctx interface{}, fanficID interface{}) *MockFanficRepository_GetChapterCount_Call {
+func (_e *MockFanficRepository_Expecter) GetChapterCount(ctx any, fanficID any) *MockFanficRepository_GetChapterCount_Call {
 	return &MockFanficRepository_GetChapterCount_Call{Call: _e.mock.On("GetChapterCount", ctx, fanficID)}
 }
 
@@ -1180,7 +1180,7 @@ type MockFanficRepository_GetChapterFanficID_Call struct {
 // GetChapterFanficID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - chapterID uuid.UUID
-func (_e *MockFanficRepository_Expecter) GetChapterFanficID(ctx interface{}, chapterID interface{}) *MockFanficRepository_GetChapterFanficID_Call {
+func (_e *MockFanficRepository_Expecter) GetChapterFanficID(ctx any, chapterID any) *MockFanficRepository_GetChapterFanficID_Call {
 	return &MockFanficRepository_GetChapterFanficID_Call{Call: _e.mock.On("GetChapterFanficID", ctx, chapterID)}
 }
 
@@ -1248,7 +1248,7 @@ type MockFanficRepository_GetCharacters_Call struct {
 // GetCharacters is a helper method to define mock.On call
 //   - ctx context.Context
 //   - fanficID uuid.UUID
-func (_e *MockFanficRepository_Expecter) GetCharacters(ctx interface{}, fanficID interface{}) *MockFanficRepository_GetCharacters_Call {
+func (_e *MockFanficRepository_Expecter) GetCharacters(ctx any, fanficID any) *MockFanficRepository_GetCharacters_Call {
 	return &MockFanficRepository_GetCharacters_Call{Call: _e.mock.On("GetCharacters", ctx, fanficID)}
 }
 
@@ -1316,7 +1316,7 @@ type MockFanficRepository_GetCharactersBatch_Call struct {
 // GetCharactersBatch is a helper method to define mock.On call
 //   - ctx context.Context
 //   - fanficIDs []uuid.UUID
-func (_e *MockFanficRepository_Expecter) GetCharactersBatch(ctx interface{}, fanficIDs interface{}) *MockFanficRepository_GetCharactersBatch_Call {
+func (_e *MockFanficRepository_Expecter) GetCharactersBatch(ctx any, fanficIDs any) *MockFanficRepository_GetCharactersBatch_Call {
 	return &MockFanficRepository_GetCharactersBatch_Call{Call: _e.mock.On("GetCharactersBatch", ctx, fanficIDs)}
 }
 
@@ -1384,7 +1384,7 @@ type MockFanficRepository_GetCommentAuthorID_Call struct {
 // GetCommentAuthorID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - commentID uuid.UUID
-func (_e *MockFanficRepository_Expecter) GetCommentAuthorID(ctx interface{}, commentID interface{}) *MockFanficRepository_GetCommentAuthorID_Call {
+func (_e *MockFanficRepository_Expecter) GetCommentAuthorID(ctx any, commentID any) *MockFanficRepository_GetCommentAuthorID_Call {
 	return &MockFanficRepository_GetCommentAuthorID_Call{Call: _e.mock.On("GetCommentAuthorID", ctx, commentID)}
 }
 
@@ -1452,7 +1452,7 @@ type MockFanficRepository_GetCommentFanficID_Call struct {
 // GetCommentFanficID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - commentID uuid.UUID
-func (_e *MockFanficRepository_Expecter) GetCommentFanficID(ctx interface{}, commentID interface{}) *MockFanficRepository_GetCommentFanficID_Call {
+func (_e *MockFanficRepository_Expecter) GetCommentFanficID(ctx any, commentID any) *MockFanficRepository_GetCommentFanficID_Call {
 	return &MockFanficRepository_GetCommentFanficID_Call{Call: _e.mock.On("GetCommentFanficID", ctx, commentID)}
 }
 
@@ -1520,7 +1520,7 @@ type MockFanficRepository_GetCommentMedia_Call struct {
 // GetCommentMedia is a helper method to define mock.On call
 //   - ctx context.Context
 //   - commentID uuid.UUID
-func (_e *MockFanficRepository_Expecter) GetCommentMedia(ctx interface{}, commentID interface{}) *MockFanficRepository_GetCommentMedia_Call {
+func (_e *MockFanficRepository_Expecter) GetCommentMedia(ctx any, commentID any) *MockFanficRepository_GetCommentMedia_Call {
 	return &MockFanficRepository_GetCommentMedia_Call{Call: _e.mock.On("GetCommentMedia", ctx, commentID)}
 }
 
@@ -1588,7 +1588,7 @@ type MockFanficRepository_GetCommentMediaBatch_Call struct {
 // GetCommentMediaBatch is a helper method to define mock.On call
 //   - ctx context.Context
 //   - commentIDs []uuid.UUID
-func (_e *MockFanficRepository_Expecter) GetCommentMediaBatch(ctx interface{}, commentIDs interface{}) *MockFanficRepository_GetCommentMediaBatch_Call {
+func (_e *MockFanficRepository_Expecter) GetCommentMediaBatch(ctx any, commentIDs any) *MockFanficRepository_GetCommentMediaBatch_Call {
 	return &MockFanficRepository_GetCommentMediaBatch_Call{Call: _e.mock.On("GetCommentMediaBatch", ctx, commentIDs)}
 }
 
@@ -1658,7 +1658,7 @@ type MockFanficRepository_GetComments_Call struct {
 //   - fanficID uuid.UUID
 //   - viewerID uuid.UUID
 //   - excludeUserIDs []uuid.UUID
-func (_e *MockFanficRepository_Expecter) GetComments(ctx interface{}, fanficID interface{}, viewerID interface{}, excludeUserIDs interface{}) *MockFanficRepository_GetComments_Call {
+func (_e *MockFanficRepository_Expecter) GetComments(ctx any, fanficID any, viewerID any, excludeUserIDs any) *MockFanficRepository_GetComments_Call {
 	return &MockFanficRepository_GetComments_Call{Call: _e.mock.On("GetComments", ctx, fanficID, viewerID, excludeUserIDs)}
 }
 
@@ -1736,7 +1736,7 @@ type MockFanficRepository_GetGenres_Call struct {
 // GetGenres is a helper method to define mock.On call
 //   - ctx context.Context
 //   - fanficID uuid.UUID
-func (_e *MockFanficRepository_Expecter) GetGenres(ctx interface{}, fanficID interface{}) *MockFanficRepository_GetGenres_Call {
+func (_e *MockFanficRepository_Expecter) GetGenres(ctx any, fanficID any) *MockFanficRepository_GetGenres_Call {
 	return &MockFanficRepository_GetGenres_Call{Call: _e.mock.On("GetGenres", ctx, fanficID)}
 }
 
@@ -1804,7 +1804,7 @@ type MockFanficRepository_GetGenresBatch_Call struct {
 // GetGenresBatch is a helper method to define mock.On call
 //   - ctx context.Context
 //   - fanficIDs []uuid.UUID
-func (_e *MockFanficRepository_Expecter) GetGenresBatch(ctx interface{}, fanficIDs interface{}) *MockFanficRepository_GetGenresBatch_Call {
+func (_e *MockFanficRepository_Expecter) GetGenresBatch(ctx any, fanficIDs any) *MockFanficRepository_GetGenresBatch_Call {
 	return &MockFanficRepository_GetGenresBatch_Call{Call: _e.mock.On("GetGenresBatch", ctx, fanficIDs)}
 }
 
@@ -1871,7 +1871,7 @@ type MockFanficRepository_GetLanguages_Call struct {
 
 // GetLanguages is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockFanficRepository_Expecter) GetLanguages(ctx interface{}) *MockFanficRepository_GetLanguages_Call {
+func (_e *MockFanficRepository_Expecter) GetLanguages(ctx any) *MockFanficRepository_GetLanguages_Call {
 	return &MockFanficRepository_GetLanguages_Call{Call: _e.mock.On("GetLanguages", ctx)}
 }
 
@@ -1932,7 +1932,7 @@ type MockFanficRepository_GetNextChapterNumber_Call struct {
 // GetNextChapterNumber is a helper method to define mock.On call
 //   - ctx context.Context
 //   - fanficID uuid.UUID
-func (_e *MockFanficRepository_Expecter) GetNextChapterNumber(ctx interface{}, fanficID interface{}) *MockFanficRepository_GetNextChapterNumber_Call {
+func (_e *MockFanficRepository_Expecter) GetNextChapterNumber(ctx any, fanficID any) *MockFanficRepository_GetNextChapterNumber_Call {
 	return &MockFanficRepository_GetNextChapterNumber_Call{Call: _e.mock.On("GetNextChapterNumber", ctx, fanficID)}
 }
 
@@ -1999,7 +1999,7 @@ type MockFanficRepository_GetReadingProgress_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - fanficID uuid.UUID
-func (_e *MockFanficRepository_Expecter) GetReadingProgress(ctx interface{}, userID interface{}, fanficID interface{}) *MockFanficRepository_GetReadingProgress_Call {
+func (_e *MockFanficRepository_Expecter) GetReadingProgress(ctx any, userID any, fanficID any) *MockFanficRepository_GetReadingProgress_Call {
 	return &MockFanficRepository_GetReadingProgress_Call{Call: _e.mock.On("GetReadingProgress", ctx, userID, fanficID)}
 }
 
@@ -2071,7 +2071,7 @@ type MockFanficRepository_GetSeries_Call struct {
 
 // GetSeries is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockFanficRepository_Expecter) GetSeries(ctx interface{}) *MockFanficRepository_GetSeries_Call {
+func (_e *MockFanficRepository_Expecter) GetSeries(ctx any) *MockFanficRepository_GetSeries_Call {
 	return &MockFanficRepository_GetSeries_Call{Call: _e.mock.On("GetSeries", ctx)}
 }
 
@@ -2134,7 +2134,7 @@ type MockFanficRepository_GetTags_Call struct {
 // GetTags is a helper method to define mock.On call
 //   - ctx context.Context
 //   - fanficID uuid.UUID
-func (_e *MockFanficRepository_Expecter) GetTags(ctx interface{}, fanficID interface{}) *MockFanficRepository_GetTags_Call {
+func (_e *MockFanficRepository_Expecter) GetTags(ctx any, fanficID any) *MockFanficRepository_GetTags_Call {
 	return &MockFanficRepository_GetTags_Call{Call: _e.mock.On("GetTags", ctx, fanficID)}
 }
 
@@ -2202,7 +2202,7 @@ type MockFanficRepository_GetTagsBatch_Call struct {
 // GetTagsBatch is a helper method to define mock.On call
 //   - ctx context.Context
 //   - fanficIDs []uuid.UUID
-func (_e *MockFanficRepository_Expecter) GetTagsBatch(ctx interface{}, fanficIDs interface{}) *MockFanficRepository_GetTagsBatch_Call {
+func (_e *MockFanficRepository_Expecter) GetTagsBatch(ctx any, fanficIDs any) *MockFanficRepository_GetTagsBatch_Call {
 	return &MockFanficRepository_GetTagsBatch_Call{Call: _e.mock.On("GetTagsBatch", ctx, fanficIDs)}
 }
 
@@ -2260,7 +2260,7 @@ type MockFanficRepository_LikeComment_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - commentID uuid.UUID
-func (_e *MockFanficRepository_Expecter) LikeComment(ctx interface{}, userID interface{}, commentID interface{}) *MockFanficRepository_LikeComment_Call {
+func (_e *MockFanficRepository_Expecter) LikeComment(ctx any, userID any, commentID any) *MockFanficRepository_LikeComment_Call {
 	return &MockFanficRepository_LikeComment_Call{Call: _e.mock.On("LikeComment", ctx, userID, commentID)}
 }
 
@@ -2341,7 +2341,7 @@ type MockFanficRepository_List_Call struct {
 //   - viewerID uuid.UUID
 //   - params1 params.ListParams
 //   - excludeUserIDs []uuid.UUID
-func (_e *MockFanficRepository_Expecter) List(ctx interface{}, viewerID interface{}, params1 interface{}, excludeUserIDs interface{}) *MockFanficRepository_List_Call {
+func (_e *MockFanficRepository_Expecter) List(ctx any, viewerID any, params1 any, excludeUserIDs any) *MockFanficRepository_List_Call {
 	return &MockFanficRepository_List_Call{Call: _e.mock.On("List", ctx, viewerID, params1, excludeUserIDs)}
 }
 
@@ -2428,7 +2428,7 @@ type MockFanficRepository_ListByUser_Call struct {
 //   - viewerID uuid.UUID
 //   - limit int
 //   - offset int
-func (_e *MockFanficRepository_Expecter) ListByUser(ctx interface{}, userID interface{}, viewerID interface{}, limit interface{}, offset interface{}) *MockFanficRepository_ListByUser_Call {
+func (_e *MockFanficRepository_Expecter) ListByUser(ctx any, userID any, viewerID any, limit any, offset any) *MockFanficRepository_ListByUser_Call {
 	return &MockFanficRepository_ListByUser_Call{Call: _e.mock.On("ListByUser", ctx, userID, viewerID, limit, offset)}
 }
 
@@ -2511,7 +2511,7 @@ type MockFanficRepository_ListChapters_Call struct {
 // ListChapters is a helper method to define mock.On call
 //   - ctx context.Context
 //   - fanficID uuid.UUID
-func (_e *MockFanficRepository_Expecter) ListChapters(ctx interface{}, fanficID interface{}) *MockFanficRepository_ListChapters_Call {
+func (_e *MockFanficRepository_Expecter) ListChapters(ctx any, fanficID any) *MockFanficRepository_ListChapters_Call {
 	return &MockFanficRepository_ListChapters_Call{Call: _e.mock.On("ListChapters", ctx, fanficID)}
 }
 
@@ -2588,7 +2588,7 @@ type MockFanficRepository_ListFavourites_Call struct {
 //   - viewerID uuid.UUID
 //   - limit int
 //   - offset int
-func (_e *MockFanficRepository_Expecter) ListFavourites(ctx interface{}, userID interface{}, viewerID interface{}, limit interface{}, offset interface{}) *MockFanficRepository_ListFavourites_Call {
+func (_e *MockFanficRepository_Expecter) ListFavourites(ctx any, userID any, viewerID any, limit any, offset any) *MockFanficRepository_ListFavourites_Call {
 	return &MockFanficRepository_ListFavourites_Call{Call: _e.mock.On("ListFavourites", ctx, userID, viewerID, limit, offset)}
 }
 
@@ -2670,7 +2670,7 @@ type MockFanficRepository_RecordView_Call struct {
 //   - ctx context.Context
 //   - fanficID uuid.UUID
 //   - viewerHash string
-func (_e *MockFanficRepository_Expecter) RecordView(ctx interface{}, fanficID interface{}, viewerHash interface{}) *MockFanficRepository_RecordView_Call {
+func (_e *MockFanficRepository_Expecter) RecordView(ctx any, fanficID any, viewerHash any) *MockFanficRepository_RecordView_Call {
 	return &MockFanficRepository_RecordView_Call{Call: _e.mock.On("RecordView", ctx, fanficID, viewerHash)}
 }
 
@@ -2732,7 +2732,7 @@ type MockFanficRepository_RegisterLanguage_Call struct {
 // RegisterLanguage is a helper method to define mock.On call
 //   - ctx context.Context
 //   - name string
-func (_e *MockFanficRepository_Expecter) RegisterLanguage(ctx interface{}, name interface{}) *MockFanficRepository_RegisterLanguage_Call {
+func (_e *MockFanficRepository_Expecter) RegisterLanguage(ctx any, name any) *MockFanficRepository_RegisterLanguage_Call {
 	return &MockFanficRepository_RegisterLanguage_Call{Call: _e.mock.On("RegisterLanguage", ctx, name)}
 }
 
@@ -2790,7 +2790,7 @@ type MockFanficRepository_RegisterOCCharacter_Call struct {
 //   - ctx context.Context
 //   - name string
 //   - creatorID uuid.UUID
-func (_e *MockFanficRepository_Expecter) RegisterOCCharacter(ctx interface{}, name interface{}, creatorID interface{}) *MockFanficRepository_RegisterOCCharacter_Call {
+func (_e *MockFanficRepository_Expecter) RegisterOCCharacter(ctx any, name any, creatorID any) *MockFanficRepository_RegisterOCCharacter_Call {
 	return &MockFanficRepository_RegisterOCCharacter_Call{Call: _e.mock.On("RegisterOCCharacter", ctx, name, creatorID)}
 }
 
@@ -2852,7 +2852,7 @@ type MockFanficRepository_RegisterSeries_Call struct {
 // RegisterSeries is a helper method to define mock.On call
 //   - ctx context.Context
 //   - name string
-func (_e *MockFanficRepository_Expecter) RegisterSeries(ctx interface{}, name interface{}) *MockFanficRepository_RegisterSeries_Call {
+func (_e *MockFanficRepository_Expecter) RegisterSeries(ctx any, name any) *MockFanficRepository_RegisterSeries_Call {
 	return &MockFanficRepository_RegisterSeries_Call{Call: _e.mock.On("RegisterSeries", ctx, name)}
 }
 
@@ -2920,7 +2920,7 @@ type MockFanficRepository_SearchOCCharacters_Call struct {
 // SearchOCCharacters is a helper method to define mock.On call
 //   - ctx context.Context
 //   - query string
-func (_e *MockFanficRepository_Expecter) SearchOCCharacters(ctx interface{}, query interface{}) *MockFanficRepository_SearchOCCharacters_Call {
+func (_e *MockFanficRepository_Expecter) SearchOCCharacters(ctx any, query any) *MockFanficRepository_SearchOCCharacters_Call {
 	return &MockFanficRepository_SearchOCCharacters_Call{Call: _e.mock.On("SearchOCCharacters", ctx, query)}
 }
 
@@ -2979,7 +2979,7 @@ type MockFanficRepository_SetReadingProgress_Call struct {
 //   - userID uuid.UUID
 //   - fanficID uuid.UUID
 //   - chapterNumber int
-func (_e *MockFanficRepository_Expecter) SetReadingProgress(ctx interface{}, userID interface{}, fanficID interface{}, chapterNumber interface{}) *MockFanficRepository_SetReadingProgress_Call {
+func (_e *MockFanficRepository_Expecter) SetReadingProgress(ctx any, userID any, fanficID any, chapterNumber any) *MockFanficRepository_SetReadingProgress_Call {
 	return &MockFanficRepository_SetReadingProgress_Call{Call: _e.mock.On("SetReadingProgress", ctx, userID, fanficID, chapterNumber)}
 }
 
@@ -3047,7 +3047,7 @@ type MockFanficRepository_Unfavourite_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - fanficID uuid.UUID
-func (_e *MockFanficRepository_Expecter) Unfavourite(ctx interface{}, userID interface{}, fanficID interface{}) *MockFanficRepository_Unfavourite_Call {
+func (_e *MockFanficRepository_Expecter) Unfavourite(ctx any, userID any, fanficID any) *MockFanficRepository_Unfavourite_Call {
 	return &MockFanficRepository_Unfavourite_Call{Call: _e.mock.On("Unfavourite", ctx, userID, fanficID)}
 }
 
@@ -3110,7 +3110,7 @@ type MockFanficRepository_UnlikeComment_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - commentID uuid.UUID
-func (_e *MockFanficRepository_Expecter) UnlikeComment(ctx interface{}, userID interface{}, commentID interface{}) *MockFanficRepository_UnlikeComment_Call {
+func (_e *MockFanficRepository_Expecter) UnlikeComment(ctx any, userID any, commentID any) *MockFanficRepository_UnlikeComment_Call {
 	return &MockFanficRepository_UnlikeComment_Call{Call: _e.mock.On("UnlikeComment", ctx, userID, commentID)}
 }
 
@@ -3175,7 +3175,7 @@ type MockFanficRepository_UpdateChapter_Call struct {
 //   - title string
 //   - body string
 //   - wordCount int
-func (_e *MockFanficRepository_Expecter) UpdateChapter(ctx interface{}, id interface{}, title interface{}, body interface{}, wordCount interface{}) *MockFanficRepository_UpdateChapter_Call {
+func (_e *MockFanficRepository_Expecter) UpdateChapter(ctx any, id any, title any, body any, wordCount any) *MockFanficRepository_UpdateChapter_Call {
 	return &MockFanficRepository_UpdateChapter_Call{Call: _e.mock.On("UpdateChapter", ctx, id, title, body, wordCount)}
 }
 
@@ -3249,7 +3249,7 @@ type MockFanficRepository_UpdateComment_Call struct {
 //   - id uuid.UUID
 //   - userID uuid.UUID
 //   - body string
-func (_e *MockFanficRepository_Expecter) UpdateComment(ctx interface{}, id interface{}, userID interface{}, body interface{}) *MockFanficRepository_UpdateComment_Call {
+func (_e *MockFanficRepository_Expecter) UpdateComment(ctx any, id any, userID any, body any) *MockFanficRepository_UpdateComment_Call {
 	return &MockFanficRepository_UpdateComment_Call{Call: _e.mock.On("UpdateComment", ctx, id, userID, body)}
 }
 
@@ -3317,7 +3317,7 @@ type MockFanficRepository_UpdateCommentAsAdmin_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - body string
-func (_e *MockFanficRepository_Expecter) UpdateCommentAsAdmin(ctx interface{}, id interface{}, body interface{}) *MockFanficRepository_UpdateCommentAsAdmin_Call {
+func (_e *MockFanficRepository_Expecter) UpdateCommentAsAdmin(ctx any, id any, body any) *MockFanficRepository_UpdateCommentAsAdmin_Call {
 	return &MockFanficRepository_UpdateCommentAsAdmin_Call{Call: _e.mock.On("UpdateCommentAsAdmin", ctx, id, body)}
 }
 
@@ -3380,7 +3380,7 @@ type MockFanficRepository_UpdateCommentMediaThumbnail_Call struct {
 //   - ctx context.Context
 //   - id int64
 //   - thumbnailURL string
-func (_e *MockFanficRepository_Expecter) UpdateCommentMediaThumbnail(ctx interface{}, id interface{}, thumbnailURL interface{}) *MockFanficRepository_UpdateCommentMediaThumbnail_Call {
+func (_e *MockFanficRepository_Expecter) UpdateCommentMediaThumbnail(ctx any, id any, thumbnailURL any) *MockFanficRepository_UpdateCommentMediaThumbnail_Call {
 	return &MockFanficRepository_UpdateCommentMediaThumbnail_Call{Call: _e.mock.On("UpdateCommentMediaThumbnail", ctx, id, thumbnailURL)}
 }
 
@@ -3443,7 +3443,7 @@ type MockFanficRepository_UpdateCommentMediaURL_Call struct {
 //   - ctx context.Context
 //   - id int64
 //   - mediaURL string
-func (_e *MockFanficRepository_Expecter) UpdateCommentMediaURL(ctx interface{}, id interface{}, mediaURL interface{}) *MockFanficRepository_UpdateCommentMediaURL_Call {
+func (_e *MockFanficRepository_Expecter) UpdateCommentMediaURL(ctx any, id any, mediaURL any) *MockFanficRepository_UpdateCommentMediaURL_Call {
 	return &MockFanficRepository_UpdateCommentMediaURL_Call{Call: _e.mock.On("UpdateCommentMediaURL", ctx, id, mediaURL)}
 }
 
@@ -3507,7 +3507,7 @@ type MockFanficRepository_UpdateCoverImage_Call struct {
 //   - id uuid.UUID
 //   - imageURL string
 //   - thumbnailURL string
-func (_e *MockFanficRepository_Expecter) UpdateCoverImage(ctx interface{}, id interface{}, imageURL interface{}, thumbnailURL interface{}) *MockFanficRepository_UpdateCoverImage_Call {
+func (_e *MockFanficRepository_Expecter) UpdateCoverImage(ctx any, id any, imageURL any, thumbnailURL any) *MockFanficRepository_UpdateCoverImage_Call {
 	return &MockFanficRepository_UpdateCoverImage_Call{Call: _e.mock.On("UpdateCoverImage", ctx, id, imageURL, thumbnailURL)}
 }
 
@@ -3588,7 +3588,7 @@ type MockFanficRepository_UpdateWithDetails_Call struct {
 //   - characters []dto.FanficCharacter
 //   - isPairing bool
 //   - asAdmin bool
-func (_e *MockFanficRepository_Expecter) UpdateWithDetails(ctx interface{}, id interface{}, userID interface{}, title interface{}, summary interface{}, series interface{}, rating interface{}, language interface{}, status interface{}, isOneshot interface{}, containsLemons interface{}, genres interface{}, tags interface{}, characters interface{}, isPairing interface{}, asAdmin interface{}) *MockFanficRepository_UpdateWithDetails_Call {
+func (_e *MockFanficRepository_Expecter) UpdateWithDetails(ctx any, id any, userID any, title any, summary any, series any, rating any, language any, status any, isOneshot any, containsLemons any, genres any, tags any, characters any, isPairing any, asAdmin any) *MockFanficRepository_UpdateWithDetails_Call {
 	return &MockFanficRepository_UpdateWithDetails_Call{Call: _e.mock.On("UpdateWithDetails", ctx, id, userID, title, summary, series, rating, language, status, isOneshot, containsLemons, genres, tags, characters, isPairing, asAdmin)}
 }
 
@@ -3715,7 +3715,7 @@ type MockFanficRepository_UpdateWordCount_Call struct {
 // UpdateWordCount is a helper method to define mock.On call
 //   - ctx context.Context
 //   - fanficID uuid.UUID
-func (_e *MockFanficRepository_Expecter) UpdateWordCount(ctx interface{}, fanficID interface{}) *MockFanficRepository_UpdateWordCount_Call {
+func (_e *MockFanficRepository_Expecter) UpdateWordCount(ctx any, fanficID any) *MockFanficRepository_UpdateWordCount_Call {
 	return &MockFanficRepository_UpdateWordCount_Call{Call: _e.mock.On("UpdateWordCount", ctx, fanficID)}
 }
 

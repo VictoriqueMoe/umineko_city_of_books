@@ -63,7 +63,7 @@ type MockService_Delete_Call struct {
 
 // Delete is a helper method to define mock.On call
 //   - urlPath string
-func (_e *MockService_Expecter) Delete(urlPath interface{}) *MockService_Delete_Call {
+func (_e *MockService_Expecter) Delete(urlPath any) *MockService_Delete_Call {
 	return &MockService_Delete_Call{Call: _e.mock.On("Delete", urlPath)}
 }
 
@@ -115,7 +115,7 @@ type MockService_DeleteByPrefix_Call struct {
 // DeleteByPrefix is a helper method to define mock.On call
 //   - subDir string
 //   - prefix string
-func (_e *MockService_Expecter) DeleteByPrefix(subDir interface{}, prefix interface{}) *MockService_DeleteByPrefix_Call {
+func (_e *MockService_Expecter) DeleteByPrefix(subDir any, prefix any) *MockService_DeleteByPrefix_Call {
 	return &MockService_DeleteByPrefix_Call{Call: _e.mock.On("DeleteByPrefix", subDir, prefix)}
 }
 
@@ -171,7 +171,7 @@ type MockService_FullDiskPath_Call struct {
 
 // FullDiskPath is a helper method to define mock.On call
 //   - urlPath string
-func (_e *MockService_Expecter) FullDiskPath(urlPath interface{}) *MockService_FullDiskPath_Call {
+func (_e *MockService_Expecter) FullDiskPath(urlPath any) *MockService_FullDiskPath_Call {
 	return &MockService_FullDiskPath_Call{Call: _e.mock.On("FullDiskPath", urlPath)}
 }
 
@@ -277,7 +277,7 @@ type MockService_SaveFile_Call struct {
 //   - subDir string
 //   - filename string
 //   - reader io.Reader
-func (_e *MockService_Expecter) SaveFile(subDir interface{}, filename interface{}, reader interface{}) *MockService_SaveFile_Call {
+func (_e *MockService_Expecter) SaveFile(subDir any, filename any, reader any) *MockService_SaveFile_Call {
 	return &MockService_SaveFile_Call{Call: _e.mock.On("SaveFile", subDir, filename, reader)}
 }
 
@@ -352,7 +352,7 @@ type MockService_SaveImage_Call struct {
 //   - fileSize int64
 //   - maxSize int64
 //   - reader io.Reader
-func (_e *MockService_Expecter) SaveImage(ctx interface{}, subDir interface{}, id interface{}, fileSize interface{}, maxSize interface{}, reader interface{}) *MockService_SaveImage_Call {
+func (_e *MockService_Expecter) SaveImage(ctx any, subDir any, id any, fileSize any, maxSize any, reader any) *MockService_SaveImage_Call {
 	return &MockService_SaveImage_Call{Call: _e.mock.On("SaveImage", ctx, subDir, id, fileSize, maxSize, reader)}
 }
 
@@ -442,7 +442,7 @@ type MockService_SaveVideo_Call struct {
 //   - fileSize int64
 //   - maxSize int64
 //   - reader io.Reader
-func (_e *MockService_Expecter) SaveVideo(ctx interface{}, subDir interface{}, id interface{}, fileSize interface{}, maxSize interface{}, reader interface{}) *MockService_SaveVideo_Call {
+func (_e *MockService_Expecter) SaveVideo(ctx any, subDir any, id any, fileSize any, maxSize any, reader any) *MockService_SaveVideo_Call {
 	return &MockService_SaveVideo_Call{Call: _e.mock.On("SaveVideo", ctx, subDir, id, fileSize, maxSize, reader)}
 }
 

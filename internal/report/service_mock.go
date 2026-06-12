@@ -64,7 +64,7 @@ type MockService_Create_Call struct {
 //   - ctx context.Context
 //   - reporterID uuid.UUID
 //   - req CreateReportRequest
-func (_e *MockService_Expecter) Create(ctx interface{}, reporterID interface{}, req interface{}) *MockService_Create_Call {
+func (_e *MockService_Expecter) Create(ctx any, reporterID any, req any) *MockService_Create_Call {
 	return &MockService_Create_Call{Call: _e.mock.On("Create", ctx, reporterID, req)}
 }
 
@@ -139,7 +139,7 @@ type MockService_List_Call struct {
 //   - status string
 //   - limit int
 //   - offset int
-func (_e *MockService_Expecter) List(ctx interface{}, status interface{}, limit interface{}, offset interface{}) *MockService_List_Call {
+func (_e *MockService_Expecter) List(ctx any, status any, limit any, offset any) *MockService_List_Call {
 	return &MockService_List_Call{Call: _e.mock.On("List", ctx, status, limit, offset)}
 }
 
@@ -208,7 +208,7 @@ type MockService_Resolve_Call struct {
 //   - id int
 //   - resolvedBy uuid.UUID
 //   - comment string
-func (_e *MockService_Expecter) Resolve(ctx interface{}, id interface{}, resolvedBy interface{}, comment interface{}) *MockService_Resolve_Call {
+func (_e *MockService_Expecter) Resolve(ctx any, id any, resolvedBy any, comment any) *MockService_Resolve_Call {
 	return &MockService_Resolve_Call{Call: _e.mock.On("Resolve", ctx, id, resolvedBy, comment)}
 }
 

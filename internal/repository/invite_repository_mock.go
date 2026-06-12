@@ -64,7 +64,7 @@ type MockInviteRepository_Create_Call struct {
 //   - ctx context.Context
 //   - code string
 //   - createdBy uuid.UUID
-func (_e *MockInviteRepository_Expecter) Create(ctx interface{}, code interface{}, createdBy interface{}) *MockInviteRepository_Create_Call {
+func (_e *MockInviteRepository_Expecter) Create(ctx any, code any, createdBy any) *MockInviteRepository_Create_Call {
 	return &MockInviteRepository_Create_Call{Call: _e.mock.On("Create", ctx, code, createdBy)}
 }
 
@@ -126,7 +126,7 @@ type MockInviteRepository_Delete_Call struct {
 // Delete is a helper method to define mock.On call
 //   - ctx context.Context
 //   - code string
-func (_e *MockInviteRepository_Expecter) Delete(ctx interface{}, code interface{}) *MockInviteRepository_Delete_Call {
+func (_e *MockInviteRepository_Expecter) Delete(ctx any, code any) *MockInviteRepository_Delete_Call {
 	return &MockInviteRepository_Delete_Call{Call: _e.mock.On("Delete", ctx, code)}
 }
 
@@ -194,7 +194,7 @@ type MockInviteRepository_GetByCode_Call struct {
 // GetByCode is a helper method to define mock.On call
 //   - ctx context.Context
 //   - code string
-func (_e *MockInviteRepository_Expecter) GetByCode(ctx interface{}, code interface{}) *MockInviteRepository_GetByCode_Call {
+func (_e *MockInviteRepository_Expecter) GetByCode(ctx any, code any) *MockInviteRepository_GetByCode_Call {
 	return &MockInviteRepository_GetByCode_Call{Call: _e.mock.On("GetByCode", ctx, code)}
 }
 
@@ -269,7 +269,7 @@ type MockInviteRepository_List_Call struct {
 //   - ctx context.Context
 //   - limit int
 //   - offset int
-func (_e *MockInviteRepository_Expecter) List(ctx interface{}, limit interface{}, offset interface{}) *MockInviteRepository_List_Call {
+func (_e *MockInviteRepository_Expecter) List(ctx any, limit any, offset any) *MockInviteRepository_List_Call {
 	return &MockInviteRepository_List_Call{Call: _e.mock.On("List", ctx, limit, offset)}
 }
 
@@ -332,7 +332,7 @@ type MockInviteRepository_MarkUsed_Call struct {
 //   - ctx context.Context
 //   - code string
 //   - usedBy uuid.UUID
-func (_e *MockInviteRepository_Expecter) MarkUsed(ctx interface{}, code interface{}, usedBy interface{}) *MockInviteRepository_MarkUsed_Call {
+func (_e *MockInviteRepository_Expecter) MarkUsed(ctx any, code any, usedBy any) *MockInviteRepository_MarkUsed_Call {
 	return &MockInviteRepository_MarkUsed_Call{Call: _e.mock.On("MarkUsed", ctx, code, usedBy)}
 }
 

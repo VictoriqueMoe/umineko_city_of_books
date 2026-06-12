@@ -77,7 +77,7 @@ type MockService_AddBannedGif_Call struct {
 //   - ctx context.Context
 //   - actorID uuid.UUID
 //   - req dto.AddBannedGiphyRequest
-func (_e *MockService_Expecter) AddBannedGif(ctx interface{}, actorID interface{}, req interface{}) *MockService_AddBannedGif_Call {
+func (_e *MockService_Expecter) AddBannedGif(ctx any, actorID any, req any) *MockService_AddBannedGif_Call {
 	return &MockService_AddBannedGif_Call{Call: _e.mock.On("AddBannedGif", ctx, actorID, req)}
 }
 
@@ -141,7 +141,7 @@ type MockService_AssignVanityRole_Call struct {
 //   - actorID uuid.UUID
 //   - roleID string
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) AssignVanityRole(ctx interface{}, actorID interface{}, roleID interface{}, userID interface{}) *MockService_AssignVanityRole_Call {
+func (_e *MockService_Expecter) AssignVanityRole(ctx any, actorID any, roleID any, userID any) *MockService_AssignVanityRole_Call {
 	return &MockService_AssignVanityRole_Call{Call: _e.mock.On("AssignVanityRole", ctx, actorID, roleID, userID)}
 }
 
@@ -210,7 +210,7 @@ type MockService_BanUser_Call struct {
 //   - actorID uuid.UUID
 //   - targetID uuid.UUID
 //   - reason string
-func (_e *MockService_Expecter) BanUser(ctx interface{}, actorID interface{}, targetID interface{}, reason interface{}) *MockService_BanUser_Call {
+func (_e *MockService_Expecter) BanUser(ctx any, actorID any, targetID any, reason any) *MockService_BanUser_Call {
 	return &MockService_BanUser_Call{Call: _e.mock.On("BanUser", ctx, actorID, targetID, reason)}
 }
 
@@ -288,7 +288,7 @@ type MockService_CreateInvite_Call struct {
 // CreateInvite is a helper method to define mock.On call
 //   - ctx context.Context
 //   - actorID uuid.UUID
-func (_e *MockService_Expecter) CreateInvite(ctx interface{}, actorID interface{}) *MockService_CreateInvite_Call {
+func (_e *MockService_Expecter) CreateInvite(ctx any, actorID any) *MockService_CreateInvite_Call {
 	return &MockService_CreateInvite_Call{Call: _e.mock.On("CreateInvite", ctx, actorID)}
 }
 
@@ -357,7 +357,7 @@ type MockService_CreateVanityRole_Call struct {
 //   - ctx context.Context
 //   - actorID uuid.UUID
 //   - req dto.CreateVanityRoleRequest
-func (_e *MockService_Expecter) CreateVanityRole(ctx interface{}, actorID interface{}, req interface{}) *MockService_CreateVanityRole_Call {
+func (_e *MockService_Expecter) CreateVanityRole(ctx any, actorID any, req any) *MockService_CreateVanityRole_Call {
 	return &MockService_CreateVanityRole_Call{Call: _e.mock.On("CreateVanityRole", ctx, actorID, req)}
 }
 
@@ -420,7 +420,7 @@ type MockService_DeleteInvite_Call struct {
 //   - ctx context.Context
 //   - actorID uuid.UUID
 //   - code string
-func (_e *MockService_Expecter) DeleteInvite(ctx interface{}, actorID interface{}, code interface{}) *MockService_DeleteInvite_Call {
+func (_e *MockService_Expecter) DeleteInvite(ctx any, actorID any, code any) *MockService_DeleteInvite_Call {
 	return &MockService_DeleteInvite_Call{Call: _e.mock.On("DeleteInvite", ctx, actorID, code)}
 }
 
@@ -483,7 +483,7 @@ type MockService_DeleteUser_Call struct {
 //   - ctx context.Context
 //   - actorID uuid.UUID
 //   - targetID uuid.UUID
-func (_e *MockService_Expecter) DeleteUser(ctx interface{}, actorID interface{}, targetID interface{}) *MockService_DeleteUser_Call {
+func (_e *MockService_Expecter) DeleteUser(ctx any, actorID any, targetID any) *MockService_DeleteUser_Call {
 	return &MockService_DeleteUser_Call{Call: _e.mock.On("DeleteUser", ctx, actorID, targetID)}
 }
 
@@ -546,7 +546,7 @@ type MockService_DeleteVanityRole_Call struct {
 //   - ctx context.Context
 //   - actorID uuid.UUID
 //   - id string
-func (_e *MockService_Expecter) DeleteVanityRole(ctx interface{}, actorID interface{}, id interface{}) *MockService_DeleteVanityRole_Call {
+func (_e *MockService_Expecter) DeleteVanityRole(ctx any, actorID any, id any) *MockService_DeleteVanityRole_Call {
 	return &MockService_DeleteVanityRole_Call{Call: _e.mock.On("DeleteVanityRole", ctx, actorID, id)}
 }
 
@@ -621,7 +621,7 @@ type MockService_GetAuditLog_Call struct {
 //   - action string
 //   - limit int
 //   - offset int
-func (_e *MockService_Expecter) GetAuditLog(ctx interface{}, action interface{}, limit interface{}, offset interface{}) *MockService_GetAuditLog_Call {
+func (_e *MockService_Expecter) GetAuditLog(ctx any, action any, limit any, offset any) *MockService_GetAuditLog_Call {
 	return &MockService_GetAuditLog_Call{Call: _e.mock.On("GetAuditLog", ctx, action, limit, offset)}
 }
 
@@ -698,7 +698,7 @@ type MockService_GetSettings_Call struct {
 
 // GetSettings is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockService_Expecter) GetSettings(ctx interface{}) *MockService_GetSettings_Call {
+func (_e *MockService_Expecter) GetSettings(ctx any) *MockService_GetSettings_Call {
 	return &MockService_GetSettings_Call{Call: _e.mock.On("GetSettings", ctx)}
 }
 
@@ -760,7 +760,7 @@ type MockService_GetStats_Call struct {
 
 // GetStats is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockService_Expecter) GetStats(ctx interface{}) *MockService_GetStats_Call {
+func (_e *MockService_Expecter) GetStats(ctx any) *MockService_GetStats_Call {
 	return &MockService_GetStats_Call{Call: _e.mock.On("GetStats", ctx)}
 }
 
@@ -823,7 +823,7 @@ type MockService_GetUser_Call struct {
 // GetUser is a helper method to define mock.On call
 //   - ctx context.Context
 //   - targetID uuid.UUID
-func (_e *MockService_Expecter) GetUser(ctx interface{}, targetID interface{}) *MockService_GetUser_Call {
+func (_e *MockService_Expecter) GetUser(ctx any, targetID any) *MockService_GetUser_Call {
 	return &MockService_GetUser_Call{Call: _e.mock.On("GetUser", ctx, targetID)}
 }
 
@@ -894,7 +894,7 @@ type MockService_GetVanityRoleUsers_Call struct {
 //   - search string
 //   - limit int
 //   - offset int
-func (_e *MockService_Expecter) GetVanityRoleUsers(ctx interface{}, roleID interface{}, search interface{}, limit interface{}, offset interface{}) *MockService_GetVanityRoleUsers_Call {
+func (_e *MockService_Expecter) GetVanityRoleUsers(ctx any, roleID any, search any, limit any, offset any) *MockService_GetVanityRoleUsers_Call {
 	return &MockService_GetVanityRoleUsers_Call{Call: _e.mock.On("GetVanityRoleUsers", ctx, roleID, search, limit, offset)}
 }
 
@@ -976,7 +976,7 @@ type MockService_ListBannedGifs_Call struct {
 
 // ListBannedGifs is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockService_Expecter) ListBannedGifs(ctx interface{}) *MockService_ListBannedGifs_Call {
+func (_e *MockService_Expecter) ListBannedGifs(ctx any) *MockService_ListBannedGifs_Call {
 	return &MockService_ListBannedGifs_Call{Call: _e.mock.On("ListBannedGifs", ctx)}
 }
 
@@ -1040,7 +1040,7 @@ type MockService_ListInvites_Call struct {
 //   - ctx context.Context
 //   - limit int
 //   - offset int
-func (_e *MockService_Expecter) ListInvites(ctx interface{}, limit interface{}, offset interface{}) *MockService_ListInvites_Call {
+func (_e *MockService_Expecter) ListInvites(ctx any, limit any, offset any) *MockService_ListInvites_Call {
 	return &MockService_ListInvites_Call{Call: _e.mock.On("ListInvites", ctx, limit, offset)}
 }
 
@@ -1115,7 +1115,7 @@ type MockService_ListUsers_Call struct {
 //   - search string
 //   - limit int
 //   - offset int
-func (_e *MockService_Expecter) ListUsers(ctx interface{}, search interface{}, limit interface{}, offset interface{}) *MockService_ListUsers_Call {
+func (_e *MockService_Expecter) ListUsers(ctx any, search any, limit any, offset any) *MockService_ListUsers_Call {
 	return &MockService_ListUsers_Call{Call: _e.mock.On("ListUsers", ctx, search, limit, offset)}
 }
 
@@ -1192,7 +1192,7 @@ type MockService_ListVanityRoles_Call struct {
 
 // ListVanityRoles is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockService_Expecter) ListVanityRoles(ctx interface{}) *MockService_ListVanityRoles_Call {
+func (_e *MockService_Expecter) ListVanityRoles(ctx any) *MockService_ListVanityRoles_Call {
 	return &MockService_ListVanityRoles_Call{Call: _e.mock.On("ListVanityRoles", ctx)}
 }
 
@@ -1246,7 +1246,7 @@ type MockService_LockUser_Call struct {
 //   - actorID uuid.UUID
 //   - targetID uuid.UUID
 //   - reason string
-func (_e *MockService_Expecter) LockUser(ctx interface{}, actorID interface{}, targetID interface{}, reason interface{}) *MockService_LockUser_Call {
+func (_e *MockService_Expecter) LockUser(ctx any, actorID any, targetID any, reason any) *MockService_LockUser_Call {
 	return &MockService_LockUser_Call{Call: _e.mock.On("LockUser", ctx, actorID, targetID, reason)}
 }
 
@@ -1315,7 +1315,7 @@ type MockService_RemoveBannedGif_Call struct {
 //   - actorID uuid.UUID
 //   - kind string
 //   - value string
-func (_e *MockService_Expecter) RemoveBannedGif(ctx interface{}, actorID interface{}, kind interface{}, value interface{}) *MockService_RemoveBannedGif_Call {
+func (_e *MockService_Expecter) RemoveBannedGif(ctx any, actorID any, kind any, value any) *MockService_RemoveBannedGif_Call {
 	return &MockService_RemoveBannedGif_Call{Call: _e.mock.On("RemoveBannedGif", ctx, actorID, kind, value)}
 }
 
@@ -1384,7 +1384,7 @@ type MockService_RemoveUserRole_Call struct {
 //   - actorID uuid.UUID
 //   - targetID uuid.UUID
 //   - r role.Role
-func (_e *MockService_Expecter) RemoveUserRole(ctx interface{}, actorID interface{}, targetID interface{}, r interface{}) *MockService_RemoveUserRole_Call {
+func (_e *MockService_Expecter) RemoveUserRole(ctx any, actorID any, targetID any, r any) *MockService_RemoveUserRole_Call {
 	return &MockService_RemoveUserRole_Call{Call: _e.mock.On("RemoveUserRole", ctx, actorID, targetID, r)}
 }
 
@@ -1461,7 +1461,7 @@ type MockService_ResetUserPassword_Call struct {
 //   - ctx context.Context
 //   - actorID uuid.UUID
 //   - targetID uuid.UUID
-func (_e *MockService_Expecter) ResetUserPassword(ctx interface{}, actorID interface{}, targetID interface{}) *MockService_ResetUserPassword_Call {
+func (_e *MockService_Expecter) ResetUserPassword(ctx any, actorID any, targetID any) *MockService_ResetUserPassword_Call {
 	return &MockService_ResetUserPassword_Call{Call: _e.mock.On("ResetUserPassword", ctx, actorID, targetID)}
 }
 
@@ -1523,7 +1523,7 @@ type MockService_SendTestEmail_Call struct {
 // SendTestEmail is a helper method to define mock.On call
 //   - ctx context.Context
 //   - actorID uuid.UUID
-func (_e *MockService_Expecter) SendTestEmail(ctx interface{}, actorID interface{}) *MockService_SendTestEmail_Call {
+func (_e *MockService_Expecter) SendTestEmail(ctx any, actorID any) *MockService_SendTestEmail_Call {
 	return &MockService_SendTestEmail_Call{Call: _e.mock.On("SendTestEmail", ctx, actorID)}
 }
 
@@ -1582,7 +1582,7 @@ type MockService_SetUserRole_Call struct {
 //   - actorID uuid.UUID
 //   - targetID uuid.UUID
 //   - r role.Role
-func (_e *MockService_Expecter) SetUserRole(ctx interface{}, actorID interface{}, targetID interface{}, r interface{}) *MockService_SetUserRole_Call {
+func (_e *MockService_Expecter) SetUserRole(ctx any, actorID any, targetID any, r any) *MockService_SetUserRole_Call {
 	return &MockService_SetUserRole_Call{Call: _e.mock.On("SetUserRole", ctx, actorID, targetID, r)}
 }
 
@@ -1651,7 +1651,7 @@ type MockService_UnassignVanityRole_Call struct {
 //   - actorID uuid.UUID
 //   - roleID string
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) UnassignVanityRole(ctx interface{}, actorID interface{}, roleID interface{}, userID interface{}) *MockService_UnassignVanityRole_Call {
+func (_e *MockService_Expecter) UnassignVanityRole(ctx any, actorID any, roleID any, userID any) *MockService_UnassignVanityRole_Call {
 	return &MockService_UnassignVanityRole_Call{Call: _e.mock.On("UnassignVanityRole", ctx, actorID, roleID, userID)}
 }
 
@@ -1719,7 +1719,7 @@ type MockService_UnbanUser_Call struct {
 //   - ctx context.Context
 //   - actorID uuid.UUID
 //   - targetID uuid.UUID
-func (_e *MockService_Expecter) UnbanUser(ctx interface{}, actorID interface{}, targetID interface{}) *MockService_UnbanUser_Call {
+func (_e *MockService_Expecter) UnbanUser(ctx any, actorID any, targetID any) *MockService_UnbanUser_Call {
 	return &MockService_UnbanUser_Call{Call: _e.mock.On("UnbanUser", ctx, actorID, targetID)}
 }
 
@@ -1782,7 +1782,7 @@ type MockService_UnlockUser_Call struct {
 //   - ctx context.Context
 //   - actorID uuid.UUID
 //   - targetID uuid.UUID
-func (_e *MockService_Expecter) UnlockUser(ctx interface{}, actorID interface{}, targetID interface{}) *MockService_UnlockUser_Call {
+func (_e *MockService_Expecter) UnlockUser(ctx any, actorID any, targetID any) *MockService_UnlockUser_Call {
 	return &MockService_UnlockUser_Call{Call: _e.mock.On("UnlockUser", ctx, actorID, targetID)}
 }
 
@@ -1845,7 +1845,7 @@ type MockService_UpdateSettings_Call struct {
 //   - ctx context.Context
 //   - actorID uuid.UUID
 //   - settings map[string]string
-func (_e *MockService_Expecter) UpdateSettings(ctx interface{}, actorID interface{}, settings interface{}) *MockService_UpdateSettings_Call {
+func (_e *MockService_Expecter) UpdateSettings(ctx any, actorID any, settings any) *MockService_UpdateSettings_Call {
 	return &MockService_UpdateSettings_Call{Call: _e.mock.On("UpdateSettings", ctx, actorID, settings)}
 }
 
@@ -1909,7 +1909,7 @@ type MockService_UpdateVanityRole_Call struct {
 //   - actorID uuid.UUID
 //   - id string
 //   - req dto.UpdateVanityRoleRequest
-func (_e *MockService_Expecter) UpdateVanityRole(ctx interface{}, actorID interface{}, id interface{}, req interface{}) *MockService_UpdateVanityRole_Call {
+func (_e *MockService_Expecter) UpdateVanityRole(ctx any, actorID any, id any, req any) *MockService_UpdateVanityRole_Call {
 	return &MockService_UpdateVanityRole_Call{Call: _e.mock.On("UpdateVanityRole", ctx, actorID, id, req)}
 }
 

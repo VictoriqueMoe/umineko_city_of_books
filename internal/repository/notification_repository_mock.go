@@ -79,7 +79,7 @@ type MockNotificationRepository_Create_Call struct {
 //   - referenceType string
 //   - actorID uuid.UUID
 //   - message string
-func (_e *MockNotificationRepository_Expecter) Create(ctx interface{}, userID interface{}, notifType interface{}, referenceID interface{}, referenceType interface{}, actorID interface{}, message interface{}) *MockNotificationRepository_Create_Call {
+func (_e *MockNotificationRepository_Expecter) Create(ctx any, userID any, notifType any, referenceID any, referenceType any, actorID any, message any) *MockNotificationRepository_Create_Call {
 	return &MockNotificationRepository_Create_Call{Call: _e.mock.On("Create", ctx, userID, notifType, referenceID, referenceType, actorID, message)}
 }
 
@@ -173,7 +173,7 @@ type MockNotificationRepository_GetByID_Call struct {
 //   - ctx context.Context
 //   - id int
 //   - userID uuid.UUID
-func (_e *MockNotificationRepository_Expecter) GetByID(ctx interface{}, id interface{}, userID interface{}) *MockNotificationRepository_GetByID_Call {
+func (_e *MockNotificationRepository_Expecter) GetByID(ctx any, id any, userID any) *MockNotificationRepository_GetByID_Call {
 	return &MockNotificationRepository_GetByID_Call{Call: _e.mock.On("GetByID", ctx, id, userID)}
 }
 
@@ -247,7 +247,7 @@ type MockNotificationRepository_HasRecentDuplicate_Call struct {
 //   - notifType dto.NotificationType
 //   - referenceID uuid.UUID
 //   - actorID uuid.UUID
-func (_e *MockNotificationRepository_Expecter) HasRecentDuplicate(ctx interface{}, userID interface{}, notifType interface{}, referenceID interface{}, actorID interface{}) *MockNotificationRepository_HasRecentDuplicate_Call {
+func (_e *MockNotificationRepository_Expecter) HasRecentDuplicate(ctx any, userID any, notifType any, referenceID any, actorID any) *MockNotificationRepository_HasRecentDuplicate_Call {
 	return &MockNotificationRepository_HasRecentDuplicate_Call{Call: _e.mock.On("HasRecentDuplicate", ctx, userID, notifType, referenceID, actorID)}
 }
 
@@ -338,7 +338,7 @@ type MockNotificationRepository_ListByUser_Call struct {
 //   - userID uuid.UUID
 //   - limit int
 //   - offset int
-func (_e *MockNotificationRepository_Expecter) ListByUser(ctx interface{}, userID interface{}, limit interface{}, offset interface{}) *MockNotificationRepository_ListByUser_Call {
+func (_e *MockNotificationRepository_Expecter) ListByUser(ctx any, userID any, limit any, offset any) *MockNotificationRepository_ListByUser_Call {
 	return &MockNotificationRepository_ListByUser_Call{Call: _e.mock.On("ListByUser", ctx, userID, limit, offset)}
 }
 
@@ -405,7 +405,7 @@ type MockNotificationRepository_MarkAllRead_Call struct {
 // MarkAllRead is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockNotificationRepository_Expecter) MarkAllRead(ctx interface{}, userID interface{}) *MockNotificationRepository_MarkAllRead_Call {
+func (_e *MockNotificationRepository_Expecter) MarkAllRead(ctx any, userID any) *MockNotificationRepository_MarkAllRead_Call {
 	return &MockNotificationRepository_MarkAllRead_Call{Call: _e.mock.On("MarkAllRead", ctx, userID)}
 }
 
@@ -463,7 +463,7 @@ type MockNotificationRepository_MarkRead_Call struct {
 //   - ctx context.Context
 //   - id int
 //   - userID uuid.UUID
-func (_e *MockNotificationRepository_Expecter) MarkRead(ctx interface{}, id interface{}, userID interface{}) *MockNotificationRepository_MarkRead_Call {
+func (_e *MockNotificationRepository_Expecter) MarkRead(ctx any, id any, userID any) *MockNotificationRepository_MarkRead_Call {
 	return &MockNotificationRepository_MarkRead_Call{Call: _e.mock.On("MarkRead", ctx, id, userID)}
 }
 
@@ -534,7 +534,7 @@ type MockNotificationRepository_UnreadCount_Call struct {
 // UnreadCount is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockNotificationRepository_Expecter) UnreadCount(ctx interface{}, userID interface{}) *MockNotificationRepository_UnreadCount_Call {
+func (_e *MockNotificationRepository_Expecter) UnreadCount(ctx any, userID any) *MockNotificationRepository_UnreadCount_Call {
 	return &MockNotificationRepository_UnreadCount_Call{Call: _e.mock.On("UnreadCount", ctx, userID)}
 }
 

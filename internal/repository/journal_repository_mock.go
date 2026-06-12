@@ -79,7 +79,7 @@ type MockJournalRepository_AddCommentMedia_Call struct {
 //   - mediaType string
 //   - thumbnailURL string
 //   - sortOrder int
-func (_e *MockJournalRepository_Expecter) AddCommentMedia(ctx interface{}, commentID interface{}, mediaURL interface{}, mediaType interface{}, thumbnailURL interface{}, sortOrder interface{}) *MockJournalRepository_AddCommentMedia_Call {
+func (_e *MockJournalRepository_Expecter) AddCommentMedia(ctx any, commentID any, mediaURL any, mediaType any, thumbnailURL any, sortOrder any) *MockJournalRepository_AddCommentMedia_Call {
 	return &MockJournalRepository_AddCommentMedia_Call{Call: _e.mock.On("AddCommentMedia", ctx, commentID, mediaURL, mediaType, thumbnailURL, sortOrder)}
 }
 
@@ -169,7 +169,7 @@ type MockJournalRepository_AddEntryMedia_Call struct {
 //   - mediaType string
 //   - thumbnailURL string
 //   - sortOrder int
-func (_e *MockJournalRepository_Expecter) AddEntryMedia(ctx interface{}, entryID interface{}, mediaURL interface{}, mediaType interface{}, thumbnailURL interface{}, sortOrder interface{}) *MockJournalRepository_AddEntryMedia_Call {
+func (_e *MockJournalRepository_Expecter) AddEntryMedia(ctx any, entryID any, mediaURL any, mediaType any, thumbnailURL any, sortOrder any) *MockJournalRepository_AddEntryMedia_Call {
 	return &MockJournalRepository_AddEntryMedia_Call{Call: _e.mock.On("AddEntryMedia", ctx, entryID, mediaURL, mediaType, thumbnailURL, sortOrder)}
 }
 
@@ -257,7 +257,7 @@ type MockJournalRepository_ArchiveStale_Call struct {
 // ArchiveStale is a helper method to define mock.On call
 //   - ctx context.Context
 //   - cutoff time.Time
-func (_e *MockJournalRepository_Expecter) ArchiveStale(ctx interface{}, cutoff interface{}) *MockJournalRepository_ArchiveStale_Call {
+func (_e *MockJournalRepository_Expecter) ArchiveStale(ctx any, cutoff any) *MockJournalRepository_ArchiveStale_Call {
 	return &MockJournalRepository_ArchiveStale_Call{Call: _e.mock.On("ArchiveStale", ctx, cutoff)}
 }
 
@@ -323,7 +323,7 @@ type MockJournalRepository_CountUserJournalsToday_Call struct {
 // CountUserJournalsToday is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockJournalRepository_Expecter) CountUserJournalsToday(ctx interface{}, userID interface{}) *MockJournalRepository_CountUserJournalsToday_Call {
+func (_e *MockJournalRepository_Expecter) CountUserJournalsToday(ctx any, userID any) *MockJournalRepository_CountUserJournalsToday_Call {
 	return &MockJournalRepository_CountUserJournalsToday_Call{Call: _e.mock.On("CountUserJournalsToday", ctx, userID)}
 }
 
@@ -392,7 +392,7 @@ type MockJournalRepository_Create_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - req dto.CreateJournalRequest
-func (_e *MockJournalRepository_Expecter) Create(ctx interface{}, userID interface{}, req interface{}) *MockJournalRepository_Create_Call {
+func (_e *MockJournalRepository_Expecter) Create(ctx any, userID any, req any) *MockJournalRepository_Create_Call {
 	return &MockJournalRepository_Create_Call{Call: _e.mock.On("Create", ctx, userID, req)}
 }
 
@@ -459,7 +459,7 @@ type MockJournalRepository_CreateComment_Call struct {
 //   - parentID *uuid.UUID
 //   - userID uuid.UUID
 //   - body string
-func (_e *MockJournalRepository_Expecter) CreateComment(ctx interface{}, id interface{}, journalID interface{}, entryID interface{}, parentID interface{}, userID interface{}, body interface{}) *MockJournalRepository_CreateComment_Call {
+func (_e *MockJournalRepository_Expecter) CreateComment(ctx any, id any, journalID any, entryID any, parentID any, userID any, body any) *MockJournalRepository_CreateComment_Call {
 	return &MockJournalRepository_CreateComment_Call{Call: _e.mock.On("CreateComment", ctx, id, journalID, entryID, parentID, userID, body)}
 }
 
@@ -547,7 +547,7 @@ type MockJournalRepository_CreateEntry_Call struct {
 //   - body string
 //   - wordCount int
 //   - isDraft bool
-func (_e *MockJournalRepository_Expecter) CreateEntry(ctx interface{}, id interface{}, journalID interface{}, entryNumber interface{}, title interface{}, body interface{}, wordCount interface{}, isDraft interface{}) *MockJournalRepository_CreateEntry_Call {
+func (_e *MockJournalRepository_Expecter) CreateEntry(ctx any, id any, journalID any, entryNumber any, title any, body any, wordCount any, isDraft any) *MockJournalRepository_CreateEntry_Call {
 	return &MockJournalRepository_CreateEntry_Call{Call: _e.mock.On("CreateEntry", ctx, id, journalID, entryNumber, title, body, wordCount, isDraft)}
 }
 
@@ -635,7 +635,7 @@ type MockJournalRepository_Delete_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockJournalRepository_Expecter) Delete(ctx interface{}, id interface{}, userID interface{}) *MockJournalRepository_Delete_Call {
+func (_e *MockJournalRepository_Expecter) Delete(ctx any, id any, userID any) *MockJournalRepository_Delete_Call {
 	return &MockJournalRepository_Delete_Call{Call: _e.mock.On("Delete", ctx, id, userID)}
 }
 
@@ -697,7 +697,7 @@ type MockJournalRepository_DeleteAsAdmin_Call struct {
 // DeleteAsAdmin is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockJournalRepository_Expecter) DeleteAsAdmin(ctx interface{}, id interface{}) *MockJournalRepository_DeleteAsAdmin_Call {
+func (_e *MockJournalRepository_Expecter) DeleteAsAdmin(ctx any, id any) *MockJournalRepository_DeleteAsAdmin_Call {
 	return &MockJournalRepository_DeleteAsAdmin_Call{Call: _e.mock.On("DeleteAsAdmin", ctx, id)}
 }
 
@@ -755,7 +755,7 @@ type MockJournalRepository_DeleteComment_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockJournalRepository_Expecter) DeleteComment(ctx interface{}, id interface{}, userID interface{}) *MockJournalRepository_DeleteComment_Call {
+func (_e *MockJournalRepository_Expecter) DeleteComment(ctx any, id any, userID any) *MockJournalRepository_DeleteComment_Call {
 	return &MockJournalRepository_DeleteComment_Call{Call: _e.mock.On("DeleteComment", ctx, id, userID)}
 }
 
@@ -817,7 +817,7 @@ type MockJournalRepository_DeleteCommentAsAdmin_Call struct {
 // DeleteCommentAsAdmin is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockJournalRepository_Expecter) DeleteCommentAsAdmin(ctx interface{}, id interface{}) *MockJournalRepository_DeleteCommentAsAdmin_Call {
+func (_e *MockJournalRepository_Expecter) DeleteCommentAsAdmin(ctx any, id any) *MockJournalRepository_DeleteCommentAsAdmin_Call {
 	return &MockJournalRepository_DeleteCommentAsAdmin_Call{Call: _e.mock.On("DeleteCommentAsAdmin", ctx, id)}
 }
 
@@ -874,7 +874,7 @@ type MockJournalRepository_DeleteEntry_Call struct {
 // DeleteEntry is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockJournalRepository_Expecter) DeleteEntry(ctx interface{}, id interface{}) *MockJournalRepository_DeleteEntry_Call {
+func (_e *MockJournalRepository_Expecter) DeleteEntry(ctx any, id any) *MockJournalRepository_DeleteEntry_Call {
 	return &MockJournalRepository_DeleteEntry_Call{Call: _e.mock.On("DeleteEntry", ctx, id)}
 }
 
@@ -941,7 +941,7 @@ type MockJournalRepository_DeleteEntryMedia_Call struct {
 //   - ctx context.Context
 //   - id int64
 //   - entryID uuid.UUID
-func (_e *MockJournalRepository_Expecter) DeleteEntryMedia(ctx interface{}, id interface{}, entryID interface{}) *MockJournalRepository_DeleteEntryMedia_Call {
+func (_e *MockJournalRepository_Expecter) DeleteEntryMedia(ctx any, id any, entryID any) *MockJournalRepository_DeleteEntryMedia_Call {
 	return &MockJournalRepository_DeleteEntryMedia_Call{Call: _e.mock.On("DeleteEntryMedia", ctx, id, entryID)}
 }
 
@@ -1004,7 +1004,7 @@ type MockJournalRepository_Follow_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - journalID uuid.UUID
-func (_e *MockJournalRepository_Expecter) Follow(ctx interface{}, userID interface{}, journalID interface{}) *MockJournalRepository_Follow_Call {
+func (_e *MockJournalRepository_Expecter) Follow(ctx any, userID any, journalID any) *MockJournalRepository_Follow_Call {
 	return &MockJournalRepository_Follow_Call{Call: _e.mock.On("Follow", ctx, userID, journalID)}
 }
 
@@ -1077,7 +1077,7 @@ type MockJournalRepository_GetAuthorID_Call struct {
 // GetAuthorID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockJournalRepository_Expecter) GetAuthorID(ctx interface{}, id interface{}) *MockJournalRepository_GetAuthorID_Call {
+func (_e *MockJournalRepository_Expecter) GetAuthorID(ctx any, id any) *MockJournalRepository_GetAuthorID_Call {
 	return &MockJournalRepository_GetAuthorID_Call{Call: _e.mock.On("GetAuthorID", ctx, id)}
 }
 
@@ -1146,7 +1146,7 @@ type MockJournalRepository_GetByID_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - viewerID uuid.UUID
-func (_e *MockJournalRepository_Expecter) GetByID(ctx interface{}, id interface{}, viewerID interface{}) *MockJournalRepository_GetByID_Call {
+func (_e *MockJournalRepository_Expecter) GetByID(ctx any, id any, viewerID any) *MockJournalRepository_GetByID_Call {
 	return &MockJournalRepository_GetByID_Call{Call: _e.mock.On("GetByID", ctx, id, viewerID)}
 }
 
@@ -1219,7 +1219,7 @@ type MockJournalRepository_GetCommentAuthorID_Call struct {
 // GetCommentAuthorID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - commentID uuid.UUID
-func (_e *MockJournalRepository_Expecter) GetCommentAuthorID(ctx interface{}, commentID interface{}) *MockJournalRepository_GetCommentAuthorID_Call {
+func (_e *MockJournalRepository_Expecter) GetCommentAuthorID(ctx any, commentID any) *MockJournalRepository_GetCommentAuthorID_Call {
 	return &MockJournalRepository_GetCommentAuthorID_Call{Call: _e.mock.On("GetCommentAuthorID", ctx, commentID)}
 }
 
@@ -1287,7 +1287,7 @@ type MockJournalRepository_GetCommentEntryNumber_Call struct {
 // GetCommentEntryNumber is a helper method to define mock.On call
 //   - ctx context.Context
 //   - commentID uuid.UUID
-func (_e *MockJournalRepository_Expecter) GetCommentEntryNumber(ctx interface{}, commentID interface{}) *MockJournalRepository_GetCommentEntryNumber_Call {
+func (_e *MockJournalRepository_Expecter) GetCommentEntryNumber(ctx any, commentID any) *MockJournalRepository_GetCommentEntryNumber_Call {
 	return &MockJournalRepository_GetCommentEntryNumber_Call{Call: _e.mock.On("GetCommentEntryNumber", ctx, commentID)}
 }
 
@@ -1355,7 +1355,7 @@ type MockJournalRepository_GetCommentJournalID_Call struct {
 // GetCommentJournalID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - commentID uuid.UUID
-func (_e *MockJournalRepository_Expecter) GetCommentJournalID(ctx interface{}, commentID interface{}) *MockJournalRepository_GetCommentJournalID_Call {
+func (_e *MockJournalRepository_Expecter) GetCommentJournalID(ctx any, commentID any) *MockJournalRepository_GetCommentJournalID_Call {
 	return &MockJournalRepository_GetCommentJournalID_Call{Call: _e.mock.On("GetCommentJournalID", ctx, commentID)}
 }
 
@@ -1423,7 +1423,7 @@ type MockJournalRepository_GetCommentMediaBatch_Call struct {
 // GetCommentMediaBatch is a helper method to define mock.On call
 //   - ctx context.Context
 //   - commentIDs []uuid.UUID
-func (_e *MockJournalRepository_Expecter) GetCommentMediaBatch(ctx interface{}, commentIDs interface{}) *MockJournalRepository_GetCommentMediaBatch_Call {
+func (_e *MockJournalRepository_Expecter) GetCommentMediaBatch(ctx any, commentIDs any) *MockJournalRepository_GetCommentMediaBatch_Call {
 	return &MockJournalRepository_GetCommentMediaBatch_Call{Call: _e.mock.On("GetCommentMediaBatch", ctx, commentIDs)}
 }
 
@@ -1501,7 +1501,7 @@ type MockJournalRepository_GetComments_Call struct {
 //   - limit int
 //   - offset int
 //   - excludeUserIDs []uuid.UUID
-func (_e *MockJournalRepository_Expecter) GetComments(ctx interface{}, journalID interface{}, viewerID interface{}, limit interface{}, offset interface{}, excludeUserIDs interface{}) *MockJournalRepository_GetComments_Call {
+func (_e *MockJournalRepository_Expecter) GetComments(ctx any, journalID any, viewerID any, limit any, offset any, excludeUserIDs any) *MockJournalRepository_GetComments_Call {
 	return &MockJournalRepository_GetComments_Call{Call: _e.mock.On("GetComments", ctx, journalID, viewerID, limit, offset, excludeUserIDs)}
 }
 
@@ -1590,7 +1590,7 @@ type MockJournalRepository_GetEntry_Call struct {
 //   - ctx context.Context
 //   - journalID uuid.UUID
 //   - entryNumber int
-func (_e *MockJournalRepository_Expecter) GetEntry(ctx interface{}, journalID interface{}, entryNumber interface{}) *MockJournalRepository_GetEntry_Call {
+func (_e *MockJournalRepository_Expecter) GetEntry(ctx any, journalID any, entryNumber any) *MockJournalRepository_GetEntry_Call {
 	return &MockJournalRepository_GetEntry_Call{Call: _e.mock.On("GetEntry", ctx, journalID, entryNumber)}
 }
 
@@ -1663,7 +1663,7 @@ type MockJournalRepository_GetEntryAuthorID_Call struct {
 // GetEntryAuthorID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - entryID uuid.UUID
-func (_e *MockJournalRepository_Expecter) GetEntryAuthorID(ctx interface{}, entryID interface{}) *MockJournalRepository_GetEntryAuthorID_Call {
+func (_e *MockJournalRepository_Expecter) GetEntryAuthorID(ctx any, entryID any) *MockJournalRepository_GetEntryAuthorID_Call {
 	return &MockJournalRepository_GetEntryAuthorID_Call{Call: _e.mock.On("GetEntryAuthorID", ctx, entryID)}
 }
 
@@ -1731,7 +1731,7 @@ type MockJournalRepository_GetEntryByID_Call struct {
 // GetEntryByID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - entryID uuid.UUID
-func (_e *MockJournalRepository_Expecter) GetEntryByID(ctx interface{}, entryID interface{}) *MockJournalRepository_GetEntryByID_Call {
+func (_e *MockJournalRepository_Expecter) GetEntryByID(ctx any, entryID any) *MockJournalRepository_GetEntryByID_Call {
 	return &MockJournalRepository_GetEntryByID_Call{Call: _e.mock.On("GetEntryByID", ctx, entryID)}
 }
 
@@ -1809,7 +1809,7 @@ type MockJournalRepository_GetEntryComments_Call struct {
 //   - limit int
 //   - offset int
 //   - excludeUserIDs []uuid.UUID
-func (_e *MockJournalRepository_Expecter) GetEntryComments(ctx interface{}, entryID interface{}, viewerID interface{}, limit interface{}, offset interface{}, excludeUserIDs interface{}) *MockJournalRepository_GetEntryComments_Call {
+func (_e *MockJournalRepository_Expecter) GetEntryComments(ctx any, entryID any, viewerID any, limit any, offset any, excludeUserIDs any) *MockJournalRepository_GetEntryComments_Call {
 	return &MockJournalRepository_GetEntryComments_Call{Call: _e.mock.On("GetEntryComments", ctx, entryID, viewerID, limit, offset, excludeUserIDs)}
 }
 
@@ -1897,7 +1897,7 @@ type MockJournalRepository_GetEntryJournalID_Call struct {
 // GetEntryJournalID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - entryID uuid.UUID
-func (_e *MockJournalRepository_Expecter) GetEntryJournalID(ctx interface{}, entryID interface{}) *MockJournalRepository_GetEntryJournalID_Call {
+func (_e *MockJournalRepository_Expecter) GetEntryJournalID(ctx any, entryID any) *MockJournalRepository_GetEntryJournalID_Call {
 	return &MockJournalRepository_GetEntryJournalID_Call{Call: _e.mock.On("GetEntryJournalID", ctx, entryID)}
 }
 
@@ -1965,7 +1965,7 @@ type MockJournalRepository_GetEntryMediaBatch_Call struct {
 // GetEntryMediaBatch is a helper method to define mock.On call
 //   - ctx context.Context
 //   - entryIDs []uuid.UUID
-func (_e *MockJournalRepository_Expecter) GetEntryMediaBatch(ctx interface{}, entryIDs interface{}) *MockJournalRepository_GetEntryMediaBatch_Call {
+func (_e *MockJournalRepository_Expecter) GetEntryMediaBatch(ctx any, entryIDs any) *MockJournalRepository_GetEntryMediaBatch_Call {
 	return &MockJournalRepository_GetEntryMediaBatch_Call{Call: _e.mock.On("GetEntryMediaBatch", ctx, entryIDs)}
 }
 
@@ -2031,7 +2031,7 @@ type MockJournalRepository_GetFollowerCount_Call struct {
 // GetFollowerCount is a helper method to define mock.On call
 //   - ctx context.Context
 //   - journalID uuid.UUID
-func (_e *MockJournalRepository_Expecter) GetFollowerCount(ctx interface{}, journalID interface{}) *MockJournalRepository_GetFollowerCount_Call {
+func (_e *MockJournalRepository_Expecter) GetFollowerCount(ctx any, journalID any) *MockJournalRepository_GetFollowerCount_Call {
 	return &MockJournalRepository_GetFollowerCount_Call{Call: _e.mock.On("GetFollowerCount", ctx, journalID)}
 }
 
@@ -2099,7 +2099,7 @@ type MockJournalRepository_GetFollowerIDs_Call struct {
 // GetFollowerIDs is a helper method to define mock.On call
 //   - ctx context.Context
 //   - journalID uuid.UUID
-func (_e *MockJournalRepository_Expecter) GetFollowerIDs(ctx interface{}, journalID interface{}) *MockJournalRepository_GetFollowerIDs_Call {
+func (_e *MockJournalRepository_Expecter) GetFollowerIDs(ctx any, journalID any) *MockJournalRepository_GetFollowerIDs_Call {
 	return &MockJournalRepository_GetFollowerIDs_Call{Call: _e.mock.On("GetFollowerIDs", ctx, journalID)}
 }
 
@@ -2165,7 +2165,7 @@ type MockJournalRepository_GetNextEntryNumber_Call struct {
 // GetNextEntryNumber is a helper method to define mock.On call
 //   - ctx context.Context
 //   - journalID uuid.UUID
-func (_e *MockJournalRepository_Expecter) GetNextEntryNumber(ctx interface{}, journalID interface{}) *MockJournalRepository_GetNextEntryNumber_Call {
+func (_e *MockJournalRepository_Expecter) GetNextEntryNumber(ctx any, journalID any) *MockJournalRepository_GetNextEntryNumber_Call {
 	return &MockJournalRepository_GetNextEntryNumber_Call{Call: _e.mock.On("GetNextEntryNumber", ctx, journalID)}
 }
 
@@ -2231,7 +2231,7 @@ type MockJournalRepository_GetTitle_Call struct {
 // GetTitle is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockJournalRepository_Expecter) GetTitle(ctx interface{}, id interface{}) *MockJournalRepository_GetTitle_Call {
+func (_e *MockJournalRepository_Expecter) GetTitle(ctx any, id any) *MockJournalRepository_GetTitle_Call {
 	return &MockJournalRepository_GetTitle_Call{Call: _e.mock.On("GetTitle", ctx, id)}
 }
 
@@ -2297,7 +2297,7 @@ type MockJournalRepository_IsArchived_Call struct {
 // IsArchived is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockJournalRepository_Expecter) IsArchived(ctx interface{}, id interface{}) *MockJournalRepository_IsArchived_Call {
+func (_e *MockJournalRepository_Expecter) IsArchived(ctx any, id any) *MockJournalRepository_IsArchived_Call {
 	return &MockJournalRepository_IsArchived_Call{Call: _e.mock.On("IsArchived", ctx, id)}
 }
 
@@ -2364,7 +2364,7 @@ type MockJournalRepository_IsFollower_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - journalID uuid.UUID
-func (_e *MockJournalRepository_Expecter) IsFollower(ctx interface{}, userID interface{}, journalID interface{}) *MockJournalRepository_IsFollower_Call {
+func (_e *MockJournalRepository_Expecter) IsFollower(ctx any, userID any, journalID any) *MockJournalRepository_IsFollower_Call {
 	return &MockJournalRepository_IsFollower_Call{Call: _e.mock.On("IsFollower", ctx, userID, journalID)}
 }
 
@@ -2427,7 +2427,7 @@ type MockJournalRepository_LikeComment_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - commentID uuid.UUID
-func (_e *MockJournalRepository_Expecter) LikeComment(ctx interface{}, userID interface{}, commentID interface{}) *MockJournalRepository_LikeComment_Call {
+func (_e *MockJournalRepository_Expecter) LikeComment(ctx any, userID any, commentID any) *MockJournalRepository_LikeComment_Call {
 	return &MockJournalRepository_LikeComment_Call{Call: _e.mock.On("LikeComment", ctx, userID, commentID)}
 }
 
@@ -2508,7 +2508,7 @@ type MockJournalRepository_List_Call struct {
 //   - p params.ListParams
 //   - viewerID uuid.UUID
 //   - excludeUserIDs []uuid.UUID
-func (_e *MockJournalRepository_Expecter) List(ctx interface{}, p interface{}, viewerID interface{}, excludeUserIDs interface{}) *MockJournalRepository_List_Call {
+func (_e *MockJournalRepository_Expecter) List(ctx any, p any, viewerID any, excludeUserIDs any) *MockJournalRepository_List_Call {
 	return &MockJournalRepository_List_Call{Call: _e.mock.On("List", ctx, p, viewerID, excludeUserIDs)}
 }
 
@@ -2586,7 +2586,7 @@ type MockJournalRepository_ListEntries_Call struct {
 // ListEntries is a helper method to define mock.On call
 //   - ctx context.Context
 //   - journalID uuid.UUID
-func (_e *MockJournalRepository_Expecter) ListEntries(ctx interface{}, journalID interface{}) *MockJournalRepository_ListEntries_Call {
+func (_e *MockJournalRepository_Expecter) ListEntries(ctx any, journalID any) *MockJournalRepository_ListEntries_Call {
 	return &MockJournalRepository_ListEntries_Call{Call: _e.mock.On("ListEntries", ctx, journalID)}
 }
 
@@ -2663,7 +2663,7 @@ type MockJournalRepository_ListFollowedByUser_Call struct {
 //   - viewerID uuid.UUID
 //   - limit int
 //   - offset int
-func (_e *MockJournalRepository_Expecter) ListFollowedByUser(ctx interface{}, followerID interface{}, viewerID interface{}, limit interface{}, offset interface{}) *MockJournalRepository_ListFollowedByUser_Call {
+func (_e *MockJournalRepository_Expecter) ListFollowedByUser(ctx any, followerID any, viewerID any, limit any, offset any) *MockJournalRepository_ListFollowedByUser_Call {
 	return &MockJournalRepository_ListFollowedByUser_Call{Call: _e.mock.On("ListFollowedByUser", ctx, followerID, viewerID, limit, offset)}
 }
 
@@ -2736,7 +2736,7 @@ type MockJournalRepository_Unfollow_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - journalID uuid.UUID
-func (_e *MockJournalRepository_Expecter) Unfollow(ctx interface{}, userID interface{}, journalID interface{}) *MockJournalRepository_Unfollow_Call {
+func (_e *MockJournalRepository_Expecter) Unfollow(ctx any, userID any, journalID any) *MockJournalRepository_Unfollow_Call {
 	return &MockJournalRepository_Unfollow_Call{Call: _e.mock.On("Unfollow", ctx, userID, journalID)}
 }
 
@@ -2799,7 +2799,7 @@ type MockJournalRepository_UnlikeComment_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - commentID uuid.UUID
-func (_e *MockJournalRepository_Expecter) UnlikeComment(ctx interface{}, userID interface{}, commentID interface{}) *MockJournalRepository_UnlikeComment_Call {
+func (_e *MockJournalRepository_Expecter) UnlikeComment(ctx any, userID any, commentID any) *MockJournalRepository_UnlikeComment_Call {
 	return &MockJournalRepository_UnlikeComment_Call{Call: _e.mock.On("UnlikeComment", ctx, userID, commentID)}
 }
 
@@ -2863,7 +2863,7 @@ type MockJournalRepository_Update_Call struct {
 //   - id uuid.UUID
 //   - userID uuid.UUID
 //   - req dto.CreateJournalRequest
-func (_e *MockJournalRepository_Expecter) Update(ctx interface{}, id interface{}, userID interface{}, req interface{}) *MockJournalRepository_Update_Call {
+func (_e *MockJournalRepository_Expecter) Update(ctx any, id any, userID any, req any) *MockJournalRepository_Update_Call {
 	return &MockJournalRepository_Update_Call{Call: _e.mock.On("Update", ctx, id, userID, req)}
 }
 
@@ -2931,7 +2931,7 @@ type MockJournalRepository_UpdateAsAdmin_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - req dto.CreateJournalRequest
-func (_e *MockJournalRepository_Expecter) UpdateAsAdmin(ctx interface{}, id interface{}, req interface{}) *MockJournalRepository_UpdateAsAdmin_Call {
+func (_e *MockJournalRepository_Expecter) UpdateAsAdmin(ctx any, id any, req any) *MockJournalRepository_UpdateAsAdmin_Call {
 	return &MockJournalRepository_UpdateAsAdmin_Call{Call: _e.mock.On("UpdateAsAdmin", ctx, id, req)}
 }
 
@@ -2995,7 +2995,7 @@ type MockJournalRepository_UpdateComment_Call struct {
 //   - id uuid.UUID
 //   - userID uuid.UUID
 //   - body string
-func (_e *MockJournalRepository_Expecter) UpdateComment(ctx interface{}, id interface{}, userID interface{}, body interface{}) *MockJournalRepository_UpdateComment_Call {
+func (_e *MockJournalRepository_Expecter) UpdateComment(ctx any, id any, userID any, body any) *MockJournalRepository_UpdateComment_Call {
 	return &MockJournalRepository_UpdateComment_Call{Call: _e.mock.On("UpdateComment", ctx, id, userID, body)}
 }
 
@@ -3063,7 +3063,7 @@ type MockJournalRepository_UpdateCommentAsAdmin_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - body string
-func (_e *MockJournalRepository_Expecter) UpdateCommentAsAdmin(ctx interface{}, id interface{}, body interface{}) *MockJournalRepository_UpdateCommentAsAdmin_Call {
+func (_e *MockJournalRepository_Expecter) UpdateCommentAsAdmin(ctx any, id any, body any) *MockJournalRepository_UpdateCommentAsAdmin_Call {
 	return &MockJournalRepository_UpdateCommentAsAdmin_Call{Call: _e.mock.On("UpdateCommentAsAdmin", ctx, id, body)}
 }
 
@@ -3126,7 +3126,7 @@ type MockJournalRepository_UpdateCommentMediaThumbnail_Call struct {
 //   - ctx context.Context
 //   - id int64
 //   - thumbnailURL string
-func (_e *MockJournalRepository_Expecter) UpdateCommentMediaThumbnail(ctx interface{}, id interface{}, thumbnailURL interface{}) *MockJournalRepository_UpdateCommentMediaThumbnail_Call {
+func (_e *MockJournalRepository_Expecter) UpdateCommentMediaThumbnail(ctx any, id any, thumbnailURL any) *MockJournalRepository_UpdateCommentMediaThumbnail_Call {
 	return &MockJournalRepository_UpdateCommentMediaThumbnail_Call{Call: _e.mock.On("UpdateCommentMediaThumbnail", ctx, id, thumbnailURL)}
 }
 
@@ -3189,7 +3189,7 @@ type MockJournalRepository_UpdateCommentMediaURL_Call struct {
 //   - ctx context.Context
 //   - id int64
 //   - mediaURL string
-func (_e *MockJournalRepository_Expecter) UpdateCommentMediaURL(ctx interface{}, id interface{}, mediaURL interface{}) *MockJournalRepository_UpdateCommentMediaURL_Call {
+func (_e *MockJournalRepository_Expecter) UpdateCommentMediaURL(ctx any, id any, mediaURL any) *MockJournalRepository_UpdateCommentMediaURL_Call {
 	return &MockJournalRepository_UpdateCommentMediaURL_Call{Call: _e.mock.On("UpdateCommentMediaURL", ctx, id, mediaURL)}
 }
 
@@ -3255,7 +3255,7 @@ type MockJournalRepository_UpdateEntry_Call struct {
 //   - body string
 //   - wordCount int
 //   - isDraft bool
-func (_e *MockJournalRepository_Expecter) UpdateEntry(ctx interface{}, id interface{}, title interface{}, body interface{}, wordCount interface{}, isDraft interface{}) *MockJournalRepository_UpdateEntry_Call {
+func (_e *MockJournalRepository_Expecter) UpdateEntry(ctx any, id any, title any, body any, wordCount any, isDraft any) *MockJournalRepository_UpdateEntry_Call {
 	return &MockJournalRepository_UpdateEntry_Call{Call: _e.mock.On("UpdateEntry", ctx, id, title, body, wordCount, isDraft)}
 }
 
@@ -3333,7 +3333,7 @@ type MockJournalRepository_UpdateEntryMediaThumbnail_Call struct {
 //   - ctx context.Context
 //   - id int64
 //   - thumbnailURL string
-func (_e *MockJournalRepository_Expecter) UpdateEntryMediaThumbnail(ctx interface{}, id interface{}, thumbnailURL interface{}) *MockJournalRepository_UpdateEntryMediaThumbnail_Call {
+func (_e *MockJournalRepository_Expecter) UpdateEntryMediaThumbnail(ctx any, id any, thumbnailURL any) *MockJournalRepository_UpdateEntryMediaThumbnail_Call {
 	return &MockJournalRepository_UpdateEntryMediaThumbnail_Call{Call: _e.mock.On("UpdateEntryMediaThumbnail", ctx, id, thumbnailURL)}
 }
 
@@ -3396,7 +3396,7 @@ type MockJournalRepository_UpdateEntryMediaURL_Call struct {
 //   - ctx context.Context
 //   - id int64
 //   - mediaURL string
-func (_e *MockJournalRepository_Expecter) UpdateEntryMediaURL(ctx interface{}, id interface{}, mediaURL interface{}) *MockJournalRepository_UpdateEntryMediaURL_Call {
+func (_e *MockJournalRepository_Expecter) UpdateEntryMediaURL(ctx any, id any, mediaURL any) *MockJournalRepository_UpdateEntryMediaURL_Call {
 	return &MockJournalRepository_UpdateEntryMediaURL_Call{Call: _e.mock.On("UpdateEntryMediaURL", ctx, id, mediaURL)}
 }
 
@@ -3458,7 +3458,7 @@ type MockJournalRepository_UpdateLastAuthorActivity_Call struct {
 // UpdateLastAuthorActivity is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockJournalRepository_Expecter) UpdateLastAuthorActivity(ctx interface{}, id interface{}) *MockJournalRepository_UpdateLastAuthorActivity_Call {
+func (_e *MockJournalRepository_Expecter) UpdateLastAuthorActivity(ctx any, id any) *MockJournalRepository_UpdateLastAuthorActivity_Call {
 	return &MockJournalRepository_UpdateLastAuthorActivity_Call{Call: _e.mock.On("UpdateLastAuthorActivity", ctx, id)}
 }
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTracks, VideoTrack } from "@livekit/components-react";
 import { RemoteAudioTrack, Track } from "livekit-client";
 
+import { VolumeSlider } from "../../VolumeSlider/VolumeSlider";
 import styles from "./WatchParty.module.css";
 
 interface ScreenShareViewProps {
@@ -41,18 +42,12 @@ export function ScreenShareView({ placeholder, onReload }: ScreenShareViewProps)
                 </button>
             )}
             {audioTrack && (
-                <label className={styles.volumeControl}>
-                    <span aria-hidden="true">{volume === 0 ? "\u{1F507}" : "\u{1F50A}"}</span>
-                    <input
-                        type="range"
-                        min={0}
-                        max={1}
-                        step={0.01}
-                        value={volume}
-                        onChange={e => setVolume(Number(e.target.value))}
-                        aria-label="Screen share volume"
-                    />
-                </label>
+                <VolumeSlider
+                    value={volume}
+                    onChange={setVolume}
+                    ariaLabel="Screen share volume"
+                    className={styles.volumeControl}
+                />
             )}
         </>
     );

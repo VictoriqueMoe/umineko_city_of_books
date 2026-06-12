@@ -23,6 +23,8 @@ func (s *Service) getAllStreamRoutes() []FSetupRoute {
 		s.setupStreamViewerTokenRoute,
 		s.setupJoinStreamChatRoute,
 		s.setupUploadStreamThumbnailRoute,
+		s.setupStreamCredentialsRoute,
+		s.setupResetStreamCredentialsRoute,
 		s.setupGetStreamRoute,
 	}
 }
@@ -59,6 +61,17 @@ func (s *Service) setupUploadStreamThumbnailRoute(r fiber.Router) {
 		Max:        6,
 		Expiration: time.Minute,
 	}), s.uploadStreamThumbnail)
+}
+
+func (s *Service) setupStreamCredentialsRoute(r fiber.Router) {
+	r.Get("/streams/credentials", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.streamCredentials)
+}
+
+func (s *Service) setupResetStreamCredentialsRoute(r fiber.Router) {
+	r.Post("/streams/credentials/reset", middleware.RequireAuth(s.AuthSession, s.AuthzService), limiter.New(limiter.Config{
+		Max:        5,
+		Expiration: time.Minute,
+	}), s.resetStreamCredentials)
 }
 
 func (s *Service) setupGetStreamRoute(r fiber.Router) {
@@ -196,6 +209,41 @@ func (s *Service) joinStreamChat(ctx fiber.Ctx) error {
 	}
 
 	return utils.OK(ctx)
+}
+
+func (s *Service) streamCredentials(ctx fiber.Ctx) error {
+	userID := utils.UserID(ctx)
+
+	resp, err := s.StreamService.Credentials(ctx.Context(), userID, s.streamerDisplayName(ctx, userID))
+	if err != nil {
+		return mapStreamError(ctx, err)
+	}
+
+	return ctx.JSON(resp)
+}
+
+func (s *Service) resetStreamCredentials(ctx fiber.Ctx) error {
+	userID := utils.UserID(ctx)
+
+	resp, err := s.StreamService.ResetCredentials(ctx.Context(), userID, s.streamerDisplayName(ctx, userID))
+	if err != nil {
+		return mapStreamError(ctx, err)
+	}
+
+	return ctx.JSON(resp)
+}
+
+func (s *Service) streamerDisplayName(ctx fiber.Ctx, userID uuid.UUID) string {
+	u, err := s.UserService.GetByID(ctx.Context(), userID)
+	if err != nil || u == nil {
+		return ""
+	}
+
+	if u.DisplayName != "" {
+		return u.DisplayName
+	}
+
+	return u.Username
 }
 
 func mapStreamError(ctx fiber.Ctx, err error) error {

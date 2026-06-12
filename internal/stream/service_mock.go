@@ -40,6 +40,80 @@ func (_m *MockService) EXPECT() *MockService_Expecter {
 	return &MockService_Expecter{mock: &_m.Mock}
 }
 
+// Credentials provides a mock function for the type MockService
+func (_mock *MockService) Credentials(ctx context.Context, userID uuid.UUID, displayName string) (*dto.StreamCredentialsResponse, error) {
+	ret := _mock.Called(ctx, userID, displayName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Credentials")
+	}
+
+	var r0 *dto.StreamCredentialsResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) (*dto.StreamCredentialsResponse, error)); ok {
+		return returnFunc(ctx, userID, displayName)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) *dto.StreamCredentialsResponse); ok {
+		r0 = returnFunc(ctx, userID, displayName)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dto.StreamCredentialsResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string) error); ok {
+		r1 = returnFunc(ctx, userID, displayName)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_Credentials_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Credentials'
+type MockService_Credentials_Call struct {
+	*mock.Call
+}
+
+// Credentials is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+//   - displayName string
+func (_e *MockService_Expecter) Credentials(ctx any, userID any, displayName any) *MockService_Credentials_Call {
+	return &MockService_Credentials_Call{Call: _e.mock.On("Credentials", ctx, userID, displayName)}
+}
+
+func (_c *MockService_Credentials_Call) Run(run func(ctx context.Context, userID uuid.UUID, displayName string)) *MockService_Credentials_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_Credentials_Call) Return(streamCredentialsResponse *dto.StreamCredentialsResponse, err error) *MockService_Credentials_Call {
+	_c.Call.Return(streamCredentialsResponse, err)
+	return _c
+}
+
+func (_c *MockService_Credentials_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, displayName string) (*dto.StreamCredentialsResponse, error)) *MockService_Credentials_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Enabled provides a mock function for the type MockService
 func (_mock *MockService) Enabled() bool {
 	ret := _mock.Called()
@@ -120,7 +194,7 @@ type MockService_Get_Call struct {
 // Get is a helper method to define mock.On call
 //   - ctx context.Context
 //   - streamID uuid.UUID
-func (_e *MockService_Expecter) Get(ctx interface{}, streamID interface{}) *MockService_Get_Call {
+func (_e *MockService_Expecter) Get(ctx any, streamID any) *MockService_Get_Call {
 	return &MockService_Get_Call{Call: _e.mock.On("Get", ctx, streamID)}
 }
 
@@ -187,7 +261,7 @@ type MockService_HandleWebhook_Call struct {
 //   - ctx context.Context
 //   - authHeader string
 //   - body []byte
-func (_e *MockService_Expecter) HandleWebhook(ctx interface{}, authHeader interface{}, body interface{}) *MockService_HandleWebhook_Call {
+func (_e *MockService_Expecter) HandleWebhook(ctx any, authHeader any, body any) *MockService_HandleWebhook_Call {
 	return &MockService_HandleWebhook_Call{Call: _e.mock.On("HandleWebhook", ctx, authHeader, body)}
 }
 
@@ -250,7 +324,7 @@ type MockService_JoinChat_Call struct {
 //   - ctx context.Context
 //   - streamID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) JoinChat(ctx interface{}, streamID interface{}, userID interface{}) *MockService_JoinChat_Call {
+func (_e *MockService_Expecter) JoinChat(ctx any, streamID any, userID any) *MockService_JoinChat_Call {
 	return &MockService_JoinChat_Call{Call: _e.mock.On("JoinChat", ctx, streamID, userID)}
 }
 
@@ -322,7 +396,7 @@ type MockService_ListLive_Call struct {
 
 // ListLive is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockService_Expecter) ListLive(ctx interface{}) *MockService_ListLive_Call {
+func (_e *MockService_Expecter) ListLive(ctx any) *MockService_ListLive_Call {
 	return &MockService_ListLive_Call{Call: _e.mock.On("ListLive", ctx)}
 }
 
@@ -390,7 +464,7 @@ type MockService_MintViewerToken_Call struct {
 //   - ctx context.Context
 //   - streamID uuid.UUID
 //   - viewer *dto.StreamViewer
-func (_e *MockService_Expecter) MintViewerToken(ctx interface{}, streamID interface{}, viewer interface{}) *MockService_MintViewerToken_Call {
+func (_e *MockService_Expecter) MintViewerToken(ctx any, streamID any, viewer any) *MockService_MintViewerToken_Call {
 	return &MockService_MintViewerToken_Call{Call: _e.mock.On("MintViewerToken", ctx, streamID, viewer)}
 }
 
@@ -463,7 +537,7 @@ type MockService_MyStream_Call struct {
 // MyStream is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) MyStream(ctx interface{}, userID interface{}) *MockService_MyStream_Call {
+func (_e *MockService_Expecter) MyStream(ctx any, userID any) *MockService_MyStream_Call {
 	return &MockService_MyStream_Call{Call: _e.mock.On("MyStream", ctx, userID)}
 }
 
@@ -528,7 +602,7 @@ type MockService_ReconcileOnce_Call struct {
 
 // ReconcileOnce is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockService_Expecter) ReconcileOnce(ctx interface{}) *MockService_ReconcileOnce_Call {
+func (_e *MockService_Expecter) ReconcileOnce(ctx any) *MockService_ReconcileOnce_Call {
 	return &MockService_ReconcileOnce_Call{Call: _e.mock.On("ReconcileOnce", ctx)}
 }
 
@@ -551,6 +625,80 @@ func (_c *MockService_ReconcileOnce_Call) Return(n int, err error) *MockService_
 }
 
 func (_c *MockService_ReconcileOnce_Call) RunAndReturn(run func(ctx context.Context) (int, error)) *MockService_ReconcileOnce_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ResetCredentials provides a mock function for the type MockService
+func (_mock *MockService) ResetCredentials(ctx context.Context, userID uuid.UUID, displayName string) (*dto.StreamCredentialsResponse, error) {
+	ret := _mock.Called(ctx, userID, displayName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ResetCredentials")
+	}
+
+	var r0 *dto.StreamCredentialsResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) (*dto.StreamCredentialsResponse, error)); ok {
+		return returnFunc(ctx, userID, displayName)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) *dto.StreamCredentialsResponse); ok {
+		r0 = returnFunc(ctx, userID, displayName)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dto.StreamCredentialsResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string) error); ok {
+		r1 = returnFunc(ctx, userID, displayName)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_ResetCredentials_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ResetCredentials'
+type MockService_ResetCredentials_Call struct {
+	*mock.Call
+}
+
+// ResetCredentials is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+//   - displayName string
+func (_e *MockService_Expecter) ResetCredentials(ctx any, userID any, displayName any) *MockService_ResetCredentials_Call {
+	return &MockService_ResetCredentials_Call{Call: _e.mock.On("ResetCredentials", ctx, userID, displayName)}
+}
+
+func (_c *MockService_ResetCredentials_Call) Run(run func(ctx context.Context, userID uuid.UUID, displayName string)) *MockService_ResetCredentials_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_ResetCredentials_Call) Return(streamCredentialsResponse *dto.StreamCredentialsResponse, err error) *MockService_ResetCredentials_Call {
+	_c.Call.Return(streamCredentialsResponse, err)
+	return _c
+}
+
+func (_c *MockService_ResetCredentials_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, displayName string) (*dto.StreamCredentialsResponse, error)) *MockService_ResetCredentials_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -582,7 +730,7 @@ type MockService_SaveThumbnail_Call struct {
 //   - streamID uuid.UUID
 //   - size int64
 //   - reader io.Reader
-func (_e *MockService_Expecter) SaveThumbnail(ctx interface{}, streamID interface{}, size interface{}, reader interface{}) *MockService_SaveThumbnail_Call {
+func (_e *MockService_Expecter) SaveThumbnail(ctx any, streamID any, size any, reader any) *MockService_SaveThumbnail_Call {
 	return &MockService_SaveThumbnail_Call{Call: _e.mock.On("SaveThumbnail", ctx, streamID, size, reader)}
 }
 
@@ -637,7 +785,7 @@ type MockService_SetChatBinder_Call struct {
 
 // SetChatBinder is a helper method to define mock.On call
 //   - chat ChatBinder
-func (_e *MockService_Expecter) SetChatBinder(chat interface{}) *MockService_SetChatBinder_Call {
+func (_e *MockService_Expecter) SetChatBinder(chat any) *MockService_SetChatBinder_Call {
 	return &MockService_SetChatBinder_Call{Call: _e.mock.On("SetChatBinder", chat)}
 }
 
@@ -701,7 +849,7 @@ type MockService_StartStream_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - title string
-func (_e *MockService_Expecter) StartStream(ctx interface{}, userID interface{}, title interface{}) *MockService_StartStream_Call {
+func (_e *MockService_Expecter) StartStream(ctx any, userID any, title any) *MockService_StartStream_Call {
 	return &MockService_StartStream_Call{Call: _e.mock.On("StartStream", ctx, userID, title)}
 }
 
@@ -764,7 +912,7 @@ type MockService_StopStream_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - streamID uuid.UUID
-func (_e *MockService_Expecter) StopStream(ctx interface{}, userID interface{}, streamID interface{}) *MockService_StopStream_Call {
+func (_e *MockService_Expecter) StopStream(ctx any, userID any, streamID any) *MockService_StopStream_Call {
 	return &MockService_StopStream_Call{Call: _e.mock.On("StopStream", ctx, userID, streamID)}
 }
 

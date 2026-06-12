@@ -77,7 +77,7 @@ type MockArtRepository_AddCommentMedia_Call struct {
 //   - mediaType string
 //   - thumbnailURL string
 //   - sortOrder int
-func (_e *MockArtRepository_Expecter) AddCommentMedia(ctx interface{}, commentID interface{}, mediaURL interface{}, mediaType interface{}, thumbnailURL interface{}, sortOrder interface{}) *MockArtRepository_AddCommentMedia_Call {
+func (_e *MockArtRepository_Expecter) AddCommentMedia(ctx any, commentID any, mediaURL any, mediaType any, thumbnailURL any, sortOrder any) *MockArtRepository_AddCommentMedia_Call {
 	return &MockArtRepository_AddCommentMedia_Call{Call: _e.mock.On("AddCommentMedia", ctx, commentID, mediaURL, mediaType, thumbnailURL, sortOrder)}
 }
 
@@ -163,7 +163,7 @@ type MockArtRepository_CountUserArtToday_Call struct {
 // CountUserArtToday is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockArtRepository_Expecter) CountUserArtToday(ctx interface{}, userID interface{}) *MockArtRepository_CountUserArtToday_Call {
+func (_e *MockArtRepository_Expecter) CountUserArtToday(ctx any, userID any) *MockArtRepository_CountUserArtToday_Call {
 	return &MockArtRepository_CountUserArtToday_Call{Call: _e.mock.On("CountUserArtToday", ctx, userID)}
 }
 
@@ -224,7 +224,7 @@ type MockArtRepository_CreateComment_Call struct {
 //   - parentID *uuid.UUID
 //   - userID uuid.UUID
 //   - body string
-func (_e *MockArtRepository_Expecter) CreateComment(ctx interface{}, id interface{}, artID interface{}, parentID interface{}, userID interface{}, body interface{}) *MockArtRepository_CreateComment_Call {
+func (_e *MockArtRepository_Expecter) CreateComment(ctx any, id any, artID any, parentID any, userID any, body any) *MockArtRepository_CreateComment_Call {
 	return &MockArtRepository_CreateComment_Call{Call: _e.mock.On("CreateComment", ctx, id, artID, parentID, userID, body)}
 }
 
@@ -304,7 +304,7 @@ type MockArtRepository_CreateGallery_Call struct {
 //   - userID uuid.UUID
 //   - name string
 //   - description string
-func (_e *MockArtRepository_Expecter) CreateGallery(ctx interface{}, id interface{}, userID interface{}, name interface{}, description interface{}) *MockArtRepository_CreateGallery_Call {
+func (_e *MockArtRepository_Expecter) CreateGallery(ctx any, id any, userID any, name any, description any) *MockArtRepository_CreateGallery_Call {
 	return &MockArtRepository_CreateGallery_Call{Call: _e.mock.On("CreateGallery", ctx, id, userID, name, description)}
 }
 
@@ -385,7 +385,7 @@ type MockArtRepository_CreateWithTags_Call struct {
 //   - thumbnailURL string
 //   - tags []string
 //   - isSpoiler bool
-func (_e *MockArtRepository_Expecter) CreateWithTags(ctx interface{}, id interface{}, userID interface{}, corner interface{}, artType interface{}, title interface{}, description interface{}, imageURL interface{}, thumbnailURL interface{}, tags interface{}, isSpoiler interface{}) *MockArtRepository_CreateWithTags_Call {
+func (_e *MockArtRepository_Expecter) CreateWithTags(ctx any, id any, userID any, corner any, artType any, title any, description any, imageURL any, thumbnailURL any, tags any, isSpoiler any) *MockArtRepository_CreateWithTags_Call {
 	return &MockArtRepository_CreateWithTags_Call{Call: _e.mock.On("CreateWithTags", ctx, id, userID, corner, artType, title, description, imageURL, thumbnailURL, tags, isSpoiler)}
 }
 
@@ -488,7 +488,7 @@ type MockArtRepository_Delete_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockArtRepository_Expecter) Delete(ctx interface{}, id interface{}, userID interface{}) *MockArtRepository_Delete_Call {
+func (_e *MockArtRepository_Expecter) Delete(ctx any, id any, userID any) *MockArtRepository_Delete_Call {
 	return &MockArtRepository_Delete_Call{Call: _e.mock.On("Delete", ctx, id, userID)}
 }
 
@@ -550,7 +550,7 @@ type MockArtRepository_DeleteAsAdmin_Call struct {
 // DeleteAsAdmin is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockArtRepository_Expecter) DeleteAsAdmin(ctx interface{}, id interface{}) *MockArtRepository_DeleteAsAdmin_Call {
+func (_e *MockArtRepository_Expecter) DeleteAsAdmin(ctx any, id any) *MockArtRepository_DeleteAsAdmin_Call {
 	return &MockArtRepository_DeleteAsAdmin_Call{Call: _e.mock.On("DeleteAsAdmin", ctx, id)}
 }
 
@@ -608,7 +608,7 @@ type MockArtRepository_DeleteComment_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockArtRepository_Expecter) DeleteComment(ctx interface{}, id interface{}, userID interface{}) *MockArtRepository_DeleteComment_Call {
+func (_e *MockArtRepository_Expecter) DeleteComment(ctx any, id any, userID any) *MockArtRepository_DeleteComment_Call {
 	return &MockArtRepository_DeleteComment_Call{Call: _e.mock.On("DeleteComment", ctx, id, userID)}
 }
 
@@ -670,7 +670,7 @@ type MockArtRepository_DeleteCommentAsAdmin_Call struct {
 // DeleteCommentAsAdmin is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockArtRepository_Expecter) DeleteCommentAsAdmin(ctx interface{}, id interface{}) *MockArtRepository_DeleteCommentAsAdmin_Call {
+func (_e *MockArtRepository_Expecter) DeleteCommentAsAdmin(ctx any, id any) *MockArtRepository_DeleteCommentAsAdmin_Call {
 	return &MockArtRepository_DeleteCommentAsAdmin_Call{Call: _e.mock.On("DeleteCommentAsAdmin", ctx, id)}
 }
 
@@ -728,7 +728,7 @@ type MockArtRepository_DeleteGallery_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockArtRepository_Expecter) DeleteGallery(ctx interface{}, id interface{}, userID interface{}) *MockArtRepository_DeleteGallery_Call {
+func (_e *MockArtRepository_Expecter) DeleteGallery(ctx any, id any, userID any) *MockArtRepository_DeleteGallery_Call {
 	return &MockArtRepository_DeleteGallery_Call{Call: _e.mock.On("DeleteGallery", ctx, id, userID)}
 }
 
@@ -801,7 +801,7 @@ type MockArtRepository_GetArtAuthorID_Call struct {
 // GetArtAuthorID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - artID uuid.UUID
-func (_e *MockArtRepository_Expecter) GetArtAuthorID(ctx interface{}, artID interface{}) *MockArtRepository_GetArtAuthorID_Call {
+func (_e *MockArtRepository_Expecter) GetArtAuthorID(ctx any, artID any) *MockArtRepository_GetArtAuthorID_Call {
 	return &MockArtRepository_GetArtAuthorID_Call{Call: _e.mock.On("GetArtAuthorID", ctx, artID)}
 }
 
@@ -870,7 +870,7 @@ type MockArtRepository_GetByID_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - viewerID uuid.UUID
-func (_e *MockArtRepository_Expecter) GetByID(ctx interface{}, id interface{}, viewerID interface{}) *MockArtRepository_GetByID_Call {
+func (_e *MockArtRepository_Expecter) GetByID(ctx any, id any, viewerID any) *MockArtRepository_GetByID_Call {
 	return &MockArtRepository_GetByID_Call{Call: _e.mock.On("GetByID", ctx, id, viewerID)}
 }
 
@@ -943,7 +943,7 @@ type MockArtRepository_GetCommentArtID_Call struct {
 // GetCommentArtID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - commentID uuid.UUID
-func (_e *MockArtRepository_Expecter) GetCommentArtID(ctx interface{}, commentID interface{}) *MockArtRepository_GetCommentArtID_Call {
+func (_e *MockArtRepository_Expecter) GetCommentArtID(ctx any, commentID any) *MockArtRepository_GetCommentArtID_Call {
 	return &MockArtRepository_GetCommentArtID_Call{Call: _e.mock.On("GetCommentArtID", ctx, commentID)}
 }
 
@@ -1011,7 +1011,7 @@ type MockArtRepository_GetCommentAuthorID_Call struct {
 // GetCommentAuthorID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - commentID uuid.UUID
-func (_e *MockArtRepository_Expecter) GetCommentAuthorID(ctx interface{}, commentID interface{}) *MockArtRepository_GetCommentAuthorID_Call {
+func (_e *MockArtRepository_Expecter) GetCommentAuthorID(ctx any, commentID any) *MockArtRepository_GetCommentAuthorID_Call {
 	return &MockArtRepository_GetCommentAuthorID_Call{Call: _e.mock.On("GetCommentAuthorID", ctx, commentID)}
 }
 
@@ -1079,7 +1079,7 @@ type MockArtRepository_GetCommentMedia_Call struct {
 // GetCommentMedia is a helper method to define mock.On call
 //   - ctx context.Context
 //   - commentID uuid.UUID
-func (_e *MockArtRepository_Expecter) GetCommentMedia(ctx interface{}, commentID interface{}) *MockArtRepository_GetCommentMedia_Call {
+func (_e *MockArtRepository_Expecter) GetCommentMedia(ctx any, commentID any) *MockArtRepository_GetCommentMedia_Call {
 	return &MockArtRepository_GetCommentMedia_Call{Call: _e.mock.On("GetCommentMedia", ctx, commentID)}
 }
 
@@ -1147,7 +1147,7 @@ type MockArtRepository_GetCommentMediaBatch_Call struct {
 // GetCommentMediaBatch is a helper method to define mock.On call
 //   - ctx context.Context
 //   - commentIDs []uuid.UUID
-func (_e *MockArtRepository_Expecter) GetCommentMediaBatch(ctx interface{}, commentIDs interface{}) *MockArtRepository_GetCommentMediaBatch_Call {
+func (_e *MockArtRepository_Expecter) GetCommentMediaBatch(ctx any, commentIDs any) *MockArtRepository_GetCommentMediaBatch_Call {
 	return &MockArtRepository_GetCommentMediaBatch_Call{Call: _e.mock.On("GetCommentMediaBatch", ctx, commentIDs)}
 }
 
@@ -1225,7 +1225,7 @@ type MockArtRepository_GetComments_Call struct {
 //   - limit int
 //   - offset int
 //   - excludeUserIDs []uuid.UUID
-func (_e *MockArtRepository_Expecter) GetComments(ctx interface{}, artID interface{}, viewerID interface{}, limit interface{}, offset interface{}, excludeUserIDs interface{}) *MockArtRepository_GetComments_Call {
+func (_e *MockArtRepository_Expecter) GetComments(ctx any, artID any, viewerID any, limit any, offset any, excludeUserIDs any) *MockArtRepository_GetComments_Call {
 	return &MockArtRepository_GetComments_Call{Call: _e.mock.On("GetComments", ctx, artID, viewerID, limit, offset, excludeUserIDs)}
 }
 
@@ -1312,7 +1312,7 @@ type MockArtRepository_GetCornerCounts_Call struct {
 
 // GetCornerCounts is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockArtRepository_Expecter) GetCornerCounts(ctx interface{}) *MockArtRepository_GetCornerCounts_Call {
+func (_e *MockArtRepository_Expecter) GetCornerCounts(ctx any) *MockArtRepository_GetCornerCounts_Call {
 	return &MockArtRepository_GetCornerCounts_Call{Call: _e.mock.On("GetCornerCounts", ctx)}
 }
 
@@ -1375,7 +1375,7 @@ type MockArtRepository_GetGalleryByID_Call struct {
 // GetGalleryByID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockArtRepository_Expecter) GetGalleryByID(ctx interface{}, id interface{}) *MockArtRepository_GetGalleryByID_Call {
+func (_e *MockArtRepository_Expecter) GetGalleryByID(ctx any, id any) *MockArtRepository_GetGalleryByID_Call {
 	return &MockArtRepository_GetGalleryByID_Call{Call: _e.mock.On("GetGalleryByID", ctx, id)}
 }
 
@@ -1444,7 +1444,7 @@ type MockArtRepository_GetGalleryPreviewImages_Call struct {
 //   - ctx context.Context
 //   - galleryID uuid.UUID
 //   - limit int
-func (_e *MockArtRepository_Expecter) GetGalleryPreviewImages(ctx interface{}, galleryID interface{}, limit interface{}) *MockArtRepository_GetGalleryPreviewImages_Call {
+func (_e *MockArtRepository_Expecter) GetGalleryPreviewImages(ctx any, galleryID any, limit any) *MockArtRepository_GetGalleryPreviewImages_Call {
 	return &MockArtRepository_GetGalleryPreviewImages_Call{Call: _e.mock.On("GetGalleryPreviewImages", ctx, galleryID, limit)}
 }
 
@@ -1515,7 +1515,7 @@ type MockArtRepository_GetImageURL_Call struct {
 // GetImageURL is a helper method to define mock.On call
 //   - ctx context.Context
 //   - artID uuid.UUID
-func (_e *MockArtRepository_Expecter) GetImageURL(ctx interface{}, artID interface{}) *MockArtRepository_GetImageURL_Call {
+func (_e *MockArtRepository_Expecter) GetImageURL(ctx any, artID any) *MockArtRepository_GetImageURL_Call {
 	return &MockArtRepository_GetImageURL_Call{Call: _e.mock.On("GetImageURL", ctx, artID)}
 }
 
@@ -1584,7 +1584,7 @@ type MockArtRepository_GetLikedBy_Call struct {
 //   - ctx context.Context
 //   - artID uuid.UUID
 //   - excludeUserIDs []uuid.UUID
-func (_e *MockArtRepository_Expecter) GetLikedBy(ctx interface{}, artID interface{}, excludeUserIDs interface{}) *MockArtRepository_GetLikedBy_Call {
+func (_e *MockArtRepository_Expecter) GetLikedBy(ctx any, artID any, excludeUserIDs any) *MockArtRepository_GetLikedBy_Call {
 	return &MockArtRepository_GetLikedBy_Call{Call: _e.mock.On("GetLikedBy", ctx, artID, excludeUserIDs)}
 }
 
@@ -1658,7 +1658,7 @@ type MockArtRepository_GetPopularTags_Call struct {
 //   - ctx context.Context
 //   - corner string
 //   - limit int
-func (_e *MockArtRepository_Expecter) GetPopularTags(ctx interface{}, corner interface{}, limit interface{}) *MockArtRepository_GetPopularTags_Call {
+func (_e *MockArtRepository_Expecter) GetPopularTags(ctx any, corner any, limit any) *MockArtRepository_GetPopularTags_Call {
 	return &MockArtRepository_GetPopularTags_Call{Call: _e.mock.On("GetPopularTags", ctx, corner, limit)}
 }
 
@@ -1731,7 +1731,7 @@ type MockArtRepository_GetTags_Call struct {
 // GetTags is a helper method to define mock.On call
 //   - ctx context.Context
 //   - artID uuid.UUID
-func (_e *MockArtRepository_Expecter) GetTags(ctx interface{}, artID interface{}) *MockArtRepository_GetTags_Call {
+func (_e *MockArtRepository_Expecter) GetTags(ctx any, artID any) *MockArtRepository_GetTags_Call {
 	return &MockArtRepository_GetTags_Call{Call: _e.mock.On("GetTags", ctx, artID)}
 }
 
@@ -1799,7 +1799,7 @@ type MockArtRepository_GetTagsBatch_Call struct {
 // GetTagsBatch is a helper method to define mock.On call
 //   - ctx context.Context
 //   - artIDs []uuid.UUID
-func (_e *MockArtRepository_Expecter) GetTagsBatch(ctx interface{}, artIDs interface{}) *MockArtRepository_GetTagsBatch_Call {
+func (_e *MockArtRepository_Expecter) GetTagsBatch(ctx any, artIDs any) *MockArtRepository_GetTagsBatch_Call {
 	return &MockArtRepository_GetTagsBatch_Call{Call: _e.mock.On("GetTagsBatch", ctx, artIDs)}
 }
 
@@ -1857,7 +1857,7 @@ type MockArtRepository_Like_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - artID uuid.UUID
-func (_e *MockArtRepository_Expecter) Like(ctx interface{}, userID interface{}, artID interface{}) *MockArtRepository_Like_Call {
+func (_e *MockArtRepository_Expecter) Like(ctx any, userID any, artID any) *MockArtRepository_Like_Call {
 	return &MockArtRepository_Like_Call{Call: _e.mock.On("Like", ctx, userID, artID)}
 }
 
@@ -1920,7 +1920,7 @@ type MockArtRepository_LikeComment_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - commentID uuid.UUID
-func (_e *MockArtRepository_Expecter) LikeComment(ctx interface{}, userID interface{}, commentID interface{}) *MockArtRepository_LikeComment_Call {
+func (_e *MockArtRepository_Expecter) LikeComment(ctx any, userID any, commentID any) *MockArtRepository_LikeComment_Call {
 	return &MockArtRepository_LikeComment_Call{Call: _e.mock.On("LikeComment", ctx, userID, commentID)}
 }
 
@@ -2007,7 +2007,7 @@ type MockArtRepository_ListAll_Call struct {
 //   - limit int
 //   - offset int
 //   - excludeUserIDs []uuid.UUID
-func (_e *MockArtRepository_Expecter) ListAll(ctx interface{}, viewerID interface{}, corner interface{}, artType interface{}, search interface{}, tag interface{}, sort interface{}, limit interface{}, offset interface{}, excludeUserIDs interface{}) *MockArtRepository_ListAll_Call {
+func (_e *MockArtRepository_Expecter) ListAll(ctx any, viewerID any, corner any, artType any, search any, tag any, sort any, limit any, offset any, excludeUserIDs any) *MockArtRepository_ListAll_Call {
 	return &MockArtRepository_ListAll_Call{Call: _e.mock.On("ListAll", ctx, viewerID, corner, artType, search, tag, sort, limit, offset, excludeUserIDs)}
 }
 
@@ -2115,7 +2115,7 @@ type MockArtRepository_ListAllGalleries_Call struct {
 // ListAllGalleries is a helper method to define mock.On call
 //   - ctx context.Context
 //   - corner string
-func (_e *MockArtRepository_Expecter) ListAllGalleries(ctx interface{}, corner interface{}) *MockArtRepository_ListAllGalleries_Call {
+func (_e *MockArtRepository_Expecter) ListAllGalleries(ctx any, corner any) *MockArtRepository_ListAllGalleries_Call {
 	return &MockArtRepository_ListAllGalleries_Call{Call: _e.mock.On("ListAllGalleries", ctx, corner)}
 }
 
@@ -2192,7 +2192,7 @@ type MockArtRepository_ListArtInGallery_Call struct {
 //   - viewerID uuid.UUID
 //   - limit int
 //   - offset int
-func (_e *MockArtRepository_Expecter) ListArtInGallery(ctx interface{}, galleryID interface{}, viewerID interface{}, limit interface{}, offset interface{}) *MockArtRepository_ListArtInGallery_Call {
+func (_e *MockArtRepository_Expecter) ListArtInGallery(ctx any, galleryID any, viewerID any, limit any, offset any) *MockArtRepository_ListArtInGallery_Call {
 	return &MockArtRepository_ListArtInGallery_Call{Call: _e.mock.On("ListArtInGallery", ctx, galleryID, viewerID, limit, offset)}
 }
 
@@ -2284,7 +2284,7 @@ type MockArtRepository_ListByUser_Call struct {
 //   - viewerID uuid.UUID
 //   - limit int
 //   - offset int
-func (_e *MockArtRepository_Expecter) ListByUser(ctx interface{}, userID interface{}, viewerID interface{}, limit interface{}, offset interface{}) *MockArtRepository_ListByUser_Call {
+func (_e *MockArtRepository_Expecter) ListByUser(ctx any, userID any, viewerID any, limit any, offset any) *MockArtRepository_ListByUser_Call {
 	return &MockArtRepository_ListByUser_Call{Call: _e.mock.On("ListByUser", ctx, userID, viewerID, limit, offset)}
 }
 
@@ -2367,7 +2367,7 @@ type MockArtRepository_ListGalleriesByUser_Call struct {
 // ListGalleriesByUser is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockArtRepository_Expecter) ListGalleriesByUser(ctx interface{}, userID interface{}) *MockArtRepository_ListGalleriesByUser_Call {
+func (_e *MockArtRepository_Expecter) ListGalleriesByUser(ctx any, userID any) *MockArtRepository_ListGalleriesByUser_Call {
 	return &MockArtRepository_ListGalleriesByUser_Call{Call: _e.mock.On("ListGalleriesByUser", ctx, userID)}
 }
 
@@ -2434,7 +2434,7 @@ type MockArtRepository_RecordView_Call struct {
 //   - ctx context.Context
 //   - artID uuid.UUID
 //   - viewerHash string
-func (_e *MockArtRepository_Expecter) RecordView(ctx interface{}, artID interface{}, viewerHash interface{}) *MockArtRepository_RecordView_Call {
+func (_e *MockArtRepository_Expecter) RecordView(ctx any, artID any, viewerHash any) *MockArtRepository_RecordView_Call {
 	return &MockArtRepository_RecordView_Call{Call: _e.mock.On("RecordView", ctx, artID, viewerHash)}
 }
 
@@ -2498,7 +2498,7 @@ type MockArtRepository_SetGallery_Call struct {
 //   - artID uuid.UUID
 //   - userID uuid.UUID
 //   - galleryID *uuid.UUID
-func (_e *MockArtRepository_Expecter) SetGallery(ctx interface{}, artID interface{}, userID interface{}, galleryID interface{}) *MockArtRepository_SetGallery_Call {
+func (_e *MockArtRepository_Expecter) SetGallery(ctx any, artID any, userID any, galleryID any) *MockArtRepository_SetGallery_Call {
 	return &MockArtRepository_SetGallery_Call{Call: _e.mock.On("SetGallery", ctx, artID, userID, galleryID)}
 }
 
@@ -2567,7 +2567,7 @@ type MockArtRepository_SetGalleryCover_Call struct {
 //   - galleryID uuid.UUID
 //   - userID uuid.UUID
 //   - coverArtID *uuid.UUID
-func (_e *MockArtRepository_Expecter) SetGalleryCover(ctx interface{}, galleryID interface{}, userID interface{}, coverArtID interface{}) *MockArtRepository_SetGalleryCover_Call {
+func (_e *MockArtRepository_Expecter) SetGalleryCover(ctx any, galleryID any, userID any, coverArtID any) *MockArtRepository_SetGalleryCover_Call {
 	return &MockArtRepository_SetGalleryCover_Call{Call: _e.mock.On("SetGalleryCover", ctx, galleryID, userID, coverArtID)}
 }
 
@@ -2635,7 +2635,7 @@ type MockArtRepository_Unlike_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - artID uuid.UUID
-func (_e *MockArtRepository_Expecter) Unlike(ctx interface{}, userID interface{}, artID interface{}) *MockArtRepository_Unlike_Call {
+func (_e *MockArtRepository_Expecter) Unlike(ctx any, userID any, artID any) *MockArtRepository_Unlike_Call {
 	return &MockArtRepository_Unlike_Call{Call: _e.mock.On("Unlike", ctx, userID, artID)}
 }
 
@@ -2698,7 +2698,7 @@ type MockArtRepository_UnlikeComment_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - commentID uuid.UUID
-func (_e *MockArtRepository_Expecter) UnlikeComment(ctx interface{}, userID interface{}, commentID interface{}) *MockArtRepository_UnlikeComment_Call {
+func (_e *MockArtRepository_Expecter) UnlikeComment(ctx any, userID any, commentID any) *MockArtRepository_UnlikeComment_Call {
 	return &MockArtRepository_UnlikeComment_Call{Call: _e.mock.On("UnlikeComment", ctx, userID, commentID)}
 }
 
@@ -2762,7 +2762,7 @@ type MockArtRepository_UpdateComment_Call struct {
 //   - id uuid.UUID
 //   - userID uuid.UUID
 //   - body string
-func (_e *MockArtRepository_Expecter) UpdateComment(ctx interface{}, id interface{}, userID interface{}, body interface{}) *MockArtRepository_UpdateComment_Call {
+func (_e *MockArtRepository_Expecter) UpdateComment(ctx any, id any, userID any, body any) *MockArtRepository_UpdateComment_Call {
 	return &MockArtRepository_UpdateComment_Call{Call: _e.mock.On("UpdateComment", ctx, id, userID, body)}
 }
 
@@ -2830,7 +2830,7 @@ type MockArtRepository_UpdateCommentAsAdmin_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - body string
-func (_e *MockArtRepository_Expecter) UpdateCommentAsAdmin(ctx interface{}, id interface{}, body interface{}) *MockArtRepository_UpdateCommentAsAdmin_Call {
+func (_e *MockArtRepository_Expecter) UpdateCommentAsAdmin(ctx any, id any, body any) *MockArtRepository_UpdateCommentAsAdmin_Call {
 	return &MockArtRepository_UpdateCommentAsAdmin_Call{Call: _e.mock.On("UpdateCommentAsAdmin", ctx, id, body)}
 }
 
@@ -2893,7 +2893,7 @@ type MockArtRepository_UpdateCommentMediaThumbnail_Call struct {
 //   - ctx context.Context
 //   - id int64
 //   - thumbnailURL string
-func (_e *MockArtRepository_Expecter) UpdateCommentMediaThumbnail(ctx interface{}, id interface{}, thumbnailURL interface{}) *MockArtRepository_UpdateCommentMediaThumbnail_Call {
+func (_e *MockArtRepository_Expecter) UpdateCommentMediaThumbnail(ctx any, id any, thumbnailURL any) *MockArtRepository_UpdateCommentMediaThumbnail_Call {
 	return &MockArtRepository_UpdateCommentMediaThumbnail_Call{Call: _e.mock.On("UpdateCommentMediaThumbnail", ctx, id, thumbnailURL)}
 }
 
@@ -2956,7 +2956,7 @@ type MockArtRepository_UpdateCommentMediaURL_Call struct {
 //   - ctx context.Context
 //   - id int64
 //   - mediaURL string
-func (_e *MockArtRepository_Expecter) UpdateCommentMediaURL(ctx interface{}, id interface{}, mediaURL interface{}) *MockArtRepository_UpdateCommentMediaURL_Call {
+func (_e *MockArtRepository_Expecter) UpdateCommentMediaURL(ctx any, id any, mediaURL any) *MockArtRepository_UpdateCommentMediaURL_Call {
 	return &MockArtRepository_UpdateCommentMediaURL_Call{Call: _e.mock.On("UpdateCommentMediaURL", ctx, id, mediaURL)}
 }
 
@@ -3021,7 +3021,7 @@ type MockArtRepository_UpdateGallery_Call struct {
 //   - userID uuid.UUID
 //   - name string
 //   - description string
-func (_e *MockArtRepository_Expecter) UpdateGallery(ctx interface{}, id interface{}, userID interface{}, name interface{}, description interface{}) *MockArtRepository_UpdateGallery_Call {
+func (_e *MockArtRepository_Expecter) UpdateGallery(ctx any, id any, userID any, name any, description any) *MockArtRepository_UpdateGallery_Call {
 	return &MockArtRepository_UpdateGallery_Call{Call: _e.mock.On("UpdateGallery", ctx, id, userID, name, description)}
 }
 
@@ -3099,7 +3099,7 @@ type MockArtRepository_UpdateWithTags_Call struct {
 //   - tags []string
 //   - isSpoiler bool
 //   - asAdmin bool
-func (_e *MockArtRepository_Expecter) UpdateWithTags(ctx interface{}, id interface{}, userID interface{}, title interface{}, description interface{}, tags interface{}, isSpoiler interface{}, asAdmin interface{}) *MockArtRepository_UpdateWithTags_Call {
+func (_e *MockArtRepository_Expecter) UpdateWithTags(ctx any, id any, userID any, title any, description any, tags any, isSpoiler any, asAdmin any) *MockArtRepository_UpdateWithTags_Call {
 	return &MockArtRepository_UpdateWithTags_Call{Call: _e.mock.On("UpdateWithTags", ctx, id, userID, title, description, tags, isSpoiler, asAdmin)}
 }
 

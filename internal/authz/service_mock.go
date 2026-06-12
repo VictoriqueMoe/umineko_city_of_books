@@ -65,7 +65,7 @@ type MockService_Can_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - perm Permission
-func (_e *MockService_Expecter) Can(ctx interface{}, userID interface{}, perm interface{}) *MockService_Can_Call {
+func (_e *MockService_Expecter) Can(ctx any, userID any, perm any) *MockService_Can_Call {
 	return &MockService_Can_Call{Call: _e.mock.On("Can", ctx, userID, perm)}
 }
 
@@ -136,7 +136,7 @@ type MockService_GetRole_Call struct {
 // GetRole is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) GetRole(ctx interface{}, userID interface{}) *MockService_GetRole_Call {
+func (_e *MockService_Expecter) GetRole(ctx any, userID any) *MockService_GetRole_Call {
 	return &MockService_GetRole_Call{Call: _e.mock.On("GetRole", ctx, userID)}
 }
 
@@ -204,7 +204,7 @@ type MockService_GetRoles_Call struct {
 // GetRoles is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userIDs []uuid.UUID
-func (_e *MockService_Expecter) GetRoles(ctx interface{}, userIDs interface{}) *MockService_GetRoles_Call {
+func (_e *MockService_Expecter) GetRoles(ctx any, userIDs any) *MockService_GetRoles_Call {
 	return &MockService_GetRoles_Call{Call: _e.mock.On("GetRoles", ctx, userIDs)}
 }
 
@@ -261,7 +261,7 @@ type MockService_IsBanned_Call struct {
 // IsBanned is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) IsBanned(ctx interface{}, userID interface{}) *MockService_IsBanned_Call {
+func (_e *MockService_Expecter) IsBanned(ctx any, userID any) *MockService_IsBanned_Call {
 	return &MockService_IsBanned_Call{Call: _e.mock.On("IsBanned", ctx, userID)}
 }
 
@@ -318,7 +318,7 @@ type MockService_IsLocked_Call struct {
 // IsLocked is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) IsLocked(ctx interface{}, userID interface{}) *MockService_IsLocked_Call {
+func (_e *MockService_Expecter) IsLocked(ctx any, userID any) *MockService_IsLocked_Call {
 	return &MockService_IsLocked_Call{Call: _e.mock.On("IsLocked", ctx, userID)}
 }
 
@@ -375,7 +375,7 @@ type MockService_RequiresEmailVerification_Call struct {
 // RequiresEmailVerification is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) RequiresEmailVerification(ctx interface{}, userID interface{}) *MockService_RequiresEmailVerification_Call {
+func (_e *MockService_Expecter) RequiresEmailVerification(ctx any, userID any) *MockService_RequiresEmailVerification_Call {
 	return &MockService_RequiresEmailVerification_Call{Call: _e.mock.On("RequiresEmailVerification", ctx, userID)}
 }
 

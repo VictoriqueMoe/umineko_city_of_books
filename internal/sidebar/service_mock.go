@@ -75,7 +75,7 @@ type MockService_ListVisited_Call struct {
 // ListVisited is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) ListVisited(ctx interface{}, userID interface{}) *MockService_ListVisited_Call {
+func (_e *MockService_Expecter) ListVisited(ctx any, userID any) *MockService_ListVisited_Call {
 	return &MockService_ListVisited_Call{Call: _e.mock.On("ListVisited", ctx, userID)}
 }
 
@@ -133,7 +133,7 @@ type MockService_MarkVisited_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - key string
-func (_e *MockService_Expecter) MarkVisited(ctx interface{}, userID interface{}, key interface{}) *MockService_MarkVisited_Call {
+func (_e *MockService_Expecter) MarkVisited(ctx any, userID any, key any) *MockService_MarkVisited_Call {
 	return &MockService_MarkVisited_Call{Call: _e.mock.On("MarkVisited", ctx, userID, key)}
 }
 

@@ -72,7 +72,7 @@ type MockSitemapRepository_ListArt_Call struct {
 
 // ListArt is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockSitemapRepository_Expecter) ListArt(ctx interface{}) *MockSitemapRepository_ListArt_Call {
+func (_e *MockSitemapRepository_Expecter) ListArt(ctx any) *MockSitemapRepository_ListArt_Call {
 	return &MockSitemapRepository_ListArt_Call{Call: _e.mock.On("ListArt", ctx)}
 }
 
@@ -134,7 +134,7 @@ type MockSitemapRepository_ListFanfics_Call struct {
 
 // ListFanfics is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockSitemapRepository_Expecter) ListFanfics(ctx interface{}) *MockSitemapRepository_ListFanfics_Call {
+func (_e *MockSitemapRepository_Expecter) ListFanfics(ctx any) *MockSitemapRepository_ListFanfics_Call {
 	return &MockSitemapRepository_ListFanfics_Call{Call: _e.mock.On("ListFanfics", ctx)}
 }
 
@@ -196,7 +196,7 @@ type MockSitemapRepository_ListJournalRows_Call struct {
 
 // ListJournalRows is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockSitemapRepository_Expecter) ListJournalRows(ctx interface{}) *MockSitemapRepository_ListJournalRows_Call {
+func (_e *MockSitemapRepository_Expecter) ListJournalRows(ctx any) *MockSitemapRepository_ListJournalRows_Call {
 	return &MockSitemapRepository_ListJournalRows_Call{Call: _e.mock.On("ListJournalRows", ctx)}
 }
 
@@ -258,7 +258,7 @@ type MockSitemapRepository_ListMysteries_Call struct {
 
 // ListMysteries is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockSitemapRepository_Expecter) ListMysteries(ctx interface{}) *MockSitemapRepository_ListMysteries_Call {
+func (_e *MockSitemapRepository_Expecter) ListMysteries(ctx any) *MockSitemapRepository_ListMysteries_Call {
 	return &MockSitemapRepository_ListMysteries_Call{Call: _e.mock.On("ListMysteries", ctx)}
 }
 
@@ -320,7 +320,7 @@ type MockSitemapRepository_ListPosts_Call struct {
 
 // ListPosts is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockSitemapRepository_Expecter) ListPosts(ctx interface{}) *MockSitemapRepository_ListPosts_Call {
+func (_e *MockSitemapRepository_Expecter) ListPosts(ctx any) *MockSitemapRepository_ListPosts_Call {
 	return &MockSitemapRepository_ListPosts_Call{Call: _e.mock.On("ListPosts", ctx)}
 }
 
@@ -382,7 +382,7 @@ type MockSitemapRepository_ListShips_Call struct {
 
 // ListShips is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockSitemapRepository_Expecter) ListShips(ctx interface{}) *MockSitemapRepository_ListShips_Call {
+func (_e *MockSitemapRepository_Expecter) ListShips(ctx any) *MockSitemapRepository_ListShips_Call {
 	return &MockSitemapRepository_ListShips_Call{Call: _e.mock.On("ListShips", ctx)}
 }
 
@@ -444,7 +444,7 @@ type MockSitemapRepository_ListTheories_Call struct {
 
 // ListTheories is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockSitemapRepository_Expecter) ListTheories(ctx interface{}) *MockSitemapRepository_ListTheories_Call {
+func (_e *MockSitemapRepository_Expecter) ListTheories(ctx any) *MockSitemapRepository_ListTheories_Call {
 	return &MockSitemapRepository_ListTheories_Call{Call: _e.mock.On("ListTheories", ctx)}
 }
 
@@ -506,7 +506,7 @@ type MockSitemapRepository_ListUsernames_Call struct {
 
 // ListUsernames is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockSitemapRepository_Expecter) ListUsernames(ctx interface{}) *MockSitemapRepository_ListUsernames_Call {
+func (_e *MockSitemapRepository_Expecter) ListUsernames(ctx any) *MockSitemapRepository_ListUsernames_Call {
 	return &MockSitemapRepository_ListUsernames_Call{Call: _e.mock.On("ListUsernames", ctx)}
 }
 

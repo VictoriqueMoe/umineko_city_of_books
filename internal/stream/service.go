@@ -35,6 +35,8 @@ type (
 		ReconcileOnce(ctx context.Context) (int, error)
 		JoinChat(ctx context.Context, streamID, userID uuid.UUID) error
 		SaveThumbnail(ctx context.Context, streamID uuid.UUID, size int64, reader io.Reader) error
+		Credentials(ctx context.Context, userID uuid.UUID, displayName string) (*dto.StreamCredentialsResponse, error)
+		ResetCredentials(ctx context.Context, userID uuid.UUID, displayName string) (*dto.StreamCredentialsResponse, error)
 		SetChatBinder(chat ChatBinder)
 	}
 
@@ -46,11 +48,13 @@ type (
 
 	service struct {
 		repo        repository.LiveStreamRepository
+		creds       repository.StreamCredentialsRepository
 		livekitSvc  livekit.Service
 		settingsSvc settings.Service
 		uploadSvc   upload.Service
 		hub         *ws.Hub
 		chat        ChatBinder
+		credsMu     sync.Mutex
 		thumbMu     sync.Mutex
 		thumbAt     map[uuid.UUID]time.Time
 	}
@@ -87,9 +91,10 @@ var (
 	ErrTitleRequired  = errors.New("stream title is required")
 )
 
-func NewService(repo repository.LiveStreamRepository, livekitSvc livekit.Service, settingsSvc settings.Service, uploadSvc upload.Service, hub *ws.Hub) Service {
+func NewService(repo repository.LiveStreamRepository, creds repository.StreamCredentialsRepository, livekitSvc livekit.Service, settingsSvc settings.Service, uploadSvc upload.Service, hub *ws.Hub) Service {
 	return &service{
 		repo:        repo,
+		creds:       creds,
 		livekitSvc:  livekitSvc,
 		settingsSvc: settingsSvc,
 		uploadSvc:   uploadSvc,
@@ -255,14 +260,18 @@ func (s *service) StartStream(ctx context.Context, userID uuid.UUID, title strin
 	room := roomPrefix + streamID.String()
 	identity := broadcasterPrefix + userID.String()
 
-	ingressID, whipURL, streamKey, err := s.livekitSvc.CreateIngress(ctx, room, identity, stream.DisplayName)
+	creds, err := s.ensureCredentials(ctx, userID, stream.DisplayName)
 	if err != nil {
 		_, _ = s.repo.MarkOffline(ctx, streamID)
-		return nil, fmt.Errorf("create ingress: %w", err)
+		return nil, fmt.Errorf("ensure stream credentials: %w", err)
 	}
 
-	if err := s.repo.SetIngress(ctx, streamID, ingressID, room, whipURL, streamKey); err != nil {
-		_ = s.livekitSvc.DeleteIngress(ctx, ingressID)
+	if err := s.livekitSvc.UpdateIngress(ctx, creds.IngressID, room, identity, stream.DisplayName); err != nil {
+		_, _ = s.repo.MarkOffline(ctx, streamID)
+		return nil, fmt.Errorf("point ingress at stream room: %w", err)
+	}
+
+	if err := s.repo.SetIngress(ctx, streamID, creds.IngressID, room, creds.WhipURL, creds.StreamKey); err != nil {
 		_, _ = s.repo.MarkOffline(ctx, streamID)
 		return nil, err
 	}
@@ -270,11 +279,104 @@ func (s *service) StartStream(ctx context.Context, userID uuid.UUID, title strin
 	s.createChatRoom(ctx, streamID, userID, stream.Title)
 
 	stream.LivekitRoom = room
-	stream.IngressID = ingressID
-	stream.WhipURL = whipURL
-	stream.StreamKey = streamKey
+	stream.IngressID = creds.IngressID
+	stream.WhipURL = creds.WhipURL
+	stream.StreamKey = creds.StreamKey
 
 	return toOwner(stream), nil
+}
+
+func userRoom(userID uuid.UUID) string {
+	return roomPrefix + "u_" + userID.String()
+}
+
+func (s *service) ensureCredentials(ctx context.Context, userID uuid.UUID, displayName string) (*repository.StreamCredentialsRow, error) {
+	existing, err := s.creds.Get(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if existing != nil {
+		return existing, nil
+	}
+
+	s.credsMu.Lock()
+	defer s.credsMu.Unlock()
+
+	existing, err = s.creds.Get(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if existing != nil {
+		return existing, nil
+	}
+
+	room := userRoom(userID)
+	identity := broadcasterPrefix + userID.String()
+
+	ingressID, whipURL, streamKey, err := s.livekitSvc.CreateIngress(ctx, room, identity, displayName)
+	if err != nil {
+		return nil, fmt.Errorf("create ingress: %w", err)
+	}
+
+	if err := s.creds.Upsert(ctx, userID, ingressID, whipURL, streamKey, room); err != nil {
+		_ = s.livekitSvc.DeleteIngress(ctx, ingressID)
+		return nil, err
+	}
+
+	return &repository.StreamCredentialsRow{
+		UserID:    userID,
+		IngressID: ingressID,
+		WhipURL:   whipURL,
+		StreamKey: streamKey,
+		Room:      room,
+	}, nil
+}
+
+func (s *service) Credentials(ctx context.Context, userID uuid.UUID, displayName string) (*dto.StreamCredentialsResponse, error) {
+	if !s.Enabled() {
+		return nil, ErrDisabled
+	}
+
+	creds, err := s.ensureCredentials(ctx, userID, displayName)
+	if err != nil {
+		return nil, err
+	}
+
+	return &dto.StreamCredentialsResponse{WhipURL: creds.WhipURL, StreamKey: creds.StreamKey}, nil
+}
+
+func (s *service) ResetCredentials(ctx context.Context, userID uuid.UUID, displayName string) (*dto.StreamCredentialsResponse, error) {
+	if !s.Enabled() {
+		return nil, ErrDisabled
+	}
+
+	active, err := s.repo.GetActiveByUser(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("check active stream: %w", err)
+	}
+	if active != nil {
+		return nil, ErrAlreadyLive
+	}
+
+	existing, err := s.creds.Get(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if existing != nil {
+		if delErr := s.livekitSvc.DeleteIngress(ctx, existing.IngressID); delErr != nil {
+			return nil, fmt.Errorf("delete old ingress on reset: %w", delErr)
+		}
+		if delErr := s.creds.Delete(ctx, userID); delErr != nil {
+			return nil, delErr
+		}
+	}
+
+	creds, err := s.ensureCredentials(ctx, userID, displayName)
+	if err != nil {
+		return nil, err
+	}
+
+	return &dto.StreamCredentialsResponse{WhipURL: creds.WhipURL, StreamKey: creds.StreamKey}, nil
 }
 
 func (s *service) StopStream(ctx context.Context, userID, streamID uuid.UUID) error {
@@ -441,12 +543,6 @@ func (s *service) teardown(ctx context.Context, stream *repository.LiveStreamRow
 		return false
 	}
 
-	if stream.IngressID != "" {
-		if err := s.livekitSvc.DeleteIngress(ctx, stream.IngressID); err != nil {
-			logger.Log.Warn().Err(err).Str("ingress_id", stream.IngressID).Msg("delete ingress failed")
-		}
-	}
-
 	s.deleteChatRoom(ctx, stream.ID)
 
 	if stream.ThumbnailURL != "" {
@@ -508,7 +604,8 @@ func (s *service) ReconcileOnce(ctx context.Context) (int, error) {
 		return reaped, nil
 	}
 	for i := 0; i < len(live); i++ {
-		if _, ok := rooms[live[i].LivekitRoom]; ok {
+		identities, ok := rooms[live[i].LivekitRoom]
+		if ok && hasBroadcaster(identities) {
 			continue
 		}
 		if s.teardown(ctx, &live[i]) {
@@ -517,6 +614,16 @@ func (s *service) ReconcileOnce(ctx context.Context) (int, error) {
 	}
 
 	return reaped, nil
+}
+
+func hasBroadcaster(identities []string) bool {
+	for i := 0; i < len(identities); i++ {
+		if strings.HasPrefix(identities[i], broadcasterPrefix) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (s *service) broadcastLive(ctx context.Context, id uuid.UUID) {

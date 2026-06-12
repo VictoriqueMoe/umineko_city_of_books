@@ -28,6 +28,7 @@ type (
 		ParseWebhook(authHeader string, body []byte) (*Event, error)
 		ActiveRooms(ctx context.Context) (map[string][]string, error)
 		CreateIngress(ctx context.Context, roomName, identity, displayName string) (ingressID, url, streamKey string, err error)
+		UpdateIngress(ctx context.Context, ingressID, roomName, identity, displayName string) error
 		DeleteIngress(ctx context.Context, ingressID string) error
 	}
 
@@ -268,6 +269,27 @@ func (s *service) CreateIngress(ctx context.Context, roomName, identity, display
 	}
 
 	return info.GetIngressId(), info.GetUrl(), info.GetStreamKey(), nil
+}
+
+func (s *service) UpdateIngress(ctx context.Context, ingressID, roomName, identity, displayName string) error {
+	url, key, secret := s.creds()
+
+	if url == "" || key == "" || secret == "" {
+		return ErrDisabled
+	}
+
+	client := lksdk.NewIngressClient(toHTTPURL(url), key, secret)
+
+	if _, err := client.UpdateIngress(ctx, &livekit.UpdateIngressRequest{
+		IngressId:           ingressID,
+		RoomName:            roomName,
+		ParticipantIdentity: identity,
+		ParticipantName:     displayName,
+	}); err != nil {
+		return fmt.Errorf("update livekit ingress: %w", err)
+	}
+
+	return nil
 }
 
 func (s *service) DeleteIngress(ctx context.Context, ingressID string) error {

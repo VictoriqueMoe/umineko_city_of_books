@@ -15,6 +15,7 @@ import { useNotifications } from "../../hooks/useNotifications";
 import { getStream, getStreamViewerToken, uploadStreamThumbnail, type LiveStream } from "../../api/endpoints";
 import type { WSMessage } from "../../types/api";
 import { useAuth } from "../../hooks/useAuth";
+import { VolumeSlider } from "../../components/VolumeSlider/VolumeSlider";
 import { StreamChatPanel } from "./StreamChatPanel";
 import styles from "./live.module.css";
 
@@ -35,6 +36,7 @@ export function LiveWatchPage() {
 
     const [room, setRoom] = useState<Room | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [volume, setVolume] = useState(1);
     const roomRef = useRef<Room | null>(null);
     const stageRef = useRef<HTMLDivElement>(null);
 
@@ -190,8 +192,14 @@ export function LiveWatchPage() {
                     {isLive && room ? (
                         <RoomContext.Provider value={room}>
                             <StreamStage />
-                            <RoomAudioRenderer />
+                            <RoomAudioRenderer volume={volume} />
                             <StartAudio label="Click to enable sound" className={styles.startAudio} />
+                            <VolumeSlider
+                                value={volume}
+                                onChange={setVolume}
+                                ariaLabel="Stream volume"
+                                className={styles.volumeControl}
+                            />
                         </RoomContext.Provider>
                     ) : (
                         <div className={styles.offline}>
@@ -230,7 +238,7 @@ export function LiveWatchPage() {
             </div>
 
             <aside className={styles.watchSidebar}>
-                <StreamChatPanel streamId={stream.id} />
+                <StreamChatPanel streamId={stream.id} isLive={isLive} />
             </aside>
         </div>
     );

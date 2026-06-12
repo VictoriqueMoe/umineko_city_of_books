@@ -65,7 +65,7 @@ type MockBannedGiphyRepository_Add_Call struct {
 //   - value string
 //   - reason string
 //   - createdBy *string
-func (_e *MockBannedGiphyRepository_Expecter) Add(ctx interface{}, kind interface{}, value interface{}, reason interface{}, createdBy interface{}) *MockBannedGiphyRepository_Add_Call {
+func (_e *MockBannedGiphyRepository_Expecter) Add(ctx any, kind any, value any, reason any, createdBy any) *MockBannedGiphyRepository_Add_Call {
 	return &MockBannedGiphyRepository_Add_Call{Call: _e.mock.On("Add", ctx, kind, value, reason, createdBy)}
 }
 
@@ -147,7 +147,7 @@ type MockBannedGiphyRepository_List_Call struct {
 
 // List is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockBannedGiphyRepository_Expecter) List(ctx interface{}) *MockBannedGiphyRepository_List_Call {
+func (_e *MockBannedGiphyRepository_Expecter) List(ctx any) *MockBannedGiphyRepository_List_Call {
 	return &MockBannedGiphyRepository_List_Call{Call: _e.mock.On("List", ctx)}
 }
 
@@ -200,7 +200,7 @@ type MockBannedGiphyRepository_Remove_Call struct {
 //   - ctx context.Context
 //   - kind string
 //   - value string
-func (_e *MockBannedGiphyRepository_Expecter) Remove(ctx interface{}, kind interface{}, value interface{}) *MockBannedGiphyRepository_Remove_Call {
+func (_e *MockBannedGiphyRepository_Expecter) Remove(ctx any, kind any, value any) *MockBannedGiphyRepository_Remove_Call {
 	return &MockBannedGiphyRepository_Remove_Call{Call: _e.mock.On("Remove", ctx, kind, value)}
 }
 

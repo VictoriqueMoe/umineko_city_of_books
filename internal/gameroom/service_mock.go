@@ -77,7 +77,7 @@ type MockService_Accept_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) Accept(ctx interface{}, roomID interface{}, userID interface{}) *MockService_Accept_Call {
+func (_e *MockService_Expecter) Accept(ctx any, roomID any, userID any) *MockService_Accept_Call {
 	return &MockService_Accept_Call{Call: _e.mock.On("Accept", ctx, roomID, userID)}
 }
 
@@ -151,7 +151,7 @@ type MockService_AcceptDraw_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) AcceptDraw(ctx interface{}, roomID interface{}, userID interface{}) *MockService_AcceptDraw_Call {
+func (_e *MockService_Expecter) AcceptDraw(ctx any, roomID any, userID any) *MockService_AcceptDraw_Call {
 	return &MockService_AcceptDraw_Call{Call: _e.mock.On("AcceptDraw", ctx, roomID, userID)}
 }
 
@@ -214,7 +214,7 @@ type MockService_Cancel_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) Cancel(ctx interface{}, roomID interface{}, userID interface{}) *MockService_Cancel_Call {
+func (_e *MockService_Expecter) Cancel(ctx any, roomID any, userID any) *MockService_Cancel_Call {
 	return &MockService_Cancel_Call{Call: _e.mock.On("Cancel", ctx, roomID, userID)}
 }
 
@@ -284,7 +284,7 @@ type MockService_CancelIdleGames_Call struct {
 
 // CancelIdleGames is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockService_Expecter) CancelIdleGames(ctx interface{}) *MockService_CancelIdleGames_Call {
+func (_e *MockService_Expecter) CancelIdleGames(ctx any) *MockService_CancelIdleGames_Call {
 	return &MockService_CancelIdleGames_Call{Call: _e.mock.On("CancelIdleGames", ctx)}
 }
 
@@ -344,7 +344,7 @@ type MockService_CountLive_Call struct {
 
 // CountLive is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockService_Expecter) CountLive(ctx interface{}) *MockService_CountLive_Call {
+func (_e *MockService_Expecter) CountLive(ctx any) *MockService_CountLive_Call {
 	return &MockService_CountLive_Call{Call: _e.mock.On("CountLive", ctx)}
 }
 
@@ -397,7 +397,7 @@ type MockService_Decline_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) Decline(ctx interface{}, roomID interface{}, userID interface{}) *MockService_Decline_Call {
+func (_e *MockService_Expecter) Decline(ctx any, roomID any, userID any) *MockService_Decline_Call {
 	return &MockService_Decline_Call{Call: _e.mock.On("Decline", ctx, roomID, userID)}
 }
 
@@ -471,7 +471,7 @@ type MockService_DeclineDraw_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) DeclineDraw(ctx interface{}, roomID interface{}, userID interface{}) *MockService_DeclineDraw_Call {
+func (_e *MockService_Expecter) DeclineDraw(ctx any, roomID any, userID any) *MockService_DeclineDraw_Call {
 	return &MockService_DeclineDraw_Call{Call: _e.mock.On("DeclineDraw", ctx, roomID, userID)}
 }
 
@@ -545,7 +545,7 @@ type MockService_Get_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - viewerID uuid.UUID
-func (_e *MockService_Expecter) Get(ctx interface{}, roomID interface{}, viewerID interface{}) *MockService_Get_Call {
+func (_e *MockService_Expecter) Get(ctx any, roomID any, viewerID any) *MockService_Get_Call {
 	return &MockService_Get_Call{Call: _e.mock.On("Get", ctx, roomID, viewerID)}
 }
 
@@ -619,7 +619,7 @@ type MockService_GetPlayerChat_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - viewerID uuid.UUID
-func (_e *MockService_Expecter) GetPlayerChat(ctx interface{}, roomID interface{}, viewerID interface{}) *MockService_GetPlayerChat_Call {
+func (_e *MockService_Expecter) GetPlayerChat(ctx any, roomID any, viewerID any) *MockService_GetPlayerChat_Call {
 	return &MockService_GetPlayerChat_Call{Call: _e.mock.On("GetPlayerChat", ctx, roomID, viewerID)}
 }
 
@@ -693,7 +693,7 @@ type MockService_GetSpectatorChat_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - viewerID uuid.UUID
-func (_e *MockService_Expecter) GetSpectatorChat(ctx interface{}, roomID interface{}, viewerID interface{}) *MockService_GetSpectatorChat_Call {
+func (_e *MockService_Expecter) GetSpectatorChat(ctx any, roomID any, viewerID any) *MockService_GetSpectatorChat_Call {
 	return &MockService_GetSpectatorChat_Call{Call: _e.mock.On("GetSpectatorChat", ctx, roomID, viewerID)}
 }
 
@@ -766,7 +766,7 @@ type MockService_GetTopWinnerIDs_Call struct {
 // GetTopWinnerIDs is a helper method to define mock.On call
 //   - ctx context.Context
 //   - gameType dto.GameType
-func (_e *MockService_Expecter) GetTopWinnerIDs(ctx interface{}, gameType interface{}) *MockService_GetTopWinnerIDs_Call {
+func (_e *MockService_Expecter) GetTopWinnerIDs(ctx any, gameType any) *MockService_GetTopWinnerIDs_Call {
 	return &MockService_GetTopWinnerIDs_Call{Call: _e.mock.On("GetTopWinnerIDs", ctx, gameType)}
 }
 
@@ -813,7 +813,7 @@ type MockService_HandleClientJoin_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - roomID uuid.UUID
-func (_e *MockService_Expecter) HandleClientJoin(ctx interface{}, userID interface{}, roomID interface{}) *MockService_HandleClientJoin_Call {
+func (_e *MockService_Expecter) HandleClientJoin(ctx any, userID any, roomID any) *MockService_HandleClientJoin_Call {
 	return &MockService_HandleClientJoin_Call{Call: _e.mock.On("HandleClientJoin", ctx, userID, roomID)}
 }
 
@@ -864,7 +864,7 @@ type MockService_HandleClientLeave_Call struct {
 // HandleClientLeave is a helper method to define mock.On call
 //   - userID uuid.UUID
 //   - roomID uuid.UUID
-func (_e *MockService_Expecter) HandleClientLeave(userID interface{}, roomID interface{}) *MockService_HandleClientLeave_Call {
+func (_e *MockService_Expecter) HandleClientLeave(userID any, roomID any) *MockService_HandleClientLeave_Call {
 	return &MockService_HandleClientLeave_Call{Call: _e.mock.On("HandleClientLeave", userID, roomID)}
 }
 
@@ -934,7 +934,7 @@ type MockService_Invite_Call struct {
 //   - inviterID uuid.UUID
 //   - opponentID uuid.UUID
 //   - gameType dto.GameType
-func (_e *MockService_Expecter) Invite(ctx interface{}, inviterID interface{}, opponentID interface{}, gameType interface{}) *MockService_Invite_Call {
+func (_e *MockService_Expecter) Invite(ctx any, inviterID any, opponentID any, gameType any) *MockService_Invite_Call {
 	return &MockService_Invite_Call{Call: _e.mock.On("Invite", ctx, inviterID, opponentID, gameType)}
 }
 
@@ -1013,7 +1013,7 @@ type MockService_List_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - filter ListFilter
-func (_e *MockService_Expecter) List(ctx interface{}, userID interface{}, filter interface{}) *MockService_List_Call {
+func (_e *MockService_Expecter) List(ctx any, userID any, filter any) *MockService_List_Call {
 	return &MockService_List_Call{Call: _e.mock.On("List", ctx, userID, filter)}
 }
 
@@ -1088,7 +1088,7 @@ type MockService_ListFinished_Call struct {
 //   - gameType dto.GameType
 //   - limit int
 //   - offset int
-func (_e *MockService_Expecter) ListFinished(ctx interface{}, gameType interface{}, limit interface{}, offset interface{}) *MockService_ListFinished_Call {
+func (_e *MockService_Expecter) ListFinished(ctx any, gameType any, limit any, offset any) *MockService_ListFinished_Call {
 	return &MockService_ListFinished_Call{Call: _e.mock.On("ListFinished", ctx, gameType, limit, offset)}
 }
 
@@ -1168,7 +1168,7 @@ type MockService_ListLive_Call struct {
 //   - gameType dto.GameType
 //   - limit int
 //   - offset int
-func (_e *MockService_Expecter) ListLive(ctx interface{}, gameType interface{}, limit interface{}, offset interface{}) *MockService_ListLive_Call {
+func (_e *MockService_Expecter) ListLive(ctx any, gameType any, limit any, offset any) *MockService_ListLive_Call {
 	return &MockService_ListLive_Call{Call: _e.mock.On("ListLive", ctx, gameType, limit, offset)}
 }
 
@@ -1247,7 +1247,7 @@ type MockService_OfferDraw_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) OfferDraw(ctx interface{}, roomID interface{}, userID interface{}) *MockService_OfferDraw_Call {
+func (_e *MockService_Expecter) OfferDraw(ctx any, roomID any, userID any) *MockService_OfferDraw_Call {
 	return &MockService_OfferDraw_Call{Call: _e.mock.On("OfferDraw", ctx, roomID, userID)}
 }
 
@@ -1322,7 +1322,7 @@ type MockService_PostPlayerChat_Call struct {
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
 //   - body string
-func (_e *MockService_Expecter) PostPlayerChat(ctx interface{}, roomID interface{}, userID interface{}, body interface{}) *MockService_PostPlayerChat_Call {
+func (_e *MockService_Expecter) PostPlayerChat(ctx any, roomID any, userID any, body any) *MockService_PostPlayerChat_Call {
 	return &MockService_PostPlayerChat_Call{Call: _e.mock.On("PostPlayerChat", ctx, roomID, userID, body)}
 }
 
@@ -1402,7 +1402,7 @@ type MockService_PostSpectatorChat_Call struct {
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
 //   - body string
-func (_e *MockService_Expecter) PostSpectatorChat(ctx interface{}, roomID interface{}, userID interface{}, body interface{}) *MockService_PostSpectatorChat_Call {
+func (_e *MockService_Expecter) PostSpectatorChat(ctx any, roomID any, userID any, body any) *MockService_PostSpectatorChat_Call {
 	return &MockService_PostSpectatorChat_Call{Call: _e.mock.On("PostSpectatorChat", ctx, roomID, userID, body)}
 }
 
@@ -1481,7 +1481,7 @@ type MockService_Resign_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) Resign(ctx interface{}, roomID interface{}, userID interface{}) *MockService_Resign_Call {
+func (_e *MockService_Expecter) Resign(ctx any, roomID any, userID any) *MockService_Resign_Call {
 	return &MockService_Resign_Call{Call: _e.mock.On("Resign", ctx, roomID, userID)}
 }
 
@@ -1554,7 +1554,7 @@ type MockService_Scoreboard_Call struct {
 // Scoreboard is a helper method to define mock.On call
 //   - ctx context.Context
 //   - gameType dto.GameType
-func (_e *MockService_Expecter) Scoreboard(ctx interface{}, gameType interface{}) *MockService_Scoreboard_Call {
+func (_e *MockService_Expecter) Scoreboard(ctx any, gameType any) *MockService_Scoreboard_Call {
 	return &MockService_Scoreboard_Call{Call: _e.mock.On("Scoreboard", ctx, gameType)}
 }
 
@@ -1624,7 +1624,7 @@ type MockService_SubmitAction_Call struct {
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
 //   - action json.RawMessage
-func (_e *MockService_Expecter) SubmitAction(ctx interface{}, roomID interface{}, userID interface{}, action interface{}) *MockService_SubmitAction_Call {
+func (_e *MockService_Expecter) SubmitAction(ctx any, roomID any, userID any, action any) *MockService_SubmitAction_Call {
 	return &MockService_SubmitAction_Call{Call: _e.mock.On("SubmitAction", ctx, roomID, userID, action)}
 }
 

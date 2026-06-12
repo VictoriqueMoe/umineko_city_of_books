@@ -64,7 +64,7 @@ type MockService_Get_Call struct {
 // Get is a helper method to define mock.On call
 //   - ctx context.Context
 //   - def *config.SiteSettingDef
-func (_e *MockService_Expecter) Get(ctx interface{}, def interface{}) *MockService_Get_Call {
+func (_e *MockService_Expecter) Get(ctx any, def any) *MockService_Get_Call {
 	return &MockService_Get_Call{Call: _e.mock.On("Get", ctx, def)}
 }
 
@@ -122,7 +122,7 @@ type MockService_GetAll_Call struct {
 
 // GetAll is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockService_Expecter) GetAll(ctx interface{}) *MockService_GetAll_Call {
+func (_e *MockService_Expecter) GetAll(ctx any) *MockService_GetAll_Call {
 	return &MockService_GetAll_Call{Call: _e.mock.On("GetAll", ctx)}
 }
 
@@ -174,7 +174,7 @@ type MockService_GetBool_Call struct {
 // GetBool is a helper method to define mock.On call
 //   - ctx context.Context
 //   - def *config.SiteSettingDef
-func (_e *MockService_Expecter) GetBool(ctx interface{}, def interface{}) *MockService_GetBool_Call {
+func (_e *MockService_Expecter) GetBool(ctx any, def any) *MockService_GetBool_Call {
 	return &MockService_GetBool_Call{Call: _e.mock.On("GetBool", ctx, def)}
 }
 
@@ -231,7 +231,7 @@ type MockService_GetInt_Call struct {
 // GetInt is a helper method to define mock.On call
 //   - ctx context.Context
 //   - def *config.SiteSettingDef
-func (_e *MockService_Expecter) GetInt(ctx interface{}, def interface{}) *MockService_GetInt_Call {
+func (_e *MockService_Expecter) GetInt(ctx any, def any) *MockService_GetInt_Call {
 	return &MockService_GetInt_Call{Call: _e.mock.On("GetInt", ctx, def)}
 }
 
@@ -287,7 +287,7 @@ type MockService_Refresh_Call struct {
 
 // Refresh is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockService_Expecter) Refresh(ctx interface{}) *MockService_Refresh_Call {
+func (_e *MockService_Expecter) Refresh(ctx any) *MockService_Refresh_Call {
 	return &MockService_Refresh_Call{Call: _e.mock.On("Refresh", ctx)}
 }
 
@@ -341,7 +341,7 @@ type MockService_Set_Call struct {
 //   - setting *config.SiteSettingDef
 //   - value string
 //   - updatedBy uuid.UUID
-func (_e *MockService_Expecter) Set(ctx interface{}, setting interface{}, value interface{}, updatedBy interface{}) *MockService_Set_Call {
+func (_e *MockService_Expecter) Set(ctx any, setting any, value any, updatedBy any) *MockService_Set_Call {
 	return &MockService_Set_Call{Call: _e.mock.On("Set", ctx, setting, value, updatedBy)}
 }
 
@@ -409,7 +409,7 @@ type MockService_SetMultiple_Call struct {
 //   - ctx context.Context
 //   - values map[config.SiteSettingKey]string
 //   - updatedBy uuid.UUID
-func (_e *MockService_Expecter) SetMultiple(ctx interface{}, values interface{}, updatedBy interface{}) *MockService_SetMultiple_Call {
+func (_e *MockService_Expecter) SetMultiple(ctx any, values any, updatedBy any) *MockService_SetMultiple_Call {
 	return &MockService_SetMultiple_Call{Call: _e.mock.On("SetMultiple", ctx, values, updatedBy)}
 }
 
@@ -459,7 +459,7 @@ type MockService_Subscribe_Call struct {
 
 // Subscribe is a helper method to define mock.On call
 //   - listener Listener
-func (_e *MockService_Expecter) Subscribe(listener interface{}) *MockService_Subscribe_Call {
+func (_e *MockService_Expecter) Subscribe(listener any) *MockService_Subscribe_Call {
 	return &MockService_Subscribe_Call{Call: _e.mock.On("Subscribe", listener)}
 }
 

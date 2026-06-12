@@ -74,7 +74,7 @@ type MockSidebarLastVisitedRepository_ListForUser_Call struct {
 // ListForUser is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockSidebarLastVisitedRepository_Expecter) ListForUser(ctx interface{}, userID interface{}) *MockSidebarLastVisitedRepository_ListForUser_Call {
+func (_e *MockSidebarLastVisitedRepository_Expecter) ListForUser(ctx any, userID any) *MockSidebarLastVisitedRepository_ListForUser_Call {
 	return &MockSidebarLastVisitedRepository_ListForUser_Call{Call: _e.mock.On("ListForUser", ctx, userID)}
 }
 
@@ -132,7 +132,7 @@ type MockSidebarLastVisitedRepository_Upsert_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - key string
-func (_e *MockSidebarLastVisitedRepository_Expecter) Upsert(ctx interface{}, userID interface{}, key interface{}) *MockSidebarLastVisitedRepository_Upsert_Call {
+func (_e *MockSidebarLastVisitedRepository_Expecter) Upsert(ctx any, userID any, key any) *MockSidebarLastVisitedRepository_Upsert_Call {
 	return &MockSidebarLastVisitedRepository_Upsert_Call{Call: _e.mock.On("Upsert", ctx, userID, key)}
 }
 

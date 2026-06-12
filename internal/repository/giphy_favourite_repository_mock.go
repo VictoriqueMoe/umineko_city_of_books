@@ -64,7 +64,7 @@ type MockGiphyFavouriteRepository_Add_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - fav GiphyFavourite
-func (_e *MockGiphyFavouriteRepository_Expecter) Add(ctx interface{}, userID interface{}, fav interface{}) *MockGiphyFavouriteRepository_Add_Call {
+func (_e *MockGiphyFavouriteRepository_Expecter) Add(ctx any, userID any, fav any) *MockGiphyFavouriteRepository_Add_Call {
 	return &MockGiphyFavouriteRepository_Add_Call{Call: _e.mock.On("Add", ctx, userID, fav)}
 }
 
@@ -145,7 +145,7 @@ type MockGiphyFavouriteRepository_List_Call struct {
 //   - userID uuid.UUID
 //   - limit int
 //   - offset int
-func (_e *MockGiphyFavouriteRepository_Expecter) List(ctx interface{}, userID interface{}, limit interface{}, offset interface{}) *MockGiphyFavouriteRepository_List_Call {
+func (_e *MockGiphyFavouriteRepository_Expecter) List(ctx any, userID any, limit any, offset any) *MockGiphyFavouriteRepository_List_Call {
 	return &MockGiphyFavouriteRepository_List_Call{Call: _e.mock.On("List", ctx, userID, limit, offset)}
 }
 
@@ -223,7 +223,7 @@ type MockGiphyFavouriteRepository_ListIDs_Call struct {
 // ListIDs is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockGiphyFavouriteRepository_Expecter) ListIDs(ctx interface{}, userID interface{}) *MockGiphyFavouriteRepository_ListIDs_Call {
+func (_e *MockGiphyFavouriteRepository_Expecter) ListIDs(ctx any, userID any) *MockGiphyFavouriteRepository_ListIDs_Call {
 	return &MockGiphyFavouriteRepository_ListIDs_Call{Call: _e.mock.On("ListIDs", ctx, userID)}
 }
 
@@ -281,7 +281,7 @@ type MockGiphyFavouriteRepository_Remove_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - giphyID string
-func (_e *MockGiphyFavouriteRepository_Expecter) Remove(ctx interface{}, userID interface{}, giphyID interface{}) *MockGiphyFavouriteRepository_Remove_Call {
+func (_e *MockGiphyFavouriteRepository_Expecter) Remove(ctx any, userID any, giphyID any) *MockGiphyFavouriteRepository_Remove_Call {
 	return &MockGiphyFavouriteRepository_Remove_Call{Call: _e.mock.On("Remove", ctx, userID, giphyID)}
 }
 

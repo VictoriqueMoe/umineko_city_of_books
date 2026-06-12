@@ -79,7 +79,7 @@ type MockLiveStreamRepository_AdjustViewerCount_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - delta int
-func (_e *MockLiveStreamRepository_Expecter) AdjustViewerCount(ctx interface{}, id interface{}, delta interface{}) *MockLiveStreamRepository_AdjustViewerCount_Call {
+func (_e *MockLiveStreamRepository_Expecter) AdjustViewerCount(ctx any, id any, delta any) *MockLiveStreamRepository_AdjustViewerCount_Call {
 	return &MockLiveStreamRepository_AdjustViewerCount_Call{Call: _e.mock.On("AdjustViewerCount", ctx, id, delta)}
 }
 
@@ -149,7 +149,7 @@ type MockLiveStreamRepository_CountActive_Call struct {
 
 // CountActive is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockLiveStreamRepository_Expecter) CountActive(ctx interface{}) *MockLiveStreamRepository_CountActive_Call {
+func (_e *MockLiveStreamRepository_Expecter) CountActive(ctx any) *MockLiveStreamRepository_CountActive_Call {
 	return &MockLiveStreamRepository_CountActive_Call{Call: _e.mock.On("CountActive", ctx)}
 }
 
@@ -214,7 +214,7 @@ type MockLiveStreamRepository_Create_Call struct {
 //   - userID uuid.UUID
 //   - title string
 //   - maxConcurrent int
-func (_e *MockLiveStreamRepository_Expecter) Create(ctx interface{}, userID interface{}, title interface{}, maxConcurrent interface{}) *MockLiveStreamRepository_Create_Call {
+func (_e *MockLiveStreamRepository_Expecter) Create(ctx any, userID any, title any, maxConcurrent any) *MockLiveStreamRepository_Create_Call {
 	return &MockLiveStreamRepository_Create_Call{Call: _e.mock.On("Create", ctx, userID, title, maxConcurrent)}
 }
 
@@ -292,7 +292,7 @@ type MockLiveStreamRepository_GetActiveByUser_Call struct {
 // GetActiveByUser is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockLiveStreamRepository_Expecter) GetActiveByUser(ctx interface{}, userID interface{}) *MockLiveStreamRepository_GetActiveByUser_Call {
+func (_e *MockLiveStreamRepository_Expecter) GetActiveByUser(ctx any, userID any) *MockLiveStreamRepository_GetActiveByUser_Call {
 	return &MockLiveStreamRepository_GetActiveByUser_Call{Call: _e.mock.On("GetActiveByUser", ctx, userID)}
 }
 
@@ -360,7 +360,7 @@ type MockLiveStreamRepository_GetByID_Call struct {
 // GetByID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockLiveStreamRepository_Expecter) GetByID(ctx interface{}, id interface{}) *MockLiveStreamRepository_GetByID_Call {
+func (_e *MockLiveStreamRepository_Expecter) GetByID(ctx any, id any) *MockLiveStreamRepository_GetByID_Call {
 	return &MockLiveStreamRepository_GetByID_Call{Call: _e.mock.On("GetByID", ctx, id)}
 }
 
@@ -428,7 +428,7 @@ type MockLiveStreamRepository_GetByRoom_Call struct {
 // GetByRoom is a helper method to define mock.On call
 //   - ctx context.Context
 //   - room string
-func (_e *MockLiveStreamRepository_Expecter) GetByRoom(ctx interface{}, room interface{}) *MockLiveStreamRepository_GetByRoom_Call {
+func (_e *MockLiveStreamRepository_Expecter) GetByRoom(ctx any, room any) *MockLiveStreamRepository_GetByRoom_Call {
 	return &MockLiveStreamRepository_GetByRoom_Call{Call: _e.mock.On("GetByRoom", ctx, room)}
 }
 
@@ -495,7 +495,7 @@ type MockLiveStreamRepository_ListLive_Call struct {
 
 // ListLive is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockLiveStreamRepository_Expecter) ListLive(ctx interface{}) *MockLiveStreamRepository_ListLive_Call {
+func (_e *MockLiveStreamRepository_Expecter) ListLive(ctx any) *MockLiveStreamRepository_ListLive_Call {
 	return &MockLiveStreamRepository_ListLive_Call{Call: _e.mock.On("ListLive", ctx)}
 }
 
@@ -558,7 +558,7 @@ type MockLiveStreamRepository_ListStartingBefore_Call struct {
 // ListStartingBefore is a helper method to define mock.On call
 //   - ctx context.Context
 //   - cutoff string
-func (_e *MockLiveStreamRepository_Expecter) ListStartingBefore(ctx interface{}, cutoff interface{}) *MockLiveStreamRepository_ListStartingBefore_Call {
+func (_e *MockLiveStreamRepository_Expecter) ListStartingBefore(ctx any, cutoff any) *MockLiveStreamRepository_ListStartingBefore_Call {
 	return &MockLiveStreamRepository_ListStartingBefore_Call{Call: _e.mock.On("ListStartingBefore", ctx, cutoff)}
 }
 
@@ -615,7 +615,7 @@ type MockLiveStreamRepository_MarkLive_Call struct {
 // MarkLive is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockLiveStreamRepository_Expecter) MarkLive(ctx interface{}, id interface{}) *MockLiveStreamRepository_MarkLive_Call {
+func (_e *MockLiveStreamRepository_Expecter) MarkLive(ctx any, id any) *MockLiveStreamRepository_MarkLive_Call {
 	return &MockLiveStreamRepository_MarkLive_Call{Call: _e.mock.On("MarkLive", ctx, id)}
 }
 
@@ -681,7 +681,7 @@ type MockLiveStreamRepository_MarkOffline_Call struct {
 // MarkOffline is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockLiveStreamRepository_Expecter) MarkOffline(ctx interface{}, id interface{}) *MockLiveStreamRepository_MarkOffline_Call {
+func (_e *MockLiveStreamRepository_Expecter) MarkOffline(ctx any, id any) *MockLiveStreamRepository_MarkOffline_Call {
 	return &MockLiveStreamRepository_MarkOffline_Call{Call: _e.mock.On("MarkOffline", ctx, id)}
 }
 
@@ -742,7 +742,7 @@ type MockLiveStreamRepository_SetIngress_Call struct {
 //   - room string
 //   - whipURL string
 //   - streamKey string
-func (_e *MockLiveStreamRepository_Expecter) SetIngress(ctx interface{}, id interface{}, ingressID interface{}, room interface{}, whipURL interface{}, streamKey interface{}) *MockLiveStreamRepository_SetIngress_Call {
+func (_e *MockLiveStreamRepository_Expecter) SetIngress(ctx any, id any, ingressID any, room any, whipURL any, streamKey any) *MockLiveStreamRepository_SetIngress_Call {
 	return &MockLiveStreamRepository_SetIngress_Call{Call: _e.mock.On("SetIngress", ctx, id, ingressID, room, whipURL, streamKey)}
 }
 
@@ -820,7 +820,7 @@ type MockLiveStreamRepository_SetThumbnail_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - url string
-func (_e *MockLiveStreamRepository_Expecter) SetThumbnail(ctx interface{}, id interface{}, url interface{}) *MockLiveStreamRepository_SetThumbnail_Call {
+func (_e *MockLiveStreamRepository_Expecter) SetThumbnail(ctx any, id any, url any) *MockLiveStreamRepository_SetThumbnail_Call {
 	return &MockLiveStreamRepository_SetThumbnail_Call{Call: _e.mock.On("SetThumbnail", ctx, id, url)}
 }
 

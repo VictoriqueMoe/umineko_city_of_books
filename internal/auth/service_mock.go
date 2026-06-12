@@ -63,7 +63,7 @@ type MockService_EmailEnabled_Call struct {
 
 // EmailEnabled is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockService_Expecter) EmailEnabled(ctx interface{}) *MockService_EmailEnabled_Call {
+func (_e *MockService_Expecter) EmailEnabled(ctx any) *MockService_EmailEnabled_Call {
 	return &MockService_EmailEnabled_Call{Call: _e.mock.On("EmailEnabled", ctx)}
 }
 
@@ -115,7 +115,7 @@ type MockService_ForgotPassword_Call struct {
 // ForgotPassword is a helper method to define mock.On call
 //   - ctx context.Context
 //   - username string
-func (_e *MockService_Expecter) ForgotPassword(ctx interface{}, username interface{}) *MockService_ForgotPassword_Call {
+func (_e *MockService_Expecter) ForgotPassword(ctx any, username any) *MockService_ForgotPassword_Call {
 	return &MockService_ForgotPassword_Call{Call: _e.mock.On("ForgotPassword", ctx, username)}
 }
 
@@ -189,7 +189,7 @@ type MockService_Login_Call struct {
 // Login is a helper method to define mock.On call
 //   - ctx context.Context
 //   - req dto.LoginRequest
-func (_e *MockService_Expecter) Login(ctx interface{}, req interface{}) *MockService_Login_Call {
+func (_e *MockService_Expecter) Login(ctx any, req any) *MockService_Login_Call {
 	return &MockService_Login_Call{Call: _e.mock.On("Login", ctx, req)}
 }
 
@@ -246,7 +246,7 @@ type MockService_Logout_Call struct {
 // Logout is a helper method to define mock.On call
 //   - ctx context.Context
 //   - token string
-func (_e *MockService_Expecter) Logout(ctx interface{}, token interface{}) *MockService_Logout_Call {
+func (_e *MockService_Expecter) Logout(ctx any, token any) *MockService_Logout_Call {
 	return &MockService_Logout_Call{Call: _e.mock.On("Logout", ctx, token)}
 }
 
@@ -320,7 +320,7 @@ type MockService_Register_Call struct {
 // Register is a helper method to define mock.On call
 //   - ctx context.Context
 //   - req dto.RegisterRequest
-func (_e *MockService_Expecter) Register(ctx interface{}, req interface{}) *MockService_Register_Call {
+func (_e *MockService_Expecter) Register(ctx any, req any) *MockService_Register_Call {
 	return &MockService_Register_Call{Call: _e.mock.On("Register", ctx, req)}
 }
 
@@ -377,7 +377,7 @@ type MockService_ResendVerification_Call struct {
 // ResendVerification is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) ResendVerification(ctx interface{}, userID interface{}) *MockService_ResendVerification_Call {
+func (_e *MockService_Expecter) ResendVerification(ctx any, userID any) *MockService_ResendVerification_Call {
 	return &MockService_ResendVerification_Call{Call: _e.mock.On("ResendVerification", ctx, userID)}
 }
 
@@ -435,7 +435,7 @@ type MockService_ResetPassword_Call struct {
 //   - ctx context.Context
 //   - token string
 //   - newPassword string
-func (_e *MockService_Expecter) ResetPassword(ctx interface{}, token interface{}, newPassword interface{}) *MockService_ResetPassword_Call {
+func (_e *MockService_Expecter) ResetPassword(ctx any, token any, newPassword any) *MockService_ResetPassword_Call {
 	return &MockService_ResetPassword_Call{Call: _e.mock.On("ResetPassword", ctx, token, newPassword)}
 }
 
@@ -498,7 +498,7 @@ type MockService_SetEmail_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - email string
-func (_e *MockService_Expecter) SetEmail(ctx interface{}, userID interface{}, email interface{}) *MockService_SetEmail_Call {
+func (_e *MockService_Expecter) SetEmail(ctx any, userID any, email any) *MockService_SetEmail_Call {
 	return &MockService_SetEmail_Call{Call: _e.mock.On("SetEmail", ctx, userID, email)}
 }
 
@@ -560,7 +560,7 @@ type MockService_VerifyEmail_Call struct {
 // VerifyEmail is a helper method to define mock.On call
 //   - ctx context.Context
 //   - token string
-func (_e *MockService_Expecter) VerifyEmail(ctx interface{}, token interface{}) *MockService_VerifyEmail_Call {
+func (_e *MockService_Expecter) VerifyEmail(ctx any, token any) *MockService_VerifyEmail_Call {
 	return &MockService_VerifyEmail_Call{Call: _e.mock.On("VerifyEmail", ctx, token)}
 }
 
