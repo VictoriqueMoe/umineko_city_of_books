@@ -6,6 +6,7 @@
     flex-direction: column;
     gap: 0.6rem;
     min-height: 110px;
+    flex-shrink: 0;
     box-sizing: border-box;
     contain: layout;
 }

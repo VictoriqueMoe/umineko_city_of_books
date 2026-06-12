@@ -1894,6 +1894,37 @@ func TestSendMessage_DMSuccess(t *testing.T) {
 	assert.Equal(t, senderID, got.Sender.ID)
 }
 
+func TestSendMessage_LiveStreamRoomSkipsNotifications(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	senderID := uuid.New()
+	roomID := uuid.New()
+	otherID := uuid.New()
+	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, senderID).Return(true, nil)
+	m.chatRepo.EXPECT().GetMemberTimeoutState(mock.Anything, roomID, senderID).Return(false, "", false, nil)
+	m.bannedWordRepo.EXPECT().ListApplicable(mock.Anything, roomID).Return(nil, nil).Maybe()
+	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return([]uuid.UUID{senderID, otherID}, nil)
+	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, senderID).Return(nil, nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, senderID).Return(sampleUser(senderID), nil)
+	m.chatRepo.EXPECT().InsertMessage(mock.Anything, mock.Anything, roomID, senderID, "hi", (*uuid.UUID)(nil)).Return(nil)
+	m.chatRepo.EXPECT().MarkRoomRead(mock.Anything, roomID, senderID).Return(nil)
+	m.chatRepo.EXPECT().GetRoomMembersDetailed(mock.Anything, roomID).Return(nil, nil)
+	m.vanityRoleRepo.EXPECT().GetRolesForUser(mock.Anything, senderID).Return(nil, nil)
+	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, senderID).Return(&repository.ChatRoomRow{
+		Type: "group", IsSystem: true, SystemKind: SystemKindLiveStream,
+	}, nil)
+
+	// when
+	got, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: "hi"}, nil)
+	svc.sideEffectsWG.Wait()
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, "hi", got.Body)
+	m.notifSvc.AssertNotCalled(t, "Notify", mock.Anything, mock.Anything)
+	m.chatRepo.AssertNotCalled(t, "CountUnreadRoomsForUser", mock.Anything, mock.Anything)
+}
+
 func TestSendMessage_GroupWithMentionAndReply(t *testing.T) {
 	// given
 	svc, m := newTestService(t)

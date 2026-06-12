@@ -291,8 +291,10 @@ func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid
 		recipients = append(recipients, memberID)
 	}
 
-	m.sideEffectsWG.Add(1)
-	go m.dispatchPostSendSideEffects(roomID, senderID, msgID, recipients, roomRow, mentionedIDs, replyToAuthor, isGroup)
+	if !isLiveStreamRoom(roomRow) {
+		m.sideEffectsWG.Add(1)
+		go m.dispatchPostSendSideEffects(roomID, senderID, msgID, recipients, roomRow, mentionedIDs, replyToAuthor, isGroup)
+	}
 
 	for i := 0; i < len(chatTriggers); i++ {
 		if req.Body == chatTriggers[i].text {
@@ -311,6 +313,10 @@ func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid
 	}
 
 	return resp, nil
+}
+
+func isLiveStreamRoom(roomRow *repository.ChatRoomRow) bool {
+	return roomRow != nil && roomRow.IsSystem && roomRow.SystemKind == SystemKindLiveStream
 }
 
 func (m *messagesService) dispatchPostSendSideEffects(

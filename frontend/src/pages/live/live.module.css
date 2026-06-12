@@ -407,16 +407,18 @@
     }
 
     .watchMain {
-        flex: 0 0 auto;
+        flex: 4 1 0;
+        min-height: 0;
     }
 
     .stage {
-        flex: 0 0 auto;
-        height: 38vh;
+        flex: 1 1 auto;
+        min-height: 0;
+        height: auto;
     }
 
     .watchSidebar {
-        flex: 1 1 auto;
+        flex: 5 1 0;
         width: 100%;
         min-height: 0;
     }
