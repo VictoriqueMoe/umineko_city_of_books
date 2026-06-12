@@ -97,6 +97,22 @@ export function useMessageHistory(roomId: string | undefined) {
         };
     }, [roomId]);
 
+    useEffect(() => {
+        const container = containerRef.current;
+        if (!container) {
+            return;
+        }
+        const repin = () => {
+            if (isAtBottomRef.current && !suppressScrollToBottom.current) {
+                endRef.current?.scrollIntoView();
+            }
+        };
+        container.addEventListener("load", repin, true);
+        return () => {
+            container.removeEventListener("load", repin, true);
+        };
+    }, []);
+
     const setMessages: Dispatch<SetStateAction<ChatMessage[]>> = useCallback(updater => {
         setState(prev => {
             const base = prev.roomId === currentRoomIdRef.current ? prev.messages : [];

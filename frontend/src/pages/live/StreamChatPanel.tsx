@@ -55,7 +55,7 @@ function StreamChatPanelInner({ streamId, userId, isLive }: { streamId: string; 
     }, [streamId, isLive]);
 
     const roomId = isLive && joined ? streamId : undefined;
-    const { messages, setMessages, containerRef, endRef, scrollToBottom, handleScroll, addMessage } =
+    const { messages, setMessages, containerRef, endRef, scrollToBottomInstant, handleScroll, addMessage } =
         useMessageHistory(roomId);
 
     useEffect(() => {
@@ -64,16 +64,18 @@ function StreamChatPanelInner({ streamId, userId, isLive }: { streamId: string; 
         }
         return addWSListener((msg: WSMessage) => {
             if (msg.type === "chat_message") {
-                handleIncomingChatMessage(msg.data as ChatMessage, streamId, setMessages, () => scrollToBottom());
+                handleIncomingChatMessage(msg.data as ChatMessage, streamId, setMessages, () =>
+                    scrollToBottomInstant(),
+                );
                 return;
             }
             applySharedChatWSBranch(msg, { activeRoomId: streamId, setMessages, noteTyping: () => {} });
         });
-    }, [joined, isLive, streamId, addWSListener, setMessages, scrollToBottom]);
+    }, [joined, isLive, streamId, addWSListener, setMessages, scrollToBottomInstant]);
 
     function handleSent(message: ChatMessage) {
         addMessage(message);
-        scrollToBottom({ force: true });
+        scrollToBottomInstant({ force: true });
     }
 
     function handleReply(message: ChatMessage) {
