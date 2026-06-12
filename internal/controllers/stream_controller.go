@@ -6,6 +6,7 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/limiter"
+	"github.com/google/uuid"
 
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
@@ -20,6 +21,8 @@ func (s *Service) getAllStreamRoutes() []FSetupRoute {
 		s.setupStartStreamRoute,
 		s.setupStopStreamRoute,
 		s.setupStreamViewerTokenRoute,
+		s.setupJoinStreamChatRoute,
+		s.setupUploadStreamThumbnailRoute,
 		s.setupGetStreamRoute,
 	}
 }
@@ -41,10 +44,21 @@ func (s *Service) setupStopStreamRoute(r fiber.Router) {
 }
 
 func (s *Service) setupStreamViewerTokenRoute(r fiber.Router) {
-	r.Post("/streams/:id/token", limiter.New(limiter.Config{
+	r.Post("/streams/:id/token", middleware.OptionalAuth(s.AuthSession, s.AuthzService), limiter.New(limiter.Config{
 		Max:        30,
 		Expiration: time.Minute,
 	}), s.mintViewerToken)
+}
+
+func (s *Service) setupJoinStreamChatRoute(r fiber.Router) {
+	r.Post("/streams/:id/join-chat", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.joinStreamChat)
+}
+
+func (s *Service) setupUploadStreamThumbnailRoute(r fiber.Router) {
+	r.Post("/streams/:id/thumbnail", middleware.RequireAuth(s.AuthSession, s.AuthzService), limiter.New(limiter.Config{
+		Max:        6,
+		Expiration: time.Minute,
+	}), s.uploadStreamThumbnail)
 }
 
 func (s *Service) setupGetStreamRoute(r fiber.Router) {
@@ -125,12 +139,63 @@ func (s *Service) mintViewerToken(ctx fiber.Ctx) error {
 		return nil
 	}
 
-	token, url, err := s.StreamService.MintViewerToken(ctx.Context(), streamID)
+	var viewer *dto.StreamViewer
+	if userID := utils.UserID(ctx); userID != uuid.Nil {
+		if u, err := s.UserService.GetByID(ctx.Context(), userID); err == nil && u != nil {
+			viewer = &dto.StreamViewer{
+				UserID:      u.ID,
+				DisplayName: u.DisplayName,
+				Username:    u.Username,
+				AvatarURL:   u.AvatarURL,
+			}
+		}
+	}
+
+	token, url, err := s.StreamService.MintViewerToken(ctx.Context(), streamID, viewer)
 	if err != nil {
 		return mapStreamError(ctx, err)
 	}
 
 	return ctx.JSON(dto.StreamViewerTokenResponse{Token: token, URL: url})
+}
+
+func (s *Service) uploadStreamThumbnail(ctx fiber.Ctx) error {
+	streamID, ok := utils.ParseIDParam(ctx, "id")
+	if !ok {
+		return nil
+	}
+
+	file, err := ctx.FormFile("thumbnail")
+	if err != nil {
+		return utils.BadRequest(ctx, "thumbnail file is required")
+	}
+
+	src, err := file.Open()
+	if err != nil {
+		return utils.BadRequest(ctx, "failed to read file")
+	}
+	defer src.Close()
+
+	if err := s.StreamService.SaveThumbnail(ctx.Context(), streamID, file.Size, src); err != nil {
+		return mapStreamError(ctx, err)
+	}
+
+	return utils.OK(ctx)
+}
+
+func (s *Service) joinStreamChat(ctx fiber.Ctx) error {
+	userID := utils.UserID(ctx)
+
+	streamID, ok := utils.ParseIDParam(ctx, "id")
+	if !ok {
+		return nil
+	}
+
+	if err := s.StreamService.JoinChat(ctx.Context(), streamID, userID); err != nil {
+		return mapStreamError(ctx, err)
+	}
+
+	return utils.OK(ctx)
 }
 
 func mapStreamError(ctx fiber.Ctx, err error) error {

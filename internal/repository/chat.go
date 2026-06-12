@@ -144,6 +144,7 @@ type (
 		RemoveMember(ctx context.Context, roomID, userID uuid.UUID) error
 		CountRoomMembers(ctx context.Context, roomID uuid.UUID) (int, error)
 		DeleteRoom(ctx context.Context, roomID uuid.UUID) error
+		ListRoomMediaURLs(ctx context.Context, roomID uuid.UUID) ([]string, error)
 		GetRoomsByUser(ctx context.Context, userID uuid.UUID) ([]ChatRoomRow, error)
 		ListUserGroupRooms(ctx context.Context, userID uuid.UUID, search string, isRPOnly bool, tag, role string, includeArchived bool, limit, offset int) ([]ChatRoomRow, int, error)
 		GetRoomByID(ctx context.Context, roomID, viewerID uuid.UUID) (*ChatRoomRow, error)
@@ -467,6 +468,39 @@ func (r *chatRepository) DeleteRoom(ctx context.Context, roomID uuid.UUID) error
 		return fmt.Errorf("delete room: %w", err)
 	}
 	return nil
+}
+
+func (r *chatRepository) ListRoomMediaURLs(ctx context.Context, roomID uuid.UUID) ([]string, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT cmm.media_url, cmm.thumbnail_url
+		 FROM chat_message_media cmm
+		 JOIN chat_messages cm ON cm.id = cmm.message_id
+		 WHERE cm.room_id = $1`,
+		roomID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list room media urls: %w", err)
+	}
+	defer rows.Close()
+
+	var urls []string
+	for rows.Next() {
+		var mediaURL, thumbnailURL string
+		if err := rows.Scan(&mediaURL, &thumbnailURL); err != nil {
+			return nil, fmt.Errorf("scan room media url: %w", err)
+		}
+		if mediaURL != "" {
+			urls = append(urls, mediaURL)
+		}
+		if thumbnailURL != "" {
+			urls = append(urls, thumbnailURL)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate room media urls: %w", err)
+	}
+
+	return urls, nil
 }
 
 func (r *chatRepository) AddMember(ctx context.Context, roomID, userID uuid.UUID) error {

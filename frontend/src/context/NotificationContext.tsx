@@ -274,10 +274,6 @@ export function NotificationProvider({ children }: PropsWithChildren) {
 
     const userId = user?.id;
     useEffect(() => {
-        if (!userId) {
-            closeSocket();
-            return;
-        }
         connectWs();
         return () => {
             closeSocket();

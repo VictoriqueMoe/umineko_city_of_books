@@ -96,6 +96,13 @@ function StreamCard({ stream }: { stream: LiveStream }) {
     return (
         <Link to={`/live/${stream.id}`} className={styles.card}>
             <div className={styles.cardThumb}>
+                {stream.thumbnailUrl ? (
+                    <img src={stream.thumbnailUrl} alt="" className={styles.thumbImg} />
+                ) : stream.streamerAvatarUrl ? (
+                    <img src={stream.streamerAvatarUrl} alt="" className={styles.thumbAvatar} />
+                ) : (
+                    <div className={styles.thumbInitial}>{name.slice(0, 1).toUpperCase()}</div>
+                )}
                 <span className={styles.liveBadge}>LIVE</span>
                 <span className={styles.viewerBadge}>
                     {"\u{1F441}"} {stream.viewerCount}

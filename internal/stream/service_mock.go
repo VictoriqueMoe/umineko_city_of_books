@@ -6,6 +6,7 @@ package stream
 
 import (
 	"context"
+	"io"
 	"umineko_city_of_books/internal/dto"
 
 	"github.com/google/uuid"
@@ -223,6 +224,69 @@ func (_c *MockService_HandleWebhook_Call) RunAndReturn(run func(ctx context.Cont
 	return _c
 }
 
+// JoinChat provides a mock function for the type MockService
+func (_mock *MockService) JoinChat(ctx context.Context, streamID uuid.UUID, userID uuid.UUID) error {
+	ret := _mock.Called(ctx, streamID, userID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for JoinChat")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, streamID, userID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_JoinChat_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'JoinChat'
+type MockService_JoinChat_Call struct {
+	*mock.Call
+}
+
+// JoinChat is a helper method to define mock.On call
+//   - ctx context.Context
+//   - streamID uuid.UUID
+//   - userID uuid.UUID
+func (_e *MockService_Expecter) JoinChat(ctx interface{}, streamID interface{}, userID interface{}) *MockService_JoinChat_Call {
+	return &MockService_JoinChat_Call{Call: _e.mock.On("JoinChat", ctx, streamID, userID)}
+}
+
+func (_c *MockService_JoinChat_Call) Run(run func(ctx context.Context, streamID uuid.UUID, userID uuid.UUID)) *MockService_JoinChat_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_JoinChat_Call) Return(err error) *MockService_JoinChat_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_JoinChat_Call) RunAndReturn(run func(ctx context.Context, streamID uuid.UUID, userID uuid.UUID) error) *MockService_JoinChat_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListLive provides a mock function for the type MockService
 func (_mock *MockService) ListLive(ctx context.Context) ([]dto.LiveStreamResponse, error) {
 	ret := _mock.Called(ctx)
@@ -286,8 +350,8 @@ func (_c *MockService_ListLive_Call) RunAndReturn(run func(ctx context.Context) 
 }
 
 // MintViewerToken provides a mock function for the type MockService
-func (_mock *MockService) MintViewerToken(ctx context.Context, streamID uuid.UUID) (string, string, error) {
-	ret := _mock.Called(ctx, streamID)
+func (_mock *MockService) MintViewerToken(ctx context.Context, streamID uuid.UUID, viewer *dto.StreamViewer) (string, string, error) {
+	ret := _mock.Called(ctx, streamID, viewer)
 
 	if len(ret) == 0 {
 		panic("no return value specified for MintViewerToken")
@@ -296,21 +360,21 @@ func (_mock *MockService) MintViewerToken(ctx context.Context, streamID uuid.UUI
 	var r0 string
 	var r1 string
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (string, string, error)); ok {
-		return returnFunc(ctx, streamID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, *dto.StreamViewer) (string, string, error)); ok {
+		return returnFunc(ctx, streamID, viewer)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) string); ok {
-		r0 = returnFunc(ctx, streamID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, *dto.StreamViewer) string); ok {
+		r0 = returnFunc(ctx, streamID, viewer)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) string); ok {
-		r1 = returnFunc(ctx, streamID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, *dto.StreamViewer) string); ok {
+		r1 = returnFunc(ctx, streamID, viewer)
 	} else {
 		r1 = ret.Get(1).(string)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID) error); ok {
-		r2 = returnFunc(ctx, streamID)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, *dto.StreamViewer) error); ok {
+		r2 = returnFunc(ctx, streamID, viewer)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -325,11 +389,12 @@ type MockService_MintViewerToken_Call struct {
 // MintViewerToken is a helper method to define mock.On call
 //   - ctx context.Context
 //   - streamID uuid.UUID
-func (_e *MockService_Expecter) MintViewerToken(ctx interface{}, streamID interface{}) *MockService_MintViewerToken_Call {
-	return &MockService_MintViewerToken_Call{Call: _e.mock.On("MintViewerToken", ctx, streamID)}
+//   - viewer *dto.StreamViewer
+func (_e *MockService_Expecter) MintViewerToken(ctx interface{}, streamID interface{}, viewer interface{}) *MockService_MintViewerToken_Call {
+	return &MockService_MintViewerToken_Call{Call: _e.mock.On("MintViewerToken", ctx, streamID, viewer)}
 }
 
-func (_c *MockService_MintViewerToken_Call) Run(run func(ctx context.Context, streamID uuid.UUID)) *MockService_MintViewerToken_Call {
+func (_c *MockService_MintViewerToken_Call) Run(run func(ctx context.Context, streamID uuid.UUID, viewer *dto.StreamViewer)) *MockService_MintViewerToken_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -339,9 +404,14 @@ func (_c *MockService_MintViewerToken_Call) Run(run func(ctx context.Context, st
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 *dto.StreamViewer
+		if args[2] != nil {
+			arg2 = args[2].(*dto.StreamViewer)
+		}
 		run(
 			arg0,
 			arg1,
+			arg2,
 		)
 	})
 	return _c
@@ -352,7 +422,7 @@ func (_c *MockService_MintViewerToken_Call) Return(token string, url string, err
 	return _c
 }
 
-func (_c *MockService_MintViewerToken_Call) RunAndReturn(run func(ctx context.Context, streamID uuid.UUID) (string, string, error)) *MockService_MintViewerToken_Call {
+func (_c *MockService_MintViewerToken_Call) RunAndReturn(run func(ctx context.Context, streamID uuid.UUID, viewer *dto.StreamViewer) (string, string, error)) *MockService_MintViewerToken_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -482,6 +552,115 @@ func (_c *MockService_ReconcileOnce_Call) Return(n int, err error) *MockService_
 
 func (_c *MockService_ReconcileOnce_Call) RunAndReturn(run func(ctx context.Context) (int, error)) *MockService_ReconcileOnce_Call {
 	_c.Call.Return(run)
+	return _c
+}
+
+// SaveThumbnail provides a mock function for the type MockService
+func (_mock *MockService) SaveThumbnail(ctx context.Context, streamID uuid.UUID, size int64, reader io.Reader) error {
+	ret := _mock.Called(ctx, streamID, size, reader)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SaveThumbnail")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int64, io.Reader) error); ok {
+		r0 = returnFunc(ctx, streamID, size, reader)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_SaveThumbnail_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SaveThumbnail'
+type MockService_SaveThumbnail_Call struct {
+	*mock.Call
+}
+
+// SaveThumbnail is a helper method to define mock.On call
+//   - ctx context.Context
+//   - streamID uuid.UUID
+//   - size int64
+//   - reader io.Reader
+func (_e *MockService_Expecter) SaveThumbnail(ctx interface{}, streamID interface{}, size interface{}, reader interface{}) *MockService_SaveThumbnail_Call {
+	return &MockService_SaveThumbnail_Call{Call: _e.mock.On("SaveThumbnail", ctx, streamID, size, reader)}
+}
+
+func (_c *MockService_SaveThumbnail_Call) Run(run func(ctx context.Context, streamID uuid.UUID, size int64, reader io.Reader)) *MockService_SaveThumbnail_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 int64
+		if args[2] != nil {
+			arg2 = args[2].(int64)
+		}
+		var arg3 io.Reader
+		if args[3] != nil {
+			arg3 = args[3].(io.Reader)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_SaveThumbnail_Call) Return(err error) *MockService_SaveThumbnail_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_SaveThumbnail_Call) RunAndReturn(run func(ctx context.Context, streamID uuid.UUID, size int64, reader io.Reader) error) *MockService_SaveThumbnail_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SetChatBinder provides a mock function for the type MockService
+func (_mock *MockService) SetChatBinder(chat ChatBinder) {
+	_mock.Called(chat)
+	return
+}
+
+// MockService_SetChatBinder_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetChatBinder'
+type MockService_SetChatBinder_Call struct {
+	*mock.Call
+}
+
+// SetChatBinder is a helper method to define mock.On call
+//   - chat ChatBinder
+func (_e *MockService_Expecter) SetChatBinder(chat interface{}) *MockService_SetChatBinder_Call {
+	return &MockService_SetChatBinder_Call{Call: _e.mock.On("SetChatBinder", chat)}
+}
+
+func (_c *MockService_SetChatBinder_Call) Run(run func(chat ChatBinder)) *MockService_SetChatBinder_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 ChatBinder
+		if args[0] != nil {
+			arg0 = args[0].(ChatBinder)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_SetChatBinder_Call) Return() *MockService_SetChatBinder_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *MockService_SetChatBinder_Call) RunAndReturn(run func(chat ChatBinder)) *MockService_SetChatBinder_Call {
+	_c.Run(run)
 	return _c
 }
 

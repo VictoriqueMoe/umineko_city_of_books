@@ -627,6 +627,75 @@ func (_c *MockService_CreateRoomBannedWord_Call) RunAndReturn(run func(ctx conte
 	return _c
 }
 
+// CreateStreamRoom provides a mock function for the type MockService
+func (_mock *MockService) CreateStreamRoom(ctx context.Context, streamID uuid.UUID, streamerID uuid.UUID, title string) error {
+	ret := _mock.Called(ctx, streamID, streamerID, title)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateStreamRoom")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string) error); ok {
+		r0 = returnFunc(ctx, streamID, streamerID, title)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_CreateStreamRoom_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateStreamRoom'
+type MockService_CreateStreamRoom_Call struct {
+	*mock.Call
+}
+
+// CreateStreamRoom is a helper method to define mock.On call
+//   - ctx context.Context
+//   - streamID uuid.UUID
+//   - streamerID uuid.UUID
+//   - title string
+func (_e *MockService_Expecter) CreateStreamRoom(ctx interface{}, streamID interface{}, streamerID interface{}, title interface{}) *MockService_CreateStreamRoom_Call {
+	return &MockService_CreateStreamRoom_Call{Call: _e.mock.On("CreateStreamRoom", ctx, streamID, streamerID, title)}
+}
+
+func (_c *MockService_CreateStreamRoom_Call) Run(run func(ctx context.Context, streamID uuid.UUID, streamerID uuid.UUID, title string)) *MockService_CreateStreamRoom_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_CreateStreamRoom_Call) Return(err error) *MockService_CreateStreamRoom_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_CreateStreamRoom_Call) RunAndReturn(run func(ctx context.Context, streamID uuid.UUID, streamerID uuid.UUID, title string) error) *MockService_CreateStreamRoom_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteChat provides a mock function for the type MockService
 func (_mock *MockService) DeleteChat(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) error {
 	ret := _mock.Called(ctx, roomID, userID)
@@ -881,6 +950,63 @@ func (_c *MockService_DeleteRoomBannedWord_Call) Return(err error) *MockService_
 }
 
 func (_c *MockService_DeleteRoomBannedWord_Call) RunAndReturn(run func(ctx context.Context, actorID uuid.UUID, roomID uuid.UUID, ruleID uuid.UUID) error) *MockService_DeleteRoomBannedWord_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteStreamRoom provides a mock function for the type MockService
+func (_mock *MockService) DeleteStreamRoom(ctx context.Context, streamID uuid.UUID) error {
+	ret := _mock.Called(ctx, streamID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteStreamRoom")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, streamID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_DeleteStreamRoom_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteStreamRoom'
+type MockService_DeleteStreamRoom_Call struct {
+	*mock.Call
+}
+
+// DeleteStreamRoom is a helper method to define mock.On call
+//   - ctx context.Context
+//   - streamID uuid.UUID
+func (_e *MockService_Expecter) DeleteStreamRoom(ctx interface{}, streamID interface{}) *MockService_DeleteStreamRoom_Call {
+	return &MockService_DeleteStreamRoom_Call{Call: _e.mock.On("DeleteStreamRoom", ctx, streamID)}
+}
+
+func (_c *MockService_DeleteStreamRoom_Call) Run(run func(ctx context.Context, streamID uuid.UUID)) *MockService_DeleteStreamRoom_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_DeleteStreamRoom_Call) Return(err error) *MockService_DeleteStreamRoom_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_DeleteStreamRoom_Call) RunAndReturn(run func(ctx context.Context, streamID uuid.UUID) error) *MockService_DeleteStreamRoom_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2200,6 +2326,69 @@ func (_c *MockService_JoinRoom_Call) Return(chatRoomResponse *dto.ChatRoomRespon
 }
 
 func (_c *MockService_JoinRoom_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, ghost bool) (*dto.ChatRoomResponse, error)) *MockService_JoinRoom_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// JoinStreamChat provides a mock function for the type MockService
+func (_mock *MockService) JoinStreamChat(ctx context.Context, streamID uuid.UUID, userID uuid.UUID) error {
+	ret := _mock.Called(ctx, streamID, userID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for JoinStreamChat")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, streamID, userID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_JoinStreamChat_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'JoinStreamChat'
+type MockService_JoinStreamChat_Call struct {
+	*mock.Call
+}
+
+// JoinStreamChat is a helper method to define mock.On call
+//   - ctx context.Context
+//   - streamID uuid.UUID
+//   - userID uuid.UUID
+func (_e *MockService_Expecter) JoinStreamChat(ctx interface{}, streamID interface{}, userID interface{}) *MockService_JoinStreamChat_Call {
+	return &MockService_JoinStreamChat_Call{Call: _e.mock.On("JoinStreamChat", ctx, streamID, userID)}
+}
+
+func (_c *MockService_JoinStreamChat_Call) Run(run func(ctx context.Context, streamID uuid.UUID, userID uuid.UUID)) *MockService_JoinStreamChat_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_JoinStreamChat_Call) Return(err error) *MockService_JoinStreamChat_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_JoinStreamChat_Call) RunAndReturn(run func(ctx context.Context, streamID uuid.UUID, userID uuid.UUID) error) *MockService_JoinStreamChat_Call {
 	_c.Call.Return(run)
 	return _c
 }
