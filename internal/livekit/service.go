@@ -23,6 +23,7 @@ type (
 		Enabled() bool
 		URL() string
 		MintToken(roomName, identity, displayName string, canMic, canScreen bool) (string, error)
+		MintViewerToken(roomName, identity, name, metadata string) (string, error)
 		SetCanPublish(ctx context.Context, roomName, identity string, canMic, canScreen bool) error
 		ParseWebhook(authHeader string, body []byte) (*Event, error)
 		ActiveRooms(ctx context.Context) (map[string][]string, error)
@@ -103,6 +104,38 @@ func (s *service) MintToken(roomName, identity, displayName string, canMic, canS
 	token, err := at.ToJWT()
 	if err != nil {
 		return "", fmt.Errorf("mint livekit token: %w", err)
+	}
+
+	return token, nil
+}
+
+func (s *service) MintViewerToken(roomName, identity, name, metadata string) (string, error) {
+	_, key, secret := s.creds()
+
+	if key == "" || secret == "" {
+		return "", ErrDisabled
+	}
+
+	grant := &auth.VideoGrant{
+		RoomJoin: true,
+		Room:     roomName,
+	}
+	grant.SetCanPublish(false)
+	grant.SetCanSubscribe(true)
+
+	at := auth.NewAccessToken(key, secret).
+		SetVideoGrant(grant).
+		SetIdentity(identity).
+		SetName(name).
+		SetValidFor(tokenTTL)
+
+	if metadata != "" {
+		at = at.SetMetadata(metadata)
+	}
+
+	token, err := at.ToJWT()
+	if err != nil {
+		return "", fmt.Errorf("mint viewer token: %w", err)
 	}
 
 	return token, nil

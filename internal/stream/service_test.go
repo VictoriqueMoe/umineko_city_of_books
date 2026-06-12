@@ -1,13 +1,16 @@
 package stream
 
 import (
+	"bytes"
 	"context"
 	"testing"
 
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/livekit"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
+	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
@@ -20,16 +23,18 @@ type streamMocks struct {
 	repo     *repository.MockLiveStreamRepository
 	lk       *livekit.MockService
 	settings *settings.MockService
+	upload   *upload.MockService
 }
 
 func newTestStreamService(t *testing.T) (Service, *streamMocks) {
 	repo := repository.NewMockLiveStreamRepository(t)
 	lk := livekit.NewMockService(t)
 	settingsSvc := settings.NewMockService(t)
+	uploadSvc := upload.NewMockService(t)
 
-	svc := NewService(repo, lk, settingsSvc, ws.NewHub())
+	svc := NewService(repo, lk, settingsSvc, uploadSvc, ws.NewHub())
 
-	return svc, &streamMocks{repo: repo, lk: lk, settings: settingsSvc}
+	return svc, &streamMocks{repo: repo, lk: lk, settings: settingsSvc, upload: uploadSvc}
 }
 
 func expectStreamingEnabled(m *streamMocks, enabled bool) {
@@ -170,7 +175,7 @@ func TestMintViewerToken_NotLive(t *testing.T) {
 	m.repo.EXPECT().GetByID(mock.Anything, streamID).Return(&repository.LiveStreamRow{ID: streamID, Status: "starting"}, nil)
 
 	// when
-	_, _, err := svc.MintViewerToken(context.Background(), streamID)
+	_, _, err := svc.MintViewerToken(context.Background(), streamID, nil)
 
 	// then
 	require.ErrorIs(t, err, ErrStreamNotFound)
@@ -185,16 +190,99 @@ func TestMintViewerToken_Live_IsSubscribeOnly(t *testing.T) {
 	m.repo.EXPECT().GetByID(mock.Anything, streamID).Return(&repository.LiveStreamRow{
 		ID: streamID, Status: "live", LivekitRoom: "live_room",
 	}, nil)
-	m.lk.EXPECT().MintToken("live_room", mock.Anything, "", false, false).Return("tok", nil)
+	m.lk.EXPECT().MintViewerToken("live_room", mock.Anything, "", "").Return("tok", nil)
 	m.lk.EXPECT().URL().Return("ws://lk")
 
 	// when
-	token, url, err := svc.MintViewerToken(context.Background(), streamID)
+	token, url, err := svc.MintViewerToken(context.Background(), streamID, nil)
 
 	// then
 	require.NoError(t, err)
 	assert.Equal(t, "tok", token)
 	assert.Equal(t, "ws://lk", url)
+}
+
+func TestMintViewerToken_LoggedInCarriesNameAndMetadata(t *testing.T) {
+	// given
+	svc, m := newTestStreamService(t)
+	expectStreamingEnabled(m, true)
+	streamID := uuid.New()
+	userID := uuid.New()
+	m.repo.EXPECT().GetByID(mock.Anything, streamID).Return(&repository.LiveStreamRow{
+		ID: streamID, Status: "live", LivekitRoom: "live_room",
+	}, nil)
+	expectedMeta := `{"userId":"` + userID.String() + `","username":"beato","avatarUrl":"/a.png"}`
+	m.lk.EXPECT().MintViewerToken("live_room", mock.Anything, "Beatrice", expectedMeta).Return("tok", nil)
+	m.lk.EXPECT().URL().Return("ws://lk")
+
+	// when
+	_, _, err := svc.MintViewerToken(context.Background(), streamID, &dto.StreamViewer{
+		UserID: userID, DisplayName: "Beatrice", Username: "beato", AvatarURL: "/a.png",
+	})
+
+	// then
+	require.NoError(t, err)
+}
+
+func TestSaveThumbnail_RejectsOfflineStream(t *testing.T) {
+	// given
+	svc, m := newTestStreamService(t)
+	streamID := uuid.New()
+	m.repo.EXPECT().GetByID(mock.Anything, streamID).Return(&repository.LiveStreamRow{ID: streamID, Status: "starting"}, nil)
+
+	// when
+	err := svc.SaveThumbnail(context.Background(), streamID, 100, bytes.NewReader([]byte("x")))
+
+	// then
+	require.ErrorIs(t, err, ErrStreamNotFound)
+}
+
+func TestSaveThumbnail_StoresAndDeletesOldThumbnail(t *testing.T) {
+	// given
+	svc, m := newTestStreamService(t)
+	streamID := uuid.New()
+	m.repo.EXPECT().GetByID(mock.Anything, streamID).Return(&repository.LiveStreamRow{
+		ID: streamID, Status: "live", ThumbnailURL: "/uploads/old.webp",
+	}, nil)
+	m.upload.EXPECT().SaveImage(mock.Anything, "stream-thumbnails", streamID, int64(100), mock.Anything, mock.Anything).Return("/uploads/new.webp", nil)
+	m.repo.EXPECT().SetThumbnail(mock.Anything, streamID, "/uploads/new.webp").Return(nil)
+	m.upload.EXPECT().Delete("/uploads/old.webp").Return(nil)
+
+	// when
+	err := svc.SaveThumbnail(context.Background(), streamID, 100, bytes.NewReader([]byte("x")))
+
+	// then
+	require.NoError(t, err)
+}
+
+func TestSaveThumbnail_ThrottlesRapidUploads(t *testing.T) {
+	// given
+	svc, m := newTestStreamService(t)
+	streamID := uuid.New()
+	m.repo.EXPECT().GetByID(mock.Anything, streamID).Return(&repository.LiveStreamRow{ID: streamID, Status: "live"}, nil).Twice()
+	m.upload.EXPECT().SaveImage(mock.Anything, "stream-thumbnails", streamID, mock.Anything, mock.Anything, mock.Anything).Return("/uploads/new.webp", nil).Once()
+	m.repo.EXPECT().SetThumbnail(mock.Anything, streamID, "/uploads/new.webp").Return(nil).Once()
+
+	// when
+	err1 := svc.SaveThumbnail(context.Background(), streamID, 100, bytes.NewReader([]byte("x")))
+	err2 := svc.SaveThumbnail(context.Background(), streamID, 100, bytes.NewReader([]byte("y")))
+
+	// then
+	require.NoError(t, err1)
+	require.NoError(t, err2)
+}
+
+func TestJoinChat_NilBinderReturnsDisabled(t *testing.T) {
+	// given
+	svc, _ := newTestStreamService(t)
+	streamID := uuid.New()
+	userID := uuid.New()
+
+	// when
+	err := svc.JoinChat(context.Background(), streamID, userID)
+
+	// then
+	require.ErrorIs(t, err, ErrDisabled)
 }
 
 func TestStopStream_NotOwner(t *testing.T) {

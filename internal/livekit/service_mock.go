@@ -374,6 +374,84 @@ func (_c *MockService_MintToken_Call) RunAndReturn(run func(roomName string, ide
 	return _c
 }
 
+// MintViewerToken provides a mock function for the type MockService
+func (_mock *MockService) MintViewerToken(roomName string, identity string, name string, metadata string) (string, error) {
+	ret := _mock.Called(roomName, identity, name, metadata)
+
+	if len(ret) == 0 {
+		panic("no return value specified for MintViewerToken")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(string, string, string, string) (string, error)); ok {
+		return returnFunc(roomName, identity, name, metadata)
+	}
+	if returnFunc, ok := ret.Get(0).(func(string, string, string, string) string); ok {
+		r0 = returnFunc(roomName, identity, name, metadata)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(string, string, string, string) error); ok {
+		r1 = returnFunc(roomName, identity, name, metadata)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_MintViewerToken_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MintViewerToken'
+type MockService_MintViewerToken_Call struct {
+	*mock.Call
+}
+
+// MintViewerToken is a helper method to define mock.On call
+//   - roomName string
+//   - identity string
+//   - name string
+//   - metadata string
+func (_e *MockService_Expecter) MintViewerToken(roomName interface{}, identity interface{}, name interface{}, metadata interface{}) *MockService_MintViewerToken_Call {
+	return &MockService_MintViewerToken_Call{Call: _e.mock.On("MintViewerToken", roomName, identity, name, metadata)}
+}
+
+func (_c *MockService_MintViewerToken_Call) Run(run func(roomName string, identity string, name string, metadata string)) *MockService_MintViewerToken_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_MintViewerToken_Call) Return(s string, err error) *MockService_MintViewerToken_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *MockService_MintViewerToken_Call) RunAndReturn(run func(roomName string, identity string, name string, metadata string) (string, error)) *MockService_MintViewerToken_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ParseWebhook provides a mock function for the type MockService
 func (_mock *MockService) ParseWebhook(authHeader string, body []byte) (*Event, error) {
 	ret := _mock.Called(authHeader, body)

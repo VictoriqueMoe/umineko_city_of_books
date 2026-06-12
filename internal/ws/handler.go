@@ -24,6 +24,7 @@ const (
 	maxInboundMessageSize = 8 * 1024
 	wsTracerName          = "umineko_city_of_books/ws"
 	localsUserIDKey       = "ws.user_id"
+	localsAnonKey         = "ws.anon"
 )
 
 type (
@@ -116,6 +117,11 @@ func broadcastPresence(hub *Hub, roomID, userID uuid.UUID, state string) {
 
 func Handler(hub *Hub, sessionMgr *session.Manager, roomLister RoomLister, gamePresence GameRoomPresence, watchPartyDisconnect WatchPartyDisconnectHandler, allowedOrigin func() string) fiber.Handler {
 	wsHandler := websocket.New(func(conn *websocket.Conn) {
+		if anon, _ := conn.Locals(localsAnonKey).(bool); anon {
+			runAnonReader(hub, conn)
+			return
+		}
+
 		userID, ok := conn.Locals(localsUserIDKey).(uuid.UUID)
 		if !ok {
 			return
@@ -205,9 +211,8 @@ func Handler(hub *Hub, sessionMgr *session.Manager, roomLister RoomLister, gameP
 			token = ctx.Query("token")
 		}
 		if token == "" {
-			return ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "authentication required",
-			})
+			ctx.Locals(localsAnonKey, true)
+			return wsHandler(ctx)
 		}
 
 		userID, err := sessionMgr.Validate(ctx.Context(), token)
@@ -219,6 +224,37 @@ func Handler(hub *Hub, sessionMgr *session.Manager, roomLister RoomLister, gameP
 
 		ctx.Locals(localsUserIDKey, userID)
 		return wsHandler(ctx)
+	}
+}
+
+func runAnonReader(hub *Hub, conn *websocket.Conn) {
+	client := NewClient(uuid.Nil, conn)
+	defer func() { _ = client.Close() }()
+
+	hub.RegisterAnon(client)
+	defer hub.UnregisterAnon(client)
+
+	conn.SetPongHandler(func(string) error {
+		return conn.SetReadDeadline(time.Now().Add(90 * time.Second))
+	})
+	_ = conn.SetReadDeadline(time.Now().Add(90 * time.Second))
+
+	for {
+		_, raw, err := conn.ReadMessage()
+		if err != nil {
+			break
+		}
+
+		var msg incomingMessage
+		if err := json.Unmarshal(raw, &msg); err != nil {
+			continue
+		}
+
+		if msg.Type == "ping" {
+			if data, marshalErr := json.Marshal(Message{Type: "pong", Data: map[string]interface{}{}}); marshalErr == nil {
+				client.enqueue(data)
+			}
+		}
 	}
 }
 

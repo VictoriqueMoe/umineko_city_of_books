@@ -57,10 +57,42 @@
 .cardThumb {
     position: relative;
     aspect-ratio: 16 / 9;
-    background: linear-gradient(135deg, #2a2018, #120d0a);
+    background: radial-gradient(circle at 50% 38%, #34281c, #1a130d 70%, #120d0a);
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+.thumbImg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.thumbAvatar {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    object-fit: cover;
+    opacity: 0.92;
+    border: 2px solid rgba(255, 255, 255, 0.25);
+}
+
+.thumbInitial {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-display, serif);
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--gold, #c9a227);
+    background: rgba(0, 0, 0, 0.35);
+    border: 2px solid rgba(255, 255, 255, 0.25);
 }
 
 .liveBadge {
@@ -129,7 +161,8 @@
 .stage {
     position: relative;
     width: 100%;
-    aspect-ratio: 16 / 9;
+    flex: 1 1 auto;
+    min-height: 0;
     background: #000;
     border-radius: 10px;
     overflow: hidden;
@@ -184,7 +217,61 @@
     flex-wrap: wrap;
     align-items: center;
     gap: 0.5rem 1rem;
-    margin-top: 1rem;
+    margin-top: 0.75rem;
+    flex-shrink: 0;
+}
+
+.viewers {
+    flex-shrink: 0;
+    margin-top: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.viewersCount {
+    font-size: 0.85rem;
+    opacity: 0.8;
+}
+
+.viewersList {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    max-height: 76px;
+    overflow-y: auto;
+}
+
+.viewerChip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: var(--surface, rgba(255, 255, 255, 0.05));
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+    border-radius: 999px;
+    padding: 0.15rem 0.6rem 0.15rem 0.15rem;
+    font-size: 0.8rem;
+}
+
+.guestChip {
+    padding: 0.15rem 0.6rem;
+    opacity: 0.75;
+}
+
+.viewerAvatar {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: rgba(255, 255, 255, 0.15);
+    flex-shrink: 0;
+}
+
+.viewerName {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .watchTitle {
@@ -207,4 +294,111 @@
     text-decoration: none;
     color: var(--gold, #c9a227);
     font-size: 0.9rem;
+}
+
+.watchLayout {
+    display: flex;
+    align-items: stretch;
+    gap: 1rem;
+    width: 100%;
+    height: calc(100vh - 60px);
+    padding: 1rem;
+    box-sizing: border-box;
+}
+
+.watchMain {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.watchSidebar {
+    flex: 0 0 360px;
+    width: 360px;
+    display: flex;
+    min-height: 0;
+}
+
+.fullscreenBtn {
+    position: absolute;
+    bottom: 0.6rem;
+    right: 0.6rem;
+    z-index: 3;
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.2));
+    background: rgba(0, 0, 0, 0.55);
+    color: #fff;
+    font-size: 1.1rem;
+    line-height: 1;
+    border-radius: 6px;
+    padding: 0.35rem 0.5rem;
+    cursor: pointer;
+}
+
+.fullscreenBtn:hover {
+    background: rgba(0, 0, 0, 0.8);
+}
+
+.chatPanel {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+    border-radius: 10px;
+    background: var(--surface, rgba(255, 255, 255, 0.03));
+    overflow: hidden;
+}
+
+.chatHeader {
+    padding: 0.6rem 0.8rem;
+    font-weight: 600;
+    border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+    flex-shrink: 0;
+}
+
+.chatMessages {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.chatNotice {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.85rem;
+    text-align: center;
+    padding: 0.5rem;
+}
+
+.chatLoginPrompt {
+    padding: 1rem;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.9rem;
+}
+
+@media (max-width: 900px) {
+    .watchLayout {
+        flex-direction: column;
+        height: calc(100vh - 60px);
+    }
+
+    .watchMain {
+        flex: 0 0 auto;
+    }
+
+    .stage {
+        flex: 0 0 auto;
+        height: 38vh;
+    }
+
+    .watchSidebar {
+        flex: 1 1 auto;
+        width: 100%;
+        min-height: 0;
+    }
 }

@@ -25,6 +25,10 @@ type (
 		EnsureSystemRooms(ctx context.Context) error
 		SyncSystemRoomMembership(ctx context.Context, userID uuid.UUID, newRole role.Role) error
 
+		CreateStreamRoom(ctx context.Context, streamID, streamerID uuid.UUID, title string) error
+		JoinStreamChat(ctx context.Context, streamID, userID uuid.UUID) error
+		DeleteStreamRoom(ctx context.Context, streamID uuid.UUID) error
+
 		ResolveDMRoom(ctx context.Context, senderID, recipientID uuid.UUID) (*dto.ResolveDMResponse, error)
 		SendDMMessage(ctx context.Context, senderID, recipientID uuid.UUID, body string, files []FileUpload) (*dto.SendDMResponse, error)
 		CreateGroupRoom(ctx context.Context, creatorID uuid.UUID, req dto.CreateGroupRoomRequest) (*dto.ChatRoomResponse, error)
@@ -105,6 +109,7 @@ type (
 	service struct {
 		*core
 		*systemService
+		*streamChatService
 		*dmService
 		*reactionsService
 		*membersService
@@ -162,6 +167,7 @@ func NewService(
 	svs := &service{
 		core:              c,
 		systemService:     &systemService{core: c},
+		streamChatService: &streamChatService{core: c},
 		reactionsService:  &reactionsService{core: c},
 		roomsService:      &roomsService{core: c},
 		moderationService: &moderationService{core: c},

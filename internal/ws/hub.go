@@ -42,6 +42,7 @@ type (
 		clients map[uuid.UUID][]*Client
 		rooms   map[uuid.UUID]map[uuid.UUID]bool
 		viewers map[uuid.UUID]map[uuid.UUID]*viewerInfo
+		anon    map[*Client]struct{}
 		mu      sync.RWMutex
 	}
 )
@@ -124,7 +125,24 @@ func NewHub() *Hub {
 		clients: make(map[uuid.UUID][]*Client),
 		rooms:   make(map[uuid.UUID]map[uuid.UUID]bool),
 		viewers: make(map[uuid.UUID]map[uuid.UUID]*viewerInfo),
+		anon:    make(map[*Client]struct{}),
 	}
+}
+
+func (h *Hub) RegisterAnon(client *Client) {
+	h.mu.Lock()
+	h.anon[client] = struct{}{}
+	h.mu.Unlock()
+
+	client.Start()
+}
+
+func (h *Hub) UnregisterAnon(client *Client) {
+	client.kill()
+
+	h.mu.Lock()
+	delete(h.anon, client)
+	h.mu.Unlock()
 }
 
 func (h *Hub) AddViewer(roomID, userID uuid.UUID) {
@@ -336,6 +354,36 @@ func (h *Hub) Broadcast(msg Message) {
 	}
 	if len(dead) > 0 {
 		h.reapDead(dead)
+	}
+}
+
+func (h *Hub) BroadcastPublic(msg Message) {
+	h.Broadcast(msg)
+
+	h.mu.RLock()
+	anonConns := make([]*Client, 0, len(h.anon))
+	for c := range h.anon {
+		anonConns = append(anonConns, c)
+	}
+	h.mu.RUnlock()
+
+	if len(anonConns) == 0 {
+		return
+	}
+
+	data, err := json.Marshal(msg)
+	if err != nil {
+		return
+	}
+
+	var dead []*Client
+	for _, c := range anonConns {
+		if !c.enqueue(data) {
+			dead = append(dead, c)
+		}
+	}
+	for _, c := range dead {
+		h.UnregisterAnon(c)
 	}
 }
 

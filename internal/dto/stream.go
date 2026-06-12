@@ -9,6 +9,7 @@ type (
 		Title               string    `json:"title"`
 		Status              string    `json:"status"`
 		ViewerCount         int       `json:"viewerCount"`
+		ThumbnailURL        string    `json:"thumbnailUrl,omitempty"`
 		StartedAt           string    `json:"startedAt,omitempty"`
 		StreamerUsername    string    `json:"streamerUsername"`
 		StreamerDisplayName string    `json:"streamerDisplayName"`
@@ -33,6 +34,13 @@ type (
 	StreamViewerTokenResponse struct {
 		Token string `json:"token"`
 		URL   string `json:"url"`
+	}
+
+	StreamViewer struct {
+		UserID      uuid.UUID
+		DisplayName string
+		Username    string
+		AvatarURL   string
 	}
 
 	StreamViewersEvent struct {

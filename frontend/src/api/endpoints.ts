@@ -749,6 +749,7 @@ export interface LiveStream {
     title: string;
     status: string;
     viewerCount: number;
+    thumbnailUrl?: string;
     startedAt?: string;
     streamerUsername: string;
     streamerDisplayName: string;
@@ -788,6 +789,16 @@ export async function stopStream(id: string): Promise<void> {
 
 export async function getStreamViewerToken(id: string): Promise<VoiceTokenResponse> {
     return apiPost<VoiceTokenResponse, Record<string, never>>(`/streams/${id}/token`, {});
+}
+
+export async function joinStreamChat(id: string): Promise<void> {
+    await apiPost<unknown, Record<string, never>>(`/streams/${id}/join-chat`, {});
+}
+
+export async function uploadStreamThumbnail(id: string, blob: Blob): Promise<void> {
+    const formData = new FormData();
+    formData.append("thumbnail", blob, "thumb.webp");
+    await apiPostFormData<unknown>(`/streams/${id}/thumbnail`, formData);
 }
 
 export async function getWatchPartyVoiceToken(roomId: string, sessionId: string): Promise<VoiceTokenResponse> {

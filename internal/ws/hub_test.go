@@ -34,3 +34,48 @@ func TestHub_IsUserInRoom_LeaveRemoves(t *testing.T) {
 	// then
 	assert.False(t, hub.IsUserInRoom(roomID, userID), "user should be out after LeaveRoom")
 }
+
+func TestHub_BroadcastPublic_ReachesAuthedAndAnon(t *testing.T) {
+	// given
+	hub := NewHub()
+	authed := NewClient(uuid.New(), nil)
+	anon := NewClient(uuid.Nil, nil)
+	hub.clients[authed.UserID] = []*Client{authed}
+	hub.anon[anon] = struct{}{}
+
+	// when
+	hub.BroadcastPublic(Message{Type: "stream_live"})
+
+	// then
+	assert.Equal(t, 1, len(authed.send), "authed client should receive a public broadcast")
+	assert.Equal(t, 1, len(anon.send), "anon client should receive a public broadcast")
+}
+
+func TestHub_Broadcast_DoesNotReachAnon(t *testing.T) {
+	// given
+	hub := NewHub()
+	authed := NewClient(uuid.New(), nil)
+	anon := NewClient(uuid.Nil, nil)
+	hub.clients[authed.UserID] = []*Client{authed}
+	hub.anon[anon] = struct{}{}
+
+	// when
+	hub.Broadcast(Message{Type: "ban_changed"})
+
+	// then
+	assert.Equal(t, 1, len(authed.send), "authed client should receive an authed broadcast")
+	assert.Equal(t, 0, len(anon.send), "anon client must never receive an authed broadcast")
+}
+
+func TestHub_SendToUser_DoesNotReachAnon(t *testing.T) {
+	// given
+	hub := NewHub()
+	anon := NewClient(uuid.Nil, nil)
+	hub.anon[anon] = struct{}{}
+
+	// when
+	hub.SendToUser(uuid.New(), Message{Type: "notification"})
+
+	// then
+	assert.Equal(t, 0, len(anon.send), "anon client must never receive a user-targeted message")
+}

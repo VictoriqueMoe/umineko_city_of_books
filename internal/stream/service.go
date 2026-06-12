@@ -2,9 +2,12 @@ package stream
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
+	"sync"
 	"time"
 
 	"umineko_city_of_books/internal/config"
@@ -13,6 +16,7 @@ import (
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
+	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
@@ -26,16 +30,29 @@ type (
 		MyStream(ctx context.Context, userID uuid.UUID) (*dto.StreamOwnerResponse, error)
 		ListLive(ctx context.Context) ([]dto.LiveStreamResponse, error)
 		Get(ctx context.Context, streamID uuid.UUID) (*dto.LiveStreamResponse, error)
-		MintViewerToken(ctx context.Context, streamID uuid.UUID) (token, url string, err error)
+		MintViewerToken(ctx context.Context, streamID uuid.UUID, viewer *dto.StreamViewer) (token, url string, err error)
 		HandleWebhook(ctx context.Context, authHeader string, body []byte) (handled bool, err error)
 		ReconcileOnce(ctx context.Context) (int, error)
+		JoinChat(ctx context.Context, streamID, userID uuid.UUID) error
+		SaveThumbnail(ctx context.Context, streamID uuid.UUID, size int64, reader io.Reader) error
+		SetChatBinder(chat ChatBinder)
+	}
+
+	ChatBinder interface {
+		CreateStreamRoom(ctx context.Context, streamID, streamerID uuid.UUID, title string) error
+		JoinStreamChat(ctx context.Context, streamID, userID uuid.UUID) error
+		DeleteStreamRoom(ctx context.Context, streamID uuid.UUID) error
 	}
 
 	service struct {
 		repo        repository.LiveStreamRepository
 		livekitSvc  livekit.Service
 		settingsSvc settings.Service
+		uploadSvc   upload.Service
 		hub         *ws.Hub
+		chat        ChatBinder
+		thumbMu     sync.Mutex
+		thumbAt     map[uuid.UUID]time.Time
 	}
 )
 
@@ -55,6 +72,10 @@ const (
 	defaultMaxConcurrent = 3
 
 	startingReapAfter = 3 * time.Minute
+
+	thumbnailSubDir   = "stream-thumbnails"
+	maxThumbnailBytes = 3 * 1024 * 1024
+	thumbnailThrottle = 20 * time.Second
 )
 
 var (
@@ -66,17 +87,109 @@ var (
 	ErrTitleRequired  = errors.New("stream title is required")
 )
 
-func NewService(repo repository.LiveStreamRepository, livekitSvc livekit.Service, settingsSvc settings.Service, hub *ws.Hub) Service {
+func NewService(repo repository.LiveStreamRepository, livekitSvc livekit.Service, settingsSvc settings.Service, uploadSvc upload.Service, hub *ws.Hub) Service {
 	return &service{
 		repo:        repo,
 		livekitSvc:  livekitSvc,
 		settingsSvc: settingsSvc,
+		uploadSvc:   uploadSvc,
 		hub:         hub,
+		thumbAt:     make(map[uuid.UUID]time.Time),
 	}
+}
+
+func (s *service) SetChatBinder(chat ChatBinder) {
+	s.chat = chat
 }
 
 func (s *service) Enabled() bool {
 	return s.settingsSvc.GetBool(context.Background(), config.SettingStreamingEnabled) && s.livekitSvc.Enabled()
+}
+
+func (s *service) createChatRoom(ctx context.Context, streamID, streamerID uuid.UUID, title string) {
+	if s.chat == nil {
+		return
+	}
+
+	if err := s.chat.CreateStreamRoom(ctx, streamID, streamerID, title); err != nil {
+		logger.Log.Warn().Err(err).Str("stream_id", streamID.String()).Msg("create stream chat room failed")
+	}
+}
+
+func (s *service) deleteChatRoom(ctx context.Context, streamID uuid.UUID) {
+	if s.chat == nil {
+		return
+	}
+
+	if err := s.chat.DeleteStreamRoom(ctx, streamID); err != nil {
+		logger.Log.Warn().Err(err).Str("stream_id", streamID.String()).Msg("delete stream chat room failed")
+	}
+}
+
+func (s *service) JoinChat(ctx context.Context, streamID, userID uuid.UUID) error {
+	if s.chat == nil {
+		return ErrDisabled
+	}
+
+	stream, err := s.repo.GetByID(ctx, streamID)
+	if err != nil {
+		return err
+	}
+	if stream == nil || stream.Status != statusLive {
+		return ErrStreamNotFound
+	}
+
+	return s.chat.JoinStreamChat(ctx, streamID, userID)
+}
+
+func (s *service) SaveThumbnail(ctx context.Context, streamID uuid.UUID, size int64, reader io.Reader) error {
+	stream, err := s.repo.GetByID(ctx, streamID)
+	if err != nil {
+		return err
+	}
+	if stream == nil || stream.Status != statusLive {
+		return ErrStreamNotFound
+	}
+
+	if !s.claimThumbnailSlot(streamID) {
+		return nil
+	}
+
+	url, err := s.uploadSvc.SaveImage(ctx, thumbnailSubDir, streamID, size, maxThumbnailBytes, reader)
+	if err != nil {
+		return fmt.Errorf("save thumbnail: %w", err)
+	}
+
+	if err := s.repo.SetThumbnail(ctx, streamID, url); err != nil {
+		_ = s.uploadSvc.Delete(url)
+		return err
+	}
+
+	if stream.ThumbnailURL != "" && stream.ThumbnailURL != url {
+		_ = s.uploadSvc.Delete(stream.ThumbnailURL)
+	}
+
+	return nil
+}
+
+func (s *service) claimThumbnailSlot(streamID uuid.UUID) bool {
+	s.thumbMu.Lock()
+	defer s.thumbMu.Unlock()
+
+	now := time.Now()
+	if last, ok := s.thumbAt[streamID]; ok && now.Sub(last) < thumbnailThrottle {
+		return false
+	}
+
+	s.thumbAt[streamID] = now
+
+	return true
+}
+
+func (s *service) clearThumbnailSlot(streamID uuid.UUID) {
+	s.thumbMu.Lock()
+	delete(s.thumbAt, streamID)
+	s.thumbMu.Unlock()
 }
 
 func (s *service) maxConcurrent() int {
@@ -154,6 +267,8 @@ func (s *service) StartStream(ctx context.Context, userID uuid.UUID, title strin
 		return nil, err
 	}
 
+	s.createChatRoom(ctx, streamID, userID, stream.Title)
+
 	stream.LivekitRoom = room
 	stream.IngressID = ingressID
 	stream.WhipURL = whipURL
@@ -219,7 +334,7 @@ func (s *service) Get(ctx context.Context, streamID uuid.UUID) (*dto.LiveStreamR
 	return &view, nil
 }
 
-func (s *service) MintViewerToken(ctx context.Context, streamID uuid.UUID) (string, string, error) {
+func (s *service) MintViewerToken(ctx context.Context, streamID uuid.UUID, viewer *dto.StreamViewer) (string, string, error) {
 	if !s.Enabled() {
 		return "", "", ErrDisabled
 	}
@@ -233,13 +348,42 @@ func (s *service) MintViewerToken(ctx context.Context, streamID uuid.UUID) (stri
 	}
 
 	identity := viewerPrefix + uuid.NewString()
+	name, metadata := viewerNameAndMetadata(viewer)
 
-	token, err := s.livekitSvc.MintToken(stream.LivekitRoom, identity, "", false, false)
+	token, err := s.livekitSvc.MintViewerToken(stream.LivekitRoom, identity, name, metadata)
 	if err != nil {
 		return "", "", err
 	}
 
 	return token, s.livekitSvc.URL(), nil
+}
+
+type viewerMeta struct {
+	UserID    string `json:"userId"`
+	Username  string `json:"username"`
+	AvatarURL string `json:"avatarUrl"`
+}
+
+func viewerNameAndMetadata(viewer *dto.StreamViewer) (string, string) {
+	if viewer == nil || viewer.UserID == uuid.Nil {
+		return "", ""
+	}
+
+	name := viewer.DisplayName
+	if name == "" {
+		name = viewer.Username
+	}
+
+	meta, err := json.Marshal(viewerMeta{
+		UserID:    viewer.UserID.String(),
+		Username:  viewer.Username,
+		AvatarURL: viewer.AvatarURL,
+	})
+	if err != nil {
+		return name, ""
+	}
+
+	return name, string(meta)
 }
 
 func (s *service) HandleWebhook(ctx context.Context, authHeader string, body []byte) (bool, error) {
@@ -303,7 +447,16 @@ func (s *service) teardown(ctx context.Context, stream *repository.LiveStreamRow
 		}
 	}
 
-	s.hub.Broadcast(ws.Message{
+	s.deleteChatRoom(ctx, stream.ID)
+
+	if stream.ThumbnailURL != "" {
+		if err := s.uploadSvc.Delete(stream.ThumbnailURL); err != nil {
+			logger.Log.Warn().Err(err).Str("stream_id", stream.ID.String()).Msg("delete stream thumbnail failed")
+		}
+	}
+	s.clearThumbnailSlot(stream.ID)
+
+	s.hub.BroadcastPublic(ws.Message{
 		Type: wsStreamOffline,
 		Data: dto.StreamOfflineEvent{StreamID: stream.ID},
 	})
@@ -321,7 +474,7 @@ func (s *service) adjustViewers(ctx context.Context, id uuid.UUID, delta int) {
 		return
 	}
 
-	s.hub.Broadcast(ws.Message{
+	s.hub.BroadcastPublic(ws.Message{
 		Type: wsStreamViewers,
 		Data: dto.StreamViewersEvent{StreamID: id, ViewerCount: count},
 	})
@@ -372,7 +525,7 @@ func (s *service) broadcastLive(ctx context.Context, id uuid.UUID) {
 		return
 	}
 
-	s.hub.Broadcast(ws.Message{
+	s.hub.BroadcastPublic(ws.Message{
 		Type: wsStreamLive,
 		Data: toPublic(stream),
 	})
@@ -390,6 +543,7 @@ func toPublic(row *repository.LiveStreamRow) dto.LiveStreamResponse {
 		Title:               row.Title,
 		Status:              row.Status,
 		ViewerCount:         row.ViewerCount,
+		ThumbnailURL:        row.ThumbnailURL,
 		StartedAt:           started,
 		StreamerUsername:    row.Username,
 		StreamerDisplayName: row.DisplayName,
