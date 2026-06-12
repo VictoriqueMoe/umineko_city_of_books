@@ -74,7 +74,7 @@ type MockService_ArchiveStale_Call struct {
 
 // ArchiveStale is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockService_Expecter) ArchiveStale(ctx interface{}) *MockService_ArchiveStale_Call {
+func (_e *MockService_Expecter) ArchiveStale(ctx any) *MockService_ArchiveStale_Call {
 	return &MockService_ArchiveStale_Call{Call: _e.mock.On("ArchiveStale", ctx)}
 }
 
@@ -141,7 +141,7 @@ type MockService_CreateComment_Call struct {
 //   - entryID *uuid.UUID
 //   - parentID *uuid.UUID
 //   - body string
-func (_e *MockService_Expecter) CreateComment(ctx interface{}, journalID interface{}, userID interface{}, entryID interface{}, parentID interface{}, body interface{}) *MockService_CreateComment_Call {
+func (_e *MockService_Expecter) CreateComment(ctx any, journalID any, userID any, entryID any, parentID any, body any) *MockService_CreateComment_Call {
 	return &MockService_CreateComment_Call{Call: _e.mock.On("CreateComment", ctx, journalID, userID, entryID, parentID, body)}
 }
 
@@ -237,7 +237,7 @@ type MockService_CreateEntry_Call struct {
 //   - journalID uuid.UUID
 //   - userID uuid.UUID
 //   - req dto.CreateJournalEntryRequest
-func (_e *MockService_Expecter) CreateEntry(ctx interface{}, journalID interface{}, userID interface{}, req interface{}) *MockService_CreateEntry_Call {
+func (_e *MockService_Expecter) CreateEntry(ctx any, journalID any, userID any, req any) *MockService_CreateEntry_Call {
 	return &MockService_CreateEntry_Call{Call: _e.mock.On("CreateEntry", ctx, journalID, userID, req)}
 }
 
@@ -316,7 +316,7 @@ type MockService_CreateJournal_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - req dto.CreateJournalRequest
-func (_e *MockService_Expecter) CreateJournal(ctx interface{}, userID interface{}, req interface{}) *MockService_CreateJournal_Call {
+func (_e *MockService_Expecter) CreateJournal(ctx any, userID any, req any) *MockService_CreateJournal_Call {
 	return &MockService_CreateJournal_Call{Call: _e.mock.On("CreateJournal", ctx, userID, req)}
 }
 
@@ -379,7 +379,7 @@ type MockService_DeleteComment_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) DeleteComment(ctx interface{}, id interface{}, userID interface{}) *MockService_DeleteComment_Call {
+func (_e *MockService_Expecter) DeleteComment(ctx any, id any, userID any) *MockService_DeleteComment_Call {
 	return &MockService_DeleteComment_Call{Call: _e.mock.On("DeleteComment", ctx, id, userID)}
 }
 
@@ -442,7 +442,7 @@ type MockService_DeleteEntry_Call struct {
 //   - ctx context.Context
 //   - entryID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) DeleteEntry(ctx interface{}, entryID interface{}, userID interface{}) *MockService_DeleteEntry_Call {
+func (_e *MockService_Expecter) DeleteEntry(ctx any, entryID any, userID any) *MockService_DeleteEntry_Call {
 	return &MockService_DeleteEntry_Call{Call: _e.mock.On("DeleteEntry", ctx, entryID, userID)}
 }
 
@@ -506,7 +506,7 @@ type MockService_DeleteEntryMedia_Call struct {
 //   - entryID uuid.UUID
 //   - mediaID int64
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) DeleteEntryMedia(ctx interface{}, entryID interface{}, mediaID interface{}, userID interface{}) *MockService_DeleteEntryMedia_Call {
+func (_e *MockService_Expecter) DeleteEntryMedia(ctx any, entryID any, mediaID any, userID any) *MockService_DeleteEntryMedia_Call {
 	return &MockService_DeleteEntryMedia_Call{Call: _e.mock.On("DeleteEntryMedia", ctx, entryID, mediaID, userID)}
 }
 
@@ -574,7 +574,7 @@ type MockService_DeleteJournal_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) DeleteJournal(ctx interface{}, id interface{}, userID interface{}) *MockService_DeleteJournal_Call {
+func (_e *MockService_Expecter) DeleteJournal(ctx any, id any, userID any) *MockService_DeleteJournal_Call {
 	return &MockService_DeleteJournal_Call{Call: _e.mock.On("DeleteJournal", ctx, id, userID)}
 }
 
@@ -637,7 +637,7 @@ type MockService_FollowJournal_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) FollowJournal(ctx interface{}, id interface{}, userID interface{}) *MockService_FollowJournal_Call {
+func (_e *MockService_Expecter) FollowJournal(ctx any, id any, userID any) *MockService_FollowJournal_Call {
 	return &MockService_FollowJournal_Call{Call: _e.mock.On("FollowJournal", ctx, id, userID)}
 }
 
@@ -720,7 +720,7 @@ type MockService_GetEntry_Call struct {
 //   - journalID uuid.UUID
 //   - entryNumber int
 //   - viewerID uuid.UUID
-func (_e *MockService_Expecter) GetEntry(ctx interface{}, journalID interface{}, entryNumber interface{}, viewerID interface{}) *MockService_GetEntry_Call {
+func (_e *MockService_Expecter) GetEntry(ctx any, journalID any, entryNumber any, viewerID any) *MockService_GetEntry_Call {
 	return &MockService_GetEntry_Call{Call: _e.mock.On("GetEntry", ctx, journalID, entryNumber, viewerID)}
 }
 
@@ -799,7 +799,7 @@ type MockService_GetJournalDetail_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - viewerID uuid.UUID
-func (_e *MockService_Expecter) GetJournalDetail(ctx interface{}, id interface{}, viewerID interface{}) *MockService_GetJournalDetail_Call {
+func (_e *MockService_Expecter) GetJournalDetail(ctx any, id any, viewerID any) *MockService_GetJournalDetail_Call {
 	return &MockService_GetJournalDetail_Call{Call: _e.mock.On("GetJournalDetail", ctx, id, viewerID)}
 }
 
@@ -862,7 +862,7 @@ type MockService_LikeComment_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) LikeComment(ctx interface{}, id interface{}, userID interface{}) *MockService_LikeComment_Call {
+func (_e *MockService_Expecter) LikeComment(ctx any, id any, userID any) *MockService_LikeComment_Call {
 	return &MockService_LikeComment_Call{Call: _e.mock.On("LikeComment", ctx, id, userID)}
 }
 
@@ -938,7 +938,7 @@ type MockService_ListFollowedByUser_Call struct {
 //   - viewerID uuid.UUID
 //   - limit int
 //   - offset int
-func (_e *MockService_Expecter) ListFollowedByUser(ctx interface{}, followerID interface{}, viewerID interface{}, limit interface{}, offset interface{}) *MockService_ListFollowedByUser_Call {
+func (_e *MockService_Expecter) ListFollowedByUser(ctx any, followerID any, viewerID any, limit any, offset any) *MockService_ListFollowedByUser_Call {
 	return &MockService_ListFollowedByUser_Call{Call: _e.mock.On("ListFollowedByUser", ctx, followerID, viewerID, limit, offset)}
 }
 
@@ -1022,7 +1022,7 @@ type MockService_ListJournals_Call struct {
 //   - ctx context.Context
 //   - p params.ListParams
 //   - viewerID uuid.UUID
-func (_e *MockService_Expecter) ListJournals(ctx interface{}, p interface{}, viewerID interface{}) *MockService_ListJournals_Call {
+func (_e *MockService_Expecter) ListJournals(ctx any, p any, viewerID any) *MockService_ListJournals_Call {
 	return &MockService_ListJournals_Call{Call: _e.mock.On("ListJournals", ctx, p, viewerID)}
 }
 
@@ -1098,7 +1098,7 @@ type MockService_ListJournalsByUser_Call struct {
 //   - viewerID uuid.UUID
 //   - limit int
 //   - offset int
-func (_e *MockService_Expecter) ListJournalsByUser(ctx interface{}, authorID interface{}, viewerID interface{}, limit interface{}, offset interface{}) *MockService_ListJournalsByUser_Call {
+func (_e *MockService_Expecter) ListJournalsByUser(ctx any, authorID any, viewerID any, limit any, offset any) *MockService_ListJournalsByUser_Call {
 	return &MockService_ListJournalsByUser_Call{Call: _e.mock.On("ListJournalsByUser", ctx, authorID, viewerID, limit, offset)}
 }
 
@@ -1171,7 +1171,7 @@ type MockService_UnfollowJournal_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) UnfollowJournal(ctx interface{}, id interface{}, userID interface{}) *MockService_UnfollowJournal_Call {
+func (_e *MockService_Expecter) UnfollowJournal(ctx any, id any, userID any) *MockService_UnfollowJournal_Call {
 	return &MockService_UnfollowJournal_Call{Call: _e.mock.On("UnfollowJournal", ctx, id, userID)}
 }
 
@@ -1234,7 +1234,7 @@ type MockService_UnlikeComment_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) UnlikeComment(ctx interface{}, id interface{}, userID interface{}) *MockService_UnlikeComment_Call {
+func (_e *MockService_Expecter) UnlikeComment(ctx any, id any, userID any) *MockService_UnlikeComment_Call {
 	return &MockService_UnlikeComment_Call{Call: _e.mock.On("UnlikeComment", ctx, id, userID)}
 }
 
@@ -1298,7 +1298,7 @@ type MockService_UpdateComment_Call struct {
 //   - id uuid.UUID
 //   - userID uuid.UUID
 //   - body string
-func (_e *MockService_Expecter) UpdateComment(ctx interface{}, id interface{}, userID interface{}, body interface{}) *MockService_UpdateComment_Call {
+func (_e *MockService_Expecter) UpdateComment(ctx any, id any, userID any, body any) *MockService_UpdateComment_Call {
 	return &MockService_UpdateComment_Call{Call: _e.mock.On("UpdateComment", ctx, id, userID, body)}
 }
 
@@ -1367,7 +1367,7 @@ type MockService_UpdateEntry_Call struct {
 //   - entryID uuid.UUID
 //   - userID uuid.UUID
 //   - req dto.UpdateJournalEntryRequest
-func (_e *MockService_Expecter) UpdateEntry(ctx interface{}, entryID interface{}, userID interface{}, req interface{}) *MockService_UpdateEntry_Call {
+func (_e *MockService_Expecter) UpdateEntry(ctx any, entryID any, userID any, req any) *MockService_UpdateEntry_Call {
 	return &MockService_UpdateEntry_Call{Call: _e.mock.On("UpdateEntry", ctx, entryID, userID, req)}
 }
 
@@ -1436,7 +1436,7 @@ type MockService_UpdateJournal_Call struct {
 //   - id uuid.UUID
 //   - userID uuid.UUID
 //   - req dto.CreateJournalRequest
-func (_e *MockService_Expecter) UpdateJournal(ctx interface{}, id interface{}, userID interface{}, req interface{}) *MockService_UpdateJournal_Call {
+func (_e *MockService_Expecter) UpdateJournal(ctx any, id any, userID any, req any) *MockService_UpdateJournal_Call {
 	return &MockService_UpdateJournal_Call{Call: _e.mock.On("UpdateJournal", ctx, id, userID, req)}
 }
 
@@ -1518,7 +1518,7 @@ type MockService_UploadCommentMedia_Call struct {
 //   - contentType string
 //   - fileSize int64
 //   - reader io.Reader
-func (_e *MockService_Expecter) UploadCommentMedia(ctx interface{}, commentID interface{}, userID interface{}, contentType interface{}, fileSize interface{}, reader interface{}) *MockService_UploadCommentMedia_Call {
+func (_e *MockService_Expecter) UploadCommentMedia(ctx any, commentID any, userID any, contentType any, fileSize any, reader any) *MockService_UploadCommentMedia_Call {
 	return &MockService_UploadCommentMedia_Call{Call: _e.mock.On("UploadCommentMedia", ctx, commentID, userID, contentType, fileSize, reader)}
 }
 
@@ -1610,7 +1610,7 @@ type MockService_UploadEntryMedia_Call struct {
 //   - contentType string
 //   - fileSize int64
 //   - reader io.Reader
-func (_e *MockService_Expecter) UploadEntryMedia(ctx interface{}, entryID interface{}, userID interface{}, contentType interface{}, fileSize interface{}, reader interface{}) *MockService_UploadEntryMedia_Call {
+func (_e *MockService_Expecter) UploadEntryMedia(ctx any, entryID any, userID any, contentType any, fileSize any, reader any) *MockService_UploadEntryMedia_Call {
 	return &MockService_UploadEntryMedia_Call{Call: _e.mock.On("UploadEntryMedia", ctx, entryID, userID, contentType, fileSize, reader)}
 }
 

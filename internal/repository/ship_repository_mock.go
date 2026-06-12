@@ -78,7 +78,7 @@ type MockShipRepository_AddCommentMedia_Call struct {
 //   - mediaType string
 //   - thumbnailURL string
 //   - sortOrder int
-func (_e *MockShipRepository_Expecter) AddCommentMedia(ctx interface{}, commentID interface{}, mediaURL interface{}, mediaType interface{}, thumbnailURL interface{}, sortOrder interface{}) *MockShipRepository_AddCommentMedia_Call {
+func (_e *MockShipRepository_Expecter) AddCommentMedia(ctx any, commentID any, mediaURL any, mediaType any, thumbnailURL any, sortOrder any) *MockShipRepository_AddCommentMedia_Call {
 	return &MockShipRepository_AddCommentMedia_Call{Call: _e.mock.On("AddCommentMedia", ctx, commentID, mediaURL, mediaType, thumbnailURL, sortOrder)}
 }
 
@@ -159,7 +159,7 @@ type MockShipRepository_CreateComment_Call struct {
 //   - parentID *uuid.UUID
 //   - userID uuid.UUID
 //   - body string
-func (_e *MockShipRepository_Expecter) CreateComment(ctx interface{}, id interface{}, shipID interface{}, parentID interface{}, userID interface{}, body interface{}) *MockShipRepository_CreateComment_Call {
+func (_e *MockShipRepository_Expecter) CreateComment(ctx any, id any, shipID any, parentID any, userID any, body any) *MockShipRepository_CreateComment_Call {
 	return &MockShipRepository_CreateComment_Call{Call: _e.mock.On("CreateComment", ctx, id, shipID, parentID, userID, body)}
 }
 
@@ -240,7 +240,7 @@ type MockShipRepository_CreateWithCharacters_Call struct {
 //   - title string
 //   - description string
 //   - characters []dto.ShipCharacter
-func (_e *MockShipRepository_Expecter) CreateWithCharacters(ctx interface{}, id interface{}, userID interface{}, title interface{}, description interface{}, characters interface{}) *MockShipRepository_CreateWithCharacters_Call {
+func (_e *MockShipRepository_Expecter) CreateWithCharacters(ctx any, id any, userID any, title any, description any, characters any) *MockShipRepository_CreateWithCharacters_Call {
 	return &MockShipRepository_CreateWithCharacters_Call{Call: _e.mock.On("CreateWithCharacters", ctx, id, userID, title, description, characters)}
 }
 
@@ -318,7 +318,7 @@ type MockShipRepository_Delete_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockShipRepository_Expecter) Delete(ctx interface{}, id interface{}, userID interface{}) *MockShipRepository_Delete_Call {
+func (_e *MockShipRepository_Expecter) Delete(ctx any, id any, userID any) *MockShipRepository_Delete_Call {
 	return &MockShipRepository_Delete_Call{Call: _e.mock.On("Delete", ctx, id, userID)}
 }
 
@@ -380,7 +380,7 @@ type MockShipRepository_DeleteAsAdmin_Call struct {
 // DeleteAsAdmin is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockShipRepository_Expecter) DeleteAsAdmin(ctx interface{}, id interface{}) *MockShipRepository_DeleteAsAdmin_Call {
+func (_e *MockShipRepository_Expecter) DeleteAsAdmin(ctx any, id any) *MockShipRepository_DeleteAsAdmin_Call {
 	return &MockShipRepository_DeleteAsAdmin_Call{Call: _e.mock.On("DeleteAsAdmin", ctx, id)}
 }
 
@@ -438,7 +438,7 @@ type MockShipRepository_DeleteComment_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockShipRepository_Expecter) DeleteComment(ctx interface{}, id interface{}, userID interface{}) *MockShipRepository_DeleteComment_Call {
+func (_e *MockShipRepository_Expecter) DeleteComment(ctx any, id any, userID any) *MockShipRepository_DeleteComment_Call {
 	return &MockShipRepository_DeleteComment_Call{Call: _e.mock.On("DeleteComment", ctx, id, userID)}
 }
 
@@ -500,7 +500,7 @@ type MockShipRepository_DeleteCommentAsAdmin_Call struct {
 // DeleteCommentAsAdmin is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockShipRepository_Expecter) DeleteCommentAsAdmin(ctx interface{}, id interface{}) *MockShipRepository_DeleteCommentAsAdmin_Call {
+func (_e *MockShipRepository_Expecter) DeleteCommentAsAdmin(ctx any, id any) *MockShipRepository_DeleteCommentAsAdmin_Call {
 	return &MockShipRepository_DeleteCommentAsAdmin_Call{Call: _e.mock.On("DeleteCommentAsAdmin", ctx, id)}
 }
 
@@ -568,7 +568,7 @@ type MockShipRepository_GetAuthorID_Call struct {
 // GetAuthorID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - shipID uuid.UUID
-func (_e *MockShipRepository_Expecter) GetAuthorID(ctx interface{}, shipID interface{}) *MockShipRepository_GetAuthorID_Call {
+func (_e *MockShipRepository_Expecter) GetAuthorID(ctx any, shipID any) *MockShipRepository_GetAuthorID_Call {
 	return &MockShipRepository_GetAuthorID_Call{Call: _e.mock.On("GetAuthorID", ctx, shipID)}
 }
 
@@ -637,7 +637,7 @@ type MockShipRepository_GetByID_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - viewerID uuid.UUID
-func (_e *MockShipRepository_Expecter) GetByID(ctx interface{}, id interface{}, viewerID interface{}) *MockShipRepository_GetByID_Call {
+func (_e *MockShipRepository_Expecter) GetByID(ctx any, id any, viewerID any) *MockShipRepository_GetByID_Call {
 	return &MockShipRepository_GetByID_Call{Call: _e.mock.On("GetByID", ctx, id, viewerID)}
 }
 
@@ -710,7 +710,7 @@ type MockShipRepository_GetCharacters_Call struct {
 // GetCharacters is a helper method to define mock.On call
 //   - ctx context.Context
 //   - shipID uuid.UUID
-func (_e *MockShipRepository_Expecter) GetCharacters(ctx interface{}, shipID interface{}) *MockShipRepository_GetCharacters_Call {
+func (_e *MockShipRepository_Expecter) GetCharacters(ctx any, shipID any) *MockShipRepository_GetCharacters_Call {
 	return &MockShipRepository_GetCharacters_Call{Call: _e.mock.On("GetCharacters", ctx, shipID)}
 }
 
@@ -778,7 +778,7 @@ type MockShipRepository_GetCharactersBatch_Call struct {
 // GetCharactersBatch is a helper method to define mock.On call
 //   - ctx context.Context
 //   - shipIDs []uuid.UUID
-func (_e *MockShipRepository_Expecter) GetCharactersBatch(ctx interface{}, shipIDs interface{}) *MockShipRepository_GetCharactersBatch_Call {
+func (_e *MockShipRepository_Expecter) GetCharactersBatch(ctx any, shipIDs any) *MockShipRepository_GetCharactersBatch_Call {
 	return &MockShipRepository_GetCharactersBatch_Call{Call: _e.mock.On("GetCharactersBatch", ctx, shipIDs)}
 }
 
@@ -846,7 +846,7 @@ type MockShipRepository_GetCommentAuthorID_Call struct {
 // GetCommentAuthorID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - commentID uuid.UUID
-func (_e *MockShipRepository_Expecter) GetCommentAuthorID(ctx interface{}, commentID interface{}) *MockShipRepository_GetCommentAuthorID_Call {
+func (_e *MockShipRepository_Expecter) GetCommentAuthorID(ctx any, commentID any) *MockShipRepository_GetCommentAuthorID_Call {
 	return &MockShipRepository_GetCommentAuthorID_Call{Call: _e.mock.On("GetCommentAuthorID", ctx, commentID)}
 }
 
@@ -914,7 +914,7 @@ type MockShipRepository_GetCommentMedia_Call struct {
 // GetCommentMedia is a helper method to define mock.On call
 //   - ctx context.Context
 //   - commentID uuid.UUID
-func (_e *MockShipRepository_Expecter) GetCommentMedia(ctx interface{}, commentID interface{}) *MockShipRepository_GetCommentMedia_Call {
+func (_e *MockShipRepository_Expecter) GetCommentMedia(ctx any, commentID any) *MockShipRepository_GetCommentMedia_Call {
 	return &MockShipRepository_GetCommentMedia_Call{Call: _e.mock.On("GetCommentMedia", ctx, commentID)}
 }
 
@@ -982,7 +982,7 @@ type MockShipRepository_GetCommentMediaBatch_Call struct {
 // GetCommentMediaBatch is a helper method to define mock.On call
 //   - ctx context.Context
 //   - commentIDs []uuid.UUID
-func (_e *MockShipRepository_Expecter) GetCommentMediaBatch(ctx interface{}, commentIDs interface{}) *MockShipRepository_GetCommentMediaBatch_Call {
+func (_e *MockShipRepository_Expecter) GetCommentMediaBatch(ctx any, commentIDs any) *MockShipRepository_GetCommentMediaBatch_Call {
 	return &MockShipRepository_GetCommentMediaBatch_Call{Call: _e.mock.On("GetCommentMediaBatch", ctx, commentIDs)}
 }
 
@@ -1050,7 +1050,7 @@ type MockShipRepository_GetCommentShipID_Call struct {
 // GetCommentShipID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - commentID uuid.UUID
-func (_e *MockShipRepository_Expecter) GetCommentShipID(ctx interface{}, commentID interface{}) *MockShipRepository_GetCommentShipID_Call {
+func (_e *MockShipRepository_Expecter) GetCommentShipID(ctx any, commentID any) *MockShipRepository_GetCommentShipID_Call {
 	return &MockShipRepository_GetCommentShipID_Call{Call: _e.mock.On("GetCommentShipID", ctx, commentID)}
 }
 
@@ -1128,7 +1128,7 @@ type MockShipRepository_GetComments_Call struct {
 //   - limit int
 //   - offset int
 //   - excludeUserIDs []uuid.UUID
-func (_e *MockShipRepository_Expecter) GetComments(ctx interface{}, shipID interface{}, viewerID interface{}, limit interface{}, offset interface{}, excludeUserIDs interface{}) *MockShipRepository_GetComments_Call {
+func (_e *MockShipRepository_Expecter) GetComments(ctx any, shipID any, viewerID any, limit any, offset any, excludeUserIDs any) *MockShipRepository_GetComments_Call {
 	return &MockShipRepository_GetComments_Call{Call: _e.mock.On("GetComments", ctx, shipID, viewerID, limit, offset, excludeUserIDs)}
 }
 
@@ -1206,7 +1206,7 @@ type MockShipRepository_LikeComment_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - commentID uuid.UUID
-func (_e *MockShipRepository_Expecter) LikeComment(ctx interface{}, userID interface{}, commentID interface{}) *MockShipRepository_LikeComment_Call {
+func (_e *MockShipRepository_Expecter) LikeComment(ctx any, userID any, commentID any) *MockShipRepository_LikeComment_Call {
 	return &MockShipRepository_LikeComment_Call{Call: _e.mock.On("LikeComment", ctx, userID, commentID)}
 }
 
@@ -1292,7 +1292,7 @@ type MockShipRepository_List_Call struct {
 //   - limit int
 //   - offset int
 //   - excludeUserIDs []uuid.UUID
-func (_e *MockShipRepository_Expecter) List(ctx interface{}, viewerID interface{}, sort interface{}, crackshipsOnly interface{}, series interface{}, characterID interface{}, limit interface{}, offset interface{}, excludeUserIDs interface{}) *MockShipRepository_List_Call {
+func (_e *MockShipRepository_Expecter) List(ctx any, viewerID any, sort any, crackshipsOnly any, series any, characterID any, limit any, offset any, excludeUserIDs any) *MockShipRepository_List_Call {
 	return &MockShipRepository_List_Call{Call: _e.mock.On("List", ctx, viewerID, sort, crackshipsOnly, series, characterID, limit, offset, excludeUserIDs)}
 }
 
@@ -1404,7 +1404,7 @@ type MockShipRepository_ListByUser_Call struct {
 //   - viewerID uuid.UUID
 //   - limit int
 //   - offset int
-func (_e *MockShipRepository_Expecter) ListByUser(ctx interface{}, userID interface{}, viewerID interface{}, limit interface{}, offset interface{}) *MockShipRepository_ListByUser_Call {
+func (_e *MockShipRepository_Expecter) ListByUser(ctx any, userID any, viewerID any, limit any, offset any) *MockShipRepository_ListByUser_Call {
 	return &MockShipRepository_ListByUser_Call{Call: _e.mock.On("ListByUser", ctx, userID, viewerID, limit, offset)}
 }
 
@@ -1477,7 +1477,7 @@ type MockShipRepository_UnlikeComment_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - commentID uuid.UUID
-func (_e *MockShipRepository_Expecter) UnlikeComment(ctx interface{}, userID interface{}, commentID interface{}) *MockShipRepository_UnlikeComment_Call {
+func (_e *MockShipRepository_Expecter) UnlikeComment(ctx any, userID any, commentID any) *MockShipRepository_UnlikeComment_Call {
 	return &MockShipRepository_UnlikeComment_Call{Call: _e.mock.On("UnlikeComment", ctx, userID, commentID)}
 }
 
@@ -1541,7 +1541,7 @@ type MockShipRepository_UpdateComment_Call struct {
 //   - id uuid.UUID
 //   - userID uuid.UUID
 //   - body string
-func (_e *MockShipRepository_Expecter) UpdateComment(ctx interface{}, id interface{}, userID interface{}, body interface{}) *MockShipRepository_UpdateComment_Call {
+func (_e *MockShipRepository_Expecter) UpdateComment(ctx any, id any, userID any, body any) *MockShipRepository_UpdateComment_Call {
 	return &MockShipRepository_UpdateComment_Call{Call: _e.mock.On("UpdateComment", ctx, id, userID, body)}
 }
 
@@ -1609,7 +1609,7 @@ type MockShipRepository_UpdateCommentAsAdmin_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - body string
-func (_e *MockShipRepository_Expecter) UpdateCommentAsAdmin(ctx interface{}, id interface{}, body interface{}) *MockShipRepository_UpdateCommentAsAdmin_Call {
+func (_e *MockShipRepository_Expecter) UpdateCommentAsAdmin(ctx any, id any, body any) *MockShipRepository_UpdateCommentAsAdmin_Call {
 	return &MockShipRepository_UpdateCommentAsAdmin_Call{Call: _e.mock.On("UpdateCommentAsAdmin", ctx, id, body)}
 }
 
@@ -1672,7 +1672,7 @@ type MockShipRepository_UpdateCommentMediaThumbnail_Call struct {
 //   - ctx context.Context
 //   - id int64
 //   - thumbnailURL string
-func (_e *MockShipRepository_Expecter) UpdateCommentMediaThumbnail(ctx interface{}, id interface{}, thumbnailURL interface{}) *MockShipRepository_UpdateCommentMediaThumbnail_Call {
+func (_e *MockShipRepository_Expecter) UpdateCommentMediaThumbnail(ctx any, id any, thumbnailURL any) *MockShipRepository_UpdateCommentMediaThumbnail_Call {
 	return &MockShipRepository_UpdateCommentMediaThumbnail_Call{Call: _e.mock.On("UpdateCommentMediaThumbnail", ctx, id, thumbnailURL)}
 }
 
@@ -1735,7 +1735,7 @@ type MockShipRepository_UpdateCommentMediaURL_Call struct {
 //   - ctx context.Context
 //   - id int64
 //   - mediaURL string
-func (_e *MockShipRepository_Expecter) UpdateCommentMediaURL(ctx interface{}, id interface{}, mediaURL interface{}) *MockShipRepository_UpdateCommentMediaURL_Call {
+func (_e *MockShipRepository_Expecter) UpdateCommentMediaURL(ctx any, id any, mediaURL any) *MockShipRepository_UpdateCommentMediaURL_Call {
 	return &MockShipRepository_UpdateCommentMediaURL_Call{Call: _e.mock.On("UpdateCommentMediaURL", ctx, id, mediaURL)}
 }
 
@@ -1799,7 +1799,7 @@ type MockShipRepository_UpdateImage_Call struct {
 //   - id uuid.UUID
 //   - imageURL string
 //   - thumbnailURL string
-func (_e *MockShipRepository_Expecter) UpdateImage(ctx interface{}, id interface{}, imageURL interface{}, thumbnailURL interface{}) *MockShipRepository_UpdateImage_Call {
+func (_e *MockShipRepository_Expecter) UpdateImage(ctx any, id any, imageURL any, thumbnailURL any) *MockShipRepository_UpdateImage_Call {
 	return &MockShipRepository_UpdateImage_Call{Call: _e.mock.On("UpdateImage", ctx, id, imageURL, thumbnailURL)}
 }
 
@@ -1871,7 +1871,7 @@ type MockShipRepository_UpdateWithCharacters_Call struct {
 //   - description string
 //   - characters []dto.ShipCharacter
 //   - asAdmin bool
-func (_e *MockShipRepository_Expecter) UpdateWithCharacters(ctx interface{}, id interface{}, userID interface{}, title interface{}, description interface{}, characters interface{}, asAdmin interface{}) *MockShipRepository_UpdateWithCharacters_Call {
+func (_e *MockShipRepository_Expecter) UpdateWithCharacters(ctx any, id any, userID any, title any, description any, characters any, asAdmin any) *MockShipRepository_UpdateWithCharacters_Call {
 	return &MockShipRepository_UpdateWithCharacters_Call{Call: _e.mock.On("UpdateWithCharacters", ctx, id, userID, title, description, characters, asAdmin)}
 }
 
@@ -1955,7 +1955,7 @@ type MockShipRepository_Vote_Call struct {
 //   - userID uuid.UUID
 //   - shipID uuid.UUID
 //   - value int
-func (_e *MockShipRepository_Expecter) Vote(ctx interface{}, userID interface{}, shipID interface{}, value interface{}) *MockShipRepository_Vote_Call {
+func (_e *MockShipRepository_Expecter) Vote(ctx any, userID any, shipID any, value any) *MockShipRepository_Vote_Call {
 	return &MockShipRepository_Vote_Call{Call: _e.mock.On("Vote", ctx, userID, shipID, value)}
 }
 

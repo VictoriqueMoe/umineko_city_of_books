@@ -72,7 +72,7 @@ type MockService_Art_Call struct {
 
 // Art is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockService_Expecter) Art(ctx interface{}) *MockService_Art_Call {
+func (_e *MockService_Expecter) Art(ctx any) *MockService_Art_Call {
 	return &MockService_Art_Call{Call: _e.mock.On("Art", ctx)}
 }
 
@@ -178,7 +178,7 @@ type MockService_Fanfics_Call struct {
 
 // Fanfics is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockService_Expecter) Fanfics(ctx interface{}) *MockService_Fanfics_Call {
+func (_e *MockService_Expecter) Fanfics(ctx any) *MockService_Fanfics_Call {
 	return &MockService_Fanfics_Call{Call: _e.mock.On("Fanfics", ctx)}
 }
 
@@ -286,7 +286,7 @@ type MockService_Journals_Call struct {
 
 // Journals is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockService_Expecter) Journals(ctx interface{}) *MockService_Journals_Call {
+func (_e *MockService_Expecter) Journals(ctx any) *MockService_Journals_Call {
 	return &MockService_Journals_Call{Call: _e.mock.On("Journals", ctx)}
 }
 
@@ -348,7 +348,7 @@ type MockService_Mysteries_Call struct {
 
 // Mysteries is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockService_Expecter) Mysteries(ctx interface{}) *MockService_Mysteries_Call {
+func (_e *MockService_Expecter) Mysteries(ctx any) *MockService_Mysteries_Call {
 	return &MockService_Mysteries_Call{Call: _e.mock.On("Mysteries", ctx)}
 }
 
@@ -410,7 +410,7 @@ type MockService_Posts_Call struct {
 
 // Posts is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockService_Expecter) Posts(ctx interface{}) *MockService_Posts_Call {
+func (_e *MockService_Expecter) Posts(ctx any) *MockService_Posts_Call {
 	return &MockService_Posts_Call{Call: _e.mock.On("Posts", ctx)}
 }
 
@@ -472,7 +472,7 @@ type MockService_Ships_Call struct {
 
 // Ships is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockService_Expecter) Ships(ctx interface{}) *MockService_Ships_Call {
+func (_e *MockService_Expecter) Ships(ctx any) *MockService_Ships_Call {
 	return &MockService_Ships_Call{Call: _e.mock.On("Ships", ctx)}
 }
 
@@ -525,7 +525,7 @@ type MockService_StaticEntries_Call struct {
 
 // StaticEntries is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockService_Expecter) StaticEntries(ctx interface{}) *MockService_StaticEntries_Call {
+func (_e *MockService_Expecter) StaticEntries(ctx any) *MockService_StaticEntries_Call {
 	return &MockService_StaticEntries_Call{Call: _e.mock.On("StaticEntries", ctx)}
 }
 
@@ -587,7 +587,7 @@ type MockService_Theories_Call struct {
 
 // Theories is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockService_Expecter) Theories(ctx interface{}) *MockService_Theories_Call {
+func (_e *MockService_Expecter) Theories(ctx any) *MockService_Theories_Call {
 	return &MockService_Theories_Call{Call: _e.mock.On("Theories", ctx)}
 }
 
@@ -649,7 +649,7 @@ type MockService_Users_Call struct {
 
 // Users is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockService_Expecter) Users(ctx interface{}) *MockService_Users_Call {
+func (_e *MockService_Expecter) Users(ctx any) *MockService_Users_Call {
 	return &MockService_Users_Call{Call: _e.mock.On("Users", ctx)}
 }
 

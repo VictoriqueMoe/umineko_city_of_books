@@ -77,7 +77,7 @@ type MockService_List_Call struct {
 //   - userID uuid.UUID
 //   - limit int
 //   - offset int
-func (_e *MockService_Expecter) List(ctx interface{}, userID interface{}, limit interface{}, offset interface{}) *MockService_List_Call {
+func (_e *MockService_Expecter) List(ctx any, userID any, limit any, offset any) *MockService_List_Call {
 	return &MockService_List_Call{Call: _e.mock.On("List", ctx, userID, limit, offset)}
 }
 
@@ -144,7 +144,7 @@ type MockService_MarkAllRead_Call struct {
 // MarkAllRead is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) MarkAllRead(ctx interface{}, userID interface{}) *MockService_MarkAllRead_Call {
+func (_e *MockService_Expecter) MarkAllRead(ctx any, userID any) *MockService_MarkAllRead_Call {
 	return &MockService_MarkAllRead_Call{Call: _e.mock.On("MarkAllRead", ctx, userID)}
 }
 
@@ -202,7 +202,7 @@ type MockService_MarkRead_Call struct {
 //   - ctx context.Context
 //   - id int
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) MarkRead(ctx interface{}, id interface{}, userID interface{}) *MockService_MarkRead_Call {
+func (_e *MockService_Expecter) MarkRead(ctx any, id any, userID any) *MockService_MarkRead_Call {
 	return &MockService_MarkRead_Call{Call: _e.mock.On("MarkRead", ctx, id, userID)}
 }
 
@@ -264,7 +264,7 @@ type MockService_Notify_Call struct {
 // Notify is a helper method to define mock.On call
 //   - ctx context.Context
 //   - params dto.NotifyParams
-func (_e *MockService_Expecter) Notify(ctx interface{}, params interface{}) *MockService_Notify_Call {
+func (_e *MockService_Expecter) Notify(ctx any, params any) *MockService_Notify_Call {
 	return &MockService_Notify_Call{Call: _e.mock.On("Notify", ctx, params)}
 }
 
@@ -310,7 +310,7 @@ type MockService_NotifyMany_Call struct {
 // NotifyMany is a helper method to define mock.On call
 //   - ctx context.Context
 //   - params []dto.NotifyParams
-func (_e *MockService_Expecter) NotifyMany(ctx interface{}, params interface{}) *MockService_NotifyMany_Call {
+func (_e *MockService_Expecter) NotifyMany(ctx any, params any) *MockService_NotifyMany_Call {
 	return &MockService_NotifyMany_Call{Call: _e.mock.On("NotifyMany", ctx, params)}
 }
 
@@ -376,7 +376,7 @@ type MockService_UnreadCount_Call struct {
 // UnreadCount is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) UnreadCount(ctx interface{}, userID interface{}) *MockService_UnreadCount_Call {
+func (_e *MockService_Expecter) UnreadCount(ctx any, userID any) *MockService_UnreadCount_Call {
 	return &MockService_UnreadCount_Call{Call: _e.mock.On("UnreadCount", ctx, userID)}
 }
 

@@ -76,7 +76,7 @@ type MockReportRepository_Create_Call struct {
 //   - targetID string
 //   - contextID string
 //   - reason string
-func (_e *MockReportRepository_Expecter) Create(ctx interface{}, reporterID interface{}, targetType interface{}, targetID interface{}, contextID interface{}, reason interface{}) *MockReportRepository_Create_Call {
+func (_e *MockReportRepository_Expecter) Create(ctx any, reporterID any, targetType any, targetID any, contextID any, reason any) *MockReportRepository_Create_Call {
 	return &MockReportRepository_Create_Call{Call: _e.mock.On("Create", ctx, reporterID, targetType, targetID, contextID, reason)}
 }
 
@@ -164,7 +164,7 @@ type MockReportRepository_GetByID_Call struct {
 // GetByID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id int
-func (_e *MockReportRepository_Expecter) GetByID(ctx interface{}, id interface{}) *MockReportRepository_GetByID_Call {
+func (_e *MockReportRepository_Expecter) GetByID(ctx any, id any) *MockReportRepository_GetByID_Call {
 	return &MockReportRepository_GetByID_Call{Call: _e.mock.On("GetByID", ctx, id)}
 }
 
@@ -240,7 +240,7 @@ type MockReportRepository_List_Call struct {
 //   - status string
 //   - limit int
 //   - offset int
-func (_e *MockReportRepository_Expecter) List(ctx interface{}, status interface{}, limit interface{}, offset interface{}) *MockReportRepository_List_Call {
+func (_e *MockReportRepository_Expecter) List(ctx any, status any, limit any, offset any) *MockReportRepository_List_Call {
 	return &MockReportRepository_List_Call{Call: _e.mock.On("List", ctx, status, limit, offset)}
 }
 
@@ -309,7 +309,7 @@ type MockReportRepository_Resolve_Call struct {
 //   - id int
 //   - resolvedBy uuid.UUID
 //   - comment string
-func (_e *MockReportRepository_Expecter) Resolve(ctx interface{}, id interface{}, resolvedBy interface{}, comment interface{}) *MockReportRepository_Resolve_Call {
+func (_e *MockReportRepository_Expecter) Resolve(ctx any, id any, resolvedBy any, comment any) *MockReportRepository_Resolve_Call {
 	return &MockReportRepository_Resolve_Call{Call: _e.mock.On("Resolve", ctx, id, resolvedBy, comment)}
 }
 

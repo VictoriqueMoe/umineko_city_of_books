@@ -73,7 +73,7 @@ type MockService_CreateVM_Call struct {
 // CreateVM is a helper method to define mock.On call
 //   - ctx context.Context
 //   - opts CreateVMOptions
-func (_e *MockService_Expecter) CreateVM(ctx interface{}, opts interface{}) *MockService_CreateVM_Call {
+func (_e *MockService_Expecter) CreateVM(ctx any, opts any) *MockService_CreateVM_Call {
 	return &MockService_CreateVM_Call{Call: _e.mock.On("CreateVM", ctx, opts)}
 }
 
@@ -185,7 +185,7 @@ type MockService_GetVMStatus_Call struct {
 // GetVMStatus is a helper method to define mock.On call
 //   - ctx context.Context
 //   - sessionID string
-func (_e *MockService_Expecter) GetVMStatus(ctx interface{}, sessionID interface{}) *MockService_GetVMStatus_Call {
+func (_e *MockService_Expecter) GetVMStatus(ctx any, sessionID any) *MockService_GetVMStatus_Call {
 	return &MockService_GetVMStatus_Call{Call: _e.mock.On("GetVMStatus", ctx, sessionID)}
 }
 
@@ -244,7 +244,7 @@ type MockService_SetControlRole_Call struct {
 //   - vmBaseURL string
 //   - userIdentifier string
 //   - hasControl bool
-func (_e *MockService_Expecter) SetControlRole(ctx interface{}, vmBaseURL interface{}, userIdentifier interface{}, hasControl interface{}) *MockService_SetControlRole_Call {
+func (_e *MockService_Expecter) SetControlRole(ctx any, vmBaseURL any, userIdentifier any, hasControl any) *MockService_SetControlRole_Call {
 	return &MockService_SetControlRole_Call{Call: _e.mock.On("SetControlRole", ctx, vmBaseURL, userIdentifier, hasControl)}
 }
 
@@ -311,7 +311,7 @@ type MockService_TerminateVM_Call struct {
 // TerminateVM is a helper method to define mock.On call
 //   - ctx context.Context
 //   - sessionID string
-func (_e *MockService_Expecter) TerminateVM(ctx interface{}, sessionID interface{}) *MockService_TerminateVM_Call {
+func (_e *MockService_Expecter) TerminateVM(ctx any, sessionID any) *MockService_TerminateVM_Call {
 	return &MockService_TerminateVM_Call{Call: _e.mock.On("TerminateVM", ctx, sessionID)}
 }
 

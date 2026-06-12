@@ -64,7 +64,7 @@ type MockFollowRepository_Follow_Call struct {
 //   - ctx context.Context
 //   - followerID uuid.UUID
 //   - followingID uuid.UUID
-func (_e *MockFollowRepository_Expecter) Follow(ctx interface{}, followerID interface{}, followingID interface{}) *MockFollowRepository_Follow_Call {
+func (_e *MockFollowRepository_Expecter) Follow(ctx any, followerID any, followingID any) *MockFollowRepository_Follow_Call {
 	return &MockFollowRepository_Follow_Call{Call: _e.mock.On("Follow", ctx, followerID, followingID)}
 }
 
@@ -135,7 +135,7 @@ type MockFollowRepository_GetFollowerCount_Call struct {
 // GetFollowerCount is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockFollowRepository_Expecter) GetFollowerCount(ctx interface{}, userID interface{}) *MockFollowRepository_GetFollowerCount_Call {
+func (_e *MockFollowRepository_Expecter) GetFollowerCount(ctx any, userID any) *MockFollowRepository_GetFollowerCount_Call {
 	return &MockFollowRepository_GetFollowerCount_Call{Call: _e.mock.On("GetFollowerCount", ctx, userID)}
 }
 
@@ -211,7 +211,7 @@ type MockFollowRepository_GetFollowers_Call struct {
 //   - userID uuid.UUID
 //   - limit int
 //   - offset int
-func (_e *MockFollowRepository_Expecter) GetFollowers(ctx interface{}, userID interface{}, limit interface{}, offset interface{}) *MockFollowRepository_GetFollowers_Call {
+func (_e *MockFollowRepository_Expecter) GetFollowers(ctx any, userID any, limit any, offset any) *MockFollowRepository_GetFollowers_Call {
 	return &MockFollowRepository_GetFollowers_Call{Call: _e.mock.On("GetFollowers", ctx, userID, limit, offset)}
 }
 
@@ -297,7 +297,7 @@ type MockFollowRepository_GetFollowing_Call struct {
 //   - userID uuid.UUID
 //   - limit int
 //   - offset int
-func (_e *MockFollowRepository_Expecter) GetFollowing(ctx interface{}, userID interface{}, limit interface{}, offset interface{}) *MockFollowRepository_GetFollowing_Call {
+func (_e *MockFollowRepository_Expecter) GetFollowing(ctx any, userID any, limit any, offset any) *MockFollowRepository_GetFollowing_Call {
 	return &MockFollowRepository_GetFollowing_Call{Call: _e.mock.On("GetFollowing", ctx, userID, limit, offset)}
 }
 
@@ -373,7 +373,7 @@ type MockFollowRepository_GetFollowingCount_Call struct {
 // GetFollowingCount is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockFollowRepository_Expecter) GetFollowingCount(ctx interface{}, userID interface{}) *MockFollowRepository_GetFollowingCount_Call {
+func (_e *MockFollowRepository_Expecter) GetFollowingCount(ctx any, userID any) *MockFollowRepository_GetFollowingCount_Call {
 	return &MockFollowRepository_GetFollowingCount_Call{Call: _e.mock.On("GetFollowingCount", ctx, userID)}
 }
 
@@ -441,7 +441,7 @@ type MockFollowRepository_GetMutualFollowers_Call struct {
 // GetMutualFollowers is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockFollowRepository_Expecter) GetMutualFollowers(ctx interface{}, userID interface{}) *MockFollowRepository_GetMutualFollowers_Call {
+func (_e *MockFollowRepository_Expecter) GetMutualFollowers(ctx any, userID any) *MockFollowRepository_GetMutualFollowers_Call {
 	return &MockFollowRepository_GetMutualFollowers_Call{Call: _e.mock.On("GetMutualFollowers", ctx, userID)}
 }
 
@@ -508,7 +508,7 @@ type MockFollowRepository_IsFollowing_Call struct {
 //   - ctx context.Context
 //   - followerID uuid.UUID
 //   - followingID uuid.UUID
-func (_e *MockFollowRepository_Expecter) IsFollowing(ctx interface{}, followerID interface{}, followingID interface{}) *MockFollowRepository_IsFollowing_Call {
+func (_e *MockFollowRepository_Expecter) IsFollowing(ctx any, followerID any, followingID any) *MockFollowRepository_IsFollowing_Call {
 	return &MockFollowRepository_IsFollowing_Call{Call: _e.mock.On("IsFollowing", ctx, followerID, followingID)}
 }
 
@@ -571,7 +571,7 @@ type MockFollowRepository_Unfollow_Call struct {
 //   - ctx context.Context
 //   - followerID uuid.UUID
 //   - followingID uuid.UUID
-func (_e *MockFollowRepository_Expecter) Unfollow(ctx interface{}, followerID interface{}, followingID interface{}) *MockFollowRepository_Unfollow_Call {
+func (_e *MockFollowRepository_Expecter) Unfollow(ctx any, followerID any, followingID any) *MockFollowRepository_Unfollow_Call {
 	return &MockFollowRepository_Unfollow_Call{Call: _e.mock.On("Unfollow", ctx, followerID, followingID)}
 }
 

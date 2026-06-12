@@ -111,7 +111,7 @@ type MockService_ParseTypes_Call struct {
 
 // ParseTypes is a helper method to define mock.On call
 //   - raw string
-func (_e *MockService_Expecter) ParseTypes(raw interface{}) *MockService_ParseTypes_Call {
+func (_e *MockService_Expecter) ParseTypes(raw any) *MockService_ParseTypes_Call {
 	return &MockService_ParseTypes_Call{Call: _e.mock.On("ParseTypes", raw)}
 }
 
@@ -176,7 +176,7 @@ type MockService_QuickSearch_Call struct {
 //   - query string
 //   - perTypeLimit int
 //   - viewerID uuid.UUID
-func (_e *MockService_Expecter) QuickSearch(ctx interface{}, query interface{}, perTypeLimit interface{}, viewerID interface{}) *MockService_QuickSearch_Call {
+func (_e *MockService_Expecter) QuickSearch(ctx any, query any, perTypeLimit any, viewerID any) *MockService_QuickSearch_Call {
 	return &MockService_QuickSearch_Call{Call: _e.mock.On("QuickSearch", ctx, query, perTypeLimit, viewerID)}
 }
 
@@ -265,7 +265,7 @@ type MockService_Search_Call struct {
 //   - offset int
 //   - viewerID uuid.UUID
 //   - roomID uuid.UUID
-func (_e *MockService_Expecter) Search(ctx interface{}, query interface{}, types interface{}, limit interface{}, offset interface{}, viewerID interface{}, roomID interface{}) *MockService_Search_Call {
+func (_e *MockService_Expecter) Search(ctx any, query any, types any, limit any, offset any, viewerID any, roomID any) *MockService_Search_Call {
 	return &MockService_Search_Call{Call: _e.mock.On("Search", ctx, query, types, limit, offset, viewerID, roomID)}
 }
 

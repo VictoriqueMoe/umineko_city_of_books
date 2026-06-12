@@ -64,7 +64,7 @@ type MockService_Add_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - fav Favourite
-func (_e *MockService_Expecter) Add(ctx interface{}, userID interface{}, fav interface{}) *MockService_Add_Call {
+func (_e *MockService_Expecter) Add(ctx any, userID any, fav any) *MockService_Add_Call {
 	return &MockService_Add_Call{Call: _e.mock.On("Add", ctx, userID, fav)}
 }
 
@@ -145,7 +145,7 @@ type MockService_List_Call struct {
 //   - userID uuid.UUID
 //   - limit int
 //   - offset int
-func (_e *MockService_Expecter) List(ctx interface{}, userID interface{}, limit interface{}, offset interface{}) *MockService_List_Call {
+func (_e *MockService_Expecter) List(ctx any, userID any, limit any, offset any) *MockService_List_Call {
 	return &MockService_List_Call{Call: _e.mock.On("List", ctx, userID, limit, offset)}
 }
 
@@ -223,7 +223,7 @@ type MockService_ListIDs_Call struct {
 // ListIDs is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) ListIDs(ctx interface{}, userID interface{}) *MockService_ListIDs_Call {
+func (_e *MockService_Expecter) ListIDs(ctx any, userID any) *MockService_ListIDs_Call {
 	return &MockService_ListIDs_Call{Call: _e.mock.On("ListIDs", ctx, userID)}
 }
 
@@ -281,7 +281,7 @@ type MockService_Remove_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - giphyID string
-func (_e *MockService_Expecter) Remove(ctx interface{}, userID interface{}, giphyID interface{}) *MockService_Remove_Call {
+func (_e *MockService_Expecter) Remove(ctx any, userID any, giphyID any) *MockService_Remove_Call {
 	return &MockService_Remove_Call{Call: _e.mock.On("Remove", ctx, userID, giphyID)}
 }
 

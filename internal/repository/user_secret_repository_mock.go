@@ -63,7 +63,7 @@ type MockUserSecretRepository_DeleteSecrets_Call struct {
 // DeleteSecrets is a helper method to define mock.On call
 //   - ctx context.Context
 //   - secretIDs []string
-func (_e *MockUserSecretRepository_Expecter) DeleteSecrets(ctx interface{}, secretIDs interface{}) *MockUserSecretRepository_DeleteSecrets_Call {
+func (_e *MockUserSecretRepository_Expecter) DeleteSecrets(ctx any, secretIDs any) *MockUserSecretRepository_DeleteSecrets_Call {
 	return &MockUserSecretRepository_DeleteSecrets_Call{Call: _e.mock.On("DeleteSecrets", ctx, secretIDs)}
 }
 
@@ -131,7 +131,7 @@ type MockUserSecretRepository_GetUserIDsWithAnyPiece_Call struct {
 // GetUserIDsWithAnyPiece is a helper method to define mock.On call
 //   - ctx context.Context
 //   - pieceIDs []string
-func (_e *MockUserSecretRepository_Expecter) GetUserIDsWithAnyPiece(ctx interface{}, pieceIDs interface{}) *MockUserSecretRepository_GetUserIDsWithAnyPiece_Call {
+func (_e *MockUserSecretRepository_Expecter) GetUserIDsWithAnyPiece(ctx any, pieceIDs any) *MockUserSecretRepository_GetUserIDsWithAnyPiece_Call {
 	return &MockUserSecretRepository_GetUserIDsWithAnyPiece_Call{Call: _e.mock.On("GetUserIDsWithAnyPiece", ctx, pieceIDs)}
 }
 
@@ -199,7 +199,7 @@ type MockUserSecretRepository_GetUserIDsWithSecret_Call struct {
 // GetUserIDsWithSecret is a helper method to define mock.On call
 //   - ctx context.Context
 //   - secretID string
-func (_e *MockUserSecretRepository_Expecter) GetUserIDsWithSecret(ctx interface{}, secretID interface{}) *MockUserSecretRepository_GetUserIDsWithSecret_Call {
+func (_e *MockUserSecretRepository_Expecter) GetUserIDsWithSecret(ctx any, secretID any) *MockUserSecretRepository_GetUserIDsWithSecret_Call {
 	return &MockUserSecretRepository_GetUserIDsWithSecret_Call{Call: _e.mock.On("GetUserIDsWithSecret", ctx, secretID)}
 }
 
@@ -265,7 +265,7 @@ type MockUserSecretRepository_IsSolvedByAnyone_Call struct {
 // IsSolvedByAnyone is a helper method to define mock.On call
 //   - ctx context.Context
 //   - secretID string
-func (_e *MockUserSecretRepository_Expecter) IsSolvedByAnyone(ctx interface{}, secretID interface{}) *MockUserSecretRepository_IsSolvedByAnyone_Call {
+func (_e *MockUserSecretRepository_Expecter) IsSolvedByAnyone(ctx any, secretID any) *MockUserSecretRepository_IsSolvedByAnyone_Call {
 	return &MockUserSecretRepository_IsSolvedByAnyone_Call{Call: _e.mock.On("IsSolvedByAnyone", ctx, secretID)}
 }
 
@@ -333,7 +333,7 @@ type MockUserSecretRepository_ListForUser_Call struct {
 // ListForUser is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockUserSecretRepository_Expecter) ListForUser(ctx interface{}, userID interface{}) *MockUserSecretRepository_ListForUser_Call {
+func (_e *MockUserSecretRepository_Expecter) ListForUser(ctx any, userID any) *MockUserSecretRepository_ListForUser_Call {
 	return &MockUserSecretRepository_ListForUser_Call{Call: _e.mock.On("ListForUser", ctx, userID)}
 }
 
@@ -391,7 +391,7 @@ type MockUserSecretRepository_Unlock_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - secretID string
-func (_e *MockUserSecretRepository_Expecter) Unlock(ctx interface{}, userID interface{}, secretID interface{}) *MockUserSecretRepository_Unlock_Call {
+func (_e *MockUserSecretRepository_Expecter) Unlock(ctx any, userID any, secretID any) *MockUserSecretRepository_Unlock_Call {
 	return &MockUserSecretRepository_Unlock_Call{Call: _e.mock.On("Unlock", ctx, userID, secretID)}
 }
 

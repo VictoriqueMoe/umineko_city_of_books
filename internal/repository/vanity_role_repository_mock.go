@@ -64,7 +64,7 @@ type MockVanityRoleRepository_AssignToUser_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - roleID string
-func (_e *MockVanityRoleRepository_Expecter) AssignToUser(ctx interface{}, userID interface{}, roleID interface{}) *MockVanityRoleRepository_AssignToUser_Call {
+func (_e *MockVanityRoleRepository_Expecter) AssignToUser(ctx any, userID any, roleID any) *MockVanityRoleRepository_AssignToUser_Call {
 	return &MockVanityRoleRepository_AssignToUser_Call{Call: _e.mock.On("AssignToUser", ctx, userID, roleID)}
 }
 
@@ -129,7 +129,7 @@ type MockVanityRoleRepository_Create_Call struct {
 //   - label string
 //   - color string
 //   - sortOrder int
-func (_e *MockVanityRoleRepository_Expecter) Create(ctx interface{}, id interface{}, label interface{}, color interface{}, sortOrder interface{}) *MockVanityRoleRepository_Create_Call {
+func (_e *MockVanityRoleRepository_Expecter) Create(ctx any, id any, label any, color any, sortOrder any) *MockVanityRoleRepository_Create_Call {
 	return &MockVanityRoleRepository_Create_Call{Call: _e.mock.On("Create", ctx, id, label, color, sortOrder)}
 }
 
@@ -201,7 +201,7 @@ type MockVanityRoleRepository_Delete_Call struct {
 // Delete is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id string
-func (_e *MockVanityRoleRepository_Expecter) Delete(ctx interface{}, id interface{}) *MockVanityRoleRepository_Delete_Call {
+func (_e *MockVanityRoleRepository_Expecter) Delete(ctx any, id any) *MockVanityRoleRepository_Delete_Call {
 	return &MockVanityRoleRepository_Delete_Call{Call: _e.mock.On("Delete", ctx, id)}
 }
 
@@ -268,7 +268,7 @@ type MockVanityRoleRepository_GetAllAssignments_Call struct {
 
 // GetAllAssignments is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockVanityRoleRepository_Expecter) GetAllAssignments(ctx interface{}) *MockVanityRoleRepository_GetAllAssignments_Call {
+func (_e *MockVanityRoleRepository_Expecter) GetAllAssignments(ctx any) *MockVanityRoleRepository_GetAllAssignments_Call {
 	return &MockVanityRoleRepository_GetAllAssignments_Call{Call: _e.mock.On("GetAllAssignments", ctx)}
 }
 
@@ -331,7 +331,7 @@ type MockVanityRoleRepository_GetByID_Call struct {
 // GetByID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id string
-func (_e *MockVanityRoleRepository_Expecter) GetByID(ctx interface{}, id interface{}) *MockVanityRoleRepository_GetByID_Call {
+func (_e *MockVanityRoleRepository_Expecter) GetByID(ctx any, id any) *MockVanityRoleRepository_GetByID_Call {
 	return &MockVanityRoleRepository_GetByID_Call{Call: _e.mock.On("GetByID", ctx, id)}
 }
 
@@ -399,7 +399,7 @@ type MockVanityRoleRepository_GetRolesForUser_Call struct {
 // GetRolesForUser is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockVanityRoleRepository_Expecter) GetRolesForUser(ctx interface{}, userID interface{}) *MockVanityRoleRepository_GetRolesForUser_Call {
+func (_e *MockVanityRoleRepository_Expecter) GetRolesForUser(ctx any, userID any) *MockVanityRoleRepository_GetRolesForUser_Call {
 	return &MockVanityRoleRepository_GetRolesForUser_Call{Call: _e.mock.On("GetRolesForUser", ctx, userID)}
 }
 
@@ -467,7 +467,7 @@ type MockVanityRoleRepository_GetRolesForUsersBatch_Call struct {
 // GetRolesForUsersBatch is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userIDs []uuid.UUID
-func (_e *MockVanityRoleRepository_Expecter) GetRolesForUsersBatch(ctx interface{}, userIDs interface{}) *MockVanityRoleRepository_GetRolesForUsersBatch_Call {
+func (_e *MockVanityRoleRepository_Expecter) GetRolesForUsersBatch(ctx any, userIDs any) *MockVanityRoleRepository_GetRolesForUsersBatch_Call {
 	return &MockVanityRoleRepository_GetRolesForUsersBatch_Call{Call: _e.mock.On("GetRolesForUsersBatch", ctx, userIDs)}
 }
 
@@ -544,7 +544,7 @@ type MockVanityRoleRepository_GetUsersForRole_Call struct {
 //   - search string
 //   - limit int
 //   - offset int
-func (_e *MockVanityRoleRepository_Expecter) GetUsersForRole(ctx interface{}, roleID interface{}, search interface{}, limit interface{}, offset interface{}) *MockVanityRoleRepository_GetUsersForRole_Call {
+func (_e *MockVanityRoleRepository_Expecter) GetUsersForRole(ctx any, roleID any, search any, limit any, offset any) *MockVanityRoleRepository_GetUsersForRole_Call {
 	return &MockVanityRoleRepository_GetUsersForRole_Call{Call: _e.mock.On("GetUsersForRole", ctx, roleID, search, limit, offset)}
 }
 
@@ -626,7 +626,7 @@ type MockVanityRoleRepository_List_Call struct {
 
 // List is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockVanityRoleRepository_Expecter) List(ctx interface{}) *MockVanityRoleRepository_List_Call {
+func (_e *MockVanityRoleRepository_Expecter) List(ctx any) *MockVanityRoleRepository_List_Call {
 	return &MockVanityRoleRepository_List_Call{Call: _e.mock.On("List", ctx)}
 }
 
@@ -679,7 +679,7 @@ type MockVanityRoleRepository_UnassignFromUser_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - roleID string
-func (_e *MockVanityRoleRepository_Expecter) UnassignFromUser(ctx interface{}, userID interface{}, roleID interface{}) *MockVanityRoleRepository_UnassignFromUser_Call {
+func (_e *MockVanityRoleRepository_Expecter) UnassignFromUser(ctx any, userID any, roleID any) *MockVanityRoleRepository_UnassignFromUser_Call {
 	return &MockVanityRoleRepository_UnassignFromUser_Call{Call: _e.mock.On("UnassignFromUser", ctx, userID, roleID)}
 }
 
@@ -744,7 +744,7 @@ type MockVanityRoleRepository_Update_Call struct {
 //   - label string
 //   - color string
 //   - sortOrder int
-func (_e *MockVanityRoleRepository_Expecter) Update(ctx interface{}, id interface{}, label interface{}, color interface{}, sortOrder interface{}) *MockVanityRoleRepository_Update_Call {
+func (_e *MockVanityRoleRepository_Expecter) Update(ctx any, id any, label any, color any, sortOrder any) *MockVanityRoleRepository_Update_Call {
 	return &MockVanityRoleRepository_Update_Call{Call: _e.mock.On("Update", ctx, id, label, color, sortOrder)}
 }
 

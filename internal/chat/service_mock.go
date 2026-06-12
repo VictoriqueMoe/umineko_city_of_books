@@ -68,7 +68,7 @@ type MockService_AddReaction_Call struct {
 //   - messageID uuid.UUID
 //   - userID uuid.UUID
 //   - emoji string
-func (_e *MockService_Expecter) AddReaction(ctx interface{}, messageID interface{}, userID interface{}, emoji interface{}) *MockService_AddReaction_Call {
+func (_e *MockService_Expecter) AddReaction(ctx any, messageID any, userID any, emoji any) *MockService_AddReaction_Call {
 	return &MockService_AddReaction_Call{Call: _e.mock.On("AddReaction", ctx, messageID, userID, emoji)}
 }
 
@@ -143,7 +143,7 @@ type MockService_ArchiveStale_Call struct {
 
 // ArchiveStale is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockService_Expecter) ArchiveStale(ctx interface{}) *MockService_ArchiveStale_Call {
+func (_e *MockService_Expecter) ArchiveStale(ctx any) *MockService_ArchiveStale_Call {
 	return &MockService_ArchiveStale_Call{Call: _e.mock.On("ArchiveStale", ctx)}
 }
 
@@ -198,7 +198,7 @@ type MockService_BanMember_Call struct {
 //   - roomID uuid.UUID
 //   - targetID uuid.UUID
 //   - reason string
-func (_e *MockService_Expecter) BanMember(ctx interface{}, actorID interface{}, roomID interface{}, targetID interface{}, reason interface{}) *MockService_BanMember_Call {
+func (_e *MockService_Expecter) BanMember(ctx any, actorID any, roomID any, targetID any, reason any) *MockService_BanMember_Call {
 	return &MockService_BanMember_Call{Call: _e.mock.On("BanMember", ctx, actorID, roomID, targetID, reason)}
 }
 
@@ -283,7 +283,7 @@ type MockService_ClearMemberTimeout_Call struct {
 //   - roomID uuid.UUID
 //   - actorID uuid.UUID
 //   - targetID uuid.UUID
-func (_e *MockService_Expecter) ClearMemberTimeout(ctx interface{}, roomID interface{}, actorID interface{}, targetID interface{}) *MockService_ClearMemberTimeout_Call {
+func (_e *MockService_Expecter) ClearMemberTimeout(ctx any, roomID any, actorID any, targetID any) *MockService_ClearMemberTimeout_Call {
 	return &MockService_ClearMemberTimeout_Call{Call: _e.mock.On("ClearMemberTimeout", ctx, roomID, actorID, targetID)}
 }
 
@@ -362,7 +362,7 @@ type MockService_ClearRoomAvatar_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) ClearRoomAvatar(ctx interface{}, roomID interface{}, userID interface{}) *MockService_ClearRoomAvatar_Call {
+func (_e *MockService_Expecter) ClearRoomAvatar(ctx any, roomID any, userID any) *MockService_ClearRoomAvatar_Call {
 	return &MockService_ClearRoomAvatar_Call{Call: _e.mock.On("ClearRoomAvatar", ctx, roomID, userID)}
 }
 
@@ -436,7 +436,7 @@ type MockService_CreateGlobalBannedWord_Call struct {
 //   - ctx context.Context
 //   - actorID uuid.UUID
 //   - req dto.CreateBannedWordRequest
-func (_e *MockService_Expecter) CreateGlobalBannedWord(ctx interface{}, actorID interface{}, req interface{}) *MockService_CreateGlobalBannedWord_Call {
+func (_e *MockService_Expecter) CreateGlobalBannedWord(ctx any, actorID any, req any) *MockService_CreateGlobalBannedWord_Call {
 	return &MockService_CreateGlobalBannedWord_Call{Call: _e.mock.On("CreateGlobalBannedWord", ctx, actorID, req)}
 }
 
@@ -510,7 +510,7 @@ type MockService_CreateGroupRoom_Call struct {
 //   - ctx context.Context
 //   - creatorID uuid.UUID
 //   - req dto.CreateGroupRoomRequest
-func (_e *MockService_Expecter) CreateGroupRoom(ctx interface{}, creatorID interface{}, req interface{}) *MockService_CreateGroupRoom_Call {
+func (_e *MockService_Expecter) CreateGroupRoom(ctx any, creatorID any, req any) *MockService_CreateGroupRoom_Call {
 	return &MockService_CreateGroupRoom_Call{Call: _e.mock.On("CreateGroupRoom", ctx, creatorID, req)}
 }
 
@@ -585,7 +585,7 @@ type MockService_CreateRoomBannedWord_Call struct {
 //   - actorID uuid.UUID
 //   - roomID uuid.UUID
 //   - req dto.CreateBannedWordRequest
-func (_e *MockService_Expecter) CreateRoomBannedWord(ctx interface{}, actorID interface{}, roomID interface{}, req interface{}) *MockService_CreateRoomBannedWord_Call {
+func (_e *MockService_Expecter) CreateRoomBannedWord(ctx any, actorID any, roomID any, req any) *MockService_CreateRoomBannedWord_Call {
 	return &MockService_CreateRoomBannedWord_Call{Call: _e.mock.On("CreateRoomBannedWord", ctx, actorID, roomID, req)}
 }
 
@@ -654,7 +654,7 @@ type MockService_CreateStreamRoom_Call struct {
 //   - streamID uuid.UUID
 //   - streamerID uuid.UUID
 //   - title string
-func (_e *MockService_Expecter) CreateStreamRoom(ctx interface{}, streamID interface{}, streamerID interface{}, title interface{}) *MockService_CreateStreamRoom_Call {
+func (_e *MockService_Expecter) CreateStreamRoom(ctx any, streamID any, streamerID any, title any) *MockService_CreateStreamRoom_Call {
 	return &MockService_CreateStreamRoom_Call{Call: _e.mock.On("CreateStreamRoom", ctx, streamID, streamerID, title)}
 }
 
@@ -722,7 +722,7 @@ type MockService_DeleteChat_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) DeleteChat(ctx interface{}, roomID interface{}, userID interface{}) *MockService_DeleteChat_Call {
+func (_e *MockService_Expecter) DeleteChat(ctx any, roomID any, userID any) *MockService_DeleteChat_Call {
 	return &MockService_DeleteChat_Call{Call: _e.mock.On("DeleteChat", ctx, roomID, userID)}
 }
 
@@ -785,7 +785,7 @@ type MockService_DeleteGlobalBannedWord_Call struct {
 //   - ctx context.Context
 //   - actorID uuid.UUID
 //   - ruleID uuid.UUID
-func (_e *MockService_Expecter) DeleteGlobalBannedWord(ctx interface{}, actorID interface{}, ruleID interface{}) *MockService_DeleteGlobalBannedWord_Call {
+func (_e *MockService_Expecter) DeleteGlobalBannedWord(ctx any, actorID any, ruleID any) *MockService_DeleteGlobalBannedWord_Call {
 	return &MockService_DeleteGlobalBannedWord_Call{Call: _e.mock.On("DeleteGlobalBannedWord", ctx, actorID, ruleID)}
 }
 
@@ -848,7 +848,7 @@ type MockService_DeleteMessage_Call struct {
 //   - ctx context.Context
 //   - messageID uuid.UUID
 //   - actorID uuid.UUID
-func (_e *MockService_Expecter) DeleteMessage(ctx interface{}, messageID interface{}, actorID interface{}) *MockService_DeleteMessage_Call {
+func (_e *MockService_Expecter) DeleteMessage(ctx any, messageID any, actorID any) *MockService_DeleteMessage_Call {
 	return &MockService_DeleteMessage_Call{Call: _e.mock.On("DeleteMessage", ctx, messageID, actorID)}
 }
 
@@ -912,7 +912,7 @@ type MockService_DeleteRoomBannedWord_Call struct {
 //   - actorID uuid.UUID
 //   - roomID uuid.UUID
 //   - ruleID uuid.UUID
-func (_e *MockService_Expecter) DeleteRoomBannedWord(ctx interface{}, actorID interface{}, roomID interface{}, ruleID interface{}) *MockService_DeleteRoomBannedWord_Call {
+func (_e *MockService_Expecter) DeleteRoomBannedWord(ctx any, actorID any, roomID any, ruleID any) *MockService_DeleteRoomBannedWord_Call {
 	return &MockService_DeleteRoomBannedWord_Call{Call: _e.mock.On("DeleteRoomBannedWord", ctx, actorID, roomID, ruleID)}
 }
 
@@ -979,7 +979,7 @@ type MockService_DeleteStreamRoom_Call struct {
 // DeleteStreamRoom is a helper method to define mock.On call
 //   - ctx context.Context
 //   - streamID uuid.UUID
-func (_e *MockService_Expecter) DeleteStreamRoom(ctx interface{}, streamID interface{}) *MockService_DeleteStreamRoom_Call {
+func (_e *MockService_Expecter) DeleteStreamRoom(ctx any, streamID any) *MockService_DeleteStreamRoom_Call {
 	return &MockService_DeleteStreamRoom_Call{Call: _e.mock.On("DeleteStreamRoom", ctx, streamID)}
 }
 
@@ -1049,7 +1049,7 @@ type MockService_EditMessage_Call struct {
 //   - messageID uuid.UUID
 //   - actorID uuid.UUID
 //   - body string
-func (_e *MockService_Expecter) EditMessage(ctx interface{}, messageID interface{}, actorID interface{}, body interface{}) *MockService_EditMessage_Call {
+func (_e *MockService_Expecter) EditMessage(ctx any, messageID any, actorID any, body any) *MockService_EditMessage_Call {
 	return &MockService_EditMessage_Call{Call: _e.mock.On("EditMessage", ctx, messageID, actorID, body)}
 }
 
@@ -1119,7 +1119,7 @@ type MockService_EndWatchParty_Call struct {
 //   - sessionID uuid.UUID
 //   - actorID uuid.UUID
 //   - reason string
-func (_e *MockService_Expecter) EndWatchParty(ctx interface{}, roomID interface{}, sessionID interface{}, actorID interface{}, reason interface{}) *MockService_EndWatchParty_Call {
+func (_e *MockService_Expecter) EndWatchParty(ctx any, roomID any, sessionID any, actorID any, reason any) *MockService_EndWatchParty_Call {
 	return &MockService_EndWatchParty_Call{Call: _e.mock.On("EndWatchParty", ctx, roomID, sessionID, actorID, reason)}
 }
 
@@ -1190,7 +1190,7 @@ type MockService_EnsureSystemRooms_Call struct {
 
 // EnsureSystemRooms is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockService_Expecter) EnsureSystemRooms(ctx interface{}) *MockService_EnsureSystemRooms_Call {
+func (_e *MockService_Expecter) EnsureSystemRooms(ctx any) *MockService_EnsureSystemRooms_Call {
 	return &MockService_EnsureSystemRooms_Call{Call: _e.mock.On("EnsureSystemRooms", ctx)}
 }
 
@@ -1246,7 +1246,7 @@ type MockService_ForceMuteSessionVoice_Call struct {
 //   - actorID uuid.UUID
 //   - targetID uuid.UUID
 //   - muted bool
-func (_e *MockService_Expecter) ForceMuteSessionVoice(ctx interface{}, roomID interface{}, sessionID interface{}, actorID interface{}, targetID interface{}, muted interface{}) *MockService_ForceMuteSessionVoice_Call {
+func (_e *MockService_Expecter) ForceMuteSessionVoice(ctx any, roomID any, sessionID any, actorID any, targetID any, muted any) *MockService_ForceMuteSessionVoice_Call {
 	return &MockService_ForceMuteSessionVoice_Call{Call: _e.mock.On("ForceMuteSessionVoice", ctx, roomID, sessionID, actorID, targetID, muted)}
 }
 
@@ -1326,7 +1326,7 @@ type MockService_ForceMuteVoice_Call struct {
 //   - actorID uuid.UUID
 //   - targetID uuid.UUID
 //   - muted bool
-func (_e *MockService_Expecter) ForceMuteVoice(ctx interface{}, roomID interface{}, actorID interface{}, targetID interface{}, muted interface{}) *MockService_ForceMuteVoice_Call {
+func (_e *MockService_Expecter) ForceMuteVoice(ctx any, roomID any, actorID any, targetID any, muted any) *MockService_ForceMuteVoice_Call {
 	return &MockService_ForceMuteVoice_Call{Call: _e.mock.On("ForceMuteVoice", ctx, roomID, actorID, targetID, muted)}
 }
 
@@ -1410,7 +1410,7 @@ type MockService_GetMembers_Call struct {
 //   - ctx context.Context
 //   - viewerID uuid.UUID
 //   - roomID uuid.UUID
-func (_e *MockService_Expecter) GetMembers(ctx interface{}, viewerID interface{}, roomID interface{}) *MockService_GetMembers_Call {
+func (_e *MockService_Expecter) GetMembers(ctx any, viewerID any, roomID any) *MockService_GetMembers_Call {
 	return &MockService_GetMembers_Call{Call: _e.mock.On("GetMembers", ctx, viewerID, roomID)}
 }
 
@@ -1486,7 +1486,7 @@ type MockService_GetMessages_Call struct {
 //   - roomID uuid.UUID
 //   - limit int
 //   - offset int
-func (_e *MockService_Expecter) GetMessages(ctx interface{}, userID interface{}, roomID interface{}, limit interface{}, offset interface{}) *MockService_GetMessages_Call {
+func (_e *MockService_Expecter) GetMessages(ctx any, userID any, roomID any, limit any, offset any) *MockService_GetMessages_Call {
 	return &MockService_GetMessages_Call{Call: _e.mock.On("GetMessages", ctx, userID, roomID, limit, offset)}
 }
 
@@ -1572,7 +1572,7 @@ type MockService_GetMessagesBefore_Call struct {
 //   - roomID uuid.UUID
 //   - before string
 //   - limit int
-func (_e *MockService_Expecter) GetMessagesBefore(ctx interface{}, userID interface{}, roomID interface{}, before interface{}, limit interface{}) *MockService_GetMessagesBefore_Call {
+func (_e *MockService_Expecter) GetMessagesBefore(ctx any, userID any, roomID any, before any, limit any) *MockService_GetMessagesBefore_Call {
 	return &MockService_GetMessagesBefore_Call{Call: _e.mock.On("GetMessagesBefore", ctx, userID, roomID, before, limit)}
 }
 
@@ -1655,7 +1655,7 @@ type MockService_GetRoomsByUser_Call struct {
 // GetRoomsByUser is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) GetRoomsByUser(ctx interface{}, userID interface{}) *MockService_GetRoomsByUser_Call {
+func (_e *MockService_Expecter) GetRoomsByUser(ctx any, userID any) *MockService_GetRoomsByUser_Call {
 	return &MockService_GetRoomsByUser_Call{Call: _e.mock.On("GetRoomsByUser", ctx, userID)}
 }
 
@@ -1721,7 +1721,7 @@ type MockService_GetUnreadCount_Call struct {
 // GetUnreadCount is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) GetUnreadCount(ctx interface{}, userID interface{}) *MockService_GetUnreadCount_Call {
+func (_e *MockService_Expecter) GetUnreadCount(ctx any, userID any) *MockService_GetUnreadCount_Call {
 	return &MockService_GetUnreadCount_Call{Call: _e.mock.On("GetUnreadCount", ctx, userID)}
 }
 
@@ -1791,7 +1791,7 @@ type MockService_GetWatchPartyMessages_Call struct {
 //   - roomID uuid.UUID
 //   - sessionID uuid.UUID
 //   - viewerID uuid.UUID
-func (_e *MockService_Expecter) GetWatchPartyMessages(ctx interface{}, roomID interface{}, sessionID interface{}, viewerID interface{}) *MockService_GetWatchPartyMessages_Call {
+func (_e *MockService_Expecter) GetWatchPartyMessages(ctx any, roomID any, sessionID any, viewerID any) *MockService_GetWatchPartyMessages_Call {
 	return &MockService_GetWatchPartyMessages_Call{Call: _e.mock.On("GetWatchPartyMessages", ctx, roomID, sessionID, viewerID)}
 }
 
@@ -1861,7 +1861,7 @@ type MockService_GrantWatchPartyControl_Call struct {
 //   - sessionID uuid.UUID
 //   - callerID uuid.UUID
 //   - targetID uuid.UUID
-func (_e *MockService_Expecter) GrantWatchPartyControl(ctx interface{}, roomID interface{}, sessionID interface{}, callerID interface{}, targetID interface{}) *MockService_GrantWatchPartyControl_Call {
+func (_e *MockService_Expecter) GrantWatchPartyControl(ctx any, roomID any, sessionID any, callerID any, targetID any) *MockService_GrantWatchPartyControl_Call {
 	return &MockService_GrantWatchPartyControl_Call{Call: _e.mock.On("GrantWatchPartyControl", ctx, roomID, sessionID, callerID, targetID)}
 }
 
@@ -1923,7 +1923,7 @@ type MockService_HandleClientDisconnect_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - roomIDs []uuid.UUID
-func (_e *MockService_Expecter) HandleClientDisconnect(ctx interface{}, userID interface{}, roomIDs interface{}) *MockService_HandleClientDisconnect_Call {
+func (_e *MockService_Expecter) HandleClientDisconnect(ctx any, userID any, roomIDs any) *MockService_HandleClientDisconnect_Call {
 	return &MockService_HandleClientDisconnect_Call{Call: _e.mock.On("HandleClientDisconnect", ctx, userID, roomIDs)}
 }
 
@@ -1986,7 +1986,7 @@ type MockService_HandleVoiceWebhook_Call struct {
 //   - ctx context.Context
 //   - authHeader string
 //   - body []byte
-func (_e *MockService_Expecter) HandleVoiceWebhook(ctx interface{}, authHeader interface{}, body interface{}) *MockService_HandleVoiceWebhook_Call {
+func (_e *MockService_Expecter) HandleVoiceWebhook(ctx any, authHeader any, body any) *MockService_HandleVoiceWebhook_Call {
 	return &MockService_HandleVoiceWebhook_Call{Call: _e.mock.On("HandleVoiceWebhook", ctx, authHeader, body)}
 }
 
@@ -2051,7 +2051,7 @@ type MockService_IdentifyWatchPartyParticipant_Call struct {
 //   - sessionID uuid.UUID
 //   - userID uuid.UUID
 //   - identifier string
-func (_e *MockService_Expecter) IdentifyWatchPartyParticipant(ctx interface{}, roomID interface{}, sessionID interface{}, userID interface{}, identifier interface{}) *MockService_IdentifyWatchPartyParticipant_Call {
+func (_e *MockService_Expecter) IdentifyWatchPartyParticipant(ctx any, roomID any, sessionID any, userID any, identifier any) *MockService_IdentifyWatchPartyParticipant_Call {
 	return &MockService_IdentifyWatchPartyParticipant_Call{Call: _e.mock.On("IdentifyWatchPartyParticipant", ctx, roomID, sessionID, userID, identifier)}
 }
 
@@ -2136,7 +2136,7 @@ type MockService_InviteMembers_Call struct {
 //   - hostID uuid.UUID
 //   - roomID uuid.UUID
 //   - userIDs []uuid.UUID
-func (_e *MockService_Expecter) InviteMembers(ctx interface{}, hostID interface{}, roomID interface{}, userIDs interface{}) *MockService_InviteMembers_Call {
+func (_e *MockService_Expecter) InviteMembers(ctx any, hostID any, roomID any, userIDs any) *MockService_InviteMembers_Call {
 	return &MockService_InviteMembers_Call{Call: _e.mock.On("InviteMembers", ctx, hostID, roomID, userIDs)}
 }
 
@@ -2213,7 +2213,7 @@ type MockService_IsRoomMuted_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) IsRoomMuted(ctx interface{}, roomID interface{}, userID interface{}) *MockService_IsRoomMuted_Call {
+func (_e *MockService_Expecter) IsRoomMuted(ctx any, roomID any, userID any) *MockService_IsRoomMuted_Call {
 	return &MockService_IsRoomMuted_Call{Call: _e.mock.On("IsRoomMuted", ctx, roomID, userID)}
 }
 
@@ -2288,7 +2288,7 @@ type MockService_JoinRoom_Call struct {
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
 //   - ghost bool
-func (_e *MockService_Expecter) JoinRoom(ctx interface{}, roomID interface{}, userID interface{}, ghost interface{}) *MockService_JoinRoom_Call {
+func (_e *MockService_Expecter) JoinRoom(ctx any, roomID any, userID any, ghost any) *MockService_JoinRoom_Call {
 	return &MockService_JoinRoom_Call{Call: _e.mock.On("JoinRoom", ctx, roomID, userID, ghost)}
 }
 
@@ -2356,7 +2356,7 @@ type MockService_JoinStreamChat_Call struct {
 //   - ctx context.Context
 //   - streamID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) JoinStreamChat(ctx interface{}, streamID interface{}, userID interface{}) *MockService_JoinStreamChat_Call {
+func (_e *MockService_Expecter) JoinStreamChat(ctx any, streamID any, userID any) *MockService_JoinStreamChat_Call {
 	return &MockService_JoinStreamChat_Call{Call: _e.mock.On("JoinStreamChat", ctx, streamID, userID)}
 }
 
@@ -2431,7 +2431,7 @@ type MockService_JoinWatchParty_Call struct {
 //   - roomID uuid.UUID
 //   - sessionID uuid.UUID
 //   - actorID uuid.UUID
-func (_e *MockService_Expecter) JoinWatchParty(ctx interface{}, roomID interface{}, sessionID interface{}, actorID interface{}) *MockService_JoinWatchParty_Call {
+func (_e *MockService_Expecter) JoinWatchParty(ctx any, roomID any, sessionID any, actorID any) *MockService_JoinWatchParty_Call {
 	return &MockService_JoinWatchParty_Call{Call: _e.mock.On("JoinWatchParty", ctx, roomID, sessionID, actorID)}
 }
 
@@ -2500,7 +2500,7 @@ type MockService_KickMember_Call struct {
 //   - hostID uuid.UUID
 //   - roomID uuid.UUID
 //   - targetID uuid.UUID
-func (_e *MockService_Expecter) KickMember(ctx interface{}, hostID interface{}, roomID interface{}, targetID interface{}) *MockService_KickMember_Call {
+func (_e *MockService_Expecter) KickMember(ctx any, hostID any, roomID any, targetID any) *MockService_KickMember_Call {
 	return &MockService_KickMember_Call{Call: _e.mock.On("KickMember", ctx, hostID, roomID, targetID)}
 }
 
@@ -2570,7 +2570,7 @@ type MockService_KickWatchPartyParticipant_Call struct {
 //   - sessionID uuid.UUID
 //   - callerID uuid.UUID
 //   - targetID uuid.UUID
-func (_e *MockService_Expecter) KickWatchPartyParticipant(ctx interface{}, roomID interface{}, sessionID interface{}, callerID interface{}, targetID interface{}) *MockService_KickWatchPartyParticipant_Call {
+func (_e *MockService_Expecter) KickWatchPartyParticipant(ctx any, roomID any, sessionID any, callerID any, targetID any) *MockService_KickWatchPartyParticipant_Call {
 	return &MockService_KickWatchPartyParticipant_Call{Call: _e.mock.On("KickWatchPartyParticipant", ctx, roomID, sessionID, callerID, targetID)}
 }
 
@@ -2643,7 +2643,7 @@ type MockService_LeaveRoom_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) LeaveRoom(ctx interface{}, roomID interface{}, userID interface{}) *MockService_LeaveRoom_Call {
+func (_e *MockService_Expecter) LeaveRoom(ctx any, roomID any, userID any) *MockService_LeaveRoom_Call {
 	return &MockService_LeaveRoom_Call{Call: _e.mock.On("LeaveRoom", ctx, roomID, userID)}
 }
 
@@ -2707,7 +2707,7 @@ type MockService_LeaveWatchParty_Call struct {
 //   - roomID uuid.UUID
 //   - sessionID uuid.UUID
 //   - actorID uuid.UUID
-func (_e *MockService_Expecter) LeaveWatchParty(ctx interface{}, roomID interface{}, sessionID interface{}, actorID interface{}) *MockService_LeaveWatchParty_Call {
+func (_e *MockService_Expecter) LeaveWatchParty(ctx any, roomID any, sessionID any, actorID any) *MockService_LeaveWatchParty_Call {
 	return &MockService_LeaveWatchParty_Call{Call: _e.mock.On("LeaveWatchParty", ctx, roomID, sessionID, actorID)}
 }
 
@@ -2785,7 +2785,7 @@ type MockService_ListGlobalBannedWords_Call struct {
 // ListGlobalBannedWords is a helper method to define mock.On call
 //   - ctx context.Context
 //   - actorID uuid.UUID
-func (_e *MockService_Expecter) ListGlobalBannedWords(ctx interface{}, actorID interface{}) *MockService_ListGlobalBannedWords_Call {
+func (_e *MockService_Expecter) ListGlobalBannedWords(ctx any, actorID any) *MockService_ListGlobalBannedWords_Call {
 	return &MockService_ListGlobalBannedWords_Call{Call: _e.mock.On("ListGlobalBannedWords", ctx, actorID)}
 }
 
@@ -2854,7 +2854,7 @@ type MockService_ListPinnedMessages_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - viewerID uuid.UUID
-func (_e *MockService_Expecter) ListPinnedMessages(ctx interface{}, roomID interface{}, viewerID interface{}) *MockService_ListPinnedMessages_Call {
+func (_e *MockService_Expecter) ListPinnedMessages(ctx any, roomID any, viewerID any) *MockService_ListPinnedMessages_Call {
 	return &MockService_ListPinnedMessages_Call{Call: _e.mock.On("ListPinnedMessages", ctx, roomID, viewerID)}
 }
 
@@ -2933,7 +2933,7 @@ type MockService_ListPublicRooms_Call struct {
 //   - includeArchived bool
 //   - limit int
 //   - offset int
-func (_e *MockService_Expecter) ListPublicRooms(ctx interface{}, search interface{}, isRPOnly interface{}, tag interface{}, viewerID interface{}, includeArchived interface{}, limit interface{}, offset interface{}) *MockService_ListPublicRooms_Call {
+func (_e *MockService_Expecter) ListPublicRooms(ctx any, search any, isRPOnly any, tag any, viewerID any, includeArchived any, limit any, offset any) *MockService_ListPublicRooms_Call {
 	return &MockService_ListPublicRooms_Call{Call: _e.mock.On("ListPublicRooms", ctx, search, isRPOnly, tag, viewerID, includeArchived, limit, offset)}
 }
 
@@ -3032,7 +3032,7 @@ type MockService_ListRoomBannedWords_Call struct {
 //   - ctx context.Context
 //   - actorID uuid.UUID
 //   - roomID uuid.UUID
-func (_e *MockService_Expecter) ListRoomBannedWords(ctx interface{}, actorID interface{}, roomID interface{}) *MockService_ListRoomBannedWords_Call {
+func (_e *MockService_Expecter) ListRoomBannedWords(ctx any, actorID any, roomID any) *MockService_ListRoomBannedWords_Call {
 	return &MockService_ListRoomBannedWords_Call{Call: _e.mock.On("ListRoomBannedWords", ctx, actorID, roomID)}
 }
 
@@ -3106,7 +3106,7 @@ type MockService_ListRoomBans_Call struct {
 //   - ctx context.Context
 //   - actorID uuid.UUID
 //   - roomID uuid.UUID
-func (_e *MockService_Expecter) ListRoomBans(ctx interface{}, actorID interface{}, roomID interface{}) *MockService_ListRoomBans_Call {
+func (_e *MockService_Expecter) ListRoomBans(ctx any, actorID any, roomID any) *MockService_ListRoomBans_Call {
 	return &MockService_ListRoomBans_Call{Call: _e.mock.On("ListRoomBans", ctx, actorID, roomID)}
 }
 
@@ -3179,7 +3179,7 @@ type MockService_ListRooms_Call struct {
 // ListRooms is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) ListRooms(ctx interface{}, userID interface{}) *MockService_ListRooms_Call {
+func (_e *MockService_Expecter) ListRooms(ctx any, userID any) *MockService_ListRooms_Call {
 	return &MockService_ListRooms_Call{Call: _e.mock.On("ListRooms", ctx, userID)}
 }
 
@@ -3254,7 +3254,7 @@ type MockService_ListUserGroupRooms_Call struct {
 //   - includeArchived bool
 //   - limit int
 //   - offset int
-func (_e *MockService_Expecter) ListUserGroupRooms(ctx interface{}, userID interface{}, search interface{}, isRPOnly interface{}, tag interface{}, role interface{}, includeArchived interface{}, limit interface{}, offset interface{}) *MockService_ListUserGroupRooms_Call {
+func (_e *MockService_Expecter) ListUserGroupRooms(ctx any, userID any, search any, isRPOnly any, tag any, role any, includeArchived any, limit any, offset any) *MockService_ListUserGroupRooms_Call {
 	return &MockService_ListUserGroupRooms_Call{Call: _e.mock.On("ListUserGroupRooms", ctx, userID, search, isRPOnly, tag, role, includeArchived, limit, offset)}
 }
 
@@ -3358,7 +3358,7 @@ type MockService_ListWatchParties_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - viewerID uuid.UUID
-func (_e *MockService_Expecter) ListWatchParties(ctx interface{}, roomID interface{}, viewerID interface{}) *MockService_ListWatchParties_Call {
+func (_e *MockService_Expecter) ListWatchParties(ctx any, roomID any, viewerID any) *MockService_ListWatchParties_Call {
 	return &MockService_ListWatchParties_Call{Call: _e.mock.On("ListWatchParties", ctx, roomID, viewerID)}
 }
 
@@ -3421,7 +3421,7 @@ type MockService_MarkRead_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) MarkRead(ctx interface{}, roomID interface{}, userID interface{}) *MockService_MarkRead_Call {
+func (_e *MockService_Expecter) MarkRead(ctx any, roomID any, userID any) *MockService_MarkRead_Call {
 	return &MockService_MarkRead_Call{Call: _e.mock.On("MarkRead", ctx, roomID, userID)}
 }
 
@@ -3500,7 +3500,7 @@ type MockService_MintSessionVoiceToken_Call struct {
 //   - roomID uuid.UUID
 //   - sessionID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) MintSessionVoiceToken(ctx interface{}, roomID interface{}, sessionID interface{}, userID interface{}) *MockService_MintSessionVoiceToken_Call {
+func (_e *MockService_Expecter) MintSessionVoiceToken(ctx any, roomID any, sessionID any, userID any) *MockService_MintSessionVoiceToken_Call {
 	return &MockService_MintSessionVoiceToken_Call{Call: _e.mock.On("MintSessionVoiceToken", ctx, roomID, sessionID, userID)}
 }
 
@@ -3583,7 +3583,7 @@ type MockService_MintVoiceToken_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) MintVoiceToken(ctx interface{}, roomID interface{}, userID interface{}) *MockService_MintVoiceToken_Call {
+func (_e *MockService_Expecter) MintVoiceToken(ctx any, roomID any, userID any) *MockService_MintVoiceToken_Call {
 	return &MockService_MintVoiceToken_Call{Call: _e.mock.On("MintVoiceToken", ctx, roomID, userID)}
 }
 
@@ -3646,7 +3646,7 @@ type MockService_PinMessage_Call struct {
 //   - ctx context.Context
 //   - messageID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) PinMessage(ctx interface{}, messageID interface{}, userID interface{}) *MockService_PinMessage_Call {
+func (_e *MockService_Expecter) PinMessage(ctx any, messageID any, userID any) *MockService_PinMessage_Call {
 	return &MockService_PinMessage_Call{Call: _e.mock.On("PinMessage", ctx, messageID, userID)}
 }
 
@@ -3716,7 +3716,7 @@ type MockService_ReconcilePresence_Call struct {
 
 // ReconcilePresence is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockService_Expecter) ReconcilePresence(ctx interface{}) *MockService_ReconcilePresence_Call {
+func (_e *MockService_Expecter) ReconcilePresence(ctx any) *MockService_ReconcilePresence_Call {
 	return &MockService_ReconcilePresence_Call{Call: _e.mock.On("ReconcilePresence", ctx)}
 }
 
@@ -3770,7 +3770,7 @@ type MockService_RemoveReaction_Call struct {
 //   - messageID uuid.UUID
 //   - userID uuid.UUID
 //   - emoji string
-func (_e *MockService_Expecter) RemoveReaction(ctx interface{}, messageID interface{}, userID interface{}, emoji interface{}) *MockService_RemoveReaction_Call {
+func (_e *MockService_Expecter) RemoveReaction(ctx any, messageID any, userID any, emoji any) *MockService_RemoveReaction_Call {
 	return &MockService_RemoveReaction_Call{Call: _e.mock.On("RemoveReaction", ctx, messageID, userID, emoji)}
 }
 
@@ -3849,7 +3849,7 @@ type MockService_ResolveDMRoom_Call struct {
 //   - ctx context.Context
 //   - senderID uuid.UUID
 //   - recipientID uuid.UUID
-func (_e *MockService_Expecter) ResolveDMRoom(ctx interface{}, senderID interface{}, recipientID interface{}) *MockService_ResolveDMRoom_Call {
+func (_e *MockService_Expecter) ResolveDMRoom(ctx any, senderID any, recipientID any) *MockService_ResolveDMRoom_Call {
 	return &MockService_ResolveDMRoom_Call{Call: _e.mock.On("ResolveDMRoom", ctx, senderID, recipientID)}
 }
 
@@ -3925,7 +3925,7 @@ type MockService_SendDMMessage_Call struct {
 //   - recipientID uuid.UUID
 //   - body string
 //   - files []FileUpload
-func (_e *MockService_Expecter) SendDMMessage(ctx interface{}, senderID interface{}, recipientID interface{}, body interface{}, files interface{}) *MockService_SendDMMessage_Call {
+func (_e *MockService_Expecter) SendDMMessage(ctx any, senderID any, recipientID any, body any, files any) *MockService_SendDMMessage_Call {
 	return &MockService_SendDMMessage_Call{Call: _e.mock.On("SendDMMessage", ctx, senderID, recipientID, body, files)}
 }
 
@@ -4011,7 +4011,7 @@ type MockService_SendMessage_Call struct {
 //   - roomID uuid.UUID
 //   - req dto.SendMessageRequest
 //   - files []FileUpload
-func (_e *MockService_Expecter) SendMessage(ctx interface{}, senderID interface{}, roomID interface{}, req interface{}, files interface{}) *MockService_SendMessage_Call {
+func (_e *MockService_Expecter) SendMessage(ctx any, senderID any, roomID any, req any, files any) *MockService_SendMessage_Call {
 	return &MockService_SendMessage_Call{Call: _e.mock.On("SendMessage", ctx, senderID, roomID, req, files)}
 }
 
@@ -4097,7 +4097,7 @@ type MockService_SendWatchPartyMessage_Call struct {
 //   - sessionID uuid.UUID
 //   - senderID uuid.UUID
 //   - body string
-func (_e *MockService_Expecter) SendWatchPartyMessage(ctx interface{}, roomID interface{}, sessionID interface{}, senderID interface{}, body interface{}) *MockService_SendWatchPartyMessage_Call {
+func (_e *MockService_Expecter) SendWatchPartyMessage(ctx any, roomID any, sessionID any, senderID any, body any) *MockService_SendWatchPartyMessage_Call {
 	return &MockService_SendWatchPartyMessage_Call{Call: _e.mock.On("SendWatchPartyMessage", ctx, roomID, sessionID, senderID, body)}
 }
 
@@ -4183,7 +4183,7 @@ type MockService_SetMemberNicknameAsMod_Call struct {
 //   - actorID uuid.UUID
 //   - targetID uuid.UUID
 //   - nickname string
-func (_e *MockService_Expecter) SetMemberNicknameAsMod(ctx interface{}, roomID interface{}, actorID interface{}, targetID interface{}, nickname interface{}) *MockService_SetMemberNicknameAsMod_Call {
+func (_e *MockService_Expecter) SetMemberNicknameAsMod(ctx any, roomID any, actorID any, targetID any, nickname any) *MockService_SetMemberNicknameAsMod_Call {
 	return &MockService_SetMemberNicknameAsMod_Call{Call: _e.mock.On("SetMemberNicknameAsMod", ctx, roomID, actorID, targetID, nickname)}
 }
 
@@ -4269,7 +4269,7 @@ type MockService_SetMemberTimeout_Call struct {
 //   - actorID uuid.UUID
 //   - targetID uuid.UUID
 //   - req dto.SetMemberTimeoutRequest
-func (_e *MockService_Expecter) SetMemberTimeout(ctx interface{}, roomID interface{}, actorID interface{}, targetID interface{}, req interface{}) *MockService_SetMemberTimeout_Call {
+func (_e *MockService_Expecter) SetMemberTimeout(ctx any, roomID any, actorID any, targetID any, req any) *MockService_SetMemberTimeout_Call {
 	return &MockService_SetMemberTimeout_Call{Call: _e.mock.On("SetMemberTimeout", ctx, roomID, actorID, targetID, req)}
 }
 
@@ -4356,7 +4356,7 @@ type MockService_SetRoomAvatar_Call struct {
 //   - contentType string
 //   - fileSize int64
 //   - reader io.Reader
-func (_e *MockService_Expecter) SetRoomAvatar(ctx interface{}, roomID interface{}, userID interface{}, contentType interface{}, fileSize interface{}, reader interface{}) *MockService_SetRoomAvatar_Call {
+func (_e *MockService_Expecter) SetRoomAvatar(ctx any, roomID any, userID any, contentType any, fileSize any, reader any) *MockService_SetRoomAvatar_Call {
 	return &MockService_SetRoomAvatar_Call{Call: _e.mock.On("SetRoomAvatar", ctx, roomID, userID, contentType, fileSize, reader)}
 }
 
@@ -4435,7 +4435,7 @@ type MockService_SetRoomMuted_Call struct {
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
 //   - muted bool
-func (_e *MockService_Expecter) SetRoomMuted(ctx interface{}, roomID interface{}, userID interface{}, muted interface{}) *MockService_SetRoomMuted_Call {
+func (_e *MockService_Expecter) SetRoomMuted(ctx any, roomID any, userID any, muted any) *MockService_SetRoomMuted_Call {
 	return &MockService_SetRoomMuted_Call{Call: _e.mock.On("SetRoomMuted", ctx, roomID, userID, muted)}
 }
 
@@ -4515,7 +4515,7 @@ type MockService_SetRoomNickname_Call struct {
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
 //   - nickname string
-func (_e *MockService_Expecter) SetRoomNickname(ctx interface{}, roomID interface{}, userID interface{}, nickname interface{}) *MockService_SetRoomNickname_Call {
+func (_e *MockService_Expecter) SetRoomNickname(ctx any, roomID any, userID any, nickname any) *MockService_SetRoomNickname_Call {
 	return &MockService_SetRoomNickname_Call{Call: _e.mock.On("SetRoomNickname", ctx, roomID, userID, nickname)}
 }
 
@@ -4598,7 +4598,7 @@ type MockService_StartWatchParty_Call struct {
 //   - region string
 //   - title string
 //   - sessionType string
-func (_e *MockService_Expecter) StartWatchParty(ctx interface{}, roomID interface{}, actorID interface{}, startURL interface{}, region interface{}, title interface{}, sessionType interface{}) *MockService_StartWatchParty_Call {
+func (_e *MockService_Expecter) StartWatchParty(ctx any, roomID any, actorID any, startURL any, region any, title any, sessionType any) *MockService_StartWatchParty_Call {
 	return &MockService_StartWatchParty_Call{Call: _e.mock.On("StartWatchParty", ctx, roomID, actorID, startURL, region, title, sessionType)}
 }
 
@@ -4668,7 +4668,7 @@ type MockService_StartWatchPartyReconcileLoop_Call struct {
 
 // StartWatchPartyReconcileLoop is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockService_Expecter) StartWatchPartyReconcileLoop(ctx interface{}) *MockService_StartWatchPartyReconcileLoop_Call {
+func (_e *MockService_Expecter) StartWatchPartyReconcileLoop(ctx any) *MockService_StartWatchPartyReconcileLoop_Call {
 	return &MockService_StartWatchPartyReconcileLoop_Call{Call: _e.mock.On("StartWatchPartyReconcileLoop", ctx)}
 }
 
@@ -4721,7 +4721,7 @@ type MockService_SyncSystemRoomMembership_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - newRole role.Role
-func (_e *MockService_Expecter) SyncSystemRoomMembership(ctx interface{}, userID interface{}, newRole interface{}) *MockService_SyncSystemRoomMembership_Call {
+func (_e *MockService_Expecter) SyncSystemRoomMembership(ctx any, userID any, newRole any) *MockService_SyncSystemRoomMembership_Call {
 	return &MockService_SyncSystemRoomMembership_Call{Call: _e.mock.On("SyncSystemRoomMembership", ctx, userID, newRole)}
 }
 
@@ -4785,7 +4785,7 @@ type MockService_UnbanMember_Call struct {
 //   - actorID uuid.UUID
 //   - roomID uuid.UUID
 //   - targetID uuid.UUID
-func (_e *MockService_Expecter) UnbanMember(ctx interface{}, actorID interface{}, roomID interface{}, targetID interface{}) *MockService_UnbanMember_Call {
+func (_e *MockService_Expecter) UnbanMember(ctx any, actorID any, roomID any, targetID any) *MockService_UnbanMember_Call {
 	return &MockService_UnbanMember_Call{Call: _e.mock.On("UnbanMember", ctx, actorID, roomID, targetID)}
 }
 
@@ -4865,7 +4865,7 @@ type MockService_UnlockMemberNickname_Call struct {
 //   - roomID uuid.UUID
 //   - actorID uuid.UUID
 //   - targetID uuid.UUID
-func (_e *MockService_Expecter) UnlockMemberNickname(ctx interface{}, roomID interface{}, actorID interface{}, targetID interface{}) *MockService_UnlockMemberNickname_Call {
+func (_e *MockService_Expecter) UnlockMemberNickname(ctx any, roomID any, actorID any, targetID any) *MockService_UnlockMemberNickname_Call {
 	return &MockService_UnlockMemberNickname_Call{Call: _e.mock.On("UnlockMemberNickname", ctx, roomID, actorID, targetID)}
 }
 
@@ -4933,7 +4933,7 @@ type MockService_UnpinMessage_Call struct {
 //   - ctx context.Context
 //   - messageID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) UnpinMessage(ctx interface{}, messageID interface{}, userID interface{}) *MockService_UnpinMessage_Call {
+func (_e *MockService_Expecter) UnpinMessage(ctx any, messageID any, userID any) *MockService_UnpinMessage_Call {
 	return &MockService_UnpinMessage_Call{Call: _e.mock.On("UnpinMessage", ctx, messageID, userID)}
 }
 
@@ -5008,7 +5008,7 @@ type MockService_UpdateGlobalBannedWord_Call struct {
 //   - actorID uuid.UUID
 //   - ruleID uuid.UUID
 //   - req dto.UpdateBannedWordRequest
-func (_e *MockService_Expecter) UpdateGlobalBannedWord(ctx interface{}, actorID interface{}, ruleID interface{}, req interface{}) *MockService_UpdateGlobalBannedWord_Call {
+func (_e *MockService_Expecter) UpdateGlobalBannedWord(ctx any, actorID any, ruleID any, req any) *MockService_UpdateGlobalBannedWord_Call {
 	return &MockService_UpdateGlobalBannedWord_Call{Call: _e.mock.On("UpdateGlobalBannedWord", ctx, actorID, ruleID, req)}
 }
 
@@ -5089,7 +5089,7 @@ type MockService_UpdateRoomBannedWord_Call struct {
 //   - roomID uuid.UUID
 //   - ruleID uuid.UUID
 //   - req dto.UpdateBannedWordRequest
-func (_e *MockService_Expecter) UpdateRoomBannedWord(ctx interface{}, actorID interface{}, roomID interface{}, ruleID interface{}, req interface{}) *MockService_UpdateRoomBannedWord_Call {
+func (_e *MockService_Expecter) UpdateRoomBannedWord(ctx any, actorID any, roomID any, ruleID any, req any) *MockService_UpdateRoomBannedWord_Call {
 	return &MockService_UpdateRoomBannedWord_Call{Call: _e.mock.On("UpdateRoomBannedWord", ctx, actorID, roomID, ruleID, req)}
 }
 
@@ -5160,7 +5160,7 @@ type MockService_VoiceCount_Call struct {
 
 // VoiceCount is a helper method to define mock.On call
 //   - roomID uuid.UUID
-func (_e *MockService_Expecter) VoiceCount(roomID interface{}) *MockService_VoiceCount_Call {
+func (_e *MockService_Expecter) VoiceCount(roomID any) *MockService_VoiceCount_Call {
 	return &MockService_VoiceCount_Call{Call: _e.mock.On("VoiceCount", roomID)}
 }
 
@@ -5257,7 +5257,7 @@ type MockService_VoiceParticipants_Call struct {
 
 // VoiceParticipants is a helper method to define mock.On call
 //   - roomID uuid.UUID
-func (_e *MockService_Expecter) VoiceParticipants(roomID interface{}) *MockService_VoiceParticipants_Call {
+func (_e *MockService_Expecter) VoiceParticipants(roomID any) *MockService_VoiceParticipants_Call {
 	return &MockService_VoiceParticipants_Call{Call: _e.mock.On("VoiceParticipants", roomID)}
 }
 

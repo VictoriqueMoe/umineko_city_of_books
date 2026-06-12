@@ -10,7 +10,7 @@ import { handleIncomingChatMessage, applySharedChatWSBranch } from "../../utils/
 import type { ChatMessage, WSMessage } from "../../types/api";
 import styles from "./live.module.css";
 
-export function StreamChatPanel({ streamId }: { streamId: string }) {
+export function StreamChatPanel({ streamId, isLive }: { streamId: string; isLive: boolean }) {
     const { user } = useAuth();
 
     if (!user) {
@@ -24,16 +24,19 @@ export function StreamChatPanel({ streamId }: { streamId: string }) {
         );
     }
 
-    return <StreamChatPanelInner key={streamId} streamId={streamId} userId={user.id} />;
+    return <StreamChatPanelInner key={streamId} streamId={streamId} userId={user.id} isLive={isLive} />;
 }
 
-function StreamChatPanelInner({ streamId, userId }: { streamId: string; userId: string }) {
+function StreamChatPanelInner({ streamId, userId, isLive }: { streamId: string; userId: string; isLive: boolean }) {
     const { addWSListener } = useNotifications();
     const [joined, setJoined] = useState(false);
     const [joinError, setJoinError] = useState(false);
     const [replyingTo, setReplyingTo] = useState<ReplyTarget | null>(null);
 
     useEffect(() => {
+        if (!isLive) {
+            return;
+        }
         let cancelled = false;
         joinStreamChat(streamId)
             .then(() => {
@@ -49,14 +52,14 @@ function StreamChatPanelInner({ streamId, userId }: { streamId: string; userId: 
         return () => {
             cancelled = true;
         };
-    }, [streamId]);
+    }, [streamId, isLive]);
 
-    const roomId = joined ? streamId : undefined;
+    const roomId = isLive && joined ? streamId : undefined;
     const { messages, setMessages, containerRef, endRef, scrollToBottom, handleScroll, addMessage } =
         useMessageHistory(roomId);
 
     useEffect(() => {
-        if (!joined) {
+        if (!joined || !isLive) {
             return;
         }
         return addWSListener((msg: WSMessage) => {
@@ -66,7 +69,7 @@ function StreamChatPanelInner({ streamId, userId }: { streamId: string; userId: 
             }
             applySharedChatWSBranch(msg, { activeRoomId: streamId, setMessages, noteTyping: () => {} });
         });
-    }, [joined, streamId, addWSListener, setMessages, scrollToBottom]);
+    }, [joined, isLive, streamId, addWSListener, setMessages, scrollToBottom]);
 
     function handleSent(message: ChatMessage) {
         addMessage(message);
@@ -85,14 +88,14 @@ function StreamChatPanelInner({ streamId, userId }: { streamId: string; userId: 
         <div className={styles.chatPanel}>
             <div className={styles.chatHeader}>Stream chat</div>
             <div className={styles.chatMessages} ref={containerRef} onScroll={handleScroll}>
-                {joinError && <div className={styles.chatNotice}>Couldn't join the chat.</div>}
-                {!joined && !joinError && <div className={styles.chatNotice}>Joining chat...</div>}
+                {isLive && joinError && <div className={styles.chatNotice}>Couldn't join the chat.</div>}
+                {isLive && !joined && !joinError && <div className={styles.chatNotice}>Joining chat...</div>}
                 {messages.map(m => (
                     <MessageBubble key={m.id} message={m} isOwn={m.sender.id === userId} onReply={handleReply} />
                 ))}
                 <div ref={endRef} />
             </div>
-            {joined && (
+            {isLive && joined && (
                 <ChatComposer
                     roomId={streamId}
                     draftRecipientId={null}
@@ -103,6 +106,7 @@ function StreamChatPanelInner({ streamId, userId }: { streamId: string; userId: 
                     compact
                 />
             )}
+            {!isLive && <div className={styles.chatEnded}>Chat is closed while the stream is offline.</div>}
         </div>
     );
 }

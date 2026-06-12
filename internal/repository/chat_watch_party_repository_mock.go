@@ -72,7 +72,7 @@ type MockChatWatchPartyRepository_CountActiveParticipants_Call struct {
 // CountActiveParticipants is a helper method to define mock.On call
 //   - ctx context.Context
 //   - sessionID uuid.UUID
-func (_e *MockChatWatchPartyRepository_Expecter) CountActiveParticipants(ctx interface{}, sessionID interface{}) *MockChatWatchPartyRepository_CountActiveParticipants_Call {
+func (_e *MockChatWatchPartyRepository_Expecter) CountActiveParticipants(ctx any, sessionID any) *MockChatWatchPartyRepository_CountActiveParticipants_Call {
 	return &MockChatWatchPartyRepository_CountActiveParticipants_Call{Call: _e.mock.On("CountActiveParticipants", ctx, sessionID)}
 }
 
@@ -140,7 +140,7 @@ type MockChatWatchPartyRepository_CreateSession_Call struct {
 // CreateSession is a helper method to define mock.On call
 //   - ctx context.Context
 //   - row ChatWatchPartySessionRow
-func (_e *MockChatWatchPartyRepository_Expecter) CreateSession(ctx interface{}, row interface{}) *MockChatWatchPartyRepository_CreateSession_Call {
+func (_e *MockChatWatchPartyRepository_Expecter) CreateSession(ctx any, row any) *MockChatWatchPartyRepository_CreateSession_Call {
 	return &MockChatWatchPartyRepository_CreateSession_Call{Call: _e.mock.On("CreateSession", ctx, row)}
 }
 
@@ -198,7 +198,7 @@ type MockChatWatchPartyRepository_EndSession_Call struct {
 //   - ctx context.Context
 //   - sessionID uuid.UUID
 //   - reason string
-func (_e *MockChatWatchPartyRepository_Expecter) EndSession(ctx interface{}, sessionID interface{}, reason interface{}) *MockChatWatchPartyRepository_EndSession_Call {
+func (_e *MockChatWatchPartyRepository_Expecter) EndSession(ctx any, sessionID any, reason any) *MockChatWatchPartyRepository_EndSession_Call {
 	return &MockChatWatchPartyRepository_EndSession_Call{Call: _e.mock.On("EndSession", ctx, sessionID, reason)}
 }
 
@@ -271,7 +271,7 @@ type MockChatWatchPartyRepository_GetActiveParticipants_Call struct {
 // GetActiveParticipants is a helper method to define mock.On call
 //   - ctx context.Context
 //   - sessionID uuid.UUID
-func (_e *MockChatWatchPartyRepository_Expecter) GetActiveParticipants(ctx interface{}, sessionID interface{}) *MockChatWatchPartyRepository_GetActiveParticipants_Call {
+func (_e *MockChatWatchPartyRepository_Expecter) GetActiveParticipants(ctx any, sessionID any) *MockChatWatchPartyRepository_GetActiveParticipants_Call {
 	return &MockChatWatchPartyRepository_GetActiveParticipants_Call{Call: _e.mock.On("GetActiveParticipants", ctx, sessionID)}
 }
 
@@ -339,7 +339,7 @@ type MockChatWatchPartyRepository_GetByID_Call struct {
 // GetByID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - sessionID uuid.UUID
-func (_e *MockChatWatchPartyRepository_Expecter) GetByID(ctx interface{}, sessionID interface{}) *MockChatWatchPartyRepository_GetByID_Call {
+func (_e *MockChatWatchPartyRepository_Expecter) GetByID(ctx any, sessionID any) *MockChatWatchPartyRepository_GetByID_Call {
 	return &MockChatWatchPartyRepository_GetByID_Call{Call: _e.mock.On("GetByID", ctx, sessionID)}
 }
 
@@ -407,7 +407,7 @@ type MockChatWatchPartyRepository_GetMessageByID_Call struct {
 // GetMessageByID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - messageID uuid.UUID
-func (_e *MockChatWatchPartyRepository_Expecter) GetMessageByID(ctx interface{}, messageID interface{}) *MockChatWatchPartyRepository_GetMessageByID_Call {
+func (_e *MockChatWatchPartyRepository_Expecter) GetMessageByID(ctx any, messageID any) *MockChatWatchPartyRepository_GetMessageByID_Call {
 	return &MockChatWatchPartyRepository_GetMessageByID_Call{Call: _e.mock.On("GetMessageByID", ctx, messageID)}
 }
 
@@ -476,7 +476,7 @@ type MockChatWatchPartyRepository_GetParticipant_Call struct {
 //   - ctx context.Context
 //   - sessionID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockChatWatchPartyRepository_Expecter) GetParticipant(ctx interface{}, sessionID interface{}, userID interface{}) *MockChatWatchPartyRepository_GetParticipant_Call {
+func (_e *MockChatWatchPartyRepository_Expecter) GetParticipant(ctx any, sessionID any, userID any) *MockChatWatchPartyRepository_GetParticipant_Call {
 	return &MockChatWatchPartyRepository_GetParticipant_Call{Call: _e.mock.On("GetParticipant", ctx, sessionID, userID)}
 }
 
@@ -541,7 +541,7 @@ type MockChatWatchPartyRepository_InsertMessage_Call struct {
 //   - sessionID uuid.UUID
 //   - senderID uuid.UUID
 //   - body string
-func (_e *MockChatWatchPartyRepository_Expecter) InsertMessage(ctx interface{}, id interface{}, sessionID interface{}, senderID interface{}, body interface{}) *MockChatWatchPartyRepository_InsertMessage_Call {
+func (_e *MockChatWatchPartyRepository_Expecter) InsertMessage(ctx any, id any, sessionID any, senderID any, body any) *MockChatWatchPartyRepository_InsertMessage_Call {
 	return &MockChatWatchPartyRepository_InsertMessage_Call{Call: _e.mock.On("InsertMessage", ctx, id, sessionID, senderID, body)}
 }
 
@@ -615,7 +615,7 @@ type MockChatWatchPartyRepository_InsertSystemMessage_Call struct {
 //   - id uuid.UUID
 //   - sessionID uuid.UUID
 //   - body string
-func (_e *MockChatWatchPartyRepository_Expecter) InsertSystemMessage(ctx interface{}, id interface{}, sessionID interface{}, body interface{}) *MockChatWatchPartyRepository_InsertSystemMessage_Call {
+func (_e *MockChatWatchPartyRepository_Expecter) InsertSystemMessage(ctx any, id any, sessionID any, body any) *MockChatWatchPartyRepository_InsertSystemMessage_Call {
 	return &MockChatWatchPartyRepository_InsertSystemMessage_Call{Call: _e.mock.On("InsertSystemMessage", ctx, id, sessionID, body)}
 }
 
@@ -693,7 +693,7 @@ type MockChatWatchPartyRepository_ListActiveByRoom_Call struct {
 // ListActiveByRoom is a helper method to define mock.On call
 //   - ctx context.Context
 //   - roomID uuid.UUID
-func (_e *MockChatWatchPartyRepository_Expecter) ListActiveByRoom(ctx interface{}, roomID interface{}) *MockChatWatchPartyRepository_ListActiveByRoom_Call {
+func (_e *MockChatWatchPartyRepository_Expecter) ListActiveByRoom(ctx any, roomID any) *MockChatWatchPartyRepository_ListActiveByRoom_Call {
 	return &MockChatWatchPartyRepository_ListActiveByRoom_Call{Call: _e.mock.On("ListActiveByRoom", ctx, roomID)}
 }
 
@@ -761,7 +761,7 @@ type MockChatWatchPartyRepository_ListIdleActiveSessions_Call struct {
 // ListIdleActiveSessions is a helper method to define mock.On call
 //   - ctx context.Context
 //   - idleBefore string
-func (_e *MockChatWatchPartyRepository_Expecter) ListIdleActiveSessions(ctx interface{}, idleBefore interface{}) *MockChatWatchPartyRepository_ListIdleActiveSessions_Call {
+func (_e *MockChatWatchPartyRepository_Expecter) ListIdleActiveSessions(ctx any, idleBefore any) *MockChatWatchPartyRepository_ListIdleActiveSessions_Call {
 	return &MockChatWatchPartyRepository_ListIdleActiveSessions_Call{Call: _e.mock.On("ListIdleActiveSessions", ctx, idleBefore)}
 }
 
@@ -830,7 +830,7 @@ type MockChatWatchPartyRepository_ListMessages_Call struct {
 //   - ctx context.Context
 //   - sessionID uuid.UUID
 //   - limit int
-func (_e *MockChatWatchPartyRepository_Expecter) ListMessages(ctx interface{}, sessionID interface{}, limit interface{}) *MockChatWatchPartyRepository_ListMessages_Call {
+func (_e *MockChatWatchPartyRepository_Expecter) ListMessages(ctx any, sessionID any, limit any) *MockChatWatchPartyRepository_ListMessages_Call {
 	return &MockChatWatchPartyRepository_ListMessages_Call{Call: _e.mock.On("ListMessages", ctx, sessionID, limit)}
 }
 
@@ -892,7 +892,7 @@ type MockChatWatchPartyRepository_MarkAllParticipantsLeft_Call struct {
 // MarkAllParticipantsLeft is a helper method to define mock.On call
 //   - ctx context.Context
 //   - sessionID uuid.UUID
-func (_e *MockChatWatchPartyRepository_Expecter) MarkAllParticipantsLeft(ctx interface{}, sessionID interface{}) *MockChatWatchPartyRepository_MarkAllParticipantsLeft_Call {
+func (_e *MockChatWatchPartyRepository_Expecter) MarkAllParticipantsLeft(ctx any, sessionID any) *MockChatWatchPartyRepository_MarkAllParticipantsLeft_Call {
 	return &MockChatWatchPartyRepository_MarkAllParticipantsLeft_Call{Call: _e.mock.On("MarkAllParticipantsLeft", ctx, sessionID)}
 }
 
@@ -950,7 +950,7 @@ type MockChatWatchPartyRepository_MarkParticipantLeft_Call struct {
 //   - ctx context.Context
 //   - sessionID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockChatWatchPartyRepository_Expecter) MarkParticipantLeft(ctx interface{}, sessionID interface{}, userID interface{}) *MockChatWatchPartyRepository_MarkParticipantLeft_Call {
+func (_e *MockChatWatchPartyRepository_Expecter) MarkParticipantLeft(ctx any, sessionID any, userID any) *MockChatWatchPartyRepository_MarkParticipantLeft_Call {
 	return &MockChatWatchPartyRepository_MarkParticipantLeft_Call{Call: _e.mock.On("MarkParticipantLeft", ctx, sessionID, userID)}
 }
 
@@ -1013,7 +1013,7 @@ type MockChatWatchPartyRepository_SetControllerID_Call struct {
 //   - ctx context.Context
 //   - sessionID uuid.UUID
 //   - controllerID uuid.UUID
-func (_e *MockChatWatchPartyRepository_Expecter) SetControllerID(ctx interface{}, sessionID interface{}, controllerID interface{}) *MockChatWatchPartyRepository_SetControllerID_Call {
+func (_e *MockChatWatchPartyRepository_Expecter) SetControllerID(ctx any, sessionID any, controllerID any) *MockChatWatchPartyRepository_SetControllerID_Call {
 	return &MockChatWatchPartyRepository_SetControllerID_Call{Call: _e.mock.On("SetControllerID", ctx, sessionID, controllerID)}
 }
 
@@ -1077,7 +1077,7 @@ type MockChatWatchPartyRepository_SetParticipantControl_Call struct {
 //   - sessionID uuid.UUID
 //   - userID uuid.UUID
 //   - hasControl bool
-func (_e *MockChatWatchPartyRepository_Expecter) SetParticipantControl(ctx interface{}, sessionID interface{}, userID interface{}, hasControl interface{}) *MockChatWatchPartyRepository_SetParticipantControl_Call {
+func (_e *MockChatWatchPartyRepository_Expecter) SetParticipantControl(ctx any, sessionID any, userID any, hasControl any) *MockChatWatchPartyRepository_SetParticipantControl_Call {
 	return &MockChatWatchPartyRepository_SetParticipantControl_Call{Call: _e.mock.On("SetParticipantControl", ctx, sessionID, userID, hasControl)}
 }
 
@@ -1146,7 +1146,7 @@ type MockChatWatchPartyRepository_SetParticipantIdentifier_Call struct {
 //   - sessionID uuid.UUID
 //   - userID uuid.UUID
 //   - identifier string
-func (_e *MockChatWatchPartyRepository_Expecter) SetParticipantIdentifier(ctx interface{}, sessionID interface{}, userID interface{}, identifier interface{}) *MockChatWatchPartyRepository_SetParticipantIdentifier_Call {
+func (_e *MockChatWatchPartyRepository_Expecter) SetParticipantIdentifier(ctx any, sessionID any, userID any, identifier any) *MockChatWatchPartyRepository_SetParticipantIdentifier_Call {
 	return &MockChatWatchPartyRepository_SetParticipantIdentifier_Call{Call: _e.mock.On("SetParticipantIdentifier", ctx, sessionID, userID, identifier)}
 }
 
@@ -1216,7 +1216,7 @@ type MockChatWatchPartyRepository_UpsertParticipant_Call struct {
 //   - userID uuid.UUID
 //   - hasControl bool
 //   - identifier string
-func (_e *MockChatWatchPartyRepository_Expecter) UpsertParticipant(ctx interface{}, sessionID interface{}, userID interface{}, hasControl interface{}, identifier interface{}) *MockChatWatchPartyRepository_UpsertParticipant_Call {
+func (_e *MockChatWatchPartyRepository_Expecter) UpsertParticipant(ctx any, sessionID any, userID any, hasControl any, identifier any) *MockChatWatchPartyRepository_UpsertParticipant_Call {
 	return &MockChatWatchPartyRepository_UpsertParticipant_Call{Call: _e.mock.On("UpsertParticipant", ctx, sessionID, userID, hasControl, identifier)}
 }
 

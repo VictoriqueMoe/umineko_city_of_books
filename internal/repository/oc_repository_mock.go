@@ -77,7 +77,7 @@ type MockOCRepository_AddCommentMedia_Call struct {
 //   - mediaType string
 //   - thumbnailURL string
 //   - sortOrder int
-func (_e *MockOCRepository_Expecter) AddCommentMedia(ctx interface{}, commentID interface{}, mediaURL interface{}, mediaType interface{}, thumbnailURL interface{}, sortOrder interface{}) *MockOCRepository_AddCommentMedia_Call {
+func (_e *MockOCRepository_Expecter) AddCommentMedia(ctx any, commentID any, mediaURL any, mediaType any, thumbnailURL any, sortOrder any) *MockOCRepository_AddCommentMedia_Call {
 	return &MockOCRepository_AddCommentMedia_Call{Call: _e.mock.On("AddCommentMedia", ctx, commentID, mediaURL, mediaType, thumbnailURL, sortOrder)}
 }
 
@@ -167,7 +167,7 @@ type MockOCRepository_AddGalleryImage_Call struct {
 //   - thumbnailURL string
 //   - caption string
 //   - sortOrder int
-func (_e *MockOCRepository_Expecter) AddGalleryImage(ctx interface{}, ocID interface{}, imageURL interface{}, thumbnailURL interface{}, caption interface{}, sortOrder interface{}) *MockOCRepository_AddGalleryImage_Call {
+func (_e *MockOCRepository_Expecter) AddGalleryImage(ctx any, ocID any, imageURL any, thumbnailURL any, caption any, sortOrder any) *MockOCRepository_AddGalleryImage_Call {
 	return &MockOCRepository_AddGalleryImage_Call{Call: _e.mock.On("AddGalleryImage", ctx, ocID, imageURL, thumbnailURL, caption, sortOrder)}
 }
 
@@ -249,7 +249,7 @@ type MockOCRepository_Create_Call struct {
 //   - description string
 //   - series string
 //   - customSeriesName string
-func (_e *MockOCRepository_Expecter) Create(ctx interface{}, id interface{}, userID interface{}, name interface{}, description interface{}, series interface{}, customSeriesName interface{}) *MockOCRepository_Create_Call {
+func (_e *MockOCRepository_Expecter) Create(ctx any, id any, userID any, name any, description any, series any, customSeriesName any) *MockOCRepository_Create_Call {
 	return &MockOCRepository_Create_Call{Call: _e.mock.On("Create", ctx, id, userID, name, description, series, customSeriesName)}
 }
 
@@ -335,7 +335,7 @@ type MockOCRepository_CreateComment_Call struct {
 //   - parentID *uuid.UUID
 //   - userID uuid.UUID
 //   - body string
-func (_e *MockOCRepository_Expecter) CreateComment(ctx interface{}, id interface{}, ocID interface{}, parentID interface{}, userID interface{}, body interface{}) *MockOCRepository_CreateComment_Call {
+func (_e *MockOCRepository_Expecter) CreateComment(ctx any, id any, ocID any, parentID any, userID any, body any) *MockOCRepository_CreateComment_Call {
 	return &MockOCRepository_CreateComment_Call{Call: _e.mock.On("CreateComment", ctx, id, ocID, parentID, userID, body)}
 }
 
@@ -413,7 +413,7 @@ type MockOCRepository_Delete_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockOCRepository_Expecter) Delete(ctx interface{}, id interface{}, userID interface{}) *MockOCRepository_Delete_Call {
+func (_e *MockOCRepository_Expecter) Delete(ctx any, id any, userID any) *MockOCRepository_Delete_Call {
 	return &MockOCRepository_Delete_Call{Call: _e.mock.On("Delete", ctx, id, userID)}
 }
 
@@ -475,7 +475,7 @@ type MockOCRepository_DeleteAsAdmin_Call struct {
 // DeleteAsAdmin is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockOCRepository_Expecter) DeleteAsAdmin(ctx interface{}, id interface{}) *MockOCRepository_DeleteAsAdmin_Call {
+func (_e *MockOCRepository_Expecter) DeleteAsAdmin(ctx any, id any) *MockOCRepository_DeleteAsAdmin_Call {
 	return &MockOCRepository_DeleteAsAdmin_Call{Call: _e.mock.On("DeleteAsAdmin", ctx, id)}
 }
 
@@ -533,7 +533,7 @@ type MockOCRepository_DeleteComment_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockOCRepository_Expecter) DeleteComment(ctx interface{}, id interface{}, userID interface{}) *MockOCRepository_DeleteComment_Call {
+func (_e *MockOCRepository_Expecter) DeleteComment(ctx any, id any, userID any) *MockOCRepository_DeleteComment_Call {
 	return &MockOCRepository_DeleteComment_Call{Call: _e.mock.On("DeleteComment", ctx, id, userID)}
 }
 
@@ -595,7 +595,7 @@ type MockOCRepository_DeleteCommentAsAdmin_Call struct {
 // DeleteCommentAsAdmin is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockOCRepository_Expecter) DeleteCommentAsAdmin(ctx interface{}, id interface{}) *MockOCRepository_DeleteCommentAsAdmin_Call {
+func (_e *MockOCRepository_Expecter) DeleteCommentAsAdmin(ctx any, id any) *MockOCRepository_DeleteCommentAsAdmin_Call {
 	return &MockOCRepository_DeleteCommentAsAdmin_Call{Call: _e.mock.On("DeleteCommentAsAdmin", ctx, id)}
 }
 
@@ -653,7 +653,7 @@ type MockOCRepository_DeleteGalleryImage_Call struct {
 //   - ctx context.Context
 //   - id int64
 //   - ocID uuid.UUID
-func (_e *MockOCRepository_Expecter) DeleteGalleryImage(ctx interface{}, id interface{}, ocID interface{}) *MockOCRepository_DeleteGalleryImage_Call {
+func (_e *MockOCRepository_Expecter) DeleteGalleryImage(ctx any, id any, ocID any) *MockOCRepository_DeleteGalleryImage_Call {
 	return &MockOCRepository_DeleteGalleryImage_Call{Call: _e.mock.On("DeleteGalleryImage", ctx, id, ocID)}
 }
 
@@ -716,7 +716,7 @@ type MockOCRepository_Favourite_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - ocID uuid.UUID
-func (_e *MockOCRepository_Expecter) Favourite(ctx interface{}, userID interface{}, ocID interface{}) *MockOCRepository_Favourite_Call {
+func (_e *MockOCRepository_Expecter) Favourite(ctx any, userID any, ocID any) *MockOCRepository_Favourite_Call {
 	return &MockOCRepository_Favourite_Call{Call: _e.mock.On("Favourite", ctx, userID, ocID)}
 }
 
@@ -789,7 +789,7 @@ type MockOCRepository_GetAuthorID_Call struct {
 // GetAuthorID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - ocID uuid.UUID
-func (_e *MockOCRepository_Expecter) GetAuthorID(ctx interface{}, ocID interface{}) *MockOCRepository_GetAuthorID_Call {
+func (_e *MockOCRepository_Expecter) GetAuthorID(ctx any, ocID any) *MockOCRepository_GetAuthorID_Call {
 	return &MockOCRepository_GetAuthorID_Call{Call: _e.mock.On("GetAuthorID", ctx, ocID)}
 }
 
@@ -858,7 +858,7 @@ type MockOCRepository_GetByID_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - viewerID uuid.UUID
-func (_e *MockOCRepository_Expecter) GetByID(ctx interface{}, id interface{}, viewerID interface{}) *MockOCRepository_GetByID_Call {
+func (_e *MockOCRepository_Expecter) GetByID(ctx any, id any, viewerID any) *MockOCRepository_GetByID_Call {
 	return &MockOCRepository_GetByID_Call{Call: _e.mock.On("GetByID", ctx, id, viewerID)}
 }
 
@@ -931,7 +931,7 @@ type MockOCRepository_GetCommentAuthorID_Call struct {
 // GetCommentAuthorID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - commentID uuid.UUID
-func (_e *MockOCRepository_Expecter) GetCommentAuthorID(ctx interface{}, commentID interface{}) *MockOCRepository_GetCommentAuthorID_Call {
+func (_e *MockOCRepository_Expecter) GetCommentAuthorID(ctx any, commentID any) *MockOCRepository_GetCommentAuthorID_Call {
 	return &MockOCRepository_GetCommentAuthorID_Call{Call: _e.mock.On("GetCommentAuthorID", ctx, commentID)}
 }
 
@@ -999,7 +999,7 @@ type MockOCRepository_GetCommentMedia_Call struct {
 // GetCommentMedia is a helper method to define mock.On call
 //   - ctx context.Context
 //   - commentID uuid.UUID
-func (_e *MockOCRepository_Expecter) GetCommentMedia(ctx interface{}, commentID interface{}) *MockOCRepository_GetCommentMedia_Call {
+func (_e *MockOCRepository_Expecter) GetCommentMedia(ctx any, commentID any) *MockOCRepository_GetCommentMedia_Call {
 	return &MockOCRepository_GetCommentMedia_Call{Call: _e.mock.On("GetCommentMedia", ctx, commentID)}
 }
 
@@ -1067,7 +1067,7 @@ type MockOCRepository_GetCommentMediaBatch_Call struct {
 // GetCommentMediaBatch is a helper method to define mock.On call
 //   - ctx context.Context
 //   - commentIDs []uuid.UUID
-func (_e *MockOCRepository_Expecter) GetCommentMediaBatch(ctx interface{}, commentIDs interface{}) *MockOCRepository_GetCommentMediaBatch_Call {
+func (_e *MockOCRepository_Expecter) GetCommentMediaBatch(ctx any, commentIDs any) *MockOCRepository_GetCommentMediaBatch_Call {
 	return &MockOCRepository_GetCommentMediaBatch_Call{Call: _e.mock.On("GetCommentMediaBatch", ctx, commentIDs)}
 }
 
@@ -1135,7 +1135,7 @@ type MockOCRepository_GetCommentOCID_Call struct {
 // GetCommentOCID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - commentID uuid.UUID
-func (_e *MockOCRepository_Expecter) GetCommentOCID(ctx interface{}, commentID interface{}) *MockOCRepository_GetCommentOCID_Call {
+func (_e *MockOCRepository_Expecter) GetCommentOCID(ctx any, commentID any) *MockOCRepository_GetCommentOCID_Call {
 	return &MockOCRepository_GetCommentOCID_Call{Call: _e.mock.On("GetCommentOCID", ctx, commentID)}
 }
 
@@ -1213,7 +1213,7 @@ type MockOCRepository_GetComments_Call struct {
 //   - limit int
 //   - offset int
 //   - excludeUserIDs []uuid.UUID
-func (_e *MockOCRepository_Expecter) GetComments(ctx interface{}, ocID interface{}, viewerID interface{}, limit interface{}, offset interface{}, excludeUserIDs interface{}) *MockOCRepository_GetComments_Call {
+func (_e *MockOCRepository_Expecter) GetComments(ctx any, ocID any, viewerID any, limit any, offset any, excludeUserIDs any) *MockOCRepository_GetComments_Call {
 	return &MockOCRepository_GetComments_Call{Call: _e.mock.On("GetComments", ctx, ocID, viewerID, limit, offset, excludeUserIDs)}
 }
 
@@ -1301,7 +1301,7 @@ type MockOCRepository_GetGallery_Call struct {
 // GetGallery is a helper method to define mock.On call
 //   - ctx context.Context
 //   - ocID uuid.UUID
-func (_e *MockOCRepository_Expecter) GetGallery(ctx interface{}, ocID interface{}) *MockOCRepository_GetGallery_Call {
+func (_e *MockOCRepository_Expecter) GetGallery(ctx any, ocID any) *MockOCRepository_GetGallery_Call {
 	return &MockOCRepository_GetGallery_Call{Call: _e.mock.On("GetGallery", ctx, ocID)}
 }
 
@@ -1369,7 +1369,7 @@ type MockOCRepository_GetGalleryBatch_Call struct {
 // GetGalleryBatch is a helper method to define mock.On call
 //   - ctx context.Context
 //   - ocIDs []uuid.UUID
-func (_e *MockOCRepository_Expecter) GetGalleryBatch(ctx interface{}, ocIDs interface{}) *MockOCRepository_GetGalleryBatch_Call {
+func (_e *MockOCRepository_Expecter) GetGalleryBatch(ctx any, ocIDs any) *MockOCRepository_GetGalleryBatch_Call {
 	return &MockOCRepository_GetGalleryBatch_Call{Call: _e.mock.On("GetGalleryBatch", ctx, ocIDs)}
 }
 
@@ -1436,7 +1436,7 @@ type MockOCRepository_HasOC_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - name string
-func (_e *MockOCRepository_Expecter) HasOC(ctx interface{}, userID interface{}, name interface{}) *MockOCRepository_HasOC_Call {
+func (_e *MockOCRepository_Expecter) HasOC(ctx any, userID any, name any) *MockOCRepository_HasOC_Call {
 	return &MockOCRepository_HasOC_Call{Call: _e.mock.On("HasOC", ctx, userID, name)}
 }
 
@@ -1499,7 +1499,7 @@ type MockOCRepository_LikeComment_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - commentID uuid.UUID
-func (_e *MockOCRepository_Expecter) LikeComment(ctx interface{}, userID interface{}, commentID interface{}) *MockOCRepository_LikeComment_Call {
+func (_e *MockOCRepository_Expecter) LikeComment(ctx any, userID any, commentID any) *MockOCRepository_LikeComment_Call {
 	return &MockOCRepository_LikeComment_Call{Call: _e.mock.On("LikeComment", ctx, userID, commentID)}
 }
 
@@ -1586,7 +1586,7 @@ type MockOCRepository_List_Call struct {
 //   - limit int
 //   - offset int
 //   - excludeUserIDs []uuid.UUID
-func (_e *MockOCRepository_Expecter) List(ctx interface{}, viewerID interface{}, sort interface{}, crackOCsOnly interface{}, series interface{}, customSeriesName interface{}, ownerID interface{}, limit interface{}, offset interface{}, excludeUserIDs interface{}) *MockOCRepository_List_Call {
+func (_e *MockOCRepository_Expecter) List(ctx any, viewerID any, sort any, crackOCsOnly any, series any, customSeriesName any, ownerID any, limit any, offset any, excludeUserIDs any) *MockOCRepository_List_Call {
 	return &MockOCRepository_List_Call{Call: _e.mock.On("List", ctx, viewerID, sort, crackOCsOnly, series, customSeriesName, ownerID, limit, offset, excludeUserIDs)}
 }
 
@@ -1703,7 +1703,7 @@ type MockOCRepository_ListByUser_Call struct {
 //   - viewerID uuid.UUID
 //   - limit int
 //   - offset int
-func (_e *MockOCRepository_Expecter) ListByUser(ctx interface{}, userID interface{}, viewerID interface{}, limit interface{}, offset interface{}) *MockOCRepository_ListByUser_Call {
+func (_e *MockOCRepository_Expecter) ListByUser(ctx any, userID any, viewerID any, limit any, offset any) *MockOCRepository_ListByUser_Call {
 	return &MockOCRepository_ListByUser_Call{Call: _e.mock.On("ListByUser", ctx, userID, viewerID, limit, offset)}
 }
 
@@ -1786,7 +1786,7 @@ type MockOCRepository_ListSummariesByUser_Call struct {
 // ListSummariesByUser is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockOCRepository_Expecter) ListSummariesByUser(ctx interface{}, userID interface{}) *MockOCRepository_ListSummariesByUser_Call {
+func (_e *MockOCRepository_Expecter) ListSummariesByUser(ctx any, userID any) *MockOCRepository_ListSummariesByUser_Call {
 	return &MockOCRepository_ListSummariesByUser_Call{Call: _e.mock.On("ListSummariesByUser", ctx, userID)}
 }
 
@@ -1844,7 +1844,7 @@ type MockOCRepository_Unfavourite_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - ocID uuid.UUID
-func (_e *MockOCRepository_Expecter) Unfavourite(ctx interface{}, userID interface{}, ocID interface{}) *MockOCRepository_Unfavourite_Call {
+func (_e *MockOCRepository_Expecter) Unfavourite(ctx any, userID any, ocID any) *MockOCRepository_Unfavourite_Call {
 	return &MockOCRepository_Unfavourite_Call{Call: _e.mock.On("Unfavourite", ctx, userID, ocID)}
 }
 
@@ -1907,7 +1907,7 @@ type MockOCRepository_UnlikeComment_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - commentID uuid.UUID
-func (_e *MockOCRepository_Expecter) UnlikeComment(ctx interface{}, userID interface{}, commentID interface{}) *MockOCRepository_UnlikeComment_Call {
+func (_e *MockOCRepository_Expecter) UnlikeComment(ctx any, userID any, commentID any) *MockOCRepository_UnlikeComment_Call {
 	return &MockOCRepository_UnlikeComment_Call{Call: _e.mock.On("UnlikeComment", ctx, userID, commentID)}
 }
 
@@ -1975,7 +1975,7 @@ type MockOCRepository_Update_Call struct {
 //   - series string
 //   - customSeriesName string
 //   - asAdmin bool
-func (_e *MockOCRepository_Expecter) Update(ctx interface{}, id interface{}, userID interface{}, name interface{}, description interface{}, series interface{}, customSeriesName interface{}, asAdmin interface{}) *MockOCRepository_Update_Call {
+func (_e *MockOCRepository_Expecter) Update(ctx any, id any, userID any, name any, description any, series any, customSeriesName any, asAdmin any) *MockOCRepository_Update_Call {
 	return &MockOCRepository_Update_Call{Call: _e.mock.On("Update", ctx, id, userID, name, description, series, customSeriesName, asAdmin)}
 }
 
@@ -2064,7 +2064,7 @@ type MockOCRepository_UpdateComment_Call struct {
 //   - id uuid.UUID
 //   - userID uuid.UUID
 //   - body string
-func (_e *MockOCRepository_Expecter) UpdateComment(ctx interface{}, id interface{}, userID interface{}, body interface{}) *MockOCRepository_UpdateComment_Call {
+func (_e *MockOCRepository_Expecter) UpdateComment(ctx any, id any, userID any, body any) *MockOCRepository_UpdateComment_Call {
 	return &MockOCRepository_UpdateComment_Call{Call: _e.mock.On("UpdateComment", ctx, id, userID, body)}
 }
 
@@ -2132,7 +2132,7 @@ type MockOCRepository_UpdateCommentAsAdmin_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - body string
-func (_e *MockOCRepository_Expecter) UpdateCommentAsAdmin(ctx interface{}, id interface{}, body interface{}) *MockOCRepository_UpdateCommentAsAdmin_Call {
+func (_e *MockOCRepository_Expecter) UpdateCommentAsAdmin(ctx any, id any, body any) *MockOCRepository_UpdateCommentAsAdmin_Call {
 	return &MockOCRepository_UpdateCommentAsAdmin_Call{Call: _e.mock.On("UpdateCommentAsAdmin", ctx, id, body)}
 }
 
@@ -2195,7 +2195,7 @@ type MockOCRepository_UpdateCommentMediaThumbnail_Call struct {
 //   - ctx context.Context
 //   - id int64
 //   - thumbnailURL string
-func (_e *MockOCRepository_Expecter) UpdateCommentMediaThumbnail(ctx interface{}, id interface{}, thumbnailURL interface{}) *MockOCRepository_UpdateCommentMediaThumbnail_Call {
+func (_e *MockOCRepository_Expecter) UpdateCommentMediaThumbnail(ctx any, id any, thumbnailURL any) *MockOCRepository_UpdateCommentMediaThumbnail_Call {
 	return &MockOCRepository_UpdateCommentMediaThumbnail_Call{Call: _e.mock.On("UpdateCommentMediaThumbnail", ctx, id, thumbnailURL)}
 }
 
@@ -2258,7 +2258,7 @@ type MockOCRepository_UpdateCommentMediaURL_Call struct {
 //   - ctx context.Context
 //   - id int64
 //   - mediaURL string
-func (_e *MockOCRepository_Expecter) UpdateCommentMediaURL(ctx interface{}, id interface{}, mediaURL interface{}) *MockOCRepository_UpdateCommentMediaURL_Call {
+func (_e *MockOCRepository_Expecter) UpdateCommentMediaURL(ctx any, id any, mediaURL any) *MockOCRepository_UpdateCommentMediaURL_Call {
 	return &MockOCRepository_UpdateCommentMediaURL_Call{Call: _e.mock.On("UpdateCommentMediaURL", ctx, id, mediaURL)}
 }
 
@@ -2323,7 +2323,7 @@ type MockOCRepository_UpdateGalleryImage_Call struct {
 //   - ocID uuid.UUID
 //   - caption *string
 //   - sortOrder *int
-func (_e *MockOCRepository_Expecter) UpdateGalleryImage(ctx interface{}, id interface{}, ocID interface{}, caption interface{}, sortOrder interface{}) *MockOCRepository_UpdateGalleryImage_Call {
+func (_e *MockOCRepository_Expecter) UpdateGalleryImage(ctx any, id any, ocID any, caption any, sortOrder any) *MockOCRepository_UpdateGalleryImage_Call {
 	return &MockOCRepository_UpdateGalleryImage_Call{Call: _e.mock.On("UpdateGalleryImage", ctx, id, ocID, caption, sortOrder)}
 }
 
@@ -2396,7 +2396,7 @@ type MockOCRepository_UpdateGalleryImageThumbnail_Call struct {
 //   - ctx context.Context
 //   - id int64
 //   - thumbnailURL string
-func (_e *MockOCRepository_Expecter) UpdateGalleryImageThumbnail(ctx interface{}, id interface{}, thumbnailURL interface{}) *MockOCRepository_UpdateGalleryImageThumbnail_Call {
+func (_e *MockOCRepository_Expecter) UpdateGalleryImageThumbnail(ctx any, id any, thumbnailURL any) *MockOCRepository_UpdateGalleryImageThumbnail_Call {
 	return &MockOCRepository_UpdateGalleryImageThumbnail_Call{Call: _e.mock.On("UpdateGalleryImageThumbnail", ctx, id, thumbnailURL)}
 }
 
@@ -2459,7 +2459,7 @@ type MockOCRepository_UpdateGalleryImageURL_Call struct {
 //   - ctx context.Context
 //   - id int64
 //   - imageURL string
-func (_e *MockOCRepository_Expecter) UpdateGalleryImageURL(ctx interface{}, id interface{}, imageURL interface{}) *MockOCRepository_UpdateGalleryImageURL_Call {
+func (_e *MockOCRepository_Expecter) UpdateGalleryImageURL(ctx any, id any, imageURL any) *MockOCRepository_UpdateGalleryImageURL_Call {
 	return &MockOCRepository_UpdateGalleryImageURL_Call{Call: _e.mock.On("UpdateGalleryImageURL", ctx, id, imageURL)}
 }
 
@@ -2523,7 +2523,7 @@ type MockOCRepository_UpdateImage_Call struct {
 //   - id uuid.UUID
 //   - imageURL string
 //   - thumbnailURL string
-func (_e *MockOCRepository_Expecter) UpdateImage(ctx interface{}, id interface{}, imageURL interface{}, thumbnailURL interface{}) *MockOCRepository_UpdateImage_Call {
+func (_e *MockOCRepository_Expecter) UpdateImage(ctx any, id any, imageURL any, thumbnailURL any) *MockOCRepository_UpdateImage_Call {
 	return &MockOCRepository_UpdateImage_Call{Call: _e.mock.On("UpdateImage", ctx, id, imageURL, thumbnailURL)}
 }
 
@@ -2592,7 +2592,7 @@ type MockOCRepository_Vote_Call struct {
 //   - userID uuid.UUID
 //   - ocID uuid.UUID
 //   - value int
-func (_e *MockOCRepository_Expecter) Vote(ctx interface{}, userID interface{}, ocID interface{}, value interface{}) *MockOCRepository_Vote_Call {
+func (_e *MockOCRepository_Expecter) Vote(ctx any, userID any, ocID any, value any) *MockOCRepository_Vote_Call {
 	return &MockOCRepository_Vote_Call{Call: _e.mock.On("Vote", ctx, userID, ocID, value)}
 }
 

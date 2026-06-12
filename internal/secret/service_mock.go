@@ -55,7 +55,7 @@ type MockService_BroadcastProgress_Call struct {
 //   - ctx context.Context
 //   - parentID string
 //   - actor uuid.UUID
-func (_e *MockService_Expecter) BroadcastProgress(ctx interface{}, parentID interface{}, actor interface{}) *MockService_BroadcastProgress_Call {
+func (_e *MockService_Expecter) BroadcastProgress(ctx any, parentID any, actor any) *MockService_BroadcastProgress_Call {
 	return &MockService_BroadcastProgress_Call{Call: _e.mock.On("BroadcastProgress", ctx, parentID, actor)}
 }
 
@@ -108,7 +108,7 @@ type MockService_BroadcastSolved_Call struct {
 //   - parentID string
 //   - actor uuid.UUID
 //   - solvedAt string
-func (_e *MockService_Expecter) BroadcastSolved(ctx interface{}, parentID interface{}, actor interface{}, solvedAt interface{}) *MockService_BroadcastSolved_Call {
+func (_e *MockService_Expecter) BroadcastSolved(ctx any, parentID any, actor any, solvedAt any) *MockService_BroadcastSolved_Call {
 	return &MockService_BroadcastSolved_Call{Call: _e.mock.On("BroadcastSolved", ctx, parentID, actor, solvedAt)}
 }
 
@@ -188,7 +188,7 @@ type MockService_CreateComment_Call struct {
 //   - secretID string
 //   - userID uuid.UUID
 //   - req dto.CreateSecretCommentRequest
-func (_e *MockService_Expecter) CreateComment(ctx interface{}, secretID interface{}, userID interface{}, req interface{}) *MockService_CreateComment_Call {
+func (_e *MockService_Expecter) CreateComment(ctx any, secretID any, userID any, req any) *MockService_CreateComment_Call {
 	return &MockService_CreateComment_Call{Call: _e.mock.On("CreateComment", ctx, secretID, userID, req)}
 }
 
@@ -256,7 +256,7 @@ type MockService_DeleteComment_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) DeleteComment(ctx interface{}, id interface{}, userID interface{}) *MockService_DeleteComment_Call {
+func (_e *MockService_Expecter) DeleteComment(ctx any, id any, userID any) *MockService_DeleteComment_Call {
 	return &MockService_DeleteComment_Call{Call: _e.mock.On("DeleteComment", ctx, id, userID)}
 }
 
@@ -330,7 +330,7 @@ type MockService_Get_Call struct {
 //   - ctx context.Context
 //   - id string
 //   - viewerID uuid.UUID
-func (_e *MockService_Expecter) Get(ctx interface{}, id interface{}, viewerID interface{}) *MockService_Get_Call {
+func (_e *MockService_Expecter) Get(ctx any, id any, viewerID any) *MockService_Get_Call {
 	return &MockService_Get_Call{Call: _e.mock.On("Get", ctx, id, viewerID)}
 }
 
@@ -393,7 +393,7 @@ type MockService_LikeComment_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - commentID uuid.UUID
-func (_e *MockService_Expecter) LikeComment(ctx interface{}, userID interface{}, commentID interface{}) *MockService_LikeComment_Call {
+func (_e *MockService_Expecter) LikeComment(ctx any, userID any, commentID any) *MockService_LikeComment_Call {
 	return &MockService_LikeComment_Call{Call: _e.mock.On("LikeComment", ctx, userID, commentID)}
 }
 
@@ -466,7 +466,7 @@ type MockService_List_Call struct {
 // List is a helper method to define mock.On call
 //   - ctx context.Context
 //   - viewerID uuid.UUID
-func (_e *MockService_Expecter) List(ctx interface{}, viewerID interface{}) *MockService_List_Call {
+func (_e *MockService_Expecter) List(ctx any, viewerID any) *MockService_List_Call {
 	return &MockService_List_Call{Call: _e.mock.On("List", ctx, viewerID)}
 }
 
@@ -524,7 +524,7 @@ type MockService_UnlikeComment_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - commentID uuid.UUID
-func (_e *MockService_Expecter) UnlikeComment(ctx interface{}, userID interface{}, commentID interface{}) *MockService_UnlikeComment_Call {
+func (_e *MockService_Expecter) UnlikeComment(ctx any, userID any, commentID any) *MockService_UnlikeComment_Call {
 	return &MockService_UnlikeComment_Call{Call: _e.mock.On("UnlikeComment", ctx, userID, commentID)}
 }
 
@@ -588,7 +588,7 @@ type MockService_UpdateComment_Call struct {
 //   - id uuid.UUID
 //   - userID uuid.UUID
 //   - req dto.UpdateSecretCommentRequest
-func (_e *MockService_Expecter) UpdateComment(ctx interface{}, id interface{}, userID interface{}, req interface{}) *MockService_UpdateComment_Call {
+func (_e *MockService_Expecter) UpdateComment(ctx any, id any, userID any, req any) *MockService_UpdateComment_Call {
 	return &MockService_UpdateComment_Call{Call: _e.mock.On("UpdateComment", ctx, id, userID, req)}
 }
 
@@ -670,7 +670,7 @@ type MockService_UploadCommentMedia_Call struct {
 //   - contentType string
 //   - fileSize int64
 //   - reader io.Reader
-func (_e *MockService_Expecter) UploadCommentMedia(ctx interface{}, commentID interface{}, userID interface{}, contentType interface{}, fileSize interface{}, reader interface{}) *MockService_UploadCommentMedia_Call {
+func (_e *MockService_Expecter) UploadCommentMedia(ctx any, commentID any, userID any, contentType any, fileSize any, reader any) *MockService_UploadCommentMedia_Call {
 	return &MockService_UploadCommentMedia_Call{Call: _e.mock.On("UploadCommentMedia", ctx, commentID, userID, contentType, fileSize, reader)}
 }
 

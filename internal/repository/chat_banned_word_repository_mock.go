@@ -74,7 +74,7 @@ type MockChatBannedWordRepository_Create_Call struct {
 // Create is a helper method to define mock.On call
 //   - ctx context.Context
 //   - spec ChatBannedWordSpec
-func (_e *MockChatBannedWordRepository_Expecter) Create(ctx interface{}, spec interface{}) *MockChatBannedWordRepository_Create_Call {
+func (_e *MockChatBannedWordRepository_Expecter) Create(ctx any, spec any) *MockChatBannedWordRepository_Create_Call {
 	return &MockChatBannedWordRepository_Create_Call{Call: _e.mock.On("Create", ctx, spec)}
 }
 
@@ -131,7 +131,7 @@ type MockChatBannedWordRepository_Delete_Call struct {
 // Delete is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockChatBannedWordRepository_Expecter) Delete(ctx interface{}, id interface{}) *MockChatBannedWordRepository_Delete_Call {
+func (_e *MockChatBannedWordRepository_Expecter) Delete(ctx any, id any) *MockChatBannedWordRepository_Delete_Call {
 	return &MockChatBannedWordRepository_Delete_Call{Call: _e.mock.On("Delete", ctx, id)}
 }
 
@@ -199,7 +199,7 @@ type MockChatBannedWordRepository_GetByID_Call struct {
 // GetByID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockChatBannedWordRepository_Expecter) GetByID(ctx interface{}, id interface{}) *MockChatBannedWordRepository_GetByID_Call {
+func (_e *MockChatBannedWordRepository_Expecter) GetByID(ctx any, id any) *MockChatBannedWordRepository_GetByID_Call {
 	return &MockChatBannedWordRepository_GetByID_Call{Call: _e.mock.On("GetByID", ctx, id)}
 }
 
@@ -267,7 +267,7 @@ type MockChatBannedWordRepository_ListApplicable_Call struct {
 // ListApplicable is a helper method to define mock.On call
 //   - ctx context.Context
 //   - roomID uuid.UUID
-func (_e *MockChatBannedWordRepository_Expecter) ListApplicable(ctx interface{}, roomID interface{}) *MockChatBannedWordRepository_ListApplicable_Call {
+func (_e *MockChatBannedWordRepository_Expecter) ListApplicable(ctx any, roomID any) *MockChatBannedWordRepository_ListApplicable_Call {
 	return &MockChatBannedWordRepository_ListApplicable_Call{Call: _e.mock.On("ListApplicable", ctx, roomID)}
 }
 
@@ -335,7 +335,7 @@ type MockChatBannedWordRepository_ListForRoom_Call struct {
 // ListForRoom is a helper method to define mock.On call
 //   - ctx context.Context
 //   - roomID uuid.UUID
-func (_e *MockChatBannedWordRepository_Expecter) ListForRoom(ctx interface{}, roomID interface{}) *MockChatBannedWordRepository_ListForRoom_Call {
+func (_e *MockChatBannedWordRepository_Expecter) ListForRoom(ctx any, roomID any) *MockChatBannedWordRepository_ListForRoom_Call {
 	return &MockChatBannedWordRepository_ListForRoom_Call{Call: _e.mock.On("ListForRoom", ctx, roomID)}
 }
 
@@ -402,7 +402,7 @@ type MockChatBannedWordRepository_ListGlobal_Call struct {
 
 // ListGlobal is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockChatBannedWordRepository_Expecter) ListGlobal(ctx interface{}) *MockChatBannedWordRepository_ListGlobal_Call {
+func (_e *MockChatBannedWordRepository_Expecter) ListGlobal(ctx any) *MockChatBannedWordRepository_ListGlobal_Call {
 	return &MockChatBannedWordRepository_ListGlobal_Call{Call: _e.mock.On("ListGlobal", ctx)}
 }
 
@@ -455,7 +455,7 @@ type MockChatBannedWordRepository_Update_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - spec ChatBannedWordUpdate
-func (_e *MockChatBannedWordRepository_Expecter) Update(ctx interface{}, id interface{}, spec interface{}) *MockChatBannedWordRepository_Update_Call {
+func (_e *MockChatBannedWordRepository_Expecter) Update(ctx any, id any, spec any) *MockChatBannedWordRepository_Update_Call {
 	return &MockChatBannedWordRepository_Update_Call{Call: _e.mock.On("Update", ctx, id, spec)}
 }
 

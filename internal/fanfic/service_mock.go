@@ -79,7 +79,7 @@ type MockService_CreateChapter_Call struct {
 //   - fanficID uuid.UUID
 //   - userID uuid.UUID
 //   - req dto.CreateChapterRequest
-func (_e *MockService_Expecter) CreateChapter(ctx interface{}, fanficID interface{}, userID interface{}, req interface{}) *MockService_CreateChapter_Call {
+func (_e *MockService_Expecter) CreateChapter(ctx any, fanficID any, userID any, req any) *MockService_CreateChapter_Call {
 	return &MockService_CreateChapter_Call{Call: _e.mock.On("CreateChapter", ctx, fanficID, userID, req)}
 }
 
@@ -159,7 +159,7 @@ type MockService_CreateComment_Call struct {
 //   - fanficID uuid.UUID
 //   - userID uuid.UUID
 //   - req dto.CreateCommentRequest
-func (_e *MockService_Expecter) CreateComment(ctx interface{}, fanficID interface{}, userID interface{}, req interface{}) *MockService_CreateComment_Call {
+func (_e *MockService_Expecter) CreateComment(ctx any, fanficID any, userID any, req any) *MockService_CreateComment_Call {
 	return &MockService_CreateComment_Call{Call: _e.mock.On("CreateComment", ctx, fanficID, userID, req)}
 }
 
@@ -238,7 +238,7 @@ type MockService_CreateFanfic_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - req dto.CreateFanficRequest
-func (_e *MockService_Expecter) CreateFanfic(ctx interface{}, userID interface{}, req interface{}) *MockService_CreateFanfic_Call {
+func (_e *MockService_Expecter) CreateFanfic(ctx any, userID any, req any) *MockService_CreateFanfic_Call {
 	return &MockService_CreateFanfic_Call{Call: _e.mock.On("CreateFanfic", ctx, userID, req)}
 }
 
@@ -301,7 +301,7 @@ type MockService_DeleteChapter_Call struct {
 //   - ctx context.Context
 //   - chapterID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) DeleteChapter(ctx interface{}, chapterID interface{}, userID interface{}) *MockService_DeleteChapter_Call {
+func (_e *MockService_Expecter) DeleteChapter(ctx any, chapterID any, userID any) *MockService_DeleteChapter_Call {
 	return &MockService_DeleteChapter_Call{Call: _e.mock.On("DeleteChapter", ctx, chapterID, userID)}
 }
 
@@ -364,7 +364,7 @@ type MockService_DeleteComment_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) DeleteComment(ctx interface{}, id interface{}, userID interface{}) *MockService_DeleteComment_Call {
+func (_e *MockService_Expecter) DeleteComment(ctx any, id any, userID any) *MockService_DeleteComment_Call {
 	return &MockService_DeleteComment_Call{Call: _e.mock.On("DeleteComment", ctx, id, userID)}
 }
 
@@ -427,7 +427,7 @@ type MockService_DeleteFanfic_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) DeleteFanfic(ctx interface{}, id interface{}, userID interface{}) *MockService_DeleteFanfic_Call {
+func (_e *MockService_Expecter) DeleteFanfic(ctx any, id any, userID any) *MockService_DeleteFanfic_Call {
 	return &MockService_DeleteFanfic_Call{Call: _e.mock.On("DeleteFanfic", ctx, id, userID)}
 }
 
@@ -490,7 +490,7 @@ type MockService_Favourite_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - fanficID uuid.UUID
-func (_e *MockService_Expecter) Favourite(ctx interface{}, userID interface{}, fanficID interface{}) *MockService_Favourite_Call {
+func (_e *MockService_Expecter) Favourite(ctx any, userID any, fanficID any) *MockService_Favourite_Call {
 	return &MockService_Favourite_Call{Call: _e.mock.On("Favourite", ctx, userID, fanficID)}
 }
 
@@ -565,7 +565,7 @@ type MockService_GetChapter_Call struct {
 //   - fanficID uuid.UUID
 //   - chapterNumber int
 //   - viewerID uuid.UUID
-func (_e *MockService_Expecter) GetChapter(ctx interface{}, fanficID interface{}, chapterNumber interface{}, viewerID interface{}) *MockService_GetChapter_Call {
+func (_e *MockService_Expecter) GetChapter(ctx any, fanficID any, chapterNumber any, viewerID any) *MockService_GetChapter_Call {
 	return &MockService_GetChapter_Call{Call: _e.mock.On("GetChapter", ctx, fanficID, chapterNumber, viewerID)}
 }
 
@@ -645,7 +645,7 @@ type MockService_GetFanfic_Call struct {
 //   - id uuid.UUID
 //   - viewerID uuid.UUID
 //   - viewerHash string
-func (_e *MockService_Expecter) GetFanfic(ctx interface{}, id interface{}, viewerID interface{}, viewerHash interface{}) *MockService_GetFanfic_Call {
+func (_e *MockService_Expecter) GetFanfic(ctx any, id any, viewerID any, viewerHash any) *MockService_GetFanfic_Call {
 	return &MockService_GetFanfic_Call{Call: _e.mock.On("GetFanfic", ctx, id, viewerID, viewerHash)}
 }
 
@@ -722,7 +722,7 @@ type MockService_GetLanguages_Call struct {
 
 // GetLanguages is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockService_Expecter) GetLanguages(ctx interface{}) *MockService_GetLanguages_Call {
+func (_e *MockService_Expecter) GetLanguages(ctx any) *MockService_GetLanguages_Call {
 	return &MockService_GetLanguages_Call{Call: _e.mock.On("GetLanguages", ctx)}
 }
 
@@ -784,7 +784,7 @@ type MockService_GetSeries_Call struct {
 
 // GetSeries is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockService_Expecter) GetSeries(ctx interface{}) *MockService_GetSeries_Call {
+func (_e *MockService_Expecter) GetSeries(ctx any) *MockService_GetSeries_Call {
 	return &MockService_GetSeries_Call{Call: _e.mock.On("GetSeries", ctx)}
 }
 
@@ -837,7 +837,7 @@ type MockService_LikeComment_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - commentID uuid.UUID
-func (_e *MockService_Expecter) LikeComment(ctx interface{}, userID interface{}, commentID interface{}) *MockService_LikeComment_Call {
+func (_e *MockService_Expecter) LikeComment(ctx any, userID any, commentID any) *MockService_LikeComment_Call {
 	return &MockService_LikeComment_Call{Call: _e.mock.On("LikeComment", ctx, userID, commentID)}
 }
 
@@ -911,7 +911,7 @@ type MockService_ListFanfics_Call struct {
 //   - ctx context.Context
 //   - viewerID uuid.UUID
 //   - params1 params.ListParams
-func (_e *MockService_Expecter) ListFanfics(ctx interface{}, viewerID interface{}, params1 interface{}) *MockService_ListFanfics_Call {
+func (_e *MockService_Expecter) ListFanfics(ctx any, viewerID any, params1 any) *MockService_ListFanfics_Call {
 	return &MockService_ListFanfics_Call{Call: _e.mock.On("ListFanfics", ctx, viewerID, params1)}
 }
 
@@ -987,7 +987,7 @@ type MockService_ListFanficsByUser_Call struct {
 //   - viewerID uuid.UUID
 //   - limit int
 //   - offset int
-func (_e *MockService_Expecter) ListFanficsByUser(ctx interface{}, userID interface{}, viewerID interface{}, limit interface{}, offset interface{}) *MockService_ListFanficsByUser_Call {
+func (_e *MockService_Expecter) ListFanficsByUser(ctx any, userID any, viewerID any, limit any, offset any) *MockService_ListFanficsByUser_Call {
 	return &MockService_ListFanficsByUser_Call{Call: _e.mock.On("ListFanficsByUser", ctx, userID, viewerID, limit, offset)}
 }
 
@@ -1073,7 +1073,7 @@ type MockService_ListFavourites_Call struct {
 //   - viewerID uuid.UUID
 //   - limit int
 //   - offset int
-func (_e *MockService_Expecter) ListFavourites(ctx interface{}, userID interface{}, viewerID interface{}, limit interface{}, offset interface{}) *MockService_ListFavourites_Call {
+func (_e *MockService_Expecter) ListFavourites(ctx any, userID any, viewerID any, limit any, offset any) *MockService_ListFavourites_Call {
 	return &MockService_ListFavourites_Call{Call: _e.mock.On("ListFavourites", ctx, userID, viewerID, limit, offset)}
 }
 
@@ -1146,7 +1146,7 @@ type MockService_RemoveCoverImage_Call struct {
 //   - ctx context.Context
 //   - fanficID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) RemoveCoverImage(ctx interface{}, fanficID interface{}, userID interface{}) *MockService_RemoveCoverImage_Call {
+func (_e *MockService_Expecter) RemoveCoverImage(ctx any, fanficID any, userID any) *MockService_RemoveCoverImage_Call {
 	return &MockService_RemoveCoverImage_Call{Call: _e.mock.On("RemoveCoverImage", ctx, fanficID, userID)}
 }
 
@@ -1219,7 +1219,7 @@ type MockService_SearchOCCharacters_Call struct {
 // SearchOCCharacters is a helper method to define mock.On call
 //   - ctx context.Context
 //   - query string
-func (_e *MockService_Expecter) SearchOCCharacters(ctx interface{}, query interface{}) *MockService_SearchOCCharacters_Call {
+func (_e *MockService_Expecter) SearchOCCharacters(ctx any, query any) *MockService_SearchOCCharacters_Call {
 	return &MockService_SearchOCCharacters_Call{Call: _e.mock.On("SearchOCCharacters", ctx, query)}
 }
 
@@ -1277,7 +1277,7 @@ type MockService_Unfavourite_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - fanficID uuid.UUID
-func (_e *MockService_Expecter) Unfavourite(ctx interface{}, userID interface{}, fanficID interface{}) *MockService_Unfavourite_Call {
+func (_e *MockService_Expecter) Unfavourite(ctx any, userID any, fanficID any) *MockService_Unfavourite_Call {
 	return &MockService_Unfavourite_Call{Call: _e.mock.On("Unfavourite", ctx, userID, fanficID)}
 }
 
@@ -1340,7 +1340,7 @@ type MockService_UnlikeComment_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - commentID uuid.UUID
-func (_e *MockService_Expecter) UnlikeComment(ctx interface{}, userID interface{}, commentID interface{}) *MockService_UnlikeComment_Call {
+func (_e *MockService_Expecter) UnlikeComment(ctx any, userID any, commentID any) *MockService_UnlikeComment_Call {
 	return &MockService_UnlikeComment_Call{Call: _e.mock.On("UnlikeComment", ctx, userID, commentID)}
 }
 
@@ -1404,7 +1404,7 @@ type MockService_UpdateChapter_Call struct {
 //   - chapterID uuid.UUID
 //   - userID uuid.UUID
 //   - req dto.UpdateChapterRequest
-func (_e *MockService_Expecter) UpdateChapter(ctx interface{}, chapterID interface{}, userID interface{}, req interface{}) *MockService_UpdateChapter_Call {
+func (_e *MockService_Expecter) UpdateChapter(ctx any, chapterID any, userID any, req any) *MockService_UpdateChapter_Call {
 	return &MockService_UpdateChapter_Call{Call: _e.mock.On("UpdateChapter", ctx, chapterID, userID, req)}
 }
 
@@ -1473,7 +1473,7 @@ type MockService_UpdateComment_Call struct {
 //   - id uuid.UUID
 //   - userID uuid.UUID
 //   - req dto.UpdateCommentRequest
-func (_e *MockService_Expecter) UpdateComment(ctx interface{}, id interface{}, userID interface{}, req interface{}) *MockService_UpdateComment_Call {
+func (_e *MockService_Expecter) UpdateComment(ctx any, id any, userID any, req any) *MockService_UpdateComment_Call {
 	return &MockService_UpdateComment_Call{Call: _e.mock.On("UpdateComment", ctx, id, userID, req)}
 }
 
@@ -1542,7 +1542,7 @@ type MockService_UpdateFanfic_Call struct {
 //   - id uuid.UUID
 //   - userID uuid.UUID
 //   - req dto.UpdateFanficRequest
-func (_e *MockService_Expecter) UpdateFanfic(ctx interface{}, id interface{}, userID interface{}, req interface{}) *MockService_UpdateFanfic_Call {
+func (_e *MockService_Expecter) UpdateFanfic(ctx any, id any, userID any, req any) *MockService_UpdateFanfic_Call {
 	return &MockService_UpdateFanfic_Call{Call: _e.mock.On("UpdateFanfic", ctx, id, userID, req)}
 }
 
@@ -1624,7 +1624,7 @@ type MockService_UploadCommentMedia_Call struct {
 //   - contentType string
 //   - fileSize int64
 //   - reader io.Reader
-func (_e *MockService_Expecter) UploadCommentMedia(ctx interface{}, commentID interface{}, userID interface{}, contentType interface{}, fileSize interface{}, reader interface{}) *MockService_UploadCommentMedia_Call {
+func (_e *MockService_Expecter) UploadCommentMedia(ctx any, commentID any, userID any, contentType any, fileSize any, reader any) *MockService_UploadCommentMedia_Call {
 	return &MockService_UploadCommentMedia_Call{Call: _e.mock.On("UploadCommentMedia", ctx, commentID, userID, contentType, fileSize, reader)}
 }
 
@@ -1714,7 +1714,7 @@ type MockService_UploadCoverImage_Call struct {
 //   - contentType string
 //   - fileSize int64
 //   - reader io.Reader
-func (_e *MockService_Expecter) UploadCoverImage(ctx interface{}, fanficID interface{}, userID interface{}, contentType interface{}, fileSize interface{}, reader interface{}) *MockService_UploadCoverImage_Call {
+func (_e *MockService_Expecter) UploadCoverImage(ctx any, fanficID any, userID any, contentType any, fileSize any, reader any) *MockService_UploadCoverImage_Call {
 	return &MockService_UploadCoverImage_Call{Call: _e.mock.On("UploadCoverImage", ctx, fanficID, userID, contentType, fileSize, reader)}
 }
 

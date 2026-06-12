@@ -66,7 +66,7 @@ type MockService_ChangePassword_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - req dto.ChangePasswordRequest
-func (_e *MockService_Expecter) ChangePassword(ctx interface{}, userID interface{}, req interface{}) *MockService_ChangePassword_Call {
+func (_e *MockService_Expecter) ChangePassword(ctx any, userID any, req any) *MockService_ChangePassword_Call {
 	return &MockService_ChangePassword_Call{Call: _e.mock.On("ChangePassword", ctx, userID, req)}
 }
 
@@ -129,7 +129,7 @@ type MockService_DeleteAccount_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - req dto.DeleteAccountRequest
-func (_e *MockService_Expecter) DeleteAccount(ctx interface{}, userID interface{}, req interface{}) *MockService_DeleteAccount_Call {
+func (_e *MockService_Expecter) DeleteAccount(ctx any, userID any, req any) *MockService_DeleteAccount_Call {
 	return &MockService_DeleteAccount_Call{Call: _e.mock.On("DeleteAccount", ctx, userID, req)}
 }
 
@@ -204,7 +204,7 @@ type MockService_GetActivity_Call struct {
 //   - username string
 //   - limit int
 //   - offset int
-func (_e *MockService_Expecter) GetActivity(ctx interface{}, username interface{}, limit interface{}, offset interface{}) *MockService_GetActivity_Call {
+func (_e *MockService_Expecter) GetActivity(ctx any, username any, limit any, offset any) *MockService_GetActivity_Call {
 	return &MockService_GetActivity_Call{Call: _e.mock.On("GetActivity", ctx, username, limit, offset)}
 }
 
@@ -283,7 +283,7 @@ type MockService_GetProfile_Call struct {
 //   - ctx context.Context
 //   - username string
 //   - viewerID uuid.UUID
-func (_e *MockService_Expecter) GetProfile(ctx interface{}, username interface{}, viewerID interface{}) *MockService_GetProfile_Call {
+func (_e *MockService_Expecter) GetProfile(ctx any, username any, viewerID any) *MockService_GetProfile_Call {
 	return &MockService_GetProfile_Call{Call: _e.mock.On("GetProfile", ctx, username, viewerID)}
 }
 
@@ -355,7 +355,7 @@ type MockService_ListPublicUsers_Call struct {
 
 // ListPublicUsers is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockService_Expecter) ListPublicUsers(ctx interface{}) *MockService_ListPublicUsers_Call {
+func (_e *MockService_Expecter) ListPublicUsers(ctx any) *MockService_ListPublicUsers_Call {
 	return &MockService_ListPublicUsers_Call{Call: _e.mock.On("ListPublicUsers", ctx)}
 }
 
@@ -419,7 +419,7 @@ type MockService_SearchUsers_Call struct {
 //   - ctx context.Context
 //   - query string
 //   - limit int
-func (_e *MockService_Expecter) SearchUsers(ctx interface{}, query interface{}, limit interface{}) *MockService_SearchUsers_Call {
+func (_e *MockService_Expecter) SearchUsers(ctx any, query any, limit any) *MockService_SearchUsers_Call {
 	return &MockService_SearchUsers_Call{Call: _e.mock.On("SearchUsers", ctx, query, limit)}
 }
 
@@ -482,7 +482,7 @@ type MockService_UpdateProfile_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - req dto.UpdateProfileRequest
-func (_e *MockService_Expecter) UpdateProfile(ctx interface{}, userID interface{}, req interface{}) *MockService_UpdateProfile_Call {
+func (_e *MockService_Expecter) UpdateProfile(ctx any, userID any, req any) *MockService_UpdateProfile_Call {
 	return &MockService_UpdateProfile_Call{Call: _e.mock.On("UpdateProfile", ctx, userID, req)}
 }
 
@@ -556,7 +556,7 @@ type MockService_UploadAvatar_Call struct {
 //   - contentType string
 //   - fileSize int64
 //   - reader io.Reader
-func (_e *MockService_Expecter) UploadAvatar(ctx interface{}, userID interface{}, contentType interface{}, fileSize interface{}, reader interface{}) *MockService_UploadAvatar_Call {
+func (_e *MockService_Expecter) UploadAvatar(ctx any, userID any, contentType any, fileSize any, reader any) *MockService_UploadAvatar_Call {
 	return &MockService_UploadAvatar_Call{Call: _e.mock.On("UploadAvatar", ctx, userID, contentType, fileSize, reader)}
 }
 
@@ -640,7 +640,7 @@ type MockService_UploadBanner_Call struct {
 //   - contentType string
 //   - fileSize int64
 //   - reader io.Reader
-func (_e *MockService_Expecter) UploadBanner(ctx interface{}, userID interface{}, contentType interface{}, fileSize interface{}, reader interface{}) *MockService_UploadBanner_Call {
+func (_e *MockService_Expecter) UploadBanner(ctx any, userID any, contentType any, fileSize any, reader any) *MockService_UploadBanner_Call {
 	return &MockService_UploadBanner_Call{Call: _e.mock.On("UploadBanner", ctx, userID, contentType, fileSize, reader)}
 }
 

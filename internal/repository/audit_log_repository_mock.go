@@ -67,7 +67,7 @@ type MockAuditLogRepository_Create_Call struct {
 //   - targetType string
 //   - targetID string
 //   - details string
-func (_e *MockAuditLogRepository_Expecter) Create(ctx interface{}, actorID interface{}, action interface{}, targetType interface{}, targetID interface{}, details interface{}) *MockAuditLogRepository_Create_Call {
+func (_e *MockAuditLogRepository_Expecter) Create(ctx any, actorID any, action any, targetType any, targetID any, details any) *MockAuditLogRepository_Create_Call {
 	return &MockAuditLogRepository_Create_Call{Call: _e.mock.On("Create", ctx, actorID, action, targetType, targetID, details)}
 }
 
@@ -147,7 +147,7 @@ type MockAuditLogRepository_CreateSystem_Call struct {
 //   - targetType string
 //   - targetID string
 //   - details string
-func (_e *MockAuditLogRepository_Expecter) CreateSystem(ctx interface{}, action interface{}, targetType interface{}, targetID interface{}, details interface{}) *MockAuditLogRepository_CreateSystem_Call {
+func (_e *MockAuditLogRepository_Expecter) CreateSystem(ctx any, action any, targetType any, targetID any, details any) *MockAuditLogRepository_CreateSystem_Call {
 	return &MockAuditLogRepository_CreateSystem_Call{Call: _e.mock.On("CreateSystem", ctx, action, targetType, targetID, details)}
 }
 
@@ -238,7 +238,7 @@ type MockAuditLogRepository_List_Call struct {
 //   - action string
 //   - limit int
 //   - offset int
-func (_e *MockAuditLogRepository_Expecter) List(ctx interface{}, action interface{}, limit interface{}, offset interface{}) *MockAuditLogRepository_List_Call {
+func (_e *MockAuditLogRepository_Expecter) List(ctx any, action any, limit any, offset any) *MockAuditLogRepository_List_Call {
 	return &MockAuditLogRepository_List_Call{Call: _e.mock.On("List", ctx, action, limit, offset)}
 }
 

@@ -78,7 +78,7 @@ type MockService_CreateResponse_Call struct {
 //   - theoryID uuid.UUID
 //   - userID uuid.UUID
 //   - req dto.CreateResponseRequest
-func (_e *MockService_Expecter) CreateResponse(ctx interface{}, theoryID interface{}, userID interface{}, req interface{}) *MockService_CreateResponse_Call {
+func (_e *MockService_Expecter) CreateResponse(ctx any, theoryID any, userID any, req any) *MockService_CreateResponse_Call {
 	return &MockService_CreateResponse_Call{Call: _e.mock.On("CreateResponse", ctx, theoryID, userID, req)}
 }
 
@@ -157,7 +157,7 @@ type MockService_CreateTheory_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - req dto.CreateTheoryRequest
-func (_e *MockService_Expecter) CreateTheory(ctx interface{}, userID interface{}, req interface{}) *MockService_CreateTheory_Call {
+func (_e *MockService_Expecter) CreateTheory(ctx any, userID any, req any) *MockService_CreateTheory_Call {
 	return &MockService_CreateTheory_Call{Call: _e.mock.On("CreateTheory", ctx, userID, req)}
 }
 
@@ -220,7 +220,7 @@ type MockService_DeleteResponse_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) DeleteResponse(ctx interface{}, id interface{}, userID interface{}) *MockService_DeleteResponse_Call {
+func (_e *MockService_Expecter) DeleteResponse(ctx any, id any, userID any) *MockService_DeleteResponse_Call {
 	return &MockService_DeleteResponse_Call{Call: _e.mock.On("DeleteResponse", ctx, id, userID)}
 }
 
@@ -283,7 +283,7 @@ type MockService_DeleteTheory_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) DeleteTheory(ctx interface{}, id interface{}, userID interface{}) *MockService_DeleteTheory_Call {
+func (_e *MockService_Expecter) DeleteTheory(ctx any, id any, userID any) *MockService_DeleteTheory_Call {
 	return &MockService_DeleteTheory_Call{Call: _e.mock.On("DeleteTheory", ctx, id, userID)}
 }
 
@@ -357,7 +357,7 @@ type MockService_GetTheoryDetail_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) GetTheoryDetail(ctx interface{}, id interface{}, userID interface{}) *MockService_GetTheoryDetail_Call {
+func (_e *MockService_Expecter) GetTheoryDetail(ctx any, id any, userID any) *MockService_GetTheoryDetail_Call {
 	return &MockService_GetTheoryDetail_Call{Call: _e.mock.On("GetTheoryDetail", ctx, id, userID)}
 }
 
@@ -431,7 +431,7 @@ type MockService_ListTheories_Call struct {
 //   - ctx context.Context
 //   - p params.ListParams
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) ListTheories(ctx interface{}, p interface{}, userID interface{}) *MockService_ListTheories_Call {
+func (_e *MockService_Expecter) ListTheories(ctx any, p any, userID any) *MockService_ListTheories_Call {
 	return &MockService_ListTheories_Call{Call: _e.mock.On("ListTheories", ctx, p, userID)}
 }
 
@@ -495,7 +495,7 @@ type MockService_UpdateTheory_Call struct {
 //   - id uuid.UUID
 //   - userID uuid.UUID
 //   - req dto.CreateTheoryRequest
-func (_e *MockService_Expecter) UpdateTheory(ctx interface{}, id interface{}, userID interface{}, req interface{}) *MockService_UpdateTheory_Call {
+func (_e *MockService_Expecter) UpdateTheory(ctx any, id any, userID any, req any) *MockService_UpdateTheory_Call {
 	return &MockService_UpdateTheory_Call{Call: _e.mock.On("UpdateTheory", ctx, id, userID, req)}
 }
 
@@ -564,7 +564,7 @@ type MockService_VoteResponse_Call struct {
 //   - userID uuid.UUID
 //   - responseID uuid.UUID
 //   - value int
-func (_e *MockService_Expecter) VoteResponse(ctx interface{}, userID interface{}, responseID interface{}, value interface{}) *MockService_VoteResponse_Call {
+func (_e *MockService_Expecter) VoteResponse(ctx any, userID any, responseID any, value any) *MockService_VoteResponse_Call {
 	return &MockService_VoteResponse_Call{Call: _e.mock.On("VoteResponse", ctx, userID, responseID, value)}
 }
 
@@ -633,7 +633,7 @@ type MockService_VoteTheory_Call struct {
 //   - userID uuid.UUID
 //   - theoryID uuid.UUID
 //   - value int
-func (_e *MockService_Expecter) VoteTheory(ctx interface{}, userID interface{}, theoryID interface{}, value interface{}) *MockService_VoteTheory_Call {
+func (_e *MockService_Expecter) VoteTheory(ctx any, userID any, theoryID any, value any) *MockService_VoteTheory_Call {
 	return &MockService_VoteTheory_Call{Call: _e.mock.On("VoteTheory", ctx, userID, theoryID, value)}
 }
 

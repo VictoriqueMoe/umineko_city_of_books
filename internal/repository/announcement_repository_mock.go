@@ -76,7 +76,7 @@ type MockAnnouncementRepository_AddCommentMedia_Call struct {
 //   - mediaType string
 //   - thumbnailURL string
 //   - sortOrder int
-func (_e *MockAnnouncementRepository_Expecter) AddCommentMedia(ctx interface{}, commentID interface{}, mediaURL interface{}, mediaType interface{}, thumbnailURL interface{}, sortOrder interface{}) *MockAnnouncementRepository_AddCommentMedia_Call {
+func (_e *MockAnnouncementRepository_Expecter) AddCommentMedia(ctx any, commentID any, mediaURL any, mediaType any, thumbnailURL any, sortOrder any) *MockAnnouncementRepository_AddCommentMedia_Call {
 	return &MockAnnouncementRepository_AddCommentMedia_Call{Call: _e.mock.On("AddCommentMedia", ctx, commentID, mediaURL, mediaType, thumbnailURL, sortOrder)}
 }
 
@@ -156,7 +156,7 @@ type MockAnnouncementRepository_Create_Call struct {
 //   - authorID uuid.UUID
 //   - title string
 //   - body string
-func (_e *MockAnnouncementRepository_Expecter) Create(ctx interface{}, id interface{}, authorID interface{}, title interface{}, body interface{}) *MockAnnouncementRepository_Create_Call {
+func (_e *MockAnnouncementRepository_Expecter) Create(ctx any, id any, authorID any, title any, body any) *MockAnnouncementRepository_Create_Call {
 	return &MockAnnouncementRepository_Create_Call{Call: _e.mock.On("Create", ctx, id, authorID, title, body)}
 }
 
@@ -232,7 +232,7 @@ type MockAnnouncementRepository_CreateComment_Call struct {
 //   - parentID *uuid.UUID
 //   - userID uuid.UUID
 //   - body string
-func (_e *MockAnnouncementRepository_Expecter) CreateComment(ctx interface{}, id interface{}, announcementID interface{}, parentID interface{}, userID interface{}, body interface{}) *MockAnnouncementRepository_CreateComment_Call {
+func (_e *MockAnnouncementRepository_Expecter) CreateComment(ctx any, id any, announcementID any, parentID any, userID any, body any) *MockAnnouncementRepository_CreateComment_Call {
 	return &MockAnnouncementRepository_CreateComment_Call{Call: _e.mock.On("CreateComment", ctx, id, announcementID, parentID, userID, body)}
 }
 
@@ -309,7 +309,7 @@ type MockAnnouncementRepository_Delete_Call struct {
 // Delete is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockAnnouncementRepository_Expecter) Delete(ctx interface{}, id interface{}) *MockAnnouncementRepository_Delete_Call {
+func (_e *MockAnnouncementRepository_Expecter) Delete(ctx any, id any) *MockAnnouncementRepository_Delete_Call {
 	return &MockAnnouncementRepository_Delete_Call{Call: _e.mock.On("Delete", ctx, id)}
 }
 
@@ -367,7 +367,7 @@ type MockAnnouncementRepository_DeleteComment_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockAnnouncementRepository_Expecter) DeleteComment(ctx interface{}, id interface{}, userID interface{}) *MockAnnouncementRepository_DeleteComment_Call {
+func (_e *MockAnnouncementRepository_Expecter) DeleteComment(ctx any, id any, userID any) *MockAnnouncementRepository_DeleteComment_Call {
 	return &MockAnnouncementRepository_DeleteComment_Call{Call: _e.mock.On("DeleteComment", ctx, id, userID)}
 }
 
@@ -429,7 +429,7 @@ type MockAnnouncementRepository_DeleteCommentAsAdmin_Call struct {
 // DeleteCommentAsAdmin is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockAnnouncementRepository_Expecter) DeleteCommentAsAdmin(ctx interface{}, id interface{}) *MockAnnouncementRepository_DeleteCommentAsAdmin_Call {
+func (_e *MockAnnouncementRepository_Expecter) DeleteCommentAsAdmin(ctx any, id any) *MockAnnouncementRepository_DeleteCommentAsAdmin_Call {
 	return &MockAnnouncementRepository_DeleteCommentAsAdmin_Call{Call: _e.mock.On("DeleteCommentAsAdmin", ctx, id)}
 }
 
@@ -497,7 +497,7 @@ type MockAnnouncementRepository_GetByID_Call struct {
 // GetByID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockAnnouncementRepository_Expecter) GetByID(ctx interface{}, id interface{}) *MockAnnouncementRepository_GetByID_Call {
+func (_e *MockAnnouncementRepository_Expecter) GetByID(ctx any, id any) *MockAnnouncementRepository_GetByID_Call {
 	return &MockAnnouncementRepository_GetByID_Call{Call: _e.mock.On("GetByID", ctx, id)}
 }
 
@@ -565,7 +565,7 @@ type MockAnnouncementRepository_GetCommentAnnouncementID_Call struct {
 // GetCommentAnnouncementID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - commentID uuid.UUID
-func (_e *MockAnnouncementRepository_Expecter) GetCommentAnnouncementID(ctx interface{}, commentID interface{}) *MockAnnouncementRepository_GetCommentAnnouncementID_Call {
+func (_e *MockAnnouncementRepository_Expecter) GetCommentAnnouncementID(ctx any, commentID any) *MockAnnouncementRepository_GetCommentAnnouncementID_Call {
 	return &MockAnnouncementRepository_GetCommentAnnouncementID_Call{Call: _e.mock.On("GetCommentAnnouncementID", ctx, commentID)}
 }
 
@@ -633,7 +633,7 @@ type MockAnnouncementRepository_GetCommentAuthorID_Call struct {
 // GetCommentAuthorID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - commentID uuid.UUID
-func (_e *MockAnnouncementRepository_Expecter) GetCommentAuthorID(ctx interface{}, commentID interface{}) *MockAnnouncementRepository_GetCommentAuthorID_Call {
+func (_e *MockAnnouncementRepository_Expecter) GetCommentAuthorID(ctx any, commentID any) *MockAnnouncementRepository_GetCommentAuthorID_Call {
 	return &MockAnnouncementRepository_GetCommentAuthorID_Call{Call: _e.mock.On("GetCommentAuthorID", ctx, commentID)}
 }
 
@@ -701,7 +701,7 @@ type MockAnnouncementRepository_GetCommentMediaBatch_Call struct {
 // GetCommentMediaBatch is a helper method to define mock.On call
 //   - ctx context.Context
 //   - commentIDs []uuid.UUID
-func (_e *MockAnnouncementRepository_Expecter) GetCommentMediaBatch(ctx interface{}, commentIDs interface{}) *MockAnnouncementRepository_GetCommentMediaBatch_Call {
+func (_e *MockAnnouncementRepository_Expecter) GetCommentMediaBatch(ctx any, commentIDs any) *MockAnnouncementRepository_GetCommentMediaBatch_Call {
 	return &MockAnnouncementRepository_GetCommentMediaBatch_Call{Call: _e.mock.On("GetCommentMediaBatch", ctx, commentIDs)}
 }
 
@@ -779,7 +779,7 @@ type MockAnnouncementRepository_GetComments_Call struct {
 //   - limit int
 //   - offset int
 //   - excludeUserIDs []uuid.UUID
-func (_e *MockAnnouncementRepository_Expecter) GetComments(ctx interface{}, announcementID interface{}, viewerID interface{}, limit interface{}, offset interface{}, excludeUserIDs interface{}) *MockAnnouncementRepository_GetComments_Call {
+func (_e *MockAnnouncementRepository_Expecter) GetComments(ctx any, announcementID any, viewerID any, limit any, offset any, excludeUserIDs any) *MockAnnouncementRepository_GetComments_Call {
 	return &MockAnnouncementRepository_GetComments_Call{Call: _e.mock.On("GetComments", ctx, announcementID, viewerID, limit, offset, excludeUserIDs)}
 }
 
@@ -866,7 +866,7 @@ type MockAnnouncementRepository_GetLatest_Call struct {
 
 // GetLatest is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockAnnouncementRepository_Expecter) GetLatest(ctx interface{}) *MockAnnouncementRepository_GetLatest_Call {
+func (_e *MockAnnouncementRepository_Expecter) GetLatest(ctx any) *MockAnnouncementRepository_GetLatest_Call {
 	return &MockAnnouncementRepository_GetLatest_Call{Call: _e.mock.On("GetLatest", ctx)}
 }
 
@@ -919,7 +919,7 @@ type MockAnnouncementRepository_LikeComment_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - commentID uuid.UUID
-func (_e *MockAnnouncementRepository_Expecter) LikeComment(ctx interface{}, userID interface{}, commentID interface{}) *MockAnnouncementRepository_LikeComment_Call {
+func (_e *MockAnnouncementRepository_Expecter) LikeComment(ctx any, userID any, commentID any) *MockAnnouncementRepository_LikeComment_Call {
 	return &MockAnnouncementRepository_LikeComment_Call{Call: _e.mock.On("LikeComment", ctx, userID, commentID)}
 }
 
@@ -999,7 +999,7 @@ type MockAnnouncementRepository_List_Call struct {
 //   - ctx context.Context
 //   - limit int
 //   - offset int
-func (_e *MockAnnouncementRepository_Expecter) List(ctx interface{}, limit interface{}, offset interface{}) *MockAnnouncementRepository_List_Call {
+func (_e *MockAnnouncementRepository_Expecter) List(ctx any, limit any, offset any) *MockAnnouncementRepository_List_Call {
 	return &MockAnnouncementRepository_List_Call{Call: _e.mock.On("List", ctx, limit, offset)}
 }
 
@@ -1062,7 +1062,7 @@ type MockAnnouncementRepository_SetPinned_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - pinned bool
-func (_e *MockAnnouncementRepository_Expecter) SetPinned(ctx interface{}, id interface{}, pinned interface{}) *MockAnnouncementRepository_SetPinned_Call {
+func (_e *MockAnnouncementRepository_Expecter) SetPinned(ctx any, id any, pinned any) *MockAnnouncementRepository_SetPinned_Call {
 	return &MockAnnouncementRepository_SetPinned_Call{Call: _e.mock.On("SetPinned", ctx, id, pinned)}
 }
 
@@ -1125,7 +1125,7 @@ type MockAnnouncementRepository_UnlikeComment_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - commentID uuid.UUID
-func (_e *MockAnnouncementRepository_Expecter) UnlikeComment(ctx interface{}, userID interface{}, commentID interface{}) *MockAnnouncementRepository_UnlikeComment_Call {
+func (_e *MockAnnouncementRepository_Expecter) UnlikeComment(ctx any, userID any, commentID any) *MockAnnouncementRepository_UnlikeComment_Call {
 	return &MockAnnouncementRepository_UnlikeComment_Call{Call: _e.mock.On("UnlikeComment", ctx, userID, commentID)}
 }
 
@@ -1189,7 +1189,7 @@ type MockAnnouncementRepository_Update_Call struct {
 //   - id uuid.UUID
 //   - title string
 //   - body string
-func (_e *MockAnnouncementRepository_Expecter) Update(ctx interface{}, id interface{}, title interface{}, body interface{}) *MockAnnouncementRepository_Update_Call {
+func (_e *MockAnnouncementRepository_Expecter) Update(ctx any, id any, title any, body any) *MockAnnouncementRepository_Update_Call {
 	return &MockAnnouncementRepository_Update_Call{Call: _e.mock.On("Update", ctx, id, title, body)}
 }
 
@@ -1258,7 +1258,7 @@ type MockAnnouncementRepository_UpdateComment_Call struct {
 //   - id uuid.UUID
 //   - userID uuid.UUID
 //   - body string
-func (_e *MockAnnouncementRepository_Expecter) UpdateComment(ctx interface{}, id interface{}, userID interface{}, body interface{}) *MockAnnouncementRepository_UpdateComment_Call {
+func (_e *MockAnnouncementRepository_Expecter) UpdateComment(ctx any, id any, userID any, body any) *MockAnnouncementRepository_UpdateComment_Call {
 	return &MockAnnouncementRepository_UpdateComment_Call{Call: _e.mock.On("UpdateComment", ctx, id, userID, body)}
 }
 
@@ -1326,7 +1326,7 @@ type MockAnnouncementRepository_UpdateCommentAsAdmin_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - body string
-func (_e *MockAnnouncementRepository_Expecter) UpdateCommentAsAdmin(ctx interface{}, id interface{}, body interface{}) *MockAnnouncementRepository_UpdateCommentAsAdmin_Call {
+func (_e *MockAnnouncementRepository_Expecter) UpdateCommentAsAdmin(ctx any, id any, body any) *MockAnnouncementRepository_UpdateCommentAsAdmin_Call {
 	return &MockAnnouncementRepository_UpdateCommentAsAdmin_Call{Call: _e.mock.On("UpdateCommentAsAdmin", ctx, id, body)}
 }
 
@@ -1389,7 +1389,7 @@ type MockAnnouncementRepository_UpdateCommentMediaThumbnail_Call struct {
 //   - ctx context.Context
 //   - id int64
 //   - thumbnailURL string
-func (_e *MockAnnouncementRepository_Expecter) UpdateCommentMediaThumbnail(ctx interface{}, id interface{}, thumbnailURL interface{}) *MockAnnouncementRepository_UpdateCommentMediaThumbnail_Call {
+func (_e *MockAnnouncementRepository_Expecter) UpdateCommentMediaThumbnail(ctx any, id any, thumbnailURL any) *MockAnnouncementRepository_UpdateCommentMediaThumbnail_Call {
 	return &MockAnnouncementRepository_UpdateCommentMediaThumbnail_Call{Call: _e.mock.On("UpdateCommentMediaThumbnail", ctx, id, thumbnailURL)}
 }
 
@@ -1452,7 +1452,7 @@ type MockAnnouncementRepository_UpdateCommentMediaURL_Call struct {
 //   - ctx context.Context
 //   - id int64
 //   - mediaURL string
-func (_e *MockAnnouncementRepository_Expecter) UpdateCommentMediaURL(ctx interface{}, id interface{}, mediaURL interface{}) *MockAnnouncementRepository_UpdateCommentMediaURL_Call {
+func (_e *MockAnnouncementRepository_Expecter) UpdateCommentMediaURL(ctx any, id any, mediaURL any) *MockAnnouncementRepository_UpdateCommentMediaURL_Call {
 	return &MockAnnouncementRepository_UpdateCommentMediaURL_Call{Call: _e.mock.On("UpdateCommentMediaURL", ctx, id, mediaURL)}
 }
 

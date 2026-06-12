@@ -61,7 +61,7 @@ type MockService_Enabled_Call struct {
 
 // Enabled is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockService_Expecter) Enabled(ctx interface{}) *MockService_Enabled_Call {
+func (_e *MockService_Expecter) Enabled(ctx any) *MockService_Enabled_Call {
 	return &MockService_Enabled_Call{Call: _e.mock.On("Enabled", ctx)}
 }
 
@@ -115,7 +115,7 @@ type MockService_Send_Call struct {
 //   - to string
 //   - subject string
 //   - body string
-func (_e *MockService_Expecter) Send(ctx interface{}, to interface{}, subject interface{}, body interface{}) *MockService_Send_Call {
+func (_e *MockService_Expecter) Send(ctx any, to any, subject any, body any) *MockService_Send_Call {
 	return &MockService_Send_Call{Call: _e.mock.On("Send", ctx, to, subject, body)}
 }
 
@@ -184,7 +184,7 @@ type MockService_SendTest_Call struct {
 //   - to string
 //   - subject string
 //   - body string
-func (_e *MockService_Expecter) SendTest(ctx interface{}, to interface{}, subject interface{}, body interface{}) *MockService_SendTest_Call {
+func (_e *MockService_Expecter) SendTest(ctx any, to any, subject any, body any) *MockService_SendTest_Call {
 	return &MockService_SendTest_Call{Call: _e.mock.On("SendTest", ctx, to, subject, body)}
 }
 

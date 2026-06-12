@@ -73,7 +73,7 @@ type MockStatsRepository_GetMostActiveUsers_Call struct {
 // GetMostActiveUsers is a helper method to define mock.On call
 //   - ctx context.Context
 //   - limit int
-func (_e *MockStatsRepository_Expecter) GetMostActiveUsers(ctx interface{}, limit interface{}) *MockStatsRepository_GetMostActiveUsers_Call {
+func (_e *MockStatsRepository_Expecter) GetMostActiveUsers(ctx any, limit any) *MockStatsRepository_GetMostActiveUsers_Call {
 	return &MockStatsRepository_GetMostActiveUsers_Call{Call: _e.mock.On("GetMostActiveUsers", ctx, limit)}
 }
 
@@ -140,7 +140,7 @@ type MockStatsRepository_GetOverview_Call struct {
 
 // GetOverview is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockStatsRepository_Expecter) GetOverview(ctx interface{}) *MockStatsRepository_GetOverview_Call {
+func (_e *MockStatsRepository_Expecter) GetOverview(ctx any) *MockStatsRepository_GetOverview_Call {
 	return &MockStatsRepository_GetOverview_Call{Call: _e.mock.On("GetOverview", ctx)}
 }
 

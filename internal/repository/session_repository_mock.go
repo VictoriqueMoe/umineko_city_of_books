@@ -63,7 +63,7 @@ type MockSessionRepository_CleanExpired_Call struct {
 
 // CleanExpired is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockSessionRepository_Expecter) CleanExpired(ctx interface{}) *MockSessionRepository_CleanExpired_Call {
+func (_e *MockSessionRepository_Expecter) CleanExpired(ctx any) *MockSessionRepository_CleanExpired_Call {
 	return &MockSessionRepository_CleanExpired_Call{Call: _e.mock.On("CleanExpired", ctx)}
 }
 
@@ -117,7 +117,7 @@ type MockSessionRepository_Create_Call struct {
 //   - token string
 //   - userID uuid.UUID
 //   - expiresAt time.Time
-func (_e *MockSessionRepository_Expecter) Create(ctx interface{}, token interface{}, userID interface{}, expiresAt interface{}) *MockSessionRepository_Create_Call {
+func (_e *MockSessionRepository_Expecter) Create(ctx any, token any, userID any, expiresAt any) *MockSessionRepository_Create_Call {
 	return &MockSessionRepository_Create_Call{Call: _e.mock.On("Create", ctx, token, userID, expiresAt)}
 }
 
@@ -184,7 +184,7 @@ type MockSessionRepository_Delete_Call struct {
 // Delete is a helper method to define mock.On call
 //   - ctx context.Context
 //   - token string
-func (_e *MockSessionRepository_Expecter) Delete(ctx interface{}, token interface{}) *MockSessionRepository_Delete_Call {
+func (_e *MockSessionRepository_Expecter) Delete(ctx any, token any) *MockSessionRepository_Delete_Call {
 	return &MockSessionRepository_Delete_Call{Call: _e.mock.On("Delete", ctx, token)}
 }
 
@@ -241,7 +241,7 @@ type MockSessionRepository_DeleteAllForUser_Call struct {
 // DeleteAllForUser is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockSessionRepository_Expecter) DeleteAllForUser(ctx interface{}, userID interface{}) *MockSessionRepository_DeleteAllForUser_Call {
+func (_e *MockSessionRepository_Expecter) DeleteAllForUser(ctx any, userID any) *MockSessionRepository_DeleteAllForUser_Call {
 	return &MockSessionRepository_DeleteAllForUser_Call{Call: _e.mock.On("DeleteAllForUser", ctx, userID)}
 }
 
@@ -315,7 +315,7 @@ type MockSessionRepository_GetUserID_Call struct {
 // GetUserID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - token string
-func (_e *MockSessionRepository_Expecter) GetUserID(ctx interface{}, token interface{}) *MockSessionRepository_GetUserID_Call {
+func (_e *MockSessionRepository_Expecter) GetUserID(ctx any, token any) *MockSessionRepository_GetUserID_Call {
 	return &MockSessionRepository_GetUserID_Call{Call: _e.mock.On("GetUserID", ctx, token)}
 }
 

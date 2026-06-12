@@ -73,7 +73,7 @@ type MockService_HomeActivity_Call struct {
 
 // HomeActivity is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockService_Expecter) HomeActivity(ctx interface{}) *MockService_HomeActivity_Call {
+func (_e *MockService_Expecter) HomeActivity(ctx any) *MockService_HomeActivity_Call {
 	return &MockService_HomeActivity_Call{Call: _e.mock.On("HomeActivity", ctx)}
 }
 
@@ -135,7 +135,7 @@ type MockService_SidebarActivity_Call struct {
 
 // SidebarActivity is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockService_Expecter) SidebarActivity(ctx interface{}) *MockService_SidebarActivity_Call {
+func (_e *MockService_Expecter) SidebarActivity(ctx any) *MockService_SidebarActivity_Call {
 	return &MockService_SidebarActivity_Call{Call: _e.mock.On("SidebarActivity", ctx)}
 }
 

@@ -66,7 +66,7 @@ type MockChatRoomBanRepository_Ban_Call struct {
 //   - userID uuid.UUID
 //   - bannedBy *uuid.UUID
 //   - reason string
-func (_e *MockChatRoomBanRepository_Expecter) Ban(ctx interface{}, roomID interface{}, userID interface{}, bannedBy interface{}, reason interface{}) *MockChatRoomBanRepository_Ban_Call {
+func (_e *MockChatRoomBanRepository_Expecter) Ban(ctx any, roomID any, userID any, bannedBy any, reason any) *MockChatRoomBanRepository_Ban_Call {
 	return &MockChatRoomBanRepository_Ban_Call{Call: _e.mock.On("Ban", ctx, roomID, userID, bannedBy, reason)}
 }
 
@@ -149,7 +149,7 @@ type MockChatRoomBanRepository_BannedRoomIDsForUser_Call struct {
 // BannedRoomIDsForUser is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockChatRoomBanRepository_Expecter) BannedRoomIDsForUser(ctx interface{}, userID interface{}) *MockChatRoomBanRepository_BannedRoomIDsForUser_Call {
+func (_e *MockChatRoomBanRepository_Expecter) BannedRoomIDsForUser(ctx any, userID any) *MockChatRoomBanRepository_BannedRoomIDsForUser_Call {
 	return &MockChatRoomBanRepository_BannedRoomIDsForUser_Call{Call: _e.mock.On("BannedRoomIDsForUser", ctx, userID)}
 }
 
@@ -216,7 +216,7 @@ type MockChatRoomBanRepository_IsBanned_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockChatRoomBanRepository_Expecter) IsBanned(ctx interface{}, roomID interface{}, userID interface{}) *MockChatRoomBanRepository_IsBanned_Call {
+func (_e *MockChatRoomBanRepository_Expecter) IsBanned(ctx any, roomID any, userID any) *MockChatRoomBanRepository_IsBanned_Call {
 	return &MockChatRoomBanRepository_IsBanned_Call{Call: _e.mock.On("IsBanned", ctx, roomID, userID)}
 }
 
@@ -289,7 +289,7 @@ type MockChatRoomBanRepository_ListForRoom_Call struct {
 // ListForRoom is a helper method to define mock.On call
 //   - ctx context.Context
 //   - roomID uuid.UUID
-func (_e *MockChatRoomBanRepository_Expecter) ListForRoom(ctx interface{}, roomID interface{}) *MockChatRoomBanRepository_ListForRoom_Call {
+func (_e *MockChatRoomBanRepository_Expecter) ListForRoom(ctx any, roomID any) *MockChatRoomBanRepository_ListForRoom_Call {
 	return &MockChatRoomBanRepository_ListForRoom_Call{Call: _e.mock.On("ListForRoom", ctx, roomID)}
 }
 
@@ -347,7 +347,7 @@ type MockChatRoomBanRepository_Unban_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockChatRoomBanRepository_Expecter) Unban(ctx interface{}, roomID interface{}, userID interface{}) *MockChatRoomBanRepository_Unban_Call {
+func (_e *MockChatRoomBanRepository_Expecter) Unban(ctx any, roomID any, userID any) *MockChatRoomBanRepository_Unban_Call {
 	return &MockChatRoomBanRepository_Unban_Call{Call: _e.mock.On("Unban", ctx, roomID, userID)}
 }
 

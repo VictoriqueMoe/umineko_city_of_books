@@ -261,20 +261,6 @@
     bottom: 0.5rem;
     left: 0.5rem;
     z-index: 3;
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    background: rgba(0, 0, 0, 0.55);
-    border: 1px solid rgba(var(--gold-rgb), 0.3);
-    border-radius: 6px;
-    padding: 0.25rem 0.6rem;
-    font-size: 0.85rem;
-}
-
-.volumeControl input[type="range"] {
-    width: 90px;
-    accent-color: var(--gold);
-    cursor: pointer;
 }
 
 .voiceStrip {

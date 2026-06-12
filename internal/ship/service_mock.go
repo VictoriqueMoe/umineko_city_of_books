@@ -79,7 +79,7 @@ type MockService_CreateComment_Call struct {
 //   - shipID uuid.UUID
 //   - userID uuid.UUID
 //   - req dto.CreateCommentRequest
-func (_e *MockService_Expecter) CreateComment(ctx interface{}, shipID interface{}, userID interface{}, req interface{}) *MockService_CreateComment_Call {
+func (_e *MockService_Expecter) CreateComment(ctx any, shipID any, userID any, req any) *MockService_CreateComment_Call {
 	return &MockService_CreateComment_Call{Call: _e.mock.On("CreateComment", ctx, shipID, userID, req)}
 }
 
@@ -158,7 +158,7 @@ type MockService_CreateShip_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - req dto.CreateShipRequest
-func (_e *MockService_Expecter) CreateShip(ctx interface{}, userID interface{}, req interface{}) *MockService_CreateShip_Call {
+func (_e *MockService_Expecter) CreateShip(ctx any, userID any, req any) *MockService_CreateShip_Call {
 	return &MockService_CreateShip_Call{Call: _e.mock.On("CreateShip", ctx, userID, req)}
 }
 
@@ -221,7 +221,7 @@ type MockService_DeleteComment_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) DeleteComment(ctx interface{}, id interface{}, userID interface{}) *MockService_DeleteComment_Call {
+func (_e *MockService_Expecter) DeleteComment(ctx any, id any, userID any) *MockService_DeleteComment_Call {
 	return &MockService_DeleteComment_Call{Call: _e.mock.On("DeleteComment", ctx, id, userID)}
 }
 
@@ -284,7 +284,7 @@ type MockService_DeleteShip_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) DeleteShip(ctx interface{}, id interface{}, userID interface{}) *MockService_DeleteShip_Call {
+func (_e *MockService_Expecter) DeleteShip(ctx any, id any, userID any) *MockService_DeleteShip_Call {
 	return &MockService_DeleteShip_Call{Call: _e.mock.On("DeleteShip", ctx, id, userID)}
 }
 
@@ -358,7 +358,7 @@ type MockService_GetShip_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - viewerID uuid.UUID
-func (_e *MockService_Expecter) GetShip(ctx interface{}, id interface{}, viewerID interface{}) *MockService_GetShip_Call {
+func (_e *MockService_Expecter) GetShip(ctx any, id any, viewerID any) *MockService_GetShip_Call {
 	return &MockService_GetShip_Call{Call: _e.mock.On("GetShip", ctx, id, viewerID)}
 }
 
@@ -421,7 +421,7 @@ type MockService_LikeComment_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - commentID uuid.UUID
-func (_e *MockService_Expecter) LikeComment(ctx interface{}, userID interface{}, commentID interface{}) *MockService_LikeComment_Call {
+func (_e *MockService_Expecter) LikeComment(ctx any, userID any, commentID any) *MockService_LikeComment_Call {
 	return &MockService_LikeComment_Call{Call: _e.mock.On("LikeComment", ctx, userID, commentID)}
 }
 
@@ -493,7 +493,7 @@ type MockService_ListCharacters_Call struct {
 
 // ListCharacters is a helper method to define mock.On call
 //   - series quotefinder.Series
-func (_e *MockService_Expecter) ListCharacters(series interface{}) *MockService_ListCharacters_Call {
+func (_e *MockService_Expecter) ListCharacters(series any) *MockService_ListCharacters_Call {
 	return &MockService_ListCharacters_Call{Call: _e.mock.On("ListCharacters", series)}
 }
 
@@ -562,7 +562,7 @@ type MockService_ListShips_Call struct {
 //   - characterID string
 //   - limit int
 //   - offset int
-func (_e *MockService_Expecter) ListShips(ctx interface{}, viewerID interface{}, sort interface{}, crackshipsOnly interface{}, series interface{}, characterID interface{}, limit interface{}, offset interface{}) *MockService_ListShips_Call {
+func (_e *MockService_Expecter) ListShips(ctx any, viewerID any, sort any, crackshipsOnly any, series any, characterID any, limit any, offset any) *MockService_ListShips_Call {
 	return &MockService_ListShips_Call{Call: _e.mock.On("ListShips", ctx, viewerID, sort, crackshipsOnly, series, characterID, limit, offset)}
 }
 
@@ -663,7 +663,7 @@ type MockService_ListShipsByUser_Call struct {
 //   - viewerID uuid.UUID
 //   - limit int
 //   - offset int
-func (_e *MockService_Expecter) ListShipsByUser(ctx interface{}, userID interface{}, viewerID interface{}, limit interface{}, offset interface{}) *MockService_ListShipsByUser_Call {
+func (_e *MockService_Expecter) ListShipsByUser(ctx any, userID any, viewerID any, limit any, offset any) *MockService_ListShipsByUser_Call {
 	return &MockService_ListShipsByUser_Call{Call: _e.mock.On("ListShipsByUser", ctx, userID, viewerID, limit, offset)}
 }
 
@@ -736,7 +736,7 @@ type MockService_UnlikeComment_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - commentID uuid.UUID
-func (_e *MockService_Expecter) UnlikeComment(ctx interface{}, userID interface{}, commentID interface{}) *MockService_UnlikeComment_Call {
+func (_e *MockService_Expecter) UnlikeComment(ctx any, userID any, commentID any) *MockService_UnlikeComment_Call {
 	return &MockService_UnlikeComment_Call{Call: _e.mock.On("UnlikeComment", ctx, userID, commentID)}
 }
 
@@ -800,7 +800,7 @@ type MockService_UpdateComment_Call struct {
 //   - id uuid.UUID
 //   - userID uuid.UUID
 //   - req dto.UpdateCommentRequest
-func (_e *MockService_Expecter) UpdateComment(ctx interface{}, id interface{}, userID interface{}, req interface{}) *MockService_UpdateComment_Call {
+func (_e *MockService_Expecter) UpdateComment(ctx any, id any, userID any, req any) *MockService_UpdateComment_Call {
 	return &MockService_UpdateComment_Call{Call: _e.mock.On("UpdateComment", ctx, id, userID, req)}
 }
 
@@ -869,7 +869,7 @@ type MockService_UpdateShip_Call struct {
 //   - id uuid.UUID
 //   - userID uuid.UUID
 //   - req dto.UpdateShipRequest
-func (_e *MockService_Expecter) UpdateShip(ctx interface{}, id interface{}, userID interface{}, req interface{}) *MockService_UpdateShip_Call {
+func (_e *MockService_Expecter) UpdateShip(ctx any, id any, userID any, req any) *MockService_UpdateShip_Call {
 	return &MockService_UpdateShip_Call{Call: _e.mock.On("UpdateShip", ctx, id, userID, req)}
 }
 
@@ -951,7 +951,7 @@ type MockService_UploadCommentMedia_Call struct {
 //   - contentType string
 //   - fileSize int64
 //   - reader io.Reader
-func (_e *MockService_Expecter) UploadCommentMedia(ctx interface{}, commentID interface{}, userID interface{}, contentType interface{}, fileSize interface{}, reader interface{}) *MockService_UploadCommentMedia_Call {
+func (_e *MockService_Expecter) UploadCommentMedia(ctx any, commentID any, userID any, contentType any, fileSize any, reader any) *MockService_UploadCommentMedia_Call {
 	return &MockService_UploadCommentMedia_Call{Call: _e.mock.On("UploadCommentMedia", ctx, commentID, userID, contentType, fileSize, reader)}
 }
 
@@ -1041,7 +1041,7 @@ type MockService_UploadShipImage_Call struct {
 //   - contentType string
 //   - fileSize int64
 //   - reader io.Reader
-func (_e *MockService_Expecter) UploadShipImage(ctx interface{}, shipID interface{}, userID interface{}, contentType interface{}, fileSize interface{}, reader interface{}) *MockService_UploadShipImage_Call {
+func (_e *MockService_Expecter) UploadShipImage(ctx any, shipID any, userID any, contentType any, fileSize any, reader any) *MockService_UploadShipImage_Call {
 	return &MockService_UploadShipImage_Call{Call: _e.mock.On("UploadShipImage", ctx, shipID, userID, contentType, fileSize, reader)}
 }
 
@@ -1120,7 +1120,7 @@ type MockService_Vote_Call struct {
 //   - userID uuid.UUID
 //   - shipID uuid.UUID
 //   - value int
-func (_e *MockService_Expecter) Vote(ctx interface{}, userID interface{}, shipID interface{}, value interface{}) *MockService_Vote_Call {
+func (_e *MockService_Expecter) Vote(ctx any, userID any, shipID any, value any) *MockService_Vote_Call {
 	return &MockService_Vote_Call{Call: _e.mock.On("Vote", ctx, userID, shipID, value)}
 }
 

@@ -63,7 +63,7 @@ type MockSettingsRepository_Delete_Call struct {
 // Delete is a helper method to define mock.On call
 //   - ctx context.Context
 //   - key string
-func (_e *MockSettingsRepository_Expecter) Delete(ctx interface{}, key interface{}) *MockSettingsRepository_Delete_Call {
+func (_e *MockSettingsRepository_Expecter) Delete(ctx any, key any) *MockSettingsRepository_Delete_Call {
 	return &MockSettingsRepository_Delete_Call{Call: _e.mock.On("Delete", ctx, key)}
 }
 
@@ -129,7 +129,7 @@ type MockSettingsRepository_Get_Call struct {
 // Get is a helper method to define mock.On call
 //   - ctx context.Context
 //   - key string
-func (_e *MockSettingsRepository_Expecter) Get(ctx interface{}, key interface{}) *MockSettingsRepository_Get_Call {
+func (_e *MockSettingsRepository_Expecter) Get(ctx any, key any) *MockSettingsRepository_Get_Call {
 	return &MockSettingsRepository_Get_Call{Call: _e.mock.On("Get", ctx, key)}
 }
 
@@ -196,7 +196,7 @@ type MockSettingsRepository_GetAll_Call struct {
 
 // GetAll is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockSettingsRepository_Expecter) GetAll(ctx interface{}) *MockSettingsRepository_GetAll_Call {
+func (_e *MockSettingsRepository_Expecter) GetAll(ctx any) *MockSettingsRepository_GetAll_Call {
 	return &MockSettingsRepository_GetAll_Call{Call: _e.mock.On("GetAll", ctx)}
 }
 
@@ -250,7 +250,7 @@ type MockSettingsRepository_Set_Call struct {
 //   - key string
 //   - value string
 //   - updatedBy uuid.UUID
-func (_e *MockSettingsRepository_Expecter) Set(ctx interface{}, key interface{}, value interface{}, updatedBy interface{}) *MockSettingsRepository_Set_Call {
+func (_e *MockSettingsRepository_Expecter) Set(ctx any, key any, value any, updatedBy any) *MockSettingsRepository_Set_Call {
 	return &MockSettingsRepository_Set_Call{Call: _e.mock.On("Set", ctx, key, value, updatedBy)}
 }
 
@@ -318,7 +318,7 @@ type MockSettingsRepository_SetMultiple_Call struct {
 //   - ctx context.Context
 //   - settings map[string]string
 //   - updatedBy uuid.UUID
-func (_e *MockSettingsRepository_Expecter) SetMultiple(ctx interface{}, settings interface{}, updatedBy interface{}) *MockSettingsRepository_SetMultiple_Call {
+func (_e *MockSettingsRepository_Expecter) SetMultiple(ctx any, settings any, updatedBy any) *MockSettingsRepository_SetMultiple_Call {
 	return &MockSettingsRepository_SetMultiple_Call{Call: _e.mock.On("SetMultiple", ctx, settings, updatedBy)}
 }
 

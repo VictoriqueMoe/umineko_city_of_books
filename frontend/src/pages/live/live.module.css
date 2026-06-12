@@ -301,7 +301,8 @@
     align-items: stretch;
     gap: 1rem;
     width: 100%;
-    height: calc(100vh - 60px);
+    flex: 1 1 auto;
+    min-height: 0;
     padding: 1rem;
     box-sizing: border-box;
 }
@@ -340,15 +341,24 @@
     background: rgba(0, 0, 0, 0.8);
 }
 
+.volumeControl {
+    position: absolute;
+    bottom: 0.6rem;
+    left: 0.6rem;
+    z-index: 3;
+}
+
 .chatPanel {
     flex: 1 1 auto;
     display: flex;
     flex-direction: column;
     min-height: 0;
+    min-width: 0;
     border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
     border-radius: 10px;
     background: var(--surface, rgba(255, 255, 255, 0.03));
     overflow: hidden;
+    container: streamchat / inline-size;
 }
 
 .chatHeader {
@@ -362,6 +372,7 @@
     flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 0.5rem;
     display: flex;
     flex-direction: column;
@@ -375,6 +386,15 @@
     padding: 0.5rem;
 }
 
+.chatEnded {
+    flex-shrink: 0;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.85rem;
+    text-align: center;
+    padding: 0.85rem;
+    border-top: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+}
+
 .chatLoginPrompt {
     padding: 1rem;
     color: rgba(255, 255, 255, 0.7);
@@ -384,7 +404,6 @@
 @media (max-width: 900px) {
     .watchLayout {
         flex-direction: column;
-        height: calc(100vh - 60px);
     }
 
     .watchMain {

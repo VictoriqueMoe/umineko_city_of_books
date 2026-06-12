@@ -72,7 +72,7 @@ type MockService_ActiveRooms_Call struct {
 
 // ActiveRooms is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockService_Expecter) ActiveRooms(ctx interface{}) *MockService_ActiveRooms_Call {
+func (_e *MockService_Expecter) ActiveRooms(ctx any) *MockService_ActiveRooms_Call {
 	return &MockService_ActiveRooms_Call{Call: _e.mock.On("ActiveRooms", ctx)}
 }
 
@@ -147,7 +147,7 @@ type MockService_CreateIngress_Call struct {
 //   - roomName string
 //   - identity string
 //   - displayName string
-func (_e *MockService_Expecter) CreateIngress(ctx interface{}, roomName interface{}, identity interface{}, displayName interface{}) *MockService_CreateIngress_Call {
+func (_e *MockService_Expecter) CreateIngress(ctx any, roomName any, identity any, displayName any) *MockService_CreateIngress_Call {
 	return &MockService_CreateIngress_Call{Call: _e.mock.On("CreateIngress", ctx, roomName, identity, displayName)}
 }
 
@@ -214,7 +214,7 @@ type MockService_DeleteIngress_Call struct {
 // DeleteIngress is a helper method to define mock.On call
 //   - ctx context.Context
 //   - ingressID string
-func (_e *MockService_Expecter) DeleteIngress(ctx interface{}, ingressID interface{}) *MockService_DeleteIngress_Call {
+func (_e *MockService_Expecter) DeleteIngress(ctx any, ingressID any) *MockService_DeleteIngress_Call {
 	return &MockService_DeleteIngress_Call{Call: _e.mock.On("DeleteIngress", ctx, ingressID)}
 }
 
@@ -327,7 +327,7 @@ type MockService_MintToken_Call struct {
 //   - displayName string
 //   - canMic bool
 //   - canScreen bool
-func (_e *MockService_Expecter) MintToken(roomName interface{}, identity interface{}, displayName interface{}, canMic interface{}, canScreen interface{}) *MockService_MintToken_Call {
+func (_e *MockService_Expecter) MintToken(roomName any, identity any, displayName any, canMic any, canScreen any) *MockService_MintToken_Call {
 	return &MockService_MintToken_Call{Call: _e.mock.On("MintToken", roomName, identity, displayName, canMic, canScreen)}
 }
 
@@ -410,7 +410,7 @@ type MockService_MintViewerToken_Call struct {
 //   - identity string
 //   - name string
 //   - metadata string
-func (_e *MockService_Expecter) MintViewerToken(roomName interface{}, identity interface{}, name interface{}, metadata interface{}) *MockService_MintViewerToken_Call {
+func (_e *MockService_Expecter) MintViewerToken(roomName any, identity any, name any, metadata any) *MockService_MintViewerToken_Call {
 	return &MockService_MintViewerToken_Call{Call: _e.mock.On("MintViewerToken", roomName, identity, name, metadata)}
 }
 
@@ -488,7 +488,7 @@ type MockService_ParseWebhook_Call struct {
 // ParseWebhook is a helper method to define mock.On call
 //   - authHeader string
 //   - body []byte
-func (_e *MockService_Expecter) ParseWebhook(authHeader interface{}, body interface{}) *MockService_ParseWebhook_Call {
+func (_e *MockService_Expecter) ParseWebhook(authHeader any, body any) *MockService_ParseWebhook_Call {
 	return &MockService_ParseWebhook_Call{Call: _e.mock.On("ParseWebhook", authHeader, body)}
 }
 
@@ -548,7 +548,7 @@ type MockService_SetCanPublish_Call struct {
 //   - identity string
 //   - canMic bool
 //   - canScreen bool
-func (_e *MockService_Expecter) SetCanPublish(ctx interface{}, roomName interface{}, identity interface{}, canMic interface{}, canScreen interface{}) *MockService_SetCanPublish_Call {
+func (_e *MockService_Expecter) SetCanPublish(ctx any, roomName any, identity any, canMic any, canScreen any) *MockService_SetCanPublish_Call {
 	return &MockService_SetCanPublish_Call{Call: _e.mock.On("SetCanPublish", ctx, roomName, identity, canMic, canScreen)}
 }
 
@@ -635,6 +635,81 @@ func (_c *MockService_URL_Call) Return(s string) *MockService_URL_Call {
 }
 
 func (_c *MockService_URL_Call) RunAndReturn(run func() string) *MockService_URL_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateIngress provides a mock function for the type MockService
+func (_mock *MockService) UpdateIngress(ctx context.Context, ingressID string, roomName string, identity string, displayName string) error {
+	ret := _mock.Called(ctx, ingressID, roomName, identity, displayName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateIngress")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string) error); ok {
+		r0 = returnFunc(ctx, ingressID, roomName, identity, displayName)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_UpdateIngress_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateIngress'
+type MockService_UpdateIngress_Call struct {
+	*mock.Call
+}
+
+// UpdateIngress is a helper method to define mock.On call
+//   - ctx context.Context
+//   - ingressID string
+//   - roomName string
+//   - identity string
+//   - displayName string
+func (_e *MockService_Expecter) UpdateIngress(ctx any, ingressID any, roomName any, identity any, displayName any) *MockService_UpdateIngress_Call {
+	return &MockService_UpdateIngress_Call{Call: _e.mock.On("UpdateIngress", ctx, ingressID, roomName, identity, displayName)}
+}
+
+func (_c *MockService_UpdateIngress_Call) Run(run func(ctx context.Context, ingressID string, roomName string, identity string, displayName string)) *MockService_UpdateIngress_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		var arg4 string
+		if args[4] != nil {
+			arg4 = args[4].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_UpdateIngress_Call) Return(err error) *MockService_UpdateIngress_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_UpdateIngress_Call) RunAndReturn(run func(ctx context.Context, ingressID string, roomName string, identity string, displayName string) error) *MockService_UpdateIngress_Call {
 	_c.Call.Return(run)
 	return _c
 }

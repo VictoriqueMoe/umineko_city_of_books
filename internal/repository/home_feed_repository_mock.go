@@ -72,7 +72,7 @@ type MockHomeFeedRepository_ListCornerActivity24h_Call struct {
 
 // ListCornerActivity24h is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockHomeFeedRepository_Expecter) ListCornerActivity24h(ctx interface{}) *MockHomeFeedRepository_ListCornerActivity24h_Call {
+func (_e *MockHomeFeedRepository_Expecter) ListCornerActivity24h(ctx any) *MockHomeFeedRepository_ListCornerActivity24h_Call {
 	return &MockHomeFeedRepository_ListCornerActivity24h_Call{Call: _e.mock.On("ListCornerActivity24h", ctx)}
 }
 
@@ -135,7 +135,7 @@ type MockHomeFeedRepository_ListPublicRooms_Call struct {
 // ListPublicRooms is a helper method to define mock.On call
 //   - ctx context.Context
 //   - limit int
-func (_e *MockHomeFeedRepository_Expecter) ListPublicRooms(ctx interface{}, limit interface{}) *MockHomeFeedRepository_ListPublicRooms_Call {
+func (_e *MockHomeFeedRepository_Expecter) ListPublicRooms(ctx any, limit any) *MockHomeFeedRepository_ListPublicRooms_Call {
 	return &MockHomeFeedRepository_ListPublicRooms_Call{Call: _e.mock.On("ListPublicRooms", ctx, limit)}
 }
 
@@ -203,7 +203,7 @@ type MockHomeFeedRepository_ListRecentActivity_Call struct {
 // ListRecentActivity is a helper method to define mock.On call
 //   - ctx context.Context
 //   - limit int
-func (_e *MockHomeFeedRepository_Expecter) ListRecentActivity(ctx interface{}, limit interface{}) *MockHomeFeedRepository_ListRecentActivity_Call {
+func (_e *MockHomeFeedRepository_Expecter) ListRecentActivity(ctx any, limit any) *MockHomeFeedRepository_ListRecentActivity_Call {
 	return &MockHomeFeedRepository_ListRecentActivity_Call{Call: _e.mock.On("ListRecentActivity", ctx, limit)}
 }
 
@@ -271,7 +271,7 @@ type MockHomeFeedRepository_ListRecentMembers_Call struct {
 // ListRecentMembers is a helper method to define mock.On call
 //   - ctx context.Context
 //   - limit int
-func (_e *MockHomeFeedRepository_Expecter) ListRecentMembers(ctx interface{}, limit interface{}) *MockHomeFeedRepository_ListRecentMembers_Call {
+func (_e *MockHomeFeedRepository_Expecter) ListRecentMembers(ctx any, limit any) *MockHomeFeedRepository_ListRecentMembers_Call {
 	return &MockHomeFeedRepository_ListRecentMembers_Call{Call: _e.mock.On("ListRecentMembers", ctx, limit)}
 }
 
@@ -338,7 +338,7 @@ type MockHomeFeedRepository_ListSidebarActivity_Call struct {
 
 // ListSidebarActivity is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockHomeFeedRepository_Expecter) ListSidebarActivity(ctx interface{}) *MockHomeFeedRepository_ListSidebarActivity_Call {
+func (_e *MockHomeFeedRepository_Expecter) ListSidebarActivity(ctx any) *MockHomeFeedRepository_ListSidebarActivity_Call {
 	return &MockHomeFeedRepository_ListSidebarActivity_Call{Call: _e.mock.On("ListSidebarActivity", ctx)}
 }
 

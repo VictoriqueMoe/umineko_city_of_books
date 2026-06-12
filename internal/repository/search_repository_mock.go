@@ -74,7 +74,7 @@ type MockSearchRepository_QuickSearch_Call struct {
 //   - ctx context.Context
 //   - query string
 //   - perTypeLimit int
-func (_e *MockSearchRepository_Expecter) QuickSearch(ctx interface{}, query interface{}, perTypeLimit interface{}) *MockSearchRepository_QuickSearch_Call {
+func (_e *MockSearchRepository_Expecter) QuickSearch(ctx any, query any, perTypeLimit any) *MockSearchRepository_QuickSearch_Call {
 	return &MockSearchRepository_QuickSearch_Call{Call: _e.mock.On("QuickSearch", ctx, query, perTypeLimit)}
 }
 
@@ -156,7 +156,7 @@ type MockSearchRepository_Search_Call struct {
 //   - types []SearchEntityType
 //   - limit int
 //   - offset int
-func (_e *MockSearchRepository_Expecter) Search(ctx interface{}, query interface{}, types interface{}, limit interface{}, offset interface{}) *MockSearchRepository_Search_Call {
+func (_e *MockSearchRepository_Expecter) Search(ctx any, query any, types any, limit any, offset any) *MockSearchRepository_Search_Call {
 	return &MockSearchRepository_Search_Call{Call: _e.mock.On("Search", ctx, query, types, limit, offset)}
 }
 

@@ -74,7 +74,7 @@ type MockTheoryRepository_CountUserResponsesToday_Call struct {
 // CountUserResponsesToday is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockTheoryRepository_Expecter) CountUserResponsesToday(ctx interface{}, userID interface{}) *MockTheoryRepository_CountUserResponsesToday_Call {
+func (_e *MockTheoryRepository_Expecter) CountUserResponsesToday(ctx any, userID any) *MockTheoryRepository_CountUserResponsesToday_Call {
 	return &MockTheoryRepository_CountUserResponsesToday_Call{Call: _e.mock.On("CountUserResponsesToday", ctx, userID)}
 }
 
@@ -140,7 +140,7 @@ type MockTheoryRepository_CountUserTheoriesToday_Call struct {
 // CountUserTheoriesToday is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockTheoryRepository_Expecter) CountUserTheoriesToday(ctx interface{}, userID interface{}) *MockTheoryRepository_CountUserTheoriesToday_Call {
+func (_e *MockTheoryRepository_Expecter) CountUserTheoriesToday(ctx any, userID any) *MockTheoryRepository_CountUserTheoriesToday_Call {
 	return &MockTheoryRepository_CountUserTheoriesToday_Call{Call: _e.mock.On("CountUserTheoriesToday", ctx, userID)}
 }
 
@@ -209,7 +209,7 @@ type MockTheoryRepository_Create_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - req dto.CreateTheoryRequest
-func (_e *MockTheoryRepository_Expecter) Create(ctx interface{}, userID interface{}, req interface{}) *MockTheoryRepository_Create_Call {
+func (_e *MockTheoryRepository_Expecter) Create(ctx any, userID any, req any) *MockTheoryRepository_Create_Call {
 	return &MockTheoryRepository_Create_Call{Call: _e.mock.On("Create", ctx, userID, req)}
 }
 
@@ -284,7 +284,7 @@ type MockTheoryRepository_CreateResponse_Call struct {
 //   - theoryID uuid.UUID
 //   - userID uuid.UUID
 //   - req dto.CreateResponseRequest
-func (_e *MockTheoryRepository_Expecter) CreateResponse(ctx interface{}, theoryID interface{}, userID interface{}, req interface{}) *MockTheoryRepository_CreateResponse_Call {
+func (_e *MockTheoryRepository_Expecter) CreateResponse(ctx any, theoryID any, userID any, req any) *MockTheoryRepository_CreateResponse_Call {
 	return &MockTheoryRepository_CreateResponse_Call{Call: _e.mock.On("CreateResponse", ctx, theoryID, userID, req)}
 }
 
@@ -352,7 +352,7 @@ type MockTheoryRepository_Delete_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockTheoryRepository_Expecter) Delete(ctx interface{}, id interface{}, userID interface{}) *MockTheoryRepository_Delete_Call {
+func (_e *MockTheoryRepository_Expecter) Delete(ctx any, id any, userID any) *MockTheoryRepository_Delete_Call {
 	return &MockTheoryRepository_Delete_Call{Call: _e.mock.On("Delete", ctx, id, userID)}
 }
 
@@ -414,7 +414,7 @@ type MockTheoryRepository_DeleteAsAdmin_Call struct {
 // DeleteAsAdmin is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockTheoryRepository_Expecter) DeleteAsAdmin(ctx interface{}, id interface{}) *MockTheoryRepository_DeleteAsAdmin_Call {
+func (_e *MockTheoryRepository_Expecter) DeleteAsAdmin(ctx any, id any) *MockTheoryRepository_DeleteAsAdmin_Call {
 	return &MockTheoryRepository_DeleteAsAdmin_Call{Call: _e.mock.On("DeleteAsAdmin", ctx, id)}
 }
 
@@ -472,7 +472,7 @@ type MockTheoryRepository_DeleteResponse_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockTheoryRepository_Expecter) DeleteResponse(ctx interface{}, id interface{}, userID interface{}) *MockTheoryRepository_DeleteResponse_Call {
+func (_e *MockTheoryRepository_Expecter) DeleteResponse(ctx any, id any, userID any) *MockTheoryRepository_DeleteResponse_Call {
 	return &MockTheoryRepository_DeleteResponse_Call{Call: _e.mock.On("DeleteResponse", ctx, id, userID)}
 }
 
@@ -534,7 +534,7 @@ type MockTheoryRepository_DeleteResponseAsAdmin_Call struct {
 // DeleteResponseAsAdmin is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockTheoryRepository_Expecter) DeleteResponseAsAdmin(ctx interface{}, id interface{}) *MockTheoryRepository_DeleteResponseAsAdmin_Call {
+func (_e *MockTheoryRepository_Expecter) DeleteResponseAsAdmin(ctx any, id any) *MockTheoryRepository_DeleteResponseAsAdmin_Call {
 	return &MockTheoryRepository_DeleteResponseAsAdmin_Call{Call: _e.mock.On("DeleteResponseAsAdmin", ctx, id)}
 }
 
@@ -602,7 +602,7 @@ type MockTheoryRepository_GetByID_Call struct {
 // GetByID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockTheoryRepository_Expecter) GetByID(ctx interface{}, id interface{}) *MockTheoryRepository_GetByID_Call {
+func (_e *MockTheoryRepository_Expecter) GetByID(ctx any, id any) *MockTheoryRepository_GetByID_Call {
 	return &MockTheoryRepository_GetByID_Call{Call: _e.mock.On("GetByID", ctx, id)}
 }
 
@@ -670,7 +670,7 @@ type MockTheoryRepository_GetEvidence_Call struct {
 // GetEvidence is a helper method to define mock.On call
 //   - ctx context.Context
 //   - theoryID uuid.UUID
-func (_e *MockTheoryRepository_Expecter) GetEvidence(ctx interface{}, theoryID interface{}) *MockTheoryRepository_GetEvidence_Call {
+func (_e *MockTheoryRepository_Expecter) GetEvidence(ctx any, theoryID any) *MockTheoryRepository_GetEvidence_Call {
 	return &MockTheoryRepository_GetEvidence_Call{Call: _e.mock.On("GetEvidence", ctx, theoryID)}
 }
 
@@ -746,7 +746,7 @@ type MockTheoryRepository_GetRecentActivityByUser_Call struct {
 //   - userID uuid.UUID
 //   - limit int
 //   - offset int
-func (_e *MockTheoryRepository_Expecter) GetRecentActivityByUser(ctx interface{}, userID interface{}, limit interface{}, offset interface{}) *MockTheoryRepository_GetRecentActivityByUser_Call {
+func (_e *MockTheoryRepository_Expecter) GetRecentActivityByUser(ctx any, userID any, limit any, offset any) *MockTheoryRepository_GetRecentActivityByUser_Call {
 	return &MockTheoryRepository_GetRecentActivityByUser_Call{Call: _e.mock.On("GetRecentActivityByUser", ctx, userID, limit, offset)}
 }
 
@@ -824,7 +824,7 @@ type MockTheoryRepository_GetResponseEvidence_Call struct {
 // GetResponseEvidence is a helper method to define mock.On call
 //   - ctx context.Context
 //   - responseID uuid.UUID
-func (_e *MockTheoryRepository_Expecter) GetResponseEvidence(ctx interface{}, responseID interface{}) *MockTheoryRepository_GetResponseEvidence_Call {
+func (_e *MockTheoryRepository_Expecter) GetResponseEvidence(ctx any, responseID any) *MockTheoryRepository_GetResponseEvidence_Call {
 	return &MockTheoryRepository_GetResponseEvidence_Call{Call: _e.mock.On("GetResponseEvidence", ctx, responseID)}
 }
 
@@ -896,7 +896,7 @@ type MockTheoryRepository_GetResponseEvidenceWeights_Call struct {
 // GetResponseEvidenceWeights is a helper method to define mock.On call
 //   - ctx context.Context
 //   - theoryID uuid.UUID
-func (_e *MockTheoryRepository_Expecter) GetResponseEvidenceWeights(ctx interface{}, theoryID interface{}) *MockTheoryRepository_GetResponseEvidenceWeights_Call {
+func (_e *MockTheoryRepository_Expecter) GetResponseEvidenceWeights(ctx any, theoryID any) *MockTheoryRepository_GetResponseEvidenceWeights_Call {
 	return &MockTheoryRepository_GetResponseEvidenceWeights_Call{Call: _e.mock.On("GetResponseEvidenceWeights", ctx, theoryID)}
 }
 
@@ -972,7 +972,7 @@ type MockTheoryRepository_GetResponseInfo_Call struct {
 // GetResponseInfo is a helper method to define mock.On call
 //   - ctx context.Context
 //   - responseID uuid.UUID
-func (_e *MockTheoryRepository_Expecter) GetResponseInfo(ctx interface{}, responseID interface{}) *MockTheoryRepository_GetResponseInfo_Call {
+func (_e *MockTheoryRepository_Expecter) GetResponseInfo(ctx any, responseID any) *MockTheoryRepository_GetResponseInfo_Call {
 	return &MockTheoryRepository_GetResponseInfo_Call{Call: _e.mock.On("GetResponseInfo", ctx, responseID)}
 }
 
@@ -1041,7 +1041,7 @@ type MockTheoryRepository_GetResponses_Call struct {
 //   - ctx context.Context
 //   - theoryID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockTheoryRepository_Expecter) GetResponses(ctx interface{}, theoryID interface{}, userID interface{}) *MockTheoryRepository_GetResponses_Call {
+func (_e *MockTheoryRepository_Expecter) GetResponses(ctx any, theoryID any, userID any) *MockTheoryRepository_GetResponses_Call {
 	return &MockTheoryRepository_GetResponses_Call{Call: _e.mock.On("GetResponses", ctx, theoryID, userID)}
 }
 
@@ -1114,7 +1114,7 @@ type MockTheoryRepository_GetTheoryAuthorID_Call struct {
 // GetTheoryAuthorID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - theoryID uuid.UUID
-func (_e *MockTheoryRepository_Expecter) GetTheoryAuthorID(ctx interface{}, theoryID interface{}) *MockTheoryRepository_GetTheoryAuthorID_Call {
+func (_e *MockTheoryRepository_Expecter) GetTheoryAuthorID(ctx any, theoryID any) *MockTheoryRepository_GetTheoryAuthorID_Call {
 	return &MockTheoryRepository_GetTheoryAuthorID_Call{Call: _e.mock.On("GetTheoryAuthorID", ctx, theoryID)}
 }
 
@@ -1180,7 +1180,7 @@ type MockTheoryRepository_GetTheorySeries_Call struct {
 // GetTheorySeries is a helper method to define mock.On call
 //   - ctx context.Context
 //   - theoryID uuid.UUID
-func (_e *MockTheoryRepository_Expecter) GetTheorySeries(ctx interface{}, theoryID interface{}) *MockTheoryRepository_GetTheorySeries_Call {
+func (_e *MockTheoryRepository_Expecter) GetTheorySeries(ctx any, theoryID any) *MockTheoryRepository_GetTheorySeries_Call {
 	return &MockTheoryRepository_GetTheorySeries_Call{Call: _e.mock.On("GetTheorySeries", ctx, theoryID)}
 }
 
@@ -1246,7 +1246,7 @@ type MockTheoryRepository_GetTheoryTitle_Call struct {
 // GetTheoryTitle is a helper method to define mock.On call
 //   - ctx context.Context
 //   - theoryID uuid.UUID
-func (_e *MockTheoryRepository_Expecter) GetTheoryTitle(ctx interface{}, theoryID interface{}) *MockTheoryRepository_GetTheoryTitle_Call {
+func (_e *MockTheoryRepository_Expecter) GetTheoryTitle(ctx any, theoryID any) *MockTheoryRepository_GetTheoryTitle_Call {
 	return &MockTheoryRepository_GetTheoryTitle_Call{Call: _e.mock.On("GetTheoryTitle", ctx, theoryID)}
 }
 
@@ -1313,7 +1313,7 @@ type MockTheoryRepository_GetUserTheoryVote_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - theoryID uuid.UUID
-func (_e *MockTheoryRepository_Expecter) GetUserTheoryVote(ctx interface{}, userID interface{}, theoryID interface{}) *MockTheoryRepository_GetUserTheoryVote_Call {
+func (_e *MockTheoryRepository_Expecter) GetUserTheoryVote(ctx any, userID any, theoryID any) *MockTheoryRepository_GetUserTheoryVote_Call {
 	return &MockTheoryRepository_GetUserTheoryVote_Call{Call: _e.mock.On("GetUserTheoryVote", ctx, userID, theoryID)}
 }
 
@@ -1394,7 +1394,7 @@ type MockTheoryRepository_List_Call struct {
 //   - p params.ListParams
 //   - userID uuid.UUID
 //   - excludeUserIDs []uuid.UUID
-func (_e *MockTheoryRepository_Expecter) List(ctx interface{}, p interface{}, userID interface{}, excludeUserIDs interface{}) *MockTheoryRepository_List_Call {
+func (_e *MockTheoryRepository_Expecter) List(ctx any, p any, userID any, excludeUserIDs any) *MockTheoryRepository_List_Call {
 	return &MockTheoryRepository_List_Call{Call: _e.mock.On("List", ctx, p, userID, excludeUserIDs)}
 }
 
@@ -1462,7 +1462,7 @@ type MockTheoryRepository_SetEvidenceTruthWeight_Call struct {
 //   - ctx context.Context
 //   - evidenceID int
 //   - weight float64
-func (_e *MockTheoryRepository_Expecter) SetEvidenceTruthWeight(ctx interface{}, evidenceID interface{}, weight interface{}) *MockTheoryRepository_SetEvidenceTruthWeight_Call {
+func (_e *MockTheoryRepository_Expecter) SetEvidenceTruthWeight(ctx any, evidenceID any, weight any) *MockTheoryRepository_SetEvidenceTruthWeight_Call {
 	return &MockTheoryRepository_SetEvidenceTruthWeight_Call{Call: _e.mock.On("SetEvidenceTruthWeight", ctx, evidenceID, weight)}
 }
 
@@ -1526,7 +1526,7 @@ type MockTheoryRepository_Update_Call struct {
 //   - id uuid.UUID
 //   - userID uuid.UUID
 //   - req dto.CreateTheoryRequest
-func (_e *MockTheoryRepository_Expecter) Update(ctx interface{}, id interface{}, userID interface{}, req interface{}) *MockTheoryRepository_Update_Call {
+func (_e *MockTheoryRepository_Expecter) Update(ctx any, id any, userID any, req any) *MockTheoryRepository_Update_Call {
 	return &MockTheoryRepository_Update_Call{Call: _e.mock.On("Update", ctx, id, userID, req)}
 }
 
@@ -1594,7 +1594,7 @@ type MockTheoryRepository_UpdateAsAdmin_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - req dto.CreateTheoryRequest
-func (_e *MockTheoryRepository_Expecter) UpdateAsAdmin(ctx interface{}, id interface{}, req interface{}) *MockTheoryRepository_UpdateAsAdmin_Call {
+func (_e *MockTheoryRepository_Expecter) UpdateAsAdmin(ctx any, id any, req any) *MockTheoryRepository_UpdateAsAdmin_Call {
 	return &MockTheoryRepository_UpdateAsAdmin_Call{Call: _e.mock.On("UpdateAsAdmin", ctx, id, req)}
 }
 
@@ -1657,7 +1657,7 @@ type MockTheoryRepository_UpdateCredibilityScore_Call struct {
 //   - ctx context.Context
 //   - theoryID uuid.UUID
 //   - score float64
-func (_e *MockTheoryRepository_Expecter) UpdateCredibilityScore(ctx interface{}, theoryID interface{}, score interface{}) *MockTheoryRepository_UpdateCredibilityScore_Call {
+func (_e *MockTheoryRepository_Expecter) UpdateCredibilityScore(ctx any, theoryID any, score any) *MockTheoryRepository_UpdateCredibilityScore_Call {
 	return &MockTheoryRepository_UpdateCredibilityScore_Call{Call: _e.mock.On("UpdateCredibilityScore", ctx, theoryID, score)}
 }
 
@@ -1721,7 +1721,7 @@ type MockTheoryRepository_VoteResponse_Call struct {
 //   - userID uuid.UUID
 //   - responseID uuid.UUID
 //   - value int
-func (_e *MockTheoryRepository_Expecter) VoteResponse(ctx interface{}, userID interface{}, responseID interface{}, value interface{}) *MockTheoryRepository_VoteResponse_Call {
+func (_e *MockTheoryRepository_Expecter) VoteResponse(ctx any, userID any, responseID any, value any) *MockTheoryRepository_VoteResponse_Call {
 	return &MockTheoryRepository_VoteResponse_Call{Call: _e.mock.On("VoteResponse", ctx, userID, responseID, value)}
 }
 
@@ -1790,7 +1790,7 @@ type MockTheoryRepository_VoteTheory_Call struct {
 //   - userID uuid.UUID
 //   - theoryID uuid.UUID
 //   - value int
-func (_e *MockTheoryRepository_Expecter) VoteTheory(ctx interface{}, userID interface{}, theoryID interface{}, value interface{}) *MockTheoryRepository_VoteTheory_Call {
+func (_e *MockTheoryRepository_Expecter) VoteTheory(ctx any, userID any, theoryID any, value any) *MockTheoryRepository_VoteTheory_Call {
 	return &MockTheoryRepository_VoteTheory_Call{Call: _e.mock.On("VoteTheory", ctx, userID, theoryID, value)}
 }
 

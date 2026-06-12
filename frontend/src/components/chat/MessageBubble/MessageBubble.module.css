@@ -534,3 +534,36 @@ video.messageMediaItem {
         max-width: 100%;
     }
 }
+
+@container streamchat (max-width: 420px) {
+    .messageBubble {
+        max-width: 100%;
+        width: 100%;
+        gap: 0.45rem;
+    }
+
+    .messageContent {
+        flex: 1;
+        min-width: 0;
+        padding: 0.4rem 0.6rem;
+    }
+
+    .messageSenderOwn {
+        display: block;
+    }
+
+    .messageSender {
+        font-size: 0.72rem;
+        margin-bottom: 0.1rem;
+        line-height: 1.25;
+    }
+
+    .messageMediaItem {
+        max-width: 100%;
+        height: auto;
+    }
+
+    .gifEmbed {
+        max-width: 100%;
+    }
+}

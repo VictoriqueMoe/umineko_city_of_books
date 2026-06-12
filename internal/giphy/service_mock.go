@@ -119,7 +119,7 @@ type MockService_Search_Call struct {
 //   - q string
 //   - offset int
 //   - limit int
-func (_e *MockService_Expecter) Search(ctx interface{}, q interface{}, offset interface{}, limit interface{}) *MockService_Search_Call {
+func (_e *MockService_Expecter) Search(ctx any, q any, offset any, limit any) *MockService_Search_Call {
 	return &MockService_Search_Call{Call: _e.mock.On("Search", ctx, q, offset, limit)}
 }
 
@@ -198,7 +198,7 @@ type MockService_Trending_Call struct {
 //   - ctx context.Context
 //   - offset int
 //   - limit int
-func (_e *MockService_Expecter) Trending(ctx interface{}, offset interface{}, limit interface{}) *MockService_Trending_Call {
+func (_e *MockService_Expecter) Trending(ctx any, offset any, limit any) *MockService_Trending_Call {
 	return &MockService_Trending_Call{Call: _e.mock.On("Trending", ctx, offset, limit)}
 }
 
@@ -269,7 +269,7 @@ type MockService_UserForGif_Call struct {
 // UserForGif is a helper method to define mock.On call
 //   - ctx context.Context
 //   - gifID string
-func (_e *MockService_Expecter) UserForGif(ctx interface{}, gifID interface{}) *MockService_UserForGif_Call {
+func (_e *MockService_Expecter) UserForGif(ctx any, gifID any) *MockService_UserForGif_Call {
 	return &MockService_UserForGif_Call{Call: _e.mock.On("UserForGif", ctx, gifID)}
 }
 

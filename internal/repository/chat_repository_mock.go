@@ -66,7 +66,7 @@ type MockChatRepository_AddMember_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockChatRepository_Expecter) AddMember(ctx interface{}, roomID interface{}, userID interface{}) *MockChatRepository_AddMember_Call {
+func (_e *MockChatRepository_Expecter) AddMember(ctx any, roomID any, userID any) *MockChatRepository_AddMember_Call {
 	return &MockChatRepository_AddMember_Call{Call: _e.mock.On("AddMember", ctx, roomID, userID)}
 }
 
@@ -131,7 +131,7 @@ type MockChatRepository_AddMemberWithRole_Call struct {
 //   - userID uuid.UUID
 //   - role string
 //   - ghost bool
-func (_e *MockChatRepository_Expecter) AddMemberWithRole(ctx interface{}, roomID interface{}, userID interface{}, role interface{}, ghost interface{}) *MockChatRepository_AddMemberWithRole_Call {
+func (_e *MockChatRepository_Expecter) AddMemberWithRole(ctx any, roomID any, userID any, role any, ghost any) *MockChatRepository_AddMemberWithRole_Call {
 	return &MockChatRepository_AddMemberWithRole_Call{Call: _e.mock.On("AddMemberWithRole", ctx, roomID, userID, role, ghost)}
 }
 
@@ -216,7 +216,7 @@ type MockChatRepository_AddMessageMedia_Call struct {
 //   - mediaType string
 //   - thumbnailURL string
 //   - sortOrder int
-func (_e *MockChatRepository_Expecter) AddMessageMedia(ctx interface{}, messageID interface{}, mediaURL interface{}, mediaType interface{}, thumbnailURL interface{}, sortOrder interface{}) *MockChatRepository_AddMessageMedia_Call {
+func (_e *MockChatRepository_Expecter) AddMessageMedia(ctx any, messageID any, mediaURL any, mediaType any, thumbnailURL any, sortOrder any) *MockChatRepository_AddMessageMedia_Call {
 	return &MockChatRepository_AddMessageMedia_Call{Call: _e.mock.On("AddMessageMedia", ctx, messageID, mediaURL, mediaType, thumbnailURL, sortOrder)}
 }
 
@@ -304,7 +304,7 @@ type MockChatRepository_AddReaction_Call struct {
 //   - messageID uuid.UUID
 //   - userID uuid.UUID
 //   - emoji string
-func (_e *MockChatRepository_Expecter) AddReaction(ctx interface{}, messageID interface{}, userID interface{}, emoji interface{}) *MockChatRepository_AddReaction_Call {
+func (_e *MockChatRepository_Expecter) AddReaction(ctx any, messageID any, userID any, emoji any) *MockChatRepository_AddReaction_Call {
 	return &MockChatRepository_AddReaction_Call{Call: _e.mock.On("AddReaction", ctx, messageID, userID, emoji)}
 }
 
@@ -372,7 +372,7 @@ type MockChatRepository_AddRoomTags_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - tags []string
-func (_e *MockChatRepository_Expecter) AddRoomTags(ctx interface{}, roomID interface{}, tags interface{}) *MockChatRepository_AddRoomTags_Call {
+func (_e *MockChatRepository_Expecter) AddRoomTags(ctx any, roomID any, tags any) *MockChatRepository_AddRoomTags_Call {
 	return &MockChatRepository_AddRoomTags_Call{Call: _e.mock.On("AddRoomTags", ctx, roomID, tags)}
 }
 
@@ -445,7 +445,7 @@ type MockChatRepository_ArchiveStaleGroupRooms_Call struct {
 // ArchiveStaleGroupRooms is a helper method to define mock.On call
 //   - ctx context.Context
 //   - cutoff time.Time
-func (_e *MockChatRepository_Expecter) ArchiveStaleGroupRooms(ctx interface{}, cutoff interface{}) *MockChatRepository_ArchiveStaleGroupRooms_Call {
+func (_e *MockChatRepository_Expecter) ArchiveStaleGroupRooms(ctx any, cutoff any) *MockChatRepository_ArchiveStaleGroupRooms_Call {
 	return &MockChatRepository_ArchiveStaleGroupRooms_Call{Call: _e.mock.On("ArchiveStaleGroupRooms", ctx, cutoff)}
 }
 
@@ -503,7 +503,7 @@ type MockChatRepository_ClearMemberTimeout_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockChatRepository_Expecter) ClearMemberTimeout(ctx interface{}, roomID interface{}, userID interface{}) *MockChatRepository_ClearMemberTimeout_Call {
+func (_e *MockChatRepository_Expecter) ClearMemberTimeout(ctx any, roomID any, userID any) *MockChatRepository_ClearMemberTimeout_Call {
 	return &MockChatRepository_ClearMemberTimeout_Call{Call: _e.mock.On("ClearMemberTimeout", ctx, roomID, userID)}
 }
 
@@ -575,7 +575,7 @@ type MockChatRepository_CountReactions_Call struct {
 //   - ctx context.Context
 //   - messageID uuid.UUID
 //   - emoji string
-func (_e *MockChatRepository_Expecter) CountReactions(ctx interface{}, messageID interface{}, emoji interface{}) *MockChatRepository_CountReactions_Call {
+func (_e *MockChatRepository_Expecter) CountReactions(ctx any, messageID any, emoji any) *MockChatRepository_CountReactions_Call {
 	return &MockChatRepository_CountReactions_Call{Call: _e.mock.On("CountReactions", ctx, messageID, emoji)}
 }
 
@@ -646,7 +646,7 @@ type MockChatRepository_CountRoomMembers_Call struct {
 // CountRoomMembers is a helper method to define mock.On call
 //   - ctx context.Context
 //   - roomID uuid.UUID
-func (_e *MockChatRepository_Expecter) CountRoomMembers(ctx interface{}, roomID interface{}) *MockChatRepository_CountRoomMembers_Call {
+func (_e *MockChatRepository_Expecter) CountRoomMembers(ctx any, roomID any) *MockChatRepository_CountRoomMembers_Call {
 	return &MockChatRepository_CountRoomMembers_Call{Call: _e.mock.On("CountRoomMembers", ctx, roomID)}
 }
 
@@ -712,7 +712,7 @@ type MockChatRepository_CountUnreadRoomsForUser_Call struct {
 // CountUnreadRoomsForUser is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockChatRepository_Expecter) CountUnreadRoomsForUser(ctx interface{}, userID interface{}) *MockChatRepository_CountUnreadRoomsForUser_Call {
+func (_e *MockChatRepository_Expecter) CountUnreadRoomsForUser(ctx any, userID any) *MockChatRepository_CountUnreadRoomsForUser_Call {
 	return &MockChatRepository_CountUnreadRoomsForUser_Call{Call: _e.mock.On("CountUnreadRoomsForUser", ctx, userID)}
 }
 
@@ -782,7 +782,7 @@ type MockChatRepository_CreateDMRoomAtomic_Call struct {
 //   - id uuid.UUID
 //   - userA uuid.UUID
 //   - userB uuid.UUID
-func (_e *MockChatRepository_Expecter) CreateDMRoomAtomic(ctx interface{}, id interface{}, userA interface{}, userB interface{}) *MockChatRepository_CreateDMRoomAtomic_Call {
+func (_e *MockChatRepository_Expecter) CreateDMRoomAtomic(ctx any, id any, userA any, userB any) *MockChatRepository_CreateDMRoomAtomic_Call {
 	return &MockChatRepository_CreateDMRoomAtomic_Call{Call: _e.mock.On("CreateDMRoomAtomic", ctx, id, userA, userB)}
 }
 
@@ -855,7 +855,7 @@ type MockChatRepository_CreateRoom_Call struct {
 //   - isPublic bool
 //   - isRP bool
 //   - createdBy uuid.UUID
-func (_e *MockChatRepository_Expecter) CreateRoom(ctx interface{}, id interface{}, name interface{}, description interface{}, roomType interface{}, isPublic interface{}, isRP interface{}, createdBy interface{}) *MockChatRepository_CreateRoom_Call {
+func (_e *MockChatRepository_Expecter) CreateRoom(ctx any, id any, name any, description any, roomType any, isPublic any, isRP any, createdBy any) *MockChatRepository_CreateRoom_Call {
 	return &MockChatRepository_CreateRoom_Call{Call: _e.mock.On("CreateRoom", ctx, id, name, description, roomType, isPublic, isRP, createdBy)}
 }
 
@@ -946,7 +946,7 @@ type MockChatRepository_CreateSystemRoom_Call struct {
 //   - description string
 //   - systemKind string
 //   - createdBy uuid.UUID
-func (_e *MockChatRepository_Expecter) CreateSystemRoom(ctx interface{}, id interface{}, name interface{}, description interface{}, systemKind interface{}, createdBy interface{}) *MockChatRepository_CreateSystemRoom_Call {
+func (_e *MockChatRepository_Expecter) CreateSystemRoom(ctx any, id any, name any, description any, systemKind any, createdBy any) *MockChatRepository_CreateSystemRoom_Call {
 	return &MockChatRepository_CreateSystemRoom_Call{Call: _e.mock.On("CreateSystemRoom", ctx, id, name, description, systemKind, createdBy)}
 }
 
@@ -1023,7 +1023,7 @@ type MockChatRepository_DeleteMessage_Call struct {
 // DeleteMessage is a helper method to define mock.On call
 //   - ctx context.Context
 //   - messageID uuid.UUID
-func (_e *MockChatRepository_Expecter) DeleteMessage(ctx interface{}, messageID interface{}) *MockChatRepository_DeleteMessage_Call {
+func (_e *MockChatRepository_Expecter) DeleteMessage(ctx any, messageID any) *MockChatRepository_DeleteMessage_Call {
 	return &MockChatRepository_DeleteMessage_Call{Call: _e.mock.On("DeleteMessage", ctx, messageID)}
 }
 
@@ -1080,7 +1080,7 @@ type MockChatRepository_DeleteMessages_Call struct {
 // DeleteMessages is a helper method to define mock.On call
 //   - ctx context.Context
 //   - roomID uuid.UUID
-func (_e *MockChatRepository_Expecter) DeleteMessages(ctx interface{}, roomID interface{}) *MockChatRepository_DeleteMessages_Call {
+func (_e *MockChatRepository_Expecter) DeleteMessages(ctx any, roomID any) *MockChatRepository_DeleteMessages_Call {
 	return &MockChatRepository_DeleteMessages_Call{Call: _e.mock.On("DeleteMessages", ctx, roomID)}
 }
 
@@ -1137,7 +1137,7 @@ type MockChatRepository_DeleteRoom_Call struct {
 // DeleteRoom is a helper method to define mock.On call
 //   - ctx context.Context
 //   - roomID uuid.UUID
-func (_e *MockChatRepository_Expecter) DeleteRoom(ctx interface{}, roomID interface{}) *MockChatRepository_DeleteRoom_Call {
+func (_e *MockChatRepository_Expecter) DeleteRoom(ctx any, roomID any) *MockChatRepository_DeleteRoom_Call {
 	return &MockChatRepository_DeleteRoom_Call{Call: _e.mock.On("DeleteRoom", ctx, roomID)}
 }
 
@@ -1195,7 +1195,7 @@ type MockChatRepository_EditMessage_Call struct {
 //   - ctx context.Context
 //   - messageID uuid.UUID
 //   - body string
-func (_e *MockChatRepository_Expecter) EditMessage(ctx interface{}, messageID interface{}, body interface{}) *MockChatRepository_EditMessage_Call {
+func (_e *MockChatRepository_Expecter) EditMessage(ctx any, messageID any, body any) *MockChatRepository_EditMessage_Call {
 	return &MockChatRepository_EditMessage_Call{Call: _e.mock.On("EditMessage", ctx, messageID, body)}
 }
 
@@ -1269,7 +1269,7 @@ type MockChatRepository_FindDMRoom_Call struct {
 //   - ctx context.Context
 //   - userA uuid.UUID
 //   - userB uuid.UUID
-func (_e *MockChatRepository_Expecter) FindDMRoom(ctx interface{}, userA interface{}, userB interface{}) *MockChatRepository_FindDMRoom_Call {
+func (_e *MockChatRepository_Expecter) FindDMRoom(ctx any, userA any, userB any) *MockChatRepository_FindDMRoom_Call {
 	return &MockChatRepository_FindDMRoom_Call{Call: _e.mock.On("FindDMRoom", ctx, userA, userB)}
 }
 
@@ -1341,7 +1341,7 @@ type MockChatRepository_GetMemberNickname_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockChatRepository_Expecter) GetMemberNickname(ctx interface{}, roomID interface{}, userID interface{}) *MockChatRepository_GetMemberNickname_Call {
+func (_e *MockChatRepository_Expecter) GetMemberNickname(ctx any, roomID any, userID any) *MockChatRepository_GetMemberNickname_Call {
 	return &MockChatRepository_GetMemberNickname_Call{Call: _e.mock.On("GetMemberNickname", ctx, roomID, userID)}
 }
 
@@ -1413,7 +1413,7 @@ type MockChatRepository_GetMemberRole_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockChatRepository_Expecter) GetMemberRole(ctx interface{}, roomID interface{}, userID interface{}) *MockChatRepository_GetMemberRole_Call {
+func (_e *MockChatRepository_Expecter) GetMemberRole(ctx any, roomID any, userID any) *MockChatRepository_GetMemberRole_Call {
 	return &MockChatRepository_GetMemberRole_Call{Call: _e.mock.On("GetMemberRole", ctx, roomID, userID)}
 }
 
@@ -1497,7 +1497,7 @@ type MockChatRepository_GetMemberTimeoutState_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockChatRepository_Expecter) GetMemberTimeoutState(ctx interface{}, roomID interface{}, userID interface{}) *MockChatRepository_GetMemberTimeoutState_Call {
+func (_e *MockChatRepository_Expecter) GetMemberTimeoutState(ctx any, roomID any, userID any) *MockChatRepository_GetMemberTimeoutState_Call {
 	return &MockChatRepository_GetMemberTimeoutState_Call{Call: _e.mock.On("GetMemberTimeoutState", ctx, roomID, userID)}
 }
 
@@ -1570,7 +1570,7 @@ type MockChatRepository_GetMessageByID_Call struct {
 // GetMessageByID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - messageID uuid.UUID
-func (_e *MockChatRepository_Expecter) GetMessageByID(ctx interface{}, messageID interface{}) *MockChatRepository_GetMessageByID_Call {
+func (_e *MockChatRepository_Expecter) GetMessageByID(ctx any, messageID any) *MockChatRepository_GetMessageByID_Call {
 	return &MockChatRepository_GetMessageByID_Call{Call: _e.mock.On("GetMessageByID", ctx, messageID)}
 }
 
@@ -1638,7 +1638,7 @@ type MockChatRepository_GetMessageMediaBatch_Call struct {
 // GetMessageMediaBatch is a helper method to define mock.On call
 //   - ctx context.Context
 //   - messageIDs []uuid.UUID
-func (_e *MockChatRepository_Expecter) GetMessageMediaBatch(ctx interface{}, messageIDs interface{}) *MockChatRepository_GetMessageMediaBatch_Call {
+func (_e *MockChatRepository_Expecter) GetMessageMediaBatch(ctx any, messageIDs any) *MockChatRepository_GetMessageMediaBatch_Call {
 	return &MockChatRepository_GetMessageMediaBatch_Call{Call: _e.mock.On("GetMessageMediaBatch", ctx, messageIDs)}
 }
 
@@ -1706,7 +1706,7 @@ type MockChatRepository_GetMessageRoomID_Call struct {
 // GetMessageRoomID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - messageID uuid.UUID
-func (_e *MockChatRepository_Expecter) GetMessageRoomID(ctx interface{}, messageID interface{}) *MockChatRepository_GetMessageRoomID_Call {
+func (_e *MockChatRepository_Expecter) GetMessageRoomID(ctx any, messageID any) *MockChatRepository_GetMessageRoomID_Call {
 	return &MockChatRepository_GetMessageRoomID_Call{Call: _e.mock.On("GetMessageRoomID", ctx, messageID)}
 }
 
@@ -1774,7 +1774,7 @@ type MockChatRepository_GetMessageSenderID_Call struct {
 // GetMessageSenderID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - messageID uuid.UUID
-func (_e *MockChatRepository_Expecter) GetMessageSenderID(ctx interface{}, messageID interface{}) *MockChatRepository_GetMessageSenderID_Call {
+func (_e *MockChatRepository_Expecter) GetMessageSenderID(ctx any, messageID any) *MockChatRepository_GetMessageSenderID_Call {
 	return &MockChatRepository_GetMessageSenderID_Call{Call: _e.mock.On("GetMessageSenderID", ctx, messageID)}
 }
 
@@ -1850,7 +1850,7 @@ type MockChatRepository_GetMessages_Call struct {
 //   - roomID uuid.UUID
 //   - limit int
 //   - offset int
-func (_e *MockChatRepository_Expecter) GetMessages(ctx interface{}, roomID interface{}, limit interface{}, offset interface{}) *MockChatRepository_GetMessages_Call {
+func (_e *MockChatRepository_Expecter) GetMessages(ctx any, roomID any, limit any, offset any) *MockChatRepository_GetMessages_Call {
 	return &MockChatRepository_GetMessages_Call{Call: _e.mock.On("GetMessages", ctx, roomID, limit, offset)}
 }
 
@@ -1930,7 +1930,7 @@ type MockChatRepository_GetMessagesBefore_Call struct {
 //   - roomID uuid.UUID
 //   - before string
 //   - limit int
-func (_e *MockChatRepository_Expecter) GetMessagesBefore(ctx interface{}, roomID interface{}, before interface{}, limit interface{}) *MockChatRepository_GetMessagesBefore_Call {
+func (_e *MockChatRepository_Expecter) GetMessagesBefore(ctx any, roomID any, before any, limit any) *MockChatRepository_GetMessagesBefore_Call {
 	return &MockChatRepository_GetMessagesBefore_Call{Call: _e.mock.On("GetMessagesBefore", ctx, roomID, before, limit)}
 }
 
@@ -2009,7 +2009,7 @@ type MockChatRepository_GetReactionsBatch_Call struct {
 //   - ctx context.Context
 //   - messageIDs []uuid.UUID
 //   - viewerID uuid.UUID
-func (_e *MockChatRepository_Expecter) GetReactionsBatch(ctx interface{}, messageIDs interface{}, viewerID interface{}) *MockChatRepository_GetReactionsBatch_Call {
+func (_e *MockChatRepository_Expecter) GetReactionsBatch(ctx any, messageIDs any, viewerID any) *MockChatRepository_GetReactionsBatch_Call {
 	return &MockChatRepository_GetReactionsBatch_Call{Call: _e.mock.On("GetReactionsBatch", ctx, messageIDs, viewerID)}
 }
 
@@ -2083,7 +2083,7 @@ type MockChatRepository_GetRoomByID_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - viewerID uuid.UUID
-func (_e *MockChatRepository_Expecter) GetRoomByID(ctx interface{}, roomID interface{}, viewerID interface{}) *MockChatRepository_GetRoomByID_Call {
+func (_e *MockChatRepository_Expecter) GetRoomByID(ctx any, roomID any, viewerID any) *MockChatRepository_GetRoomByID_Call {
 	return &MockChatRepository_GetRoomByID_Call{Call: _e.mock.On("GetRoomByID", ctx, roomID, viewerID)}
 }
 
@@ -2156,7 +2156,7 @@ type MockChatRepository_GetRoomMembers_Call struct {
 // GetRoomMembers is a helper method to define mock.On call
 //   - ctx context.Context
 //   - roomID uuid.UUID
-func (_e *MockChatRepository_Expecter) GetRoomMembers(ctx interface{}, roomID interface{}) *MockChatRepository_GetRoomMembers_Call {
+func (_e *MockChatRepository_Expecter) GetRoomMembers(ctx any, roomID any) *MockChatRepository_GetRoomMembers_Call {
 	return &MockChatRepository_GetRoomMembers_Call{Call: _e.mock.On("GetRoomMembers", ctx, roomID)}
 }
 
@@ -2224,7 +2224,7 @@ type MockChatRepository_GetRoomMembersDetailed_Call struct {
 // GetRoomMembersDetailed is a helper method to define mock.On call
 //   - ctx context.Context
 //   - roomID uuid.UUID
-func (_e *MockChatRepository_Expecter) GetRoomMembersDetailed(ctx interface{}, roomID interface{}) *MockChatRepository_GetRoomMembersDetailed_Call {
+func (_e *MockChatRepository_Expecter) GetRoomMembersDetailed(ctx any, roomID any) *MockChatRepository_GetRoomMembersDetailed_Call {
 	return &MockChatRepository_GetRoomMembersDetailed_Call{Call: _e.mock.On("GetRoomMembersDetailed", ctx, roomID)}
 }
 
@@ -2292,7 +2292,7 @@ type MockChatRepository_GetRoomMembersUnmuted_Call struct {
 // GetRoomMembersUnmuted is a helper method to define mock.On call
 //   - ctx context.Context
 //   - roomID uuid.UUID
-func (_e *MockChatRepository_Expecter) GetRoomMembersUnmuted(ctx interface{}, roomID interface{}) *MockChatRepository_GetRoomMembersUnmuted_Call {
+func (_e *MockChatRepository_Expecter) GetRoomMembersUnmuted(ctx any, roomID any) *MockChatRepository_GetRoomMembersUnmuted_Call {
 	return &MockChatRepository_GetRoomMembersUnmuted_Call{Call: _e.mock.On("GetRoomMembersUnmuted", ctx, roomID)}
 }
 
@@ -2360,7 +2360,7 @@ type MockChatRepository_GetRoomTags_Call struct {
 // GetRoomTags is a helper method to define mock.On call
 //   - ctx context.Context
 //   - roomID uuid.UUID
-func (_e *MockChatRepository_Expecter) GetRoomTags(ctx interface{}, roomID interface{}) *MockChatRepository_GetRoomTags_Call {
+func (_e *MockChatRepository_Expecter) GetRoomTags(ctx any, roomID any) *MockChatRepository_GetRoomTags_Call {
 	return &MockChatRepository_GetRoomTags_Call{Call: _e.mock.On("GetRoomTags", ctx, roomID)}
 }
 
@@ -2428,7 +2428,7 @@ type MockChatRepository_GetRoomTagsBatch_Call struct {
 // GetRoomTagsBatch is a helper method to define mock.On call
 //   - ctx context.Context
 //   - roomIDs []uuid.UUID
-func (_e *MockChatRepository_Expecter) GetRoomTagsBatch(ctx interface{}, roomIDs interface{}) *MockChatRepository_GetRoomTagsBatch_Call {
+func (_e *MockChatRepository_Expecter) GetRoomTagsBatch(ctx any, roomIDs any) *MockChatRepository_GetRoomTagsBatch_Call {
 	return &MockChatRepository_GetRoomTagsBatch_Call{Call: _e.mock.On("GetRoomTagsBatch", ctx, roomIDs)}
 }
 
@@ -2496,7 +2496,7 @@ type MockChatRepository_GetRoomsByUser_Call struct {
 // GetRoomsByUser is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockChatRepository_Expecter) GetRoomsByUser(ctx interface{}, userID interface{}) *MockChatRepository_GetRoomsByUser_Call {
+func (_e *MockChatRepository_Expecter) GetRoomsByUser(ctx any, userID any) *MockChatRepository_GetRoomsByUser_Call {
 	return &MockChatRepository_GetRoomsByUser_Call{Call: _e.mock.On("GetRoomsByUser", ctx, userID)}
 }
 
@@ -2564,7 +2564,7 @@ type MockChatRepository_GetSystemRoomID_Call struct {
 // GetSystemRoomID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - systemKind string
-func (_e *MockChatRepository_Expecter) GetSystemRoomID(ctx interface{}, systemKind interface{}) *MockChatRepository_GetSystemRoomID_Call {
+func (_e *MockChatRepository_Expecter) GetSystemRoomID(ctx any, systemKind any) *MockChatRepository_GetSystemRoomID_Call {
 	return &MockChatRepository_GetSystemRoomID_Call{Call: _e.mock.On("GetSystemRoomID", ctx, systemKind)}
 }
 
@@ -2631,7 +2631,7 @@ type MockChatRepository_HasActiveMemberTimeout_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockChatRepository_Expecter) HasActiveMemberTimeout(ctx interface{}, roomID interface{}, userID interface{}) *MockChatRepository_HasActiveMemberTimeout_Call {
+func (_e *MockChatRepository_Expecter) HasActiveMemberTimeout(ctx any, roomID any, userID any) *MockChatRepository_HasActiveMemberTimeout_Call {
 	return &MockChatRepository_HasActiveMemberTimeout_Call{Call: _e.mock.On("HasActiveMemberTimeout", ctx, roomID, userID)}
 }
 
@@ -2702,7 +2702,7 @@ type MockChatRepository_HasGhostMembers_Call struct {
 // HasGhostMembers is a helper method to define mock.On call
 //   - ctx context.Context
 //   - roomID uuid.UUID
-func (_e *MockChatRepository_Expecter) HasGhostMembers(ctx interface{}, roomID interface{}) *MockChatRepository_HasGhostMembers_Call {
+func (_e *MockChatRepository_Expecter) HasGhostMembers(ctx any, roomID any) *MockChatRepository_HasGhostMembers_Call {
 	return &MockChatRepository_HasGhostMembers_Call{Call: _e.mock.On("HasGhostMembers", ctx, roomID)}
 }
 
@@ -2763,7 +2763,7 @@ type MockChatRepository_InsertMessage_Call struct {
 //   - senderID uuid.UUID
 //   - body string
 //   - replyToID *uuid.UUID
-func (_e *MockChatRepository_Expecter) InsertMessage(ctx interface{}, id interface{}, roomID interface{}, senderID interface{}, body interface{}, replyToID interface{}) *MockChatRepository_InsertMessage_Call {
+func (_e *MockChatRepository_Expecter) InsertMessage(ctx any, id any, roomID any, senderID any, body any, replyToID any) *MockChatRepository_InsertMessage_Call {
 	return &MockChatRepository_InsertMessage_Call{Call: _e.mock.On("InsertMessage", ctx, id, roomID, senderID, body, replyToID)}
 }
 
@@ -2843,7 +2843,7 @@ type MockChatRepository_InsertSystemMessage_Call struct {
 //   - roomID uuid.UUID
 //   - senderID uuid.UUID
 //   - body string
-func (_e *MockChatRepository_Expecter) InsertSystemMessage(ctx interface{}, id interface{}, roomID interface{}, senderID interface{}, body interface{}) *MockChatRepository_InsertSystemMessage_Call {
+func (_e *MockChatRepository_Expecter) InsertSystemMessage(ctx any, id any, roomID any, senderID any, body any) *MockChatRepository_InsertSystemMessage_Call {
 	return &MockChatRepository_InsertSystemMessage_Call{Call: _e.mock.On("InsertSystemMessage", ctx, id, roomID, senderID, body)}
 }
 
@@ -2925,7 +2925,7 @@ type MockChatRepository_IsGhostMember_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockChatRepository_Expecter) IsGhostMember(ctx interface{}, roomID interface{}, userID interface{}) *MockChatRepository_IsGhostMember_Call {
+func (_e *MockChatRepository_Expecter) IsGhostMember(ctx any, roomID any, userID any) *MockChatRepository_IsGhostMember_Call {
 	return &MockChatRepository_IsGhostMember_Call{Call: _e.mock.On("IsGhostMember", ctx, roomID, userID)}
 }
 
@@ -2997,7 +2997,7 @@ type MockChatRepository_IsMember_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockChatRepository_Expecter) IsMember(ctx interface{}, roomID interface{}, userID interface{}) *MockChatRepository_IsMember_Call {
+func (_e *MockChatRepository_Expecter) IsMember(ctx any, roomID any, userID any) *MockChatRepository_IsMember_Call {
 	return &MockChatRepository_IsMember_Call{Call: _e.mock.On("IsMember", ctx, roomID, userID)}
 }
 
@@ -3069,7 +3069,7 @@ type MockChatRepository_IsMemberNicknameLocked_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockChatRepository_Expecter) IsMemberNicknameLocked(ctx interface{}, roomID interface{}, userID interface{}) *MockChatRepository_IsMemberNicknameLocked_Call {
+func (_e *MockChatRepository_Expecter) IsMemberNicknameLocked(ctx any, roomID any, userID any) *MockChatRepository_IsMemberNicknameLocked_Call {
 	return &MockChatRepository_IsMemberNicknameLocked_Call{Call: _e.mock.On("IsMemberNicknameLocked", ctx, roomID, userID)}
 }
 
@@ -3141,7 +3141,7 @@ type MockChatRepository_IsMuted_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockChatRepository_Expecter) IsMuted(ctx interface{}, roomID interface{}, userID interface{}) *MockChatRepository_IsMuted_Call {
+func (_e *MockChatRepository_Expecter) IsMuted(ctx any, roomID any, userID any) *MockChatRepository_IsMuted_Call {
 	return &MockChatRepository_IsMuted_Call{Call: _e.mock.On("IsMuted", ctx, roomID, userID)}
 }
 
@@ -3214,7 +3214,7 @@ type MockChatRepository_ListPinnedMessages_Call struct {
 // ListPinnedMessages is a helper method to define mock.On call
 //   - ctx context.Context
 //   - roomID uuid.UUID
-func (_e *MockChatRepository_Expecter) ListPinnedMessages(ctx interface{}, roomID interface{}) *MockChatRepository_ListPinnedMessages_Call {
+func (_e *MockChatRepository_Expecter) ListPinnedMessages(ctx any, roomID any) *MockChatRepository_ListPinnedMessages_Call {
 	return &MockChatRepository_ListPinnedMessages_Call{Call: _e.mock.On("ListPinnedMessages", ctx, roomID)}
 }
 
@@ -3295,7 +3295,7 @@ type MockChatRepository_ListPublicRooms_Call struct {
 //   - includeArchived bool
 //   - limit int
 //   - offset int
-func (_e *MockChatRepository_Expecter) ListPublicRooms(ctx interface{}, search interface{}, isRPOnly interface{}, tag interface{}, viewerID interface{}, excludeUserIDs interface{}, includeArchived interface{}, limit interface{}, offset interface{}) *MockChatRepository_ListPublicRooms_Call {
+func (_e *MockChatRepository_Expecter) ListPublicRooms(ctx any, search any, isRPOnly any, tag any, viewerID any, excludeUserIDs any, includeArchived any, limit any, offset any) *MockChatRepository_ListPublicRooms_Call {
 	return &MockChatRepository_ListPublicRooms_Call{Call: _e.mock.On("ListPublicRooms", ctx, search, isRPOnly, tag, viewerID, excludeUserIDs, includeArchived, limit, offset)}
 }
 
@@ -3398,7 +3398,7 @@ type MockChatRepository_ListRoomMediaURLs_Call struct {
 // ListRoomMediaURLs is a helper method to define mock.On call
 //   - ctx context.Context
 //   - roomID uuid.UUID
-func (_e *MockChatRepository_Expecter) ListRoomMediaURLs(ctx interface{}, roomID interface{}) *MockChatRepository_ListRoomMediaURLs_Call {
+func (_e *MockChatRepository_Expecter) ListRoomMediaURLs(ctx any, roomID any) *MockChatRepository_ListRoomMediaURLs_Call {
 	return &MockChatRepository_ListRoomMediaURLs_Call{Call: _e.mock.On("ListRoomMediaURLs", ctx, roomID)}
 }
 
@@ -3479,7 +3479,7 @@ type MockChatRepository_ListUserGroupRooms_Call struct {
 //   - includeArchived bool
 //   - limit int
 //   - offset int
-func (_e *MockChatRepository_Expecter) ListUserGroupRooms(ctx interface{}, userID interface{}, search interface{}, isRPOnly interface{}, tag interface{}, role interface{}, includeArchived interface{}, limit interface{}, offset interface{}) *MockChatRepository_ListUserGroupRooms_Call {
+func (_e *MockChatRepository_Expecter) ListUserGroupRooms(ctx any, userID any, search any, isRPOnly any, tag any, role any, includeArchived any, limit any, offset any) *MockChatRepository_ListUserGroupRooms_Call {
 	return &MockChatRepository_ListUserGroupRooms_Call{Call: _e.mock.On("ListUserGroupRooms", ctx, userID, search, isRPOnly, tag, role, includeArchived, limit, offset)}
 }
 
@@ -3572,7 +3572,7 @@ type MockChatRepository_MarkRoomRead_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockChatRepository_Expecter) MarkRoomRead(ctx interface{}, roomID interface{}, userID interface{}) *MockChatRepository_MarkRoomRead_Call {
+func (_e *MockChatRepository_Expecter) MarkRoomRead(ctx any, roomID any, userID any) *MockChatRepository_MarkRoomRead_Call {
 	return &MockChatRepository_MarkRoomRead_Call{Call: _e.mock.On("MarkRoomRead", ctx, roomID, userID)}
 }
 
@@ -3635,7 +3635,7 @@ type MockChatRepository_PinMessage_Call struct {
 //   - ctx context.Context
 //   - messageID uuid.UUID
 //   - pinnedBy uuid.UUID
-func (_e *MockChatRepository_Expecter) PinMessage(ctx interface{}, messageID interface{}, pinnedBy interface{}) *MockChatRepository_PinMessage_Call {
+func (_e *MockChatRepository_Expecter) PinMessage(ctx any, messageID any, pinnedBy any) *MockChatRepository_PinMessage_Call {
 	return &MockChatRepository_PinMessage_Call{Call: _e.mock.On("PinMessage", ctx, messageID, pinnedBy)}
 }
 
@@ -3698,7 +3698,7 @@ type MockChatRepository_RemoveMember_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockChatRepository_Expecter) RemoveMember(ctx interface{}, roomID interface{}, userID interface{}) *MockChatRepository_RemoveMember_Call {
+func (_e *MockChatRepository_Expecter) RemoveMember(ctx any, roomID any, userID any) *MockChatRepository_RemoveMember_Call {
 	return &MockChatRepository_RemoveMember_Call{Call: _e.mock.On("RemoveMember", ctx, roomID, userID)}
 }
 
@@ -3771,7 +3771,7 @@ type MockChatRepository_RemoveReaction_Call struct {
 //   - messageID uuid.UUID
 //   - userID uuid.UUID
 //   - emoji string
-func (_e *MockChatRepository_Expecter) RemoveReaction(ctx interface{}, messageID interface{}, userID interface{}, emoji interface{}) *MockChatRepository_RemoveReaction_Call {
+func (_e *MockChatRepository_Expecter) RemoveReaction(ctx any, messageID any, userID any, emoji any) *MockChatRepository_RemoveReaction_Call {
 	return &MockChatRepository_RemoveReaction_Call{Call: _e.mock.On("RemoveReaction", ctx, messageID, userID, emoji)}
 }
 
@@ -3839,7 +3839,7 @@ type MockChatRepository_ReplaceRoomTags_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - tags []string
-func (_e *MockChatRepository_Expecter) ReplaceRoomTags(ctx interface{}, roomID interface{}, tags interface{}) *MockChatRepository_ReplaceRoomTags_Call {
+func (_e *MockChatRepository_Expecter) ReplaceRoomTags(ctx any, roomID any, tags any) *MockChatRepository_ReplaceRoomTags_Call {
 	return &MockChatRepository_ReplaceRoomTags_Call{Call: _e.mock.On("ReplaceRoomTags", ctx, roomID, tags)}
 }
 
@@ -3922,7 +3922,7 @@ type MockChatRepository_SearchMessagesForViewer_Call struct {
 //   - query string
 //   - limit int
 //   - offset int
-func (_e *MockChatRepository_Expecter) SearchMessagesForViewer(ctx interface{}, viewerID interface{}, roomID interface{}, query interface{}, limit interface{}, offset interface{}) *MockChatRepository_SearchMessagesForViewer_Call {
+func (_e *MockChatRepository_Expecter) SearchMessagesForViewer(ctx any, viewerID any, roomID any, query any, limit any, offset any) *MockChatRepository_SearchMessagesForViewer_Call {
 	return &MockChatRepository_SearchMessagesForViewer_Call{Call: _e.mock.On("SearchMessagesForViewer", ctx, viewerID, roomID, query, limit, offset)}
 }
 
@@ -4001,7 +4001,7 @@ type MockChatRepository_SetMemberAvatar_Call struct {
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
 //   - avatarURL string
-func (_e *MockChatRepository_Expecter) SetMemberAvatar(ctx interface{}, roomID interface{}, userID interface{}, avatarURL interface{}) *MockChatRepository_SetMemberAvatar_Call {
+func (_e *MockChatRepository_Expecter) SetMemberAvatar(ctx any, roomID any, userID any, avatarURL any) *MockChatRepository_SetMemberAvatar_Call {
 	return &MockChatRepository_SetMemberAvatar_Call{Call: _e.mock.On("SetMemberAvatar", ctx, roomID, userID, avatarURL)}
 }
 
@@ -4070,7 +4070,7 @@ type MockChatRepository_SetMemberNickname_Call struct {
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
 //   - nickname string
-func (_e *MockChatRepository_Expecter) SetMemberNickname(ctx interface{}, roomID interface{}, userID interface{}, nickname interface{}) *MockChatRepository_SetMemberNickname_Call {
+func (_e *MockChatRepository_Expecter) SetMemberNickname(ctx any, roomID any, userID any, nickname any) *MockChatRepository_SetMemberNickname_Call {
 	return &MockChatRepository_SetMemberNickname_Call{Call: _e.mock.On("SetMemberNickname", ctx, roomID, userID, nickname)}
 }
 
@@ -4140,7 +4140,7 @@ type MockChatRepository_SetMemberNicknameWithLock_Call struct {
 //   - userID uuid.UUID
 //   - nickname string
 //   - locked bool
-func (_e *MockChatRepository_Expecter) SetMemberNicknameWithLock(ctx interface{}, roomID interface{}, userID interface{}, nickname interface{}, locked interface{}) *MockChatRepository_SetMemberNicknameWithLock_Call {
+func (_e *MockChatRepository_Expecter) SetMemberNicknameWithLock(ctx any, roomID any, userID any, nickname any, locked any) *MockChatRepository_SetMemberNicknameWithLock_Call {
 	return &MockChatRepository_SetMemberNicknameWithLock_Call{Call: _e.mock.On("SetMemberNicknameWithLock", ctx, roomID, userID, nickname, locked)}
 }
 
@@ -4214,7 +4214,7 @@ type MockChatRepository_SetMemberRole_Call struct {
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
 //   - role string
-func (_e *MockChatRepository_Expecter) SetMemberRole(ctx interface{}, roomID interface{}, userID interface{}, role interface{}) *MockChatRepository_SetMemberRole_Call {
+func (_e *MockChatRepository_Expecter) SetMemberRole(ctx any, roomID any, userID any, role any) *MockChatRepository_SetMemberRole_Call {
 	return &MockChatRepository_SetMemberRole_Call{Call: _e.mock.On("SetMemberRole", ctx, roomID, userID, role)}
 }
 
@@ -4284,7 +4284,7 @@ type MockChatRepository_SetMemberTimeout_Call struct {
 //   - userID uuid.UUID
 //   - until string
 //   - byStaff bool
-func (_e *MockChatRepository_Expecter) SetMemberTimeout(ctx interface{}, roomID interface{}, userID interface{}, until interface{}, byStaff interface{}) *MockChatRepository_SetMemberTimeout_Call {
+func (_e *MockChatRepository_Expecter) SetMemberTimeout(ctx any, roomID any, userID any, until any, byStaff any) *MockChatRepository_SetMemberTimeout_Call {
 	return &MockChatRepository_SetMemberTimeout_Call{Call: _e.mock.On("SetMemberTimeout", ctx, roomID, userID, until, byStaff)}
 }
 
@@ -4358,7 +4358,7 @@ type MockChatRepository_SetMuted_Call struct {
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
 //   - muted bool
-func (_e *MockChatRepository_Expecter) SetMuted(ctx interface{}, roomID interface{}, userID interface{}, muted interface{}) *MockChatRepository_SetMuted_Call {
+func (_e *MockChatRepository_Expecter) SetMuted(ctx any, roomID any, userID any, muted any) *MockChatRepository_SetMuted_Call {
 	return &MockChatRepository_SetMuted_Call{Call: _e.mock.On("SetMuted", ctx, roomID, userID, muted)}
 }
 
@@ -4425,7 +4425,7 @@ type MockChatRepository_TouchRoomActivity_Call struct {
 // TouchRoomActivity is a helper method to define mock.On call
 //   - ctx context.Context
 //   - roomID uuid.UUID
-func (_e *MockChatRepository_Expecter) TouchRoomActivity(ctx interface{}, roomID interface{}) *MockChatRepository_TouchRoomActivity_Call {
+func (_e *MockChatRepository_Expecter) TouchRoomActivity(ctx any, roomID any) *MockChatRepository_TouchRoomActivity_Call {
 	return &MockChatRepository_TouchRoomActivity_Call{Call: _e.mock.On("TouchRoomActivity", ctx, roomID)}
 }
 
@@ -4482,7 +4482,7 @@ type MockChatRepository_UnpinMessage_Call struct {
 // UnpinMessage is a helper method to define mock.On call
 //   - ctx context.Context
 //   - messageID uuid.UUID
-func (_e *MockChatRepository_Expecter) UnpinMessage(ctx interface{}, messageID interface{}) *MockChatRepository_UnpinMessage_Call {
+func (_e *MockChatRepository_Expecter) UnpinMessage(ctx any, messageID any) *MockChatRepository_UnpinMessage_Call {
 	return &MockChatRepository_UnpinMessage_Call{Call: _e.mock.On("UnpinMessage", ctx, messageID)}
 }
 
@@ -4540,7 +4540,7 @@ type MockChatRepository_UpdateMessageMediaThumbnail_Call struct {
 //   - ctx context.Context
 //   - id int64
 //   - thumbnailURL string
-func (_e *MockChatRepository_Expecter) UpdateMessageMediaThumbnail(ctx interface{}, id interface{}, thumbnailURL interface{}) *MockChatRepository_UpdateMessageMediaThumbnail_Call {
+func (_e *MockChatRepository_Expecter) UpdateMessageMediaThumbnail(ctx any, id any, thumbnailURL any) *MockChatRepository_UpdateMessageMediaThumbnail_Call {
 	return &MockChatRepository_UpdateMessageMediaThumbnail_Call{Call: _e.mock.On("UpdateMessageMediaThumbnail", ctx, id, thumbnailURL)}
 }
 
@@ -4603,7 +4603,7 @@ type MockChatRepository_UpdateMessageMediaURL_Call struct {
 //   - ctx context.Context
 //   - id int64
 //   - mediaURL string
-func (_e *MockChatRepository_Expecter) UpdateMessageMediaURL(ctx interface{}, id interface{}, mediaURL interface{}) *MockChatRepository_UpdateMessageMediaURL_Call {
+func (_e *MockChatRepository_Expecter) UpdateMessageMediaURL(ctx any, id any, mediaURL any) *MockChatRepository_UpdateMessageMediaURL_Call {
 	return &MockChatRepository_UpdateMessageMediaURL_Call{Call: _e.mock.On("UpdateMessageMediaURL", ctx, id, mediaURL)}
 }
 

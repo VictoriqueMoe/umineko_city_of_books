@@ -63,7 +63,7 @@ type MockNotifier_Notify_Call struct {
 // Notify is a helper method to define mock.On call
 //   - ctx context.Context
 //   - params dto.NotifyParams
-func (_e *MockNotifier_Expecter) Notify(ctx interface{}, params interface{}) *MockNotifier_Notify_Call {
+func (_e *MockNotifier_Expecter) Notify(ctx any, params any) *MockNotifier_Notify_Call {
 	return &MockNotifier_Notify_Call{Call: _e.mock.On("Notify", ctx, params)}
 }
 

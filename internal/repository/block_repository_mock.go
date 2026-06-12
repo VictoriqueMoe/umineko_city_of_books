@@ -64,7 +64,7 @@ type MockBlockRepository_Block_Call struct {
 //   - ctx context.Context
 //   - blockerID uuid.UUID
 //   - blockedID uuid.UUID
-func (_e *MockBlockRepository_Expecter) Block(ctx interface{}, blockerID interface{}, blockedID interface{}) *MockBlockRepository_Block_Call {
+func (_e *MockBlockRepository_Expecter) Block(ctx any, blockerID any, blockedID any) *MockBlockRepository_Block_Call {
 	return &MockBlockRepository_Block_Call{Call: _e.mock.On("Block", ctx, blockerID, blockedID)}
 }
 
@@ -137,7 +137,7 @@ type MockBlockRepository_GetBlockedIDs_Call struct {
 // GetBlockedIDs is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockBlockRepository_Expecter) GetBlockedIDs(ctx interface{}, userID interface{}) *MockBlockRepository_GetBlockedIDs_Call {
+func (_e *MockBlockRepository_Expecter) GetBlockedIDs(ctx any, userID any) *MockBlockRepository_GetBlockedIDs_Call {
 	return &MockBlockRepository_GetBlockedIDs_Call{Call: _e.mock.On("GetBlockedIDs", ctx, userID)}
 }
 
@@ -205,7 +205,7 @@ type MockBlockRepository_GetBlockedUsers_Call struct {
 // GetBlockedUsers is a helper method to define mock.On call
 //   - ctx context.Context
 //   - blockerID uuid.UUID
-func (_e *MockBlockRepository_Expecter) GetBlockedUsers(ctx interface{}, blockerID interface{}) *MockBlockRepository_GetBlockedUsers_Call {
+func (_e *MockBlockRepository_Expecter) GetBlockedUsers(ctx any, blockerID any) *MockBlockRepository_GetBlockedUsers_Call {
 	return &MockBlockRepository_GetBlockedUsers_Call{Call: _e.mock.On("GetBlockedUsers", ctx, blockerID)}
 }
 
@@ -272,7 +272,7 @@ type MockBlockRepository_IsBlocked_Call struct {
 //   - ctx context.Context
 //   - blockerID uuid.UUID
 //   - blockedID uuid.UUID
-func (_e *MockBlockRepository_Expecter) IsBlocked(ctx interface{}, blockerID interface{}, blockedID interface{}) *MockBlockRepository_IsBlocked_Call {
+func (_e *MockBlockRepository_Expecter) IsBlocked(ctx any, blockerID any, blockedID any) *MockBlockRepository_IsBlocked_Call {
 	return &MockBlockRepository_IsBlocked_Call{Call: _e.mock.On("IsBlocked", ctx, blockerID, blockedID)}
 }
 
@@ -344,7 +344,7 @@ type MockBlockRepository_IsBlockedEither_Call struct {
 //   - ctx context.Context
 //   - userA uuid.UUID
 //   - userB uuid.UUID
-func (_e *MockBlockRepository_Expecter) IsBlockedEither(ctx interface{}, userA interface{}, userB interface{}) *MockBlockRepository_IsBlockedEither_Call {
+func (_e *MockBlockRepository_Expecter) IsBlockedEither(ctx any, userA any, userB any) *MockBlockRepository_IsBlockedEither_Call {
 	return &MockBlockRepository_IsBlockedEither_Call{Call: _e.mock.On("IsBlockedEither", ctx, userA, userB)}
 }
 
@@ -407,7 +407,7 @@ type MockBlockRepository_Unblock_Call struct {
 //   - ctx context.Context
 //   - blockerID uuid.UUID
 //   - blockedID uuid.UUID
-func (_e *MockBlockRepository_Expecter) Unblock(ctx interface{}, blockerID interface{}, blockedID interface{}) *MockBlockRepository_Unblock_Call {
+func (_e *MockBlockRepository_Expecter) Unblock(ctx any, blockerID any, blockedID any) *MockBlockRepository_Unblock_Call {
 	return &MockBlockRepository_Unblock_Call{Call: _e.mock.On("Unblock", ctx, blockerID, blockedID)}
 }
 

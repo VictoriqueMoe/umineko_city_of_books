@@ -73,7 +73,7 @@ type MockRoleRepository_GetRole_Call struct {
 // GetRole is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockRoleRepository_Expecter) GetRole(ctx interface{}, userID interface{}) *MockRoleRepository_GetRole_Call {
+func (_e *MockRoleRepository_Expecter) GetRole(ctx any, userID any) *MockRoleRepository_GetRole_Call {
 	return &MockRoleRepository_GetRole_Call{Call: _e.mock.On("GetRole", ctx, userID)}
 }
 
@@ -141,7 +141,7 @@ type MockRoleRepository_GetRoles_Call struct {
 // GetRoles is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userIDs []uuid.UUID
-func (_e *MockRoleRepository_Expecter) GetRoles(ctx interface{}, userIDs interface{}) *MockRoleRepository_GetRoles_Call {
+func (_e *MockRoleRepository_Expecter) GetRoles(ctx any, userIDs any) *MockRoleRepository_GetRoles_Call {
 	return &MockRoleRepository_GetRoles_Call{Call: _e.mock.On("GetRoles", ctx, userIDs)}
 }
 
@@ -209,7 +209,7 @@ type MockRoleRepository_GetUsersByRoles_Call struct {
 // GetUsersByRoles is a helper method to define mock.On call
 //   - ctx context.Context
 //   - roles []role.Role
-func (_e *MockRoleRepository_Expecter) GetUsersByRoles(ctx interface{}, roles interface{}) *MockRoleRepository_GetUsersByRoles_Call {
+func (_e *MockRoleRepository_Expecter) GetUsersByRoles(ctx any, roles any) *MockRoleRepository_GetUsersByRoles_Call {
 	return &MockRoleRepository_GetUsersByRoles_Call{Call: _e.mock.On("GetUsersByRoles", ctx, roles)}
 }
 
@@ -276,7 +276,7 @@ type MockRoleRepository_HasRole_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - r role.Role
-func (_e *MockRoleRepository_Expecter) HasRole(ctx interface{}, userID interface{}, r interface{}) *MockRoleRepository_HasRole_Call {
+func (_e *MockRoleRepository_Expecter) HasRole(ctx any, userID any, r any) *MockRoleRepository_HasRole_Call {
 	return &MockRoleRepository_HasRole_Call{Call: _e.mock.On("HasRole", ctx, userID, r)}
 }
 
@@ -339,7 +339,7 @@ type MockRoleRepository_RemoveRole_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - r role.Role
-func (_e *MockRoleRepository_Expecter) RemoveRole(ctx interface{}, userID interface{}, r interface{}) *MockRoleRepository_RemoveRole_Call {
+func (_e *MockRoleRepository_Expecter) RemoveRole(ctx any, userID any, r any) *MockRoleRepository_RemoveRole_Call {
 	return &MockRoleRepository_RemoveRole_Call{Call: _e.mock.On("RemoveRole", ctx, userID, r)}
 }
 
@@ -402,7 +402,7 @@ type MockRoleRepository_SetRole_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - r role.Role
-func (_e *MockRoleRepository_Expecter) SetRole(ctx interface{}, userID interface{}, r interface{}) *MockRoleRepository_SetRole_Call {
+func (_e *MockRoleRepository_Expecter) SetRole(ctx any, userID any, r any) *MockRoleRepository_SetRole_Call {
 	return &MockRoleRepository_SetRole_Call{Call: _e.mock.On("SetRole", ctx, userID, r)}
 }
 

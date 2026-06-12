@@ -43,8 +43,15 @@ func (s *streamChatService) JoinStreamChat(ctx context.Context, streamID, userID
 		return ErrRoomNotFound
 	}
 
-	if err := s.chatRepo.AddMemberWithRole(ctx, streamID, userID, "member", false); err != nil {
-		return fmt.Errorf("join stream chat room: %w", err)
+	alreadyMember, err := s.chatRepo.IsMember(ctx, streamID, userID)
+	if err != nil {
+		return fmt.Errorf("check stream chat membership: %w", err)
+	}
+
+	if !alreadyMember {
+		if err := s.chatRepo.AddMemberWithRole(ctx, streamID, userID, "member", false); err != nil {
+			return fmt.Errorf("join stream chat room: %w", err)
+		}
 	}
 
 	s.hub.JoinRoom(streamID, userID)

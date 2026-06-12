@@ -76,7 +76,7 @@ type MockMysteryRepository_AddAttachment_Call struct {
 //   - fileURL string
 //   - fileName string
 //   - fileSize int
-func (_e *MockMysteryRepository_Expecter) AddAttachment(ctx interface{}, mysteryID interface{}, fileURL interface{}, fileName interface{}, fileSize interface{}) *MockMysteryRepository_AddAttachment_Call {
+func (_e *MockMysteryRepository_Expecter) AddAttachment(ctx any, mysteryID any, fileURL any, fileName any, fileSize any) *MockMysteryRepository_AddAttachment_Call {
 	return &MockMysteryRepository_AddAttachment_Call{Call: _e.mock.On("AddAttachment", ctx, mysteryID, fileURL, fileName, fileSize)}
 }
 
@@ -152,7 +152,7 @@ type MockMysteryRepository_AddClue_Call struct {
 //   - truthType string
 //   - sortOrder int
 //   - playerID *uuid.UUID
-func (_e *MockMysteryRepository_Expecter) AddClue(ctx interface{}, mysteryID interface{}, body interface{}, truthType interface{}, sortOrder interface{}, playerID interface{}) *MockMysteryRepository_AddClue_Call {
+func (_e *MockMysteryRepository_Expecter) AddClue(ctx any, mysteryID any, body any, truthType any, sortOrder any, playerID any) *MockMysteryRepository_AddClue_Call {
 	return &MockMysteryRepository_AddClue_Call{Call: _e.mock.On("AddClue", ctx, mysteryID, body, truthType, sortOrder, playerID)}
 }
 
@@ -242,7 +242,7 @@ type MockMysteryRepository_AddCommentMedia_Call struct {
 //   - mediaType string
 //   - thumbnailURL string
 //   - sortOrder int
-func (_e *MockMysteryRepository_Expecter) AddCommentMedia(ctx interface{}, commentID interface{}, mediaURL interface{}, mediaType interface{}, thumbnailURL interface{}, sortOrder interface{}) *MockMysteryRepository_AddCommentMedia_Call {
+func (_e *MockMysteryRepository_Expecter) AddCommentMedia(ctx any, commentID any, mediaURL any, mediaType any, thumbnailURL any, sortOrder any) *MockMysteryRepository_AddCommentMedia_Call {
 	return &MockMysteryRepository_AddCommentMedia_Call{Call: _e.mock.On("AddCommentMedia", ctx, commentID, mediaURL, mediaType, thumbnailURL, sortOrder)}
 }
 
@@ -332,7 +332,7 @@ type MockMysteryRepository_AddMysteryMedia_Call struct {
 //   - mediaType string
 //   - thumbnailURL string
 //   - sortOrder int
-func (_e *MockMysteryRepository_Expecter) AddMysteryMedia(ctx interface{}, mysteryID interface{}, mediaURL interface{}, mediaType interface{}, thumbnailURL interface{}, sortOrder interface{}) *MockMysteryRepository_AddMysteryMedia_Call {
+func (_e *MockMysteryRepository_Expecter) AddMysteryMedia(ctx any, mysteryID any, mediaURL any, mediaType any, thumbnailURL any, sortOrder any) *MockMysteryRepository_AddMysteryMedia_Call {
 	return &MockMysteryRepository_AddMysteryMedia_Call{Call: _e.mock.On("AddMysteryMedia", ctx, mysteryID, mediaURL, mediaType, thumbnailURL, sortOrder)}
 }
 
@@ -418,7 +418,7 @@ type MockMysteryRepository_CountAttempts_Call struct {
 // CountAttempts is a helper method to define mock.On call
 //   - ctx context.Context
 //   - mysteryID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) CountAttempts(ctx interface{}, mysteryID interface{}) *MockMysteryRepository_CountAttempts_Call {
+func (_e *MockMysteryRepository_Expecter) CountAttempts(ctx any, mysteryID any) *MockMysteryRepository_CountAttempts_Call {
 	return &MockMysteryRepository_CountAttempts_Call{Call: _e.mock.On("CountAttempts", ctx, mysteryID)}
 }
 
@@ -484,7 +484,7 @@ type MockMysteryRepository_CountClues_Call struct {
 // CountClues is a helper method to define mock.On call
 //   - ctx context.Context
 //   - mysteryID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) CountClues(ctx interface{}, mysteryID interface{}) *MockMysteryRepository_CountClues_Call {
+func (_e *MockMysteryRepository_Expecter) CountClues(ctx any, mysteryID any) *MockMysteryRepository_CountClues_Call {
 	return &MockMysteryRepository_CountClues_Call{Call: _e.mock.On("CountClues", ctx, mysteryID)}
 }
 
@@ -547,7 +547,7 @@ type MockMysteryRepository_Create_Call struct {
 //   - difficulty string
 //   - freeForAll bool
 //   - keepOpenAfterSolve bool
-func (_e *MockMysteryRepository_Expecter) Create(ctx interface{}, id interface{}, userID interface{}, title interface{}, body interface{}, difficulty interface{}, freeForAll interface{}, keepOpenAfterSolve interface{}) *MockMysteryRepository_Create_Call {
+func (_e *MockMysteryRepository_Expecter) Create(ctx any, id any, userID any, title any, body any, difficulty any, freeForAll any, keepOpenAfterSolve any) *MockMysteryRepository_Create_Call {
 	return &MockMysteryRepository_Create_Call{Call: _e.mock.On("Create", ctx, id, userID, title, body, difficulty, freeForAll, keepOpenAfterSolve)}
 }
 
@@ -638,7 +638,7 @@ type MockMysteryRepository_CreateAttempt_Call struct {
 //   - userID uuid.UUID
 //   - parentID *uuid.UUID
 //   - body string
-func (_e *MockMysteryRepository_Expecter) CreateAttempt(ctx interface{}, id interface{}, mysteryID interface{}, userID interface{}, parentID interface{}, body interface{}) *MockMysteryRepository_CreateAttempt_Call {
+func (_e *MockMysteryRepository_Expecter) CreateAttempt(ctx any, id any, mysteryID any, userID any, parentID any, body any) *MockMysteryRepository_CreateAttempt_Call {
 	return &MockMysteryRepository_CreateAttempt_Call{Call: _e.mock.On("CreateAttempt", ctx, id, mysteryID, userID, parentID, body)}
 }
 
@@ -719,7 +719,7 @@ type MockMysteryRepository_CreateComment_Call struct {
 //   - parentID *uuid.UUID
 //   - userID uuid.UUID
 //   - body string
-func (_e *MockMysteryRepository_Expecter) CreateComment(ctx interface{}, id interface{}, mysteryID interface{}, parentID interface{}, userID interface{}, body interface{}) *MockMysteryRepository_CreateComment_Call {
+func (_e *MockMysteryRepository_Expecter) CreateComment(ctx any, id any, mysteryID any, parentID any, userID any, body any) *MockMysteryRepository_CreateComment_Call {
 	return &MockMysteryRepository_CreateComment_Call{Call: _e.mock.On("CreateComment", ctx, id, mysteryID, parentID, userID, body)}
 }
 
@@ -797,7 +797,7 @@ type MockMysteryRepository_Delete_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) Delete(ctx interface{}, id interface{}, userID interface{}) *MockMysteryRepository_Delete_Call {
+func (_e *MockMysteryRepository_Expecter) Delete(ctx any, id any, userID any) *MockMysteryRepository_Delete_Call {
 	return &MockMysteryRepository_Delete_Call{Call: _e.mock.On("Delete", ctx, id, userID)}
 }
 
@@ -859,7 +859,7 @@ type MockMysteryRepository_DeleteAsAdmin_Call struct {
 // DeleteAsAdmin is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockMysteryRepository_Expecter) DeleteAsAdmin(ctx interface{}, id interface{}) *MockMysteryRepository_DeleteAsAdmin_Call {
+func (_e *MockMysteryRepository_Expecter) DeleteAsAdmin(ctx any, id any) *MockMysteryRepository_DeleteAsAdmin_Call {
 	return &MockMysteryRepository_DeleteAsAdmin_Call{Call: _e.mock.On("DeleteAsAdmin", ctx, id)}
 }
 
@@ -917,7 +917,7 @@ type MockMysteryRepository_DeleteAttachment_Call struct {
 //   - ctx context.Context
 //   - id int64
 //   - mysteryID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) DeleteAttachment(ctx interface{}, id interface{}, mysteryID interface{}) *MockMysteryRepository_DeleteAttachment_Call {
+func (_e *MockMysteryRepository_Expecter) DeleteAttachment(ctx any, id any, mysteryID any) *MockMysteryRepository_DeleteAttachment_Call {
 	return &MockMysteryRepository_DeleteAttachment_Call{Call: _e.mock.On("DeleteAttachment", ctx, id, mysteryID)}
 }
 
@@ -980,7 +980,7 @@ type MockMysteryRepository_DeleteAttempt_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) DeleteAttempt(ctx interface{}, id interface{}, userID interface{}) *MockMysteryRepository_DeleteAttempt_Call {
+func (_e *MockMysteryRepository_Expecter) DeleteAttempt(ctx any, id any, userID any) *MockMysteryRepository_DeleteAttempt_Call {
 	return &MockMysteryRepository_DeleteAttempt_Call{Call: _e.mock.On("DeleteAttempt", ctx, id, userID)}
 }
 
@@ -1042,7 +1042,7 @@ type MockMysteryRepository_DeleteAttemptAsAdmin_Call struct {
 // DeleteAttemptAsAdmin is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockMysteryRepository_Expecter) DeleteAttemptAsAdmin(ctx interface{}, id interface{}) *MockMysteryRepository_DeleteAttemptAsAdmin_Call {
+func (_e *MockMysteryRepository_Expecter) DeleteAttemptAsAdmin(ctx any, id any) *MockMysteryRepository_DeleteAttemptAsAdmin_Call {
 	return &MockMysteryRepository_DeleteAttemptAsAdmin_Call{Call: _e.mock.On("DeleteAttemptAsAdmin", ctx, id)}
 }
 
@@ -1099,7 +1099,7 @@ type MockMysteryRepository_DeleteClue_Call struct {
 // DeleteClue is a helper method to define mock.On call
 //   - ctx context.Context
 //   - clueID int
-func (_e *MockMysteryRepository_Expecter) DeleteClue(ctx interface{}, clueID interface{}) *MockMysteryRepository_DeleteClue_Call {
+func (_e *MockMysteryRepository_Expecter) DeleteClue(ctx any, clueID any) *MockMysteryRepository_DeleteClue_Call {
 	return &MockMysteryRepository_DeleteClue_Call{Call: _e.mock.On("DeleteClue", ctx, clueID)}
 }
 
@@ -1156,7 +1156,7 @@ type MockMysteryRepository_DeleteClues_Call struct {
 // DeleteClues is a helper method to define mock.On call
 //   - ctx context.Context
 //   - mysteryID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) DeleteClues(ctx interface{}, mysteryID interface{}) *MockMysteryRepository_DeleteClues_Call {
+func (_e *MockMysteryRepository_Expecter) DeleteClues(ctx any, mysteryID any) *MockMysteryRepository_DeleteClues_Call {
 	return &MockMysteryRepository_DeleteClues_Call{Call: _e.mock.On("DeleteClues", ctx, mysteryID)}
 }
 
@@ -1214,7 +1214,7 @@ type MockMysteryRepository_DeleteComment_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) DeleteComment(ctx interface{}, id interface{}, userID interface{}) *MockMysteryRepository_DeleteComment_Call {
+func (_e *MockMysteryRepository_Expecter) DeleteComment(ctx any, id any, userID any) *MockMysteryRepository_DeleteComment_Call {
 	return &MockMysteryRepository_DeleteComment_Call{Call: _e.mock.On("DeleteComment", ctx, id, userID)}
 }
 
@@ -1276,7 +1276,7 @@ type MockMysteryRepository_DeleteCommentAsAdmin_Call struct {
 // DeleteCommentAsAdmin is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockMysteryRepository_Expecter) DeleteCommentAsAdmin(ctx interface{}, id interface{}) *MockMysteryRepository_DeleteCommentAsAdmin_Call {
+func (_e *MockMysteryRepository_Expecter) DeleteCommentAsAdmin(ctx any, id any) *MockMysteryRepository_DeleteCommentAsAdmin_Call {
 	return &MockMysteryRepository_DeleteCommentAsAdmin_Call{Call: _e.mock.On("DeleteCommentAsAdmin", ctx, id)}
 }
 
@@ -1343,7 +1343,7 @@ type MockMysteryRepository_DeleteMysteryMedia_Call struct {
 //   - ctx context.Context
 //   - id int64
 //   - mysteryID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) DeleteMysteryMedia(ctx interface{}, id interface{}, mysteryID interface{}) *MockMysteryRepository_DeleteMysteryMedia_Call {
+func (_e *MockMysteryRepository_Expecter) DeleteMysteryMedia(ctx any, id any, mysteryID any) *MockMysteryRepository_DeleteMysteryMedia_Call {
 	return &MockMysteryRepository_DeleteMysteryMedia_Call{Call: _e.mock.On("DeleteMysteryMedia", ctx, id, mysteryID)}
 }
 
@@ -1416,7 +1416,7 @@ type MockMysteryRepository_GetAttachments_Call struct {
 // GetAttachments is a helper method to define mock.On call
 //   - ctx context.Context
 //   - mysteryID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) GetAttachments(ctx interface{}, mysteryID interface{}) *MockMysteryRepository_GetAttachments_Call {
+func (_e *MockMysteryRepository_Expecter) GetAttachments(ctx any, mysteryID any) *MockMysteryRepository_GetAttachments_Call {
 	return &MockMysteryRepository_GetAttachments_Call{Call: _e.mock.On("GetAttachments", ctx, mysteryID)}
 }
 
@@ -1484,7 +1484,7 @@ type MockMysteryRepository_GetAttemptAuthorID_Call struct {
 // GetAttemptAuthorID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - attemptID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) GetAttemptAuthorID(ctx interface{}, attemptID interface{}) *MockMysteryRepository_GetAttemptAuthorID_Call {
+func (_e *MockMysteryRepository_Expecter) GetAttemptAuthorID(ctx any, attemptID any) *MockMysteryRepository_GetAttemptAuthorID_Call {
 	return &MockMysteryRepository_GetAttemptAuthorID_Call{Call: _e.mock.On("GetAttemptAuthorID", ctx, attemptID)}
 }
 
@@ -1552,7 +1552,7 @@ type MockMysteryRepository_GetAttemptMysteryID_Call struct {
 // GetAttemptMysteryID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - attemptID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) GetAttemptMysteryID(ctx interface{}, attemptID interface{}) *MockMysteryRepository_GetAttemptMysteryID_Call {
+func (_e *MockMysteryRepository_Expecter) GetAttemptMysteryID(ctx any, attemptID any) *MockMysteryRepository_GetAttemptMysteryID_Call {
 	return &MockMysteryRepository_GetAttemptMysteryID_Call{Call: _e.mock.On("GetAttemptMysteryID", ctx, attemptID)}
 }
 
@@ -1621,7 +1621,7 @@ type MockMysteryRepository_GetAttempts_Call struct {
 //   - ctx context.Context
 //   - mysteryID uuid.UUID
 //   - viewerID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) GetAttempts(ctx interface{}, mysteryID interface{}, viewerID interface{}) *MockMysteryRepository_GetAttempts_Call {
+func (_e *MockMysteryRepository_Expecter) GetAttempts(ctx any, mysteryID any, viewerID any) *MockMysteryRepository_GetAttempts_Call {
 	return &MockMysteryRepository_GetAttempts_Call{Call: _e.mock.On("GetAttempts", ctx, mysteryID, viewerID)}
 }
 
@@ -1694,7 +1694,7 @@ type MockMysteryRepository_GetAuthorID_Call struct {
 // GetAuthorID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - mysteryID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) GetAuthorID(ctx interface{}, mysteryID interface{}) *MockMysteryRepository_GetAuthorID_Call {
+func (_e *MockMysteryRepository_Expecter) GetAuthorID(ctx any, mysteryID any) *MockMysteryRepository_GetAuthorID_Call {
 	return &MockMysteryRepository_GetAuthorID_Call{Call: _e.mock.On("GetAuthorID", ctx, mysteryID)}
 }
 
@@ -1762,7 +1762,7 @@ type MockMysteryRepository_GetByID_Call struct {
 // GetByID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockMysteryRepository_Expecter) GetByID(ctx interface{}, id interface{}) *MockMysteryRepository_GetByID_Call {
+func (_e *MockMysteryRepository_Expecter) GetByID(ctx any, id any) *MockMysteryRepository_GetByID_Call {
 	return &MockMysteryRepository_GetByID_Call{Call: _e.mock.On("GetByID", ctx, id)}
 }
 
@@ -1830,7 +1830,7 @@ type MockMysteryRepository_GetClues_Call struct {
 // GetClues is a helper method to define mock.On call
 //   - ctx context.Context
 //   - mysteryID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) GetClues(ctx interface{}, mysteryID interface{}) *MockMysteryRepository_GetClues_Call {
+func (_e *MockMysteryRepository_Expecter) GetClues(ctx any, mysteryID any) *MockMysteryRepository_GetClues_Call {
 	return &MockMysteryRepository_GetClues_Call{Call: _e.mock.On("GetClues", ctx, mysteryID)}
 }
 
@@ -1898,7 +1898,7 @@ type MockMysteryRepository_GetCommentAuthorID_Call struct {
 // GetCommentAuthorID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - commentID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) GetCommentAuthorID(ctx interface{}, commentID interface{}) *MockMysteryRepository_GetCommentAuthorID_Call {
+func (_e *MockMysteryRepository_Expecter) GetCommentAuthorID(ctx any, commentID any) *MockMysteryRepository_GetCommentAuthorID_Call {
 	return &MockMysteryRepository_GetCommentAuthorID_Call{Call: _e.mock.On("GetCommentAuthorID", ctx, commentID)}
 }
 
@@ -1966,7 +1966,7 @@ type MockMysteryRepository_GetCommentMedia_Call struct {
 // GetCommentMedia is a helper method to define mock.On call
 //   - ctx context.Context
 //   - commentID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) GetCommentMedia(ctx interface{}, commentID interface{}) *MockMysteryRepository_GetCommentMedia_Call {
+func (_e *MockMysteryRepository_Expecter) GetCommentMedia(ctx any, commentID any) *MockMysteryRepository_GetCommentMedia_Call {
 	return &MockMysteryRepository_GetCommentMedia_Call{Call: _e.mock.On("GetCommentMedia", ctx, commentID)}
 }
 
@@ -2034,7 +2034,7 @@ type MockMysteryRepository_GetCommentMediaBatch_Call struct {
 // GetCommentMediaBatch is a helper method to define mock.On call
 //   - ctx context.Context
 //   - commentIDs []uuid.UUID
-func (_e *MockMysteryRepository_Expecter) GetCommentMediaBatch(ctx interface{}, commentIDs interface{}) *MockMysteryRepository_GetCommentMediaBatch_Call {
+func (_e *MockMysteryRepository_Expecter) GetCommentMediaBatch(ctx any, commentIDs any) *MockMysteryRepository_GetCommentMediaBatch_Call {
 	return &MockMysteryRepository_GetCommentMediaBatch_Call{Call: _e.mock.On("GetCommentMediaBatch", ctx, commentIDs)}
 }
 
@@ -2102,7 +2102,7 @@ type MockMysteryRepository_GetCommentMysteryID_Call struct {
 // GetCommentMysteryID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - commentID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) GetCommentMysteryID(ctx interface{}, commentID interface{}) *MockMysteryRepository_GetCommentMysteryID_Call {
+func (_e *MockMysteryRepository_Expecter) GetCommentMysteryID(ctx any, commentID any) *MockMysteryRepository_GetCommentMysteryID_Call {
 	return &MockMysteryRepository_GetCommentMysteryID_Call{Call: _e.mock.On("GetCommentMysteryID", ctx, commentID)}
 }
 
@@ -2172,7 +2172,7 @@ type MockMysteryRepository_GetComments_Call struct {
 //   - mysteryID uuid.UUID
 //   - viewerID uuid.UUID
 //   - excludeUserIDs []uuid.UUID
-func (_e *MockMysteryRepository_Expecter) GetComments(ctx interface{}, mysteryID interface{}, viewerID interface{}, excludeUserIDs interface{}) *MockMysteryRepository_GetComments_Call {
+func (_e *MockMysteryRepository_Expecter) GetComments(ctx any, mysteryID any, viewerID any, excludeUserIDs any) *MockMysteryRepository_GetComments_Call {
 	return &MockMysteryRepository_GetComments_Call{Call: _e.mock.On("GetComments", ctx, mysteryID, viewerID, excludeUserIDs)}
 }
 
@@ -2250,7 +2250,7 @@ type MockMysteryRepository_GetGMLeaderboard_Call struct {
 // GetGMLeaderboard is a helper method to define mock.On call
 //   - ctx context.Context
 //   - limit int
-func (_e *MockMysteryRepository_Expecter) GetGMLeaderboard(ctx interface{}, limit interface{}) *MockMysteryRepository_GetGMLeaderboard_Call {
+func (_e *MockMysteryRepository_Expecter) GetGMLeaderboard(ctx any, limit any) *MockMysteryRepository_GetGMLeaderboard_Call {
 	return &MockMysteryRepository_GetGMLeaderboard_Call{Call: _e.mock.On("GetGMLeaderboard", ctx, limit)}
 }
 
@@ -2318,7 +2318,7 @@ type MockMysteryRepository_GetLeaderboard_Call struct {
 // GetLeaderboard is a helper method to define mock.On call
 //   - ctx context.Context
 //   - limit int
-func (_e *MockMysteryRepository_Expecter) GetLeaderboard(ctx interface{}, limit interface{}) *MockMysteryRepository_GetLeaderboard_Call {
+func (_e *MockMysteryRepository_Expecter) GetLeaderboard(ctx any, limit any) *MockMysteryRepository_GetLeaderboard_Call {
 	return &MockMysteryRepository_GetLeaderboard_Call{Call: _e.mock.On("GetLeaderboard", ctx, limit)}
 }
 
@@ -2386,7 +2386,7 @@ type MockMysteryRepository_GetMysteryMedia_Call struct {
 // GetMysteryMedia is a helper method to define mock.On call
 //   - ctx context.Context
 //   - mysteryID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) GetMysteryMedia(ctx interface{}, mysteryID interface{}) *MockMysteryRepository_GetMysteryMedia_Call {
+func (_e *MockMysteryRepository_Expecter) GetMysteryMedia(ctx any, mysteryID any) *MockMysteryRepository_GetMysteryMedia_Call {
 	return &MockMysteryRepository_GetMysteryMedia_Call{Call: _e.mock.On("GetMysteryMedia", ctx, mysteryID)}
 }
 
@@ -2454,7 +2454,7 @@ type MockMysteryRepository_GetPlayerIDs_Call struct {
 // GetPlayerIDs is a helper method to define mock.On call
 //   - ctx context.Context
 //   - mysteryID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) GetPlayerIDs(ctx interface{}, mysteryID interface{}) *MockMysteryRepository_GetPlayerIDs_Call {
+func (_e *MockMysteryRepository_Expecter) GetPlayerIDs(ctx any, mysteryID any) *MockMysteryRepository_GetPlayerIDs_Call {
 	return &MockMysteryRepository_GetPlayerIDs_Call{Call: _e.mock.On("GetPlayerIDs", ctx, mysteryID)}
 }
 
@@ -2522,7 +2522,7 @@ type MockMysteryRepository_GetSolverIDs_Call struct {
 // GetSolverIDs is a helper method to define mock.On call
 //   - ctx context.Context
 //   - mysteryID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) GetSolverIDs(ctx interface{}, mysteryID interface{}) *MockMysteryRepository_GetSolverIDs_Call {
+func (_e *MockMysteryRepository_Expecter) GetSolverIDs(ctx any, mysteryID any) *MockMysteryRepository_GetSolverIDs_Call {
 	return &MockMysteryRepository_GetSolverIDs_Call{Call: _e.mock.On("GetSolverIDs", ctx, mysteryID)}
 }
 
@@ -2589,7 +2589,7 @@ type MockMysteryRepository_GetTopDetectiveIDs_Call struct {
 
 // GetTopDetectiveIDs is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockMysteryRepository_Expecter) GetTopDetectiveIDs(ctx interface{}) *MockMysteryRepository_GetTopDetectiveIDs_Call {
+func (_e *MockMysteryRepository_Expecter) GetTopDetectiveIDs(ctx any) *MockMysteryRepository_GetTopDetectiveIDs_Call {
 	return &MockMysteryRepository_GetTopDetectiveIDs_Call{Call: _e.mock.On("GetTopDetectiveIDs", ctx)}
 }
 
@@ -2651,7 +2651,7 @@ type MockMysteryRepository_GetTopGMIDs_Call struct {
 
 // GetTopGMIDs is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockMysteryRepository_Expecter) GetTopGMIDs(ctx interface{}) *MockMysteryRepository_GetTopGMIDs_Call {
+func (_e *MockMysteryRepository_Expecter) GetTopGMIDs(ctx any) *MockMysteryRepository_GetTopGMIDs_Call {
 	return &MockMysteryRepository_GetTopGMIDs_Call{Call: _e.mock.On("GetTopGMIDs", ctx)}
 }
 
@@ -2712,7 +2712,7 @@ type MockMysteryRepository_IsPaused_Call struct {
 // IsPaused is a helper method to define mock.On call
 //   - ctx context.Context
 //   - mysteryID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) IsPaused(ctx interface{}, mysteryID interface{}) *MockMysteryRepository_IsPaused_Call {
+func (_e *MockMysteryRepository_Expecter) IsPaused(ctx any, mysteryID any) *MockMysteryRepository_IsPaused_Call {
 	return &MockMysteryRepository_IsPaused_Call{Call: _e.mock.On("IsPaused", ctx, mysteryID)}
 }
 
@@ -2778,7 +2778,7 @@ type MockMysteryRepository_IsSolved_Call struct {
 // IsSolved is a helper method to define mock.On call
 //   - ctx context.Context
 //   - mysteryID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) IsSolved(ctx interface{}, mysteryID interface{}) *MockMysteryRepository_IsSolved_Call {
+func (_e *MockMysteryRepository_Expecter) IsSolved(ctx any, mysteryID any) *MockMysteryRepository_IsSolved_Call {
 	return &MockMysteryRepository_IsSolved_Call{Call: _e.mock.On("IsSolved", ctx, mysteryID)}
 }
 
@@ -2836,7 +2836,7 @@ type MockMysteryRepository_LikeComment_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - commentID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) LikeComment(ctx interface{}, userID interface{}, commentID interface{}) *MockMysteryRepository_LikeComment_Call {
+func (_e *MockMysteryRepository_Expecter) LikeComment(ctx any, userID any, commentID any) *MockMysteryRepository_LikeComment_Call {
 	return &MockMysteryRepository_LikeComment_Call{Call: _e.mock.On("LikeComment", ctx, userID, commentID)}
 }
 
@@ -2919,7 +2919,7 @@ type MockMysteryRepository_List_Call struct {
 //   - limit int
 //   - offset int
 //   - excludeUserIDs []uuid.UUID
-func (_e *MockMysteryRepository_Expecter) List(ctx interface{}, sort interface{}, solved interface{}, limit interface{}, offset interface{}, excludeUserIDs interface{}) *MockMysteryRepository_List_Call {
+func (_e *MockMysteryRepository_Expecter) List(ctx any, sort any, solved any, limit any, offset any, excludeUserIDs any) *MockMysteryRepository_List_Call {
 	return &MockMysteryRepository_List_Call{Call: _e.mock.On("List", ctx, sort, solved, limit, offset, excludeUserIDs)}
 }
 
@@ -3015,7 +3015,7 @@ type MockMysteryRepository_ListByUser_Call struct {
 //   - userID uuid.UUID
 //   - limit int
 //   - offset int
-func (_e *MockMysteryRepository_Expecter) ListByUser(ctx interface{}, userID interface{}, limit interface{}, offset interface{}) *MockMysteryRepository_ListByUser_Call {
+func (_e *MockMysteryRepository_Expecter) ListByUser(ctx any, userID any, limit any, offset any) *MockMysteryRepository_ListByUser_Call {
 	return &MockMysteryRepository_ListByUser_Call{Call: _e.mock.On("ListByUser", ctx, userID, limit, offset)}
 }
 
@@ -3082,7 +3082,7 @@ type MockMysteryRepository_MarkPermanentlySolved_Call struct {
 // MarkPermanentlySolved is a helper method to define mock.On call
 //   - ctx context.Context
 //   - mysteryID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) MarkPermanentlySolved(ctx interface{}, mysteryID interface{}) *MockMysteryRepository_MarkPermanentlySolved_Call {
+func (_e *MockMysteryRepository_Expecter) MarkPermanentlySolved(ctx any, mysteryID any) *MockMysteryRepository_MarkPermanentlySolved_Call {
 	return &MockMysteryRepository_MarkPermanentlySolved_Call{Call: _e.mock.On("MarkPermanentlySolved", ctx, mysteryID)}
 }
 
@@ -3141,7 +3141,7 @@ type MockMysteryRepository_MarkSolved_Call struct {
 //   - mysteryID uuid.UUID
 //   - attemptID uuid.UUID
 //   - lockMystery bool
-func (_e *MockMysteryRepository_Expecter) MarkSolved(ctx interface{}, mysteryID interface{}, attemptID interface{}, lockMystery interface{}) *MockMysteryRepository_MarkSolved_Call {
+func (_e *MockMysteryRepository_Expecter) MarkSolved(ctx any, mysteryID any, attemptID any, lockMystery any) *MockMysteryRepository_MarkSolved_Call {
 	return &MockMysteryRepository_MarkSolved_Call{Call: _e.mock.On("MarkSolved", ctx, mysteryID, attemptID, lockMystery)}
 }
 
@@ -3209,7 +3209,7 @@ type MockMysteryRepository_SetGmAway_Call struct {
 //   - ctx context.Context
 //   - mysteryID uuid.UUID
 //   - away bool
-func (_e *MockMysteryRepository_Expecter) SetGmAway(ctx interface{}, mysteryID interface{}, away interface{}) *MockMysteryRepository_SetGmAway_Call {
+func (_e *MockMysteryRepository_Expecter) SetGmAway(ctx any, mysteryID any, away any) *MockMysteryRepository_SetGmAway_Call {
 	return &MockMysteryRepository_SetGmAway_Call{Call: _e.mock.On("SetGmAway", ctx, mysteryID, away)}
 }
 
@@ -3272,7 +3272,7 @@ type MockMysteryRepository_SetPaused_Call struct {
 //   - ctx context.Context
 //   - mysteryID uuid.UUID
 //   - paused bool
-func (_e *MockMysteryRepository_Expecter) SetPaused(ctx interface{}, mysteryID interface{}, paused interface{}) *MockMysteryRepository_SetPaused_Call {
+func (_e *MockMysteryRepository_Expecter) SetPaused(ctx any, mysteryID any, paused any) *MockMysteryRepository_SetPaused_Call {
 	return &MockMysteryRepository_SetPaused_Call{Call: _e.mock.On("SetPaused", ctx, mysteryID, paused)}
 }
 
@@ -3335,7 +3335,7 @@ type MockMysteryRepository_UnlikeComment_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - commentID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) UnlikeComment(ctx interface{}, userID interface{}, commentID interface{}) *MockMysteryRepository_UnlikeComment_Call {
+func (_e *MockMysteryRepository_Expecter) UnlikeComment(ctx any, userID any, commentID any) *MockMysteryRepository_UnlikeComment_Call {
 	return &MockMysteryRepository_UnlikeComment_Call{Call: _e.mock.On("UnlikeComment", ctx, userID, commentID)}
 }
 
@@ -3401,7 +3401,7 @@ type MockMysteryRepository_Update_Call struct {
 //   - title string
 //   - body string
 //   - difficulty string
-func (_e *MockMysteryRepository_Expecter) Update(ctx interface{}, id interface{}, userID interface{}, title interface{}, body interface{}, difficulty interface{}) *MockMysteryRepository_Update_Call {
+func (_e *MockMysteryRepository_Expecter) Update(ctx any, id any, userID any, title any, body any, difficulty any) *MockMysteryRepository_Update_Call {
 	return &MockMysteryRepository_Update_Call{Call: _e.mock.On("Update", ctx, id, userID, title, body, difficulty)}
 }
 
@@ -3483,7 +3483,7 @@ type MockMysteryRepository_UpdateAsAdmin_Call struct {
 //   - difficulty string
 //   - freeForAll bool
 //   - keepOpenAfterSolve bool
-func (_e *MockMysteryRepository_Expecter) UpdateAsAdmin(ctx interface{}, id interface{}, title interface{}, body interface{}, difficulty interface{}, freeForAll interface{}, keepOpenAfterSolve interface{}) *MockMysteryRepository_UpdateAsAdmin_Call {
+func (_e *MockMysteryRepository_Expecter) UpdateAsAdmin(ctx any, id any, title any, body any, difficulty any, freeForAll any, keepOpenAfterSolve any) *MockMysteryRepository_UpdateAsAdmin_Call {
 	return &MockMysteryRepository_UpdateAsAdmin_Call{Call: _e.mock.On("UpdateAsAdmin", ctx, id, title, body, difficulty, freeForAll, keepOpenAfterSolve)}
 }
 
@@ -3566,7 +3566,7 @@ type MockMysteryRepository_UpdateClue_Call struct {
 //   - ctx context.Context
 //   - clueID int
 //   - body string
-func (_e *MockMysteryRepository_Expecter) UpdateClue(ctx interface{}, clueID interface{}, body interface{}) *MockMysteryRepository_UpdateClue_Call {
+func (_e *MockMysteryRepository_Expecter) UpdateClue(ctx any, clueID any, body any) *MockMysteryRepository_UpdateClue_Call {
 	return &MockMysteryRepository_UpdateClue_Call{Call: _e.mock.On("UpdateClue", ctx, clueID, body)}
 }
 
@@ -3630,7 +3630,7 @@ type MockMysteryRepository_UpdateComment_Call struct {
 //   - id uuid.UUID
 //   - userID uuid.UUID
 //   - body string
-func (_e *MockMysteryRepository_Expecter) UpdateComment(ctx interface{}, id interface{}, userID interface{}, body interface{}) *MockMysteryRepository_UpdateComment_Call {
+func (_e *MockMysteryRepository_Expecter) UpdateComment(ctx any, id any, userID any, body any) *MockMysteryRepository_UpdateComment_Call {
 	return &MockMysteryRepository_UpdateComment_Call{Call: _e.mock.On("UpdateComment", ctx, id, userID, body)}
 }
 
@@ -3698,7 +3698,7 @@ type MockMysteryRepository_UpdateCommentAsAdmin_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - body string
-func (_e *MockMysteryRepository_Expecter) UpdateCommentAsAdmin(ctx interface{}, id interface{}, body interface{}) *MockMysteryRepository_UpdateCommentAsAdmin_Call {
+func (_e *MockMysteryRepository_Expecter) UpdateCommentAsAdmin(ctx any, id any, body any) *MockMysteryRepository_UpdateCommentAsAdmin_Call {
 	return &MockMysteryRepository_UpdateCommentAsAdmin_Call{Call: _e.mock.On("UpdateCommentAsAdmin", ctx, id, body)}
 }
 
@@ -3761,7 +3761,7 @@ type MockMysteryRepository_UpdateCommentMediaThumbnail_Call struct {
 //   - ctx context.Context
 //   - id int64
 //   - thumbnailURL string
-func (_e *MockMysteryRepository_Expecter) UpdateCommentMediaThumbnail(ctx interface{}, id interface{}, thumbnailURL interface{}) *MockMysteryRepository_UpdateCommentMediaThumbnail_Call {
+func (_e *MockMysteryRepository_Expecter) UpdateCommentMediaThumbnail(ctx any, id any, thumbnailURL any) *MockMysteryRepository_UpdateCommentMediaThumbnail_Call {
 	return &MockMysteryRepository_UpdateCommentMediaThumbnail_Call{Call: _e.mock.On("UpdateCommentMediaThumbnail", ctx, id, thumbnailURL)}
 }
 
@@ -3824,7 +3824,7 @@ type MockMysteryRepository_UpdateCommentMediaURL_Call struct {
 //   - ctx context.Context
 //   - id int64
 //   - mediaURL string
-func (_e *MockMysteryRepository_Expecter) UpdateCommentMediaURL(ctx interface{}, id interface{}, mediaURL interface{}) *MockMysteryRepository_UpdateCommentMediaURL_Call {
+func (_e *MockMysteryRepository_Expecter) UpdateCommentMediaURL(ctx any, id any, mediaURL any) *MockMysteryRepository_UpdateCommentMediaURL_Call {
 	return &MockMysteryRepository_UpdateCommentMediaURL_Call{Call: _e.mock.On("UpdateCommentMediaURL", ctx, id, mediaURL)}
 }
 
@@ -3887,7 +3887,7 @@ type MockMysteryRepository_UpdateMysteryMediaThumbnail_Call struct {
 //   - ctx context.Context
 //   - id int64
 //   - thumbnailURL string
-func (_e *MockMysteryRepository_Expecter) UpdateMysteryMediaThumbnail(ctx interface{}, id interface{}, thumbnailURL interface{}) *MockMysteryRepository_UpdateMysteryMediaThumbnail_Call {
+func (_e *MockMysteryRepository_Expecter) UpdateMysteryMediaThumbnail(ctx any, id any, thumbnailURL any) *MockMysteryRepository_UpdateMysteryMediaThumbnail_Call {
 	return &MockMysteryRepository_UpdateMysteryMediaThumbnail_Call{Call: _e.mock.On("UpdateMysteryMediaThumbnail", ctx, id, thumbnailURL)}
 }
 
@@ -3950,7 +3950,7 @@ type MockMysteryRepository_UpdateMysteryMediaURL_Call struct {
 //   - ctx context.Context
 //   - id int64
 //   - mediaURL string
-func (_e *MockMysteryRepository_Expecter) UpdateMysteryMediaURL(ctx interface{}, id interface{}, mediaURL interface{}) *MockMysteryRepository_UpdateMysteryMediaURL_Call {
+func (_e *MockMysteryRepository_Expecter) UpdateMysteryMediaURL(ctx any, id any, mediaURL any) *MockMysteryRepository_UpdateMysteryMediaURL_Call {
 	return &MockMysteryRepository_UpdateMysteryMediaURL_Call{Call: _e.mock.On("UpdateMysteryMediaURL", ctx, id, mediaURL)}
 }
 
@@ -4022,7 +4022,7 @@ type MockMysteryRepository_UserHasWinningAttempt_Call struct {
 //   - ctx context.Context
 //   - mysteryID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) UserHasWinningAttempt(ctx interface{}, mysteryID interface{}, userID interface{}) *MockMysteryRepository_UserHasWinningAttempt_Call {
+func (_e *MockMysteryRepository_Expecter) UserHasWinningAttempt(ctx any, mysteryID any, userID any) *MockMysteryRepository_UserHasWinningAttempt_Call {
 	return &MockMysteryRepository_UserHasWinningAttempt_Call{Call: _e.mock.On("UserHasWinningAttempt", ctx, mysteryID, userID)}
 }
 
@@ -4086,7 +4086,7 @@ type MockMysteryRepository_VoteAttempt_Call struct {
 //   - userID uuid.UUID
 //   - attemptID uuid.UUID
 //   - value int
-func (_e *MockMysteryRepository_Expecter) VoteAttempt(ctx interface{}, userID interface{}, attemptID interface{}, value interface{}) *MockMysteryRepository_VoteAttempt_Call {
+func (_e *MockMysteryRepository_Expecter) VoteAttempt(ctx any, userID any, attemptID any, value any) *MockMysteryRepository_VoteAttempt_Call {
 	return &MockMysteryRepository_VoteAttempt_Call{Call: _e.mock.On("VoteAttempt", ctx, userID, attemptID, value)}
 }
 

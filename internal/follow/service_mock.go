@@ -65,7 +65,7 @@ type MockService_Follow_Call struct {
 //   - ctx context.Context
 //   - followerID uuid.UUID
 //   - followingID uuid.UUID
-func (_e *MockService_Expecter) Follow(ctx interface{}, followerID interface{}, followingID interface{}) *MockService_Follow_Call {
+func (_e *MockService_Expecter) Follow(ctx any, followerID any, followingID any) *MockService_Follow_Call {
 	return &MockService_Follow_Call{Call: _e.mock.On("Follow", ctx, followerID, followingID)}
 }
 
@@ -139,7 +139,7 @@ type MockService_GetFollowStats_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - viewerID uuid.UUID
-func (_e *MockService_Expecter) GetFollowStats(ctx interface{}, userID interface{}, viewerID interface{}) *MockService_GetFollowStats_Call {
+func (_e *MockService_Expecter) GetFollowStats(ctx any, userID any, viewerID any) *MockService_GetFollowStats_Call {
 	return &MockService_GetFollowStats_Call{Call: _e.mock.On("GetFollowStats", ctx, userID, viewerID)}
 }
 
@@ -220,7 +220,7 @@ type MockService_GetFollowers_Call struct {
 //   - userID uuid.UUID
 //   - limit int
 //   - offset int
-func (_e *MockService_Expecter) GetFollowers(ctx interface{}, userID interface{}, limit interface{}, offset interface{}) *MockService_GetFollowers_Call {
+func (_e *MockService_Expecter) GetFollowers(ctx any, userID any, limit any, offset any) *MockService_GetFollowers_Call {
 	return &MockService_GetFollowers_Call{Call: _e.mock.On("GetFollowers", ctx, userID, limit, offset)}
 }
 
@@ -306,7 +306,7 @@ type MockService_GetFollowing_Call struct {
 //   - userID uuid.UUID
 //   - limit int
 //   - offset int
-func (_e *MockService_Expecter) GetFollowing(ctx interface{}, userID interface{}, limit interface{}, offset interface{}) *MockService_GetFollowing_Call {
+func (_e *MockService_Expecter) GetFollowing(ctx any, userID any, limit any, offset any) *MockService_GetFollowing_Call {
 	return &MockService_GetFollowing_Call{Call: _e.mock.On("GetFollowing", ctx, userID, limit, offset)}
 }
 
@@ -384,7 +384,7 @@ type MockService_GetMutualFollowers_Call struct {
 // GetMutualFollowers is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockService_Expecter) GetMutualFollowers(ctx interface{}, userID interface{}) *MockService_GetMutualFollowers_Call {
+func (_e *MockService_Expecter) GetMutualFollowers(ctx any, userID any) *MockService_GetMutualFollowers_Call {
 	return &MockService_GetMutualFollowers_Call{Call: _e.mock.On("GetMutualFollowers", ctx, userID)}
 }
 
@@ -451,7 +451,7 @@ type MockService_IsFollowing_Call struct {
 //   - ctx context.Context
 //   - followerID uuid.UUID
 //   - followingID uuid.UUID
-func (_e *MockService_Expecter) IsFollowing(ctx interface{}, followerID interface{}, followingID interface{}) *MockService_IsFollowing_Call {
+func (_e *MockService_Expecter) IsFollowing(ctx any, followerID any, followingID any) *MockService_IsFollowing_Call {
 	return &MockService_IsFollowing_Call{Call: _e.mock.On("IsFollowing", ctx, followerID, followingID)}
 }
 
@@ -514,7 +514,7 @@ type MockService_Unfollow_Call struct {
 //   - ctx context.Context
 //   - followerID uuid.UUID
 //   - followingID uuid.UUID
-func (_e *MockService_Expecter) Unfollow(ctx interface{}, followerID interface{}, followingID interface{}) *MockService_Unfollow_Call {
+func (_e *MockService_Expecter) Unfollow(ctx any, followerID any, followingID any) *MockService_Unfollow_Call {
 	return &MockService_Unfollow_Call{Call: _e.mock.On("Unfollow", ctx, followerID, followingID)}
 }
 

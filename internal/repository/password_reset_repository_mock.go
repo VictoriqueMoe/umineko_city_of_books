@@ -66,7 +66,7 @@ type MockPasswordResetRepository_Create_Call struct {
 //   - tokenHash string
 //   - userID uuid.UUID
 //   - expiresAt time.Time
-func (_e *MockPasswordResetRepository_Expecter) Create(ctx interface{}, tokenHash interface{}, userID interface{}, expiresAt interface{}) *MockPasswordResetRepository_Create_Call {
+func (_e *MockPasswordResetRepository_Expecter) Create(ctx any, tokenHash any, userID any, expiresAt any) *MockPasswordResetRepository_Create_Call {
 	return &MockPasswordResetRepository_Create_Call{Call: _e.mock.On("Create", ctx, tokenHash, userID, expiresAt)}
 }
 
@@ -133,7 +133,7 @@ type MockPasswordResetRepository_DeleteUnusedForUser_Call struct {
 // DeleteUnusedForUser is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockPasswordResetRepository_Expecter) DeleteUnusedForUser(ctx interface{}, userID interface{}) *MockPasswordResetRepository_DeleteUnusedForUser_Call {
+func (_e *MockPasswordResetRepository_Expecter) DeleteUnusedForUser(ctx any, userID any) *MockPasswordResetRepository_DeleteUnusedForUser_Call {
 	return &MockPasswordResetRepository_DeleteUnusedForUser_Call{Call: _e.mock.On("DeleteUnusedForUser", ctx, userID)}
 }
 
@@ -201,7 +201,7 @@ type MockPasswordResetRepository_GetByTokenHash_Call struct {
 // GetByTokenHash is a helper method to define mock.On call
 //   - ctx context.Context
 //   - tokenHash string
-func (_e *MockPasswordResetRepository_Expecter) GetByTokenHash(ctx interface{}, tokenHash interface{}) *MockPasswordResetRepository_GetByTokenHash_Call {
+func (_e *MockPasswordResetRepository_Expecter) GetByTokenHash(ctx any, tokenHash any) *MockPasswordResetRepository_GetByTokenHash_Call {
 	return &MockPasswordResetRepository_GetByTokenHash_Call{Call: _e.mock.On("GetByTokenHash", ctx, tokenHash)}
 }
 
@@ -258,7 +258,7 @@ type MockPasswordResetRepository_MarkUsed_Call struct {
 // MarkUsed is a helper method to define mock.On call
 //   - ctx context.Context
 //   - tokenHash string
-func (_e *MockPasswordResetRepository_Expecter) MarkUsed(ctx interface{}, tokenHash interface{}) *MockPasswordResetRepository_MarkUsed_Call {
+func (_e *MockPasswordResetRepository_Expecter) MarkUsed(ctx any, tokenHash any) *MockPasswordResetRepository_MarkUsed_Call {
 	return &MockPasswordResetRepository_MarkUsed_Call{Call: _e.mock.On("MarkUsed", ctx, tokenHash)}
 }
 

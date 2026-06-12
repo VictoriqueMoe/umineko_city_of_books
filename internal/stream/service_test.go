@@ -21,6 +21,7 @@ import (
 
 type streamMocks struct {
 	repo     *repository.MockLiveStreamRepository
+	creds    *repository.MockStreamCredentialsRepository
 	lk       *livekit.MockService
 	settings *settings.MockService
 	upload   *upload.MockService
@@ -28,13 +29,14 @@ type streamMocks struct {
 
 func newTestStreamService(t *testing.T) (Service, *streamMocks) {
 	repo := repository.NewMockLiveStreamRepository(t)
+	creds := repository.NewMockStreamCredentialsRepository(t)
 	lk := livekit.NewMockService(t)
 	settingsSvc := settings.NewMockService(t)
 	uploadSvc := upload.NewMockService(t)
 
-	svc := NewService(repo, lk, settingsSvc, uploadSvc, ws.NewHub())
+	svc := NewService(repo, creds, lk, settingsSvc, uploadSvc, ws.NewHub())
 
-	return svc, &streamMocks{repo: repo, lk: lk, settings: settingsSvc, upload: uploadSvc}
+	return svc, &streamMocks{repo: repo, creds: creds, lk: lk, settings: settingsSvc, upload: uploadSvc}
 }
 
 func expectStreamingEnabled(m *streamMocks, enabled bool) {
@@ -120,8 +122,11 @@ func TestStartStream_HappyPath(t *testing.T) {
 		Status:      "starting",
 		DisplayName: "Beatrice",
 	}, nil)
+	m.creds.EXPECT().Get(mock.Anything, userID).Return(nil, nil)
 	m.lk.EXPECT().CreateIngress(mock.Anything, mock.Anything, mock.Anything, "Beatrice").
 		Return("ing_1", "https://whip.example/w", "key_123", nil)
+	m.creds.EXPECT().Upsert(mock.Anything, userID, "ing_1", "https://whip.example/w", "key_123", mock.Anything).Return(nil)
+	m.lk.EXPECT().UpdateIngress(mock.Anything, "ing_1", mock.Anything, mock.Anything, "Beatrice").Return(nil)
 	m.repo.EXPECT().SetIngress(mock.Anything, streamID, "ing_1", mock.Anything, "https://whip.example/w", "key_123").Return(nil)
 
 	// when
@@ -164,6 +169,108 @@ func TestStartStream_CreateRaceMapsErrors(t *testing.T) {
 			require.ErrorIs(t, err, tc.want)
 		})
 	}
+}
+
+func TestCredentials_Disabled(t *testing.T) {
+	// given
+	svc, m := newTestStreamService(t)
+	expectStreamingEnabled(m, false)
+
+	// when
+	_, err := svc.Credentials(context.Background(), uuid.New(), "Beato")
+
+	// then
+	require.ErrorIs(t, err, ErrDisabled)
+}
+
+func TestCredentials_ReturnsExistingWithoutCreatingIngress(t *testing.T) {
+	// given
+	svc, m := newTestStreamService(t)
+	expectStreamingEnabled(m, true)
+	userID := uuid.New()
+	m.creds.EXPECT().Get(mock.Anything, userID).Return(&repository.StreamCredentialsRow{
+		UserID: userID, IngressID: "ing", WhipURL: "https://whip/w", StreamKey: "key", Room: userRoom(userID),
+	}, nil)
+
+	// when
+	resp, err := svc.Credentials(context.Background(), userID, "Beato")
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, "https://whip/w", resp.WhipURL)
+	assert.Equal(t, "key", resp.StreamKey)
+}
+
+func TestCredentials_CreatesIngressWhenMissing(t *testing.T) {
+	// given
+	svc, m := newTestStreamService(t)
+	expectStreamingEnabled(m, true)
+	userID := uuid.New()
+	m.creds.EXPECT().Get(mock.Anything, userID).Return(nil, nil)
+	m.lk.EXPECT().CreateIngress(mock.Anything, mock.Anything, mock.Anything, "Beato").Return("ing_new", "https://whip/w", "key_new", nil)
+	m.creds.EXPECT().Upsert(mock.Anything, userID, "ing_new", "https://whip/w", "key_new", mock.Anything).Return(nil)
+
+	// when
+	resp, err := svc.Credentials(context.Background(), userID, "Beato")
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, "key_new", resp.StreamKey)
+}
+
+func TestResetCredentials_BlockedWhileLive(t *testing.T) {
+	// given
+	svc, m := newTestStreamService(t)
+	expectStreamingEnabled(m, true)
+	userID := uuid.New()
+	m.repo.EXPECT().GetActiveByUser(mock.Anything, userID).Return(&repository.LiveStreamRow{ID: uuid.New()}, nil)
+
+	// when
+	_, err := svc.ResetCredentials(context.Background(), userID, "Beato")
+
+	// then
+	require.ErrorIs(t, err, ErrAlreadyLive)
+}
+
+func TestResetCredentials_DeletesOldIngressThenRecreates(t *testing.T) {
+	// given
+	svc, m := newTestStreamService(t)
+	expectStreamingEnabled(m, true)
+	userID := uuid.New()
+	m.repo.EXPECT().GetActiveByUser(mock.Anything, userID).Return(nil, nil)
+	m.creds.EXPECT().Get(mock.Anything, userID).Return(&repository.StreamCredentialsRow{
+		UserID: userID, IngressID: "old_ing", Room: userRoom(userID),
+	}, nil).Once()
+	m.lk.EXPECT().DeleteIngress(mock.Anything, "old_ing").Return(nil)
+	m.creds.EXPECT().Delete(mock.Anything, userID).Return(nil)
+	m.creds.EXPECT().Get(mock.Anything, userID).Return(nil, nil)
+	m.lk.EXPECT().CreateIngress(mock.Anything, mock.Anything, mock.Anything, "Beato").Return("new_ing", "https://whip/w", "new_key", nil)
+	m.creds.EXPECT().Upsert(mock.Anything, userID, "new_ing", "https://whip/w", "new_key", mock.Anything).Return(nil)
+
+	// when
+	resp, err := svc.ResetCredentials(context.Background(), userID, "Beato")
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, "new_key", resp.StreamKey)
+}
+
+func TestResetCredentials_DeleteIngressFailureKeepsCreds(t *testing.T) {
+	// given
+	svc, m := newTestStreamService(t)
+	expectStreamingEnabled(m, true)
+	userID := uuid.New()
+	m.repo.EXPECT().GetActiveByUser(mock.Anything, userID).Return(nil, nil)
+	m.creds.EXPECT().Get(mock.Anything, userID).Return(&repository.StreamCredentialsRow{
+		UserID: userID, IngressID: "old_ing", Room: userRoom(userID),
+	}, nil)
+	m.lk.EXPECT().DeleteIngress(mock.Anything, "old_ing").Return(assert.AnError)
+
+	// when
+	_, err := svc.ResetCredentials(context.Background(), userID, "Beato")
+
+	// then
+	require.Error(t, err)
 }
 
 func TestMintViewerToken_NotLive(t *testing.T) {
@@ -311,7 +418,6 @@ func TestStopStream_HappyPath(t *testing.T) {
 		ID: streamID, UserID: owner, Status: "live", IngressID: "ing",
 	}, nil)
 	m.repo.EXPECT().MarkOffline(mock.Anything, streamID).Return(true, nil)
-	m.lk.EXPECT().DeleteIngress(mock.Anything, "ing").Return(nil)
 
 	// when
 	err := svc.StopStream(context.Background(), owner, streamID)
@@ -378,7 +484,6 @@ func TestHandleWebhook_BroadcasterLeftTearsDown(t *testing.T) {
 	}, nil)
 	m.repo.EXPECT().GetByRoom(mock.Anything, room).Return(row, nil)
 	m.repo.EXPECT().MarkOffline(mock.Anything, streamID).Return(true, nil)
-	m.lk.EXPECT().DeleteIngress(mock.Anything, "ing").Return(nil)
 
 	// when
 	handled, err := svc.HandleWebhook(context.Background(), "auth", []byte("body"))
@@ -421,7 +526,6 @@ func TestReconcileOnce_ReapsStaleStarting(t *testing.T) {
 		{ID: staleID, Status: "starting", IngressID: "ing", LivekitRoom: "live_" + staleID.String()},
 	}, nil)
 	m.repo.EXPECT().MarkOffline(mock.Anything, staleID).Return(true, nil)
-	m.lk.EXPECT().DeleteIngress(mock.Anything, "ing").Return(nil)
 	m.lk.EXPECT().ActiveRooms(mock.Anything).Return(map[string][]string{}, nil)
 	m.repo.EXPECT().ListLive(mock.Anything).Return(nil, nil)
 
@@ -431,4 +535,52 @@ func TestReconcileOnce_ReapsStaleStarting(t *testing.T) {
 	// then
 	require.NoError(t, err)
 	assert.Equal(t, 1, n)
+}
+
+func TestReconcileOnce_ReapsLiveRoomWithNoBroadcaster(t *testing.T) {
+	// given
+	svc, m := newTestStreamService(t)
+	liveID := uuid.New()
+	room := "live_" + liveID.String()
+
+	m.lk.EXPECT().Enabled().Return(true)
+	m.repo.EXPECT().ListStartingBefore(mock.Anything, mock.Anything).Return(nil, nil)
+	m.lk.EXPECT().ActiveRooms(mock.Anything).Return(map[string][]string{
+		room: {"viewer_" + uuid.NewString()},
+	}, nil)
+	m.repo.EXPECT().ListLive(mock.Anything).Return([]repository.LiveStreamRow{
+		{ID: liveID, Status: "live", LivekitRoom: room},
+	}, nil)
+	m.repo.EXPECT().MarkOffline(mock.Anything, liveID).Return(true, nil)
+
+	// when
+	n, err := svc.ReconcileOnce(context.Background())
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, 1, n)
+}
+
+func TestReconcileOnce_KeepsLiveRoomWithBroadcaster(t *testing.T) {
+	// given
+	svc, m := newTestStreamService(t)
+	liveID := uuid.New()
+	userID := uuid.New()
+	room := "live_" + liveID.String()
+
+	m.lk.EXPECT().Enabled().Return(true)
+	m.repo.EXPECT().ListStartingBefore(mock.Anything, mock.Anything).Return(nil, nil)
+	m.lk.EXPECT().ActiveRooms(mock.Anything).Return(map[string][]string{
+		room: {"broadcaster_" + userID.String()},
+	}, nil)
+	m.repo.EXPECT().ListLive(mock.Anything).Return([]repository.LiveStreamRow{
+		{ID: liveID, Status: "live", LivekitRoom: room},
+	}, nil)
+
+	// when
+	n, err := svc.ReconcileOnce(context.Background())
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, 0, n)
 }
