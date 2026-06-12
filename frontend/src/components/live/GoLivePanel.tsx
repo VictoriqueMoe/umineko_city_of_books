@@ -72,10 +72,32 @@ export function GoLivePanel({ onChanged }: GoLivePanelProps) {
         return (
             <div className={styles.panel}>
                 <h2 className={styles.heading}>You're set up to go live</h2>
-                <p className={styles.hint}>
-                    Open OBS 30+, then Settings {"→"} Stream {"→"} Service: <strong>WHIP</strong>. Paste the server and
-                    bearer token below, click OK, then Start Streaming. You'll appear on the Live page once OBS
-                    connects.
+                <p className={styles.hint}>Broadcast into your stream from OBS over WHIP, about a minute to set up:</p>
+                <ol className={styles.steps}>
+                    <li>
+                        Open <strong>OBS Studio</strong> (version 30 or newer). Streamlabs works too, but its WHIP has
+                        audio glitches, so OBS is recommended.
+                    </li>
+                    <li>
+                        In OBS, open <strong>Settings {"→"} Stream</strong>.
+                    </li>
+                    <li>
+                        Set <strong>Service</strong> to <strong>WHIP</strong>.
+                    </li>
+                    <li>
+                        Copy the <strong>WHIP server</strong> below into OBS's <strong>Server</strong> box.
+                    </li>
+                    <li>
+                        Copy the <strong>Stream key</strong> below into OBS's <strong>Bearer Token</strong> box.
+                    </li>
+                    <li>
+                        Click <strong>OK</strong>, then <strong>Start Streaming</strong>.
+                    </li>
+                    <li>You'll appear on the Live page within a few seconds.</li>
+                </ol>
+                <p className={styles.tip}>
+                    Whatever resolution, bitrate, and framerate you set in OBS is exactly what your viewers get, the
+                    site never re-encodes your stream.
                 </p>
 
                 <div className={styles.field}>

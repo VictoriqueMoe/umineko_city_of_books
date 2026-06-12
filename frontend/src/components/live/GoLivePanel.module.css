@@ -22,6 +22,27 @@
     line-height: 1.5;
 }
 
+.steps {
+    margin: 0;
+    padding-left: 1.3rem;
+    font-size: 0.88rem;
+    line-height: 1.55;
+    opacity: 0.9;
+}
+
+.steps li {
+    margin-bottom: 0.35rem;
+}
+
+.tip {
+    margin: 0;
+    font-size: 0.82rem;
+    opacity: 0.75;
+    line-height: 1.5;
+    border-left: 2px solid var(--gold, #c9a227);
+    padding-left: 0.6rem;
+}
+
 .field {
     display: flex;
     flex-direction: column;
