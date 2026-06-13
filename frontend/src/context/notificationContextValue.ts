@@ -7,6 +7,7 @@ export interface NotificationContextValue {
     unreadCount: number;
     chatUnreadCount: number;
     liveGamesCount: number;
+    liveStreamsCount: number;
     markRead: (id: number) => Promise<void>;
     markAllRead: () => Promise<void>;
     addWSListener: (handler: WSMessageHandler) => () => void;

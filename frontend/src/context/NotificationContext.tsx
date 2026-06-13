@@ -1,11 +1,12 @@
 import { type PropsWithChildren, useCallback, useEffect, useRef, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Notification, UserProfile, WSMessage } from "../types/api";
 import { NotificationContext, type WSMessageHandler } from "./notificationContextValue";
 import { useAuth } from "../hooks/useAuth";
 import { useUnreadCount } from "../api/queries/notification";
 import { useChatUnreadCount } from "../api/queries/chat";
 import { useLiveGameRooms } from "../api/queries/gameRoom";
+import { listLiveStreams } from "../api/endpoints";
 import { useMarkAllNotificationsRead, useMarkNotificationRead } from "../api/mutations/notification";
 import { queryKeys } from "../api/queryKeys";
 import { absolutizeMedia } from "../api/client";
@@ -29,6 +30,8 @@ export function NotificationProvider({ children }: PropsWithChildren) {
     const unreadCount = user ? unreadCountQuery.count : 0;
     const chatUnreadCount = user ? chatUnreadCountQuery.count : 0;
     const liveGamesCount = liveGamesQuery.total ?? 0;
+    const liveStreamsQuery = useQuery({ queryKey: ["streams", "live"], queryFn: listLiveStreams });
+    const liveStreamsCount = liveStreamsQuery.data?.streams.length ?? 0;
 
     const markReadMutation = useMarkNotificationRead();
     const markAllReadMutation = useMarkAllNotificationsRead();
@@ -219,6 +222,9 @@ export function NotificationProvider({ children }: PropsWithChildren) {
                         setLiveGamesCount(data.count);
                     }
                 }
+                if (msg.type === "stream_live" || msg.type === "stream_offline") {
+                    qc.invalidateQueries({ queryKey: ["streams", "live"] });
+                }
                 if (msg.type === "secret_closed") {
                     window.dispatchEvent(new CustomEvent("secret-closed", { detail: msg.data }));
                 }
@@ -312,6 +318,7 @@ export function NotificationProvider({ children }: PropsWithChildren) {
                 unreadCount,
                 chatUnreadCount,
                 liveGamesCount,
+                liveStreamsCount,
                 markRead,
                 markAllRead,
                 addWSListener,

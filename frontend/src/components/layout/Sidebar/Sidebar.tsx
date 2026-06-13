@@ -58,6 +58,7 @@ export function Sidebar({ open, onClose, onCollapse }: SidebarProps) {
         unreadCount: unreadNotifs,
         chatUnreadCount: unreadChat,
         liveGamesCount,
+        liveStreamsCount,
     } = useNotifications();
     const { hasUnread, hasAnyUnread, markVisited, markAllVisited, anyUnread } = useSidebarBadges();
     const siteInfo = useSiteInfo();
@@ -457,6 +458,11 @@ export function Sidebar({ open, onClose, onCollapse }: SidebarProps) {
                             onClick={onClose}
                         >
                             Live
+                            {liveStreamsCount > 0 && (
+                                <span className={styles.chatBadge}>
+                                    {liveStreamsCount > 99 ? "99+" : liveStreamsCount}
+                                </span>
+                            )}
                         </NavLink>
                         <button
                             className={`${styles.link} ${styles.expandBtn}${gamesOpen ? ` ${styles.expandOpen}` : ""}`}
