@@ -379,6 +379,12 @@
     gap: 0.4rem;
 }
 
+.chatContent {
+    display: flex;
+    flex-direction: column;
+    gap: inherit;
+}
+
 .chatNotice {
     color: rgba(255, 255, 255, 0.6);
     font-size: 0.85rem;
@@ -401,25 +407,196 @@
     font-size: 0.9rem;
 }
 
-@media (max-width: 900px) {
-    .watchLayout {
-        flex-direction: column;
-    }
+.mobileShell {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--chat-vh, 100svh);
+    padding-top: env(safe-area-inset-top, 0px);
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-void);
+    z-index: 120;
+    overflow: hidden;
+}
 
-    .watchMain {
-        flex: 4 1 0;
-        min-height: 0;
-    }
+.mobileStage {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    flex-shrink: 0;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
 
-    .stage {
-        flex: 1 1 auto;
-        min-height: 0;
-        height: auto;
-    }
+.mobileShellKeyboard .mobileStage {
+    display: none;
+}
 
-    .watchSidebar {
-        flex: 5 1 0;
-        width: 100%;
-        min-height: 0;
-    }
+.mobileDragHandle {
+    flex-shrink: 0;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-card);
+    cursor: row-resize;
+    touch-action: none;
+}
+
+.mobileDragGrip {
+    width: 40px;
+    height: 4px;
+    border-radius: 999px;
+    background: rgba(var(--purple-rgb), 0.5);
+}
+
+.mobileShellKeyboard .mobileDragHandle {
+    display: none;
+}
+
+.mobileMeta {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.7rem;
+    border-bottom: 1px solid rgba(var(--purple-rgb), 0.25);
+    background: var(--bg-card);
+}
+
+.mobileMetaText {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+}
+
+.mobileTitle {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 0.95rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.mobileStreamer {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    text-decoration: none;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    min-width: 0;
+}
+
+.mobileStreamer span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mobileStreamerAvatar {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.mobileBackBtn {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    text-decoration: none;
+    color: var(--gold);
+    font-size: 1.3rem;
+    line-height: 1;
+}
+
+.mobileBackBtn:active {
+    background: rgba(var(--purple-rgb), 0.25);
+}
+
+.mobileViewerCount {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(var(--purple-rgb), 0.25);
+    border-radius: 999px;
+    padding: 0.15rem 0.5rem;
+}
+
+.mobileTabs {
+    flex-shrink: 0;
+    display: flex;
+    border-bottom: 1px solid rgba(var(--purple-rgb), 0.25);
+    background: var(--bg-card);
+}
+
+.mobileTab {
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-family: var(--font-display);
+    font-size: 0.85rem;
+    padding: 0.6rem;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+}
+
+.mobileTabActive {
+    color: var(--gold);
+    border-bottom-color: var(--gold);
+}
+
+.mobileBody {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.mobilePane {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.mobilePaneHidden {
+    display: none;
+}
+
+.mobileViewers {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0.6rem;
+}
+
+.mobileBody .chatPanel {
+    border: none;
+    border-radius: 0;
+}
+
+.mobileBody .chatHeader {
+    display: none;
 }
