@@ -4,10 +4,11 @@ import { useAuth } from "../../hooks/useAuth";
 import { useNotifications } from "../../hooks/useNotifications";
 import { joinStreamChat } from "../../api/endpoints";
 import { useMessageHistory } from "../../hooks/useMessageHistory";
+import { useChatMessageHandlers } from "../../hooks/useChatMessageHandlers";
 import { MessageBubble } from "../../components/chat/MessageBubble/MessageBubble";
 import { ChatComposer, type ReplyTarget } from "../../components/chat/ChatComposer/ChatComposer";
 import { handleIncomingChatMessage, applySharedChatWSBranch } from "../../utils/chatStream";
-import type { ChatMessage, WSMessage } from "../../types/api";
+import type { ChatMessage, UserProfile, WSMessage } from "../../types/api";
 import styles from "./live.module.css";
 
 export function StreamChatPanel({ streamId, isLive }: { streamId: string; isLive: boolean }) {
@@ -24,14 +25,15 @@ export function StreamChatPanel({ streamId, isLive }: { streamId: string; isLive
         );
     }
 
-    return <StreamChatPanelInner key={streamId} streamId={streamId} userId={user.id} isLive={isLive} />;
+    return <StreamChatPanelInner key={streamId} streamId={streamId} user={user} isLive={isLive} />;
 }
 
-function StreamChatPanelInner({ streamId, userId, isLive }: { streamId: string; userId: string; isLive: boolean }) {
+function StreamChatPanelInner({ streamId, user, isLive }: { streamId: string; user: UserProfile; isLive: boolean }) {
     const { addWSListener } = useNotifications();
     const [joined, setJoined] = useState(false);
     const [joinError, setJoinError] = useState(false);
     const [replyingTo, setReplyingTo] = useState<ReplyTarget | null>(null);
+    const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
 
     useEffect(() => {
         if (!isLive) {
@@ -55,8 +57,15 @@ function StreamChatPanelInner({ streamId, userId, isLive }: { streamId: string; 
     }, [streamId, isLive]);
 
     const roomId = isLive && joined ? streamId : undefined;
-    const { messages, setMessages, containerRef, endRef, scrollToBottomInstant, handleScroll, addMessage } =
+    const { messages, setMessages, containerRef, contentRef, endRef, scrollToBottomInstant, handleScroll, addMessage } =
         useMessageHistory(roomId);
+
+    const { handleEditMessage } = useChatMessageHandlers({
+        user,
+        messages,
+        setMessages,
+        setEditingMessageId,
+    });
 
     useEffect(() => {
         if (!joined || !isLive) {
@@ -90,12 +99,23 @@ function StreamChatPanelInner({ streamId, userId, isLive }: { streamId: string; 
         <div className={styles.chatPanel}>
             <div className={styles.chatHeader}>Stream chat</div>
             <div className={styles.chatMessages} ref={containerRef} onScroll={handleScroll}>
-                {isLive && joinError && <div className={styles.chatNotice}>Couldn't join the chat.</div>}
-                {isLive && !joined && !joinError && <div className={styles.chatNotice}>Joining chat...</div>}
-                {messages.map(m => (
-                    <MessageBubble key={m.id} message={m} isOwn={m.sender.id === userId} onReply={handleReply} />
-                ))}
-                <div ref={endRef} />
+                <div ref={contentRef} className={styles.chatContent}>
+                    {isLive && joinError && <div className={styles.chatNotice}>Couldn't join the chat.</div>}
+                    {isLive && !joined && !joinError && <div className={styles.chatNotice}>Joining chat...</div>}
+                    {messages.map(m => (
+                        <MessageBubble
+                            key={m.id}
+                            message={m}
+                            isOwn={m.sender.id === user.id}
+                            onReply={handleReply}
+                            onEdit={handleEditMessage}
+                            onEditStart={msg => setEditingMessageId(msg.id)}
+                            onEditCancel={() => setEditingMessageId(null)}
+                            editing={editingMessageId === m.id}
+                        />
+                    ))}
+                    <div ref={endRef} />
+                </div>
             </div>
             {isLive && joined && (
                 <ChatComposer

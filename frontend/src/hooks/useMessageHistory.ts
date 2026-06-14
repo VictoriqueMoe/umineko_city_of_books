@@ -1,4 +1,13 @@
-import { type Dispatch, type SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+    type Dispatch,
+    type SetStateAction,
+    useCallback,
+    useEffect,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import type { ChatMessage } from "../types/api";
 import { fetchRoomMessages, fetchRoomMessagesBefore } from "../api/queries/chat";
 
@@ -19,8 +28,10 @@ export function useMessageHistory(roomId: string | undefined) {
     const [state, setState] = useState<RoomState>({ roomId, messages: [], hasMore: false });
     const [loadingMore, setLoadingMore] = useState(false);
     const loadingMoreRef = useRef(false);
-    const containerRef = useRef<HTMLDivElement>(null);
+    const containerElRef = useRef<HTMLDivElement | null>(null);
+    const contentElRef = useRef<HTMLDivElement | null>(null);
     const endRef = useRef<HTMLDivElement>(null);
+    const observerRef = useRef<ResizeObserver | null>(null);
     const suppressScrollToBottom = useRef(false);
     const isAtBottomRef = useRef(true);
     const currentRoomIdRef = useRef<string | undefined>(roomId);
@@ -31,7 +42,7 @@ export function useMessageHistory(roomId: string | undefined) {
     const hasMore = state.roomId === roomId ? state.hasMore : false;
 
     const computeIsAtBottom = useCallback(() => {
-        const container = containerRef.current;
+        const container = containerElRef.current;
         if (!container) {
             return true;
         }
@@ -47,7 +58,10 @@ export function useMessageHistory(roomId: string | undefined) {
         }
         isAtBottomRef.current = true;
         requestAnimationFrame(() => {
-            endRef.current?.scrollIntoView({ behavior: "smooth" });
+            const container = containerElRef.current;
+            if (container) {
+                container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+            }
         });
     }, []);
 
@@ -59,10 +73,70 @@ export function useMessageHistory(roomId: string | undefined) {
             return;
         }
         isAtBottomRef.current = true;
-        requestAnimationFrame(() => {
-            endRef.current?.scrollIntoView();
-        });
+        const container = containerElRef.current;
+        if (container) {
+            container.scrollTop = container.scrollHeight;
+        }
     }, []);
+
+    const snapToBottomIfPinned = useCallback(() => {
+        const container = containerElRef.current;
+        if (!container || suppressScrollToBottom.current || !isAtBottomRef.current) {
+            return;
+        }
+        container.scrollTop = container.scrollHeight;
+    }, []);
+
+    const ensureObserver = useCallback(() => {
+        if (observerRef.current || typeof ResizeObserver === "undefined") {
+            return observerRef.current;
+        }
+        observerRef.current = new ResizeObserver(() => {
+            snapToBottomIfPinned();
+        });
+        return observerRef.current;
+    }, [snapToBottomIfPinned]);
+
+    const containerRef = useCallback(
+        (node: HTMLDivElement | null) => {
+            const observer = node ? ensureObserver() : observerRef.current;
+            if (containerElRef.current && observer) {
+                observer.unobserve(containerElRef.current);
+            }
+            containerElRef.current = node;
+            if (node && observer) {
+                observer.observe(node);
+            }
+        },
+        [ensureObserver],
+    );
+
+    const contentRef = useCallback(
+        (node: HTMLDivElement | null) => {
+            const observer = node ? ensureObserver() : observerRef.current;
+            if (contentElRef.current && observer) {
+                observer.unobserve(contentElRef.current);
+            }
+            contentElRef.current = node;
+            if (node && observer) {
+                observer.observe(node);
+            }
+        },
+        [ensureObserver],
+    );
+
+    useEffect(() => {
+        return () => {
+            if (observerRef.current) {
+                observerRef.current.disconnect();
+                observerRef.current = null;
+            }
+        };
+    }, []);
+
+    useLayoutEffect(() => {
+        snapToBottomIfPinned();
+    }, [messages, snapToBottomIfPinned]);
 
     useEffect(() => {
         loadingMoreRef.current = false;
@@ -83,7 +157,12 @@ export function useMessageHistory(roomId: string | undefined) {
                     hasMore: res.messages.length < res.total,
                 });
                 setLoadingMore(false);
-                setTimeout(() => endRef.current?.scrollIntoView(), 50);
+                setTimeout(() => {
+                    const container = containerElRef.current;
+                    if (container) {
+                        container.scrollTop = container.scrollHeight;
+                    }
+                }, 50);
             })
             .catch(() => {
                 if (cancelled || currentRoomIdRef.current !== roomId) {
@@ -96,22 +175,6 @@ export function useMessageHistory(roomId: string | undefined) {
             cancelled = true;
         };
     }, [roomId]);
-
-    useEffect(() => {
-        const container = containerRef.current;
-        if (!container) {
-            return;
-        }
-        const repin = () => {
-            if (isAtBottomRef.current && !suppressScrollToBottom.current) {
-                endRef.current?.scrollIntoView();
-            }
-        };
-        container.addEventListener("load", repin, true);
-        return () => {
-            container.removeEventListener("load", repin, true);
-        };
-    }, []);
 
     const setMessages: Dispatch<SetStateAction<ChatMessage[]>> = useCallback(updater => {
         setState(prev => {
@@ -142,8 +205,9 @@ export function useMessageHistory(roomId: string | undefined) {
         loadingMoreRef.current = true;
         setLoadingMore(true);
         suppressScrollToBottom.current = true;
+        isAtBottomRef.current = false;
         try {
-            const container = containerRef.current;
+            const container = containerElRef.current;
             const prevScrollHeight = container ? container.scrollHeight : 0;
             const res = await fetchRoomMessagesBefore(roomId, beforeCursor, PAGE_SIZE);
             if (res.messages.length === 0) {
@@ -178,7 +242,7 @@ export function useMessageHistory(roomId: string | undefined) {
     }, [roomId, hasMore, messages, setHasMore, setMessages]);
 
     const handleScroll = useCallback(() => {
-        const container = containerRef.current;
+        const container = containerElRef.current;
         if (!container) {
             return;
         }
@@ -336,6 +400,7 @@ export function useMessageHistory(roomId: string | undefined) {
         hasMore,
         loadingMore,
         containerRef,
+        contentRef,
         endRef,
         scrollToBottom,
         scrollToBottomInstant,
