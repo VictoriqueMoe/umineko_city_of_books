@@ -212,6 +212,29 @@
     border-radius: 4px;
 }
 
+.uptime {
+    position: absolute;
+    top: 0.6rem;
+    left: 0.6rem;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: rgba(0, 0, 0, 0.65);
+    color: #fff;
+    font-size: 0.85rem;
+    padding: 0.2rem 0.55rem;
+    border-radius: 4px;
+    font-variant-numeric: tabular-nums;
+}
+
+.uptimeDot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #d23b3b;
+}
+
 .watchMeta {
     display: flex;
     flex-wrap: wrap;

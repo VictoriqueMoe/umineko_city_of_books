@@ -6,7 +6,7 @@ import { VolumeSlider } from "../../components/VolumeSlider/VolumeSlider";
 import { useChatViewport } from "../../hooks/useChatViewport";
 import { type LiveStream } from "../../api/endpoints";
 import { StreamChatPanel } from "./StreamChatPanel";
-import { StreamStage, StreamViewers, ViewerCountReporter } from "./streamParts";
+import { StreamStage, StreamUptime, StreamViewers, ViewerCountReporter } from "./streamParts";
 import styles from "./live.module.css";
 
 interface MobileLiveViewProps {
@@ -104,6 +104,7 @@ export function MobileLiveView({
                         {error ? error : isLive ? "Connecting..." : "This stream is offline."}
                     </div>
                 )}
+                {isLive && <StreamUptime startedAt={stream.startedAt} />}
                 <button
                     type="button"
                     className={styles.fullscreenBtn}

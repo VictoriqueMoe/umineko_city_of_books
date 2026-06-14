@@ -11,7 +11,7 @@ import type { WSMessage } from "../../types/api";
 import { useAuth } from "../../hooks/useAuth";
 import { VolumeSlider } from "../../components/VolumeSlider/VolumeSlider";
 import { StreamChatPanel } from "./StreamChatPanel";
-import { StreamStage, StreamViewers } from "./streamParts";
+import { StreamStage, StreamUptime, StreamViewers } from "./streamParts";
 import { MobileLiveView } from "./MobileLiveView";
 import styles from "./live.module.css";
 
@@ -218,6 +218,7 @@ export function LiveWatchPage() {
                             {error ? error : isLive ? "Connecting..." : "This stream is offline."}
                         </div>
                     )}
+                    {isLive && <StreamUptime startedAt={stream.startedAt} />}
                     <button
                         type="button"
                         className={styles.fullscreenBtn}

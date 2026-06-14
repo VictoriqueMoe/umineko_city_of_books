@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Track } from "livekit-client";
 import { VideoTrack, useParticipants, useTracks } from "@livekit/components-react";
 import { absolutizeMedia } from "../../api/client";
@@ -19,6 +19,51 @@ export function ViewerCountReporter({ onChange }: { onChange: (count: number) =>
     }, [count, onChange]);
 
     return null;
+}
+
+function formatElapsed(ms: number): string {
+    const total = Math.max(0, Math.floor(ms / 1000));
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    const seconds = total % 60;
+
+    const mm = minutes.toString().padStart(2, "0");
+    const ss = seconds.toString().padStart(2, "0");
+
+    if (hours > 0) {
+        return `${hours}:${mm}:${ss}`;
+    }
+
+    return `${mm}:${ss}`;
+}
+
+export function StreamUptime({ startedAt }: { startedAt?: string }) {
+    const [now, setNow] = useState(() => Date.now());
+
+    useEffect(() => {
+        const id = window.setInterval(() => {
+            setNow(Date.now());
+        }, 1000);
+        return () => {
+            window.clearInterval(id);
+        };
+    }, []);
+
+    if (!startedAt) {
+        return null;
+    }
+
+    const start = Date.parse(startedAt);
+    if (Number.isNaN(start)) {
+        return null;
+    }
+
+    return (
+        <span className={styles.uptime} title="Live for">
+            <span className={styles.uptimeDot} />
+            {formatElapsed(now - start)}
+        </span>
+    );
 }
 
 export function StreamStage() {
