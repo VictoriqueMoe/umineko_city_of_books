@@ -86,7 +86,7 @@ func (s *Service) startStream(ctx fiber.Ctx) error {
 		return nil
 	}
 
-	resp, err := s.StreamService.StartStream(ctx.Context(), userID, req.Title)
+	resp, err := s.StreamService.StartStream(ctx.Context(), userID, req.Title, req.DefaultMode)
 	if err != nil {
 		return mapStreamError(ctx, err)
 	}

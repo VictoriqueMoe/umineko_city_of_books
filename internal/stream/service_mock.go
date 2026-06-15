@@ -813,8 +813,8 @@ func (_c *MockService_SetChatBinder_Call) RunAndReturn(run func(chat ChatBinder)
 }
 
 // StartStream provides a mock function for the type MockService
-func (_mock *MockService) StartStream(ctx context.Context, userID uuid.UUID, title string) (*dto.StreamOwnerResponse, error) {
-	ret := _mock.Called(ctx, userID, title)
+func (_mock *MockService) StartStream(ctx context.Context, userID uuid.UUID, title string, defaultMode dto.StreamDefaultMode) (*dto.StreamOwnerResponse, error) {
+	ret := _mock.Called(ctx, userID, title, defaultMode)
 
 	if len(ret) == 0 {
 		panic("no return value specified for StartStream")
@@ -822,18 +822,18 @@ func (_mock *MockService) StartStream(ctx context.Context, userID uuid.UUID, tit
 
 	var r0 *dto.StreamOwnerResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) (*dto.StreamOwnerResponse, error)); ok {
-		return returnFunc(ctx, userID, title)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, dto.StreamDefaultMode) (*dto.StreamOwnerResponse, error)); ok {
+		return returnFunc(ctx, userID, title, defaultMode)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) *dto.StreamOwnerResponse); ok {
-		r0 = returnFunc(ctx, userID, title)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, dto.StreamDefaultMode) *dto.StreamOwnerResponse); ok {
+		r0 = returnFunc(ctx, userID, title, defaultMode)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*dto.StreamOwnerResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string) error); ok {
-		r1 = returnFunc(ctx, userID, title)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, dto.StreamDefaultMode) error); ok {
+		r1 = returnFunc(ctx, userID, title, defaultMode)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -849,11 +849,12 @@ type MockService_StartStream_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - title string
-func (_e *MockService_Expecter) StartStream(ctx any, userID any, title any) *MockService_StartStream_Call {
-	return &MockService_StartStream_Call{Call: _e.mock.On("StartStream", ctx, userID, title)}
+//   - defaultMode dto.StreamDefaultMode
+func (_e *MockService_Expecter) StartStream(ctx any, userID any, title any, defaultMode any) *MockService_StartStream_Call {
+	return &MockService_StartStream_Call{Call: _e.mock.On("StartStream", ctx, userID, title, defaultMode)}
 }
 
-func (_c *MockService_StartStream_Call) Run(run func(ctx context.Context, userID uuid.UUID, title string)) *MockService_StartStream_Call {
+func (_c *MockService_StartStream_Call) Run(run func(ctx context.Context, userID uuid.UUID, title string, defaultMode dto.StreamDefaultMode)) *MockService_StartStream_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -867,10 +868,15 @@ func (_c *MockService_StartStream_Call) Run(run func(ctx context.Context, userID
 		if args[2] != nil {
 			arg2 = args[2].(string)
 		}
+		var arg3 dto.StreamDefaultMode
+		if args[3] != nil {
+			arg3 = args[3].(dto.StreamDefaultMode)
+		}
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3,
 		)
 	})
 	return _c
@@ -881,7 +887,7 @@ func (_c *MockService_StartStream_Call) Return(streamOwnerResponse *dto.StreamOw
 	return _c
 }
 
-func (_c *MockService_StartStream_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, title string) (*dto.StreamOwnerResponse, error)) *MockService_StartStream_Call {
+func (_c *MockService_StartStream_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, title string, defaultMode dto.StreamDefaultMode) (*dto.StreamOwnerResponse, error)) *MockService_StartStream_Call {
 	_c.Call.Return(run)
 	return _c
 }

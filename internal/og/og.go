@@ -860,7 +860,9 @@ func (r *Resolver) liveStreamMeta(ctx context.Context, idStr string) *Meta {
 		Description: desc,
 		URL:         fmt.Sprintf("%s/live/%s", r.baseURL, idStr),
 	}
-	if stream.AvatarURL != "" {
+	if stream.ThumbnailURL != "" {
+		meta.Image = r.absoluteURL(stream.ThumbnailURL)
+	} else if stream.AvatarURL != "" {
 		meta.Image = r.absoluteURL(stream.AvatarURL)
 	}
 

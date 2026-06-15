@@ -88,6 +88,8 @@ var (
 	SettingLiveKitAPISecret        = &SiteSettingDef{"livekit_api_secret", "", TypeString}
 	SettingStreamingEnabled        = &SiteSettingDef{"streaming_enabled", "false", TypeBool}
 	SettingStreamMaxConcurrent     = &SiteSettingDef{"stream_max_concurrent", "3", TypeInt}
+	SettingStreamHLSEnabled        = &SiteSettingDef{"stream_hls_enabled", "false", TypeBool}
+	SettingStreamHLSOutputDir      = &SiteSettingDef{"stream_hls_output_dir", "/app/data/hls", TypeString}
 	SettingTurnstileEnabled        = &SiteSettingDef{"turnstile_enabled", "false", TypeBool}
 	SettingTurnstileSiteKey        = &SiteSettingDef{"turnstile_site_key", "", TypeString}
 	SettingTurnstileSecretKey      = &SiteSettingDef{"turnstile_secret_key", "", TypeString}
@@ -159,6 +161,8 @@ var (
 		SettingLiveKitAPISecret,
 		SettingStreamingEnabled,
 		SettingStreamMaxConcurrent,
+		SettingStreamHLSEnabled,
+		SettingStreamHLSOutputDir,
 		SettingTurnstileEnabled,
 		SettingTurnstileSiteKey,
 		SettingTurnstileSecretKey,

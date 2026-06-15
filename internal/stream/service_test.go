@@ -54,7 +54,7 @@ func TestStartStream_Disabled(t *testing.T) {
 	expectStreamingEnabled(m, false)
 
 	// when
-	_, err := svc.StartStream(context.Background(), uuid.New(), "title")
+	_, err := svc.StartStream(context.Background(), uuid.New(), "title", dto.StreamDefaultModeWebRTC)
 
 	// then
 	require.ErrorIs(t, err, ErrDisabled)
@@ -66,7 +66,7 @@ func TestStartStream_TitleRequired(t *testing.T) {
 	expectStreamingEnabled(m, true)
 
 	// when
-	_, err := svc.StartStream(context.Background(), uuid.New(), "   ")
+	_, err := svc.StartStream(context.Background(), uuid.New(), "   ", dto.StreamDefaultModeWebRTC)
 
 	// then
 	require.ErrorIs(t, err, ErrTitleRequired)
@@ -81,7 +81,7 @@ func TestStartStream_AlreadyLive(t *testing.T) {
 	m.repo.EXPECT().GetActiveByUser(mock.Anything, userID).Return(&repository.LiveStreamRow{ID: uuid.New()}, nil)
 
 	// when
-	_, err := svc.StartStream(context.Background(), userID, "title")
+	_, err := svc.StartStream(context.Background(), userID, "title", dto.StreamDefaultModeWebRTC)
 
 	// then
 	require.ErrorIs(t, err, ErrAlreadyLive)
@@ -98,7 +98,7 @@ func TestStartStream_AtCapacity(t *testing.T) {
 	m.repo.EXPECT().CountActive(mock.Anything).Return(3, nil)
 
 	// when
-	_, err := svc.StartStream(context.Background(), userID, "title")
+	_, err := svc.StartStream(context.Background(), userID, "title", dto.StreamDefaultModeWebRTC)
 
 	// then
 	require.ErrorIs(t, err, ErrAtCapacity)
@@ -128,9 +128,10 @@ func TestStartStream_HappyPath(t *testing.T) {
 	m.creds.EXPECT().Upsert(mock.Anything, userID, "ing_1", "https://whip.example/w", "key_123", mock.Anything).Return(nil)
 	m.lk.EXPECT().UpdateIngress(mock.Anything, "ing_1", mock.Anything, mock.Anything, "Beatrice").Return(nil)
 	m.repo.EXPECT().SetIngress(mock.Anything, streamID, "ing_1", mock.Anything, "https://whip.example/w", "key_123").Return(nil)
+	m.repo.EXPECT().SetDefaultMode(mock.Anything, streamID, "webrtc").Return(nil)
 
 	// when
-	resp, err := svc.StartStream(context.Background(), userID, "My Stream")
+	resp, err := svc.StartStream(context.Background(), userID, "My Stream", dto.StreamDefaultModeWebRTC)
 
 	// then
 	require.NoError(t, err)
@@ -163,7 +164,7 @@ func TestStartStream_CreateRaceMapsErrors(t *testing.T) {
 			m.repo.EXPECT().Create(mock.Anything, userID, "title", 3).Return(uuid.Nil, tc.repoErr)
 
 			// when
-			_, err := svc.StartStream(context.Background(), userID, "title")
+			_, err := svc.StartStream(context.Background(), userID, "title", dto.StreamDefaultModeWebRTC)
 
 			// then
 			require.ErrorIs(t, err, tc.want)
@@ -460,6 +461,31 @@ func TestHandleWebhook_BroadcasterJoinedMarksLive(t *testing.T) {
 	m.repo.EXPECT().GetByRoom(mock.Anything, room).Return(row, nil)
 	m.repo.EXPECT().MarkLive(mock.Anything, streamID).Return(nil)
 	m.repo.EXPECT().GetByID(mock.Anything, streamID).Return(row, nil)
+
+	// when
+	handled, err := svc.HandleWebhook(context.Background(), "auth", []byte("body"))
+
+	// then
+	require.NoError(t, err)
+	assert.True(t, handled)
+}
+
+func TestHandleWebhook_BroadcasterVideoPublishedStartsEgress(t *testing.T) {
+	// given
+	svc, m := newTestStreamService(t)
+	streamID := uuid.New()
+	userID := uuid.New()
+	room := "live_" + streamID.String()
+	row := &repository.LiveStreamRow{ID: streamID, UserID: userID, Status: "live", LivekitRoom: room}
+
+	m.lk.EXPECT().ParseWebhook("auth", []byte("body")).Return(&livekit.Event{
+		Type:      livekit.EventTrackPublished,
+		RoomName:  room,
+		Identity:  "broadcaster_" + userID.String(),
+		TrackKind: "video",
+	}, nil)
+	m.repo.EXPECT().GetByRoom(mock.Anything, room).Return(row, nil)
+	m.settings.EXPECT().GetBool(mock.Anything, config.SettingStreamHLSEnabled).Return(false)
 
 	// when
 	handled, err := svc.HandleWebhook(context.Background(), "auth", []byte("body"))

@@ -44,10 +44,6 @@ services:
       prometheus-port: "4323"
       prometheus-path: "/metrics"
 
-  # Host-networked so livekit, ingress and valkey reach each other on 127.0.0.1.
-  # On this box, livekit.yaml and ingress.yaml must use redis address 127.0.0.1:6379
-  # and ingress rtc_config.use_external_ip: true. Open 8080/tcp (WHIP) and 7885/udp
-  # (WHIP media) on the host firewall.
   valkey:
     image: valkey/valkey:latest
     container_name: umineko-valkey
@@ -78,6 +74,22 @@ services:
       INGRESS_CONFIG_FILE: /etc/ingress.yaml
     volumes:
       - ./ingress.yaml:/etc/ingress.yaml:ro
+
+  livekit-egress:
+    image: livekit/egress:latest
+    container_name: umineko-livekit-egress
+    restart: unless-stopped
+    network_mode: host
+    cap_add:
+      - SYS_ADMIN
+    depends_on:
+      - valkey
+      - livekit
+    environment:
+      EGRESS_CONFIG_FILE: /etc/egress.yaml
+    volumes:
+      - ./egress.yaml:/etc/egress.yaml:ro
+      - ./data/hls:/app/data/hls
 
 volumes:
   postgres_data:

@@ -940,6 +940,26 @@ Broadcasters then hit **Go live** on `/live`, paste the returned WHIP URL + stre
 
 > WHIP media (WebRTC over UDP) requires the ingress on **host networking**. That works on a Linux host but not reliably on Docker Desktop (Windows/Mac), where the broadcaster app lives outside the container's network namespace, test broadcasting on the Linux host.
 
+### Smooth Playback (LiveKit Egress / HLS)
+
+By default a viewer watches a stream over **WebRTC**: sub-second latency, but it can freeze on a shaky connection, which is the nature of real-time UDP. Enabling the bundled `livekit-egress` service adds a second, **Smooth** option per stream, a buffered **HLS** rendition that plays a few seconds behind live but rides out network hiccups. Each viewer flips between **Low latency** (WebRTC) and **Smooth** (HLS) on the player, and the streamer picks which one viewers start on in the Go Live panel. It builds on the Ingress setup above. Disabled by default.
+
+1. **Create the egress config.** The compose bind-mounts `./egress.yaml`, which is gitignored. Copy the template (otherwise Docker creates an empty directory in its place):
+
+   ```bash
+   cp egress.yaml.example egress.yaml
+   ```
+
+   Set `api_key` / `api_secret` / `ws_url` / `redis.address` to the **same** values as `ingress.yaml`. The egress must share the identical coordination plane or it never finds the room to record. In production (host networking) that is `ws://127.0.0.1:7880` and `127.0.0.1:<valkey-port>`.
+
+2. **Where the files go.** The egress writes HLS segments to `stream_hls_output_dir` (default `/app/data/hls`), which the compose bind-mounts into both the egress and the app via `./data/hls`. The app serves them at `/hls/*` on the **existing** site domain, exactly like `/uploads`, so there is **no new A record and no new reverse-proxy block**: your current Caddy/Nginx config already covers it. The egress is outbound-only and receives no inbound media, so it opens **no new firewall ports** (unlike the ingress).
+
+3. **Enable it in the app.** **Admin → Settings → Voice Chat (LiveKit)** → toggle **Enable Smooth (HLS) playback** (revealed when streaming is on). Leave the output dir at `/app/data/hls` unless you remap the mount.
+
+The egress runs **participant egress** (no headless Chrome compositor), so it is light, but the container still needs `--cap-add=SYS_ADMIN` (already in the compose) because the egress image enables Chrome sandboxing regardless. A few seconds after a broadcaster goes live, the egress reads the **actual width / height / framerate / bitrate** the ingress is measuring from OBS and encodes the HLS to match (H.264 High video, 320k AAC audio for Safari/iOS compatibility), so the Smooth rendition mirrors whatever the streamer set rather than a fixed quality. It is a **single rendition** (LiveKit egress encodes once per job, there is no adaptive-bitrate ladder), and the per-stream segment directory is deleted when the stream ends, so nothing accumulates on disk.
+
+> Smooth playback transcodes (HLS over `.ts` cannot carry the source codecs untouched), so it is a near-transparent re-encode at the matched bitrate, not bit-identical; the Low-latency WebRTC path stays the zero-loss option.
+
 ## Adding a New Page
 
 When creating a new page or section, update **all** of the following:

@@ -743,6 +743,8 @@ export async function forceMuteVoiceParticipant(roomId: string, userId: string, 
     await apiPost<unknown, { muted: boolean }>(`/chat/rooms/${roomId}/voice/participants/${userId}/mute`, { muted });
 }
 
+export type StreamDefaultMode = "webrtc" | "hls";
+
 export interface LiveStream {
     id: string;
     userId: string;
@@ -754,6 +756,8 @@ export interface LiveStream {
     streamerUsername: string;
     streamerDisplayName: string;
     streamerAvatarUrl: string;
+    defaultMode: StreamDefaultMode;
+    hlsUrl?: string;
 }
 
 export interface StreamOwner {
@@ -792,8 +796,8 @@ export async function resetStreamCredentials(): Promise<StreamCredentials> {
     return apiPost<StreamCredentials, Record<string, never>>("/streams/credentials/reset", {});
 }
 
-export async function startStream(title: string): Promise<StreamOwner> {
-    return apiPost<StreamOwner, { title: string }>("/streams", { title });
+export async function startStream(title: string, defaultMode: StreamDefaultMode): Promise<StreamOwner> {
+    return apiPost<StreamOwner, { title: string; defaultMode: StreamDefaultMode }>("/streams", { title, defaultMode });
 }
 
 export async function stopStream(id: string): Promise<void> {

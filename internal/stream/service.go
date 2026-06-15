@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -25,7 +26,7 @@ import (
 type (
 	Service interface {
 		Enabled() bool
-		StartStream(ctx context.Context, userID uuid.UUID, title string) (*dto.StreamOwnerResponse, error)
+		StartStream(ctx context.Context, userID uuid.UUID, title string, defaultMode dto.StreamDefaultMode) (*dto.StreamOwnerResponse, error)
 		StopStream(ctx context.Context, userID, streamID uuid.UUID) error
 		MyStream(ctx context.Context, userID uuid.UUID) (*dto.StreamOwnerResponse, error)
 		ListLive(ctx context.Context) ([]dto.LiveStreamResponse, error)
@@ -61,9 +62,14 @@ type (
 )
 
 const (
-	roomPrefix        = "live_"
-	broadcasterPrefix = "broadcaster_"
-	viewerPrefix      = "viewer_"
+	roomPrefix             = "live_"
+	broadcasterPrefix      = "broadcaster_"
+	viewerPrefix           = "viewer_"
+	hlsRoutePrefix         = "/hls"
+	hlsBitsPerPixel        = 0.08
+	hlsFallbackBitrate     = 8000
+	hlsBitrateReadAttempts = 6
+	hlsBitrateReadInterval = 2 * time.Second
 
 	wsStreamLive    = "stream_live"
 	wsStreamOffline = "stream_offline"
@@ -206,7 +212,108 @@ func (s *service) maxConcurrent() int {
 	return n
 }
 
-func (s *service) StartStream(ctx context.Context, userID uuid.UUID, title string) (*dto.StreamOwnerResponse, error) {
+func (s *service) hlsEnabled() bool {
+	return s.settingsSvc.GetBool(context.Background(), config.SettingStreamHLSEnabled)
+}
+
+func (s *service) startEgress(streamID uuid.UUID, room, identity, ingressID string) {
+	if room == "" || identity == "" || !s.hlsEnabled() {
+		return
+	}
+
+	go s.runEgress(streamID, room, identity, ingressID)
+}
+
+func (s *service) runEgress(streamID uuid.UUID, room, identity, ingressID string) {
+	ctx := context.Background()
+
+	width, height, framerate, bitrate := s.awaitIngressVideo(ctx, ingressID)
+	if framerate <= 0 {
+		framerate = 60
+	}
+
+	derived := bitrate <= 0
+	if derived {
+		bitrate = deriveHLSBitrate(width, height, framerate)
+	}
+
+	outputDir := s.settingsSvc.Get(ctx, config.SettingStreamHLSOutputDir)
+
+	logger.Log.Info().
+		Str("stream_id", streamID.String()).
+		Int("width", width).
+		Int("height", height).
+		Int("framerate", framerate).
+		Int("bitrate_kbps", bitrate).
+		Bool("derived", derived).
+		Msg("starting stream HLS egress")
+
+	egressID, err := s.livekitSvc.CreateEgress(ctx, room, identity, outputDir, width, height, framerate, bitrate)
+	if err != nil {
+		logger.Log.Warn().Err(err).Str("stream_id", streamID.String()).Msg("start stream egress failed")
+		return
+	}
+
+	if err := s.repo.SetEgress(ctx, streamID, egressID, hlsPlaylistURL(room)); err != nil {
+		logger.Log.Warn().Err(err).Str("stream_id", streamID.String()).Msg("save stream egress failed")
+		return
+	}
+
+	s.broadcastLive(ctx, streamID)
+}
+
+func (s *service) awaitIngressVideo(ctx context.Context, ingressID string) (width, height, framerate, bitrateKbps int) {
+	for attempt := 0; attempt < hlsBitrateReadAttempts; attempt++ {
+		time.Sleep(hlsBitrateReadInterval)
+
+		w, h, fps, kbps, err := s.livekitSvc.IngressVideoState(ctx, ingressID)
+		if err != nil {
+			continue
+		}
+
+		if kbps > 0 {
+			return w, h, fps, kbps
+		}
+
+		if w > 0 {
+			width, height, framerate = w, h, fps
+		}
+	}
+
+	return width, height, framerate, 0
+}
+
+func deriveHLSBitrate(width, height, framerate int) int {
+	if width <= 0 || height <= 0 {
+		return hlsFallbackBitrate
+	}
+
+	fps := framerate
+	if fps <= 0 {
+		fps = 60
+	}
+
+	return int(float64(width*height*fps) * hlsBitsPerPixel / 1000)
+}
+
+func hlsPlaylistURL(room string) string {
+	return hlsRoutePrefix + "/" + room + "/live.m3u8"
+}
+
+func (s *service) cleanupHLS(room string) {
+	if room == "" {
+		return
+	}
+
+	outputDir := s.settingsSvc.Get(context.Background(), config.SettingStreamHLSOutputDir)
+	dir := strings.TrimRight(outputDir, "/") + "/" + room
+
+	if err := os.RemoveAll(dir); err != nil {
+		logger.Log.Warn().Err(err).Str("room", room).Msg("cleanup stream hls dir failed")
+	}
+}
+
+func (s *service) StartStream(ctx context.Context, userID uuid.UUID, title string, defaultMode dto.StreamDefaultMode) (*dto.StreamOwnerResponse, error) {
 	if !s.Enabled() {
 		return nil, ErrDisabled
 	}
@@ -266,7 +373,14 @@ func (s *service) StartStream(ctx context.Context, userID uuid.UUID, title strin
 		return nil, fmt.Errorf("ensure stream credentials: %w", err)
 	}
 
-	if err := s.livekitSvc.UpdateIngress(ctx, creds.IngressID, room, identity, stream.DisplayName); err != nil {
+	err = s.livekitSvc.UpdateIngress(ctx, creds.IngressID, room, identity, stream.DisplayName)
+	if err != nil && livekit.IsNotFound(err) {
+		creds, err = s.reprovisionCredentials(ctx, userID, stream.DisplayName)
+		if err == nil {
+			err = s.livekitSvc.UpdateIngress(ctx, creds.IngressID, room, identity, stream.DisplayName)
+		}
+	}
+	if err != nil {
 		_, _ = s.repo.MarkOffline(ctx, streamID)
 		return nil, fmt.Errorf("point ingress at stream room: %w", err)
 	}
@@ -276,12 +390,18 @@ func (s *service) StartStream(ctx context.Context, userID uuid.UUID, title strin
 		return nil, err
 	}
 
+	mode := dto.NormalizeStreamDefaultMode(defaultMode)
+	if err := s.repo.SetDefaultMode(ctx, streamID, string(mode)); err != nil {
+		logger.Log.Warn().Err(err).Str("stream_id", streamID.String()).Msg("set stream default mode failed")
+	}
+
 	s.createChatRoom(ctx, streamID, userID, stream.Title)
 
 	stream.LivekitRoom = room
 	stream.IngressID = creds.IngressID
 	stream.WhipURL = creds.WhipURL
 	stream.StreamKey = creds.StreamKey
+	stream.DefaultMode = string(mode)
 
 	return toOwner(stream), nil
 }
@@ -330,6 +450,21 @@ func (s *service) ensureCredentials(ctx context.Context, userID uuid.UUID, displ
 		StreamKey: streamKey,
 		Room:      room,
 	}, nil
+}
+
+func (s *service) reprovisionCredentials(ctx context.Context, userID uuid.UUID, displayName string) (*repository.StreamCredentialsRow, error) {
+	existing, err := s.creds.Get(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if existing != nil {
+		_ = s.livekitSvc.DeleteIngress(ctx, existing.IngressID)
+		if err := s.creds.Delete(ctx, userID); err != nil {
+			return nil, err
+		}
+	}
+
+	return s.ensureCredentials(ctx, userID, displayName)
 }
 
 func (s *service) Credentials(ctx context.Context, userID uuid.UUID, displayName string) (*dto.StreamCredentialsResponse, error) {
@@ -514,9 +649,15 @@ func (s *service) HandleWebhook(ctx context.Context, authHeader string, body []b
 			if err := s.repo.MarkLive(ctx, stream.ID); err != nil {
 				return true, err
 			}
+
 			s.broadcastLive(ctx, stream.ID)
 		} else {
 			s.adjustViewers(ctx, stream.ID, 1)
+		}
+
+	case livekit.EventTrackPublished:
+		if isBroadcaster && event.TrackKind == "video" && stream.EgressID == "" {
+			s.startEgress(stream.ID, stream.LivekitRoom, event.Identity, stream.IngressID)
 		}
 
 	case livekit.EventParticipantLeft:
@@ -541,6 +682,14 @@ func (s *service) teardown(ctx context.Context, stream *repository.LiveStreamRow
 	}
 	if !transitioned {
 		return false
+	}
+
+	if stream.EgressID != "" {
+		if err := s.livekitSvc.StopEgress(ctx, stream.EgressID); err != nil {
+			logger.Log.Warn().Err(err).Str("stream_id", stream.ID.String()).Msg("stop stream egress failed")
+		}
+
+		s.cleanupHLS(stream.LivekitRoom)
 	}
 
 	s.deleteChatRoom(ctx, stream.ID)
@@ -655,6 +804,8 @@ func toPublic(row *repository.LiveStreamRow) dto.LiveStreamResponse {
 		StreamerUsername:    row.Username,
 		StreamerDisplayName: row.DisplayName,
 		StreamerAvatarURL:   row.AvatarURL,
+		DefaultMode:         dto.NormalizeStreamDefaultMode(dto.StreamDefaultMode(row.DefaultMode)),
+		HLSUrl:              row.HLSPlaylistURL,
 	}
 }
 

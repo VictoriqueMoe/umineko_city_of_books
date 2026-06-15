@@ -16,6 +16,7 @@ import (
 	"github.com/livekit/protocol/livekit"
 	"github.com/livekit/protocol/webhook"
 	"github.com/livekit/server-sdk-go/v2"
+	"github.com/twitchtv/twirp"
 )
 
 type (
@@ -30,12 +31,16 @@ type (
 		CreateIngress(ctx context.Context, roomName, identity, displayName string) (ingressID, url, streamKey string, err error)
 		UpdateIngress(ctx context.Context, ingressID, roomName, identity, displayName string) error
 		DeleteIngress(ctx context.Context, ingressID string) error
+		CreateEgress(ctx context.Context, roomName, identity, outputDir string, width, height, framerate, bitrateKbps int) (egressID string, err error)
+		StopEgress(ctx context.Context, egressID string) error
+		IngressVideoState(ctx context.Context, ingressID string) (width, height, framerate, bitrateKbps int, err error)
 	}
 
 	Event struct {
-		Type     string
-		RoomName string
-		Identity string
+		Type      string
+		RoomName  string
+		Identity  string
+		TrackKind string
 	}
 
 	service struct {
@@ -49,6 +54,7 @@ const (
 	EventParticipantJoined = "participant_joined"
 	EventParticipantLeft   = "participant_left"
 	EventRoomFinished      = "room_finished"
+	EventTrackPublished    = "track_published"
 )
 
 var (
@@ -57,6 +63,15 @@ var (
 
 func NewService(settingsSvc settings.Service) Service {
 	return &service{settingsSvc: settingsSvc}
+}
+
+func IsNotFound(err error) bool {
+	var twerr twirp.Error
+	if errors.As(err, &twerr) {
+		return twerr.Code() == twirp.NotFound
+	}
+
+	return false
 }
 
 func (s *service) creds() (url, key, secret string) {
@@ -204,11 +219,17 @@ func (s *service) ParseWebhook(authHeader string, body []byte) (*Event, error) {
 		return nil, fmt.Errorf("verify livekit webhook: %w", err)
 	}
 
-	return &Event{
+	ev := &Event{
 		Type:     raw.GetEvent(),
 		RoomName: raw.GetRoom().GetName(),
 		Identity: raw.GetParticipant().GetIdentity(),
-	}, nil
+	}
+
+	if track := raw.GetTrack(); track != nil {
+		ev.TrackKind = strings.ToLower(track.GetType().String())
+	}
+
+	return ev, nil
 }
 
 func (s *service) ActiveRooms(ctx context.Context) (map[string][]string, error) {
@@ -306,6 +327,101 @@ func (s *service) DeleteIngress(ctx context.Context, ingressID string) error {
 	}
 
 	return nil
+}
+
+func (s *service) CreateEgress(ctx context.Context, roomName, identity, outputDir string, width, height, framerate, bitrateKbps int) (string, error) {
+	url, key, secret := s.creds()
+
+	if url == "" || key == "" || secret == "" {
+		return "", ErrDisabled
+	}
+
+	client := lksdk.NewEgressClient(toHTTPURL(url), key, secret)
+
+	prefix := strings.TrimRight(outputDir, "/") + "/" + roomName
+
+	advanced := &livekit.EncodingOptions{
+		VideoCodec:     livekit.VideoCodec_H264_HIGH,
+		AudioCodec:     livekit.AudioCodec_AAC,
+		AudioBitrate:   320,
+		AudioFrequency: 48000,
+	}
+	if width > 0 {
+		advanced.Width = int32(width)
+	}
+	if height > 0 {
+		advanced.Height = int32(height)
+	}
+	if framerate > 0 {
+		advanced.Framerate = int32(framerate)
+	}
+	if bitrateKbps > 0 {
+		advanced.VideoBitrate = int32(bitrateKbps)
+	}
+
+	req := &livekit.ParticipantEgressRequest{
+		RoomName: roomName,
+		Identity: identity,
+		SegmentOutputs: []*livekit.SegmentedFileOutput{
+			{
+				FilenamePrefix:   prefix + "/segment",
+				PlaylistName:     prefix + "/index.m3u8",
+				LivePlaylistName: prefix + "/live.m3u8",
+				SegmentDuration:  2,
+			},
+		},
+		Options: &livekit.ParticipantEgressRequest_Advanced{Advanced: advanced},
+	}
+
+	info, err := client.StartParticipantEgress(ctx, req)
+	if err != nil {
+		return "", fmt.Errorf("start livekit egress: %w", err)
+	}
+
+	return info.GetEgressId(), nil
+}
+
+func (s *service) StopEgress(ctx context.Context, egressID string) error {
+	url, key, secret := s.creds()
+
+	if url == "" || key == "" || secret == "" {
+		return ErrDisabled
+	}
+
+	client := lksdk.NewEgressClient(toHTTPURL(url), key, secret)
+
+	if _, err := client.StopEgress(ctx, &livekit.StopEgressRequest{EgressId: egressID}); err != nil {
+		return fmt.Errorf("stop livekit egress: %w", err)
+	}
+
+	return nil
+}
+
+func (s *service) IngressVideoState(ctx context.Context, ingressID string) (int, int, int, int, error) {
+	url, key, secret := s.creds()
+
+	if url == "" || key == "" || secret == "" {
+		return 0, 0, 0, 0, ErrDisabled
+	}
+
+	client := lksdk.NewIngressClient(toHTTPURL(url), key, secret)
+
+	resp, err := client.ListIngress(ctx, &livekit.ListIngressRequest{IngressId: ingressID})
+	if err != nil {
+		return 0, 0, 0, 0, fmt.Errorf("list livekit ingress: %w", err)
+	}
+
+	items := resp.GetItems()
+	for i := 0; i < len(items); i++ {
+		video := items[i].GetState().GetVideo()
+		if video == nil {
+			continue
+		}
+
+		return int(video.GetWidth()), int(video.GetHeight()), int(video.GetFramerate()), int(video.GetAverageBitrate()) / 1000, nil
+	}
+
+	return 0, 0, 0, 0, nil
 }
 
 func toHTTPURL(u string) string {

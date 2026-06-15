@@ -159,6 +159,11 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 	})
 	app.Get("/uploads/*", uploadsHandler)
 
+	hlsHandler := static.New(settingsSvc.Get(context.Background(), config.SettingStreamHLSOutputDir), static.Config{
+		Browse: false,
+	})
+	app.Get("/hls/*", hlsHandler)
+
 	ogImageHandler := controllers.NewOGImageHandler(svc.upload.GetUploadDir())
 	ogImageHandler.Register(app)
 

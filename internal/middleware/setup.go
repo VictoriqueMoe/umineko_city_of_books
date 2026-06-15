@@ -61,6 +61,12 @@ func Setup(app *fiber.App, settingsSvc settings.Service, sessionMgr *session.Man
 			ctx.Set("Cache-Control", "public, max-age=31536000, immutable")
 		case strings.HasPrefix(path, "/uploads/") || strings.HasPrefix(path, "/og-image/"):
 			ctx.Set("Cache-Control", "public, max-age=2592000")
+		case strings.HasPrefix(path, "/hls/"):
+			if strings.HasSuffix(path, ".m3u8") {
+				ctx.Set("Cache-Control", "no-cache")
+			} else {
+				ctx.Set("Cache-Control", "public, max-age=31536000, immutable")
+			}
 		case strings.HasPrefix(path, "/characters/") || strings.HasPrefix(path, "/sounds/") || strings.HasPrefix(path, "/favicon/"):
 			ctx.Set("Cache-Control", "public, max-age=2592000")
 		case strings.HasPrefix(path, "/api"):
@@ -148,6 +154,7 @@ func shouldSkipRequestLog(ctx fiber.Ctx) bool {
 	}
 	path := ctx.Path()
 	if strings.HasPrefix(path, "/uploads/") ||
+		strings.HasPrefix(path, "/hls/") ||
 		strings.HasPrefix(path, "/static/assets/") ||
 		strings.HasPrefix(path, "/assets/") ||
 		strings.HasPrefix(path, "/favicon") {
