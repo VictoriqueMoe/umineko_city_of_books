@@ -293,16 +293,35 @@ export function AdminSettings() {
                         </>
                     )}
                     {settings.streaming_enabled === "true" && (
-                        <div className={styles.field}>
-                            <span className={styles.fieldLabel}>Max Concurrent Streams</span>
-                            <Input
-                                type="number"
-                                value={settings.stream_max_concurrent ?? ""}
-                                onChange={e => updateField("stream_max_concurrent", e.target.value)}
-                                fullWidth
-                                placeholder="3"
+                        <>
+                            <div className={styles.field}>
+                                <span className={styles.fieldLabel}>Max Concurrent Streams</span>
+                                <Input
+                                    type="number"
+                                    value={settings.stream_max_concurrent ?? ""}
+                                    onChange={e => updateField("stream_max_concurrent", e.target.value)}
+                                    fullWidth
+                                    placeholder="3"
+                                />
+                            </div>
+                            <ToggleSwitch
+                                label="Enable Smooth (HLS) playback"
+                                description="Record each live broadcaster to HLS so viewers can pick a buffered, freeze-resistant stream a few seconds behind live (requires the LiveKit egress service)"
+                                enabled={settings.stream_hls_enabled === "true"}
+                                onChange={v => toggleField("stream_hls_enabled", v)}
                             />
-                        </div>
+                            {settings.stream_hls_enabled === "true" && (
+                                <div className={styles.field}>
+                                    <span className={styles.fieldLabel}>HLS Output Directory</span>
+                                    <Input
+                                        value={settings.stream_hls_output_dir ?? ""}
+                                        onChange={e => updateField("stream_hls_output_dir", e.target.value)}
+                                        fullWidth
+                                        placeholder="/app/data/hls"
+                                    />
+                                </div>
+                            )}
+                        </>
                     )}
                 </div>
             </div>

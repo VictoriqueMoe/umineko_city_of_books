@@ -12,22 +12,25 @@ import (
 
 type (
 	LiveStreamRow struct {
-		ID           uuid.UUID
-		UserID       uuid.UUID
-		Title        string
-		Status       string
-		LivekitRoom  string
-		IngressID    string
-		WhipURL      string
-		StreamKey    string
-		ViewerCount  int
-		StartedAt    sql.NullString
-		EndedAt      sql.NullString
-		CreatedAt    string
-		ThumbnailURL string
-		Username     string
-		DisplayName  string
-		AvatarURL    string
+		ID             uuid.UUID
+		UserID         uuid.UUID
+		Title          string
+		Status         string
+		LivekitRoom    string
+		IngressID      string
+		WhipURL        string
+		StreamKey      string
+		ViewerCount    int
+		StartedAt      sql.NullString
+		EndedAt        sql.NullString
+		CreatedAt      string
+		ThumbnailURL   string
+		EgressID       string
+		HLSPlaylistURL string
+		DefaultMode    string
+		Username       string
+		DisplayName    string
+		AvatarURL      string
 	}
 
 	LiveStreamRepository interface {
@@ -43,6 +46,8 @@ type (
 		MarkOffline(ctx context.Context, id uuid.UUID) (bool, error)
 		AdjustViewerCount(ctx context.Context, id uuid.UUID, delta int) (int, bool, error)
 		SetThumbnail(ctx context.Context, id uuid.UUID, url string) error
+		SetEgress(ctx context.Context, id uuid.UUID, egressID, hlsURL string) error
+		SetDefaultMode(ctx context.Context, id uuid.UUID, mode string) error
 	}
 
 	liveStreamRepository struct {
@@ -57,12 +62,14 @@ var (
 
 const liveStreamSelectColumns = `s.id, s.user_id, s.title, s.status, s.livekit_room, s.ingress_id,
 	s.whip_url, s.stream_key, s.viewer_count, s.started_at, s.ended_at, s.created_at, s.thumbnail_url,
+	s.egress_id, s.hls_playlist_url, s.default_mode,
 	u.username, u.display_name, u.avatar_url`
 
 func scanLiveStreamRow(scan func(dest ...any) error) (*LiveStreamRow, error) {
 	var s LiveStreamRow
 	err := scan(&s.ID, &s.UserID, &s.Title, &s.Status, &s.LivekitRoom, &s.IngressID,
 		&s.WhipURL, &s.StreamKey, &s.ViewerCount, &s.StartedAt, &s.EndedAt, &s.CreatedAt, &s.ThumbnailURL,
+		&s.EgressID, &s.HLSPlaylistURL, &s.DefaultMode,
 		&s.Username, &s.DisplayName, &s.AvatarURL)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
@@ -253,6 +260,30 @@ func (r *liveStreamRepository) SetThumbnail(ctx context.Context, id uuid.UUID, u
 	)
 	if err != nil {
 		return fmt.Errorf("set live stream thumbnail: %w", err)
+	}
+
+	return nil
+}
+
+func (r *liveStreamRepository) SetEgress(ctx context.Context, id uuid.UUID, egressID, hlsURL string) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE live_streams SET egress_id = $2, hls_playlist_url = $3 WHERE id = $1`,
+		id, egressID, hlsURL,
+	)
+	if err != nil {
+		return fmt.Errorf("set live stream egress: %w", err)
+	}
+
+	return nil
+}
+
+func (r *liveStreamRepository) SetDefaultMode(ctx context.Context, id uuid.UUID, mode string) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE live_streams SET default_mode = $2 WHERE id = $1`,
+		id, mode,
+	)
+	if err != nil {
+		return fmt.Errorf("set live stream default mode: %w", err)
 	}
 
 	return nil

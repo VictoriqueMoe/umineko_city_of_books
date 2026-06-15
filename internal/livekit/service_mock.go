@@ -99,6 +99,108 @@ func (_c *MockService_ActiveRooms_Call) RunAndReturn(run func(ctx context.Contex
 	return _c
 }
 
+// CreateEgress provides a mock function for the type MockService
+func (_mock *MockService) CreateEgress(ctx context.Context, roomName string, identity string, outputDir string, width int, height int, framerate int, bitrateKbps int) (string, error) {
+	ret := _mock.Called(ctx, roomName, identity, outputDir, width, height, framerate, bitrateKbps)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateEgress")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, int, int, int, int) (string, error)); ok {
+		return returnFunc(ctx, roomName, identity, outputDir, width, height, framerate, bitrateKbps)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, int, int, int, int) string); ok {
+		r0 = returnFunc(ctx, roomName, identity, outputDir, width, height, framerate, bitrateKbps)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, int, int, int, int) error); ok {
+		r1 = returnFunc(ctx, roomName, identity, outputDir, width, height, framerate, bitrateKbps)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_CreateEgress_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateEgress'
+type MockService_CreateEgress_Call struct {
+	*mock.Call
+}
+
+// CreateEgress is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roomName string
+//   - identity string
+//   - outputDir string
+//   - width int
+//   - height int
+//   - framerate int
+//   - bitrateKbps int
+func (_e *MockService_Expecter) CreateEgress(ctx any, roomName any, identity any, outputDir any, width any, height any, framerate any, bitrateKbps any) *MockService_CreateEgress_Call {
+	return &MockService_CreateEgress_Call{Call: _e.mock.On("CreateEgress", ctx, roomName, identity, outputDir, width, height, framerate, bitrateKbps)}
+}
+
+func (_c *MockService_CreateEgress_Call) Run(run func(ctx context.Context, roomName string, identity string, outputDir string, width int, height int, framerate int, bitrateKbps int)) *MockService_CreateEgress_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		var arg4 int
+		if args[4] != nil {
+			arg4 = args[4].(int)
+		}
+		var arg5 int
+		if args[5] != nil {
+			arg5 = args[5].(int)
+		}
+		var arg6 int
+		if args[6] != nil {
+			arg6 = args[6].(int)
+		}
+		var arg7 int
+		if args[7] != nil {
+			arg7 = args[7].(int)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+			arg5,
+			arg6,
+			arg7,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_CreateEgress_Call) Return(egressID string, err error) *MockService_CreateEgress_Call {
+	_c.Call.Return(egressID, err)
+	return _c
+}
+
+func (_c *MockService_CreateEgress_Call) RunAndReturn(run func(ctx context.Context, roomName string, identity string, outputDir string, width int, height int, framerate int, bitrateKbps int) (string, error)) *MockService_CreateEgress_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateIngress provides a mock function for the type MockService
 func (_mock *MockService) CreateIngress(ctx context.Context, roomName string, identity string, displayName string) (string, string, string, error) {
 	ret := _mock.Called(ctx, roomName, identity, displayName)
@@ -286,6 +388,90 @@ func (_c *MockService_Enabled_Call) Return(b bool) *MockService_Enabled_Call {
 }
 
 func (_c *MockService_Enabled_Call) RunAndReturn(run func() bool) *MockService_Enabled_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// IngressVideoState provides a mock function for the type MockService
+func (_mock *MockService) IngressVideoState(ctx context.Context, ingressID string) (int, int, int, int, error) {
+	ret := _mock.Called(ctx, ingressID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for IngressVideoState")
+	}
+
+	var r0 int
+	var r1 int
+	var r2 int
+	var r3 int
+	var r4 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (int, int, int, int, error)); ok {
+		return returnFunc(ctx, ingressID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) int); ok {
+		r0 = returnFunc(ctx, ingressID)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string) int); ok {
+		r1 = returnFunc(ctx, ingressID)
+	} else {
+		r1 = ret.Get(1).(int)
+	}
+	if returnFunc, ok := ret.Get(2).(func(context.Context, string) int); ok {
+		r2 = returnFunc(ctx, ingressID)
+	} else {
+		r2 = ret.Get(2).(int)
+	}
+	if returnFunc, ok := ret.Get(3).(func(context.Context, string) int); ok {
+		r3 = returnFunc(ctx, ingressID)
+	} else {
+		r3 = ret.Get(3).(int)
+	}
+	if returnFunc, ok := ret.Get(4).(func(context.Context, string) error); ok {
+		r4 = returnFunc(ctx, ingressID)
+	} else {
+		r4 = ret.Error(4)
+	}
+	return r0, r1, r2, r3, r4
+}
+
+// MockService_IngressVideoState_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IngressVideoState'
+type MockService_IngressVideoState_Call struct {
+	*mock.Call
+}
+
+// IngressVideoState is a helper method to define mock.On call
+//   - ctx context.Context
+//   - ingressID string
+func (_e *MockService_Expecter) IngressVideoState(ctx any, ingressID any) *MockService_IngressVideoState_Call {
+	return &MockService_IngressVideoState_Call{Call: _e.mock.On("IngressVideoState", ctx, ingressID)}
+}
+
+func (_c *MockService_IngressVideoState_Call) Run(run func(ctx context.Context, ingressID string)) *MockService_IngressVideoState_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_IngressVideoState_Call) Return(width int, height int, framerate int, bitrateKbps int, err error) *MockService_IngressVideoState_Call {
+	_c.Call.Return(width, height, framerate, bitrateKbps, err)
+	return _c
+}
+
+func (_c *MockService_IngressVideoState_Call) RunAndReturn(run func(ctx context.Context, ingressID string) (int, int, int, int, error)) *MockService_IngressVideoState_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -591,6 +777,63 @@ func (_c *MockService_SetCanPublish_Call) Return(err error) *MockService_SetCanP
 }
 
 func (_c *MockService_SetCanPublish_Call) RunAndReturn(run func(ctx context.Context, roomName string, identity string, canMic bool, canScreen bool) error) *MockService_SetCanPublish_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// StopEgress provides a mock function for the type MockService
+func (_mock *MockService) StopEgress(ctx context.Context, egressID string) error {
+	ret := _mock.Called(ctx, egressID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for StopEgress")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = returnFunc(ctx, egressID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_StopEgress_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'StopEgress'
+type MockService_StopEgress_Call struct {
+	*mock.Call
+}
+
+// StopEgress is a helper method to define mock.On call
+//   - ctx context.Context
+//   - egressID string
+func (_e *MockService_Expecter) StopEgress(ctx any, egressID any) *MockService_StopEgress_Call {
+	return &MockService_StopEgress_Call{Call: _e.mock.On("StopEgress", ctx, egressID)}
+}
+
+func (_c *MockService_StopEgress_Call) Run(run func(ctx context.Context, egressID string)) *MockService_StopEgress_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_StopEgress_Call) Return(err error) *MockService_StopEgress_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_StopEgress_Call) RunAndReturn(run func(ctx context.Context, egressID string) error) *MockService_StopEgress_Call {
 	_c.Call.Return(run)
 	return _c
 }

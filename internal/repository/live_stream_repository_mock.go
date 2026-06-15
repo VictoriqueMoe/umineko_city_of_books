@@ -713,6 +713,138 @@ func (_c *MockLiveStreamRepository_MarkOffline_Call) RunAndReturn(run func(ctx c
 	return _c
 }
 
+// SetDefaultMode provides a mock function for the type MockLiveStreamRepository
+func (_mock *MockLiveStreamRepository) SetDefaultMode(ctx context.Context, id uuid.UUID, mode string) error {
+	ret := _mock.Called(ctx, id, mode)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetDefaultMode")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) error); ok {
+		r0 = returnFunc(ctx, id, mode)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockLiveStreamRepository_SetDefaultMode_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetDefaultMode'
+type MockLiveStreamRepository_SetDefaultMode_Call struct {
+	*mock.Call
+}
+
+// SetDefaultMode is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id uuid.UUID
+//   - mode string
+func (_e *MockLiveStreamRepository_Expecter) SetDefaultMode(ctx any, id any, mode any) *MockLiveStreamRepository_SetDefaultMode_Call {
+	return &MockLiveStreamRepository_SetDefaultMode_Call{Call: _e.mock.On("SetDefaultMode", ctx, id, mode)}
+}
+
+func (_c *MockLiveStreamRepository_SetDefaultMode_Call) Run(run func(ctx context.Context, id uuid.UUID, mode string)) *MockLiveStreamRepository_SetDefaultMode_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockLiveStreamRepository_SetDefaultMode_Call) Return(err error) *MockLiveStreamRepository_SetDefaultMode_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockLiveStreamRepository_SetDefaultMode_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, mode string) error) *MockLiveStreamRepository_SetDefaultMode_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SetEgress provides a mock function for the type MockLiveStreamRepository
+func (_mock *MockLiveStreamRepository) SetEgress(ctx context.Context, id uuid.UUID, egressID string, hlsURL string) error {
+	ret := _mock.Called(ctx, id, egressID, hlsURL)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetEgress")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string) error); ok {
+		r0 = returnFunc(ctx, id, egressID, hlsURL)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockLiveStreamRepository_SetEgress_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetEgress'
+type MockLiveStreamRepository_SetEgress_Call struct {
+	*mock.Call
+}
+
+// SetEgress is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id uuid.UUID
+//   - egressID string
+//   - hlsURL string
+func (_e *MockLiveStreamRepository_Expecter) SetEgress(ctx any, id any, egressID any, hlsURL any) *MockLiveStreamRepository_SetEgress_Call {
+	return &MockLiveStreamRepository_SetEgress_Call{Call: _e.mock.On("SetEgress", ctx, id, egressID, hlsURL)}
+}
+
+func (_c *MockLiveStreamRepository_SetEgress_Call) Run(run func(ctx context.Context, id uuid.UUID, egressID string, hlsURL string)) *MockLiveStreamRepository_SetEgress_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockLiveStreamRepository_SetEgress_Call) Return(err error) *MockLiveStreamRepository_SetEgress_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockLiveStreamRepository_SetEgress_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, egressID string, hlsURL string) error) *MockLiveStreamRepository_SetEgress_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SetIngress provides a mock function for the type MockLiveStreamRepository
 func (_mock *MockLiveStreamRepository) SetIngress(ctx context.Context, id uuid.UUID, ingressID string, room string, whipURL string, streamKey string) error {
 	ret := _mock.Called(ctx, id, ingressID, room, whipURL, streamKey)

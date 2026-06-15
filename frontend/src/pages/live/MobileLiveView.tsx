@@ -4,8 +4,9 @@ import { RoomAudioRenderer, RoomContext, StartAudio } from "@livekit/components-
 import type { Room } from "livekit-client";
 import { VolumeSlider } from "../../components/VolumeSlider/VolumeSlider";
 import { useChatViewport } from "../../hooks/useChatViewport";
-import { type LiveStream } from "../../api/endpoints";
+import { type LiveStream, type StreamDefaultMode } from "../../api/endpoints";
 import { StreamChatPanel } from "./StreamChatPanel";
+import { HLSVideoPlayer } from "../../components/live/HLSVideoPlayer";
 import { StreamStage, StreamUptime, StreamViewers, ViewerCountReporter } from "./streamParts";
 import styles from "./live.module.css";
 
@@ -18,6 +19,8 @@ interface MobileLiveViewProps {
     onVolumeChange: (value: number) => void;
     stageRef: RefObject<HTMLDivElement | null>;
     onToggleFullscreen: () => void;
+    mode: StreamDefaultMode;
+    onModeChange: (mode: StreamDefaultMode) => void;
 }
 
 const noop = () => {};
@@ -32,6 +35,8 @@ export function MobileLiveView({
     onVolumeChange,
     stageRef,
     onToggleFullscreen,
+    mode,
+    onModeChange,
 }: MobileLiveViewProps) {
     const [tab, setTab] = useState<"chat" | "viewers">("chat");
     const [keyboardOpen, setKeyboardOpen] = useState(false);
@@ -86,7 +91,11 @@ export function MobileLiveView({
     return (
         <div className={`${styles.mobileShell} ${keyboardOpen ? styles.mobileShellKeyboard : ""}`}>
             <div className={styles.mobileStage} ref={stageRef} style={stageStyle}>
-                {isLive && room ? (
+                {!isLive ? (
+                    <div className={styles.offline}>{error ? error : "This stream is offline."}</div>
+                ) : mode === "hls" && stream.hlsUrl ? (
+                    <HLSVideoPlayer src={stream.hlsUrl} className={styles.video} />
+                ) : room ? (
                     <RoomContext.Provider value={room}>
                         <StreamStage />
                         <ViewerCountReporter onChange={setViewerCount} />
@@ -100,8 +109,24 @@ export function MobileLiveView({
                         />
                     </RoomContext.Provider>
                 ) : (
-                    <div className={styles.offline}>
-                        {error ? error : isLive ? "Connecting..." : "This stream is offline."}
+                    <div className={styles.offline}>{error ? error : "Connecting..."}</div>
+                )}
+                {isLive && stream.hlsUrl && (
+                    <div className={styles.modeToggle}>
+                        <button
+                            type="button"
+                            className={mode === "webrtc" ? styles.modeBtnActive : styles.modeBtn}
+                            onClick={() => onModeChange("webrtc")}
+                        >
+                            Low latency
+                        </button>
+                        <button
+                            type="button"
+                            className={mode === "hls" ? styles.modeBtnActive : styles.modeBtn}
+                            onClick={() => onModeChange("hls")}
+                        >
+                            Smooth
+                        </button>
                     </div>
                 )}
                 {isLive && <StreamUptime startedAt={stream.startedAt} />}

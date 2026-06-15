@@ -6,13 +6,20 @@ import { RoomAudioRenderer, RoomContext, StartAudio } from "@livekit/components-
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useNotifications } from "../../hooks/useNotifications";
 import { useIsMobile } from "../../hooks/useIsMobile";
-import { getStream, getStreamViewerToken, uploadStreamThumbnail, type LiveStream } from "../../api/endpoints";
+import {
+    getStream,
+    getStreamViewerToken,
+    uploadStreamThumbnail,
+    type LiveStream,
+    type StreamDefaultMode,
+} from "../../api/endpoints";
 import type { WSMessage } from "../../types/api";
 import { useAuth } from "../../hooks/useAuth";
 import { VolumeSlider } from "../../components/VolumeSlider/VolumeSlider";
 import { StreamChatPanel } from "./StreamChatPanel";
 import { StreamStage, StreamUptime, StreamViewers } from "./streamParts";
 import { MobileLiveView } from "./MobileLiveView";
+import { HLSVideoPlayer } from "../../components/live/HLSVideoPlayer";
 import styles from "./live.module.css";
 
 export function LiveWatchPage() {
@@ -36,8 +43,11 @@ export function LiveWatchPage() {
     const [volume, setVolume] = useState(1);
     const roomRef = useRef<Room | null>(null);
     const stageRef = useRef<HTMLDivElement>(null);
+    const [modeOverride, setModeOverride] = useState<StreamDefaultMode | null>(null);
 
     const isLive = stream?.status === "live";
+    const mode: StreamDefaultMode =
+        modeOverride ?? (stream?.defaultMode === "hls" && stream?.hlsUrl ? "hls" : "webrtc");
 
     function toggleFullscreen() {
         const el = stageRef.current;
@@ -78,7 +88,7 @@ export function LiveWatchPage() {
     }, [addWSListener, qc, streamID]);
 
     useEffect(() => {
-        if (!streamID || !isLive) {
+        if (!streamID || !isLive || mode !== "webrtc") {
             return;
         }
 
@@ -116,7 +126,7 @@ export function LiveWatchPage() {
             }
             lkRoom.disconnect().catch(() => {});
         };
-    }, [streamID, isLive]);
+    }, [streamID, isLive, mode]);
 
     useEffect(() => {
         if (!user || !isLive || !room || !streamID) {
@@ -193,6 +203,8 @@ export function LiveWatchPage() {
                 onVolumeChange={setVolume}
                 stageRef={stageRef}
                 onToggleFullscreen={toggleFullscreen}
+                mode={mode}
+                onModeChange={setModeOverride}
             />
         );
     }
@@ -201,7 +213,11 @@ export function LiveWatchPage() {
         <div className={styles.watchLayout}>
             <div className={styles.watchMain}>
                 <div className={styles.stage} ref={stageRef}>
-                    {isLive && room ? (
+                    {!isLive ? (
+                        <div className={styles.offline}>{error ? error : "This stream is offline."}</div>
+                    ) : mode === "hls" && stream.hlsUrl ? (
+                        <HLSVideoPlayer src={stream.hlsUrl} className={styles.video} />
+                    ) : room ? (
                         <RoomContext.Provider value={room}>
                             <StreamStage />
                             <RoomAudioRenderer volume={volume} />
@@ -214,8 +230,26 @@ export function LiveWatchPage() {
                             />
                         </RoomContext.Provider>
                     ) : (
-                        <div className={styles.offline}>
-                            {error ? error : isLive ? "Connecting..." : "This stream is offline."}
+                        <div className={styles.offline}>{error ? error : "Connecting..."}</div>
+                    )}
+                    {isLive && stream.hlsUrl && (
+                        <div className={styles.modeToggle}>
+                            <button
+                                type="button"
+                                className={mode === "webrtc" ? styles.modeBtnActive : styles.modeBtn}
+                                onClick={() => setModeOverride("webrtc")}
+                                title="Sub-second latency, may stutter on a weak connection"
+                            >
+                                Low latency
+                            </button>
+                            <button
+                                type="button"
+                                className={mode === "hls" ? styles.modeBtnActive : styles.modeBtn}
+                                onClick={() => setModeOverride("hls")}
+                                title="A few seconds behind, but smooth"
+                            >
+                                Smooth
+                            </button>
                         </div>
                     )}
                     {isLive && <StreamUptime startedAt={stream.startedAt} />}

@@ -371,6 +371,38 @@
     z-index: 3;
 }
 
+.modeToggle {
+    position: absolute;
+    top: 0.6rem;
+    right: 0.6rem;
+    z-index: 3;
+    display: flex;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.2));
+}
+
+.modeBtn,
+.modeBtnActive {
+    border: none;
+    background: rgba(0, 0, 0, 0.55);
+    color: #fff;
+    font-size: 0.78rem;
+    line-height: 1;
+    padding: 0.35rem 0.6rem;
+    cursor: pointer;
+}
+
+.modeBtn:hover {
+    background: rgba(0, 0, 0, 0.8);
+}
+
+.modeBtnActive {
+    background: var(--gold, #c9a227);
+    color: #000;
+    font-weight: 600;
+}
+
 .chatPanel {
     flex: 1 1 auto;
     display: flex;

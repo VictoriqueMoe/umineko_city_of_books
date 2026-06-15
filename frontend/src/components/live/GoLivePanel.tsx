@@ -7,6 +7,7 @@ import {
     stopStream,
     type LiveStream,
     type StreamCredentials,
+    type StreamDefaultMode,
     type StreamOwner,
 } from "../../api/endpoints";
 import { useNotifications } from "../../hooks/useNotifications";
@@ -14,6 +15,15 @@ import type { WSMessage } from "../../types/api";
 import { Button } from "../Button/Button";
 import { Input } from "../Input/Input";
 import styles from "./GoLivePanel.module.css";
+
+const STREAM_RESOLUTIONS = [
+    { label: "720p", pixels: 1280 * 720 },
+    { label: "1080p", pixels: 1920 * 1080 },
+    { label: "1440p", pixels: 2560 * 1440 },
+    { label: "4K", pixels: 3840 * 2160 },
+];
+
+const FPS_OPTIONS = [30, 60];
 
 interface GoLivePanelProps {
     onChanged?: () => void;
@@ -25,10 +35,14 @@ export function GoLivePanel({ onChanged }: GoLivePanelProps) {
     const [creds, setCreds] = useState<StreamCredentials | null>(null);
     const [credsError, setCredsError] = useState(false);
     const [title, setTitle] = useState("");
+    const [defaultMode, setDefaultMode] = useState<StreamDefaultMode>("webrtc");
+    const [resIdx, setResIdx] = useState(1);
+    const [calcFps, setCalcFps] = useState(60);
     const [busy, setBusy] = useState(false);
     const [resetting, setResetting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [copied, setCopied] = useState<string | null>(null);
+    const [setupOpen, setSetupOpen] = useState(false);
 
     useEffect(() => {
         getMyStream()
@@ -74,8 +88,9 @@ export function GoLivePanel({ onChanged }: GoLivePanelProps) {
         setError(null);
 
         try {
-            const result = await startStream(trimmed);
+            const result = await startStream(trimmed, defaultMode);
             setOwner(result);
+            setCreds({ whipUrl: result.whipUrl, streamKey: result.streamKey });
             onChanged?.();
         } catch (err) {
             setError(err instanceof Error ? err.message : "Could not start the stream.");
@@ -134,6 +149,12 @@ export function GoLivePanel({ onChanged }: GoLivePanelProps) {
             .catch(() => {});
     }
 
+    const pixelsPerSecond = STREAM_RESOLUTIONS[resIdx].pixels * calcFps;
+    const kbpsAt = (bpp: number) => Math.round((pixelsPerSecond * bpp) / 1000 / 500) * 500;
+    const lowKbps = kbpsAt(0.07);
+    const highKbps = kbpsAt(0.12);
+    const typicalKbps = kbpsAt(0.095);
+
     return (
         <div className={styles.panel}>
             {owner ? (
@@ -175,6 +196,29 @@ export function GoLivePanel({ onChanged }: GoLivePanelProps) {
                         maxLength={120}
                         fullWidth
                     />
+                    <div className={styles.field}>
+                        <span className={styles.fieldLabel}>Default playback for viewers</span>
+                        <div className={styles.actions}>
+                            <Button
+                                size="small"
+                                variant={defaultMode === "webrtc" ? "primary" : "secondary"}
+                                onClick={() => setDefaultMode("webrtc")}
+                            >
+                                Low latency
+                            </Button>
+                            <Button
+                                size="small"
+                                variant={defaultMode === "hls" ? "primary" : "secondary"}
+                                onClick={() => setDefaultMode("hls")}
+                            >
+                                Smooth
+                            </Button>
+                        </div>
+                        <span className={styles.resetHint}>
+                            Low latency is best for chatting and slower games; Smooth (a few seconds behind) avoids
+                            freezes on fast, twitchy content. Viewers can switch either way.
+                        </span>
+                    </div>
                     <div className={styles.actions}>
                         <Button variant="primary" onClick={() => handleStart()} disabled={busy || !title.trim()}>
                             {busy ? "Starting..." : "Go live"}
@@ -185,90 +229,170 @@ export function GoLivePanel({ onChanged }: GoLivePanelProps) {
 
             {error && <p className={styles.error}>{error}</p>}
 
-            <div className={styles.setup}>
-                <h3 className={styles.setupHeading}>OBS setup (one time)</h3>
-                {credsError && (
-                    <p className={styles.hint}>Could not load your stream key. Reload the page to try again.</p>
-                )}
-                {creds && (
-                    <>
-                        <p className={styles.hint}>
-                            Set this up once in OBS and you're ready every time, your server and key stay the same until
-                            you reset them.
-                        </p>
-                        <ol className={styles.steps}>
-                            <li>
-                                Open <strong>OBS Studio</strong> (version 30 or newer). Streamlabs works too, but its
-                                WHIP has audio glitches, so OBS is recommended.
-                            </li>
-                            <li>
-                                In OBS, open <strong>Settings {"→"} Stream</strong>.
-                            </li>
-                            <li>
-                                Set <strong>Service</strong> to <strong>WHIP</strong>.
-                            </li>
-                            <li>
-                                Copy the <strong>WHIP server</strong> below into OBS's <strong>Server</strong> box.
-                            </li>
-                            <li>
-                                Copy the <strong>Stream key</strong> below into OBS's <strong>Bearer Token</strong> box.
-                            </li>
-                            <li>
-                                Click <strong>OK</strong>. From now on, to go live: enter a title above, press
-                                <strong> Go live</strong>, then press <strong>Start Streaming</strong> in OBS, no
-                                reconfiguring.
-                            </li>
-                        </ol>
-
-                        <div className={styles.field}>
-                            <span className={styles.fieldLabel}>WHIP server (Server)</span>
-                            <div className={styles.copyRow}>
-                                <code className={styles.code}>{creds.whipUrl}</code>
-                                <Button size="small" variant="secondary" onClick={() => copy("url", creds.whipUrl)}>
-                                    {copied === "url" ? "Copied" : "Copy"}
-                                </Button>
-                            </div>
-                        </div>
-
-                        <div className={styles.field}>
-                            <span className={styles.fieldLabel}>Stream key (Bearer Token)</span>
-                            <div className={styles.copyRow}>
-                                <code className={styles.code}>{creds.streamKey}</code>
-                                <Button size="small" variant="secondary" onClick={() => copy("key", creds.streamKey)}>
-                                    {copied === "key" ? "Copied" : "Copy"}
-                                </Button>
-                            </div>
-                        </div>
-
-                        <div className={styles.resetRow}>
-                            <Button
-                                size="small"
-                                variant="ghost"
-                                onClick={() => handleReset()}
-                                disabled={resetting || !!owner}
-                            >
-                                {resetting ? "Resetting..." : "Reset stream key"}
-                            </Button>
-                            <span className={styles.resetHint}>
-                                {owner
-                                    ? "Stop streaming before resetting your key."
-                                    : "Use this if your key leaks, then update OBS with the new one."}
+            {creds && (
+                <div className={styles.disclosure}>
+                    <button
+                        type="button"
+                        className={styles.disclosureToggle}
+                        onClick={() => setSetupOpen(open => !open)}
+                        aria-expanded={setupOpen}
+                    >
+                        <span className={styles.disclosureText}>
+                            <span className={styles.disclosureTitle}>OBS streaming setup</span>
+                            <span className={styles.disclosureSub}>
+                                Server, key, encoder settings, and a bitrate calculator
                             </span>
-                        </div>
+                        </span>
+                        <span className={`${styles.chevron} ${setupOpen ? styles.chevronOpen : ""}`}>{"▾"}</span>
+                    </button>
 
-                        <p className={styles.tip}>
-                            Whatever resolution, bitrate, and framerate you set in OBS is exactly what your viewers get,
-                            the site never re-encodes your stream. Live video runs a few seconds behind real time, which
-                            is normal.
-                        </p>
-                        <p className={styles.tip}>
-                            To also stream to a non-WebRTC service (such as Twitch or YouTube) at the same time, run a
-                            second instance of OBS set up for that service. On Windows you can start one with{" "}
-                            <code className={styles.inlineCode}>obs --multi</code>.
-                        </p>
-                    </>
-                )}
-            </div>
+                    {setupOpen && (
+                        <div className={styles.disclosureBody}>
+                            <section className={styles.subSection}>
+                                <h4 className={styles.subHeading}>
+                                    <span className={styles.subNum}>1</span> Connect OBS
+                                </h4>
+                                <ol className={styles.steps}>
+                                    <li>
+                                        OBS 30+, <strong>Settings {"→"} Stream</strong>, Service = <strong>WHIP</strong>
+                                        .
+                                    </li>
+                                    <li>Paste the server and key below, click OK.</li>
+                                </ol>
+
+                                <div className={styles.field}>
+                                    <span className={styles.fieldLabel}>WHIP server</span>
+                                    <div className={styles.copyRow}>
+                                        <code className={styles.code}>{creds.whipUrl}</code>
+                                        <Button
+                                            size="small"
+                                            variant="secondary"
+                                            onClick={() => copy("url", creds.whipUrl)}
+                                        >
+                                            {copied === "url" ? "Copied" : "Copy"}
+                                        </Button>
+                                    </div>
+                                </div>
+
+                                <div className={styles.field}>
+                                    <span className={styles.fieldLabel}>Stream key (bearer token)</span>
+                                    <div className={styles.copyRow}>
+                                        <code className={styles.code}>{creds.streamKey}</code>
+                                        <Button
+                                            size="small"
+                                            variant="secondary"
+                                            onClick={() => copy("key", creds.streamKey)}
+                                        >
+                                            {copied === "key" ? "Copied" : "Copy"}
+                                        </Button>
+                                    </div>
+                                </div>
+
+                                <div className={styles.resetRow}>
+                                    <Button
+                                        size="small"
+                                        variant="ghost"
+                                        onClick={() => handleReset()}
+                                        disabled={resetting || !!owner}
+                                    >
+                                        {resetting ? "Resetting..." : "Reset stream key"}
+                                    </Button>
+                                    <span className={styles.resetHint}>Use this if your key leaks.</span>
+                                </div>
+                            </section>
+
+                            <section className={styles.subSection}>
+                                <h4 className={styles.subHeading}>
+                                    <span className={styles.subNum}>2</span> Encoder settings
+                                </h4>
+                                <table className={styles.encTable}>
+                                    <tbody>
+                                        <tr>
+                                            <th>Video encoder</th>
+                                            <td>
+                                                H.264 <span className={styles.encNote}>x264 or NVENC</span>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th>B-Frames</th>
+                                            <td>0</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Rate control</th>
+                                            <td>CBR</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Keyframe interval</th>
+                                            <td>2s</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Audio encoder</th>
+                                            <td>Opus</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                                <p className={styles.hint}>
+                                    H.264 only, AV1 and HEVC will not connect. B-Frames must be 0 or WebRTC ingest
+                                    stutters.
+                                </p>
+                            </section>
+
+                            <section className={styles.subSection}>
+                                <h4 className={styles.subHeading}>
+                                    <span className={styles.subNum}>3</span> Bitrate calculator
+                                </h4>
+                                <div className={styles.calcCard}>
+                                    <div className={styles.calcGroup}>
+                                        <span className={styles.calcLabel}>Resolution</span>
+                                        <div className={styles.pills}>
+                                            {STREAM_RESOLUTIONS.map((r, i) => (
+                                                <button
+                                                    key={r.label}
+                                                    type="button"
+                                                    className={i === resIdx ? styles.pillActive : styles.pill}
+                                                    onClick={() => setResIdx(i)}
+                                                >
+                                                    {r.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className={styles.calcGroup}>
+                                        <span className={styles.calcLabel}>Framerate</span>
+                                        <div className={styles.pills}>
+                                            {FPS_OPTIONS.map(f => (
+                                                <button
+                                                    key={f}
+                                                    type="button"
+                                                    className={f === calcFps ? styles.pillActive : styles.pill}
+                                                    onClick={() => setCalcFps(f)}
+                                                >
+                                                    {f} fps
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className={styles.calcResult}>
+                                        <span className={styles.calcResultMain}>
+                                            {typicalKbps.toLocaleString()}
+                                            <span className={styles.calcUnit}> Kbps</span>
+                                        </span>
+                                        <span className={styles.calcResultSub}>
+                                            {lowKbps.toLocaleString()} to {highKbps.toLocaleString()} range, set as CBR
+                                        </span>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <p className={styles.tip}>
+                                <strong>Low latency</strong> is your stream untouched. <strong>Smooth</strong> is
+                                re-encoded and a few seconds behind, but never freezes. Viewers choose.
+                            </p>
+                        </div>
+                    )}
+                </div>
+            )}
+            {credsError && <p className={styles.hint}>Could not load your stream key. Reload the page to try again.</p>}
         </div>
     );
 }
