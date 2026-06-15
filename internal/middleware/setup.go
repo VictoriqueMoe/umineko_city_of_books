@@ -64,8 +64,12 @@ func Setup(app *fiber.App, settingsSvc settings.Service, sessionMgr *session.Man
 		case strings.HasPrefix(path, "/hls/"):
 			if strings.HasSuffix(path, ".m3u8") {
 				ctx.Set("Cache-Control", "no-cache")
+				ctx.Set("Content-Type", "application/vnd.apple.mpegurl")
 			} else {
 				ctx.Set("Cache-Control", "public, max-age=31536000, immutable")
+				if strings.HasSuffix(path, ".ts") {
+					ctx.Set("Content-Type", "video/mp2t")
+				}
 			}
 		case strings.HasPrefix(path, "/characters/") || strings.HasPrefix(path, "/sounds/") || strings.HasPrefix(path, "/favicon/"):
 			ctx.Set("Cache-Control", "public, max-age=2592000")

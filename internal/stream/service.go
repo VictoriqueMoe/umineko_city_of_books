@@ -26,7 +26,7 @@ import (
 type (
 	Service interface {
 		Enabled() bool
-		StartStream(ctx context.Context, userID uuid.UUID, title string, defaultMode dto.StreamDefaultMode) (*dto.StreamOwnerResponse, error)
+		StartStream(ctx context.Context, userID uuid.UUID, title string, defaultMode dto.StreamDefaultMode, bitrateKbps int) (*dto.StreamOwnerResponse, error)
 		StopStream(ctx context.Context, userID, streamID uuid.UUID) error
 		MyStream(ctx context.Context, userID uuid.UUID) (*dto.StreamOwnerResponse, error)
 		ListLive(ctx context.Context) ([]dto.LiveStreamResponse, error)
@@ -58,18 +58,21 @@ type (
 		credsMu     sync.Mutex
 		thumbMu     sync.Mutex
 		thumbAt     map[uuid.UUID]time.Time
+		bitrateMu   sync.Mutex
+		bitrates    map[uuid.UUID]int
 	}
 )
 
 const (
-	roomPrefix             = "live_"
-	broadcasterPrefix      = "broadcaster_"
-	viewerPrefix           = "viewer_"
-	hlsRoutePrefix         = "/hls"
-	hlsBitsPerPixel        = 0.08
-	hlsFallbackBitrate     = 8000
-	hlsBitrateReadAttempts = 6
-	hlsBitrateReadInterval = 2 * time.Second
+	roomPrefix           = "live_"
+	broadcasterPrefix    = "broadcaster_"
+	viewerPrefix         = "viewer_"
+	hlsRoutePrefix       = "/hls"
+	hlsVideoReadAttempts = 6
+	hlsVideoReadInterval = 2 * time.Second
+
+	minBitrateKbps = 500
+	maxBitrateKbps = 50000
 
 	wsStreamLive    = "stream_live"
 	wsStreamOffline = "stream_offline"
@@ -95,6 +98,7 @@ var (
 	ErrStreamNotFound = errors.New("stream not found")
 	ErrNotOwner       = errors.New("not the stream owner")
 	ErrTitleRequired  = errors.New("stream title is required")
+	ErrInvalidBitrate = errors.New("stream bitrate must be between 500 and 50000 Kbps")
 )
 
 func NewService(repo repository.LiveStreamRepository, creds repository.StreamCredentialsRepository, livekitSvc livekit.Service, settingsSvc settings.Service, uploadSvc upload.Service, hub *ws.Hub) Service {
@@ -106,6 +110,7 @@ func NewService(repo repository.LiveStreamRepository, creds repository.StreamCre
 		uploadSvc:   uploadSvc,
 		hub:         hub,
 		thumbAt:     make(map[uuid.UUID]time.Time),
+		bitrates:    make(map[uuid.UUID]int),
 	}
 }
 
@@ -216,6 +221,25 @@ func (s *service) hlsEnabled() bool {
 	return s.settingsSvc.GetBool(context.Background(), config.SettingStreamHLSEnabled)
 }
 
+func (s *service) setBitrate(streamID uuid.UUID, kbps int) {
+	s.bitrateMu.Lock()
+	s.bitrates[streamID] = kbps
+	s.bitrateMu.Unlock()
+}
+
+func (s *service) bitrate(streamID uuid.UUID) int {
+	s.bitrateMu.Lock()
+	defer s.bitrateMu.Unlock()
+
+	return s.bitrates[streamID]
+}
+
+func (s *service) clearBitrate(streamID uuid.UUID) {
+	s.bitrateMu.Lock()
+	delete(s.bitrates, streamID)
+	s.bitrateMu.Unlock()
+}
+
 func (s *service) startEgress(streamID uuid.UUID, room, identity, ingressID string) {
 	if room == "" || identity == "" || !s.hlsEnabled() {
 		return
@@ -227,15 +251,12 @@ func (s *service) startEgress(streamID uuid.UUID, room, identity, ingressID stri
 func (s *service) runEgress(streamID uuid.UUID, room, identity, ingressID string) {
 	ctx := context.Background()
 
-	width, height, framerate, bitrate := s.awaitIngressVideo(ctx, ingressID)
+	width, height, framerate := s.awaitIngressVideo(ctx, ingressID)
 	if framerate <= 0 {
 		framerate = 60
 	}
 
-	derived := bitrate <= 0
-	if derived {
-		bitrate = deriveHLSBitrate(width, height, framerate)
-	}
+	bitrate := s.bitrate(streamID)
 
 	outputDir := s.settingsSvc.Get(ctx, config.SettingStreamHLSOutputDir)
 
@@ -245,7 +266,6 @@ func (s *service) runEgress(streamID uuid.UUID, room, identity, ingressID string
 		Int("height", height).
 		Int("framerate", framerate).
 		Int("bitrate_kbps", bitrate).
-		Bool("derived", derived).
 		Msg("starting stream HLS egress")
 
 	egressID, err := s.livekitSvc.CreateEgress(ctx, room, identity, outputDir, width, height, framerate, bitrate)
@@ -262,38 +282,21 @@ func (s *service) runEgress(streamID uuid.UUID, room, identity, ingressID string
 	s.broadcastLive(ctx, streamID)
 }
 
-func (s *service) awaitIngressVideo(ctx context.Context, ingressID string) (width, height, framerate, bitrateKbps int) {
-	for attempt := 0; attempt < hlsBitrateReadAttempts; attempt++ {
-		time.Sleep(hlsBitrateReadInterval)
+func (s *service) awaitIngressVideo(ctx context.Context, ingressID string) (width, height, framerate int) {
+	for attempt := 0; attempt < hlsVideoReadAttempts; attempt++ {
+		time.Sleep(hlsVideoReadInterval)
 
-		w, h, fps, kbps, err := s.livekitSvc.IngressVideoState(ctx, ingressID)
+		w, h, fps, _, err := s.livekitSvc.IngressVideoState(ctx, ingressID)
 		if err != nil {
 			continue
 		}
 
-		if kbps > 0 {
-			return w, h, fps, kbps
-		}
-
 		if w > 0 {
-			width, height, framerate = w, h, fps
+			return w, h, fps
 		}
 	}
 
-	return width, height, framerate, 0
-}
-
-func deriveHLSBitrate(width, height, framerate int) int {
-	if width <= 0 || height <= 0 {
-		return hlsFallbackBitrate
-	}
-
-	fps := framerate
-	if fps <= 0 {
-		fps = 60
-	}
-
-	return int(float64(width*height*fps) * hlsBitsPerPixel / 1000)
+	return width, height, framerate
 }
 
 func hlsPlaylistURL(room string) string {
@@ -313,7 +316,33 @@ func (s *service) cleanupHLS(room string) {
 	}
 }
 
-func (s *service) StartStream(ctx context.Context, userID uuid.UUID, title string, defaultMode dto.StreamDefaultMode) (*dto.StreamOwnerResponse, error) {
+func (s *service) sweepHLS(ctx context.Context) {
+	outputDir := s.settingsSvc.Get(ctx, config.SettingStreamHLSOutputDir)
+	if outputDir == "" {
+		return
+	}
+
+	entries, err := os.ReadDir(outputDir)
+	if err != nil {
+		return
+	}
+
+	for i := 0; i < len(entries); i++ {
+		entry := entries[i]
+		if !entry.IsDir() || !strings.HasPrefix(entry.Name(), roomPrefix) {
+			continue
+		}
+
+		stream, err := s.repo.GetByRoom(ctx, entry.Name())
+		if err == nil && stream != nil && stream.Status == statusLive {
+			continue
+		}
+
+		s.cleanupHLS(entry.Name())
+	}
+}
+
+func (s *service) StartStream(ctx context.Context, userID uuid.UUID, title string, defaultMode dto.StreamDefaultMode, bitrateKbps int) (*dto.StreamOwnerResponse, error) {
 	if !s.Enabled() {
 		return nil, ErrDisabled
 	}
@@ -321,6 +350,10 @@ func (s *service) StartStream(ctx context.Context, userID uuid.UUID, title strin
 	title = strings.TrimSpace(title)
 	if title == "" {
 		return nil, ErrTitleRequired
+	}
+
+	if bitrateKbps < minBitrateKbps || bitrateKbps > maxBitrateKbps {
+		return nil, ErrInvalidBitrate
 	}
 
 	titleRunes := []rune(title)
@@ -394,6 +427,8 @@ func (s *service) StartStream(ctx context.Context, userID uuid.UUID, title strin
 	if err := s.repo.SetDefaultMode(ctx, streamID, string(mode)); err != nil {
 		logger.Log.Warn().Err(err).Str("stream_id", streamID.String()).Msg("set stream default mode failed")
 	}
+
+	s.setBitrate(streamID, bitrateKbps)
 
 	s.createChatRoom(ctx, streamID, userID, stream.Title)
 
@@ -669,12 +704,17 @@ func (s *service) HandleWebhook(ctx context.Context, authHeader string, body []b
 
 	case livekit.EventRoomFinished:
 		s.teardown(ctx, stream)
+
+	case livekit.EventEgressEnded:
+		s.cleanupHLS(event.RoomName)
 	}
 
 	return true, nil
 }
 
 func (s *service) teardown(ctx context.Context, stream *repository.LiveStreamRow) bool {
+	s.clearBitrate(stream.ID)
+
 	transitioned, err := s.repo.MarkOffline(ctx, stream.ID)
 	if err != nil {
 		logger.Log.Warn().Err(err).Str("stream_id", stream.ID.String()).Msg("mark stream offline failed")
@@ -688,8 +728,6 @@ func (s *service) teardown(ctx context.Context, stream *repository.LiveStreamRow
 		if err := s.livekitSvc.StopEgress(ctx, stream.EgressID); err != nil {
 			logger.Log.Warn().Err(err).Str("stream_id", stream.ID.String()).Msg("stop stream egress failed")
 		}
-
-		s.cleanupHLS(stream.LivekitRoom)
 	}
 
 	s.deleteChatRoom(ctx, stream.ID)
@@ -761,6 +799,8 @@ func (s *service) ReconcileOnce(ctx context.Context) (int, error) {
 			reaped++
 		}
 	}
+
+	s.sweepHLS(ctx)
 
 	return reaped, nil
 }

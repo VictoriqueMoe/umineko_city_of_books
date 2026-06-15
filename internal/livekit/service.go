@@ -49,12 +49,13 @@ type (
 )
 
 const (
-	tokenTTL = time.Hour
+	tokenTTL = 24 * time.Hour
 
 	EventParticipantJoined = "participant_joined"
 	EventParticipantLeft   = "participant_left"
 	EventRoomFinished      = "room_finished"
 	EventTrackPublished    = "track_published"
+	EventEgressEnded       = "egress_ended"
 )
 
 var (
@@ -227,6 +228,10 @@ func (s *service) ParseWebhook(authHeader string, body []byte) (*Event, error) {
 
 	if track := raw.GetTrack(); track != nil {
 		ev.TrackKind = strings.ToLower(track.GetType().String())
+	}
+
+	if info := raw.GetEgressInfo(); info != nil {
+		ev.RoomName = info.GetRoomName()
 	}
 
 	return ev, nil

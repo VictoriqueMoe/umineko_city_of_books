@@ -23,6 +23,7 @@ type (
 	StartStreamRequest struct {
 		Title       string            `json:"title"`
 		DefaultMode StreamDefaultMode `json:"defaultMode"`
+		Bitrate     int               `json:"bitrate"`
 	}
 
 	StreamOwnerResponse struct {

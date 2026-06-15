@@ -25,6 +25,10 @@ const STREAM_RESOLUTIONS = [
 
 const FPS_OPTIONS = [30, 60];
 
+const BITRATE_STORAGE_KEY = "stream.bitrateKbps";
+const MIN_BITRATE = 500;
+const MAX_BITRATE = 50000;
+
 interface GoLivePanelProps {
     onChanged?: () => void;
 }
@@ -38,11 +42,15 @@ export function GoLivePanel({ onChanged }: GoLivePanelProps) {
     const [defaultMode, setDefaultMode] = useState<StreamDefaultMode>("webrtc");
     const [resIdx, setResIdx] = useState(1);
     const [calcFps, setCalcFps] = useState(60);
+    const [bitrate, setBitrate] = useState(() => localStorage.getItem(BITRATE_STORAGE_KEY) ?? "");
     const [busy, setBusy] = useState(false);
     const [resetting, setResetting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [copied, setCopied] = useState<string | null>(null);
     const [setupOpen, setSetupOpen] = useState(false);
+
+    const bitrateNum = Number(bitrate);
+    const bitrateValid = Number.isFinite(bitrateNum) && bitrateNum >= MIN_BITRATE && bitrateNum <= MAX_BITRATE;
 
     useEffect(() => {
         getMyStream()
@@ -80,7 +88,7 @@ export function GoLivePanel({ onChanged }: GoLivePanelProps) {
 
     async function handleStart() {
         const trimmed = title.trim();
-        if (!trimmed) {
+        if (!trimmed || !bitrateValid) {
             return;
         }
 
@@ -88,7 +96,9 @@ export function GoLivePanel({ onChanged }: GoLivePanelProps) {
         setError(null);
 
         try {
-            const result = await startStream(trimmed, defaultMode);
+            const kbps = Math.round(bitrateNum);
+            localStorage.setItem(BITRATE_STORAGE_KEY, String(kbps));
+            const result = await startStream(trimmed, defaultMode, kbps);
             setOwner(result);
             setCreds({ whipUrl: result.whipUrl, streamKey: result.streamKey });
             onChanged?.();
@@ -219,8 +229,29 @@ export function GoLivePanel({ onChanged }: GoLivePanelProps) {
                             freezes on fast, twitchy content. Viewers can switch either way.
                         </span>
                     </div>
+                    <div className={styles.field}>
+                        <span className={styles.fieldLabel}>Stream bitrate (Kbps)</span>
+                        <Input
+                            type="number"
+                            placeholder="e.g. 6000"
+                            value={bitrate}
+                            onChange={e => setBitrate(e.target.value)}
+                            min={MIN_BITRATE}
+                            max={MAX_BITRATE}
+                            fullWidth
+                        />
+                        <span className={styles.resetHint}>
+                            Required. Set this to the bitrate you use in OBS, it is what Smooth playback encodes at.
+                            Between {MIN_BITRATE.toLocaleString()} and {MAX_BITRATE.toLocaleString()} Kbps. Not sure?
+                            Open OBS setup below for a calculator.
+                        </span>
+                    </div>
                     <div className={styles.actions}>
-                        <Button variant="primary" onClick={() => handleStart()} disabled={busy || !title.trim()}>
+                        <Button
+                            variant="primary"
+                            onClick={() => handleStart()}
+                            disabled={busy || !title.trim() || !bitrateValid}
+                        >
                             {busy ? "Starting..." : "Go live"}
                         </Button>
                     </div>
@@ -381,6 +412,13 @@ export function GoLivePanel({ onChanged }: GoLivePanelProps) {
                                             {lowKbps.toLocaleString()} to {highKbps.toLocaleString()} range, set as CBR
                                         </span>
                                     </div>
+                                    <Button
+                                        size="small"
+                                        variant="secondary"
+                                        onClick={() => setBitrate(String(typicalKbps))}
+                                    >
+                                        Use {typicalKbps.toLocaleString()} Kbps
+                                    </Button>
                                 </div>
                             </section>
 

@@ -796,8 +796,16 @@ export async function resetStreamCredentials(): Promise<StreamCredentials> {
     return apiPost<StreamCredentials, Record<string, never>>("/streams/credentials/reset", {});
 }
 
-export async function startStream(title: string, defaultMode: StreamDefaultMode): Promise<StreamOwner> {
-    return apiPost<StreamOwner, { title: string; defaultMode: StreamDefaultMode }>("/streams", { title, defaultMode });
+export async function startStream(
+    title: string,
+    defaultMode: StreamDefaultMode,
+    bitrate: number,
+): Promise<StreamOwner> {
+    return apiPost<StreamOwner, { title: string; defaultMode: StreamDefaultMode; bitrate: number }>("/streams", {
+        title,
+        defaultMode,
+        bitrate,
+    });
 }
 
 export async function stopStream(id: string): Promise<void> {

@@ -86,7 +86,7 @@ func (s *Service) startStream(ctx fiber.Ctx) error {
 		return nil
 	}
 
-	resp, err := s.StreamService.StartStream(ctx.Context(), userID, req.Title, req.DefaultMode)
+	resp, err := s.StreamService.StartStream(ctx.Context(), userID, req.Title, req.DefaultMode, req.Bitrate)
 	if err != nil {
 		return mapStreamError(ctx, err)
 	}
@@ -263,6 +263,10 @@ func mapStreamError(ctx fiber.Ctx, err error) error {
 	case errors.Is(err, stream.ErrTitleRequired):
 		{
 			return utils.BadRequest(ctx, "a stream title is required")
+		}
+	case errors.Is(err, stream.ErrInvalidBitrate):
+		{
+			return utils.BadRequest(ctx, "stream bitrate must be between 500 and 50000 Kbps")
 		}
 	case errors.Is(err, stream.ErrStreamNotFound):
 		{

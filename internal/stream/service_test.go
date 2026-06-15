@@ -36,6 +36,8 @@ func newTestStreamService(t *testing.T) (Service, *streamMocks) {
 
 	svc := NewService(repo, creds, lk, settingsSvc, uploadSvc, ws.NewHub())
 
+	settingsSvc.EXPECT().Get(mock.Anything, config.SettingStreamHLSOutputDir).Return("").Maybe()
+
 	return svc, &streamMocks{repo: repo, creds: creds, lk: lk, settings: settingsSvc, upload: uploadSvc}
 }
 
@@ -54,7 +56,7 @@ func TestStartStream_Disabled(t *testing.T) {
 	expectStreamingEnabled(m, false)
 
 	// when
-	_, err := svc.StartStream(context.Background(), uuid.New(), "title", dto.StreamDefaultModeWebRTC)
+	_, err := svc.StartStream(context.Background(), uuid.New(), "title", dto.StreamDefaultModeWebRTC, 6000)
 
 	// then
 	require.ErrorIs(t, err, ErrDisabled)
@@ -66,10 +68,22 @@ func TestStartStream_TitleRequired(t *testing.T) {
 	expectStreamingEnabled(m, true)
 
 	// when
-	_, err := svc.StartStream(context.Background(), uuid.New(), "   ", dto.StreamDefaultModeWebRTC)
+	_, err := svc.StartStream(context.Background(), uuid.New(), "   ", dto.StreamDefaultModeWebRTC, 6000)
 
 	// then
 	require.ErrorIs(t, err, ErrTitleRequired)
+}
+
+func TestStartStream_InvalidBitrate(t *testing.T) {
+	// given
+	svc, m := newTestStreamService(t)
+	expectStreamingEnabled(m, true)
+
+	// when
+	_, err := svc.StartStream(context.Background(), uuid.New(), "title", dto.StreamDefaultModeWebRTC, 3)
+
+	// then
+	require.ErrorIs(t, err, ErrInvalidBitrate)
 }
 
 func TestStartStream_AlreadyLive(t *testing.T) {
@@ -81,7 +95,7 @@ func TestStartStream_AlreadyLive(t *testing.T) {
 	m.repo.EXPECT().GetActiveByUser(mock.Anything, userID).Return(&repository.LiveStreamRow{ID: uuid.New()}, nil)
 
 	// when
-	_, err := svc.StartStream(context.Background(), userID, "title", dto.StreamDefaultModeWebRTC)
+	_, err := svc.StartStream(context.Background(), userID, "title", dto.StreamDefaultModeWebRTC, 6000)
 
 	// then
 	require.ErrorIs(t, err, ErrAlreadyLive)
@@ -98,7 +112,7 @@ func TestStartStream_AtCapacity(t *testing.T) {
 	m.repo.EXPECT().CountActive(mock.Anything).Return(3, nil)
 
 	// when
-	_, err := svc.StartStream(context.Background(), userID, "title", dto.StreamDefaultModeWebRTC)
+	_, err := svc.StartStream(context.Background(), userID, "title", dto.StreamDefaultModeWebRTC, 6000)
 
 	// then
 	require.ErrorIs(t, err, ErrAtCapacity)
@@ -131,7 +145,7 @@ func TestStartStream_HappyPath(t *testing.T) {
 	m.repo.EXPECT().SetDefaultMode(mock.Anything, streamID, "webrtc").Return(nil)
 
 	// when
-	resp, err := svc.StartStream(context.Background(), userID, "My Stream", dto.StreamDefaultModeWebRTC)
+	resp, err := svc.StartStream(context.Background(), userID, "My Stream", dto.StreamDefaultModeWebRTC, 6000)
 
 	// then
 	require.NoError(t, err)
@@ -164,7 +178,7 @@ func TestStartStream_CreateRaceMapsErrors(t *testing.T) {
 			m.repo.EXPECT().Create(mock.Anything, userID, "title", 3).Return(uuid.Nil, tc.repoErr)
 
 			// when
-			_, err := svc.StartStream(context.Background(), userID, "title", dto.StreamDefaultModeWebRTC)
+			_, err := svc.StartStream(context.Background(), userID, "title", dto.StreamDefaultModeWebRTC, 6000)
 
 			// then
 			require.ErrorIs(t, err, tc.want)
