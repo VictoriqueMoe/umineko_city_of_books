@@ -22,14 +22,6 @@ export function HLSVideoPlayer({ src, className }: HLSVideoPlayerProps) {
             });
         };
 
-        if (video.canPlayType("application/vnd.apple.mpegurl")) {
-            video.src = src;
-            video.addEventListener("loadedmetadata", tryPlay);
-            return () => {
-                video.removeEventListener("loadedmetadata", tryPlay);
-            };
-        }
-
         if (Hls.isSupported()) {
             const hls = new Hls({ backBufferLength: 30 });
             let reloadTimer = 0;
@@ -61,11 +53,13 @@ export function HLSVideoPlayer({ src, className }: HLSVideoPlayerProps) {
             };
         }
 
-        video.src = src;
-        video.addEventListener("loadedmetadata", tryPlay);
-        return () => {
-            video.removeEventListener("loadedmetadata", tryPlay);
-        };
+        if (video.canPlayType("application/vnd.apple.mpegurl")) {
+            video.src = src;
+            video.addEventListener("loadedmetadata", tryPlay);
+            return () => {
+                video.removeEventListener("loadedmetadata", tryPlay);
+            };
+        }
     }, [src]);
 
     return <video ref={videoRef} className={className} autoPlay playsInline controls />;
