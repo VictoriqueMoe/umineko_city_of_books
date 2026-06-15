@@ -32,15 +32,11 @@ export function HLSVideoPlayer({ src, className }: HLSVideoPlayerProps) {
 
         if (Hls.isSupported()) {
             const hls = new Hls({ backBufferLength: 30 });
+            let reloadTimer = 0;
 
             hls.on(Hls.Events.MANIFEST_PARSED, tryPlay);
             hls.on(Hls.Events.ERROR, (_event, data) => {
                 if (!data.fatal) {
-                    return;
-                }
-
-                if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-                    hls.startLoad();
                     return;
                 }
 
@@ -49,13 +45,18 @@ export function HLSVideoPlayer({ src, className }: HLSVideoPlayerProps) {
                     return;
                 }
 
-                hls.destroy();
+                window.clearTimeout(reloadTimer);
+                reloadTimer = window.setTimeout(() => {
+                    hls.loadSource(src);
+                    hls.startLoad();
+                }, 2000);
             });
 
             hls.loadSource(src);
             hls.attachMedia(video);
 
             return () => {
+                window.clearTimeout(reloadTimer);
                 hls.destroy();
             };
         }
