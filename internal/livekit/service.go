@@ -346,10 +346,11 @@ func (s *service) CreateEgress(ctx context.Context, roomName, identity, outputDi
 	prefix := strings.TrimRight(outputDir, "/") + "/" + roomName
 
 	advanced := &livekit.EncodingOptions{
-		VideoCodec:     livekit.VideoCodec_H264_HIGH,
-		AudioCodec:     livekit.AudioCodec_AAC,
-		AudioBitrate:   320,
-		AudioFrequency: 48000,
+		VideoCodec:       livekit.VideoCodec_H264_BASELINE,
+		AudioCodec:       livekit.AudioCodec_AAC,
+		AudioBitrate:     320,
+		AudioFrequency:   48000,
+		KeyFrameInterval: 2,
 	}
 	if width > 0 {
 		advanced.Width = int32(width)
