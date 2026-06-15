@@ -71,9 +71,6 @@ const (
 	hlsVideoReadAttempts = 6
 	hlsVideoReadInterval = 2 * time.Second
 
-	hlsManifestWaitAttempts = 30
-	hlsManifestWaitInterval = time.Second
-
 	minBitrateKbps = 500
 	maxBitrateKbps = 50000
 
@@ -277,14 +274,7 @@ func (s *service) runEgress(streamID uuid.UUID, room, identity, ingressID string
 		return
 	}
 
-	hlsURL := ""
-	if s.awaitHLSManifest(ctx, room) {
-		hlsURL = hlsPlaylistURL(room)
-	} else {
-		logger.Log.Warn().Str("stream_id", streamID.String()).Str("room", room).Msg("stream HLS manifest did not appear")
-	}
-
-	if err := s.repo.SetEgress(ctx, streamID, egressID, hlsURL); err != nil {
+	if err := s.repo.SetEgress(ctx, streamID, egressID, hlsPlaylistURL(room)); err != nil {
 		logger.Log.Warn().Err(err).Str("stream_id", streamID.String()).Msg("save stream egress failed")
 		return
 	}
@@ -307,25 +297,6 @@ func (s *service) awaitIngressVideo(ctx context.Context, ingressID string) (widt
 	}
 
 	return width, height, framerate
-}
-
-func (s *service) awaitHLSManifest(ctx context.Context, room string) bool {
-	outputDir := s.settingsSvc.Get(ctx, config.SettingStreamHLSOutputDir)
-	if outputDir == "" {
-		return false
-	}
-
-	manifest := strings.TrimRight(outputDir, "/") + "/" + room + "/live.m3u8"
-
-	for attempt := 0; attempt < hlsManifestWaitAttempts; attempt++ {
-		if _, err := os.Stat(manifest); err == nil {
-			return true
-		}
-
-		time.Sleep(hlsManifestWaitInterval)
-	}
-
-	return false
 }
 
 func hlsPlaylistURL(room string) string {
