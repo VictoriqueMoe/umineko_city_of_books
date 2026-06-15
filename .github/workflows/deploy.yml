@@ -36,7 +36,7 @@ jobs:
           file: Dockerfile.ci
           push: true
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: type=gha,mode=min
           build-args: |
             APP_VERSION=${{ github.event.workflow_run.head_sha }}
           tags: |
