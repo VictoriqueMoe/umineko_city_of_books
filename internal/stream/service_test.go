@@ -78,6 +78,7 @@ func TestStartStream_InvalidBitrate(t *testing.T) {
 	// given
 	svc, m := newTestStreamService(t)
 	expectStreamingEnabled(m, true)
+	m.settings.EXPECT().GetBool(mock.Anything, config.SettingStreamHLSEnabled).Return(true)
 
 	// when
 	_, err := svc.StartStream(context.Background(), uuid.New(), "title", dto.StreamDefaultModeWebRTC, 3)
@@ -90,6 +91,7 @@ func TestStartStream_AlreadyLive(t *testing.T) {
 	// given
 	svc, m := newTestStreamService(t)
 	expectStreamingEnabled(m, true)
+	m.settings.EXPECT().GetBool(mock.Anything, config.SettingStreamHLSEnabled).Return(false)
 	userID := uuid.New()
 
 	m.repo.EXPECT().GetActiveByUser(mock.Anything, userID).Return(&repository.LiveStreamRow{ID: uuid.New()}, nil)
@@ -106,6 +108,7 @@ func TestStartStream_AtCapacity(t *testing.T) {
 	svc, m := newTestStreamService(t)
 	expectStreamingEnabled(m, true)
 	expectMaxConcurrent(m, 3)
+	m.settings.EXPECT().GetBool(mock.Anything, config.SettingStreamHLSEnabled).Return(false)
 	userID := uuid.New()
 
 	m.repo.EXPECT().GetActiveByUser(mock.Anything, userID).Return(nil, nil)
@@ -123,6 +126,7 @@ func TestStartStream_HappyPath(t *testing.T) {
 	svc, m := newTestStreamService(t)
 	expectStreamingEnabled(m, true)
 	expectMaxConcurrent(m, 3)
+	m.settings.EXPECT().GetBool(mock.Anything, config.SettingStreamHLSEnabled).Return(false)
 	userID := uuid.New()
 	streamID := uuid.New()
 
@@ -171,6 +175,7 @@ func TestStartStream_CreateRaceMapsErrors(t *testing.T) {
 			svc, m := newTestStreamService(t)
 			expectStreamingEnabled(m, true)
 			expectMaxConcurrent(m, 3)
+			m.settings.EXPECT().GetBool(mock.Anything, config.SettingStreamHLSEnabled).Return(false)
 			userID := uuid.New()
 
 			m.repo.EXPECT().GetActiveByUser(mock.Anything, userID).Return(nil, nil)
@@ -206,6 +211,7 @@ func TestCredentials_ReturnsExistingWithoutCreatingIngress(t *testing.T) {
 	m.creds.EXPECT().Get(mock.Anything, userID).Return(&repository.StreamCredentialsRow{
 		UserID: userID, IngressID: "ing", WhipURL: "https://whip/w", StreamKey: "key", Room: userRoom(userID),
 	}, nil)
+	m.settings.EXPECT().GetBool(mock.Anything, config.SettingStreamHLSEnabled).Return(false)
 
 	// when
 	resp, err := svc.Credentials(context.Background(), userID, "Beato")
@@ -224,6 +230,7 @@ func TestCredentials_CreatesIngressWhenMissing(t *testing.T) {
 	m.creds.EXPECT().Get(mock.Anything, userID).Return(nil, nil)
 	m.lk.EXPECT().CreateIngress(mock.Anything, mock.Anything, mock.Anything, "Beato").Return("ing_new", "https://whip/w", "key_new", nil)
 	m.creds.EXPECT().Upsert(mock.Anything, userID, "ing_new", "https://whip/w", "key_new", mock.Anything).Return(nil)
+	m.settings.EXPECT().GetBool(mock.Anything, config.SettingStreamHLSEnabled).Return(false)
 
 	// when
 	resp, err := svc.Credentials(context.Background(), userID, "Beato")
@@ -261,6 +268,7 @@ func TestResetCredentials_DeletesOldIngressThenRecreates(t *testing.T) {
 	m.creds.EXPECT().Get(mock.Anything, userID).Return(nil, nil)
 	m.lk.EXPECT().CreateIngress(mock.Anything, mock.Anything, mock.Anything, "Beato").Return("new_ing", "https://whip/w", "new_key", nil)
 	m.creds.EXPECT().Upsert(mock.Anything, userID, "new_ing", "https://whip/w", "new_key", mock.Anything).Return(nil)
+	m.settings.EXPECT().GetBool(mock.Anything, config.SettingStreamHLSEnabled).Return(false)
 
 	// when
 	resp, err := svc.ResetCredentials(context.Background(), userID, "Beato")

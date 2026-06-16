@@ -33,8 +33,9 @@ type (
 	}
 
 	StreamCredentialsResponse struct {
-		WhipURL   string `json:"whipUrl"`
-		StreamKey string `json:"streamKey"`
+		WhipURL    string `json:"whipUrl"`
+		StreamKey  string `json:"streamKey"`
+		HlsEnabled bool   `json:"hlsEnabled"`
 	}
 
 	LiveStreamListResponse struct {

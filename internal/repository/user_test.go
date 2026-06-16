@@ -352,8 +352,6 @@ func TestUserRepository_UpdateProfile(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, req.DisplayName, got.DisplayName)
 	assert.Equal(t, req.Bio, got.Bio)
-	assert.Equal(t, req.AvatarURL, got.AvatarURL)
-	assert.Equal(t, req.BannerURL, got.BannerURL)
 	assert.Equal(t, req.BannerPosition, got.BannerPosition)
 	assert.Equal(t, req.FavouriteCharacter, got.FavouriteCharacter)
 	assert.Equal(t, req.Gender, got.Gender)
@@ -388,6 +386,28 @@ func TestUserRepository_UpdateProfile_NonExistentUser(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
+}
+
+func TestUserRepository_UpdateProfile_DoesNotClobberAvatarOrBanner(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	user := repotest.CreateUser(t, repos)
+	require.NoError(t, repos.User.UpdateAvatarURL(context.Background(), user.ID, "/uploads/avatars/keep.webp"))
+	require.NoError(t, repos.User.UpdateBannerURL(context.Background(), user.ID, "/uploads/banners/keep.webp"))
+
+	req := sampleProfileRequest()
+	req.AvatarURL = ""
+	req.BannerURL = ""
+
+	// when
+	err := repos.User.UpdateProfile(context.Background(), user.ID, req)
+
+	// then
+	require.NoError(t, err)
+	got, err := repos.User.GetByID(context.Background(), user.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "/uploads/avatars/keep.webp", got.AvatarURL)
+	assert.Equal(t, "/uploads/banners/keep.webp", got.BannerURL)
 }
 
 func TestUserRepository_UpdateAvatarURL(t *testing.T) {

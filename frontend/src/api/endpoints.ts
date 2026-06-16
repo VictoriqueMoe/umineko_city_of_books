@@ -769,6 +769,7 @@ export interface StreamOwner {
 export interface StreamCredentials {
     whipUrl: string;
     streamKey: string;
+    hlsEnabled: boolean;
 }
 
 export interface LiveStreamListResponse {

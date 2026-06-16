@@ -270,12 +270,12 @@ func (r *userRepository) ValidatePassword(ctx context.Context, username, passwor
 
 func (r *userRepository) UpdateProfile(ctx context.Context, userID uuid.UUID, req dto.UpdateProfileRequest) error {
 	_, err := r.db.ExecContext(ctx,
-		`UPDATE users SET display_name = $1, bio = $2, avatar_url = $3, banner_url = $4, banner_position = $5, favourite_character = $6, gender = $7,
-		 pronoun_subject = $8, pronoun_possessive = $9,
-		 social_twitter = $10, social_discord = $11, social_waifulist = $12, social_tumblr = $13, social_github = $14,
-		 website = $15, dms_enabled = $16, episode_progress = $17, higurashi_arc_progress = $18, ciconia_chapter_progress = $19, email = $20, email_public = $21, dob = $22, dob_public = $23, email_notifications = $24, play_message_sound = $25, play_notification_sound = $26, home_page = $27, game_board_sort = $28, default_profile_tab = $29
-		 WHERE id = $30`,
-		req.DisplayName, req.Bio, req.AvatarURL, req.BannerURL, req.BannerPosition, req.FavouriteCharacter, req.Gender,
+		`UPDATE users SET display_name = $1, bio = $2, banner_position = $3, favourite_character = $4, gender = $5,
+		 pronoun_subject = $6, pronoun_possessive = $7,
+		 social_twitter = $8, social_discord = $9, social_waifulist = $10, social_tumblr = $11, social_github = $12,
+		 website = $13, dms_enabled = $14, episode_progress = $15, higurashi_arc_progress = $16, ciconia_chapter_progress = $17, email = $18, email_public = $19, dob = $20, dob_public = $21, email_notifications = $22, play_message_sound = $23, play_notification_sound = $24, home_page = $25, game_board_sort = $26, default_profile_tab = $27
+		 WHERE id = $28`,
+		req.DisplayName, req.Bio, req.BannerPosition, req.FavouriteCharacter, req.Gender,
 		req.PronounSubject, req.PronounPossessive,
 		req.SocialTwitter, req.SocialDiscord, req.SocialWaifulist, req.SocialTumblr, req.SocialGithub, req.Website,
 		req.DmsEnabled, req.EpisodeProgress, req.HigurashiArcProgress, req.CiconiaChapterProgress, req.Email, req.EmailPublic, req.DOB, req.DOBPublic, req.EmailNotifications, req.PlayMessageSound, req.PlayNotificationSound, req.HomePage, req.GameBoardSort, req.DefaultProfileTab,

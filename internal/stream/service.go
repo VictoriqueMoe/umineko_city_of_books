@@ -352,7 +352,7 @@ func (s *service) StartStream(ctx context.Context, userID uuid.UUID, title strin
 		return nil, ErrTitleRequired
 	}
 
-	if bitrateKbps < minBitrateKbps || bitrateKbps > maxBitrateKbps {
+	if s.hlsEnabled() && (bitrateKbps < minBitrateKbps || bitrateKbps > maxBitrateKbps) {
 		return nil, ErrInvalidBitrate
 	}
 
@@ -512,7 +512,7 @@ func (s *service) Credentials(ctx context.Context, userID uuid.UUID, displayName
 		return nil, err
 	}
 
-	return &dto.StreamCredentialsResponse{WhipURL: creds.WhipURL, StreamKey: creds.StreamKey}, nil
+	return &dto.StreamCredentialsResponse{WhipURL: creds.WhipURL, StreamKey: creds.StreamKey, HlsEnabled: s.hlsEnabled()}, nil
 }
 
 func (s *service) ResetCredentials(ctx context.Context, userID uuid.UUID, displayName string) (*dto.StreamCredentialsResponse, error) {
@@ -546,7 +546,7 @@ func (s *service) ResetCredentials(ctx context.Context, userID uuid.UUID, displa
 		return nil, err
 	}
 
-	return &dto.StreamCredentialsResponse{WhipURL: creds.WhipURL, StreamKey: creds.StreamKey}, nil
+	return &dto.StreamCredentialsResponse{WhipURL: creds.WhipURL, StreamKey: creds.StreamKey, HlsEnabled: s.hlsEnabled()}, nil
 }
 
 func (s *service) StopStream(ctx context.Context, userID, streamID uuid.UUID) error {

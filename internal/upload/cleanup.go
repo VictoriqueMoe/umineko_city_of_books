@@ -3,10 +3,13 @@ package upload
 import (
 	"os"
 	"path/filepath"
+	"time"
 
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/repository"
 )
+
+const orphanGracePeriod = time.Hour
 
 func CleanOrphanedFiles(repo repository.UploadRepository, uploadDir string) int {
 	referenced, err := repo.GetAllReferencedFiles()
@@ -24,6 +27,8 @@ func CleanOrphanedFiles(repo repository.UploadRepository, uploadDir string) int 
 	for _, ref := range referenced {
 		refSet[ref] = true
 	}
+
+	cutoff := time.Now().Add(-orphanGracePeriod)
 
 	removed := 0
 	topEntries, err := os.ReadDir(uploadDir)
@@ -45,6 +50,13 @@ func CleanOrphanedFiles(repo repository.UploadRepository, uploadDir string) int 
 
 		for _, entry := range entries {
 			if entry.IsDir() {
+				continue
+			}
+			info, err := entry.Info()
+			if err != nil {
+				continue
+			}
+			if info.ModTime().After(cutoff) {
 				continue
 			}
 			urlPath := "/uploads/" + subDir + "/" + entry.Name()

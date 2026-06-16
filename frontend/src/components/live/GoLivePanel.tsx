@@ -51,6 +51,7 @@ export function GoLivePanel({ onChanged }: GoLivePanelProps) {
 
     const bitrateNum = Number(bitrate);
     const bitrateValid = Number.isFinite(bitrateNum) && bitrateNum >= MIN_BITRATE && bitrateNum <= MAX_BITRATE;
+    const smoothAvailable = creds?.hlsEnabled === true;
 
     useEffect(() => {
         getMyStream()
@@ -88,7 +89,10 @@ export function GoLivePanel({ onChanged }: GoLivePanelProps) {
 
     async function handleStart() {
         const trimmed = title.trim();
-        if (!trimmed || !bitrateValid) {
+        if (!trimmed) {
+            return;
+        }
+        if (smoothAvailable && !bitrateValid) {
             return;
         }
 
@@ -96,11 +100,18 @@ export function GoLivePanel({ onChanged }: GoLivePanelProps) {
         setError(null);
 
         try {
-            const kbps = Math.round(bitrateNum);
-            localStorage.setItem(BITRATE_STORAGE_KEY, String(kbps));
-            const result = await startStream(trimmed, defaultMode, kbps);
+            const kbps = smoothAvailable ? Math.round(bitrateNum) : 0;
+            const mode = smoothAvailable ? defaultMode : "webrtc";
+            if (smoothAvailable) {
+                localStorage.setItem(BITRATE_STORAGE_KEY, String(kbps));
+            }
+            const result = await startStream(trimmed, mode, kbps);
             setOwner(result);
-            setCreds({ whipUrl: result.whipUrl, streamKey: result.streamKey });
+            setCreds(prev => ({
+                whipUrl: result.whipUrl,
+                streamKey: result.streamKey,
+                hlsEnabled: prev?.hlsEnabled ?? false,
+            }));
             onChanged?.();
         } catch (err) {
             setError(err instanceof Error ? err.message : "Could not start the stream.");
@@ -206,51 +217,55 @@ export function GoLivePanel({ onChanged }: GoLivePanelProps) {
                         maxLength={120}
                         fullWidth
                     />
-                    <div className={styles.field}>
-                        <span className={styles.fieldLabel}>Default playback for viewers</span>
-                        <div className={styles.actions}>
-                            <Button
-                                size="small"
-                                variant={defaultMode === "webrtc" ? "primary" : "secondary"}
-                                onClick={() => setDefaultMode("webrtc")}
-                            >
-                                Low latency
-                            </Button>
-                            <Button
-                                size="small"
-                                variant={defaultMode === "hls" ? "primary" : "secondary"}
-                                onClick={() => setDefaultMode("hls")}
-                            >
-                                Smooth
-                            </Button>
+                    {smoothAvailable && (
+                        <div className={styles.field}>
+                            <span className={styles.fieldLabel}>Default playback for viewers</span>
+                            <div className={styles.actions}>
+                                <Button
+                                    size="small"
+                                    variant={defaultMode === "webrtc" ? "primary" : "secondary"}
+                                    onClick={() => setDefaultMode("webrtc")}
+                                >
+                                    Low latency
+                                </Button>
+                                <Button
+                                    size="small"
+                                    variant={defaultMode === "hls" ? "primary" : "secondary"}
+                                    onClick={() => setDefaultMode("hls")}
+                                >
+                                    Smooth
+                                </Button>
+                            </div>
+                            <span className={styles.resetHint}>
+                                Low latency is best for chatting and slower games; Smooth (a few seconds behind) avoids
+                                freezes on fast, twitchy content. Viewers can switch either way.
+                            </span>
                         </div>
-                        <span className={styles.resetHint}>
-                            Low latency is best for chatting and slower games; Smooth (a few seconds behind) avoids
-                            freezes on fast, twitchy content. Viewers can switch either way.
-                        </span>
-                    </div>
-                    <div className={styles.field}>
-                        <span className={styles.fieldLabel}>Stream bitrate (Kbps)</span>
-                        <Input
-                            type="number"
-                            placeholder="e.g. 6000"
-                            value={bitrate}
-                            onChange={e => setBitrate(e.target.value)}
-                            min={MIN_BITRATE}
-                            max={MAX_BITRATE}
-                            fullWidth
-                        />
-                        <span className={styles.resetHint}>
-                            Required. Set this to the bitrate you use in OBS, it is what Smooth playback encodes at.
-                            Between {MIN_BITRATE.toLocaleString()} and {MAX_BITRATE.toLocaleString()} Kbps. Not sure?
-                            Open OBS setup below for a calculator.
-                        </span>
-                    </div>
+                    )}
+                    {smoothAvailable && (
+                        <div className={styles.field}>
+                            <span className={styles.fieldLabel}>Stream bitrate (Kbps)</span>
+                            <Input
+                                type="number"
+                                placeholder="e.g. 6000"
+                                value={bitrate}
+                                onChange={e => setBitrate(e.target.value)}
+                                min={MIN_BITRATE}
+                                max={MAX_BITRATE}
+                                fullWidth
+                            />
+                            <span className={styles.resetHint}>
+                                Required. Set this to the bitrate you use in OBS, it is what Smooth playback encodes at.
+                                Between {MIN_BITRATE.toLocaleString()} and {MAX_BITRATE.toLocaleString()} Kbps. Not
+                                sure? Open OBS setup below for a calculator.
+                            </span>
+                        </div>
+                    )}
                     <div className={styles.actions}>
                         <Button
                             variant="primary"
                             onClick={() => handleStart()}
-                            disabled={busy || !title.trim() || !bitrateValid}
+                            disabled={busy || !title.trim() || (smoothAvailable && !bitrateValid)}
                         >
                             {busy ? "Starting..." : "Go live"}
                         </Button>
@@ -271,7 +286,9 @@ export function GoLivePanel({ onChanged }: GoLivePanelProps) {
                         <span className={styles.disclosureText}>
                             <span className={styles.disclosureTitle}>OBS streaming setup</span>
                             <span className={styles.disclosureSub}>
-                                Server, key, encoder settings, and a bitrate calculator
+                                {smoothAvailable
+                                    ? "Server, key, encoder settings, and a bitrate calculator"
+                                    : "Server, key, and encoder settings"}
                             </span>
                         </span>
                         <span className={`${styles.chevron} ${setupOpen ? styles.chevronOpen : ""}`}>{"▾"}</span>
@@ -368,64 +385,69 @@ export function GoLivePanel({ onChanged }: GoLivePanelProps) {
                                 </p>
                             </section>
 
-                            <section className={styles.subSection}>
-                                <h4 className={styles.subHeading}>
-                                    <span className={styles.subNum}>3</span> Bitrate calculator
-                                </h4>
-                                <div className={styles.calcCard}>
-                                    <div className={styles.calcGroup}>
-                                        <span className={styles.calcLabel}>Resolution</span>
-                                        <div className={styles.pills}>
-                                            {STREAM_RESOLUTIONS.map((r, i) => (
-                                                <button
-                                                    key={r.label}
-                                                    type="button"
-                                                    className={i === resIdx ? styles.pillActive : styles.pill}
-                                                    onClick={() => setResIdx(i)}
-                                                >
-                                                    {r.label}
-                                                </button>
-                                            ))}
+                            {smoothAvailable && (
+                                <section className={styles.subSection}>
+                                    <h4 className={styles.subHeading}>
+                                        <span className={styles.subNum}>3</span> Bitrate calculator
+                                    </h4>
+                                    <div className={styles.calcCard}>
+                                        <div className={styles.calcGroup}>
+                                            <span className={styles.calcLabel}>Resolution</span>
+                                            <div className={styles.pills}>
+                                                {STREAM_RESOLUTIONS.map((r, i) => (
+                                                    <button
+                                                        key={r.label}
+                                                        type="button"
+                                                        className={i === resIdx ? styles.pillActive : styles.pill}
+                                                        onClick={() => setResIdx(i)}
+                                                    >
+                                                        {r.label}
+                                                    </button>
+                                                ))}
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div className={styles.calcGroup}>
-                                        <span className={styles.calcLabel}>Framerate</span>
-                                        <div className={styles.pills}>
-                                            {FPS_OPTIONS.map(f => (
-                                                <button
-                                                    key={f}
-                                                    type="button"
-                                                    className={f === calcFps ? styles.pillActive : styles.pill}
-                                                    onClick={() => setCalcFps(f)}
-                                                >
-                                                    {f} fps
-                                                </button>
-                                            ))}
+                                        <div className={styles.calcGroup}>
+                                            <span className={styles.calcLabel}>Framerate</span>
+                                            <div className={styles.pills}>
+                                                {FPS_OPTIONS.map(f => (
+                                                    <button
+                                                        key={f}
+                                                        type="button"
+                                                        className={f === calcFps ? styles.pillActive : styles.pill}
+                                                        onClick={() => setCalcFps(f)}
+                                                    >
+                                                        {f} fps
+                                                    </button>
+                                                ))}
+                                            </div>
                                         </div>
+                                        <div className={styles.calcResult}>
+                                            <span className={styles.calcResultMain}>
+                                                {typicalKbps.toLocaleString()}
+                                                <span className={styles.calcUnit}> Kbps</span>
+                                            </span>
+                                            <span className={styles.calcResultSub}>
+                                                {lowKbps.toLocaleString()} to {highKbps.toLocaleString()} range, set as
+                                                CBR
+                                            </span>
+                                        </div>
+                                        <Button
+                                            size="small"
+                                            variant="secondary"
+                                            onClick={() => setBitrate(String(typicalKbps))}
+                                        >
+                                            Use {typicalKbps.toLocaleString()} Kbps
+                                        </Button>
                                     </div>
-                                    <div className={styles.calcResult}>
-                                        <span className={styles.calcResultMain}>
-                                            {typicalKbps.toLocaleString()}
-                                            <span className={styles.calcUnit}> Kbps</span>
-                                        </span>
-                                        <span className={styles.calcResultSub}>
-                                            {lowKbps.toLocaleString()} to {highKbps.toLocaleString()} range, set as CBR
-                                        </span>
-                                    </div>
-                                    <Button
-                                        size="small"
-                                        variant="secondary"
-                                        onClick={() => setBitrate(String(typicalKbps))}
-                                    >
-                                        Use {typicalKbps.toLocaleString()} Kbps
-                                    </Button>
-                                </div>
-                            </section>
+                                </section>
+                            )}
 
-                            <p className={styles.tip}>
-                                <strong>Low latency</strong> is your stream untouched. <strong>Smooth</strong> is
-                                re-encoded and a few seconds behind, but never freezes. Viewers choose.
-                            </p>
+                            {smoothAvailable && (
+                                <p className={styles.tip}>
+                                    <strong>Low latency</strong> is your stream untouched. <strong>Smooth</strong> is
+                                    re-encoded and a few seconds behind, but never freezes. Viewers choose.
+                                </p>
+                            )}
                         </div>
                     )}
                 </div>
