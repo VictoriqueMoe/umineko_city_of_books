@@ -139,6 +139,14 @@ select {
         0 0 14px rgba(62, 212, 122, 0.22);
 }
 
+.pink-truth {
+    color: #ebcdf0;
+    font-weight: 600;
+    text-shadow:
+        0 0 6px rgba(235, 205, 240, 0.55),
+        0 0 14px rgba(235, 205, 240, 0.22);
+}
+
 /* Rich text formatting (code, quotes) */
 
 .rich-code-block {

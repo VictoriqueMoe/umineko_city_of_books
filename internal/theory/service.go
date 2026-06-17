@@ -177,7 +177,7 @@ func (s *service) notifyContentEdited(ctx context.Context, contentID uuid.UUID, 
 	if err != nil {
 		return
 	}
-	notification.SendEditNotification(ctx, s.userRepo, s.settingsSvc, s.notifService, notification.EditNotifyParams{
+	notification.SendEditNotification(ctx, s.userRepo, s.notifService, notification.EditNotifyParams{
 		AuthorID:      authorID,
 		EditorID:      editorID,
 		ContentType:   contentType,
@@ -242,17 +242,16 @@ func (s *service) CreateResponse(ctx context.Context, theoryID uuid.UUID, userID
 			return
 		}
 		title, _ := s.repo.GetTheoryTitle(ctx, theoryID)
-		baseURL := s.settingsSvc.Get(ctx, config.SettingBaseURL)
-		linkURL := fmt.Sprintf("%s/theory/%s#response-%s", baseURL, theoryID, id)
-		subject, body := notification.NotifEmail(s.actorName(ctx, userID), "responded to your theory", title, linkURL)
 		if err := s.notifService.Notify(ctx, dto.NotifyParams{
 			RecipientID:   authorID,
 			Type:          dto.NotifTheoryResponse,
 			ReferenceID:   theoryID,
 			ReferenceType: "theory",
 			ActorID:       userID,
-			EmailSubject:  subject,
-			EmailBody:     body,
+			EmailActor:    s.actorName(ctx, userID),
+			EmailAction:   "responded to your theory",
+			EmailTitle:    title,
+			EmailLink:     fmt.Sprintf("/theory/%s#response-%s", theoryID, id),
 		}); err != nil {
 			logger.Log.Warn().Err(err).Msg("notify theory response failed")
 		}
@@ -265,17 +264,16 @@ func (s *service) CreateResponse(ctx context.Context, theoryID uuid.UUID, userID
 				return
 			}
 			title, _ := s.repo.GetTheoryTitle(ctx, theoryID)
-			baseURL := s.settingsSvc.Get(ctx, config.SettingBaseURL)
-			linkURL := fmt.Sprintf("%s/theory/%s#response-%s", baseURL, theoryID, id)
-			subject, body := notification.NotifEmail(s.actorName(ctx, userID), "replied to your response", title, linkURL)
 			if err := s.notifService.Notify(ctx, dto.NotifyParams{
 				RecipientID:   recipientID,
 				Type:          dto.NotifResponseReply,
 				ReferenceID:   theoryID,
 				ReferenceType: "theory",
 				ActorID:       userID,
-				EmailSubject:  subject,
-				EmailBody:     body,
+				EmailActor:    s.actorName(ctx, userID),
+				EmailAction:   "replied to your response",
+				EmailTitle:    title,
+				EmailLink:     fmt.Sprintf("/theory/%s#response-%s", theoryID, id),
 			}); err != nil {
 				logger.Log.Warn().Err(err).Msg("notify response reply failed")
 			}
@@ -362,17 +360,16 @@ func (s *service) VoteTheory(ctx context.Context, userID uuid.UUID, theoryID uui
 				return
 			}
 			title, _ := s.repo.GetTheoryTitle(ctx, theoryID)
-			baseURL := s.settingsSvc.Get(ctx, config.SettingBaseURL)
-			linkURL := fmt.Sprintf("%s/theory/%s", baseURL, theoryID)
-			subject, body := notification.NotifEmail(s.actorName(ctx, userID), "upvoted your theory", title, linkURL)
 			if err := s.notifService.Notify(ctx, dto.NotifyParams{
 				RecipientID:   authorID,
 				Type:          dto.NotifTheoryUpvote,
 				ReferenceID:   theoryID,
 				ReferenceType: "theory",
 				ActorID:       userID,
-				EmailSubject:  subject,
-				EmailBody:     body,
+				EmailActor:    s.actorName(ctx, userID),
+				EmailAction:   "upvoted your theory",
+				EmailTitle:    title,
+				EmailLink:     fmt.Sprintf("/theory/%s", theoryID),
 			}); err != nil {
 				logger.Log.Warn().Err(err).Msg("notify theory upvote failed")
 			}
@@ -402,17 +399,16 @@ func (s *service) VoteResponse(ctx context.Context, userID uuid.UUID, responseID
 				return
 			}
 			title, _ := s.repo.GetTheoryTitle(ctx, theoryID)
-			baseURL := s.settingsSvc.Get(ctx, config.SettingBaseURL)
-			linkURL := fmt.Sprintf("%s/theory/%s#response-%s", baseURL, theoryID, responseID)
-			subject, body := notification.NotifEmail(s.actorName(ctx, userID), "upvoted your response", title, linkURL)
 			if err := s.notifService.Notify(ctx, dto.NotifyParams{
 				RecipientID:   recipientID,
 				Type:          dto.NotifResponseUpvote,
 				ReferenceID:   theoryID,
 				ReferenceType: "theory",
 				ActorID:       userID,
-				EmailSubject:  subject,
-				EmailBody:     body,
+				EmailActor:    s.actorName(ctx, userID),
+				EmailAction:   "upvoted your response",
+				EmailTitle:    title,
+				EmailLink:     fmt.Sprintf("/theory/%s#response-%s", theoryID, responseID),
 			}); err != nil {
 				logger.Log.Warn().Err(err).Msg("notify response upvote failed")
 			}

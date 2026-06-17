@@ -313,8 +313,6 @@ func (s *service) CreateEntry(ctx context.Context, journalID uuid.UUID, userID u
 func (s *service) notifyEntryPublished(journalID uuid.UUID, entryNumber int, actorUserID uuid.UUID) {
 	bgCtx := context.Background()
 	title, _ := s.repo.GetTitle(bgCtx, journalID)
-	baseURL := s.settingsSvc.Get(bgCtx, config.SettingBaseURL)
-	linkURL := fmt.Sprintf("%s/journals/%s/entry/%d", baseURL, journalID, entryNumber)
 	actor := s.actorName(bgCtx, actorUserID)
 
 	followerIDs, err := s.repo.GetFollowerIDs(bgCtx, journalID)
@@ -322,7 +320,7 @@ func (s *service) notifyEntryPublished(journalID uuid.UUID, entryNumber int, act
 		logger.Log.Error().Err(err).Msg("get follower ids failed on entry publish")
 		return
 	}
-	subject, emailBody := notification.NotifEmail(actor, "posted a new entry on", title, linkURL)
+
 	blockedSet := make(map[uuid.UUID]struct{})
 	if blockedIDs, err := s.blockSvc.GetBlockedIDs(bgCtx, actorUserID); err == nil {
 		for i := 0; i < len(blockedIDs); i++ {
@@ -344,8 +342,10 @@ func (s *service) notifyEntryPublished(journalID uuid.UUID, entryNumber int, act
 			ReferenceID:   journalID,
 			ReferenceType: fmt.Sprintf("journal_entry:%d", entryNumber),
 			ActorID:       actorUserID,
-			EmailSubject:  subject,
-			EmailBody:     emailBody,
+			EmailActor:    actor,
+			EmailAction:   "posted a new entry on",
+			EmailTitle:    title,
+			EmailLink:     fmt.Sprintf("/journals/%s/entry/%d", journalID, entryNumber),
 		})
 	}
 	s.notifService.NotifyMany(bgCtx, notifyParams)
@@ -504,8 +504,7 @@ func (s *service) CreateComment(ctx context.Context, journalID uuid.UUID, userID
 	go func() {
 		bgCtx := context.Background()
 		title, _ := s.repo.GetTitle(bgCtx, journalID)
-		baseURL := s.settingsSvc.Get(bgCtx, config.SettingBaseURL)
-		linkURL := commentLinkURL(baseURL, journalID, entryNumber, id)
+		linkURL := commentLinkURL("", journalID, entryNumber, id)
 		actor := s.actorName(bgCtx, userID)
 
 		if isAuthorComment {
@@ -516,7 +515,6 @@ func (s *service) CreateComment(ctx context.Context, journalID uuid.UUID, userID
 				logger.Log.Error().Err(err).Msg("get follower ids failed")
 				return
 			}
-			subject, emailBody := notification.NotifEmail(actor, "posted a new update on", title, linkURL)
 			blockedSet := make(map[uuid.UUID]struct{})
 			if blockedIDs, err := s.blockSvc.GetBlockedIDs(bgCtx, userID); err == nil {
 				for i := 0; i < len(blockedIDs); i++ {
@@ -538,36 +536,40 @@ func (s *service) CreateComment(ctx context.Context, journalID uuid.UUID, userID
 					ReferenceID:   journalID,
 					ReferenceType: refType,
 					ActorID:       userID,
-					EmailSubject:  subject,
-					EmailBody:     emailBody,
+					EmailActor:    actor,
+					EmailAction:   "posted a new update on",
+					EmailTitle:    title,
+					EmailLink:     linkURL,
 				})
 			}
 			s.notifService.NotifyMany(bgCtx, notifyParams)
 		} else {
-			subject, emailBody := notification.NotifEmail(actor, "commented on your journal", title, linkURL)
 			_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
 				RecipientID:   authorID,
 				Type:          dto.NotifJournalCommented,
 				ReferenceID:   journalID,
 				ReferenceType: refType,
 				ActorID:       userID,
-				EmailSubject:  subject,
-				EmailBody:     emailBody,
+				EmailActor:    actor,
+				EmailAction:   "commented on your journal",
+				EmailTitle:    title,
+				EmailLink:     linkURL,
 			})
 		}
 
 		if parentID != nil {
 			parentAuthor, err := s.repo.GetCommentAuthorID(bgCtx, *parentID)
 			if err == nil && parentAuthor != userID {
-				replySubject, replyBody := notification.NotifEmail(actor, "replied to your comment", title, linkURL)
 				_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
 					RecipientID:   parentAuthor,
 					Type:          dto.NotifJournalCommentReply,
 					ReferenceID:   journalID,
 					ReferenceType: refType,
 					ActorID:       userID,
-					EmailSubject:  replySubject,
-					EmailBody:     replyBody,
+					EmailActor:    actor,
+					EmailAction:   "replied to your comment",
+					EmailTitle:    title,
+					EmailLink:     linkURL,
 				})
 			}
 		}
@@ -647,17 +649,17 @@ func (s *service) LikeComment(ctx context.Context, id uuid.UUID, userID uuid.UUI
 		}
 		entryNumber, _ := s.repo.GetCommentEntryNumber(bgCtx, id)
 		title, _ := s.repo.GetTitle(bgCtx, journalID)
-		baseURL := s.settingsSvc.Get(bgCtx, config.SettingBaseURL)
-		linkURL := commentLinkURL(baseURL, journalID, entryNumber, id)
-		subject, emailBody := notification.NotifEmail(s.actorName(bgCtx, userID), "liked your comment", title, linkURL)
+		linkURL := commentLinkURL("", journalID, entryNumber, id)
 		_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
 			RecipientID:   commentAuthorID,
 			Type:          dto.NotifJournalCommentLiked,
 			ReferenceID:   journalID,
 			ReferenceType: journalCommentRefType(entryNumber, id),
 			ActorID:       userID,
-			EmailSubject:  subject,
-			EmailBody:     emailBody,
+			EmailActor:    s.actorName(bgCtx, userID),
+			EmailAction:   "liked your comment",
+			EmailTitle:    title,
+			EmailLink:     linkURL,
 		})
 	}()
 
@@ -751,17 +753,16 @@ func (s *service) FollowJournal(ctx context.Context, id uuid.UUID, userID uuid.U
 	go func() {
 		bgCtx := context.Background()
 		title, _ := s.repo.GetTitle(bgCtx, id)
-		baseURL := s.settingsSvc.Get(bgCtx, config.SettingBaseURL)
-		linkURL := fmt.Sprintf("%s/journals/%s", baseURL, id)
-		subject, emailBody := notification.NotifEmail(s.actorName(bgCtx, userID), "started following your journal", title, linkURL)
 		_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
 			RecipientID:   authorID,
 			Type:          dto.NotifJournalFollowed,
 			ReferenceID:   id,
 			ReferenceType: "journal",
 			ActorID:       userID,
-			EmailSubject:  subject,
-			EmailBody:     emailBody,
+			EmailActor:    s.actorName(bgCtx, userID),
+			EmailAction:   "started following your journal",
+			EmailTitle:    title,
+			EmailLink:     fmt.Sprintf("/journals/%s", id),
 		})
 	}()
 
@@ -782,23 +783,22 @@ func (s *service) ArchiveStale(ctx context.Context) (int, error) {
 		return 0, nil
 	}
 
-	baseURL := s.settingsSvc.Get(ctx, config.SettingBaseURL)
 	for _, id := range ids {
 		authorID, err := s.repo.GetAuthorID(ctx, id)
 		if err != nil {
 			continue
 		}
 		title, _ := s.repo.GetTitle(ctx, id)
-		linkURL := fmt.Sprintf("%s/journals/%s", baseURL, id)
-		subject, emailBody := notification.NotifEmail("The Scribe", "archived your inactive journal", title, linkURL)
 		_ = s.notifService.Notify(ctx, dto.NotifyParams{
 			RecipientID:   authorID,
 			Type:          dto.NotifJournalArchived,
 			ReferenceID:   id,
 			ReferenceType: "journal",
 			ActorID:       authorID,
-			EmailSubject:  subject,
-			EmailBody:     emailBody,
+			EmailActor:    "The Scribe",
+			EmailAction:   "archived your inactive journal",
+			EmailTitle:    title,
+			EmailLink:     fmt.Sprintf("/journals/%s", id),
 		})
 	}
 

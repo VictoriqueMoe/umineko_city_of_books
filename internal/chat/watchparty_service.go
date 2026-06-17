@@ -543,32 +543,14 @@ func (s *watchPartyService) EndWatchParty(ctx context.Context, roomID, sessionID
 		}
 	}
 
-	if err := s.watchPartyRepo.MarkAllParticipantsLeft(ctx, session.ID); err != nil {
-		return err
-	}
-	if err := s.watchPartyRepo.EndSession(ctx, session.ID, reason); err != nil {
-		return err
-	}
-
-	s.clearVoiceMuted(voiceSessionRoomPrefix + session.ID.String())
+	s.cleanupDeadSession(session, reason)
 
 	if actorID != uuid.Nil {
 		details := mustJSON(map[string]any{"room_id": roomID, "reason": reason})
 		if err := s.auditRepo.Create(ctx, actorID, "watch_party.end", "chat_watch_party_session", session.ID.String(), details); err != nil {
 			logger.Log.Warn().Err(err).Msg("audit watch_party.end failed")
 		}
-	}
 
-	s.hub.BroadcastToRoom(roomID, ws.Message{
-		Type: wsWatchPartyEnded,
-		Data: dto.WatchPartyEndedEvent{
-			SessionID: session.ID,
-			RoomID:    roomID,
-			Reason:    reason,
-		},
-	}, uuid.Nil)
-
-	if actorID != uuid.Nil {
 		hostName, _ := s.nameAndPossessive(ctx, session.StartedBy)
 		if hostName == "" {
 			hostName = "Someone"
@@ -782,18 +764,7 @@ func (s *watchPartyService) ReconcileWatchPartiesOnce(ctx context.Context) {
 				logger.Log.Warn().Err(err).Str("hyperbeam_session_id", session.HyperbeamSessionID).Msg("reconcile: terminate vm failed")
 			}
 		}
-		if err := s.watchPartyRepo.EndSession(ctx, session.ID, "idle_reconcile"); err != nil {
-			logger.Log.Warn().Err(err).Msg("reconcile: end session failed")
-			continue
-		}
-		s.hub.BroadcastToRoom(session.RoomID, ws.Message{
-			Type: wsWatchPartyEnded,
-			Data: dto.WatchPartyEndedEvent{
-				SessionID: session.ID,
-				RoomID:    session.RoomID,
-				Reason:    "idle_reconcile",
-			},
-		}, uuid.Nil)
+		s.cleanupDeadSession(&session, "idle_reconcile")
 	}
 }
 
@@ -862,6 +833,12 @@ func (s *watchPartyService) cleanupDeadSession(session *repository.ChatWatchPart
 	if err := s.watchPartyRepo.EndSession(ctx, session.ID, reason); err != nil {
 		logger.Log.Warn().Err(err).Msg("cleanup dead session: end session failed")
 	}
+	if err := s.watchPartyRepo.DeleteMessagesForSession(ctx, session.ID); err != nil {
+		logger.Log.Warn().Err(err).Msg("cleanup dead session: delete watch party messages failed")
+	}
+
+	s.clearVoiceMuted(voiceSessionRoomPrefix + session.ID.String())
+
 	s.hub.BroadcastToRoom(session.RoomID, ws.Message{
 		Type: wsWatchPartyEnded,
 		Data: dto.WatchPartyEndedEvent{

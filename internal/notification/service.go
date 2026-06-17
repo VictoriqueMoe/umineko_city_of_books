@@ -3,12 +3,15 @@ package notification
 import (
 	"context"
 	"strconv"
+	"strings"
+	"umineko_city_of_books/internal/notification/push"
 
+	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/email"
 	"umineko_city_of_books/internal/logger"
-	"umineko_city_of_books/internal/push"
 	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
@@ -25,128 +28,14 @@ type (
 	}
 
 	service struct {
-		repo     repository.NotificationRepository
-		userRepo repository.UserRepository
-		hub      *ws.Hub
-		emailSvc email.Service
-		pushSvc  push.Service
+		repo        repository.NotificationRepository
+		userRepo    repository.UserRepository
+		hub         *ws.Hub
+		emailSvc    email.Service
+		pushSvc     push.Service
+		settingsSvc settings.Service
 	}
 )
-
-func NewService(repo repository.NotificationRepository, userRepo repository.UserRepository, hub *ws.Hub, emailSvc email.Service, pushSvc push.Service) Service {
-	return &service{
-		repo:     repo,
-		userRepo: userRepo,
-		hub:      hub,
-		emailSvc: emailSvc,
-		pushSvc:  pushSvc,
-	}
-}
-
-func isChatRoomNotif(t dto.NotificationType) bool {
-	switch t {
-	case dto.NotifChatRoomMessage, dto.NotifChatMention, dto.NotifChatReply:
-		return true
-	default:
-		return false
-	}
-}
-
-func (s *service) Notify(ctx context.Context, params dto.NotifyParams) error {
-	if params.RecipientID == params.ActorID {
-		return nil
-	}
-
-	willConsiderEmail := !isChatRoomNotif(params.Type) && params.EmailSubject != ""
-	var emailDupe bool
-	if willConsiderEmail {
-		emailDupe, _ = s.repo.HasRecentDuplicate(ctx, params.RecipientID, params.Type, params.ReferenceID, params.ActorID)
-	}
-
-	id, err := s.repo.Create(ctx, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message)
-	if err != nil {
-		return err
-	}
-
-	logger.Log.Debug().Str("type", string(params.Type)).Str("recipient", params.RecipientID.String()).Msg("notification sent")
-	s.pushNotification(ctx, int(id), params.RecipientID)
-
-	if willConsiderEmail && !emailDupe {
-		s.sendEmail(ctx, params)
-	}
-
-	return nil
-}
-
-func (s *service) NotifyMany(ctx context.Context, params []dto.NotifyParams) {
-	for _, p := range params {
-		if err := s.Notify(ctx, p); err != nil {
-			logger.Log.Warn().Err(err).Str("type", string(p.Type)).Str("recipient", p.RecipientID.String()).Msg("notify failed")
-		}
-	}
-}
-
-func (s *service) sendEmail(ctx context.Context, params dto.NotifyParams) {
-	recipient, err := s.userRepo.GetByID(ctx, params.RecipientID)
-	if err != nil || recipient == nil || recipient.Email == "" {
-		return
-	}
-
-	if params.Type != dto.NotifReport && !recipient.EmailNotifications {
-		return
-	}
-
-	if err := s.emailSvc.Send(ctx, recipient.Email, params.EmailSubject, params.EmailBody); err != nil {
-		logger.Log.Warn().Err(err).Str("to", recipient.Email).Msg("failed to send notification email")
-	}
-}
-
-func (s *service) pushNotification(ctx context.Context, notifID int, recipientID uuid.UUID) {
-	row, err := s.repo.GetByID(ctx, notifID, recipientID)
-	if err != nil || row == nil {
-		return
-	}
-
-	resp := row.ToResponse()
-	s.hub.SendToUser(recipientID, ws.Message{
-		Type: "notification",
-		Data: resp,
-	})
-
-	if s.pushSvc != nil && !s.hub.IsOnline(recipientID) {
-		go s.pushSvc.SendToUser(context.Background(), recipientID, pushPayload(resp))
-	}
-}
-
-func pushPayload(resp dto.NotificationResponse) push.Notification {
-	title := resp.Actor.DisplayName
-	if title == "" {
-		title = resp.Actor.Username
-	}
-	if title == "" {
-		title = "Umineko City of Books"
-	}
-
-	body := resp.Message
-	if body == "" || resp.Type == dto.NotifContentEdited {
-		body = notifText[resp.Type]
-	}
-	if body == "" {
-		body = "You have a new notification"
-	}
-
-	return push.Notification{
-		Title: title,
-		Body:  body,
-		Data: map[string]string{
-			"notification_id": strconv.Itoa(resp.ID),
-			"type":            string(resp.Type),
-			"reference_id":    resp.ReferenceID.String(),
-			"reference_type":  resp.ReferenceType,
-			"actor_username":  resp.Actor.Username,
-		},
-	}
-}
 
 var notifText = map[dto.NotificationType]string{
 	dto.NotifTheoryResponse:           "responded to your theory",
@@ -214,6 +103,151 @@ var notifText = map[dto.NotificationType]string{
 	dto.NotifGameInvite:               "invited you to a game",
 	dto.NotifGameYourTurn:             "it's your move",
 	dto.NotifGameFinished:             "your game has ended",
+}
+
+func NewService(repo repository.NotificationRepository, userRepo repository.UserRepository, hub *ws.Hub, emailSvc email.Service, pushSvc push.Service, settingsSvc settings.Service) Service {
+	return &service{
+		repo:        repo,
+		userRepo:    userRepo,
+		hub:         hub,
+		emailSvc:    emailSvc,
+		pushSvc:     pushSvc,
+		settingsSvc: settingsSvc,
+	}
+}
+
+func isChatRoomNotif(t dto.NotificationType) bool {
+	switch t {
+	case dto.NotifChatRoomMessage, dto.NotifChatMention, dto.NotifChatReply:
+		return true
+	default:
+		return false
+	}
+}
+
+func (s *service) Notify(ctx context.Context, params dto.NotifyParams) error {
+	if params.RecipientID == params.ActorID {
+		return nil
+	}
+
+	willConsiderEmail := !isChatRoomNotif(params.Type) && params.EmailAction != ""
+	var emailDupe bool
+	if willConsiderEmail {
+		emailDupe, _ = s.repo.HasRecentDuplicate(ctx, params.RecipientID, params.Type, params.ReferenceID, params.ActorID)
+	}
+
+	id, err := s.repo.Create(ctx, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message)
+	if err != nil {
+		return err
+	}
+
+	logger.Log.Debug().Str("type", string(params.Type)).Str("recipient", params.RecipientID.String()).Msg("notification sent")
+	s.pushNotification(ctx, int(id), params.RecipientID)
+
+	if willConsiderEmail && !emailDupe {
+		s.sendEmail(ctx, params)
+	}
+
+	return nil
+}
+
+func (s *service) NotifyMany(ctx context.Context, params []dto.NotifyParams) {
+	for _, p := range params {
+		if err := s.Notify(ctx, p); err != nil {
+			logger.Log.Warn().Err(err).Str("type", string(p.Type)).Str("recipient", p.RecipientID.String()).Msg("notify failed")
+		}
+	}
+}
+
+func (s *service) sendEmail(ctx context.Context, params dto.NotifyParams) {
+	recipient, err := s.userRepo.GetByID(ctx, params.RecipientID)
+	if err != nil || recipient == nil || recipient.Email == "" {
+		return
+	}
+
+	if params.Type != dto.NotifReport && !recipient.EmailNotifications {
+		return
+	}
+
+	subject, body := s.buildEmail(ctx, params)
+
+	if err := s.emailSvc.Send(ctx, recipient.Email, subject, body); err != nil {
+		logger.Log.Warn().Err(err).Str("to", recipient.Email).Msg("failed to send notification email")
+	}
+}
+
+func (s *service) buildEmail(ctx context.Context, params dto.NotifyParams) (subject string, body string) {
+	siteName := s.settingsSvc.Get(ctx, config.SettingSiteName)
+	link := s.absoluteLink(ctx, params.EmailLink)
+
+	switch params.Type {
+	case dto.NotifReport:
+		return reportEmail(params.EmailActor, params.EmailAction, params.EmailTitle, link, siteName)
+	case dto.NotifReportResolved:
+		return reportResolvedEmail(params.EmailActor, params.EmailAction, params.EmailTitle, link, siteName)
+	default:
+		return notifEmail(params.EmailActor, params.EmailAction, params.EmailTitle, link, siteName)
+	}
+}
+
+func (s *service) absoluteLink(ctx context.Context, link string) string {
+	if link == "" {
+		return ""
+	}
+
+	if strings.HasPrefix(link, "http://") || strings.HasPrefix(link, "https://") {
+		return link
+	}
+
+	return s.settingsSvc.Get(ctx, config.SettingBaseURL) + link
+}
+
+func (s *service) pushNotification(ctx context.Context, notifID int, recipientID uuid.UUID) {
+	row, err := s.repo.GetByID(ctx, notifID, recipientID)
+	if err != nil || row == nil {
+		return
+	}
+
+	resp := row.ToResponse()
+	s.hub.SendToUser(recipientID, ws.Message{
+		Type: "notification",
+		Data: resp,
+	})
+
+	if s.pushSvc != nil && !s.hub.IsOnline(recipientID) {
+		siteName := s.settingsSvc.Get(ctx, config.SettingSiteName)
+		go s.pushSvc.SendToUser(context.Background(), recipientID, pushPayload(resp, siteName))
+	}
+}
+
+func pushPayload(resp dto.NotificationResponse, siteName string) push.Notification {
+	title := resp.Actor.DisplayName
+	if title == "" {
+		title = resp.Actor.Username
+	}
+	if title == "" {
+		title = siteName
+	}
+
+	body := resp.Message
+	if body == "" || resp.Type == dto.NotifContentEdited {
+		body = notifText[resp.Type]
+	}
+	if body == "" {
+		body = "You have a new notification"
+	}
+
+	return push.Notification{
+		Title: title,
+		Body:  body,
+		Data: map[string]string{
+			"notification_id": strconv.Itoa(resp.ID),
+			"type":            string(resp.Type),
+			"reference_id":    resp.ReferenceID.String(),
+			"reference_type":  resp.ReferenceType,
+			"actor_username":  resp.Actor.Username,
+		},
+	}
 }
 
 func (s *service) List(ctx context.Context, userID uuid.UUID, limit, offset int) (*dto.NotificationListResponse, error) {

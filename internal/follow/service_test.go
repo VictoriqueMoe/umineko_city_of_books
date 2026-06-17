@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/block"
-	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
@@ -84,7 +83,7 @@ func TestFollow_RepoErrorBubbles(t *testing.T) {
 
 func TestFollow_OK_SendsNotification(t *testing.T) {
 	// given
-	svc, followRepo, userRepo, blockSvc, notifSvc, settingsSvc := newTestService(t)
+	svc, followRepo, userRepo, blockSvc, notifSvc, _ := newTestService(t)
 	follower := uuid.New()
 	target := uuid.New()
 	user := &model.User{
@@ -98,7 +97,6 @@ func TestFollow_OK_SendsNotification(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	userRepo.EXPECT().GetByID(mock.Anything, follower).Return(user, nil)
-	settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("http://example.test")
 	notifSvc.EXPECT().Notify(mock.Anything, mock.MatchedBy(func(p dto.NotifyParams) bool {
 		return p.RecipientID == target &&
 			p.Type == dto.NotifNewFollower &&

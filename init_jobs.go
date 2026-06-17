@@ -3,11 +3,11 @@ package main
 import (
 	"context"
 	"time"
+	"umineko_city_of_books/internal/notification/push"
 
 	"umineko_city_of_books/internal/email"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/middleware"
-	"umineko_city_of_books/internal/push"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/telemetry"

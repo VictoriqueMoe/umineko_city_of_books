@@ -70,11 +70,13 @@ import {
     LiveWatchPage,
     LoginPage,
     MinesweeperGamePage,
+    SnakesAndLaddersGamePage,
     MysteryDetailPage,
     MysteryListPage,
     NewCheckersGamePage,
     NewChessGamePage,
     NewMinesweeperGamePage,
+    NewSnakesAndLaddersGamePage,
     NewOthelloGamePage,
     NotFoundPage,
     NotificationsPage,
@@ -294,12 +296,17 @@ function AppLayout() {
                                 path="/games/minesweeper/scoreboard"
                                 element={<Navigate to="/games/minesweeper" replace />}
                             />
+                            <Route
+                                path="/games/snakes_and_ladders/scoreboard"
+                                element={<Navigate to="/games/snakes_and_ladders" replace />}
+                            />
                             <Route path="/games/live" element={<LiveGamesPage />} />
                             <Route path="/games/past" element={<PastGamesPage />} />
                             <Route path="/games/chess/:id" element={<ChessGamePage />} />
                             <Route path="/games/checkers/:id" element={<CheckersGamePage />} />
                             <Route path="/games/othello/:id" element={<OthelloGamePage />} />
                             <Route path="/games/minesweeper/:id" element={<MinesweeperGamePage />} />
+                            <Route path="/games/snakes_and_ladders/:id" element={<SnakesAndLaddersGamePage />} />
                             <Route path="/games/:type" element={<GameHubPage />} />
                             <Route path="/users" element={<UsersPage />} />
                             <Route path="/user/:username" element={<ProfilePage />} />
@@ -334,6 +341,7 @@ function AppLayout() {
                                 <Route path="/games/checkers/new" element={<NewCheckersGamePage />} />
                                 <Route path="/games/othello/new" element={<NewOthelloGamePage />} />
                                 <Route path="/games/minesweeper/new" element={<NewMinesweeperGamePage />} />
+                                <Route path="/games/snakes_and_ladders/new" element={<NewSnakesAndLaddersGamePage />} />
                                 <Route path="/rooms/:roomId" element={<RoomPage />} />
                                 <Route path="/theory/:id/edit" element={<EditTheoryPage />} />
                                 <Route path="/settings" element={<SettingsPage />} />

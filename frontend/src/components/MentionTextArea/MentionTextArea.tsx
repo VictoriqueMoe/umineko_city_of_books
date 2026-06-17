@@ -23,6 +23,7 @@ const COLOUR_BUTTONS: { tag: ColourTag; label: string; swatch: string }[] = [
     { tag: "gold", label: "Gold truth", swatch: "#ffaa00" },
     { tag: "purple", label: "Purple truth", swatch: "#aa71ff" },
     { tag: "green", label: "Green text", swatch: "#3ed47a" },
+    { tag: "pink", label: "Pink text", swatch: "#ebcdf0" },
 ];
 
 const PARTICLE_COUNT = 6;

@@ -4,10 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/repository"
-	"umineko_city_of_books/internal/settings"
 
 	"github.com/google/uuid"
 )
@@ -24,7 +22,6 @@ type EditNotifyParams struct {
 func SendEditNotification(
 	ctx context.Context,
 	userRepo repository.UserRepository,
-	settingsSvc settings.Service,
 	notifSvc Service,
 	p EditNotifyParams,
 ) {
@@ -38,9 +35,6 @@ func SendEditNotification(
 	}
 
 	message := fmt.Sprintf("your %s has been edited", p.ContentType)
-	baseURL := settingsSvc.Get(ctx, config.SettingBaseURL)
-	linkURL := baseURL + p.LinkPath
-	subject, body := NotifEmail(actor.DisplayName, fmt.Sprintf("edited your %s", p.ContentType), "", linkURL)
 
 	notifSvc.Notify(ctx, dto.NotifyParams{
 		RecipientID:   p.AuthorID,
@@ -49,7 +43,8 @@ func SendEditNotification(
 		ReferenceType: p.ReferenceType,
 		ActorID:       p.EditorID,
 		Message:       message,
-		EmailSubject:  subject,
-		EmailBody:     body,
+		EmailActor:    actor.DisplayName,
+		EmailAction:   fmt.Sprintf("edited your %s", p.ContentType),
+		EmailLink:     p.LinkPath,
 	})
 }

@@ -9,7 +9,6 @@ import (
 
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
-	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/media"
@@ -281,21 +280,18 @@ func (s *service) CreateComment(ctx context.Context, secretID string, userID uui
 		if err != nil || actor == nil {
 			return
 		}
-		baseURL := s.settingsSvc.Get(bgCtx, config.SettingBaseURL)
-		linkURL := fmt.Sprintf("%s/secrets/%s#comment-%s", baseURL, secretID, id)
-
 		var parentAuthor uuid.UUID
 		if req.ParentID != nil {
 			if parent, err := s.secretRepo.GetCommentAuthorID(bgCtx, *req.ParentID); err == nil && parent != userID {
 				parentAuthor = parent
-				subject, emailBody := notification.NotifEmail(actor.DisplayName, "replied to your comment", "", linkURL)
 				_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
 					RecipientID:   parentAuthor,
 					Type:          dto.NotifSecretCommentReply,
 					ReferenceType: fmt.Sprintf("secret_comment:%s:%s", secretID, id),
 					ActorID:       userID,
-					EmailSubject:  subject,
-					EmailBody:     emailBody,
+					EmailActor:    actor.DisplayName,
+					EmailAction:   "replied to your comment",
+					EmailLink:     fmt.Sprintf("/secrets/%s#comment-%s", secretID, id),
 				})
 			}
 		}
@@ -304,7 +300,6 @@ func (s *service) CreateComment(ctx context.Context, secretID string, userID uui
 		if err != nil {
 			return
 		}
-		subject, emailBody := notification.NotifEmail(actor.DisplayName, "posted a new comment on a hunt you're following", "", linkURL)
 		for _, rid := range commenters {
 			if rid == userID || rid == parentAuthor {
 				continue
@@ -314,8 +309,9 @@ func (s *service) CreateComment(ctx context.Context, secretID string, userID uui
 				Type:          dto.NotifSecretCommented,
 				ReferenceType: fmt.Sprintf("secret_comment:%s:%s", secretID, id),
 				ActorID:       userID,
-				EmailSubject:  subject,
-				EmailBody:     emailBody,
+				EmailActor:    actor.DisplayName,
+				EmailAction:   "posted a new comment on a hunt you're following",
+				EmailLink:     fmt.Sprintf("/secrets/%s#comment-%s", secretID, id),
 			})
 		}
 	}()
@@ -381,16 +377,14 @@ func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID u
 		if err != nil || actor == nil {
 			return
 		}
-		baseURL := s.settingsSvc.Get(bgCtx, config.SettingBaseURL)
-		linkURL := fmt.Sprintf("%s/secrets/%s#comment-%s", baseURL, secretID, commentID)
-		subject, body := notification.NotifEmail(actor.DisplayName, "liked your comment", "", linkURL)
 		_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
 			RecipientID:   commentAuthorID,
 			Type:          dto.NotifSecretCommentLiked,
 			ReferenceType: fmt.Sprintf("secret_comment:%s:%s", secretID, commentID),
 			ActorID:       userID,
-			EmailSubject:  subject,
-			EmailBody:     body,
+			EmailActor:    actor.DisplayName,
+			EmailAction:   "liked your comment",
+			EmailLink:     fmt.Sprintf("/secrets/%s#comment-%s", secretID, commentID),
 		})
 	}()
 
@@ -495,11 +489,9 @@ func (s *service) BroadcastSolved(ctx context.Context, parentID string, actor uu
 				"secret_title": spec.Title,
 				"solver":       event.Solver,
 			}
-			baseURL := s.settingsSvc.Get(ctx, config.SettingBaseURL)
-			link := fmt.Sprintf("%s/secrets/%s", baseURL, parentID)
-			subject, emailBody := notification.NotifEmail(solverName, fmt.Sprintf("solved %s before you could. Uu~ try again next time.", spec.Title), "", link)
 			message := fmt.Sprintf("solved %s before you could. Uu~ try again next time.", spec.Title)
-			go func(participants []uuid.UUID, subject, body, msg string) {
+			emailLink := fmt.Sprintf("/secrets/%s", parentID)
+			go func(participants []uuid.UUID, actorName, action, link, msg string) {
 				bgCtx := context.Background()
 				for _, pid := range participants {
 					if pid == actor {
@@ -511,12 +503,13 @@ func (s *service) BroadcastSolved(ctx context.Context, parentID string, actor uu
 						ReferenceType: fmt.Sprintf("secret:%s", parentID),
 						ActorID:       actor,
 						Message:       msg,
-						EmailSubject:  subject,
-						EmailBody:     body,
+						EmailActor:    actorName,
+						EmailAction:   action,
+						EmailLink:     link,
 					})
 					s.hub.SendToUser(pid, ws.Message{Type: "secret_closed", Data: closedData})
 				}
-			}(participants, subject, emailBody, message)
+			}(participants, solverName, message, emailLink, message)
 		}
 	}
 }

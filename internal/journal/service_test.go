@@ -990,7 +990,6 @@ func TestArchiveStale_NotifiesAuthors(t *testing.T) {
 	id2 := uuid.New()
 	author1 := uuid.New()
 	m.repo.EXPECT().ArchiveStale(mock.Anything, mock.Anything).Return([]uuid.UUID{id1, id2}, nil)
-	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("http://base")
 	m.repo.EXPECT().GetAuthorID(mock.Anything, id1).Return(author1, nil)
 	m.repo.EXPECT().GetTitle(mock.Anything, id1).Return("title1", nil)
 	m.repo.EXPECT().GetAuthorID(mock.Anything, id2).Return(uuid.Nil, errors.New("skip"))

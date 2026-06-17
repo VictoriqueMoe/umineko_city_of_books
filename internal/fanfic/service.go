@@ -574,17 +574,15 @@ func (s *service) Favourite(ctx context.Context, userID, fanficID uuid.UUID) err
 		if err != nil || actor == nil {
 			return
 		}
-		baseURL := s.settingsSvc.Get(bgCtx, config.SettingBaseURL)
-		linkURL := fmt.Sprintf("%s/fanfics/%s", baseURL, fanficID)
-		subject, emailBody := notification.NotifEmail(actor.DisplayName, "favourited your fanfic", "", linkURL)
 		_ = s.notifSvc.Notify(bgCtx, dto.NotifyParams{
 			RecipientID:   authorID,
 			Type:          dto.NotifFanficFavourited,
 			ReferenceID:   fanficID,
 			ReferenceType: "fanfic",
 			ActorID:       userID,
-			EmailSubject:  subject,
-			EmailBody:     emailBody,
+			EmailActor:    actor.DisplayName,
+			EmailAction:   "favourited your fanfic",
+			EmailLink:     fmt.Sprintf("/fanfics/%s", fanficID),
 		})
 	}()
 
@@ -635,32 +633,29 @@ func (s *service) CreateComment(ctx context.Context, fanficID, userID uuid.UUID,
 		if err != nil || actor == nil {
 			return
 		}
-		baseURL := s.settingsSvc.Get(bgCtx, config.SettingBaseURL)
-		linkURL := fmt.Sprintf("%s/fanfics/%s#comment-%s", baseURL, fanficID, id)
-
-		subject, emailBody := notification.NotifEmail(actor.DisplayName, "commented on your fanfic", "", linkURL)
 		_ = s.notifSvc.Notify(bgCtx, dto.NotifyParams{
 			RecipientID:   authorID,
 			Type:          dto.NotifFanficCommented,
 			ReferenceID:   fanficID,
 			ReferenceType: fmt.Sprintf("fanfic_comment:%s", id),
 			ActorID:       userID,
-			EmailSubject:  subject,
-			EmailBody:     emailBody,
+			EmailActor:    actor.DisplayName,
+			EmailAction:   "commented on your fanfic",
+			EmailLink:     fmt.Sprintf("/fanfics/%s#comment-%s", fanficID, id),
 		})
 
 		if req.ParentID != nil {
 			parentAuthor, err := s.fanficRepo.GetCommentAuthorID(bgCtx, *req.ParentID)
 			if err == nil && parentAuthor != authorID {
-				replySubject, replyBody := notification.NotifEmail(actor.DisplayName, "replied to your comment", "", linkURL)
 				_ = s.notifSvc.Notify(bgCtx, dto.NotifyParams{
 					RecipientID:   parentAuthor,
 					Type:          dto.NotifFanficCommentReply,
 					ReferenceID:   fanficID,
 					ReferenceType: fmt.Sprintf("fanfic_comment:%s", id),
 					ActorID:       userID,
-					EmailSubject:  replySubject,
-					EmailBody:     replyBody,
+					EmailActor:    actor.DisplayName,
+					EmailAction:   "replied to your comment",
+					EmailLink:     fmt.Sprintf("/fanfics/%s#comment-%s", fanficID, id),
 				})
 			}
 		}
@@ -723,17 +718,15 @@ func (s *service) LikeComment(ctx context.Context, userID, commentID uuid.UUID) 
 		if err != nil {
 			return
 		}
-		baseURL := s.settingsSvc.Get(bgCtx, config.SettingBaseURL)
-		linkURL := fmt.Sprintf("%s/fanfics/%s#comment-%s", baseURL, fanficID, commentID)
-		subject, emailBody := notification.NotifEmail("Someone", "liked your comment", "", linkURL)
 		_ = s.notifSvc.Notify(bgCtx, dto.NotifyParams{
 			RecipientID:   commentAuthorID,
 			Type:          dto.NotifFanficCommentLiked,
 			ReferenceID:   fanficID,
 			ReferenceType: fmt.Sprintf("fanfic_comment:%s", commentID),
 			ActorID:       userID,
-			EmailSubject:  subject,
-			EmailBody:     emailBody,
+			EmailActor:    "Someone",
+			EmailAction:   "liked your comment",
+			EmailLink:     fmt.Sprintf("/fanfics/%s#comment-%s", fanficID, commentID),
 		})
 	}()
 

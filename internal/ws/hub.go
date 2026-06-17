@@ -29,7 +29,7 @@ type (
 		UserID    uuid.UUID
 		Conn      *websocket.Conn
 		send      chan []byte
-		closeCh   chan struct{}
+		closeCh   chan any
 		closeOnce sync.Once
 	}
 
@@ -42,7 +42,7 @@ type (
 		clients map[uuid.UUID][]*Client
 		rooms   map[uuid.UUID]map[uuid.UUID]bool
 		viewers map[uuid.UUID]map[uuid.UUID]*viewerInfo
-		anon    map[*Client]struct{}
+		anon    map[*Client]any
 		mu      sync.RWMutex
 	}
 )
@@ -57,7 +57,7 @@ func NewClient(userID uuid.UUID, conn *websocket.Conn) *Client {
 		UserID:  userID,
 		Conn:    conn,
 		send:    make(chan []byte, sendBufferSize),
-		closeCh: make(chan struct{}),
+		closeCh: make(chan any),
 	}
 }
 
@@ -125,7 +125,7 @@ func NewHub() *Hub {
 		clients: make(map[uuid.UUID][]*Client),
 		rooms:   make(map[uuid.UUID]map[uuid.UUID]bool),
 		viewers: make(map[uuid.UUID]map[uuid.UUID]*viewerInfo),
-		anon:    make(map[*Client]struct{}),
+		anon:    make(map[*Client]any),
 	}
 }
 

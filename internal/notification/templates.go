@@ -18,6 +18,7 @@ type NotifEmailData struct {
 	Action    string
 	Title     string
 	LinkURL   string
+	SiteName  string
 }
 
 type ReportEmailData struct {
@@ -25,6 +26,7 @@ type ReportEmailData struct {
 	TargetType   string
 	Reason       string
 	LinkURL      string
+	SiteName     string
 }
 
 type ReportResolvedEmailData struct {
@@ -32,6 +34,7 @@ type ReportResolvedEmailData struct {
 	TargetType   string
 	Comment      string
 	LinkURL      string
+	SiteName     string
 }
 
 type PasswordResetEmailData struct {
@@ -44,7 +47,7 @@ type VerificationEmailData struct {
 	LinkURL  string
 }
 
-func NotifEmail(actorName, action, title, linkURL string) (subject string, body string) {
+func notifEmail(actorName, action, title, linkURL, siteName string) (subject string, body string) {
 	subject = fmt.Sprintf("%s %s", actorName, action)
 
 	data := NotifEmailData{
@@ -53,6 +56,7 @@ func NotifEmail(actorName, action, title, linkURL string) (subject string, body 
 		Action:    action,
 		Title:     title,
 		LinkURL:   linkURL,
+		SiteName:  siteName,
 	}
 
 	var buf bytes.Buffer
@@ -63,7 +67,7 @@ func NotifEmail(actorName, action, title, linkURL string) (subject string, body 
 	return subject, buf.String()
 }
 
-func ReportEmail(reporterName, targetType, reason, linkURL string) (subject string, body string) {
+func reportEmail(reporterName, targetType, reason, linkURL, siteName string) (subject string, body string) {
 	subject = fmt.Sprintf("New report from %s", reporterName)
 
 	data := ReportEmailData{
@@ -71,6 +75,7 @@ func ReportEmail(reporterName, targetType, reason, linkURL string) (subject stri
 		TargetType:   targetType,
 		Reason:       reason,
 		LinkURL:      linkURL,
+		SiteName:     siteName,
 	}
 
 	var buf bytes.Buffer
@@ -81,7 +86,7 @@ func ReportEmail(reporterName, targetType, reason, linkURL string) (subject stri
 	return subject, buf.String()
 }
 
-func ReportResolvedEmail(resolverName, targetType, comment, linkURL string) (subject string, body string) {
+func reportResolvedEmail(resolverName, targetType, comment, linkURL, siteName string) (subject string, body string) {
 	subject = "Your report has been resolved"
 
 	data := ReportResolvedEmailData{
@@ -89,6 +94,7 @@ func ReportResolvedEmail(resolverName, targetType, comment, linkURL string) (sub
 		TargetType:   targetType,
 		Comment:      comment,
 		LinkURL:      linkURL,
+		SiteName:     siteName,
 	}
 
 	var buf bytes.Buffer

@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"umineko_city_of_books/internal/notification/push"
 
 	"umineko_city_of_books/internal/admin"
 	announcementsvc "umineko_city_of_books/internal/announcement"
@@ -24,6 +25,7 @@ import (
 	"umineko_city_of_books/internal/game/chess"
 	"umineko_city_of_books/internal/game/minesweeper"
 	"umineko_city_of_books/internal/game/othello"
+	"umineko_city_of_books/internal/game/snakesandladders"
 	"umineko_city_of_books/internal/gameroom"
 	"umineko_city_of_books/internal/giphy"
 	"umineko_city_of_books/internal/giphy/banlist"
@@ -39,7 +41,6 @@ import (
 	ocsvc "umineko_city_of_books/internal/oc"
 	postsvc "umineko_city_of_books/internal/post"
 	"umineko_city_of_books/internal/profile"
-	"umineko_city_of_books/internal/push"
 	"umineko_city_of_books/internal/quotefinder"
 	"umineko_city_of_books/internal/report"
 	"umineko_city_of_books/internal/repository"
@@ -90,7 +91,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 	emailSvc := email.NewService(settingsSvc)
 	pushSvc := push.NewService(settingsSvc, repos.DeviceToken, config.Cfg.FCMCredentialsFile)
 	blockSvc := blocksvc.NewService(repos.Block, repos.Follow, authzSvc)
-	notifSvc := notification.NewService(repos.Notification, repos.User, hub, emailSvc, pushSvc)
+	notifSvc := notification.NewService(repos.Notification, repos.User, hub, emailSvc, pushSvc, settingsSvc)
 	reportSvc := report.NewService(repos.Report, repos.Role, repos.User, notifSvc, settingsSvc)
 	hyperbeamSvc := hyperbeam.NewService()
 	livekitSvc := livekit.NewService(settingsSvc)
@@ -106,7 +107,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 	fanficSvc := fanficsvc.NewService(repos.Fanfic, repos.User, repos.AuditLog, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, contentFilter)
 	journalSvc := journal.NewService(repos.Journal, repos.User, repos.AuditLog, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, contentFilter)
 	secretSvc := secretsvc.NewService(repos.Secret, repos.UserSecret, repos.User, repos.AuditLog, authzSvc, blockSvc, notifSvc, settingsSvc, uploadSvc, mediaProc, hub, contentFilter)
-	gameRoomSvc := gameroom.NewService(repos.GameRoom, repos.User, repos.Block, notifSvc, hub, contentFilter, []gameroom.GameHandler{chess.NewHandler(), checkers.NewHandler(), othello.NewHandler(), minesweeper.NewHandler()})
+	gameRoomSvc := gameroom.NewService(repos.GameRoom, repos.User, repos.Block, notifSvc, hub, contentFilter, []gameroom.GameHandler{chess.NewHandler(), checkers.NewHandler(), othello.NewHandler(), minesweeper.NewHandler(), snakesandladders.NewHandler()})
 	announcementUploader := media.NewUploader(uploadSvc, settingsSvc, mediaProc)
 	announcementSvc := announcementsvc.NewService(repos.Announcement, repos.User, repos.AuditLog, blockSvc, notifSvc, settingsSvc, authzSvc, hub, announcementUploader)
 	homeFeedSvc := homefeed.NewService(repos.HomeFeed, hub)

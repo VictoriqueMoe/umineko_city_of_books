@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"umineko_city_of_books/internal/notification/push"
 
 	"umineko_city_of_books/internal/admin"
 	announcementsvc "umineko_city_of_books/internal/announcement"
@@ -37,7 +38,6 @@ import (
 	"umineko_city_of_books/internal/og"
 	postsvc "umineko_city_of_books/internal/post"
 	"umineko_city_of_books/internal/profile"
-	"umineko_city_of_books/internal/push"
 	"umineko_city_of_books/internal/report"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/routes"

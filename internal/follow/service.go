@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"umineko_city_of_books/internal/block"
-	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
@@ -69,17 +68,15 @@ func (s *service) Follow(ctx context.Context, followerID uuid.UUID, followingID 
 		if err != nil || follower == nil {
 			return
 		}
-		baseURL := s.settingsSvc.Get(ctx, config.SettingBaseURL)
-		linkURL := fmt.Sprintf("%s/user/%s", baseURL, follower.Username)
-		subject, body := notification.NotifEmail(follower.DisplayName, "started following you", "", linkURL)
 		_ = s.notifService.Notify(ctx, dto.NotifyParams{
 			RecipientID:   followingID,
 			Type:          dto.NotifNewFollower,
 			ReferenceID:   followerID,
 			ReferenceType: "user",
 			ActorID:       followerID,
-			EmailSubject:  subject,
-			EmailBody:     body,
+			EmailActor:    follower.DisplayName,
+			EmailAction:   "started following you",
+			EmailLink:     fmt.Sprintf("/user/%s", follower.Username),
 		})
 	}()
 

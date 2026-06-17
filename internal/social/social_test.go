@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
@@ -144,7 +143,6 @@ func TestProcessMentions_DuplicateUsernameOnlyNotifiedOnce(t *testing.T) {
 	refID := uuid.New()
 	userRepo.EXPECT().GetByUsername(mock.Anything, "alice").Return(&model.User{ID: mentionedID, Username: "alice", DisplayName: "Alice"}, nil).Once()
 	userRepo.EXPECT().GetByID(mock.Anything, actorID).Return(&model.User{ID: actorID, Username: "bob", DisplayName: "Bob"}, nil).Once()
-	settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("https://example.com").Once()
 	notifSvc.EXPECT().Notify(mock.Anything, mock.MatchedBy(func(p dto.NotifyParams) bool {
 		return p.RecipientID == mentionedID && p.ActorID == actorID && p.Type == dto.NotifMention && p.ReferenceID == refID && p.ReferenceType == "post"
 	})).Return(nil).Once()
@@ -180,7 +178,6 @@ func TestProcessMentions_NotifyErrorSwallowed(t *testing.T) {
 	mentionedID := uuid.New()
 	userRepo.EXPECT().GetByUsername(mock.Anything, "alice").Return(&model.User{ID: mentionedID, Username: "alice"}, nil)
 	userRepo.EXPECT().GetByID(mock.Anything, actorID).Return(&model.User{ID: actorID, DisplayName: "Bob"}, nil)
-	settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("https://example.com")
 	notifSvc.EXPECT().Notify(mock.Anything, mock.Anything).Return(errors.New("notify failed"))
 
 	// when — should not panic
