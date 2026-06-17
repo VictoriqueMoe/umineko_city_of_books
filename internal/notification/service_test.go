@@ -5,10 +5,12 @@ import (
 	"errors"
 	"testing"
 
+	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/email"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/repository/model"
+	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
@@ -27,8 +29,13 @@ func newTestService(t *testing.T) (
 	notifRepo := repository.NewMockNotificationRepository(t)
 	userRepo := repository.NewMockUserRepository(t)
 	emailSvc := email.NewMockService(t)
+	settingsSvc := settings.NewMockService(t)
 	hub := ws.NewHub()
-	svc := NewService(notifRepo, userRepo, hub, emailSvc, nil).(*service)
+
+	settingsSvc.EXPECT().Get(mock.Anything, config.SettingSiteName).Return("Test Site").Maybe()
+	settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("https://test.example").Maybe()
+
+	svc := NewService(notifRepo, userRepo, hub, emailSvc, nil, settingsSvc).(*service)
 	return svc, notifRepo, userRepo, emailSvc, hub
 }
 
@@ -81,8 +88,8 @@ func TestNotify_HasRecentDuplicateErrorIgnoredCreateProceeds(t *testing.T) {
 		Type:          dto.NotifPostLiked,
 		ReferenceID:   uuid.New(),
 		ReferenceType: "post",
-		EmailSubject:  "subj",
-		EmailBody:     "body",
+		EmailActor:    "Beatrice",
+		EmailAction:   "liked your post",
 	}
 	notifRepo.EXPECT().
 		HasRecentDuplicate(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ActorID).
@@ -104,16 +111,16 @@ func TestNotify_HasRecentDuplicateErrorIgnoredCreateProceeds(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestNotify_DirectMessageSendsEmailWhenSubjectSet(t *testing.T) {
+func TestNotify_DirectMessageSendsEmailWhenActionSet(t *testing.T) {
 	// given
 	svc, notifRepo, userRepo, emailSvc, _ := newTestService(t)
 	params := dto.NotifyParams{
-		RecipientID:  uuid.New(),
-		ActorID:      uuid.New(),
-		Type:         dto.NotifChatMessage,
-		ReferenceID:  uuid.New(),
-		EmailSubject: "new message",
-		EmailBody:    "body",
+		RecipientID: uuid.New(),
+		ActorID:     uuid.New(),
+		Type:        dto.NotifChatMessage,
+		ReferenceID: uuid.New(),
+		EmailActor:  "Alice",
+		EmailAction: "messaged you",
 	}
 	notifRepo.EXPECT().
 		HasRecentDuplicate(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ActorID).
@@ -128,7 +135,7 @@ func TestNotify_DirectMessageSendsEmailWhenSubjectSet(t *testing.T) {
 		Email:              "recipient@example.com",
 		EmailNotifications: true,
 	}, nil)
-	emailSvc.EXPECT().Send(mock.Anything, "recipient@example.com", "new message", "body").Return(nil)
+	emailSvc.EXPECT().Send(mock.Anything, "recipient@example.com", "Alice messaged you", mock.Anything).Return(nil)
 
 	// when
 	err := svc.Notify(context.Background(), params)
@@ -152,12 +159,12 @@ func TestNotify_ChatTypesSkipEmail(t *testing.T) {
 			// given
 			svc, notifRepo, _, _, _ := newTestService(t)
 			params := dto.NotifyParams{
-				RecipientID:  uuid.New(),
-				ActorID:      uuid.New(),
-				Type:         tc.notifType,
-				ReferenceID:  uuid.New(),
-				EmailSubject: "new message",
-				EmailBody:    "body",
+				RecipientID: uuid.New(),
+				ActorID:     uuid.New(),
+				Type:        tc.notifType,
+				ReferenceID: uuid.New(),
+				EmailActor:  "Alice",
+				EmailAction: "messaged you",
 			}
 			notifRepo.EXPECT().
 				Create(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message).
@@ -179,12 +186,12 @@ func TestNotify_ChatRoomInviteStillSendsEmail(t *testing.T) {
 	// given
 	svc, notifRepo, userRepo, emailSvc, _ := newTestService(t)
 	params := dto.NotifyParams{
-		RecipientID:  uuid.New(),
-		ActorID:      uuid.New(),
-		Type:         dto.NotifChatRoomInvite,
-		ReferenceID:  uuid.New(),
-		EmailSubject: "subj",
-		EmailBody:    "body",
+		RecipientID: uuid.New(),
+		ActorID:     uuid.New(),
+		Type:        dto.NotifChatRoomInvite,
+		ReferenceID: uuid.New(),
+		EmailActor:  "Beatrice",
+		EmailAction: "liked your post",
 	}
 	notifRepo.EXPECT().
 		HasRecentDuplicate(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ActorID).
@@ -199,7 +206,7 @@ func TestNotify_ChatRoomInviteStillSendsEmail(t *testing.T) {
 		Email:              "recipient@example.com",
 		EmailNotifications: true,
 	}, nil)
-	emailSvc.EXPECT().Send(mock.Anything, "recipient@example.com", "subj", "body").Return(nil)
+	emailSvc.EXPECT().Send(mock.Anything, "recipient@example.com", "Beatrice liked your post", mock.Anything).Return(nil)
 
 	// when
 	err := svc.Notify(context.Background(), params)
@@ -208,15 +215,14 @@ func TestNotify_ChatRoomInviteStillSendsEmail(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestNotify_EmptyEmailSubjectSkipsEmail(t *testing.T) {
+func TestNotify_NoEmailActionSkipsEmail(t *testing.T) {
 	// given
 	svc, notifRepo, _, _, _ := newTestService(t)
 	params := dto.NotifyParams{
-		RecipientID:  uuid.New(),
-		ActorID:      uuid.New(),
-		Type:         dto.NotifPostLiked,
-		ReferenceID:  uuid.New(),
-		EmailSubject: "",
+		RecipientID: uuid.New(),
+		ActorID:     uuid.New(),
+		Type:        dto.NotifPostLiked,
+		ReferenceID: uuid.New(),
 	}
 	notifRepo.EXPECT().
 		Create(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message).
@@ -236,12 +242,12 @@ func TestNotify_EmailDupeSkipsEmail(t *testing.T) {
 	// given
 	svc, notifRepo, _, _, _ := newTestService(t)
 	params := dto.NotifyParams{
-		RecipientID:  uuid.New(),
-		ActorID:      uuid.New(),
-		Type:         dto.NotifPostLiked,
-		ReferenceID:  uuid.New(),
-		EmailSubject: "subj",
-		EmailBody:    "body",
+		RecipientID: uuid.New(),
+		ActorID:     uuid.New(),
+		Type:        dto.NotifPostLiked,
+		ReferenceID: uuid.New(),
+		EmailActor:  "Beatrice",
+		EmailAction: "liked your post",
 	}
 	notifRepo.EXPECT().
 		HasRecentDuplicate(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ActorID).
@@ -264,12 +270,12 @@ func TestNotify_EmailSentWhenEligible(t *testing.T) {
 	// given
 	svc, notifRepo, userRepo, emailSvc, _ := newTestService(t)
 	params := dto.NotifyParams{
-		RecipientID:  uuid.New(),
-		ActorID:      uuid.New(),
-		Type:         dto.NotifPostLiked,
-		ReferenceID:  uuid.New(),
-		EmailSubject: "subj",
-		EmailBody:    "body",
+		RecipientID: uuid.New(),
+		ActorID:     uuid.New(),
+		Type:        dto.NotifPostLiked,
+		ReferenceID: uuid.New(),
+		EmailActor:  "Beatrice",
+		EmailAction: "liked your post",
 	}
 	notifRepo.EXPECT().
 		HasRecentDuplicate(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ActorID).
@@ -284,7 +290,7 @@ func TestNotify_EmailSentWhenEligible(t *testing.T) {
 		Email:              "recipient@example.com",
 		EmailNotifications: true,
 	}, nil)
-	emailSvc.EXPECT().Send(mock.Anything, "recipient@example.com", "subj", "body").Return(nil)
+	emailSvc.EXPECT().Send(mock.Anything, "recipient@example.com", "Beatrice liked your post", mock.Anything).Return(nil)
 
 	// when
 	err := svc.Notify(context.Background(), params)
@@ -297,12 +303,12 @@ func TestNotify_EmailSendErrorDoesNotBubble(t *testing.T) {
 	// given
 	svc, notifRepo, userRepo, emailSvc, _ := newTestService(t)
 	params := dto.NotifyParams{
-		RecipientID:  uuid.New(),
-		ActorID:      uuid.New(),
-		Type:         dto.NotifPostLiked,
-		ReferenceID:  uuid.New(),
-		EmailSubject: "subj",
-		EmailBody:    "body",
+		RecipientID: uuid.New(),
+		ActorID:     uuid.New(),
+		Type:        dto.NotifPostLiked,
+		ReferenceID: uuid.New(),
+		EmailActor:  "Beatrice",
+		EmailAction: "liked your post",
 	}
 	notifRepo.EXPECT().
 		HasRecentDuplicate(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ActorID).
@@ -317,7 +323,7 @@ func TestNotify_EmailSendErrorDoesNotBubble(t *testing.T) {
 		Email:              "recipient@example.com",
 		EmailNotifications: true,
 	}, nil)
-	emailSvc.EXPECT().Send(mock.Anything, "recipient@example.com", "subj", "body").Return(errors.New("smtp down"))
+	emailSvc.EXPECT().Send(mock.Anything, "recipient@example.com", "Beatrice liked your post", mock.Anything).Return(errors.New("smtp down"))
 
 	// when
 	err := svc.Notify(context.Background(), params)
@@ -330,12 +336,12 @@ func TestNotify_EmailSkippedWhenUserLookupErrors(t *testing.T) {
 	// given
 	svc, notifRepo, userRepo, _, _ := newTestService(t)
 	params := dto.NotifyParams{
-		RecipientID:  uuid.New(),
-		ActorID:      uuid.New(),
-		Type:         dto.NotifPostLiked,
-		ReferenceID:  uuid.New(),
-		EmailSubject: "subj",
-		EmailBody:    "body",
+		RecipientID: uuid.New(),
+		ActorID:     uuid.New(),
+		Type:        dto.NotifPostLiked,
+		ReferenceID: uuid.New(),
+		EmailActor:  "Beatrice",
+		EmailAction: "liked your post",
 	}
 	notifRepo.EXPECT().
 		HasRecentDuplicate(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ActorID).
@@ -359,12 +365,12 @@ func TestNotify_EmailSkippedWhenUserNil(t *testing.T) {
 	// given
 	svc, notifRepo, userRepo, _, _ := newTestService(t)
 	params := dto.NotifyParams{
-		RecipientID:  uuid.New(),
-		ActorID:      uuid.New(),
-		Type:         dto.NotifPostLiked,
-		ReferenceID:  uuid.New(),
-		EmailSubject: "subj",
-		EmailBody:    "body",
+		RecipientID: uuid.New(),
+		ActorID:     uuid.New(),
+		Type:        dto.NotifPostLiked,
+		ReferenceID: uuid.New(),
+		EmailActor:  "Beatrice",
+		EmailAction: "liked your post",
 	}
 	notifRepo.EXPECT().
 		HasRecentDuplicate(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ActorID).
@@ -388,12 +394,12 @@ func TestNotify_EmailSkippedWhenEmailEmpty(t *testing.T) {
 	// given
 	svc, notifRepo, userRepo, _, _ := newTestService(t)
 	params := dto.NotifyParams{
-		RecipientID:  uuid.New(),
-		ActorID:      uuid.New(),
-		Type:         dto.NotifPostLiked,
-		ReferenceID:  uuid.New(),
-		EmailSubject: "subj",
-		EmailBody:    "body",
+		RecipientID: uuid.New(),
+		ActorID:     uuid.New(),
+		Type:        dto.NotifPostLiked,
+		ReferenceID: uuid.New(),
+		EmailActor:  "Beatrice",
+		EmailAction: "liked your post",
 	}
 	notifRepo.EXPECT().
 		HasRecentDuplicate(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ActorID).
@@ -417,12 +423,12 @@ func TestNotify_EmailSkippedWhenNotificationsDisabledAndNotReport(t *testing.T) 
 	// given
 	svc, notifRepo, userRepo, _, _ := newTestService(t)
 	params := dto.NotifyParams{
-		RecipientID:  uuid.New(),
-		ActorID:      uuid.New(),
-		Type:         dto.NotifPostLiked,
-		ReferenceID:  uuid.New(),
-		EmailSubject: "subj",
-		EmailBody:    "body",
+		RecipientID: uuid.New(),
+		ActorID:     uuid.New(),
+		Type:        dto.NotifPostLiked,
+		ReferenceID: uuid.New(),
+		EmailActor:  "Beatrice",
+		EmailAction: "liked your post",
 	}
 	notifRepo.EXPECT().
 		HasRecentDuplicate(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ActorID).
@@ -449,12 +455,13 @@ func TestNotify_ReportTypeSendsEmailEvenWithNotificationsDisabled(t *testing.T) 
 	// given
 	svc, notifRepo, userRepo, emailSvc, _ := newTestService(t)
 	params := dto.NotifyParams{
-		RecipientID:  uuid.New(),
-		ActorID:      uuid.New(),
-		Type:         dto.NotifReport,
-		ReferenceID:  uuid.New(),
-		EmailSubject: "report",
-		EmailBody:    "body",
+		RecipientID: uuid.New(),
+		ActorID:     uuid.New(),
+		Type:        dto.NotifReport,
+		ReferenceID: uuid.New(),
+		EmailActor:  "Reporter",
+		EmailAction: "post",
+		EmailTitle:  "spam",
 	}
 	notifRepo.EXPECT().
 		HasRecentDuplicate(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ActorID).
@@ -469,7 +476,7 @@ func TestNotify_ReportTypeSendsEmailEvenWithNotificationsDisabled(t *testing.T) 
 		Email:              "admin@example.com",
 		EmailNotifications: false,
 	}, nil)
-	emailSvc.EXPECT().Send(mock.Anything, "admin@example.com", "report", "body").Return(nil)
+	emailSvc.EXPECT().Send(mock.Anything, "admin@example.com", "New report from Reporter", mock.Anything).Return(nil)
 
 	// when
 	err := svc.Notify(context.Background(), params)
@@ -482,11 +489,10 @@ func TestNotify_PushNotificationListErrorSilentlyIgnored(t *testing.T) {
 	// given
 	svc, notifRepo, _, _, _ := newTestService(t)
 	params := dto.NotifyParams{
-		RecipientID:  uuid.New(),
-		ActorID:      uuid.New(),
-		Type:         dto.NotifChatMessage,
-		ReferenceID:  uuid.New(),
-		EmailSubject: "",
+		RecipientID: uuid.New(),
+		ActorID:     uuid.New(),
+		Type:        dto.NotifChatMessage,
+		ReferenceID: uuid.New(),
 	}
 	notifRepo.EXPECT().
 		Create(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message).
@@ -506,11 +512,10 @@ func TestNotify_PushNotificationNoMatchingRowNoPanic(t *testing.T) {
 	// given
 	svc, notifRepo, _, _, _ := newTestService(t)
 	params := dto.NotifyParams{
-		RecipientID:  uuid.New(),
-		ActorID:      uuid.New(),
-		Type:         dto.NotifChatMessage,
-		ReferenceID:  uuid.New(),
-		EmailSubject: "",
+		RecipientID: uuid.New(),
+		ActorID:     uuid.New(),
+		Type:        dto.NotifChatMessage,
+		ReferenceID: uuid.New(),
 	}
 	notifRepo.EXPECT().
 		Create(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message).
@@ -530,11 +535,10 @@ func TestNotify_PushNotificationFindsRowSendsToHub(t *testing.T) {
 	// given
 	svc, notifRepo, _, _, _ := newTestService(t)
 	params := dto.NotifyParams{
-		RecipientID:  uuid.New(),
-		ActorID:      uuid.New(),
-		Type:         dto.NotifChatMessage,
-		ReferenceID:  uuid.New(),
-		EmailSubject: "",
+		RecipientID: uuid.New(),
+		ActorID:     uuid.New(),
+		Type:        dto.NotifChatMessage,
+		ReferenceID: uuid.New(),
 	}
 	notifRepo.EXPECT().
 		Create(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message).

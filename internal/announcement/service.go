@@ -8,7 +8,6 @@ import (
 
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
-	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
@@ -247,32 +246,31 @@ func (s *service) notifyCommentCreated(ann *repository.AnnouncementRow, announce
 	if err != nil || actor == nil {
 		return
 	}
-	baseURL := s.settingsSvc.Get(bgCtx, config.SettingBaseURL)
-	linkURL := fmt.Sprintf("%s/announcements/%s#comment-%s", baseURL, announcementID, commentID)
-
-	subject, emailBody := notification.NotifEmail(actor.DisplayName, "commented on your announcement", ann.Title, linkURL)
 	_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
 		RecipientID:   ann.AuthorID,
 		Type:          dto.NotifAnnouncementCommented,
 		ReferenceID:   announcementID,
 		ReferenceType: fmt.Sprintf("announcement_comment:%s", commentID),
 		ActorID:       actorID,
-		EmailSubject:  subject,
-		EmailBody:     emailBody,
+		EmailActor:    actor.DisplayName,
+		EmailAction:   "commented on your announcement",
+		EmailTitle:    ann.Title,
+		EmailLink:     fmt.Sprintf("/announcements/%s#comment-%s", announcementID, commentID),
 	})
 
 	if parentID != nil {
 		parentAuthor, err := s.repo.GetCommentAuthorID(bgCtx, *parentID)
 		if err == nil && parentAuthor != ann.AuthorID {
-			replySubject, replyBody := notification.NotifEmail(actor.DisplayName, "replied to your comment", ann.Title, linkURL)
 			_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
 				RecipientID:   parentAuthor,
 				Type:          dto.NotifAnnouncementCommentReply,
 				ReferenceID:   announcementID,
 				ReferenceType: fmt.Sprintf("announcement_comment:%s", commentID),
 				ActorID:       actorID,
-				EmailSubject:  replySubject,
-				EmailBody:     replyBody,
+				EmailActor:    actor.DisplayName,
+				EmailAction:   "replied to your comment",
+				EmailTitle:    ann.Title,
+				EmailLink:     fmt.Sprintf("/announcements/%s#comment-%s", announcementID, commentID),
 			})
 		}
 	}
@@ -340,17 +338,15 @@ func (s *service) notifyCommentLiked(commentID, recipientID, actorID uuid.UUID) 
 	if err != nil || actor == nil {
 		return
 	}
-	baseURL := s.settingsSvc.Get(bgCtx, config.SettingBaseURL)
-	linkURL := fmt.Sprintf("%s/announcements/%s#comment-%s", baseURL, announcementID, commentID)
-	subject, body := notification.NotifEmail(actor.DisplayName, "liked your comment", "", linkURL)
 	_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
 		RecipientID:   recipientID,
 		Type:          dto.NotifAnnouncementCommentLiked,
 		ReferenceID:   announcementID,
 		ReferenceType: fmt.Sprintf("announcement_comment:%s", commentID),
 		ActorID:       actorID,
-		EmailSubject:  subject,
-		EmailBody:     body,
+		EmailActor:    actor.DisplayName,
+		EmailAction:   "liked your comment",
+		EmailLink:     fmt.Sprintf("/announcements/%s#comment-%s", announcementID, commentID),
 	})
 }
 

@@ -1,0 +1,54 @@
+.board {
+    width: 100%;
+    height: auto;
+    display: block;
+    user-select: none;
+}
+
+.cellNumber {
+    font-size: 18px;
+    font-weight: 600;
+    fill: #8a6a32;
+    font-family: Georgia, "Times New Roman", serif;
+}
+
+.goalMark {
+    font-size: 30px;
+    fill: #b8860b;
+    text-anchor: middle;
+}
+
+.startLabel {
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: 6px;
+    fill: #2a1d0a;
+    text-anchor: middle;
+    font-family: Georgia, "Times New Roman", serif;
+}
+
+.token {
+    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tokenLabel {
+    font-size: 20px;
+    font-weight: 700;
+    fill: #fff;
+    text-anchor: middle;
+    font-family: Georgia, "Times New Roman", serif;
+}
+
+.lastPulse {
+    animation: sl-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes sl-pulse {
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.3;
+    }
+}

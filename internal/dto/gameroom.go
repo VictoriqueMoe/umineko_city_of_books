@@ -93,10 +93,11 @@ type (
 )
 
 const (
-	GameTypeChess       GameType = "chess"
-	GameTypeCheckers    GameType = "checkers"
-	GameTypeOthello     GameType = "othello"
-	GameTypeMinesweeper GameType = "minesweeper"
+	GameTypeChess         GameType = "chess"
+	GameTypeCheckers      GameType = "checkers"
+	GameTypeOthello       GameType = "othello"
+	GameTypeMinesweeper   GameType = "minesweeper"
+	GameTypeSnakesLadders GameType = "snakes_and_ladders"
 
 	GameStatusPending   GameStatus = "pending"
 	GameStatusActive    GameStatus = "active"

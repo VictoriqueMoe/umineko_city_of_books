@@ -354,32 +354,29 @@ func (s *service) CreateComment(ctx context.Context, shipID uuid.UUID, userID uu
 		if err != nil || actor == nil {
 			return
 		}
-		baseURL := s.settingsSvc.Get(bgCtx, config.SettingBaseURL)
-		linkURL := fmt.Sprintf("%s/ships/%s#comment-%s", baseURL, shipID, id)
-
-		subject, emailBody := notification.NotifEmail(actor.DisplayName, "commented on your ship", "", linkURL)
 		_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
 			RecipientID:   authorID,
 			Type:          dto.NotifShipCommented,
 			ReferenceID:   shipID,
 			ReferenceType: fmt.Sprintf("ship_comment:%s", id),
 			ActorID:       userID,
-			EmailSubject:  subject,
-			EmailBody:     emailBody,
+			EmailActor:    actor.DisplayName,
+			EmailAction:   "commented on your ship",
+			EmailLink:     fmt.Sprintf("/ships/%s#comment-%s", shipID, id),
 		})
 
 		if req.ParentID != nil {
 			parentAuthor, err := s.shipRepo.GetCommentAuthorID(bgCtx, *req.ParentID)
 			if err == nil && parentAuthor != authorID {
-				replySubject, replyBody := notification.NotifEmail(actor.DisplayName, "replied to your comment", "", linkURL)
 				_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
 					RecipientID:   parentAuthor,
 					Type:          dto.NotifShipCommentReply,
 					ReferenceID:   shipID,
 					ReferenceType: fmt.Sprintf("ship_comment:%s", id),
 					ActorID:       userID,
-					EmailSubject:  replySubject,
-					EmailBody:     replyBody,
+					EmailActor:    actor.DisplayName,
+					EmailAction:   "replied to your comment",
+					EmailLink:     fmt.Sprintf("/ships/%s#comment-%s", shipID, id),
 				})
 			}
 		}
@@ -442,17 +439,15 @@ func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID u
 		if err != nil {
 			return
 		}
-		baseURL := s.settingsSvc.Get(bgCtx, config.SettingBaseURL)
-		linkURL := fmt.Sprintf("%s/ships/%s#comment-%s", baseURL, shipID, commentID)
-		subject, emailBody := notification.NotifEmail("Someone", "liked your comment", "", linkURL)
 		_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
 			RecipientID:   commentAuthorID,
 			Type:          dto.NotifShipCommentLiked,
 			ReferenceID:   shipID,
 			ReferenceType: fmt.Sprintf("ship_comment:%s", commentID),
 			ActorID:       userID,
-			EmailSubject:  subject,
-			EmailBody:     emailBody,
+			EmailActor:    "Someone",
+			EmailAction:   "liked your comment",
+			EmailLink:     fmt.Sprintf("/ships/%s#comment-%s", shipID, commentID),
 		})
 	}()
 

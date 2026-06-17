@@ -345,17 +345,15 @@ func (s *service) LikeArt(ctx context.Context, userID uuid.UUID, artID uuid.UUID
 		if err != nil || actor == nil {
 			return
 		}
-		baseURL := s.settingsSvc.Get(ctx, config.SettingBaseURL)
-		linkURL := fmt.Sprintf("%s/gallery/art/%s", baseURL, artID)
-		subject, body := notification.NotifEmail(actor.DisplayName, "liked your art", "", linkURL)
 		_ = s.notifService.Notify(ctx, dto.NotifyParams{
 			RecipientID:   authorID,
 			Type:          dto.NotifArtLiked,
 			ReferenceID:   artID,
 			ReferenceType: "art",
 			ActorID:       userID,
-			EmailSubject:  subject,
-			EmailBody:     body,
+			EmailActor:    actor.DisplayName,
+			EmailAction:   "liked your art",
+			EmailLink:     fmt.Sprintf("/gallery/art/%s", artID),
 		})
 	}()
 
@@ -416,47 +414,46 @@ func (s *service) CreateComment(ctx context.Context, artID uuid.UUID, userID uui
 		if err != nil || actor == nil {
 			return
 		}
-		baseURL := s.settingsSvc.Get(ctx, config.SettingBaseURL)
-		linkURL := fmt.Sprintf("%s/gallery/art/%s#comment-%s", baseURL, artID, id)
+		linkURL := fmt.Sprintf("/gallery/art/%s#comment-%s", artID, id)
 
 		if req.ParentID == nil {
-			subject, emailBody := notification.NotifEmail(actor.DisplayName, "commented on your art", "", linkURL)
 			_ = s.notifService.Notify(ctx, dto.NotifyParams{
 				RecipientID:   artAuthorID,
 				Type:          dto.NotifArtCommented,
 				ReferenceID:   artID,
 				ReferenceType: fmt.Sprintf("art_comment:%s", id),
 				ActorID:       userID,
-				EmailSubject:  subject,
-				EmailBody:     emailBody,
+				EmailActor:    actor.DisplayName,
+				EmailAction:   "commented on your art",
+				EmailLink:     linkURL,
 			})
 			return
 		}
 
 		parentAuthorID, err := s.artRepo.GetCommentAuthorID(ctx, *req.ParentID)
 		if err == nil && parentAuthorID != userID {
-			replySubject, replyBody := notification.NotifEmail(actor.DisplayName, "replied to your comment", "", linkURL)
 			_ = s.notifService.Notify(ctx, dto.NotifyParams{
 				RecipientID:   parentAuthorID,
 				Type:          dto.NotifArtCommentReply,
 				ReferenceID:   artID,
 				ReferenceType: fmt.Sprintf("art_comment:%s", id),
 				ActorID:       userID,
-				EmailSubject:  replySubject,
-				EmailBody:     replyBody,
+				EmailActor:    actor.DisplayName,
+				EmailAction:   "replied to your comment",
+				EmailLink:     linkURL,
 			})
 		}
 
 		if artAuthorID != userID && artAuthorID != parentAuthorID {
-			subject, emailBody := notification.NotifEmail(actor.DisplayName, "commented on your art", "", linkURL)
 			_ = s.notifService.Notify(ctx, dto.NotifyParams{
 				RecipientID:   artAuthorID,
 				Type:          dto.NotifArtCommented,
 				ReferenceID:   artID,
 				ReferenceType: fmt.Sprintf("art_comment:%s", id),
 				ActorID:       userID,
-				EmailSubject:  subject,
-				EmailBody:     emailBody,
+				EmailActor:    actor.DisplayName,
+				EmailAction:   "commented on your art",
+				EmailLink:     linkURL,
 			})
 		}
 	}()
@@ -532,17 +529,15 @@ func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID u
 		if err != nil || actor == nil {
 			return
 		}
-		baseURL := s.settingsSvc.Get(ctx, config.SettingBaseURL)
-		linkURL := fmt.Sprintf("%s/gallery/art/%s#comment-%s", baseURL, artID, commentID)
-		subject, body := notification.NotifEmail(actor.DisplayName, "liked your comment", "", linkURL)
 		_ = s.notifService.Notify(ctx, dto.NotifyParams{
 			RecipientID:   authorID,
 			Type:          dto.NotifCommentLiked,
 			ReferenceID:   artID,
 			ReferenceType: fmt.Sprintf("art_comment:%s", commentID),
 			ActorID:       userID,
-			EmailSubject:  subject,
-			EmailBody:     body,
+			EmailActor:    actor.DisplayName,
+			EmailAction:   "liked your comment",
+			EmailLink:     fmt.Sprintf("/gallery/art/%s#comment-%s", artID, commentID),
 		})
 	}()
 
@@ -698,7 +693,7 @@ func (s *service) notifyArtEdited(ctx context.Context, artID uuid.UUID, editorID
 	if err != nil {
 		return
 	}
-	notification.SendEditNotification(ctx, s.userRepo, s.settingsSvc, s.notifService, notification.EditNotifyParams{
+	notification.SendEditNotification(ctx, s.userRepo, s.notifService, notification.EditNotifyParams{
 		AuthorID:      authorID,
 		EditorID:      editorID,
 		ContentType:   "art",
@@ -717,7 +712,7 @@ func (s *service) notifyArtCommentEdited(ctx context.Context, commentID uuid.UUI
 	if err != nil {
 		return
 	}
-	notification.SendEditNotification(ctx, s.userRepo, s.settingsSvc, s.notifService, notification.EditNotifyParams{
+	notification.SendEditNotification(ctx, s.userRepo, s.notifService, notification.EditNotifyParams{
 		AuthorID:      authorID,
 		EditorID:      editorID,
 		ContentType:   "comment",

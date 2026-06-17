@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-export type ColourTag = "red" | "blue" | "gold" | "purple" | "green";
+export type ColourTag = "red" | "blue" | "gold" | "purple" | "green" | "pink";
 
 export const COLOUR_CLASS: Record<ColourTag, string> = {
     red: "red-truth",
@@ -8,10 +8,11 @@ export const COLOUR_CLASS: Record<ColourTag, string> = {
     gold: "gold-truth",
     purple: "purple-truth",
     green: "green-truth",
+    pink: "pink-truth",
 };
 
 export function colourRegex(): RegExp {
-    return /\[(red|blue|gold|purple|green)\]([\s\S]*?)\[\/\1\]/g;
+    return /\[(red|blue|gold|purple|green|pink)\]([\s\S]*?)\[\/\1\]/g;
 }
 
 type Renderer = (text: string, keyPrefix: string) => ReactNode[];

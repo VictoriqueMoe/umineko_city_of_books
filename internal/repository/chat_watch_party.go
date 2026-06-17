@@ -72,6 +72,7 @@ type (
 		CountActiveParticipants(ctx context.Context, sessionID uuid.UUID) (int, error)
 
 		InsertMessage(ctx context.Context, id, sessionID, senderID uuid.UUID, body string) error
+		DeleteMessagesForSession(ctx context.Context, sessionID uuid.UUID) error
 		InsertSystemMessage(ctx context.Context, id, sessionID uuid.UUID, body string) error
 		ListMessages(ctx context.Context, sessionID uuid.UUID, limit int) ([]ChatWatchPartyMessageRow, error)
 		GetMessageByID(ctx context.Context, messageID uuid.UUID) (*ChatWatchPartyMessageRow, error)
@@ -158,6 +159,17 @@ func (r *chatWatchPartyRepository) EndSession(ctx context.Context, sessionID uui
 	)
 	if err != nil {
 		return fmt.Errorf("end watch party session: %w", err)
+	}
+	return nil
+}
+
+func (r *chatWatchPartyRepository) DeleteMessagesForSession(ctx context.Context, sessionID uuid.UUID) error {
+	_, err := r.db.ExecContext(ctx,
+		`DELETE FROM chat_watch_party_messages WHERE session_id = $1`,
+		sessionID,
+	)
+	if err != nil {
+		return fmt.Errorf("delete watch party messages: %w", err)
 	}
 	return nil
 }

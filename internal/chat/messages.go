@@ -56,6 +56,21 @@ var (
 			audioURL: "https://quotes.auaurora.moe/api/v1/umineko/audio/voice/47/54600060",
 			volume:   0.5,
 		},
+		{
+			text:     "meep",
+			audioURL: "https://quotes.auaurora.moe/api/v1/umineko/audio/voice/28/92100173",
+			volume:   0.5,
+		},
+		{
+			text:     "*cackle*cackle*",
+			audioURL: "https://quotes.auaurora.moe/api/v1/umineko/audio/voice/05/11000261",
+			volume:   0.5,
+		},
+		{
+			text:     "*giggle*giggle*, *cackle*cackle*cackle*ahahahahahahahahahahahahahahahahahahahahahahahahahahahahahahahahahahahaha!!!",
+			audioURL: "https://quotes.auaurora.moe/api/v1/umineko/audio/voice/27/20700135",
+			volume:   0.5,
+		},
 	}
 )
 

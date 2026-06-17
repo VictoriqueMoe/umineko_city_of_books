@@ -12,8 +12,10 @@ type (
 		ReferenceType string
 		ActorID       uuid.UUID
 		Message       string
-		EmailSubject  string
-		EmailBody     string
+		EmailActor    string
+		EmailAction   string
+		EmailTitle    string
+		EmailLink     string
 	}
 
 	NotificationResponse struct {

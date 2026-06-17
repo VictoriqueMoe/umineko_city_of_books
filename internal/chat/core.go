@@ -12,7 +12,6 @@ import (
 
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
-	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/hyperbeam"
@@ -605,14 +604,11 @@ func (c *core) checkSenderTimeout(ctx context.Context, roomID, senderID uuid.UUI
 
 func (c *core) notifyInvited(inviterID, roomID uuid.UUID, roomName string, invitedIDs []uuid.UUID) {
 	bgCtx := context.Background()
-	baseURL := c.settingsSvc.Get(bgCtx, config.SettingBaseURL)
-	linkURL := fmt.Sprintf("%s/rooms/%s", baseURL, roomID)
 
 	actorName := "Someone"
 	if inviter, err := c.userRepo.GetByID(bgCtx, inviterID); err == nil && inviter != nil {
 		actorName = inviter.DisplayName
 	}
-	subject, body := notification.NotifEmail(actorName, "added you to a chat room", roomName, linkURL)
 
 	for _, invitedID := range invitedIDs {
 		_ = c.notifSvc.Notify(bgCtx, dto.NotifyParams{
@@ -621,8 +617,10 @@ func (c *core) notifyInvited(inviterID, roomID uuid.UUID, roomName string, invit
 			Type:          dto.NotifChatRoomInvite,
 			ReferenceID:   roomID,
 			ReferenceType: "chat_room",
-			EmailSubject:  subject,
-			EmailBody:     body,
+			EmailActor:    actorName,
+			EmailAction:   "added you to a chat room",
+			EmailTitle:    roomName,
+			EmailLink:     fmt.Sprintf("/rooms/%s", roomID),
 		})
 		c.hub.SendToUser(invitedID, ws.Message{
 			Type: "chat_room_invited",

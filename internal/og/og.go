@@ -42,7 +42,7 @@ type (
 )
 
 const (
-	defaultTitle       = "Umineko City of Books"
+	defaultTitle       = "When They Cry City of Books"
 	defaultDescription = "A social platform for fans of Umineko, Higurashi, and the wider When They Cry series. Post theories, solve mysteries, share fan art, chronicle read-throughs, ship pairings, write fanfiction, and chat in live rooms."
 	defaultImagePath   = "/Featherine.jpg"
 	baseURLPlaceholder = "__BASE_URL__"
@@ -89,7 +89,8 @@ func (r *Resolver) Resolve(ctx context.Context, path string) string {
 	if meta == nil {
 		return html
 	}
-	return r.inject(html, *meta, defaultImage)
+
+	return r.inject(ctx, html, *meta, defaultImage)
 }
 
 func (r *Resolver) withDefaultImage(ctx context.Context) (string, string) {
@@ -108,16 +109,23 @@ func (r *Resolver) withDefaultImage(ctx context.Context) (string, string) {
 }
 
 func (r *Resolver) metaForPath(ctx context.Context, path string) *Meta {
+
 	parts := strings.Split(strings.Trim(path, "/"), "/")
+	siteName, siteDescription := r.getSiteMeta(ctx)
+
+	formatSiteName := func(pageName string) string {
+		return fmt.Sprintf("%s - %s", pageName, siteName)
+	}
 
 	if len(parts) == 1 && (parts[0] == "" || parts[0] == "welcome") {
 		url := r.baseURL + "/"
 		if parts[0] == "welcome" {
 			url = r.baseURL + "/welcome"
 		}
+
 		return &Meta{
-			Title:       "Umineko City of Books - Fan Theory Platform",
-			Description: "Welcome to the game board. Declare blue truths, solve mysteries, debate pairings, read and write fanfiction, and chronicle your journey through When They Cry.",
+			Title:       siteName,
+			Description: siteDescription,
 			URL:         url,
 		}
 	}
@@ -134,7 +142,7 @@ func (r *Resolver) metaForPath(ctx context.Context, path string) *Meta {
 		if _, err := uuid.Parse(parts[1]); err == nil {
 			return r.postMeta(ctx, parts[1])
 		}
-		return r.gameBoardCornerMeta(parts[1])
+		return r.gameBoardCornerMeta(ctx, parts[1])
 	}
 
 	if len(parts) == 3 && parts[0] == "gallery" && parts[1] == "art" {
@@ -151,7 +159,7 @@ func (r *Resolver) metaForPath(ctx context.Context, path string) *Meta {
 
 	if len(parts) == 1 && parts[0] == "mysteries" {
 		return &Meta{
-			Title:       "Mysteries - Umineko City of Books",
+			Title:       formatSiteName("Mysteries"),
 			Description: "Browse and solve fan-created mysteries inspired by Umineko no Naku Koro ni.",
 			URL:         r.baseURL + "/mysteries",
 		}
@@ -165,7 +173,7 @@ func (r *Resolver) metaForPath(ctx context.Context, path string) *Meta {
 
 	if len(parts) == 1 && parts[0] == "ships" {
 		return &Meta{
-			Title:       "Ships - Umineko City of Books",
+			Title:       formatSiteName("Ships"),
 			Description: "Declare your favourite Umineko and Higurashi pairings. Vote on crackships and debate the merits of your OTPs.",
 			URL:         r.baseURL + "/ships",
 		}
@@ -179,7 +187,7 @@ func (r *Resolver) metaForPath(ctx context.Context, path string) *Meta {
 
 	if len(parts) == 1 && parts[0] == "oc" {
 		return &Meta{
-			Title:       "Original Characters - Umineko City of Books",
+			Title:       formatSiteName("Original Characters"),
 			Description: "Browse Original Characters created by the community. Tag them as Umineko, Higurashi, Ciconia, or a custom series.",
 			URL:         r.baseURL + "/oc",
 		}
@@ -193,16 +201,16 @@ func (r *Resolver) metaForPath(ctx context.Context, path string) *Meta {
 
 	if len(parts) == 1 && parts[0] == "announcements" {
 		return &Meta{
-			Title:       "Announcements - Umineko City of Books",
-			Description: "Latest announcements from the Umineko City of Books moderation team.",
+			Title:       formatSiteName("Announcements"),
+			Description: fmt.Sprintf("Latest announcements from the %s moderation team.", siteName),
 			URL:         r.baseURL + "/announcements",
 		}
 	}
 
 	if len(parts) == 1 && parts[0] == "rules" {
 		return &Meta{
-			Title:       "Rules - Umineko City of Books",
-			Description: "Community rules and posting guidelines for the Umineko City of Books.",
+			Title:       formatSiteName("Rules"),
+			Description: fmt.Sprintf("Community rules and posting guidelines for the %s.", siteName),
 			URL:         r.baseURL + "/rules",
 		}
 	}
@@ -215,7 +223,7 @@ func (r *Resolver) metaForPath(ctx context.Context, path string) *Meta {
 
 	if len(parts) == 1 && parts[0] == "fanfiction" {
 		return &Meta{
-			Title:       "Fanfiction - Umineko City of Books",
+			Title:       formatSiteName("Fanfiction"),
 			Description: "Browse and share fan-created stories inspired by When They Cry.",
 			URL:         r.baseURL + "/fanfiction",
 		}
@@ -228,7 +236,7 @@ func (r *Resolver) metaForPath(ctx context.Context, path string) *Meta {
 
 	if len(parts) == 1 && parts[0] == "suggestions" {
 		return &Meta{
-			Title:       "Site Improvements - Umineko City of Books",
+			Title:       formatSiteName("Site Improvements"),
 			Description: "Suggest improvements, report issues, and share ideas for the site.",
 			URL:         r.baseURL + "/suggestions",
 		}
@@ -236,7 +244,7 @@ func (r *Resolver) metaForPath(ctx context.Context, path string) *Meta {
 
 	if len(parts) == 1 && parts[0] == "gallery" {
 		return &Meta{
-			Title:       "Gallery - Umineko City of Books",
+			Title:       formatSiteName("Gallery"),
 			Description: "Browse fan art galleries from the Umineko community.",
 			URL:         r.baseURL + "/gallery",
 		}
@@ -244,7 +252,7 @@ func (r *Resolver) metaForPath(ctx context.Context, path string) *Meta {
 
 	if len(parts) == 1 && parts[0] == "journals" {
 		return &Meta{
-			Title:       "Reading Journals - Umineko City of Books",
+			Title:       formatSiteName("Reading Journals"),
 			Description: "Live-blog your read-throughs of Ryukishi07's works. Post reactions, theories, and predictions as you go.",
 			URL:         r.baseURL + "/journals",
 		}
@@ -264,7 +272,7 @@ func (r *Resolver) metaForPath(ctx context.Context, path string) *Meta {
 
 	if len(parts) == 1 && parts[0] == "rooms" {
 		return &Meta{
-			Title:       "Chat Rooms - Umineko City of Books",
+			Title:       formatSiteName("Chat Rooms"),
 			Description: "Live group chats for roleplay, book clubs, episode reactions, and more.",
 			URL:         r.baseURL + "/rooms",
 		}
@@ -278,19 +286,19 @@ func (r *Resolver) metaForPath(ctx context.Context, path string) *Meta {
 
 	if len(parts) == 1 && parts[0] == "secrets" {
 		return &Meta{
-			Title:       "Secrets - Umineko City of Books",
+			Title:       formatSiteName("Secrets"),
 			Description: "Quiet things scattered across the site. Open hunts, live progress leaderboards, and the people who spoke the answer first.",
 			URL:         r.baseURL + "/secrets",
 		}
 	}
 
 	if len(parts) == 2 && parts[0] == "secrets" {
-		return r.secretMeta(parts[1])
+		return r.secretMeta(ctx, parts[1])
 	}
 
 	if len(parts) == 1 && parts[0] == "live" {
 		return &Meta{
-			Title:       "Live Streams - Umineko City of Books",
+			Title:       formatSiteName("Live Streams"),
 			Description: "Watch live streams from the community. Reading parties, playthroughs, and real-time discussion about When They Cry.",
 			URL:         r.baseURL + "/live",
 		}
@@ -306,7 +314,7 @@ func (r *Resolver) metaForPath(ctx context.Context, path string) *Meta {
 		corner := parts[1]
 		name := strings.ToUpper(corner[:1]) + corner[1:]
 		return &Meta{
-			Title:       name + " Gallery - Umineko City of Books",
+			Title:       formatSiteName(name + " Gallery"),
 			Description: fmt.Sprintf("Browse %s fan art from the Umineko community.", corner),
 			URL:         fmt.Sprintf("%s/gallery/%s", r.baseURL, corner),
 		}
@@ -314,7 +322,7 @@ func (r *Resolver) metaForPath(ctx context.Context, path string) *Meta {
 
 	if len(parts) == 1 && parts[0] == "games" {
 		return &Meta{
-			Title:       "Games - Umineko City of Books",
+			Title:       formatSiteName("Games"),
 			Description: "Play multiplayer games with other players. Chess first, with more to come.",
 			URL:         r.baseURL + "/games",
 		}
@@ -322,7 +330,7 @@ func (r *Resolver) metaForPath(ctx context.Context, path string) *Meta {
 
 	if len(parts) == 1 && parts[0] == "search" {
 		return &Meta{
-			Title:       "Search - Umineko City of Books",
+			Title:       formatSiteName("Search"),
 			Description: "Search posts, comments, theories, mysteries, art, fanfiction, journals, ships, and users across the site.",
 			URL:         r.baseURL + "/search",
 		}
@@ -330,7 +338,7 @@ func (r *Resolver) metaForPath(ctx context.Context, path string) *Meta {
 
 	if len(parts) == 2 && parts[0] == "games" && parts[1] == "live" {
 		return &Meta{
-			Title:       "Live Games - Umineko City of Books",
+			Title:       formatSiteName("Live Games"),
 			Description: "Watch chess matches in progress. Spectate live and chat with other viewers.",
 			URL:         r.baseURL + "/games/live",
 		}
@@ -338,7 +346,7 @@ func (r *Resolver) metaForPath(ctx context.Context, path string) *Meta {
 
 	if len(parts) == 2 && parts[0] == "games" && parts[1] == "past" {
 		return &Meta{
-			Title:       "Past Games - Umineko City of Books",
+			Title:       formatSiteName("Past Games"),
 			Description: "Every finished match on the site. Review final positions, move histories and per-game stats.",
 			URL:         r.baseURL + "/games/past",
 		}
@@ -348,7 +356,7 @@ func (r *Resolver) metaForPath(ctx context.Context, path string) *Meta {
 		game := parts[1]
 		name := strings.ToUpper(game[:1]) + game[1:]
 		return &Meta{
-			Title:       name + " - Umineko City of Books",
+			Title:       formatSiteName(name),
 			Description: "Play " + name + " with other players. See the scoreboard, start a new game, or spectate live matches.",
 			URL:         fmt.Sprintf("%s/games/%s", r.baseURL, game),
 		}
@@ -356,7 +364,7 @@ func (r *Resolver) metaForPath(ctx context.Context, path string) *Meta {
 
 	if len(parts) == 3 && parts[0] == "games" && parts[2] == "scoreboard" {
 		return &Meta{
-			Title:       strings.ToUpper(parts[1][:1]) + parts[1][1:] + " Scoreboard - Umineko City of Books",
+			Title:       formatSiteName(strings.ToUpper(parts[1][:1]) + parts[1][1:] + " Scoreboard"),
 			Description: fmt.Sprintf("See the top %s players across the community.", parts[1]),
 			URL:         fmt.Sprintf("%s/games/%s/scoreboard", r.baseURL, parts[1]),
 		}
@@ -365,7 +373,7 @@ func (r *Resolver) metaForPath(ctx context.Context, path string) *Meta {
 	if len(parts) == 3 && parts[0] == "games" && parts[2] == "new" {
 		name := strings.ToUpper(parts[1][:1]) + parts[1][1:]
 		return &Meta{
-			Title:       "New " + name + " Game - Umineko City of Books",
+			Title:       formatSiteName("New " + name + " Game"),
 			Description: "Invite another player to a game of " + parts[1] + ".",
 			URL:         r.baseURL + "/games/" + parts[1] + "/new",
 		}
@@ -375,7 +383,7 @@ func (r *Resolver) metaForPath(ctx context.Context, path string) *Meta {
 		if _, err := uuid.Parse(parts[2]); err == nil {
 			name := strings.ToUpper(parts[1][:1]) + parts[1][1:]
 			return &Meta{
-				Title:       name + " Game - Umineko City of Books",
+				Title:       formatSiteName(name + " Game"),
 				Description: "A " + parts[1] + " match between two players.",
 				URL:         fmt.Sprintf("%s/games/%s/%s", r.baseURL, parts[1], parts[2]),
 			}
@@ -418,7 +426,8 @@ func (r *Resolver) profileMeta(ctx context.Context, username string) *Meta {
 
 	desc := u.Bio
 	if desc == "" {
-		desc = fmt.Sprintf("%s's profile on Umineko City of Books", u.DisplayLabel())
+		siteName, _ := r.getSiteMeta(ctx)
+		desc = fmt.Sprintf("%s's profile on %s", u.DisplayLabel(), siteName)
 	}
 	if len(desc) > 200 {
 		desc = desc[:197] + "..."
@@ -432,7 +441,7 @@ func (r *Resolver) profileMeta(ctx context.Context, username string) *Meta {
 	}
 }
 
-func (r *Resolver) gameBoardCornerMeta(corner string) *Meta {
+func (r *Resolver) gameBoardCornerMeta(ctx context.Context, corner string) *Meta {
 	titles := map[string]string{
 		"umineko":   "Umineko",
 		"higurashi": "Higurashi",
@@ -444,8 +453,10 @@ func (r *Resolver) gameBoardCornerMeta(corner string) *Meta {
 	if !ok {
 		return nil
 	}
+
+	siteName, _ := r.getSiteMeta(ctx)
 	return &Meta{
-		Title:       name + " Game Board - Umineko City of Books",
+		Title:       fmt.Sprintf("%s Game Board - %s", name, siteName),
 		Description: fmt.Sprintf("Discuss %s with fellow players on the game board.", name),
 		URL:         fmt.Sprintf("%s/game-board/%s", r.baseURL, corner),
 	}
@@ -501,7 +512,8 @@ func (r *Resolver) artMeta(ctx context.Context, idStr string) *Meta {
 
 	desc := art.Description
 	if desc == "" {
-		desc = fmt.Sprintf("Art by %s on Umineko City of Books", art.AuthorDisplayName)
+		siteName, _ := r.getSiteMeta(ctx)
+		desc = fmt.Sprintf("Art by %s on %s", art.AuthorDisplayName, siteName)
 	}
 	if len(desc) > 200 {
 		desc = desc[:197] + "..."
@@ -528,7 +540,8 @@ func (r *Resolver) galleryMeta(ctx context.Context, idStr string) *Meta {
 
 	desc := gallery.Description
 	if desc == "" {
-		desc = fmt.Sprintf("%s's art gallery on Umineko City of Books", gallery.AuthorDisplayName)
+		siteName, _ := r.getSiteMeta(ctx)
+		desc = fmt.Sprintf("%s's art gallery on %s", gallery.AuthorDisplayName, siteName)
 	}
 	if len(desc) > 200 {
 		desc = desc[:197] + "..."
@@ -784,20 +797,22 @@ func (r *Resolver) journalEntryMeta(ctx context.Context, journalIDStr, numberStr
 	}
 }
 
-func (r *Resolver) secretMeta(id string) *Meta {
+func (r *Resolver) secretMeta(ctx context.Context, id string) *Meta {
 	spec, ok := secrets.Lookup(id)
 	if !ok || spec.Title == "" {
 		return nil
 	}
+
+	siteName, _ := r.getSiteMeta(ctx)
 	desc := spec.Description
 	if desc == "" {
-		desc = "A hidden hunt on Umineko City of Books."
+		desc = fmt.Sprintf("A hidden hunt on %s.", siteName)
 	}
 	if len(desc) > 200 {
 		desc = desc[:197] + "..."
 	}
 	return &Meta{
-		Title:       fmt.Sprintf("%s - Umineko City of Books", spec.Title),
+		Title:       fmt.Sprintf("%s - %s", spec.Title, siteName),
 		Description: desc,
 		URL:         fmt.Sprintf("%s/secrets/%s", r.baseURL, id),
 	}
@@ -816,7 +831,8 @@ func (r *Resolver) roomMeta(ctx context.Context, idStr string) *Meta {
 
 	desc := room.Description
 	if desc == "" {
-		desc = fmt.Sprintf("A chat room with %d members on Umineko City of Books", room.MemberCount)
+		siteName, _ := r.getSiteMeta(ctx)
+		desc = fmt.Sprintf("A chat room with %d members on %s", room.MemberCount, siteName)
 	}
 	if len(desc) > 200 {
 		desc = desc[:197] + "..."
@@ -847,7 +863,8 @@ func (r *Resolver) liveStreamMeta(ctx context.Context, idStr string) *Meta {
 
 	desc := stream.Title
 	if desc == "" {
-		desc = fmt.Sprintf("A live stream by %s on Umineko City of Books", name)
+		siteName, _ := r.getSiteMeta(ctx)
+		desc = fmt.Sprintf("A live stream by %s on %s", name, siteName)
 	}
 
 	runes := []rune(desc)
@@ -869,12 +886,29 @@ func (r *Resolver) liveStreamMeta(ctx context.Context, idStr string) *Meta {
 	return meta
 }
 
-func (r *Resolver) inject(html string, meta Meta, defaultImage string) string {
+func (r *Resolver) getSiteMeta(ctx context.Context) (siteName string, siteDescription string) {
+	siteName = r.settingsSvc.Get(ctx, config.SettingSiteName)
+	if siteName == "" {
+		siteName = defaultTitle
+	}
+
+	siteDescription = r.settingsSvc.Get(ctx, config.SettingSiteDescription)
+	if siteDescription == "" {
+		siteDescription = defaultDescription
+	}
+
+	return
+}
+
+func (r *Resolver) inject(ctx context.Context, html string, meta Meta, defaultImage string) string {
+	siteName, _ := r.getSiteMeta(ctx)
+
 	html = replaceMetaContent(html, "property", "og:title", defaultTitle, escapeAttr(meta.Title))
 	html = replaceMetaContent(html, "name", "twitter:title", defaultTitle, escapeAttr(meta.Title))
 	html = replaceMetaContent(html, "name", "twitter:description", defaultDescription, escapeAttr(meta.Description))
 	html = replaceMetaContent(html, "property", "og:description", defaultDescription, escapeAttr(meta.Description))
 	html = replaceMetaContent(html, "name", "description", defaultDescription, escapeAttr(meta.Description))
+	html = replaceMetaContent(html, "property", "og:site_name", defaultTitle, escapeAttr(siteName))
 	html = replaceTitleTag(html, defaultTitle, escapeAttr(meta.Title))
 
 	if meta.URL != "" {

@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/authz"
-	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
@@ -98,7 +97,7 @@ func TestCreate_RepoErrorBubbles(t *testing.T) {
 
 func TestCreate_OK_NotifiesModerators(t *testing.T) {
 	// given
-	svc, reportRepo, roleRepo, userRepo, notifSvc, settingsSvc := newTestService(t)
+	svc, reportRepo, roleRepo, userRepo, notifSvc, _ := newTestService(t)
 	reporterID := uuid.New()
 	targetID := uuid.New()
 	req := CreateReportRequest{
@@ -122,7 +121,6 @@ func TestCreate_OK_NotifiesModerators(t *testing.T) {
 		authz.RoleModerator,
 	}).Return([]uuid.UUID{modA, modB}, nil)
 	userRepo.EXPECT().GetByID(mock.Anything, reporterID).Return(reporter, nil)
-	settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("http://example.test")
 	notifSvc.EXPECT().NotifyMany(mock.Anything, mock.MatchedBy(func(params []dto.NotifyParams) bool {
 		if len(params) != 2 {
 			return false
@@ -144,7 +142,16 @@ func TestCreate_OK_NotifiesModerators(t *testing.T) {
 			if p.ActorID != reporterID {
 				return false
 			}
-			if p.EmailSubject == "" || p.EmailBody == "" {
+			if p.EmailActor != "Alice" {
+				return false
+			}
+			if p.EmailAction != req.TargetType {
+				return false
+			}
+			if p.EmailTitle != req.Reason {
+				return false
+			}
+			if p.EmailLink != "/admin/reports" {
 				return false
 			}
 		}
@@ -163,7 +170,7 @@ func TestCreate_OK_NotifiesModerators(t *testing.T) {
 
 func TestCreate_OK_InvalidTargetIDUsesNilUUID(t *testing.T) {
 	// given
-	svc, reportRepo, roleRepo, userRepo, notifSvc, settingsSvc := newTestService(t)
+	svc, reportRepo, roleRepo, userRepo, notifSvc, _ := newTestService(t)
 	reporterID := uuid.New()
 	req := CreateReportRequest{
 		TargetType: "post",
@@ -180,7 +187,6 @@ func TestCreate_OK_InvalidTargetIDUsesNilUUID(t *testing.T) {
 	wg.Add(1)
 	roleRepo.EXPECT().GetUsersByRoles(mock.Anything, mock.Anything).Return([]uuid.UUID{mod}, nil)
 	userRepo.EXPECT().GetByID(mock.Anything, reporterID).Return(reporter, nil)
-	settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("http://example.test")
 	notifSvc.EXPECT().NotifyMany(mock.Anything, mock.MatchedBy(func(params []dto.NotifyParams) bool {
 		if len(params) != 1 {
 			return false
@@ -229,7 +235,7 @@ func TestCreate_OK_RoleRepoErrorAbortsNotifications(t *testing.T) {
 
 func TestCreate_OK_UserLookupErrorFallsBackToDefaultName(t *testing.T) {
 	// given
-	svc, reportRepo, roleRepo, userRepo, notifSvc, settingsSvc := newTestService(t)
+	svc, reportRepo, roleRepo, userRepo, notifSvc, _ := newTestService(t)
 	reporterID := uuid.New()
 	req := CreateReportRequest{
 		TargetType: "post",
@@ -245,7 +251,6 @@ func TestCreate_OK_UserLookupErrorFallsBackToDefaultName(t *testing.T) {
 	wg.Add(1)
 	roleRepo.EXPECT().GetUsersByRoles(mock.Anything, mock.Anything).Return([]uuid.UUID{mod}, nil)
 	userRepo.EXPECT().GetByID(mock.Anything, reporterID).Return(nil, errors.New("missing"))
-	settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("http://example.test")
 	notifSvc.EXPECT().NotifyMany(mock.Anything, mock.Anything).
 		Run(func(_ context.Context, _ []dto.NotifyParams) { wg.Done() }).
 		Return()
@@ -260,7 +265,7 @@ func TestCreate_OK_UserLookupErrorFallsBackToDefaultName(t *testing.T) {
 
 func TestCreate_OK_NoModeratorsStillCallsNotifyManyWithEmptyList(t *testing.T) {
 	// given
-	svc, reportRepo, roleRepo, userRepo, notifSvc, settingsSvc := newTestService(t)
+	svc, reportRepo, roleRepo, userRepo, notifSvc, _ := newTestService(t)
 	reporterID := uuid.New()
 	req := CreateReportRequest{
 		TargetType: "post",
@@ -276,7 +281,6 @@ func TestCreate_OK_NoModeratorsStillCallsNotifyManyWithEmptyList(t *testing.T) {
 	wg.Add(1)
 	roleRepo.EXPECT().GetUsersByRoles(mock.Anything, mock.Anything).Return(nil, nil)
 	userRepo.EXPECT().GetByID(mock.Anything, reporterID).Return(reporter, nil)
-	settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("http://example.test")
 	notifSvc.EXPECT().NotifyMany(mock.Anything, mock.MatchedBy(func(params []dto.NotifyParams) bool {
 		return len(params) == 0
 	})).Run(func(_ context.Context, _ []dto.NotifyParams) { wg.Done() }).Return()
@@ -414,7 +418,7 @@ func TestResolve_RepoResolveErrorBubbles(t *testing.T) {
 
 func TestResolve_OK_SendsNotificationWithComment(t *testing.T) {
 	// given
-	svc, reportRepo, _, userRepo, notifSvc, settingsSvc := newTestService(t)
+	svc, reportRepo, _, userRepo, notifSvc, _ := newTestService(t)
 	resolverID := uuid.New()
 	reporterID := uuid.New()
 	targetID := uuid.New()
@@ -432,7 +436,6 @@ func TestResolve_OK_SendsNotificationWithComment(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	userRepo.EXPECT().GetByID(mock.Anything, resolverID).Return(resolver, nil)
-	settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("http://example.test")
 	notifSvc.EXPECT().Notify(mock.Anything, mock.MatchedBy(func(p dto.NotifyParams) bool {
 		return p.RecipientID == reporterID &&
 			p.Type == dto.NotifReportResolved &&
@@ -440,8 +443,10 @@ func TestResolve_OK_SendsNotificationWithComment(t *testing.T) {
 			p.ReferenceType == "post" &&
 			p.ActorID == resolverID &&
 			p.Message == "resolved your report on a post: handled" &&
-			p.EmailSubject != "" &&
-			p.EmailBody != ""
+			p.EmailActor == "ModUser" &&
+			p.EmailAction == "post" &&
+			p.EmailTitle == "handled" &&
+			p.EmailLink == "/"
 	})).Run(func(_ context.Context, _ dto.NotifyParams) {
 		wg.Done()
 	}).Return(nil)
@@ -456,7 +461,7 @@ func TestResolve_OK_SendsNotificationWithComment(t *testing.T) {
 
 func TestResolve_OK_EmptyCommentOmitsCommentFromMessage(t *testing.T) {
 	// given
-	svc, reportRepo, _, userRepo, notifSvc, settingsSvc := newTestService(t)
+	svc, reportRepo, _, userRepo, notifSvc, _ := newTestService(t)
 	resolverID := uuid.New()
 	reporterID := uuid.New()
 	targetID := uuid.New()
@@ -474,7 +479,6 @@ func TestResolve_OK_EmptyCommentOmitsCommentFromMessage(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	userRepo.EXPECT().GetByID(mock.Anything, resolverID).Return(resolver, nil)
-	settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("http://example.test")
 	notifSvc.EXPECT().Notify(mock.Anything, mock.MatchedBy(func(p dto.NotifyParams) bool {
 		return p.Message == "resolved your report on a comment"
 	})).Run(func(_ context.Context, _ dto.NotifyParams) {
@@ -491,7 +495,7 @@ func TestResolve_OK_EmptyCommentOmitsCommentFromMessage(t *testing.T) {
 
 func TestResolve_OK_InvalidTargetIDUsesNilUUID(t *testing.T) {
 	// given
-	svc, reportRepo, _, userRepo, notifSvc, settingsSvc := newTestService(t)
+	svc, reportRepo, _, userRepo, notifSvc, _ := newTestService(t)
 	resolverID := uuid.New()
 	reporterID := uuid.New()
 	row := &repository.ReportRow{
@@ -508,7 +512,6 @@ func TestResolve_OK_InvalidTargetIDUsesNilUUID(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	userRepo.EXPECT().GetByID(mock.Anything, resolverID).Return(resolver, nil)
-	settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("http://example.test")
 	notifSvc.EXPECT().Notify(mock.Anything, mock.MatchedBy(func(p dto.NotifyParams) bool {
 		return p.ReferenceID == uuid.Nil
 	})).Run(func(_ context.Context, _ dto.NotifyParams) {
@@ -525,7 +528,7 @@ func TestResolve_OK_InvalidTargetIDUsesNilUUID(t *testing.T) {
 
 func TestResolve_OK_UserLookupErrorFallsBackToDefaultName(t *testing.T) {
 	// given
-	svc, reportRepo, _, userRepo, notifSvc, settingsSvc := newTestService(t)
+	svc, reportRepo, _, userRepo, notifSvc, _ := newTestService(t)
 	resolverID := uuid.New()
 	reporterID := uuid.New()
 	targetID := uuid.New()
@@ -542,7 +545,6 @@ func TestResolve_OK_UserLookupErrorFallsBackToDefaultName(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	userRepo.EXPECT().GetByID(mock.Anything, resolverID).Return(nil, errors.New("missing"))
-	settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("http://example.test")
 	notifSvc.EXPECT().Notify(mock.Anything, mock.Anything).
 		Run(func(_ context.Context, _ dto.NotifyParams) { wg.Done() }).
 		Return(nil)

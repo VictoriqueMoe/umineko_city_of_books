@@ -1,0 +1,52 @@
+.wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.boardContainer {
+    width: 100%;
+    max-width: 620px;
+    margin: 0 auto;
+}
+
+.error {
+    color: #e06666;
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+.rollRow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    flex-wrap: wrap;
+}
+
+.dice {
+    width: 58px;
+    height: 58px;
+    flex-shrink: 0;
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.35));
+}
+
+.rollInfo {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    min-width: 200px;
+}
+
+.lastText {
+    font-size: 0.92rem;
+    color: #c9b48f;
+    text-align: center;
+}
+
+.controls {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+}

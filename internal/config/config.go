@@ -72,7 +72,7 @@ var (
 	SettingMaintenanceMode         = &SiteSettingDef{"maintenance_mode", "false", TypeBool}
 	SettingMaintenanceTitle        = &SiteSettingDef{"maintenance_title", "", TypeString}
 	SettingMaintenanceMessage      = &SiteSettingDef{"maintenance_message", "", TypeString}
-	SettingSiteName                = &SiteSettingDef{"site_name", "Umineko City of Books", TypeString}
+	SettingSiteName                = &SiteSettingDef{"site_name", "When They Cry City of Books", TypeString}
 	SettingSiteDescription         = &SiteSettingDef{"site_description", "", TypeString}
 	SettingAnnouncementBanner      = &SiteSettingDef{"announcement_banner", "", TypeString}
 	SettingMaxTheoriesPerDay       = &SiteSettingDef{"max_theories_per_day", "0", TypeInt}

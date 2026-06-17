@@ -453,6 +453,7 @@ func TestLeaveWatchParty_OwnerLeavesEndsSession(t *testing.T) {
 	m.hyperbeamSvc.EXPECT().TerminateVM(mock.Anything, "hb_sess").Return(nil)
 	m.watchPartyRepo.EXPECT().MarkAllParticipantsLeft(mock.Anything, sessionID).Return(nil)
 	m.watchPartyRepo.EXPECT().EndSession(mock.Anything, sessionID, "owner_left").Return(nil)
+	m.watchPartyRepo.EXPECT().DeleteMessagesForSession(mock.Anything, sessionID).Return(nil)
 	m.auditRepo.EXPECT().Create(mock.Anything, ownerID, "watch_party.end", "chat_watch_party_session", sessionID.String(), mock.Anything).Return(nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, ownerID).Return(nil, nil)
 	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, mock.Anything, roomID, ownerID, mock.Anything).Return(nil)

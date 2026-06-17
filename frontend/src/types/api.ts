@@ -1297,7 +1297,7 @@ export interface AnnouncementListResponse {
     offset: number;
 }
 
-export type GameType = "chess" | "checkers" | "othello" | "minesweeper";
+export type GameType = "chess" | "checkers" | "othello" | "minesweeper" | "snakes_and_ladders";
 export type GameStatus = "pending" | "active" | "finished" | "declined" | "abandoned";
 
 export interface GameRoomPlayer {
@@ -1432,11 +1432,42 @@ export interface MinesweeperStats {
     reason: string;
 }
 
+export interface SnakesLaddersLast {
+    slot: number;
+    roll: number;
+    from: number;
+    stepped: number;
+    to: number;
+}
+
+export interface SnakesLaddersState {
+    positions: [number, number];
+    turn: number;
+    rolls: number;
+    ladders_climbed: [number, number];
+    snakes_hit: [number, number];
+    last?: SnakesLaddersLast;
+}
+
+export interface SnakesLaddersStats {
+    total_rolls: number;
+    rolls_p0: number;
+    rolls_p1: number;
+    ladders_p0: number;
+    ladders_p1: number;
+    snakes_p0: number;
+    snakes_p1: number;
+    final_p0: number;
+    final_p1: number;
+    result_reason: string;
+    duration_seconds: number;
+}
+
 export interface GameRoom {
     id: string;
     game_type: GameType;
     status: GameStatus;
-    state: ChessState | CheckersState | OthelloState | MinesweeperState | Record<string, unknown>;
+    state: ChessState | CheckersState | OthelloState | MinesweeperState | SnakesLaddersState | Record<string, unknown>;
     turn_user_id?: string;
     winner_user_id?: string;
     result?: string;
@@ -1446,7 +1477,7 @@ export interface GameRoom {
     finished_at?: string;
     players: GameRoomPlayer[];
     watcher_count: number;
-    stats?: ChessStats | CheckersStats | OthelloStats | MinesweeperStats | Record<string, unknown>;
+    stats?: ChessStats | CheckersStats | OthelloStats | MinesweeperStats | SnakesLaddersStats | Record<string, unknown>;
     draw_offer_from_user_id?: string;
 }
 

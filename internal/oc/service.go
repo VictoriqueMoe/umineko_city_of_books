@@ -535,17 +535,16 @@ func (s *service) ToggleFavourite(ctx context.Context, userID uuid.UUID, ocID uu
 		if err != nil || actor == nil {
 			return
 		}
-		baseURL := s.settingsSvc.Get(bgCtx, config.SettingBaseURL)
-		linkURL := fmt.Sprintf("%s/oc/%s", baseURL, ocID)
-		subject, emailBody := notification.NotifEmail(actor.DisplayName, "favourited your OC", row.Name, linkURL)
 		_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
 			RecipientID:   authorID,
 			Type:          dto.NotifOCFavourited,
 			ReferenceID:   ocID,
 			ReferenceType: "oc",
 			ActorID:       userID,
-			EmailSubject:  subject,
-			EmailBody:     emailBody,
+			EmailActor:    actor.DisplayName,
+			EmailAction:   "favourited your OC",
+			EmailTitle:    row.Name,
+			EmailLink:     fmt.Sprintf("/oc/%s", ocID),
 		})
 	}()
 
@@ -580,32 +579,29 @@ func (s *service) CreateComment(ctx context.Context, ocID uuid.UUID, userID uuid
 		if err != nil || actor == nil {
 			return
 		}
-		baseURL := s.settingsSvc.Get(bgCtx, config.SettingBaseURL)
-		linkURL := fmt.Sprintf("%s/oc/%s#comment-%s", baseURL, ocID, id)
-
-		subject, emailBody := notification.NotifEmail(actor.DisplayName, "commented on your OC", "", linkURL)
 		_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
 			RecipientID:   authorID,
 			Type:          dto.NotifOCCommented,
 			ReferenceID:   ocID,
 			ReferenceType: fmt.Sprintf("oc_comment:%s", id),
 			ActorID:       userID,
-			EmailSubject:  subject,
-			EmailBody:     emailBody,
+			EmailActor:    actor.DisplayName,
+			EmailAction:   "commented on your OC",
+			EmailLink:     fmt.Sprintf("/oc/%s#comment-%s", ocID, id),
 		})
 
 		if req.ParentID != nil {
 			parentAuthor, err := s.ocRepo.GetCommentAuthorID(bgCtx, *req.ParentID)
 			if err == nil && parentAuthor != authorID {
-				replySubject, replyBody := notification.NotifEmail(actor.DisplayName, "replied to your comment", "", linkURL)
 				_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
 					RecipientID:   parentAuthor,
 					Type:          dto.NotifOCCommentReply,
 					ReferenceID:   ocID,
 					ReferenceType: fmt.Sprintf("oc_comment:%s", id),
 					ActorID:       userID,
-					EmailSubject:  replySubject,
-					EmailBody:     replyBody,
+					EmailActor:    actor.DisplayName,
+					EmailAction:   "replied to your comment",
+					EmailLink:     fmt.Sprintf("/oc/%s#comment-%s", ocID, id),
 				})
 			}
 		}
@@ -656,17 +652,15 @@ func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID u
 		if err != nil {
 			return
 		}
-		baseURL := s.settingsSvc.Get(bgCtx, config.SettingBaseURL)
-		linkURL := fmt.Sprintf("%s/oc/%s#comment-%s", baseURL, ocID, commentID)
-		subject, emailBody := notification.NotifEmail("Someone", "liked your comment", "", linkURL)
 		_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
 			RecipientID:   commentAuthorID,
 			Type:          dto.NotifOCCommentLiked,
 			ReferenceID:   ocID,
 			ReferenceType: fmt.Sprintf("oc_comment:%s", commentID),
 			ActorID:       userID,
-			EmailSubject:  subject,
-			EmailBody:     emailBody,
+			EmailActor:    "Someone",
+			EmailAction:   "liked your comment",
+			EmailLink:     fmt.Sprintf("/oc/%s#comment-%s", ocID, commentID),
 		})
 	}()
 

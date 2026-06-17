@@ -4,7 +4,6 @@ import (
 	"context"
 	"regexp"
 
-	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/notification"
@@ -63,16 +62,15 @@ func ProcessMentions(
 			continue
 		}
 
-		baseURL := settingsSvc.Get(context.Background(), config.SettingBaseURL)
-		subject, emailBody := notification.NotifEmail(actor.DisplayName, "mentioned you", "", baseURL+linkURL)
 		_ = notifSvc.Notify(context.Background(), dto.NotifyParams{
 			RecipientID:   mentioned.ID,
 			Type:          dto.NotifMention,
 			ReferenceID:   referenceID,
 			ReferenceType: referenceType,
 			ActorID:       actorID,
-			EmailSubject:  subject,
-			EmailBody:     emailBody,
+			EmailActor:    actor.DisplayName,
+			EmailAction:   "mentioned you",
+			EmailLink:     linkURL,
 		})
 	}
 }

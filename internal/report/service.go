@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"umineko_city_of_books/internal/authz"
-	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
@@ -98,10 +97,6 @@ func (s *service) Create(ctx context.Context, reporterID uuid.UUID, req CreateRe
 			reporterName = u.DisplayLabel()
 		}
 
-		baseURL := s.settingsSvc.Get(ctx, config.SettingBaseURL)
-		linkURL := fmt.Sprintf("%s/admin/reports", baseURL)
-		subject, body := notification.ReportEmail(reporterName, req.TargetType, req.Reason, linkURL)
-
 		params := make([]dto.NotifyParams, len(modIDs))
 		for i, modID := range modIDs {
 			params[i] = dto.NotifyParams{
@@ -110,8 +105,10 @@ func (s *service) Create(ctx context.Context, reporterID uuid.UUID, req CreateRe
 				ReferenceID:   targetUUID,
 				ReferenceType: req.TargetType,
 				ActorID:       reporterID,
-				EmailSubject:  subject,
-				EmailBody:     body,
+				EmailActor:    reporterName,
+				EmailAction:   req.TargetType,
+				EmailTitle:    req.Reason,
+				EmailLink:     "/admin/reports",
 			}
 		}
 		s.notifSvc.NotifyMany(ctx, params)
@@ -166,10 +163,6 @@ func (s *service) Resolve(ctx context.Context, id int, resolvedBy uuid.UUID, com
 			resolverName = u.DisplayLabel()
 		}
 
-		baseURL := s.settingsSvc.Get(ctx, config.SettingBaseURL)
-		linkURL := baseURL
-		subject, body := notification.ReportResolvedEmail(resolverName, row.TargetType, comment, linkURL)
-
 		targetUUID, err := uuid.Parse(row.TargetID)
 		if err != nil {
 			targetUUID = uuid.Nil
@@ -187,8 +180,10 @@ func (s *service) Resolve(ctx context.Context, id int, resolvedBy uuid.UUID, com
 			ReferenceType: row.TargetType,
 			ActorID:       resolvedBy,
 			Message:       message,
-			EmailSubject:  subject,
-			EmailBody:     body,
+			EmailActor:    resolverName,
+			EmailAction:   row.TargetType,
+			EmailTitle:    comment,
+			EmailLink:     "/",
 		})
 	}()
 

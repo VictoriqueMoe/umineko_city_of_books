@@ -380,9 +380,6 @@ func (s *service) UpdateMystery(ctx context.Context, id uuid.UUID, userID uuid.U
 			message := fmt.Sprintf("your mystery was edited (changed: %s)", strings.Join(changes, ", "))
 			go func() {
 				bgCtx := context.Background()
-				baseURL := s.settingsSvc.Get(bgCtx, config.SettingBaseURL)
-				linkURL := fmt.Sprintf("%s/mystery/%s", baseURL, id)
-				subject, body := notification.NotifEmail("A moderator", "edited your mystery", "", linkURL)
 				_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
 					RecipientID:   old.UserID,
 					Type:          dto.NotifContentEdited,
@@ -390,8 +387,9 @@ func (s *service) UpdateMystery(ctx context.Context, id uuid.UUID, userID uuid.U
 					ReferenceType: "mystery",
 					ActorID:       userID,
 					Message:       message,
-					EmailSubject:  subject,
-					EmailBody:     body,
+					EmailActor:    "A moderator",
+					EmailAction:   "edited your mystery",
+					EmailLink:     fmt.Sprintf("/mystery/%s", id),
 				})
 			}()
 		}
@@ -490,32 +488,31 @@ func (s *service) CreateAttempt(ctx context.Context, mysteryID uuid.UUID, userID
 
 	go func() {
 		bgCtx := context.Background()
-		baseURL := s.settingsSvc.Get(bgCtx, config.SettingBaseURL)
-		linkURL := fmt.Sprintf("%s/mystery/%s#attempt-%s", baseURL, mysteryID, id)
+		linkPath := fmt.Sprintf("/mystery/%s#attempt-%s", mysteryID, id)
 		attemptRef := fmt.Sprintf("mystery_attempt:%s", id)
 
-		subject, body := notification.NotifEmail("Someone", "submitted an attempt on your mystery", "", linkURL)
 		_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
 			RecipientID:   authorID,
 			Type:          dto.NotifMysteryAttempt,
 			ReferenceID:   mysteryID,
 			ReferenceType: attemptRef,
 			ActorID:       userID,
-			EmailSubject:  subject,
-			EmailBody:     body,
+			EmailActor:    "Someone",
+			EmailAction:   "submitted an attempt on your mystery",
+			EmailLink:     linkPath,
 		})
 
 		if req.ParentID != nil {
 			if parentAuthor, err := s.mysteryRepo.GetAttemptAuthorID(bgCtx, *req.ParentID); err == nil && parentAuthor != authorID {
-				replySubject, replyBody := notification.NotifEmail("Someone", "replied to your attempt", "", linkURL)
 				_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
 					RecipientID:   parentAuthor,
 					Type:          dto.NotifMysteryReply,
 					ReferenceID:   mysteryID,
 					ReferenceType: attemptRef,
 					ActorID:       userID,
-					EmailSubject:  replySubject,
-					EmailBody:     replyBody,
+					EmailActor:    "Someone",
+					EmailAction:   "replied to your attempt",
+					EmailLink:     linkPath,
 				})
 			}
 		}
@@ -555,17 +552,15 @@ func (s *service) VoteAttempt(ctx context.Context, attemptID uuid.UUID, userID u
 			if err != nil {
 				return
 			}
-			baseURL := s.settingsSvc.Get(bgCtx, config.SettingBaseURL)
-			linkURL := fmt.Sprintf("%s/mystery/%s#attempt-%s", baseURL, mysteryID, attemptID)
-			subject, body := notification.NotifEmail("Someone", "voted on your attempt", "", linkURL)
 			_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
 				RecipientID:   attemptAuthorID,
 				Type:          dto.NotifMysteryVote,
 				ReferenceID:   mysteryID,
 				ReferenceType: fmt.Sprintf("mystery_attempt:%s", attemptID),
 				ActorID:       userID,
-				EmailSubject:  subject,
-				EmailBody:     body,
+				EmailActor:    "Someone",
+				EmailAction:   "voted on your attempt",
+				EmailLink:     fmt.Sprintf("/mystery/%s#attempt-%s", mysteryID, attemptID),
 			})
 		}()
 	}
@@ -637,23 +632,20 @@ func (s *service) MarkSolved(ctx context.Context, mysteryID uuid.UUID, userID uu
 
 	go func() {
 		bgCtx := context.Background()
-		baseURL := s.settingsSvc.Get(bgCtx, config.SettingBaseURL)
-		linkURL := fmt.Sprintf("%s/mystery/%s#attempt-%s", baseURL, mysteryID, attemptID)
-		subject, body := notification.NotifEmail("Someone", "chose your attempt as the winner!", "", linkURL)
 		_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
 			RecipientID:   attemptAuthorID,
 			Type:          dto.NotifMysterySolved,
 			ReferenceID:   mysteryID,
 			ReferenceType: fmt.Sprintf("mystery_attempt:%s", attemptID),
 			ActorID:       userID,
-			EmailSubject:  subject,
-			EmailBody:     body,
+			EmailActor:    "Someone",
+			EmailAction:   "chose your attempt as the winner!",
+			EmailLink:     fmt.Sprintf("/mystery/%s#attempt-%s", mysteryID, attemptID),
 		})
 
 		if !ongoing {
 			playerIDs, _ := s.mysteryRepo.GetPlayerIDs(bgCtx, mysteryID)
-			solvedLink := fmt.Sprintf("%s/mystery/%s", baseURL, mysteryID)
-			solvedSubject, solvedBody := notification.NotifEmail("The Game Master", "solved a mystery you were playing", "", solvedLink)
+			solvedLink := fmt.Sprintf("/mystery/%s", mysteryID)
 			params := make([]dto.NotifyParams, 0, len(playerIDs))
 			for i := 0; i < len(playerIDs); i++ {
 				pid := playerIDs[i]
@@ -667,8 +659,9 @@ func (s *service) MarkSolved(ctx context.Context, mysteryID uuid.UUID, userID uu
 					ReferenceType: "mystery",
 					ActorID:       userID,
 					Message:       "a mystery you were playing has been solved",
-					EmailSubject:  solvedSubject,
-					EmailBody:     solvedBody,
+					EmailActor:    "The Game Master",
+					EmailAction:   "solved a mystery you were playing",
+					EmailLink:     solvedLink,
 				})
 			}
 			s.notifService.NotifyMany(bgCtx, params)
@@ -721,9 +714,7 @@ func (s *service) MarkPermanentlySolved(ctx context.Context, mysteryID uuid.UUID
 
 	go func() {
 		bgCtx := context.Background()
-		baseURL := s.settingsSvc.Get(bgCtx, config.SettingBaseURL)
-		solvedLink := fmt.Sprintf("%s/mystery/%s", baseURL, mysteryID)
-		solvedSubject, solvedBody := notification.NotifEmail("The Game Master", "closed a mystery you were playing", "", solvedLink)
+		solvedLink := fmt.Sprintf("/mystery/%s", mysteryID)
 
 		solverIDs, _ := s.mysteryRepo.GetSolverIDs(bgCtx, mysteryID)
 		solverSet := make(map[uuid.UUID]struct{}, len(solverIDs))
@@ -744,8 +735,9 @@ func (s *service) MarkPermanentlySolved(ctx context.Context, mysteryID uuid.UUID
 				ReferenceType: "mystery",
 				ActorID:       userID,
 				Message:       "a mystery you were playing has been closed",
-				EmailSubject:  solvedSubject,
-				EmailBody:     solvedBody,
+				EmailActor:    "The Game Master",
+				EmailAction:   "closed a mystery you were playing",
+				EmailLink:     solvedLink,
 			})
 		}
 		s.notifService.NotifyMany(bgCtx, params)
@@ -803,17 +795,15 @@ func (s *service) AddClue(ctx context.Context, mysteryID uuid.UUID, userID uuid.
 		recipient := *req.PlayerID
 		go func() {
 			bgCtx := context.Background()
-			baseURL := s.settingsSvc.Get(bgCtx, config.SettingBaseURL)
-			linkURL := fmt.Sprintf("%s/mystery/%s", baseURL, mysteryID)
-			subject, body := notification.NotifEmail("The Game Master", "revealed a private red truth to you", "", linkURL)
 			_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
 				RecipientID:   recipient,
 				Type:          dto.NotifMysteryPrivateClue,
 				ReferenceID:   mysteryID,
 				ReferenceType: "mystery",
 				ActorID:       userID,
-				EmailSubject:  subject,
-				EmailBody:     body,
+				EmailActor:    "The Game Master",
+				EmailAction:   "revealed a private red truth to you",
+				EmailLink:     fmt.Sprintf("/mystery/%s", mysteryID),
 			})
 		}()
 	}
@@ -942,34 +932,33 @@ func (s *service) CreateComment(ctx context.Context, mysteryID uuid.UUID, userID
 		if err != nil || actor == nil {
 			return
 		}
-		baseURL := s.settingsSvc.Get(bgCtx, config.SettingBaseURL)
-		linkURL := fmt.Sprintf("%s/mystery/%s#comment-%s", baseURL, mysteryID, id)
+		linkPath := fmt.Sprintf("/mystery/%s#comment-%s", mysteryID, id)
 
 		if req.ParentID != nil {
 			parentAuthor, err := s.mysteryRepo.GetCommentAuthorID(bgCtx, *req.ParentID)
 			if err != nil || parentAuthor == userID {
 				return
 			}
-			subject, emailBody := notification.NotifEmail(actor.DisplayName, "replied to your comment", "", linkURL)
 			_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
 				RecipientID:   parentAuthor,
 				Type:          dto.NotifMysteryCommentReply,
 				ReferenceID:   mysteryID,
 				ReferenceType: fmt.Sprintf("mystery_comment:%s", id),
 				ActorID:       userID,
-				EmailSubject:  subject,
-				EmailBody:     emailBody,
+				EmailActor:    actor.DisplayName,
+				EmailAction:   "replied to your comment",
+				EmailLink:     linkPath,
 			})
 		} else if authorID != userID {
-			subject, emailBody := notification.NotifEmail(actor.DisplayName, "commented on your mystery", "", linkURL)
 			_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
 				RecipientID:   authorID,
 				Type:          dto.NotifMysteryCommentReply,
 				ReferenceID:   mysteryID,
 				ReferenceType: fmt.Sprintf("mystery_comment:%s", id),
 				ActorID:       userID,
-				EmailSubject:  subject,
-				EmailBody:     emailBody,
+				EmailActor:    actor.DisplayName,
+				EmailAction:   "commented on your mystery",
+				EmailLink:     linkPath,
 			})
 		}
 	}()
@@ -1204,16 +1193,14 @@ func (s *service) SetPaused(ctx context.Context, mysteryID uuid.UUID, userID uui
 		if err != nil || len(playerIDs) == 0 {
 			return
 		}
-		baseURL := s.settingsSvc.Get(bgCtx, config.SettingBaseURL)
-		linkURL := fmt.Sprintf("%s/mystery/%s", baseURL, mysteryID)
-
 		notifType := dto.NotifMysteryPaused
 		message := "paused a mystery you are playing"
 		if !paused {
 			notifType = dto.NotifMysteryUnpaused
 			message = "resumed a mystery you are playing"
 		}
-		subject, body := notification.NotifEmail("The Game Master", message, "", linkURL)
+
+		linkPath := fmt.Sprintf("/mystery/%s", mysteryID)
 		for _, pid := range playerIDs {
 			_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
 				RecipientID:   pid,
@@ -1222,8 +1209,9 @@ func (s *service) SetPaused(ctx context.Context, mysteryID uuid.UUID, userID uui
 				ReferenceType: "mystery",
 				ActorID:       userID,
 				Message:       message,
-				EmailSubject:  subject,
-				EmailBody:     body,
+				EmailActor:    "The Game Master",
+				EmailAction:   message,
+				EmailLink:     linkPath,
 			})
 		}
 	}()
@@ -1256,16 +1244,14 @@ func (s *service) SetGmAway(ctx context.Context, mysteryID uuid.UUID, userID uui
 		if err != nil || len(playerIDs) == 0 {
 			return
 		}
-		baseURL := s.settingsSvc.Get(bgCtx, config.SettingBaseURL)
-		linkURL := fmt.Sprintf("%s/mystery/%s", baseURL, mysteryID)
-
 		notifType := dto.NotifMysteryGmAway
 		message := "marked themselves as away on a mystery you are playing"
 		if !away {
 			notifType = dto.NotifMysteryGmBack
 			message = "is back on a mystery you are playing"
 		}
-		subject, body := notification.NotifEmail("The Game Master", message, "", linkURL)
+
+		linkPath := fmt.Sprintf("/mystery/%s", mysteryID)
 		for _, pid := range playerIDs {
 			_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
 				RecipientID:   pid,
@@ -1274,8 +1260,9 @@ func (s *service) SetGmAway(ctx context.Context, mysteryID uuid.UUID, userID uui
 				ReferenceType: "mystery",
 				ActorID:       userID,
 				Message:       message,
-				EmailSubject:  subject,
-				EmailBody:     body,
+				EmailActor:    "The Game Master",
+				EmailAction:   message,
+				EmailLink:     linkPath,
 			})
 		}
 	}()

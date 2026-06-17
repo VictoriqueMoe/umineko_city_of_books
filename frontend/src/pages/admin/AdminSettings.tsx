@@ -3,6 +3,7 @@ import type { ChangeEvent } from "react";
 import { useAdminSettings } from "../../api/queries/admin";
 import { useSendTestEmail, useUpdateAdminSettings, useUploadOGDefaultImage } from "../../api/mutations/admin";
 import { usePageTitle } from "../../hooks/usePageTitle";
+import { useSiteInfo } from "../../hooks/useSiteInfo";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
 import { Select } from "../../components/Select/Select";
@@ -18,6 +19,7 @@ const EMAIL_PROVIDER_CLOUDFLARE: EmailProvider = "cloudflare";
 
 export function AdminSettings() {
     usePageTitle("Admin - Settings");
+    const { site_name } = useSiteInfo();
     const { settings: loadedSettings, loading } = useAdminSettings();
     const updateSettingsMutation = useUpdateAdminSettings();
     const sendTestEmailMutation = useSendTestEmail();
@@ -683,7 +685,7 @@ export function AdminSettings() {
                     </div>
                     <EmbedPreviews
                         image={settings.og_default_image || "/Featherine.jpg"}
-                        siteName={settings.site_name ?? "Umineko City of Books"}
+                        siteName={settings.site_name ?? site_name}
                         baseURL={settings.base_url ?? ""}
                     />
                 </div>
@@ -700,7 +702,6 @@ export function AdminSettings() {
     );
 }
 
-const EMBED_PREVIEW_TITLE = "Umineko City of Books - Fan Theory Platform";
 const EMBED_PREVIEW_DESCRIPTION =
     "Welcome to the game board. Declare blue truths, solve mysteries, debate pairings, read and write fanfiction, and chronicle your journey through When They Cry.";
 
@@ -715,7 +716,7 @@ function EmbedPreviews({ image, siteName, baseURL }: { image: string; siteName: 
                     <div className={styles.discordBar} />
                     <div className={styles.discordBody}>
                         <span className={styles.discordSite}>{siteName}</span>
-                        <span className={styles.discordTitle}>{EMBED_PREVIEW_TITLE}</span>
+                        <span className={styles.discordTitle}>{siteName}</span>
                         <span className={styles.discordDesc}>{EMBED_PREVIEW_DESCRIPTION}</span>
                         <img src={image} alt="Embed preview" className={styles.discordImage} />
                     </div>
@@ -727,7 +728,7 @@ function EmbedPreviews({ image, siteName, baseURL }: { image: string; siteName: 
                     <img src={image} alt="Embed preview" className={styles.twitterImage} />
                     <div className={styles.twitterBody}>
                         <span className={styles.twitterDomain}>{domain}</span>
-                        <span className={styles.twitterTitle}>{EMBED_PREVIEW_TITLE}</span>
+                        <span className={styles.twitterTitle}>{siteName}</span>
                         <span className={styles.twitterDesc}>{EMBED_PREVIEW_DESCRIPTION}</span>
                     </div>
                 </div>

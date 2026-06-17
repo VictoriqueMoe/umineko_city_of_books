@@ -79,6 +79,23 @@ export const GAME_TYPES: GameTypeDefinition[] = [
             "Active games are public to spectators, who see both boards via mini-views. Mine positions stay hidden until the game ends.",
         ],
     },
+    {
+        type: "snakes_and_ladders",
+        label: "Snakes & Ladders",
+        tagline: "Pure dice luck. Climb the ladders, dodge the snakes, race to 100.",
+        hubPath: "/games/snakes_and_ladders",
+        newPath: "/games/snakes_and_ladders/new",
+        detailPath: (id: string) => `/games/snakes_and_ladders/${id}`,
+        available: true,
+        howToPlay: [
+            "Click Start a new snakes and ladders game, pick a player by username or from your mutual followers and send the invite. You move first.",
+            "On your turn, press Roll. The server rolls a fair six-sided die and moves your token that many cells along the board.",
+            "Land on the foot of a ladder and you climb to its top. Land on a snake's head and you slide down to its tail. It is all luck, no decisions.",
+            "You must land exactly on 100 to win. If a roll would overshoot 100, you stay put and pass the turn.",
+            "Games are correspondence-style with no clocks, so take as long as you like between rolls. Disconnects trigger a 60-second forfeit timer.",
+            "Active games are public to spectators; finished games are archived under Past Games.",
+        ],
+    },
 ];
 
 export function gameTypeLabel(type: string): string {

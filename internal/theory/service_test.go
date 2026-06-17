@@ -387,7 +387,6 @@ func TestUpdateTheory_Admin_OK_TriggersNotification(t *testing.T) {
 	wg.Add(1)
 	m.repo.EXPECT().GetTheoryAuthorID(mock.Anything, id).Return(authorID, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, DisplayName: "Mod"}, nil)
-	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("http://example.test")
 	m.notifSvc.EXPECT().Notify(mock.Anything, mock.MatchedBy(func(p dto.NotifyParams) bool {
 		return p.RecipientID == authorID && p.ActorID == userID && p.Type == dto.NotifContentEdited
 	})).Run(func(_ context.Context, _ dto.NotifyParams) {

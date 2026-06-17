@@ -133,6 +133,14 @@ export const NewOthelloGamePage = named(() => import("./games/NewOthelloGamePage
 export const OthelloGamePage = named(() => import("./games/OthelloGamePage"), "OthelloGamePage");
 export const NewMinesweeperGamePage = named(() => import("./games/NewMinesweeperGamePage"), "NewMinesweeperGamePage");
 export const MinesweeperGamePage = named(() => import("./games/MinesweeperGamePage"), "MinesweeperGamePage");
+export const NewSnakesAndLaddersGamePage = named(
+    () => import("./games/NewSnakesAndLaddersGamePage"),
+    "NewSnakesAndLaddersGamePage",
+);
+export const SnakesAndLaddersGamePage = named(
+    () => import("./games/SnakesAndLaddersGamePage"),
+    "SnakesAndLaddersGamePage",
+);
 
 //  Live Streaming
 export const LiveDirectoryPage = named(() => import("./live/LiveDirectory"), "LiveDirectory");

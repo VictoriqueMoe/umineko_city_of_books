@@ -490,17 +490,15 @@ func (s *service) LikePost(ctx context.Context, userID uuid.UUID, postID uuid.UU
 		if err != nil || actor == nil {
 			return
 		}
-		baseURL := s.settingsSvc.Get(ctx, config.SettingBaseURL)
-		linkURL := fmt.Sprintf("%s/game-board/%s", baseURL, postID)
-		subject, body := notification.NotifEmail(actor.DisplayName, "liked your post", "", linkURL)
 		_ = s.notifService.Notify(ctx, dto.NotifyParams{
 			RecipientID:   authorID,
 			Type:          dto.NotifPostLiked,
 			ReferenceID:   postID,
 			ReferenceType: "post",
 			ActorID:       userID,
-			EmailSubject:  subject,
-			EmailBody:     body,
+			EmailActor:    actor.DisplayName,
+			EmailAction:   "liked your post",
+			EmailLink:     fmt.Sprintf("/game-board/%s", postID),
 		})
 	}()
 
@@ -549,47 +547,44 @@ func (s *service) CreateComment(ctx context.Context, postID uuid.UUID, userID uu
 		if err != nil || actor == nil {
 			return
 		}
-		baseURL := s.settingsSvc.Get(ctx, config.SettingBaseURL)
-		linkURL := fmt.Sprintf("%s/game-board/%s#comment-%s", baseURL, postID, id)
-
 		if req.ParentID == nil {
-			subject, body := notification.NotifEmail(actor.DisplayName, "commented on your post", "", linkURL)
 			_ = s.notifService.Notify(ctx, dto.NotifyParams{
 				RecipientID:   postAuthorID,
 				Type:          dto.NotifPostCommented,
 				ReferenceID:   postID,
 				ReferenceType: fmt.Sprintf("post_comment:%s", id),
 				ActorID:       userID,
-				EmailSubject:  subject,
-				EmailBody:     body,
+				EmailActor:    actor.DisplayName,
+				EmailAction:   "commented on your post",
+				EmailLink:     fmt.Sprintf("/game-board/%s#comment-%s", postID, id),
 			})
 			return
 		}
 
 		parentAuthorID, err := s.postRepo.GetCommentAuthorID(ctx, *req.ParentID)
 		if err == nil && parentAuthorID != userID {
-			replySubject, replyBody := notification.NotifEmail(actor.DisplayName, "replied to your comment", "", linkURL)
 			_ = s.notifService.Notify(ctx, dto.NotifyParams{
 				RecipientID:   parentAuthorID,
 				Type:          dto.NotifPostCommentReply,
 				ReferenceID:   postID,
 				ReferenceType: fmt.Sprintf("post_comment:%s", id),
 				ActorID:       userID,
-				EmailSubject:  replySubject,
-				EmailBody:     replyBody,
+				EmailActor:    actor.DisplayName,
+				EmailAction:   "replied to your comment",
+				EmailLink:     fmt.Sprintf("/game-board/%s#comment-%s", postID, id),
 			})
 		}
 
 		if postAuthorID != userID && postAuthorID != parentAuthorID {
-			subject, body := notification.NotifEmail(actor.DisplayName, "commented on your post", "", linkURL)
 			_ = s.notifService.Notify(ctx, dto.NotifyParams{
 				RecipientID:   postAuthorID,
 				Type:          dto.NotifPostCommented,
 				ReferenceID:   postID,
 				ReferenceType: fmt.Sprintf("post_comment:%s", id),
 				ActorID:       userID,
-				EmailSubject:  subject,
-				EmailBody:     body,
+				EmailActor:    actor.DisplayName,
+				EmailAction:   "commented on your post",
+				EmailLink:     fmt.Sprintf("/game-board/%s#comment-%s", postID, id),
 			})
 		}
 	}()
@@ -665,17 +660,15 @@ func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID u
 		if err != nil || actor == nil {
 			return
 		}
-		baseURL := s.settingsSvc.Get(ctx, config.SettingBaseURL)
-		linkURL := fmt.Sprintf("%s/game-board/%s#comment-%s", baseURL, postID, commentID)
-		subject, body := notification.NotifEmail(actor.DisplayName, "liked your comment", "", linkURL)
 		_ = s.notifService.Notify(ctx, dto.NotifyParams{
 			RecipientID:   authorID,
 			Type:          dto.NotifCommentLiked,
 			ReferenceID:   postID,
 			ReferenceType: fmt.Sprintf("post_comment:%s", commentID),
 			ActorID:       userID,
-			EmailSubject:  subject,
-			EmailBody:     body,
+			EmailActor:    actor.DisplayName,
+			EmailAction:   "liked your comment",
+			EmailLink:     fmt.Sprintf("/game-board/%s#comment-%s", postID, commentID),
 		})
 	}()
 
@@ -696,9 +689,6 @@ func (s *service) notifySuggestionPosted(actorID uuid.UUID, postID uuid.UUID) {
 	if err != nil {
 		return
 	}
-	baseURL := s.settingsSvc.Get(ctx, config.SettingBaseURL)
-	linkURL := fmt.Sprintf("%s/suggestions/%s", baseURL, postID)
-	subject, body := notification.NotifEmail("Someone", "posted a site suggestion", "", linkURL)
 	for _, adminID := range adminIDs {
 		if adminID == actorID {
 			continue
@@ -709,8 +699,9 @@ func (s *service) notifySuggestionPosted(actorID uuid.UUID, postID uuid.UUID) {
 			ReferenceID:   postID,
 			ReferenceType: "post",
 			ActorID:       actorID,
-			EmailSubject:  subject,
-			EmailBody:     body,
+			EmailActor:    "Someone",
+			EmailAction:   "posted a site suggestion",
+			EmailLink:     fmt.Sprintf("/suggestions/%s", postID),
 		})
 	}
 }
@@ -720,7 +711,7 @@ func (s *service) notifyContentEdited(ctx context.Context, postID uuid.UUID, con
 	if err != nil {
 		return
 	}
-	notification.SendEditNotification(ctx, s.userRepo, s.settingsSvc, s.notifService, notification.EditNotifyParams{
+	notification.SendEditNotification(ctx, s.userRepo, s.notifService, notification.EditNotifyParams{
 		AuthorID:      authorID,
 		EditorID:      editorID,
 		ContentType:   contentType,
@@ -739,7 +730,7 @@ func (s *service) notifyCommentEdited(ctx context.Context, commentID uuid.UUID, 
 	if err != nil {
 		return
 	}
-	notification.SendEditNotification(ctx, s.userRepo, s.settingsSvc, s.notifService, notification.EditNotifyParams{
+	notification.SendEditNotification(ctx, s.userRepo, s.notifService, notification.EditNotifyParams{
 		AuthorID:      authorID,
 		EditorID:      editorID,
 		ContentType:   "comment",
@@ -852,17 +843,15 @@ func (s *service) ResolveSuggestion(ctx context.Context, postID uuid.UUID, userI
 			if err != nil || authorID == userID {
 				return
 			}
-			baseURL := s.settingsSvc.Get(bgCtx, config.SettingBaseURL)
-			linkURL := fmt.Sprintf("%s/suggestions/%s", baseURL, postID)
-			subject, body := notification.NotifEmail("An admin", "marked your suggestion as done", "", linkURL)
 			_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
 				RecipientID:   authorID,
 				Type:          dto.NotifSuggestionResolved,
 				ReferenceID:   postID,
 				ReferenceType: "post",
 				ActorID:       userID,
-				EmailSubject:  subject,
-				EmailBody:     body,
+				EmailActor:    "An admin",
+				EmailAction:   "marked your suggestion as done",
+				EmailLink:     fmt.Sprintf("/suggestions/%s", postID),
 			})
 		}()
 	}
@@ -897,16 +886,14 @@ func (s *service) notifyContentShared(sharerID uuid.UUID, postID uuid.UUID, cont
 		return
 	}
 
-	baseURL := s.settingsSvc.Get(bgCtx, config.SettingBaseURL)
-	linkURL := fmt.Sprintf("%s/game-board/%s", baseURL, postID)
-	subject, body := notification.NotifEmail("Someone", "shared your content", "", linkURL)
 	_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
 		RecipientID:   authorID,
 		Type:          dto.NotifContentShared,
 		ReferenceID:   postID,
 		ReferenceType: "post",
 		ActorID:       sharerID,
-		EmailSubject:  subject,
-		EmailBody:     body,
+		EmailActor:    "Someone",
+		EmailAction:   "shared your content",
+		EmailLink:     fmt.Sprintf("/game-board/%s", postID),
 	})
 }

@@ -202,6 +202,12 @@ html[data-width="wide"] {
     text-shadow: 0 0 4px rgba(30, 122, 64, 0.22);
 }
 
+[data-theme="virgilia"] .pink-truth {
+    color: #b23a8c;
+    font-weight: 800;
+    text-shadow: 0 0 4px rgba(178, 58, 140, 0.22);
+}
+
 [data-theme="rika"] {
     --bg-void: #080812;
     --bg-purple: #0f0f24;
