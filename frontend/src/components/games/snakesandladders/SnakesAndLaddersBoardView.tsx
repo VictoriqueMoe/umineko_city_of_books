@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { GameRoom, SnakesLaddersState, SnakesLaddersStats, User } from "../../../types/api.ts";
 import { Button } from "../../Button/Button.tsx";
 import { DisconnectBanner } from "../DisconnectBanner.tsx";
@@ -55,10 +55,19 @@ const PIP_LAYOUT: Record<number, Array<[number, number]>> = {
     ],
 };
 
-function DiceFace({ value }: { value: number }) {
+const DICE_ROLL_MS = 600;
+const GLIDE_MS = 600;
+const PAUSE_MS = 250;
+
+function DiceFace({ value, rolling }: { value: number; rolling: boolean }) {
     const pips = PIP_LAYOUT[value] ?? [];
     return (
-        <svg className={styles.dice} viewBox="0 0 100 100" role="img" aria-label={`Die showing ${value}`}>
+        <svg
+            className={`${styles.dice} ${rolling ? styles.diceRolling : ""}`}
+            viewBox="0 0 100 100"
+            role="img"
+            aria-label={`Die showing ${value}`}
+        >
             <rect x="4" y="4" width="92" height="92" rx="18" fill="#f6efda" stroke="#b88a32" strokeWidth="4" />
             {pips.map((p, i) => (
                 <circle key={i} cx={p[0]} cy={p[1]} r="9" fill="#3a2a12" />
@@ -92,6 +101,72 @@ export function SnakesAndLaddersBoardView({
     const state = room.state as Partial<SnakesLaddersState> | undefined;
     const positions = state?.positions ?? [0, 0];
     const last = state?.last;
+    const rolls = state?.rolls ?? 0;
+
+    const [displayPositions, setDisplayPositions] = useState<number[]>(positions);
+    const [diceRolling, setDiceRolling] = useState(false);
+    const animatedRollsRef = useRef(-1);
+    const timersRef = useRef<number[]>([]);
+
+    const moverSlot = last?.slot ?? -1;
+    const fromCell = last?.from ?? 0;
+    const steppedCell = last?.stepped ?? 0;
+    const toCell = last?.to ?? 0;
+    const p0 = positions[0];
+    const p1 = positions[1];
+
+    useEffect(() => {
+        const clearTimers = () => {
+            for (const t of timersRef.current) {
+                clearTimeout(t);
+            }
+            timersRef.current = [];
+        };
+
+        if (rolls === 0 || moverSlot < 0 || animatedRollsRef.current === rolls) {
+            animatedRollsRef.current = rolls;
+            return clearTimers;
+        }
+
+        const firstSight = animatedRollsRef.current < 0;
+        animatedRollsRef.current = rolls;
+        if (firstSight) {
+            return clearTimers;
+        }
+
+        clearTimers();
+
+        const moverAt = (cell: number) => {
+            const next = [p0, p1];
+            next[moverSlot] = cell;
+            return next;
+        };
+
+        timersRef.current.push(
+            window.setTimeout(() => {
+                setDiceRolling(true);
+                setDisplayPositions(moverAt(fromCell));
+            }, 0),
+        );
+        timersRef.current.push(
+            window.setTimeout(() => {
+                setDiceRolling(false);
+                setDisplayPositions(moverAt(steppedCell));
+            }, DICE_ROLL_MS),
+        );
+        if (toCell !== steppedCell) {
+            timersRef.current.push(
+                window.setTimeout(
+                    () => {
+                        setDisplayPositions(moverAt(toCell));
+                    },
+                    DICE_ROLL_MS + GLIDE_MS + PAUSE_MS,
+                ),
+            );
+        }
+
+        return clearTimers;
+    }, [rolls, moverSlot, fromCell, steppedCell, toCell, p0, p1]);
 
     const viewerId = viewer?.id ?? null;
     const isMyTurn = !isSpectator && viewerId !== null && room.turn_user_id === viewerId && room.status === "active";
@@ -175,12 +250,12 @@ export function SnakesAndLaddersBoardView({
             {error && <div className={styles.error}>{error}</div>}
 
             <div className={styles.boardContainer}>
-                <SnakesLaddersBoard positions={positions} tokens={tokens} lastTo={last?.to ?? null} />
+                <SnakesLaddersBoard positions={displayPositions} tokens={tokens} lastTo={last?.to ?? null} />
             </div>
 
             {room.status === "active" && (
                 <div className={styles.rollRow}>
-                    {last && <DiceFace value={last.roll} />}
+                    {last && <DiceFace value={last.roll} rolling={diceRolling} />}
                     <div className={styles.rollInfo}>
                         {lastText && <span className={styles.lastText}>{lastText}</span>}
                         {!isSpectator && (

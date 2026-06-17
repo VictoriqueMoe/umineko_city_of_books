@@ -31,6 +31,28 @@
     filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.35));
 }
 
+.diceRolling {
+    animation: sl-dice-roll 0.6s ease-in-out;
+}
+
+@keyframes sl-dice-roll {
+    0% {
+        transform: rotate(0) scale(1);
+    }
+    25% {
+        transform: rotate(-20deg) scale(1.1);
+    }
+    50% {
+        transform: rotate(16deg) scale(1.06);
+    }
+    75% {
+        transform: rotate(-12deg) scale(1.1);
+    }
+    100% {
+        transform: rotate(0) scale(1);
+    }
+}
+
 .rollInfo {
     display: flex;
     flex-direction: column;
