@@ -1,7 +1,7 @@
 # Umineko City of Books
 
 <p align="center">
-  <img src="https://waifuvault.moe/f/65d13bad-a630-4a61-baa2-13502b5ce115/clipboard-image-1776640341031.png" alt="Umineko City of Books" width="900">
+  <img src="https://waifuvault.moe/f/2076c25a-2637-45af-bd6b-bc3a9d4d9a45/featherine%20augustus%20aurora.png" alt="Umineko City of Books" width="900">
 </p>
 
 <p align="center">
