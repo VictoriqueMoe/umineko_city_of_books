@@ -9,9 +9,9 @@ import { useIsMobile } from "../../hooks/useIsMobile";
 import {
     getStream,
     getStreamViewerToken,
-    uploadStreamThumbnail,
     type LiveStream,
     type StreamDefaultMode,
+    uploadStreamThumbnail,
 } from "../../api/endpoints";
 import type { WSMessage } from "../../types/api";
 import { useAuth } from "../../hooks/useAuth";
@@ -44,10 +44,13 @@ export function LiveWatchPage() {
     const roomRef = useRef<Room | null>(null);
     const stageRef = useRef<HTMLDivElement>(null);
     const [modeOverride, setModeOverride] = useState<StreamDefaultMode | null>(null);
+    const [showOwnPreview, setShowOwnPreview] = useState(false);
 
     const isLive = stream?.status === "live";
     const mode: StreamDefaultMode =
         modeOverride ?? (stream?.defaultMode === "hls" && stream?.hlsUrl ? "hls" : "webrtc");
+    const isOwnStream = !!user && !!stream && user.id === stream.userId;
+    const wantsMedia = !isOwnStream || showOwnPreview;
 
     function toggleFullscreen() {
         const el = stageRef.current;
@@ -83,12 +86,22 @@ export function LiveWatchPage() {
                 if (data.id === streamID) {
                     qc.invalidateQueries({ queryKey: ["streams", "detail", streamID] });
                 }
+                return;
+            }
+
+            if (msg.type === "stream_title") {
+                const data = msg.data as { streamId: string; title: string };
+                if (data.streamId === streamID) {
+                    qc.setQueryData<LiveStream>(["streams", "detail", streamID], prev =>
+                        prev ? { ...prev, title: data.title } : prev,
+                    );
+                }
             }
         });
     }, [addWSListener, qc, streamID]);
 
     useEffect(() => {
-        if (!streamID || !isLive || mode !== "webrtc") {
+        if (!streamID || !isLive || mode !== "webrtc" || !wantsMedia) {
             return;
         }
 
@@ -126,7 +139,7 @@ export function LiveWatchPage() {
             }
             lkRoom.disconnect().catch(() => {});
         };
-    }, [streamID, isLive, mode]);
+    }, [streamID, isLive, mode, wantsMedia]);
 
     useEffect(() => {
         if (!user || !isLive || !room || !streamID) {
@@ -205,6 +218,9 @@ export function LiveWatchPage() {
                 onToggleFullscreen={toggleFullscreen}
                 mode={mode}
                 onModeChange={setModeOverride}
+                isOwnStream={isOwnStream}
+                showOwnPreview={showOwnPreview}
+                onToggleOwnPreview={setShowOwnPreview}
             />
         );
     }
@@ -215,22 +231,40 @@ export function LiveWatchPage() {
                 <div className={styles.stage} ref={stageRef}>
                     {!isLive ? (
                         <div className={styles.offline}>{error ? error : "This stream is offline."}</div>
+                    ) : isOwnStream && !showOwnPreview ? (
+                        <div className={styles.offline}>
+                            <p>
+                                This is your own stream, so the preview is hidden to avoid downloading your own video.
+                            </p>
+                            <button type="button" className={styles.modeBtn} onClick={() => setShowOwnPreview(true)}>
+                                Show preview (muted)
+                            </button>
+                        </div>
                     ) : mode === "hls" && stream.hlsUrl ? (
-                        <HLSVideoPlayer src={stream.hlsUrl} className={styles.video} />
+                        <HLSVideoPlayer src={stream.hlsUrl} className={styles.video} muted={isOwnStream} />
                     ) : room ? (
                         <RoomContext.Provider value={room}>
                             <StreamStage />
-                            <RoomAudioRenderer volume={volume} />
-                            <StartAudio label="Click to enable sound" className={styles.startAudio} />
-                            <VolumeSlider
-                                value={volume}
-                                onChange={setVolume}
-                                ariaLabel="Stream volume"
-                                className={styles.volumeControl}
-                            />
+                            <RoomAudioRenderer volume={isOwnStream ? 0 : volume} />
+                            {!isOwnStream && (
+                                <>
+                                    <StartAudio label="Click to enable sound" className={styles.startAudio} />
+                                    <VolumeSlider
+                                        value={volume}
+                                        onChange={setVolume}
+                                        ariaLabel="Stream volume"
+                                        className={styles.volumeControl}
+                                    />
+                                </>
+                            )}
                         </RoomContext.Provider>
                     ) : (
                         <div className={styles.offline}>{error ? error : "Connecting..."}</div>
+                    )}
+                    {isLive && isOwnStream && showOwnPreview && (
+                        <button type="button" className={styles.previewToggle} onClick={() => setShowOwnPreview(false)}>
+                            Hide preview
+                        </button>
                     )}
                     {isLive && stream.hlsUrl && (
                         <div className={styles.modeToggle}>

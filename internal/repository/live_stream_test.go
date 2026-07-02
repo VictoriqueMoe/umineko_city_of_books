@@ -155,3 +155,23 @@ func TestLiveStreamRepository_ListStartingBefore(t *testing.T) {
 	require.Len(t, got, 1)
 	assert.Equal(t, id, got[0].ID)
 }
+
+func TestLiveStreamRepository_SetTitle(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	repo := repos.LiveStream
+	ctx := context.Background()
+	user := repotest.CreateUser(t, repos)
+	id, err := repo.Create(ctx, user.ID, "Old Title", 3)
+	require.NoError(t, err)
+
+	// when
+	err = repo.SetTitle(ctx, id, "New Title")
+
+	// then
+	require.NoError(t, err)
+	row, err := repo.GetByID(ctx, id)
+	require.NoError(t, err)
+	require.NotNil(t, row)
+	assert.Equal(t, "New Title", row.Title)
+}

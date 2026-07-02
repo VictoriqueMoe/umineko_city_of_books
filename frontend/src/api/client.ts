@@ -1,10 +1,15 @@
-import { getAuthToken, setAuthToken, isNativeApp, clientPlatform } from "../utils/authToken";
+import { clientPlatform, getAuthToken, isNativeApp, setAuthToken } from "../utils/authToken";
 
 const API_ORIGIN = import.meta.env.VITE_API_BASE ?? "";
 const API_PREFIX = "/api/v1";
 
 export function apiUrl(path: string): string {
     return `${API_ORIGIN}${path}`;
+}
+
+function isMediaUrlKey(key: string): boolean {
+    const lower = key.toLowerCase();
+    return lower.endsWith("url") && lower !== "url";
 }
 
 function absolutizeValue(value: unknown): unknown {
@@ -21,12 +26,7 @@ function absolutizeValue(value: unknown): unknown {
         const out: Record<string, unknown> = {};
         for (const key of Object.keys(obj)) {
             const child = obj[key];
-            if (
-                typeof child === "string" &&
-                child.startsWith("/") &&
-                !child.startsWith("//") &&
-                key.toLowerCase().endsWith("url")
-            ) {
+            if (typeof child === "string" && child.startsWith("/") && !child.startsWith("//") && isMediaUrlKey(key)) {
                 out[key] = `${API_ORIGIN}${child}`;
             } else {
                 out[key] = absolutizeValue(child);

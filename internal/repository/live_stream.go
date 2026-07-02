@@ -48,6 +48,7 @@ type (
 		SetThumbnail(ctx context.Context, id uuid.UUID, url string) error
 		SetEgress(ctx context.Context, id uuid.UUID, egressID, hlsURL string) error
 		SetDefaultMode(ctx context.Context, id uuid.UUID, mode string) error
+		SetTitle(ctx context.Context, id uuid.UUID, title string) error
 	}
 
 	liveStreamRepository struct {
@@ -284,6 +285,18 @@ func (r *liveStreamRepository) SetDefaultMode(ctx context.Context, id uuid.UUID,
 	)
 	if err != nil {
 		return fmt.Errorf("set live stream default mode: %w", err)
+	}
+
+	return nil
+}
+
+func (r *liveStreamRepository) SetTitle(ctx context.Context, id uuid.UUID, title string) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE live_streams SET title = $2 WHERE id = $1`,
+		id, title,
+	)
+	if err != nil {
+		return fmt.Errorf("set live stream title: %w", err)
 	}
 
 	return nil

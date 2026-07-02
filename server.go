@@ -36,6 +36,7 @@ import (
 	"umineko_city_of_books/internal/notification"
 	ocsvc "umineko_city_of_books/internal/oc"
 	"umineko_city_of_books/internal/og"
+	"umineko_city_of_books/internal/overlay"
 	postsvc "umineko_city_of_books/internal/post"
 	"umineko_city_of_books/internal/profile"
 	"umineko_city_of_books/internal/report"
@@ -105,6 +106,7 @@ type (
 		user            user.Service
 		push            push.Service
 		stream          stream.Service
+		overlay         overlay.Service
 	}
 )
 
@@ -154,6 +156,7 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 	app.Get("/api/v1/ws", ws.Handler(svc.hub, svc.session, svc.chat, svc.gameRoom, svc.chat, func() string {
 		return settingsSvc.Get(context.Background(), config.SettingBaseURL)
 	}))
+	app.Get("/api/v1/overlay", svc.overlay.Handler())
 	uploadsHandler := static.New(svc.upload.GetUploadDir(), static.Config{
 		Browse: false,
 	})
@@ -166,6 +169,9 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 
 	ogImageHandler := controllers.NewOGImageHandler(svc.upload.GetUploadDir())
 	ogImageHandler.Register(app)
+
+	overlayHandler := controllers.NewOverlayHandler(svc.overlay, svc.session, svc.authz)
+	overlayHandler.Register(app)
 
 	staticFS, err := fs.Sub(staticFiles, "static")
 	if err != nil {

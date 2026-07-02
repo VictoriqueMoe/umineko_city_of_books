@@ -28,6 +28,7 @@ type (
 		Enabled() bool
 		StartStream(ctx context.Context, userID uuid.UUID, title string, defaultMode dto.StreamDefaultMode, bitrateKbps int) (*dto.StreamOwnerResponse, error)
 		StopStream(ctx context.Context, userID, streamID uuid.UUID) error
+		UpdateTitle(ctx context.Context, userID, streamID uuid.UUID, title string) (*dto.LiveStreamResponse, error)
 		MyStream(ctx context.Context, userID uuid.UUID) (*dto.StreamOwnerResponse, error)
 		ListLive(ctx context.Context) ([]dto.LiveStreamResponse, error)
 		Get(ctx context.Context, streamID uuid.UUID) (*dto.LiveStreamResponse, error)
@@ -77,6 +78,7 @@ const (
 	wsStreamLive    = "stream_live"
 	wsStreamOffline = "stream_offline"
 	wsStreamViewers = "stream_viewers"
+	wsStreamTitle   = "stream_title"
 
 	statusOffline = "offline"
 	statusLive    = "live"
@@ -564,6 +566,43 @@ func (s *service) StopStream(ctx context.Context, userID, streamID uuid.UUID) er
 	s.teardown(ctx, stream)
 
 	return nil
+}
+
+func (s *service) UpdateTitle(ctx context.Context, userID, streamID uuid.UUID, title string) (*dto.LiveStreamResponse, error) {
+	title = strings.TrimSpace(title)
+	if title == "" {
+		return nil, ErrTitleRequired
+	}
+
+	titleRunes := []rune(title)
+	if len(titleRunes) > maxTitleLen {
+		title = string(titleRunes[:maxTitleLen])
+	}
+
+	stream, err := s.repo.GetByID(ctx, streamID)
+	if err != nil {
+		return nil, err
+	}
+	if stream == nil || stream.Status == statusOffline {
+		return nil, ErrStreamNotFound
+	}
+	if stream.UserID != userID {
+		return nil, ErrNotOwner
+	}
+
+	if err := s.repo.SetTitle(ctx, streamID, title); err != nil {
+		return nil, err
+	}
+
+	stream.Title = title
+
+	s.hub.BroadcastPublic(ws.Message{
+		Type: wsStreamTitle,
+		Data: dto.StreamTitleEvent{StreamID: streamID, Title: title},
+	})
+
+	resp := toPublic(stream)
+	return &resp, nil
 }
 
 func (s *service) MyStream(ctx context.Context, userID uuid.UUID) (*dto.StreamOwnerResponse, error) {

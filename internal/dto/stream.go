@@ -26,6 +26,10 @@ type (
 		Bitrate     int               `json:"bitrate"`
 	}
 
+	UpdateStreamTitleRequest struct {
+		Title string `json:"title"`
+	}
+
 	StreamOwnerResponse struct {
 		Stream    LiveStreamResponse `json:"stream"`
 		WhipURL   string             `json:"whipUrl"`
@@ -62,6 +66,11 @@ type (
 
 	StreamOfflineEvent struct {
 		StreamID uuid.UUID `json:"streamId"`
+	}
+
+	StreamTitleEvent struct {
+		StreamID uuid.UUID `json:"streamId"`
+		Title    string    `json:"title"`
 	}
 )
 

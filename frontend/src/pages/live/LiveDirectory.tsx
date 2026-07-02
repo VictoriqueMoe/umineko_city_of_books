@@ -43,6 +43,21 @@ export function LiveDirectory() {
                         ),
                     };
                 });
+                return;
+            }
+
+            if (msg.type === "stream_title") {
+                const data = msg.data as { streamId: string; title: string };
+                qc.setQueryData<LiveStreamListResponse>(["streams", "live"], prev => {
+                    if (!prev) {
+                        return prev;
+                    }
+
+                    return {
+                        ...prev,
+                        streams: prev.streams.map(s => (s.id === data.streamId ? { ...s, title: data.title } : s)),
+                    };
+                });
             }
         });
     }, [addWSListener, qc]);

@@ -21,6 +21,9 @@ interface MobileLiveViewProps {
     onToggleFullscreen: () => void;
     mode: StreamDefaultMode;
     onModeChange: (mode: StreamDefaultMode) => void;
+    isOwnStream: boolean;
+    showOwnPreview: boolean;
+    onToggleOwnPreview: (show: boolean) => void;
 }
 
 const noop = () => {};
@@ -37,6 +40,9 @@ export function MobileLiveView({
     onToggleFullscreen,
     mode,
     onModeChange,
+    isOwnStream,
+    showOwnPreview,
+    onToggleOwnPreview,
 }: MobileLiveViewProps) {
     const [tab, setTab] = useState<"chat" | "viewers">("chat");
     const [keyboardOpen, setKeyboardOpen] = useState(false);
@@ -93,23 +99,39 @@ export function MobileLiveView({
             <div className={styles.mobileStage} ref={stageRef} style={stageStyle}>
                 {!isLive ? (
                     <div className={styles.offline}>{error ? error : "This stream is offline."}</div>
+                ) : isOwnStream && !showOwnPreview ? (
+                    <div className={styles.offline}>
+                        <p>This is your own stream, so the preview is hidden to avoid downloading your own video.</p>
+                        <button type="button" className={styles.modeBtn} onClick={() => onToggleOwnPreview(true)}>
+                            Show preview (muted)
+                        </button>
+                    </div>
                 ) : mode === "hls" && stream.hlsUrl ? (
-                    <HLSVideoPlayer src={stream.hlsUrl} className={styles.video} />
+                    <HLSVideoPlayer src={stream.hlsUrl} className={styles.video} muted={isOwnStream} />
                 ) : room ? (
                     <RoomContext.Provider value={room}>
                         <StreamStage />
                         <ViewerCountReporter onChange={setViewerCount} />
-                        <RoomAudioRenderer volume={volume} />
-                        <StartAudio label="Click to enable sound" className={styles.startAudio} />
-                        <VolumeSlider
-                            value={volume}
-                            onChange={onVolumeChange}
-                            ariaLabel="Stream volume"
-                            className={styles.volumeControl}
-                        />
+                        <RoomAudioRenderer volume={isOwnStream ? 0 : volume} />
+                        {!isOwnStream && (
+                            <>
+                                <StartAudio label="Click to enable sound" className={styles.startAudio} />
+                                <VolumeSlider
+                                    value={volume}
+                                    onChange={onVolumeChange}
+                                    ariaLabel="Stream volume"
+                                    className={styles.volumeControl}
+                                />
+                            </>
+                        )}
                     </RoomContext.Provider>
                 ) : (
                     <div className={styles.offline}>{error ? error : "Connecting..."}</div>
+                )}
+                {isLive && isOwnStream && showOwnPreview && (
+                    <button type="button" className={styles.previewToggle} onClick={() => onToggleOwnPreview(false)}>
+                        Hide preview
+                    </button>
                 )}
                 {isLive && stream.hlsUrl && (
                     <div className={styles.modeToggle}>

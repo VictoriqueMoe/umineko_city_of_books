@@ -35,7 +35,7 @@ func newTestService(t *testing.T) (
 	settingsSvc.EXPECT().Get(mock.Anything, config.SettingSiteName).Return("Test Site").Maybe()
 	settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("https://test.example").Maybe()
 
-	svc := NewService(notifRepo, userRepo, hub, emailSvc, nil, settingsSvc).(*service)
+	svc := NewService(notifRepo, userRepo, hub, emailSvc, nil, settingsSvc, nil).(*service)
 	return svc, notifRepo, userRepo, emailSvc, hub
 }
 
@@ -552,6 +552,52 @@ func TestNotify_PushNotificationFindsRowSendsToHub(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
+}
+
+type fakeOverlayDispatcher struct {
+	called      bool
+	recipientID uuid.UUID
+	resp        dto.NotificationResponse
+}
+
+func (f *fakeOverlayDispatcher) DispatchNotification(recipientID uuid.UUID, resp dto.NotificationResponse) {
+	f.called = true
+	f.recipientID = recipientID
+	f.resp = resp
+}
+
+func TestNotify_DispatchesToOverlay(t *testing.T) {
+	// given
+	notifRepo := repository.NewMockNotificationRepository(t)
+	userRepo := repository.NewMockUserRepository(t)
+	emailSvc := email.NewMockService(t)
+	settingsSvc := settings.NewMockService(t)
+	settingsSvc.EXPECT().Get(mock.Anything, config.SettingSiteName).Return("Test Site").Maybe()
+	settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("https://test.example").Maybe()
+	overlay := &fakeOverlayDispatcher{}
+	svc := NewService(notifRepo, userRepo, ws.NewHub(), emailSvc, nil, settingsSvc, overlay)
+	recipient := uuid.New()
+	params := dto.NotifyParams{
+		RecipientID: recipient,
+		ActorID:     uuid.New(),
+		Type:        dto.NotifPostLiked,
+		ReferenceID: uuid.New(),
+	}
+	notifRepo.EXPECT().
+		Create(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message).
+		Return(int64(55), nil)
+	notifRepo.EXPECT().
+		GetByID(mock.Anything, 55, params.RecipientID).
+		Return(&model.NotificationRow{ID: 55, UserID: params.RecipientID, Type: params.Type}, nil)
+
+	// when
+	err := svc.Notify(context.Background(), params)
+
+	// then
+	require.NoError(t, err)
+	assert.True(t, overlay.called)
+	assert.Equal(t, recipient, overlay.recipientID)
+	assert.Equal(t, dto.NotifPostLiked, overlay.resp.Type)
 }
 
 func TestNotifyMany_IteratesAllParamsAndSwallowsErrors(t *testing.T) {

@@ -6,6 +6,8 @@ import {
     apiPost,
     apiPostFormData,
     apiPut,
+    apiUrl,
+    authHeaders,
     buildQueryString,
 } from "./client";
 import { clearAuthToken } from "../utils/authToken";
@@ -797,6 +799,35 @@ export async function resetStreamCredentials(): Promise<StreamCredentials> {
     return apiPost<StreamCredentials, Record<string, never>>("/streams/credentials/reset", {});
 }
 
+export interface OverlayConnection {
+    token: string;
+    connect_url: string;
+    connected: boolean;
+}
+
+export async function getOverlayConnection(): Promise<OverlayConnection> {
+    return apiFetch<OverlayConnection>("/overlay/token");
+}
+
+export async function resetOverlayToken(): Promise<OverlayConnection> {
+    return apiPost<OverlayConnection, Record<string, never>>("/overlay/token/reset", {});
+}
+
+export async function testOverlay(): Promise<{ ok: boolean }> {
+    return apiPost<{ ok: boolean }, Record<string, never>>("/overlay/test", {});
+}
+
+export async function fetchOverlayConnectorSEF(): Promise<string> {
+    const response = await fetch(apiUrl("/api/v1/overlay/connector.sef"), {
+        credentials: "include",
+        headers: authHeaders(),
+    });
+    if (!response.ok) {
+        throw new Error("Could not download the connector file.");
+    }
+    return response.text();
+}
+
 export async function startStream(
     title: string,
     defaultMode: StreamDefaultMode,
@@ -811,6 +842,10 @@ export async function startStream(
 
 export async function stopStream(id: string): Promise<void> {
     await apiDelete<unknown>(`/streams/${id}`);
+}
+
+export async function updateStreamTitle(id: string, title: string): Promise<LiveStream> {
+    return apiPatch<LiveStream, { title: string }>(`/streams/${id}`, { title });
 }
 
 export async function getStreamViewerToken(id: string): Promise<VoiceTokenResponse> {

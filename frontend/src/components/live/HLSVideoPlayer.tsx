@@ -4,10 +4,18 @@ import Hls from "hls.js";
 interface HLSVideoPlayerProps {
     src: string;
     className?: string;
+    muted?: boolean;
 }
 
-export function HLSVideoPlayer({ src, className }: HLSVideoPlayerProps) {
+export function HLSVideoPlayer({ src, className, muted = false }: HLSVideoPlayerProps) {
     const videoRef = useRef<HTMLVideoElement>(null);
+
+    useEffect(() => {
+        const video = videoRef.current;
+        if (video) {
+            video.muted = muted;
+        }
+    }, [muted]);
 
     useEffect(() => {
         const video = videoRef.current;
