@@ -6,8 +6,7 @@
 
 <p align="center">
   <sub>
-    Artwork by <a href="https://whentheycry.social/user/alexwithaa21">alexwithaa21</a>
-    (<a href="https://x.com/alexwithaa21">@alexwithaa21</a> on X)
+    Artwork by <a href="https://m.twitch.tv/meru">Meru</a>
   </sub>
 </p>
 
