@@ -14,6 +14,7 @@ import { CanonicalTag } from "./components/CanonicalTag/CanonicalTag";
 import { ProtectedRoute } from "./components/ProtectedRoute/ProtectedRoute";
 import { StaleVersionBanner } from "./components/StaleVersionBanner/StaleVersionBanner";
 import { NativeUpdateBanner } from "./components/NativeUpdateBanner/NativeUpdateBanner";
+import { NativeLinkInterceptor } from "./components/NativeLinkInterceptor/NativeLinkInterceptor";
 import { LockBanner } from "./components/LockBanner/LockBanner";
 import { VerifyEmailBanner } from "./components/VerifyEmailBanner/VerifyEmailBanner";
 import { Toast } from "./components/Toast/Toast";
@@ -70,14 +71,13 @@ import {
     LiveWatchPage,
     LoginPage,
     MinesweeperGamePage,
-    SnakesAndLaddersGamePage,
     MysteryDetailPage,
     MysteryListPage,
     NewCheckersGamePage,
     NewChessGamePage,
     NewMinesweeperGamePage,
-    NewSnakesAndLaddersGamePage,
     NewOthelloGamePage,
+    NewSnakesAndLaddersGamePage,
     NotFoundPage,
     NotificationsPage,
     OCDetailPage,
@@ -88,16 +88,17 @@ import {
     ProfilePage,
     QuoteBrowserPage,
     ResetPasswordPage,
-    SetEmailPage,
     RoomPage,
     RoomsListPage,
     RulesPage,
     SearchPage,
     SecretDetailPage,
     SecretsListPage,
+    SetEmailPage,
     SettingsPage,
     ShipDetailPage,
     ShipsListPage,
+    SnakesAndLaddersGamePage,
     SocialFeedPage,
     SuggestionsPage,
     TheoryPage,
@@ -379,6 +380,7 @@ function AppLayout() {
 export default function App() {
     return (
         <BrowserRouter>
+            <NativeLinkInterceptor />
             <AppLayout />
         </BrowserRouter>
     );

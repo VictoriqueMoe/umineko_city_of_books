@@ -39,6 +39,7 @@ import (
 	mysterysvc "umineko_city_of_books/internal/mystery"
 	"umineko_city_of_books/internal/notification"
 	ocsvc "umineko_city_of_books/internal/oc"
+	"umineko_city_of_books/internal/overlay"
 	postsvc "umineko_city_of_books/internal/post"
 	"umineko_city_of_books/internal/profile"
 	"umineko_city_of_books/internal/quotefinder"
@@ -91,7 +92,9 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 	emailSvc := email.NewService(settingsSvc)
 	pushSvc := push.NewService(settingsSvc, repos.DeviceToken, config.Cfg.FCMCredentialsFile)
 	blockSvc := blocksvc.NewService(repos.Block, repos.Follow, authzSvc)
-	notifSvc := notification.NewService(repos.Notification, repos.User, hub, emailSvc, pushSvc, settingsSvc)
+	overlayHub := ws.NewHub()
+	overlaySvc := overlay.NewService(repos.OverlayToken, overlayHub, settingsSvc)
+	notifSvc := notification.NewService(repos.Notification, repos.User, hub, emailSvc, pushSvc, settingsSvc, overlaySvc)
 	reportSvc := report.NewService(repos.Report, repos.Role, repos.User, notifSvc, settingsSvc)
 	hyperbeamSvc := hyperbeam.NewService()
 	livekitSvc := livekit.NewService(settingsSvc)
@@ -157,5 +160,6 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 		user:            userSvc,
 		push:            pushSvc,
 		stream:          streamSvc,
+		overlay:         overlaySvc,
 	}
 }

@@ -371,6 +371,25 @@
     z-index: 3;
 }
 
+.previewToggle {
+    position: absolute;
+    bottom: 0.6rem;
+    left: 0.6rem;
+    z-index: 3;
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.2));
+    background: rgba(0, 0, 0, 0.55);
+    color: #fff;
+    font-size: 0.78rem;
+    line-height: 1;
+    border-radius: 6px;
+    padding: 0.35rem 0.6rem;
+    cursor: pointer;
+}
+
+.previewToggle:hover {
+    background: rgba(0, 0, 0, 0.8);
+}
+
 .modeToggle {
     position: absolute;
     top: 0.6rem;

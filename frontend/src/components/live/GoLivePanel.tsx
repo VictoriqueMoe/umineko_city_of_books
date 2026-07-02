@@ -2,13 +2,14 @@ import { useEffect, useState } from "react";
 import {
     getMyStream,
     getStreamCredentials,
+    type LiveStream,
     resetStreamCredentials,
     startStream,
     stopStream,
-    type LiveStream,
     type StreamCredentials,
     type StreamDefaultMode,
     type StreamOwner,
+    updateStreamTitle,
 } from "../../api/endpoints";
 import { useNotifications } from "../../hooks/useNotifications";
 import type { WSMessage } from "../../types/api";
@@ -48,6 +49,9 @@ export function GoLivePanel({ onChanged }: GoLivePanelProps) {
     const [error, setError] = useState<string | null>(null);
     const [copied, setCopied] = useState<string | null>(null);
     const [setupOpen, setSetupOpen] = useState(false);
+    const [editingTitle, setEditingTitle] = useState(false);
+    const [titleDraft, setTitleDraft] = useState("");
+    const [savingTitle, setSavingTitle] = useState(false);
 
     const bitrateNum = Number(bitrate);
     const bitrateValid = Number.isFinite(bitrateNum) && bitrateNum >= MIN_BITRATE && bitrateNum <= MAX_BITRATE;
@@ -73,6 +77,13 @@ export function GoLivePanel({ onChanged }: GoLivePanelProps) {
                 const data = msg.data as LiveStream;
                 if (data.id === ownerStreamId) {
                     setOwner(prev => (prev ? { ...prev, stream: { ...prev.stream, status: "live" } } : prev));
+                }
+                return;
+            }
+            if (msg.type === "stream_title") {
+                const data = msg.data as { streamId: string; title: string };
+                if (data.streamId === ownerStreamId) {
+                    setOwner(prev => (prev ? { ...prev, stream: { ...prev.stream, title: data.title } } : prev));
                 }
                 return;
             }
@@ -140,6 +151,30 @@ export function GoLivePanel({ onChanged }: GoLivePanelProps) {
         }
     }
 
+    async function handleUpdateTitle() {
+        if (!owner) {
+            return;
+        }
+        const trimmed = titleDraft.trim();
+        if (!trimmed || trimmed === owner.stream.title) {
+            setEditingTitle(false);
+            return;
+        }
+
+        setSavingTitle(true);
+        setError(null);
+
+        try {
+            const updated = await updateStreamTitle(owner.stream.id, trimmed);
+            setOwner(prev => (prev ? { ...prev, stream: { ...prev.stream, title: updated.title } } : prev));
+            setEditingTitle(false);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Could not update the title.");
+        } finally {
+            setSavingTitle(false);
+        }
+    }
+
     async function handleReset() {
         if (owner) {
             return;
@@ -182,7 +217,58 @@ export function GoLivePanel({ onChanged }: GoLivePanelProps) {
                 owner.stream.status === "live" ? (
                     <>
                         <h2 className={styles.heading}>You're live</h2>
-                        <p className={styles.hint}>{owner.stream.title} is live. Stop here or close OBS to end it.</p>
+                        {editingTitle ? (
+                            <div className={styles.field}>
+                                <Input
+                                    type="text"
+                                    placeholder="Stream title"
+                                    value={titleDraft}
+                                    onChange={e => setTitleDraft(e.target.value)}
+                                    maxLength={120}
+                                    fullWidth
+                                />
+                                <div className={styles.actions}>
+                                    <Button
+                                        size="small"
+                                        variant="primary"
+                                        onClick={() => handleUpdateTitle()}
+                                        disabled={
+                                            savingTitle ||
+                                            !titleDraft.trim() ||
+                                            titleDraft.trim() === owner.stream.title
+                                        }
+                                    >
+                                        {savingTitle ? "Saving..." : "Save title"}
+                                    </Button>
+                                    <Button
+                                        size="small"
+                                        variant="secondary"
+                                        onClick={() => setEditingTitle(false)}
+                                        disabled={savingTitle}
+                                    >
+                                        Cancel
+                                    </Button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className={styles.field}>
+                                <p className={styles.hint}>
+                                    <strong>{owner.stream.title}</strong> is live. Stop here or close OBS to end it.
+                                </p>
+                                <div className={styles.actions}>
+                                    <Button
+                                        size="small"
+                                        variant="ghost"
+                                        onClick={() => {
+                                            setTitleDraft(owner.stream.title);
+                                            setEditingTitle(true);
+                                        }}
+                                    >
+                                        Edit title
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
                         <div className={styles.actions}>
                             <Button variant="danger" onClick={() => handleStop()} disabled={busy}>
                                 {busy ? "Stopping..." : "Stop streaming"}

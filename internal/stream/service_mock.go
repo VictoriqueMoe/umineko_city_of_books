@@ -960,3 +960,83 @@ func (_c *MockService_StopStream_Call) RunAndReturn(run func(ctx context.Context
 	_c.Call.Return(run)
 	return _c
 }
+
+// UpdateTitle provides a mock function for the type MockService
+func (_mock *MockService) UpdateTitle(ctx context.Context, userID uuid.UUID, streamID uuid.UUID, title string) (*dto.LiveStreamResponse, error) {
+	ret := _mock.Called(ctx, userID, streamID, title)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateTitle")
+	}
+
+	var r0 *dto.LiveStreamResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string) (*dto.LiveStreamResponse, error)); ok {
+		return returnFunc(ctx, userID, streamID, title)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string) *dto.LiveStreamResponse); ok {
+		r0 = returnFunc(ctx, userID, streamID, title)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dto.LiveStreamResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, string) error); ok {
+		r1 = returnFunc(ctx, userID, streamID, title)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_UpdateTitle_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateTitle'
+type MockService_UpdateTitle_Call struct {
+	*mock.Call
+}
+
+// UpdateTitle is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+//   - streamID uuid.UUID
+//   - title string
+func (_e *MockService_Expecter) UpdateTitle(ctx any, userID any, streamID any, title any) *MockService_UpdateTitle_Call {
+	return &MockService_UpdateTitle_Call{Call: _e.mock.On("UpdateTitle", ctx, userID, streamID, title)}
+}
+
+func (_c *MockService_UpdateTitle_Call) Run(run func(ctx context.Context, userID uuid.UUID, streamID uuid.UUID, title string)) *MockService_UpdateTitle_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_UpdateTitle_Call) Return(liveStreamResponse *dto.LiveStreamResponse, err error) *MockService_UpdateTitle_Call {
+	_c.Call.Return(liveStreamResponse, err)
+	return _c
+}
+
+func (_c *MockService_UpdateTitle_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, streamID uuid.UUID, title string) (*dto.LiveStreamResponse, error)) *MockService_UpdateTitle_Call {
+	_c.Call.Return(run)
+	return _c
+}

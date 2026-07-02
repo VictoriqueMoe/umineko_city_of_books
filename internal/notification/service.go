@@ -27,6 +27,10 @@ type (
 		UnreadCount(ctx context.Context, userID uuid.UUID) (int, error)
 	}
 
+	OverlayDispatcher interface {
+		DispatchNotification(recipientID uuid.UUID, resp dto.NotificationResponse)
+	}
+
 	service struct {
 		repo        repository.NotificationRepository
 		userRepo    repository.UserRepository
@@ -34,6 +38,7 @@ type (
 		emailSvc    email.Service
 		pushSvc     push.Service
 		settingsSvc settings.Service
+		overlay     OverlayDispatcher
 	}
 )
 
@@ -105,7 +110,7 @@ var notifText = map[dto.NotificationType]string{
 	dto.NotifGameFinished:             "your game has ended",
 }
 
-func NewService(repo repository.NotificationRepository, userRepo repository.UserRepository, hub *ws.Hub, emailSvc email.Service, pushSvc push.Service, settingsSvc settings.Service) Service {
+func NewService(repo repository.NotificationRepository, userRepo repository.UserRepository, hub *ws.Hub, emailSvc email.Service, pushSvc push.Service, settingsSvc settings.Service, overlay OverlayDispatcher) Service {
 	return &service{
 		repo:        repo,
 		userRepo:    userRepo,
@@ -113,6 +118,7 @@ func NewService(repo repository.NotificationRepository, userRepo repository.User
 		emailSvc:    emailSvc,
 		pushSvc:     pushSvc,
 		settingsSvc: settingsSvc,
+		overlay:     overlay,
 	}
 }
 
@@ -213,6 +219,10 @@ func (s *service) pushNotification(ctx context.Context, notifID int, recipientID
 		Type: "notification",
 		Data: resp,
 	})
+
+	if s.overlay != nil {
+		s.overlay.DispatchNotification(recipientID, resp)
+	}
 
 	if s.pushSvc != nil && !s.hub.IsOnline(recipientID) {
 		siteName := s.settingsSvc.Get(ctx, config.SettingSiteName)

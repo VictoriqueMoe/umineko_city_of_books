@@ -2,13 +2,14 @@ import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { WaifuvaultEmbed } from "../components/WaifuvaultEmbed/WaifuvaultEmbed";
 import { detectWaifuvaultMedia } from "../components/WaifuvaultEmbed/detect";
+import { isInternalOrigin } from "./siteOrigin";
 
 const LINK_TOKEN_REGEX = /(https?:\/\/[^\s<>"]+|@[a-zA-Z0-9_]+)/g;
 
 function isInternalURL(url: string): string | null {
     try {
         const parsed = new URL(url);
-        if (parsed.origin === window.location.origin) {
+        if (isInternalOrigin(parsed.origin)) {
             return parsed.pathname + parsed.search + parsed.hash;
         }
     } catch {}

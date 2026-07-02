@@ -449,6 +449,69 @@ func TestStopStream_HappyPath(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestUpdateTitle_TitleRequired(t *testing.T) {
+	// given
+	svc, _ := newTestStreamService(t)
+
+	// when
+	_, err := svc.UpdateTitle(context.Background(), uuid.New(), uuid.New(), "   ")
+
+	// then
+	require.ErrorIs(t, err, ErrTitleRequired)
+}
+
+func TestUpdateTitle_OfflineStreamNotFound(t *testing.T) {
+	// given
+	svc, m := newTestStreamService(t)
+	streamID := uuid.New()
+
+	m.repo.EXPECT().GetByID(mock.Anything, streamID).Return(&repository.LiveStreamRow{
+		ID: streamID, UserID: uuid.New(), Status: "offline",
+	}, nil)
+
+	// when
+	_, err := svc.UpdateTitle(context.Background(), uuid.New(), streamID, "New title")
+
+	// then
+	require.ErrorIs(t, err, ErrStreamNotFound)
+}
+
+func TestUpdateTitle_NotOwner(t *testing.T) {
+	// given
+	svc, m := newTestStreamService(t)
+	streamID := uuid.New()
+
+	m.repo.EXPECT().GetByID(mock.Anything, streamID).Return(&repository.LiveStreamRow{
+		ID: streamID, UserID: uuid.New(), Status: "live",
+	}, nil)
+
+	// when
+	_, err := svc.UpdateTitle(context.Background(), uuid.New(), streamID, "New title")
+
+	// then
+	require.ErrorIs(t, err, ErrNotOwner)
+}
+
+func TestUpdateTitle_HappyPath(t *testing.T) {
+	// given
+	svc, m := newTestStreamService(t)
+	streamID := uuid.New()
+	owner := uuid.New()
+
+	m.repo.EXPECT().GetByID(mock.Anything, streamID).Return(&repository.LiveStreamRow{
+		ID: streamID, UserID: owner, Status: "live", Title: "Old title",
+	}, nil)
+	m.repo.EXPECT().SetTitle(mock.Anything, streamID, "New title").Return(nil)
+
+	// when
+	resp, err := svc.UpdateTitle(context.Background(), owner, streamID, "  New title  ")
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, streamID, resp.ID)
+	assert.Equal(t, "New title", resp.Title)
+}
+
 func TestHandleWebhook_NonLiveRoomFallsThrough(t *testing.T) {
 	// given
 	svc, m := newTestStreamService(t)

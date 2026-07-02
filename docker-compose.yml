@@ -60,12 +60,14 @@ services:
     image: livekit/ingress:latest
     container_name: umineko-livekit-ingress
     restart: unless-stopped
-    network_mode: host
     depends_on:
       - valkey
       - livekit
     environment:
       INGRESS_CONFIG_FILE: /etc/ingress.yaml
+    ports:
+      - "8080:8080"
+      - "7885:7885/udp"
     volumes:
       - ./ingress.yaml:/etc/ingress.yaml:ro
 

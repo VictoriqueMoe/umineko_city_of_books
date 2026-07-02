@@ -11,6 +11,7 @@ import { ToggleSwitch } from "../../components/ToggleSwitch/ToggleSwitch";
 import { BlockedUsersSection } from "./BlockedUsersSection";
 import { ChangePasswordSection } from "./ChangePasswordSection";
 import { DangerZoneSection } from "./DangerZoneSection";
+import { StreamOverlaySection } from "./StreamOverlaySection";
 import { getSeriesConfig } from "../../utils/seriesConfig";
 import { useUserOCSummaries } from "../../api/queries/oc";
 import styles from "./SettingsPage.module.css";
@@ -581,6 +582,7 @@ export function SettingsPage() {
             <div className={styles.grid} style={{ marginTop: "1.5rem" }}>
                 <BlockedUsersSection />
                 <ChangePasswordSection />
+                <StreamOverlaySection />
                 <DangerZoneSection />
             </div>
         </div>

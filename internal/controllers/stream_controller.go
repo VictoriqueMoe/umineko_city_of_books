@@ -20,6 +20,7 @@ func (s *Service) getAllStreamRoutes() []FSetupRoute {
 		s.setupMyStreamRoute,
 		s.setupStartStreamRoute,
 		s.setupStopStreamRoute,
+		s.setupUpdateStreamTitleRoute,
 		s.setupStreamViewerTokenRoute,
 		s.setupJoinStreamChatRoute,
 		s.setupUploadStreamThumbnailRoute,
@@ -43,6 +44,10 @@ func (s *Service) setupStartStreamRoute(r fiber.Router) {
 
 func (s *Service) setupStopStreamRoute(r fiber.Router) {
 	r.Delete("/streams/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.stopStream)
+}
+
+func (s *Service) setupUpdateStreamTitleRoute(r fiber.Router) {
+	r.Patch("/streams/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.updateStreamTitle)
 }
 
 func (s *Service) setupStreamViewerTokenRoute(r fiber.Router) {
@@ -107,6 +112,27 @@ func (s *Service) stopStream(ctx fiber.Ctx) error {
 	}
 
 	return utils.OK(ctx)
+}
+
+func (s *Service) updateStreamTitle(ctx fiber.Ctx) error {
+	userID := utils.UserID(ctx)
+
+	streamID, ok := utils.ParseIDParam(ctx, "id")
+	if !ok {
+		return nil
+	}
+
+	req, ok := utils.BindJSON[dto.UpdateStreamTitleRequest](ctx)
+	if !ok {
+		return nil
+	}
+
+	resp, err := s.StreamService.UpdateTitle(ctx.Context(), userID, streamID, req.Title)
+	if err != nil {
+		return mapStreamError(ctx, err)
+	}
+
+	return ctx.JSON(resp)
 }
 
 func (s *Service) myStream(ctx fiber.Ctx) error {

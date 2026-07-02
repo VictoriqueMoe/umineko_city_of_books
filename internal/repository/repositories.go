@@ -45,6 +45,7 @@ type (
 		Search            SearchRepository
 		Sitemap           SitemapRepository
 		DeviceToken       DeviceTokenRepository
+		OverlayToken      OverlayTokenRepository
 	}
 )
 
@@ -95,5 +96,6 @@ func New(db *sql.DB) *Repositories {
 		Search:            &searchRepository{db: db},
 		Sitemap:           &sitemapRepository{db: db},
 		DeviceToken:       &deviceTokenRepository{db: db},
+		OverlayToken:      &overlayTokenRepository{db: db},
 	}
 }
