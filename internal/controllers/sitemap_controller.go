@@ -43,6 +43,12 @@ func NewSitemapHandler(svc sitemap.Service) *SitemapHandler {
 	return &SitemapHandler{svc: svc}
 }
 
+func (s *Service) getAllSitemapRoutes() []FSetupRoute {
+	return []FSetupRoute{
+		NewSitemapHandler(s.SitemapService).Register,
+	}
+}
+
 func (h *SitemapHandler) Register(app fiber.Router) {
 	app.Get("/sitemap.xml", h.index)
 	app.Get("/sitemap-static.xml", h.static)

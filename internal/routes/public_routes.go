@@ -13,13 +13,6 @@ func PublicRoutes(service controllers.Service, app *fiber.App) {
 		apiRoutes[i](api)
 	}
 
-	app.Get("/health", func(ctx fiber.Ctx) error {
-		return ctx.JSON(fiber.Map{
-			"status":  "ok",
-			"service": "umineko-city-of-books",
-		})
-	})
-
 	pageRoutes := service.GetPageRoutes()
 	for i := 0; i < len(pageRoutes); i++ {
 		pageRoutes[i](app)
