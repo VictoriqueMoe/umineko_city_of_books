@@ -43,6 +43,12 @@ services:
       prometheus-job: "umineko-city-of-books"
       prometheus-port: "4323"
       prometheus-path: "/metrics"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:4323/livez"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 
   valkey:
     image: valkey/valkey:latest
@@ -50,6 +56,12 @@ services:
     restart: unless-stopped
     network_mode: host
     command: valkey-server --save "" --appendonly no --bind 127.0.0.1 --port 6380
+    healthcheck:
+      test: ["CMD", "valkey-cli", "-p", "6380", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
 
   livekit:
     image: livekit/livekit-server:latest

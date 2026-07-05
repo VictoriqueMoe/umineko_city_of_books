@@ -115,7 +115,7 @@ func broadcastPresence(hub *Hub, roomID, userID uuid.UUID, state string) {
 	}, uuid.Nil)
 }
 
-func Handler(hub *Hub, sessionMgr *session.Manager, roomLister RoomLister, gamePresence GameRoomPresence, watchPartyDisconnect WatchPartyDisconnectHandler, allowedOrigin func() string) fiber.Handler {
+func Handler(hub *Hub, sessionMgr *session.Manager, roomLister RoomLister, gamePresence GameRoomPresence, watchPartyDisconnect WatchPartyDisconnectHandler, allowedOrigin func(ctx context.Context) string) fiber.Handler {
 	wsHandler := websocket.New(func(conn *websocket.Conn) {
 		if anon, _ := conn.Locals(localsAnonKey).(bool); anon {
 			runAnonReader(hub, conn)
@@ -197,7 +197,7 @@ func Handler(hub *Hub, sessionMgr *session.Manager, roomLister RoomLister, gameP
 		origin := ctx.Get("Origin")
 		allowed := ""
 		if allowedOrigin != nil {
-			allowed = allowedOrigin()
+			allowed = allowedOrigin(ctx.Context())
 		}
 		if !originAllowed(origin, allowed) {
 			logger.Log.Warn().Str("origin", origin).Msg("ws upgrade rejected: origin not allowed")

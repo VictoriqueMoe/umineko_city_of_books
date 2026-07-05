@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"embed"
 	"fmt"
 	"io/fs"
@@ -17,7 +16,6 @@ import (
 	"umineko_city_of_books/internal/authz"
 	blocksvc "umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/chat"
-	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/controllers"
 	"umineko_city_of_books/internal/email"
@@ -27,6 +25,7 @@ import (
 	"umineko_city_of_books/internal/giphy"
 	"umineko_city_of_books/internal/giphy/banlist"
 	giphyfavourite "umineko_city_of_books/internal/giphy/favourite"
+	"umineko_city_of_books/internal/health"
 	"umineko_city_of_books/internal/homefeed"
 	"umineko_city_of_books/internal/journal"
 	"umineko_city_of_books/internal/logger"
@@ -58,7 +57,6 @@ import (
 	"umineko_city_of_books/internal/ws"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/gofiber/fiber/v3/middleware/static"
 )
 
 var (
@@ -107,6 +105,11 @@ type (
 		push            push.Service
 		stream          stream.Service
 		overlay         overlay.Service
+		health          health.Service
+		sitemap         sitemap.Service
+		ogResolver      *og.Resolver
+		staticFS        fs.FS
+		htmlContent     string
 	}
 )
 
@@ -136,62 +139,50 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 	lastSeenIP := middleware.NewLastSeenIP(repos.User, time.Hour)
 	app.Use(middleware.RecordLastSeenIP(lastSeenIP))
 
-	htmlBytes, err := staticFiles.ReadFile("static/index.html")
-	if err != nil {
-		logger.Log.Fatal().Err(err).Msg("failed to read index.html from embedded files")
-	}
-
 	ctrlService := controllers.NewService(
-		svc.auth, svc.profile, svc.theory, svc.notification, svc.admin,
-		svc.authz, settingsSvc, svc.chat, svc.report, svc.post, svc.follow,
-		svc.art, svc.block, svc.announcement, svc.mystery, svc.user, svc.ship, svc.oc, svc.fanfic, svc.journal, svc.secret, svc.upload, svc.mediaProc, svc.vanityRole, svc.userSecret, svc.session, svc.hub, svc.giphy, svc.giphyFavourites, svc.gameRoom, svc.homeFeed, svc.sidebar, svc.search, svc.push, svc.stream, string(htmlBytes),
+		svc.auth,
+		svc.profile,
+		svc.theory,
+		svc.notification,
+		svc.admin,
+		svc.authz,
+		settingsSvc,
+		svc.chat,
+		svc.report,
+		svc.post,
+		svc.follow,
+		svc.art,
+		svc.block,
+		svc.announcement,
+		svc.mystery,
+		svc.user,
+		svc.ship,
+		svc.oc,
+		svc.fanfic,
+		svc.journal,
+		svc.secret,
+		svc.upload,
+		svc.mediaProc,
+		svc.vanityRole,
+		svc.userSecret,
+		svc.session,
+		svc.hub,
+		svc.giphy,
+		svc.giphyFavourites,
+		svc.gameRoom,
+		svc.homeFeed,
+		svc.sidebar,
+		svc.search,
+		svc.push,
+		svc.stream,
+		svc.health,
+		svc.overlay,
+		svc.sitemap,
+		svc.ogResolver,
+		svc.staticFS,
+		svc.htmlContent,
 	)
 	routes.PublicRoutes(ctrlService, app)
-
-	baseURL := settingsSvc.Get(context.Background(), config.SettingBaseURL)
-	sitemapSvc := sitemap.NewService(repos.Sitemap, settingsSvc, baseURL)
-	sitemapHandler := controllers.NewSitemapHandler(sitemapSvc)
-	sitemapHandler.Register(app)
-
-	app.Get("/api/v1/ws", ws.Handler(svc.hub, svc.session, svc.chat, svc.gameRoom, svc.chat, func() string {
-		return settingsSvc.Get(context.Background(), config.SettingBaseURL)
-	}))
-	app.Get("/api/v1/overlay", svc.overlay.Handler())
-	uploadsHandler := static.New(svc.upload.GetUploadDir(), static.Config{
-		Browse: false,
-	})
-	app.Get("/uploads/*", uploadsHandler)
-
-	hlsHandler := static.New(settingsSvc.Get(context.Background(), config.SettingStreamHLSOutputDir), static.Config{
-		Browse: false,
-	})
-	app.Get("/hls/*", hlsHandler)
-
-	ogImageHandler := controllers.NewOGImageHandler(svc.upload.GetUploadDir())
-	ogImageHandler.Register(app)
-
-	overlayHandler := controllers.NewOverlayHandler(svc.overlay, svc.session, svc.authz)
-	overlayHandler.Register(app)
-
-	staticFS, err := fs.Sub(staticFiles, "static")
-	if err != nil {
-		logger.Log.Fatal().Err(err).Msg("failed to create static sub-filesystem")
-	}
-
-	embeddedStaticHandler := static.New("", static.Config{
-		FS: staticFS,
-	})
-
-	ogResolver := og.NewResolver(repos.Theory, repos.User, repos.Post, repos.Art, repos.Mystery, repos.Ship, repos.OC, repos.Fanfic, repos.Announcement, repos.Journal, repos.Chat, repos.LiveStream, settingsSvc, string(htmlBytes), baseURL)
-
-	app.Get("/*", func(ctx fiber.Ctx) error {
-		path := ctx.Path()
-		if strings.Contains(path, ".") {
-			return embeddedStaticHandler(ctx)
-		}
-		html := ogResolver.Resolve(ctx.Context(), path)
-		return ctx.Type("html").SendString(html)
-	})
 
 	logRoutes(app)
 

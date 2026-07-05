@@ -34,6 +34,22 @@ func (h *OverlayHandler) Register(app fiber.Router) {
 	r.Post("/test", auth, h.test)
 }
 
+func (s *Service) getAllOverlayRoutes() []FSetupRoute {
+	return []FSetupRoute{
+		s.setupOverlayConnect,
+	}
+}
+
+func (s *Service) setupOverlayConnect(r fiber.Router) {
+	r.Get("/overlay", s.OverlayService.Handler())
+}
+
+func (s *Service) getAllOverlayPageRoutes() []FSetupRoute {
+	return []FSetupRoute{
+		NewOverlayHandler(s.OverlayService, s.AuthSession, s.AuthzService).Register,
+	}
+}
+
 func (h *OverlayHandler) getToken(ctx fiber.Ctx) error {
 	userID, ok := ctx.Locals("userID").(uuid.UUID)
 	if !ok || userID == uuid.Nil {

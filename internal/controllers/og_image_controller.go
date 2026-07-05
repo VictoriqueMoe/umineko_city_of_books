@@ -22,6 +22,12 @@ func NewOGImageHandler(uploadDir string) *OGImageHandler {
 	return &OGImageHandler{uploadDir: uploadDir}
 }
 
+func (s *Service) getAllOGImageRoutes() []FSetupRoute {
+	return []FSetupRoute{
+		NewOGImageHandler(s.UploadService.GetUploadDir()).Register,
+	}
+}
+
 func (h *OGImageHandler) Register(app fiber.Router) {
 	app.Get("/og-image/*", h.serve)
 }

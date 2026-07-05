@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"umineko_city_of_books/internal/notification/push"
@@ -30,6 +31,7 @@ import (
 	"umineko_city_of_books/internal/giphy"
 	"umineko_city_of_books/internal/giphy/banlist"
 	giphyfavourite "umineko_city_of_books/internal/giphy/favourite"
+	"umineko_city_of_books/internal/health"
 	"umineko_city_of_books/internal/homefeed"
 	"umineko_city_of_books/internal/hyperbeam"
 	"umineko_city_of_books/internal/journal"
@@ -39,6 +41,7 @@ import (
 	mysterysvc "umineko_city_of_books/internal/mystery"
 	"umineko_city_of_books/internal/notification"
 	ocsvc "umineko_city_of_books/internal/oc"
+	"umineko_city_of_books/internal/og"
 	"umineko_city_of_books/internal/overlay"
 	postsvc "umineko_city_of_books/internal/post"
 	"umineko_city_of_books/internal/profile"
@@ -51,6 +54,7 @@ import (
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/ship"
 	"umineko_city_of_books/internal/sidebar"
+	"umineko_city_of_books/internal/sitemap"
 	"umineko_city_of_books/internal/stream"
 	"umineko_city_of_books/internal/theory"
 	"umineko_city_of_books/internal/upload"
@@ -121,6 +125,41 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 
 	authSvc := auth.NewService(userSvc, sessionMgr, settingsSvc, repos.Invite, repos.User, repos.AuditLog, repos.PasswordReset, repos.EmailVerification, emailSvc, contentFilter)
 
+	healthSvc, err := health.NewService(repos.DB(), config.Version, settingsSvc, livekitSvc)
+	if err != nil {
+		logger.Log.Fatal().Err(err).Msg("failed to init health checks")
+	}
+
+	htmlBytes, err := staticFiles.ReadFile("static/index.html")
+	if err != nil {
+		logger.Log.Fatal().Err(err).Msg("failed to read index.html from embedded files")
+	}
+
+	staticFS, err := fs.Sub(staticFiles, "static")
+	if err != nil {
+		logger.Log.Fatal().Err(err).Msg("failed to create static sub-filesystem")
+	}
+
+	baseURL := settingsSvc.Get(context.Background(), config.SettingBaseURL)
+	sitemapSvc := sitemap.NewService(repos.Sitemap, settingsSvc, baseURL)
+	ogResolver := og.NewResolver(
+		repos.Theory,
+		repos.User,
+		repos.Post,
+		repos.Art,
+		repos.Mystery,
+		repos.Ship,
+		repos.OC,
+		repos.Fanfic,
+		repos.Announcement,
+		repos.Journal,
+		repos.Chat,
+		repos.LiveStream,
+		settingsSvc,
+		string(htmlBytes),
+		baseURL,
+	)
+
 	return &services{
 		settings:        settingsSvc,
 		auth:            authSvc,
@@ -161,5 +200,10 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 		push:            pushSvc,
 		stream:          streamSvc,
 		overlay:         overlaySvc,
+		health:          healthSvc,
+		sitemap:         sitemapSvc,
+		ogResolver:      ogResolver,
+		staticFS:        staticFS,
+		htmlContent:     string(htmlBytes),
 	}
 }

@@ -1,6 +1,8 @@
 package controllers
 
 import (
+	"io/fs"
+
 	"umineko_city_of_books/internal/admin"
 	announcementsvc "umineko_city_of_books/internal/announcement"
 	artsvc "umineko_city_of_books/internal/art"
@@ -13,6 +15,7 @@ import (
 	"umineko_city_of_books/internal/gameroom"
 	"umineko_city_of_books/internal/giphy"
 	giphyfavourite "umineko_city_of_books/internal/giphy/favourite"
+	"umineko_city_of_books/internal/health"
 	"umineko_city_of_books/internal/homefeed"
 	"umineko_city_of_books/internal/journal"
 	"umineko_city_of_books/internal/media"
@@ -20,6 +23,8 @@ import (
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/notification/push"
 	ocsvc "umineko_city_of_books/internal/oc"
+	"umineko_city_of_books/internal/og"
+	"umineko_city_of_books/internal/overlay"
 	postsvc "umineko_city_of_books/internal/post"
 	"umineko_city_of_books/internal/profile"
 	"umineko_city_of_books/internal/report"
@@ -29,6 +34,7 @@ import (
 	"umineko_city_of_books/internal/settings"
 	shipsvc "umineko_city_of_books/internal/ship"
 	"umineko_city_of_books/internal/sidebar"
+	"umineko_city_of_books/internal/sitemap"
 	"umineko_city_of_books/internal/stream"
 	"umineko_city_of_books/internal/theory"
 	"umineko_city_of_books/internal/upload"
@@ -75,6 +81,11 @@ type (
 		SearchService         searchsvc.Service
 		PushService           push.Service
 		StreamService         stream.Service
+		HealthService         health.Service
+		OverlayService        overlay.Service
+		SitemapService        sitemap.Service
+		OGResolver            *og.Resolver
+		StaticFS              fs.FS
 		HTMLContent           string
 	}
 )
@@ -115,6 +126,11 @@ func NewService(
 	searchService searchsvc.Service,
 	pushService push.Service,
 	streamService stream.Service,
+	healthService health.Service,
+	overlayService overlay.Service,
+	sitemapService sitemap.Service,
+	ogResolver *og.Resolver,
+	staticFS fs.FS,
 	htmlContent string,
 ) Service {
 	return Service{
@@ -153,6 +169,11 @@ func NewService(
 		SearchService:         searchService,
 		PushService:           pushService,
 		StreamService:         streamService,
+		HealthService:         healthService,
+		OverlayService:        overlayService,
+		SitemapService:        sitemapService,
+		OGResolver:            ogResolver,
+		StaticFS:              staticFS,
 		HTMLContent:           htmlContent,
 	}
 }
@@ -183,9 +204,19 @@ func (s *Service) GetAPIRoutes() []FSetupRoute {
 	all = append(all, s.getAllHomeRoutes()...)
 	all = append(all, s.getAllSearchRoutes()...)
 	all = append(all, s.getAllStreamRoutes()...)
+	all = append(all, s.getAllWebSocketRoutes()...)
+	all = append(all, s.getAllOverlayRoutes()...)
 	return all
 }
 
 func (s *Service) GetPageRoutes() []FSetupRoute {
-	return nil
+	var all []FSetupRoute
+	all = append(all, s.getAllHealthRoutes()...)
+	all = append(all, s.getAllUploadRoutes()...)
+	all = append(all, s.getAllHLSRoutes()...)
+	all = append(all, s.getAllOGImageRoutes()...)
+	all = append(all, s.getAllSitemapRoutes()...)
+	all = append(all, s.getAllOverlayPageRoutes()...)
+	all = append(all, s.getAllSPARoutes()...)
+	return all
 }
