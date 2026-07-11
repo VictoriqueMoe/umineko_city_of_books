@@ -203,8 +203,7 @@ func TestResetPassword_AlreadyUsed(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	expectMinPasswordLength(m, 8)
-	usedAt := time.Now().Add(-time.Minute)
-	used := &repository.PasswordResetToken{UserID: uuid.New(), ExpiresAt: time.Now().Add(time.Hour), UsedAt: &usedAt}
+	used := &repository.PasswordResetToken{UserID: uuid.New(), ExpiresAt: time.Now().Add(time.Hour), UsedAt: new(time.Now().Add(-time.Minute))}
 	m.resetRepo.EXPECT().GetByTokenHash(mock.Anything, mock.Anything).Return(used, nil)
 
 	// when
