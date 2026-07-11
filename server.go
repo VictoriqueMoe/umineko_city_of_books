@@ -1,10 +1,11 @@
 package main
 
 import (
+	"cmp"
 	"embed"
 	"fmt"
 	"io/fs"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 	"umineko_city_of_books/internal/notification/push"
@@ -193,11 +194,11 @@ func logRoutes(app *fiber.App) {
 	rs := app.GetRoutes(true)
 
 	if logger.Log.Debug().Enabled() {
-		sort.Slice(rs, func(i, j int) bool {
-			if rs[i].Path == rs[j].Path {
-				return rs[i].Method < rs[j].Method
+		slices.SortFunc(rs, func(a, b fiber.Route) int {
+			if pathCmp := cmp.Compare(a.Path, b.Path); pathCmp != 0 {
+				return pathCmp
 			}
-			return rs[i].Path < rs[j].Path
+			return cmp.Compare(a.Method, b.Method)
 		})
 
 		methodWidth := len("METHOD")

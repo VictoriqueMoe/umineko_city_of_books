@@ -67,8 +67,7 @@ func NewService(settingsSvc settings.Service) Service {
 }
 
 func IsNotFound(err error) bool {
-	var twerr twirp.Error
-	if errors.As(err, &twerr) {
+	if twerr, ok := errors.AsType[twirp.Error](err); ok {
 		return twerr.Code() == twirp.NotFound
 	}
 

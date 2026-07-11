@@ -1,8 +1,9 @@
 package search
 
 import (
+	"cmp"
 	"context"
-	"sort"
+	"slices"
 	"strings"
 
 	"umineko_city_of_books/internal/repository"
@@ -152,11 +153,11 @@ func splitChatType(types []repository.SearchEntityType) (repoTypes []repository.
 }
 
 func sortByRank(rows []repository.SearchResult) {
-	sort.SliceStable(rows, func(i, j int) bool {
-		if rows[i].Rank != rows[j].Rank {
-			return rows[i].Rank > rows[j].Rank
+	slices.SortStableFunc(rows, func(a, b repository.SearchResult) int {
+		if c := cmp.Compare(b.Rank, a.Rank); c != 0 {
+			return c
 		}
-		return rows[i].CreatedAt > rows[j].CreatedAt
+		return cmp.Compare(b.CreatedAt, a.CreatedAt)
 	})
 }
 

@@ -1,9 +1,10 @@
 package chat
 
 import (
+	"bytes"
 	"context"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 
@@ -169,8 +170,8 @@ func (s *voiceService) VoiceParticipants(roomID uuid.UUID) []uuid.UUID {
 		ids = append(ids, id)
 	}
 
-	sort.Slice(ids, func(i, j int) bool {
-		return ids[i].String() < ids[j].String()
+	slices.SortFunc(ids, func(a, b uuid.UUID) int {
+		return bytes.Compare(a[:], b[:])
 	})
 
 	return ids

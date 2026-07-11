@@ -601,8 +601,7 @@ func (s *service) UpdateTitle(ctx context.Context, userID, streamID uuid.UUID, t
 		Data: dto.StreamTitleEvent{StreamID: streamID, Title: title},
 	})
 
-	resp := toPublic(stream)
-	return &resp, nil
+	return new(toPublic(stream)), nil
 }
 
 func (s *service) MyStream(ctx context.Context, userID uuid.UUID) (*dto.StreamOwnerResponse, error) {
@@ -640,9 +639,7 @@ func (s *service) Get(ctx context.Context, streamID uuid.UUID) (*dto.LiveStreamR
 		return nil, ErrStreamNotFound
 	}
 
-	view := toPublic(stream)
-
-	return &view, nil
+	return new(toPublic(stream)), nil
 }
 
 func (s *service) MintViewerToken(ctx context.Context, streamID uuid.UUID, viewer *dto.StreamViewer) (string, string, error) {

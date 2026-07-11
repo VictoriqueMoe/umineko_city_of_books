@@ -95,8 +95,7 @@ func (r *liveStreamRepository) Create(ctx context.Context, userID uuid.UUID, tit
 		return uuid.Nil, ErrLiveStreamCapacity
 	}
 
-	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+	if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok && pgErr.Code == "23505" {
 		return uuid.Nil, ErrLiveStreamActiveExists
 	}
 	if err != nil {
