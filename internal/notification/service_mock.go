@@ -342,6 +342,66 @@ func (_c *MockService_NotifyMany_Call) RunAndReturn(run func(ctx context.Context
 	return _c
 }
 
+// PruneOld provides a mock function for the type MockService
+func (_mock *MockService) PruneOld(ctx context.Context) (int, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for PruneOld")
+	}
+
+	var r0 int
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (int, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) int); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_PruneOld_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'PruneOld'
+type MockService_PruneOld_Call struct {
+	*mock.Call
+}
+
+// PruneOld is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockService_Expecter) PruneOld(ctx any) *MockService_PruneOld_Call {
+	return &MockService_PruneOld_Call{Call: _e.mock.On("PruneOld", ctx)}
+}
+
+func (_c *MockService_PruneOld_Call) Run(run func(ctx context.Context)) *MockService_PruneOld_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_PruneOld_Call) Return(n int, err error) *MockService_PruneOld_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *MockService_PruneOld_Call) RunAndReturn(run func(ctx context.Context) (int, error)) *MockService_PruneOld_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UnreadCount provides a mock function for the type MockService
 func (_mock *MockService) UnreadCount(ctx context.Context, userID uuid.UUID) (int, error) {
 	ret := _mock.Called(ctx, userID)

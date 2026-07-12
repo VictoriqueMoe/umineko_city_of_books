@@ -36,6 +36,9 @@ func registerListeners(settingsSvc settings.Service, app *fiber.App, svc *servic
 	scheduleJob("clean orphaned uploads", "cleaned orphaned upload files", 24*time.Hour, func() (int, error) {
 		return upload.CleanOrphanedFiles(repos.Upload, uploadDir), nil
 	})
+	scheduleJob("prune old notifications", "pruned old notifications", 24*time.Hour, func() (int, error) {
+		return svc.notification.PruneOld(context.Background())
+	})
 	scheduleJob("archive stale journals", "archived stale journals", time.Hour, func() (int, error) {
 		return svc.journal.ArchiveStale(context.Background())
 	})

@@ -4,6 +4,7 @@ import (
 	"context"
 	"strconv"
 	"strings"
+	"time"
 	"umineko_city_of_books/internal/notification/push"
 
 	"umineko_city_of_books/internal/config"
@@ -17,6 +18,11 @@ import (
 	"github.com/google/uuid"
 )
 
+const (
+	notificationRetention = 90 * 24 * time.Hour
+	pruneBatchSize        = 5000
+)
+
 type (
 	Service interface {
 		Notify(ctx context.Context, params dto.NotifyParams) error
@@ -25,6 +31,7 @@ type (
 		MarkRead(ctx context.Context, id int, userID uuid.UUID) error
 		MarkAllRead(ctx context.Context, userID uuid.UUID) error
 		UnreadCount(ctx context.Context, userID uuid.UUID) (int, error)
+		PruneOld(ctx context.Context) (int, error)
 	}
 
 	OverlayDispatcher interface {
@@ -289,4 +296,23 @@ func (s *service) MarkAllRead(ctx context.Context, userID uuid.UUID) error {
 
 func (s *service) UnreadCount(ctx context.Context, userID uuid.UUID) (int, error) {
 	return s.repo.UnreadCount(ctx, userID)
+}
+
+func (s *service) PruneOld(ctx context.Context) (int, error) {
+	cutoff := time.Now().Add(-notificationRetention)
+
+	total := 0
+	for {
+		deleted, err := s.repo.DeleteOlderThanBatch(ctx, cutoff, pruneBatchSize)
+		if err != nil {
+			return total, err
+		}
+
+		total += int(deleted)
+		if deleted < int64(pruneBatchSize) {
+			break
+		}
+	}
+
+	return total, nil
 }

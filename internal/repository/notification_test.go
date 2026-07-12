@@ -3,6 +3,7 @@ package repository_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/repository/repotest"
@@ -191,6 +192,72 @@ func TestNotificationRepository_MarkRead_OnlyOwner(t *testing.T) {
 	require.NoError(t, listErr)
 	require.Len(t, rows, 1)
 	assert.False(t, rows[0].Read)
+}
+
+func TestNotificationRepository_DeleteOlderThanBatch_DeletesOnlyOlder(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	user := repotest.CreateUser(t, repos)
+	actor := repotest.CreateUser(t, repos)
+	ctx := context.Background()
+	for i := 0; i < 3; i++ {
+		_, err := repos.Notification.Create(ctx, user.ID, dto.NotifMention, uuid.New(), "theory", actor.ID, "m")
+		require.NoError(t, err)
+	}
+
+	// when: a cutoff in the past leaves the fresh rows untouched
+	deleted, err := repos.Notification.DeleteOlderThanBatch(ctx, time.Now().Add(-time.Hour), 100)
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, int64(0), deleted)
+	remaining, err := repos.Notification.UnreadCount(ctx, user.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 3, remaining)
+
+	// when: a cutoff in the future treats every row as old
+	deleted, err = repos.Notification.DeleteOlderThanBatch(ctx, time.Now().Add(time.Hour), 100)
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, int64(3), deleted)
+	remaining, err = repos.Notification.UnreadCount(ctx, user.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 0, remaining)
+}
+
+func TestNotificationRepository_DeleteOlderThanBatch_RespectsLimit(t *testing.T) {
+	// given
+	repos := repotest.NewRepos(t)
+	user := repotest.CreateUser(t, repos)
+	actor := repotest.CreateUser(t, repos)
+	ctx := context.Background()
+	for i := 0; i < 5; i++ {
+		_, err := repos.Notification.Create(ctx, user.ID, dto.NotifMention, uuid.New(), "theory", actor.ID, "m")
+		require.NoError(t, err)
+	}
+	future := time.Now().Add(time.Hour)
+
+	// when: a limit smaller than the backlog deletes only up to the limit
+	deleted, err := repos.Notification.DeleteOlderThanBatch(ctx, future, 2)
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, int64(2), deleted)
+
+	// when: repeated batches drain the remainder, the last one short of the limit
+	deleted, err = repos.Notification.DeleteOlderThanBatch(ctx, future, 2)
+	require.NoError(t, err)
+	assert.Equal(t, int64(2), deleted)
+
+	deleted, err = repos.Notification.DeleteOlderThanBatch(ctx, future, 2)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), deleted)
+
+	// then: nothing remains
+	remaining, err := repos.Notification.UnreadCount(ctx, user.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 0, remaining)
 }
 
 func TestNotificationRepository_MarkAllRead(t *testing.T) {

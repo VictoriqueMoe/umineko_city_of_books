@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/repository/model"
 
@@ -33,6 +34,7 @@ type (
 		MarkAllRead(ctx context.Context, userID uuid.UUID) error
 		UnreadCount(ctx context.Context, userID uuid.UUID) (int, error)
 		HasRecentDuplicate(ctx context.Context, userID uuid.UUID, notifType dto.NotificationType, referenceID uuid.UUID, actorID uuid.UUID) (bool, error)
+		DeleteOlderThanBatch(ctx context.Context, cutoff time.Time, limit int) (int64, error)
 	}
 
 	notificationRepository struct {
@@ -207,12 +209,34 @@ func (r *notificationRepository) MarkRead(ctx context.Context, id int, userID uu
 
 func (r *notificationRepository) MarkAllRead(ctx context.Context, userID uuid.UUID) error {
 	_, err := r.db.ExecContext(ctx,
-		`UPDATE notifications SET read = TRUE WHERE user_id = $1`, userID,
+		`UPDATE notifications SET read = TRUE WHERE user_id = $1 AND read = FALSE`, userID,
 	)
 	if err != nil {
 		return fmt.Errorf("mark all notifications read: %w", err)
 	}
 	return nil
+}
+
+func (r *notificationRepository) DeleteOlderThanBatch(ctx context.Context, cutoff time.Time, limit int) (int64, error) {
+	res, err := r.db.ExecContext(ctx,
+		`DELETE FROM notifications
+		 WHERE id IN (
+		     SELECT id FROM notifications
+		     WHERE created_at < $1
+		     ORDER BY id
+		     LIMIT $2
+		 )`, cutoff, limit,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("delete old notifications batch: %w", err)
+	}
+
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("delete old notifications rows affected: %w", err)
+	}
+
+	return affected, nil
 }
 
 func (r *notificationRepository) UnreadCount(ctx context.Context, userID uuid.UUID) (int, error) {
