@@ -66,10 +66,6 @@ func newAuthHarness(t *testing.T) (*testutil.Harness, authDeps) {
 	return h, deps
 }
 
-func authFactory(t *testing.T) (*testutil.Harness, authDeps) {
-	return newAuthHarness(t)
-}
-
 func TestRegister_OK(t *testing.T) {
 	// given
 	h, deps := newAuthHarness(t)
