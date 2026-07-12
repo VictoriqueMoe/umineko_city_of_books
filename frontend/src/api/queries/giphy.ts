@@ -1,5 +1,6 @@
 ﻿import { useQuery } from "@tanstack/react-query";
 import { listGiphyFavourites, searchGiphy, trendingGiphy } from "../endpoints";
+import { useAuth } from "../../hooks/useAuth";
 
 export function useGiphySearch(query: string, offset = 0, limit = 0, enabled = true) {
     const q = useQuery({
@@ -22,9 +23,11 @@ export function useGiphyTrending(offset = 0, limit = 0, enabled = true) {
 }
 
 export function useGiphyFavourites(offset = 0, limit = 0) {
+    const { user } = useAuth();
     const q = useQuery({
         queryKey: ["giphy", "favourites", { offset, limit }],
         queryFn: () => listGiphyFavourites(offset, limit),
+        enabled: !!user,
     });
     return {
         favourites: q.data?.data ?? [],

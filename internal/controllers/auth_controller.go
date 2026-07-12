@@ -16,6 +16,7 @@ import (
 	usersvc "umineko_city_of_books/internal/user"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
 )
 
 var rulesSettings = map[string]*config.SiteSettingDef{
@@ -89,16 +90,21 @@ func (s *Service) setupResendVerificationRoute(r fiber.Router) {
 }
 
 func (s *Service) setupSessionRoute(r fiber.Router) {
-	r.Get("/auth/session", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.getSession)
+	r.Get("/auth/session", middleware.OptionalAuth(s.AuthSession, s.AuthzService), s.getSession)
 }
 
 func (s *Service) getSession(ctx fiber.Ctx) error {
 	userID := utils.UserID(ctx)
+	if userID == uuid.Nil {
+		return ctx.JSON(fiber.Map{"authenticated": false})
+	}
+
 	user, err := s.UserService.GetByID(ctx.Context(), userID)
 	if err != nil || user == nil {
-		return utils.Unauthorized(ctx, "not authenticated")
+		return ctx.JSON(fiber.Map{"authenticated": false})
 	}
-	return ctx.JSON(fiber.Map{"username": user.Username})
+
+	return ctx.JSON(fiber.Map{"authenticated": true, "username": user.Username})
 }
 
 func (s *Service) setSessionCookie(ctx fiber.Ctx, token string) {

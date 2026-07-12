@@ -37,6 +37,7 @@ export function NotificationProvider({ children }: PropsWithChildren) {
     const markAllReadMutation = useMarkAllNotificationsRead();
 
     const wsRef = useRef<WebSocket | null>(null);
+    const wantConnectionRef = useRef(false);
     const backoffRef = useRef(1000);
     const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const keepaliveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -239,6 +240,9 @@ export function NotificationProvider({ children }: PropsWithChildren) {
         socket.onclose = () => {
             wsRef.current = null;
             clearKeepaliveTimer();
+            if (!wantConnectionRef.current) {
+                return;
+            }
             const delay = Math.min(backoffRef.current, MAX_BACKOFF);
             backoffRef.current = delay * 2;
             reconnectTimerRef.current = setTimeout(() => {
@@ -280,8 +284,15 @@ export function NotificationProvider({ children }: PropsWithChildren) {
 
     const userId = user?.id;
     useEffect(() => {
+        if (!userId) {
+            wantConnectionRef.current = false;
+            closeSocket();
+            return;
+        }
+        wantConnectionRef.current = true;
         connectWs();
         return () => {
+            wantConnectionRef.current = false;
             closeSocket();
         };
     }, [userId, closeSocket, connectWs]);

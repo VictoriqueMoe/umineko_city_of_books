@@ -238,8 +238,11 @@ export async function unregisterDeviceToken(token: string): Promise<void> {
     await apiDeleteWithBody<unknown, { token: string }>("/push/device", { token });
 }
 
-export async function getMe(): Promise<UserProfile> {
-    const session = await apiFetch<{ username: string }>("/auth/session");
+export async function getMe(): Promise<UserProfile | null> {
+    const session = await apiFetch<{ authenticated: boolean; username?: string }>("/auth/session");
+    if (!session.authenticated || !session.username) {
+        return null;
+    }
     return getUserProfile(session.username);
 }
 

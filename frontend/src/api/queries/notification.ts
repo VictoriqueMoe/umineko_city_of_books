@@ -1,6 +1,7 @@
 ﻿import { useQuery } from "@tanstack/react-query";
 import { getNotifications, getPushPublicKey, getPushStatus, getUnreadCount } from "../endpoints";
 import { queryKeys } from "../queryKeys";
+import { useAuth } from "../../hooks/useAuth";
 
 export function useNotifications(limit = 20, offset = 0) {
     const query = useQuery({
@@ -16,9 +17,11 @@ export function useNotifications(limit = 20, offset = 0) {
 }
 
 export function useUnreadCount() {
+    const { user } = useAuth();
     const query = useQuery({
         queryKey: queryKeys.notifications.unreadCount(),
         queryFn: () => getUnreadCount(),
+        enabled: !!user,
     });
     return { count: query.data?.count ?? 0, refresh: query.refetch };
 }
