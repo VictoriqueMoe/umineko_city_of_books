@@ -55,7 +55,9 @@ services:
     container_name: umineko-valkey
     restart: unless-stopped
     network_mode: host
-    command: valkey-server --save "" --appendonly no --bind 127.0.0.1 --port 6380
+    command: valkey-server --appendonly yes --dir /data --bind 127.0.0.1 --port 6380
+    volumes:
+      - valkey_data:/data
     healthcheck:
       test: ["CMD", "valkey-cli", "-p", "6380", "ping"]
       interval: 30s
@@ -105,3 +107,4 @@ services:
 
 volumes:
   postgres_data:
+  valkey_data:

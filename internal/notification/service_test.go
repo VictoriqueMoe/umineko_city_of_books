@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
@@ -743,6 +744,51 @@ func TestMarkAllRead_RepoError(t *testing.T) {
 
 	// then
 	require.Error(t, err)
+}
+
+func TestPruneOld_SingleBatch(t *testing.T) {
+	// given
+	svc, notifRepo, _, _, _ := newTestService(t)
+	notifRepo.EXPECT().
+		DeleteOlderThanBatch(mock.Anything, mock.MatchedBy(func(cutoff time.Time) bool {
+			return time.Since(cutoff) > 89*24*time.Hour
+		}), pruneBatchSize).
+		Return(int64(3), nil).
+		Once()
+
+	// when
+	total, err := svc.PruneOld(context.Background())
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, 3, total)
+}
+
+func TestPruneOld_MultipleBatches(t *testing.T) {
+	// given
+	svc, notifRepo, _, _, _ := newTestService(t)
+	notifRepo.EXPECT().DeleteOlderThanBatch(mock.Anything, mock.Anything, pruneBatchSize).Return(int64(pruneBatchSize), nil).Twice()
+	notifRepo.EXPECT().DeleteOlderThanBatch(mock.Anything, mock.Anything, pruneBatchSize).Return(int64(42), nil).Once()
+
+	// when
+	total, err := svc.PruneOld(context.Background())
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, 2*pruneBatchSize+42, total)
+}
+
+func TestPruneOld_ReturnsErrorFromRepo(t *testing.T) {
+	// given
+	svc, notifRepo, _, _, _ := newTestService(t)
+	notifRepo.EXPECT().DeleteOlderThanBatch(mock.Anything, mock.Anything, pruneBatchSize).Return(int64(0), errors.New("boom")).Once()
+
+	// when
+	total, err := svc.PruneOld(context.Background())
+
+	// then
+	require.Error(t, err)
+	assert.Equal(t, 0, total)
 }
 
 func TestUnreadCount_Delegates(t *testing.T) {
