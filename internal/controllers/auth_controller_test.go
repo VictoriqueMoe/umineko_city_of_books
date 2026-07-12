@@ -519,8 +519,17 @@ func TestLogout_ServiceError(t *testing.T) {
 	assert.Contains(t, string(body), "failed to logout")
 }
 
-func TestGetSession_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, authFactory, "GET", "/auth/session", nil)
+func TestGetSession_Anonymous(t *testing.T) {
+	// given
+	h, _ := newAuthHarness(t)
+
+	// when
+	status, body := h.NewRequest("GET", "/auth/session").Do()
+
+	// then
+	require.Equal(t, http.StatusOK, status)
+	got := testutil.UnmarshalJSON[map[string]any](t, body)
+	assert.Equal(t, false, got["authenticated"])
 }
 
 func TestGetSession_OK(t *testing.T) {
@@ -535,7 +544,8 @@ func TestGetSession_OK(t *testing.T) {
 
 	// then
 	require.Equal(t, http.StatusOK, status)
-	got := testutil.UnmarshalJSON[map[string]string](t, body)
+	got := testutil.UnmarshalJSON[map[string]any](t, body)
+	assert.Equal(t, true, got["authenticated"])
 	assert.Equal(t, "beato", got["username"])
 }
 
@@ -560,8 +570,9 @@ func TestGetSession_ServiceErrors(t *testing.T) {
 			status, body := h.NewRequest("GET", "/auth/session").WithCookie("valid-cookie").Do()
 
 			// then
-			require.Equal(t, http.StatusUnauthorized, status)
-			assert.Contains(t, string(body), "not authenticated")
+			require.Equal(t, http.StatusOK, status)
+			got := testutil.UnmarshalJSON[map[string]any](t, body)
+			assert.Equal(t, false, got["authenticated"])
 		})
 	}
 }

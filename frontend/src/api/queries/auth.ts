@@ -14,7 +14,12 @@ export function useSiteInfoQuery() {
         queryKey: ["site-info"],
         queryFn: () => getSiteInfo(),
     });
-    return { siteInfo: query.data ?? null, loading: query.isLoading, refresh: query.refetch };
+    return {
+        siteInfo: query.data ?? null,
+        loading: query.isLoading,
+        refresh: query.refetch,
+        dataUpdatedAt: query.dataUpdatedAt,
+    };
 }
 
 export function useStaff() {

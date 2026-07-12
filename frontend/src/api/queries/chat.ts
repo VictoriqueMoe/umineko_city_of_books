@@ -14,6 +14,7 @@ import {
 } from "../endpoints";
 import { queryClient } from "../queryClient";
 import { queryKeys } from "../queryKeys";
+import { useAuth } from "../../hooks/useAuth";
 
 export function fetchRoomMessages(roomId: string, limit?: number, offset?: number) {
     return getRoomMessages(roomId, limit, offset);
@@ -116,9 +117,11 @@ export function useRoomMessages(roomId: string, limit?: number, offset?: number,
 }
 
 export function useChatUnreadCount() {
+    const { user } = useAuth();
     const query = useQuery({
         queryKey: ["chat", "unread-count"],
         queryFn: () => getChatUnreadCount(),
+        enabled: !!user,
     });
     return { count: query.data?.count ?? 0, refresh: query.refetch };
 }
