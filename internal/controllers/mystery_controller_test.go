@@ -7,6 +7,7 @@ import (
 
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
 	"umineko_city_of_books/internal/dto"
 	mysterysvc "umineko_city_of_books/internal/mystery"
@@ -237,7 +238,7 @@ func TestListMysteries_Anonymous_OK(t *testing.T) {
 	// given
 	h, ms := newMysteryHarness(t)
 	expected := &dto.MysteryListResponse{Total: 0, Limit: 20, Offset: 0}
-	ms.EXPECT().ListMysteries(mock.Anything, "new", (*bool)(nil), uuid.Nil, 20, 0).Return(expected, nil)
+	ms.EXPECT().ListMysteries(mock.Anything, "new", (*bool)(nil), uuid.Nil, bounds.NewPage(20, 0)).Return(expected, nil)
 
 	// when
 	status, body := h.NewRequest("GET", "/mysteries").Do()
@@ -253,7 +254,7 @@ func TestListMysteries_SolvedTrue_OK(t *testing.T) {
 	h, ms := newMysteryHarness(t)
 	ms.EXPECT().ListMysteries(mock.Anything, "new", mock.MatchedBy(func(p *bool) bool {
 		return p != nil && *p
-	}), uuid.Nil, 20, 0).Return(&dto.MysteryListResponse{}, nil)
+	}), uuid.Nil, bounds.NewPage(20, 0)).Return(&dto.MysteryListResponse{}, nil)
 
 	// when
 	status, _ := h.NewRequest("GET", "/mysteries?solved=true").Do()
@@ -267,7 +268,7 @@ func TestListMysteries_SolvedFalse_OK(t *testing.T) {
 	h, ms := newMysteryHarness(t)
 	ms.EXPECT().ListMysteries(mock.Anything, "top", mock.MatchedBy(func(p *bool) bool {
 		return p != nil && !*p
-	}), uuid.Nil, 50, 10).Return(&dto.MysteryListResponse{}, nil)
+	}), uuid.Nil, bounds.NewPage(50, 10)).Return(&dto.MysteryListResponse{}, nil)
 
 	// when
 	status, _ := h.NewRequest("GET", "/mysteries?sort=top&solved=false&limit=50&offset=10").Do()
@@ -281,7 +282,7 @@ func TestListMysteries_Authenticated_PassesUserID(t *testing.T) {
 	h, ms := newMysteryHarness(t)
 	userID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
-	ms.EXPECT().ListMysteries(mock.Anything, "new", (*bool)(nil), userID, 20, 0).Return(&dto.MysteryListResponse{}, nil)
+	ms.EXPECT().ListMysteries(mock.Anything, "new", (*bool)(nil), userID, bounds.NewPage(20, 0)).Return(&dto.MysteryListResponse{}, nil)
 
 	// when
 	status, _ := h.NewRequest("GET", "/mysteries").WithCookie("valid-cookie").Do()
@@ -293,7 +294,7 @@ func TestListMysteries_Authenticated_PassesUserID(t *testing.T) {
 func TestListMysteries_InternalError(t *testing.T) {
 	// given
 	h, ms := newMysteryHarness(t)
-	ms.EXPECT().ListMysteries(mock.Anything, "new", (*bool)(nil), uuid.Nil, 20, 0).Return(nil, errors.New("boom"))
+	ms.EXPECT().ListMysteries(mock.Anything, "new", (*bool)(nil), uuid.Nil, bounds.NewPage(20, 0)).Return(nil, errors.New("boom"))
 
 	// when
 	status, body := h.NewRequest("GET", "/mysteries").Do()
@@ -307,7 +308,7 @@ func TestMysteryLeaderboard_OK(t *testing.T) {
 	// given
 	h, ms := newMysteryHarness(t)
 	expected := &dto.MysteryLeaderboardResponse{}
-	ms.EXPECT().GetLeaderboard(mock.Anything, 20).Return(expected, nil)
+	ms.EXPECT().GetLeaderboard(mock.Anything, bounds.NewPage(20, 0)).Return(expected, nil)
 
 	// when
 	status, _ := h.NewRequest("GET", "/mysteries/leaderboard").Do()
@@ -319,7 +320,7 @@ func TestMysteryLeaderboard_OK(t *testing.T) {
 func TestMysteryLeaderboard_CustomLimit(t *testing.T) {
 	// given
 	h, ms := newMysteryHarness(t)
-	ms.EXPECT().GetLeaderboard(mock.Anything, 5).Return(&dto.MysteryLeaderboardResponse{}, nil)
+	ms.EXPECT().GetLeaderboard(mock.Anything, bounds.NewPage(5, 0)).Return(&dto.MysteryLeaderboardResponse{}, nil)
 
 	// when
 	status, _ := h.NewRequest("GET", "/mysteries/leaderboard?limit=5").Do()
@@ -331,7 +332,7 @@ func TestMysteryLeaderboard_CustomLimit(t *testing.T) {
 func TestMysteryLeaderboard_InternalError(t *testing.T) {
 	// given
 	h, ms := newMysteryHarness(t)
-	ms.EXPECT().GetLeaderboard(mock.Anything, 20).Return(nil, errors.New("boom"))
+	ms.EXPECT().GetLeaderboard(mock.Anything, bounds.NewPage(20, 0)).Return(nil, errors.New("boom"))
 
 	// when
 	status, body := h.NewRequest("GET", "/mysteries/leaderboard").Do()
@@ -344,7 +345,7 @@ func TestMysteryLeaderboard_InternalError(t *testing.T) {
 func TestGMLeaderboard_OK(t *testing.T) {
 	// given
 	h, ms := newMysteryHarness(t)
-	ms.EXPECT().GetGMLeaderboard(mock.Anything, 20).Return(&dto.GMLeaderboardResponse{}, nil)
+	ms.EXPECT().GetGMLeaderboard(mock.Anything, bounds.NewPage(20, 0)).Return(&dto.GMLeaderboardResponse{}, nil)
 
 	// when
 	status, _ := h.NewRequest("GET", "/mysteries/gm-leaderboard").Do()
@@ -356,7 +357,7 @@ func TestGMLeaderboard_OK(t *testing.T) {
 func TestGMLeaderboard_InternalError(t *testing.T) {
 	// given
 	h, ms := newMysteryHarness(t)
-	ms.EXPECT().GetGMLeaderboard(mock.Anything, 20).Return(nil, errors.New("boom"))
+	ms.EXPECT().GetGMLeaderboard(mock.Anything, bounds.NewPage(20, 0)).Return(nil, errors.New("boom"))
 
 	// when
 	status, body := h.NewRequest("GET", "/mysteries/gm-leaderboard").Do()
@@ -370,7 +371,7 @@ func TestListUserMysteries_OK(t *testing.T) {
 	// given
 	h, ms := newMysteryHarness(t)
 	targetUserID := uuid.New()
-	ms.EXPECT().ListByUser(mock.Anything, targetUserID, 20, 0).Return(&dto.MysteryListResponse{}, nil)
+	ms.EXPECT().ListByUser(mock.Anything, targetUserID, bounds.NewPage(20, 0)).Return(&dto.MysteryListResponse{}, nil)
 
 	// when
 	status, _ := h.NewRequest("GET", "/users/"+targetUserID.String()+"/mysteries").Do()
@@ -383,7 +384,7 @@ func TestListUserMysteries_CustomPaging(t *testing.T) {
 	// given
 	h, ms := newMysteryHarness(t)
 	targetUserID := uuid.New()
-	ms.EXPECT().ListByUser(mock.Anything, targetUserID, 5, 10).Return(&dto.MysteryListResponse{}, nil)
+	ms.EXPECT().ListByUser(mock.Anything, targetUserID, bounds.NewPage(5, 10)).Return(&dto.MysteryListResponse{}, nil)
 
 	// when
 	status, _ := h.NewRequest("GET", "/users/"+targetUserID.String()+"/mysteries?limit=5&offset=10").Do()
@@ -408,7 +409,7 @@ func TestListUserMysteries_InternalError(t *testing.T) {
 	// given
 	h, ms := newMysteryHarness(t)
 	targetUserID := uuid.New()
-	ms.EXPECT().ListByUser(mock.Anything, targetUserID, 20, 0).Return(nil, errors.New("boom"))
+	ms.EXPECT().ListByUser(mock.Anything, targetUserID, bounds.NewPage(20, 0)).Return(nil, errors.New("boom"))
 
 	// when
 	status, _ := h.NewRequest("GET", "/users/"+targetUserID.String()+"/mysteries").Do()

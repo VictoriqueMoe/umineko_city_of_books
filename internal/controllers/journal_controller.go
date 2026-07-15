@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"umineko_city_of_books/internal/block"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/journal"
@@ -148,10 +149,9 @@ func (s *Service) listUserFollowedJournals(ctx fiber.Ctx) error {
 		return nil
 	}
 	viewerID := utils.UserID(ctx)
-	limit := fiber.Query[int](ctx, "limit", 20)
-	offset := fiber.Query[int](ctx, "offset", 0)
+	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 20), fiber.Query[int](ctx, "offset", 0))
 
-	result, err := s.JournalService.ListFollowedByUser(ctx.Context(), userID, viewerID, limit, offset)
+	result, err := s.JournalService.ListFollowedByUser(ctx.Context(), userID, viewerID, page)
 	if err != nil {
 		return utils.InternalError(ctx, "failed to list followed journals")
 	}

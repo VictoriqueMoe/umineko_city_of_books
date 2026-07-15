@@ -10,6 +10,7 @@ import (
 
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
@@ -581,7 +582,7 @@ func TestListFeed_FollowingTab(t *testing.T) {
 	m.postRepo.EXPECT().GetSharedContentPreviews(mock.Anything).Return(nil)
 
 	// when
-	got, err := svc.ListFeed(context.Background(), "following", viewer, "", "", "new", 0, 10, 0, "")
+	got, err := svc.ListFeed(context.Background(), "following", viewer, "", "", "new", 0, bounds.NewPage(10, 0), "")
 
 	// then
 	require.NoError(t, err)
@@ -602,7 +603,7 @@ func TestListFeed_AllTab(t *testing.T) {
 	m.postRepo.EXPECT().GetSharedContentPreviews(mock.Anything).Return(nil)
 
 	// when
-	got, err := svc.ListFeed(context.Background(), "all", viewer, "", "q", "new", 0, 5, 0, "resolved")
+	got, err := svc.ListFeed(context.Background(), "all", viewer, "", "q", "new", 0, bounds.NewPage(5, 0), "resolved")
 
 	// then
 	require.NoError(t, err)
@@ -617,7 +618,7 @@ func TestListFeed_RepoError(t *testing.T) {
 	m.postRepo.EXPECT().ListAll(mock.Anything, viewer, "general", "", "new", 0, 10, 0, mock.Anything, "").Return(nil, 0, errors.New("boom"))
 
 	// when
-	_, err := svc.ListFeed(context.Background(), "all", viewer, "", "", "new", 0, 10, 0, "")
+	_, err := svc.ListFeed(context.Background(), "all", viewer, "", "", "new", 0, bounds.NewPage(10, 0), "")
 
 	// then
 	require.Error(t, err)
@@ -636,7 +637,7 @@ func TestListUserPosts_OK(t *testing.T) {
 	m.postRepo.EXPECT().GetSharedContentPreviews(mock.Anything).Return(nil)
 
 	// when
-	got, err := svc.ListUserPosts(context.Background(), target, viewer, 10, 0)
+	got, err := svc.ListUserPosts(context.Background(), target, viewer, bounds.NewPage(10, 0))
 
 	// then
 	require.NoError(t, err)
@@ -651,7 +652,7 @@ func TestListUserPosts_RepoError(t *testing.T) {
 	m.postRepo.EXPECT().ListByUser(mock.Anything, target, viewer, 10, 0).Return(nil, 0, errors.New("boom"))
 
 	// when
-	_, err := svc.ListUserPosts(context.Background(), target, viewer, 10, 0)
+	_, err := svc.ListUserPosts(context.Background(), target, viewer, bounds.NewPage(10, 0))
 
 	// then
 	require.Error(t, err)

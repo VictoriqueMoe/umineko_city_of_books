@@ -9,6 +9,7 @@ import (
 	"umineko_city_of_books/internal/announcement"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
@@ -76,7 +77,7 @@ func TestService_List_BuildsResponse(t *testing.T) {
 	}, 1, nil)
 
 	// when
-	resp, err := h.svc.List(context.Background(), 20, 0)
+	resp, err := h.svc.List(context.Background(), bounds.NewPage(20, 0))
 
 	// then
 	require.NoError(t, err)

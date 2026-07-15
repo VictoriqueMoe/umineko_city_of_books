@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"umineko_city_of_books/internal/block"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/middleware"
@@ -120,8 +121,7 @@ func (s *Service) listOCs(ctx fiber.Ctx) error {
 	series := ctx.Query("series")
 	customSeriesName := ctx.Query("custom")
 	crackOnly := ctx.Query("crack") == "true"
-	limit := fiber.Query[int](ctx, "limit", 20)
-	offset := fiber.Query[int](ctx, "offset", 0)
+	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 20), fiber.Query[int](ctx, "offset", 0))
 
 	var ownerID uuid.UUID
 	if rawOwner := ctx.Query("user_id"); rawOwner != "" {
@@ -132,7 +132,7 @@ func (s *Service) listOCs(ctx fiber.Ctx) error {
 		ownerID = parsed
 	}
 
-	result, err := s.OCService.ListOCs(ctx.Context(), viewerID, sort, crackOnly, series, customSeriesName, ownerID, limit, offset)
+	result, err := s.OCService.ListOCs(ctx.Context(), viewerID, sort, crackOnly, series, customSeriesName, ownerID, page)
 	if err != nil {
 		return utils.InternalError(ctx, "failed to list ocs")
 	}
@@ -470,10 +470,9 @@ func (s *Service) listUserOCs(ctx fiber.Ctx) error {
 		return nil
 	}
 	viewerID := utils.UserID(ctx)
-	limit := fiber.Query[int](ctx, "limit", 20)
-	offset := fiber.Query[int](ctx, "offset", 0)
+	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 20), fiber.Query[int](ctx, "offset", 0))
 
-	result, err := s.OCService.ListOCsByUser(ctx.Context(), userID, viewerID, limit, offset)
+	result, err := s.OCService.ListOCsByUser(ctx.Context(), userID, viewerID, page)
 	if err != nil {
 		return utils.InternalError(ctx, "failed to list user ocs")
 	}

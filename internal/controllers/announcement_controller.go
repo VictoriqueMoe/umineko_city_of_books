@@ -6,6 +6,7 @@ import (
 
 	announcementsvc "umineko_city_of_books/internal/announcement"
 	"umineko_city_of_books/internal/authz"
+	"umineko_city_of_books/internal/bounds"
 	ctrlutils "umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/middleware"
@@ -84,10 +85,9 @@ func (s *Service) setupPinAnnouncement(r fiber.Router) {
 }
 
 func (s *Service) listAnnouncements(ctx fiber.Ctx) error {
-	limit := fiber.Query[int](ctx, "limit", 20)
-	offset := fiber.Query[int](ctx, "offset", 0)
+	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 20), fiber.Query[int](ctx, "offset", 0))
 
-	resp, err := s.AnnouncementService.List(ctx.Context(), limit, offset)
+	resp, err := s.AnnouncementService.List(ctx.Context(), page)
 	if err != nil {
 		return ctrlutils.InternalError(ctx, "failed to list announcements", err)
 	}

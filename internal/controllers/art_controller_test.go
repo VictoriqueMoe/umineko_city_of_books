@@ -7,6 +7,7 @@ import (
 
 	artsvc "umineko_city_of_books/internal/art"
 	"umineko_city_of_books/internal/block"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
 	"umineko_city_of_books/internal/dto"
 
@@ -35,7 +36,7 @@ func TestListArt_Anonymous_OK(t *testing.T) {
 	// given
 	h, as := newArtHarness(t)
 	expected := &dto.ArtListResponse{Total: 0, Limit: 24, Offset: 0}
-	as.EXPECT().ListArt(mock.Anything, uuid.Nil, "general", "", "", "", "new", 24, 0).Return(expected, nil)
+	as.EXPECT().ListArt(mock.Anything, uuid.Nil, "general", "", "", "", "new", bounds.NewPage(24, 0)).Return(expected, nil)
 
 	// when
 	status, body := h.NewRequest("GET", "/art").Do()
@@ -49,7 +50,7 @@ func TestListArt_Anonymous_OK(t *testing.T) {
 func TestListArt_CustomQuery_OK(t *testing.T) {
 	// given
 	h, as := newArtHarness(t)
-	as.EXPECT().ListArt(mock.Anything, uuid.Nil, "nsfw", "drawing", "beato", "cute", "top", 10, 5).
+	as.EXPECT().ListArt(mock.Anything, uuid.Nil, "nsfw", "drawing", "beato", "cute", "top", bounds.NewPage(10, 5)).
 		Return(&dto.ArtListResponse{}, nil)
 
 	// when
@@ -64,7 +65,7 @@ func TestListArt_Authenticated_PassesViewerID(t *testing.T) {
 	h, as := newArtHarness(t)
 	userID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
-	as.EXPECT().ListArt(mock.Anything, userID, "general", "", "", "", "new", 24, 0).
+	as.EXPECT().ListArt(mock.Anything, userID, "general", "", "", "", "new", bounds.NewPage(24, 0)).
 		Return(&dto.ArtListResponse{}, nil)
 
 	// when
@@ -77,7 +78,7 @@ func TestListArt_Authenticated_PassesViewerID(t *testing.T) {
 func TestListArt_InternalError(t *testing.T) {
 	// given
 	h, as := newArtHarness(t)
-	as.EXPECT().ListArt(mock.Anything, uuid.Nil, "general", "", "", "", "new", 24, 0).
+	as.EXPECT().ListArt(mock.Anything, uuid.Nil, "general", "", "", "", "new", bounds.NewPage(24, 0)).
 		Return(nil, errors.New("boom"))
 
 	// when
@@ -839,7 +840,7 @@ func TestListUserArt_OK(t *testing.T) {
 	// given
 	h, as := newArtHarness(t)
 	targetUserID := uuid.New()
-	as.EXPECT().ListByUser(mock.Anything, targetUserID, uuid.Nil, 24, 0).Return(&dto.ArtListResponse{}, nil)
+	as.EXPECT().ListByUser(mock.Anything, targetUserID, uuid.Nil, bounds.NewPage(24, 0)).Return(&dto.ArtListResponse{}, nil)
 
 	// when
 	status, _ := h.NewRequest("GET", "/users/"+targetUserID.String()+"/art").Do()
@@ -854,7 +855,7 @@ func TestListUserArt_Authenticated_PassesViewerID(t *testing.T) {
 	viewerID := uuid.New()
 	targetUserID := uuid.New()
 	h.ExpectValidSession("valid-cookie", viewerID)
-	as.EXPECT().ListByUser(mock.Anything, targetUserID, viewerID, 24, 0).Return(&dto.ArtListResponse{}, nil)
+	as.EXPECT().ListByUser(mock.Anything, targetUserID, viewerID, bounds.NewPage(24, 0)).Return(&dto.ArtListResponse{}, nil)
 
 	// when
 	status, _ := h.NewRequest("GET", "/users/"+targetUserID.String()+"/art").WithCookie("valid-cookie").Do()
@@ -867,7 +868,7 @@ func TestListUserArt_CustomPaging(t *testing.T) {
 	// given
 	h, as := newArtHarness(t)
 	targetUserID := uuid.New()
-	as.EXPECT().ListByUser(mock.Anything, targetUserID, uuid.Nil, 5, 10).Return(&dto.ArtListResponse{}, nil)
+	as.EXPECT().ListByUser(mock.Anything, targetUserID, uuid.Nil, bounds.NewPage(5, 10)).Return(&dto.ArtListResponse{}, nil)
 
 	// when
 	status, _ := h.NewRequest("GET", "/users/"+targetUserID.String()+"/art?limit=5&offset=10").Do()
@@ -892,7 +893,7 @@ func TestListUserArt_InternalError(t *testing.T) {
 	// given
 	h, as := newArtHarness(t)
 	targetUserID := uuid.New()
-	as.EXPECT().ListByUser(mock.Anything, targetUserID, uuid.Nil, 24, 0).Return(nil, errors.New("boom"))
+	as.EXPECT().ListByUser(mock.Anything, targetUserID, uuid.Nil, bounds.NewPage(24, 0)).Return(nil, errors.New("boom"))
 
 	// when
 	status, body := h.NewRequest("GET", "/users/"+targetUserID.String()+"/art").Do()
@@ -1235,7 +1236,7 @@ func TestGetGallery_Anonymous_OK(t *testing.T) {
 	galleryID := uuid.New()
 	gallery := &dto.GalleryResponse{ID: galleryID, Name: "g"}
 	arts := []dto.ArtResponse{{ID: uuid.New(), Title: "piece"}}
-	as.EXPECT().GetGallery(mock.Anything, galleryID, uuid.Nil, 24, 0).Return(gallery, arts, 1, nil)
+	as.EXPECT().GetGallery(mock.Anything, galleryID, uuid.Nil, bounds.NewPage(24, 0)).Return(gallery, arts, 1, nil)
 
 	// when
 	status, body := h.NewRequest("GET", "/galleries/"+galleryID.String()).Do()
@@ -1254,7 +1255,7 @@ func TestGetGallery_Authenticated_PassesViewerID(t *testing.T) {
 	userID := uuid.New()
 	galleryID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
-	as.EXPECT().GetGallery(mock.Anything, galleryID, userID, 5, 10).
+	as.EXPECT().GetGallery(mock.Anything, galleryID, userID, bounds.NewPage(5, 10)).
 		Return(&dto.GalleryResponse{ID: galleryID}, []dto.ArtResponse{}, 0, nil)
 
 	// when
@@ -1282,7 +1283,7 @@ func TestGetGallery_NotFound(t *testing.T) {
 	// given
 	h, as := newArtHarness(t)
 	galleryID := uuid.New()
-	as.EXPECT().GetGallery(mock.Anything, galleryID, uuid.Nil, 24, 0).
+	as.EXPECT().GetGallery(mock.Anything, galleryID, uuid.Nil, bounds.NewPage(24, 0)).
 		Return(nil, nil, 0, artsvc.ErrNotFound)
 
 	// when
@@ -1297,7 +1298,7 @@ func TestGetGallery_InternalError(t *testing.T) {
 	// given
 	h, as := newArtHarness(t)
 	galleryID := uuid.New()
-	as.EXPECT().GetGallery(mock.Anything, galleryID, uuid.Nil, 24, 0).
+	as.EXPECT().GetGallery(mock.Anything, galleryID, uuid.Nil, bounds.NewPage(24, 0)).
 		Return(nil, nil, 0, errors.New("boom"))
 
 	// when

@@ -11,6 +11,7 @@ import (
 
 	"umineko_city_of_books/internal/auth"
 	"umineko_city_of_books/internal/authz"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
@@ -31,7 +32,7 @@ type (
 		UploadBanner(ctx context.Context, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (string, error)
 		ChangePassword(ctx context.Context, userID uuid.UUID, req dto.ChangePasswordRequest) error
 		DeleteAccount(ctx context.Context, userID uuid.UUID, req dto.DeleteAccountRequest) error
-		GetActivity(ctx context.Context, username string, limit, offset int) (*dto.ActivityListResponse, error)
+		GetActivity(ctx context.Context, username string, page bounds.Page) (*dto.ActivityListResponse, error)
 		ListPublicUsers(ctx context.Context) ([]dto.UserResponse, error)
 		SearchUsers(ctx context.Context, query string, limit int) ([]dto.UserResponse, error)
 	}
@@ -267,7 +268,7 @@ func (s *service) DeleteAccount(ctx context.Context, userID uuid.UUID, req dto.D
 	return nil
 }
 
-func (s *service) GetActivity(ctx context.Context, username string, limit, offset int) (*dto.ActivityListResponse, error) {
+func (s *service) GetActivity(ctx context.Context, username string, page bounds.Page) (*dto.ActivityListResponse, error) {
 	user, err := s.userRepo.GetByUsername(ctx, username)
 	if err != nil {
 		return nil, fmt.Errorf("get user: %w", err)
@@ -276,7 +277,7 @@ func (s *service) GetActivity(ctx context.Context, username string, limit, offse
 		return nil, ErrUserNotFound
 	}
 
-	items, total, err := s.theoryRepo.GetRecentActivityByUser(ctx, user.ID, limit, offset)
+	items, total, err := s.theoryRepo.GetRecentActivityByUser(ctx, user.ID, page.Limit(), page.Offset())
 	if err != nil {
 		return nil, fmt.Errorf("get activity: %w", err)
 	}
@@ -284,8 +285,8 @@ func (s *service) GetActivity(ctx context.Context, username string, limit, offse
 	return &dto.ActivityListResponse{
 		Items:  items,
 		Total:  total,
-		Limit:  limit,
-		Offset: offset,
+		Limit:  page.Limit(),
+		Offset: page.Offset(),
 	}, nil
 }
 

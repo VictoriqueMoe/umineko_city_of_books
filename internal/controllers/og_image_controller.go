@@ -6,8 +6,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
+	"umineko_city_of_books/internal/settings"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -15,16 +17,17 @@ import (
 type (
 	OGImageHandler struct {
 		uploadDir string
+		settings  settings.Service
 	}
 )
 
-func NewOGImageHandler(uploadDir string) *OGImageHandler {
-	return &OGImageHandler{uploadDir: uploadDir}
+func NewOGImageHandler(uploadDir string, settingsService settings.Service) *OGImageHandler {
+	return &OGImageHandler{uploadDir: uploadDir, settings: settingsService}
 }
 
 func (s *Service) getAllOGImageRoutes() []FSetupRoute {
 	return []FSetupRoute{
-		NewOGImageHandler(s.UploadService.GetUploadDir()).Register,
+		NewOGImageHandler(s.UploadService.GetUploadDir(), s.SettingsService).Register,
 	}
 }
 
@@ -46,7 +49,9 @@ func (h *OGImageHandler) serve(ctx fiber.Ctx) error {
 		return ctx.SendStatus(fiber.StatusNotFound)
 	}
 
-	data, err := media.WebPToJPEG(ctx.Context(), fullPath)
+	maxPixels := h.settings.GetInt(ctx.Context(), config.SettingMaxImagePixels)
+
+	data, err := media.WebPToJPEG(ctx.Context(), fullPath, maxPixels)
 	if err != nil {
 		logger.Log.Warn().Err(err).Str("path", fullPath).Msg("og image conversion failed, serving original webp")
 		return ctx.SendFile(fullPath)

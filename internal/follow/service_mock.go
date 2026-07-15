@@ -6,6 +6,7 @@ package follow
 
 import (
 	"context"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/dto"
 
 	"github.com/google/uuid"
@@ -177,8 +178,8 @@ func (_c *MockService_GetFollowStats_Call) RunAndReturn(run func(ctx context.Con
 }
 
 // GetFollowers provides a mock function for the type MockService
-func (_mock *MockService) GetFollowers(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]dto.UserResponse, int, error) {
-	ret := _mock.Called(ctx, userID, limit, offset)
+func (_mock *MockService) GetFollowers(ctx context.Context, userID uuid.UUID, page bounds.Page) ([]dto.UserResponse, int, error) {
+	ret := _mock.Called(ctx, userID, page)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetFollowers")
@@ -187,23 +188,23 @@ func (_mock *MockService) GetFollowers(ctx context.Context, userID uuid.UUID, li
 	var r0 []dto.UserResponse
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, int) ([]dto.UserResponse, int, error)); ok {
-		return returnFunc(ctx, userID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, bounds.Page) ([]dto.UserResponse, int, error)); ok {
+		return returnFunc(ctx, userID, page)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, int) []dto.UserResponse); ok {
-		r0 = returnFunc(ctx, userID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, bounds.Page) []dto.UserResponse); ok {
+		r0 = returnFunc(ctx, userID, page)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]dto.UserResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, int, int) int); ok {
-		r1 = returnFunc(ctx, userID, limit, offset)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, bounds.Page) int); ok {
+		r1 = returnFunc(ctx, userID, page)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, int, int) error); ok {
-		r2 = returnFunc(ctx, userID, limit, offset)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, bounds.Page) error); ok {
+		r2 = returnFunc(ctx, userID, page)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -218,13 +219,12 @@ type MockService_GetFollowers_Call struct {
 // GetFollowers is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-//   - limit int
-//   - offset int
-func (_e *MockService_Expecter) GetFollowers(ctx any, userID any, limit any, offset any) *MockService_GetFollowers_Call {
-	return &MockService_GetFollowers_Call{Call: _e.mock.On("GetFollowers", ctx, userID, limit, offset)}
+//   - page bounds.Page
+func (_e *MockService_Expecter) GetFollowers(ctx any, userID any, page any) *MockService_GetFollowers_Call {
+	return &MockService_GetFollowers_Call{Call: _e.mock.On("GetFollowers", ctx, userID, page)}
 }
 
-func (_c *MockService_GetFollowers_Call) Run(run func(ctx context.Context, userID uuid.UUID, limit int, offset int)) *MockService_GetFollowers_Call {
+func (_c *MockService_GetFollowers_Call) Run(run func(ctx context.Context, userID uuid.UUID, page bounds.Page)) *MockService_GetFollowers_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -234,19 +234,14 @@ func (_c *MockService_GetFollowers_Call) Run(run func(ctx context.Context, userI
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
-		var arg2 int
+		var arg2 bounds.Page
 		if args[2] != nil {
-			arg2 = args[2].(int)
-		}
-		var arg3 int
-		if args[3] != nil {
-			arg3 = args[3].(int)
+			arg2 = args[2].(bounds.Page)
 		}
 		run(
 			arg0,
 			arg1,
 			arg2,
-			arg3,
 		)
 	})
 	return _c
@@ -257,14 +252,14 @@ func (_c *MockService_GetFollowers_Call) Return(userResponses []dto.UserResponse
 	return _c
 }
 
-func (_c *MockService_GetFollowers_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]dto.UserResponse, int, error)) *MockService_GetFollowers_Call {
+func (_c *MockService_GetFollowers_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, page bounds.Page) ([]dto.UserResponse, int, error)) *MockService_GetFollowers_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetFollowing provides a mock function for the type MockService
-func (_mock *MockService) GetFollowing(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]dto.UserResponse, int, error) {
-	ret := _mock.Called(ctx, userID, limit, offset)
+func (_mock *MockService) GetFollowing(ctx context.Context, userID uuid.UUID, page bounds.Page) ([]dto.UserResponse, int, error) {
+	ret := _mock.Called(ctx, userID, page)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetFollowing")
@@ -273,23 +268,23 @@ func (_mock *MockService) GetFollowing(ctx context.Context, userID uuid.UUID, li
 	var r0 []dto.UserResponse
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, int) ([]dto.UserResponse, int, error)); ok {
-		return returnFunc(ctx, userID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, bounds.Page) ([]dto.UserResponse, int, error)); ok {
+		return returnFunc(ctx, userID, page)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, int) []dto.UserResponse); ok {
-		r0 = returnFunc(ctx, userID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, bounds.Page) []dto.UserResponse); ok {
+		r0 = returnFunc(ctx, userID, page)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]dto.UserResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, int, int) int); ok {
-		r1 = returnFunc(ctx, userID, limit, offset)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, bounds.Page) int); ok {
+		r1 = returnFunc(ctx, userID, page)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, int, int) error); ok {
-		r2 = returnFunc(ctx, userID, limit, offset)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, bounds.Page) error); ok {
+		r2 = returnFunc(ctx, userID, page)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -304,13 +299,12 @@ type MockService_GetFollowing_Call struct {
 // GetFollowing is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-//   - limit int
-//   - offset int
-func (_e *MockService_Expecter) GetFollowing(ctx any, userID any, limit any, offset any) *MockService_GetFollowing_Call {
-	return &MockService_GetFollowing_Call{Call: _e.mock.On("GetFollowing", ctx, userID, limit, offset)}
+//   - page bounds.Page
+func (_e *MockService_Expecter) GetFollowing(ctx any, userID any, page any) *MockService_GetFollowing_Call {
+	return &MockService_GetFollowing_Call{Call: _e.mock.On("GetFollowing", ctx, userID, page)}
 }
 
-func (_c *MockService_GetFollowing_Call) Run(run func(ctx context.Context, userID uuid.UUID, limit int, offset int)) *MockService_GetFollowing_Call {
+func (_c *MockService_GetFollowing_Call) Run(run func(ctx context.Context, userID uuid.UUID, page bounds.Page)) *MockService_GetFollowing_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -320,19 +314,14 @@ func (_c *MockService_GetFollowing_Call) Run(run func(ctx context.Context, userI
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
-		var arg2 int
+		var arg2 bounds.Page
 		if args[2] != nil {
-			arg2 = args[2].(int)
-		}
-		var arg3 int
-		if args[3] != nil {
-			arg3 = args[3].(int)
+			arg2 = args[2].(bounds.Page)
 		}
 		run(
 			arg0,
 			arg1,
 			arg2,
-			arg3,
 		)
 	})
 	return _c
@@ -343,7 +332,7 @@ func (_c *MockService_GetFollowing_Call) Return(userResponses []dto.UserResponse
 	return _c
 }
 
-func (_c *MockService_GetFollowing_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]dto.UserResponse, int, error)) *MockService_GetFollowing_Call {
+func (_c *MockService_GetFollowing_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, page bounds.Page) ([]dto.UserResponse, int, error)) *MockService_GetFollowing_Call {
 	_c.Call.Return(run)
 	return _c
 }

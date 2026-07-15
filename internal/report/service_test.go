@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/authz"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
@@ -327,7 +328,7 @@ func TestList_OK(t *testing.T) {
 	reportRepo.EXPECT().List(mock.Anything, "open", 10, 5).Return(rows, 42, nil)
 
 	// when
-	got, err := svc.List(context.Background(), "open", 10, 5)
+	got, err := svc.List(context.Background(), "open", bounds.NewPage(10, 5))
 
 	// then
 	require.NoError(t, err)
@@ -355,7 +356,7 @@ func TestList_EmptyResult(t *testing.T) {
 	reportRepo.EXPECT().List(mock.Anything, "", 10, 0).Return(nil, 0, nil)
 
 	// when
-	got, err := svc.List(context.Background(), "", 10, 0)
+	got, err := svc.List(context.Background(), "", bounds.NewPage(10, 0))
 
 	// then
 	require.NoError(t, err)
@@ -370,7 +371,7 @@ func TestList_RepoError(t *testing.T) {
 	reportRepo.EXPECT().List(mock.Anything, "", 10, 0).Return(nil, 0, errors.New("db down"))
 
 	// when
-	got, err := svc.List(context.Background(), "", 10, 0)
+	got, err := svc.List(context.Background(), "", bounds.NewPage(10, 0))
 
 	// then
 	require.Error(t, err)

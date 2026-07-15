@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"umineko_city_of_books/internal/authz"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/middleware"
 	"umineko_city_of_books/internal/report"
@@ -51,10 +52,9 @@ func (s *Service) createReport(ctx fiber.Ctx) error {
 
 func (s *Service) listReports(ctx fiber.Ctx) error {
 	status := ctx.Query("status", "open")
-	limit := fiber.Query[int](ctx, "limit", 50)
-	offset := fiber.Query[int](ctx, "offset", 0)
+	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 50), fiber.Query[int](ctx, "offset", 0))
 
-	result, err := s.ReportService.List(ctx.Context(), status, limit, offset)
+	result, err := s.ReportService.List(ctx.Context(), status, page)
 	if err != nil {
 		return utils.InternalError(ctx, "failed to list reports")
 	}

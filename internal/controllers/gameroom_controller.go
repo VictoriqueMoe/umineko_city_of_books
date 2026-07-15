@@ -3,6 +3,7 @@ package controllers
 import (
 	"errors"
 
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/gameroom"
@@ -172,7 +173,7 @@ func (s *Service) listGameRooms(ctx fiber.Ctx) error {
 	resp, err := s.GameRoomService.List(ctx.Context(), userID, gameroom.ListFilter{
 		GameType: gameType,
 		Statuses: statuses,
-		Limit:    50,
+		Page:     bounds.NewPage(50, 0),
 	})
 	if err != nil {
 		return gameRoomError(ctx, err)
@@ -195,7 +196,7 @@ func (s *Service) getGameRoom(ctx fiber.Ctx) error {
 
 func (s *Service) listLiveGameRooms(ctx fiber.Ctx) error {
 	gameType := dto.GameType(ctx.Query("game_type"))
-	resp, err := s.GameRoomService.ListLive(ctx.Context(), gameType, 50, 0)
+	resp, err := s.GameRoomService.ListLive(ctx.Context(), gameType, bounds.NewPage(50, 0))
 	if err != nil {
 		return gameRoomError(ctx, err)
 	}
@@ -204,9 +205,9 @@ func (s *Service) listLiveGameRooms(ctx fiber.Ctx) error {
 
 func (s *Service) listFinishedGameRooms(ctx fiber.Ctx) error {
 	gameType := dto.GameType(ctx.Query("game_type"))
-	limit := fiber.Query[int](ctx, "limit", 20)
-	offset := fiber.Query[int](ctx, "offset", 0)
-	resp, err := s.GameRoomService.ListFinished(ctx.Context(), gameType, limit, offset)
+	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 20), fiber.Query[int](ctx, "offset", 0))
+
+	resp, err := s.GameRoomService.ListFinished(ctx.Context(), gameType, page)
 	if err != nil {
 		return gameRoomError(ctx, err)
 	}

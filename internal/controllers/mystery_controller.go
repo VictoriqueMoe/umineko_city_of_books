@@ -6,6 +6,7 @@ import (
 
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/middleware"
@@ -110,8 +111,7 @@ func (s *Service) setupListUserMysteries(r fiber.Router) {
 func (s *Service) listMysteries(ctx fiber.Ctx) error {
 	userID := utils.UserID(ctx)
 	sort := ctx.Query("sort", "new")
-	limit := fiber.Query[int](ctx, "limit", 20)
-	offset := fiber.Query[int](ctx, "offset", 0)
+	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 20), fiber.Query[int](ctx, "offset", 0))
 
 	var solved *bool
 	solvedStr := ctx.Query("solved")
@@ -121,7 +121,7 @@ func (s *Service) listMysteries(ctx fiber.Ctx) error {
 		solved = new(false)
 	}
 
-	resp, err := s.MysteryService.ListMysteries(ctx.Context(), sort, solved, userID, limit, offset)
+	resp, err := s.MysteryService.ListMysteries(ctx.Context(), sort, solved, userID, page)
 	if err != nil {
 		return utils.InternalError(ctx, "failed to list mysteries")
 	}
@@ -353,8 +353,9 @@ func (s *Service) addClue(ctx fiber.Ctx) error {
 }
 
 func (s *Service) mysteryLeaderboard(ctx fiber.Ctx) error {
-	limit := fiber.Query[int](ctx, "limit", 20)
-	resp, err := s.MysteryService.GetLeaderboard(ctx.Context(), limit)
+	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 20), 0)
+
+	resp, err := s.MysteryService.GetLeaderboard(ctx.Context(), page)
 	if err != nil {
 		return utils.InternalError(ctx, "failed to load leaderboard")
 	}
@@ -366,8 +367,9 @@ func (s *Service) setupGMLeaderboard(r fiber.Router) {
 }
 
 func (s *Service) gmLeaderboard(ctx fiber.Ctx) error {
-	limit := fiber.Query[int](ctx, "limit", 20)
-	resp, err := s.MysteryService.GetGMLeaderboard(ctx.Context(), limit)
+	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 20), 0)
+
+	resp, err := s.MysteryService.GetGMLeaderboard(ctx.Context(), page)
 	if err != nil {
 		return utils.InternalError(ctx, "failed to load gm leaderboard")
 	}
@@ -379,10 +381,9 @@ func (s *Service) listUserMysteries(ctx fiber.Ctx) error {
 	if !ok {
 		return nil
 	}
-	limit := fiber.Query[int](ctx, "limit", 20)
-	offset := fiber.Query[int](ctx, "offset", 0)
+	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 20), fiber.Query[int](ctx, "offset", 0))
 
-	resp, err := s.MysteryService.ListByUser(ctx.Context(), userID, limit, offset)
+	resp, err := s.MysteryService.ListByUser(ctx.Context(), userID, page)
 	if err != nil {
 		return utils.InternalError(ctx, "failed to list user mysteries")
 	}

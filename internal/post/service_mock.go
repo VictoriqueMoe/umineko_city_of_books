@@ -7,6 +7,7 @@ package post
 import (
 	"context"
 	"io"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/dto"
 
 	"github.com/google/uuid"
@@ -730,8 +731,8 @@ func (_c *MockService_LikePost_Call) RunAndReturn(run func(ctx context.Context, 
 }
 
 // ListFeed provides a mock function for the type MockService
-func (_mock *MockService) ListFeed(ctx context.Context, tab string, viewerID uuid.UUID, corner string, search string, sort string, seed int, limit int, offset int, resolvedFilter string) (*dto.PostListResponse, error) {
-	ret := _mock.Called(ctx, tab, viewerID, corner, search, sort, seed, limit, offset, resolvedFilter)
+func (_mock *MockService) ListFeed(ctx context.Context, tab string, viewerID uuid.UUID, corner string, search string, sort string, seed int, page bounds.Page, resolvedFilter string) (*dto.PostListResponse, error) {
+	ret := _mock.Called(ctx, tab, viewerID, corner, search, sort, seed, page, resolvedFilter)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListFeed")
@@ -739,18 +740,18 @@ func (_mock *MockService) ListFeed(ctx context.Context, tab string, viewerID uui
 
 	var r0 *dto.PostListResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, uuid.UUID, string, string, string, int, int, int, string) (*dto.PostListResponse, error)); ok {
-		return returnFunc(ctx, tab, viewerID, corner, search, sort, seed, limit, offset, resolvedFilter)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, uuid.UUID, string, string, string, int, bounds.Page, string) (*dto.PostListResponse, error)); ok {
+		return returnFunc(ctx, tab, viewerID, corner, search, sort, seed, page, resolvedFilter)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, uuid.UUID, string, string, string, int, int, int, string) *dto.PostListResponse); ok {
-		r0 = returnFunc(ctx, tab, viewerID, corner, search, sort, seed, limit, offset, resolvedFilter)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, uuid.UUID, string, string, string, int, bounds.Page, string) *dto.PostListResponse); ok {
+		r0 = returnFunc(ctx, tab, viewerID, corner, search, sort, seed, page, resolvedFilter)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*dto.PostListResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, uuid.UUID, string, string, string, int, int, int, string) error); ok {
-		r1 = returnFunc(ctx, tab, viewerID, corner, search, sort, seed, limit, offset, resolvedFilter)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, uuid.UUID, string, string, string, int, bounds.Page, string) error); ok {
+		r1 = returnFunc(ctx, tab, viewerID, corner, search, sort, seed, page, resolvedFilter)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -770,14 +771,13 @@ type MockService_ListFeed_Call struct {
 //   - search string
 //   - sort string
 //   - seed int
-//   - limit int
-//   - offset int
+//   - page bounds.Page
 //   - resolvedFilter string
-func (_e *MockService_Expecter) ListFeed(ctx any, tab any, viewerID any, corner any, search any, sort any, seed any, limit any, offset any, resolvedFilter any) *MockService_ListFeed_Call {
-	return &MockService_ListFeed_Call{Call: _e.mock.On("ListFeed", ctx, tab, viewerID, corner, search, sort, seed, limit, offset, resolvedFilter)}
+func (_e *MockService_Expecter) ListFeed(ctx any, tab any, viewerID any, corner any, search any, sort any, seed any, page any, resolvedFilter any) *MockService_ListFeed_Call {
+	return &MockService_ListFeed_Call{Call: _e.mock.On("ListFeed", ctx, tab, viewerID, corner, search, sort, seed, page, resolvedFilter)}
 }
 
-func (_c *MockService_ListFeed_Call) Run(run func(ctx context.Context, tab string, viewerID uuid.UUID, corner string, search string, sort string, seed int, limit int, offset int, resolvedFilter string)) *MockService_ListFeed_Call {
+func (_c *MockService_ListFeed_Call) Run(run func(ctx context.Context, tab string, viewerID uuid.UUID, corner string, search string, sort string, seed int, page bounds.Page, resolvedFilter string)) *MockService_ListFeed_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -807,17 +807,13 @@ func (_c *MockService_ListFeed_Call) Run(run func(ctx context.Context, tab strin
 		if args[6] != nil {
 			arg6 = args[6].(int)
 		}
-		var arg7 int
+		var arg7 bounds.Page
 		if args[7] != nil {
-			arg7 = args[7].(int)
+			arg7 = args[7].(bounds.Page)
 		}
-		var arg8 int
+		var arg8 string
 		if args[8] != nil {
-			arg8 = args[8].(int)
-		}
-		var arg9 string
-		if args[9] != nil {
-			arg9 = args[9].(string)
+			arg8 = args[8].(string)
 		}
 		run(
 			arg0,
@@ -829,7 +825,6 @@ func (_c *MockService_ListFeed_Call) Run(run func(ctx context.Context, tab strin
 			arg6,
 			arg7,
 			arg8,
-			arg9,
 		)
 	})
 	return _c
@@ -840,14 +835,14 @@ func (_c *MockService_ListFeed_Call) Return(postListResponse *dto.PostListRespon
 	return _c
 }
 
-func (_c *MockService_ListFeed_Call) RunAndReturn(run func(ctx context.Context, tab string, viewerID uuid.UUID, corner string, search string, sort string, seed int, limit int, offset int, resolvedFilter string) (*dto.PostListResponse, error)) *MockService_ListFeed_Call {
+func (_c *MockService_ListFeed_Call) RunAndReturn(run func(ctx context.Context, tab string, viewerID uuid.UUID, corner string, search string, sort string, seed int, page bounds.Page, resolvedFilter string) (*dto.PostListResponse, error)) *MockService_ListFeed_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListUserPosts provides a mock function for the type MockService
-func (_mock *MockService) ListUserPosts(ctx context.Context, targetUserID uuid.UUID, viewerID uuid.UUID, limit int, offset int) (*dto.PostListResponse, error) {
-	ret := _mock.Called(ctx, targetUserID, viewerID, limit, offset)
+func (_mock *MockService) ListUserPosts(ctx context.Context, targetUserID uuid.UUID, viewerID uuid.UUID, page bounds.Page) (*dto.PostListResponse, error) {
+	ret := _mock.Called(ctx, targetUserID, viewerID, page)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListUserPosts")
@@ -855,18 +850,18 @@ func (_mock *MockService) ListUserPosts(ctx context.Context, targetUserID uuid.U
 
 	var r0 *dto.PostListResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int) (*dto.PostListResponse, error)); ok {
-		return returnFunc(ctx, targetUserID, viewerID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, bounds.Page) (*dto.PostListResponse, error)); ok {
+		return returnFunc(ctx, targetUserID, viewerID, page)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int) *dto.PostListResponse); ok {
-		r0 = returnFunc(ctx, targetUserID, viewerID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, bounds.Page) *dto.PostListResponse); ok {
+		r0 = returnFunc(ctx, targetUserID, viewerID, page)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*dto.PostListResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, int, int) error); ok {
-		r1 = returnFunc(ctx, targetUserID, viewerID, limit, offset)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, bounds.Page) error); ok {
+		r1 = returnFunc(ctx, targetUserID, viewerID, page)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -882,13 +877,12 @@ type MockService_ListUserPosts_Call struct {
 //   - ctx context.Context
 //   - targetUserID uuid.UUID
 //   - viewerID uuid.UUID
-//   - limit int
-//   - offset int
-func (_e *MockService_Expecter) ListUserPosts(ctx any, targetUserID any, viewerID any, limit any, offset any) *MockService_ListUserPosts_Call {
-	return &MockService_ListUserPosts_Call{Call: _e.mock.On("ListUserPosts", ctx, targetUserID, viewerID, limit, offset)}
+//   - page bounds.Page
+func (_e *MockService_Expecter) ListUserPosts(ctx any, targetUserID any, viewerID any, page any) *MockService_ListUserPosts_Call {
+	return &MockService_ListUserPosts_Call{Call: _e.mock.On("ListUserPosts", ctx, targetUserID, viewerID, page)}
 }
 
-func (_c *MockService_ListUserPosts_Call) Run(run func(ctx context.Context, targetUserID uuid.UUID, viewerID uuid.UUID, limit int, offset int)) *MockService_ListUserPosts_Call {
+func (_c *MockService_ListUserPosts_Call) Run(run func(ctx context.Context, targetUserID uuid.UUID, viewerID uuid.UUID, page bounds.Page)) *MockService_ListUserPosts_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -902,20 +896,15 @@ func (_c *MockService_ListUserPosts_Call) Run(run func(ctx context.Context, targ
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
-		var arg3 int
+		var arg3 bounds.Page
 		if args[3] != nil {
-			arg3 = args[3].(int)
-		}
-		var arg4 int
-		if args[4] != nil {
-			arg4 = args[4].(int)
+			arg3 = args[3].(bounds.Page)
 		}
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
-			arg4,
 		)
 	})
 	return _c
@@ -926,7 +915,7 @@ func (_c *MockService_ListUserPosts_Call) Return(postListResponse *dto.PostListR
 	return _c
 }
 
-func (_c *MockService_ListUserPosts_Call) RunAndReturn(run func(ctx context.Context, targetUserID uuid.UUID, viewerID uuid.UUID, limit int, offset int) (*dto.PostListResponse, error)) *MockService_ListUserPosts_Call {
+func (_c *MockService_ListUserPosts_Call) RunAndReturn(run func(ctx context.Context, targetUserID uuid.UUID, viewerID uuid.UUID, page bounds.Page) (*dto.PostListResponse, error)) *MockService_ListUserPosts_Call {
 	_c.Call.Return(run)
 	return _c
 }

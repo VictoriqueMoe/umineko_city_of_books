@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/block"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/follow"
@@ -50,7 +51,7 @@ func TestListPostFeed_Anonymous_OK(t *testing.T) {
 	h, deps := newPostHarness(t)
 	expected := &dto.PostListResponse{Total: 0, Limit: 20}
 	deps.post.EXPECT().
-		ListFeed(mock.Anything, "everyone", uuid.Nil, "general", "", "", 0, 20, 0, "").
+		ListFeed(mock.Anything, "everyone", uuid.Nil, "general", "", "", 0, bounds.NewPage(20, 0), "").
 		Return(expected, nil)
 
 	// when
@@ -66,7 +67,7 @@ func TestListPostFeed_CustomQuery_OK(t *testing.T) {
 	// given
 	h, deps := newPostHarness(t)
 	deps.post.EXPECT().
-		ListFeed(mock.Anything, "following", uuid.Nil, "suggestions", "search term", "top", 42, 10, 5, "open").
+		ListFeed(mock.Anything, "following", uuid.Nil, "suggestions", "search term", "top", 42, bounds.NewPage(10, 5), "open").
 		Return(&dto.PostListResponse{}, nil)
 
 	// when
@@ -82,7 +83,7 @@ func TestListPostFeed_Authenticated_PassesViewerID(t *testing.T) {
 	userID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
 	deps.post.EXPECT().
-		ListFeed(mock.Anything, "everyone", userID, "general", "", "", 0, 20, 0, "").
+		ListFeed(mock.Anything, "everyone", userID, "general", "", "", 0, bounds.NewPage(20, 0), "").
 		Return(&dto.PostListResponse{}, nil)
 
 	// when
@@ -96,7 +97,7 @@ func TestListPostFeed_InternalError(t *testing.T) {
 	// given
 	h, deps := newPostHarness(t)
 	deps.post.EXPECT().
-		ListFeed(mock.Anything, "everyone", uuid.Nil, "general", "", "", 0, 20, 0, "").
+		ListFeed(mock.Anything, "everyone", uuid.Nil, "general", "", "", 0, bounds.NewPage(20, 0), "").
 		Return(nil, errors.New("boom"))
 
 	// when
@@ -1000,7 +1001,7 @@ func TestListUserPosts_Anonymous_OK(t *testing.T) {
 	// given
 	h, deps := newPostHarness(t)
 	userID := uuid.New()
-	deps.post.EXPECT().ListUserPosts(mock.Anything, userID, uuid.Nil, 20, 0).
+	deps.post.EXPECT().ListUserPosts(mock.Anything, userID, uuid.Nil, bounds.NewPage(20, 0)).
 		Return(&dto.PostListResponse{}, nil)
 
 	// when
@@ -1014,7 +1015,7 @@ func TestListUserPosts_CustomPaging(t *testing.T) {
 	// given
 	h, deps := newPostHarness(t)
 	userID := uuid.New()
-	deps.post.EXPECT().ListUserPosts(mock.Anything, userID, uuid.Nil, 5, 10).
+	deps.post.EXPECT().ListUserPosts(mock.Anything, userID, uuid.Nil, bounds.NewPage(5, 10)).
 		Return(&dto.PostListResponse{}, nil)
 
 	// when
@@ -1040,7 +1041,7 @@ func TestListUserPosts_InternalError(t *testing.T) {
 	// given
 	h, deps := newPostHarness(t)
 	userID := uuid.New()
-	deps.post.EXPECT().ListUserPosts(mock.Anything, userID, uuid.Nil, 20, 0).
+	deps.post.EXPECT().ListUserPosts(mock.Anything, userID, uuid.Nil, bounds.NewPage(20, 0)).
 		Return(nil, errors.New("boom"))
 
 	// when
@@ -1228,7 +1229,7 @@ func TestGetFollowers_OK(t *testing.T) {
 	h, deps := newPostHarness(t)
 	userID := uuid.New()
 	users := []dto.UserResponse{{ID: uuid.New(), Username: "beato"}}
-	deps.follow.EXPECT().GetFollowers(mock.Anything, userID, 50, 0).Return(users, 1, nil)
+	deps.follow.EXPECT().GetFollowers(mock.Anything, userID, bounds.NewPage(50, 0)).Return(users, 1, nil)
 
 	// when
 	status, body := h.NewRequest("GET", "/users/"+userID.String()+"/followers").Do()
@@ -1243,7 +1244,7 @@ func TestGetFollowers_CustomPaging(t *testing.T) {
 	// given
 	h, deps := newPostHarness(t)
 	userID := uuid.New()
-	deps.follow.EXPECT().GetFollowers(mock.Anything, userID, 5, 10).
+	deps.follow.EXPECT().GetFollowers(mock.Anything, userID, bounds.NewPage(5, 10)).
 		Return([]dto.UserResponse{}, 0, nil)
 
 	// when
@@ -1269,7 +1270,7 @@ func TestGetFollowers_InternalError(t *testing.T) {
 	// given
 	h, deps := newPostHarness(t)
 	userID := uuid.New()
-	deps.follow.EXPECT().GetFollowers(mock.Anything, userID, 50, 0).
+	deps.follow.EXPECT().GetFollowers(mock.Anything, userID, bounds.NewPage(50, 0)).
 		Return(nil, 0, errors.New("boom"))
 
 	// when
@@ -1284,7 +1285,7 @@ func TestGetFollowing_OK(t *testing.T) {
 	// given
 	h, deps := newPostHarness(t)
 	userID := uuid.New()
-	deps.follow.EXPECT().GetFollowing(mock.Anything, userID, 50, 0).
+	deps.follow.EXPECT().GetFollowing(mock.Anything, userID, bounds.NewPage(50, 0)).
 		Return([]dto.UserResponse{}, 0, nil)
 
 	// when
@@ -1310,7 +1311,7 @@ func TestGetFollowing_InternalError(t *testing.T) {
 	// given
 	h, deps := newPostHarness(t)
 	userID := uuid.New()
-	deps.follow.EXPECT().GetFollowing(mock.Anything, userID, 50, 0).
+	deps.follow.EXPECT().GetFollowing(mock.Anything, userID, bounds.NewPage(50, 0)).
 		Return(nil, 0, errors.New("boom"))
 
 	// when

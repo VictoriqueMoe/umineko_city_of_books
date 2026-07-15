@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
@@ -229,10 +230,9 @@ func (s *Service) getOnlineStatus(ctx fiber.Ctx) error {
 
 func (s *Service) getUserActivity(ctx fiber.Ctx) error {
 	username := ctx.Params("username")
-	limit := fiber.Query[int](ctx, "limit", 20)
-	offset := fiber.Query[int](ctx, "offset", 0)
+	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 20), fiber.Query[int](ctx, "offset", 0))
 
-	result, err := s.ProfileService.GetActivity(ctx.Context(), username, limit, offset)
+	result, err := s.ProfileService.GetActivity(ctx.Context(), username, page)
 	if err != nil {
 		if errors.Is(err, profile.ErrUserNotFound) {
 			return utils.NotFound(ctx, "user not found")

@@ -10,6 +10,7 @@ import (
 
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
@@ -35,7 +36,7 @@ type (
 		GetJournalDetail(ctx context.Context, id uuid.UUID, viewerID uuid.UUID) (*dto.JournalDetailResponse, error)
 		ListJournals(ctx context.Context, p params.ListParams, viewerID uuid.UUID) (*dto.JournalListResponse, error)
 		ListJournalsByUser(ctx context.Context, authorID uuid.UUID, viewerID uuid.UUID, limit, offset int) (*dto.JournalListResponse, error)
-		ListFollowedByUser(ctx context.Context, followerID uuid.UUID, viewerID uuid.UUID, limit, offset int) (*dto.JournalListResponse, error)
+		ListFollowedByUser(ctx context.Context, followerID uuid.UUID, viewerID uuid.UUID, page bounds.Page) (*dto.JournalListResponse, error)
 		UpdateJournal(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.CreateJournalRequest) error
 		DeleteJournal(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 
@@ -225,25 +226,17 @@ func (s *service) ListJournalsByUser(ctx context.Context, authorID uuid.UUID, vi
 	return s.ListJournals(ctx, p, viewerID)
 }
 
-func (s *service) ListFollowedByUser(ctx context.Context, followerID uuid.UUID, viewerID uuid.UUID, limit, offset int) (*dto.JournalListResponse, error) {
-	if limit <= 0 {
-		limit = 20
-	}
-	if limit > 100 {
-		limit = 100
-	}
-	if offset < 0 {
-		offset = 0
-	}
-	journals, total, err := s.repo.ListFollowedByUser(ctx, followerID, viewerID, limit, offset)
+func (s *service) ListFollowedByUser(ctx context.Context, followerID uuid.UUID, viewerID uuid.UUID, page bounds.Page) (*dto.JournalListResponse, error) {
+	journals, total, err := s.repo.ListFollowedByUser(ctx, followerID, viewerID, page.Limit(), page.Offset())
 	if err != nil {
 		return nil, err
 	}
+
 	return &dto.JournalListResponse{
 		Journals: journals,
 		Total:    total,
-		Limit:    limit,
-		Offset:   offset,
+		Limit:    page.Limit(),
+		Offset:   page.Offset(),
 	}, nil
 }
 

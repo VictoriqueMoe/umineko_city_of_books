@@ -9,6 +9,7 @@ import (
 
 	"umineko_city_of_books/internal/auth"
 	"umineko_city_of_books/internal/authz"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
@@ -594,7 +595,7 @@ func TestGetActivity_OK(t *testing.T) {
 	theoryRepo.EXPECT().GetRecentActivityByUser(mock.Anything, userID, 10, 0).Return(items, 1, nil)
 
 	// when
-	got, err := svc.GetActivity(context.Background(), "alice", 10, 0)
+	got, err := svc.GetActivity(context.Background(), "alice", bounds.NewPage(10, 0))
 
 	// then
 	require.NoError(t, err)
@@ -611,7 +612,7 @@ func TestGetActivity_UserNotFound(t *testing.T) {
 	userRepo.EXPECT().GetByUsername(mock.Anything, "ghost").Return(nil, nil)
 
 	// when
-	_, err := svc.GetActivity(context.Background(), "ghost", 10, 0)
+	_, err := svc.GetActivity(context.Background(), "ghost", bounds.NewPage(10, 0))
 
 	// then
 	require.ErrorIs(t, err, ErrUserNotFound)
@@ -623,7 +624,7 @@ func TestGetActivity_GetByUsernameError(t *testing.T) {
 	userRepo.EXPECT().GetByUsername(mock.Anything, "alice").Return(nil, errors.New("db down"))
 
 	// when
-	_, err := svc.GetActivity(context.Background(), "alice", 10, 0)
+	_, err := svc.GetActivity(context.Background(), "alice", bounds.NewPage(10, 0))
 
 	// then
 	require.Error(t, err)
@@ -639,7 +640,7 @@ func TestGetActivity_TheoryRepoError(t *testing.T) {
 	theoryRepo.EXPECT().GetRecentActivityByUser(mock.Anything, userID, 10, 0).Return(nil, 0, errors.New("boom"))
 
 	// when
-	_, err := svc.GetActivity(context.Background(), "alice", 10, 0)
+	_, err := svc.GetActivity(context.Background(), "alice", bounds.NewPage(10, 0))
 
 	// then
 	require.Error(t, err)

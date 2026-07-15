@@ -11,6 +11,7 @@ import (
 
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
@@ -32,8 +33,8 @@ type (
 		GetArt(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, viewerHash string) (*dto.ArtDetailResponse, error)
 		UpdateArt(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.UpdateArtRequest) error
 		DeleteArt(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
-		ListArt(ctx context.Context, viewerID uuid.UUID, corner string, artType string, search string, tag string, sort string, limit, offset int) (*dto.ArtListResponse, error)
-		ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit, offset int) (*dto.ArtListResponse, error)
+		ListArt(ctx context.Context, viewerID uuid.UUID, corner string, artType string, search string, tag string, sort string, page bounds.Page) (*dto.ArtListResponse, error)
+		ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, page bounds.Page) (*dto.ArtListResponse, error)
 		LikeArt(ctx context.Context, userID uuid.UUID, artID uuid.UUID) error
 		UnlikeArt(ctx context.Context, userID uuid.UUID, artID uuid.UUID) error
 		GetCornerCounts(ctx context.Context) (map[string]int, error)
@@ -50,7 +51,7 @@ type (
 		UpdateGallery(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.UpdateGalleryRequest) error
 		SetGalleryCover(ctx context.Context, galleryID uuid.UUID, userID uuid.UUID, coverArtID *uuid.UUID) error
 		DeleteGallery(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
-		GetGallery(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, limit, offset int) (*dto.GalleryResponse, []dto.ArtResponse, int, error)
+		GetGallery(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, page bounds.Page) (*dto.GalleryResponse, []dto.ArtResponse, int, error)
 		ListUserGalleries(ctx context.Context, userID uuid.UUID) ([]dto.GalleryResponse, error)
 		ListAllGalleries(ctx context.Context, corner string) ([]dto.GalleryResponse, error)
 		SetArtGallery(ctx context.Context, artID uuid.UUID, userID uuid.UUID, galleryID *uuid.UUID) error
@@ -279,26 +280,26 @@ func (s *service) DeleteArt(ctx context.Context, id uuid.UUID, userID uuid.UUID)
 	return nil
 }
 
-func (s *service) ListArt(ctx context.Context, viewerID uuid.UUID, corner string, artType string, search string, tag string, sort string, limit, offset int) (*dto.ArtListResponse, error) {
+func (s *service) ListArt(ctx context.Context, viewerID uuid.UUID, corner string, artType string, search string, tag string, sort string, page bounds.Page) (*dto.ArtListResponse, error) {
 	if corner == "" {
 		corner = "general"
 	}
 
 	blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, viewerID)
-	rows, total, err := s.artRepo.ListAll(ctx, viewerID, corner, artType, search, tag, sort, limit, offset, blockedIDs)
+	rows, total, err := s.artRepo.ListAll(ctx, viewerID, corner, artType, search, tag, sort, page.Limit(), page.Offset(), blockedIDs)
 	if err != nil {
 		return nil, err
 	}
 
-	return s.buildArtList(ctx, rows, total, limit, offset), nil
+	return s.buildArtList(ctx, rows, total, page.Limit(), page.Offset()), nil
 }
 
-func (s *service) ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit, offset int) (*dto.ArtListResponse, error) {
-	rows, total, err := s.artRepo.ListByUser(ctx, userID, viewerID, limit, offset)
+func (s *service) ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, page bounds.Page) (*dto.ArtListResponse, error) {
+	rows, total, err := s.artRepo.ListByUser(ctx, userID, viewerID, page.Limit(), page.Offset())
 	if err != nil {
 		return nil, err
 	}
-	return s.buildArtList(ctx, rows, total, limit, offset), nil
+	return s.buildArtList(ctx, rows, total, page.Limit(), page.Offset()), nil
 }
 
 func (s *service) buildArtList(ctx context.Context, rows []model.ArtRow, total, limit, offset int) *dto.ArtListResponse {
@@ -613,7 +614,7 @@ func (s *service) DeleteGallery(ctx context.Context, id uuid.UUID, userID uuid.U
 	return nil
 }
 
-func (s *service) GetGallery(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, limit, offset int) (*dto.GalleryResponse, []dto.ArtResponse, int, error) {
+func (s *service) GetGallery(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, page bounds.Page) (*dto.GalleryResponse, []dto.ArtResponse, int, error) {
 	g, err := s.artRepo.GetGalleryByID(ctx, id)
 	if err != nil {
 		return nil, nil, 0, err
@@ -622,7 +623,7 @@ func (s *service) GetGallery(ctx context.Context, id uuid.UUID, viewerID uuid.UU
 		return nil, nil, 0, ErrNotFound
 	}
 
-	rows, total, err := s.artRepo.ListArtInGallery(ctx, id, viewerID, limit, offset)
+	rows, total, err := s.artRepo.ListArtInGallery(ctx, id, viewerID, page.Limit(), page.Offset())
 	if err != nil {
 		return nil, nil, 0, err
 	}

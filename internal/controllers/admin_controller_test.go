@@ -7,6 +7,7 @@ import (
 
 	adminsvc "umineko_city_of_books/internal/admin"
 	"umineko_city_of_books/internal/authz"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/role"
@@ -88,7 +89,7 @@ func TestAdminListUsers_OK(t *testing.T) {
 	h.ExpectValidSession("valid-cookie", userID)
 	h.ExpectHasPermission(userID, authz.PermViewUsers, true)
 	expected := &dto.AdminUserListResponse{Total: 5, Limit: 20, Offset: 0}
-	ms.EXPECT().ListUsers(mock.Anything, "", 20, 0).Return(expected, nil)
+	ms.EXPECT().ListUsers(mock.Anything, "", bounds.NewPage(20, 0)).Return(expected, nil)
 
 	// when
 	status, body := h.NewRequest("GET", "/admin/users").WithCookie("valid-cookie").Do()
@@ -105,7 +106,7 @@ func TestAdminListUsers_CustomQuery(t *testing.T) {
 	userID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
 	h.ExpectHasPermission(userID, authz.PermViewUsers, true)
-	ms.EXPECT().ListUsers(mock.Anything, "beato", 50, 10).Return(&dto.AdminUserListResponse{}, nil)
+	ms.EXPECT().ListUsers(mock.Anything, "beato", bounds.NewPage(50, 10)).Return(&dto.AdminUserListResponse{}, nil)
 
 	// when
 	status, _ := h.NewRequest("GET", "/admin/users?search=beato&limit=50&offset=10").
@@ -121,7 +122,7 @@ func TestAdminListUsers_InternalError(t *testing.T) {
 	userID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
 	h.ExpectHasPermission(userID, authz.PermViewUsers, true)
-	ms.EXPECT().ListUsers(mock.Anything, "", 20, 0).Return(nil, errors.New("boom"))
+	ms.EXPECT().ListUsers(mock.Anything, "", bounds.NewPage(20, 0)).Return(nil, errors.New("boom"))
 
 	// when
 	status, _ := h.NewRequest("GET", "/admin/users").WithCookie("valid-cookie").Do()
@@ -816,7 +817,7 @@ func TestAdminGetAuditLog_OK(t *testing.T) {
 	h.ExpectValidSession("valid-cookie", userID)
 	h.ExpectHasPermission(userID, authz.PermViewAuditLog, true)
 	expected := &dto.AuditLogListResponse{Total: 3, Limit: 50, Offset: 0}
-	ms.EXPECT().GetAuditLog(mock.Anything, "", 50, 0).Return(expected, nil)
+	ms.EXPECT().GetAuditLog(mock.Anything, "", bounds.NewPage(50, 0)).Return(expected, nil)
 
 	// when
 	status, body := h.NewRequest("GET", "/admin/audit-log").WithCookie("valid-cookie").Do()
@@ -833,7 +834,7 @@ func TestAdminGetAuditLog_CustomQuery(t *testing.T) {
 	userID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
 	h.ExpectHasPermission(userID, authz.PermViewAuditLog, true)
-	ms.EXPECT().GetAuditLog(mock.Anything, "ban_user", 10, 20).Return(&dto.AuditLogListResponse{}, nil)
+	ms.EXPECT().GetAuditLog(mock.Anything, "ban_user", bounds.NewPage(10, 20)).Return(&dto.AuditLogListResponse{}, nil)
 
 	// when
 	status, _ := h.NewRequest("GET", "/admin/audit-log?action=ban_user&limit=10&offset=20").
@@ -849,7 +850,7 @@ func TestAdminGetAuditLog_InternalError(t *testing.T) {
 	userID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
 	h.ExpectHasPermission(userID, authz.PermViewAuditLog, true)
-	ms.EXPECT().GetAuditLog(mock.Anything, "", 50, 0).Return(nil, errors.New("boom"))
+	ms.EXPECT().GetAuditLog(mock.Anything, "", bounds.NewPage(50, 0)).Return(nil, errors.New("boom"))
 
 	// when
 	status, _ := h.NewRequest("GET", "/admin/audit-log").WithCookie("valid-cookie").Do()
@@ -906,7 +907,7 @@ func TestAdminListInvites_OK(t *testing.T) {
 	h.ExpectValidSession("valid-cookie", userID)
 	h.ExpectHasPermission(userID, authz.PermManageRoles, true)
 	expected := &dto.InviteListResponse{Total: 7, Limit: 50, Offset: 0}
-	ms.EXPECT().ListInvites(mock.Anything, 50, 0).Return(expected, nil)
+	ms.EXPECT().ListInvites(mock.Anything, bounds.NewPage(50, 0)).Return(expected, nil)
 
 	// when
 	status, body := h.NewRequest("GET", "/admin/invites").WithCookie("valid-cookie").Do()
@@ -923,7 +924,7 @@ func TestAdminListInvites_CustomQuery(t *testing.T) {
 	userID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
 	h.ExpectHasPermission(userID, authz.PermManageRoles, true)
-	ms.EXPECT().ListInvites(mock.Anything, 5, 15).Return(&dto.InviteListResponse{}, nil)
+	ms.EXPECT().ListInvites(mock.Anything, bounds.NewPage(5, 15)).Return(&dto.InviteListResponse{}, nil)
 
 	// when
 	status, _ := h.NewRequest("GET", "/admin/invites?limit=5&offset=15").WithCookie("valid-cookie").Do()
@@ -938,7 +939,7 @@ func TestAdminListInvites_InternalError(t *testing.T) {
 	userID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
 	h.ExpectHasPermission(userID, authz.PermManageRoles, true)
-	ms.EXPECT().ListInvites(mock.Anything, 50, 0).Return(nil, errors.New("boom"))
+	ms.EXPECT().ListInvites(mock.Anything, bounds.NewPage(50, 0)).Return(nil, errors.New("boom"))
 
 	// when
 	status, _ := h.NewRequest("GET", "/admin/invites").WithCookie("valid-cookie").Do()
@@ -1373,7 +1374,7 @@ func TestAdminGetVanityRoleUsers_OK(t *testing.T) {
 	h.ExpectValidSession("valid-cookie", userID)
 	h.ExpectHasPermission(userID, authz.PermManageVanityRoles, true)
 	expected := &dto.VanityRoleUsersResponse{Total: 2, Limit: 20, Offset: 0}
-	ms.EXPECT().GetVanityRoleUsers(mock.Anything, "r1", "", 20, 0).Return(expected, nil)
+	ms.EXPECT().GetVanityRoleUsers(mock.Anything, "r1", "", bounds.NewPage(20, 0)).Return(expected, nil)
 
 	// when
 	status, body := h.NewRequest("GET", "/admin/vanity-roles/r1/users").WithCookie("valid-cookie").Do()
@@ -1390,7 +1391,7 @@ func TestAdminGetVanityRoleUsers_CustomQuery(t *testing.T) {
 	userID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
 	h.ExpectHasPermission(userID, authz.PermManageVanityRoles, true)
-	ms.EXPECT().GetVanityRoleUsers(mock.Anything, "r1", "beato", 5, 10).Return(&dto.VanityRoleUsersResponse{}, nil)
+	ms.EXPECT().GetVanityRoleUsers(mock.Anything, "r1", "beato", bounds.NewPage(5, 10)).Return(&dto.VanityRoleUsersResponse{}, nil)
 
 	// when
 	status, _ := h.NewRequest("GET", "/admin/vanity-roles/r1/users?search=beato&limit=5&offset=10").
@@ -1406,7 +1407,7 @@ func TestAdminGetVanityRoleUsers_InternalError(t *testing.T) {
 	userID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
 	h.ExpectHasPermission(userID, authz.PermManageVanityRoles, true)
-	ms.EXPECT().GetVanityRoleUsers(mock.Anything, "r1", "", 20, 0).Return(nil, errors.New("boom"))
+	ms.EXPECT().GetVanityRoleUsers(mock.Anything, "r1", "", bounds.NewPage(20, 0)).Return(nil, errors.New("boom"))
 
 	// when
 	status, _ := h.NewRequest("GET", "/admin/vanity-roles/r1/users").WithCookie("valid-cookie").Do()

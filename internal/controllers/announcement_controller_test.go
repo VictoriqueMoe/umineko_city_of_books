@@ -7,6 +7,7 @@ import (
 
 	announcementsvc "umineko_city_of_books/internal/announcement"
 	"umineko_city_of_books/internal/authz"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
 	"umineko_city_of_books/internal/dto"
 
@@ -44,7 +45,7 @@ func announcementFactory(t *testing.T) (*testutil.Harness, announcementDeps) {
 func TestListAnnouncements_OK(t *testing.T) {
 	// given
 	h, deps := newAnnouncementHarness(t)
-	deps.svc.EXPECT().List(mock.Anything, 20, 0).Return(&dto.AnnouncementListResponse{
+	deps.svc.EXPECT().List(mock.Anything, bounds.NewPage(20, 0)).Return(&dto.AnnouncementListResponse{
 		Announcements: []dto.AnnouncementResponse{{ID: uuid.New(), Title: "Welcome"}},
 		Total:         1,
 		Limit:         20,
@@ -63,7 +64,7 @@ func TestListAnnouncements_OK(t *testing.T) {
 func TestListAnnouncements_CustomPaging(t *testing.T) {
 	// given
 	h, deps := newAnnouncementHarness(t)
-	deps.svc.EXPECT().List(mock.Anything, 5, 10).Return(&dto.AnnouncementListResponse{Limit: 5, Offset: 10}, nil)
+	deps.svc.EXPECT().List(mock.Anything, bounds.NewPage(5, 10)).Return(&dto.AnnouncementListResponse{Limit: 5, Offset: 10}, nil)
 
 	// when
 	status, body := h.NewRequest("GET", "/announcements?limit=5&offset=10").Do()
@@ -78,7 +79,7 @@ func TestListAnnouncements_CustomPaging(t *testing.T) {
 func TestListAnnouncements_InternalError(t *testing.T) {
 	// given
 	h, deps := newAnnouncementHarness(t)
-	deps.svc.EXPECT().List(mock.Anything, 20, 0).Return(nil, errors.New("boom"))
+	deps.svc.EXPECT().List(mock.Anything, bounds.NewPage(20, 0)).Return(nil, errors.New("boom"))
 
 	// when
 	status, body := h.NewRequest("GET", "/announcements").Do()

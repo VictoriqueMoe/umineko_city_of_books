@@ -8,6 +8,7 @@ import (
 
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
@@ -427,7 +428,7 @@ func TestListArt_RepoError(t *testing.T) {
 		Return(nil, 0, errors.New("db"))
 
 	// when
-	_, err := svc.ListArt(context.Background(), viewerID, "", "", "", "", "", 10, 0)
+	_, err := svc.ListArt(context.Background(), viewerID, "", "", "", "", "", bounds.NewPage(10, 0))
 
 	// then
 	require.Error(t, err)
@@ -447,7 +448,7 @@ func TestListArt_OK_DefaultsCornerAndThumbnails(t *testing.T) {
 	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("https://example.com")
 
 	// when
-	got, err := svc.ListArt(context.Background(), viewerID, "", "drawing", "q", "tag", "new", 10, 5)
+	got, err := svc.ListArt(context.Background(), viewerID, "", "drawing", "q", "tag", "new", bounds.NewPage(10, 5))
 
 	// then
 	require.NoError(t, err)
@@ -468,7 +469,7 @@ func TestListByUser_RepoError(t *testing.T) {
 		Return(nil, 0, errors.New("boom"))
 
 	// when
-	_, err := svc.ListByUser(context.Background(), userID, viewerID, 10, 0)
+	_, err := svc.ListByUser(context.Background(), userID, viewerID, bounds.NewPage(10, 0))
 
 	// then
 	require.Error(t, err)
@@ -486,7 +487,7 @@ func TestListByUser_OK(t *testing.T) {
 	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("")
 
 	// when
-	got, err := svc.ListByUser(context.Background(), userID, viewerID, 10, 0)
+	got, err := svc.ListByUser(context.Background(), userID, viewerID, bounds.NewPage(10, 0))
 
 	// then
 	require.NoError(t, err)
@@ -1212,7 +1213,7 @@ func TestGetGallery_RepoError(t *testing.T) {
 	m.artRepo.EXPECT().GetGalleryByID(mock.Anything, id).Return(nil, errors.New("boom"))
 
 	// when
-	_, _, _, err := svc.GetGallery(context.Background(), id, uuid.Nil, 10, 0)
+	_, _, _, err := svc.GetGallery(context.Background(), id, uuid.Nil, bounds.NewPage(10, 0))
 
 	// then
 	require.Error(t, err)
@@ -1225,7 +1226,7 @@ func TestGetGallery_NotFound(t *testing.T) {
 	m.artRepo.EXPECT().GetGalleryByID(mock.Anything, id).Return(nil, nil)
 
 	// when
-	_, _, _, err := svc.GetGallery(context.Background(), id, uuid.Nil, 10, 0)
+	_, _, _, err := svc.GetGallery(context.Background(), id, uuid.Nil, bounds.NewPage(10, 0))
 
 	// then
 	require.ErrorIs(t, err, ErrNotFound)
@@ -1243,7 +1244,7 @@ func TestGetGallery_ListError(t *testing.T) {
 		Return(nil, 0, errors.New("boom"))
 
 	// when
-	_, _, _, err := svc.GetGallery(context.Background(), id, viewerID, 10, 0)
+	_, _, _, err := svc.GetGallery(context.Background(), id, viewerID, bounds.NewPage(10, 0))
 
 	// then
 	require.Error(t, err)
@@ -1263,7 +1264,7 @@ func TestGetGallery_OK_WithCoverThumbnail(t *testing.T) {
 	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("https://example.com")
 
 	// when
-	gallery, arts, total, err := svc.GetGallery(context.Background(), id, viewerID, 10, 0)
+	gallery, arts, total, err := svc.GetGallery(context.Background(), id, viewerID, bounds.NewPage(10, 0))
 
 	// then
 	require.NoError(t, err)

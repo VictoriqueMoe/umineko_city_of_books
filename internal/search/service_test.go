@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/search"
 
@@ -37,7 +38,7 @@ func TestService_Search_DelegatesAndDecoratesURLs(t *testing.T) {
 
 	// when
 	results, total, err := svc.Search(context.Background(), "battler",
-		[]repository.SearchEntityType{repository.SearchEntityTheory}, 20, 0, uuid.Nil, uuid.Nil)
+		[]repository.SearchEntityType{repository.SearchEntityTheory}, bounds.NewPage(20, 0), uuid.Nil, uuid.Nil)
 
 	// then
 	require.NoError(t, err)
@@ -52,7 +53,7 @@ func TestService_Search_EmptyQuery_NoRepoCall(t *testing.T) {
 	svc, _, _ := newSvc(t)
 
 	// when
-	results, total, err := svc.Search(context.Background(), "  ", nil, 20, 0, uuid.Nil, uuid.Nil)
+	results, total, err := svc.Search(context.Background(), "  ", nil, bounds.NewPage(20, 0), uuid.Nil, uuid.Nil)
 
 	// then
 	require.NoError(t, err)
@@ -66,7 +67,7 @@ func TestService_Search_ClampsLimit(t *testing.T) {
 	repo.EXPECT().Search(mock.Anything, "x", mock.Anything, 100, 0).Return(nil, 0, nil)
 
 	// when
-	_, _, err := svc.Search(context.Background(), "x", nil, 9999, 0, uuid.Nil, uuid.Nil)
+	_, _, err := svc.Search(context.Background(), "x", nil, bounds.NewPage(9999, 0), uuid.Nil, uuid.Nil)
 
 	// then
 	require.NoError(t, err)
@@ -78,7 +79,7 @@ func TestService_Search_AppliesDefaults(t *testing.T) {
 	repo.EXPECT().Search(mock.Anything, "x", mock.Anything, 20, 0).Return(nil, 0, nil)
 
 	// when
-	_, _, err := svc.Search(context.Background(), "x", nil, 0, -5, uuid.Nil, uuid.Nil)
+	_, _, err := svc.Search(context.Background(), "x", nil, bounds.NewPage(0, -5), uuid.Nil, uuid.Nil)
 
 	// then
 	require.NoError(t, err)
@@ -91,7 +92,7 @@ func TestService_Search_PropagatesError(t *testing.T) {
 		Return(nil, 0, errors.New("boom"))
 
 	// when
-	_, _, err := svc.Search(context.Background(), "x", nil, 20, 0, uuid.Nil, uuid.Nil)
+	_, _, err := svc.Search(context.Background(), "x", nil, bounds.NewPage(20, 0), uuid.Nil, uuid.Nil)
 
 	// then
 	assert.Error(t, err)
@@ -110,7 +111,7 @@ func TestService_Search_MergesChatForViewerSortedByRank(t *testing.T) {
 		}, 1, nil)
 
 	// when
-	results, total, err := svc.Search(context.Background(), "knox", nil, 20, 0, viewer, uuid.Nil)
+	results, total, err := svc.Search(context.Background(), "knox", nil, bounds.NewPage(20, 0), viewer, uuid.Nil)
 
 	// then
 	require.NoError(t, err)
@@ -130,7 +131,7 @@ func TestService_Search_OnlyChatType_SkipsRepo(t *testing.T) {
 
 	// when
 	results, total, err := svc.Search(context.Background(), "knox",
-		[]repository.SearchEntityType{repository.SearchEntityChatMessage}, 20, 0, viewer, uuid.Nil)
+		[]repository.SearchEntityType{repository.SearchEntityChatMessage}, bounds.NewPage(20, 0), viewer, uuid.Nil)
 
 	// then
 	require.NoError(t, err)
@@ -149,7 +150,7 @@ func TestService_Search_ScopesChatToRoom(t *testing.T) {
 
 	// when
 	results, total, err := svc.Search(context.Background(), "knox",
-		[]repository.SearchEntityType{repository.SearchEntityChatMessage}, 20, 0, viewer, room)
+		[]repository.SearchEntityType{repository.SearchEntityChatMessage}, bounds.NewPage(20, 0), viewer, room)
 
 	// then
 	require.NoError(t, err)
@@ -164,7 +165,7 @@ func TestService_Search_ChatTypeAnonymous_ReturnsNothing(t *testing.T) {
 
 	// when
 	results, total, err := svc.Search(context.Background(), "knox",
-		[]repository.SearchEntityType{repository.SearchEntityChatMessage}, 20, 0, uuid.Nil, uuid.Nil)
+		[]repository.SearchEntityType{repository.SearchEntityChatMessage}, bounds.NewPage(20, 0), uuid.Nil, uuid.Nil)
 
 	// then
 	require.NoError(t, err)

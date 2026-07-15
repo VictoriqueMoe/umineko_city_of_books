@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"umineko_city_of_books/internal/block"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
@@ -20,8 +21,8 @@ type (
 		Unfollow(ctx context.Context, followerID uuid.UUID, followingID uuid.UUID) error
 		GetFollowStats(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID) (*dto.FollowStatsResponse, error)
 		IsFollowing(ctx context.Context, followerID uuid.UUID, followingID uuid.UUID) (bool, error)
-		GetFollowers(ctx context.Context, userID uuid.UUID, limit, offset int) ([]dto.UserResponse, int, error)
-		GetFollowing(ctx context.Context, userID uuid.UUID, limit, offset int) ([]dto.UserResponse, int, error)
+		GetFollowers(ctx context.Context, userID uuid.UUID, page bounds.Page) ([]dto.UserResponse, int, error)
+		GetFollowing(ctx context.Context, userID uuid.UUID, page bounds.Page) ([]dto.UserResponse, int, error)
 		GetMutualFollowers(ctx context.Context, userID uuid.UUID) ([]dto.UserResponse, error)
 	}
 
@@ -131,16 +132,16 @@ func followUsersToDTO(users []repository.FollowUser) []dto.UserResponse {
 	return result
 }
 
-func (s *service) GetFollowers(ctx context.Context, userID uuid.UUID, limit, offset int) ([]dto.UserResponse, int, error) {
-	users, total, err := s.followRepo.GetFollowers(ctx, userID, limit, offset)
+func (s *service) GetFollowers(ctx context.Context, userID uuid.UUID, page bounds.Page) ([]dto.UserResponse, int, error) {
+	users, total, err := s.followRepo.GetFollowers(ctx, userID, page.Limit(), page.Offset())
 	if err != nil {
 		return nil, 0, err
 	}
 	return followUsersToDTO(users), total, nil
 }
 
-func (s *service) GetFollowing(ctx context.Context, userID uuid.UUID, limit, offset int) ([]dto.UserResponse, int, error) {
-	users, total, err := s.followRepo.GetFollowing(ctx, userID, limit, offset)
+func (s *service) GetFollowing(ctx context.Context, userID uuid.UUID, page bounds.Page) ([]dto.UserResponse, int, error) {
+	users, total, err := s.followRepo.GetFollowing(ctx, userID, page.Limit(), page.Offset())
 	if err != nil {
 		return nil, 0, err
 	}

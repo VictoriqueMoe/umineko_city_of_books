@@ -9,6 +9,7 @@ import (
 
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
@@ -601,7 +602,7 @@ func TestListFanficsByUser_RepoError(t *testing.T) {
 	m.fanficRepo.EXPECT().ListByUser(mock.Anything, userID, viewer, 10, 0).Return(nil, 0, errors.New("boom"))
 
 	// when
-	_, err := svc.ListFanficsByUser(context.Background(), userID, viewer, 10, 0)
+	_, err := svc.ListFanficsByUser(context.Background(), userID, viewer, bounds.NewPage(10, 0))
 
 	// then
 	require.Error(t, err)
@@ -620,7 +621,7 @@ func TestListFanficsByUser_OK(t *testing.T) {
 	m.fanficRepo.EXPECT().GetCharactersBatch(mock.Anything, []uuid.UUID{id}).Return(nil, nil)
 
 	// when
-	got, err := svc.ListFanficsByUser(context.Background(), userID, viewer, 10, 0)
+	got, err := svc.ListFanficsByUser(context.Background(), userID, viewer, bounds.NewPage(10, 0))
 
 	// then
 	require.NoError(t, err)
@@ -636,7 +637,7 @@ func TestListFavourites_RepoError(t *testing.T) {
 	m.fanficRepo.EXPECT().ListFavourites(mock.Anything, userID, viewer, 10, 0).Return(nil, 0, errors.New("boom"))
 
 	// when
-	_, err := svc.ListFavourites(context.Background(), userID, viewer, 10, 0)
+	_, err := svc.ListFavourites(context.Background(), userID, viewer, bounds.NewPage(10, 0))
 
 	// then
 	require.Error(t, err)
@@ -655,7 +656,7 @@ func TestListFavourites_OK(t *testing.T) {
 	m.fanficRepo.EXPECT().GetCharactersBatch(mock.Anything, []uuid.UUID{id}).Return(nil, nil)
 
 	// when
-	got, err := svc.ListFavourites(context.Background(), userID, viewer, 10, 0)
+	got, err := svc.ListFavourites(context.Background(), userID, viewer, bounds.NewPage(10, 0))
 
 	// then
 	require.NoError(t, err)

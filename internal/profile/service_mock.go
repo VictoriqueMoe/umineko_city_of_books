@@ -7,6 +7,7 @@ package profile
 import (
 	"context"
 	"io"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/dto"
 
 	"github.com/google/uuid"
@@ -167,8 +168,8 @@ func (_c *MockService_DeleteAccount_Call) RunAndReturn(run func(ctx context.Cont
 }
 
 // GetActivity provides a mock function for the type MockService
-func (_mock *MockService) GetActivity(ctx context.Context, username string, limit int, offset int) (*dto.ActivityListResponse, error) {
-	ret := _mock.Called(ctx, username, limit, offset)
+func (_mock *MockService) GetActivity(ctx context.Context, username string, page bounds.Page) (*dto.ActivityListResponse, error) {
+	ret := _mock.Called(ctx, username, page)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetActivity")
@@ -176,18 +177,18 @@ func (_mock *MockService) GetActivity(ctx context.Context, username string, limi
 
 	var r0 *dto.ActivityListResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int, int) (*dto.ActivityListResponse, error)); ok {
-		return returnFunc(ctx, username, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, bounds.Page) (*dto.ActivityListResponse, error)); ok {
+		return returnFunc(ctx, username, page)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int, int) *dto.ActivityListResponse); ok {
-		r0 = returnFunc(ctx, username, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, bounds.Page) *dto.ActivityListResponse); ok {
+		r0 = returnFunc(ctx, username, page)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*dto.ActivityListResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, int, int) error); ok {
-		r1 = returnFunc(ctx, username, limit, offset)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, bounds.Page) error); ok {
+		r1 = returnFunc(ctx, username, page)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -202,13 +203,12 @@ type MockService_GetActivity_Call struct {
 // GetActivity is a helper method to define mock.On call
 //   - ctx context.Context
 //   - username string
-//   - limit int
-//   - offset int
-func (_e *MockService_Expecter) GetActivity(ctx any, username any, limit any, offset any) *MockService_GetActivity_Call {
-	return &MockService_GetActivity_Call{Call: _e.mock.On("GetActivity", ctx, username, limit, offset)}
+//   - page bounds.Page
+func (_e *MockService_Expecter) GetActivity(ctx any, username any, page any) *MockService_GetActivity_Call {
+	return &MockService_GetActivity_Call{Call: _e.mock.On("GetActivity", ctx, username, page)}
 }
 
-func (_c *MockService_GetActivity_Call) Run(run func(ctx context.Context, username string, limit int, offset int)) *MockService_GetActivity_Call {
+func (_c *MockService_GetActivity_Call) Run(run func(ctx context.Context, username string, page bounds.Page)) *MockService_GetActivity_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -218,19 +218,14 @@ func (_c *MockService_GetActivity_Call) Run(run func(ctx context.Context, userna
 		if args[1] != nil {
 			arg1 = args[1].(string)
 		}
-		var arg2 int
+		var arg2 bounds.Page
 		if args[2] != nil {
-			arg2 = args[2].(int)
-		}
-		var arg3 int
-		if args[3] != nil {
-			arg3 = args[3].(int)
+			arg2 = args[2].(bounds.Page)
 		}
 		run(
 			arg0,
 			arg1,
 			arg2,
-			arg3,
 		)
 	})
 	return _c
@@ -241,7 +236,7 @@ func (_c *MockService_GetActivity_Call) Return(activityListResponse *dto.Activit
 	return _c
 }
 
-func (_c *MockService_GetActivity_Call) RunAndReturn(run func(ctx context.Context, username string, limit int, offset int) (*dto.ActivityListResponse, error)) *MockService_GetActivity_Call {
+func (_c *MockService_GetActivity_Call) RunAndReturn(run func(ctx context.Context, username string, page bounds.Page) (*dto.ActivityListResponse, error)) *MockService_GetActivity_Call {
 	_c.Call.Return(run)
 	return _c
 }

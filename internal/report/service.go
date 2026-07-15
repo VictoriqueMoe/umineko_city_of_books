@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"umineko_city_of_books/internal/authz"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
@@ -17,7 +18,7 @@ import (
 type (
 	Service interface {
 		Create(ctx context.Context, reporterID uuid.UUID, req CreateReportRequest) error
-		List(ctx context.Context, status string, limit, offset int) (*ReportListResponse, error)
+		List(ctx context.Context, status string, page bounds.Page) (*ReportListResponse, error)
 		Resolve(ctx context.Context, id int, resolvedBy uuid.UUID, comment string) error
 	}
 
@@ -117,8 +118,8 @@ func (s *service) Create(ctx context.Context, reporterID uuid.UUID, req CreateRe
 	return nil
 }
 
-func (s *service) List(ctx context.Context, status string, limit, offset int) (*ReportListResponse, error) {
-	rows, total, err := s.reportRepo.List(ctx, status, limit, offset)
+func (s *service) List(ctx context.Context, status string, page bounds.Page) (*ReportListResponse, error) {
+	rows, total, err := s.reportRepo.List(ctx, status, page.Limit(), page.Offset())
 	if err != nil {
 		return nil, fmt.Errorf("list reports: %w", err)
 	}
@@ -142,8 +143,8 @@ func (s *service) List(ctx context.Context, status string, limit, offset int) (*
 	return &ReportListResponse{
 		Reports: reports,
 		Total:   total,
-		Limit:   limit,
-		Offset:  offset,
+		Limit:   page.Limit(),
+		Offset:  page.Offset(),
 	}, nil
 }
 

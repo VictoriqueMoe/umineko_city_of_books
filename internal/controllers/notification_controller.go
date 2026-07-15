@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/middleware"
 
@@ -34,10 +35,9 @@ func (s *Service) setupUnreadCountRoute(r fiber.Router) {
 
 func (s *Service) listNotifications(ctx fiber.Ctx) error {
 	userID := utils.UserID(ctx)
-	limit := fiber.Query[int](ctx, "limit", 20)
-	offset := fiber.Query[int](ctx, "offset", 0)
+	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 20), fiber.Query[int](ctx, "offset", 0))
 
-	result, err := s.NotificationService.List(ctx.Context(), userID, limit, offset)
+	result, err := s.NotificationService.List(ctx.Context(), userID, page)
 	if err != nil {
 		return utils.InternalError(ctx, "failed to list notifications")
 	}

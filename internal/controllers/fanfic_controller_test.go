@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/block"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
 	"umineko_city_of_books/internal/dto"
 	fanficsvc "umineko_city_of_books/internal/fanfic"
@@ -1395,7 +1396,7 @@ func TestListUserFanfics_Anonymous_OK(t *testing.T) {
 	// given
 	h, fs := newFanficHarness(t)
 	targetUserID := uuid.New()
-	fs.EXPECT().ListFanficsByUser(mock.Anything, targetUserID, uuid.Nil, 20, 0).Return(&dto.FanficListResponse{}, nil)
+	fs.EXPECT().ListFanficsByUser(mock.Anything, targetUserID, uuid.Nil, bounds.NewPage(20, 0)).Return(&dto.FanficListResponse{}, nil)
 
 	// when
 	status, _ := h.NewRequest("GET", "/users/"+targetUserID.String()+"/fanfics").Do()
@@ -1410,7 +1411,7 @@ func TestListUserFanfics_Authenticated_PassesViewerID(t *testing.T) {
 	viewerID := uuid.New()
 	targetUserID := uuid.New()
 	h.ExpectValidSession("valid-cookie", viewerID)
-	fs.EXPECT().ListFanficsByUser(mock.Anything, targetUserID, viewerID, 20, 0).Return(&dto.FanficListResponse{}, nil)
+	fs.EXPECT().ListFanficsByUser(mock.Anything, targetUserID, viewerID, bounds.NewPage(20, 0)).Return(&dto.FanficListResponse{}, nil)
 
 	// when
 	status, _ := h.NewRequest("GET", "/users/"+targetUserID.String()+"/fanfics").WithCookie("valid-cookie").Do()
@@ -1423,7 +1424,7 @@ func TestListUserFanfics_CustomPaging(t *testing.T) {
 	// given
 	h, fs := newFanficHarness(t)
 	targetUserID := uuid.New()
-	fs.EXPECT().ListFanficsByUser(mock.Anything, targetUserID, uuid.Nil, 5, 10).Return(&dto.FanficListResponse{}, nil)
+	fs.EXPECT().ListFanficsByUser(mock.Anything, targetUserID, uuid.Nil, bounds.NewPage(5, 10)).Return(&dto.FanficListResponse{}, nil)
 
 	// when
 	status, _ := h.NewRequest("GET", "/users/"+targetUserID.String()+"/fanfics?limit=5&offset=10").Do()
@@ -1448,7 +1449,7 @@ func TestListUserFanfics_InternalError(t *testing.T) {
 	// given
 	h, fs := newFanficHarness(t)
 	targetUserID := uuid.New()
-	fs.EXPECT().ListFanficsByUser(mock.Anything, targetUserID, uuid.Nil, 20, 0).Return(nil, errors.New("boom"))
+	fs.EXPECT().ListFanficsByUser(mock.Anything, targetUserID, uuid.Nil, bounds.NewPage(20, 0)).Return(nil, errors.New("boom"))
 
 	// when
 	status, body := h.NewRequest("GET", "/users/"+targetUserID.String()+"/fanfics").Do()
@@ -1462,7 +1463,7 @@ func TestListUserFanficFavourites_Anonymous_OK(t *testing.T) {
 	// given
 	h, fs := newFanficHarness(t)
 	targetUserID := uuid.New()
-	fs.EXPECT().ListFavourites(mock.Anything, targetUserID, uuid.Nil, 20, 0).Return(&dto.FanficListResponse{}, nil)
+	fs.EXPECT().ListFavourites(mock.Anything, targetUserID, uuid.Nil, bounds.NewPage(20, 0)).Return(&dto.FanficListResponse{}, nil)
 
 	// when
 	status, _ := h.NewRequest("GET", "/users/"+targetUserID.String()+"/fanfic-favourites").Do()
@@ -1477,7 +1478,7 @@ func TestListUserFanficFavourites_Authenticated_PassesViewerID(t *testing.T) {
 	viewerID := uuid.New()
 	targetUserID := uuid.New()
 	h.ExpectValidSession("valid-cookie", viewerID)
-	fs.EXPECT().ListFavourites(mock.Anything, targetUserID, viewerID, 20, 0).Return(&dto.FanficListResponse{}, nil)
+	fs.EXPECT().ListFavourites(mock.Anything, targetUserID, viewerID, bounds.NewPage(20, 0)).Return(&dto.FanficListResponse{}, nil)
 
 	// when
 	status, _ := h.NewRequest("GET", "/users/"+targetUserID.String()+"/fanfic-favourites").WithCookie("valid-cookie").Do()
@@ -1490,7 +1491,7 @@ func TestListUserFanficFavourites_CustomPaging(t *testing.T) {
 	// given
 	h, fs := newFanficHarness(t)
 	targetUserID := uuid.New()
-	fs.EXPECT().ListFavourites(mock.Anything, targetUserID, uuid.Nil, 5, 10).Return(&dto.FanficListResponse{}, nil)
+	fs.EXPECT().ListFavourites(mock.Anything, targetUserID, uuid.Nil, bounds.NewPage(5, 10)).Return(&dto.FanficListResponse{}, nil)
 
 	// when
 	status, _ := h.NewRequest("GET", "/users/"+targetUserID.String()+"/fanfic-favourites?limit=5&offset=10").Do()
@@ -1515,7 +1516,7 @@ func TestListUserFanficFavourites_InternalError(t *testing.T) {
 	// given
 	h, fs := newFanficHarness(t)
 	targetUserID := uuid.New()
-	fs.EXPECT().ListFavourites(mock.Anything, targetUserID, uuid.Nil, 20, 0).Return(nil, errors.New("boom"))
+	fs.EXPECT().ListFavourites(mock.Anything, targetUserID, uuid.Nil, bounds.NewPage(20, 0)).Return(nil, errors.New("boom"))
 
 	// when
 	status, body := h.NewRequest("GET", "/users/"+targetUserID.String()+"/fanfic-favourites").Do()

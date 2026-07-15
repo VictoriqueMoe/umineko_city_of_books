@@ -10,6 +10,7 @@ import (
 
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
@@ -93,7 +94,7 @@ func TestListMysteries_RepoError(t *testing.T) {
 	m.repo.EXPECT().List(mock.Anything, "new", (*bool)(nil), 10, 0, []uuid.UUID(nil)).Return(nil, 0, errors.New("boom"))
 
 	// when
-	_, err := svc.ListMysteries(context.Background(), "new", nil, viewer, 10, 0)
+	_, err := svc.ListMysteries(context.Background(), "new", nil, viewer, bounds.NewPage(10, 0))
 
 	// then
 	require.Error(t, err)
@@ -112,7 +113,7 @@ func TestListMysteries_OK_TruncatesLongBody(t *testing.T) {
 	m.repo.EXPECT().List(mock.Anything, "new", (*bool)(nil), 5, 0, []uuid.UUID(nil)).Return(rows, 1, nil)
 
 	// when
-	got, err := svc.ListMysteries(context.Background(), "new", nil, viewer, 5, 0)
+	got, err := svc.ListMysteries(context.Background(), "new", nil, viewer, bounds.NewPage(5, 0))
 
 	// then
 	require.NoError(t, err)
@@ -131,7 +132,7 @@ func TestListMysteries_OK_ShortBodyPreserved(t *testing.T) {
 	m.repo.EXPECT().List(mock.Anything, "new", (*bool)(nil), 10, 0, []uuid.UUID(nil)).Return(rows, 1, nil)
 
 	// when
-	got, err := svc.ListMysteries(context.Background(), "new", nil, viewer, 10, 0)
+	got, err := svc.ListMysteries(context.Background(), "new", nil, viewer, bounds.NewPage(10, 0))
 
 	// then
 	require.NoError(t, err)
@@ -1179,7 +1180,7 @@ func TestGetLeaderboard_RepoError(t *testing.T) {
 	m.repo.EXPECT().GetLeaderboard(mock.Anything, 10).Return(nil, errors.New("boom"))
 
 	// when
-	_, err := svc.GetLeaderboard(context.Background(), 10)
+	_, err := svc.GetLeaderboard(context.Background(), bounds.NewPage(10, 0))
 
 	// then
 	require.Error(t, err)
@@ -1192,7 +1193,7 @@ func TestGetLeaderboard_OK(t *testing.T) {
 	m.repo.EXPECT().GetLeaderboard(mock.Anything, 10).Return(entries, nil)
 
 	// when
-	got, err := svc.GetLeaderboard(context.Background(), 10)
+	got, err := svc.GetLeaderboard(context.Background(), bounds.NewPage(10, 0))
 
 	// then
 	require.NoError(t, err)
@@ -1220,7 +1221,7 @@ func TestGetGMLeaderboard_RepoError(t *testing.T) {
 	m.repo.EXPECT().GetGMLeaderboard(mock.Anything, 5).Return(nil, errors.New("boom"))
 
 	// when
-	_, err := svc.GetGMLeaderboard(context.Background(), 5)
+	_, err := svc.GetGMLeaderboard(context.Background(), bounds.NewPage(5, 0))
 
 	// then
 	require.Error(t, err)
@@ -1233,7 +1234,7 @@ func TestGetGMLeaderboard_OK(t *testing.T) {
 	m.repo.EXPECT().GetGMLeaderboard(mock.Anything, 5).Return(entries, nil)
 
 	// when
-	got, err := svc.GetGMLeaderboard(context.Background(), 5)
+	got, err := svc.GetGMLeaderboard(context.Background(), bounds.NewPage(5, 0))
 
 	// then
 	require.NoError(t, err)
@@ -1261,7 +1262,7 @@ func TestListByUser_RepoError(t *testing.T) {
 	m.repo.EXPECT().ListByUser(mock.Anything, userID, 10, 0).Return(nil, 0, errors.New("boom"))
 
 	// when
-	_, err := svc.ListByUser(context.Background(), userID, 10, 0)
+	_, err := svc.ListByUser(context.Background(), userID, bounds.NewPage(10, 0))
 
 	// then
 	require.Error(t, err)
@@ -1279,7 +1280,7 @@ func TestListByUser_TruncatesLongBody(t *testing.T) {
 	m.repo.EXPECT().ListByUser(mock.Anything, userID, 10, 0).Return(rows, 1, nil)
 
 	// when
-	got, err := svc.ListByUser(context.Background(), userID, 10, 0)
+	got, err := svc.ListByUser(context.Background(), userID, bounds.NewPage(10, 0))
 
 	// then
 	require.NoError(t, err)

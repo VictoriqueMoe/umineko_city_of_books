@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/block"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
 	"umineko_city_of_books/internal/dto"
 	shipsvc "umineko_city_of_books/internal/ship"
@@ -35,7 +36,7 @@ func TestListShips_Anonymous_OK(t *testing.T) {
 	// given
 	h, ss := newShipHarness(t)
 	expected := &dto.ShipListResponse{Total: 0, Limit: 20, Offset: 0}
-	ss.EXPECT().ListShips(mock.Anything, uuid.Nil, "new", false, "", "", 20, 0).Return(expected, nil)
+	ss.EXPECT().ListShips(mock.Anything, uuid.Nil, "new", false, "", "", bounds.NewPage(20, 0)).Return(expected, nil)
 
 	// when
 	status, body := h.NewRequest("GET", "/ships").Do()
@@ -49,7 +50,7 @@ func TestListShips_Anonymous_OK(t *testing.T) {
 func TestListShips_CustomQuery_OK(t *testing.T) {
 	// given
 	h, ss := newShipHarness(t)
-	ss.EXPECT().ListShips(mock.Anything, uuid.Nil, "top", true, "umineko", "beato", 10, 5).
+	ss.EXPECT().ListShips(mock.Anything, uuid.Nil, "top", true, "umineko", "beato", bounds.NewPage(10, 5)).
 		Return(&dto.ShipListResponse{}, nil)
 
 	// when
@@ -64,7 +65,7 @@ func TestListShips_Authenticated_PassesViewerID(t *testing.T) {
 	h, ss := newShipHarness(t)
 	userID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
-	ss.EXPECT().ListShips(mock.Anything, userID, "new", false, "", "", 20, 0).
+	ss.EXPECT().ListShips(mock.Anything, userID, "new", false, "", "", bounds.NewPage(20, 0)).
 		Return(&dto.ShipListResponse{}, nil)
 
 	// when
@@ -77,7 +78,7 @@ func TestListShips_Authenticated_PassesViewerID(t *testing.T) {
 func TestListShips_InternalError(t *testing.T) {
 	// given
 	h, ss := newShipHarness(t)
-	ss.EXPECT().ListShips(mock.Anything, uuid.Nil, "new", false, "", "", 20, 0).
+	ss.EXPECT().ListShips(mock.Anything, uuid.Nil, "new", false, "", "", bounds.NewPage(20, 0)).
 		Return(nil, errors.New("boom"))
 
 	// when
@@ -905,7 +906,7 @@ func TestListUserShips_OK(t *testing.T) {
 	// given
 	h, ss := newShipHarness(t)
 	targetUserID := uuid.New()
-	ss.EXPECT().ListShipsByUser(mock.Anything, targetUserID, uuid.Nil, 20, 0).Return(&dto.ShipListResponse{}, nil)
+	ss.EXPECT().ListShipsByUser(mock.Anything, targetUserID, uuid.Nil, bounds.NewPage(20, 0)).Return(&dto.ShipListResponse{}, nil)
 
 	// when
 	status, _ := h.NewRequest("GET", "/users/"+targetUserID.String()+"/ships").Do()
@@ -920,7 +921,7 @@ func TestListUserShips_Authenticated_PassesViewerID(t *testing.T) {
 	viewerID := uuid.New()
 	targetUserID := uuid.New()
 	h.ExpectValidSession("valid-cookie", viewerID)
-	ss.EXPECT().ListShipsByUser(mock.Anything, targetUserID, viewerID, 20, 0).Return(&dto.ShipListResponse{}, nil)
+	ss.EXPECT().ListShipsByUser(mock.Anything, targetUserID, viewerID, bounds.NewPage(20, 0)).Return(&dto.ShipListResponse{}, nil)
 
 	// when
 	status, _ := h.NewRequest("GET", "/users/"+targetUserID.String()+"/ships").WithCookie("valid-cookie").Do()
@@ -933,7 +934,7 @@ func TestListUserShips_CustomPaging(t *testing.T) {
 	// given
 	h, ss := newShipHarness(t)
 	targetUserID := uuid.New()
-	ss.EXPECT().ListShipsByUser(mock.Anything, targetUserID, uuid.Nil, 5, 10).Return(&dto.ShipListResponse{}, nil)
+	ss.EXPECT().ListShipsByUser(mock.Anything, targetUserID, uuid.Nil, bounds.NewPage(5, 10)).Return(&dto.ShipListResponse{}, nil)
 
 	// when
 	status, _ := h.NewRequest("GET", "/users/"+targetUserID.String()+"/ships?limit=5&offset=10").Do()
@@ -958,7 +959,7 @@ func TestListUserShips_InternalError(t *testing.T) {
 	// given
 	h, ss := newShipHarness(t)
 	targetUserID := uuid.New()
-	ss.EXPECT().ListShipsByUser(mock.Anything, targetUserID, uuid.Nil, 20, 0).Return(nil, errors.New("boom"))
+	ss.EXPECT().ListShipsByUser(mock.Anything, targetUserID, uuid.Nil, bounds.NewPage(20, 0)).Return(nil, errors.New("boom"))
 
 	// when
 	status, body := h.NewRequest("GET", "/users/"+targetUserID.String()+"/ships").Do()

@@ -4,11 +4,16 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"image"
+	"image/color"
 	"image/jpeg"
+	"image/png"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
+
+	"umineko_city_of_books/internal/bounds"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -49,7 +54,7 @@ func TestWebPToJPEG(t *testing.T) {
 			path := writeFixture(t, tc.hex)
 
 			// when
-			out, err := WebPToJPEG(context.Background(), path)
+			out, err := WebPToJPEG(context.Background(), path, 0)
 
 			// then
 			require.NoError(t, err)
@@ -66,8 +71,62 @@ func TestWebPToJPEG_MissingFile(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "missing.webp")
 
 	// when
-	_, err := WebPToJPEG(context.Background(), path)
+	_, err := WebPToJPEG(context.Background(), path, 0)
 
 	// then
 	require.Error(t, err)
+}
+
+func TestWebPToJPEG_DownscalesWideImage(t *testing.T) {
+	for _, bin := range []string{"cwebp", "dwebp"} {
+		if _, err := exec.LookPath(bin); err != nil {
+			t.Skipf("%s not installed", bin)
+		}
+	}
+
+	// given a webp wider than the og target
+	dir := t.TempDir()
+	srcPNG := filepath.Join(dir, "wide.png")
+	srcWebP := filepath.Join(dir, "wide.webp")
+	writeWidePNG(t, srcPNG, 2400, 600)
+	if out, err := exec.Command("cwebp", "-q", "80", srcPNG, "-o", srcWebP).CombinedOutput(); err != nil {
+		t.Skipf("cwebp failed: %v: %s", err, out)
+	}
+
+	// when it is converted for og
+	out, err := WebPToJPEG(context.Background(), srcWebP, 0)
+
+	// then it comes back scaled to the og width with aspect preserved
+	require.NoError(t, err)
+	cfg, err := jpeg.DecodeConfig(bytes.NewReader(out))
+	require.NoError(t, err)
+	assert.Equal(t, ogMaxWidth, cfg.Width)
+	assert.Equal(t, ogMaxWidth/4, cfg.Height)
+}
+
+func writeWidePNG(t *testing.T, path string, w, h int) {
+	t.Helper()
+	img := image.NewNRGBA(image.Rect(0, 0, w, h))
+	for y := range h {
+		for x := range w {
+			img.Set(x, y, color.NRGBA{R: uint8(x % 256), G: uint8(y % 256), B: 128, A: 255})
+		}
+	}
+
+	f, err := os.Create(path)
+	require.NoError(t, err)
+	defer f.Close()
+	require.NoError(t, png.Encode(f, img))
+}
+
+func TestWebPToJPEG_RejectsImageOverPixelBound(t *testing.T) {
+	// given an 8x8 image and a pixel budget it cannot meet
+	path := writeFixture(t, tinyWebPHex)
+
+	// when it is converted
+	_, err := WebPToJPEG(context.Background(), path, 1)
+
+	// then it is rejected before any decode allocates
+	require.Error(t, err)
+	assert.ErrorIs(t, err, bounds.ErrImageBounds)
 }

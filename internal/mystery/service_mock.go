@@ -7,6 +7,7 @@ package mystery
 import (
 	"context"
 	"io"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/dto"
 
 	"github.com/google/uuid"
@@ -740,8 +741,8 @@ func (_c *MockService_DeleteMystery_Call) RunAndReturn(run func(ctx context.Cont
 }
 
 // GetGMLeaderboard provides a mock function for the type MockService
-func (_mock *MockService) GetGMLeaderboard(ctx context.Context, limit int) (*dto.GMLeaderboardResponse, error) {
-	ret := _mock.Called(ctx, limit)
+func (_mock *MockService) GetGMLeaderboard(ctx context.Context, page bounds.Page) (*dto.GMLeaderboardResponse, error) {
+	ret := _mock.Called(ctx, page)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetGMLeaderboard")
@@ -749,18 +750,18 @@ func (_mock *MockService) GetGMLeaderboard(ctx context.Context, limit int) (*dto
 
 	var r0 *dto.GMLeaderboardResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int) (*dto.GMLeaderboardResponse, error)); ok {
-		return returnFunc(ctx, limit)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, bounds.Page) (*dto.GMLeaderboardResponse, error)); ok {
+		return returnFunc(ctx, page)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int) *dto.GMLeaderboardResponse); ok {
-		r0 = returnFunc(ctx, limit)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, bounds.Page) *dto.GMLeaderboardResponse); ok {
+		r0 = returnFunc(ctx, page)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*dto.GMLeaderboardResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, int) error); ok {
-		r1 = returnFunc(ctx, limit)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, bounds.Page) error); ok {
+		r1 = returnFunc(ctx, page)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -774,20 +775,20 @@ type MockService_GetGMLeaderboard_Call struct {
 
 // GetGMLeaderboard is a helper method to define mock.On call
 //   - ctx context.Context
-//   - limit int
-func (_e *MockService_Expecter) GetGMLeaderboard(ctx any, limit any) *MockService_GetGMLeaderboard_Call {
-	return &MockService_GetGMLeaderboard_Call{Call: _e.mock.On("GetGMLeaderboard", ctx, limit)}
+//   - page bounds.Page
+func (_e *MockService_Expecter) GetGMLeaderboard(ctx any, page any) *MockService_GetGMLeaderboard_Call {
+	return &MockService_GetGMLeaderboard_Call{Call: _e.mock.On("GetGMLeaderboard", ctx, page)}
 }
 
-func (_c *MockService_GetGMLeaderboard_Call) Run(run func(ctx context.Context, limit int)) *MockService_GetGMLeaderboard_Call {
+func (_c *MockService_GetGMLeaderboard_Call) Run(run func(ctx context.Context, page bounds.Page)) *MockService_GetGMLeaderboard_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 int
+		var arg1 bounds.Page
 		if args[1] != nil {
-			arg1 = args[1].(int)
+			arg1 = args[1].(bounds.Page)
 		}
 		run(
 			arg0,
@@ -802,14 +803,14 @@ func (_c *MockService_GetGMLeaderboard_Call) Return(gMLeaderboardResponse *dto.G
 	return _c
 }
 
-func (_c *MockService_GetGMLeaderboard_Call) RunAndReturn(run func(ctx context.Context, limit int) (*dto.GMLeaderboardResponse, error)) *MockService_GetGMLeaderboard_Call {
+func (_c *MockService_GetGMLeaderboard_Call) RunAndReturn(run func(ctx context.Context, page bounds.Page) (*dto.GMLeaderboardResponse, error)) *MockService_GetGMLeaderboard_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetLeaderboard provides a mock function for the type MockService
-func (_mock *MockService) GetLeaderboard(ctx context.Context, limit int) (*dto.MysteryLeaderboardResponse, error) {
-	ret := _mock.Called(ctx, limit)
+func (_mock *MockService) GetLeaderboard(ctx context.Context, page bounds.Page) (*dto.MysteryLeaderboardResponse, error) {
+	ret := _mock.Called(ctx, page)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetLeaderboard")
@@ -817,18 +818,18 @@ func (_mock *MockService) GetLeaderboard(ctx context.Context, limit int) (*dto.M
 
 	var r0 *dto.MysteryLeaderboardResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int) (*dto.MysteryLeaderboardResponse, error)); ok {
-		return returnFunc(ctx, limit)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, bounds.Page) (*dto.MysteryLeaderboardResponse, error)); ok {
+		return returnFunc(ctx, page)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int) *dto.MysteryLeaderboardResponse); ok {
-		r0 = returnFunc(ctx, limit)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, bounds.Page) *dto.MysteryLeaderboardResponse); ok {
+		r0 = returnFunc(ctx, page)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*dto.MysteryLeaderboardResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, int) error); ok {
-		r1 = returnFunc(ctx, limit)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, bounds.Page) error); ok {
+		r1 = returnFunc(ctx, page)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -842,20 +843,20 @@ type MockService_GetLeaderboard_Call struct {
 
 // GetLeaderboard is a helper method to define mock.On call
 //   - ctx context.Context
-//   - limit int
-func (_e *MockService_Expecter) GetLeaderboard(ctx any, limit any) *MockService_GetLeaderboard_Call {
-	return &MockService_GetLeaderboard_Call{Call: _e.mock.On("GetLeaderboard", ctx, limit)}
+//   - page bounds.Page
+func (_e *MockService_Expecter) GetLeaderboard(ctx any, page any) *MockService_GetLeaderboard_Call {
+	return &MockService_GetLeaderboard_Call{Call: _e.mock.On("GetLeaderboard", ctx, page)}
 }
 
-func (_c *MockService_GetLeaderboard_Call) Run(run func(ctx context.Context, limit int)) *MockService_GetLeaderboard_Call {
+func (_c *MockService_GetLeaderboard_Call) Run(run func(ctx context.Context, page bounds.Page)) *MockService_GetLeaderboard_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 int
+		var arg1 bounds.Page
 		if args[1] != nil {
-			arg1 = args[1].(int)
+			arg1 = args[1].(bounds.Page)
 		}
 		run(
 			arg0,
@@ -870,7 +871,7 @@ func (_c *MockService_GetLeaderboard_Call) Return(mysteryLeaderboardResponse *dt
 	return _c
 }
 
-func (_c *MockService_GetLeaderboard_Call) RunAndReturn(run func(ctx context.Context, limit int) (*dto.MysteryLeaderboardResponse, error)) *MockService_GetLeaderboard_Call {
+func (_c *MockService_GetLeaderboard_Call) RunAndReturn(run func(ctx context.Context, page bounds.Page) (*dto.MysteryLeaderboardResponse, error)) *MockService_GetLeaderboard_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1137,8 +1138,8 @@ func (_c *MockService_LikeComment_Call) RunAndReturn(run func(ctx context.Contex
 }
 
 // ListByUser provides a mock function for the type MockService
-func (_mock *MockService) ListByUser(ctx context.Context, userID uuid.UUID, limit int, offset int) (*dto.MysteryListResponse, error) {
-	ret := _mock.Called(ctx, userID, limit, offset)
+func (_mock *MockService) ListByUser(ctx context.Context, userID uuid.UUID, page bounds.Page) (*dto.MysteryListResponse, error) {
+	ret := _mock.Called(ctx, userID, page)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListByUser")
@@ -1146,18 +1147,18 @@ func (_mock *MockService) ListByUser(ctx context.Context, userID uuid.UUID, limi
 
 	var r0 *dto.MysteryListResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, int) (*dto.MysteryListResponse, error)); ok {
-		return returnFunc(ctx, userID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, bounds.Page) (*dto.MysteryListResponse, error)); ok {
+		return returnFunc(ctx, userID, page)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, int) *dto.MysteryListResponse); ok {
-		r0 = returnFunc(ctx, userID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, bounds.Page) *dto.MysteryListResponse); ok {
+		r0 = returnFunc(ctx, userID, page)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*dto.MysteryListResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, int, int) error); ok {
-		r1 = returnFunc(ctx, userID, limit, offset)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, bounds.Page) error); ok {
+		r1 = returnFunc(ctx, userID, page)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1172,13 +1173,12 @@ type MockService_ListByUser_Call struct {
 // ListByUser is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-//   - limit int
-//   - offset int
-func (_e *MockService_Expecter) ListByUser(ctx any, userID any, limit any, offset any) *MockService_ListByUser_Call {
-	return &MockService_ListByUser_Call{Call: _e.mock.On("ListByUser", ctx, userID, limit, offset)}
+//   - page bounds.Page
+func (_e *MockService_Expecter) ListByUser(ctx any, userID any, page any) *MockService_ListByUser_Call {
+	return &MockService_ListByUser_Call{Call: _e.mock.On("ListByUser", ctx, userID, page)}
 }
 
-func (_c *MockService_ListByUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, limit int, offset int)) *MockService_ListByUser_Call {
+func (_c *MockService_ListByUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, page bounds.Page)) *MockService_ListByUser_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1188,19 +1188,14 @@ func (_c *MockService_ListByUser_Call) Run(run func(ctx context.Context, userID 
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
-		var arg2 int
+		var arg2 bounds.Page
 		if args[2] != nil {
-			arg2 = args[2].(int)
-		}
-		var arg3 int
-		if args[3] != nil {
-			arg3 = args[3].(int)
+			arg2 = args[2].(bounds.Page)
 		}
 		run(
 			arg0,
 			arg1,
 			arg2,
-			arg3,
 		)
 	})
 	return _c
@@ -1211,14 +1206,14 @@ func (_c *MockService_ListByUser_Call) Return(mysteryListResponse *dto.MysteryLi
 	return _c
 }
 
-func (_c *MockService_ListByUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, limit int, offset int) (*dto.MysteryListResponse, error)) *MockService_ListByUser_Call {
+func (_c *MockService_ListByUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, page bounds.Page) (*dto.MysteryListResponse, error)) *MockService_ListByUser_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListMysteries provides a mock function for the type MockService
-func (_mock *MockService) ListMysteries(ctx context.Context, sort string, solved *bool, viewerID uuid.UUID, limit int, offset int) (*dto.MysteryListResponse, error) {
-	ret := _mock.Called(ctx, sort, solved, viewerID, limit, offset)
+func (_mock *MockService) ListMysteries(ctx context.Context, sort string, solved *bool, viewerID uuid.UUID, page bounds.Page) (*dto.MysteryListResponse, error) {
+	ret := _mock.Called(ctx, sort, solved, viewerID, page)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListMysteries")
@@ -1226,18 +1221,18 @@ func (_mock *MockService) ListMysteries(ctx context.Context, sort string, solved
 
 	var r0 *dto.MysteryListResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, *bool, uuid.UUID, int, int) (*dto.MysteryListResponse, error)); ok {
-		return returnFunc(ctx, sort, solved, viewerID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, *bool, uuid.UUID, bounds.Page) (*dto.MysteryListResponse, error)); ok {
+		return returnFunc(ctx, sort, solved, viewerID, page)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, *bool, uuid.UUID, int, int) *dto.MysteryListResponse); ok {
-		r0 = returnFunc(ctx, sort, solved, viewerID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, *bool, uuid.UUID, bounds.Page) *dto.MysteryListResponse); ok {
+		r0 = returnFunc(ctx, sort, solved, viewerID, page)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*dto.MysteryListResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, *bool, uuid.UUID, int, int) error); ok {
-		r1 = returnFunc(ctx, sort, solved, viewerID, limit, offset)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, *bool, uuid.UUID, bounds.Page) error); ok {
+		r1 = returnFunc(ctx, sort, solved, viewerID, page)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1254,13 +1249,12 @@ type MockService_ListMysteries_Call struct {
 //   - sort string
 //   - solved *bool
 //   - viewerID uuid.UUID
-//   - limit int
-//   - offset int
-func (_e *MockService_Expecter) ListMysteries(ctx any, sort any, solved any, viewerID any, limit any, offset any) *MockService_ListMysteries_Call {
-	return &MockService_ListMysteries_Call{Call: _e.mock.On("ListMysteries", ctx, sort, solved, viewerID, limit, offset)}
+//   - page bounds.Page
+func (_e *MockService_Expecter) ListMysteries(ctx any, sort any, solved any, viewerID any, page any) *MockService_ListMysteries_Call {
+	return &MockService_ListMysteries_Call{Call: _e.mock.On("ListMysteries", ctx, sort, solved, viewerID, page)}
 }
 
-func (_c *MockService_ListMysteries_Call) Run(run func(ctx context.Context, sort string, solved *bool, viewerID uuid.UUID, limit int, offset int)) *MockService_ListMysteries_Call {
+func (_c *MockService_ListMysteries_Call) Run(run func(ctx context.Context, sort string, solved *bool, viewerID uuid.UUID, page bounds.Page)) *MockService_ListMysteries_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1278,13 +1272,9 @@ func (_c *MockService_ListMysteries_Call) Run(run func(ctx context.Context, sort
 		if args[3] != nil {
 			arg3 = args[3].(uuid.UUID)
 		}
-		var arg4 int
+		var arg4 bounds.Page
 		if args[4] != nil {
-			arg4 = args[4].(int)
-		}
-		var arg5 int
-		if args[5] != nil {
-			arg5 = args[5].(int)
+			arg4 = args[4].(bounds.Page)
 		}
 		run(
 			arg0,
@@ -1292,7 +1282,6 @@ func (_c *MockService_ListMysteries_Call) Run(run func(ctx context.Context, sort
 			arg2,
 			arg3,
 			arg4,
-			arg5,
 		)
 	})
 	return _c
@@ -1303,7 +1292,7 @@ func (_c *MockService_ListMysteries_Call) Return(mysteryListResponse *dto.Myster
 	return _c
 }
 
-func (_c *MockService_ListMysteries_Call) RunAndReturn(run func(ctx context.Context, sort string, solved *bool, viewerID uuid.UUID, limit int, offset int) (*dto.MysteryListResponse, error)) *MockService_ListMysteries_Call {
+func (_c *MockService_ListMysteries_Call) RunAndReturn(run func(ctx context.Context, sort string, solved *bool, viewerID uuid.UUID, page bounds.Page) (*dto.MysteryListResponse, error)) *MockService_ListMysteries_Call {
 	_c.Call.Return(run)
 	return _c
 }

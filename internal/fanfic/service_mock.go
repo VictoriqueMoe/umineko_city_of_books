@@ -7,6 +7,7 @@ package fanfic
 import (
 	"context"
 	"io"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/fanfic/params"
 
@@ -949,8 +950,8 @@ func (_c *MockService_ListFanfics_Call) RunAndReturn(run func(ctx context.Contex
 }
 
 // ListFanficsByUser provides a mock function for the type MockService
-func (_mock *MockService) ListFanficsByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit int, offset int) (*dto.FanficListResponse, error) {
-	ret := _mock.Called(ctx, userID, viewerID, limit, offset)
+func (_mock *MockService) ListFanficsByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, page bounds.Page) (*dto.FanficListResponse, error) {
+	ret := _mock.Called(ctx, userID, viewerID, page)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListFanficsByUser")
@@ -958,18 +959,18 @@ func (_mock *MockService) ListFanficsByUser(ctx context.Context, userID uuid.UUI
 
 	var r0 *dto.FanficListResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int) (*dto.FanficListResponse, error)); ok {
-		return returnFunc(ctx, userID, viewerID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, bounds.Page) (*dto.FanficListResponse, error)); ok {
+		return returnFunc(ctx, userID, viewerID, page)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int) *dto.FanficListResponse); ok {
-		r0 = returnFunc(ctx, userID, viewerID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, bounds.Page) *dto.FanficListResponse); ok {
+		r0 = returnFunc(ctx, userID, viewerID, page)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*dto.FanficListResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, int, int) error); ok {
-		r1 = returnFunc(ctx, userID, viewerID, limit, offset)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, bounds.Page) error); ok {
+		r1 = returnFunc(ctx, userID, viewerID, page)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -985,13 +986,12 @@ type MockService_ListFanficsByUser_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - viewerID uuid.UUID
-//   - limit int
-//   - offset int
-func (_e *MockService_Expecter) ListFanficsByUser(ctx any, userID any, viewerID any, limit any, offset any) *MockService_ListFanficsByUser_Call {
-	return &MockService_ListFanficsByUser_Call{Call: _e.mock.On("ListFanficsByUser", ctx, userID, viewerID, limit, offset)}
+//   - page bounds.Page
+func (_e *MockService_Expecter) ListFanficsByUser(ctx any, userID any, viewerID any, page any) *MockService_ListFanficsByUser_Call {
+	return &MockService_ListFanficsByUser_Call{Call: _e.mock.On("ListFanficsByUser", ctx, userID, viewerID, page)}
 }
 
-func (_c *MockService_ListFanficsByUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit int, offset int)) *MockService_ListFanficsByUser_Call {
+func (_c *MockService_ListFanficsByUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, page bounds.Page)) *MockService_ListFanficsByUser_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1005,20 +1005,15 @@ func (_c *MockService_ListFanficsByUser_Call) Run(run func(ctx context.Context, 
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
-		var arg3 int
+		var arg3 bounds.Page
 		if args[3] != nil {
-			arg3 = args[3].(int)
-		}
-		var arg4 int
-		if args[4] != nil {
-			arg4 = args[4].(int)
+			arg3 = args[3].(bounds.Page)
 		}
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
-			arg4,
 		)
 	})
 	return _c
@@ -1029,14 +1024,14 @@ func (_c *MockService_ListFanficsByUser_Call) Return(fanficListResponse *dto.Fan
 	return _c
 }
 
-func (_c *MockService_ListFanficsByUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit int, offset int) (*dto.FanficListResponse, error)) *MockService_ListFanficsByUser_Call {
+func (_c *MockService_ListFanficsByUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, page bounds.Page) (*dto.FanficListResponse, error)) *MockService_ListFanficsByUser_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListFavourites provides a mock function for the type MockService
-func (_mock *MockService) ListFavourites(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit int, offset int) (*dto.FanficListResponse, error) {
-	ret := _mock.Called(ctx, userID, viewerID, limit, offset)
+func (_mock *MockService) ListFavourites(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, page bounds.Page) (*dto.FanficListResponse, error) {
+	ret := _mock.Called(ctx, userID, viewerID, page)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListFavourites")
@@ -1044,18 +1039,18 @@ func (_mock *MockService) ListFavourites(ctx context.Context, userID uuid.UUID, 
 
 	var r0 *dto.FanficListResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int) (*dto.FanficListResponse, error)); ok {
-		return returnFunc(ctx, userID, viewerID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, bounds.Page) (*dto.FanficListResponse, error)); ok {
+		return returnFunc(ctx, userID, viewerID, page)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int) *dto.FanficListResponse); ok {
-		r0 = returnFunc(ctx, userID, viewerID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, bounds.Page) *dto.FanficListResponse); ok {
+		r0 = returnFunc(ctx, userID, viewerID, page)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*dto.FanficListResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, int, int) error); ok {
-		r1 = returnFunc(ctx, userID, viewerID, limit, offset)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, bounds.Page) error); ok {
+		r1 = returnFunc(ctx, userID, viewerID, page)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1071,13 +1066,12 @@ type MockService_ListFavourites_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - viewerID uuid.UUID
-//   - limit int
-//   - offset int
-func (_e *MockService_Expecter) ListFavourites(ctx any, userID any, viewerID any, limit any, offset any) *MockService_ListFavourites_Call {
-	return &MockService_ListFavourites_Call{Call: _e.mock.On("ListFavourites", ctx, userID, viewerID, limit, offset)}
+//   - page bounds.Page
+func (_e *MockService_Expecter) ListFavourites(ctx any, userID any, viewerID any, page any) *MockService_ListFavourites_Call {
+	return &MockService_ListFavourites_Call{Call: _e.mock.On("ListFavourites", ctx, userID, viewerID, page)}
 }
 
-func (_c *MockService_ListFavourites_Call) Run(run func(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit int, offset int)) *MockService_ListFavourites_Call {
+func (_c *MockService_ListFavourites_Call) Run(run func(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, page bounds.Page)) *MockService_ListFavourites_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1091,20 +1085,15 @@ func (_c *MockService_ListFavourites_Call) Run(run func(ctx context.Context, use
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
-		var arg3 int
+		var arg3 bounds.Page
 		if args[3] != nil {
-			arg3 = args[3].(int)
-		}
-		var arg4 int
-		if args[4] != nil {
-			arg4 = args[4].(int)
+			arg3 = args[3].(bounds.Page)
 		}
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
-			arg4,
 		)
 	})
 	return _c
@@ -1115,7 +1104,7 @@ func (_c *MockService_ListFavourites_Call) Return(fanficListResponse *dto.Fanfic
 	return _c
 }
 
-func (_c *MockService_ListFavourites_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit int, offset int) (*dto.FanficListResponse, error)) *MockService_ListFavourites_Call {
+func (_c *MockService_ListFavourites_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, page bounds.Page) (*dto.FanficListResponse, error)) *MockService_ListFavourites_Call {
 	_c.Call.Return(run)
 	return _c
 }
