@@ -1,5 +1,7 @@
 package params
 
+import "umineko_city_of_books/internal/bounds"
+
 type (
 	ListParams struct {
 		Sort       string
@@ -21,3 +23,14 @@ type (
 		Offset     int
 	}
 )
+
+func NewListParams(filters ListParams, page bounds.Page) ListParams {
+	if filters.Sort == "" {
+		filters.Sort = "updated"
+	}
+
+	filters.Limit = page.Limit()
+	filters.Offset = page.Offset()
+
+	return filters
+}

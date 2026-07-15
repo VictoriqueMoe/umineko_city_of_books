@@ -66,6 +66,7 @@ var (
 	SettingPyroscopeURL            = &SiteSettingDef{"pyroscope_url", "", TypeString}
 	SettingMaxBodySize             = &SiteSettingDef{"max_body_size", "52428800", TypeInt}
 	SettingMaxImageSize            = &SiteSettingDef{"max_image_size", "10485760", TypeInt}
+	SettingMaxImagePixels          = &SiteSettingDef{"max_image_pixels", "100000000", TypeInt}
 	SettingMaxVideoSize            = &SiteSettingDef{"max_video_size", "104857600", TypeInt}
 	SettingMaxGeneralSize          = &SiteSettingDef{"max_general_size", "52428800", TypeInt}
 	SettingRegistrationType        = &SiteSettingDef{"registration_type", "open", TypeString}
@@ -139,6 +140,7 @@ var (
 		SettingPyroscopeURL,
 		SettingMaxBodySize,
 		SettingMaxImageSize,
+		SettingMaxImagePixels,
 		SettingMaxVideoSize,
 		SettingMaxGeneralSize,
 		SettingRegistrationType,
@@ -213,6 +215,7 @@ func ValidateSettings(all map[SiteSettingKey]string) error {
 
 	maxBody := getInt(SettingMaxBodySize.Key)
 	maxImage := getInt(SettingMaxImageSize.Key)
+	maxImagePixels := getInt(SettingMaxImagePixels.Key)
 	maxVideo := getInt(SettingMaxVideoSize.Key)
 	maxGeneral := getInt(SettingMaxGeneralSize.Key)
 	minPassword := getInt(SettingMinPasswordLength.Key)
@@ -225,6 +228,9 @@ func ValidateSettings(all map[SiteSettingKey]string) error {
 	}
 	if maxImage <= 0 {
 		return fmt.Errorf("max image size must be greater than 0")
+	}
+	if maxImagePixels <= 0 {
+		return fmt.Errorf("max image pixels must be greater than 0")
 	}
 	if maxVideo <= 0 {
 		return fmt.Errorf("max video size must be greater than 0")

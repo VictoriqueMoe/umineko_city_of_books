@@ -7,6 +7,7 @@ package oc
 import (
 	"context"
 	"io"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/dto"
 
 	"github.com/google/uuid"
@@ -693,8 +694,8 @@ func (_c *MockService_ListOCSummariesByUser_Call) RunAndReturn(run func(ctx cont
 }
 
 // ListOCs provides a mock function for the type MockService
-func (_mock *MockService) ListOCs(ctx context.Context, viewerID uuid.UUID, sort string, crackOCsOnly bool, series string, customSeriesName string, ownerID uuid.UUID, limit int, offset int) (*dto.OCListResponse, error) {
-	ret := _mock.Called(ctx, viewerID, sort, crackOCsOnly, series, customSeriesName, ownerID, limit, offset)
+func (_mock *MockService) ListOCs(ctx context.Context, viewerID uuid.UUID, sort string, crackOCsOnly bool, series string, customSeriesName string, ownerID uuid.UUID, page bounds.Page) (*dto.OCListResponse, error) {
+	ret := _mock.Called(ctx, viewerID, sort, crackOCsOnly, series, customSeriesName, ownerID, page)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListOCs")
@@ -702,18 +703,18 @@ func (_mock *MockService) ListOCs(ctx context.Context, viewerID uuid.UUID, sort 
 
 	var r0 *dto.OCListResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, bool, string, string, uuid.UUID, int, int) (*dto.OCListResponse, error)); ok {
-		return returnFunc(ctx, viewerID, sort, crackOCsOnly, series, customSeriesName, ownerID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, bool, string, string, uuid.UUID, bounds.Page) (*dto.OCListResponse, error)); ok {
+		return returnFunc(ctx, viewerID, sort, crackOCsOnly, series, customSeriesName, ownerID, page)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, bool, string, string, uuid.UUID, int, int) *dto.OCListResponse); ok {
-		r0 = returnFunc(ctx, viewerID, sort, crackOCsOnly, series, customSeriesName, ownerID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, bool, string, string, uuid.UUID, bounds.Page) *dto.OCListResponse); ok {
+		r0 = returnFunc(ctx, viewerID, sort, crackOCsOnly, series, customSeriesName, ownerID, page)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*dto.OCListResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, bool, string, string, uuid.UUID, int, int) error); ok {
-		r1 = returnFunc(ctx, viewerID, sort, crackOCsOnly, series, customSeriesName, ownerID, limit, offset)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, bool, string, string, uuid.UUID, bounds.Page) error); ok {
+		r1 = returnFunc(ctx, viewerID, sort, crackOCsOnly, series, customSeriesName, ownerID, page)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -733,13 +734,12 @@ type MockService_ListOCs_Call struct {
 //   - series string
 //   - customSeriesName string
 //   - ownerID uuid.UUID
-//   - limit int
-//   - offset int
-func (_e *MockService_Expecter) ListOCs(ctx any, viewerID any, sort any, crackOCsOnly any, series any, customSeriesName any, ownerID any, limit any, offset any) *MockService_ListOCs_Call {
-	return &MockService_ListOCs_Call{Call: _e.mock.On("ListOCs", ctx, viewerID, sort, crackOCsOnly, series, customSeriesName, ownerID, limit, offset)}
+//   - page bounds.Page
+func (_e *MockService_Expecter) ListOCs(ctx any, viewerID any, sort any, crackOCsOnly any, series any, customSeriesName any, ownerID any, page any) *MockService_ListOCs_Call {
+	return &MockService_ListOCs_Call{Call: _e.mock.On("ListOCs", ctx, viewerID, sort, crackOCsOnly, series, customSeriesName, ownerID, page)}
 }
 
-func (_c *MockService_ListOCs_Call) Run(run func(ctx context.Context, viewerID uuid.UUID, sort string, crackOCsOnly bool, series string, customSeriesName string, ownerID uuid.UUID, limit int, offset int)) *MockService_ListOCs_Call {
+func (_c *MockService_ListOCs_Call) Run(run func(ctx context.Context, viewerID uuid.UUID, sort string, crackOCsOnly bool, series string, customSeriesName string, ownerID uuid.UUID, page bounds.Page)) *MockService_ListOCs_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -769,13 +769,9 @@ func (_c *MockService_ListOCs_Call) Run(run func(ctx context.Context, viewerID u
 		if args[6] != nil {
 			arg6 = args[6].(uuid.UUID)
 		}
-		var arg7 int
+		var arg7 bounds.Page
 		if args[7] != nil {
-			arg7 = args[7].(int)
-		}
-		var arg8 int
-		if args[8] != nil {
-			arg8 = args[8].(int)
+			arg7 = args[7].(bounds.Page)
 		}
 		run(
 			arg0,
@@ -786,7 +782,6 @@ func (_c *MockService_ListOCs_Call) Run(run func(ctx context.Context, viewerID u
 			arg5,
 			arg6,
 			arg7,
-			arg8,
 		)
 	})
 	return _c
@@ -797,14 +792,14 @@ func (_c *MockService_ListOCs_Call) Return(oCListResponse *dto.OCListResponse, e
 	return _c
 }
 
-func (_c *MockService_ListOCs_Call) RunAndReturn(run func(ctx context.Context, viewerID uuid.UUID, sort string, crackOCsOnly bool, series string, customSeriesName string, ownerID uuid.UUID, limit int, offset int) (*dto.OCListResponse, error)) *MockService_ListOCs_Call {
+func (_c *MockService_ListOCs_Call) RunAndReturn(run func(ctx context.Context, viewerID uuid.UUID, sort string, crackOCsOnly bool, series string, customSeriesName string, ownerID uuid.UUID, page bounds.Page) (*dto.OCListResponse, error)) *MockService_ListOCs_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListOCsByUser provides a mock function for the type MockService
-func (_mock *MockService) ListOCsByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit int, offset int) (*dto.OCListResponse, error) {
-	ret := _mock.Called(ctx, userID, viewerID, limit, offset)
+func (_mock *MockService) ListOCsByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, page bounds.Page) (*dto.OCListResponse, error) {
+	ret := _mock.Called(ctx, userID, viewerID, page)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListOCsByUser")
@@ -812,18 +807,18 @@ func (_mock *MockService) ListOCsByUser(ctx context.Context, userID uuid.UUID, v
 
 	var r0 *dto.OCListResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int) (*dto.OCListResponse, error)); ok {
-		return returnFunc(ctx, userID, viewerID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, bounds.Page) (*dto.OCListResponse, error)); ok {
+		return returnFunc(ctx, userID, viewerID, page)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int) *dto.OCListResponse); ok {
-		r0 = returnFunc(ctx, userID, viewerID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, bounds.Page) *dto.OCListResponse); ok {
+		r0 = returnFunc(ctx, userID, viewerID, page)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*dto.OCListResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, int, int) error); ok {
-		r1 = returnFunc(ctx, userID, viewerID, limit, offset)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, bounds.Page) error); ok {
+		r1 = returnFunc(ctx, userID, viewerID, page)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -839,13 +834,12 @@ type MockService_ListOCsByUser_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - viewerID uuid.UUID
-//   - limit int
-//   - offset int
-func (_e *MockService_Expecter) ListOCsByUser(ctx any, userID any, viewerID any, limit any, offset any) *MockService_ListOCsByUser_Call {
-	return &MockService_ListOCsByUser_Call{Call: _e.mock.On("ListOCsByUser", ctx, userID, viewerID, limit, offset)}
+//   - page bounds.Page
+func (_e *MockService_Expecter) ListOCsByUser(ctx any, userID any, viewerID any, page any) *MockService_ListOCsByUser_Call {
+	return &MockService_ListOCsByUser_Call{Call: _e.mock.On("ListOCsByUser", ctx, userID, viewerID, page)}
 }
 
-func (_c *MockService_ListOCsByUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit int, offset int)) *MockService_ListOCsByUser_Call {
+func (_c *MockService_ListOCsByUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, page bounds.Page)) *MockService_ListOCsByUser_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -859,20 +853,15 @@ func (_c *MockService_ListOCsByUser_Call) Run(run func(ctx context.Context, user
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
-		var arg3 int
+		var arg3 bounds.Page
 		if args[3] != nil {
-			arg3 = args[3].(int)
-		}
-		var arg4 int
-		if args[4] != nil {
-			arg4 = args[4].(int)
+			arg3 = args[3].(bounds.Page)
 		}
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
-			arg4,
 		)
 	})
 	return _c
@@ -883,7 +872,7 @@ func (_c *MockService_ListOCsByUser_Call) Return(oCListResponse *dto.OCListRespo
 	return _c
 }
 
-func (_c *MockService_ListOCsByUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit int, offset int) (*dto.OCListResponse, error)) *MockService_ListOCsByUser_Call {
+func (_c *MockService_ListOCsByUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, page bounds.Page) (*dto.OCListResponse, error)) *MockService_ListOCsByUser_Call {
 	_c.Call.Return(run)
 	return _c
 }

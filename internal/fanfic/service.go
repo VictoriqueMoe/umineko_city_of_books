@@ -9,6 +9,7 @@ import (
 
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
@@ -31,7 +32,7 @@ type (
 		UpdateFanfic(ctx context.Context, id, userID uuid.UUID, req dto.UpdateFanficRequest) error
 		DeleteFanfic(ctx context.Context, id, userID uuid.UUID) error
 		ListFanfics(ctx context.Context, viewerID uuid.UUID, params fanficparams.ListParams) (*dto.FanficListResponse, error)
-		ListFanficsByUser(ctx context.Context, userID, viewerID uuid.UUID, limit, offset int) (*dto.FanficListResponse, error)
+		ListFanficsByUser(ctx context.Context, userID, viewerID uuid.UUID, page bounds.Page) (*dto.FanficListResponse, error)
 		UploadCoverImage(ctx context.Context, fanficID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (string, error)
 		RemoveCoverImage(ctx context.Context, fanficID, userID uuid.UUID) error
 
@@ -43,7 +44,7 @@ type (
 		Favourite(ctx context.Context, userID, fanficID uuid.UUID) error
 		Unfavourite(ctx context.Context, userID, fanficID uuid.UUID) error
 
-		ListFavourites(ctx context.Context, userID, viewerID uuid.UUID, limit, offset int) (*dto.FanficListResponse, error)
+		ListFavourites(ctx context.Context, userID, viewerID uuid.UUID, page bounds.Page) (*dto.FanficListResponse, error)
 		GetLanguages(ctx context.Context) ([]string, error)
 		GetSeries(ctx context.Context) ([]string, error)
 		SearchOCCharacters(ctx context.Context, query string) ([]string, error)
@@ -384,20 +385,20 @@ func (s *service) buildFanficList(ctx context.Context, rows []model.FanficRow, t
 	}, nil
 }
 
-func (s *service) ListFanficsByUser(ctx context.Context, userID, viewerID uuid.UUID, limit, offset int) (*dto.FanficListResponse, error) {
-	rows, total, err := s.fanficRepo.ListByUser(ctx, userID, viewerID, limit, offset)
+func (s *service) ListFanficsByUser(ctx context.Context, userID, viewerID uuid.UUID, page bounds.Page) (*dto.FanficListResponse, error) {
+	rows, total, err := s.fanficRepo.ListByUser(ctx, userID, viewerID, page.Limit(), page.Offset())
 	if err != nil {
 		return nil, err
 	}
-	return s.buildFanficList(ctx, rows, total, limit, offset)
+	return s.buildFanficList(ctx, rows, total, page.Limit(), page.Offset())
 }
 
-func (s *service) ListFavourites(ctx context.Context, userID, viewerID uuid.UUID, limit, offset int) (*dto.FanficListResponse, error) {
-	rows, total, err := s.fanficRepo.ListFavourites(ctx, userID, viewerID, limit, offset)
+func (s *service) ListFavourites(ctx context.Context, userID, viewerID uuid.UUID, page bounds.Page) (*dto.FanficListResponse, error) {
+	rows, total, err := s.fanficRepo.ListFavourites(ctx, userID, viewerID, page.Limit(), page.Offset())
 	if err != nil {
 		return nil, err
 	}
-	return s.buildFanficList(ctx, rows, total, limit, offset)
+	return s.buildFanficList(ctx, rows, total, page.Limit(), page.Offset())
 }
 
 func (s *service) UploadCoverImage(ctx context.Context, fanficID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (string, error) {

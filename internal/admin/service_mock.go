@@ -6,6 +6,7 @@ package admin
 
 import (
 	"context"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/role"
 
@@ -584,8 +585,8 @@ func (_c *MockService_DeleteVanityRole_Call) RunAndReturn(run func(ctx context.C
 }
 
 // GetAuditLog provides a mock function for the type MockService
-func (_mock *MockService) GetAuditLog(ctx context.Context, action string, limit int, offset int) (*dto.AuditLogListResponse, error) {
-	ret := _mock.Called(ctx, action, limit, offset)
+func (_mock *MockService) GetAuditLog(ctx context.Context, action string, page bounds.Page) (*dto.AuditLogListResponse, error) {
+	ret := _mock.Called(ctx, action, page)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetAuditLog")
@@ -593,18 +594,18 @@ func (_mock *MockService) GetAuditLog(ctx context.Context, action string, limit 
 
 	var r0 *dto.AuditLogListResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int, int) (*dto.AuditLogListResponse, error)); ok {
-		return returnFunc(ctx, action, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, bounds.Page) (*dto.AuditLogListResponse, error)); ok {
+		return returnFunc(ctx, action, page)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int, int) *dto.AuditLogListResponse); ok {
-		r0 = returnFunc(ctx, action, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, bounds.Page) *dto.AuditLogListResponse); ok {
+		r0 = returnFunc(ctx, action, page)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*dto.AuditLogListResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, int, int) error); ok {
-		r1 = returnFunc(ctx, action, limit, offset)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, bounds.Page) error); ok {
+		r1 = returnFunc(ctx, action, page)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -619,13 +620,12 @@ type MockService_GetAuditLog_Call struct {
 // GetAuditLog is a helper method to define mock.On call
 //   - ctx context.Context
 //   - action string
-//   - limit int
-//   - offset int
-func (_e *MockService_Expecter) GetAuditLog(ctx any, action any, limit any, offset any) *MockService_GetAuditLog_Call {
-	return &MockService_GetAuditLog_Call{Call: _e.mock.On("GetAuditLog", ctx, action, limit, offset)}
+//   - page bounds.Page
+func (_e *MockService_Expecter) GetAuditLog(ctx any, action any, page any) *MockService_GetAuditLog_Call {
+	return &MockService_GetAuditLog_Call{Call: _e.mock.On("GetAuditLog", ctx, action, page)}
 }
 
-func (_c *MockService_GetAuditLog_Call) Run(run func(ctx context.Context, action string, limit int, offset int)) *MockService_GetAuditLog_Call {
+func (_c *MockService_GetAuditLog_Call) Run(run func(ctx context.Context, action string, page bounds.Page)) *MockService_GetAuditLog_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -635,19 +635,14 @@ func (_c *MockService_GetAuditLog_Call) Run(run func(ctx context.Context, action
 		if args[1] != nil {
 			arg1 = args[1].(string)
 		}
-		var arg2 int
+		var arg2 bounds.Page
 		if args[2] != nil {
-			arg2 = args[2].(int)
-		}
-		var arg3 int
-		if args[3] != nil {
-			arg3 = args[3].(int)
+			arg2 = args[2].(bounds.Page)
 		}
 		run(
 			arg0,
 			arg1,
 			arg2,
-			arg3,
 		)
 	})
 	return _c
@@ -658,7 +653,7 @@ func (_c *MockService_GetAuditLog_Call) Return(auditLogListResponse *dto.AuditLo
 	return _c
 }
 
-func (_c *MockService_GetAuditLog_Call) RunAndReturn(run func(ctx context.Context, action string, limit int, offset int) (*dto.AuditLogListResponse, error)) *MockService_GetAuditLog_Call {
+func (_c *MockService_GetAuditLog_Call) RunAndReturn(run func(ctx context.Context, action string, page bounds.Page) (*dto.AuditLogListResponse, error)) *MockService_GetAuditLog_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -856,8 +851,8 @@ func (_c *MockService_GetUser_Call) RunAndReturn(run func(ctx context.Context, t
 }
 
 // GetVanityRoleUsers provides a mock function for the type MockService
-func (_mock *MockService) GetVanityRoleUsers(ctx context.Context, roleID string, search string, limit int, offset int) (*dto.VanityRoleUsersResponse, error) {
-	ret := _mock.Called(ctx, roleID, search, limit, offset)
+func (_mock *MockService) GetVanityRoleUsers(ctx context.Context, roleID string, search string, page bounds.Page) (*dto.VanityRoleUsersResponse, error) {
+	ret := _mock.Called(ctx, roleID, search, page)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetVanityRoleUsers")
@@ -865,18 +860,18 @@ func (_mock *MockService) GetVanityRoleUsers(ctx context.Context, roleID string,
 
 	var r0 *dto.VanityRoleUsersResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, int, int) (*dto.VanityRoleUsersResponse, error)); ok {
-		return returnFunc(ctx, roleID, search, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, bounds.Page) (*dto.VanityRoleUsersResponse, error)); ok {
+		return returnFunc(ctx, roleID, search, page)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, int, int) *dto.VanityRoleUsersResponse); ok {
-		r0 = returnFunc(ctx, roleID, search, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, bounds.Page) *dto.VanityRoleUsersResponse); ok {
+		r0 = returnFunc(ctx, roleID, search, page)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*dto.VanityRoleUsersResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, int, int) error); ok {
-		r1 = returnFunc(ctx, roleID, search, limit, offset)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, bounds.Page) error); ok {
+		r1 = returnFunc(ctx, roleID, search, page)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -892,13 +887,12 @@ type MockService_GetVanityRoleUsers_Call struct {
 //   - ctx context.Context
 //   - roleID string
 //   - search string
-//   - limit int
-//   - offset int
-func (_e *MockService_Expecter) GetVanityRoleUsers(ctx any, roleID any, search any, limit any, offset any) *MockService_GetVanityRoleUsers_Call {
-	return &MockService_GetVanityRoleUsers_Call{Call: _e.mock.On("GetVanityRoleUsers", ctx, roleID, search, limit, offset)}
+//   - page bounds.Page
+func (_e *MockService_Expecter) GetVanityRoleUsers(ctx any, roleID any, search any, page any) *MockService_GetVanityRoleUsers_Call {
+	return &MockService_GetVanityRoleUsers_Call{Call: _e.mock.On("GetVanityRoleUsers", ctx, roleID, search, page)}
 }
 
-func (_c *MockService_GetVanityRoleUsers_Call) Run(run func(ctx context.Context, roleID string, search string, limit int, offset int)) *MockService_GetVanityRoleUsers_Call {
+func (_c *MockService_GetVanityRoleUsers_Call) Run(run func(ctx context.Context, roleID string, search string, page bounds.Page)) *MockService_GetVanityRoleUsers_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -912,20 +906,15 @@ func (_c *MockService_GetVanityRoleUsers_Call) Run(run func(ctx context.Context,
 		if args[2] != nil {
 			arg2 = args[2].(string)
 		}
-		var arg3 int
+		var arg3 bounds.Page
 		if args[3] != nil {
-			arg3 = args[3].(int)
-		}
-		var arg4 int
-		if args[4] != nil {
-			arg4 = args[4].(int)
+			arg3 = args[3].(bounds.Page)
 		}
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
-			arg4,
 		)
 	})
 	return _c
@@ -936,7 +925,7 @@ func (_c *MockService_GetVanityRoleUsers_Call) Return(vanityRoleUsersResponse *d
 	return _c
 }
 
-func (_c *MockService_GetVanityRoleUsers_Call) RunAndReturn(run func(ctx context.Context, roleID string, search string, limit int, offset int) (*dto.VanityRoleUsersResponse, error)) *MockService_GetVanityRoleUsers_Call {
+func (_c *MockService_GetVanityRoleUsers_Call) RunAndReturn(run func(ctx context.Context, roleID string, search string, page bounds.Page) (*dto.VanityRoleUsersResponse, error)) *MockService_GetVanityRoleUsers_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1004,8 +993,8 @@ func (_c *MockService_ListBannedGifs_Call) RunAndReturn(run func(ctx context.Con
 }
 
 // ListInvites provides a mock function for the type MockService
-func (_mock *MockService) ListInvites(ctx context.Context, limit int, offset int) (*dto.InviteListResponse, error) {
-	ret := _mock.Called(ctx, limit, offset)
+func (_mock *MockService) ListInvites(ctx context.Context, page bounds.Page) (*dto.InviteListResponse, error) {
+	ret := _mock.Called(ctx, page)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListInvites")
@@ -1013,18 +1002,18 @@ func (_mock *MockService) ListInvites(ctx context.Context, limit int, offset int
 
 	var r0 *dto.InviteListResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int, int) (*dto.InviteListResponse, error)); ok {
-		return returnFunc(ctx, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, bounds.Page) (*dto.InviteListResponse, error)); ok {
+		return returnFunc(ctx, page)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int, int) *dto.InviteListResponse); ok {
-		r0 = returnFunc(ctx, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, bounds.Page) *dto.InviteListResponse); ok {
+		r0 = returnFunc(ctx, page)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*dto.InviteListResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, int, int) error); ok {
-		r1 = returnFunc(ctx, limit, offset)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, bounds.Page) error); ok {
+		r1 = returnFunc(ctx, page)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1038,30 +1027,24 @@ type MockService_ListInvites_Call struct {
 
 // ListInvites is a helper method to define mock.On call
 //   - ctx context.Context
-//   - limit int
-//   - offset int
-func (_e *MockService_Expecter) ListInvites(ctx any, limit any, offset any) *MockService_ListInvites_Call {
-	return &MockService_ListInvites_Call{Call: _e.mock.On("ListInvites", ctx, limit, offset)}
+//   - page bounds.Page
+func (_e *MockService_Expecter) ListInvites(ctx any, page any) *MockService_ListInvites_Call {
+	return &MockService_ListInvites_Call{Call: _e.mock.On("ListInvites", ctx, page)}
 }
 
-func (_c *MockService_ListInvites_Call) Run(run func(ctx context.Context, limit int, offset int)) *MockService_ListInvites_Call {
+func (_c *MockService_ListInvites_Call) Run(run func(ctx context.Context, page bounds.Page)) *MockService_ListInvites_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 int
+		var arg1 bounds.Page
 		if args[1] != nil {
-			arg1 = args[1].(int)
-		}
-		var arg2 int
-		if args[2] != nil {
-			arg2 = args[2].(int)
+			arg1 = args[1].(bounds.Page)
 		}
 		run(
 			arg0,
 			arg1,
-			arg2,
 		)
 	})
 	return _c
@@ -1072,14 +1055,14 @@ func (_c *MockService_ListInvites_Call) Return(inviteListResponse *dto.InviteLis
 	return _c
 }
 
-func (_c *MockService_ListInvites_Call) RunAndReturn(run func(ctx context.Context, limit int, offset int) (*dto.InviteListResponse, error)) *MockService_ListInvites_Call {
+func (_c *MockService_ListInvites_Call) RunAndReturn(run func(ctx context.Context, page bounds.Page) (*dto.InviteListResponse, error)) *MockService_ListInvites_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListUsers provides a mock function for the type MockService
-func (_mock *MockService) ListUsers(ctx context.Context, search string, limit int, offset int) (*dto.AdminUserListResponse, error) {
-	ret := _mock.Called(ctx, search, limit, offset)
+func (_mock *MockService) ListUsers(ctx context.Context, search string, page bounds.Page) (*dto.AdminUserListResponse, error) {
+	ret := _mock.Called(ctx, search, page)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListUsers")
@@ -1087,18 +1070,18 @@ func (_mock *MockService) ListUsers(ctx context.Context, search string, limit in
 
 	var r0 *dto.AdminUserListResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int, int) (*dto.AdminUserListResponse, error)); ok {
-		return returnFunc(ctx, search, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, bounds.Page) (*dto.AdminUserListResponse, error)); ok {
+		return returnFunc(ctx, search, page)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int, int) *dto.AdminUserListResponse); ok {
-		r0 = returnFunc(ctx, search, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, bounds.Page) *dto.AdminUserListResponse); ok {
+		r0 = returnFunc(ctx, search, page)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*dto.AdminUserListResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, int, int) error); ok {
-		r1 = returnFunc(ctx, search, limit, offset)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, bounds.Page) error); ok {
+		r1 = returnFunc(ctx, search, page)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1113,13 +1096,12 @@ type MockService_ListUsers_Call struct {
 // ListUsers is a helper method to define mock.On call
 //   - ctx context.Context
 //   - search string
-//   - limit int
-//   - offset int
-func (_e *MockService_Expecter) ListUsers(ctx any, search any, limit any, offset any) *MockService_ListUsers_Call {
-	return &MockService_ListUsers_Call{Call: _e.mock.On("ListUsers", ctx, search, limit, offset)}
+//   - page bounds.Page
+func (_e *MockService_Expecter) ListUsers(ctx any, search any, page any) *MockService_ListUsers_Call {
+	return &MockService_ListUsers_Call{Call: _e.mock.On("ListUsers", ctx, search, page)}
 }
 
-func (_c *MockService_ListUsers_Call) Run(run func(ctx context.Context, search string, limit int, offset int)) *MockService_ListUsers_Call {
+func (_c *MockService_ListUsers_Call) Run(run func(ctx context.Context, search string, page bounds.Page)) *MockService_ListUsers_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1129,19 +1111,14 @@ func (_c *MockService_ListUsers_Call) Run(run func(ctx context.Context, search s
 		if args[1] != nil {
 			arg1 = args[1].(string)
 		}
-		var arg2 int
+		var arg2 bounds.Page
 		if args[2] != nil {
-			arg2 = args[2].(int)
-		}
-		var arg3 int
-		if args[3] != nil {
-			arg3 = args[3].(int)
+			arg2 = args[2].(bounds.Page)
 		}
 		run(
 			arg0,
 			arg1,
 			arg2,
-			arg3,
 		)
 	})
 	return _c
@@ -1152,7 +1129,7 @@ func (_c *MockService_ListUsers_Call) Return(adminUserListResponse *dto.AdminUse
 	return _c
 }
 
-func (_c *MockService_ListUsers_Call) RunAndReturn(run func(ctx context.Context, search string, limit int, offset int) (*dto.AdminUserListResponse, error)) *MockService_ListUsers_Call {
+func (_c *MockService_ListUsers_Call) RunAndReturn(run func(ctx context.Context, search string, page bounds.Page) (*dto.AdminUserListResponse, error)) *MockService_ListUsers_Call {
 	_c.Call.Return(run)
 	return _c
 }

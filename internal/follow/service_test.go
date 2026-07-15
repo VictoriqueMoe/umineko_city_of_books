@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/block"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
@@ -344,7 +345,7 @@ func TestGetFollowers_OK(t *testing.T) {
 	followRepo.EXPECT().GetFollowers(mock.Anything, userID, 10, 0).Return([]repository.FollowUser{u1, u2}, 2, nil)
 
 	// when
-	got, total, err := svc.GetFollowers(context.Background(), userID, 10, 0)
+	got, total, err := svc.GetFollowers(context.Background(), userID, bounds.NewPage(10, 0))
 
 	// then
 	require.NoError(t, err)
@@ -363,7 +364,7 @@ func TestGetFollowers_RepoError(t *testing.T) {
 	followRepo.EXPECT().GetFollowers(mock.Anything, userID, 10, 0).Return(nil, 0, errors.New("boom"))
 
 	// when
-	_, _, err := svc.GetFollowers(context.Background(), userID, 10, 0)
+	_, _, err := svc.GetFollowers(context.Background(), userID, bounds.NewPage(10, 0))
 
 	// then
 	require.Error(t, err)
@@ -377,7 +378,7 @@ func TestGetFollowing_OK(t *testing.T) {
 	followRepo.EXPECT().GetFollowing(mock.Anything, userID, 5, 10).Return([]repository.FollowUser{u}, 1, nil)
 
 	// when
-	got, total, err := svc.GetFollowing(context.Background(), userID, 5, 10)
+	got, total, err := svc.GetFollowing(context.Background(), userID, bounds.NewPage(5, 10))
 
 	// then
 	require.NoError(t, err)
@@ -394,7 +395,7 @@ func TestGetFollowing_RepoError(t *testing.T) {
 	followRepo.EXPECT().GetFollowing(mock.Anything, userID, 5, 10).Return(nil, 0, errors.New("boom"))
 
 	// when
-	_, _, err := svc.GetFollowing(context.Background(), userID, 5, 10)
+	_, _, err := svc.GetFollowing(context.Background(), userID, bounds.NewPage(5, 10))
 
 	// then
 	require.Error(t, err)

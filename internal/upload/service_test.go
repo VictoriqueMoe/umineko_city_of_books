@@ -14,6 +14,7 @@ import (
 	"strings"
 	"testing"
 
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/settings"
 
@@ -28,6 +29,7 @@ func newTestService(t *testing.T) (*service, *settings.MockService, string) {
 	settingsSvc := settings.NewMockService(t)
 	dir := t.TempDir()
 	settingsSvc.EXPECT().Get(mock.Anything, config.SettingUploadDir).Return(dir).Maybe()
+	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImagePixels).Return(bounds.FallbackMaxImagePixels).Maybe()
 	svc := NewService(settingsSvc).(*service)
 	return svc, settingsSvc, dir
 }

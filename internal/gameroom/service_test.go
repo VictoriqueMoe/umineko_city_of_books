@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/repository"
@@ -109,7 +110,7 @@ func TestListFinished_Empty(t *testing.T) {
 		Return(nil, 0, nil)
 
 	// when
-	resp, err := m.svc.ListFinished(context.Background(), dto.GameTypeChess, 20, 0)
+	resp, err := m.svc.ListFinished(context.Background(), dto.GameTypeChess, bounds.NewPage(20, 0))
 
 	// then
 	require.NoError(t, err)
@@ -117,16 +118,20 @@ func TestListFinished_Empty(t *testing.T) {
 	assert.Empty(t, resp.Rooms)
 }
 
-func TestListFinished_DefaultsLimitWhenInvalid(t *testing.T) {
+func TestListFinished_ClampsPage(t *testing.T) {
 	cases := []struct {
-		name     string
-		inLimit  int
-		expected int
+		name           string
+		inLimit        int
+		inOffset       int
+		expectedLimit  int
+		expectedOffset int
 	}{
-		{"zero uses default", 0, 20},
-		{"negative uses default", -5, 20},
-		{"over 50 uses default", 100, 20},
-		{"within range is kept", 10, 10},
+		{"zero limit uses default", 0, 0, bounds.DefaultLimit, 0},
+		{"negative limit uses default", -5, 0, bounds.DefaultLimit, 0},
+		{"limit over max is capped", 500, 0, bounds.MaxLimit, 0},
+		{"negative offset floors at zero", 10, -1, 10, 0},
+		{"offset over max is capped", 10, 5000, 10, bounds.MaxOffset},
+		{"within range is kept", 10, 5, 10, 5},
 	}
 
 	for _, tc := range cases {
@@ -134,11 +139,11 @@ func TestListFinished_DefaultsLimitWhenInvalid(t *testing.T) {
 			// given
 			m := newTestService(t)
 			m.roomRepo.EXPECT().
-				ListFinished(mock.Anything, string(dto.GameTypeChess), tc.expected, 0).
+				ListFinished(mock.Anything, string(dto.GameTypeChess), tc.expectedLimit, tc.expectedOffset).
 				Return(nil, 0, nil)
 
 			// when
-			_, err := m.svc.ListFinished(context.Background(), dto.GameTypeChess, tc.inLimit, 0)
+			_, err := m.svc.ListFinished(context.Background(), dto.GameTypeChess, bounds.NewPage(tc.inLimit, tc.inOffset))
 
 			// then
 			require.NoError(t, err)
@@ -155,7 +160,7 @@ func TestListFinished_PropagatesRepoError(t *testing.T) {
 		Return(nil, 0, wantErr)
 
 	// when
-	_, err := m.svc.ListFinished(context.Background(), "", 20, 0)
+	_, err := m.svc.ListFinished(context.Background(), "", bounds.NewPage(20, 0))
 
 	// then
 	require.ErrorIs(t, err, wantErr)
@@ -191,7 +196,7 @@ func TestListFinished_HydratesRoomsWithComputedStats(t *testing.T) {
 		Return(statsPayload, nil)
 
 	// when
-	resp, err := m.svc.ListFinished(context.Background(), dto.GameTypeChess, 20, 0)
+	resp, err := m.svc.ListFinished(context.Background(), dto.GameTypeChess, bounds.NewPage(20, 0))
 
 	// then
 	require.NoError(t, err)
@@ -230,7 +235,7 @@ func TestListFinished_SkipsStatsWhenHandlerFails(t *testing.T) {
 		Return(nil, errors.New("bad pgn"))
 
 	// when
-	resp, err := m.svc.ListFinished(context.Background(), "", 20, 0)
+	resp, err := m.svc.ListFinished(context.Background(), "", bounds.NewPage(20, 0))
 
 	// then
 	require.NoError(t, err)

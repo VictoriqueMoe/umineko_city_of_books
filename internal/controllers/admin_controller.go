@@ -8,6 +8,7 @@ import (
 
 	"umineko_city_of_books/internal/admin"
 	"umineko_city_of_books/internal/authz"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
@@ -142,10 +143,9 @@ func (s *Service) adminGetStats(ctx fiber.Ctx) error {
 
 func (s *Service) adminListUsers(ctx fiber.Ctx) error {
 	search := ctx.Query("search")
-	limit := fiber.Query[int](ctx, "limit", 20)
-	offset := fiber.Query[int](ctx, "offset", 0)
+	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 20), fiber.Query[int](ctx, "offset", 0))
 
-	result, err := s.AdminService.ListUsers(ctx.Context(), search, limit, offset)
+	result, err := s.AdminService.ListUsers(ctx.Context(), search, page)
 	if err != nil {
 		return handleAdminError(ctx, err)
 	}
@@ -340,10 +340,9 @@ func (s *Service) adminSendTestEmail(ctx fiber.Ctx) error {
 
 func (s *Service) adminGetAuditLog(ctx fiber.Ctx) error {
 	action := ctx.Query("action")
-	limit := fiber.Query[int](ctx, "limit", 50)
-	offset := fiber.Query[int](ctx, "offset", 0)
+	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 50), fiber.Query[int](ctx, "offset", 0))
 
-	result, err := s.AdminService.GetAuditLog(ctx.Context(), action, limit, offset)
+	result, err := s.AdminService.GetAuditLog(ctx.Context(), action, page)
 	if err != nil {
 		return handleAdminError(ctx, err)
 	}
@@ -404,10 +403,9 @@ func (s *Service) adminCreateInvite(ctx fiber.Ctx) error {
 }
 
 func (s *Service) adminListInvites(ctx fiber.Ctx) error {
-	limit := fiber.Query[int](ctx, "limit", 50)
-	offset := fiber.Query[int](ctx, "offset", 0)
+	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 50), fiber.Query[int](ctx, "offset", 0))
 
-	result, err := s.AdminService.ListInvites(ctx.Context(), limit, offset)
+	result, err := s.AdminService.ListInvites(ctx.Context(), page)
 	if err != nil {
 		return handleAdminError(ctx, err)
 	}
@@ -517,9 +515,9 @@ func (s *Service) adminDeleteVanityRole(ctx fiber.Ctx) error {
 func (s *Service) adminGetVanityRoleUsers(ctx fiber.Ctx) error {
 	id := ctx.Params("id")
 	search := ctx.Query("search")
-	limit := fiber.Query[int](ctx, "limit", 20)
-	offset := fiber.Query[int](ctx, "offset", 0)
-	result, err := s.AdminService.GetVanityRoleUsers(ctx.Context(), id, search, limit, offset)
+	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 20), fiber.Query[int](ctx, "offset", 0))
+
+	result, err := s.AdminService.GetVanityRoleUsers(ctx.Context(), id, search, page)
 	if err != nil {
 		return handleAdminError(ctx, err)
 	}

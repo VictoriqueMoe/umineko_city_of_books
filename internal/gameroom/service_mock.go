@@ -7,6 +7,7 @@ package gameroom
 import (
 	"context"
 	"encoding/json"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/dto"
 
 	"github.com/google/uuid"
@@ -1051,8 +1052,8 @@ func (_c *MockService_List_Call) RunAndReturn(run func(ctx context.Context, user
 }
 
 // ListFinished provides a mock function for the type MockService
-func (_mock *MockService) ListFinished(ctx context.Context, gameType dto.GameType, limit int, offset int) (*dto.GameRoomListResponse, error) {
-	ret := _mock.Called(ctx, gameType, limit, offset)
+func (_mock *MockService) ListFinished(ctx context.Context, gameType dto.GameType, page bounds.Page) (*dto.GameRoomListResponse, error) {
+	ret := _mock.Called(ctx, gameType, page)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListFinished")
@@ -1060,18 +1061,18 @@ func (_mock *MockService) ListFinished(ctx context.Context, gameType dto.GameTyp
 
 	var r0 *dto.GameRoomListResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, dto.GameType, int, int) (*dto.GameRoomListResponse, error)); ok {
-		return returnFunc(ctx, gameType, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, dto.GameType, bounds.Page) (*dto.GameRoomListResponse, error)); ok {
+		return returnFunc(ctx, gameType, page)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, dto.GameType, int, int) *dto.GameRoomListResponse); ok {
-		r0 = returnFunc(ctx, gameType, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, dto.GameType, bounds.Page) *dto.GameRoomListResponse); ok {
+		r0 = returnFunc(ctx, gameType, page)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*dto.GameRoomListResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, dto.GameType, int, int) error); ok {
-		r1 = returnFunc(ctx, gameType, limit, offset)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, dto.GameType, bounds.Page) error); ok {
+		r1 = returnFunc(ctx, gameType, page)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1086,13 +1087,12 @@ type MockService_ListFinished_Call struct {
 // ListFinished is a helper method to define mock.On call
 //   - ctx context.Context
 //   - gameType dto.GameType
-//   - limit int
-//   - offset int
-func (_e *MockService_Expecter) ListFinished(ctx any, gameType any, limit any, offset any) *MockService_ListFinished_Call {
-	return &MockService_ListFinished_Call{Call: _e.mock.On("ListFinished", ctx, gameType, limit, offset)}
+//   - page bounds.Page
+func (_e *MockService_Expecter) ListFinished(ctx any, gameType any, page any) *MockService_ListFinished_Call {
+	return &MockService_ListFinished_Call{Call: _e.mock.On("ListFinished", ctx, gameType, page)}
 }
 
-func (_c *MockService_ListFinished_Call) Run(run func(ctx context.Context, gameType dto.GameType, limit int, offset int)) *MockService_ListFinished_Call {
+func (_c *MockService_ListFinished_Call) Run(run func(ctx context.Context, gameType dto.GameType, page bounds.Page)) *MockService_ListFinished_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1102,19 +1102,14 @@ func (_c *MockService_ListFinished_Call) Run(run func(ctx context.Context, gameT
 		if args[1] != nil {
 			arg1 = args[1].(dto.GameType)
 		}
-		var arg2 int
+		var arg2 bounds.Page
 		if args[2] != nil {
-			arg2 = args[2].(int)
-		}
-		var arg3 int
-		if args[3] != nil {
-			arg3 = args[3].(int)
+			arg2 = args[2].(bounds.Page)
 		}
 		run(
 			arg0,
 			arg1,
 			arg2,
-			arg3,
 		)
 	})
 	return _c
@@ -1125,14 +1120,14 @@ func (_c *MockService_ListFinished_Call) Return(gameRoomListResponse *dto.GameRo
 	return _c
 }
 
-func (_c *MockService_ListFinished_Call) RunAndReturn(run func(ctx context.Context, gameType dto.GameType, limit int, offset int) (*dto.GameRoomListResponse, error)) *MockService_ListFinished_Call {
+func (_c *MockService_ListFinished_Call) RunAndReturn(run func(ctx context.Context, gameType dto.GameType, page bounds.Page) (*dto.GameRoomListResponse, error)) *MockService_ListFinished_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListLive provides a mock function for the type MockService
-func (_mock *MockService) ListLive(ctx context.Context, gameType dto.GameType, limit int, offset int) (*dto.GameRoomListResponse, error) {
-	ret := _mock.Called(ctx, gameType, limit, offset)
+func (_mock *MockService) ListLive(ctx context.Context, gameType dto.GameType, page bounds.Page) (*dto.GameRoomListResponse, error) {
+	ret := _mock.Called(ctx, gameType, page)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListLive")
@@ -1140,18 +1135,18 @@ func (_mock *MockService) ListLive(ctx context.Context, gameType dto.GameType, l
 
 	var r0 *dto.GameRoomListResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, dto.GameType, int, int) (*dto.GameRoomListResponse, error)); ok {
-		return returnFunc(ctx, gameType, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, dto.GameType, bounds.Page) (*dto.GameRoomListResponse, error)); ok {
+		return returnFunc(ctx, gameType, page)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, dto.GameType, int, int) *dto.GameRoomListResponse); ok {
-		r0 = returnFunc(ctx, gameType, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, dto.GameType, bounds.Page) *dto.GameRoomListResponse); ok {
+		r0 = returnFunc(ctx, gameType, page)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*dto.GameRoomListResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, dto.GameType, int, int) error); ok {
-		r1 = returnFunc(ctx, gameType, limit, offset)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, dto.GameType, bounds.Page) error); ok {
+		r1 = returnFunc(ctx, gameType, page)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1166,13 +1161,12 @@ type MockService_ListLive_Call struct {
 // ListLive is a helper method to define mock.On call
 //   - ctx context.Context
 //   - gameType dto.GameType
-//   - limit int
-//   - offset int
-func (_e *MockService_Expecter) ListLive(ctx any, gameType any, limit any, offset any) *MockService_ListLive_Call {
-	return &MockService_ListLive_Call{Call: _e.mock.On("ListLive", ctx, gameType, limit, offset)}
+//   - page bounds.Page
+func (_e *MockService_Expecter) ListLive(ctx any, gameType any, page any) *MockService_ListLive_Call {
+	return &MockService_ListLive_Call{Call: _e.mock.On("ListLive", ctx, gameType, page)}
 }
 
-func (_c *MockService_ListLive_Call) Run(run func(ctx context.Context, gameType dto.GameType, limit int, offset int)) *MockService_ListLive_Call {
+func (_c *MockService_ListLive_Call) Run(run func(ctx context.Context, gameType dto.GameType, page bounds.Page)) *MockService_ListLive_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1182,19 +1176,14 @@ func (_c *MockService_ListLive_Call) Run(run func(ctx context.Context, gameType 
 		if args[1] != nil {
 			arg1 = args[1].(dto.GameType)
 		}
-		var arg2 int
+		var arg2 bounds.Page
 		if args[2] != nil {
-			arg2 = args[2].(int)
-		}
-		var arg3 int
-		if args[3] != nil {
-			arg3 = args[3].(int)
+			arg2 = args[2].(bounds.Page)
 		}
 		run(
 			arg0,
 			arg1,
 			arg2,
-			arg3,
 		)
 	})
 	return _c
@@ -1205,7 +1194,7 @@ func (_c *MockService_ListLive_Call) Return(gameRoomListResponse *dto.GameRoomLi
 	return _c
 }
 
-func (_c *MockService_ListLive_Call) RunAndReturn(run func(ctx context.Context, gameType dto.GameType, limit int, offset int) (*dto.GameRoomListResponse, error)) *MockService_ListLive_Call {
+func (_c *MockService_ListLive_Call) RunAndReturn(run func(ctx context.Context, gameType dto.GameType, page bounds.Page) (*dto.GameRoomListResponse, error)) *MockService_ListLive_Call {
 	_c.Call.Return(run)
 	return _c
 }

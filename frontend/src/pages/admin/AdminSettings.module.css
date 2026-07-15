@@ -45,6 +45,13 @@
     color: var(--text-muted);
 }
 
+.fieldHint {
+    font-size: 0.72rem;
+    line-height: 1.4;
+    color: var(--text-muted);
+    opacity: 0.75;
+}
+
 .saveRow {
     display: flex;
     align-items: center;

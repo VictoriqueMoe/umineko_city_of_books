@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"umineko_city_of_books/internal/block"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/follow"
@@ -151,12 +152,11 @@ func (s *Service) listPostFeed(ctx fiber.Ctx) error {
 	search := ctx.Query("search")
 	sort := ctx.Query("sort")
 	seed := fiber.Query[int](ctx, "seed", 0)
-	limit := fiber.Query[int](ctx, "limit", 20)
-	offset := fiber.Query[int](ctx, "offset", 0)
+	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 20), fiber.Query[int](ctx, "offset", 0))
 
 	resolvedFilter := ctx.Query("resolved")
 
-	result, err := s.PostService.ListFeed(ctx.Context(), tab, viewerID, corner, search, sort, seed, limit, offset, resolvedFilter)
+	result, err := s.PostService.ListFeed(ctx.Context(), tab, viewerID, corner, search, sort, seed, page, resolvedFilter)
 	if err != nil {
 		return utils.InternalError(ctx, "failed to list posts")
 	}
@@ -458,10 +458,9 @@ func (s *Service) listUserPosts(ctx fiber.Ctx) error {
 	}
 
 	viewerID := utils.UserID(ctx)
-	limit := fiber.Query[int](ctx, "limit", 20)
-	offset := fiber.Query[int](ctx, "offset", 0)
+	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 20), fiber.Query[int](ctx, "offset", 0))
 
-	result, err := s.PostService.ListUserPosts(ctx.Context(), userID, viewerID, limit, offset)
+	result, err := s.PostService.ListUserPosts(ctx.Context(), userID, viewerID, page)
 	if err != nil {
 		return utils.InternalError(ctx, "failed to list user posts")
 	}
@@ -520,10 +519,9 @@ func (s *Service) getFollowers(ctx fiber.Ctx) error {
 		return nil
 	}
 
-	limit := fiber.Query[int](ctx, "limit", 50)
-	offset := fiber.Query[int](ctx, "offset", 0)
+	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 50), fiber.Query[int](ctx, "offset", 0))
 
-	users, total, err := s.FollowService.GetFollowers(ctx.Context(), userID, limit, offset)
+	users, total, err := s.FollowService.GetFollowers(ctx.Context(), userID, page)
 	if err != nil {
 		return utils.InternalError(ctx, "failed to get followers")
 	}
@@ -536,10 +534,9 @@ func (s *Service) getFollowing(ctx fiber.Ctx) error {
 		return nil
 	}
 
-	limit := fiber.Query[int](ctx, "limit", 50)
-	offset := fiber.Query[int](ctx, "offset", 0)
+	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 50), fiber.Query[int](ctx, "offset", 0))
 
-	users, total, err := s.FollowService.GetFollowing(ctx.Context(), userID, limit, offset)
+	users, total, err := s.FollowService.GetFollowing(ctx.Context(), userID, page)
 	if err != nil {
 		return utils.InternalError(ctx, "failed to get following")
 	}

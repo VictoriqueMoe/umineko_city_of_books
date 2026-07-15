@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
@@ -34,8 +35,7 @@ type (
 	ListFilter struct {
 		GameType dto.GameType
 		Statuses []dto.GameStatus
-		Limit    int
-		Offset   int
+		Page     bounds.Page
 	}
 
 	Service interface {
@@ -45,8 +45,8 @@ type (
 		Cancel(ctx context.Context, roomID, userID uuid.UUID) error
 		Get(ctx context.Context, roomID, viewerID uuid.UUID) (*dto.GameRoom, error)
 		List(ctx context.Context, userID uuid.UUID, filter ListFilter) (*dto.GameRoomListResponse, error)
-		ListLive(ctx context.Context, gameType dto.GameType, limit, offset int) (*dto.GameRoomListResponse, error)
-		ListFinished(ctx context.Context, gameType dto.GameType, limit, offset int) (*dto.GameRoomListResponse, error)
+		ListLive(ctx context.Context, gameType dto.GameType, page bounds.Page) (*dto.GameRoomListResponse, error)
+		ListFinished(ctx context.Context, gameType dto.GameType, page bounds.Page) (*dto.GameRoomListResponse, error)
 		CountLive(ctx context.Context) (int, error)
 		SubmitAction(ctx context.Context, roomID, userID uuid.UUID, action json.RawMessage) (*dto.GameRoom, error)
 		Resign(ctx context.Context, roomID, userID uuid.UUID) (*dto.GameRoom, error)
@@ -157,13 +157,6 @@ func (s *service) loadActiveRoomForActor(ctx context.Context, roomID, userID uui
 
 func (s *service) loadPendingRoomForActor(ctx context.Context, roomID, userID uuid.UUID) (*repository.GameRoomRow, int, error) {
 	return s.loadRoomForActor(ctx, roomID, userID, dto.GameStatusPending, ErrRoomNotPending)
-}
-
-func clampListLimit(limit int) int {
-	if limit <= 0 || limit > 50 {
-		return 20
-	}
-	return limit
 }
 
 func (s *service) hydrateRoomList(ctx context.Context, rows []repository.GameRoomRow, total int) (*dto.GameRoomListResponse, error) {
@@ -409,15 +402,15 @@ func (s *service) Get(ctx context.Context, roomID, viewerID uuid.UUID) (*dto.Gam
 }
 
 func (s *service) List(ctx context.Context, userID uuid.UUID, filter ListFilter) (*dto.GameRoomListResponse, error) {
-	rows, total, err := s.repo.ListForUser(ctx, userID, string(filter.GameType), filter.Statuses, clampListLimit(filter.Limit), filter.Offset)
+	rows, total, err := s.repo.ListForUser(ctx, userID, string(filter.GameType), filter.Statuses, filter.Page.Limit(), filter.Page.Offset())
 	if err != nil {
 		return nil, err
 	}
 	return s.hydrateRoomList(ctx, rows, total)
 }
 
-func (s *service) ListLive(ctx context.Context, gameType dto.GameType, limit, offset int) (*dto.GameRoomListResponse, error) {
-	rows, total, err := s.repo.ListLive(ctx, string(gameType), clampListLimit(limit), offset)
+func (s *service) ListLive(ctx context.Context, gameType dto.GameType, page bounds.Page) (*dto.GameRoomListResponse, error) {
+	rows, total, err := s.repo.ListLive(ctx, string(gameType), page.Limit(), page.Offset())
 	if err != nil {
 		return nil, err
 	}
@@ -440,8 +433,8 @@ func (s *service) broadcastLiveGamesCount(ctx context.Context) {
 	})
 }
 
-func (s *service) ListFinished(ctx context.Context, gameType dto.GameType, limit, offset int) (*dto.GameRoomListResponse, error) {
-	rows, total, err := s.repo.ListFinished(ctx, string(gameType), clampListLimit(limit), offset)
+func (s *service) ListFinished(ctx context.Context, gameType dto.GameType, page bounds.Page) (*dto.GameRoomListResponse, error) {
+	rows, total, err := s.repo.ListFinished(ctx, string(gameType), page.Limit(), page.Offset())
 	if err != nil {
 		return nil, err
 	}

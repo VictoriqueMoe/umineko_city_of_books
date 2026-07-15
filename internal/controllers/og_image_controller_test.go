@@ -6,9 +6,13 @@ import (
 	"path/filepath"
 	"testing"
 
+	"umineko_city_of_books/internal/bounds"
+	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
+	"umineko_city_of_books/internal/settings"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -19,7 +23,9 @@ func TestOGImage_NotFound(t *testing.T) {
 	require.NoError(t, os.MkdirAll(uploads, 0755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "outside.webp"), []byte("x"), 0644))
 	h := testutil.NewHarness(t)
-	NewOGImageHandler(uploads).Register(h.App)
+	settingsSvc := settings.NewMockService(t)
+	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImagePixels).Return(bounds.FallbackMaxImagePixels).Maybe()
+	NewOGImageHandler(uploads, settingsSvc).Register(h.App)
 
 	tests := []struct {
 		name string

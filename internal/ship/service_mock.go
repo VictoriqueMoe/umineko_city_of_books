@@ -7,6 +7,7 @@ package ship
 import (
 	"context"
 	"io"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/quotefinder"
 
@@ -521,8 +522,8 @@ func (_c *MockService_ListCharacters_Call) RunAndReturn(run func(series quotefin
 }
 
 // ListShips provides a mock function for the type MockService
-func (_mock *MockService) ListShips(ctx context.Context, viewerID uuid.UUID, sort string, crackshipsOnly bool, series string, characterID string, limit int, offset int) (*dto.ShipListResponse, error) {
-	ret := _mock.Called(ctx, viewerID, sort, crackshipsOnly, series, characterID, limit, offset)
+func (_mock *MockService) ListShips(ctx context.Context, viewerID uuid.UUID, sort string, crackshipsOnly bool, series string, characterID string, page bounds.Page) (*dto.ShipListResponse, error) {
+	ret := _mock.Called(ctx, viewerID, sort, crackshipsOnly, series, characterID, page)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListShips")
@@ -530,18 +531,18 @@ func (_mock *MockService) ListShips(ctx context.Context, viewerID uuid.UUID, sor
 
 	var r0 *dto.ShipListResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, bool, string, string, int, int) (*dto.ShipListResponse, error)); ok {
-		return returnFunc(ctx, viewerID, sort, crackshipsOnly, series, characterID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, bool, string, string, bounds.Page) (*dto.ShipListResponse, error)); ok {
+		return returnFunc(ctx, viewerID, sort, crackshipsOnly, series, characterID, page)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, bool, string, string, int, int) *dto.ShipListResponse); ok {
-		r0 = returnFunc(ctx, viewerID, sort, crackshipsOnly, series, characterID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, bool, string, string, bounds.Page) *dto.ShipListResponse); ok {
+		r0 = returnFunc(ctx, viewerID, sort, crackshipsOnly, series, characterID, page)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*dto.ShipListResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, bool, string, string, int, int) error); ok {
-		r1 = returnFunc(ctx, viewerID, sort, crackshipsOnly, series, characterID, limit, offset)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, bool, string, string, bounds.Page) error); ok {
+		r1 = returnFunc(ctx, viewerID, sort, crackshipsOnly, series, characterID, page)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -560,13 +561,12 @@ type MockService_ListShips_Call struct {
 //   - crackshipsOnly bool
 //   - series string
 //   - characterID string
-//   - limit int
-//   - offset int
-func (_e *MockService_Expecter) ListShips(ctx any, viewerID any, sort any, crackshipsOnly any, series any, characterID any, limit any, offset any) *MockService_ListShips_Call {
-	return &MockService_ListShips_Call{Call: _e.mock.On("ListShips", ctx, viewerID, sort, crackshipsOnly, series, characterID, limit, offset)}
+//   - page bounds.Page
+func (_e *MockService_Expecter) ListShips(ctx any, viewerID any, sort any, crackshipsOnly any, series any, characterID any, page any) *MockService_ListShips_Call {
+	return &MockService_ListShips_Call{Call: _e.mock.On("ListShips", ctx, viewerID, sort, crackshipsOnly, series, characterID, page)}
 }
 
-func (_c *MockService_ListShips_Call) Run(run func(ctx context.Context, viewerID uuid.UUID, sort string, crackshipsOnly bool, series string, characterID string, limit int, offset int)) *MockService_ListShips_Call {
+func (_c *MockService_ListShips_Call) Run(run func(ctx context.Context, viewerID uuid.UUID, sort string, crackshipsOnly bool, series string, characterID string, page bounds.Page)) *MockService_ListShips_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -592,13 +592,9 @@ func (_c *MockService_ListShips_Call) Run(run func(ctx context.Context, viewerID
 		if args[5] != nil {
 			arg5 = args[5].(string)
 		}
-		var arg6 int
+		var arg6 bounds.Page
 		if args[6] != nil {
-			arg6 = args[6].(int)
-		}
-		var arg7 int
-		if args[7] != nil {
-			arg7 = args[7].(int)
+			arg6 = args[6].(bounds.Page)
 		}
 		run(
 			arg0,
@@ -608,7 +604,6 @@ func (_c *MockService_ListShips_Call) Run(run func(ctx context.Context, viewerID
 			arg4,
 			arg5,
 			arg6,
-			arg7,
 		)
 	})
 	return _c
@@ -619,14 +614,14 @@ func (_c *MockService_ListShips_Call) Return(shipListResponse *dto.ShipListRespo
 	return _c
 }
 
-func (_c *MockService_ListShips_Call) RunAndReturn(run func(ctx context.Context, viewerID uuid.UUID, sort string, crackshipsOnly bool, series string, characterID string, limit int, offset int) (*dto.ShipListResponse, error)) *MockService_ListShips_Call {
+func (_c *MockService_ListShips_Call) RunAndReturn(run func(ctx context.Context, viewerID uuid.UUID, sort string, crackshipsOnly bool, series string, characterID string, page bounds.Page) (*dto.ShipListResponse, error)) *MockService_ListShips_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListShipsByUser provides a mock function for the type MockService
-func (_mock *MockService) ListShipsByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit int, offset int) (*dto.ShipListResponse, error) {
-	ret := _mock.Called(ctx, userID, viewerID, limit, offset)
+func (_mock *MockService) ListShipsByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, page bounds.Page) (*dto.ShipListResponse, error) {
+	ret := _mock.Called(ctx, userID, viewerID, page)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListShipsByUser")
@@ -634,18 +629,18 @@ func (_mock *MockService) ListShipsByUser(ctx context.Context, userID uuid.UUID,
 
 	var r0 *dto.ShipListResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int) (*dto.ShipListResponse, error)); ok {
-		return returnFunc(ctx, userID, viewerID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, bounds.Page) (*dto.ShipListResponse, error)); ok {
+		return returnFunc(ctx, userID, viewerID, page)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int) *dto.ShipListResponse); ok {
-		r0 = returnFunc(ctx, userID, viewerID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, bounds.Page) *dto.ShipListResponse); ok {
+		r0 = returnFunc(ctx, userID, viewerID, page)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*dto.ShipListResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, int, int) error); ok {
-		r1 = returnFunc(ctx, userID, viewerID, limit, offset)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, bounds.Page) error); ok {
+		r1 = returnFunc(ctx, userID, viewerID, page)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -661,13 +656,12 @@ type MockService_ListShipsByUser_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - viewerID uuid.UUID
-//   - limit int
-//   - offset int
-func (_e *MockService_Expecter) ListShipsByUser(ctx any, userID any, viewerID any, limit any, offset any) *MockService_ListShipsByUser_Call {
-	return &MockService_ListShipsByUser_Call{Call: _e.mock.On("ListShipsByUser", ctx, userID, viewerID, limit, offset)}
+//   - page bounds.Page
+func (_e *MockService_Expecter) ListShipsByUser(ctx any, userID any, viewerID any, page any) *MockService_ListShipsByUser_Call {
+	return &MockService_ListShipsByUser_Call{Call: _e.mock.On("ListShipsByUser", ctx, userID, viewerID, page)}
 }
 
-func (_c *MockService_ListShipsByUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit int, offset int)) *MockService_ListShipsByUser_Call {
+func (_c *MockService_ListShipsByUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, page bounds.Page)) *MockService_ListShipsByUser_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -681,20 +675,15 @@ func (_c *MockService_ListShipsByUser_Call) Run(run func(ctx context.Context, us
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
-		var arg3 int
+		var arg3 bounds.Page
 		if args[3] != nil {
-			arg3 = args[3].(int)
-		}
-		var arg4 int
-		if args[4] != nil {
-			arg4 = args[4].(int)
+			arg3 = args[3].(bounds.Page)
 		}
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
-			arg4,
 		)
 	})
 	return _c
@@ -705,7 +694,7 @@ func (_c *MockService_ListShipsByUser_Call) Return(shipListResponse *dto.ShipLis
 	return _c
 }
 
-func (_c *MockService_ListShipsByUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit int, offset int) (*dto.ShipListResponse, error)) *MockService_ListShipsByUser_Call {
+func (_c *MockService_ListShipsByUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, page bounds.Page) (*dto.ShipListResponse, error)) *MockService_ListShipsByUser_Call {
 	_c.Call.Return(run)
 	return _c
 }

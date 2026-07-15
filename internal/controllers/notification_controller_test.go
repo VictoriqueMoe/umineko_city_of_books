@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"testing"
 
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
 	"umineko_city_of_books/internal/dto"
 	notifsvc "umineko_city_of_books/internal/notification"
@@ -46,7 +47,7 @@ func TestListNotifications_OK_Defaults(t *testing.T) {
 		Limit:         20,
 		Offset:        0,
 	}
-	ns.EXPECT().List(mock.Anything, userID, 20, 0).Return(expected, nil)
+	ns.EXPECT().List(mock.Anything, userID, bounds.NewPage(20, 0)).Return(expected, nil)
 
 	// when
 	status, body := h.NewRequest("GET", "/notifications").
@@ -74,7 +75,7 @@ func TestListNotifications_OK_CustomPaging(t *testing.T) {
 		Limit:         5,
 		Offset:        10,
 	}
-	ns.EXPECT().List(mock.Anything, userID, 5, 10).Return(expected, nil)
+	ns.EXPECT().List(mock.Anything, userID, bounds.NewPage(5, 10)).Return(expected, nil)
 
 	// when
 	status, body := h.NewRequest("GET", "/notifications?limit=5&offset=10").
@@ -93,7 +94,7 @@ func TestListNotifications_ServiceError(t *testing.T) {
 	h, ns := newNotificationHarness(t)
 	userID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
-	ns.EXPECT().List(mock.Anything, userID, 20, 0).Return(nil, errors.New("db down"))
+	ns.EXPECT().List(mock.Anything, userID, bounds.NewPage(20, 0)).Return(nil, errors.New("db down"))
 
 	// when
 	status, body := h.NewRequest("GET", "/notifications").

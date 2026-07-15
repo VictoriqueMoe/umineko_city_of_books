@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/authz"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/email"
@@ -186,7 +187,7 @@ func TestListUsers_OK(t *testing.T) {
 	}, 2, nil)
 
 	// when
-	got, err := svc.ListUsers(context.Background(), "query", 10, 0)
+	got, err := svc.ListUsers(context.Background(), "query", bounds.NewPage(10, 0))
 
 	// then
 	require.NoError(t, err)
@@ -203,7 +204,7 @@ func TestListUsers_RepoError(t *testing.T) {
 	m.userRepo.EXPECT().ListAll(mock.Anything, "", 10, 0).Return(nil, 0, errors.New("boom"))
 
 	// when
-	_, err := svc.ListUsers(context.Background(), "", 10, 0)
+	_, err := svc.ListUsers(context.Background(), "", bounds.NewPage(10, 0))
 
 	// then
 	require.Error(t, err)
@@ -743,7 +744,7 @@ func TestGetAuditLog_OK(t *testing.T) {
 	}, 1, nil)
 
 	// when
-	got, err := svc.GetAuditLog(context.Background(), "ban_user", 20, 0)
+	got, err := svc.GetAuditLog(context.Background(), "ban_user", bounds.NewPage(20, 0))
 
 	// then
 	require.NoError(t, err)
@@ -759,7 +760,7 @@ func TestGetAuditLog_RepoError(t *testing.T) {
 	m.auditRepo.EXPECT().List(mock.Anything, "", 20, 0).Return(nil, 0, errors.New("boom"))
 
 	// when
-	_, err := svc.GetAuditLog(context.Background(), "", 20, 0)
+	_, err := svc.GetAuditLog(context.Background(), "", bounds.NewPage(20, 0))
 
 	// then
 	require.Error(t, err)
@@ -803,7 +804,7 @@ func TestListInvites_OK(t *testing.T) {
 	}, 1, nil)
 
 	// when
-	got, err := svc.ListInvites(context.Background(), 10, 0)
+	got, err := svc.ListInvites(context.Background(), bounds.NewPage(10, 0))
 
 	// then
 	require.NoError(t, err)
@@ -818,7 +819,7 @@ func TestListInvites_RepoError(t *testing.T) {
 	m.inviteRepo.EXPECT().List(mock.Anything, 10, 0).Return(nil, 0, errors.New("boom"))
 
 	// when
-	_, err := svc.ListInvites(context.Background(), 10, 0)
+	_, err := svc.ListInvites(context.Background(), bounds.NewPage(10, 0))
 
 	// then
 	require.Error(t, err)
@@ -1096,7 +1097,7 @@ func TestGetVanityRoleUsers_OK(t *testing.T) {
 	}, 1, nil)
 
 	// when
-	got, err := svc.GetVanityRoleUsers(context.Background(), "r1", "q", 10, 0)
+	got, err := svc.GetVanityRoleUsers(context.Background(), "r1", "q", bounds.NewPage(10, 0))
 
 	// then
 	require.NoError(t, err)
@@ -1111,7 +1112,7 @@ func TestGetVanityRoleUsers_RepoError(t *testing.T) {
 	m.vanityRepo.EXPECT().GetUsersForRole(mock.Anything, "r1", "", 10, 0).Return(nil, 0, errors.New("boom"))
 
 	// when
-	_, err := svc.GetVanityRoleUsers(context.Background(), "r1", "", 10, 0)
+	_, err := svc.GetVanityRoleUsers(context.Background(), "r1", "", bounds.NewPage(10, 0))
 
 	// then
 	require.Error(t, err)

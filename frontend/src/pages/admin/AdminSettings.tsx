@@ -12,6 +12,7 @@ import type { SiteSettings } from "../../types/api";
 import styles from "./AdminSettings.module.css";
 
 const BYTES_PER_MB = 1024 * 1024;
+const PIXELS_PER_MP = 1_000_000;
 
 type EmailProvider = "smtp" | "cloudflare";
 const EMAIL_PROVIDER_SMTP: EmailProvider = "smtp";
@@ -65,9 +66,27 @@ export function AdminSettings() {
         }
     }
 
+    function getMP(key: string): string {
+        const pixels = parseInt(settings[key] ?? "0", 10);
+        if (isNaN(pixels)) {
+            return "0";
+        }
+        return String(pixels / PIXELS_PER_MP);
+    }
+
+    function setMP(key: string, mp: string) {
+        const mpNum = parseFloat(mp);
+        if (isNaN(mpNum)) {
+            updateField(key, "0");
+        } else {
+            updateField(key, String(Math.round(mpNum * PIXELS_PER_MP)));
+        }
+    }
+
     function validateSettings(): string | null {
         const maxBody = parseInt(settings.max_body_size ?? "0", 10);
         const maxImage = parseInt(settings.max_image_size ?? "0", 10);
+        const maxImagePixels = parseInt(settings.max_image_pixels ?? "0", 10);
         const maxVideo = parseInt(settings.max_video_size ?? "0", 10);
         const maxGeneral = parseInt(settings.max_general_size ?? "0", 10);
         const minPassword = parseInt(settings.min_password_length ?? "0", 10);
@@ -80,6 +99,9 @@ export function AdminSettings() {
         }
         if (maxImage <= 0) {
             return "Max image size must be greater than 0";
+        }
+        if (maxImagePixels <= 0) {
+            return "Max image pixels must be greater than 0";
         }
         if (maxImage > maxBody) {
             return `Max image size (${Math.round(maxImage / BYTES_PER_MB)} MB) cannot exceed max body size (${Math.round(maxBody / BYTES_PER_MB)} MB)`;
@@ -436,6 +458,18 @@ export function AdminSettings() {
                             value={getMB("max_image_size")}
                             onChange={e => setMB("max_image_size", e.target.value)}
                         />
+                    </div>
+                    <div className={styles.field}>
+                        <span className={styles.fieldLabel}>Max Image Pixels (megapixels)</span>
+                        <Input
+                            type="number"
+                            value={getMP("max_image_pixels")}
+                            onChange={e => setMP("max_image_pixels", e.target.value)}
+                        />
+                        <span className={styles.fieldHint}>
+                            Rejects images whose width x height exceeds this, however small the file is. A highly
+                            compressible image can be tiny on disk yet need gigabytes of memory to decode.
+                        </span>
                     </div>
                     <div className={styles.field}>
                         <span className={styles.fieldLabel}>Max Video Size (MB)</span>

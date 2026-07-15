@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"testing"
 
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/follow"
@@ -409,7 +410,7 @@ func TestGetUserActivity_OK(t *testing.T) {
 	// given
 	h, deps := newProfileHarness(t)
 	expected := &dto.ActivityListResponse{}
-	deps.profileSvc.EXPECT().GetActivity(mock.Anything, "beato", 20, 0).Return(expected, nil)
+	deps.profileSvc.EXPECT().GetActivity(mock.Anything, "beato", bounds.NewPage(20, 0)).Return(expected, nil)
 
 	// when
 	status, _ := h.NewRequest("GET", "/users/beato/activity").Do()
@@ -421,7 +422,7 @@ func TestGetUserActivity_OK(t *testing.T) {
 func TestGetUserActivity_CustomPaging(t *testing.T) {
 	// given
 	h, deps := newProfileHarness(t)
-	deps.profileSvc.EXPECT().GetActivity(mock.Anything, "beato", 5, 10).Return(&dto.ActivityListResponse{}, nil)
+	deps.profileSvc.EXPECT().GetActivity(mock.Anything, "beato", bounds.NewPage(5, 10)).Return(&dto.ActivityListResponse{}, nil)
 
 	// when
 	status, _ := h.NewRequest("GET", "/users/beato/activity?limit=5&offset=10").Do()
@@ -433,7 +434,7 @@ func TestGetUserActivity_CustomPaging(t *testing.T) {
 func TestGetUserActivity_NotFound(t *testing.T) {
 	// given
 	h, deps := newProfileHarness(t)
-	deps.profileSvc.EXPECT().GetActivity(mock.Anything, "ghost", 20, 0).Return(nil, profile.ErrUserNotFound)
+	deps.profileSvc.EXPECT().GetActivity(mock.Anything, "ghost", bounds.NewPage(20, 0)).Return(nil, profile.ErrUserNotFound)
 
 	// when
 	status, body := h.NewRequest("GET", "/users/ghost/activity").Do()
@@ -446,7 +447,7 @@ func TestGetUserActivity_NotFound(t *testing.T) {
 func TestGetUserActivity_InternalError(t *testing.T) {
 	// given
 	h, deps := newProfileHarness(t)
-	deps.profileSvc.EXPECT().GetActivity(mock.Anything, "beato", 20, 0).Return(nil, errors.New("boom"))
+	deps.profileSvc.EXPECT().GetActivity(mock.Anything, "beato", bounds.NewPage(20, 0)).Return(nil, errors.New("boom"))
 
 	// when
 	status, body := h.NewRequest("GET", "/users/beato/activity").Do()

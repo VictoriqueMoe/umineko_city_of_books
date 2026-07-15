@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
@@ -22,7 +23,7 @@ type (
 	}
 
 	Service interface {
-		Search(ctx context.Context, query string, types []repository.SearchEntityType, limit, offset int, viewerID, roomID uuid.UUID) ([]Result, int, error)
+		Search(ctx context.Context, query string, types []repository.SearchEntityType, page bounds.Page, viewerID, roomID uuid.UUID) ([]Result, int, error)
 		QuickSearch(ctx context.Context, query string, perTypeLimit int, viewerID uuid.UUID) ([]Result, error)
 		ChildEntityTypes() []repository.SearchEntityType
 		ParseTypes(raw string) []repository.SearchEntityType
@@ -38,19 +39,10 @@ func NewService(repo repository.SearchRepository, chat ChatSearcher) Service {
 	return &service{repo: repo, chat: chat}
 }
 
-func (s *service) Search(ctx context.Context, query string, types []repository.SearchEntityType, limit, offset int, viewerID, roomID uuid.UUID) ([]Result, int, error) {
+func (s *service) Search(ctx context.Context, query string, types []repository.SearchEntityType, page bounds.Page, viewerID, roomID uuid.UUID) ([]Result, int, error) {
 	q := strings.TrimSpace(query)
 	if q == "" {
 		return nil, 0, nil
-	}
-	if limit <= 0 {
-		limit = 20
-	}
-	if limit > 100 {
-		limit = 100
-	}
-	if offset < 0 {
-		offset = 0
 	}
 
 	repoTypes, chatRequested, explicit := splitChatType(types)
@@ -59,7 +51,7 @@ func (s *service) Search(ctx context.Context, query string, types []repository.S
 	var merged []repository.SearchResult
 	var total int
 
-	window := offset + limit
+	window := page.Window()
 	if !explicit || len(repoTypes) > 0 {
 		rows, repoTotal, err := s.repo.Search(ctx, q, repoTypes, window, 0)
 		if err != nil {
@@ -79,7 +71,7 @@ func (s *service) Search(ctx context.Context, query string, types []repository.S
 	}
 
 	sortByRank(merged)
-	return decorate(pageOf(merged, offset, limit)), total, nil
+	return decorate(pageOf(merged, page.Offset(), page.Limit())), total, nil
 }
 
 func (s *service) QuickSearch(ctx context.Context, query string, perTypeLimit int, viewerID uuid.UUID) ([]Result, error) {

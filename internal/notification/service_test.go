@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/email"
@@ -649,7 +650,7 @@ func TestList_OK(t *testing.T) {
 	notifRepo.EXPECT().ListByUser(mock.Anything, userID, 10, 0).Return(rows, 2, nil)
 
 	// when
-	got, err := svc.List(context.Background(), userID, 10, 0)
+	got, err := svc.List(context.Background(), userID, bounds.NewPage(10, 0))
 
 	// then
 	require.NoError(t, err)
@@ -669,7 +670,7 @@ func TestList_EmptyRows(t *testing.T) {
 	notifRepo.EXPECT().ListByUser(mock.Anything, userID, 5, 10).Return(nil, 0, nil)
 
 	// when
-	got, err := svc.List(context.Background(), userID, 5, 10)
+	got, err := svc.List(context.Background(), userID, bounds.NewPage(5, 10))
 
 	// then
 	require.NoError(t, err)
@@ -687,7 +688,7 @@ func TestList_RepoError(t *testing.T) {
 	notifRepo.EXPECT().ListByUser(mock.Anything, userID, 10, 0).Return(nil, 0, errors.New("db down"))
 
 	// when
-	got, err := svc.List(context.Background(), userID, 10, 0)
+	got, err := svc.List(context.Background(), userID, bounds.NewPage(10, 0))
 
 	// then
 	require.Error(t, err)

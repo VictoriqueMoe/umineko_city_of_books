@@ -10,6 +10,7 @@ import (
 
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
@@ -33,8 +34,8 @@ type (
 		GetPost(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, viewerHash string) (*dto.PostDetailResponse, error)
 		UpdatePost(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.UpdatePostRequest) error
 		DeletePost(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
-		ListFeed(ctx context.Context, tab string, viewerID uuid.UUID, corner string, search string, sort string, seed int, limit, offset int, resolvedFilter string) (*dto.PostListResponse, error)
-		ListUserPosts(ctx context.Context, targetUserID uuid.UUID, viewerID uuid.UUID, limit, offset int) (*dto.PostListResponse, error)
+		ListFeed(ctx context.Context, tab string, viewerID uuid.UUID, corner string, search string, sort string, seed int, page bounds.Page, resolvedFilter string) (*dto.PostListResponse, error)
+		ListUserPosts(ctx context.Context, targetUserID uuid.UUID, viewerID uuid.UUID, page bounds.Page) (*dto.PostListResponse, error)
 		UploadPostMedia(ctx context.Context, postID uuid.UUID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error)
 		DeletePostMedia(ctx context.Context, postID uuid.UUID, mediaID int64, userID uuid.UUID) error
 		LikePost(ctx context.Context, userID uuid.UUID, postID uuid.UUID) error
@@ -323,7 +324,7 @@ func (s *service) DeletePost(ctx context.Context, id uuid.UUID, userID uuid.UUID
 	return nil
 }
 
-func (s *service) ListFeed(ctx context.Context, tab string, viewerID uuid.UUID, corner string, search string, sort string, seed int, limit, offset int, resolvedFilter string) (*dto.PostListResponse, error) {
+func (s *service) ListFeed(ctx context.Context, tab string, viewerID uuid.UUID, corner string, search string, sort string, seed int, page bounds.Page, resolvedFilter string) (*dto.PostListResponse, error) {
 	if corner == "" {
 		corner = "general"
 	}
@@ -335,26 +336,26 @@ func (s *service) ListFeed(ctx context.Context, tab string, viewerID uuid.UUID, 
 	var err error
 
 	if tab == "following" && viewerID != uuid.Nil {
-		rows, total, err = s.postRepo.ListByFollowing(ctx, viewerID, corner, sort, seed, limit, offset, blockedIDs)
+		rows, total, err = s.postRepo.ListByFollowing(ctx, viewerID, corner, sort, seed, page.Limit(), page.Offset(), blockedIDs)
 	} else {
-		rows, total, err = s.postRepo.ListAll(ctx, viewerID, corner, search, sort, seed, limit, offset, blockedIDs, resolvedFilter)
+		rows, total, err = s.postRepo.ListAll(ctx, viewerID, corner, search, sort, seed, page.Limit(), page.Offset(), blockedIDs, resolvedFilter)
 	}
 	if err != nil {
 		return nil, err
 	}
 
-	return s.buildPostList(ctx, rows, total, limit, offset, viewerID), nil
+	return s.buildPostList(ctx, rows, total, page, viewerID), nil
 }
 
-func (s *service) ListUserPosts(ctx context.Context, targetUserID uuid.UUID, viewerID uuid.UUID, limit, offset int) (*dto.PostListResponse, error) {
-	rows, total, err := s.postRepo.ListByUser(ctx, targetUserID, viewerID, limit, offset)
+func (s *service) ListUserPosts(ctx context.Context, targetUserID uuid.UUID, viewerID uuid.UUID, page bounds.Page) (*dto.PostListResponse, error) {
+	rows, total, err := s.postRepo.ListByUser(ctx, targetUserID, viewerID, page.Limit(), page.Offset())
 	if err != nil {
 		return nil, err
 	}
-	return s.buildPostList(ctx, rows, total, limit, offset, viewerID), nil
+	return s.buildPostList(ctx, rows, total, page, viewerID), nil
 }
 
-func (s *service) buildPostList(ctx context.Context, rows []model.PostRow, total, limit, offset int, viewerID uuid.UUID) *dto.PostListResponse {
+func (s *service) buildPostList(ctx context.Context, rows []model.PostRow, total int, page bounds.Page, viewerID uuid.UUID) *dto.PostListResponse {
 	postIDs := make([]uuid.UUID, len(rows))
 	postIDStrs := make([]string, len(rows))
 	for i, r := range rows {
@@ -397,8 +398,8 @@ func (s *service) buildPostList(ctx context.Context, rows []model.PostRow, total
 	return &dto.PostListResponse{
 		Posts:  posts,
 		Total:  total,
-		Limit:  limit,
-		Offset: offset,
+		Limit:  page.Limit(),
+		Offset: page.Offset(),
 	}
 }
 

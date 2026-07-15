@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/authz"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
 	"umineko_city_of_books/internal/report"
 
@@ -151,7 +152,7 @@ func TestListReports_OK(t *testing.T) {
 		Limit:   50,
 		Offset:  0,
 	}
-	deps.ReportService.EXPECT().List(mock.Anything, "open", 50, 0).Return(expected, nil)
+	deps.ReportService.EXPECT().List(mock.Anything, "open", bounds.NewPage(50, 0)).Return(expected, nil)
 
 	// when
 	status, body := h.NewRequest("GET", "/admin/reports").WithCookie("valid-cookie").Do()
@@ -170,7 +171,7 @@ func TestListReports_CustomQuery(t *testing.T) {
 	userID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
 	h.ExpectHasPermission(userID, authz.PermViewUsers, true)
-	deps.ReportService.EXPECT().List(mock.Anything, "resolved", 10, 20).Return(&report.ReportListResponse{}, nil)
+	deps.ReportService.EXPECT().List(mock.Anything, "resolved", bounds.NewPage(10, 20)).Return(&report.ReportListResponse{}, nil)
 
 	// when
 	status, _ := h.NewRequest("GET", "/admin/reports?status=resolved&limit=10&offset=20").
@@ -186,7 +187,7 @@ func TestListReports_InternalError(t *testing.T) {
 	userID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
 	h.ExpectHasPermission(userID, authz.PermViewUsers, true)
-	deps.ReportService.EXPECT().List(mock.Anything, "open", 50, 0).Return(nil, errors.New("boom"))
+	deps.ReportService.EXPECT().List(mock.Anything, "open", bounds.NewPage(50, 0)).Return(nil, errors.New("boom"))
 
 	// when
 	status, body := h.NewRequest("GET", "/admin/reports").WithCookie("valid-cookie").Do()

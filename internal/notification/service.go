@@ -7,6 +7,7 @@ import (
 	"time"
 	"umineko_city_of_books/internal/notification/push"
 
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/email"
@@ -27,7 +28,7 @@ type (
 	Service interface {
 		Notify(ctx context.Context, params dto.NotifyParams) error
 		NotifyMany(ctx context.Context, params []dto.NotifyParams)
-		List(ctx context.Context, userID uuid.UUID, limit, offset int) (*dto.NotificationListResponse, error)
+		List(ctx context.Context, userID uuid.UUID, page bounds.Page) (*dto.NotificationListResponse, error)
 		MarkRead(ctx context.Context, id int, userID uuid.UUID) error
 		MarkAllRead(ctx context.Context, userID uuid.UUID) error
 		UnreadCount(ctx context.Context, userID uuid.UUID) (int, error)
@@ -267,8 +268,8 @@ func pushPayload(resp dto.NotificationResponse, siteName string) push.Notificati
 	}
 }
 
-func (s *service) List(ctx context.Context, userID uuid.UUID, limit, offset int) (*dto.NotificationListResponse, error) {
-	rows, total, err := s.repo.ListByUser(ctx, userID, limit, offset)
+func (s *service) List(ctx context.Context, userID uuid.UUID, page bounds.Page) (*dto.NotificationListResponse, error) {
+	rows, total, err := s.repo.ListByUser(ctx, userID, page.Limit(), page.Offset())
 	if err != nil {
 		return nil, err
 	}
@@ -281,8 +282,8 @@ func (s *service) List(ctx context.Context, userID uuid.UUID, limit, offset int)
 	return &dto.NotificationListResponse{
 		Notifications: notifications,
 		Total:         total,
-		Limit:         limit,
-		Offset:        offset,
+		Limit:         page.Limit(),
+		Offset:        page.Offset(),
 	}, nil
 }
 

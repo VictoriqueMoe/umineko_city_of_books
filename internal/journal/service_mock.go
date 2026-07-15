@@ -7,6 +7,7 @@ package journal
 import (
 	"context"
 	"io"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/journal/params"
 
@@ -900,8 +901,8 @@ func (_c *MockService_LikeComment_Call) RunAndReturn(run func(ctx context.Contex
 }
 
 // ListFollowedByUser provides a mock function for the type MockService
-func (_mock *MockService) ListFollowedByUser(ctx context.Context, followerID uuid.UUID, viewerID uuid.UUID, limit int, offset int) (*dto.JournalListResponse, error) {
-	ret := _mock.Called(ctx, followerID, viewerID, limit, offset)
+func (_mock *MockService) ListFollowedByUser(ctx context.Context, followerID uuid.UUID, viewerID uuid.UUID, page bounds.Page) (*dto.JournalListResponse, error) {
+	ret := _mock.Called(ctx, followerID, viewerID, page)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListFollowedByUser")
@@ -909,18 +910,18 @@ func (_mock *MockService) ListFollowedByUser(ctx context.Context, followerID uui
 
 	var r0 *dto.JournalListResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int) (*dto.JournalListResponse, error)); ok {
-		return returnFunc(ctx, followerID, viewerID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, bounds.Page) (*dto.JournalListResponse, error)); ok {
+		return returnFunc(ctx, followerID, viewerID, page)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int) *dto.JournalListResponse); ok {
-		r0 = returnFunc(ctx, followerID, viewerID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, bounds.Page) *dto.JournalListResponse); ok {
+		r0 = returnFunc(ctx, followerID, viewerID, page)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*dto.JournalListResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, int, int) error); ok {
-		r1 = returnFunc(ctx, followerID, viewerID, limit, offset)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, bounds.Page) error); ok {
+		r1 = returnFunc(ctx, followerID, viewerID, page)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -936,13 +937,12 @@ type MockService_ListFollowedByUser_Call struct {
 //   - ctx context.Context
 //   - followerID uuid.UUID
 //   - viewerID uuid.UUID
-//   - limit int
-//   - offset int
-func (_e *MockService_Expecter) ListFollowedByUser(ctx any, followerID any, viewerID any, limit any, offset any) *MockService_ListFollowedByUser_Call {
-	return &MockService_ListFollowedByUser_Call{Call: _e.mock.On("ListFollowedByUser", ctx, followerID, viewerID, limit, offset)}
+//   - page bounds.Page
+func (_e *MockService_Expecter) ListFollowedByUser(ctx any, followerID any, viewerID any, page any) *MockService_ListFollowedByUser_Call {
+	return &MockService_ListFollowedByUser_Call{Call: _e.mock.On("ListFollowedByUser", ctx, followerID, viewerID, page)}
 }
 
-func (_c *MockService_ListFollowedByUser_Call) Run(run func(ctx context.Context, followerID uuid.UUID, viewerID uuid.UUID, limit int, offset int)) *MockService_ListFollowedByUser_Call {
+func (_c *MockService_ListFollowedByUser_Call) Run(run func(ctx context.Context, followerID uuid.UUID, viewerID uuid.UUID, page bounds.Page)) *MockService_ListFollowedByUser_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -956,20 +956,15 @@ func (_c *MockService_ListFollowedByUser_Call) Run(run func(ctx context.Context,
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
-		var arg3 int
+		var arg3 bounds.Page
 		if args[3] != nil {
-			arg3 = args[3].(int)
-		}
-		var arg4 int
-		if args[4] != nil {
-			arg4 = args[4].(int)
+			arg3 = args[3].(bounds.Page)
 		}
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
-			arg4,
 		)
 	})
 	return _c
@@ -980,7 +975,7 @@ func (_c *MockService_ListFollowedByUser_Call) Return(journalListResponse *dto.J
 	return _c
 }
 
-func (_c *MockService_ListFollowedByUser_Call) RunAndReturn(run func(ctx context.Context, followerID uuid.UUID, viewerID uuid.UUID, limit int, offset int) (*dto.JournalListResponse, error)) *MockService_ListFollowedByUser_Call {
+func (_c *MockService_ListFollowedByUser_Call) RunAndReturn(run func(ctx context.Context, followerID uuid.UUID, viewerID uuid.UUID, page bounds.Page) (*dto.JournalListResponse, error)) *MockService_ListFollowedByUser_Call {
 	_c.Call.Return(run)
 	return _c
 }

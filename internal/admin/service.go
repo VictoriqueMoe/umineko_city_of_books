@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"umineko_city_of_books/internal/authz"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/email"
@@ -32,7 +33,7 @@ type (
 	Service interface {
 		GetStats(ctx context.Context) (*dto.AdminStatsResponse, error)
 
-		ListUsers(ctx context.Context, search string, limit, offset int) (*dto.AdminUserListResponse, error)
+		ListUsers(ctx context.Context, search string, page bounds.Page) (*dto.AdminUserListResponse, error)
 		GetUser(ctx context.Context, targetID uuid.UUID) (*dto.AdminUserDetailResponse, error)
 		SetUserRole(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID, r role.Role) error
 		RemoveUserRole(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID, r role.Role) error
@@ -47,17 +48,17 @@ type (
 		UpdateSettings(ctx context.Context, actorID uuid.UUID, settings map[string]string) error
 		SendTestEmail(ctx context.Context, actorID uuid.UUID) error
 
-		GetAuditLog(ctx context.Context, action string, limit, offset int) (*dto.AuditLogListResponse, error)
+		GetAuditLog(ctx context.Context, action string, page bounds.Page) (*dto.AuditLogListResponse, error)
 
 		CreateInvite(ctx context.Context, actorID uuid.UUID) (*dto.InviteResponse, error)
-		ListInvites(ctx context.Context, limit, offset int) (*dto.InviteListResponse, error)
+		ListInvites(ctx context.Context, page bounds.Page) (*dto.InviteListResponse, error)
 		DeleteInvite(ctx context.Context, actorID uuid.UUID, code string) error
 
 		ListVanityRoles(ctx context.Context) ([]dto.VanityRoleResponse, error)
 		CreateVanityRole(ctx context.Context, actorID uuid.UUID, req dto.CreateVanityRoleRequest) (*dto.VanityRoleResponse, error)
 		UpdateVanityRole(ctx context.Context, actorID uuid.UUID, id string, req dto.UpdateVanityRoleRequest) error
 		DeleteVanityRole(ctx context.Context, actorID uuid.UUID, id string) error
-		GetVanityRoleUsers(ctx context.Context, roleID string, search string, limit, offset int) (*dto.VanityRoleUsersResponse, error)
+		GetVanityRoleUsers(ctx context.Context, roleID string, search string, page bounds.Page) (*dto.VanityRoleUsersResponse, error)
 		AssignVanityRole(ctx context.Context, actorID uuid.UUID, roleID string, userID uuid.UUID) error
 		UnassignVanityRole(ctx context.Context, actorID uuid.UUID, roleID string, userID uuid.UUID) error
 
@@ -196,8 +197,8 @@ func (s *service) GetStats(ctx context.Context) (*dto.AdminStatsResponse, error)
 	}, nil
 }
 
-func (s *service) ListUsers(ctx context.Context, search string, limit, offset int) (*dto.AdminUserListResponse, error) {
-	users, total, err := s.userRepo.ListAll(ctx, search, limit, offset)
+func (s *service) ListUsers(ctx context.Context, search string, page bounds.Page) (*dto.AdminUserListResponse, error) {
+	users, total, err := s.userRepo.ListAll(ctx, search, page.Limit(), page.Offset())
 	if err != nil {
 		return nil, fmt.Errorf("list users: %w", err)
 	}
@@ -219,8 +220,8 @@ func (s *service) ListUsers(ctx context.Context, search string, limit, offset in
 	return &dto.AdminUserListResponse{
 		Users:  items,
 		Total:  total,
-		Limit:  limit,
-		Offset: offset,
+		Limit:  page.Limit(),
+		Offset: page.Offset(),
 	}, nil
 }
 
@@ -504,8 +505,8 @@ func (s *service) SendTestEmail(ctx context.Context, actorID uuid.UUID) error {
 	return nil
 }
 
-func (s *service) GetAuditLog(ctx context.Context, action string, limit, offset int) (*dto.AuditLogListResponse, error) {
-	entries, total, err := s.auditRepo.List(ctx, action, limit, offset)
+func (s *service) GetAuditLog(ctx context.Context, action string, page bounds.Page) (*dto.AuditLogListResponse, error) {
+	entries, total, err := s.auditRepo.List(ctx, action, page.Limit(), page.Offset())
 	if err != nil {
 		return nil, fmt.Errorf("get audit log: %w", err)
 	}
@@ -527,8 +528,8 @@ func (s *service) GetAuditLog(ctx context.Context, action string, limit, offset 
 	return &dto.AuditLogListResponse{
 		Entries: items,
 		Total:   total,
-		Limit:   limit,
-		Offset:  offset,
+		Limit:   page.Limit(),
+		Offset:  page.Offset(),
 	}, nil
 }
 
@@ -547,8 +548,8 @@ func (s *service) CreateInvite(ctx context.Context, actorID uuid.UUID) (*dto.Inv
 	}, nil
 }
 
-func (s *service) ListInvites(ctx context.Context, limit, offset int) (*dto.InviteListResponse, error) {
-	invites, total, err := s.inviteRepo.List(ctx, limit, offset)
+func (s *service) ListInvites(ctx context.Context, page bounds.Page) (*dto.InviteListResponse, error) {
+	invites, total, err := s.inviteRepo.List(ctx, page.Limit(), page.Offset())
 	if err != nil {
 		return nil, fmt.Errorf("list invites: %w", err)
 	}
@@ -567,8 +568,8 @@ func (s *service) ListInvites(ctx context.Context, limit, offset int) (*dto.Invi
 	return &dto.InviteListResponse{
 		Invites: items,
 		Total:   total,
-		Limit:   limit,
-		Offset:  offset,
+		Limit:   page.Limit(),
+		Offset:  page.Offset(),
 	}, nil
 }
 
@@ -664,8 +665,8 @@ func (s *service) DeleteVanityRole(ctx context.Context, actorID uuid.UUID, id st
 	return nil
 }
 
-func (s *service) GetVanityRoleUsers(ctx context.Context, roleID string, search string, limit, offset int) (*dto.VanityRoleUsersResponse, error) {
-	rows, total, err := s.vanityRoleRepo.GetUsersForRole(ctx, roleID, search, limit, offset)
+func (s *service) GetVanityRoleUsers(ctx context.Context, roleID string, search string, page bounds.Page) (*dto.VanityRoleUsersResponse, error) {
+	rows, total, err := s.vanityRoleRepo.GetUsersForRole(ctx, roleID, search, page.Limit(), page.Offset())
 	if err != nil {
 		return nil, fmt.Errorf("get vanity role users: %w", err)
 	}
@@ -681,8 +682,8 @@ func (s *service) GetVanityRoleUsers(ctx context.Context, roleID string, search 
 	return &dto.VanityRoleUsersResponse{
 		Users:  users,
 		Total:  total,
-		Limit:  limit,
-		Offset: offset,
+		Limit:  page.Limit(),
+		Offset: page.Offset(),
 	}, nil
 }
 

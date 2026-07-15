@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"umineko_city_of_books/internal/block"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/middleware"
@@ -95,10 +96,9 @@ func (s *Service) listShips(ctx fiber.Ctx) error {
 	series := ctx.Query("series")
 	characterID := ctx.Query("character")
 	crackshipsOnly := ctx.Query("crackships") == "true"
-	limit := fiber.Query[int](ctx, "limit", 20)
-	offset := fiber.Query[int](ctx, "offset", 0)
+	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 20), fiber.Query[int](ctx, "offset", 0))
 
-	result, err := s.ShipService.ListShips(ctx.Context(), viewerID, sort, crackshipsOnly, series, characterID, limit, offset)
+	result, err := s.ShipService.ListShips(ctx.Context(), viewerID, sort, crackshipsOnly, series, characterID, page)
 	if err != nil {
 		return utils.InternalError(ctx, "failed to list ships")
 	}
@@ -371,10 +371,9 @@ func (s *Service) listUserShips(ctx fiber.Ctx) error {
 		return nil
 	}
 	viewerID := utils.UserID(ctx)
-	limit := fiber.Query[int](ctx, "limit", 20)
-	offset := fiber.Query[int](ctx, "offset", 0)
+	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 20), fiber.Query[int](ctx, "offset", 0))
 
-	result, err := s.ShipService.ListShipsByUser(ctx.Context(), userID, viewerID, limit, offset)
+	result, err := s.ShipService.ListShipsByUser(ctx.Context(), userID, viewerID, page)
 	if err != nil {
 		return utils.InternalError(ctx, "failed to list user ships")
 	}

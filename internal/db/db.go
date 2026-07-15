@@ -36,7 +36,7 @@ func Open(dsn string) (*sql.DB, error) {
 	)
 
 	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
+	db.SetMaxIdleConns(25)
 	db.SetConnMaxLifetime(5 * time.Minute)
 
 	return db, nil

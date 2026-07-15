@@ -9,6 +9,7 @@ import (
 
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
@@ -339,7 +340,7 @@ func TestListShips_RepoError(t *testing.T) {
 		Return(nil, 0, errors.New("db down"))
 
 	// when
-	_, err := svc.ListShips(context.Background(), viewerID, "new", false, "umineko", "battler", 20, 0)
+	_, err := svc.ListShips(context.Background(), viewerID, "new", false, "umineko", "battler", bounds.NewPage(20, 0))
 
 	// then
 	require.Error(t, err)
@@ -359,7 +360,7 @@ func TestListShips_OK(t *testing.T) {
 	m.shipRepo.EXPECT().GetCharactersBatch(mock.Anything, []uuid.UUID{shipID}).Return(nil, nil)
 
 	// when
-	got, err := svc.ListShips(context.Background(), viewerID, "top", true, "", "", 10, 5)
+	got, err := svc.ListShips(context.Background(), viewerID, "top", true, "", "", bounds.NewPage(10, 5))
 
 	// then
 	require.NoError(t, err)
@@ -379,7 +380,7 @@ func TestListShipsByUser_RepoError(t *testing.T) {
 		Return(nil, 0, errors.New("boom"))
 
 	// when
-	_, err := svc.ListShipsByUser(context.Background(), userID, viewerID, 10, 0)
+	_, err := svc.ListShipsByUser(context.Background(), userID, viewerID, bounds.NewPage(10, 0))
 
 	// then
 	require.Error(t, err)
@@ -396,7 +397,7 @@ func TestListShipsByUser_OK(t *testing.T) {
 	m.shipRepo.EXPECT().GetCharactersBatch(mock.Anything, []uuid.UUID{shipID}).Return(nil, nil)
 
 	// when
-	got, err := svc.ListShipsByUser(context.Background(), userID, viewerID, 10, 0)
+	got, err := svc.ListShipsByUser(context.Background(), userID, viewerID, bounds.NewPage(10, 0))
 
 	// then
 	require.NoError(t, err)

@@ -6,6 +6,7 @@ package report
 
 import (
 	"context"
+	"umineko_city_of_books/internal/bounds"
 
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
@@ -102,8 +103,8 @@ func (_c *MockService_Create_Call) RunAndReturn(run func(ctx context.Context, re
 }
 
 // List provides a mock function for the type MockService
-func (_mock *MockService) List(ctx context.Context, status string, limit int, offset int) (*ReportListResponse, error) {
-	ret := _mock.Called(ctx, status, limit, offset)
+func (_mock *MockService) List(ctx context.Context, status string, page bounds.Page) (*ReportListResponse, error) {
+	ret := _mock.Called(ctx, status, page)
 
 	if len(ret) == 0 {
 		panic("no return value specified for List")
@@ -111,18 +112,18 @@ func (_mock *MockService) List(ctx context.Context, status string, limit int, of
 
 	var r0 *ReportListResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int, int) (*ReportListResponse, error)); ok {
-		return returnFunc(ctx, status, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, bounds.Page) (*ReportListResponse, error)); ok {
+		return returnFunc(ctx, status, page)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int, int) *ReportListResponse); ok {
-		r0 = returnFunc(ctx, status, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, bounds.Page) *ReportListResponse); ok {
+		r0 = returnFunc(ctx, status, page)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*ReportListResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, int, int) error); ok {
-		r1 = returnFunc(ctx, status, limit, offset)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, bounds.Page) error); ok {
+		r1 = returnFunc(ctx, status, page)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -137,13 +138,12 @@ type MockService_List_Call struct {
 // List is a helper method to define mock.On call
 //   - ctx context.Context
 //   - status string
-//   - limit int
-//   - offset int
-func (_e *MockService_Expecter) List(ctx any, status any, limit any, offset any) *MockService_List_Call {
-	return &MockService_List_Call{Call: _e.mock.On("List", ctx, status, limit, offset)}
+//   - page bounds.Page
+func (_e *MockService_Expecter) List(ctx any, status any, page any) *MockService_List_Call {
+	return &MockService_List_Call{Call: _e.mock.On("List", ctx, status, page)}
 }
 
-func (_c *MockService_List_Call) Run(run func(ctx context.Context, status string, limit int, offset int)) *MockService_List_Call {
+func (_c *MockService_List_Call) Run(run func(ctx context.Context, status string, page bounds.Page)) *MockService_List_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -153,19 +153,14 @@ func (_c *MockService_List_Call) Run(run func(ctx context.Context, status string
 		if args[1] != nil {
 			arg1 = args[1].(string)
 		}
-		var arg2 int
+		var arg2 bounds.Page
 		if args[2] != nil {
-			arg2 = args[2].(int)
-		}
-		var arg3 int
-		if args[3] != nil {
-			arg3 = args[3].(int)
+			arg2 = args[2].(bounds.Page)
 		}
 		run(
 			arg0,
 			arg1,
 			arg2,
-			arg3,
 		)
 	})
 	return _c
@@ -176,7 +171,7 @@ func (_c *MockService_List_Call) Return(reportListResponse *ReportListResponse, 
 	return _c
 }
 
-func (_c *MockService_List_Call) RunAndReturn(run func(ctx context.Context, status string, limit int, offset int) (*ReportListResponse, error)) *MockService_List_Call {
+func (_c *MockService_List_Call) RunAndReturn(run func(ctx context.Context, status string, page bounds.Page) (*ReportListResponse, error)) *MockService_List_Call {
 	_c.Call.Return(run)
 	return _c
 }

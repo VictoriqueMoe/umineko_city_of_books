@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"testing"
 
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/search"
@@ -56,7 +57,7 @@ func TestSearchController_FullSearch_PassesParamsAndShapesResponse(t *testing.T)
 	deps.svc.EXPECT().ParseTypes("theory").
 		Return([]repository.SearchEntityType{repository.SearchEntityTheory})
 	deps.svc.EXPECT().
-		Search(mock.Anything, "beatrice", []repository.SearchEntityType{repository.SearchEntityTheory}, 10, 5, uuid.Nil, uuid.Nil).
+		Search(mock.Anything, "beatrice", []repository.SearchEntityType{repository.SearchEntityTheory}, bounds.NewPage(10, 5), uuid.Nil, uuid.Nil).
 		Return([]search.Result{
 			{
 				SearchResult: repository.SearchResult{

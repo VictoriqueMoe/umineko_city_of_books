@@ -9,6 +9,7 @@ import (
 
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
@@ -26,7 +27,7 @@ import (
 
 type (
 	Service interface {
-		ListMysteries(ctx context.Context, sort string, solved *bool, viewerID uuid.UUID, limit, offset int) (*dto.MysteryListResponse, error)
+		ListMysteries(ctx context.Context, sort string, solved *bool, viewerID uuid.UUID, page bounds.Page) (*dto.MysteryListResponse, error)
 		GetMystery(ctx context.Context, id uuid.UUID, viewerID uuid.UUID) (*dto.MysteryDetailResponse, error)
 		CreateMystery(ctx context.Context, userID uuid.UUID, req dto.CreateMysteryRequest) (uuid.UUID, error)
 		UpdateMystery(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.CreateMysteryRequest) error
@@ -37,11 +38,11 @@ type (
 		MarkSolved(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, attemptID uuid.UUID) error
 		MarkPermanentlySolved(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID) error
 		AddClue(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, req dto.CreateClueRequest) error
-		GetLeaderboard(ctx context.Context, limit int) (*dto.MysteryLeaderboardResponse, error)
+		GetLeaderboard(ctx context.Context, page bounds.Page) (*dto.MysteryLeaderboardResponse, error)
 		GetTopDetectiveIDs(ctx context.Context) ([]string, error)
-		GetGMLeaderboard(ctx context.Context, limit int) (*dto.GMLeaderboardResponse, error)
+		GetGMLeaderboard(ctx context.Context, page bounds.Page) (*dto.GMLeaderboardResponse, error)
 		GetTopGMIDs(ctx context.Context) ([]string, error)
-		ListByUser(ctx context.Context, userID uuid.UUID, limit, offset int) (*dto.MysteryListResponse, error)
+		ListByUser(ctx context.Context, userID uuid.UUID, page bounds.Page) (*dto.MysteryListResponse, error)
 		CreateComment(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, req dto.CreateCommentRequest) (uuid.UUID, error)
 		UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.UpdateCommentRequest) error
 		DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
@@ -116,9 +117,9 @@ func clueBodies(clues []dto.CreateClueRequest) []string {
 	return out
 }
 
-func (s *service) ListMysteries(ctx context.Context, sort string, solved *bool, viewerID uuid.UUID, limit, offset int) (*dto.MysteryListResponse, error) {
+func (s *service) ListMysteries(ctx context.Context, sort string, solved *bool, viewerID uuid.UUID, page bounds.Page) (*dto.MysteryListResponse, error) {
 	blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, viewerID)
-	rows, total, err := s.mysteryRepo.List(ctx, sort, solved, limit, offset, blockedIDs)
+	rows, total, err := s.mysteryRepo.List(ctx, sort, solved, page.Limit(), page.Offset(), blockedIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -135,8 +136,8 @@ func (s *service) ListMysteries(ctx context.Context, sort string, solved *bool, 
 	return &dto.MysteryListResponse{
 		Mysteries: mysteries,
 		Total:     total,
-		Limit:     limit,
-		Offset:    offset,
+		Limit:     page.Limit(),
+		Offset:    page.Offset(),
 	}, nil
 }
 
@@ -815,8 +816,8 @@ func (s *service) AddClue(ctx context.Context, mysteryID uuid.UUID, userID uuid.
 	return nil
 }
 
-func (s *service) GetLeaderboard(ctx context.Context, limit int) (*dto.MysteryLeaderboardResponse, error) {
-	rows, err := s.mysteryRepo.GetLeaderboard(ctx, limit)
+func (s *service) GetLeaderboard(ctx context.Context, page bounds.Page) (*dto.MysteryLeaderboardResponse, error) {
+	rows, err := s.mysteryRepo.GetLeaderboard(ctx, page.Limit())
 	if err != nil {
 		return nil, err
 	}
@@ -846,8 +847,8 @@ func (s *service) GetTopDetectiveIDs(ctx context.Context) ([]string, error) {
 	return s.mysteryRepo.GetTopDetectiveIDs(ctx)
 }
 
-func (s *service) GetGMLeaderboard(ctx context.Context, limit int) (*dto.GMLeaderboardResponse, error) {
-	rows, err := s.mysteryRepo.GetGMLeaderboard(ctx, limit)
+func (s *service) GetGMLeaderboard(ctx context.Context, page bounds.Page) (*dto.GMLeaderboardResponse, error) {
+	rows, err := s.mysteryRepo.GetGMLeaderboard(ctx, page.Limit())
 	if err != nil {
 		return nil, err
 	}
@@ -873,8 +874,8 @@ func (s *service) GetTopGMIDs(ctx context.Context) ([]string, error) {
 	return s.mysteryRepo.GetTopGMIDs(ctx)
 }
 
-func (s *service) ListByUser(ctx context.Context, userID uuid.UUID, limit, offset int) (*dto.MysteryListResponse, error) {
-	rows, total, err := s.mysteryRepo.ListByUser(ctx, userID, limit, offset)
+func (s *service) ListByUser(ctx context.Context, userID uuid.UUID, page bounds.Page) (*dto.MysteryListResponse, error) {
+	rows, total, err := s.mysteryRepo.ListByUser(ctx, userID, page.Limit(), page.Offset())
 	if err != nil {
 		return nil, err
 	}
@@ -891,8 +892,8 @@ func (s *service) ListByUser(ctx context.Context, userID uuid.UUID, limit, offse
 	return &dto.MysteryListResponse{
 		Mysteries: mysteries,
 		Total:     total,
-		Limit:     limit,
-		Offset:    offset,
+		Limit:     page.Limit(),
+		Offset:    page.Offset(),
 	}, nil
 }
 

@@ -8,6 +8,7 @@ import (
 
 	artsvc "umineko_city_of_books/internal/art"
 	"umineko_city_of_books/internal/block"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/middleware"
@@ -128,10 +129,9 @@ func (s *Service) listArt(ctx fiber.Ctx) error {
 	search := ctx.Query("search")
 	tag := ctx.Query("tag")
 	sort := ctx.Query("sort", "new")
-	limit := fiber.Query[int](ctx, "limit", 24)
-	offset := fiber.Query[int](ctx, "offset", 0)
+	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 24), fiber.Query[int](ctx, "offset", 0))
 
-	result, err := s.ArtService.ListArt(ctx.Context(), viewerID, corner, artType, search, tag, sort, limit, offset)
+	result, err := s.ArtService.ListArt(ctx.Context(), viewerID, corner, artType, search, tag, sort, page)
 	if err != nil {
 		return utils.InternalError(ctx, "failed to list art")
 	}
@@ -403,10 +403,9 @@ func (s *Service) listUserArt(ctx fiber.Ctx) error {
 	}
 
 	viewerID := utils.UserID(ctx)
-	limit := fiber.Query[int](ctx, "limit", 24)
-	offset := fiber.Query[int](ctx, "offset", 0)
+	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 24), fiber.Query[int](ctx, "offset", 0))
 
-	result, err := s.ArtService.ListByUser(ctx.Context(), userID, viewerID, limit, offset)
+	result, err := s.ArtService.ListByUser(ctx.Context(), userID, viewerID, page)
 	if err != nil {
 		return utils.InternalError(ctx, "failed to list user art")
 	}
@@ -535,10 +534,9 @@ func (s *Service) getGallery(ctx fiber.Ctx) error {
 	}
 
 	viewerID := utils.UserID(ctx)
-	limit := fiber.Query[int](ctx, "limit", 24)
-	offset := fiber.Query[int](ctx, "offset", 0)
+	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 24), fiber.Query[int](ctx, "offset", 0))
 
-	gallery, art, total, err := s.ArtService.GetGallery(ctx.Context(), id, viewerID, limit, offset)
+	gallery, art, total, err := s.ArtService.GetGallery(ctx.Context(), id, viewerID, page)
 	if err != nil {
 		if errors.Is(err, artsvc.ErrNotFound) {
 			return utils.NotFound(ctx, "gallery not found")
@@ -549,8 +547,8 @@ func (s *Service) getGallery(ctx fiber.Ctx) error {
 		"gallery": gallery,
 		"art":     art,
 		"total":   total,
-		"limit":   limit,
-		"offset":  offset,
+		"limit":   page.Limit(),
+		"offset":  page.Offset(),
 	})
 }
 

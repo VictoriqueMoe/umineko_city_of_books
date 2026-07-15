@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/block"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
 	"umineko_city_of_books/internal/dto"
 	journalsvc "umineko_city_of_books/internal/journal"
@@ -163,7 +164,7 @@ func TestListUserFollowedJournals_OK(t *testing.T) {
 	// given
 	h, js := newJournalHarness(t)
 	target := uuid.New()
-	js.EXPECT().ListFollowedByUser(mock.Anything, target, uuid.Nil, 20, 0).Return(&dto.JournalListResponse{}, nil)
+	js.EXPECT().ListFollowedByUser(mock.Anything, target, uuid.Nil, bounds.NewPage(20, 0)).Return(&dto.JournalListResponse{}, nil)
 
 	// when
 	status, _ := h.NewRequest("GET", "/users/"+target.String()+"/journal-follows").Do()
@@ -188,7 +189,7 @@ func TestListUserFollowedJournals_InternalError(t *testing.T) {
 	// given
 	h, js := newJournalHarness(t)
 	target := uuid.New()
-	js.EXPECT().ListFollowedByUser(mock.Anything, target, uuid.Nil, 20, 0).Return(nil, errors.New("boom"))
+	js.EXPECT().ListFollowedByUser(mock.Anything, target, uuid.Nil, bounds.NewPage(20, 0)).Return(nil, errors.New("boom"))
 
 	// when
 	status, body := h.NewRequest("GET", "/users/"+target.String()+"/journal-follows").Do()

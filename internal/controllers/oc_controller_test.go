@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/block"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
 	"umineko_city_of_books/internal/dto"
 	ocsvc "umineko_city_of_books/internal/oc"
@@ -35,7 +36,7 @@ func TestListOCs_Anonymous_OK(t *testing.T) {
 	// given
 	h, os := newOCHarness(t)
 	expected := &dto.OCListResponse{Total: 0, Limit: 20, Offset: 0}
-	os.EXPECT().ListOCs(mock.Anything, uuid.Nil, "new", false, "", "", uuid.Nil, 20, 0).Return(expected, nil)
+	os.EXPECT().ListOCs(mock.Anything, uuid.Nil, "new", false, "", "", uuid.Nil, bounds.NewPage(20, 0)).Return(expected, nil)
 
 	// when
 	status, body := h.NewRequest("GET", "/ocs").Do()
@@ -50,7 +51,7 @@ func TestListOCs_CustomQuery_OK(t *testing.T) {
 	// given
 	h, os := newOCHarness(t)
 	ownerID := uuid.New()
-	os.EXPECT().ListOCs(mock.Anything, uuid.Nil, "top", true, "umineko", "Higanbana", ownerID, 10, 5).
+	os.EXPECT().ListOCs(mock.Anything, uuid.Nil, "top", true, "umineko", "Higanbana", ownerID, bounds.NewPage(10, 5)).
 		Return(&dto.OCListResponse{}, nil)
 
 	// when
@@ -75,7 +76,7 @@ func TestListOCs_InvalidUserID(t *testing.T) {
 func TestListOCs_InternalError(t *testing.T) {
 	// given
 	h, os := newOCHarness(t)
-	os.EXPECT().ListOCs(mock.Anything, uuid.Nil, "new", false, "", "", uuid.Nil, 20, 0).
+	os.EXPECT().ListOCs(mock.Anything, uuid.Nil, "new", false, "", "", uuid.Nil, bounds.NewPage(20, 0)).
 		Return(nil, errors.New("boom"))
 
 	// when
@@ -342,7 +343,7 @@ func TestListUserOCs_OK(t *testing.T) {
 	// given
 	h, os := newOCHarness(t)
 	userID := uuid.New()
-	os.EXPECT().ListOCsByUser(mock.Anything, userID, uuid.Nil, 20, 0).
+	os.EXPECT().ListOCsByUser(mock.Anything, userID, uuid.Nil, bounds.NewPage(20, 0)).
 		Return(&dto.OCListResponse{Total: 3}, nil)
 
 	// when

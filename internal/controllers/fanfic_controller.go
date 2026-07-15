@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"umineko_city_of_books/internal/block"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
 	fanficsvc "umineko_city_of_books/internal/fanfic"
@@ -136,7 +137,9 @@ func (s *Service) setupListUserFanfics(r fiber.Router) {
 
 func (s *Service) listFanfics(ctx fiber.Ctx) error {
 	viewerID := utils.UserID(ctx)
-	params := fanficparams.ListParams{
+	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 25), fiber.Query[int](ctx, "offset", 0))
+
+	params := fanficparams.NewListParams(fanficparams.ListParams{
 		Sort:       ctx.Query("sort", "updated"),
 		Series:     ctx.Query("series"),
 		Rating:     ctx.Query("rating"),
@@ -152,9 +155,8 @@ func (s *Service) listFanfics(ctx fiber.Ctx) error {
 		IsPairing:  ctx.Query("pairing") == "true",
 		ShowLemons: ctx.Query("lemons") == "true",
 		Search:     ctx.Query("search"),
-		Limit:      fiber.Query[int](ctx, "limit", 25),
-		Offset:     fiber.Query[int](ctx, "offset", 0),
-	}
+	}, page)
+
 	result, err := s.FanficService.ListFanfics(ctx.Context(), viewerID, params)
 	if err != nil {
 		return utils.InternalError(ctx, "failed to list fanfics")
@@ -558,10 +560,9 @@ func (s *Service) listUserFanfics(ctx fiber.Ctx) error {
 		return nil
 	}
 	viewerID := utils.UserID(ctx)
-	limit := fiber.Query[int](ctx, "limit", 20)
-	offset := fiber.Query[int](ctx, "offset", 0)
+	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 20), fiber.Query[int](ctx, "offset", 0))
 
-	result, err := s.FanficService.ListFanficsByUser(ctx.Context(), userID, viewerID, limit, offset)
+	result, err := s.FanficService.ListFanficsByUser(ctx.Context(), userID, viewerID, page)
 	if err != nil {
 		return utils.InternalError(ctx, "failed to list user fanfics")
 	}
@@ -578,10 +579,9 @@ func (s *Service) listUserFanficFavourites(ctx fiber.Ctx) error {
 		return nil
 	}
 	viewerID := utils.UserID(ctx)
-	limit := fiber.Query[int](ctx, "limit", 20)
-	offset := fiber.Query[int](ctx, "offset", 0)
+	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 20), fiber.Query[int](ctx, "offset", 0))
 
-	result, err := s.FanficService.ListFavourites(ctx.Context(), userID, viewerID, limit, offset)
+	result, err := s.FanficService.ListFavourites(ctx.Context(), userID, viewerID, page)
 	if err != nil {
 		return utils.InternalError(ctx, "failed to list favourites")
 	}

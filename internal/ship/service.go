@@ -8,6 +8,7 @@ import (
 
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
@@ -35,13 +36,13 @@ type (
 			crackshipsOnly bool,
 			series string,
 			characterID string,
-			limit, offset int,
+			page bounds.Page,
 		) (*dto.ShipListResponse, error)
 		ListShipsByUser(
 			ctx context.Context,
 			userID uuid.UUID,
 			viewerID uuid.UUID,
-			limit, offset int,
+			page bounds.Page,
 		) (*dto.ShipListResponse, error)
 		UploadShipImage(
 			ctx context.Context,
@@ -232,12 +233,11 @@ func (s *service) ListShips(
 	crackshipsOnly bool,
 	series string,
 	characterID string,
-	limit int,
-	offset int,
+	page bounds.Page,
 ) (*dto.ShipListResponse, error) {
 	blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, viewerID)
 
-	rows, total, err := s.shipRepo.List(ctx, viewerID, sort, crackshipsOnly, series, characterID, limit, offset, blockedIDs)
+	rows, total, err := s.shipRepo.List(ctx, viewerID, sort, crackshipsOnly, series, characterID, page.Limit(), page.Offset(), blockedIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -256,8 +256,8 @@ func (s *service) ListShips(
 	return &dto.ShipListResponse{
 		Ships:  ships,
 		Total:  total,
-		Limit:  limit,
-		Offset: offset,
+		Limit:  page.Limit(),
+		Offset: page.Offset(),
 	}, nil
 }
 
@@ -265,9 +265,9 @@ func (s *service) ListShipsByUser(
 	ctx context.Context,
 	userID uuid.UUID,
 	viewerID uuid.UUID,
-	limit, offset int,
+	page bounds.Page,
 ) (*dto.ShipListResponse, error) {
-	rows, total, err := s.shipRepo.ListByUser(ctx, userID, viewerID, limit, offset)
+	rows, total, err := s.shipRepo.ListByUser(ctx, userID, viewerID, page.Limit(), page.Offset())
 	if err != nil {
 		return nil, err
 	}
@@ -286,8 +286,8 @@ func (s *service) ListShipsByUser(
 	return &dto.ShipListResponse{
 		Ships:  ships,
 		Total:  total,
-		Limit:  limit,
-		Offset: offset,
+		Limit:  page.Limit(),
+		Offset: page.Offset(),
 	}, nil
 }
 

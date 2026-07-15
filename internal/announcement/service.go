@@ -8,6 +8,7 @@ import (
 
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
@@ -24,7 +25,7 @@ import (
 
 type (
 	Service interface {
-		List(ctx context.Context, limit, offset int) (*dto.AnnouncementListResponse, error)
+		List(ctx context.Context, page bounds.Page) (*dto.AnnouncementListResponse, error)
 		GetDetail(ctx context.Context, id, viewerID uuid.UUID) (*dto.AnnouncementDetailResponse, error)
 		GetLatest(ctx context.Context) (*dto.AnnouncementResponse, error)
 		Create(ctx context.Context, userID uuid.UUID, title, body string) (uuid.UUID, error)
@@ -115,8 +116,8 @@ func commentRowToResponse(c repository.AnnouncementCommentRow, mediaRows []repos
 	}
 }
 
-func (s *service) List(ctx context.Context, limit, offset int) (*dto.AnnouncementListResponse, error) {
-	rows, total, err := s.repo.List(ctx, limit, offset)
+func (s *service) List(ctx context.Context, page bounds.Page) (*dto.AnnouncementListResponse, error) {
+	rows, total, err := s.repo.List(ctx, page.Limit(), page.Offset())
 	if err != nil {
 		return nil, err
 	}
@@ -127,8 +128,8 @@ func (s *service) List(ctx context.Context, limit, offset int) (*dto.Announcemen
 	return &dto.AnnouncementListResponse{
 		Announcements: items,
 		Total:         total,
-		Limit:         limit,
-		Offset:        offset,
+		Limit:         page.Limit(),
+		Offset:        page.Offset(),
 	}, nil
 }
 

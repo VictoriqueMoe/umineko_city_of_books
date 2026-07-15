@@ -3,6 +3,7 @@ package controllers
 import (
 	"strings"
 
+	"umineko_city_of_books/internal/bounds"
 	ctrlutils "umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/middleware"
 	"umineko_city_of_books/internal/search"
@@ -35,13 +36,12 @@ func (s *Service) search(ctx fiber.Ctx) error {
 		})
 	}
 
-	limit := fiber.Query[int](ctx, "limit", 20)
-	offset := fiber.Query[int](ctx, "offset", 0)
+	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 20), fiber.Query[int](ctx, "offset", 0))
 	types := s.SearchService.ParseTypes(ctx.Query("types"))
 	viewerID, _ := ctrlutils.OptionalUserID(ctx)
 	roomID, _ := uuid.Parse(ctx.Query("room"))
 
-	results, total, err := s.SearchService.Search(ctx.Context(), query, types, limit, offset, viewerID, roomID)
+	results, total, err := s.SearchService.Search(ctx.Context(), query, types, page, viewerID, roomID)
 	if err != nil {
 		return ctrlutils.InternalError(ctx, "failed to search", err)
 	}

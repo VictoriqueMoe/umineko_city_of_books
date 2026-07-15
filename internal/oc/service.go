@@ -8,6 +8,7 @@ import (
 
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
@@ -44,13 +45,13 @@ type (
 			series string,
 			customSeriesName string,
 			ownerID uuid.UUID,
-			limit, offset int,
+			page bounds.Page,
 		) (*dto.OCListResponse, error)
 		ListOCsByUser(
 			ctx context.Context,
 			userID uuid.UUID,
 			viewerID uuid.UUID,
-			limit, offset int,
+			page bounds.Page,
 		) (*dto.OCListResponse, error)
 		ListOCSummariesByUser(ctx context.Context, userID uuid.UUID) ([]dto.OCSummary, error)
 		UploadOCImage(
@@ -320,11 +321,11 @@ func (s *service) ListOCs(
 	series string,
 	customSeriesName string,
 	ownerID uuid.UUID,
-	limit, offset int,
+	page bounds.Page,
 ) (*dto.OCListResponse, error) {
 	blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, viewerID)
 
-	rows, total, err := s.ocRepo.List(ctx, viewerID, sort, crackOCsOnly, series, customSeriesName, ownerID, limit, offset, blockedIDs)
+	rows, total, err := s.ocRepo.List(ctx, viewerID, sort, crackOCsOnly, series, customSeriesName, ownerID, page.Limit(), page.Offset(), blockedIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -343,8 +344,8 @@ func (s *service) ListOCs(
 	return &dto.OCListResponse{
 		OCs:    ocs,
 		Total:  total,
-		Limit:  limit,
-		Offset: offset,
+		Limit:  page.Limit(),
+		Offset: page.Offset(),
 	}, nil
 }
 
@@ -352,9 +353,9 @@ func (s *service) ListOCsByUser(
 	ctx context.Context,
 	userID uuid.UUID,
 	viewerID uuid.UUID,
-	limit, offset int,
+	page bounds.Page,
 ) (*dto.OCListResponse, error) {
-	rows, total, err := s.ocRepo.ListByUser(ctx, userID, viewerID, limit, offset)
+	rows, total, err := s.ocRepo.ListByUser(ctx, userID, viewerID, page.Limit(), page.Offset())
 	if err != nil {
 		return nil, err
 	}
@@ -373,8 +374,8 @@ func (s *service) ListOCsByUser(
 	return &dto.OCListResponse{
 		OCs:    ocs,
 		Total:  total,
-		Limit:  limit,
-		Offset: offset,
+		Limit:  page.Limit(),
+		Offset: page.Offset(),
 	}, nil
 }
 
