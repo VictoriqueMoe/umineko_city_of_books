@@ -1126,6 +1126,10 @@ export async function searchUsers(query: string): Promise<User[]> {
     return apiFetch<User[]>(`/users/search?q=${encodeURIComponent(query)}`);
 }
 
+export async function resolveUsernames(usernames: string[]): Promise<{ usernames: string[] }> {
+    return apiFetch<{ usernames: string[] }>(`/users/resolve?usernames=${encodeURIComponent(usernames.join(","))}`);
+}
+
 export async function getMutualFollowers(): Promise<User[]> {
     return apiFetch<User[]>("/users/mutuals");
 }

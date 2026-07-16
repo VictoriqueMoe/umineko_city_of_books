@@ -42,6 +42,7 @@ type (
 	service struct {
 		repo        repository.NotificationRepository
 		userRepo    repository.UserRepository
+		blockRepo   repository.BlockRepository
 		hub         *ws.Hub
 		emailSvc    email.Service
 		pushSvc     push.Service
@@ -118,10 +119,11 @@ var notifText = map[dto.NotificationType]string{
 	dto.NotifGameFinished:             "your game has ended",
 }
 
-func NewService(repo repository.NotificationRepository, userRepo repository.UserRepository, hub *ws.Hub, emailSvc email.Service, pushSvc push.Service, settingsSvc settings.Service, overlay OverlayDispatcher) Service {
+func NewService(repo repository.NotificationRepository, userRepo repository.UserRepository, blockRepo repository.BlockRepository, hub *ws.Hub, emailSvc email.Service, pushSvc push.Service, settingsSvc settings.Service, overlay OverlayDispatcher) Service {
 	return &service{
 		repo:        repo,
 		userRepo:    userRepo,
+		blockRepo:   blockRepo,
 		hub:         hub,
 		emailSvc:    emailSvc,
 		pushSvc:     pushSvc,
@@ -139,8 +141,38 @@ func isChatRoomNotif(t dto.NotificationType) bool {
 	}
 }
 
+func survivesBlock(t dto.NotificationType) bool {
+	switch t {
+	case dto.NotifReport, dto.NotifReportResolved, dto.NotifContentEdited, dto.NotifSuggestionResolved,
+		dto.NotifChatRoomBanned, dto.NotifChatRoomKicked, dto.NotifChatRoomUnbanned,
+		dto.NotifMysteryPaused, dto.NotifMysteryUnpaused, dto.NotifMysteryGmAway, dto.NotifMysteryGmBack,
+		dto.NotifMysteryPrivateClue, dto.NotifGameYourTurn, dto.NotifGameFinished:
+		return true
+	default:
+		return false
+	}
+}
+
+func (s *service) blockedBetween(ctx context.Context, params dto.NotifyParams) bool {
+	if params.ActorID == uuid.Nil || survivesBlock(params.Type) {
+		return false
+	}
+
+	blocked, err := s.blockRepo.IsBlockedEither(ctx, params.RecipientID, params.ActorID)
+	if err != nil {
+		logger.Log.Warn().Err(err).Str("type", string(params.Type)).Msg("block check failed, delivering notification")
+		return false
+	}
+
+	return blocked
+}
+
 func (s *service) Notify(ctx context.Context, params dto.NotifyParams) error {
 	if params.RecipientID == params.ActorID {
+		return nil
+	}
+
+	if s.blockedBetween(ctx, params) {
 		return nil
 	}
 

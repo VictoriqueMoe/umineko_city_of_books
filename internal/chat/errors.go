@@ -13,6 +13,7 @@ var (
 	ErrMissingFields            = errors.New("missing required fields")
 	ErrCannotDMSelf             = errors.New("cannot create DM with yourself")
 	ErrUserBlocked              = errors.New("you cannot message this user")
+	ErrBlockedByRoomHost        = errors.New("the host of this room has blocked you")
 	ErrCannotLeaveAsHost        = errors.New("host cannot leave their own room")
 	ErrNotHost                  = errors.New("only the host can do this")
 	ErrCannotKickHost           = errors.New("cannot kick the host")

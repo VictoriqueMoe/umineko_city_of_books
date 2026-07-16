@@ -1,5 +1,6 @@
 import { isSiteStaff } from "../../../utils/permissions";
 import type { RoomController } from "../../../hooks/useRoomController";
+import { useBlockedUserIds } from "../../../hooks/useBlockedUserIds";
 import { MessageBubble } from "../MessageBubble/MessageBubble";
 
 interface RoomMessageListClasses {
@@ -14,6 +15,7 @@ interface RoomMessageListProps {
 }
 
 export function RoomMessageList({ controller, classes }: RoomMessageListProps) {
+    const blockedIDs = useBlockedUserIds();
     const {
         user,
         room,
@@ -59,6 +61,7 @@ export function RoomMessageList({ controller, classes }: RoomMessageListProps) {
                         key={msg.id}
                         message={msg}
                         isOwn={msg.sender.id === user.id}
+                        senderBlocked={blockedIDs.has(msg.sender.id)}
                         highlighted={msg.id === highlightedMsgId}
                         notifiesViewer={
                             msg.reply_to?.sender_id === user.id ||

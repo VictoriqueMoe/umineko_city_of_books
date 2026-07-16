@@ -230,6 +230,9 @@ func (s *Service) sendMessage(ctx fiber.Ctx) error {
 		if errors.Is(err, chat.ErrUserBlocked) {
 			return utils.Forbidden(ctx, "you cannot message this user")
 		}
+		if errors.Is(err, chat.ErrBlockedByRoomHost) {
+			return utils.Forbidden(ctx, err.Error())
+		}
 		if errors.Is(err, chat.ErrTimedOut) {
 			return utils.Forbidden(ctx, err.Error())
 		}

@@ -7,6 +7,10 @@ import (
 )
 
 type (
+	ResolveUsernamesResponse struct {
+		Usernames []string `json:"usernames"`
+	}
+
 	UserResponse struct {
 		ID          uuid.UUID            `json:"id"`
 		Username    string               `json:"username"`

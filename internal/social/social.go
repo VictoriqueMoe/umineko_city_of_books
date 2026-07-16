@@ -4,6 +4,7 @@ import (
 	"context"
 	"regexp"
 
+	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/notification"
@@ -34,6 +35,7 @@ func ProcessEmbeds(postRepo repository.PostRepository, ownerID string, ownerType
 
 func ProcessMentions(
 	userRepo repository.UserRepository,
+	blockSvc block.Service,
 	notifSvc notification.Service,
 	settingsSvc settings.Service,
 	actorID uuid.UUID,
@@ -54,6 +56,10 @@ func ProcessMentions(
 
 		mentioned, err := userRepo.GetByUsername(context.Background(), username)
 		if err != nil || mentioned == nil || mentioned.ID == actorID {
+			continue
+		}
+
+		if blocked, _ := blockSvc.IsBlockedEither(context.Background(), actorID, mentioned.ID); blocked {
 			continue
 		}
 

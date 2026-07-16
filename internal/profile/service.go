@@ -35,6 +35,7 @@ type (
 		GetActivity(ctx context.Context, username string, page bounds.Page) (*dto.ActivityListResponse, error)
 		ListPublicUsers(ctx context.Context) ([]dto.UserResponse, error)
 		SearchUsers(ctx context.Context, query string, limit int) ([]dto.UserResponse, error)
+		ResolveUsernames(ctx context.Context, usernames []string) ([]string, error)
 	}
 
 	service struct {
@@ -50,7 +51,10 @@ type (
 	}
 )
 
-const maxPronounLength = 10
+const (
+	maxPronounLength    = 10
+	maxResolveUsernames = 100
+)
 
 var (
 	validProfileTabs = map[string]bool{
@@ -305,6 +309,44 @@ func (s *service) SearchUsers(ctx context.Context, query string, limit int) ([]d
 		return nil, err
 	}
 	return s.usersToResponses(ctx, users), nil
+}
+
+func (s *service) ResolveUsernames(ctx context.Context, usernames []string) ([]string, error) {
+	seen := make(map[string]struct{}, len(usernames))
+	unique := make([]string, 0, len(usernames))
+	for i := 0; i < len(usernames); i++ {
+		name := strings.TrimSpace(usernames[i])
+		if name == "" {
+			continue
+		}
+
+		key := strings.ToLower(name)
+		if _, dup := seen[key]; dup {
+			continue
+		}
+
+		seen[key] = struct{}{}
+		unique = append(unique, name)
+		if len(unique) == maxResolveUsernames {
+			break
+		}
+	}
+
+	if len(unique) == 0 {
+		return []string{}, nil
+	}
+
+	users, err := s.userRepo.GetByUsernames(ctx, unique)
+	if err != nil {
+		return nil, fmt.Errorf("get users by usernames: %w", err)
+	}
+
+	existing := make([]string, 0, len(users))
+	for i := 0; i < len(users); i++ {
+		existing = append(existing, users[i].Username)
+	}
+
+	return existing, nil
 }
 
 func (s *service) usersToResponses(ctx context.Context, users []model.User) []dto.UserResponse {

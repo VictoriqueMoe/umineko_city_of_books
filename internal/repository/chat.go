@@ -84,6 +84,15 @@ type (
 		Tags          []string
 	}
 
+	ChatRoomSendContext struct {
+		ID         uuid.UUID
+		Name       string
+		Type       string
+		IsSystem   bool
+		SystemKind string
+		CreatedBy  uuid.UUID
+	}
+
 	ChatRoomMemberRow struct {
 		UserID          uuid.UUID
 		Username        string
@@ -148,6 +157,7 @@ type (
 		GetRoomsByUser(ctx context.Context, userID uuid.UUID) ([]ChatRoomRow, error)
 		ListUserGroupRooms(ctx context.Context, userID uuid.UUID, search string, isRPOnly bool, tag, role string, includeArchived bool, limit, offset int) ([]ChatRoomRow, int, error)
 		GetRoomByID(ctx context.Context, roomID, viewerID uuid.UUID) (*ChatRoomRow, error)
+		GetRoomSendContext(ctx context.Context, roomID uuid.UUID) (*ChatRoomSendContext, error)
 		GetRoomMembers(ctx context.Context, roomID uuid.UUID) ([]uuid.UUID, error)
 		GetRoomMembersDetailed(ctx context.Context, roomID uuid.UUID) ([]ChatRoomMemberRow, error)
 		GetMemberRole(ctx context.Context, roomID, userID uuid.UUID) (string, error)
@@ -710,6 +720,28 @@ func (r *chatRepository) GetRoomByID(ctx context.Context, roomID, viewerID uuid.
 		row.ViewerGhost = viewerGhost.Bool
 	}
 	row.Tags, _ = r.GetRoomTags(ctx, roomID)
+	return &row, nil
+}
+
+func (r *chatRepository) GetRoomSendContext(ctx context.Context, roomID uuid.UUID) (*ChatRoomSendContext, error) {
+	var row ChatRoomSendContext
+	var systemKind sql.NullString
+
+	err := r.db.QueryRowContext(ctx,
+		`SELECT id, name, type, is_system, system_kind, created_by FROM chat_rooms WHERE id = $1`,
+		roomID,
+	).Scan(&row.ID, &row.Name, &row.Type, &row.IsSystem, &systemKind, &row.CreatedBy)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get room send context: %w", err)
+	}
+
+	if systemKind.Valid {
+		row.SystemKind = systemKind.String
+	}
+
 	return &row, nil
 }
 

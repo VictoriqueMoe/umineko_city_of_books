@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router";
+import { MentionLink } from "../components/MentionLink/MentionLink";
 import { WaifuvaultEmbed } from "../components/WaifuvaultEmbed/WaifuvaultEmbed";
 import { detectWaifuvaultMedia } from "../components/WaifuvaultEmbed/detect";
 import { isInternalOrigin } from "./siteOrigin";
@@ -40,12 +41,7 @@ export function linkify(text: string, keyPrefix = "lk"): ReactNode[] {
             );
         }
         if (part.startsWith("@") && part.length > 1) {
-            const username = part.slice(1);
-            return (
-                <Link key={key} to={`/user/${username}`}>
-                    {part}
-                </Link>
-            );
+            return <MentionLink key={key} username={part.slice(1)} label={part} />;
         }
         return part;
     });

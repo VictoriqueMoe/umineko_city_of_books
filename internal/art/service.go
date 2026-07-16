@@ -156,7 +156,7 @@ func (s *service) CreateArt(ctx context.Context, userID uuid.UUID, req dto.Creat
 		return uuid.Nil, err
 	}
 
-	go social.ProcessMentions(s.userRepo, s.notifService, s.settingsSvc, userID, description, id, "art", fmt.Sprintf("/gallery/art/%s", id))
+	go social.ProcessMentions(s.userRepo, s.blockSvc, s.notifService, s.settingsSvc, userID, description, id, "art", fmt.Sprintf("/gallery/art/%s", id))
 
 	return id, nil
 }
@@ -404,7 +404,7 @@ func (s *service) CreateComment(ctx context.Context, artID uuid.UUID, userID uui
 	}
 
 	go social.ProcessEmbeds(s.postRepo, id.String(), "art_comment", body)
-	go social.ProcessMentions(s.userRepo, s.notifService, s.settingsSvc, userID, body, artID, fmt.Sprintf("art_comment:%s", id), fmt.Sprintf("/gallery/art/%s#comment-%s", artID, id))
+	go social.ProcessMentions(s.userRepo, s.blockSvc, s.notifService, s.settingsSvc, userID, body, artID, fmt.Sprintf("art_comment:%s", id), fmt.Sprintf("/gallery/art/%s#comment-%s", artID, id))
 
 	go func() {
 		artAuthorID, err := s.artRepo.GetArtAuthorID(ctx, artID)
