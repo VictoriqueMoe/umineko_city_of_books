@@ -30,6 +30,7 @@ interface MessageBubbleProps {
     notifiesViewer?: boolean;
     seenLabel?: string | null;
     senderIsStaff?: boolean;
+    senderBlocked?: boolean;
 }
 
 const GIPHY_URL_RE = /^https:\/\/(media[0-9]*|i)\.giphy\.com\/[^\s]+\.(gif|webp|mp4)(\?[^\s]*)?$/i;
@@ -91,8 +92,10 @@ export function MessageBubble({
     notifiesViewer,
     seenLabel,
     senderIsStaff,
+    senderBlocked,
 }: MessageBubbleProps) {
     const [pickerOpen, setPickerOpen] = useState(false);
+    const [blockedRevealed, setBlockedRevealed] = useState(false);
 
     const [reactorsPopover, setReactorsPopover] = useState<string | null>(null);
     const longPressTimerRef = useRef<number | null>(null);
@@ -209,6 +212,17 @@ export function MessageBubble({
                 <div className={styles.systemMessageTime} title={formatFullDateTime(message.created_at)}>
                     {formatMessageTime(message.created_at)}
                 </div>
+            </div>
+        );
+    }
+
+    if (senderBlocked && !blockedRevealed) {
+        return (
+            <div id={`chat-msg-${message.id}`} className={styles.blockedMessage}>
+                <span className={styles.blockedMessageText}>Message from a blocked user</span>
+                <button type="button" className={styles.blockedMessageReveal} onClick={() => setBlockedRevealed(true)}>
+                    Show
+                </button>
             </div>
         );
     }

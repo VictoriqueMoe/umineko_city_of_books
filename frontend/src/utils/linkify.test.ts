@@ -39,3 +39,36 @@ describe("linkify origin handling (native app with a configured site origin)", (
         expect((element.props as LinkLikeProps).target).toBe("_blank");
     });
 });
+
+describe("linkify mention handling", () => {
+    afterEach(() => {
+        vi.resetModules();
+    });
+
+    it("defers mentions to MentionLink instead of linking unconditionally", async () => {
+        // given
+        const { linkify } = await import("./linkify");
+        const { MentionLink } = await import("../components/MentionLink/MentionLink");
+
+        // when
+        const parts = linkify("hi @foooobaaaaa there");
+        const element = parts.find(p => typeof p === "object" && p !== null) as ReactElement;
+
+        // then
+        expect(element.type).toBe(MentionLink);
+        expect((element.props as { username: string }).username).toBe("foooobaaaaa");
+    });
+
+    it("passes the whole token through as the visible label", async () => {
+        // given
+        const { linkify } = await import("./linkify");
+
+        // when
+        const parts = linkify("hi @Featherines_other_half there");
+        const element = parts.find(p => typeof p === "object" && p !== null) as ReactElement;
+
+        // then
+        expect((element.props as { username: string; label: string }).username).toBe("Featherines_other_half");
+        expect((element.props as { username: string; label: string }).label).toBe("@Featherines_other_half");
+    });
+});

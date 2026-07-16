@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"umineko_city_of_books/internal/block"
 
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/notification"
@@ -99,9 +100,11 @@ func TestProcessMentions_NoMentionsDoesNothing(t *testing.T) {
 	userRepo := repository.NewMockUserRepository(t)
 	notifSvc := notification.NewMockService(t)
 	settingsSvc := settings.NewMockService(t)
+	blockSvc := block.NewMockService(t)
+	blockSvc.EXPECT().IsBlockedEither(mock.Anything, mock.Anything, mock.Anything).Return(false, nil).Maybe()
 
 	// when
-	ProcessMentions(userRepo, notifSvc, settingsSvc, uuid.New(), "no mentions", uuid.New(), "post", "/p/1")
+	ProcessMentions(userRepo, blockSvc, notifSvc, settingsSvc, uuid.New(), "no mentions", uuid.New(), "post", "/p/1")
 
 	// then — no mock calls expected
 }
@@ -111,10 +114,12 @@ func TestProcessMentions_UnknownUsernameSkipped(t *testing.T) {
 	userRepo := repository.NewMockUserRepository(t)
 	notifSvc := notification.NewMockService(t)
 	settingsSvc := settings.NewMockService(t)
+	blockSvc := block.NewMockService(t)
+	blockSvc.EXPECT().IsBlockedEither(mock.Anything, mock.Anything, mock.Anything).Return(false, nil).Maybe()
 	userRepo.EXPECT().GetByUsername(mock.Anything, "ghost").Return(nil, errors.New("not found"))
 
 	// when
-	ProcessMentions(userRepo, notifSvc, settingsSvc, uuid.New(), "@ghost", uuid.New(), "post", "/p/1")
+	ProcessMentions(userRepo, blockSvc, notifSvc, settingsSvc, uuid.New(), "@ghost", uuid.New(), "post", "/p/1")
 
 	// then — no notification sent
 }
@@ -124,11 +129,13 @@ func TestProcessMentions_SelfMentionSkipped(t *testing.T) {
 	userRepo := repository.NewMockUserRepository(t)
 	notifSvc := notification.NewMockService(t)
 	settingsSvc := settings.NewMockService(t)
+	blockSvc := block.NewMockService(t)
+	blockSvc.EXPECT().IsBlockedEither(mock.Anything, mock.Anything, mock.Anything).Return(false, nil).Maybe()
 	actorID := uuid.New()
 	userRepo.EXPECT().GetByUsername(mock.Anything, "me").Return(&model.User{ID: actorID, Username: "me", DisplayName: "Me"}, nil)
 
 	// when
-	ProcessMentions(userRepo, notifSvc, settingsSvc, actorID, "@me", uuid.New(), "post", "/p/1")
+	ProcessMentions(userRepo, blockSvc, notifSvc, settingsSvc, actorID, "@me", uuid.New(), "post", "/p/1")
 
 	// then — no notification sent
 }
@@ -138,6 +145,8 @@ func TestProcessMentions_DuplicateUsernameOnlyNotifiedOnce(t *testing.T) {
 	userRepo := repository.NewMockUserRepository(t)
 	notifSvc := notification.NewMockService(t)
 	settingsSvc := settings.NewMockService(t)
+	blockSvc := block.NewMockService(t)
+	blockSvc.EXPECT().IsBlockedEither(mock.Anything, mock.Anything, mock.Anything).Return(false, nil).Maybe()
 	actorID := uuid.New()
 	mentionedID := uuid.New()
 	refID := uuid.New()
@@ -148,7 +157,7 @@ func TestProcessMentions_DuplicateUsernameOnlyNotifiedOnce(t *testing.T) {
 	})).Return(nil).Once()
 
 	// when
-	ProcessMentions(userRepo, notifSvc, settingsSvc, actorID, "@alice and @alice again", refID, "post", "/p/1")
+	ProcessMentions(userRepo, blockSvc, notifSvc, settingsSvc, actorID, "@alice and @alice again", refID, "post", "/p/1")
 
 	// then — only one notification call (enforced by .Once())
 }
@@ -158,13 +167,15 @@ func TestProcessMentions_ActorLookupErrorSkipped(t *testing.T) {
 	userRepo := repository.NewMockUserRepository(t)
 	notifSvc := notification.NewMockService(t)
 	settingsSvc := settings.NewMockService(t)
+	blockSvc := block.NewMockService(t)
+	blockSvc.EXPECT().IsBlockedEither(mock.Anything, mock.Anything, mock.Anything).Return(false, nil).Maybe()
 	actorID := uuid.New()
 	mentionedID := uuid.New()
 	userRepo.EXPECT().GetByUsername(mock.Anything, "alice").Return(&model.User{ID: mentionedID, Username: "alice"}, nil)
 	userRepo.EXPECT().GetByID(mock.Anything, actorID).Return(nil, errors.New("boom"))
 
 	// when
-	ProcessMentions(userRepo, notifSvc, settingsSvc, actorID, "@alice", uuid.New(), "post", "/p/1")
+	ProcessMentions(userRepo, blockSvc, notifSvc, settingsSvc, actorID, "@alice", uuid.New(), "post", "/p/1")
 
 	// then — no notification sent
 }
@@ -174,6 +185,8 @@ func TestProcessMentions_NotifyErrorSwallowed(t *testing.T) {
 	userRepo := repository.NewMockUserRepository(t)
 	notifSvc := notification.NewMockService(t)
 	settingsSvc := settings.NewMockService(t)
+	blockSvc := block.NewMockService(t)
+	blockSvc.EXPECT().IsBlockedEither(mock.Anything, mock.Anything, mock.Anything).Return(false, nil).Maybe()
 	actorID := uuid.New()
 	mentionedID := uuid.New()
 	userRepo.EXPECT().GetByUsername(mock.Anything, "alice").Return(&model.User{ID: mentionedID, Username: "alice"}, nil)
@@ -182,8 +195,26 @@ func TestProcessMentions_NotifyErrorSwallowed(t *testing.T) {
 
 	// when — should not panic
 	require.NotPanics(t, func() {
-		ProcessMentions(userRepo, notifSvc, settingsSvc, actorID, "@alice", uuid.New(), "post", "/p/1")
+		ProcessMentions(userRepo, blockSvc, notifSvc, settingsSvc, actorID, "@alice", uuid.New(), "post", "/p/1")
 	})
 
 	// then — error swallowed
+}
+
+func TestProcessMentions_BlockedUserIsNotNotified(t *testing.T) {
+	// given
+	userRepo := repository.NewMockUserRepository(t)
+	notifSvc := notification.NewMockService(t)
+	settingsSvc := settings.NewMockService(t)
+	blockSvc := block.NewMockService(t)
+	actorID := uuid.New()
+	mentionedID := uuid.New()
+	userRepo.EXPECT().GetByUsername(mock.Anything, "alice").Return(&model.User{ID: mentionedID, Username: "alice"}, nil)
+	blockSvc.EXPECT().IsBlockedEither(mock.Anything, actorID, mentionedID).Return(true, nil)
+
+	// when
+	ProcessMentions(userRepo, blockSvc, notifSvc, settingsSvc, actorID, "@alice", uuid.New(), "post", "/p/1")
+
+	// then
+	notifSvc.AssertNotCalled(t, "Notify", mock.Anything, mock.Anything)
 }

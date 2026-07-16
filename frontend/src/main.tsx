@@ -8,6 +8,7 @@ import { ThemeProvider } from "./context/ThemeContext";
 import { AuthProvider } from "./context/AuthContext";
 import { NotificationProvider } from "./context/NotificationContext";
 import { GifFavouritesProvider } from "./context/GifFavouritesContext";
+import { MentionResolverProvider } from "./context/MentionResolverContext";
 import { loadAuthToken } from "./utils/authToken";
 import { initAppUpdates } from "./utils/appUpdate";
 import "./styles/variables.css";
@@ -22,7 +23,9 @@ function renderApp() {
                         <ThemeProvider>
                             <NotificationProvider>
                                 <GifFavouritesProvider>
-                                    <App />
+                                    <MentionResolverProvider>
+                                        <App />
+                                    </MentionResolverProvider>
                                 </GifFavouritesProvider>
                             </NotificationProvider>
                         </ThemeProvider>

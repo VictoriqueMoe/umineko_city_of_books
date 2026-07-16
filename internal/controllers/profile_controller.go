@@ -27,6 +27,7 @@ func (s *Service) getAllProfileRoutes() []FSetupRoute {
 		s.setupGetOnlineStatusRoute,
 		s.setupGetUserActivityRoute,
 		s.setupSearchUsersRoute,
+		s.setupResolveUsernamesRoute,
 		s.setupGetMutualFollowersRoute,
 		s.setupListUsersPublicRoute,
 		s.setupGetProfileRoute,
@@ -288,6 +289,24 @@ func (s *Service) searchUsers(ctx fiber.Ctx) error {
 	}
 
 	return ctx.JSON(results)
+}
+
+func (s *Service) setupResolveUsernamesRoute(r fiber.Router) {
+	r.Get("/users/resolve", middleware.OptionalAuth(s.AuthSession, s.AuthzService), s.resolveUsernames)
+}
+
+func (s *Service) resolveUsernames(ctx fiber.Ctx) error {
+	raw := ctx.Query("usernames")
+	if strings.TrimSpace(raw) == "" {
+		return ctx.JSON(dto.ResolveUsernamesResponse{Usernames: []string{}})
+	}
+
+	existing, err := s.ProfileService.ResolveUsernames(ctx.Context(), strings.Split(raw, ","))
+	if err != nil {
+		return utils.InternalError(ctx, "failed to resolve usernames")
+	}
+
+	return ctx.JSON(dto.ResolveUsernamesResponse{Usernames: existing})
 }
 
 func (s *Service) setupListUsersPublicRoute(r fiber.Router) {

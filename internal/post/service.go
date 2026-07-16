@@ -193,7 +193,7 @@ func (s *service) CreatePost(ctx context.Context, userID uuid.UUID, req dto.Crea
 	if corner == "suggestions" {
 		go s.notifySuggestionPosted(userID, id)
 	} else {
-		go social.ProcessMentions(s.userRepo, s.notifService, s.settingsSvc, userID, body, id, "post", fmt.Sprintf("/game-board/%s", id))
+		go social.ProcessMentions(s.userRepo, s.blockSvc, s.notifService, s.settingsSvc, userID, body, id, "post", fmt.Sprintf("/game-board/%s", id))
 	}
 
 	return id, nil
@@ -537,7 +537,7 @@ func (s *service) CreateComment(ctx context.Context, postID uuid.UUID, userID uu
 	}
 
 	go social.ProcessEmbeds(s.postRepo, id.String(), "comment", body)
-	go social.ProcessMentions(s.userRepo, s.notifService, s.settingsSvc, userID, body, postID, fmt.Sprintf("post_comment:%s", id), fmt.Sprintf("/game-board/%s#comment-%s", postID, id))
+	go social.ProcessMentions(s.userRepo, s.blockSvc, s.notifService, s.settingsSvc, userID, body, postID, fmt.Sprintf("post_comment:%s", id), fmt.Sprintf("/game-board/%s#comment-%s", postID, id))
 
 	go func() {
 		postAuthorID, err := s.postRepo.GetPostAuthorID(ctx, postID)

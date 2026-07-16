@@ -30,6 +30,8 @@ func newTestService(t *testing.T) (
 ) {
 	notifRepo := repository.NewMockNotificationRepository(t)
 	userRepo := repository.NewMockUserRepository(t)
+	blockRepo := repository.NewMockBlockRepository(t)
+	blockRepo.EXPECT().IsBlockedEither(mock.Anything, mock.Anything, mock.Anything).Return(false, nil).Maybe()
 	emailSvc := email.NewMockService(t)
 	settingsSvc := settings.NewMockService(t)
 	hub := ws.NewHub()
@@ -37,7 +39,7 @@ func newTestService(t *testing.T) (
 	settingsSvc.EXPECT().Get(mock.Anything, config.SettingSiteName).Return("Test Site").Maybe()
 	settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("https://test.example").Maybe()
 
-	svc := NewService(notifRepo, userRepo, hub, emailSvc, nil, settingsSvc, nil).(*service)
+	svc := NewService(notifRepo, userRepo, blockRepo, hub, emailSvc, nil, settingsSvc, nil).(*service)
 	return svc, notifRepo, userRepo, emailSvc, hub
 }
 
@@ -577,7 +579,9 @@ func TestNotify_DispatchesToOverlay(t *testing.T) {
 	settingsSvc.EXPECT().Get(mock.Anything, config.SettingSiteName).Return("Test Site").Maybe()
 	settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("https://test.example").Maybe()
 	overlay := &fakeOverlayDispatcher{}
-	svc := NewService(notifRepo, userRepo, ws.NewHub(), emailSvc, nil, settingsSvc, overlay)
+	blockRepo := repository.NewMockBlockRepository(t)
+	blockRepo.EXPECT().IsBlockedEither(mock.Anything, mock.Anything, mock.Anything).Return(false, nil).Maybe()
+	svc := NewService(notifRepo, userRepo, blockRepo, ws.NewHub(), emailSvc, nil, settingsSvc, overlay)
 	recipient := uuid.New()
 	params := dto.NotifyParams{
 		RecipientID: recipient,

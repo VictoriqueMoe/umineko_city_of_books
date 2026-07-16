@@ -5,6 +5,7 @@ import { useNotifications } from "../../hooks/useNotifications";
 import { joinStreamChat } from "../../api/endpoints";
 import { useMessageHistory } from "../../hooks/useMessageHistory";
 import { useChatMessageHandlers } from "../../hooks/useChatMessageHandlers";
+import { useBlockedUserIds } from "../../hooks/useBlockedUserIds";
 import { MessageBubble } from "../../components/chat/MessageBubble/MessageBubble";
 import { ChatComposer, type ReplyTarget } from "../../components/chat/ChatComposer/ChatComposer";
 import { handleIncomingChatMessage, applySharedChatWSBranch } from "../../utils/chatStream";
@@ -30,6 +31,7 @@ export function StreamChatPanel({ streamId, isLive }: { streamId: string; isLive
 
 function StreamChatPanelInner({ streamId, user, isLive }: { streamId: string; user: UserProfile; isLive: boolean }) {
     const { addWSListener } = useNotifications();
+    const blockedIDs = useBlockedUserIds();
     const [joined, setJoined] = useState(false);
     const [joinError, setJoinError] = useState(false);
     const [replyingTo, setReplyingTo] = useState<ReplyTarget | null>(null);
@@ -107,6 +109,7 @@ function StreamChatPanelInner({ streamId, user, isLive }: { streamId: string; us
                             key={m.id}
                             message={m}
                             isOwn={m.sender.id === user.id}
+                            senderBlocked={blockedIDs.has(m.sender.id)}
                             onReply={handleReply}
                             onEdit={handleEditMessage}
                             onEditStart={msg => setEditingMessageId(msg.id)}

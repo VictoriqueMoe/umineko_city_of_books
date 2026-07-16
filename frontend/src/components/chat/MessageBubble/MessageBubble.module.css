@@ -45,6 +45,33 @@
     margin-top: 0.2rem;
 }
 
+.blockedMessage {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.2rem 0.1rem;
+}
+
+.blockedMessageText {
+    color: var(--text-muted);
+    font-size: 0.76rem;
+    font-style: italic;
+}
+
+.blockedMessageReveal {
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--text-muted);
+    font-size: 0.76rem;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.blockedMessageReveal:hover {
+    color: var(--gold);
+}
+
 .actions {
     position: absolute;
     bottom: 100%;

@@ -2324,6 +2324,74 @@ func (_c *MockChatRepository_GetRoomMembersUnmuted_Call) RunAndReturn(run func(c
 	return _c
 }
 
+// GetRoomSendContext provides a mock function for the type MockChatRepository
+func (_mock *MockChatRepository) GetRoomSendContext(ctx context.Context, roomID uuid.UUID) (*ChatRoomSendContext, error) {
+	ret := _mock.Called(ctx, roomID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetRoomSendContext")
+	}
+
+	var r0 *ChatRoomSendContext
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*ChatRoomSendContext, error)); ok {
+		return returnFunc(ctx, roomID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *ChatRoomSendContext); ok {
+		r0 = returnFunc(ctx, roomID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*ChatRoomSendContext)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, roomID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockChatRepository_GetRoomSendContext_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetRoomSendContext'
+type MockChatRepository_GetRoomSendContext_Call struct {
+	*mock.Call
+}
+
+// GetRoomSendContext is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roomID uuid.UUID
+func (_e *MockChatRepository_Expecter) GetRoomSendContext(ctx any, roomID any) *MockChatRepository_GetRoomSendContext_Call {
+	return &MockChatRepository_GetRoomSendContext_Call{Call: _e.mock.On("GetRoomSendContext", ctx, roomID)}
+}
+
+func (_c *MockChatRepository_GetRoomSendContext_Call) Run(run func(ctx context.Context, roomID uuid.UUID)) *MockChatRepository_GetRoomSendContext_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatRepository_GetRoomSendContext_Call) Return(chatRoomSendContext *ChatRoomSendContext, err error) *MockChatRepository_GetRoomSendContext_Call {
+	_c.Call.Return(chatRoomSendContext, err)
+	return _c
+}
+
+func (_c *MockChatRepository_GetRoomSendContext_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID) (*ChatRoomSendContext, error)) *MockChatRepository_GetRoomSendContext_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetRoomTags provides a mock function for the type MockChatRepository
 func (_mock *MockChatRepository) GetRoomTags(ctx context.Context, roomID uuid.UUID) ([]string, error) {
 	ret := _mock.Called(ctx, roomID)

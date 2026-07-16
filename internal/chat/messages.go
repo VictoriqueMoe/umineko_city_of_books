@@ -172,29 +172,16 @@ func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid
 		return nil, fmt.Errorf("get room members: %w", err)
 	}
 
-	hasOtherMembers := false
-	for i := 0; i < len(members); i++ {
-		if members[i] != senderID {
-			hasOtherMembers = true
-			break
-		}
+	roomRow, err := m.chatRepo.GetRoomSendContext(ctx, roomID)
+	if err != nil {
+		return nil, fmt.Errorf("get room send context: %w", err)
+	}
+	if roomRow == nil {
+		return nil, ErrRoomNotFound
 	}
 
-	blockedSet := make(map[uuid.UUID]struct{})
-	if hasOtherMembers {
-		if blockedIDs, err := m.blockSvc.GetBlockedIDs(ctx, senderID); err == nil {
-			for i := 0; i < len(blockedIDs); i++ {
-				blockedSet[blockedIDs[i]] = struct{}{}
-			}
-		}
-		for i := 0; i < len(members); i++ {
-			if members[i] == senderID {
-				continue
-			}
-			if _, isBlocked := blockedSet[members[i]]; isBlocked {
-				return nil, ErrUserBlocked
-			}
-		}
+	if err := m.assertBlocksAllowSend(ctx, roomRow, senderID, members); err != nil {
+		return nil, err
 	}
 
 	for i := 0; i < len(files); i++ {
@@ -284,12 +271,11 @@ func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid
 		Reactions: []dto.ReactionGroup{},
 	}
 
-	roomRow, _ := m.chatRepo.GetRoomByID(ctx, roomID, senderID)
-	isGroup := roomRow != nil && roomRow.Type == "group"
+	isGroup := roomRow.Type == "group"
 
 	var mentionedIDs map[uuid.UUID]struct{}
 	if isGroup {
-		mentionedIDs = m.resolveMentions(ctx, req.Body, senderID, members, blockedSet)
+		mentionedIDs = m.resolveMentions(ctx, req.Body, senderID, members)
 	}
 
 	msg := ws.Message{
@@ -330,14 +316,48 @@ func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid
 	return resp, nil
 }
 
-func isLiveStreamRoom(roomRow *repository.ChatRoomRow) bool {
+func isLiveStreamRoom(roomRow *repository.ChatRoomSendContext) bool {
 	return roomRow != nil && roomRow.IsSystem && roomRow.SystemKind == SystemKindLiveStream
+}
+
+func hostBlockApplies(roomRow *repository.ChatRoomSendContext) bool {
+	if !roomRow.IsSystem {
+		return true
+	}
+
+	return roomRow.SystemKind == SystemKindLiveStream
+}
+
+func (m *messagesService) assertBlocksAllowSend(ctx context.Context, roomRow *repository.ChatRoomSendContext, senderID uuid.UUID, members []uuid.UUID) error {
+	if roomRow.Type == "dm" {
+		for i := 0; i < len(members); i++ {
+			if members[i] == senderID {
+				continue
+			}
+
+			if blocked, _ := m.blockSvc.IsBlockedEither(ctx, senderID, members[i]); blocked {
+				return ErrUserBlocked
+			}
+		}
+
+		return nil
+	}
+
+	if !hostBlockApplies(roomRow) || roomRow.CreatedBy == senderID {
+		return nil
+	}
+
+	if blocked, _ := m.blockSvc.IsBlocked(ctx, roomRow.CreatedBy, senderID); blocked {
+		return ErrBlockedByRoomHost
+	}
+
+	return nil
 }
 
 func (m *messagesService) dispatchPostSendSideEffects(
 	roomID, senderID, msgID uuid.UUID,
 	recipients []uuid.UUID,
-	roomRow *repository.ChatRoomRow,
+	roomRow *repository.ChatRoomSendContext,
 	mentionedIDs map[uuid.UUID]struct{},
 	replyToAuthor uuid.UUID,
 	isGroup bool,
@@ -413,7 +433,7 @@ func (m *messagesService) dispatchPostSendSideEffects(
 	}
 }
 
-func (m *messagesService) resolveMentions(ctx context.Context, body string, senderID uuid.UUID, members []uuid.UUID, blockedSet map[uuid.UUID]struct{}) map[uuid.UUID]struct{} {
+func (m *messagesService) resolveMentions(ctx context.Context, body string, senderID uuid.UUID, members []uuid.UUID) map[uuid.UUID]struct{} {
 	matches := mentionRegex.FindAllStringSubmatch(body, -1)
 	if len(matches) == 0 {
 		return nil
@@ -452,7 +472,7 @@ func (m *messagesService) resolveMentions(ctx context.Context, body string, send
 		if _, isMember := memberSet[uid]; !isMember {
 			continue
 		}
-		if _, isBlocked := blockedSet[uid]; isBlocked {
+		if blocked, _ := m.blockSvc.IsBlockedEither(ctx, senderID, uid); blocked {
 			continue
 		}
 		mentioned[uid] = struct{}{}
