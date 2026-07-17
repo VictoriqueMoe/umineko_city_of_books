@@ -1431,7 +1431,7 @@ func (r *chatRepository) GetMessageMediaBatch(ctx context.Context, messageIDs []
 
 	placeholders := make([]string, len(messageIDs))
 	args := make([]interface{}, len(messageIDs))
-	for i := 0; i < len(messageIDs); i++ {
+	for i := range messageIDs {
 		placeholders[i] = fmt.Sprintf("$%d", i+1)
 		args[i] = messageIDs[i]
 	}

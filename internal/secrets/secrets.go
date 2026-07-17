@@ -29,7 +29,7 @@ type (
 var registry = map[ID]Spec{}
 
 func Register(specs ...Spec) {
-	for i := 0; i < len(specs); i++ {
+	for i := range specs {
 		registry[specs[i].ID] = specs[i]
 	}
 }
@@ -83,7 +83,7 @@ func ParentOf(id ID) (Spec, bool) {
 
 func PieceIDStrings(parent Spec) []string {
 	result := make([]string, len(parent.Pieces))
-	for i := 0; i < len(parent.Pieces); i++ {
+	for i := range parent.Pieces {
 		result[i] = string(parent.Pieces[i].ID)
 	}
 	return result

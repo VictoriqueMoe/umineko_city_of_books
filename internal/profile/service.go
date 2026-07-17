@@ -314,7 +314,7 @@ func (s *service) SearchUsers(ctx context.Context, query string, limit int) ([]d
 func (s *service) ResolveUsernames(ctx context.Context, usernames []string) ([]string, error) {
 	seen := make(map[string]struct{}, len(usernames))
 	unique := make([]string, 0, len(usernames))
-	for i := 0; i < len(usernames); i++ {
+	for i := range usernames {
 		name := strings.TrimSpace(usernames[i])
 		if name == "" {
 			continue
@@ -342,7 +342,7 @@ func (s *service) ResolveUsernames(ctx context.Context, usernames []string) ([]s
 	}
 
 	existing := make([]string, 0, len(users))
-	for i := 0; i < len(users); i++ {
+	for i := range users {
 		existing = append(existing, users[i].Username)
 	}
 
@@ -355,11 +355,11 @@ func (s *service) usersToResponses(ctx context.Context, users []model.User) []dt
 		return result
 	}
 	ids := make([]uuid.UUID, len(users))
-	for i := 0; i < len(users); i++ {
+	for i := range users {
 		ids[i] = users[i].ID
 	}
 	roles, _ := s.authz.GetRoles(ctx, ids)
-	for i := 0; i < len(users); i++ {
+	for i := range users {
 		u := users[i]
 		result[i] = dto.UserResponse{
 			ID:          u.ID,

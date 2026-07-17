@@ -165,7 +165,7 @@ func (r *userRepository) GetByIDs(ctx context.Context, ids []uuid.UUID) ([]model
 	}
 	args := make([]any, len(ids))
 	placeholders := make([]string, len(ids))
-	for i := 0; i < len(ids); i++ {
+	for i := range ids {
 		args[i] = ids[i]
 		placeholders[i] = fmt.Sprintf("$%d", i+1)
 	}
@@ -208,7 +208,7 @@ func (r *userRepository) GetByUsernames(ctx context.Context, usernames []string)
 	}
 	args := make([]any, len(usernames))
 	placeholders := make([]string, len(usernames))
-	for i := 0; i < len(usernames); i++ {
+	for i := range usernames {
 		args[i] = strings.ToLower(usernames[i])
 		placeholders[i] = fmt.Sprintf("$%d", i+1)
 	}

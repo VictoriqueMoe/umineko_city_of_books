@@ -31,7 +31,7 @@ func TooLarge(ctx fiber.Ctx, msg string) error {
 }
 
 func InternalError(ctx fiber.Ctx, msg string, cause ...error) error {
-	for i := 0; i < len(cause); i++ {
+	for i := range cause {
 		if cause[i] == nil {
 			continue
 		}

@@ -572,7 +572,7 @@ func TestListFanfics_OK_TruncatesLongSummary(t *testing.T) {
 	viewer := uuid.New()
 	id := uuid.New()
 	longSummary := ""
-	for i := 0; i < 250; i++ {
+	for range 250 {
 		longSummary += "x"
 	}
 	rows := []model.FanficRow{{ID: id, UserID: uuid.New(), Title: "A", Summary: longSummary}}

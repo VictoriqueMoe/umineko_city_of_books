@@ -10,6 +10,7 @@
         "build:ota": "npm run build:app && node scripts/make-ota.mjs",
         "cap:sync": "npm run build:app && cap sync",
         "cap:android": "npm run build:app && cap sync android && cap open android",
+        "cap:local": "node scripts/cap-local.mjs",
         "assets": "npx @capacitor/assets@latest generate --android --iconBackgroundColor \"#0A0612\" --iconBackgroundColorDark \"#0A0612\" --splashBackgroundColor \"#0A0612\" --splashBackgroundColorDark \"#0A0612\"",
         "test": "vitest run",
         "preview": "vite preview",

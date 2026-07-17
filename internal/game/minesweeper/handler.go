@@ -200,7 +200,7 @@ func (h *Handler) applyReveal(s *State, slot, x, y int) (gameroom.ActionResult, 
 		}
 		s.placeMines(newRng(), zones)
 
-		for p := 0; p < 2; p++ {
+		for p := range 2 {
 			pc := s.PendingClicks[p]
 			revealed := s.floodFill(p, pc[0], pc[1])
 			s.RevealedCount[p] += revealed
@@ -292,8 +292,8 @@ func (h *Handler) ComputeStats(stateJSON, result, createdAt, finishedAt string) 
 		}
 	}
 	var flags [2]int
-	for p := 0; p < 2; p++ {
-		for i := 0; i < len(s.Flagged[p]); i++ {
+	for p := range 2 {
+		for i := range s.Flagged[p] {
 			if s.Flagged[p][i] {
 				flags[p]++
 			}

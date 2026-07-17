@@ -176,7 +176,7 @@ func TestUserRepository_GetByIDs(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, got, 2)
 	byID := map[uuid.UUID]string{}
-	for i := 0; i < len(got); i++ {
+	for i := range got {
 		byID[got[i].ID] = got[i].Username
 	}
 	assert.Equal(t, "alice", byID[a.ID])
@@ -209,7 +209,7 @@ func TestUserRepository_GetByUsernames(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, got, 2)
 	byID := map[uuid.UUID]string{}
-	for i := 0; i < len(got); i++ {
+	for i := range got {
 		byID[got[i].ID] = got[i].Username
 	}
 	assert.Equal(t, "alice", byID[a.ID])
@@ -766,7 +766,7 @@ func TestUserRepository_ListAll_NoSearch(t *testing.T) {
 func TestUserRepository_ListAll_Pagination(t *testing.T) {
 	// given
 	repos := repotest.NewRepos(t)
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		repotest.CreateUser(t, repos)
 	}
 
@@ -890,7 +890,7 @@ func TestUserRepository_SearchByName_ExcludesBanned(t *testing.T) {
 func TestUserRepository_SearchByName_RespectsLimit(t *testing.T) {
 	// given
 	repos := repotest.NewRepos(t)
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		repotest.CreateUser(t, repos, repotest.WithDisplayName("matcher"))
 	}
 

@@ -257,7 +257,7 @@ func TestShipRepository_List_Pagination(t *testing.T) {
 	// given
 	repos := repotest.NewRepos(t)
 	user := repotest.CreateUser(t, repos)
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		createShip(t, repos, user.ID, "T", makeChars())
 	}
 
@@ -314,7 +314,7 @@ func TestShipRepository_List_CrackshipsOnlyFilters(t *testing.T) {
 	owner := repotest.CreateUser(t, repos)
 	crack := createShip(t, repos, owner.ID, "Crack", makeChars())
 	popular := createShip(t, repos, owner.ID, "Popular", makeChars())
-	for i := 0; i < 4; i++ {
+	for range 4 {
 		voter := repotest.CreateUser(t, repos)
 		require.NoError(t, repos.Ship.Vote(context.Background(), voter.ID, crack, -1))
 	}
@@ -488,7 +488,7 @@ func TestShipRepository_ListByUser_Pagination(t *testing.T) {
 	// given
 	repos := repotest.NewRepos(t)
 	user := repotest.CreateUser(t, repos)
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		createShip(t, repos, user.ID, "T", makeChars())
 	}
 
@@ -612,7 +612,7 @@ func TestShipRepository_Vote_Aggregates(t *testing.T) {
 	repos := repotest.NewRepos(t)
 	owner := repotest.CreateUser(t, repos)
 	id := createShip(t, repos, owner.ID, "T", makeChars())
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		voter := repotest.CreateUser(t, repos)
 		require.NoError(t, repos.Ship.Vote(context.Background(), voter.ID, id, 1))
 	}
@@ -784,7 +784,7 @@ func TestShipRepository_GetComments_Pagination(t *testing.T) {
 	repos := repotest.NewRepos(t)
 	user := repotest.CreateUser(t, repos)
 	shipID := createShip(t, repos, user.ID, "T", makeChars())
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		require.NoError(t, repos.Ship.CreateComment(context.Background(), uuid.New(), shipID, nil, user.ID, "c"))
 	}
 

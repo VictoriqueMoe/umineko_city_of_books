@@ -103,7 +103,7 @@ func TestChatRoomBanRepository_BannedRoomIDsForUser(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, ids, 2)
 	got := map[uuid.UUID]bool{}
-	for i := 0; i < len(ids); i++ {
+	for i := range ids {
 		got[ids[i]] = true
 	}
 	assert.True(t, got[roomA])

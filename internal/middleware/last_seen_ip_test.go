@@ -60,7 +60,7 @@ func TestLastSeenIP_SameIPWithinWindowIsSkipped(t *testing.T) {
 	// when
 	r.Record(uid, "10.0.0.1")
 	waitForWrites(t, f, 1)
-	for i := 0; i < 50; i++ {
+	for range 50 {
 		r.Record(uid, "10.0.0.1")
 	}
 	time.Sleep(50 * time.Millisecond)

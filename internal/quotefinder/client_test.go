@@ -27,7 +27,7 @@ func TestListCharacters_MainAndAdditional(t *testing.T) {
 	}
 
 	groups := map[string]string{}
-	for i := 0; i < len(chars); i++ {
+	for i := range chars {
 		groups[chars[i].ID] = chars[i].Group
 	}
 
@@ -86,7 +86,7 @@ func TestListCharacters_CachesResult(t *testing.T) {
 	defer srv.Close()
 
 	c := NewClientWithBaseURL(srv.URL)
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		if _, err := c.ListCharacters(SeriesHigurashi); err != nil {
 			t.Fatalf("call %d: %v", i, err)
 		}

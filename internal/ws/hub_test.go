@@ -79,3 +79,42 @@ func TestHub_SendToUser_DoesNotReachAnon(t *testing.T) {
 	// then
 	assert.Equal(t, 0, len(anon.send), "anon client must never receive a user-targeted message")
 }
+
+func TestHub_SendToUser_ReachesEveryConnectionOfThatUser(t *testing.T) {
+	// given the same user connected from two devices
+	hub := NewHub()
+	userID := uuid.New()
+	phone := NewClient(userID, nil)
+	desktop := NewClient(userID, nil)
+	hub.clients[userID] = []*Client{phone, desktop}
+
+	// when a message is sent to that user
+	hub.SendToUser(userID, Message{Type: "chat_message"})
+
+	// then it lands on every one of their connections, so a message sent from one device
+	assert.Equal(t, 1, len(phone.send), "phone should receive the message")
+	assert.Equal(t, 1, len(desktop.send), "desktop should receive the message")
+}
+
+func TestHub_BroadcastToRoom_ExcludeSkipsAllOfThatUsersConnections(t *testing.T) {
+	// given a room with a sender on two devices and another member on one device
+	hub := NewHub()
+	roomID := uuid.New()
+	senderID := uuid.New()
+	otherID := uuid.New()
+	senderPhone := NewClient(senderID, nil)
+	senderDesktop := NewClient(senderID, nil)
+	otherPhone := NewClient(otherID, nil)
+	hub.clients[senderID] = []*Client{senderPhone, senderDesktop}
+	hub.clients[otherID] = []*Client{otherPhone}
+	hub.JoinRoom(roomID, senderID)
+	hub.JoinRoom(roomID, otherID)
+
+	// when a room broadcast excludes the sender by user id
+	hub.BroadcastToRoom(roomID, Message{Type: "chat_message"}, senderID)
+
+	// then the exclusion drops the sender on every device, which is why excluding the sender
+	assert.Equal(t, 0, len(senderPhone.send), "excluded sender's phone should be skipped")
+	assert.Equal(t, 0, len(senderDesktop.send), "excluded sender's desktop should be skipped")
+	assert.Equal(t, 1, len(otherPhone.send), "other member should still receive the message")
+}

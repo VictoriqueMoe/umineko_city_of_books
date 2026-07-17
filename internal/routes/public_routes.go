@@ -9,12 +9,12 @@ import (
 func PublicRoutes(service controllers.Service, app *fiber.App) {
 	apiRoutes := service.GetAPIRoutes()
 	api := app.Group("/api/v1")
-	for i := 0; i < len(apiRoutes); i++ {
+	for i := range apiRoutes {
 		apiRoutes[i](api)
 	}
 
 	pageRoutes := service.GetPageRoutes()
-	for i := 0; i < len(pageRoutes); i++ {
+	for i := range pageRoutes {
 		pageRoutes[i](app)
 	}
 }

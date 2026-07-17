@@ -288,7 +288,7 @@ func TestPostRepository_ListAll_Pagination(t *testing.T) {
 	// given
 	repos := repotest.NewRepos(t)
 	user := repotest.CreateUser(t, repos)
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		createPost(t, repos, user.ID, "general", "p")
 	}
 
@@ -449,7 +449,7 @@ func TestPostRepository_ListByUser_Pagination(t *testing.T) {
 	// given
 	repos := repotest.NewRepos(t)
 	target := repotest.CreateUser(t, repos)
-	for i := 0; i < 4; i++ {
+	for range 4 {
 		createPost(t, repos, target.ID, "general", "p")
 	}
 
@@ -908,7 +908,7 @@ func TestPostRepository_GetComments_Pagination(t *testing.T) {
 	repos := repotest.NewRepos(t)
 	user := repotest.CreateUser(t, repos)
 	postID := createPost(t, repos, user.ID, "general", "b")
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		createComment(t, repos, postID, user.ID, nil, "c")
 	}
 
@@ -957,7 +957,7 @@ func TestPostRepository_GetComments_AuthorBanned(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, comments, 2)
 	byID := map[uuid.UUID]bool{}
-	for i := 0; i < len(comments); i++ {
+	for i := range comments {
 		byID[comments[i].ID] = comments[i].AuthorBanned
 	}
 	assert.True(t, byID[bannedCommentID], "expected banned author comment to report AuthorBanned=true")

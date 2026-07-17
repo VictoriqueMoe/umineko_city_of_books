@@ -155,7 +155,7 @@ func TestService_Search_CachesResultsPerQuery(t *testing.T) {
 	})
 	s.cache = newCache(10)
 
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		_, err := s.Search(context.Background(), "cats", 0, 24)
 		require.NoError(t, err)
 	}
@@ -178,7 +178,7 @@ func TestService_Trending_CachesAcrossCalls(t *testing.T) {
 	})
 	s.cache = newCache(10)
 
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		_, err := s.Trending(context.Background(), 0, 24)
 		require.NoError(t, err)
 	}
@@ -213,7 +213,7 @@ func TestService_ShortCircuitsDuringRateLimit(t *testing.T) {
 	require.ErrorAs(t, err, &rl)
 	assert.Equal(t, 1, calls)
 
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		_, err = s.Search(context.Background(), "dogs", 0, 24)
 		require.ErrorAs(t, err, &rl)
 	}
@@ -269,7 +269,7 @@ func TestService_Search_DoesNotCacheErrors(t *testing.T) {
 	})
 	s.cache = newCache(10)
 
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		_, err := s.Search(context.Background(), "cats", 0, 24)
 		require.Error(t, err)
 	}

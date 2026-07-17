@@ -65,7 +65,7 @@ func (s *streamChatService) DeleteStreamRoom(ctx context.Context, streamID uuid.
 		logger.Log.Warn().Err(err).Str("stream_id", streamID.String()).Msg("list stream chat media for cleanup failed")
 	}
 
-	for i := 0; i < len(urls); i++ {
+	for i := range urls {
 		if urls[i] == "" {
 			continue
 		}

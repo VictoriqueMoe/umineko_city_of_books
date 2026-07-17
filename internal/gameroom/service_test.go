@@ -65,7 +65,7 @@ func newTestService(t *testing.T) *testMocks {
 	}
 	userRepo.EXPECT().GetByIDs(mock.Anything, mock.Anything).RunAndReturn(func(_ context.Context, ids []uuid.UUID) ([]model.User, error) {
 		out := make([]model.User, 0, len(ids))
-		for i := 0; i < len(ids); i++ {
+		for i := range ids {
 			if u, ok := m.seededByID[ids[i]]; ok {
 				out = append(out, u)
 			}

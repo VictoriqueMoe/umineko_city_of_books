@@ -59,14 +59,12 @@ func (r *ChatBannedWordsRule) CheckForRoom(ctx context.Context, roomID uuid.UUID
 	if len(rows) == 0 {
 		return nil, nil
 	}
-	for i := 0; i < len(rows); i++ {
-		row := rows[i]
+	for _, row := range rows {
 		compiled, err := r.compile(row)
 		if err != nil {
 			continue
 		}
-		for j := 0; j < len(texts); j++ {
-			text := texts[j]
+		for _, text := range texts {
 			if text == "" {
 				continue
 			}

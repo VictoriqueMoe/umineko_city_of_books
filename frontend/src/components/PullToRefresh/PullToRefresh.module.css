@@ -1,0 +1,40 @@
+.indicator {
+    position: fixed;
+    top: 0;
+    left: 50%;
+    z-index: 1200;
+    margin-top: -44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--bg-void);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+    pointer-events: none;
+    will-change: transform;
+}
+
+.spinner {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 2.5px solid rgba(var(--gold-rgb), 0.25);
+    border-top-color: var(--gold);
+}
+
+.ready {
+    border-top-color: var(--gold-light);
+    border-right-color: var(--gold-light);
+}
+
+.spinning {
+    animation: ptr-spin 0.7s linear infinite;
+}
+
+@keyframes ptr-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}

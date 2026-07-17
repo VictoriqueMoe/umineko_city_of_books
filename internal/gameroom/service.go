@@ -1161,7 +1161,7 @@ func (s *service) loadPlayers(ctx context.Context, roomID uuid.UUID) ([]dto.Game
 	}
 
 	ids := make([]uuid.UUID, len(rows))
-	for i := 0; i < len(rows); i++ {
+	for i := range rows {
 		ids[i] = rows[i].UserID
 	}
 	users, err := s.userRepo.GetByIDs(ctx, ids)
@@ -1169,13 +1169,12 @@ func (s *service) loadPlayers(ctx context.Context, roomID uuid.UUID) ([]dto.Game
 		return nil, err
 	}
 	byID := make(map[uuid.UUID]*model.User, len(users))
-	for i := 0; i < len(users); i++ {
+	for i := range users {
 		byID[users[i].ID] = &users[i]
 	}
 
 	out := make([]dto.GameRoomPlayer, 0, len(rows))
-	for i := 0; i < len(rows); i++ {
-		row := rows[i]
+	for _, row := range rows {
 		player := dto.GameRoomPlayer{
 			UserID: row.UserID,
 			Slot:   row.Slot,

@@ -75,7 +75,7 @@ func TestUserSecretRepository_GetUserIDsWithSecret(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, got, 2)
 	holders := map[uuid.UUID]bool{}
-	for i := 0; i < len(got); i++ {
+	for i := range got {
 		holders[got[i]] = true
 	}
 	assert.True(t, holders[a.ID])
@@ -102,7 +102,7 @@ func TestUserSecretRepository_GetUserIDsWithAnyPiece(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, got, 2)
 	holders := map[uuid.UUID]bool{}
-	for i := 0; i < len(got); i++ {
+	for i := range got {
 		holders[got[i]] = true
 	}
 	assert.True(t, holders[a.ID])

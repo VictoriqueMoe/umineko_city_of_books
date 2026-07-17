@@ -106,14 +106,14 @@ func secretRoomID(id string) string {
 func (s *service) List(ctx context.Context, viewerID uuid.UUID) (*dto.SecretListResponse, error) {
 	listed := secrets.Listed()
 	ids := make([]string, len(listed))
-	for i := 0; i < len(listed); i++ {
+	for i := range listed {
 		ids[i] = string(listed[i].ID)
 	}
 
 	commentCounts, _ := s.secretRepo.CountCommentsBySecret(ctx, ids)
 
 	result := make([]dto.SecretSummary, 0, len(listed))
-	for i := 0; i < len(listed); i++ {
+	for i := range listed {
 		summary, err := s.buildSummary(ctx, listed[i], viewerID, commentCounts[string(listed[i].ID)])
 		if err != nil {
 			return nil, err
@@ -123,7 +123,7 @@ func (s *service) List(ctx context.Context, viewerID uuid.UUID) (*dto.SecretList
 
 	solverRows, _ := s.secretRepo.GetSolversLeaderboard(ctx, ids)
 	solvers := make([]dto.SecretSolverEntry, len(solverRows))
-	for i := 0; i < len(solverRows); i++ {
+	for i := range solverRows {
 		r := solverRows[i]
 		solvers[i] = dto.SecretSolverEntry{
 			User: dto.UserResponse{
@@ -194,8 +194,7 @@ func (s *service) Get(ctx context.Context, id string, viewerID uuid.UUID) (*dto.
 			return nil, err
 		}
 		solvedUsers, _ := s.solvedUserSet(ctx, id)
-		for i := 0; i < len(rows); i++ {
-			r := rows[i]
+		for _, r := range rows {
 			leaderboard = append(leaderboard, dto.SecretLeaderboardEntry{
 				User: dto.UserResponse{
 					ID:          r.UserID,
@@ -218,12 +217,12 @@ func (s *service) Get(ctx context.Context, id string, viewerID uuid.UUID) (*dto.
 	var comments []dto.SecretCommentResponse
 	if len(commentRows) > 0 {
 		commentIDs := make([]uuid.UUID, len(commentRows))
-		for i := 0; i < len(commentRows); i++ {
+		for i := range commentRows {
 			commentIDs[i] = commentRows[i].ID
 		}
 		mediaBatch, _ := s.secretRepo.GetCommentMediaBatch(ctx, commentIDs)
 		flat := make([]dto.SecretCommentResponse, len(commentRows))
-		for i := 0; i < len(commentRows); i++ {
+		for i := range commentRows {
 			flat[i] = commentRows[i].ToResponse(mediaBatch[commentRows[i].ID])
 		}
 		comments = utils.BuildTree(flat,
@@ -250,7 +249,7 @@ func (s *service) solvedUserSet(ctx context.Context, parentID string) (map[uuid.
 		return nil, err
 	}
 	set := make(map[uuid.UUID]bool, len(ids))
-	for i := 0; i < len(ids); i++ {
+	for i := range ids {
 		set[ids[i]] = true
 	}
 	return set, nil

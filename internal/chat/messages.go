@@ -184,7 +184,7 @@ func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid
 		return nil, err
 	}
 
-	for i := 0; i < len(files); i++ {
+	for i := range files {
 		if err := m.validateMediaFile(ctx, files[i]); err != nil {
 			return nil, err
 		}
@@ -283,12 +283,14 @@ func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid
 		Data: resp,
 	}
 	recipients := make([]uuid.UUID, 0, len(members))
-	for i := 0; i < len(members); i++ {
-		memberID := members[i]
+
+	for _, memberID := range members {
+		m.hub.SendToUser(memberID, msg)
+
 		if memberID == senderID {
 			continue
 		}
-		m.hub.SendToUser(memberID, msg)
+
 		recipients = append(recipients, memberID)
 	}
 
@@ -297,7 +299,7 @@ func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid
 		go m.dispatchPostSendSideEffects(roomID, senderID, msgID, recipients, roomRow, mentionedIDs, replyToAuthor, isGroup)
 	}
 
-	for i := 0; i < len(chatTriggers); i++ {
+	for i := range chatTriggers {
 		if req.Body == chatTriggers[i].text {
 			audioMsg := ws.Message{
 				Type: "chat_audio",
@@ -307,7 +309,7 @@ func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid
 					"volume":  chatTriggers[i].volume,
 				},
 			}
-			for j := 0; j < len(members); j++ {
+			for j := range members {
 				m.hub.SendToUser(members[j], audioMsg)
 			}
 		}
@@ -330,7 +332,7 @@ func hostBlockApplies(roomRow *repository.ChatRoomSendContext) bool {
 
 func (m *messagesService) assertBlocksAllowSend(ctx context.Context, roomRow *repository.ChatRoomSendContext, senderID uuid.UUID, members []uuid.UUID) error {
 	if roomRow.Type == "dm" {
-		for i := 0; i < len(members); i++ {
+		for i := range members {
 			if members[i] == senderID {
 				continue
 			}
@@ -366,8 +368,7 @@ func (m *messagesService) dispatchPostSendSideEffects(
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	for i := 0; i < len(recipients); i++ {
-		memberID := recipients[i]
+	for _, memberID := range recipients {
 		inRoom := m.hub.IsUserViewing(roomID, memberID)
 		if inRoom {
 			continue
@@ -441,7 +442,7 @@ func (m *messagesService) resolveMentions(ctx context.Context, body string, send
 
 	seen := make(map[string]struct{}, len(matches))
 	usernames := make([]string, 0, len(matches))
-	for i := 0; i < len(matches); i++ {
+	for i := range matches {
 		username := matches[i][1]
 		if _, dup := seen[username]; dup {
 			continue
@@ -459,12 +460,12 @@ func (m *messagesService) resolveMentions(ctx context.Context, body string, send
 	}
 
 	memberSet := make(map[uuid.UUID]struct{}, len(members))
-	for i := 0; i < len(members); i++ {
+	for i := range members {
 		memberSet[members[i]] = struct{}{}
 	}
 
 	mentioned := make(map[uuid.UUID]struct{}, len(users))
-	for i := 0; i < len(users); i++ {
+	for i := range users {
 		uid := users[i].ID
 		if uid == senderID {
 			continue
@@ -522,8 +523,7 @@ func (m *messagesService) MarkRead(ctx context.Context, roomID, userID uuid.UUID
 				"read_at": readAt,
 			},
 		}
-		for i := 0; i < len(members); i++ {
-			memberID := members[i]
+		for _, memberID := range members {
 			if memberID == userID {
 				continue
 			}
@@ -589,8 +589,7 @@ func (m *messagesService) saveMessageMedia(ctx context.Context, messageID uuid.U
 	}
 
 	results := make([]dto.PostMediaResponse, 0, len(files))
-	for i := 0; i < len(files); i++ {
-		f := files[i]
+	for _, f := range files {
 		r, err := f.Open()
 		if err != nil {
 			return nil, fmt.Errorf("open media: %w", err)

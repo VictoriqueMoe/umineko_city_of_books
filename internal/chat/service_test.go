@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 	"testing"
 
 	"umineko_city_of_books/internal/authz"
@@ -2367,7 +2368,7 @@ func TestMessageRowToResponse_ReplyTruncation(t *testing.T) {
 	senderID := uuid.New()
 	replyID := uuid.New()
 	longBody := ""
-	for i := 0; i < 200; i++ {
+	for range 200 {
 		longBody += "x"
 	}
 	row := repository.ChatMessageRow{
@@ -2436,13 +2437,14 @@ func TestSetRoomNickname_TrimsAndCapsAt32(t *testing.T) {
 	svc, m := newTestService(t)
 	roomID := uuid.New()
 	userID := uuid.New()
-	input := "  "
-	for i := 0; i < 50; i++ {
-		input += "a"
+	var input strings.Builder
+	input.WriteString("  ")
+	for range 50 {
+		input.WriteString("a")
 	}
-	input += "  "
+	input.WriteString("  ")
 	expected := ""
-	for i := 0; i < 32; i++ {
+	for range 32 {
 		expected += "a"
 	}
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
@@ -2457,7 +2459,7 @@ func TestSetRoomNickname_TrimsAndCapsAt32(t *testing.T) {
 	m.vanityRoleRepo.EXPECT().GetRolesForUsersBatch(mock.Anything, []uuid.UUID{userID}).Return(nil, nil)
 
 	// when
-	got, err := svc.SetRoomNickname(context.Background(), roomID, userID, input)
+	got, err := svc.SetRoomNickname(context.Background(), roomID, userID, input.String())
 
 	// then
 	require.NoError(t, err)
@@ -2974,13 +2976,13 @@ func TestAddReaction_OversizedEmoji(t *testing.T) {
 	svc, _ := newTestService(t)
 	messageID := uuid.New()
 	userID := uuid.New()
-	big := ""
-	for i := 0; i < 20; i++ {
-		big += "x"
+	var big strings.Builder
+	for range 20 {
+		big.WriteString("x")
 	}
 
 	// when
-	err := svc.AddReaction(context.Background(), messageID, userID, big)
+	err := svc.AddReaction(context.Background(), messageID, userID, big.String())
 
 	// then
 	require.ErrorIs(t, err, ErrInvalidEmoji)
@@ -3070,7 +3072,7 @@ func TestRemoveReaction_OversizedEmoji(t *testing.T) {
 	// given
 	svc, _ := newTestService(t)
 	big := ""
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		big += "x"
 	}
 
@@ -3325,11 +3327,11 @@ func TestSetMemberNicknameAsMod_TrimsAndCapsAt32(t *testing.T) {
 	actorID := uuid.New()
 	targetID := uuid.New()
 	input := "  "
-	for i := 0; i < 50; i++ {
+	for range 50 {
 		input += "a"
 	}
 	expected := ""
-	for i := 0; i < 32; i++ {
+	for range 32 {
 		expected += "a"
 	}
 	m.authzSvc.EXPECT().GetRole(mock.Anything, actorID).Return(authz.RoleAdmin, nil)

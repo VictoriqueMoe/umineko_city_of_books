@@ -26,7 +26,7 @@ func TestBannedGiphyRepository_AddAndList(t *testing.T) {
 	require.Len(t, rows, 2)
 
 	byKey := map[string]int{}
-	for i := 0; i < len(rows); i++ {
+	for i := range rows {
 		byKey[rows[i].Kind+":"+rows[i].Value] = i
 	}
 

@@ -103,7 +103,7 @@ func (s *voiceService) assertDMNotBlocked(ctx context.Context, roomID, userID uu
 		return fmt.Errorf("get room members: %w", err)
 	}
 
-	for i := 0; i < len(members); i++ {
+	for i := range members {
 		if members[i] == userID {
 			continue
 		}
@@ -229,7 +229,7 @@ func (s *voiceService) ReconcilePresence(ctx context.Context) (int, error) {
 		}
 
 		members := make(map[uuid.UUID]any, len(identities))
-		for i := 0; i < len(identities); i++ {
+		for i := range identities {
 			userID, err := uuid.Parse(identities[i])
 			if err != nil {
 				continue
@@ -244,7 +244,7 @@ func (s *voiceService) ReconcilePresence(ctx context.Context) (int, error) {
 
 	affected := s.swapPresence(next)
 
-	for i := 0; i < len(affected); i++ {
+	for i := range affected {
 		s.broadcastVoicePresence(ctx, affected[i])
 	}
 
@@ -307,7 +307,7 @@ func (s *voiceService) broadcastVoicePresence(ctx context.Context, roomID uuid.U
 		return
 	}
 
-	for i := 0; i < len(members); i++ {
+	for i := range members {
 		s.hub.SendToUser(members[i], event)
 	}
 }

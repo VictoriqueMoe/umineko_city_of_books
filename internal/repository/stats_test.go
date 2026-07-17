@@ -273,7 +273,7 @@ func TestStatsRepository_GetMostActiveUsers_RespectsLimit(t *testing.T) {
 	// given
 	repos := repotest.NewRepos(t)
 	db := repos.DB()
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		u := repotest.CreateUser(t, repos)
 		insertTheory(t, db, u.ID, "")
 	}

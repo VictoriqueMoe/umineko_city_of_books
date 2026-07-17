@@ -105,7 +105,7 @@ func TestListMysteries_OK_TruncatesLongBody(t *testing.T) {
 	svc, m := newTestService(t)
 	viewer := uuid.New()
 	longBody := ""
-	for i := 0; i < 250; i++ {
+	for range 250 {
 		longBody += "x"
 	}
 	rows := []repository.MysteryRow{{ID: uuid.New(), Title: "T", Body: longBody}}
@@ -1273,7 +1273,7 @@ func TestListByUser_TruncatesLongBody(t *testing.T) {
 	svc, m := newTestService(t)
 	userID := uuid.New()
 	body := ""
-	for i := 0; i < 300; i++ {
+	for range 300 {
 		body += "x"
 	}
 	rows := []repository.MysteryRow{{ID: uuid.New(), Body: body}}

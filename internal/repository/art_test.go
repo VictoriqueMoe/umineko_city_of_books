@@ -542,7 +542,7 @@ func TestArtRepository_ListAll_Pagination(t *testing.T) {
 	// given
 	repos := repotest.NewRepos(t)
 	user := repotest.CreateUser(t, repos)
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		createArt(t, repos, user.ID, "general", "drawing", "A", nil, false)
 	}
 
@@ -598,7 +598,7 @@ func TestArtRepository_ListByUser_Pagination(t *testing.T) {
 	// given
 	repos := repotest.NewRepos(t)
 	user := repotest.CreateUser(t, repos)
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		createArt(t, repos, user.ID, "general", "drawing", "T", nil, false)
 	}
 
@@ -1215,7 +1215,7 @@ func TestArtRepository_GetGalleryPreviewImages(t *testing.T) {
 	repos := repotest.NewRepos(t)
 	user := repotest.CreateUser(t, repos)
 	galleryID := createGallery(t, repos, user.ID, "G")
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		artID := createArt(t, repos, user.ID, "general", "drawing", "A", nil, false)
 		require.NoError(t, repos.Art.SetGallery(context.Background(), artID, user.ID, &galleryID))
 	}
@@ -1247,7 +1247,7 @@ func TestArtRepository_ListArtInGallery(t *testing.T) {
 	repos := repotest.NewRepos(t)
 	user := repotest.CreateUser(t, repos)
 	galleryID := createGallery(t, repos, user.ID, "G")
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		artID := createArt(t, repos, user.ID, "general", "drawing", "A", nil, false)
 		require.NoError(t, repos.Art.SetGallery(context.Background(), artID, user.ID, &galleryID))
 	}
@@ -1268,7 +1268,7 @@ func TestArtRepository_ListArtInGallery_Pagination(t *testing.T) {
 	repos := repotest.NewRepos(t)
 	user := repotest.CreateUser(t, repos)
 	galleryID := createGallery(t, repos, user.ID, "G")
-	for i := 0; i < 4; i++ {
+	for range 4 {
 		artID := createArt(t, repos, user.ID, "general", "drawing", "A", nil, false)
 		require.NoError(t, repos.Art.SetGallery(context.Background(), artID, user.ID, &galleryID))
 	}
@@ -1287,7 +1287,7 @@ func TestArtRepository_GetComments_Pagination(t *testing.T) {
 	repos := repotest.NewRepos(t)
 	user := repotest.CreateUser(t, repos)
 	artID := createArt(t, repos, user.ID, "general", "drawing", "A", nil, false)
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		createArtComment(t, repos, artID, user.ID, nil, "c")
 	}
 

@@ -648,8 +648,7 @@ func (s *service) MarkSolved(ctx context.Context, mysteryID uuid.UUID, userID uu
 			playerIDs, _ := s.mysteryRepo.GetPlayerIDs(bgCtx, mysteryID)
 			solvedLink := fmt.Sprintf("/mystery/%s", mysteryID)
 			params := make([]dto.NotifyParams, 0, len(playerIDs))
-			for i := 0; i < len(playerIDs); i++ {
-				pid := playerIDs[i]
+			for _, pid := range playerIDs {
 				if pid == attemptAuthorID {
 					continue
 				}

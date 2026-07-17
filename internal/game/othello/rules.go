@@ -30,8 +30,8 @@ func parseBoard(s string) (board, error) {
 	if len(s) != boardSize*boardSize {
 		return b, fmt.Errorf("invalid board length: %d", len(s))
 	}
-	for row := 0; row < boardSize; row++ {
-		for col := 0; col < boardSize; col++ {
+	for row := range boardSize {
+		for col := range boardSize {
 			c := s[row*boardSize+col]
 			switch c {
 			case cellEmpty, cellBlack, cellWhite:
@@ -46,8 +46,8 @@ func parseBoard(s string) (board, error) {
 
 func boardString(b board) string {
 	out := make([]byte, 0, boardSize*boardSize)
-	for row := 0; row < boardSize; row++ {
-		for col := 0; col < boardSize; col++ {
+	for row := range boardSize {
+		for col := range boardSize {
 			out = append(out, b[row][col])
 		}
 	}
@@ -111,8 +111,8 @@ func flipsForPlacement(b board, row, col, slot int) []coord {
 }
 
 func playerHasAnyLegalMove(b board, slot int) bool {
-	for r := 0; r < boardSize; r++ {
-		for c := 0; c < boardSize; c++ {
+	for r := range boardSize {
+		for c := range boardSize {
 			if b[r][c] != cellEmpty {
 				continue
 			}
@@ -139,8 +139,8 @@ func applyPlacement(b *board, row, col, slot int) ([]coord, error) {
 
 func countDiscsBoard(b board) (int, int) {
 	black, white := 0, 0
-	for r := 0; r < boardSize; r++ {
-		for c := 0; c < boardSize; c++ {
+	for r := range boardSize {
+		for c := range boardSize {
 			switch b[r][c] {
 			case cellBlack:
 				black++

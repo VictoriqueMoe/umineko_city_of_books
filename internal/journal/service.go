@@ -316,13 +316,12 @@ func (s *service) notifyEntryPublished(journalID uuid.UUID, entryNumber int, act
 
 	blockedSet := make(map[uuid.UUID]struct{})
 	if blockedIDs, err := s.blockSvc.GetBlockedIDs(bgCtx, actorUserID); err == nil {
-		for i := 0; i < len(blockedIDs); i++ {
+		for i := range blockedIDs {
 			blockedSet[blockedIDs[i]] = struct{}{}
 		}
 	}
 	notifyParams := make([]dto.NotifyParams, 0, len(followerIDs))
-	for i := 0; i < len(followerIDs); i++ {
-		followerID := followerIDs[i]
+	for _, followerID := range followerIDs {
 		if followerID == actorUserID {
 			continue
 		}
@@ -510,13 +509,12 @@ func (s *service) CreateComment(ctx context.Context, journalID uuid.UUID, userID
 			}
 			blockedSet := make(map[uuid.UUID]struct{})
 			if blockedIDs, err := s.blockSvc.GetBlockedIDs(bgCtx, userID); err == nil {
-				for i := 0; i < len(blockedIDs); i++ {
+				for i := range blockedIDs {
 					blockedSet[blockedIDs[i]] = struct{}{}
 				}
 			}
 			notifyParams := make([]dto.NotifyParams, 0, len(followerIDs))
-			for i := 0; i < len(followerIDs); i++ {
-				followerID := followerIDs[i]
+			for _, followerID := range followerIDs {
 				if followerID == userID {
 					continue
 				}

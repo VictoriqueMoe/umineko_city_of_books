@@ -185,7 +185,7 @@ func TestHandler_Reveal_FirstClickFlow(t *testing.T) {
 	assert.NotNil(t, s.Mines)
 	assert.Equal(t, defaultWidth*defaultHeight, len(s.Mines))
 	mineCount := 0
-	for i := 0; i < len(s.Mines); i++ {
+	for i := range s.Mines {
 		if s.Mines[i] {
 			mineCount++
 		}
@@ -236,7 +236,7 @@ func TestHandler_Reveal_BoardComplete_ActorWins(t *testing.T) {
 	total := s.Width * s.Height
 	s.Mines = make([]bool, total)
 	s.MinesPlaced = true
-	for i := 0; i < s.MineCount; i++ {
+	for i := range s.MineCount {
 		s.Mines[i] = true
 	}
 	for i := s.MineCount; i < total-1; i++ {

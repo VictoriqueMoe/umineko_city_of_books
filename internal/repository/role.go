@@ -47,7 +47,7 @@ func (r *roleRepository) GetRoles(ctx context.Context, userIDs []uuid.UUID) (map
 	}
 	args := make([]any, len(userIDs))
 	placeholders := make([]string, len(userIDs))
-	for i := 0; i < len(userIDs); i++ {
+	for i := range userIDs {
 		args[i] = userIDs[i]
 		placeholders[i] = fmt.Sprintf("$%d", i+1)
 	}

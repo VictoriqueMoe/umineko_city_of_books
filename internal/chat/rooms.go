@@ -301,8 +301,7 @@ func (r *roomsService) ListRooms(ctx context.Context, userID uuid.UUID) (*dto.Ch
 	}
 
 	rooms := make([]dto.ChatRoomResponse, 0, len(rows))
-	for i := 0; i < len(rows); i++ {
-		row := rows[i]
+	for _, row := range rows {
 		members, count, err := r.getRoomMemberResponses(ctx, row.ID, userID)
 		if err != nil {
 			return nil, err

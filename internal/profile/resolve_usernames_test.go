@@ -92,7 +92,7 @@ func TestResolveUsernames_CapsBatchSize(t *testing.T) {
 	// given
 	svc, userRepo, _, _, _, _ := newTestService(t)
 	input := make([]string, 0, maxResolveUsernames+50)
-	for i := 0; i < maxResolveUsernames+50; i++ {
+	for i := range maxResolveUsernames + 50 {
 		input = append(input, "user"+strings.Repeat("x", i%5)+string(rune('a'+i%26))+string(rune('0'+i%10))+string(rune('A'+i%26)))
 	}
 	var captured []string

@@ -251,7 +251,7 @@ func (s *service) ActiveRooms(ctx context.Context) (map[string][]string, error) 
 	}
 
 	result := make(map[string][]string, len(rooms.GetRooms()))
-	for i := 0; i < len(rooms.GetRooms()); i++ {
+	for i := range rooms.GetRooms() {
 		name := rooms.GetRooms()[i].GetName()
 
 		parts, err := client.ListParticipants(ctx, &livekit.ListParticipantsRequest{Room: name})
@@ -260,7 +260,7 @@ func (s *service) ActiveRooms(ctx context.Context) (map[string][]string, error) 
 		}
 
 		identities := make([]string, 0, len(parts.GetParticipants()))
-		for j := 0; j < len(parts.GetParticipants()); j++ {
+		for j := range parts.GetParticipants() {
 			identities = append(identities, parts.GetParticipants()[j].GetIdentity())
 		}
 
@@ -417,7 +417,7 @@ func (s *service) IngressVideoState(ctx context.Context, ingressID string) (int,
 	}
 
 	items := resp.GetItems()
-	for i := 0; i < len(items); i++ {
+	for i := range items {
 		video := items[i].GetState().GetVideo()
 		if video == nil {
 			continue

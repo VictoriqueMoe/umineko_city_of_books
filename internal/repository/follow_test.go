@@ -123,7 +123,7 @@ func TestFollowRepository_GetFollowerCount(t *testing.T) {
 	// given
 	repos := repotest.NewRepos(t)
 	target := repotest.CreateUser(t, repos)
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		f := repotest.CreateUser(t, repos)
 		require.NoError(t, repos.Follow.Follow(context.Background(), f.ID, target.ID))
 	}
@@ -153,7 +153,7 @@ func TestFollowRepository_GetFollowingCount(t *testing.T) {
 	// given
 	repos := repotest.NewRepos(t)
 	follower := repotest.CreateUser(t, repos)
-	for i := 0; i < 4; i++ {
+	for range 4 {
 		t2 := repotest.CreateUser(t, repos)
 		require.NoError(t, repos.Follow.Follow(context.Background(), follower.ID, t2.ID))
 	}
@@ -208,7 +208,7 @@ func TestFollowRepository_GetFollowers_Pagination(t *testing.T) {
 	// given
 	repos := repotest.NewRepos(t)
 	target := repotest.CreateUser(t, repos)
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		f := repotest.CreateUser(t, repos)
 		require.NoError(t, repos.Follow.Follow(context.Background(), f.ID, target.ID))
 	}
@@ -288,7 +288,7 @@ func TestFollowRepository_GetFollowing_Pagination(t *testing.T) {
 	// given
 	repos := repotest.NewRepos(t)
 	follower := repotest.CreateUser(t, repos)
-	for i := 0; i < 4; i++ {
+	for range 4 {
 		t2 := repotest.CreateUser(t, repos)
 		require.NoError(t, repos.Follow.Follow(context.Background(), follower.ID, t2.ID))
 	}

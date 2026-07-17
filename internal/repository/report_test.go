@@ -126,7 +126,7 @@ func TestReportRepository_List_OrderedByCreatedAtDesc(t *testing.T) {
 	user := repotest.CreateUser(t, repos)
 	ctx := context.Background()
 	ids := make([]int64, 3)
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		id, err := repos.Report.Create(ctx, user.ID, "post", "p", "", "r")
 		require.NoError(t, err)
 		ids[i] = id
@@ -152,7 +152,7 @@ func TestReportRepository_List_Pagination(t *testing.T) {
 	repos := repotest.NewRepos(t)
 	user := repotest.CreateUser(t, repos)
 	ctx := context.Background()
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		_, err := repos.Report.Create(ctx, user.ID, "post", "p", "", "r")
 		require.NoError(t, err)
 	}
