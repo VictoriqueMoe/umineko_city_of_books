@@ -122,7 +122,7 @@ func TestConcurrentContainsDuringAdd(t *testing.T) {
 
 	// when — race the reader against writers
 	var wg sync.WaitGroup
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
@@ -131,7 +131,7 @@ func TestConcurrentContainsDuringAdd(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			for j := 0; j < 50; j++ {
+			for range 50 {
 				_ = svc.ContainsGif("a")
 			}
 		}()

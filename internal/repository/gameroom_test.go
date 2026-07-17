@@ -54,7 +54,7 @@ func TestGameRoomRepository_Scoreboard_CountsWinsLossesDraws(t *testing.T) {
 	require.Len(t, rows, 2)
 
 	byUser := map[uuid.UUID]repository.ScoreboardRow{}
-	for i := 0; i < len(rows); i++ {
+	for i := range rows {
 		byUser[rows[i].UserID] = rows[i]
 	}
 
@@ -129,7 +129,7 @@ func TestGameRoomRepository_Scoreboard_OnlyFinishedAndAbandoned(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, rows, 2)
 	byUser := map[uuid.UUID]repository.ScoreboardRow{}
-	for i := 0; i < len(rows); i++ {
+	for i := range rows {
 		byUser[rows[i].UserID] = rows[i]
 	}
 	assert.Equal(t, 1, byUser[alice.ID].Wins)
@@ -157,7 +157,7 @@ func TestGameRoomRepository_Scoreboard_FiltersByGameType(t *testing.T) {
 	require.Len(t, chessRows, 2)
 	require.Len(t, checkersRows, 2)
 	chessByUser := map[uuid.UUID]repository.ScoreboardRow{}
-	for i := 0; i < len(chessRows); i++ {
+	for i := range chessRows {
 		chessByUser[chessRows[i].UserID] = chessRows[i]
 	}
 	assert.Equal(t, 1, chessByUser[alice.ID].Wins)

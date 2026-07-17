@@ -4,7 +4,7 @@ import { marked } from "marked";
 import DOMPurify from "dompurify";
 import { useLatestAnnouncement } from "../../api/queries/announcement";
 import { ProfileLink } from "../ProfileLink/ProfileLink";
-import { relativeTime } from "../../utils/notifications";
+import { relativeTime } from "../../utils/time";
 import styles from "./AnnouncementCard.module.css";
 
 const DISMISSED_KEY = "dismissed_announcement";

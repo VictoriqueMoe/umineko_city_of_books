@@ -1,5 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { blockUser, createReport, followUser, unblockUser, unfollowUser } from "../endpoints";
+import { queryKeys } from "../queryKeys";
+import { useAuth } from "../../hooks/useAuth";
 
 export function useFollowUser() {
     const qc = useQueryClient();
@@ -25,22 +27,24 @@ export function useUnfollowUser() {
 
 export function useBlockUser() {
     const qc = useQueryClient();
+    const { user } = useAuth();
     return useMutation({
         mutationFn: (id: string) => blockUser(id),
         onSuccess: (_d, id) => {
             qc.invalidateQueries({ queryKey: ["block-status", id] });
-            qc.invalidateQueries({ queryKey: ["blocked-users"] });
+            qc.invalidateQueries({ queryKey: queryKeys.profile.blockedUsers(user?.id ?? "") });
         },
     });
 }
 
 export function useUnblockUser() {
     const qc = useQueryClient();
+    const { user } = useAuth();
     return useMutation({
         mutationFn: (id: string) => unblockUser(id),
         onSuccess: (_d, id) => {
             qc.invalidateQueries({ queryKey: ["block-status", id] });
-            qc.invalidateQueries({ queryKey: ["blocked-users"] });
+            qc.invalidateQueries({ queryKey: queryKeys.profile.blockedUsers(user?.id ?? "") });
         },
     });
 }

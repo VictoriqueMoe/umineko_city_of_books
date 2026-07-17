@@ -285,7 +285,7 @@ func (s *service) runEgress(streamID uuid.UUID, room, identity, ingressID string
 }
 
 func (s *service) awaitIngressVideo(ctx context.Context, ingressID string) (width, height, framerate int) {
-	for attempt := 0; attempt < hlsVideoReadAttempts; attempt++ {
+	for range hlsVideoReadAttempts {
 		time.Sleep(hlsVideoReadInterval)
 
 		w, h, fps, _, err := s.livekitSvc.IngressVideoState(ctx, ingressID)
@@ -329,8 +329,7 @@ func (s *service) sweepHLS(ctx context.Context) {
 		return
 	}
 
-	for i := 0; i < len(entries); i++ {
-		entry := entries[i]
+	for _, entry := range entries {
 		if !entry.IsDir() || !strings.HasPrefix(entry.Name(), roomPrefix) {
 			continue
 		}
@@ -623,7 +622,7 @@ func (s *service) ListLive(ctx context.Context) ([]dto.LiveStreamResponse, error
 	}
 
 	out := make([]dto.LiveStreamResponse, 0, len(rows))
-	for i := 0; i < len(rows); i++ {
+	for i := range rows {
 		out = append(out, toPublic(&rows[i]))
 	}
 
@@ -811,7 +810,7 @@ func (s *service) ReconcileOnce(ctx context.Context) (int, error) {
 	if err != nil {
 		return reaped, fmt.Errorf("list stale starting streams: %w", err)
 	}
-	for i := 0; i < len(stale); i++ {
+	for i := range stale {
 		if s.teardown(ctx, &stale[i]) {
 			reaped++
 		}
@@ -826,7 +825,7 @@ func (s *service) ReconcileOnce(ctx context.Context) (int, error) {
 	if err != nil {
 		return reaped, nil
 	}
-	for i := 0; i < len(live); i++ {
+	for i := range live {
 		identities, ok := rooms[live[i].LivekitRoom]
 		if ok && hasBroadcaster(identities) {
 			continue
@@ -842,7 +841,7 @@ func (s *service) ReconcileOnce(ctx context.Context) (int, error) {
 }
 
 func hasBroadcaster(identities []string) bool {
-	for i := 0; i < len(identities); i++ {
+	for i := range identities {
 		if strings.HasPrefix(identities[i], broadcasterPrefix) {
 			return true
 		}

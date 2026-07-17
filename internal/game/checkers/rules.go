@@ -21,8 +21,8 @@ func parseBoard(s string) (board, error) {
 	if len(s) != boardSize*boardSize {
 		return b, fmt.Errorf("invalid board length: %d", len(s))
 	}
-	for row := 0; row < boardSize; row++ {
-		for col := 0; col < boardSize; col++ {
+	for row := range boardSize {
+		for col := range boardSize {
 			c := s[row*boardSize+col]
 			switch c {
 			case cellEmpty, cellRedMan, cellRedKing, cellBlackMan, cellBlackKing:
@@ -37,8 +37,8 @@ func parseBoard(s string) (board, error) {
 
 func boardString(b board) string {
 	out := make([]byte, 0, boardSize*boardSize)
-	for row := 0; row < boardSize; row++ {
-		for col := 0; col < boardSize; col++ {
+	for row := range boardSize {
+		for col := range boardSize {
 			out = append(out, b[row][col])
 		}
 	}
@@ -130,8 +130,8 @@ func pieceHasJump(b board, r, c int) bool {
 }
 
 func playerHasCapture(b board, slot int) bool {
-	for r := 0; r < boardSize; r++ {
-		for c := 0; c < boardSize; c++ {
+	for r := range boardSize {
+		for c := range boardSize {
 			piece := b[r][c]
 			if piece == cellEmpty || pieceOwner(piece) != slot {
 				continue
@@ -145,8 +145,8 @@ func playerHasCapture(b board, slot int) bool {
 }
 
 func playerHasAnyMove(b board, slot int) bool {
-	for r := 0; r < boardSize; r++ {
-		for c := 0; c < boardSize; c++ {
+	for r := range boardSize {
+		for c := range boardSize {
 			piece := b[r][c]
 			if piece == cellEmpty || pieceOwner(piece) != slot {
 				continue
@@ -301,8 +301,8 @@ func evaluateOutcome(b board, nextSlot, movesSinceCapture int) (outcomeResult, s
 
 func countPiecesBoard(b board) (int, int) {
 	red, black := 0, 0
-	for r := 0; r < boardSize; r++ {
-		for c := 0; c < boardSize; c++ {
+	for r := range boardSize {
+		for c := range boardSize {
 			switch b[r][c] {
 			case cellRedMan, cellRedKing:
 				red++

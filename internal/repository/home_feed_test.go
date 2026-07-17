@@ -25,7 +25,7 @@ func TestHomeFeedRepository_ListRecentActivity_ReturnsAllKinds(t *testing.T) {
 	require.NoError(t, err)
 
 	kinds := make(map[string]int)
-	for i := 0; i < len(rows); i++ {
+	for i := range rows {
 		kinds[rows[i].Kind]++
 	}
 	assert.Equal(t, 1, kinds["post"])
@@ -33,7 +33,7 @@ func TestHomeFeedRepository_ListRecentActivity_ReturnsAllKinds(t *testing.T) {
 	assert.Equal(t, 1, kinds["journal"])
 	assert.Equal(t, 1, kinds["art"])
 
-	for i := 0; i < len(rows); i++ {
+	for i := range rows {
 		assert.Equal(t, user.ID, rows[i].AuthorID)
 		assert.Equal(t, "Author", rows[i].DisplayName)
 	}
@@ -68,7 +68,7 @@ func TestHomeFeedRepository_ListRecentActivity_Limit(t *testing.T) {
 	ctx := context.Background()
 	user := repotest.CreateUser(t, repos)
 
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		createPost(t, repos, user.ID, "general", "body")
 	}
 
@@ -151,7 +151,7 @@ func TestHomeFeedRepository_ListRecentMembers_ExcludesBanned(t *testing.T) {
 	require.NoError(t, err)
 
 	ids := make(map[uuid.UUID]bool)
-	for i := 0; i < len(rows); i++ {
+	for i := range rows {
 		ids[rows[i].ID] = true
 	}
 	assert.True(t, ids[good.ID])
@@ -176,7 +176,7 @@ func TestHomeFeedRepository_ListCornerActivity24h_GroupsAndCountsUniquePosters(t
 
 	byCorner := make(map[string]int)
 	uniqueByCorner := make(map[string]int)
-	for i := 0; i < len(rows); i++ {
+	for i := range rows {
 		byCorner[rows[i].Corner] = rows[i].PostCount
 		uniqueByCorner[rows[i].Corner] = rows[i].UniquePosters
 	}
@@ -245,7 +245,7 @@ func TestHomeFeedRepository_ListSidebarActivity_AggregatesByKey(t *testing.T) {
 	require.NoError(t, err)
 
 	keys := make(map[string]string)
-	for i := 0; i < len(rows); i++ {
+	for i := range rows {
 		keys[rows[i].Key] = rows[i].LatestAt
 	}
 	assert.Contains(t, keys, "game_board_umineko")
@@ -314,7 +314,7 @@ func TestHomeFeedRepository_ListPublicRooms_LimitApplies(t *testing.T) {
 	ctx := context.Background()
 	user := repotest.CreateUser(t, repos)
 
-	for i := 0; i < 4; i++ {
+	for range 4 {
 		require.NoError(t, repos.Chat.CreateRoom(ctx, uuid.New(), "R", "", "group", true, false, user.ID))
 	}
 

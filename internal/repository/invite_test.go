@@ -114,7 +114,7 @@ func TestInviteRepository_List_Pagination(t *testing.T) {
 	// given
 	repos := repotest.NewRepos(t)
 	user := repotest.CreateUser(t, repos)
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		require.NoError(t, repos.Invite.Create(context.Background(), uuid.NewString(), user.ID))
 	}
 

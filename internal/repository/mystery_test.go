@@ -226,7 +226,7 @@ func TestMysteryRepository_List_Pagination(t *testing.T) {
 	// given
 	repos := repotest.NewRepos(t)
 	user := repotest.CreateUser(t, repos)
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		createMystery(t, repos, user.ID, "T", "easy", false)
 	}
 
@@ -320,7 +320,7 @@ func TestMysteryRepository_ListByUser_Pagination(t *testing.T) {
 	// given
 	repos := repotest.NewRepos(t)
 	user := repotest.CreateUser(t, repos)
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		createMystery(t, repos, user.ID, "x", "easy", false)
 	}
 

@@ -645,7 +645,7 @@ func TestFanficRepository_List_Pagination(t *testing.T) {
 	// given
 	repos := repotest.NewRepos(t)
 	user := repotest.CreateUser(t, repos)
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		createFanfic(t, repos, user.ID, "X")
 	}
 
@@ -696,7 +696,7 @@ func TestFanficRepository_ListByUser_Pagination(t *testing.T) {
 	// given
 	repos := repotest.NewRepos(t)
 	user := repotest.CreateUser(t, repos)
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		createFanfic(t, repos, user.ID, "X")
 	}
 

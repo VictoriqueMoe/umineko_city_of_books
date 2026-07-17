@@ -191,7 +191,7 @@ func TestSearchRepository_QuickSearch_CapsPerType(t *testing.T) {
 	// given
 	repos := repotest.NewRepos(t)
 	user := repotest.CreateUser(t, repos)
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		_, err := repos.Theory.Create(context.Background(), user.ID, dto.CreateTheoryRequest{
 			Title: "kinzo theory", Body: "kinzo body", Series: "umineko",
 		})
@@ -217,7 +217,7 @@ func TestSearchRepository_Pagination_RespectsLimitAndOffset(t *testing.T) {
 	repos := repotest.NewRepos(t)
 	user := repotest.CreateUser(t, repos)
 	created := make([]uuid.UUID, 0, 5)
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		id, err := repos.Theory.Create(context.Background(), user.ID, dto.CreateTheoryRequest{
 			Title: "paginated theory", Body: "paginated body", Series: "umineko",
 		})

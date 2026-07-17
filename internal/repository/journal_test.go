@@ -270,7 +270,7 @@ func TestJournalRepository_List_Pagination(t *testing.T) {
 	// given
 	repos := repotest.NewRepos(t)
 	user := repotest.CreateUser(t, repos)
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		createJournal(t, repos, user.ID, "j", "body", "general")
 	}
 
@@ -292,7 +292,7 @@ func TestJournalRepository_List_TruncatesLatestEntryExcerpt(t *testing.T) {
 	user := repotest.CreateUser(t, repos)
 	id := createJournal(t, repos, user.ID, "T", "", "general")
 	longBody := ""
-	for i := 0; i < 400; i++ {
+	for range 400 {
 		longBody += "a"
 	}
 	require.NoError(t, repos.Journal.CreateEntry(context.Background(), uuid.New(), id, 1, nil, longBody, 1, false))

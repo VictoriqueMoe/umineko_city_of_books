@@ -101,7 +101,7 @@ func TestNotificationRepository_ListByUser_OrderedDesc(t *testing.T) {
 	actor := repotest.CreateUser(t, repos)
 	ctx := context.Background()
 	ids := make([]int64, 3)
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		id, err := repos.Notification.Create(ctx, user.ID, dto.NotifMention, uuid.New(), "theory", actor.ID, "msg")
 		require.NoError(t, err)
 		ids[i] = id
@@ -128,7 +128,7 @@ func TestNotificationRepository_ListByUser_Pagination(t *testing.T) {
 	user := repotest.CreateUser(t, repos)
 	actor := repotest.CreateUser(t, repos)
 	ctx := context.Background()
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		_, err := repos.Notification.Create(ctx, user.ID, dto.NotifMention, uuid.New(), "theory", actor.ID, "msg")
 		require.NoError(t, err)
 	}
@@ -200,7 +200,7 @@ func TestNotificationRepository_DeleteOlderThanBatch_DeletesOnlyOlder(t *testing
 	user := repotest.CreateUser(t, repos)
 	actor := repotest.CreateUser(t, repos)
 	ctx := context.Background()
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		_, err := repos.Notification.Create(ctx, user.ID, dto.NotifMention, uuid.New(), "theory", actor.ID, "m")
 		require.NoError(t, err)
 	}
@@ -232,7 +232,7 @@ func TestNotificationRepository_DeleteOlderThanBatch_RespectsLimit(t *testing.T)
 	user := repotest.CreateUser(t, repos)
 	actor := repotest.CreateUser(t, repos)
 	ctx := context.Background()
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		_, err := repos.Notification.Create(ctx, user.ID, dto.NotifMention, uuid.New(), "theory", actor.ID, "m")
 		require.NoError(t, err)
 	}
@@ -267,7 +267,7 @@ func TestNotificationRepository_MarkAllRead(t *testing.T) {
 	other := repotest.CreateUser(t, repos)
 	actor := repotest.CreateUser(t, repos)
 	ctx := context.Background()
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		_, err := repos.Notification.Create(ctx, user.ID, dto.NotifMention, uuid.New(), "theory", actor.ID, "u")
 		require.NoError(t, err)
 	}
@@ -400,7 +400,7 @@ func TestNotificationRepository_ListByUser_GroupsUnreadChatRoomMessages(t *testi
 	roomID := uuid.New()
 	ctx := context.Background()
 
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		actor := alice.ID
 		if i%2 == 1 {
 			actor = bob.ID
@@ -427,11 +427,11 @@ func TestNotificationRepository_ListByUser_DifferentRoomsNotCollapsed(t *testing
 	roomB := uuid.New()
 	ctx := context.Background()
 
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		_, err := repos.Notification.Create(ctx, user.ID, dto.NotifChatRoomMessage, roomA, "chat_message:x", actor.ID, "sent a message in Room A")
 		require.NoError(t, err)
 	}
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		_, err := repos.Notification.Create(ctx, user.ID, dto.NotifChatRoomMessage, roomB, "chat_message:x", actor.ID, "sent a message in Room B")
 		require.NoError(t, err)
 	}
@@ -457,7 +457,7 @@ func TestNotificationRepository_ListByUser_ReadChatMessagesNotGrouped(t *testing
 	ctx := context.Background()
 
 	ids := make([]int64, 3)
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		id, err := repos.Notification.Create(ctx, user.ID, dto.NotifChatRoomMessage, roomID, "chat_message:x", actor.ID, "sent a message in General")
 		require.NoError(t, err)
 		ids[i] = id
@@ -483,7 +483,7 @@ func TestNotificationRepository_ListByUser_MixedTypesPreservesNonChat(t *testing
 	roomID := uuid.New()
 	ctx := context.Background()
 
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		_, err := repos.Notification.Create(ctx, user.ID, dto.NotifChatRoomMessage, roomID, "chat_message:x", actor.ID, "sent a message in General")
 		require.NoError(t, err)
 	}
@@ -514,7 +514,7 @@ func TestNotificationRepository_UnreadCount_SumsRawRowsNotGroups(t *testing.T) {
 	roomID := uuid.New()
 	ctx := context.Background()
 
-	for i := 0; i < 50; i++ {
+	for range 50 {
 		_, err := repos.Notification.Create(ctx, user.ID, dto.NotifChatRoomMessage, roomID, "chat_message:x", actor.ID, "sent a message in General")
 		require.NoError(t, err)
 	}
@@ -532,7 +532,7 @@ func TestNotificationRepository_MarkRead_ChatRoomMessageMarksEntireGroup(t *test
 	ctx := context.Background()
 
 	ids := make([]int64, 4)
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		id, err := repos.Notification.Create(ctx, user.ID, dto.NotifChatRoomMessage, roomID, "chat_message:x", actor.ID, "sent a message in General")
 		require.NoError(t, err)
 		ids[i] = id
@@ -558,11 +558,11 @@ func TestNotificationRepository_MarkRead_DifferentRoomUnaffected(t *testing.T) {
 	roomB := uuid.New()
 	ctx := context.Background()
 
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		_, err := repos.Notification.Create(ctx, user.ID, dto.NotifChatRoomMessage, roomA, "chat_message:x", actor.ID, "sent a message in A")
 		require.NoError(t, err)
 	}
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		_, err := repos.Notification.Create(ctx, user.ID, dto.NotifChatRoomMessage, roomB, "chat_message:x", actor.ID, "sent a message in B")
 		require.NoError(t, err)
 	}

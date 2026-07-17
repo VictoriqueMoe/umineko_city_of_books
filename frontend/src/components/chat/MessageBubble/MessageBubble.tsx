@@ -448,6 +448,18 @@ interface EditRowProps {
 function EditRow({ initialBody, onCommit, onCancel }: EditRowProps) {
     const [draft, setDraft] = useState(initialBody);
     const [saving, setSaving] = useState(false);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    useEffect(() => {
+        const ta = textareaRef.current;
+        if (!ta) {
+            return;
+        }
+
+        ta.focus();
+        ta.setSelectionRange(ta.value.length, ta.value.length);
+        ta.scrollTop = ta.scrollHeight;
+    }, []);
 
     async function commit() {
         const next = draft.trim();
@@ -465,25 +477,27 @@ function EditRow({ initialBody, onCommit, onCancel }: EditRowProps) {
 
     return (
         <div className={styles.editRow}>
-            <textarea
-                className={styles.editTextarea}
-                value={draft}
-                onChange={e => setDraft(e.target.value)}
-                onKeyDown={e => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        commit();
-                        return;
-                    }
-                    if (e.key === "Escape") {
-                        e.preventDefault();
-                        onCancel();
-                    }
-                }}
-                disabled={saving}
-                autoFocus
-                rows={Math.min(8, Math.max(2, draft.split("\n").length))}
-            />
+            <div className={styles.editSizer} data-value={draft}>
+                <textarea
+                    ref={textareaRef}
+                    className={styles.editTextarea}
+                    value={draft}
+                    onChange={e => setDraft(e.target.value)}
+                    onKeyDown={e => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            commit();
+                            return;
+                        }
+                        if (e.key === "Escape") {
+                            e.preventDefault();
+                            onCancel();
+                        }
+                    }}
+                    disabled={saving}
+                    rows={1}
+                />
+            </div>
             <div className={styles.editActions}>
                 <button type="button" className={styles.editBtn} onClick={onCancel} disabled={saving}>
                     Cancel

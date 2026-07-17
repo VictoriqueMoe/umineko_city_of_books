@@ -195,8 +195,7 @@ func TestRule_InvisibleCharBypassFails(t *testing.T) {
 		"ＮＩＧＧＥＲ",
 	}
 
-	for i := 0; i < len(badInputs); i++ {
-		text := badInputs[i]
+	for _, text := range badInputs {
 		// when
 		rej, err := rule.Check(context.Background(), []string{text})
 

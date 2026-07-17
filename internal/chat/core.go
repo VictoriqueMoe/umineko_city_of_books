@@ -144,7 +144,7 @@ func (c *core) ensureLockAllowsRoom(ctx context.Context, senderID, roomID uuid.U
 		return fmt.Errorf("get room members: %w", err)
 	}
 	others := make([]uuid.UUID, 0, len(members))
-	for i := 0; i < len(members); i++ {
+	for i := range members {
 		if members[i] != senderID {
 			others = append(others, members[i])
 		}
@@ -278,7 +278,7 @@ func (c *core) postRoomActionMessage(ctx context.Context, roomID, actorID uuid.U
 		return
 	}
 	event := ws.Message{Type: "chat_message", Data: msg}
-	for i := 0; i < len(members); i++ {
+	for i := range members {
 		c.hub.SendToUser(members[i], event)
 	}
 }
@@ -287,7 +287,7 @@ func (c *core) hydrateMessageRows(ctx context.Context, viewerID uuid.UUID, rows 
 	messageIDs := make([]uuid.UUID, len(rows))
 	senderIDs := make([]uuid.UUID, 0, len(rows))
 	seenSender := make(map[uuid.UUID]struct{})
-	for i := 0; i < len(rows); i++ {
+	for i := range rows {
 		messageIDs[i] = rows[i].ID
 		if _, ok := seenSender[rows[i].SenderID]; !ok {
 			seenSender[rows[i].SenderID] = struct{}{}
@@ -299,8 +299,7 @@ func (c *core) hydrateMessageRows(ctx context.Context, viewerID uuid.UUID, rows 
 	vanityMap, _ := c.vanityRoleRepo.GetRolesForUsersBatch(ctx, senderIDs)
 
 	messages := make([]dto.ChatMessageResponse, 0, len(rows))
-	for i := 0; i < len(rows); i++ {
-		row := rows[i]
+	for _, row := range rows {
 		messages = append(messages, c.messageRowToResponse(row, mediaBatch[row.ID], reactionBatch[row.ID], c.toVanityRoleResponses(vanityMap[row.SenderID])))
 	}
 	return messages
@@ -545,7 +544,7 @@ func formatTimeoutUntilForUser(raw string) string {
 	}
 
 	layouts := []string{time.RFC3339Nano, time.RFC3339, time.DateTime}
-	for i := 0; i < len(layouts); i++ {
+	for i := range layouts {
 		parsed, err := time.Parse(layouts[i], trimmed)
 		if err == nil {
 			return parsed.UTC().Format("02 January 2006 15:04 UTC")
@@ -582,7 +581,7 @@ func (c *core) broadcastToRoomMembers(ctx context.Context, roomID uuid.UUID, msg
 		return
 	}
 
-	for i := 0; i < len(members); i++ {
+	for i := range members {
 		c.hub.SendToUser(members[i], msg)
 	}
 }

@@ -24,9 +24,9 @@ func (r *Rule) Name() contentfilter.RuleName {
 }
 
 func (r *Rule) Check(_ context.Context, texts []string) (*contentfilter.Rejection, error) {
-	for i := 0; i < len(texts); i++ {
+	for i := range texts {
 		normalised := contentfilter.Normalise(texts[i])
-		for j := 0; j < len(r.patterns); j++ {
+		for j := range r.patterns {
 			if r.patterns[j].MatchString(normalised) {
 				return &contentfilter.Rejection{
 					Rule:   contentfilter.RuleSlurs,

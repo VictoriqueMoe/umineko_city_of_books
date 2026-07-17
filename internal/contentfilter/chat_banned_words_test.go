@@ -111,8 +111,7 @@ func TestCheckForRoom_InvisibleCharBypassFails_Substring(t *testing.T) {
 		"BAD\uFEFFWORD",
 	}
 
-	for i := 0; i < len(bypassAttempts); i++ {
-		text := bypassAttempts[i]
+	for _, text := range bypassAttempts {
 		// when
 		match, err := rule.CheckForRoom(context.Background(), roomID, text)
 
@@ -138,8 +137,7 @@ func TestCheckForRoom_InvisibleCharBypassFails_WholeWord(t *testing.T) {
 		"the ｂｏｍｂ is here",
 	}
 
-	for i := 0; i < len(bypassAttempts); i++ {
-		text := bypassAttempts[i]
+	for _, text := range bypassAttempts {
 		// when
 		match, err := rule.CheckForRoom(context.Background(), roomID, text)
 

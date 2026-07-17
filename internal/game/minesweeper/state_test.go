@@ -35,7 +35,7 @@ func TestState_PlaceMines_HonoursSafeZones(t *testing.T) {
 
 			// then no mine sits in the 3x3 safe zones and total mines match
 			placed := 0
-			for i := 0; i < len(s.Mines); i++ {
+			for i := range s.Mines {
 				if s.Mines[i] {
 					placed++
 				}

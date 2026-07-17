@@ -162,7 +162,7 @@ func TestValidateAction_LadderClimbWinsAndCountsClimb(t *testing.T) {
 	require.NoError(t, err)
 
 	// when we roll until we land the deciding 1
-	for i := 0; i < 500; i++ {
+	for range 500 {
 		res, verr := h.ValidateAction(string(raw), 0, rollAction(t))
 		require.NoError(t, verr)
 

@@ -111,7 +111,7 @@ func TestAuditLogRepository_List_Pagination(t *testing.T) {
 	repos := repotest.NewRepos(t)
 	user := repotest.CreateUser(t, repos)
 	ctx := context.Background()
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		require.NoError(t, repos.AuditLog.Create(ctx, user.ID, "act", "user", "t", ""))
 	}
 

@@ -959,7 +959,7 @@ func TestChatRepository_ListUserGroupRooms_Pagination(t *testing.T) {
 	repos := repotest.NewRepos(t)
 	ctx := context.Background()
 	user := repotest.CreateUser(t, repos)
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		id := uuid.New()
 		require.NoError(t, repos.Chat.CreateRoom(ctx, id, "R", "", "group", false, false, user.ID))
 		require.NoError(t, repos.Chat.AddMember(ctx, id, user.ID))
@@ -1164,7 +1164,7 @@ func TestChatRepository_ListPublicRooms_Pagination(t *testing.T) {
 	ctx := context.Background()
 	owner := repotest.CreateUser(t, repos)
 	viewer := repotest.CreateUser(t, repos)
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		id := uuid.New()
 		require.NoError(t, repos.Chat.CreateRoom(ctx, id, "R", "", "group", true, false, owner.ID))
 	}
@@ -1426,7 +1426,7 @@ func TestChatRepository_GetMessages(t *testing.T) {
 	roomID := uuid.New()
 	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "R", "", "group", false, false, user.ID))
 	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		require.NoError(t, repos.Chat.InsertMessage(ctx, uuid.New(), roomID, user.ID, "m", nil))
 	}
 
@@ -1464,7 +1464,7 @@ func TestChatRepository_GetMessages_Limit(t *testing.T) {
 	roomID := uuid.New()
 	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "R", "", "group", false, false, user.ID))
 	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		require.NoError(t, repos.Chat.InsertMessage(ctx, uuid.New(), roomID, user.ID, "m", nil))
 	}
 
@@ -1485,7 +1485,7 @@ func TestChatRepository_GetMessagesBefore(t *testing.T) {
 	roomID := uuid.New()
 	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "R", "", "group", false, false, user.ID))
 	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		require.NoError(t, repos.Chat.InsertMessage(ctx, uuid.New(), roomID, user.ID, "m", nil))
 	}
 
@@ -1559,7 +1559,7 @@ func TestChatRepository_GetMessagesBefore_CursorWithIDPaginatesSameSecondMessage
 	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
 
 	ids := []uuid.UUID{uuid.New(), uuid.New(), uuid.New()}
-	for i := 0; i < len(ids); i++ {
+	for i := range ids {
 		require.NoError(t, repos.Chat.InsertMessage(ctx, ids[i], roomID, user.ID, "m", nil))
 		_, err := repos.DB().ExecContext(ctx,
 			`UPDATE chat_messages SET created_at = $1 WHERE id = $2`,
@@ -1569,7 +1569,7 @@ func TestChatRepository_GetMessagesBefore_CursorWithIDPaginatesSameSecondMessage
 	}
 
 	sorted := make([]string, 0, len(ids))
-	for i := 0; i < len(ids); i++ {
+	for i := range ids {
 		sorted = append(sorted, ids[i].String())
 	}
 	sort.Strings(sorted)

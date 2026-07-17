@@ -84,15 +84,15 @@ func (h *Handler) InitialState(_ uuid.UUID, _ []dto.GameRoomPlayer) (string, int
 	for i := range b {
 		b[i] = cellEmpty
 	}
-	for row := 0; row < 3; row++ {
-		for col := 0; col < boardSize; col++ {
+	for row := range 3 {
+		for col := range boardSize {
 			if isDarkSquare(row, col) {
 				b[row*boardSize+col] = cellRedMan
 			}
 		}
 	}
 	for row := 5; row < boardSize; row++ {
-		for col := 0; col < boardSize; col++ {
+		for col := range boardSize {
 			if isDarkSquare(row, col) {
 				b[row*boardSize+col] = cellBlackMan
 			}

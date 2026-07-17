@@ -69,7 +69,7 @@ func (s *Service) decorateVoiceCounts(list *dto.ChatRoomListResponse) {
 		return
 	}
 
-	for i := 0; i < len(list.Rooms); i++ {
+	for i := range list.Rooms {
 		list.Rooms[i].VoiceCount = s.ChatService.VoiceCount(list.Rooms[i].ID)
 		list.Rooms[i].VoiceParticipants = s.ChatService.VoiceParticipants(list.Rooms[i].ID)
 	}

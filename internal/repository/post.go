@@ -129,7 +129,7 @@ func excludeClauseQ(column string, ids []uuid.UUID) (string, []interface{}) {
 	}
 	placeholders := make([]string, len(ids))
 	args := make([]interface{}, len(ids))
-	for i := 0; i < len(ids); i++ {
+	for i := range ids {
 		placeholders[i] = "?"
 		args[i] = ids[i]
 	}
@@ -981,8 +981,7 @@ func (r *postRepository) GetSharedContentPreviews(refs []SharedContentRef) map[s
 	}
 
 	grouped := make(map[string][]string)
-	for i := 0; i < len(refs); i++ {
-		ref := refs[i]
+	for _, ref := range refs {
 		grouped[ref.Type] = append(grouped[ref.Type], ref.ID)
 	}
 
@@ -1003,8 +1002,7 @@ func (r *postRepository) GetSharedContentPreviews(refs []SharedContentRef) map[s
 		}
 	}
 
-	for i := 0; i < len(refs); i++ {
-		ref := refs[i]
+	for _, ref := range refs {
 		key := ref.Type + ":" + ref.ID
 		if _, ok := result[key]; !ok {
 			result[key] = &dto.SharedContentPreview{
@@ -1468,7 +1466,7 @@ func (r *postRepository) CreatePollWithOptions(ctx context.Context, pollID uuid.
 		); err != nil {
 			return fmt.Errorf("create poll: %w", err)
 		}
-		for i := 0; i < len(options); i++ {
+		for i := range options {
 			if _, err := tx.ExecContext(ctx,
 				`INSERT INTO post_poll_options (poll_id, label, sort_order) VALUES ($1, $2, $3)`,
 				pollID, options[i], i,

@@ -1027,8 +1027,7 @@ func collectChatFileUploads(form *multipart.Form) []chat.FileUpload {
 		return nil
 	}
 	uploads := make([]chat.FileUpload, 0, len(headers))
-	for i := 0; i < len(headers); i++ {
-		h := headers[i]
+	for _, h := range headers {
 		uploads = append(uploads, chat.FileUpload{
 			ContentType: h.Header.Get("Content-Type"),
 			Size:        h.Size,

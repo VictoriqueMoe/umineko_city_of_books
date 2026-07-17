@@ -244,7 +244,7 @@ func TestTheoryRepository_List_Pagination(t *testing.T) {
 	repos := repotest.NewRepos(t)
 	user := repotest.CreateUser(t, repos)
 	ctx := context.Background()
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		createTheory(t, repos, user.ID, "t")
 	}
 	p1 := params.NewListParams("new", 0, uuid.Nil, "", "umineko", 2, 0)
@@ -376,7 +376,7 @@ func TestTheoryRepository_List_TruncatesLongBody(t *testing.T) {
 	user := repotest.CreateUser(t, repos)
 	ctx := context.Background()
 	body := ""
-	for i := 0; i < 250; i++ {
+	for range 250 {
 		body += "x"
 	}
 	_, err := repos.Theory.Create(ctx, user.ID, dto.CreateTheoryRequest{Title: "long", Body: body, Series: "umineko"})
@@ -1052,7 +1052,7 @@ func TestTheoryRepository_GetRecentActivityByUser_Pagination(t *testing.T) {
 	repos := repotest.NewRepos(t)
 	user := repotest.CreateUser(t, repos)
 	ctx := context.Background()
-	for i := 0; i < 4; i++ {
+	for range 4 {
 		createTheory(t, repos, user.ID, "t")
 	}
 

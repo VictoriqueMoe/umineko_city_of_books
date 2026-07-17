@@ -35,7 +35,7 @@ func newInitialState(width, height, mineCount int) *State {
 		Height:    height,
 		MineCount: mineCount,
 	}
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		s.Revealed[i] = make([]bool, total)
 		s.Flagged[i] = make([]bool, total)
 		s.Values[i] = make([]int8, total)
@@ -53,7 +53,7 @@ func (s *State) inBounds(x, y int) bool {
 
 func (s *State) placeMines(rng *rand.Rand, safeZones [][2]int) {
 	excluded := make(map[int]bool)
-	for i := 0; i < len(safeZones); i++ {
+	for i := range safeZones {
 		for dy := -1; dy <= 1; dy++ {
 			for dx := -1; dx <= 1; dx++ {
 				nx := safeZones[i][0] + dx
@@ -67,7 +67,7 @@ func (s *State) placeMines(rng *rand.Rand, safeZones [][2]int) {
 	total := s.Width * s.Height
 	s.Mines = make([]bool, total)
 	candidates := make([]int, 0, total)
-	for i := 0; i < total; i++ {
+	for i := range total {
 		if !excluded[i] {
 			candidates = append(candidates, i)
 		}
@@ -79,7 +79,7 @@ func (s *State) placeMines(rng *rand.Rand, safeZones [][2]int) {
 	if count > len(candidates) {
 		count = len(candidates)
 	}
-	for i := 0; i < count; i++ {
+	for i := range count {
 		s.Mines[candidates[i]] = true
 	}
 	s.MinesPlaced = true

@@ -15,6 +15,7 @@ import { ProtectedRoute } from "./components/ProtectedRoute/ProtectedRoute";
 import { StaleVersionBanner } from "./components/StaleVersionBanner/StaleVersionBanner";
 import { NativeUpdateBanner } from "./components/NativeUpdateBanner/NativeUpdateBanner";
 import { NativeLinkInterceptor } from "./components/NativeLinkInterceptor/NativeLinkInterceptor";
+import { PullToRefresh } from "./components/PullToRefresh/PullToRefresh";
 import { LockBanner } from "./components/LockBanner/LockBanner";
 import { VerifyEmailBanner } from "./components/VerifyEmailBanner/VerifyEmailBanner";
 import { Toast } from "./components/Toast/Toast";
@@ -239,138 +240,155 @@ function AppLayout() {
                 <SecretClosedToast />
                 <GameForfeitWarning />
                 <main className="main-content">
-                    <Suspense fallback={<RouteFallback />}>
-                        <Routes>
-                            <Route path="/" element={<HomePage />} />
-                            <Route path="/welcome" element={<LandingPage />} />
-                            <Route path="/theories" element={<FeedPage />} />
-                            <Route path="/theories/higurashi" element={<FeedPage series="higurashi" />} />
-                            <Route path="/theories/ciconia" element={<FeedPage series="ciconia" />} />
-                            <Route path="/game-board" element={<SocialFeedPage />} />
-                            <Route path="/game-board/umineko" element={<SocialFeedPage corner="umineko" />} />
-                            <Route path="/game-board/higurashi" element={<SocialFeedPage corner="higurashi" />} />
-                            <Route path="/game-board/ciconia" element={<SocialFeedPage corner="ciconia" />} />
-                            <Route path="/game-board/higanbana" element={<SocialFeedPage corner="higanbana" />} />
-                            <Route path="/game-board/roseguns" element={<SocialFeedPage corner="roseguns" />} />
-                            <Route path="/game-board/:id" element={<PostDetailPage />} />
-                            <Route path="/gallery" element={<ArtGalleryPage />} />
-                            <Route path="/gallery/umineko" element={<ArtGalleryPage corner="umineko" />} />
-                            <Route path="/gallery/higurashi" element={<ArtGalleryPage corner="higurashi" />} />
-                            <Route path="/gallery/ciconia" element={<ArtGalleryPage corner="ciconia" />} />
-                            <Route path="/gallery/art/:id" element={<ArtDetailPage />} />
-                            <Route path="/gallery/view/:id" element={<GalleryDetailPage />} />
-                            <Route path="/theory/:id" element={<TheoryPage />} />
-                            <Route path="/announcements" element={<AnnouncementsListPage />} />
-                            <Route path="/announcements/:id" element={<AnnouncementDetailPage />} />
-                            <Route path="/rules" element={<RulesPage />} />
-                            <Route path="/suggestions" element={<SuggestionsPage />} />
-                            <Route path="/suggestions/:id" element={<PostDetailPage />} />
-                            <Route path="/mysteries" element={<MysteryListPage />} />
-                            <Route path="/mystery/:id" element={<MysteryDetailPage />} />
-                            <Route path="/ships" element={<ShipsListPage />} />
-                            <Route path="/ships/:id" element={<ShipDetailPage />} />
-                            <Route path="/oc" element={<OCListPage />} />
-                            <Route path="/oc/:id" element={<OCDetailPage />} />
-                            <Route path="/fanfiction" element={<FanfictionListPage />} />
-                            <Route path="/fanfiction/:id" element={<FanficDetailPage />} />
-                            <Route path="/fanfiction/:id/chapter/:number" element={<FanficChapterPage />} />
-                            <Route path="/journals" element={<JournalsFeedPage />} />
-                            <Route path="/journals/:id" element={<JournalPage />} />
-                            <Route path="/journals/:id/entry/:number" element={<JournalEntryPage />} />
-                            <Route path="/rooms" element={<RoomsListPage />} />
-                            <Route path="/secrets" element={<SecretsListPage />} />
-                            <Route path="/secrets/:id" element={<SecretDetailPage />} />
-                            <Route path="/quotes" element={<QuoteBrowserPage />} />
-                            <Route path="/search" element={<SearchPage />} />
-                            <Route path="/live" element={<LiveDirectoryPage />} />
-                            <Route path="/live/:streamID" element={<LiveWatchPage />} />
-                            <Route path="/games/chess/scoreboard" element={<Navigate to="/games/chess" replace />} />
-                            <Route
-                                path="/games/checkers/scoreboard"
-                                element={<Navigate to="/games/checkers" replace />}
-                            />
-                            <Route
-                                path="/games/othello/scoreboard"
-                                element={<Navigate to="/games/othello" replace />}
-                            />
-                            <Route
-                                path="/games/minesweeper/scoreboard"
-                                element={<Navigate to="/games/minesweeper" replace />}
-                            />
-                            <Route
-                                path="/games/snakes_and_ladders/scoreboard"
-                                element={<Navigate to="/games/snakes_and_ladders" replace />}
-                            />
-                            <Route path="/games/live" element={<LiveGamesPage />} />
-                            <Route path="/games/past" element={<PastGamesPage />} />
-                            <Route path="/games/chess/:id" element={<ChessGamePage />} />
-                            <Route path="/games/checkers/:id" element={<CheckersGamePage />} />
-                            <Route path="/games/othello/:id" element={<OthelloGamePage />} />
-                            <Route path="/games/minesweeper/:id" element={<MinesweeperGamePage />} />
-                            <Route path="/games/snakes_and_ladders/:id" element={<SnakesAndLaddersGamePage />} />
-                            <Route path="/games/:type" element={<GameHubPage />} />
-                            <Route path="/users" element={<UsersPage />} />
-                            <Route path="/user/:username" element={<ProfilePage />} />
-                            <Route path="/login" element={<LoginPage />} />
-                            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-                            <Route path="/reset-password" element={<ResetPasswordPage />} />
-                            <Route path="/set-email" element={<SetEmailPage />} />
-                            <Route path="/verify-email" element={<VerifyEmailPage />} />
+                    <PullToRefresh>
+                        <Suspense fallback={<RouteFallback />}>
+                            <Routes>
+                                <Route path="/" element={<HomePage />} />
+                                <Route path="/welcome" element={<LandingPage />} />
+                                <Route path="/theories" element={<FeedPage />} />
+                                <Route path="/theories/higurashi" element={<FeedPage series="higurashi" />} />
+                                <Route path="/theories/ciconia" element={<FeedPage series="ciconia" />} />
+                                <Route path="/game-board" element={<SocialFeedPage />} />
+                                <Route path="/game-board/umineko" element={<SocialFeedPage corner="umineko" />} />
+                                <Route path="/game-board/higurashi" element={<SocialFeedPage corner="higurashi" />} />
+                                <Route path="/game-board/ciconia" element={<SocialFeedPage corner="ciconia" />} />
+                                <Route path="/game-board/higanbana" element={<SocialFeedPage corner="higanbana" />} />
+                                <Route path="/game-board/roseguns" element={<SocialFeedPage corner="roseguns" />} />
+                                <Route path="/game-board/:id" element={<PostDetailPage />} />
+                                <Route path="/gallery" element={<ArtGalleryPage />} />
+                                <Route path="/gallery/umineko" element={<ArtGalleryPage corner="umineko" />} />
+                                <Route path="/gallery/higurashi" element={<ArtGalleryPage corner="higurashi" />} />
+                                <Route path="/gallery/ciconia" element={<ArtGalleryPage corner="ciconia" />} />
+                                <Route path="/gallery/art/:id" element={<ArtDetailPage />} />
+                                <Route path="/gallery/view/:id" element={<GalleryDetailPage />} />
+                                <Route path="/theory/:id" element={<TheoryPage />} />
+                                <Route path="/announcements" element={<AnnouncementsListPage />} />
+                                <Route path="/announcements/:id" element={<AnnouncementDetailPage />} />
+                                <Route path="/rules" element={<RulesPage />} />
+                                <Route path="/suggestions" element={<SuggestionsPage />} />
+                                <Route path="/suggestions/:id" element={<PostDetailPage />} />
+                                <Route path="/mysteries" element={<MysteryListPage />} />
+                                <Route path="/mystery/:id" element={<MysteryDetailPage />} />
+                                <Route path="/ships" element={<ShipsListPage />} />
+                                <Route path="/ships/:id" element={<ShipDetailPage />} />
+                                <Route path="/oc" element={<OCListPage />} />
+                                <Route path="/oc/:id" element={<OCDetailPage />} />
+                                <Route path="/fanfiction" element={<FanfictionListPage />} />
+                                <Route path="/fanfiction/:id" element={<FanficDetailPage />} />
+                                <Route path="/fanfiction/:id/chapter/:number" element={<FanficChapterPage />} />
+                                <Route path="/journals" element={<JournalsFeedPage />} />
+                                <Route path="/journals/:id" element={<JournalPage />} />
+                                <Route path="/journals/:id/entry/:number" element={<JournalEntryPage />} />
+                                <Route path="/rooms" element={<RoomsListPage />} />
+                                <Route path="/secrets" element={<SecretsListPage />} />
+                                <Route path="/secrets/:id" element={<SecretDetailPage />} />
+                                <Route path="/quotes" element={<QuoteBrowserPage />} />
+                                <Route path="/search" element={<SearchPage />} />
+                                <Route path="/live" element={<LiveDirectoryPage />} />
+                                <Route path="/live/:streamID" element={<LiveWatchPage />} />
+                                <Route
+                                    path="/games/chess/scoreboard"
+                                    element={<Navigate to="/games/chess" replace />}
+                                />
+                                <Route
+                                    path="/games/checkers/scoreboard"
+                                    element={<Navigate to="/games/checkers" replace />}
+                                />
+                                <Route
+                                    path="/games/othello/scoreboard"
+                                    element={<Navigate to="/games/othello" replace />}
+                                />
+                                <Route
+                                    path="/games/minesweeper/scoreboard"
+                                    element={<Navigate to="/games/minesweeper" replace />}
+                                />
+                                <Route
+                                    path="/games/snakes_and_ladders/scoreboard"
+                                    element={<Navigate to="/games/snakes_and_ladders" replace />}
+                                />
+                                <Route path="/games/live" element={<LiveGamesPage />} />
+                                <Route path="/games/past" element={<PastGamesPage />} />
+                                <Route path="/games/chess/:id" element={<ChessGamePage />} />
+                                <Route path="/games/checkers/:id" element={<CheckersGamePage />} />
+                                <Route path="/games/othello/:id" element={<OthelloGamePage />} />
+                                <Route path="/games/minesweeper/:id" element={<MinesweeperGamePage />} />
+                                <Route path="/games/snakes_and_ladders/:id" element={<SnakesAndLaddersGamePage />} />
+                                <Route path="/games/:type" element={<GameHubPage />} />
+                                <Route path="/users" element={<UsersPage />} />
+                                <Route path="/user/:username" element={<ProfilePage />} />
+                                <Route path="/login" element={<LoginPage />} />
+                                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                                <Route path="/reset-password" element={<ResetPasswordPage />} />
+                                <Route path="/set-email" element={<SetEmailPage />} />
+                                <Route path="/verify-email" element={<VerifyEmailPage />} />
 
-                            <Route element={<ProtectedRoute />}>
-                                <Route path="/notifications" element={<NotificationsPage />} />
-                                <Route path="/theory/new" element={<CreateTheoryPage />} />
-                                <Route path="/theory/higurashi/new" element={<CreateTheoryPage series="higurashi" />} />
-                                <Route path="/theory/ciconia/new" element={<CreateTheoryPage series="ciconia" />} />
-                                <Route path="/mystery/new" element={<CreateMysteryPage />} />
-                                <Route element={<ProtectedRoute permission="edit_any_theory" />}>
-                                    <Route path="/mystery/:id/edit" element={<CreateMysteryPage />} />
+                                <Route element={<ProtectedRoute />}>
+                                    <Route path="/notifications" element={<NotificationsPage />} />
+                                    <Route path="/theory/new" element={<CreateTheoryPage />} />
+                                    <Route
+                                        path="/theory/higurashi/new"
+                                        element={<CreateTheoryPage series="higurashi" />}
+                                    />
+                                    <Route path="/theory/ciconia/new" element={<CreateTheoryPage series="ciconia" />} />
+                                    <Route path="/mystery/new" element={<CreateMysteryPage />} />
+                                    <Route element={<ProtectedRoute permission="edit_any_theory" />}>
+                                        <Route path="/mystery/:id/edit" element={<CreateMysteryPage />} />
+                                    </Route>
+                                    <Route path="/ships/new" element={<CreateShipPage />} />
+                                    <Route path="/oc/new" element={<CreateOCPage mode="create" />} />
+                                    <Route path="/oc/:id/edit" element={<CreateOCPage mode="edit" />} />
+                                    <Route path="/fanfiction/new" element={<FanficEditorPage />} />
+                                    <Route path="/fanfiction/:id/edit" element={<FanficEditorPage />} />
+                                    <Route path="/fanfiction/:id/chapter/new" element={<ChapterEditorPage />} />
+                                    <Route
+                                        path="/fanfiction/:id/chapter/:number/edit"
+                                        element={<ChapterEditorPage />}
+                                    />
+                                    <Route path="/journals/new" element={<CreateJournalPage />} />
+                                    <Route path="/journals/:id/edit" element={<EditJournalPage />} />
+                                    <Route path="/journals/:id/entry/new" element={<JournalEntryEditorPage />} />
+                                    <Route
+                                        path="/journals/:id/entry/:number/edit"
+                                        element={<JournalEntryEditorPage />}
+                                    />
+                                    <Route path="/games" element={<GamesListPage />} />
+                                    <Route path="/games/chess/new" element={<NewChessGamePage />} />
+                                    <Route path="/games/checkers/new" element={<NewCheckersGamePage />} />
+                                    <Route path="/games/othello/new" element={<NewOthelloGamePage />} />
+                                    <Route path="/games/minesweeper/new" element={<NewMinesweeperGamePage />} />
+                                    <Route
+                                        path="/games/snakes_and_ladders/new"
+                                        element={<NewSnakesAndLaddersGamePage />}
+                                    />
+                                    <Route path="/rooms/:roomId" element={<RoomPage />} />
+                                    <Route path="/theory/:id/edit" element={<EditTheoryPage />} />
+                                    <Route path="/settings" element={<SettingsPage />} />
+                                    <Route path="/chat" element={<ChatPage />} />
+                                    <Route path="/chat/:roomId" element={<ChatPage />} />
                                 </Route>
-                                <Route path="/ships/new" element={<CreateShipPage />} />
-                                <Route path="/oc/new" element={<CreateOCPage mode="create" />} />
-                                <Route path="/oc/:id/edit" element={<CreateOCPage mode="edit" />} />
-                                <Route path="/fanfiction/new" element={<FanficEditorPage />} />
-                                <Route path="/fanfiction/:id/edit" element={<FanficEditorPage />} />
-                                <Route path="/fanfiction/:id/chapter/new" element={<ChapterEditorPage />} />
-                                <Route path="/fanfiction/:id/chapter/:number/edit" element={<ChapterEditorPage />} />
-                                <Route path="/journals/new" element={<CreateJournalPage />} />
-                                <Route path="/journals/:id/edit" element={<EditJournalPage />} />
-                                <Route path="/journals/:id/entry/new" element={<JournalEntryEditorPage />} />
-                                <Route path="/journals/:id/entry/:number/edit" element={<JournalEntryEditorPage />} />
-                                <Route path="/games" element={<GamesListPage />} />
-                                <Route path="/games/chess/new" element={<NewChessGamePage />} />
-                                <Route path="/games/checkers/new" element={<NewCheckersGamePage />} />
-                                <Route path="/games/othello/new" element={<NewOthelloGamePage />} />
-                                <Route path="/games/minesweeper/new" element={<NewMinesweeperGamePage />} />
-                                <Route path="/games/snakes_and_ladders/new" element={<NewSnakesAndLaddersGamePage />} />
-                                <Route path="/rooms/:roomId" element={<RoomPage />} />
-                                <Route path="/theory/:id/edit" element={<EditTheoryPage />} />
-                                <Route path="/settings" element={<SettingsPage />} />
-                                <Route path="/chat" element={<ChatPage />} />
-                                <Route path="/chat/:roomId" element={<ChatPage />} />
-                            </Route>
 
-                            <Route element={<ProtectedRoute permission="view_admin_panel" />}>
-                                <Route path="/admin" element={<AdminLayout />}>
-                                    <Route index element={<AdminDashboard />} />
-                                    <Route path="users" element={<AdminUsers />} />
-                                    <Route path="users/:id" element={<AdminUserDetail />} />
-                                    <Route path="invites" element={<AdminInvites />} />
-                                    <Route path="settings" element={<AdminSettings />} />
-                                    <Route path="reports" element={<AdminReports />} />
-                                    <Route path="content-rules" element={<AdminContentRules />} />
-                                    <Route path="rules" element={<AdminRulesPage />} />
-                                    <Route path="banned-gifs" element={<AdminBannedGifs />} />
-                                    <Route path="banned-words" element={<AdminBannedWords />} />
-                                    <Route path="announcements" element={<AdminAnnouncementsPage />} />
-                                    <Route path="audit-log" element={<AdminAuditLog />} />
-                                    <Route path="vanity-roles" element={<AdminVanityRoles />} />
+                                <Route element={<ProtectedRoute permission="view_admin_panel" />}>
+                                    <Route path="/admin" element={<AdminLayout />}>
+                                        <Route index element={<AdminDashboard />} />
+                                        <Route path="users" element={<AdminUsers />} />
+                                        <Route path="users/:id" element={<AdminUserDetail />} />
+                                        <Route path="invites" element={<AdminInvites />} />
+                                        <Route path="settings" element={<AdminSettings />} />
+                                        <Route path="reports" element={<AdminReports />} />
+                                        <Route path="content-rules" element={<AdminContentRules />} />
+                                        <Route path="rules" element={<AdminRulesPage />} />
+                                        <Route path="banned-gifs" element={<AdminBannedGifs />} />
+                                        <Route path="banned-words" element={<AdminBannedWords />} />
+                                        <Route path="announcements" element={<AdminAnnouncementsPage />} />
+                                        <Route path="audit-log" element={<AdminAuditLog />} />
+                                        <Route path="vanity-roles" element={<AdminVanityRoles />} />
+                                    </Route>
                                 </Route>
-                            </Route>
 
-                            <Route path="*" element={<NotFoundPage />} />
-                        </Routes>
-                    </Suspense>
+                                <Route path="*" element={<NotFoundPage />} />
+                            </Routes>
+                        </Suspense>
+                    </PullToRefresh>
                 </main>
             </div>
         </div>
