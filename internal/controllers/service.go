@@ -85,6 +85,7 @@ type (
 		OverlayService        overlay.Service
 		SitemapService        sitemap.Service
 		OGResolver            *og.Resolver
+		OGImageService        *og.ImageService
 		StaticFS              fs.FS
 		HTMLContent           string
 	}
@@ -130,6 +131,7 @@ func NewService(
 	overlayService overlay.Service,
 	sitemapService sitemap.Service,
 	ogResolver *og.Resolver,
+	ogImageService *og.ImageService,
 	staticFS fs.FS,
 	htmlContent string,
 ) Service {
@@ -173,6 +175,7 @@ func NewService(
 		OverlayService:        overlayService,
 		SitemapService:        sitemapService,
 		OGResolver:            ogResolver,
+		OGImageService:        ogImageService,
 		StaticFS:              staticFS,
 		HTMLContent:           htmlContent,
 	}

@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"time"
 	"umineko_city_of_books/internal/notification/push"
 
 	"umineko_city_of_books/internal/admin"
@@ -13,6 +14,7 @@ import (
 	"umineko_city_of_books/internal/auth"
 	"umineko_city_of_books/internal/authz"
 	blocksvc "umineko_city_of_books/internal/block"
+	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/chat"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
@@ -71,6 +73,8 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 			logger.Log.Fatal().Err(err).Msgf("failed to create %s directory", sub)
 		}
 	}
+
+	cacheManager := initCache(settingsSvc)
 
 	sessionMgr := session.NewManager(repos.Session, settingsSvc)
 	mediaProc := media.NewProcessor(4)
@@ -156,12 +160,15 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 		repos.Chat,
 		repos.LiveStream,
 		settingsSvc,
+		cacheManager,
 		string(htmlBytes),
 		baseURL,
 	)
+	ogImageSvc := og.NewImageService(cacheManager)
 
 	return &services{
 		settings:        settingsSvc,
+		cache:           cacheManager,
 		auth:            authSvc,
 		profile:         profile.NewService(repos.User, repos.UserSecret, repos.Theory, authzSvc, uploadSvc, settingsSvc, contentFilter, hub, authSvc),
 		theory:          theory.NewService(repos.Theory, repos.User, authzSvc, blockSvc, notifSvc, settingsSvc, credibilitySvc, quoteClient, contentFilter),
@@ -203,7 +210,24 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 		health:          healthSvc,
 		sitemap:         sitemapSvc,
 		ogResolver:      ogResolver,
+		ogImage:         ogImageSvc,
 		staticFS:        staticFS,
 		htmlContent:     string(htmlBytes),
 	}
+}
+
+func initCache(settingsSvc settings.Service) *cache.Manager {
+	manager := cache.NewManager()
+	manager.Reconfigure(settingsSvc.Get(context.Background(), config.SettingValkeyURL))
+
+	if manager.Enabled() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		if err := manager.Ping(ctx); err != nil {
+			logger.Log.Warn().Err(err).Msg("valkey cache ping failed at startup")
+		}
+	}
+
+	return manager
 }

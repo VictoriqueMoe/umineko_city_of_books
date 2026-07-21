@@ -673,3 +673,16 @@ func TestGetRules_UnknownPage(t *testing.T) {
 	require.Equal(t, http.StatusNotFound, status)
 	assert.Contains(t, string(body), "unknown page")
 }
+
+func TestGetRules_Landing(t *testing.T) {
+	// given
+	h, _ := newAuthHarness(t)
+
+	// when
+	status, body := h.NewRequest("GET", "/rules/landing").Do()
+
+	// then
+	require.Equal(t, http.StatusOK, status)
+	got := testutil.UnmarshalJSON[map[string]string](t, body)
+	assert.Equal(t, "landing", got["page"])
+}

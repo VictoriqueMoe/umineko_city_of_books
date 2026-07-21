@@ -23,6 +23,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      valkey-cache:
+        condition: service_started
     ports:
       - "2312:4323"
     env_file:
@@ -39,6 +41,20 @@ services:
     command: valkey-server --save "" --appendonly no
     ports:
       - "127.0.0.1:6379:6379"
+
+  valkey-cache:
+    image: valkey/valkey:latest
+    container_name: umineko-valkey-cache
+    restart: unless-stopped
+    command: valkey-server --save "" --appendonly no --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "127.0.0.1:6381:6379"
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
 
   livekit:
     image: livekit/livekit-server:latest

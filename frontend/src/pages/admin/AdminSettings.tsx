@@ -411,6 +411,26 @@ export function AdminSettings() {
             </div>
 
             <div className={styles.card}>
+                <h2 className={styles.sectionTitle}>Cache (Valkey)</h2>
+                <div className={styles.fieldGroup}>
+                    <div className={styles.field}>
+                        <span className={styles.fieldLabel}>Valkey URL</span>
+                        <Input
+                            value={settings.valkey_url ?? ""}
+                            onChange={e => updateField("valkey_url", e.target.value)}
+                            fullWidth
+                            placeholder="redis://valkey-cache:6379/0"
+                        />
+                        <span className={styles.fieldHint}>
+                            Connection URL for the app cache, separate from the LiveKit coordination Valkey. When set,
+                            caching is enabled; leave it empty to disable and bypass the cache entirely. Changes take
+                            effect immediately, with no restart needed.
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div className={styles.card}>
                 <h2 className={styles.sectionTitle}>Limits</h2>
                 <div className={styles.fieldGroup}>
                     <div className={styles.field}>

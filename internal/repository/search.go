@@ -2,10 +2,8 @@ package repository
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"strings"
-	"time"
 )
 
 type (
@@ -51,10 +49,6 @@ type (
 		Search(ctx context.Context, query string, types []SearchEntityType, limit, offset int) ([]SearchResult, int, error)
 		QuickSearch(ctx context.Context, query string, perTypeLimit int) ([]SearchResult, error)
 	}
-
-	searchRepository struct {
-		db *sql.DB
-	}
 )
 
 const (
@@ -83,7 +77,7 @@ const (
 	SearchEntityLiveStream          SearchEntityType = "live_stream"
 )
 
-const searchHeadlineOptions = `'MaxFragments=1, MaxWords=18, MinWords=5, ShortWord=3, HighlightAll=false, StartSel=<mark>, StopSel=</mark>'`
+const SearchHeadlineOptions = `'MaxFragments=1, MaxWords=18, MinWords=5, ShortWord=3, HighlightAll=false, StartSel=<mark>, StopSel=</mark>'`
 
 var searchSources = []SearchSource{
 	{
@@ -373,7 +367,7 @@ func SearchSources() []SearchSource {
 	return searchSources
 }
 
-func resolveSearchTypes(types []SearchEntityType) []SearchSource {
+func ResolveSearchTypes(types []SearchEntityType) []SearchSource {
 	if len(types) == 0 {
 		return searchSources
 	}
@@ -393,7 +387,7 @@ func resolveSearchTypes(types []SearchEntityType) []SearchSource {
 	return out
 }
 
-func (s SearchSource) buildSubquery() string {
+func (s SearchSource) BuildSubquery() string {
 	parentIDExpr := s.ParentIDExpr
 	if parentIDExpr == "" {
 		parentIDExpr = "NULL::text"
@@ -444,97 +438,10 @@ func (s SearchSource) buildSubquery() string {
         WHERE %s`,
 		s.Type, s.IDExpr, parentIDExpr, parentTitleExpr,
 		s.TitleExpr,
-		s.BodyExpr, searchHeadlineOptions,
+		s.BodyExpr, SearchHeadlineOptions,
 		s.CreatedAt,
 		rankExpr,
 		strings.Join(parts, "\n        "),
 		strings.Join(whereParts, "\n          AND "),
 	)
-}
-
-func (r *searchRepository) Search(ctx context.Context, query string, types []SearchEntityType, limit, offset int) ([]SearchResult, int, error) {
-	srcs := resolveSearchTypes(types)
-	if len(srcs) == 0 {
-		return nil, 0, nil
-	}
-
-	subqueries := make([]string, len(srcs))
-	for i, src := range srcs {
-		subqueries[i] = src.buildSubquery()
-	}
-	union := strings.Join(subqueries, "\nUNION ALL\n")
-
-	countSQL := fmt.Sprintf(`WITH q AS (SELECT websearch_to_tsquery('english', $1) AS tsq, $1 AS qstr)
-        SELECT COUNT(*) FROM (%s) results`, union)
-
-	var total int
-	if err := r.db.QueryRowContext(ctx, countSQL, query).Scan(&total); err != nil {
-		return nil, 0, fmt.Errorf("search count: %w", err)
-	}
-
-	dataSQL := fmt.Sprintf(`WITH q AS (SELECT websearch_to_tsquery('english', $1) AS tsq, $1 AS qstr)
-        SELECT entity_type, id, parent_id, parent_title, title, snippet,
-               author_id, author_username, author_display_name, author_avatar_url, created_at, rank
-        FROM (%s) results
-        ORDER BY rank DESC, created_at DESC
-        LIMIT $2 OFFSET $3`, union)
-
-	rows, err := r.db.QueryContext(ctx, dataSQL, query, limit, offset)
-	if err != nil {
-		return nil, 0, fmt.Errorf("search query: %w", err)
-	}
-	defer rows.Close()
-
-	results, err := scanSearchRows(rows, limit)
-	if err != nil {
-		return nil, 0, err
-	}
-	return results, total, nil
-}
-
-func (r *searchRepository) QuickSearch(ctx context.Context, query string, perTypeLimit int) ([]SearchResult, error) {
-	subqueries := make([]string, len(searchSources))
-	for i, src := range searchSources {
-		subqueries[i] = fmt.Sprintf(`(SELECT * FROM (%s) sub ORDER BY rank DESC, created_at DESC LIMIT %d)`, src.buildSubquery(), perTypeLimit)
-	}
-	union := strings.Join(subqueries, "\nUNION ALL\n")
-
-	sqlStr := fmt.Sprintf(`WITH q AS (SELECT websearch_to_tsquery('english', $1) AS tsq, $1 AS qstr)
-        SELECT entity_type, id, parent_id, parent_title, title, snippet,
-               author_id, author_username, author_display_name, author_avatar_url, created_at, rank
-        FROM (%s) results
-        ORDER BY rank DESC, created_at DESC`, union)
-
-	rows, err := r.db.QueryContext(ctx, sqlStr, query)
-	if err != nil {
-		return nil, fmt.Errorf("quick search: %w", err)
-	}
-	defer rows.Close()
-
-	return scanSearchRows(rows, perTypeLimit*len(searchSources))
-}
-
-func scanSearchRows(rows *sql.Rows, capacity int) ([]SearchResult, error) {
-	results := make([]SearchResult, 0, capacity)
-	for rows.Next() {
-		var (
-			r         SearchResult
-			createdAt time.Time
-			entityT   string
-		)
-		if err := rows.Scan(
-			&entityT, &r.ID, &r.ParentID, &r.ParentTitle, &r.Title, &r.Snippet,
-			&r.AuthorID, &r.AuthorUsername, &r.AuthorDisplayName, &r.AuthorAvatarURL,
-			&createdAt, &r.Rank,
-		); err != nil {
-			return nil, fmt.Errorf("search scan: %w", err)
-		}
-		r.EntityType = SearchEntityType(entityT)
-		r.CreatedAt = createdAt.UTC().Format(time.RFC3339Nano)
-		results = append(results, r)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("search rows: %w", err)
-	}
-	return results, nil
 }

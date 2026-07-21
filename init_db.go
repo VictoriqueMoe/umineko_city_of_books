@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/db"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/repository"
@@ -35,7 +36,7 @@ func initDatabase() (*repository.Repositories, settings.Service) {
 		logger.Log.Fatal().Err(err).Msg("failed to seed content")
 	}
 
-	repos := repository.New(database)
+	repos := dao.New(database)
 
 	settingsSvc := settings.NewService(repos.Settings)
 	if err := settingsSvc.Refresh(context.Background()); err != nil {

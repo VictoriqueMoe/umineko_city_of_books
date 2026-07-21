@@ -16,6 +16,7 @@ import (
 	"umineko_city_of_books/internal/auth"
 	"umineko_city_of_books/internal/authz"
 	blocksvc "umineko_city_of_books/internal/block"
+	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/chat"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/controllers"
@@ -68,6 +69,7 @@ var (
 type (
 	services struct {
 		settings        settings.Service
+		cache           *cache.Manager
 		auth            auth.Service
 		profile         profile.Service
 		theory          theory.Service
@@ -109,17 +111,25 @@ type (
 		health          health.Service
 		sitemap         sitemap.Service
 		ogResolver      *og.Resolver
+		ogImage         *og.ImageService
 		staticFS        fs.FS
 		htmlContent     string
 	}
 )
 
-func initServer() *fiber.App {
+func initServer() (*fiber.App, func()) {
 	repos, settingsSvc := initDatabase()
 	svc := initServices(repos, settingsSvc)
 	app := initApp(svc, repos, settingsSvc)
 	registerListeners(settingsSvc, app, svc, repos)
-	return app
+
+	cleanup := func() {
+		if err := svc.cache.Close(); err != nil {
+			logger.Log.Warn().Err(err).Msg("valkey cache close error")
+		}
+	}
+
+	return app, cleanup
 }
 
 func initApp(svc *services, repos *repository.Repositories, settingsSvc settings.Service) *fiber.App {
@@ -180,6 +190,7 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 		svc.overlay,
 		svc.sitemap,
 		svc.ogResolver,
+		svc.ogImage,
 		svc.staticFS,
 		svc.htmlContent,
 	)

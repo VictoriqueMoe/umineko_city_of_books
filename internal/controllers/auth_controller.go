@@ -38,6 +38,7 @@ var rulesSettings = map[string]*config.SiteSettingDef{
 	"journals":             config.SettingRulesJournals,
 	"suggestions":          config.SettingRulesSuggestions,
 	"chat_rooms":           config.SettingRulesChatRooms,
+	"landing":              config.SettingRulesLanding,
 }
 
 func (s *Service) getAllAuthRoutes() []FSetupRoute {
