@@ -42,3 +42,19 @@ type (
 		GetMostActiveUsers(ctx context.Context, limit int) ([]ActiveUser, error)
 	}
 )
+
+type statsRepository struct {
+	dao StatsRepository
+}
+
+func NewStatsRepo(dao StatsRepository) StatsRepository {
+	return &statsRepository{dao: dao}
+}
+
+func (r *statsRepository) GetOverview(ctx context.Context) (*SiteStats, error) {
+	return r.dao.GetOverview(ctx)
+}
+
+func (r *statsRepository) GetMostActiveUsers(ctx context.Context, limit int) ([]ActiveUser, error) {
+	return r.dao.GetMostActiveUsers(ctx, limit)
+}

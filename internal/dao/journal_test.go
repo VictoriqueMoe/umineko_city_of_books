@@ -773,7 +773,7 @@ func TestJournalDAO_CreateComment_Threaded(t *testing.T) {
 	comments, total, err := repos.Journal.GetComments(context.Background(), journalID, commenter.ID, 10, 0, nil)
 	require.NoError(t, err)
 	assert.Equal(t, 2, total)
-	var child repository.JournalCommentRow
+	var child repository.CommentRow
 	for _, c := range comments {
 		if c.ID == childID {
 			child = c
@@ -909,7 +909,7 @@ func TestJournalDAO_GetComments_Empty(t *testing.T) {
 	assert.Empty(t, comments)
 }
 
-func TestJournalDAO_GetCommentJournalID_AndAuthorID(t *testing.T) {
+func TestJournalDAO_GetCommentEntityID_AndAuthorID(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	author := daotest.CreateUser(t, repos)
@@ -917,7 +917,7 @@ func TestJournalDAO_GetCommentJournalID_AndAuthorID(t *testing.T) {
 	commentID := createJournalComment(t, repos, journalID, author.ID, nil, "x")
 
 	// when
-	gotJournalID, journalErr := repos.Journal.GetCommentJournalID(context.Background(), commentID)
+	gotJournalID, journalErr := repos.Journal.GetCommentEntityID(context.Background(), commentID)
 	gotAuthorID, authorErr := repos.Journal.GetCommentAuthorID(context.Background(), commentID)
 
 	// then
@@ -927,12 +927,12 @@ func TestJournalDAO_GetCommentJournalID_AndAuthorID(t *testing.T) {
 	assert.Equal(t, author.ID, gotAuthorID)
 }
 
-func TestJournalDAO_GetCommentJournalID_NotFound(t *testing.T) {
+func TestJournalDAO_GetCommentEntityID_NotFound(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 
 	// when
-	_, err := repos.Journal.GetCommentJournalID(context.Background(), uuid.New())
+	_, err := repos.Journal.GetCommentEntityID(context.Background(), uuid.New())
 
 	// then
 	require.Error(t, err)
@@ -985,9 +985,9 @@ func TestJournalDAO_AddCommentMedia_AndBatch(t *testing.T) {
 	commentC := createJournalComment(t, repos, journalID, author.ID, nil, "c")
 
 	// when
-	idA1, err := repos.Journal.AddCommentMedia(context.Background(), commentA, "url-a-1", "image", "thumb-a-1", 1)
-	require.NoError(t, err)
 	idA0, err := repos.Journal.AddCommentMedia(context.Background(), commentA, "url-a-0", "image", "thumb-a-0", 0)
+	require.NoError(t, err)
+	idA1, err := repos.Journal.AddCommentMedia(context.Background(), commentA, "url-a-1", "image", "thumb-a-1", 0)
 	require.NoError(t, err)
 	idB, err := repos.Journal.AddCommentMedia(context.Background(), commentB, "url-b", "video", "thumb-b", 0)
 	require.NoError(t, err)

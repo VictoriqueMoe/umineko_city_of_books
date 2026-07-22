@@ -12,6 +12,7 @@ import (
 	mysterysvc "umineko_city_of_books/internal/mystery"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
+	"umineko_city_of_books/internal/siteinfo"
 	usersvc "umineko_city_of_books/internal/user"
 	"umineko_city_of_books/internal/usersecret"
 	"umineko_city_of_books/internal/vanityrole"
@@ -57,6 +58,7 @@ func newAuthHarness(t *testing.T) (*testutil.Harness, authDeps) {
 		VanityRoleService: deps.vanityRoleSvc,
 		UserSecretService: deps.userSecretSvc,
 		SettingsService:   h.SettingsService,
+		SiteInfoService:   siteinfo.NewService(h.SettingsService, deps.mysterySvc, deps.gameRoomSvc, deps.vanityRoleSvc, deps.userSecretSvc, deps.authSvc),
 		AuthSession:       h.SessionManager,
 		AuthzService:      h.AuthzService,
 	}

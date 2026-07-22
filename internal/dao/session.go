@@ -8,17 +8,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-
-	"umineko_city_of_books/internal/repository"
 )
 
 type (
 	sessionDAO struct {
 		db *sql.DB
-	}
-
-	sessionRepository struct {
-		repository.SessionRepository
 	}
 )
 

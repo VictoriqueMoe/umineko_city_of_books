@@ -15,10 +15,6 @@ type (
 	streamCredentialsDAO struct {
 		db *sql.DB
 	}
-
-	streamCredentialsRepository struct {
-		repository.StreamCredentialsRepository
-	}
 )
 
 func (r *streamCredentialsDAO) Get(ctx context.Context, userID uuid.UUID) (*repository.StreamCredentialsRow, error) {

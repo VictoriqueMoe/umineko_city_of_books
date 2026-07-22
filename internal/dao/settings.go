@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"umineko_city_of_books/internal/db"
-	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
 )
@@ -14,10 +13,6 @@ import (
 type (
 	settingsDAO struct {
 		db *sql.DB
-	}
-
-	settingsRepository struct {
-		repository.SettingsRepository
 	}
 )
 

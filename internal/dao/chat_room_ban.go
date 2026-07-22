@@ -15,10 +15,6 @@ type (
 	chatRoomBanDAO struct {
 		db *sql.DB
 	}
-
-	chatRoomBanRepository struct {
-		repository.ChatRoomBanRepository
-	}
 )
 
 func (r *chatRoomBanDAO) Ban(ctx context.Context, roomID, userID uuid.UUID, bannedBy *uuid.UUID, reason string) error {

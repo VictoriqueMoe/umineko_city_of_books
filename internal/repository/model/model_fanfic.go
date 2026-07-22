@@ -64,24 +64,6 @@ type (
 		SortOrder     int
 		IsPairing     bool
 	}
-
-	FanficCommentRow struct {
-		ID                uuid.UUID
-		FanficID          uuid.UUID
-		ParentID          *uuid.UUID
-		UserID            uuid.UUID
-		Body              string
-		CreatedAt         string
-		UpdatedAt         *string
-		AuthorUsername    string
-		AuthorDisplayName string
-		AuthorAvatarURL   string
-		AuthorRole        string
-		LikeCount         int
-		UserLiked         bool
-	}
-
-	FanficCommentMediaRow = CommentMediaRow
 )
 
 func (r *FanficRow) ToResponse(genres []string, tags []string, characters []FanficCharacterRow) dto.FanficResponse {
@@ -132,26 +114,5 @@ func (r *FanficRow) ToResponse(genres []string, tags []string, characters []Fanf
 		PublishedAt:       r.PublishedAt,
 		CreatedAt:         r.CreatedAt,
 		UpdatedAt:         r.UpdatedAt,
-	}
-}
-
-func (r *FanficCommentRow) ToResponse(media []FanficCommentMediaRow) dto.FanficCommentResponse {
-	mediaList := CommentMediaRowsToResponse(media)
-	return dto.FanficCommentResponse{
-		ID:       r.ID,
-		ParentID: r.ParentID,
-		Author: dto.UserResponse{
-			ID:          r.UserID,
-			Username:    r.AuthorUsername,
-			DisplayName: r.AuthorDisplayName,
-			AvatarURL:   r.AuthorAvatarURL,
-			Role:        role.Role(r.AuthorRole),
-		},
-		Body:      r.Body,
-		Media:     mediaList,
-		LikeCount: r.LikeCount,
-		UserLiked: r.UserLiked,
-		CreatedAt: r.CreatedAt,
-		UpdatedAt: r.UpdatedAt,
 	}
 }

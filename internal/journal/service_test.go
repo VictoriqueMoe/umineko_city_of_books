@@ -207,7 +207,7 @@ func TestGetJournalDetail_OK(t *testing.T) {
 	authorID := uuid.New()
 	journal := &dto.JournalResponse{ID: id, Author: dto.UserResponse{ID: authorID}}
 	commentID := uuid.New()
-	rows := []repository.JournalCommentRow{{ID: commentID, UserID: authorID, Body: "hi"}}
+	rows := []repository.CommentRow{{ID: commentID, UserID: authorID, Body: "hi"}}
 	m.repo.EXPECT().GetByID(mock.Anything, id, viewer).Return(journal, nil)
 	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewer).Return([]uuid.UUID{uuid.New()}, nil)
 	m.repo.EXPECT().GetComments(mock.Anything, id, viewer, 500, 0, mock.Anything).Return(rows, 1, nil)
@@ -761,7 +761,7 @@ func TestLikeComment_OKNotifies(t *testing.T) {
 	m.repo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
 	m.repo.EXPECT().LikeComment(mock.Anything, userID, id).Return(nil)
-	m.repo.EXPECT().GetCommentJournalID(mock.Anything, id).Return(uuid.New(), nil).Maybe()
+	m.repo.EXPECT().GetCommentEntityID(mock.Anything, id).Return(uuid.New(), nil).Maybe()
 	m.repo.EXPECT().GetCommentEntryNumber(mock.Anything, id).Return(nil, nil).Maybe()
 	m.repo.EXPECT().GetTitle(mock.Anything, mock.Anything).Return("title", nil).Maybe()
 	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("http://base").Maybe()
@@ -1107,7 +1107,7 @@ func TestGetEntry_OK(t *testing.T) {
 	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, uuid.Nil).Return(nil, nil)
 	m.repo.EXPECT().GetEntryComments(mock.Anything, entryID, uuid.Nil, 500, 0, []uuid.UUID(nil)).Return(nil, 0, nil)
 	m.repo.EXPECT().GetCommentMediaBatch(mock.Anything, []uuid.UUID{}).Return(nil, nil)
-	m.repo.EXPECT().GetEntryMediaBatch(mock.Anything, []uuid.UUID{entryID}).Return(nil, nil)
+	m.repo.EXPECT().GetMediaBatch(mock.Anything, []uuid.UUID{entryID}).Return(nil, nil)
 
 	// when
 	entry, comments, err := svc.GetEntry(context.Background(), journalID, 3, uuid.Nil)

@@ -232,7 +232,7 @@ func (s *service) GetPost(ctx context.Context, id uuid.UUID, viewerID uuid.UUID,
 
 	flatComments := make([]dto.PostCommentResponse, len(comments))
 	for i, c := range comments {
-		flatComments[i] = c.ToResponse(commentMediaMap[c.ID], commentEmbedMap[c.ID.String()])
+		flatComments[i] = postCommentToResponse(c, commentMediaMap[c.ID], commentEmbedMap[c.ID.String()])
 	}
 	dtoComments := utils.BuildTree(flatComments,
 		func(c dto.PostCommentResponse) uuid.UUID { return c.ID },
@@ -653,7 +653,7 @@ func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID u
 		if err != nil {
 			return
 		}
-		postID, err := s.postRepo.GetCommentPostID(ctx, commentID)
+		postID, err := s.postRepo.GetCommentEntityID(ctx, commentID)
 		if err != nil {
 			return
 		}
@@ -727,7 +727,7 @@ func (s *service) notifyCommentEdited(ctx context.Context, commentID uuid.UUID, 
 	if err != nil {
 		return
 	}
-	postID, err := s.postRepo.GetCommentPostID(ctx, commentID)
+	postID, err := s.postRepo.GetCommentEntityID(ctx, commentID)
 	if err != nil {
 		return
 	}
@@ -897,4 +897,26 @@ func (s *service) notifyContentShared(sharerID uuid.UUID, postID uuid.UUID, cont
 		EmailAction:   "shared your content",
 		EmailLink:     fmt.Sprintf("/game-board/%s", postID),
 	})
+}
+
+func postCommentToResponse(c repository.CommentRow, media []model.PostMediaRow, embeds []model.EmbedRow) dto.PostCommentResponse {
+	return dto.PostCommentResponse{
+		ID:       c.ID,
+		ParentID: c.ParentID,
+		Author: dto.UserResponse{
+			ID:          c.UserID,
+			Username:    c.AuthorUsername,
+			DisplayName: c.AuthorDisplayName,
+			AvatarURL:   c.AuthorAvatarURL,
+			Role:        role.Role(c.AuthorRole),
+			Banned:      c.AuthorBanned,
+		},
+		Body:      c.Body,
+		Media:     model.MediaRowsToResponse(media),
+		Embeds:    model.EmbedRowsToResponse(embeds),
+		LikeCount: c.LikeCount,
+		UserLiked: c.UserLiked,
+		CreatedAt: c.CreatedAt,
+		UpdatedAt: c.UpdatedAt,
+	}
 }

@@ -15,10 +15,6 @@ type (
 	chatWatchPartyDAO struct {
 		db *sql.DB
 	}
-
-	chatWatchPartyRepository struct {
-		repository.ChatWatchPartyRepository
-	}
 )
 
 func (r *chatWatchPartyDAO) CreateSession(ctx context.Context, row repository.ChatWatchPartySessionRow) (uuid.UUID, error) {

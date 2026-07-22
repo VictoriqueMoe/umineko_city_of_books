@@ -194,7 +194,7 @@ func (s *service) GetJournalDetail(ctx context.Context, id uuid.UUID, viewerID u
 			return nil, err
 		}
 		if entry != nil {
-			entryMediaMap, _ := s.repo.GetEntryMediaBatch(ctx, []uuid.UUID{entry.ID})
+			entryMediaMap, _ := s.repo.GetMediaBatch(ctx, []uuid.UUID{entry.ID})
 			latestEntry = new(repository.JournalEntryToDTO(entry, entryMediaMap[entry.ID]))
 		}
 	}
@@ -384,7 +384,7 @@ func (s *service) GetEntry(ctx context.Context, journalID uuid.UUID, entryNumber
 		func(c *dto.JournalCommentResponse, replies []dto.JournalCommentResponse) { c.Replies = replies },
 	)
 
-	entryMediaMap, _ := s.repo.GetEntryMediaBatch(ctx, []uuid.UUID{entry.ID})
+	entryMediaMap, _ := s.repo.GetMediaBatch(ctx, []uuid.UUID{entry.ID})
 	return new(repository.JournalEntryToDTO(entry, entryMediaMap[entry.ID])), tree, nil
 }
 
@@ -634,7 +634,7 @@ func (s *service) LikeComment(ctx context.Context, id uuid.UUID, userID uuid.UUI
 
 	go func() {
 		bgCtx := context.Background()
-		journalID, err := s.repo.GetCommentJournalID(bgCtx, id)
+		journalID, err := s.repo.GetCommentEntityID(bgCtx, id)
 		if err != nil {
 			return
 		}
@@ -700,10 +700,10 @@ func (s *service) UploadEntryMedia(ctx context.Context, entryID uuid.UUID, userI
 		fileSize,
 		reader,
 		func(mediaURL, mediaType, thumbURL string, sortOrder int) (int64, error) {
-			return s.repo.AddEntryMedia(ctx, entryID, mediaURL, mediaType, thumbURL, sortOrder)
+			return s.repo.AddMedia(ctx, entryID, mediaURL, mediaType, thumbURL, sortOrder)
 		},
-		s.repo.UpdateEntryMediaURL,
-		s.repo.UpdateEntryMediaThumbnail,
+		s.repo.UpdateMediaURL,
+		s.repo.UpdateMediaThumbnail,
 	)
 }
 
@@ -716,7 +716,7 @@ func (s *service) DeleteEntryMedia(ctx context.Context, entryID uuid.UUID, media
 		return ErrNotAuthor
 	}
 
-	mediaURL, err := s.repo.DeleteEntryMedia(ctx, mediaID, entryID)
+	mediaURL, err := s.repo.DeleteMedia(ctx, mediaID, entryID)
 	if err != nil {
 		return err
 	}

@@ -23,3 +23,27 @@ type (
 		DeleteUnusedForUser(ctx context.Context, userID uuid.UUID) error
 	}
 )
+
+type passwordResetRepository struct {
+	dao PasswordResetRepository
+}
+
+func NewPasswordResetRepo(dao PasswordResetRepository) PasswordResetRepository {
+	return &passwordResetRepository{dao: dao}
+}
+
+func (r *passwordResetRepository) Create(ctx context.Context, tokenHash string, userID uuid.UUID, expiresAt time.Time) error {
+	return r.dao.Create(ctx, tokenHash, userID, expiresAt)
+}
+
+func (r *passwordResetRepository) GetByTokenHash(ctx context.Context, tokenHash string) (*PasswordResetToken, error) {
+	return r.dao.GetByTokenHash(ctx, tokenHash)
+}
+
+func (r *passwordResetRepository) MarkUsed(ctx context.Context, tokenHash string) error {
+	return r.dao.MarkUsed(ctx, tokenHash)
+}
+
+func (r *passwordResetRepository) DeleteUnusedForUser(ctx context.Context, userID uuid.UUID) error {
+	return r.dao.DeleteUnusedForUser(ctx, userID)
+}

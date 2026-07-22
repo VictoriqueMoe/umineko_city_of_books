@@ -647,7 +647,7 @@ func (s *service) GetTopWinnerIDs(ctx context.Context, gameType dto.GameType) ([
 	return s.repo.GetTopWinnerIDs(ctx, string(gameType))
 }
 
-func (s *service) PostSpectatorChat(ctx context.Context, roomID, userID uuid.UUID, body string) (*dto.SpectatorMessage, error) {
+func (s *service) postChat(ctx context.Context, roomID, userID uuid.UUID, body string, player bool) (*dto.SpectatorMessage, error) {
 	body = strings.TrimSpace(body)
 	if body == "" {
 		return nil, ErrEmptyChat
@@ -655,6 +655,7 @@ func (s *service) PostSpectatorChat(ctx context.Context, roomID, userID uuid.UUI
 	if len(body) > maxChatBodyLen {
 		body = body[:maxChatBodyLen]
 	}
+
 	row, err := s.repo.GetRoom(ctx, roomID)
 	if err != nil {
 		return nil, err
@@ -665,22 +666,29 @@ func (s *service) PostSpectatorChat(ctx context.Context, roomID, userID uuid.UUI
 	if row.Status == string(dto.GameStatusPending) || row.Status == string(dto.GameStatusDeclined) {
 		return nil, ErrRoomNotActive
 	}
+
 	isParticipant, err := s.repo.IsParticipant(ctx, roomID, userID)
 	if err != nil {
 		return nil, err
 	}
-	if isParticipant {
+	if player && !isParticipant {
+		return nil, ErrNotParticipant
+	}
+	if !player && isParticipant {
 		return nil, ErrPlayersCantChat
 	}
+
 	if s.contentFilter != nil {
 		if err := s.contentFilter.Check(ctx, body); err != nil {
 			return nil, err
 		}
 	}
+
 	u, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil || u == nil {
 		return nil, ErrOpponentInactive
 	}
+
 	msg := dto.SpectatorMessage{
 		ID:        uuid.NewString(),
 		UserID:    userID,
@@ -691,20 +699,39 @@ func (s *service) PostSpectatorChat(ctx context.Context, roomID, userID uuid.UUI
 
 	s.mu.Lock()
 	st := s.stateFor(roomID)
-	st.chat = append(st.chat, msg)
-	if len(st.chat) > maxChatMessages {
-		st.chat = st.chat[len(st.chat)-maxChatMessages:]
+	if player {
+		st.playerChat = append(st.playerChat, msg)
+		if len(st.playerChat) > maxChatMessages {
+			st.playerChat = st.playerChat[len(st.playerChat)-maxChatMessages:]
+		}
+	} else {
+		st.chat = append(st.chat, msg)
+		if len(st.chat) > maxChatMessages {
+			st.chat = st.chat[len(st.chat)-maxChatMessages:]
+		}
 	}
 	s.mu.Unlock()
 
-	s.hub.BroadcastToTopic("spectator-chat:"+roomID.String(), ws.Message{
-		Type: "spectator_chat_message",
-		Data: map[string]any{
-			"room_id": roomID.String(),
-			"message": msg,
-		},
-	})
+	data := map[string]any{
+		"room_id": roomID.String(),
+		"message": msg,
+	}
+	if player {
+		players, err := s.loadPlayers(ctx, roomID)
+		if err == nil {
+			for _, p := range players {
+				s.hub.SendToUser(p.UserID, ws.Message{Type: "player_chat_message", Data: data})
+			}
+		}
+	} else {
+		s.hub.BroadcastToTopic("spectator-chat:"+roomID.String(), ws.Message{Type: "spectator_chat_message", Data: data})
+	}
+
 	return &msg, nil
+}
+
+func (s *service) PostSpectatorChat(ctx context.Context, roomID, userID uuid.UUID, body string) (*dto.SpectatorMessage, error) {
+	return s.postChat(ctx, roomID, userID, body, false)
 }
 
 func (s *service) GetSpectatorChat(ctx context.Context, roomID, viewerID uuid.UUID) (*dto.SpectatorChatResponse, error) {
@@ -729,68 +756,7 @@ func (s *service) GetSpectatorChat(ctx context.Context, roomID, viewerID uuid.UU
 }
 
 func (s *service) PostPlayerChat(ctx context.Context, roomID, userID uuid.UUID, body string) (*dto.SpectatorMessage, error) {
-	body = strings.TrimSpace(body)
-	if body == "" {
-		return nil, ErrEmptyChat
-	}
-	if len(body) > maxChatBodyLen {
-		body = body[:maxChatBodyLen]
-	}
-	row, err := s.repo.GetRoom(ctx, roomID)
-	if err != nil {
-		return nil, err
-	}
-	if row == nil {
-		return nil, ErrNotFound
-	}
-	if row.Status == string(dto.GameStatusPending) || row.Status == string(dto.GameStatusDeclined) {
-		return nil, ErrRoomNotActive
-	}
-	isParticipant, err := s.repo.IsParticipant(ctx, roomID, userID)
-	if err != nil {
-		return nil, err
-	}
-	if !isParticipant {
-		return nil, ErrNotParticipant
-	}
-	if s.contentFilter != nil {
-		if err := s.contentFilter.Check(ctx, body); err != nil {
-			return nil, err
-		}
-	}
-	u, err := s.userRepo.GetByID(ctx, userID)
-	if err != nil || u == nil {
-		return nil, ErrOpponentInactive
-	}
-	msg := dto.SpectatorMessage{
-		ID:        uuid.NewString(),
-		UserID:    userID,
-		User:      *u.ToResponse(),
-		Body:      body,
-		CreatedAt: time.Now().UTC().Format(time.RFC3339),
-	}
-
-	s.mu.Lock()
-	st := s.stateFor(roomID)
-	st.playerChat = append(st.playerChat, msg)
-	if len(st.playerChat) > maxChatMessages {
-		st.playerChat = st.playerChat[len(st.playerChat)-maxChatMessages:]
-	}
-	s.mu.Unlock()
-
-	players, err := s.loadPlayers(ctx, roomID)
-	if err == nil {
-		for _, p := range players {
-			s.hub.SendToUser(p.UserID, ws.Message{
-				Type: "player_chat_message",
-				Data: map[string]any{
-					"room_id": roomID.String(),
-					"message": msg,
-				},
-			})
-		}
-	}
-	return &msg, nil
+	return s.postChat(ctx, roomID, userID, body, true)
 }
 
 func (s *service) GetPlayerChat(ctx context.Context, roomID, viewerID uuid.UUID) (*dto.SpectatorChatResponse, error) {

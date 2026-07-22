@@ -18,10 +18,8 @@ import (
 type (
 	journalDAO struct {
 		db *sql.DB
-	}
-
-	journalRepository struct {
-		repository.JournalRepository
+		*commentDAO[uuid.UUID]
+		*mediaDAO
 	}
 )
 
@@ -152,7 +150,7 @@ func (r *journalDAO) List(ctx context.Context, p params.ListParams, viewerID uui
 		}
 	}
 
-	exclSQL, exclArgs := repository.ExcludeClause("j.user_id", excludeUserIDs, idx)
+	exclSQL, exclArgs := ExcludeClause("j.user_id", excludeUserIDs, idx)
 	idx += len(exclArgs)
 	if where == "" && exclSQL != "" {
 		where = " WHERE 1=1" + exclSQL
@@ -584,54 +582,8 @@ func (r *journalDAO) CreateComment(ctx context.Context, id uuid.UUID, journalID 
 	return nil
 }
 
-func (r *journalDAO) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string) error {
-	res, err := r.db.ExecContext(ctx,
-		`UPDATE journal_comments SET body = $1, updated_at = NOW() WHERE id = $2 AND user_id = $3`,
-		body, id, userID,
-	)
-	if err != nil {
-		return fmt.Errorf("update journal comment: %w", err)
-	}
-	n, _ := res.RowsAffected()
-	if n == 0 {
-		return fmt.Errorf("comment not found or not owned")
-	}
-	return nil
-}
-
-func (r *journalDAO) UpdateCommentAsAdmin(ctx context.Context, id uuid.UUID, body string) error {
-	_, err := r.db.ExecContext(ctx,
-		`UPDATE journal_comments SET body = $1, updated_at = NOW() WHERE id = $2`,
-		body, id,
-	)
-	if err != nil {
-		return fmt.Errorf("admin update journal comment: %w", err)
-	}
-	return nil
-}
-
-func (r *journalDAO) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	res, err := r.db.ExecContext(ctx, `DELETE FROM journal_comments WHERE id = $1 AND user_id = $2`, id, userID)
-	if err != nil {
-		return fmt.Errorf("delete journal comment: %w", err)
-	}
-	n, _ := res.RowsAffected()
-	if n == 0 {
-		return fmt.Errorf("comment not found or not owned")
-	}
-	return nil
-}
-
-func (r *journalDAO) DeleteCommentAsAdmin(ctx context.Context, id uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM journal_comments WHERE id = $1`, id)
-	if err != nil {
-		return fmt.Errorf("admin delete journal comment: %w", err)
-	}
-	return nil
-}
-
-func (r *journalDAO) GetComments(ctx context.Context, journalID uuid.UUID, viewerID uuid.UUID, limit, offset int, excludeUserIDs []uuid.UUID) ([]repository.JournalCommentRow, int, error) {
-	exclSQL, exclArgs := repository.ExcludeClause("user_id", excludeUserIDs, 2)
+func (r *journalDAO) GetComments(ctx context.Context, journalID uuid.UUID, viewerID uuid.UUID, limit, offset int, excludeUserIDs []uuid.UUID) ([]repository.CommentRow, int, error) {
+	exclSQL, exclArgs := ExcludeClause("user_id", excludeUserIDs, 2)
 	var total int
 	countArgs := []interface{}{journalID}
 	countArgs = append(countArgs, exclArgs...)
@@ -642,14 +594,14 @@ func (r *journalDAO) GetComments(ctx context.Context, journalID uuid.UUID, viewe
 		return nil, 0, fmt.Errorf("count journal comments: %w", err)
 	}
 
-	exclSQL2, exclArgs2 := repository.ExcludeClause("c.user_id", excludeUserIDs, 3)
+	exclSQL2, exclArgs2 := ExcludeClause("c.user_id", excludeUserIDs, 3)
 	limitPH := fmt.Sprintf("$%d", 3+len(exclArgs2))
 	offsetPH := fmt.Sprintf("$%d", 4+len(exclArgs2))
 	queryArgs := []interface{}{viewerID, journalID}
 	queryArgs = append(queryArgs, exclArgs2...)
 	queryArgs = append(queryArgs, limit, offset)
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT c.id, c.journal_id, c.entry_id, c.parent_id, c.user_id, c.body, c.created_at, c.updated_at,
+		`SELECT c.id, c.journal_id::text, c.entry_id, c.parent_id, c.user_id, c.body, c.created_at, c.updated_at,
 			u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''),
 			(SELECT COUNT(*) FROM journal_comment_likes WHERE comment_id = c.id),
 			EXISTS(SELECT 1 FROM journal_comment_likes WHERE comment_id = c.id AND user_id = $1)
@@ -673,8 +625,8 @@ func (r *journalDAO) GetComments(ctx context.Context, journalID uuid.UUID, viewe
 	return comments, total, rows.Err()
 }
 
-func (r *journalDAO) GetEntryComments(ctx context.Context, entryID uuid.UUID, viewerID uuid.UUID, limit, offset int, excludeUserIDs []uuid.UUID) ([]repository.JournalCommentRow, int, error) {
-	exclSQL, exclArgs := repository.ExcludeClause("user_id", excludeUserIDs, 2)
+func (r *journalDAO) GetEntryComments(ctx context.Context, entryID uuid.UUID, viewerID uuid.UUID, limit, offset int, excludeUserIDs []uuid.UUID) ([]repository.CommentRow, int, error) {
+	exclSQL, exclArgs := ExcludeClause("user_id", excludeUserIDs, 2)
 	var total int
 	countArgs := []interface{}{entryID}
 	countArgs = append(countArgs, exclArgs...)
@@ -685,14 +637,14 @@ func (r *journalDAO) GetEntryComments(ctx context.Context, entryID uuid.UUID, vi
 		return nil, 0, fmt.Errorf("count entry comments: %w", err)
 	}
 
-	exclSQL2, exclArgs2 := repository.ExcludeClause("c.user_id", excludeUserIDs, 3)
+	exclSQL2, exclArgs2 := ExcludeClause("c.user_id", excludeUserIDs, 3)
 	limitPH := fmt.Sprintf("$%d", 3+len(exclArgs2))
 	offsetPH := fmt.Sprintf("$%d", 4+len(exclArgs2))
 	queryArgs := []interface{}{viewerID, entryID}
 	queryArgs = append(queryArgs, exclArgs2...)
 	queryArgs = append(queryArgs, limit, offset)
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT c.id, c.journal_id, c.entry_id, c.parent_id, c.user_id, c.body, c.created_at, c.updated_at,
+		`SELECT c.id, c.journal_id::text, c.entry_id, c.parent_id, c.user_id, c.body, c.created_at, c.updated_at,
 			u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''),
 			(SELECT COUNT(*) FROM journal_comment_likes WHERE comment_id = c.id),
 			EXISTS(SELECT 1 FROM journal_comment_likes WHERE comment_id = c.id AND user_id = $1)
@@ -716,14 +668,14 @@ func (r *journalDAO) GetEntryComments(ctx context.Context, entryID uuid.UUID, vi
 	return comments, total, rows.Err()
 }
 
-func scanJournalCommentRows(rows *sql.Rows) ([]repository.JournalCommentRow, error) {
-	var comments []repository.JournalCommentRow
+func scanJournalCommentRows(rows *sql.Rows) ([]repository.CommentRow, error) {
+	var comments []repository.CommentRow
 	for rows.Next() {
-		var c repository.JournalCommentRow
+		var c repository.CommentRow
 		var createdAt time.Time
 		var updatedAt *time.Time
 		if err := rows.Scan(
-			&c.ID, &c.JournalID, &c.EntryID, &c.ParentID, &c.UserID, &c.Body, &createdAt, &updatedAt,
+			&c.ID, &c.EntityID, &c.EntryID, &c.ParentID, &c.UserID, &c.Body, &createdAt, &updatedAt,
 			&c.AuthorUsername, &c.AuthorDisplayName, &c.AuthorAvatarURL, &c.AuthorRole,
 			&c.LikeCount, &c.UserLiked,
 		); err != nil {
@@ -734,28 +686,6 @@ func scanJournalCommentRows(rows *sql.Rows) ([]repository.JournalCommentRow, err
 		comments = append(comments, c)
 	}
 	return comments, nil
-}
-
-func (r *journalDAO) GetCommentJournalID(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error) {
-	var id uuid.UUID
-	err := r.db.QueryRowContext(ctx,
-		`SELECT journal_id FROM journal_comments WHERE id = $1`, commentID,
-	).Scan(&id)
-	if err != nil {
-		return uuid.Nil, fmt.Errorf("get journal comment journal id: %w", err)
-	}
-	return id, nil
-}
-
-func (r *journalDAO) GetCommentAuthorID(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error) {
-	var userID uuid.UUID
-	err := r.db.QueryRowContext(ctx,
-		`SELECT user_id FROM journal_comments WHERE id = $1`, commentID,
-	).Scan(&userID)
-	if err != nil {
-		return uuid.Nil, fmt.Errorf("get journal comment author: %w", err)
-	}
-	return userID, nil
 }
 
 func (r *journalDAO) GetCommentEntryNumber(ctx context.Context, commentID uuid.UUID) (*int, error) {
@@ -774,158 +704,4 @@ func (r *journalDAO) GetCommentEntryNumber(ctx context.Context, commentID uuid.U
 		return nil, fmt.Errorf("get comment entry number: %w", err)
 	}
 	return entryNumber, nil
-}
-
-func (r *journalDAO) LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO journal_comment_likes (user_id, comment_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-		userID, commentID,
-	)
-	if err != nil {
-		return fmt.Errorf("like journal comment: %w", err)
-	}
-	return nil
-}
-
-func (r *journalDAO) UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx,
-		`DELETE FROM journal_comment_likes WHERE user_id = $1 AND comment_id = $2`,
-		userID, commentID,
-	)
-	if err != nil {
-		return fmt.Errorf("unlike journal comment: %w", err)
-	}
-	return nil
-}
-
-func (r *journalDAO) AddCommentMedia(ctx context.Context, commentID uuid.UUID, mediaURL, mediaType, thumbnailURL string, sortOrder int) (int64, error) {
-	var id int64
-	err := r.db.QueryRowContext(ctx,
-		`INSERT INTO journal_comment_media (comment_id, media_url, media_type, thumbnail_url, sort_order) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-		commentID, mediaURL, mediaType, thumbnailURL, sortOrder,
-	).Scan(&id)
-	if err != nil {
-		return 0, fmt.Errorf("add journal comment media: %w", err)
-	}
-	return id, nil
-}
-
-func (r *journalDAO) UpdateCommentMediaURL(ctx context.Context, id int64, mediaURL string) error {
-	_, err := r.db.ExecContext(ctx, `UPDATE journal_comment_media SET media_url = $1 WHERE id = $2`, mediaURL, id)
-	if err != nil {
-		return fmt.Errorf("update journal comment media url: %w", err)
-	}
-	return nil
-}
-
-func (r *journalDAO) UpdateCommentMediaThumbnail(ctx context.Context, id int64, thumbnailURL string) error {
-	_, err := r.db.ExecContext(ctx, `UPDATE journal_comment_media SET thumbnail_url = $1 WHERE id = $2`, thumbnailURL, id)
-	if err != nil {
-		return fmt.Errorf("update journal comment media thumbnail: %w", err)
-	}
-	return nil
-}
-
-func (r *journalDAO) GetCommentMediaBatch(ctx context.Context, commentIDs []uuid.UUID) (map[uuid.UUID][]repository.JournalCommentMediaRow, error) {
-	if len(commentIDs) == 0 {
-		return nil, nil
-	}
-
-	placeholders := "$1"
-	args := []interface{}{commentIDs[0]}
-	for i, id := range commentIDs[1:] {
-		placeholders += fmt.Sprintf(", $%d", i+2)
-		args = append(args, id)
-	}
-
-	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, comment_id, media_url, media_type, thumbnail_url, sort_order FROM journal_comment_media WHERE comment_id IN (`+placeholders+`) ORDER BY sort_order`,
-		args...,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("batch get journal comment media: %w", err)
-	}
-	defer rows.Close()
-
-	result := make(map[uuid.UUID][]repository.JournalCommentMediaRow)
-	for rows.Next() {
-		var m repository.JournalCommentMediaRow
-		if err := rows.Scan(&m.ID, &m.CommentID, &m.MediaURL, &m.MediaType, &m.ThumbnailURL, &m.SortOrder); err != nil {
-			return nil, fmt.Errorf("scan journal comment media: %w", err)
-		}
-		result[m.CommentID] = append(result[m.CommentID], m)
-	}
-	return result, rows.Err()
-}
-
-func (r *journalDAO) AddEntryMedia(ctx context.Context, entryID uuid.UUID, mediaURL, mediaType, thumbnailURL string, sortOrder int) (int64, error) {
-	var id int64
-	err := r.db.QueryRowContext(ctx,
-		`INSERT INTO journal_entry_media (entry_id, media_url, media_type, thumbnail_url, sort_order) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-		entryID, mediaURL, mediaType, thumbnailURL, sortOrder,
-	).Scan(&id)
-	if err != nil {
-		return 0, fmt.Errorf("add journal entry media: %w", err)
-	}
-	return id, nil
-}
-
-func (r *journalDAO) UpdateEntryMediaURL(ctx context.Context, id int64, mediaURL string) error {
-	_, err := r.db.ExecContext(ctx, `UPDATE journal_entry_media SET media_url = $1 WHERE id = $2`, mediaURL, id)
-	if err != nil {
-		return fmt.Errorf("update journal entry media url: %w", err)
-	}
-	return nil
-}
-
-func (r *journalDAO) UpdateEntryMediaThumbnail(ctx context.Context, id int64, thumbnailURL string) error {
-	_, err := r.db.ExecContext(ctx, `UPDATE journal_entry_media SET thumbnail_url = $1 WHERE id = $2`, thumbnailURL, id)
-	if err != nil {
-		return fmt.Errorf("update journal entry media thumbnail: %w", err)
-	}
-	return nil
-}
-
-func (r *journalDAO) GetEntryMediaBatch(ctx context.Context, entryIDs []uuid.UUID) (map[uuid.UUID][]repository.JournalEntryMediaRow, error) {
-	if len(entryIDs) == 0 {
-		return nil, nil
-	}
-
-	placeholders := "$1"
-	args := []interface{}{entryIDs[0]}
-	for i, id := range entryIDs[1:] {
-		placeholders += fmt.Sprintf(", $%d", i+2)
-		args = append(args, id)
-	}
-
-	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, entry_id, media_url, media_type, thumbnail_url, sort_order FROM journal_entry_media WHERE entry_id IN (`+placeholders+`) ORDER BY sort_order`,
-		args...,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("batch get journal entry media: %w", err)
-	}
-	defer rows.Close()
-
-	result := make(map[uuid.UUID][]repository.JournalEntryMediaRow)
-	for rows.Next() {
-		var m repository.JournalEntryMediaRow
-		if err := rows.Scan(&m.ID, &m.EntryID, &m.MediaURL, &m.MediaType, &m.ThumbnailURL, &m.SortOrder); err != nil {
-			return nil, fmt.Errorf("scan journal entry media: %w", err)
-		}
-		result[m.EntryID] = append(result[m.EntryID], m)
-	}
-	return result, rows.Err()
-}
-
-func (r *journalDAO) DeleteEntryMedia(ctx context.Context, id int64, entryID uuid.UUID) (string, error) {
-	var mediaURL string
-	err := r.db.QueryRowContext(ctx, `SELECT media_url FROM journal_entry_media WHERE id = $1 AND entry_id = $2`, id, entryID).Scan(&mediaURL)
-	if err != nil {
-		return "", fmt.Errorf("journal entry media not found: %w", err)
-	}
-	if _, err := r.db.ExecContext(ctx, `DELETE FROM journal_entry_media WHERE id = $1 AND entry_id = $2`, id, entryID); err != nil {
-		return "", fmt.Errorf("delete journal entry media: %w", err)
-	}
-	return mediaURL, nil
 }

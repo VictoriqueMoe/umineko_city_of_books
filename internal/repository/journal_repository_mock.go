@@ -9,6 +9,7 @@ import (
 	"time"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/journal/params"
+	"umineko_city_of_books/internal/repository/model"
 
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
@@ -131,12 +132,12 @@ func (_c *MockJournalRepository_AddCommentMedia_Call) RunAndReturn(run func(ctx 
 	return _c
 }
 
-// AddEntryMedia provides a mock function for the type MockJournalRepository
-func (_mock *MockJournalRepository) AddEntryMedia(ctx context.Context, entryID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, sortOrder int) (int64, error) {
+// AddMedia provides a mock function for the type MockJournalRepository
+func (_mock *MockJournalRepository) AddMedia(ctx context.Context, entryID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, sortOrder int) (int64, error) {
 	ret := _mock.Called(ctx, entryID, mediaURL, mediaType, thumbnailURL, sortOrder)
 
 	if len(ret) == 0 {
-		panic("no return value specified for AddEntryMedia")
+		panic("no return value specified for AddMedia")
 	}
 
 	var r0 int64
@@ -157,23 +158,23 @@ func (_mock *MockJournalRepository) AddEntryMedia(ctx context.Context, entryID u
 	return r0, r1
 }
 
-// MockJournalRepository_AddEntryMedia_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AddEntryMedia'
-type MockJournalRepository_AddEntryMedia_Call struct {
+// MockJournalRepository_AddMedia_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AddMedia'
+type MockJournalRepository_AddMedia_Call struct {
 	*mock.Call
 }
 
-// AddEntryMedia is a helper method to define mock.On call
+// AddMedia is a helper method to define mock.On call
 //   - ctx context.Context
 //   - entryID uuid.UUID
 //   - mediaURL string
 //   - mediaType string
 //   - thumbnailURL string
 //   - sortOrder int
-func (_e *MockJournalRepository_Expecter) AddEntryMedia(ctx any, entryID any, mediaURL any, mediaType any, thumbnailURL any, sortOrder any) *MockJournalRepository_AddEntryMedia_Call {
-	return &MockJournalRepository_AddEntryMedia_Call{Call: _e.mock.On("AddEntryMedia", ctx, entryID, mediaURL, mediaType, thumbnailURL, sortOrder)}
+func (_e *MockJournalRepository_Expecter) AddMedia(ctx any, entryID any, mediaURL any, mediaType any, thumbnailURL any, sortOrder any) *MockJournalRepository_AddMedia_Call {
+	return &MockJournalRepository_AddMedia_Call{Call: _e.mock.On("AddMedia", ctx, entryID, mediaURL, mediaType, thumbnailURL, sortOrder)}
 }
 
-func (_c *MockJournalRepository_AddEntryMedia_Call) Run(run func(ctx context.Context, entryID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, sortOrder int)) *MockJournalRepository_AddEntryMedia_Call {
+func (_c *MockJournalRepository_AddMedia_Call) Run(run func(ctx context.Context, entryID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, sortOrder int)) *MockJournalRepository_AddMedia_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -211,12 +212,12 @@ func (_c *MockJournalRepository_AddEntryMedia_Call) Run(run func(ctx context.Con
 	return _c
 }
 
-func (_c *MockJournalRepository_AddEntryMedia_Call) Return(n int64, err error) *MockJournalRepository_AddEntryMedia_Call {
+func (_c *MockJournalRepository_AddMedia_Call) Return(n int64, err error) *MockJournalRepository_AddMedia_Call {
 	_c.Call.Return(n, err)
 	return _c
 }
 
-func (_c *MockJournalRepository_AddEntryMedia_Call) RunAndReturn(run func(ctx context.Context, entryID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, sortOrder int) (int64, error)) *MockJournalRepository_AddEntryMedia_Call {
+func (_c *MockJournalRepository_AddMedia_Call) RunAndReturn(run func(ctx context.Context, entryID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, sortOrder int) (int64, error)) *MockJournalRepository_AddMedia_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -906,12 +907,12 @@ func (_c *MockJournalRepository_DeleteEntry_Call) RunAndReturn(run func(ctx cont
 	return _c
 }
 
-// DeleteEntryMedia provides a mock function for the type MockJournalRepository
-func (_mock *MockJournalRepository) DeleteEntryMedia(ctx context.Context, id int64, entryID uuid.UUID) (string, error) {
+// DeleteMedia provides a mock function for the type MockJournalRepository
+func (_mock *MockJournalRepository) DeleteMedia(ctx context.Context, id int64, entryID uuid.UUID) (string, error) {
 	ret := _mock.Called(ctx, id, entryID)
 
 	if len(ret) == 0 {
-		panic("no return value specified for DeleteEntryMedia")
+		panic("no return value specified for DeleteMedia")
 	}
 
 	var r0 string
@@ -932,20 +933,20 @@ func (_mock *MockJournalRepository) DeleteEntryMedia(ctx context.Context, id int
 	return r0, r1
 }
 
-// MockJournalRepository_DeleteEntryMedia_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteEntryMedia'
-type MockJournalRepository_DeleteEntryMedia_Call struct {
+// MockJournalRepository_DeleteMedia_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteMedia'
+type MockJournalRepository_DeleteMedia_Call struct {
 	*mock.Call
 }
 
-// DeleteEntryMedia is a helper method to define mock.On call
+// DeleteMedia is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id int64
 //   - entryID uuid.UUID
-func (_e *MockJournalRepository_Expecter) DeleteEntryMedia(ctx any, id any, entryID any) *MockJournalRepository_DeleteEntryMedia_Call {
-	return &MockJournalRepository_DeleteEntryMedia_Call{Call: _e.mock.On("DeleteEntryMedia", ctx, id, entryID)}
+func (_e *MockJournalRepository_Expecter) DeleteMedia(ctx any, id any, entryID any) *MockJournalRepository_DeleteMedia_Call {
+	return &MockJournalRepository_DeleteMedia_Call{Call: _e.mock.On("DeleteMedia", ctx, id, entryID)}
 }
 
-func (_c *MockJournalRepository_DeleteEntryMedia_Call) Run(run func(ctx context.Context, id int64, entryID uuid.UUID)) *MockJournalRepository_DeleteEntryMedia_Call {
+func (_c *MockJournalRepository_DeleteMedia_Call) Run(run func(ctx context.Context, id int64, entryID uuid.UUID)) *MockJournalRepository_DeleteMedia_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -968,12 +969,12 @@ func (_c *MockJournalRepository_DeleteEntryMedia_Call) Run(run func(ctx context.
 	return _c
 }
 
-func (_c *MockJournalRepository_DeleteEntryMedia_Call) Return(s string, err error) *MockJournalRepository_DeleteEntryMedia_Call {
+func (_c *MockJournalRepository_DeleteMedia_Call) Return(s string, err error) *MockJournalRepository_DeleteMedia_Call {
 	_c.Call.Return(s, err)
 	return _c
 }
 
-func (_c *MockJournalRepository_DeleteEntryMedia_Call) RunAndReturn(run func(ctx context.Context, id int64, entryID uuid.UUID) (string, error)) *MockJournalRepository_DeleteEntryMedia_Call {
+func (_c *MockJournalRepository_DeleteMedia_Call) RunAndReturn(run func(ctx context.Context, id int64, entryID uuid.UUID) (string, error)) *MockJournalRepository_DeleteMedia_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1251,6 +1252,74 @@ func (_c *MockJournalRepository_GetCommentAuthorID_Call) RunAndReturn(run func(c
 	return _c
 }
 
+// GetCommentEntityID provides a mock function for the type MockJournalRepository
+func (_mock *MockJournalRepository) GetCommentEntityID(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error) {
+	ret := _mock.Called(ctx, commentID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetCommentEntityID")
+	}
+
+	var r0 uuid.UUID
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (uuid.UUID, error)); ok {
+		return returnFunc(ctx, commentID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) uuid.UUID); ok {
+		r0 = returnFunc(ctx, commentID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(uuid.UUID)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, commentID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockJournalRepository_GetCommentEntityID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetCommentEntityID'
+type MockJournalRepository_GetCommentEntityID_Call struct {
+	*mock.Call
+}
+
+// GetCommentEntityID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - commentID uuid.UUID
+func (_e *MockJournalRepository_Expecter) GetCommentEntityID(ctx any, commentID any) *MockJournalRepository_GetCommentEntityID_Call {
+	return &MockJournalRepository_GetCommentEntityID_Call{Call: _e.mock.On("GetCommentEntityID", ctx, commentID)}
+}
+
+func (_c *MockJournalRepository_GetCommentEntityID_Call) Run(run func(ctx context.Context, commentID uuid.UUID)) *MockJournalRepository_GetCommentEntityID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockJournalRepository_GetCommentEntityID_Call) Return(uUID uuid.UUID, err error) *MockJournalRepository_GetCommentEntityID_Call {
+	_c.Call.Return(uUID, err)
+	return _c
+}
+
+func (_c *MockJournalRepository_GetCommentEntityID_Call) RunAndReturn(run func(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error)) *MockJournalRepository_GetCommentEntityID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetCommentEntryNumber provides a mock function for the type MockJournalRepository
 func (_mock *MockJournalRepository) GetCommentEntryNumber(ctx context.Context, commentID uuid.UUID) (*int, error) {
 	ret := _mock.Called(ctx, commentID)
@@ -1319,92 +1388,24 @@ func (_c *MockJournalRepository_GetCommentEntryNumber_Call) RunAndReturn(run fun
 	return _c
 }
 
-// GetCommentJournalID provides a mock function for the type MockJournalRepository
-func (_mock *MockJournalRepository) GetCommentJournalID(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error) {
-	ret := _mock.Called(ctx, commentID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetCommentJournalID")
-	}
-
-	var r0 uuid.UUID
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (uuid.UUID, error)); ok {
-		return returnFunc(ctx, commentID)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) uuid.UUID); ok {
-		r0 = returnFunc(ctx, commentID)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(uuid.UUID)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, commentID)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockJournalRepository_GetCommentJournalID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetCommentJournalID'
-type MockJournalRepository_GetCommentJournalID_Call struct {
-	*mock.Call
-}
-
-// GetCommentJournalID is a helper method to define mock.On call
-//   - ctx context.Context
-//   - commentID uuid.UUID
-func (_e *MockJournalRepository_Expecter) GetCommentJournalID(ctx any, commentID any) *MockJournalRepository_GetCommentJournalID_Call {
-	return &MockJournalRepository_GetCommentJournalID_Call{Call: _e.mock.On("GetCommentJournalID", ctx, commentID)}
-}
-
-func (_c *MockJournalRepository_GetCommentJournalID_Call) Run(run func(ctx context.Context, commentID uuid.UUID)) *MockJournalRepository_GetCommentJournalID_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		run(
-			arg0,
-			arg1,
-		)
-	})
-	return _c
-}
-
-func (_c *MockJournalRepository_GetCommentJournalID_Call) Return(uUID uuid.UUID, err error) *MockJournalRepository_GetCommentJournalID_Call {
-	_c.Call.Return(uUID, err)
-	return _c
-}
-
-func (_c *MockJournalRepository_GetCommentJournalID_Call) RunAndReturn(run func(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error)) *MockJournalRepository_GetCommentJournalID_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // GetCommentMediaBatch provides a mock function for the type MockJournalRepository
-func (_mock *MockJournalRepository) GetCommentMediaBatch(ctx context.Context, commentIDs []uuid.UUID) (map[uuid.UUID][]JournalCommentMediaRow, error) {
+func (_mock *MockJournalRepository) GetCommentMediaBatch(ctx context.Context, commentIDs []uuid.UUID) (map[uuid.UUID][]model.PostMediaRow, error) {
 	ret := _mock.Called(ctx, commentIDs)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetCommentMediaBatch")
 	}
 
-	var r0 map[uuid.UUID][]JournalCommentMediaRow
+	var r0 map[uuid.UUID][]model.PostMediaRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) (map[uuid.UUID][]JournalCommentMediaRow, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) (map[uuid.UUID][]model.PostMediaRow, error)); ok {
 		return returnFunc(ctx, commentIDs)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) map[uuid.UUID][]JournalCommentMediaRow); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) map[uuid.UUID][]model.PostMediaRow); ok {
 		r0 = returnFunc(ctx, commentIDs)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(map[uuid.UUID][]JournalCommentMediaRow)
+			r0 = ret.Get(0).(map[uuid.UUID][]model.PostMediaRow)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, []uuid.UUID) error); ok {
@@ -1445,35 +1446,35 @@ func (_c *MockJournalRepository_GetCommentMediaBatch_Call) Run(run func(ctx cont
 	return _c
 }
 
-func (_c *MockJournalRepository_GetCommentMediaBatch_Call) Return(uUIDToJournalCommentMediaRows map[uuid.UUID][]JournalCommentMediaRow, err error) *MockJournalRepository_GetCommentMediaBatch_Call {
-	_c.Call.Return(uUIDToJournalCommentMediaRows, err)
+func (_c *MockJournalRepository_GetCommentMediaBatch_Call) Return(uUIDToPostMediaRows map[uuid.UUID][]model.PostMediaRow, err error) *MockJournalRepository_GetCommentMediaBatch_Call {
+	_c.Call.Return(uUIDToPostMediaRows, err)
 	return _c
 }
 
-func (_c *MockJournalRepository_GetCommentMediaBatch_Call) RunAndReturn(run func(ctx context.Context, commentIDs []uuid.UUID) (map[uuid.UUID][]JournalCommentMediaRow, error)) *MockJournalRepository_GetCommentMediaBatch_Call {
+func (_c *MockJournalRepository_GetCommentMediaBatch_Call) RunAndReturn(run func(ctx context.Context, commentIDs []uuid.UUID) (map[uuid.UUID][]model.PostMediaRow, error)) *MockJournalRepository_GetCommentMediaBatch_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetComments provides a mock function for the type MockJournalRepository
-func (_mock *MockJournalRepository) GetComments(ctx context.Context, journalID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID) ([]JournalCommentRow, int, error) {
+func (_mock *MockJournalRepository) GetComments(ctx context.Context, journalID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID) ([]CommentRow, int, error) {
 	ret := _mock.Called(ctx, journalID, viewerID, limit, offset, excludeUserIDs)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetComments")
 	}
 
-	var r0 []JournalCommentRow
+	var r0 []CommentRow
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID) ([]JournalCommentRow, int, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID) ([]CommentRow, int, error)); ok {
 		return returnFunc(ctx, journalID, viewerID, limit, offset, excludeUserIDs)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID) []JournalCommentRow); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID) []CommentRow); ok {
 		r0 = returnFunc(ctx, journalID, viewerID, limit, offset, excludeUserIDs)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]JournalCommentRow)
+			r0 = ret.Get(0).([]CommentRow)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID) int); ok {
@@ -1543,12 +1544,12 @@ func (_c *MockJournalRepository_GetComments_Call) Run(run func(ctx context.Conte
 	return _c
 }
 
-func (_c *MockJournalRepository_GetComments_Call) Return(journalCommentRows []JournalCommentRow, n int, err error) *MockJournalRepository_GetComments_Call {
-	_c.Call.Return(journalCommentRows, n, err)
+func (_c *MockJournalRepository_GetComments_Call) Return(commentRows []CommentRow, n int, err error) *MockJournalRepository_GetComments_Call {
+	_c.Call.Return(commentRows, n, err)
 	return _c
 }
 
-func (_c *MockJournalRepository_GetComments_Call) RunAndReturn(run func(ctx context.Context, journalID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID) ([]JournalCommentRow, int, error)) *MockJournalRepository_GetComments_Call {
+func (_c *MockJournalRepository_GetComments_Call) RunAndReturn(run func(ctx context.Context, journalID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID) ([]CommentRow, int, error)) *MockJournalRepository_GetComments_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1764,24 +1765,24 @@ func (_c *MockJournalRepository_GetEntryByID_Call) RunAndReturn(run func(ctx con
 }
 
 // GetEntryComments provides a mock function for the type MockJournalRepository
-func (_mock *MockJournalRepository) GetEntryComments(ctx context.Context, entryID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID) ([]JournalCommentRow, int, error) {
+func (_mock *MockJournalRepository) GetEntryComments(ctx context.Context, entryID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID) ([]CommentRow, int, error) {
 	ret := _mock.Called(ctx, entryID, viewerID, limit, offset, excludeUserIDs)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetEntryComments")
 	}
 
-	var r0 []JournalCommentRow
+	var r0 []CommentRow
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID) ([]JournalCommentRow, int, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID) ([]CommentRow, int, error)); ok {
 		return returnFunc(ctx, entryID, viewerID, limit, offset, excludeUserIDs)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID) []JournalCommentRow); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID) []CommentRow); ok {
 		r0 = returnFunc(ctx, entryID, viewerID, limit, offset, excludeUserIDs)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]JournalCommentRow)
+			r0 = ret.Get(0).([]CommentRow)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID) int); ok {
@@ -1851,12 +1852,12 @@ func (_c *MockJournalRepository_GetEntryComments_Call) Run(run func(ctx context.
 	return _c
 }
 
-func (_c *MockJournalRepository_GetEntryComments_Call) Return(journalCommentRows []JournalCommentRow, n int, err error) *MockJournalRepository_GetEntryComments_Call {
-	_c.Call.Return(journalCommentRows, n, err)
+func (_c *MockJournalRepository_GetEntryComments_Call) Return(commentRows []CommentRow, n int, err error) *MockJournalRepository_GetEntryComments_Call {
+	_c.Call.Return(commentRows, n, err)
 	return _c
 }
 
-func (_c *MockJournalRepository_GetEntryComments_Call) RunAndReturn(run func(ctx context.Context, entryID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID) ([]JournalCommentRow, int, error)) *MockJournalRepository_GetEntryComments_Call {
+func (_c *MockJournalRepository_GetEntryComments_Call) RunAndReturn(run func(ctx context.Context, entryID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID) ([]CommentRow, int, error)) *MockJournalRepository_GetEntryComments_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1925,74 +1926,6 @@ func (_c *MockJournalRepository_GetEntryJournalID_Call) Return(uUID uuid.UUID, e
 }
 
 func (_c *MockJournalRepository_GetEntryJournalID_Call) RunAndReturn(run func(ctx context.Context, entryID uuid.UUID) (uuid.UUID, error)) *MockJournalRepository_GetEntryJournalID_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetEntryMediaBatch provides a mock function for the type MockJournalRepository
-func (_mock *MockJournalRepository) GetEntryMediaBatch(ctx context.Context, entryIDs []uuid.UUID) (map[uuid.UUID][]JournalEntryMediaRow, error) {
-	ret := _mock.Called(ctx, entryIDs)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetEntryMediaBatch")
-	}
-
-	var r0 map[uuid.UUID][]JournalEntryMediaRow
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) (map[uuid.UUID][]JournalEntryMediaRow, error)); ok {
-		return returnFunc(ctx, entryIDs)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) map[uuid.UUID][]JournalEntryMediaRow); ok {
-		r0 = returnFunc(ctx, entryIDs)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(map[uuid.UUID][]JournalEntryMediaRow)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, []uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, entryIDs)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockJournalRepository_GetEntryMediaBatch_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetEntryMediaBatch'
-type MockJournalRepository_GetEntryMediaBatch_Call struct {
-	*mock.Call
-}
-
-// GetEntryMediaBatch is a helper method to define mock.On call
-//   - ctx context.Context
-//   - entryIDs []uuid.UUID
-func (_e *MockJournalRepository_Expecter) GetEntryMediaBatch(ctx any, entryIDs any) *MockJournalRepository_GetEntryMediaBatch_Call {
-	return &MockJournalRepository_GetEntryMediaBatch_Call{Call: _e.mock.On("GetEntryMediaBatch", ctx, entryIDs)}
-}
-
-func (_c *MockJournalRepository_GetEntryMediaBatch_Call) Run(run func(ctx context.Context, entryIDs []uuid.UUID)) *MockJournalRepository_GetEntryMediaBatch_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 []uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].([]uuid.UUID)
-		}
-		run(
-			arg0,
-			arg1,
-		)
-	})
-	return _c
-}
-
-func (_c *MockJournalRepository_GetEntryMediaBatch_Call) Return(uUIDToJournalEntryMediaRows map[uuid.UUID][]JournalEntryMediaRow, err error) *MockJournalRepository_GetEntryMediaBatch_Call {
-	_c.Call.Return(uUIDToJournalEntryMediaRows, err)
-	return _c
-}
-
-func (_c *MockJournalRepository_GetEntryMediaBatch_Call) RunAndReturn(run func(ctx context.Context, entryIDs []uuid.UUID) (map[uuid.UUID][]JournalEntryMediaRow, error)) *MockJournalRepository_GetEntryMediaBatch_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2127,6 +2060,74 @@ func (_c *MockJournalRepository_GetFollowerIDs_Call) Return(uUIDs []uuid.UUID, e
 }
 
 func (_c *MockJournalRepository_GetFollowerIDs_Call) RunAndReturn(run func(ctx context.Context, journalID uuid.UUID) ([]uuid.UUID, error)) *MockJournalRepository_GetFollowerIDs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetMediaBatch provides a mock function for the type MockJournalRepository
+func (_mock *MockJournalRepository) GetMediaBatch(ctx context.Context, entryIDs []uuid.UUID) (map[uuid.UUID][]model.PostMediaRow, error) {
+	ret := _mock.Called(ctx, entryIDs)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetMediaBatch")
+	}
+
+	var r0 map[uuid.UUID][]model.PostMediaRow
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) (map[uuid.UUID][]model.PostMediaRow, error)); ok {
+		return returnFunc(ctx, entryIDs)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) map[uuid.UUID][]model.PostMediaRow); ok {
+		r0 = returnFunc(ctx, entryIDs)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[uuid.UUID][]model.PostMediaRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, []uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, entryIDs)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockJournalRepository_GetMediaBatch_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetMediaBatch'
+type MockJournalRepository_GetMediaBatch_Call struct {
+	*mock.Call
+}
+
+// GetMediaBatch is a helper method to define mock.On call
+//   - ctx context.Context
+//   - entryIDs []uuid.UUID
+func (_e *MockJournalRepository_Expecter) GetMediaBatch(ctx any, entryIDs any) *MockJournalRepository_GetMediaBatch_Call {
+	return &MockJournalRepository_GetMediaBatch_Call{Call: _e.mock.On("GetMediaBatch", ctx, entryIDs)}
+}
+
+func (_c *MockJournalRepository_GetMediaBatch_Call) Run(run func(ctx context.Context, entryIDs []uuid.UUID)) *MockJournalRepository_GetMediaBatch_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].([]uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockJournalRepository_GetMediaBatch_Call) Return(uUIDToPostMediaRows map[uuid.UUID][]model.PostMediaRow, err error) *MockJournalRepository_GetMediaBatch_Call {
+	_c.Call.Return(uUIDToPostMediaRows, err)
+	return _c
+}
+
+func (_c *MockJournalRepository_GetMediaBatch_Call) RunAndReturn(run func(ctx context.Context, entryIDs []uuid.UUID) (map[uuid.UUID][]model.PostMediaRow, error)) *MockJournalRepository_GetMediaBatch_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -3307,132 +3308,6 @@ func (_c *MockJournalRepository_UpdateEntry_Call) RunAndReturn(run func(ctx cont
 	return _c
 }
 
-// UpdateEntryMediaThumbnail provides a mock function for the type MockJournalRepository
-func (_mock *MockJournalRepository) UpdateEntryMediaThumbnail(ctx context.Context, id int64, thumbnailURL string) error {
-	ret := _mock.Called(ctx, id, thumbnailURL)
-
-	if len(ret) == 0 {
-		panic("no return value specified for UpdateEntryMediaThumbnail")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, string) error); ok {
-		r0 = returnFunc(ctx, id, thumbnailURL)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockJournalRepository_UpdateEntryMediaThumbnail_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateEntryMediaThumbnail'
-type MockJournalRepository_UpdateEntryMediaThumbnail_Call struct {
-	*mock.Call
-}
-
-// UpdateEntryMediaThumbnail is a helper method to define mock.On call
-//   - ctx context.Context
-//   - id int64
-//   - thumbnailURL string
-func (_e *MockJournalRepository_Expecter) UpdateEntryMediaThumbnail(ctx any, id any, thumbnailURL any) *MockJournalRepository_UpdateEntryMediaThumbnail_Call {
-	return &MockJournalRepository_UpdateEntryMediaThumbnail_Call{Call: _e.mock.On("UpdateEntryMediaThumbnail", ctx, id, thumbnailURL)}
-}
-
-func (_c *MockJournalRepository_UpdateEntryMediaThumbnail_Call) Run(run func(ctx context.Context, id int64, thumbnailURL string)) *MockJournalRepository_UpdateEntryMediaThumbnail_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 int64
-		if args[1] != nil {
-			arg1 = args[1].(int64)
-		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
-	})
-	return _c
-}
-
-func (_c *MockJournalRepository_UpdateEntryMediaThumbnail_Call) Return(err error) *MockJournalRepository_UpdateEntryMediaThumbnail_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockJournalRepository_UpdateEntryMediaThumbnail_Call) RunAndReturn(run func(ctx context.Context, id int64, thumbnailURL string) error) *MockJournalRepository_UpdateEntryMediaThumbnail_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// UpdateEntryMediaURL provides a mock function for the type MockJournalRepository
-func (_mock *MockJournalRepository) UpdateEntryMediaURL(ctx context.Context, id int64, mediaURL string) error {
-	ret := _mock.Called(ctx, id, mediaURL)
-
-	if len(ret) == 0 {
-		panic("no return value specified for UpdateEntryMediaURL")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, string) error); ok {
-		r0 = returnFunc(ctx, id, mediaURL)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockJournalRepository_UpdateEntryMediaURL_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateEntryMediaURL'
-type MockJournalRepository_UpdateEntryMediaURL_Call struct {
-	*mock.Call
-}
-
-// UpdateEntryMediaURL is a helper method to define mock.On call
-//   - ctx context.Context
-//   - id int64
-//   - mediaURL string
-func (_e *MockJournalRepository_Expecter) UpdateEntryMediaURL(ctx any, id any, mediaURL any) *MockJournalRepository_UpdateEntryMediaURL_Call {
-	return &MockJournalRepository_UpdateEntryMediaURL_Call{Call: _e.mock.On("UpdateEntryMediaURL", ctx, id, mediaURL)}
-}
-
-func (_c *MockJournalRepository_UpdateEntryMediaURL_Call) Run(run func(ctx context.Context, id int64, mediaURL string)) *MockJournalRepository_UpdateEntryMediaURL_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 int64
-		if args[1] != nil {
-			arg1 = args[1].(int64)
-		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
-	})
-	return _c
-}
-
-func (_c *MockJournalRepository_UpdateEntryMediaURL_Call) Return(err error) *MockJournalRepository_UpdateEntryMediaURL_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockJournalRepository_UpdateEntryMediaURL_Call) RunAndReturn(run func(ctx context.Context, id int64, mediaURL string) error) *MockJournalRepository_UpdateEntryMediaURL_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // UpdateLastAuthorActivity provides a mock function for the type MockJournalRepository
 func (_mock *MockJournalRepository) UpdateLastAuthorActivity(ctx context.Context, id uuid.UUID) error {
 	ret := _mock.Called(ctx, id)
@@ -3486,6 +3361,132 @@ func (_c *MockJournalRepository_UpdateLastAuthorActivity_Call) Return(err error)
 }
 
 func (_c *MockJournalRepository_UpdateLastAuthorActivity_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) error) *MockJournalRepository_UpdateLastAuthorActivity_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateMediaThumbnail provides a mock function for the type MockJournalRepository
+func (_mock *MockJournalRepository) UpdateMediaThumbnail(ctx context.Context, id int64, thumbnailURL string) error {
+	ret := _mock.Called(ctx, id, thumbnailURL)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateMediaThumbnail")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, string) error); ok {
+		r0 = returnFunc(ctx, id, thumbnailURL)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockJournalRepository_UpdateMediaThumbnail_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateMediaThumbnail'
+type MockJournalRepository_UpdateMediaThumbnail_Call struct {
+	*mock.Call
+}
+
+// UpdateMediaThumbnail is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id int64
+//   - thumbnailURL string
+func (_e *MockJournalRepository_Expecter) UpdateMediaThumbnail(ctx any, id any, thumbnailURL any) *MockJournalRepository_UpdateMediaThumbnail_Call {
+	return &MockJournalRepository_UpdateMediaThumbnail_Call{Call: _e.mock.On("UpdateMediaThumbnail", ctx, id, thumbnailURL)}
+}
+
+func (_c *MockJournalRepository_UpdateMediaThumbnail_Call) Run(run func(ctx context.Context, id int64, thumbnailURL string)) *MockJournalRepository_UpdateMediaThumbnail_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 int64
+		if args[1] != nil {
+			arg1 = args[1].(int64)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockJournalRepository_UpdateMediaThumbnail_Call) Return(err error) *MockJournalRepository_UpdateMediaThumbnail_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockJournalRepository_UpdateMediaThumbnail_Call) RunAndReturn(run func(ctx context.Context, id int64, thumbnailURL string) error) *MockJournalRepository_UpdateMediaThumbnail_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateMediaURL provides a mock function for the type MockJournalRepository
+func (_mock *MockJournalRepository) UpdateMediaURL(ctx context.Context, id int64, mediaURL string) error {
+	ret := _mock.Called(ctx, id, mediaURL)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateMediaURL")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, string) error); ok {
+		r0 = returnFunc(ctx, id, mediaURL)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockJournalRepository_UpdateMediaURL_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateMediaURL'
+type MockJournalRepository_UpdateMediaURL_Call struct {
+	*mock.Call
+}
+
+// UpdateMediaURL is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id int64
+//   - mediaURL string
+func (_e *MockJournalRepository_Expecter) UpdateMediaURL(ctx any, id any, mediaURL any) *MockJournalRepository_UpdateMediaURL_Call {
+	return &MockJournalRepository_UpdateMediaURL_Call{Call: _e.mock.On("UpdateMediaURL", ctx, id, mediaURL)}
+}
+
+func (_c *MockJournalRepository_UpdateMediaURL_Call) Run(run func(ctx context.Context, id int64, mediaURL string)) *MockJournalRepository_UpdateMediaURL_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 int64
+		if args[1] != nil {
+			arg1 = args[1].(int64)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockJournalRepository_UpdateMediaURL_Call) Return(err error) *MockJournalRepository_UpdateMediaURL_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockJournalRepository_UpdateMediaURL_Call) RunAndReturn(run func(ctx context.Context, id int64, mediaURL string) error) *MockJournalRepository_UpdateMediaURL_Call {
 	_c.Call.Return(run)
 	return _c
 }

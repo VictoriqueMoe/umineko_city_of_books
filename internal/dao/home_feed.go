@@ -12,10 +12,6 @@ type (
 	homeFeedDAO struct {
 		db *sql.DB
 	}
-
-	homeFeedRepository struct {
-		repository.HomeFeedRepository
-	}
 )
 
 const homeActivitySQL = `

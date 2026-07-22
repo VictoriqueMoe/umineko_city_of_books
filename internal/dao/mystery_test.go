@@ -994,7 +994,7 @@ func TestMysteryDAO_CreateComment_AndGet(t *testing.T) {
 	commentID := createMysteryComment(t, repos, id, nil, commenter.ID, "nice mystery")
 
 	// then
-	comments, err := repos.Mystery.GetComments(context.Background(), id, commenter.ID, nil)
+	comments, _, err := repos.Mystery.GetComments(context.Background(), id, commenter.ID, 500, 0, nil)
 	require.NoError(t, err)
 	require.Len(t, comments, 1)
 	assert.Equal(t, commentID, comments[0].ID)
@@ -1013,7 +1013,7 @@ func TestMysteryDAO_CreateComment_Threaded(t *testing.T) {
 	reply := createMysteryComment(t, repos, id, &parent, gm.ID, "reply")
 
 	// then
-	comments, err := repos.Mystery.GetComments(context.Background(), id, gm.ID, nil)
+	comments, _, err := repos.Mystery.GetComments(context.Background(), id, gm.ID, 500, 0, nil)
 	require.NoError(t, err)
 	require.Len(t, comments, 2)
 	var found bool
@@ -1040,7 +1040,7 @@ func TestMysteryDAO_UpdateComment_AsOwner(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	comments, err := repos.Mystery.GetComments(context.Background(), id, commenter.ID, nil)
+	comments, _, err := repos.Mystery.GetComments(context.Background(), id, commenter.ID, 500, 0, nil)
 	require.NoError(t, err)
 	require.Len(t, comments, 1)
 	assert.Equal(t, "new body", comments[0].Body)
@@ -1076,7 +1076,7 @@ func TestMysteryDAO_UpdateCommentAsAdmin(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	comments, err := repos.Mystery.GetComments(context.Background(), id, commenter.ID, nil)
+	comments, _, err := repos.Mystery.GetComments(context.Background(), id, commenter.ID, 500, 0, nil)
 	require.NoError(t, err)
 	require.Len(t, comments, 1)
 	assert.Equal(t, "admin edit", comments[0].Body)
@@ -1095,7 +1095,7 @@ func TestMysteryDAO_DeleteComment_AsOwner(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	comments, err := repos.Mystery.GetComments(context.Background(), id, commenter.ID, nil)
+	comments, _, err := repos.Mystery.GetComments(context.Background(), id, commenter.ID, 500, 0, nil)
 	require.NoError(t, err)
 	assert.Empty(t, comments)
 }
@@ -1129,7 +1129,7 @@ func TestMysteryDAO_DeleteCommentAsAdmin(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	comments, err := repos.Mystery.GetComments(context.Background(), id, commenter.ID, nil)
+	comments, _, err := repos.Mystery.GetComments(context.Background(), id, commenter.ID, 500, 0, nil)
 	require.NoError(t, err)
 	assert.Empty(t, comments)
 }
@@ -1145,7 +1145,7 @@ func TestMysteryDAO_GetComments_ExcludeUsers(t *testing.T) {
 	keepID := createMysteryComment(t, repos, id, nil, c2.ID, "B")
 
 	// when
-	comments, err := repos.Mystery.GetComments(context.Background(), id, gm.ID, []uuid.UUID{c1.ID})
+	comments, _, err := repos.Mystery.GetComments(context.Background(), id, gm.ID, 500, 0, []uuid.UUID{c1.ID})
 
 	// then
 	require.NoError(t, err)
@@ -1153,7 +1153,7 @@ func TestMysteryDAO_GetComments_ExcludeUsers(t *testing.T) {
 	assert.Equal(t, keepID, comments[0].ID)
 }
 
-func TestMysteryDAO_GetCommentMysteryID(t *testing.T) {
+func TestMysteryDAO_GetCommentEntityID(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	gm := daotest.CreateUser(t, repos)
@@ -1162,7 +1162,7 @@ func TestMysteryDAO_GetCommentMysteryID(t *testing.T) {
 	commentID := createMysteryComment(t, repos, id, nil, commenter.ID, "x")
 
 	// when
-	got, err := repos.Mystery.GetCommentMysteryID(context.Background(), commentID)
+	got, err := repos.Mystery.GetCommentEntityID(context.Background(), commentID)
 
 	// then
 	require.NoError(t, err)
@@ -1199,7 +1199,7 @@ func TestMysteryDAO_LikeComment(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	comments, err := repos.Mystery.GetComments(context.Background(), id, liker.ID, nil)
+	comments, _, err := repos.Mystery.GetComments(context.Background(), id, liker.ID, 500, 0, nil)
 	require.NoError(t, err)
 	require.Len(t, comments, 1)
 	assert.Equal(t, 1, comments[0].LikeCount)
@@ -1220,7 +1220,7 @@ func TestMysteryDAO_LikeComment_Idempotent(t *testing.T) {
 	require.NoError(t, repos.Mystery.LikeComment(context.Background(), liker.ID, commentID))
 
 	// then
-	comments, err := repos.Mystery.GetComments(context.Background(), id, liker.ID, nil)
+	comments, _, err := repos.Mystery.GetComments(context.Background(), id, liker.ID, 500, 0, nil)
 	require.NoError(t, err)
 	require.Len(t, comments, 1)
 	assert.Equal(t, 1, comments[0].LikeCount)
@@ -1241,7 +1241,7 @@ func TestMysteryDAO_UnlikeComment(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	comments, err := repos.Mystery.GetComments(context.Background(), id, liker.ID, nil)
+	comments, _, err := repos.Mystery.GetComments(context.Background(), id, liker.ID, 500, 0, nil)
 	require.NoError(t, err)
 	require.Len(t, comments, 1)
 	assert.Equal(t, 0, comments[0].LikeCount)
@@ -1319,9 +1319,9 @@ func TestMysteryDAO_GetCommentMedia_Ordering(t *testing.T) {
 	commenter := daotest.CreateUser(t, repos)
 	id := createMystery(t, repos, gm.ID, "T", "easy", false)
 	commentID := createMysteryComment(t, repos, id, nil, commenter.ID, "x")
-	_, err := repos.Mystery.AddCommentMedia(context.Background(), commentID, "/b.png", "image", "", 2)
+	_, err := repos.Mystery.AddCommentMedia(context.Background(), commentID, "/a.png", "image", "", 0)
 	require.NoError(t, err)
-	_, err = repos.Mystery.AddCommentMedia(context.Background(), commentID, "/a.png", "image", "", 1)
+	_, err = repos.Mystery.AddCommentMedia(context.Background(), commentID, "/b.png", "image", "", 0)
 	require.NoError(t, err)
 
 	// when
@@ -1475,19 +1475,19 @@ func TestMysteryDAO_GetByID_ClueCount(t *testing.T) {
 	assert.Equal(t, 2, row.ClueCount)
 }
 
-func TestMysteryDAO_AddMysteryMedia_AndGet(t *testing.T) {
+func TestMysteryDAO_AddMedia_AndGet(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	gm := daotest.CreateUser(t, repos)
 	id := createMystery(t, repos, gm.ID, "T", "easy", false)
 
 	// when
-	mediaID, err := repos.Mystery.AddMysteryMedia(context.Background(), id, "/img.png", "image", "/t.png", 0)
+	mediaID, err := repos.Mystery.AddMedia(context.Background(), id, "/img.png", "image", "/t.png", 0)
 
 	// then
 	require.NoError(t, err)
 	assert.NotZero(t, mediaID)
-	media, err := repos.Mystery.GetMysteryMedia(context.Background(), id)
+	media, err := repos.Mystery.GetMedia(context.Background(), id)
 	require.NoError(t, err)
 	require.Len(t, media, 1)
 	assert.Equal(t, "/img.png", media[0].MediaURL)
@@ -1496,56 +1496,56 @@ func TestMysteryDAO_AddMysteryMedia_AndGet(t *testing.T) {
 	assert.Equal(t, 0, media[0].SortOrder)
 }
 
-func TestMysteryDAO_UpdateMysteryMediaURL(t *testing.T) {
+func TestMysteryDAO_UpdateMediaURL(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	gm := daotest.CreateUser(t, repos)
 	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	mediaID, err := repos.Mystery.AddMysteryMedia(context.Background(), id, "/old.png", "image", "", 0)
+	mediaID, err := repos.Mystery.AddMedia(context.Background(), id, "/old.png", "image", "", 0)
 	require.NoError(t, err)
 
 	// when
-	err = repos.Mystery.UpdateMysteryMediaURL(context.Background(), mediaID, "/new.png")
+	err = repos.Mystery.UpdateMediaURL(context.Background(), mediaID, "/new.png")
 
 	// then
 	require.NoError(t, err)
-	media, err := repos.Mystery.GetMysteryMedia(context.Background(), id)
+	media, err := repos.Mystery.GetMedia(context.Background(), id)
 	require.NoError(t, err)
 	require.Len(t, media, 1)
 	assert.Equal(t, "/new.png", media[0].MediaURL)
 }
 
-func TestMysteryDAO_UpdateMysteryMediaThumbnail(t *testing.T) {
+func TestMysteryDAO_UpdateMediaThumbnail(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	gm := daotest.CreateUser(t, repos)
 	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	mediaID, err := repos.Mystery.AddMysteryMedia(context.Background(), id, "/v.mp4", "video", "/old.png", 0)
+	mediaID, err := repos.Mystery.AddMedia(context.Background(), id, "/v.mp4", "video", "/old.png", 0)
 	require.NoError(t, err)
 
 	// when
-	err = repos.Mystery.UpdateMysteryMediaThumbnail(context.Background(), mediaID, "/new.png")
+	err = repos.Mystery.UpdateMediaThumbnail(context.Background(), mediaID, "/new.png")
 
 	// then
 	require.NoError(t, err)
-	media, err := repos.Mystery.GetMysteryMedia(context.Background(), id)
+	media, err := repos.Mystery.GetMedia(context.Background(), id)
 	require.NoError(t, err)
 	require.Len(t, media, 1)
 	assert.Equal(t, "/new.png", media[0].ThumbnailURL)
 }
 
-func TestMysteryDAO_GetMysteryMedia_Ordering(t *testing.T) {
+func TestMysteryDAO_GetMedia_Ordering(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	gm := daotest.CreateUser(t, repos)
 	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	_, err := repos.Mystery.AddMysteryMedia(context.Background(), id, "/b.png", "image", "", 2)
+	_, err := repos.Mystery.AddMedia(context.Background(), id, "/a.png", "image", "", 0)
 	require.NoError(t, err)
-	_, err = repos.Mystery.AddMysteryMedia(context.Background(), id, "/a.png", "image", "", 1)
+	_, err = repos.Mystery.AddMedia(context.Background(), id, "/b.png", "image", "", 0)
 	require.NoError(t, err)
 
 	// when
-	media, err := repos.Mystery.GetMysteryMedia(context.Background(), id)
+	media, err := repos.Mystery.GetMedia(context.Background(), id)
 
 	// then
 	require.NoError(t, err)
@@ -1554,36 +1554,36 @@ func TestMysteryDAO_GetMysteryMedia_Ordering(t *testing.T) {
 	assert.Equal(t, "/b.png", media[1].MediaURL)
 }
 
-func TestMysteryDAO_DeleteMysteryMedia(t *testing.T) {
+func TestMysteryDAO_DeleteMedia(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	gm := daotest.CreateUser(t, repos)
 	id := createMystery(t, repos, gm.ID, "T", "easy", false)
-	mediaID, err := repos.Mystery.AddMysteryMedia(context.Background(), id, "/x.png", "image", "", 0)
+	mediaID, err := repos.Mystery.AddMedia(context.Background(), id, "/x.png", "image", "", 0)
 	require.NoError(t, err)
 
 	// when
-	url, err := repos.Mystery.DeleteMysteryMedia(context.Background(), mediaID, id)
+	url, err := repos.Mystery.DeleteMedia(context.Background(), mediaID, id)
 
 	// then
 	require.NoError(t, err)
 	assert.Equal(t, "/x.png", url)
-	media, err := repos.Mystery.GetMysteryMedia(context.Background(), id)
+	media, err := repos.Mystery.GetMedia(context.Background(), id)
 	require.NoError(t, err)
 	assert.Empty(t, media)
 }
 
-func TestMysteryDAO_DeleteMysteryMedia_WrongMystery(t *testing.T) {
+func TestMysteryDAO_DeleteMedia_WrongMystery(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	gm := daotest.CreateUser(t, repos)
 	id := createMystery(t, repos, gm.ID, "T", "easy", false)
 	otherID := createMystery(t, repos, gm.ID, "Other", "easy", false)
-	mediaID, err := repos.Mystery.AddMysteryMedia(context.Background(), id, "/x.png", "image", "", 0)
+	mediaID, err := repos.Mystery.AddMedia(context.Background(), id, "/x.png", "image", "", 0)
 	require.NoError(t, err)
 
 	// when
-	_, err = repos.Mystery.DeleteMysteryMedia(context.Background(), mediaID, otherID)
+	_, err = repos.Mystery.DeleteMedia(context.Background(), mediaID, otherID)
 
 	// then
 	require.Error(t, err)

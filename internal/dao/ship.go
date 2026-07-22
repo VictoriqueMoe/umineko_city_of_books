@@ -10,7 +10,6 @@ import (
 
 	"umineko_city_of_books/internal/db"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/repository/model"
 
 	"github.com/google/uuid"
@@ -19,10 +18,7 @@ import (
 type (
 	shipDAO struct {
 		db *sql.DB
-	}
-
-	shipRepository struct {
-		repository.ShipRepository
+		*commentDAO[uuid.UUID]
 	}
 )
 
@@ -176,7 +172,7 @@ func (r *shipDAO) List(ctx context.Context, viewerID uuid.UUID, sort string, cra
 		if crackshipsOnly {
 			parts = append(parts, fmt.Sprintf("COALESCE((SELECT SUM(value) FROM ship_votes WHERE ship_id = s.id), 0) <= %d", dto.CrackshipThreshold))
 		}
-		exclSQL, exclArgs := repository.ExcludeClause("s.user_id", excludeUserIDs, idx)
+		exclSQL, exclArgs := ExcludeClause("s.user_id", excludeUserIDs, idx)
 		idx += len(exclArgs)
 		args = append(args, exclArgs...)
 		return " WHERE " + strings.Join(parts, " AND ") + exclSQL, args, idx
@@ -332,234 +328,4 @@ func (r *shipDAO) Vote(ctx context.Context, userID uuid.UUID, shipID uuid.UUID, 
 		return fmt.Errorf("vote ship: %w", err)
 	}
 	return nil
-}
-
-func (r *shipDAO) CreateComment(ctx context.Context, id uuid.UUID, shipID uuid.UUID, parentID *uuid.UUID, userID uuid.UUID, body string) error {
-	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO ship_comments (id, ship_id, parent_id, user_id, body) VALUES ($1, $2, $3, $4, $5)`,
-		id, shipID, parentID, userID, body,
-	)
-	if err != nil {
-		return fmt.Errorf("create ship comment: %w", err)
-	}
-	return nil
-}
-
-func (r *shipDAO) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string) error {
-	res, err := r.db.ExecContext(ctx,
-		`UPDATE ship_comments SET body = $1, updated_at = NOW() WHERE id = $2 AND user_id = $3`,
-		body, id, userID,
-	)
-	if err != nil {
-		return fmt.Errorf("update ship comment: %w", err)
-	}
-	n, _ := res.RowsAffected()
-	if n == 0 {
-		return fmt.Errorf("comment not found or not owned")
-	}
-	return nil
-}
-
-func (r *shipDAO) UpdateCommentAsAdmin(ctx context.Context, id uuid.UUID, body string) error {
-	_, err := r.db.ExecContext(ctx,
-		`UPDATE ship_comments SET body = $1, updated_at = NOW() WHERE id = $2`,
-		body, id,
-	)
-	if err != nil {
-		return fmt.Errorf("admin update ship comment: %w", err)
-	}
-	return nil
-}
-
-func (r *shipDAO) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	res, err := r.db.ExecContext(ctx, `DELETE FROM ship_comments WHERE id = $1 AND user_id = $2`, id, userID)
-	if err != nil {
-		return fmt.Errorf("delete ship comment: %w", err)
-	}
-	n, _ := res.RowsAffected()
-	if n == 0 {
-		return fmt.Errorf("comment not found or not owned")
-	}
-	return nil
-}
-
-func (r *shipDAO) DeleteCommentAsAdmin(ctx context.Context, id uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM ship_comments WHERE id = $1`, id)
-	if err != nil {
-		return fmt.Errorf("admin delete ship comment: %w", err)
-	}
-	return nil
-}
-
-func (r *shipDAO) GetComments(ctx context.Context, shipID uuid.UUID, viewerID uuid.UUID, limit, offset int, excludeUserIDs []uuid.UUID) ([]model.ShipCommentRow, int, error) {
-	exclSQL, exclArgs := repository.ExcludeClause("user_id", excludeUserIDs, 2)
-	var total int
-	countArgs := []interface{}{shipID}
-	countArgs = append(countArgs, exclArgs...)
-	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM ship_comments WHERE ship_id = $1`+exclSQL, countArgs...).Scan(&total); err != nil {
-		return nil, 0, fmt.Errorf("count ship comments: %w", err)
-	}
-
-	exclSQL2, exclArgs2 := repository.ExcludeClause("c.user_id", excludeUserIDs, 3)
-	limitPH := fmt.Sprintf("$%d", 3+len(exclArgs2))
-	offsetPH := fmt.Sprintf("$%d", 4+len(exclArgs2))
-	queryArgs := []interface{}{viewerID, shipID}
-	queryArgs = append(queryArgs, exclArgs2...)
-	queryArgs = append(queryArgs, limit, offset)
-	rows, err := r.db.QueryContext(ctx,
-		`SELECT c.id, c.ship_id, c.parent_id, c.user_id, c.body, c.created_at, c.updated_at,
-			u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''),
-			(SELECT COUNT(*) FROM ship_comment_likes WHERE comment_id = c.id),
-			EXISTS(SELECT 1 FROM ship_comment_likes WHERE comment_id = c.id AND user_id = $1)
-		FROM ship_comments c
-		JOIN users u ON c.user_id = u.id
-		LEFT JOIN user_roles r ON r.user_id = c.user_id
-		WHERE c.ship_id = $2`+exclSQL2+`
-		ORDER BY c.created_at ASC
-		LIMIT `+limitPH+` OFFSET `+offsetPH,
-		queryArgs...,
-	)
-	if err != nil {
-		return nil, 0, fmt.Errorf("get ship comments: %w", err)
-	}
-	defer rows.Close()
-
-	var comments []model.ShipCommentRow
-	for rows.Next() {
-		var c model.ShipCommentRow
-		var createdAt time.Time
-		var updatedAt *time.Time
-		if err := rows.Scan(
-			&c.ID, &c.ShipID, &c.ParentID, &c.UserID, &c.Body, &createdAt, &updatedAt,
-			&c.AuthorUsername, &c.AuthorDisplayName, &c.AuthorAvatarURL, &c.AuthorRole,
-			&c.LikeCount, &c.UserLiked,
-		); err != nil {
-			return nil, 0, fmt.Errorf("scan ship comment: %w", err)
-		}
-		c.CreatedAt = createdAt.UTC().Format(time.RFC3339)
-		c.UpdatedAt = timePtrToString(updatedAt)
-		comments = append(comments, c)
-	}
-	return comments, total, rows.Err()
-}
-
-func (r *shipDAO) GetCommentShipID(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error) {
-	var shipID uuid.UUID
-	err := r.db.QueryRowContext(ctx, `SELECT ship_id FROM ship_comments WHERE id = $1`, commentID).Scan(&shipID)
-	if err != nil {
-		return uuid.Nil, fmt.Errorf("get ship comment ship id: %w", err)
-	}
-	return shipID, nil
-}
-
-func (r *shipDAO) GetCommentAuthorID(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error) {
-	var userID uuid.UUID
-	err := r.db.QueryRowContext(ctx, `SELECT user_id FROM ship_comments WHERE id = $1`, commentID).Scan(&userID)
-	if err != nil {
-		return uuid.Nil, fmt.Errorf("get ship comment author: %w", err)
-	}
-	return userID, nil
-}
-
-func (r *shipDAO) LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO ship_comment_likes (user_id, comment_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-		userID, commentID,
-	)
-	if err != nil {
-		return fmt.Errorf("like ship comment: %w", err)
-	}
-	return nil
-}
-
-func (r *shipDAO) UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx,
-		`DELETE FROM ship_comment_likes WHERE user_id = $1 AND comment_id = $2`,
-		userID, commentID,
-	)
-	if err != nil {
-		return fmt.Errorf("unlike ship comment: %w", err)
-	}
-	return nil
-}
-
-func (r *shipDAO) AddCommentMedia(ctx context.Context, commentID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, sortOrder int) (int64, error) {
-	var id int64
-	err := r.db.QueryRowContext(ctx,
-		`INSERT INTO ship_comment_media (comment_id, media_url, media_type, thumbnail_url, sort_order) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-		commentID, mediaURL, mediaType, thumbnailURL, sortOrder,
-	).Scan(&id)
-	if err != nil {
-		return 0, fmt.Errorf("add ship comment media: %w", err)
-	}
-	return id, nil
-}
-
-func (r *shipDAO) UpdateCommentMediaURL(ctx context.Context, id int64, mediaURL string) error {
-	_, err := r.db.ExecContext(ctx, `UPDATE ship_comment_media SET media_url = $1 WHERE id = $2`, mediaURL, id)
-	if err != nil {
-		return fmt.Errorf("update ship comment media url: %w", err)
-	}
-	return nil
-}
-
-func (r *shipDAO) UpdateCommentMediaThumbnail(ctx context.Context, id int64, thumbnailURL string) error {
-	_, err := r.db.ExecContext(ctx, `UPDATE ship_comment_media SET thumbnail_url = $1 WHERE id = $2`, thumbnailURL, id)
-	if err != nil {
-		return fmt.Errorf("update ship comment media thumbnail: %w", err)
-	}
-	return nil
-}
-
-func (r *shipDAO) GetCommentMedia(ctx context.Context, commentID uuid.UUID) ([]model.ShipCommentMediaRow, error) {
-	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, comment_id, media_url, media_type, thumbnail_url, sort_order FROM ship_comment_media WHERE comment_id = $1 ORDER BY sort_order`,
-		commentID,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("get ship comment media: %w", err)
-	}
-	defer rows.Close()
-
-	var media []model.ShipCommentMediaRow
-	for rows.Next() {
-		var m model.ShipCommentMediaRow
-		if err := rows.Scan(&m.ID, &m.CommentID, &m.MediaURL, &m.MediaType, &m.ThumbnailURL, &m.SortOrder); err != nil {
-			return nil, fmt.Errorf("scan ship comment media: %w", err)
-		}
-		media = append(media, m)
-	}
-	return media, rows.Err()
-}
-
-func (r *shipDAO) GetCommentMediaBatch(ctx context.Context, commentIDs []uuid.UUID) (map[uuid.UUID][]model.ShipCommentMediaRow, error) {
-	if len(commentIDs) == 0 {
-		return nil, nil
-	}
-
-	placeholders := "$1"
-	args := []interface{}{commentIDs[0]}
-	for i, id := range commentIDs[1:] {
-		placeholders += fmt.Sprintf(", $%d", i+2)
-		args = append(args, id)
-	}
-
-	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, comment_id, media_url, media_type, thumbnail_url, sort_order FROM ship_comment_media WHERE comment_id IN (`+placeholders+`) ORDER BY sort_order`,
-		args...,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("batch get ship comment media: %w", err)
-	}
-	defer rows.Close()
-
-	result := make(map[uuid.UUID][]model.ShipCommentMediaRow)
-	for rows.Next() {
-		var m model.ShipCommentMediaRow
-		if err := rows.Scan(&m.ID, &m.CommentID, &m.MediaURL, &m.MediaType, &m.ThumbnailURL, &m.SortOrder); err != nil {
-			return nil, fmt.Errorf("scan ship comment media: %w", err)
-		}
-		result[m.CommentID] = append(result[m.CommentID], m)
-	}
-	return result, rows.Err()
 }

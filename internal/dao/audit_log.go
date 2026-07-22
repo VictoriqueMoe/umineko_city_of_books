@@ -14,10 +14,6 @@ type (
 	auditLogDAO struct {
 		db *sql.DB
 	}
-
-	auditLogRepository struct {
-		repository.AuditLogRepository
-	}
 )
 
 func (r *auditLogDAO) Create(ctx context.Context, actorID uuid.UUID, action, targetType, targetID, details string) error {

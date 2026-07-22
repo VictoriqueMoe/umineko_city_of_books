@@ -639,7 +639,7 @@ func TestShipDAO_CreateComment(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	got, err := repos.Ship.GetCommentShipID(context.Background(), commentID)
+	got, err := repos.Ship.GetCommentEntityID(context.Background(), commentID)
 	require.NoError(t, err)
 	assert.Equal(t, shipID, got)
 }
@@ -816,12 +816,12 @@ func TestShipDAO_GetComments_ExcludeUsers(t *testing.T) {
 	assert.Equal(t, "ok", rows[0].Body)
 }
 
-func TestShipDAO_GetCommentShipID_NotFound(t *testing.T) {
+func TestShipDAO_GetCommentEntityID_NotFound(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 
 	// when
-	_, err := repos.Ship.GetCommentShipID(context.Background(), uuid.New())
+	_, err := repos.Ship.GetCommentEntityID(context.Background(), uuid.New())
 
 	// then
 	require.Error(t, err)
@@ -976,9 +976,9 @@ func TestShipDAO_GetCommentMedia_Ordered(t *testing.T) {
 	shipID := createShip(t, repos, user.ID, "T", makeChars())
 	commentID := uuid.New()
 	require.NoError(t, repos.Ship.CreateComment(context.Background(), commentID, shipID, nil, user.ID, "x"))
-	_, err := repos.Ship.AddCommentMedia(context.Background(), commentID, "/b.png", "image", "", 1)
+	_, err := repos.Ship.AddCommentMedia(context.Background(), commentID, "/a.png", "image", "", 0)
 	require.NoError(t, err)
-	_, err = repos.Ship.AddCommentMedia(context.Background(), commentID, "/a.png", "image", "", 0)
+	_, err = repos.Ship.AddCommentMedia(context.Background(), commentID, "/b.png", "image", "", 0)
 	require.NoError(t, err)
 
 	// when

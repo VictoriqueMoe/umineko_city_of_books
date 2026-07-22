@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"strings"
 
-	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
 
 	"github.com/google/uuid"
@@ -16,10 +15,6 @@ import (
 type (
 	roleDAO struct {
 		db *sql.DB
-	}
-
-	roleRepository struct {
-		repository.RoleRepository
 	}
 )
 

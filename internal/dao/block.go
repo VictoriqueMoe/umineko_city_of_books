@@ -15,10 +15,6 @@ type (
 	blockDAO struct {
 		db *sql.DB
 	}
-
-	blockRepository struct {
-		repository.BlockRepository
-	}
 )
 
 func (r *blockDAO) Block(ctx context.Context, blockerID uuid.UUID, blockedID uuid.UUID) error {

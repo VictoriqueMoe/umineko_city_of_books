@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"umineko_city_of_books/internal/dao"
 	appdb "umineko_city_of_books/internal/db"
 	"umineko_city_of_books/internal/db/dbtest"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/repository/model"
+	"umineko_city_of_books/internal/store"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -95,7 +95,7 @@ func NewDB(t *testing.T) *sql.DB {
 
 func NewRepos(t *testing.T) *repository.Repositories {
 	t.Helper()
-	return dao.New(NewDB(t))
+	return store.New(NewDB(t), nil)
 }
 
 type (

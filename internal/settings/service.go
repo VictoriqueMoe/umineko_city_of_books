@@ -3,9 +3,11 @@ package settings
 import (
 	"context"
 	"fmt"
+	"maps"
 	"strconv"
 	"sync"
 
+	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/repository"
@@ -35,14 +37,14 @@ type (
 
 	service struct {
 		repo       repository.SettingsRepository
-		cache      sync.Map
+		cache      *cache.Manager
 		listeners  []Listener
 		listenerMu sync.RWMutex
 	}
 )
 
-func NewService(repo repository.SettingsRepository) Service {
-	return &service{repo: repo}
+func NewService(repo repository.SettingsRepository, cacheMgr *cache.Manager) Service {
+	return &service{repo: repo, cache: cacheMgr}
 }
 
 func (s *service) Subscribe(listener Listener) {
@@ -86,9 +88,8 @@ func (s *service) Refresh(ctx context.Context) error {
 		if err := s.repo.SetMultiple(ctx, missing, uuid.Nil); err != nil {
 			return err
 		}
-		for k, v := range missing {
-			existing[k] = v
-		}
+		maps.Copy(existing, missing)
+
 		logger.Log.Info().Int("count", len(missing)).Msg("seeded missing settings with defaults")
 	}
 
@@ -102,7 +103,7 @@ func (s *service) Refresh(ctx context.Context) error {
 			}
 			continue
 		}
-		s.cache.Store(config.SiteSettingKey(k), v)
+		_ = cache.Set(ctx, s.cache, cache.Setting.Key(k), v, cache.Setting.TTL)
 	}
 
 	logger.Log.Debug().Msg("settings cache loaded")
@@ -110,10 +111,19 @@ func (s *service) Refresh(ctx context.Context) error {
 }
 
 func (s *service) Get(ctx context.Context, def *config.SiteSettingDef) string {
-	if v, ok := s.cache.Load(def.Key); ok {
-		return v.(string)
+	key := cache.Setting.Key(string(def.Key))
+
+	if v, err := cache.Get[string](ctx, s.cache, key); err == nil {
+		return v
 	}
-	return def.Default
+
+	v, err := s.repo.Get(ctx, string(def.Key))
+	if err != nil {
+		return def.Default
+	}
+
+	_ = cache.Set(ctx, s.cache, key, v, cache.Setting.TTL)
+	return v
 }
 
 func (s *service) GetInt(ctx context.Context, def *config.SiteSettingDef) int {
@@ -133,10 +143,14 @@ func (s *service) GetAll(ctx context.Context) map[config.SiteSettingKey]string {
 	for _, def := range config.AllSiteSettings {
 		result[def.Key] = def.Default
 	}
-	s.cache.Range(func(key, value any) bool {
-		result[key.(config.SiteSettingKey)] = value.(string)
-		return true
-	})
+
+	stored, err := s.repo.GetAll(ctx)
+	if err == nil {
+		for k, v := range stored {
+			result[config.SiteSettingKey(k)] = v
+		}
+	}
+
 	return result
 }
 
@@ -151,7 +165,7 @@ func (s *service) Set(ctx context.Context, setting *config.SiteSettingDef, value
 		return err
 	}
 
-	s.cache.Store(setting.Key, value)
+	_ = cache.Set(ctx, s.cache, cache.Setting.Key(string(setting.Key)), value, cache.Setting.TTL)
 	s.notify(setting.Key, value)
 	logger.Log.Info().Str("key", string(setting.Key)).Str("updated_by", updatedBy.String()).Msg("setting updated")
 	return nil
@@ -169,9 +183,8 @@ func (s *service) SetMultiple(ctx context.Context, values map[config.SiteSetting
 	}
 
 	merged := s.GetAll(ctx)
-	for k, v := range values {
-		merged[k] = v
-	}
+	maps.Copy(merged, values)
+
 	if err := config.ValidateSettings(merged); err != nil {
 		return err
 	}
@@ -182,7 +195,7 @@ func (s *service) SetMultiple(ctx context.Context, values map[config.SiteSetting
 
 	var keys []config.SiteSettingKey
 	for k, v := range values {
-		s.cache.Store(k, v)
+		_ = cache.Set(ctx, s.cache, cache.Setting.Key(string(k)), v, cache.Setting.TTL)
 		s.notify(k, v)
 		keys = append(keys, k)
 	}

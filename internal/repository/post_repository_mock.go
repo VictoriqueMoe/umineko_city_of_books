@@ -1226,6 +1226,74 @@ func (_c *MockPostRepository_GetCommentAuthorID_Call) RunAndReturn(run func(ctx 
 	return _c
 }
 
+// GetCommentEntityID provides a mock function for the type MockPostRepository
+func (_mock *MockPostRepository) GetCommentEntityID(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error) {
+	ret := _mock.Called(ctx, commentID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetCommentEntityID")
+	}
+
+	var r0 uuid.UUID
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (uuid.UUID, error)); ok {
+		return returnFunc(ctx, commentID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) uuid.UUID); ok {
+		r0 = returnFunc(ctx, commentID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(uuid.UUID)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, commentID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockPostRepository_GetCommentEntityID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetCommentEntityID'
+type MockPostRepository_GetCommentEntityID_Call struct {
+	*mock.Call
+}
+
+// GetCommentEntityID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - commentID uuid.UUID
+func (_e *MockPostRepository_Expecter) GetCommentEntityID(ctx any, commentID any) *MockPostRepository_GetCommentEntityID_Call {
+	return &MockPostRepository_GetCommentEntityID_Call{Call: _e.mock.On("GetCommentEntityID", ctx, commentID)}
+}
+
+func (_c *MockPostRepository_GetCommentEntityID_Call) Run(run func(ctx context.Context, commentID uuid.UUID)) *MockPostRepository_GetCommentEntityID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockPostRepository_GetCommentEntityID_Call) Return(uUID uuid.UUID, err error) *MockPostRepository_GetCommentEntityID_Call {
+	_c.Call.Return(uUID, err)
+	return _c
+}
+
+func (_c *MockPostRepository_GetCommentEntityID_Call) RunAndReturn(run func(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error)) *MockPostRepository_GetCommentEntityID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetCommentMedia provides a mock function for the type MockPostRepository
 func (_mock *MockPostRepository) GetCommentMedia(ctx context.Context, commentID uuid.UUID) ([]model.PostMediaRow, error) {
 	ret := _mock.Called(ctx, commentID)
@@ -1362,93 +1430,25 @@ func (_c *MockPostRepository_GetCommentMediaBatch_Call) RunAndReturn(run func(ct
 	return _c
 }
 
-// GetCommentPostID provides a mock function for the type MockPostRepository
-func (_mock *MockPostRepository) GetCommentPostID(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error) {
-	ret := _mock.Called(ctx, commentID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetCommentPostID")
-	}
-
-	var r0 uuid.UUID
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (uuid.UUID, error)); ok {
-		return returnFunc(ctx, commentID)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) uuid.UUID); ok {
-		r0 = returnFunc(ctx, commentID)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(uuid.UUID)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, commentID)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockPostRepository_GetCommentPostID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetCommentPostID'
-type MockPostRepository_GetCommentPostID_Call struct {
-	*mock.Call
-}
-
-// GetCommentPostID is a helper method to define mock.On call
-//   - ctx context.Context
-//   - commentID uuid.UUID
-func (_e *MockPostRepository_Expecter) GetCommentPostID(ctx any, commentID any) *MockPostRepository_GetCommentPostID_Call {
-	return &MockPostRepository_GetCommentPostID_Call{Call: _e.mock.On("GetCommentPostID", ctx, commentID)}
-}
-
-func (_c *MockPostRepository_GetCommentPostID_Call) Run(run func(ctx context.Context, commentID uuid.UUID)) *MockPostRepository_GetCommentPostID_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		run(
-			arg0,
-			arg1,
-		)
-	})
-	return _c
-}
-
-func (_c *MockPostRepository_GetCommentPostID_Call) Return(uUID uuid.UUID, err error) *MockPostRepository_GetCommentPostID_Call {
-	_c.Call.Return(uUID, err)
-	return _c
-}
-
-func (_c *MockPostRepository_GetCommentPostID_Call) RunAndReturn(run func(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error)) *MockPostRepository_GetCommentPostID_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // GetComments provides a mock function for the type MockPostRepository
-func (_mock *MockPostRepository) GetComments(ctx context.Context, postID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID) ([]model.PostCommentRow, int, error) {
+func (_mock *MockPostRepository) GetComments(ctx context.Context, postID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID) ([]CommentRow, int, error) {
 	ret := _mock.Called(ctx, postID, viewerID, limit, offset, excludeUserIDs)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetComments")
 	}
 
-	var r0 []model.PostCommentRow
+	var r0 []CommentRow
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID) ([]model.PostCommentRow, int, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID) ([]CommentRow, int, error)); ok {
 		return returnFunc(ctx, postID, viewerID, limit, offset, excludeUserIDs)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID) []model.PostCommentRow); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID) []CommentRow); ok {
 		r0 = returnFunc(ctx, postID, viewerID, limit, offset, excludeUserIDs)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]model.PostCommentRow)
+			r0 = ret.Get(0).([]CommentRow)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID) int); ok {
@@ -1518,12 +1518,12 @@ func (_c *MockPostRepository_GetComments_Call) Run(run func(ctx context.Context,
 	return _c
 }
 
-func (_c *MockPostRepository_GetComments_Call) Return(postCommentRows []model.PostCommentRow, n int, err error) *MockPostRepository_GetComments_Call {
-	_c.Call.Return(postCommentRows, n, err)
+func (_c *MockPostRepository_GetComments_Call) Return(commentRows []CommentRow, n int, err error) *MockPostRepository_GetComments_Call {
+	_c.Call.Return(commentRows, n, err)
 	return _c
 }
 
-func (_c *MockPostRepository_GetComments_Call) RunAndReturn(run func(ctx context.Context, postID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID) ([]model.PostCommentRow, int, error)) *MockPostRepository_GetComments_Call {
+func (_c *MockPostRepository_GetComments_Call) RunAndReturn(run func(ctx context.Context, postID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID) ([]CommentRow, int, error)) *MockPostRepository_GetComments_Call {
 	_c.Call.Return(run)
 	return _c
 }

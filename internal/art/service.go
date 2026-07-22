@@ -200,7 +200,7 @@ func (s *service) GetArt(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, 
 
 	flatComments := make([]dto.ArtCommentResponse, len(comments))
 	for i, c := range comments {
-		flatComments[i] = c.ToResponse(commentMediaMap[c.ID], commentEmbedMap[c.ID.String()])
+		flatComments[i] = artCommentToResponse(c, commentMediaMap[c.ID], commentEmbedMap[c.ID.String()])
 	}
 	dtoComments := utils.BuildTree(flatComments,
 		func(c dto.ArtCommentResponse) uuid.UUID { return c.ID },
@@ -522,7 +522,7 @@ func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID u
 		if err != nil {
 			return
 		}
-		artID, err := s.artRepo.GetCommentArtID(ctx, commentID)
+		artID, err := s.artRepo.GetCommentEntityID(ctx, commentID)
 		if err != nil {
 			return
 		}
@@ -709,7 +709,7 @@ func (s *service) notifyArtCommentEdited(ctx context.Context, commentID uuid.UUI
 	if err != nil {
 		return
 	}
-	artID, err := s.artRepo.GetCommentArtID(ctx, commentID)
+	artID, err := s.artRepo.GetCommentEntityID(ctx, commentID)
 	if err != nil {
 		return
 	}
@@ -721,4 +721,25 @@ func (s *service) notifyArtCommentEdited(ctx context.Context, commentID uuid.UUI
 		ReferenceType: fmt.Sprintf("art_comment:%s", commentID),
 		LinkPath:      fmt.Sprintf("/gallery/art/%s#comment-%s", artID, commentID),
 	})
+}
+
+func artCommentToResponse(c repository.CommentRow, media []model.PostMediaRow, embeds []model.EmbedRow) dto.ArtCommentResponse {
+	return dto.ArtCommentResponse{
+		ID:       c.ID,
+		ParentID: c.ParentID,
+		Author: dto.UserResponse{
+			ID:          c.UserID,
+			Username:    c.AuthorUsername,
+			DisplayName: c.AuthorDisplayName,
+			AvatarURL:   c.AuthorAvatarURL,
+			Role:        role.Role(c.AuthorRole),
+		},
+		Body:      c.Body,
+		Media:     model.MediaRowsToResponse(media),
+		Embeds:    model.EmbedRowsToResponse(embeds),
+		LikeCount: c.LikeCount,
+		UserLiked: c.UserLiked,
+		CreatedAt: c.CreatedAt,
+		UpdatedAt: c.UpdatedAt,
+	}
 }

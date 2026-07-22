@@ -11,7 +11,6 @@ import (
 	"umineko_city_of_books/internal/db"
 	"umineko_city_of_books/internal/dto"
 	fanficparams "umineko_city_of_books/internal/fanfic/params"
-	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/repository/model"
 
 	"github.com/google/uuid"
@@ -20,10 +19,8 @@ import (
 type (
 	fanficDAO struct {
 		db *sql.DB
-	}
-
-	fanficRepository struct {
-		repository.FanficRepository
+		*commentDAO[uuid.UUID]
+		*viewDAO
 	}
 )
 
@@ -787,27 +784,6 @@ func (r *fanficDAO) Unfavourite(ctx context.Context, userID uuid.UUID, fanficID 
 	return nil
 }
 
-func (r *fanficDAO) RecordView(ctx context.Context, fanficID uuid.UUID, viewerHash string) (bool, error) {
-	res, err := r.db.ExecContext(ctx,
-		`INSERT INTO fanfic_views (fanfic_id, viewer_hash) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-		fanficID, viewerHash,
-	)
-	if err != nil {
-		return false, fmt.Errorf("record fanfic view: %w", err)
-	}
-	n, _ := res.RowsAffected()
-	if n > 0 {
-		_, err = r.db.ExecContext(ctx,
-			`UPDATE fanfics SET view_count = (SELECT COUNT(*) FROM fanfic_views WHERE fanfic_id = $1) WHERE id = $2`,
-			fanficID, fanficID,
-		)
-		if err != nil {
-			return false, fmt.Errorf("update fanfic view count: %w", err)
-		}
-	}
-	return n > 0, nil
-}
-
 func (r *fanficDAO) GetReadingProgress(ctx context.Context, userID uuid.UUID, fanficID uuid.UUID) (int, error) {
 	var chapter int
 	err := r.db.QueryRowContext(ctx,
@@ -858,229 +834,4 @@ func (r *fanficDAO) ListFavourites(ctx context.Context, userID uuid.UUID, viewer
 		result = append(result, f)
 	}
 	return result, total, rows.Err()
-}
-
-func (r *fanficDAO) CreateComment(ctx context.Context, id uuid.UUID, fanficID uuid.UUID, parentID *uuid.UUID, userID uuid.UUID, body string) error {
-	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO fanfic_comments (id, fanfic_id, parent_id, user_id, body) VALUES ($1, $2, $3, $4, $5)`,
-		id, fanficID, parentID, userID, body,
-	)
-	if err != nil {
-		return fmt.Errorf("create fanfic comment: %w", err)
-	}
-	return nil
-}
-
-func (r *fanficDAO) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string) error {
-	res, err := r.db.ExecContext(ctx,
-		`UPDATE fanfic_comments SET body = $1, updated_at = NOW() WHERE id = $2 AND user_id = $3`,
-		body, id, userID,
-	)
-	if err != nil {
-		return fmt.Errorf("update fanfic comment: %w", err)
-	}
-	n, _ := res.RowsAffected()
-	if n == 0 {
-		return fmt.Errorf("comment not found or not owned")
-	}
-	return nil
-}
-
-func (r *fanficDAO) UpdateCommentAsAdmin(ctx context.Context, id uuid.UUID, body string) error {
-	_, err := r.db.ExecContext(ctx,
-		`UPDATE fanfic_comments SET body = $1, updated_at = NOW() WHERE id = $2`,
-		body, id,
-	)
-	if err != nil {
-		return fmt.Errorf("admin update fanfic comment: %w", err)
-	}
-	return nil
-}
-
-func (r *fanficDAO) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	res, err := r.db.ExecContext(ctx, `DELETE FROM fanfic_comments WHERE id = $1 AND user_id = $2`, id, userID)
-	if err != nil {
-		return fmt.Errorf("delete fanfic comment: %w", err)
-	}
-	n, _ := res.RowsAffected()
-	if n == 0 {
-		return fmt.Errorf("comment not found or not owned")
-	}
-	return nil
-}
-
-func (r *fanficDAO) DeleteCommentAsAdmin(ctx context.Context, id uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM fanfic_comments WHERE id = $1`, id)
-	if err != nil {
-		return fmt.Errorf("admin delete fanfic comment: %w", err)
-	}
-	return nil
-}
-
-func (r *fanficDAO) GetComments(ctx context.Context, fanficID uuid.UUID, viewerID uuid.UUID, excludeUserIDs []uuid.UUID) ([]model.FanficCommentRow, error) {
-	args := []interface{}{viewerID, fanficID}
-	exclSQL := ""
-	if len(excludeUserIDs) > 0 {
-		marks := make([]string, len(excludeUserIDs))
-		for i, id := range excludeUserIDs {
-			marks[i] = "?"
-			args = append(args, id)
-		}
-		exclSQL = " AND c.user_id NOT IN (" + strings.Join(marks, ",") + ")"
-	}
-
-	query := fanficRenumber(`SELECT c.id, c.fanfic_id, c.parent_id, c.user_id, c.body, c.created_at, c.updated_at,
-			u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''),
-			(SELECT COUNT(*) FROM fanfic_comment_likes WHERE comment_id = c.id),
-			EXISTS(SELECT 1 FROM fanfic_comment_likes WHERE comment_id = c.id AND user_id = ?)
-		FROM fanfic_comments c
-		JOIN users u ON c.user_id = u.id
-		LEFT JOIN user_roles r ON r.user_id = u.id
-		WHERE c.fanfic_id = ?` + exclSQL + `
-		ORDER BY c.created_at ASC`)
-
-	rows, err := r.db.QueryContext(ctx, query, args...)
-	if err != nil {
-		return nil, fmt.Errorf("get fanfic comments: %w", err)
-	}
-	defer rows.Close()
-
-	var comments []model.FanficCommentRow
-	for rows.Next() {
-		var c model.FanficCommentRow
-		var createdAt time.Time
-		var updatedAt sql.NullTime
-		if err := rows.Scan(
-			&c.ID, &c.FanficID, &c.ParentID, &c.UserID, &c.Body, &createdAt, &updatedAt,
-			&c.AuthorUsername, &c.AuthorDisplayName, &c.AuthorAvatarURL, &c.AuthorRole,
-			&c.LikeCount, &c.UserLiked,
-		); err != nil {
-			return nil, fmt.Errorf("scan fanfic comment: %w", err)
-		}
-		c.CreatedAt = createdAt.UTC().Format(time.RFC3339)
-		c.UpdatedAt = fanficNullTimePtr(updatedAt)
-		comments = append(comments, c)
-	}
-	return comments, rows.Err()
-}
-
-func (r *fanficDAO) GetCommentFanficID(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error) {
-	var fanficID uuid.UUID
-	err := r.db.QueryRowContext(ctx, `SELECT fanfic_id FROM fanfic_comments WHERE id = $1`, commentID).Scan(&fanficID)
-	if err != nil {
-		return uuid.Nil, fmt.Errorf("get fanfic comment fanfic id: %w", err)
-	}
-	return fanficID, nil
-}
-
-func (r *fanficDAO) GetCommentAuthorID(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error) {
-	var userID uuid.UUID
-	err := r.db.QueryRowContext(ctx, `SELECT user_id FROM fanfic_comments WHERE id = $1`, commentID).Scan(&userID)
-	if err != nil {
-		return uuid.Nil, fmt.Errorf("get fanfic comment author: %w", err)
-	}
-	return userID, nil
-}
-
-func (r *fanficDAO) LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO fanfic_comment_likes (user_id, comment_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-		userID, commentID,
-	)
-	if err != nil {
-		return fmt.Errorf("like fanfic comment: %w", err)
-	}
-	return nil
-}
-
-func (r *fanficDAO) UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx,
-		`DELETE FROM fanfic_comment_likes WHERE user_id = $1 AND comment_id = $2`,
-		userID, commentID,
-	)
-	if err != nil {
-		return fmt.Errorf("unlike fanfic comment: %w", err)
-	}
-	return nil
-}
-
-func (r *fanficDAO) AddCommentMedia(ctx context.Context, commentID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, sortOrder int) (int64, error) {
-	var id int64
-	err := r.db.QueryRowContext(ctx,
-		`INSERT INTO fanfic_comment_media (comment_id, media_url, media_type, thumbnail_url, sort_order) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-		commentID, mediaURL, mediaType, thumbnailURL, sortOrder,
-	).Scan(&id)
-	if err != nil {
-		return 0, fmt.Errorf("add fanfic comment media: %w", err)
-	}
-	return id, nil
-}
-
-func (r *fanficDAO) UpdateCommentMediaURL(ctx context.Context, id int64, mediaURL string) error {
-	_, err := r.db.ExecContext(ctx, `UPDATE fanfic_comment_media SET media_url = $1 WHERE id = $2`, mediaURL, id)
-	if err != nil {
-		return fmt.Errorf("update fanfic comment media url: %w", err)
-	}
-	return nil
-}
-
-func (r *fanficDAO) UpdateCommentMediaThumbnail(ctx context.Context, id int64, thumbnailURL string) error {
-	_, err := r.db.ExecContext(ctx, `UPDATE fanfic_comment_media SET thumbnail_url = $1 WHERE id = $2`, thumbnailURL, id)
-	if err != nil {
-		return fmt.Errorf("update fanfic comment media thumbnail: %w", err)
-	}
-	return nil
-}
-
-func (r *fanficDAO) GetCommentMedia(ctx context.Context, commentID uuid.UUID) ([]model.FanficCommentMediaRow, error) {
-	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, comment_id, media_url, media_type, thumbnail_url, sort_order FROM fanfic_comment_media WHERE comment_id = $1 ORDER BY sort_order`,
-		commentID,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("get fanfic comment media: %w", err)
-	}
-	defer rows.Close()
-
-	var media []model.FanficCommentMediaRow
-	for rows.Next() {
-		var m model.FanficCommentMediaRow
-		if err := rows.Scan(&m.ID, &m.CommentID, &m.MediaURL, &m.MediaType, &m.ThumbnailURL, &m.SortOrder); err != nil {
-			return nil, fmt.Errorf("scan fanfic comment media: %w", err)
-		}
-		media = append(media, m)
-	}
-	return media, rows.Err()
-}
-
-func (r *fanficDAO) GetCommentMediaBatch(ctx context.Context, commentIDs []uuid.UUID) (map[uuid.UUID][]model.FanficCommentMediaRow, error) {
-	if len(commentIDs) == 0 {
-		return nil, nil
-	}
-
-	placeholders := make([]string, len(commentIDs))
-	args := make([]interface{}, len(commentIDs))
-	for i, id := range commentIDs {
-		placeholders[i] = fmt.Sprintf("$%d", i+1)
-		args[i] = id
-	}
-
-	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, comment_id, media_url, media_type, thumbnail_url, sort_order FROM fanfic_comment_media WHERE comment_id IN (`+strings.Join(placeholders, ",")+`) ORDER BY sort_order`,
-		args...,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("batch get fanfic comment media: %w", err)
-	}
-	defer rows.Close()
-
-	result := make(map[uuid.UUID][]model.FanficCommentMediaRow)
-	for rows.Next() {
-		var m model.FanficCommentMediaRow
-		if err := rows.Scan(&m.ID, &m.CommentID, &m.MediaURL, &m.MediaType, &m.ThumbnailURL, &m.SortOrder); err != nil {
-			return nil, fmt.Errorf("scan fanfic comment media: %w", err)
-		}
-		result[m.CommentID] = append(result[m.CommentID], m)
-	}
-	return result, rows.Err()
 }

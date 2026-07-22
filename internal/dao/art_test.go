@@ -785,7 +785,7 @@ func TestArtDAO_DeleteCommentAsAdmin(t *testing.T) {
 	assert.Equal(t, 0, total)
 }
 
-func TestArtDAO_GetCommentArtID(t *testing.T) {
+func TestArtDAO_GetCommentEntityID(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
@@ -793,19 +793,19 @@ func TestArtDAO_GetCommentArtID(t *testing.T) {
 	commentID := createArtComment(t, repos, artID, user.ID, nil, "hi")
 
 	// when
-	got, err := repos.Art.GetCommentArtID(context.Background(), commentID)
+	got, err := repos.Art.GetCommentEntityID(context.Background(), commentID)
 
 	// then
 	require.NoError(t, err)
 	assert.Equal(t, artID, got)
 }
 
-func TestArtDAO_GetCommentArtID_NotFound(t *testing.T) {
+func TestArtDAO_GetCommentEntityID_NotFound(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 
 	// when
-	_, err := repos.Art.GetCommentArtID(context.Background(), uuid.New())
+	_, err := repos.Art.GetCommentEntityID(context.Background(), uuid.New())
 
 	// then
 	require.Error(t, err)

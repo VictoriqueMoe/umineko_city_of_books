@@ -12,10 +12,6 @@ type (
 	sitemapDAO struct {
 		db *sql.DB
 	}
-
-	sitemapRepository struct {
-		repository.SitemapRepository
-	}
 )
 
 func (r *sitemapDAO) listEntries(ctx context.Context, query, label string) ([]repository.SitemapEntry, error) {

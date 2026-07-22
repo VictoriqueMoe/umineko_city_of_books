@@ -39,24 +39,6 @@ type (
 		SortOrder    int
 	}
 
-	OCCommentRow struct {
-		ID                uuid.UUID
-		OCID              uuid.UUID
-		ParentID          *uuid.UUID
-		UserID            uuid.UUID
-		Body              string
-		CreatedAt         string
-		UpdatedAt         *string
-		AuthorUsername    string
-		AuthorDisplayName string
-		AuthorAvatarURL   string
-		AuthorRole        string
-		LikeCount         int
-		UserLiked         bool
-	}
-
-	OCCommentMediaRow = CommentMediaRow
-
 	OCSummaryRow struct {
 		ID               uuid.UUID
 		Name             string
@@ -119,25 +101,5 @@ func (r *OCSummaryRow) ToResponse() dto.OCSummary {
 		Series:           r.Series,
 		CustomSeriesName: r.CustomSeriesName,
 		ThumbnailURL:     r.ThumbnailURL,
-	}
-}
-
-func (r *OCCommentRow) ToResponse(media []OCCommentMediaRow) dto.OCCommentResponse {
-	return dto.OCCommentResponse{
-		ID:       r.ID,
-		ParentID: r.ParentID,
-		Author: dto.UserResponse{
-			ID:          r.UserID,
-			Username:    r.AuthorUsername,
-			DisplayName: r.AuthorDisplayName,
-			AvatarURL:   r.AuthorAvatarURL,
-			Role:        role.Role(r.AuthorRole),
-		},
-		Body:      r.Body,
-		Media:     CommentMediaRowsToResponse(media),
-		LikeCount: r.LikeCount,
-		UserLiked: r.UserLiked,
-		CreatedAt: r.CreatedAt,
-		UpdatedAt: r.UpdatedAt,
 	}
 }

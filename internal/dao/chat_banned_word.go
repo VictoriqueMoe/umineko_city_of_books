@@ -15,10 +15,6 @@ type (
 	chatBannedWordDAO struct {
 		db *sql.DB
 	}
-
-	chatBannedWordRepository struct {
-		repository.ChatBannedWordRepository
-	}
 )
 
 func (r *chatBannedWordDAO) Create(ctx context.Context, spec repository.ChatBannedWordSpec) (uuid.UUID, error) {

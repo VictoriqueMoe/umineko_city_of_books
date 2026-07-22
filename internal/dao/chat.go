@@ -58,10 +58,6 @@ type (
 	chatDAO struct {
 		db *sql.DB
 	}
-
-	chatRepository struct {
-		repository.ChatRepository
-	}
 )
 
 func (r *chatDAO) CreateRoom(ctx context.Context, id uuid.UUID, name, description, roomType string, isPublic, isRP bool, createdBy uuid.UUID) error {
@@ -651,7 +647,7 @@ func (r *chatDAO) ListPublicRooms(ctx context.Context, search string, isRPOnly b
 		countArgs = append(countArgs, viewerID)
 		idx++
 	}
-	countExclSQL, countExclArgs := repository.ExcludeClause("cr.created_by", excludeUserIDs, idx)
+	countExclSQL, countExclArgs := ExcludeClause("cr.created_by", excludeUserIDs, idx)
 	countArgs = append(countArgs, countExclArgs...)
 
 	whereCount := " WHERE " + conditions[0]
@@ -692,7 +688,7 @@ func (r *chatDAO) ListPublicRooms(ctx context.Context, search string, isRPOnly b
 		queryArgs = append(queryArgs, viewerID)
 		qIdx++
 	}
-	qExclSQL, qExclArgs := repository.ExcludeClause("cr.created_by", excludeUserIDs, qIdx)
+	qExclSQL, qExclArgs := ExcludeClause("cr.created_by", excludeUserIDs, qIdx)
 	queryArgs = append(queryArgs, qExclArgs...)
 	qIdx += len(qExclArgs)
 

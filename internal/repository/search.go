@@ -445,3 +445,19 @@ func (s SearchSource) BuildSubquery() string {
 		strings.Join(whereParts, "\n          AND "),
 	)
 }
+
+type searchRepository struct {
+	dao SearchRepository
+}
+
+func NewSearchRepo(dao SearchRepository) SearchRepository {
+	return &searchRepository{dao: dao}
+}
+
+func (r *searchRepository) Search(ctx context.Context, query string, types []SearchEntityType, limit, offset int) ([]SearchResult, int, error) {
+	return r.dao.Search(ctx, query, types, limit, offset)
+}
+
+func (r *searchRepository) QuickSearch(ctx context.Context, query string, perTypeLimit int) ([]SearchResult, error) {
+	return r.dao.QuickSearch(ctx, query, perTypeLimit)
+}

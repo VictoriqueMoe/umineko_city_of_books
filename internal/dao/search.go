@@ -14,10 +14,6 @@ type (
 	searchDAO struct {
 		db *sql.DB
 	}
-
-	searchRepository struct {
-		repository.SearchRepository
-	}
 )
 
 func (r *searchDAO) Search(ctx context.Context, query string, types []repository.SearchEntityType, limit, offset int) ([]repository.SearchResult, int, error) {

@@ -16,10 +16,6 @@ type (
 	passwordResetDAO struct {
 		db *sql.DB
 	}
-
-	passwordResetRepository struct {
-		repository.PasswordResetRepository
-	}
 )
 
 func (r *passwordResetDAO) Create(ctx context.Context, tokenHash string, userID uuid.UUID, expiresAt time.Time) error {

@@ -784,7 +784,7 @@ func TestLikeComment_OK_OtherAuthor(t *testing.T) {
 	m.shipRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
 	m.shipRepo.EXPECT().LikeComment(mock.Anything, userID, commentID).Return(nil)
-	m.shipRepo.EXPECT().GetCommentShipID(mock.Anything, commentID).Return(uuid.Nil, errors.New("stop goroutine")).Maybe()
+	m.shipRepo.EXPECT().GetCommentEntityID(mock.Anything, commentID).Return(uuid.Nil, errors.New("stop goroutine")).Maybe()
 
 	// when
 	err := svc.LikeComment(context.Background(), userID, commentID)

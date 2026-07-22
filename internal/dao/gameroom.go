@@ -18,10 +18,6 @@ type (
 	gameRoomDAO struct {
 		db *sql.DB
 	}
-
-	gameRoomRepository struct {
-		repository.GameRoomRepository
-	}
 )
 
 func (r *gameRoomDAO) CreateRoom(ctx context.Context, id uuid.UUID, gameType, initialStateJSON string, createdBy uuid.UUID) error {

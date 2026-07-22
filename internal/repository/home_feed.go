@@ -56,3 +56,31 @@ type (
 		ListSidebarActivity(ctx context.Context) ([]SidebarActivityEntry, error)
 	}
 )
+
+type homeFeedRepository struct {
+	dao HomeFeedRepository
+}
+
+func NewHomeFeedRepo(dao HomeFeedRepository) HomeFeedRepository {
+	return &homeFeedRepository{dao: dao}
+}
+
+func (r *homeFeedRepository) ListRecentActivity(ctx context.Context, limit int) ([]HomeActivityRow, error) {
+	return r.dao.ListRecentActivity(ctx, limit)
+}
+
+func (r *homeFeedRepository) ListRecentMembers(ctx context.Context, limit int) ([]HomeMemberRow, error) {
+	return r.dao.ListRecentMembers(ctx, limit)
+}
+
+func (r *homeFeedRepository) ListPublicRooms(ctx context.Context, limit int) ([]HomePublicRoomRow, error) {
+	return r.dao.ListPublicRooms(ctx, limit)
+}
+
+func (r *homeFeedRepository) ListCornerActivity24h(ctx context.Context) ([]HomeCornerActivityRow, error) {
+	return r.dao.ListCornerActivity24h(ctx)
+}
+
+func (r *homeFeedRepository) ListSidebarActivity(ctx context.Context) ([]SidebarActivityEntry, error) {
+	return r.dao.ListSidebarActivity(ctx)
+}

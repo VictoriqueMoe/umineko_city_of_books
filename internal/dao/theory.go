@@ -10,7 +10,6 @@ import (
 	"umineko_city_of_books/internal/db"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
-	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/theory/params"
 	"umineko_city_of_books/internal/utils"
 
@@ -20,10 +19,6 @@ import (
 type (
 	theoryDAO struct {
 		db *sql.DB
-	}
-
-	theoryRepository struct {
-		repository.TheoryRepository
 	}
 )
 
@@ -132,7 +127,7 @@ func (r *theoryDAO) List(ctx context.Context, p params.ListParams, userID uuid.U
 		}
 	}
 
-	exclSQL, exclArgs := repository.ExcludeClause("t.user_id", excludeUserIDs, idx)
+	exclSQL, exclArgs := ExcludeClause("t.user_id", excludeUserIDs, idx)
 	idx += len(exclArgs)
 	if where == "" && exclSQL != "" {
 		where = " WHERE 1=1" + exclSQL

@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
-
-	"umineko_city_of_books/internal/repository"
 )
 
 var safeIdentifier = regexp.MustCompile(`^[a-zA-Z0-9_]+$`)
@@ -14,10 +12,6 @@ var safeIdentifier = regexp.MustCompile(`^[a-zA-Z0-9_]+$`)
 type (
 	uploadDAO struct {
 		db *sql.DB
-	}
-
-	uploadRepository struct {
-		repository.UploadRepository
 	}
 )
 

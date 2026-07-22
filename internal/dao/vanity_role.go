@@ -16,10 +16,6 @@ type (
 	vanityRoleDAO struct {
 		db *sql.DB
 	}
-
-	vanityRoleRepository struct {
-		repository.VanityRoleRepository
-	}
 )
 
 func (r *vanityRoleDAO) List(ctx context.Context) ([]repository.VanityRoleRow, error) {

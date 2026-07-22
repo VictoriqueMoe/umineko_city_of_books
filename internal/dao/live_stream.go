@@ -16,10 +16,6 @@ type (
 	liveStreamDAO struct {
 		db *sql.DB
 	}
-
-	liveStreamRepository struct {
-		repository.LiveStreamRepository
-	}
 )
 
 const liveStreamSelectColumns = `s.id, s.user_id, s.title, s.status, s.livekit_room, s.ingress_id,

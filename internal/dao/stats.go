@@ -12,10 +12,6 @@ type (
 	statsDAO struct {
 		db *sql.DB
 	}
-
-	statsRepository struct {
-		repository.StatsRepository
-	}
 )
 
 func (r *statsDAO) GetOverview(ctx context.Context) (*repository.SiteStats, error) {

@@ -322,7 +322,7 @@ func TestAnnouncementDAO_GetComments_PaginationOrderingAndExclusion(t *testing.T
 	assert.Equal(t, second, page[0].ID)
 }
 
-func TestAnnouncementDAO_GetCommentAnnouncementID_AndAuthorID(t *testing.T) {
+func TestAnnouncementDAO_GetCommentEntityID_AndAuthorID(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	author := daotest.CreateUser(t, repos)
@@ -330,7 +330,7 @@ func TestAnnouncementDAO_GetCommentAnnouncementID_AndAuthorID(t *testing.T) {
 	commentID := createAnnouncementComment(t, repos, annID, author.ID, nil, "x")
 
 	// when
-	gotAnnID, annErr := repos.Announcement.GetCommentAnnouncementID(context.Background(), commentID)
+	gotAnnID, annErr := repos.Announcement.GetCommentEntityID(context.Background(), commentID)
 	gotAuthorID, authorErr := repos.Announcement.GetCommentAuthorID(context.Background(), commentID)
 
 	// then
@@ -340,12 +340,12 @@ func TestAnnouncementDAO_GetCommentAnnouncementID_AndAuthorID(t *testing.T) {
 	assert.Equal(t, author.ID, gotAuthorID)
 }
 
-func TestAnnouncementDAO_GetCommentAnnouncementID_NotFound(t *testing.T) {
+func TestAnnouncementDAO_GetCommentEntityID_NotFound(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 
 	// when
-	_, err := repos.Announcement.GetCommentAnnouncementID(context.Background(), uuid.New())
+	_, err := repos.Announcement.GetCommentEntityID(context.Background(), uuid.New())
 
 	// then
 	require.Error(t, err)
@@ -387,9 +387,9 @@ func TestAnnouncementDAO_AddCommentMedia_AndBatch(t *testing.T) {
 	commentC := createAnnouncementComment(t, repos, annID, author.ID, nil, "c")
 
 	// when
-	idA1, err := repos.Announcement.AddCommentMedia(context.Background(), commentA, "url-a-1", "image", "thumb-a-1", 1)
-	require.NoError(t, err)
 	idA0, err := repos.Announcement.AddCommentMedia(context.Background(), commentA, "url-a-0", "image", "thumb-a-0", 0)
+	require.NoError(t, err)
+	idA1, err := repos.Announcement.AddCommentMedia(context.Background(), commentA, "url-a-1", "image", "thumb-a-1", 0)
 	require.NoError(t, err)
 	idB, err := repos.Announcement.AddCommentMedia(context.Background(), commentB, "url-b", "video", "thumb-b", 0)
 	require.NoError(t, err)

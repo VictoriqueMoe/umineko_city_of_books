@@ -15,10 +15,6 @@ type (
 	inviteDAO struct {
 		db *sql.DB
 	}
-
-	inviteRepository struct {
-		repository.InviteRepository
-	}
 )
 
 func (r *inviteDAO) Create(ctx context.Context, code string, createdBy uuid.UUID) error {

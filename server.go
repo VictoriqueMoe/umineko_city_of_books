@@ -49,6 +49,7 @@ import (
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/ship"
 	"umineko_city_of_books/internal/sidebar"
+	"umineko_city_of_books/internal/siteinfo"
 	"umineko_city_of_books/internal/sitemap"
 	"umineko_city_of_books/internal/stream"
 	"umineko_city_of_books/internal/theory"
@@ -101,6 +102,7 @@ type (
 		announcement    announcementsvc.Service
 		homeFeed        homefeed.Service
 		sidebar         sidebar.Service
+		siteInfo        siteinfo.Service
 		vanityRole      vanityrole.Service
 		userSecret      usersecret.Service
 		search          searchsvc.Service
@@ -118,8 +120,8 @@ type (
 )
 
 func initServer() (*fiber.App, func()) {
-	repos, settingsSvc := initDatabase()
-	svc := initServices(repos, settingsSvc)
+	repos, settingsSvc, cacheMgr := initDatabase()
+	svc := initServices(repos, settingsSvc, cacheMgr)
 	app := initApp(svc, repos, settingsSvc)
 	registerListeners(settingsSvc, app, svc, repos)
 
@@ -189,6 +191,7 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 		svc.health,
 		svc.overlay,
 		svc.sitemap,
+		svc.siteInfo,
 		svc.ogResolver,
 		svc.ogImage,
 		svc.staticFS,

@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/repository/model"
 
 	"github.com/google/uuid"
@@ -21,10 +20,6 @@ const (
 type (
 	notificationDAO struct {
 		db *sql.DB
-	}
-
-	notificationRepository struct {
-		repository.NotificationRepository
 	}
 )
 

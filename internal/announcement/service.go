@@ -96,7 +96,7 @@ func rowToResponse(r repository.AnnouncementRow) dto.AnnouncementResponse {
 	}
 }
 
-func commentRowToResponse(c repository.AnnouncementCommentRow, mediaRows []repository.AnnouncementCommentMediaRow) dto.AnnouncementCommentResponse {
+func announcementCommentToResponse(c repository.CommentRow, media []model.PostMediaRow) dto.AnnouncementCommentResponse {
 	return dto.AnnouncementCommentResponse{
 		ID:       c.ID,
 		ParentID: c.ParentID,
@@ -108,7 +108,7 @@ func commentRowToResponse(c repository.AnnouncementCommentRow, mediaRows []repos
 			Role:        role.Role(c.AuthorRole),
 		},
 		Body:      c.Body,
-		Media:     model.CommentMediaRowsToResponse(mediaRows),
+		Media:     model.MediaRowsToResponse(media),
 		LikeCount: c.LikeCount,
 		UserLiked: c.UserLiked,
 		CreatedAt: c.CreatedAt,
@@ -153,7 +153,7 @@ func (s *service) GetDetail(ctx context.Context, id, viewerID uuid.UUID) (*dto.A
 
 	flat := make([]dto.AnnouncementCommentResponse, len(commentRows))
 	for i, c := range commentRows {
-		flat[i] = commentRowToResponse(c, mediaMap[c.ID])
+		flat[i] = announcementCommentToResponse(c, mediaMap[c.ID])
 	}
 	tree := utils.BuildTree(flat,
 		func(c dto.AnnouncementCommentResponse) uuid.UUID { return c.ID },
@@ -331,7 +331,7 @@ func (s *service) LikeComment(ctx context.Context, userID, commentID uuid.UUID) 
 
 func (s *service) notifyCommentLiked(commentID, recipientID, actorID uuid.UUID) {
 	bgCtx := context.Background()
-	announcementID, err := s.repo.GetCommentAnnouncementID(bgCtx, commentID)
+	announcementID, err := s.repo.GetCommentEntityID(bgCtx, commentID)
 	if err != nil {
 		return
 	}

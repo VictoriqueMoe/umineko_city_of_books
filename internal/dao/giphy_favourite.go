@@ -14,10 +14,6 @@ type (
 	giphyFavouriteDAO struct {
 		db *sql.DB
 	}
-
-	giphyFavouriteRepository struct {
-		repository.GiphyFavouriteRepository
-	}
 )
 
 func (r *giphyFavouriteDAO) Add(ctx context.Context, userID uuid.UUID, fav repository.GiphyFavourite) error {

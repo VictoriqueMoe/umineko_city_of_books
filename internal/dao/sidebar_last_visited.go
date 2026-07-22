@@ -7,17 +7,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-
-	"umineko_city_of_books/internal/repository"
 )
 
 type (
 	sidebarLastVisitedDAO struct {
 		db *sql.DB
-	}
-
-	sidebarLastVisitedRepository struct {
-		repository.SidebarLastVisitedRepository
 	}
 )
 

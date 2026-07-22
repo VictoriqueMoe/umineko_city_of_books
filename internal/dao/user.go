@@ -9,7 +9,6 @@ import (
 	"umineko_city_of_books/internal/repository/model"
 
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
@@ -18,10 +17,6 @@ import (
 type (
 	userDAO struct {
 		db *sql.DB
-	}
-
-	userRepository struct {
-		repository.UserRepository
 	}
 )
 

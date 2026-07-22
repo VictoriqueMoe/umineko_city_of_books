@@ -56,6 +56,7 @@ import (
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/ship"
 	"umineko_city_of_books/internal/sidebar"
+	"umineko_city_of_books/internal/siteinfo"
 	"umineko_city_of_books/internal/sitemap"
 	"umineko_city_of_books/internal/stream"
 	"umineko_city_of_books/internal/theory"
@@ -66,7 +67,7 @@ import (
 	"umineko_city_of_books/internal/ws"
 )
 
-func initServices(repos *repository.Repositories, settingsSvc settings.Service) *services {
+func initServices(repos *repository.Repositories, settingsSvc settings.Service, cacheManager *cache.Manager) *services {
 	uploadDir := settingsSvc.Get(context.Background(), config.SettingUploadDir)
 	for _, sub := range []string{"avatars", "banners", "posts", "art"} {
 		if err := os.MkdirAll(filepath.Join(uploadDir, sub), 0755); err != nil {
@@ -74,7 +75,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 		}
 	}
 
-	cacheManager := initCache(settingsSvc)
+	initCache(cacheManager, settingsSvc)
 
 	sessionMgr := session.NewManager(repos.Session, settingsSvc)
 	mediaProc := media.NewProcessor(4)
@@ -146,6 +147,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 
 	baseURL := settingsSvc.Get(context.Background(), config.SettingBaseURL)
 	sitemapSvc := sitemap.NewService(repos.Sitemap, settingsSvc, baseURL)
+	siteInfoSvc := siteinfo.NewService(settingsSvc, mysterySvc, gameRoomSvc, vanityRoleSvc, userSecretSvc, authSvc)
 	ogResolver := og.NewResolver(
 		repos.Theory,
 		repos.User,
@@ -208,6 +210,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 		stream:          streamSvc,
 		overlay:         overlaySvc,
 		health:          healthSvc,
+		siteInfo:        siteInfoSvc,
 		sitemap:         sitemapSvc,
 		ogResolver:      ogResolver,
 		ogImage:         ogImageSvc,
@@ -216,8 +219,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service) 
 	}
 }
 
-func initCache(settingsSvc settings.Service) *cache.Manager {
-	manager := cache.NewManager()
+func initCache(manager *cache.Manager, settingsSvc settings.Service) {
 	manager.Reconfigure(settingsSvc.Get(context.Background(), config.SettingValkeyURL))
 
 	if manager.Enabled() {
@@ -228,6 +230,4 @@ func initCache(settingsSvc settings.Service) *cache.Manager {
 			logger.Log.Warn().Err(err).Msg("valkey cache ping failed at startup")
 		}
 	}
-
-	return manager
 }

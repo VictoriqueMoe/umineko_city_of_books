@@ -964,7 +964,7 @@ func TestPostDAO_GetComments_AuthorBanned(t *testing.T) {
 	assert.False(t, byID[activeCommentID], "expected active author comment to report AuthorBanned=false")
 }
 
-func TestPostDAO_GetCommentPostID(t *testing.T) {
+func TestPostDAO_GetCommentEntityID(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
@@ -972,19 +972,19 @@ func TestPostDAO_GetCommentPostID(t *testing.T) {
 	commentID := createComment(t, repos, postID, user.ID, nil, "c")
 
 	// when
-	got, err := repos.Post.GetCommentPostID(context.Background(), commentID)
+	got, err := repos.Post.GetCommentEntityID(context.Background(), commentID)
 
 	// then
 	require.NoError(t, err)
 	assert.Equal(t, postID, got)
 }
 
-func TestPostDAO_GetCommentPostID_NotFound(t *testing.T) {
+func TestPostDAO_GetCommentEntityID_NotFound(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 
 	// when
-	_, err := repos.Post.GetCommentPostID(context.Background(), uuid.New())
+	_, err := repos.Post.GetCommentEntityID(context.Background(), uuid.New())
 
 	// then
 	require.Error(t, err)

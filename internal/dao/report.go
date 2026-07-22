@@ -14,10 +14,6 @@ type (
 	reportDAO struct {
 		db *sql.DB
 	}
-
-	reportRepository struct {
-		repository.ReportRepository
-	}
 )
 
 func (r *reportDAO) Create(ctx context.Context, reporterID uuid.UUID, targetType, targetID, contextID, reason string) (int64, error) {

@@ -152,7 +152,7 @@ func TestSecretDAO_CreateComment_AndGet(t *testing.T) {
 
 	// when
 	id := createSecretComment(t, repos, testSecretID, nil, user.ID, "first word")
-	comments, err := repos.Secret.GetComments(context.Background(), testSecretID, user.ID, nil)
+	comments, _, err := repos.Secret.GetComments(context.Background(), testSecretID, user.ID, 500, 0, nil)
 
 	// then
 	require.NoError(t, err)
@@ -205,14 +205,14 @@ func TestSecretDAO_LikeComment_Idempotent(t *testing.T) {
 	require.NoError(t, repos.Secret.LikeComment(context.Background(), liker.ID, id))
 
 	// then
-	comments, err := repos.Secret.GetComments(context.Background(), testSecretID, liker.ID, nil)
+	comments, _, err := repos.Secret.GetComments(context.Background(), testSecretID, liker.ID, 500, 0, nil)
 	require.NoError(t, err)
 	require.Len(t, comments, 1)
 	assert.Equal(t, 1, comments[0].LikeCount)
 	assert.True(t, comments[0].UserLiked)
 
 	require.NoError(t, repos.Secret.UnlikeComment(context.Background(), liker.ID, id))
-	comments, err = repos.Secret.GetComments(context.Background(), testSecretID, liker.ID, nil)
+	comments, _, err = repos.Secret.GetComments(context.Background(), testSecretID, liker.ID, 500, 0, nil)
 	require.NoError(t, err)
 	assert.Equal(t, 0, comments[0].LikeCount)
 	assert.False(t, comments[0].UserLiked)
@@ -266,7 +266,7 @@ func TestSecretDAO_ExcludesBlockedUsers(t *testing.T) {
 	createSecretComment(t, repos, testSecretID, nil, friend.ID, "visible")
 
 	// when
-	rows, err := repos.Secret.GetComments(context.Background(), testSecretID, viewer.ID, []uuid.UUID{blocked.ID})
+	rows, _, err := repos.Secret.GetComments(context.Background(), testSecretID, viewer.ID, 500, 0, []uuid.UUID{blocked.ID})
 
 	// then
 	require.NoError(t, err)

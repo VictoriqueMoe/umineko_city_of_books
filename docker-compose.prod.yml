@@ -71,7 +71,7 @@ services:
     image: valkey/valkey:latest
     container_name: umineko-valkey-cache
     restart: unless-stopped
-    command: valkey-server --save "" --appendonly no --maxmemory 256mb --maxmemory-policy allkeys-lru
+    command: valkey-server --save "" --appendonly no --maxmemory 4gb --maxmemory-policy allkeys-lru
     healthcheck:
       test: ["CMD", "valkey-cli", "ping"]
       interval: 30s

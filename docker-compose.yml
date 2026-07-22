@@ -46,7 +46,7 @@ services:
     image: valkey/valkey:latest
     container_name: umineko-valkey-cache
     restart: unless-stopped
-    command: valkey-server --save "" --appendonly no --maxmemory 256mb --maxmemory-policy allkeys-lru
+    command: valkey-server --save "" --appendonly no --maxmemory 4gb --maxmemory-policy allkeys-lru
     ports:
       - "127.0.0.1:6381:6379"
     healthcheck:

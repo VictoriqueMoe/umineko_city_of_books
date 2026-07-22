@@ -16,10 +16,6 @@ type (
 	emailVerificationDAO struct {
 		db *sql.DB
 	}
-
-	emailVerificationRepository struct {
-		repository.EmailVerificationRepository
-	}
 )
 
 func (r *emailVerificationDAO) Create(ctx context.Context, tokenHash string, userID uuid.UUID, expiresAt time.Time) error {

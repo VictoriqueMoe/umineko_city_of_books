@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/db"
-	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/repository/model"
 
 	"github.com/google/uuid"
@@ -18,10 +17,7 @@ import (
 type (
 	ocDAO struct {
 		db *sql.DB
-	}
-
-	ocRepository struct {
-		repository.OCRepository
+		*commentDAO[uuid.UUID]
 	}
 )
 
@@ -179,7 +175,7 @@ func (r *ocDAO) List(ctx context.Context, viewerID uuid.UUID, sort string, crack
 		if crackOCsOnly {
 			parts = append(parts, fmt.Sprintf("COALESCE((SELECT SUM(value) FROM oc_votes WHERE oc_id = o.id), 0) <= %d", -3))
 		}
-		exclSQL, exclArgs := repository.ExcludeClause("o.user_id", excludeUserIDs, idx)
+		exclSQL, exclArgs := ExcludeClause("o.user_id", excludeUserIDs, idx)
 		idx += len(exclArgs)
 		args = append(args, exclArgs...)
 		return " WHERE " + strings.Join(parts, " AND ") + exclSQL, args, idx
@@ -446,232 +442,4 @@ func (r *ocDAO) Unfavourite(ctx context.Context, userID uuid.UUID, ocID uuid.UUI
 		return fmt.Errorf("unfavourite oc: %w", err)
 	}
 	return nil
-}
-
-func (r *ocDAO) CreateComment(ctx context.Context, id uuid.UUID, ocID uuid.UUID, parentID *uuid.UUID, userID uuid.UUID, body string) error {
-	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO oc_comments (id, oc_id, parent_id, user_id, body) VALUES ($1, $2, $3, $4, $5)`,
-		id, ocID, parentID, userID, body,
-	)
-	if err != nil {
-		return fmt.Errorf("create oc comment: %w", err)
-	}
-	return nil
-}
-
-func (r *ocDAO) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string) error {
-	res, err := r.db.ExecContext(ctx,
-		`UPDATE oc_comments SET body = $1, updated_at = NOW() WHERE id = $2 AND user_id = $3`,
-		body, id, userID,
-	)
-	if err != nil {
-		return fmt.Errorf("update oc comment: %w", err)
-	}
-	n, _ := res.RowsAffected()
-	if n == 0 {
-		return fmt.Errorf("comment not found or not owned")
-	}
-	return nil
-}
-
-func (r *ocDAO) UpdateCommentAsAdmin(ctx context.Context, id uuid.UUID, body string) error {
-	_, err := r.db.ExecContext(ctx,
-		`UPDATE oc_comments SET body = $1, updated_at = NOW() WHERE id = $2`,
-		body, id,
-	)
-	if err != nil {
-		return fmt.Errorf("admin update oc comment: %w", err)
-	}
-	return nil
-}
-
-func (r *ocDAO) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	res, err := r.db.ExecContext(ctx, `DELETE FROM oc_comments WHERE id = $1 AND user_id = $2`, id, userID)
-	if err != nil {
-		return fmt.Errorf("delete oc comment: %w", err)
-	}
-	n, _ := res.RowsAffected()
-	if n == 0 {
-		return fmt.Errorf("comment not found or not owned")
-	}
-	return nil
-}
-
-func (r *ocDAO) DeleteCommentAsAdmin(ctx context.Context, id uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM oc_comments WHERE id = $1`, id)
-	if err != nil {
-		return fmt.Errorf("admin delete oc comment: %w", err)
-	}
-	return nil
-}
-
-func (r *ocDAO) GetComments(ctx context.Context, ocID uuid.UUID, viewerID uuid.UUID, limit, offset int, excludeUserIDs []uuid.UUID) ([]model.OCCommentRow, int, error) {
-	exclSQL, exclArgs := repository.ExcludeClause("user_id", excludeUserIDs, 2)
-	var total int
-	countArgs := []interface{}{ocID}
-	countArgs = append(countArgs, exclArgs...)
-	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM oc_comments WHERE oc_id = $1`+exclSQL, countArgs...).Scan(&total); err != nil {
-		return nil, 0, fmt.Errorf("count oc comments: %w", err)
-	}
-
-	exclSQL2, exclArgs2 := repository.ExcludeClause("c.user_id", excludeUserIDs, 3)
-	limitPH := fmt.Sprintf("$%d", 3+len(exclArgs2))
-	offsetPH := fmt.Sprintf("$%d", 4+len(exclArgs2))
-	queryArgs := []interface{}{viewerID, ocID}
-	queryArgs = append(queryArgs, exclArgs2...)
-	queryArgs = append(queryArgs, limit, offset)
-	rows, err := r.db.QueryContext(ctx,
-		`SELECT c.id, c.oc_id, c.parent_id, c.user_id, c.body, c.created_at, c.updated_at,
-			u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''),
-			(SELECT COUNT(*) FROM oc_comment_likes WHERE comment_id = c.id),
-			EXISTS(SELECT 1 FROM oc_comment_likes WHERE comment_id = c.id AND user_id = $1)
-		FROM oc_comments c
-		JOIN users u ON c.user_id = u.id
-		LEFT JOIN user_roles r ON r.user_id = c.user_id
-		WHERE c.oc_id = $2`+exclSQL2+`
-		ORDER BY c.created_at ASC
-		LIMIT `+limitPH+` OFFSET `+offsetPH,
-		queryArgs...,
-	)
-	if err != nil {
-		return nil, 0, fmt.Errorf("get oc comments: %w", err)
-	}
-	defer rows.Close()
-
-	var comments []model.OCCommentRow
-	for rows.Next() {
-		var c model.OCCommentRow
-		var createdAt time.Time
-		var updatedAt *time.Time
-		if err := rows.Scan(
-			&c.ID, &c.OCID, &c.ParentID, &c.UserID, &c.Body, &createdAt, &updatedAt,
-			&c.AuthorUsername, &c.AuthorDisplayName, &c.AuthorAvatarURL, &c.AuthorRole,
-			&c.LikeCount, &c.UserLiked,
-		); err != nil {
-			return nil, 0, fmt.Errorf("scan oc comment: %w", err)
-		}
-		c.CreatedAt = createdAt.UTC().Format(time.RFC3339)
-		c.UpdatedAt = timePtrToString(updatedAt)
-		comments = append(comments, c)
-	}
-	return comments, total, rows.Err()
-}
-
-func (r *ocDAO) GetCommentOCID(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error) {
-	var ocID uuid.UUID
-	err := r.db.QueryRowContext(ctx, `SELECT oc_id FROM oc_comments WHERE id = $1`, commentID).Scan(&ocID)
-	if err != nil {
-		return uuid.Nil, fmt.Errorf("get oc comment oc id: %w", err)
-	}
-	return ocID, nil
-}
-
-func (r *ocDAO) GetCommentAuthorID(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error) {
-	var userID uuid.UUID
-	err := r.db.QueryRowContext(ctx, `SELECT user_id FROM oc_comments WHERE id = $1`, commentID).Scan(&userID)
-	if err != nil {
-		return uuid.Nil, fmt.Errorf("get oc comment author: %w", err)
-	}
-	return userID, nil
-}
-
-func (r *ocDAO) LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO oc_comment_likes (user_id, comment_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-		userID, commentID,
-	)
-	if err != nil {
-		return fmt.Errorf("like oc comment: %w", err)
-	}
-	return nil
-}
-
-func (r *ocDAO) UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx,
-		`DELETE FROM oc_comment_likes WHERE user_id = $1 AND comment_id = $2`,
-		userID, commentID,
-	)
-	if err != nil {
-		return fmt.Errorf("unlike oc comment: %w", err)
-	}
-	return nil
-}
-
-func (r *ocDAO) AddCommentMedia(ctx context.Context, commentID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, sortOrder int) (int64, error) {
-	var id int64
-	err := r.db.QueryRowContext(ctx,
-		`INSERT INTO oc_comment_media (comment_id, media_url, media_type, thumbnail_url, sort_order) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-		commentID, mediaURL, mediaType, thumbnailURL, sortOrder,
-	).Scan(&id)
-	if err != nil {
-		return 0, fmt.Errorf("add oc comment media: %w", err)
-	}
-	return id, nil
-}
-
-func (r *ocDAO) UpdateCommentMediaURL(ctx context.Context, id int64, mediaURL string) error {
-	_, err := r.db.ExecContext(ctx, `UPDATE oc_comment_media SET media_url = $1 WHERE id = $2`, mediaURL, id)
-	if err != nil {
-		return fmt.Errorf("update oc comment media url: %w", err)
-	}
-	return nil
-}
-
-func (r *ocDAO) UpdateCommentMediaThumbnail(ctx context.Context, id int64, thumbnailURL string) error {
-	_, err := r.db.ExecContext(ctx, `UPDATE oc_comment_media SET thumbnail_url = $1 WHERE id = $2`, thumbnailURL, id)
-	if err != nil {
-		return fmt.Errorf("update oc comment media thumbnail: %w", err)
-	}
-	return nil
-}
-
-func (r *ocDAO) GetCommentMedia(ctx context.Context, commentID uuid.UUID) ([]model.OCCommentMediaRow, error) {
-	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, comment_id, media_url, media_type, thumbnail_url, sort_order FROM oc_comment_media WHERE comment_id = $1 ORDER BY sort_order`,
-		commentID,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("get oc comment media: %w", err)
-	}
-	defer rows.Close()
-
-	var media []model.OCCommentMediaRow
-	for rows.Next() {
-		var m model.OCCommentMediaRow
-		if err := rows.Scan(&m.ID, &m.CommentID, &m.MediaURL, &m.MediaType, &m.ThumbnailURL, &m.SortOrder); err != nil {
-			return nil, fmt.Errorf("scan oc comment media: %w", err)
-		}
-		media = append(media, m)
-	}
-	return media, rows.Err()
-}
-
-func (r *ocDAO) GetCommentMediaBatch(ctx context.Context, commentIDs []uuid.UUID) (map[uuid.UUID][]model.OCCommentMediaRow, error) {
-	if len(commentIDs) == 0 {
-		return nil, nil
-	}
-	placeholders := "$1"
-	args := []interface{}{commentIDs[0]}
-	for i, id := range commentIDs[1:] {
-		placeholders += fmt.Sprintf(", $%d", i+2)
-		args = append(args, id)
-	}
-	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, comment_id, media_url, media_type, thumbnail_url, sort_order FROM oc_comment_media WHERE comment_id IN (`+placeholders+`) ORDER BY sort_order`,
-		args...,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("batch get oc comment media: %w", err)
-	}
-	defer rows.Close()
-
-	result := make(map[uuid.UUID][]model.OCCommentMediaRow)
-	for rows.Next() {
-		var m model.OCCommentMediaRow
-		if err := rows.Scan(&m.ID, &m.CommentID, &m.MediaURL, &m.MediaType, &m.ThumbnailURL, &m.SortOrder); err != nil {
-			return nil, fmt.Errorf("scan oc comment media: %w", err)
-		}
-		result[m.CommentID] = append(result[m.CommentID], m)
-	}
-	return result, rows.Err()
 }

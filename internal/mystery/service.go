@@ -16,6 +16,7 @@ import (
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/repository/model"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/upload"
@@ -214,7 +215,7 @@ func (s *service) GetMystery(ctx context.Context, id uuid.UUID, viewerID uuid.UU
 	var comments []dto.MysteryCommentResponse
 	if row.Solved {
 		blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, viewerID)
-		commentRows, _ := s.mysteryRepo.GetComments(ctx, id, viewerID, blockedIDs)
+		commentRows, _, _ := s.mysteryRepo.GetComments(ctx, id, viewerID, 500, 0, blockedIDs)
 		if len(commentRows) > 0 {
 			commentIDs := make([]uuid.UUID, len(commentRows))
 			for i, c := range commentRows {
@@ -223,7 +224,7 @@ func (s *service) GetMystery(ctx context.Context, id uuid.UUID, viewerID uuid.UU
 			mediaBatch, _ := s.mysteryRepo.GetCommentMediaBatch(ctx, commentIDs)
 			flat := make([]dto.MysteryCommentResponse, len(commentRows))
 			for i, c := range commentRows {
-				flat[i] = c.ToResponse(mediaBatch[c.ID])
+				flat[i] = mysteryCommentToResponse(c, mediaBatch[c.ID])
 			}
 			comments = utils.BuildTree(flat,
 				func(c dto.MysteryCommentResponse) uuid.UUID { return c.ID },
@@ -241,17 +242,8 @@ func (s *service) GetMystery(ctx context.Context, id uuid.UUID, viewerID uuid.UU
 		attachments = []dto.MysteryAttachment{}
 	}
 
-	mediaRows, _ := s.mysteryRepo.GetMysteryMedia(ctx, id)
-	mediaList := make([]dto.PostMediaResponse, len(mediaRows))
-	for i, m := range mediaRows {
-		mediaList[i] = dto.PostMediaResponse{
-			ID:           int(m.ID),
-			MediaURL:     m.MediaURL,
-			MediaType:    m.MediaType,
-			ThumbnailURL: m.ThumbnailURL,
-			SortOrder:    m.SortOrder,
-		}
-	}
+	mediaRows, _ := s.mysteryRepo.GetMedia(ctx, id)
+	mediaList := model.MediaRowsToResponse(mediaRows)
 
 	viewerHasSolved := false
 	if viewerID != uuid.Nil && viewerID != row.UserID {
@@ -1103,15 +1095,15 @@ func (s *service) UploadMedia(
 		return nil, ErrNotAuthor
 	}
 
-	existing, _ := s.mysteryRepo.GetMysteryMedia(ctx, mysteryID)
+	existing, _ := s.mysteryRepo.GetMedia(ctx, mysteryID)
 	sortOrder := len(existing)
 
 	resp, err := s.uploader.SaveAndRecord(ctx, "mysteries", contentType, fileSize, reader,
 		func(mediaURL, mediaType, _ string, _ int) (int64, error) {
-			return s.mysteryRepo.AddMysteryMedia(ctx, mysteryID, mediaURL, mediaType, "", sortOrder)
+			return s.mysteryRepo.AddMedia(ctx, mysteryID, mediaURL, mediaType, "", sortOrder)
 		},
-		s.mysteryRepo.UpdateMysteryMediaURL,
-		s.mysteryRepo.UpdateMysteryMediaThumbnail,
+		s.mysteryRepo.UpdateMediaURL,
+		s.mysteryRepo.UpdateMediaThumbnail,
 	)
 	if err != nil {
 		return nil, err
@@ -1129,7 +1121,7 @@ func (s *service) DeleteMedia(ctx context.Context, mediaID int64, mysteryID uuid
 		return ErrNotAuthor
 	}
 
-	mediaURL, err := s.mysteryRepo.DeleteMysteryMedia(ctx, mediaID, mysteryID)
+	mediaURL, err := s.mysteryRepo.DeleteMedia(ctx, mediaID, mysteryID)
 	if err != nil {
 		return err
 	}
@@ -1296,4 +1288,25 @@ func (s *service) UpdateClue(ctx context.Context, mysteryID uuid.UUID, clueID in
 		Data: map[string]interface{}{"mystery_id": mysteryID},
 	})
 	return nil
+}
+
+func mysteryCommentToResponse(c repository.CommentRow, media []model.PostMediaRow) dto.MysteryCommentResponse {
+	mediaList := model.MediaRowsToResponse(media)
+	return dto.MysteryCommentResponse{
+		ID:       c.ID,
+		ParentID: c.ParentID,
+		Author: dto.UserResponse{
+			ID:          c.UserID,
+			Username:    c.AuthorUsername,
+			DisplayName: c.AuthorDisplayName,
+			AvatarURL:   c.AuthorAvatarURL,
+			Role:        role.Role(c.AuthorRole),
+		},
+		Body:      c.Body,
+		Media:     mediaList,
+		LikeCount: c.LikeCount,
+		UserLiked: c.UserLiked,
+		CreatedAt: c.CreatedAt,
+		UpdatedAt: c.UpdatedAt,
+	}
 }

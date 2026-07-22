@@ -12,10 +12,6 @@ type (
 	bannedGiphyDAO struct {
 		db *sql.DB
 	}
-
-	bannedGiphyRepository struct {
-		repository.BannedGiphyRepository
-	}
 )
 
 func (r *bannedGiphyDAO) List(ctx context.Context) ([]repository.BannedGiphyRow, error) {

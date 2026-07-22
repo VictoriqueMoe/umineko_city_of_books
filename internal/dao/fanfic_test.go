@@ -1312,7 +1312,7 @@ func TestFanficDAO_CreateComment(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	cs, err := repos.Fanfic.GetComments(context.Background(), fid, user.ID, nil)
+	cs, _, err := repos.Fanfic.GetComments(context.Background(), fid, user.ID, 500, 0, nil)
 	require.NoError(t, err)
 	require.Len(t, cs, 1)
 	assert.Equal(t, "Nice!", cs[0].Body)
@@ -1332,7 +1332,7 @@ func TestFanficDAO_CreateComment_Threaded(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	cs, err := repos.Fanfic.GetComments(context.Background(), fid, user.ID, nil)
+	cs, _, err := repos.Fanfic.GetComments(context.Background(), fid, user.ID, 500, 0, nil)
 	require.NoError(t, err)
 	require.Len(t, cs, 2)
 	var foundChild bool
@@ -1359,7 +1359,7 @@ func TestFanficDAO_UpdateComment_AsOwner(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	cs, err := repos.Fanfic.GetComments(context.Background(), fid, user.ID, nil)
+	cs, _, err := repos.Fanfic.GetComments(context.Background(), fid, user.ID, 500, 0, nil)
 	require.NoError(t, err)
 	require.Len(t, cs, 1)
 	assert.Equal(t, "new", cs[0].Body)
@@ -1394,7 +1394,7 @@ func TestFanficDAO_UpdateCommentAsAdmin(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	cs, err := repos.Fanfic.GetComments(context.Background(), fid, owner.ID, nil)
+	cs, _, err := repos.Fanfic.GetComments(context.Background(), fid, owner.ID, 500, 0, nil)
 	require.NoError(t, err)
 	require.Len(t, cs, 1)
 	assert.Equal(t, "admin edit", cs[0].Body)
@@ -1413,7 +1413,7 @@ func TestFanficDAO_DeleteComment_AsOwner(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	cs, err := repos.Fanfic.GetComments(context.Background(), fid, user.ID, nil)
+	cs, _, err := repos.Fanfic.GetComments(context.Background(), fid, user.ID, 500, 0, nil)
 	require.NoError(t, err)
 	assert.Len(t, cs, 0)
 }
@@ -1447,7 +1447,7 @@ func TestFanficDAO_DeleteCommentAsAdmin(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	cs, err := repos.Fanfic.GetComments(context.Background(), fid, owner.ID, nil)
+	cs, _, err := repos.Fanfic.GetComments(context.Background(), fid, owner.ID, 500, 0, nil)
 	require.NoError(t, err)
 	assert.Len(t, cs, 0)
 }
@@ -1462,7 +1462,7 @@ func TestFanficDAO_GetComments_ExcludesUsers(t *testing.T) {
 	require.NoError(t, repos.Fanfic.CreateComment(context.Background(), uuid.New(), fid, nil, blocked.ID, "blocked"))
 
 	// when
-	cs, err := repos.Fanfic.GetComments(context.Background(), fid, owner.ID, []uuid.UUID{blocked.ID})
+	cs, _, err := repos.Fanfic.GetComments(context.Background(), fid, owner.ID, 500, 0, []uuid.UUID{blocked.ID})
 
 	// then
 	require.NoError(t, err)
@@ -1470,7 +1470,7 @@ func TestFanficDAO_GetComments_ExcludesUsers(t *testing.T) {
 	assert.Equal(t, "ok", cs[0].Body)
 }
 
-func TestFanficDAO_GetCommentFanficID(t *testing.T) {
+func TestFanficDAO_GetCommentEntityID(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
@@ -1479,7 +1479,7 @@ func TestFanficDAO_GetCommentFanficID(t *testing.T) {
 	require.NoError(t, repos.Fanfic.CreateComment(context.Background(), cid, fid, nil, user.ID, "body"))
 
 	// when
-	got, err := repos.Fanfic.GetCommentFanficID(context.Background(), cid)
+	got, err := repos.Fanfic.GetCommentEntityID(context.Background(), cid)
 
 	// then
 	require.NoError(t, err)
@@ -1516,7 +1516,7 @@ func TestFanficDAO_LikeComment(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	cs, err := repos.Fanfic.GetComments(context.Background(), fid, liker.ID, nil)
+	cs, _, err := repos.Fanfic.GetComments(context.Background(), fid, liker.ID, 500, 0, nil)
 	require.NoError(t, err)
 	require.Len(t, cs, 1)
 	assert.Equal(t, 1, cs[0].LikeCount)
@@ -1538,7 +1538,7 @@ func TestFanficDAO_LikeComment_Idempotent(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	cs, err := repos.Fanfic.GetComments(context.Background(), fid, liker.ID, nil)
+	cs, _, err := repos.Fanfic.GetComments(context.Background(), fid, liker.ID, 500, 0, nil)
 	require.NoError(t, err)
 	require.Len(t, cs, 1)
 	assert.Equal(t, 1, cs[0].LikeCount)
@@ -1559,7 +1559,7 @@ func TestFanficDAO_UnlikeComment(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	cs, err := repos.Fanfic.GetComments(context.Background(), fid, liker.ID, nil)
+	cs, _, err := repos.Fanfic.GetComments(context.Background(), fid, liker.ID, 500, 0, nil)
 	require.NoError(t, err)
 	require.Len(t, cs, 1)
 	assert.Equal(t, 0, cs[0].LikeCount)
@@ -1636,11 +1636,11 @@ func TestFanficDAO_GetCommentMedia_OrderedBySort(t *testing.T) {
 	fid := createFanfic(t, repos, user.ID, "T")
 	cid := uuid.New()
 	require.NoError(t, repos.Fanfic.CreateComment(context.Background(), cid, fid, nil, user.ID, "body"))
-	_, err := repos.Fanfic.AddCommentMedia(context.Background(), cid, "http://x/2.png", "image", "", 2)
+	_, err := repos.Fanfic.AddCommentMedia(context.Background(), cid, "http://x/0.png", "image", "", 0)
 	require.NoError(t, err)
-	_, err = repos.Fanfic.AddCommentMedia(context.Background(), cid, "http://x/0.png", "image", "", 0)
+	_, err = repos.Fanfic.AddCommentMedia(context.Background(), cid, "http://x/1.png", "image", "", 0)
 	require.NoError(t, err)
-	_, err = repos.Fanfic.AddCommentMedia(context.Background(), cid, "http://x/1.png", "image", "", 1)
+	_, err = repos.Fanfic.AddCommentMedia(context.Background(), cid, "http://x/2.png", "image", "", 0)
 	require.NoError(t, err)
 
 	// when

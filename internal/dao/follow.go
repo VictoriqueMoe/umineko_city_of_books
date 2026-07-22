@@ -14,10 +14,6 @@ type (
 	followDAO struct {
 		db *sql.DB
 	}
-
-	followRepository struct {
-		repository.FollowRepository
-	}
 )
 
 func (r *followDAO) Follow(ctx context.Context, followerID uuid.UUID, followingID uuid.UUID) error {
