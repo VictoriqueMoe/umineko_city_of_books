@@ -9,6 +9,7 @@ import (
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
+	"umineko_city_of_books/internal/og"
 	"umineko_city_of_books/internal/settings"
 
 	"github.com/stretchr/testify/assert"
@@ -25,7 +26,7 @@ func TestOGImage_NotFound(t *testing.T) {
 	h := testutil.NewHarness(t)
 	settingsSvc := settings.NewMockService(t)
 	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImagePixels).Return(bounds.FallbackMaxImagePixels).Maybe()
-	NewOGImageHandler(uploads, settingsSvc).Register(h.App)
+	NewOGImageHandler(uploads, settingsSvc, og.NewImageService(nil)).Register(h.App)
 
 	tests := []struct {
 		name string

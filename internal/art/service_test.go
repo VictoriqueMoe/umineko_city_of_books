@@ -906,7 +906,7 @@ func TestLikeComment_OK(t *testing.T) {
 	m.artRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
 	m.artRepo.EXPECT().LikeComment(mock.Anything, userID, commentID).Return(nil)
-	m.artRepo.EXPECT().GetCommentArtID(mock.Anything, commentID).Return(uuid.Nil, errors.New("stop goroutine")).Maybe()
+	m.artRepo.EXPECT().GetCommentEntityID(mock.Anything, commentID).Return(uuid.Nil, errors.New("stop goroutine")).Maybe()
 
 	// when
 	err := svc.LikeComment(context.Background(), userID, commentID)

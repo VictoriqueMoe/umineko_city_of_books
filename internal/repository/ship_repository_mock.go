@@ -878,24 +878,92 @@ func (_c *MockShipRepository_GetCommentAuthorID_Call) RunAndReturn(run func(ctx 
 	return _c
 }
 
+// GetCommentEntityID provides a mock function for the type MockShipRepository
+func (_mock *MockShipRepository) GetCommentEntityID(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error) {
+	ret := _mock.Called(ctx, commentID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetCommentEntityID")
+	}
+
+	var r0 uuid.UUID
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (uuid.UUID, error)); ok {
+		return returnFunc(ctx, commentID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) uuid.UUID); ok {
+		r0 = returnFunc(ctx, commentID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(uuid.UUID)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, commentID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockShipRepository_GetCommentEntityID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetCommentEntityID'
+type MockShipRepository_GetCommentEntityID_Call struct {
+	*mock.Call
+}
+
+// GetCommentEntityID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - commentID uuid.UUID
+func (_e *MockShipRepository_Expecter) GetCommentEntityID(ctx any, commentID any) *MockShipRepository_GetCommentEntityID_Call {
+	return &MockShipRepository_GetCommentEntityID_Call{Call: _e.mock.On("GetCommentEntityID", ctx, commentID)}
+}
+
+func (_c *MockShipRepository_GetCommentEntityID_Call) Run(run func(ctx context.Context, commentID uuid.UUID)) *MockShipRepository_GetCommentEntityID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockShipRepository_GetCommentEntityID_Call) Return(uUID uuid.UUID, err error) *MockShipRepository_GetCommentEntityID_Call {
+	_c.Call.Return(uUID, err)
+	return _c
+}
+
+func (_c *MockShipRepository_GetCommentEntityID_Call) RunAndReturn(run func(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error)) *MockShipRepository_GetCommentEntityID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetCommentMedia provides a mock function for the type MockShipRepository
-func (_mock *MockShipRepository) GetCommentMedia(ctx context.Context, commentID uuid.UUID) ([]model.ShipCommentMediaRow, error) {
+func (_mock *MockShipRepository) GetCommentMedia(ctx context.Context, commentID uuid.UUID) ([]model.PostMediaRow, error) {
 	ret := _mock.Called(ctx, commentID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetCommentMedia")
 	}
 
-	var r0 []model.ShipCommentMediaRow
+	var r0 []model.PostMediaRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]model.ShipCommentMediaRow, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]model.PostMediaRow, error)); ok {
 		return returnFunc(ctx, commentID)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []model.ShipCommentMediaRow); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []model.PostMediaRow); ok {
 		r0 = returnFunc(ctx, commentID)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]model.ShipCommentMediaRow)
+			r0 = ret.Get(0).([]model.PostMediaRow)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
@@ -936,34 +1004,34 @@ func (_c *MockShipRepository_GetCommentMedia_Call) Run(run func(ctx context.Cont
 	return _c
 }
 
-func (_c *MockShipRepository_GetCommentMedia_Call) Return(vs []model.ShipCommentMediaRow, err error) *MockShipRepository_GetCommentMedia_Call {
-	_c.Call.Return(vs, err)
+func (_c *MockShipRepository_GetCommentMedia_Call) Return(postMediaRows []model.PostMediaRow, err error) *MockShipRepository_GetCommentMedia_Call {
+	_c.Call.Return(postMediaRows, err)
 	return _c
 }
 
-func (_c *MockShipRepository_GetCommentMedia_Call) RunAndReturn(run func(ctx context.Context, commentID uuid.UUID) ([]model.ShipCommentMediaRow, error)) *MockShipRepository_GetCommentMedia_Call {
+func (_c *MockShipRepository_GetCommentMedia_Call) RunAndReturn(run func(ctx context.Context, commentID uuid.UUID) ([]model.PostMediaRow, error)) *MockShipRepository_GetCommentMedia_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetCommentMediaBatch provides a mock function for the type MockShipRepository
-func (_mock *MockShipRepository) GetCommentMediaBatch(ctx context.Context, commentIDs []uuid.UUID) (map[uuid.UUID][]model.ShipCommentMediaRow, error) {
+func (_mock *MockShipRepository) GetCommentMediaBatch(ctx context.Context, commentIDs []uuid.UUID) (map[uuid.UUID][]model.PostMediaRow, error) {
 	ret := _mock.Called(ctx, commentIDs)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetCommentMediaBatch")
 	}
 
-	var r0 map[uuid.UUID][]model.ShipCommentMediaRow
+	var r0 map[uuid.UUID][]model.PostMediaRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) (map[uuid.UUID][]model.ShipCommentMediaRow, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) (map[uuid.UUID][]model.PostMediaRow, error)); ok {
 		return returnFunc(ctx, commentIDs)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) map[uuid.UUID][]model.ShipCommentMediaRow); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) map[uuid.UUID][]model.PostMediaRow); ok {
 		r0 = returnFunc(ctx, commentIDs)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(map[uuid.UUID][]model.ShipCommentMediaRow)
+			r0 = ret.Get(0).(map[uuid.UUID][]model.PostMediaRow)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, []uuid.UUID) error); ok {
@@ -1004,103 +1072,35 @@ func (_c *MockShipRepository_GetCommentMediaBatch_Call) Run(run func(ctx context
 	return _c
 }
 
-func (_c *MockShipRepository_GetCommentMediaBatch_Call) Return(uUIDToVs map[uuid.UUID][]model.ShipCommentMediaRow, err error) *MockShipRepository_GetCommentMediaBatch_Call {
-	_c.Call.Return(uUIDToVs, err)
+func (_c *MockShipRepository_GetCommentMediaBatch_Call) Return(uUIDToPostMediaRows map[uuid.UUID][]model.PostMediaRow, err error) *MockShipRepository_GetCommentMediaBatch_Call {
+	_c.Call.Return(uUIDToPostMediaRows, err)
 	return _c
 }
 
-func (_c *MockShipRepository_GetCommentMediaBatch_Call) RunAndReturn(run func(ctx context.Context, commentIDs []uuid.UUID) (map[uuid.UUID][]model.ShipCommentMediaRow, error)) *MockShipRepository_GetCommentMediaBatch_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetCommentShipID provides a mock function for the type MockShipRepository
-func (_mock *MockShipRepository) GetCommentShipID(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error) {
-	ret := _mock.Called(ctx, commentID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetCommentShipID")
-	}
-
-	var r0 uuid.UUID
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (uuid.UUID, error)); ok {
-		return returnFunc(ctx, commentID)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) uuid.UUID); ok {
-		r0 = returnFunc(ctx, commentID)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(uuid.UUID)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, commentID)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockShipRepository_GetCommentShipID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetCommentShipID'
-type MockShipRepository_GetCommentShipID_Call struct {
-	*mock.Call
-}
-
-// GetCommentShipID is a helper method to define mock.On call
-//   - ctx context.Context
-//   - commentID uuid.UUID
-func (_e *MockShipRepository_Expecter) GetCommentShipID(ctx any, commentID any) *MockShipRepository_GetCommentShipID_Call {
-	return &MockShipRepository_GetCommentShipID_Call{Call: _e.mock.On("GetCommentShipID", ctx, commentID)}
-}
-
-func (_c *MockShipRepository_GetCommentShipID_Call) Run(run func(ctx context.Context, commentID uuid.UUID)) *MockShipRepository_GetCommentShipID_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		run(
-			arg0,
-			arg1,
-		)
-	})
-	return _c
-}
-
-func (_c *MockShipRepository_GetCommentShipID_Call) Return(uUID uuid.UUID, err error) *MockShipRepository_GetCommentShipID_Call {
-	_c.Call.Return(uUID, err)
-	return _c
-}
-
-func (_c *MockShipRepository_GetCommentShipID_Call) RunAndReturn(run func(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error)) *MockShipRepository_GetCommentShipID_Call {
+func (_c *MockShipRepository_GetCommentMediaBatch_Call) RunAndReturn(run func(ctx context.Context, commentIDs []uuid.UUID) (map[uuid.UUID][]model.PostMediaRow, error)) *MockShipRepository_GetCommentMediaBatch_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetComments provides a mock function for the type MockShipRepository
-func (_mock *MockShipRepository) GetComments(ctx context.Context, shipID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID) ([]model.ShipCommentRow, int, error) {
+func (_mock *MockShipRepository) GetComments(ctx context.Context, shipID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID) ([]CommentRow, int, error) {
 	ret := _mock.Called(ctx, shipID, viewerID, limit, offset, excludeUserIDs)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetComments")
 	}
 
-	var r0 []model.ShipCommentRow
+	var r0 []CommentRow
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID) ([]model.ShipCommentRow, int, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID) ([]CommentRow, int, error)); ok {
 		return returnFunc(ctx, shipID, viewerID, limit, offset, excludeUserIDs)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID) []model.ShipCommentRow); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID) []CommentRow); ok {
 		r0 = returnFunc(ctx, shipID, viewerID, limit, offset, excludeUserIDs)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]model.ShipCommentRow)
+			r0 = ret.Get(0).([]CommentRow)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID) int); ok {
@@ -1170,12 +1170,12 @@ func (_c *MockShipRepository_GetComments_Call) Run(run func(ctx context.Context,
 	return _c
 }
 
-func (_c *MockShipRepository_GetComments_Call) Return(shipCommentRows []model.ShipCommentRow, n int, err error) *MockShipRepository_GetComments_Call {
-	_c.Call.Return(shipCommentRows, n, err)
+func (_c *MockShipRepository_GetComments_Call) Return(commentRows []CommentRow, n int, err error) *MockShipRepository_GetComments_Call {
+	_c.Call.Return(commentRows, n, err)
 	return _c
 }
 
-func (_c *MockShipRepository_GetComments_Call) RunAndReturn(run func(ctx context.Context, shipID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID) ([]model.ShipCommentRow, int, error)) *MockShipRepository_GetComments_Call {
+func (_c *MockShipRepository_GetComments_Call) RunAndReturn(run func(ctx context.Context, shipID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID) ([]CommentRow, int, error)) *MockShipRepository_GetComments_Call {
 	_c.Call.Return(run)
 	return _c
 }

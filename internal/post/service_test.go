@@ -102,7 +102,7 @@ func expectBackgroundSocial(m *testMocks) {
 	m.postRepo.EXPECT().GetSharedContentAuthor(mock.Anything, mock.Anything, mock.Anything).Return(uuid.Nil, errors.New("ignored")).Maybe()
 	m.postRepo.EXPECT().GetSharedContentPreviews(mock.Anything).Return(nil).Maybe()
 	m.postRepo.EXPECT().GetCommentAuthorID(mock.Anything, mock.Anything).Return(uuid.Nil, errors.New("ignored")).Maybe()
-	m.postRepo.EXPECT().GetCommentPostID(mock.Anything, mock.Anything).Return(uuid.Nil, errors.New("ignored")).Maybe()
+	m.postRepo.EXPECT().GetCommentEntityID(mock.Anything, mock.Anything).Return(uuid.Nil, errors.New("ignored")).Maybe()
 	m.userRepo.EXPECT().GetByID(mock.Anything, mock.Anything).Return(nil, errors.New("ignored")).Maybe()
 	m.userRepo.EXPECT().GetByUsername(mock.Anything, mock.Anything).Return(nil, errors.New("ignored")).Maybe()
 	m.settingsSvc.EXPECT().Get(mock.Anything, mock.Anything).Return("http://base").Maybe()

@@ -34,24 +34,6 @@ type (
 		CharacterName string
 		SortOrder     int
 	}
-
-	ShipCommentRow struct {
-		ID                uuid.UUID
-		ShipID            uuid.UUID
-		ParentID          *uuid.UUID
-		UserID            uuid.UUID
-		Body              string
-		CreatedAt         string
-		UpdatedAt         *string
-		AuthorUsername    string
-		AuthorDisplayName string
-		AuthorAvatarURL   string
-		AuthorRole        string
-		LikeCount         int
-		UserLiked         bool
-	}
-
-	ShipCommentMediaRow = CommentMediaRow
 )
 
 func (r *ShipRow) ToResponse(characters []ShipCharacterRow) dto.ShipResponse {
@@ -84,26 +66,5 @@ func (r *ShipRow) ToResponse(characters []ShipCharacterRow) dto.ShipResponse {
 		IsCrackship:  r.VoteScore <= dto.CrackshipThreshold,
 		CreatedAt:    r.CreatedAt,
 		UpdatedAt:    r.UpdatedAt,
-	}
-}
-
-func (r *ShipCommentRow) ToResponse(media []ShipCommentMediaRow) dto.ShipCommentResponse {
-	mediaList := CommentMediaRowsToResponse(media)
-	return dto.ShipCommentResponse{
-		ID:       r.ID,
-		ParentID: r.ParentID,
-		Author: dto.UserResponse{
-			ID:          r.UserID,
-			Username:    r.AuthorUsername,
-			DisplayName: r.AuthorDisplayName,
-			AvatarURL:   r.AuthorAvatarURL,
-			Role:        role.Role(r.AuthorRole),
-		},
-		Body:      r.Body,
-		Media:     mediaList,
-		LikeCount: r.LikeCount,
-		UserLiked: r.UserLiked,
-		CreatedAt: r.CreatedAt,
-		UpdatedAt: r.UpdatedAt,
 	}
 }

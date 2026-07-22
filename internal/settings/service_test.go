@@ -78,20 +78,22 @@ func (f *fakeBatchListener) lastBatch() []config.SiteSettingKey {
 
 func newTestService(t *testing.T) (*service, *repository.MockSettingsRepository) {
 	repo := repository.NewMockSettingsRepository(t)
-	svc := NewService(repo).(*service)
+	svc := NewService(repo, nil).(*service)
 	return svc, repo
 }
 
-func primeValidCache(svc *service) {
-	svc.cache.Store(config.SettingMaxBodySize.Key, "104857600")
-	svc.cache.Store(config.SettingMaxImageSize.Key, "10485760")
-	svc.cache.Store(config.SettingMaxVideoSize.Key, "52428800")
-	svc.cache.Store(config.SettingMaxGeneralSize.Key, "52428800")
-	svc.cache.Store(config.SettingMinPasswordLength.Key, "8")
-	svc.cache.Store(config.SettingSessionDurationDays.Key, "30")
-	svc.cache.Store(config.SettingMaxTheoriesPerDay.Key, "0")
-	svc.cache.Store(config.SettingMaxResponsesPerDay.Key, "0")
-	svc.cache.Store(config.SettingRegistrationType.Key, "open")
+func primeValidCache(repo *repository.MockSettingsRepository) {
+	m := validBaseSettings()
+	m[string(config.SettingMaxBodySize.Key)] = "104857600"
+	m[string(config.SettingMaxImageSize.Key)] = "10485760"
+	m[string(config.SettingMaxVideoSize.Key)] = "52428800"
+	m[string(config.SettingMaxGeneralSize.Key)] = "52428800"
+	m[string(config.SettingMinPasswordLength.Key)] = "8"
+	m[string(config.SettingSessionDurationDays.Key)] = "30"
+	m[string(config.SettingMaxTheoriesPerDay.Key)] = "0"
+	m[string(config.SettingMaxResponsesPerDay.Key)] = "0"
+	m[string(config.SettingRegistrationType.Key)] = "open"
+	repo.EXPECT().GetAll(mock.Anything).Return(m, nil).Maybe()
 }
 
 func validBaseSettings() map[string]string {
@@ -104,7 +106,8 @@ func validBaseSettings() map[string]string {
 
 func TestGet_ReturnsDefaultWhenCacheEmpty(t *testing.T) {
 	// given
-	svc, _ := newTestService(t)
+	svc, repo := newTestService(t)
+	repo.EXPECT().Get(mock.Anything, string(config.SettingSiteName.Key)).Return("", errors.New("not found"))
 
 	// when
 	got := svc.Get(context.Background(), config.SettingSiteName)
@@ -115,8 +118,8 @@ func TestGet_ReturnsDefaultWhenCacheEmpty(t *testing.T) {
 
 func TestGet_ReturnsCachedValue(t *testing.T) {
 	// given
-	svc, _ := newTestService(t)
-	svc.cache.Store(config.SettingSiteName.Key, "Cached Name")
+	svc, repo := newTestService(t)
+	repo.EXPECT().Get(mock.Anything, string(config.SettingSiteName.Key)).Return("Cached Name", nil)
 
 	// when
 	got := svc.Get(context.Background(), config.SettingSiteName)
@@ -127,8 +130,8 @@ func TestGet_ReturnsCachedValue(t *testing.T) {
 
 func TestGetInt_ParsesCachedValue(t *testing.T) {
 	// given
-	svc, _ := newTestService(t)
-	svc.cache.Store(config.SettingMaxBodySize.Key, "4096")
+	svc, repo := newTestService(t)
+	repo.EXPECT().Get(mock.Anything, string(config.SettingMaxBodySize.Key)).Return("4096", nil)
 
 	// when
 	got := svc.GetInt(context.Background(), config.SettingMaxBodySize)
@@ -139,8 +142,8 @@ func TestGetInt_ParsesCachedValue(t *testing.T) {
 
 func TestGetInt_ReturnsZeroOnParseFailure(t *testing.T) {
 	// given
-	svc, _ := newTestService(t)
-	svc.cache.Store(config.SettingMaxBodySize.Key, "not-a-number")
+	svc, repo := newTestService(t)
+	repo.EXPECT().Get(mock.Anything, string(config.SettingMaxBodySize.Key)).Return("not-a-number", nil)
 
 	// when
 	got := svc.GetInt(context.Background(), config.SettingMaxBodySize)
@@ -151,7 +154,8 @@ func TestGetInt_ReturnsZeroOnParseFailure(t *testing.T) {
 
 func TestGetInt_UsesDefaultWhenMissing(t *testing.T) {
 	// given
-	svc, _ := newTestService(t)
+	svc, repo := newTestService(t)
+	repo.EXPECT().Get(mock.Anything, string(config.SettingMaxBodySize.Key)).Return("", errors.New("not found"))
 
 	// when
 	got := svc.GetInt(context.Background(), config.SettingMaxBodySize)
@@ -162,8 +166,8 @@ func TestGetInt_UsesDefaultWhenMissing(t *testing.T) {
 
 func TestGetBool_TrueWhenValueIsTrue(t *testing.T) {
 	// given
-	svc, _ := newTestService(t)
-	svc.cache.Store(config.SettingMaintenanceMode.Key, "true")
+	svc, repo := newTestService(t)
+	repo.EXPECT().Get(mock.Anything, string(config.SettingMaintenanceMode.Key)).Return("true", nil)
 
 	// when
 	got := svc.GetBool(context.Background(), config.SettingMaintenanceMode)
@@ -186,8 +190,8 @@ func TestGetBool_FalseForOtherValues(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			svc, _ := newTestService(t)
-			svc.cache.Store(config.SettingMaintenanceMode.Key, tc.value)
+			svc, repo := newTestService(t)
+			repo.EXPECT().Get(mock.Anything, string(config.SettingMaintenanceMode.Key)).Return(tc.value, nil)
 
 			// when
 			got := svc.GetBool(context.Background(), config.SettingMaintenanceMode)
@@ -200,7 +204,8 @@ func TestGetBool_FalseForOtherValues(t *testing.T) {
 
 func TestGetAll_ReturnsDefaultsWhenCacheEmpty(t *testing.T) {
 	// given
-	svc, _ := newTestService(t)
+	svc, repo := newTestService(t)
+	repo.EXPECT().GetAll(mock.Anything).Return(map[string]string{}, nil)
 
 	// when
 	got := svc.GetAll(context.Background())
@@ -214,9 +219,11 @@ func TestGetAll_ReturnsDefaultsWhenCacheEmpty(t *testing.T) {
 
 func TestGetAll_OverlaysCachedValues(t *testing.T) {
 	// given
-	svc, _ := newTestService(t)
-	svc.cache.Store(config.SettingSiteName.Key, "Overlay")
-	svc.cache.Store(config.SettingMaintenanceMode.Key, "true")
+	svc, repo := newTestService(t)
+	repo.EXPECT().GetAll(mock.Anything).Return(map[string]string{
+		string(config.SettingSiteName.Key):        "Overlay",
+		string(config.SettingMaintenanceMode.Key): "true",
+	}, nil)
 
 	// when
 	got := svc.GetAll(context.Background())
@@ -265,9 +272,6 @@ func TestRefresh_SeedsMissingDefaults(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	v, ok := svc.cache.Load(config.SettingSiteName.Key)
-	require.True(t, ok)
-	assert.Equal(t, config.SettingSiteName.Default, v.(string))
 }
 
 func TestRefresh_SeedErrorBubbles(t *testing.T) {
@@ -300,8 +304,6 @@ func TestRefresh_DeletesStaleKeys(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	_, ok := svc.cache.Load(config.SiteSettingKey("stale_key_1"))
-	assert.False(t, ok)
 }
 
 func TestRefresh_DeleteErrorLoggedNotFatal(t *testing.T) {
@@ -328,22 +330,20 @@ func TestRefresh_PopulatesCacheFromRepo(t *testing.T) {
 	existing[string(config.SettingMaintenanceMode.Key)] = "true"
 
 	repo.EXPECT().GetAll(mock.Anything).Return(existing, nil)
+	repo.EXPECT().Get(mock.Anything, string(config.SettingMaintenanceMode.Key)).Return("true", nil)
 
 	// when
 	err := svc.Refresh(context.Background())
 
 	// then
 	require.NoError(t, err)
-	v, ok := svc.cache.Load(config.SettingSiteName.Key)
-	require.True(t, ok)
-	assert.Equal(t, "Loaded Site", v.(string))
 	assert.True(t, svc.GetBool(context.Background(), config.SettingMaintenanceMode))
 }
 
 func TestSet_HappyPathUpdatesCacheAndNotifies(t *testing.T) {
 	// given
 	svc, repo := newTestService(t)
-	primeValidCache(svc)
+	primeValidCache(repo)
 	listener := &fakeListener{}
 	svc.Subscribe(listener)
 	updatedBy := uuid.New()
@@ -355,9 +355,6 @@ func TestSet_HappyPathUpdatesCacheAndNotifies(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	v, ok := svc.cache.Load(config.SettingSiteName.Key)
-	require.True(t, ok)
-	assert.Equal(t, "New Name", v.(string))
 	changes := listener.snapshot()
 	require.Len(t, changes, 1)
 	assert.Equal(t, config.SettingSiteName.Key, changes[0].key)
@@ -366,8 +363,8 @@ func TestSet_HappyPathUpdatesCacheAndNotifies(t *testing.T) {
 
 func TestSet_ValidationFailureSkipsRepo(t *testing.T) {
 	// given
-	svc, _ := newTestService(t)
-	primeValidCache(svc)
+	svc, repo := newTestService(t)
+	primeValidCache(repo)
 	updatedBy := uuid.New()
 
 	// when
@@ -381,7 +378,7 @@ func TestSet_ValidationFailureSkipsRepo(t *testing.T) {
 func TestSet_RepoErrorBubblesAndSkipsCache(t *testing.T) {
 	// given
 	svc, repo := newTestService(t)
-	primeValidCache(svc)
+	primeValidCache(repo)
 	listener := &fakeListener{}
 	svc.Subscribe(listener)
 	updatedBy := uuid.New()
@@ -394,15 +391,13 @@ func TestSet_RepoErrorBubblesAndSkipsCache(t *testing.T) {
 	// then
 	require.Error(t, err)
 	assert.EqualError(t, err, "db down")
-	_, ok := svc.cache.Load(config.SettingSiteName.Key)
-	assert.False(t, ok)
 	assert.Empty(t, listener.snapshot())
 }
 
 func TestSetMultiple_HappyPathNotifiesEachAndBatch(t *testing.T) {
 	// given
 	svc, repo := newTestService(t)
-	primeValidCache(svc)
+	primeValidCache(repo)
 	listener := &fakeBatchListener{}
 	svc.Subscribe(listener)
 	updatedBy := uuid.New()
@@ -423,10 +418,6 @@ func TestSetMultiple_HappyPathNotifiesEachAndBatch(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	v1, _ := svc.cache.Load(config.SettingSiteName.Key)
-	v2, _ := svc.cache.Load(config.SettingMaintenanceMode.Key)
-	assert.Equal(t, "Multi Name", v1.(string))
-	assert.Equal(t, "true", v2.(string))
 
 	listener.mu.Lock()
 	gotChanges := len(listener.changes)
@@ -443,8 +434,8 @@ func TestSetMultiple_HappyPathNotifiesEachAndBatch(t *testing.T) {
 
 func TestSetMultiple_UnknownKeyRejected(t *testing.T) {
 	// given
-	svc, _ := newTestService(t)
-	primeValidCache(svc)
+	svc, repo := newTestService(t)
+	primeValidCache(repo)
 	updatedBy := uuid.New()
 	values := map[config.SiteSettingKey]string{
 		config.SiteSettingKey("not_a_real_key"): "v",
@@ -460,8 +451,8 @@ func TestSetMultiple_UnknownKeyRejected(t *testing.T) {
 
 func TestSetMultiple_ValidationFailureSkipsRepo(t *testing.T) {
 	// given
-	svc, _ := newTestService(t)
-	primeValidCache(svc)
+	svc, repo := newTestService(t)
+	primeValidCache(repo)
 	updatedBy := uuid.New()
 	values := map[config.SiteSettingKey]string{
 		config.SettingMaxBodySize.Key: "0",
@@ -478,7 +469,7 @@ func TestSetMultiple_ValidationFailureSkipsRepo(t *testing.T) {
 func TestSetMultiple_RepoErrorBubbles(t *testing.T) {
 	// given
 	svc, repo := newTestService(t)
-	primeValidCache(svc)
+	primeValidCache(repo)
 	listener := &fakeBatchListener{}
 	svc.Subscribe(listener)
 	updatedBy := uuid.New()
@@ -494,15 +485,13 @@ func TestSetMultiple_RepoErrorBubbles(t *testing.T) {
 	// then
 	require.Error(t, err)
 	assert.EqualError(t, err, "boom")
-	_, ok := svc.cache.Load(config.SettingSiteName.Key)
-	assert.False(t, ok)
 	assert.Equal(t, 0, listener.batchCount())
 }
 
 func TestSubscribe_MultipleListenersAllNotified(t *testing.T) {
 	// given
 	svc, repo := newTestService(t)
-	primeValidCache(svc)
+	primeValidCache(repo)
 	l1 := &fakeListener{}
 	l2 := &fakeListener{}
 	svc.Subscribe(l1)
@@ -523,7 +512,7 @@ func TestSubscribe_MultipleListenersAllNotified(t *testing.T) {
 func TestSubscribe_NonBatchListenerDoesNotReceiveBatch(t *testing.T) {
 	// given
 	svc, repo := newTestService(t)
-	primeValidCache(svc)
+	primeValidCache(repo)
 	plain := &fakeListener{}
 	batch := &fakeBatchListener{}
 	svc.Subscribe(plain)

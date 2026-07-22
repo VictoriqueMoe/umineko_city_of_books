@@ -907,74 +907,6 @@ func (_c *MockArtRepository_GetByID_Call) RunAndReturn(run func(ctx context.Cont
 	return _c
 }
 
-// GetCommentArtID provides a mock function for the type MockArtRepository
-func (_mock *MockArtRepository) GetCommentArtID(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error) {
-	ret := _mock.Called(ctx, commentID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetCommentArtID")
-	}
-
-	var r0 uuid.UUID
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (uuid.UUID, error)); ok {
-		return returnFunc(ctx, commentID)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) uuid.UUID); ok {
-		r0 = returnFunc(ctx, commentID)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(uuid.UUID)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, commentID)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockArtRepository_GetCommentArtID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetCommentArtID'
-type MockArtRepository_GetCommentArtID_Call struct {
-	*mock.Call
-}
-
-// GetCommentArtID is a helper method to define mock.On call
-//   - ctx context.Context
-//   - commentID uuid.UUID
-func (_e *MockArtRepository_Expecter) GetCommentArtID(ctx any, commentID any) *MockArtRepository_GetCommentArtID_Call {
-	return &MockArtRepository_GetCommentArtID_Call{Call: _e.mock.On("GetCommentArtID", ctx, commentID)}
-}
-
-func (_c *MockArtRepository_GetCommentArtID_Call) Run(run func(ctx context.Context, commentID uuid.UUID)) *MockArtRepository_GetCommentArtID_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		run(
-			arg0,
-			arg1,
-		)
-	})
-	return _c
-}
-
-func (_c *MockArtRepository_GetCommentArtID_Call) Return(uUID uuid.UUID, err error) *MockArtRepository_GetCommentArtID_Call {
-	_c.Call.Return(uUID, err)
-	return _c
-}
-
-func (_c *MockArtRepository_GetCommentArtID_Call) RunAndReturn(run func(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error)) *MockArtRepository_GetCommentArtID_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // GetCommentAuthorID provides a mock function for the type MockArtRepository
 func (_mock *MockArtRepository) GetCommentAuthorID(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error) {
 	ret := _mock.Called(ctx, commentID)
@@ -1039,6 +971,74 @@ func (_c *MockArtRepository_GetCommentAuthorID_Call) Return(uUID uuid.UUID, err 
 }
 
 func (_c *MockArtRepository_GetCommentAuthorID_Call) RunAndReturn(run func(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error)) *MockArtRepository_GetCommentAuthorID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetCommentEntityID provides a mock function for the type MockArtRepository
+func (_mock *MockArtRepository) GetCommentEntityID(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error) {
+	ret := _mock.Called(ctx, commentID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetCommentEntityID")
+	}
+
+	var r0 uuid.UUID
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (uuid.UUID, error)); ok {
+		return returnFunc(ctx, commentID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) uuid.UUID); ok {
+		r0 = returnFunc(ctx, commentID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(uuid.UUID)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, commentID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockArtRepository_GetCommentEntityID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetCommentEntityID'
+type MockArtRepository_GetCommentEntityID_Call struct {
+	*mock.Call
+}
+
+// GetCommentEntityID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - commentID uuid.UUID
+func (_e *MockArtRepository_Expecter) GetCommentEntityID(ctx any, commentID any) *MockArtRepository_GetCommentEntityID_Call {
+	return &MockArtRepository_GetCommentEntityID_Call{Call: _e.mock.On("GetCommentEntityID", ctx, commentID)}
+}
+
+func (_c *MockArtRepository_GetCommentEntityID_Call) Run(run func(ctx context.Context, commentID uuid.UUID)) *MockArtRepository_GetCommentEntityID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockArtRepository_GetCommentEntityID_Call) Return(uUID uuid.UUID, err error) *MockArtRepository_GetCommentEntityID_Call {
+	_c.Call.Return(uUID, err)
+	return _c
+}
+
+func (_c *MockArtRepository_GetCommentEntityID_Call) RunAndReturn(run func(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error)) *MockArtRepository_GetCommentEntityID_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1180,24 +1180,24 @@ func (_c *MockArtRepository_GetCommentMediaBatch_Call) RunAndReturn(run func(ctx
 }
 
 // GetComments provides a mock function for the type MockArtRepository
-func (_mock *MockArtRepository) GetComments(ctx context.Context, artID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID) ([]model.ArtCommentRow, int, error) {
+func (_mock *MockArtRepository) GetComments(ctx context.Context, artID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID) ([]CommentRow, int, error) {
 	ret := _mock.Called(ctx, artID, viewerID, limit, offset, excludeUserIDs)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetComments")
 	}
 
-	var r0 []model.ArtCommentRow
+	var r0 []CommentRow
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID) ([]model.ArtCommentRow, int, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID) ([]CommentRow, int, error)); ok {
 		return returnFunc(ctx, artID, viewerID, limit, offset, excludeUserIDs)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID) []model.ArtCommentRow); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID) []CommentRow); ok {
 		r0 = returnFunc(ctx, artID, viewerID, limit, offset, excludeUserIDs)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]model.ArtCommentRow)
+			r0 = ret.Get(0).([]CommentRow)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID) int); ok {
@@ -1267,12 +1267,12 @@ func (_c *MockArtRepository_GetComments_Call) Run(run func(ctx context.Context, 
 	return _c
 }
 
-func (_c *MockArtRepository_GetComments_Call) Return(artCommentRows []model.ArtCommentRow, n int, err error) *MockArtRepository_GetComments_Call {
-	_c.Call.Return(artCommentRows, n, err)
+func (_c *MockArtRepository_GetComments_Call) Return(commentRows []CommentRow, n int, err error) *MockArtRepository_GetComments_Call {
+	_c.Call.Return(commentRows, n, err)
 	return _c
 }
 
-func (_c *MockArtRepository_GetComments_Call) RunAndReturn(run func(ctx context.Context, artID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID) ([]model.ArtCommentRow, int, error)) *MockArtRepository_GetComments_Call {
+func (_c *MockArtRepository_GetComments_Call) RunAndReturn(run func(ctx context.Context, artID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID) ([]CommentRow, int, error)) *MockArtRepository_GetComments_Call {
 	_c.Call.Return(run)
 	return _c
 }

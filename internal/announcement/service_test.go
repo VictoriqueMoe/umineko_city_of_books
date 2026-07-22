@@ -109,12 +109,12 @@ func TestService_GetDetail_BuildsTreeFromComments(t *testing.T) {
 	h.repo.EXPECT().GetByID(mock.Anything, annID).Return(&repository.AnnouncementRow{ID: annID, Title: "T"}, nil)
 	h.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewerID).Return(nil, nil)
 	h.repo.EXPECT().GetComments(mock.Anything, annID, viewerID, 500, 0, []uuid.UUID(nil)).
-		Return([]repository.AnnouncementCommentRow{
-			{ID: c1, AnnouncementID: annID, Body: "parent"},
-			{ID: c2, AnnouncementID: annID, ParentID: &c1, Body: "reply"},
+		Return([]repository.CommentRow{
+			{ID: c1, Body: "parent"},
+			{ID: c2, ParentID: &c1, Body: "reply"},
 		}, 2, nil)
 	h.repo.EXPECT().GetCommentMediaBatch(mock.Anything, []uuid.UUID{c1, c2}).
-		Return(map[uuid.UUID][]repository.AnnouncementCommentMediaRow{}, nil)
+		Return(map[uuid.UUID][]model.PostMediaRow{}, nil)
 
 	// when
 	resp, err := h.svc.GetDetail(context.Background(), annID, viewerID)
@@ -449,7 +449,7 @@ func TestService_LikeComment_OK(t *testing.T) {
 	h.repo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(authorID, nil)
 	h.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
 	h.repo.EXPECT().LikeComment(mock.Anything, userID, commentID).Return(nil)
-	h.repo.EXPECT().GetCommentAnnouncementID(mock.Anything, commentID).Return(uuid.New(), nil).Maybe()
+	h.repo.EXPECT().GetCommentEntityID(mock.Anything, commentID).Return(uuid.New(), nil).Maybe()
 	h.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, DisplayName: "X"}, nil).Maybe()
 
 	// when

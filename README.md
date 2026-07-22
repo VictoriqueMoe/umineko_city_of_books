@@ -722,6 +722,7 @@ Two env files live next to each other:
   | `GIPHY_API_KEY`     | (empty)                 | GIPHY API key, required to enable the GIF picker                                               |
   | `HYPERBEAM_API_KEY` | (empty)                 | Hyperbeam API key; required to enable chat-room watch parties. If unset, the feature is hidden |
   | `HYPERBEAM_REGION`  | `EU`                    | Default Hyperbeam VM region (overridable per session from the start-party dialog)              |
+  | `VALKEY_URL`        | (empty)                 | Optional bootstrap override for the `valkey_url` site setting (app cache, separate from the LiveKit Valkey). Normally left empty — caching is enabled from the admin panel. If set, it seeds the setting's initial default (`redis://valkey-cache:6379/0` in Docker, `redis://localhost:6381/0` on the host) |
   | `SENTRY_DSN`        | (empty)                 | GlitchTip / Sentry DSN for error shipping (optional)                                           |
 
 Most runtime behaviour (registration mode, maintenance mode, turnstile keys, upload limits, rate limits, log level, email SMTP settings, default theme, Sentry DSN) is stored in the database via the `site_settings` table and editable from the admin panel at runtime with hot reload. The env file is only for things that must exist before the DB is reachable, or secrets that should not round-trip through the DB.

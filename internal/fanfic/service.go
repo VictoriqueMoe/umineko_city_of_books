@@ -18,6 +18,7 @@ import (
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/repository/model"
+	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/utils"
@@ -240,7 +241,7 @@ func (s *service) GetFanfic(ctx context.Context, id, viewerID uuid.UUID, viewerH
 	}
 
 	blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, viewerID)
-	comments, _ := s.fanficRepo.GetComments(ctx, id, viewerID, blockedIDs)
+	comments, _, _ := s.fanficRepo.GetComments(ctx, id, viewerID, 500, 0, blockedIDs)
 
 	var threaded []dto.FanficCommentResponse
 	if len(comments) > 0 {
@@ -252,7 +253,7 @@ func (s *service) GetFanfic(ctx context.Context, id, viewerID uuid.UUID, viewerH
 
 		flatComments := make([]dto.FanficCommentResponse, len(comments))
 		for i, c := range comments {
-			flatComments[i] = c.ToResponse(commentMediaMap[c.ID])
+			flatComments[i] = fanficCommentToResponse(c, commentMediaMap[c.ID])
 		}
 		threaded = utils.BuildTree(flatComments,
 			func(c dto.FanficCommentResponse) uuid.UUID { return c.ID },
@@ -715,7 +716,7 @@ func (s *service) LikeComment(ctx context.Context, userID, commentID uuid.UUID) 
 			return
 		}
 		bgCtx := context.Background()
-		fanficID, err := s.fanficRepo.GetCommentFanficID(bgCtx, commentID)
+		fanficID, err := s.fanficRepo.GetCommentEntityID(bgCtx, commentID)
 		if err != nil {
 			return
 		}
@@ -761,4 +762,24 @@ func (s *service) UploadCommentMedia(
 		s.fanficRepo.UpdateCommentMediaURL,
 		s.fanficRepo.UpdateCommentMediaThumbnail,
 	)
+}
+
+func fanficCommentToResponse(c repository.CommentRow, media []model.PostMediaRow) dto.FanficCommentResponse {
+	return dto.FanficCommentResponse{
+		ID:       c.ID,
+		ParentID: c.ParentID,
+		Author: dto.UserResponse{
+			ID:          c.UserID,
+			Username:    c.AuthorUsername,
+			DisplayName: c.AuthorDisplayName,
+			AvatarURL:   c.AuthorAvatarURL,
+			Role:        role.Role(c.AuthorRole),
+		},
+		Body:      c.Body,
+		Media:     model.MediaRowsToResponse(media),
+		LikeCount: c.LikeCount,
+		UserLiked: c.UserLiked,
+		CreatedAt: c.CreatedAt,
+		UpdatedAt: c.UpdatedAt,
+	}
 }

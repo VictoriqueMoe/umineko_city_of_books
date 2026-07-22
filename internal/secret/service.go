@@ -14,6 +14,7 @@ import (
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/repository/model"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/secrets"
 	"umineko_city_of_books/internal/settings"
@@ -213,7 +214,7 @@ func (s *service) Get(ctx context.Context, id string, viewerID uuid.UUID) (*dto.
 	}
 
 	blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, viewerID)
-	commentRows, _ := s.secretRepo.GetComments(ctx, id, viewerID, blockedIDs)
+	commentRows, _, _ := s.secretRepo.GetComments(ctx, id, viewerID, 500, 0, blockedIDs)
 	var comments []dto.SecretCommentResponse
 	if len(commentRows) > 0 {
 		commentIDs := make([]uuid.UUID, len(commentRows))
@@ -223,7 +224,7 @@ func (s *service) Get(ctx context.Context, id string, viewerID uuid.UUID) (*dto.
 		mediaBatch, _ := s.secretRepo.GetCommentMediaBatch(ctx, commentIDs)
 		flat := make([]dto.SecretCommentResponse, len(commentRows))
 		for i := range commentRows {
-			flat[i] = commentRows[i].ToResponse(mediaBatch[commentRows[i].ID])
+			flat[i] = secretCommentToResponse(commentRows[i], mediaBatch[commentRows[i].ID])
 		}
 		comments = utils.BuildTree(flat,
 			func(c dto.SecretCommentResponse) uuid.UUID { return c.ID },
@@ -368,7 +369,7 @@ func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID u
 		if commentAuthorID == userID {
 			return
 		}
-		secretID, err := s.secretRepo.GetCommentSecretID(bgCtx, commentID)
+		secretID, err := s.secretRepo.GetCommentEntityID(bgCtx, commentID)
 		if err != nil || secretID == "" {
 			return
 		}
@@ -510,5 +511,25 @@ func (s *service) BroadcastSolved(ctx context.Context, parentID string, actor uu
 				}
 			}(participants, solverName, message, emailLink, message)
 		}
+	}
+}
+
+func secretCommentToResponse(c repository.CommentRow, media []model.PostMediaRow) dto.SecretCommentResponse {
+	return dto.SecretCommentResponse{
+		ID:       c.ID,
+		ParentID: c.ParentID,
+		Author: dto.UserResponse{
+			ID:          c.UserID,
+			Username:    c.AuthorUsername,
+			DisplayName: c.AuthorDisplayName,
+			AvatarURL:   c.AuthorAvatarURL,
+			Role:        role.Role(c.AuthorRole),
+		},
+		Body:      c.Body,
+		Media:     model.MediaRowsToResponse(media),
+		LikeCount: c.LikeCount,
+		UserLiked: c.UserLiked,
+		CreatedAt: c.CreatedAt,
+		UpdatedAt: c.UpdatedAt,
 	}
 }

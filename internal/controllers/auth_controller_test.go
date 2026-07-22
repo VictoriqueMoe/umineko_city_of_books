@@ -12,6 +12,7 @@ import (
 	mysterysvc "umineko_city_of_books/internal/mystery"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
+	"umineko_city_of_books/internal/siteinfo"
 	usersvc "umineko_city_of_books/internal/user"
 	"umineko_city_of_books/internal/usersecret"
 	"umineko_city_of_books/internal/vanityrole"
@@ -57,6 +58,7 @@ func newAuthHarness(t *testing.T) (*testutil.Harness, authDeps) {
 		VanityRoleService: deps.vanityRoleSvc,
 		UserSecretService: deps.userSecretSvc,
 		SettingsService:   h.SettingsService,
+		SiteInfoService:   siteinfo.NewService(h.SettingsService, deps.mysterySvc, deps.gameRoomSvc, deps.vanityRoleSvc, deps.userSecretSvc, deps.authSvc),
 		AuthSession:       h.SessionManager,
 		AuthzService:      h.AuthzService,
 	}
@@ -672,4 +674,17 @@ func TestGetRules_UnknownPage(t *testing.T) {
 	// then
 	require.Equal(t, http.StatusNotFound, status)
 	assert.Contains(t, string(body), "unknown page")
+}
+
+func TestGetRules_Landing(t *testing.T) {
+	// given
+	h, _ := newAuthHarness(t)
+
+	// when
+	status, body := h.NewRequest("GET", "/rules/landing").Do()
+
+	// then
+	require.Equal(t, http.StatusOK, status)
+	got := testutil.UnmarshalJSON[map[string]string](t, body)
+	assert.Equal(t, "landing", got["page"])
 }

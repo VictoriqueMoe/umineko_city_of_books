@@ -23,6 +23,7 @@ func registerListeners(settingsSvc settings.Service, app *fiber.App, svc *servic
 	settingsSvc.Subscribe(middleware.NewBodyLimitListener(app))
 	settingsSvc.Subscribe(email.NewMailSettingListener(svc.email))
 	settingsSvc.Subscribe(push.NewSettingListener(svc.push))
+	settingsSvc.Subscribe(svc.cache)
 
 	if err := svc.chat.EnsureSystemRooms(context.Background()); err != nil {
 		logger.Log.Error().Err(err).Msg("ensure system chat rooms at startup")

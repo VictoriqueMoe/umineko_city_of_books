@@ -30,23 +30,6 @@ type (
 		SharedContentType *string
 	}
 
-	PostCommentRow struct {
-		ID                uuid.UUID
-		PostID            uuid.UUID
-		ParentID          *uuid.UUID
-		UserID            uuid.UUID
-		Body              string
-		CreatedAt         string
-		UpdatedAt         *string
-		AuthorUsername    string
-		AuthorDisplayName string
-		AuthorAvatarURL   string
-		AuthorRole        string
-		AuthorBanned      bool
-		LikeCount         int
-		UserLiked         bool
-	}
-
 	PollRow struct {
 		ID              string
 		PostID          string
@@ -83,28 +66,6 @@ func (r *PostRow) ToResponse(media []PostMediaRow, embeds []EmbedRow) dto.PostRe
 		ResolvedStatus: r.ResolvedStatus,
 		CreatedAt:      r.CreatedAt,
 		UpdatedAt:      r.UpdatedAt,
-	}
-}
-
-func (c *PostCommentRow) ToResponse(media []PostMediaRow, embeds []EmbedRow) dto.PostCommentResponse {
-	return dto.PostCommentResponse{
-		ID:       c.ID,
-		ParentID: c.ParentID,
-		Author: dto.UserResponse{
-			ID:          c.UserID,
-			Username:    c.AuthorUsername,
-			DisplayName: c.AuthorDisplayName,
-			AvatarURL:   c.AuthorAvatarURL,
-			Role:        role.Role(c.AuthorRole),
-			Banned:      c.AuthorBanned,
-		},
-		Body:      c.Body,
-		Media:     MediaRowsToResponse(media),
-		Embeds:    EmbedRowsToResponse(embeds),
-		LikeCount: c.LikeCount,
-		UserLiked: c.UserLiked,
-		CreatedAt: c.CreatedAt,
-		UpdatedAt: c.UpdatedAt,
 	}
 }
 

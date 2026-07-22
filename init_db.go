@@ -4,15 +4,17 @@ import (
 	"context"
 	"os"
 
+	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/db"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
+	"umineko_city_of_books/internal/store"
 	"umineko_city_of_books/internal/telemetry"
 )
 
-func initDatabase() (*repository.Repositories, settings.Service) {
+func initDatabase() (*repository.Repositories, settings.Service, *cache.Manager) {
 	if err := telemetry.Init(
 		context.Background(),
 		"umineko-city-of-books",
@@ -35,9 +37,10 @@ func initDatabase() (*repository.Repositories, settings.Service) {
 		logger.Log.Fatal().Err(err).Msg("failed to seed content")
 	}
 
-	repos := repository.New(database)
+	cacheMgr := cache.NewManager()
+	repos := store.New(database, cacheMgr)
 
-	settingsSvc := settings.NewService(repos.Settings)
+	settingsSvc := settings.NewService(repos.Settings, cacheMgr)
 	if err := settingsSvc.Refresh(context.Background()); err != nil {
 		logger.Log.Fatal().Err(err).Msg("failed to load settings")
 	}
@@ -58,5 +61,5 @@ func initDatabase() (*repository.Repositories, settings.Service) {
 		logger.Log.Warn().Err(err).Msg("pyroscope init failed; profiling disabled")
 	}
 
-	return repos, settingsSvc
+	return repos, settingsSvc, cacheMgr
 }

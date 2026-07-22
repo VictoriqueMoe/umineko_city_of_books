@@ -49,7 +49,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	mediaProc := &media.Processor{}
 	svc := NewService(secretRepo, userSecretRepo, userRepo, auditRepo, authzSvc, blockSvc, notif, settingsSvc, uploadSvc, mediaProc, hub, contentfilter.New()).(*service)
 
-	secretRepo.EXPECT().GetCommentSecretID(mock.Anything, mock.Anything).Return("", nil).Maybe()
+	secretRepo.EXPECT().GetCommentEntityID(mock.Anything, mock.Anything).Return("", nil).Maybe()
 	userRepo.EXPECT().GetByID(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 	settingsSvc.EXPECT().Get(mock.Anything, mock.Anything).Return("").Maybe()
 	notif.EXPECT().Notify(mock.Anything, mock.Anything).Return(nil).Maybe()
@@ -151,7 +151,7 @@ func TestGet_AssemblesLeaderboardAndComments(t *testing.T) {
 	}, nil)
 	m.userSecretRepo.EXPECT().GetUserIDsWithSecret(mock.Anything, "witchHunter").Return(nil, nil)
 	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewer).Return(nil, nil)
-	m.secretRepo.EXPECT().GetComments(mock.Anything, "witchHunter", viewer, []uuid.UUID(nil)).Return(nil, nil)
+	m.secretRepo.EXPECT().GetComments(mock.Anything, "witchHunter", viewer, 500, 0, []uuid.UUID(nil)).Return(nil, 0, nil)
 
 	// when
 	got, err := svc.Get(context.Background(), "witchHunter", viewer)
@@ -181,7 +181,7 @@ func TestGet_MarksSolversOnLeaderboard(t *testing.T) {
 	}, nil)
 	m.userSecretRepo.EXPECT().GetUserIDsWithSecret(mock.Anything, "witchHunter").Return([]uuid.UUID{hunterID}, nil)
 	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewer).Return(nil, nil)
-	m.secretRepo.EXPECT().GetComments(mock.Anything, "witchHunter", viewer, []uuid.UUID(nil)).Return(nil, nil)
+	m.secretRepo.EXPECT().GetComments(mock.Anything, "witchHunter", viewer, 500, 0, []uuid.UUID(nil)).Return(nil, 0, nil)
 
 	// when
 	got, err := svc.Get(context.Background(), "witchHunter", viewer)

@@ -11,7 +11,6 @@ import (
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/middleware"
-	"umineko_city_of_books/internal/secrets"
 	"umineko_city_of_books/internal/session"
 	usersvc "umineko_city_of_books/internal/user"
 
@@ -38,6 +37,7 @@ var rulesSettings = map[string]*config.SiteSettingDef{
 	"journals":             config.SettingRulesJournals,
 	"suggestions":          config.SettingRulesSuggestions,
 	"chat_rooms":           config.SettingRulesChatRooms,
+	"landing":              config.SettingRulesLanding,
 }
 
 func (s *Service) getAllAuthRoutes() []FSetupRoute {
@@ -367,112 +367,7 @@ func (s *Service) staff(ctx fiber.Ctx) error {
 }
 
 func (s *Service) siteInfo(ctx fiber.Ctx) error {
-	topDetectives, _ := s.MysteryService.GetTopDetectiveIDs(ctx.Context())
-	topGMs, _ := s.MysteryService.GetTopGMIDs(ctx.Context())
-	topChess, _ := s.GameRoomService.GetTopWinnerIDs(ctx.Context(), dto.GameTypeChess)
-	topCheckers, _ := s.GameRoomService.GetTopWinnerIDs(ctx.Context(), dto.GameTypeCheckers)
-	topOthello, _ := s.GameRoomService.GetTopWinnerIDs(ctx.Context(), dto.GameTypeOthello)
-	topMinesweeper, _ := s.GameRoomService.GetTopWinnerIDs(ctx.Context(), dto.GameTypeMinesweeper)
-
-	vanityRoles, _ := s.VanityRoleService.List(ctx.Context())
-	manualAssignments, _ := s.VanityRoleService.GetAllAssignments(ctx.Context())
-
-	assignments := make(map[string][]string)
-	for uid, roleIDs := range manualAssignments {
-		assignments[uid] = roleIDs
-	}
-	for _, uid := range topDetectives {
-		assignments[uid] = append(assignments[uid], "system_top_detective")
-	}
-	for _, uid := range topGMs {
-		assignments[uid] = append(assignments[uid], "system_top_gm")
-	}
-	for _, uid := range topChess {
-		assignments[uid] = append(assignments[uid], "system_top_chess")
-	}
-	for _, uid := range topCheckers {
-		assignments[uid] = append(assignments[uid], "system_top_checkers")
-	}
-	for _, uid := range topOthello {
-		assignments[uid] = append(assignments[uid], "system_top_othello")
-	}
-	for _, uid := range topMinesweeper {
-		assignments[uid] = append(assignments[uid], "system_top_minesweeper")
-	}
-	for _, spec := range secrets.WithVanityRole() {
-		holders, _ := s.UserSecretService.GetUserIDsWithSecret(ctx.Context(), string(spec.ID))
-		for _, uid := range holders {
-			assignments[uid.String()] = append(assignments[uid.String()], spec.VanityRoleID)
-		}
-	}
-
-	vrList := make([]dto.SiteInfoVanityRole, len(vanityRoles))
-	for i, vr := range vanityRoles {
-		vrList[i] = dto.SiteInfoVanityRole{
-			ID:        vr.ID,
-			Label:     vr.Label,
-			Color:     vr.Color,
-			IsSystem:  vr.IsSystem,
-			SortOrder: vr.SortOrder,
-		}
-	}
-
-	listedSpecs := secrets.Listed()
-	listedSecrets := make([]dto.SiteInfoSecret, len(listedSpecs))
-	for i, spec := range listedSpecs {
-		solved, _ := s.UserSecretService.IsSolvedByAnyone(ctx.Context(), string(spec.ID))
-		pieces := make([]dto.SiteInfoSecretPiece, len(spec.Pieces))
-		for j, p := range spec.Pieces {
-			pieces[j] = dto.SiteInfoSecretPiece{
-				ID:     string(p.ID),
-				Letter: p.Letter,
-				Tile:   p.Tile,
-			}
-		}
-		listedSecrets[i] = dto.SiteInfoSecret{
-			ID:               string(spec.ID),
-			Title:            spec.Title,
-			Description:      spec.Description,
-			VanityRoleID:     spec.VanityRoleID,
-			Icon:             spec.Icon,
-			Pointer:          spec.Pointer,
-			SolvedMessage:    spec.SolvedMessage,
-			ReadyPlaceholder: spec.ReadyPlaceholder,
-			PendingHint:      spec.PendingHint,
-			Solved:           solved,
-			Pieces:           pieces,
-		}
-	}
-
-	return ctx.JSON(dto.SiteInfoResponse{
-		SiteName:              s.SettingsService.Get(ctx.Context(), config.SettingSiteName),
-		SiteDescription:       s.SettingsService.Get(ctx.Context(), config.SettingSiteDescription),
-		RegistrationType:      s.SettingsService.Get(ctx.Context(), config.SettingRegistrationType),
-		AnnouncementBanner:    s.SettingsService.Get(ctx.Context(), config.SettingAnnouncementBanner),
-		DefaultTheme:          s.SettingsService.Get(ctx.Context(), config.SettingDefaultTheme),
-		MaintenanceMode:       s.SettingsService.GetBool(ctx.Context(), config.SettingMaintenanceMode),
-		MaintenanceTitle:      s.SettingsService.Get(ctx.Context(), config.SettingMaintenanceTitle),
-		MaintenanceMessage:    s.SettingsService.Get(ctx.Context(), config.SettingMaintenanceMessage),
-		TurnstileEnabled:      s.SettingsService.GetBool(ctx.Context(), config.SettingTurnstileEnabled),
-		TurnstileSiteKey:      s.SettingsService.Get(ctx.Context(), config.SettingTurnstileSiteKey),
-		VoiceEnabled:          s.SettingsService.GetBool(ctx.Context(), config.SettingVoiceEnabled),
-		EmailEnabled:          s.AuthService.EmailEnabled(ctx.Context()),
-		MaxImageSize:          s.SettingsService.GetInt(ctx.Context(), config.SettingMaxImageSize),
-		MaxVideoSize:          s.SettingsService.GetInt(ctx.Context(), config.SettingMaxVideoSize),
-		TopDetectiveIDs:       topDetectives,
-		TopGMIDs:              topGMs,
-		TopChessIDs:           topChess,
-		TopCheckersIDs:        topCheckers,
-		TopOthelloIDs:         topOthello,
-		TopMinesweeperIDs:     topMinesweeper,
-		VanityRoles:           vrList,
-		VanityRoleAssignments: assignments,
-		ListedSecrets:         listedSecrets,
-		RulesPage:             s.SettingsService.Get(ctx.Context(), config.SettingRulesPage),
-		Version:               config.Version,
-		AppLatestVersion:      s.SettingsService.Get(ctx.Context(), config.SettingAppLatestVersion),
-		AppDownloadURL:        s.SettingsService.Get(ctx.Context(), config.SettingAppDownloadURL),
-	})
+	return ctx.JSON(s.SiteInfoService.Get(ctx.Context()))
 }
 
 func (s *Service) setupGetRulesRoute(r fiber.Router) {

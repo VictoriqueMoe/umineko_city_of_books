@@ -16,6 +16,7 @@ import (
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/repository/model"
+	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/utils"
@@ -248,7 +249,7 @@ func (s *service) GetOC(ctx context.Context, id uuid.UUID, viewerID uuid.UUID) (
 
 	flatComments := make([]dto.OCCommentResponse, len(comments))
 	for i, c := range comments {
-		flatComments[i] = c.ToResponse(commentMediaMap[c.ID])
+		flatComments[i] = ocCommentToResponse(c, commentMediaMap[c.ID])
 	}
 	threaded := utils.BuildTree(flatComments,
 		func(c dto.OCCommentResponse) uuid.UUID { return c.ID },
@@ -649,7 +650,7 @@ func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID u
 			return
 		}
 		bgCtx := context.Background()
-		ocID, err := s.ocRepo.GetCommentOCID(bgCtx, commentID)
+		ocID, err := s.ocRepo.GetCommentEntityID(bgCtx, commentID)
 		if err != nil {
 			return
 		}
@@ -695,4 +696,24 @@ func (s *service) UploadCommentMedia(
 		s.ocRepo.UpdateCommentMediaURL,
 		s.ocRepo.UpdateCommentMediaThumbnail,
 	)
+}
+
+func ocCommentToResponse(c repository.CommentRow, media []model.PostMediaRow) dto.OCCommentResponse {
+	return dto.OCCommentResponse{
+		ID:       c.ID,
+		ParentID: c.ParentID,
+		Author: dto.UserResponse{
+			ID:          c.UserID,
+			Username:    c.AuthorUsername,
+			DisplayName: c.AuthorDisplayName,
+			AvatarURL:   c.AuthorAvatarURL,
+			Role:        role.Role(c.AuthorRole),
+		},
+		Body:      c.Body,
+		Media:     model.MediaRowsToResponse(media),
+		LikeCount: c.LikeCount,
+		UserLiked: c.UserLiked,
+		CreatedAt: c.CreatedAt,
+		UpdatedAt: c.UpdatedAt,
+	}
 }

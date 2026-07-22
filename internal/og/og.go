@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/secrets"
@@ -29,6 +30,7 @@ type (
 		chatRepo         repository.ChatRepository
 		liveStreamRepo   repository.LiveStreamRepository
 		settingsSvc      settings.Service
+		cache            *cache.Manager
 		baseHTML         string
 		baseURL          string
 	}
@@ -62,6 +64,7 @@ func NewResolver(
 	chatRepo repository.ChatRepository,
 	liveStreamRepo repository.LiveStreamRepository,
 	settingsSvc settings.Service,
+	cacheMgr *cache.Manager,
 	baseHTML, baseURL string,
 ) *Resolver {
 	return &Resolver{
@@ -78,6 +81,7 @@ func NewResolver(
 		chatRepo:         chatRepo,
 		liveStreamRepo:   liveStreamRepo,
 		settingsSvc:      settingsSvc,
+		cache:            cacheMgr,
 		baseHTML:         strings.ReplaceAll(baseHTML, baseURLPlaceholder, baseURL),
 		baseURL:          baseURL,
 	}
@@ -85,12 +89,25 @@ func NewResolver(
 
 func (r *Resolver) Resolve(ctx context.Context, path string) string {
 	html, defaultImage := r.withDefaultImage(ctx)
-	meta := r.metaForPath(ctx, path)
+	meta := r.resolveMeta(ctx, path)
 	if meta == nil {
 		return html
 	}
 
 	return r.inject(ctx, html, *meta, defaultImage)
+}
+
+func (r *Resolver) resolveMeta(ctx context.Context, path string) *Meta {
+	key := cache.OGMeta.Key(path)
+
+	if meta, err := cache.Get[*Meta](ctx, r.cache, key); err == nil {
+		return meta
+	}
+
+	meta := r.metaForPath(ctx, path)
+	_ = cache.Set(ctx, r.cache, key, meta, cache.OGMeta.TTL)
+
+	return meta
 }
 
 func (r *Resolver) withDefaultImage(ctx context.Context) (string, string) {

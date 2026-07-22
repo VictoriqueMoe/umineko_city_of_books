@@ -16,6 +16,8 @@ import (
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/quotefinder"
 	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/repository/model"
+	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/utils"
@@ -182,7 +184,7 @@ func (s *service) GetShip(ctx context.Context, id uuid.UUID, viewerID uuid.UUID)
 
 	flatComments := make([]dto.ShipCommentResponse, len(comments))
 	for i, c := range comments {
-		flatComments[i] = c.ToResponse(commentMediaMap[c.ID])
+		flatComments[i] = shipCommentToResponse(c, commentMediaMap[c.ID])
 	}
 	threaded := utils.BuildTree(flatComments,
 		func(c dto.ShipCommentResponse) uuid.UUID { return c.ID },
@@ -435,7 +437,7 @@ func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID u
 			return
 		}
 		bgCtx := context.Background()
-		shipID, err := s.shipRepo.GetCommentShipID(bgCtx, commentID)
+		shipID, err := s.shipRepo.GetCommentEntityID(bgCtx, commentID)
 		if err != nil {
 			return
 		}
@@ -493,4 +495,24 @@ func (s *service) ListCharacters(series quotefinder.Series) ([]dto.CharacterList
 		result[i] = dto.CharacterListEntry{ID: c.ID, Name: c.Name, Group: c.Group}
 	}
 	return result, nil
+}
+
+func shipCommentToResponse(c repository.CommentRow, media []model.PostMediaRow) dto.ShipCommentResponse {
+	return dto.ShipCommentResponse{
+		ID:       c.ID,
+		ParentID: c.ParentID,
+		Author: dto.UserResponse{
+			ID:          c.UserID,
+			Username:    c.AuthorUsername,
+			DisplayName: c.AuthorDisplayName,
+			AvatarURL:   c.AuthorAvatarURL,
+			Role:        role.Role(c.AuthorRole),
+		},
+		Body:      c.Body,
+		Media:     model.MediaRowsToResponse(media),
+		LikeCount: c.LikeCount,
+		UserLiked: c.UserLiked,
+		CreatedAt: c.CreatedAt,
+		UpdatedAt: c.UpdatedAt,
+	}
 }

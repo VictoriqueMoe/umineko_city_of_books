@@ -18,7 +18,8 @@ func main() {
 		Str("db_name", config.Cfg.Postgres.DB).
 		Msg("starting")
 
-	app := initServer()
+	app, cleanup := initServer()
+	defer cleanup()
 
 	logger.Log.Info().Str("addr", ":4323").Msg("starting server")
 	utils.StartServerWithGracefulShutdown(app, ":4323")

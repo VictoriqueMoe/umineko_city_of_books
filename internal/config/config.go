@@ -117,6 +117,7 @@ var (
 	SettingRulesSuggestions        = &SiteSettingDef{"rules_suggestions", "", TypeString}
 	SettingRulesChatRooms          = &SiteSettingDef{"rules_chat_rooms", "", TypeString}
 	SettingRulesPage               = &SiteSettingDef{"rules_page", "", TypeString}
+	SettingRulesLanding            = &SiteSettingDef{"rules_landing", "", TypeString}
 	SettingSMTPHost                = &SiteSettingDef{"smtp_host", "", TypeString}
 	SettingSMTPPort                = &SiteSettingDef{"smtp_port", "25", TypeInt}
 	SettingSMTPFrom                = &SiteSettingDef{"smtp_from", "", TypeString}
@@ -130,6 +131,7 @@ var (
 	SettingAppLatestVersion        = &SiteSettingDef{"app_latest_version", "", TypeString}
 	SettingAppDownloadURL          = &SiteSettingDef{"app_download_url", "", TypeString}
 	SettingOGDefaultImage          = &SiteSettingDef{"og_default_image", "", TypeString}
+	SettingValkeyURL               = &SiteSettingDef{"valkey_url", "", TypeString}
 
 	AllSiteSettings = []*SiteSettingDef{
 		SettingUploadDir,
@@ -191,6 +193,7 @@ var (
 		SettingRulesSuggestions,
 		SettingRulesChatRooms,
 		SettingRulesPage,
+		SettingRulesLanding,
 		SettingSMTPHost,
 		SettingSMTPPort,
 		SettingSMTPFrom,
@@ -204,6 +207,7 @@ var (
 		SettingAppLatestVersion,
 		SettingAppDownloadURL,
 		SettingOGDefaultImage,
+		SettingValkeyURL,
 	}
 )
 

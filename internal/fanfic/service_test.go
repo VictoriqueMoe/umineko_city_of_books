@@ -276,7 +276,7 @@ func TestGetFanfic_OK_IncrementsViewCount(t *testing.T) {
 	m.fanficRepo.EXPECT().GetCharacters(mock.Anything, id).Return(nil, nil)
 	m.fanficRepo.EXPECT().ListChapters(mock.Anything, id).Return(nil, nil)
 	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewer).Return(nil, nil)
-	m.fanficRepo.EXPECT().GetComments(mock.Anything, id, viewer, []uuid.UUID(nil)).Return(nil, nil)
+	m.fanficRepo.EXPECT().GetComments(mock.Anything, id, viewer, 500, 0, []uuid.UUID(nil)).Return(nil, 0, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, viewer, author).Return(false, nil)
 	m.fanficRepo.EXPECT().GetReadingProgress(mock.Anything, viewer, id).Return(2, nil)
 
@@ -301,7 +301,7 @@ func TestGetFanfic_OK_AnonymousSkipsBlockCheck(t *testing.T) {
 	m.fanficRepo.EXPECT().GetCharacters(mock.Anything, id).Return(nil, nil)
 	m.fanficRepo.EXPECT().ListChapters(mock.Anything, id).Return(nil, nil)
 	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, uuid.Nil).Return(nil, nil)
-	m.fanficRepo.EXPECT().GetComments(mock.Anything, id, uuid.Nil, []uuid.UUID(nil)).Return(nil, nil)
+	m.fanficRepo.EXPECT().GetComments(mock.Anything, id, uuid.Nil, 500, 0, []uuid.UUID(nil)).Return(nil, 0, nil)
 	m.fanficRepo.EXPECT().GetReadingProgress(mock.Anything, uuid.Nil, id).Return(0, nil)
 
 	// when
@@ -320,14 +320,14 @@ func TestGetFanfic_OK_WithCommentsThreaded(t *testing.T) {
 	author := uuid.New()
 	commentID := uuid.New()
 	row := &model.FanficRow{ID: id, UserID: author, Status: "complete"}
-	comments := []model.FanficCommentRow{{ID: commentID, UserID: author, Body: "hi"}}
+	comments := []repository.CommentRow{{ID: commentID, UserID: author, Body: "hi"}}
 	m.fanficRepo.EXPECT().GetByID(mock.Anything, id, viewer).Return(row, nil)
 	m.fanficRepo.EXPECT().GetGenres(mock.Anything, id).Return(nil, nil)
 	m.fanficRepo.EXPECT().GetTags(mock.Anything, id).Return(nil, nil)
 	m.fanficRepo.EXPECT().GetCharacters(mock.Anything, id).Return(nil, nil)
 	m.fanficRepo.EXPECT().ListChapters(mock.Anything, id).Return([]model.FanficChapterSummaryRow{{ID: uuid.New(), ChapterNum: 1, Title: "Ch1"}}, nil)
 	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewer).Return(nil, nil)
-	m.fanficRepo.EXPECT().GetComments(mock.Anything, id, viewer, []uuid.UUID(nil)).Return(comments, nil)
+	m.fanficRepo.EXPECT().GetComments(mock.Anything, id, viewer, 500, 0, []uuid.UUID(nil)).Return(comments, 0, nil)
 	m.fanficRepo.EXPECT().GetCommentMediaBatch(mock.Anything, []uuid.UUID{commentID}).Return(nil, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, viewer, author).Return(false, nil)
 	m.fanficRepo.EXPECT().GetReadingProgress(mock.Anything, viewer, id).Return(0, nil)
@@ -1523,7 +1523,7 @@ func TestLikeComment_OK_OtherAuthor(t *testing.T) {
 	m.fanficRepo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(author, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, author).Return(false, nil)
 	m.fanficRepo.EXPECT().LikeComment(mock.Anything, userID, id).Return(nil)
-	m.fanficRepo.EXPECT().GetCommentFanficID(mock.Anything, id).Return(uuid.Nil, errors.New("stop goroutine")).Maybe()
+	m.fanficRepo.EXPECT().GetCommentEntityID(mock.Anything, id).Return(uuid.Nil, errors.New("stop goroutine")).Maybe()
 
 	// when
 	err := svc.LikeComment(context.Background(), userID, id)

@@ -34,6 +34,7 @@ import (
 	"umineko_city_of_books/internal/settings"
 	shipsvc "umineko_city_of_books/internal/ship"
 	"umineko_city_of_books/internal/sidebar"
+	"umineko_city_of_books/internal/siteinfo"
 	"umineko_city_of_books/internal/sitemap"
 	"umineko_city_of_books/internal/stream"
 	"umineko_city_of_books/internal/theory"
@@ -84,7 +85,9 @@ type (
 		HealthService         health.Service
 		OverlayService        overlay.Service
 		SitemapService        sitemap.Service
+		SiteInfoService       siteinfo.Service
 		OGResolver            *og.Resolver
+		OGImageService        *og.ImageService
 		StaticFS              fs.FS
 		HTMLContent           string
 	}
@@ -129,7 +132,9 @@ func NewService(
 	healthService health.Service,
 	overlayService overlay.Service,
 	sitemapService sitemap.Service,
+	siteInfoService siteinfo.Service,
 	ogResolver *og.Resolver,
+	ogImageService *og.ImageService,
 	staticFS fs.FS,
 	htmlContent string,
 ) Service {
@@ -172,7 +177,9 @@ func NewService(
 		HealthService:         healthService,
 		OverlayService:        overlayService,
 		SitemapService:        sitemapService,
+		SiteInfoService:       siteInfoService,
 		OGResolver:            ogResolver,
+		OGImageService:        ogImageService,
 		StaticFS:              staticFS,
 		HTMLContent:           htmlContent,
 	}
