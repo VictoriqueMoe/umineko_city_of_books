@@ -29,6 +29,8 @@ func initDatabase() (*repository.Repositories, settings.Service, *cache.Manager)
 		logger.Log.Fatal().Err(err).Msg("failed to open database")
 	}
 
+	db.RegisterStatsCollector(database)
+
 	if err := db.Migrate(database); err != nil {
 		logger.Log.Fatal().Err(err).Msg("failed to run migrations")
 	}

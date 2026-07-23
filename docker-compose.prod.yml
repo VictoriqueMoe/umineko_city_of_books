@@ -52,6 +52,25 @@ services:
       retries: 3
       start_period: 30s
 
+  postgres-exporter:
+    image: quay.io/prometheuscommunity/postgres-exporter:latest
+    container_name: umineko-postgres-exporter
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-umineko}:${POSTGRES_PASSWORD:-foo}@postgres:5432/${POSTGRES_DB:-umineko_city_of_books}?sslmode=disable"
+      PG_EXPORTER_AUTO_DISCOVER_DATABASES: "false"
+    networks:
+      - default
+      - observability
+    labels:
+      prometheus-scrape: "true"
+      prometheus-job: "postgres"
+      prometheus-port: "9187"
+      prometheus-path: "/metrics"
+
   valkey:
     image: valkey/valkey:latest
     container_name: umineko-valkey
