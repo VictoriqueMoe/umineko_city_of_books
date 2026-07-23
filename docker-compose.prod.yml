@@ -59,9 +59,14 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    env_file:
+      - postgres.env
     environment:
-      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-umineko}:${POSTGRES_PASSWORD:-foo}@postgres:5432/${POSTGRES_DB:-umineko_city_of_books}?sslmode=disable"
       PG_EXPORTER_AUTO_DISCOVER_DATABASES: "false"
+    entrypoint:
+      - /bin/sh
+      - -c
+      - 'export DATA_SOURCE_NAME="postgresql://$${POSTGRES_USER}:$${POSTGRES_PASSWORD}@postgres:5432/$${POSTGRES_DB}?sslmode=disable"; exec /bin/postgres_exporter'
     networks:
       - default
       - observability
