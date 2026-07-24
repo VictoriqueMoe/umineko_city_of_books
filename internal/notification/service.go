@@ -187,7 +187,6 @@ func (s *service) Notify(ctx context.Context, params dto.NotifyParams) error {
 		return err
 	}
 
-	logger.Log.Debug().Str("type", string(params.Type)).Str("recipient", params.RecipientID.String()).Msg("notification sent")
 	s.pushNotification(ctx, int(id), params.RecipientID)
 
 	if willConsiderEmail && !emailDupe {

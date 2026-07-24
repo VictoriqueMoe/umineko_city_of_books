@@ -10,6 +10,8 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func (s *Service) getAllSearchRoutes() []FSetupRoute {
@@ -46,6 +48,12 @@ func (s *Service) search(ctx fiber.Ctx) error {
 		return ctrlutils.InternalError(ctx, "failed to search", err)
 	}
 
+	trace.SpanFromContext(ctx.Context()).SetAttributes(
+		attribute.String("search.query", query),
+		attribute.Int("search.total", total),
+		attribute.Int("search.returned", len(results)),
+	)
+
 	return ctx.JSON(fiber.Map{
 		"results": searchResultsToResponse(results),
 		"total":   total,
@@ -65,6 +73,11 @@ func (s *Service) quickSearch(ctx fiber.Ctx) error {
 	if err != nil {
 		return ctrlutils.InternalError(ctx, "failed to quick search", err)
 	}
+
+	trace.SpanFromContext(ctx.Context()).SetAttributes(
+		attribute.String("search.query", query),
+		attribute.Int("search.returned", len(results)),
+	)
 
 	return ctx.JSON(fiber.Map{"results": searchResultsToResponse(results)})
 }

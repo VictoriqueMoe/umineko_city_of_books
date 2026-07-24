@@ -80,6 +80,38 @@ func (r *searchDAO) QuickSearch(ctx context.Context, query string, perTypeLimit 
 	return scanSearchRows(rows, perTypeLimit*len(sources))
 }
 
+func scanSearchRowsWithTotal(rows *sql.Rows, capacity int) ([]repository.SearchResult, int, error) {
+	results := make([]repository.SearchResult, 0, capacity)
+	total := 0
+
+	for rows.Next() {
+		var (
+			r         repository.SearchResult
+			createdAt time.Time
+			entityT   string
+			rowTotal  int
+		)
+		if err := rows.Scan(
+			&entityT, &r.ID, &r.ParentID, &r.ParentTitle, &r.Title, &r.Snippet,
+			&r.AuthorID, &r.AuthorUsername, &r.AuthorDisplayName, &r.AuthorAvatarURL,
+			&createdAt, &r.Rank, &rowTotal,
+		); err != nil {
+			return nil, 0, fmt.Errorf("search scan: %w", err)
+		}
+
+		r.EntityType = repository.SearchEntityType(entityT)
+		r.CreatedAt = createdAt.UTC().Format(time.RFC3339Nano)
+		results = append(results, r)
+		total = rowTotal
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("search rows: %w", err)
+	}
+
+	return results, total, nil
+}
+
 func scanSearchRows(rows *sql.Rows, capacity int) ([]repository.SearchResult, error) {
 	results := make([]repository.SearchResult, 0, capacity)
 	for rows.Next() {

@@ -947,12 +947,6 @@ func (r *chatDAO) SearchMessagesForViewer(ctx context.Context, viewerID, roomID 
 		cte = `WITH q AS (SELECT websearch_to_tsquery('english', $2) AS tsq, $2 AS qstr)`
 	)
 
-	var total int
-	if err := r.db.QueryRowContext(ctx, cte+`
-		SELECT COUNT(*) `+fromWhere, viewerID, query, roomID).Scan(&total); err != nil {
-		return nil, 0, fmt.Errorf("search chat messages count: %w", err)
-	}
-
 	rows, err := r.db.QueryContext(ctx, cte+`
 		SELECT 'chat_message' AS entity_type, cm.id::text, cm.room_id::text,
 		 COALESCE(NULLIF(cr.name, ''), 'Direct message') AS parent_title,
@@ -960,7 +954,8 @@ func (r *chatDAO) SearchMessagesForViewer(ctx context.Context, viewerID, roomID 
 		 ts_headline('english', cm.body, q.tsq, `+repository.SearchHeadlineOptions+`) AS snippet,
 		 u.id::text, u.username, u.display_name, u.avatar_url,
 		 cm.created_at,
-		 (ts_rank_cd(cm.search_vector, q.tsq) + COALESCE(similarity(cm.body, q.qstr), 0))::float8 AS rank
+		 (ts_rank_cd(cm.search_vector, q.tsq) + COALESCE(similarity(cm.body, q.qstr), 0))::float8 AS rank,
+		 COUNT(*) OVER () AS total_count
 		 `+fromWhere+`
 		 ORDER BY rank DESC, cm.created_at DESC
 		 LIMIT $4 OFFSET $5`,
@@ -971,11 +966,7 @@ func (r *chatDAO) SearchMessagesForViewer(ctx context.Context, viewerID, roomID 
 	}
 	defer rows.Close()
 
-	results, err := scanSearchRows(rows, limit)
-	if err != nil {
-		return nil, 0, err
-	}
-	return results, total, nil
+	return scanSearchRowsWithTotal(rows, limit)
 }
 
 func scanMessageRow(rows *sql.Rows) (repository.ChatMessageRow, error) {
