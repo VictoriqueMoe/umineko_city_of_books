@@ -7,12 +7,6 @@ services:
     image: postgres:latest
     container_name: umineko-postgres
     restart: unless-stopped
-    command:
-      - "postgres"
-      - "-c"
-      - "shared_preload_libraries=pg_stat_statements"
-      - "-c"
-      - "pg_stat_statements.track=all"
     env_file:
       - postgres.env
     volumes:
