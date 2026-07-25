@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useSecondsTick } from "../../hooks/useSecondsTick";
 import type { GameRoom, GameRoomPlayer } from "../../types/api";
 
-export const DISCONNECT_GRACE_SECONDS = 60;
+const DISCONNECT_GRACE_SECONDS = 60;
 
 export type ResultTone = "win" | "loss" | "draw" | "neutral";
 

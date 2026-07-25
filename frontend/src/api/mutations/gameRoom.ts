@@ -7,8 +7,6 @@ import {
     declineGameInvite,
     inviteToGame,
     offerDraw,
-    postPlayerChat,
-    postSpectatorChat,
     resignGame,
     submitGameAction,
 } from "../endpoints";
@@ -87,17 +85,5 @@ export function useDeclineDraw() {
     return useMutation({
         mutationFn: (id: string) => declineDraw(id),
         onSuccess: (room, id) => qc.setQueryData(detail(id), room),
-    });
-}
-
-export function usePostSpectatorChat(roomId: string) {
-    return useMutation({
-        mutationFn: (body: string) => postSpectatorChat(roomId, body),
-    });
-}
-
-export function usePostPlayerChat(roomId: string) {
-    return useMutation({
-        mutationFn: (body: string) => postPlayerChat(roomId, body),
     });
 }

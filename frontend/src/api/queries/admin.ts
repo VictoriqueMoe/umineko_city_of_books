@@ -11,7 +11,6 @@ import {
     getVanityRoleUsers,
     getVanityRoles,
     listAnnouncements,
-    listChatRoomBannedWords,
     listGlobalBannedWords,
 } from "../endpoints";
 import { queryKeys } from "../queryKeys";
@@ -107,15 +106,6 @@ export function useGlobalBannedWords() {
     const query = useQuery({
         queryKey: queryKeys.admin.bannedWords("global"),
         queryFn: () => listGlobalBannedWords(),
-    });
-    return { rules: query.data?.rules ?? [], loading: query.isLoading, refresh: query.refetch };
-}
-
-export function useChatRoomBannedWords(roomID: string) {
-    const query = useQuery({
-        queryKey: queryKeys.admin.bannedWords(`room:${roomID}`),
-        queryFn: () => listChatRoomBannedWords(roomID),
-        enabled: !!roomID,
     });
     return { rules: query.data?.rules ?? [], loading: query.isLoading, refresh: query.refetch };
 }

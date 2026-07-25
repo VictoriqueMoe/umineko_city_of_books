@@ -1,6 +1,6 @@
 const CANONICAL_ORIGIN = "https://whentheycry.social";
 
-export const SITE_ORIGIN = (() => {
+const SITE_ORIGIN = (() => {
     const base = import.meta.env.VITE_API_BASE;
     if (base) {
         try {

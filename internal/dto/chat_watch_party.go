@@ -61,8 +61,6 @@ type (
 		EmbedURL string            `json:"embed_url"`
 	}
 
-	GrantWatchPartyControlRequest struct{}
-
 	IdentifyWatchPartyParticipantRequest struct {
 		Identifier string `json:"identifier"`
 	}

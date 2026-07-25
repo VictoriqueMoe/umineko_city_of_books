@@ -10,7 +10,6 @@ import {
     resetPassword,
     setEmail,
     verifyEmail,
-    unlockSecret,
     updateAppearance,
     updateGameBoardSort,
     updateProfile,
@@ -163,17 +162,6 @@ export function useUpdateAppearance() {
             updateAppearance(theme, font, wideLayout),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ["auth", "me"] });
-        },
-    });
-}
-
-export function useUnlockSecret() {
-    const qc = useQueryClient();
-    return useMutation({
-        mutationFn: ({ secret, phrase }: { secret: string; phrase: string }) => unlockSecret(secret, phrase),
-        onSuccess: () => {
-            qc.invalidateQueries({ queryKey: ["auth", "me"] });
-            qc.invalidateQueries({ queryKey: ["site-info"] });
         },
     });
 }

@@ -209,19 +209,6 @@ func (h *Hub) IsUserViewing(roomID, userID uuid.UUID) bool {
 	return info != nil && info.tabs > 0
 }
 
-func (h *Hub) GetViewerState(roomID, userID uuid.UUID) string {
-	h.mu.RLock()
-	defer h.mu.RUnlock()
-	if h.viewers[roomID] == nil {
-		return ""
-	}
-	info := h.viewers[roomID][userID]
-	if info == nil || info.tabs <= 0 {
-		return ""
-	}
-	return info.state
-}
-
 func (h *Hub) GetRoomPresence(roomID uuid.UUID) map[uuid.UUID]string {
 	h.mu.RLock()
 	defer h.mu.RUnlock()

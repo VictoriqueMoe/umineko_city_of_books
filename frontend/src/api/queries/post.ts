@@ -1,7 +1,7 @@
 ﻿import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { FeedTab, Post } from "../../types/api";
-import { getCornerCounts, getPost, getShareCount, listPosts } from "../endpoints";
+import { getPost, listPosts } from "../endpoints";
 import { queryKeys } from "../queryKeys";
 
 function generateSeed(): number {
@@ -54,21 +54,4 @@ export function usePost(id: string) {
         enabled: !!id,
     });
     return { post: query.data ?? null, loading: query.isLoading, refresh: query.refetch };
-}
-
-export function useShareCount(contentType: string, contentId: string, enabled = true) {
-    const query = useQuery({
-        queryKey: ["share-count", contentType, contentId],
-        queryFn: () => getShareCount(contentType, contentId),
-        enabled: enabled && !!contentId,
-    });
-    return { shareCount: query.data?.share_count ?? 0, loading: query.isLoading };
-}
-
-export function useCornerCounts() {
-    const query = useQuery({
-        queryKey: ["post", "corner-counts"],
-        queryFn: () => getCornerCounts(),
-    });
-    return { counts: query.data ?? null, loading: query.isLoading };
 }

@@ -29,7 +29,6 @@ var (
 	ErrNotFound    = errors.New("secret not found")
 	ErrEmptyBody   = errors.New("comment body cannot be empty")
 	ErrNotOwner    = errors.New("not the comment author")
-	ErrForbidden   = errors.New("forbidden")
 	ErrUserBlocked = block.ErrUserBlocked
 )
 

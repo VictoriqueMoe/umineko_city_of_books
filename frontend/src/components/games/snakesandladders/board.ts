@@ -32,14 +32,14 @@ export interface Point {
     y: number;
 }
 
-export function cellColumn(n: number): number {
+function cellColumn(n: number): number {
     const idx = n - 1;
     const row = Math.floor(idx / GRID);
     const within = idx % GRID;
     return row % 2 === 0 ? within : GRID - 1 - within;
 }
 
-export function cellRowFromBottom(n: number): number {
+function cellRowFromBottom(n: number): number {
     return Math.floor((n - 1) / GRID);
 }
 

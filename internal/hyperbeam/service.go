@@ -47,11 +47,6 @@ type (
 		EmbedURL        string `json:"embed_url"`
 	}
 
-	UserPerms struct {
-		ControlDisabled  bool `json:"control_disabled"`
-		ControlExclusive bool `json:"control_exclusive,omitempty"`
-	}
-
 	service struct {
 		apiKey     string
 		baseURL    string

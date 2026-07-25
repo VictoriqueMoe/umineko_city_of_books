@@ -24,15 +24,3 @@ export type TheorySort =
     | "controversial_asc"
     | "credibility"
     | "credibility_asc";
-
-export interface FilterState {
-    episode: number;
-    character: string;
-    query: string;
-}
-
-export const DEFAULT_FILTERS: FilterState = {
-    episode: 0,
-    character: "",
-    query: "",
-};

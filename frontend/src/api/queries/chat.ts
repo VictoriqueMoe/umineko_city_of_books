@@ -8,8 +8,6 @@ import {
     getUserRooms,
     listChatRoomBans,
     listChatRoomBannedWords,
-    listMyChatRooms,
-    listPublicChatRooms,
     resolveDMRoom,
 } from "../endpoints";
 import { queryClient } from "../queryClient";
@@ -35,56 +33,6 @@ export function fetchResolveDMRoom(recipientId: string) {
     });
 }
 
-export function useResolveDMRoom(recipientId: string, enabled = true) {
-    const query = useQuery({
-        queryKey: ["chat", "dm-resolve", recipientId],
-        queryFn: () => resolveDMRoom(recipientId),
-        enabled: enabled && !!recipientId,
-    });
-    return { data: query.data ?? null, loading: query.isLoading };
-}
-
-export function usePublicChatRooms(params: {
-    search?: string;
-    rp?: boolean;
-    tag?: string;
-    includeArchived?: boolean;
-    limit?: number;
-    offset?: number;
-}) {
-    const query = useQuery({
-        queryKey: ["chat", "rooms", "public", params],
-        queryFn: () => listPublicChatRooms(params),
-    });
-    return {
-        rooms: query.data?.rooms ?? [],
-        total: query.data?.total ?? 0,
-        loading: query.isLoading,
-        refresh: query.refetch,
-    };
-}
-
-export function useMyChatRooms(params: {
-    role?: "host" | "member";
-    search?: string;
-    rp?: boolean;
-    tag?: string;
-    includeArchived?: boolean;
-    limit?: number;
-    offset?: number;
-}) {
-    const query = useQuery({
-        queryKey: ["chat", "rooms", "mine", params],
-        queryFn: () => listMyChatRooms(params),
-    });
-    return {
-        rooms: query.data?.rooms ?? [],
-        total: query.data?.total ?? 0,
-        loading: query.isLoading,
-        refresh: query.refetch,
-    };
-}
-
 export function useUserRooms() {
     const query = useQuery({
         queryKey: ["chat", "rooms", "user"],
@@ -100,20 +48,6 @@ export function useChatRoomMembers(roomId: string, enabled = true) {
         enabled: enabled && !!roomId,
     });
     return { members: query.data?.members ?? [], loading: query.isLoading, refresh: query.refetch };
-}
-
-export function useRoomMessages(roomId: string, limit?: number, offset?: number, enabled = true) {
-    const query = useQuery({
-        queryKey: [...queryKeys.chat.roomMessages(roomId), { limit, offset }],
-        queryFn: () => getRoomMessages(roomId, limit, offset),
-        enabled: enabled && !!roomId,
-    });
-    return {
-        messages: query.data?.messages ?? [],
-        total: query.data?.total ?? 0,
-        loading: query.isLoading,
-        refresh: query.refetch,
-    };
 }
 
 export function useChatUnreadCount() {

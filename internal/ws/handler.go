@@ -32,10 +32,6 @@ type (
 		GetRoomsByUser(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error)
 	}
 
-	ChatMessageSender interface {
-		SendChatMessage(ctx context.Context, senderID uuid.UUID, roomID uuid.UUID, body string) error
-	}
-
 	GameRoomPresence interface {
 		HandleClientJoin(ctx context.Context, userID, roomID uuid.UUID)
 		HandleClientLeave(userID, roomID uuid.UUID)

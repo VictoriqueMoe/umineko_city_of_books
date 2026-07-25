@@ -11,7 +11,6 @@ import {
     unlikeOCComment,
     updateOC,
     updateOCComment,
-    updateOCGalleryImage,
     uploadOCCommentMedia,
     uploadOCImage,
     voteOC,
@@ -57,22 +56,6 @@ export function useAddOCGalleryImage() {
     return useMutation({
         mutationFn: ({ id, file, caption }: { id: string; file: File; caption: string }) =>
             addOCGalleryImage(id, file, caption),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.oc.all }),
-    });
-}
-
-export function useUpdateOCGalleryImage() {
-    const qc = useQueryClient();
-    return useMutation({
-        mutationFn: ({
-            ocId,
-            imageId,
-            data,
-        }: {
-            ocId: string;
-            imageId: number;
-            data: { caption?: string; sort_order?: number };
-        }) => updateOCGalleryImage(ocId, imageId, data),
         onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.oc.all }),
     });
 }

@@ -50,24 +50,6 @@ export function useGameScoreboard(gameType: GameType | undefined) {
     return { data: q.data ?? null, loading: q.isLoading };
 }
 
-export function useSpectatorChat(roomId: string, enabled = true) {
-    const q = useQuery({
-        queryKey: ["game-rooms", roomId, "spectator-chat"],
-        queryFn: () => api.getSpectatorChat(roomId),
-        enabled: enabled && !!roomId,
-    });
-    return { data: q.data ?? null, loading: q.isLoading, refresh: q.refetch };
-}
-
-export function usePlayerChat(roomId: string, enabled = true) {
-    const q = useQuery({
-        queryKey: ["game-rooms", roomId, "player-chat"],
-        queryFn: () => api.getPlayerChat(roomId),
-        enabled: enabled && !!roomId,
-    });
-    return { data: q.data ?? null, loading: q.isLoading, refresh: q.refetch };
-}
-
 interface UseGameRoomResult {
     room: GameRoom | null;
     loading: boolean;
