@@ -135,7 +135,7 @@ func (r *mysteryDAO) GetByID(ctx context.Context, id uuid.UUID) (*repository.Mys
 
 func (r *mysteryDAO) List(ctx context.Context, sort string, solved *bool, limit, offset int, excludeUserIDs []uuid.UUID) ([]repository.MysteryRow, int, error) {
 	where := ""
-	var args []interface{}
+	var args []any
 
 	if solved != nil {
 		if *solved {
@@ -154,7 +154,7 @@ func (r *mysteryDAO) List(ctx context.Context, sort string, solved *bool, limit,
 	args = append(args, exclArgs...)
 
 	var total int
-	countArgs := make([]interface{}, len(args))
+	countArgs := make([]any, len(args))
 	copy(countArgs, args)
 	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM mysteries m`+where, countArgs...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count mysteries: %w", err)

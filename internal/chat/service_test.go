@@ -2284,7 +2284,7 @@ func TestMarkRead_MarkError(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestMarkRead_OK(t *testing.T) {
+func TestMarkRead_DMFansOutReceipts(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	roomID := uuid.New()
@@ -2292,12 +2292,30 @@ func TestMarkRead_OK(t *testing.T) {
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
 	m.chatRepo.EXPECT().MarkRoomRead(mock.Anything, roomID, userID).Return(nil)
 	m.chatRepo.EXPECT().CountUnreadRoomsForUser(mock.Anything, userID).Return(0, nil)
+	m.chatRepo.EXPECT().GetRoomSendContext(mock.Anything, roomID).Return(&repository.ChatRoomSendContext{Type: "dm"}, nil)
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return([]uuid.UUID{userID}, nil)
 
 	// when
 	err := svc.MarkRead(context.Background(), roomID, userID)
 
 	// then
+	require.NoError(t, err)
+}
+
+func TestMarkRead_GroupRoomSkipsReceiptFanout(t *testing.T) {
+	// given a non-DM room where seen-by is never displayed
+	svc, m := newTestService(t)
+	roomID := uuid.New()
+	userID := uuid.New()
+	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
+	m.chatRepo.EXPECT().MarkRoomRead(mock.Anything, roomID, userID).Return(nil)
+	m.chatRepo.EXPECT().CountUnreadRoomsForUser(mock.Anything, userID).Return(0, nil)
+	m.chatRepo.EXPECT().GetRoomSendContext(mock.Anything, roomID).Return(&repository.ChatRoomSendContext{Type: "group"}, nil)
+
+	// when the room is marked read
+	err := svc.MarkRead(context.Background(), roomID, userID)
+
+	// then no receipt fan-out happens (GetRoomMembers is never called)
 	require.NoError(t, err)
 }
 
@@ -2443,18 +2461,18 @@ func TestSetRoomNickname_TrimsAndCapsAt32(t *testing.T) {
 		input.WriteString("a")
 	}
 	input.WriteString("  ")
-	expected := ""
+	var expected strings.Builder
 	for range 32 {
-		expected += "a"
+		expected.WriteString("a")
 	}
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
 	m.authzSvc.EXPECT().GetRole(mock.Anything, userID).Return("", nil)
 	m.chatRepo.EXPECT().IsMemberNicknameLocked(mock.Anything, roomID, userID).Return(false, nil)
-	m.chatRepo.EXPECT().SetMemberNickname(mock.Anything, roomID, userID, expected).Return(nil)
+	m.chatRepo.EXPECT().SetMemberNickname(mock.Anything, roomID, userID, expected.String()).Return(nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(sampleUser(userID), nil)
 	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, mock.Anything, roomID, userID, mock.Anything).Return(errors.New("boom"))
 	m.chatRepo.EXPECT().GetRoomMembersDetailed(mock.Anything, roomID).Return([]repository.ChatRoomMemberRow{
-		{UserID: userID, Role: "member", Nickname: expected},
+		{UserID: userID, Role: "member", Nickname: expected.String()},
 	}, nil)
 	m.vanityRoleRepo.EXPECT().GetRolesForUsersBatch(mock.Anything, []uuid.UUID{userID}).Return(nil, nil)
 
@@ -2464,7 +2482,7 @@ func TestSetRoomNickname_TrimsAndCapsAt32(t *testing.T) {
 	// then
 	require.NoError(t, err)
 	require.NotNil(t, got)
-	assert.Equal(t, expected, got.Nickname)
+	assert.Equal(t, expected.String(), got.Nickname)
 }
 
 func TestSetRoomNickname_NotMember(t *testing.T) {
@@ -3071,13 +3089,13 @@ func TestRemoveReaction_EmptyEmoji(t *testing.T) {
 func TestRemoveReaction_OversizedEmoji(t *testing.T) {
 	// given
 	svc, _ := newTestService(t)
-	big := ""
+	var big strings.Builder
 	for range 20 {
-		big += "x"
+		big.WriteString("x")
 	}
 
 	// when
-	err := svc.RemoveReaction(context.Background(), uuid.New(), uuid.New(), big)
+	err := svc.RemoveReaction(context.Background(), uuid.New(), uuid.New(), big.String())
 
 	// then
 	require.ErrorIs(t, err, ErrInvalidEmoji)
@@ -3326,9 +3344,10 @@ func TestSetMemberNicknameAsMod_TrimsAndCapsAt32(t *testing.T) {
 	roomID := uuid.New()
 	actorID := uuid.New()
 	targetID := uuid.New()
-	input := "  "
+	var input strings.Builder
+	input.WriteString("  ")
 	for range 50 {
-		input += "a"
+		input.WriteString("a")
 	}
 	expected := ""
 	for range 32 {
@@ -3347,7 +3366,7 @@ func TestSetMemberNicknameAsMod_TrimsAndCapsAt32(t *testing.T) {
 	m.vanityRoleRepo.EXPECT().GetRolesForUsersBatch(mock.Anything, []uuid.UUID{targetID}).Return(nil, nil)
 
 	// when
-	got, err := svc.SetMemberNicknameAsMod(context.Background(), roomID, actorID, targetID, input)
+	got, err := svc.SetMemberNicknameAsMod(context.Background(), roomID, actorID, targetID, input.String())
 
 	// then
 	require.NoError(t, err)

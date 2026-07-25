@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -104,11 +105,11 @@ func TestListMysteries_OK_TruncatesLongBody(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	viewer := uuid.New()
-	longBody := ""
+	var longBody strings.Builder
 	for range 250 {
-		longBody += "x"
+		longBody.WriteString("x")
 	}
-	rows := []repository.MysteryRow{{ID: uuid.New(), Title: "T", Body: longBody}}
+	rows := []repository.MysteryRow{{ID: uuid.New(), Title: "T", Body: longBody.String()}}
 	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewer).Return(nil, nil)
 	m.repo.EXPECT().List(mock.Anything, "new", (*bool)(nil), 5, 0, []uuid.UUID(nil)).Return(rows, 1, nil)
 
@@ -1272,11 +1273,11 @@ func TestListByUser_TruncatesLongBody(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	userID := uuid.New()
-	body := ""
+	var body strings.Builder
 	for range 300 {
-		body += "x"
+		body.WriteString("x")
 	}
-	rows := []repository.MysteryRow{{ID: uuid.New(), Body: body}}
+	rows := []repository.MysteryRow{{ID: uuid.New(), Body: body.String()}}
 	m.repo.EXPECT().ListByUser(mock.Anything, userID, 10, 0).Return(rows, 1, nil)
 
 	// when

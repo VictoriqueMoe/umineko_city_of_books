@@ -38,7 +38,7 @@ const artSelectBase = `
 	JOIN users u ON a.user_id = u.id
 	LEFT JOIN user_roles r ON r.user_id = a.user_id`
 
-func scanArtRow(row interface{ Scan(...interface{}) error }, a *model.ArtRow) error {
+func scanArtRow(row interface{ Scan(...any) error }, a *model.ArtRow) error {
 	var createdAt time.Time
 	var updatedAt *time.Time
 	err := row.Scan(
@@ -158,7 +158,7 @@ func artOrderClause(sort string) string {
 
 func (r *artDAO) ListAll(ctx context.Context, viewerID uuid.UUID, corner string, artType string, search string, tag string, sort string, limit, offset int, excludeUserIDs []uuid.UUID) ([]model.ArtRow, int, error) {
 	var total int
-	buildWhere := func(startIdx int) (string, []interface{}, int) {
+	buildWhere := func(startIdx int) (string, []any, int) {
 		idx := startIdx
 		next := func() string {
 			s := fmt.Sprintf("$%d", idx)
@@ -166,7 +166,7 @@ func (r *artDAO) ListAll(ctx context.Context, viewerID uuid.UUID, corner string,
 			return s
 		}
 		parts := []string{"a.corner = " + next()}
-		args := []interface{}{corner}
+		args := []any{corner}
 		if artType != "" {
 			parts = append(parts, "a.art_type = "+next())
 			args = append(args, artType)
@@ -200,7 +200,7 @@ func (r *artDAO) ListAll(ctx context.Context, viewerID uuid.UUID, corner string,
 	orderClause := artOrderClause(sort)
 	query := artSelectBase + listWhere + orderClause + ` LIMIT ` + limitPH + ` OFFSET ` + offsetPH
 
-	queryArgs := []interface{}{viewerID}
+	queryArgs := []any{viewerID}
 	queryArgs = append(queryArgs, listArgs...)
 	queryArgs = append(queryArgs, limit, offset)
 
@@ -286,15 +286,16 @@ func (r *artDAO) GetTagsBatch(ctx context.Context, artIDs []uuid.UUID) (map[uuid
 		return nil, nil
 	}
 
-	placeholders := "$1"
-	args := []interface{}{artIDs[0]}
+	var placeholders strings.Builder
+	placeholders.WriteString("$1")
+	args := []any{artIDs[0]}
 	for i, id := range artIDs[1:] {
-		placeholders += fmt.Sprintf(", $%d", i+2)
+		placeholders.WriteString(fmt.Sprintf(", $%d", i+2))
 		args = append(args, id)
 	}
 
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT art_id, tag FROM art_tags WHERE art_id IN (`+placeholders+`) ORDER BY tag`,
+		`SELECT art_id, tag FROM art_tags WHERE art_id IN (`+placeholders.String()+`) ORDER BY tag`,
 		args...,
 	)
 	if err != nil {
@@ -316,7 +317,7 @@ func (r *artDAO) GetTagsBatch(ctx context.Context, artIDs []uuid.UUID) (map[uuid
 
 func (r *artDAO) GetPopularTags(ctx context.Context, corner string, limit int) ([]model.TagCount, error) {
 	query := `SELECT t.tag, COUNT(*) as cnt FROM art_tags t JOIN art a ON t.art_id = a.id`
-	var args []interface{}
+	var args []any
 
 	if corner != "" {
 		query += ` WHERE a.corner = $1`
@@ -531,7 +532,7 @@ func (r *artDAO) ListAllGalleries(ctx context.Context, corner string) ([]model.G
 		FROM galleries g
 		JOIN users u ON g.user_id = u.id
 		LEFT JOIN art a ON g.cover_art_id = a.id`
-	args := []interface{}{}
+	args := []any{}
 
 	if corner != "" {
 		query += ` WHERE EXISTS(SELECT 1 FROM art WHERE gallery_id = g.id AND corner = $1)`

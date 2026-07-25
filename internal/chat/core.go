@@ -136,7 +136,7 @@ func (c *core) ensureLockAllowsRoom(ctx context.Context, senderID, roomID uuid.U
 	if err != nil {
 		return fmt.Errorf("get room: %w", err)
 	}
-	if room == nil || room.Type != "dm" {
+	if room == nil || room.Type != dto.RoomTypeDM {
 		return ErrLockedNonStaffDM
 	}
 	members, err := c.chatRepo.GetRoomMembers(ctx, roomID)
@@ -623,7 +623,7 @@ func (c *core) notifyInvited(inviterID, roomID uuid.UUID, roomName string, invit
 		})
 		c.hub.SendToUser(invitedID, ws.Message{
 			Type: "chat_room_invited",
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"room_id": roomID,
 			},
 		})
@@ -648,7 +648,7 @@ func (c *core) broadcastAndBuildMember(ctx context.Context, roomID, targetID uui
 
 	event := ws.Message{
 		Type: "chat_member_updated",
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"room_id":              roomID,
 			"user_id":              targetID,
 			"nickname":             stringOrEmpty(resp, func(r *dto.ChatRoomMemberResponse) string { return r.Nickname }),

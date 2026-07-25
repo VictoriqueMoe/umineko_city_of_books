@@ -2,6 +2,7 @@ package dao_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -291,11 +292,11 @@ func TestJournalDAO_List_TruncatesLatestEntryExcerpt(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	id := createJournal(t, repos, user.ID, "T", "", "general")
-	longBody := ""
+	var longBody strings.Builder
 	for range 400 {
-		longBody += "a"
+		longBody.WriteString("a")
 	}
-	require.NoError(t, repos.Journal.CreateEntry(context.Background(), uuid.New(), id, 1, nil, longBody, 1, false))
+	require.NoError(t, repos.Journal.CreateEntry(context.Background(), uuid.New(), id, 1, nil, longBody.String(), 1, false))
 
 	// when
 	journals, _, err := repos.Journal.List(context.Background(), defaultJournalListParams(), uuid.Nil, nil)

@@ -477,14 +477,14 @@ func (s *service) BroadcastSolved(ctx context.Context, parentID string, actor uu
 	s.hub.BroadcastToTopic(secretRoomID(parentID), ws.Message{Type: "secret_solved", Data: event})
 
 	if specOK && spec.VanityRoleID != "" {
-		s.hub.Broadcast(ws.Message{Type: "vanity_roles_changed", Data: map[string]interface{}{}})
+		s.hub.Broadcast(ws.Message{Type: "vanity_roles_changed", Data: map[string]any{}})
 	}
 
 	if specOK && spec.Title != "" {
 		pieceIDs := secrets.PieceIDStrings(spec)
 		participants, err := s.userSecretSvc.GetUserIDsWithAnyPiece(ctx, pieceIDs)
 		if err == nil {
-			closedData := map[string]interface{}{
+			closedData := map[string]any{
 				"secret_id":    parentID,
 				"secret_title": spec.Title,
 				"solver":       event.Solver,

@@ -101,7 +101,7 @@ func (r *theoryDAO) List(ctx context.Context, p params.ListParams, userID uuid.U
 		return s
 	}
 	var conditions []string
-	var args []interface{}
+	var args []any
 	if p.Series != "" {
 		conditions = append(conditions, "t.series = "+next())
 		args = append(args, p.Series)
@@ -137,7 +137,7 @@ func (r *theoryDAO) List(ctx context.Context, p params.ListParams, userID uuid.U
 	args = append(args, exclArgs...)
 
 	var total int
-	countArgs := make([]interface{}, len(args))
+	countArgs := make([]any, len(args))
 	copy(countArgs, args)
 	err := r.db.QueryRowContext(ctx,
 		"SELECT COUNT(*) FROM theories t"+where, countArgs...,

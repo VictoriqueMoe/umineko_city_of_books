@@ -271,7 +271,7 @@ func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid
 		Reactions: []dto.ReactionGroup{},
 	}
 
-	isGroup := roomRow.Type == "group"
+	isGroup := roomRow.Type == dto.RoomTypeGroup
 
 	var mentionedIDs map[uuid.UUID]struct{}
 	if isGroup {
@@ -331,7 +331,7 @@ func hostBlockApplies(roomRow *repository.ChatRoomSendContext) bool {
 }
 
 func (m *messagesService) assertBlocksAllowSend(ctx context.Context, roomRow *repository.ChatRoomSendContext, senderID uuid.UUID, members []uuid.UUID) error {
-	if roomRow.Type == "dm" {
+	if roomRow.Type == dto.RoomTypeDM {
 		for i := range members {
 			if members[i] == senderID {
 				continue
@@ -425,7 +425,7 @@ func (m *messagesService) dispatchPostSendSideEffects(
 		if countErr == nil {
 			m.hub.SendToUser(memberID, ws.Message{
 				Type: "chat_unread_bumped",
-				Data: map[string]interface{}{
+				Data: map[string]any{
 					"room_id": roomID,
 					"total":   total,
 				},
@@ -507,31 +507,41 @@ func (m *messagesService) MarkRead(ctx context.Context, roomID, userID uuid.UUID
 	total, _ := m.chatRepo.CountUnreadRoomsForUser(ctx, userID)
 	m.hub.SendToUser(userID, ws.Message{
 		Type: "chat_read",
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"room_id": roomID,
 			"total":   total,
 		},
 	})
 
-	members, err := m.chatRepo.GetRoomMembers(ctx, roomID)
-	if err == nil {
-		receipt := ws.Message{
-			Type: "chat_read_receipt",
-			Data: map[string]interface{}{
-				"room_id": roomID,
-				"user_id": userID,
-				"read_at": readAt,
-			},
-		}
-		for _, memberID := range members {
-			if memberID == userID {
-				continue
-			}
-			m.hub.SendToUser(memberID, receipt)
-		}
+	sendCtx, err := m.chatRepo.GetRoomSendContext(ctx, roomID)
+	if err == nil && sendCtx != nil && sendCtx.Type == dto.RoomTypeDM {
+		m.fanOutReadReceipt(ctx, roomID, userID, readAt)
 	}
 
 	return nil
+}
+
+func (m *messagesService) fanOutReadReceipt(ctx context.Context, roomID, readerID uuid.UUID, readAt string) {
+	members, err := m.chatRepo.GetRoomMembers(ctx, roomID)
+	if err != nil {
+		return
+	}
+
+	receipt := ws.Message{
+		Type: "chat_read_receipt",
+		Data: map[string]any{
+			"room_id": roomID,
+			"user_id": readerID,
+			"read_at": readAt,
+		},
+	}
+	for _, memberID := range members {
+		if memberID == readerID {
+			continue
+		}
+
+		m.hub.SendToUser(memberID, receipt)
+	}
 }
 
 func (m *messagesService) GetRoomsByUser(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error) {
@@ -687,7 +697,7 @@ func (m *messagesService) DeleteMessage(ctx context.Context, messageID, actorID 
 
 	m.broadcastToRoomMembers(ctx, msg.RoomID, ws.Message{
 		Type: "chat_message_deleted",
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"room_id":    msg.RoomID,
 			"message_id": messageID,
 		},

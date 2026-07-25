@@ -161,7 +161,7 @@ func (r *roomsService) JoinRoom(ctx context.Context, roomID, userID uuid.UUID, g
 	if row == nil {
 		return nil, ErrRoomNotFound
 	}
-	if row.Type != "group" {
+	if row.Type != dto.RoomTypeGroup {
 		return nil, ErrNotGroupRoom
 	}
 	if row.IsSystem {
@@ -215,7 +215,7 @@ func (r *roomsService) JoinRoom(ctx context.Context, roomID, userID uuid.UUID, g
 	if joiner != nil {
 		event := ws.Message{
 			Type: "chat_member_joined",
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"room_id": roomID,
 				"user":    joiner.ToResponse(),
 				"ghost":   ghost,
@@ -277,7 +277,7 @@ func (r *roomsService) LeaveRoom(ctx context.Context, roomID, userID uuid.UUID) 
 		}
 		event := ws.Message{
 			Type: "chat_member_left",
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"room_id": roomID,
 				"user_id": userID,
 				"ghost":   wasGhost,
@@ -337,7 +337,7 @@ func (r *roomsService) DeleteChat(ctx context.Context, roomID, userID uuid.UUID)
 	}
 
 	canMod := false
-	if row.Type == "group" {
+	if row.Type == dto.RoomTypeGroup {
 		mod, modErr := r.canModerateRoom(ctx, roomID, userID)
 		if modErr != nil {
 			return modErr
@@ -348,7 +348,7 @@ func (r *roomsService) DeleteChat(ctx context.Context, roomID, userID uuid.UUID)
 		return ErrNotMember
 	}
 
-	if row.Type == "group" && canMod {
+	if row.Type == dto.RoomTypeGroup && canMod {
 		members, _ := r.chatRepo.GetRoomMembers(ctx, roomID)
 		if err := r.chatRepo.DeleteMessages(ctx, roomID); err != nil {
 			return fmt.Errorf("delete messages: %w", err)
@@ -358,7 +358,7 @@ func (r *roomsService) DeleteChat(ctx context.Context, roomID, userID uuid.UUID)
 		}
 		event := ws.Message{
 			Type: "chat_room_deleted",
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"room_id": roomID,
 			},
 		}

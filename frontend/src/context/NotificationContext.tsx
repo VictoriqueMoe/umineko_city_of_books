@@ -17,7 +17,7 @@ import { getAuthToken } from "../utils/authToken";
 
 const MAX_BACKOFF = 30000;
 const KEEPALIVE_INTERVAL_MS = 20_000;
-const STALE_THRESHOLD_MS = 45_000;
+const STALE_THRESHOLD_MS = 90_000;
 
 export function NotificationProvider({ children }: PropsWithChildren) {
     const { user, setUser } = useAuth();
@@ -121,7 +121,7 @@ export function NotificationProvider({ children }: PropsWithChildren) {
                 if (wsRef.current !== socket) {
                     return;
                 }
-                if (Date.now() - lastMessageAtRef.current > STALE_THRESHOLD_MS) {
+                if (!document.hidden && Date.now() - lastMessageAtRef.current > STALE_THRESHOLD_MS) {
                     socket.close();
                     return;
                 }

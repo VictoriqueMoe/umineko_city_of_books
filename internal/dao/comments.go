@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"umineko_city_of_books/internal/repository"
@@ -102,7 +103,7 @@ func (c *commentDAO[K]) GetComments(ctx context.Context, entityID K, viewerID uu
 	var total int
 
 	exclSQL, exclArgs := ExcludeClause("user_id", excludeUserIDs, 2)
-	countArgs := append([]interface{}{entityID}, exclArgs...)
+	countArgs := append([]any{entityID}, exclArgs...)
 	if err := c.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM `+c.table+` WHERE `+c.fk+` = $1`+exclSQL, countArgs...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count comments in %s: %w", c.table, err)
 	}
@@ -121,7 +122,7 @@ func (c *commentDAO[K]) GetComments(ctx context.Context, entityID K, viewerID uu
 		WHERE c.`+c.fk+` = $2`+exclSQL2+`
 		ORDER BY c.created_at ASC
 		LIMIT `+limitPH+` OFFSET `+offsetPH,
-		append([]interface{}{viewerID, entityID}, append(exclArgs2, limit, offset)...)...,
+		append([]any{viewerID, entityID}, append(exclArgs2, limit, offset)...)...,
 	)
 	if err != nil {
 		return nil, 0, fmt.Errorf("get comments in %s: %w", c.table, err)
@@ -237,15 +238,16 @@ func (c *commentDAO[K]) GetCommentMediaBatch(ctx context.Context, commentIDs []u
 		return nil, nil
 	}
 
-	placeholders := "$1"
-	args := []interface{}{commentIDs[0]}
+	var placeholders strings.Builder
+	placeholders.WriteString("$1")
+	args := []any{commentIDs[0]}
 	for i, id := range commentIDs[1:] {
-		placeholders += fmt.Sprintf(", $%d", i+2)
+		placeholders.WriteString(fmt.Sprintf(", $%d", i+2))
 		args = append(args, id)
 	}
 
 	rows, err := c.db.QueryContext(ctx,
-		`SELECT id, comment_id, media_url, media_type, thumbnail_url, sort_order FROM `+c.mediaTable+` WHERE comment_id IN (`+placeholders+`) ORDER BY sort_order`,
+		`SELECT id, comment_id, media_url, media_type, thumbnail_url, sort_order FROM `+c.mediaTable+` WHERE comment_id IN (`+placeholders.String()+`) ORDER BY sort_order`,
 		args...,
 	)
 	if err != nil {

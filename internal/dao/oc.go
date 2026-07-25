@@ -34,7 +34,7 @@ const ocSelectBase = `
 	JOIN users u ON o.user_id = u.id
 	LEFT JOIN user_roles r ON r.user_id = o.user_id`
 
-func scanOCRow(row interface{ Scan(...interface{}) error }, o *model.OCRow) error {
+func scanOCRow(row interface{ Scan(...any) error }, o *model.OCRow) error {
 	var createdAt, updatedAt time.Time
 	if err := row.Scan(
 		&o.ID, &o.UserID, &o.Name, &o.Description, &o.Series, &o.CustomSeriesName,
@@ -151,7 +151,7 @@ func (r *ocDAO) HasOC(ctx context.Context, userID uuid.UUID, name string) (bool,
 }
 
 func (r *ocDAO) List(ctx context.Context, viewerID uuid.UUID, sort string, crackOCsOnly bool, series string, customSeriesName string, ownerID uuid.UUID, limit, offset int, excludeUserIDs []uuid.UUID) ([]model.OCRow, int, error) {
-	buildWhere := func(startIdx int) (string, []interface{}, int) {
+	buildWhere := func(startIdx int) (string, []any, int) {
 		idx := startIdx
 		next := func() string {
 			s := fmt.Sprintf("$%d", idx)
@@ -159,7 +159,7 @@ func (r *ocDAO) List(ctx context.Context, viewerID uuid.UUID, sort string, crack
 			return s
 		}
 		parts := []string{"1=1"}
-		var args []interface{}
+		var args []any
 		if series != "" {
 			parts = append(parts, "o.series = "+next())
 			args = append(args, series)
@@ -195,7 +195,7 @@ func (r *ocDAO) List(ctx context.Context, viewerID uuid.UUID, sort string, crack
 	orderClause := ocOrderClause(sort)
 	query := ocSelectBase + listWhere + orderClause + ` LIMIT ` + limitPH + ` OFFSET ` + offsetPH
 
-	queryArgs := []interface{}{viewerID}
+	queryArgs := []any{viewerID}
 	queryArgs = append(queryArgs, listArgs...)
 	queryArgs = append(queryArgs, limit, offset)
 
@@ -315,7 +315,7 @@ func (r *ocDAO) UpdateGalleryImage(ctx context.Context, id int64, ocID uuid.UUID
 		return nil
 	}
 	parts := make([]string, 0, 2)
-	args := make([]interface{}, 0, 4)
+	args := make([]any, 0, 4)
 	idx := 1
 	if caption != nil {
 		parts = append(parts, fmt.Sprintf("caption = $%d", idx))
@@ -377,14 +377,15 @@ func (r *ocDAO) GetGalleryBatch(ctx context.Context, ocIDs []uuid.UUID) (map[uui
 	if len(ocIDs) == 0 {
 		return nil, nil
 	}
-	placeholders := "$1"
-	args := []interface{}{ocIDs[0]}
+	var placeholders strings.Builder
+	placeholders.WriteString("$1")
+	args := []any{ocIDs[0]}
 	for i, id := range ocIDs[1:] {
-		placeholders += fmt.Sprintf(", $%d", i+2)
+		placeholders.WriteString(fmt.Sprintf(", $%d", i+2))
 		args = append(args, id)
 	}
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, oc_id, image_url, thumbnail_url, caption, sort_order FROM oc_images WHERE oc_id IN (`+placeholders+`) ORDER BY sort_order ASC, id ASC`,
+		`SELECT id, oc_id, image_url, thumbnail_url, caption, sort_order FROM oc_images WHERE oc_id IN (`+placeholders.String()+`) ORDER BY sort_order ASC, id ASC`,
 		args...,
 	)
 	if err != nil {

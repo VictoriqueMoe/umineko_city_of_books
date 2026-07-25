@@ -32,7 +32,7 @@ const shipSelectBase = `
 	JOIN users u ON s.user_id = u.id
 	LEFT JOIN user_roles r ON r.user_id = s.user_id`
 
-func scanShipRow(row interface{ Scan(...interface{}) error }, s *model.ShipRow) error {
+func scanShipRow(row interface{ Scan(...any) error }, s *model.ShipRow) error {
 	var createdAt, updatedAt time.Time
 	if err := row.Scan(
 		&s.ID, &s.UserID, &s.Title, &s.Description, &s.ImageURL, &s.ThumbnailURL, &createdAt, &updatedAt,
@@ -152,7 +152,7 @@ func (r *shipDAO) GetAuthorID(ctx context.Context, shipID uuid.UUID) (uuid.UUID,
 }
 
 func (r *shipDAO) List(ctx context.Context, viewerID uuid.UUID, sort string, crackshipsOnly bool, series string, characterID string, limit, offset int, excludeUserIDs []uuid.UUID) ([]model.ShipRow, int, error) {
-	buildWhere := func(startIdx int) (string, []interface{}, int) {
+	buildWhere := func(startIdx int) (string, []any, int) {
 		idx := startIdx
 		next := func() string {
 			s := fmt.Sprintf("$%d", idx)
@@ -160,7 +160,7 @@ func (r *shipDAO) List(ctx context.Context, viewerID uuid.UUID, sort string, cra
 			return s
 		}
 		parts := []string{"1=1"}
-		var args []interface{}
+		var args []any
 		if series != "" {
 			parts = append(parts, "EXISTS(SELECT 1 FROM ship_characters WHERE ship_id = s.id AND series = "+next()+")")
 			args = append(args, series)
@@ -192,7 +192,7 @@ func (r *shipDAO) List(ctx context.Context, viewerID uuid.UUID, sort string, cra
 	orderClause := shipOrderClause(sort)
 	query := shipSelectBase + listWhere + orderClause + ` LIMIT ` + limitPH + ` OFFSET ` + offsetPH
 
-	queryArgs := []interface{}{viewerID}
+	queryArgs := []any{viewerID}
 	queryArgs = append(queryArgs, listArgs...)
 	queryArgs = append(queryArgs, limit, offset)
 
@@ -284,15 +284,16 @@ func (r *shipDAO) GetCharactersBatch(ctx context.Context, shipIDs []uuid.UUID) (
 		return nil, nil
 	}
 
-	placeholders := "$1"
-	args := []interface{}{shipIDs[0]}
+	var placeholders strings.Builder
+	placeholders.WriteString("$1")
+	args := []any{shipIDs[0]}
 	for i, id := range shipIDs[1:] {
-		placeholders += fmt.Sprintf(", $%d", i+2)
+		placeholders.WriteString(fmt.Sprintf(", $%d", i+2))
 		args = append(args, id)
 	}
 
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, ship_id, series, character_id, character_name, sort_order FROM ship_characters WHERE ship_id IN (`+placeholders+`) ORDER BY sort_order ASC`,
+		`SELECT id, ship_id, series, character_id, character_name, sort_order FROM ship_characters WHERE ship_id IN (`+placeholders.String()+`) ORDER BY sort_order ASC`,
 		args...,
 	)
 	if err != nil {

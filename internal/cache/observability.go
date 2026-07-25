@@ -201,7 +201,7 @@ func (c *statsCollector) Collect(ch chan<- prometheus.Metric) {
 func infoInt(info, field string) (float64, bool) {
 	prefix := field + ":"
 
-	for _, line := range strings.Split(info, "\n") {
+	for line := range strings.SplitSeq(info, "\n") {
 		line = strings.TrimSpace(line)
 		if !strings.HasPrefix(line, prefix) {
 			continue

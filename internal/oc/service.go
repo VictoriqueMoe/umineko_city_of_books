@@ -175,7 +175,7 @@ func (s *service) sendOwnerOCEvent(ownerID uuid.UUID, action string, oc *model.O
 	}
 	s.hub.SendToUser(ownerID, ws.Message{
 		Type: "user_ocs_changed",
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"action": action,
 			"oc":     summary,
 		},
@@ -188,7 +188,7 @@ func (s *service) sendOwnerOCDeleted(ownerID uuid.UUID, ocID uuid.UUID) {
 	}
 	s.hub.SendToUser(ownerID, ws.Message{
 		Type: "user_ocs_changed",
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"action": "deleted",
 			"oc":     dto.OCSummary{ID: ocID},
 		},

@@ -74,7 +74,7 @@ func (s *moderationService) evictUserFromRoom(ctx context.Context, roomID, targe
 
 	leftEvent := ws.Message{
 		Type: "chat_member_left",
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"room_id": roomID,
 			"user_id": targetID,
 		},
@@ -86,7 +86,7 @@ func (s *moderationService) evictUserFromRoom(ctx context.Context, roomID, targe
 		s.hub.SendToUser(mid, leftEvent)
 	}
 
-	kickData := map[string]interface{}{
+	kickData := map[string]any{
 		"room_id": roomID,
 	}
 	if reason != "" {

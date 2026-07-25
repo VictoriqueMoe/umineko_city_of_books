@@ -62,7 +62,7 @@ func (h *SitemapHandler) Register(app fiber.Router) {
 	app.Get("/sitemap-journals.xml", h.journals)
 }
 
-func (h *SitemapHandler) sendXML(ctx fiber.Ctx, v interface{}) error {
+func (h *SitemapHandler) sendXML(ctx fiber.Ctx, v any) error {
 	out, err := xml.MarshalIndent(v, "", "  ")
 	if err != nil {
 		return ctx.Status(fiber.StatusInternalServerError).SendString("failed to generate sitemap")

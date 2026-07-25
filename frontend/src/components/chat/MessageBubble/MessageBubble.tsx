@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ChatMessage, ReactionGroup, User } from "../../../types/api";
 import { ProfileLink } from "../../ProfileLink/ProfileLink";
 import { RolePill } from "../../RolePill/RolePill";
@@ -72,7 +72,7 @@ function applySenderOverrides(message: ChatMessage): User {
     return override;
 }
 
-export function MessageBubble({
+function MessageBubbleBase({
     message,
     isOwn,
     onLightbox,
@@ -302,6 +302,8 @@ export function MessageBubble({
                                     className={styles.messageMediaItem}
                                     src={m.media_url}
                                     alt=""
+                                    loading="lazy"
+                                    decoding="async"
                                     onClick={() => onLightbox?.(m.media_url)}
                                 />
                             ),
@@ -438,6 +440,8 @@ export function MessageBubble({
         </div>
     );
 }
+
+export const MessageBubble = memo(MessageBubbleBase);
 
 interface EditRowProps {
     initialBody: string;

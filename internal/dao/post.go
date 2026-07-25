@@ -56,12 +56,12 @@ func rebind(query string) string {
 	return b.String()
 }
 
-func excludeClauseQ(column string, ids []uuid.UUID) (string, []interface{}) {
+func excludeClauseQ(column string, ids []uuid.UUID) (string, []any) {
 	if len(ids) == 0 {
 		return "", nil
 	}
 	placeholders := make([]string, len(ids))
-	args := make([]interface{}, len(ids))
+	args := make([]any, len(ids))
 	for i := range ids {
 		placeholders[i] = "?"
 		args[i] = ids[i]
@@ -84,7 +84,7 @@ const postSelectBase = `
 	JOIN users u ON p.user_id = u.id
 	LEFT JOIN user_roles r ON r.user_id = p.user_id`
 
-func scanPostRow(row interface{ Scan(...interface{}) error }, p *model.PostRow) error {
+func scanPostRow(row interface{ Scan(...any) error }, p *model.PostRow) error {
 	var (
 		createdAt time.Time
 		updatedAt sql.NullTime
@@ -220,7 +220,7 @@ func (r *postDAO) DeleteAsAdmin(ctx context.Context, id uuid.UUID) error {
 func (r *postDAO) ListAll(ctx context.Context, viewerID uuid.UUID, corner string, search string, sort string, seed int, limit, offset int, excludeUserIDs []uuid.UUID, resolvedFilter string) ([]model.PostRow, int, error) {
 	var total int
 	whereParts := []string{"p.corner = ?"}
-	args := []interface{}{corner}
+	args := []any{corner}
 
 	if search != "" {
 		whereParts = append(whereParts, "(p.body LIKE ? OR u.display_name LIKE ? OR u.username LIKE ?)")
@@ -251,7 +251,7 @@ func (r *postDAO) ListAll(ctx context.Context, viewerID uuid.UUID, corner string
 	orderClause := postOrderClause(sort, true)
 	query := postSelectBase + whereClause + orderClause + ` LIMIT ? OFFSET ?`
 
-	queryArgs := []interface{}{viewerID}
+	queryArgs := []any{viewerID}
 	queryArgs = append(queryArgs, countArgs...)
 	if sort == "" || sort == "relevance" {
 		queryArgs = append(queryArgs, viewerID, seed)
@@ -278,7 +278,7 @@ func (r *postDAO) ListByFollowing(ctx context.Context, userID uuid.UUID, corner 
 	var total int
 	exclSQL, exclArgs := excludeClauseQ("user_id", excludeUserIDs)
 	countQuery := `SELECT COUNT(*) FROM posts WHERE corner = ? AND (user_id = ? OR user_id IN (SELECT following_id FROM follows WHERE follower_id = ?))` + exclSQL
-	countArgs := []interface{}{corner, userID, userID}
+	countArgs := []any{corner, userID, userID}
 	countArgs = append(countArgs, exclArgs...)
 	if err := r.db.QueryRowContext(ctx, rebind(countQuery), countArgs...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count following posts: %w", err)
@@ -289,7 +289,7 @@ func (r *postDAO) ListByFollowing(ctx context.Context, userID uuid.UUID, corner 
 	orderClause := postOrderClause(sort, false)
 	query := postSelectBase + whereClause + orderClause + ` LIMIT ? OFFSET ?`
 
-	queryArgs := []interface{}{userID, corner, userID, userID}
+	queryArgs := []any{userID, corner, userID, userID}
 	queryArgs = append(queryArgs, exclArgs2...)
 	if sort == "" || sort == "relevance" {
 		queryArgs = append(queryArgs, seed)
@@ -431,16 +431,17 @@ func (r *postDAO) GetShareCountsBatch(ctx context.Context, contentIDs []string, 
 		return nil, nil
 	}
 
-	placeholders := "?"
-	args := []interface{}{contentIDs[0]}
+	var placeholders strings.Builder
+	placeholders.WriteString("?")
+	args := []any{contentIDs[0]}
 	for i := 1; i < len(contentIDs); i++ {
-		placeholders += ", ?"
+		placeholders.WriteString(", ?")
 		args = append(args, contentIDs[i])
 	}
 	args = append(args, contentType)
 
 	rows, err := r.db.QueryContext(ctx,
-		rebind(`SELECT content_id, share_count FROM share_counts WHERE content_id IN (`+placeholders+`) AND content_type = ?`),
+		rebind(`SELECT content_id, share_count FROM share_counts WHERE content_id IN (`+placeholders.String()+`) AND content_type = ?`),
 		args...,
 	)
 	if err != nil {
@@ -560,14 +561,15 @@ func contentURL(contentType, id string) string {
 	}
 }
 
-func buildPlaceholders(ids []string) (string, []interface{}) {
-	placeholders := "?"
-	args := []interface{}{ids[0]}
+func buildPlaceholders(ids []string) (string, []any) {
+	var placeholders strings.Builder
+	placeholders.WriteString("?")
+	args := []any{ids[0]}
 	for i := 1; i < len(ids); i++ {
-		placeholders += ", ?"
+		placeholders.WriteString(", ?")
 		args = append(args, ids[i])
 	}
-	return placeholders, args
+	return placeholders.String(), args
 }
 
 func truncateBody(body string, maxLen int) string {
@@ -954,16 +956,17 @@ func (r *postDAO) GetEmbedsBatch(ctx context.Context, ownerIDs []string, ownerTy
 		return nil, nil
 	}
 
-	placeholders := "?"
-	args := []interface{}{ownerIDs[0]}
+	var placeholders strings.Builder
+	placeholders.WriteString("?")
+	args := []any{ownerIDs[0]}
 	for i := 1; i < len(ownerIDs); i++ {
-		placeholders += ", ?"
+		placeholders.WriteString(", ?")
 		args = append(args, ownerIDs[i])
 	}
 	args = append(args, ownerType)
 
 	rows, err := r.db.QueryContext(ctx,
-		rebind(`SELECT id, owner_id, url, embed_type, title, description, image, site_name, video_id, sort_order FROM embeds WHERE owner_id IN (`+placeholders+`) AND owner_type = ? ORDER BY sort_order`),
+		rebind(`SELECT id, owner_id, url, embed_type, title, description, image, site_name, video_id, sort_order FROM embeds WHERE owner_id IN (`+placeholders.String()+`) AND owner_type = ? ORDER BY sort_order`),
 		args...,
 	)
 	if err != nil {
@@ -1061,15 +1064,16 @@ func (r *postDAO) GetPollsByPostIDs(ctx context.Context, postIDs []uuid.UUID, vi
 		return nil, nil, nil, nil
 	}
 
-	placeholders := "?"
-	args := []interface{}{postIDs[0]}
+	var placeholders strings.Builder
+	placeholders.WriteString("?")
+	args := []any{postIDs[0]}
 	for i := 1; i < len(postIDs); i++ {
-		placeholders += ", ?"
+		placeholders.WriteString(", ?")
 		args = append(args, postIDs[i])
 	}
 
 	pollRows, err := r.db.QueryContext(ctx,
-		rebind(`SELECT id, post_id, duration_seconds, expires_at FROM post_polls WHERE post_id IN (`+placeholders+`)`), args...,
+		rebind(`SELECT id, post_id, duration_seconds, expires_at FROM post_polls WHERE post_id IN (`+placeholders.String()+`)`), args...,
 	)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("batch get polls: %w", err)
@@ -1098,10 +1102,11 @@ func (r *postDAO) GetPollsByPostIDs(ctx context.Context, postIDs []uuid.UUID, vi
 		return polls, nil, nil, nil
 	}
 
-	pPlaceholders := "?"
-	pArgs := []interface{}{pollIDs[0]}
+	var pPlaceholders strings.Builder
+	pPlaceholders.WriteString("?")
+	pArgs := []any{pollIDs[0]}
 	for i := 1; i < len(pollIDs); i++ {
-		pPlaceholders += ", ?"
+		pPlaceholders.WriteString(", ?")
 		pArgs = append(pArgs, pollIDs[i])
 	}
 
@@ -1109,7 +1114,7 @@ func (r *postDAO) GetPollsByPostIDs(ctx context.Context, postIDs []uuid.UUID, vi
 		rebind(`SELECT o.id, o.poll_id, o.label, o.sort_order,
 			(SELECT COUNT(*) FROM post_poll_votes WHERE option_id = o.id)
 		FROM post_poll_options o
-		WHERE o.poll_id IN (`+pPlaceholders+`)
+		WHERE o.poll_id IN (`+pPlaceholders.String()+`)
 		ORDER BY o.sort_order`), pArgs...,
 	)
 	if err != nil {
@@ -1138,7 +1143,7 @@ func (r *postDAO) GetPollsByPostIDs(ctx context.Context, postIDs []uuid.UUID, vi
 	if viewerID != uuid.Nil {
 		vRows, err := r.db.QueryContext(ctx,
 			rebind(`SELECT v.poll_id, v.option_id FROM post_poll_votes v
-			WHERE v.poll_id IN (`+pPlaceholders+`) AND v.user_id = ?`),
+			WHERE v.poll_id IN (`+pPlaceholders.String()+`) AND v.user_id = ?`),
 			append(pArgs, viewerID)...,
 		)
 		if err != nil {

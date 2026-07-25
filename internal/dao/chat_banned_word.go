@@ -111,7 +111,7 @@ func (r *chatBannedWordDAO) ListApplicable(ctx context.Context, roomID uuid.UUID
 	)
 }
 
-func (r *chatBannedWordDAO) queryRows(ctx context.Context, query string, args ...interface{}) ([]repository.ChatBannedWordRow, error) {
+func (r *chatBannedWordDAO) queryRows(ctx context.Context, query string, args ...any) ([]repository.ChatBannedWordRow, error) {
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("query banned words: %w", err)

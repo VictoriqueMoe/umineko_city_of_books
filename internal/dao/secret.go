@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"umineko_city_of_books/internal/repository"
@@ -17,17 +18,18 @@ type secretDAO struct {
 	*commentDAO[string]
 }
 
-func secretIDPlaceholders(ids []string, startIndex int) (string, []interface{}) {
+func secretIDPlaceholders(ids []string, startIndex int) (string, []any) {
 	if len(ids) == 0 {
 		return "", nil
 	}
-	placeholders := fmt.Sprintf("$%d", startIndex)
-	args := []interface{}{ids[0]}
+	var placeholders strings.Builder
+	placeholders.WriteString(fmt.Sprintf("$%d", startIndex))
+	args := []any{ids[0]}
 	for i := 1; i < len(ids); i++ {
-		placeholders += fmt.Sprintf(",$%d", startIndex+i)
+		placeholders.WriteString(fmt.Sprintf(",$%d", startIndex+i))
 		args = append(args, ids[i])
 	}
-	return placeholders, args
+	return placeholders.String(), args
 }
 
 func (r *secretDAO) GetFirstSolver(ctx context.Context, secretID string) (*repository.SecretSolver, error) {
@@ -90,7 +92,7 @@ func (r *secretDAO) GetPieceCountForUser(ctx context.Context, userID uuid.UUID, 
 		return 0, nil
 	}
 	placeholders, args := secretIDPlaceholders(pieceIDs, 2)
-	args = append([]interface{}{userID}, args...)
+	args = append([]any{userID}, args...)
 	var count int
 	err := r.db.QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM user_secrets WHERE user_id = $1 AND secret_id IN (`+placeholders+`)`,

@@ -328,5 +328,5 @@ func TestExcludeVanityRoleIDs_BuildsClause(t *testing.T) {
 
 	// then
 	assert.Equal(t, " AND id NOT IN ($1, $2, $3)", clause)
-	assert.Equal(t, []interface{}{"a", "b", "c"}, args)
+	assert.Equal(t, []any{"a", "b", "c"}, args)
 }

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 )
@@ -51,14 +52,15 @@ func (r *userSecretDAO) GetUserIDsWithAnyPiece(ctx context.Context, pieceIDs []s
 	if len(pieceIDs) == 0 {
 		return nil, nil
 	}
-	placeholders := "$1"
-	args := []interface{}{pieceIDs[0]}
+	var placeholders strings.Builder
+	placeholders.WriteString("$1")
+	args := []any{pieceIDs[0]}
 	for i := 1; i < len(pieceIDs); i++ {
 		args = append(args, pieceIDs[i])
-		placeholders += fmt.Sprintf(",$%d", len(args))
+		placeholders.WriteString(fmt.Sprintf(",$%d", len(args)))
 	}
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT DISTINCT user_id FROM user_secrets WHERE secret_id IN (`+placeholders+`)`,
+		`SELECT DISTINCT user_id FROM user_secrets WHERE secret_id IN (`+placeholders.String()+`)`,
 		args...,
 	)
 	if err != nil {
@@ -96,14 +98,15 @@ func (r *userSecretDAO) DeleteSecrets(ctx context.Context, secretIDs []string) e
 	if len(secretIDs) == 0 {
 		return nil
 	}
-	placeholders := "$1"
-	args := []interface{}{secretIDs[0]}
+	var placeholders strings.Builder
+	placeholders.WriteString("$1")
+	args := []any{secretIDs[0]}
 	for i := 1; i < len(secretIDs); i++ {
 		args = append(args, secretIDs[i])
-		placeholders += fmt.Sprintf(",$%d", len(args))
+		placeholders.WriteString(fmt.Sprintf(",$%d", len(args)))
 	}
 	_, err := r.db.ExecContext(ctx,
-		`DELETE FROM user_secrets WHERE secret_id IN (`+placeholders+`)`,
+		`DELETE FROM user_secrets WHERE secret_id IN (`+placeholders.String()+`)`,
 		args...,
 	)
 	if err != nil {

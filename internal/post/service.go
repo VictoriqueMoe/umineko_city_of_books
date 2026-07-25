@@ -460,7 +460,7 @@ func (s *service) UploadCommentMedia(ctx context.Context, commentID uuid.UUID, u
 func (s *service) broadcastLikeUpdate(postID uuid.UUID, delta int) {
 	s.hub.Broadcast(ws.Message{
 		Type: "post_like",
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"post_id": postID,
 			"delta":   delta,
 		},

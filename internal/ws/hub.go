@@ -21,8 +21,8 @@ const (
 
 type (
 	Message struct {
-		Type string      `json:"type"`
-		Data interface{} `json:"data"`
+		Type string `json:"type"`
+		Data any    `json:"data"`
 	}
 
 	Client struct {
@@ -393,7 +393,7 @@ func (h *Hub) BumpSidebarActivity(key string) {
 	}
 	h.Broadcast(Message{
 		Type: "sidebar_activity",
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"key": key,
 			"at":  time.Now().UTC().Format(time.RFC3339),
 		},

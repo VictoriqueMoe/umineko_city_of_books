@@ -59,7 +59,7 @@ const fanficSelectBase = `
 	JOIN users u ON f.user_id = u.id
 	LEFT JOIN user_roles r ON r.user_id = u.id`
 
-func scanFanficRow(row interface{ Scan(...interface{}) error }, f *model.FanficRow) error {
+func scanFanficRow(row interface{ Scan(...any) error }, f *model.FanficRow) error {
 	var publishedAt, createdAt time.Time
 	var updatedAt sql.NullTime
 	err := row.Scan(
@@ -254,7 +254,7 @@ func fanficOrderClause(sort string) string {
 
 func (r *fanficDAO) List(ctx context.Context, viewerID uuid.UUID, params fanficparams.ListParams, excludeUserIDs []uuid.UUID) ([]model.FanficRow, int, error) {
 	whereParts := []string{"(f.status != 'draft' OR f.user_id = ?)"}
-	args := []interface{}{viewerID}
+	args := []any{viewerID}
 
 	if !params.ShowLemons {
 		whereParts = append(whereParts, "f.contains_lemons = FALSE")
@@ -318,10 +318,10 @@ func (r *fanficDAO) List(ctx context.Context, viewerID uuid.UUID, params fanficp
 	}
 
 	exclSQL := ""
-	var exclArgs []interface{}
+	var exclArgs []any
 	if len(excludeUserIDs) > 0 {
 		marks := make([]string, len(excludeUserIDs))
-		exclArgs = make([]interface{}, len(excludeUserIDs))
+		exclArgs = make([]any, len(excludeUserIDs))
 		for i, id := range excludeUserIDs {
 			marks[i] = "?"
 			exclArgs[i] = id
@@ -331,7 +331,7 @@ func (r *fanficDAO) List(ctx context.Context, viewerID uuid.UUID, params fanficp
 	whereClause := " WHERE " + strings.Join(whereParts, " AND ") + exclSQL
 
 	var total int
-	countArgs := append([]interface{}{}, args...)
+	countArgs := append([]any{}, args...)
 	countArgs = append(countArgs, exclArgs...)
 	if err := r.db.QueryRowContext(ctx,
 		fanficRenumber(`SELECT COUNT(*) FROM fanfics f`+whereClause), countArgs...,
@@ -342,7 +342,7 @@ func (r *fanficDAO) List(ctx context.Context, viewerID uuid.UUID, params fanficp
 	orderClause := fanficOrderClause(params.Sort)
 	query := fanficRenumber(fanficSelectBase + whereClause + orderClause + ` LIMIT ? OFFSET ?`)
 
-	queryArgs := []interface{}{viewerID}
+	queryArgs := []any{viewerID}
 	queryArgs = append(queryArgs, args...)
 	queryArgs = append(queryArgs, exclArgs...)
 	queryArgs = append(queryArgs, params.Limit, params.Offset)
@@ -524,7 +524,7 @@ func (r *fanficDAO) GetGenresBatch(ctx context.Context, fanficIDs []uuid.UUID) (
 	}
 
 	placeholders := make([]string, len(fanficIDs))
-	args := make([]interface{}, len(fanficIDs))
+	args := make([]any, len(fanficIDs))
 	for i, id := range fanficIDs {
 		placeholders[i] = fmt.Sprintf("$%d", i+1)
 		args[i] = id
@@ -578,7 +578,7 @@ func (r *fanficDAO) GetTagsBatch(ctx context.Context, fanficIDs []uuid.UUID) (ma
 	}
 
 	placeholders := make([]string, len(fanficIDs))
-	args := make([]interface{}, len(fanficIDs))
+	args := make([]any, len(fanficIDs))
 	for i, id := range fanficIDs {
 		placeholders[i] = fmt.Sprintf("$%d", i+1)
 		args[i] = id
@@ -632,7 +632,7 @@ func (r *fanficDAO) GetCharactersBatch(ctx context.Context, fanficIDs []uuid.UUI
 	}
 
 	placeholders := make([]string, len(fanficIDs))
-	args := make([]interface{}, len(fanficIDs))
+	args := make([]any, len(fanficIDs))
 	for i, id := range fanficIDs {
 		placeholders[i] = fmt.Sprintf("$%d", i+1)
 		args[i] = id

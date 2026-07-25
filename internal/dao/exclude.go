@@ -7,12 +7,12 @@ import (
 	"github.com/google/uuid"
 )
 
-func ExcludeClause(column string, ids []uuid.UUID, startIndex int) (string, []interface{}) {
+func ExcludeClause(column string, ids []uuid.UUID, startIndex int) (string, []any) {
 	if len(ids) == 0 {
 		return "", nil
 	}
 	placeholders := make([]string, len(ids))
-	args := make([]interface{}, len(ids))
+	args := make([]any, len(ids))
 	for i, id := range ids {
 		placeholders[i] = fmt.Sprintf("$%d", startIndex+i)
 		args[i] = id

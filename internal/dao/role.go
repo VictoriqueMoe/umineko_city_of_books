@@ -105,14 +105,15 @@ func (r *roleDAO) GetUsersByRoles(ctx context.Context, roles []role.Role) ([]uui
 	if len(roles) == 0 {
 		return nil, nil
 	}
-	placeholders := "$1"
-	args := []interface{}{string(roles[0])}
+	var placeholders strings.Builder
+	placeholders.WriteString("$1")
+	args := []any{string(roles[0])}
 	for i := 1; i < len(roles); i++ {
 		args = append(args, string(roles[i]))
-		placeholders += fmt.Sprintf(", $%d", len(args))
+		placeholders.WriteString(fmt.Sprintf(", $%d", len(args)))
 	}
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT DISTINCT user_id FROM user_roles WHERE role IN (`+placeholders+`)`, args...,
+		`SELECT DISTINCT user_id FROM user_roles WHERE role IN (`+placeholders.String()+`)`, args...,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("get users by roles: %w", err)

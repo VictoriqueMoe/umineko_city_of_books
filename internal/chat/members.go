@@ -23,7 +23,7 @@ func (m *membersService) InviteMembers(ctx context.Context, hostID, roomID uuid.
 	if err != nil {
 		return nil, err
 	}
-	if row.Type != "group" {
+	if row.Type != dto.RoomTypeGroup {
 		return nil, ErrNotGroupRoom
 	}
 
@@ -89,7 +89,7 @@ func (m *membersService) InviteMembers(ctx context.Context, hostID, roomID uuid.
 
 		joinedEvent := ws.Message{
 			Type: "chat_member_joined",
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"room_id": roomID,
 				"user":    target.ToResponse(),
 			},
@@ -147,7 +147,7 @@ func (m *membersService) KickMember(ctx context.Context, hostID, roomID, targetI
 
 	leftEvent := ws.Message{
 		Type: "chat_member_left",
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"room_id": roomID,
 			"user_id": targetID,
 		},
@@ -160,7 +160,7 @@ func (m *membersService) KickMember(ctx context.Context, hostID, roomID, targetI
 	}
 	m.hub.SendToUser(targetID, ws.Message{
 		Type: "chat_kicked",
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"room_id": roomID,
 		},
 	})

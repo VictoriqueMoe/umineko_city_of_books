@@ -38,7 +38,7 @@ func (r *reactionsService) PinMessage(ctx context.Context, messageID, userID uui
 
 	r.broadcastToRoomMembers(ctx, msg.RoomID, ws.Message{
 		Type: "chat_message_pinned",
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"room_id":    msg.RoomID,
 			"message_id": messageID,
 			"pinned_at":  time.Now().UTC().Format(time.RFC3339),
@@ -74,7 +74,7 @@ func (r *reactionsService) UnpinMessage(ctx context.Context, messageID, userID u
 
 	r.broadcastToRoomMembers(ctx, msg.RoomID, ws.Message{
 		Type: "chat_message_unpinned",
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"room_id":    msg.RoomID,
 			"message_id": messageID,
 		},
@@ -163,7 +163,7 @@ func (r *reactionsService) AddReaction(ctx context.Context, messageID, userID uu
 
 	r.broadcastToRoomMembers(ctx, msg.RoomID, ws.Message{
 		Type: "chat_reaction_added",
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"room_id":      msg.RoomID,
 			"message_id":   messageID,
 			"emoji":        emoji,
@@ -209,7 +209,7 @@ func (r *reactionsService) RemoveReaction(ctx context.Context, messageID, userID
 
 	r.broadcastToRoomMembers(ctx, msg.RoomID, ws.Message{
 		Type: "chat_reaction_removed",
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"room_id":      msg.RoomID,
 			"message_id":   messageID,
 			"emoji":        emoji,

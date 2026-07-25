@@ -16,7 +16,7 @@ type (
 		ID            uuid.UUID
 		Name          string
 		Description   string
-		Type          string
+		Type          dto.RoomType
 		IsPublic      bool
 		IsRP          bool
 		IsSystem      bool
@@ -38,7 +38,7 @@ type (
 	ChatRoomSendContext struct {
 		ID         uuid.UUID
 		Name       string
-		Type       string
+		Type       dto.RoomType
 		IsSystem   bool
 		SystemKind string
 		CreatedBy  uuid.UUID

@@ -32,7 +32,7 @@ func TestExcludeClause_SingleID(t *testing.T) {
 	clause, args := dao.ExcludeClause("user_id", ids, 1)
 
 	assert.Equal(t, " AND user_id NOT IN ($1)", clause)
-	assert.Equal(t, []interface{}{id}, args)
+	assert.Equal(t, []any{id}, args)
 }
 
 func TestExcludeClause_MultipleIDs(t *testing.T) {
@@ -44,7 +44,7 @@ func TestExcludeClause_MultipleIDs(t *testing.T) {
 	clause, args := dao.ExcludeClause("author_id", ids, 1)
 
 	assert.Equal(t, " AND author_id NOT IN ($1,$2,$3)", clause)
-	assert.Equal(t, []interface{}{a, b, c}, args)
+	assert.Equal(t, []any{a, b, c}, args)
 }
 
 func TestExcludeClause_ColumnNameInterpolation(t *testing.T) {

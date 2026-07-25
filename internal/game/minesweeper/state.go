@@ -75,10 +75,7 @@ func (s *State) placeMines(rng *rand.Rand, safeZones [][2]int) {
 	rng.Shuffle(len(candidates), func(i, j int) {
 		candidates[i], candidates[j] = candidates[j], candidates[i]
 	})
-	count := s.MineCount
-	if count > len(candidates) {
-		count = len(candidates)
-	}
+	count := min(s.MineCount, len(candidates))
 	for i := range count {
 		s.Mines[candidates[i]] = true
 	}

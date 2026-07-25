@@ -417,6 +417,7 @@ export function useRoomController() {
 
     const markReadMutation = useMarkChatRoomRead();
     const markRead = markReadMutation.mutate;
+    const lastMarkedReadRef = useRef<string | null>(null);
     const joinRoomMutation = useJoinChatRoom();
     const leaveRoomMutation = useLeaveChatRoom();
     const deleteRoomMutation = useDeleteChatRoom();
@@ -436,12 +437,21 @@ export function useRoomController() {
         membersRefresh();
     }, [membersRefresh]);
 
+    const roomReadyForMarking = !!room;
+    const roomLastMessageAt = room?.last_message_at;
     useEffect(() => {
-        if (!roomId || !room) {
+        if (!roomId || !roomReadyForMarking) {
             return;
         }
+
+        const signal = `${roomId}:${roomLastMessageAt ?? ""}`;
+        if (lastMarkedReadRef.current === signal) {
+            return;
+        }
+
+        lastMarkedReadRef.current = signal;
         markRead(roomId);
-    }, [roomId, room, markRead]);
+    }, [roomId, roomReadyForMarking, roomLastMessageAt, markRead]);
 
     useEffect(() => {
         if (!roomId) {

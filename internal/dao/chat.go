@@ -147,7 +147,7 @@ func (r *chatDAO) GetRoomTagsBatch(ctx context.Context, roomIDs []uuid.UUID) (ma
 		return result, nil
 	}
 	placeholders := make([]string, len(roomIDs))
-	args := make([]interface{}, len(roomIDs))
+	args := make([]any, len(roomIDs))
 	for i := range roomIDs {
 		placeholders[i] = fmt.Sprintf("$%d", i+1)
 		args[i] = roomIDs[i]
@@ -431,7 +431,7 @@ func (r *chatDAO) GetRoomsByUser(ctx context.Context, userID uuid.UUID) ([]repos
 
 func (r *chatDAO) ListUserGroupRooms(ctx context.Context, userID uuid.UUID, search string, isRPOnly bool, tag, role string, includeArchived bool, limit, offset int) ([]repository.ChatRoomRow, int, error) {
 	conditions := []string{"cr.type = 'group'", "m.user_id = $1", "m.left_at IS NULL"}
-	args := []interface{}{userID}
+	args := []any{userID}
 	idx := 2
 	if !includeArchived {
 		conditions = append(conditions, "cr.archived_at IS NULL")
@@ -456,22 +456,23 @@ func (r *chatDAO) ListUserGroupRooms(ctx context.Context, userID uuid.UUID, sear
 		conditions = append(conditions, "m.role != 'host'")
 	}
 
-	where := " WHERE " + conditions[0]
+	var where strings.Builder
+	where.WriteString(" WHERE " + conditions[0])
 	for _, c := range conditions[1:] {
-		where += " AND " + c
+		where.WriteString(" AND " + c)
 	}
 
 	var total int
-	countArgs := make([]interface{}, len(args))
+	countArgs := make([]any, len(args))
 	copy(countArgs, args)
 	if err := r.db.QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM chat_rooms cr
-		 JOIN chat_room_members m ON cr.id = m.room_id`+where, countArgs...,
+		 JOIN chat_room_members m ON cr.id = m.room_id`+where.String(), countArgs...,
 	).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count user group rooms: %w", err)
 	}
 
-	queryArgs := make([]interface{}, 0, len(args)+2)
+	queryArgs := make([]any, 0, len(args)+2)
 	queryArgs = append(queryArgs, args...)
 	queryArgs = append(queryArgs, limit, offset)
 	limitClause := fmt.Sprintf(" LIMIT $%d OFFSET $%d", idx, idx+1)
@@ -481,7 +482,7 @@ func (r *chatDAO) ListUserGroupRooms(ctx context.Context, userID uuid.UUID, sear
 		 (SELECT COUNT(*) FROM chat_room_members WHERE room_id = cr.id AND left_at IS NULL),
 		 `+hotScoreExpr+`
 		 FROM chat_rooms cr
-		 JOIN chat_room_members m ON cr.id = m.room_id`+where+`
+		 JOIN chat_room_members m ON cr.id = m.room_id`+where.String()+`
 		 ORDER BY cr.is_system DESC, COALESCE(cr.last_message_at, cr.created_at) DESC`+limitClause, queryArgs...,
 	)
 	if err != nil {
@@ -626,7 +627,7 @@ func (r *chatDAO) ListPublicRooms(ctx context.Context, search string, isRPOnly b
 	if !includeArchived {
 		conditions = append(conditions, "cr.archived_at IS NULL")
 	}
-	var countArgs []interface{}
+	var countArgs []any
 	idx := 1
 	if search != "" {
 		conditions = append(conditions, fmt.Sprintf("(cr.name ILIKE $%d OR cr.description ILIKE $%d)", idx, idx+1))
@@ -650,20 +651,21 @@ func (r *chatDAO) ListPublicRooms(ctx context.Context, search string, isRPOnly b
 	countExclSQL, countExclArgs := ExcludeClause("cr.created_by", excludeUserIDs, idx)
 	countArgs = append(countArgs, countExclArgs...)
 
-	whereCount := " WHERE " + conditions[0]
+	var whereCount strings.Builder
+	whereCount.WriteString(" WHERE " + conditions[0])
 	for _, c := range conditions[1:] {
-		whereCount += " AND " + c
+		whereCount.WriteString(" AND " + c)
 	}
-	whereCount += countExclSQL
+	whereCount.WriteString(countExclSQL)
 
 	var total int
 	if err := r.db.QueryRowContext(ctx,
-		"SELECT COUNT(*) FROM chat_rooms cr"+whereCount, countArgs...,
+		"SELECT COUNT(*) FROM chat_rooms cr"+whereCount.String(), countArgs...,
 	).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count public rooms: %w", err)
 	}
 
-	queryArgs := []interface{}{viewerID}
+	queryArgs := []any{viewerID}
 	qConditions := []string{"cr.type = 'group'", "cr.is_public = TRUE", "cr.is_system = FALSE"}
 	if !includeArchived {
 		qConditions = append(qConditions, "cr.archived_at IS NULL")
@@ -692,11 +694,12 @@ func (r *chatDAO) ListPublicRooms(ctx context.Context, search string, isRPOnly b
 	queryArgs = append(queryArgs, qExclArgs...)
 	qIdx += len(qExclArgs)
 
-	whereQuery := " WHERE " + qConditions[0]
+	var whereQuery strings.Builder
+	whereQuery.WriteString(" WHERE " + qConditions[0])
 	for _, c := range qConditions[1:] {
-		whereQuery += " AND " + c
+		whereQuery.WriteString(" AND " + c)
 	}
-	whereQuery += qExclSQL
+	whereQuery.WriteString(qExclSQL)
 
 	limitClause := fmt.Sprintf(" LIMIT $%d OFFSET $%d", qIdx, qIdx+1)
 	queryArgs = append(queryArgs, limit, offset)
@@ -706,7 +709,7 @@ func (r *chatDAO) ListPublicRooms(ctx context.Context, search string, isRPOnly b
 		 (SELECT COUNT(*) FROM chat_room_members WHERE room_id = cr.id AND left_at IS NULL),
 		 EXISTS(SELECT 1 FROM chat_room_members WHERE room_id = cr.id AND user_id = $1 AND left_at IS NULL),
 		 `+hotScoreExpr+`
-		 FROM chat_rooms cr`+whereQuery+`
+		 FROM chat_rooms cr`+whereQuery.String()+`
 		 ORDER BY COALESCE(cr.last_message_at, cr.created_at) DESC`+limitClause,
 		queryArgs...,
 	)
@@ -1189,7 +1192,7 @@ func (r *chatDAO) ArchiveStaleGroupRooms(ctx context.Context, cutoff time.Time) 
 	}
 
 	placeholders := make([]string, len(ids))
-	args := make([]interface{}, len(ids))
+	args := make([]any, len(ids))
 	for i, id := range ids {
 		placeholders[i] = fmt.Sprintf("$%d", i+1)
 		args[i] = id
@@ -1265,7 +1268,7 @@ func (r *chatDAO) GetMessageMediaBatch(ctx context.Context, messageIDs []uuid.UU
 	}
 
 	placeholders := make([]string, len(messageIDs))
-	args := make([]interface{}, len(messageIDs))
+	args := make([]any, len(messageIDs))
 	for i := range messageIDs {
 		placeholders[i] = fmt.Sprintf("$%d", i+1)
 		args[i] = messageIDs[i]
@@ -1521,7 +1524,7 @@ func (r *chatDAO) GetReactionsBatch(ctx context.Context, messageIDs []uuid.UUID,
 	}
 
 	placeholders := make([]string, len(messageIDs))
-	args := make([]interface{}, 0, len(messageIDs)+1)
+	args := make([]any, 0, len(messageIDs)+1)
 	args = append(args, viewerID)
 	for i := range messageIDs {
 		placeholders[i] = fmt.Sprintf("$%d", i+2)
