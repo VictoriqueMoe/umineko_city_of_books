@@ -1,5 +1,5 @@
 ﻿import { useQuery } from "@tanstack/react-query";
-import { getNotifications, getPushPublicKey, getPushStatus, getUnreadCount } from "../endpoints";
+import { getNotifications, getUnreadCount } from "../endpoints";
 import { queryKeys } from "../queryKeys";
 import { useAuth } from "../../hooks/useAuth";
 
@@ -24,22 +24,4 @@ export function useUnreadCount() {
         enabled: !!user,
     });
     return { count: query.data?.count ?? 0, refresh: query.refetch };
-}
-
-export function usePushPublicKey() {
-    const query = useQuery({
-        queryKey: ["push", "public-key"],
-        queryFn: () => getPushPublicKey(),
-        staleTime: Infinity,
-    });
-    return { publicKey: query.data?.public_key ?? "", loading: query.isLoading };
-}
-
-export function usePushStatus(endpoint: string) {
-    const query = useQuery({
-        queryKey: ["push", "status", endpoint],
-        queryFn: () => getPushStatus(endpoint),
-        enabled: !!endpoint,
-    });
-    return { subscribed: query.data?.subscribed ?? false, loading: query.isLoading };
 }

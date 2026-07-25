@@ -36,10 +36,6 @@ type (
 		Limit         int                    `json:"limit"`
 		Offset        int                    `json:"offset"`
 	}
-
-	UnreadCountResponse struct {
-		Count int `json:"count"`
-	}
 )
 
 const (

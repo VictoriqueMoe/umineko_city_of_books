@@ -1,8 +1,6 @@
 ﻿import { useQuery } from "@tanstack/react-query";
 import {
     getBlockedUsers,
-    getFollowStats,
-    getOnlineStatus,
     getUserActivity,
     getUserArt,
     getUserFanficFavourites,
@@ -12,7 +10,6 @@ import {
     getUserJournals,
     getUserMysteries,
     getUserPosts,
-    getUserRooms,
     getUserShips,
 } from "../endpoints";
 import { queryKeys } from "../queryKeys";
@@ -143,15 +140,6 @@ export function useBlockedUsers(userID: string) {
     return { blocked: query.data?.users ?? [], loading: query.isLoading, refresh: query.refetch };
 }
 
-export function useFollowStats(userID: string) {
-    const query = useQuery({
-        queryKey: userKey(userID, "follow-stats"),
-        queryFn: () => getFollowStats(userID),
-        enabled: !!userID,
-    });
-    return { stats: query.data ?? null, loading: query.isLoading, refresh: query.refetch };
-}
-
 export function useUserActivity(username: string, limit = 20, offset = 0) {
     const query = useQuery({
         queryKey: userKey(username, "activity", { limit, offset }),
@@ -163,22 +151,4 @@ export function useUserActivity(username: string, limit = 20, offset = 0) {
         total: query.data?.total ?? 0,
         loading: query.isLoading,
     };
-}
-
-export function useOnlineStatus(userIDs: string[]) {
-    const query = useQuery({
-        queryKey: ["online-status", userIDs.slice().sort()],
-        queryFn: () => getOnlineStatus(userIDs),
-        enabled: userIDs.length > 0,
-        refetchInterval: 60_000,
-    });
-    return { statuses: query.data ?? {} };
-}
-
-export function useUserRooms() {
-    const query = useQuery({
-        queryKey: ["user", "chat-rooms"],
-        queryFn: () => getUserRooms(),
-    });
-    return { rooms: query.data?.rooms ?? [], loading: query.isLoading };
 }

@@ -489,7 +489,7 @@ func (r *userDAO) GetProfileByID(ctx context.Context, id uuid.UUID) (*model.User
 
 func (r *userDAO) ListAll(ctx context.Context, search string, limit, offset int) ([]model.User, int, error) {
 	where := ""
-	var args []interface{}
+	var args []any
 	if search != "" {
 		pattern := "%" + search + "%"
 		args = append(args, pattern, pattern)
@@ -497,7 +497,7 @@ func (r *userDAO) ListAll(ctx context.Context, search string, limit, offset int)
 	}
 
 	var total int
-	countArgs := make([]interface{}, len(args))
+	countArgs := make([]any, len(args))
 	copy(countArgs, args)
 	err := r.db.QueryRowContext(ctx,
 		"SELECT COUNT(*) FROM users u"+where, countArgs...,

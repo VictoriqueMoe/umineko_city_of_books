@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"strings"
 	"testing"
 
 	"umineko_city_of_books/internal/authz"
@@ -571,11 +572,11 @@ func TestListFanfics_OK_TruncatesLongSummary(t *testing.T) {
 	svc, m := newTestService(t)
 	viewer := uuid.New()
 	id := uuid.New()
-	longSummary := ""
+	var longSummary strings.Builder
 	for range 250 {
-		longSummary += "x"
+		longSummary.WriteString("x")
 	}
-	rows := []model.FanficRow{{ID: id, UserID: uuid.New(), Title: "A", Summary: longSummary}}
+	rows := []model.FanficRow{{ID: id, UserID: uuid.New(), Title: "A", Summary: longSummary.String()}}
 	params := fanficparams.ListParams{Limit: 10, Offset: 5}
 	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewer).Return(nil, nil)
 	m.fanficRepo.EXPECT().List(mock.Anything, viewer, params, []uuid.UUID(nil)).Return(rows, 1, nil)

@@ -32,10 +32,6 @@ type (
 		GetRoomsByUser(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error)
 	}
 
-	ChatMessageSender interface {
-		SendChatMessage(ctx context.Context, senderID uuid.UUID, roomID uuid.UUID, body string) error
-	}
-
 	GameRoomPresence interface {
 		HandleClientJoin(ctx context.Context, userID, roomID uuid.UUID)
 		HandleClientLeave(userID, roomID uuid.UUID)
@@ -107,7 +103,7 @@ func originAllowed(origin, allowed string) bool {
 func broadcastPresence(hub *Hub, roomID, userID uuid.UUID, state string) {
 	hub.BroadcastToRoom(roomID, Message{
 		Type: "chat_presence_changed",
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"room_id": roomID.String(),
 			"user_id": userID.String(),
 			"state":   state,
@@ -184,7 +180,7 @@ func Handler(hub *Hub, sessionMgr *session.Manager, roomLister RoomLister, gameP
 				continue
 			}
 
-			handleWSMessage(userID, msg, hub, gamePresence, joinedGameRooms)
+			handleWSMessage(client, msg, hub, gamePresence, joinedGameRooms)
 		}
 	}, websocket.Config{
 		Origins:           []string{"*"},
@@ -251,14 +247,16 @@ func runAnonReader(hub *Hub, conn *websocket.Conn) {
 		}
 
 		if msg.Type == "ping" {
-			if data, marshalErr := json.Marshal(Message{Type: "pong", Data: map[string]interface{}{}}); marshalErr == nil {
+			if data, marshalErr := json.Marshal(Message{Type: "pong", Data: map[string]any{}}); marshalErr == nil {
 				client.enqueue(data)
 			}
 		}
 	}
 }
 
-func handleWSMessage(userID uuid.UUID, msg incomingMessage, hub *Hub, gamePresence GameRoomPresence, joinedGameRooms map[uuid.UUID]bool) {
+func handleWSMessage(client *Client, msg incomingMessage, hub *Hub, gamePresence GameRoomPresence, joinedGameRooms map[uuid.UUID]bool) {
+	userID := client.UserID
+
 	spanCtx, span := otel.Tracer(wsTracerName).Start(
 		context.Background(),
 		"ws."+msg.Type,
@@ -285,7 +283,7 @@ func handleWSMessage(userID uuid.UUID, msg incomingMessage, hub *Hub, gamePresen
 		}
 		hub.BroadcastToRoom(roomID, Message{
 			Type: "typing",
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"room_id": data.RoomID,
 				"user_id": userID.String(),
 			},
@@ -390,6 +388,8 @@ func handleWSMessage(userID uuid.UUID, msg incomingMessage, hub *Hub, gamePresen
 		delete(joinedGameRooms, roomID)
 
 	case "ping":
-		hub.SendToUser(userID, Message{Type: "pong", Data: map[string]interface{}{}})
+		if data, marshalErr := json.Marshal(Message{Type: "pong", Data: map[string]any{}}); marshalErr == nil {
+			client.enqueue(data)
+		}
 	}
 }

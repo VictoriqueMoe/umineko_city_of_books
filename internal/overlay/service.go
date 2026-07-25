@@ -162,10 +162,10 @@ func (s *service) IsConnected(userID uuid.UUID) bool {
 
 func (s *service) urlForToken(ctx context.Context, token string) string {
 	base := strings.TrimSuffix(s.settingsSvc.Get(ctx, config.SettingBaseURL), "/")
-	if strings.HasPrefix(base, "https://") {
-		base = "wss://" + strings.TrimPrefix(base, "https://")
-	} else if strings.HasPrefix(base, "http://") {
-		base = "ws://" + strings.TrimPrefix(base, "http://")
+	if after, ok := strings.CutPrefix(base, "https://"); ok {
+		base = "wss://" + after
+	} else if after, ok := strings.CutPrefix(base, "http://"); ok {
+		base = "ws://" + after
 	}
 	return base + "/api/v1/overlay?token=" + url.QueryEscape(token)
 }

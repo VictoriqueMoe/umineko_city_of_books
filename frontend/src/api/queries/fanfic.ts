@@ -1,12 +1,5 @@
 ﻿import { useQuery } from "@tanstack/react-query";
-import {
-    getFanfic,
-    getFanficChapter,
-    getFanficLanguages,
-    getFanficSeries,
-    listFanfics,
-    searchOCCharacters,
-} from "../endpoints";
+import { getFanfic, getFanficChapter, getFanficLanguages, getFanficSeries, listFanfics } from "../endpoints";
 import { queryKeys } from "../queryKeys";
 
 export function useFanficList(params: Parameters<typeof listFanfics>[0]) {
@@ -62,13 +55,4 @@ export function useFanficSeries() {
         staleTime: Infinity,
     });
     return { series: q.data ?? [] };
-}
-
-export function useSearchOCCharacters(query: string, enabled = true) {
-    const q = useQuery({
-        queryKey: ["fanfic", "oc-search", query],
-        queryFn: () => searchOCCharacters(query),
-        enabled: enabled && !!query,
-    });
-    return { characters: q.data ?? [], loading: q.isLoading };
 }

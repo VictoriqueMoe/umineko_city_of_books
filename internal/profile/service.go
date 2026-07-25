@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"strings"
 	"time"
 	"umineko_city_of_books/internal/repository/model"
@@ -178,9 +179,7 @@ func (s *service) broadcastProfileChange(userID uuid.UUID, fields map[string]any
 		return
 	}
 	data := map[string]any{"user_id": userID}
-	for k, v := range fields {
-		data[k] = v
-	}
+	maps.Copy(data, fields)
 	s.hub.Broadcast(ws.Message{
 		Type: "profile_changed",
 		Data: data,

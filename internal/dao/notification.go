@@ -32,7 +32,7 @@ func (r *notificationDAO) Create(
 	actorID uuid.UUID,
 	message string,
 ) (int64, error) {
-	var actorArg interface{} = actorID
+	var actorArg any = actorID
 	if actorID == uuid.Nil {
 		actorArg = nil
 	}

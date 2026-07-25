@@ -430,12 +430,12 @@ func (s *service) IngressVideoState(ctx context.Context, ingressID string) (int,
 }
 
 func toHTTPURL(u string) string {
-	if strings.HasPrefix(u, "wss://") {
-		return "https://" + strings.TrimPrefix(u, "wss://")
+	if after, ok := strings.CutPrefix(u, "wss://"); ok {
+		return "https://" + after
 	}
 
-	if strings.HasPrefix(u, "ws://") {
-		return "http://" + strings.TrimPrefix(u, "ws://")
+	if after, ok := strings.CutPrefix(u, "ws://"); ok {
+		return "http://" + after
 	}
 
 	return u

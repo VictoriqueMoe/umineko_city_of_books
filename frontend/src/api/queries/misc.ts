@@ -9,11 +9,11 @@ import {
     getMutualFollowers,
     getPopularTags,
     getRules,
-    getShareCount,
     listUsersPublic,
     searchUsers,
 } from "../endpoints";
 import { queryClient } from "../queryClient";
+import { queryKeys } from "../queryKeys";
 
 export function fetchMutualFollowers() {
     return queryClient.fetchQuery({
@@ -48,7 +48,7 @@ export function useMutualFollowers(enabled = true) {
 }
 
 export function useCornerCounts() {
-    const q = useQuery({ queryKey: ["posts", "corner-counts"], queryFn: () => getCornerCounts() });
+    const q = useQuery({ queryKey: queryKeys.post.cornerCounts(), queryFn: () => getCornerCounts() });
     return { counts: q.data ?? {}, loading: q.isLoading };
 }
 
@@ -125,13 +125,4 @@ export function useRules(page: string) {
         enabled: !!page,
     });
     return { rules: q.data?.rules ?? "", loading: q.isLoading };
-}
-
-export function useShareCount(contentType: string, contentId: string, enabled = true) {
-    const q = useQuery({
-        queryKey: ["share-count", contentType, contentId],
-        queryFn: () => getShareCount(contentType, contentId),
-        enabled: enabled && !!contentId,
-    });
-    return { count: q.data?.share_count ?? 0, loading: q.isLoading };
 }

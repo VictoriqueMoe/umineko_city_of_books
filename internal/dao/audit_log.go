@@ -40,14 +40,14 @@ func (r *auditLogDAO) CreateSystem(ctx context.Context, action, targetType, targ
 
 func (r *auditLogDAO) List(ctx context.Context, action string, limit, offset int) ([]repository.AuditLogEntry, int, error) {
 	where := ""
-	var args []interface{}
+	var args []any
 	if action != "" {
 		where = " WHERE a.action = $1"
 		args = append(args, action)
 	}
 
 	var total int
-	countArgs := make([]interface{}, len(args))
+	countArgs := make([]any, len(args))
 	copy(countArgs, args)
 	err := r.db.QueryRowContext(ctx,
 		"SELECT COUNT(*) FROM audit_log a"+where, countArgs...,

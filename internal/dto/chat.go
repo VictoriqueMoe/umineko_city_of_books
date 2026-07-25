@@ -51,7 +51,7 @@ type (
 		ID                uuid.UUID      `json:"id"`
 		Name              string         `json:"name"`
 		Description       string         `json:"description"`
-		Type              string         `json:"type"`
+		Type              RoomType       `json:"type"`
 		IsPublic          bool           `json:"is_public"`
 		IsRP              bool           `json:"is_rp"`
 		IsSystem          bool           `json:"is_system"`

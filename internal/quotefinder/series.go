@@ -11,7 +11,6 @@ const (
 	SeriesUmineko   Series = "umineko"
 	SeriesHigurashi Series = "higurashi"
 	SeriesCiconia   Series = "ciconia"
-	SeriesCustom    Series = "custom"
 )
 
 func (s Series) Valid() bool {

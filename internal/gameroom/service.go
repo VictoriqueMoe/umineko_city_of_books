@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"strings"
 	"sync"
 	"time"
@@ -207,7 +208,7 @@ func (s *service) broadcastTopWinner(gameType dto.GameType) {
 	}
 	s.hub.Broadcast(ws.Message{
 		Type: msgType,
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"user_ids": ids,
 		},
 	})
@@ -1164,9 +1165,7 @@ func (s *service) broadcast(room *dto.GameRoom, eventType string, extra map[stri
 		"room_id": room.ID.String(),
 		"room":    room,
 	}
-	for k, v := range extra {
-		payload[k] = v
-	}
+	maps.Copy(payload, extra)
 	s.hub.BroadcastToTopic("game-room:"+room.ID.String(), ws.Message{
 		Type: eventType,
 		Data: payload,

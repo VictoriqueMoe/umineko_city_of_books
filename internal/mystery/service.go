@@ -463,7 +463,7 @@ func (s *service) CreateAttempt(ctx context.Context, mysteryID uuid.UUID, userID
 	}
 
 	actor, _ := s.userRepo.GetByID(ctx, userID)
-	wsData := map[string]interface{}{
+	wsData := map[string]any{
 		"mystery_id": mysteryID,
 		"attempt_id": id,
 		"parent_id":  req.ParentID,
@@ -607,7 +607,7 @@ func (s *service) MarkSolved(ctx context.Context, mysteryID uuid.UUID, userID uu
 	if ongoing {
 		s.hub.Broadcast(ws.Message{
 			Type: "mystery_winner_added",
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"mystery_id": mysteryID,
 				"winner_id":  attemptAuthorID,
 			},
@@ -615,7 +615,7 @@ func (s *service) MarkSolved(ctx context.Context, mysteryID uuid.UUID, userID uu
 	} else {
 		s.hub.Broadcast(ws.Message{
 			Type: "mystery_solved",
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"mystery_id": mysteryID,
 				"attempt_id": attemptID,
 				"winner_id":  attemptAuthorID,
@@ -663,7 +663,7 @@ func (s *service) MarkSolved(ctx context.Context, mysteryID uuid.UUID, userID uu
 		if err == nil {
 			s.hub.Broadcast(ws.Message{
 				Type: "top_detective_changed",
-				Data: map[string]interface{}{
+				Data: map[string]any{
 					"user_ids": topIDs,
 				},
 			})
@@ -673,7 +673,7 @@ func (s *service) MarkSolved(ctx context.Context, mysteryID uuid.UUID, userID uu
 			if err == nil {
 				s.hub.Broadcast(ws.Message{
 					Type: "top_gm_changed",
-					Data: map[string]interface{}{
+					Data: map[string]any{
 						"user_ids": topGMIDs,
 					},
 				})
@@ -699,7 +699,7 @@ func (s *service) MarkPermanentlySolved(ctx context.Context, mysteryID uuid.UUID
 
 	s.hub.Broadcast(ws.Message{
 		Type: "mystery_solved",
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"mystery_id": mysteryID,
 		},
 	})
@@ -738,7 +738,7 @@ func (s *service) MarkPermanentlySolved(ctx context.Context, mysteryID uuid.UUID
 		if err == nil {
 			s.hub.Broadcast(ws.Message{
 				Type: "top_gm_changed",
-				Data: map[string]interface{}{
+				Data: map[string]any{
 					"user_ids": topGMIDs,
 				},
 			})
@@ -773,7 +773,7 @@ func (s *service) AddClue(ctx context.Context, mysteryID uuid.UUID, userID uuid.
 		return err
 	}
 
-	wsData := map[string]interface{}{
+	wsData := map[string]any{
 		"mystery_id": mysteryID,
 		"truth_type": req.TruthType,
 	}
@@ -1173,7 +1173,7 @@ func (s *service) SetPaused(ctx context.Context, mysteryID uuid.UUID, userID uui
 	}
 	s.hub.Broadcast(ws.Message{
 		Type: "mystery_paused",
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"mystery_id": mysteryID,
 			"paused":     paused,
 		},
@@ -1224,7 +1224,7 @@ func (s *service) SetGmAway(ctx context.Context, mysteryID uuid.UUID, userID uui
 	}
 	s.hub.Broadcast(ws.Message{
 		Type: "mystery_gm_away",
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"mystery_id": mysteryID,
 			"gm_away":    away,
 		},
@@ -1268,7 +1268,7 @@ func (s *service) DeleteClue(ctx context.Context, mysteryID uuid.UUID, clueID in
 	}
 	s.hub.Broadcast(ws.Message{
 		Type: "mystery_clue_updated",
-		Data: map[string]interface{}{"mystery_id": mysteryID},
+		Data: map[string]any{"mystery_id": mysteryID},
 	})
 	return nil
 }
@@ -1285,7 +1285,7 @@ func (s *service) UpdateClue(ctx context.Context, mysteryID uuid.UUID, clueID in
 	}
 	s.hub.Broadcast(ws.Message{
 		Type: "mystery_clue_updated",
-		Data: map[string]interface{}{"mystery_id": mysteryID},
+		Data: map[string]any{"mystery_id": mysteryID},
 	})
 	return nil
 }

@@ -187,7 +187,7 @@ export interface ChatMessageDeletedPayload {
     message_id: string;
 }
 
-export function applyChatMessageDeleted(
+function applyChatMessageDeleted(
     payload: ChatMessageDeletedPayload,
     setMessages: Dispatch<SetStateAction<ChatMessage[]>>,
 ): void {

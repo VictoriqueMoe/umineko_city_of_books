@@ -157,10 +157,7 @@ func pageOf(rows []repository.SearchResult, offset, limit int) []repository.Sear
 	if offset >= len(rows) {
 		return nil
 	}
-	end := offset + limit
-	if end > len(rows) {
-		end = len(rows)
-	}
+	end := min(offset+limit, len(rows))
 	return rows[offset:end]
 }
 

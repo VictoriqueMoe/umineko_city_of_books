@@ -322,7 +322,7 @@ func (s *service) RemoveUserRole(ctx context.Context, actorID uuid.UUID, targetI
 func (s *service) broadcastRoleChange(userID uuid.UUID, newRole string) {
 	s.hub.Broadcast(ws.Message{
 		Type: "role_changed",
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"user_id": userID,
 			"role":    newRole,
 		},
@@ -355,7 +355,7 @@ func (s *service) UnbanUser(ctx context.Context, actorID uuid.UUID, targetID uui
 func (s *service) broadcastBanChange(userID uuid.UUID, banned bool, reason string) {
 	s.hub.Broadcast(ws.Message{
 		Type: "ban_changed",
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"user_id":    userID,
 			"banned":     banned,
 			"ban_reason": reason,
@@ -386,7 +386,7 @@ func (s *service) UnlockUser(ctx context.Context, actorID uuid.UUID, targetID uu
 func (s *service) broadcastLockChange(userID uuid.UUID, locked bool, reason string) {
 	s.hub.SendToUser(userID, ws.Message{
 		Type: "lock_changed",
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"user_id":     userID,
 			"locked":      locked,
 			"lock_reason": reason,
@@ -473,7 +473,7 @@ func (s *service) UpdateSettings(ctx context.Context, actorID uuid.UUID, setting
 	if newRules, ok := settings[string(config.SettingRulesPage.Key)]; ok && newRules != prevRules {
 		s.hub.Broadcast(ws.Message{
 			Type: "rules_page_changed",
-			Data: map[string]interface{}{},
+			Data: map[string]any{},
 		})
 	}
 
@@ -728,6 +728,6 @@ func (s *service) UnassignVanityRole(ctx context.Context, actorID uuid.UUID, rol
 func (s *service) broadcastVanityRolesChanged() {
 	s.hub.Broadcast(ws.Message{
 		Type: "vanity_roles_changed",
-		Data: map[string]interface{}{},
+		Data: map[string]any{},
 	})
 }

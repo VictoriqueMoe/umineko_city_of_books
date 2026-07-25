@@ -129,7 +129,7 @@ func (s *systemService) syncOneSystemRoom(ctx context.Context, roomID, userID uu
 		s.hub.JoinRoom(roomID, userID)
 		s.hub.SendToUser(userID, ws.Message{
 			Type: "chat_room_invited",
-			Data: map[string]interface{}{"room_id": roomID},
+			Data: map[string]any{"room_id": roomID},
 		})
 	case !shouldBeMember && wasMember:
 		if err := s.chatRepo.RemoveMember(ctx, roomID, userID); err != nil {
@@ -138,7 +138,7 @@ func (s *systemService) syncOneSystemRoom(ctx context.Context, roomID, userID uu
 		s.hub.LeaveRoom(roomID, userID)
 		s.hub.SendToUser(userID, ws.Message{
 			Type: "chat_kicked",
-			Data: map[string]interface{}{"room_id": roomID},
+			Data: map[string]any{"room_id": roomID},
 		})
 	case shouldBeMember && wasMember && currentRole != desiredRole:
 		if err := s.chatRepo.SetMemberRole(ctx, roomID, userID, desiredRole); err != nil {

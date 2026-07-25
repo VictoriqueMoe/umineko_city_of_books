@@ -47,7 +47,7 @@ func (l *likeDAO) Unlike(ctx context.Context, userID uuid.UUID, entityID uuid.UU
 func (l *likeDAO) GetLikedBy(ctx context.Context, entityID uuid.UUID, excludeUserIDs []uuid.UUID) ([]model.PostLikeUser, error) {
 	exclSQL, exclArgs := ExcludeClause("lk.user_id", excludeUserIDs, 2)
 
-	queryArgs := []interface{}{entityID}
+	queryArgs := []any{entityID}
 	queryArgs = append(queryArgs, exclArgs...)
 
 	rows, err := l.db.QueryContext(ctx,

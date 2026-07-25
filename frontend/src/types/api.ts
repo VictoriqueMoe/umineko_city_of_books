@@ -817,12 +817,6 @@ export interface WatchPartyControlChangedEvent {
     has_control: boolean;
 }
 
-export interface WatchPartyControlTokenEvent {
-    session_id: string;
-    room_id: string;
-    embed_url: string;
-}
-
 export interface WatchPartyMessageEvent {
     session_id: string;
     room_id: string;
@@ -1400,7 +1394,6 @@ export interface OthelloStats {
 }
 
 export type MinesweeperPhase = "char_select" | "playing" | "finished";
-export type MinesweeperCharacter = "bernkastel" | "erika" | "lambdadelta" | "dlanor";
 
 export interface MinesweeperState {
     phase: MinesweeperPhase;

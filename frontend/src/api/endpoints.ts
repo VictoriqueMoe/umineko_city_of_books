@@ -430,22 +430,6 @@ export async function getUnreadCount(): Promise<{ count: number }> {
     return apiFetch<{ count: number }>("/notifications/unread-count");
 }
 
-export async function getPushPublicKey(): Promise<{ public_key: string }> {
-    return apiFetch<{ public_key: string }>("/push/public-key");
-}
-
-export async function subscribePush(data: { endpoint: string; keys: { p256dh: string; auth: string } }): Promise<void> {
-    await apiPost<unknown, typeof data>("/push/subscribe", data);
-}
-
-export async function unsubscribePush(data: { endpoint: string }): Promise<void> {
-    await apiPost<unknown, typeof data>("/push/unsubscribe", data);
-}
-
-export async function getPushStatus(endpoint: string): Promise<{ subscribed: boolean }> {
-    return apiPost<{ subscribed: boolean }, { endpoint: string }>("/push/status", { endpoint });
-}
-
 export async function uploadBanner(file: File): Promise<{ banner_url: string }> {
     const formData = new FormData();
     formData.append("banner", file);
@@ -467,10 +451,6 @@ export async function getUserActivity(
 ): Promise<ActivityListResponse> {
     const qs = buildQueryString({ limit: limit ?? 20, offset });
     return apiFetch<ActivityListResponse>(`/users/${username}/activity${qs}`);
-}
-
-export async function getOnlineStatus(ids: string[]): Promise<Record<string, boolean>> {
-    return apiFetch<Record<string, boolean>>(`/users/online?ids=${ids.join(",")}`);
 }
 
 export async function getAdminStats(): Promise<AdminStats> {
@@ -1188,10 +1168,6 @@ export async function createPost(
         shared_content_id: sharedContentId,
         shared_content_type: sharedContentType,
     });
-}
-
-export async function getShareCount(contentType: string, contentId: string): Promise<{ share_count: number }> {
-    return apiFetch<{ share_count: number }>(`/share-count/${contentType}/${contentId}`);
 }
 
 export async function votePoll(postId: string, optionId: number): Promise<Poll> {
@@ -2198,14 +2174,6 @@ export async function addOCGalleryImage(ocId: string, file: File, caption: strin
         formData.append("caption", caption);
     }
     return apiPostFormData<OCImage>(`/ocs/${ocId}/gallery`, formData);
-}
-
-export async function updateOCGalleryImage(
-    ocId: string,
-    imageId: number,
-    data: { caption?: string; sort_order?: number },
-): Promise<void> {
-    await apiPatch<unknown, typeof data>(`/ocs/${ocId}/gallery/${imageId}`, data);
 }
 
 export async function deleteOCGalleryImage(ocId: string, imageId: number): Promise<void> {

@@ -30,14 +30,14 @@ func (r *reportDAO) Create(ctx context.Context, reporterID uuid.UUID, targetType
 
 func (r *reportDAO) List(ctx context.Context, status string, limit, offset int) ([]repository.ReportRow, int, error) {
 	where := ""
-	var args []interface{}
+	var args []any
 	if status != "" {
 		where = " WHERE r.status = $1"
 		args = append(args, status)
 	}
 
 	var total int
-	countArgs := make([]interface{}, len(args))
+	countArgs := make([]any, len(args))
 	copy(countArgs, args)
 	err := r.db.QueryRowContext(ctx,
 		"SELECT COUNT(*) FROM reports r"+where, countArgs...,

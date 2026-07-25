@@ -107,7 +107,7 @@ func (r *vanityRoleDAO) UnassignFromUser(ctx context.Context, userID uuid.UUID, 
 }
 
 func (r *vanityRoleDAO) GetUsersForRole(ctx context.Context, roleID string, search string, limit, offset int) ([]repository.VanityRoleUserRow, int, error) {
-	args := []interface{}{roleID}
+	args := []any{roleID}
 	where := " WHERE uvr.vanity_role_id = $1"
 	if search != "" {
 		wc := "%" + search + "%"
@@ -116,7 +116,7 @@ func (r *vanityRoleDAO) GetUsersForRole(ctx context.Context, roleID string, sear
 	}
 
 	var total int
-	countArgs := make([]interface{}, len(args))
+	countArgs := make([]any, len(args))
 	copy(countArgs, args)
 	if err := r.db.QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM user_vanity_roles uvr JOIN users u ON uvr.user_id = u.id`+where, countArgs...,
@@ -179,7 +179,7 @@ func (r *vanityRoleDAO) GetRolesForUsersBatch(ctx context.Context, userIDs []uui
 		return result, nil
 	}
 	placeholders := make([]string, len(userIDs))
-	args := make([]interface{}, len(userIDs))
+	args := make([]any, len(userIDs))
 	for i := range userIDs {
 		placeholders[i] = fmt.Sprintf("$%d", i+1)
 		args[i] = userIDs[i]

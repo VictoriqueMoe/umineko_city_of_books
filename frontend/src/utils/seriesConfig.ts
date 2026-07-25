@@ -133,12 +133,6 @@ function seriesSegments(cfg: SeriesConfig): ArcOption[] | undefined {
     return undefined;
 }
 
-export function seriesEpisodeOptionCount(series: Series): number {
-    const cfg = getSeriesConfig(series);
-    const segments = seriesSegments(cfg);
-    return segments ? segments.length : cfg.episodeCount;
-}
-
 export function formatSeriesEpisode(series: Series, episode: number): string {
     if (!episode || episode <= 0) {
         return "";
@@ -153,17 +147,6 @@ export function formatSeriesEpisode(series: Series, episode: number): string {
         return cfg.chapters ? `Chapter ${episode}` : `Arc ${episode}`;
     }
     return `Episode ${episode}`;
-}
-
-export function seriesEpisodeNoun(series: Series): string {
-    const cfg = getSeriesConfig(series);
-    if (cfg.chapters) {
-        return "chapter";
-    }
-    if (cfg.arcs) {
-        return "arc";
-    }
-    return "episode";
 }
 
 export function userProgressForSeries(

@@ -128,13 +128,11 @@ func TestConcurrentContainsDuringAdd(t *testing.T) {
 			defer wg.Done()
 			_ = svc.Add(context.Background(), KindGif, string(rune('a'+i)), "", nil)
 		}(i)
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			for range 50 {
 				_ = svc.ContainsGif("a")
 			}
-		}()
+		})
 	}
 	wg.Wait()
 

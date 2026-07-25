@@ -26,10 +26,6 @@ func Conflict(ctx fiber.Ctx, msg string) error {
 	return ctx.Status(fiber.StatusConflict).JSON(fiber.Map{"error": msg})
 }
 
-func TooLarge(ctx fiber.Ctx, msg string) error {
-	return ctx.Status(fiber.StatusRequestEntityTooLarge).JSON(fiber.Map{"error": msg})
-}
-
 func InternalError(ctx fiber.Ctx, msg string, cause ...error) error {
 	for i := range cause {
 		if cause[i] == nil {

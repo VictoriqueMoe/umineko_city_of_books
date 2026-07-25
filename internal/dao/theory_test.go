@@ -2,6 +2,7 @@ package dao_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"umineko_city_of_books/internal/dao/daotest"
@@ -375,11 +376,11 @@ func TestTheoryDAO_List_TruncatesLongBody(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	ctx := context.Background()
-	body := ""
+	var body strings.Builder
 	for range 250 {
-		body += "x"
+		body.WriteString("x")
 	}
-	_, err := repos.Theory.Create(ctx, user.ID, dto.CreateTheoryRequest{Title: "long", Body: body, Series: "umineko"})
+	_, err := repos.Theory.Create(ctx, user.ID, dto.CreateTheoryRequest{Title: "long", Body: body.String(), Series: "umineko"})
 	require.NoError(t, err)
 
 	// when

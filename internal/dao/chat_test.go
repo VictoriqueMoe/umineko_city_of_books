@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
@@ -30,7 +31,7 @@ func TestChatDAO_CreateRoom_Group(t *testing.T) {
 	require.NotNil(t, row)
 	assert.Equal(t, "Room", row.Name)
 	assert.Equal(t, "desc", row.Description)
-	assert.Equal(t, "group", row.Type)
+	assert.Equal(t, dto.RoomTypeGroup, row.Type)
 	assert.True(t, row.IsPublic)
 	assert.False(t, row.IsRP)
 	assert.Equal(t, user.ID, row.CreatedBy)
@@ -72,7 +73,7 @@ func TestChatDAO_CreateSystemRoom(t *testing.T) {
 	require.NotNil(t, row)
 	assert.True(t, row.IsSystem)
 	assert.Equal(t, "announcements", row.SystemKind)
-	assert.Equal(t, "group", row.Type)
+	assert.Equal(t, dto.RoomTypeGroup, row.Type)
 }
 
 func TestChatDAO_GetSystemRoomID_Found(t *testing.T) {

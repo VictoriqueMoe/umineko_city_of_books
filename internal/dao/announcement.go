@@ -26,7 +26,7 @@ const announcementSelectBase = `SELECT a.id, a.title, a.body, a.author_id, a.pin
 	LEFT JOIN user_roles r ON r.user_id = u.id`
 
 func scanAnnouncementRow(scanner interface {
-	Scan(dest ...interface{}) error
+	Scan(dest ...any) error
 }, row *repository.AnnouncementRow) error {
 	var (
 		createdAt time.Time

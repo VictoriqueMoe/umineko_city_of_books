@@ -264,7 +264,7 @@ func (s *Service) setupSearchUsersRoute(r fiber.Router) {
 func (s *Service) searchUsers(ctx fiber.Ctx) error {
 	q := ctx.Query("q")
 	if len(q) < 1 {
-		return ctx.JSON([]interface{}{})
+		return ctx.JSON([]any{})
 	}
 
 	viewerID := utils.UserID(ctx)

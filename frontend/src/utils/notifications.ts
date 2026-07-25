@@ -565,7 +565,7 @@ export function getNotificationRoute(notif: Notification): string {
     return `/theory/${notif.reference_id}`;
 }
 
-export function getNotificationCategory(notif: Notification): NotificationCategory {
+function getNotificationCategory(notif: Notification): NotificationCategory {
     const config = notificationConfigs[notif.type];
     if (!config) {
         return "social";

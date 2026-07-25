@@ -94,10 +94,7 @@ func centerCropSquare(inputPath string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("open image: %w", err)
 	}
-	size := img.Bounds().Dx()
-	if img.Bounds().Dy() < size {
-		size = img.Bounds().Dy()
-	}
+	size := min(img.Bounds().Dy(), img.Bounds().Dx())
 	if size <= 0 {
 		return "", fmt.Errorf("invalid image dimensions")
 	}

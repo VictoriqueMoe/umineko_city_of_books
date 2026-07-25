@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
@@ -17,7 +18,7 @@ func TestChatDAO_GetRoomSendContext(t *testing.T) {
 		name           string
 		create         func(t *testing.T, repos *repository.Repositories, roomID, creatorID uuid.UUID)
 		wantName       string
-		wantType       string
+		wantType       dto.RoomType
 		wantIsSystem   bool
 		wantSystemKind string
 	}{
@@ -91,7 +92,7 @@ func TestChatDAO_GetRoomSendContext_DMRoom(t *testing.T) {
 	// then
 	require.NoError(t, err)
 	require.NotNil(t, got)
-	assert.Equal(t, "dm", got.Type)
+	assert.Equal(t, dto.RoomTypeDM, got.Type)
 	assert.False(t, got.IsSystem)
 	assert.Empty(t, got.SystemKind)
 }

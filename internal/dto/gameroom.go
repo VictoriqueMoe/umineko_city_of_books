@@ -71,12 +71,6 @@ type (
 		Action json.RawMessage `json:"action"`
 	}
 
-	GameMove struct {
-		Ply    int             `json:"ply"`
-		UserID uuid.UUID       `json:"user_id"`
-		Action json.RawMessage `json:"action"`
-	}
-
 	GameScoreboardRow struct {
 		User        UserResponse `json:"user"`
 		Wins        int          `json:"wins"`

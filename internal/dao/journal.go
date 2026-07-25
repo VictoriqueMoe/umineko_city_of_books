@@ -41,7 +41,7 @@ const journalSelectBase = `SELECT j.id, j.title, j.work, j.created_at, j.updated
 	) le ON TRUE`
 
 func scanJournalRow(scanner interface {
-	Scan(dest ...interface{}) error
+	Scan(dest ...any) error
 }, viewerID uuid.UUID, db *sql.DB) (*dto.JournalResponse, error) {
 	var j dto.JournalResponse
 	var author dto.UserResponse
@@ -124,7 +124,7 @@ func (r *journalDAO) List(ctx context.Context, p params.ListParams, viewerID uui
 		return s
 	}
 	var conditions []string
-	var args []interface{}
+	var args []any
 	if p.Work != "" {
 		conditions = append(conditions, "j.work = "+next())
 		args = append(args, p.Work)
@@ -160,7 +160,7 @@ func (r *journalDAO) List(ctx context.Context, p params.ListParams, viewerID uui
 	args = append(args, exclArgs...)
 
 	var total int
-	countArgs := make([]interface{}, len(args))
+	countArgs := make([]any, len(args))
 	copy(countArgs, args)
 	if err := r.db.QueryRowContext(ctx,
 		"SELECT COUNT(*) FROM journals j"+where, countArgs...,
@@ -585,7 +585,7 @@ func (r *journalDAO) CreateComment(ctx context.Context, id uuid.UUID, journalID 
 func (r *journalDAO) GetComments(ctx context.Context, journalID uuid.UUID, viewerID uuid.UUID, limit, offset int, excludeUserIDs []uuid.UUID) ([]repository.CommentRow, int, error) {
 	exclSQL, exclArgs := ExcludeClause("user_id", excludeUserIDs, 2)
 	var total int
-	countArgs := []interface{}{journalID}
+	countArgs := []any{journalID}
 	countArgs = append(countArgs, exclArgs...)
 	if err := r.db.QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM journal_comments WHERE journal_id = $1 AND entry_id IS NULL`+exclSQL,
@@ -597,7 +597,7 @@ func (r *journalDAO) GetComments(ctx context.Context, journalID uuid.UUID, viewe
 	exclSQL2, exclArgs2 := ExcludeClause("c.user_id", excludeUserIDs, 3)
 	limitPH := fmt.Sprintf("$%d", 3+len(exclArgs2))
 	offsetPH := fmt.Sprintf("$%d", 4+len(exclArgs2))
-	queryArgs := []interface{}{viewerID, journalID}
+	queryArgs := []any{viewerID, journalID}
 	queryArgs = append(queryArgs, exclArgs2...)
 	queryArgs = append(queryArgs, limit, offset)
 	rows, err := r.db.QueryContext(ctx,
@@ -628,7 +628,7 @@ func (r *journalDAO) GetComments(ctx context.Context, journalID uuid.UUID, viewe
 func (r *journalDAO) GetEntryComments(ctx context.Context, entryID uuid.UUID, viewerID uuid.UUID, limit, offset int, excludeUserIDs []uuid.UUID) ([]repository.CommentRow, int, error) {
 	exclSQL, exclArgs := ExcludeClause("user_id", excludeUserIDs, 2)
 	var total int
-	countArgs := []interface{}{entryID}
+	countArgs := []any{entryID}
 	countArgs = append(countArgs, exclArgs...)
 	if err := r.db.QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM journal_comments WHERE entry_id = $1`+exclSQL,
@@ -640,7 +640,7 @@ func (r *journalDAO) GetEntryComments(ctx context.Context, entryID uuid.UUID, vi
 	exclSQL2, exclArgs2 := ExcludeClause("c.user_id", excludeUserIDs, 3)
 	limitPH := fmt.Sprintf("$%d", 3+len(exclArgs2))
 	offsetPH := fmt.Sprintf("$%d", 4+len(exclArgs2))
-	queryArgs := []interface{}{viewerID, entryID}
+	queryArgs := []any{viewerID, entryID}
 	queryArgs = append(queryArgs, exclArgs2...)
 	queryArgs = append(queryArgs, limit, offset)
 	rows, err := r.db.QueryContext(ctx,
