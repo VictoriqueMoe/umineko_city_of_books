@@ -647,6 +647,41 @@ func TestHandleWebhook_ViewerJoinedAdjustsCount(t *testing.T) {
 	assert.True(t, handled)
 }
 
+func TestHandleWebhook_MonitorJoinLeaveDoesNotAdjustCount(t *testing.T) {
+	tests := []struct {
+		name      string
+		eventType string
+	}{
+		{name: "joined", eventType: livekit.EventParticipantJoined},
+		{name: "left", eventType: livekit.EventParticipantLeft},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given
+			svc, m := newTestStreamService(t)
+			streamID := uuid.New()
+			room := "live_" + streamID.String()
+			row := &repository.LiveStreamRow{ID: streamID, Status: "live", LivekitRoom: room}
+
+			m.lk.EXPECT().ParseWebhook("auth", []byte("body")).Return(&livekit.Event{
+				Type:     tt.eventType,
+				RoomName: room,
+				Identity: "monitor_" + uuid.New().String(),
+			}, nil)
+			m.repo.EXPECT().GetByRoom(mock.Anything, room).Return(row, nil)
+
+			// when
+			handled, err := svc.HandleWebhook(context.Background(), "auth", []byte("body"))
+
+			// then
+			require.NoError(t, err)
+			assert.True(t, handled)
+			m.repo.AssertNotCalled(t, "AdjustViewerCount", mock.Anything, mock.Anything, mock.Anything)
+		})
+	}
+}
+
 func TestReconcileOnce_ReapsStaleStarting(t *testing.T) {
 	// given
 	svc, m := newTestStreamService(t)

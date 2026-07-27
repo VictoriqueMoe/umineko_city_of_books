@@ -50,7 +50,9 @@ export function LiveWatchPage() {
     const mode: StreamDefaultMode =
         modeOverride ?? (stream?.defaultMode === "hls" && stream?.hlsUrl ? "hls" : "webrtc");
     const isOwnStream = !!user && !!stream && user.id === stream.userId;
-    const wantsMedia = !isOwnStream || showOwnPreview;
+    const showsPlayback = !isOwnStream || showOwnPreview;
+    const wantsMedia = showsPlayback && mode === "webrtc";
+    const wantsRoom = wantsMedia || !showsPlayback;
 
     function toggleFullscreen() {
         const el = stageRef.current;
@@ -101,7 +103,7 @@ export function LiveWatchPage() {
     }, [addWSListener, qc, streamID]);
 
     useEffect(() => {
-        if (!streamID || !isLive || mode !== "webrtc" || !wantsMedia) {
+        if (!streamID || !isLive || !wantsRoom) {
             return;
         }
 
@@ -124,7 +126,7 @@ export function LiveWatchPage() {
                     return undefined;
                 }
 
-                return lkRoom.connect(url, token);
+                return lkRoom.connect(url, token, { autoSubscribe: wantsMedia });
             })
             .catch(() => {
                 if (!aborted) {
@@ -139,7 +141,7 @@ export function LiveWatchPage() {
             }
             lkRoom.disconnect().catch(() => {});
         };
-    }, [streamID, isLive, mode, wantsMedia]);
+    }, [streamID, isLive, wantsRoom, wantsMedia]);
 
     useEffect(() => {
         if (!user || !isLive || !room || !streamID) {
