@@ -5,7 +5,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"time"
 	"umineko_city_of_books/internal/notification/push"
 
 	"umineko_city_of_books/internal/admin"
@@ -94,15 +93,16 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		bannedgiphyrule.New(giphyBanlist, giphySvc),
 	)
 	userSvc := user.NewService(repos.User, repos.Role, authzSvc)
-	hub := ws.NewHub()
+	hub := ws.NewHub("main")
+	sessionMgr.SetDisconnector(hub)
 	quoteClient := quotefinder.NewClient()
 	credibilitySvc := credibility.NewService(repos.Theory)
 
 	emailSvc := email.NewService(settingsSvc)
 	pushSvc := push.NewService(settingsSvc, repos.DeviceToken, config.Cfg.FCMCredentialsFile)
 	blockSvc := blocksvc.NewService(repos.Block, repos.Follow, authzSvc)
-	overlayHub := ws.NewHub()
-	overlaySvc := overlay.NewService(repos.OverlayToken, overlayHub, settingsSvc)
+	overlayHub := ws.NewHub("overlay")
+	overlaySvc := overlay.NewService(repos.OverlayToken, overlayHub, settingsSvc, authzSvc)
 	notifSvc := notification.NewService(repos.Notification, repos.User, repos.Block, hub, emailSvc, pushSvc, settingsSvc, overlaySvc)
 	reportSvc := report.NewService(repos.Report, repos.Role, repos.User, notifSvc, settingsSvc)
 	hyperbeamSvc := hyperbeam.NewService()
@@ -172,7 +172,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		settings:        settingsSvc,
 		cache:           cacheManager,
 		auth:            authSvc,
-		profile:         profile.NewService(repos.User, repos.UserSecret, repos.Theory, authzSvc, uploadSvc, settingsSvc, contentFilter, hub, authSvc),
+		profile:         profile.NewService(repos.User, repos.UserSecret, repos.Theory, authzSvc, uploadSvc, settingsSvc, contentFilter, hub, authSvc, sessionMgr),
 		theory:          theory.NewService(repos.Theory, repos.User, authzSvc, blockSvc, notifSvc, settingsSvc, credibilitySvc, quoteClient, contentFilter),
 		notification:    notifSvc,
 		admin:           admin.NewService(repos.User, repos.Role, repos.Stats, repos.AuditLog, repos.Invite, repos.VanityRole, giphyBanlist, authzSvc, settingsSvc, sessionMgr, uploadSvc, hub, chatSvc, emailSvc),
@@ -220,14 +220,10 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 }
 
 func initCache(manager *cache.Manager, settingsSvc settings.Service) {
-	manager.Reconfigure(settingsSvc.Get(context.Background(), config.SettingValkeyURL))
+	settingsSvc.RegisterValidator(config.SettingValkeyURL, cache.ProbeURL)
 
-	if manager.Enabled() {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-
-		if err := manager.Ping(ctx); err != nil {
-			logger.Log.Warn().Err(err).Msg("valkey cache ping failed at startup")
-		}
+	err := manager.Reconfigure(settingsSvc.Get(context.Background(), config.SettingValkeyURL))
+	if err != nil {
+		logger.Log.Warn().Err(err).Msg("valkey cache reconfigure failed at startup")
 	}
 }

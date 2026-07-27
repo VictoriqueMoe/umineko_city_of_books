@@ -22,14 +22,31 @@ const (
 )
 
 type (
+	Disconnector interface {
+		DisconnectUser(userID uuid.UUID) int
+	}
+
 	Manager struct {
-		repo        repository.SessionRepository
-		settingsSvc settings.Service
+		repo         repository.SessionRepository
+		settingsSvc  settings.Service
+		disconnector Disconnector
 	}
 )
 
 func NewManager(repo repository.SessionRepository, settingsSvc settings.Service) *Manager {
 	return &Manager{repo: repo, settingsSvc: settingsSvc}
+}
+
+func (m *Manager) SetDisconnector(d Disconnector) {
+	m.disconnector = d
+}
+
+func (m *Manager) disconnect(userID uuid.UUID) {
+	if m.disconnector == nil {
+		return
+	}
+
+	m.disconnector.DisconnectUser(userID)
 }
 
 func (m *Manager) Create(ctx context.Context, userID uuid.UUID) (string, error) {
@@ -71,7 +88,27 @@ func (m *Manager) Delete(ctx context.Context, token string) error {
 }
 
 func (m *Manager) DeleteAllForUser(ctx context.Context, userID uuid.UUID) error {
-	return m.repo.DeleteAllForUser(ctx, userID)
+	if err := m.repo.DeleteAllForUser(ctx, userID); err != nil {
+		return err
+	}
+
+	m.disconnect(userID)
+
+	return nil
+}
+
+func (m *Manager) DeleteAllForUserExcept(ctx context.Context, userID uuid.UUID, keepToken string) error {
+	if keepToken == "" {
+		return m.DeleteAllForUser(ctx, userID)
+	}
+
+	if err := m.repo.DeleteAllForUserExcept(ctx, userID, keepToken); err != nil {
+		return err
+	}
+
+	m.disconnect(userID)
+
+	return nil
 }
 
 func generateToken() (string, error) {

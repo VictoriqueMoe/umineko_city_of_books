@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -16,7 +17,19 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/cors"
 	"github.com/gofiber/fiber/v3/middleware/etag"
+	fiberRecover "github.com/gofiber/fiber/v3/middleware/recover"
 	"github.com/rs/zerolog"
+)
+
+var (
+	redactedQueryKeys = map[string]bool{
+		"token":        true,
+		"access_token": true,
+		"session":      true,
+		"key":          true,
+		"secret":       true,
+		"password":     true,
+	}
 )
 
 func httpStatusToSentry(status int) sentry.SpanStatus {
@@ -45,6 +58,18 @@ func httpStatusToSentry(status int) sentry.SpanStatus {
 
 func Setup(app *fiber.App, settingsSvc settings.Service, sessionMgr *session.Manager, authzSvc authz.Service) {
 	app.Server().MaxRequestBodySize = settingsSvc.GetInt(context.Background(), config.SettingMaxBodySize)
+
+	app.Use(fiberRecover.New(fiberRecover.Config{
+		EnableStackTrace: true,
+		StackTraceHandler: func(ctx fiber.Ctx, e any) {
+			appLogger.Log.Error().
+				Str("method", ctx.Method()).
+				Str("path", ctx.Path()).
+				Interface("panic", e).
+				Str("stack", string(debug.Stack())).
+				Msg("recovered from panic in request handler")
+		},
+	}))
 
 	app.Use(Tracing())
 	app.Use(HostAuthorization(settingsSvc))
@@ -139,7 +164,7 @@ func Setup(app *fiber.App, settingsSvc settings.Service, sessionMgr *session.Man
 			event = event.Str("trace_id", traceID)
 		}
 
-		query := string(ctx.RequestCtx().QueryArgs().QueryString())
+		query := redactedQueryString(ctx)
 		pathWithQuery := ctx.Path()
 		if query != "" {
 			pathWithQuery += "?" + query
@@ -150,6 +175,26 @@ func Setup(app *fiber.App, settingsSvc settings.Service, sessionMgr *session.Man
 	})
 
 	app.Use(maintenanceMiddleware(settingsSvc, sessionMgr, authzSvc))
+}
+
+func redactedQueryString(ctx fiber.Ctx) string {
+	var b strings.Builder
+	for key, value := range ctx.RequestCtx().QueryArgs().All() {
+		if b.Len() > 0 {
+			b.WriteByte('&')
+		}
+
+		b.Write(key)
+		b.WriteByte('=')
+		if redactedQueryKeys[strings.ToLower(string(key))] {
+			b.WriteString("<redacted>")
+			continue
+		}
+
+		b.Write(value)
+	}
+
+	return b.String()
 }
 
 func shouldSkipRequestLog(ctx fiber.Ctx) bool {
@@ -183,7 +228,7 @@ func maintenanceMiddleware(settingsSvc settings.Service, sessionMgr *session.Man
 			return ctx.Next()
 		}
 
-		token := sessionToken(ctx)
+		token := SessionToken(ctx)
 		if token != "" {
 			if userID, err := sessionMgr.Validate(ctx.Context(), token); err == nil {
 				if authzSvc.Can(ctx.Context(), userID, authz.PermManageSettings) {

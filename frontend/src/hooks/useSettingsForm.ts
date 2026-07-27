@@ -93,6 +93,7 @@ export function useSettingsForm() {
     const [draft, setDraft] = useState<FormDraft>({ profileId: null });
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
+    const [emailPasswordPrompt, setEmailPasswordPrompt] = useState(false);
 
     const characters = useAllCharacters();
 
@@ -300,8 +301,34 @@ export function useSettingsForm() {
         }
     }
 
+    function emailChanged() {
+        return email !== (profile?.email ?? "");
+    }
+
     async function handleSubmit(e: React.SubmitEvent) {
         e.preventDefault();
+
+        if (emailChanged()) {
+            setError("");
+            setSuccess("");
+            setEmailPasswordPrompt(true);
+
+            return;
+        }
+
+        await submitProfile("");
+    }
+
+    async function confirmEmailPassword(password: string) {
+        setEmailPasswordPrompt(false);
+        await submitProfile(password);
+    }
+
+    function cancelEmailPassword() {
+        setEmailPasswordPrompt(false);
+    }
+
+    async function submitProfile(emailPassword: string) {
         setError("");
         setSuccess("");
 
@@ -330,6 +357,7 @@ export function useSettingsForm() {
             dob,
             dob_public: dobPublic,
             email,
+            email_password: emailPassword,
             email_public: emailPublic,
             email_notifications: emailNotifications,
             play_message_sound: playMessageSound,
@@ -425,6 +453,9 @@ export function useSettingsForm() {
         characters,
 
         handleSubmit,
+        emailPasswordPrompt,
+        confirmEmailPassword,
+        cancelEmailPassword,
         genderOptions: GENDER_OPTIONS,
     };
 }

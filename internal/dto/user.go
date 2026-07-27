@@ -101,6 +101,7 @@ type (
 		DOB                    string  `json:"dob"`
 		DOBPublic              bool    `json:"dob_public"`
 		Email                  string  `json:"email"`
+		EmailPassword          string  `json:"email_password"`
 		EmailPublic            bool    `json:"email_public"`
 		EmailNotifications     bool    `json:"email_notifications"`
 		PlayMessageSound       bool    `json:"play_message_sound"`
@@ -148,7 +149,8 @@ type (
 	}
 
 	SetEmailRequest struct {
-		Email string `json:"email"`
+		Email    string `json:"email"`
+		Password string `json:"password"`
 	}
 
 	VerifyEmailRequest struct {

@@ -215,7 +215,7 @@ func (s *Service) uploadStreamThumbnail(ctx fiber.Ctx) error {
 	}
 	defer src.Close()
 
-	if err := s.StreamService.SaveThumbnail(ctx.Context(), streamID, file.Size, src); err != nil {
+	if err := s.StreamService.SaveThumbnail(ctx.Context(), utils.UserID(ctx), streamID, file.Size, src); err != nil {
 		return mapStreamError(ctx, err)
 	}
 

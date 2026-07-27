@@ -279,7 +279,7 @@ func TestSetEmail_OK(t *testing.T) {
 	h, deps := newAuthHarness(t)
 	userID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
-	deps.authSvc.EXPECT().SetEmail(mock.Anything, userID, "new@example.com").Return(nil)
+	deps.authSvc.EXPECT().SetEmail(mock.Anything, userID, "new@example.com", "").Return(nil)
 
 	// when
 	status, _ := h.NewRequest("POST", "/auth/set-email").WithCookie("valid-cookie").WithJSONBody(dto.SetEmailRequest{Email: "new@example.com"}).Do()
@@ -305,7 +305,7 @@ func TestSetEmail_ServiceErrors(t *testing.T) {
 			h, deps := newAuthHarness(t)
 			userID := uuid.New()
 			h.ExpectValidSession("valid-cookie", userID)
-			deps.authSvc.EXPECT().SetEmail(mock.Anything, userID, "new@example.com").Return(tc.svcErr)
+			deps.authSvc.EXPECT().SetEmail(mock.Anything, userID, "new@example.com", "").Return(tc.svcErr)
 
 			// when
 			status, body := h.NewRequest("POST", "/auth/set-email").WithCookie("valid-cookie").WithJSONBody(dto.SetEmailRequest{Email: "new@example.com"}).Do()

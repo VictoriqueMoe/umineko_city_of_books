@@ -228,6 +228,19 @@ func (r *userDAO) ValidatePassword(ctx context.Context, username, password strin
 	return u, nil
 }
 
+func (r *userDAO) VerifyPassword(ctx context.Context, userID uuid.UUID, password string) (bool, error) {
+	var hash string
+	err := r.db.QueryRowContext(ctx, `SELECT password_hash FROM users WHERE id = $1`, userID).Scan(&hash)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("get password hash: %w", err)
+	}
+
+	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) == nil, nil
+}
+
 func (r *userDAO) UpdateProfile(ctx context.Context, userID uuid.UUID, req dto.UpdateProfileRequest) error {
 	_, err := r.db.ExecContext(ctx,
 		`UPDATE users SET display_name = $1, bio = $2, banner_position = $3, favourite_character = $4, gender = $5,

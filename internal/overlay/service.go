@@ -38,6 +38,7 @@ type (
 		repo        repository.OverlayTokenRepository
 		hub         *ws.Hub
 		settingsSvc settings.Service
+		banChecker  ws.BanChecker
 	}
 
 	overlayPayload struct {
@@ -66,12 +67,17 @@ var overlayEvents = map[dto.NotificationType]eventMapping{
 	dto.NotifArtLiked:       {"art_liked", "liked your art"},
 }
 
-func NewService(repo repository.OverlayTokenRepository, hub *ws.Hub, settingsSvc settings.Service) Service {
-	return &service{
+func NewService(repo repository.OverlayTokenRepository, hub *ws.Hub, settingsSvc settings.Service, banChecker ...ws.BanChecker) Service {
+	svc := &service{
 		repo:        repo,
 		hub:         hub,
 		settingsSvc: settingsSvc,
 	}
+	if len(banChecker) > 0 {
+		svc.banChecker = banChecker[0]
+	}
+
+	return svc
 }
 
 func (s *service) Token(ctx context.Context, userID uuid.UUID) (string, error) {

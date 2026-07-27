@@ -209,7 +209,39 @@ var (
 		SettingOGDefaultImage,
 		SettingValkeyURL,
 	}
+
+	settingsByKey = indexSettings()
 )
+
+func indexSettings() map[SiteSettingKey]*SiteSettingDef {
+	byKey := make(map[SiteSettingKey]*SiteSettingDef, len(AllSiteSettings))
+	for _, def := range AllSiteSettings {
+		byKey[def.Key] = def
+	}
+
+	return byKey
+}
+
+func SettingByKey(key SiteSettingKey) (*SiteSettingDef, bool) {
+	def, ok := settingsByKey[key]
+
+	return def, ok
+}
+
+func ValidateSettingValue(def *SiteSettingDef, value string) error {
+	switch def.Type {
+	case TypeInt:
+		if _, err := strconv.Atoi(value); err != nil {
+			return fmt.Errorf("%s must be a whole number", def.Key)
+		}
+	case TypeBool:
+		if value != "true" && value != "false" {
+			return fmt.Errorf("%s must be true or false", def.Key)
+		}
+	}
+
+	return nil
+}
 
 func ValidateSettings(all map[SiteSettingKey]string) error {
 	getInt := func(key SiteSettingKey) int {

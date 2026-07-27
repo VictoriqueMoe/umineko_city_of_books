@@ -4,7 +4,7 @@ networks:
 
 services:
   postgres:
-    image: postgres:latest
+    image: postgres:18
     container_name: umineko-postgres
     restart: unless-stopped
     env_file:
@@ -30,10 +30,14 @@ services:
       valkey-cache:
         condition: service_started
     ports:
-      - "2312:4323"
+      - "127.0.0.1:2312:4323"
     env_file:
       - .env
       - postgres.env
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     volumes:
       - ./data:/app/data
       - ./fcm-service-account.json:/app/fcm-service-account.json:ro

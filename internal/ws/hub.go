@@ -39,6 +39,7 @@ type (
 	}
 
 	Hub struct {
+		name    string
 		clients map[uuid.UUID][]*Client
 		rooms   map[uuid.UUID]map[uuid.UUID]bool
 		viewers map[uuid.UUID]map[uuid.UUID]*viewerInfo
@@ -63,6 +64,10 @@ func NewClient(userID uuid.UUID, conn *websocket.Conn) *Client {
 
 // Start launches the writer goroutine. Call once per client.
 func (c *Client) Start() {
+	if c.Conn == nil {
+		return
+	}
+
 	go c.writeLoop()
 }
 
@@ -120,8 +125,14 @@ func (c *Client) Close() error {
 	return nil
 }
 
-func NewHub() *Hub {
+func NewHub(name ...string) *Hub {
+	hubName := "main"
+	if len(name) > 0 && name[0] != "" {
+		hubName = name[0]
+	}
+
 	return &Hub{
+		name:    hubName,
 		clients: make(map[uuid.UUID][]*Client),
 		rooms:   make(map[uuid.UUID]map[uuid.UUID]bool),
 		viewers: make(map[uuid.UUID]map[uuid.UUID]*viewerInfo),
@@ -134,6 +145,8 @@ func (h *Hub) RegisterAnon(client *Client) {
 	h.anon[client] = struct{}{}
 	h.mu.Unlock()
 
+	recordConnectionOpened(h.name, false)
+
 	client.Start()
 }
 
@@ -141,8 +154,13 @@ func (h *Hub) UnregisterAnon(client *Client) {
 	client.kill()
 
 	h.mu.Lock()
+	_, present := h.anon[client]
 	delete(h.anon, client)
 	h.mu.Unlock()
+
+	if present {
+		recordConnectionClosed(h.name, false)
+	}
 }
 
 func (h *Hub) AddViewer(roomID, userID uuid.UUID) {
@@ -225,6 +243,9 @@ func (h *Hub) Register(client *Client) {
 	h.mu.Lock()
 	h.clients[client.UserID] = append(h.clients[client.UserID], client)
 	h.mu.Unlock()
+
+	recordConnectionOpened(h.name, true)
+
 	client.Start()
 }
 
@@ -239,6 +260,7 @@ func (h *Hub) Unregister(client *Client) []uuid.UUID {
 	for i, c := range conns {
 		if c == client {
 			h.clients[client.UserID] = append(conns[:i], conns[i+1:]...)
+			recordConnectionClosed(h.name, true)
 			break
 		}
 	}
@@ -263,6 +285,15 @@ func (h *Hub) Unregister(client *Client) []uuid.UUID {
 		}
 	}
 	return clearedRooms
+}
+
+func (h *Hub) DisconnectUser(userID uuid.UUID) int {
+	conns := h.snapshotConnsForUser(userID)
+	for _, c := range conns {
+		c.kill()
+	}
+
+	return len(conns)
 }
 
 // snapshotConnsForUser returns a copy of the user's clients without holding the lock for writes.

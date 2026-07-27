@@ -299,10 +299,13 @@ func (s *Service) setEmail(ctx fiber.Ctx) error {
 		return nil
 	}
 
-	err := s.AuthService.SetEmail(ctx.Context(), userID, req.Email)
+	err := s.AuthService.SetEmail(ctx.Context(), userID, req.Email, req.Password)
 	if err != nil {
 		if errors.Is(err, auth.ErrInvalidEmail) {
 			return utils.BadRequest(ctx, "a valid email address is required")
+		}
+		if errors.Is(err, auth.ErrIncorrectPassword) {
+			return utils.Forbidden(ctx, "your current password is incorrect")
 		}
 		if errors.Is(err, auth.ErrEmailTaken) {
 			return utils.Conflict(ctx, "that email address is already in use")

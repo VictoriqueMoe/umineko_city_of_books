@@ -10,6 +10,7 @@ import { Select } from "../../components/Select/Select";
 import { ToggleSwitch } from "../../components/ToggleSwitch/ToggleSwitch";
 import { BlockedUsersSection } from "./BlockedUsersSection";
 import { ChangePasswordSection } from "./ChangePasswordSection";
+import { ConfirmEmailPasswordModal } from "./ConfirmEmailPasswordModal";
 import { DangerZoneSection } from "./DangerZoneSection";
 import { StreamOverlaySection } from "./StreamOverlaySection";
 import { getSeriesConfig } from "../../utils/seriesConfig";
@@ -578,6 +579,13 @@ export function SettingsPage() {
                 {form.error && <div className={styles.error}>{form.error}</div>}
                 {form.success && <div className={styles.success}>{form.success}</div>}
             </form>
+
+            <ConfirmEmailPasswordModal
+                isOpen={form.emailPasswordPrompt}
+                newEmail={form.email}
+                onConfirm={form.confirmEmailPassword}
+                onCancel={form.cancelEmailPassword}
+            />
 
             <div className={styles.grid} style={{ marginTop: "1.5rem" }}>
                 <BlockedUsersSection />

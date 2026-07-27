@@ -11,17 +11,10 @@ import (
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/middleware"
 	mysterysvc "umineko_city_of_books/internal/mystery"
-	"umineko_city_of_books/internal/upload"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 )
-
-var allowedSniffedTypes = map[string]bool{
-	"application/pdf": true,
-	"text/plain":      true,
-	"application/zip": true,
-}
 
 func (s *Service) getAllMysteryRoutes() []FSetupRoute {
 	return []FSetupRoute{
@@ -561,15 +554,7 @@ func (s *Service) uploadMysteryAttachment(ctx fiber.Ctx) error {
 	}
 	defer reader.Close()
 
-	sniffed, wrapped, err := upload.DetectContentType(reader)
-	if err != nil {
-		return utils.InternalError(ctx, "failed to read file")
-	}
-	if !allowedSniffedTypes[sniffed] {
-		return utils.BadRequest(ctx, "only PDF, TXT, and DOCX files are allowed")
-	}
-
-	result, err := s.MysteryService.UploadAttachment(ctx.Context(), mysteryID, userID, file.Filename, file.Size, wrapped)
+	result, err := s.MysteryService.UploadAttachment(ctx.Context(), mysteryID, userID, file.Filename, file.Size, reader)
 	if err != nil {
 		if errors.Is(err, mysterysvc.ErrNotFound) {
 			return utils.NotFound(ctx, "mystery not found")

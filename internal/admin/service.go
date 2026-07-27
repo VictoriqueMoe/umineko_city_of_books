@@ -284,7 +284,29 @@ func (s *service) GetUser(ctx context.Context, targetID uuid.UUID) (*dto.AdminUs
 	return resp, nil
 }
 
+func (s *service) assertCanGrantRole(ctx context.Context, actorID uuid.UUID, granted role.Role) error {
+	grantedRank, known := roleRank[granted]
+	if !known || granted == "" {
+		return ErrUnknownRole
+	}
+
+	actorRole, err := s.authz.GetRole(ctx, actorID)
+	if err != nil {
+		return fmt.Errorf("get actor role: %w", err)
+	}
+
+	if grantedRank >= roleRank[actorRole] {
+		return ErrRoleOutranksActor
+	}
+
+	return nil
+}
+
 func (s *service) SetUserRole(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID, r role.Role) error {
+	if err := s.assertCanGrantRole(ctx, actorID, r); err != nil {
+		return err
+	}
+
 	return s.guardedAction(ctx, actorID, targetID, func() error {
 		if err := s.roleRepo.SetRole(ctx, targetID, r); err != nil {
 			return fmt.Errorf("set role: %w", err)
@@ -344,12 +366,14 @@ func (s *service) BanUser(ctx context.Context, actorID uuid.UUID, targetID uuid.
 }
 
 func (s *service) UnbanUser(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID) error {
-	if err := s.userRepo.UnbanUser(ctx, targetID); err != nil {
-		return fmt.Errorf("unban user: %w", err)
-	}
-	s.audit(ctx, actorID, "unban_user", "user", targetID.String())
-	s.broadcastBanChange(targetID, false, "")
-	return nil
+	return s.guardedAction(ctx, actorID, targetID, func() error {
+		if err := s.userRepo.UnbanUser(ctx, targetID); err != nil {
+			return fmt.Errorf("unban user: %w", err)
+		}
+		s.audit(ctx, actorID, "unban_user", "user", targetID.String())
+		s.broadcastBanChange(targetID, false, "")
+		return nil
+	})
 }
 
 func (s *service) broadcastBanChange(userID uuid.UUID, banned bool, reason string) {
@@ -375,12 +399,14 @@ func (s *service) LockUser(ctx context.Context, actorID uuid.UUID, targetID uuid
 }
 
 func (s *service) UnlockUser(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID) error {
-	if err := s.userRepo.UnlockUser(ctx, targetID); err != nil {
-		return fmt.Errorf("unlock user: %w", err)
-	}
-	s.audit(ctx, actorID, "unlock_user", "user", targetID.String())
-	s.broadcastLockChange(targetID, false, "")
-	return nil
+	return s.guardedAction(ctx, actorID, targetID, func() error {
+		if err := s.userRepo.UnlockUser(ctx, targetID); err != nil {
+			return fmt.Errorf("unlock user: %w", err)
+		}
+		s.audit(ctx, actorID, "unlock_user", "user", targetID.String())
+		s.broadcastLockChange(targetID, false, "")
+		return nil
+	})
 }
 
 func (s *service) broadcastLockChange(userID uuid.UUID, locked bool, reason string) {

@@ -379,7 +379,7 @@ func (r *Resolver) metaForPath(ctx context.Context, path string) *Meta {
 		}
 	}
 
-	if len(parts) == 3 && parts[0] == "games" && parts[2] == "scoreboard" {
+	if len(parts) == 3 && parts[0] == "games" && parts[1] != "" && parts[2] == "scoreboard" {
 		return &Meta{
 			Title:       formatSiteName(strings.ToUpper(parts[1][:1]) + parts[1][1:] + " Scoreboard"),
 			Description: fmt.Sprintf("See the top %s players across the community.", parts[1]),
@@ -387,7 +387,7 @@ func (r *Resolver) metaForPath(ctx context.Context, path string) *Meta {
 		}
 	}
 
-	if len(parts) == 3 && parts[0] == "games" && parts[2] == "new" {
+	if len(parts) == 3 && parts[0] == "games" && parts[1] != "" && parts[2] == "new" {
 		name := strings.ToUpper(parts[1][:1]) + parts[1][1:]
 		return &Meta{
 			Title:       formatSiteName("New " + name + " Game"),
@@ -396,7 +396,7 @@ func (r *Resolver) metaForPath(ctx context.Context, path string) *Meta {
 		}
 	}
 
-	if len(parts) == 3 && parts[0] == "games" {
+	if len(parts) == 3 && parts[0] == "games" && parts[1] != "" {
 		if _, err := uuid.Parse(parts[2]); err == nil {
 			name := strings.ToUpper(parts[1][:1]) + parts[1][1:]
 			return &Meta{

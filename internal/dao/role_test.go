@@ -13,9 +13,9 @@ import (
 )
 
 const (
-	roleAdmin     role.Role = "admin"
-	roleModerator role.Role = "moderator"
-	roleEditor    role.Role = "editor"
+	roleAdmin      role.Role = "admin"
+	roleModerator  role.Role = "moderator"
+	roleSuperAdmin role.Role = "super_admin"
 )
 
 func TestRoleDAO_GetRole_NoRole(t *testing.T) {
@@ -192,11 +192,11 @@ func TestRoleDAO_GetUsersByRoles_MultipleRoles(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	admin := daotest.CreateUser(t, repos)
 	mod := daotest.CreateUser(t, repos)
-	editor := daotest.CreateUser(t, repos)
+	superAdmin := daotest.CreateUser(t, repos)
 	plain := daotest.CreateUser(t, repos)
 	require.NoError(t, repos.Role.SetRole(context.Background(), admin.ID, roleAdmin))
 	require.NoError(t, repos.Role.SetRole(context.Background(), mod.ID, roleModerator))
-	require.NoError(t, repos.Role.SetRole(context.Background(), editor.ID, roleEditor))
+	require.NoError(t, repos.Role.SetRole(context.Background(), superAdmin.ID, roleSuperAdmin))
 
 	// when
 	users, err := repos.Role.GetUsersByRoles(context.Background(), []role.Role{roleAdmin, roleModerator})
@@ -204,6 +204,6 @@ func TestRoleDAO_GetUsersByRoles_MultipleRoles(t *testing.T) {
 	// then
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []uuid.UUID{admin.ID, mod.ID}, users)
-	assert.NotContains(t, users, editor.ID)
+	assert.NotContains(t, users, superAdmin.ID)
 	assert.NotContains(t, users, plain.ID)
 }

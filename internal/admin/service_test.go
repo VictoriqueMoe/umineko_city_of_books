@@ -283,6 +283,61 @@ func TestSetUserRole_ProtectedSuperAdmin(t *testing.T) {
 	assert.ErrorIs(t, err, ErrProtectedUser)
 }
 
+func TestSetUserRole_CannotGrantAtOrAboveOwnRank(t *testing.T) {
+	// given
+	tests := []struct {
+		name      string
+		actorRole role.Role
+		granted   role.Role
+	}{
+		{name: "admin cannot mint a super_admin", actorRole: authz.RoleAdmin, granted: authz.RoleSuperAdmin},
+		{name: "admin cannot mint another admin", actorRole: authz.RoleAdmin, granted: authz.RoleAdmin},
+		{name: "moderator cannot mint another moderator", actorRole: authz.RoleModerator, granted: authz.RoleModerator},
+		{name: "super_admin cannot mint another super_admin", actorRole: authz.RoleSuperAdmin, granted: authz.RoleSuperAdmin},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc, m := newTestService(t)
+			actor := uuid.New()
+			target := uuid.New()
+			m.authz.EXPECT().GetRole(mock.Anything, actor).Return(tt.actorRole, nil)
+
+			// when
+			err := svc.SetUserRole(context.Background(), actor, target, tt.granted)
+
+			// then
+			assert.ErrorIs(t, err, ErrRoleOutranksActor)
+		})
+	}
+}
+
+func TestSetUserRole_UnknownRoleRejected(t *testing.T) {
+	// given
+	tests := []struct {
+		name    string
+		granted role.Role
+	}{
+		{name: "invented role", granted: role.Role("owner")},
+		{name: "empty role", granted: role.Role("")},
+		{name: "case mismatch", granted: role.Role("Admin")},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc, _ := newTestService(t)
+			actor := uuid.New()
+			target := uuid.New()
+
+			// when
+			err := svc.SetUserRole(context.Background(), actor, target, tt.granted)
+
+			// then
+			assert.ErrorIs(t, err, ErrUnknownRole)
+		})
+	}
+}
+
 func TestSetUserRole_ProtectedEqualRank(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -475,6 +530,8 @@ func TestUnbanUser_OK(t *testing.T) {
 	svc, m := newTestService(t)
 	actor := uuid.New()
 	target := uuid.New()
+	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleSuperAdmin, nil)
+	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
 	m.userRepo.EXPECT().UnbanUser(mock.Anything, target).Return(nil)
 	m.auditRepo.EXPECT().Create(mock.Anything, actor, "unban_user", "user", target.String(), "").Return(nil)
 
@@ -490,6 +547,8 @@ func TestUnbanUser_RepoError(t *testing.T) {
 	svc, m := newTestService(t)
 	actor := uuid.New()
 	target := uuid.New()
+	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleSuperAdmin, nil)
+	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
 	m.userRepo.EXPECT().UnbanUser(mock.Anything, target).Return(errors.New("boom"))
 
 	// when
@@ -497,6 +556,53 @@ func TestUnbanUser_RepoError(t *testing.T) {
 
 	// then
 	require.Error(t, err)
+}
+
+func TestUnbanUser_ProtectedOutranksActor(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	actor := uuid.New()
+	target := uuid.New()
+	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleModerator, nil)
+	m.authz.EXPECT().GetRole(mock.Anything, target).Return(authz.RoleAdmin, nil)
+
+	// when
+	err := svc.UnbanUser(context.Background(), actor, target)
+
+	// then
+	assert.ErrorIs(t, err, ErrProtectedUser)
+}
+
+func TestUnlockUser_OK(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	actor := uuid.New()
+	target := uuid.New()
+	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleSuperAdmin, nil)
+	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
+	m.userRepo.EXPECT().UnlockUser(mock.Anything, target).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, actor, "unlock_user", "user", target.String(), "").Return(nil)
+
+	// when
+	err := svc.UnlockUser(context.Background(), actor, target)
+
+	// then
+	require.NoError(t, err)
+}
+
+func TestUnlockUser_ProtectedOutranksActor(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	actor := uuid.New()
+	target := uuid.New()
+	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleModerator, nil)
+	m.authz.EXPECT().GetRole(mock.Anything, target).Return(authz.RoleSuperAdmin, nil)
+
+	// when
+	err := svc.UnlockUser(context.Background(), actor, target)
+
+	// then
+	assert.ErrorIs(t, err, ErrProtectedUser)
 }
 
 func TestDeleteUser_OK(t *testing.T) {

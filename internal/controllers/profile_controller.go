@@ -99,6 +99,9 @@ func (s *Service) updateProfile(ctx fiber.Ctx) error {
 		if utils.MapFilterError(ctx, err) {
 			return nil
 		}
+		if errors.Is(err, profile.ErrIncorrectPassword) {
+			return utils.Forbidden(ctx, err.Error())
+		}
 		if errors.Is(err, profile.ErrInvalidDOB) || errors.Is(err, profile.ErrFutureDOB) || errors.Is(err, profile.ErrInvalidDefaultProfileTab) || errors.Is(err, profile.ErrInvalidEmail) || errors.Is(err, profile.ErrEmailTaken) {
 			return utils.BadRequest(ctx, err.Error())
 		}
@@ -178,7 +181,7 @@ func (s *Service) changePassword(ctx fiber.Ctx) error {
 		return nil
 	}
 
-	if err := s.ProfileService.ChangePassword(ctx.Context(), userID, req); err != nil {
+	if err := s.ProfileService.ChangePassword(ctx.Context(), userID, middleware.SessionToken(ctx), req); err != nil {
 		if errors.Is(err, profile.ErrPasswordTooShort) {
 			minLen := s.SettingsService.GetInt(ctx.Context(), config.SettingMinPasswordLength)
 			return utils.BadRequest(ctx, fmt.Sprintf("new password must be at least %d characters", minLen))

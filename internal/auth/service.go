@@ -33,7 +33,7 @@ type (
 		ForgotPassword(ctx context.Context, username string) error
 		ResetPassword(ctx context.Context, token, newPassword string) error
 		EmailEnabled(ctx context.Context) bool
-		SetEmail(ctx context.Context, userID uuid.UUID, email string) error
+		SetEmail(ctx context.Context, userID uuid.UUID, email string, password string) error
 		VerifyEmail(ctx context.Context, token string) error
 		ResendVerification(ctx context.Context, userID uuid.UUID) error
 	}
@@ -303,10 +303,18 @@ func hashResetToken(raw string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-func (s *service) SetEmail(ctx context.Context, userID uuid.UUID, email string) error {
+func (s *service) SetEmail(ctx context.Context, userID uuid.UUID, email string, password string) error {
 	email = normalizeEmail(email)
 	if !isValidEmail(email) {
 		return ErrInvalidEmail
+	}
+
+	ok, err := s.userRepo.VerifyPassword(ctx, userID, password)
+	if err != nil {
+		return fmt.Errorf("verify password: %w", err)
+	}
+	if !ok {
+		return ErrIncorrectPassword
 	}
 
 	inUse, err := s.userRepo.EmailInUse(ctx, email, userID)
@@ -317,12 +325,36 @@ func (s *service) SetEmail(ctx context.Context, userID uuid.UUID, email string) 
 		return ErrEmailTaken
 	}
 
+	previous, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("get user: %w", err)
+	}
+
 	if err := s.userRepo.SetEmail(ctx, userID, email); err != nil {
 		return fmt.Errorf("set email: %w", err)
 	}
 
+	if previous != nil && previous.Email != "" {
+		s.notifyEmailChanged(ctx, previous.Email, email)
+	}
+
 	s.sendVerification(ctx, userID, email)
+
 	return nil
+}
+
+func (s *service) notifyEmailChanged(ctx context.Context, previousEmail, newEmail string) {
+	if !s.emailSvc.Enabled(ctx) {
+		return
+	}
+
+	baseURL := strings.TrimRight(s.settingsSvc.Get(ctx, config.SettingBaseURL), "/")
+	siteName := s.settingsSvc.Get(ctx, config.SettingSiteName)
+
+	subject, body := notification.EmailChangedEmail(siteName, newEmail, baseURL+"/forgot-password")
+	if err := s.emailSvc.Send(ctx, previousEmail, subject, body); err != nil {
+		logger.Log.Error().Err(err).Msg("failed to send email-changed alert to previous address")
+	}
 }
 
 func (s *service) VerifyEmail(ctx context.Context, token string) error {

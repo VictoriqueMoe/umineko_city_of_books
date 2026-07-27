@@ -3,6 +3,7 @@ package cache
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -21,6 +22,10 @@ type (
 	}
 )
 
+const (
+	probeTimeout = 5 * time.Second
+)
+
 func NewManager() *Manager {
 	m := new(Manager)
 	registerStatsCollector(m)
@@ -28,14 +33,64 @@ func NewManager() *Manager {
 	return m
 }
 
-func (m *Manager) Reconfigure(rawURL string) {
+func ProbeURL(ctx context.Context, rawURL string) error {
+	rawURL = strings.TrimSpace(rawURL)
+	if rawURL == "" {
+		return nil
+	}
+
+	opts, err := redis.ParseURL(rawURL)
+	if err != nil {
+		return fmt.Errorf("cache: invalid valkey url: %w", err)
+	}
+
+	client := redis.NewClient(opts)
+	defer func() {
+		_ = client.Close()
+	}()
+
+	ctx, cancel := context.WithTimeout(ctx, probeTimeout)
+	defer cancel()
+
+	err = client.Ping(ctx).Err()
+	if err != nil {
+		return fmt.Errorf("cache: cannot reach valkey: %w", err)
+	}
+
+	return nil
+}
+
+func (m *Manager) Reconfigure(rawURL string) error {
+	client, err := m.swapClient(rawURL)
+	if err != nil {
+		return err
+	}
+
+	if client == nil {
+		return nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), probeTimeout)
+	defer cancel()
+
+	err = client.Ping(ctx).Err()
+	if err != nil {
+		return fmt.Errorf("cache: ping failed: %w", err)
+	}
+
+	logger.Log.Info().Msg("valkey cache enabled")
+
+	return nil
+}
+
+func (m *Manager) swapClient(rawURL string) (*redis.Client, error) {
 	rawURL = strings.TrimSpace(rawURL)
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	if rawURL == m.url {
-		return
+		return nil, nil
 	}
 
 	if m.client != nil {
@@ -47,21 +102,20 @@ func (m *Manager) Reconfigure(rawURL string) {
 
 	if rawURL == "" {
 		logger.Log.Info().Msg("valkey cache disabled")
-		return
+		return nil, nil
 	}
 
 	opts, err := redis.ParseURL(rawURL)
 	if err != nil {
 		m.url = ""
-		logger.Log.Warn().Err(err).Msg("invalid valkey url, cache disabled")
-		return
+		return nil, fmt.Errorf("cache: invalid valkey url: %w", err)
 	}
 
 	client := redis.NewClient(opts)
 	client.AddHook(newObservabilityHook())
 	m.client = client
 
-	logger.Log.Info().Msg("valkey cache enabled")
+	return client, nil
 }
 
 func (m *Manager) OnSettingChanged(key config.SiteSettingKey, value string) {
@@ -69,7 +123,10 @@ func (m *Manager) OnSettingChanged(key config.SiteSettingKey, value string) {
 		return
 	}
 
-	m.Reconfigure(value)
+	err := m.Reconfigure(value)
+	if err != nil {
+		logger.Log.Warn().Err(err).Msg("valkey cache reconfigure failed")
+	}
 }
 
 func (m *Manager) Enabled() bool {

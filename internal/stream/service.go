@@ -36,7 +36,7 @@ type (
 		HandleWebhook(ctx context.Context, authHeader string, body []byte) (handled bool, err error)
 		ReconcileOnce(ctx context.Context) (int, error)
 		JoinChat(ctx context.Context, streamID, userID uuid.UUID) error
-		SaveThumbnail(ctx context.Context, streamID uuid.UUID, size int64, reader io.Reader) error
+		SaveThumbnail(ctx context.Context, userID, streamID uuid.UUID, size int64, reader io.Reader) error
 		Credentials(ctx context.Context, userID uuid.UUID, displayName string) (*dto.StreamCredentialsResponse, error)
 		ResetCredentials(ctx context.Context, userID uuid.UUID, displayName string) (*dto.StreamCredentialsResponse, error)
 		SetChatBinder(chat ChatBinder)
@@ -160,13 +160,16 @@ func (s *service) JoinChat(ctx context.Context, streamID, userID uuid.UUID) erro
 	return s.chat.JoinStreamChat(ctx, streamID, userID)
 }
 
-func (s *service) SaveThumbnail(ctx context.Context, streamID uuid.UUID, size int64, reader io.Reader) error {
+func (s *service) SaveThumbnail(ctx context.Context, userID, streamID uuid.UUID, size int64, reader io.Reader) error {
 	stream, err := s.repo.GetByID(ctx, streamID)
 	if err != nil {
 		return err
 	}
 	if stream == nil || stream.Status != statusLive {
 		return ErrStreamNotFound
+	}
+	if stream.UserID != userID {
+		return ErrNotOwner
 	}
 
 	if !s.claimThumbnailSlot(streamID) {

@@ -10,6 +10,7 @@ import (
 
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/logger"
+	"umineko_city_of_books/internal/secrets"
 	"umineko_city_of_books/internal/session"
 
 	"github.com/gofiber/contrib/v3/websocket"
@@ -18,18 +19,29 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
+	"golang.org/x/time/rate"
 )
 
 const (
 	maxInboundMessageSize = 8 * 1024
 	wsTracerName          = "umineko_city_of_books/ws"
 	localsUserIDKey       = "ws.user_id"
+	localsTokenKey        = "ws.token"
 	localsAnonKey         = "ws.anon"
+	sessionRecheckEvery   = 5 * time.Minute
+	readDeadline          = 90 * time.Second
+
+	inboundPerSecond = 100
+	inboundBurst     = 200
 )
 
 type (
 	RoomLister interface {
 		GetRoomsByUser(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error)
+	}
+
+	BanChecker interface {
+		IsBanned(ctx context.Context, userID uuid.UUID) bool
 	}
 
 	GameRoomPresence interface {
@@ -88,7 +100,25 @@ func recoverHandler(conn *websocket.Conn) {
 	_ = conn.WriteJSON(fiber.Map{"error": "internal error"})
 }
 
-func originAllowed(origin, allowed string) bool {
+func stillAuthorised(sessionMgr *session.Manager, banChecker BanChecker, token string, userID uuid.UUID) error {
+	ctx := context.Background()
+
+	current, err := sessionMgr.Validate(ctx, token)
+	if err != nil {
+		return fmt.Errorf("session no longer valid: %w", err)
+	}
+	if current != userID {
+		return fmt.Errorf("session no longer belongs to this user")
+	}
+
+	if banChecker != nil && banChecker.IsBanned(ctx, userID) {
+		return fmt.Errorf("account is banned")
+	}
+
+	return nil
+}
+
+func OriginAllowed(origin, allowed string) bool {
 	if origin == "" {
 		return false
 	}
@@ -111,7 +141,7 @@ func broadcastPresence(hub *Hub, roomID, userID uuid.UUID, state string) {
 	}, uuid.Nil)
 }
 
-func Handler(hub *Hub, sessionMgr *session.Manager, roomLister RoomLister, gamePresence GameRoomPresence, watchPartyDisconnect WatchPartyDisconnectHandler, allowedOrigin func(ctx context.Context) string) fiber.Handler {
+func Handler(hub *Hub, sessionMgr *session.Manager, banChecker BanChecker, roomLister RoomLister, gamePresence GameRoomPresence, watchPartyDisconnect WatchPartyDisconnectHandler, allowedOrigin func(ctx context.Context) string) fiber.Handler {
 	wsHandler := websocket.New(func(conn *websocket.Conn) {
 		if anon, _ := conn.Locals(localsAnonKey).(bool); anon {
 			runAnonReader(hub, conn)
@@ -153,10 +183,24 @@ func Handler(hub *Hub, sessionMgr *session.Manager, roomLister RoomLister, gameP
 			}
 		}
 
+		token, _ := conn.Locals(localsTokenKey).(string)
+		lastRecheck := time.Now()
+
 		conn.SetPongHandler(func(string) error {
-			return conn.SetReadDeadline(time.Now().Add(90 * time.Second))
+			if token != "" && time.Since(lastRecheck) >= sessionRecheckEvery {
+				lastRecheck = time.Now()
+				if err := stillAuthorised(sessionMgr, banChecker, token, userID); err != nil {
+					logger.Log.Info().Str("user_id", userID.String()).Msg("ws session no longer valid, closing socket")
+
+					return err
+				}
+			}
+
+			return conn.SetReadDeadline(time.Now().Add(readDeadline))
 		})
-		_ = conn.SetReadDeadline(time.Now().Add(90 * time.Second))
+		_ = conn.SetReadDeadline(time.Now().Add(readDeadline))
+
+		limiter := rate.NewLimiter(inboundPerSecond, inboundBurst)
 
 		for {
 			_, raw, err := conn.ReadMessage()
@@ -175,10 +219,19 @@ func Handler(hub *Hub, sessionMgr *session.Manager, roomLister RoomLister, gameP
 				break
 			}
 
+			tokens := limiter.Tokens()
+			if !limiter.Allow() {
+				recordDropped(true)
+				logger.Log.Warn().Str("user_id", userID.String()).Float64("tokens", tokens).Msg("ws inbound rate limit exceeded")
+				continue
+			}
+
 			var msg incomingMessage
 			if err := json.Unmarshal(raw, &msg); err != nil {
 				continue
 			}
+
+			recordInbound(msg.Type, tokens)
 
 			handleWSMessage(client, msg, hub, gamePresence, joinedGameRooms)
 		}
@@ -195,7 +248,7 @@ func Handler(hub *Hub, sessionMgr *session.Manager, roomLister RoomLister, gameP
 		if allowedOrigin != nil {
 			allowed = allowedOrigin(ctx.Context())
 		}
-		if !originAllowed(origin, allowed) {
+		if !OriginAllowed(origin, allowed) {
 			logger.Log.Warn().Str("origin", origin).Msg("ws upgrade rejected: origin not allowed")
 			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
 				"error": "origin not allowed",
@@ -218,7 +271,14 @@ func Handler(hub *Hub, sessionMgr *session.Manager, roomLister RoomLister, gameP
 			})
 		}
 
+		if banChecker != nil && banChecker.IsBanned(ctx.Context(), userID) {
+			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"error": "account is banned",
+			})
+		}
+
 		ctx.Locals(localsUserIDKey, userID)
+		ctx.Locals(localsTokenKey, token)
 		return wsHandler(ctx)
 	}
 }
@@ -231,9 +291,11 @@ func runAnonReader(hub *Hub, conn *websocket.Conn) {
 	defer hub.UnregisterAnon(client)
 
 	conn.SetPongHandler(func(string) error {
-		return conn.SetReadDeadline(time.Now().Add(90 * time.Second))
+		return conn.SetReadDeadline(time.Now().Add(readDeadline))
 	})
-	_ = conn.SetReadDeadline(time.Now().Add(90 * time.Second))
+	_ = conn.SetReadDeadline(time.Now().Add(readDeadline))
+
+	limiter := rate.NewLimiter(inboundPerSecond, inboundBurst)
 
 	for {
 		_, raw, err := conn.ReadMessage()
@@ -241,10 +303,18 @@ func runAnonReader(hub *Hub, conn *websocket.Conn) {
 			break
 		}
 
+		tokens := limiter.Tokens()
+		if !limiter.Allow() {
+			recordDropped(false)
+			continue
+		}
+
 		var msg incomingMessage
 		if err := json.Unmarshal(raw, &msg); err != nil {
 			continue
 		}
+
+		recordInbound(msg.Type, tokens)
 
 		if msg.Type == "ping" {
 			if data, marshalErr := json.Marshal(Message{Type: "pong", Data: map[string]any{}}); marshalErr == nil {
@@ -339,7 +409,7 @@ func handleWSMessage(client *Client, msg incomingMessage, hub *Hub, gamePresence
 		if err := json.Unmarshal(msg.Data, &data); err != nil {
 			return
 		}
-		if data.SecretID == "" {
+		if _, known := secrets.Lookup(data.SecretID); !known {
 			return
 		}
 		hub.JoinTopic("secret:"+data.SecretID, userID)
@@ -349,7 +419,7 @@ func handleWSMessage(client *Client, msg incomingMessage, hub *Hub, gamePresence
 		if err := json.Unmarshal(msg.Data, &data); err != nil {
 			return
 		}
-		if data.SecretID == "" {
+		if _, known := secrets.Lookup(data.SecretID); !known {
 			return
 		}
 		hub.LeaveTopic("secret:"+data.SecretID, userID)

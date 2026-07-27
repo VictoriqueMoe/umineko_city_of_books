@@ -251,7 +251,7 @@ func TestChangePassword_OK(t *testing.T) {
 	userID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
 	req := dto.ChangePasswordRequest{OldPassword: "old", NewPassword: "newnewnew"}
-	deps.profileSvc.EXPECT().ChangePassword(mock.Anything, userID, req).Return(nil)
+	deps.profileSvc.EXPECT().ChangePassword(mock.Anything, userID, "valid-cookie", req).Return(nil)
 
 	// when
 	status, _ := h.NewRequest("PUT", "/auth/password").
@@ -286,7 +286,7 @@ func TestChangePassword_TooShort(t *testing.T) {
 	userID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
 	req := dto.ChangePasswordRequest{OldPassword: "old", NewPassword: "x"}
-	deps.profileSvc.EXPECT().ChangePassword(mock.Anything, userID, req).Return(profile.ErrPasswordTooShort)
+	deps.profileSvc.EXPECT().ChangePassword(mock.Anything, userID, "valid-cookie", req).Return(profile.ErrPasswordTooShort)
 
 	// when
 	status, body := h.NewRequest("PUT", "/auth/password").
@@ -306,7 +306,7 @@ func TestChangePassword_GenericError(t *testing.T) {
 	userID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
 	req := dto.ChangePasswordRequest{OldPassword: "bad", NewPassword: "newnewnew"}
-	deps.profileSvc.EXPECT().ChangePassword(mock.Anything, userID, req).Return(errors.New("wrong old password"))
+	deps.profileSvc.EXPECT().ChangePassword(mock.Anything, userID, "valid-cookie", req).Return(errors.New("wrong old password"))
 
 	// when
 	status, body := h.NewRequest("PUT", "/auth/password").

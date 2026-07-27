@@ -494,6 +494,7 @@ func TestSendWatchPartyMessage_OK(t *testing.T) {
 	sessionID := uuid.New()
 	senderID := uuid.New()
 
+	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, senderID).Return(true, nil)
 	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(&repository.ChatWatchPartySessionRow{
 		ID: sessionID, RoomID: roomID, Status: "active",
 	}, nil)
@@ -529,6 +530,7 @@ func TestSendWatchPartyMessage_NotParticipant(t *testing.T) {
 	sessionID := uuid.New()
 	senderID := uuid.New()
 
+	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, senderID).Return(true, nil)
 	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(&repository.ChatWatchPartySessionRow{
 		ID: sessionID, RoomID: roomID, Status: "active",
 	}, nil)
@@ -539,4 +541,68 @@ func TestSendWatchPartyMessage_NotParticipant(t *testing.T) {
 
 	// then
 	require.ErrorIs(t, err, ErrWatchPartyNotParticipant)
+}
+
+func TestSendWatchPartyMessage_NotRoomMember(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	roomID := uuid.New()
+	sessionID := uuid.New()
+	senderID := uuid.New()
+
+	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, senderID).Return(false, nil)
+
+	// when
+	_, err := svc.SendWatchPartyMessage(context.Background(), roomID, sessionID, senderID, "hello")
+
+	// then
+	require.ErrorIs(t, err, ErrNotMember)
+}
+
+func TestMintSessionVoiceToken_NotRoomMember(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	roomID := uuid.New()
+	sessionID := uuid.New()
+	userID := uuid.New()
+
+	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(false, nil)
+
+	// when
+	_, _, err := svc.MintSessionVoiceToken(context.Background(), roomID, sessionID, userID)
+
+	// then
+	require.ErrorIs(t, err, ErrNotMember)
+}
+
+func TestGetWatchPartyMessages_NotRoomMember(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	roomID := uuid.New()
+	sessionID := uuid.New()
+	viewerID := uuid.New()
+
+	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, viewerID).Return(false, nil)
+
+	// when
+	_, err := svc.GetWatchPartyMessages(context.Background(), roomID, sessionID, viewerID)
+
+	// then
+	require.ErrorIs(t, err, ErrNotMember)
+}
+
+func TestIdentifyWatchPartyParticipant_NotRoomMember(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	roomID := uuid.New()
+	sessionID := uuid.New()
+	userID := uuid.New()
+
+	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(false, nil)
+
+	// when
+	err := svc.IdentifyWatchPartyParticipant(context.Background(), roomID, sessionID, userID, "identifier")
+
+	// then
+	require.ErrorIs(t, err, ErrNotMember)
 }

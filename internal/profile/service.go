@@ -16,7 +16,9 @@ import (
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/session"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/upload"
 	userpkg "umineko_city_of_books/internal/user"
@@ -31,7 +33,7 @@ type (
 		UpdateProfile(ctx context.Context, userID uuid.UUID, req dto.UpdateProfileRequest) error
 		UploadAvatar(ctx context.Context, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (string, error)
 		UploadBanner(ctx context.Context, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (string, error)
-		ChangePassword(ctx context.Context, userID uuid.UUID, req dto.ChangePasswordRequest) error
+		ChangePassword(ctx context.Context, userID uuid.UUID, currentToken string, req dto.ChangePasswordRequest) error
 		DeleteAccount(ctx context.Context, userID uuid.UUID, req dto.DeleteAccountRequest) error
 		GetActivity(ctx context.Context, username string, page bounds.Page) (*dto.ActivityListResponse, error)
 		ListPublicUsers(ctx context.Context) ([]dto.UserResponse, error)
@@ -49,6 +51,7 @@ type (
 		contentFilter  *contentfilter.Manager
 		hub            *ws.Hub
 		authService    auth.Service
+		session        *session.Manager
 	}
 )
 
@@ -86,6 +89,7 @@ func NewService(
 	contentFilter *contentfilter.Manager,
 	hub *ws.Hub,
 	authService auth.Service,
+	sessionMgr *session.Manager,
 ) Service {
 	return &service{
 		userRepo:       userRepo,
@@ -97,6 +101,7 @@ func NewService(
 		contentFilter:  contentFilter,
 		hub:            hub,
 		authService:    authService,
+		session:        sessionMgr,
 	}
 }
 
@@ -152,12 +157,14 @@ func (s *service) UpdateProfile(ctx context.Context, userID uuid.UUID, req dto.U
 
 	req.Email = strings.ToLower(strings.TrimSpace(req.Email))
 	if req.Email != current.Email {
-		if err := s.authService.SetEmail(ctx, userID, req.Email); err != nil {
+		if err := s.authService.SetEmail(ctx, userID, req.Email, req.EmailPassword); err != nil {
 			switch {
 			case errors.Is(err, auth.ErrInvalidEmail):
 				return ErrInvalidEmail
 			case errors.Is(err, auth.ErrEmailTaken):
 				return ErrEmailTaken
+			case errors.Is(err, auth.ErrIncorrectPassword):
+				return ErrIncorrectPassword
 			default:
 				return fmt.Errorf("set email: %w", err)
 			}
@@ -245,12 +252,23 @@ func (s *service) UploadBanner(ctx context.Context, userID uuid.UUID, contentTyp
 	return bannerURL, nil
 }
 
-func (s *service) ChangePassword(ctx context.Context, userID uuid.UUID, req dto.ChangePasswordRequest) error {
+func (s *service) ChangePassword(ctx context.Context, userID uuid.UUID, currentToken string, req dto.ChangePasswordRequest) error {
 	minLen := s.settingsSvc.GetInt(ctx, config.SettingMinPasswordLength)
 	if minLen > 0 && len(req.NewPassword) < minLen {
 		return ErrPasswordTooShort
 	}
-	return s.userRepo.ChangePassword(ctx, userID, req.OldPassword, req.NewPassword)
+
+	if err := s.userRepo.ChangePassword(ctx, userID, req.OldPassword, req.NewPassword); err != nil {
+		return err
+	}
+
+	if s.session != nil {
+		if err := s.session.DeleteAllForUserExcept(ctx, userID, currentToken); err != nil {
+			logger.Log.Error().Err(err).Str("user_id", userID.String()).Msg("failed to invalidate other sessions after password change")
+		}
+	}
+
+	return nil
 }
 
 func (s *service) DeleteAccount(ctx context.Context, userID uuid.UUID, req dto.DeleteAccountRequest) error {

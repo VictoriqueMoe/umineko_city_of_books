@@ -54,6 +54,11 @@ func (r *sessionDAO) DeleteAllForUser(ctx context.Context, userID uuid.UUID) err
 	return err
 }
 
+func (r *sessionDAO) DeleteAllForUserExcept(ctx context.Context, userID uuid.UUID, keepToken string) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM sessions WHERE user_id = $1 AND token <> $2`, userID, keepToken)
+	return err
+}
+
 func (r *sessionDAO) CleanExpired(ctx context.Context) error {
 	_, err := r.db.ExecContext(ctx, `DELETE FROM sessions WHERE expires_at < $1`, time.Now())
 	return err

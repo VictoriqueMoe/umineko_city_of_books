@@ -10,12 +10,14 @@ import (
 	"image/png"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/settings"
 
 	"github.com/google/uuid"
@@ -491,4 +493,109 @@ func TestDeleteByPrefix_ReadDirError(t *testing.T) {
 	// then
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "read directory")
+}
+
+func makeWebP(t *testing.T, width, height int) []byte {
+	t.Helper()
+
+	if _, err := exec.LookPath("cwebp"); err != nil {
+		t.Skip("cwebp not installed, skipping webp pipeline test")
+	}
+
+	dir := t.TempDir()
+	srcPath := filepath.Join(dir, "src.png")
+	outPath := filepath.Join(dir, "src.webp")
+
+	img := image.NewRGBA(image.Rect(0, 0, width, height))
+	for y := range height {
+		for x := range width {
+			img.Set(x, y, color.RGBA{R: uint8(x % 256), G: uint8(y % 256), B: 128, A: 255})
+		}
+	}
+
+	f, err := os.Create(srcPath)
+	require.NoError(t, err)
+	require.NoError(t, png.Encode(f, img))
+	require.NoError(t, f.Close())
+
+	out, err := exec.Command("cwebp", "-q", "90", srcPath, "-o", outPath).CombinedOutput()
+	require.NoError(t, err, string(out))
+
+	data, err := os.ReadFile(outPath)
+	require.NoError(t, err)
+
+	return data
+}
+
+func TestSaveImage_WebPAvatarIsResizedNotSkipped(t *testing.T) {
+	// given
+	body := makeWebP(t, 400, 400)
+	settingsSvc := settings.NewMockService(t)
+	dir := t.TempDir()
+	settingsSvc.EXPECT().Get(mock.Anything, config.SettingUploadDir).Return(dir).Maybe()
+	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImagePixels).Return(bounds.FallbackMaxImagePixels).Maybe()
+	svc := NewService(settingsSvc, media.NewProcessor(1)).(*service)
+	id := uuid.New()
+
+	// when
+	urlPath, err := svc.SaveImage(context.Background(), "avatars", id, int64(len(body)), 10<<20, bytesReader(body))
+
+	// then
+	require.NoError(t, err)
+	require.True(t, strings.HasSuffix(strings.ToLower(urlPath), ".webp"), "expected a webp, got %q", urlPath)
+
+	f, err := os.Open(svc.FullDiskPath(urlPath))
+	require.NoError(t, err)
+	defer f.Close()
+
+	cfg, _, err := image.DecodeConfig(f)
+	require.NoError(t, err)
+	assert.Equal(t, media.AvatarMaxWidth, cfg.Width, "webp avatar should be resized to the avatar cap")
+	assert.Equal(t, media.AvatarMaxWidth, cfg.Height, "webp avatar should be square cropped")
+}
+
+func TestSaveImage_AnimatedWebPIsAcceptedNotRejected(t *testing.T) {
+	// given
+	if _, err := exec.LookPath("img2webp"); err != nil {
+		t.Skip("img2webp not installed, skipping animated webp test")
+	}
+
+	src := t.TempDir()
+	frames := make([]string, 0, 2)
+	for i := range 2 {
+		img := image.NewRGBA(image.Rect(0, 0, 120, 120))
+		for y := range 120 {
+			for x := range 120 {
+				img.Set(x, y, color.RGBA{R: uint8(i * 120), G: uint8(x), B: uint8(y), A: 255})
+			}
+		}
+		p := filepath.Join(src, "f"+string(rune('0'+i))+".png")
+		f, err := os.Create(p)
+		require.NoError(t, err)
+		require.NoError(t, png.Encode(f, img))
+		require.NoError(t, f.Close())
+		frames = append(frames, p)
+	}
+
+	animPath := filepath.Join(src, "anim.webp")
+	args := append([]string{"-loop", "0"}, frames...)
+	args = append(args, "-o", animPath)
+	out, err := exec.Command("img2webp", args...).CombinedOutput()
+	require.NoError(t, err, string(out))
+	body, err := os.ReadFile(animPath)
+	require.NoError(t, err)
+
+	settingsSvc := settings.NewMockService(t)
+	dir := t.TempDir()
+	settingsSvc.EXPECT().Get(mock.Anything, config.SettingUploadDir).Return(dir).Maybe()
+	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImagePixels).Return(bounds.FallbackMaxImagePixels).Maybe()
+	svc := NewService(settingsSvc, media.NewProcessor(1)).(*service)
+
+	// when
+	urlPath, err := svc.SaveImage(context.Background(), "avatars", uuid.New(), int64(len(body)), 10<<20, bytesReader(body))
+
+	// then
+	require.NoError(t, err, "animated webp upload must not fail")
+	_, statErr := os.Stat(svc.FullDiskPath(urlPath))
+	require.NoError(t, statErr, "animated webp should still be stored")
 }
