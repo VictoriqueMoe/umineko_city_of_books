@@ -314,6 +314,52 @@ func (_c *MockService_Refresh_Call) RunAndReturn(run func(ctx context.Context) e
 	return _c
 }
 
+// RegisterValidator provides a mock function for the type MockService
+func (_mock *MockService) RegisterValidator(setting *config.SiteSettingDef, validate Validator) {
+	_mock.Called(setting, validate)
+	return
+}
+
+// MockService_RegisterValidator_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RegisterValidator'
+type MockService_RegisterValidator_Call struct {
+	*mock.Call
+}
+
+// RegisterValidator is a helper method to define mock.On call
+//   - setting *config.SiteSettingDef
+//   - validate Validator
+func (_e *MockService_Expecter) RegisterValidator(setting any, validate any) *MockService_RegisterValidator_Call {
+	return &MockService_RegisterValidator_Call{Call: _e.mock.On("RegisterValidator", setting, validate)}
+}
+
+func (_c *MockService_RegisterValidator_Call) Run(run func(setting *config.SiteSettingDef, validate Validator)) *MockService_RegisterValidator_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 *config.SiteSettingDef
+		if args[0] != nil {
+			arg0 = args[0].(*config.SiteSettingDef)
+		}
+		var arg1 Validator
+		if args[1] != nil {
+			arg1 = args[1].(Validator)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_RegisterValidator_Call) Return() *MockService_RegisterValidator_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *MockService_RegisterValidator_Call) RunAndReturn(run func(setting *config.SiteSettingDef, validate Validator)) *MockService_RegisterValidator_Call {
+	_c.Run(run)
+	return _c
+}
+
 // Set provides a mock function for the type MockService
 func (_mock *MockService) Set(ctx context.Context, setting *config.SiteSettingDef, value string, updatedBy uuid.UUID) error {
 	ret := _mock.Called(ctx, setting, value, updatedBy)

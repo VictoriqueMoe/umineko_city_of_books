@@ -691,7 +691,7 @@ func TestSetEmail_InvalidEmail(t *testing.T) {
 	svc, _ := newTestService(t)
 
 	// when
-	err := svc.SetEmail(context.Background(), uuid.New(), "nope")
+	err := svc.SetEmail(context.Background(), uuid.New(), "nope", "pw")
 
 	// then
 	require.ErrorIs(t, err, ErrInvalidEmail)
@@ -701,25 +701,76 @@ func TestSetEmail_EmailTaken(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	userID := uuid.New()
+	m.userRepo.EXPECT().VerifyPassword(mock.Anything, userID, "pw").Return(true, nil)
 	m.userRepo.EXPECT().EmailInUse(mock.Anything, "taken@example.com", userID).Return(true, nil)
 
 	// when
-	err := svc.SetEmail(context.Background(), userID, "taken@example.com")
+	err := svc.SetEmail(context.Background(), userID, "taken@example.com", "pw")
 
 	// then
 	require.ErrorIs(t, err, ErrEmailTaken)
+}
+
+func TestSetEmail_WrongPasswordIsRejected(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	userID := uuid.New()
+	m.userRepo.EXPECT().VerifyPassword(mock.Anything, userID, "wrong").Return(false, nil)
+
+	// when
+	err := svc.SetEmail(context.Background(), userID, "new@example.com", "wrong")
+
+	// then
+	require.ErrorIs(t, err, ErrIncorrectPassword)
+	m.userRepo.AssertNotCalled(t, "SetEmail", mock.Anything, mock.Anything, mock.Anything)
+	m.emailSvc.AssertNotCalled(t, "Send", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestSetEmail_EmptyPasswordIsRejected(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	userID := uuid.New()
+	m.userRepo.EXPECT().VerifyPassword(mock.Anything, userID, "").Return(false, nil)
+
+	// when
+	err := svc.SetEmail(context.Background(), userID, "new@example.com", "")
+
+	// then
+	require.ErrorIs(t, err, ErrIncorrectPassword)
+	m.userRepo.AssertNotCalled(t, "SetEmail", mock.Anything, mock.Anything, mock.Anything)
 }
 
 func TestSetEmail_OK(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	userID := uuid.New()
+	m.userRepo.EXPECT().VerifyPassword(mock.Anything, userID, "pw").Return(true, nil)
 	m.userRepo.EXPECT().EmailInUse(mock.Anything, "new@example.com", userID).Return(false, nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID}, nil)
 	m.userRepo.EXPECT().SetEmail(mock.Anything, userID, "new@example.com").Return(nil)
 	expectVerificationSent(m, userID, "new@example.com")
 
 	// when
-	err := svc.SetEmail(context.Background(), userID, "New@Example.com")
+	err := svc.SetEmail(context.Background(), userID, "New@Example.com", "pw")
+
+	// then
+	require.NoError(t, err)
+}
+
+func TestSetEmail_AlertsPreviousAddress(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	userID := uuid.New()
+	m.userRepo.EXPECT().VerifyPassword(mock.Anything, userID, "pw").Return(true, nil)
+	m.userRepo.EXPECT().EmailInUse(mock.Anything, "new@example.com", userID).Return(false, nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, Email: "old@example.com"}, nil)
+	m.userRepo.EXPECT().SetEmail(mock.Anything, userID, "new@example.com").Return(nil)
+	m.emailSvc.EXPECT().Enabled(mock.Anything).Return(true)
+	m.emailSvc.EXPECT().Send(mock.Anything, "old@example.com", mock.Anything, mock.Anything).Return(nil)
+	expectVerificationSent(m, userID, "new@example.com")
+
+	// when
+	err := svc.SetEmail(context.Background(), userID, "new@example.com", "pw")
 
 	// then
 	require.NoError(t, err)

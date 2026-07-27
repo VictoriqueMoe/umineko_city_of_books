@@ -704,16 +704,16 @@ func (_c *MockService_ResetCredentials_Call) RunAndReturn(run func(ctx context.C
 }
 
 // SaveThumbnail provides a mock function for the type MockService
-func (_mock *MockService) SaveThumbnail(ctx context.Context, streamID uuid.UUID, size int64, reader io.Reader) error {
-	ret := _mock.Called(ctx, streamID, size, reader)
+func (_mock *MockService) SaveThumbnail(ctx context.Context, userID uuid.UUID, streamID uuid.UUID, size int64, reader io.Reader) error {
+	ret := _mock.Called(ctx, userID, streamID, size, reader)
 
 	if len(ret) == 0 {
 		panic("no return value specified for SaveThumbnail")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int64, io.Reader) error); ok {
-		r0 = returnFunc(ctx, streamID, size, reader)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int64, io.Reader) error); ok {
+		r0 = returnFunc(ctx, userID, streamID, size, reader)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -727,14 +727,15 @@ type MockService_SaveThumbnail_Call struct {
 
 // SaveThumbnail is a helper method to define mock.On call
 //   - ctx context.Context
+//   - userID uuid.UUID
 //   - streamID uuid.UUID
 //   - size int64
 //   - reader io.Reader
-func (_e *MockService_Expecter) SaveThumbnail(ctx any, streamID any, size any, reader any) *MockService_SaveThumbnail_Call {
-	return &MockService_SaveThumbnail_Call{Call: _e.mock.On("SaveThumbnail", ctx, streamID, size, reader)}
+func (_e *MockService_Expecter) SaveThumbnail(ctx any, userID any, streamID any, size any, reader any) *MockService_SaveThumbnail_Call {
+	return &MockService_SaveThumbnail_Call{Call: _e.mock.On("SaveThumbnail", ctx, userID, streamID, size, reader)}
 }
 
-func (_c *MockService_SaveThumbnail_Call) Run(run func(ctx context.Context, streamID uuid.UUID, size int64, reader io.Reader)) *MockService_SaveThumbnail_Call {
+func (_c *MockService_SaveThumbnail_Call) Run(run func(ctx context.Context, userID uuid.UUID, streamID uuid.UUID, size int64, reader io.Reader)) *MockService_SaveThumbnail_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -744,19 +745,24 @@ func (_c *MockService_SaveThumbnail_Call) Run(run func(ctx context.Context, stre
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
-		var arg2 int64
+		var arg2 uuid.UUID
 		if args[2] != nil {
-			arg2 = args[2].(int64)
+			arg2 = args[2].(uuid.UUID)
 		}
-		var arg3 io.Reader
+		var arg3 int64
 		if args[3] != nil {
-			arg3 = args[3].(io.Reader)
+			arg3 = args[3].(int64)
+		}
+		var arg4 io.Reader
+		if args[4] != nil {
+			arg4 = args[4].(io.Reader)
 		}
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4,
 		)
 	})
 	return _c
@@ -767,7 +773,7 @@ func (_c *MockService_SaveThumbnail_Call) Return(err error) *MockService_SaveThu
 	return _c
 }
 
-func (_c *MockService_SaveThumbnail_Call) RunAndReturn(run func(ctx context.Context, streamID uuid.UUID, size int64, reader io.Reader) error) *MockService_SaveThumbnail_Call {
+func (_c *MockService_SaveThumbnail_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, streamID uuid.UUID, size int64, reader io.Reader) error) *MockService_SaveThumbnail_Call {
 	_c.Call.Return(run)
 	return _c
 }

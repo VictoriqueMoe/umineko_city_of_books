@@ -14,6 +14,7 @@ var (
 	ErrEmailDisabled            = errors.New("password reset is not available")
 	ErrInvalidResetToken        = errors.New("reset link is invalid or has expired")
 	ErrInvalidEmail             = errors.New("a valid email address is required")
+	ErrIncorrectPassword        = errors.New("your current password is incorrect")
 	ErrEmailTaken               = errors.New("that email address is already in use")
 	ErrInvalidVerificationToken = errors.New("verification link is invalid or has expired")
 	ErrEmailAlreadyVerified     = errors.New("your email is already verified")

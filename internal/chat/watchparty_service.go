@@ -566,6 +566,10 @@ func (s *watchPartyService) EndWatchParty(ctx context.Context, roomID, sessionID
 }
 
 func (s *watchPartyService) IdentifyWatchPartyParticipant(ctx context.Context, roomID, sessionID, userID uuid.UUID, identifier string) error {
+	if err := s.assertActiveRoomMember(ctx, roomID, userID); err != nil {
+		return err
+	}
+
 	if identifier == "" {
 		return ErrWatchPartyMessageEmpty
 	}
@@ -625,6 +629,10 @@ func (s *watchPartyService) ListWatchParties(ctx context.Context, roomID, viewer
 }
 
 func (s *watchPartyService) MintSessionVoiceToken(ctx context.Context, roomID, sessionID, userID uuid.UUID) (token, url string, err error) {
+	if err = s.assertActiveRoomMember(ctx, roomID, userID); err != nil {
+		return "", "", err
+	}
+
 	if !s.screenShareEnabled() {
 		return "", "", ErrVoiceDisabled
 	}
@@ -680,6 +688,10 @@ func (s *watchPartyService) ForceMuteSessionVoice(ctx context.Context, roomID, s
 }
 
 func (s *watchPartyService) SendWatchPartyMessage(ctx context.Context, roomID, sessionID, senderID uuid.UUID, body string) (*dto.WatchPartyMessage, error) {
+	if err := s.assertActiveRoomMember(ctx, roomID, senderID); err != nil {
+		return nil, err
+	}
+
 	trimmed := strings.TrimSpace(body)
 	if trimmed == "" {
 		return nil, ErrWatchPartyMessageEmpty
@@ -721,6 +733,10 @@ func (s *watchPartyService) SendWatchPartyMessage(ctx context.Context, roomID, s
 }
 
 func (s *watchPartyService) GetWatchPartyMessages(ctx context.Context, roomID, sessionID, viewerID uuid.UUID) (*dto.WatchPartyMessagesResponse, error) {
+	if err := s.assertActiveRoomMember(ctx, roomID, viewerID); err != nil {
+		return nil, err
+	}
+
 	session, err := s.loadActiveSession(ctx, roomID, sessionID)
 	if err != nil {
 		return nil, err

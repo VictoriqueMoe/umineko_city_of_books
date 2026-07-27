@@ -125,6 +125,12 @@ packages:
       Service:
       Notifier:
       GameHandler:
+  umineko_city_of_books/internal/ws:
+    interfaces:
+      BanChecker:
+  umineko_city_of_books/internal/session:
+    interfaces:
+      Disconnector:
   umineko_city_of_books/internal/repository:
     config:
       all: true

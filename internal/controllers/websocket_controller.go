@@ -16,7 +16,7 @@ func (s *Service) getAllWebSocketRoutes() []FSetupRoute {
 }
 
 func (s *Service) setupWebSocket(r fiber.Router) {
-	r.Get("/ws", ws.Handler(s.Hub, s.AuthSession, s.ChatService, s.GameRoomService, s.ChatService, func(ctx context.Context) string {
+	r.Get("/ws", ws.Handler(s.Hub, s.AuthSession, s.AuthzService, s.ChatService, s.GameRoomService, s.ChatService, func(ctx context.Context) string {
 		return s.SettingsService.Get(ctx, config.SettingBaseURL)
 	}))
 }

@@ -27,11 +27,16 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-X umineko_city_of_books/interna
 
 FROM alpine:latest
 
-RUN apk add --no-cache ffmpeg libwebp-tools
+RUN apk add --no-cache ffmpeg libwebp-tools \
+    && adduser -D -u 10001 app \
+    && mkdir -p /app/data \
+    && chown -R app:app /app
 
 WORKDIR /app
 
-COPY --from=builder /app/main .
+COPY --from=builder --chown=app:app /app/main .
+
+USER app
 
 EXPOSE 4323
 

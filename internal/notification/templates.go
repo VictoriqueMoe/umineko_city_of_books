@@ -47,6 +47,12 @@ type VerificationEmailData struct {
 	LinkURL  string
 }
 
+type EmailChangedEmailData struct {
+	SiteName string
+	NewEmail string
+	LinkURL  string
+}
+
 func notifEmail(actorName, action, title, linkURL, siteName string) (subject string, body string) {
 	subject = fmt.Sprintf("%s %s", actorName, action)
 
@@ -115,6 +121,23 @@ func PasswordResetEmail(siteName, linkURL string) (subject string, body string) 
 
 	var buf bytes.Buffer
 	if err := tmpl.ExecuteTemplate(&buf, "password_reset.tmpl", data); err != nil {
+		return subject, fmt.Sprintf("<p>%s</p>", subject)
+	}
+
+	return subject, buf.String()
+}
+
+func EmailChangedEmail(siteName, newEmail, linkURL string) (subject string, body string) {
+	subject = fmt.Sprintf("Your %s email address was changed", siteName)
+
+	data := EmailChangedEmailData{
+		SiteName: siteName,
+		NewEmail: newEmail,
+		LinkURL:  linkURL,
+	}
+
+	var buf bytes.Buffer
+	if err := tmpl.ExecuteTemplate(&buf, "email_changed.tmpl", data); err != nil {
 		return subject, fmt.Sprintf("<p>%s</p>", subject)
 	}
 

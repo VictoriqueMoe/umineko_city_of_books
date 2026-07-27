@@ -144,7 +144,7 @@ func (s *service) SaveImage(ctx context.Context, subDir string, id uuid.UUID, fi
 		return "", err
 	}
 
-	if s.mediaProc == nil || strings.HasSuffix(strings.ToLower(urlPath), ".webp") {
+	if s.mediaProc == nil {
 		return urlPath, nil
 	}
 

@@ -1656,7 +1656,7 @@ func TestUploadAttachment_SaveFileError(t *testing.T) {
 	m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(userID, nil)
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxGeneralSize).Return(1024 * 1024)
 	m.repo.EXPECT().GetAttachments(mock.Anything, mid).Return(nil, nil)
-	m.uploadSvc.EXPECT().SaveFile(mock.Anything, "f.txt", mock.Anything).Return("", errors.New("boom"))
+	m.uploadSvc.EXPECT().SaveFile(mock.Anything, mock.MatchedBy(isServerGeneratedTxtName), mock.Anything).Return("", errors.New("boom"))
 
 	// when
 	_, err := svc.UploadAttachment(context.Background(), mid, userID, "f.txt", 10, bytes.NewReader(nil))
@@ -1673,7 +1673,7 @@ func TestUploadAttachment_AddAttachmentError(t *testing.T) {
 	m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(userID, nil)
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxGeneralSize).Return(1024 * 1024)
 	m.repo.EXPECT().GetAttachments(mock.Anything, mid).Return(nil, nil)
-	m.uploadSvc.EXPECT().SaveFile(mock.Anything, "f.txt", mock.Anything).Return("/uploads/x", nil)
+	m.uploadSvc.EXPECT().SaveFile(mock.Anything, mock.MatchedBy(isServerGeneratedTxtName), mock.Anything).Return("/uploads/x", nil)
 	m.repo.EXPECT().AddAttachment(mock.Anything, mid, "/uploads/x", "f.txt", 10).Return(int64(0), errors.New("boom"))
 
 	// when
@@ -1691,7 +1691,7 @@ func TestUploadAttachment_OK(t *testing.T) {
 	m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(userID, nil)
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxGeneralSize).Return(1024 * 1024)
 	m.repo.EXPECT().GetAttachments(mock.Anything, mid).Return(nil, nil)
-	m.uploadSvc.EXPECT().SaveFile(mock.Anything, "f.txt", mock.Anything).Return("/uploads/x", nil)
+	m.uploadSvc.EXPECT().SaveFile(mock.Anything, mock.MatchedBy(isServerGeneratedTxtName), mock.Anything).Return("/uploads/x", nil)
 	m.repo.EXPECT().AddAttachment(mock.Anything, mid, "/uploads/x", "f.txt", 10).Return(int64(42), nil)
 
 	// when
@@ -1701,6 +1701,55 @@ func TestUploadAttachment_OK(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 42, got.ID)
 	assert.Equal(t, "/uploads/x", got.FileURL)
+}
+
+func isServerGeneratedTxtName(name string) bool {
+	if !strings.HasSuffix(name, ".txt") {
+		return false
+	}
+
+	_, err := uuid.Parse(strings.TrimSuffix(name, ".txt"))
+
+	return err == nil
+}
+
+func TestAttachmentDiskName(t *testing.T) {
+	// given
+	tests := []struct {
+		name        string
+		sniffedType string
+		wantExt     string
+		wantErr     bool
+	}{
+		{name: "pdf keeps its extension", sniffedType: "application/pdf", wantExt: ".pdf"},
+		{name: "plain text becomes txt", sniffedType: "text/plain", wantExt: ".txt"},
+		{name: "docx arrives sniffed as zip", sniffedType: "application/zip", wantExt: ".docx"},
+		{name: "html is rejected", sniffedType: "text/html", wantErr: true},
+		{name: "svg is rejected", sniffedType: "image/svg+xml", wantErr: true},
+		{name: "unrecognised binary is rejected", sniffedType: "application/octet-stream", wantErr: true},
+		{name: "empty type is rejected", sniffedType: "", wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// when
+			got, err := attachmentDiskName(tt.sniffedType)
+
+			// then
+			if tt.wantErr {
+				assert.ErrorIs(t, err, ErrAttachmentType)
+				assert.Empty(t, got)
+
+				return
+			}
+
+			require.NoError(t, err)
+			assert.True(t, strings.HasSuffix(got, tt.wantExt), "expected %q to end in %q", got, tt.wantExt)
+
+			_, parseErr := uuid.Parse(strings.TrimSuffix(got, tt.wantExt))
+			assert.NoError(t, parseErr, "expected %q to be a uuid plus extension", got)
+		})
+	}
 }
 
 func TestDeleteAttachment_MysteryNotFound(t *testing.T) {

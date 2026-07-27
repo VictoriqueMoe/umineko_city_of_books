@@ -358,28 +358,47 @@ func TestSaveThumbnail_RejectsOfflineStream(t *testing.T) {
 	// given
 	svc, m := newTestStreamService(t)
 	streamID := uuid.New()
-	m.repo.EXPECT().GetByID(mock.Anything, streamID).Return(&repository.LiveStreamRow{ID: streamID, Status: "starting"}, nil)
+	ownerID := uuid.New()
+	m.repo.EXPECT().GetByID(mock.Anything, streamID).Return(&repository.LiveStreamRow{ID: streamID, UserID: ownerID, Status: "starting"}, nil)
 
 	// when
-	err := svc.SaveThumbnail(context.Background(), streamID, 100, bytes.NewReader([]byte("x")))
+	err := svc.SaveThumbnail(context.Background(), ownerID, streamID, 100, bytes.NewReader([]byte("x")))
 
 	// then
 	require.ErrorIs(t, err, ErrStreamNotFound)
+}
+
+func TestSaveThumbnail_RejectsNonOwner(t *testing.T) {
+	// given
+	svc, m := newTestStreamService(t)
+	streamID := uuid.New()
+	ownerID := uuid.New()
+	attackerID := uuid.New()
+	m.repo.EXPECT().GetByID(mock.Anything, streamID).Return(&repository.LiveStreamRow{
+		ID: streamID, UserID: ownerID, Status: "live", ThumbnailURL: "/uploads/old.webp",
+	}, nil)
+
+	// when
+	err := svc.SaveThumbnail(context.Background(), attackerID, streamID, 100, bytes.NewReader([]byte("x")))
+
+	// then
+	require.ErrorIs(t, err, ErrNotOwner)
 }
 
 func TestSaveThumbnail_StoresAndDeletesOldThumbnail(t *testing.T) {
 	// given
 	svc, m := newTestStreamService(t)
 	streamID := uuid.New()
+	ownerID := uuid.New()
 	m.repo.EXPECT().GetByID(mock.Anything, streamID).Return(&repository.LiveStreamRow{
-		ID: streamID, Status: "live", ThumbnailURL: "/uploads/old.webp",
+		ID: streamID, UserID: ownerID, Status: "live", ThumbnailURL: "/uploads/old.webp",
 	}, nil)
 	m.upload.EXPECT().SaveImage(mock.Anything, "stream-thumbnails", streamID, int64(100), mock.Anything, mock.Anything).Return("/uploads/new.webp", nil)
 	m.repo.EXPECT().SetThumbnail(mock.Anything, streamID, "/uploads/new.webp").Return(nil)
 	m.upload.EXPECT().Delete("/uploads/old.webp").Return(nil)
 
 	// when
-	err := svc.SaveThumbnail(context.Background(), streamID, 100, bytes.NewReader([]byte("x")))
+	err := svc.SaveThumbnail(context.Background(), ownerID, streamID, 100, bytes.NewReader([]byte("x")))
 
 	// then
 	require.NoError(t, err)
@@ -389,13 +408,14 @@ func TestSaveThumbnail_ThrottlesRapidUploads(t *testing.T) {
 	// given
 	svc, m := newTestStreamService(t)
 	streamID := uuid.New()
-	m.repo.EXPECT().GetByID(mock.Anything, streamID).Return(&repository.LiveStreamRow{ID: streamID, Status: "live"}, nil).Twice()
+	ownerID := uuid.New()
+	m.repo.EXPECT().GetByID(mock.Anything, streamID).Return(&repository.LiveStreamRow{ID: streamID, UserID: ownerID, Status: "live"}, nil).Twice()
 	m.upload.EXPECT().SaveImage(mock.Anything, "stream-thumbnails", streamID, mock.Anything, mock.Anything, mock.Anything).Return("/uploads/new.webp", nil).Once()
 	m.repo.EXPECT().SetThumbnail(mock.Anything, streamID, "/uploads/new.webp").Return(nil).Once()
 
 	// when
-	err1 := svc.SaveThumbnail(context.Background(), streamID, 100, bytes.NewReader([]byte("x")))
-	err2 := svc.SaveThumbnail(context.Background(), streamID, 100, bytes.NewReader([]byte("y")))
+	err1 := svc.SaveThumbnail(context.Background(), ownerID, streamID, 100, bytes.NewReader([]byte("x")))
+	err2 := svc.SaveThumbnail(context.Background(), ownerID, streamID, 100, bytes.NewReader([]byte("y")))
 
 	// then
 	require.NoError(t, err1)

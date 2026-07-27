@@ -118,3 +118,47 @@ func TestHub_BroadcastToRoom_ExcludeSkipsAllOfThatUsersConnections(t *testing.T)
 	assert.Equal(t, 0, len(senderDesktop.send), "excluded sender's desktop should be skipped")
 	assert.Equal(t, 1, len(otherPhone.send), "other member should still receive the message")
 }
+
+func TestHub_DisconnectUser_KillsEveryConnectionOfThatUser(t *testing.T) {
+	// given
+	hub := NewHub()
+	victim := uuid.New()
+	bystander := uuid.New()
+	first := NewClient(victim, nil)
+	second := NewClient(victim, nil)
+	other := NewClient(bystander, nil)
+	hub.clients[victim] = []*Client{first, second}
+	hub.clients[bystander] = []*Client{other}
+
+	// when
+	killed := hub.DisconnectUser(victim)
+
+	// then
+	assert.Equal(t, 2, killed)
+	assert.True(t, isKilled(first), "first socket should be killed")
+	assert.True(t, isKilled(second), "second socket should be killed")
+	assert.False(t, isKilled(other), "another user's socket must be untouched")
+}
+
+func TestHub_DisconnectUser_UnknownUserIsNoOp(t *testing.T) {
+	// given
+	hub := NewHub()
+	present := NewClient(uuid.New(), nil)
+	hub.clients[present.UserID] = []*Client{present}
+
+	// when
+	killed := hub.DisconnectUser(uuid.New())
+
+	// then
+	assert.Equal(t, 0, killed)
+	assert.False(t, isKilled(present), "existing socket must survive")
+}
+
+func isKilled(c *Client) bool {
+	select {
+	case <-c.closeCh:
+		return true
+	default:
+		return false
+	}
+}

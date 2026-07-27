@@ -75,6 +75,14 @@ type (
 	}
 )
 
+var (
+	attachmentTypes = map[string]string{
+		"application/pdf": ".pdf",
+		"text/plain":      ".txt",
+		"application/zip": ".docx",
+	}
+)
+
 func NewService(
 	mysteryRepo repository.MysteryRepository,
 	userRepo repository.UserRepository,
@@ -1060,8 +1068,18 @@ func (s *service) UploadAttachment(ctx context.Context, mysteryID uuid.UUID, use
 		}
 	}
 
+	sniffedType, wrapped, err := upload.DetectContentType(reader)
+	if err != nil {
+		return nil, fmt.Errorf("detect attachment type: %w", err)
+	}
+
+	diskName, err := attachmentDiskName(sniffedType)
+	if err != nil {
+		return nil, err
+	}
+
 	subDir := "mystery-attachments/" + mysteryID.String()
-	urlPath, err := s.uploadSvc.SaveFile(subDir, fileName, reader)
+	urlPath, err := s.uploadSvc.SaveFile(subDir, diskName, wrapped)
 	if err != nil {
 		return nil, err
 	}
@@ -1309,4 +1327,13 @@ func mysteryCommentToResponse(c repository.CommentRow, media []model.PostMediaRo
 		CreatedAt: c.CreatedAt,
 		UpdatedAt: c.UpdatedAt,
 	}
+}
+
+func attachmentDiskName(sniffedType string) (string, error) {
+	ext, ok := attachmentTypes[sniffedType]
+	if !ok {
+		return "", ErrAttachmentType
+	}
+
+	return uuid.New().String() + ext, nil
 }

@@ -273,6 +273,69 @@ func (_c *MockSessionRepository_DeleteAllForUser_Call) RunAndReturn(run func(ctx
 	return _c
 }
 
+// DeleteAllForUserExcept provides a mock function for the type MockSessionRepository
+func (_mock *MockSessionRepository) DeleteAllForUserExcept(ctx context.Context, userID uuid.UUID, keepToken string) error {
+	ret := _mock.Called(ctx, userID, keepToken)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteAllForUserExcept")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) error); ok {
+		r0 = returnFunc(ctx, userID, keepToken)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockSessionRepository_DeleteAllForUserExcept_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteAllForUserExcept'
+type MockSessionRepository_DeleteAllForUserExcept_Call struct {
+	*mock.Call
+}
+
+// DeleteAllForUserExcept is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+//   - keepToken string
+func (_e *MockSessionRepository_Expecter) DeleteAllForUserExcept(ctx any, userID any, keepToken any) *MockSessionRepository_DeleteAllForUserExcept_Call {
+	return &MockSessionRepository_DeleteAllForUserExcept_Call{Call: _e.mock.On("DeleteAllForUserExcept", ctx, userID, keepToken)}
+}
+
+func (_c *MockSessionRepository_DeleteAllForUserExcept_Call) Run(run func(ctx context.Context, userID uuid.UUID, keepToken string)) *MockSessionRepository_DeleteAllForUserExcept_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockSessionRepository_DeleteAllForUserExcept_Call) Return(err error) *MockSessionRepository_DeleteAllForUserExcept_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockSessionRepository_DeleteAllForUserExcept_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, keepToken string) error) *MockSessionRepository_DeleteAllForUserExcept_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetUserID provides a mock function for the type MockSessionRepository
 func (_mock *MockSessionRepository) GetUserID(ctx context.Context, token string) (uuid.UUID, time.Time, error) {
 	ret := _mock.Called(ctx, token)

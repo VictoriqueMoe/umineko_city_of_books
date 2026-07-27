@@ -10,7 +10,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func sessionToken(ctx fiber.Ctx) string {
+func SessionToken(ctx fiber.Ctx) string {
 	if bearer := session.BearerToken(ctx.Get("Authorization")); bearer != "" {
 		return bearer
 	}
@@ -88,7 +88,7 @@ func RequirePermission(mgr *session.Manager, authzSvc authz.Service, perm authz.
 
 func OptionalAuth(mgr *session.Manager, authzSvc authz.Service) fiber.Handler {
 	return func(ctx fiber.Ctx) error {
-		token := sessionToken(ctx)
+		token := SessionToken(ctx)
 		if token == "" {
 			ctx.Locals("userID", uuid.Nil)
 			return ctx.Next()
@@ -127,7 +127,7 @@ func RequireAuth(mgr *session.Manager, authzSvc authz.Service) fiber.Handler {
 // failure it writes the appropriate response and returns ok=false; callers
 // must then `return nil` so fiber does not run subsequent handlers.
 func authenticateAndCheckBan(ctx fiber.Ctx, mgr *session.Manager, authzSvc authz.Service) (uuid.UUID, string, bool) {
-	token := sessionToken(ctx)
+	token := SessionToken(ctx)
 	if token == "" {
 		_ = ctx.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "authentication required",

@@ -16,6 +16,7 @@ import (
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/repository/model"
 	"umineko_city_of_books/internal/role"
+	"umineko_city_of_books/internal/session"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/upload"
 
@@ -41,7 +42,7 @@ func newTestService(t *testing.T) (
 	uploadSvc := upload.NewMockService(t)
 	settingsSvc := settings.NewMockService(t)
 	authSvc := auth.NewMockService(t)
-	svc := NewService(userRepo, userSecretRepo, theoryRepo, authzSvc, uploadSvc, settingsSvc, contentfilter.New(), nil, authSvc).(*service)
+	svc := NewService(userRepo, userSecretRepo, theoryRepo, authzSvc, uploadSvc, settingsSvc, contentfilter.New(), nil, authSvc, nil).(*service)
 	return svc, userRepo, theoryRepo, authzSvc, uploadSvc, settingsSvc
 }
 
@@ -305,7 +306,7 @@ func TestUpdateProfile_EmailChangeTriggersReverification(t *testing.T) {
 	expected.DefaultProfileTab = "posts"
 	expected.Email = "new@example.com"
 	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, Email: "old@example.com"}, nil)
-	svc.authService.(*auth.MockService).EXPECT().SetEmail(mock.Anything, userID, "new@example.com").Return(nil)
+	svc.authService.(*auth.MockService).EXPECT().SetEmail(mock.Anything, userID, "new@example.com", "").Return(nil)
 	userRepo.EXPECT().UpdateProfile(mock.Anything, userID, expected).Return(nil)
 
 	// when
@@ -331,7 +332,7 @@ func TestUpdateProfile_UnchangedEmailSkipsReverification(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	svc.authService.(*auth.MockService).AssertNotCalled(t, "SetEmail", mock.Anything, mock.Anything, mock.Anything)
+	svc.authService.(*auth.MockService).AssertNotCalled(t, "SetEmail", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 }
 
 func TestUpdateProfile_EmailTakenIsTranslated(t *testing.T) {
@@ -340,7 +341,7 @@ func TestUpdateProfile_EmailTakenIsTranslated(t *testing.T) {
 	userID := uuid.New()
 	req := dto.UpdateProfileRequest{DisplayName: "New Name", Email: "taken@example.com"}
 	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, Email: "old@example.com"}, nil)
-	svc.authService.(*auth.MockService).EXPECT().SetEmail(mock.Anything, userID, "taken@example.com").Return(auth.ErrEmailTaken)
+	svc.authService.(*auth.MockService).EXPECT().SetEmail(mock.Anything, userID, "taken@example.com", "").Return(auth.ErrEmailTaken)
 
 	// when
 	err := svc.UpdateProfile(context.Background(), userID, req)
@@ -459,7 +460,7 @@ func TestChangePassword_TooShort(t *testing.T) {
 	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMinPasswordLength).Return(8)
 
 	// when
-	err := svc.ChangePassword(context.Background(), userID, dto.ChangePasswordRequest{OldPassword: "old", NewPassword: "short"})
+	err := svc.ChangePassword(context.Background(), userID, "tok", dto.ChangePasswordRequest{OldPassword: "old", NewPassword: "short"})
 
 	// then
 	require.ErrorIs(t, err, ErrPasswordTooShort)
@@ -473,7 +474,7 @@ func TestChangePassword_MinLenZeroSkipsValidation(t *testing.T) {
 	userRepo.EXPECT().ChangePassword(mock.Anything, userID, "old", "x").Return(nil)
 
 	// when
-	err := svc.ChangePassword(context.Background(), userID, dto.ChangePasswordRequest{OldPassword: "old", NewPassword: "x"})
+	err := svc.ChangePassword(context.Background(), userID, "tok", dto.ChangePasswordRequest{OldPassword: "old", NewPassword: "x"})
 
 	// then
 	require.NoError(t, err)
@@ -487,10 +488,45 @@ func TestChangePassword_OK(t *testing.T) {
 	userRepo.EXPECT().ChangePassword(mock.Anything, userID, "oldpass", "newpass").Return(nil)
 
 	// when
-	err := svc.ChangePassword(context.Background(), userID, dto.ChangePasswordRequest{OldPassword: "oldpass", NewPassword: "newpass"})
+	err := svc.ChangePassword(context.Background(), userID, "tok", dto.ChangePasswordRequest{OldPassword: "oldpass", NewPassword: "newpass"})
 
 	// then
 	require.NoError(t, err)
+}
+
+func TestChangePassword_RevokesOtherSessionsKeepingCurrent(t *testing.T) {
+	// given
+	svc, userRepo, _, _, _, settingsSvc := newTestService(t)
+	sessionRepo := repository.NewMockSessionRepository(t)
+	svc.session = session.NewManager(sessionRepo, settingsSvc)
+	userID := uuid.New()
+	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMinPasswordLength).Return(4)
+	userRepo.EXPECT().ChangePassword(mock.Anything, userID, "oldpass", "newpass").Return(nil)
+	sessionRepo.EXPECT().DeleteAllForUserExcept(mock.Anything, userID, "current-token").Return(nil)
+
+	// when
+	err := svc.ChangePassword(context.Background(), userID, "current-token", dto.ChangePasswordRequest{OldPassword: "oldpass", NewPassword: "newpass"})
+
+	// then
+	require.NoError(t, err)
+	sessionRepo.AssertNotCalled(t, "DeleteAllForUser", mock.Anything, mock.Anything)
+}
+
+func TestChangePassword_DoesNotRevokeWhenChangeFails(t *testing.T) {
+	// given
+	svc, userRepo, _, _, _, settingsSvc := newTestService(t)
+	sessionRepo := repository.NewMockSessionRepository(t)
+	svc.session = session.NewManager(sessionRepo, settingsSvc)
+	userID := uuid.New()
+	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMinPasswordLength).Return(4)
+	userRepo.EXPECT().ChangePassword(mock.Anything, userID, "oldpass", "newpass").Return(errors.New("wrong old"))
+
+	// when
+	err := svc.ChangePassword(context.Background(), userID, "current-token", dto.ChangePasswordRequest{OldPassword: "oldpass", NewPassword: "newpass"})
+
+	// then
+	require.Error(t, err)
+	sessionRepo.AssertNotCalled(t, "DeleteAllForUserExcept", mock.Anything, mock.Anything, mock.Anything)
 }
 
 func TestChangePassword_RepoError(t *testing.T) {
@@ -501,7 +537,7 @@ func TestChangePassword_RepoError(t *testing.T) {
 	userRepo.EXPECT().ChangePassword(mock.Anything, userID, "oldpass", "newpass").Return(errors.New("wrong old"))
 
 	// when
-	err := svc.ChangePassword(context.Background(), userID, dto.ChangePasswordRequest{OldPassword: "oldpass", NewPassword: "newpass"})
+	err := svc.ChangePassword(context.Background(), userID, "tok", dto.ChangePasswordRequest{OldPassword: "oldpass", NewPassword: "newpass"})
 
 	// then
 	require.Error(t, err)

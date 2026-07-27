@@ -57,8 +57,9 @@ type (
 )
 
 const (
-	batchSize     = 100
-	flushInterval = 5 * time.Second
+	batchSize         = 100
+	flushInterval     = 5 * time.Second
+	glitchtipMinLevel = zerolog.WarnLevel
 )
 
 func newGlitchtipShipper(dsn string) (*glitchtipShipper, error) {
@@ -131,6 +132,10 @@ func (s *glitchtipShipper) Write(p []byte) (int, error) {
 }
 
 func (s *glitchtipShipper) WriteLevel(level zerolog.Level, p []byte) (int, error) {
+	if level < glitchtipMinLevel {
+		return len(p), nil
+	}
+
 	var parsed map[string]interface{}
 	if err := json.Unmarshal(p, &parsed); err != nil {
 		return len(p), nil

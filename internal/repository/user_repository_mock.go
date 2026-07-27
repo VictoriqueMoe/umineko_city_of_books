@@ -2513,3 +2513,75 @@ func (_c *MockUserRepository_ValidatePassword_Call) RunAndReturn(run func(ctx co
 	_c.Call.Return(run)
 	return _c
 }
+
+// VerifyPassword provides a mock function for the type MockUserRepository
+func (_mock *MockUserRepository) VerifyPassword(ctx context.Context, userID uuid.UUID, password string) (bool, error) {
+	ret := _mock.Called(ctx, userID, password)
+
+	if len(ret) == 0 {
+		panic("no return value specified for VerifyPassword")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) (bool, error)); ok {
+		return returnFunc(ctx, userID, password)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) bool); ok {
+		r0 = returnFunc(ctx, userID, password)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string) error); ok {
+		r1 = returnFunc(ctx, userID, password)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockUserRepository_VerifyPassword_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'VerifyPassword'
+type MockUserRepository_VerifyPassword_Call struct {
+	*mock.Call
+}
+
+// VerifyPassword is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+//   - password string
+func (_e *MockUserRepository_Expecter) VerifyPassword(ctx any, userID any, password any) *MockUserRepository_VerifyPassword_Call {
+	return &MockUserRepository_VerifyPassword_Call{Call: _e.mock.On("VerifyPassword", ctx, userID, password)}
+}
+
+func (_c *MockUserRepository_VerifyPassword_Call) Run(run func(ctx context.Context, userID uuid.UUID, password string)) *MockUserRepository_VerifyPassword_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockUserRepository_VerifyPassword_Call) Return(b bool, err error) *MockUserRepository_VerifyPassword_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *MockUserRepository_VerifyPassword_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, password string) (bool, error)) *MockUserRepository_VerifyPassword_Call {
+	_c.Call.Return(run)
+	return _c
+}

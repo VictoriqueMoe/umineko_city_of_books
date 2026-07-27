@@ -13,6 +13,7 @@ type (
 		GetUserID(ctx context.Context, token string) (uuid.UUID, time.Time, error)
 		Delete(ctx context.Context, token string) error
 		DeleteAllForUser(ctx context.Context, userID uuid.UUID) error
+		DeleteAllForUserExcept(ctx context.Context, userID uuid.UUID, keepToken string) error
 		CleanExpired(ctx context.Context) error
 	}
 )
@@ -39,6 +40,10 @@ func (r *sessionRepository) Delete(ctx context.Context, token string) error {
 
 func (r *sessionRepository) DeleteAllForUser(ctx context.Context, userID uuid.UUID) error {
 	return r.dao.DeleteAllForUser(ctx, userID)
+}
+
+func (r *sessionRepository) DeleteAllForUserExcept(ctx context.Context, userID uuid.UUID, keepToken string) error {
+	return r.dao.DeleteAllForUserExcept(ctx, userID, keepToken)
 }
 
 func (r *sessionRepository) CleanExpired(ctx context.Context) error {

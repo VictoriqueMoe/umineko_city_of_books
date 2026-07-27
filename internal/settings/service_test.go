@@ -533,3 +533,87 @@ func TestSubscribe_NonBatchListenerDoesNotReceiveBatch(t *testing.T) {
 	assert.Len(t, plain.snapshot(), 1)
 	assert.Equal(t, 1, batch.batchCount())
 }
+
+func TestSet_RejectsValueThatDoesNotMatchSettingType(t *testing.T) {
+	tests := []struct {
+		name    string
+		setting *config.SiteSettingDef
+		value   string
+		wantErr string
+	}{
+		{
+			name:    "text in a numeric setting",
+			setting: config.SettingMaxChatRoomMembers,
+			value:   "abc",
+			wantErr: "must be a whole number",
+		},
+		{
+			name:    "cleared numeric setting",
+			setting: config.SettingMaxChatRoomMembers,
+			value:   "",
+			wantErr: "must be a whole number",
+		},
+		{
+			name:    "yes in a boolean setting",
+			setting: config.SettingDMsEnabled,
+			value:   "yes",
+			wantErr: "must be true or false",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given
+			svc, repo := newTestService(t)
+			primeValidCache(repo)
+			updatedBy := uuid.New()
+
+			// when
+			err := svc.Set(context.Background(), tt.setting, tt.value, updatedBy)
+
+			// then
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.wantErr)
+		})
+	}
+}
+
+func TestSet_RegisteredValidatorBlocksWrite(t *testing.T) {
+	// given
+	svc, repo := newTestService(t)
+	primeValidCache(repo)
+	updatedBy := uuid.New()
+
+	svc.RegisterValidator(config.SettingValkeyURL, func(_ context.Context, _ string) error {
+		return errors.New("cannot reach valkey")
+	})
+
+	// when
+	err := svc.Set(context.Background(), config.SettingValkeyURL, "redis://nothing-here:6379", updatedBy)
+
+	// then
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "cannot reach valkey")
+}
+
+func TestSet_ValidatorSkippedWhenValueUnchanged(t *testing.T) {
+	// given
+	svc, repo := newTestService(t)
+	primeValidCache(repo)
+	updatedBy := uuid.New()
+
+	ran := false
+	svc.RegisterValidator(config.SettingValkeyURL, func(_ context.Context, _ string) error {
+		ran = true
+		return errors.New("should not run")
+	})
+
+	repo.EXPECT().Set(mock.Anything, string(config.SettingValkeyURL.Key), config.SettingValkeyURL.Default, updatedBy).Return(nil)
+
+	// when
+	err := svc.Set(context.Background(), config.SettingValkeyURL, config.SettingValkeyURL.Default, updatedBy)
+
+	// then
+	require.NoError(t, err)
+	assert.False(t, ran)
+}

@@ -79,6 +79,28 @@ func TestSessionDAO_DeleteAllForUser(t *testing.T) {
 	assert.NoError(t, errC)
 }
 
+func TestSessionDAO_DeleteAllForUserExcept(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	user := daotest.CreateUser(t, repos)
+	other := daotest.CreateUser(t, repos)
+	current := daotest.CreateSession(t, repos, user.ID)
+	stale := daotest.CreateSession(t, repos, user.ID)
+	foreign := daotest.CreateSession(t, repos, other.ID)
+
+	// when
+	err := repos.Session.DeleteAllForUserExcept(context.Background(), user.ID, current)
+
+	// then
+	require.NoError(t, err)
+	_, _, currentErr := repos.Session.GetUserID(context.Background(), current)
+	_, _, staleErr := repos.Session.GetUserID(context.Background(), stale)
+	_, _, foreignErr := repos.Session.GetUserID(context.Background(), foreign)
+	assert.NoError(t, currentErr)
+	assert.Error(t, staleErr)
+	assert.NoError(t, foreignErr)
+}
+
 func TestSessionDAO_CleanExpired(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)

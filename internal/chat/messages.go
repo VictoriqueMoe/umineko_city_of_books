@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
@@ -96,7 +97,9 @@ func (m *messagesService) GetMessages(ctx context.Context, userID, roomID uuid.U
 		return nil, ErrNotMember
 	}
 
-	rows, total, err := m.chatRepo.GetMessages(ctx, roomID, limit, offset)
+	page := bounds.NewPage(limit, offset)
+
+	rows, total, err := m.chatRepo.GetMessages(ctx, roomID, page.Limit(), page.Offset())
 	if err != nil {
 		return nil, fmt.Errorf("get messages: %w", err)
 	}
@@ -104,8 +107,8 @@ func (m *messagesService) GetMessages(ctx context.Context, userID, roomID uuid.U
 	return &dto.ChatMessageListResponse{
 		Messages: m.hydrateMessageRows(ctx, userID, rows),
 		Total:    total,
-		Limit:    limit,
-		Offset:   offset,
+		Limit:    page.Limit(),
+		Offset:   page.Offset(),
 	}, nil
 }
 

@@ -33,6 +33,7 @@ type (
 		ChangePassword(ctx context.Context, userID uuid.UUID, oldPassword, newPassword string) error
 		SetPassword(ctx context.Context, userID uuid.UUID, newPassword string) error
 		SetEmail(ctx context.Context, userID uuid.UUID, email string) error
+		VerifyPassword(ctx context.Context, userID uuid.UUID, password string) (bool, error)
 		MarkEmailVerified(ctx context.Context, userID uuid.UUID) error
 		EmailInUse(ctx context.Context, email string, excludeUserID uuid.UUID) (bool, error)
 		RequiresEmailVerification(ctx context.Context, userID uuid.UUID) (bool, error)
@@ -151,6 +152,10 @@ func (r *userRepository) SetPassword(ctx context.Context, userID uuid.UUID, newP
 
 func (r *userRepository) SetEmail(ctx context.Context, userID uuid.UUID, email string) error {
 	return r.dao.SetEmail(ctx, userID, email)
+}
+
+func (r *userRepository) VerifyPassword(ctx context.Context, userID uuid.UUID, password string) (bool, error) {
+	return r.dao.VerifyPassword(ctx, userID, password)
 }
 
 func (r *userRepository) MarkEmailVerified(ctx context.Context, userID uuid.UUID) error {

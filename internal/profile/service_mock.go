@@ -42,16 +42,16 @@ func (_m *MockService) EXPECT() *MockService_Expecter {
 }
 
 // ChangePassword provides a mock function for the type MockService
-func (_mock *MockService) ChangePassword(ctx context.Context, userID uuid.UUID, req dto.ChangePasswordRequest) error {
-	ret := _mock.Called(ctx, userID, req)
+func (_mock *MockService) ChangePassword(ctx context.Context, userID uuid.UUID, currentToken string, req dto.ChangePasswordRequest) error {
+	ret := _mock.Called(ctx, userID, currentToken, req)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ChangePassword")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, dto.ChangePasswordRequest) error); ok {
-		r0 = returnFunc(ctx, userID, req)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, dto.ChangePasswordRequest) error); ok {
+		r0 = returnFunc(ctx, userID, currentToken, req)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -66,12 +66,13 @@ type MockService_ChangePassword_Call struct {
 // ChangePassword is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
+//   - currentToken string
 //   - req dto.ChangePasswordRequest
-func (_e *MockService_Expecter) ChangePassword(ctx any, userID any, req any) *MockService_ChangePassword_Call {
-	return &MockService_ChangePassword_Call{Call: _e.mock.On("ChangePassword", ctx, userID, req)}
+func (_e *MockService_Expecter) ChangePassword(ctx any, userID any, currentToken any, req any) *MockService_ChangePassword_Call {
+	return &MockService_ChangePassword_Call{Call: _e.mock.On("ChangePassword", ctx, userID, currentToken, req)}
 }
 
-func (_c *MockService_ChangePassword_Call) Run(run func(ctx context.Context, userID uuid.UUID, req dto.ChangePasswordRequest)) *MockService_ChangePassword_Call {
+func (_c *MockService_ChangePassword_Call) Run(run func(ctx context.Context, userID uuid.UUID, currentToken string, req dto.ChangePasswordRequest)) *MockService_ChangePassword_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -81,14 +82,19 @@ func (_c *MockService_ChangePassword_Call) Run(run func(ctx context.Context, use
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
-		var arg2 dto.ChangePasswordRequest
+		var arg2 string
 		if args[2] != nil {
-			arg2 = args[2].(dto.ChangePasswordRequest)
+			arg2 = args[2].(string)
+		}
+		var arg3 dto.ChangePasswordRequest
+		if args[3] != nil {
+			arg3 = args[3].(dto.ChangePasswordRequest)
 		}
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3,
 		)
 	})
 	return _c
@@ -99,7 +105,7 @@ func (_c *MockService_ChangePassword_Call) Return(err error) *MockService_Change
 	return _c
 }
 
-func (_c *MockService_ChangePassword_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, req dto.ChangePasswordRequest) error) *MockService_ChangePassword_Call {
+func (_c *MockService_ChangePassword_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, currentToken string, req dto.ChangePasswordRequest) error) *MockService_ChangePassword_Call {
 	_c.Call.Return(run)
 	return _c
 }

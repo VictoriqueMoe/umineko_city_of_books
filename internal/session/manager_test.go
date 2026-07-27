@@ -192,3 +192,105 @@ func TestDeleteAllForUser_RepoError(t *testing.T) {
 	// then
 	require.Error(t, err)
 }
+
+func TestDeleteAllForUserExcept_Delegates(t *testing.T) {
+	// given
+	mgr, repo, _ := newTestManager(t)
+	userID := uuid.New()
+	repo.EXPECT().DeleteAllForUserExcept(mock.Anything, userID, "keep-me").Return(nil)
+
+	// when
+	err := mgr.DeleteAllForUserExcept(context.Background(), userID, "keep-me")
+
+	// then
+	require.NoError(t, err)
+	repo.AssertNotCalled(t, "DeleteAllForUser", mock.Anything, mock.Anything)
+}
+
+func TestDeleteAllForUserExcept_EmptyTokenRevokesEverything(t *testing.T) {
+	// given
+	mgr, repo, _ := newTestManager(t)
+	userID := uuid.New()
+	repo.EXPECT().DeleteAllForUser(mock.Anything, userID).Return(nil)
+
+	// when
+	err := mgr.DeleteAllForUserExcept(context.Background(), userID, "")
+
+	// then
+	require.NoError(t, err)
+	repo.AssertNotCalled(t, "DeleteAllForUserExcept", mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestDeleteAllForUserExcept_RepoError(t *testing.T) {
+	// given
+	mgr, repo, _ := newTestManager(t)
+	userID := uuid.New()
+	repo.EXPECT().DeleteAllForUserExcept(mock.Anything, userID, "keep-me").Return(errors.New("boom"))
+
+	// when
+	err := mgr.DeleteAllForUserExcept(context.Background(), userID, "keep-me")
+
+	// then
+	require.Error(t, err)
+}
+
+func TestDeleteAllForUser_DisconnectsSockets(t *testing.T) {
+	// given
+	mgr, repo, _ := newTestManager(t)
+	d := NewMockDisconnector(t)
+	mgr.SetDisconnector(d)
+	userID := uuid.New()
+	repo.EXPECT().DeleteAllForUser(mock.Anything, userID).Return(nil)
+	d.EXPECT().DisconnectUser(userID).Return(2).Once()
+
+	// when
+	err := mgr.DeleteAllForUser(context.Background(), userID)
+
+	// then
+	require.NoError(t, err)
+}
+
+func TestDeleteAllForUserExcept_DisconnectsSockets(t *testing.T) {
+	// given
+	mgr, repo, _ := newTestManager(t)
+	d := NewMockDisconnector(t)
+	mgr.SetDisconnector(d)
+	userID := uuid.New()
+	repo.EXPECT().DeleteAllForUserExcept(mock.Anything, userID, "keep-me").Return(nil)
+	d.EXPECT().DisconnectUser(userID).Return(1).Once()
+
+	// when
+	err := mgr.DeleteAllForUserExcept(context.Background(), userID, "keep-me")
+
+	// then
+	require.NoError(t, err)
+}
+
+func TestDeleteAllForUser_DoesNotDisconnectWhenRevocationFails(t *testing.T) {
+	// given
+	mgr, repo, _ := newTestManager(t)
+	d := NewMockDisconnector(t)
+	mgr.SetDisconnector(d)
+	userID := uuid.New()
+	repo.EXPECT().DeleteAllForUser(mock.Anything, userID).Return(errors.New("boom"))
+
+	// when
+	err := mgr.DeleteAllForUser(context.Background(), userID)
+
+	// then
+	require.Error(t, err)
+	d.AssertNotCalled(t, "DisconnectUser", mock.Anything)
+}
+
+func TestDeleteAllForUser_NoDisconnectorIsSafe(t *testing.T) {
+	// given
+	mgr, repo, _ := newTestManager(t)
+	userID := uuid.New()
+	repo.EXPECT().DeleteAllForUser(mock.Anything, userID).Return(nil)
+
+	// when
+	err := mgr.DeleteAllForUser(context.Background(), userID)
+
+	// then
+	require.NoError(t, err)
+}

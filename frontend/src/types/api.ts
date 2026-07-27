@@ -212,6 +212,7 @@ export interface UpdateProfilePayload {
     dob: string;
     dob_public: boolean;
     email: string;
+    email_password?: string;
     email_public: boolean;
     email_notifications: boolean;
     play_message_sound: boolean;

@@ -429,6 +429,12 @@ func handleAdminError(ctx fiber.Ctx, err error) error {
 	if errors.Is(err, admin.ErrProtectedUser) {
 		return utils.Forbidden(ctx, "this user cannot be modified")
 	}
+	if errors.Is(err, admin.ErrUnknownRole) {
+		return utils.BadRequest(ctx, "unknown role")
+	}
+	if errors.Is(err, admin.ErrRoleOutranksActor) {
+		return utils.Forbidden(ctx, "cannot grant a role equal to or above your own")
+	}
 	if errors.Is(err, admin.ErrVanityRoleNotFound) {
 		return utils.NotFound(ctx, "vanity role not found")
 	}
