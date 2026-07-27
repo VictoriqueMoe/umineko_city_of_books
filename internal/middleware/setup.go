@@ -178,10 +178,8 @@ func Setup(app *fiber.App, settingsSvc settings.Service, sessionMgr *session.Man
 }
 
 func redactedQueryString(ctx fiber.Ctx) string {
-	args := ctx.RequestCtx().QueryArgs()
-
 	var b strings.Builder
-	args.VisitAll(func(key, value []byte) {
+	for key, value := range ctx.RequestCtx().QueryArgs().All() {
 		if b.Len() > 0 {
 			b.WriteByte('&')
 		}
@@ -190,12 +188,11 @@ func redactedQueryString(ctx fiber.Ctx) string {
 		b.WriteByte('=')
 		if redactedQueryKeys[strings.ToLower(string(key))] {
 			b.WriteString("<redacted>")
-
-			return
+			continue
 		}
 
 		b.Write(value)
-	})
+	}
 
 	return b.String()
 }
