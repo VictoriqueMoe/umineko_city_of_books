@@ -26,13 +26,13 @@ export function useChatMessageHandlers({
     onError,
     editLastBlocked = false,
 }: UseChatMessageHandlersOptions): UseChatMessageHandlersResult {
-    const deleteMessageMutation = useDeleteChatMessage();
-    const editMessageMutation = useEditChatMessage();
+    const { mutateAsync: deleteMessage } = useDeleteChatMessage();
+    const { mutateAsync: editMessage } = useEditChatMessage();
 
     const handleDeleteMessage = useCallback(
         async (message: ChatMessage) => {
             try {
-                await deleteMessageMutation.mutateAsync(message.id);
+                await deleteMessage(message.id);
                 setMessages(prev => prev.filter(m => m.id !== message.id));
             } catch (err) {
                 if (onError) {
@@ -40,13 +40,13 @@ export function useChatMessageHandlers({
                 }
             }
         },
-        [setMessages, onError, deleteMessageMutation],
+        [setMessages, onError, deleteMessage],
     );
 
     const handleEditMessage = useCallback(
         async (message: ChatMessage, newBody: string) => {
             try {
-                const updated = await editMessageMutation.mutateAsync({ messageId: message.id, body: newBody });
+                const updated = await editMessage({ messageId: message.id, body: newBody });
                 applyChatMessageEdited(updated, setMessages);
             } catch (err) {
                 if (onError) {
@@ -55,7 +55,7 @@ export function useChatMessageHandlers({
                 throw err;
             }
         },
-        [setMessages, onError, editMessageMutation],
+        [setMessages, onError, editMessage],
     );
 
     const handleEditLast = useCallback(() => {

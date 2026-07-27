@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router";
 import { useAuth } from "../../hooks/useAuth";
 import { useNotifications } from "../../hooks/useNotifications";
@@ -7,10 +8,17 @@ import { useMessageHistory } from "../../hooks/useMessageHistory";
 import { useChatMessageHandlers } from "../../hooks/useChatMessageHandlers";
 import { useBlockedUserIds } from "../../hooks/useBlockedUserIds";
 import { MessageBubble } from "../../components/chat/MessageBubble/MessageBubble";
-import { ChatComposer, type ReplyTarget } from "../../components/chat/ChatComposer/ChatComposer";
+import { Lightbox } from "../../components/Lightbox/Lightbox";
+import {
+    ChatComposer,
+    type ChatComposerHandle,
+    type ReplyTarget,
+} from "../../components/chat/ChatComposer/ChatComposer";
 import { handleIncomingChatMessage, applySharedChatWSBranch } from "../../utils/chatStream";
 import type { ChatMessage, UserProfile, WSMessage } from "../../types/api";
 import styles from "./live.module.css";
+
+const MAX_LIVE_MESSAGES = 50;
 
 export function StreamChatPanel({ streamId, isLive }: { streamId: string; isLive: boolean }) {
     const { user } = useAuth();
@@ -36,6 +44,8 @@ function StreamChatPanelInner({ streamId, user, isLive }: { streamId: string; us
     const [joinError, setJoinError] = useState(false);
     const [replyingTo, setReplyingTo] = useState<ReplyTarget | null>(null);
     const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+    const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+    const composerRef = useRef<ChatComposerHandle>(null);
 
     useEffect(() => {
         if (!isLive) {
@@ -59,8 +69,18 @@ function StreamChatPanelInner({ streamId, user, isLive }: { streamId: string; us
     }, [streamId, isLive]);
 
     const roomId = isLive && joined ? streamId : undefined;
-    const { messages, setMessages, containerRef, contentRef, endRef, scrollToBottomInstant, handleScroll, addMessage } =
-        useMessageHistory(roomId);
+    const {
+        messages,
+        setMessages,
+        hasMore,
+        loadingMore,
+        containerRef,
+        contentRef,
+        endRef,
+        scrollToBottomInstant,
+        handleScroll,
+        addMessage,
+    } = useMessageHistory(roomId, editingMessageId === null ? MAX_LIVE_MESSAGES : undefined);
 
     const { handleEditMessage } = useChatMessageHandlers({
         user,
@@ -84,18 +104,38 @@ function StreamChatPanelInner({ streamId, user, isLive }: { streamId: string; us
         });
     }, [joined, isLive, streamId, addWSListener, setMessages, scrollToBottomInstant]);
 
-    function handleSent(message: ChatMessage) {
-        addMessage(message);
-        scrollToBottomInstant({ force: true });
-    }
+    const handleSent = useCallback(
+        (message: ChatMessage) => {
+            addMessage(message);
+            scrollToBottomInstant({ force: true });
+        },
+        [addMessage, scrollToBottomInstant],
+    );
 
-    function handleReply(message: ChatMessage) {
+    const handleReply = useCallback((message: ChatMessage) => {
         setReplyingTo({
             id: message.id,
             senderName: message.sender.display_name || message.sender.username,
             bodyPreview: message.body.slice(0, 140),
         });
-    }
+    }, []);
+
+    const handleEditStart = useCallback((message: ChatMessage) => {
+        setEditingMessageId(message.id);
+    }, []);
+
+    const handleEditCancel = useCallback(() => {
+        setEditingMessageId(null);
+        composerRef.current?.focus();
+    }, []);
+
+    const handleCancelReply = useCallback(() => {
+        setReplyingTo(null);
+    }, []);
+
+    const handleLightboxClose = useCallback(() => {
+        setLightboxSrc(null);
+    }, []);
 
     return (
         <div className={styles.chatPanel}>
@@ -104,16 +144,22 @@ function StreamChatPanelInner({ streamId, user, isLive }: { streamId: string; us
                 <div ref={contentRef} className={styles.chatContent}>
                     {isLive && joinError && <div className={styles.chatNotice}>Couldn't join the chat.</div>}
                     {isLive && !joined && !joinError && <div className={styles.chatNotice}>Joining chat...</div>}
+                    {hasMore && (
+                        <div className={styles.chatNotice}>
+                            {loadingMore ? "Loading older messages..." : "Scroll up for more"}
+                        </div>
+                    )}
                     {messages.map(m => (
                         <MessageBubble
                             key={m.id}
                             message={m}
                             isOwn={m.sender.id === user.id}
                             senderBlocked={blockedIDs.has(m.sender.id)}
+                            onLightbox={setLightboxSrc}
                             onReply={handleReply}
                             onEdit={handleEditMessage}
-                            onEditStart={msg => setEditingMessageId(msg.id)}
-                            onEditCancel={() => setEditingMessageId(null)}
+                            onEditStart={handleEditStart}
+                            onEditCancel={handleEditCancel}
                             editing={editingMessageId === m.id}
                         />
                     ))}
@@ -122,16 +168,18 @@ function StreamChatPanelInner({ streamId, user, isLive }: { streamId: string; us
             </div>
             {isLive && joined && (
                 <ChatComposer
+                    ref={composerRef}
                     roomId={streamId}
                     draftRecipientId={null}
                     onSent={handleSent}
                     replyingTo={replyingTo}
-                    onCancelReply={() => setReplyingTo(null)}
+                    onCancelReply={handleCancelReply}
                     sendOnEnter
                     compact
                 />
             )}
             {!isLive && <div className={styles.chatEnded}>Chat is closed while the stream is offline.</div>}
+            {lightboxSrc && createPortal(<Lightbox src={lightboxSrc} onClose={handleLightboxClose} />, document.body)}
         </div>
     );
 }

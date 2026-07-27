@@ -21,6 +21,7 @@ import (
 var rulesSettings = map[string]*config.SiteSettingDef{
 	"theories":             config.SettingRulesTheories,
 	"theories_higurashi":   config.SettingRulesTheoriesHigurashi,
+	"theories_ciconia":     config.SettingRulesTheoriesCiconia,
 	"mysteries":            config.SettingRulesMysteries,
 	"ships":                config.SettingRulesShips,
 	"game_board":           config.SettingRulesGameBoard,

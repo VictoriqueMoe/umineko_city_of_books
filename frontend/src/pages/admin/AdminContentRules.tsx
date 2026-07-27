@@ -11,6 +11,7 @@ const pages = [
     { key: "rules_landing", label: "Welcome (Landing)" },
     { key: "rules_theories", label: "Theories (Umineko)" },
     { key: "rules_theories_higurashi", label: "Theories (Higurashi)" },
+    { key: "rules_theories_ciconia", label: "Theories (Ciconia)" },
     { key: "rules_mysteries", label: "Mysteries" },
     { key: "rules_ships", label: "Ships" },
     { key: "rules_fanfiction", label: "Fanfiction" },

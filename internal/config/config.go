@@ -96,6 +96,7 @@ var (
 	SettingTurnstileSecretKey      = &SiteSettingDef{"turnstile_secret_key", "", TypeString}
 	SettingRulesTheories           = &SiteSettingDef{"rules_theories", "", TypeString}
 	SettingRulesTheoriesHigurashi  = &SiteSettingDef{"rules_theories_higurashi", "", TypeString}
+	SettingRulesTheoriesCiconia    = &SiteSettingDef{"rules_theories_ciconia", "", TypeString}
 	SettingRulesMysteries          = &SiteSettingDef{"rules_mysteries", "", TypeString}
 	SettingRulesShips              = &SiteSettingDef{"rules_ships", "", TypeString}
 	SettingRulesGameBoard          = &SiteSettingDef{"rules_game_board", "", TypeString}
@@ -172,6 +173,7 @@ var (
 		SettingTurnstileSecretKey,
 		SettingRulesTheories,
 		SettingRulesTheoriesHigurashi,
+		SettingRulesTheoriesCiconia,
 		SettingRulesMysteries,
 		SettingRulesShips,
 		SettingRulesGameBoard,

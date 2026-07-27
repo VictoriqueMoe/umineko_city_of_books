@@ -24,7 +24,7 @@ interface RoomState {
     hasMore: boolean;
 }
 
-export function useMessageHistory(roomId: string | undefined) {
+export function useMessageHistory(roomId: string | undefined, maxMessages?: number) {
     const [state, setState] = useState<RoomState>({ roomId, messages: [], hasMore: false });
     const [loadingMore, setLoadingMore] = useState(false);
     const loadingMoreRef = useRef(false);
@@ -176,17 +176,35 @@ export function useMessageHistory(roomId: string | undefined) {
         };
     }, [roomId]);
 
-    const setMessages: Dispatch<SetStateAction<ChatMessage[]>> = useCallback(updater => {
-        setState(prev => {
-            const base = prev.roomId === currentRoomIdRef.current ? prev.messages : [];
-            const next = typeof updater === "function" ? updater(base) : updater;
-            return {
-                roomId: currentRoomIdRef.current,
-                messages: next,
-                hasMore: prev.roomId === currentRoomIdRef.current ? prev.hasMore : false,
-            };
-        });
-    }, []);
+    const setMessages: Dispatch<SetStateAction<ChatMessage[]>> = useCallback(
+        updater => {
+            setState(prev => {
+                const sameRoom = prev.roomId === currentRoomIdRef.current;
+                const base = sameRoom ? prev.messages : [];
+                const next = typeof updater === "function" ? updater(base) : updater;
+
+                const canTrim =
+                    maxMessages !== undefined &&
+                    next.length > maxMessages &&
+                    isAtBottomRef.current &&
+                    !suppressScrollToBottom.current;
+                if (canTrim) {
+                    return {
+                        roomId: currentRoomIdRef.current,
+                        messages: next.slice(next.length - maxMessages),
+                        hasMore: true,
+                    };
+                }
+
+                return {
+                    roomId: currentRoomIdRef.current,
+                    messages: next,
+                    hasMore: sameRoom ? prev.hasMore : false,
+                };
+            });
+        },
+        [maxMessages],
+    );
 
     const setHasMore = useCallback((value: boolean) => {
         setState(prev => ({ ...prev, hasMore: value }));

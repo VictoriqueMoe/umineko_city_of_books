@@ -78,7 +78,7 @@ export function FeedPage({ series = "umineko" }: { series?: Series }) {
     return (
         <div>
             <h1 className={styles.pageTitle}>{cfg.label} Theories</h1>
-            <RulesBox page={series === "higurashi" ? "theories_higurashi" : "theories"} />
+            <RulesBox page={cfg.theoriesRulesPage} />
             <div className={styles.controls}>
                 <Input
                     type="text"
