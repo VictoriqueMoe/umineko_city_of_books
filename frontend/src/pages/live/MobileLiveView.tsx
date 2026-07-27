@@ -111,7 +111,6 @@ export function MobileLiveView({
                 ) : room ? (
                     <RoomContext.Provider value={room}>
                         <StreamStage />
-                        <ViewerCountReporter onChange={setViewerCount} />
                         <RoomAudioRenderer volume={isOwnStream ? 0 : volume} />
                         {!isOwnStream && (
                             <>
@@ -221,6 +220,7 @@ export function MobileLiveView({
                 <div className={tab === "viewers" ? styles.mobilePane : styles.mobilePaneHidden}>
                     {isLive && room ? (
                         <RoomContext.Provider value={room}>
+                            <ViewerCountReporter onChange={setViewerCount} />
                             <div className={styles.mobileViewers}>
                                 <StreamViewers />
                             </div>

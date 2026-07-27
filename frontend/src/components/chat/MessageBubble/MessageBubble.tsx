@@ -1,4 +1,4 @@
-import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ChatMessage, ReactionGroup, User } from "../../../types/api";
 import { ProfileLink } from "../../ProfileLink/ProfileLink";
 import { RolePill } from "../../RolePill/RolePill";
@@ -198,7 +198,13 @@ function MessageBubbleBase({
         classes.push(styles.messagePinned);
     }
 
-    const effectiveSender = applySenderOverrides(message);
+    const effectiveSender = useMemo(() => applySenderOverrides(message), [message]);
+    const richBody = useMemo(() => renderRich(message.body), [message.body]);
+    const gifURL = useMemo(() => extractGif(message.body), [message.body]);
+    const youtubeIds = useMemo(() => extractYouTubeIDs(message.body), [message.body]);
+    const createdFull = useMemo(() => formatFullDateTime(message.created_at), [message.created_at]);
+    const editedFull = useMemo(() => formatFullDateTime(message.edited_at), [message.edited_at]);
+    const createdShort = formatMessageTime(message.created_at);
 
     function handlePick(emoji: string) {
         setPickerOpen(false);
@@ -208,9 +214,9 @@ function MessageBubbleBase({
     if (isSystemMessage) {
         return (
             <div id={`chat-msg-${message.id}`} className={classes.join(" ")}>
-                <div className={styles.systemMessageText}>{renderRich(message.body)}</div>
-                <div className={styles.systemMessageTime} title={formatFullDateTime(message.created_at)}>
-                    {formatMessageTime(message.created_at)}
+                <div className={styles.systemMessageText}>{richBody}</div>
+                <div className={styles.systemMessageTime} title={createdFull}>
+                    {createdShort}
                 </div>
             </div>
         );
@@ -264,7 +270,6 @@ function MessageBubbleBase({
                     />
                 ) : (
                     (() => {
-                        const gifURL = extractGif(message.body);
                         if (gifURL) {
                             return (
                                 <GifEmbed
@@ -274,12 +279,9 @@ function MessageBubbleBase({
                                 />
                             );
                         }
-                        const youtubeIds = extractYouTubeIDs(message.body);
                         return (
                             <>
-                                {message.body.trim() && (
-                                    <div className={styles.messageText}>{renderRich(message.body)}</div>
-                                )}
+                                {message.body.trim() && <div className={styles.messageText}>{richBody}</div>}
                                 {youtubeIds.length > 0 && <YouTubeEmbed videoIds={youtubeIds} />}
                             </>
                         );
@@ -362,10 +364,10 @@ function MessageBubbleBase({
                         })}
                     </div>
                 )}
-                <div className={styles.messageTime} title={formatFullDateTime(message.created_at)}>
-                    {formatMessageTime(message.created_at)}
+                <div className={styles.messageTime} title={createdFull}>
+                    {createdShort}
                     {message.edited_at && (
-                        <span className={styles.editedLabel} title={`Edited ${formatFullDateTime(message.edited_at)}`}>
+                        <span className={styles.editedLabel} title={`Edited ${editedFull}`}>
                             {" "}
                             (edited)
                         </span>

@@ -1,9 +1,13 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import type { User } from "../../types/api";
 import { fetchSearchUsers } from "../../api/queries/misc";
 import { COLOUR_CLASS, type ColourTag, colourRegex } from "../../utils/colours";
 import { Butterfly } from "../Butterfly/Butterfly";
 import styles from "./MentionTextArea.module.css";
+
+export interface MentionTextAreaHandle {
+    focus: () => void;
+}
 
 interface MentionTextAreaProps {
     value: string;
@@ -15,6 +19,7 @@ interface MentionTextAreaProps {
     mentionPool?: User[];
     showColours?: boolean;
     colourBarOpen?: boolean;
+    ref?: React.Ref<MentionTextAreaHandle>;
 }
 
 const COLOUR_BUTTONS: { tag: ColourTag; label: string; swatch: string }[] = [
@@ -28,6 +33,9 @@ const COLOUR_BUTTONS: { tag: ColourTag; label: string; swatch: string }[] = [
 
 const PARTICLE_COUNT = 6;
 const PARTICLE_LIFETIME_MS = 900;
+
+const SUPPORTS_FIELD_SIZING =
+    typeof CSS !== "undefined" && typeof CSS.supports === "function" && CSS.supports("field-sizing", "content");
 
 interface Particle {
     id: number;
@@ -111,17 +119,42 @@ export function MentionTextArea({
     mentionPool,
     showColours,
     colourBarOpen = true,
+    ref,
 }: MentionTextAreaProps) {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const backdropRef = useRef<HTMLDivElement>(null);
+    const lastHeightRef = useRef("");
+
+    useImperativeHandle(
+        ref,
+        () => ({
+            focus: () => {
+                textareaRef.current?.focus();
+            },
+        }),
+        [],
+    );
 
     useEffect(() => {
+        if (SUPPORTS_FIELD_SIZING) {
+            return;
+        }
         const ta = textareaRef.current;
         if (!ta) {
             return;
         }
+
+        const previous = ta.style.height;
         ta.style.height = "auto";
-        ta.style.height = `${ta.scrollHeight}px`;
+        const next = `${ta.scrollHeight}px`;
+
+        if (next === lastHeightRef.current) {
+            ta.style.height = previous;
+            return;
+        }
+
+        lastHeightRef.current = next;
+        ta.style.height = next;
     }, [value]);
     const [suggestions, setSuggestions] = useState<SearchResult[]>([]);
     const [showDropdown, setShowDropdown] = useState(false);
@@ -329,6 +362,7 @@ export function MentionTextArea({
                 <textarea
                     ref={textareaRef}
                     className={`${styles.textarea} ${className || ""}`}
+                    style={{ "--rows": rows } as React.CSSProperties}
                     value={value}
                     onChange={e => onChange(e.target.value)}
                     onKeyDown={handleKeyDown}

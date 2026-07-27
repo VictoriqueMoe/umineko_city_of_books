@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { Button } from "../../Button/Button";
 import { MediaPickerButton, MediaPreviews } from "../../MediaPicker/MediaPicker";
-import { MentionTextArea } from "../../MentionTextArea/MentionTextArea";
+import { MentionTextArea, type MentionTextAreaHandle } from "../../MentionTextArea/MentionTextArea";
 import { useSendChatMessage, useSendFirstDMMessage } from "../../../api/mutations/chat";
 import { ApiError } from "../../../api/client";
 import { useSiteInfo } from "../../../hooks/useSiteInfo";
@@ -17,6 +17,10 @@ export interface ReplyTarget {
     bodyPreview: string;
 }
 
+export interface ChatComposerHandle {
+    focus: () => void;
+}
+
 interface ChatComposerProps {
     roomId: string | null;
     draftRecipientId: string | null;
@@ -30,6 +34,7 @@ interface ChatComposerProps {
     extraActions?: React.ReactNode;
     sendOnEnter?: boolean;
     compact?: boolean;
+    ref?: React.Ref<ChatComposerHandle>;
 }
 
 function formatSendError(err: unknown): string {
@@ -72,7 +77,20 @@ export function ChatComposer({
     extraActions,
     sendOnEnter = true,
     compact = false,
+    ref,
 }: ChatComposerProps) {
+    const inputRef = useRef<MentionTextAreaHandle>(null);
+
+    useImperativeHandle(
+        ref,
+        () => ({
+            focus: () => {
+                inputRef.current?.focus();
+            },
+        }),
+        [],
+    );
+
     const [, setTimeoutTick] = useState(0);
     const [toolbarOpen, setToolbarOpen] = useState(false);
     const timedOut = isTimeoutActive(timeoutUntil);
@@ -101,6 +119,14 @@ export function ChatComposer({
     }, [timeoutUntil]);
     const [gifPickerOpen, setGifPickerOpen] = useState(false);
     const lastTypingSentRef = useRef(0);
+
+    const replyTargetId = replyingTo?.id ?? null;
+    useEffect(() => {
+        if (!replyTargetId) {
+            return;
+        }
+        inputRef.current?.focus();
+    }, [replyTargetId]);
 
     const handleBodyChange = useCallback(
         (value: string) => {
@@ -288,6 +314,7 @@ export function ChatComposer({
             )}
             <div className={styles.textareaWrapper} onKeyDown={handleKeyDown}>
                 <MentionTextArea
+                    ref={inputRef}
                     placeholder={placeholder}
                     value={body}
                     onChange={handleBodyChange}

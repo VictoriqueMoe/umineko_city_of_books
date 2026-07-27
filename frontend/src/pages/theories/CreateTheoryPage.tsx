@@ -6,6 +6,7 @@ import type { Series } from "../../api/endpoints";
 import { useCreateTheory } from "../../api/mutations/theory";
 import { TheoryForm } from "../../components/theory/TheoryForm/TheoryForm";
 import { RulesBox } from "../../components/RulesBox/RulesBox";
+import { getSeriesConfig } from "../../utils/seriesConfig";
 import formStyles from "../../components/theory/TheoryForm/TheoryForm.module.css";
 
 export function CreateTheoryPage({ series = "umineko" }: { series?: Series }) {
@@ -27,7 +28,7 @@ export function CreateTheoryPage({ series = "umineko" }: { series?: Series }) {
     return (
         <div className={formStyles.page}>
             <h2 className={formStyles.heading}>Declare Your Blue Truth</h2>
-            <RulesBox page={series === "higurashi" ? "theories_higurashi" : "theories"} />
+            <RulesBox page={getSeriesConfig(series).theoriesRulesPage} />
 
             <TheoryForm
                 submitLabel="Declare Blue Truth"

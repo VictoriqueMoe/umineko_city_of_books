@@ -68,6 +68,7 @@ const (
 	roomPrefix           = "live_"
 	broadcasterPrefix    = "broadcaster_"
 	viewerPrefix         = "viewer_"
+	monitorPrefix        = "monitor_"
 	hlsRoutePrefix       = "/hls"
 	hlsVideoReadAttempts = 6
 	hlsVideoReadInterval = 2 * time.Second
@@ -657,7 +658,12 @@ func (s *service) MintViewerToken(ctx context.Context, streamID uuid.UUID, viewe
 		return "", "", ErrStreamNotFound
 	}
 
-	identity := viewerPrefix + uuid.NewString()
+	prefix := viewerPrefix
+	if viewer != nil && viewer.UserID == stream.UserID {
+		prefix = monitorPrefix
+	}
+
+	identity := prefix + uuid.NewString()
 	name, metadata := viewerNameAndMetadata(viewer)
 
 	token, err := s.livekitSvc.MintViewerToken(stream.LivekitRoom, identity, name, metadata)
@@ -715,6 +721,7 @@ func (s *service) HandleWebhook(ctx context.Context, authHeader string, body []b
 	}
 
 	isBroadcaster := strings.HasPrefix(event.Identity, broadcasterPrefix)
+	isMonitor := strings.HasPrefix(event.Identity, monitorPrefix)
 
 	switch event.Type {
 	case livekit.EventParticipantJoined:
@@ -724,7 +731,7 @@ func (s *service) HandleWebhook(ctx context.Context, authHeader string, body []b
 			}
 
 			s.broadcastLive(ctx, stream.ID)
-		} else {
+		} else if !isMonitor {
 			s.adjustViewers(ctx, stream.ID, 1)
 		}
 
@@ -736,7 +743,7 @@ func (s *service) HandleWebhook(ctx context.Context, authHeader string, body []b
 	case livekit.EventParticipantLeft:
 		if isBroadcaster {
 			s.teardown(ctx, stream)
-		} else {
+		} else if !isMonitor {
 			s.adjustViewers(ctx, stream.ID, -1)
 		}
 

@@ -74,27 +74,34 @@ export function shortRelativeTime(dateStr: string | null | undefined): string {
     return `${months}mo`;
 }
 
+const TIME_FORMAT = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" });
+const SHORT_DATE_FORMAT = new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short" });
+const SHORT_DATE_YEAR_FORMAT = new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short", year: "numeric" });
+
+function isSameLocalDay(a: Date, b: Date): boolean {
+    return a.getDate() === b.getDate() && a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear();
+}
+
 export function formatMessageTime(dateStr: string | null | undefined): string {
     const d = parseServerDate(dateStr);
     if (!d) {
         return "";
     }
-    const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+    const time = TIME_FORMAT.format(d);
     const now = new Date();
-    if (d.toDateString() === now.toDateString()) {
+    if (isSameLocalDay(d, now)) {
         return time;
     }
+
     const yesterday = new Date(now);
     yesterday.setDate(now.getDate() - 1);
-    if (d.toDateString() === yesterday.toDateString()) {
+    if (isSameLocalDay(d, yesterday)) {
         return `Yesterday ${time}`;
     }
+
     const sameYear = d.getFullYear() === now.getFullYear();
-    const datePart = d.toLocaleDateString([], {
-        day: "numeric",
-        month: "short",
-        year: sameYear ? undefined : "numeric",
-    });
+    const datePart = sameYear ? SHORT_DATE_FORMAT.format(d) : SHORT_DATE_YEAR_FORMAT.format(d);
     return `${datePart} ${time}`;
 }
 

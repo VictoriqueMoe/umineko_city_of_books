@@ -22,6 +22,7 @@ interface SeriesConfig {
     chapters?: ArcOption[];
     theoriesPath: string;
     newTheoryPath: string;
+    theoriesRulesPage: string;
     label: string;
     languages: LangOption[];
 }
@@ -52,6 +53,7 @@ const configs: Record<Series, SeriesConfig> = {
         episodeCount: 8,
         theoriesPath: "/theories",
         newTheoryPath: "/theory/new",
+        theoriesRulesPage: "theories",
         label: "Umineko",
         languages: [
             { value: "en", label: "English" },
@@ -94,6 +96,7 @@ const configs: Record<Series, SeriesConfig> = {
         ],
         theoriesPath: "/theories/higurashi",
         newTheoryPath: "/theory/higurashi/new",
+        theoriesRulesPage: "theories_higurashi",
         label: "Higurashi",
         languages: [
             { value: "en", label: "English" },
@@ -111,6 +114,7 @@ const configs: Record<Series, SeriesConfig> = {
         chapters: buildCiconiaChapters(),
         theoriesPath: "/theories/ciconia",
         newTheoryPath: "/theory/ciconia/new",
+        theoriesRulesPage: "theories_ciconia",
         label: "Ciconia",
         languages: [
             { value: "en", label: "English" },

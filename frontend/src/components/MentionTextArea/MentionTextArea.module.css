@@ -136,6 +136,8 @@
     resize: none;
     overflow-y: auto;
     max-height: 50vh;
+    field-sizing: content;
+    min-height: calc(var(--rows, 1) * 1.5em + 1.5rem + 2px);
     transition: border-color 0.2s var(--ease-out);
 }
 
