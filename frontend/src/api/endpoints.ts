@@ -191,8 +191,8 @@ export async function register(
     });
 }
 
-export async function setEmail(email: string): Promise<void> {
-    await apiPost<unknown, { email: string }>("/auth/set-email", { email });
+export async function setEmail(email: string, password: string): Promise<void> {
+    await apiPost<unknown, { email: string; password: string }>("/auth/set-email", { email, password });
 }
 
 export async function verifyEmail(token: string): Promise<void> {

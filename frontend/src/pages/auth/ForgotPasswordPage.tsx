@@ -27,7 +27,7 @@ export function ForgotPasswordPage() {
     const turnstileEnabled = siteInfo.turnstile_enabled;
     const turnstileSiteKey = siteInfo.turnstile_site_key;
 
-    async function handleSubmit(e: React.FormEvent) {
+    async function handleSubmit(e: React.SubmitEvent) {
         e.preventDefault();
         setError("");
         setSuccess("");

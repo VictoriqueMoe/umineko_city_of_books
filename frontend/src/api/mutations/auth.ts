@@ -82,7 +82,7 @@ export function useChangePassword() {
 export function useSetEmail() {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: (email: string) => setEmail(email),
+        mutationFn: (payload: { email: string; password: string }) => setEmail(payload.email, payload.password),
         onSuccess: () => qc.invalidateQueries({ queryKey: ["auth", "me"] }),
     });
 }
