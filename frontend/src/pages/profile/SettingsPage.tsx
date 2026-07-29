@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router";
-import { useAuth } from "../../hooks/useAuth";
+import { useAuthedUser } from "../../hooks/useAuthedUser";
 import { useSettingsForm } from "../../hooks/useSettingsForm";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { Button } from "../../components/Button/Button";
@@ -112,20 +111,9 @@ function BannerSection({ form }: { form: ReturnType<typeof useSettingsForm> }) {
 
 export function SettingsPage() {
     usePageTitle("Settings");
-    const navigate = useNavigate();
-    const { user, loading: authLoading } = useAuth();
+    const user = useAuthedUser();
     const form = useSettingsForm();
-    const ocSummaries = useUserOCSummaries(user?.id ?? "", user?.id);
-
-    useEffect(() => {
-        if (!authLoading && !user) {
-            navigate("/login");
-        }
-    }, [user, authLoading, navigate]);
-
-    if (!user) {
-        return null;
-    }
+    const ocSummaries = useUserOCSummaries(user.id, user.id);
 
     if (form.profileLoading) {
         return <div className="loading">Loading settings...</div>;

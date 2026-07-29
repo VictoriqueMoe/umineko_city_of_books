@@ -772,9 +772,9 @@ func TestUpdateSettings_OK(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	actor := uuid.New()
-	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingRulesPage).Return("").Maybe()
+	m.settingsSvc.EXPECT().GetAll(mock.Anything).Return(map[config.SiteSettingKey]string{"site_name": "old"})
 	m.settingsSvc.EXPECT().SetMultiple(mock.Anything, mock.Anything, actor).Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, actor, "update_settings", "settings", "", "").Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, actor, "update_settings", "settings", "site_name", mock.Anything).Return(nil)
 
 	// when
 	err := svc.UpdateSettings(context.Background(), actor, map[string]string{"site_name": "umineko"})
@@ -787,7 +787,7 @@ func TestUpdateSettings_Error(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	actor := uuid.New()
-	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingRulesPage).Return("").Maybe()
+	m.settingsSvc.EXPECT().GetAll(mock.Anything).Return(map[config.SiteSettingKey]string{})
 	m.settingsSvc.EXPECT().SetMultiple(mock.Anything, mock.Anything, actor).Return(errors.New("boom"))
 
 	// when
@@ -795,6 +795,126 @@ func TestUpdateSettings_Error(t *testing.T) {
 
 	// then
 	require.Error(t, err)
+}
+
+func TestGetSettings_MasksSecrets(t *testing.T) {
+	tests := []struct {
+		name   string
+		key    config.SiteSettingKey
+		stored string
+		want   string
+	}{
+		{name: "smtp password is masked", key: config.SettingSMTPPassword.Key, stored: "hunter2", want: config.SecretMask},
+		{name: "livekit api secret is masked", key: config.SettingLiveKitAPISecret.Key, stored: "lk-secret", want: config.SecretMask},
+		{name: "cloudflare api token is masked", key: config.SettingCloudflareAPIToken.Key, stored: "cf-token", want: config.SecretMask},
+		{name: "turnstile secret key is masked", key: config.SettingTurnstileSecretKey.Key, stored: "ts-secret", want: config.SecretMask},
+		{name: "sentry dsn is masked", key: config.SettingSentryDSN.Key, stored: "https://abc@sentry.example/1", want: config.SecretMask},
+		{name: "valkey url is masked", key: config.SettingValkeyURL.Key, stored: "redis://user:pw@valkey:6379", want: config.SecretMask},
+		{name: "unset secret stays empty", key: config.SettingSMTPPassword.Key, stored: "", want: ""},
+		{name: "site name is returned verbatim", key: config.SettingSiteName.Key, stored: "City of Books", want: "City of Books"},
+		{name: "smtp username is returned verbatim", key: config.SettingSMTPUsername.Key, stored: "postmaster", want: "postmaster"},
+		{name: "livekit api key is returned verbatim", key: config.SettingLiveKitAPIKey.Key, stored: "lk-key", want: "lk-key"},
+		{name: "turnstile site key is returned verbatim", key: config.SettingTurnstileSiteKey.Key, stored: "ts-site", want: "ts-site"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			m.settingsSvc.EXPECT().GetAll(mock.Anything).Return(map[config.SiteSettingKey]string{tc.key: tc.stored})
+
+			// when
+			got, err := svc.GetSettings(context.Background())
+
+			// then
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, got.Settings[string(tc.key)])
+		})
+	}
+}
+
+func TestUpdateSettings_SecretsAndAudit(t *testing.T) {
+	tests := []struct {
+		name         string
+		stored       map[config.SiteSettingKey]string
+		submitted    map[string]string
+		wantStored   map[config.SiteSettingKey]string
+		wantTargetID string
+	}{
+		{
+			name:         "masked secret is left untouched",
+			stored:       map[config.SiteSettingKey]string{"smtp_password": "hunter2", "site_name": "old"},
+			submitted:    map[string]string{"smtp_password": config.SecretMask, "site_name": "new"},
+			wantStored:   map[config.SiteSettingKey]string{"site_name": "new"},
+			wantTargetID: "site_name",
+		},
+		{
+			name:         "real secret value replaces the stored one",
+			stored:       map[config.SiteSettingKey]string{"smtp_password": "hunter2"},
+			submitted:    map[string]string{"smtp_password": "correct-horse"},
+			wantStored:   map[config.SiteSettingKey]string{"smtp_password": "correct-horse"},
+			wantTargetID: "smtp_password",
+		},
+		{
+			name:         "mask on a non secret setting is stored verbatim",
+			stored:       map[config.SiteSettingKey]string{"site_name": "old"},
+			submitted:    map[string]string{"site_name": config.SecretMask},
+			wantStored:   map[config.SiteSettingKey]string{"site_name": config.SecretMask},
+			wantTargetID: "site_name",
+		},
+		{
+			name:         "audit names every changed key in order",
+			stored:       map[config.SiteSettingKey]string{"site_name": "old", "smtp_host": "mail", "base_url": "http://a"},
+			submitted:    map[string]string{"site_name": "new", "smtp_host": "mail", "base_url": "http://b"},
+			wantStored:   map[config.SiteSettingKey]string{"site_name": "new", "smtp_host": "mail", "base_url": "http://b"},
+			wantTargetID: "base_url,site_name",
+		},
+		{
+			name:         "unchanged submission names no keys",
+			stored:       map[config.SiteSettingKey]string{"site_name": "old"},
+			submitted:    map[string]string{"site_name": "old"},
+			wantStored:   map[config.SiteSettingKey]string{"site_name": "old"},
+			wantTargetID: "",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			actor := uuid.New()
+			m.settingsSvc.EXPECT().GetAll(mock.Anything).Return(tc.stored)
+			m.settingsSvc.EXPECT().SetMultiple(mock.Anything, tc.wantStored, actor).Return(nil)
+			m.auditRepo.EXPECT().Create(mock.Anything, actor, "update_settings", "settings", tc.wantTargetID, mock.Anything).Return(nil)
+
+			// when
+			err := svc.UpdateSettings(context.Background(), actor, tc.submitted)
+
+			// then
+			require.NoError(t, err)
+		})
+	}
+}
+
+func TestUpdateSettings_AuditDetailsHideValues(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	actor := uuid.New()
+	var gotDetails string
+	m.settingsSvc.EXPECT().GetAll(mock.Anything).Return(map[config.SiteSettingKey]string{"smtp_password": "hunter2"})
+	m.settingsSvc.EXPECT().SetMultiple(mock.Anything, mock.Anything, actor).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, actor, "update_settings", "settings", "smtp_password", mock.Anything).
+		Run(func(_ context.Context, _ uuid.UUID, _, _, _, details string) { gotDetails = details }).
+		Return(nil)
+
+	// when
+	err := svc.UpdateSettings(context.Background(), actor, map[string]string{"smtp_password": "correct-horse"})
+
+	// then
+	require.NoError(t, err)
+	assert.NotEmpty(t, gotDetails)
+	assert.NotContains(t, gotDetails, "hunter2")
+	assert.NotContains(t, gotDetails, "correct-horse")
 }
 
 func TestSendTestEmail_OK(t *testing.T) {

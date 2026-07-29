@@ -10,6 +10,7 @@ import (
 	"time"
 
 	authzsvc "umineko_city_of_books/internal/authz"
+	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/session"
 	settingssvc "umineko_city_of_books/internal/settings"
@@ -108,6 +109,7 @@ func NewHarness(t *testing.T) *Harness {
 	authzService := authzsvc.NewMockService(t)
 
 	settingsService.EXPECT().GetInt(mock.Anything, mock.Anything).Return(30).Maybe()
+	settingsService.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("").Maybe()
 
 	mgr := session.NewManager(sessionRepo, settingsService)
 

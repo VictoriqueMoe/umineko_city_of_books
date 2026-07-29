@@ -1,11 +1,15 @@
 package media
 
 import (
+	"errors"
 	"io"
+	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"regexp"
 	"strings"
+	"syscall"
 	"time"
 
 	"golang.org/x/net/html"
@@ -27,6 +31,17 @@ type (
 var (
 	urlRegex = regexp.MustCompile(`https?://[^\s<>"]+`)
 	ytRegex  = regexp.MustCompile(`^https?://(?:[a-z0-9-]+\.)*(?:youtube\.com/(?:watch\?v=|embed/|shorts/)|youtu\.be/)([a-zA-Z0-9_-]{11})`)
+
+	errBlockedAddress = errors.New("media: refusing to dial non-public address")
+
+	previewTransport = &http.Transport{
+		DialContext: (&net.Dialer{
+			Control: blockNonPublicAddress,
+		}).DialContext,
+		ForceAttemptHTTP2: true,
+		MaxIdleConns:      100,
+		IdleConnTimeout:   90 * time.Second,
+	}
 )
 
 func ExtractURLs(body string) []string {
@@ -65,6 +80,39 @@ func extractYouTubeID(rawURL string) string {
 	return matches[1]
 }
 
+func blockNonPublicAddress(_, address string, _ syscall.RawConn) error {
+	addrPort, err := netip.ParseAddrPort(address)
+	if err != nil {
+		return errBlockedAddress
+	}
+
+	if !isPublicAddr(addrPort.Addr()) {
+		return errBlockedAddress
+	}
+
+	return nil
+}
+
+func isPublicAddr(addr netip.Addr) bool {
+	addr = addr.Unmap()
+
+	if !addr.IsValid() {
+		return false
+	}
+
+	switch {
+	case addr.IsLoopback(),
+		addr.IsPrivate(),
+		addr.IsUnspecified(),
+		addr.IsLinkLocalUnicast(),
+		addr.IsLinkLocalMulticast(),
+		addr.IsMulticast():
+		return false
+	}
+
+	return true
+}
+
 func fetchOGTags(rawURL string) map[string]string {
 	parsed, err := url.Parse(rawURL)
 	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") {
@@ -72,7 +120,8 @@ func fetchOGTags(rawURL string) map[string]string {
 	}
 
 	client := &http.Client{
-		Timeout: 5 * time.Second,
+		Timeout:   5 * time.Second,
+		Transport: previewTransport,
 		CheckRedirect: func(_ *http.Request, via []*http.Request) error {
 			if len(via) >= 3 {
 				return http.ErrUseLastResponse

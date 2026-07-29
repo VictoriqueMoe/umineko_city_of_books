@@ -706,6 +706,69 @@ func (_c *MockService_ParseWebhook_Call) RunAndReturn(run func(authHeader string
 	return _c
 }
 
+// RemoveParticipant provides a mock function for the type MockService
+func (_mock *MockService) RemoveParticipant(ctx context.Context, roomName string, identity string) error {
+	ret := _mock.Called(ctx, roomName, identity)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RemoveParticipant")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
+		r0 = returnFunc(ctx, roomName, identity)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_RemoveParticipant_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RemoveParticipant'
+type MockService_RemoveParticipant_Call struct {
+	*mock.Call
+}
+
+// RemoveParticipant is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roomName string
+//   - identity string
+func (_e *MockService_Expecter) RemoveParticipant(ctx any, roomName any, identity any) *MockService_RemoveParticipant_Call {
+	return &MockService_RemoveParticipant_Call{Call: _e.mock.On("RemoveParticipant", ctx, roomName, identity)}
+}
+
+func (_c *MockService_RemoveParticipant_Call) Run(run func(ctx context.Context, roomName string, identity string)) *MockService_RemoveParticipant_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_RemoveParticipant_Call) Return(err error) *MockService_RemoveParticipant_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_RemoveParticipant_Call) RunAndReturn(run func(ctx context.Context, roomName string, identity string) error) *MockService_RemoveParticipant_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SetCanPublish provides a mock function for the type MockService
 func (_mock *MockService) SetCanPublish(ctx context.Context, roomName string, identity string, canMic bool, canScreen bool) error {
 	ret := _mock.Called(ctx, roomName, identity, canMic, canScreen)

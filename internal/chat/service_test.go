@@ -859,6 +859,7 @@ func TestLeaveRoom_OK(t *testing.T) {
 	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, userID).Return(&repository.ChatRoomRow{ID: roomID, IsMember: true, ViewerRole: "member"}, nil)
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return([]uuid.UUID{userID}, nil)
 	m.chatRepo.EXPECT().RemoveMember(mock.Anything, roomID, userID).Return(nil)
+	expectEvictionSideEffects(m, roomID)
 	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, mock.Anything, roomID, userID, mock.Anything).Return(errors.New("boom"))
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(sampleUser(userID), nil)
 
@@ -1030,6 +1031,7 @@ func TestKickMember_OK(t *testing.T) {
 	m.authzSvc.EXPECT().GetRole(mock.Anything, targetID).Return("", nil)
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return([]uuid.UUID{hostID, targetID}, nil)
 	m.chatRepo.EXPECT().RemoveMember(mock.Anything, roomID, targetID).Return(nil)
+	expectEvictionSideEffects(m, roomID)
 	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, mock.Anything, roomID, hostID, mock.Anything).Return(errors.New("boom"))
 
 	// when
@@ -2171,6 +2173,7 @@ func TestDeleteChat_DM_CountError(t *testing.T) {
 	userID := uuid.New()
 	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, userID).Return(&repository.ChatRoomRow{IsMember: true, Type: "dm"}, nil)
 	m.chatRepo.EXPECT().RemoveMember(mock.Anything, roomID, userID).Return(nil)
+	expectEvictionSideEffects(m, roomID)
 	m.chatRepo.EXPECT().CountRoomMembers(mock.Anything, roomID).Return(0, errors.New("boom"))
 
 	// when
@@ -2187,6 +2190,7 @@ func TestDeleteChat_DM_LastMemberDeletesRoom(t *testing.T) {
 	userID := uuid.New()
 	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, userID).Return(&repository.ChatRoomRow{IsMember: true, Type: "dm"}, nil)
 	m.chatRepo.EXPECT().RemoveMember(mock.Anything, roomID, userID).Return(nil)
+	expectEvictionSideEffects(m, roomID)
 	m.chatRepo.EXPECT().CountRoomMembers(mock.Anything, roomID).Return(0, nil)
 	m.chatRepo.EXPECT().DeleteMessages(mock.Anything, roomID).Return(nil)
 	m.chatRepo.EXPECT().DeleteRoom(mock.Anything, roomID).Return(nil)
@@ -2205,6 +2209,7 @@ func TestDeleteChat_DM_StillHasMembers(t *testing.T) {
 	userID := uuid.New()
 	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, userID).Return(&repository.ChatRoomRow{IsMember: true, Type: "dm"}, nil)
 	m.chatRepo.EXPECT().RemoveMember(mock.Anything, roomID, userID).Return(nil)
+	expectEvictionSideEffects(m, roomID)
 	m.chatRepo.EXPECT().CountRoomMembers(mock.Anything, roomID).Return(1, nil)
 
 	// when
@@ -3605,6 +3610,7 @@ func TestKickMember_SiteMod_OK(t *testing.T) {
 	m.authzSvc.EXPECT().GetRole(mock.Anything, targetID).Return("", nil)
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return([]uuid.UUID{actorID, targetID}, nil)
 	m.chatRepo.EXPECT().RemoveMember(mock.Anything, roomID, targetID).Return(nil)
+	expectEvictionSideEffects(m, roomID)
 	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, mock.Anything, roomID, actorID, mock.Anything).Return(errors.New("boom"))
 
 	// when
@@ -3935,6 +3941,7 @@ func TestLeaveRoom_Ghost_Silent(t *testing.T) {
 	m.chatRepo.EXPECT().HasGhostMembers(mock.Anything, roomID).Return(true, nil).Once()
 	m.chatRepo.EXPECT().IsGhostMember(mock.Anything, roomID, userID).Return(true, nil).Once()
 	m.chatRepo.EXPECT().RemoveMember(mock.Anything, roomID, userID).Return(nil)
+	expectEvictionSideEffects(m, roomID)
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(sampleUser(userID), nil)
 	m.authzSvc.EXPECT().GetRole(mock.Anything, userID).Return("", nil).Maybe()
 

@@ -43,6 +43,8 @@ func (s *Service) registerDeviceToken(ctx fiber.Ctx) error {
 }
 
 func (s *Service) unregisterDeviceToken(ctx fiber.Ctx) error {
+	userID := utils.UserID(ctx)
+
 	req, ok := utils.BindJSON[dto.DeviceTokenRequest](ctx)
 	if !ok {
 		return nil
@@ -52,7 +54,7 @@ func (s *Service) unregisterDeviceToken(ctx fiber.Ctx) error {
 		return utils.BadRequest(ctx, "token is required")
 	}
 
-	if err := s.PushService.UnregisterToken(ctx.Context(), req.Token); err != nil {
+	if err := s.PushService.UnregisterToken(ctx.Context(), userID, req.Token); err != nil {
 		return utils.InternalError(ctx, "failed to unregister device token")
 	}
 

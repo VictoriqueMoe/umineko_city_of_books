@@ -26,6 +26,7 @@ import { ShareDialog } from "../ShareDialog/ShareDialog";
 import { MentionTextArea } from "../../MentionTextArea/MentionTextArea";
 import { Button } from "../../Button/Button";
 import { CommentComposer } from "../CommentComposer/CommentComposer";
+import { siteUrl } from "../../../utils/siteOrigin";
 import styles from "./PostCard.module.css";
 
 interface PostCardProps {
@@ -275,7 +276,7 @@ export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps
                 <Button
                     variant="ghost"
                     size="small"
-                    onClick={() => navigator.clipboard.writeText(`${window.location.origin}/game-board/${post.id}`)}
+                    onClick={() => navigator.clipboard.writeText(siteUrl(`/game-board/${post.id}`))}
                 >
                     Copy Link
                 </Button>

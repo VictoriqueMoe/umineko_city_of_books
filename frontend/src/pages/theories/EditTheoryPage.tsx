@@ -1,6 +1,5 @@
 import { useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
-import { useAuth } from "../../hooks/useAuth";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import type { Series } from "../../api/endpoints";
 import { useTheory } from "../../api/queries/theory";
@@ -13,7 +12,6 @@ export function EditTheoryPage() {
     usePageTitle("Edit Theory");
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const { user, loading: authLoading } = useAuth();
     const theoryId = id ?? "";
     const { theory, loading: theoryLoading } = useTheory(theoryId);
     const updateMutation = useUpdateTheory(theoryId);
@@ -23,16 +21,6 @@ export function EditTheoryPage() {
             navigate("/");
         }
     }, [theoryLoading, theory, theoryId, navigate]);
-
-    useEffect(() => {
-        if (!authLoading && !user) {
-            navigate("/login");
-        }
-    }, [user, authLoading, navigate]);
-
-    if (authLoading || !user) {
-        return null;
-    }
 
     if (theoryLoading || !theory) {
         return <div className="loading">Loading theory...</div>;

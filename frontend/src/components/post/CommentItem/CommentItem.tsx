@@ -13,6 +13,7 @@ import { PostEmbeds } from "../PostEmbeds/PostEmbeds";
 import { CommentComposer } from "../CommentComposer/CommentComposer";
 import { Button } from "../../Button/Button";
 import { ReportButton } from "../../ReportButton/ReportButton";
+import { siteUrl } from "../../../utils/siteOrigin";
 import styles from "./CommentItem.module.css";
 
 type CreateCommentFn = (postId: string, body: string, parentId?: string) => Promise<{ id: string }>;
@@ -215,9 +216,7 @@ function SingleComment({
                     size="small"
                     className={styles.copyLink}
                     onClick={() =>
-                        navigator.clipboard.writeText(
-                            `${window.location.origin}${linkPrefix}/${postId}#comment-${comment.id}`,
-                        )
+                        navigator.clipboard.writeText(siteUrl(`${linkPrefix}/${postId}#comment-${comment.id}`))
                     }
                 >
                     Copy Link

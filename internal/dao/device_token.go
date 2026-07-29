@@ -51,17 +51,17 @@ func (r *deviceTokenDAO) TokensForUser(ctx context.Context, userID uuid.UUID) ([
 	return tokens, nil
 }
 
-func (r *deviceTokenDAO) Delete(ctx context.Context, token string) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM device_tokens WHERE token = $1`, token)
+func (r *deviceTokenDAO) Delete(ctx context.Context, userID uuid.UUID, token string) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM device_tokens WHERE token = $1 AND user_id = $2`, token, userID)
 	if err != nil {
 		return fmt.Errorf("delete device token: %w", err)
 	}
 	return nil
 }
 
-func (r *deviceTokenDAO) DeleteMany(ctx context.Context, tokens []string) error {
+func (r *deviceTokenDAO) DeleteMany(ctx context.Context, userID uuid.UUID, tokens []string) error {
 	for _, token := range tokens {
-		if err := r.Delete(ctx, token); err != nil {
+		if err := r.Delete(ctx, userID, token); err != nil {
 			return err
 		}
 	}

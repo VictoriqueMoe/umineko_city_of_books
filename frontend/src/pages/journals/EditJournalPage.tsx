@@ -1,8 +1,7 @@
-import { useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useJournal } from "../../api/queries/journal";
 import { useUpdateJournal } from "../../api/mutations/journal";
-import { useAuth } from "../../hooks/useAuth";
+import { useAuthedUser } from "../../hooks/useAuthedUser";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { can } from "../../utils/permissions";
 import { JournalForm } from "../../components/journal/JournalForm/JournalForm";
@@ -12,21 +11,15 @@ export function EditJournalPage() {
     usePageTitle("Edit Journal");
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const { user, loading: authLoading } = useAuth();
+    const user = useAuthedUser();
     const { journal, loading } = useJournal(id ?? "");
     const updateMutation = useUpdateJournal(id ?? "");
 
-    useEffect(() => {
-        if (!authLoading && !user) {
-            navigate("/login");
-        }
-    }, [user, authLoading, navigate]);
-
-    if (authLoading || loading) {
+    if (loading) {
         return <div className="loading">Loading...</div>;
     }
 
-    if (!journal || !user) {
+    if (!journal) {
         return <div className="empty-state">Journal not found.</div>;
     }
 

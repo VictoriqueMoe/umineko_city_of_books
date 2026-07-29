@@ -1,6 +1,4 @@
-import { useEffect } from "react";
 import { useNavigate } from "react-router";
-import { useAuth } from "../../hooks/useAuth";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import type { Series } from "../../api/endpoints";
 import { useCreateTheory } from "../../api/mutations/theory";
@@ -12,18 +10,7 @@ import formStyles from "../../components/theory/TheoryForm/TheoryForm.module.css
 export function CreateTheoryPage({ series = "umineko" }: { series?: Series }) {
     usePageTitle("New Theory");
     const navigate = useNavigate();
-    const { user, loading: authLoading } = useAuth();
     const createMutation = useCreateTheory();
-
-    useEffect(() => {
-        if (!authLoading && !user) {
-            navigate("/login");
-        }
-    }, [user, authLoading, navigate]);
-
-    if (authLoading || !user) {
-        return null;
-    }
 
     return (
         <div className={formStyles.page}>

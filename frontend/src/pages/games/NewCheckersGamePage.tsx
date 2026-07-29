@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router";
-import { useAuth } from "../../hooks/useAuth";
+import { useAuthedUser } from "../../hooks/useAuthedUser";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useMutualFollowers, useSearchUsers } from "../../api/queries/misc";
 import { useInviteToGame } from "../../api/mutations/gameRoom";
@@ -11,7 +11,7 @@ import styles from "./GamesPages.module.css";
 
 export function NewCheckersGamePage() {
     usePageTitle("New Checkers Game");
-    const { user, loading: authLoading } = useAuth();
+    const user = useAuthedUser();
     const navigate = useNavigate();
     const [search, setSearch] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -26,18 +26,8 @@ export function NewCheckersGamePage() {
         debounceRef.current = setTimeout(() => setDebouncedSearch(value.trim()), 200);
     }
 
-    useEffect(() => {
-        if (!authLoading && !user) {
-            navigate("/login");
-        }
-    }, [user, authLoading, navigate]);
-
-    const { mutuals } = useMutualFollowers(!!user);
-    const { users: results } = useSearchUsers(debouncedSearch, !!user);
-
-    if (authLoading || !user) {
-        return null;
-    }
+    const { mutuals } = useMutualFollowers();
+    const { users: results } = useSearchUsers(debouncedSearch);
 
     const rawCandidates = search.trim() ? results : mutuals;
     const candidates = rawCandidates.filter(u => u.id !== user.id);

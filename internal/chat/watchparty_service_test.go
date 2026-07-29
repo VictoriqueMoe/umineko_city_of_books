@@ -204,6 +204,7 @@ func TestGrantWatchPartyControl_NotController(t *testing.T) {
 	targetID := uuid.New()
 
 	m.hyperbeamSvc.EXPECT().Enabled().Return(true)
+	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, controllerID).Return(true, nil)
 	otherOwnerID := uuid.New()
 	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(&repository.ChatWatchPartySessionRow{
 		ID: sessionID, RoomID: roomID, StartedBy: otherOwnerID, ControllerID: targetID, HyperbeamSessionID: "hb", Status: "active",
@@ -228,6 +229,7 @@ func TestGrantWatchPartyControl_OK(t *testing.T) {
 	targetID := uuid.New()
 
 	m.hyperbeamSvc.EXPECT().Enabled().Return(true)
+	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, controllerID).Return(true, nil)
 	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(&repository.ChatWatchPartySessionRow{
 		ID: sessionID, RoomID: roomID, StartedBy: controllerID, ControllerID: controllerID, HyperbeamSessionID: "hb_sess", Status: "active",
 		VMBaseURL: "https://hb.example/sess",
@@ -265,6 +267,7 @@ func TestGrantWatchPartyControl_AdminOutranksMod(t *testing.T) {
 	ownerID := uuid.New()
 
 	m.hyperbeamSvc.EXPECT().Enabled().Return(true)
+	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, adminID).Return(true, nil)
 	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(&repository.ChatWatchPartySessionRow{
 		ID: sessionID, RoomID: roomID, StartedBy: ownerID, ControllerID: modID, HyperbeamSessionID: "hb", Status: "active",
 	}, nil)
@@ -300,6 +303,7 @@ func TestGrantWatchPartyControl_ModCannotReclaimFromAdmin(t *testing.T) {
 	ownerID := uuid.New()
 
 	m.hyperbeamSvc.EXPECT().Enabled().Return(true)
+	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, modID).Return(true, nil)
 	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(&repository.ChatWatchPartySessionRow{
 		ID: sessionID, RoomID: roomID, StartedBy: ownerID, ControllerID: adminID, HyperbeamSessionID: "hb", Status: "active",
 	}, nil)
@@ -324,6 +328,7 @@ func TestGrantWatchPartyControl_SuperAdminControllerIsUntouchable(t *testing.T) 
 	ownerID := uuid.New()
 
 	m.hyperbeamSvc.EXPECT().Enabled().Return(true)
+	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, adminID).Return(true, nil)
 	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(&repository.ChatWatchPartySessionRow{
 		ID: sessionID, RoomID: roomID, StartedBy: ownerID, ControllerID: superID, HyperbeamSessionID: "hb", Status: "active",
 	}, nil)
@@ -347,6 +352,7 @@ func TestGrantWatchPartyControl_OwnerCanReclaimFromRegular(t *testing.T) {
 	memberID := uuid.New()
 
 	m.hyperbeamSvc.EXPECT().Enabled().Return(true)
+	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, ownerID).Return(true, nil)
 	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(&repository.ChatWatchPartySessionRow{
 		ID: sessionID, RoomID: roomID, StartedBy: ownerID, ControllerID: memberID, HyperbeamSessionID: "hb", Status: "active",
 	}, nil)
@@ -395,6 +401,7 @@ func TestKickWatchPartyParticipant_CannotOutrankTarget(t *testing.T) {
 	adminID := uuid.New()
 	ownerID := uuid.New()
 
+	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, memberID).Return(true, nil)
 	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(&repository.ChatWatchPartySessionRow{
 		ID: sessionID, RoomID: roomID, StartedBy: ownerID, ControllerID: ownerID, HyperbeamSessionID: "hb", Status: "active",
 	}, nil)
@@ -418,6 +425,7 @@ func TestKickWatchPartyParticipant_OK(t *testing.T) {
 	memberID := uuid.New()
 	ownerID := uuid.New()
 
+	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, adminID).Return(true, nil)
 	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(&repository.ChatWatchPartySessionRow{
 		ID: sessionID, RoomID: roomID, StartedBy: ownerID, ControllerID: ownerID, HyperbeamSessionID: "hb", Status: "active",
 	}, nil)

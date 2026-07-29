@@ -143,6 +143,9 @@ func (m *membersService) KickMember(ctx context.Context, hostID, roomID, targetI
 		return fmt.Errorf("remove member: %w", err)
 	}
 
+	m.clearWatchPartyParticipation(ctx, roomID, targetID)
+	m.dropFromLiveKitRoom(ctx, roomID.String(), targetID.String())
+
 	m.postRoomActionMessage(ctx, roomID, hostID, "A member was kicked from the room.")
 
 	leftEvent := ws.Message{

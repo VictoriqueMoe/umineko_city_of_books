@@ -12,6 +12,7 @@ import { Button } from "../../components/Button/Button";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { ReportButton } from "../../components/ReportButton/ReportButton";
 import { relativeTime } from "../../utils/notifications";
+import { siteUrl } from "../../utils/siteOrigin";
 import styles from "./MysteryPages.module.css";
 
 function flattenReplies(attempt: MysteryAttempt): { reply: MysteryAttempt; replyToName: string }[] {
@@ -150,9 +151,7 @@ function SingleAttempt({
                     variant="ghost"
                     size="small"
                     onClick={() =>
-                        navigator.clipboard.writeText(
-                            `${window.location.origin}/mystery/${mysteryId}#attempt-${attempt.id}`,
-                        )
+                        navigator.clipboard.writeText(siteUrl(`/mystery/${mysteryId}#attempt-${attempt.id}`))
                     }
                 >
                     Copy Link

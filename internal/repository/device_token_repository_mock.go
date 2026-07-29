@@ -39,16 +39,16 @@ func (_m *MockDeviceTokenRepository) EXPECT() *MockDeviceTokenRepository_Expecte
 }
 
 // Delete provides a mock function for the type MockDeviceTokenRepository
-func (_mock *MockDeviceTokenRepository) Delete(ctx context.Context, token string) error {
-	ret := _mock.Called(ctx, token)
+func (_mock *MockDeviceTokenRepository) Delete(ctx context.Context, userID uuid.UUID, token string) error {
+	ret := _mock.Called(ctx, userID, token)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Delete")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) error); ok {
-		r0 = returnFunc(ctx, token)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) error); ok {
+		r0 = returnFunc(ctx, userID, token)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -62,24 +62,30 @@ type MockDeviceTokenRepository_Delete_Call struct {
 
 // Delete is a helper method to define mock.On call
 //   - ctx context.Context
+//   - userID uuid.UUID
 //   - token string
-func (_e *MockDeviceTokenRepository_Expecter) Delete(ctx any, token any) *MockDeviceTokenRepository_Delete_Call {
-	return &MockDeviceTokenRepository_Delete_Call{Call: _e.mock.On("Delete", ctx, token)}
+func (_e *MockDeviceTokenRepository_Expecter) Delete(ctx any, userID any, token any) *MockDeviceTokenRepository_Delete_Call {
+	return &MockDeviceTokenRepository_Delete_Call{Call: _e.mock.On("Delete", ctx, userID, token)}
 }
 
-func (_c *MockDeviceTokenRepository_Delete_Call) Run(run func(ctx context.Context, token string)) *MockDeviceTokenRepository_Delete_Call {
+func (_c *MockDeviceTokenRepository_Delete_Call) Run(run func(ctx context.Context, userID uuid.UUID, token string)) *MockDeviceTokenRepository_Delete_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 uuid.UUID
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
 		}
 		run(
 			arg0,
 			arg1,
+			arg2,
 		)
 	})
 	return _c
@@ -90,22 +96,22 @@ func (_c *MockDeviceTokenRepository_Delete_Call) Return(err error) *MockDeviceTo
 	return _c
 }
 
-func (_c *MockDeviceTokenRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, token string) error) *MockDeviceTokenRepository_Delete_Call {
+func (_c *MockDeviceTokenRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, token string) error) *MockDeviceTokenRepository_Delete_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // DeleteMany provides a mock function for the type MockDeviceTokenRepository
-func (_mock *MockDeviceTokenRepository) DeleteMany(ctx context.Context, tokens []string) error {
-	ret := _mock.Called(ctx, tokens)
+func (_mock *MockDeviceTokenRepository) DeleteMany(ctx context.Context, userID uuid.UUID, tokens []string) error {
+	ret := _mock.Called(ctx, userID, tokens)
 
 	if len(ret) == 0 {
 		panic("no return value specified for DeleteMany")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []string) error); ok {
-		r0 = returnFunc(ctx, tokens)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, []string) error); ok {
+		r0 = returnFunc(ctx, userID, tokens)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -119,24 +125,30 @@ type MockDeviceTokenRepository_DeleteMany_Call struct {
 
 // DeleteMany is a helper method to define mock.On call
 //   - ctx context.Context
+//   - userID uuid.UUID
 //   - tokens []string
-func (_e *MockDeviceTokenRepository_Expecter) DeleteMany(ctx any, tokens any) *MockDeviceTokenRepository_DeleteMany_Call {
-	return &MockDeviceTokenRepository_DeleteMany_Call{Call: _e.mock.On("DeleteMany", ctx, tokens)}
+func (_e *MockDeviceTokenRepository_Expecter) DeleteMany(ctx any, userID any, tokens any) *MockDeviceTokenRepository_DeleteMany_Call {
+	return &MockDeviceTokenRepository_DeleteMany_Call{Call: _e.mock.On("DeleteMany", ctx, userID, tokens)}
 }
 
-func (_c *MockDeviceTokenRepository_DeleteMany_Call) Run(run func(ctx context.Context, tokens []string)) *MockDeviceTokenRepository_DeleteMany_Call {
+func (_c *MockDeviceTokenRepository_DeleteMany_Call) Run(run func(ctx context.Context, userID uuid.UUID, tokens []string)) *MockDeviceTokenRepository_DeleteMany_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 []string
+		var arg1 uuid.UUID
 		if args[1] != nil {
-			arg1 = args[1].([]string)
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 []string
+		if args[2] != nil {
+			arg2 = args[2].([]string)
 		}
 		run(
 			arg0,
 			arg1,
+			arg2,
 		)
 	})
 	return _c
@@ -147,7 +159,7 @@ func (_c *MockDeviceTokenRepository_DeleteMany_Call) Return(err error) *MockDevi
 	return _c
 }
 
-func (_c *MockDeviceTokenRepository_DeleteMany_Call) RunAndReturn(run func(ctx context.Context, tokens []string) error) *MockDeviceTokenRepository_DeleteMany_Call {
+func (_c *MockDeviceTokenRepository_DeleteMany_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, tokens []string) error) *MockDeviceTokenRepository_DeleteMany_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -70,6 +70,9 @@ func (s *moderationService) evictUserFromRoom(ctx context.Context, roomID, targe
 		return fmt.Errorf("remove member: %w", err)
 	}
 
+	s.clearWatchPartyParticipation(ctx, roomID, targetID)
+	s.dropFromLiveKitRoom(ctx, roomID.String(), targetID.String())
+
 	s.hub.LeaveRoom(roomID, targetID)
 
 	leftEvent := ws.Message{
