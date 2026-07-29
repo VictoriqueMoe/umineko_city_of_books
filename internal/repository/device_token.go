@@ -10,8 +10,8 @@ type (
 	DeviceTokenRepository interface {
 		Upsert(ctx context.Context, userID uuid.UUID, token, platform string) error
 		TokensForUser(ctx context.Context, userID uuid.UUID) ([]string, error)
-		Delete(ctx context.Context, token string) error
-		DeleteMany(ctx context.Context, tokens []string) error
+		Delete(ctx context.Context, userID uuid.UUID, token string) error
+		DeleteMany(ctx context.Context, userID uuid.UUID, tokens []string) error
 	}
 )
 
@@ -31,10 +31,10 @@ func (r *deviceTokenRepository) TokensForUser(ctx context.Context, userID uuid.U
 	return r.dao.TokensForUser(ctx, userID)
 }
 
-func (r *deviceTokenRepository) Delete(ctx context.Context, token string) error {
-	return r.dao.Delete(ctx, token)
+func (r *deviceTokenRepository) Delete(ctx context.Context, userID uuid.UUID, token string) error {
+	return r.dao.Delete(ctx, userID, token)
 }
 
-func (r *deviceTokenRepository) DeleteMany(ctx context.Context, tokens []string) error {
-	return r.dao.DeleteMany(ctx, tokens)
+func (r *deviceTokenRepository) DeleteMany(ctx context.Context, userID uuid.UUID, tokens []string) error {
+	return r.dao.DeleteMany(ctx, userID, tokens)
 }

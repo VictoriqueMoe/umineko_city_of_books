@@ -44,7 +44,9 @@ export function ForgotPasswordPage() {
                 username,
                 turnstileToken: turnstileEnabled ? turnstileToken : undefined,
             });
-            setSuccess("A password reset link has been sent to the email on your account.");
+            setSuccess(
+                "If an account with that username exists and has an email address, a reset link has been sent to it.",
+            );
         } catch (err) {
             setError(err instanceof Error ? err.message : "Something went wrong.");
             setTurnstileToken("");

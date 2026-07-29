@@ -59,11 +59,11 @@ func (s *Service) getAllAuthRoutes() []FSetupRoute {
 }
 
 func (s *Service) setupRegisterRoute(r fiber.Router) {
-	r.Post("/auth/register", middleware.RequireTurnstile(s.SettingsService), s.register)
+	r.Post("/auth/register", middleware.RateLimitCredentials(), middleware.RequireTurnstile(s.SettingsService), s.register)
 }
 
 func (s *Service) setupLoginRoute(r fiber.Router) {
-	r.Post("/auth/login", middleware.RequireTurnstile(s.SettingsService), s.login)
+	r.Post("/auth/login", middleware.RateLimitCredentials(), middleware.RequireTurnstile(s.SettingsService), s.login)
 }
 
 func (s *Service) setupLogoutRoute(r fiber.Router) {
@@ -71,15 +71,15 @@ func (s *Service) setupLogoutRoute(r fiber.Router) {
 }
 
 func (s *Service) setupForgotPasswordRoute(r fiber.Router) {
-	r.Post("/auth/forgot-password", middleware.RequireTurnstile(s.SettingsService), s.forgotPassword)
+	r.Post("/auth/forgot-password", middleware.RateLimitMail(), middleware.RequireTurnstile(s.SettingsService), s.forgotPassword)
 }
 
 func (s *Service) setupResetPasswordRoute(r fiber.Router) {
-	r.Post("/auth/reset-password", s.resetPassword)
+	r.Post("/auth/reset-password", middleware.RateLimitCredentials(), s.resetPassword)
 }
 
 func (s *Service) setupSetEmailRoute(r fiber.Router) {
-	r.Post("/auth/set-email", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.setEmail)
+	r.Post("/auth/set-email", middleware.RateLimitMail(), middleware.RequireAuth(s.AuthSession, s.AuthzService), s.setEmail)
 }
 
 func (s *Service) setupVerifyEmailRoute(r fiber.Router) {
@@ -87,7 +87,7 @@ func (s *Service) setupVerifyEmailRoute(r fiber.Router) {
 }
 
 func (s *Service) setupResendVerificationRoute(r fiber.Router) {
-	r.Post("/auth/resend-verification", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.resendVerification)
+	r.Post("/auth/resend-verification", middleware.RateLimitMail(), middleware.RequireAuth(s.AuthSession, s.AuthzService), s.resendVerification)
 }
 
 func (s *Service) setupSessionRoute(r fiber.Router) {
@@ -108,19 +108,23 @@ func (s *Service) getSession(ctx fiber.Ctx) error {
 	return ctx.JSON(fiber.Map{"authenticated": true, "username": user.Username})
 }
 
+func (s *Service) cookieSecure(ctx fiber.Ctx) bool {
+	baseURL := s.SettingsService.Get(ctx.Context(), config.SettingBaseURL)
+
+	return strings.HasPrefix(baseURL, "https://")
+}
+
 func (s *Service) setSessionCookie(ctx fiber.Ctx, token string) {
 	days := s.SettingsService.GetInt(ctx.Context(), config.SettingSessionDurationDays)
 	if days < 1 {
 		days = 30
 	}
 
-	baseURL := s.SettingsService.Get(ctx.Context(), config.SettingBaseURL)
-	secure := strings.HasPrefix(baseURL, "https://")
 	ctx.Cookie(&fiber.Cookie{
 		Name:     session.CookieName,
 		Value:    token,
 		HTTPOnly: true,
-		Secure:   secure,
+		Secure:   s.cookieSecure(ctx),
 		SameSite: "Lax",
 		MaxAge:   days * 24 * 60 * 60,
 		Path:     "/",
@@ -138,6 +142,7 @@ func (s *Service) clearSessionCookie(ctx fiber.Ctx) {
 		Name:     session.CookieName,
 		Value:    "",
 		HTTPOnly: true,
+		Secure:   s.cookieSecure(ctx),
 		SameSite: "Lax",
 		MaxAge:   -1,
 		Path:     "/",
@@ -253,11 +258,8 @@ func (s *Service) forgotPassword(ctx fiber.Ctx) error {
 
 	err := s.AuthService.ForgotPassword(ctx.Context(), req.Username)
 	if err != nil {
-		if errors.Is(err, auth.ErrUserNotFound) {
-			return utils.NotFound(ctx, "user not found")
-		}
-		if errors.Is(err, auth.ErrNoEmailAddress) {
-			return utils.BadRequest(ctx, "user has no email set")
+		if errors.Is(err, auth.ErrUserNotFound) || errors.Is(err, auth.ErrNoEmailAddress) {
+			return utils.OK(ctx)
 		}
 		if errors.Is(err, auth.ErrEmailDisabled) {
 			return utils.BadRequest(ctx, "password reset is not available")

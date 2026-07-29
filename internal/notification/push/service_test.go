@@ -12,7 +12,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
 )
 
 func newTestService(t *testing.T, pushEnabled bool, credsFile string) (*service, *repository.MockDeviceTokenRepository, *settings.MockService) {
@@ -73,16 +72,29 @@ func TestRegisterToken_DelegatesToRepo(t *testing.T) {
 	}
 }
 
-func TestUnregisterToken_DelegatesToRepo(t *testing.T) {
-	// given
-	svc, repo, _ := newTestService(t, false, "")
-	repo.EXPECT().Delete(mock.Anything, "token-123").Return(nil)
+func TestUnregisterToken_DelegatesToRepoScopedToCaller(t *testing.T) {
+	tests := []struct {
+		name    string
+		repoErr error
+	}{
+		{name: "success", repoErr: nil},
+		{name: "repo error propagates", repoErr: errors.New("db down")},
+	}
 
-	// when
-	err := svc.UnregisterToken(context.Background(), "token-123")
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, repo, _ := newTestService(t, false, "")
+			userID := uuid.New()
+			repo.EXPECT().Delete(mock.Anything, userID, "token-123").Return(tc.repoErr)
 
-	// then
-	require.NoError(t, err)
+			// when
+			err := svc.UnregisterToken(context.Background(), userID, "token-123")
+
+			// then
+			assert.Equal(t, tc.repoErr, err)
+		})
+	}
 }
 
 func TestSendToUser_ClientNil_NoRepoCalls(t *testing.T) {

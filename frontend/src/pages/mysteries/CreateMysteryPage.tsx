@@ -1,6 +1,5 @@
-import { type SubmitEvent, useEffect, useRef, useState } from "react";
+import { type SubmitEvent, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { useAuth } from "../../hooks/useAuth";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useMystery } from "../../api/queries/mystery";
 import {
@@ -40,7 +39,6 @@ export function CreateMysteryPage() {
     const isEdit = !!editId;
     usePageTitle(isEdit ? "Edit Mystery" : "New Mystery");
     const navigate = useNavigate();
-    const { user, loading: authLoading } = useAuth();
     const [draft, setDraft] = useState<MysteryDraft>({ sourceId: null });
     const [attachments, setAttachments] = useState<File[]>([]);
     const [mediaFiles, setMediaFiles] = useState<File[]>([]);
@@ -63,12 +61,6 @@ export function CreateMysteryPage() {
             prev.includes(mediaId) ? prev.filter(id => id !== mediaId) : [...prev, mediaId],
         );
     }
-
-    useEffect(() => {
-        if (!authLoading && !user) {
-            navigate("/login");
-        }
-    }, [user, authLoading, navigate]);
 
     const sourceId = isEdit ? (editMystery?.id ?? null) : "new";
     const activeDraft = draft.sourceId === sourceId ? draft : { sourceId };
@@ -190,10 +182,6 @@ export function CreateMysteryPage() {
         } finally {
             setSubmitting(false);
         }
-    }
-
-    if (authLoading || !user) {
-        return null;
     }
 
     if (editLoading) {

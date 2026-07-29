@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 
 	"umineko_city_of_books/internal/authz"
@@ -146,7 +147,11 @@ func (s *service) guardedAction(ctx context.Context, actorID, targetID uuid.UUID
 }
 
 func (s *service) audit(ctx context.Context, actorID uuid.UUID, action, targetType, targetID string) {
-	if err := s.auditRepo.Create(ctx, actorID, action, targetType, targetID, ""); err != nil {
+	s.auditDetails(ctx, actorID, action, targetType, targetID, "")
+}
+
+func (s *service) auditDetails(ctx context.Context, actorID uuid.UUID, action, targetType, targetID, details string) {
+	if err := s.auditRepo.Create(ctx, actorID, action, targetType, targetID, details); err != nil {
 		logger.Log.Error().Err(err).Str("action", action).Msg("failed to write audit log")
 	}
 }
@@ -477,33 +482,53 @@ func generatePassword() (string, error) {
 
 func (s *service) GetSettings(ctx context.Context) (*dto.SettingsResponse, error) {
 	all := s.settingsSvc.GetAll(ctx)
+
 	result := make(map[string]string, len(all))
 	for k, v := range all {
+		if def, ok := config.SettingByKey(k); ok && def.Secret && v != "" {
+			result[string(k)] = config.SecretMask
+			continue
+		}
 		result[string(k)] = v
 	}
+
 	return &dto.SettingsResponse{Settings: result}, nil
 }
 
 func (s *service) UpdateSettings(ctx context.Context, actorID uuid.UUID, settings map[string]string) error {
+	current := s.settingsSvc.GetAll(ctx)
+
 	typed := make(map[config.SiteSettingKey]string, len(settings))
 	for k, v := range settings {
-		typed[config.SiteSettingKey(k)] = v
+		key := config.SiteSettingKey(k)
+		if def, ok := config.SettingByKey(key); ok && def.Secret && v == config.SecretMask {
+			continue
+		}
+		typed[key] = v
 	}
 
-	prevRules := s.settingsSvc.Get(ctx, config.SettingRulesPage)
+	changedKeys := make([]string, 0, len(typed))
+	for k, v := range typed {
+		if current[k] != v {
+			changedKeys = append(changedKeys, string(k))
+		}
+	}
+	slices.Sort(changedKeys)
 
 	if err := s.settingsSvc.SetMultiple(ctx, typed, actorID); err != nil {
 		return fmt.Errorf("update settings: %w", err)
 	}
 
-	if newRules, ok := settings[string(config.SettingRulesPage.Key)]; ok && newRules != prevRules {
+	if newRules, ok := typed[config.SettingRulesPage.Key]; ok && newRules != current[config.SettingRulesPage.Key] {
 		s.hub.Broadcast(ws.Message{
 			Type: "rules_page_changed",
 			Data: map[string]any{},
 		})
 	}
 
-	s.audit(ctx, actorID, "update_settings", "settings", "")
+	details := fmt.Sprintf("changed %d of %d submitted settings", len(changedKeys), len(settings))
+	s.auditDetails(ctx, actorID, "update_settings", "settings", strings.Join(changedKeys, ","), details)
+
 	return nil
 }
 

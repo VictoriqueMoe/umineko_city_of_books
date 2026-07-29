@@ -271,7 +271,7 @@ func (s *watchPartyService) LeaveWatchParty(ctx context.Context, roomID, session
 	}
 
 	if session.StartedBy == actorID {
-		return s.EndWatchParty(ctx, roomID, sessionID, actorID, "owner_left")
+		return s.endWatchParty(ctx, roomID, sessionID, actorID, "owner_left")
 	}
 
 	if participant.HasControl {
@@ -301,6 +301,10 @@ func (s *watchPartyService) LeaveWatchParty(ctx context.Context, roomID, session
 func (s *watchPartyService) KickWatchPartyParticipant(ctx context.Context, roomID, sessionID, callerID, targetID uuid.UUID) error {
 	if callerID == targetID {
 		return ErrWatchPartyCannotKickSelf
+	}
+
+	if err := s.assertActiveRoomMember(ctx, roomID, callerID); err != nil {
+		return err
 	}
 
 	session, err := s.loadActiveSession(ctx, roomID, sessionID)
@@ -380,7 +384,7 @@ func (s *watchPartyService) HandleClientDisconnect(ctx context.Context, userID u
 				continue
 			}
 			if sess.StartedBy == userID {
-				_ = s.EndWatchParty(ctx, roomID, sess.ID, userID, "owner_disconnected")
+				_ = s.endWatchParty(ctx, roomID, sess.ID, userID, "owner_disconnected")
 				continue
 			}
 			if participant.HasControl {
@@ -409,6 +413,10 @@ func (s *watchPartyService) HandleClientDisconnect(ctx context.Context, userID u
 func (s *watchPartyService) GrantWatchPartyControl(ctx context.Context, roomID, sessionID, callerID, targetID uuid.UUID) error {
 	if s.hyperbeamSvc == nil || !s.hyperbeamSvc.Enabled() {
 		return ErrWatchPartyDisabled
+	}
+
+	if err := s.assertActiveRoomMember(ctx, roomID, callerID); err != nil {
+		return err
 	}
 
 	session, err := s.loadActiveSession(ctx, roomID, sessionID)
@@ -519,6 +527,16 @@ func (s *watchPartyService) transferControlTo(ctx context.Context, roomID uuid.U
 }
 
 func (s *watchPartyService) EndWatchParty(ctx context.Context, roomID, sessionID, actorID uuid.UUID, reason string) error {
+	if actorID != uuid.Nil {
+		if err := s.assertActiveRoomMember(ctx, roomID, actorID); err != nil {
+			return err
+		}
+	}
+
+	return s.endWatchParty(ctx, roomID, sessionID, actorID, reason)
+}
+
+func (s *watchPartyService) endWatchParty(ctx context.Context, roomID, sessionID, actorID uuid.UUID, reason string) error {
 	session, err := s.loadActiveSession(ctx, roomID, sessionID)
 	if err != nil {
 		return err
@@ -668,9 +686,29 @@ func (s *watchPartyService) ForceMuteSessionVoice(ctx context.Context, roomID, s
 		return ErrVoiceDisabled
 	}
 
+	if err := s.assertActiveRoomMember(ctx, roomID, actorID); err != nil {
+		return err
+	}
+
 	session, err := s.loadActiveSession(ctx, roomID, sessionID)
 	if err != nil {
 		return err
+	}
+
+	caller, err := s.watchPartyRepo.GetParticipant(ctx, session.ID, actorID)
+	if err != nil {
+		return err
+	}
+	if caller == nil || caller.LeftAt.Valid {
+		return ErrWatchPartyNotParticipant
+	}
+
+	target, err := s.watchPartyRepo.GetParticipant(ctx, session.ID, targetID)
+	if err != nil {
+		return err
+	}
+	if target == nil || target.LeftAt.Valid {
+		return ErrWatchPartyNotParticipant
 	}
 
 	callerRank := s.watchPartyRankOf(ctx, session, actorID)

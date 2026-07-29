@@ -97,6 +97,41 @@ func (s *voiceService) ForceMuteVoice(ctx context.Context, roomID, actorID, targ
 	return s.livekitSvc.SetCanPublish(ctx, roomID.String(), targetID.String(), !muted, false)
 }
 
+func (s *voiceService) reapplyForceMute(ctx context.Context, roomName, identity string, userID uuid.UUID, allowScreenShare bool) {
+	if !s.isVoiceMuted(roomName, userID) {
+		return
+	}
+
+	if err := s.livekitSvc.SetCanPublish(ctx, roomName, identity, false, allowScreenShare); err != nil {
+		logger.Log.Warn().Err(err).Str("livekit_room", roomName).Str("identity", identity).Msg("re-apply force mute on rejoin failed")
+	}
+}
+
+func (s *voiceService) reapplySessionForceMute(ctx context.Context, roomName, rawSessionID, identity string) {
+	userID, err := uuid.Parse(identity)
+	if err != nil {
+		return
+	}
+
+	if !s.isVoiceMuted(roomName, userID) {
+		return
+	}
+
+	sessionID, err := uuid.Parse(rawSessionID)
+	if err != nil {
+		return
+	}
+
+	session, err := s.watchPartyRepo.GetByID(ctx, sessionID)
+	if err != nil || session == nil {
+		return
+	}
+
+	allowScreenShare := session.Type == watchPartyTypeScreenShare && session.StartedBy == userID
+
+	s.reapplyForceMute(ctx, roomName, identity, userID, allowScreenShare)
+}
+
 func (s *voiceService) assertDMNotBlocked(ctx context.Context, roomID, userID uuid.UUID) error {
 	members, err := s.chatRepo.GetRoomMembers(ctx, roomID)
 	if err != nil {
@@ -124,7 +159,11 @@ func (s *voiceService) HandleVoiceWebhook(ctx context.Context, authHeader string
 
 	logger.Log.Debug().Str("event", event.Type).Str("room", event.RoomName).Str("identity", event.Identity).Msg("livekit webhook received")
 
-	if strings.HasPrefix(event.RoomName, voiceSessionRoomPrefix) {
+	if rawSessionID, ok := strings.CutPrefix(event.RoomName, voiceSessionRoomPrefix); ok {
+		if event.Type == livekit.EventParticipantJoined {
+			s.reapplySessionForceMute(ctx, event.RoomName, rawSessionID, event.Identity)
+		}
+
 		return nil
 	}
 
@@ -139,6 +178,7 @@ func (s *voiceService) HandleVoiceWebhook(ctx context.Context, authHeader string
 		if err != nil {
 			return nil
 		}
+		s.reapplyForceMute(ctx, roomID.String(), event.Identity, userID, false)
 		s.addParticipant(roomID, userID)
 		s.postRoomActionMessage(ctx, roomID, userID, fmt.Sprintf("%s joined the voice chat.", s.displayNameFor(ctx, userID, roomID)))
 		s.broadcastVoicePresence(ctx, roomID)

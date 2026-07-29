@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/authz"
+	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/repository"
@@ -23,6 +24,17 @@ func stubRoom(id uuid.UUID) *repository.ChatRoomRow {
 		Type:     "group",
 		IsPublic: true,
 	}
+}
+
+func expectLiveKitUnconfigured(m *testMocks) {
+	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingLiveKitURL).Return("").Maybe()
+	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingLiveKitAPIKey).Return("").Maybe()
+	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingLiveKitAPISecret).Return("").Maybe()
+}
+
+func expectEvictionSideEffects(m *testMocks, roomID uuid.UUID) {
+	m.watchPartyRepo.EXPECT().ListActiveByRoom(mock.Anything, roomID).Return(nil, nil)
+	expectLiveKitUnconfigured(m)
 }
 
 func TestBanMember_RejectsStaffTarget(t *testing.T) {
@@ -56,6 +68,7 @@ func TestBanMember_Succeeds(t *testing.T) {
 	m.banRepo.EXPECT().Ban(mock.Anything, room, target, &actor, "spam").Return(nil)
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, room).Return(nil, nil)
 	m.chatRepo.EXPECT().RemoveMember(mock.Anything, room, target).Return(nil)
+	expectEvictionSideEffects(m, room)
 	m.auditRepo.EXPECT().Create(mock.Anything, actor, "chat_room_ban", "chat_room", room.String(), mock.Anything).Return(nil)
 
 	err := svc.BanMember(context.Background(), actor, room, target, "spam")
@@ -104,6 +117,7 @@ func TestBanMember_PostsSystemMessageWithReason(t *testing.T) {
 	m.banRepo.EXPECT().Ban(mock.Anything, room, target, &actor, "spamming links").Return(nil)
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, room).Return(nil, nil)
 	m.chatRepo.EXPECT().RemoveMember(mock.Anything, room, target).Return(nil)
+	expectEvictionSideEffects(m, room)
 	m.auditRepo.EXPECT().Create(mock.Anything, actor, "chat_room_ban", "chat_room", room.String(), mock.Anything).Return(nil)
 
 	err := svc.BanMember(context.Background(), actor, room, target, "spamming links")
@@ -131,6 +145,7 @@ func TestBanMember_PostsSystemMessageWithoutReason(t *testing.T) {
 	m.banRepo.EXPECT().Ban(mock.Anything, room, target, &actor, "").Return(nil)
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, room).Return(nil, nil)
 	m.chatRepo.EXPECT().RemoveMember(mock.Anything, room, target).Return(nil)
+	expectEvictionSideEffects(m, room)
 	m.auditRepo.EXPECT().Create(mock.Anything, actor, "chat_room_ban", "chat_room", room.String(), mock.Anything).Return(nil)
 
 	err := svc.BanMember(context.Background(), actor, room, target, "")
@@ -317,6 +332,7 @@ func TestSendMessage_BannedWordKickFires(t *testing.T) {
 	stubSystemMessage(m, sender, sender)
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, room).Return(nil, nil)
 	m.chatRepo.EXPECT().RemoveMember(mock.Anything, room, sender).Return(nil)
+	expectEvictionSideEffects(m, room)
 
 	_, err := svc.SendMessage(context.Background(), sender, room, dto.SendMessageRequest{Body: "I love dogs"}, nil)
 	require.Error(t, err)

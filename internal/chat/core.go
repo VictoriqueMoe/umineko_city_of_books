@@ -3,6 +3,7 @@ package chat
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"io"
 	"regexp"
@@ -16,6 +17,7 @@ import (
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/hyperbeam"
 	"umineko_city_of_books/internal/livekit"
+	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
@@ -105,6 +107,56 @@ func (c *core) clearVoiceMuted(roomName string) {
 	defer c.voiceMu.Unlock()
 
 	delete(c.voiceMuted, roomName)
+}
+
+func (c *core) dropFromLiveKitRoom(ctx context.Context, roomName, identity string) {
+	if c.livekitSvc == nil {
+		return
+	}
+
+	err := c.livekitSvc.RemoveParticipant(ctx, roomName, identity)
+	if err == nil || errors.Is(err, livekit.ErrDisabled) || livekit.IsNotFound(err) {
+		return
+	}
+
+	logger.Log.Warn().Err(err).Str("livekit_room", roomName).Str("identity", identity).Msg("remove livekit participant failed")
+}
+
+func (c *core) clearWatchPartyParticipation(ctx context.Context, roomID, userID uuid.UUID) {
+	if c.watchPartyRepo == nil {
+		return
+	}
+
+	sessions, err := c.watchPartyRepo.ListActiveByRoom(ctx, roomID)
+	if err != nil {
+		logger.Log.Warn().Err(err).Str("room_id", roomID.String()).Msg("evict: list active watch parties failed")
+		return
+	}
+
+	for i := range sessions {
+		sessionID := sessions[i].ID
+
+		participant, err := c.watchPartyRepo.GetParticipant(ctx, sessionID, userID)
+		if err != nil || participant == nil || participant.LeftAt.Valid {
+			continue
+		}
+
+		if err := c.watchPartyRepo.MarkParticipantLeft(ctx, sessionID, userID); err != nil {
+			logger.Log.Warn().Err(err).Str("session_id", sessionID.String()).Msg("evict: mark watch party participant left failed")
+			continue
+		}
+
+		c.dropFromLiveKitRoom(ctx, voiceSessionRoomPrefix+sessionID.String(), userID.String())
+
+		c.hub.BroadcastToRoom(roomID, ws.Message{
+			Type: wsWatchPartyParticipantLeft,
+			Data: dto.WatchPartyParticipantLeftEvent{
+				SessionID: sessionID,
+				RoomID:    roomID,
+				UserID:    userID,
+			},
+		}, uuid.Nil)
+	}
 }
 
 func (c *core) filterTexts(ctx context.Context, texts ...string) error {

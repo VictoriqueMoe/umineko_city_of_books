@@ -1,7 +1,7 @@
-import { type SubmitEvent, useCallback, useEffect, useState } from "react";
+import { type SubmitEvent, useCallback, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useJournal, useJournalEntry } from "../../api/queries/journal";
-import { useAuth } from "../../hooks/useAuth";
+import { useAuthedUser } from "../../hooks/useAuthedUser";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useSiteInfo } from "../../hooks/useSiteInfo";
 import { can } from "../../utils/permissions";
@@ -24,7 +24,7 @@ export function JournalEntryEditorPage() {
     const isEdit = numberParam !== undefined && numberParam !== "new";
     const entryNumber = isEdit ? Number(numberParam) : 0;
     const navigate = useNavigate();
-    const { user, loading: authLoading } = useAuth();
+    const user = useAuthedUser();
     const siteInfo = useSiteInfo();
     const { journal, loading: jLoading } = useJournal(journalId ?? "");
     const { entry, loading: eLoading } = useJournalEntry(journalId ?? "", isEdit ? entryNumber : 0);
@@ -48,12 +48,6 @@ export function JournalEntryEditorPage() {
     const setBody = setBodyDraft;
 
     usePageTitle(isEdit ? "Edit Entry" : "New Entry");
-
-    useEffect(() => {
-        if (!authLoading && !user) {
-            navigate("/login");
-        }
-    }, [user, authLoading, navigate]);
 
     const handlePasteFiles = useCallback(
         (pasted: File[]) => {
@@ -81,10 +75,10 @@ export function JournalEntryEditorPage() {
         setFiles(prev => prev.filter((_, i) => i !== index));
     }
 
-    if (authLoading || jLoading || (isEdit && eLoading)) {
+    if (jLoading || (isEdit && eLoading)) {
         return <div className="loading">Loading...</div>;
     }
-    if (!user || !journal) {
+    if (!journal) {
         return <div className="empty-state">Journal not found.</div>;
     }
     if (isEdit && !entry) {

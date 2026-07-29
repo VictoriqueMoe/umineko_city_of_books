@@ -1,6 +1,5 @@
-import { useEffect } from "react";
 import { Link, useNavigate } from "react-router";
-import { useAuth } from "../../hooks/useAuth";
+import { useAuthedUser } from "../../hooks/useAuthedUser";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useMyGameRooms } from "../../api/queries/gameRoom";
 import { useDeclineGameInvite, useCancelGameInvite } from "../../api/mutations/gameRoom";
@@ -23,21 +22,11 @@ function statusBadgeClass(status: string): string {
 
 export function GamesListPage() {
     usePageTitle("Games");
-    const { user, loading: authLoading } = useAuth();
+    const user = useAuthedUser();
     const navigate = useNavigate();
     const { rooms, loading, error, refresh } = useMyGameRooms();
     const declineInvite = useDeclineGameInvite();
     const cancelInvite = useCancelGameInvite();
-
-    useEffect(() => {
-        if (!authLoading && !user) {
-            navigate("/login");
-        }
-    }, [user, authLoading, navigate]);
-
-    if (authLoading || !user) {
-        return null;
-    }
 
     const pendingIncoming = rooms.filter(r => r.status === "pending" && r.created_by !== user.id);
     const pendingOutgoing = rooms.filter(r => r.status === "pending" && r.created_by === user.id);

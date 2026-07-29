@@ -15,6 +15,7 @@ import { ProtectedRoute } from "./components/ProtectedRoute/ProtectedRoute";
 import { StaleVersionBanner } from "./components/StaleVersionBanner/StaleVersionBanner";
 import { NativeUpdateBanner } from "./components/NativeUpdateBanner/NativeUpdateBanner";
 import { NativeLinkInterceptor } from "./components/NativeLinkInterceptor/NativeLinkInterceptor";
+import { LastLocationTracker } from "./components/LastLocationTracker/LastLocationTracker";
 import { PullToRefresh } from "./components/PullToRefresh/PullToRefresh";
 import { LockBanner } from "./components/LockBanner/LockBanner";
 import { VerifyEmailBanner } from "./components/VerifyEmailBanner/VerifyEmailBanner";
@@ -399,6 +400,7 @@ export default function App() {
     return (
         <BrowserRouter>
             <NativeLinkInterceptor />
+            <LastLocationTracker />
             <AppLayout />
         </BrowserRouter>
     );

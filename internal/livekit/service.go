@@ -26,6 +26,7 @@ type (
 		MintToken(roomName, identity, displayName string, canMic, canScreen bool) (string, error)
 		MintViewerToken(roomName, identity, name, metadata string) (string, error)
 		SetCanPublish(ctx context.Context, roomName, identity string, canMic, canScreen bool) error
+		RemoveParticipant(ctx context.Context, roomName, identity string) error
 		ParseWebhook(authHeader string, body []byte) (*Event, error)
 		ActiveRooms(ctx context.Context) (map[string][]string, error)
 		CreateIngress(ctx context.Context, roomName, identity, displayName string) (ingressID, url, streamKey string, err error)
@@ -49,7 +50,8 @@ type (
 )
 
 const (
-	tokenTTL = 24 * time.Hour
+	tokenTTL       = time.Hour
+	viewerTokenTTL = 12 * time.Hour
 
 	EventParticipantJoined = "participant_joined"
 	EventParticipantLeft   = "participant_left"
@@ -143,7 +145,7 @@ func (s *service) MintViewerToken(roomName, identity, name, metadata string) (st
 		SetVideoGrant(grant).
 		SetIdentity(identity).
 		SetName(name).
-		SetValidFor(tokenTTL)
+		SetValidFor(viewerTokenTTL)
 
 	if metadata != "" {
 		at = at.SetMetadata(metadata)
@@ -191,6 +193,25 @@ func (s *service) SetCanPublish(ctx context.Context, roomName, identity string, 
 		},
 	}); err != nil {
 		return fmt.Errorf("update livekit participant: %w", err)
+	}
+
+	return nil
+}
+
+func (s *service) RemoveParticipant(ctx context.Context, roomName, identity string) error {
+	url, key, secret := s.creds()
+
+	if url == "" || key == "" || secret == "" {
+		return ErrDisabled
+	}
+
+	client := lksdk.NewRoomServiceClient(toHTTPURL(url), key, secret)
+
+	if _, err := client.RemoveParticipant(ctx, &livekit.RoomParticipantIdentity{
+		Room:     roomName,
+		Identity: identity,
+	}); err != nil {
+		return fmt.Errorf("remove livekit participant: %w", err)
 	}
 
 	return nil

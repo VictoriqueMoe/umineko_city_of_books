@@ -9,6 +9,7 @@ import (
 	"umineko_city_of_books/internal/controllers/utils/testutil"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/gameroom"
+	"umineko_city_of_books/internal/middleware"
 	mysterysvc "umineko_city_of_books/internal/mystery"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
@@ -184,6 +185,31 @@ func TestForgotPassword_MissingUsername(t *testing.T) {
 	assert.Contains(t, string(body), "username is required")
 }
 
+func TestForgotPassword_ResponseIsIdenticalForAnyAccount(t *testing.T) {
+	cases := []struct {
+		name   string
+		svcErr error
+	}{
+		{"account exists and the mail is sent", nil},
+		{"username does not exist", authsvc.ErrUserNotFound},
+		{"account has no email address", authsvc.ErrNoEmailAddress},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h, deps := newAuthHarness(t)
+			deps.authSvc.EXPECT().ForgotPassword(mock.Anything, "alice").Return(tc.svcErr)
+
+			// when
+			status, body := h.NewRequest("POST", "/auth/forgot-password").WithJSONBody(dto.ForgotPasswordRequest{Username: "alice"}).Do()
+
+			// then
+			require.Equal(t, http.StatusOK, status)
+			assert.JSONEq(t, `{"status":"ok"}`, string(body))
+		})
+	}
+}
+
 func TestForgotPassword_ServiceErrors(t *testing.T) {
 	cases := []struct {
 		name     string
@@ -191,8 +217,6 @@ func TestForgotPassword_ServiceErrors(t *testing.T) {
 		wantCode int
 		wantBody string
 	}{
-		{"user not found", authsvc.ErrUserNotFound, http.StatusNotFound, "user not found"},
-		{"no email set", authsvc.ErrNoEmailAddress, http.StatusBadRequest, "user has no email set"},
 		{"email disabled", authsvc.ErrEmailDisabled, http.StatusBadRequest, "password reset is not available"},
 		{"internal", errors.New("boom"), http.StatusInternalServerError, "failed to send reset email"},
 	}
@@ -476,6 +500,61 @@ func TestLogin_ServiceErrors(t *testing.T) {
 			// then
 			require.Equal(t, tc.wantCode, status)
 			assert.Contains(t, string(body), tc.wantBody)
+		})
+	}
+}
+
+func TestAuthRoutes_RateLimitByIP(t *testing.T) {
+	cases := []struct {
+		name        string
+		path        string
+		body        any
+		setup       func(authDeps)
+		allowed     int
+		wantAllowed int
+	}{
+		{
+			name: "login spends the credential budget",
+			path: "/auth/login",
+			body: dto.LoginRequest{Username: "beato", Password: "wrong"},
+			setup: func(deps authDeps) {
+				deps.authSvc.EXPECT().Login(mock.Anything, mock.Anything).Return(nil, "", usersvc.ErrInvalidCredentials)
+			},
+			allowed:     middleware.CredentialAttemptsPerMinute,
+			wantAllowed: http.StatusUnauthorized,
+		},
+		{
+			name: "forgot password spends the mail budget",
+			path: "/auth/forgot-password",
+			body: dto.ForgotPasswordRequest{Username: "alice"},
+			setup: func(deps authDeps) {
+				deps.authSvc.EXPECT().ForgotPassword(mock.Anything, "alice").Return(nil)
+			},
+			allowed:     middleware.MailAttemptsPerHour,
+			wantAllowed: http.StatusOK,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h, deps := newAuthHarness(t)
+			tc.setup(deps)
+
+			// when
+			allowedStatuses := make([]int, 0, tc.allowed)
+			for range tc.allowed {
+				status, _ := h.NewRequest("POST", tc.path).WithJSONBody(tc.body).Do()
+				allowedStatuses = append(allowedStatuses, status)
+			}
+			overflowStatus, overflowBody := h.NewRequest("POST", tc.path).WithJSONBody(tc.body).Do()
+
+			// then
+			for _, status := range allowedStatuses {
+				assert.Equal(t, tc.wantAllowed, status)
+			}
+			require.Equal(t, http.StatusTooManyRequests, overflowStatus)
+			assert.Contains(t, string(overflowBody), "too many requests")
 		})
 	}
 }

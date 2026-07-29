@@ -270,6 +270,9 @@ func (r *roomsService) LeaveRoom(ctx context.Context, roomID, userID uuid.UUID) 
 		return fmt.Errorf("remove member: %w", err)
 	}
 
+	r.clearWatchPartyParticipation(ctx, roomID, userID)
+	r.dropFromLiveKitRoom(ctx, roomID.String(), userID.String())
+
 	leaver, _ := r.userRepo.GetByID(ctx, userID)
 	if leaver != nil {
 		if !wasGhost {
@@ -371,6 +374,9 @@ func (r *roomsService) DeleteChat(ctx context.Context, roomID, userID uuid.UUID)
 	if err := r.chatRepo.RemoveMember(ctx, roomID, userID); err != nil {
 		return fmt.Errorf("remove member: %w", err)
 	}
+
+	r.clearWatchPartyParticipation(ctx, roomID, userID)
+	r.dropFromLiveKitRoom(ctx, roomID.String(), userID.String())
 
 	remaining, err := r.chatRepo.CountRoomMembers(ctx, roomID)
 	if err != nil {

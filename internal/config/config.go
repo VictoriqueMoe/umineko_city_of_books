@@ -39,6 +39,7 @@ type (
 		Key     SiteSettingKey
 		Default string
 		Type    SettingType
+		Secret  bool
 	}
 )
 
@@ -53,86 +54,90 @@ const (
 	EmailProviderCloudflare EmailProvider = "cloudflare"
 )
 
+const (
+	SecretMask = "********"
+)
+
 var (
 	Cfg Config
 
 	Version = "dev"
 
-	SettingUploadDir               = &SiteSettingDef{"upload_dir", "uploads", TypeString}
-	SettingBaseURL                 = &SiteSettingDef{"base_url", "http://localhost:4323", TypeString}
-	SettingLogLevel                = &SiteSettingDef{"log_level", "info", TypeString}
-	SettingSentryDSN               = &SiteSettingDef{"sentry_dsn", "", TypeString}
-	SettingOTLPEndpoint            = &SiteSettingDef{"otlp_endpoint", "", TypeString}
-	SettingPyroscopeURL            = &SiteSettingDef{"pyroscope_url", "", TypeString}
-	SettingMaxBodySize             = &SiteSettingDef{"max_body_size", "52428800", TypeInt}
-	SettingMaxImageSize            = &SiteSettingDef{"max_image_size", "10485760", TypeInt}
-	SettingMaxImagePixels          = &SiteSettingDef{"max_image_pixels", "100000000", TypeInt}
-	SettingMaxVideoSize            = &SiteSettingDef{"max_video_size", "104857600", TypeInt}
-	SettingMaxGeneralSize          = &SiteSettingDef{"max_general_size", "52428800", TypeInt}
-	SettingRegistrationType        = &SiteSettingDef{"registration_type", "open", TypeString}
-	SettingMaintenanceMode         = &SiteSettingDef{"maintenance_mode", "false", TypeBool}
-	SettingMaintenanceTitle        = &SiteSettingDef{"maintenance_title", "", TypeString}
-	SettingMaintenanceMessage      = &SiteSettingDef{"maintenance_message", "", TypeString}
-	SettingSiteName                = &SiteSettingDef{"site_name", "When They Cry City of Books", TypeString}
-	SettingSiteDescription         = &SiteSettingDef{"site_description", "", TypeString}
-	SettingAnnouncementBanner      = &SiteSettingDef{"announcement_banner", "", TypeString}
-	SettingMaxTheoriesPerDay       = &SiteSettingDef{"max_theories_per_day", "0", TypeInt}
-	SettingMaxResponsesPerDay      = &SiteSettingDef{"max_responses_per_day", "0", TypeInt}
-	SettingMaxPostsPerDay          = &SiteSettingDef{"max_posts_per_day", "0", TypeInt}
-	SettingMinPasswordLength       = &SiteSettingDef{"min_password_length", "8", TypeInt}
-	SettingSessionDurationDays     = &SiteSettingDef{"session_duration_days", "30", TypeInt}
-	SettingDefaultTheme            = &SiteSettingDef{"default_theme", "featherine", TypeString}
-	SettingDMsEnabled              = &SiteSettingDef{"dms_enabled", "true", TypeBool}
-	SettingVoiceEnabled            = &SiteSettingDef{"voice_enabled", "false", TypeBool}
-	SettingLiveKitURL              = &SiteSettingDef{"livekit_url", "", TypeString}
-	SettingLiveKitAPIKey           = &SiteSettingDef{"livekit_api_key", "", TypeString}
-	SettingLiveKitAPISecret        = &SiteSettingDef{"livekit_api_secret", "", TypeString}
-	SettingStreamingEnabled        = &SiteSettingDef{"streaming_enabled", "false", TypeBool}
-	SettingStreamMaxConcurrent     = &SiteSettingDef{"stream_max_concurrent", "3", TypeInt}
-	SettingStreamHLSEnabled        = &SiteSettingDef{"stream_hls_enabled", "false", TypeBool}
-	SettingStreamHLSOutputDir      = &SiteSettingDef{"stream_hls_output_dir", "/app/data/hls", TypeString}
-	SettingTurnstileEnabled        = &SiteSettingDef{"turnstile_enabled", "false", TypeBool}
-	SettingTurnstileSiteKey        = &SiteSettingDef{"turnstile_site_key", "", TypeString}
-	SettingTurnstileSecretKey      = &SiteSettingDef{"turnstile_secret_key", "", TypeString}
-	SettingRulesTheories           = &SiteSettingDef{"rules_theories", "", TypeString}
-	SettingRulesTheoriesHigurashi  = &SiteSettingDef{"rules_theories_higurashi", "", TypeString}
-	SettingRulesTheoriesCiconia    = &SiteSettingDef{"rules_theories_ciconia", "", TypeString}
-	SettingRulesMysteries          = &SiteSettingDef{"rules_mysteries", "", TypeString}
-	SettingRulesShips              = &SiteSettingDef{"rules_ships", "", TypeString}
-	SettingRulesGameBoard          = &SiteSettingDef{"rules_game_board", "", TypeString}
-	SettingRulesGameBoardUmineko   = &SiteSettingDef{"rules_game_board_umineko", "", TypeString}
-	SettingRulesGameBoardHigurashi = &SiteSettingDef{"rules_game_board_higurashi", "", TypeString}
-	SettingRulesGameBoardCiconia   = &SiteSettingDef{"rules_game_board_ciconia", "", TypeString}
-	SettingRulesGameBoardHiganbana = &SiteSettingDef{"rules_game_board_higanbana", "", TypeString}
-	SettingRulesGameBoardRoseguns  = &SiteSettingDef{"rules_game_board_roseguns", "", TypeString}
-	SettingMaxArtPerDay            = &SiteSettingDef{"max_art_per_day", "0", TypeInt}
-	SettingMaxJournalsPerDay       = &SiteSettingDef{"max_journals_per_day", "0", TypeInt}
-	SettingMaxChatRoomMembers      = &SiteSettingDef{"max_chat_room_members", "100", TypeInt}
-	SettingMaxChatRoomsPerDay      = &SiteSettingDef{"max_chat_rooms_per_day", "0", TypeInt}
-	SettingRulesGallery            = &SiteSettingDef{"rules_gallery", "", TypeString}
-	SettingRulesGalleryUmineko     = &SiteSettingDef{"rules_gallery_umineko", "", TypeString}
-	SettingRulesGalleryHigurashi   = &SiteSettingDef{"rules_gallery_higurashi", "", TypeString}
-	SettingRulesGalleryCiconia     = &SiteSettingDef{"rules_gallery_ciconia", "", TypeString}
-	SettingRulesFanfiction         = &SiteSettingDef{"rules_fanfiction", "", TypeString}
-	SettingRulesJournals           = &SiteSettingDef{"rules_journals", "", TypeString}
-	SettingRulesSuggestions        = &SiteSettingDef{"rules_suggestions", "", TypeString}
-	SettingRulesChatRooms          = &SiteSettingDef{"rules_chat_rooms", "", TypeString}
-	SettingRulesPage               = &SiteSettingDef{"rules_page", "", TypeString}
-	SettingRulesLanding            = &SiteSettingDef{"rules_landing", "", TypeString}
-	SettingSMTPHost                = &SiteSettingDef{"smtp_host", "", TypeString}
-	SettingSMTPPort                = &SiteSettingDef{"smtp_port", "25", TypeInt}
-	SettingSMTPFrom                = &SiteSettingDef{"smtp_from", "", TypeString}
-	SettingSMTPUsername            = &SiteSettingDef{"smtp_username", "", TypeString}
-	SettingSMTPPassword            = &SiteSettingDef{"smtp_password", "", TypeString}
-	SettingEmailProvider           = &SiteSettingDef{"email_provider", string(EmailProviderSMTP), TypeString}
-	SettingCloudflareAccountID     = &SiteSettingDef{"cloudflare_account_id", "", TypeString}
-	SettingCloudflareAPIToken      = &SiteSettingDef{"cloudflare_api_token", "", TypeString}
-	SettingCloudflareEmailFrom     = &SiteSettingDef{"cloudflare_email_from", "", TypeString}
-	SettingPushEnabled             = &SiteSettingDef{"push_enabled", "false", TypeBool}
-	SettingAppLatestVersion        = &SiteSettingDef{"app_latest_version", "", TypeString}
-	SettingAppDownloadURL          = &SiteSettingDef{"app_download_url", "", TypeString}
-	SettingOGDefaultImage          = &SiteSettingDef{"og_default_image", "", TypeString}
-	SettingValkeyURL               = &SiteSettingDef{"valkey_url", "", TypeString}
+	SettingUploadDir               = &SiteSettingDef{"upload_dir", "uploads", TypeString, false}
+	SettingBaseURL                 = &SiteSettingDef{"base_url", "http://localhost:4323", TypeString, false}
+	SettingLogLevel                = &SiteSettingDef{"log_level", "info", TypeString, false}
+	SettingSentryDSN               = &SiteSettingDef{"sentry_dsn", "", TypeString, true}
+	SettingOTLPEndpoint            = &SiteSettingDef{"otlp_endpoint", "", TypeString, false}
+	SettingPyroscopeURL            = &SiteSettingDef{"pyroscope_url", "", TypeString, false}
+	SettingMaxBodySize             = &SiteSettingDef{"max_body_size", "52428800", TypeInt, false}
+	SettingMaxImageSize            = &SiteSettingDef{"max_image_size", "10485760", TypeInt, false}
+	SettingMaxImagePixels          = &SiteSettingDef{"max_image_pixels", "100000000", TypeInt, false}
+	SettingMaxVideoSize            = &SiteSettingDef{"max_video_size", "104857600", TypeInt, false}
+	SettingMaxGeneralSize          = &SiteSettingDef{"max_general_size", "52428800", TypeInt, false}
+	SettingRegistrationType        = &SiteSettingDef{"registration_type", "open", TypeString, false}
+	SettingMaintenanceMode         = &SiteSettingDef{"maintenance_mode", "false", TypeBool, false}
+	SettingMaintenanceTitle        = &SiteSettingDef{"maintenance_title", "", TypeString, false}
+	SettingMaintenanceMessage      = &SiteSettingDef{"maintenance_message", "", TypeString, false}
+	SettingSiteName                = &SiteSettingDef{"site_name", "When They Cry City of Books", TypeString, false}
+	SettingSiteDescription         = &SiteSettingDef{"site_description", "", TypeString, false}
+	SettingAnnouncementBanner      = &SiteSettingDef{"announcement_banner", "", TypeString, false}
+	SettingMaxTheoriesPerDay       = &SiteSettingDef{"max_theories_per_day", "0", TypeInt, false}
+	SettingMaxResponsesPerDay      = &SiteSettingDef{"max_responses_per_day", "0", TypeInt, false}
+	SettingMaxPostsPerDay          = &SiteSettingDef{"max_posts_per_day", "0", TypeInt, false}
+	SettingMinPasswordLength       = &SiteSettingDef{"min_password_length", "8", TypeInt, false}
+	SettingSessionDurationDays     = &SiteSettingDef{"session_duration_days", "30", TypeInt, false}
+	SettingDefaultTheme            = &SiteSettingDef{"default_theme", "featherine", TypeString, false}
+	SettingDMsEnabled              = &SiteSettingDef{"dms_enabled", "true", TypeBool, false}
+	SettingVoiceEnabled            = &SiteSettingDef{"voice_enabled", "false", TypeBool, false}
+	SettingLiveKitURL              = &SiteSettingDef{"livekit_url", "", TypeString, false}
+	SettingLiveKitAPIKey           = &SiteSettingDef{"livekit_api_key", "", TypeString, false}
+	SettingLiveKitAPISecret        = &SiteSettingDef{"livekit_api_secret", "", TypeString, true}
+	SettingStreamingEnabled        = &SiteSettingDef{"streaming_enabled", "false", TypeBool, false}
+	SettingStreamMaxConcurrent     = &SiteSettingDef{"stream_max_concurrent", "3", TypeInt, false}
+	SettingStreamHLSEnabled        = &SiteSettingDef{"stream_hls_enabled", "false", TypeBool, false}
+	SettingStreamHLSOutputDir      = &SiteSettingDef{"stream_hls_output_dir", "/app/data/hls", TypeString, false}
+	SettingTurnstileEnabled        = &SiteSettingDef{"turnstile_enabled", "false", TypeBool, false}
+	SettingTurnstileSiteKey        = &SiteSettingDef{"turnstile_site_key", "", TypeString, false}
+	SettingTurnstileSecretKey      = &SiteSettingDef{"turnstile_secret_key", "", TypeString, true}
+	SettingRulesTheories           = &SiteSettingDef{"rules_theories", "", TypeString, false}
+	SettingRulesTheoriesHigurashi  = &SiteSettingDef{"rules_theories_higurashi", "", TypeString, false}
+	SettingRulesTheoriesCiconia    = &SiteSettingDef{"rules_theories_ciconia", "", TypeString, false}
+	SettingRulesMysteries          = &SiteSettingDef{"rules_mysteries", "", TypeString, false}
+	SettingRulesShips              = &SiteSettingDef{"rules_ships", "", TypeString, false}
+	SettingRulesGameBoard          = &SiteSettingDef{"rules_game_board", "", TypeString, false}
+	SettingRulesGameBoardUmineko   = &SiteSettingDef{"rules_game_board_umineko", "", TypeString, false}
+	SettingRulesGameBoardHigurashi = &SiteSettingDef{"rules_game_board_higurashi", "", TypeString, false}
+	SettingRulesGameBoardCiconia   = &SiteSettingDef{"rules_game_board_ciconia", "", TypeString, false}
+	SettingRulesGameBoardHiganbana = &SiteSettingDef{"rules_game_board_higanbana", "", TypeString, false}
+	SettingRulesGameBoardRoseguns  = &SiteSettingDef{"rules_game_board_roseguns", "", TypeString, false}
+	SettingMaxArtPerDay            = &SiteSettingDef{"max_art_per_day", "0", TypeInt, false}
+	SettingMaxJournalsPerDay       = &SiteSettingDef{"max_journals_per_day", "0", TypeInt, false}
+	SettingMaxChatRoomMembers      = &SiteSettingDef{"max_chat_room_members", "100", TypeInt, false}
+	SettingMaxChatRoomsPerDay      = &SiteSettingDef{"max_chat_rooms_per_day", "0", TypeInt, false}
+	SettingRulesGallery            = &SiteSettingDef{"rules_gallery", "", TypeString, false}
+	SettingRulesGalleryUmineko     = &SiteSettingDef{"rules_gallery_umineko", "", TypeString, false}
+	SettingRulesGalleryHigurashi   = &SiteSettingDef{"rules_gallery_higurashi", "", TypeString, false}
+	SettingRulesGalleryCiconia     = &SiteSettingDef{"rules_gallery_ciconia", "", TypeString, false}
+	SettingRulesFanfiction         = &SiteSettingDef{"rules_fanfiction", "", TypeString, false}
+	SettingRulesJournals           = &SiteSettingDef{"rules_journals", "", TypeString, false}
+	SettingRulesSuggestions        = &SiteSettingDef{"rules_suggestions", "", TypeString, false}
+	SettingRulesChatRooms          = &SiteSettingDef{"rules_chat_rooms", "", TypeString, false}
+	SettingRulesPage               = &SiteSettingDef{"rules_page", "", TypeString, false}
+	SettingRulesLanding            = &SiteSettingDef{"rules_landing", "", TypeString, false}
+	SettingSMTPHost                = &SiteSettingDef{"smtp_host", "", TypeString, false}
+	SettingSMTPPort                = &SiteSettingDef{"smtp_port", "25", TypeInt, false}
+	SettingSMTPFrom                = &SiteSettingDef{"smtp_from", "", TypeString, false}
+	SettingSMTPUsername            = &SiteSettingDef{"smtp_username", "", TypeString, false}
+	SettingSMTPPassword            = &SiteSettingDef{"smtp_password", "", TypeString, true}
+	SettingEmailProvider           = &SiteSettingDef{"email_provider", string(EmailProviderSMTP), TypeString, false}
+	SettingCloudflareAccountID     = &SiteSettingDef{"cloudflare_account_id", "", TypeString, false}
+	SettingCloudflareAPIToken      = &SiteSettingDef{"cloudflare_api_token", "", TypeString, true}
+	SettingCloudflareEmailFrom     = &SiteSettingDef{"cloudflare_email_from", "", TypeString, false}
+	SettingPushEnabled             = &SiteSettingDef{"push_enabled", "false", TypeBool, false}
+	SettingAppLatestVersion        = &SiteSettingDef{"app_latest_version", "", TypeString, false}
+	SettingAppDownloadURL          = &SiteSettingDef{"app_download_url", "", TypeString, false}
+	SettingOGDefaultImage          = &SiteSettingDef{"og_default_image", "", TypeString, false}
+	SettingValkeyURL               = &SiteSettingDef{"valkey_url", "", TypeString, true}
 
 	AllSiteSettings = []*SiteSettingDef{
 		SettingUploadDir,

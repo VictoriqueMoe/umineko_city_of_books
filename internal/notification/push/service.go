@@ -25,7 +25,7 @@ type (
 
 	Service interface {
 		RegisterToken(ctx context.Context, userID uuid.UUID, token, platform string) error
-		UnregisterToken(ctx context.Context, token string) error
+		UnregisterToken(ctx context.Context, userID uuid.UUID, token string) error
 		SendToUser(ctx context.Context, userID uuid.UUID, n Notification)
 		Enabled() bool
 	}
@@ -99,8 +99,8 @@ func (s *service) RegisterToken(ctx context.Context, userID uuid.UUID, token, pl
 	return s.repo.Upsert(ctx, userID, token, platform)
 }
 
-func (s *service) UnregisterToken(ctx context.Context, token string) error {
-	return s.repo.Delete(ctx, token)
+func (s *service) UnregisterToken(ctx context.Context, userID uuid.UUID, token string) error {
+	return s.repo.Delete(ctx, userID, token)
 }
 
 func (s *service) SendToUser(ctx context.Context, userID uuid.UUID, n Notification) {
@@ -146,7 +146,7 @@ func (s *service) SendToUser(ctx context.Context, userID uuid.UUID, n Notificati
 	}
 
 	if len(stale) > 0 {
-		if err := s.repo.DeleteMany(ctx, stale); err != nil {
+		if err := s.repo.DeleteMany(ctx, userID, stale); err != nil {
 			logger.Log.Warn().Err(err).Msg("failed to prune stale device tokens")
 		}
 	}
