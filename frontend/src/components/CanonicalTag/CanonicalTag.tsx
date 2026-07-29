@@ -1,10 +1,11 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router";
+import { siteUrl } from "../../utils/siteOrigin";
 
 export function CanonicalTag() {
     const { pathname, search } = useLocation();
     useEffect(() => {
-        const href = `${window.location.origin}${pathname}${search}`;
+        const href = siteUrl(`${pathname}${search}`);
         let link = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
         if (!link) {
             link = document.createElement("link");
