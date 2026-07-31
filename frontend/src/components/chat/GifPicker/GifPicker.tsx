@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ApiError } from "../../../api/client";
-import type { GiphyFavourite, GiphyGif } from "../../../api/endpoints";
+import type { GiphyFavourite, GiphyGif, GiphyImage } from "../../../api/endpoints";
 import { useGiphySearch, useGiphyTrending } from "../../../api/queries/giphy";
 import { useAuth } from "../../../hooks/useAuth";
 import { useGifFavourites } from "../../../hooks/useGifFavourites";
@@ -17,6 +17,8 @@ interface Item {
     title: string;
     url: string;
     previewUrl: string;
+    width: number;
+    height: number;
 }
 
 type Tab = "browse" | "favourites";
@@ -24,27 +26,30 @@ type Tab = "browse" | "favourites";
 const SEARCH_DEBOUNCE_MS = 600;
 const MIN_SEARCH_LENGTH = 2;
 
-function pickImage(gif: GiphyGif, prefer: string[]): string {
+function pickImage(gif: GiphyGif, prefer: string[]): GiphyImage | null {
     for (let i = 0; i < prefer.length; i++) {
         const img = gif.images?.[prefer[i]];
         if (img && img.url) {
-            return img.url;
+            return img;
         }
     }
-    return "";
+    return null;
 }
 
 function toItem(gif: GiphyGif): Item | null {
-    const url = pickImage(gif, ["fixed_height", "downsized_medium", "original"]);
-    const previewUrl = pickImage(gif, ["fixed_width_small", "fixed_width", "original"]);
-    if (!url || !previewUrl) {
+    const image = pickImage(gif, ["fixed_height", "downsized_medium", "original"]);
+    const preview = pickImage(gif, ["fixed_width_small", "fixed_width", "original"]);
+    if (!image || !preview) {
         return null;
     }
+
     return {
         id: gif.id,
         title: gif.title || "GIF",
-        url,
-        previewUrl,
+        url: image.url,
+        previewUrl: preview.url,
+        width: Number.parseInt(image.width, 10) || 0,
+        height: Number.parseInt(image.height, 10) || 0,
     };
 }
 
@@ -54,6 +59,8 @@ function favToItem(f: GiphyFavourite): Item {
         title: f.title || "GIF",
         url: f.url,
         previewUrl: f.preview_url || f.url,
+        width: f.width,
+        height: f.height,
     };
 }
 
@@ -166,8 +173,8 @@ export function GifPicker({ onPick, onClose }: GifPickerProps) {
             url: item.url,
             title: item.title,
             preview_url: item.previewUrl,
-            width: 0,
-            height: 0,
+            width: item.width,
+            height: item.height,
         };
         await toggle(fav);
     }

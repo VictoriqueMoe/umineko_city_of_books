@@ -136,6 +136,7 @@ type (
 		GetMessageSenderID(ctx context.Context, messageID uuid.UUID) (uuid.UUID, error)
 		GetMessageRoomID(ctx context.Context, messageID uuid.UUID) (uuid.UUID, error)
 		AddMessageMedia(ctx context.Context, messageID uuid.UUID, mediaURL, mediaType, thumbnailURL string, sortOrder int) (int64, error)
+		UpdateMessageMediaDimensions(ctx context.Context, id int64, width, height int) error
 		UpdateMessageMediaURL(ctx context.Context, id int64, mediaURL string) error
 		UpdateMessageMediaThumbnail(ctx context.Context, id int64, thumbnailURL string) error
 		GetMessageMediaBatch(ctx context.Context, messageIDs []uuid.UUID) (map[uuid.UUID][]dto.PostMediaResponse, error)
@@ -341,6 +342,10 @@ func (r *chatRepository) GetMessageRoomID(ctx context.Context, messageID uuid.UU
 
 func (r *chatRepository) AddMessageMedia(ctx context.Context, messageID uuid.UUID, mediaURL, mediaType, thumbnailURL string, sortOrder int) (int64, error) {
 	return r.dao.AddMessageMedia(ctx, messageID, mediaURL, mediaType, thumbnailURL, sortOrder)
+}
+
+func (r *chatRepository) UpdateMessageMediaDimensions(ctx context.Context, id int64, width, height int) error {
+	return r.dao.UpdateMessageMediaDimensions(ctx, id, width, height)
 }
 
 func (r *chatRepository) UpdateMessageMediaURL(ctx context.Context, id int64, mediaURL string) error {

@@ -96,6 +96,8 @@ export function renderSeenLabel(
     return `seen by ${seenByName} ${time}`;
 }
 
+const MAX_DM_MESSAGES = 300;
+
 export function useDmController() {
     usePageTitle("Chat");
 
@@ -135,7 +137,7 @@ export function useDmController() {
         handleScroll: handleDmScroll,
         addMessage,
         resync,
-    } = useMessageHistory(activeRoomId ?? undefined);
+    } = useMessageHistory(activeRoomId ?? undefined, editingMessageId === null ? MAX_DM_MESSAGES : undefined);
 
     const didResyncMountRef = useRef(false);
     useEffect(() => {
@@ -149,13 +151,6 @@ export function useDmController() {
 
     const deleteChatRoomMutation = useDeleteChatRoom();
     const markChatRoomReadMutation = useMarkChatRoomRead();
-
-    useEffect(() => {
-        document.body.dataset.chatPage = "true";
-        return () => {
-            delete document.body.dataset.chatPage;
-        };
-    }, []);
 
     useEffect(() => {
         const state = location.state as { dmUserId?: string } | null;

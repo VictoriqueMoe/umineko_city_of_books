@@ -19,8 +19,9 @@ function entryHeading(number: number, title?: string | null): string {
 export function JournalCard({ journal }: JournalCardProps) {
     const hasLatest = typeof journal.latest_entry_number === "number";
     return (
-        <Link to={`/journals/${journal.id}`} className={styles.card}>
-            <div className={styles.byline} onClick={e => e.stopPropagation()}>
+        <div className={styles.card}>
+            <Link to={`/journals/${journal.id}`} className={styles.cardLink} aria-label={journal.title} />
+            <div className={styles.byline}>
                 <ProfileLink user={journal.author} size="small" />
                 's Reading Journal
             </div>
@@ -55,6 +56,6 @@ export function JournalCard({ journal }: JournalCardProps) {
                 </span>
                 <span className={styles.activity}>Last update {relativeTime(journal.last_author_activity_at)}</span>
             </div>
-        </Link>
+        </div>
     );
 }

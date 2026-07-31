@@ -22,15 +22,17 @@ export function TheoryCard({ theory }: TheoryCardProps) {
     const isSpoiler = !spoilerRevealed && userProgress > 0 && theory.episode > 0 && theory.episode >= userProgress;
 
     return (
-        <Link
-            to={`/theory/${theory.id}`}
-            className={styles.card}
-            onClick={e => {
-                if (isSpoiler) {
-                    e.preventDefault();
-                }
-            }}
-        >
+        <div className={styles.card}>
+            <Link
+                to={`/theory/${theory.id}`}
+                className={styles.cardLink}
+                aria-label={theory.title}
+                onClick={e => {
+                    if (isSpoiler) {
+                        e.preventDefault();
+                    }
+                }}
+            />
             {isSpoiler && (
                 <div className={styles.spoilerOverlay}>
                     <span>Spoiler: {formatSeriesEpisode(seriesKey, theory.episode)}</span>
@@ -45,7 +47,7 @@ export function TheoryCard({ theory }: TheoryCardProps) {
                 </div>
             )}
             <div className={isSpoiler ? styles.blurred : undefined}>
-                <div className={styles.byline} onClick={e => e.stopPropagation()}>
+                <div className={styles.byline}>
                     <ProfileLink user={theory.author} size="small" />
                     's Blue Truth
                 </div>
@@ -68,6 +70,6 @@ export function TheoryCard({ theory }: TheoryCardProps) {
                     <span className={styles.timestamp}>{formatFullDateTime(theory.created_at)}</span>
                 </div>
             </div>
-        </Link>
+        </div>
     );
 }

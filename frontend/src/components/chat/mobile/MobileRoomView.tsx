@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { isSiteStaff } from "../../../utils/permissions";
 import { effectiveMemberUser, memberModPermissions } from "../../../utils/chatMembers";
 import { forceMuteVoiceParticipant } from "../../../api/endpoints";
@@ -13,8 +14,8 @@ import { RoomMessageList } from "../MessageList/RoomMessageList";
 import { PinnedMessagesPanel } from "../PinnedMessagesPanel/PinnedMessagesPanel";
 import { MessageSearchPanel } from "../MessageSearchPanel/MessageSearchPanel";
 import { WatchPartyButton } from "../WatchParty/WatchPartyButton";
-import { WatchPartyModal } from "../WatchParty/WatchPartyModal";
-import { VoiceBar } from "../Voice/VoiceBar";
+const WatchPartyModal = lazy(() => import("../WatchParty/WatchPartyModal").then(m => ({ default: m.WatchPartyModal })));
+const VoiceBar = lazy(() => import("../Voice/VoiceBar").then(m => ({ default: m.VoiceBar })));
 import { VoiceButton } from "../Voice/VoiceButton";
 import { Lightbox } from "../../Lightbox/Lightbox";
 import { ProfileLink } from "../../ProfileLink/ProfileLink";
@@ -141,22 +142,24 @@ export function MobileRoomView({ controller }: { controller: RoomController }) {
             />
 
             {watchParty.activeSession && user && (
-                <WatchPartyModal
-                    isOpen={true}
-                    onClose={() => watchParty.close()}
-                    active={watchParty.activeSession}
-                    viewerUserId={user.id}
-                    viewerRole={user.role}
-                    isStarter={watchParty.activeSession.session.started_by === user.id}
-                    viewerIsStaff={isSiteStaff(user.role)}
-                    voiceEnabled={watchParty.screenShareEnabled}
-                    onLeave={watchParty.leave}
-                    onEnd={watchParty.end}
-                    onTransferControl={watchParty.transferControl}
-                    onKick={watchParty.kick}
-                    onIdentify={watchParty.identify}
-                    onSendMessage={watchParty.sendMessage}
-                />
+                <Suspense fallback={null}>
+                    <WatchPartyModal
+                        isOpen={true}
+                        onClose={() => watchParty.close()}
+                        active={watchParty.activeSession}
+                        viewerUserId={user.id}
+                        viewerRole={user.role}
+                        isStarter={watchParty.activeSession.session.started_by === user.id}
+                        viewerIsStaff={isSiteStaff(user.role)}
+                        voiceEnabled={watchParty.screenShareEnabled}
+                        onLeave={watchParty.leave}
+                        onEnd={watchParty.end}
+                        onTransferControl={watchParty.transferControl}
+                        onKick={watchParty.kick}
+                        onIdentify={watchParty.identify}
+                        onSendMessage={watchParty.sendMessage}
+                    />
+                </Suspense>
             )}
 
             <InviteMembersModal
@@ -481,14 +484,16 @@ export function MobileRoomView({ controller }: { controller: RoomController }) {
             </div>
 
             {voice.status === "connected" && voice.room && (
-                <VoiceBar
-                    room={voice.room}
-                    onLeave={voice.leave}
-                    canModerate={canModerateRoom}
-                    onForceMute={(id, muted) => {
-                        forceMuteVoiceParticipant(roomId ?? "", id, muted).catch(() => {});
-                    }}
-                />
+                <Suspense fallback={null}>
+                    <VoiceBar
+                        room={voice.room}
+                        onLeave={voice.leave}
+                        canModerate={canModerateRoom}
+                        onForceMute={(id, muted) => {
+                            forceMuteVoiceParticipant(roomId ?? "", id, muted).catch(() => {});
+                        }}
+                    />
+                </Suspense>
             )}
 
             <RoomMessageList

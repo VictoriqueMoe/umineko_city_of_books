@@ -253,6 +253,8 @@ export interface PostMedia {
     media_type: "image" | "video";
     thumbnail_url?: string;
     sort_order: number;
+    width?: number;
+    height?: number;
 }
 
 export interface PostEmbed {

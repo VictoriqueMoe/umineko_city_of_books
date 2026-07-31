@@ -1,5 +1,5 @@
-import { Suspense, useEffect, useState } from "react";
-import { BrowserRouter, Link, Navigate, Route, Routes, useNavigate } from "react-router";
+import { Suspense, useEffect, useLayoutEffect, useState } from "react";
+import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router";
 import { useSiteInfo } from "./hooks/useSiteInfo";
 import { useTheme } from "./hooks/useTheme";
 import { useAuth } from "./hooks/useAuth";
@@ -189,10 +189,24 @@ function SecretClosedToast() {
     );
 }
 
+const CHAT_LAYOUT_ROUTES = [/^\/rooms\/[^/]+$/, /^\/chat(\/|$)/, /^\/live\/[^/]+$/];
+
+function isChatLayoutPath(pathname: string): boolean {
+    for (const pattern of CHAT_LAYOUT_ROUTES) {
+        if (pattern.test(pathname)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 function AppLayout() {
     const siteInfo = useSiteInfo();
     const { particlesEnabled } = useTheme();
     const { user, loading: authLoading } = useAuth();
+    const { pathname } = useLocation();
+    const chatLayout = isChatLayoutPath(pathname);
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [sidebarCollapsed, setSidebarCollapsed] = useSidebarCollapsed();
     const navigate = useNavigate();
@@ -203,6 +217,17 @@ function AppLayout() {
             initPush(navigate).catch(() => {});
         }
     }, [user, navigate]);
+
+    useLayoutEffect(() => {
+        if (!chatLayout) {
+            return;
+        }
+
+        document.body.dataset.chatPage = "true";
+        return () => {
+            delete document.body.dataset.chatPage;
+        };
+    }, [chatLayout]);
 
     if (authLoading) {
         return null;
@@ -240,7 +265,7 @@ function AppLayout() {
                 <AnnouncementBanner />
                 <SecretClosedToast />
                 <GameForfeitWarning />
-                <main className="main-content">
+                <main className={chatLayout ? "main-content main-content-chat" : "main-content"}>
                     <PullToRefresh>
                         <Suspense fallback={<RouteFallback />}>
                             <Routes>

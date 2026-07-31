@@ -4582,6 +4582,75 @@ func (_c *MockChatRepository_UnpinMessage_Call) RunAndReturn(run func(ctx contex
 	return _c
 }
 
+// UpdateMessageMediaDimensions provides a mock function for the type MockChatRepository
+func (_mock *MockChatRepository) UpdateMessageMediaDimensions(ctx context.Context, id int64, width int, height int) error {
+	ret := _mock.Called(ctx, id, width, height)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateMessageMediaDimensions")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, int, int) error); ok {
+		r0 = returnFunc(ctx, id, width, height)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockChatRepository_UpdateMessageMediaDimensions_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateMessageMediaDimensions'
+type MockChatRepository_UpdateMessageMediaDimensions_Call struct {
+	*mock.Call
+}
+
+// UpdateMessageMediaDimensions is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id int64
+//   - width int
+//   - height int
+func (_e *MockChatRepository_Expecter) UpdateMessageMediaDimensions(ctx any, id any, width any, height any) *MockChatRepository_UpdateMessageMediaDimensions_Call {
+	return &MockChatRepository_UpdateMessageMediaDimensions_Call{Call: _e.mock.On("UpdateMessageMediaDimensions", ctx, id, width, height)}
+}
+
+func (_c *MockChatRepository_UpdateMessageMediaDimensions_Call) Run(run func(ctx context.Context, id int64, width int, height int)) *MockChatRepository_UpdateMessageMediaDimensions_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 int64
+		if args[1] != nil {
+			arg1 = args[1].(int64)
+		}
+		var arg2 int
+		if args[2] != nil {
+			arg2 = args[2].(int)
+		}
+		var arg3 int
+		if args[3] != nil {
+			arg3 = args[3].(int)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatRepository_UpdateMessageMediaDimensions_Call) Return(err error) *MockChatRepository_UpdateMessageMediaDimensions_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockChatRepository_UpdateMessageMediaDimensions_Call) RunAndReturn(run func(ctx context.Context, id int64, width int, height int) error) *MockChatRepository_UpdateMessageMediaDimensions_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateMessageMediaThumbnail provides a mock function for the type MockChatRepository
 func (_mock *MockChatRepository) UpdateMessageMediaThumbnail(ctx context.Context, id int64, thumbnailURL string) error {
 	ret := _mock.Called(ctx, id, thumbnailURL)

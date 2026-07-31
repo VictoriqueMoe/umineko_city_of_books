@@ -304,6 +304,8 @@ function MessageBubbleBase({
                                     className={styles.messageMediaItem}
                                     src={m.media_url}
                                     alt=""
+                                    width={m.width || undefined}
+                                    height={m.height || undefined}
                                     loading="lazy"
                                     decoding="async"
                                     onClick={() => onLightbox?.(m.media_url)}

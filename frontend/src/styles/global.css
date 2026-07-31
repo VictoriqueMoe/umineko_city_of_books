@@ -394,7 +394,7 @@ body[data-chat-page="true"] .app-main {
     min-height: 0;
 }
 
-body[data-chat-page="true"] .main-content {
+.main-content.main-content-chat {
     padding: 0;
     max-width: none;
     min-height: 0;

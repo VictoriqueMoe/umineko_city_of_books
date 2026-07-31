@@ -49,6 +49,8 @@ import {
     maybePlayChatMessageSound,
 } from "../utils/chatStream";
 
+const MAX_ROOM_MESSAGES = 300;
+
 export function useRoomController() {
     const { roomId } = useParams<{ roomId: string }>();
     const navigate = useNavigate();
@@ -115,7 +117,10 @@ export function useRoomController() {
         roomId: null,
         map: {},
     });
-    const presenceMap = presenceState.roomId === roomId ? presenceState.map : {};
+    const presenceMap = useMemo(
+        () => (presenceState.roomId === roomId ? presenceState.map : {}),
+        [presenceState, roomId],
+    );
     const setPresenceMap = useCallback(
         (updater: (prev: Record<string, "active" | "idle">) => Record<string, "active" | "idle">) => {
             setPresenceState(prev => {
@@ -218,13 +223,16 @@ export function useRoomController() {
         [roomId, baseMembers],
     );
 
-    const presenceSeed: Record<string, "active" | "idle"> = {};
-    for (const m of baseMembers) {
-        if (m.presence === "active" || m.presence === "idle") {
-            presenceSeed[m.user.id] = m.presence;
+    const presenceMapMerged = useMemo(() => {
+        const seed: Record<string, "active" | "idle"> = {};
+        for (const m of baseMembers) {
+            if (m.presence === "active" || m.presence === "idle") {
+                seed[m.user.id] = m.presence;
+            }
         }
-    }
-    const presenceMapMerged = { ...presenceSeed, ...presenceMap };
+
+        return { ...seed, ...presenceMap };
+    }, [baseMembers, presenceMap]);
 
     const memberOnlineWeight = (id: string) => {
         const p = presenceMapMerged[id];
@@ -276,19 +284,25 @@ export function useRoomController() {
 
         return "Members";
     };
-    const sortedMembers = [...members].sort((a, b) => {
-        const rank = memberRankWeight(a) - memberRankWeight(b);
-        if (rank !== 0) {
-            return rank;
-        }
+    const sortedMembers = useMemo(() => {
+        return [...members].sort((a, b) => {
+            const rank = memberRankWeight(a) - memberRankWeight(b);
+            if (rank !== 0) {
+                return rank;
+            }
 
-        const online = memberOnlineWeight(a.user.id) - memberOnlineWeight(b.user.id);
-        if (online !== 0) {
-            return online;
-        }
+            const onlineWeight = (id: string) => {
+                const p = presenceMapMerged[id];
+                return p === "active" || p === "idle" ? 0 : 1;
+            };
+            const online = onlineWeight(a.user.id) - onlineWeight(b.user.id);
+            if (online !== 0) {
+                return online;
+            }
 
-        return memberSortName(a).localeCompare(memberSortName(b));
-    });
+            return memberSortName(a).localeCompare(memberSortName(b));
+        });
+    }, [members, presenceMapMerged]);
     const memberGroups: { label: string; members: ChatRoomMember[] }[] = [];
     for (const m of sortedMembers) {
         const label = memberRankLabel(m);
@@ -318,7 +332,7 @@ export function useRoomController() {
         addMessage,
         loadUntilMessage,
         resync,
-    } = useMessageHistory(room ? roomId : undefined);
+    } = useMessageHistory(room ? roomId : undefined, editingMessageId === null ? MAX_ROOM_MESSAGES : undefined);
 
     const didResyncMountRef = useRef(false);
     useEffect(() => {
@@ -398,13 +412,6 @@ export function useRoomController() {
     useEffect(() => {
         roomMutedRef.current = room?.viewer_muted ?? false;
     }, [room?.viewer_muted]);
-
-    useEffect(() => {
-        document.body.dataset.chatPage = "true";
-        return () => {
-            delete document.body.dataset.chatPage;
-        };
-    }, []);
 
     useEffect(() => {
         if (!toast) {
