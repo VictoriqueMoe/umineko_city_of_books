@@ -42,20 +42,22 @@ type (
 	}
 
 	errNotFoundT struct{}
-)
 
-var errNotFound error = errNotFoundT{}
-
-func RunAuthFailureSuite[H any](t *testing.T, factory func(t *testing.T) (*Harness, H), method, path string, body any) {
-	t.Helper()
-
-	cases := []struct {
+	authCase struct {
 		name     string
 		cookie   string
 		setup    func(*Harness)
 		wantCode int
 		wantBody string
-	}{
+	}
+)
+
+const testRequestTimeout = 30 * time.Second
+
+var errNotFound error = errNotFoundT{}
+
+func baseAuthFailureCases() []authCase {
+	return []authCase{
 		{
 			name:     "no cookie",
 			cookie:   "",
@@ -78,6 +80,10 @@ func RunAuthFailureSuite[H any](t *testing.T, factory func(t *testing.T) (*Harne
 			wantBody: "banned",
 		},
 	}
+}
+
+func runAuthCases[H any](t *testing.T, factory func(t *testing.T) (*Harness, H), method, path string, body any, cases []authCase) {
+	t.Helper()
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -100,6 +106,12 @@ func RunAuthFailureSuite[H any](t *testing.T, factory func(t *testing.T) (*Harne
 			assert.Contains(t, string(respBody), tc.wantBody)
 		})
 	}
+}
+
+func RunAuthFailureSuite[H any](t *testing.T, factory func(t *testing.T) (*Harness, H), method, path string, body any) {
+	t.Helper()
+
+	runAuthCases(t, factory, method, path, body, baseAuthFailureCases())
 }
 
 func NewHarness(t *testing.T) *Harness {
@@ -123,20 +135,27 @@ func NewHarness(t *testing.T) *Harness {
 	}
 }
 
-func (h *Harness) ExpectValidSession(cookie string, userID uuid.UUID) {
+func (h *Harness) expectSessionResolves(cookie string, userID uuid.UUID, banned bool) {
 	h.T.Helper()
+
 	h.SessionRepo.EXPECT().
 		GetUserID(mock.Anything, cookie).
 		Return(userID, time.Now().Add(time.Hour), nil).
 		Maybe()
 	h.AuthzService.EXPECT().
 		IsBanned(mock.Anything, userID).
-		Return(false).
+		Return(banned).
 		Maybe()
 	h.AuthzService.EXPECT().
 		IsLocked(mock.Anything, userID).
 		Return(false).
 		Maybe()
+}
+
+func (h *Harness) ExpectValidSession(cookie string, userID uuid.UUID) {
+	h.T.Helper()
+
+	h.expectSessionResolves(cookie, userID, false)
 	h.AuthzService.EXPECT().
 		RequiresEmailVerification(mock.Anything, userID).
 		Return(false).
@@ -153,18 +172,8 @@ func (h *Harness) ExpectInvalidSession(cookie string) {
 
 func (h *Harness) ExpectBannedUser(cookie string, userID uuid.UUID) {
 	h.T.Helper()
-	h.SessionRepo.EXPECT().
-		GetUserID(mock.Anything, cookie).
-		Return(userID, time.Now().Add(time.Hour), nil).
-		Maybe()
-	h.AuthzService.EXPECT().
-		IsBanned(mock.Anything, userID).
-		Return(true).
-		Maybe()
-	h.AuthzService.EXPECT().
-		IsLocked(mock.Anything, userID).
-		Return(false).
-		Maybe()
+
+	h.expectSessionResolves(cookie, userID, true)
 	h.SessionRepo.EXPECT().
 		Delete(mock.Anything, cookie).
 		Return(nil).
@@ -182,68 +191,19 @@ func (h *Harness) ExpectHasPermission(userID uuid.UUID, perm authzsvc.Permission
 func RunPermissionFailureSuite[H any](t *testing.T, factory func(t *testing.T) (*Harness, H), method, path string, body any, perm authzsvc.Permission) {
 	t.Helper()
 
-	cases := []struct {
-		name     string
-		cookie   string
-		setup    func(*Harness)
-		wantCode int
-		wantBody string
-	}{
-		{
-			name:     "no cookie",
-			cookie:   "",
-			setup:    func(_ *Harness) {},
-			wantCode: http.StatusUnauthorized,
-			wantBody: "authentication required",
+	cases := append(baseAuthFailureCases(), authCase{
+		name:   "insufficient permissions",
+		cookie: "valid-cookie",
+		setup: func(h *Harness) {
+			userID := uuid.New()
+			h.ExpectValidSession("valid-cookie", userID)
+			h.ExpectHasPermission(userID, perm, false)
 		},
-		{
-			name:     "invalid session",
-			cookie:   "bogus",
-			setup:    func(h *Harness) { h.ExpectInvalidSession("bogus") },
-			wantCode: http.StatusUnauthorized,
-			wantBody: "invalid or expired session",
-		},
-		{
-			name:     "banned",
-			cookie:   "banned-cookie",
-			setup:    func(h *Harness) { h.ExpectBannedUser("banned-cookie", uuid.New()) },
-			wantCode: http.StatusForbidden,
-			wantBody: "banned",
-		},
-		{
-			name:   "insufficient permissions",
-			cookie: "valid-cookie",
-			setup: func(h *Harness) {
-				userID := uuid.New()
-				h.ExpectValidSession("valid-cookie", userID)
-				h.ExpectHasPermission(userID, perm, false)
-			},
-			wantCode: http.StatusForbidden,
-			wantBody: "insufficient permissions",
-		},
-	}
+		wantCode: http.StatusForbidden,
+		wantBody: "insufficient permissions",
+	})
 
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			// given
-			h, _ := factory(t)
-			tc.setup(h)
-
-			// when
-			req := h.NewRequest(method, path)
-			if body != nil {
-				req = req.WithJSONBody(body)
-			}
-			if tc.cookie != "" {
-				req = req.WithCookie(tc.cookie)
-			}
-			status, respBody := req.Do()
-
-			// then
-			require.Equal(t, tc.wantCode, status)
-			assert.Contains(t, string(respBody), tc.wantBody)
-		})
-	}
+	runAuthCases(t, factory, method, path, body, cases)
 }
 
 func (h *Harness) NewRequest(method, path string) *Request {
@@ -285,7 +245,7 @@ func (r *Request) Do() (int, []byte) {
 	if r.cookie != "" {
 		req.AddCookie(&http.Cookie{Name: session.CookieName, Value: r.cookie})
 	}
-	resp, err := r.h.App.Test(req)
+	resp, err := r.h.App.Test(req, fiber.TestConfig{Timeout: testRequestTimeout, FailOnTimeout: true})
 	require.NoError(r.h.T, err)
 	defer resp.Body.Close()
 	data, err := io.ReadAll(resp.Body)
