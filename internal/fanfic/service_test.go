@@ -135,8 +135,10 @@ func TestCreateFanfic_RepoError(t *testing.T) {
 	svc, m := newTestService(t)
 	userID := uuid.New()
 	req := dto.CreateFanficRequest{Title: "Title"}
+	m.fanficRepo.EXPECT().RegisterSeries(mock.Anything, "Umineko").Return(nil)
+	m.fanficRepo.EXPECT().RegisterLanguage(mock.Anything, "English").Return(nil)
 	m.fanficRepo.EXPECT().
-		CreateWithDetails(mock.Anything, mock.Anything, userID, "Title", "", "", "K", "", "in_progress", false, false, []string(nil), []string(nil), []dto.FanficCharacter(nil), false).
+		CreateWithDetails(mock.Anything, mock.Anything, userID, "Title", "", "Umineko", "K", "English", "in_progress", false, false, []string(nil), []string(nil), []dto.FanficCharacter(nil), false).
 		Return(errors.New("db"))
 
 	// when
@@ -186,8 +188,10 @@ func TestCreateFanfic_OK_WithBodyAndOCCharacter(t *testing.T) {
 		},
 		Rating: "M",
 	}
+	m.fanficRepo.EXPECT().RegisterSeries(mock.Anything, "Umineko").Return(nil)
+	m.fanficRepo.EXPECT().RegisterLanguage(mock.Anything, "English").Return(nil)
 	m.fanficRepo.EXPECT().
-		CreateWithDetails(mock.Anything, mock.Anything, userID, "Title", "", "", "M", "", "draft", false, false, []string(nil), []string(nil), req.Characters, false).
+		CreateWithDetails(mock.Anything, mock.Anything, userID, "Title", "", "Umineko", "M", "English", "draft", false, false, []string(nil), []string(nil), req.Characters, false).
 		Return(nil)
 	m.fanficRepo.EXPECT().CreateChapter(mock.Anything, mock.Anything, mock.Anything, 1, "", "<p>hello world</p>", 2).Return(nil)
 	m.fanficRepo.EXPECT().UpdateWordCount(mock.Anything, mock.Anything).Return(nil)
@@ -206,8 +210,10 @@ func TestCreateFanfic_ChapterCreateError(t *testing.T) {
 	svc, m := newTestService(t)
 	userID := uuid.New()
 	req := dto.CreateFanficRequest{Title: "T", Body: "hi"}
+	m.fanficRepo.EXPECT().RegisterSeries(mock.Anything, "Umineko").Return(nil)
+	m.fanficRepo.EXPECT().RegisterLanguage(mock.Anything, "English").Return(nil)
 	m.fanficRepo.EXPECT().
-		CreateWithDetails(mock.Anything, mock.Anything, userID, "T", "", "", "K", "", "in_progress", false, false, []string(nil), []string(nil), []dto.FanficCharacter(nil), false).
+		CreateWithDetails(mock.Anything, mock.Anything, userID, "T", "", "Umineko", "K", "English", "in_progress", false, false, []string(nil), []string(nil), []dto.FanficCharacter(nil), false).
 		Return(nil)
 	m.fanficRepo.EXPECT().CreateChapter(mock.Anything, mock.Anything, mock.Anything, 1, "", "hi", 1).Return(errors.New("db"))
 
@@ -492,8 +498,10 @@ func TestUpdateFanfic_RegistersOCCharacter(t *testing.T) {
 	}
 	m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(userID, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(false)
+	m.fanficRepo.EXPECT().RegisterSeries(mock.Anything, "Umineko").Return(nil)
+	m.fanficRepo.EXPECT().RegisterLanguage(mock.Anything, "English").Return(nil)
 	m.fanficRepo.EXPECT().
-		UpdateWithDetails(mock.Anything, id, userID, "T", "", "", "K", "", "", false, false, []string(nil), []string(nil), req.Characters, false, false).
+		UpdateWithDetails(mock.Anything, id, userID, "T", "", "Umineko", "K", "English", "", false, false, []string(nil), []string(nil), req.Characters, false, false).
 		Return(nil)
 	m.fanficRepo.EXPECT().RegisterOCCharacter(mock.Anything, "Custom", userID).Return(nil)
 
@@ -511,8 +519,10 @@ func TestUpdateFanfic_RepoError(t *testing.T) {
 	userID := uuid.New()
 	m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(userID, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(false)
+	m.fanficRepo.EXPECT().RegisterSeries(mock.Anything, "Umineko").Return(nil)
+	m.fanficRepo.EXPECT().RegisterLanguage(mock.Anything, "English").Return(nil)
 	m.fanficRepo.EXPECT().
-		UpdateWithDetails(mock.Anything, id, userID, "T", "", "", "K", "", "", false, false, []string(nil), []string(nil), []dto.FanficCharacter(nil), false, false).
+		UpdateWithDetails(mock.Anything, id, userID, "T", "", "Umineko", "K", "English", "", false, false, []string(nil), []string(nil), []dto.FanficCharacter(nil), false, false).
 		Return(errors.New("db"))
 
 	// when

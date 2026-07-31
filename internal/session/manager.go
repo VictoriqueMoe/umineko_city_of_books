@@ -97,6 +97,10 @@ func (m *Manager) DeleteAllForUser(ctx context.Context, userID uuid.UUID) error 
 	return nil
 }
 
+func (m *Manager) CleanExpired(ctx context.Context) (int, error) {
+	return m.repo.CleanExpired(ctx)
+}
+
 func (m *Manager) DeleteAllForUserExcept(ctx context.Context, userID uuid.UUID, keepToken string) error {
 	if keepToken == "" {
 		return m.DeleteAllForUser(ctx, userID)

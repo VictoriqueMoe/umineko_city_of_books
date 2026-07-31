@@ -40,20 +40,29 @@ func (_m *MockSessionRepository) EXPECT() *MockSessionRepository_Expecter {
 }
 
 // CleanExpired provides a mock function for the type MockSessionRepository
-func (_mock *MockSessionRepository) CleanExpired(ctx context.Context) error {
+func (_mock *MockSessionRepository) CleanExpired(ctx context.Context) (int, error) {
 	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CleanExpired")
 	}
 
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context) error); ok {
+	var r0 int
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (int, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) int); ok {
 		r0 = returnFunc(ctx)
 	} else {
-		r0 = ret.Error(0)
+		r0 = ret.Get(0).(int)
 	}
-	return r0
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
 // MockSessionRepository_CleanExpired_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CleanExpired'
@@ -80,12 +89,12 @@ func (_c *MockSessionRepository_CleanExpired_Call) Run(run func(ctx context.Cont
 	return _c
 }
 
-func (_c *MockSessionRepository_CleanExpired_Call) Return(err error) *MockSessionRepository_CleanExpired_Call {
-	_c.Call.Return(err)
+func (_c *MockSessionRepository_CleanExpired_Call) Return(n int, err error) *MockSessionRepository_CleanExpired_Call {
+	_c.Call.Return(n, err)
 	return _c
 }
 
-func (_c *MockSessionRepository_CleanExpired_Call) RunAndReturn(run func(ctx context.Context) error) *MockSessionRepository_CleanExpired_Call {
+func (_c *MockSessionRepository_CleanExpired_Call) RunAndReturn(run func(ctx context.Context) (int, error)) *MockSessionRepository_CleanExpired_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -657,6 +657,8 @@ func (s *service) CreateVanityRole(ctx context.Context, actorID uuid.UUID, req d
 	if !colorRegex.MatchString(req.Color) {
 		return nil, fmt.Errorf("color must be a valid hex color (e.g. #ff0000)")
 	}
+	req.SortOrder = max(req.SortOrder, 0)
+
 	id := uuid.New().String()
 	if err := s.vanityRoleRepo.Create(ctx, id, strings.TrimSpace(req.Label), req.Color, req.SortOrder); err != nil {
 		return nil, fmt.Errorf("create vanity role: %w", err)
@@ -689,6 +691,8 @@ func (s *service) UpdateVanityRole(ctx context.Context, actorID uuid.UUID, id st
 	if !colorRegex.MatchString(req.Color) {
 		return fmt.Errorf("color must be a valid hex color (e.g. #ff0000)")
 	}
+	req.SortOrder = max(req.SortOrder, 0)
+
 	if err := s.vanityRoleRepo.Update(ctx, id, strings.TrimSpace(req.Label), req.Color, req.SortOrder); err != nil {
 		return fmt.Errorf("update vanity role: %w", err)
 	}

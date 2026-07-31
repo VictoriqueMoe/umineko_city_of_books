@@ -2,6 +2,8 @@ package dao_test
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"testing"
 	"time"
 
@@ -28,6 +30,45 @@ func TestSessionDAO_CreateAndGet(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, user.ID, gotID)
 	assert.WithinDuration(t, expiresAt, gotExpires, time.Second)
+}
+
+func TestSessionDAO_StoresTokenHashedAtRest(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	user := daotest.CreateUser(t, repos)
+	token := uuid.NewString()
+	expected := sha256.Sum256([]byte(token))
+
+	// when
+	require.NoError(t, repos.Session.Create(context.Background(), token, user.ID, time.Now().Add(time.Hour)))
+
+	// then
+	var stored string
+	require.NoError(t, repos.DB().QueryRowContext(context.Background(),
+		`SELECT token FROM sessions WHERE user_id = $1`, user.ID,
+	).Scan(&stored))
+	assert.NotEqual(t, token, stored)
+	assert.Equal(t, hex.EncodeToString(expected[:]), stored)
+}
+
+func TestSessionDAO_DeleteAllForUserExcept_KeepsPresentedToken(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	user := daotest.CreateUser(t, repos)
+	keep := uuid.NewString()
+	drop := uuid.NewString()
+	require.NoError(t, repos.Session.Create(context.Background(), keep, user.ID, time.Now().Add(time.Hour)))
+	require.NoError(t, repos.Session.Create(context.Background(), drop, user.ID, time.Now().Add(time.Hour)))
+
+	// when
+	require.NoError(t, repos.Session.DeleteAllForUserExcept(context.Background(), user.ID, keep))
+
+	// then
+	gotID, _, err := repos.Session.GetUserID(context.Background(), keep)
+	require.NoError(t, err)
+	assert.Equal(t, user.ID, gotID)
+	_, _, err = repos.Session.GetUserID(context.Background(), drop)
+	require.Error(t, err)
 }
 
 func TestSessionDAO_GetUserID_NotFound(t *testing.T) {
@@ -111,12 +152,27 @@ func TestSessionDAO_CleanExpired(t *testing.T) {
 	require.NoError(t, repos.Session.Create(context.Background(), staleToken, user.ID, time.Now().Add(-time.Hour)))
 
 	// when
-	err := repos.Session.CleanExpired(context.Background())
+	removed, err := repos.Session.CleanExpired(context.Background())
 
 	// then
 	require.NoError(t, err)
+	assert.Equal(t, 1, removed)
 	_, _, freshErr := repos.Session.GetUserID(context.Background(), freshToken)
 	_, _, staleErr := repos.Session.GetUserID(context.Background(), staleToken)
 	assert.NoError(t, freshErr)
 	assert.Error(t, staleErr)
+}
+
+func TestSessionDAO_CleanExpired_NothingToRemove(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	user := daotest.CreateUser(t, repos)
+	require.NoError(t, repos.Session.Create(context.Background(), uuid.NewString(), user.ID, time.Now().Add(time.Hour)))
+
+	// when
+	removed, err := repos.Session.CleanExpired(context.Background())
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, 0, removed)
 }

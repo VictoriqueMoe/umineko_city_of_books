@@ -20,9 +20,9 @@ type (
 )
 
 const announcementSelectBase = `SELECT a.id, a.title, a.body, a.author_id, a.pinned, a.created_at, a.updated_at,
-	u.username, u.display_name, u.avatar_url, COALESCE(r.role, '')
+	COALESCE(u.username, ''), COALESCE(u.display_name, ''), COALESCE(u.avatar_url, ''), COALESCE(r.role, '')
 	FROM announcements a
-	JOIN users u ON a.author_id = u.id
+	LEFT JOIN users u ON a.author_id = u.id
 	LEFT JOIN user_roles r ON r.user_id = u.id`
 
 func scanAnnouncementRow(scanner interface {

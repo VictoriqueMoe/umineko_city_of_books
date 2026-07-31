@@ -21,10 +21,10 @@ func (r *chatWatchPartyDAO) CreateSession(ctx context.Context, row repository.Ch
 	var id uuid.UUID
 	err := r.db.QueryRowContext(ctx,
 		`INSERT INTO chat_watch_party_sessions
-		    (room_id, started_by, controller_id, hyperbeam_session_id, hyperbeam_admin_token, embed_url, vm_base_url, title, type, start_url, region, status)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'active')
+		    (room_id, started_by, controller_id, hyperbeam_session_id, embed_url, vm_base_url, title, type, start_url, region, status)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'active')
 		 RETURNING id`,
-		row.RoomID, row.StartedBy, row.ControllerID, row.HyperbeamSessionID, row.HyperbeamAdminToken, row.EmbedURL,
+		row.RoomID, row.StartedBy, row.ControllerID, row.HyperbeamSessionID, row.EmbedURL,
 		row.VMBaseURL, row.Title, row.Type, row.StartURL, row.Region,
 	).Scan(&id)
 	if err != nil {
@@ -35,7 +35,7 @@ func (r *chatWatchPartyDAO) CreateSession(ctx context.Context, row repository.Ch
 
 func (r *chatWatchPartyDAO) ListActiveByRoom(ctx context.Context, roomID uuid.UUID) ([]repository.ChatWatchPartySessionRow, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, room_id, started_by, controller_id, hyperbeam_session_id, hyperbeam_admin_token, embed_url, vm_base_url,
+		`SELECT id, room_id, started_by, controller_id, hyperbeam_session_id, embed_url, vm_base_url,
 		        title, type, start_url, region, status, started_at, ended_at, ended_reason
 		 FROM chat_watch_party_sessions
 		 WHERE room_id = $1 AND status = 'active'
@@ -49,7 +49,7 @@ func (r *chatWatchPartyDAO) ListActiveByRoom(ctx context.Context, roomID uuid.UU
 	var result []repository.ChatWatchPartySessionRow
 	for rows.Next() {
 		var s repository.ChatWatchPartySessionRow
-		if err := rows.Scan(&s.ID, &s.RoomID, &s.StartedBy, &s.ControllerID, &s.HyperbeamSessionID, &s.HyperbeamAdminToken,
+		if err := rows.Scan(&s.ID, &s.RoomID, &s.StartedBy, &s.ControllerID, &s.HyperbeamSessionID,
 			&s.EmbedURL, &s.VMBaseURL, &s.Title, &s.Type, &s.StartURL, &s.Region, &s.Status, &s.StartedAt, &s.EndedAt, &s.EndedReason); err != nil {
 			return nil, fmt.Errorf("scan active watch party: %w", err)
 		}
@@ -60,7 +60,7 @@ func (r *chatWatchPartyDAO) ListActiveByRoom(ctx context.Context, roomID uuid.UU
 
 func (r *chatWatchPartyDAO) GetByID(ctx context.Context, sessionID uuid.UUID) (*repository.ChatWatchPartySessionRow, error) {
 	row := r.db.QueryRowContext(ctx,
-		`SELECT id, room_id, started_by, controller_id, hyperbeam_session_id, hyperbeam_admin_token, embed_url, vm_base_url,
+		`SELECT id, room_id, started_by, controller_id, hyperbeam_session_id, embed_url, vm_base_url,
 		        title, type, start_url, region, status, started_at, ended_at, ended_reason
 		 FROM chat_watch_party_sessions
 		 WHERE id = $1`,
@@ -71,7 +71,7 @@ func (r *chatWatchPartyDAO) GetByID(ctx context.Context, sessionID uuid.UUID) (*
 
 func scanSessionRow(row *sql.Row) (*repository.ChatWatchPartySessionRow, error) {
 	var s repository.ChatWatchPartySessionRow
-	err := row.Scan(&s.ID, &s.RoomID, &s.StartedBy, &s.ControllerID, &s.HyperbeamSessionID, &s.HyperbeamAdminToken,
+	err := row.Scan(&s.ID, &s.RoomID, &s.StartedBy, &s.ControllerID, &s.HyperbeamSessionID,
 		&s.EmbedURL, &s.VMBaseURL, &s.Title, &s.Type, &s.StartURL, &s.Region, &s.Status, &s.StartedAt, &s.EndedAt, &s.EndedReason)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
@@ -241,7 +241,7 @@ func (r *chatWatchPartyDAO) CountActiveParticipants(ctx context.Context, session
 
 func (r *chatWatchPartyDAO) ListIdleActiveSessions(ctx context.Context, idleBefore string) ([]repository.ChatWatchPartySessionRow, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT s.id, s.room_id, s.started_by, s.controller_id, s.hyperbeam_session_id, s.hyperbeam_admin_token,
+		`SELECT s.id, s.room_id, s.started_by, s.controller_id, s.hyperbeam_session_id,
 		        s.embed_url, s.vm_base_url, s.title, s.type, s.start_url, s.region, s.status, s.started_at, s.ended_at, s.ended_reason
 		   FROM chat_watch_party_sessions s
 		  WHERE s.status = 'active'
@@ -260,7 +260,7 @@ func (r *chatWatchPartyDAO) ListIdleActiveSessions(ctx context.Context, idleBefo
 	var result []repository.ChatWatchPartySessionRow
 	for rows.Next() {
 		var s repository.ChatWatchPartySessionRow
-		if err := rows.Scan(&s.ID, &s.RoomID, &s.StartedBy, &s.ControllerID, &s.HyperbeamSessionID, &s.HyperbeamAdminToken,
+		if err := rows.Scan(&s.ID, &s.RoomID, &s.StartedBy, &s.ControllerID, &s.HyperbeamSessionID,
 			&s.EmbedURL, &s.VMBaseURL, &s.Title, &s.Type, &s.StartURL, &s.Region, &s.Status, &s.StartedAt, &s.EndedAt, &s.EndedReason); err != nil {
 			return nil, fmt.Errorf("scan idle watch party session: %w", err)
 		}

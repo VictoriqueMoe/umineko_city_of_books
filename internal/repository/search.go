@@ -239,7 +239,7 @@ var searchSources = []SearchSource{
 	{
 		Type:           SearchEntityAnnouncement,
 		From:           "announcements a",
-		AuthorJoin:     "JOIN users u ON a.author_id = u.id",
+		AuthorJoin:     "LEFT JOIN users u ON a.author_id = u.id",
 		IDExpr:         "a.id::text",
 		TitleExpr:      "a.title",
 		BodyExpr:       "a.body",
@@ -431,7 +431,7 @@ func (s SearchSource) BuildSubquery() string {
 	return fmt.Sprintf(`SELECT '%s' AS entity_type, %s AS id, %s AS parent_id, %s AS parent_title,
             %s AS title,
             ts_headline('english', %s, q.tsq, %s) AS snippet,
-            u.id::text AS author_id, u.username AS author_username, u.display_name AS author_display_name, u.avatar_url AS author_avatar_url,
+            COALESCE(u.id::text, '') AS author_id, COALESCE(u.username, '') AS author_username, COALESCE(u.display_name, '') AS author_display_name, COALESCE(u.avatar_url, '') AS author_avatar_url,
             %s AS created_at,
             (%s)::float8 AS rank
         %s

@@ -87,6 +87,7 @@ function Umineko_Main() {
 }
 
 Umineko_Main();
+[insert_over]
 `
 
 var sefTmpl = template.Must(template.New("sef").Parse(sefTemplate))

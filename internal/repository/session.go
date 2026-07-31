@@ -14,7 +14,7 @@ type (
 		Delete(ctx context.Context, token string) error
 		DeleteAllForUser(ctx context.Context, userID uuid.UUID) error
 		DeleteAllForUserExcept(ctx context.Context, userID uuid.UUID, keepToken string) error
-		CleanExpired(ctx context.Context) error
+		CleanExpired(ctx context.Context) (int, error)
 	}
 )
 
@@ -46,6 +46,6 @@ func (r *sessionRepository) DeleteAllForUserExcept(ctx context.Context, userID u
 	return r.dao.DeleteAllForUserExcept(ctx, userID, keepToken)
 }
 
-func (r *sessionRepository) CleanExpired(ctx context.Context) error {
+func (r *sessionRepository) CleanExpired(ctx context.Context) (int, error) {
 	return r.dao.CleanExpired(ctx)
 }

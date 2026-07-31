@@ -26,6 +26,11 @@ import (
 	"github.com/google/uuid"
 )
 
+const (
+	defaultSeries   = "Umineko"
+	defaultLanguage = "English"
+)
+
 type (
 	Service interface {
 		CreateFanfic(ctx context.Context, userID uuid.UUID, req dto.CreateFanficRequest) (uuid.UUID, error)
@@ -166,13 +171,19 @@ func (s *service) CreateFanfic(ctx context.Context, userID uuid.UUID, req dto.Cr
 	}
 
 	series := strings.TrimSpace(req.Series)
-	if series != "" {
-		_ = s.fanficRepo.RegisterSeries(ctx, series)
+	if series == "" {
+		series = defaultSeries
+	}
+	if err := s.fanficRepo.RegisterSeries(ctx, series); err != nil {
+		return uuid.Nil, err
 	}
 
 	language := strings.TrimSpace(req.Language)
-	if language != "" {
-		_ = s.fanficRepo.RegisterLanguage(ctx, language)
+	if language == "" {
+		language = defaultLanguage
+	}
+	if err := s.fanficRepo.RegisterLanguage(ctx, language); err != nil {
+		return uuid.Nil, err
 	}
 
 	status := strings.TrimSpace(req.Status)
@@ -319,13 +330,19 @@ func (s *service) UpdateFanfic(ctx context.Context, id, userID uuid.UUID, req dt
 	}
 
 	series := strings.TrimSpace(req.Series)
-	if series != "" {
-		_ = s.fanficRepo.RegisterSeries(ctx, series)
+	if series == "" {
+		series = defaultSeries
+	}
+	if err := s.fanficRepo.RegisterSeries(ctx, series); err != nil {
+		return err
 	}
 
 	language := strings.TrimSpace(req.Language)
-	if language != "" {
-		_ = s.fanficRepo.RegisterLanguage(ctx, language)
+	if language == "" {
+		language = defaultLanguage
+	}
+	if err := s.fanficRepo.RegisterLanguage(ctx, language); err != nil {
+		return err
 	}
 
 	summary := strings.TrimSpace(req.Summary)

@@ -23,6 +23,8 @@ import (
 	"github.com/google/uuid"
 )
 
+const deletedAuthorName = "Deleted user"
+
 type (
 	Service interface {
 		List(ctx context.Context, page bounds.Page) (*dto.AnnouncementListResponse, error)
@@ -79,6 +81,10 @@ func NewService(
 }
 
 func rowToResponse(r repository.AnnouncementRow) dto.AnnouncementResponse {
+	if r.AuthorID == uuid.Nil {
+		r.AuthorDisplayName = deletedAuthorName
+	}
+
 	return dto.AnnouncementResponse{
 		ID:        r.ID,
 		Title:     r.Title,
@@ -242,6 +248,10 @@ func (s *service) CreateComment(ctx context.Context, announcementID, userID uuid
 }
 
 func (s *service) notifyCommentCreated(ann *repository.AnnouncementRow, announcementID, commentID, actorID uuid.UUID, parentID *uuid.UUID) {
+	if ann.AuthorID == uuid.Nil {
+		return
+	}
+
 	bgCtx := context.Background()
 	actor, err := s.userRepo.GetByID(bgCtx, actorID)
 	if err != nil || actor == nil {

@@ -648,7 +648,7 @@ func (r *chatDAO) ListPublicRooms(ctx context.Context, search string, isRPOnly b
 		countArgs = append(countArgs, viewerID)
 		idx++
 	}
-	countExclSQL, countExclArgs := ExcludeClause("cr.created_by", excludeUserIDs, idx)
+	countExclSQL, countExclArgs := ExcludeClauseNullable("cr.created_by", excludeUserIDs, idx)
 	countArgs = append(countArgs, countExclArgs...)
 
 	var whereCount strings.Builder
@@ -690,7 +690,7 @@ func (r *chatDAO) ListPublicRooms(ctx context.Context, search string, isRPOnly b
 		queryArgs = append(queryArgs, viewerID)
 		qIdx++
 	}
-	qExclSQL, qExclArgs := ExcludeClause("cr.created_by", excludeUserIDs, qIdx)
+	qExclSQL, qExclArgs := ExcludeClauseNullable("cr.created_by", excludeUserIDs, qIdx)
 	queryArgs = append(queryArgs, qExclArgs...)
 	qIdx += len(qExclArgs)
 
