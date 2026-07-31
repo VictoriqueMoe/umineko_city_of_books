@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Room, RoomEvent } from "livekit-client";
+import type { Room } from "livekit-client";
 
 import { getVoiceToken } from "../../../api/endpoints";
 import { useNotifications } from "../../../hooks/useNotifications";
@@ -60,7 +60,8 @@ export function useVoiceChat(roomId: string, initialParticipants: string[] = [])
         const connect = async () => {
             const { token, url } = await getVoiceToken(roomId);
 
-            const livekitRoom = new Room();
+            const { Room: LiveKitRoom, RoomEvent } = await import("livekit-client");
+            const livekitRoom = new LiveKitRoom();
             roomRef.current = livekitRoom;
 
             livekitRoom.on(RoomEvent.Disconnected, () => {

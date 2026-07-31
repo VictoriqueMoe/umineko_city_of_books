@@ -11,6 +11,7 @@ import (
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
+	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/upload"
@@ -596,6 +597,20 @@ func (m *messagesService) validateMediaFile(ctx context.Context, f FileUpload) e
 	return nil
 }
 
+func probeMediaDimensions(f FileUpload) (int, int) {
+	if strings.HasPrefix(f.ContentType, "video/") {
+		return 0, 0
+	}
+
+	r, err := f.Open()
+	if err != nil {
+		return 0, 0
+	}
+	defer r.Close()
+
+	return media.DecodeDimensions(r)
+}
+
 func (m *messagesService) saveMessageMedia(ctx context.Context, messageID uuid.UUID, files []FileUpload) ([]dto.PostMediaResponse, error) {
 	if len(files) == 0 {
 		return nil, nil
@@ -603,6 +618,8 @@ func (m *messagesService) saveMessageMedia(ctx context.Context, messageID uuid.U
 
 	results := make([]dto.PostMediaResponse, 0, len(files))
 	for _, f := range files {
+		width, height := probeMediaDimensions(f)
+
 		r, err := f.Open()
 		if err != nil {
 			return nil, fmt.Errorf("open media: %w", err)
@@ -618,6 +635,16 @@ func (m *messagesService) saveMessageMedia(ctx context.Context, messageID uuid.U
 		if saveErr != nil {
 			return nil, saveErr
 		}
+
+		if width > 0 && height > 0 {
+			if err := m.chatRepo.UpdateMessageMediaDimensions(ctx, int64(saved.ID), width, height); err != nil {
+				logger.Log.Warn().Err(err).Msg("store chat media dimensions failed")
+			} else {
+				saved.Width = width
+				saved.Height = height
+			}
+		}
+
 		results = append(results, *saved)
 	}
 	return results, nil

@@ -1,4 +1,6 @@
+import { useCallback, useEffect, useRef } from "react";
 import { isSiteStaff } from "../../../utils/permissions";
+import type { ChatMessage } from "../../../types/api";
 import type { RoomController } from "../../../hooks/useRoomController";
 import { useBlockedUserIds } from "../../../hooks/useBlockedUserIds";
 import { MessageBubble } from "../MessageBubble/MessageBubble";
@@ -39,6 +41,31 @@ export function RoomMessageList({ controller, classes }: RoomMessageListProps) {
         handleEditMessage,
     } = controller;
 
+    const liveRef = useRef({ handleReactionToggle, handlePinToggle, handleDeleteMessage, handleEditMessage });
+    useEffect(() => {
+        liveRef.current = { handleReactionToggle, handlePinToggle, handleDeleteMessage, handleEditMessage };
+    }, [handleReactionToggle, handlePinToggle, handleDeleteMessage, handleEditMessage]);
+
+    const onReply = useCallback(
+        (m: ChatMessage) => {
+            setReplyingTo({
+                id: m.id,
+                senderName: m.sender.display_name,
+                bodyPreview: m.body.length > 80 ? m.body.slice(0, 80) + "..." : m.body,
+            });
+        },
+        [setReplyingTo],
+    );
+    const onEditStart = useCallback((m: ChatMessage) => setEditingMessageId(m.id), [setEditingMessageId]);
+    const onEditCancel = useCallback(() => setEditingMessageId(null), [setEditingMessageId]);
+    const onReactionToggle = useCallback(
+        (m: ChatMessage, emoji: string) => liveRef.current.handleReactionToggle(m, emoji),
+        [],
+    );
+    const onPinToggle = useCallback((m: ChatMessage) => liveRef.current.handlePinToggle(m), []);
+    const onDelete = useCallback((m: ChatMessage) => liveRef.current.handleDeleteMessage(m), []);
+    const onEdit = useCallback((m: ChatMessage, body: string) => liveRef.current.handleEditMessage(m, body), []);
+
     if (!user || !room) {
         return null;
     }
@@ -68,19 +95,13 @@ export function RoomMessageList({ controller, classes }: RoomMessageListProps) {
                             (matchesViewerMention ? matchesViewerMention(msg.body) : false)
                         }
                         onLightbox={setLightboxSrc}
-                        onReply={m =>
-                            setReplyingTo({
-                                id: m.id,
-                                senderName: m.sender.display_name,
-                                bodyPreview: m.body.length > 80 ? m.body.slice(0, 80) + "..." : m.body,
-                            })
-                        }
-                        onReactionToggle={handleReactionToggle}
-                        onPinToggle={canModerateRoom ? handlePinToggle : undefined}
-                        onDelete={handleDeleteMessage}
-                        onEdit={handleEditMessage}
-                        onEditStart={m => setEditingMessageId(m.id)}
-                        onEditCancel={() => setEditingMessageId(null)}
+                        onReply={onReply}
+                        onReactionToggle={onReactionToggle}
+                        onPinToggle={canModerateRoom ? onPinToggle : undefined}
+                        onDelete={onDelete}
+                        onEdit={onEdit}
+                        onEditStart={onEditStart}
+                        onEditCancel={onEditCancel}
                         editing={editingMessageId === msg.id}
                         canPin={canModerateRoom}
                         canModerate={canModerateRoom}

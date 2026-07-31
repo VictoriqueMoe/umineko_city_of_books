@@ -832,7 +832,7 @@ The web build (`npm run build`) and the app build (`npm run build:app`) are sepa
 
 The website's base URL is dynamic (`base_url` site setting). The packaged **app** is different: it has no server origin, so it needs an absolute API URL that is baked into the bundle at build time.
 
-That URL comes from `VITE_API_BASE` in `frontend/.env.app`:
+That URL comes from `VITE_API_BASE` in `frontend/.env`:
 
 ```
 VITE_API_BASE=https://whentheycry.social
@@ -840,7 +840,7 @@ VITE_API_BASE=https://whentheycry.social
 
 To point the app at a different domain:
 
-1. Edit `VITE_API_BASE` in `frontend/.env.app`.
+1. Edit `VITE_API_BASE` in `frontend/.env`.
 2. Rebuild the app: `npm run build:app` (or `cap:android`).
 3. Ship a new app version to the stores.
 

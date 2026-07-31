@@ -1,4 +1,4 @@
-import { Fragment } from "react";
+import { Fragment, lazy, Suspense } from "react";
 import { isSiteStaff } from "../../utils/permissions";
 import { effectiveMemberUser, memberModPermissions } from "../../utils/chatMembers";
 import { useRoomController } from "../../hooks/useRoomController";
@@ -14,8 +14,10 @@ import { RoomMessageList } from "../../components/chat/MessageList/RoomMessageLi
 import { PinnedMessagesPanel } from "../../components/chat/PinnedMessagesPanel/PinnedMessagesPanel";
 import { MessageSearchPanel } from "../../components/chat/MessageSearchPanel/MessageSearchPanel";
 import { WatchPartyButton } from "../../components/chat/WatchParty/WatchPartyButton";
-import { WatchPartyModal } from "../../components/chat/WatchParty/WatchPartyModal";
-import { VoiceBar } from "../../components/chat/Voice/VoiceBar";
+const WatchPartyModal = lazy(() =>
+    import("../../components/chat/WatchParty/WatchPartyModal").then(m => ({ default: m.WatchPartyModal })),
+);
+const VoiceBar = lazy(() => import("../../components/chat/Voice/VoiceBar").then(m => ({ default: m.VoiceBar })));
 import { VoiceButton } from "../../components/chat/Voice/VoiceButton";
 import { Lightbox } from "../../components/Lightbox/Lightbox";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
@@ -46,6 +48,7 @@ export function RoomPage() {
         voice,
         voiceEnabled,
         watchParty,
+        invitedPartyMissing,
         replyingTo,
         setReplyingTo,
         viewerTimeoutUntil,
@@ -459,14 +462,16 @@ export function RoomPage() {
                     )}
 
                     {voice.status === "connected" && voice.room && (
-                        <VoiceBar
-                            room={voice.room}
-                            onLeave={voice.leave}
-                            canModerate={canModerateRoom}
-                            onForceMute={(id, muted) => {
-                                forceMuteVoiceParticipant(roomId ?? "", id, muted).catch(() => {});
-                            }}
-                        />
+                        <Suspense fallback={null}>
+                            <VoiceBar
+                                room={voice.room}
+                                onLeave={voice.leave}
+                                canModerate={canModerateRoom}
+                                onForceMute={(id, muted) => {
+                                    forceMuteVoiceParticipant(roomId ?? "", id, muted).catch(() => {});
+                                }}
+                            />
+                        </Suspense>
                     )}
 
                     <RoomMessageList
@@ -563,22 +568,24 @@ export function RoomPage() {
             />
 
             {watchParty.activeSession && user && (
-                <WatchPartyModal
-                    isOpen={true}
-                    onClose={() => watchParty.close()}
-                    active={watchParty.activeSession}
-                    viewerUserId={user.id}
-                    viewerRole={user.role}
-                    isStarter={watchParty.activeSession.session.started_by === user.id}
-                    viewerIsStaff={isSiteStaff(user.role)}
-                    voiceEnabled={watchParty.screenShareEnabled}
-                    onLeave={watchParty.leave}
-                    onEnd={watchParty.end}
-                    onTransferControl={watchParty.transferControl}
-                    onKick={watchParty.kick}
-                    onIdentify={watchParty.identify}
-                    onSendMessage={watchParty.sendMessage}
-                />
+                <Suspense fallback={null}>
+                    <WatchPartyModal
+                        isOpen={true}
+                        onClose={() => watchParty.close()}
+                        active={watchParty.activeSession}
+                        viewerUserId={user.id}
+                        viewerRole={user.role}
+                        isStarter={watchParty.activeSession.session.started_by === user.id}
+                        viewerIsStaff={isSiteStaff(user.role)}
+                        voiceEnabled={watchParty.screenShareEnabled}
+                        onLeave={watchParty.leave}
+                        onEnd={watchParty.end}
+                        onTransferControl={watchParty.transferControl}
+                        onKick={watchParty.kick}
+                        onIdentify={watchParty.identify}
+                        onSendMessage={watchParty.sendMessage}
+                    />
+                </Suspense>
             )}
 
             <InviteMembersModal
@@ -677,6 +684,7 @@ export function RoomPage() {
                 </div>
             )}
 
+            {invitedPartyMissing && <div className={styles.endedPartyNotice}>That watch party has ended.</div>}
             {toast && <div className={styles.toast}>{toast}</div>}
             {lightboxSrc && <Lightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />}
         </div>

@@ -2,6 +2,19 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 const TYPING_EXPIRY_MS = 5000;
 
+function sameIds(a: string[], b: string[]): boolean {
+    if (a.length !== b.length) {
+        return false;
+    }
+    for (let i = 0; i < a.length; i++) {
+        if (a[i] !== b[i]) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 interface TypingState {
     scope: string | undefined;
     ids: string[];
@@ -25,7 +38,9 @@ export function useTypingIndicator(scope?: string) {
         (userId: string) => {
             ensureScope();
             expiryRef.current.set(userId, Date.now() + TYPING_EXPIRY_MS);
-            setState({ scope, ids: Array.from(expiryRef.current.keys()) });
+
+            const ids = Array.from(expiryRef.current.keys());
+            setState(prev => (prev.scope === scope && sameIds(prev.ids, ids) ? prev : { scope, ids }));
         },
         [ensureScope, scope],
     );
@@ -34,7 +49,9 @@ export function useTypingIndicator(scope?: string) {
         (userId: string) => {
             ensureScope();
             expiryRef.current.delete(userId);
-            setState({ scope, ids: Array.from(expiryRef.current.keys()) });
+
+            const ids = Array.from(expiryRef.current.keys());
+            setState(prev => (prev.scope === scope && sameIds(prev.ids, ids) ? prev : { scope, ids }));
         },
         [ensureScope, scope],
     );

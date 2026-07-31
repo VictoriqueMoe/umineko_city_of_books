@@ -5,6 +5,7 @@ import (
 	_ "image/gif"
 	_ "image/jpeg"
 	_ "image/png"
+	"io"
 	"os"
 
 	"umineko_city_of_books/internal/bounds"
@@ -25,4 +26,13 @@ func CheckImageFileBounds(path string, maxPixels int) error {
 	}
 
 	return bounds.ImagePixels(cfg.Width, cfg.Height, maxPixels)
+}
+
+func DecodeDimensions(r io.Reader) (int, int) {
+	cfg, _, err := image.DecodeConfig(r)
+	if err != nil {
+		return 0, 0
+	}
+
+	return cfg.Width, cfg.Height
 }

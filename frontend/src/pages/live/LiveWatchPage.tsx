@@ -67,13 +67,6 @@ export function LiveWatchPage() {
     }
 
     useEffect(() => {
-        document.body.dataset.chatPage = "true";
-        return () => {
-            delete document.body.dataset.chatPage;
-        };
-    }, []);
-
-    useEffect(() => {
         return addWSListener((msg: WSMessage) => {
             if (msg.type === "stream_offline") {
                 const data = msg.data as { streamId: string };

@@ -439,6 +439,8 @@
 }
 
 .messageMediaItem {
+    width: auto;
+    height: auto;
     max-width: 520px;
     max-height: 510px;
     border-radius: 6px;

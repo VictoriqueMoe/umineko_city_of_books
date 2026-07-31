@@ -9,6 +9,8 @@ type (
 		MediaType    string `json:"media_type"`
 		ThumbnailURL string `json:"thumbnail_url,omitempty"`
 		SortOrder    int    `json:"sort_order"`
+		Width        int    `json:"width,omitempty"`
+		Height       int    `json:"height,omitempty"`
 	}
 
 	EmbedResponse struct {

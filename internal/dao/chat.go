@@ -1241,6 +1241,17 @@ func (r *chatDAO) AddMessageMedia(ctx context.Context, messageID uuid.UUID, medi
 	return id, nil
 }
 
+func (r *chatDAO) UpdateMessageMediaDimensions(ctx context.Context, id int64, width, height int) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE chat_message_media SET width = $1, height = $2 WHERE id = $3`, width, height, id,
+	)
+	if err != nil {
+		return fmt.Errorf("update message media dimensions: %w", err)
+	}
+
+	return nil
+}
+
 func (r *chatDAO) UpdateMessageMediaURL(ctx context.Context, id int64, mediaURL string) error {
 	_, err := r.db.ExecContext(ctx,
 		`UPDATE chat_message_media SET media_url = $1 WHERE id = $2`, mediaURL, id,
@@ -1274,7 +1285,7 @@ func (r *chatDAO) GetMessageMediaBatch(ctx context.Context, messageIDs []uuid.UU
 		args[i] = messageIDs[i]
 	}
 
-	query := `SELECT id, message_id, media_url, media_type, thumbnail_url, sort_order
+	query := `SELECT id, message_id, media_url, media_type, thumbnail_url, sort_order, width, height
 	          FROM chat_message_media WHERE message_id IN (` + strings.Join(placeholders, ",") + `)
 	          ORDER BY sort_order ASC, id ASC`
 
@@ -1288,8 +1299,8 @@ func (r *chatDAO) GetMessageMediaBatch(ctx context.Context, messageIDs []uuid.UU
 		var id int64
 		var msgID uuid.UUID
 		var mediaURL, mediaType, thumbURL string
-		var sortOrder int
-		if err := rows.Scan(&id, &msgID, &mediaURL, &mediaType, &thumbURL, &sortOrder); err != nil {
+		var sortOrder, width, height int
+		if err := rows.Scan(&id, &msgID, &mediaURL, &mediaType, &thumbURL, &sortOrder, &width, &height); err != nil {
 			return nil, fmt.Errorf("scan message media: %w", err)
 		}
 		result[msgID] = append(result[msgID], dto.PostMediaResponse{
@@ -1298,6 +1309,8 @@ func (r *chatDAO) GetMessageMediaBatch(ctx context.Context, messageIDs []uuid.UU
 			MediaType:    mediaType,
 			ThumbnailURL: thumbURL,
 			SortOrder:    sortOrder,
+			Width:        width,
+			Height:       height,
 		})
 	}
 	return result, rows.Err()

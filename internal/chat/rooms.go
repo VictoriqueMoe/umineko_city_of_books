@@ -48,6 +48,8 @@ func (r *roomsService) CreateGroupRoom(ctx context.Context, creatorID uuid.UUID,
 		return nil, fmt.Errorf("add creator to group: %w", err)
 	}
 
+	r.hub.JoinRoom(roomID, creatorID)
+
 	invitedIDs := make([]uuid.UUID, 0, len(req.MemberIDs))
 	for _, memberID := range req.MemberIDs {
 		if memberID == creatorID {
@@ -59,6 +61,8 @@ func (r *roomsService) CreateGroupRoom(ctx context.Context, creatorID uuid.UUID,
 		if err := r.chatRepo.AddMemberWithRole(ctx, roomID, memberID, "member", false); err != nil {
 			return nil, fmt.Errorf("add member to group: %w", err)
 		}
+
+		r.hub.JoinRoom(roomID, memberID)
 		invitedIDs = append(invitedIDs, memberID)
 	}
 
@@ -189,6 +193,8 @@ func (r *roomsService) JoinRoom(ctx context.Context, roomID, userID uuid.UUID, g
 		}
 	}
 	if row.IsMember {
+		r.hub.JoinRoom(roomID, userID)
+
 		return r.buildRoomResponse(ctx, roomID, userID)
 	}
 
@@ -204,6 +210,8 @@ func (r *roomsService) JoinRoom(ctx context.Context, roomID, userID uuid.UUID, g
 	if err := r.chatRepo.AddMemberWithRole(ctx, roomID, userID, "member", ghost); err != nil {
 		return nil, fmt.Errorf("add member: %w", err)
 	}
+
+	r.hub.JoinRoom(roomID, userID)
 
 	resp, err := r.buildRoomResponse(ctx, roomID, userID)
 	if err != nil {
@@ -272,6 +280,8 @@ func (r *roomsService) LeaveRoom(ctx context.Context, roomID, userID uuid.UUID) 
 
 	r.clearWatchPartyParticipation(ctx, roomID, userID)
 	r.dropFromLiveKitRoom(ctx, roomID.String(), userID.String())
+
+	r.hub.LeaveRoom(roomID, userID)
 
 	leaver, _ := r.userRepo.GetByID(ctx, userID)
 	if leaver != nil {
@@ -377,6 +387,8 @@ func (r *roomsService) DeleteChat(ctx context.Context, roomID, userID uuid.UUID)
 
 	r.clearWatchPartyParticipation(ctx, roomID, userID)
 	r.dropFromLiveKitRoom(ctx, roomID.String(), userID.String())
+
+	r.hub.LeaveRoom(roomID, userID)
 
 	remaining, err := r.chatRepo.CountRoomMembers(ctx, roomID)
 	if err != nil {
