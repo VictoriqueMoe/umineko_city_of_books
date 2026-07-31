@@ -46,6 +46,7 @@ export function RoomPage() {
         voice,
         voiceEnabled,
         watchParty,
+        invitedPartyMissing,
         replyingTo,
         setReplyingTo,
         viewerTimeoutUntil,
@@ -677,6 +678,7 @@ export function RoomPage() {
                 </div>
             )}
 
+            {invitedPartyMissing && <div className={styles.endedPartyNotice}>That watch party has ended.</div>}
             {toast && <div className={styles.toast}>{toast}</div>}
             {lightboxSrc && <Lightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />}
         </div>

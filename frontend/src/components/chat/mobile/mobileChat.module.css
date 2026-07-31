@@ -378,3 +378,18 @@
     max-width: 90vw;
     text-align: center;
 }
+
+.endedPartyNotice {
+    position: fixed;
+    bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 11000;
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--gold-rgb), 0.5);
+    color: var(--text-muted);
+    padding: 0.6rem 1rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    max-width: 90vw;
+}

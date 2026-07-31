@@ -37,6 +37,7 @@ export function MobileRoomView({ controller }: { controller: RoomController }) {
         voice,
         voiceEnabled,
         watchParty,
+        invitedPartyMissing,
         replyingTo,
         setReplyingTo,
         viewerTimeoutUntil,
@@ -254,6 +255,7 @@ export function MobileRoomView({ controller }: { controller: RoomController }) {
                 </div>
             )}
 
+            {invitedPartyMissing && <div className={styles.endedPartyNotice}>That watch party has ended.</div>}
             {toast && <div className={styles.toast}>{toast}</div>}
             {lightboxSrc && <Lightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />}
         </>

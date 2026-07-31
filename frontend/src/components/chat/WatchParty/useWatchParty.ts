@@ -38,10 +38,12 @@ export interface ActiveWatchPartySession {
 interface UseWatchPartyResult {
     enabled: boolean;
     screenShareEnabled: boolean;
+    loaded: boolean;
     sessions: WatchPartySession[];
     activeSession: ActiveWatchPartySession | null;
     openSessionId: string | null;
     error: string | null;
+    refresh: () => Promise<void>;
     start: (opts: {
         title?: string;
         startURL?: string;
@@ -96,6 +98,7 @@ export function useWatchParty(roomId: string | null, viewerUserId: string | null
     const [error, setError] = useState<string | null>(null);
     const activeIdRef = useRef<string | null>(null);
     const roomIdRef = useRef<string | null>(null);
+    const refreshSeqRef = useRef(0);
 
     const stateMatches = data.roomId === roomId;
     const sessions = stateMatches ? data.sessions : [];
@@ -153,37 +156,43 @@ export function useWatchParty(roomId: string | null, viewerUserId: string | null
         };
     }, [roomId, activeSessionId]);
 
-    useEffect(() => {
+    const refresh = useCallback(() => {
         if (!roomId) {
-            return;
+            return Promise.resolve();
         }
-        let cancelled = false;
-        listWatchParties(roomId)
+
+        refreshSeqRef.current += 1;
+        const seq = refreshSeqRef.current;
+
+        return listWatchParties(roomId)
             .then(resp => {
-                if (cancelled) {
+                if (refreshSeqRef.current !== seq || roomIdRef.current !== roomId) {
                     return;
                 }
+
                 setError(null);
-                setData({
+                setData(prev => ({
                     roomId,
                     sessions: resp.sessions,
                     enabled: resp.enabled,
                     screenShareEnabled: resp.screen_share_enabled,
-                    activeSessionId: null,
-                    embedURL: "",
-                    messages: [],
-                });
+                    activeSessionId: prev.roomId === roomId ? prev.activeSessionId : null,
+                    embedURL: prev.roomId === roomId ? prev.embedURL : "",
+                    messages: prev.roomId === roomId ? prev.messages : [],
+                }));
             })
             .catch((err: unknown) => {
-                if (cancelled) {
+                if (refreshSeqRef.current !== seq || roomIdRef.current !== roomId) {
                     return;
                 }
+
                 setError(messageFromError(err, "Failed to load watch parties"));
             });
-        return () => {
-            cancelled = true;
-        };
     }, [roomId]);
+
+    useEffect(() => {
+        refresh().catch(() => {});
+    }, [refresh]);
 
     useEffect(() => {
         if (!roomId) {
@@ -540,10 +549,12 @@ export function useWatchParty(roomId: string | null, viewerUserId: string | null
     return {
         enabled,
         screenShareEnabled,
+        loaded: stateMatches,
         sessions,
         activeSession,
         openSessionId: activeSessionId,
         error,
+        refresh,
         start,
         join,
         leave,

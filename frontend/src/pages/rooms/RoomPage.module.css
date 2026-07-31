@@ -690,3 +690,18 @@
         gap: 0.3rem;
     }
 }
+
+.endedPartyNotice {
+    position: fixed;
+    bottom: 5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--gold-rgb), 0.4);
+    color: var(--text-muted);
+    padding: 0.6rem 1.1rem;
+    border-radius: 6px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    font-size: 0.85rem;
+}

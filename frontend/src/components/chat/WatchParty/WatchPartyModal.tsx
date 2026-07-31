@@ -5,6 +5,7 @@ import { RoomAudioRenderer, RoomContext } from "@livekit/components-react";
 import { Button } from "../../Button/Button";
 import { forceMuteWatchPartyVoiceParticipant } from "../../../api/endpoints";
 import type { SiteRole } from "../../../utils/permissions";
+import { siteUrl } from "../../../utils/siteOrigin";
 import { VoiceParticipantList } from "../Voice/VoiceParticipants";
 import type { ActiveWatchPartySession } from "./useWatchParty";
 import { ScreenShareView } from "./ScreenShareView";
@@ -54,9 +55,21 @@ export function WatchPartyModal({
     const identifyRef = useRef(onIdentify);
     const hasControlRef = useRef(false);
     const [busy, setBusy] = useState(false);
+    const [copied, setCopied] = useState(false);
     const [mountError, setMountError] = useState<string | null>(null);
     const [shareMode, setShareMode] = useState<ScreenShareMode>("gaming");
     const { session, embedURL, messages, hasControl } = active;
+
+    const handleCopyInvite = () => {
+        const link = siteUrl(`/rooms/${session.room_id}?party=${session.id}`);
+        navigator.clipboard
+            .writeText(link)
+            .then(() => {
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+            })
+            .catch(() => {});
+    };
 
     const isScreenShare = session.type === "screenshare";
     const canModerate = isStarter || viewerIsStaff;
@@ -191,6 +204,14 @@ export function WatchPartyModal({
                                 Controller
                             </span>
                         )}
+                        <Button
+                            variant="ghost"
+                            size="small"
+                            onClick={handleCopyInvite}
+                            title="Copy a link that opens this watch party. People who are not in the room will be asked to join it first."
+                        >
+                            {copied ? "Link copied" : "Copy invite"}
+                        </Button>
                         <Button
                             variant="ghost"
                             size="small"

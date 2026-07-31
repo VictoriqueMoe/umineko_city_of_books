@@ -763,6 +763,7 @@ func TestJoinRoom_OK(t *testing.T) {
 	// then
 	require.NoError(t, err)
 	require.NotNil(t, got)
+	assert.True(t, m.hub.IsUserInRoom(roomID, userID))
 }
 
 func TestLeaveRoom_RepoError(t *testing.T) {
@@ -862,12 +863,14 @@ func TestLeaveRoom_OK(t *testing.T) {
 	expectEvictionSideEffects(m, roomID)
 	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, mock.Anything, roomID, userID, mock.Anything).Return(errors.New("boom"))
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(sampleUser(userID), nil)
+	m.hub.JoinRoom(roomID, userID)
 
 	// when
 	err := svc.LeaveRoom(context.Background(), roomID, userID)
 
 	// then
 	require.NoError(t, err)
+	assert.False(t, m.hub.IsUserInRoom(roomID, userID))
 }
 
 func TestKickMember_RepoError(t *testing.T) {
@@ -1033,12 +1036,14 @@ func TestKickMember_OK(t *testing.T) {
 	m.chatRepo.EXPECT().RemoveMember(mock.Anything, roomID, targetID).Return(nil)
 	expectEvictionSideEffects(m, roomID)
 	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, mock.Anything, roomID, hostID, mock.Anything).Return(errors.New("boom"))
+	m.hub.JoinRoom(roomID, targetID)
 
 	// when
 	err := svc.KickMember(context.Background(), hostID, roomID, targetID)
 
 	// then
 	require.NoError(t, err)
+	assert.False(t, m.hub.IsUserInRoom(roomID, targetID))
 }
 
 func TestKickMember_TargetIsSiteMod(t *testing.T) {

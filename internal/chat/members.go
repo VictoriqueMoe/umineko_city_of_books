@@ -84,6 +84,8 @@ func (m *membersService) InviteMembers(ctx context.Context, hostID, roomID uuid.
 		if err := m.chatRepo.AddMemberWithRole(ctx, roomID, targetID, "member", false); err != nil {
 			return nil, fmt.Errorf("add member: %w", err)
 		}
+
+		m.hub.JoinRoom(roomID, targetID)
 		memberCount++
 		invitedIDs = append(invitedIDs, targetID)
 
@@ -145,6 +147,8 @@ func (m *membersService) KickMember(ctx context.Context, hostID, roomID, targetI
 
 	m.clearWatchPartyParticipation(ctx, roomID, targetID)
 	m.dropFromLiveKitRoom(ctx, roomID.String(), targetID.String())
+
+	m.hub.LeaveRoom(roomID, targetID)
 
 	m.postRoomActionMessage(ctx, roomID, hostID, "A member was kicked from the room.")
 

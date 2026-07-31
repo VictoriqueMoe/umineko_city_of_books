@@ -336,6 +336,39 @@ export function useRoomController() {
     const hashLoadRef = useRef<string | null>(null);
     const pendingTargetMsgId = targetMsgId && handledHash !== targetMsgId ? targetMsgId : null;
 
+    const invitedPartyId = new URLSearchParams(location.search).get("party");
+    const handledPartyRef = useRef<string | null>(null);
+    const [invitedPartyOpened, setInvitedPartyOpened] = useState(false);
+    const {
+        loaded: watchPartyLoaded,
+        sessions: watchPartySessions,
+        join: joinWatchParty,
+        refresh: refreshWatchParties,
+    } = watchParty;
+
+    const invitedPartyResolved = !!invitedPartyId && !!room && watchPartyLoaded;
+    const invitedPartyMissing =
+        invitedPartyResolved && !invitedPartyOpened && !watchPartySessions.some(s => s.id === invitedPartyId);
+
+    useEffect(() => {
+        if (!invitedPartyResolved || invitedPartyMissing || !invitedPartyId) {
+            return;
+        }
+        if (handledPartyRef.current === invitedPartyId) {
+            return;
+        }
+
+        handledPartyRef.current = invitedPartyId;
+
+        joinWatchParty(invitedPartyId)
+            .then(() => {
+                setInvitedPartyOpened(true);
+            })
+            .catch(() => {
+                setToast("Could not open that watch party.");
+            });
+    }, [invitedPartyId, invitedPartyResolved, invitedPartyMissing, joinWatchParty]);
+
     const [nowTick, setNowTick] = useState(() => Date.now());
     useEffect(() => {
         const t = setInterval(() => setNowTick(Date.now()), 30_000);
@@ -453,15 +486,17 @@ export function useRoomController() {
         markRead(roomId);
     }, [roomId, roomReadyForMarking, roomLastMessageAt, markRead]);
 
+    const isRoomMember = !!room;
+
     useEffect(() => {
-        if (!roomId) {
+        if (!roomId || !isRoomMember) {
             return;
         }
         sendWSMessage({ type: "join_room", data: { room_id: roomId } });
         return () => {
             sendWSMessage({ type: "leave_room", data: { room_id: roomId } });
         };
-    }, [roomId, sendWSMessage, wsEpoch]);
+    }, [roomId, isRoomMember, sendWSMessage, wsEpoch]);
 
     useEffect(() => {
         if (!user) {
@@ -663,6 +698,7 @@ export function useRoomController() {
         try {
             const joined = await joinRoomMutation.mutateAsync({ roomId });
             setRoom(joined);
+            await refreshWatchParties();
         } catch (err) {
             setToast(err instanceof Error ? err.message : "Failed to join room");
         } finally {
@@ -960,6 +996,7 @@ export function useRoomController() {
         voice,
         voiceEnabled,
         watchParty,
+        invitedPartyMissing,
         replyingTo,
         setReplyingTo,
         editingMessageId,
