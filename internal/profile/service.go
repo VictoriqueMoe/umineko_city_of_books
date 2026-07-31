@@ -147,6 +147,11 @@ func (s *service) UpdateProfile(ctx context.Context, userID uuid.UUID, req dto.U
 	req.PronounSubject = capLen(req.PronounSubject, maxPronounLength)
 	req.PronounPossessive = capLen(req.PronounPossessive, maxPronounLength)
 
+	req.BannerPosition = min(max(req.BannerPosition, 0), 100)
+	req.EpisodeProgress = max(req.EpisodeProgress, 0)
+	req.HigurashiArcProgress = max(req.HigurashiArcProgress, 0)
+	req.CiconiaChapterProgress = max(req.CiconiaChapterProgress, 0)
+
 	current, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
 		return fmt.Errorf("get user: %w", err)

@@ -40,6 +40,9 @@ func registerListeners(settingsSvc settings.Service, app *fiber.App, svc *servic
 	scheduleJob("prune old notifications", "pruned old notifications", 24*time.Hour, func() (int, error) {
 		return svc.notification.PruneOld(context.Background())
 	})
+	scheduleJob("clean expired sessions", "cleaned expired sessions", 24*time.Hour, func() (int, error) {
+		return svc.session.CleanExpired(context.Background())
+	})
 	scheduleJob("archive stale journals", "archived stale journals", time.Hour, func() (int, error) {
 		return svc.journal.ArchiveStale(context.Background())
 	})

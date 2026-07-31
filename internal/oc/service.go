@@ -475,6 +475,11 @@ func (s *service) UpdateGalleryImage(ctx context.Context, ocID uuid.UUID, imageI
 			return err
 		}
 	}
+	if req.SortOrder != nil {
+		clamped := max(*req.SortOrder, 0)
+		req.SortOrder = &clamped
+	}
+
 	return s.ocRepo.UpdateGalleryImage(ctx, imageID, ocID, req.Caption, req.SortOrder)
 }
 

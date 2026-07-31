@@ -130,7 +130,6 @@ func (s *watchPartyService) StartWatchParty(ctx context.Context, roomID, actorID
 		}
 
 		sessionRow.HyperbeamSessionID = vm.SessionID
-		sessionRow.HyperbeamAdminToken = vm.AdminToken
 		sessionRow.EmbedURL = vm.EmbedURL
 		sessionRow.VMBaseURL = vmBaseURL
 		sessionRow.StartURL = stringToNull(startURL)
@@ -468,6 +467,10 @@ func (s *watchPartyService) GrantWatchPartyControl(ctx context.Context, roomID, 
 }
 
 func (s *watchPartyService) transferControlTo(ctx context.Context, roomID uuid.UUID, session *repository.ChatWatchPartySessionRow, targetID uuid.UUID) error {
+	if targetID == uuid.Nil {
+		return nil
+	}
+
 	participants, err := s.watchPartyRepo.GetActiveParticipants(ctx, session.ID)
 	if err != nil {
 		return err

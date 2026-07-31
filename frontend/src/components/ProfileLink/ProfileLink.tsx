@@ -47,7 +47,7 @@ export function ProfileLink({
                     />
                 ) : (
                     <span className={styles.avatarPlaceholder} style={{ width: px, height: px, fontSize: px * 0.4 }}>
-                        {user.display_name[0]}
+                        {user.display_name.charAt(0)}
                     </span>
                 )}
                 {online && <span className={styles.onlineDot} />}
@@ -67,7 +67,7 @@ export function ProfileLink({
 
     const rootClass = banned ? `${styles.link} ${styles.banned}` : styles.link;
 
-    if (!clickable) {
+    if (!clickable || !user.username) {
         return <span className={rootClass}>{content}</span>;
     }
 

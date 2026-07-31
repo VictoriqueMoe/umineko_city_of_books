@@ -47,6 +47,23 @@ func TestExcludeClause_MultipleIDs(t *testing.T) {
 	assert.Equal(t, []any{a, b, c}, args)
 }
 
+func TestExcludeClauseNullable_Empty(t *testing.T) {
+	clause, args := dao.ExcludeClauseNullable("cr.created_by", nil, 1)
+
+	assert.Equal(t, "", clause)
+	assert.Nil(t, args)
+}
+
+func TestExcludeClauseNullable_KeepsNullRows(t *testing.T) {
+	a := uuid.New()
+	b := uuid.New()
+
+	clause, args := dao.ExcludeClauseNullable("cr.created_by", []uuid.UUID{a, b}, 3)
+
+	assert.Equal(t, " AND (cr.created_by IS NULL OR cr.created_by NOT IN ($3,$4))", clause)
+	assert.Equal(t, []any{a, b}, args)
+}
+
 func TestExcludeClause_ColumnNameInterpolation(t *testing.T) {
 	ids := []uuid.UUID{uuid.New()}
 
