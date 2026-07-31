@@ -55,3 +55,17 @@ func Migrate(db *sql.DB) error {
 
 	return nil
 }
+
+func MigrateDownTo(db *sql.DB, version int64) error {
+	goose.SetBaseFS(migrationsFS)
+
+	if err := goose.SetDialect("postgres"); err != nil {
+		return fmt.Errorf("failed to set goose dialect: %w", err)
+	}
+
+	if err := goose.DownTo(db, "migrations", version); err != nil {
+		return fmt.Errorf("failed to roll migrations back: %w", err)
+	}
+
+	return nil
+}

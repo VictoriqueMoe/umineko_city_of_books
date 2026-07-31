@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	postgresImageName = "postgres:latest"
+	postgresImageName = "postgres:18"
 	postgresUser      = "umineko"
 	postgresPassword  = "umineko_test"
 	postgresAdminDB   = "postgres"
