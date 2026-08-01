@@ -141,6 +141,8 @@ func (s *service) Refresh(ctx context.Context) error {
 	}
 
 	valid := validKeys()
+	pending := make(map[string]string, len(existing))
+
 	for k, v := range existing {
 		if !valid[config.SiteSettingKey(k)] {
 			if err := s.repo.Delete(ctx, k); err != nil {
@@ -150,8 +152,11 @@ func (s *service) Refresh(ctx context.Context) error {
 			}
 			continue
 		}
-		_ = cache.Set(ctx, s.cache, cache.Setting.Key(k), v, cache.Setting.TTL)
+
+		pending[cache.Setting.Key(k)] = v
 	}
+
+	_ = cache.SetMany(ctx, s.cache, pending, cache.Setting.TTL)
 
 	logger.Log.Debug().Msg("settings cache loaded")
 	return nil
@@ -260,12 +265,20 @@ func (s *service) SetMultiple(ctx context.Context, values map[config.SiteSetting
 		return err
 	}
 
-	var keys []config.SiteSettingKey
+	pending := make(map[string]string, len(values))
+	keys := make([]config.SiteSettingKey, 0, len(values))
+
 	for k, v := range values {
-		_ = cache.Set(ctx, s.cache, cache.Setting.Key(string(k)), v, cache.Setting.TTL)
-		s.notify(k, v)
+		pending[cache.Setting.Key(string(k))] = v
 		keys = append(keys, k)
 	}
+
+	_ = cache.SetMany(ctx, s.cache, pending, cache.Setting.TTL)
+
+	for k, v := range values {
+		s.notify(k, v)
+	}
+
 	s.notifyBatch(keys)
 	logger.Log.Info().Int("count", len(values)).Str("updated_by", updatedBy.String()).Msg("settings updated")
 	return nil

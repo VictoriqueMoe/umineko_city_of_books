@@ -34,6 +34,24 @@ func Set[T any](ctx context.Context, m *Manager, key string, value T, ttl time.D
 	return m.setBytes(ctx, key, data, ttl)
 }
 
+func SetMany[T any](ctx context.Context, m *Manager, values map[string]T, ttl time.Duration) error {
+	if m == nil || len(values) == 0 {
+		return nil
+	}
+
+	entries := make(map[string][]byte, len(values))
+	for key, value := range values {
+		data, err := encode(value)
+		if err != nil {
+			return err
+		}
+
+		entries[key] = data
+	}
+
+	return m.setManyBytes(ctx, entries, ttl)
+}
+
 func encode[T any](value T) ([]byte, error) {
 	switch v := any(value).(type) {
 	case []byte:
