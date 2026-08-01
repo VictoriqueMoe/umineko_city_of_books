@@ -2,13 +2,12 @@ package cache
 
 import (
 	"context"
-	"errors"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/redis/go-redis/v9"
+	"github.com/valkey-io/valkey-go"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -18,6 +17,8 @@ const (
 	tracerName = "umineko_city_of_books/internal/cache"
 
 	statsTimeout = 2 * time.Second
+
+	pipelineCommand = "pipeline"
 )
 
 type (
@@ -28,17 +29,17 @@ type (
 	statsCollector struct {
 		manager *Manager
 
-		up           *prometheus.Desc
-		totalConns   *prometheus.Desc
-		idleConns    *prometheus.Desc
-		staleConns   *prometheus.Desc
-		poolHits     *prometheus.Desc
-		poolMisses   *prometheus.Desc
-		poolTimeouts *prometheus.Desc
-		serverKeys   *prometheus.Desc
-		memoryUsed   *prometheus.Desc
-		memoryMax    *prometheus.Desc
-		evictedKeys  *prometheus.Desc
+		up          *prometheus.Desc
+		serverKeys  *prometheus.Desc
+		memoryUsed  *prometheus.Desc
+		memoryMax   *prometheus.Desc
+		evictedKeys *prometheus.Desc
+
+		connectedClients  *prometheus.Desc
+		blockedClients    *prometheus.Desc
+		connectionsTotal  *prometheus.Desc
+		rejectedConns     *prometheus.Desc
+		commandsProcessed *prometheus.Desc
 	}
 )
 
@@ -76,42 +77,89 @@ func newObservabilityHook() *observabilityHook {
 	return &observabilityHook{tracer: otel.Tracer(tracerName)}
 }
 
-func (h *observabilityHook) DialHook(next redis.DialHook) redis.DialHook {
-	return next
+func (h *observabilityHook) Do(client valkey.Client, ctx context.Context, cmd valkey.Completed) valkey.ValkeyResult {
+	name := commandName(cmd.Commands())
+
+	ctx, span := h.tracer.Start(ctx, "valkey "+name, trace.WithSpanKind(trace.SpanKindClient))
+	start := time.Now()
+
+	resp := client.Do(ctx, cmd)
+
+	observe(span, name, start, resp.Error())
+
+	return resp
 }
 
-func (h *observabilityHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
-	return func(ctx context.Context, cmd redis.Cmder) error {
-		name := cmd.Name()
+func (h *observabilityHook) DoMulti(client valkey.Client, ctx context.Context, multi ...valkey.Completed) []valkey.ValkeyResult {
+	ctx, span := h.tracer.Start(ctx, "valkey "+pipelineCommand, trace.WithSpanKind(trace.SpanKindClient))
+	start := time.Now()
 
-		ctx, span := h.tracer.Start(ctx, "valkey "+name, trace.WithSpanKind(trace.SpanKindClient))
-		start := time.Now()
+	resps := client.DoMulti(ctx, multi...)
 
-		err := next(ctx, cmd)
+	observe(span, pipelineCommand, start, firstError(resps))
 
-		observe(span, name, start, err)
-
-		return err
-	}
+	return resps
 }
 
-func (h *observabilityHook) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.ProcessPipelineHook {
-	return func(ctx context.Context, cmds []redis.Cmder) error {
-		ctx, span := h.tracer.Start(ctx, "valkey pipeline", trace.WithSpanKind(trace.SpanKindClient))
-		start := time.Now()
+func (h *observabilityHook) DoCache(client valkey.Client, ctx context.Context, cmd valkey.Cacheable, ttl time.Duration) valkey.ValkeyResult {
+	name := commandName(cmd.Commands())
 
-		err := next(ctx, cmds)
+	ctx, span := h.tracer.Start(ctx, "valkey "+name, trace.WithSpanKind(trace.SpanKindClient))
+	start := time.Now()
 
-		observe(span, "pipeline", start, err)
+	resp := client.DoCache(ctx, cmd, ttl)
 
-		return err
+	observe(span, name, start, resp.Error())
+
+	return resp
+}
+
+func (h *observabilityHook) DoMultiCache(client valkey.Client, ctx context.Context, multi ...valkey.CacheableTTL) []valkey.ValkeyResult {
+	ctx, span := h.tracer.Start(ctx, "valkey "+pipelineCommand, trace.WithSpanKind(trace.SpanKindClient))
+	start := time.Now()
+
+	resps := client.DoMultiCache(ctx, multi...)
+
+	observe(span, pipelineCommand, start, firstError(resps))
+
+	return resps
+}
+
+func (h *observabilityHook) Receive(client valkey.Client, ctx context.Context, subscribe valkey.Completed, fn func(msg valkey.PubSubMessage)) error {
+	return client.Receive(ctx, subscribe, fn)
+}
+
+func (h *observabilityHook) DoStream(client valkey.Client, ctx context.Context, cmd valkey.Completed) valkey.ValkeyResultStream {
+	return client.DoStream(ctx, cmd)
+}
+
+func (h *observabilityHook) DoMultiStream(client valkey.Client, ctx context.Context, multi ...valkey.Completed) valkey.MultiValkeyResultStream {
+	return client.DoMultiStream(ctx, multi...)
+}
+
+func commandName(parts []string) string {
+	if len(parts) == 0 {
+		return "unknown"
 	}
+
+	return parts[0]
+}
+
+func firstError(resps []valkey.ValkeyResult) error {
+	for i := range resps {
+		err := resps[i].Error()
+		if err != nil && !valkey.IsValkeyNil(err) {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func observe(span trace.Span, command string, start time.Time, err error) {
 	commandDuration.WithLabelValues(command).Observe(time.Since(start).Seconds())
 
-	if err != nil && !errors.Is(err, redis.Nil) {
+	if err != nil && !valkey.IsValkeyNil(err) {
 		commandErrors.WithLabelValues(command).Inc()
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
@@ -126,33 +174,32 @@ func registerStatsCollector(m *Manager) {
 
 func newStatsCollector(m *Manager) *statsCollector {
 	return &statsCollector{
-		manager:      m,
-		up:           prometheus.NewDesc("cache_up", "Whether the Valkey cache is configured and reachable (1) or not (0).", nil, nil),
-		totalConns:   prometheus.NewDesc("cache_pool_total_connections", "Total number of connections in the Valkey pool.", nil, nil),
-		idleConns:    prometheus.NewDesc("cache_pool_idle_connections", "Number of idle connections in the Valkey pool.", nil, nil),
-		staleConns:   prometheus.NewDesc("cache_pool_stale_connections_total", "Number of stale connections removed from the Valkey pool.", nil, nil),
-		poolHits:     prometheus.NewDesc("cache_pool_hits_total", "Number of times a free connection was found in the Valkey pool.", nil, nil),
-		poolMisses:   prometheus.NewDesc("cache_pool_misses_total", "Number of times a free connection was not found in the Valkey pool.", nil, nil),
-		poolTimeouts: prometheus.NewDesc("cache_pool_timeouts_total", "Number of times a wait for a Valkey connection timed out.", nil, nil),
-		serverKeys:   prometheus.NewDesc("cache_server_keys", "Number of keys stored in the Valkey cache database.", nil, nil),
-		memoryUsed:   prometheus.NewDesc("cache_server_memory_used_bytes", "Bytes of memory used by the Valkey server.", nil, nil),
-		memoryMax:    prometheus.NewDesc("cache_server_memory_max_bytes", "Configured Valkey maxmemory limit in bytes (0 means unlimited).", nil, nil),
-		evictedKeys:  prometheus.NewDesc("cache_server_evicted_keys_total", "Number of keys evicted by the Valkey server due to maxmemory.", nil, nil),
+		manager:     m,
+		up:          prometheus.NewDesc("cache_up", "Whether the Valkey cache is configured and reachable (1) or not (0).", nil, nil),
+		serverKeys:  prometheus.NewDesc("cache_server_keys", "Number of keys stored in the Valkey cache database.", nil, nil),
+		memoryUsed:  prometheus.NewDesc("cache_server_memory_used_bytes", "Bytes of memory used by the Valkey server.", nil, nil),
+		memoryMax:   prometheus.NewDesc("cache_server_memory_max_bytes", "Configured Valkey maxmemory limit in bytes (0 means unlimited).", nil, nil),
+		evictedKeys: prometheus.NewDesc("cache_server_evicted_keys_total", "Number of keys evicted by the Valkey server due to maxmemory.", nil, nil),
+
+		connectedClients:  prometheus.NewDesc("cache_server_connected_clients", "Number of client connections currently open on the Valkey server.", nil, nil),
+		blockedClients:    prometheus.NewDesc("cache_server_blocked_clients", "Number of clients currently blocked on a blocking command.", nil, nil),
+		connectionsTotal:  prometheus.NewDesc("cache_server_connections_received_total", "Number of connections the Valkey server has accepted since start.", nil, nil),
+		rejectedConns:     prometheus.NewDesc("cache_server_rejected_connections_total", "Number of connections the Valkey server rejected because maxclients was reached.", nil, nil),
+		commandsProcessed: prometheus.NewDesc("cache_server_commands_processed_total", "Number of commands the Valkey server has processed since start.", nil, nil),
 	}
 }
 
 func (c *statsCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.up
-	ch <- c.totalConns
-	ch <- c.idleConns
-	ch <- c.staleConns
-	ch <- c.poolHits
-	ch <- c.poolMisses
-	ch <- c.poolTimeouts
 	ch <- c.serverKeys
 	ch <- c.memoryUsed
 	ch <- c.memoryMax
 	ch <- c.evictedKeys
+	ch <- c.connectedClients
+	ch <- c.blockedClients
+	ch <- c.connectionsTotal
+	ch <- c.rejectedConns
+	ch <- c.commandsProcessed
 }
 
 func (c *statsCollector) Collect(ch chan<- prometheus.Metric) {
@@ -162,18 +209,10 @@ func (c *statsCollector) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 
-	stats := client.PoolStats()
-	ch <- prometheus.MustNewConstMetric(c.totalConns, prometheus.GaugeValue, float64(stats.TotalConns))
-	ch <- prometheus.MustNewConstMetric(c.idleConns, prometheus.GaugeValue, float64(stats.IdleConns))
-	ch <- prometheus.MustNewConstMetric(c.staleConns, prometheus.CounterValue, float64(stats.StaleConns))
-	ch <- prometheus.MustNewConstMetric(c.poolHits, prometheus.CounterValue, float64(stats.Hits))
-	ch <- prometheus.MustNewConstMetric(c.poolMisses, prometheus.CounterValue, float64(stats.Misses))
-	ch <- prometheus.MustNewConstMetric(c.poolTimeouts, prometheus.CounterValue, float64(stats.Timeouts))
-
 	ctx, cancel := context.WithTimeout(context.Background(), statsTimeout)
 	defer cancel()
 
-	size, err := client.DBSize(ctx).Result()
+	size, err := client.Do(ctx, client.B().Dbsize().Build()).AsInt64()
 	if err != nil {
 		ch <- prometheus.MustNewConstMetric(c.up, prometheus.GaugeValue, 0)
 		return
@@ -182,7 +221,7 @@ func (c *statsCollector) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(c.up, prometheus.GaugeValue, 1)
 	ch <- prometheus.MustNewConstMetric(c.serverKeys, prometheus.GaugeValue, float64(size))
 
-	info, err := client.Info(ctx, "memory", "stats").Result()
+	info, err := client.Do(ctx, client.B().Info().Section("memory", "stats", "clients").Build()).ToString()
 	if err != nil {
 		return
 	}
@@ -195,6 +234,22 @@ func (c *statsCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 	if value, ok := infoInt(info, "evicted_keys"); ok {
 		ch <- prometheus.MustNewConstMetric(c.evictedKeys, prometheus.CounterValue, value)
+	}
+
+	if value, ok := infoInt(info, "connected_clients"); ok {
+		ch <- prometheus.MustNewConstMetric(c.connectedClients, prometheus.GaugeValue, value)
+	}
+	if value, ok := infoInt(info, "blocked_clients"); ok {
+		ch <- prometheus.MustNewConstMetric(c.blockedClients, prometheus.GaugeValue, value)
+	}
+	if value, ok := infoInt(info, "total_connections_received"); ok {
+		ch <- prometheus.MustNewConstMetric(c.connectionsTotal, prometheus.CounterValue, value)
+	}
+	if value, ok := infoInt(info, "rejected_connections"); ok {
+		ch <- prometheus.MustNewConstMetric(c.rejectedConns, prometheus.CounterValue, value)
+	}
+	if value, ok := infoInt(info, "total_commands_processed"); ok {
+		ch <- prometheus.MustNewConstMetric(c.commandsProcessed, prometheus.CounterValue, value)
 	}
 }
 

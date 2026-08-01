@@ -2,7 +2,6 @@ package cache
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -11,13 +10,14 @@ import (
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/logger"
 
-	"github.com/redis/go-redis/v9"
+	"github.com/valkey-io/valkey-go"
+	"github.com/valkey-io/valkey-go/valkeyhook"
 )
 
 type (
 	Manager struct {
 		mu     sync.RWMutex
-		client *redis.Client
+		client valkey.Client
 		url    string
 	}
 )
@@ -39,20 +39,21 @@ func ProbeURL(ctx context.Context, rawURL string) error {
 		return nil
 	}
 
-	opts, err := redis.ParseURL(rawURL)
+	opt, err := valkey.ParseURL(rawURL)
 	if err != nil {
 		return fmt.Errorf("cache: invalid valkey url: %w", err)
 	}
 
-	client := redis.NewClient(opts)
-	defer func() {
-		_ = client.Close()
-	}()
+	client, err := valkey.NewClient(opt)
+	if err != nil {
+		return fmt.Errorf("cache: cannot reach valkey: %w", err)
+	}
+	defer client.Close()
 
 	ctx, cancel := context.WithTimeout(ctx, probeTimeout)
 	defer cancel()
 
-	err = client.Ping(ctx).Err()
+	err = client.Do(ctx, client.B().Ping().Build()).Error()
 	if err != nil {
 		return fmt.Errorf("cache: cannot reach valkey: %w", err)
 	}
@@ -73,7 +74,7 @@ func (m *Manager) Reconfigure(rawURL string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), probeTimeout)
 	defer cancel()
 
-	err = client.Ping(ctx).Err()
+	err = client.Do(ctx, client.B().Ping().Build()).Error()
 	if err != nil {
 		return fmt.Errorf("cache: ping failed: %w", err)
 	}
@@ -83,7 +84,7 @@ func (m *Manager) Reconfigure(rawURL string) error {
 	return nil
 }
 
-func (m *Manager) swapClient(rawURL string) (*redis.Client, error) {
+func (m *Manager) swapClient(rawURL string) (valkey.Client, error) {
 	rawURL = strings.TrimSpace(rawURL)
 
 	m.mu.Lock()
@@ -94,7 +95,7 @@ func (m *Manager) swapClient(rawURL string) (*redis.Client, error) {
 	}
 
 	if m.client != nil {
-		_ = m.client.Close()
+		m.client.Close()
 		m.client = nil
 	}
 
@@ -105,14 +106,19 @@ func (m *Manager) swapClient(rawURL string) (*redis.Client, error) {
 		return nil, nil
 	}
 
-	opts, err := redis.ParseURL(rawURL)
+	opt, err := valkey.ParseURL(rawURL)
 	if err != nil {
 		m.url = ""
 		return nil, fmt.Errorf("cache: invalid valkey url: %w", err)
 	}
 
-	client := redis.NewClient(opts)
-	client.AddHook(newObservabilityHook())
+	client, err := valkey.NewClient(opt)
+	if err != nil {
+		m.url = ""
+		return nil, fmt.Errorf("cache: cannot reach valkey: %w", err)
+	}
+
+	client = valkeyhook.WithHook(client, newObservabilityHook())
 	m.client = client
 
 	return client, nil
@@ -139,8 +145,8 @@ func (m *Manager) getBytes(ctx context.Context, key string) ([]byte, error) {
 		return nil, ErrMiss
 	}
 
-	data, err := client.Get(ctx, key).Bytes()
-	if errors.Is(err, redis.Nil) {
+	data, err := client.Do(ctx, client.B().Get().Key(key).Build()).AsBytes()
+	if valkey.IsValkeyNil(err) {
 		cacheMisses.Inc()
 		return nil, ErrMiss
 	}
@@ -158,16 +164,50 @@ func (m *Manager) setBytes(ctx context.Context, key string, data []byte, ttl tim
 		return nil
 	}
 
-	return client.Set(ctx, key, data, ttl).Err()
+	value := client.B().Set().Key(key).Value(valkey.BinaryString(data))
+
+	if ttl > 0 {
+		return client.Do(ctx, value.Px(ttl).Build()).Error()
+	}
+
+	return client.Do(ctx, value.Build()).Error()
+}
+
+func (m *Manager) setManyBytes(ctx context.Context, entries map[string][]byte, ttl time.Duration) error {
+	client := m.current()
+	if client == nil || len(entries) == 0 {
+		return nil
+	}
+
+	cmds := make([]valkey.Completed, 0, len(entries))
+	for key, data := range entries {
+		value := client.B().Set().Key(key).Value(valkey.BinaryString(data))
+
+		if ttl > 0 {
+			cmds = append(cmds, value.Px(ttl).Build())
+			continue
+		}
+
+		cmds = append(cmds, value.Build())
+	}
+
+	for _, resp := range client.DoMulti(ctx, cmds...) {
+		err := resp.Error()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (m *Manager) Del(ctx context.Context, keys ...string) error {
 	client := m.current()
-	if client == nil {
+	if client == nil || len(keys) == 0 {
 		return nil
 	}
 
-	return client.Del(ctx, keys...).Err()
+	return client.Do(ctx, client.B().Del().Key(keys...).Build()).Error()
 }
 
 func (m *Manager) Ping(ctx context.Context) error {
@@ -176,7 +216,7 @@ func (m *Manager) Ping(ctx context.Context) error {
 		return nil
 	}
 
-	return client.Ping(ctx).Err()
+	return client.Do(ctx, client.B().Ping().Build()).Error()
 }
 
 func (m *Manager) Close() error {
@@ -187,13 +227,13 @@ func (m *Manager) Close() error {
 		return nil
 	}
 
-	err := m.client.Close()
+	m.client.Close()
 	m.client = nil
 
-	return err
+	return nil
 }
 
-func (m *Manager) current() *redis.Client {
+func (m *Manager) current() valkey.Client {
 	if m == nil {
 		return nil
 	}
