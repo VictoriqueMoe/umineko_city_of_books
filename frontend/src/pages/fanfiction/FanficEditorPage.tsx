@@ -174,7 +174,7 @@ export function FanficEditorPage() {
     }, [editData, availableLanguages]);
 
     useEffect(() => {
-        if (editData && editData.author.id !== user?.id && !can(user?.role, "edit_any_theory")) {
+        if (editData && editData.author.id !== user?.id && !can(user?.role, "edit_any_post")) {
             navigate(`/fanfiction/${editId}`);
         }
     }, [editData, user?.id, user?.role, navigate, editId]);
@@ -562,7 +562,7 @@ export function FanficEditorPage() {
         return <div className="loading">Loading...</div>;
     }
 
-    if (isEdit && !title) {
+    if (isEdit && !editData) {
         return <div className="empty-state">Fanfic not found.</div>;
     }
 

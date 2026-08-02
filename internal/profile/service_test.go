@@ -222,6 +222,46 @@ func TestUpdateProfile_OK(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestUpdateProfile_DisplayNameLocked(t *testing.T) {
+	// given
+	svc, userRepo, _, _, _, _ := newTestService(t)
+	userID := uuid.New()
+	req := dto.UpdateProfileRequest{DisplayName: "Something Else"}
+	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{
+		ID:                userID,
+		DisplayName:       "Locked Name",
+		DisplayNameLocked: true,
+	}, nil)
+
+	// when
+	err := svc.UpdateProfile(context.Background(), userID, req)
+
+	// then
+	require.ErrorIs(t, err, ErrDisplayNameLocked)
+	userRepo.AssertNotCalled(t, "UpdateProfile", mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestUpdateProfile_LockedNameUnchangedStillSaves(t *testing.T) {
+	// given
+	svc, userRepo, _, _, _, _ := newTestService(t)
+	userID := uuid.New()
+	req := dto.UpdateProfileRequest{DisplayName: "Locked Name", Bio: "new bio"}
+	expected := req
+	expected.DefaultProfileTab = "posts"
+	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{
+		ID:                userID,
+		DisplayName:       "Locked Name",
+		DisplayNameLocked: true,
+	}, nil)
+	userRepo.EXPECT().UpdateProfile(mock.Anything, userID, expected).Return(nil)
+
+	// when
+	err := svc.UpdateProfile(context.Background(), userID, req)
+
+	// then
+	require.NoError(t, err)
+}
+
 func TestUpdateProfile_InvalidDOBFormat(t *testing.T) {
 	// given
 	svc, userRepo, _, _, _, _ := newTestService(t)

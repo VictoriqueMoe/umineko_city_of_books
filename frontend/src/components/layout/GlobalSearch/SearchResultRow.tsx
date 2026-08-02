@@ -9,27 +9,34 @@ interface SearchResultRowProps {
     onSelect?: () => void;
     variant?: "dropdown" | "page";
     active?: boolean;
+    optionId?: string;
 }
 
-export function SearchResultRow({ result, onSelect, variant = "dropdown", active = false }: SearchResultRowProps) {
+export function SearchResultRow({
+    result,
+    onSelect,
+    variant = "dropdown",
+    active = false,
+    optionId,
+}: SearchResultRowProps) {
     const meta = SEARCH_TYPE_META[result.type];
     const author = result.author;
     const isUser = result.type === "user";
     const avatarClass = isUser ? styles.resultAvatarLarge : styles.resultAvatar;
     const initial = (author.display_name || author.username || "?").charAt(0).toUpperCase();
 
-    return (
-        <Link
-            to={result.url || "#"}
-            className={[
-                styles.resultRow,
-                variant === "page" ? styles.resultRowPage : styles.resultRowDropdown,
-                active ? styles.resultRowActive : "",
-            ]
-                .filter(Boolean)
-                .join(" ")}
-            onClick={onSelect}
-        >
+    const className = [
+        styles.resultRow,
+        variant === "page" ? styles.resultRowPage : styles.resultRowDropdown,
+        active ? styles.resultRowActive : "",
+    ]
+        .filter(Boolean)
+        .join(" ");
+
+    const optionProps = optionId ? { id: optionId, role: "option", "aria-selected": active } : {};
+
+    const body = (
+        <>
             <span className={styles.typeBadge} style={{ background: meta.color }}>
                 {meta.short}
             </span>
@@ -52,6 +59,20 @@ export function SearchResultRow({ result, onSelect, variant = "dropdown", active
                     </span>
                 )}
             </span>
+        </>
+    );
+
+    if (!result.url) {
+        return (
+            <span className={className} {...optionProps}>
+                {body}
+            </span>
+        );
+    }
+
+    return (
+        <Link to={result.url} className={className} onClick={onSelect} {...optionProps}>
+            {body}
         </Link>
     );
 }

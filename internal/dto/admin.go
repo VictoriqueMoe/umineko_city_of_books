@@ -28,6 +28,8 @@ type (
 	AdminUserDetailResponse struct {
 		AdminUserItem
 		Email                  string        `json:"email,omitempty"`
+		EmailVerified          bool          `json:"email_verified"`
+		DisplayNameLocked      bool          `json:"display_name_locked"`
 		IP                     string        `json:"ip,omitempty"`
 		BanReason              string        `json:"ban_reason,omitempty"`
 		BannedAt               string        `json:"banned_at,omitempty"`
@@ -74,14 +76,17 @@ type (
 	}
 
 	AuditLogEntryResponse struct {
-		ID         int       `json:"id"`
-		ActorID    uuid.UUID `json:"actor_id"`
-		ActorName  string    `json:"actor_name"`
-		Action     string    `json:"action"`
-		TargetType string    `json:"target_type"`
-		TargetID   string    `json:"target_id"`
-		Details    string    `json:"details"`
-		CreatedAt  string    `json:"created_at"`
+		ID              int        `json:"id"`
+		ActorID         uuid.UUID  `json:"actor_id"`
+		ActorName       string     `json:"actor_name"`
+		Action          string     `json:"action"`
+		TargetType      string     `json:"target_type"`
+		TargetID        string     `json:"target_id"`
+		Details         string     `json:"details"`
+		CreatedAt       string     `json:"created_at"`
+		SubjectID       *uuid.UUID `json:"subject_id,omitempty"`
+		SubjectName     string     `json:"subject_name,omitempty"`
+		SubjectUsername string     `json:"subject_username,omitempty"`
 	}
 
 	AuditLogListResponse struct {
@@ -109,6 +114,23 @@ type (
 
 	LockUserRequest struct {
 		Reason string `json:"reason"`
+	}
+
+	AdminSetEmailRequest struct {
+		Email string `json:"email"`
+	}
+
+	AdminSetDisplayNameRequest struct {
+		DisplayName string `json:"display_name"`
+	}
+
+	AdminSetDisplayNameLockRequest struct {
+		Locked bool `json:"locked"`
+	}
+
+	AdminIPMatchesResponse struct {
+		IP    string          `json:"ip"`
+		Users []AdminUserItem `json:"users"`
 	}
 
 	AdminResetPasswordResponse struct {

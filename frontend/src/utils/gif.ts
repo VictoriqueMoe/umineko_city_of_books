@@ -1,4 +1,5 @@
 const GIPHY_URL_RE = /^https:\/\/(media[0-9]*|i)\.giphy\.com\/[^\s]+\.(gif|webp|mp4)(\?[^\s]*)?$/i;
+const GIPHY_HOST_RE = /^https:\/\/(?:media[0-9]*|i)\.giphy\.com\//i;
 const MEDIA_ID_RE = /\/media\/(?:v\d+\.[^/]+\/)?([a-zA-Z0-9]+)\/[^/]+\.(?:gif|webp|mp4)/i;
 const I_SUBDOMAIN_ID_RE = /\/\/i\.giphy\.com\/([a-zA-Z0-9]+)\.(?:gif|webp|mp4)/i;
 
@@ -11,6 +12,10 @@ export function extractGif(body: string): string | null {
 }
 
 export function extractGiphyId(url: string): string | null {
+    if (!GIPHY_HOST_RE.test(url)) {
+        return null;
+    }
+
     const media = url.match(MEDIA_ID_RE);
     if (media) {
         return media[1];

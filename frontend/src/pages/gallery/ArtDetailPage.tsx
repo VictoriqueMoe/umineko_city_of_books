@@ -180,7 +180,7 @@ export function ArtDetailPage() {
                             <Button variant="secondary" size="small" onClick={() => setEditing(false)}>
                                 Cancel
                             </Button>
-                            <Button variant="primary" size="small" onClick={saveEdit}>
+                            <Button variant="primary" size="small" onClick={saveEdit} disabled={!editTitle.trim()}>
                                 Save
                             </Button>
                         </div>

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/admin"
+	"umineko_city_of_books/internal/auth"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
@@ -39,6 +40,14 @@ func (s *Service) getAllAdminRoutes() []FSetupRoute {
 		s.setupAdminUnlockUser,
 		s.setupAdminDeleteUser,
 		s.setupAdminResetPassword,
+		s.setupAdminSetUserEmail,
+		s.setupAdminVerifyUserEmail,
+		s.setupAdminUnverifyUserEmail,
+		s.setupAdminSetDisplayName,
+		s.setupAdminSetDisplayNameLock,
+		s.setupAdminForceLogout,
+		s.setupAdminUserIPMatches,
+		s.setupAdminUserAuditLog,
 		s.setupAdminGetSettings,
 		s.setupAdminUpdateSettings,
 		s.setupAdminUploadOGImage,
@@ -111,6 +120,38 @@ func (s *Service) setupAdminDeleteUser(r fiber.Router) {
 
 func (s *Service) setupAdminResetPassword(r fiber.Router) {
 	r.Post("/admin/users/:id/reset-password", s.requirePerm(authz.PermResetPassword), s.adminResetPassword)
+}
+
+func (s *Service) setupAdminSetUserEmail(r fiber.Router) {
+	r.Put("/admin/users/:id/email", s.requirePerm(authz.PermManageUserEmail), s.adminSetUserEmail)
+}
+
+func (s *Service) setupAdminVerifyUserEmail(r fiber.Router) {
+	r.Post("/admin/users/:id/verify-email", s.requirePerm(authz.PermSetEmailVerified), s.adminVerifyUserEmail)
+}
+
+func (s *Service) setupAdminUnverifyUserEmail(r fiber.Router) {
+	r.Post("/admin/users/:id/unverify-email", s.requirePerm(authz.PermSetEmailVerified), s.adminUnverifyUserEmail)
+}
+
+func (s *Service) setupAdminSetDisplayName(r fiber.Router) {
+	r.Put("/admin/users/:id/display-name", s.requirePerm(authz.PermManageUserAccount), s.adminSetDisplayName)
+}
+
+func (s *Service) setupAdminSetDisplayNameLock(r fiber.Router) {
+	r.Put("/admin/users/:id/display-name-lock", s.requirePerm(authz.PermManageUserAccount), s.adminSetDisplayNameLock)
+}
+
+func (s *Service) setupAdminForceLogout(r fiber.Router) {
+	r.Post("/admin/users/:id/force-logout", s.requirePerm(authz.PermBanUser), s.adminForceLogout)
+}
+
+func (s *Service) setupAdminUserIPMatches(r fiber.Router) {
+	r.Get("/admin/users/:id/ip-matches", s.requirePerm(authz.PermViewUsers), s.adminUserIPMatches)
+}
+
+func (s *Service) setupAdminUserAuditLog(r fiber.Router) {
+	r.Get("/admin/users/:id/audit-log", s.requirePerm(authz.PermViewAuditLog), s.adminUserAuditLog)
 }
 
 func (s *Service) setupAdminGetSettings(r fiber.Router) {
@@ -271,6 +312,121 @@ func (s *Service) adminResetPassword(ctx fiber.Ctx) error {
 		return handleAdminError(ctx, err)
 	}
 	return ctx.JSON(dto.AdminResetPasswordResponse{Password: password})
+}
+
+func (s *Service) adminSetUserEmail(ctx fiber.Ctx) error {
+	actorID, targetID, ok := utils.ActorAndTarget(ctx)
+	if !ok {
+		return nil
+	}
+
+	req, ok := utils.BindJSON[dto.AdminSetEmailRequest](ctx)
+	if !ok {
+		return nil
+	}
+
+	if err := s.AdminService.SetUserEmail(ctx.Context(), actorID, targetID, req.Email); err != nil {
+		return handleAdminError(ctx, err)
+	}
+	return utils.OK(ctx)
+}
+
+func (s *Service) adminVerifyUserEmail(ctx fiber.Ctx) error {
+	actorID, targetID, ok := utils.ActorAndTarget(ctx)
+	if !ok {
+		return nil
+	}
+
+	if err := s.AdminService.VerifyUserEmail(ctx.Context(), actorID, targetID); err != nil {
+		return handleAdminError(ctx, err)
+	}
+	return utils.OK(ctx)
+}
+
+func (s *Service) adminUnverifyUserEmail(ctx fiber.Ctx) error {
+	actorID, targetID, ok := utils.ActorAndTarget(ctx)
+	if !ok {
+		return nil
+	}
+
+	if err := s.AdminService.UnverifyUserEmail(ctx.Context(), actorID, targetID); err != nil {
+		return handleAdminError(ctx, err)
+	}
+	return utils.OK(ctx)
+}
+
+func (s *Service) adminSetDisplayName(ctx fiber.Ctx) error {
+	actorID, targetID, ok := utils.ActorAndTarget(ctx)
+	if !ok {
+		return nil
+	}
+
+	req, ok := utils.BindJSON[dto.AdminSetDisplayNameRequest](ctx)
+	if !ok {
+		return nil
+	}
+
+	if err := s.AdminService.SetUserDisplayName(ctx.Context(), actorID, targetID, req.DisplayName); err != nil {
+		return handleAdminError(ctx, err)
+	}
+	return utils.OK(ctx)
+}
+
+func (s *Service) adminSetDisplayNameLock(ctx fiber.Ctx) error {
+	actorID, targetID, ok := utils.ActorAndTarget(ctx)
+	if !ok {
+		return nil
+	}
+
+	req, ok := utils.BindJSON[dto.AdminSetDisplayNameLockRequest](ctx)
+	if !ok {
+		return nil
+	}
+
+	if err := s.AdminService.SetDisplayNameLocked(ctx.Context(), actorID, targetID, req.Locked); err != nil {
+		return handleAdminError(ctx, err)
+	}
+	return utils.OK(ctx)
+}
+
+func (s *Service) adminForceLogout(ctx fiber.Ctx) error {
+	actorID, targetID, ok := utils.ActorAndTarget(ctx)
+	if !ok {
+		return nil
+	}
+
+	if err := s.AdminService.ForceLogout(ctx.Context(), actorID, targetID); err != nil {
+		return handleAdminError(ctx, err)
+	}
+	return utils.OK(ctx)
+}
+
+func (s *Service) adminUserIPMatches(ctx fiber.Ctx) error {
+	targetID, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
+	}
+
+	result, err := s.AdminService.ListAccountsOnIP(ctx.Context(), targetID)
+	if err != nil {
+		return handleAdminError(ctx, err)
+	}
+	return ctx.JSON(result)
+}
+
+func (s *Service) adminUserAuditLog(ctx fiber.Ctx) error {
+	targetID, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
+	}
+
+	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 20), fiber.Query[int](ctx, "offset", 0))
+
+	result, err := s.AdminService.GetUserAuditLog(ctx.Context(), targetID, page)
+	if err != nil {
+		return handleAdminError(ctx, err)
+	}
+	return ctx.JSON(result)
 }
 
 func (s *Service) adminGetSettings(ctx fiber.Ctx) error {
@@ -443,6 +599,27 @@ func handleAdminError(ctx fiber.Ctx, err error) error {
 	}
 	if errors.Is(err, admin.ErrNoEmailAddress) {
 		return utils.BadRequest(ctx, "your account has no email address set")
+	}
+	if errors.Is(err, admin.ErrEmptyDisplayName) {
+		return utils.BadRequest(ctx, "display name is required")
+	}
+	if errors.Is(err, auth.ErrInvalidEmail) {
+		return utils.BadRequest(ctx, "a valid email address is required")
+	}
+	if errors.Is(err, auth.ErrEmailTaken) {
+		return utils.BadRequest(ctx, "that email address is already in use")
+	}
+	if errors.Is(err, auth.ErrEmailAlreadyVerified) {
+		return utils.BadRequest(ctx, "this email address is already verified")
+	}
+	if errors.Is(err, auth.ErrEmailNotVerified) {
+		return utils.BadRequest(ctx, "this email address is not verified")
+	}
+	if errors.Is(err, auth.ErrNoEmailAddress) {
+		return utils.BadRequest(ctx, "this user has no email address set")
+	}
+	if errors.Is(err, auth.ErrUserNotFound) {
+		return utils.NotFound(ctx, "user not found")
 	}
 	return utils.InternalError(ctx, err.Error())
 }

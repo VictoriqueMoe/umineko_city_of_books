@@ -248,7 +248,7 @@ func TestGrantWatchPartyControl_OK(t *testing.T) {
 	m.userRepo.EXPECT().GetByID(mock.Anything, controllerID).Return(nil, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, targetID).Return(nil, nil)
 	m.watchPartyRepo.EXPECT().InsertSystemMessage(mock.Anything, mock.Anything, sessionID, mock.Anything).Return(errors.New("skip"))
-	m.auditRepo.EXPECT().Create(mock.Anything, controllerID, "watch_party.grant_control", "chat_watch_party_session", sessionID.String(), mock.Anything).Return(nil)
+	m.auditRepo.EXPECT().CreateForSubject(mock.Anything, controllerID, "watch_party.grant_control", "chat_watch_party_session", sessionID.String(), mock.Anything, mock.Anything).Return(nil)
 
 	// when
 	err := svc.GrantWatchPartyControl(context.Background(), roomID, sessionID, controllerID, targetID)
@@ -258,7 +258,7 @@ func TestGrantWatchPartyControl_OK(t *testing.T) {
 }
 
 func TestGrantWatchPartyControl_AdminOutranksMod(t *testing.T) {
-	// given an admin caller and a moderator controller — admin should reclaim
+	// given an admin caller and a moderator controller â€” admin should reclaim
 	svc, m := newTestService(t)
 	roomID := uuid.New()
 	sessionID := uuid.New()
@@ -284,7 +284,7 @@ func TestGrantWatchPartyControl_AdminOutranksMod(t *testing.T) {
 	m.watchPartyRepo.EXPECT().SetControllerID(mock.Anything, sessionID, adminID).Return(nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, adminID).Return(nil, nil)
 	m.watchPartyRepo.EXPECT().InsertSystemMessage(mock.Anything, mock.Anything, sessionID, mock.Anything).Return(errors.New("skip"))
-	m.auditRepo.EXPECT().Create(mock.Anything, adminID, "watch_party.grant_control", "chat_watch_party_session", sessionID.String(), mock.Anything).Return(nil)
+	m.auditRepo.EXPECT().CreateForSubject(mock.Anything, adminID, "watch_party.grant_control", "chat_watch_party_session", sessionID.String(), mock.Anything, mock.Anything).Return(nil)
 
 	// when
 	err := svc.GrantWatchPartyControl(context.Background(), roomID, sessionID, adminID, adminID)
@@ -294,7 +294,7 @@ func TestGrantWatchPartyControl_AdminOutranksMod(t *testing.T) {
 }
 
 func TestGrantWatchPartyControl_ModCannotReclaimFromAdmin(t *testing.T) {
-	// given a moderator caller and an admin controller — mod should be rejected
+	// given a moderator caller and an admin controller â€” mod should be rejected
 	svc, m := newTestService(t)
 	roomID := uuid.New()
 	sessionID := uuid.New()
@@ -369,7 +369,7 @@ func TestGrantWatchPartyControl_OwnerCanReclaimFromRegular(t *testing.T) {
 	m.watchPartyRepo.EXPECT().SetControllerID(mock.Anything, sessionID, ownerID).Return(nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, ownerID).Return(nil, nil)
 	m.watchPartyRepo.EXPECT().InsertSystemMessage(mock.Anything, mock.Anything, sessionID, mock.Anything).Return(errors.New("skip"))
-	m.auditRepo.EXPECT().Create(mock.Anything, ownerID, "watch_party.grant_control", "chat_watch_party_session", sessionID.String(), mock.Anything).Return(nil)
+	m.auditRepo.EXPECT().CreateForSubject(mock.Anything, ownerID, "watch_party.grant_control", "chat_watch_party_session", sessionID.String(), mock.Anything, mock.Anything).Return(nil)
 
 	// when
 	err := svc.GrantWatchPartyControl(context.Background(), roomID, sessionID, ownerID, ownerID)
@@ -436,7 +436,7 @@ func TestKickWatchPartyParticipant_OK(t *testing.T) {
 	m.userRepo.EXPECT().GetByID(mock.Anything, memberID).Return(nil, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, adminID).Return(nil, nil)
 	m.watchPartyRepo.EXPECT().InsertSystemMessage(mock.Anything, mock.Anything, sessionID, mock.Anything).Return(errors.New("skip"))
-	m.auditRepo.EXPECT().Create(mock.Anything, adminID, "watch_party.kick", "chat_watch_party_session", sessionID.String(), mock.Anything).Return(nil)
+	m.auditRepo.EXPECT().CreateForSubject(mock.Anything, adminID, "watch_party.kick", "chat_watch_party_session", sessionID.String(), mock.Anything, mock.Anything).Return(nil)
 
 	// when
 	err := svc.KickWatchPartyParticipant(context.Background(), roomID, sessionID, adminID, memberID)

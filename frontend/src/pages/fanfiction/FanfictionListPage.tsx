@@ -115,7 +115,13 @@ export function FanfictionListPage() {
     const higuChars = useMemo(() => Object.values(higuMap).sort((a, b) => a.localeCompare(b)), [higuMap]);
 
     const [searchInput, setSearchInput] = useState(search);
+    const [lastSearch, setLastSearch] = useState(search);
     const [filtersOpen, setFiltersOpen] = useState(false);
+
+    if (lastSearch !== search) {
+        setLastSearch(search);
+        setSearchInput(search);
+    }
 
     const activeFilterCount =
         [series, rating, status, language, genreA, genreB, tag, charA, charB, charC, charD].filter(Boolean).length +

@@ -25,7 +25,14 @@ export function Lightbox({ src, alt = "", onClose }: LightboxProps) {
 
     return (
         <div className={styles.overlay} onClick={onClose} role="dialog" aria-modal="true">
-            <button className={styles.close} onClick={onClose} aria-label="Close">
+            <button
+                className={styles.close}
+                onClick={e => {
+                    e.stopPropagation();
+                    onClose();
+                }}
+                aria-label="Close"
+            >
                 {"\u2715"}
             </button>
             <img className={styles.image} src={src} alt={alt} onClick={e => e.stopPropagation()} />

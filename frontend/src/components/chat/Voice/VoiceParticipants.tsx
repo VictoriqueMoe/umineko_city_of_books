@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useIsSpeaking, useParticipants } from "@livekit/components-react";
 import { RemoteParticipant } from "livekit-client";
 import type { Participant } from "livekit-client";
@@ -10,11 +10,26 @@ interface VoiceParticipantListProps {
     onForceMute?: (identity: string, muted: boolean) => void;
 }
 
+function applyVolume(participant: Participant, silenced: boolean) {
+    if (participant instanceof RemoteParticipant) {
+        participant.setVolume(silenced ? 0 : 1);
+    }
+}
+
 export function VoiceParticipantList({ canModerate = false, onForceMute }: VoiceParticipantListProps) {
     const participants = useParticipants();
     const [mutedIds, setMutedIds] = useState<Set<string>>(new Set());
     const [forceMutedIds, setForceMutedIds] = useState<Set<string>>(new Set());
     const [deafened, setDeafened] = useState(false);
+
+    useEffect(() => {
+        for (const p of participants) {
+            if (p.isLocal) {
+                continue;
+            }
+            applyVolume(p, deafened || mutedIds.has(p.identity));
+        }
+    }, [participants, deafened, mutedIds]);
 
     const toggleForceMute = (identity: string) => {
         const next = new Set(forceMutedIds);
@@ -28,33 +43,18 @@ export function VoiceParticipantList({ canModerate = false, onForceMute }: Voice
         onForceMute?.(identity, muted);
     };
 
-    const applyVolume = (participant: Participant, silenced: boolean) => {
-        if (participant instanceof RemoteParticipant) {
-            participant.setVolume(silenced ? 0 : 1);
-        }
-    };
-
     const toggleLocalMute = (participant: Participant) => {
         const next = new Set(mutedIds);
-        const silenced = !next.has(participant.identity);
-        if (silenced) {
-            next.add(participant.identity);
-        } else {
+        if (next.has(participant.identity)) {
             next.delete(participant.identity);
+        } else {
+            next.add(participant.identity);
         }
         setMutedIds(next);
-        applyVolume(participant, deafened || silenced);
     };
 
     const toggleDeafen = () => {
-        const next = !deafened;
-        setDeafened(next);
-        for (let i = 0; i < participants.length; i++) {
-            const p = participants[i];
-            if (!p.isLocal) {
-                applyVolume(p, next || mutedIds.has(p.identity));
-            }
-        }
+        setDeafened(!deafened);
     };
 
     return (

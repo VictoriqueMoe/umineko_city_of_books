@@ -33,8 +33,12 @@ type (
 		ChangePassword(ctx context.Context, userID uuid.UUID, oldPassword, newPassword string) error
 		SetPassword(ctx context.Context, userID uuid.UUID, newPassword string) error
 		SetEmail(ctx context.Context, userID uuid.UUID, email string) error
+		SetDisplayName(ctx context.Context, userID uuid.UUID, displayName string) error
+		SetDisplayNameLocked(ctx context.Context, userID uuid.UUID, locked bool) error
+		ListByIP(ctx context.Context, ip string, excludeUserID uuid.UUID) ([]model.User, error)
 		VerifyPassword(ctx context.Context, userID uuid.UUID, password string) (bool, error)
 		MarkEmailVerified(ctx context.Context, userID uuid.UUID) error
+		MarkEmailUnverified(ctx context.Context, userID uuid.UUID) error
 		EmailInUse(ctx context.Context, email string, excludeUserID uuid.UUID) (bool, error)
 		RequiresEmailVerification(ctx context.Context, userID uuid.UUID) (bool, error)
 		DeleteAccount(ctx context.Context, userID uuid.UUID, password string) error
@@ -154,12 +158,28 @@ func (r *userRepository) SetEmail(ctx context.Context, userID uuid.UUID, email s
 	return r.dao.SetEmail(ctx, userID, email)
 }
 
+func (r *userRepository) SetDisplayName(ctx context.Context, userID uuid.UUID, displayName string) error {
+	return r.dao.SetDisplayName(ctx, userID, displayName)
+}
+
+func (r *userRepository) SetDisplayNameLocked(ctx context.Context, userID uuid.UUID, locked bool) error {
+	return r.dao.SetDisplayNameLocked(ctx, userID, locked)
+}
+
+func (r *userRepository) ListByIP(ctx context.Context, ip string, excludeUserID uuid.UUID) ([]model.User, error) {
+	return r.dao.ListByIP(ctx, ip, excludeUserID)
+}
+
 func (r *userRepository) VerifyPassword(ctx context.Context, userID uuid.UUID, password string) (bool, error) {
 	return r.dao.VerifyPassword(ctx, userID, password)
 }
 
 func (r *userRepository) MarkEmailVerified(ctx context.Context, userID uuid.UUID) error {
 	return r.dao.MarkEmailVerified(ctx, userID)
+}
+
+func (r *userRepository) MarkEmailUnverified(ctx context.Context, userID uuid.UUID) error {
+	return r.dao.MarkEmailUnverified(ctx, userID)
 }
 
 func (r *userRepository) EmailInUse(ctx context.Context, email string, excludeUserID uuid.UUID) (bool, error) {

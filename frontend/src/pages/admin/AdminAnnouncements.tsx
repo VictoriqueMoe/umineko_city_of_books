@@ -13,6 +13,7 @@ import {
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
+import { Toast } from "../../components/Toast/Toast";
 import { relativeTime } from "../../utils/notifications";
 import styles from "./AdminAnnouncements.module.css";
 
@@ -32,6 +33,7 @@ export function AdminAnnouncements() {
     const [title, setTitle] = useState("");
     const [body, setBody] = useState("");
     const [showPreview, setShowPreview] = useState(false);
+    const [error, setError] = useState("");
 
     const saving = createMutation.isPending || updateMutation.isPending;
 
@@ -75,11 +77,19 @@ export function AdminAnnouncements() {
         if (!window.confirm("Delete this announcement?")) {
             return;
         }
-        await deleteMutation.mutateAsync(id);
+        try {
+            await deleteMutation.mutateAsync(id);
+        } catch (e) {
+            setError(e instanceof Error ? e.message : "Failed to delete the announcement");
+        }
     }
 
     async function handlePin(id: string, pinned: boolean) {
-        await pinMutation.mutateAsync({ id, pinned: !pinned });
+        try {
+            await pinMutation.mutateAsync({ id, pinned: !pinned });
+        } catch (e) {
+            setError(e instanceof Error ? e.message : "Failed to change the pinned state");
+        }
     }
 
     if (loading) {
@@ -88,6 +98,11 @@ export function AdminAnnouncements() {
 
     return (
         <div>
+            {error && (
+                <Toast variant="error" onDismiss={() => setError("")}>
+                    {error}
+                </Toast>
+            )}
             {editingId ? (
                 <div className={styles.editor}>
                     <h3 className={styles.editorTitle}>

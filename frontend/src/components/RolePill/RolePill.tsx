@@ -66,7 +66,7 @@ export function RolePill({ role, userId, compactOnMobile }: RolePillProps) {
         };
     }, []);
 
-    const userVanityRoleIds = (userId && siteInfo.vanity_role_assignments?.[userId]) ?? [];
+    const userVanityRoleIds = userId ? (siteInfo.vanity_role_assignments?.[userId] ?? []) : [];
     const allVanityRoles = siteInfo.vanity_roles ?? [];
     const vanityRoles = [];
     for (const vr of allVanityRoles) {

@@ -278,6 +278,120 @@ func (_c *MockService_Logout_Call) RunAndReturn(run func(ctx context.Context, to
 	return _c
 }
 
+// MarkEmailUnverified provides a mock function for the type MockService
+func (_mock *MockService) MarkEmailUnverified(ctx context.Context, userID uuid.UUID) error {
+	ret := _mock.Called(ctx, userID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for MarkEmailUnverified")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, userID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_MarkEmailUnverified_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MarkEmailUnverified'
+type MockService_MarkEmailUnverified_Call struct {
+	*mock.Call
+}
+
+// MarkEmailUnverified is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+func (_e *MockService_Expecter) MarkEmailUnverified(ctx any, userID any) *MockService_MarkEmailUnverified_Call {
+	return &MockService_MarkEmailUnverified_Call{Call: _e.mock.On("MarkEmailUnverified", ctx, userID)}
+}
+
+func (_c *MockService_MarkEmailUnverified_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *MockService_MarkEmailUnverified_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_MarkEmailUnverified_Call) Return(err error) *MockService_MarkEmailUnverified_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_MarkEmailUnverified_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) error) *MockService_MarkEmailUnverified_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// MarkEmailVerified provides a mock function for the type MockService
+func (_mock *MockService) MarkEmailVerified(ctx context.Context, userID uuid.UUID) error {
+	ret := _mock.Called(ctx, userID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for MarkEmailVerified")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, userID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_MarkEmailVerified_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MarkEmailVerified'
+type MockService_MarkEmailVerified_Call struct {
+	*mock.Call
+}
+
+// MarkEmailVerified is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+func (_e *MockService_Expecter) MarkEmailVerified(ctx any, userID any) *MockService_MarkEmailVerified_Call {
+	return &MockService_MarkEmailVerified_Call{Call: _e.mock.On("MarkEmailVerified", ctx, userID)}
+}
+
+func (_c *MockService_MarkEmailVerified_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *MockService_MarkEmailVerified_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_MarkEmailVerified_Call) Return(err error) *MockService_MarkEmailVerified_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_MarkEmailVerified_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) error) *MockService_MarkEmailVerified_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Register provides a mock function for the type MockService
 func (_mock *MockService) Register(ctx context.Context, req dto.RegisterRequest) (*dto.UserResponse, string, error) {
 	ret := _mock.Called(ctx, req)
@@ -537,6 +651,69 @@ func (_c *MockService_SetEmail_Call) Return(err error) *MockService_SetEmail_Cal
 }
 
 func (_c *MockService_SetEmail_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, email string, password string) error) *MockService_SetEmail_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SetEmailForUser provides a mock function for the type MockService
+func (_mock *MockService) SetEmailForUser(ctx context.Context, userID uuid.UUID, email string) error {
+	ret := _mock.Called(ctx, userID, email)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetEmailForUser")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) error); ok {
+		r0 = returnFunc(ctx, userID, email)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_SetEmailForUser_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetEmailForUser'
+type MockService_SetEmailForUser_Call struct {
+	*mock.Call
+}
+
+// SetEmailForUser is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+//   - email string
+func (_e *MockService_Expecter) SetEmailForUser(ctx any, userID any, email any) *MockService_SetEmailForUser_Call {
+	return &MockService_SetEmailForUser_Call{Call: _e.mock.On("SetEmailForUser", ctx, userID, email)}
+}
+
+func (_c *MockService_SetEmailForUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, email string)) *MockService_SetEmailForUser_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_SetEmailForUser_Call) Return(err error) *MockService_SetEmailForUser_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_SetEmailForUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, email string) error) *MockService_SetEmailForUser_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -24,7 +24,7 @@ export function InviteMembersModal({ isOpen, roomId, existingMemberIds, onClose,
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
 
-    const [openInstance, setOpenInstance] = useState(0);
+    const [openInstance, setOpenInstance] = useState(isOpen ? 1 : 0);
     const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
     if (isOpen !== prevIsOpen) {
         setPrevIsOpen(isOpen);

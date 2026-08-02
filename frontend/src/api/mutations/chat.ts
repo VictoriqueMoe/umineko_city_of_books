@@ -30,6 +30,7 @@ import {
     uploadChatRoomAvatar,
 } from "../endpoints";
 import type { ChatRoom, CreateBannedWordRequest } from "../../types/api";
+import { queryKeys } from "../queryKeys";
 
 const ROOM_KEY = ["chat", "rooms"] as const;
 
@@ -96,6 +97,7 @@ export function useKickChatRoomMember(roomId: string) {
         mutationFn: (userId: string) => kickChatRoomMember(roomId, userId),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ["chat", "rooms", roomId] });
+            qc.invalidateQueries({ queryKey: queryKeys.chat.roomMembers(roomId) });
         },
     });
 }
@@ -107,6 +109,7 @@ export function useBanChatRoomMember(roomId: string) {
             banChatRoomMember(roomId, userId, reason),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ["chat", "rooms", roomId] });
+            qc.invalidateQueries({ queryKey: queryKeys.chat.roomMembers(roomId) });
         },
     });
 }
@@ -117,6 +120,7 @@ export function useUnbanChatRoomMember(roomId: string) {
         mutationFn: (userId: string) => unbanChatRoomMember(roomId, userId),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ["chat", "rooms", roomId] });
+            qc.invalidateQueries({ queryKey: queryKeys.chat.roomMembers(roomId) });
         },
     });
 }
@@ -158,6 +162,7 @@ export function useInviteChatRoomMembers(roomId: string) {
         mutationFn: (userIds: string[]) => inviteChatRoomMembers(roomId, userIds),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ["chat", "rooms", roomId] });
+            qc.invalidateQueries({ queryKey: queryKeys.chat.roomMembers(roomId) });
         },
     });
 }

@@ -32,7 +32,10 @@ export type Permission =
     | "delete_any_journal"
     | "manage_vanity_roles"
     | "manage_banned_words"
-    | "reset_password";
+    | "reset_password"
+    | "manage_user_account"
+    | "manage_user_email"
+    | "set_email_verified";
 
 const rolePermissions: Record<string, Permission[]> = {
     super_admin: [
@@ -58,6 +61,9 @@ const rolePermissions: Record<string, Permission[]> = {
         "manage_vanity_roles",
         "manage_banned_words",
         "reset_password",
+        "manage_user_account",
+        "manage_user_email",
+        "set_email_verified",
     ],
     admin: [
         "delete_any_theory",
@@ -82,6 +88,9 @@ const rolePermissions: Record<string, Permission[]> = {
         "manage_vanity_roles",
         "manage_banned_words",
         "reset_password",
+        "manage_user_account",
+        "manage_user_email",
+        "set_email_verified",
     ],
     moderator: [
         "delete_any_theory",
@@ -98,6 +107,7 @@ const rolePermissions: Record<string, Permission[]> = {
         "edit_mystery_score",
         "edit_any_journal",
         "delete_any_journal",
+        "manage_user_account",
     ],
 };
 

@@ -13,6 +13,8 @@ export function GamePlayerBar({ room, slot0Label, slot1Label, liveDurationSecond
     const slot0 = room.players.find(p => p.slot === 0);
     const slot1 = room.players.find(p => p.slot === 1);
     const isActive = room.status === "active";
+    const slot0ToMove = isActive && slot0 !== undefined && room.turn_user_id === slot0.user_id;
+    const slot1ToMove = isActive && slot1 !== undefined && room.turn_user_id === slot1.user_id;
 
     return (
         <div className={styles.status}>
@@ -20,12 +22,8 @@ export function GamePlayerBar({ room, slot0Label, slot1Label, liveDurationSecond
                 <span className={`${styles.playerDot} ${slot1?.connected ? styles.playerDotOn : ""}`} />
                 <span className={styles.playerName}>{slot1?.display_name ?? slot1Label}</span>
                 <span className={styles.colourLabel}>({slot1Label})</span>
-                <span
-                    className={`${styles.turnMarker} ${
-                        room.turn_user_id === slot1?.user_id && isActive ? styles.turnMarkerActive : ""
-                    }`}
-                >
-                    {room.turn_user_id === slot1?.user_id && isActive ? "to move" : ""}
+                <span className={`${styles.turnMarker} ${slot1ToMove ? styles.turnMarkerActive : ""}`}>
+                    {slot1ToMove ? "to move" : ""}
                 </span>
             </div>
             <div className={styles.statusCenter}>
@@ -37,12 +35,8 @@ export function GamePlayerBar({ room, slot0Label, slot1Label, liveDurationSecond
                 </span>
             </div>
             <div className={styles.statusRight}>
-                <span
-                    className={`${styles.turnMarker} ${
-                        room.turn_user_id === slot0?.user_id && isActive ? styles.turnMarkerActive : ""
-                    }`}
-                >
-                    {room.turn_user_id === slot0?.user_id && isActive ? "to move" : ""}
+                <span className={`${styles.turnMarker} ${slot0ToMove ? styles.turnMarkerActive : ""}`}>
+                    {slot0ToMove ? "to move" : ""}
                 </span>
                 <span className={styles.colourLabel}>({slot0Label})</span>
                 <span className={styles.playerName}>{slot0?.display_name ?? slot0Label}</span>

@@ -4,9 +4,15 @@ import { App } from "@capacitor/app";
 import { useSiteInfo } from "../../hooks/useSiteInfo";
 import styles from "./NativeUpdateBanner.module.css";
 
+function versionPart(part: string): number {
+    const value = parseInt(part, 10);
+
+    return Number.isNaN(value) ? 0 : value;
+}
+
 function isOlder(installed: string, latest: string): boolean {
-    const a = installed.split(".").map(Number);
-    const b = latest.split(".").map(Number);
+    const a = installed.split(".").map(versionPart);
+    const b = latest.split(".").map(versionPart);
     const len = Math.max(a.length, b.length);
 
     for (let i = 0; i < len; i++) {

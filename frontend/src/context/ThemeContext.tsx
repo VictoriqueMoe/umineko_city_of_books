@@ -1,4 +1,4 @@
-import { type PropsWithChildren, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { type PropsWithChildren, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { FontType, ThemeType } from "../types/app";
 import { useSiteInfo } from "../hooks/useSiteInfo";
 import { useAuth } from "../hooks/useAuth";
@@ -151,14 +151,18 @@ export function ThemeProvider({ children }: PropsWithChildren) {
     const userTheme = user?.private?.theme && isValidTheme(user.private.theme) ? user.private.theme : null;
     const userFont = user?.private?.font && isValidFont(user.private.font) ? user.private.font : null;
     const userWideLayout = typeof user?.private?.wide_layout === "boolean" ? user.private.wide_layout : null;
-    const userSecrets = user && Array.isArray(user.secrets) ? new Set<string>(user.secrets) : null;
+    const userSecretList = user && Array.isArray(user.secrets) ? user.secrets : null;
 
     const storedTheme = hasStoredTheme() ? getStoredTheme() : null;
 
     let theme: ThemeType = activeOverrides?.theme ?? userTheme ?? storedTheme ?? fallbackTheme;
     const font: FontType = activeOverrides?.font ?? userFont ?? getStoredFont();
     const wideLayout: boolean = activeOverrides?.wideLayout ?? userWideLayout ?? getStoredWideLayout();
-    const secrets: Set<string> = activeOverrides?.secrets ?? userSecrets ?? getStoredSecrets();
+    const overrideSecrets = activeOverrides?.secrets ?? null;
+    const secrets: Set<string> = useMemo(
+        () => overrideSecrets ?? (userSecretList ? new Set<string>(userSecretList) : getStoredSecrets()),
+        [overrideSecrets, userSecretList],
+    );
 
     const requiredSecret = THEME_REQUIRES_SECRET[theme];
     if (requiredSecret && !secrets.has(requiredSecret)) {
@@ -195,7 +199,12 @@ export function ThemeProvider({ children }: PropsWithChildren) {
     const hasSecret = useCallback((id: string) => secrets.has(id), [secrets]);
 
     const patchOverrides = useCallback(
-        (update: { theme?: ThemeType; font?: FontType; wideLayout?: boolean; secrets?: Set<string> }) => {
+        (update: {
+            theme?: ThemeType | null;
+            font?: FontType | null;
+            wideLayout?: boolean | null;
+            secrets?: Set<string> | null;
+        }) => {
             setOverrides(prev => {
                 const base =
                     prev.userId === activeUserId
@@ -209,10 +218,10 @@ export function ThemeProvider({ children }: PropsWithChildren) {
                           };
                 return {
                     userId: activeUserId,
-                    theme: update.theme ?? base.theme,
-                    font: update.font ?? base.font,
-                    wideLayout: update.wideLayout ?? base.wideLayout,
-                    secrets: update.secrets ?? base.secrets,
+                    theme: update.theme !== undefined ? update.theme : base.theme,
+                    font: update.font !== undefined ? update.font : base.font,
+                    wideLayout: update.wideLayout !== undefined ? update.wideLayout : base.wideLayout,
+                    secrets: update.secrets !== undefined ? update.secrets : base.secrets,
                 };
             });
         },

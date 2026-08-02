@@ -58,6 +58,7 @@ export function PinnedMessagesPanel({
     const pinnedQuery = useChatRoomPinnedMessages(roomId, isOpen);
     const unpinMutation = useUnpinChatMessage(roomId);
     const loading = pinnedQuery.loading;
+    const refresh = pinnedQuery.refresh;
     const pins = useMemo(() => {
         const list = pinnedQuery.messages.slice();
         list.sort((a, b) => {
@@ -75,8 +76,8 @@ export function PinnedMessagesPanel({
         if (!isOpen || !roomId) {
             return;
         }
-        pinnedQuery.refresh();
-    }, [refreshKey, isOpen, roomId, pinnedQuery]);
+        refresh();
+    }, [refreshKey, isOpen, roomId, refresh]);
 
     async function handleUnpin(messageId: string) {
         setBusyId(messageId);

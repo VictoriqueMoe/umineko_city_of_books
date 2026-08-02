@@ -8,6 +8,7 @@ import (
 
 	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/secrets"
 	"umineko_city_of_books/internal/settings"
@@ -28,6 +29,7 @@ type (
 		announcementRepo repository.AnnouncementRepository
 		journalRepo      repository.JournalRepository
 		chatRepo         repository.ChatRepository
+		watchPartyRepo   repository.ChatWatchPartyRepository
 		liveStreamRepo   repository.LiveStreamRepository
 		settingsSvc      settings.Service
 		cache            *cache.Manager
@@ -62,6 +64,7 @@ func NewResolver(
 	announcementRepo repository.AnnouncementRepository,
 	journalRepo repository.JournalRepository,
 	chatRepo repository.ChatRepository,
+	watchPartyRepo repository.ChatWatchPartyRepository,
 	liveStreamRepo repository.LiveStreamRepository,
 	settingsSvc settings.Service,
 	cacheMgr *cache.Manager,
@@ -79,6 +82,7 @@ func NewResolver(
 		announcementRepo: announcementRepo,
 		journalRepo:      journalRepo,
 		chatRepo:         chatRepo,
+		watchPartyRepo:   watchPartyRepo,
 		liveStreamRepo:   liveStreamRepo,
 		settingsSvc:      settingsSvc,
 		cache:            cacheMgr,
@@ -87,9 +91,13 @@ func NewResolver(
 	}
 }
 
-func (r *Resolver) Resolve(ctx context.Context, path string) string {
+func (r *Resolver) Resolve(ctx context.Context, path, partyID string) string {
+	if _, err := uuid.Parse(partyID); err != nil {
+		partyID = ""
+	}
+
 	html, defaultImage := r.withDefaultImage(ctx)
-	meta := r.resolveMeta(ctx, path)
+	meta := r.resolveMeta(ctx, path, partyID)
 	if meta == nil {
 		return html
 	}
@@ -97,14 +105,17 @@ func (r *Resolver) Resolve(ctx context.Context, path string) string {
 	return r.inject(ctx, html, *meta, defaultImage)
 }
 
-func (r *Resolver) resolveMeta(ctx context.Context, path string) *Meta {
+func (r *Resolver) resolveMeta(ctx context.Context, path, partyID string) *Meta {
 	key := cache.OGMeta.Key(path)
+	if partyID != "" {
+		key = cache.OGMeta.Key(path, partyID)
+	}
 
 	if meta, err := cache.Get[*Meta](ctx, r.cache, key); err == nil {
 		return meta
 	}
 
-	meta := r.metaForPath(ctx, path)
+	meta := r.metaForPath(ctx, path, partyID)
 	_ = cache.Set(ctx, r.cache, key, meta, cache.OGMeta.TTL)
 
 	return meta
@@ -125,7 +136,7 @@ func (r *Resolver) withDefaultImage(ctx context.Context) (string, string) {
 	return html, img
 }
 
-func (r *Resolver) metaForPath(ctx context.Context, path string) *Meta {
+func (r *Resolver) metaForPath(ctx context.Context, path, partyID string) *Meta {
 
 	parts := strings.Split(strings.Trim(path, "/"), "/")
 	siteName, siteDescription := r.getSiteMeta(ctx)
@@ -297,6 +308,12 @@ func (r *Resolver) metaForPath(ctx context.Context, path string) *Meta {
 
 	if len(parts) == 2 && parts[0] == "rooms" {
 		if _, err := uuid.Parse(parts[1]); err == nil {
+			if partyID != "" {
+				if meta := r.watchPartyMeta(ctx, parts[1], partyID); meta != nil {
+					return meta
+				}
+			}
+
 			return r.roomMeta(ctx, parts[1])
 		}
 	}
@@ -842,7 +859,7 @@ func (r *Resolver) roomMeta(ctx context.Context, idStr string) *Meta {
 	}
 
 	room, err := r.chatRepo.GetRoomByID(ctx, id, uuid.Nil)
-	if err != nil || room == nil {
+	if err != nil || !publiclyVisible(room) {
 		return nil
 	}
 
@@ -859,6 +876,59 @@ func (r *Resolver) roomMeta(ctx context.Context, idStr string) *Meta {
 		Title:       room.Name + " - Chat Room",
 		Description: desc,
 		URL:         fmt.Sprintf("%s/rooms/%s", r.baseURL, idStr),
+	}
+}
+
+func publiclyVisible(room *repository.ChatRoomRow) bool {
+	if room == nil {
+		return false
+	}
+
+	return room.Type == dto.RoomTypeGroup && room.IsPublic && !room.IsSystem
+}
+
+func (r *Resolver) watchPartyMeta(ctx context.Context, roomIDStr, partyIDStr string) *Meta {
+	roomID, err := uuid.Parse(roomIDStr)
+	if err != nil {
+		return nil
+	}
+
+	partyID, err := uuid.Parse(partyIDStr)
+	if err != nil {
+		return nil
+	}
+
+	session, err := r.watchPartyRepo.GetByID(ctx, partyID)
+	if err != nil || session == nil || session.RoomID != roomID {
+		return nil
+	}
+
+	room, err := r.chatRepo.GetRoomByID(ctx, roomID, uuid.Nil)
+	if err != nil || !publiclyVisible(room) {
+		return nil
+	}
+
+	siteName, _ := r.getSiteMeta(ctx)
+
+	title := fmt.Sprintf("Watch Party in %s", room.Name)
+	if session.Title != "" {
+		title = fmt.Sprintf("%s - Watch Party in %s", session.Title, room.Name)
+	}
+
+	desc := fmt.Sprintf("A watch party in %s on %s", room.Name, siteName)
+	if session.Status != "active" {
+		desc = fmt.Sprintf("A finished watch party in %s on %s", room.Name, siteName)
+	}
+
+	runes := []rune(desc)
+	if len(runes) > 200 {
+		desc = string(runes[:197]) + "..."
+	}
+
+	return &Meta{
+		Title:       title,
+		Description: desc,
+		URL:         fmt.Sprintf("%s/rooms/%s?party=%s", r.baseURL, roomIDStr, partyIDStr),
 	}
 }
 

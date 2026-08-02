@@ -28,6 +28,9 @@ const (
 	PermManageVanityRoles Permission = "manage_vanity_roles"
 	PermManageBannedWords Permission = "manage_banned_words"
 	PermResetPassword     Permission = "reset_password"
+	PermManageUserAccount Permission = "manage_user_account"
+	PermManageUserEmail   Permission = "manage_user_email"
+	PermSetEmailVerified  Permission = "set_email_verified"
 )
 
 var rolePermissions = map[role.Role][]Permission{
@@ -52,5 +55,6 @@ var rolePermissions = map[role.Role][]Permission{
 		PermEditMysteryScore,
 		PermEditAnyJournal,
 		PermDeleteAnyJournal,
+		PermManageUserAccount,
 	},
 }

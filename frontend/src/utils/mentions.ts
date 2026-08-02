@@ -6,6 +6,6 @@ export function buildMentionMatcher(username: string | undefined): ((body: strin
     if (!username) {
         return null;
     }
-    const re = new RegExp(`@${escapeRegex(username)}(?![a-zA-Z0-9_])`, "i");
+    const re = new RegExp(`(?<![a-zA-Z0-9_])@${escapeRegex(username)}(?![a-zA-Z0-9_])`, "i");
     return body => re.test(body);
 }

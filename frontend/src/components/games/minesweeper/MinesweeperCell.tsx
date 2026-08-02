@@ -95,7 +95,9 @@ export function MinesweeperCell({
             onMouseDown={handleMouseDown}
             onContextMenu={handleContextMenu}
             disabled={disabled}
-            aria-label={revealed ? `cell value ${value}` : flagged ? "flagged" : "hidden"}
+            aria-label={
+                showAsMine && !hideContent ? "mine" : revealed ? `cell value ${value}` : flagged ? "flagged" : "hidden"
+            }
         >
             {content}
         </button>

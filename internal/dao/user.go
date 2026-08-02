@@ -21,12 +21,12 @@ type (
 )
 
 const (
-	userColumns = `u.id, u.username, u.password_hash, u.display_name, u.created_at, u.bio, u.avatar_url, u.banner_url, u.favourite_character, u.gender, u.pronoun_subject, u.pronoun_possessive, u.banned_at, u.banned_by, u.ban_reason, u.locked_at, u.locked_by, u.lock_reason, u.social_twitter, u.social_discord, u.social_waifulist, u.social_tumblr, u.social_github, u.website, u.banner_position, u.dms_enabled, u.episode_progress, u.higurashi_arc_progress, u.ciconia_chapter_progress, u.email, u.email_public, u.email_verified, u.verify_grace_until, u.dob, u.dob_public, u.email_notifications, u.play_message_sound, u.play_notification_sound, u.home_page, u.game_board_sort, u.default_profile_tab, u.theme, u.font, u.wide_layout, u.ip, u.mystery_score_adjustment, u.gm_score_adjustment, COALESCE(r.role, '')`
+	userColumns = `u.id, u.username, u.password_hash, u.display_name, u.display_name_locked, u.created_at, u.bio, u.avatar_url, u.banner_url, u.favourite_character, u.gender, u.pronoun_subject, u.pronoun_possessive, u.banned_at, u.banned_by, u.ban_reason, u.locked_at, u.locked_by, u.lock_reason, u.social_twitter, u.social_discord, u.social_waifulist, u.social_tumblr, u.social_github, u.website, u.banner_position, u.dms_enabled, u.episode_progress, u.higurashi_arc_progress, u.ciconia_chapter_progress, u.email, u.email_public, u.email_verified, u.verify_grace_until, u.dob, u.dob_public, u.email_notifications, u.play_message_sound, u.play_notification_sound, u.home_page, u.game_board_sort, u.default_profile_tab, u.theme, u.font, u.wide_layout, u.ip, u.mystery_score_adjustment, u.gm_score_adjustment, COALESCE(r.role, '')`
 )
 
 func scanUser(row interface{ Scan(dest ...any) error }) (*model.User, error) {
 	var u model.User
-	err := row.Scan(&u.ID, &u.Username, &u.PasswordHash, &u.DisplayName, &u.CreatedAt,
+	err := row.Scan(&u.ID, &u.Username, &u.PasswordHash, &u.DisplayName, &u.DisplayNameLocked, &u.CreatedAt,
 		&u.Bio, &u.AvatarURL, &u.BannerURL, &u.FavouriteCharacter, &u.Gender,
 		&u.PronounSubject, &u.PronounPossessive,
 		&u.BannedAt, &u.BannedBy, &u.BanReason,
@@ -70,12 +70,63 @@ func (r *userDAO) SetEmail(ctx context.Context, userID uuid.UUID, email string) 
 	return nil
 }
 
+func (r *userDAO) SetDisplayName(ctx context.Context, userID uuid.UUID, displayName string) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE users SET display_name = $1 WHERE id = $2`, displayName, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("set display name: %w", err)
+	}
+	return nil
+}
+
+func (r *userDAO) SetDisplayNameLocked(ctx context.Context, userID uuid.UUID, locked bool) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE users SET display_name_locked = $1 WHERE id = $2`, locked, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("set display name locked: %w", err)
+	}
+	return nil
+}
+
+func (r *userDAO) ListByIP(ctx context.Context, ip string, excludeUserID uuid.UUID) ([]model.User, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT `+userColumns+` FROM users u LEFT JOIN user_roles r ON r.user_id = u.id WHERE u.ip = $1 AND u.id <> $2 ORDER BY u.created_at DESC`,
+		ip, excludeUserID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list users by ip: %w", err)
+	}
+	defer rows.Close()
+
+	var users []model.User
+	for rows.Next() {
+		u, err := scanUser(rows)
+		if err != nil {
+			return nil, fmt.Errorf("scan user: %w", err)
+		}
+		users = append(users, *u)
+	}
+	return users, rows.Err()
+}
+
 func (r *userDAO) MarkEmailVerified(ctx context.Context, userID uuid.UUID) error {
 	_, err := r.db.ExecContext(ctx,
 		`UPDATE users SET email_verified = TRUE WHERE id = $1`, userID,
 	)
 	if err != nil {
 		return fmt.Errorf("mark email verified: %w", err)
+	}
+	return nil
+}
+
+func (r *userDAO) MarkEmailUnverified(ctx context.Context, userID uuid.UUID) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE users SET email_verified = FALSE WHERE id = $1`, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("mark email unverified: %w", err)
 	}
 	return nil
 }

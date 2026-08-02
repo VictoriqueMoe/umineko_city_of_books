@@ -8,7 +8,7 @@ export function useBlock(userId: string) {
     const unblockMutation = useUnblockUser();
 
     const toggleBlock = useCallback(async () => {
-        if (!status || !userId) {
+        if (!status || loading || !userId) {
             return;
         }
         try {
@@ -21,7 +21,7 @@ export function useBlock(userId: string) {
         } catch {
             return;
         }
-    }, [status, userId, blockMutation, unblockMutation, refresh]);
+    }, [status, loading, userId, blockMutation, unblockMutation, refresh]);
 
     return { status, loading, toggleBlock };
 }

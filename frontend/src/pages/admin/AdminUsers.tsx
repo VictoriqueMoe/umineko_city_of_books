@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router";
 import { useAdminUsers } from "../../api/queries/admin";
 import { usePageTitle } from "../../hooks/usePageTitle";
+import { ErrorBanner } from "../../components/ErrorBanner/ErrorBanner";
 import { Input } from "../../components/Input/Input";
 import { Pagination } from "../../components/Pagination/Pagination";
 import { RolePill } from "../../components/RolePill/RolePill";
@@ -16,8 +17,7 @@ export function AdminUsers() {
     const [offset, setOffset] = useState(0);
     const [search, setSearch] = useState("");
     const [committed, setCommitted] = useState("");
-    const { users, total, loading } = useAdminUsers(committed, LIMIT, offset);
-    const error = "";
+    const { users, total, loading, error } = useAdminUsers(committed, LIMIT, offset);
 
     function handleSearch(e: React.SubmitEvent) {
         e.preventDefault();
@@ -39,7 +39,8 @@ export function AdminUsers() {
             </form>
 
             {loading && <div className={styles.loading}>Loading users...</div>}
-            {error && <div className={styles.error}>{error}</div>}
+
+            {!loading && error && <ErrorBanner message="Could not load the user list." />}
 
             {!loading && !error && (
                 <>

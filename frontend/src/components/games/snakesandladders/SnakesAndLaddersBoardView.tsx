@@ -125,6 +125,7 @@ export function SnakesAndLaddersBoardView({
 
         if (rolls === 0 || moverSlot < 0 || animatedRollsRef.current === rolls) {
             animatedRollsRef.current = rolls;
+            setDisplayPositions(prev => (prev[0] === p0 && prev[1] === p1 ? prev : [p0, p1]));
             return clearTimers;
         }
 

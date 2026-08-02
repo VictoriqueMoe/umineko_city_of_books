@@ -70,15 +70,17 @@ export function PostComposer({ corner = "general" }: PostComposerProps) {
             }
             const { id } = await createPostMutation.mutateAsync({ body: body.trim(), corner, poll: pollPayload });
             const mediaErrors: string[] = [];
+            const failedFiles: File[] = [];
             for (const file of files) {
                 try {
                     await uploadMediaMutation.mutateAsync({ id, file });
                 } catch (err) {
                     mediaErrors.push(err instanceof Error ? err.message : `Failed to upload ${file.name}`);
+                    failedFiles.push(file);
                 }
             }
             setBody("");
-            setFiles([]);
+            setFiles(failedFiles);
             setShowPoll(false);
             setPollOptions(["", ""]);
             setPollDuration(86400);

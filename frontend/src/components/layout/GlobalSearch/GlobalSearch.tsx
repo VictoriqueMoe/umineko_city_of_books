@@ -6,6 +6,12 @@ import { SearchResultRow } from "./SearchResultRow";
 import { SEARCH_GROUP_LABEL, SEARCH_GROUP_ORDER, SEARCH_TYPE_META, type SearchTypeGroup } from "./searchTypeMeta";
 import styles from "./GlobalSearch.module.css";
 
+const LISTBOX_ID = "global-search-results";
+
+function optionId(index: number): string {
+    return `${LISTBOX_ID}-option-${index}`;
+}
+
 export function GlobalSearch() {
     const navigate = useNavigate();
     const [value, setValue] = useState("");
@@ -37,8 +43,11 @@ export function GlobalSearch() {
         return SEARCH_GROUP_ORDER.map(g => ({ group: g, items: map.get(g) ?? [] })).filter(g => g.items.length > 0);
     }, [results]);
 
+    const ordered = useMemo(() => grouped.flatMap(g => g.items), [grouped]);
+
     const showDropdown = open && debounced.length >= 2;
     const hasResults = results.length > 0;
+    const activeDescendant = activeIndex >= 0 && activeIndex < ordered.length ? optionId(activeIndex) : undefined;
 
     function submit() {
         const trimmed = value.trim();
@@ -53,8 +62,8 @@ export function GlobalSearch() {
     function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
         if (event.key === "Enter") {
             event.preventDefault();
-            if (activeIndex >= 0 && activeIndex < results.length) {
-                const r = results[activeIndex];
+            if (activeIndex >= 0 && activeIndex < ordered.length) {
+                const r = ordered[activeIndex];
                 if (r.url) {
                     setOpen(false);
                     navigate(r.url);
@@ -66,7 +75,7 @@ export function GlobalSearch() {
         }
         if (event.key === "ArrowDown") {
             event.preventDefault();
-            setActiveIndex(idx => Math.min(idx + 1, results.length - 1));
+            setActiveIndex(idx => Math.min(idx + 1, ordered.length - 1));
             return;
         }
         if (event.key === "ArrowUp") {
@@ -101,26 +110,37 @@ export function GlobalSearch() {
                     onFocus={() => setOpen(true)}
                     onKeyDown={handleKeyDown}
                     aria-label="Search the site"
+                    role="combobox"
+                    aria-autocomplete="list"
+                    aria-expanded={showDropdown}
+                    aria-controls={LISTBOX_ID}
+                    aria-activedescendant={activeDescendant}
                 />
                 <button type="button" className={styles.submitButton} onClick={submit} aria-label="Open search page">
                     Search
                 </button>
             </div>
             {showDropdown && (
-                <div className={styles.dropdown} role="listbox">
+                <div className={styles.dropdown} role="listbox" id={LISTBOX_ID} aria-label="Search results">
                     {loading && results.length === 0 && <div className={styles.loadingRow}>Searching...</div>}
                     {!loading && !hasResults && <div className={styles.emptyRow}>No results for "{debounced}".</div>}
                     {hasResults &&
                         grouped.map(({ group, items }) => (
-                            <div key={group} className={styles.group}>
+                            <div
+                                key={group}
+                                className={styles.group}
+                                role="group"
+                                aria-label={SEARCH_GROUP_LABEL[group]}
+                            >
                                 <div className={styles.groupHeader}>{SEARCH_GROUP_LABEL[group]}</div>
                                 {items.map(item => {
-                                    const flatIndex = results.indexOf(item);
+                                    const flatIndex = ordered.indexOf(item);
                                     return (
                                         <SearchResultRow
                                             key={`${item.type}-${item.id}`}
                                             result={item}
                                             active={flatIndex === activeIndex}
+                                            optionId={optionId(flatIndex)}
                                             onSelect={() => setOpen(false)}
                                         />
                                     );

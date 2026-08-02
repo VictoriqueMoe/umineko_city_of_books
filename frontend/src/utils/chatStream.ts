@@ -223,6 +223,9 @@ function toggleReactionInGroups(
 ): ReactionGroup[] {
     const idx = groups.findIndex(g => g.emoji === emoji);
     if (idx === -1) {
+        if (delta < 0) {
+            return groups;
+        }
         const initialCount = authoritativeCount !== undefined ? authoritativeCount : 1;
         if (initialCount <= 0) {
             return groups;

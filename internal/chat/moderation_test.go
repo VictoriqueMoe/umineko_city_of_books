@@ -69,7 +69,7 @@ func TestBanMember_Succeeds(t *testing.T) {
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, room).Return(nil, nil)
 	m.chatRepo.EXPECT().RemoveMember(mock.Anything, room, target).Return(nil)
 	expectEvictionSideEffects(m, room)
-	m.auditRepo.EXPECT().Create(mock.Anything, actor, "chat_room_ban", "chat_room", room.String(), mock.Anything).Return(nil)
+	m.auditRepo.EXPECT().CreateForSubject(mock.Anything, actor, "chat_room_ban", "chat_room", room.String(), mock.Anything, mock.Anything).Return(nil)
 
 	err := svc.BanMember(context.Background(), actor, room, target, "spam")
 	require.NoError(t, err)
@@ -85,7 +85,7 @@ func TestUnbanMember_AuditsOnSuccess(t *testing.T) {
 	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, room, actor).Return("host", nil)
 	m.banRepo.EXPECT().Unban(mock.Anything, room, target).Return(nil)
 	stubSystemMessage(m, actor, target)
-	m.auditRepo.EXPECT().Create(mock.Anything, actor, "chat_room_unban", "chat_room", room.String(), mock.Anything).Return(nil)
+	m.auditRepo.EXPECT().CreateForSubject(mock.Anything, actor, "chat_room_unban", "chat_room", room.String(), mock.Anything, mock.Anything).Return(nil)
 
 	err := svc.UnbanMember(context.Background(), actor, room, target)
 	require.NoError(t, err)
@@ -118,7 +118,7 @@ func TestBanMember_PostsSystemMessageWithReason(t *testing.T) {
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, room).Return(nil, nil)
 	m.chatRepo.EXPECT().RemoveMember(mock.Anything, room, target).Return(nil)
 	expectEvictionSideEffects(m, room)
-	m.auditRepo.EXPECT().Create(mock.Anything, actor, "chat_room_ban", "chat_room", room.String(), mock.Anything).Return(nil)
+	m.auditRepo.EXPECT().CreateForSubject(mock.Anything, actor, "chat_room_ban", "chat_room", room.String(), mock.Anything, mock.Anything).Return(nil)
 
 	err := svc.BanMember(context.Background(), actor, room, target, "spamming links")
 	require.NoError(t, err)
@@ -146,7 +146,7 @@ func TestBanMember_PostsSystemMessageWithoutReason(t *testing.T) {
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, room).Return(nil, nil)
 	m.chatRepo.EXPECT().RemoveMember(mock.Anything, room, target).Return(nil)
 	expectEvictionSideEffects(m, room)
-	m.auditRepo.EXPECT().Create(mock.Anything, actor, "chat_room_ban", "chat_room", room.String(), mock.Anything).Return(nil)
+	m.auditRepo.EXPECT().CreateForSubject(mock.Anything, actor, "chat_room_ban", "chat_room", room.String(), mock.Anything, mock.Anything).Return(nil)
 
 	err := svc.BanMember(context.Background(), actor, room, target, "")
 	require.NoError(t, err)
@@ -169,7 +169,7 @@ func TestUnbanMember_PostsSystemMessage(t *testing.T) {
 		InsertSystemMessage(mock.Anything, mock.Anything, room, actor, "Bar was unbanned.").
 		Return(errors.New("skip"))
 
-	m.auditRepo.EXPECT().Create(mock.Anything, actor, "chat_room_unban", "chat_room", room.String(), mock.Anything).Return(nil)
+	m.auditRepo.EXPECT().CreateForSubject(mock.Anything, actor, "chat_room_unban", "chat_room", room.String(), mock.Anything, mock.Anything).Return(nil)
 
 	err := svc.UnbanMember(context.Background(), actor, room, target)
 	require.NoError(t, err)
@@ -328,7 +328,7 @@ func TestSendMessage_BannedWordKickFires(t *testing.T) {
 	}, nil).Maybe()
 	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, room, sender).Return("member", nil)
 	m.authzSvc.EXPECT().GetRole(mock.Anything, sender).Return("", nil)
-	m.auditRepo.EXPECT().CreateSystem(mock.Anything, "chat_word_filter_kick", "chat_room", room.String(), mock.Anything).Return(nil)
+	m.auditRepo.EXPECT().CreateSystemForSubject(mock.Anything, "chat_word_filter_kick", "chat_room", room.String(), mock.Anything, mock.Anything).Return(nil)
 	stubSystemMessage(m, sender, sender)
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, room).Return(nil, nil)
 	m.chatRepo.EXPECT().RemoveMember(mock.Anything, room, sender).Return(nil)

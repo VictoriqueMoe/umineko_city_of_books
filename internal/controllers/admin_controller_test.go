@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	adminsvc "umineko_city_of_books/internal/admin"
+	"umineko_city_of_books/internal/auth"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
@@ -465,6 +466,285 @@ func TestAdminBanUser_ServiceErrors(t *testing.T) {
 			require.Equal(t, tc.wantCode, status)
 		})
 	}
+}
+
+func TestAdminSetUserEmail_PermissionFailures(t *testing.T) {
+	testutil.RunPermissionFailureSuite(t, adminFactory, "PUT", "/admin/users/"+uuid.NewString()+"/email", dto.AdminSetEmailRequest{Email: "a@b.com"}, authz.PermManageUserEmail)
+}
+
+func TestAdminSetUserEmail_OK(t *testing.T) {
+	// given
+	h, ms, _ := newAdminHarness(t)
+	userID := uuid.New()
+	targetID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	h.ExpectHasPermission(userID, authz.PermManageUserEmail, true)
+	ms.EXPECT().SetUserEmail(mock.Anything, userID, targetID, "new@example.com").Return(nil)
+
+	// when
+	status, _ := h.NewRequest("PUT", "/admin/users/"+targetID.String()+"/email").
+		WithCookie("valid-cookie").
+		WithJSONBody(dto.AdminSetEmailRequest{Email: "new@example.com"}).
+		Do()
+
+	// then
+	require.Equal(t, http.StatusOK, status)
+}
+
+func TestAdminSetUserEmail_ServiceErrors(t *testing.T) {
+	cases := []struct {
+		name     string
+		svcErr   error
+		wantCode int
+	}{
+		{"invalid email", auth.ErrInvalidEmail, http.StatusBadRequest},
+		{"email taken", auth.ErrEmailTaken, http.StatusBadRequest},
+		{"protected user", adminsvc.ErrProtectedUser, http.StatusForbidden},
+		{"user not found", adminsvc.ErrUserNotFound, http.StatusNotFound},
+		{"internal", errors.New("boom"), http.StatusInternalServerError},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h, ms, _ := newAdminHarness(t)
+			userID := uuid.New()
+			targetID := uuid.New()
+			h.ExpectValidSession("valid-cookie", userID)
+			h.ExpectHasPermission(userID, authz.PermManageUserEmail, true)
+			ms.EXPECT().SetUserEmail(mock.Anything, userID, targetID, "new@example.com").Return(tc.svcErr)
+
+			// when
+			status, _ := h.NewRequest("PUT", "/admin/users/"+targetID.String()+"/email").
+				WithCookie("valid-cookie").
+				WithJSONBody(dto.AdminSetEmailRequest{Email: "new@example.com"}).
+				Do()
+
+			// then
+			require.Equal(t, tc.wantCode, status)
+		})
+	}
+}
+
+func TestAdminVerifyUserEmail_PermissionFailures(t *testing.T) {
+	testutil.RunPermissionFailureSuite(t, adminFactory, "POST", "/admin/users/"+uuid.NewString()+"/verify-email", nil, authz.PermSetEmailVerified)
+}
+
+func TestAdminVerifyUserEmail_OK(t *testing.T) {
+	// given
+	h, ms, _ := newAdminHarness(t)
+	userID := uuid.New()
+	targetID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	h.ExpectHasPermission(userID, authz.PermSetEmailVerified, true)
+	ms.EXPECT().VerifyUserEmail(mock.Anything, userID, targetID).Return(nil)
+
+	// when
+	status, _ := h.NewRequest("POST", "/admin/users/"+targetID.String()+"/verify-email").WithCookie("valid-cookie").Do()
+
+	// then
+	require.Equal(t, http.StatusOK, status)
+}
+
+func TestAdminVerifyUserEmail_AlreadyVerified(t *testing.T) {
+	// given
+	h, ms, _ := newAdminHarness(t)
+	userID := uuid.New()
+	targetID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	h.ExpectHasPermission(userID, authz.PermSetEmailVerified, true)
+	ms.EXPECT().VerifyUserEmail(mock.Anything, userID, targetID).Return(auth.ErrEmailAlreadyVerified)
+
+	// when
+	status, _ := h.NewRequest("POST", "/admin/users/"+targetID.String()+"/verify-email").WithCookie("valid-cookie").Do()
+
+	// then
+	require.Equal(t, http.StatusBadRequest, status)
+}
+
+func TestAdminUnverifyUserEmail_PermissionFailures(t *testing.T) {
+	testutil.RunPermissionFailureSuite(t, adminFactory, "POST", "/admin/users/"+uuid.NewString()+"/unverify-email", nil, authz.PermSetEmailVerified)
+}
+
+func TestAdminUnverifyUserEmail_OK(t *testing.T) {
+	// given
+	h, ms, _ := newAdminHarness(t)
+	userID := uuid.New()
+	targetID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	h.ExpectHasPermission(userID, authz.PermSetEmailVerified, true)
+	ms.EXPECT().UnverifyUserEmail(mock.Anything, userID, targetID).Return(nil)
+
+	// when
+	status, _ := h.NewRequest("POST", "/admin/users/"+targetID.String()+"/unverify-email").WithCookie("valid-cookie").Do()
+
+	// then
+	require.Equal(t, http.StatusOK, status)
+}
+
+func TestAdminUnverifyUserEmail_NotVerified(t *testing.T) {
+	// given
+	h, ms, _ := newAdminHarness(t)
+	userID := uuid.New()
+	targetID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	h.ExpectHasPermission(userID, authz.PermSetEmailVerified, true)
+	ms.EXPECT().UnverifyUserEmail(mock.Anything, userID, targetID).Return(auth.ErrEmailNotVerified)
+
+	// when
+	status, _ := h.NewRequest("POST", "/admin/users/"+targetID.String()+"/unverify-email").WithCookie("valid-cookie").Do()
+
+	// then
+	require.Equal(t, http.StatusBadRequest, status)
+}
+
+func TestAdminSetDisplayName_PermissionFailures(t *testing.T) {
+	testutil.RunPermissionFailureSuite(t, adminFactory, "PUT", "/admin/users/"+uuid.NewString()+"/display-name", dto.AdminSetDisplayNameRequest{DisplayName: "Beato"}, authz.PermManageUserAccount)
+}
+
+func TestAdminSetDisplayName_OK(t *testing.T) {
+	// given
+	h, ms, _ := newAdminHarness(t)
+	userID := uuid.New()
+	targetID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	h.ExpectHasPermission(userID, authz.PermManageUserAccount, true)
+	ms.EXPECT().SetUserDisplayName(mock.Anything, userID, targetID, "Beato").Return(nil)
+
+	// when
+	status, _ := h.NewRequest("PUT", "/admin/users/"+targetID.String()+"/display-name").
+		WithCookie("valid-cookie").
+		WithJSONBody(dto.AdminSetDisplayNameRequest{DisplayName: "Beato"}).
+		Do()
+
+	// then
+	require.Equal(t, http.StatusOK, status)
+}
+
+func TestAdminSetDisplayName_EmptyRejected(t *testing.T) {
+	// given
+	h, ms, _ := newAdminHarness(t)
+	userID := uuid.New()
+	targetID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	h.ExpectHasPermission(userID, authz.PermManageUserAccount, true)
+	ms.EXPECT().SetUserDisplayName(mock.Anything, userID, targetID, "  ").Return(adminsvc.ErrEmptyDisplayName)
+
+	// when
+	status, _ := h.NewRequest("PUT", "/admin/users/"+targetID.String()+"/display-name").
+		WithCookie("valid-cookie").
+		WithJSONBody(dto.AdminSetDisplayNameRequest{DisplayName: "  "}).
+		Do()
+
+	// then
+	require.Equal(t, http.StatusBadRequest, status)
+}
+
+func TestAdminSetDisplayNameLock_PermissionFailures(t *testing.T) {
+	testutil.RunPermissionFailureSuite(t, adminFactory, "PUT", "/admin/users/"+uuid.NewString()+"/display-name-lock", dto.AdminSetDisplayNameLockRequest{Locked: true}, authz.PermManageUserAccount)
+}
+
+func TestAdminSetDisplayNameLock_OK(t *testing.T) {
+	// given
+	cases := []struct {
+		name   string
+		locked bool
+	}{
+		{name: "lock", locked: true},
+		{name: "unlock", locked: false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			h, ms, _ := newAdminHarness(t)
+			userID := uuid.New()
+			targetID := uuid.New()
+			h.ExpectValidSession("valid-cookie", userID)
+			h.ExpectHasPermission(userID, authz.PermManageUserAccount, true)
+			ms.EXPECT().SetDisplayNameLocked(mock.Anything, userID, targetID, tc.locked).Return(nil)
+
+			// when
+			status, _ := h.NewRequest("PUT", "/admin/users/"+targetID.String()+"/display-name-lock").
+				WithCookie("valid-cookie").
+				WithJSONBody(dto.AdminSetDisplayNameLockRequest{Locked: tc.locked}).
+				Do()
+
+			// then
+			require.Equal(t, http.StatusOK, status)
+		})
+	}
+}
+
+func TestAdminForceLogout_PermissionFailures(t *testing.T) {
+	testutil.RunPermissionFailureSuite(t, adminFactory, "POST", "/admin/users/"+uuid.NewString()+"/force-logout", nil, authz.PermBanUser)
+}
+
+func TestAdminForceLogout_OK(t *testing.T) {
+	// given
+	h, ms, _ := newAdminHarness(t)
+	userID := uuid.New()
+	targetID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	h.ExpectHasPermission(userID, authz.PermBanUser, true)
+	ms.EXPECT().ForceLogout(mock.Anything, userID, targetID).Return(nil)
+
+	// when
+	status, _ := h.NewRequest("POST", "/admin/users/"+targetID.String()+"/force-logout").WithCookie("valid-cookie").Do()
+
+	// then
+	require.Equal(t, http.StatusOK, status)
+}
+
+func TestAdminUserIPMatches_PermissionFailures(t *testing.T) {
+	testutil.RunPermissionFailureSuite(t, adminFactory, "GET", "/admin/users/"+uuid.NewString()+"/ip-matches", nil, authz.PermViewUsers)
+}
+
+func TestAdminUserIPMatches_OK(t *testing.T) {
+	// given
+	h, ms, _ := newAdminHarness(t)
+	userID := uuid.New()
+	targetID := uuid.New()
+	altID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	h.ExpectHasPermission(userID, authz.PermViewUsers, true)
+	ms.EXPECT().ListAccountsOnIP(mock.Anything, targetID).Return(&dto.AdminIPMatchesResponse{
+		IP:    "10.0.0.1",
+		Users: []dto.AdminUserItem{{ID: altID, Username: "alt"}},
+	}, nil)
+
+	// when
+	status, body := h.NewRequest("GET", "/admin/users/"+targetID.String()+"/ip-matches").WithCookie("valid-cookie").Do()
+
+	// then
+	require.Equal(t, http.StatusOK, status)
+	got := testutil.UnmarshalJSON[dto.AdminIPMatchesResponse](t, body)
+	assert.Equal(t, "10.0.0.1", got.IP)
+	require.Len(t, got.Users, 1)
+	assert.Equal(t, altID, got.Users[0].ID)
+}
+
+func TestAdminUserAuditLog_PermissionFailures(t *testing.T) {
+	testutil.RunPermissionFailureSuite(t, adminFactory, "GET", "/admin/users/"+uuid.NewString()+"/audit-log", nil, authz.PermViewAuditLog)
+}
+
+func TestAdminUserAuditLog_OK(t *testing.T) {
+	// given
+	h, ms, _ := newAdminHarness(t)
+	userID := uuid.New()
+	targetID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	h.ExpectHasPermission(userID, authz.PermViewAuditLog, true)
+	ms.EXPECT().GetUserAuditLog(mock.Anything, targetID, bounds.NewPage(20, 0)).Return(&dto.AuditLogListResponse{
+		Entries: []dto.AuditLogEntryResponse{{ID: 1, Action: "ban_user"}},
+		Total:   1,
+	}, nil)
+
+	// when
+	status, body := h.NewRequest("GET", "/admin/users/"+targetID.String()+"/audit-log").WithCookie("valid-cookie").Do()
+
+	// then
+	require.Equal(t, http.StatusOK, status)
+	got := testutil.UnmarshalJSON[dto.AuditLogListResponse](t, body)
+	require.Len(t, got.Entries, 1)
+	assert.Equal(t, "ban_user", got.Entries[0].Action)
 }
 
 func TestAdminUnbanUser_PermissionFailures(t *testing.T) {

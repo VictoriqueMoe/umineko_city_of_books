@@ -114,6 +114,7 @@ export function SettingsPage() {
     const user = useAuthedUser();
     const form = useSettingsForm();
     const ocSummaries = useUserOCSummaries(user.id, user.id);
+    const [customFavouriteChosen, setCustomFavouriteChosen] = useState(false);
 
     if (form.profileLoading) {
         return <div className="loading">Loading settings...</div>;
@@ -136,7 +137,8 @@ export function SettingsPage() {
         ...ocSummaries.summaries.map(o => o.name),
     ]);
     const isCustomFavourite = favouriteCharacterValue !== "" && !knownNames.has(favouriteCharacterValue);
-    const favouriteSelectValue = isCustomFavourite ? "__custom__" : favouriteCharacterValue;
+    const showCustomFavourite = isCustomFavourite || customFavouriteChosen;
+    const favouriteSelectValue = showCustomFavourite ? "__custom__" : favouriteCharacterValue;
 
     return (
         <div className={styles.page}>
@@ -181,7 +183,19 @@ export function SettingsPage() {
                                     fullWidth
                                     value={form.displayName}
                                     onChange={e => form.setDisplayName(e.target.value)}
+                                    disabled={form.displayNameLocked}
+                                    title={
+                                        form.displayNameLocked
+                                            ? "Staff have locked your display name. Contact a moderator if you think this is a mistake."
+                                            : undefined
+                                    }
                                 />
+                                {form.displayNameLocked && (
+                                    <span className={styles.helpText}>
+                                        Staff have locked your display name. Contact a moderator if you think this is a
+                                        mistake.
+                                    </span>
+                                )}
                             </label>
                             <label className={styles.label}>
                                 Favourite Character
@@ -190,11 +204,13 @@ export function SettingsPage() {
                                     onChange={e => {
                                         const value = (e.target as HTMLSelectElement).value;
                                         if (value === "__custom__") {
+                                            setCustomFavouriteChosen(true);
                                             form.setFavouriteCharacter(
                                                 isCustomFavourite ? favouriteCharacterValue : "",
                                             );
                                             return;
                                         }
+                                        setCustomFavouriteChosen(false);
                                         form.setFavouriteCharacter(value);
                                     }}
                                 >
@@ -245,7 +261,7 @@ export function SettingsPage() {
                                     </optgroup>
                                     <option value="__custom__">Type your own...</option>
                                 </Select>
-                                {(isCustomFavourite || favouriteSelectValue === "__custom__") && (
+                                {showCustomFavourite && (
                                     <Input
                                         type="text"
                                         fullWidth

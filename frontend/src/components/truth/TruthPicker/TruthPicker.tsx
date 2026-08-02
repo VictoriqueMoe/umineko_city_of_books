@@ -121,6 +121,7 @@ function TruthPickerInner({ isOpen, onClose, onSelect, selectedKeys, series = "u
                             setArc("");
                             setOffset(0);
                         }}
+                        aria-label={`Filter by ${segmentNoun.toLowerCase()}`}
                     >
                         <option value="">All Chapters</option>
                         {cfg.chapters.map(c => (
@@ -138,6 +139,7 @@ function TruthPickerInner({ isOpen, onClose, onSelect, selectedKeys, series = "u
                             setChapter("");
                             setOffset(0);
                         }}
+                        aria-label={`Filter by ${segmentNoun.toLowerCase()}`}
                     >
                         <option value="">All Arcs</option>
                         {cfg.arcs.map(a => (
@@ -155,6 +157,7 @@ function TruthPickerInner({ isOpen, onClose, onSelect, selectedKeys, series = "u
                             setChapter("");
                             setOffset(0);
                         }}
+                        aria-label={`Filter by ${segmentNoun.toLowerCase()}`}
                     >
                         <option value={0}>All Episodes</option>
                         {Array.from({ length: cfg.episodeCount }, (_, i) => i + 1).map(ep => (
@@ -171,7 +174,7 @@ function TruthPickerInner({ isOpen, onClose, onSelect, selectedKeys, series = "u
                         setCharacter((e.target as HTMLSelectElement).value);
                         setOffset(0);
                     }}
-                    aria-label={`Filter by ${segmentNoun.toLowerCase()} character`}
+                    aria-label="Filter by character"
                 >
                     <option value="">All Characters</option>
                     {additionalEntries.length === 0 ? (
@@ -206,6 +209,7 @@ function TruthPickerInner({ isOpen, onClose, onSelect, selectedKeys, series = "u
                         setTruth((e.target as HTMLSelectElement).value);
                         setOffset(0);
                     }}
+                    aria-label="Filter by truth type"
                 >
                     <option value="">All Types</option>
                     {TRUTH_TYPES.map(t => (
@@ -221,6 +225,7 @@ function TruthPickerInner({ isOpen, onClose, onSelect, selectedKeys, series = "u
                         setLang((e.target as HTMLSelectElement).value);
                         setOffset(0);
                     }}
+                    aria-label="Quote language"
                 >
                     <option value="">Default Language</option>
                     {cfg.languages.map(l => (

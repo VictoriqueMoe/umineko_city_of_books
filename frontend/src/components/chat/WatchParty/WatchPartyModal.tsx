@@ -175,6 +175,7 @@ export function WatchPartyModal({
         try {
             await onLeave();
             onClose();
+        } catch {
         } finally {
             setBusy(false);
         }
@@ -185,6 +186,7 @@ export function WatchPartyModal({
         try {
             await onEnd();
             onClose();
+        } catch {
         } finally {
             setBusy(false);
         }

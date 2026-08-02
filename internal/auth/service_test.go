@@ -776,6 +776,217 @@ func TestSetEmail_AlertsPreviousAddress(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestSetEmailForUser_OK(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	userID := uuid.New()
+	m.userRepo.EXPECT().EmailInUse(mock.Anything, "new@example.com", userID).Return(false, nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID}, nil)
+	m.userRepo.EXPECT().SetEmail(mock.Anything, userID, "new@example.com").Return(nil)
+	expectVerificationSent(m, userID, "new@example.com")
+
+	// when
+	err := svc.SetEmailForUser(context.Background(), userID, "  New@Example.com  ")
+
+	// then
+	require.NoError(t, err)
+}
+
+func TestSetEmailForUser_RequiresNoPassword(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	userID := uuid.New()
+	m.userRepo.EXPECT().EmailInUse(mock.Anything, "new@example.com", userID).Return(false, nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID}, nil)
+	m.userRepo.EXPECT().SetEmail(mock.Anything, userID, "new@example.com").Return(nil)
+	expectVerificationSent(m, userID, "new@example.com")
+
+	// when
+	err := svc.SetEmailForUser(context.Background(), userID, "new@example.com")
+
+	// then
+	require.NoError(t, err)
+	m.userRepo.AssertNotCalled(t, "VerifyPassword", mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestSetEmailForUser_AlertsPreviousAddress(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	userID := uuid.New()
+	m.userRepo.EXPECT().EmailInUse(mock.Anything, "new@example.com", userID).Return(false, nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, Email: "old@example.com"}, nil)
+	m.userRepo.EXPECT().SetEmail(mock.Anything, userID, "new@example.com").Return(nil)
+	m.emailSvc.EXPECT().Enabled(mock.Anything).Return(true)
+	m.emailSvc.EXPECT().Send(mock.Anything, "old@example.com", mock.Anything, mock.Anything).Return(nil)
+	expectVerificationSent(m, userID, "new@example.com")
+
+	// when
+	err := svc.SetEmailForUser(context.Background(), userID, "new@example.com")
+
+	// then
+	require.NoError(t, err)
+}
+
+func TestSetEmailForUser_Rejections(t *testing.T) {
+	// given
+	tests := []struct {
+		name    string
+		email   string
+		arrange func(m *testMocks, userID uuid.UUID)
+		want    error
+	}{
+		{
+			name:    "invalid email",
+			email:   "nope",
+			arrange: func(m *testMocks, userID uuid.UUID) {},
+			want:    ErrInvalidEmail,
+		},
+		{
+			name:  "email already in use",
+			email: "taken@example.com",
+			arrange: func(m *testMocks, userID uuid.UUID) {
+				m.userRepo.EXPECT().EmailInUse(mock.Anything, "taken@example.com", userID).Return(true, nil)
+			},
+			want: ErrEmailTaken,
+		},
+		{
+			name:  "user gone",
+			email: "new@example.com",
+			arrange: func(m *testMocks, userID uuid.UUID) {
+				m.userRepo.EXPECT().EmailInUse(mock.Anything, "new@example.com", userID).Return(false, nil)
+				m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(nil, nil)
+			},
+			want: ErrUserNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc, m := newTestService(t)
+			userID := uuid.New()
+			tt.arrange(m, userID)
+
+			// when
+			err := svc.SetEmailForUser(context.Background(), userID, tt.email)
+
+			// then
+			require.ErrorIs(t, err, tt.want)
+			m.userRepo.AssertNotCalled(t, "SetEmail", mock.Anything, mock.Anything, mock.Anything)
+		})
+	}
+}
+
+func TestMarkEmailVerified_OK(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	userID := uuid.New()
+	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, Email: "a@example.com"}, nil)
+	m.userRepo.EXPECT().MarkEmailVerified(mock.Anything, userID).Return(nil)
+	m.verifyRepo.EXPECT().DeleteUnusedForUser(mock.Anything, userID).Return(nil)
+
+	// when
+	err := svc.MarkEmailVerified(context.Background(), userID)
+
+	// then
+	require.NoError(t, err)
+}
+
+func TestMarkEmailVerified_Rejections(t *testing.T) {
+	// given
+	tests := []struct {
+		name string
+		user *model.User
+		want error
+	}{
+		{name: "user gone", user: nil, want: ErrUserNotFound},
+		{name: "no email set", user: &model.User{}, want: ErrNoEmailAddress},
+		{name: "already verified", user: &model.User{Email: "a@example.com", EmailVerified: true}, want: ErrEmailAlreadyVerified},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc, m := newTestService(t)
+			userID := uuid.New()
+			m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(tt.user, nil)
+
+			// when
+			err := svc.MarkEmailVerified(context.Background(), userID)
+
+			// then
+			require.ErrorIs(t, err, tt.want)
+			m.userRepo.AssertNotCalled(t, "MarkEmailVerified", mock.Anything, mock.Anything)
+		})
+	}
+}
+
+func TestMarkEmailUnverified_OK(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	userID := uuid.New()
+	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{
+		ID:            userID,
+		Email:         "a@example.com",
+		EmailVerified: true,
+	}, nil)
+	m.userRepo.EXPECT().MarkEmailUnverified(mock.Anything, userID).Return(nil)
+	m.verifyRepo.EXPECT().DeleteUnusedForUser(mock.Anything, userID).Return(nil)
+
+	// when
+	err := svc.MarkEmailUnverified(context.Background(), userID)
+
+	// then
+	require.NoError(t, err)
+}
+
+func TestMarkEmailUnverified_SendsNoEmail(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	userID := uuid.New()
+	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{
+		ID:            userID,
+		Email:         "a@example.com",
+		EmailVerified: true,
+	}, nil)
+	m.userRepo.EXPECT().MarkEmailUnverified(mock.Anything, userID).Return(nil)
+	m.verifyRepo.EXPECT().DeleteUnusedForUser(mock.Anything, userID).Return(nil)
+
+	// when
+	err := svc.MarkEmailUnverified(context.Background(), userID)
+
+	// then
+	require.NoError(t, err)
+	m.emailSvc.AssertNotCalled(t, "Send", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	m.verifyRepo.AssertNotCalled(t, "Create", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestMarkEmailUnverified_Rejections(t *testing.T) {
+	// given
+	tests := []struct {
+		name string
+		user *model.User
+		want error
+	}{
+		{name: "user gone", user: nil, want: ErrUserNotFound},
+		{name: "no email set", user: &model.User{}, want: ErrNoEmailAddress},
+		{name: "not verified yet", user: &model.User{Email: "a@example.com"}, want: ErrEmailNotVerified},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc, m := newTestService(t)
+			userID := uuid.New()
+			m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(tt.user, nil)
+
+			// when
+			err := svc.MarkEmailUnverified(context.Background(), userID)
+
+			// then
+			require.ErrorIs(t, err, tt.want)
+			m.userRepo.AssertNotCalled(t, "MarkEmailUnverified", mock.Anything, mock.Anything)
+		})
+	}
+}
+
 func TestVerifyEmail_EmptyToken(t *testing.T) {
 	// given
 	svc, _ := newTestService(t)

@@ -135,8 +135,10 @@ export function FanficDetailPage() {
         if (!fanfic || !window.confirm("Delete this fanfic? This cannot be undone.")) {
             return;
         }
-        await deleteFanficMutation.mutateAsync(fanfic.id);
-        navigate("/fanfiction");
+        try {
+            await deleteFanficMutation.mutateAsync(fanfic.id);
+            navigate("/fanfiction");
+        } catch {}
     }
 
     if (loading) {

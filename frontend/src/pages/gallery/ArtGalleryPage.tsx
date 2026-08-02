@@ -15,6 +15,7 @@ import { Button } from "../../components/Button/Button";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { RulesBox } from "../../components/RulesBox/RulesBox";
 import { InfoPanel } from "../../components/InfoPanel/InfoPanel";
+import { ErrorBanner } from "../../components/ErrorBanner/ErrorBanner";
 import { PieceTrigger } from "../../features/easterEgg";
 import styles from "./ArtGalleryPage.module.css";
 
@@ -63,6 +64,7 @@ export function ArtGalleryPage({ corner = "general" }: ArtGalleryPageProps) {
     const [selectedGalleryOverride, setSelectedGalleryOverride] = useState<string | null>(null);
     const [showUpload, setShowUpload] = useState(false);
     const [newGalleryName, setNewGalleryName] = useState("");
+    const [galleryError, setGalleryError] = useState("");
 
     const feed = useArtFeed(
         corner,
@@ -89,12 +91,15 @@ export function ArtGalleryPage({ corner = "general" }: ArtGalleryPageProps) {
         if (!newGalleryName.trim()) {
             return;
         }
+        setGalleryError("");
         try {
             const { id } = await createGalleryMutation.mutateAsync({ name: newGalleryName.trim() });
             setNewGalleryName("");
             await refreshUserGalleries();
             setSelectedGalleryOverride(id);
-        } catch {}
+        } catch (e) {
+            setGalleryError(e instanceof Error ? e.message : "Failed to create the gallery");
+        }
     }
 
     const updateParams = useCallback(
@@ -218,6 +223,7 @@ export function ArtGalleryPage({ corner = "general" }: ArtGalleryPageProps) {
                                     {createGalleryMutation.isPending ? "Creating..." : "Create"}
                                 </Button>
                             </div>
+                            {galleryError && <ErrorBanner message={galleryError} />}
                         </div>
                     ) : selectedGallery ? (
                         <ArtUploadForm

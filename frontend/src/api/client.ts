@@ -162,13 +162,21 @@ export async function apiPostFormData<T>(path: string, formData: FormData): Prom
     return handleResponse<T>(response);
 }
 
+const ZERO_MEANS_UNSET_KEYS = new Set(["offset", "page"]);
+
 export function buildQueryString(params: Record<string, string | number | undefined>): string {
     const search = new URLSearchParams();
     for (const [key, value] of Object.entries(params)) {
-        if (value !== undefined && value !== "" && value !== 0) {
-            search.set(key, String(value));
+        if (value === undefined || value === "") {
+            continue;
         }
+        if (value === 0 && ZERO_MEANS_UNSET_KEYS.has(key)) {
+            continue;
+        }
+
+        search.set(key, String(value));
     }
+
     const qs = search.toString();
     return qs ? `?${qs}` : "";
 }

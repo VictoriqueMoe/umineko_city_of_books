@@ -584,6 +584,69 @@ func (_c *MockService_DeleteVanityRole_Call) RunAndReturn(run func(ctx context.C
 	return _c
 }
 
+// ForceLogout provides a mock function for the type MockService
+func (_mock *MockService) ForceLogout(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID) error {
+	ret := _mock.Called(ctx, actorID, targetID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ForceLogout")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, actorID, targetID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_ForceLogout_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ForceLogout'
+type MockService_ForceLogout_Call struct {
+	*mock.Call
+}
+
+// ForceLogout is a helper method to define mock.On call
+//   - ctx context.Context
+//   - actorID uuid.UUID
+//   - targetID uuid.UUID
+func (_e *MockService_Expecter) ForceLogout(ctx any, actorID any, targetID any) *MockService_ForceLogout_Call {
+	return &MockService_ForceLogout_Call{Call: _e.mock.On("ForceLogout", ctx, actorID, targetID)}
+}
+
+func (_c *MockService_ForceLogout_Call) Run(run func(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID)) *MockService_ForceLogout_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_ForceLogout_Call) Return(err error) *MockService_ForceLogout_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_ForceLogout_Call) RunAndReturn(run func(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID) error) *MockService_ForceLogout_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetAuditLog provides a mock function for the type MockService
 func (_mock *MockService) GetAuditLog(ctx context.Context, action string, page bounds.Page) (*dto.AuditLogListResponse, error) {
 	ret := _mock.Called(ctx, action, page)
@@ -850,6 +913,80 @@ func (_c *MockService_GetUser_Call) RunAndReturn(run func(ctx context.Context, t
 	return _c
 }
 
+// GetUserAuditLog provides a mock function for the type MockService
+func (_mock *MockService) GetUserAuditLog(ctx context.Context, targetID uuid.UUID, page bounds.Page) (*dto.AuditLogListResponse, error) {
+	ret := _mock.Called(ctx, targetID, page)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetUserAuditLog")
+	}
+
+	var r0 *dto.AuditLogListResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, bounds.Page) (*dto.AuditLogListResponse, error)); ok {
+		return returnFunc(ctx, targetID, page)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, bounds.Page) *dto.AuditLogListResponse); ok {
+		r0 = returnFunc(ctx, targetID, page)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dto.AuditLogListResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, bounds.Page) error); ok {
+		r1 = returnFunc(ctx, targetID, page)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_GetUserAuditLog_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetUserAuditLog'
+type MockService_GetUserAuditLog_Call struct {
+	*mock.Call
+}
+
+// GetUserAuditLog is a helper method to define mock.On call
+//   - ctx context.Context
+//   - targetID uuid.UUID
+//   - page bounds.Page
+func (_e *MockService_Expecter) GetUserAuditLog(ctx any, targetID any, page any) *MockService_GetUserAuditLog_Call {
+	return &MockService_GetUserAuditLog_Call{Call: _e.mock.On("GetUserAuditLog", ctx, targetID, page)}
+}
+
+func (_c *MockService_GetUserAuditLog_Call) Run(run func(ctx context.Context, targetID uuid.UUID, page bounds.Page)) *MockService_GetUserAuditLog_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 bounds.Page
+		if args[2] != nil {
+			arg2 = args[2].(bounds.Page)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_GetUserAuditLog_Call) Return(auditLogListResponse *dto.AuditLogListResponse, err error) *MockService_GetUserAuditLog_Call {
+	_c.Call.Return(auditLogListResponse, err)
+	return _c
+}
+
+func (_c *MockService_GetUserAuditLog_Call) RunAndReturn(run func(ctx context.Context, targetID uuid.UUID, page bounds.Page) (*dto.AuditLogListResponse, error)) *MockService_GetUserAuditLog_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetVanityRoleUsers provides a mock function for the type MockService
 func (_mock *MockService) GetVanityRoleUsers(ctx context.Context, roleID string, search string, page bounds.Page) (*dto.VanityRoleUsersResponse, error) {
 	ret := _mock.Called(ctx, roleID, search, page)
@@ -926,6 +1063,74 @@ func (_c *MockService_GetVanityRoleUsers_Call) Return(vanityRoleUsersResponse *d
 }
 
 func (_c *MockService_GetVanityRoleUsers_Call) RunAndReturn(run func(ctx context.Context, roleID string, search string, page bounds.Page) (*dto.VanityRoleUsersResponse, error)) *MockService_GetVanityRoleUsers_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListAccountsOnIP provides a mock function for the type MockService
+func (_mock *MockService) ListAccountsOnIP(ctx context.Context, targetID uuid.UUID) (*dto.AdminIPMatchesResponse, error) {
+	ret := _mock.Called(ctx, targetID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListAccountsOnIP")
+	}
+
+	var r0 *dto.AdminIPMatchesResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*dto.AdminIPMatchesResponse, error)); ok {
+		return returnFunc(ctx, targetID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *dto.AdminIPMatchesResponse); ok {
+		r0 = returnFunc(ctx, targetID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dto.AdminIPMatchesResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, targetID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_ListAccountsOnIP_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListAccountsOnIP'
+type MockService_ListAccountsOnIP_Call struct {
+	*mock.Call
+}
+
+// ListAccountsOnIP is a helper method to define mock.On call
+//   - ctx context.Context
+//   - targetID uuid.UUID
+func (_e *MockService_Expecter) ListAccountsOnIP(ctx any, targetID any) *MockService_ListAccountsOnIP_Call {
+	return &MockService_ListAccountsOnIP_Call{Call: _e.mock.On("ListAccountsOnIP", ctx, targetID)}
+}
+
+func (_c *MockService_ListAccountsOnIP_Call) Run(run func(ctx context.Context, targetID uuid.UUID)) *MockService_ListAccountsOnIP_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_ListAccountsOnIP_Call) Return(adminIPMatchesResponse *dto.AdminIPMatchesResponse, err error) *MockService_ListAccountsOnIP_Call {
+	_c.Call.Return(adminIPMatchesResponse, err)
+	return _c
+}
+
+func (_c *MockService_ListAccountsOnIP_Call) RunAndReturn(run func(ctx context.Context, targetID uuid.UUID) (*dto.AdminIPMatchesResponse, error)) *MockService_ListAccountsOnIP_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1532,6 +1737,213 @@ func (_c *MockService_SendTestEmail_Call) RunAndReturn(run func(ctx context.Cont
 	return _c
 }
 
+// SetDisplayNameLocked provides a mock function for the type MockService
+func (_mock *MockService) SetDisplayNameLocked(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID, locked bool) error {
+	ret := _mock.Called(ctx, actorID, targetID, locked)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetDisplayNameLocked")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, bool) error); ok {
+		r0 = returnFunc(ctx, actorID, targetID, locked)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_SetDisplayNameLocked_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetDisplayNameLocked'
+type MockService_SetDisplayNameLocked_Call struct {
+	*mock.Call
+}
+
+// SetDisplayNameLocked is a helper method to define mock.On call
+//   - ctx context.Context
+//   - actorID uuid.UUID
+//   - targetID uuid.UUID
+//   - locked bool
+func (_e *MockService_Expecter) SetDisplayNameLocked(ctx any, actorID any, targetID any, locked any) *MockService_SetDisplayNameLocked_Call {
+	return &MockService_SetDisplayNameLocked_Call{Call: _e.mock.On("SetDisplayNameLocked", ctx, actorID, targetID, locked)}
+}
+
+func (_c *MockService_SetDisplayNameLocked_Call) Run(run func(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID, locked bool)) *MockService_SetDisplayNameLocked_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 bool
+		if args[3] != nil {
+			arg3 = args[3].(bool)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_SetDisplayNameLocked_Call) Return(err error) *MockService_SetDisplayNameLocked_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_SetDisplayNameLocked_Call) RunAndReturn(run func(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID, locked bool) error) *MockService_SetDisplayNameLocked_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SetUserDisplayName provides a mock function for the type MockService
+func (_mock *MockService) SetUserDisplayName(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID, displayName string) error {
+	ret := _mock.Called(ctx, actorID, targetID, displayName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetUserDisplayName")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string) error); ok {
+		r0 = returnFunc(ctx, actorID, targetID, displayName)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_SetUserDisplayName_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetUserDisplayName'
+type MockService_SetUserDisplayName_Call struct {
+	*mock.Call
+}
+
+// SetUserDisplayName is a helper method to define mock.On call
+//   - ctx context.Context
+//   - actorID uuid.UUID
+//   - targetID uuid.UUID
+//   - displayName string
+func (_e *MockService_Expecter) SetUserDisplayName(ctx any, actorID any, targetID any, displayName any) *MockService_SetUserDisplayName_Call {
+	return &MockService_SetUserDisplayName_Call{Call: _e.mock.On("SetUserDisplayName", ctx, actorID, targetID, displayName)}
+}
+
+func (_c *MockService_SetUserDisplayName_Call) Run(run func(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID, displayName string)) *MockService_SetUserDisplayName_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_SetUserDisplayName_Call) Return(err error) *MockService_SetUserDisplayName_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_SetUserDisplayName_Call) RunAndReturn(run func(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID, displayName string) error) *MockService_SetUserDisplayName_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SetUserEmail provides a mock function for the type MockService
+func (_mock *MockService) SetUserEmail(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID, email string) error {
+	ret := _mock.Called(ctx, actorID, targetID, email)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetUserEmail")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string) error); ok {
+		r0 = returnFunc(ctx, actorID, targetID, email)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_SetUserEmail_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetUserEmail'
+type MockService_SetUserEmail_Call struct {
+	*mock.Call
+}
+
+// SetUserEmail is a helper method to define mock.On call
+//   - ctx context.Context
+//   - actorID uuid.UUID
+//   - targetID uuid.UUID
+//   - email string
+func (_e *MockService_Expecter) SetUserEmail(ctx any, actorID any, targetID any, email any) *MockService_SetUserEmail_Call {
+	return &MockService_SetUserEmail_Call{Call: _e.mock.On("SetUserEmail", ctx, actorID, targetID, email)}
+}
+
+func (_c *MockService_SetUserEmail_Call) Run(run func(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID, email string)) *MockService_SetUserEmail_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_SetUserEmail_Call) Return(err error) *MockService_SetUserEmail_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_SetUserEmail_Call) RunAndReturn(run func(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID, email string) error) *MockService_SetUserEmail_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SetUserRole provides a mock function for the type MockService
 func (_mock *MockService) SetUserRole(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID, r role.Role) error {
 	ret := _mock.Called(ctx, actorID, targetID, r)
@@ -1796,6 +2208,69 @@ func (_c *MockService_UnlockUser_Call) RunAndReturn(run func(ctx context.Context
 	return _c
 }
 
+// UnverifyUserEmail provides a mock function for the type MockService
+func (_mock *MockService) UnverifyUserEmail(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID) error {
+	ret := _mock.Called(ctx, actorID, targetID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UnverifyUserEmail")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, actorID, targetID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_UnverifyUserEmail_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UnverifyUserEmail'
+type MockService_UnverifyUserEmail_Call struct {
+	*mock.Call
+}
+
+// UnverifyUserEmail is a helper method to define mock.On call
+//   - ctx context.Context
+//   - actorID uuid.UUID
+//   - targetID uuid.UUID
+func (_e *MockService_Expecter) UnverifyUserEmail(ctx any, actorID any, targetID any) *MockService_UnverifyUserEmail_Call {
+	return &MockService_UnverifyUserEmail_Call{Call: _e.mock.On("UnverifyUserEmail", ctx, actorID, targetID)}
+}
+
+func (_c *MockService_UnverifyUserEmail_Call) Run(run func(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID)) *MockService_UnverifyUserEmail_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_UnverifyUserEmail_Call) Return(err error) *MockService_UnverifyUserEmail_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_UnverifyUserEmail_Call) RunAndReturn(run func(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID) error) *MockService_UnverifyUserEmail_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateSettings provides a mock function for the type MockService
 func (_mock *MockService) UpdateSettings(ctx context.Context, actorID uuid.UUID, settings map[string]string) error {
 	ret := _mock.Called(ctx, actorID, settings)
@@ -1924,6 +2399,69 @@ func (_c *MockService_UpdateVanityRole_Call) Return(err error) *MockService_Upda
 }
 
 func (_c *MockService_UpdateVanityRole_Call) RunAndReturn(run func(ctx context.Context, actorID uuid.UUID, id string, req dto.UpdateVanityRoleRequest) error) *MockService_UpdateVanityRole_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// VerifyUserEmail provides a mock function for the type MockService
+func (_mock *MockService) VerifyUserEmail(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID) error {
+	ret := _mock.Called(ctx, actorID, targetID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for VerifyUserEmail")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, actorID, targetID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_VerifyUserEmail_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'VerifyUserEmail'
+type MockService_VerifyUserEmail_Call struct {
+	*mock.Call
+}
+
+// VerifyUserEmail is a helper method to define mock.On call
+//   - ctx context.Context
+//   - actorID uuid.UUID
+//   - targetID uuid.UUID
+func (_e *MockService_Expecter) VerifyUserEmail(ctx any, actorID any, targetID any) *MockService_VerifyUserEmail_Call {
+	return &MockService_VerifyUserEmail_Call{Call: _e.mock.On("VerifyUserEmail", ctx, actorID, targetID)}
+}
+
+func (_c *MockService_VerifyUserEmail_Call) Run(run func(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID)) *MockService_VerifyUserEmail_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_VerifyUserEmail_Call) Return(err error) *MockService_VerifyUserEmail_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_VerifyUserEmail_Call) RunAndReturn(run func(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID) error) *MockService_VerifyUserEmail_Call {
 	_c.Call.Return(run)
 	return _c
 }

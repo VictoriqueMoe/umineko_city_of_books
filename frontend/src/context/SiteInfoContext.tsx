@@ -17,7 +17,7 @@ export function SiteInfoProvider({ children }: PropsWithChildren) {
             if (Date.now() - dataUpdatedAtRef.current < MIN_REFETCH_INTERVAL_MS) {
                 return;
             }
-            refresh();
+            refresh().catch(() => {});
         }
         function handleVisibility() {
             if (document.visibilityState === "visible") {

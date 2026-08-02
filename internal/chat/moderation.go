@@ -52,8 +52,8 @@ func (s *moderationService) enforceBannedWords(ctx context.Context, roomID, send
 	if immune {
 		return nil
 	}
-	details := fmt.Sprintf("room=%s user=%s pattern=%q match=%q", roomID, senderID, match.Pattern, match.MatchedOn)
-	_ = s.auditRepo.CreateSystem(ctx, "chat_word_filter_"+match.Action, "chat_room", roomID.String(), details)
+	details := fmt.Sprintf("pattern=%q match=%q", match.Pattern, match.MatchedOn)
+	_ = s.auditRepo.CreateSystemForSubject(ctx, "chat_word_filter_"+match.Action, "chat_room", roomID.String(), details, senderID)
 	if match.Action == contentfilter.BannedWordActionKick {
 		targetName := s.displayNameFor(ctx, senderID, roomID)
 		s.postRoomActionMessage(ctx, roomID, senderID, fmt.Sprintf("%s was kicked by the word filter.", targetName))
@@ -204,8 +204,8 @@ func (s *moderationService) BanMember(ctx context.Context, actorID, roomID, targ
 		return err
 	}
 
-	details := fmt.Sprintf("target=%s reason=%s", targetID, reason)
-	if err := s.auditRepo.Create(ctx, actorID, "chat_room_ban", "chat_room", roomID.String(), details); err != nil {
+	details := fmt.Sprintf("reason=%s", reason)
+	if err := s.auditRepo.CreateForSubject(ctx, actorID, "chat_room_ban", "chat_room", roomID.String(), details, targetID); err != nil {
 		return fmt.Errorf("audit ban: %w", err)
 	}
 	return nil
@@ -237,7 +237,7 @@ func (s *moderationService) UnbanMember(ctx context.Context, actorID, roomID, ta
 
 	s.notifyModerationAction(roomID, targetID, actorID, "unbanned", "")
 
-	return s.auditRepo.Create(ctx, actorID, "chat_room_unban", "chat_room", roomID.String(), "target="+targetID.String())
+	return s.auditRepo.CreateForSubject(ctx, actorID, "chat_room_unban", "chat_room", roomID.String(), "", targetID)
 }
 
 func (s *moderationService) ListRoomBans(ctx context.Context, actorID, roomID uuid.UUID) ([]dto.ChatRoomBanResponse, error) {

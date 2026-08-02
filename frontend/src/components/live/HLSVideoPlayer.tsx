@@ -9,8 +9,10 @@ interface HLSVideoPlayerProps {
 
 export function HLSVideoPlayer({ src, className, muted = false }: HLSVideoPlayerProps) {
     const videoRef = useRef<HTMLVideoElement>(null);
+    const mutedRef = useRef(muted);
 
     useEffect(() => {
+        mutedRef.current = muted;
         const video = videoRef.current;
         if (video) {
             video.muted = muted;
@@ -24,6 +26,7 @@ export function HLSVideoPlayer({ src, className, muted = false }: HLSVideoPlayer
         }
 
         const tryPlay = () => {
+            video.muted = mutedRef.current;
             video.play().catch(() => {
                 video.muted = true;
                 video.play().catch(() => {});

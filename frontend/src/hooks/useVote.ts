@@ -1,10 +1,11 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 export function useVote(initialScore: number, initialUserVote: number, voteFn: (value: number) => Promise<void>) {
     const [score, setScore] = useState(initialScore);
     const [userVote, setUserVote] = useState(initialUserVote);
     const [prevInitialScore, setPrevInitialScore] = useState(initialScore);
     const [prevInitialUserVote, setPrevInitialUserVote] = useState(initialUserVote);
+    const latestRequest = useRef(0);
 
     if (prevInitialScore !== initialScore) {
         setPrevInitialScore(initialScore);
@@ -20,6 +21,8 @@ export function useVote(initialScore: number, initialUserVote: number, voteFn: (
             const newValue = value === userVote ? 0 : value;
             const oldScore = score;
             const oldVote = userVote;
+            const requestId = latestRequest.current + 1;
+            latestRequest.current = requestId;
 
             setScore(oldScore - oldVote + newValue);
             setUserVote(newValue);
@@ -27,6 +30,10 @@ export function useVote(initialScore: number, initialUserVote: number, voteFn: (
             try {
                 await voteFn(newValue);
             } catch {
+                if (latestRequest.current !== requestId) {
+                    return;
+                }
+
                 setScore(oldScore);
                 setUserVote(oldVote);
             }

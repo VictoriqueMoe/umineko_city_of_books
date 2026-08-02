@@ -13,6 +13,7 @@ import {
 import { clearAuthToken } from "../utils/authToken";
 import type {
     ActivityListResponse,
+    AdminIPMatches,
     AdminStats,
     AdminUserDetail,
     AdminUserListResponse,
@@ -356,7 +357,7 @@ export async function updateTheory(id: string, payload: CreateTheoryPayload): Pr
 }
 
 export async function getTheory(id: string): Promise<TheoryDetail> {
-    return apiFetch<TheoryDetail>(`/theories/${id}`);
+    return apiFetch<TheoryDetail>(`/theories/${encodeURIComponent(id)}`);
 }
 
 export async function createTheory(payload: CreateTheoryPayload): Promise<{ id: string }> {
@@ -384,7 +385,7 @@ export async function voteResponse(id: string, value: number): Promise<void> {
 }
 
 export async function getUserProfile(username: string): Promise<UserProfile> {
-    return apiFetch<UserProfile>(`/users/${username}`);
+    return apiFetch<UserProfile>(`/users/${encodeURIComponent(username)}`);
 }
 
 export async function updateProfile(payload: UpdateProfilePayload): Promise<{ status: string }> {
@@ -512,6 +513,38 @@ export async function resetUserPassword(id: string): Promise<{ password: string 
     return apiPost<{ password: string }, undefined>(`/admin/users/${id}/reset-password`, undefined);
 }
 
+export async function setUserEmail(id: string, email: string): Promise<void> {
+    await apiPut<unknown, { email: string }>(`/admin/users/${id}/email`, { email });
+}
+
+export async function verifyUserEmail(id: string): Promise<void> {
+    await apiPost<unknown, undefined>(`/admin/users/${id}/verify-email`, undefined);
+}
+
+export async function unverifyUserEmail(id: string): Promise<void> {
+    await apiPost<unknown, undefined>(`/admin/users/${id}/unverify-email`, undefined);
+}
+
+export async function setUserDisplayName(id: string, displayName: string): Promise<void> {
+    await apiPut<unknown, { display_name: string }>(`/admin/users/${id}/display-name`, { display_name: displayName });
+}
+
+export async function setDisplayNameLock(id: string, locked: boolean): Promise<void> {
+    await apiPut<unknown, { locked: boolean }>(`/admin/users/${id}/display-name-lock`, { locked });
+}
+
+export async function forceLogoutUser(id: string): Promise<void> {
+    await apiPost<unknown, undefined>(`/admin/users/${id}/force-logout`, undefined);
+}
+
+export async function getUserIPMatches(id: string): Promise<AdminIPMatches> {
+    return apiFetch<AdminIPMatches>(`/admin/users/${id}/ip-matches`);
+}
+
+export async function getUserAuditLog(id: string, limit = 20, offset = 0): Promise<AuditLogListResponse> {
+    return apiFetch<AuditLogListResponse>(`/admin/users/${id}/audit-log${buildQueryString({ limit, offset })}`);
+}
+
 export async function getAdminSettings(): Promise<SiteSettings> {
     return apiFetch<{ settings: SiteSettings }>("/admin/settings").then(r => r.settings);
 }
@@ -564,11 +597,11 @@ export async function getInvites(params: { limit?: number; offset?: number }): P
 }
 
 export async function deleteInvite(code: string): Promise<void> {
-    await apiDelete<unknown>(`/admin/invites/${code}`);
+    await apiDelete<unknown>(`/admin/invites/${encodeURIComponent(code)}`);
 }
 
 export async function resolveDMRoom(recipientId: string): Promise<{ room: ChatRoom | null; recipient: User }> {
-    return apiFetch<{ room: ChatRoom | null; recipient: User }>(`/chat/dm/${recipientId}/resolve`);
+    return apiFetch<{ room: ChatRoom | null; recipient: User }>(`/chat/dm/${encodeURIComponent(recipientId)}/resolve`);
 }
 
 export async function sendFirstDMMessage(
@@ -1099,7 +1132,7 @@ export async function resolveReport(id: number, comment: string): Promise<void> 
 }
 
 export async function getRules(page: string): Promise<{ page: string; rules: string }> {
-    return apiFetch<{ page: string; rules: string }>(`/rules/${page}`);
+    return apiFetch<{ page: string; rules: string }>(`/rules/${encodeURIComponent(page)}`);
 }
 
 export async function searchUsers(query: string): Promise<User[]> {
@@ -2324,12 +2357,12 @@ export interface GiphyResponse {
 }
 
 export async function searchGiphy(q: string, offset?: number, limit?: number): Promise<GiphyResponse> {
-    const qs = buildQueryString({ q, offset: offset ?? 0, limit: limit ?? 0 });
+    const qs = buildQueryString({ q, offset, limit });
     return apiFetch<GiphyResponse>(`/giphy/search${qs}`);
 }
 
 export async function trendingGiphy(offset?: number, limit?: number): Promise<GiphyResponse> {
-    const qs = buildQueryString({ offset: offset ?? 0, limit: limit ?? 0 });
+    const qs = buildQueryString({ offset, limit });
     return apiFetch<GiphyResponse>(`/giphy/trending${qs}`);
 }
 
@@ -2348,7 +2381,7 @@ export interface GiphyFavouritesResponse {
 }
 
 export async function listGiphyFavourites(offset?: number, limit?: number): Promise<GiphyFavouritesResponse> {
-    const qs = buildQueryString({ offset: offset ?? 0, limit: limit ?? 0 });
+    const qs = buildQueryString({ offset, limit });
     return apiFetch<GiphyFavouritesResponse>(`/giphy/favourites${qs}`);
 }
 

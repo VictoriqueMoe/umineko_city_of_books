@@ -22,6 +22,7 @@ import { useUserOCs } from "../../api/queries/oc";
 import { useFollowers, useFollowing } from "../../api/queries/misc";
 import { useCreateGallery } from "../../api/mutations/art";
 import { parseServerDate } from "../../utils/time";
+import { can } from "../../utils/permissions";
 import { Button } from "../../components/Button/Button";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { TheoryCard } from "../../components/theory/TheoryCard/TheoryCard";
@@ -108,7 +109,7 @@ function socialUrl(key: string, value: string): string {
         case "social_tumblr":
             return `https://${value}.tumblr.com`;
         case "social_waifulist":
-            return value.includes("/") ? `https://${value}` : value;
+            return value.includes("/") ? `https://${value}` : `https://waifulist.moe/${value}`;
         default:
             return value;
     }
@@ -141,6 +142,7 @@ export function ProfilePage() {
     const setActiveTab = setExplicitTab as (tab: TabType) => void;
     const follow = useFollow(profile?.id ?? "");
     const blockHook = useBlock(profile?.id ?? "");
+    const canManageUser = can(currentUser?.role, "view_users") && !!profile && currentUser?.id !== profile.id;
 
     const {
         theories,
@@ -233,9 +235,13 @@ export function ProfilePage() {
 
     const [activityOffset, setActivityOffset] = useState(0);
     const activityLimit = 20;
-    const activityQuery = useUserActivity(activeTab === "activity" ? (username ?? "") : "");
+    const activityQuery = useUserActivity(
+        activeTab === "activity" ? (username ?? "") : "",
+        activityLimit,
+        activityOffset,
+    );
     const activityItems = activityQuery.activity;
-    const activityTotal = activityItems.length;
+    const activityTotal = activityQuery.total;
     const activityLoading = activityQuery.loading;
 
     const followersQuery = useFollowers(activeTab === "followers" && profile?.id ? profile.id : "");
@@ -349,6 +355,13 @@ export function ProfilePage() {
                                     {blockHook.status.blocking ? "Unblock" : "Block"}
                                 </Button>
                             )}
+                        </div>
+                    )}
+                    {canManageUser && (
+                        <div className={styles.followRow}>
+                            <Button variant="ghost" size="small" onClick={() => navigate(`/admin/users/${profile.id}`)}>
+                                Manage account
+                            </Button>
                         </div>
                     )}
                     {blockHook.status?.blocked_by && (

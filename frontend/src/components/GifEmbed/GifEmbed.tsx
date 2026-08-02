@@ -16,19 +16,19 @@ export function GifEmbed({ src, alt = "GIF", imgClassName, onClick }: GifEmbedPr
     const giphyID = extractGiphyId(src);
     const starred = giphyID ? isFavourite(giphyID) : false;
 
-    async function handleStar(e: React.MouseEvent) {
+    function handleStar(e: React.MouseEvent) {
         e.stopPropagation();
         if (!giphyID) {
             return;
         }
-        await toggle({
+        toggle({
             giphy_id: giphyID,
             url: src,
             title: alt === "GIF" ? "" : alt,
             preview_url: src,
             width: 0,
             height: 0,
-        });
+        }).catch(() => {});
     }
 
     return (
