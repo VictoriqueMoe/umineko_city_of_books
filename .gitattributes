@@ -1,0 +1,3 @@
+frontend/src/**/*.test.ts linguist-detectable=false
+frontend/src/**/*.test.tsx linguist-detectable=false
+frontend/src/test-utils/** linguist-detectable=false
