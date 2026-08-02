@@ -21,7 +21,7 @@ import (
 )
 
 var (
-	mentionRegex = regexp.MustCompile(`@([a-zA-Z0-9_]+)`)
+	mentionRegex = regexp.MustCompile(`\B@([a-zA-Z0-9_]+)`)
 	chatTriggers = []chatTrigger{
 		{
 			text:     "<VERY GOOOOOD>",

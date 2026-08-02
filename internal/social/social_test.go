@@ -29,6 +29,9 @@ func TestMentionRegex_MatchesUsernames(t *testing.T) {
 		{"underscores and digits", "ping @user_42", []string{"user_42"}},
 		{"no mentions", "just some text", nil},
 		{"dash not part of name", "@alice-bob", []string{"alice"}},
+		{"email address is not a mention", "mail me at kujo@alice.example", nil},
+		{"mention after punctuation still counts", "(@alice)", []string{"alice"}},
+		{"mention at the very start still counts", "@alice hello", []string{"alice"}},
 	}
 
 	for _, tc := range cases {

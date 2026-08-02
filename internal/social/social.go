@@ -14,7 +14,7 @@ import (
 	"github.com/google/uuid"
 )
 
-var MentionRegex = regexp.MustCompile(`@([a-zA-Z0-9_]+)`)
+var MentionRegex = regexp.MustCompile(`\B@([a-zA-Z0-9_]+)`)
 
 func ProcessEmbeds(postRepo repository.PostRepository, ownerID string, ownerType string, body string) {
 	urls := media.ExtractURLs(body)
