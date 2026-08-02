@@ -8,6 +8,8 @@ import {
     getBannedGifs,
     getInvites,
     getReports,
+    getUserAuditLog,
+    getUserIPMatches,
     getVanityRoleUsers,
     getVanityRoles,
     listAnnouncements,
@@ -36,6 +38,7 @@ export function useAdminUsers(search: string, limit: number, offset: number) {
         users: query.data?.users ?? [],
         total: query.data?.total ?? 0,
         loading: query.isLoading,
+        error: query.isError,
         refresh: query.refetch,
     };
 }
@@ -47,6 +50,34 @@ export function useAdminUser(id: string) {
         enabled: !!id,
     });
     return { user: query.data ?? null, loading: query.isLoading };
+}
+
+export function useUserIPMatches(id: string, enabled: boolean) {
+    const query = useQuery({
+        queryKey: ["admin", "user", id, "ip-matches"],
+        queryFn: () => getUserIPMatches(id),
+        enabled: !!id && enabled,
+    });
+    return {
+        ip: query.data?.ip ?? "",
+        users: query.data?.users ?? [],
+        loading: query.isLoading,
+        failed: query.isError,
+    };
+}
+
+export function useUserAuditLog(id: string, enabled: boolean, limit: number, offset: number) {
+    const query = useQuery({
+        queryKey: ["admin", "user", id, "audit-log", limit, offset],
+        queryFn: () => getUserAuditLog(id, limit, offset),
+        enabled: !!id && enabled,
+    });
+    return {
+        entries: query.data?.entries ?? [],
+        total: query.data?.total ?? 0,
+        loading: query.isLoading,
+        failed: query.isError,
+    };
 }
 
 export function useAdminStats() {
@@ -80,7 +111,7 @@ export function useAuditLog(action: string, limit: number, offset: number) {
 
 export function useInvites(limit: number, offset: number) {
     const query = useQuery({
-        queryKey: queryKeys.admin.invites(),
+        queryKey: [...queryKeys.admin.invites(), limit, offset],
         queryFn: () => getInvites({ limit, offset }),
     });
     return { invites: query.data?.invites ?? [], loading: query.isLoading, refresh: query.refetch };

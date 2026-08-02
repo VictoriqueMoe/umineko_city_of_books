@@ -51,7 +51,7 @@ func (s *Service) setupSPA(r fiber.Router) {
 			return embeddedStaticHandler(ctx)
 		}
 
-		html := s.OGResolver.Resolve(ctx.Context(), path)
+		html := s.OGResolver.Resolve(ctx.Context(), path, ctx.Query("party"))
 		return ctx.Type("html").SendString(html)
 	})
 }

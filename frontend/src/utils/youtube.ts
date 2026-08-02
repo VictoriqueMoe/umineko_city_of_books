@@ -3,6 +3,10 @@ const YOUTUBE_ID_RE =
 
 export function extractYouTubeIDs(text: string, limit = 2): string[] {
     const ids: string[] = [];
+    if (limit <= 0) {
+        return ids;
+    }
+
     const seen = new Set<string>();
     YOUTUBE_ID_RE.lastIndex = 0;
     let match: RegExpExecArray | null = YOUTUBE_ID_RE.exec(text);

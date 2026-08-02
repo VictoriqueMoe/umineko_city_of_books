@@ -160,6 +160,10 @@ func (s *service) UpdateProfile(ctx context.Context, userID uuid.UUID, req dto.U
 		return ErrUserNotFound
 	}
 
+	if current.DisplayNameLocked && req.DisplayName != current.DisplayName {
+		return ErrDisplayNameLocked
+	}
+
 	req.Email = strings.ToLower(strings.TrimSpace(req.Email))
 	if req.Email != current.Email {
 		if err := s.authService.SetEmail(ctx, userID, req.Email, req.EmailPassword); err != nil {

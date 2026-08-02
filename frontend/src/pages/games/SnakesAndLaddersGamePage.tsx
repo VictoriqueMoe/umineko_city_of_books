@@ -98,7 +98,13 @@ export function SnakesAndLaddersGamePage() {
                             <Button
                                 variant="ghost"
                                 onClick={async () => {
-                                    await declineInvite.mutateAsync(room.id);
+                                    setAcceptError("");
+                                    try {
+                                        await declineInvite.mutateAsync(room.id);
+                                    } catch (err) {
+                                        setAcceptError(err instanceof Error ? err.message : "Failed to decline invite");
+                                        return;
+                                    }
                                     navigate("/games");
                                 }}
                             >

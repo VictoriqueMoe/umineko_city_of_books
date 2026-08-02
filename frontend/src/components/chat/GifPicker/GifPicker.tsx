@@ -183,8 +183,13 @@ export function GifPicker({ onPick, onClose }: GifPickerProps) {
         ? rateLimitedUntil.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
         : "";
 
+    const rateLimited = rateLimitedUntil !== null || (giphyError instanceof ApiError && giphyError.status === 429);
+    const rateLimitMessage = resetClock
+        ? `GIF search is paused. Try again at ${resetClock}.`
+        : "GIF search is paused. Try again shortly.";
+
     const items = tab === "favourites" ? favourites : results;
-    const showRateLimited = tab === "browse" && rateLimitedUntil !== null;
+    const showRateLimited = tab === "browse" && rateLimited && !loading;
     const showLoading = tab === "browse" && loading && !rateLimitedUntil;
     const showError = tab === "browse" && !!error && !loading && !rateLimitedUntil;
     const showEmpty = !showRateLimited && !showLoading && !showError && items.length === 0;
@@ -221,9 +226,7 @@ export function GifPicker({ onPick, onClose }: GifPickerProps) {
                 />
             )}
             <div className={styles.grid}>
-                {showRateLimited && (
-                    <div className={styles.rateLimit}>GIF search is paused. Try again at {resetClock}.</div>
-                )}
+                {showRateLimited && <div className={styles.rateLimit}>{rateLimitMessage}</div>}
                 {showLoading && <div className={styles.loading}>Loading...</div>}
                 {showError && <div className={styles.error}>{error}</div>}
                 {showEmpty && (

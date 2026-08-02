@@ -16,7 +16,7 @@ interface CreateRoomModalProps {
 }
 
 export function CreateRoomModal({ isOpen, onClose, onCreated }: CreateRoomModalProps) {
-    const [openInstance, setOpenInstance] = useState(0);
+    const [openInstance, setOpenInstance] = useState(isOpen ? 1 : 0);
     const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
     if (isOpen !== prevIsOpen) {
         setPrevIsOpen(isOpen);

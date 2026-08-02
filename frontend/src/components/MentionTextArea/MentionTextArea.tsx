@@ -253,14 +253,15 @@ export function MentionTextArea({
         const cursor = textarea.selectionStart;
         const before = value.slice(0, mentionStart);
         const after = value.slice(cursor);
-        const newValue = `${before}@${user.username} ${after}`;
+        const needsSpace = !/^\s/.test(after);
+        const newValue = `${before}@${user.username}${needsSpace ? " " : ""}${after}`;
 
         onChange(newValue);
         setShowDropdown(false);
         setSuggestions([]);
 
         requestAnimationFrame(() => {
-            const newCursor = mentionStart + user.username.length + 2;
+            const newCursor = mentionStart + user.username.length + (needsSpace ? 2 : 1);
             textarea.focus();
             textarea.setSelectionRange(newCursor, newCursor);
         });
@@ -366,6 +367,7 @@ export function MentionTextArea({
                     value={value}
                     onChange={e => onChange(e.target.value)}
                     onKeyDown={handleKeyDown}
+                    onBlur={() => setShowDropdown(false)}
                     onPaste={handlePaste}
                     onScroll={syncScroll}
                     placeholder={placeholder}

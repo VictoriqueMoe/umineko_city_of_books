@@ -61,6 +61,7 @@ export function StreamOverlaySection() {
         try {
             const next = await resetOverlayToken();
             setConn(next);
+            setCopied(false);
             setSuccess("Token reset. Download the new connector below.");
         } catch (err) {
             setError(err instanceof Error ? err.message : "Could not reset your token.");
@@ -95,7 +96,10 @@ export function StreamOverlaySection() {
         }
         navigator.clipboard
             .writeText(conn.token)
-            .then(() => setCopied(true))
+            .then(() => {
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+            })
             .catch(() => {});
     }
 

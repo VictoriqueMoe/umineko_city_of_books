@@ -52,7 +52,7 @@ export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps
     const [replyOpen, setReplyOpen] = useState(false);
     const mediaInputRef = useRef<HTMLInputElement>(null);
 
-    const pendingLikeRef = useRef(false);
+    const pendingLikeRef = useRef(0);
     const likeMutation = useLikePost();
     const unlikeMutation = useUnlikePost();
     const deleteMutation = useDeletePost();
@@ -65,8 +65,8 @@ export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps
             if (msg.type === "post_like") {
                 const data = msg.data as { post_id: string; delta: number };
                 if (data.post_id === post.id) {
-                    if (pendingLikeRef.current) {
-                        pendingLikeRef.current = false;
+                    if (pendingLikeRef.current > 0) {
+                        pendingLikeRef.current -= 1;
                         return;
                     }
                     setLikeCount(c => c + data.delta);
@@ -79,14 +79,14 @@ export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps
         if (!user) {
             return;
         }
-        pendingLikeRef.current = true;
+        pendingLikeRef.current += 1;
         if (liked) {
             setLiked(false);
             setLikeCount(c => c - 1);
             await unlikeMutation.mutateAsync(post.id).catch(() => {
                 setLiked(true);
                 setLikeCount(c => c + 1);
-                pendingLikeRef.current = false;
+                pendingLikeRef.current -= 1;
             });
         } else {
             setLiked(true);
@@ -94,7 +94,7 @@ export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps
             await likeMutation.mutateAsync(post.id).catch(() => {
                 setLiked(false);
                 setLikeCount(c => c - 1);
-                pendingLikeRef.current = false;
+                pendingLikeRef.current -= 1;
             });
         }
     }
@@ -105,10 +105,10 @@ export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps
         }
         try {
             await deleteMutation.mutateAsync(post.id);
+            onDelete?.();
         } catch {
             // ignore
         }
-        onDelete?.();
     }
 
     async function handleSaveEdit() {
@@ -276,7 +276,9 @@ export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps
                 <Button
                     variant="ghost"
                     size="small"
-                    onClick={() => navigator.clipboard.writeText(siteUrl(`/game-board/${post.id}`))}
+                    onClick={() => {
+                        navigator.clipboard.writeText(siteUrl(`/game-board/${post.id}`)).catch(() => {});
+                    }}
                 >
                     Copy Link
                 </Button>

@@ -63,25 +63,63 @@
 }
 
 .details {
-    display: inline-block;
-    max-width: 250px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    display: block;
+    min-width: 240px;
+    max-width: 420px;
     color: var(--text-muted);
     font-size: 0.8rem;
-    vertical-align: middle;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
+.detailPart {
+    display: block;
+}
+
+.detailKey {
+    color: var(--text-muted);
+    opacity: 0.75;
+    margin-right: 0.3rem;
+}
+
+.detailValue {
+    color: var(--text);
+}
+
+.action {
+    display: block;
+    color: var(--text);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.targetType {
+    display: block;
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-top: 0.15rem;
 }
 
 .targetId {
-    display: inline-block;
-    max-width: 220px;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-family: ui-monospace, "Cascadia Code", "Fira Code", Consolas, "Courier New", monospace;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+.subjectLink {
+    color: var(--gold);
+    text-decoration: none;
     white-space: nowrap;
-    font-family: monospace;
-    font-size: 0.8rem;
-    vertical-align: middle;
+}
+
+.subjectLink:hover {
+    text-decoration: underline;
+}
+
+.muted {
+    color: var(--text-muted);
 }
 
 .timestampCell {

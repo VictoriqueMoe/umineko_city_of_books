@@ -60,6 +60,7 @@ export function WatchPartyButton({
             await onStart({ title: titleDraft.trim() || undefined, type: partyType });
             setTitleDraft("");
             setOpen(false);
+        } catch {
         } finally {
             setBusy(false);
         }
@@ -70,6 +71,7 @@ export function WatchPartyButton({
         try {
             await onJoin(sessionId);
             setOpen(false);
+        } catch {
         } finally {
             setBusy(false);
         }

@@ -33,5 +33,8 @@ export async function loadAuthToken(): Promise<void> {
     }
 
     const { value } = await Preferences.get({ key: TOKEN_KEY });
-    cachedToken = value;
+
+    if (cachedToken === null) {
+        cachedToken = value;
+    }
 }

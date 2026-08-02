@@ -61,7 +61,7 @@ export function getStartAudio(character: CharacterId | ""): string | null {
     if (!character) {
         return null;
     }
-    return CHARACTER_AUDIO[character]?.start ?? null;
+    return CHARACTER_AUDIO[character]?.start || null;
 }
 
 export function getGameOverAudio(

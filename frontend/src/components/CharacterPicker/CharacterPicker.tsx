@@ -38,6 +38,10 @@ export function CharacterPicker({ onAdd, existing, maxCharacters }: CharacterPic
     const existingKeys = useMemo(() => {
         const set = new Set<string>();
         for (const c of existing) {
+            if (c.series === "oc") {
+                set.add(`oc::${c.character_name.toLowerCase()}`);
+                continue;
+            }
             set.add(`${c.series}:${c.character_id ?? ""}:${c.character_name.toLowerCase()}`);
         }
         return set;

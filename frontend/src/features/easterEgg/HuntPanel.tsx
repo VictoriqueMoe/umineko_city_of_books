@@ -42,13 +42,13 @@ export function HuntPanel({ secretId, isOpen, onClose }: HuntPanelProps) {
         return null;
     }
 
-    const tiles = Array.from({ length: secret.pieces.length }, (_, i) => {
-        const tileNumber = i + 1;
-        const piece = secret.pieces.find(p => p.tile === tileNumber);
-        const letter = piece?.letter ?? "";
-        const found = piece && state.collectedPieces.has(piece.id);
-        return { tileNumber, letter, found: Boolean(found) };
-    });
+    const tiles = secret.pieces
+        .map((piece, i) => ({
+            tileNumber: piece.tile ?? i + 1,
+            letter: piece.letter ?? "",
+            found: state.collectedPieces.has(piece.id),
+        }))
+        .sort((a, b) => a.tileNumber - b.tileNumber);
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={secret.title}>

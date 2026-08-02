@@ -34,6 +34,9 @@ type (
 		ResetPassword(ctx context.Context, token, newPassword string) error
 		EmailEnabled(ctx context.Context) bool
 		SetEmail(ctx context.Context, userID uuid.UUID, email string, password string) error
+		SetEmailForUser(ctx context.Context, userID uuid.UUID, email string) error
+		MarkEmailVerified(ctx context.Context, userID uuid.UUID) error
+		MarkEmailUnverified(ctx context.Context, userID uuid.UUID) error
 		VerifyEmail(ctx context.Context, token string) error
 		ResendVerification(ctx context.Context, userID uuid.UUID) error
 	}
@@ -339,6 +342,93 @@ func (s *service) SetEmail(ctx context.Context, userID uuid.UUID, email string, 
 	}
 
 	s.sendVerification(ctx, userID, email)
+
+	return nil
+}
+
+func (s *service) SetEmailForUser(ctx context.Context, userID uuid.UUID, email string) error {
+	email = normalizeEmail(email)
+	if !isValidEmail(email) {
+		return ErrInvalidEmail
+	}
+
+	inUse, err := s.userRepo.EmailInUse(ctx, email, userID)
+	if err != nil {
+		return fmt.Errorf("check email: %w", err)
+	}
+	if inUse {
+		return ErrEmailTaken
+	}
+
+	previous, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("get user: %w", err)
+	}
+	if previous == nil {
+		return ErrUserNotFound
+	}
+
+	if err := s.userRepo.SetEmail(ctx, userID, email); err != nil {
+		return fmt.Errorf("set email: %w", err)
+	}
+
+	if previous.Email != "" && previous.Email != email {
+		s.notifyEmailChanged(ctx, previous.Email, email)
+	}
+
+	s.sendVerification(ctx, userID, email)
+
+	return nil
+}
+
+func (s *service) MarkEmailVerified(ctx context.Context, userID uuid.UUID) error {
+	usr, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("get user: %w", err)
+	}
+	if usr == nil {
+		return ErrUserNotFound
+	}
+	if usr.Email == "" {
+		return ErrNoEmailAddress
+	}
+	if usr.EmailVerified {
+		return ErrEmailAlreadyVerified
+	}
+
+	if err := s.userRepo.MarkEmailVerified(ctx, userID); err != nil {
+		return fmt.Errorf("mark email verified: %w", err)
+	}
+
+	if err := s.verifyRepo.DeleteUnusedForUser(ctx, userID); err != nil {
+		logger.Log.Warn().Err(err).Str("user_id", userID.String()).Msg("failed to clear verification tokens after manual verify")
+	}
+
+	return nil
+}
+
+func (s *service) MarkEmailUnverified(ctx context.Context, userID uuid.UUID) error {
+	usr, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("get user: %w", err)
+	}
+	if usr == nil {
+		return ErrUserNotFound
+	}
+	if usr.Email == "" {
+		return ErrNoEmailAddress
+	}
+	if !usr.EmailVerified {
+		return ErrEmailNotVerified
+	}
+
+	if err := s.userRepo.MarkEmailUnverified(ctx, userID); err != nil {
+		return fmt.Errorf("mark email unverified: %w", err)
+	}
+
+	if err := s.verifyRepo.DeleteUnusedForUser(ctx, userID); err != nil {
+		logger.Log.Warn().Err(err).Str("user_id", userID.String()).Msg("failed to clear verification tokens after manual unverify")
+	}
 
 	return nil
 }

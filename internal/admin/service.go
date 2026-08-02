@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 
+	"umineko_city_of_books/internal/auth"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
@@ -20,6 +21,7 @@ import (
 	"umineko_city_of_books/internal/session"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/upload"
+	userpkg "umineko_city_of_books/internal/user"
 	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
@@ -44,6 +46,14 @@ type (
 		UnlockUser(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID) error
 		DeleteUser(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID) error
 		ResetUserPassword(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID) (string, error)
+		SetUserEmail(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID, email string) error
+		VerifyUserEmail(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID) error
+		UnverifyUserEmail(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID) error
+		SetUserDisplayName(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID, displayName string) error
+		SetDisplayNameLocked(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID, locked bool) error
+		ForceLogout(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID) error
+		ListAccountsOnIP(ctx context.Context, targetID uuid.UUID) (*dto.AdminIPMatchesResponse, error)
+		GetUserAuditLog(ctx context.Context, targetID uuid.UUID, page bounds.Page) (*dto.AuditLogListResponse, error)
 
 		GetSettings(ctx context.Context) (*dto.SettingsResponse, error)
 		UpdateSettings(ctx context.Context, actorID uuid.UUID, settings map[string]string) error
@@ -83,6 +93,7 @@ type (
 		hub            *ws.Hub
 		chatSync       SystemRoomSync
 		emailSvc       email.Service
+		authSvc        auth.Service
 	}
 )
 
@@ -112,6 +123,7 @@ func NewService(
 	hub *ws.Hub,
 	chatSync SystemRoomSync,
 	emailSvc email.Service,
+	authSvc auth.Service,
 ) Service {
 	return &service{
 		userRepo:       userRepo,
@@ -128,6 +140,7 @@ func NewService(
 		hub:            hub,
 		chatSync:       chatSync,
 		emailSvc:       emailSvc,
+		authSvc:        authSvc,
 	}
 }
 
@@ -152,6 +165,12 @@ func (s *service) audit(ctx context.Context, actorID uuid.UUID, action, targetTy
 
 func (s *service) auditDetails(ctx context.Context, actorID uuid.UUID, action, targetType, targetID, details string) {
 	if err := s.auditRepo.Create(ctx, actorID, action, targetType, targetID, details); err != nil {
+		logger.Log.Error().Err(err).Str("action", action).Msg("failed to write audit log")
+	}
+}
+
+func (s *service) auditSubject(ctx context.Context, actorID uuid.UUID, action, targetType, targetID string, subjectID uuid.UUID) {
+	if err := s.auditRepo.CreateForSubject(ctx, actorID, action, targetType, targetID, "", subjectID); err != nil {
 		logger.Log.Error().Err(err).Str("action", action).Msg("failed to write audit log")
 	}
 }
@@ -250,9 +269,11 @@ func (s *service) GetUser(ctx context.Context, targetID uuid.UUID) (*dto.AdminUs
 			Locked:      u.LockedAt != nil,
 			CreatedAt:   u.CreatedAt,
 		},
-		Email:      u.Email,
-		BanReason:  u.BanReason,
-		LockReason: u.LockReason,
+		Email:             u.Email,
+		EmailVerified:     u.EmailVerified,
+		DisplayNameLocked: u.DisplayNameLocked,
+		BanReason:         u.BanReason,
+		LockReason:        u.LockReason,
 	}
 	if u.IP != nil {
 		resp.IP = *u.IP
@@ -316,7 +337,7 @@ func (s *service) SetUserRole(ctx context.Context, actorID uuid.UUID, targetID u
 		if err := s.roleRepo.SetRole(ctx, targetID, r); err != nil {
 			return fmt.Errorf("set role: %w", err)
 		}
-		s.audit(ctx, actorID, "set_role", "user", targetID.String())
+		s.auditDetails(ctx, actorID, "set_role", "user", targetID.String(), string(r))
 		if s.chatSync != nil {
 			if err := s.chatSync.EnsureSystemRooms(ctx); err != nil {
 				logger.Log.Error().Err(err).Msg("ensure system rooms after role change")
@@ -335,7 +356,7 @@ func (s *service) RemoveUserRole(ctx context.Context, actorID uuid.UUID, targetI
 		if err := s.roleRepo.RemoveRole(ctx, targetID, r); err != nil {
 			return fmt.Errorf("remove role: %w", err)
 		}
-		s.audit(ctx, actorID, "remove_role", "user", targetID.String())
+		s.auditDetails(ctx, actorID, "remove_role", "user", targetID.String(), string(r))
 		if s.chatSync != nil {
 			if err := s.chatSync.SyncSystemRoomMembership(ctx, targetID, ""); err != nil {
 				logger.Log.Error().Err(err).Str("user_id", targetID.String()).Msg("sync system rooms after role remove")
@@ -364,7 +385,7 @@ func (s *service) BanUser(ctx context.Context, actorID uuid.UUID, targetID uuid.
 		if err := s.sessionMgr.DeleteAllForUser(ctx, targetID); err != nil {
 			logger.Log.Error().Err(err).Str("user_id", targetID.String()).Msg("failed to invalidate sessions after ban")
 		}
-		s.audit(ctx, actorID, "ban_user", "user", targetID.String())
+		s.auditDetails(ctx, actorID, "ban_user", "user", targetID.String(), reason)
 		s.broadcastBanChange(targetID, true, reason)
 		return nil
 	})
@@ -397,7 +418,7 @@ func (s *service) LockUser(ctx context.Context, actorID uuid.UUID, targetID uuid
 		if err := s.userRepo.LockUser(ctx, targetID, actorID, reason); err != nil {
 			return fmt.Errorf("lock user: %w", err)
 		}
-		s.audit(ctx, actorID, "lock_user", "user", targetID.String())
+		s.auditDetails(ctx, actorID, "lock_user", "user", targetID.String(), reason)
 		s.broadcastLockChange(targetID, true, reason)
 		return nil
 	})
@@ -462,6 +483,168 @@ func (s *service) ResetUserPassword(ctx context.Context, actorID uuid.UUID, targ
 		return "", err
 	}
 	return newPassword, nil
+}
+
+func (s *service) SetUserEmail(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID, email string) error {
+	return s.guardedAction(ctx, actorID, targetID, func() error {
+		previous := s.currentEmail(ctx, targetID)
+
+		if err := s.authSvc.SetEmailForUser(ctx, targetID, email); err != nil {
+			return fmt.Errorf("set email: %w", err)
+		}
+
+		s.auditDetails(ctx, actorID, "set_user_email", "user", targetID.String(), changeDetails(previous, email))
+		return nil
+	})
+}
+
+func (s *service) currentEmail(ctx context.Context, targetID uuid.UUID) string {
+	usr, err := s.userRepo.GetByID(ctx, targetID)
+	if err != nil || usr == nil {
+		return ""
+	}
+	return usr.Email
+}
+
+func (s *service) currentDisplayName(ctx context.Context, targetID uuid.UUID) string {
+	usr, err := s.userRepo.GetByID(ctx, targetID)
+	if err != nil || usr == nil {
+		return ""
+	}
+	return usr.DisplayName
+}
+
+func changeDetails(previous, next string) string {
+	if previous == "" {
+		return next
+	}
+	return fmt.Sprintf("%s -> %s", previous, next)
+}
+
+func (s *service) VerifyUserEmail(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID) error {
+	return s.guardedAction(ctx, actorID, targetID, func() error {
+		if err := s.authSvc.MarkEmailVerified(ctx, targetID); err != nil {
+			return fmt.Errorf("verify email: %w", err)
+		}
+
+		s.audit(ctx, actorID, "verify_user_email", "user", targetID.String())
+		return nil
+	})
+}
+
+func (s *service) UnverifyUserEmail(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID) error {
+	return s.guardedAction(ctx, actorID, targetID, func() error {
+		if err := s.authSvc.MarkEmailUnverified(ctx, targetID); err != nil {
+			return fmt.Errorf("unverify email: %w", err)
+		}
+
+		s.audit(ctx, actorID, "unverify_user_email", "user", targetID.String())
+		return nil
+	})
+}
+
+func (s *service) SetUserDisplayName(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID, displayName string) error {
+	return s.guardedAction(ctx, actorID, targetID, func() error {
+		clamped := userpkg.ClampDisplayName(displayName)
+		if clamped == "" {
+			return ErrEmptyDisplayName
+		}
+
+		previous := s.currentDisplayName(ctx, targetID)
+
+		if err := s.userRepo.SetDisplayName(ctx, targetID, clamped); err != nil {
+			return fmt.Errorf("set display name: %w", err)
+		}
+
+		s.auditDetails(ctx, actorID, "set_display_name", "user", targetID.String(), changeDetails(previous, clamped))
+		s.broadcastDisplayNameChange(targetID, clamped)
+		return nil
+	})
+}
+
+func (s *service) SetDisplayNameLocked(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID, locked bool) error {
+	return s.guardedAction(ctx, actorID, targetID, func() error {
+		if err := s.userRepo.SetDisplayNameLocked(ctx, targetID, locked); err != nil {
+			return fmt.Errorf("set display name lock: %w", err)
+		}
+
+		action := "unlock_display_name"
+		if locked {
+			action = "lock_display_name"
+		}
+		s.audit(ctx, actorID, action, "user", targetID.String())
+		return nil
+	})
+}
+
+func (s *service) broadcastDisplayNameChange(userID uuid.UUID, displayName string) {
+	s.hub.Broadcast(ws.Message{
+		Type: "profile_changed",
+		Data: map[string]any{
+			"user_id":      userID,
+			"display_name": displayName,
+		},
+	})
+}
+
+func (s *service) ForceLogout(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID) error {
+	return s.guardedAction(ctx, actorID, targetID, func() error {
+		if err := s.sessionMgr.DeleteAllForUser(ctx, targetID); err != nil {
+			return fmt.Errorf("delete sessions: %w", err)
+		}
+
+		s.audit(ctx, actorID, "force_logout", "user", targetID.String())
+		return nil
+	})
+}
+
+func (s *service) ListAccountsOnIP(ctx context.Context, targetID uuid.UUID) (*dto.AdminIPMatchesResponse, error) {
+	target, err := s.userRepo.GetByID(ctx, targetID)
+	if err != nil {
+		return nil, fmt.Errorf("get user: %w", err)
+	}
+	if target == nil {
+		return nil, ErrUserNotFound
+	}
+
+	if target.IP == nil || *target.IP == "" {
+		return &dto.AdminIPMatchesResponse{Users: []dto.AdminUserItem{}}, nil
+	}
+
+	users, err := s.userRepo.ListByIP(ctx, *target.IP, targetID)
+	if err != nil {
+		return nil, fmt.Errorf("list users by ip: %w", err)
+	}
+
+	items := make([]dto.AdminUserItem, len(users))
+	for i, u := range users {
+		items[i] = dto.AdminUserItem{
+			ID:          u.ID,
+			Username:    u.Username,
+			DisplayName: u.DisplayName,
+			AvatarURL:   u.AvatarURL,
+			Role:        role.Role(u.Role),
+			Banned:      u.BannedAt != nil,
+			Locked:      u.LockedAt != nil,
+			CreatedAt:   u.CreatedAt,
+		}
+	}
+
+	return &dto.AdminIPMatchesResponse{IP: *target.IP, Users: items}, nil
+}
+
+func (s *service) GetUserAuditLog(ctx context.Context, targetID uuid.UUID, page bounds.Page) (*dto.AuditLogListResponse, error) {
+	entries, total, err := s.auditRepo.ListForUser(ctx, targetID, page.Limit(), page.Offset())
+	if err != nil {
+		return nil, fmt.Errorf("get user audit log: %w", err)
+	}
+
+	return &dto.AuditLogListResponse{
+		Entries: toAuditLogEntries(entries),
+		Total:   total,
+		Limit:   page.Limit(),
+		Offset:  page.Offset(),
+	}, nil
 }
 
 func generatePassword() (string, error) {
@@ -562,26 +745,32 @@ func (s *service) GetAuditLog(ctx context.Context, action string, page bounds.Pa
 		return nil, fmt.Errorf("get audit log: %w", err)
 	}
 
-	items := make([]dto.AuditLogEntryResponse, len(entries))
-	for i, e := range entries {
-		items[i] = dto.AuditLogEntryResponse{
-			ID:         e.ID,
-			ActorID:    e.ActorID,
-			ActorName:  e.ActorName,
-			Action:     e.Action,
-			TargetType: e.TargetType,
-			TargetID:   e.TargetID,
-			Details:    e.Details,
-			CreatedAt:  e.CreatedAt,
-		}
-	}
-
 	return &dto.AuditLogListResponse{
-		Entries: items,
+		Entries: toAuditLogEntries(entries),
 		Total:   total,
 		Limit:   page.Limit(),
 		Offset:  page.Offset(),
 	}, nil
+}
+
+func toAuditLogEntries(entries []repository.AuditLogEntry) []dto.AuditLogEntryResponse {
+	items := make([]dto.AuditLogEntryResponse, len(entries))
+	for i, e := range entries {
+		items[i] = dto.AuditLogEntryResponse{
+			ID:              e.ID,
+			ActorID:         e.ActorID,
+			ActorName:       e.ActorName,
+			Action:          e.Action,
+			TargetType:      e.TargetType,
+			TargetID:        e.TargetID,
+			Details:         e.Details,
+			CreatedAt:       e.CreatedAt,
+			SubjectID:       e.SubjectID,
+			SubjectName:     e.SubjectName,
+			SubjectUsername: e.SubjectUsername,
+		}
+	}
+	return items
 }
 
 func (s *service) CreateInvite(ctx context.Context, actorID uuid.UUID) (*dto.InviteResponse, error) {
@@ -756,7 +945,7 @@ func (s *service) AssignVanityRole(ctx context.Context, actorID uuid.UUID, roleI
 	if err := s.vanityRoleRepo.AssignToUser(ctx, userID, roleID); err != nil {
 		return fmt.Errorf("assign vanity role: %w", err)
 	}
-	s.audit(ctx, actorID, "assign_vanity_role", "vanity_role", roleID+":"+userID.String())
+	s.auditSubject(ctx, actorID, "assign_vanity_role", "vanity_role", roleID, userID)
 	s.broadcastVanityRolesChanged()
 	return nil
 }
@@ -775,7 +964,7 @@ func (s *service) UnassignVanityRole(ctx context.Context, actorID uuid.UUID, rol
 	if err := s.vanityRoleRepo.UnassignFromUser(ctx, userID, roleID); err != nil {
 		return fmt.Errorf("unassign vanity role: %w", err)
 	}
-	s.audit(ctx, actorID, "unassign_vanity_role", "vanity_role", roleID+":"+userID.String())
+	s.auditSubject(ctx, actorID, "unassign_vanity_role", "vanity_role", roleID, userID)
 	s.broadcastVanityRolesChanged()
 	return nil
 }

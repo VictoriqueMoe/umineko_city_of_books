@@ -137,7 +137,7 @@ export function LiveWatchPage() {
     }, [streamID, isLive, wantsRoom, wantsMedia]);
 
     useEffect(() => {
-        if (!user || !isLive || !room || !streamID) {
+        if (!isOwnStream || !isLive || !room || !streamID) {
             return;
         }
 
@@ -183,7 +183,7 @@ export function LiveWatchPage() {
             window.clearTimeout(initial);
             window.clearInterval(interval);
         };
-    }, [user, isLive, room, streamID]);
+    }, [isOwnStream, isLive, room, streamID]);
 
     if (streamQuery.isLoading) {
         return <div className="loading">Loading stream...</div>;

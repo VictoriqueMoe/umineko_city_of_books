@@ -14,7 +14,7 @@ export function ProtectedRoute({ permission }: ProtectedRouteProps) {
         return <div className="loading">Loading...</div>;
     }
 
-    if (!user) {
+    if (!user || user.banned) {
         return <Navigate to="/login" replace />;
     }
 

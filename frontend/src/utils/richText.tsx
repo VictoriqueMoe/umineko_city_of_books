@@ -141,7 +141,7 @@ function parseInline(text: string): InlineNode[] {
             }
             const contentStart = i + rule.open.length;
             const closeIdx = findInlineClose(text, rule.close, contentStart);
-            if (closeIdx === -1) {
+            if (closeIdx === -1 || closeIdx === contentStart) {
                 continue;
             }
             flushText(i);

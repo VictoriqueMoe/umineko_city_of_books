@@ -147,6 +147,12 @@
     margin-bottom: 0.75rem;
 }
 
+.helpText {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
 .pronounRow {
     display: flex;
     align-items: center;

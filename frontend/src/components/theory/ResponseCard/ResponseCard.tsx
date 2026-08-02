@@ -230,7 +230,6 @@ export function ResponseList({
                         {hasThread && (
                             <ThreadReplies
                                 replies={threadReplies}
-                                response={response}
                                 theoryId={theoryId}
                                 series={series}
                                 expanded={expandedThreads.has(response.id)}
@@ -249,7 +248,6 @@ export function ResponseList({
 
 function ThreadReplies({
     replies,
-    response,
     theoryId,
     series = "umineko",
     expanded,
@@ -259,7 +257,6 @@ function ThreadReplies({
     replyTarget,
 }: {
     replies: Array<{ reply: TheoryResponse; mentionedAuthor?: string }>;
-    response: TheoryResponse;
     theoryId: string;
     series?: Series;
     expanded: boolean;
@@ -296,7 +293,7 @@ function ThreadReplies({
                             <ResponseEditor
                                 theoryId={theoryId}
                                 parentId={reply.id}
-                                inheritedSide={response.side}
+                                inheritedSide={reply.side}
                                 onCreated={() => onDeleted?.()}
                                 series={series}
                             />

@@ -15,6 +15,7 @@ type (
 		Username               string
 		PasswordHash           string
 		DisplayName            string
+		DisplayNameLocked      bool
 		CreatedAt              string
 		Bio                    string
 		AvatarURL              string
@@ -139,6 +140,7 @@ func (u *User) ToProfileResponse(stats *UserStats, isSelf bool) *dto.UserProfile
 	}
 	if isSelf {
 		resp.Private = &dto.UserPrivateFields{
+			DisplayNameLocked:     u.DisplayNameLocked,
 			EmailVerified:         u.EmailVerified,
 			VerifyGraceUntil:      u.VerifyGraceUntil,
 			EmailNotifications:    u.EmailNotifications,

@@ -14,7 +14,7 @@ export function AnnouncementsPage() {
     const { announcements, total, loading } = useAnnouncementList(limit, offset);
 
     function preview(body: string): string {
-        const plain = body.replace(/[#*_~`>[\]()!-]/g, "").replace(/\n+/g, " ");
+        const plain = body.replace(/[#*_~`>[\]()]/g, "").replace(/\n+/g, " ");
         if (plain.length > 200) {
             return plain.slice(0, 200) + "...";
         }

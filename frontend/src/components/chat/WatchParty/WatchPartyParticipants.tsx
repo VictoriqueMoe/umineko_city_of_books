@@ -60,6 +60,7 @@ export function WatchPartyParticipants({
         setBusyUserId(rowUserId);
         try {
             await action();
+        } catch {
         } finally {
             setBusyUserId(null);
         }

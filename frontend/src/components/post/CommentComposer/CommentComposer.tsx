@@ -95,15 +95,17 @@ export function CommentComposer({ postId, parentId, onCreated, createCommentFn, 
             const doCreate = createCommentFn || defaultCreate;
             const doUpload = uploadMediaFn || defaultUpload;
             const { id } = await doCreate(postId, body.trim(), parentId);
+            const failedFiles: File[] = [];
             for (const file of files) {
                 try {
                     await doUpload(id, file);
                 } catch (err) {
                     setError(err instanceof Error ? err.message : "Failed to upload media");
+                    failedFiles.push(file);
                 }
             }
             setBody("");
-            setFiles([]);
+            setFiles(failedFiles);
             onCreated();
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to post comment");

@@ -11,7 +11,7 @@ export function AdminDashboard() {
     }
 
     if (!stats) {
-        return null;
+        return <div className={styles.error}>Could not load the statistics.</div>;
     }
 
     return (

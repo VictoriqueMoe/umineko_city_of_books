@@ -18,4 +18,5 @@ var (
 	ErrEmailTaken               = errors.New("that email address is already in use")
 	ErrInvalidVerificationToken = errors.New("verification link is invalid or has expired")
 	ErrEmailAlreadyVerified     = errors.New("your email is already verified")
+	ErrEmailNotVerified         = errors.New("this email address is not verified")
 )

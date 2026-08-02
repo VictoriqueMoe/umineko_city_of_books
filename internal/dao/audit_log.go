@@ -38,6 +38,79 @@ func (r *auditLogDAO) CreateSystem(ctx context.Context, action, targetType, targ
 	return nil
 }
 
+func (r *auditLogDAO) ListForUser(ctx context.Context, userID uuid.UUID, limit, offset int) ([]repository.AuditLogEntry, int, error) {
+	const scope = `((a.target_type = 'user' AND a.target_id = $1) OR a.subject_id = $1::uuid)`
+
+	id := userID.String()
+
+	var total int
+	err := r.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM audit_log a WHERE `+scope, id,
+	).Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("count audit log for user: %w", err)
+	}
+
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT a.id, a.actor_id, COALESCE(u.display_name, ''), a.action, a.target_type, a.target_id, a.details, a.created_at, a.subject_id, COALESCE(s.display_name, ''), COALESCE(s.username, '')
+		 FROM audit_log a
+		 LEFT JOIN users u ON a.actor_id = u.id
+		 LEFT JOIN users s ON a.subject_id = s.id
+		 WHERE `+scope+`
+		 ORDER BY a.created_at DESC
+		 LIMIT $2 OFFSET $3`,
+		id, limit, offset,
+	)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list audit log for user: %w", err)
+	}
+	defer rows.Close()
+
+	entries, err := scanAuditLogRows(rows)
+	if err != nil {
+		return nil, 0, err
+	}
+	return entries, total, rows.Err()
+}
+
+func (r *auditLogDAO) CreateForSubject(ctx context.Context, actorID uuid.UUID, action, targetType, targetID, details string, subjectID uuid.UUID) error {
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO audit_log (actor_id, action, target_type, target_id, details, subject_id) VALUES ($1, $2, $3, $4, $5, $6)`,
+		actorID, action, targetType, targetID, details, subjectID,
+	)
+	if err != nil {
+		return fmt.Errorf("create audit log for subject: %w", err)
+	}
+	return nil
+}
+
+func (r *auditLogDAO) CreateSystemForSubject(ctx context.Context, action, targetType, targetID, details string, subjectID uuid.UUID) error {
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO audit_log (actor_id, action, target_type, target_id, details, subject_id) VALUES (NULL, $1, $2, $3, $4, $5)`,
+		action, targetType, targetID, details, subjectID,
+	)
+	if err != nil {
+		return fmt.Errorf("create system audit log for subject: %w", err)
+	}
+	return nil
+}
+
+func scanAuditLogRows(rows *sql.Rows) ([]repository.AuditLogEntry, error) {
+	var entries []repository.AuditLogEntry
+	for rows.Next() {
+		var e repository.AuditLogEntry
+		var actorID *uuid.UUID
+		if err := rows.Scan(&e.ID, &actorID, &e.ActorName, &e.Action, &e.TargetType, &e.TargetID, &e.Details, &e.CreatedAt, &e.SubjectID, &e.SubjectName, &e.SubjectUsername); err != nil {
+			return nil, fmt.Errorf("scan audit log: %w", err)
+		}
+		if actorID != nil {
+			e.ActorID = *actorID
+		}
+		entries = append(entries, e)
+	}
+	return entries, nil
+}
+
 func (r *auditLogDAO) List(ctx context.Context, action string, limit, offset int) ([]repository.AuditLogEntry, int, error) {
 	where := ""
 	var args []any
@@ -60,9 +133,10 @@ func (r *auditLogDAO) List(ctx context.Context, action string, limit, offset int
 	offsetPlaceholder := fmt.Sprintf("$%d", len(args)+2)
 	args = append(args, limit, offset)
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT a.id, a.actor_id, COALESCE(u.display_name, ''), a.action, a.target_type, a.target_id, a.details, a.created_at
+		`SELECT a.id, a.actor_id, COALESCE(u.display_name, ''), a.action, a.target_type, a.target_id, a.details, a.created_at, a.subject_id, COALESCE(s.display_name, ''), COALESCE(s.username, '')
 		 FROM audit_log a
-		 LEFT JOIN users u ON a.actor_id = u.id`+where+`
+		 LEFT JOIN users u ON a.actor_id = u.id
+		 LEFT JOIN users s ON a.subject_id = s.id`+where+`
 		 ORDER BY a.created_at DESC
 		 LIMIT `+limitPlaceholder+` OFFSET `+offsetPlaceholder, args...,
 	)
@@ -71,17 +145,9 @@ func (r *auditLogDAO) List(ctx context.Context, action string, limit, offset int
 	}
 	defer rows.Close()
 
-	var entries []repository.AuditLogEntry
-	for rows.Next() {
-		var e repository.AuditLogEntry
-		var actorID *uuid.UUID
-		if err := rows.Scan(&e.ID, &actorID, &e.ActorName, &e.Action, &e.TargetType, &e.TargetID, &e.Details, &e.CreatedAt); err != nil {
-			return nil, 0, fmt.Errorf("scan audit log: %w", err)
-		}
-		if actorID != nil {
-			e.ActorID = *actorID
-		}
-		entries = append(entries, e)
+	entries, err := scanAuditLogRows(rows)
+	if err != nil {
+		return nil, 0, err
 	}
 	return entries, total, rows.Err()
 }

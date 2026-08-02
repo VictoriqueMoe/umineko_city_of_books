@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import {
     createArt,
     createArtComment,
@@ -34,12 +34,18 @@ type CreateArtInput = {
 
 type UpdateArtInput = { title: string; description: string; tags: string[]; is_spoiler: boolean };
 
+function invalidateGalleries(qc: QueryClient) {
+    qc.invalidateQueries({ queryKey: ["galleries"] });
+    qc.invalidateQueries({ queryKey: ["gallery"] });
+}
+
 export function useCreateArt() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (input: CreateArtInput) => createArt(input.metadata, input.imageFile),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: queryKeys.art.all });
+            invalidateGalleries(qc);
         },
     });
 }
@@ -60,6 +66,7 @@ export function useDeleteArt() {
         mutationFn: (id: string) => deleteArt(id),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: queryKeys.art.all });
+            invalidateGalleries(qc);
         },
     });
 }
@@ -152,6 +159,7 @@ export function useCreateGallery() {
             createGallery(name, description ?? ""),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: queryKeys.art.all });
+            invalidateGalleries(qc);
         },
     });
 }
@@ -163,6 +171,7 @@ export function useUpdateGallery(id: string) {
             updateGallery(id, name, description ?? ""),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: queryKeys.art.all });
+            invalidateGalleries(qc);
         },
     });
 }
@@ -173,6 +182,7 @@ export function useDeleteGallery() {
         mutationFn: (id: string) => deleteGallery(id),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: queryKeys.art.all });
+            invalidateGalleries(qc);
         },
     });
 }
@@ -183,6 +193,7 @@ export function useSetGalleryCover(id: string) {
         mutationFn: (artId: string) => setGalleryCover(id, artId),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: queryKeys.art.all });
+            invalidateGalleries(qc);
         },
     });
 }
@@ -194,6 +205,7 @@ export function useSetArtGallery() {
             setArtGallery(artId, galleryId),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: queryKeys.art.all });
+            invalidateGalleries(qc);
         },
     });
 }

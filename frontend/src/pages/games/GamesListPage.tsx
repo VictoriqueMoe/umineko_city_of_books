@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { useAuthedUser } from "../../hooks/useAuthedUser";
 import { usePageTitle } from "../../hooks/usePageTitle";
@@ -27,6 +28,7 @@ export function GamesListPage() {
     const { rooms, loading, error, refresh } = useMyGameRooms();
     const declineInvite = useDeclineGameInvite();
     const cancelInvite = useCancelGameInvite();
+    const [actionError, setActionError] = useState("");
 
     const pendingIncoming = rooms.filter(r => r.status === "pending" && r.created_by !== user.id);
     const pendingOutgoing = rooms.filter(r => r.status === "pending" && r.created_by === user.id);
@@ -38,11 +40,12 @@ export function GamesListPage() {
     }
 
     async function handleDecline(room: GameRoom) {
+        setActionError("");
         try {
             await declineInvite.mutateAsync(room.id);
             await refresh();
-        } catch {
-            // ignore
+        } catch (err) {
+            setActionError(err instanceof Error ? err.message : "Could not decline that invite.");
         }
     }
 
@@ -50,11 +53,13 @@ export function GamesListPage() {
         if (!window.confirm("Cancel this invite?")) {
             return;
         }
+
+        setActionError("");
         try {
             await cancelInvite.mutateAsync(room.id);
             await refresh();
-        } catch {
-            // ignore
+        } catch (err) {
+            setActionError(err instanceof Error ? err.message : "Could not cancel that invite.");
         }
     }
 
@@ -93,6 +98,7 @@ export function GamesListPage() {
             </div>
 
             {error && <div className={styles.error}>{error}</div>}
+            {actionError && <div className={styles.error}>{actionError}</div>}
 
             <h3 className={styles.sectionTitle}>Invites for you</h3>
             {loading ? (

@@ -103,13 +103,13 @@ export function useCharacterMood({ state, mySlot, myCharacter, opponentCharacter
 
     if (nextTracked) {
         setTracked(nextTracked);
+        if (idleReverted) {
+            setIdleReverted(false);
+        }
     }
 
     if (detectedReaction && detectedReaction !== reactionMood) {
         setReactionMood(detectedReaction);
-        if (idleReverted) {
-            setIdleReverted(false);
-        }
     }
 
     if (!isPlaying && reactionMood !== null) {

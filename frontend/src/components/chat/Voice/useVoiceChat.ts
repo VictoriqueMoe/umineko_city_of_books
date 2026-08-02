@@ -20,6 +20,7 @@ export function useVoiceChat(roomId: string, initialParticipants: string[] = [])
     const [room, setRoom] = useState<Room | null>(null);
     const [wsPresence, setWsPresence] = useState<{ roomId: string; ids: string[] } | null>(null);
     const roomRef = useRef<Room | null>(null);
+    const joiningRef = useRef(false);
 
     useEffect(() => {
         return addWSListener((msg: WSMessage) => {
@@ -51,10 +52,11 @@ export function useVoiceChat(roomId: string, initialParticipants: string[] = [])
     }, []);
 
     const join = useCallback(() => {
-        if (roomRef.current) {
+        if (roomRef.current || joiningRef.current) {
             return;
         }
 
+        joiningRef.current = true;
         setStatus("connecting");
 
         const connect = async () => {
@@ -87,10 +89,14 @@ export function useVoiceChat(roomId: string, initialParticipants: string[] = [])
             livekitRoom.localParticipant.setMicrophoneEnabled(true).catch(() => {});
         };
 
-        connect().catch(() => {
-            roomRef.current = null;
-            setStatus("idle");
-        });
+        connect()
+            .catch(() => {
+                roomRef.current = null;
+                setStatus("idle");
+            })
+            .finally(() => {
+                joiningRef.current = false;
+            });
     }, [roomId]);
 
     useEffect(() => {

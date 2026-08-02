@@ -35,6 +35,7 @@ export function useMessageHistory(roomId: string | undefined, maxMessages?: numb
     const suppressScrollToBottom = useRef(false);
     const isAtBottomRef = useRef(true);
     const currentRoomIdRef = useRef<string | undefined>(roomId);
+    const messagesRef = useRef<{ roomId: string | undefined; messages: ChatMessage[] }>({ roomId, messages: [] });
     useEffect(() => {
         currentRoomIdRef.current = roomId;
     }, [roomId]);
@@ -151,6 +152,7 @@ export function useMessageHistory(roomId: string | undefined, maxMessages?: numb
                 if (cancelled || currentRoomIdRef.current !== roomId) {
                     return;
                 }
+                messagesRef.current = { roomId, messages: res.messages };
                 setState({
                     roomId,
                     messages: res.messages,
@@ -168,6 +170,7 @@ export function useMessageHistory(roomId: string | undefined, maxMessages?: numb
                 if (cancelled || currentRoomIdRef.current !== roomId) {
                     return;
                 }
+                messagesRef.current = { roomId, messages: [] };
                 setState({ roomId, messages: [], hasMore: false });
             });
 
@@ -178,33 +181,32 @@ export function useMessageHistory(roomId: string | undefined, maxMessages?: numb
 
     const setMessages: Dispatch<SetStateAction<ChatMessage[]>> = useCallback(
         updater => {
-            setState(prev => {
-                const sameRoom = prev.roomId === currentRoomIdRef.current;
-                const base = sameRoom ? prev.messages : [];
-                const next = typeof updater === "function" ? updater(base) : updater;
+            const sameRoom = messagesRef.current.roomId === currentRoomIdRef.current;
+            const base = sameRoom ? messagesRef.current.messages : [];
+            const next = typeof updater === "function" ? updater(base) : updater;
 
-                const canTrim =
-                    maxMessages !== undefined &&
-                    next.length > maxMessages &&
-                    isAtBottomRef.current &&
-                    !suppressScrollToBottom.current;
-                if (canTrim) {
-                    return {
-                        roomId: currentRoomIdRef.current,
-                        messages: next.slice(next.length - maxMessages),
-                        hasMore: true,
-                    };
-                }
+            const canTrim =
+                maxMessages !== undefined &&
+                next.length > maxMessages &&
+                isAtBottomRef.current &&
+                !suppressScrollToBottom.current;
+            const applied = canTrim ? next.slice(next.length - maxMessages) : next;
+            messagesRef.current = { roomId: currentRoomIdRef.current, messages: applied };
 
-                return {
-                    roomId: currentRoomIdRef.current,
-                    messages: next,
-                    hasMore: sameRoom ? prev.hasMore : false,
-                };
-            });
+            setState(prev => ({
+                roomId: currentRoomIdRef.current,
+                messages: applied,
+                hasMore: canTrim || (prev.roomId === currentRoomIdRef.current && prev.hasMore),
+            }));
         },
         [maxMessages],
     );
+
+    const seedMessages = useCallback((seedRoomId: string, seed: ChatMessage[]) => {
+        currentRoomIdRef.current = seedRoomId;
+        messagesRef.current = { roomId: seedRoomId, messages: seed };
+        setState({ roomId: seedRoomId, messages: seed, hasMore: false });
+    }, []);
 
     const setHasMore = useCallback((value: boolean) => {
         setState(prev => ({ ...prev, hasMore: value }));
@@ -284,7 +286,6 @@ export function useMessageHistory(roomId: string | undefined, maxMessages?: numb
                 if (targetCreatedAt) {
                     const cursor = `${targetCreatedAt}|ffffffff-ffff-ffff-ffff-ffffffffffff`;
                     const res = await fetchRoomMessagesBefore(roomId, cursor, PAGE_SIZE);
-                    let foundInBatch = false;
                     setMessages(prev => {
                         const existing = new Set(prev.map(m => m.id));
                         const merged = prev.slice();
@@ -292,9 +293,6 @@ export function useMessageHistory(roomId: string | undefined, maxMessages?: numb
                             if (!existing.has(msg.id)) {
                                 merged.push(msg);
                                 existing.add(msg.id);
-                            }
-                            if (msg.id === messageId) {
-                                foundInBatch = true;
                             }
                         }
                         merged.sort((a, b) => {
@@ -307,36 +305,26 @@ export function useMessageHistory(roomId: string | undefined, maxMessages?: numb
                         });
                         return merged;
                     });
-                    if (foundInBatch) {
+                    if (res.messages.some(m => m.id === messageId)) {
                         return true;
                     }
                 }
                 while (pages < maxPages) {
-                    let found = false;
-                    let oldestCursor = "";
-                    let keepGoing = true;
-                    setMessages(prev => {
-                        found = prev.some(m => m.id === messageId);
-                        if (prev.length === 0) {
-                            keepGoing = false;
-                        } else {
-                            const oldest = prev[0];
-                            oldestCursor = `${oldest.created_at}|${oldest.id}`;
-                        }
-                        return prev;
-                    });
-                    if (found) {
+                    const current = messagesRef.current.roomId === roomId ? messagesRef.current.messages : [];
+                    if (current.some(m => m.id === messageId)) {
                         return true;
                     }
-                    if (!keepGoing) {
+                    if (current.length === 0) {
                         return false;
                     }
-                    const res = await fetchRoomMessagesBefore(roomId, oldestCursor, PAGE_SIZE);
+
+                    const oldest = current[0];
+                    const res = await fetchRoomMessagesBefore(roomId, `${oldest.created_at}|${oldest.id}`, PAGE_SIZE);
                     if (res.messages.length === 0) {
                         setHasMore(false);
                         return false;
                     }
-                    let foundInBatch = false;
+
                     setMessages(prev => {
                         const existing = new Set(prev.map(m => m.id));
                         const olderUnique: ChatMessage[] = [];
@@ -345,13 +333,10 @@ export function useMessageHistory(roomId: string | undefined, maxMessages?: numb
                                 olderUnique.push(msg);
                                 existing.add(msg.id);
                             }
-                            if (msg.id === messageId) {
-                                foundInBatch = true;
-                            }
                         }
                         return [...olderUnique, ...prev];
                     });
-                    if (foundInBatch) {
+                    if (res.messages.some(m => m.id === messageId)) {
                         return true;
                     }
                     pages++;
@@ -415,6 +400,7 @@ export function useMessageHistory(roomId: string | undefined, maxMessages?: numb
     return {
         messages,
         setMessages,
+        seedMessages,
         hasMore,
         loadingMore,
         containerRef,

@@ -59,7 +59,7 @@ export function memberModPermissions(member: ChatRoomMember, ctx: MemberModConte
     }
 
     const canClearTimeout =
-        canModerateRoom && !isSystem && timeoutIsActive && (isSiteMod || !member.timeout_set_by_staff);
+        canModerateRoom && !isSystem && !isSelf && timeoutIsActive && (isSiteMod || !member.timeout_set_by_staff);
 
     const canActOnMember = canKick || canEditNickname || canTimeout || canClearTimeout;
 

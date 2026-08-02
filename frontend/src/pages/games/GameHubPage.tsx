@@ -16,7 +16,6 @@ export function GameHubPage() {
     usePageTitle(def ? def.label : "Games");
     const { data: scoreboard, loading: scoreboardLoading } = useGameScoreboard(def?.type);
     const { rooms: liveRooms, loading: liveLoading } = useLiveGameRooms(def?.type);
-    const loading = scoreboardLoading || liveLoading;
 
     if (!def) {
         return (
@@ -64,7 +63,7 @@ export function GameHubPage() {
             </div>
 
             <h3 className={styles.sectionTitle}>Live now</h3>
-            {loading ? (
+            {liveLoading ? (
                 <p className={styles.empty}>Loading...</p>
             ) : liveRooms.length === 0 ? (
                 <p className={styles.empty}>No {def.label.toLowerCase()} games in progress right now.</p>
@@ -89,7 +88,9 @@ export function GameHubPage() {
             )}
 
             <h3 className={styles.sectionTitle}>Scoreboard</h3>
-            {scoreboardRows.length === 0 ? (
+            {scoreboardLoading ? (
+                <p className={styles.empty}>Loading...</p>
+            ) : scoreboardRows.length === 0 ? (
                 <p className={styles.empty}>No completed games yet. Be the first to finish a match.</p>
             ) : (
                 <table className={styles.scoreboardTable}>

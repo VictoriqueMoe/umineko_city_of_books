@@ -84,6 +84,7 @@
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
+    min-width: 0;
 }
 
 .infoLabel {
@@ -96,6 +97,19 @@
 .infoValue {
     color: var(--text);
     font-size: 0.9rem;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.monoValue {
+    font-family: ui-monospace, "Cascadia Code", "Fira Code", Consolas, "Courier New", monospace;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    letter-spacing: -0.01em;
+}
+
+.wideInfoItem {
+    grid-column: 1 / -1;
 }
 
 .bannedBadge {
@@ -105,6 +119,133 @@
 
 .activeBadge {
     color: #2ecc71;
+}
+
+.mutedBadge {
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.valueRow {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    min-width: 0;
+}
+
+.inlineBadge {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+}
+
+.helpText {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin: 0 0 0.75rem;
+}
+
+.editRow {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.75rem;
+}
+
+.editRow input {
+    flex: 1 1 220px;
+    min-width: 0;
+}
+
+.matchList {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.matchRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.matchMeta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.historyList {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.historyRow {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    font-size: 0.85rem;
+    padding-bottom: 0.6rem;
+    border-bottom: 1px solid rgba(var(--purple-rgb), 0.15);
+}
+
+.historyRow:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.historyMain {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    min-width: 0;
+}
+
+.historyAction {
+    color: var(--gold);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.historyDetails {
+    color: var(--text);
+    overflow-wrap: anywhere;
+}
+
+.historyDetailKey {
+    color: var(--text-muted);
+    opacity: 0.75;
+    margin-right: 0.3rem;
+}
+
+.historyMeta {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    margin-left: auto;
+}
+
+.historyTime {
+    white-space: nowrap;
+}
+
+.emptyState {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-style: italic;
 }
 
 .sectionTitle {

@@ -99,7 +99,7 @@ func (s *Service) updateProfile(ctx fiber.Ctx) error {
 		if utils.MapFilterError(ctx, err) {
 			return nil
 		}
-		if errors.Is(err, profile.ErrIncorrectPassword) {
+		if errors.Is(err, profile.ErrIncorrectPassword) || errors.Is(err, profile.ErrDisplayNameLocked) {
 			return utils.Forbidden(ctx, err.Error())
 		}
 		if errors.Is(err, profile.ErrInvalidDOB) || errors.Is(err, profile.ErrFutureDOB) || errors.Is(err, profile.ErrInvalidDefaultProfileTab) || errors.Is(err, profile.ErrInvalidEmail) || errors.Is(err, profile.ErrEmailTaken) {

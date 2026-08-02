@@ -12,6 +12,7 @@ import {
     deleteGlobalBannedWord,
     deleteInvite,
     deleteVanityRole,
+    forceLogoutUser,
     lockUser,
     pinAnnouncement,
     removeBannedGif,
@@ -19,10 +20,14 @@ import {
     resetUserPassword,
     resolveReport,
     sendTestEmail,
+    setDisplayNameLock,
+    setUserDisplayName,
+    setUserEmail,
     setUserRole,
     unassignVanityRole,
     unbanUser,
     unlockUser,
+    unverifyUserEmail,
     updateAdminSettings,
     updateAnnouncement,
     updateDetectiveScore,
@@ -30,6 +35,7 @@ import {
     updateGMScore,
     updateVanityRole,
     uploadOGDefaultImage,
+    verifyUserEmail,
 } from "../endpoints";
 import type { CreateBannedWordRequest, SiteSettings } from "../../types/api";
 import { queryKeys } from "../queryKeys";
@@ -110,6 +116,57 @@ export function useAdminDeleteUser() {
 export function useResetUserPassword() {
     return useMutation({
         mutationFn: (id: string) => resetUserPassword(id),
+    });
+}
+
+export function useSetUserEmail() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: ({ id, email }: { id: string; email: string }) => setUserEmail(id, email),
+        onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "user"] }),
+    });
+}
+
+export function useVerifyUserEmail() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (id: string) => verifyUserEmail(id),
+        onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "user"] }),
+    });
+}
+
+export function useUnverifyUserEmail() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (id: string) => unverifyUserEmail(id),
+        onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "user"] }),
+    });
+}
+
+export function useSetUserDisplayName() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: ({ id, displayName }: { id: string; displayName: string }) => setUserDisplayName(id, displayName),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ["admin"] });
+            qc.invalidateQueries({ queryKey: ["profile"] });
+        },
+    });
+}
+
+export function useSetDisplayNameLock() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: ({ id, locked }: { id: string; locked: boolean }) => setDisplayNameLock(id, locked),
+        onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "user"] }),
+    });
+}
+
+export function useForceLogoutUser() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (id: string) => forceLogoutUser(id),
+        onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "user"] }),
     });
 }
 

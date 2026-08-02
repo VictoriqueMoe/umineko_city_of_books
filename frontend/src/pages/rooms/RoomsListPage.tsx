@@ -8,6 +8,7 @@ import type { ChatRoom, WSMessage } from "../../types/api";
 import { getUserRooms, listMyChatRooms, listPublicChatRooms } from "../../api/endpoints";
 import { useJoinChatRoom } from "../../api/mutations/chat";
 import { Button } from "../../components/Button/Button";
+import { ErrorBanner } from "../../components/ErrorBanner/ErrorBanner";
 import { Input } from "../../components/Input/Input";
 import { InfoPanel } from "../../components/InfoPanel/InfoPanel";
 import { RulesBox } from "../../components/RulesBox/RulesBox";
@@ -59,6 +60,7 @@ export function RoomsListPage() {
     });
     const [showCreate, setShowCreate] = useState(false);
     const [joining, setJoining] = useState<string | null>(null);
+    const [joinError, setJoinError] = useState("");
     const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
     const joinRoomMutation = useJoinChatRoom();
 
@@ -184,12 +186,14 @@ export function RoomsListPage() {
 
     async function handleJoin(room: ChatRoom, ghost = false) {
         setJoining(room.id);
+        setJoinError("");
         try {
             const joinedRoom = await joinRoomMutation.mutateAsync({ roomId: room.id, ghost });
             qc.invalidateQueries({ queryKey: ["chat", "rooms-list", "joined"] });
             qc.invalidateQueries({ queryKey: ["chat", "rooms-list", "discover"] });
             navigate(`/rooms/${joinedRoom.id}`);
-        } catch {
+        } catch (err) {
+            setJoinError(err instanceof Error ? err.message : "Could not join that room.");
         } finally {
             setJoining(null);
         }
@@ -532,6 +536,7 @@ export function RoomsListPage() {
                 <h2 className={styles.sectionTitle}>
                     Discover Public Rooms{discover.total > 0 ? ` (${discover.total})` : ""}
                 </h2>
+                {joinError && <ErrorBanner message={joinError} />}
                 {discover.loading && discover.items.length === 0 && (
                     <div className="loading">Loading public rooms...</div>
                 )}

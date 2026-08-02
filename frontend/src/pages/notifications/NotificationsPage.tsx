@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePageTitle } from "../../hooks/usePageTitle";
@@ -21,6 +21,8 @@ import { Button } from "../../components/Button/Button";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import styles from "./NotificationsPage.module.css";
 
+const PAGE_SIZE = 50;
+
 export function NotificationsPage() {
     usePageTitle("Notifications");
     const navigate = useNavigate();
@@ -28,15 +30,13 @@ export function NotificationsPage() {
     const queryClient = useQueryClient();
     const [activeFilter, setActiveFilter] = useState<NotificationCategory | "all" | "unread">("unread");
     const [markingId, setMarkingId] = useState<number | null>(null);
+    const [limit, setLimit] = useState(PAGE_SIZE);
 
-    const notifQuery = useNotificationsQuery(50, 0);
+    const notifQuery = useNotificationsQuery(limit, 0);
     const notifications = notifQuery.notifications;
     const total = notifQuery.total;
     const loading = notifQuery.loading;
-    const fetchAll = async () => {
-        await notifQuery.refresh();
-    };
-    const listKey = queryKeys.notifications.list({ limit: 50, offset: 0 });
+    const listKey = useMemo(() => queryKeys.notifications.list({ limit, offset: 0 }), [limit]);
 
     useEffect(() => {
         return addWSListener((msg: WSMessage) => {
@@ -84,13 +84,20 @@ export function NotificationsPage() {
                     }),
                 };
             });
+        } catch {
+            return;
         } finally {
             setMarkingId(current => (current === notif.id ? null : current));
         }
     }
 
     async function handleMarkAllRead() {
-        await markAllRead();
+        try {
+            await markAllRead();
+        } catch {
+            return;
+        }
+
         queryClient.setQueryData<{ notifications: Notification[]; total: number }>(listKey, prev =>
             prev ? { ...prev, notifications: prev.notifications.map(n => ({ ...n, read: true })) } : prev,
         );
@@ -215,7 +222,12 @@ export function NotificationsPage() {
 
                     {hasMore && (
                         <div className={styles.loadMore}>
-                            <Button variant="ghost" size="small" onClick={() => fetchAll()} disabled={loading}>
+                            <Button
+                                variant="ghost"
+                                size="small"
+                                onClick={() => setLimit(current => current + PAGE_SIZE)}
+                                disabled={loading}
+                            >
                                 {loading ? "Loading..." : "Load more"}
                             </Button>
                         </div>

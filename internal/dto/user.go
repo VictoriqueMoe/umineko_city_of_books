@@ -56,6 +56,7 @@ type (
 	}
 
 	UserPrivateFields struct {
+		DisplayNameLocked     bool   `json:"display_name_locked"`
 		EmailVerified         bool   `json:"email_verified"`
 		VerifyGraceUntil      string `json:"verify_grace_until,omitempty"`
 		EmailNotifications    bool   `json:"email_notifications"`

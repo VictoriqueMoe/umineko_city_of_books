@@ -104,12 +104,15 @@ export function useSettingsForm() {
     const uploadingAvatar = uploadAvatarMutation.isPending;
     const uploadingBanner = uploadBannerMutation.isPending;
 
-    const activeDraft: FormDraft =
-        profile && draft.profileId === profile.id ? draft : { profileId: profile?.id ?? null };
+    const draftProfileId = profile?.id ?? null;
+    const activeDraft: FormDraft = draft.profileId === draftProfileId ? draft : { profileId: draftProfileId };
     const baseGender = profile ? deriveGender(profile.gender) : { gender: "Prefer not to say", customGender: "" };
     const basePronouns = profile ? derivePronouns(profile) : { subject: "they", possessive: "their", isCustom: false };
 
-    const displayName = activeDraft.display_name ?? profile?.display_name ?? "";
+    const displayNameLocked = profile?.private?.display_name_locked ?? false;
+    const displayName = displayNameLocked
+        ? (profile?.display_name ?? "")
+        : (activeDraft.display_name ?? profile?.display_name ?? "");
     const bio = activeDraft.bio ?? profile?.bio ?? "";
     const avatarUrl = activeDraft.avatar_url ?? profile?.avatar_url ?? "";
     const bannerUrl = activeDraft.banner_url ?? profile?.banner_url ?? "";
@@ -144,7 +147,7 @@ export function useSettingsForm() {
 
     function patch(update: Partial<FormDraft>) {
         setDraft(prev => {
-            const base = profile && prev.profileId === profile.id ? prev : { profileId: profile?.id ?? null };
+            const base = prev.profileId === draftProfileId ? prev : { profileId: draftProfileId };
             return { ...base, ...update };
         });
     }
@@ -290,6 +293,7 @@ export function useSettingsForm() {
         const sizeErr = validateFileSize(file, siteInfo.max_image_size, siteInfo.max_video_size);
         if (sizeErr) {
             setError(sizeErr);
+            e.target.value = "";
             return;
         }
         setError("");
@@ -298,6 +302,8 @@ export function useSettingsForm() {
             patch({ banner_url: result.banner_url });
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to upload banner.");
+        } finally {
+            e.target.value = "";
         }
     }
 
@@ -371,9 +377,7 @@ export function useSettingsForm() {
             await updateProfileMutation.mutateAsync(payload);
             try {
                 await qc.refetchQueries({ queryKey: ["auth", "me"] });
-            } catch {
-                return;
-            }
+            } catch {}
             setSuccess("Profile updated successfully.");
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to update profile.");
@@ -388,6 +392,7 @@ export function useSettingsForm() {
 
         displayName,
         setDisplayName,
+        displayNameLocked,
         bio,
         setBio,
         avatarUrl,

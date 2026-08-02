@@ -91,6 +91,10 @@ export function useEvidence(initialEvidence?: EvidenceItem[], series: Series = "
 
     const updateNote = useCallback((index: number, note: string) => {
         setEvidence(prev => {
+            if (index < 0 || index >= prev.length) {
+                return prev;
+            }
+
             const updated = [...prev];
             updated[index] = { ...updated[index], note };
             return updated;

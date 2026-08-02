@@ -132,7 +132,7 @@ function routeByReferenceType(notif: Notification): string {
     }
     if (refType.startsWith("secret:")) {
         const parts = refType.split(":");
-        if (parts.length === 2) {
+        if (parts.length === 2 && parts[1] !== "") {
             return `/secrets/${parts[1]}`;
         }
         return "/secrets";
@@ -581,7 +581,7 @@ export function getCategoryLabel(category: NotificationCategory): string {
 }
 
 export function getCategoryOrder(): NotificationCategory[] {
-    return categoryOrder;
+    return [...categoryOrder];
 }
 
 export function groupByCategory(notifications: Notification[]): Map<NotificationCategory, Notification[]> {

@@ -16,7 +16,8 @@ export function SearchPage() {
     const [params, setParams] = useSearchParams();
     const queryParam = params.get("q") ?? "";
     const typeParam = params.get("type") ?? "";
-    const pageParam = Math.max(0, Number(params.get("page") ?? "0"));
+    const parsedPage = Number(params.get("page") ?? "0");
+    const pageParam = Number.isFinite(parsedPage) ? Math.max(0, parsedPage) : 0;
 
     usePageTitle(queryParam ? `Search: ${queryParam}` : "Search");
 

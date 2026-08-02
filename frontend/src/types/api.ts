@@ -167,6 +167,7 @@ export interface UserProfile {
 }
 
 export interface UserPrivateFields {
+    display_name_locked?: boolean;
     email_verified?: boolean;
     verify_grace_until?: string;
     email_notifications?: boolean;
@@ -547,6 +548,8 @@ export interface AdminUserListResponse {
 
 export interface AdminUserDetail extends AdminUserItem {
     email?: string;
+    email_verified: boolean;
+    display_name_locked: boolean;
     ip?: string;
     ban_reason?: string;
     banned_at?: string;
@@ -599,6 +602,9 @@ export interface AuditLogEntry {
     target_id: string;
     details: string;
     created_at: string;
+    subject_id?: string;
+    subject_name?: string;
+    subject_username?: string;
 }
 
 export interface AuditLogListResponse {
@@ -606,6 +612,11 @@ export interface AuditLogListResponse {
     total: number;
     limit: number;
     offset: number;
+}
+
+export interface AdminIPMatches {
+    ip: string;
+    users: AdminUserItem[];
 }
 
 export interface SiteSettings {

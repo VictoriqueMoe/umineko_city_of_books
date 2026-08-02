@@ -90,24 +90,30 @@ export function JournalEntryEditorPage() {
         return <div className="empty-state">You can't edit this journal.</div>;
     }
 
-    async function uploadAllTo(entryId: string) {
+    async function uploadAllTo(entryId: string): Promise<boolean> {
+        let allDone = true;
         for (const file of files) {
             try {
                 await uploadMediaMutation.mutateAsync({ entryId, file });
             } catch (err) {
                 setError(err instanceof Error ? err.message : "Failed to upload media");
+                allDone = false;
             }
         }
+        return allDone;
     }
 
-    async function deletePendingFrom(entryId: string) {
+    async function deletePendingFrom(entryId: string): Promise<boolean> {
+        let allDone = true;
         for (const mediaId of pendingDeletions) {
             try {
                 await deleteMediaMutation.mutateAsync({ entryId, mediaId });
             } catch (err) {
                 setError(err instanceof Error ? err.message : "Failed to remove attachment");
+                allDone = false;
             }
         }
+        return allDone;
     }
 
     function togglePendingDeletion(mediaId: number) {
@@ -126,8 +132,13 @@ export function JournalEntryEditorPage() {
                     id: entry.id,
                     payload: { title: title.trim(), body: body.trim(), is_draft: asDraft },
                 });
-                await deletePendingFrom(entry.id);
-                await uploadAllTo(entry.id);
+                const removed = await deletePendingFrom(entry.id);
+                const uploaded = await uploadAllTo(entry.id);
+                if (!removed || !uploaded) {
+                    setSubmitting(false);
+                    return;
+                }
+
                 if (asDraft) {
                     navigate(`/journals/${journalId}`);
                 } else {
@@ -139,7 +150,12 @@ export function JournalEntryEditorPage() {
                     body: body.trim(),
                     is_draft: asDraft,
                 });
-                await uploadAllTo(result.id);
+                const uploaded = await uploadAllTo(result.id);
+                if (!uploaded) {
+                    setSubmitting(false);
+                    return;
+                }
+
                 if (asDraft) {
                     navigate(`/journals/${journalId}`);
                 } else {

@@ -81,6 +81,69 @@ func TestAuditLogDAO_List_FilterByAction(t *testing.T) {
 	}
 }
 
+func TestAuditLogDAO_ListForUser_ScopesToOneUser(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	actor := daotest.CreateUser(t, repos, daotest.WithUsername("actor"))
+	subject := daotest.CreateUser(t, repos, daotest.WithUsername("subject"))
+	other := daotest.CreateUser(t, repos, daotest.WithUsername("other"))
+	ctx := context.Background()
+	require.NoError(t, repos.AuditLog.Create(ctx, actor.ID, "ban_user", "user", subject.ID.String(), ""))
+	require.NoError(t, repos.AuditLog.Create(ctx, actor.ID, "lock_user", "user", subject.ID.String(), "spam"))
+	require.NoError(t, repos.AuditLog.Create(ctx, actor.ID, "ban_user", "user", other.ID.String(), ""))
+	require.NoError(t, repos.AuditLog.Create(ctx, actor.ID, "update_settings", "settings", subject.ID.String(), ""))
+
+	// when
+	entries, total, err := repos.AuditLog.ListForUser(ctx, subject.ID, 10, 0)
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, 2, total)
+	require.Len(t, entries, 2)
+	for _, e := range entries {
+		assert.Equal(t, "user", e.TargetType)
+		assert.Equal(t, subject.ID.String(), e.TargetID)
+	}
+}
+
+func TestAuditLogDAO_ListForUser_IncludesRoomScopedEvents(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	actor := daotest.CreateUser(t, repos, daotest.WithUsername("moderator"))
+	subject := daotest.CreateUser(t, repos, daotest.WithUsername("offender"))
+	other := daotest.CreateUser(t, repos, daotest.WithUsername("bystander"))
+	roomID := uuid.New()
+	ctx := context.Background()
+	require.NoError(t, repos.AuditLog.CreateForSubject(ctx, actor.ID, "chat_room_ban", "chat_room", roomID.String(), "reason=spam", subject.ID))
+	require.NoError(t, repos.AuditLog.CreateSystemForSubject(ctx, "chat_word_filter_kick", "chat_room", roomID.String(), `pattern="x"`, subject.ID))
+	require.NoError(t, repos.AuditLog.CreateForSubject(ctx, actor.ID, "chat_room_ban", "chat_room", roomID.String(), "", other.ID))
+
+	// when
+	entries, total, err := repos.AuditLog.ListForUser(ctx, subject.ID, 10, 0)
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, 2, total)
+	require.Len(t, entries, 2)
+	for _, e := range entries {
+		assert.Equal(t, "chat_room", e.TargetType)
+		assert.Equal(t, roomID.String(), e.TargetID)
+	}
+}
+
+func TestAuditLogDAO_ListForUser_Empty(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+
+	// when
+	entries, total, err := repos.AuditLog.ListForUser(context.Background(), uuid.New(), 10, 0)
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, 0, total)
+	assert.Empty(t, entries)
+}
+
 func TestAuditLogDAO_List_OrderedByCreatedAtDesc(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)

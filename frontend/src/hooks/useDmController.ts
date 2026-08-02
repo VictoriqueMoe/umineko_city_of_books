@@ -128,6 +128,7 @@ export function useDmController() {
     const {
         messages,
         setMessages,
+        seedMessages,
         hasMore,
         loadingMore,
         containerRef: messagesContainerRef,
@@ -383,7 +384,7 @@ export function useDmController() {
 
                 return [room, ...prev];
             });
-            setMessages([message]);
+            seedMessages(room.id, [message]);
             setActiveRoomId(room.id);
             setDraftRecipient(null);
             navigate(`/chat/${room.id}`, { replace: true });

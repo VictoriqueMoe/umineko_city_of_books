@@ -36,6 +36,7 @@ export function WatchPartyChat({ messages, viewerUserId, onSend }: WatchPartyCha
         try {
             await onSend(body);
             setDraft("");
+        } catch {
         } finally {
             setBusy(false);
             textareaRef.current?.focus();

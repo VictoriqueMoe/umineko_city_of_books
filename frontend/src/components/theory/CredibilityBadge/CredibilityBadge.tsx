@@ -20,7 +20,7 @@ export function CredibilityBadge({ score }: CredibilityBadgeProps) {
     return (
         <span className={styles.badge}>
             <span className={styles.prefix}>Credibility</span>
-            <span className={`${styles.score} ${scoreClass(score)}`}>{rounded}</span>
+            <span className={`${styles.score} ${scoreClass(rounded)}`}>{rounded}</span>
             <span className={styles.infoIcon}>
                 ?
                 <span className={styles.tooltip}>

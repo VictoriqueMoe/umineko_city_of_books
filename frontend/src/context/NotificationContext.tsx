@@ -238,6 +238,9 @@ export function NotificationProvider({ children }: PropsWithChildren) {
         };
 
         socket.onclose = () => {
+            if (wsRef.current !== socket) {
+                return;
+            }
             wsRef.current = null;
             clearKeepaliveTimer();
             if (!wantConnectionRef.current) {

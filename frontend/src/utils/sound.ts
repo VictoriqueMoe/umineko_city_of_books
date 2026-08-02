@@ -4,10 +4,25 @@ const VOICE_JOIN_SOUND = "/sounds/voice-join.wav";
 const VOICE_LEAVE_SOUND = "/sounds/voice-leave.wav";
 const NOTIFICATION_SUPPRESS_MS = 1500;
 const DEFAULT_VOLUME = 0.15;
+const MAX_CACHED_AUDIO = 16;
+const PINNED_SOUNDS = [MESSAGE_SOUND, NOTIFICATION_SOUND, VOICE_JOIN_SOUND, VOICE_LEAVE_SOUND];
 
 const cache = new Map<string, HTMLAudioElement>();
+const priming = new Set<HTMLAudioElement>();
 let lastMessageSoundAt = 0;
 let unlocked = false;
+
+function evictOverflow(): void {
+    for (const src of cache.keys()) {
+        if (cache.size <= MAX_CACHED_AUDIO) {
+            return;
+        }
+        if (PINNED_SOUNDS.includes(src)) {
+            continue;
+        }
+        cache.delete(src);
+    }
+}
 
 function ensureAudio(src: string): HTMLAudioElement {
     let audio = cache.get(src);
@@ -16,6 +31,7 @@ function ensureAudio(src: string): HTMLAudioElement {
         audio.preload = "auto";
         audio.load();
         cache.set(src, audio);
+        evictOverflow();
     }
     return audio;
 }
@@ -29,16 +45,23 @@ function unlockAudio(): void {
     for (let i = 0; i < audios.length; i++) {
         const audio = audios[i];
         const savedVolume = audio.volume;
+        priming.add(audio);
         audio.muted = true;
         audio
             .play()
             .then(() => {
+                if (!priming.delete(audio)) {
+                    return;
+                }
                 audio.pause();
                 audio.currentTime = 0;
                 audio.muted = false;
                 audio.volume = savedVolume;
             })
             .catch(() => {
+                if (!priming.delete(audio)) {
+                    return;
+                }
                 audio.muted = false;
                 audio.volume = savedVolume;
             });
@@ -52,6 +75,8 @@ for (let i = 0; i < UNLOCK_EVENTS.length; i++) {
 
 function play(src: string, volume = DEFAULT_VOLUME): void {
     const audio = ensureAudio(src);
+    priming.delete(audio);
+    audio.muted = false;
     audio.volume = volume;
     if (audio.readyState > 0) {
         audio.currentTime = 0;

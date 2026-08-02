@@ -6,8 +6,11 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -56,7 +59,7 @@ func TestResolver_Resolve_DefaultImage(t *testing.T) {
 			r := newTestResolver(t, tc.ogDefaultImage)
 
 			// when
-			html := r.Resolve(context.Background(), tc.path)
+			html := r.Resolve(context.Background(), tc.path, "")
 
 			// then
 			assert.Contains(t, html, `property="og:image" content="`+tc.wantImage+`"`)
@@ -75,13 +78,170 @@ func TestResolver_Resolve_SiteName(t *testing.T) {
 	r := &Resolver{settingsSvc: ss, baseHTML: testBaseHTML, baseURL: "https://example.com"}
 
 	// when
-	html := r.Resolve(context.Background(), "/")
+	html := r.Resolve(context.Background(), "/", "")
 
 	// then
 	assert.Contains(t, html, `<title>Custom Site</title>`)
 	assert.Contains(t, html, `property="og:title" content="Custom Site"`)
 	assert.Contains(t, html, `property="og:site_name" content="Custom Site"`)
 	assert.Contains(t, html, `property="og:description" content="A custom description"`)
+}
+
+func TestResolver_Resolve_WatchParty(t *testing.T) {
+	roomID := uuid.New()
+	partyID := uuid.New()
+	otherRoomID := uuid.New()
+
+	tests := []struct {
+		name      string
+		session   *repository.ChatWatchPartySessionRow
+		wantTitle string
+	}{
+		{
+			name:      "party title wins over room name",
+			session:   &repository.ChatWatchPartySessionRow{ID: partyID, RoomID: roomID, Title: "Umineko Episode 4", Status: "active"},
+			wantTitle: "Umineko Episode 4 - Watch Party in Rokkenjima",
+		},
+		{
+			name:      "untitled party falls back to a generic label",
+			session:   &repository.ChatWatchPartySessionRow{ID: partyID, RoomID: roomID, Title: "", Status: "active"},
+			wantTitle: "Watch Party in Rokkenjima",
+		},
+		{
+			name:      "party belonging to another room is ignored",
+			session:   &repository.ChatWatchPartySessionRow{ID: partyID, RoomID: otherRoomID, Title: "Somewhere Else", Status: "active"},
+			wantTitle: "Rokkenjima - Chat Room",
+		},
+		{
+			name:      "missing party falls back to the room",
+			session:   nil,
+			wantTitle: "Rokkenjima - Chat Room",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			ss := settings.NewMockService(t)
+			ss.EXPECT().Get(mock.Anything, config.SettingOGDefaultImage).Return("")
+			ss.EXPECT().Get(mock.Anything, config.SettingSiteName).Return("")
+			ss.EXPECT().Get(mock.Anything, config.SettingSiteDescription).Return("")
+
+			chatRepo := repository.NewMockChatRepository(t)
+			chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, uuid.Nil).
+				Return(&repository.ChatRoomRow{ID: roomID, Name: "Rokkenjima", Description: "A room", Type: dto.RoomTypeGroup, IsPublic: true}, nil)
+
+			partyRepo := repository.NewMockChatWatchPartyRepository(t)
+			partyRepo.EXPECT().GetByID(mock.Anything, partyID).Return(tc.session, nil)
+
+			r := &Resolver{
+				settingsSvc:    ss,
+				chatRepo:       chatRepo,
+				watchPartyRepo: partyRepo,
+				baseHTML:       testBaseHTML,
+				baseURL:        "https://example.com",
+			}
+
+			// when
+			html := r.Resolve(context.Background(), "/rooms/"+roomID.String(), partyID.String())
+
+			// then
+			assert.Contains(t, html, `property="og:title" content="`+tc.wantTitle+`"`)
+		})
+	}
+}
+
+func TestResolver_Resolve_IgnoresNonUUIDPartyParam(t *testing.T) {
+	// given
+	roomID := uuid.New()
+
+	ss := settings.NewMockService(t)
+	ss.EXPECT().Get(mock.Anything, config.SettingOGDefaultImage).Return("")
+	ss.EXPECT().Get(mock.Anything, config.SettingSiteName).Return("")
+	ss.EXPECT().Get(mock.Anything, config.SettingSiteDescription).Return("")
+
+	chatRepo := repository.NewMockChatRepository(t)
+	chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, uuid.Nil).
+		Return(&repository.ChatRoomRow{ID: roomID, Name: "Rokkenjima", Type: dto.RoomTypeGroup, IsPublic: true}, nil)
+
+	r := &Resolver{
+		settingsSvc: ss,
+		chatRepo:    chatRepo,
+		baseHTML:    testBaseHTML,
+		baseURL:     "https://example.com",
+	}
+
+	// when
+	html := r.Resolve(context.Background(), "/rooms/"+roomID.String(), "not-a-uuid")
+
+	// then
+	assert.Contains(t, html, `property="og:title" content="Rokkenjima - Chat Room"`)
+}
+
+func TestResolver_Resolve_HidesRoomsThatAreNotPubliclyListed(t *testing.T) {
+	roomID := uuid.New()
+
+	tests := []struct {
+		name   string
+		room   *repository.ChatRoomRow
+		secret string
+	}{
+		{name: "private group room", room: &repository.ChatRoomRow{ID: roomID, Name: "Rokkenjima Conspiracy", Description: "Plotting", Type: dto.RoomTypeGroup, IsPublic: false}, secret: "Rokkenjima Conspiracy"},
+		{name: "direct message", room: &repository.ChatRoomRow{ID: roomID, Name: "Battler and Beatrice", Description: "Private", Type: dto.RoomTypeDM, IsPublic: false}, secret: "Battler and Beatrice"},
+		{name: "system room", room: &repository.ChatRoomRow{ID: roomID, Name: "Moderator Log", Type: dto.RoomTypeGroup, IsPublic: true, IsSystem: true}, secret: "Moderator Log"},
+		{name: "room does not exist", room: nil, secret: "should-not-appear"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			ss := settings.NewMockService(t)
+			ss.EXPECT().Get(mock.Anything, config.SettingOGDefaultImage).Return("")
+			ss.EXPECT().Get(mock.Anything, config.SettingSiteName).Return("")
+			ss.EXPECT().Get(mock.Anything, config.SettingSiteDescription).Return("")
+
+			chatRepo := repository.NewMockChatRepository(t)
+			chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, uuid.Nil).Return(tc.room, nil)
+
+			r := &Resolver{settingsSvc: ss, chatRepo: chatRepo, baseHTML: testBaseHTML, baseURL: "https://example.com"}
+
+			// when
+			html := r.Resolve(context.Background(), "/rooms/"+roomID.String(), "")
+
+			// then
+			assert.NotContains(t, html, tc.secret)
+			assert.Contains(t, html, `property="og:title" content="When They Cry City of Books"`)
+		})
+	}
+}
+
+func TestResolver_Resolve_HidesWatchPartyInPrivateRoom(t *testing.T) {
+	// given
+	roomID := uuid.New()
+	partyID := uuid.New()
+
+	ss := settings.NewMockService(t)
+	ss.EXPECT().Get(mock.Anything, config.SettingOGDefaultImage).Return("")
+	ss.EXPECT().Get(mock.Anything, config.SettingSiteName).Return("")
+	ss.EXPECT().Get(mock.Anything, config.SettingSiteDescription).Return("")
+
+	chatRepo := repository.NewMockChatRepository(t)
+	chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, uuid.Nil).
+		Return(&repository.ChatRoomRow{ID: roomID, Name: "Rokkenjima Conspiracy", Type: dto.RoomTypeGroup, IsPublic: false}, nil)
+
+	partyRepo := repository.NewMockChatWatchPartyRepository(t)
+	partyRepo.EXPECT().GetByID(mock.Anything, partyID).
+		Return(&repository.ChatWatchPartySessionRow{ID: partyID, RoomID: roomID, Title: "Secret Screening", Status: "active"}, nil)
+
+	r := &Resolver{settingsSvc: ss, chatRepo: chatRepo, watchPartyRepo: partyRepo, baseHTML: testBaseHTML, baseURL: "https://example.com"}
+
+	// when
+	html := r.Resolve(context.Background(), "/rooms/"+roomID.String(), partyID.String())
+
+	// then
+	assert.NotContains(t, html, "Secret Screening")
+	assert.NotContains(t, html, "Rokkenjima Conspiracy")
+	assert.Contains(t, html, `property="og:title" content="When They Cry City of Books"`)
 }
 
 func TestResolver_OGImageURL(t *testing.T) {

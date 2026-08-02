@@ -42,7 +42,7 @@ function SharedMediaGrid({ content }: { content: SharedContentPreview }) {
             className={`${styles.mediaGrid} ${count === 1 ? styles.mediaGrid1 : count === 2 ? styles.mediaGrid2 : styles.mediaGrid4}`}
         >
             {items.map((m, i) =>
-                m.media_type.startsWith("video/") ? (
+                m.media_type === "video" ? (
                     <video key={i} src={m.media_url} className={styles.mediaGridItem} muted />
                 ) : (
                     <img

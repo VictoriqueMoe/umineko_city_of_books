@@ -549,7 +549,7 @@ export function useWatchParty(roomId: string | null, viewerUserId: string | null
     return {
         enabled,
         screenShareEnabled,
-        loaded: stateMatches,
+        loaded: !!roomId && stateMatches,
         sessions,
         activeSession,
         openSessionId: activeSessionId,

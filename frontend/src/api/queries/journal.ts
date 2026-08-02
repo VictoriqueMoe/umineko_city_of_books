@@ -43,6 +43,14 @@ export function useJournalFeed(
     const limit = 20;
     const [offset, setOffset] = useState(0);
 
+    const filterKey = JSON.stringify([sort, work, search, includeArchived, authorId]);
+    const [activeFilterKey, setActiveFilterKey] = useState(filterKey);
+
+    if (activeFilterKey !== filterKey) {
+        setActiveFilterKey(filterKey);
+        setOffset(0);
+    }
+
     const params = { sort, work, search, includeArchived, authorId, offset, limit };
     const query = useQuery({
         queryKey: queryKeys.journal.feed(params),

@@ -28,6 +28,20 @@ function readLegacyVisited(userId: string): Record<string, string> | null {
     }
 }
 
+function isNewer(candidate: string, existing: string): boolean {
+    const candidateDate = parseServerDate(candidate);
+    if (!candidateDate) {
+        return false;
+    }
+
+    const existingDate = parseServerDate(existing);
+    if (!existingDate) {
+        return true;
+    }
+
+    return candidateDate.getTime() > existingDate.getTime();
+}
+
 function clearLegacyVisited(userId: string): void {
     try {
         window.localStorage.removeItem(legacyStorageKey(userId));
@@ -47,13 +61,18 @@ export function useSidebarBadges() {
 
     const [activityOverlay, setActivityOverlay] = useState<Record<string, string>>({});
 
-    const latestActivity = useMemo<Record<string, string>>(
-        () => ({
-            ...(activityResp?.activity ?? {}),
-            ...activityOverlay,
-        }),
-        [activityResp, activityOverlay],
-    );
+    const latestActivity = useMemo<Record<string, string>>(() => {
+        const merged: Record<string, string> = { ...(activityResp?.activity ?? {}) };
+
+        for (const [key, at] of Object.entries(activityOverlay)) {
+            const serverAt = merged[key];
+            if (!serverAt || isNewer(at, serverAt)) {
+                merged[key] = at;
+            }
+        }
+
+        return merged;
+    }, [activityResp, activityOverlay]);
     const lastVisited = useMemo<Record<string, string>>(() => visitedResp?.visited ?? {}, [visitedResp]);
 
     useEffect(() => {
@@ -105,7 +124,7 @@ export function useSidebarBadges() {
             const at = data.at;
             setActivityOverlay(prev => {
                 const existing = prev[key] ?? activityResp?.activity?.[key];
-                if (existing && existing >= at) {
+                if (existing && !isNewer(at, existing)) {
                     return prev;
                 }
                 return { ...prev, [key]: at };

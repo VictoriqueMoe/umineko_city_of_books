@@ -283,7 +283,7 @@ export function CreateMysteryPage() {
                                 <option value="purple">Purple</option>
                             </Select>
                             {clues.length > 1 && (
-                                <Button variant="ghost" size="small" onClick={() => removeClue(i)}>
+                                <Button variant="ghost" size="small" type="button" onClick={() => removeClue(i)}>
                                     {"\u2715"}
                                 </Button>
                             )}

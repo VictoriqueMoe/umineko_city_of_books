@@ -359,7 +359,7 @@ func (s *watchPartyService) KickWatchPartyParticipant(ctx context.Context, roomI
 	s.postWatchPartySystemMessage(ctx, roomID, session.ID, body)
 
 	details := mustJSON(map[string]any{"room_id": roomID, "target_user_id": targetID})
-	if err := s.auditRepo.Create(ctx, callerID, "watch_party.kick", "chat_watch_party_session", session.ID.String(), details); err != nil {
+	if err := s.auditRepo.CreateForSubject(ctx, callerID, "watch_party.kick", "chat_watch_party_session", session.ID.String(), details, targetID); err != nil {
 		logger.Log.Warn().Err(err).Msg("audit watch_party.kick failed")
 	}
 
@@ -459,7 +459,7 @@ func (s *watchPartyService) GrantWatchPartyControl(ctx context.Context, roomID, 
 	s.postControlChangeSystemMessage(ctx, roomID, session.ID, callerID, targetID, reason)
 
 	details := mustJSON(map[string]any{"room_id": roomID, "target_user_id": targetID})
-	if err := s.auditRepo.Create(ctx, callerID, "watch_party.grant_control", "chat_watch_party_session", session.ID.String(), details); err != nil {
+	if err := s.auditRepo.CreateForSubject(ctx, callerID, "watch_party.grant_control", "chat_watch_party_session", session.ID.String(), details, targetID); err != nil {
 		logger.Log.Warn().Err(err).Msg("audit watch_party.grant_control failed")
 	}
 

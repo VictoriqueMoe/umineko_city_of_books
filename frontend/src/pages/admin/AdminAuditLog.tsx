@@ -1,12 +1,24 @@
 import { useState } from "react";
+import { Link } from "react-router";
 import { useAuditLog } from "../../api/queries/admin";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { Pagination } from "../../components/Pagination/Pagination";
 import { Select } from "../../components/Select/Select";
+import {
+    AUDIT_ACTION_LABELS,
+    auditActionLabel,
+    auditTargetLabel,
+    parseAuditDetails,
+    shortId,
+} from "../../utils/auditLog";
 import { formatFullDateTime } from "../../utils/time";
 import styles from "./AdminAuditLog.module.css";
 
 const LIMIT = 50;
+
+const FILTERABLE_ACTIONS = Object.keys(AUDIT_ACTION_LABELS).sort((a, b) =>
+    AUDIT_ACTION_LABELS[a].localeCompare(AUDIT_ACTION_LABELS[b]),
+);
 
 export function AdminAuditLog() {
     usePageTitle("Admin - Audit Log");
@@ -28,14 +40,11 @@ export function AdminAuditLog() {
                 <span className={styles.filterLabel}>Filter by action:</span>
                 <Select value={actionFilter} onChange={e => handleFilterChange(e.target.value)}>
                     <option value="">All Actions</option>
-                    <option value="set_role">Set Role</option>
-                    <option value="remove_role">Remove Role</option>
-                    <option value="ban_user">Ban User</option>
-                    <option value="unban_user">Unban User</option>
-                    <option value="delete_user">Delete User</option>
-                    <option value="delete_theory">Delete Theory</option>
-                    <option value="delete_response">Delete Response</option>
-                    <option value="update_settings">Update Settings</option>
+                    {FILTERABLE_ACTIONS.map(action => (
+                        <option key={action} value={action}>
+                            {auditActionLabel(action)}
+                        </option>
+                    ))}
                 </Select>
             </div>
 
@@ -51,11 +60,10 @@ export function AdminAuditLog() {
                             <table className={styles.table}>
                                 <thead>
                                     <tr>
-                                        <th>Timestamp</th>
-                                        <th>Actor</th>
+                                        <th>When</th>
                                         <th>Action</th>
-                                        <th>Target Type</th>
-                                        <th>Target ID</th>
+                                        <th>Subject</th>
+                                        <th>By</th>
                                         <th>Details</th>
                                     </tr>
                                 </thead>
@@ -65,17 +73,48 @@ export function AdminAuditLog() {
                                             <td className={styles.timestampCell}>
                                                 {formatFullDateTime(entry.created_at)}
                                             </td>
-                                            <td>{entry.actor_name}</td>
-                                            <td>{entry.action}</td>
-                                            <td>{entry.target_type}</td>
                                             <td>
-                                                <span className={styles.targetId} title={entry.target_id}>
-                                                    {entry.target_id}
+                                                <span className={styles.action}>{auditActionLabel(entry.action)}</span>
+                                                <span className={styles.targetType}>
+                                                    {auditTargetLabel(entry.target_type)}
+                                                    {entry.target_id && (
+                                                        <span className={styles.targetId} title={entry.target_id}>
+                                                            {" "}
+                                                            {shortId(entry.target_id)}
+                                                        </span>
+                                                    )}
                                                 </span>
                                             </td>
                                             <td>
+                                                {entry.subject_id ? (
+                                                    <Link
+                                                        to={`/admin/users/${entry.subject_id}`}
+                                                        className={styles.subjectLink}
+                                                    >
+                                                        {entry.subject_name || entry.subject_username}
+                                                    </Link>
+                                                ) : entry.target_type === "user" && entry.target_id ? (
+                                                    <Link
+                                                        to={`/admin/users/${entry.target_id}`}
+                                                        className={styles.subjectLink}
+                                                    >
+                                                        {shortId(entry.target_id)}
+                                                    </Link>
+                                                ) : (
+                                                    <span className={styles.muted}>&mdash;</span>
+                                                )}
+                                            </td>
+                                            <td>{entry.actor_name || <span className={styles.muted}>system</span>}</td>
+                                            <td>
                                                 <span className={styles.details} title={entry.details}>
-                                                    {entry.details}
+                                                    {parseAuditDetails(entry.details).map((part, i) => (
+                                                        <span key={i} className={styles.detailPart}>
+                                                            {part.key && (
+                                                                <span className={styles.detailKey}>{part.key}</span>
+                                                            )}
+                                                            <span className={styles.detailValue}>{part.value}</span>
+                                                        </span>
+                                                    ))}
                                                 </span>
                                             </td>
                                         </tr>

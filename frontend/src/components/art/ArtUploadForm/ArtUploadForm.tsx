@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import type { Gallery } from "../../../types/api";
 import { useCreateArt, useSetArtGallery } from "../../../api/mutations/art";
@@ -99,6 +99,14 @@ export function ArtUploadForm({
     }
 
     const preview = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
+
+    useEffect(() => {
+        if (!preview) {
+            return;
+        }
+
+        return () => URL.revokeObjectURL(preview);
+    }, [preview]);
 
     if (!inline && !open) {
         return (

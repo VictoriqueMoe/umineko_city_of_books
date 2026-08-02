@@ -193,7 +193,7 @@ export function useRoomController() {
     const setRoom: Dispatch<SetStateAction<ChatRoom | null>> = useCallback(
         updater => {
             setRoomOverride(prev => {
-                const baseValue = prev.roomId === roomId && prev.room ? prev.room : null;
+                const baseValue = prev.roomId === roomId && prev.room ? prev.room : baseRoom;
                 const next =
                     typeof updater === "function"
                         ? (updater as (p: ChatRoom | null) => ChatRoom | null)(baseValue)
@@ -201,7 +201,7 @@ export function useRoomController() {
                 return { roomId: roomId ?? null, room: next };
             });
         },
-        [roomId],
+        [roomId, baseRoom],
     );
 
     const membersQuery = useChatRoomMembers(roomId ?? "", !!roomId && !!room);

@@ -456,6 +456,95 @@ func TestUserDAO_UpdateIP(t *testing.T) {
 	assert.Equal(t, "10.0.0.1", *got.IP)
 }
 
+func TestUserDAO_MarkEmailUnverified(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	user := daotest.CreateUser(t, repos)
+	require.NoError(t, repos.User.MarkEmailVerified(context.Background(), user.ID))
+
+	// when
+	err := repos.User.MarkEmailUnverified(context.Background(), user.ID)
+
+	// then
+	require.NoError(t, err)
+	got, err := repos.User.GetByID(context.Background(), user.ID)
+	require.NoError(t, err)
+	assert.False(t, got.EmailVerified)
+}
+
+func TestUserDAO_SetDisplayName(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	user := daotest.CreateUser(t, repos)
+
+	// when
+	err := repos.User.SetDisplayName(context.Background(), user.ID, "Renamed By Staff")
+
+	// then
+	require.NoError(t, err)
+	got, err := repos.User.GetByID(context.Background(), user.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "Renamed By Staff", got.DisplayName)
+}
+
+func TestUserDAO_SetDisplayNameLocked(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	user := daotest.CreateUser(t, repos)
+
+	// when
+	err := repos.User.SetDisplayNameLocked(context.Background(), user.ID, true)
+
+	// then
+	require.NoError(t, err)
+	got, err := repos.User.GetByID(context.Background(), user.ID)
+	require.NoError(t, err)
+	assert.True(t, got.DisplayNameLocked)
+
+	// when
+	err = repos.User.SetDisplayNameLocked(context.Background(), user.ID, false)
+
+	// then
+	require.NoError(t, err)
+	got, err = repos.User.GetByID(context.Background(), user.ID)
+	require.NoError(t, err)
+	assert.False(t, got.DisplayNameLocked)
+}
+
+func TestUserDAO_ListByIP(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	ip := "2a00:23c8:ec30:1001:65c3:a122:a356:90c4"
+	target := daotest.CreateUser(t, repos, daotest.WithUsername("target"))
+	alt := daotest.CreateUser(t, repos, daotest.WithUsername("alt"))
+	elsewhere := daotest.CreateUser(t, repos, daotest.WithUsername("elsewhere"))
+	require.NoError(t, repos.User.UpdateIP(context.Background(), target.ID, ip))
+	require.NoError(t, repos.User.UpdateIP(context.Background(), alt.ID, ip))
+	require.NoError(t, repos.User.UpdateIP(context.Background(), elsewhere.ID, "10.0.0.1"))
+
+	// when
+	got, err := repos.User.ListByIP(context.Background(), ip, target.ID)
+
+	// then
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	assert.Equal(t, alt.ID, got[0].ID)
+}
+
+func TestUserDAO_ListByIP_NoMatches(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	target := daotest.CreateUser(t, repos)
+	require.NoError(t, repos.User.UpdateIP(context.Background(), target.ID, "10.0.0.1"))
+
+	// when
+	got, err := repos.User.ListByIP(context.Background(), "10.0.0.1", target.ID)
+
+	// then
+	require.NoError(t, err)
+	assert.Empty(t, got)
+}
+
 func TestUserDAO_UpdateGameBoardSort(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
