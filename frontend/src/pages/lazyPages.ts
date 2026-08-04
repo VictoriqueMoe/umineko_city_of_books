@@ -145,3 +145,4 @@ export const SnakesAndLaddersGamePage = named(
 //  Live Streaming
 export const LiveDirectoryPage = named(() => import("./live/LiveDirectory"), "LiveDirectory");
 export const LiveWatchPage = named(() => import("./live/LiveWatchPage"), "LiveWatchPage");
+export const StreamChatPopoutPage = named(() => import("./live/StreamChatPopout"), "StreamChatPopout");

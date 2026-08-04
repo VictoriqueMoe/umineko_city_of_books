@@ -19,9 +19,9 @@ import {
 import { linkify } from "../../utils/linkify";
 import { renderColours } from "../../utils/colours";
 import { extractGif } from "../../utils/gif";
-import { relativeTime } from "../../utils/time.ts";
 import { GifEmbed } from "../../components/GifEmbed/GifEmbed";
 import { MediaGallery } from "../../components/post/MediaGallery/MediaGallery";
+import { RelativeTimestamp } from "../../components/RelativeTimestamp/RelativeTimestamp";
 import type { PostComment } from "../../types/api";
 import styles from "./JournalEntryPage.module.css";
 
@@ -124,7 +124,7 @@ export function JournalEntryPage() {
             <div className={styles.entry}>
                 <div className={styles.meta}>
                     <ProfileLink user={journal.author} size="small" />
-                    <span>{relativeTime(entry.created_at)}</span>
+                    <RelativeTimestamp value={entry.created_at} />
                     {entry.updated_at && entry.updated_at !== entry.created_at && <span>(edited)</span>}
                 </div>
                 <h1 className={styles.title}>

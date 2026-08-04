@@ -15,10 +15,10 @@ import {
     groupByCategory,
     isContentEditedNotification,
     type NotificationCategory,
-    relativeTime,
 } from "../../utils/notifications";
 import { Button } from "../../components/Button/Button";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
+import { RelativeTimestamp } from "../../components/RelativeTimestamp/RelativeTimestamp";
 import styles from "./NotificationsPage.module.css";
 
 const PAGE_SIZE = 50;
@@ -176,7 +176,9 @@ export function NotificationsPage() {
                                                 <NotificationText notif={notif} />
                                             </div>
                                             <div className={styles.itemFooter}>
-                                                <div className={styles.itemTime}>{relativeTime(notif.created_at)}</div>
+                                                <div className={styles.itemTime}>
+                                                    <RelativeTimestamp value={notif.created_at} />
+                                                </div>
                                                 {!notif.read && (
                                                     <button
                                                         type="button"
@@ -272,7 +274,9 @@ function CategorySection({
                                 <NotificationText notif={notif} />
                             </div>
                             <div className={styles.itemFooter}>
-                                <div className={styles.itemTime}>{relativeTime(notif.created_at)}</div>
+                                <div className={styles.itemTime}>
+                                    <RelativeTimestamp value={notif.created_at} />
+                                </div>
                                 {!notif.read && (
                                     <button
                                         type="button"

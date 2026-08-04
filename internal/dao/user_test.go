@@ -30,6 +30,7 @@ func sampleProfileRequest() dto.UpdateProfileRequest {
 		SocialWaifulist:        "wl",
 		SocialTumblr:           "tb",
 		SocialGithub:           "gh",
+		SocialBluesky:          "bsky",
 		Website:                "https://example.com",
 		DmsEnabled:             true,
 		EpisodeProgress:        4,
@@ -362,6 +363,7 @@ func TestUserDAO_UpdateProfile(t *testing.T) {
 	assert.Equal(t, req.SocialWaifulist, got.SocialWaifulist)
 	assert.Equal(t, req.SocialTumblr, got.SocialTumblr)
 	assert.Equal(t, req.SocialGithub, got.SocialGithub)
+	assert.Equal(t, req.SocialBluesky, got.SocialBluesky)
 	assert.Equal(t, req.Website, got.Website)
 	assert.Equal(t, req.DmsEnabled, got.DmsEnabled)
 	assert.Equal(t, req.EpisodeProgress, got.EpisodeProgress)

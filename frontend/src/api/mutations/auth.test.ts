@@ -78,6 +78,7 @@ function makeProfilePayload(overrides: Partial<UpdateProfilePayload> = {}): Upda
         social_waifulist: "",
         social_tumblr: "",
         social_github: "",
+        social_bluesky: "",
         website: "",
         dms_enabled: true,
         episode_progress: 8,

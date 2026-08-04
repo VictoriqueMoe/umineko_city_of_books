@@ -5,9 +5,9 @@ import { useAuth } from "../../../hooks/useAuth";
 import { can } from "../../../utils/permissions";
 import { extractGif } from "../../../utils/gif";
 import { renderRich } from "../../../utils/richText";
-import { shortRelativeTime } from "../../../utils/time";
 import { GifEmbed } from "../../GifEmbed/GifEmbed";
 import { ProfileLink } from "../../ProfileLink/ProfileLink";
+import { RelativeTimestamp } from "../../RelativeTimestamp/RelativeTimestamp";
 import { MediaGallery } from "../MediaGallery/MediaGallery";
 import { PostEmbeds } from "../PostEmbeds/PostEmbeds";
 import { CommentComposer } from "../CommentComposer/CommentComposer";
@@ -145,7 +145,7 @@ function SingleComment({
                 <ProfileLink user={comment.author} size="small" />
                 {replyToName && <span className={styles.replyTo}>@{replyToName}</span>}
                 <span className={styles.time}>
-                    {shortRelativeTime(comment.created_at)}
+                    <RelativeTimestamp value={comment.created_at} variant="short" />
                     {comment.updated_at && " (edited)"}
                 </span>
             </div>

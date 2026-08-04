@@ -120,7 +120,7 @@ describe("JournalCard", () => {
         renderWithProviders(<JournalCard journal={journal} />);
 
         // then
-        expect(screen.getByText("· 2h ago")).toBeInTheDocument();
+        expect(screen.getByText("2h ago").parentElement).toHaveTextContent("· 2h ago");
     });
 
     it("leaves the timestamp off when the latest entry has no date", () => {
@@ -181,6 +181,6 @@ describe("JournalCard", () => {
         renderWithProviders(<JournalCard journal={journal} />);
 
         // then
-        expect(screen.getByText("Last update 2d ago")).toBeInTheDocument();
+        expect(screen.getByText("2d ago").parentElement).toHaveTextContent("Last update 2d ago");
     });
 });

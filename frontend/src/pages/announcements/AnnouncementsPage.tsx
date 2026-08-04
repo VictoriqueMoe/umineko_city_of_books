@@ -4,7 +4,7 @@ import { usePageTitle } from "../../hooks/usePageTitle";
 import { useAnnouncementList } from "../../api/queries/announcement";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { Pagination } from "../../components/Pagination/Pagination";
-import { relativeTime } from "../../utils/notifications";
+import { RelativeTimestamp } from "../../components/RelativeTimestamp/RelativeTimestamp";
 import styles from "./AnnouncementsPage.module.css";
 
 export function AnnouncementsPage() {
@@ -44,7 +44,7 @@ export function AnnouncementsPage() {
                         </div>
                         <div className={styles.cardMeta}>
                             <ProfileLink user={a.author} size="small" clickable={false} />
-                            <span>{relativeTime(a.created_at)}</span>
+                            <RelativeTimestamp value={a.created_at} />
                         </div>
                         <p className={styles.cardPreview}>{preview(a.body)}</p>
                     </Link>

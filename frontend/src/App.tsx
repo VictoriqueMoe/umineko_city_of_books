@@ -102,6 +102,7 @@ import {
     ShipsListPage,
     SnakesAndLaddersGamePage,
     SocialFeedPage,
+    StreamChatPopoutPage,
     SuggestionsPage,
     TheoryPage,
     UsersPage,
@@ -191,6 +192,8 @@ function SecretClosedToast() {
 
 const CHAT_LAYOUT_ROUTES = [/^\/rooms\/[^/]+$/, /^\/chat(\/|$)/, /^\/live\/[^/]+$/];
 
+const STREAM_CHAT_POPOUT_ROUTE = /^\/live\/[^/]+\/chat$/;
+
 function isChatLayoutPath(pathname: string): boolean {
     for (const pattern of CHAT_LAYOUT_ROUTES) {
         if (pattern.test(pathname)) {
@@ -199,6 +202,10 @@ function isChatLayoutPath(pathname: string): boolean {
     }
 
     return false;
+}
+
+function isStreamChatPopoutPath(pathname: string): boolean {
+    return STREAM_CHAT_POPOUT_ROUTE.test(pathname);
 }
 
 function AppLayout() {
@@ -236,6 +243,16 @@ function AppLayout() {
     if (siteInfo.maintenance_mode && !canAccessAdmin(user?.role)) {
         return (
             <MaintenancePage title={siteInfo.maintenance_title ?? ""} message={siteInfo.maintenance_message ?? ""} />
+        );
+    }
+
+    if (isStreamChatPopoutPath(pathname)) {
+        return (
+            <Suspense fallback={<RouteFallback />}>
+                <Routes>
+                    <Route path="/live/:streamID/chat" element={<StreamChatPopoutPage />} />
+                </Routes>
+            </Suspense>
         );
     }
 

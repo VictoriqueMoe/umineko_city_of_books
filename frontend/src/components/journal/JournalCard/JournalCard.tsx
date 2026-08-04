@@ -1,8 +1,8 @@
 import { Link } from "react-router";
 import type { Journal } from "../../../types/api";
 import { ProfileLink } from "../../ProfileLink/ProfileLink";
+import { RelativeTimestamp } from "../../RelativeTimestamp/RelativeTimestamp";
 import { workLabel } from "../../../utils/journalWorks";
-import { relativeTime } from "../../../utils/time";
 import styles from "./JournalCard.module.css";
 
 interface JournalCardProps {
@@ -38,7 +38,7 @@ export function JournalCard({ journal }: JournalCardProps) {
                     </span>
                     {journal.latest_entry_at && (
                         <span className={styles.latestWhen}>
-                            {"·"} {relativeTime(journal.latest_entry_at)}
+                            {"·"} <RelativeTimestamp value={journal.latest_entry_at} />
                         </span>
                     )}
                 </div>
@@ -54,7 +54,9 @@ export function JournalCard({ journal }: JournalCardProps) {
                 <span>
                     {"💬"} {journal.comment_count}
                 </span>
-                <span className={styles.activity}>Last update {relativeTime(journal.last_author_activity_at)}</span>
+                <span className={styles.activity}>
+                    Last update <RelativeTimestamp value={journal.last_author_activity_at} />
+                </span>
             </div>
         </div>
     );

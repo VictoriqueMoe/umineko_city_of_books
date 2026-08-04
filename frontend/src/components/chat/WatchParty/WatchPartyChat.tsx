@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { WatchPartyMessage } from "../../../types/api";
 import { Button } from "../../Button/Button";
 import { ProfileLink } from "../../ProfileLink/ProfileLink";
-import { formatTimeOfDay } from "../../../utils/time";
+import { RelativeTimestamp } from "../../RelativeTimestamp/RelativeTimestamp";
 import styles from "./WatchParty.module.css";
 
 interface WatchPartyChatProps {
@@ -60,7 +60,11 @@ export function WatchPartyChat({ messages, viewerUserId, onSend }: WatchPartyCha
                         return (
                             <div key={m.id} className={styles.chatSystem}>
                                 <span className={styles.chatSystemBody}>{m.body}</span>
-                                <span className={styles.chatSystemTime}>{formatTimeOfDay(m.created_at)}</span>
+                                <RelativeTimestamp
+                                    value={m.created_at}
+                                    variant="timeOnly"
+                                    className={styles.chatSystemTime}
+                                />
                             </div>
                         );
                     }
@@ -72,7 +76,11 @@ export function WatchPartyChat({ messages, viewerUserId, onSend }: WatchPartyCha
                         <div key={m.id} className={`${styles.chatMsg}${isSelf ? ` ${styles.chatMsgSelf}` : ""}`}>
                             <div className={styles.chatMsgHeader}>
                                 <ProfileLink user={m.sender} size="small" />
-                                <span className={styles.chatMsgTime}>{formatTimeOfDay(m.created_at)}</span>
+                                <RelativeTimestamp
+                                    value={m.created_at}
+                                    variant="timeOnly"
+                                    className={styles.chatMsgTime}
+                                />
                             </div>
                             <div className={styles.chatMsgBody}>{m.body}</div>
                         </div>

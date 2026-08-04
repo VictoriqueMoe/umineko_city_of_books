@@ -20,13 +20,21 @@ import styles from "./live.module.css";
 
 const MAX_LIVE_MESSAGES = 50;
 
-export function StreamChatPanel({ streamId, isLive }: { streamId: string; isLive: boolean }) {
+interface StreamChatPanelProps {
+    streamId: string;
+    isLive: boolean;
+    onPopOut?: () => void;
+}
+
+export function StreamChatPanel({ streamId, isLive, onPopOut }: StreamChatPanelProps) {
     const { user } = useAuth();
 
     if (!user) {
         return (
             <div className={styles.chatPanel}>
-                <div className={styles.chatHeader}>Stream chat</div>
+                <div className={styles.chatHeader}>
+                    <span>Stream chat</span>
+                </div>
                 <div className={styles.chatLoginPrompt}>
                     <Link to="/login">Log in</Link> to join the chat.
                 </div>
@@ -34,10 +42,20 @@ export function StreamChatPanel({ streamId, isLive }: { streamId: string; isLive
         );
     }
 
-    return <StreamChatPanelInner key={streamId} streamId={streamId} user={user} isLive={isLive} />;
+    return <StreamChatPanelInner key={streamId} streamId={streamId} user={user} isLive={isLive} onPopOut={onPopOut} />;
 }
 
-function StreamChatPanelInner({ streamId, user, isLive }: { streamId: string; user: UserProfile; isLive: boolean }) {
+function StreamChatPanelInner({
+    streamId,
+    user,
+    isLive,
+    onPopOut,
+}: {
+    streamId: string;
+    user: UserProfile;
+    isLive: boolean;
+    onPopOut?: () => void;
+}) {
     const { addWSListener } = useNotifications();
     const blockedIDs = useBlockedUserIds();
     const [joined, setJoined] = useState(false);
@@ -139,7 +157,20 @@ function StreamChatPanelInner({ streamId, user, isLive }: { streamId: string; us
 
     return (
         <div className={styles.chatPanel}>
-            <div className={styles.chatHeader}>Stream chat</div>
+            <div className={styles.chatHeader}>
+                <span>Stream chat</span>
+                {onPopOut && (
+                    <button
+                        type="button"
+                        className={styles.chatPopOutBtn}
+                        onClick={onPopOut}
+                        title="Open chat in its own window"
+                        aria-label="Open chat in its own window"
+                    >
+                        {"⧉"}
+                    </button>
+                )}
+            </div>
             <div className={styles.chatMessages} ref={containerRef} onScroll={handleScroll}>
                 <div ref={contentRef} className={styles.chatContent}>
                     {isLive && joinError && <div className={styles.chatNotice}>Couldn't join the chat.</div>}

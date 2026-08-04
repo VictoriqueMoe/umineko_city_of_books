@@ -12,7 +12,7 @@ import { Input } from "../../components/Input/Input";
 import { InfoPanel } from "../../components/InfoPanel/InfoPanel";
 import { RulesBox } from "../../components/RulesBox/RulesBox";
 import { ToggleSwitch } from "../../components/ToggleSwitch/ToggleSwitch";
-import { relativeTime } from "../../utils/notifications";
+import { RelativeTimestamp } from "../../components/RelativeTimestamp/RelativeTimestamp";
 import { PieceTrigger } from "../../features/easterEgg";
 import styles from "./FanficPages.module.css";
 
@@ -359,9 +359,11 @@ export function FanfictionListPage() {
                                     <span>{f.series}</span>
                                     <span>{f.language}</span>
                                     {f.updated_at ? (
-                                        <span>Updated {relativeTime(f.updated_at)}</span>
+                                        <span>
+                                            Updated <RelativeTimestamp value={f.updated_at} />
+                                        </span>
                                     ) : (
-                                        <span>{relativeTime(f.published_at)}</span>
+                                        <RelativeTimestamp value={f.published_at} />
                                     )}
                                 </div>
 

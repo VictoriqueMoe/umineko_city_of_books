@@ -207,7 +207,7 @@ describe("LiveStrip", () => {
         renderStrip("umineko");
 
         // then
-        expect(screen.getByText("last 2h ago")).toBeInTheDocument();
+        expect(screen.getByText("2h ago").parentElement).toHaveTextContent("last 2h ago");
     });
 
     it("says nothing about a last post when there has never been one", () => {

@@ -36,6 +36,7 @@ export function makeUser(overrides: Partial<UserProfile> = {}): UserProfile {
         social_waifulist: "",
         social_tumblr: "",
         social_github: "",
+        social_bluesky: "",
         website: "",
         dms_enabled: true,
         episode_progress: 0,

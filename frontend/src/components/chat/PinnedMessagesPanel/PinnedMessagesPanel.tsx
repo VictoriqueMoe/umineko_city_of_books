@@ -4,7 +4,7 @@ import type { ChatMessage } from "../../../types/api";
 import { useChatRoomPinnedMessages } from "../../../api/queries/chat";
 import { useUnpinChatMessage } from "../../../api/mutations/chat";
 import { queryKeys } from "../../../api/queryKeys";
-import { parseServerDate } from "../../../utils/time";
+import { RelativeTimestamp } from "../../RelativeTimestamp/RelativeTimestamp";
 import styles from "./PinnedMessagesPanel.module.css";
 
 interface PinnedMessagesPanelProps {
@@ -15,19 +15,6 @@ interface PinnedMessagesPanelProps {
     canUnpin: boolean;
     refreshKey?: number;
     onLightbox?: (src: string) => void;
-}
-
-function formatDateTime(iso: string): string {
-    const d = parseServerDate(iso);
-    if (!d) {
-        return "";
-    }
-    return d.toLocaleString([], {
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-    });
 }
 
 function senderDisplayName(msg: ChatMessage): string {
@@ -129,11 +116,11 @@ export function PinnedMessagesPanel({
                                         )}
                                         <div className={styles.pinMetaText}>
                                             <span className={styles.pinSender}>{senderDisplayName(m)}</span>
-                                            <span className={styles.pinTime}>
-                                                {m.pinned_at
-                                                    ? formatDateTime(m.pinned_at)
-                                                    : formatDateTime(m.created_at)}
-                                            </span>
+                                            <RelativeTimestamp
+                                                value={m.pinned_at ? m.pinned_at : m.created_at}
+                                                variant="dateTime"
+                                                className={styles.pinTime}
+                                            />
                                         </div>
                                     </div>
                                     {m.body && <div className={styles.pinBody}>{m.body}</div>}

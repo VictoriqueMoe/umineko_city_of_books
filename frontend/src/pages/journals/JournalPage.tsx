@@ -25,10 +25,10 @@ import { ReportButton } from "../../components/ReportButton/ReportButton";
 import { linkify } from "../../utils/linkify";
 import { renderColours } from "../../utils/colours";
 import { extractGif } from "../../utils/gif";
-import { relativeTime } from "../../utils/time.ts";
 import { workLabel } from "../../utils/journalWorks";
 import { GifEmbed } from "../../components/GifEmbed/GifEmbed";
 import { MediaGallery } from "../../components/post/MediaGallery/MediaGallery";
+import { RelativeTimestamp } from "../../components/RelativeTimestamp/RelativeTimestamp";
 import styles from "./JournalPage.module.css";
 
 function entryHeading(number: number, title?: string | null): string {
@@ -130,7 +130,7 @@ export function JournalPage() {
                 </div>
                 <div className={styles.meta}>
                     <ProfileLink user={journal.author} size="small" />
-                    <span>{relativeTime(journal.created_at)}</span>
+                    <RelativeTimestamp value={journal.created_at} />
                     {journal.updated_at && <span>(edited)</span>}
                     <span className={styles.followerCount}>
                         {"★"} {journal.follower_count} follower{journal.follower_count === 1 ? "" : "s"}
@@ -169,7 +169,7 @@ export function JournalPage() {
                 <div className={styles.latestSpotlight}>
                     <div className={styles.spotlightHeader}>
                         <span className={styles.spotlightTag}>Latest update</span>
-                        <span className={styles.spotlightWhen}>{relativeTime(latestEntry.created_at)}</span>
+                        <RelativeTimestamp value={latestEntry.created_at} className={styles.spotlightWhen} />
                     </div>
                     <h2 className={styles.spotlightTitle}>
                         <Link to={`/journals/${journal.id}/entry/${latestEntry.entry_number}`}>
@@ -229,7 +229,7 @@ export function JournalPage() {
                                     <span className={styles.tocItemTitle}>{entryHeading(e.entry_number, e.title)}</span>
                                     {e.is_draft && <span className={styles.draftBadge}>Draft</span>}
                                     <span className={styles.tocItemMeta}>
-                                        {e.word_count} words {"·"} {relativeTime(e.created_at)}
+                                        {e.word_count} words {"·"} <RelativeTimestamp value={e.created_at} />
                                     </span>
                                 </Link>
                             </li>

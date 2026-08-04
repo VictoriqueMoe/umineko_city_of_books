@@ -147,6 +147,7 @@ export interface UserProfile {
     social_waifulist: string;
     social_tumblr: string;
     social_github: string;
+    social_bluesky: string;
     website: string;
     dms_enabled: boolean;
     episode_progress: number;
@@ -205,6 +206,7 @@ export interface UpdateProfilePayload {
     social_waifulist: string;
     social_tumblr: string;
     social_github: string;
+    social_bluesky: string;
     website: string;
     dms_enabled: boolean;
     episode_progress: number;

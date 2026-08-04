@@ -128,6 +128,22 @@ export function formatActiveLabel(dateStr: string | null | undefined): string {
     return `Active ${d.toLocaleDateString()}`;
 }
 
+const EXACT_DATE_TIME_OPTIONS: Intl.DateTimeFormatOptions = { dateStyle: "long", timeStyle: "short" };
+const EXACT_DATE_TIME_FORMAT = new Intl.DateTimeFormat(undefined, EXACT_DATE_TIME_OPTIONS);
+
+export function formatExactDateTime(dateStr: string | null | undefined, locale?: string | string[]): string {
+    const d = parseServerDate(dateStr);
+    if (!d) {
+        return "";
+    }
+
+    if (locale === undefined) {
+        return EXACT_DATE_TIME_FORMAT.format(d);
+    }
+
+    return new Intl.DateTimeFormat(locale, EXACT_DATE_TIME_OPTIONS).format(d);
+}
+
 export function formatFullDateTime(dateStr: string | null | undefined, locale?: string | string[]): string {
     const d = parseServerDate(dateStr);
     if (!d) {
@@ -150,4 +166,19 @@ export function formatTimeOfDay(dateStr: string | null | undefined, locale?: str
         return "";
     }
     return d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
+}
+
+const SHORT_DATE_TIME_FORMAT = new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+});
+
+export function formatShortDateTime(dateStr: string | null | undefined): string {
+    const d = parseServerDate(dateStr);
+    if (!d) {
+        return "";
+    }
+    return SHORT_DATE_TIME_FORMAT.format(d);
 }

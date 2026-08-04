@@ -519,7 +519,12 @@ describe("ProfilePage social links", () => {
     it("turns a bare handle into a link to the service", () => {
         // given
         mocks.useProfile.mockReturnValue({
-            profile: makeProfile({ social_twitter: "beato", social_github: "beato", social_tumblr: "beato" }),
+            profile: makeProfile({
+                social_twitter: "beato",
+                social_github: "beato",
+                social_bluesky: "beato",
+                social_tumblr: "beato",
+            }),
             loading: false,
         });
 
@@ -531,7 +536,60 @@ describe("ProfilePage social links", () => {
             "https://x.com/beato",
             "https://beato.tumblr.com",
             "https://github.com/beato",
+            "https://bsky.app/profile/beato",
         ]);
+    });
+
+    it("labels the bluesky handle the player shared", () => {
+        // given
+        mocks.useProfile.mockReturnValue({
+            profile: makeProfile({ social_bluesky: "beato.bsky.social" }),
+            loading: false,
+        });
+
+        // when
+        renderProfile();
+
+        // then
+        expect(screen.getByText("Bluesky")).toBeInTheDocument();
+        expect(screen.getByRole("link", { name: "beato.bsky.social" })).toHaveAttribute(
+            "href",
+            "https://bsky.app/profile/beato.bsky.social",
+        );
+    });
+
+    it("drops the leading at sign from a bluesky handle", () => {
+        // given
+        mocks.useProfile.mockReturnValue({
+            profile: makeProfile({ social_bluesky: "@beato.bsky.social" }),
+            loading: false,
+        });
+
+        // when
+        renderProfile();
+
+        // then
+        expect(screen.getByRole("link", { name: "@beato.bsky.social" })).toHaveAttribute(
+            "href",
+            "https://bsky.app/profile/beato.bsky.social",
+        );
+    });
+
+    it("leaves a full bluesky address exactly as the player gave it", () => {
+        // given
+        mocks.useProfile.mockReturnValue({
+            profile: makeProfile({ social_bluesky: "https://bsky.app/profile/beato.bsky.social" }),
+            loading: false,
+        });
+
+        // when
+        renderProfile();
+
+        // then
+        expect(screen.getByRole("link", { name: "https://bsky.app/profile/beato.bsky.social" })).toHaveAttribute(
+            "href",
+            "https://bsky.app/profile/beato.bsky.social",
+        );
     });
 
     it("sends a bare waifulist handle out to waifulist", () => {

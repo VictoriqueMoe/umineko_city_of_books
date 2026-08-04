@@ -3,8 +3,8 @@ import * as api from "../../../api/endpoints.ts";
 import type { SpectatorChatResponse, SpectatorMessage, WSMessage } from "../../../types/api.ts";
 import { useAuth } from "../../../hooks/useAuth.ts";
 import { useNotifications } from "../../../hooks/useNotifications.ts";
-import { formatTimeOfDay } from "../../../utils/time.ts";
 import { Button } from "../../Button/Button.tsx";
+import { RelativeTimestamp } from "../../RelativeTimestamp/RelativeTimestamp.tsx";
 import styles from "./SpectatorChat.module.css";
 
 export type GameChatVariant = "spectator" | "player";
@@ -143,7 +143,11 @@ export function GameChat({ roomId, variant, watcherCount = 0 }: GameChatProps) {
                         <div key={m.id} className={styles.message}>
                             <div className={styles.messageHeader}>
                                 <span className={styles.author}>{m.user.display_name}</span>
-                                <span className={styles.timestamp}>{formatTimeOfDay(m.created_at)}</span>
+                                <RelativeTimestamp
+                                    value={m.created_at}
+                                    variant="timeOnly"
+                                    className={styles.timestamp}
+                                />
                             </div>
                             <span className={styles.body}>{m.body}</span>
                         </div>

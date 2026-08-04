@@ -564,6 +564,16 @@ export function SettingsPage() {
                                 />
                             </label>
                             <label className={styles.label}>
+                                Bluesky
+                                <Input
+                                    type="text"
+                                    fullWidth
+                                    value={form.socialBluesky}
+                                    onChange={e => form.setSocialBluesky(e.target.value)}
+                                    placeholder="username.bsky.social"
+                                />
+                            </label>
+                            <label className={styles.label}>
                                 Website
                                 <Input
                                     type="text"

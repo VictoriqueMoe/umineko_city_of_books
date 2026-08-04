@@ -16,7 +16,7 @@ import {
 import { useAuth } from "../../hooks/useAuth";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { CommentsSection } from "../../components/post/CommentsSection/CommentsSection";
-import { relativeTime } from "../../utils/notifications";
+import { RelativeTimestamp } from "../../components/RelativeTimestamp/RelativeTimestamp";
 import styles from "./AnnouncementsPage.module.css";
 
 function renderMarkdown(md: string): string {
@@ -72,7 +72,7 @@ export function AnnouncementDetailPage() {
                 <h1 className={styles.detailTitle}>{announcement.title}</h1>
                 <div className={styles.detailMeta}>
                     <ProfileLink user={announcement.author} size="small" />
-                    <span>{relativeTime(announcement.created_at)}</span>
+                    <RelativeTimestamp value={announcement.created_at} />
                     {announcement.updated_at !== announcement.created_at && <span>(edited)</span>}
                 </div>
                 <div className={styles.body} dangerouslySetInnerHTML={{ __html: renderMarkdown(announcement.body) }} />

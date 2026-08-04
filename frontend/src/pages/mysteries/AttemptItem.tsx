@@ -10,8 +10,8 @@ import { useAuth } from "../../hooks/useAuth";
 import { can } from "../../utils/permissions";
 import { Button } from "../../components/Button/Button";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
+import { RelativeTimestamp } from "../../components/RelativeTimestamp/RelativeTimestamp";
 import { ReportButton } from "../../components/ReportButton/ReportButton";
-import { relativeTime } from "../../utils/notifications";
 import { siteUrl } from "../../utils/siteOrigin";
 import styles from "./MysteryPages.module.css";
 
@@ -117,7 +117,7 @@ function SingleAttempt({
             <div className={styles.attemptHeader}>
                 <ProfileLink user={attempt.author} size="small" />
                 {replyToName && <span className={styles.replyTo}>@{replyToName}</span>}
-                <span>{relativeTime(attempt.created_at)}</span>
+                <RelativeTimestamp value={attempt.created_at} />
                 {attempt.is_winner && <span className={styles.winnerBadge}>Winner</span>}
             </div>
             <div className={styles.attemptBody}>{attempt.body}</div>

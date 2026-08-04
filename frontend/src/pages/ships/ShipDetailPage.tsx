@@ -22,7 +22,7 @@ import { Input } from "../../components/Input/Input";
 import { Lightbox } from "../../components/Lightbox/Lightbox";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { CommentsSection } from "../../components/post/CommentsSection/CommentsSection";
-import { relativeTime } from "../../utils/notifications";
+import { RelativeTimestamp } from "../../components/RelativeTimestamp/RelativeTimestamp";
 import { CharacterPicker } from "../../components/CharacterPicker/CharacterPicker";
 import { MentionTextArea } from "../../components/MentionTextArea/MentionTextArea";
 import { renderRich } from "../../utils/richText";
@@ -246,7 +246,7 @@ export function ShipDetailPage() {
                                     <h1 className={styles.detailTitle}>{ship.title}</h1>
                                     <div className={styles.detailMeta}>
                                         <ProfileLink user={ship.author} size="small" />
-                                        <span>{relativeTime(ship.created_at)}</span>
+                                        <RelativeTimestamp value={ship.created_at} />
                                         {ship.is_crackship && <span className={styles.crackshipBadge}>Crackship</span>}
                                     </div>
                                     <CharacterPills characters={ship.characters} />

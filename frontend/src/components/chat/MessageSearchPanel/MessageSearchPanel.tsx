@@ -3,7 +3,7 @@ import DOMPurify from "dompurify";
 import type { SearchResult } from "../../../types/api";
 import { useRoomMessageSearch } from "../../../api/queries/search";
 import { Pagination } from "../../Pagination/Pagination";
-import { parseServerDate } from "../../../utils/time";
+import { RelativeTimestamp } from "../../RelativeTimestamp/RelativeTimestamp";
 import styles from "./MessageSearchPanel.module.css";
 
 const PAGE_LIMIT = 30;
@@ -13,19 +13,6 @@ interface MessageSearchPanelProps {
     isOpen: boolean;
     onClose: () => void;
     onJump: (messageId: string, createdAt?: string) => void;
-}
-
-function formatDateTime(iso: string): string {
-    const d = parseServerDate(iso);
-    if (!d) {
-        return "";
-    }
-    return d.toLocaleString([], {
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-    });
 }
 
 function sanitiseSnippet(input: string): string {
@@ -105,7 +92,11 @@ export function MessageSearchPanel({ roomId, isOpen, onClose, onJump }: MessageS
                                     )}
                                     <div className={styles.resultMetaText}>
                                         <span className={styles.resultSender}>{name}</span>
-                                        <span className={styles.resultTime}>{formatDateTime(r.created_at)}</span>
+                                        <RelativeTimestamp
+                                            value={r.created_at}
+                                            variant="dateTime"
+                                            className={styles.resultTime}
+                                        />
                                     </div>
                                 </div>
                                 {r.snippet && (
