@@ -615,7 +615,6 @@ describe("useWatchParty identify", () => {
         // then
         expect(result.current.error).toBeNull();
     });
-
 });
 
 describe("useWatchParty socket events", () => {

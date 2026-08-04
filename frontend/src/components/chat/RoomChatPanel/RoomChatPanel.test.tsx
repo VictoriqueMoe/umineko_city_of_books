@@ -78,18 +78,15 @@ function renderPanel(
     user: UserProfile | null = viewer,
 ) {
     const listeners: ((msg: WSMessage) => void)[] = [];
-    const result = renderWithProviders(
-        <RoomChatPanel roomId="session-7" title="Party chat" canSend {...props} />,
-        {
-            user,
-            notification: {
-                addWSListener: listener => {
-                    listeners.push(listener);
-                    return () => {};
-                },
+    const result = renderWithProviders(<RoomChatPanel roomId="session-7" title="Party chat" canSend {...props} />, {
+        user,
+        notification: {
+            addWSListener: listener => {
+                listeners.push(listener);
+                return () => {};
             },
         },
-    );
+    });
 
     return { ...result, listeners };
 }
