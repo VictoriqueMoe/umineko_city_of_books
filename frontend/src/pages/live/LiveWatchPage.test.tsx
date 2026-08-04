@@ -1,6 +1,6 @@
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { LiveStream } from "../../api/endpoints";
 import { makeUser } from "../../test-utils/fixtures";
 import { createTestQueryClient, renderWithProviders } from "../../test-utils/render";
@@ -63,9 +63,14 @@ vi.mock("../../api/endpoints", () => ({
 vi.mock("../../hooks/useIsMobile", () => ({ useIsMobile: mocks.useIsMobile }));
 
 vi.mock("./StreamChatPanel", () => ({
-    StreamChatPanel: (props: { streamId: string; isLive: boolean }) => (
+    StreamChatPanel: (props: { streamId: string; isLive: boolean; onPopOut?: () => void }) => (
         <div data-testid="stream-chat" data-live={String(props.isLive)}>
             {props.streamId}
+            {props.onPopOut && (
+                <button type="button" onClick={props.onPopOut}>
+                    Pop out
+                </button>
+            )}
         </div>
     ),
 }));
@@ -572,5 +577,162 @@ describe("LiveWatchPage live updates", () => {
 
         // then
         expect(screen.getByRole("heading", { name: "Reading Episode 4" })).toBeInTheDocument();
+    });
+});
+
+describe("LiveWatchPage popping the chat out", () => {
+    const restoreLabel = "Chat is in its own window. Bring it back";
+
+    function stubWindowOpen(opened: Partial<Window> | null) {
+        const open = vi.fn(() => opened as Window | null);
+        vi.stubGlobal("open", open);
+
+        return open;
+    }
+
+    function makePopout() {
+        return { focus: vi.fn(), close: vi.fn() };
+    }
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+    });
+
+    it("opens the chat in a window of its own", async () => {
+        // given
+        const open = stubWindowOpen(makePopout());
+        renderWatch({ streamID: "stream-7" });
+        await screen.findByTestId("stream-chat");
+
+        // when
+        await userEvent.click(screen.getByRole("button", { name: "Pop out" }));
+
+        // then
+        expect(open).toHaveBeenCalledWith(
+            "/live/stream-7/chat",
+            "stream-chat-stream-7",
+            expect.stringContaining("popup=yes"),
+        );
+    });
+
+    it("brings the popped out window to the front", async () => {
+        // given
+        const popout = makePopout();
+        stubWindowOpen(popout);
+        renderWatch();
+        await screen.findByTestId("stream-chat");
+
+        // when
+        await userEvent.click(screen.getByRole("button", { name: "Pop out" }));
+
+        // then
+        expect(popout.focus).toHaveBeenCalled();
+    });
+
+    it("gives the sidebar space back to the video once the chat is popped out", async () => {
+        // given
+        stubWindowOpen(makePopout());
+        renderWatch();
+        await screen.findByTestId("stream-chat");
+
+        // when
+        await userEvent.click(screen.getByRole("button", { name: "Pop out" }));
+
+        // then
+        expect(screen.queryByTestId("stream-chat")).not.toBeInTheDocument();
+        expect(screen.getByRole("button", { name: restoreLabel })).toBeInTheDocument();
+    });
+
+    it("leaves the chat where it is when the browser blocks the popup", async () => {
+        // given
+        stubWindowOpen(null);
+        renderWatch();
+        await screen.findByTestId("stream-chat");
+
+        // when
+        await userEvent.click(screen.getByRole("button", { name: "Pop out" }));
+
+        // then
+        expect(screen.getByTestId("stream-chat")).toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: restoreLabel })).not.toBeInTheDocument();
+    });
+
+    it("closes the popped out window and takes the chat back", async () => {
+        // given
+        const popout = makePopout();
+        stubWindowOpen(popout);
+        renderWatch();
+        await screen.findByTestId("stream-chat");
+        await userEvent.click(screen.getByRole("button", { name: "Pop out" }));
+
+        // when
+        await userEvent.click(screen.getByRole("button", { name: restoreLabel }));
+
+        // then
+        expect(popout.close).toHaveBeenCalled();
+        expect(await screen.findByTestId("stream-chat")).toBeInTheDocument();
+    });
+
+    it("takes the chat back when the popped out window says it has closed", async () => {
+        // given
+        stubWindowOpen(makePopout());
+        renderWatch({ streamID: "stream-1" });
+        await screen.findByTestId("stream-chat");
+        await userEvent.click(screen.getByRole("button", { name: "Pop out" }));
+
+        // when
+        act(() => {
+            window.dispatchEvent(
+                new MessageEvent("message", {
+                    data: { type: "stream-chat-popout-closed", streamId: "stream-1" },
+                    origin: window.location.origin,
+                }),
+            );
+        });
+
+        // then
+        expect(await screen.findByTestId("stream-chat")).toBeInTheDocument();
+    });
+
+    it("ignores a close message about a different stream", async () => {
+        // given
+        stubWindowOpen(makePopout());
+        renderWatch({ streamID: "stream-1" });
+        await screen.findByTestId("stream-chat");
+        await userEvent.click(screen.getByRole("button", { name: "Pop out" }));
+
+        // when
+        act(() => {
+            window.dispatchEvent(
+                new MessageEvent("message", {
+                    data: { type: "stream-chat-popout-closed", streamId: "stream-2" },
+                    origin: window.location.origin,
+                }),
+            );
+        });
+
+        // then
+        expect(screen.queryByTestId("stream-chat")).not.toBeInTheDocument();
+    });
+
+    it("ignores a close message sent from another site", async () => {
+        // given
+        stubWindowOpen(makePopout());
+        renderWatch({ streamID: "stream-1" });
+        await screen.findByTestId("stream-chat");
+        await userEvent.click(screen.getByRole("button", { name: "Pop out" }));
+
+        // when
+        act(() => {
+            window.dispatchEvent(
+                new MessageEvent("message", {
+                    data: { type: "stream-chat-popout-closed", streamId: "stream-1" },
+                    origin: "https://evil.example",
+                }),
+            );
+        });
+
+        // then
+        expect(screen.queryByTestId("stream-chat")).not.toBeInTheDocument();
     });
 });

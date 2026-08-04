@@ -11,7 +11,7 @@ import { Select } from "../../components/Select/Select";
 import { InfoPanel } from "../../components/InfoPanel/InfoPanel";
 import { RulesBox } from "../../components/RulesBox/RulesBox";
 import { ToggleSwitch } from "../../components/ToggleSwitch/ToggleSwitch";
-import { relativeTime } from "../../utils/notifications";
+import { RelativeTimestamp } from "../../components/RelativeTimestamp/RelativeTimestamp";
 import { PieceTrigger } from "../../features/easterEgg";
 import styles from "./ShipPages.module.css";
 
@@ -140,7 +140,7 @@ export function ShipsListPage() {
                                 {s.description && <p className={styles.cardDescription}>{s.description}</p>}
                                 <div className={styles.cardMeta}>
                                     <ProfileLink user={s.author} size="small" clickable={false} />
-                                    <span>{relativeTime(s.created_at)}</span>
+                                    <RelativeTimestamp value={s.created_at} />
                                 </div>
                                 <div className={styles.cardStats}>
                                     <span

@@ -42,6 +42,7 @@ const SOCIAL_LABELS: Record<string, string> = {
     social_waifulist: "WaifuList",
     social_tumblr: "Tumblr",
     social_github: "GitHub",
+    social_bluesky: "Bluesky",
 };
 
 function formatDate(iso: string): string {
@@ -106,6 +107,8 @@ function socialUrl(key: string, value: string): string {
             return `https://x.com/${value}`;
         case "social_github":
             return `https://github.com/${value}`;
+        case "social_bluesky":
+            return `https://bsky.app/profile/${value.replace(/^@/, "")}`;
         case "social_tumblr":
             return `https://${value}.tumblr.com`;
         case "social_waifulist":

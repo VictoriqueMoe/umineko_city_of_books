@@ -2,7 +2,7 @@ import { Link } from "react-router";
 import { useHomeActivity } from "../../api/queries/sidebar";
 import type { HomeCornerActivity } from "../../types/api";
 import { ProfileLink } from "../ProfileLink/ProfileLink";
-import { relativeTime } from "../../utils/time";
+import { RelativeTimestamp } from "../RelativeTimestamp/RelativeTimestamp";
 import styles from "./LiveStrip.module.css";
 
 const MAX_MEMBERS = 3;
@@ -87,7 +87,11 @@ function CornerFocus({ stats }: CornerFocusProps) {
                 <strong className={styles.count}>{posters}</strong>{" "}
                 <span className={styles.label}>poster{posters === 1 ? "" : "s"}</span>
             </span>
-            {stats.last_post_at && <span className={styles.label}>last {relativeTime(stats.last_post_at)}</span>}
+            {stats.last_post_at && (
+                <span className={styles.label}>
+                    last <RelativeTimestamp value={stats.last_post_at} />
+                </span>
+            )}
         </div>
     );
 }

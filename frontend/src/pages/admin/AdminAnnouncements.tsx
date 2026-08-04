@@ -13,8 +13,8 @@ import {
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
+import { RelativeTimestamp } from "../../components/RelativeTimestamp/RelativeTimestamp";
 import { Toast } from "../../components/Toast/Toast";
-import { relativeTime } from "../../utils/notifications";
 import styles from "./AdminAnnouncements.module.css";
 
 function renderMarkdown(md: string): string {
@@ -169,7 +169,7 @@ export function AdminAnnouncements() {
                         </div>
                         <div className={styles.itemMeta}>
                             <ProfileLink user={a.author} size="small" />
-                            <span>{relativeTime(a.created_at)}</span>
+                            <RelativeTimestamp value={a.created_at} />
                         </div>
                         <div className={styles.itemActions}>
                             <Button variant="ghost" size="small" onClick={() => startEdit(a)}>

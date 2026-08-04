@@ -2,8 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
     formatActiveLabel,
     formatDate,
+    formatExactDateTime,
     formatFullDateTime,
     formatMessageTime,
+    formatShortDateTime,
     formatTimeOfDay,
     parseServerDate,
     relativeTime,
@@ -400,5 +402,141 @@ describe("formatTimeOfDay", () => {
 
         // then
         expect(result).toBe("09:05");
+    });
+});
+
+describe("formatShortDateTime", () => {
+    const SHORT_DATE_TIME_PART = new Intl.DateTimeFormat(undefined, {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+    });
+
+    it("returns an empty string when there is no date", () => {
+        // given / when / then
+        expect(formatShortDateTime(null)).toBe("");
+        expect(formatShortDateTime(undefined)).toBe("");
+        expect(formatShortDateTime("")).toBe("");
+        expect(formatShortDateTime("not a date")).toBe("");
+    });
+
+    it("pairs an abbreviated date with a clock time and leaves the year out", () => {
+        // given
+        const local = new Date(2026, 0, 15, 14, 30, 0);
+
+        // when
+        const result = formatShortDateTime(local.toISOString());
+
+        // then
+        expect(result).toBe(SHORT_DATE_TIME_PART.format(local));
+        expect(result).not.toContain("2026");
+    });
+});
+
+describe("formatExactDateTime", () => {
+    const britishCases: { name: string; local: Date; expected: string }[] = [
+        {
+            name: "spells the month out and keeps a 24 hour clock",
+            local: new Date(2026, 0, 15, 14, 30, 0),
+            expected: "15 January 2026 at 14:30",
+        },
+        {
+            name: "pads a single digit hour to two digits",
+            local: new Date(2026, 0, 15, 9, 5, 0),
+            expected: "15 January 2026 at 09:05",
+        },
+        {
+            name: "renders midnight as the start of the day",
+            local: new Date(2026, 0, 15, 0, 0, 0),
+            expected: "15 January 2026 at 00:00",
+        },
+        {
+            name: "renders the last minute of the day without rolling over",
+            local: new Date(2026, 0, 15, 23, 59, 0),
+            expected: "15 January 2026 at 23:59",
+        },
+        {
+            name: "leaves a single digit day unpadded",
+            local: new Date(2026, 2, 5, 8, 0, 0),
+            expected: "5 March 2026 at 08:00",
+        },
+        {
+            name: "ignores the seconds",
+            local: new Date(2026, 11, 1, 6, 7, 42),
+            expected: "1 December 2026 at 06:07",
+        },
+    ];
+
+    const localeCases: { name: string; locale: string; expected: string }[] = [
+        {
+            name: "puts the day before the month for a British reader",
+            locale: "en-GB",
+            expected: "15 January 2026 at 14:30",
+        },
+        {
+            name: "translates the month and the joining word for a French reader",
+            locale: "fr-FR",
+            expected: "15 janvier 2026 à 14:30",
+        },
+        {
+            name: "translates the month and the joining word for a German reader",
+            locale: "de-DE",
+            expected: "15. Januar 2026 um 14:30",
+        },
+    ];
+
+    it("returns an empty string when there is no date", () => {
+        // given / when / then
+        expect(formatExactDateTime(null)).toBe("");
+        expect(formatExactDateTime(undefined)).toBe("");
+        expect(formatExactDateTime("")).toBe("");
+        expect(formatExactDateTime("   ")).toBe("");
+        expect(formatExactDateTime("not a date")).toBe("");
+    });
+
+    it.each(britishCases)("$name", ({ local, expected }) => {
+        // given the local date and the exact label it should produce, from the table row
+
+        // when
+        const result = formatExactDateTime(local.toISOString(), "en-GB");
+
+        // then
+        expect(result).toBe(expected);
+    });
+
+    it.each(localeCases)("$name", ({ locale, expected }) => {
+        // given
+        const local = new Date(2026, 0, 15, 14, 30, 0);
+
+        // when
+        const result = formatExactDateTime(local.toISOString(), locale);
+
+        // then
+        expect(result).toBe(expected);
+    });
+
+    it("switches an American reader to a twelve hour clock with the month first", () => {
+        // given
+        const local = new Date(2026, 0, 15, 14, 30, 0);
+
+        // when
+        const result = formatExactDateTime(local.toISOString(), "en-US");
+
+        // then
+        expect(result).toMatch(/^January 15, 2026 at 2:30\sPM$/);
+    });
+
+    it("follows the reader's own locale when none is given", () => {
+        // given
+        const local = new Date(2026, 0, 15, 14, 30, 0);
+
+        // when
+        const result = formatExactDateTime(local.toISOString());
+
+        // then
+        expect(result).toBe(
+            new Intl.DateTimeFormat(undefined, { dateStyle: "long", timeStyle: "short" }).format(local),
+        );
     });
 });

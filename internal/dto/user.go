@@ -43,6 +43,7 @@ type (
 		SocialWaifulist        string       `json:"social_waifulist"`
 		SocialTumblr           string       `json:"social_tumblr"`
 		SocialGithub           string       `json:"social_github"`
+		SocialBluesky          string       `json:"social_bluesky"`
 		Website                string       `json:"website"`
 		DmsEnabled             bool         `json:"dms_enabled"`
 		DOB                    string       `json:"dob,omitempty"`
@@ -94,6 +95,7 @@ type (
 		SocialWaifulist        string  `json:"social_waifulist"`
 		SocialTumblr           string  `json:"social_tumblr"`
 		SocialGithub           string  `json:"social_github"`
+		SocialBluesky          string  `json:"social_bluesky"`
 		Website                string  `json:"website"`
 		DmsEnabled             bool    `json:"dms_enabled"`
 		EpisodeProgress        int     `json:"episode_progress"`

@@ -14,10 +14,10 @@ import { useNotifications } from "../../../hooks/useNotifications";
 import { can } from "../../../utils/permissions";
 import { extractGif } from "../../../utils/gif";
 import { renderRich } from "../../../utils/richText";
-import { shortRelativeTime } from "../../../utils/time";
 import { GifEmbed } from "../../GifEmbed/GifEmbed";
 import { ReportButton } from "../../ReportButton/ReportButton";
 import { ProfileLink } from "../../ProfileLink/ProfileLink";
+import { RelativeTimestamp } from "../../RelativeTimestamp/RelativeTimestamp";
 import { MediaGallery } from "../MediaGallery/MediaGallery";
 import { PollDisplay } from "../PollDisplay/PollDisplay";
 import { PostEmbeds } from "../PostEmbeds/PostEmbeds";
@@ -138,7 +138,7 @@ export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps
             <div className={styles.header}>
                 <ProfileLink user={post.author} size="medium" />
                 <span className={styles.time}>
-                    {shortRelativeTime(post.created_at)}
+                    <RelativeTimestamp value={post.created_at} variant="short" />
                     {post.updated_at && " (edited)"}
                 </span>
             </div>

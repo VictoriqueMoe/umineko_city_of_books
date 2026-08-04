@@ -65,6 +65,8 @@ function makeForm(overrides: Partial<SettingsForm> = {}): SettingsForm {
         setSocialTumblr: vi.fn(),
         socialGithub: "",
         setSocialGithub: vi.fn(),
+        socialBluesky: "",
+        setSocialBluesky: vi.fn(),
         website: "",
         setWebsite: vi.fn(),
         dmsEnabled: true,
@@ -611,6 +613,17 @@ describe("SettingsPage preferences", () => {
 
         // then
         expect(form.setSocialGithub).toHaveBeenCalledWith("beato!");
+    });
+
+    it("passes a typed Bluesky handle back to the form", async () => {
+        // given
+        const { user, form } = setup({ form: { socialBluesky: "beato.bsky.social" } });
+
+        // when
+        await user.type(screen.getByRole("textbox", { name: "Bluesky" }), "!");
+
+        // then
+        expect(form.setSocialBluesky).toHaveBeenCalledWith("beato.bsky.social!");
     });
 });
 

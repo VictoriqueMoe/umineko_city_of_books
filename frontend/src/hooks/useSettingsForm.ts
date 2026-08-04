@@ -67,6 +67,7 @@ interface FormDraft {
     social_waifulist?: string;
     social_tumblr?: string;
     social_github?: string;
+    social_bluesky?: string;
     website?: string;
     dms_enabled?: boolean;
     episode_progress?: number;
@@ -128,6 +129,7 @@ export function useSettingsForm() {
     const socialWaifulist = activeDraft.social_waifulist ?? profile?.social_waifulist ?? "";
     const socialTumblr = activeDraft.social_tumblr ?? profile?.social_tumblr ?? "";
     const socialGithub = activeDraft.social_github ?? profile?.social_github ?? "";
+    const socialBluesky = activeDraft.social_bluesky ?? profile?.social_bluesky ?? "";
     const website = activeDraft.website ?? profile?.website ?? "";
     const dmsEnabled = activeDraft.dms_enabled ?? profile?.dms_enabled ?? true;
     const episodeProgress = activeDraft.episode_progress ?? profile?.episode_progress ?? 0;
@@ -187,6 +189,9 @@ export function useSettingsForm() {
     }
     function setSocialGithub(value: string) {
         patch({ social_github: value });
+    }
+    function setSocialBluesky(value: string) {
+        patch({ social_bluesky: value });
     }
     function setWebsite(value: string) {
         patch({ website: value });
@@ -355,6 +360,7 @@ export function useSettingsForm() {
             social_waifulist: socialWaifulist,
             social_tumblr: socialTumblr,
             social_github: socialGithub,
+            social_bluesky: socialBluesky,
             website,
             dms_enabled: dmsEnabled,
             episode_progress: episodeProgress,
@@ -425,6 +431,8 @@ export function useSettingsForm() {
         setSocialTumblr,
         socialGithub,
         setSocialGithub,
+        socialBluesky,
+        setSocialBluesky,
         website,
         setWebsite,
         dmsEnabled,

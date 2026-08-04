@@ -11,11 +11,11 @@ import { Button } from "../../components/Button/Button";
 import { ErrorBanner } from "../../components/ErrorBanner/ErrorBanner";
 import { Input } from "../../components/Input/Input";
 import { InfoPanel } from "../../components/InfoPanel/InfoPanel";
+import { RelativeTimestamp } from "../../components/RelativeTimestamp/RelativeTimestamp";
 import { RulesBox } from "../../components/RulesBox/RulesBox";
 import { CreateRoomModal } from "../../components/chat/CreateRoomModal/CreateRoomModal";
 import { isSiteStaff } from "../../utils/permissions";
 import { PieceTrigger } from "../../features/easterEgg";
-import { formatActiveLabel, formatFullDateTime } from "../../utils/time";
 import styles from "./RoomsPages.module.css";
 
 const PAGE_SIZE = 20;
@@ -280,12 +280,7 @@ export function RoomsListPage() {
                     <span>
                         {"\u2605"} {room.member_count ?? room.members.length} members
                     </span>
-                    <span
-                        className={styles.cardActivity}
-                        title={room.last_message_at ? formatFullDateTime(room.last_message_at) : undefined}
-                    >
-                        {formatActiveLabel(room.last_message_at)}
-                    </span>
+                    <RelativeTimestamp value={room.last_message_at} variant="active" className={styles.cardActivity} />
                 </div>
             </Link>
         );
@@ -377,12 +372,7 @@ export function RoomsListPage() {
                     <span>
                         {"\u2605"} {room.member_count ?? room.members.length} members
                     </span>
-                    <span
-                        className={styles.cardActivity}
-                        title={room.last_message_at ? formatFullDateTime(room.last_message_at) : undefined}
-                    >
-                        {formatActiveLabel(room.last_message_at)}
-                    </span>
+                    <RelativeTimestamp value={room.last_message_at} variant="active" className={styles.cardActivity} />
                 </div>
                 {user && (
                     <div className={styles.cardActions}>

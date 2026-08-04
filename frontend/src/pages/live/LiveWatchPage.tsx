@@ -14,6 +14,7 @@ import {
     uploadStreamThumbnail,
 } from "../../api/endpoints";
 import type { WSMessage } from "../../types/api";
+import { STREAM_CHAT_POPOUT_CLOSED, openStreamChatPopout } from "../../utils/streamChatPopout";
 import { useAuth } from "../../hooks/useAuth";
 import { VolumeSlider } from "../../components/VolumeSlider/VolumeSlider";
 import { StreamChatPanel } from "./StreamChatPanel";
@@ -45,6 +46,8 @@ export function LiveWatchPage() {
     const stageRef = useRef<HTMLDivElement>(null);
     const [modeOverride, setModeOverride] = useState<StreamDefaultMode | null>(null);
     const [showOwnPreview, setShowOwnPreview] = useState(false);
+    const [chatPoppedOut, setChatPoppedOut] = useState(false);
+    const chatPopoutRef = useRef<Window | null>(null);
 
     const isLive = stream?.status === "live";
     const mode: StreamDefaultMode =
@@ -53,6 +56,27 @@ export function LiveWatchPage() {
     const showsPlayback = !isOwnStream || showOwnPreview;
     const wantsMedia = showsPlayback && mode === "webrtc";
     const wantsRoom = wantsMedia || !showsPlayback;
+
+    function handlePopOutChat() {
+        if (!streamID) {
+            return;
+        }
+
+        const opened = openStreamChatPopout(streamID);
+        if (!opened) {
+            return;
+        }
+
+        chatPopoutRef.current = opened;
+        setChatPoppedOut(true);
+        opened.focus();
+    }
+
+    function handleBringChatBack() {
+        chatPopoutRef.current?.close();
+        chatPopoutRef.current = null;
+        setChatPoppedOut(false);
+    }
 
     function toggleFullscreen() {
         const el = stageRef.current;
@@ -94,6 +118,29 @@ export function LiveWatchPage() {
             }
         });
     }, [addWSListener, qc, streamID]);
+
+    useEffect(() => {
+        if (!chatPoppedOut) {
+            return;
+        }
+
+        const onMessage = (event: MessageEvent) => {
+            if (event.origin !== window.location.origin) {
+                return;
+            }
+
+            const data = event.data as { type?: string; streamId?: string };
+            if (data?.type === STREAM_CHAT_POPOUT_CLOSED && data.streamId === streamID) {
+                chatPopoutRef.current = null;
+                setChatPoppedOut(false);
+            }
+        };
+
+        window.addEventListener("message", onMessage);
+        return () => {
+            window.removeEventListener("message", onMessage);
+        };
+    }, [chatPoppedOut, streamID]);
 
     useEffect(() => {
         if (!streamID || !isLive || !wantsRoom) {
@@ -304,6 +351,11 @@ export function LiveWatchPage() {
                     <Link to="/live" className={styles.backLink}>
                         {"←"} All live streams
                     </Link>
+                    {chatPoppedOut && (
+                        <button type="button" className={styles.chatRestoreBtn} onClick={handleBringChatBack}>
+                            Chat is in its own window. Bring it back
+                        </button>
+                    )}
                 </div>
 
                 {isLive && room && (
@@ -313,9 +365,11 @@ export function LiveWatchPage() {
                 )}
             </div>
 
-            <aside className={styles.watchSidebar}>
-                <StreamChatPanel streamId={stream.id} isLive={isLive} />
-            </aside>
+            {!chatPoppedOut && (
+                <aside className={styles.watchSidebar}>
+                    <StreamChatPanel streamId={stream.id} isLive={isLive} onPopOut={handlePopOutChat} />
+                </aside>
+            )}
         </div>
     );
 }

@@ -54,6 +54,7 @@ function makeProfile(overrides: Partial<UserProfile> = {}): UserProfile {
         social_waifulist: "beato-list",
         social_tumblr: "goldenwitch",
         social_github: "beato-dev",
+        social_bluesky: "beato.bsky.social",
         website: "https://rokkenjima.example",
         dms_enabled: false,
         episode_progress: 4,
@@ -91,6 +92,7 @@ const savedProfilePayload: UpdateProfilePayload = {
     social_waifulist: "beato-list",
     social_tumblr: "goldenwitch",
     social_github: "beato-dev",
+    social_bluesky: "beato.bsky.social",
     website: "https://rokkenjima.example",
     dms_enabled: false,
     episode_progress: 4,
@@ -193,6 +195,7 @@ describe("useSettingsForm initial values", () => {
         expect(result.current.bannerPosition).toBe(42.126);
         expect(result.current.favouriteCharacter).toBe("beatrice");
         expect(result.current.socialTwitter).toBe("beato");
+        expect(result.current.socialBluesky).toBe("beato.bsky.social");
         expect(result.current.website).toBe("https://rokkenjima.example");
         expect(result.current.dmsEnabled).toBe(false);
         expect(result.current.episodeProgress).toBe(4);
@@ -573,6 +576,9 @@ describe("useSettingsForm saving", () => {
             result.current.setSocialTumblr("beato-blog");
         });
         act(() => {
+            result.current.setSocialBluesky("golden-witch.bsky.social");
+        });
+        act(() => {
             result.current.setPlayMessageSound(true);
         });
 
@@ -582,10 +588,12 @@ describe("useSettingsForm saving", () => {
         });
 
         // then
+        expect(result.current.socialBluesky).toBe("golden-witch.bsky.social");
         expect(lastPayload()).toEqual({
             ...savedProfilePayload,
             bio: "A thousand years of solitude",
             social_tumblr: "beato-blog",
+            social_bluesky: "golden-witch.bsky.social",
             play_message_sound: true,
         });
     });

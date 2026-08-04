@@ -32,7 +32,7 @@ import { renderRich } from "../../utils/richText";
 import { parseServerDate } from "../../utils/time";
 import { Button } from "../../components/Button/Button";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
-import { relativeTime } from "../../utils/notifications";
+import { RelativeTimestamp } from "../../components/RelativeTimestamp/RelativeTimestamp";
 import { CommentsSection } from "../../components/post/CommentsSection/CommentsSection";
 import { MediaGallery } from "../../components/post/MediaGallery/MediaGallery";
 import { MediaPickerButton, MediaPreviews } from "../../components/MediaPicker/MediaPicker";
@@ -726,7 +726,7 @@ export function MysteryDetailPage() {
                         <h1 className={styles.detailTitle}>{mystery.title}</h1>
                         <div className={styles.detailMeta}>
                             <ProfileLink user={mystery.author} size="small" />
-                            <span>{relativeTime(mystery.created_at)}</span>
+                            <RelativeTimestamp value={mystery.created_at} />
                         </div>
                         <div className={styles.cardBadges}>
                             <span className={`${styles.badge} ${styles.badgeDifficulty}`}>{mystery.difficulty}</span>
@@ -1025,7 +1025,7 @@ export function MysteryDetailPage() {
                         </div>
                         <div className={styles.pinnedWinnerMeta}>
                             <ProfileLink user={winningAttempt.author} size="small" />
-                            <span>{relativeTime(winningAttempt.created_at)}</span>
+                            <RelativeTimestamp value={winningAttempt.created_at} />
                         </div>
                         <div className={styles.pinnedWinnerBody}>{winningAttempt.body}</div>
                     </div>

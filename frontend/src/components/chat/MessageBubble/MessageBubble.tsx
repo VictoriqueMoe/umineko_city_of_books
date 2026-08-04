@@ -6,7 +6,8 @@ import { renderRich } from "../../../utils/richText";
 import { GifEmbed } from "../../GifEmbed/GifEmbed";
 import { EmojiPicker } from "../EmojiPicker/EmojiPicker";
 import { YouTubeEmbed } from "../YouTubeEmbed/YouTubeEmbed";
-import { formatFullDateTime, formatMessageTime } from "../../../utils/time";
+import { RelativeTimestamp } from "../../RelativeTimestamp/RelativeTimestamp";
+import { formatExactDateTime } from "../../../utils/time";
 import { extractYouTubeIDs } from "../../../utils/youtube";
 import styles from "./MessageBubble.module.css";
 
@@ -202,9 +203,7 @@ function MessageBubbleBase({
     const richBody = useMemo(() => renderRich(message.body), [message.body]);
     const gifURL = useMemo(() => extractGif(message.body), [message.body]);
     const youtubeIds = useMemo(() => extractYouTubeIDs(message.body), [message.body]);
-    const createdFull = useMemo(() => formatFullDateTime(message.created_at), [message.created_at]);
-    const editedFull = useMemo(() => formatFullDateTime(message.edited_at), [message.edited_at]);
-    const createdShort = formatMessageTime(message.created_at);
+    const editedFull = useMemo(() => formatExactDateTime(message.edited_at), [message.edited_at]);
 
     function handlePick(emoji: string) {
         setPickerOpen(false);
@@ -215,8 +214,8 @@ function MessageBubbleBase({
         return (
             <div id={`chat-msg-${message.id}`} className={classes.join(" ")}>
                 <div className={styles.systemMessageText}>{richBody}</div>
-                <div className={styles.systemMessageTime} title={createdFull}>
-                    {createdShort}
+                <div className={styles.systemMessageTime}>
+                    <RelativeTimestamp value={message.created_at} variant="message" />
                 </div>
             </div>
         );
@@ -366,8 +365,8 @@ function MessageBubbleBase({
                         })}
                     </div>
                 )}
-                <div className={styles.messageTime} title={createdFull}>
-                    {createdShort}
+                <div className={styles.messageTime}>
+                    <RelativeTimestamp value={message.created_at} variant="message" />
                     {message.edited_at && (
                         <span className={styles.editedLabel} title={`Edited ${editedFull}`}>
                             {" "}

@@ -2,7 +2,7 @@ import { Link } from "react-router";
 import { useHomeActivity } from "../../api/queries/sidebar";
 import type { HomeActivityEntry, HomeMember, HomePublicRoom } from "../../types/api";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
-import { relativeTime } from "../../utils/time";
+import { RelativeTimestamp } from "../../components/RelativeTimestamp/RelativeTimestamp";
 import styles from "./LiveActivity.module.css";
 
 const kindLabel: Record<HomeActivityEntry["kind"], string> = {
@@ -44,7 +44,7 @@ function ActivityRow({ entry }: ActivityRowProps) {
                     }}
                     size="small"
                 />
-                <span className={styles.activityTime}>{relativeTime(entry.created_at)}</span>
+                <RelativeTimestamp value={entry.created_at} className={styles.activityTime} />
             </div>
         </li>
     );
@@ -79,7 +79,12 @@ function RoomCard({ room }: RoomCardProps) {
             {room.description && <span className={styles.roomDescription}>{room.description}</span>}
             <span className={styles.roomMembers}>
                 {room.member_count} {room.member_count === 1 ? "witch" : "witches"}
-                {room.last_message_at && <> &middot; {relativeTime(room.last_message_at)}</>}
+                {room.last_message_at && (
+                    <>
+                        {" "}
+                        &middot; <RelativeTimestamp value={room.last_message_at} />
+                    </>
+                )}
             </span>
         </Link>
     );

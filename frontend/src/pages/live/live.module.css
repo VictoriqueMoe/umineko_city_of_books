@@ -436,10 +436,51 @@
 }
 
 .chatHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
     padding: 0.6rem 0.8rem;
     font-weight: 600;
     border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.12));
     flex-shrink: 0;
+}
+
+.chatPopOutBtn {
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.2));
+    background: transparent;
+    color: inherit;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    line-height: 1;
+    padding: 0.25rem 0.4rem;
+}
+
+.chatPopOutBtn:hover {
+    background: var(--surface-hover, rgba(255, 255, 255, 0.08));
+}
+
+.chatRestoreBtn {
+    align-self: flex-start;
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.2));
+    background: transparent;
+    color: inherit;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    padding: 0.3rem 0.6rem;
+}
+
+.chatRestoreBtn:hover {
+    background: var(--surface-hover, rgba(255, 255, 255, 0.08));
+}
+
+.popoutPage {
+    display: flex;
+    height: 100dvh;
+    padding: 0.5rem;
+    box-sizing: border-box;
 }
 
 .chatMessages {

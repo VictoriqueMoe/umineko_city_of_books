@@ -13,7 +13,7 @@ import { Pagination } from "../../components/Pagination/Pagination";
 import { Select } from "../../components/Select/Select";
 import { RulesBox } from "../../components/RulesBox/RulesBox";
 import { InfoPanel } from "../../components/InfoPanel/InfoPanel";
-import { relativeTime } from "../../utils/notifications";
+import { RelativeTimestamp } from "../../components/RelativeTimestamp/RelativeTimestamp";
 import { PieceTrigger } from "../../features/easterEgg";
 import styles from "./MysteryPages.module.css";
 
@@ -225,7 +225,7 @@ export function MysteryListPage() {
                                     <div className={styles.cardTitle}>{m.title}</div>
                                     <div className={styles.cardMeta}>
                                         <ProfileLink user={m.author} size="small" clickable={false} />
-                                        <span>{relativeTime(m.created_at)}</span>
+                                        <RelativeTimestamp value={m.created_at} />
                                     </div>
                                     <div className={styles.cardBadges}>
                                         <span

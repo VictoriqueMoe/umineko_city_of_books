@@ -4,7 +4,7 @@ import { marked } from "marked";
 import DOMPurify from "dompurify";
 import { useLatestAnnouncement } from "../../api/queries/announcement";
 import { ProfileLink } from "../ProfileLink/ProfileLink";
-import { relativeTime } from "../../utils/time";
+import { RelativeTimestamp } from "../RelativeTimestamp/RelativeTimestamp";
 import styles from "./AnnouncementCard.module.css";
 
 const DISMISSED_KEY = "dismissed_announcement";
@@ -50,7 +50,7 @@ export function AnnouncementCard() {
             </span>
             <div className={styles.meta}>
                 <ProfileLink user={announcement.author} size="small" />
-                <span>{relativeTime(announcement.created_at)}</span>
+                <RelativeTimestamp value={announcement.created_at} />
             </div>
         </div>
     );

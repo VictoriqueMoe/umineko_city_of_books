@@ -8,7 +8,7 @@ import { Select } from "../../components/Select/Select";
 import { InfoPanel } from "../../components/InfoPanel/InfoPanel";
 import { Input } from "../../components/Input/Input";
 import { Button } from "../../components/Button/Button";
-import { relativeTime } from "../../utils/time.ts";
+import { RelativeTimestamp } from "../../components/RelativeTimestamp/RelativeTimestamp";
 import shipStyles from "../ships/ShipPages.module.css";
 
 function seriesPillClass(series: string): string {
@@ -135,7 +135,7 @@ export function OCListPage() {
                                 {oc.description && <p className={shipStyles.cardDescription}>{oc.description}</p>}
                                 <div className={shipStyles.cardMeta}>
                                     <ProfileLink user={oc.author} size="small" clickable={false} />
-                                    <span>{relativeTime(oc.created_at)}</span>
+                                    <RelativeTimestamp value={oc.created_at} />
                                 </div>
                                 <div className={shipStyles.cardStats}>
                                     <span className={shipStyles.voteChip}>

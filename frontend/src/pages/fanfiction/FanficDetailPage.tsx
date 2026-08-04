@@ -23,7 +23,7 @@ import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { CommentsSection } from "../../components/post/CommentsSection/CommentsSection";
 import { Lightbox } from "../../components/Lightbox/Lightbox";
 import { ShareButton } from "../../components/ShareButton/ShareButton";
-import { relativeTime } from "../../utils/notifications";
+import { RelativeTimestamp } from "../../components/RelativeTimestamp/RelativeTimestamp";
 import styles from "./FanficPages.module.css";
 
 function ratingBadgeClass(rating: string): string {
@@ -213,7 +213,7 @@ export function FanficDetailPage() {
 
                         <div className={styles.detailByline}>
                             <ProfileLink user={fanfic.author} size="small" />
-                            <span>{relativeTime(fanfic.published_at)}</span>
+                            <RelativeTimestamp value={fanfic.published_at} />
                         </div>
 
                         <div className={styles.detailBadges}>

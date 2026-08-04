@@ -35,6 +35,7 @@ type (
 		SocialWaifulist        string
 		SocialTumblr           string
 		SocialGithub           string
+		SocialBluesky          string
 		Website                string
 		BannerPosition         float64
 		DmsEnabled             bool
@@ -117,6 +118,7 @@ func (u *User) ToProfileResponse(stats *UserStats, isSelf bool) *dto.UserProfile
 		SocialWaifulist:        u.SocialWaifulist,
 		SocialTumblr:           u.SocialTumblr,
 		SocialGithub:           u.SocialGithub,
+		SocialBluesky:          u.SocialBluesky,
 		Website:                u.Website,
 		DmsEnabled:             u.DmsEnabled,
 		DOBPublic:              u.DOBPublic,

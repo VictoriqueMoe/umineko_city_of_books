@@ -103,7 +103,7 @@ describe("CommentItem", () => {
         setup({ comment: makeComment({ updated_at: "2026-08-02T11:30:00Z" }) });
 
         // then
-        expect(screen.getByText("1h (edited)")).toBeInTheDocument();
+        expect(screen.getByText("1h").parentElement).toHaveTextContent("1h (edited)");
     });
 
     it("shows a GIF in place of the body when the body is nothing but a GIF link", () => {

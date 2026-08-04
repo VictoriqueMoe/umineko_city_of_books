@@ -1,4 +1,5 @@
 import { screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { makeUser } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
@@ -86,10 +87,21 @@ function stubHistory(options: HistoryOptions = {}) {
     });
 }
 
-function renderPanel(options: { user?: UserProfile | null; isLive?: boolean; streamId?: string } = {}) {
+function renderPanel(
+    options: {
+        user?: UserProfile | null;
+        isLive?: boolean;
+        streamId?: string;
+        onPopOut?: () => void;
+    } = {},
+) {
     const listeners: ((msg: WSMessage) => void)[] = [];
     const result = renderWithProviders(
-        <StreamChatPanel streamId={options.streamId ?? "stream-1"} isLive={options.isLive ?? true} />,
+        <StreamChatPanel
+            streamId={options.streamId ?? "stream-1"}
+            isLive={options.isLive ?? true}
+            onPopOut={options.onPopOut}
+        />,
         {
             user: options.user === undefined ? viewer : options.user,
             notification: {
@@ -349,5 +361,55 @@ describe("StreamChatPanel lightbox", () => {
         await waitFor(() => {
             expect(mocks.joinStreamChat).toHaveBeenCalledWith("stream-2");
         });
+    });
+});
+
+describe("StreamChatPanel pop out control", () => {
+    const popOutLabel = "Open chat in its own window";
+
+    it("offers no pop out control when the host page does not support one", async () => {
+        // given
+        const noHandler = undefined;
+
+        // when
+        renderPanel({ onPopOut: noHandler });
+
+        // then
+        await screen.findByTestId("composer");
+        expect(screen.queryByRole("button", { name: popOutLabel })).not.toBeInTheDocument();
+    });
+
+    it("offers a pop out control when the host page supports one", async () => {
+        // given
+        const onPopOut = vi.fn();
+
+        // when
+        renderPanel({ onPopOut });
+
+        // then
+        expect(await screen.findByRole("button", { name: popOutLabel })).toBeInTheDocument();
+    });
+
+    it("asks the host page to pop the chat out when the control is used", async () => {
+        // given
+        const onPopOut = vi.fn();
+        renderPanel({ onPopOut });
+
+        // when
+        await userEvent.click(await screen.findByRole("button", { name: popOutLabel }));
+
+        // then
+        expect(onPopOut).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps the pop out control away from a signed out visitor", () => {
+        // given
+        const onPopOut = vi.fn();
+
+        // when
+        renderPanel({ user: null, onPopOut });
+
+        // then
+        expect(screen.queryByRole("button", { name: popOutLabel })).not.toBeInTheDocument();
     });
 });
