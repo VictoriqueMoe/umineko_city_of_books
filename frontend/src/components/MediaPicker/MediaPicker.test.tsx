@@ -1,5 +1,5 @@
 import { StrictMode } from "react";
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../test-utils/render";
@@ -231,8 +231,8 @@ describe("MediaPreviews", () => {
         // given StrictMode, which mounts effects, tears them down, then mounts them again
         const files = [makeFile("a.png", "image/png")];
 
-        // when
-        renderWithProviders(
+        // when rendered without the test providers, which suppress that second pass
+        render(
             <StrictMode>
                 <MediaPreviews files={files} onRemove={noop} />
             </StrictMode>,
