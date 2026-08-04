@@ -4,12 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	"umineko_city_of_books/internal/logger"
-
 	"github.com/google/uuid"
 )
 
-const SystemKindLiveStream = "live_stream"
+const (
+	SystemKindLiveStream = "live_stream"
+	SystemKindWatchParty = "watch_party"
+)
 
 type streamChatService struct {
 	*core
@@ -60,21 +61,7 @@ func (s *streamChatService) JoinStreamChat(ctx context.Context, streamID, userID
 }
 
 func (s *streamChatService) DeleteStreamRoom(ctx context.Context, streamID uuid.UUID) error {
-	urls, err := s.chatRepo.ListRoomMediaURLs(ctx, streamID)
-	if err != nil {
-		logger.Log.Warn().Err(err).Str("stream_id", streamID.String()).Msg("list stream chat media for cleanup failed")
-	}
-
-	for i := range urls {
-		if urls[i] == "" {
-			continue
-		}
-		if delErr := s.uploadSvc.Delete(urls[i]); delErr != nil {
-			logger.Log.Warn().Err(delErr).Str("media_url", urls[i]).Msg("delete stream chat media file failed")
-		}
-	}
-
-	if err := s.chatRepo.DeleteRoom(ctx, streamID); err != nil {
+	if err := s.deleteRoomWithMedia(ctx, streamID); err != nil {
 		return fmt.Errorf("delete stream chat room: %w", err)
 	}
 

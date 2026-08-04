@@ -198,7 +198,6 @@ function makeWatchParty(overrides: Record<string, unknown> = {}): RoomController
         transferControl: vi.fn(),
         kick: vi.fn(),
         identify: vi.fn(),
-        sendMessage: vi.fn(),
         openExisting: vi.fn(),
         close: vi.fn(),
         clearError: vi.fn(),

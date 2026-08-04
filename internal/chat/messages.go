@@ -298,7 +298,7 @@ func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid
 		recipients = append(recipients, memberID)
 	}
 
-	if !isLiveStreamRoom(roomRow) {
+	if !isEphemeralSystemRoom(roomRow) {
 		m.sideEffectsWG.Add(1)
 		go m.dispatchPostSendSideEffects(roomID, senderID, msgID, recipients, roomRow, mentionedIDs, replyToAuthor, isGroup)
 	}
@@ -322,8 +322,12 @@ func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid
 	return resp, nil
 }
 
-func isLiveStreamRoom(roomRow *repository.ChatRoomSendContext) bool {
-	return roomRow != nil && roomRow.IsSystem && roomRow.SystemKind == SystemKindLiveStream
+func isEphemeralSystemRoom(roomRow *repository.ChatRoomSendContext) bool {
+	if roomRow == nil || !roomRow.IsSystem {
+		return false
+	}
+
+	return roomRow.SystemKind == SystemKindLiveStream || roomRow.SystemKind == SystemKindWatchParty
 }
 
 func hostBlockApplies(roomRow *repository.ChatRoomSendContext) bool {
@@ -331,7 +335,7 @@ func hostBlockApplies(roomRow *repository.ChatRoomSendContext) bool {
 		return true
 	}
 
-	return roomRow.SystemKind == SystemKindLiveStream
+	return roomRow.SystemKind == SystemKindLiveStream || roomRow.SystemKind == SystemKindWatchParty
 }
 
 func (m *messagesService) assertBlocksAllowSend(ctx context.Context, roomRow *repository.ChatRoomSendContext, senderID uuid.UUID, members []uuid.UUID) error {

@@ -1786,18 +1786,6 @@ describe("watch party sessions", () => {
             transport: postMock,
             request: ["/chat/rooms/r-1/watch-parties/s-1/identify", { identifier: "peer-1" }],
         },
-        {
-            name: "listWatchPartyMessages reads the messages of a session",
-            call: () => api.listWatchPartyMessages("r-1", "s-1"),
-            transport: fetchMock,
-            request: ["/chat/rooms/r-1/watch-parties/s-1/messages"],
-        },
-        {
-            name: "sendWatchPartyMessage posts the body to the session",
-            call: () => api.sendWatchPartyMessage("r-1", "s-1", "good evening"),
-            transport: postMock,
-            request: ["/chat/rooms/r-1/watch-parties/s-1/messages", { body: "good evening" }],
-        },
     ];
 
     it.each(cases)("$name", async ({ call, transport, request }) => {

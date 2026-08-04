@@ -1,12 +1,11 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { providerWrapper } from "../../../test-utils/render";
-import type { User, WatchPartyMessage, WatchPartyParticipant, WatchPartySession, WSMessage } from "../../../types/api";
+import type { User, WatchPartyParticipant, WatchPartySession, WSMessage } from "../../../types/api";
 import { useWatchParty } from "./useWatchParty";
 
 const mocks = vi.hoisted(() => ({
     listWatchParties: vi.fn(),
-    listWatchPartyMessages: vi.fn(),
     startWatchParty: vi.fn(),
     joinWatchParty: vi.fn(),
     leaveWatchParty: vi.fn(),
@@ -14,13 +13,11 @@ const mocks = vi.hoisted(() => ({
     transferWatchPartyControl: vi.fn(),
     kickWatchPartyParticipant: vi.fn(),
     identifyWatchPartyParticipant: vi.fn(),
-    sendWatchPartyMessage: vi.fn(),
     resolveOptimalRegion: vi.fn(),
 }));
 
 vi.mock("../../../api/endpoints", () => ({
     listWatchParties: mocks.listWatchParties,
-    listWatchPartyMessages: mocks.listWatchPartyMessages,
     startWatchParty: mocks.startWatchParty,
     joinWatchParty: mocks.joinWatchParty,
     leaveWatchParty: mocks.leaveWatchParty,
@@ -28,7 +25,6 @@ vi.mock("../../../api/endpoints", () => ({
     transferWatchPartyControl: mocks.transferWatchPartyControl,
     kickWatchPartyParticipant: mocks.kickWatchPartyParticipant,
     identifyWatchPartyParticipant: mocks.identifyWatchPartyParticipant,
-    sendWatchPartyMessage: mocks.sendWatchPartyMessage,
 }));
 
 vi.mock("./hyperbeamRegion", () => ({ resolveOptimalRegion: mocks.resolveOptimalRegion }));
@@ -65,18 +61,6 @@ function makeSession(overrides: Partial<WatchPartySession> = {}): WatchPartySess
         status: "active",
         started_at: "2026-08-01T10:00:00Z",
         participants: [makeParticipant()],
-        ...overrides,
-    };
-}
-
-function makeMessage(overrides: Partial<WatchPartyMessage> = {}): WatchPartyMessage {
-    return {
-        id: "msg-1",
-        session_id: "session-1",
-        kind: "user",
-        sender: makeChatUser(),
-        body: "without love it cannot be seen",
-        created_at: "2026-08-01T10:05:00Z",
         ...overrides,
     };
 }
@@ -135,7 +119,6 @@ async function setupActive(session: WatchPartySession = makeSession()) {
 
 beforeEach(() => {
     mocks.listWatchParties.mockResolvedValue({ sessions: [], enabled: true, screen_share_enabled: true });
-    mocks.listWatchPartyMessages.mockResolvedValue({ messages: [] });
     mocks.startWatchParty.mockResolvedValue({ session: makeSession(), embed_url: "https://hb.test/embed" });
     mocks.joinWatchParty.mockResolvedValue({ session: makeSession(), embed_url: "https://hb.test/embed" });
     mocks.leaveWatchParty.mockResolvedValue(undefined);
@@ -143,7 +126,6 @@ beforeEach(() => {
     mocks.transferWatchPartyControl.mockResolvedValue(undefined);
     mocks.kickWatchPartyParticipant.mockResolvedValue(undefined);
     mocks.identifyWatchPartyParticipant.mockResolvedValue(undefined);
-    mocks.sendWatchPartyMessage.mockResolvedValue(makeMessage());
     mocks.resolveOptimalRegion.mockResolvedValue("EU");
     vi.spyOn(console, "warn").mockImplementation(() => {});
 });
@@ -310,11 +292,10 @@ describe("useWatchParty start", () => {
         });
     });
 
-    it("opens the new party with its embed url and backlog of messages", async () => {
+    it("opens the new party with its embed url", async () => {
         // given
         const session = makeSession({ id: "session-9" });
         mocks.startWatchParty.mockResolvedValue({ session, embed_url: "https://hb.test/embed-9" });
-        mocks.listWatchPartyMessages.mockResolvedValue({ messages: [makeMessage({ id: "m-1" })] });
         const { result } = await setupLoaded();
 
         // when
@@ -325,23 +306,7 @@ describe("useWatchParty start", () => {
         // then
         expect(result.current.openSessionId).toBe("session-9");
         expect(result.current.activeSession?.embedURL).toBe("https://hb.test/embed-9");
-        expect(result.current.activeSession?.messages).toHaveLength(1);
         expect(result.current.sessions).toHaveLength(1);
-    });
-
-    it("opens the party anyway when its message history cannot be read", async () => {
-        // given
-        mocks.listWatchPartyMessages.mockRejectedValue(new Error("history is gone"));
-        const { result } = await setupLoaded();
-
-        // when
-        await act(async () => {
-            await result.current.start({});
-        });
-
-        // then
-        expect(result.current.activeSession?.messages).toEqual([]);
-        expect(result.current.error).toBeNull();
     });
 
     it("reports and re-raises a refusal to start a party", async () => {
@@ -377,7 +342,6 @@ describe("useWatchParty join and leave", () => {
         // given
         const session = makeSession({ id: "session-3" });
         mocks.joinWatchParty.mockResolvedValue({ session, embed_url: "https://hb.test/embed-3" });
-        mocks.listWatchPartyMessages.mockResolvedValue({ messages: [makeMessage({ id: "m-2" })] });
         const { result } = await setupLoaded();
 
         // when
@@ -387,7 +351,6 @@ describe("useWatchParty join and leave", () => {
 
         // then
         expect(mocks.joinWatchParty).toHaveBeenCalledWith(roomId, "session-3");
-        expect(mocks.listWatchPartyMessages).toHaveBeenCalledWith(roomId, "session-3");
         expect(result.current.activeSession?.session.id).toBe("session-3");
         expect(result.current.activeSession?.embedURL).toBe("https://hb.test/embed-3");
     });
@@ -602,7 +565,6 @@ describe("useWatchParty host controls", () => {
             await result.current.transferControl("user-battler");
             await result.current.kick("user-battler");
             await result.current.identify("hb-1");
-            await result.current.sendMessage("hello");
         });
 
         // then
@@ -610,11 +572,10 @@ describe("useWatchParty host controls", () => {
         expect(mocks.transferWatchPartyControl).not.toHaveBeenCalled();
         expect(mocks.kickWatchPartyParticipant).not.toHaveBeenCalled();
         expect(mocks.identifyWatchPartyParticipant).not.toHaveBeenCalled();
-        expect(mocks.sendWatchPartyMessage).not.toHaveBeenCalled();
     });
 });
 
-describe("useWatchParty identify and messages", () => {
+describe("useWatchParty identify", () => {
     it("tells the server which virtual browser seat the viewer took", async () => {
         // given
         const { result } = await setupActive();
@@ -655,32 +616,6 @@ describe("useWatchParty identify and messages", () => {
         expect(result.current.error).toBeNull();
     });
 
-    it("sends a chat message to the active party", async () => {
-        // given
-        const { result } = await setupActive();
-
-        // when
-        await act(async () => {
-            await result.current.sendMessage("kihihi");
-        });
-
-        // then
-        expect(mocks.sendWatchPartyMessage).toHaveBeenCalledWith(roomId, "session-1", "kihihi");
-    });
-
-    it("reports and re-raises a refusal to send a message", async () => {
-        // given
-        mocks.sendWatchPartyMessage.mockRejectedValue(new Error("you are muted"));
-        const { result } = await setupActive();
-
-        // when
-        await act(async () => {
-            await expect(result.current.sendMessage("kihihi")).rejects.toThrow("you are muted");
-        });
-
-        // then
-        expect(result.current.error).toBe("you are muted");
-    });
 });
 
 describe("useWatchParty socket events", () => {
@@ -840,50 +775,6 @@ describe("useWatchParty socket events", () => {
 
         // then
         expect(result.current.activeSession?.hasControl).toBe(true);
-    });
-
-    it("appends a message that arrives for the open party", async () => {
-        // given
-        const { result, emit } = await setupActive();
-
-        // when
-        await emit({
-            type: "watch_party_message",
-            data: { session_id: "session-1", room_id: roomId, message: makeMessage({ id: "m-live" }) },
-        } as WSMessage);
-
-        // then
-        expect(result.current.activeSession?.messages.map(m => m.id)).toEqual(["m-live"]);
-    });
-
-    it("never shows the same message twice", async () => {
-        // given
-        const { result, emit } = await setupActive();
-        const event = {
-            type: "watch_party_message",
-            data: { session_id: "session-1", room_id: roomId, message: makeMessage({ id: "m-live" }) },
-        } as WSMessage;
-        await emit(event);
-
-        // when
-        await emit(event);
-
-        // then
-        expect(result.current.activeSession?.messages).toHaveLength(1);
-    });
-
-    it("ignores a message meant for a party the viewer does not have open", async () => {
-        // given
-        const { result, emit } = await setupActive();
-
-        // when
-        await emit({
-            type: "watch_party_message",
-            data: { session_id: "session-other", room_id: roomId, message: makeMessage({ id: "m-live" }) },
-        } as WSMessage);
-
-        // then
-        expect(result.current.activeSession?.messages).toEqual([]);
     });
 
     it("tells the viewer they were removed and shuts the party window", async () => {

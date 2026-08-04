@@ -7,8 +7,6 @@ import {
     kickWatchPartyParticipant as kickWatchPartyParticipantApi,
     leaveWatchParty as leaveWatchPartyApi,
     listWatchParties,
-    listWatchPartyMessages,
-    sendWatchPartyMessage as sendWatchPartyMessageApi,
     startWatchParty as startWatchPartyApi,
     transferWatchPartyControl as transferWatchPartyControlApi,
 } from "../../../api/endpoints";
@@ -17,8 +15,6 @@ import type {
     WatchPartyControlChangedEvent,
     WatchPartyEndedEvent,
     WatchPartyKickedEvent,
-    WatchPartyMessage,
-    WatchPartyMessageEvent,
     WatchPartyParticipant,
     WatchPartyParticipantEvent,
     WatchPartyParticipantLeftEvent,
@@ -31,7 +27,6 @@ import { resolveOptimalRegion } from "./hyperbeamRegion";
 export interface ActiveWatchPartySession {
     session: WatchPartySession;
     embedURL: string;
-    messages: WatchPartyMessage[];
     hasControl: boolean;
 }
 
@@ -55,7 +50,6 @@ interface UseWatchPartyResult {
     transferControl: (userId: string) => Promise<void>;
     kick: (userId: string) => Promise<void>;
     identify: (identifier: string) => Promise<void>;
-    sendMessage: (body: string) => Promise<void>;
     openExisting: (sessionId: string) => void;
     close: () => void;
     clearError: () => void;
@@ -68,7 +62,6 @@ interface RoomScopedState {
     screenShareEnabled: boolean;
     activeSessionId: string | null;
     embedURL: string;
-    messages: WatchPartyMessage[];
 }
 
 const emptyState: RoomScopedState = {
@@ -78,7 +71,6 @@ const emptyState: RoomScopedState = {
     screenShareEnabled: false,
     activeSessionId: null,
     embedURL: "",
-    messages: [],
 };
 
 const HIDDEN_LEAVE_AFTER_MS = 10 * 60 * 1000;
@@ -178,7 +170,6 @@ export function useWatchParty(roomId: string | null, viewerUserId: string | null
                     screenShareEnabled: resp.screen_share_enabled,
                     activeSessionId: prev.roomId === roomId ? prev.activeSessionId : null,
                     embedURL: prev.roomId === roomId ? prev.embedURL : "",
-                    messages: prev.roomId === roomId ? prev.messages : [],
                 }));
             })
             .catch((err: unknown) => {
@@ -231,7 +222,6 @@ export function useWatchParty(roomId: string | null, viewerUserId: string | null
                         sessions,
                         activeSessionId: wasActive ? null : prev.activeSessionId,
                         embedURL: wasActive ? "" : prev.embedURL,
-                        messages: wasActive ? [] : prev.messages,
                     };
                 });
                 return;
@@ -294,22 +284,6 @@ export function useWatchParty(roomId: string | null, viewerUserId: string | null
                 });
                 return;
             }
-            if (msg.type === "watch_party_message") {
-                const payload = msg.data as WatchPartyMessageEvent;
-                if (activeIdRef.current !== payload.session_id) {
-                    return;
-                }
-                setData(prev => {
-                    if (prev.activeSessionId !== payload.session_id) {
-                        return prev;
-                    }
-                    if (prev.messages.some(m => m.id === payload.message.id)) {
-                        return prev;
-                    }
-                    return { ...prev, messages: [...prev.messages, payload.message] };
-                });
-                return;
-            }
             if (msg.type === "watch_party_kicked") {
                 const payload = msg.data as WatchPartyKickedEvent;
                 if (payload.room_id !== roomId) {
@@ -323,7 +297,7 @@ export function useWatchParty(roomId: string | null, viewerUserId: string | null
                     if (prev.activeSessionId !== payload.session_id) {
                         return prev;
                     }
-                    return { ...prev, activeSessionId: null, embedURL: "", messages: [] };
+                    return { ...prev, activeSessionId: null, embedURL: "" };
                 });
                 return;
             }
@@ -349,13 +323,6 @@ export function useWatchParty(roomId: string | null, viewerUserId: string | null
                     title: opts.title,
                     type: partyType,
                 });
-                let messages: WatchPartyMessage[] = [];
-                try {
-                    const msgsResp = await listWatchPartyMessages(roomId, resp.session.id);
-                    messages = msgsResp.messages;
-                } catch {
-                    messages = [];
-                }
                 setData(prev => ({
                     roomId,
                     sessions: upsertSession(prev.roomId === roomId ? prev.sessions : [], resp.session),
@@ -363,7 +330,6 @@ export function useWatchParty(roomId: string | null, viewerUserId: string | null
                     screenShareEnabled: prev.roomId === roomId ? prev.screenShareEnabled : true,
                     activeSessionId: resp.session.id,
                     embedURL: resp.embed_url,
-                    messages,
                 }));
                 return resp.session;
             } catch (err: unknown) {
@@ -382,13 +348,6 @@ export function useWatchParty(roomId: string | null, viewerUserId: string | null
             setError(null);
             try {
                 const resp = await joinWatchPartyApi(roomId, sessionId);
-                let messages: WatchPartyMessage[] = [];
-                try {
-                    const msgsResp = await listWatchPartyMessages(roomId, sessionId);
-                    messages = msgsResp.messages;
-                } catch {
-                    messages = [];
-                }
                 setData(prev => ({
                     roomId,
                     sessions: upsertSession(prev.roomId === roomId ? prev.sessions : [], resp.session),
@@ -396,7 +355,6 @@ export function useWatchParty(roomId: string | null, viewerUserId: string | null
                     screenShareEnabled: prev.roomId === roomId ? prev.screenShareEnabled : true,
                     activeSessionId: resp.session.id,
                     embedURL: resp.embed_url,
-                    messages,
                 }));
             } catch (err: unknown) {
                 setError(messageFromError(err, "Failed to join watch party"));
@@ -422,7 +380,7 @@ export function useWatchParty(roomId: string | null, viewerUserId: string | null
                 if (prev.roomId !== roomId) {
                     return prev;
                 }
-                return { ...prev, activeSessionId: null, embedURL: "", messages: [] };
+                return { ...prev, activeSessionId: null, embedURL: "" };
             });
         }
     }, [roomId, activeSessionId]);
@@ -486,22 +444,6 @@ export function useWatchParty(roomId: string | null, viewerUserId: string | null
         [roomId, activeSessionId],
     );
 
-    const sendMessage = useCallback(
-        async (body: string) => {
-            if (!roomId || !activeSessionId) {
-                return;
-            }
-            setError(null);
-            try {
-                await sendWatchPartyMessageApi(roomId, activeSessionId, body);
-            } catch (err: unknown) {
-                setError(messageFromError(err, "Failed to send message"));
-                throw err;
-            }
-        },
-        [roomId, activeSessionId],
-    );
-
     const openExisting = useCallback(
         (sessionId: string) => {
             setData(prev => {
@@ -522,7 +464,7 @@ export function useWatchParty(roomId: string | null, viewerUserId: string | null
             if (prev.roomId !== roomId) {
                 return prev;
             }
-            return { ...prev, activeSessionId: null, embedURL: "", messages: [] };
+            return { ...prev, activeSessionId: null, embedURL: "" };
         });
     }, [roomId]);
 
@@ -541,7 +483,6 @@ export function useWatchParty(roomId: string | null, viewerUserId: string | null
         return {
             session,
             embedURL: data.embedURL,
-            messages: data.messages,
             hasControl,
         };
     })();
@@ -562,7 +503,6 @@ export function useWatchParty(roomId: string | null, viewerUserId: string | null
         transferControl,
         kick,
         identify,
-        sendMessage,
         openExisting,
         close,
         clearError,

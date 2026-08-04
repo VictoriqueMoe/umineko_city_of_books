@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"strings"
 	"time"
-	"umineko_city_of_books/internal/watchparty"
 
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
@@ -24,7 +23,6 @@ const (
 	defaultOfflineTimeout = 300
 	defaultSessionTimeout = 14400
 	maxWatchPartyTitleLen = 80
-	maxWatchPartyBodyLen  = 2000
 
 	watchPartyReconcileEvery     = 5 * time.Minute
 	watchPartyReconcileIdleAfter = 6 * time.Minute
@@ -34,7 +32,6 @@ const (
 	wsWatchPartyParticipantJoin = "watch_party_participant_joined"
 	wsWatchPartyParticipantLeft = "watch_party_participant_left"
 	wsWatchPartyControlChanged  = "watch_party_control_changed"
-	wsWatchPartyMessage         = "watch_party_message"
 	wsWatchPartyKicked          = "watch_party_kicked"
 
 	watchPartyTypeHyperbeam   = "hyperbeam"
@@ -145,11 +142,26 @@ func (s *watchPartyService) StartWatchParty(ctx context.Context, roomID, actorID
 		return nil, err
 	}
 
-	if err := s.watchPartyRepo.UpsertParticipant(ctx, sessionID, actorID, true, ""); err != nil {
+	abandonSession := func(reason string, roomCreated bool) {
 		if sessionRow.HyperbeamSessionID != "" {
 			s.terminateHyperbeam(sessionRow.HyperbeamSessionID)
 		}
-		_ = s.watchPartyRepo.EndSession(ctx, sessionID, "controller_setup_failed")
+		if roomCreated {
+			if err := s.deleteRoomWithMedia(ctx, sessionID); err != nil {
+				logger.Log.Warn().Err(err).Str("session_id", sessionID.String()).Msg("roll back watch party chat room failed")
+			}
+		}
+		_ = s.watchPartyRepo.MarkAllParticipantsLeft(ctx, sessionID)
+		_ = s.watchPartyRepo.EndSession(ctx, sessionID, reason)
+	}
+
+	if err := s.createWatchPartyRoom(ctx, sessionID, actorID, trimmedTitle); err != nil {
+		abandonSession("chat_room_setup_failed", false)
+		return nil, err
+	}
+
+	if err := s.watchPartyRepo.UpsertParticipant(ctx, sessionID, actorID, true, ""); err != nil {
+		abandonSession("controller_setup_failed", true)
 		return nil, err
 	}
 
@@ -160,11 +172,13 @@ func (s *watchPartyService) StartWatchParty(ctx context.Context, roomID, actorID
 
 	stored, err := s.watchPartyRepo.GetByID(ctx, sessionID)
 	if err != nil || stored == nil {
+		abandonSession("session_reload_failed", true)
 		return nil, fmt.Errorf("reload watch party session: %w", err)
 	}
 
 	sessionDTO, err := s.buildWatchPartySessionDTO(ctx, stored, actorID, embedURL, true)
 	if err != nil {
+		abandonSession("session_build_failed", true)
 		return nil, err
 	}
 
@@ -228,6 +242,8 @@ func (s *watchPartyService) JoinWatchParty(ctx context.Context, roomID, sessionI
 		return nil, err
 	}
 
+	s.admitToWatchPartyRoom(ctx, session.ID, actorID)
+
 	participantDTO, err := s.buildWatchPartyParticipantDTO(ctx, session.ID, actorID, hasControl)
 	if err != nil {
 		return nil, err
@@ -285,6 +301,8 @@ func (s *watchPartyService) LeaveWatchParty(ctx context.Context, roomID, session
 		return err
 	}
 
+	s.evictFromWatchPartyRoom(ctx, session.ID, actorID)
+
 	s.hub.BroadcastToRoom(roomID, ws.Message{
 		Type: wsWatchPartyParticipantLeft,
 		Data: dto.WatchPartyParticipantLeftEvent{
@@ -333,9 +351,14 @@ func (s *watchPartyService) KickWatchPartyParticipant(ctx context.Context, roomI
 		}
 	}
 
+	body := fmt.Sprintf("%s was kicked by %s.", s.displayNameFor(ctx, targetID, roomID), s.displayNameFor(ctx, callerID, roomID))
+	s.postRoomActionMessage(ctx, session.ID, callerID, body)
+
 	if err := s.watchPartyRepo.MarkParticipantLeft(ctx, session.ID, targetID); err != nil {
 		return err
 	}
+
+	s.evictFromWatchPartyRoom(ctx, session.ID, targetID)
 
 	s.hub.BroadcastToRoom(roomID, ws.Message{
 		Type: wsWatchPartyParticipantLeft,
@@ -354,9 +377,6 @@ func (s *watchPartyService) KickWatchPartyParticipant(ctx context.Context, roomI
 			ActorID:   callerID,
 		},
 	})
-
-	body := fmt.Sprintf("%s was kicked by %s.", s.displayNameFor(ctx, targetID, roomID), s.displayNameFor(ctx, callerID, roomID))
-	s.postWatchPartySystemMessage(ctx, roomID, session.ID, body)
 
 	details := mustJSON(map[string]any{"room_id": roomID, "target_user_id": targetID})
 	if err := s.auditRepo.CreateForSubject(ctx, callerID, "watch_party.kick", "chat_watch_party_session", session.ID.String(), details, targetID); err != nil {
@@ -397,6 +417,8 @@ func (s *watchPartyService) HandleClientDisconnect(ctx context.Context, userID u
 				logger.Log.Warn().Err(err).Msg("disconnect: mark participant left failed")
 				continue
 			}
+
+			s.evictFromWatchPartyRoom(ctx, sess.ID, userID)
 			s.hub.BroadcastToRoom(roomID, ws.Message{
 				Type: wsWatchPartyParticipantLeft,
 				Data: dto.WatchPartyParticipantLeftEvent{
@@ -592,7 +614,7 @@ func (s *watchPartyService) IdentifyWatchPartyParticipant(ctx context.Context, r
 	}
 
 	if identifier == "" {
-		return ErrWatchPartyMessageEmpty
+		return ErrWatchPartyNoIdentifier
 	}
 	session, err := s.loadActiveSession(ctx, roomID, sessionID)
 	if err != nil {
@@ -728,78 +750,6 @@ func (s *watchPartyService) ForceMuteSessionVoice(ctx context.Context, roomID, s
 	return s.livekitSvc.SetCanPublish(ctx, roomName, targetID.String(), !muted, allowScreenShare)
 }
 
-func (s *watchPartyService) SendWatchPartyMessage(ctx context.Context, roomID, sessionID, senderID uuid.UUID, body string) (*dto.WatchPartyMessage, error) {
-	if err := s.assertActiveRoomMember(ctx, roomID, senderID); err != nil {
-		return nil, err
-	}
-
-	trimmed := strings.TrimSpace(body)
-	if trimmed == "" {
-		return nil, ErrWatchPartyMessageEmpty
-	}
-	if len(trimmed) > maxWatchPartyBodyLen {
-		return nil, ErrWatchPartyMessageTooLong
-	}
-	if err := s.filterTexts(ctx, trimmed); err != nil {
-		return nil, err
-	}
-
-	session, err := s.loadActiveSession(ctx, roomID, sessionID)
-	if err != nil {
-		return nil, err
-	}
-
-	participant, err := s.watchPartyRepo.GetParticipant(ctx, session.ID, senderID)
-	if err != nil {
-		return nil, err
-	}
-	if participant == nil || participant.LeftAt.Valid {
-		return nil, ErrWatchPartyNotParticipant
-	}
-
-	msgID := uuid.New()
-	if err := s.watchPartyRepo.InsertMessage(ctx, msgID, session.ID, senderID, trimmed); err != nil {
-		return nil, err
-	}
-
-	row, err := s.watchPartyRepo.GetMessageByID(ctx, msgID)
-	if err != nil || row == nil {
-		return nil, fmt.Errorf("reload watch party message: %w", err)
-	}
-	msgDTO := s.buildWatchPartyMessageDTO(ctx, row)
-
-	s.broadcastWatchPartyMessage(ctx, session.ID, roomID, msgDTO)
-
-	return &msgDTO, nil
-}
-
-func (s *watchPartyService) GetWatchPartyMessages(ctx context.Context, roomID, sessionID, viewerID uuid.UUID) (*dto.WatchPartyMessagesResponse, error) {
-	if err := s.assertActiveRoomMember(ctx, roomID, viewerID); err != nil {
-		return nil, err
-	}
-
-	session, err := s.loadActiveSession(ctx, roomID, sessionID)
-	if err != nil {
-		return nil, err
-	}
-	participant, err := s.watchPartyRepo.GetParticipant(ctx, session.ID, viewerID)
-	if err != nil {
-		return nil, err
-	}
-	if participant == nil || participant.LeftAt.Valid {
-		return nil, ErrWatchPartyNotParticipant
-	}
-	rows, err := s.watchPartyRepo.ListMessages(ctx, session.ID, 200)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]dto.WatchPartyMessage, 0, len(rows))
-	for i := range rows {
-		out = append(out, s.buildWatchPartyMessageDTO(ctx, &rows[i]))
-	}
-	return &dto.WatchPartyMessagesResponse{Messages: out}, nil
-}
-
 func (s *watchPartyService) WatchPartyEnabled() bool {
 	return s.hyperbeamSvc != nil && s.hyperbeamSvc.Enabled()
 }
@@ -844,6 +794,50 @@ func (s *watchPartyService) StartWatchPartyReconcileLoop(ctx context.Context) {
 	}()
 }
 
+func (s *watchPartyService) createWatchPartyRoom(ctx context.Context, sessionID, hostID uuid.UUID, title string) error {
+	name := title
+	if name == "" {
+		name = "Watch party"
+	}
+
+	if err := s.chatRepo.CreateSystemRoom(ctx, sessionID, name, "", SystemKindWatchParty, hostID); err != nil {
+		return fmt.Errorf("create watch party chat room: %w", err)
+	}
+
+	if err := s.chatRepo.AddMemberWithRole(ctx, sessionID, hostID, "host", false); err != nil {
+		return fmt.Errorf("add host to watch party chat room: %w", err)
+	}
+
+	s.hub.JoinRoom(sessionID, hostID)
+
+	return nil
+}
+
+func (s *watchPartyService) admitToWatchPartyRoom(ctx context.Context, sessionID, userID uuid.UUID) {
+	alreadyMember, err := s.chatRepo.IsMember(ctx, sessionID, userID)
+	if err != nil {
+		logger.Log.Warn().Err(err).Str("session_id", sessionID.String()).Msg("check watch party chat membership failed")
+		return
+	}
+
+	if !alreadyMember {
+		if err := s.chatRepo.AddMemberWithRole(ctx, sessionID, userID, "member", false); err != nil {
+			logger.Log.Warn().Err(err).Str("session_id", sessionID.String()).Msg("add participant to watch party chat room failed")
+			return
+		}
+	}
+
+	s.hub.JoinRoom(sessionID, userID)
+}
+
+func (s *watchPartyService) evictFromWatchPartyRoom(ctx context.Context, sessionID, userID uuid.UUID) {
+	if err := s.chatRepo.RemoveMember(ctx, sessionID, userID); err != nil {
+		logger.Log.Warn().Err(err).Str("session_id", sessionID.String()).Msg("remove participant from watch party chat room failed")
+	}
+
+	s.hub.LeaveRoom(sessionID, userID)
+}
+
 func (s *watchPartyService) assertActiveRoomMember(ctx context.Context, roomID, userID uuid.UUID) error {
 	isMember, err := s.chatRepo.IsMember(ctx, roomID, userID)
 	if err != nil {
@@ -879,50 +873,6 @@ func hyperbeamSessionGone(err error) bool {
 		return apiErr.StatusCode == 404 || apiErr.StatusCode == 410
 	}
 	return false
-}
-
-func (s *watchPartyService) cleanupDeadSession(session *repository.ChatWatchPartySessionRow, reason string) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	if err := s.watchPartyRepo.MarkAllParticipantsLeft(ctx, session.ID); err != nil {
-		logger.Log.Warn().Err(err).Msg("cleanup dead session: mark participants left failed")
-	}
-	if err := s.watchPartyRepo.EndSession(ctx, session.ID, reason); err != nil {
-		logger.Log.Warn().Err(err).Msg("cleanup dead session: end session failed")
-	}
-	if err := s.watchPartyRepo.DeleteMessagesForSession(ctx, session.ID); err != nil {
-		logger.Log.Warn().Err(err).Msg("cleanup dead session: delete watch party messages failed")
-	}
-
-	s.clearVoiceMuted(voiceSessionRoomPrefix + session.ID.String())
-
-	s.hub.BroadcastToRoom(session.RoomID, ws.Message{
-		Type: wsWatchPartyEnded,
-		Data: dto.WatchPartyEndedEvent{
-			SessionID: session.ID,
-			RoomID:    session.RoomID,
-			Reason:    reason,
-		},
-	}, uuid.Nil)
-}
-
-func (s *watchPartyService) broadcastWatchPartyMessage(ctx context.Context, sessionID, roomID uuid.UUID, msg dto.WatchPartyMessage) {
-	participants, err := s.watchPartyRepo.GetActiveParticipants(ctx, sessionID)
-	if err != nil {
-		logger.Log.Warn().Err(err).Msg("broadcast watch party message: list participants failed")
-		return
-	}
-	event := ws.Message{
-		Type: wsWatchPartyMessage,
-		Data: dto.WatchPartyMessageEvent{
-			SessionID: sessionID,
-			RoomID:    roomID,
-			Message:   msg,
-		},
-	}
-	for i := range participants {
-		s.hub.SendToUser(participants[i].UserID, event)
-	}
 }
 
 func (s *watchPartyService) buildWatchPartySessionDTO(ctx context.Context, session *repository.ChatWatchPartySessionRow, viewerID uuid.UUID, viewerEmbedURL string, viewerHasControl bool) (*dto.WatchPartySession, error) {
@@ -1039,34 +989,6 @@ func (s *watchPartyService) buildWatchPartyParticipantDTO(ctx context.Context, s
 		HasControl: hasControl,
 		JoinedAt:   row.JoinedAt,
 	}, nil
-}
-
-func (s *watchPartyService) buildWatchPartyMessageDTO(ctx context.Context, row *repository.ChatWatchPartyMessageRow) dto.WatchPartyMessage {
-	kind := row.Kind
-	if kind == "" {
-		kind = watchparty.MessageKindUser
-	}
-	out := dto.WatchPartyMessage{
-		ID:        row.ID,
-		SessionID: row.SessionID,
-		Kind:      kind,
-		Body:      row.Body,
-		CreatedAt: row.CreatedAt,
-	}
-	if kind == watchparty.MessageKindSystem || !row.SenderID.Valid {
-		return out
-	}
-	senderRole, _ := s.roleRepo.GetRole(ctx, row.SenderID.UUID)
-	vanity, _ := s.vanityRoleRepo.GetRolesForUser(ctx, row.SenderID.UUID)
-	out.Sender = &dto.UserResponse{
-		ID:          row.SenderID.UUID,
-		Username:    row.SenderUsername.String,
-		DisplayName: row.SenderDisplayName.String,
-		AvatarURL:   row.SenderAvatarURL.String,
-		Role:        senderRole,
-		VanityRoles: s.toVanityRoleResponses(vanity),
-	}
-	return out
 }
 
 func stringToNull(s string) sql.NullString {

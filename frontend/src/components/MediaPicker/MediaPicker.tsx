@@ -16,20 +16,24 @@ interface MediaPreviewsProps {
 export function MediaPreviews({ files, onRemove, onReorder, size = "normal" }: MediaPreviewsProps) {
     const dragIndex = useRef<number | null>(null);
 
+    const liveUrls = useRef<string[]>([]);
+
     const previews = useMemo(() => {
         const urls: string[] = [];
-        for (let i = 0; i < files.length; i++) {
-            urls.push(URL.createObjectURL(files[i]));
+        for (const file of files) {
+            urls.push(URL.createObjectURL(file));
         }
         return urls;
     }, [files]);
 
     useEffect(() => {
-        return () => {
-            for (let i = 0; i < previews.length; i++) {
-                URL.revokeObjectURL(previews[i]);
+        const current = new Set(previews);
+        for (const url of liveUrls.current) {
+            if (!current.has(url)) {
+                URL.revokeObjectURL(url);
             }
-        };
+        }
+        liveUrls.current = previews;
     }, [previews]);
 
     if (files.length === 0) {

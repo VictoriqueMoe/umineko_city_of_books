@@ -194,7 +194,6 @@ function renderRoom(options: RoomHarnessOptions = {}) {
         transferControl: () => Promise.resolve(),
         kick: () => Promise.resolve(),
         identify: () => Promise.resolve(),
-        sendMessage: () => Promise.resolve(),
         openExisting: () => {},
         close: () => {},
         clearError: () => {},

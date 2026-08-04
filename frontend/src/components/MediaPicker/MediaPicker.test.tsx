@@ -1,3 +1,4 @@
+import { StrictMode } from "react";
 import { fireEvent, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -44,7 +45,8 @@ describe("MediaPreviews", () => {
 
     beforeEach(() => {
         revoked = vi.fn();
-        vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:preview");
+        let issued = 0;
+        vi.spyOn(URL, "createObjectURL").mockImplementation(() => `blob:preview-${++issued}`);
         vi.spyOn(URL, "revokeObjectURL").mockImplementation(revoked);
     });
 
@@ -202,16 +204,44 @@ describe("MediaPreviews", () => {
         expect(onReorder).not.toHaveBeenCalled();
     });
 
-    it("releases the preview urls when it goes away", () => {
+    it("releases the preview url of a picture that was taken back off", () => {
         // given
-        const files = [makeFile("a.png", "image/png"), makeFile("b.png", "image/png")];
-        const { unmount } = renderWithProviders(<MediaPreviews files={files} onRemove={noop} />);
+        const a = makeFile("a.png", "image/png");
+        const b = makeFile("b.png", "image/png");
+        const { rerender } = renderWithProviders(<MediaPreviews files={[a, b]} onRemove={noop} />);
+        const before = screen.getAllByRole("presentation").map(img => img.getAttribute("src"));
+        revoked.mockClear();
+
+        // when the second picture is dropped from the list
+        rerender(<MediaPreviews files={[a]} onRemove={noop} />);
+
+        // then only the urls that nothing points at any more are released
+        const after = screen.getAllByRole("presentation").map(img => img.getAttribute("src"));
+        for (const url of before) {
+            if (!after.includes(url)) {
+                expect(revoked).toHaveBeenCalledWith(url);
+            }
+        }
+        for (const url of after) {
+            expect(revoked).not.toHaveBeenCalledWith(url);
+        }
+    });
+
+    it("keeps a staged picture visible when effects are torn down and set up again", () => {
+        // given StrictMode, which mounts effects, tears them down, then mounts them again
+        const files = [makeFile("a.png", "image/png")];
 
         // when
-        unmount();
+        renderWithProviders(
+            <StrictMode>
+                <MediaPreviews files={files} onRemove={noop} />
+            </StrictMode>,
+        );
 
-        // then
-        expect(revoked).toHaveBeenCalledTimes(2);
+        // then the url the img still points at has not been revoked underneath it
+        const src = screen.getByRole("presentation").getAttribute("src");
+        expect(src).toBeTruthy();
+        expect(revoked).not.toHaveBeenCalledWith(src);
     });
 });
 

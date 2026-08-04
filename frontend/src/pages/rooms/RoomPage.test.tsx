@@ -246,7 +246,6 @@ function stubController(options: ControllerOptions = {}) {
             transferControl: vi.fn(),
             kick: vi.fn(),
             identify: vi.fn(),
-            sendMessage: vi.fn(),
         },
         invitedPartyMissing: options.invitedPartyMissing ?? false,
         replyingTo: null,

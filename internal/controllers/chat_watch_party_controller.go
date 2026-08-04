@@ -39,14 +39,6 @@ func (s *Service) setupEndWatchPartyRoute(r fiber.Router) {
 	r.Delete("/chat/rooms/:roomID/watch-parties/:sessionID", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.endWatchParty)
 }
 
-func (s *Service) setupListWatchPartyMessagesRoute(r fiber.Router) {
-	r.Get("/chat/rooms/:roomID/watch-parties/:sessionID/messages", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.listWatchPartyMessages)
-}
-
-func (s *Service) setupSendWatchPartyMessageRoute(r fiber.Router) {
-	r.Post("/chat/rooms/:roomID/watch-parties/:sessionID/messages", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.sendWatchPartyMessage)
-}
-
 func (s *Service) setupIdentifyWatchPartyRoute(r fiber.Router) {
 	r.Post("/chat/rooms/:roomID/watch-parties/:sessionID/identify", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.identifyWatchPartyParticipant)
 }
@@ -85,13 +77,9 @@ func mapWatchPartyError(ctx fiber.Ctx, err error) error {
 		{
 			return utils.BadRequest(ctx, "watch parties are only available in group chat rooms")
 		}
-	case errors.Is(err, chat.ErrWatchPartyMessageEmpty):
+	case errors.Is(err, chat.ErrWatchPartyNoIdentifier):
 		{
-			return utils.BadRequest(ctx, "message body is required")
-		}
-	case errors.Is(err, chat.ErrWatchPartyMessageTooLong):
-		{
-			return utils.BadRequest(ctx, "message is too long")
+			return utils.BadRequest(ctx, "participant identifier is required")
 		}
 	case errors.Is(err, chat.ErrWatchPartyOutranked):
 		{
@@ -289,23 +277,6 @@ func (s *Service) endWatchParty(ctx fiber.Ctx) error {
 	return utils.OK(ctx)
 }
 
-func (s *Service) listWatchPartyMessages(ctx fiber.Ctx) error {
-	actorID := utils.UserID(ctx)
-	roomID, ok := utils.ParseIDParam(ctx, "roomID")
-	if !ok {
-		return nil
-	}
-	sessionID, ok := utils.ParseIDParam(ctx, "sessionID")
-	if !ok {
-		return nil
-	}
-	resp, err := s.ChatService.GetWatchPartyMessages(ctx.Context(), roomID, sessionID, actorID)
-	if err != nil {
-		return mapWatchPartyError(ctx, err)
-	}
-	return ctx.JSON(resp)
-}
-
 func (s *Service) identifyWatchPartyParticipant(ctx fiber.Ctx) error {
 	actorID := utils.UserID(ctx)
 	roomID, ok := utils.ParseIDParam(ctx, "roomID")
@@ -324,25 +295,4 @@ func (s *Service) identifyWatchPartyParticipant(ctx fiber.Ctx) error {
 		return mapWatchPartyError(ctx, err)
 	}
 	return utils.OK(ctx)
-}
-
-func (s *Service) sendWatchPartyMessage(ctx fiber.Ctx) error {
-	actorID := utils.UserID(ctx)
-	roomID, ok := utils.ParseIDParam(ctx, "roomID")
-	if !ok {
-		return nil
-	}
-	sessionID, ok := utils.ParseIDParam(ctx, "sessionID")
-	if !ok {
-		return nil
-	}
-	req, ok := utils.BindJSON[dto.SendWatchPartyMessageRequest](ctx)
-	if !ok {
-		return nil
-	}
-	msg, err := s.ChatService.SendWatchPartyMessage(ctx.Context(), roomID, sessionID, actorID, req.Body)
-	if err != nil {
-		return mapWatchPartyError(ctx, err)
-	}
-	return ctx.Status(fiber.StatusCreated).JSON(msg)
 }
