@@ -11,7 +11,7 @@ import type { ActiveWatchPartySession } from "./useWatchParty";
 import { ScreenShareView } from "./ScreenShareView";
 import { useAudioPlaybackGuard } from "./useAudioPlaybackGuard";
 import { useSessionMedia, type ScreenShareMode } from "./useSessionMedia";
-import { WatchPartyChat } from "./WatchPartyChat";
+import { RoomChatPanel } from "../RoomChatPanel/RoomChatPanel";
 import { WatchPartyParticipants } from "./WatchPartyParticipants";
 import styles from "./WatchParty.module.css";
 
@@ -31,7 +31,6 @@ interface WatchPartyModalProps {
     onTransferControl: (userId: string) => Promise<void>;
     onKick: (userId: string) => Promise<void>;
     onIdentify: (identifier: string) => Promise<void>;
-    onSendMessage: (body: string) => Promise<void>;
 }
 
 export function WatchPartyModal({
@@ -48,7 +47,6 @@ export function WatchPartyModal({
     onTransferControl,
     onKick,
     onIdentify,
-    onSendMessage,
 }: WatchPartyModalProps) {
     const wrapRef = useRef<HTMLDivElement | null>(null);
     const handleRef = useRef<HyperbeamHandle | null>(null);
@@ -58,7 +56,7 @@ export function WatchPartyModal({
     const [copied, setCopied] = useState(false);
     const [mountError, setMountError] = useState<string | null>(null);
     const [shareMode, setShareMode] = useState<ScreenShareMode>("gaming");
-    const { session, embedURL, messages, hasControl } = active;
+    const { session, embedURL, hasControl } = active;
 
     const handleCopyInvite = () => {
         const link = siteUrl(`/rooms/${session.room_id}?party=${session.id}`);
@@ -274,7 +272,14 @@ export function WatchPartyModal({
                             )}
                         </section>
                     )}
-                    <WatchPartyChat messages={messages} viewerUserId={viewerUserId} onSend={onSendMessage} />
+                    <div className={styles.chatPanel}>
+                        <RoomChatPanel
+                            roomId={session.id}
+                            title="Party chat"
+                            canSend
+                            loginPrompt="to join the party chat."
+                        />
+                    </div>
                 </div>
                 <footer className={styles.footer}>
                     {voiceEnabled && (

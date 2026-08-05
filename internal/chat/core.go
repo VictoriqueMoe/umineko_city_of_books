@@ -122,6 +122,85 @@ func (c *core) dropFromLiveKitRoom(ctx context.Context, roomName, identity strin
 	logger.Log.Warn().Err(err).Str("livekit_room", roomName).Str("identity", identity).Msg("remove livekit participant failed")
 }
 
+func (c *core) deleteRoomWithMedia(ctx context.Context, roomID uuid.UUID) error {
+	urls, err := c.chatRepo.ListRoomMediaURLs(ctx, roomID)
+	if err != nil {
+		logger.Log.Warn().Err(err).Str("room_id", roomID.String()).Msg("list room chat media for cleanup failed")
+	}
+
+	for i := range urls {
+		if urls[i] == "" {
+			continue
+		}
+		if delErr := c.uploadSvc.Delete(urls[i]); delErr != nil {
+			logger.Log.Warn().Err(delErr).Str("media_url", urls[i]).Msg("delete room chat media file failed")
+		}
+	}
+
+	members, err := c.chatRepo.GetRoomMembers(ctx, roomID)
+	if err != nil {
+		logger.Log.Warn().Err(err).Str("room_id", roomID.String()).Msg("list room members for hub cleanup failed")
+	}
+
+	if err := c.chatRepo.DeleteRoom(ctx, roomID); err != nil {
+		return fmt.Errorf("delete room: %w", err)
+	}
+
+	for i := range members {
+		c.hub.LeaveRoom(roomID, members[i])
+	}
+
+	return nil
+}
+
+func (c *core) cleanupDeadSession(session *repository.ChatWatchPartySessionRow, reason string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := c.watchPartyRepo.MarkAllParticipantsLeft(ctx, session.ID); err != nil {
+		logger.Log.Warn().Err(err).Msg("cleanup dead session: mark participants left failed")
+	}
+	if err := c.watchPartyRepo.EndSession(ctx, session.ID, reason); err != nil {
+		logger.Log.Warn().Err(err).Msg("cleanup dead session: end session failed")
+	}
+	if err := c.deleteRoomWithMedia(ctx, session.ID); err != nil {
+		logger.Log.Warn().Err(err).Msg("cleanup dead session: delete watch party chat room failed")
+	}
+
+	c.clearVoiceMuted(voiceSessionRoomPrefix + session.ID.String())
+
+	c.hub.BroadcastToRoom(session.RoomID, ws.Message{
+		Type: wsWatchPartyEnded,
+		Data: dto.WatchPartyEndedEvent{
+			SessionID: session.ID,
+			RoomID:    session.RoomID,
+			Reason:    reason,
+		},
+	}, uuid.Nil)
+}
+
+func (c *core) endWatchPartiesForRoom(ctx context.Context, roomID uuid.UUID, reason string) {
+	if c.watchPartyRepo == nil {
+		return
+	}
+
+	sessions, err := c.watchPartyRepo.ListActiveByRoom(ctx, roomID)
+	if err != nil {
+		logger.Log.Warn().Err(err).Str("room_id", roomID.String()).Msg("end watch parties for room: list failed")
+		return
+	}
+
+	for i := range sessions {
+		session := sessions[i]
+		if c.hyperbeamSvc != nil && session.HyperbeamSessionID != "" {
+			if err := c.hyperbeamSvc.TerminateVM(ctx, session.HyperbeamSessionID); err != nil {
+				logger.Log.Warn().Err(err).Str("hyperbeam_session_id", session.HyperbeamSessionID).Msg("end watch parties for room: terminate vm failed")
+			}
+		}
+		c.cleanupDeadSession(&session, reason)
+	}
+}
+
 func (c *core) clearWatchPartyParticipation(ctx context.Context, roomID, userID uuid.UUID) {
 	if c.watchPartyRepo == nil {
 		return
@@ -147,6 +226,11 @@ func (c *core) clearWatchPartyParticipation(ctx context.Context, roomID, userID 
 		}
 
 		c.dropFromLiveKitRoom(ctx, voiceSessionRoomPrefix+sessionID.String(), userID.String())
+
+		if err := c.chatRepo.RemoveMember(ctx, sessionID, userID); err != nil {
+			logger.Log.Warn().Err(err).Str("session_id", sessionID.String()).Msg("evict: remove watch party chat member failed")
+		}
+		c.hub.LeaveRoom(sessionID, userID)
 
 		c.hub.BroadcastToRoom(roomID, ws.Message{
 			Type: wsWatchPartyParticipantLeft,

@@ -230,3 +230,34 @@ func TestSchema_UnsolvedMysteryCannotHaveWinner(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "mysteries_unsolved_state_check")
 }
+
+func TestSchema_WatchPartyRoomsAreNotSingletons(t *testing.T) {
+	// given a site where two watch parties can run at the same time
+	repos := daotest.NewRepos(t)
+	ctx := context.Background()
+	host := daotest.CreateUser(t, repos)
+
+	// when each party claims its own system room
+	_, err := repos.DB().ExecContext(ctx,
+		`INSERT INTO chat_rooms (id, name, type, is_system, system_kind, created_by) VALUES ($1, 'party one', 'group', TRUE, 'watch_party', $3), ($2, 'party two', 'group', TRUE, 'watch_party', $3)`,
+		uuid.New(), uuid.New(), host.ID)
+
+	// then neither collides on the system-kind index
+	require.NoError(t, err)
+}
+
+func TestSchema_SingletonSystemRoomsStayUnique(t *testing.T) {
+	// given the staff rooms that are meant to exist exactly once
+	repos := daotest.NewRepos(t)
+	ctx := context.Background()
+	host := daotest.CreateUser(t, repos)
+
+	// when a second room of the same kind is inserted
+	_, err := repos.DB().ExecContext(ctx,
+		`INSERT INTO chat_rooms (id, name, type, is_system, system_kind, created_by) VALUES ($1, 'mods', 'group', TRUE, 'mods', $3), ($2, 'mods again', 'group', TRUE, 'mods', $3)`,
+		uuid.New(), uuid.New(), host.ID)
+
+	// then widening the index for parties has not loosened the singleton guarantee
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "idx_chat_rooms_system_kind")
+}

@@ -362,6 +362,8 @@ func (r *roomsService) DeleteChat(ctx context.Context, roomID, userID uuid.UUID)
 	}
 
 	if row.Type == dto.RoomTypeGroup && canMod {
+		r.endWatchPartiesForRoom(ctx, roomID, "room_deleted")
+
 		members, _ := r.chatRepo.GetRoomMembers(ctx, roomID)
 		if err := r.chatRepo.DeleteMessages(ctx, roomID); err != nil {
 			return fmt.Errorf("delete messages: %w", err)
@@ -394,7 +396,10 @@ func (r *roomsService) DeleteChat(ctx context.Context, roomID, userID uuid.UUID)
 	if err != nil {
 		return fmt.Errorf("count remaining members: %w", err)
 	}
+
 	if remaining == 0 {
+		r.endWatchPartiesForRoom(ctx, roomID, "room_deleted")
+
 		if err := r.chatRepo.DeleteMessages(ctx, roomID); err != nil {
 			return fmt.Errorf("delete messages: %w", err)
 		}

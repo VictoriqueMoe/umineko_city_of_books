@@ -95,17 +95,6 @@ func (r *chatWatchPartyDAO) EndSession(ctx context.Context, sessionID uuid.UUID,
 	return nil
 }
 
-func (r *chatWatchPartyDAO) DeleteMessagesForSession(ctx context.Context, sessionID uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx,
-		`DELETE FROM chat_watch_party_messages WHERE session_id = $1`,
-		sessionID,
-	)
-	if err != nil {
-		return fmt.Errorf("delete watch party messages: %w", err)
-	}
-	return nil
-}
-
 func (r *chatWatchPartyDAO) SetControllerID(ctx context.Context, sessionID, controllerID uuid.UUID) error {
 	_, err := r.db.ExecContext(ctx,
 		`UPDATE chat_watch_party_sessions SET controller_id = $2 WHERE id = $1`,
@@ -267,73 +256,4 @@ func (r *chatWatchPartyDAO) ListIdleActiveSessions(ctx context.Context, idleBefo
 		result = append(result, s)
 	}
 	return result, rows.Err()
-}
-
-func (r *chatWatchPartyDAO) InsertMessage(ctx context.Context, id, sessionID, senderID uuid.UUID, body string) error {
-	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO chat_watch_party_messages (id, session_id, sender_id, body, kind) VALUES ($1, $2, $3, $4, 'user')`,
-		id, sessionID, senderID, body,
-	)
-	if err != nil {
-		return fmt.Errorf("insert watch party message: %w", err)
-	}
-	return nil
-}
-
-func (r *chatWatchPartyDAO) InsertSystemMessage(ctx context.Context, id, sessionID uuid.UUID, body string) error {
-	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO chat_watch_party_messages (id, session_id, sender_id, body, kind) VALUES ($1, $2, NULL, $3, 'system')`,
-		id, sessionID, body,
-	)
-	if err != nil {
-		return fmt.Errorf("insert watch party system message: %w", err)
-	}
-	return nil
-}
-
-func (r *chatWatchPartyDAO) ListMessages(ctx context.Context, sessionID uuid.UUID, limit int) ([]repository.ChatWatchPartyMessageRow, error) {
-	if limit <= 0 || limit > 500 {
-		limit = 100
-	}
-	rows, err := r.db.QueryContext(ctx,
-		`SELECT m.id, m.session_id, m.kind, m.sender_id, u.username, u.display_name, u.avatar_url, m.body, m.created_at
-		   FROM chat_watch_party_messages m
-		   LEFT JOIN users u ON u.id = m.sender_id
-		  WHERE m.session_id = $1
-		  ORDER BY m.created_at ASC
-		  LIMIT $2`,
-		sessionID, limit,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("list watch party messages: %w", err)
-	}
-	defer rows.Close()
-	var result []repository.ChatWatchPartyMessageRow
-	for rows.Next() {
-		var m repository.ChatWatchPartyMessageRow
-		if err := rows.Scan(&m.ID, &m.SessionID, &m.Kind, &m.SenderID, &m.SenderUsername, &m.SenderDisplayName, &m.SenderAvatarURL, &m.Body, &m.CreatedAt); err != nil {
-			return nil, fmt.Errorf("scan watch party message: %w", err)
-		}
-		result = append(result, m)
-	}
-	return result, rows.Err()
-}
-
-func (r *chatWatchPartyDAO) GetMessageByID(ctx context.Context, messageID uuid.UUID) (*repository.ChatWatchPartyMessageRow, error) {
-	row := r.db.QueryRowContext(ctx,
-		`SELECT m.id, m.session_id, m.kind, m.sender_id, u.username, u.display_name, u.avatar_url, m.body, m.created_at
-		   FROM chat_watch_party_messages m
-		   LEFT JOIN users u ON u.id = m.sender_id
-		  WHERE m.id = $1`,
-		messageID,
-	)
-	var m repository.ChatWatchPartyMessageRow
-	err := row.Scan(&m.ID, &m.SessionID, &m.Kind, &m.SenderID, &m.SenderUsername, &m.SenderDisplayName, &m.SenderAvatarURL, &m.Body, &m.CreatedAt)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("scan watch party message: %w", err)
-	}
-	return &m, nil
 }

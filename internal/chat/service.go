@@ -91,8 +91,6 @@ type (
 		HandleClientDisconnect(ctx context.Context, userID uuid.UUID, roomIDs []uuid.UUID)
 		ListWatchParties(ctx context.Context, roomID, viewerID uuid.UUID) (*dto.WatchPartyListResponse, error)
 		IdentifyWatchPartyParticipant(ctx context.Context, roomID, sessionID, userID uuid.UUID, identifier string) error
-		SendWatchPartyMessage(ctx context.Context, roomID, sessionID, senderID uuid.UUID, body string) (*dto.WatchPartyMessage, error)
-		GetWatchPartyMessages(ctx context.Context, roomID, sessionID, viewerID uuid.UUID) (*dto.WatchPartyMessagesResponse, error)
 		MintSessionVoiceToken(ctx context.Context, roomID, sessionID, userID uuid.UUID) (token, url string, err error)
 		ForceMuteSessionVoice(ctx context.Context, roomID, sessionID, actorID, targetID uuid.UUID, muted bool) error
 		StartWatchPartyReconcileLoop(ctx context.Context)

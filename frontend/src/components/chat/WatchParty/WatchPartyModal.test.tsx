@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { createContext } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../../test-utils/render";
-import type { User, WatchPartyMessage, WatchPartyParticipant, WatchPartySession } from "../../../types/api";
+import type { User, WatchPartyParticipant, WatchPartySession } from "../../../types/api";
 import type { SiteRole } from "../../../utils/permissions";
 import type { ActiveWatchPartySession } from "./useWatchParty";
 import { WatchPartyModal } from "./WatchPartyModal";
@@ -54,6 +54,14 @@ vi.mock("./useSessionMedia", () => ({ useSessionMedia: mocks.useSessionMedia }))
 
 vi.mock("../../../api/endpoints", () => ({ forceMuteWatchPartyVoiceParticipant: mocks.forceMute }));
 
+vi.mock("../RoomChatPanel/RoomChatPanel", () => ({
+    RoomChatPanel: ({ roomId, title }: { roomId?: string; title: string }) => (
+        <div data-testid="room-chat-panel" data-room-id={roomId}>
+            {title}
+        </div>
+    ),
+}));
+
 interface NodeProcess {
     on(event: "unhandledRejection", handler: (reason: unknown) => void): void;
     off(event: "unhandledRejection", handler: (reason: unknown) => void): void;
@@ -90,7 +98,6 @@ function makeActive(overrides: Partial<ActiveWatchPartySession> = {}): ActiveWat
     return {
         session: makeSession(),
         embedURL: "https://hb.test/embed",
-        messages: [] as WatchPartyMessage[],
         hasControl: false,
         ...overrides,
     };
@@ -137,7 +144,6 @@ function renderModal(options: ModalOptions = {}) {
     const onTransferControl = vi.fn(() => Promise.resolve());
     const onKick = vi.fn(() => Promise.resolve());
     const onIdentify = vi.fn(() => Promise.resolve());
-    const onSendMessage = vi.fn(() => Promise.resolve());
 
     const result = renderWithProviders(
         <WatchPartyModal
@@ -154,11 +160,10 @@ function renderModal(options: ModalOptions = {}) {
             onTransferControl={onTransferControl}
             onKick={onKick}
             onIdentify={onIdentify}
-            onSendMessage={onSendMessage}
         />,
     );
 
-    return { ...result, onClose, onLeave, onEnd, onTransferControl, onKick, onIdentify, onSendMessage };
+    return { ...result, onClose, onLeave, onEnd, onTransferControl, onKick, onIdentify };
 }
 
 function makeHandle(userId = "hb-user-1") {
@@ -432,7 +437,6 @@ describe("WatchPartyModal virtual browser", () => {
                 onTransferControl={() => Promise.resolve()}
                 onKick={() => Promise.resolve()}
                 onIdentify={() => Promise.resolve()}
-                onSendMessage={() => Promise.resolve()}
             />,
         );
 
@@ -744,27 +748,17 @@ describe("WatchPartyModal panels", () => {
         });
     });
 
-    it("shows the party chat alongside the media", () => {
+    it("shows the party chat alongside the media, scoped to the session's own room", () => {
         // given
-        const active = makeActive({
-            messages: [
-                {
-                    id: "m-1",
-                    session_id: "session-1",
-                    kind: "user",
-                    sender: makeChatUser(),
-                    body: "the golden truth",
-                    created_at: "2026-08-01T10:05:00Z",
-                },
-            ],
-        });
+        const active = makeActive({ session: makeSession({ id: "session-42" }) });
 
         // when
         renderModal({ active });
 
         // then
-        expect(screen.getByText("Party chat")).toBeInTheDocument();
-        expect(screen.getByText("the golden truth")).toBeInTheDocument();
+        const panel = screen.getByTestId("room-chat-panel");
+        expect(panel).toHaveTextContent("Party chat");
+        expect(panel).toHaveAttribute("data-room-id", "session-42");
     });
 
     it("lists the watchers of the party underneath", () => {

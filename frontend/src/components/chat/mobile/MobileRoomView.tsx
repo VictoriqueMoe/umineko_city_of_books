@@ -157,7 +157,6 @@ export function MobileRoomView({ controller }: { controller: RoomController }) {
                         onTransferControl={watchParty.transferControl}
                         onKick={watchParty.kick}
                         onIdentify={watchParty.identify}
-                        onSendMessage={watchParty.sendMessage}
                     />
                 </Suspense>
             )}

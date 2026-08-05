@@ -422,45 +422,6 @@
     font-weight: 600;
 }
 
-.chatPanel {
-    flex: 1 1 auto;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-    min-width: 0;
-    border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
-    border-radius: 10px;
-    background: var(--surface, rgba(255, 255, 255, 0.03));
-    overflow: hidden;
-    container: streamchat / inline-size;
-}
-
-.chatHeader {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-    padding: 0.6rem 0.8rem;
-    font-weight: 600;
-    border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.12));
-    flex-shrink: 0;
-}
-
-.chatPopOutBtn {
-    border: 1px solid var(--border, rgba(255, 255, 255, 0.2));
-    background: transparent;
-    color: inherit;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 0.85rem;
-    line-height: 1;
-    padding: 0.25rem 0.4rem;
-}
-
-.chatPopOutBtn:hover {
-    background: var(--surface-hover, rgba(255, 255, 255, 0.08));
-}
-
 .chatRestoreBtn {
     align-self: flex-start;
     border: 1px solid var(--border, rgba(255, 255, 255, 0.2));
@@ -481,45 +442,6 @@
     height: 100dvh;
     padding: 0.5rem;
     box-sizing: border-box;
-}
-
-.chatMessages {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow-y: auto;
-    overflow-x: hidden;
-    padding: 0.5rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-}
-
-.chatContent {
-    display: flex;
-    flex-direction: column;
-    gap: inherit;
-}
-
-.chatNotice {
-    color: rgba(255, 255, 255, 0.6);
-    font-size: 0.85rem;
-    text-align: center;
-    padding: 0.5rem;
-}
-
-.chatEnded {
-    flex-shrink: 0;
-    color: rgba(255, 255, 255, 0.6);
-    font-size: 0.85rem;
-    text-align: center;
-    padding: 0.85rem;
-    border-top: 1px solid var(--border, rgba(255, 255, 255, 0.12));
-}
-
-.chatLoginPrompt {
-    padding: 1rem;
-    color: rgba(255, 255, 255, 0.7);
-    font-size: 0.9rem;
 }
 
 .mobileShell {
@@ -705,13 +627,4 @@
     min-height: 0;
     overflow-y: auto;
     padding: 0.6rem;
-}
-
-.mobileBody .chatPanel {
-    border: none;
-    border-radius: 0;
-}
-
-.mobileBody .chatHeader {
-    display: none;
 }

@@ -33,6 +33,7 @@ func TestDeleteStreamRoom_DeletesMediaFilesThenRoom(t *testing.T) {
 	m.chatRepo.EXPECT().ListRoomMediaURLs(mock.Anything, streamID).Return([]string{"/uploads/a.webp", "/uploads/b.jpg"}, nil)
 	m.uploadSvc.EXPECT().Delete("/uploads/a.webp").Return(nil)
 	m.uploadSvc.EXPECT().Delete("/uploads/b.jpg").Return(nil)
+	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, streamID).Return(nil, nil)
 	m.chatRepo.EXPECT().DeleteRoom(mock.Anything, streamID).Return(nil)
 
 	// when

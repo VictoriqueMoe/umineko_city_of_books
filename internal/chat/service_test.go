@@ -2111,6 +2111,7 @@ func TestDeleteChat_GroupHost_DeleteMessagesError(t *testing.T) {
 	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, userID).Return(&repository.ChatRoomRow{IsMember: true, Type: "group", ViewerRole: "host"}, nil)
 	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, userID).Return("host", nil)
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return([]uuid.UUID{userID}, nil)
+	m.watchPartyRepo.EXPECT().ListActiveByRoom(mock.Anything, roomID).Return(nil, nil)
 	m.chatRepo.EXPECT().DeleteMessages(mock.Anything, roomID).Return(errors.New("boom"))
 
 	// when
@@ -2128,6 +2129,7 @@ func TestDeleteChat_GroupHost_DeleteRoomError(t *testing.T) {
 	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, userID).Return(&repository.ChatRoomRow{IsMember: true, Type: "group", ViewerRole: "host"}, nil)
 	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, userID).Return("host", nil)
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return([]uuid.UUID{userID}, nil)
+	m.watchPartyRepo.EXPECT().ListActiveByRoom(mock.Anything, roomID).Return(nil, nil)
 	m.chatRepo.EXPECT().DeleteMessages(mock.Anything, roomID).Return(nil)
 	m.chatRepo.EXPECT().DeleteRoom(mock.Anything, roomID).Return(errors.New("boom"))
 
@@ -2146,6 +2148,7 @@ func TestDeleteChat_GroupHost_OK(t *testing.T) {
 	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, userID).Return(&repository.ChatRoomRow{IsMember: true, Type: "group", ViewerRole: "host"}, nil)
 	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, userID).Return("host", nil)
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return([]uuid.UUID{userID}, nil)
+	m.watchPartyRepo.EXPECT().ListActiveByRoom(mock.Anything, roomID).Return(nil, nil)
 	m.chatRepo.EXPECT().DeleteMessages(mock.Anything, roomID).Return(nil)
 	m.chatRepo.EXPECT().DeleteRoom(mock.Anything, roomID).Return(nil)
 
@@ -3634,6 +3637,7 @@ func TestDeleteChat_SiteMod_GroupOK(t *testing.T) {
 	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, actorID).Return("", nil)
 	m.authzSvc.EXPECT().GetRole(mock.Anything, actorID).Return(authz.RoleAdmin, nil)
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return(nil, nil)
+	m.watchPartyRepo.EXPECT().ListActiveByRoom(mock.Anything, roomID).Return(nil, nil)
 	m.chatRepo.EXPECT().DeleteMessages(mock.Anything, roomID).Return(nil)
 	m.chatRepo.EXPECT().DeleteRoom(mock.Anything, roomID).Return(nil)
 
@@ -4010,4 +4014,33 @@ func TestGetMembers_StaffSeesGhosts(t *testing.T) {
 		}
 	}
 	assert.True(t, ghostSeen)
+}
+
+func TestDeleteChat_GroupHost_EndsActiveWatchPartiesFirst(t *testing.T) {
+	// given a group room a host is deleting while a watch party is still running in it
+	svc, m := newTestService(t)
+	roomID := uuid.New()
+	userID := uuid.New()
+	sessionID := uuid.New()
+
+	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, userID).Return(&repository.ChatRoomRow{IsMember: true, Type: "group", ViewerRole: "host"}, nil)
+	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, userID).Return("host", nil)
+	m.watchPartyRepo.EXPECT().ListActiveByRoom(mock.Anything, roomID).Return([]repository.ChatWatchPartySessionRow{
+		{ID: sessionID, RoomID: roomID, HyperbeamSessionID: "hb_sess", Status: "active"},
+	}, nil)
+	m.hyperbeamSvc.EXPECT().TerminateVM(mock.Anything, "hb_sess").Return(nil)
+	m.watchPartyRepo.EXPECT().MarkAllParticipantsLeft(mock.Anything, sessionID).Return(nil)
+	m.watchPartyRepo.EXPECT().EndSession(mock.Anything, sessionID, "room_deleted").Return(nil)
+	m.chatRepo.EXPECT().ListRoomMediaURLs(mock.Anything, sessionID).Return(nil, nil)
+	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, sessionID).Return(nil, nil)
+	m.chatRepo.EXPECT().DeleteRoom(mock.Anything, sessionID).Return(nil)
+	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return([]uuid.UUID{userID}, nil)
+	m.chatRepo.EXPECT().DeleteMessages(mock.Anything, roomID).Return(nil)
+	m.chatRepo.EXPECT().DeleteRoom(mock.Anything, roomID).Return(nil)
+
+	// when the room is deleted
+	err := svc.DeleteChat(context.Background(), roomID, userID)
+
+	// then the party is torn down too, instead of its room being orphaned by the FK cascade
+	require.NoError(t, err)
 }

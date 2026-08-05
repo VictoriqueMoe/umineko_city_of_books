@@ -4,8 +4,6 @@ import (
 	"context"
 	"database/sql"
 
-	"umineko_city_of_books/internal/watchparty"
-
 	"github.com/google/uuid"
 )
 
@@ -40,18 +38,6 @@ type (
 		LeftAt              sql.NullString
 	}
 
-	ChatWatchPartyMessageRow struct {
-		ID                uuid.UUID
-		SessionID         uuid.UUID
-		Kind              watchparty.MessageKind
-		SenderID          uuid.NullUUID
-		SenderUsername    sql.NullString
-		SenderDisplayName sql.NullString
-		SenderAvatarURL   sql.NullString
-		Body              string
-		CreatedAt         string
-	}
-
 	ChatWatchPartyRepository interface {
 		CreateSession(ctx context.Context, row ChatWatchPartySessionRow) (uuid.UUID, error)
 		GetByID(ctx context.Context, sessionID uuid.UUID) (*ChatWatchPartySessionRow, error)
@@ -67,12 +53,6 @@ type (
 		GetParticipant(ctx context.Context, sessionID, userID uuid.UUID) (*ChatWatchPartyParticipantRow, error)
 		SetParticipantControl(ctx context.Context, sessionID, userID uuid.UUID, hasControl bool) error
 		CountActiveParticipants(ctx context.Context, sessionID uuid.UUID) (int, error)
-
-		InsertMessage(ctx context.Context, id, sessionID, senderID uuid.UUID, body string) error
-		DeleteMessagesForSession(ctx context.Context, sessionID uuid.UUID) error
-		InsertSystemMessage(ctx context.Context, id, sessionID uuid.UUID, body string) error
-		ListMessages(ctx context.Context, sessionID uuid.UUID, limit int) ([]ChatWatchPartyMessageRow, error)
-		GetMessageByID(ctx context.Context, messageID uuid.UUID) (*ChatWatchPartyMessageRow, error)
 
 		ListIdleActiveSessions(ctx context.Context, idleBefore string) ([]ChatWatchPartySessionRow, error)
 	}
@@ -136,26 +116,6 @@ func (r *chatWatchPartyRepository) SetParticipantControl(ctx context.Context, se
 
 func (r *chatWatchPartyRepository) CountActiveParticipants(ctx context.Context, sessionID uuid.UUID) (int, error) {
 	return r.dao.CountActiveParticipants(ctx, sessionID)
-}
-
-func (r *chatWatchPartyRepository) InsertMessage(ctx context.Context, id, sessionID, senderID uuid.UUID, body string) error {
-	return r.dao.InsertMessage(ctx, id, sessionID, senderID, body)
-}
-
-func (r *chatWatchPartyRepository) DeleteMessagesForSession(ctx context.Context, sessionID uuid.UUID) error {
-	return r.dao.DeleteMessagesForSession(ctx, sessionID)
-}
-
-func (r *chatWatchPartyRepository) InsertSystemMessage(ctx context.Context, id, sessionID uuid.UUID, body string) error {
-	return r.dao.InsertSystemMessage(ctx, id, sessionID, body)
-}
-
-func (r *chatWatchPartyRepository) ListMessages(ctx context.Context, sessionID uuid.UUID, limit int) ([]ChatWatchPartyMessageRow, error) {
-	return r.dao.ListMessages(ctx, sessionID, limit)
-}
-
-func (r *chatWatchPartyRepository) GetMessageByID(ctx context.Context, messageID uuid.UUID) (*ChatWatchPartyMessageRow, error) {
-	return r.dao.GetMessageByID(ctx, messageID)
 }
 
 func (r *chatWatchPartyRepository) ListIdleActiveSessions(ctx context.Context, idleBefore string) ([]ChatWatchPartySessionRow, error) {

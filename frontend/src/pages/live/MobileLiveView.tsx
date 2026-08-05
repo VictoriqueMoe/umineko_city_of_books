@@ -215,7 +215,7 @@ export function MobileLiveView({
 
             <div className={styles.mobileBody}>
                 <div className={tab === "chat" ? styles.mobilePane : styles.mobilePaneHidden}>
-                    <StreamChatPanel streamId={stream.id} isLive={isLive} />
+                    <StreamChatPanel streamId={stream.id} isLive={isLive} flush hideHeader />
                 </div>
                 <div className={tab === "viewers" ? styles.mobilePane : styles.mobilePaneHidden}>
                     {isLive && room ? (

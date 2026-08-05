@@ -583,7 +583,6 @@ export function RoomPage() {
                         onTransferControl={watchParty.transferControl}
                         onKick={watchParty.kick}
                         onIdentify={watchParty.identify}
-                        onSendMessage={watchParty.sendMessage}
                     />
                 </Suspense>
             )}

@@ -92,8 +92,6 @@ import type {
     UserProfile,
     VotePayload,
     WatchPartyListResponse,
-    WatchPartyMessage,
-    WatchPartyMessagesResponse,
 } from "../types/api";
 
 const QUOTE_API = "https://quotes.auaurora.moe/api/v1";
@@ -944,20 +942,6 @@ export async function identifyWatchPartyParticipant(
 ): Promise<void> {
     await apiPost<unknown, { identifier: string }>(`/chat/rooms/${roomId}/watch-parties/${sessionId}/identify`, {
         identifier,
-    });
-}
-
-export async function listWatchPartyMessages(roomId: string, sessionId: string): Promise<WatchPartyMessagesResponse> {
-    return apiFetch<WatchPartyMessagesResponse>(`/chat/rooms/${roomId}/watch-parties/${sessionId}/messages`);
-}
-
-export async function sendWatchPartyMessage(
-    roomId: string,
-    sessionId: string,
-    body: string,
-): Promise<WatchPartyMessage> {
-    return apiPost<WatchPartyMessage, { body: string }>(`/chat/rooms/${roomId}/watch-parties/${sessionId}/messages`, {
-        body,
     });
 }
 

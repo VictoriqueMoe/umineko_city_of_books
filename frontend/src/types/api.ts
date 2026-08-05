@@ -773,25 +773,10 @@ export interface WatchPartySession {
     viewer?: WatchPartyViewerContext;
 }
 
-export type WatchPartyMessageKind = "user" | "system";
-
-export interface WatchPartyMessage {
-    id: string;
-    session_id: string;
-    kind: WatchPartyMessageKind;
-    sender?: User;
-    body: string;
-    created_at: string;
-}
-
 export interface WatchPartyListResponse {
     sessions: WatchPartySession[];
     enabled: boolean;
     screen_share_enabled: boolean;
-}
-
-export interface WatchPartyMessagesResponse {
-    messages: WatchPartyMessage[];
 }
 
 export interface StartWatchPartyResponse {
@@ -831,12 +816,6 @@ export interface WatchPartyControlChangedEvent {
     room_id: string;
     user_id: string;
     has_control: boolean;
-}
-
-export interface WatchPartyMessageEvent {
-    session_id: string;
-    room_id: string;
-    message: WatchPartyMessage;
 }
 
 export interface WatchPartyKickedEvent {

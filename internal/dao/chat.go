@@ -386,6 +386,7 @@ func (r *chatDAO) GetRoomsByUser(ctx context.Context, userID uuid.UUID) ([]repos
 		 (SELECT COUNT(*) FROM chat_room_members WHERE room_id = cr.id AND left_at IS NULL)
 		 FROM chat_rooms cr
 		 JOIN chat_room_members m ON cr.id = m.room_id AND m.user_id = $1 AND m.left_at IS NULL
+		 WHERE cr.system_kind IS DISTINCT FROM 'watch_party'
 		 ORDER BY cr.is_system DESC, COALESCE(cr.last_message_at, cr.created_at) DESC`, userID,
 	)
 	if err != nil {
@@ -430,7 +431,7 @@ func (r *chatDAO) GetRoomsByUser(ctx context.Context, userID uuid.UUID) ([]repos
 }
 
 func (r *chatDAO) ListUserGroupRooms(ctx context.Context, userID uuid.UUID, search string, isRPOnly bool, tag, role string, includeArchived bool, limit, offset int) ([]repository.ChatRoomRow, int, error) {
-	conditions := []string{"cr.type = 'group'", "m.user_id = $1", "m.left_at IS NULL"}
+	conditions := []string{"cr.type = 'group'", "m.user_id = $1", "m.left_at IS NULL", "cr.system_kind IS DISTINCT FROM 'watch_party'"}
 	args := []any{userID}
 	idx := 2
 	if !includeArchived {
@@ -944,6 +945,7 @@ func (r *chatDAO) SearchMessagesForViewer(ctx context.Context, viewerID, roomID 
 		 JOIN users u ON cm.sender_id = u.id
 		 CROSS JOIN q
 		 WHERE cm.is_system = false
+		   AND cr.system_kind IS DISTINCT FROM 'watch_party'
 		   AND u.banned_at IS NULL AND u.locked_at IS NULL
 		   AND ($3 = '00000000-0000-0000-0000-000000000000'::uuid OR cm.room_id = $3)
 		   AND (cm.search_vector @@ q.tsq OR cm.body % q.qstr)`

@@ -1,8 +1,6 @@
 package dto
 
 import (
-	"umineko_city_of_books/internal/watchparty"
-
 	"github.com/google/uuid"
 )
 
@@ -35,15 +33,6 @@ type (
 		EmbedURL      string `json:"embed_url,omitempty"`
 	}
 
-	WatchPartyMessage struct {
-		ID        uuid.UUID              `json:"id"`
-		SessionID uuid.UUID              `json:"session_id"`
-		Kind      watchparty.MessageKind `json:"kind"`
-		Sender    *UserResponse          `json:"sender,omitempty"`
-		Body      string                 `json:"body"`
-		CreatedAt string                 `json:"created_at"`
-	}
-
 	StartWatchPartyRequest struct {
 		StartURL string `json:"start_url,omitempty"`
 		Region   string `json:"region,omitempty"`
@@ -65,18 +54,10 @@ type (
 		Identifier string `json:"identifier"`
 	}
 
-	SendWatchPartyMessageRequest struct {
-		Body string `json:"body"`
-	}
-
 	WatchPartyListResponse struct {
 		Sessions           []WatchPartySession `json:"sessions"`
 		Enabled            bool                `json:"enabled"`
 		ScreenShareEnabled bool                `json:"screen_share_enabled"`
-	}
-
-	WatchPartyMessagesResponse struct {
-		Messages []WatchPartyMessage `json:"messages"`
 	}
 
 	WatchPartyStartedEvent struct {
@@ -106,12 +87,6 @@ type (
 		RoomID     uuid.UUID `json:"room_id"`
 		UserID     uuid.UUID `json:"user_id"`
 		HasControl bool      `json:"has_control"`
-	}
-
-	WatchPartyMessageEvent struct {
-		SessionID uuid.UUID         `json:"session_id"`
-		RoomID    uuid.UUID         `json:"room_id"`
-		Message   WatchPartyMessage `json:"message"`
 	}
 
 	WatchPartyKickedEvent struct {

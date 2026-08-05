@@ -111,6 +111,7 @@ func TestLeaveWatchParty_NonMemberStillLeaves(t *testing.T) {
 	}, nil)
 	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, memberID).Return(participantRow(sessionID, memberID, participantActive), nil)
 	m.watchPartyRepo.EXPECT().MarkParticipantLeft(mock.Anything, sessionID, memberID).Return(nil)
+	m.chatRepo.EXPECT().RemoveMember(mock.Anything, sessionID, memberID).Return(nil)
 
 	// when they leave the party
 	err := svc.LeaveWatchParty(context.Background(), roomID, sessionID, memberID)
@@ -174,8 +175,10 @@ func TestClearWatchPartyParticipation(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given an active watch party in the room the user is being evicted from
 			watchPartyRepo := repository.NewMockChatWatchPartyRepository(t)
+			chatRepo := repository.NewMockChatRepository(t)
 			lk := livekit.NewMockService(t)
 			c := &core{
+				chatRepo:       chatRepo,
 				watchPartyRepo: watchPartyRepo,
 				livekitSvc:     lk,
 				hub:            ws.NewHub(),
@@ -194,12 +197,13 @@ func TestClearWatchPartyParticipation(t *testing.T) {
 					Run(func(ctx context.Context, sessionID uuid.UUID, userID uuid.UUID) { markedLeft = true }).
 					Return(nil)
 				lk.EXPECT().RemoveParticipant(mock.Anything, voiceSessionRoomPrefix+sessionID.String(), userID.String()).Return(nil)
+				chatRepo.EXPECT().RemoveMember(mock.Anything, sessionID, userID).Return(nil)
 			}
 
 			// when the eviction clears their watch party participation
 			c.clearWatchPartyParticipation(context.Background(), roomID, userID)
 
-			// then only an open row is closed, and closing it drops the live party call
+			// then only an open row is closed, and closing it drops both the live party call and party chat access
 			require.Equal(t, tc.wantMarkedLeft, markedLeft)
 		})
 	}
