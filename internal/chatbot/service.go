@@ -1,6 +1,7 @@
 package chatbot
 
 import (
+	"cmp"
 	"context"
 	"slices"
 
@@ -12,6 +13,7 @@ import (
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/chat"
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/openai"
 	"umineko_city_of_books/internal/post"
@@ -42,6 +44,7 @@ type (
 		Enabled() bool
 		OnSettingsBatchChanged(keys []config.SiteSettingKey)
 		Reload()
+		Listing() []dto.ChatbotSummary
 		Shutdown(ctx context.Context) error
 	}
 
@@ -179,10 +182,41 @@ func (s *service) reload() {
 	s.bots = bots
 	s.loaded = true
 	s.mu.Unlock()
+
+	online := make([]uuid.UUID, 0, len(bots))
+	for id := range bots {
+		online = append(online, id)
+	}
+
+	s.hub.SetAlwaysOnline(online)
 }
 
 func (s *service) Reload() {
 	s.reload()
+}
+
+func (s *service) Listing() []dto.ChatbotSummary {
+	tune, bots := s.snapshot()
+
+	out := make([]dto.ChatbotSummary, 0, len(bots))
+	if !tune.enabled || !s.openaiSvc.Enabled() {
+		return out
+	}
+
+	for _, bot := range bots {
+		out = append(out, dto.ChatbotSummary{
+			UserID:      bot.UserID,
+			Username:    bot.Username,
+			DisplayName: bot.DisplayName,
+			AvatarURL:   bot.AvatarURL,
+		})
+	}
+
+	slices.SortFunc(out, func(a, b dto.ChatbotSummary) int {
+		return cmp.Compare(strings.ToLower(a.DisplayName), strings.ToLower(b.DisplayName))
+	})
+
+	return out
 }
 
 func (s *service) snapshot() (tuning, map[uuid.UUID]repository.Chatbot) {

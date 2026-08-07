@@ -1251,6 +1251,31 @@ func TestGetMembers_OK(t *testing.T) {
 	assert.Equal(t, memberID, got[0].User.ID)
 }
 
+func TestGetMembers_BotsAreOnlineWithoutViewingTheRoom(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	viewerID := uuid.New()
+	roomID := uuid.New()
+	botID := uuid.New()
+	humanID := uuid.New()
+	m.hub.SetAlwaysOnline([]uuid.UUID{botID})
+	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, viewerID).Return(true, nil)
+	m.chatRepo.EXPECT().GetRoomMembersDetailed(mock.Anything, roomID).Return([]repository.ChatRoomMemberRow{
+		{UserID: botID, Username: "beatrice", DisplayName: "Beatrice", Role: "member"},
+		{UserID: humanID, Username: "battler", DisplayName: "Battler", Role: "member"},
+	}, nil)
+	m.vanityRoleRepo.EXPECT().GetRolesForUsersBatch(mock.Anything, []uuid.UUID{botID, humanID}).Return(nil, nil)
+
+	// when
+	got, err := svc.GetMembers(context.Background(), viewerID, roomID)
+
+	// then
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+	assert.Equal(t, ws.ViewerStateActive, got[0].Presence)
+	assert.Empty(t, got[1].Presence)
+}
+
 func TestGetMembers_SiteMod_NicknameLockedFalse(t *testing.T) {
 	// given
 	svc, m := newTestService(t)

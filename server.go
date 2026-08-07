@@ -186,6 +186,7 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 		settingsSvc,
 		svc.chat,
 		svc.chatbotAdmin,
+		svc.chatbot,
 		svc.report,
 		svc.post,
 		svc.follow,

@@ -1652,6 +1652,17 @@ export interface ChatbotUsage {
     quota: number;
 }
 
+export interface ChatbotSummary {
+    user_id: string;
+    username: string;
+    display_name: string;
+    avatar_url: string;
+}
+
+export interface ChatbotListResponse {
+    chatbots: ChatbotSummary[];
+}
+
 export interface ChatbotModels {
     models: string[];
     error?: string;

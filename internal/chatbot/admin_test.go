@@ -37,6 +37,8 @@ func (s *stubReloader) OnSettingsBatchChanged(_ []config.SiteSettingKey) {}
 
 func (s *stubReloader) Reload() { s.reloads++ }
 
+func (s *stubReloader) Listing() []dto.ChatbotSummary { return nil }
+
 func (s *stubReloader) Shutdown(_ context.Context) error { return nil }
 
 func validRequest(model string) dto.ChatbotUpsertRequest {

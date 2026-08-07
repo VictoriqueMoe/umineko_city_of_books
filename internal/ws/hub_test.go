@@ -162,3 +162,42 @@ func isKilled(c *Client) bool {
 		return false
 	}
 }
+
+func TestIsOnline_AlwaysOnlineMembersNeedNoConnection(t *testing.T) {
+	// given
+	hub := NewHub("test")
+	bot := uuid.New()
+	human := uuid.New()
+
+	// then
+	assert.False(t, hub.IsOnline(bot), "nobody is online before registration")
+
+	// when
+	hub.SetAlwaysOnline([]uuid.UUID{bot})
+
+	// then
+	assert.True(t, hub.IsOnline(bot), "a bot reads as online without a websocket")
+	assert.False(t, hub.IsOnline(human), "real members still need a connection")
+	assert.True(t, hub.IsAlwaysOnline(bot), "the bot is in the always online set")
+	assert.False(t, hub.IsAlwaysOnline(human), "a human is never in the always online set")
+
+	// when
+	hub.SetAlwaysOnline(nil)
+
+	// then
+	assert.False(t, hub.IsOnline(bot), "a deleted or disabled bot stops being online")
+	assert.False(t, hub.IsAlwaysOnline(bot), "a deleted or disabled bot leaves the always online set")
+}
+
+func TestGetRoomPresence_ReportsOnlyRoomViewers(t *testing.T) {
+	// given
+	hub := NewHub("test")
+	roomID := uuid.New()
+	bot := uuid.New()
+
+	// when
+	hub.SetAlwaysOnline([]uuid.UUID{bot})
+
+	// then
+	assert.Empty(t, hub.GetRoomPresence(roomID), "an always online member is not viewing any room")
+}

@@ -286,7 +286,12 @@ func (m *membersService) GetMembers(ctx context.Context, viewerID, roomID uuid.U
 		if mr.Ghost && !viewerIsStaff {
 			continue
 		}
-		resp := m.memberRowToMemberResponse(mr, m.toVanityRoleResponses(vanityMap[mr.UserID]), presence[mr.UserID])
+		state := presence[mr.UserID]
+		if state == "" && m.hub.IsAlwaysOnline(mr.UserID) {
+			state = ws.ViewerStateActive
+		}
+
+		resp := m.memberRowToMemberResponse(mr, m.toVanityRoleResponses(vanityMap[mr.UserID]), state)
 		resp.Ghost = mr.Ghost
 		members = append(members, resp)
 	}

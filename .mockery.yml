@@ -18,6 +18,9 @@ packages:
   umineko_city_of_books/internal/auth:
     interfaces:
       Service:
+  umineko_city_of_books/internal/chatbot:
+    interfaces:
+      Service:
   umineko_city_of_books/internal/profile:
     interfaces:
       Service:

@@ -20,22 +20,24 @@ func TestVanityRoleDAO_List_SeedsSystemRoles(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	require.Len(t, roles, 7)
-	assert.Equal(t, "system_top_detective", roles[0].ID)
-	assert.True(t, roles[0].IsSystem)
+
+	ids := make([]string, len(roles))
+	for i := range roles {
+		ids[i] = roles[i].ID
+		assert.True(t, roles[i].IsSystem, "every seeded role must be a system role")
+	}
+
+	assert.Equal(t, []string{
+		"system_top_detective",
+		"system_top_gm",
+		"system_top_chess",
+		"system_top_checkers",
+		"system_top_othello",
+		"system_top_minesweeper",
+		"bot",
+		"system_witch_hunter",
+	}, ids)
 	assert.Equal(t, 0, roles[0].SortOrder)
-	assert.Equal(t, "system_top_gm", roles[1].ID)
-	assert.True(t, roles[1].IsSystem)
-	assert.Equal(t, "system_top_chess", roles[2].ID)
-	assert.True(t, roles[2].IsSystem)
-	assert.Equal(t, "system_top_checkers", roles[3].ID)
-	assert.True(t, roles[3].IsSystem)
-	assert.Equal(t, "system_top_othello", roles[4].ID)
-	assert.True(t, roles[4].IsSystem)
-	assert.Equal(t, "system_top_minesweeper", roles[5].ID)
-	assert.True(t, roles[5].IsSystem)
-	assert.Equal(t, "system_witch_hunter", roles[6].ID)
-	assert.True(t, roles[6].IsSystem)
 }
 
 func TestVanityRoleDAO_Create_AndGetByID(t *testing.T) {
@@ -134,17 +136,25 @@ func TestVanityRoleDAO_List_OrdersBySortOrderThenLabel(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	require.Len(t, roles, 10)
-	assert.Equal(t, "system_top_detective", roles[0].ID)
-	assert.Equal(t, "system_top_gm", roles[1].ID)
-	assert.Equal(t, "system_top_chess", roles[2].ID)
-	assert.Equal(t, "system_top_checkers", roles[3].ID)
-	assert.Equal(t, "system_top_othello", roles[4].ID)
-	assert.Equal(t, "c", roles[5].ID)
-	assert.Equal(t, "system_top_minesweeper", roles[6].ID)
-	assert.Equal(t, "a", roles[7].ID)
-	assert.Equal(t, "b", roles[8].ID)
-	assert.Equal(t, "system_witch_hunter", roles[9].ID)
+
+	ids := make([]string, len(roles))
+	for i := range roles {
+		ids[i] = roles[i].ID
+	}
+
+	assert.Equal(t, []string{
+		"system_top_detective",
+		"system_top_gm",
+		"system_top_chess",
+		"system_top_checkers",
+		"system_top_othello",
+		"c",
+		"system_top_minesweeper",
+		"a",
+		"b",
+		"bot",
+		"system_witch_hunter",
+	}, ids, "roles sort by sort_order then label")
 }
 
 func TestVanityRoleDAO_AssignToUser_AndGetRolesForUser(t *testing.T) {

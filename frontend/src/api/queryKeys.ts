@@ -72,6 +72,10 @@ export const queryKeys = {
         list: (params: Record<string, unknown> = {}) => ["notifications", "list", params] as const,
         unreadCount: () => ["notifications", "unread-count"] as const,
     },
+    chatbots: {
+        all: ["chatbots"] as const,
+        list: () => ["chatbots", "list"] as const,
+    },
     admin: {
         announcements: () => ["admin", "announcements"] as const,
         users: (params: Record<string, unknown> = {}) => ["admin", "users", params] as const,

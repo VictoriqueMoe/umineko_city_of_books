@@ -2443,3 +2443,60 @@ func TestChatDAO_InsertSystemMessage_SetsSystemFlag(t *testing.T) {
 	require.NotNil(t, got)
 	assert.True(t, got.IsSystem)
 }
+
+func TestChatDAO_CreateDMRoomAtomic_RestoresAMemberWhoLeft(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	ctx := context.Background()
+	a := daotest.CreateUser(t, repos)
+	b := daotest.CreateUser(t, repos)
+
+	roomID, err := repos.Chat.CreateDMRoomAtomic(ctx, uuid.New(), a.ID, b.ID)
+	require.NoError(t, err)
+	require.NoError(t, repos.Chat.RemoveMember(ctx, roomID, a.ID))
+
+	left, err := repos.Chat.IsMember(ctx, roomID, a.ID)
+	require.NoError(t, err)
+	require.False(t, left, "leaving must actually remove membership")
+
+	// when
+	again, err := repos.Chat.CreateDMRoomAtomic(ctx, uuid.New(), a.ID, b.ID)
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, roomID, again, "the pair keeps its room")
+
+	rejoined, err := repos.Chat.IsMember(ctx, roomID, a.ID)
+	require.NoError(t, err)
+	assert.True(t, rejoined, "messaging again must put the sender back in the room")
+}
+
+func TestChatDAO_GetMessagesForMember_StartsFreshAfterDeletingADM(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	ctx := context.Background()
+	a := daotest.CreateUser(t, repos)
+	b := daotest.CreateUser(t, repos)
+
+	roomID, err := repos.Chat.CreateDMRoomAtomic(ctx, uuid.New(), a.ID, b.ID)
+	require.NoError(t, err)
+	require.NoError(t, repos.Chat.InsertMessage(ctx, uuid.New(), roomID, a.ID, "before", nil))
+	require.NoError(t, repos.Chat.InsertMessage(ctx, uuid.New(), roomID, b.ID, "also before", nil))
+
+	require.NoError(t, repos.Chat.RemoveMember(ctx, roomID, a.ID))
+	_, err = repos.Chat.CreateDMRoomAtomic(ctx, uuid.New(), a.ID, b.ID)
+	require.NoError(t, err)
+	require.NoError(t, repos.Chat.InsertMessage(ctx, uuid.New(), roomID, a.ID, "after", nil))
+
+	// when
+	mine, err := repos.Chat.GetMessagesForMember(ctx, roomID, a.ID, 50)
+	require.NoError(t, err)
+
+	theirs, err := repos.Chat.GetMessagesForMember(ctx, roomID, b.ID, 50)
+	require.NoError(t, err)
+
+	// then
+	require.Len(t, mine, 1, "the member who deleted the chat only sees what came after")
+	assert.Equal(t, "after", mine[0].Body)
+	assert.Len(t, theirs, 3, "the other member keeps the whole conversation")
+}

@@ -41,6 +41,17 @@ type (
 		BilledUSD          *float64 `json:"billed_usd"`
 	}
 
+	ChatbotSummary struct {
+		UserID      uuid.UUID `json:"user_id"`
+		Username    string    `json:"username"`
+		DisplayName string    `json:"display_name"`
+		AvatarURL   string    `json:"avatar_url"`
+	}
+
+	ChatbotListResponse struct {
+		Chatbots []ChatbotSummary `json:"chatbots"`
+	}
+
 	ChatbotModelsResponse struct {
 		Models []string `json:"models"`
 		Error  string   `json:"error,omitempty"`

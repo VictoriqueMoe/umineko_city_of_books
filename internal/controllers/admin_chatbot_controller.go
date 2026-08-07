@@ -56,6 +56,20 @@ func (s *Service) setupAdminChatbotTest(r fiber.Router) {
 	r.Post("/admin/chatbots/test", s.requirePerm(authz.PermManageSettings), s.adminChatbotTest)
 }
 
+func (s *Service) getAllChatbotRoutes() []FSetupRoute {
+	return []FSetupRoute{
+		s.setupListChatbots,
+	}
+}
+
+func (s *Service) setupListChatbots(r fiber.Router) {
+	r.Get("/chatbots", s.listChatbots)
+}
+
+func (s *Service) listChatbots(ctx fiber.Ctx) error {
+	return ctx.JSON(dto.ChatbotListResponse{Chatbots: s.ChatbotService.Listing()})
+}
+
 func (s *Service) adminListChatbots(ctx fiber.Ctx) error {
 	bots, err := s.ChatbotAdminService.List(ctx.Context())
 	if err != nil {

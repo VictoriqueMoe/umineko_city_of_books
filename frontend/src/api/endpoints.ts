@@ -27,6 +27,7 @@ import type {
     CharacterListResponse,
     Chatbot,
     ChatbotModels,
+    ChatbotListResponse,
     ChatbotPayload,
     ChatbotTestResult,
     ChatbotUsage,
@@ -2379,6 +2380,10 @@ export async function updateVanityRolePermissions(id: string, permissions: strin
     await apiPut<unknown, { permissions: string[] }>(`/admin/permissions/vanity-roles/${encodeURIComponent(id)}`, {
         permissions,
     });
+}
+
+export async function listChatbots(): Promise<ChatbotListResponse> {
+    return apiFetch<ChatbotListResponse>("/chatbots");
 }
 
 export async function getChatbots(): Promise<Chatbot[]> {

@@ -57,6 +57,7 @@ type (
 		SettingsService       settings.Service
 		ChatService           chat.Service
 		ChatbotAdminService   chatbot.AdminService
+		ChatbotService        chatbot.Service
 		ReportService         report.Service
 		PostService           postsvc.Service
 		FollowService         follow.Service
@@ -105,6 +106,7 @@ func NewService(
 	settingsService settings.Service,
 	chatService chat.Service,
 	chatbotAdminService chatbot.AdminService,
+	chatbotService chatbot.Service,
 	reportService report.Service,
 	postService postsvc.Service,
 	followService follow.Service,
@@ -151,6 +153,7 @@ func NewService(
 		SettingsService:       settingsService,
 		ChatService:           chatService,
 		ChatbotAdminService:   chatbotAdminService,
+		ChatbotService:        chatbotService,
 		ReportService:         reportService,
 		PostService:           postService,
 		FollowService:         followService,
@@ -198,6 +201,7 @@ func (s *Service) GetAPIRoutes() []FSetupRoute {
 	all = append(all, s.getAllPushRoutes()...)
 	all = append(all, s.getAllAdminRoutes()...)
 	all = append(all, s.getAllAdminChatbotRoutes()...)
+	all = append(all, s.getAllChatbotRoutes()...)
 	all = append(all, s.getAllChatRoutes()...)
 	all = append(all, s.getAllReportRoutes()...)
 	all = append(all, s.getAllPostRoutes()...)

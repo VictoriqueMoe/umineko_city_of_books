@@ -21,11 +21,19 @@ const { badges, counts } = vi.hoisted(() => ({
     },
 }));
 
+const chatbotList = vi.hoisted(() => ({
+    value: [] as { user_id: string; username: string; display_name: string; avatar_url: string }[],
+}));
+
 vi.mock("../../../hooks/useSidebarBadges", () => ({ useSidebarBadges: () => badges }));
 
 vi.mock("../../../api/queries/misc", () => ({
     useCornerCounts: () => ({ counts: counts.corner, loading: false }),
     useArtCornerCounts: () => ({ counts: counts.art, loading: false }),
+}));
+
+vi.mock("../../../api/queries/chatbot", () => ({
+    useChatbotList: () => ({ chatbots: chatbotList.value, loading: false }),
 }));
 
 vi.mock("../../../features/easterEgg", () => ({ PieceTrigger: () => null }));
@@ -655,5 +663,51 @@ describe("Sidebar shell", () => {
 
         // then
         expect(onClose).toHaveBeenCalledOnce();
+    });
+});
+
+describe("Sidebar chatbots", () => {
+    beforeEach(() => {
+        chatbotList.value = [];
+    });
+
+    it("hides the section entirely when the site offers no characters", () => {
+        // given
+        chatbotList.value = [];
+
+        // when
+        renderSidebar();
+
+        // then
+        expect(screen.queryByRole("button", { name: /^Chatbots/ })).not.toBeInTheDocument();
+    });
+
+    it("lists each character and links to their profile", async () => {
+        // given
+        chatbotList.value = [
+            { user_id: "u1", username: "beato", display_name: "Beatrice", avatar_url: "" },
+            { user_id: "u2", username: "bern", display_name: "Bernkastel", avatar_url: "" },
+        ];
+        const user = userEvent.setup();
+        renderSidebar();
+
+        // when
+        await user.click(screen.getByRole("button", { name: /^Chatbots/ }));
+
+        // then
+        expect(screen.getByRole("link", { name: "Beatrice" })).toHaveAttribute("href", "/user/beato");
+        expect(screen.getByRole("link", { name: "Bernkastel" })).toHaveAttribute("href", "/user/bern");
+    });
+
+    it("keeps the list collapsed until it is opened", () => {
+        // given
+        chatbotList.value = [{ user_id: "u1", username: "beato", display_name: "Beatrice", avatar_url: "" }];
+
+        // when
+        renderSidebar();
+
+        // then
+        expect(screen.getByRole("button", { name: /^Chatbots/ })).toBeInTheDocument();
+        expect(screen.queryByRole("link", { name: "Beatrice" })).not.toBeInTheDocument();
     });
 });
