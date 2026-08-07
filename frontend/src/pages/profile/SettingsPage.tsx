@@ -9,6 +9,7 @@ import { Select } from "../../components/Select/Select";
 import { ToggleSwitch } from "../../components/ToggleSwitch/ToggleSwitch";
 import { BlockedUsersSection } from "./BlockedUsersSection";
 import { ChangePasswordSection } from "./ChangePasswordSection";
+import { CharacterOptInSection } from "./CharacterOptInSection";
 import { ConfirmEmailPasswordModal } from "./ConfirmEmailPasswordModal";
 import { DangerZoneSection } from "./DangerZoneSection";
 import { StreamOverlaySection } from "./StreamOverlaySection";
@@ -602,6 +603,7 @@ export function SettingsPage() {
             />
 
             <div className={styles.grid} style={{ marginTop: "1.5rem" }}>
+                <CharacterOptInSection />
                 <BlockedUsersSection />
                 <ChangePasswordSection />
                 <StreamOverlaySection />

@@ -10,6 +10,7 @@ import (
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/chat"
+	"umineko_city_of_books/internal/chatbot"
 	fanficsvc "umineko_city_of_books/internal/fanfic"
 	"umineko_city_of_books/internal/follow"
 	"umineko_city_of_books/internal/gameroom"
@@ -55,6 +56,7 @@ type (
 		AuthzService          authz.Service
 		SettingsService       settings.Service
 		ChatService           chat.Service
+		ChatbotAdminService   chatbot.AdminService
 		ReportService         report.Service
 		PostService           postsvc.Service
 		FollowService         follow.Service
@@ -102,6 +104,7 @@ func NewService(
 	authzService authz.Service,
 	settingsService settings.Service,
 	chatService chat.Service,
+	chatbotAdminService chatbot.AdminService,
 	reportService report.Service,
 	postService postsvc.Service,
 	followService follow.Service,
@@ -147,6 +150,7 @@ func NewService(
 		AuthzService:          authzService,
 		SettingsService:       settingsService,
 		ChatService:           chatService,
+		ChatbotAdminService:   chatbotAdminService,
 		ReportService:         reportService,
 		PostService:           postService,
 		FollowService:         followService,
@@ -193,6 +197,7 @@ func (s *Service) GetAPIRoutes() []FSetupRoute {
 	all = append(all, s.getAllNotificationRoutes()...)
 	all = append(all, s.getAllPushRoutes()...)
 	all = append(all, s.getAllAdminRoutes()...)
+	all = append(all, s.getAllAdminChatbotRoutes()...)
 	all = append(all, s.getAllChatRoutes()...)
 	all = append(all, s.getAllReportRoutes()...)
 	all = append(all, s.getAllPostRoutes()...)

@@ -4,7 +4,7 @@ import { queryKeys } from "../queryKeys";
 
 export function useMysteryList(params: { sort?: string; solved?: string; limit?: number; offset?: number }) {
     const q = useQuery({
-        queryKey: ["mysteries", "list", params],
+        queryKey: queryKeys.mystery.list(params),
         queryFn: () => listMysteries(params),
     });
     return {
@@ -26,7 +26,7 @@ export function useMystery(id: string) {
 
 export function useMysteryLeaderboard(limit?: number) {
     const q = useQuery({
-        queryKey: ["mysteries", "leaderboard", limit ?? null],
+        queryKey: queryKeys.mystery.leaderboard(limit ?? null),
         queryFn: () => getMysteryLeaderboard(limit),
     });
     return { entries: q.data?.entries ?? [], loading: q.isLoading };
@@ -34,7 +34,7 @@ export function useMysteryLeaderboard(limit?: number) {
 
 export function useGMLeaderboard(limit?: number) {
     const q = useQuery({
-        queryKey: ["mysteries", "gm-leaderboard", limit ?? null],
+        queryKey: queryKeys.mystery.gmLeaderboard(limit ?? null),
         queryFn: () => getGMLeaderboard(limit),
     });
     return { entries: q.data?.entries ?? [], loading: q.isLoading };

@@ -132,8 +132,8 @@ export function ArtDetailPage() {
     }
 
     const isAuthor = user && user.id === art.author.id;
-    const canEdit = isAuthor || can(user?.role, "edit_any_post");
-    const canDelete = isAuthor || can(user?.role, "delete_any_post");
+    const canEdit = isAuthor || can(user, "edit_any_post");
+    const canDelete = isAuthor || can(user, "delete_any_post");
 
     const likeCommentFn = (commentId: string) => likeCommentMutation.mutateAsync(commentId);
     const unlikeCommentFn = (commentId: string) => unlikeCommentMutation.mutateAsync(commentId);

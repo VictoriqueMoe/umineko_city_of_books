@@ -2,6 +2,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { useGifFavourites } from "../../hooks/useGifFavourites";
 import { extractGiphyId } from "../../utils/gif";
 import styles from "./GifEmbed.module.css";
+import React from "react";
 
 interface GifEmbedProps {
     src: string;

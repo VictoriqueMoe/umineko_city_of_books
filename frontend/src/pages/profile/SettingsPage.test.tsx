@@ -16,6 +16,7 @@ vi.mock("../../hooks/useSettingsForm", () => ({ useSettingsForm: mocks.useSettin
 vi.mock("../../api/queries/oc", () => ({ useUserOCSummaries: mocks.useUserOCSummaries }));
 vi.mock("./BlockedUsersSection", () => ({ BlockedUsersSection: () => <div data-testid="blocked-users" /> }));
 vi.mock("./ChangePasswordSection", () => ({ ChangePasswordSection: () => <div data-testid="change-password" /> }));
+vi.mock("./CharacterOptInSection", () => ({ CharacterOptInSection: () => <div data-testid="character-opt-in" /> }));
 vi.mock("./StreamOverlaySection", () => ({ StreamOverlaySection: () => <div data-testid="stream-overlay" /> }));
 vi.mock("./DangerZoneSection", () => ({ DangerZoneSection: () => <div data-testid="danger-zone" /> }));
 
@@ -162,6 +163,7 @@ describe("SettingsPage loading", () => {
         setup(options);
 
         // then
+        expect(screen.getByTestId("character-opt-in")).toBeInTheDocument();
         expect(screen.getByTestId("blocked-users")).toBeInTheDocument();
         expect(screen.getByTestId("change-password")).toBeInTheDocument();
         expect(screen.getByTestId("stream-overlay")).toBeInTheDocument();

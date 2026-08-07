@@ -127,7 +127,7 @@ describe("useLiveGameRooms", () => {
         // then
         await waitFor(() => expect(result.current.rooms).toHaveLength(1));
         expect(listLiveGameRooms).toHaveBeenCalledWith("chess");
-        expect(queryClient.getQueryData(["game-rooms", "live", "chess"])).toBeDefined();
+        expect(queryClient.getQueryData(queryKeys.gameRoom.live("chess"))).toBeDefined();
     });
 
     it("uses the unfiltered key when no game type is given", async () => {
@@ -141,7 +141,7 @@ describe("useLiveGameRooms", () => {
         // then
         await waitFor(() => expect(result.current.loading).toBe(false));
         expect(listLiveGameRooms).toHaveBeenCalledWith(undefined);
-        expect(queryClient.getQueryData(["game-rooms", "live"])).toEqual(makeRoomList([], 0));
+        expect(queryClient.getQueryData(queryKeys.gameRoom.live())).toEqual(makeRoomList([], 0));
     });
 
     it("surfaces the message of a failed request", async () => {
@@ -168,7 +168,7 @@ describe("useFinishedGameRooms", () => {
         // then
         await waitFor(() => expect(result.current.rooms).toHaveLength(1));
         expect(listFinishedGameRooms).toHaveBeenCalledWith(undefined, 20, 0);
-        expect(queryClient.getQueryData(["game-rooms", "finished", "", { limit: 20, offset: 0 }])).toBeDefined();
+        expect(queryClient.getQueryData(queryKeys.gameRoom.finished("", { limit: 20, offset: 0 }))).toBeDefined();
     });
 
     it("forwards an explicit page and game type", async () => {
@@ -184,7 +184,9 @@ describe("useFinishedGameRooms", () => {
         // then
         await waitFor(() => expect(result.current.total).toBe(90));
         expect(listFinishedGameRooms).toHaveBeenCalledWith("othello", 5, 10);
-        expect(queryClient.getQueryData(["game-rooms", "finished", "othello", { limit: 5, offset: 10 }])).toBeDefined();
+        expect(
+            queryClient.getQueryData(queryKeys.gameRoom.finished("othello", { limit: 5, offset: 10 })),
+        ).toBeDefined();
     });
 });
 
@@ -212,7 +214,35 @@ describe("useGameScoreboard", () => {
         // then
         await waitFor(() => expect(result.current.data).not.toBeNull());
         expect(getGameScoreboard).toHaveBeenCalledWith("chess");
-        expect(queryClient.getQueryData(["game-rooms", "scoreboard", "chess"])).toEqual(makeScoreboard());
+        expect(queryClient.getQueryData(queryKeys.gameRoom.scoreboard("chess"))).toEqual(makeScoreboard());
+    });
+});
+
+describe("game room query keys", () => {
+    it("keeps the live, finished and scoreboard views inside the family a mutation invalidates", async () => {
+        // given
+        listLiveGameRooms.mockResolvedValue(makeRoomList([], 0));
+        listFinishedGameRooms.mockResolvedValue(makeRoomList([], 0));
+        getGameScoreboard.mockResolvedValue(makeScoreboard());
+        const queryClient = createTestQueryClient();
+        const wrapper = providerWrapper({ queryClient });
+        const live = renderHook(() => useLiveGameRooms(), { wrapper });
+        const finished = renderHook(() => useFinishedGameRooms(), { wrapper });
+        const scoreboard = renderHook(() => useGameScoreboard("chess"), { wrapper });
+        await waitFor(() => expect(live.result.current.loading).toBe(false));
+        await waitFor(() => expect(finished.result.current.loading).toBe(false));
+        await waitFor(() => expect(scoreboard.result.current.loading).toBe(false));
+
+        // when
+        const matched = queryClient
+            .getQueryCache()
+            .findAll({ queryKey: queryKeys.gameRoom.all })
+            .map(q => q.queryKey);
+
+        // then
+        expect(matched).toContainEqual(queryKeys.gameRoom.live());
+        expect(matched).toContainEqual(queryKeys.gameRoom.finished("", { limit: 20, offset: 0 }));
+        expect(matched).toContainEqual(queryKeys.gameRoom.scoreboard("chess"));
     });
 });
 

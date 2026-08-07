@@ -150,8 +150,8 @@ export function FanficDetailPage() {
     }
 
     const isAuthor = user?.id === fanfic.author.id;
-    const canEdit = isAuthor || can(user?.role, "edit_any_post");
-    const canDelete = isAuthor || can(user?.role, "delete_any_post");
+    const canEdit = isAuthor || can(user, "edit_any_post");
+    const canDelete = isAuthor || can(user, "delete_any_post");
 
     return (
         <div className={styles.page}>

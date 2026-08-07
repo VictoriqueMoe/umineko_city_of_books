@@ -1040,6 +1040,46 @@ func (_c *MockService_ResolveSuggestion_Call) RunAndReturn(run func(ctx context.
 	return _c
 }
 
+// SetCommentObserver provides a mock function for the type MockService
+func (_mock *MockService) SetCommentObserver(obs CommentObserver) {
+	_mock.Called(obs)
+	return
+}
+
+// MockService_SetCommentObserver_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetCommentObserver'
+type MockService_SetCommentObserver_Call struct {
+	*mock.Call
+}
+
+// SetCommentObserver is a helper method to define mock.On call
+//   - obs CommentObserver
+func (_e *MockService_Expecter) SetCommentObserver(obs any) *MockService_SetCommentObserver_Call {
+	return &MockService_SetCommentObserver_Call{Call: _e.mock.On("SetCommentObserver", obs)}
+}
+
+func (_c *MockService_SetCommentObserver_Call) Run(run func(obs CommentObserver)) *MockService_SetCommentObserver_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 CommentObserver
+		if args[0] != nil {
+			arg0 = args[0].(CommentObserver)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_SetCommentObserver_Call) Return() *MockService_SetCommentObserver_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *MockService_SetCommentObserver_Call) RunAndReturn(run func(obs CommentObserver)) *MockService_SetCommentObserver_Call {
+	_c.Run(run)
+	return _c
+}
+
 // UnlikeComment provides a mock function for the type MockService
 func (_mock *MockService) UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
 	ret := _mock.Called(ctx, userID, commentID)

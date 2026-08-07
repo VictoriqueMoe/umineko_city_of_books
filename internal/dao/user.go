@@ -21,7 +21,7 @@ type (
 )
 
 const (
-	userColumns = `u.id, u.username, u.password_hash, u.display_name, u.display_name_locked, u.created_at, u.bio, u.avatar_url, u.banner_url, u.favourite_character, u.gender, u.pronoun_subject, u.pronoun_possessive, u.banned_at, u.banned_by, u.ban_reason, u.locked_at, u.locked_by, u.lock_reason, u.social_twitter, u.social_discord, u.social_waifulist, u.social_tumblr, u.social_github, u.social_bluesky, u.website, u.banner_position, u.dms_enabled, u.episode_progress, u.higurashi_arc_progress, u.ciconia_chapter_progress, u.email, u.email_public, u.email_verified, u.verify_grace_until, u.dob, u.dob_public, u.email_notifications, u.play_message_sound, u.play_notification_sound, u.home_page, u.game_board_sort, u.default_profile_tab, u.theme, u.font, u.wide_layout, u.ip, u.mystery_score_adjustment, u.gm_score_adjustment, COALESCE(r.role, '')`
+	userColumns = `u.id, u.username, u.password_hash, u.display_name, u.display_name_locked, u.created_at, u.bio, u.avatar_url, u.banner_url, u.favourite_character, u.gender, u.pronoun_subject, u.pronoun_possessive, u.banned_at, u.banned_by, u.ban_reason, u.locked_at, u.locked_by, u.lock_reason, u.social_twitter, u.social_discord, u.social_waifulist, u.social_tumblr, u.social_github, u.social_bluesky, u.website, u.banner_position, u.dms_enabled, u.episode_progress, u.higurashi_arc_progress, u.ciconia_chapter_progress, u.email, u.email_public, u.email_verified, u.verify_grace_until, u.dob, u.dob_public, u.email_notifications, u.play_message_sound, u.play_notification_sound, u.home_page, u.game_board_sort, u.default_profile_tab, u.theme, u.font, u.wide_layout, u.ip, u.mystery_score_adjustment, u.gm_score_adjustment, COALESCE(r.role, ''), u.is_bot`
 )
 
 func scanUser(row interface{ Scan(dest ...any) error }) (*model.User, error) {
@@ -32,7 +32,7 @@ func scanUser(row interface{ Scan(dest ...any) error }) (*model.User, error) {
 		&u.BannedAt, &u.BannedBy, &u.BanReason,
 		&u.LockedAt, &u.LockedBy, &u.LockReason,
 		&u.SocialTwitter, &u.SocialDiscord, &u.SocialWaifulist, &u.SocialTumblr, &u.SocialGithub, &u.SocialBluesky, &u.Website,
-		&u.BannerPosition, &u.DmsEnabled, &u.EpisodeProgress, &u.HigurashiArcProgress, &u.CiconiaChapterProgress, &u.Email, &u.EmailPublic, &u.EmailVerified, &u.VerifyGraceUntil, &u.DOB, &u.DOBPublic, &u.EmailNotifications, &u.PlayMessageSound, &u.PlayNotificationSound, &u.HomePage, &u.GameBoardSort, &u.DefaultProfileTab, &u.Theme, &u.Font, &u.WideLayout, &u.IP, &u.MysteryScoreAdjustment, &u.GMScoreAdjustment, &u.Role)
+		&u.BannerPosition, &u.DmsEnabled, &u.EpisodeProgress, &u.HigurashiArcProgress, &u.CiconiaChapterProgress, &u.Email, &u.EmailPublic, &u.EmailVerified, &u.VerifyGraceUntil, &u.DOB, &u.DOBPublic, &u.EmailNotifications, &u.PlayMessageSound, &u.PlayNotificationSound, &u.HomePage, &u.GameBoardSort, &u.DefaultProfileTab, &u.Theme, &u.Font, &u.WideLayout, &u.IP, &u.MysteryScoreAdjustment, &u.GMScoreAdjustment, &u.Role, &u.IsBot)
 	return &u, err
 }
 
@@ -269,6 +269,10 @@ func (r *userDAO) ValidatePassword(ctx context.Context, username, password strin
 		return nil, err
 	}
 	if u == nil {
+		return nil, nil
+	}
+
+	if u.IsBot {
 		return nil, nil
 	}
 
@@ -594,7 +598,7 @@ func (r *userDAO) ListAll(ctx context.Context, search string, limit, offset int)
 
 func (r *userDAO) ListPublic(ctx context.Context) ([]model.User, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT `+userColumns+` FROM users u LEFT JOIN user_roles r ON r.user_id = u.id WHERE u.banned_at IS NULL ORDER BY LOWER(u.display_name)`,
+		`SELECT `+userColumns+` FROM users u LEFT JOIN user_roles r ON r.user_id = u.id WHERE u.banned_at IS NULL AND NOT u.is_bot ORDER BY LOWER(u.display_name)`,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("list public users: %w", err)

@@ -971,6 +971,17 @@ func (s *Service) editMessage(ctx fiber.Ctx) error {
 		if errors.Is(err, chat.ErrMessageEditPermission) {
 			return utils.Forbidden(ctx, "you can only edit your own messages")
 		}
+		if bw, ok2 := errors.AsType[*chat.ErrBannedWordMatch](err); ok2 {
+			return utils.UnprocessableEntity(ctx, fiber.Map{
+				"error":   bw.Error(),
+				"code":    "banned_word",
+				"pattern": bw.Pattern,
+				"action":  bw.Action,
+			})
+		}
+		if errors.Is(err, chat.ErrNotMember) {
+			return utils.Forbidden(ctx, "you are not a member of this room")
+		}
 		if errors.Is(err, chat.ErrCannotEditSystemMessage) {
 			return utils.BadRequest(ctx, "system messages cannot be edited")
 		}

@@ -30,10 +30,12 @@ import {
     AdminAuditLog,
     AdminBannedGifs,
     AdminBannedWords,
+    AdminChatbots,
     AdminContentRules,
     AdminDashboard,
     AdminInvites,
     AdminLayout,
+    AdminPermissions,
     AdminReports,
     AdminRulesPage,
     AdminSettings,
@@ -240,7 +242,7 @@ function AppLayout() {
         return null;
     }
 
-    if (siteInfo.maintenance_mode && !canAccessAdmin(user?.role)) {
+    if (siteInfo.maintenance_mode && !canAccessAdmin(user)) {
         return (
             <MaintenancePage title={siteInfo.maintenance_title ?? ""} message={siteInfo.maintenance_message ?? ""} />
         );
@@ -425,6 +427,8 @@ function AppLayout() {
                                         <Route path="announcements" element={<AdminAnnouncementsPage />} />
                                         <Route path="audit-log" element={<AdminAuditLog />} />
                                         <Route path="vanity-roles" element={<AdminVanityRoles />} />
+                                        <Route path="permissions" element={<AdminPermissions />} />
+                                        <Route path="chatbots" element={<AdminChatbots />} />
                                     </Route>
                                 </Route>
 

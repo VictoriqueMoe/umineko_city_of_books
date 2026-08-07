@@ -540,6 +540,63 @@ func (_c *MockChatRepository_ClearMemberTimeout_Call) RunAndReturn(run func(ctx 
 	return _c
 }
 
+// ClearVoiceForceMutes provides a mock function for the type MockChatRepository
+func (_mock *MockChatRepository) ClearVoiceForceMutes(ctx context.Context, roomID uuid.UUID) error {
+	ret := _mock.Called(ctx, roomID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ClearVoiceForceMutes")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, roomID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockChatRepository_ClearVoiceForceMutes_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ClearVoiceForceMutes'
+type MockChatRepository_ClearVoiceForceMutes_Call struct {
+	*mock.Call
+}
+
+// ClearVoiceForceMutes is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roomID uuid.UUID
+func (_e *MockChatRepository_Expecter) ClearVoiceForceMutes(ctx any, roomID any) *MockChatRepository_ClearVoiceForceMutes_Call {
+	return &MockChatRepository_ClearVoiceForceMutes_Call{Call: _e.mock.On("ClearVoiceForceMutes", ctx, roomID)}
+}
+
+func (_c *MockChatRepository_ClearVoiceForceMutes_Call) Run(run func(ctx context.Context, roomID uuid.UUID)) *MockChatRepository_ClearVoiceForceMutes_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatRepository_ClearVoiceForceMutes_Call) Return(err error) *MockChatRepository_ClearVoiceForceMutes_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockChatRepository_ClearVoiceForceMutes_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID) error) *MockChatRepository_ClearVoiceForceMutes_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CountReactions provides a mock function for the type MockChatRepository
 func (_mock *MockChatRepository) CountReactions(ctx context.Context, messageID uuid.UUID, emoji string) (int, error) {
 	ret := _mock.Called(ctx, messageID, emoji)
@@ -1893,8 +1950,8 @@ func (_c *MockChatRepository_GetMessages_Call) RunAndReturn(run func(ctx context
 }
 
 // GetMessagesBefore provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) GetMessagesBefore(ctx context.Context, roomID uuid.UUID, before string, limit int) ([]ChatMessageRow, error) {
-	ret := _mock.Called(ctx, roomID, before, limit)
+func (_mock *MockChatRepository) GetMessagesBefore(ctx context.Context, roomID uuid.UUID, viewerID uuid.UUID, before string, limit int) ([]ChatMessageRow, error) {
+	ret := _mock.Called(ctx, roomID, viewerID, before, limit)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetMessagesBefore")
@@ -1902,18 +1959,18 @@ func (_mock *MockChatRepository) GetMessagesBefore(ctx context.Context, roomID u
 
 	var r0 []ChatMessageRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, int) ([]ChatMessageRow, error)); ok {
-		return returnFunc(ctx, roomID, before, limit)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, int) ([]ChatMessageRow, error)); ok {
+		return returnFunc(ctx, roomID, viewerID, before, limit)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, int) []ChatMessageRow); ok {
-		r0 = returnFunc(ctx, roomID, before, limit)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, int) []ChatMessageRow); ok {
+		r0 = returnFunc(ctx, roomID, viewerID, before, limit)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]ChatMessageRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, int) error); ok {
-		r1 = returnFunc(ctx, roomID, before, limit)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, string, int) error); ok {
+		r1 = returnFunc(ctx, roomID, viewerID, before, limit)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1928,13 +1985,14 @@ type MockChatRepository_GetMessagesBefore_Call struct {
 // GetMessagesBefore is a helper method to define mock.On call
 //   - ctx context.Context
 //   - roomID uuid.UUID
+//   - viewerID uuid.UUID
 //   - before string
 //   - limit int
-func (_e *MockChatRepository_Expecter) GetMessagesBefore(ctx any, roomID any, before any, limit any) *MockChatRepository_GetMessagesBefore_Call {
-	return &MockChatRepository_GetMessagesBefore_Call{Call: _e.mock.On("GetMessagesBefore", ctx, roomID, before, limit)}
+func (_e *MockChatRepository_Expecter) GetMessagesBefore(ctx any, roomID any, viewerID any, before any, limit any) *MockChatRepository_GetMessagesBefore_Call {
+	return &MockChatRepository_GetMessagesBefore_Call{Call: _e.mock.On("GetMessagesBefore", ctx, roomID, viewerID, before, limit)}
 }
 
-func (_c *MockChatRepository_GetMessagesBefore_Call) Run(run func(ctx context.Context, roomID uuid.UUID, before string, limit int)) *MockChatRepository_GetMessagesBefore_Call {
+func (_c *MockChatRepository_GetMessagesBefore_Call) Run(run func(ctx context.Context, roomID uuid.UUID, viewerID uuid.UUID, before string, limit int)) *MockChatRepository_GetMessagesBefore_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1944,9 +2002,94 @@ func (_c *MockChatRepository_GetMessagesBefore_Call) Run(run func(ctx context.Co
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
-		var arg2 string
+		var arg2 uuid.UUID
 		if args[2] != nil {
-			arg2 = args[2].(string)
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		var arg4 int
+		if args[4] != nil {
+			arg4 = args[4].(int)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatRepository_GetMessagesBefore_Call) Return(chatMessageRows []ChatMessageRow, err error) *MockChatRepository_GetMessagesBefore_Call {
+	_c.Call.Return(chatMessageRows, err)
+	return _c
+}
+
+func (_c *MockChatRepository_GetMessagesBefore_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, viewerID uuid.UUID, before string, limit int) ([]ChatMessageRow, error)) *MockChatRepository_GetMessagesBefore_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetMessagesForMember provides a mock function for the type MockChatRepository
+func (_mock *MockChatRepository) GetMessagesForMember(ctx context.Context, roomID uuid.UUID, viewerID uuid.UUID, limit int) ([]ChatMessageRow, error) {
+	ret := _mock.Called(ctx, roomID, viewerID, limit)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetMessagesForMember")
+	}
+
+	var r0 []ChatMessageRow
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int) ([]ChatMessageRow, error)); ok {
+		return returnFunc(ctx, roomID, viewerID, limit)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int) []ChatMessageRow); ok {
+		r0 = returnFunc(ctx, roomID, viewerID, limit)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]ChatMessageRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, int) error); ok {
+		r1 = returnFunc(ctx, roomID, viewerID, limit)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockChatRepository_GetMessagesForMember_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetMessagesForMember'
+type MockChatRepository_GetMessagesForMember_Call struct {
+	*mock.Call
+}
+
+// GetMessagesForMember is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roomID uuid.UUID
+//   - viewerID uuid.UUID
+//   - limit int
+func (_e *MockChatRepository_Expecter) GetMessagesForMember(ctx any, roomID any, viewerID any, limit any) *MockChatRepository_GetMessagesForMember_Call {
+	return &MockChatRepository_GetMessagesForMember_Call{Call: _e.mock.On("GetMessagesForMember", ctx, roomID, viewerID, limit)}
+}
+
+func (_c *MockChatRepository_GetMessagesForMember_Call) Run(run func(ctx context.Context, roomID uuid.UUID, viewerID uuid.UUID, limit int)) *MockChatRepository_GetMessagesForMember_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
 		}
 		var arg3 int
 		if args[3] != nil {
@@ -1962,12 +2105,104 @@ func (_c *MockChatRepository_GetMessagesBefore_Call) Run(run func(ctx context.Co
 	return _c
 }
 
-func (_c *MockChatRepository_GetMessagesBefore_Call) Return(chatMessageRows []ChatMessageRow, err error) *MockChatRepository_GetMessagesBefore_Call {
+func (_c *MockChatRepository_GetMessagesForMember_Call) Return(chatMessageRows []ChatMessageRow, err error) *MockChatRepository_GetMessagesForMember_Call {
 	_c.Call.Return(chatMessageRows, err)
 	return _c
 }
 
-func (_c *MockChatRepository_GetMessagesBefore_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, before string, limit int) ([]ChatMessageRow, error)) *MockChatRepository_GetMessagesBefore_Call {
+func (_c *MockChatRepository_GetMessagesForMember_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, viewerID uuid.UUID, limit int) ([]ChatMessageRow, error)) *MockChatRepository_GetMessagesForMember_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetMessagesForViewer provides a mock function for the type MockChatRepository
+func (_mock *MockChatRepository) GetMessagesForViewer(ctx context.Context, roomID uuid.UUID, viewerID uuid.UUID, limit int, offset int) ([]ChatMessageRow, int, error) {
+	ret := _mock.Called(ctx, roomID, viewerID, limit, offset)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetMessagesForViewer")
+	}
+
+	var r0 []ChatMessageRow
+	var r1 int
+	var r2 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int) ([]ChatMessageRow, int, error)); ok {
+		return returnFunc(ctx, roomID, viewerID, limit, offset)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int) []ChatMessageRow); ok {
+		r0 = returnFunc(ctx, roomID, viewerID, limit, offset)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]ChatMessageRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, int, int) int); ok {
+		r1 = returnFunc(ctx, roomID, viewerID, limit, offset)
+	} else {
+		r1 = ret.Get(1).(int)
+	}
+	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, uuid.UUID, int, int) error); ok {
+		r2 = returnFunc(ctx, roomID, viewerID, limit, offset)
+	} else {
+		r2 = ret.Error(2)
+	}
+	return r0, r1, r2
+}
+
+// MockChatRepository_GetMessagesForViewer_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetMessagesForViewer'
+type MockChatRepository_GetMessagesForViewer_Call struct {
+	*mock.Call
+}
+
+// GetMessagesForViewer is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roomID uuid.UUID
+//   - viewerID uuid.UUID
+//   - limit int
+//   - offset int
+func (_e *MockChatRepository_Expecter) GetMessagesForViewer(ctx any, roomID any, viewerID any, limit any, offset any) *MockChatRepository_GetMessagesForViewer_Call {
+	return &MockChatRepository_GetMessagesForViewer_Call{Call: _e.mock.On("GetMessagesForViewer", ctx, roomID, viewerID, limit, offset)}
+}
+
+func (_c *MockChatRepository_GetMessagesForViewer_Call) Run(run func(ctx context.Context, roomID uuid.UUID, viewerID uuid.UUID, limit int, offset int)) *MockChatRepository_GetMessagesForViewer_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 int
+		if args[3] != nil {
+			arg3 = args[3].(int)
+		}
+		var arg4 int
+		if args[4] != nil {
+			arg4 = args[4].(int)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatRepository_GetMessagesForViewer_Call) Return(chatMessageRows []ChatMessageRow, n int, err error) *MockChatRepository_GetMessagesForViewer_Call {
+	_c.Call.Return(chatMessageRows, n, err)
+	return _c
+}
+
+func (_c *MockChatRepository_GetMessagesForViewer_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, viewerID uuid.UUID, limit int, offset int) ([]ChatMessageRow, int, error)) *MockChatRepository_GetMessagesForViewer_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -3246,6 +3481,78 @@ func (_c *MockChatRepository_IsMuted_Call) RunAndReturn(run func(ctx context.Con
 	return _c
 }
 
+// IsVoiceForceMuted provides a mock function for the type MockChatRepository
+func (_mock *MockChatRepository) IsVoiceForceMuted(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) (bool, error) {
+	ret := _mock.Called(ctx, roomID, userID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for IsVoiceForceMuted")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) (bool, error)); ok {
+		return returnFunc(ctx, roomID, userID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) bool); ok {
+		r0 = returnFunc(ctx, roomID, userID)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, roomID, userID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockChatRepository_IsVoiceForceMuted_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IsVoiceForceMuted'
+type MockChatRepository_IsVoiceForceMuted_Call struct {
+	*mock.Call
+}
+
+// IsVoiceForceMuted is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roomID uuid.UUID
+//   - userID uuid.UUID
+func (_e *MockChatRepository_Expecter) IsVoiceForceMuted(ctx any, roomID any, userID any) *MockChatRepository_IsVoiceForceMuted_Call {
+	return &MockChatRepository_IsVoiceForceMuted_Call{Call: _e.mock.On("IsVoiceForceMuted", ctx, roomID, userID)}
+}
+
+func (_c *MockChatRepository_IsVoiceForceMuted_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID)) *MockChatRepository_IsVoiceForceMuted_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatRepository_IsVoiceForceMuted_Call) Return(b bool, err error) *MockChatRepository_IsVoiceForceMuted_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *MockChatRepository_IsVoiceForceMuted_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) (bool, error)) *MockChatRepository_IsVoiceForceMuted_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListPinnedMessages provides a mock function for the type MockChatRepository
 func (_mock *MockChatRepository) ListPinnedMessages(ctx context.Context, roomID uuid.UUID) ([]ChatMessageRow, error) {
 	ret := _mock.Called(ctx, roomID)
@@ -4464,6 +4771,81 @@ func (_c *MockChatRepository_SetMuted_Call) Return(err error) *MockChatRepositor
 }
 
 func (_c *MockChatRepository_SetMuted_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, muted bool) error) *MockChatRepository_SetMuted_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SetVoiceForceMuted provides a mock function for the type MockChatRepository
+func (_mock *MockChatRepository) SetVoiceForceMuted(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, mutedBy uuid.UUID, muted bool) error {
+	ret := _mock.Called(ctx, roomID, userID, mutedBy, muted)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetVoiceForceMuted")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID, bool) error); ok {
+		r0 = returnFunc(ctx, roomID, userID, mutedBy, muted)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockChatRepository_SetVoiceForceMuted_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetVoiceForceMuted'
+type MockChatRepository_SetVoiceForceMuted_Call struct {
+	*mock.Call
+}
+
+// SetVoiceForceMuted is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roomID uuid.UUID
+//   - userID uuid.UUID
+//   - mutedBy uuid.UUID
+//   - muted bool
+func (_e *MockChatRepository_Expecter) SetVoiceForceMuted(ctx any, roomID any, userID any, mutedBy any, muted any) *MockChatRepository_SetVoiceForceMuted_Call {
+	return &MockChatRepository_SetVoiceForceMuted_Call{Call: _e.mock.On("SetVoiceForceMuted", ctx, roomID, userID, mutedBy, muted)}
+}
+
+func (_c *MockChatRepository_SetVoiceForceMuted_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, mutedBy uuid.UUID, muted bool)) *MockChatRepository_SetVoiceForceMuted_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 uuid.UUID
+		if args[3] != nil {
+			arg3 = args[3].(uuid.UUID)
+		}
+		var arg4 bool
+		if args[4] != nil {
+			arg4 = args[4].(bool)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatRepository_SetVoiceForceMuted_Call) Return(err error) *MockChatRepository_SetVoiceForceMuted_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockChatRepository_SetVoiceForceMuted_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, mutedBy uuid.UUID, muted bool) error) *MockChatRepository_SetVoiceForceMuted_Call {
 	_c.Call.Return(run)
 	return _c
 }

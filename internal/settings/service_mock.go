@@ -531,3 +531,43 @@ func (_c *MockService_Subscribe_Call) RunAndReturn(run func(listener Listener)) 
 	_c.Run(run)
 	return _c
 }
+
+// SubscribeBatch provides a mock function for the type MockService
+func (_mock *MockService) SubscribeBatch(listener BatchListener) {
+	_mock.Called(listener)
+	return
+}
+
+// MockService_SubscribeBatch_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SubscribeBatch'
+type MockService_SubscribeBatch_Call struct {
+	*mock.Call
+}
+
+// SubscribeBatch is a helper method to define mock.On call
+//   - listener BatchListener
+func (_e *MockService_Expecter) SubscribeBatch(listener any) *MockService_SubscribeBatch_Call {
+	return &MockService_SubscribeBatch_Call{Call: _e.mock.On("SubscribeBatch", listener)}
+}
+
+func (_c *MockService_SubscribeBatch_Call) Run(run func(listener BatchListener)) *MockService_SubscribeBatch_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 BatchListener
+		if args[0] != nil {
+			arg0 = args[0].(BatchListener)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_SubscribeBatch_Call) Return() *MockService_SubscribeBatch_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *MockService_SubscribeBatch_Call) RunAndReturn(run func(listener BatchListener)) *MockService_SubscribeBatch_Call {
+	_c.Run(run)
+	return _c
+}

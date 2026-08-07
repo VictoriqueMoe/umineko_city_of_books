@@ -102,6 +102,7 @@ type (
 		VoiceParticipants(roomID uuid.UUID) []uuid.UUID
 		VoiceCount(roomID uuid.UUID) int
 		ReconcilePresence(ctx context.Context) (int, error)
+		SetMessageObserver(obs MessageObserver)
 	}
 
 	service struct {
@@ -159,7 +160,6 @@ func NewService(
 		livekitSvc:      livekitSvc,
 		contentFilter:   contentFilter,
 		bannedWordsRule: contentfilter.NewChatBannedWordsRule(bannedWordRepo),
-		voiceMuted:      make(map[string]map[uuid.UUID]struct{}),
 	}
 
 	svs := &service{

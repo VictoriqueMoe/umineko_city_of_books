@@ -33,10 +33,11 @@ export function fetchResolveDMRoom(recipientId: string) {
     });
 }
 
-export function useUserRooms() {
+export function useUserRooms(enabled = true) {
     const query = useQuery({
-        queryKey: ["chat", "rooms", "user"],
+        queryKey: queryKeys.chat.userRooms(),
         queryFn: () => getUserRooms(),
+        enabled,
     });
     return { rooms: query.data?.rooms ?? [], loading: query.isLoading, refresh: query.refetch };
 }

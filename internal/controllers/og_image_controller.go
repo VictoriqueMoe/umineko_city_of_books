@@ -39,7 +39,7 @@ func (h *OGImageHandler) Register(app fiber.Router) {
 func (h *OGImageHandler) serve(ctx fiber.Ctx) error {
 	rel := ctx.Params("*")
 	if !strings.HasSuffix(strings.ToLower(rel), ".jpg") {
-		return ctx.SendStatus(fiber.StatusNotFound)
+		return fiber.ErrNotFound
 	}
 
 	webpRel := rel[:len(rel)-len(".jpg")] + ".webp"
@@ -48,7 +48,7 @@ func (h *OGImageHandler) serve(ctx fiber.Ctx) error {
 
 	info, err := os.Stat(fullPath)
 	if err != nil {
-		return ctx.SendStatus(fiber.StatusNotFound)
+		return fiber.ErrNotFound
 	}
 
 	maxPixels := h.settings.GetInt(ctx.Context(), config.SettingMaxImagePixels)

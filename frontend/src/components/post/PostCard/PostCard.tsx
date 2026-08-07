@@ -130,8 +130,8 @@ export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps
     }
 
     const isOwner = user?.id === post.author.id;
-    const canEdit = isOwner || can(user?.role, "edit_any_post");
-    const canDelete = isOwner || can(user?.role, "delete_any_post");
+    const canEdit = isOwner || can(user, "edit_any_post");
+    const canDelete = isOwner || can(user, "delete_any_post");
 
     return (
         <div className={styles.card}>

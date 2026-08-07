@@ -126,6 +126,8 @@ func mapBannedWordError(ctx fiber.Ctx, err error) error {
 		return utils.BadRequest(ctx, "invalid regex pattern")
 	case errors.Is(err, chat.ErrBannedWordRuleMismatch):
 		return utils.NotFound(ctx, "rule not found for this scope")
+	case errors.Is(err, chat.ErrSystemRoom):
+		return utils.Forbidden(ctx, "this room is managed by the site and cannot be moderated here")
 	}
 	return utils.InternalError(ctx, "failed")
 }

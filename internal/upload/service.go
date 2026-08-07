@@ -114,9 +114,7 @@ func (s *service) saveMedia(
 	if err != nil {
 		return "", err
 	}
-	if alias, ok := sniffAliases[sniffed]; ok {
-		sniffed = alias
-	}
+	sniffed = NormaliseSniffedType(sniffed)
 
 	ext, ok := allowedTypes[sniffed]
 	if !ok {
@@ -252,6 +250,14 @@ func DetectContentType(reader io.Reader) (string, io.Reader, error) {
 		mt = "video/x-matroska"
 	}
 	return mt, io.MultiReader(bytes.NewReader(peek), reader), nil
+}
+
+func NormaliseSniffedType(mediaType string) string {
+	if alias, ok := sniffAliases[mediaType]; ok {
+		return alias
+	}
+
+	return mediaType
 }
 
 func sniffVideoFallback(b []byte) string {

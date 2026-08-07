@@ -274,6 +274,15 @@ func (r *chatDAO) CreateDMRoomAtomic(ctx context.Context, id, userA, userB uuid.
 		pairKey,
 	).Scan(&existing)
 	if err == nil {
+		if _, rErr := tx.ExecContext(ctx,
+			`INSERT INTO chat_room_members (room_id, user_id) VALUES ($1, $2), ($1, $3)
+			 ON CONFLICT (room_id, user_id) DO UPDATE SET left_at = NULL, joined_at = NOW()
+			 WHERE chat_room_members.left_at IS NOT NULL`,
+			existing, userA, userB,
+		); rErr != nil {
+			return uuid.Nil, fmt.Errorf("create dm: rejoin members: %w", rErr)
+		}
+
 		if cErr := tx.Commit(); cErr != nil {
 			return uuid.Nil, fmt.Errorf("create dm: commit existing: %w", cErr)
 		}
@@ -828,6 +837,49 @@ func (r *chatDAO) GetRoomMembersUnmuted(ctx context.Context, roomID uuid.UUID) (
 	return members, rows.Err()
 }
 
+func (r *chatDAO) SetVoiceForceMuted(ctx context.Context, roomID, userID, mutedBy uuid.UUID, muted bool) error {
+	if !muted {
+		_, err := r.db.ExecContext(ctx,
+			`DELETE FROM chat_voice_force_mutes WHERE room_id = $1 AND user_id = $2`, roomID, userID,
+		)
+		if err != nil {
+			return fmt.Errorf("clear voice force mute: %w", err)
+		}
+		return nil
+	}
+
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO chat_voice_force_mutes (room_id, user_id, muted_by) VALUES ($1, $2, $3)
+		 ON CONFLICT (room_id, user_id) DO UPDATE SET muted_by = EXCLUDED.muted_by`,
+		roomID, userID, mutedBy,
+	)
+	if err != nil {
+		return fmt.Errorf("set voice force mute: %w", err)
+	}
+	return nil
+}
+
+func (r *chatDAO) IsVoiceForceMuted(ctx context.Context, roomID, userID uuid.UUID) (bool, error) {
+	var muted bool
+	err := r.db.QueryRowContext(ctx,
+		`SELECT EXISTS (SELECT 1 FROM chat_voice_force_mutes WHERE room_id = $1 AND user_id = $2)`, roomID, userID,
+	).Scan(&muted)
+	if err != nil {
+		return false, fmt.Errorf("check voice force mute: %w", err)
+	}
+	return muted, nil
+}
+
+func (r *chatDAO) ClearVoiceForceMutes(ctx context.Context, roomID uuid.UUID) error {
+	_, err := r.db.ExecContext(ctx,
+		`DELETE FROM chat_voice_force_mutes WHERE room_id = $1`, roomID,
+	)
+	if err != nil {
+		return fmt.Errorf("clear voice force mutes: %w", err)
+	}
+	return nil
+}
+
 func (r *chatDAO) FindDMRoom(ctx context.Context, userA, userB uuid.UUID) (uuid.UUID, error) {
 	var id uuid.UUID
 	err := r.db.QueryRowContext(ctx,
@@ -892,9 +944,31 @@ func (r *chatDAO) insertMessage(ctx context.Context, id, roomID, senderID uuid.U
 }
 
 func (r *chatDAO) GetMessages(ctx context.Context, roomID uuid.UUID, limit, offset int) ([]repository.ChatMessageRow, int, error) {
+	return r.getMessages(ctx, roomID, uuid.Nil, limit, offset)
+}
+
+func (r *chatDAO) GetMessagesForViewer(ctx context.Context, roomID, viewerID uuid.UUID, limit, offset int) ([]repository.ChatMessageRow, int, error) {
+	return r.getMessages(ctx, roomID, viewerID, limit, offset)
+}
+
+func (r *chatDAO) GetMessagesForMember(ctx context.Context, roomID, viewerID uuid.UUID, limit int) ([]repository.ChatMessageRow, error) {
+	rows, _, err := r.getMessages(ctx, roomID, viewerID, limit, 0)
+
+	return rows, err
+}
+
+const visibleToViewer = `
+	AND cm.created_at >= COALESCE(
+		(SELECT m.joined_at
+		   FROM chat_room_members m
+		   JOIN chat_rooms cr ON cr.id = m.room_id AND cr.type = 'dm'
+		  WHERE m.room_id = cm.room_id AND m.user_id = $2),
+		cm.created_at)`
+
+func (r *chatDAO) getMessages(ctx context.Context, roomID, viewerID uuid.UUID, limit, offset int) ([]repository.ChatMessageRow, int, error) {
 	var total int
 	err := r.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM chat_messages WHERE room_id = $1`, roomID,
+		`SELECT COUNT(*) FROM chat_messages cm WHERE cm.room_id = $1`+visibleToViewer, roomID, viewerID,
 	).Scan(&total)
 	if err != nil {
 		return nil, 0, fmt.Errorf("count messages: %w", err)
@@ -915,11 +989,11 @@ func (r *chatDAO) GetMessages(ctx context.Context, roomID uuid.UUID, limit, offs
 			 LEFT JOIN users pu ON parent.sender_id = pu.id
 			 LEFT JOIN chat_room_members pmem ON pmem.room_id = cm.room_id AND pmem.user_id = parent.sender_id
 			 LEFT JOIN chat_room_members mem ON mem.room_id = cm.room_id AND mem.user_id = cm.sender_id
-			 WHERE cm.room_id = $1
+			 WHERE cm.room_id = $1`+visibleToViewer+`
 			 ORDER BY cm.created_at DESC, cm.id DESC
-			 LIMIT $2
+			 LIMIT $3
 		) sub ORDER BY sub.created_at ASC, sub.id ASC`,
-		roomID, limit,
+		roomID, viewerID, limit,
 	)
 	if err != nil {
 		return nil, 0, fmt.Errorf("get messages: %w", err)
@@ -1004,7 +1078,7 @@ func scanMessageRow(rows *sql.Rows) (repository.ChatMessageRow, error) {
 	return msg, nil
 }
 
-func (r *chatDAO) GetMessagesBefore(ctx context.Context, roomID uuid.UUID, before string, limit int) ([]repository.ChatMessageRow, error) {
+func (r *chatDAO) GetMessagesBefore(ctx context.Context, roomID, viewerID uuid.UUID, before string, limit int) ([]repository.ChatMessageRow, error) {
 	beforeTS := before
 	beforeID := ""
 	parts := strings.SplitN(before, "|", 2)
@@ -1040,11 +1114,11 @@ func (r *chatDAO) GetMessagesBefore(ctx context.Context, roomID uuid.UUID, befor
 			 LEFT JOIN chat_room_members mem ON mem.room_id = cm.room_id AND mem.user_id = cm.sender_id
 			 WHERE cm.room_id = $1 AND (
 				cm.created_at < $2 OR ($3 != '' AND cm.created_at = $2 AND cm.id::text < $3)
-			 )
+			 )`+strings.ReplaceAll(visibleToViewer, "$2", "$5")+`
 			 ORDER BY cm.created_at DESC, cm.id DESC
 			 LIMIT $4
 		) sub ORDER BY sub.created_at ASC, sub.id ASC`,
-		roomID, beforeTime, beforeID, limit,
+		roomID, beforeTime, beforeID, limit, viewerID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("get messages before: %w", err)

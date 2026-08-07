@@ -139,6 +139,21 @@ var (
 	SettingOGDefaultImage          = &SiteSettingDef{"og_default_image", "", TypeString, false}
 	SettingValkeyURL               = &SiteSettingDef{"valkey_url", "", TypeString, true}
 
+	SettingChatbotEnabled              = &SiteSettingDef{"chatbot_enabled", "false", TypeBool, false}
+	SettingChatbotAPIKey               = &SiteSettingDef{"chatbot_api_key", "", TypeString, true}
+	SettingChatbotAdminKey             = &SiteSettingDef{"chatbot_admin_key", "", TypeString, true}
+	SettingChatbotModel                = &SiteSettingDef{"chatbot_model", "gpt-5.6-luna", TypeString, false}
+	SettingChatbotReasoningEffort      = &SiteSettingDef{"chatbot_reasoning_effort", "low", TypeString, false}
+	SettingChatbotVerbosity            = &SiteSettingDef{"chatbot_verbosity", "", TypeString, false}
+	SettingChatbotMaxOutputTokens      = &SiteSettingDef{"chatbot_max_output_tokens", "2000", TypeInt, false}
+	SettingChatbotContextMessages      = &SiteSettingDef{"chatbot_context_messages", "20", TypeInt, false}
+	SettingChatbotMaxReplyChain        = &SiteSettingDef{"chatbot_max_reply_chain", "25", TypeInt, false}
+	SettingChatbotRequirePermission    = &SiteSettingDef{"chatbot_require_permission", "false", TypeBool, false}
+	SettingChatbotOptInRole            = &SiteSettingDef{"chatbot_opt_in_role", "", TypeString, false}
+	SettingChatbotReplyCooldownSeconds = &SiteSettingDef{"chatbot_reply_cooldown_seconds", "20", TypeInt, false}
+	SettingChatbotMaxRepliesPerUserDay = &SiteSettingDef{"chatbot_max_replies_per_user_per_day", "20", TypeInt, false}
+	SettingChatbotMaxRepliesPerDay     = &SiteSettingDef{"chatbot_max_replies_per_day", "500", TypeInt, false}
+
 	AllSiteSettings = []*SiteSettingDef{
 		SettingUploadDir,
 		SettingBaseURL,
@@ -215,6 +230,20 @@ var (
 		SettingAppDownloadURL,
 		SettingOGDefaultImage,
 		SettingValkeyURL,
+		SettingChatbotEnabled,
+		SettingChatbotAPIKey,
+		SettingChatbotAdminKey,
+		SettingChatbotModel,
+		SettingChatbotReasoningEffort,
+		SettingChatbotVerbosity,
+		SettingChatbotMaxOutputTokens,
+		SettingChatbotContextMessages,
+		SettingChatbotMaxReplyChain,
+		SettingChatbotRequirePermission,
+		SettingChatbotOptInRole,
+		SettingChatbotReplyCooldownSeconds,
+		SettingChatbotMaxRepliesPerUserDay,
+		SettingChatbotMaxRepliesPerDay,
 	}
 
 	settingsByKey = indexSettings()
@@ -244,6 +273,68 @@ func ValidateSettingValue(def *SiteSettingDef, value string) error {
 	case TypeBool:
 		if value != "true" && value != "false" {
 			return fmt.Errorf("%s must be true or false", def.Key)
+		}
+	}
+
+	return nil
+}
+
+func validChatbotVerbosity(value string) bool {
+	switch strings.TrimSpace(value) {
+	case "", "low", "medium", "high":
+		return true
+	}
+
+	return false
+}
+
+func validateChatbotSettings(all map[SiteSettingKey]string) error {
+	if all[SettingChatbotEnabled.Key] != "true" {
+		return nil
+	}
+
+	if all[SettingChatbotRequirePermission.Key] == "true" && strings.TrimSpace(all[SettingChatbotOptInRole.Key]) == "" {
+		return fmt.Errorf("restricting characters to a permission requires an opt-in role so members can opt in")
+	}
+
+	if all[SettingChatbotAPIKey.Key] == "" {
+		return fmt.Errorf("the chatbot requires an OpenAI API key")
+	}
+	if all[SettingChatbotModel.Key] == "" {
+		return fmt.Errorf("the chatbot requires a model")
+	}
+
+	switch all[SettingChatbotReasoningEffort.Key] {
+	case "none", "low", "medium", "high", "xhigh", "max":
+	default:
+		return fmt.Errorf("reasoning effort must be one of none, low, medium, high, xhigh, max")
+	}
+
+	if !validChatbotVerbosity(all[SettingChatbotVerbosity.Key]) {
+		return fmt.Errorf("verbosity must be low, medium, high, or left blank to use the provider default")
+	}
+
+	positive := []*SiteSettingDef{
+		SettingChatbotMaxOutputTokens,
+		SettingChatbotContextMessages,
+		SettingChatbotMaxReplyChain,
+	}
+	for _, def := range positive {
+		n, err := strconv.Atoi(all[def.Key])
+		if err != nil || n <= 0 {
+			return fmt.Errorf("%s must be a positive number", def.Key)
+		}
+	}
+
+	nonNegative := []*SiteSettingDef{
+		SettingChatbotReplyCooldownSeconds,
+		SettingChatbotMaxRepliesPerUserDay,
+		SettingChatbotMaxRepliesPerDay,
+	}
+	for _, def := range nonNegative {
+		n, err := strconv.Atoi(all[def.Key])
+		if err != nil || n < 0 {
+			return fmt.Errorf("%s must be zero or a positive number", def.Key)
 		}
 	}
 
@@ -319,6 +410,10 @@ func ValidateSettings(all map[SiteSettingKey]string) error {
 		if all[SettingLiveKitURL.Key] == "" || all[SettingLiveKitAPIKey.Key] == "" || all[SettingLiveKitAPISecret.Key] == "" {
 			return fmt.Errorf("voice chat requires LiveKit URL, API key and API secret")
 		}
+	}
+
+	if err := validateChatbotSettings(all); err != nil {
+		return err
 	}
 
 	emailProvider := EmailProvider(all[SettingEmailProvider.Key])

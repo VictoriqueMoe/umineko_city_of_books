@@ -4,10 +4,15 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"umineko_city_of_books/internal/logger"
 
 	"github.com/gofiber/fiber/v3"
+)
+
+const (
+	httpShutdownTimeout = 8 * time.Second
 )
 
 func StartServerWithGracefulShutdown(app *fiber.App, addr string) {
@@ -18,7 +23,7 @@ func StartServerWithGracefulShutdown(app *fiber.App, addr string) {
 		signal.Notify(sigint, os.Interrupt, syscall.SIGTERM)
 		<-sigint
 
-		if err := app.Shutdown(); err != nil {
+		if err := app.ShutdownWithTimeout(httpShutdownTimeout); err != nil {
 			logger.Log.Error().Err(err).Msg("server shutdown error")
 		}
 

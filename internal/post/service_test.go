@@ -1298,8 +1298,11 @@ func TestVotePoll_AlreadyVoted(t *testing.T) {
 	postID := uuid.New()
 	userID := uuid.New()
 	pollID := uuid.New().String()
+	authorID := uuid.New()
 	poll := &model.PollRow{ID: pollID, ExpiresAt: time.Now().Add(time.Hour).UTC().Format(time.RFC3339)}
 	m.postRepo.EXPECT().GetPollByPostID(mock.Anything, postID, userID).Return(poll, nil, new(1), nil)
+	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(authorID, nil)
+	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
 
 	// when
 	_, err := svc.VotePoll(context.Background(), postID, userID, 1)
@@ -1313,8 +1316,11 @@ func TestVotePoll_Expired(t *testing.T) {
 	svc, m := newTestService(t)
 	postID := uuid.New()
 	userID := uuid.New()
+	authorID := uuid.New()
 	poll := &model.PollRow{ID: uuid.New().String(), ExpiresAt: time.Now().Add(-time.Hour).UTC().Format(time.RFC3339)}
 	m.postRepo.EXPECT().GetPollByPostID(mock.Anything, postID, userID).Return(poll, nil, nil, nil)
+	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(authorID, nil)
+	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
 
 	// when
 	_, err := svc.VotePoll(context.Background(), postID, userID, 1)
@@ -1328,9 +1334,12 @@ func TestVotePoll_InvalidOption(t *testing.T) {
 	svc, m := newTestService(t)
 	postID := uuid.New()
 	userID := uuid.New()
+	authorID := uuid.New()
 	poll := &model.PollRow{ID: uuid.New().String(), ExpiresAt: time.Now().Add(time.Hour).UTC().Format(time.RFC3339)}
 	options := []model.PollOptionRow{{ID: 1}, {ID: 2}}
 	m.postRepo.EXPECT().GetPollByPostID(mock.Anything, postID, userID).Return(poll, options, nil, nil)
+	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(authorID, nil)
+	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
 
 	// when
 	_, err := svc.VotePoll(context.Background(), postID, userID, 999)
@@ -1345,9 +1354,12 @@ func TestVotePoll_VoteRepoError(t *testing.T) {
 	postID := uuid.New()
 	userID := uuid.New()
 	pollID := uuid.New()
+	authorID := uuid.New()
 	poll := &model.PollRow{ID: pollID.String(), ExpiresAt: time.Now().Add(time.Hour).UTC().Format(time.RFC3339)}
 	options := []model.PollOptionRow{{ID: 1}}
 	m.postRepo.EXPECT().GetPollByPostID(mock.Anything, postID, userID).Return(poll, options, nil, nil)
+	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(authorID, nil)
+	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
 	m.postRepo.EXPECT().VotePoll(mock.Anything, pollID, userID, 1).Return(errors.New("boom"))
 
 	// when
@@ -1363,9 +1375,12 @@ func TestVotePoll_VoteAlreadyVotedDBError(t *testing.T) {
 	postID := uuid.New()
 	userID := uuid.New()
 	pollID := uuid.New()
+	authorID := uuid.New()
 	poll := &model.PollRow{ID: pollID.String(), ExpiresAt: time.Now().Add(time.Hour).UTC().Format(time.RFC3339)}
 	options := []model.PollOptionRow{{ID: 1}}
 	m.postRepo.EXPECT().GetPollByPostID(mock.Anything, postID, userID).Return(poll, options, nil, nil)
+	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(authorID, nil)
+	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
 	m.postRepo.EXPECT().VotePoll(mock.Anything, pollID, userID, 1).Return(errors.New("user already voted on this poll"))
 
 	// when
@@ -1381,9 +1396,12 @@ func TestVotePoll_RefreshError(t *testing.T) {
 	postID := uuid.New()
 	userID := uuid.New()
 	pollID := uuid.New()
+	authorID := uuid.New()
 	poll := &model.PollRow{ID: pollID.String(), ExpiresAt: time.Now().Add(time.Hour).UTC().Format(time.RFC3339)}
 	options := []model.PollOptionRow{{ID: 1}}
 	m.postRepo.EXPECT().GetPollByPostID(mock.Anything, postID, userID).Return(poll, options, nil, nil).Once()
+	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(authorID, nil)
+	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
 	m.postRepo.EXPECT().VotePoll(mock.Anything, pollID, userID, 1).Return(nil)
 	m.postRepo.EXPECT().GetPollByPostID(mock.Anything, postID, userID).Return(nil, nil, nil, errors.New("boom")).Once()
 
@@ -1400,10 +1418,13 @@ func TestVotePoll_OK(t *testing.T) {
 	postID := uuid.New()
 	userID := uuid.New()
 	pollID := uuid.New()
+	authorID := uuid.New()
 	expiresAt := time.Now().Add(time.Hour).UTC().Format(time.RFC3339)
 	poll := &model.PollRow{ID: pollID.String(), ExpiresAt: expiresAt}
 	options := []model.PollOptionRow{{ID: 1}}
 	m.postRepo.EXPECT().GetPollByPostID(mock.Anything, postID, userID).Return(poll, options, nil, nil).Once()
+	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(authorID, nil)
+	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
 	m.postRepo.EXPECT().VotePoll(mock.Anything, pollID, userID, 1).Return(nil)
 	m.postRepo.EXPECT().GetPollByPostID(mock.Anything, postID, userID).Return(poll, options, new(1), nil).Once()
 
@@ -1413,6 +1434,70 @@ func TestVotePoll_OK(t *testing.T) {
 	// then
 	require.NoError(t, err)
 	require.NotNil(t, got)
+}
+
+func TestVotePoll_BlockRelation(t *testing.T) {
+	lookupErr := errors.New("author lookup failed")
+
+	cases := []struct {
+		name       string
+		authorErr  error
+		blocked    bool
+		expectVote bool
+		wantErr    error
+	}{
+		{
+			name:      "author lookup failure is surfaced",
+			authorErr: lookupErr,
+			wantErr:   lookupErr,
+		},
+		{
+			name:    "blocked either way cannot vote",
+			blocked: true,
+			wantErr: block.ErrUserBlocked,
+		},
+		{
+			name:       "unblocked voter is recorded",
+			expectVote: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			postID := uuid.New()
+			userID := uuid.New()
+			authorID := uuid.New()
+			pollID := uuid.New()
+			poll := &model.PollRow{ID: pollID.String(), ExpiresAt: time.Now().Add(time.Hour).UTC().Format(time.RFC3339)}
+			options := []model.PollOptionRow{{ID: 1}}
+			m.postRepo.EXPECT().GetPollByPostID(mock.Anything, postID, userID).Return(poll, options, nil, nil).Once()
+			m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(authorID, tc.authorErr)
+			if tc.authorErr == nil {
+				m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(tc.blocked, nil)
+			}
+			if tc.expectVote {
+				m.postRepo.EXPECT().VotePoll(mock.Anything, pollID, userID, 1).Return(nil)
+				m.postRepo.EXPECT().GetPollByPostID(mock.Anything, postID, userID).Return(poll, options, new(1), nil).Once()
+			}
+
+			// when
+			got, err := svc.VotePoll(context.Background(), postID, userID, 1)
+
+			// then
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr)
+				assert.Nil(t, got)
+				m.postRepo.AssertNotCalled(t, "VotePoll", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+
+				return
+			}
+
+			require.NoError(t, err)
+			require.NotNil(t, got)
+		})
+	}
 }
 
 func TestResolveSuggestion_Unauthorised(t *testing.T) {

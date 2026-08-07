@@ -44,6 +44,7 @@ type (
 		DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		DeleteCommentAsAdmin(ctx context.Context, id uuid.UUID) error
 		GetComments(ctx context.Context, postID uuid.UUID, viewerID uuid.UUID, limit, offset int, excludeUserIDs []uuid.UUID) ([]CommentRow, int, error)
+		GetCommentByID(ctx context.Context, commentID uuid.UUID) (*CommentRow, error)
 		GetCommentEntityID(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error)
 		GetCommentAuthorID(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error)
 		LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error
@@ -205,6 +206,10 @@ func (r *postRepository) DeleteCommentAsAdmin(ctx context.Context, id uuid.UUID)
 
 func (r *postRepository) GetComments(ctx context.Context, postID uuid.UUID, viewerID uuid.UUID, limit, offset int, excludeUserIDs []uuid.UUID) ([]CommentRow, int, error) {
 	return r.dao.GetComments(ctx, postID, viewerID, limit, offset, excludeUserIDs)
+}
+
+func (r *postRepository) GetCommentByID(ctx context.Context, commentID uuid.UUID) (*CommentRow, error) {
+	return r.dao.GetCommentByID(ctx, commentID)
 }
 
 func (r *postRepository) GetCommentEntityID(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error) {

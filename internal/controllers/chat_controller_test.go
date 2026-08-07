@@ -2257,6 +2257,44 @@ func TestEditMessage_OK(t *testing.T) {
 	assert.Contains(t, string(body), `"edited_at"`)
 }
 
+func TestEditMessage_RefusalsAreNotServerErrors(t *testing.T) {
+	cases := []struct {
+		name       string
+		returned   error
+		wantStatus int
+		wantBody   string
+	}{
+		{"kicked author", chatsvc.ErrNotMember, http.StatusForbidden, "not a member"},
+		{
+			"banned word",
+			&chatsvc.ErrBannedWordMatch{Pattern: "badword", Action: "delete"},
+			http.StatusUnprocessableEntity,
+			`"code":"banned_word"`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h, chatMock := newChatHarness(t)
+			userID := uuid.New()
+			messageID := uuid.New()
+			h.ExpectValidSession("valid-cookie", userID)
+			chatMock.EXPECT().EditMessage(mock.Anything, messageID, userID, "updated").
+				Return(nil, tc.returned)
+
+			// when
+			status, body := h.NewRequest("PATCH", "/chat/messages/"+messageID.String()).
+				WithCookie("valid-cookie").
+				WithJSONBody(dto.EditMessageRequest{Body: "updated"}).Do()
+
+			// then
+			require.Equal(t, tc.wantStatus, status)
+			assert.Contains(t, string(body), tc.wantBody)
+		})
+	}
+}
+
 func TestEditMessage_InvalidID(t *testing.T) {
 	// given
 	h, _ := newChatHarness(t)

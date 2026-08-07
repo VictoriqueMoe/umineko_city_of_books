@@ -1,0 +1,23 @@
+.gate {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    padding: 0.75rem 0.9rem;
+    border: 1px solid rgba(var(--gold-rgb), 0.35);
+    border-left: 3px solid var(--gold);
+    border-radius: 0.4rem;
+    background: rgba(var(--gold-rgb), 0.08);
+}
+
+.message {
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: var(--text);
+    text-transform: none;
+    letter-spacing: normal;
+}
+
+.actions {
+    display: flex;
+    gap: 0.75rem;
+}

@@ -25,6 +25,10 @@ var (
 	GameTopWinners       = Namespace{Prefix: "game:top-winners:", TTL: 0}
 	VanityAssignments    = Namespace{Prefix: "vanity:assignments", TTL: 0}
 
+	RolePermissions       = Namespace{Prefix: "authz:role-perms", TTL: time.Minute}
+	VanityRolePermissions = Namespace{Prefix: "authz:vanity-perms", TTL: time.Minute}
+	UserVanityRoleIDs     = Namespace{Prefix: "authz:user-vanity:", TTL: time.Minute}
+
 	SecretHolders = Namespace{Prefix: "secret:holders:", TTL: 0}
 	SecretSolved  = Namespace{Prefix: "secret:solved:", TTL: 0}
 )

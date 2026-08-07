@@ -468,6 +468,7 @@ func TestLeaveWatchParty_OwnerLeavesEndsSession(t *testing.T) {
 	m.chatRepo.EXPECT().ListRoomMediaURLs(mock.Anything, sessionID).Return(nil, nil)
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, sessionID).Return(nil, nil)
 	m.chatRepo.EXPECT().DeleteRoom(mock.Anything, sessionID).Return(nil)
+	m.chatRepo.EXPECT().ClearVoiceForceMutes(mock.Anything, sessionID).Return(nil)
 	m.auditRepo.EXPECT().Create(mock.Anything, ownerID, "watch_party.end", "chat_watch_party_session", sessionID.String(), mock.Anything).Return(nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, ownerID).Return(nil, nil)
 	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, mock.Anything, roomID, ownerID, mock.Anything).Return(nil)
@@ -575,6 +576,7 @@ func TestCleanupDeadSession_DeletesMediaThenRoom(t *testing.T) {
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, sessionID).Return(nil, nil)
 	m.chatRepo.EXPECT().DeleteRoom(mock.Anything, sessionID).
 		Run(func(ctx context.Context, id uuid.UUID) { order = append(order, "delete-room") }).Return(nil)
+	m.chatRepo.EXPECT().ClearVoiceForceMutes(mock.Anything, sessionID).Return(nil)
 
 	// when
 	svc.cleanupDeadSession(&repository.ChatWatchPartySessionRow{ID: sessionID, RoomID: roomID}, "vm_gone")

@@ -15,6 +15,7 @@ import (
 	blocksvc "umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/chat"
+	"umineko_city_of_books/internal/chatbot"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	bannedgiphyrule "umineko_city_of_books/internal/contentfilter/rules/bannedgiphy"
@@ -43,6 +44,7 @@ import (
 	"umineko_city_of_books/internal/notification"
 	ocsvc "umineko_city_of_books/internal/oc"
 	"umineko_city_of_books/internal/og"
+	"umineko_city_of_books/internal/openai"
 	"umineko_city_of_books/internal/overlay"
 	postsvc "umineko_city_of_books/internal/post"
 	"umineko_city_of_books/internal/profile"
@@ -79,7 +81,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 	sessionMgr := session.NewManager(repos.Session, settingsSvc)
 	mediaProc := media.NewProcessor(4)
 	uploadSvc := upload.NewService(settingsSvc, mediaProc)
-	authzSvc := authz.NewService(repos.Role, repos.User)
+	authzSvc := authz.NewService(repos.Role, repos.User, repos.Permission)
 	giphyBanlist, err := banlist.NewService(context.Background(), repos.BannedGiphy)
 	if err != nil {
 		logger.Log.Fatal().Err(err).Msg("failed to load giphy banlist")
@@ -92,7 +94,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		slursrule.New(),
 		bannedgiphyrule.New(giphyBanlist, giphySvc),
 	)
-	userSvc := user.NewService(repos.User, repos.Role, authzSvc)
+	userSvc := user.NewService(repos.User, repos.Role, repos.VanityRole, authzSvc, settingsSvc)
 	hub := ws.NewHub("main")
 	sessionMgr.SetDisconnector(hub)
 	quoteClient := quotefinder.NewClient()
@@ -110,8 +112,17 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 	streamSvc := stream.NewService(repos.LiveStream, repos.StreamCredentials, livekitSvc, settingsSvc, uploadSvc, hub)
 	chatSvc := chat.NewService(repos.Chat, repos.User, repos.Role, repos.VanityRole, repos.ChatRoomBan, repos.ChatBannedWord, repos.ChatWatchParty, repos.AuditLog, authzSvc, notifSvc, blockSvc, uploadSvc, settingsSvc, mediaProc, hub, hyperbeamSvc, livekitSvc, contentFilter)
 	streamSvc.SetChatBinder(chatSvc)
-	followSvc := follow.NewService(repos.Follow, repos.User, blockSvc, notifSvc, settingsSvc)
+
 	postSvc := postsvc.NewService(repos.Post, repos.User, repos.Role, repos.AuditLog, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, hub, contentFilter)
+
+	openaiSvc := openai.NewService(settingsSvc)
+	chatbotSvc := chatbot.NewService(openaiSvc, chatSvc, postSvc, repos.Chat, repos.Post, repos.Chatbot, authzSvc, settingsSvc, hub)
+	chatSvc.SetMessageObserver(chatbotSvc)
+	postSvc.SetCommentObserver(chatbotSvc)
+	chatbotAdminSvc := chatbot.NewAdminService(repos.Chatbot, repos.VanityRole, userSvc, openaiSvc, chatbotSvc)
+	settingsSvc.RegisterValidator(config.SettingChatbotModel, chatbot.ModelValidator(openaiSvc))
+	settingsSvc.RegisterValidator(config.SettingChatbotOptInRole, chatbot.OptInRoleValidator(repos.VanityRole, repos.Permission))
+	followSvc := follow.NewService(repos.Follow, repos.User, blockSvc, notifSvc, settingsSvc)
 	artSvc := artsvc.NewService(repos.Art, repos.Post, repos.User, repos.AuditLog, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, contentFilter)
 	shipSvc := ship.NewService(repos.Ship, repos.User, repos.AuditLog, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, quoteClient, contentFilter)
 	ocSvc := ocsvc.NewService(repos.OC, repos.User, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, hub, contentFilter)
@@ -173,12 +184,15 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		settings:        settingsSvc,
 		cache:           cacheManager,
 		auth:            authSvc,
-		profile:         profile.NewService(repos.User, repos.UserSecret, repos.Theory, authzSvc, uploadSvc, settingsSvc, contentFilter, hub, authSvc, sessionMgr),
+		profile:         profile.NewService(repos.User, repos.UserSecret, repos.Theory, authzSvc, uploadSvc, settingsSvc, contentFilter, hub, authSvc, sessionMgr, userSvc),
 		theory:          theory.NewService(repos.Theory, repos.User, authzSvc, blockSvc, notifSvc, settingsSvc, credibilitySvc, quoteClient, contentFilter),
 		notification:    notifSvc,
-		admin:           admin.NewService(repos.User, repos.Role, repos.Stats, repos.AuditLog, repos.Invite, repos.VanityRole, giphyBanlist, authzSvc, settingsSvc, sessionMgr, uploadSvc, hub, chatSvc, emailSvc, authSvc),
+		admin:           admin.NewService(repos.User, repos.Role, repos.Stats, repos.AuditLog, repos.Invite, repos.VanityRole, repos.Permission, giphyBanlist, authzSvc, settingsSvc, sessionMgr, uploadSvc, hub, chatSvc, emailSvc, authSvc),
 		authz:           authzSvc,
 		chat:            chatSvc,
+		openai:          openaiSvc,
+		chatbot:         chatbotSvc,
+		chatbotAdmin:    chatbotAdminSvc,
 		report:          reportSvc,
 		post:            postSvc,
 		follow:          followSvc,

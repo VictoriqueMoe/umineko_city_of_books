@@ -1,5 +1,6 @@
 ﻿import { useQuery } from "@tanstack/react-query";
-import { getMe, getSiteInfo, getStaff } from "../endpoints";
+import { getChatbotOptIn, getMe, getSiteInfo, getStaff } from "../endpoints";
+import { queryKeys } from "../queryKeys";
 
 export function useMe() {
     const query = useQuery({
@@ -20,6 +21,15 @@ export function useSiteInfoQuery() {
         refresh: query.refetch,
         dataUpdatedAt: query.dataUpdatedAt,
     };
+}
+
+export function useChatbotOptIn(enabled: boolean) {
+    const query = useQuery({
+        queryKey: queryKeys.preferences.chatbotOptIn(),
+        queryFn: () => getChatbotOptIn(),
+        enabled,
+    });
+    return { optedIn: query.data?.opted_in ?? false, loading: enabled && query.isLoading };
 }
 
 export function useStaff() {

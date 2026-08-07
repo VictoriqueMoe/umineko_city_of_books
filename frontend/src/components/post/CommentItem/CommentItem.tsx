@@ -71,8 +71,8 @@ function SingleComment({
     const highlighted = highlightedId === comment.id;
     const { user } = useAuth();
     const isOwner = user?.id === comment.author.id;
-    const canEditComment = isOwner || can(user?.role, "edit_any_comment");
-    const canDeleteComment = isOwner || can(user?.role, "delete_any_comment");
+    const canEditComment = isOwner || can(user, "edit_any_comment");
+    const canDeleteComment = isOwner || can(user, "delete_any_comment");
 
     const likeMutation = useLikeComment(postId);
     const unlikeMutation = useUnlikeComment(postId);

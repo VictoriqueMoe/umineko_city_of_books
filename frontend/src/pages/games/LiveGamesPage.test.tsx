@@ -1,5 +1,6 @@
 import { screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { queryKeys } from "../../api/queryKeys";
 import { createTestQueryClient, renderWithProviders } from "../../test-utils/render";
 import type { GameRoom, GameRoomPlayer } from "../../types/api";
 import { LiveGamesPage } from "./LiveGamesPage";
@@ -131,7 +132,7 @@ describe("LiveGamesPage", () => {
         renderWithProviders(<LiveGamesPage />, { queryClient });
 
         // then
-        expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["game-rooms", "live"] });
+        expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: queryKeys.gameRoom.live() });
     });
 
     it("keeps every live room, not just the first few", () => {

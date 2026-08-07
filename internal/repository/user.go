@@ -6,8 +6,20 @@ import (
 
 	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/logger"
+	"umineko_city_of_books/internal/secrets"
 
 	"github.com/google/uuid"
+)
+
+var (
+	leaderboardGameTypes = []dto.GameType{
+		dto.GameTypeChess,
+		dto.GameTypeCheckers,
+		dto.GameTypeOthello,
+		dto.GameTypeMinesweeper,
+		dto.GameTypeSnakesLadders,
+	}
 )
 
 type (
@@ -191,7 +203,35 @@ func (r *userRepository) RequiresEmailVerification(ctx context.Context, userID u
 }
 
 func (r *userRepository) DeleteAccount(ctx context.Context, userID uuid.UUID, password string) error {
-	return r.dao.DeleteAccount(ctx, userID, password)
+	if err := r.dao.DeleteAccount(ctx, userID, password); err != nil {
+		return err
+	}
+
+	r.invalidateAfterUserDelete(ctx, userID)
+
+	return nil
+}
+
+func (r *userRepository) invalidateAfterUserDelete(ctx context.Context, userID uuid.UUID) {
+	keys := []string{
+		cache.MysteryTopDetectives.Key(),
+		cache.MysteryTopGMs.Key(),
+		cache.VanityAssignments.Key(),
+		cache.UserVanityRoleIDs.Key(userID.String()),
+		cache.UserRole.Key(userID.String()),
+	}
+
+	for _, gameType := range leaderboardGameTypes {
+		keys = append(keys, cache.GameTopWinners.Key(string(gameType)))
+	}
+
+	for _, spec := range secrets.All() {
+		keys = append(keys, cache.SecretHolders.Key(string(spec.ID)), cache.SecretSolved.Key(string(spec.ID)))
+	}
+
+	if err := r.cache.Del(ctx, keys...); err != nil {
+		logger.Log.Error().Err(err).Str("user_id", userID.String()).Msg("failed to invalidate caches after deleting a user")
+	}
 }
 
 func (r *userRepository) GetProfileByUsername(ctx context.Context, username string) (*model.User, *model.UserStats, error) {
@@ -239,5 +279,11 @@ func (r *userRepository) IsLocked(ctx context.Context, userID uuid.UUID) (bool, 
 }
 
 func (r *userRepository) AdminDeleteAccount(ctx context.Context, userID uuid.UUID) error {
-	return r.dao.AdminDeleteAccount(ctx, userID)
+	if err := r.dao.AdminDeleteAccount(ctx, userID); err != nil {
+		return err
+	}
+
+	r.invalidateAfterUserDelete(ctx, userID)
+
+	return nil
 }

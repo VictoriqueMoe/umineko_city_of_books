@@ -190,6 +190,36 @@ type (
 		UserID string `json:"user_id"`
 	}
 
+	PermissionCatalogueItem struct {
+		Permission       string `json:"permission"`
+		Label            string `json:"label"`
+		VanityAssignable bool   `json:"vanity_assignable"`
+	}
+
+	RolePermissionsItem struct {
+		Role        string   `json:"role"`
+		Label       string   `json:"label"`
+		Permissions []string `json:"permissions"`
+	}
+
+	VanityRolePermissionsItem struct {
+		ID          string   `json:"id"`
+		Label       string   `json:"label"`
+		Color       string   `json:"color"`
+		SortOrder   int      `json:"sort_order"`
+		Permissions []string `json:"permissions"`
+	}
+
+	PermissionSettingsResponse struct {
+		Permissions []PermissionCatalogueItem   `json:"permissions"`
+		Roles       []RolePermissionsItem       `json:"roles"`
+		VanityRoles []VanityRolePermissionsItem `json:"vanity_roles"`
+	}
+
+	UpdatePermissionsRequest struct {
+		Permissions []string `json:"permissions"`
+	}
+
 	SiteInfoResponse struct {
 		SiteName              string               `json:"site_name"`
 		SiteDescription       string               `json:"site_description"`
@@ -203,6 +233,8 @@ type (
 		TurnstileSiteKey      string               `json:"turnstile_site_key"`
 		VoiceEnabled          bool                 `json:"voice_enabled"`
 		EmailEnabled          bool                 `json:"email_enabled"`
+		ChatbotEnabled        bool                 `json:"chatbot_enabled"`
+		ChatbotRequirePerm    bool                 `json:"chatbot_require_permission"`
 		MaxImageSize          int                  `json:"max_image_size"`
 		MaxVideoSize          int                  `json:"max_video_size"`
 		TopDetectiveIDs       []string             `json:"top_detective_ids"`

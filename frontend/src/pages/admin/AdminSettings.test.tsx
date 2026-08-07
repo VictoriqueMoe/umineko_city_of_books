@@ -7,17 +7,25 @@ import { AdminSettings } from "./AdminSettings";
 
 const mocks = vi.hoisted(() => ({
     useAdminSettings: vi.fn(),
+    useChatbotModels: vi.fn(),
+    useAdminPermissions: vi.fn(),
     update: vi.fn(),
     sendTestEmail: vi.fn(),
+    testModel: vi.fn(),
     uploadOGImage: vi.fn(),
     savePending: false,
 }));
 
-vi.mock("../../api/queries/admin", () => ({ useAdminSettings: mocks.useAdminSettings }));
+vi.mock("../../api/queries/admin", () => ({
+    useAdminSettings: mocks.useAdminSettings,
+    useChatbotModels: mocks.useChatbotModels,
+    useAdminPermissions: mocks.useAdminPermissions,
+}));
 
 vi.mock("../../api/mutations/admin", () => ({
     useUpdateAdminSettings: () => ({ mutateAsync: mocks.update, isPending: mocks.savePending }),
     useSendTestEmail: () => ({ mutateAsync: mocks.sendTestEmail, isPending: false }),
+    useTestChatbotModel: () => ({ mutateAsync: mocks.testModel, isPending: false }),
     useUploadOGDefaultImage: () => ({ mutateAsync: mocks.uploadOGImage, isPending: false }),
 }));
 
@@ -33,8 +41,69 @@ const VALID: SiteSettings = {
     max_responses_per_day: "20",
 };
 
+const SAVED_KEY = "********";
+
+const CHATBOT: SiteSettings = {
+    ...VALID,
+    chatbot_enabled: "true",
+    chatbot_max_output_tokens: "2048",
+    chatbot_api_key: SAVED_KEY,
+};
+
 function stubSettings(settings: SiteSettings | null, loading = false) {
     mocks.useAdminSettings.mockReturnValue({ settings, loading, refresh: vi.fn() });
+}
+
+function stubModels(models: string[], loading = false, refresh = vi.fn(), modelsError = "") {
+    mocks.useChatbotModels.mockReturnValue({ models, modelsError, loading, refresh });
+}
+
+interface StubVanityRole {
+    id: string;
+    label: string;
+    color: string;
+    sort_order: number;
+    permissions: string[];
+}
+
+function stubVanityRoles(vanityRoles: StubVanityRole[], loading = false) {
+    mocks.useAdminPermissions.mockReturnValue({
+        catalogue: [],
+        roles: [],
+        vanityRoles,
+        loading,
+        refresh: vi.fn(),
+    });
+}
+
+function makeVanityRole(overrides: Partial<StubVanityRole> = {}): StubVanityRole {
+    return {
+        id: "role-witch",
+        label: "Witch's Familiar",
+        color: "#d4af37",
+        sort_order: 0,
+        permissions: ["use_chatbot"],
+        ...overrides,
+    };
+}
+
+function modelOptions(input: HTMLElement): string[] {
+    const listID = input.getAttribute("list");
+    if (!listID) {
+        return [];
+    }
+
+    const list = document.getElementById(listID);
+    if (!list) {
+        throw new Error(`no datalist with id ${listID}`);
+    }
+
+    const values: string[] = [];
+    for (const option of Array.from(list.querySelectorAll("option"))) {
+        values.push(option.value);
+    }
+
+    return values;
 }
 
 function fieldFor(label: string): HTMLElement {
@@ -54,6 +123,15 @@ function textInput(label: string): HTMLElement {
     return within(fieldFor(label)).getByRole("textbox");
 }
 
+function secretInput(label: string): HTMLElement {
+    const input = fieldFor(label).querySelector("input");
+    if (!input) {
+        throw new Error(`no input inside the ${label} field`);
+    }
+
+    return input;
+}
+
 function selectFor(label: string): HTMLElement {
     return within(fieldFor(label)).getByRole("combobox");
 }
@@ -62,7 +140,10 @@ beforeEach(() => {
     mocks.savePending = false;
     mocks.update.mockResolvedValue(undefined);
     mocks.sendTestEmail.mockResolvedValue(undefined);
+    mocks.testModel.mockResolvedValue({ ok: true });
     mocks.uploadOGImage.mockResolvedValue({ url: "/uploads/og.jpg" });
+    stubModels(["gpt-5.6-luna"]);
+    stubVanityRoles([makeVanityRole()]);
 });
 
 describe("AdminSettings feature toggles", () => {
@@ -211,6 +292,428 @@ describe("AdminSettings email", () => {
 
         // then
         expect(await screen.findByText("no relay is listening")).toBeInTheDocument();
+    });
+});
+
+describe("AdminSettings chatbot model", () => {
+    it("suggests every model the provider returned", () => {
+        // given
+        stubSettings({ ...CHATBOT });
+        stubModels(["gpt-5.6-luna", "gpt-5.6-terra"]);
+
+        // when
+        renderWithProviders(<AdminSettings />);
+
+        // then
+        expect(modelOptions(screen.getByLabelText("Model"))).toEqual(["gpt-5.6-luna", "gpt-5.6-terra"]);
+    });
+
+    it("saves a model that the provider never listed", async () => {
+        // given
+        stubSettings({ ...CHATBOT, chatbot_model: "" });
+        stubModels(["gpt-5.6-luna"]);
+        const user = userEvent.setup();
+        renderWithProviders(<AdminSettings />);
+        await user.type(screen.getByLabelText("Model"), "gpt-6-unreleased");
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Save Settings" }));
+
+        // then
+        expect(mocks.update).toHaveBeenCalledWith({ ...CHATBOT, chatbot_model: "gpt-6-unreleased" });
+    });
+
+    it("keeps the hint text out of the field name and in its description", () => {
+        // given
+        stubSettings({ ...CHATBOT });
+
+        // when
+        renderWithProviders(<AdminSettings />);
+
+        // then
+        const model = screen.getByLabelText("Model");
+        expect(model).toHaveAccessibleName("Model");
+        expect(model).toHaveAccessibleDescription(/anything not on it can still be typed in by hand/);
+    });
+
+    it("confirms that the model answered", async () => {
+        // given
+        stubSettings({ ...CHATBOT, chatbot_model: "gpt-5.6-luna" });
+        const user = userEvent.setup();
+        renderWithProviders(<AdminSettings />);
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Test model" }));
+
+        // then
+        expect(mocks.testModel).toHaveBeenCalledWith("gpt-5.6-luna");
+        expect(await screen.findByText("The model answered. Save your changes to put it live.")).toBeInTheDocument();
+    });
+
+    it("tests whatever model is currently typed in rather than the saved one", async () => {
+        // given
+        stubSettings({ ...CHATBOT, chatbot_model: "gpt-5.6-luna" });
+        const user = userEvent.setup();
+        renderWithProviders(<AdminSettings />);
+        await user.clear(screen.getByLabelText("Model"));
+        await user.type(screen.getByLabelText("Model"), "gpt-6-unreleased");
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Test model" }));
+
+        // then
+        expect(mocks.testModel).toHaveBeenCalledWith("gpt-6-unreleased");
+    });
+
+    it("shows what the provider said when the model refused", async () => {
+        // given
+        stubSettings({ ...CHATBOT, chatbot_model: "gpt-6-unreleased" });
+        mocks.testModel.mockResolvedValue({ ok: false, error: "the model gpt-6-unreleased does not exist" });
+        const user = userEvent.setup();
+        renderWithProviders(<AdminSettings />);
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Test model" }));
+
+        // then
+        expect(await screen.findByText("the model gpt-6-unreleased does not exist")).toBeInTheDocument();
+    });
+
+    it("reports a test that could not be run at all", async () => {
+        // given
+        stubSettings({ ...CHATBOT, chatbot_model: "gpt-5.6-luna" });
+        mocks.testModel.mockRejectedValue(new Error("the admin API is unreachable"));
+        const user = userEvent.setup();
+        renderWithProviders(<AdminSettings />);
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Test model" }));
+
+        // then
+        expect(await screen.findByText("the admin API is unreachable")).toBeInTheDocument();
+    });
+
+    it("refuses to test while no model has been named", () => {
+        // given
+        stubSettings({ ...CHATBOT, chatbot_model: "   " });
+
+        // when
+        renderWithProviders(<AdminSettings />);
+
+        // then
+        expect(screen.getByRole("button", { name: "Test model" })).toBeDisabled();
+    });
+
+    it("offers nothing to test while the chatbot is switched off", () => {
+        // given
+        stubSettings({ ...VALID, chatbot_enabled: "false" });
+
+        // when
+        renderWithProviders(<AdminSettings />);
+
+        // then
+        expect(screen.queryByRole("button", { name: "Test model" })).not.toBeInTheDocument();
+        expect(screen.queryByLabelText("Model")).not.toBeInTheDocument();
+    });
+});
+
+describe("AdminSettings chatbot key gate", () => {
+    it("locks everything below the API key until a key is saved", () => {
+        // given
+        stubSettings({ ...CHATBOT, chatbot_api_key: "" });
+        stubModels([]);
+
+        // when
+        renderWithProviders(<AdminSettings />);
+
+        // then
+        expect(screen.getByText(/No OpenAI API key is saved yet/)).toBeInTheDocument();
+        expect(secretInput("Admin Key")).toBeDisabled();
+        expect(screen.getByLabelText("Model")).toBeDisabled();
+        expect(selectFor("Reasoning Effort")).toBeDisabled();
+        expect(numberInput("Max Replies Per Day")).toBeDisabled();
+        expect(screen.getByRole("button", { name: "Test model" })).toBeDisabled();
+        expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument();
+    });
+
+    it("keeps the API key itself editable while everything below it is locked", () => {
+        // given
+        stubSettings({ ...CHATBOT, chatbot_api_key: "" });
+        stubModels([]);
+
+        // when
+        renderWithProviders(<AdminSettings />);
+
+        // then
+        expect(secretInput("API Key")).toBeEnabled();
+    });
+
+    it("shows the reason the server gave rather than blaming the key", () => {
+        // given
+        stubSettings({ ...CHATBOT });
+        stubModels([], false, vi.fn(), "OpenAI answered 403: Missing scopes: api.model.read.");
+
+        // when
+        renderWithProviders(<AdminSettings />);
+
+        // then
+        expect(screen.getByText(/OpenAI answered 403: Missing scopes: api\.model\.read\./)).toBeInTheDocument();
+        expect(screen.queryByText(/No OpenAI API key is saved yet/)).not.toBeInTheDocument();
+        expect(screen.getByLabelText("Model")).toBeDisabled();
+        expect(document.querySelector("datalist")).toBeNull();
+    });
+
+    it("does not invent a cause when the server reported none", () => {
+        // given
+        stubSettings({ ...CHATBOT });
+        stubModels([]);
+
+        // when
+        renderWithProviders(<AdminSettings />);
+
+        // then
+        expect(screen.getByText(/listed no models for this key/)).toBeInTheDocument();
+        expect(screen.queryByText(/No OpenAI API key is saved yet/)).not.toBeInTheDocument();
+    });
+
+    it("offers to fetch the model list again when the key could not be used", async () => {
+        // given
+        const refresh = vi.fn();
+        stubSettings({ ...CHATBOT });
+        stubModels([], false, refresh);
+        const user = userEvent.setup();
+        renderWithProviders(<AdminSettings />);
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Try again" }));
+
+        // then
+        expect(refresh).toHaveBeenCalledOnce();
+    });
+
+    it("says it is still checking the key while the model list is on its way", () => {
+        // given
+        stubSettings({ ...CHATBOT });
+        stubModels([], true);
+
+        // when
+        renderWithProviders(<AdminSettings />);
+
+        // then
+        expect(screen.getByText(/Checking the saved OpenAI API key/)).toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument();
+        expect(screen.getByLabelText("Model")).toBeDisabled();
+    });
+
+    it("unlocks the section once the key answers with a model list", () => {
+        // given
+        stubSettings({ ...CHATBOT, chatbot_model: "gpt-5.6-luna" });
+        stubModels(["gpt-5.6-luna"]);
+
+        // when
+        renderWithProviders(<AdminSettings />);
+
+        // then
+        expect(secretInput("Admin Key")).toBeEnabled();
+        expect(screen.getByLabelText("Model")).toBeEnabled();
+        expect(selectFor("Reasoning Effort")).toBeEnabled();
+        expect(numberInput("Max Replies Per Day")).toBeEnabled();
+        expect(screen.getByRole("button", { name: "Test model" })).toBeEnabled();
+        expect(screen.queryByText(/stays locked/)).not.toBeInTheDocument();
+    });
+
+    it("leaves the master switch usable so the feature can be switched off while the provider is down", async () => {
+        // given
+        stubSettings({ ...CHATBOT, chatbot_api_key: "" });
+        stubModels([]);
+        const user = userEvent.setup();
+        renderWithProviders(<AdminSettings />);
+
+        // when
+        await user.click(screen.getByRole("switch", { name: "Enable Chatbot" }));
+
+        // then
+        expect(screen.queryByLabelText("Model")).not.toBeInTheDocument();
+        expect(screen.queryByText(/No OpenAI API key is saved yet/)).not.toBeInTheDocument();
+    });
+});
+
+describe("AdminSettings chatbot opt in role", () => {
+    const RESTRICTED: SiteSettings = { ...CHATBOT, chatbot_require_permission: "true" };
+
+    it("keeps the role out of sight while characters are open to everyone", () => {
+        // given
+        stubSettings({ ...CHATBOT, chatbot_require_permission: "false" });
+
+        // when
+        renderWithProviders(<AdminSettings />);
+
+        // then
+        expect(screen.queryByLabelText("Opt In Role")).not.toBeInTheDocument();
+    });
+
+    it("does not fetch the roles it will never offer", () => {
+        // given
+        stubSettings({ ...CHATBOT, chatbot_require_permission: "false" });
+
+        // when
+        renderWithProviders(<AdminSettings />);
+
+        // then
+        expect(mocks.useAdminPermissions).toHaveBeenCalledWith(false);
+    });
+
+    it("asks for a role the moment the restriction is switched on", async () => {
+        // given
+        stubSettings({ ...CHATBOT, chatbot_require_permission: "false" });
+        const user = userEvent.setup();
+        renderWithProviders(<AdminSettings />);
+
+        // when
+        await user.click(screen.getByRole("switch", { name: "Restrict To Chatbot Permission" }));
+
+        // then
+        expect(screen.getByLabelText("Opt In Role")).toBeInTheDocument();
+    });
+
+    it("offers only the vanity roles that already carry the permission", () => {
+        // given
+        stubSettings({ ...RESTRICTED });
+        stubVanityRoles([
+            makeVanityRole({ id: "role-witch", label: "Witch's Familiar" }),
+            makeVanityRole({ id: "role-goat", label: "Goat Butler", permissions: [] }),
+        ]);
+
+        // when
+        renderWithProviders(<AdminSettings />);
+
+        // then
+        const select = screen.getByLabelText("Opt In Role");
+        expect(select).toHaveTextContent("Witch's Familiar");
+        expect(select).not.toHaveTextContent("Goat Butler");
+    });
+
+    it("shows the role the site is already handing out", () => {
+        // given
+        stubSettings({ ...RESTRICTED, chatbot_opt_in_role: "role-witch" });
+
+        // when
+        renderWithProviders(<AdminSettings />);
+
+        // then
+        expect(screen.getByLabelText("Opt In Role")).toHaveValue("role-witch");
+    });
+
+    it("keeps a saved role visible after it has lost the permission", () => {
+        // given
+        stubSettings({ ...RESTRICTED, chatbot_opt_in_role: "role-forgotten" });
+        stubVanityRoles([makeVanityRole()]);
+
+        // when
+        renderWithProviders(<AdminSettings />);
+
+        // then
+        expect(screen.getByLabelText("Opt In Role")).toHaveValue("role-forgotten");
+        expect(screen.getByText("The saved role no longer carries Summon Chatbots")).toBeInTheDocument();
+    });
+
+    it("warns that opting in hands the member the whole role", () => {
+        // given
+        stubSettings({ ...RESTRICTED, chatbot_opt_in_role: "role-witch" });
+
+        // when
+        renderWithProviders(<AdminSettings />);
+
+        // then
+        expect(screen.getByLabelText("Opt In Role")).toHaveAccessibleDescription(
+            /Opting in grants the whole role, so anything else it carries is granted with it/,
+        );
+    });
+
+    it("says where to grant the permission when no role holds it yet", () => {
+        // given
+        stubSettings({ ...RESTRICTED });
+        stubVanityRoles([]);
+
+        // when
+        renderWithProviders(<AdminSettings />);
+
+        // then
+        expect(screen.getByText(/No vanity role holds Summon Chatbots yet/)).toBeInTheDocument();
+    });
+
+    it("refuses to save the restriction with no role chosen", async () => {
+        // given
+        stubSettings({ ...RESTRICTED });
+        const user = userEvent.setup();
+        renderWithProviders(<AdminSettings />);
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Save Settings" }));
+
+        // then
+        expect(
+            screen.getByText("Restricting characters to a permission requires an opt-in role so members can opt in"),
+        ).toBeInTheDocument();
+        expect(mocks.update).not.toHaveBeenCalled();
+    });
+
+    it("points at the master switch when the restriction was left on with the chatbot off", async () => {
+        // given
+        stubSettings({ ...VALID, chatbot_enabled: "false", chatbot_require_permission: "true" });
+        const user = userEvent.setup();
+        renderWithProviders(<AdminSettings />);
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Save Settings" }));
+
+        // then
+        expect(
+            screen.getByText(
+                "Restricting characters to a permission requires an opt-in role. Switch Enable Chatbot on to choose one.",
+            ),
+        ).toBeInTheDocument();
+        expect(mocks.update).not.toHaveBeenCalled();
+    });
+
+    it("saves the role the admin picked", async () => {
+        // given
+        stubSettings({ ...RESTRICTED });
+        const user = userEvent.setup();
+        renderWithProviders(<AdminSettings />);
+
+        // when
+        await user.selectOptions(screen.getByLabelText("Opt In Role"), "role-witch");
+        await user.click(screen.getByRole("button", { name: "Save Settings" }));
+
+        // then
+        expect(mocks.update).toHaveBeenCalledWith({ ...RESTRICTED, chatbot_opt_in_role: "role-witch" });
+    });
+
+    it("leaves the role alone when the restriction is switched off", async () => {
+        // given
+        stubSettings({ ...CHATBOT, chatbot_require_permission: "false" });
+        const user = userEvent.setup();
+        renderWithProviders(<AdminSettings />);
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Save Settings" }));
+
+        // then
+        expect(mocks.update).toHaveBeenCalledWith({ ...CHATBOT, chatbot_require_permission: "false" });
+    });
+
+    it("holds the list still while the roles are on their way", () => {
+        // given
+        stubSettings({ ...RESTRICTED });
+        stubVanityRoles([], true);
+
+        // when
+        renderWithProviders(<AdminSettings />);
+
+        // then
+        expect(screen.getByLabelText("Opt In Role")).toBeDisabled();
+        expect(screen.queryByText(/No vanity role holds Summon Chatbots yet/)).not.toBeInTheDocument();
     });
 });
 

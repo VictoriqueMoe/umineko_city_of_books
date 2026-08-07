@@ -110,6 +110,42 @@ describe("ToggleSwitch", () => {
         expect(screen.getByRole("switch", { name: "Show spoilers" }).textContent).toBe("Show spoilers");
     });
 
+    it("stays usable when nothing disables it", () => {
+        // given
+        const disabled = undefined;
+
+        // when
+        renderWithProviders(<ToggleSwitch enabled={false} onChange={noop} label="Show spoilers" disabled={disabled} />);
+
+        // then
+        expect(screen.getByRole("switch", { name: "Show spoilers" })).toBeEnabled();
+    });
+
+    it("refuses to be operated once it is disabled", async () => {
+        // given
+        const onChange = vi.fn();
+        const user = userEvent.setup();
+        renderWithProviders(<ToggleSwitch enabled={false} onChange={onChange} label="Show spoilers" disabled />);
+
+        // when
+        await user.click(screen.getByRole("switch", { name: "Show spoilers" }));
+
+        // then
+        expect(screen.getByRole("switch", { name: "Show spoilers" })).toBeDisabled();
+        expect(onChange).not.toHaveBeenCalled();
+    });
+
+    it("still reports the state it is showing while disabled", () => {
+        // given
+        const enabled = true;
+
+        // when
+        renderWithProviders(<ToggleSwitch enabled={enabled} onChange={noop} label="Show spoilers" disabled />);
+
+        // then
+        expect(screen.getByRole("switch", { name: "Show spoilers" })).toHaveAttribute("aria-checked", "true");
+    });
+
     it("does not submit a surrounding form when it is toggled", async () => {
         // given
         const onSubmit = vi.fn();

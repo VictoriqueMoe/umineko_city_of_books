@@ -100,8 +100,8 @@ export function JournalPage() {
     }
 
     const isOwner = user?.id === journal.author.id;
-    const canEdit = isOwner || can(user?.role, "edit_any_journal");
-    const canDelete = isOwner || can(user?.role, "delete_any_journal");
+    const canEdit = isOwner || can(user, "edit_any_journal");
+    const canDelete = isOwner || can(user, "delete_any_journal");
     const comments = journal.comments ?? [];
     const canComment = user && !journal.is_archived;
     const entries = journal.entries ?? [];

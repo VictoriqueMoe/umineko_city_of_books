@@ -696,9 +696,13 @@ func (s *watchPartyService) MintSessionVoiceToken(ctx context.Context, roomID, s
 	allowScreenShare := session.Type == watchPartyTypeScreenShare && session.StartedBy == userID
 	roomName := voiceSessionRoomPrefix + session.ID.String()
 	displayName := s.displayNameFor(ctx, userID, roomID)
-	canMic := !s.isVoiceMuted(roomName, userID)
 
-	token, err = s.livekitSvc.MintToken(roomName, userID.String(), displayName, canMic, allowScreenShare)
+	forceMuted, err := s.chatRepo.IsVoiceForceMuted(ctx, session.ID, userID)
+	if err != nil {
+		return "", "", fmt.Errorf("check voice force mute: %w", err)
+	}
+
+	token, err = s.livekitSvc.MintToken(roomName, userID.String(), displayName, !forceMuted, allowScreenShare)
 	if err != nil {
 		return "", "", err
 	}
@@ -745,7 +749,9 @@ func (s *watchPartyService) ForceMuteSessionVoice(ctx context.Context, roomID, s
 	roomName := voiceSessionRoomPrefix + session.ID.String()
 	allowScreenShare := session.Type == watchPartyTypeScreenShare && session.StartedBy == targetID
 
-	s.setVoiceMuted(roomName, targetID, muted)
+	if err := s.chatRepo.SetVoiceForceMuted(ctx, session.ID, targetID, actorID, muted); err != nil {
+		return fmt.Errorf("set voice force mute: %w", err)
+	}
 
 	return s.livekitSvc.SetCanPublish(ctx, roomName, targetID.String(), !muted, allowScreenShare)
 }

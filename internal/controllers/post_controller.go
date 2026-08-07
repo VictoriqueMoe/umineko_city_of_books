@@ -567,6 +567,9 @@ func (s *Service) votePoll(ctx fiber.Ctx) error {
 		if errors.Is(err, postsvc.ErrPollExpired) {
 			return ctx.Status(fiber.StatusGone).JSON(fiber.Map{"error": err.Error()})
 		}
+		if errors.Is(err, block.ErrUserBlocked) {
+			return utils.Forbidden(ctx, "user is blocked")
+		}
 		if errors.Is(err, postsvc.ErrAlreadyVoted) {
 			return utils.Conflict(ctx, err.Error())
 		}

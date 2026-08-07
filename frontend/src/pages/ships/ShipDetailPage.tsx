@@ -158,8 +158,8 @@ export function ShipDetailPage() {
     }
 
     const isAuthor = user?.id === ship.author.id;
-    const canEdit = isAuthor || can(user?.role, "edit_any_post");
-    const canDelete = isAuthor || can(user?.role, "delete_any_post");
+    const canEdit = isAuthor || can(user, "edit_any_post");
+    const canDelete = isAuthor || can(user, "delete_any_post");
     const userVote = ship.user_vote ?? 0;
 
     return (

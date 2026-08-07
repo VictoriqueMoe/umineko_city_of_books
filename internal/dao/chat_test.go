@@ -1309,7 +1309,7 @@ func TestChatDAO_SearchMessagesForViewer_CreatedAtSupportsJumpCursor(t *testing.
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	cursor := results[0].CreatedAt + "|ffffffff-ffff-ffff-ffff-ffffffffffff"
-	before, err := repos.Chat.GetMessagesBefore(ctx, roomID, cursor, 50)
+	before, err := repos.Chat.GetMessagesBefore(ctx, roomID, uuid.Nil, cursor, 50)
 	require.NoError(t, err)
 
 	// then: the target message is inside that cursor window (full-precision round-trip)
@@ -1491,7 +1491,7 @@ func TestChatDAO_GetMessagesBefore(t *testing.T) {
 	}
 
 	// when
-	msgs, err := repos.Chat.GetMessagesBefore(ctx, roomID, "2099-01-01 00:00:00", 20)
+	msgs, err := repos.Chat.GetMessagesBefore(ctx, roomID, uuid.Nil, "2099-01-01 00:00:00", 20)
 
 	// then
 	require.NoError(t, err)
@@ -1509,7 +1509,7 @@ func TestChatDAO_GetMessagesBefore_FiltersOld(t *testing.T) {
 	require.NoError(t, repos.Chat.InsertMessage(ctx, uuid.New(), roomID, user.ID, "m", nil))
 
 	// when
-	msgs, err := repos.Chat.GetMessagesBefore(ctx, roomID, "2000-01-01 00:00:00", 20)
+	msgs, err := repos.Chat.GetMessagesBefore(ctx, roomID, uuid.Nil, "2000-01-01 00:00:00", 20)
 
 	// then
 	require.NoError(t, err)
@@ -1542,7 +1542,7 @@ func TestChatDAO_GetMessagesBefore_RFC3339CursorUsesDatetimeComparison(t *testin
 	require.NoError(t, err)
 
 	// when
-	msgs, err := repos.Chat.GetMessagesBefore(ctx, roomID, "2024-01-01T01:00:00Z", 20)
+	msgs, err := repos.Chat.GetMessagesBefore(ctx, roomID, uuid.Nil, "2024-01-01T01:00:00Z", 20)
 
 	// then
 	require.NoError(t, err)
@@ -1583,7 +1583,7 @@ func TestChatDAO_GetMessagesBefore_CursorWithIDPaginatesSameSecondMessages(t *te
 	require.Len(t, firstPage, 2)
 
 	cursor := firstPage[0].CreatedAt + "|" + firstPage[0].ID.String()
-	secondPage, err := repos.Chat.GetMessagesBefore(ctx, roomID, cursor, 2)
+	secondPage, err := repos.Chat.GetMessagesBefore(ctx, roomID, uuid.Nil, cursor, 2)
 
 	// then
 	require.NoError(t, err)

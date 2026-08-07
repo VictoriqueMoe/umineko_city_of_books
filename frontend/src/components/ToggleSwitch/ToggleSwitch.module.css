@@ -18,6 +18,15 @@
     background: rgba(var(--gold-rgb), 0.08);
 }
 
+.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.disabled:hover {
+    background: none;
+}
+
 .info {
     display: flex;
     flex-direction: column;

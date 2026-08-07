@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	authsvc "umineko_city_of_books/internal/auth"
+	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/gameroom"
@@ -615,6 +616,7 @@ func TestGetSession_OK(t *testing.T) {
 	userID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
 	deps.userSvc.EXPECT().GetByID(mock.Anything, userID).Return(&dto.UserResponse{ID: userID, Username: "beato"}, nil)
+	h.AuthzService.EXPECT().EffectivePermissions(mock.Anything, userID).Return([]authz.Permission{authz.PermUseChatbot})
 
 	// when
 	status, body := h.NewRequest("GET", "/auth/session").WithCookie("valid-cookie").Do()
@@ -624,6 +626,7 @@ func TestGetSession_OK(t *testing.T) {
 	got := testutil.UnmarshalJSON[map[string]any](t, body)
 	assert.Equal(t, true, got["authenticated"])
 	assert.Equal(t, "beato", got["username"])
+	assert.Equal(t, []any{"use_chatbot"}, got["permissions"])
 }
 
 func TestGetSession_ServiceErrors(t *testing.T) {

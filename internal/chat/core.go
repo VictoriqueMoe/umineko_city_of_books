@@ -63,8 +63,23 @@ type (
 		contentFilter   *contentfilter.Manager
 		bannedWordsRule *contentfilter.ChatBannedWordsRule
 		sideEffectsWG   sync.WaitGroup
-		voiceMu         sync.Mutex
-		voiceMuted      map[string]map[uuid.UUID]struct{}
+		botObserver     MessageObserver
+	}
+
+	MessageObserver interface {
+		ObserveMessage(ev BotMessageEvent)
+	}
+
+	BotMessageEvent struct {
+		RoomID        uuid.UUID
+		RoomType      string
+		SenderID      uuid.UUID
+		MessageID     uuid.UUID
+		Body          string
+		Members       []uuid.UUID
+		MentionedIDs  map[uuid.UUID]struct{}
+		ReplyToID     *uuid.UUID
+		ReplyToAuthor uuid.UUID
 	}
 
 	FileUpload struct {
@@ -74,39 +89,14 @@ type (
 	}
 )
 
-func (c *core) setVoiceMuted(roomName string, userID uuid.UUID, muted bool) {
-	c.voiceMu.Lock()
-	defer c.voiceMu.Unlock()
-
-	if muted {
-		if c.voiceMuted[roomName] == nil {
-			c.voiceMuted[roomName] = make(map[uuid.UUID]struct{})
-		}
-		c.voiceMuted[roomName][userID] = struct{}{}
-
-		return
-	}
-
-	delete(c.voiceMuted[roomName], userID)
-	if len(c.voiceMuted[roomName]) == 0 {
-		delete(c.voiceMuted, roomName)
-	}
+func (c *core) SetMessageObserver(obs MessageObserver) {
+	c.botObserver = obs
 }
 
-func (c *core) isVoiceMuted(roomName string, userID uuid.UUID) bool {
-	c.voiceMu.Lock()
-	defer c.voiceMu.Unlock()
-
-	_, ok := c.voiceMuted[roomName][userID]
-
-	return ok
-}
-
-func (c *core) clearVoiceMuted(roomName string) {
-	c.voiceMu.Lock()
-	defer c.voiceMu.Unlock()
-
-	delete(c.voiceMuted, roomName)
+func (c *core) clearVoiceMuted(ctx context.Context, roomID uuid.UUID) {
+	if err := c.chatRepo.ClearVoiceForceMutes(ctx, roomID); err != nil {
+		logger.Log.Warn().Err(err).Str("room_id", roomID.String()).Msg("clear voice force mutes failed")
+	}
 }
 
 func (c *core) dropFromLiveKitRoom(ctx context.Context, roomName, identity string) {
@@ -167,7 +157,7 @@ func (c *core) cleanupDeadSession(session *repository.ChatWatchPartySessionRow, 
 		logger.Log.Warn().Err(err).Msg("cleanup dead session: delete watch party chat room failed")
 	}
 
-	c.clearVoiceMuted(voiceSessionRoomPrefix + session.ID.String())
+	c.clearVoiceMuted(ctx, session.ID)
 
 	c.hub.BroadcastToRoom(session.RoomID, ws.Message{
 		Type: wsWatchPartyEnded,

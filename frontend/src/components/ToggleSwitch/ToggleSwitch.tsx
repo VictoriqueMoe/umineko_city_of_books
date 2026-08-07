@@ -5,17 +5,20 @@ interface ToggleSwitchProps {
     onChange: (enabled: boolean) => void;
     label: string;
     description?: string;
+    ariaLabel?: string;
+    disabled?: boolean;
 }
 
-export function ToggleSwitch({ enabled, onChange, label, description }: ToggleSwitchProps) {
+export function ToggleSwitch({ enabled, onChange, label, description, ariaLabel, disabled }: ToggleSwitchProps) {
     return (
         <button
             type="button"
-            className={styles.row}
+            className={`${styles.row}${disabled ? ` ${styles.disabled}` : ""}`}
             onClick={() => onChange(!enabled)}
             role="switch"
             aria-checked={enabled}
-            aria-label={label}
+            aria-label={ariaLabel ?? label}
+            disabled={disabled}
         >
             <div className={styles.info}>
                 <span className={styles.label}>{label}</span>

@@ -258,8 +258,6 @@ func NewMailSettingListener(svc Service) *MailSettingListener {
 	return &MailSettingListener{svc: svc.(*service)}
 }
 
-func (l *MailSettingListener) OnSettingChanged(_ config.SiteSettingKey, _ string) {}
-
 func (l *MailSettingListener) OnSettingsBatchChanged(keys []config.SiteSettingKey) {
 	for _, key := range keys {
 		if strings.HasPrefix(string(key), "smtp_") {

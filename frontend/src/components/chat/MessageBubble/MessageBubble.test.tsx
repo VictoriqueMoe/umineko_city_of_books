@@ -230,6 +230,18 @@ describe("MessageBubble", () => {
         expect(onLightbox).toHaveBeenCalledWith(gif);
     });
 
+    it("leaves a giphy lookalike host as plain text", () => {
+        // given
+        const lookalike = "https://media.giphy.com.evil.test/media/abc/giphy.gif";
+
+        // when
+        renderWithProviders(<MessageBubble message={makeMessage({ body: lookalike })} isOwn={false} />);
+
+        // then
+        expect(screen.queryByAltText("GIF")).not.toBeInTheDocument();
+        expect(screen.getByText(lookalike)).toBeInTheDocument();
+    });
+
     it("embeds videos linked from YouTube alongside the message text", () => {
         // given
         const body = "watch this https://www.youtube.com/watch?v=dQw4w9WgXcQ";

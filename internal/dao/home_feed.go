@@ -66,7 +66,7 @@ func (r *homeFeedDAO) ListRecentMembers(ctx context.Context, limit int) ([]repos
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT id, username, display_name, avatar_url, created_at
 		 FROM users
-		 WHERE banned_at IS NULL
+		 WHERE banned_at IS NULL AND NOT is_bot
 		 ORDER BY created_at DESC
 		 LIMIT $1`, limit,
 	)

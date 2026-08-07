@@ -7,10 +7,12 @@ import (
 	"strings"
 
 	"umineko_city_of_books/internal/authz"
+	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
+	"umineko_city_of_books/internal/settings"
 
 	"github.com/google/uuid"
 )
@@ -26,6 +28,8 @@ type (
 		UpdateIP(ctx context.Context, id uuid.UUID, ip string) error
 		UpdateGameBoardSort(ctx context.Context, id uuid.UUID, sort string) error
 		UpdateAppearance(ctx context.Context, id uuid.UUID, theme, font string, wideLayout bool) error
+		IsChatbotOptedIn(ctx context.Context, id uuid.UUID) (bool, error)
+		SetChatbotOptIn(ctx context.Context, id uuid.UUID, optIn bool) error
 
 		GetDetectiveRawScore(ctx context.Context, id uuid.UUID) (int, error)
 		GetGMRawScore(ctx context.Context, id uuid.UUID) (int, error)
@@ -34,14 +38,16 @@ type (
 	}
 
 	service struct {
-		repo     repository.UserRepository
-		roleRepo repository.RoleRepository
-		authz    authz.Service
+		repo       repository.UserRepository
+		roleRepo   repository.RoleRepository
+		vanityRepo repository.VanityRoleRepository
+		authz      authz.Service
+		settings   settings.Service
 	}
 )
 
-func NewService(repo repository.UserRepository, roleRepo repository.RoleRepository, authzService authz.Service) Service {
-	return &service{repo: repo, roleRepo: roleRepo, authz: authzService}
+func NewService(repo repository.UserRepository, roleRepo repository.RoleRepository, vanityRepo repository.VanityRoleRepository, authzService authz.Service, settingsSvc settings.Service) Service {
+	return &service{repo: repo, roleRepo: roleRepo, vanityRepo: vanityRepo, authz: authzService, settings: settingsSvc}
 }
 
 func (s *service) Create(ctx context.Context, username, email, password, displayName string) (*dto.UserResponse, error) {
@@ -148,6 +154,75 @@ func (s *service) UpdateGameBoardSort(ctx context.Context, id uuid.UUID, sort st
 
 func (s *service) UpdateAppearance(ctx context.Context, id uuid.UUID, theme, font string, wideLayout bool) error {
 	return s.repo.UpdateAppearance(ctx, id, theme, font, wideLayout)
+}
+
+func (s *service) IsChatbotOptedIn(ctx context.Context, id uuid.UUID) (bool, error) {
+	roleID := s.chatbotOptInRole(ctx)
+	if roleID == "" {
+		return false, nil
+	}
+
+	rows, err := s.vanityRepo.GetRolesForUser(ctx, id)
+	if err != nil {
+		return false, fmt.Errorf("get vanity roles: %w", err)
+	}
+
+	for _, row := range rows {
+		if row.ID == roleID {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+func (s *service) SetChatbotOptIn(ctx context.Context, id uuid.UUID, optIn bool) error {
+	roleID := s.chatbotOptInRole(ctx)
+	if roleID == "" {
+		return ErrChatbotOptInUnavailable
+	}
+
+	if !optIn {
+		if err := s.vanityRepo.UnassignFromUser(ctx, id, roleID); err != nil {
+			return fmt.Errorf("revoke chatbot opt-in role: %w", err)
+		}
+
+		return nil
+	}
+
+	if !s.settings.GetBool(ctx, config.SettingChatbotEnabled) {
+		return ErrChatbotOptInUnavailable
+	}
+	if !s.settings.GetBool(ctx, config.SettingChatbotRequirePermission) {
+		return ErrChatbotOptInUnavailable
+	}
+
+	if err := s.assertOptInRoleGrantable(ctx, roleID); err != nil {
+		return err
+	}
+
+	if err := s.vanityRepo.AssignToUser(ctx, id, roleID); err != nil {
+		return fmt.Errorf("grant chatbot opt-in role: %w", err)
+	}
+
+	return nil
+}
+
+func (s *service) assertOptInRoleGrantable(ctx context.Context, roleID string) error {
+	row, err := s.vanityRepo.GetByID(ctx, roleID)
+	if err != nil {
+		return fmt.Errorf("get chatbot opt-in role: %w", err)
+	}
+
+	if row == nil || row.IsSystem {
+		return ErrChatbotOptInUnavailable
+	}
+
+	return nil
+}
+
+func (s *service) chatbotOptInRole(ctx context.Context) string {
+	return strings.TrimSpace(s.settings.Get(ctx, config.SettingChatbotOptInRole))
 }
 
 func (s *service) GetDetectiveRawScore(ctx context.Context, id uuid.UUID) (int, error) {

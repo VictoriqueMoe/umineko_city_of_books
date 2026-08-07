@@ -84,7 +84,7 @@ func (r *vanityRoleRepository) Delete(ctx context.Context, id string) error {
 		return err
 	}
 
-	return r.cache.Del(ctx, cache.VanityAssignments.Key())
+	return r.cache.Del(ctx, cache.VanityAssignments.Key(), cache.VanityRolePermissions.Key())
 }
 
 func (r *vanityRoleRepository) AssignToUser(ctx context.Context, userID uuid.UUID, roleID string) error {
@@ -92,7 +92,7 @@ func (r *vanityRoleRepository) AssignToUser(ctx context.Context, userID uuid.UUI
 		return err
 	}
 
-	return r.cache.Del(ctx, cache.VanityAssignments.Key())
+	return r.cache.Del(ctx, cache.VanityAssignments.Key(), cache.UserVanityRoleIDs.Key(userID.String()))
 }
 
 func (r *vanityRoleRepository) UnassignFromUser(ctx context.Context, userID uuid.UUID, roleID string) error {
@@ -100,7 +100,7 @@ func (r *vanityRoleRepository) UnassignFromUser(ctx context.Context, userID uuid
 		return err
 	}
 
-	return r.cache.Del(ctx, cache.VanityAssignments.Key())
+	return r.cache.Del(ctx, cache.VanityAssignments.Key(), cache.UserVanityRoleIDs.Key(userID.String()))
 }
 
 func (r *vanityRoleRepository) GetUsersForRole(ctx context.Context, roleID string, search string, limit, offset int) ([]VanityRoleUserRow, int, error) {

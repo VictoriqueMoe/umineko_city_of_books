@@ -117,6 +117,9 @@ type (
 		SetMuted(ctx context.Context, roomID, userID uuid.UUID, muted bool) error
 		IsMuted(ctx context.Context, roomID, userID uuid.UUID) (bool, error)
 		GetRoomMembersUnmuted(ctx context.Context, roomID uuid.UUID) ([]uuid.UUID, error)
+		SetVoiceForceMuted(ctx context.Context, roomID, userID, mutedBy uuid.UUID, muted bool) error
+		IsVoiceForceMuted(ctx context.Context, roomID, userID uuid.UUID) (bool, error)
+		ClearVoiceForceMutes(ctx context.Context, roomID uuid.UUID) error
 		ListPublicRooms(ctx context.Context, search string, isRPOnly bool, tag string, viewerID uuid.UUID, excludeUserIDs []uuid.UUID, includeArchived bool, limit, offset int) ([]ChatRoomRow, int, error)
 		FindDMRoom(ctx context.Context, userA, userB uuid.UUID) (uuid.UUID, error)
 		AddRoomTags(ctx context.Context, roomID uuid.UUID, tags []string) error
@@ -128,8 +131,10 @@ type (
 		InsertSystemMessage(ctx context.Context, id, roomID, senderID uuid.UUID, body string) error
 		EditMessage(ctx context.Context, messageID uuid.UUID, body string) error
 		GetMessages(ctx context.Context, roomID uuid.UUID, limit, offset int) ([]ChatMessageRow, int, error)
+		GetMessagesForMember(ctx context.Context, roomID, viewerID uuid.UUID, limit int) ([]ChatMessageRow, error)
+		GetMessagesForViewer(ctx context.Context, roomID, viewerID uuid.UUID, limit, offset int) ([]ChatMessageRow, int, error)
 		SearchMessagesForViewer(ctx context.Context, viewerID, roomID uuid.UUID, query string, limit, offset int) ([]SearchResult, int, error)
-		GetMessagesBefore(ctx context.Context, roomID uuid.UUID, before string, limit int) ([]ChatMessageRow, error)
+		GetMessagesBefore(ctx context.Context, roomID, viewerID uuid.UUID, before string, limit int) ([]ChatMessageRow, error)
 		GetMessageByID(ctx context.Context, messageID uuid.UUID) (*ChatMessageRow, error)
 		DeleteMessages(ctx context.Context, roomID uuid.UUID) error
 		DeleteMessage(ctx context.Context, messageID uuid.UUID) error
@@ -272,6 +277,18 @@ func (r *chatRepository) GetRoomMembersUnmuted(ctx context.Context, roomID uuid.
 	return r.dao.GetRoomMembersUnmuted(ctx, roomID)
 }
 
+func (r *chatRepository) SetVoiceForceMuted(ctx context.Context, roomID, userID, mutedBy uuid.UUID, muted bool) error {
+	return r.dao.SetVoiceForceMuted(ctx, roomID, userID, mutedBy, muted)
+}
+
+func (r *chatRepository) IsVoiceForceMuted(ctx context.Context, roomID, userID uuid.UUID) (bool, error) {
+	return r.dao.IsVoiceForceMuted(ctx, roomID, userID)
+}
+
+func (r *chatRepository) ClearVoiceForceMutes(ctx context.Context, roomID uuid.UUID) error {
+	return r.dao.ClearVoiceForceMutes(ctx, roomID)
+}
+
 func (r *chatRepository) ListPublicRooms(ctx context.Context, search string, isRPOnly bool, tag string, viewerID uuid.UUID, excludeUserIDs []uuid.UUID, includeArchived bool, limit, offset int) ([]ChatRoomRow, int, error) {
 	return r.dao.ListPublicRooms(ctx, search, isRPOnly, tag, viewerID, excludeUserIDs, includeArchived, limit, offset)
 }
@@ -312,12 +329,20 @@ func (r *chatRepository) GetMessages(ctx context.Context, roomID uuid.UUID, limi
 	return r.dao.GetMessages(ctx, roomID, limit, offset)
 }
 
+func (r *chatRepository) GetMessagesForMember(ctx context.Context, roomID, viewerID uuid.UUID, limit int) ([]ChatMessageRow, error) {
+	return r.dao.GetMessagesForMember(ctx, roomID, viewerID, limit)
+}
+
+func (r *chatRepository) GetMessagesForViewer(ctx context.Context, roomID, viewerID uuid.UUID, limit, offset int) ([]ChatMessageRow, int, error) {
+	return r.dao.GetMessagesForViewer(ctx, roomID, viewerID, limit, offset)
+}
+
 func (r *chatRepository) SearchMessagesForViewer(ctx context.Context, viewerID, roomID uuid.UUID, query string, limit, offset int) ([]SearchResult, int, error) {
 	return r.dao.SearchMessagesForViewer(ctx, viewerID, roomID, query, limit, offset)
 }
 
-func (r *chatRepository) GetMessagesBefore(ctx context.Context, roomID uuid.UUID, before string, limit int) ([]ChatMessageRow, error) {
-	return r.dao.GetMessagesBefore(ctx, roomID, before, limit)
+func (r *chatRepository) GetMessagesBefore(ctx context.Context, roomID, viewerID uuid.UUID, before string, limit int) ([]ChatMessageRow, error) {
+	return r.dao.GetMessagesBefore(ctx, roomID, viewerID, before, limit)
 }
 
 func (r *chatRepository) GetMessageByID(ctx context.Context, messageID uuid.UUID) (*ChatMessageRow, error) {

@@ -110,6 +110,8 @@ func NewJournal(db *sql.DB) repository.JournalRepository {
 
 func NewVanityRole(db *sql.DB) repository.VanityRoleRepository { return &vanityRoleDAO{db: db} }
 
+func NewPermission(db *sql.DB) repository.PermissionRepository { return &permissionDAO{db: db} }
+
 func NewGiphyFavourite(db *sql.DB) repository.GiphyFavouriteRepository {
 	return &giphyFavouriteDAO{db: db}
 }
@@ -156,3 +158,5 @@ func NewSitemap(db *sql.DB) repository.SitemapRepository { return &sitemapDAO{db
 func NewDeviceToken(db *sql.DB) repository.DeviceTokenRepository { return &deviceTokenDAO{db: db} }
 
 func NewOverlayToken(db *sql.DB) repository.OverlayTokenRepository { return &overlayTokenDAO{db: db} }
+
+func NewChatbot(db *sql.DB) repository.ChatbotRepository { return &chatbotDAO{db: db} }

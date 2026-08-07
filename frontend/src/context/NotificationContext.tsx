@@ -88,7 +88,7 @@ export function NotificationProvider({ children }: PropsWithChildren) {
 
     const setLiveGamesCount = useCallback(
         (count: number) => {
-            qc.setQueryData<{ rooms: unknown[]; total: number }>(["game-rooms", "live"], prev => ({
+            qc.setQueryData<{ rooms: unknown[]; total: number }>(queryKeys.gameRoom.live(), prev => ({
                 rooms: prev?.rooms ?? [],
                 total: count,
             }));
@@ -211,6 +211,9 @@ export function NotificationProvider({ children }: PropsWithChildren) {
                 ) {
                     window.dispatchEvent(new CustomEvent("site-info-refresh"));
                 }
+                if (msg.type === "permissions_changed" || msg.type === "vanity_roles_changed") {
+                    qc.invalidateQueries({ queryKey: ["auth", "me"] });
+                }
                 if (msg.type === "chat_unread_bumped" || msg.type === "chat_read") {
                     const data = msg.data as { total?: number };
                     if (typeof data.total === "number") {
@@ -246,8 +249,11 @@ export function NotificationProvider({ children }: PropsWithChildren) {
             if (!wantConnectionRef.current) {
                 return;
             }
-            const delay = Math.min(backoffRef.current, MAX_BACKOFF);
-            backoffRef.current = delay * 2;
+            const cap = Math.min(backoffRef.current, MAX_BACKOFF);
+            backoffRef.current = Math.min(cap * 2, MAX_BACKOFF);
+
+            const delay = Math.random() * cap;
+
             reconnectTimerRef.current = setTimeout(() => {
                 connectWsRef.current();
             }, delay);

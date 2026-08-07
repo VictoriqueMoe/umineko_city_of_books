@@ -145,7 +145,7 @@ export function ProfilePage() {
     const setActiveTab = setExplicitTab as (tab: TabType) => void;
     const follow = useFollow(profile?.id ?? "");
     const blockHook = useBlock(profile?.id ?? "");
-    const canManageUser = can(currentUser?.role, "view_users") && !!profile && currentUser?.id !== profile.id;
+    const canManageUser = can(currentUser, "view_users") && !!profile && currentUser?.id !== profile.id;
 
     const {
         theories,

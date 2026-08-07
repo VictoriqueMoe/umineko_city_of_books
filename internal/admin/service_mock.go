@@ -721,6 +721,68 @@ func (_c *MockService_GetAuditLog_Call) RunAndReturn(run func(ctx context.Contex
 	return _c
 }
 
+// GetPermissionSettings provides a mock function for the type MockService
+func (_mock *MockService) GetPermissionSettings(ctx context.Context) (*dto.PermissionSettingsResponse, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetPermissionSettings")
+	}
+
+	var r0 *dto.PermissionSettingsResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (*dto.PermissionSettingsResponse, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) *dto.PermissionSettingsResponse); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dto.PermissionSettingsResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_GetPermissionSettings_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetPermissionSettings'
+type MockService_GetPermissionSettings_Call struct {
+	*mock.Call
+}
+
+// GetPermissionSettings is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockService_Expecter) GetPermissionSettings(ctx any) *MockService_GetPermissionSettings_Call {
+	return &MockService_GetPermissionSettings_Call{Call: _e.mock.On("GetPermissionSettings", ctx)}
+}
+
+func (_c *MockService_GetPermissionSettings_Call) Run(run func(ctx context.Context)) *MockService_GetPermissionSettings_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_GetPermissionSettings_Call) Return(permissionSettingsResponse *dto.PermissionSettingsResponse, err error) *MockService_GetPermissionSettings_Call {
+	_c.Call.Return(permissionSettingsResponse, err)
+	return _c
+}
+
+func (_c *MockService_GetPermissionSettings_Call) RunAndReturn(run func(ctx context.Context) (*dto.PermissionSettingsResponse, error)) *MockService_GetPermissionSettings_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetSettings provides a mock function for the type MockService
 func (_mock *MockService) GetSettings(ctx context.Context) (*dto.SettingsResponse, error) {
 	ret := _mock.Called(ctx)
@@ -2271,6 +2333,75 @@ func (_c *MockService_UnverifyUserEmail_Call) RunAndReturn(run func(ctx context.
 	return _c
 }
 
+// UpdateRolePermissions provides a mock function for the type MockService
+func (_mock *MockService) UpdateRolePermissions(ctx context.Context, actorID uuid.UUID, roleName string, perms []string) error {
+	ret := _mock.Called(ctx, actorID, roleName, perms)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateRolePermissions")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, []string) error); ok {
+		r0 = returnFunc(ctx, actorID, roleName, perms)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_UpdateRolePermissions_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateRolePermissions'
+type MockService_UpdateRolePermissions_Call struct {
+	*mock.Call
+}
+
+// UpdateRolePermissions is a helper method to define mock.On call
+//   - ctx context.Context
+//   - actorID uuid.UUID
+//   - roleName string
+//   - perms []string
+func (_e *MockService_Expecter) UpdateRolePermissions(ctx any, actorID any, roleName any, perms any) *MockService_UpdateRolePermissions_Call {
+	return &MockService_UpdateRolePermissions_Call{Call: _e.mock.On("UpdateRolePermissions", ctx, actorID, roleName, perms)}
+}
+
+func (_c *MockService_UpdateRolePermissions_Call) Run(run func(ctx context.Context, actorID uuid.UUID, roleName string, perms []string)) *MockService_UpdateRolePermissions_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 []string
+		if args[3] != nil {
+			arg3 = args[3].([]string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_UpdateRolePermissions_Call) Return(err error) *MockService_UpdateRolePermissions_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_UpdateRolePermissions_Call) RunAndReturn(run func(ctx context.Context, actorID uuid.UUID, roleName string, perms []string) error) *MockService_UpdateRolePermissions_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateSettings provides a mock function for the type MockService
 func (_mock *MockService) UpdateSettings(ctx context.Context, actorID uuid.UUID, settings map[string]string) error {
 	ret := _mock.Called(ctx, actorID, settings)
@@ -2399,6 +2530,75 @@ func (_c *MockService_UpdateVanityRole_Call) Return(err error) *MockService_Upda
 }
 
 func (_c *MockService_UpdateVanityRole_Call) RunAndReturn(run func(ctx context.Context, actorID uuid.UUID, id string, req dto.UpdateVanityRoleRequest) error) *MockService_UpdateVanityRole_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateVanityRolePermissions provides a mock function for the type MockService
+func (_mock *MockService) UpdateVanityRolePermissions(ctx context.Context, actorID uuid.UUID, vanityRoleID string, perms []string) error {
+	ret := _mock.Called(ctx, actorID, vanityRoleID, perms)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateVanityRolePermissions")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, []string) error); ok {
+		r0 = returnFunc(ctx, actorID, vanityRoleID, perms)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_UpdateVanityRolePermissions_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateVanityRolePermissions'
+type MockService_UpdateVanityRolePermissions_Call struct {
+	*mock.Call
+}
+
+// UpdateVanityRolePermissions is a helper method to define mock.On call
+//   - ctx context.Context
+//   - actorID uuid.UUID
+//   - vanityRoleID string
+//   - perms []string
+func (_e *MockService_Expecter) UpdateVanityRolePermissions(ctx any, actorID any, vanityRoleID any, perms any) *MockService_UpdateVanityRolePermissions_Call {
+	return &MockService_UpdateVanityRolePermissions_Call{Call: _e.mock.On("UpdateVanityRolePermissions", ctx, actorID, vanityRoleID, perms)}
+}
+
+func (_c *MockService_UpdateVanityRolePermissions_Call) Run(run func(ctx context.Context, actorID uuid.UUID, vanityRoleID string, perms []string)) *MockService_UpdateVanityRolePermissions_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 []string
+		if args[3] != nil {
+			arg3 = args[3].([]string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_UpdateVanityRolePermissions_Call) Return(err error) *MockService_UpdateVanityRolePermissions_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_UpdateVanityRolePermissions_Call) RunAndReturn(run func(ctx context.Context, actorID uuid.UUID, vanityRoleID string, perms []string) error) *MockService_UpdateVanityRolePermissions_Call {
 	_c.Call.Return(run)
 	return _c
 }

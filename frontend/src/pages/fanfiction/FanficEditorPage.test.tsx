@@ -703,8 +703,8 @@ describe("FanficEditorPage", () => {
         renderEdit(moderator);
 
         // then
-        expect(can).toHaveBeenCalledWith("moderator", "edit_any_post");
-        expect(can).not.toHaveBeenCalledWith("moderator", "edit_any_theory");
+        expect(can).toHaveBeenCalledWith(moderator, "edit_any_post");
+        expect(can).not.toHaveBeenCalledWith(moderator, "edit_any_theory");
     });
 
     it("keeps the editor open when the author empties the title", async () => {

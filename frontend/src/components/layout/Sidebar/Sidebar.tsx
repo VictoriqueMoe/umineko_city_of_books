@@ -614,17 +614,17 @@ export function Sidebar({ open, onClose, onCollapse }: SidebarProps) {
                         </div>
                     )}
 
-                    {canAccessAdmin(user?.role) && (
+                    {canAccessAdmin(user) && (
                         <div className={styles.section}>
                             <span className={styles.sectionLabel}>
-                                {can(user?.role, "manage_settings") ? "Admin" : "Moderation"}
+                                {can(user, "manage_settings") ? "Admin" : "Moderation"}
                             </span>
                             <NavLink
                                 to="/admin"
                                 className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
                                 onClick={onClose}
                             >
-                                {can(user?.role, "manage_settings") ? "Admin Panel" : "Moderator Panel"}
+                                {can(user, "manage_settings") ? "Admin Panel" : "Moderator Panel"}
                             </NavLink>
                         </div>
                     )}

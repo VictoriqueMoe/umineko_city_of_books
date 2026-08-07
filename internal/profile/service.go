@@ -52,6 +52,7 @@ type (
 		hub            *ws.Hub
 		authService    auth.Service
 		session        *session.Manager
+		userSvc        userpkg.Service
 	}
 )
 
@@ -90,6 +91,7 @@ func NewService(
 	hub *ws.Hub,
 	authService auth.Service,
 	sessionMgr *session.Manager,
+	userSvc userpkg.Service,
 ) Service {
 	return &service{
 		userRepo:       userRepo,
@@ -101,6 +103,7 @@ func NewService(
 		contentFilter:  contentFilter,
 		hub:            hub,
 		authService:    authService,
+		userSvc:        userSvc,
 		session:        sessionMgr,
 	}
 }
@@ -124,6 +127,16 @@ func (s *service) GetProfile(ctx context.Context, username string, viewerID uuid
 	secrets, _ := s.userSecretRepo.ListForUser(ctx, user.ID)
 	resp := user.ToProfileResponse(stats, user.ID == viewerID)
 	resp.Secrets = secrets
+
+	if resp.Private != nil {
+		optedIn, optErr := s.userSvc.IsChatbotOptedIn(ctx, user.ID)
+		if optErr != nil {
+			logger.Log.Error().Err(optErr).Str("user_id", user.ID.String()).Msg("failed to read character opt-in state")
+		}
+
+		resp.Private.ChatbotOptedIn = optedIn
+	}
+
 	return resp, nil
 }
 

@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useNotifications } from "../../hooks/useNotifications";
 import { useLiveGameRooms } from "../../api/queries/gameRoom";
+import { queryKeys } from "../../api/queryKeys";
 import styles from "./GamesPages.module.css";
 
 export function LiveGamesPage() {
@@ -13,7 +14,7 @@ export function LiveGamesPage() {
     const queryClient = useQueryClient();
 
     useEffect(() => {
-        queryClient.invalidateQueries({ queryKey: ["game-rooms", "live"] });
+        queryClient.invalidateQueries({ queryKey: queryKeys.gameRoom.live() });
     }, [liveGamesCount, queryClient]);
 
     return (

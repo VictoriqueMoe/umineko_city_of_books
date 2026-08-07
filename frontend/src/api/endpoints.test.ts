@@ -806,7 +806,7 @@ describe("response unwrapping", () => {
 
         // then
         expect(fetchMock).toHaveBeenNthCalledWith(2, "/users/kujo");
-        expect(result).toEqual(profile);
+        expect(result).toEqual({ ...profile, permissions: [] });
     });
 });
 
@@ -1189,6 +1189,24 @@ describe("profile and preference updates", () => {
             call: () => api.updateAppearance("gold", "serif", false),
             transport: putMock,
             request: ["/preferences/appearance", { theme: "gold", font: "serif", wide_layout: false }],
+        },
+        {
+            name: "getChatbotOptIn reads the member's own character opt in state",
+            call: () => api.getChatbotOptIn(),
+            transport: fetchMock,
+            request: ["/preferences/chatbot-opt-in"],
+        },
+        {
+            name: "updateChatbotOptIn puts the opt in under a snake cased flag",
+            call: () => api.updateChatbotOptIn(true),
+            transport: putMock,
+            request: ["/preferences/chatbot-opt-in", { opted_in: true }],
+        },
+        {
+            name: "updateChatbotOptIn puts the opt out the same way",
+            call: () => api.updateChatbotOptIn(false),
+            transport: putMock,
+            request: ["/preferences/chatbot-opt-in", { opted_in: false }],
         },
         {
             name: "unlockSecret puts the secret and the guessed phrase",

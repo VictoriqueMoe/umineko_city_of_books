@@ -138,6 +138,8 @@ func (s *service) Get(ctx context.Context) dto.SiteInfoResponse {
 		TurnstileSiteKey:      s.settingsSvc.Get(ctx, config.SettingTurnstileSiteKey),
 		VoiceEnabled:          s.settingsSvc.GetBool(ctx, config.SettingVoiceEnabled),
 		EmailEnabled:          s.authSvc.EmailEnabled(ctx),
+		ChatbotEnabled:        s.settingsSvc.GetBool(ctx, config.SettingChatbotEnabled),
+		ChatbotRequirePerm:    s.settingsSvc.GetBool(ctx, config.SettingChatbotRequirePermission),
 		MaxImageSize:          s.settingsSvc.GetInt(ctx, config.SettingMaxImageSize),
 		MaxVideoSize:          s.settingsSvc.GetInt(ctx, config.SettingMaxVideoSize),
 		TopDetectiveIDs:       topDetectives,

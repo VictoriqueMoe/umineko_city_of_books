@@ -6,9 +6,11 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/authz"
+	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/repository/model"
 	"umineko_city_of_books/internal/role"
+	"umineko_city_of_books/internal/settings"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -22,11 +24,25 @@ func newTestService(t *testing.T) (
 	*repository.MockRoleRepository,
 	*authz.MockService,
 ) {
+	svc, userRepo, roleRepo, authzSvc, _, _ := newFullTestService(t)
+	return svc, userRepo, roleRepo, authzSvc
+}
+
+func newFullTestService(t *testing.T) (
+	*service,
+	*repository.MockUserRepository,
+	*repository.MockRoleRepository,
+	*authz.MockService,
+	*repository.MockVanityRoleRepository,
+	*settings.MockService,
+) {
 	userRepo := repository.NewMockUserRepository(t)
 	roleRepo := repository.NewMockRoleRepository(t)
+	vanityRepo := repository.NewMockVanityRoleRepository(t)
 	authzSvc := authz.NewMockService(t)
-	svc := NewService(userRepo, roleRepo, authzSvc).(*service)
-	return svc, userRepo, roleRepo, authzSvc
+	settingsSvc := settings.NewMockService(t)
+	svc := NewService(userRepo, roleRepo, vanityRepo, authzSvc, settingsSvc).(*service)
+	return svc, userRepo, roleRepo, authzSvc, vanityRepo, settingsSvc
 }
 
 func TestCreate_FirstUserAssignsSuperAdmin(t *testing.T) {
@@ -287,4 +303,167 @@ func TestCheckUsernameAvailable_RepoError(t *testing.T) {
 	// then
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "check username")
+}
+
+func TestIsChatbotOptedIn(t *testing.T) {
+	roleID := "characters"
+
+	cases := []struct {
+		name       string
+		configured string
+		held       []repository.VanityRoleRow
+		repoErr    error
+		want       bool
+		wantErr    bool
+	}{
+		{"no role configured", "", nil, nil, false, false},
+		{"holds the role", roleID, []repository.VanityRoleRow{{ID: "other"}, {ID: roleID}}, nil, true, false},
+		{"does not hold the role", roleID, []repository.VanityRoleRow{{ID: "other"}}, nil, false, false},
+		{"holds nothing", roleID, nil, nil, false, false},
+		{"repository error", roleID, nil, errors.New("boom"), false, true},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, _, _, _, vanityRepo, settingsSvc := newFullTestService(t)
+			userID := uuid.New()
+			settingsSvc.EXPECT().Get(mock.Anything, config.SettingChatbotOptInRole).Return(tc.configured)
+			if tc.configured != "" {
+				vanityRepo.EXPECT().GetRolesForUser(mock.Anything, userID).Return(tc.held, tc.repoErr)
+			}
+
+			// when
+			got, err := svc.IsChatbotOptedIn(context.Background(), userID)
+
+			// then
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestSetChatbotOptIn_Unavailable(t *testing.T) {
+	cases := []struct {
+		name       string
+		enabled    bool
+		restricted bool
+		configured string
+	}{
+		{"chatbots disabled", false, true, "characters"},
+		{"restriction off", true, false, "characters"},
+		{"no role configured", true, true, "   "},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, _, _, _, _, settingsSvc := newFullTestService(t)
+			settingsSvc.EXPECT().GetBool(mock.Anything, config.SettingChatbotEnabled).Return(tc.enabled).Maybe()
+			settingsSvc.EXPECT().GetBool(mock.Anything, config.SettingChatbotRequirePermission).Return(tc.restricted).Maybe()
+			settingsSvc.EXPECT().Get(mock.Anything, config.SettingChatbotOptInRole).Return(tc.configured).Maybe()
+
+			// when
+			err := svc.SetChatbotOptIn(context.Background(), uuid.New(), true)
+
+			// then
+			require.ErrorIs(t, err, ErrChatbotOptInUnavailable)
+		})
+	}
+}
+
+func TestSetChatbotOptIn_GrantsAndRevokesThroughRepository(t *testing.T) {
+	roleID := "characters"
+
+	cases := []struct {
+		name    string
+		optIn   bool
+		repoErr error
+		wantErr bool
+	}{
+		{"opt in", true, nil, false},
+		{"opt out", false, nil, false},
+		{"opt in fails", true, errors.New("boom"), true},
+		{"opt out fails", false, errors.New("boom"), true},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, _, _, _, vanityRepo, settingsSvc := newFullTestService(t)
+			userID := uuid.New()
+			settingsSvc.EXPECT().Get(mock.Anything, config.SettingChatbotOptInRole).Return(roleID)
+			if tc.optIn {
+				settingsSvc.EXPECT().GetBool(mock.Anything, config.SettingChatbotEnabled).Return(true)
+				settingsSvc.EXPECT().GetBool(mock.Anything, config.SettingChatbotRequirePermission).Return(true)
+				vanityRepo.EXPECT().GetByID(mock.Anything, roleID).
+					Return(&repository.VanityRoleRow{ID: roleID}, nil)
+				vanityRepo.EXPECT().AssignToUser(mock.Anything, userID, roleID).Return(tc.repoErr)
+			} else {
+				vanityRepo.EXPECT().UnassignFromUser(mock.Anything, userID, roleID).Return(tc.repoErr)
+			}
+
+			// when
+			err := svc.SetChatbotOptIn(context.Background(), userID, tc.optIn)
+
+			// then
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
+}
+
+func TestSetChatbotOptIn_OptOutWorksEvenWhenOptInIsNoLongerOffered(t *testing.T) {
+	roleID := "characters"
+
+	cases := []struct {
+		name       string
+		enabled    bool
+		restricted bool
+	}{
+		{"characters switched off site wide", false, true},
+		{"restriction switched off", true, false},
+		{"both switched off", false, false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, _, _, _, vanityRepo, settingsSvc := newFullTestService(t)
+			userID := uuid.New()
+			settingsSvc.EXPECT().Get(mock.Anything, config.SettingChatbotOptInRole).Return(roleID)
+			vanityRepo.EXPECT().UnassignFromUser(mock.Anything, userID, roleID).Return(nil)
+
+			// when
+			err := svc.SetChatbotOptIn(context.Background(), userID, false)
+
+			// then
+			require.NoError(t, err, "a member must always be able to give the role back")
+		})
+	}
+}
+
+func TestSetChatbotOptIn_RefusesToGrantASystemRole(t *testing.T) {
+	// given
+	svc, _, _, _, vanityRepo, settingsSvc := newFullTestService(t)
+	userID := uuid.New()
+	settingsSvc.EXPECT().Get(mock.Anything, config.SettingChatbotOptInRole).Return("bot")
+	settingsSvc.EXPECT().GetBool(mock.Anything, config.SettingChatbotEnabled).Return(true)
+	settingsSvc.EXPECT().GetBool(mock.Anything, config.SettingChatbotRequirePermission).Return(true)
+	vanityRepo.EXPECT().GetByID(mock.Anything, "bot").
+		Return(&repository.VanityRoleRow{ID: "bot", IsSystem: true}, nil)
+
+	// when
+	err := svc.SetChatbotOptIn(context.Background(), userID, true)
+
+	// then
+	require.ErrorIs(t, err, ErrChatbotOptInUnavailable)
+	vanityRepo.AssertNotCalled(t, "AssignToUser", mock.Anything, mock.Anything, mock.Anything)
 }

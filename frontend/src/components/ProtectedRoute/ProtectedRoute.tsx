@@ -18,7 +18,7 @@ export function ProtectedRoute({ permission }: ProtectedRouteProps) {
         return <Navigate to="/login" replace />;
     }
 
-    if (permission && !can(user.role, permission)) {
+    if (permission && !can(user, permission)) {
         return <Navigate to="/" replace />;
     }
 

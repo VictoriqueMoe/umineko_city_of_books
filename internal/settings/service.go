@@ -34,17 +34,19 @@ type (
 		Set(ctx context.Context, setting *config.SiteSettingDef, value string, updatedBy uuid.UUID) error
 		SetMultiple(ctx context.Context, values map[config.SiteSettingKey]string, updatedBy uuid.UUID) error
 		Subscribe(listener Listener)
+		SubscribeBatch(listener BatchListener)
 		RegisterValidator(setting *config.SiteSettingDef, validate Validator)
 		Refresh(ctx context.Context) error
 	}
 
 	service struct {
-		repo        repository.SettingsRepository
-		cache       *cache.Manager
-		listeners   []Listener
-		listenerMu  sync.RWMutex
-		validators  map[config.SiteSettingKey]Validator
-		validatorMu sync.RWMutex
+		repo           repository.SettingsRepository
+		cache          *cache.Manager
+		listeners      []Listener
+		batchListeners []BatchListener
+		listenerMu     sync.RWMutex
+		validators     map[config.SiteSettingKey]Validator
+		validatorMu    sync.RWMutex
 	}
 )
 
@@ -56,6 +58,12 @@ func (s *service) Subscribe(listener Listener) {
 	s.listenerMu.Lock()
 	defer s.listenerMu.Unlock()
 	s.listeners = append(s.listeners, listener)
+}
+
+func (s *service) SubscribeBatch(listener BatchListener) {
+	s.listenerMu.Lock()
+	defer s.listenerMu.Unlock()
+	s.batchListeners = append(s.batchListeners, listener)
 }
 
 func (s *service) RegisterValidator(setting *config.SiteSettingDef, validate Validator) {
@@ -111,10 +119,8 @@ func (s *service) notify(key config.SiteSettingKey, value string) {
 func (s *service) notifyBatch(keys []config.SiteSettingKey) {
 	s.listenerMu.RLock()
 	defer s.listenerMu.RUnlock()
-	for _, l := range s.listeners {
-		if bl, ok := l.(BatchListener); ok {
-			bl.OnSettingsBatchChanged(keys)
-		}
+	for _, l := range s.batchListeners {
+		l.OnSettingsBatchChanged(keys)
 	}
 }
 

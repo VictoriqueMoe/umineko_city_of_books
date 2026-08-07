@@ -19,6 +19,7 @@ func createFinishedRoom(t *testing.T, repos *repository.Repositories, gameType s
 	require.NoError(t, repos.GameRoom.CreateRoom(ctx, roomID, gameType, "{}", p1))
 	require.NoError(t, repos.GameRoom.AddPlayer(ctx, roomID, p1, 0, true))
 	require.NoError(t, repos.GameRoom.AddPlayer(ctx, roomID, p2, 1, true))
+	require.NoError(t, repos.GameRoom.SetStatus(ctx, roomID, "active"))
 	require.NoError(t, repos.GameRoom.FinishRoom(ctx, roomID, status, winner, "checkmate", "{}"))
 	return roomID
 }
@@ -175,6 +176,7 @@ func TestGameRoomDAO_Scoreboard_ExcludesUnjoinedPlayers(t *testing.T) {
 	require.NoError(t, repos.GameRoom.CreateRoom(ctx, roomID, "chess", "{}", alice.ID))
 	require.NoError(t, repos.GameRoom.AddPlayer(ctx, roomID, alice.ID, 0, true))
 	require.NoError(t, repos.GameRoom.AddPlayer(ctx, roomID, bob.ID, 1, false))
+	require.NoError(t, repos.GameRoom.SetStatus(ctx, roomID, "active"))
 	require.NoError(t, repos.GameRoom.FinishRoom(ctx, roomID, "abandoned", nil, "abandoned", "{}"))
 
 	// when

@@ -52,6 +52,7 @@ type (
 		ResolveSuggestion(ctx context.Context, postID uuid.UUID, userID uuid.UUID, status string) error
 		UnresolveSuggestion(ctx context.Context, postID uuid.UUID, userID uuid.UUID) error
 		GetShareCount(ctx context.Context, contentID string, contentType string) (int, error)
+		SetCommentObserver(obs CommentObserver)
 	}
 
 	service struct {
@@ -68,6 +69,7 @@ type (
 		settingsSvc   settings.Service
 		hub           *ws.Hub
 		contentFilter *contentfilter.Manager
+		botObserver   CommentObserver
 	}
 )
 
@@ -194,6 +196,7 @@ func (s *service) CreatePost(ctx context.Context, userID uuid.UUID, req dto.Crea
 		go s.notifySuggestionPosted(userID, id)
 	} else {
 		go social.ProcessMentions(s.userRepo, s.blockSvc, s.notifService, s.settingsSvc, userID, body, id, "post", fmt.Sprintf("/game-board/%s", id))
+		go s.observeForBot(id, nil, userID, body, nil)
 	}
 
 	return id, nil
@@ -457,6 +460,16 @@ func (s *service) UploadCommentMedia(ctx context.Context, commentID uuid.UUID, u
 	)
 }
 
+func (s *service) broadcastCommentAdded(postID, commentID uuid.UUID) {
+	s.hub.Broadcast(ws.Message{
+		Type: "post_comment",
+		Data: map[string]any{
+			"post_id":    postID,
+			"comment_id": commentID,
+		},
+	})
+}
+
 func (s *service) broadcastLikeUpdate(postID uuid.UUID, delta int) {
 	s.hub.Broadcast(ws.Message{
 		Type: "post_like",
@@ -536,10 +549,15 @@ func (s *service) CreateComment(ctx context.Context, postID uuid.UUID, userID uu
 		return uuid.Nil, err
 	}
 
+	s.broadcastCommentAdded(postID, id)
+
 	go social.ProcessEmbeds(s.postRepo, id.String(), "comment", body)
 	go social.ProcessMentions(s.userRepo, s.blockSvc, s.notifService, s.settingsSvc, userID, body, postID, fmt.Sprintf("post_comment:%s", id), fmt.Sprintf("/game-board/%s#comment-%s", postID, id))
+	go s.observeForBot(postID, new(id), userID, body, req.ParentID)
 
 	go func() {
+		ctx := context.Background()
+
 		postAuthorID, err := s.postRepo.GetPostAuthorID(ctx, postID)
 		if err != nil {
 			return
@@ -749,6 +767,15 @@ func (s *service) VotePoll(ctx context.Context, postID uuid.UUID, userID uuid.UU
 	if pollRow == nil {
 		return nil, ErrNotFound
 	}
+
+	authorID, err := s.postRepo.GetPostAuthorID(ctx, postID)
+	if err != nil {
+		return nil, err
+	}
+	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, authorID); blocked {
+		return nil, block.ErrUserBlocked
+	}
+
 	if votedOption != nil {
 		return nil, ErrAlreadyVoted
 	}

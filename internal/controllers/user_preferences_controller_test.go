@@ -198,3 +198,84 @@ func TestUpdateAppearance_ServiceErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestUpdateChatbotOptIn_AuthFailures(t *testing.T) {
+	testutil.RunAuthFailureSuite(t, userPrefsFactory, "PUT", "/preferences/chatbot-opt-in", map[string]any{"opted_in": true})
+}
+
+func TestUpdateChatbotOptIn_OK(t *testing.T) {
+	cases := []struct {
+		name    string
+		optedIn bool
+	}{
+		{"opting in", true},
+		{"opting out", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h, deps := newUserPrefsHarness(t)
+			userID := uuid.New()
+			h.ExpectValidSession("valid-cookie", userID)
+			deps.UserSvc.EXPECT().SetChatbotOptIn(mock.Anything, userID, tc.optedIn).Return(nil)
+
+			// when
+			status, body := h.NewRequest("PUT", "/preferences/chatbot-opt-in").
+				WithCookie("valid-cookie").
+				WithJSONBody(map[string]any{"opted_in": tc.optedIn}).
+				Do()
+
+			// then
+			require.Equal(t, http.StatusNoContent, status)
+			assert.Empty(t, body)
+		})
+	}
+}
+
+func TestUpdateChatbotOptIn_BadJSON(t *testing.T) {
+	// given
+	h, _ := newUserPrefsHarness(t)
+	userID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+
+	// when
+	status, body := h.NewRequest("PUT", "/preferences/chatbot-opt-in").
+		WithCookie("valid-cookie").
+		WithRawBody("not json", "application/json").
+		Do()
+
+	// then
+	require.Equal(t, http.StatusBadRequest, status)
+	assert.Contains(t, string(body), "invalid request")
+}
+
+func TestUpdateChatbotOptIn_ServiceErrors(t *testing.T) {
+	cases := []struct {
+		name     string
+		svcErr   error
+		wantCode int
+		wantBody string
+	}{
+		{"feature unavailable", usersvc.ErrChatbotOptInUnavailable, http.StatusConflict, "not available"},
+		{"internal repo error", errors.New("boom"), http.StatusInternalServerError, "failed to save"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h, deps := newUserPrefsHarness(t)
+			userID := uuid.New()
+			h.ExpectValidSession("valid-cookie", userID)
+			deps.UserSvc.EXPECT().SetChatbotOptIn(mock.Anything, userID, true).Return(tc.svcErr)
+
+			// when
+			status, body := h.NewRequest("PUT", "/preferences/chatbot-opt-in").
+				WithCookie("valid-cookie").
+				WithJSONBody(map[string]any{"opted_in": true}).
+				Do()
+
+			// then
+			require.Equal(t, tc.wantCode, status)
+			assert.Contains(t, string(body), tc.wantBody)
+		})
+	}
+}

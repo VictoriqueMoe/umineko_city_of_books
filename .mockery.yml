@@ -36,6 +36,8 @@ packages:
   umineko_city_of_books/internal/settings:
     interfaces:
       Service:
+      Listener:
+      BatchListener:
   umineko_city_of_books/internal/chat:
     interfaces:
       Service:
@@ -91,6 +93,9 @@ packages:
     interfaces:
       Service:
   umineko_city_of_books/internal/livekit:
+    interfaces:
+      Service:
+  umineko_city_of_books/internal/openai:
     interfaces:
       Service:
   umineko_city_of_books/internal/stream:
