@@ -40,25 +40,41 @@ export const queryKeys = {
     mystery: {
         all: ["mystery"] as const,
         detail: (id: string) => ["mystery", "detail", id] as const,
+        list: (params: Record<string, unknown> = {}) => ["mystery", "list", params] as const,
+        leaderboard: (limit: number | null = null) => ["mystery", "leaderboard", limit] as const,
+        gmLeaderboard: (limit: number | null = null) => ["mystery", "gm-leaderboard", limit] as const,
     },
     gameRoom: {
         all: ["gameRoom"] as const,
         detail: (id: string) => ["gameRoom", "detail", id] as const,
         list: (filters: Record<string, unknown> = {}) => ["gameRoom", "list", filters] as const,
+        live: (gameType?: string) =>
+            gameType ? (["gameRoom", "live", gameType] as const) : (["gameRoom", "live"] as const),
+        finished: (gameType: string, page: Record<string, unknown>) =>
+            ["gameRoom", "finished", gameType, page] as const,
+        scoreboard: (gameType: string) => ["gameRoom", "scoreboard", gameType] as const,
     },
     chat: {
         room: (id: string) => ["chat", "room", id] as const,
         roomMembers: (id: string) => ["chat", "room", id, "members"] as const,
         pinned: (id: string) => ["chat", "room", id, "pinned"] as const,
+        userRooms: () => ["chat", "rooms", "user"] as const,
     },
     profile: {
         byUsername: (username: string) => ["profile", "username", username] as const,
         blockedUsers: (userID: string) => ["profile", id(userID), "blocked"] as const,
     },
+    preferences: {
+        chatbotOptIn: () => ["preferences", "chatbot-opt-in"] as const,
+    },
     notifications: {
         all: ["notifications"] as const,
         list: (params: Record<string, unknown> = {}) => ["notifications", "list", params] as const,
         unreadCount: () => ["notifications", "unread-count"] as const,
+    },
+    chatbots: {
+        all: ["chatbots"] as const,
+        list: () => ["chatbots", "list"] as const,
     },
     admin: {
         announcements: () => ["admin", "announcements"] as const,
@@ -69,6 +85,10 @@ export const queryKeys = {
         bannedGifs: () => ["admin", "banned-gifs"] as const,
         bannedWords: (scope: string) => ["admin", "banned-words", scope] as const,
         vanityRoles: () => ["admin", "vanity-roles"] as const,
+        permissions: () => ["admin", "permissions"] as const,
+        chatbots: () => ["admin", "chatbots"] as const,
+        chatbotUsage: (days: number) => ["admin", "chatbots", "usage", days] as const,
+        chatbotModels: () => ["admin", "chatbots", "models"] as const,
     },
 } as const;
 

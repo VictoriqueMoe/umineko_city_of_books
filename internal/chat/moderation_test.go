@@ -315,6 +315,48 @@ func TestDeleteRoomBannedWord_RejectsMismatchedScope(t *testing.T) {
 	require.ErrorIs(t, err, ErrBannedWordRuleMismatch)
 }
 
+func TestCreateRoomBannedWord_RejectsSystemRoom(t *testing.T) {
+	svc, m := newTestService(t)
+	actor := uuid.New()
+	room := uuid.New()
+
+	systemRoom := stubRoom(room)
+	systemRoom.IsSystem = true
+	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, room, actor).Return(systemRoom, nil)
+
+	_, err := svc.CreateRoomBannedWord(context.Background(), actor, room, dto.CreateBannedWordRequest{
+		Pattern: "dogs", MatchMode: contentfilter.MatchModeSubstring, Action: contentfilter.BannedWordActionKick,
+	})
+	require.ErrorIs(t, err, ErrSystemRoom)
+}
+
+func TestEditMessage_BannedWordBlocked(t *testing.T) {
+	svc, m := newTestService(t)
+	author := uuid.New()
+	room := uuid.New()
+	messageID := uuid.New()
+
+	m.chatRepo.EXPECT().GetMessageByID(mock.Anything, messageID).Return(&repository.ChatMessageRow{
+		ID: messageID, RoomID: room, SenderID: author, Body: "ok",
+	}, nil)
+	m.chatRepo.EXPECT().IsMember(mock.Anything, room, author).Return(true, nil)
+	m.chatRepo.EXPECT().GetMemberTimeoutState(mock.Anything, room, author).Return(false, "", false, nil)
+	m.bannedWordRepo.EXPECT().ListApplicable(mock.Anything, room).Return([]repository.ChatBannedWordRow{
+		{ID: uuid.New(), Pattern: "dogs", MatchMode: contentfilter.MatchModeSubstring,
+			Action: contentfilter.BannedWordActionDelete, Scope: "room", RoomID: &room},
+	}, nil).Maybe()
+	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, room, author).Return("member", nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, author).Return("", nil)
+	m.auditRepo.EXPECT().CreateSystemForSubject(mock.Anything, "chat_word_filter_delete", "chat_room", room.String(), mock.Anything, mock.Anything).Return(nil)
+
+	resp, err := svc.EditMessage(context.Background(), messageID, author, "I love dogs")
+	require.Error(t, err)
+	assert.Nil(t, resp)
+	var bw *ErrBannedWordMatch
+	assert.True(t, errors.As(err, &bw))
+	assert.Equal(t, "dogs", bw.Pattern)
+}
+
 func TestSendMessage_BannedWordKickFires(t *testing.T) {
 	svc, m := newTestService(t)
 	sender := uuid.New()

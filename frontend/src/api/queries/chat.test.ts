@@ -173,6 +173,19 @@ describe("useUserRooms", () => {
         expect(initial.rooms).toEqual([]);
         await waitFor(() => expect(result.current.loading).toBe(false));
     });
+
+    it("stays idle while it is switched off", () => {
+        // given
+        const { result } = setup(() => useUserRooms(false));
+
+        // when
+        const current = result.current;
+
+        // then
+        expect(endpoints.getUserRooms).not.toHaveBeenCalled();
+        expect(current.rooms).toEqual([]);
+        expect(current.loading).toBe(false);
+    });
 });
 
 describe("useChatRoomMembers", () => {

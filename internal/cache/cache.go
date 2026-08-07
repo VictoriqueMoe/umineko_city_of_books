@@ -33,6 +33,17 @@ func NewManager() *Manager {
 	return m
 }
 
+func NewManagerWithClient(client valkey.Client) *Manager {
+	m := NewManager()
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.client = client
+
+	return m
+}
+
 func ProbeURL(ctx context.Context, rawURL string) error {
 	rawURL = strings.TrimSpace(rawURL)
 	if rawURL == "" {

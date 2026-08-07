@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"umineko_city_of_books/internal/cache"
@@ -62,6 +63,7 @@ type (
 		Scoreboard(ctx context.Context, gameType string) ([]ScoreboardRow, error)
 		GetTopWinnerIDs(ctx context.Context, gameType string) ([]string, error)
 		ListIdleActive(ctx context.Context, idleSince time.Time) ([]GameRoomRow, error)
+		CancelIdleRoom(ctx context.Context, roomID uuid.UUID, idleSince time.Time) (bool, error)
 	}
 
 	ScoreboardRow struct {
@@ -70,6 +72,10 @@ type (
 		Losses int
 		Draws  int
 	}
+)
+
+var (
+	ErrRoomNotActive = errors.New("game room is not active")
 )
 
 type gameRoomRepository struct {
@@ -179,6 +185,10 @@ func (r *gameRoomRepository) GetTopWinnerIDs(ctx context.Context, gameType strin
 
 	_ = cache.Set(ctx, r.cache, key, v, cache.GameTopWinners.TTL)
 	return v, nil
+}
+
+func (r *gameRoomRepository) CancelIdleRoom(ctx context.Context, roomID uuid.UUID, idleSince time.Time) (bool, error) {
+	return r.dao.CancelIdleRoom(ctx, roomID, idleSince)
 }
 
 func (r *gameRoomRepository) ListIdleActive(ctx context.Context, idleSince time.Time) ([]GameRoomRow, error) {

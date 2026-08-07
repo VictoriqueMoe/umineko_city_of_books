@@ -3,7 +3,6 @@ package chat
 import (
 	"context"
 	"fmt"
-	"regexp"
 	"strings"
 	"time"
 
@@ -14,6 +13,7 @@ import (
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
+	"umineko_city_of_books/internal/social"
 	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/ws"
 
@@ -21,7 +21,6 @@ import (
 )
 
 var (
-	mentionRegex = regexp.MustCompile(`\B@([a-zA-Z0-9_]+)`)
 	chatTriggers = []chatTrigger{
 		{
 			text:     "<VERY GOOOOOD>",
@@ -100,7 +99,7 @@ func (m *messagesService) GetMessages(ctx context.Context, userID, roomID uuid.U
 
 	page := bounds.NewPage(limit, offset)
 
-	rows, total, err := m.chatRepo.GetMessages(ctx, roomID, page.Limit(), page.Offset())
+	rows, total, err := m.chatRepo.GetMessagesForViewer(ctx, roomID, userID, page.Limit(), page.Offset())
 	if err != nil {
 		return nil, fmt.Errorf("get messages: %w", err)
 	}
@@ -129,7 +128,7 @@ func (m *messagesService) GetMessagesBefore(ctx context.Context, userID, roomID 
 		limit = 200
 	}
 
-	rows, err := m.chatRepo.GetMessagesBefore(ctx, roomID, before, limit)
+	rows, err := m.chatRepo.GetMessagesBefore(ctx, roomID, userID, before, limit)
 	if err != nil {
 		return nil, fmt.Errorf("get messages before: %w", err)
 	}
@@ -301,6 +300,24 @@ func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid
 	if !isEphemeralSystemRoom(roomRow) {
 		m.sideEffectsWG.Add(1)
 		go m.dispatchPostSendSideEffects(roomID, senderID, msgID, recipients, roomRow, mentionedIDs, replyToAuthor, isGroup)
+
+		if m.botObserver != nil && !sender.IsBot {
+			m.botObserver.ObserveMessage(BotMessageEvent{
+				RoomID:        roomID,
+				RoomType:      string(roomRow.Type),
+				SenderID:      senderID,
+				MessageID:     msgID,
+				Body:          req.Body,
+				Members:       members,
+				MentionedIDs:  mentionedIDs,
+				ReplyToID:     replyToID,
+				ReplyToAuthor: replyToAuthor,
+			})
+		}
+	}
+
+	if sender.IsBot {
+		return resp, nil
 	}
 
 	for i := range chatTriggers {
@@ -443,7 +460,7 @@ func (m *messagesService) dispatchPostSendSideEffects(
 }
 
 func (m *messagesService) resolveMentions(ctx context.Context, body string, senderID uuid.UUID, members []uuid.UUID) map[uuid.UUID]struct{} {
-	matches := mentionRegex.FindAllStringSubmatch(body, -1)
+	matches := social.MentionRegex.FindAllStringSubmatch(body, -1)
 	if len(matches) == 0 {
 		return nil
 	}
@@ -595,7 +612,7 @@ func (m *messagesService) validateMediaFile(ctx context.Context, f FileUpload) e
 	if err != nil {
 		return err
 	}
-	if _, ok := allowed[sniffed]; !ok {
+	if _, ok := allowed[upload.NormaliseSniffedType(sniffed)]; !ok {
 		return typeErr
 	}
 	return nil
@@ -676,7 +693,19 @@ func (m *messagesService) EditMessage(ctx context.Context, messageID, actorID uu
 		return nil, ErrMessageEditPermission
 	}
 
+	isMember, err := m.chatRepo.IsMember(ctx, msg.RoomID, actorID)
+	if err != nil {
+		return nil, fmt.Errorf("check membership: %w", err)
+	}
+	if !isMember {
+		return nil, ErrNotMember
+	}
+
 	if err := m.checkSenderTimeout(ctx, msg.RoomID, actorID); err != nil {
+		return nil, err
+	}
+
+	if err := m.parent.enforceBannedWords(ctx, msg.RoomID, actorID, body); err != nil {
 		return nil, err
 	}
 

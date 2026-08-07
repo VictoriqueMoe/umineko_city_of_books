@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"umineko_city_of_books/internal/admin"
@@ -16,6 +17,7 @@ import (
 	"umineko_city_of_books/internal/middleware"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/upload"
+	usersvc "umineko_city_of_books/internal/user"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -30,6 +32,7 @@ type (
 func (s *Service) getAllAdminRoutes() []FSetupRoute {
 	return []FSetupRoute{
 		s.setupAdminGetStats,
+		s.setupAdminUsernameAvailable,
 		s.setupAdminListUsers,
 		s.setupAdminGetUser,
 		s.setupAdminSetRole,
@@ -64,6 +67,9 @@ func (s *Service) getAllAdminRoutes() []FSetupRoute {
 		s.setupAdminGetVanityRoleUsers,
 		s.setupAdminAssignVanityRole,
 		s.setupAdminUnassignVanityRole,
+		s.setupAdminGetPermissions,
+		s.setupAdminUpdateRolePermissions,
+		s.setupAdminUpdateVanityRolePermissions,
 		s.setupAdminListBannedGifs,
 		s.setupAdminAddBannedGif,
 		s.setupAdminRemoveBannedGif,
@@ -84,6 +90,27 @@ func (s *Service) setupAdminGetStats(r fiber.Router) {
 
 func (s *Service) setupAdminListUsers(r fiber.Router) {
 	r.Get("/admin/users", s.requirePerm(authz.PermViewUsers), s.adminListUsers)
+}
+
+func (s *Service) setupAdminUsernameAvailable(r fiber.Router) {
+	r.Get("/admin/username-available", s.requirePerm(authz.PermViewUsers), s.adminUsernameAvailable)
+}
+
+func (s *Service) adminUsernameAvailable(ctx fiber.Ctx) error {
+	username := strings.TrimSpace(ctx.Query("username"))
+	if username == "" {
+		return utils.BadRequest(ctx, "username is required")
+	}
+
+	err := s.UserService.CheckUsernameAvailable(ctx.Context(), username)
+	if err != nil && !errors.Is(err, usersvc.ErrUsernameTaken) {
+		return utils.InternalError(ctx, "failed to check username")
+	}
+
+	return ctx.JSON(dto.UsernameAvailabilityResponse{
+		Username:  username,
+		Available: err == nil,
+	})
 }
 
 func (s *Service) setupAdminGetUser(r fiber.Router) {
@@ -585,6 +612,9 @@ func handleAdminError(ctx fiber.Ctx, err error) error {
 	if errors.Is(err, admin.ErrProtectedUser) {
 		return utils.Forbidden(ctx, "this user cannot be modified")
 	}
+	if errors.Is(err, admin.ErrBotAccountProtected) {
+		return utils.UnprocessableEntity(ctx, fiber.Map{"error": "this action is not available for bot accounts"})
+	}
 	if errors.Is(err, admin.ErrUnknownRole) {
 		return utils.BadRequest(ctx, "unknown role")
 	}
@@ -596,6 +626,18 @@ func handleAdminError(ctx fiber.Ctx, err error) error {
 	}
 	if errors.Is(err, admin.ErrSystemRole) {
 		return utils.Forbidden(ctx, "cannot modify system role assignments")
+	}
+	if errors.Is(err, admin.ErrVanityRoleOptInLocked) {
+		return utils.Conflict(ctx, admin.ErrVanityRoleOptInLocked.Error())
+	}
+	if errors.Is(err, admin.ErrImmutableRole) {
+		return utils.Forbidden(ctx, "this role's permissions cannot be edited")
+	}
+	if errors.Is(err, admin.ErrStaffPermission) {
+		return utils.Forbidden(ctx, "this permission cannot be granted to a vanity role")
+	}
+	if errors.Is(err, admin.ErrUnknownPermission) {
+		return utils.BadRequest(ctx, "unknown permission")
 	}
 	if errors.Is(err, admin.ErrNoEmailAddress) {
 		return utils.BadRequest(ctx, "your account has no email address set")
@@ -622,6 +664,59 @@ func handleAdminError(ctx fiber.Ctx, err error) error {
 		return utils.NotFound(ctx, "user not found")
 	}
 	return utils.InternalError(ctx, err.Error())
+}
+
+func (s *Service) setupAdminGetPermissions(r fiber.Router) {
+	r.Get("/admin/permissions", s.requirePerm(authz.PermManageRoles), s.adminGetPermissions)
+}
+
+func (s *Service) setupAdminUpdateRolePermissions(r fiber.Router) {
+	r.Put("/admin/permissions/roles/:role", s.requirePerm(authz.PermManageRoles), s.adminUpdateRolePermissions)
+}
+
+func (s *Service) setupAdminUpdateVanityRolePermissions(r fiber.Router) {
+	r.Put("/admin/permissions/vanity-roles/:id", s.requirePerm(authz.PermManageRoles), s.adminUpdateVanityRolePermissions)
+}
+
+func (s *Service) adminGetPermissions(ctx fiber.Ctx) error {
+	result, err := s.AdminService.GetPermissionSettings(ctx.Context())
+	if err != nil {
+		return handleAdminError(ctx, err)
+	}
+
+	return ctx.JSON(result)
+}
+
+func (s *Service) adminUpdateRolePermissions(ctx fiber.Ctx) error {
+	actorID := utils.UserID(ctx)
+	roleName := ctx.Params("role")
+
+	req, ok := utils.BindJSON[dto.UpdatePermissionsRequest](ctx)
+	if !ok {
+		return nil
+	}
+
+	if err := s.AdminService.UpdateRolePermissions(ctx.Context(), actorID, roleName, req.Permissions); err != nil {
+		return handleAdminError(ctx, err)
+	}
+
+	return utils.OK(ctx)
+}
+
+func (s *Service) adminUpdateVanityRolePermissions(ctx fiber.Ctx) error {
+	actorID := utils.UserID(ctx)
+	id := ctx.Params("id")
+
+	req, ok := utils.BindJSON[dto.UpdatePermissionsRequest](ctx)
+	if !ok {
+		return nil
+	}
+
+	if err := s.AdminService.UpdateVanityRolePermissions(ctx.Context(), actorID, id, req.Permissions); err != nil {
+		return handleAdminError(ctx, err)
+	}
+
+	return utils.OK(ctx)
 }
 
 func (s *Service) setupAdminListVanityRoles(r fiber.Router) {

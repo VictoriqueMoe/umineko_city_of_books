@@ -3,6 +3,7 @@ package dao
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -150,6 +151,38 @@ func (c *commentDAO[K]) GetComments(ctx context.Context, entityID K, viewerID uu
 	}
 
 	return comments, total, rows.Err()
+}
+
+func (c *commentDAO[K]) GetCommentByID(ctx context.Context, commentID uuid.UUID) (*repository.CommentRow, error) {
+	var (
+		cm        repository.CommentRow
+		createdAt time.Time
+		updatedAt *time.Time
+	)
+
+	err := c.db.QueryRowContext(ctx,
+		`SELECT c.id, c.`+c.fk+`::text, c.parent_id, c.user_id, c.body, c.created_at, c.updated_at,
+			u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''), (u.banned_at IS NOT NULL)
+		FROM `+c.table+` c
+		JOIN users u ON c.user_id = u.id
+		LEFT JOIN user_roles r ON r.user_id = c.user_id
+		WHERE c.id = $1`,
+		commentID,
+	).Scan(
+		&cm.ID, &cm.EntityID, &cm.ParentID, &cm.UserID, &cm.Body, &createdAt, &updatedAt,
+		&cm.AuthorUsername, &cm.AuthorDisplayName, &cm.AuthorAvatarURL, &cm.AuthorRole, &cm.AuthorBanned,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get comment by id in %s: %w", c.table, err)
+	}
+
+	cm.CreatedAt = createdAt.UTC().Format(time.RFC3339)
+	cm.UpdatedAt = timePtrToString(updatedAt)
+
+	return &cm, nil
 }
 
 func (c *commentDAO[K]) GetCommentEntityID(ctx context.Context, commentID uuid.UUID) (K, error) {

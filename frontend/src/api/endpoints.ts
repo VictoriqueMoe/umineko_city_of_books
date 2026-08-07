@@ -25,6 +25,12 @@ import type {
     BannedWordRule,
     ChangePasswordPayload,
     CharacterListResponse,
+    Chatbot,
+    ChatbotModels,
+    ChatbotListResponse,
+    ChatbotPayload,
+    ChatbotTestResult,
+    ChatbotUsage,
     ChatMessage,
     ChatMessageListResponse,
     ChatRoom,
@@ -90,6 +96,7 @@ import type {
     UpdateProfilePayload,
     User,
     UserProfile,
+    UsernameAvailability,
     VotePayload,
     WatchPartyListResponse,
 } from "../types/api";
@@ -137,6 +144,8 @@ export interface SiteInfo {
     turnstile_site_key: string;
     voice_enabled: boolean;
     email_enabled: boolean;
+    chatbot_enabled: boolean;
+    chatbot_require_permission: boolean;
     max_image_size: number;
     max_video_size: number;
     top_detective_ids: string[];
@@ -238,11 +247,14 @@ export async function unregisterDeviceToken(token: string): Promise<void> {
 }
 
 export async function getMe(): Promise<UserProfile | null> {
-    const session = await apiFetch<{ authenticated: boolean; username?: string }>("/auth/session");
+    const session = await apiFetch<{ authenticated: boolean; username?: string; permissions?: string[] }>(
+        "/auth/session",
+    );
     if (!session.authenticated || !session.username) {
         return null;
     }
-    return getUserProfile(session.username);
+    const profile = await getUserProfile(session.username);
+    return { ...profile, permissions: session.permissions ?? [] };
 }
 
 export type Series = "umineko" | "higurashi" | "ciconia";
@@ -404,6 +416,18 @@ export async function updateAppearance(theme: string, font: string, wideLayout: 
 
 export async function unlockSecret(secret: string, phrase: string): Promise<void> {
     await apiPut<unknown, { secret: string; phrase: string }>("/preferences/secret-unlock", { secret, phrase });
+}
+
+export interface ChatbotOptInState {
+    opted_in: boolean;
+}
+
+export async function getChatbotOptIn(): Promise<ChatbotOptInState> {
+    return apiFetch<ChatbotOptInState>("/preferences/chatbot-opt-in");
+}
+
+export async function updateChatbotOptIn(optedIn: boolean): Promise<void> {
+    await apiPut<unknown, { opted_in: boolean }>("/preferences/chatbot-opt-in", { opted_in: optedIn });
 }
 
 export async function uploadAvatar(file: File): Promise<{ avatar_url: string }> {
@@ -2314,6 +2338,84 @@ export async function assignVanityRole(roleId: string, userId: string): Promise<
 
 export async function unassignVanityRole(roleId: string, userId: string): Promise<void> {
     await apiDelete(`/admin/vanity-roles/${roleId}/users/${userId}`);
+}
+
+export interface PermissionCatalogueItem {
+    permission: string;
+    label: string;
+    vanity_assignable: boolean;
+}
+
+export interface RolePermissionsItem {
+    role: string;
+    label: string;
+    permissions: string[];
+}
+
+export interface VanityRolePermissionsItem {
+    id: string;
+    label: string;
+    color: string;
+    sort_order: number;
+    permissions: string[];
+}
+
+export interface PermissionSettingsResponse {
+    permissions: PermissionCatalogueItem[];
+    roles: RolePermissionsItem[];
+    vanity_roles: VanityRolePermissionsItem[];
+}
+
+export async function getAdminPermissions(): Promise<PermissionSettingsResponse> {
+    return apiFetch<PermissionSettingsResponse>("/admin/permissions");
+}
+
+export async function updateRolePermissions(role: string, permissions: string[]): Promise<void> {
+    await apiPut<unknown, { permissions: string[] }>(`/admin/permissions/roles/${encodeURIComponent(role)}`, {
+        permissions,
+    });
+}
+
+export async function updateVanityRolePermissions(id: string, permissions: string[]): Promise<void> {
+    await apiPut<unknown, { permissions: string[] }>(`/admin/permissions/vanity-roles/${encodeURIComponent(id)}`, {
+        permissions,
+    });
+}
+
+export async function listChatbots(): Promise<ChatbotListResponse> {
+    return apiFetch<ChatbotListResponse>("/chatbots");
+}
+
+export async function getChatbots(): Promise<Chatbot[]> {
+    return apiFetch<Chatbot[]>("/admin/chatbots");
+}
+
+export async function createChatbot(data: ChatbotPayload): Promise<Chatbot> {
+    return apiPost<Chatbot, ChatbotPayload>("/admin/chatbots", data);
+}
+
+export async function updateChatbot(id: string, data: ChatbotPayload): Promise<void> {
+    await apiPut<unknown, ChatbotPayload>(`/admin/chatbots/${id}`, data);
+}
+
+export async function deleteChatbot(id: string): Promise<void> {
+    await apiDelete(`/admin/chatbots/${id}`);
+}
+
+export async function getChatbotUsage(days: number): Promise<ChatbotUsage> {
+    return apiFetch<ChatbotUsage>(`/admin/chatbots/usage${buildQueryString({ days })}`);
+}
+
+export async function getChatbotModels(): Promise<ChatbotModels> {
+    return apiFetch<ChatbotModels>("/admin/chatbots/models");
+}
+
+export async function testChatbotModel(model: string): Promise<ChatbotTestResult> {
+    return apiPost<ChatbotTestResult, { model: string }>("/admin/chatbots/test", { model });
+}
+
+export async function checkUsernameAvailable(username: string): Promise<UsernameAvailability> {
+    return apiFetch<UsernameAvailability>(`/admin/username-available${buildQueryString({ username })}`);
 }
 
 export interface GiphyImage {

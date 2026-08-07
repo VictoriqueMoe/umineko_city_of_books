@@ -11,6 +11,11 @@ type (
 		Usernames []string `json:"usernames"`
 	}
 
+	UsernameAvailabilityResponse struct {
+		Username  string `json:"username"`
+		Available bool   `json:"available"`
+	}
+
 	UserResponse struct {
 		ID          uuid.UUID            `json:"id"`
 		Username    string               `json:"username"`
@@ -69,6 +74,7 @@ type (
 		Theme                 string `json:"theme"`
 		Font                  string `json:"font"`
 		WideLayout            bool   `json:"wide_layout"`
+		ChatbotOptedIn        bool   `json:"chatbot_opted_in"`
 	}
 
 	UserStatsDTO struct {

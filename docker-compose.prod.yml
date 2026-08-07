@@ -24,6 +24,7 @@ services:
     image: ghcr.io/victoriquemoe/umineko_city_of_books:latest
     container_name: umineko-city-of-books
     restart: unless-stopped
+    stop_grace_period: 30s
     depends_on:
       postgres:
         condition: service_healthy

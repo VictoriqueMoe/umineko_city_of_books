@@ -63,6 +63,8 @@ export function makeSiteInfo(overrides: Partial<SiteInfo> = {}): SiteInfo {
         turnstile_site_key: "",
         voice_enabled: true,
         email_enabled: true,
+        chatbot_enabled: false,
+        chatbot_require_permission: false,
         max_image_size: 10 * 1024 * 1024,
         max_video_size: 50 * 1024 * 1024,
         top_detective_ids: [],

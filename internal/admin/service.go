@@ -73,6 +73,10 @@ type (
 		AssignVanityRole(ctx context.Context, actorID uuid.UUID, roleID string, userID uuid.UUID) error
 		UnassignVanityRole(ctx context.Context, actorID uuid.UUID, roleID string, userID uuid.UUID) error
 
+		GetPermissionSettings(ctx context.Context) (*dto.PermissionSettingsResponse, error)
+		UpdateRolePermissions(ctx context.Context, actorID uuid.UUID, roleName string, perms []string) error
+		UpdateVanityRolePermissions(ctx context.Context, actorID uuid.UUID, vanityRoleID string, perms []string) error
+
 		ListBannedGifs(ctx context.Context) (*dto.BannedGiphyListResponse, error)
 		AddBannedGif(ctx context.Context, actorID uuid.UUID, req dto.AddBannedGiphyRequest) (*dto.AddBannedGiphyResponse, error)
 		RemoveBannedGif(ctx context.Context, actorID uuid.UUID, kind, value string) error
@@ -85,6 +89,7 @@ type (
 		auditRepo      repository.AuditLogRepository
 		inviteRepo     repository.InviteRepository
 		vanityRoleRepo repository.VanityRoleRepository
+		permissionRepo repository.PermissionRepository
 		giphyBanlist   banlist.Service
 		authz          authz.Service
 		settingsSvc    settings.Service
@@ -115,6 +120,7 @@ func NewService(
 	auditRepo repository.AuditLogRepository,
 	inviteRepo repository.InviteRepository,
 	vanityRoleRepo repository.VanityRoleRepository,
+	permissionRepo repository.PermissionRepository,
 	giphyBanlist banlist.Service,
 	authzService authz.Service,
 	settingsSvc settings.Service,
@@ -132,6 +138,7 @@ func NewService(
 		auditRepo:      auditRepo,
 		inviteRepo:     inviteRepo,
 		vanityRoleRepo: vanityRoleRepo,
+		permissionRepo: permissionRepo,
 		giphyBanlist:   giphyBanlist,
 		authz:          authzService,
 		settingsSvc:    settingsSvc,
@@ -157,6 +164,19 @@ func (s *service) guardedAction(ctx context.Context, actorID, targetID uuid.UUID
 	}
 
 	return fn()
+}
+
+func (s *service) rejectBotTarget(ctx context.Context, targetID uuid.UUID) error {
+	usr, err := s.userRepo.GetByID(ctx, targetID)
+	if err != nil {
+		return fmt.Errorf("get user: %w", err)
+	}
+
+	if usr != nil && usr.IsBot {
+		return ErrBotAccountProtected
+	}
+
+	return nil
 }
 
 func (s *service) audit(ctx context.Context, actorID uuid.UUID, action, targetType, targetID string) {
@@ -379,6 +399,10 @@ func (s *service) broadcastRoleChange(userID uuid.UUID, newRole string) {
 
 func (s *service) BanUser(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID, reason string) error {
 	return s.guardedAction(ctx, actorID, targetID, func() error {
+		if err := s.rejectBotTarget(ctx, targetID); err != nil {
+			return err
+		}
+
 		if err := s.userRepo.BanUser(ctx, targetID, actorID, reason); err != nil {
 			return fmt.Errorf("ban user: %w", err)
 		}
@@ -415,6 +439,10 @@ func (s *service) broadcastBanChange(userID uuid.UUID, banned bool, reason strin
 
 func (s *service) LockUser(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID, reason string) error {
 	return s.guardedAction(ctx, actorID, targetID, func() error {
+		if err := s.rejectBotTarget(ctx, targetID); err != nil {
+			return err
+		}
+
 		if err := s.userRepo.LockUser(ctx, targetID, actorID, reason); err != nil {
 			return fmt.Errorf("lock user: %w", err)
 		}
@@ -465,6 +493,10 @@ func (s *service) DeleteUser(ctx context.Context, actorID uuid.UUID, targetID uu
 func (s *service) ResetUserPassword(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID) (string, error) {
 	var newPassword string
 	err := s.guardedAction(ctx, actorID, targetID, func() error {
+		if err := s.rejectBotTarget(ctx, targetID); err != nil {
+			return err
+		}
+
 		generated, err := generatePassword()
 		if err != nil {
 			return fmt.Errorf("generate password: %w", err)
@@ -901,12 +933,29 @@ func (s *service) DeleteVanityRole(ctx context.Context, actorID uuid.UUID, id st
 	if existing.IsSystem {
 		return ErrSystemRole
 	}
+
+	if s.isChatbotOptInRole(ctx, id) {
+		return ErrVanityRoleOptInLocked
+	}
+
 	if err := s.vanityRoleRepo.Delete(ctx, id); err != nil {
 		return fmt.Errorf("delete vanity role: %w", err)
 	}
 	s.audit(ctx, actorID, "delete_vanity_role", "vanity_role", id)
 	s.broadcastVanityRolesChanged()
 	return nil
+}
+
+func (s *service) isChatbotOptInRole(ctx context.Context, id string) bool {
+	if !s.settingsSvc.GetBool(ctx, config.SettingChatbotEnabled) {
+		return false
+	}
+
+	if !s.settingsSvc.GetBool(ctx, config.SettingChatbotRequirePermission) {
+		return false
+	}
+
+	return strings.TrimSpace(s.settingsSvc.Get(ctx, config.SettingChatbotOptInRole)) == id
 }
 
 func (s *service) GetVanityRoleUsers(ctx context.Context, roleID string, search string, page bounds.Page) (*dto.VanityRoleUsersResponse, error) {
@@ -942,12 +991,30 @@ func (s *service) AssignVanityRole(ctx context.Context, actorID uuid.UUID, roleI
 	if existing.IsSystem {
 		return ErrSystemRole
 	}
+
+	if err := s.guardPermissionCarryingRole(ctx, actorID, userID, roleID); err != nil {
+		return err
+	}
+
 	if err := s.vanityRoleRepo.AssignToUser(ctx, userID, roleID); err != nil {
 		return fmt.Errorf("assign vanity role: %w", err)
 	}
 	s.auditSubject(ctx, actorID, "assign_vanity_role", "vanity_role", roleID, userID)
 	s.broadcastVanityRolesChanged()
 	return nil
+}
+
+func (s *service) guardPermissionCarryingRole(ctx context.Context, actorID, targetID uuid.UUID, roleID string) error {
+	carries, err := s.vanityRoleCarriesPermissions(ctx, roleID)
+	if err != nil {
+		return err
+	}
+
+	if !carries {
+		return nil
+	}
+
+	return s.guardedAction(ctx, actorID, targetID, func() error { return nil })
 }
 
 func (s *service) UnassignVanityRole(ctx context.Context, actorID uuid.UUID, roleID string, userID uuid.UUID) error {
@@ -961,6 +1028,11 @@ func (s *service) UnassignVanityRole(ctx context.Context, actorID uuid.UUID, rol
 	if existing.IsSystem {
 		return ErrSystemRole
 	}
+
+	if err := s.guardPermissionCarryingRole(ctx, actorID, userID, roleID); err != nil {
+		return err
+	}
+
 	if err := s.vanityRoleRepo.UnassignFromUser(ctx, userID, roleID); err != nil {
 		return fmt.Errorf("unassign vanity role: %w", err)
 	}

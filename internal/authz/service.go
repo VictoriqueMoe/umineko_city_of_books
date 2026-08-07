@@ -2,6 +2,7 @@ package authz
 
 import (
 	"context"
+	"slices"
 
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/repository"
@@ -13,6 +14,7 @@ import (
 type (
 	Service interface {
 		Can(ctx context.Context, userID uuid.UUID, perm Permission) bool
+		EffectivePermissions(ctx context.Context, userID uuid.UUID) []Permission
 		GetRole(ctx context.Context, userID uuid.UUID) (role.Role, error)
 		GetRoles(ctx context.Context, userIDs []uuid.UUID) (map[uuid.UUID]role.Role, error)
 		IsBanned(ctx context.Context, userID uuid.UUID) bool
@@ -23,11 +25,12 @@ type (
 	service struct {
 		roleRepo repository.RoleRepository
 		userRepo repository.UserRepository
+		permRepo repository.PermissionRepository
 	}
 )
 
-func NewService(roleRepo repository.RoleRepository, userRepo repository.UserRepository) Service {
-	return &service{roleRepo: roleRepo, userRepo: userRepo}
+func NewService(roleRepo repository.RoleRepository, userRepo repository.UserRepository, permRepo repository.PermissionRepository) Service {
+	return &service{roleRepo: roleRepo, userRepo: userRepo, permRepo: permRepo}
 }
 
 func (s *service) IsBanned(ctx context.Context, userID uuid.UUID) bool {
@@ -67,20 +70,141 @@ func (s *service) Can(ctx context.Context, userID uuid.UUID, perm Permission) bo
 		logger.Log.Error().Err(err).Str("user_id", userID.String()).Msg("failed to get role for permission check")
 		return false
 	}
-	if r == "" {
+
+	if IsImmutableRole(r) {
+		return true
+	}
+
+	if s.systemRoleGrants(ctx, r, perm) {
+		return true
+	}
+
+	if !IsVanityAssignable(perm) {
 		return false
 	}
 
-	perms, ok := rolePermissions[r]
-	if !ok {
+	return s.vanityRolesGrant(ctx, userID, perm)
+}
+
+func (s *service) EffectivePermissions(ctx context.Context, userID uuid.UUID) []Permission {
+	if userID == uuid.Nil {
+		return nil
+	}
+
+	r, err := s.roleRepo.GetRole(ctx, userID)
+	if err != nil {
+		logger.Log.Error().Err(err).Str("user_id", userID.String()).Msg("failed to get role for effective permissions")
+		return nil
+	}
+
+	if IsImmutableRole(r) {
+		granted := make([]Permission, 0, len(permissionCatalogue))
+		for _, def := range permissionCatalogue {
+			granted = append(granted, def.Permission)
+		}
+
+		return granted
+	}
+
+	fromRole := make(map[string]struct{})
+	fromVanity := make(map[string]struct{})
+
+	if IsEditableSystemRole(r) {
+		table, err := s.permRepo.GetRolePermissions(ctx)
+		if err != nil {
+			logger.Log.Error().Err(err).Msg("failed to load role permissions")
+			return nil
+		}
+
+		for _, perm := range table[string(r)] {
+			fromRole[perm] = struct{}{}
+		}
+	}
+
+	ids, err := s.permRepo.GetVanityRoleIDsForUser(ctx, userID)
+	if err != nil {
+		logger.Log.Error().Err(err).Str("user_id", userID.String()).Msg("failed to load vanity roles for effective permissions")
+		ids = nil
+	}
+
+	if len(ids) > 0 {
+		table, err := s.permRepo.GetVanityRolePermissions(ctx)
+		if err != nil {
+			logger.Log.Error().Err(err).Msg("failed to load vanity role permissions")
+			table = nil
+		}
+
+		for _, id := range ids {
+			for _, perm := range table[id] {
+				fromVanity[perm] = struct{}{}
+			}
+		}
+	}
+
+	var result []Permission
+	for _, def := range permissionCatalogue {
+		if def.Scope == ScopeRestricted {
+			continue
+		}
+
+		if _, ok := fromRole[string(def.Permission)]; ok {
+			result = append(result, def.Permission)
+			continue
+		}
+
+		if def.Scope != ScopeGeneral {
+			continue
+		}
+
+		if _, ok := fromVanity[string(def.Permission)]; ok {
+			result = append(result, def.Permission)
+		}
+	}
+
+	return result
+}
+
+func (s *service) systemRoleGrants(ctx context.Context, r role.Role, perm Permission) bool {
+	if !IsEditableSystemRole(r) {
 		return false
 	}
 
-	for _, p := range perms {
-		if p == PermAll || p == perm {
+	if !IsRoleAssignable(perm) {
+		return false
+	}
+
+	table, err := s.permRepo.GetRolePermissions(ctx)
+	if err != nil {
+		logger.Log.Error().Err(err).Msg("failed to load role permissions")
+		return false
+	}
+
+	return slices.Contains(table[string(r)], string(perm))
+}
+
+func (s *service) vanityRolesGrant(ctx context.Context, userID uuid.UUID, perm Permission) bool {
+	ids, err := s.permRepo.GetVanityRoleIDsForUser(ctx, userID)
+	if err != nil {
+		logger.Log.Error().Err(err).Str("user_id", userID.String()).Msg("failed to load vanity roles for permission check")
+		return false
+	}
+
+	if len(ids) == 0 {
+		return false
+	}
+
+	table, err := s.permRepo.GetVanityRolePermissions(ctx)
+	if err != nil {
+		logger.Log.Error().Err(err).Msg("failed to load vanity role permissions")
+		return false
+	}
+
+	for _, id := range ids {
+		if slices.Contains(table[id], string(perm)) {
 			return true
 		}
 	}
+
 	return false
 }
 

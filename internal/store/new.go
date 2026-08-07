@@ -36,6 +36,7 @@ func New(db *sql.DB, c *cache.Manager) *repository.Repositories {
 	repos.Fanfic = repository.NewFanficRepo(dao.NewFanfic(db))
 	repos.Journal = repository.NewJournalRepo(dao.NewJournal(db))
 	repos.VanityRole = repository.NewVanityRoleRepo(dao.NewVanityRole(db), c)
+	repos.Permission = repository.NewPermissionRepo(dao.NewPermission(db), c)
 	repos.GiphyFavourite = repository.NewGiphyFavouriteRepo(dao.NewGiphyFavourite(db))
 	repos.BannedGiphy = repository.NewBannedGiphyRepo(dao.NewBannedGiphy(db))
 	repos.UserSecret = repository.NewUserSecretRepo(dao.NewUserSecret(db), c)
@@ -52,6 +53,7 @@ func New(db *sql.DB, c *cache.Manager) *repository.Repositories {
 	repos.Sitemap = repository.NewSitemapRepo(dao.NewSitemap(db))
 	repos.DeviceToken = repository.NewDeviceTokenRepo(dao.NewDeviceToken(db))
 	repos.OverlayToken = repository.NewOverlayTokenRepo(dao.NewOverlayToken(db))
+	repos.Chatbot = repository.NewChatbotRepo(dao.NewChatbot(db), c)
 
 	return repos
 }

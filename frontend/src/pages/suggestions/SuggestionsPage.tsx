@@ -19,7 +19,7 @@ export function SuggestionsPage() {
     const [page, setPage] = useState(1);
     const [filter, setFilter] = useState("open");
     const feed = usePostFeed("everyone", "suggestions", undefined, "new", page, filter || undefined);
-    const canResolve = can(user?.role, "resolve_suggestion");
+    const canResolve = can(user, "resolve_suggestion");
     const resolveMutation = useResolveSuggestion();
     const unresolveMutation = useUnresolveSuggestion();
 

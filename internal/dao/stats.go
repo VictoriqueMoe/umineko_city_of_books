@@ -17,7 +17,7 @@ type (
 func (r *statsDAO) GetOverview(ctx context.Context) (*repository.SiteStats, error) {
 	var s repository.SiteStats
 
-	err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM users`).Scan(&s.TotalUsers)
+	err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM users WHERE NOT is_bot`).Scan(&s.TotalUsers)
 	if err != nil {
 		return nil, fmt.Errorf("count users: %w", err)
 	}
@@ -56,7 +56,7 @@ func (r *statsDAO) GetOverview(ctx context.Context) (*repository.SiteStats, erro
 
 	for _, p := range periods {
 		_ = r.db.QueryRowContext(ctx,
-			`SELECT COUNT(*) FROM users WHERE created_at > NOW() - $1::interval`, p.interval,
+			`SELECT COUNT(*) FROM users WHERE NOT is_bot AND created_at > NOW() - $1::interval`, p.interval,
 		).Scan(p.users)
 		_ = r.db.QueryRowContext(ctx,
 			`SELECT COUNT(*) FROM theories WHERE created_at > NOW() - $1::interval`, p.interval,

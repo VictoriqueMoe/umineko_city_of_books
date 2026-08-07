@@ -5,6 +5,7 @@ import (
 
 	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/repository/model"
 	"umineko_city_of_books/internal/role"
 
@@ -210,19 +211,49 @@ func (r *mysteryRepository) AddClue(ctx context.Context, mysteryID uuid.UUID, bo
 }
 
 func (r *mysteryRepository) Update(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, body string, difficulty string) error {
-	return r.dao.Update(ctx, id, userID, title, body, difficulty)
+	if err := r.dao.Update(ctx, id, userID, title, body, difficulty); err != nil {
+		return err
+	}
+
+	r.invalidateLeaderboards(ctx)
+
+	return nil
 }
 
 func (r *mysteryRepository) UpdateAsAdmin(ctx context.Context, id uuid.UUID, title string, body string, difficulty string, freeForAll bool, keepOpenAfterSolve bool) error {
-	return r.dao.UpdateAsAdmin(ctx, id, title, body, difficulty, freeForAll, keepOpenAfterSolve)
+	if err := r.dao.UpdateAsAdmin(ctx, id, title, body, difficulty, freeForAll, keepOpenAfterSolve); err != nil {
+		return err
+	}
+
+	r.invalidateLeaderboards(ctx)
+
+	return nil
 }
 
 func (r *mysteryRepository) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	return r.dao.Delete(ctx, id, userID)
+	if err := r.dao.Delete(ctx, id, userID); err != nil {
+		return err
+	}
+
+	r.invalidateLeaderboards(ctx)
+
+	return nil
 }
 
 func (r *mysteryRepository) DeleteAsAdmin(ctx context.Context, id uuid.UUID) error {
-	return r.dao.DeleteAsAdmin(ctx, id)
+	if err := r.dao.DeleteAsAdmin(ctx, id); err != nil {
+		return err
+	}
+
+	r.invalidateLeaderboards(ctx)
+
+	return nil
+}
+
+func (r *mysteryRepository) invalidateLeaderboards(ctx context.Context) {
+	if err := r.cache.Del(ctx, cache.MysteryTopDetectives.Key(), cache.MysteryTopGMs.Key()); err != nil {
+		logger.Log.Error().Err(err).Msg("failed to invalidate mystery leaderboard caches after write")
+	}
 }
 
 func (r *mysteryRepository) GetByID(ctx context.Context, id uuid.UUID) (*MysteryRow, error) {
@@ -262,11 +293,23 @@ func (r *mysteryRepository) CreateAttempt(ctx context.Context, id uuid.UUID, mys
 }
 
 func (r *mysteryRepository) DeleteAttempt(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	return r.dao.DeleteAttempt(ctx, id, userID)
+	if err := r.dao.DeleteAttempt(ctx, id, userID); err != nil {
+		return err
+	}
+
+	r.invalidateLeaderboards(ctx)
+
+	return nil
 }
 
 func (r *mysteryRepository) DeleteAttemptAsAdmin(ctx context.Context, id uuid.UUID) error {
-	return r.dao.DeleteAttemptAsAdmin(ctx, id)
+	if err := r.dao.DeleteAttemptAsAdmin(ctx, id); err != nil {
+		return err
+	}
+
+	r.invalidateLeaderboards(ctx)
+
+	return nil
 }
 
 func (r *mysteryRepository) GetAttempts(ctx context.Context, mysteryID uuid.UUID, viewerID uuid.UUID) ([]MysteryAttemptRow, error) {

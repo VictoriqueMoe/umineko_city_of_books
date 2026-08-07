@@ -30,6 +30,7 @@ type (
 		Fanfic            FanficRepository
 		Journal           JournalRepository
 		VanityRole        VanityRoleRepository
+		Permission        PermissionRepository
 		GiphyFavourite    GiphyFavouriteRepository
 		BannedGiphy       BannedGiphyRepository
 		UserSecret        UserSecretRepository
@@ -46,6 +47,7 @@ type (
 		Sitemap           SitemapRepository
 		DeviceToken       DeviceTokenRepository
 		OverlayToken      OverlayTokenRepository
+		Chatbot           ChatbotRepository
 	}
 )
 

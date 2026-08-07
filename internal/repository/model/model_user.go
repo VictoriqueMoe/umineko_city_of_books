@@ -61,6 +61,7 @@ type (
 		MysteryScoreAdjustment int
 		GMScoreAdjustment      int
 		Role                   string
+		IsBot                  bool
 	}
 
 	UserStats struct {

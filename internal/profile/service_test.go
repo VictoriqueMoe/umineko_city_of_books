@@ -19,6 +19,7 @@ import (
 	"umineko_city_of_books/internal/session"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/upload"
+	userpkg "umineko_city_of_books/internal/user"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -42,7 +43,9 @@ func newTestService(t *testing.T) (
 	uploadSvc := upload.NewMockService(t)
 	settingsSvc := settings.NewMockService(t)
 	authSvc := auth.NewMockService(t)
-	svc := NewService(userRepo, userSecretRepo, theoryRepo, authzSvc, uploadSvc, settingsSvc, contentfilter.New(), nil, authSvc, nil).(*service)
+	userSvc := userpkg.NewMockService(t)
+	userSvc.EXPECT().IsChatbotOptedIn(mock.Anything, mock.Anything).Return(false, nil).Maybe()
+	svc := NewService(userRepo, userSecretRepo, theoryRepo, authzSvc, uploadSvc, settingsSvc, contentfilter.New(), nil, authSvc, nil, userSvc).(*service)
 	return svc, userRepo, theoryRepo, authzSvc, uploadSvc, settingsSvc
 }
 

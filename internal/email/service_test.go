@@ -55,6 +55,8 @@ func (s *stubSettings) SetMultiple(_ context.Context, _ map[config.SiteSettingKe
 
 func (s *stubSettings) Subscribe(_ settings.Listener) {}
 
+func (s *stubSettings) SubscribeBatch(_ settings.BatchListener) {}
+
 func (s *stubSettings) RegisterValidator(_ *config.SiteSettingDef, _ settings.Validator) {}
 
 func (s *stubSettings) Refresh(_ context.Context) error {

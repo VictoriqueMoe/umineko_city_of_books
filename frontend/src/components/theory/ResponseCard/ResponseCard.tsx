@@ -90,7 +90,7 @@ function ResponseCard({
                         {user && user.id !== response.author.id && (
                             <ReportButton targetType="response" targetId={response.id} contextId={theoryId} />
                         )}
-                        {user && (user.id === response.author.id || can(user.role, "delete_any_response")) && (
+                        {user && (user.id === response.author.id || can(user, "delete_any_response")) && (
                             <Button variant="danger" size="small" onClick={handleDelete}>
                                 Delete
                             </Button>

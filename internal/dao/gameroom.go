@@ -158,13 +158,22 @@ func (r *gameRoomDAO) SetState(ctx context.Context, roomID uuid.UUID, stateJSON 
 }
 
 func (r *gameRoomDAO) FinishRoom(ctx context.Context, roomID uuid.UUID, status string, winner *uuid.UUID, result, stateJSON string) error {
-	_, err := r.db.ExecContext(ctx,
-		`UPDATE game_rooms SET status = $1, winner_user_id = $2, result = $3, state_json = $4, finished_at = NOW(), updated_at = NOW() WHERE id = $5`,
+	res, err := r.db.ExecContext(ctx,
+		`UPDATE game_rooms SET status = $1, winner_user_id = $2, result = $3, state_json = $4, finished_at = NOW(), updated_at = NOW() WHERE id = $5 AND status = 'active'`,
 		status, winner, result, stateJSON, roomID,
 	)
 	if err != nil {
 		return fmt.Errorf("finish room: %w", err)
 	}
+
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("finish room rows affected: %w", err)
+	}
+	if n == 0 {
+		return repository.ErrRoomNotActive
+	}
+
 	return nil
 }
 
@@ -374,6 +383,23 @@ func (r *gameRoomDAO) GetTopWinnerIDs(ctx context.Context, gameType string) ([]s
 		ids = append(ids, id)
 	}
 	return ids, rows.Err()
+}
+
+func (r *gameRoomDAO) CancelIdleRoom(ctx context.Context, roomID uuid.UUID, idleSince time.Time) (bool, error) {
+	res, err := r.db.ExecContext(ctx,
+		`UPDATE game_rooms SET status = 'abandoned', result = 'timeout', finished_at = NOW(), updated_at = NOW() WHERE id = $1 AND status = 'active' AND updated_at < $2`,
+		roomID, idleSince.UTC(),
+	)
+	if err != nil {
+		return false, fmt.Errorf("cancel idle room: %w", err)
+	}
+
+	n, err := res.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("cancel idle room rows affected: %w", err)
+	}
+
+	return n > 0, nil
 }
 
 func (r *gameRoomDAO) ListIdleActive(ctx context.Context, idleSince time.Time) ([]repository.GameRoomRow, error) {

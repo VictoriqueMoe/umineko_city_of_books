@@ -14,6 +14,7 @@ import {
     useResetPassword,
     useSetEmail,
     useUpdateAppearance,
+    useUpdateChatbotOptIn,
     useUpdateGameBoardSort,
     useUpdateProfile,
     useUploadAvatar,
@@ -33,6 +34,7 @@ const mocks = vi.hoisted(() => ({
     setEmail: vi.fn(),
     verifyEmail: vi.fn(),
     updateAppearance: vi.fn(),
+    updateChatbotOptIn: vi.fn(),
     updateGameBoardSort: vi.fn(),
     updateProfile: vi.fn(),
     uploadAvatar: vi.fn(),
@@ -406,5 +408,29 @@ describe("session preference mutations", () => {
         // then
         expect(mocks.updateAppearance).toHaveBeenCalledWith("featherine", "serif", true);
         expect(invalidate).toHaveBeenCalledWith({ queryKey: ["auth", "me"] });
+    });
+
+    it("opts the member in to characters and refreshes only that preference", async () => {
+        // given
+        const { qc, invalidate } = client();
+
+        // when
+        await runMutation(useUpdateChatbotOptIn, true, qc);
+
+        // then
+        expect(mocks.updateChatbotOptIn).toHaveBeenCalledWith(true);
+        expect(invalidate).toHaveBeenCalledWith({ queryKey: ["preferences", "chatbot-opt-in"] });
+    });
+
+    it("opts the member back out of characters", async () => {
+        // given
+        const { qc, invalidate } = client();
+
+        // when
+        await runMutation(useUpdateChatbotOptIn, false, qc);
+
+        // then
+        expect(mocks.updateChatbotOptIn).toHaveBeenCalledWith(false);
+        expect(invalidate).toHaveBeenCalledWith({ queryKey: ["preferences", "chatbot-opt-in"] });
     });
 });

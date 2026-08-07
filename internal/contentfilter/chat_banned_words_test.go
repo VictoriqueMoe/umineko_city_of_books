@@ -159,6 +159,106 @@ func TestCompileBannedWordPattern_RejectsEmptyAfterNormalisation(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestCheckForRoom_EditedRuleIsRecompiledWithoutInvalidate(t *testing.T) {
+	ruleID := uuid.New()
+
+	tests := []struct {
+		name             string
+		first            repository.ChatBannedWordRow
+		second           repository.ChatBannedWordRow
+		text             string
+		wantFirstMatch   bool
+		wantSecondMatch  bool
+		wantSecondAction string
+	}{
+		{
+			name:            "pattern edited",
+			first:           repository.ChatBannedWordRow{ID: ruleID, Pattern: "dogs", MatchMode: MatchModeSubstring, Action: BannedWordActionDelete, Scope: "global"},
+			second:          repository.ChatBannedWordRow{ID: ruleID, Pattern: "cats", MatchMode: MatchModeSubstring, Action: BannedWordActionDelete, Scope: "global"},
+			text:            "I love cats",
+			wantFirstMatch:  false,
+			wantSecondMatch: true,
+		},
+		{
+			name:            "match mode tightened",
+			first:           repository.ChatBannedWordRow{ID: ruleID, Pattern: "class", MatchMode: MatchModeSubstring, Action: BannedWordActionDelete, Scope: "global"},
+			second:          repository.ChatBannedWordRow{ID: ruleID, Pattern: "class", MatchMode: MatchModeWholeWord, Action: BannedWordActionDelete, Scope: "global"},
+			text:            "classic dish",
+			wantFirstMatch:  true,
+			wantSecondMatch: false,
+		},
+		{
+			name:            "case sensitivity tightened",
+			first:           repository.ChatBannedWordRow{ID: ruleID, Pattern: "Dog", MatchMode: MatchModeSubstring, CaseSensitive: false, Action: BannedWordActionDelete, Scope: "global"},
+			second:          repository.ChatBannedWordRow{ID: ruleID, Pattern: "Dog", MatchMode: MatchModeSubstring, CaseSensitive: true, Action: BannedWordActionDelete, Scope: "global"},
+			text:            "my dog",
+			wantFirstMatch:  true,
+			wantSecondMatch: false,
+		},
+		{
+			name:             "action escalated",
+			first:            repository.ChatBannedWordRow{ID: ruleID, Pattern: "bomb", MatchMode: MatchModeSubstring, Action: BannedWordActionDelete, Scope: "global"},
+			second:           repository.ChatBannedWordRow{ID: ruleID, Pattern: "bomb", MatchMode: MatchModeSubstring, Action: BannedWordActionKick, Scope: "global"},
+			text:             "bomb",
+			wantFirstMatch:   true,
+			wantSecondMatch:  true,
+			wantSecondAction: BannedWordActionKick,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			repo := repository.NewMockChatBannedWordRepository(t)
+			roomID := uuid.New()
+			repo.EXPECT().ListApplicable(mock.Anything, roomID).Return([]repository.ChatBannedWordRow{tc.first}, nil).Once()
+			repo.EXPECT().ListApplicable(mock.Anything, roomID).Return([]repository.ChatBannedWordRow{tc.second}, nil).Once()
+			rule := NewChatBannedWordsRule(repo)
+
+			// when
+			firstMatch, err := rule.CheckForRoom(context.Background(), roomID, tc.text)
+			require.NoError(t, err)
+
+			secondMatch, err := rule.CheckForRoom(context.Background(), roomID, tc.text)
+
+			// then
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantFirstMatch, firstMatch != nil)
+			assert.Equal(t, tc.wantSecondMatch, secondMatch != nil)
+
+			if tc.wantSecondAction != "" {
+				require.NotNil(t, secondMatch)
+				assert.Equal(t, tc.wantSecondAction, secondMatch.Action)
+			}
+		})
+	}
+}
+
+func TestInvalidate_DropsEntriesForRule(t *testing.T) {
+	// given
+	repo := repository.NewMockChatBannedWordRepository(t)
+	roomID := uuid.New()
+	ruleID := uuid.New()
+	repo.EXPECT().ListApplicable(mock.Anything, roomID).Return([]repository.ChatBannedWordRow{
+		{ID: ruleID, Pattern: "dogs", MatchMode: MatchModeSubstring, Action: BannedWordActionDelete, Scope: "global"},
+	}, nil)
+	rule := NewChatBannedWordsRule(repo)
+	_, err := rule.CheckForRoom(context.Background(), roomID, "I love dogs")
+	require.NoError(t, err)
+
+	// when
+	rule.Invalidate(ruleID)
+
+	// then
+	cached := 0
+	rule.cache.Range(func(_, _ any) bool {
+		cached++
+
+		return true
+	})
+	assert.Zero(t, cached)
+}
+
 func TestCheckForRoom_InvalidRulesSkipped(t *testing.T) {
 	repo := repository.NewMockChatBannedWordRepository(t)
 	roomID := uuid.New()

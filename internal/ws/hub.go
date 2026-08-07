@@ -39,12 +39,13 @@ type (
 	}
 
 	Hub struct {
-		name    string
-		clients map[uuid.UUID][]*Client
-		rooms   map[uuid.UUID]map[uuid.UUID]bool
-		viewers map[uuid.UUID]map[uuid.UUID]*viewerInfo
-		anon    map[*Client]any
-		mu      sync.RWMutex
+		name         string
+		clients      map[uuid.UUID][]*Client
+		rooms        map[uuid.UUID]map[uuid.UUID]bool
+		viewers      map[uuid.UUID]map[uuid.UUID]*viewerInfo
+		anon         map[*Client]any
+		alwaysOnline map[uuid.UUID]struct{}
+		mu           sync.RWMutex
 	}
 )
 
@@ -132,11 +133,12 @@ func NewHub(name ...string) *Hub {
 	}
 
 	return &Hub{
-		name:    hubName,
-		clients: make(map[uuid.UUID][]*Client),
-		rooms:   make(map[uuid.UUID]map[uuid.UUID]bool),
-		viewers: make(map[uuid.UUID]map[uuid.UUID]*viewerInfo),
-		anon:    make(map[*Client]any),
+		name:         hubName,
+		clients:      make(map[uuid.UUID][]*Client),
+		rooms:        make(map[uuid.UUID]map[uuid.UUID]bool),
+		viewers:      make(map[uuid.UUID]map[uuid.UUID]*viewerInfo),
+		anon:         make(map[*Client]any),
+		alwaysOnline: make(map[uuid.UUID]struct{}),
 	}
 }
 
@@ -421,7 +423,33 @@ func (h *Hub) BumpSidebarActivity(key string) {
 func (h *Hub) IsOnline(userID uuid.UUID) bool {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
+
+	if _, always := h.alwaysOnline[userID]; always {
+		return true
+	}
+
 	return len(h.clients[userID]) > 0
+}
+
+func (h *Hub) IsAlwaysOnline(userID uuid.UUID) bool {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	_, always := h.alwaysOnline[userID]
+
+	return always
+}
+
+func (h *Hub) SetAlwaysOnline(userIDs []uuid.UUID) {
+	next := make(map[uuid.UUID]struct{}, len(userIDs))
+	for _, id := range userIDs {
+		next[id] = struct{}{}
+	}
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	h.alwaysOnline = next
 }
 
 func (h *Hub) OnlineCount() int {

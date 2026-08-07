@@ -24,7 +24,7 @@ export function EditJournalPage() {
     }
 
     const isOwner = user.id === journal.author.id;
-    if (!isOwner && !can(user.role, "edit_any_journal")) {
+    if (!isOwner && !can(user, "edit_any_journal")) {
         return <div className="empty-state">You can't edit this journal.</div>;
     }
 

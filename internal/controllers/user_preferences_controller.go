@@ -8,6 +8,7 @@ import (
 
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/middleware"
+	usersvc "umineko_city_of_books/internal/user"
 	"umineko_city_of_books/internal/usersecret"
 )
 
@@ -16,6 +17,7 @@ func (s *Service) getAllUserPreferencesRoutes() []FSetupRoute {
 		s.setupUpdateGameBoardSort,
 		s.setupUpdateAppearance,
 		s.setupUnlockSecret,
+		s.setupUpdateChatbotOptIn,
 	}
 }
 
@@ -29,6 +31,10 @@ func (s *Service) setupUpdateAppearance(r fiber.Router) {
 
 func (s *Service) setupUnlockSecret(r fiber.Router) {
 	r.Put("/preferences/secret-unlock", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.unlockSecret)
+}
+
+func (s *Service) setupUpdateChatbotOptIn(r fiber.Router) {
+	r.Put("/preferences/chatbot-opt-in", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.updateChatbotOptIn)
 }
 
 func (s *Service) updateGameBoardSort(ctx fiber.Ctx) error {
@@ -58,6 +64,26 @@ func (s *Service) updateAppearance(ctx fiber.Ctx) error {
 	if err := s.UserService.UpdateAppearance(ctx.Context(), userID, req.Theme, req.Font, req.WideLayout); err != nil {
 		return utils.InternalError(ctx, "failed to save")
 	}
+	return ctx.SendStatus(fiber.StatusNoContent)
+}
+
+func (s *Service) updateChatbotOptIn(ctx fiber.Ctx) error {
+	userID := utils.UserID(ctx)
+	var req struct {
+		OptedIn bool `json:"opted_in"`
+	}
+	if err := ctx.Bind().JSON(&req); err != nil {
+		return utils.BadRequest(ctx, "invalid request")
+	}
+
+	if err := s.UserService.SetChatbotOptIn(ctx.Context(), userID, req.OptedIn); err != nil {
+		if errors.Is(err, usersvc.ErrChatbotOptInUnavailable) {
+			return utils.Conflict(ctx, "character opt-in is not available right now")
+		}
+
+		return utils.InternalError(ctx, "failed to save", err)
+	}
+
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
 

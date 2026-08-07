@@ -69,9 +69,13 @@ func (s *voiceService) MintVoiceToken(ctx context.Context, roomID, userID uuid.U
 	}
 
 	displayName := s.displayNameFor(ctx, userID, roomID)
-	canMic := !s.isVoiceMuted(roomID.String(), userID)
 
-	token, err = s.livekitSvc.MintToken(roomID.String(), userID.String(), displayName, canMic, false)
+	forceMuted, err := s.chatRepo.IsVoiceForceMuted(ctx, roomID, userID)
+	if err != nil {
+		return "", "", fmt.Errorf("check voice force mute: %w", err)
+	}
+
+	token, err = s.livekitSvc.MintToken(roomID.String(), userID.String(), displayName, !forceMuted, false)
 	if err != nil {
 		return "", "", err
 	}
@@ -92,28 +96,31 @@ func (s *voiceService) ForceMuteVoice(ctx context.Context, roomID, actorID, targ
 		return ErrVoiceMuteForbidden
 	}
 
-	s.setVoiceMuted(roomID.String(), targetID, muted)
+	if err := s.chatRepo.SetVoiceForceMuted(ctx, roomID, targetID, actorID, muted); err != nil {
+		return fmt.Errorf("set voice force mute: %w", err)
+	}
 
 	return s.livekitSvc.SetCanPublish(ctx, roomID.String(), targetID.String(), !muted, false)
 }
 
-func (s *voiceService) reapplyForceMute(ctx context.Context, roomName, identity string, userID uuid.UUID, allowScreenShare bool) {
-	if !s.isVoiceMuted(roomName, userID) {
+func (s *voiceService) reapplyForceMute(ctx context.Context, roomID uuid.UUID, roomName string, userID uuid.UUID, allowScreenShare bool) {
+	forceMuted, err := s.chatRepo.IsVoiceForceMuted(ctx, roomID, userID)
+	if err != nil {
+		logger.Log.Warn().Err(err).Str("livekit_room", roomName).Str("identity", userID.String()).Msg("check force mute on rejoin failed")
+		return
+	}
+	if !forceMuted {
 		return
 	}
 
-	if err := s.livekitSvc.SetCanPublish(ctx, roomName, identity, false, allowScreenShare); err != nil {
-		logger.Log.Warn().Err(err).Str("livekit_room", roomName).Str("identity", identity).Msg("re-apply force mute on rejoin failed")
+	if err := s.livekitSvc.SetCanPublish(ctx, roomName, userID.String(), false, allowScreenShare); err != nil {
+		logger.Log.Warn().Err(err).Str("livekit_room", roomName).Str("identity", userID.String()).Msg("re-apply force mute on rejoin failed")
 	}
 }
 
 func (s *voiceService) reapplySessionForceMute(ctx context.Context, roomName, rawSessionID, identity string) {
 	userID, err := uuid.Parse(identity)
 	if err != nil {
-		return
-	}
-
-	if !s.isVoiceMuted(roomName, userID) {
 		return
 	}
 
@@ -129,7 +136,7 @@ func (s *voiceService) reapplySessionForceMute(ctx context.Context, roomName, ra
 
 	allowScreenShare := session.Type == watchPartyTypeScreenShare && session.StartedBy == userID
 
-	s.reapplyForceMute(ctx, roomName, identity, userID, allowScreenShare)
+	s.reapplyForceMute(ctx, sessionID, roomName, userID, allowScreenShare)
 }
 
 func (s *voiceService) assertDMNotBlocked(ctx context.Context, roomID, userID uuid.UUID) error {
@@ -178,7 +185,7 @@ func (s *voiceService) HandleVoiceWebhook(ctx context.Context, authHeader string
 		if err != nil {
 			return nil
 		}
-		s.reapplyForceMute(ctx, roomID.String(), event.Identity, userID, false)
+		s.reapplyForceMute(ctx, roomID, roomID.String(), userID, false)
 		s.addParticipant(roomID, userID)
 		s.postRoomActionMessage(ctx, roomID, userID, fmt.Sprintf("%s joined the voice chat.", s.displayNameFor(ctx, userID, roomID)))
 		s.broadcastVoicePresence(ctx, roomID)
@@ -194,7 +201,7 @@ func (s *voiceService) HandleVoiceWebhook(ctx context.Context, authHeader string
 
 	case livekit.EventRoomFinished:
 		s.clearRoom(roomID)
-		s.clearVoiceMuted(roomID.String())
+		s.clearVoiceMuted(ctx, roomID)
 		s.broadcastVoicePresence(ctx, roomID)
 	}
 

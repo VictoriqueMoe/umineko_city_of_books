@@ -174,10 +174,10 @@ export function FanficEditorPage() {
     }, [editData, availableLanguages]);
 
     useEffect(() => {
-        if (editData && editData.author.id !== user?.id && !can(user?.role, "edit_any_post")) {
+        if (editData && editData.author.id !== user?.id && !can(user, "edit_any_post")) {
             navigate(`/fanfiction/${editId}`);
         }
-    }, [editData, user?.id, user?.role, navigate, editId]);
+    }, [editData, user, navigate, editId]);
 
     const [step, setStep] = useState(1);
     const [titleDraft, setTitleDraft] = useState<string | null>(null);

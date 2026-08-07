@@ -218,6 +218,31 @@ describe("AttemptItem", () => {
         expect(screen.getByRole("button", { name: /△ 2/ })).toBeInTheDocument();
     });
 
+    it("re-syncs the score when a refreshed attempt arrives from the server", async () => {
+        // given
+        const { voteAsync } = stubMutations();
+        const user = userEvent.setup();
+        const { rerender } = renderAttempt({ viewer: bystander });
+        await user.click(screen.getByRole("button", { name: /△/ }));
+        expect(voteAsync).toHaveBeenCalledWith({ id: "attempt-1", value: 1 });
+
+        // when
+        rerender(
+            <AttemptItem
+                attempt={makeAttempt({ vote_score: 9, user_vote: 1 })}
+                mysteryId="mystery-1"
+                isAuthor={false}
+                onRefresh={vi.fn()}
+                mysterySolved={false}
+                mysteryPaused={false}
+                authorAlreadyWon={false}
+            />,
+        );
+
+        // then
+        expect(screen.getByRole("button", { name: /▲ 9/ })).toBeInTheDocument();
+    });
+
     it("puts the score back when the vote is rejected", async () => {
         // given
         stubMutations({ vote: () => Promise.reject(new Error("no")) });

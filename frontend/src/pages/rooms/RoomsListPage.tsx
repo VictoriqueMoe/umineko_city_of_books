@@ -5,8 +5,10 @@ import { usePageTitle } from "../../hooks/usePageTitle";
 import { useAuth } from "../../hooks/useAuth";
 import { useNotifications } from "../../hooks/useNotifications";
 import type { ChatRoom, WSMessage } from "../../types/api";
-import { getUserRooms, listMyChatRooms, listPublicChatRooms } from "../../api/endpoints";
+import { listMyChatRooms, listPublicChatRooms } from "../../api/endpoints";
 import { useJoinChatRoom } from "../../api/mutations/chat";
+import { useUserRooms } from "../../api/queries/chat";
+import { queryKeys } from "../../api/queryKeys";
 import { Button } from "../../components/Button/Button";
 import { ErrorBanner } from "../../components/ErrorBanner/ErrorBanner";
 import { Input } from "../../components/Input/Input";
@@ -135,11 +137,7 @@ export function RoomsListPage() {
             }),
     });
 
-    const systemRoomsQuery = useQuery({
-        queryKey: ["chat", "rooms", "user", "system"],
-        queryFn: () => getUserRooms(),
-        enabled: !!user,
-    });
+    const userRoomsQuery = useUserRooms(!!user);
 
     const hosted = {
         items: hostedQuery.data?.rooms ?? [],
@@ -156,7 +154,7 @@ export function RoomsListPage() {
         total: discoverQuery.data?.total ?? 0,
         loading: discoverQuery.isFetching,
     };
-    const systemRooms = (systemRoomsQuery.data?.rooms ?? []).filter(r => r.is_system);
+    const systemRooms = userRoomsQuery.rooms.filter(r => r.is_system);
 
     useEffect(() => {
         clearTimeout(debounceRef.current);
@@ -170,12 +168,12 @@ export function RoomsListPage() {
         return addWSListener((msg: WSMessage) => {
             if (msg.type === "chat_room_invited") {
                 qc.invalidateQueries({ queryKey: ["chat", "rooms-list", "joined"] });
-                qc.invalidateQueries({ queryKey: ["chat", "rooms", "user", "system"] });
+                qc.invalidateQueries({ queryKey: queryKeys.chat.userRooms() });
                 return;
             }
             if (msg.type === "chat_kicked" || msg.type === "chat_room_deleted") {
                 qc.invalidateQueries({ queryKey: ["chat", "rooms-list"] });
-                qc.invalidateQueries({ queryKey: ["chat", "rooms", "user", "system"] });
+                qc.invalidateQueries({ queryKey: queryKeys.chat.userRooms() });
                 return;
             }
             if (msg.type === "voice_presence") {

@@ -1,6 +1,7 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { queryKeys } from "../../api/queryKeys";
 import { makeUser } from "../../test-utils/fixtures";
 import { createTestQueryClient, renderWithProviders } from "../../test-utils/render";
 import type { ChatRoom, UserProfile, WSMessage } from "../../types/api";
@@ -17,6 +18,14 @@ vi.mock("../../api/endpoints", () => ({
     listMyChatRooms: mocks.listMyChatRooms,
     listPublicChatRooms: mocks.listPublicChatRooms,
     getUserRooms: mocks.getUserRooms,
+    getChatRoomMembers: vi.fn(),
+    getChatRoomPinnedMessages: vi.fn(),
+    getChatUnreadCount: vi.fn(),
+    getRoomMessages: vi.fn(),
+    getRoomMessagesBefore: vi.fn(),
+    listChatRoomBans: vi.fn(),
+    listChatRoomBannedWords: vi.fn(),
+    resolveDMRoom: vi.fn(),
 }));
 
 vi.mock("../../api/mutations/chat", () => ({
@@ -585,7 +594,7 @@ describe("RoomsListPage live updates", () => {
 
         // then
         expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["chat", "rooms-list", "joined"] });
-        expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["chat", "rooms", "user", "system"] });
+        expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: queryKeys.chat.userRooms() });
     });
 
     it("refreshes every list when the member is kicked", async () => {
@@ -599,6 +608,19 @@ describe("RoomsListPage live updates", () => {
 
         // then
         expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["chat", "rooms-list"] });
+        expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: queryKeys.chat.userRooms() });
+    });
+
+    it("reads the pinned rooms from the shared user rooms entry", async () => {
+        // given
+        stubLists({ system: [makeRoom({ id: "room-sys", name: "Staff Lounge", is_system: true })] });
+
+        // when
+        const { queryClient } = renderList();
+
+        // then
+        await screen.findByRole("link", { name: /Staff Lounge/ });
+        expect(queryClient.getQueryData(queryKeys.chat.userRooms())).toBeDefined();
     });
 
     it("refreshes the lists when voice presence changes", async () => {

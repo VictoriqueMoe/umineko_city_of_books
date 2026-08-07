@@ -3,6 +3,7 @@ package media
 import (
 	"context"
 	"io"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -84,8 +85,17 @@ func (u *Uploader) SaveAndRecord(
 			Callback: func(outputPath string) {
 				newURL := "/uploads/" + subDir + "/" + filepath.Base(outputPath)
 				if err := updateURL(context.Background(), rowID, newURL); err != nil {
-					logger.Log.Error().Err(err).Msg("failed to update video media url")
+					logger.Log.Error().Err(err).Int64("media_id", rowID).Msg("failed to update video media url, keeping the source file")
+
+					return
 				}
+
+				if outputPath != diskPath {
+					if err := os.Remove(diskPath); err != nil && !os.IsNotExist(err) {
+						logger.Log.Warn().Err(err).Str("path", diskPath).Msg("failed to remove source video after transcode")
+					}
+				}
+
 				thumbName, err := GenerateThumbnail(outputPath, filepath.Dir(outputPath), filepath.Base(outputPath))
 				if err != nil {
 					logger.Log.Error().Err(err).Msg("failed to generate video thumbnail")
@@ -95,6 +105,9 @@ func (u *Uploader) SaveAndRecord(
 				if err := updateThumb(context.Background(), rowID, thumbURL); err != nil {
 					logger.Log.Error().Err(err).Msg("failed to update video thumbnail url")
 				}
+			},
+			ErrorCallback: func(err error) {
+				logger.Log.Error().Err(err).Int64("media_id", rowID).Str("path", diskPath).Msg("video was not transcoded, media row still points at the raw upload")
 			},
 		})
 	}

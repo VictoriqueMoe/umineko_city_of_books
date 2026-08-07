@@ -3,7 +3,7 @@ package settings
 import (
 	"context"
 	"errors"
-	"sync"
+	"slices"
 	"testing"
 
 	"umineko_city_of_books/internal/config"
@@ -15,71 +15,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type recordedChange struct {
-	key   config.SiteSettingKey
-	value string
-}
-
-type fakeListener struct {
-	mu      sync.Mutex
-	changes []recordedChange
-}
-
-func (f *fakeListener) OnSettingChanged(key config.SiteSettingKey, value string) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.changes = append(f.changes, recordedChange{key: key, value: value})
-}
-
-func (f *fakeListener) snapshot() []recordedChange {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	out := make([]recordedChange, len(f.changes))
-	copy(out, f.changes)
-	return out
-}
-
-type fakeBatchListener struct {
-	mu          sync.Mutex
-	changes     []recordedChange
-	batches     [][]config.SiteSettingKey
-	batchCalled int
-}
-
-func (f *fakeBatchListener) OnSettingChanged(key config.SiteSettingKey, value string) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.changes = append(f.changes, recordedChange{key: key, value: value})
-}
-
-func (f *fakeBatchListener) OnSettingsBatchChanged(keys []config.SiteSettingKey) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.batchCalled++
-	cp := make([]config.SiteSettingKey, len(keys))
-	copy(cp, keys)
-	f.batches = append(f.batches, cp)
-}
-
-func (f *fakeBatchListener) batchCount() int {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	return f.batchCalled
-}
-
-func (f *fakeBatchListener) lastBatch() []config.SiteSettingKey {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if len(f.batches) == 0 {
-		return nil
-	}
-	return f.batches[len(f.batches)-1]
-}
-
 func newTestService(t *testing.T) (*service, *repository.MockSettingsRepository) {
 	repo := repository.NewMockSettingsRepository(t)
 	svc := NewService(repo, nil).(*service)
 	return svc, repo
+}
+
+func batchOfKeys(want ...config.SiteSettingKey) any {
+	return mock.MatchedBy(func(got []config.SiteSettingKey) bool {
+		if len(got) != len(want) {
+			return false
+		}
+
+		for _, key := range want {
+			if !slices.Contains(got, key) {
+				return false
+			}
+		}
+
+		return true
+	})
 }
 
 func primeValidCache(repo *repository.MockSettingsRepository) {
@@ -344,7 +299,8 @@ func TestSet_HappyPathUpdatesCacheAndNotifies(t *testing.T) {
 	// given
 	svc, repo := newTestService(t)
 	primeValidCache(repo)
-	listener := &fakeListener{}
+	listener := NewMockListener(t)
+	listener.EXPECT().OnSettingChanged(config.SettingSiteName.Key, "New Name").Once()
 	svc.Subscribe(listener)
 	updatedBy := uuid.New()
 
@@ -355,10 +311,7 @@ func TestSet_HappyPathUpdatesCacheAndNotifies(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	changes := listener.snapshot()
-	require.Len(t, changes, 1)
-	assert.Equal(t, config.SettingSiteName.Key, changes[0].key)
-	assert.Equal(t, "New Name", changes[0].value)
+	listener.AssertExpectations(t)
 }
 
 func TestSet_ValidationFailureSkipsRepo(t *testing.T) {
@@ -379,7 +332,7 @@ func TestSet_RepoErrorBubblesAndSkipsCache(t *testing.T) {
 	// given
 	svc, repo := newTestService(t)
 	primeValidCache(repo)
-	listener := &fakeListener{}
+	listener := NewMockListener(t)
 	svc.Subscribe(listener)
 	updatedBy := uuid.New()
 
@@ -391,15 +344,22 @@ func TestSet_RepoErrorBubblesAndSkipsCache(t *testing.T) {
 	// then
 	require.Error(t, err)
 	assert.EqualError(t, err, "db down")
-	assert.Empty(t, listener.snapshot())
+	listener.AssertNotCalled(t, "OnSettingChanged", mock.Anything, mock.Anything)
 }
 
 func TestSetMultiple_HappyPathNotifiesEachAndBatch(t *testing.T) {
 	// given
 	svc, repo := newTestService(t)
 	primeValidCache(repo)
-	listener := &fakeBatchListener{}
-	svc.Subscribe(listener)
+	plain := NewMockListener(t)
+	plain.EXPECT().OnSettingChanged(config.SettingSiteName.Key, "Multi Name").Once()
+	plain.EXPECT().OnSettingChanged(config.SettingMaintenanceMode.Key, "true").Once()
+
+	listener := NewMockBatchListener(t)
+	listener.EXPECT().OnSettingsBatchChanged(batchOfKeys(config.SettingSiteName.Key, config.SettingMaintenanceMode.Key)).Once()
+
+	svc.Subscribe(plain)
+	svc.SubscribeBatch(listener)
 	updatedBy := uuid.New()
 
 	values := map[config.SiteSettingKey]string{
@@ -418,18 +378,9 @@ func TestSetMultiple_HappyPathNotifiesEachAndBatch(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-
-	listener.mu.Lock()
-	gotChanges := len(listener.changes)
-	listener.mu.Unlock()
-	assert.Equal(t, 2, gotChanges)
-
-	assert.Equal(t, 1, listener.batchCount())
-	last := listener.lastBatch()
-	assert.ElementsMatch(t, []config.SiteSettingKey{
-		config.SettingSiteName.Key,
-		config.SettingMaintenanceMode.Key,
-	}, last)
+	plain.AssertExpectations(t)
+	listener.AssertExpectations(t)
+	listener.AssertNumberOfCalls(t, "OnSettingsBatchChanged", 1)
 }
 
 func TestSetMultiple_UnknownKeyRejected(t *testing.T) {
@@ -470,8 +421,10 @@ func TestSetMultiple_RepoErrorBubbles(t *testing.T) {
 	// given
 	svc, repo := newTestService(t)
 	primeValidCache(repo)
-	listener := &fakeBatchListener{}
-	svc.Subscribe(listener)
+	plain := NewMockListener(t)
+	listener := NewMockBatchListener(t)
+	svc.Subscribe(plain)
+	svc.SubscribeBatch(listener)
 	updatedBy := uuid.New()
 	values := map[config.SiteSettingKey]string{
 		config.SettingSiteName.Key: "X",
@@ -485,15 +438,18 @@ func TestSetMultiple_RepoErrorBubbles(t *testing.T) {
 	// then
 	require.Error(t, err)
 	assert.EqualError(t, err, "boom")
-	assert.Equal(t, 0, listener.batchCount())
+	plain.AssertNotCalled(t, "OnSettingChanged", mock.Anything, mock.Anything)
+	listener.AssertNotCalled(t, "OnSettingsBatchChanged", mock.Anything)
 }
 
 func TestSubscribe_MultipleListenersAllNotified(t *testing.T) {
 	// given
 	svc, repo := newTestService(t)
 	primeValidCache(repo)
-	l1 := &fakeListener{}
-	l2 := &fakeListener{}
+	l1 := NewMockListener(t)
+	l2 := NewMockListener(t)
+	l1.EXPECT().OnSettingChanged(config.SettingSiteName.Key, "Hello").Once()
+	l2.EXPECT().OnSettingChanged(config.SettingSiteName.Key, "Hello").Once()
 	svc.Subscribe(l1)
 	svc.Subscribe(l2)
 	updatedBy := uuid.New()
@@ -505,18 +461,22 @@ func TestSubscribe_MultipleListenersAllNotified(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	assert.Len(t, l1.snapshot(), 1)
-	assert.Len(t, l2.snapshot(), 1)
+	l1.AssertExpectations(t)
+	l2.AssertExpectations(t)
 }
 
 func TestSubscribe_NonBatchListenerDoesNotReceiveBatch(t *testing.T) {
 	// given
 	svc, repo := newTestService(t)
 	primeValidCache(repo)
-	plain := &fakeListener{}
-	batch := &fakeBatchListener{}
+	plain := NewMockListener(t)
+	plain.EXPECT().OnSettingChanged(config.SettingSiteName.Key, "Batched").Once()
+
+	batch := NewMockBatchListener(t)
+	batch.EXPECT().OnSettingsBatchChanged(batchOfKeys(config.SettingSiteName.Key)).Once()
+
 	svc.Subscribe(plain)
-	svc.Subscribe(batch)
+	svc.SubscribeBatch(batch)
 	updatedBy := uuid.New()
 
 	values := map[config.SiteSettingKey]string{
@@ -530,8 +490,10 @@ func TestSubscribe_NonBatchListenerDoesNotReceiveBatch(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	assert.Len(t, plain.snapshot(), 1)
-	assert.Equal(t, 1, batch.batchCount())
+	plain.AssertExpectations(t)
+	plain.AssertNumberOfCalls(t, "OnSettingChanged", 1)
+	batch.AssertExpectations(t)
+	batch.AssertNumberOfCalls(t, "OnSettingsBatchChanged", 1)
 }
 
 func TestSet_RejectsValueThatDoesNotMatchSettingType(t *testing.T) {

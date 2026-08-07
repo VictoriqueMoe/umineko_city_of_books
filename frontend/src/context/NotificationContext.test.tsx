@@ -159,6 +159,7 @@ beforeEach(() => {
 
 afterEach(() => {
     captured = null;
+    vi.restoreAllMocks();
     Reflect.deleteProperty(document, "visibilityState");
 });
 
@@ -465,7 +466,7 @@ describe("NotificationProvider", () => {
 
         // then
         const [key, updater] = setQueryData.mock.calls[0];
-        expect(key).toEqual(["game-rooms", "live"]);
+        expect(key).toEqual(queryKeys.gameRoom.live());
         expect((updater as unknown as (prev: unknown) => unknown)(undefined)).toEqual({ rooms: [], total: 3 });
     });
 
@@ -654,6 +655,7 @@ describe("NotificationProvider", () => {
     it("reconnects with a growing backoff after the connection drops", () => {
         // given
         vi.useFakeTimers();
+        vi.spyOn(Math, "random").mockReturnValue(1);
         renderProvider();
         openSocket();
 
@@ -680,6 +682,44 @@ describe("NotificationProvider", () => {
             vi.advanceTimersByTime(1000);
         });
         expect(FakeWebSocket.instances).toHaveLength(3);
+    });
+
+    it("spreads the reconnect across the backoff window instead of retrying in lockstep", () => {
+        // given
+        vi.useFakeTimers();
+        vi.spyOn(Math, "random").mockReturnValue(0);
+        renderProvider();
+        openSocket();
+
+        // when
+        act(() => {
+            lastSocket().onclose?.();
+        });
+        act(() => {
+            vi.advanceTimersByTime(0);
+        });
+
+        // then
+        expect(FakeWebSocket.instances).toHaveLength(2);
+    });
+
+    it("never waits longer than the backoff cap", () => {
+        // given
+        vi.useFakeTimers();
+        vi.spyOn(Math, "random").mockReturnValue(0.999);
+        renderProvider();
+        openSocket();
+
+        // when
+        act(() => {
+            lastSocket().onclose?.();
+        });
+        act(() => {
+            vi.advanceTimersByTime(1000);
+        });
+
+        // then
+        expect(FakeWebSocket.instances).toHaveLength(2);
     });
 
     it("ignores a late close from a socket that has already been replaced", () => {

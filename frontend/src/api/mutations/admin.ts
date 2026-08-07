@@ -1,14 +1,17 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import type { QueryClient } from "@tanstack/react-query";
 import {
     addBannedGif,
     adminDeleteUser,
     assignVanityRole,
     banUser,
     createAnnouncement,
+    createChatbot,
     createGlobalBannedWord,
     createInvite,
     createVanityRole,
     deleteAnnouncement,
+    deleteChatbot,
     deleteGlobalBannedWord,
     deleteInvite,
     deleteVanityRole,
@@ -24,20 +27,24 @@ import {
     setUserDisplayName,
     setUserEmail,
     setUserRole,
+    testChatbotModel,
     unassignVanityRole,
     unbanUser,
     unlockUser,
     unverifyUserEmail,
     updateAdminSettings,
     updateAnnouncement,
+    updateChatbot,
     updateDetectiveScore,
     updateGlobalBannedWord,
     updateGMScore,
+    updateRolePermissions,
     updateVanityRole,
+    updateVanityRolePermissions,
     uploadOGDefaultImage,
     verifyUserEmail,
 } from "../endpoints";
-import type { CreateBannedWordRequest, SiteSettings } from "../../types/api";
+import type { ChatbotPayload, CreateBannedWordRequest, SiteSettings } from "../../types/api";
 import { queryKeys } from "../queryKeys";
 
 export function useSetUserRole() {
@@ -176,6 +183,7 @@ export function useUpdateAdminSettings() {
         mutationFn: (settings: SiteSettings) => updateAdminSettings(settings),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ["admin", "settings"] });
+            qc.invalidateQueries({ queryKey: queryKeys.admin.chatbotModels() });
             qc.invalidateQueries({ queryKey: ["site-info"] });
         },
     });
@@ -303,11 +311,18 @@ export function usePinAnnouncement() {
     });
 }
 
+async function invalidateVanityRoleViews(qc: QueryClient) {
+    await Promise.all([
+        qc.invalidateQueries({ queryKey: queryKeys.admin.vanityRoles() }),
+        qc.invalidateQueries({ queryKey: queryKeys.admin.permissions() }),
+    ]);
+}
+
 export function useCreateVanityRole() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (data: { label: string; color: string; sort_order: number }) => createVanityRole(data),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.admin.vanityRoles() }),
+        onSuccess: () => invalidateVanityRoleViews(qc),
     });
 }
 
@@ -316,7 +331,7 @@ export function useUpdateVanityRole() {
     return useMutation({
         mutationFn: ({ id, data }: { id: string; data: { label: string; color: string; sort_order: number } }) =>
             updateVanityRole(id, data),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.admin.vanityRoles() }),
+        onSuccess: () => invalidateVanityRoleViews(qc),
     });
 }
 
@@ -324,7 +339,55 @@ export function useDeleteVanityRole() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (id: string) => deleteVanityRole(id),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.admin.vanityRoles() }),
+        onSuccess: () => invalidateVanityRoleViews(qc),
+    });
+}
+
+export function useUpdateRolePermissions() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: ({ role, permissions }: { role: string; permissions: string[] }) =>
+            updateRolePermissions(role, permissions),
+        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.admin.permissions() }),
+    });
+}
+
+export function useUpdateVanityRolePermissions() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: ({ id, permissions }: { id: string; permissions: string[] }) =>
+            updateVanityRolePermissions(id, permissions),
+        onSuccess: () => invalidateVanityRoleViews(qc),
+    });
+}
+
+export function useCreateChatbot() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (data: ChatbotPayload) => createChatbot(data),
+        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.admin.chatbots() }),
+    });
+}
+
+export function useUpdateChatbot() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: ({ id, data }: { id: string; data: ChatbotPayload }) => updateChatbot(id, data),
+        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.admin.chatbots() }),
+    });
+}
+
+export function useDeleteChatbot() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (id: string) => deleteChatbot(id),
+        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.admin.chatbots() }),
+    });
+}
+
+export function useTestChatbotModel() {
+    return useMutation({
+        mutationFn: (model: string) => testChatbotModel(model),
     });
 }
 

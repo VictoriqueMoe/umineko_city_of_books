@@ -6,11 +6,15 @@ import {
     getAdminUsers,
     getAuditLog,
     getBannedGifs,
+    getChatbotModels,
+    getChatbotUsage,
+    getChatbots,
     getInvites,
     getReports,
     getUserAuditLog,
     getUserIPMatches,
     getVanityRoleUsers,
+    getAdminPermissions,
     getVanityRoles,
     listAnnouncements,
     listGlobalBannedWords,
@@ -147,6 +151,56 @@ export function useVanityRoles() {
         queryFn: () => getVanityRoles(),
     });
     return { roles: query.data ?? [], loading: query.isLoading, refresh: query.refetch };
+}
+
+export function useAdminPermissions(enabled = true) {
+    const query = useQuery({
+        queryKey: queryKeys.admin.permissions(),
+        queryFn: () => getAdminPermissions(),
+        enabled,
+    });
+    return {
+        catalogue: query.data?.permissions ?? [],
+        roles: query.data?.roles ?? [],
+        vanityRoles: query.data?.vanity_roles ?? [],
+        loading: enabled && query.isLoading,
+        refresh: query.refetch,
+    };
+}
+
+export function useChatbots() {
+    const query = useQuery({
+        queryKey: queryKeys.admin.chatbots(),
+        queryFn: () => getChatbots(),
+    });
+    return { bots: query.data ?? [], loading: query.isLoading, refresh: query.refetch };
+}
+
+export function useChatbotUsage(days: number) {
+    const query = useQuery({
+        queryKey: queryKeys.admin.chatbotUsage(days),
+        queryFn: () => getChatbotUsage(days),
+    });
+    return { usage: query.data ?? null, loading: query.isLoading, refresh: query.refetch };
+}
+
+export function useChatbotModels() {
+    const query = useQuery({
+        queryKey: queryKeys.admin.chatbotModels(),
+        queryFn: () => getChatbotModels(),
+        staleTime: 5 * 60_000,
+    });
+
+    function refresh() {
+        query.refetch().catch(() => undefined);
+    }
+
+    return {
+        models: query.data?.models ?? [],
+        modelsError: query.data?.error ?? "",
+        loading: query.isLoading,
+        refresh,
+    };
 }
 
 export function useVanityRoleUsers(id: string, search: string, limit: number, offset: number) {

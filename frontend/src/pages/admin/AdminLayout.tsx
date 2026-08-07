@@ -9,9 +9,7 @@ export function AdminLayout() {
     return (
         <div className={styles.layout}>
             <div className={styles.header}>
-                <h2 className={styles.title}>
-                    {can(user?.role, "manage_settings") ? "Administration" : "Moderator Panel"}
-                </h2>
+                <h2 className={styles.title}>{can(user, "manage_settings") ? "Administration" : "Moderator Panel"}</h2>
                 <nav className={styles.tabs}>
                     <NavLink
                         to="/admin"
@@ -20,7 +18,7 @@ export function AdminLayout() {
                     >
                         Dashboard
                     </NavLink>
-                    {can(user?.role, "view_users") && (
+                    {can(user, "view_users") && (
                         <NavLink
                             to="/admin/users"
                             className={({ isActive }) => `${styles.tab}${isActive ? ` ${styles.tabActive}` : ""}`}
@@ -28,7 +26,7 @@ export function AdminLayout() {
                             Users
                         </NavLink>
                     )}
-                    {can(user?.role, "view_users") && (
+                    {can(user, "view_users") && (
                         <NavLink
                             to="/admin/reports"
                             className={({ isActive }) => `${styles.tab}${isActive ? ` ${styles.tabActive}` : ""}`}
@@ -36,7 +34,7 @@ export function AdminLayout() {
                             Reports
                         </NavLink>
                     )}
-                    {can(user?.role, "manage_roles") && (
+                    {can(user, "manage_roles") && (
                         <NavLink
                             to="/admin/invites"
                             className={({ isActive }) => `${styles.tab}${isActive ? ` ${styles.tabActive}` : ""}`}
@@ -44,7 +42,7 @@ export function AdminLayout() {
                             Invites
                         </NavLink>
                     )}
-                    {can(user?.role, "manage_settings") && (
+                    {can(user, "manage_settings") && (
                         <NavLink
                             to="/admin/content-rules"
                             className={({ isActive }) => `${styles.tab}${isActive ? ` ${styles.tabActive}` : ""}`}
@@ -52,7 +50,7 @@ export function AdminLayout() {
                             Content Rules
                         </NavLink>
                     )}
-                    {can(user?.role, "manage_settings") && (
+                    {can(user, "manage_settings") && (
                         <NavLink
                             to="/admin/rules"
                             className={({ isActive }) => `${styles.tab}${isActive ? ` ${styles.tabActive}` : ""}`}
@@ -60,7 +58,7 @@ export function AdminLayout() {
                             Rules Page
                         </NavLink>
                     )}
-                    {can(user?.role, "manage_settings") && (
+                    {can(user, "manage_settings") && (
                         <NavLink
                             to="/admin/banned-gifs"
                             className={({ isActive }) => `${styles.tab}${isActive ? ` ${styles.tabActive}` : ""}`}
@@ -68,7 +66,7 @@ export function AdminLayout() {
                             Banned GIFs
                         </NavLink>
                     )}
-                    {can(user?.role, "manage_banned_words") && (
+                    {can(user, "manage_banned_words") && (
                         <NavLink
                             to="/admin/banned-words"
                             className={({ isActive }) => `${styles.tab}${isActive ? ` ${styles.tabActive}` : ""}`}
@@ -76,7 +74,7 @@ export function AdminLayout() {
                             Banned Words
                         </NavLink>
                     )}
-                    {can(user?.role, "manage_settings") && (
+                    {can(user, "manage_settings") && (
                         <NavLink
                             to="/admin/announcements"
                             className={({ isActive }) => `${styles.tab}${isActive ? ` ${styles.tabActive}` : ""}`}
@@ -84,7 +82,7 @@ export function AdminLayout() {
                             Announcements
                         </NavLink>
                     )}
-                    {can(user?.role, "manage_settings") && (
+                    {can(user, "manage_settings") && (
                         <NavLink
                             to="/admin/settings"
                             className={({ isActive }) => `${styles.tab}${isActive ? ` ${styles.tabActive}` : ""}`}
@@ -92,7 +90,7 @@ export function AdminLayout() {
                             Settings
                         </NavLink>
                     )}
-                    {can(user?.role, "manage_vanity_roles") && (
+                    {can(user, "manage_vanity_roles") && (
                         <NavLink
                             to="/admin/vanity-roles"
                             className={({ isActive }) => `${styles.tab}${isActive ? ` ${styles.tabActive}` : ""}`}
@@ -100,7 +98,23 @@ export function AdminLayout() {
                             Vanity Roles
                         </NavLink>
                     )}
-                    {can(user?.role, "view_audit_log") && (
+                    {can(user, "manage_roles") && (
+                        <NavLink
+                            to="/admin/permissions"
+                            className={({ isActive }) => `${styles.tab}${isActive ? ` ${styles.tabActive}` : ""}`}
+                        >
+                            Permissions
+                        </NavLink>
+                    )}
+                    {can(user, "manage_settings") && (
+                        <NavLink
+                            to="/admin/chatbots"
+                            className={({ isActive }) => `${styles.tab}${isActive ? ` ${styles.tabActive}` : ""}`}
+                        >
+                            Chatbots
+                        </NavLink>
+                    )}
+                    {can(user, "view_audit_log") && (
                         <NavLink
                             to="/admin/audit-log"
                             className={({ isActive }) => `${styles.tab}${isActive ? ` ${styles.tabActive}` : ""}`}

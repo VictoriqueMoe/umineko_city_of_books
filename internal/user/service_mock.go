@@ -382,6 +382,72 @@ func (_c *MockService_GetGMRawScore_Call) RunAndReturn(run func(ctx context.Cont
 	return _c
 }
 
+// IsChatbotOptedIn provides a mock function for the type MockService
+func (_mock *MockService) IsChatbotOptedIn(ctx context.Context, id uuid.UUID) (bool, error) {
+	ret := _mock.Called(ctx, id)
+
+	if len(ret) == 0 {
+		panic("no return value specified for IsChatbotOptedIn")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (bool, error)); ok {
+		return returnFunc(ctx, id)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) bool); ok {
+		r0 = returnFunc(ctx, id)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, id)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_IsChatbotOptedIn_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IsChatbotOptedIn'
+type MockService_IsChatbotOptedIn_Call struct {
+	*mock.Call
+}
+
+// IsChatbotOptedIn is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id uuid.UUID
+func (_e *MockService_Expecter) IsChatbotOptedIn(ctx any, id any) *MockService_IsChatbotOptedIn_Call {
+	return &MockService_IsChatbotOptedIn_Call{Call: _e.mock.On("IsChatbotOptedIn", ctx, id)}
+}
+
+func (_c *MockService_IsChatbotOptedIn_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockService_IsChatbotOptedIn_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_IsChatbotOptedIn_Call) Return(b bool, err error) *MockService_IsChatbotOptedIn_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *MockService_IsChatbotOptedIn_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) (bool, error)) *MockService_IsChatbotOptedIn_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListStaff provides a mock function for the type MockService
 func (_mock *MockService) ListStaff(ctx context.Context) ([]*dto.UserResponse, error) {
 	ret := _mock.Called(ctx)
@@ -440,6 +506,69 @@ func (_c *MockService_ListStaff_Call) Return(userResponses []*dto.UserResponse, 
 }
 
 func (_c *MockService_ListStaff_Call) RunAndReturn(run func(ctx context.Context) ([]*dto.UserResponse, error)) *MockService_ListStaff_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SetChatbotOptIn provides a mock function for the type MockService
+func (_mock *MockService) SetChatbotOptIn(ctx context.Context, id uuid.UUID, optIn bool) error {
+	ret := _mock.Called(ctx, id, optIn)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetChatbotOptIn")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, bool) error); ok {
+		r0 = returnFunc(ctx, id, optIn)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_SetChatbotOptIn_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetChatbotOptIn'
+type MockService_SetChatbotOptIn_Call struct {
+	*mock.Call
+}
+
+// SetChatbotOptIn is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id uuid.UUID
+//   - optIn bool
+func (_e *MockService_Expecter) SetChatbotOptIn(ctx any, id any, optIn any) *MockService_SetChatbotOptIn_Call {
+	return &MockService_SetChatbotOptIn_Call{Call: _e.mock.On("SetChatbotOptIn", ctx, id, optIn)}
+}
+
+func (_c *MockService_SetChatbotOptIn_Call) Run(run func(ctx context.Context, id uuid.UUID, optIn bool)) *MockService_SetChatbotOptIn_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 bool
+		if args[2] != nil {
+			arg2 = args[2].(bool)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_SetChatbotOptIn_Call) Return(err error) *MockService_SetChatbotOptIn_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_SetChatbotOptIn_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, optIn bool) error) *MockService_SetChatbotOptIn_Call {
 	_c.Call.Return(run)
 	return _c
 }

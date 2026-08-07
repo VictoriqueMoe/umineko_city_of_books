@@ -118,6 +118,7 @@ func TestMintVoiceToken_HappyPath(t *testing.T) {
 
 	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, userID).Return(&repository.ChatRoomRow{ID: roomID, Type: "group"}, nil)
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
+	m.chatRepo.EXPECT().IsVoiceForceMuted(mock.Anything, roomID, userID).Return(false, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(sampleUser(userID), nil)
 
 	// when
@@ -133,6 +134,75 @@ func TestMintVoiceToken_HappyPath(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, userID.String(), verifier.Identity())
 	assert.Equal(t, roomID.String(), grants.Video.Room)
+}
+
+func TestMintVoiceToken_ForceMuteSurvivesRestart(t *testing.T) {
+	tests := []struct {
+		name           string
+		stored         bool
+		wantCanPublish bool
+	}{
+		{name: "not force muted", stored: false, wantCanPublish: true},
+		{name: "force muted in store", stored: true, wantCanPublish: false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given a fresh process whose only knowledge of the mute is the store
+			svc, m := newTestService(t)
+			expectVoiceConfigured(m, true)
+			roomID := uuid.New()
+			userID := uuid.New()
+
+			m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, userID).Return(&repository.ChatRoomRow{ID: roomID, Type: "group"}, nil)
+			m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
+			m.chatRepo.EXPECT().IsVoiceForceMuted(mock.Anything, roomID, userID).Return(tc.stored, nil)
+			m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(sampleUser(userID), nil)
+
+			// when
+			token, _, err := svc.MintVoiceToken(context.Background(), roomID, userID)
+
+			// then
+			require.NoError(t, err)
+
+			verifier, err := auth.ParseAPIToken(token)
+			require.NoError(t, err)
+			_, grants, err := verifier.Verify(voiceTestSecret)
+			require.NoError(t, err)
+			require.NotNil(t, grants.Video.CanPublish)
+			assert.Equal(t, tc.wantCanPublish, *grants.Video.CanPublish)
+		})
+	}
+}
+
+func TestForceMuteVoice_PersistsBeforeLiveKit(t *testing.T) {
+	// given a moderator muting a participant
+	settingsSvc := settings.NewMockService(t)
+	settingsSvc.EXPECT().GetBool(mock.Anything, config.SettingVoiceEnabled).Return(true).Maybe()
+	lk := livekit.NewMockService(t)
+	lk.EXPECT().Enabled().Return(true).Maybe()
+	chatRepo := repository.NewMockChatRepository(t)
+	vs := newVoiceService(&core{chatRepo: chatRepo, settingsSvc: settingsSvc, livekitSvc: lk})
+
+	roomID := uuid.New()
+	actorID := uuid.New()
+	targetID := uuid.New()
+
+	var order []string
+	chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, actorID).Return("host", nil)
+	chatRepo.EXPECT().SetVoiceForceMuted(mock.Anything, roomID, targetID, actorID, true).
+		Run(func(ctx context.Context, a, b, c uuid.UUID, muted bool) { order = append(order, "persist") }).Return(nil)
+	lk.EXPECT().SetCanPublish(mock.Anything, roomID.String(), targetID.String(), false, false).
+		Run(func(ctx context.Context, room, identity string, canPublish, allowScreenShare bool) {
+			order = append(order, "livekit")
+		}).Return(nil)
+
+	// when
+	err := vs.ForceMuteVoice(context.Background(), roomID, actorID, targetID, true)
+
+	// then the mute is durable, and stored before livekit so a livekit failure cannot lose it
+	require.NoError(t, err)
+	assert.Equal(t, []string{"persist", "livekit"}, order)
 }
 
 func TestMintVoiceToken_DMBlocked(t *testing.T) {
@@ -208,6 +278,7 @@ func TestHandleVoiceWebhook_UpdatesPresence(t *testing.T) {
 	userID := uuid.New()
 
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return([]uuid.UUID{userID}, nil)
+	m.chatRepo.EXPECT().IsVoiceForceMuted(mock.Anything, roomID, userID).Return(false, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(sampleUser(userID), nil).Maybe()
 	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, mock.Anything, roomID, userID, mock.Anything).Return(nil)
 	m.chatRepo.EXPECT().GetMessageByID(mock.Anything, mock.Anything).Return(nil, nil)

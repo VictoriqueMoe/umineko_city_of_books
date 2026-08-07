@@ -21,7 +21,7 @@ export function useMyGameRooms(params?: { game_type?: GameType; status?: GameSta
 
 export function useLiveGameRooms(gameType?: GameType) {
     const q = useQuery({
-        queryKey: gameType ? ["game-rooms", "live", gameType] : ["game-rooms", "live"],
+        queryKey: queryKeys.gameRoom.live(gameType),
         queryFn: () => api.listLiveGameRooms(gameType),
     });
     return {
@@ -35,7 +35,7 @@ export function useLiveGameRooms(gameType?: GameType) {
 
 export function useFinishedGameRooms(gameType?: GameType, limit = 20, offset = 0) {
     const q = useQuery({
-        queryKey: ["game-rooms", "finished", gameType ?? "", { limit, offset }],
+        queryKey: queryKeys.gameRoom.finished(gameType ?? "", { limit, offset }),
         queryFn: () => api.listFinishedGameRooms(gameType, limit, offset),
     });
     return { rooms: q.data?.rooms ?? [], total: q.data?.total ?? 0, loading: q.isLoading };
@@ -43,7 +43,7 @@ export function useFinishedGameRooms(gameType?: GameType, limit = 20, offset = 0
 
 export function useGameScoreboard(gameType: GameType | undefined) {
     const q = useQuery({
-        queryKey: ["game-rooms", "scoreboard", gameType ?? ""],
+        queryKey: queryKeys.gameRoom.scoreboard(gameType ?? ""),
         queryFn: () => api.getGameScoreboard(gameType!),
         enabled: !!gameType,
     });

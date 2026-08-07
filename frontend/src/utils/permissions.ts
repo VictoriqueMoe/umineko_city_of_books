@@ -35,7 +35,8 @@ export type Permission =
     | "reset_password"
     | "manage_user_account"
     | "manage_user_email"
-    | "set_email_verified";
+    | "set_email_verified"
+    | "use_chatbot";
 
 const rolePermissions: Record<string, Permission[]> = {
     super_admin: [
@@ -64,6 +65,7 @@ const rolePermissions: Record<string, Permission[]> = {
         "manage_user_account",
         "manage_user_email",
         "set_email_verified",
+        "use_chatbot",
     ],
     admin: [
         "delete_any_theory",
@@ -91,6 +93,7 @@ const rolePermissions: Record<string, Permission[]> = {
         "manage_user_account",
         "manage_user_email",
         "set_email_verified",
+        "use_chatbot",
     ],
     moderator: [
         "delete_any_theory",
@@ -108,16 +111,37 @@ const rolePermissions: Record<string, Permission[]> = {
         "edit_any_journal",
         "delete_any_journal",
         "manage_user_account",
+        "use_chatbot",
     ],
 };
 
-export function can(role: SiteRole | undefined, perm: Permission): boolean {
-    if (!role) {
-        return false;
-    }
-    return rolePermissions[role]?.includes(perm) ?? false;
+export interface PermissionSubject {
+    role?: SiteRole | null;
+    permissions?: string[] | null;
 }
 
-export function canAccessAdmin(role: SiteRole | undefined): boolean {
-    return can(role, "view_admin_panel");
+export type CanSubject = SiteRole | PermissionSubject | undefined | null;
+
+export function can(subject: CanSubject, perm: Permission): boolean {
+    if (!subject) {
+        return false;
+    }
+
+    if (typeof subject === "string") {
+        return rolePermissions[subject]?.includes(perm) ?? false;
+    }
+
+    if (subject.permissions) {
+        return subject.permissions.includes(perm);
+    }
+
+    if (!subject.role) {
+        return false;
+    }
+
+    return rolePermissions[subject.role]?.includes(perm) ?? false;
+}
+
+export function canAccessAdmin(subject: CanSubject): boolean {
+    return can(subject, "view_admin_panel");
 }

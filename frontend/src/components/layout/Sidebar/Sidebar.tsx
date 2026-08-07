@@ -5,6 +5,7 @@ import { useNotifications } from "../../../hooks/useNotifications";
 import { useSiteInfo } from "../../../hooks/useSiteInfo";
 import { useSidebarBadges } from "../../../hooks/useSidebarBadges";
 import { useArtCornerCounts, useCornerCounts } from "../../../api/queries/misc";
+import { useChatbotList } from "../../../api/queries/chatbot";
 import { can, canAccessAdmin } from "../../../utils/permissions";
 import { PieceTrigger } from "../../../features/easterEgg";
 import { AppVersionInfo } from "../../AppVersionInfo/AppVersionInfo";
@@ -73,6 +74,7 @@ export function Sidebar({ open, onClose, onCollapse }: SidebarProps) {
     const autoTheoriesOpen = location.pathname.startsWith("/theor");
     const autoNewTheoryOpen = isNewTheoryPath;
     const autoGamesOpen = location.pathname.startsWith("/games");
+    const { chatbots } = useChatbotList();
     const [overrides, setOverrides] = useState<{
         path: string;
         corners: boolean | null;
@@ -81,6 +83,7 @@ export function Sidebar({ open, onClose, onCollapse }: SidebarProps) {
         theories: boolean | null;
         newTheory: boolean | null;
         games: boolean | null;
+        chatbots: boolean | null;
     }>(() => ({
         path: location.pathname,
         corners: null,
@@ -89,6 +92,7 @@ export function Sidebar({ open, onClose, onCollapse }: SidebarProps) {
         theories: null,
         newTheory: null,
         games: null,
+        chatbots: null,
     }));
     const effectiveOverrides =
         overrides.path === location.pathname
@@ -101,6 +105,7 @@ export function Sidebar({ open, onClose, onCollapse }: SidebarProps) {
                   theories: null,
                   newTheory: null,
                   games: null,
+                  chatbots: null,
               };
     const cornersOpen = effectiveOverrides.corners ?? autoCornersOpen;
     const ryukishiOpen = effectiveOverrides.ryukishi ?? autoRyukishiOpen;
@@ -108,8 +113,9 @@ export function Sidebar({ open, onClose, onCollapse }: SidebarProps) {
     const theoriesOpen = effectiveOverrides.theories ?? autoTheoriesOpen;
     const newTheoryOpen = effectiveOverrides.newTheory ?? autoNewTheoryOpen;
     const gamesOpen = effectiveOverrides.games ?? autoGamesOpen;
+    const chatbotsOpen = effectiveOverrides.chatbots ?? false;
     const setOverride = (
-        key: "corners" | "ryukishi" | "gallery" | "theories" | "newTheory" | "games",
+        key: "corners" | "ryukishi" | "gallery" | "theories" | "newTheory" | "games" | "chatbots",
         value: boolean,
     ) => {
         setOverrides(prev => {
@@ -124,6 +130,7 @@ export function Sidebar({ open, onClose, onCollapse }: SidebarProps) {
                           theories: null,
                           newTheory: null,
                           games: null,
+                          chatbots: null,
                       };
             return { ...base, [key]: value };
         });
@@ -493,6 +500,33 @@ export function Sidebar({ open, onClose, onCollapse }: SidebarProps) {
                                 ))}
                             </div>
                         )}
+                        {chatbots.length > 0 && (
+                            <>
+                                <button
+                                    className={`${styles.link} ${styles.expandBtn}${chatbotsOpen ? ` ${styles.expandOpen}` : ""}`}
+                                    onClick={() => setOverride("chatbots", !chatbotsOpen)}
+                                >
+                                    Chatbots
+                                    <span className={styles.expandIcon}>{chatbotsOpen ? "▴" : "▾"}</span>
+                                </button>
+                                {chatbotsOpen && (
+                                    <div className={styles.subLinks}>
+                                        {chatbots.map(bot => (
+                                            <NavLink
+                                                key={bot.user_id}
+                                                to={`/user/${bot.username}`}
+                                                className={({ isActive }) =>
+                                                    `${styles.link} ${styles.subLink}${isActive ? ` ${styles.active}` : ""}`
+                                                }
+                                                onClick={onClose}
+                                            >
+                                                {bot.display_name}
+                                            </NavLink>
+                                        ))}
+                                    </div>
+                                )}
+                            </>
+                        )}
                         <NavLink
                             to="/users"
                             className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
@@ -614,17 +648,17 @@ export function Sidebar({ open, onClose, onCollapse }: SidebarProps) {
                         </div>
                     )}
 
-                    {canAccessAdmin(user?.role) && (
+                    {canAccessAdmin(user) && (
                         <div className={styles.section}>
                             <span className={styles.sectionLabel}>
-                                {can(user?.role, "manage_settings") ? "Admin" : "Moderation"}
+                                {can(user, "manage_settings") ? "Admin" : "Moderation"}
                             </span>
                             <NavLink
                                 to="/admin"
                                 className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
                                 onClick={onClose}
                             >
-                                {can(user?.role, "manage_settings") ? "Admin Panel" : "Moderator Panel"}
+                                {can(user, "manage_settings") ? "Admin Panel" : "Moderator Panel"}
                             </NavLink>
                         </div>
                     )}

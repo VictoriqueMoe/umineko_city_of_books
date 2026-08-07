@@ -3,6 +3,8 @@ package chat
 import (
 	"testing"
 
+	"umineko_city_of_books/internal/social"
+
 	"github.com/stretchr/testify/assert"
 )
 
@@ -25,7 +27,7 @@ func TestMentionRegex_IgnoresEmailAddresses(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			matches := mentionRegex.FindAllStringSubmatch(tc.body, -1)
+			matches := social.MentionRegex.FindAllStringSubmatch(tc.body, -1)
 
 			// when
 			var got []string

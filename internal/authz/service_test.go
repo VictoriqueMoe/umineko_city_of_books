@@ -13,18 +13,38 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newTestService(t *testing.T) (*service, *repository.MockRoleRepository, *repository.MockUserRepository) {
-	roleRepo := repository.NewMockRoleRepository(t)
-	userRepo := repository.NewMockUserRepository(t)
-	svc := NewService(roleRepo, userRepo).(*service)
-	return svc, roleRepo, userRepo
+type testDeps struct {
+	roleRepo *repository.MockRoleRepository
+	userRepo *repository.MockUserRepository
+	permRepo *repository.MockPermissionRepository
+}
+
+func newTestService(t *testing.T) (*service, *testDeps) {
+	deps := &testDeps{
+		roleRepo: repository.NewMockRoleRepository(t),
+		userRepo: repository.NewMockUserRepository(t),
+		permRepo: repository.NewMockPermissionRepository(t),
+	}
+	svc := NewService(deps.roleRepo, deps.userRepo, deps.permRepo).(*service)
+
+	return svc, deps
+}
+
+func seededModeratorTable() map[string][]string {
+	perms := DefaultRolePermissions(RoleModerator)
+	stored := make([]string, len(perms))
+	for i, p := range perms {
+		stored[i] = string(p)
+	}
+
+	return map[string][]string{string(RoleModerator): stored}
 }
 
 func TestIsBanned_True(t *testing.T) {
 	// given
-	svc, _, userRepo := newTestService(t)
+	svc, deps := newTestService(t)
 	userID := uuid.New()
-	userRepo.EXPECT().IsBanned(mock.Anything, userID).Return(true, nil)
+	deps.userRepo.EXPECT().IsBanned(mock.Anything, userID).Return(true, nil)
 
 	// when
 	got := svc.IsBanned(context.Background(), userID)
@@ -35,9 +55,9 @@ func TestIsBanned_True(t *testing.T) {
 
 func TestIsBanned_False(t *testing.T) {
 	// given
-	svc, _, userRepo := newTestService(t)
+	svc, deps := newTestService(t)
 	userID := uuid.New()
-	userRepo.EXPECT().IsBanned(mock.Anything, userID).Return(false, nil)
+	deps.userRepo.EXPECT().IsBanned(mock.Anything, userID).Return(false, nil)
 
 	// when
 	got := svc.IsBanned(context.Background(), userID)
@@ -48,9 +68,9 @@ func TestIsBanned_False(t *testing.T) {
 
 func TestIsBanned_RepoErrorReturnsFalse(t *testing.T) {
 	// given
-	svc, _, userRepo := newTestService(t)
+	svc, deps := newTestService(t)
 	userID := uuid.New()
-	userRepo.EXPECT().IsBanned(mock.Anything, userID).Return(false, errors.New("db down"))
+	deps.userRepo.EXPECT().IsBanned(mock.Anything, userID).Return(false, errors.New("db down"))
 
 	// when
 	got := svc.IsBanned(context.Background(), userID)
@@ -61,7 +81,7 @@ func TestIsBanned_RepoErrorReturnsFalse(t *testing.T) {
 
 func TestCan_NilUserIDDenied(t *testing.T) {
 	// given
-	svc, _, _ := newTestService(t)
+	svc, _ := newTestService(t)
 
 	// when
 	got := svc.Can(context.Background(), uuid.Nil, PermViewAdminPanel)
@@ -70,11 +90,11 @@ func TestCan_NilUserIDDenied(t *testing.T) {
 	assert.False(t, got)
 }
 
-func TestCan_RepoErrorDenied(t *testing.T) {
+func TestCan_RoleRepoErrorDenied(t *testing.T) {
 	// given
-	svc, roleRepo, _ := newTestService(t)
+	svc, deps := newTestService(t)
 	userID := uuid.New()
-	roleRepo.EXPECT().GetRole(mock.Anything, userID).Return("", errors.New("db down"))
+	deps.roleRepo.EXPECT().GetRole(mock.Anything, userID).Return("", errors.New("db down"))
 
 	// when
 	got := svc.Can(context.Background(), userID, PermViewAdminPanel)
@@ -83,24 +103,53 @@ func TestCan_RepoErrorDenied(t *testing.T) {
 	assert.False(t, got)
 }
 
-func TestCan_NoRoleDenied(t *testing.T) {
+func TestCan_PermissionRepoErrorDeniesClosed(t *testing.T) {
 	// given
-	svc, roleRepo, _ := newTestService(t)
+	svc, deps := newTestService(t)
 	userID := uuid.New()
-	roleRepo.EXPECT().GetRole(mock.Anything, userID).Return("", nil)
+	deps.roleRepo.EXPECT().GetRole(mock.Anything, userID).Return(RoleModerator, nil)
+	deps.permRepo.EXPECT().GetRolePermissions(mock.Anything).Return(nil, errors.New("db down"))
 
 	// when
 	got := svc.Can(context.Background(), userID, PermViewAdminPanel)
 
 	// then
 	assert.False(t, got)
+}
+
+func TestCan_NoRoleAndNoVanityRolesDenied(t *testing.T) {
+	// given
+	svc, deps := newTestService(t)
+	userID := uuid.New()
+	deps.roleRepo.EXPECT().GetRole(mock.Anything, userID).Return("", nil)
+
+	// when
+	got := svc.Can(context.Background(), userID, PermViewAdminPanel)
+
+	// then
+	assert.False(t, got)
+}
+
+func TestCan_StaffPermissionNeverConsultsVanityRoles(t *testing.T) {
+	// given
+	svc, deps := newTestService(t)
+	userID := uuid.New()
+	deps.roleRepo.EXPECT().GetRole(mock.Anything, userID).Return("", nil)
+
+	// when
+	got := svc.Can(context.Background(), userID, PermManageVanityRoles)
+
+	// then
+	assert.False(t, got)
+	deps.permRepo.AssertNotCalled(t, "GetVanityRoleIDsForUser", mock.Anything, mock.Anything)
+	deps.permRepo.AssertNotCalled(t, "GetVanityRolePermissions", mock.Anything)
 }
 
 func TestCan_UnknownRoleDenied(t *testing.T) {
 	// given
-	svc, roleRepo, _ := newTestService(t)
+	svc, deps := newTestService(t)
 	userID := uuid.New()
-	roleRepo.EXPECT().GetRole(mock.Anything, userID).Return("gardener", nil)
+	deps.roleRepo.EXPECT().GetRole(mock.Anything, userID).Return("gardener", nil)
 
 	// when
 	got := svc.Can(context.Background(), userID, PermViewAdminPanel)
@@ -109,33 +158,35 @@ func TestCan_UnknownRoleDenied(t *testing.T) {
 	assert.False(t, got)
 }
 
-func TestCan_SuperAdminGrantsEverything(t *testing.T) {
+func TestCan_SuperAdminGrantsEverythingWithoutReadingTables(t *testing.T) {
 	// given
-	svc, roleRepo, _ := newTestService(t)
+	svc, deps := newTestService(t)
 	userID := uuid.New()
-	roleRepo.EXPECT().GetRole(mock.Anything, userID).Return(RoleSuperAdmin, nil)
+	deps.roleRepo.EXPECT().GetRole(mock.Anything, userID).Return(RoleSuperAdmin, nil)
 
 	// when
 	got := svc.Can(context.Background(), userID, PermManageSettings)
 
 	// then
 	assert.True(t, got)
+	deps.permRepo.AssertNotCalled(t, "GetRolePermissions", mock.Anything)
 }
 
-func TestCan_AdminGrantsEverything(t *testing.T) {
+func TestCan_AdminGrantsEverythingWithoutReadingTables(t *testing.T) {
 	// given
-	svc, roleRepo, _ := newTestService(t)
+	svc, deps := newTestService(t)
 	userID := uuid.New()
-	roleRepo.EXPECT().GetRole(mock.Anything, userID).Return(RoleAdmin, nil)
+	deps.roleRepo.EXPECT().GetRole(mock.Anything, userID).Return(RoleAdmin, nil)
 
 	// when
 	got := svc.Can(context.Background(), userID, PermDeleteAnyUser)
 
 	// then
 	assert.True(t, got)
+	deps.permRepo.AssertNotCalled(t, "GetRolePermissions", mock.Anything)
 }
 
-func TestCan_ModeratorHasSpecificPerms(t *testing.T) {
+func TestCan_ModeratorUsesStoredTable(t *testing.T) {
 	cases := []struct {
 		name string
 		perm Permission
@@ -159,8 +210,6 @@ func TestCan_ModeratorHasSpecificPerms(t *testing.T) {
 		{"manage user email denied", PermManageUserEmail, false},
 		{"set email verified denied", PermSetEmailVerified, false},
 		{"reset password denied", PermResetPassword, false},
-		{"manage settings denied", PermManageSettings, false},
-		{"manage roles denied", PermManageRoles, false},
 		{"delete any user denied", PermDeleteAnyUser, false},
 		{"view audit log denied", PermViewAuditLog, false},
 		{"resolve suggestion denied", PermResolveSuggestion, false},
@@ -170,9 +219,10 @@ func TestCan_ModeratorHasSpecificPerms(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			svc, roleRepo, _ := newTestService(t)
+			svc, deps := newTestService(t)
 			userID := uuid.New()
-			roleRepo.EXPECT().GetRole(mock.Anything, userID).Return(RoleModerator, nil)
+			deps.roleRepo.EXPECT().GetRole(mock.Anything, userID).Return(RoleModerator, nil)
+			deps.permRepo.EXPECT().GetRolePermissions(mock.Anything).Return(seededModeratorTable(), nil)
 
 			// when
 			got := svc.Can(context.Background(), userID, tc.perm)
@@ -183,11 +233,225 @@ func TestCan_ModeratorHasSpecificPerms(t *testing.T) {
 	}
 }
 
+func TestCan_RestrictedPermissionsNeverConsultTheStoredTable(t *testing.T) {
+	cases := []struct {
+		name string
+		perm Permission
+	}{
+		{"manage settings", PermManageSettings},
+		{"manage roles", PermManageRoles},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, deps := newTestService(t)
+			userID := uuid.New()
+			deps.roleRepo.EXPECT().GetRole(mock.Anything, userID).Return(RoleModerator, nil)
+
+			// when
+			got := svc.Can(context.Background(), userID, tc.perm)
+
+			// then
+			assert.False(t, got, "a restricted permission must never resolve for a non-immutable role")
+			deps.permRepo.AssertNotCalled(t, "GetRolePermissions", mock.Anything)
+		})
+	}
+}
+
+func TestCan_UntickedModeratorPermissionIsRevoked(t *testing.T) {
+	// given
+	svc, deps := newTestService(t)
+	userID := uuid.New()
+	deps.roleRepo.EXPECT().GetRole(mock.Anything, userID).Return(RoleModerator, nil)
+	deps.permRepo.EXPECT().GetRolePermissions(mock.Anything).
+		Return(map[string][]string{string(RoleModerator): {string(PermViewAdminPanel)}}, nil)
+
+	// when
+	got := svc.Can(context.Background(), userID, PermBanUser)
+
+	// then
+	assert.False(t, got)
+}
+
+func TestCan_VanityRoleGrantsPermissionToRolelessUser(t *testing.T) {
+	// given
+	svc, deps := newTestService(t)
+	userID := uuid.New()
+	deps.roleRepo.EXPECT().GetRole(mock.Anything, userID).Return("", nil)
+	deps.permRepo.EXPECT().GetVanityRoleIDsForUser(mock.Anything, userID).Return([]string{"vanity-a"}, nil)
+	deps.permRepo.EXPECT().GetVanityRolePermissions(mock.Anything).
+		Return(map[string][]string{"vanity-a": {string(PermUseChatbot)}}, nil)
+
+	// when
+	got := svc.Can(context.Background(), userID, PermUseChatbot)
+
+	// then
+	assert.True(t, got)
+}
+
+func TestCan_UnionsAcrossSeveralVanityRoles(t *testing.T) {
+	// given
+	svc, deps := newTestService(t)
+	userID := uuid.New()
+	deps.roleRepo.EXPECT().GetRole(mock.Anything, userID).Return("", nil)
+	deps.permRepo.EXPECT().GetVanityRoleIDsForUser(mock.Anything, userID).
+		Return([]string{"vanity-a", "vanity-b"}, nil)
+	deps.permRepo.EXPECT().GetVanityRolePermissions(mock.Anything).Return(map[string][]string{
+		"vanity-a": {},
+		"vanity-b": {string(PermUseChatbot)},
+	}, nil)
+
+	// when
+	got := svc.Can(context.Background(), userID, PermUseChatbot)
+
+	// then
+	assert.True(t, got)
+}
+
+func TestCan_VanityRoleWithoutMatchingPermissionDenied(t *testing.T) {
+	// given
+	svc, deps := newTestService(t)
+	userID := uuid.New()
+	deps.roleRepo.EXPECT().GetRole(mock.Anything, userID).Return("", nil)
+	deps.permRepo.EXPECT().GetVanityRoleIDsForUser(mock.Anything, userID).Return([]string{"vanity-a"}, nil)
+	deps.permRepo.EXPECT().GetVanityRolePermissions(mock.Anything).
+		Return(map[string][]string{"vanity-a": {}}, nil)
+
+	// when
+	got := svc.Can(context.Background(), userID, PermUseChatbot)
+
+	// then
+	assert.False(t, got)
+}
+
+func TestCan_SmuggledStaffPermissionOnVanityRoleIsIgnored(t *testing.T) {
+	// given
+	svc, deps := newTestService(t)
+	userID := uuid.New()
+	deps.roleRepo.EXPECT().GetRole(mock.Anything, userID).Return("", nil)
+
+	// when
+	got := svc.Can(context.Background(), userID, PermManageRoles)
+
+	// then
+	assert.False(t, got)
+	deps.permRepo.AssertNotCalled(t, "GetVanityRolePermissions", mock.Anything)
+}
+
+func TestCan_ModeratorFallsBackToVanityRoleForAssignablePermission(t *testing.T) {
+	// given
+	svc, deps := newTestService(t)
+	userID := uuid.New()
+	deps.roleRepo.EXPECT().GetRole(mock.Anything, userID).Return(RoleModerator, nil)
+	deps.permRepo.EXPECT().GetRolePermissions(mock.Anything).
+		Return(map[string][]string{string(RoleModerator): {string(PermViewAdminPanel)}}, nil)
+	deps.permRepo.EXPECT().GetVanityRoleIDsForUser(mock.Anything, userID).Return([]string{"vanity-a"}, nil)
+	deps.permRepo.EXPECT().GetVanityRolePermissions(mock.Anything).
+		Return(map[string][]string{"vanity-a": {string(PermUseChatbot)}}, nil)
+
+	// when
+	got := svc.Can(context.Background(), userID, PermUseChatbot)
+
+	// then
+	assert.True(t, got)
+}
+
+func TestCan_VanityRepoErrorDeniesClosed(t *testing.T) {
+	// given
+	svc, deps := newTestService(t)
+	userID := uuid.New()
+	deps.roleRepo.EXPECT().GetRole(mock.Anything, userID).Return("", nil)
+	deps.permRepo.EXPECT().GetVanityRoleIDsForUser(mock.Anything, userID).Return(nil, errors.New("db down"))
+
+	// when
+	got := svc.Can(context.Background(), userID, PermUseChatbot)
+
+	// then
+	assert.False(t, got)
+}
+
+func TestEffectivePermissions(t *testing.T) {
+	t.Run("nil user has none", func(t *testing.T) {
+		// given
+		svc, _ := newTestService(t)
+
+		// when
+		got := svc.EffectivePermissions(context.Background(), uuid.Nil)
+
+		// then
+		assert.Nil(t, got)
+	})
+
+	t.Run("admin gets the whole catalogue", func(t *testing.T) {
+		// given
+		svc, deps := newTestService(t)
+		userID := uuid.New()
+		deps.roleRepo.EXPECT().GetRole(mock.Anything, userID).Return(RoleAdmin, nil)
+
+		// when
+		got := svc.EffectivePermissions(context.Background(), userID)
+
+		// then
+		assert.Len(t, got, len(PermissionCatalogue()))
+		assert.NotContains(t, got, PermAll)
+	})
+
+	t.Run("roleless user gets only vanity grants", func(t *testing.T) {
+		// given
+		svc, deps := newTestService(t)
+		userID := uuid.New()
+		deps.roleRepo.EXPECT().GetRole(mock.Anything, userID).Return("", nil)
+		deps.permRepo.EXPECT().GetVanityRoleIDsForUser(mock.Anything, userID).Return([]string{"vanity-a"}, nil)
+		deps.permRepo.EXPECT().GetVanityRolePermissions(mock.Anything).
+			Return(map[string][]string{"vanity-a": {string(PermUseChatbot)}}, nil)
+
+		// when
+		got := svc.EffectivePermissions(context.Background(), userID)
+
+		// then
+		assert.Equal(t, []Permission{PermUseChatbot}, got)
+	})
+
+	t.Run("a staff permission smuggled onto a vanity role is filtered out", func(t *testing.T) {
+		// given
+		svc, deps := newTestService(t)
+		userID := uuid.New()
+		deps.roleRepo.EXPECT().GetRole(mock.Anything, userID).Return("", nil)
+		deps.permRepo.EXPECT().GetVanityRoleIDsForUser(mock.Anything, userID).Return([]string{"vanity-a"}, nil)
+		deps.permRepo.EXPECT().GetVanityRolePermissions(mock.Anything).Return(map[string][]string{
+			"vanity-a": {string(PermManageRoles), string(PermUseChatbot)},
+		}, nil)
+
+		// when
+		got := svc.EffectivePermissions(context.Background(), userID)
+
+		// then
+		assert.Equal(t, []Permission{PermUseChatbot}, got)
+	})
+
+	t.Run("moderator gets the stored table", func(t *testing.T) {
+		// given
+		svc, deps := newTestService(t)
+		userID := uuid.New()
+		deps.roleRepo.EXPECT().GetRole(mock.Anything, userID).Return(RoleModerator, nil)
+		deps.permRepo.EXPECT().GetRolePermissions(mock.Anything).
+			Return(map[string][]string{string(RoleModerator): {string(PermViewAdminPanel), string(PermBanUser)}}, nil)
+		deps.permRepo.EXPECT().GetVanityRoleIDsForUser(mock.Anything, userID).Return(nil, nil).Maybe()
+
+		// when
+		got := svc.EffectivePermissions(context.Background(), userID)
+
+		// then
+		assert.ElementsMatch(t, []Permission{PermViewAdminPanel, PermBanUser}, got)
+	})
+}
+
 func TestGetRole_OK(t *testing.T) {
 	// given
-	svc, roleRepo, _ := newTestService(t)
+	svc, deps := newTestService(t)
 	userID := uuid.New()
-	roleRepo.EXPECT().GetRole(mock.Anything, userID).Return(RoleAdmin, nil)
+	deps.roleRepo.EXPECT().GetRole(mock.Anything, userID).Return(RoleAdmin, nil)
 
 	// when
 	got, err := svc.GetRole(context.Background(), userID)
@@ -199,9 +463,9 @@ func TestGetRole_OK(t *testing.T) {
 
 func TestGetRole_RepoError(t *testing.T) {
 	// given
-	svc, roleRepo, _ := newTestService(t)
+	svc, deps := newTestService(t)
 	userID := uuid.New()
-	roleRepo.EXPECT().GetRole(mock.Anything, userID).Return("", errors.New("boom"))
+	deps.roleRepo.EXPECT().GetRole(mock.Anything, userID).Return("", errors.New("boom"))
 
 	// when
 	_, err := svc.GetRole(context.Background(), userID)

@@ -62,7 +62,7 @@ const (
 
 var (
 	validUsername    = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
-	reservedPatterns = []string{"featherine", "faa", "auaurora"}
+	reservedPatterns = []string{"featherine", "faa", "auaurora", "bot"}
 )
 
 func isReservedUsername(username string) bool {

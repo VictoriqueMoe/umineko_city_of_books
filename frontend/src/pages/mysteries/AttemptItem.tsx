@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import type { MysteryAttempt } from "../../types/api";
 import {
     useCreateMysteryAttempt,
@@ -7,6 +7,7 @@ import {
     useVoteMysteryAttempt,
 } from "../../api/mutations/mystery";
 import { useAuth } from "../../hooks/useAuth";
+import { useVote } from "../../hooks/useVote";
 import { can } from "../../utils/permissions";
 import { Button } from "../../components/Button/Button";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
@@ -52,26 +53,23 @@ function SingleAttempt({
     const [showReply, setShowReply] = useState(false);
     const [replyBody, setReplyBody] = useState("");
     const [submitting, setSubmitting] = useState(false);
-    const [voteScore, setVoteScore] = useState(attempt.vote_score);
-    const [userVote, setUserVote] = useState(attempt.user_vote ?? 0);
     const voteMutation = useVoteMysteryAttempt(mysteryId);
     const createReplyMutation = useCreateMysteryAttempt(mysteryId);
     const deleteAttemptMutation = useDeleteMysteryAttempt(mysteryId);
     const markSolvedMutation = useMarkMysterySolved(mysteryId);
 
-    async function handleVote(value: number) {
-        const newValue = userVote === value ? 0 : value;
-        const oldScore = voteScore;
-        const oldVote = userVote;
-        setVoteScore(voteScore - oldVote + newValue);
-        setUserVote(newValue);
-        try {
-            await voteMutation.mutateAsync({ id: attempt.id, value: newValue });
-        } catch {
-            setVoteScore(oldScore);
-            setUserVote(oldVote);
-        }
-    }
+    const voteFn = useCallback(
+        async (value: number) => {
+            await voteMutation.mutateAsync({ id: attempt.id, value });
+        },
+        [attempt.id, voteMutation],
+    );
+
+    const {
+        score: voteScore,
+        userVote,
+        vote: handleVote,
+    } = useVote(attempt.vote_score, attempt.user_vote ?? 0, voteFn);
 
     async function handleReply() {
         if (!replyBody.trim() || submitting) {
@@ -107,7 +105,7 @@ function SingleAttempt({
     }
 
     const isOwner = user?.id === attempt.author.id;
-    const canDelete = isOwner || can(user?.role, "delete_any_comment");
+    const canDelete = isOwner || can(user, "delete_any_comment");
 
     return (
         <div

@@ -139,38 +139,11 @@ func (m *membersService) KickMember(ctx context.Context, hostID, roomID, targetI
 		return ErrTargetImmune
 	}
 
-	members, _ := m.chatRepo.GetRoomMembers(ctx, roomID)
-
-	if err := m.chatRepo.RemoveMember(ctx, roomID, targetID); err != nil {
-		return fmt.Errorf("remove member: %w", err)
+	if err := m.parent.evictUserFromRoom(ctx, roomID, targetID, ""); err != nil {
+		return err
 	}
-
-	m.clearWatchPartyParticipation(ctx, roomID, targetID)
-	m.dropFromLiveKitRoom(ctx, roomID.String(), targetID.String())
-
-	m.hub.LeaveRoom(roomID, targetID)
 
 	m.postRoomActionMessage(ctx, roomID, hostID, "A member was kicked from the room.")
-
-	leftEvent := ws.Message{
-		Type: "chat_member_left",
-		Data: map[string]any{
-			"room_id": roomID,
-			"user_id": targetID,
-		},
-	}
-	for _, mid := range members {
-		if mid == targetID {
-			continue
-		}
-		m.hub.SendToUser(mid, leftEvent)
-	}
-	m.hub.SendToUser(targetID, ws.Message{
-		Type: "chat_kicked",
-		Data: map[string]any{
-			"room_id": roomID,
-		},
-	})
 
 	m.parent.notifyModerationAction(roomID, targetID, hostID, "kicked", "")
 
@@ -313,7 +286,12 @@ func (m *membersService) GetMembers(ctx context.Context, viewerID, roomID uuid.U
 		if mr.Ghost && !viewerIsStaff {
 			continue
 		}
-		resp := m.memberRowToMemberResponse(mr, m.toVanityRoleResponses(vanityMap[mr.UserID]), presence[mr.UserID])
+		state := presence[mr.UserID]
+		if state == "" && m.hub.IsAlwaysOnline(mr.UserID) {
+			state = ws.ViewerStateActive
+		}
+
+		resp := m.memberRowToMemberResponse(mr, m.toVanityRoleResponses(vanityMap[mr.UserID]), state)
 		resp.Ghost = mr.Ghost
 		members = append(members, resp)
 	}

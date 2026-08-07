@@ -329,7 +329,7 @@ describe("admin account detail mutations", () => {
 });
 
 describe("admin site settings mutations", () => {
-    it("saves the settings and refreshes both the admin settings and the public site info", async () => {
+    it("saves the settings and refreshes the admin settings, the chatbot models and the public site info", async () => {
         // given
         const { qc, invalidate } = client();
         const settings = { site_name: "When They Cry", default_theme: "featherine" };
@@ -340,6 +340,7 @@ describe("admin site settings mutations", () => {
         // then
         expect(mocks.updateAdminSettings).toHaveBeenCalledWith(settings);
         expect(invalidate).toHaveBeenCalledWith({ queryKey: ["admin", "settings"] });
+        expect(invalidate).toHaveBeenCalledWith({ queryKey: ["admin", "chatbots", "models"] });
         expect(invalidate).toHaveBeenCalledWith({ queryKey: ["site-info"] });
     });
 
@@ -561,6 +562,7 @@ describe("admin vanity role mutations", () => {
         // then
         expect(mocks.createVanityRole).toHaveBeenCalledWith(role);
         expect(invalidate).toHaveBeenCalledWith({ queryKey: ["admin", "vanity-roles"] });
+        expect(invalidate).toHaveBeenCalledWith({ queryKey: ["admin", "permissions"] });
     });
 
     it("updates a vanity role by id", async () => {

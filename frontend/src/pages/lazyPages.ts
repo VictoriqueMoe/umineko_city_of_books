@@ -39,6 +39,8 @@ export const AdminInvites = named(() => import("./admin/AdminInvites"), "AdminIn
 export const AdminReports = named(() => import("./admin/AdminReports"), "AdminReports");
 export const AdminContentRules = named(() => import("./admin/AdminContentRules"), "AdminContentRules");
 export const AdminVanityRoles = named(() => import("./admin/AdminVanityRoles"), "AdminVanityRoles");
+export const AdminPermissions = named(() => import("./admin/AdminPermissions"), "AdminPermissions");
+export const AdminChatbots = named(() => import("./admin/AdminChatbots"), "AdminChatbots");
 export const AdminAnnouncementsPage = named(() => import("./admin/AdminAnnouncements"), "AdminAnnouncements");
 export const AdminBannedGifs = named(() => import("./admin/AdminBannedGifs"), "AdminBannedGifs");
 export const AdminBannedWords = named(() => import("./admin/AdminBannedWords"), "AdminBannedWords");

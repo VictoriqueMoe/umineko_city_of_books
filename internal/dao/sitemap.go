@@ -57,7 +57,7 @@ func (r *sitemapDAO) ListFanfics(ctx context.Context) ([]repository.SitemapEntry
 }
 
 func (r *sitemapDAO) ListUsernames(ctx context.Context) ([]string, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT username FROM users ORDER BY created_at DESC`)
+	rows, err := r.db.QueryContext(ctx, `SELECT username FROM users WHERE NOT is_bot ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, fmt.Errorf("list usernames: %w", err)
 	}

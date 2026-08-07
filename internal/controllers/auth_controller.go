@@ -105,7 +105,13 @@ func (s *Service) getSession(ctx fiber.Ctx) error {
 		return ctx.JSON(fiber.Map{"authenticated": false})
 	}
 
-	return ctx.JSON(fiber.Map{"authenticated": true, "username": user.Username})
+	perms := s.AuthzService.EffectivePermissions(ctx.Context(), userID)
+	granted := make([]string, len(perms))
+	for i, p := range perms {
+		granted[i] = string(p)
+	}
+
+	return ctx.JSON(fiber.Map{"authenticated": true, "username": user.Username, "permissions": granted})
 }
 
 func (s *Service) cookieSecure(ctx fiber.Ctx) bool {

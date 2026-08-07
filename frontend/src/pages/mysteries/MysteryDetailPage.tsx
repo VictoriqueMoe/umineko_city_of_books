@@ -583,8 +583,8 @@ export function MysteryDetailPage() {
     }
 
     const isAuthor = user?.id === mystery.author.id;
-    const canEdit = isAuthor || can(user?.role, "edit_any_theory");
-    const canDelete = isAuthor || can(user?.role, "delete_any_theory");
+    const canEdit = isAuthor || can(user, "edit_any_theory");
+    const canDelete = isAuthor || can(user, "delete_any_theory");
     const canSeeAsGameMaster = isAuthor || user?.role === "super_admin";
     const winningAuthorIds = new Set<string>();
     for (const a of mystery.attempts ?? []) {

@@ -70,7 +70,22 @@ describe("useMysteryList", () => {
         // then
         await waitFor(() => expect(result.current.mysteries).toHaveLength(1));
         expect(listMysteries).toHaveBeenCalledWith(params);
-        expect(queryClient.getQueryData(["mysteries", "list", params])).toBeDefined();
+        expect(queryClient.getQueryData(queryKeys.mystery.list(params))).toBeDefined();
+    });
+
+    it("sits inside the mystery family a mystery mutation invalidates", async () => {
+        // given
+        const params = { sort: "new" };
+        listMysteries.mockResolvedValue(makeListResponse([makeMystery("m1", "The sealed room")], 1));
+        const queryClient = createTestQueryClient();
+        const { result } = renderHook(() => useMysteryList(params), { wrapper: providerWrapper({ queryClient }) });
+        await waitFor(() => expect(result.current.mysteries).toHaveLength(1));
+
+        // when
+        const matched = queryClient.getQueryCache().findAll({ queryKey: queryKeys.mystery.all });
+
+        // then
+        expect(matched.map(q => q.queryKey)).toContainEqual(queryKeys.mystery.list(params));
     });
 
     it("exposes the total alongside the page", async () => {
@@ -164,7 +179,7 @@ describe("useMysteryLeaderboard", () => {
         // then
         await waitFor(() => expect(result.current.entries).toHaveLength(3));
         expect(getMysteryLeaderboard).toHaveBeenCalledWith(5);
-        expect(queryClient.getQueryData(["mysteries", "leaderboard", 5])).toBeDefined();
+        expect(queryClient.getQueryData(queryKeys.mystery.leaderboard(5))).toBeDefined();
     });
 
     it("uses a null limit in the key when none is given", async () => {
@@ -178,7 +193,7 @@ describe("useMysteryLeaderboard", () => {
         // then
         await waitFor(() => expect(result.current.loading).toBe(false));
         expect(getMysteryLeaderboard).toHaveBeenCalledWith(undefined);
-        expect(queryClient.getQueryData(["mysteries", "leaderboard", null])).toBeDefined();
+        expect(queryClient.getQueryData(queryKeys.mystery.leaderboard(null))).toBeDefined();
     });
 
     it("falls back to no entries while loading", () => {
@@ -206,7 +221,7 @@ describe("useGMLeaderboard", () => {
         // then
         await waitFor(() => expect(result.current.entries).toHaveLength(2));
         expect(getGMLeaderboard).toHaveBeenCalledWith(10);
-        expect(queryClient.getQueryData(["mysteries", "gm-leaderboard", 10])).toBeDefined();
+        expect(queryClient.getQueryData(queryKeys.mystery.gmLeaderboard(10))).toBeDefined();
     });
 
     it("uses a null limit in the key when none is given", async () => {
@@ -220,7 +235,7 @@ describe("useGMLeaderboard", () => {
         // then
         await waitFor(() => expect(result.current.loading).toBe(false));
         expect(getGMLeaderboard).toHaveBeenCalledWith(undefined);
-        expect(queryClient.getQueryData(["mysteries", "gm-leaderboard", null])).toBeDefined();
+        expect(queryClient.getQueryData(queryKeys.mystery.gmLeaderboard(null))).toBeDefined();
     });
 
     it("falls back to no entries while loading", () => {

@@ -19,21 +19,6 @@ type moderationService struct {
 	*core
 }
 
-func (s *moderationService) isTargetProtected(ctx context.Context, roomID, targetID uuid.UUID) (bool, error) {
-	memberRole, err := s.chatRepo.GetMemberRole(ctx, roomID, targetID)
-	if err != nil {
-		return false, fmt.Errorf("get target role: %w", err)
-	}
-	if memberRole == "host" {
-		return true, nil
-	}
-	siteRole, err := s.authzSvc.GetRole(ctx, targetID)
-	if err != nil {
-		return false, fmt.Errorf("get target site role: %w", err)
-	}
-	return siteRole.IsSiteStaff(), nil
-}
-
 func (s *moderationService) enforceBannedWords(ctx context.Context, roomID, senderID uuid.UUID, body string) error {
 	if body == "" {
 		return nil
@@ -54,13 +39,22 @@ func (s *moderationService) enforceBannedWords(ctx context.Context, roomID, send
 	}
 	details := fmt.Sprintf("pattern=%q match=%q", match.Pattern, match.MatchedOn)
 	_ = s.auditRepo.CreateSystemForSubject(ctx, "chat_word_filter_"+match.Action, "chat_room", roomID.String(), details, senderID)
-	if match.Action == contentfilter.BannedWordActionKick {
+	if match.Action == contentfilter.BannedWordActionKick && !s.isBotSender(ctx, senderID) {
 		targetName := s.displayNameFor(ctx, senderID, roomID)
 		s.postRoomActionMessage(ctx, roomID, senderID, fmt.Sprintf("%s was kicked by the word filter.", targetName))
 		_ = s.evictUserFromRoom(ctx, roomID, senderID, "the word filter matched a banned word")
 		s.notifyAutomatedKick(roomID, senderID, match.Pattern)
 	}
 	return &ErrBannedWordMatch{Pattern: match.Pattern, Action: match.Action}
+}
+
+func (s *moderationService) isBotSender(ctx context.Context, senderID uuid.UUID) bool {
+	sender, err := s.userRepo.GetByID(ctx, senderID)
+	if err != nil || sender == nil {
+		return false
+	}
+
+	return sender.IsBot
 }
 
 func (s *moderationService) evictUserFromRoom(ctx context.Context, roomID, targetID uuid.UUID, reason string) error {
@@ -182,7 +176,7 @@ func (s *moderationService) BanMember(ctx context.Context, actorID, roomID, targ
 		return ErrCannotBanStaff
 	}
 
-	protected, err := s.isTargetProtected(ctx, roomID, targetID)
+	protected, err := s.canModerateRoom(ctx, roomID, targetID)
 	if err != nil {
 		return err
 	}
@@ -212,20 +206,8 @@ func (s *moderationService) BanMember(ctx context.Context, actorID, roomID, targ
 }
 
 func (s *moderationService) UnbanMember(ctx context.Context, actorID, roomID, targetID uuid.UUID) error {
-	row, err := s.chatRepo.GetRoomByID(ctx, roomID, actorID)
-	if err != nil {
-		return fmt.Errorf("get room: %w", err)
-	}
-	if row == nil {
-		return ErrRoomNotFound
-	}
-
-	canMod, err := s.canModerateRoom(ctx, roomID, actorID)
-	if err != nil {
+	if _, err := s.loadRoomForMod(ctx, roomID, actorID); err != nil {
 		return err
-	}
-	if !canMod {
-		return ErrNotHost
 	}
 
 	if err := s.banRepo.Unban(ctx, roomID, targetID); err != nil {
@@ -241,20 +223,8 @@ func (s *moderationService) UnbanMember(ctx context.Context, actorID, roomID, ta
 }
 
 func (s *moderationService) ListRoomBans(ctx context.Context, actorID, roomID uuid.UUID) ([]dto.ChatRoomBanResponse, error) {
-	row, err := s.chatRepo.GetRoomByID(ctx, roomID, actorID)
-	if err != nil {
-		return nil, fmt.Errorf("get room: %w", err)
-	}
-	if row == nil {
-		return nil, ErrRoomNotFound
-	}
-
-	canMod, err := s.canModerateRoom(ctx, roomID, actorID)
-	if err != nil {
+	if _, err := s.loadRoomForMod(ctx, roomID, actorID); err != nil {
 		return nil, err
-	}
-	if !canMod {
-		return nil, ErrNotHost
 	}
 
 	rows, err := s.banRepo.ListForRoom(ctx, roomID)
@@ -325,20 +295,10 @@ func bannedWordRowToResponse(row repository.ChatBannedWordRow) dto.BannedWordRul
 }
 
 func (s *moderationService) ListRoomBannedWords(ctx context.Context, actorID, roomID uuid.UUID) ([]dto.BannedWordRuleResponse, error) {
-	row, err := s.chatRepo.GetRoomByID(ctx, roomID, actorID)
-	if err != nil {
-		return nil, fmt.Errorf("get room: %w", err)
-	}
-	if row == nil {
-		return nil, ErrRoomNotFound
-	}
-	canMod, err := s.canModerateRoom(ctx, roomID, actorID)
-	if err != nil {
+	if _, err := s.loadRoomForMod(ctx, roomID, actorID); err != nil {
 		return nil, err
 	}
-	if !canMod {
-		return nil, ErrNotHost
-	}
+
 	rows, err := s.bannedWordRepo.ListApplicable(ctx, roomID)
 	if err != nil {
 		return nil, err
@@ -351,20 +311,10 @@ func (s *moderationService) ListRoomBannedWords(ctx context.Context, actorID, ro
 }
 
 func (s *moderationService) CreateRoomBannedWord(ctx context.Context, actorID, roomID uuid.UUID, req dto.CreateBannedWordRequest) (*dto.BannedWordRuleResponse, error) {
-	row, err := s.chatRepo.GetRoomByID(ctx, roomID, actorID)
-	if err != nil {
-		return nil, fmt.Errorf("get room: %w", err)
-	}
-	if row == nil {
-		return nil, ErrRoomNotFound
-	}
-	canMod, err := s.canModerateRoom(ctx, roomID, actorID)
-	if err != nil {
+	if _, err := s.loadRoomForMod(ctx, roomID, actorID); err != nil {
 		return nil, err
 	}
-	if !canMod {
-		return nil, ErrNotHost
-	}
+
 	if err := validateCreateBannedWord(req); err != nil {
 		return nil, err
 	}
@@ -393,20 +343,10 @@ func (s *moderationService) CreateRoomBannedWord(ctx context.Context, actorID, r
 }
 
 func (s *moderationService) UpdateRoomBannedWord(ctx context.Context, actorID, roomID, ruleID uuid.UUID, req dto.UpdateBannedWordRequest) (*dto.BannedWordRuleResponse, error) {
-	row, err := s.chatRepo.GetRoomByID(ctx, roomID, actorID)
-	if err != nil {
-		return nil, fmt.Errorf("get room: %w", err)
-	}
-	if row == nil {
-		return nil, ErrRoomNotFound
-	}
-	canMod, err := s.canModerateRoom(ctx, roomID, actorID)
-	if err != nil {
+	if _, err := s.loadRoomForMod(ctx, roomID, actorID); err != nil {
 		return nil, err
 	}
-	if !canMod {
-		return nil, ErrNotHost
-	}
+
 	existing, err := s.bannedWordRepo.GetByID(ctx, ruleID)
 	if err != nil {
 		return nil, err
@@ -429,20 +369,10 @@ func (s *moderationService) UpdateRoomBannedWord(ctx context.Context, actorID, r
 }
 
 func (s *moderationService) DeleteRoomBannedWord(ctx context.Context, actorID, roomID, ruleID uuid.UUID) error {
-	row, err := s.chatRepo.GetRoomByID(ctx, roomID, actorID)
-	if err != nil {
-		return fmt.Errorf("get room: %w", err)
-	}
-	if row == nil {
-		return ErrRoomNotFound
-	}
-	canMod, err := s.canModerateRoom(ctx, roomID, actorID)
-	if err != nil {
+	if _, err := s.loadRoomForMod(ctx, roomID, actorID); err != nil {
 		return err
 	}
-	if !canMod {
-		return ErrNotHost
-	}
+
 	existing, err := s.bannedWordRepo.GetByID(ctx, ruleID)
 	if err != nil {
 		return err

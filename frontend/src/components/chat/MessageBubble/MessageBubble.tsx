@@ -8,6 +8,7 @@ import { EmojiPicker } from "../EmojiPicker/EmojiPicker";
 import { YouTubeEmbed } from "../YouTubeEmbed/YouTubeEmbed";
 import { RelativeTimestamp } from "../../RelativeTimestamp/RelativeTimestamp";
 import { formatExactDateTime } from "../../../utils/time";
+import { extractGif } from "../../../utils/gif";
 import { extractYouTubeIDs } from "../../../utils/youtube";
 import styles from "./MessageBubble.module.css";
 
@@ -32,16 +33,6 @@ interface MessageBubbleProps {
     seenLabel?: string | null;
     senderIsStaff?: boolean;
     senderBlocked?: boolean;
-}
-
-const GIPHY_URL_RE = /^https:\/\/(media[0-9]*|i)\.giphy\.com\/[^\s]+\.(gif|webp|mp4)(\?[^\s]*)?$/i;
-
-function extractGif(body: string): string | null {
-    const trimmed = body.trim();
-    if (GIPHY_URL_RE.test(trimmed)) {
-        return trimmed;
-    }
-    return null;
 }
 
 function jumpToMessage(id: string) {

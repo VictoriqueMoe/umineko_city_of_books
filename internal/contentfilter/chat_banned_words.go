@@ -45,6 +45,14 @@ type (
 		re         *regexp.Regexp
 		normaliser func(string) string
 	}
+
+	cacheKey struct {
+		id            uuid.UUID
+		pattern       string
+		matchMode     string
+		caseSensitive bool
+		action        string
+	}
 )
 
 func NewChatBannedWordsRule(repo repository.ChatBannedWordRepository) *ChatBannedWordsRule {
@@ -87,13 +95,23 @@ func (r *ChatBannedWordsRule) CheckForRoom(ctx context.Context, roomID uuid.UUID
 }
 
 func (r *ChatBannedWordsRule) compile(row repository.ChatBannedWordRow) (*compiledRule, error) {
-	if cached, ok := r.cache.Load(row.ID); ok {
+	key := cacheKey{
+		id:            row.ID,
+		pattern:       row.Pattern,
+		matchMode:     row.MatchMode,
+		caseSensitive: row.CaseSensitive,
+		action:        row.Action,
+	}
+
+	if cached, ok := r.cache.Load(key); ok {
 		return cached.(*compiledRule), nil
 	}
+
 	expr, err := CompileBannedWordPattern(row.Pattern, row.MatchMode, row.CaseSensitive)
 	if err != nil {
 		return nil, err
 	}
+
 	compiled := &compiledRule{
 		id:         row.ID,
 		scope:      row.Scope,
@@ -102,7 +120,8 @@ func (r *ChatBannedWordsRule) compile(row repository.ChatBannedWordRow) (*compil
 		re:         expr,
 		normaliser: normaliserForMode(row.MatchMode),
 	}
-	r.cache.Store(row.ID, compiled)
+	r.cache.Store(key, compiled)
+
 	return compiled, nil
 }
 
@@ -114,7 +133,13 @@ func normaliserForMode(mode string) func(string) string {
 }
 
 func (r *ChatBannedWordsRule) Invalidate(id uuid.UUID) {
-	r.cache.Delete(id)
+	r.cache.Range(func(key, _ any) bool {
+		if k, ok := key.(cacheKey); ok && k.id == id {
+			r.cache.Delete(key)
+		}
+
+		return true
+	})
 }
 
 func CompileBannedWordPattern(pattern, mode string, caseSensitive bool) (*regexp.Regexp, error) {

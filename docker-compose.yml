@@ -20,6 +20,7 @@ services:
     build: .
     container_name: umineko-city-of-books
     restart: unless-stopped
+    stop_grace_period: 30s
     depends_on:
       postgres:
         condition: service_healthy

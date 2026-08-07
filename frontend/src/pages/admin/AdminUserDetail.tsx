@@ -62,14 +62,14 @@ export function AdminUserDetail() {
     const forceLogoutMutation = useForceLogoutUser();
 
     const isProtectedTarget = user?.role === "super_admin";
-    const canManageAccount = can(currentUser?.role, "manage_user_account") && !isProtectedTarget;
-    const canManageEmail = can(currentUser?.role, "manage_user_email") && !isProtectedTarget;
-    const canSetEmailVerified = can(currentUser?.role, "set_email_verified") && !isProtectedTarget;
+    const canManageAccount = can(currentUser, "manage_user_account") && !isProtectedTarget;
+    const canManageEmail = can(currentUser, "manage_user_email") && !isProtectedTarget;
+    const canSetEmailVerified = can(currentUser, "set_email_verified") && !isProtectedTarget;
     const [historyOffset, setHistoryOffset] = useState(0);
-    const ipMatches = useUserIPMatches(id ?? "", can(currentUser?.role, "view_users") && !!user?.ip);
+    const ipMatches = useUserIPMatches(id ?? "", can(currentUser, "view_users") && !!user?.ip);
     const moderationHistory = useUserAuditLog(
         id ?? "",
-        can(currentUser?.role, "view_audit_log"),
+        can(currentUser, "view_audit_log"),
         HISTORY_LIMIT,
         historyOffset,
     );
@@ -532,7 +532,7 @@ export function AdminUserDetail() {
                 </div>
             )}
 
-            {can(currentUser?.role, "edit_mystery_score") && user.role !== "super_admin" && (
+            {can(currentUser, "edit_mystery_score") && user.role !== "super_admin" && (
                 <div className={styles.card}>
                     <h2 className={styles.sectionTitle}>Mystery Scores</h2>
                     <div className={styles.fieldGroup}>
@@ -604,7 +604,7 @@ export function AdminUserDetail() {
                 </div>
             )}
 
-            {can(currentUser?.role, "manage_roles") && user.role !== "super_admin" && (
+            {can(currentUser, "manage_roles") && user.role !== "super_admin" && (
                 <div className={styles.card}>
                     <h2 className={styles.sectionTitle}>Role</h2>
                     {user.role ? (
@@ -631,7 +631,7 @@ export function AdminUserDetail() {
                 </div>
             )}
 
-            {can(currentUser?.role, "ban_user") && user.role !== "super_admin" && (
+            {can(currentUser, "ban_user") && user.role !== "super_admin" && (
                 <div className={styles.card}>
                     <h2 className={styles.sectionTitle}>Ban Management</h2>
                     {user.banned ? (
@@ -656,7 +656,7 @@ export function AdminUserDetail() {
                 </div>
             )}
 
-            {can(currentUser?.role, "ban_user") && user.role !== "super_admin" && user.role !== "admin" && (
+            {can(currentUser, "ban_user") && user.role !== "super_admin" && user.role !== "admin" && (
                 <div className={styles.card}>
                     <h2 className={styles.sectionTitle}>Lock Management</h2>
                     <p className={styles.fieldLabel}>
@@ -684,7 +684,7 @@ export function AdminUserDetail() {
                 </div>
             )}
 
-            {can(currentUser?.role, "ban_user") && user.role !== "super_admin" && (
+            {can(currentUser, "ban_user") && user.role !== "super_admin" && (
                 <div className={styles.card}>
                     <h2 className={styles.sectionTitle}>Sessions</h2>
                     <p className={styles.helpText}>
@@ -697,7 +697,7 @@ export function AdminUserDetail() {
                 </div>
             )}
 
-            {can(currentUser?.role, "view_users") && !!user.ip && (
+            {can(currentUser, "view_users") && !!user.ip && (
                 <div className={styles.card}>
                     <h2 className={styles.sectionTitle}>Other Accounts On This IP</h2>
                     {ipMatches.loading ? (
@@ -739,7 +739,7 @@ export function AdminUserDetail() {
                 </div>
             )}
 
-            {can(currentUser?.role, "view_audit_log") && (
+            {can(currentUser, "view_audit_log") && (
                 <div className={styles.card}>
                     <h2 className={styles.sectionTitle}>Account History</h2>
                     <p className={styles.helpText}>
@@ -795,7 +795,7 @@ export function AdminUserDetail() {
                 </div>
             )}
 
-            {can(currentUser?.role, "reset_password") && user.role !== "super_admin" && (
+            {can(currentUser, "reset_password") && user.role !== "super_admin" && (
                 <div className={styles.card}>
                     <h2 className={styles.sectionTitle}>Password</h2>
                     <p className={styles.fieldLabel}>
@@ -808,7 +808,7 @@ export function AdminUserDetail() {
                 </div>
             )}
 
-            {can(currentUser?.role, "delete_any_user") && user.role !== "super_admin" && (
+            {can(currentUser, "delete_any_user") && user.role !== "super_admin" && (
                 <div className={`${styles.card} ${styles.dangerZone}`}>
                     <h2 className={styles.sectionTitle}>Danger Zone</h2>
                     <Button variant="danger" onClick={() => setDeleteModalOpen(true)}>

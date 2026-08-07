@@ -4150,6 +4150,46 @@ func (_c *MockService_SetMemberTimeout_Call) RunAndReturn(run func(ctx context.C
 	return _c
 }
 
+// SetMessageObserver provides a mock function for the type MockService
+func (_mock *MockService) SetMessageObserver(obs MessageObserver) {
+	_mock.Called(obs)
+	return
+}
+
+// MockService_SetMessageObserver_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetMessageObserver'
+type MockService_SetMessageObserver_Call struct {
+	*mock.Call
+}
+
+// SetMessageObserver is a helper method to define mock.On call
+//   - obs MessageObserver
+func (_e *MockService_Expecter) SetMessageObserver(obs any) *MockService_SetMessageObserver_Call {
+	return &MockService_SetMessageObserver_Call{Call: _e.mock.On("SetMessageObserver", obs)}
+}
+
+func (_c *MockService_SetMessageObserver_Call) Run(run func(obs MessageObserver)) *MockService_SetMessageObserver_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 MessageObserver
+		if args[0] != nil {
+			arg0 = args[0].(MessageObserver)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_SetMessageObserver_Call) Return() *MockService_SetMessageObserver_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *MockService_SetMessageObserver_Call) RunAndReturn(run func(obs MessageObserver)) *MockService_SetMessageObserver_Call {
+	_c.Run(run)
+	return _c
+}
+
 // SetRoomAvatar provides a mock function for the type MockService
 func (_mock *MockService) SetRoomAvatar(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (*dto.ChatRoomMemberResponse, error) {
 	ret := _mock.Called(ctx, roomID, userID, contentType, fileSize, reader)

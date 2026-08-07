@@ -60,6 +60,7 @@ type testMocks struct {
 	auditRepo   *repository.MockAuditLogRepository
 	inviteRepo  *repository.MockInviteRepository
 	vanityRepo  *repository.MockVanityRoleRepository
+	permRepo    *repository.MockPermissionRepository
 	sessionRepo *repository.MockSessionRepository
 	bannedRepo  *repository.MockBannedGiphyRepository
 	authz       *authz.MockService
@@ -79,6 +80,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	auditRepo := repository.NewMockAuditLogRepository(t)
 	inviteRepo := repository.NewMockInviteRepository(t)
 	vanityRepo := repository.NewMockVanityRoleRepository(t)
+	permRepo := repository.NewMockPermissionRepository(t)
 	sessionRepo := repository.NewMockSessionRepository(t)
 	bannedRepo := repository.NewMockBannedGiphyRepository(t)
 	bannedRepo.EXPECT().List(mock.Anything).Return(nil, nil).Maybe()
@@ -100,6 +102,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 		auditRepo,
 		inviteRepo,
 		vanityRepo,
+		permRepo,
 		banlistSvc,
 		authzSvc,
 		settingsSvc,
@@ -118,6 +121,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 		auditRepo:   auditRepo,
 		inviteRepo:  inviteRepo,
 		vanityRepo:  vanityRepo,
+		permRepo:    permRepo,
 		sessionRepo: sessionRepo,
 		bannedRepo:  bannedRepo,
 		authz:       authzSvc,
@@ -747,6 +751,7 @@ func TestBanUser_OK(t *testing.T) {
 	target := uuid.New()
 	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleSuperAdmin, nil)
 	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, target).Return(&model.User{ID: target}, nil)
 	m.userRepo.EXPECT().BanUser(mock.Anything, target, actor, "reason").Return(nil)
 	m.sessionRepo.EXPECT().DeleteAllForUser(mock.Anything, target).Return(nil)
 	m.auditRepo.EXPECT().Create(mock.Anything, actor, "ban_user", "user", target.String(), "reason").Return(nil)
@@ -765,6 +770,7 @@ func TestBanUser_SessionDeleteErrorSwallowed(t *testing.T) {
 	target := uuid.New()
 	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleSuperAdmin, nil)
 	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, target).Return(&model.User{ID: target}, nil)
 	m.userRepo.EXPECT().BanUser(mock.Anything, target, actor, "reason").Return(nil)
 	m.sessionRepo.EXPECT().DeleteAllForUser(mock.Anything, target).Return(errors.New("session boom"))
 	m.auditRepo.EXPECT().Create(mock.Anything, actor, "ban_user", "user", target.String(), "reason").Return(nil)
@@ -798,6 +804,7 @@ func TestBanUser_RepoError(t *testing.T) {
 	target := uuid.New()
 	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleSuperAdmin, nil)
 	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, target).Return(&model.User{ID: target}, nil)
 	m.userRepo.EXPECT().BanUser(mock.Anything, target, actor, "r").Return(errors.New("boom"))
 
 	// when
@@ -969,6 +976,7 @@ func TestResetUserPassword_OK(t *testing.T) {
 	target := uuid.New()
 	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleSuperAdmin, nil)
 	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, target).Return(&model.User{ID: target}, nil)
 	m.userRepo.EXPECT().SetPassword(mock.Anything, target, mock.Anything).Return(nil)
 	m.sessionRepo.EXPECT().DeleteAllForUser(mock.Anything, target).Return(nil)
 	m.auditRepo.EXPECT().Create(mock.Anything, actor, "reset_password", "user", target.String(), "").Return(nil)
@@ -988,6 +996,7 @@ func TestResetUserPassword_SessionDeleteErrorSwallowed(t *testing.T) {
 	target := uuid.New()
 	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleSuperAdmin, nil)
 	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, target).Return(&model.User{ID: target}, nil)
 	m.userRepo.EXPECT().SetPassword(mock.Anything, target, mock.Anything).Return(nil)
 	m.sessionRepo.EXPECT().DeleteAllForUser(mock.Anything, target).Return(errors.New("session boom"))
 	m.auditRepo.EXPECT().Create(mock.Anything, actor, "reset_password", "user", target.String(), "").Return(nil)
@@ -1023,6 +1032,7 @@ func TestResetUserPassword_SetPasswordError(t *testing.T) {
 	target := uuid.New()
 	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleSuperAdmin, nil)
 	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, target).Return(&model.User{ID: target}, nil)
 	m.userRepo.EXPECT().SetPassword(mock.Anything, target, mock.Anything).Return(errors.New("boom"))
 
 	// when
@@ -1537,6 +1547,7 @@ func TestDeleteVanityRole_OK(t *testing.T) {
 	svc, m := newTestService(t)
 	actor := uuid.New()
 	m.vanityRepo.EXPECT().GetByID(mock.Anything, "r1").Return(&repository.VanityRoleRow{ID: "r1", IsSystem: false}, nil)
+	m.settingsSvc.EXPECT().GetBool(mock.Anything, config.SettingChatbotEnabled).Return(false)
 	m.vanityRepo.EXPECT().Delete(mock.Anything, "r1").Return(nil)
 	m.auditRepo.EXPECT().Create(mock.Anything, actor, "delete_vanity_role", "vanity_role", "r1", "").Return(nil)
 
@@ -1545,6 +1556,23 @@ func TestDeleteVanityRole_OK(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
+}
+
+func TestDeleteVanityRole_RefusedWhileItIsTheOptInRole(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	actor := uuid.New()
+	m.vanityRepo.EXPECT().GetByID(mock.Anything, "patron").Return(&repository.VanityRoleRow{ID: "patron"}, nil)
+	m.settingsSvc.EXPECT().GetBool(mock.Anything, config.SettingChatbotEnabled).Return(true)
+	m.settingsSvc.EXPECT().GetBool(mock.Anything, config.SettingChatbotRequirePermission).Return(true)
+	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingChatbotOptInRole).Return("patron")
+
+	// when
+	err := svc.DeleteVanityRole(context.Background(), actor, "patron")
+
+	// then
+	require.ErrorIs(t, err, ErrVanityRoleOptInLocked)
+	m.vanityRepo.AssertNotCalled(t, "Delete", mock.Anything, mock.Anything)
 }
 
 func TestDeleteVanityRole_NotFound(t *testing.T) {
@@ -1587,6 +1615,7 @@ func TestDeleteVanityRole_DeleteError(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	m.vanityRepo.EXPECT().GetByID(mock.Anything, "r1").Return(&repository.VanityRoleRow{ID: "r1"}, nil)
+	m.settingsSvc.EXPECT().GetBool(mock.Anything, config.SettingChatbotEnabled).Return(false)
 	m.vanityRepo.EXPECT().Delete(mock.Anything, "r1").Return(errors.New("boom"))
 
 	// when
@@ -1632,6 +1661,7 @@ func TestAssignVanityRole_OK(t *testing.T) {
 	actor := uuid.New()
 	target := uuid.New()
 	m.vanityRepo.EXPECT().GetByID(mock.Anything, "r1").Return(&repository.VanityRoleRow{ID: "r1"}, nil)
+	m.permRepo.EXPECT().GetVanityRolePermissions(mock.Anything).Return(nil, nil)
 	m.vanityRepo.EXPECT().AssignToUser(mock.Anything, target, "r1").Return(nil)
 	m.auditRepo.EXPECT().CreateForSubject(mock.Anything, actor, "assign_vanity_role", "vanity_role", "r1", "", target).Return(nil)
 
@@ -1683,6 +1713,7 @@ func TestAssignVanityRole_AssignError(t *testing.T) {
 	svc, m := newTestService(t)
 	target := uuid.New()
 	m.vanityRepo.EXPECT().GetByID(mock.Anything, "r1").Return(&repository.VanityRoleRow{ID: "r1"}, nil)
+	m.permRepo.EXPECT().GetVanityRolePermissions(mock.Anything).Return(nil, nil)
 	m.vanityRepo.EXPECT().AssignToUser(mock.Anything, target, "r1").Return(errors.New("boom"))
 
 	// when
@@ -1698,6 +1729,7 @@ func TestUnassignVanityRole_OK(t *testing.T) {
 	actor := uuid.New()
 	target := uuid.New()
 	m.vanityRepo.EXPECT().GetByID(mock.Anything, "r1").Return(&repository.VanityRoleRow{ID: "r1"}, nil)
+	m.permRepo.EXPECT().GetVanityRolePermissions(mock.Anything).Return(nil, nil)
 	m.vanityRepo.EXPECT().UnassignFromUser(mock.Anything, target, "r1").Return(nil)
 	m.auditRepo.EXPECT().CreateForSubject(mock.Anything, actor, "unassign_vanity_role", "vanity_role", "r1", "", target).Return(nil)
 
@@ -1749,6 +1781,7 @@ func TestUnassignVanityRole_UnassignError(t *testing.T) {
 	svc, m := newTestService(t)
 	target := uuid.New()
 	m.vanityRepo.EXPECT().GetByID(mock.Anything, "r1").Return(&repository.VanityRoleRow{ID: "r1"}, nil)
+	m.permRepo.EXPECT().GetVanityRolePermissions(mock.Anything).Return(nil, nil)
 	m.vanityRepo.EXPECT().UnassignFromUser(mock.Anything, target, "r1").Return(errors.New("boom"))
 
 	// when

@@ -102,6 +102,65 @@ func (_c *MockService_Can_Call) RunAndReturn(run func(ctx context.Context, userI
 	return _c
 }
 
+// EffectivePermissions provides a mock function for the type MockService
+func (_mock *MockService) EffectivePermissions(ctx context.Context, userID uuid.UUID) []Permission {
+	ret := _mock.Called(ctx, userID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for EffectivePermissions")
+	}
+
+	var r0 []Permission
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []Permission); ok {
+		r0 = returnFunc(ctx, userID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]Permission)
+		}
+	}
+	return r0
+}
+
+// MockService_EffectivePermissions_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'EffectivePermissions'
+type MockService_EffectivePermissions_Call struct {
+	*mock.Call
+}
+
+// EffectivePermissions is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+func (_e *MockService_Expecter) EffectivePermissions(ctx any, userID any) *MockService_EffectivePermissions_Call {
+	return &MockService_EffectivePermissions_Call{Call: _e.mock.On("EffectivePermissions", ctx, userID)}
+}
+
+func (_c *MockService_EffectivePermissions_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *MockService_EffectivePermissions_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_EffectivePermissions_Call) Return(permissions []Permission) *MockService_EffectivePermissions_Call {
+	_c.Call.Return(permissions)
+	return _c
+}
+
+func (_c *MockService_EffectivePermissions_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) []Permission) *MockService_EffectivePermissions_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetRole provides a mock function for the type MockService
 func (_mock *MockService) GetRole(ctx context.Context, userID uuid.UUID) (role.Role, error) {
 	ret := _mock.Called(ctx, userID)

@@ -17,6 +17,8 @@ const EVERY_TAB = [
     "Announcements",
     "Settings",
     "Vanity Roles",
+    "Permissions",
+    "Chatbots",
     "Audit Log",
 ];
 
@@ -123,6 +125,7 @@ describe("AdminLayout", () => {
         expect(screen.getByRole("link", { name: "Announcements" })).toHaveAttribute("href", "/admin/announcements");
         expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute("href", "/admin/settings");
         expect(screen.getByRole("link", { name: "Vanity Roles" })).toHaveAttribute("href", "/admin/vanity-roles");
+        expect(screen.getByRole("link", { name: "Chatbots" })).toHaveAttribute("href", "/admin/chatbots");
         expect(screen.getByRole("link", { name: "Audit Log" })).toHaveAttribute("href", "/admin/audit-log");
     });
 

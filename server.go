@@ -2,6 +2,7 @@ package main
 
 import (
 	"cmp"
+	"context"
 	"embed"
 	"fmt"
 	"io/fs"
@@ -18,6 +19,7 @@ import (
 	blocksvc "umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/chat"
+	"umineko_city_of_books/internal/chatbot"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/controllers"
 	"umineko_city_of_books/internal/email"
@@ -37,6 +39,7 @@ import (
 	"umineko_city_of_books/internal/notification"
 	ocsvc "umineko_city_of_books/internal/oc"
 	"umineko_city_of_books/internal/og"
+	"umineko_city_of_books/internal/openai"
 	"umineko_city_of_books/internal/overlay"
 	postsvc "umineko_city_of_books/internal/post"
 	"umineko_city_of_books/internal/profile"
@@ -62,6 +65,10 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
+const (
+	drainTimeout = 15 * time.Second
+)
+
 var (
 	//go:embed static/*
 	staticFiles embed.FS
@@ -78,6 +85,9 @@ type (
 		admin           admin.Service
 		authz           authz.Service
 		chat            chat.Service
+		openai          openai.Service
+		chatbot         chatbot.Service
+		chatbotAdmin    chatbot.AdminService
 		report          report.Service
 		post            postsvc.Service
 		follow          follow.Service
@@ -121,12 +131,26 @@ type (
 
 func initServer() (*fiber.App, func()) {
 	repos, settingsSvc, cacheMgr := initDatabase()
+
 	svc := initServices(repos, settingsSvc, cacheMgr)
 	app := initApp(svc, repos, settingsSvc)
-	registerListeners(settingsSvc, app, svc, repos)
+	stopJobs := registerListeners(settingsSvc, app, svc, repos)
 
 	cleanup := func() {
-		if err := svc.cache.Close(); err != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), drainTimeout)
+		defer cancel()
+
+		if err := svc.chatbot.Shutdown(ctx); err != nil {
+			logger.Log.Warn().Err(err).Msg("chatbot drain incomplete")
+		}
+
+		if err := svc.mediaProc.Shutdown(ctx); err != nil {
+			logger.Log.Warn().Err(err).Msg("media processor drain incomplete")
+		}
+
+		stopJobs(ctx)
+
+		if err := cacheMgr.Close(); err != nil {
 			logger.Log.Warn().Err(err).Msg("valkey cache close error")
 		}
 	}
@@ -161,6 +185,8 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 		svc.authz,
 		settingsSvc,
 		svc.chat,
+		svc.chatbotAdmin,
+		svc.chatbot,
 		svc.report,
 		svc.post,
 		svc.follow,

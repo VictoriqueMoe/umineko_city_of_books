@@ -2,10 +2,13 @@ package media
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"umineko_city_of_books/internal/logger"
@@ -17,6 +20,10 @@ const (
 	ffmpegCRF       = "28"
 	imageJobTimeout = 2 * time.Minute
 	videoJobTimeout = 10 * time.Minute
+)
+
+var (
+	ErrShuttingDown = errors.New("media processor shutting down")
 )
 
 type (
@@ -34,7 +41,10 @@ type (
 	}
 
 	Processor struct {
-		jobs chan Job
+		jobs    chan Job
+		quit    chan struct{}
+		wg      sync.WaitGroup
+		closing atomic.Bool
 	}
 )
 
@@ -50,8 +60,10 @@ func NewProcessor(workers int) *Processor {
 
 	p := &Processor{
 		jobs: make(chan Job, defaultQueueCap),
+		quit: make(chan struct{}),
 	}
 
+	p.wg.Add(workers)
 	for i := range workers {
 		go p.worker(i)
 	}
@@ -61,6 +73,15 @@ func NewProcessor(workers int) *Processor {
 }
 
 func (p *Processor) Enqueue(job Job) {
+	if p.closing.Load() {
+		logger.Log.Warn().Str("path", job.InputPath).Msg("media processor is shutting down, rejecting job")
+		if job.ErrorCallback != nil {
+			job.ErrorCallback(ErrShuttingDown)
+		}
+
+		return
+	}
+
 	select {
 	case p.jobs <- job:
 	default:
@@ -72,30 +93,89 @@ func (p *Processor) Enqueue(job Job) {
 }
 
 func (p *Processor) worker(id int) {
-	for job := range p.jobs {
-		var outputPath string
-		var err error
+	defer p.wg.Done()
 
-		switch job.Type {
-		case JobImage:
-			outputPath, err = encodeImage(job)
-		case JobVideo:
-			outputPath, err = encodeVideo(job.InputPath)
+	for {
+		select {
+		case <-p.quit:
+			return
+		default:
 		}
 
-		if err != nil {
-			logger.Log.Error().Err(err).Int("worker", id).Str("input", job.InputPath).Msg("media encoding failed")
+		select {
+		case <-p.quit:
+			return
+		case job := <-p.jobs:
+			p.run(id, job)
+		}
+	}
+}
+
+func (p *Processor) run(id int, job Job) {
+	var outputPath string
+	var err error
+
+	switch job.Type {
+	case JobImage:
+		outputPath, err = encodeImage(job)
+	case JobVideo:
+		outputPath, err = encodeVideo(job.InputPath)
+	}
+
+	if err != nil {
+		logger.Log.Error().Err(err).Int("worker", id).Str("input", job.InputPath).Msg("media encoding failed")
+		if job.ErrorCallback != nil {
+			job.ErrorCallback(err)
+		}
+
+		return
+	}
+
+	if job.Callback != nil {
+		job.Callback(outputPath)
+	}
+
+	logger.Log.Debug().Int("worker", id).Str("output", outputPath).Msg("media encoding complete")
+}
+
+func (p *Processor) Shutdown(ctx context.Context) error {
+	if !p.closing.CompareAndSwap(false, true) {
+		return nil
+	}
+
+	close(p.quit)
+
+	done := make(chan struct{})
+	go func() {
+		p.wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		logger.Log.Info().Int("abandoned", len(p.jobs)).Msg("media processor drained")
+		p.failPending()
+
+		return nil
+	case <-ctx.Done():
+		logger.Log.Warn().Int("abandoned", len(p.jobs)).Msg("media processor drain timed out, encoding jobs were cut short")
+		p.failPending()
+
+		return ctx.Err()
+	}
+}
+
+func (p *Processor) failPending() {
+	for {
+		select {
+		case job := <-p.jobs:
+			logger.Log.Warn().Str("path", job.InputPath).Msg("media job abandoned at shutdown")
 			if job.ErrorCallback != nil {
-				job.ErrorCallback(err)
+				job.ErrorCallback(ErrShuttingDown)
 			}
-			continue
+		default:
+			return
 		}
-
-		if job.Callback != nil {
-			job.Callback(outputPath)
-		}
-
-		logger.Log.Debug().Int("worker", id).Str("output", outputPath).Msg("media encoding complete")
 	}
 }
 
@@ -142,8 +222,9 @@ func encodeVideo(inputPath string) (string, error) {
 		return "", fmt.Errorf("ffmpeg: %w: %s", err, string(out))
 	}
 
-	_ = os.Remove(inputPath)
 	if err := os.Rename(tmpOutput, outputPath); err != nil {
+		_ = os.Remove(tmpOutput)
+
 		return "", fmt.Errorf("rename output: %w", err)
 	}
 

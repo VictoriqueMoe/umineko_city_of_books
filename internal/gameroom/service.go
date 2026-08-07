@@ -174,6 +174,10 @@ func (s *service) hydrateRoomList(ctx context.Context, rows []repository.GameRoo
 
 func (s *service) finishAndBroadcast(ctx context.Context, roomID uuid.UUID, winner *uuid.UUID, result, stateJSON string, extras map[string]any, actorID uuid.UUID) (*dto.GameRoom, error) {
 	if err := s.repo.FinishRoom(ctx, roomID, string(dto.GameStatusFinished), winner, result, stateJSON); err != nil {
+		if errors.Is(err, repository.ErrRoomNotActive) {
+			return nil, ErrRoomNotActive
+		}
+
 		return nil, err
 	}
 	room, err := s.loadRoom(ctx, roomID)
@@ -904,25 +908,35 @@ func (s *service) HandleClientLeave(userID, roomID uuid.UUID) {
 
 func (s *service) CancelIdleGames(ctx context.Context) (int, error) {
 	idleSince := time.Now().Add(-idleGameTimeout)
+
 	rows, err := s.repo.ListIdleActive(ctx, idleSince)
 	if err != nil {
 		return 0, err
 	}
+
 	count := 0
 	for _, row := range rows {
-		if err := s.repo.FinishRoom(ctx, row.ID, string(dto.GameStatusAbandoned), nil, "timeout", row.StateJSON); err != nil {
+		cancelled, err := s.repo.CancelIdleRoom(ctx, row.ID, idleSince)
+		if err != nil {
 			logger.Log.Warn().Err(err).Str("room_id", row.ID.String()).Msg("cancel idle game")
 			continue
 		}
+		if !cancelled {
+			continue
+		}
+
 		room, err := s.loadRoom(ctx, row.ID)
 		if err == nil {
 			s.broadcast(room, "game_room_finished", map[string]any{"reason": "timeout"})
 		}
+
 		count++
 	}
+
 	if count > 0 {
 		s.broadcastLiveGamesCount(ctx)
 	}
+
 	return count, nil
 }
 

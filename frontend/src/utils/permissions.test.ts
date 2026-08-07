@@ -27,6 +27,7 @@ const ALL_PERMISSIONS: Permission[] = [
     "manage_user_account",
     "manage_user_email",
     "set_email_verified",
+    "use_chatbot",
 ];
 
 const MODERATOR_ALLOWED: Permission[] = [
@@ -45,6 +46,7 @@ const MODERATOR_ALLOWED: Permission[] = [
     "view_admin_panel",
     "view_stats",
     "view_users",
+    "use_chatbot",
 ];
 
 const MODERATOR_DENIED: Permission[] = [
@@ -222,5 +224,53 @@ describe("ROLE_GROUPS", () => {
 
         // then
         expect(withoutPermissions).toEqual([]);
+    });
+});
+
+describe("can with a server-supplied permission list", () => {
+    it("prefers the server list over the static role map", () => {
+        // given
+        const user = { role: "moderator" as SiteRole, permissions: ["view_admin_panel"] };
+
+        // when
+        const stillHasBan = can(user, "ban_user");
+        const hasAdminPanel = can(user, "view_admin_panel");
+
+        // then
+        expect(stillHasBan).toBe(false);
+        expect(hasAdminPanel).toBe(true);
+    });
+
+    it("grants a permission a vanity role carries even with no site role", () => {
+        // given
+        const user = { permissions: ["use_chatbot"] };
+
+        // when
+        const allowed = can(user, "use_chatbot");
+
+        // then
+        expect(allowed).toBe(true);
+    });
+
+    it("falls back to the static map when the payload carries no permission list", () => {
+        // given
+        const user = { role: "moderator" as SiteRole };
+
+        // when
+        const allowed = can(user, "ban_user");
+
+        // then
+        expect(allowed).toBe(true);
+    });
+
+    it("denies everything to an empty server list", () => {
+        // given
+        const user = { role: "moderator" as SiteRole, permissions: [] };
+
+        // when
+        const allowed = can(user, "ban_user");
+
+        // then
+        expect(allowed).toBe(false);
     });
 });

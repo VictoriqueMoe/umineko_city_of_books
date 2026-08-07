@@ -3,12 +3,13 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { makeSiteInfo, makeUser } from "../../test-utils/fixtures";
 import { createTestQueryClient, providerWrapper } from "../../test-utils/render";
-import { useMe, useSiteInfoQuery, useStaff } from "./auth";
+import { useChatbotOptIn, useMe, useSiteInfoQuery, useStaff } from "./auth";
 
 const endpoints = vi.hoisted(() => ({
     getMe: vi.fn(),
     getSiteInfo: vi.fn(),
     getStaff: vi.fn(),
+    getChatbotOptIn: vi.fn(),
 }));
 
 vi.mock("../endpoints", () => endpoints);
@@ -28,6 +29,7 @@ beforeEach(() => {
     endpoints.getMe.mockResolvedValue(makeUser());
     endpoints.getSiteInfo.mockResolvedValue(makeSiteInfo());
     endpoints.getStaff.mockResolvedValue([]);
+    endpoints.getChatbotOptIn.mockResolvedValue({ opted_in: false });
 });
 
 describe("useMe", () => {
@@ -120,6 +122,46 @@ describe("useSiteInfoQuery", () => {
 
         // then
         expect(result.current.dataUpdatedAt).toBeGreaterThan(0);
+    });
+});
+
+describe("useChatbotOptIn", () => {
+    it("exposes the opt in under the preferences key", async () => {
+        // given
+        endpoints.getChatbotOptIn.mockResolvedValue({ opted_in: true });
+
+        // when
+        const { result, queryClient } = setup(() => useChatbotOptIn(true));
+
+        // then
+        await waitFor(() => expect(result.current.loading).toBe(false));
+        expect(firstKey(queryClient)).toEqual(["preferences", "chatbot-opt-in"]);
+        expect(result.current.optedIn).toBe(true);
+    });
+
+    it("assumes the member has not opted in until the answer arrives", () => {
+        // given
+        const { result } = setup(() => useChatbotOptIn(true));
+
+        // when
+        const initial = result.current;
+
+        // then
+        expect(initial.loading).toBe(true);
+        expect(initial.optedIn).toBe(false);
+    });
+
+    it("never asks when the setting is not being offered", () => {
+        // given
+        const { result } = setup(() => useChatbotOptIn(false));
+
+        // when
+        const initial = result.current;
+
+        // then
+        expect(endpoints.getChatbotOptIn).not.toHaveBeenCalled();
+        expect(initial.loading).toBe(false);
+        expect(initial.optedIn).toBe(false);
     });
 });
 

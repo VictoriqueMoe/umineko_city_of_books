@@ -11,11 +11,13 @@ import {
     setEmail,
     verifyEmail,
     updateAppearance,
+    updateChatbotOptIn,
     updateGameBoardSort,
     updateProfile,
     uploadAvatar,
     uploadBanner,
 } from "../endpoints";
+import { queryKeys } from "../queryKeys";
 import type { ChangePasswordPayload, DeleteAccountPayload, UpdateProfilePayload } from "../../types/api";
 
 export function useRegister() {
@@ -151,6 +153,16 @@ export function useUpdateGameBoardSort() {
         mutationFn: (sort: string) => updateGameBoardSort(sort),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ["auth", "me"] });
+        },
+    });
+}
+
+export function useUpdateChatbotOptIn() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (optedIn: boolean) => updateChatbotOptIn(optedIn),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: queryKeys.preferences.chatbotOptIn() });
         },
     });
 }

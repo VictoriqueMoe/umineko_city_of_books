@@ -189,6 +189,18 @@ describe("queryKeys.notifications", () => {
     });
 });
 
+describe("queryKeys.preferences", () => {
+    it("keys the character opt in under its own preferences root", () => {
+        // then
+        expect(queryKeys.preferences.chatbotOptIn()).toEqual(["preferences", "chatbot-opt-in"]);
+    });
+
+    it("keeps the preference away from the session user so one does not invalidate the other", () => {
+        // then
+        expect(queryKeys.preferences.chatbotOptIn()[0]).not.toBe("auth");
+    });
+});
+
 describe("queryKeys.admin", () => {
     it("builds stable static admin keys", () => {
         // then
