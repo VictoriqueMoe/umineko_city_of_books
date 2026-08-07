@@ -483,6 +483,19 @@ describe("NotificationProvider", () => {
         expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["streams", "live"] });
     });
 
+    it("refetches the chatbot list when a chatbot is created, edited or deleted", () => {
+        // given
+        const { queryClient } = renderProvider();
+        const invalidateQueries = vi.spyOn(queryClient, "invalidateQueries");
+        openSocket();
+
+        // when
+        emit({ type: "chatbots_changed", data: {} });
+
+        // then
+        expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: queryKeys.chatbots.all });
+    });
+
     it("announces a closed secret to the rest of the app", () => {
         // given
         const closed = vi.fn();

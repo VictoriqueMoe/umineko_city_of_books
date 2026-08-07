@@ -214,6 +214,9 @@ export function NotificationProvider({ children }: PropsWithChildren) {
                 if (msg.type === "permissions_changed" || msg.type === "vanity_roles_changed") {
                     qc.invalidateQueries({ queryKey: ["auth", "me"] });
                 }
+                if (msg.type === "chatbots_changed") {
+                    qc.invalidateQueries({ queryKey: queryKeys.chatbots.all });
+                }
                 if (msg.type === "chat_unread_bumped" || msg.type === "chat_read") {
                     const data = msg.data as { total?: number };
                     if (typeof data.total === "number") {

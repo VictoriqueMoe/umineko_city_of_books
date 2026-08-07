@@ -2,17 +2,19 @@ import type { QueryClient } from "@tanstack/react-query";
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createTestQueryClient, providerWrapper } from "../../test-utils/render";
-import type { CreateBannedWordRequest } from "../../types/api";
+import type { ChatbotPayload, CreateBannedWordRequest } from "../../types/api";
 import {
     useAddBannedGif,
     useAdminDeleteUser,
     useAssignVanityRole,
     useBanUser,
     useCreateAnnouncement,
+    useCreateChatbot,
     useCreateGlobalBannedWord,
     useCreateInvite,
     useCreateVanityRole,
     useDeleteAnnouncement,
+    useDeleteChatbot,
     useDeleteGlobalBannedWord,
     useDeleteInvite,
     useDeleteVanityRole,
@@ -34,6 +36,7 @@ import {
     useUnverifyUserEmail,
     useUpdateAdminSettings,
     useUpdateAnnouncement,
+    useUpdateChatbot,
     useUpdateDetectiveScore,
     useUpdateGlobalBannedWord,
     useUpdateGMScore,
@@ -48,10 +51,12 @@ const mocks = vi.hoisted(() => ({
     assignVanityRole: vi.fn(),
     banUser: vi.fn(),
     createAnnouncement: vi.fn(),
+    createChatbot: vi.fn(),
     createGlobalBannedWord: vi.fn(),
     createInvite: vi.fn(),
     createVanityRole: vi.fn(),
     deleteAnnouncement: vi.fn(),
+    deleteChatbot: vi.fn(),
     deleteGlobalBannedWord: vi.fn(),
     deleteInvite: vi.fn(),
     deleteVanityRole: vi.fn(),
@@ -73,6 +78,7 @@ const mocks = vi.hoisted(() => ({
     unverifyUserEmail: vi.fn(),
     updateAdminSettings: vi.fn(),
     updateAnnouncement: vi.fn(),
+    updateChatbot: vi.fn(),
     updateDetectiveScore: vi.fn(),
     updateGlobalBannedWord: vi.fn(),
     updateGMScore: vi.fn(),
@@ -612,5 +618,58 @@ describe("admin vanity role mutations", () => {
         // then
         expect(mocks.unassignVanityRole).toHaveBeenCalledWith("r1", userId);
         expect(invalidate).toHaveBeenCalledWith({ queryKey: ["admin", "vanity-role-users"] });
+    });
+});
+
+describe("admin chatbot mutations", () => {
+    const bot: ChatbotPayload = {
+        username: "beatrice",
+        display_name: "Beatrice",
+        avatar_url: "",
+        system_prompt: "You are the Golden Witch.",
+        model: "gpt-5.6-luna",
+        reasoning_effort: "low",
+        verbosity: "medium",
+        max_output_tokens: 400,
+        enabled: true,
+    };
+
+    it("creates a chatbot and refreshes the sidebar list as well as the admin list", async () => {
+        // given
+        const { qc, invalidate } = client();
+
+        // when
+        await runMutation(useCreateChatbot, bot, qc);
+
+        // then
+        expect(mocks.createChatbot).toHaveBeenCalledWith(bot);
+        expect(invalidate).toHaveBeenCalledWith({ queryKey: ["admin", "chatbots"] });
+        expect(invalidate).toHaveBeenCalledWith({ queryKey: ["chatbots"] });
+    });
+
+    it("updates a chatbot by id and refreshes the sidebar list", async () => {
+        // given
+        const { qc, invalidate } = client();
+
+        // when
+        await runMutation(useUpdateChatbot, { id: "b1", data: bot }, qc);
+
+        // then
+        expect(mocks.updateChatbot).toHaveBeenCalledWith("b1", bot);
+        expect(invalidate).toHaveBeenCalledWith({ queryKey: ["admin", "chatbots"] });
+        expect(invalidate).toHaveBeenCalledWith({ queryKey: ["chatbots"] });
+    });
+
+    it("deletes a chatbot by id and refreshes the sidebar list", async () => {
+        // given
+        const { qc, invalidate } = client();
+
+        // when
+        await runMutation(useDeleteChatbot, "b1", qc);
+
+        // then
+        expect(mocks.deleteChatbot).toHaveBeenCalledWith("b1");
+        expect(invalidate).toHaveBeenCalledWith({ queryKey: ["admin", "chatbots"] });
+        expect(invalidate).toHaveBeenCalledWith({ queryKey: ["chatbots"] });
     });
 });

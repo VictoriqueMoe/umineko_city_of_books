@@ -361,11 +361,18 @@ export function useUpdateVanityRolePermissions() {
     });
 }
 
+async function invalidateChatbotViews(qc: QueryClient) {
+    await Promise.all([
+        qc.invalidateQueries({ queryKey: queryKeys.admin.chatbots() }),
+        qc.invalidateQueries({ queryKey: queryKeys.chatbots.all }),
+    ]);
+}
+
 export function useCreateChatbot() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (data: ChatbotPayload) => createChatbot(data),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.admin.chatbots() }),
+        onSuccess: () => invalidateChatbotViews(qc),
     });
 }
 
@@ -373,7 +380,7 @@ export function useUpdateChatbot() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: ({ id, data }: { id: string; data: ChatbotPayload }) => updateChatbot(id, data),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.admin.chatbots() }),
+        onSuccess: () => invalidateChatbotViews(qc),
     });
 }
 
@@ -381,7 +388,7 @@ export function useDeleteChatbot() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (id: string) => deleteChatbot(id),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.admin.chatbots() }),
+        onSuccess: () => invalidateChatbotViews(qc),
     });
 }
 

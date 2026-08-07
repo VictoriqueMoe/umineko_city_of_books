@@ -189,6 +189,11 @@ func (s *service) reload() {
 	}
 
 	s.hub.SetAlwaysOnline(online)
+
+	s.hub.BroadcastPublic(ws.Message{
+		Type: "chatbots_changed",
+		Data: map[string]any{},
+	})
 }
 
 func (s *service) Reload() {
