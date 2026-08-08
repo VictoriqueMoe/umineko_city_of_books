@@ -418,14 +418,6 @@ export async function unlockSecret(secret: string, phrase: string): Promise<void
     await apiPut<unknown, { secret: string; phrase: string }>("/preferences/secret-unlock", { secret, phrase });
 }
 
-export interface ChatbotOptInState {
-    opted_in: boolean;
-}
-
-export async function getChatbotOptIn(): Promise<ChatbotOptInState> {
-    return apiFetch<ChatbotOptInState>("/preferences/chatbot-opt-in");
-}
-
 export async function updateChatbotOptIn(optedIn: boolean): Promise<void> {
     await apiPut<unknown, { opted_in: boolean }>("/preferences/chatbot-opt-in", { opted_in: optedIn });
 }

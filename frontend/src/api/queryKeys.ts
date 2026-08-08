@@ -61,11 +61,9 @@ export const queryKeys = {
         userRooms: () => ["chat", "rooms", "user"] as const,
     },
     profile: {
+        all: ["profile"] as const,
         byUsername: (username: string) => ["profile", "username", username] as const,
         blockedUsers: (userID: string) => ["profile", id(userID), "blocked"] as const,
-    },
-    preferences: {
-        chatbotOptIn: () => ["preferences", "chatbot-opt-in"] as const,
     },
     notifications: {
         all: ["notifications"] as const,

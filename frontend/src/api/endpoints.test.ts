@@ -1191,12 +1191,6 @@ describe("profile and preference updates", () => {
             request: ["/preferences/appearance", { theme: "gold", font: "serif", wide_layout: false }],
         },
         {
-            name: "getChatbotOptIn reads the member's own character opt in state",
-            call: () => api.getChatbotOptIn(),
-            transport: fetchMock,
-            request: ["/preferences/chatbot-opt-in"],
-        },
-        {
             name: "updateChatbotOptIn puts the opt in under a snake cased flag",
             call: () => api.updateChatbotOptIn(true),
             transport: putMock,

@@ -410,7 +410,7 @@ describe("session preference mutations", () => {
         expect(invalidate).toHaveBeenCalledWith({ queryKey: ["auth", "me"] });
     });
 
-    it("opts the member in to characters and refreshes only that preference", async () => {
+    it("opts the member in to characters and refreshes the profile the toggle reads from", async () => {
         // given
         const { qc, invalidate } = client();
 
@@ -419,7 +419,8 @@ describe("session preference mutations", () => {
 
         // then
         expect(mocks.updateChatbotOptIn).toHaveBeenCalledWith(true);
-        expect(invalidate).toHaveBeenCalledWith({ queryKey: ["preferences", "chatbot-opt-in"] });
+        expect(invalidate).toHaveBeenCalledWith({ queryKey: ["profile"] });
+        expect(invalidate).toHaveBeenCalledWith({ queryKey: ["auth", "me"] });
     });
 
     it("opts the member back out of characters", async () => {
@@ -431,6 +432,6 @@ describe("session preference mutations", () => {
 
         // then
         expect(mocks.updateChatbotOptIn).toHaveBeenCalledWith(false);
-        expect(invalidate).toHaveBeenCalledWith({ queryKey: ["preferences", "chatbot-opt-in"] });
+        expect(invalidate).toHaveBeenCalledWith({ queryKey: ["profile"] });
     });
 });

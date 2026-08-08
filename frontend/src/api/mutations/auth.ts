@@ -162,7 +162,8 @@ export function useUpdateChatbotOptIn() {
     return useMutation({
         mutationFn: (optedIn: boolean) => updateChatbotOptIn(optedIn),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: queryKeys.preferences.chatbotOptIn() });
+            qc.invalidateQueries({ queryKey: queryKeys.profile.all });
+            qc.invalidateQueries({ queryKey: ["auth", "me"] });
         },
     });
 }

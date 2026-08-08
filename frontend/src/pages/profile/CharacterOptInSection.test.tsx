@@ -3,15 +3,16 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SiteInfo } from "../../api/endpoints";
 import { renderWithProviders } from "../../test-utils/render";
+import { makeUser } from "../../test-utils/fixtures";
 import { CharacterOptInSection } from "./CharacterOptInSection";
 
 const mocks = vi.hoisted(() => ({
-    useChatbotOptIn: vi.fn(),
+    useProfile: vi.fn(),
     mutate: vi.fn(),
     pending: false,
 }));
 
-vi.mock("../../api/queries/auth", () => ({ useChatbotOptIn: mocks.useChatbotOptIn }));
+vi.mock("../../api/queries/profile", () => ({ useProfile: mocks.useProfile }));
 vi.mock("../../api/mutations/auth", () => ({
     useUpdateChatbotOptIn: () => ({ mutate: mocks.mutate, isPending: mocks.pending }),
 }));
@@ -23,10 +24,16 @@ interface SetupOptions {
 }
 
 function setup(options: SetupOptions = {}) {
-    mocks.useChatbotOptIn.mockReturnValue({ optedIn: options.optedIn ?? false, loading: options.loading ?? false });
+    mocks.useProfile.mockReturnValue({
+        profile: { private: { chatbot_opted_in: options.optedIn ?? false } },
+        loading: options.loading ?? false,
+    });
 
     const user = userEvent.setup();
-    const result = renderWithProviders(<CharacterOptInSection />, { siteInfo: options.siteInfo });
+    const result = renderWithProviders(<CharacterOptInSection />, {
+        siteInfo: options.siteInfo,
+        user: makeUser({ username: "featherine" }),
+    });
 
     return { ...result, user };
 }
@@ -61,7 +68,7 @@ describe("CharacterOptInSection visibility", () => {
         setup(options);
 
         // then
-        expect(mocks.useChatbotOptIn).toHaveBeenCalledWith(false);
+        expect(mocks.useProfile).toHaveBeenCalledWith("");
     });
 
     it("offers the choice once characters are restricted to a permission", () => {

@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useChatbotOptIn } from "../../api/queries/auth";
+import { useAuthedUser } from "../../hooks/useAuthedUser";
+import { useProfile } from "../../api/queries/profile";
 import { useUpdateChatbotOptIn } from "../../api/mutations/auth";
 import { ToggleSwitch } from "../../components/ToggleSwitch/ToggleSwitch";
 import { useSiteInfo } from "../../hooks/useSiteInfo";
@@ -7,9 +8,11 @@ import styles from "./SettingsPage.module.css";
 
 export function CharacterOptInSection() {
     const siteInfo = useSiteInfo();
+    const user = useAuthedUser();
     const restricted = siteInfo.chatbot_require_permission;
     const available = restricted && siteInfo.chatbot_enabled;
-    const { optedIn, loading } = useChatbotOptIn(restricted);
+    const { profile, loading } = useProfile(restricted ? (user?.username ?? "") : "");
+    const optedIn = profile?.private?.chatbot_opted_in ?? false;
     const optInMutation = useUpdateChatbotOptIn();
     const [error, setError] = useState("");
 

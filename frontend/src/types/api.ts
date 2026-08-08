@@ -181,6 +181,7 @@ export interface UserPrivateFields {
     theme?: string;
     font?: string;
     wide_layout?: boolean;
+    chatbot_opted_in?: boolean;
 }
 
 export interface UserStats {
