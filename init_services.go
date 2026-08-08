@@ -107,7 +107,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 	overlaySvc := overlay.NewService(repos.OverlayToken, overlayHub, settingsSvc, authzSvc)
 	notifSvc := notification.NewService(repos.Notification, repos.User, repos.Block, hub, emailSvc, pushSvc, settingsSvc, overlaySvc)
 	reportSvc := report.NewService(repos.Report, repos.Role, repos.User, notifSvc, settingsSvc)
-	hyperbeamSvc := hyperbeam.NewService()
+	hyperbeamSvc := hyperbeam.NewService(settingsSvc)
 	livekitSvc := livekit.NewService(settingsSvc)
 	streamSvc := stream.NewService(repos.LiveStream, repos.StreamCredentials, livekitSvc, settingsSvc, uploadSvc, hub)
 	chatSvc := chat.NewService(repos.Chat, repos.User, repos.Role, repos.VanityRole, repos.ChatRoomBan, repos.ChatBannedWord, repos.ChatWatchParty, repos.AuditLog, authzSvc, notifSvc, blockSvc, uploadSvc, settingsSvc, mediaProc, hub, hyperbeamSvc, livekitSvc, contentFilter)

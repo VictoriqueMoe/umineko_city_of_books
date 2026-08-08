@@ -10,13 +10,20 @@ import (
 	"testing"
 	"time"
 
+	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/settings"
+
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
-func newTestService(apiKey, baseURL string) *service {
+func newTestService(t *testing.T, apiKey, baseURL string) *service {
+	settingsSvc := settings.NewMockService(t)
+	settingsSvc.EXPECT().Get(mock.Anything, config.SettingHyperbeamAPIKey).Return(apiKey).Maybe()
+
 	return &service{
-		apiKey:  apiKey,
-		baseURL: baseURL,
+		settingsSvc: settingsSvc,
+		baseURL:     baseURL,
 		httpClient: &http.Client{
 			Timeout: 5 * time.Second,
 		},
@@ -37,7 +44,7 @@ func TestService_Enabled(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// when
-			svc := newTestService(tc.key, "http://example")
+			svc := newTestService(t, tc.key, "http://example")
 
 			// then
 			require.Equal(t, tc.want, svc.Enabled())
@@ -64,7 +71,7 @@ func TestService_CreateVM(t *testing.T) {
 	}))
 	defer server.Close()
 
-	svc := newTestService("sk_test_abc", server.URL)
+	svc := newTestService(t, "sk_test_abc", server.URL)
 
 	// when
 	vm, err := svc.CreateVM(context.Background(), CreateVMOptions{
@@ -89,25 +96,39 @@ func TestService_CreateVM(t *testing.T) {
 	require.Equal(t, float64(14400), timeout["absolute"])
 }
 
+func TestService_SetControlRole_RequiresAnAdminToken(t *testing.T) {
+	// given
+	svc := newTestService(t, "sk_test_abc", "http://engine")
+
+	// when
+	err := svc.SetControlRole(context.Background(), "https://vm.hyperbeam.com/abc", "", "user_xyz", true)
+
+	// then
+	require.ErrorIs(t, err, ErrMissingAdminToken)
+}
+
 func TestService_SetControlRole_AddsControlRole(t *testing.T) {
 	// given
 	var gotPath string
+	var gotAuth string
 	var gotBody []any
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotPath = r.URL.Path
+		gotAuth = r.Header.Get("Authorization")
 		raw, _ := io.ReadAll(r.Body)
 		_ = json.Unmarshal(raw, &gotBody)
 		w.WriteHeader(http.StatusNoContent)
 	}))
 	defer server.Close()
 
-	svc := newTestService("sk_test_abc", "http://engine")
+	svc := newTestService(t, "sk_test_abc", "http://engine")
 
 	// when
-	err := svc.SetControlRole(context.Background(), server.URL+"/session_path", "user_xyz", true)
+	err := svc.SetControlRole(context.Background(), server.URL+"/session_path", "vm_admin_token", "user_xyz", true)
 
 	// then
 	require.NoError(t, err)
+	require.Equal(t, "Bearer vm_admin_token", gotAuth, "vm scoped endpoints authenticate with the session admin token, not the account api key")
 	require.Equal(t, "/session_path/addRoles", gotPath)
 	require.Len(t, gotBody, 2)
 	userIDs, ok := gotBody[0].([]any)
@@ -127,10 +148,10 @@ func TestService_SetControlRole_RemovesControlRole(t *testing.T) {
 	}))
 	defer server.Close()
 
-	svc := newTestService("sk_test_abc", "http://engine")
+	svc := newTestService(t, "sk_test_abc", "http://engine")
 
 	// when
-	err := svc.SetControlRole(context.Background(), server.URL+"/session_path", "user_xyz", false)
+	err := svc.SetControlRole(context.Background(), server.URL+"/session_path", "vm_admin_token", "user_xyz", false)
 
 	// then
 	require.NoError(t, err)
@@ -146,7 +167,7 @@ func TestService_TerminateVM_Success(t *testing.T) {
 	}))
 	defer server.Close()
 
-	svc := newTestService("sk_test_abc", server.URL)
+	svc := newTestService(t, "sk_test_abc", server.URL)
 
 	// when
 	err := svc.TerminateVM(context.Background(), "sess_123")
@@ -163,7 +184,7 @@ func TestService_APIError(t *testing.T) {
 	}))
 	defer server.Close()
 
-	svc := newTestService("sk_test_abc", server.URL)
+	svc := newTestService(t, "sk_test_abc", server.URL)
 
 	// when
 	_, err := svc.CreateVM(context.Background(), CreateVMOptions{})

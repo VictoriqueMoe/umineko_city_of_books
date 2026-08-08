@@ -59,7 +59,7 @@ func (s *service) buildMessages(ctx context.Context, j job, tune tuning) []opena
 		return s.replyChain(ctx, j.ev, j.bot.UserID, tune)
 	}
 
-	return []openai.Message{{Role: "user", Content: authored(j.ev.Body, "", messageBodyMax)}}
+	return []openai.Message{{Role: "user", Content: authored(j.ev.Body, j.ev.SenderName, messageBodyMax)}}
 }
 
 func (s *service) dmHistory(ctx context.Context, ev botEvent, botUserID uuid.UUID, tune tuning) []openai.Message {
@@ -120,7 +120,7 @@ func (s *service) replyChain(ctx context.Context, ev botEvent, botUserID uuid.UU
 		ordered = append(ordered, chain[i])
 	}
 
-	return fitBudget(append(ordered, openai.Message{Role: "user", Content: authored(ev.Body, "", messageBodyMax)}))
+	return fitBudget(append(ordered, openai.Message{Role: "user", Content: authored(ev.Body, ev.SenderName, messageBodyMax)}))
 }
 
 func (s *service) parentRow(ctx context.Context, ev botEvent, id uuid.UUID) (promptRow, *uuid.UUID, bool) {
@@ -148,6 +148,10 @@ func chatPromptRow(row repository.ChatMessageRow) promptRow {
 		Username:    row.SenderUsername,
 		Body:        row.Body,
 		IsSystem:    row.IsSystem,
+	}
+
+	if strings.TrimSpace(row.SenderNickname) != "" {
+		out.DisplayName = row.SenderNickname
 	}
 
 	if row.ReplyToBody != nil {

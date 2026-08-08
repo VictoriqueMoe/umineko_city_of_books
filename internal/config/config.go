@@ -15,8 +15,6 @@ type (
 		Postgres           PostgresConfig
 		DatabaseURL        string
 		GiphyAPIKey        string
-		HyperbeamAPIKey    string
-		HyperbeamRegion    string
 		FCMCredentialsFile string
 	}
 
@@ -92,6 +90,8 @@ var (
 	SettingLiveKitURL              = &SiteSettingDef{"livekit_url", "", TypeString, false}
 	SettingLiveKitAPIKey           = &SiteSettingDef{"livekit_api_key", "", TypeString, false}
 	SettingLiveKitAPISecret        = &SiteSettingDef{"livekit_api_secret", "", TypeString, true}
+	SettingHyperbeamAPIKey         = &SiteSettingDef{"hyperbeam_api_key", "", TypeString, true}
+	SettingHyperbeamRegion         = &SiteSettingDef{"hyperbeam_region", "EU", TypeString, false}
 	SettingStreamingEnabled        = &SiteSettingDef{"streaming_enabled", "false", TypeBool, false}
 	SettingStreamMaxConcurrent     = &SiteSettingDef{"stream_max_concurrent", "3", TypeInt, false}
 	SettingStreamHLSEnabled        = &SiteSettingDef{"stream_hls_enabled", "false", TypeBool, false}
@@ -184,6 +184,8 @@ var (
 		SettingLiveKitURL,
 		SettingLiveKitAPIKey,
 		SettingLiveKitAPISecret,
+		SettingHyperbeamAPIKey,
+		SettingHyperbeamRegion,
 		SettingStreamingEnabled,
 		SettingStreamMaxConcurrent,
 		SettingStreamHLSEnabled,
@@ -412,6 +414,12 @@ func ValidateSettings(all map[SiteSettingKey]string) error {
 		}
 	}
 
+	switch strings.TrimSpace(all[SettingHyperbeamRegion.Key]) {
+	case "", "NA", "EU", "AS":
+	default:
+		return fmt.Errorf("shared browser region must be NA, EU or AS")
+	}
+
 	if err := validateChatbotSettings(all); err != nil {
 		return err
 	}
@@ -443,16 +451,12 @@ func init() {
 	}
 	databaseURL := os.Getenv("DATABASE_URL")
 	giphyKey := os.Getenv("GIPHY_API_KEY")
-	hyperbeamKey := os.Getenv("HYPERBEAM_API_KEY")
-	hyperbeamRegion := envOr("HYPERBEAM_REGION", "EU")
 	fcmCredentialsFile := os.Getenv("FCM_CREDENTIALS_FILE")
 
 	Cfg = Config{
 		Postgres:           pg,
 		DatabaseURL:        databaseURL,
 		GiphyAPIKey:        giphyKey,
-		HyperbeamAPIKey:    hyperbeamKey,
-		HyperbeamRegion:    hyperbeamRegion,
 		FCMCredentialsFile: fcmCredentialsFile,
 	}
 

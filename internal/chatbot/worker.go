@@ -4,10 +4,12 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
 
+	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/openai"
@@ -41,6 +43,14 @@ func (s *service) run(id int, j job) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), jobTimeout)
 	defer cancel()
+
+	if j.refusal {
+		if err := s.deliver(ctx, j, s.refusalMessage(ctx)); err != nil {
+			logger.Log.Error().Err(err).Int("worker", id).Str("bot", j.bot.Username).Msg("failed to explain the chatbot permission refusal")
+		}
+
+		return
+	}
 
 	tune, _ := s.snapshot()
 
@@ -118,6 +128,12 @@ func (s *service) reply(ctx context.Context, j job, tune tuning, invocationID uu
 	}
 
 	return repository.InvocationReplied, nil
+}
+
+func (s *service) refusalMessage(ctx context.Context) string {
+	settingsURL := strings.TrimSuffix(strings.TrimSpace(s.settingsSvc.Get(ctx, config.SettingBaseURL)), "/") + "/settings"
+
+	return fmt.Sprintf("I am not permitted to answer you yet. Talking to me is opt in, so visit %s and turn it on, then summon me again.", settingsURL)
 }
 
 func (s *service) deliver(ctx context.Context, j job, body string) error {

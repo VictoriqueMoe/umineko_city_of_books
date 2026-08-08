@@ -178,6 +178,7 @@ func TestObserveForBot(t *testing.T) {
 			assert.Equal(t, postID, events[0].PostID)
 			assert.Equal(t, commentID, *events[0].CommentID)
 			assert.Equal(t, authorID, events[0].AuthorID)
+			assert.Equal(t, tc.author.DisplayLabel(), events[0].AuthorName, "the bot must be told who is talking to it")
 			assert.Equal(t, tc.body, events[0].Body)
 			assert.Len(t, events[0].MentionedIDs, tc.wantMentionCount)
 

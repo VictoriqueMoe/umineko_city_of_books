@@ -74,6 +74,7 @@ type (
 		RoomID        uuid.UUID
 		RoomType      string
 		SenderID      uuid.UUID
+		SenderName    string
 		MessageID     uuid.UUID
 		Body          string
 		Members       []uuid.UUID

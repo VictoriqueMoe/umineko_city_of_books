@@ -11,6 +11,7 @@ import (
 	"umineko_city_of_books/internal/role"
 
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
@@ -29,7 +30,7 @@ func TestStartWatchParty_Disabled(t *testing.T) {
 	m.hyperbeamSvc.EXPECT().Enabled().Return(false)
 
 	// when
-	_, err := svc.StartWatchParty(context.Background(), roomID, userID, "", "", "", "")
+	_, err := svc.StartWatchParty(context.Background(), roomID, userID, "", "", "", "", false)
 
 	// then
 	require.ErrorIs(t, err, ErrWatchPartyDisabled)
@@ -44,7 +45,7 @@ func TestStartWatchParty_NotMember(t *testing.T) {
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(false, nil)
 
 	// when
-	_, err := svc.StartWatchParty(context.Background(), roomID, userID, "", "", "", "")
+	_, err := svc.StartWatchParty(context.Background(), roomID, userID, "", "", "", "", false)
 
 	// then
 	require.ErrorIs(t, err, ErrNotMember)
@@ -62,7 +63,7 @@ func TestStartWatchParty_RejectsDM(t *testing.T) {
 	}, nil)
 
 	// when
-	_, err := svc.StartWatchParty(context.Background(), roomID, userID, "", "", "", "")
+	_, err := svc.StartWatchParty(context.Background(), roomID, userID, "", "", "", "", false)
 
 	// then
 	require.ErrorIs(t, err, ErrWatchPartyWrongRoomType)
@@ -80,7 +81,7 @@ func TestStartWatchParty_RejectsSystemRoom(t *testing.T) {
 	}, nil)
 
 	// when
-	_, err := svc.StartWatchParty(context.Background(), roomID, userID, "", "", "", "")
+	_, err := svc.StartWatchParty(context.Background(), roomID, userID, "", "", "", "", false)
 
 	// then
 	require.ErrorIs(t, err, ErrWatchPartyWrongRoomType)
@@ -119,7 +120,7 @@ func TestStartWatchParty_OK(t *testing.T) {
 	m.chatRepo.EXPECT().GetMessageByID(mock.Anything, mock.Anything).Return(nil, nil)
 
 	// when
-	resp, err := svc.StartWatchParty(context.Background(), roomID, userID, "", "", "Movie night", "")
+	resp, err := svc.StartWatchParty(context.Background(), roomID, userID, "", "", "Movie night", "", false)
 
 	// then
 	require.NoError(t, err)
@@ -128,6 +129,49 @@ func TestStartWatchParty_OK(t *testing.T) {
 	require.Equal(t, "Movie night", resp.Session.Title)
 	require.NotNil(t, resp.Session.Viewer)
 	require.True(t, resp.Session.Viewer.HasControl)
+}
+
+func TestStartWatchParty_BrowserOptions(t *testing.T) {
+	cases := []struct {
+		name     string
+		light    bool
+		wantDark bool
+	}{
+		{"a starter on a dark theme gets a dark browser", false, true},
+		{"a starter on a light theme gets a light browser", true, false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			roomID := uuid.New()
+			userID := uuid.New()
+
+			m.hyperbeamSvc.EXPECT().Enabled().Return(true)
+			m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
+			expectGroupRoomLookup(m, roomID, userID)
+
+			var got hyperbeam.CreateVMOptions
+			m.hyperbeamSvc.EXPECT().CreateVM(mock.Anything, mock.Anything).
+				Run(func(_ context.Context, opts hyperbeam.CreateVMOptions) { got = opts }).
+				Return(nil, errors.New("stop here"))
+
+			// when
+			_, err := svc.StartWatchParty(context.Background(), roomID, userID, "", "", "", "", tc.light)
+
+			// then
+			require.Error(t, err)
+			assert.Equal(t, tc.wantDark, got.Dark)
+			assert.True(t, got.Adblock)
+			assert.True(t, got.WebGL)
+			require.NotNil(t, got.Quality)
+			assert.Equal(t, watchPartyQuality, got.Quality.Mode)
+			assert.Zero(t, got.Width, "resolution is restricted on our hyperbeam plan and must not be sent")
+			assert.Zero(t, got.Height, "resolution is restricted on our hyperbeam plan and must not be sent")
+			assert.Zero(t, got.FPS, "frame rate is restricted on our hyperbeam plan and must not be sent")
+		})
+	}
 }
 
 func TestStartWatchParty_HyperbeamFailureCleansUp(t *testing.T) {
@@ -142,7 +186,7 @@ func TestStartWatchParty_HyperbeamFailureCleansUp(t *testing.T) {
 	m.hyperbeamSvc.EXPECT().CreateVM(mock.Anything, mock.Anything).Return(nil, errors.New("hyperbeam down"))
 
 	// when
-	_, err := svc.StartWatchParty(context.Background(), roomID, userID, "", "", "", "")
+	_, err := svc.StartWatchParty(context.Background(), roomID, userID, "", "", "", "", false)
 
 	// then
 	require.Error(t, err)
@@ -234,7 +278,7 @@ func TestGrantWatchPartyControl_OK(t *testing.T) {
 	m.hyperbeamSvc.EXPECT().Enabled().Return(true)
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, controllerID).Return(true, nil)
 	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(&repository.ChatWatchPartySessionRow{
-		ID: sessionID, RoomID: roomID, StartedBy: controllerID, ControllerID: controllerID, HyperbeamSessionID: "hb_sess", Status: "active",
+		ID: sessionID, RoomID: roomID, StartedBy: controllerID, ControllerID: controllerID, HyperbeamSessionID: "hb_sess", Status: "active", HyperbeamAdminToken: "vm_admin_token",
 		VMBaseURL: "https://hb.example/sess",
 	}, nil)
 	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, controllerID).Return(&repository.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: controllerID, HasControl: true, HyperbeamIdentifier: "id-controller"}, nil)
@@ -243,9 +287,9 @@ func TestGrantWatchPartyControl_OK(t *testing.T) {
 		{SessionID: sessionID, UserID: controllerID, HasControl: true, HyperbeamIdentifier: "id-controller"},
 		{SessionID: sessionID, UserID: targetID, HasControl: false, HyperbeamIdentifier: "id-target"},
 	}, nil)
-	m.hyperbeamSvc.EXPECT().SetControlRole(mock.Anything, "https://hb.example/sess", "id-controller", false).Return(nil)
+	m.hyperbeamSvc.EXPECT().SetControlRole(mock.Anything, "https://hb.example/sess", "vm_admin_token", "id-controller", false).Return(nil)
 	m.watchPartyRepo.EXPECT().SetParticipantControl(mock.Anything, sessionID, controllerID, false).Return(nil)
-	m.hyperbeamSvc.EXPECT().SetControlRole(mock.Anything, "https://hb.example/sess", "id-target", true).Return(nil)
+	m.hyperbeamSvc.EXPECT().SetControlRole(mock.Anything, "https://hb.example/sess", "vm_admin_token", "id-target", true).Return(nil)
 	m.watchPartyRepo.EXPECT().SetParticipantControl(mock.Anything, sessionID, targetID, true).Return(nil)
 	m.watchPartyRepo.EXPECT().SetControllerID(mock.Anything, sessionID, targetID).Return(nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, controllerID).Return(nil, nil)
@@ -555,7 +599,7 @@ func TestStartWatchParty_ChatRoomFailureRollsBackSession(t *testing.T) {
 	m.watchPartyRepo.EXPECT().EndSession(mock.Anything, sessionID, "chat_room_setup_failed").Return(nil)
 
 	// when
-	_, err := svc.StartWatchParty(context.Background(), roomID, userID, "", "", "", "")
+	_, err := svc.StartWatchParty(context.Background(), roomID, userID, "", "", "", "", false)
 
 	// then the VM and the session row are both released rather than stranded
 	require.Error(t, err)

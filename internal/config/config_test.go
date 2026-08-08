@@ -20,6 +20,42 @@ func validSettings() map[SiteSettingKey]string {
 	return all
 }
 
+func TestValidateSettings_HyperbeamRegion(t *testing.T) {
+	cases := []struct {
+		name    string
+		region  string
+		wantErr bool
+	}{
+		{"north america", "NA", false},
+		{"europe", "EU", false},
+		{"asia", "AS", false},
+		{"blank falls back to the provider default", "", false},
+		{"surrounding whitespace is tolerated", "  EU  ", false},
+		{"a lowercase region is refused", "eu", true},
+		{"an invented region is refused", "atlantis", true},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			all := validSettings()
+			all[SettingHyperbeamRegion.Key] = tc.region
+
+			// when
+			err := ValidateSettings(all)
+
+			// then
+			if !tc.wantErr {
+				require.NoError(t, err)
+				return
+			}
+
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "NA, EU or AS")
+		})
+	}
+}
+
 func TestValidateSettings_ChatbotOptInRolePairing(t *testing.T) {
 	cases := []struct {
 		name       string

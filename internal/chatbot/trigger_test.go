@@ -1,15 +1,19 @@
 package chatbot
 
 import (
+	"context"
 	"testing"
 	"time"
 
 	"umineko_city_of_books/internal/authz"
+	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/settings"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func botsByID(ids ...uuid.UUID) map[uuid.UUID]repository.Chatbot {
@@ -232,6 +236,121 @@ func TestAllowedToSummon(t *testing.T) {
 
 			// then
 			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestObserve_RefusedSummonIsExplainedRatherThanSilent(t *testing.T) {
+	botID := uuid.New()
+	senderID := uuid.New()
+
+	event := botEvent{
+		Surface:      SurfaceChat,
+		ScopeID:      uuid.New(),
+		ItemID:       uuid.New(),
+		SenderID:     senderID,
+		Body:         "@bot hello",
+		MentionedIDs: mentions(botID),
+	}
+
+	cases := []struct {
+		name        string
+		alreadyTold bool
+		wantQueue   int
+	}{
+		{"the first refused summon is explained", false, 1},
+		{"a second refusal inside the window stays quiet", true, 0},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			authzSvc := authz.NewMockService(t)
+			authzSvc.EXPECT().Can(mock.Anything, senderID, authz.PermUseChatbot).Return(false)
+
+			svc := &service{
+				jobs:     make(chan job, 4),
+				bots:     botsByID(botID),
+				tune:     tuning{enabled: true, requirePermission: true},
+				authzSvc: authzSvc,
+			}
+			svc.loaded = true
+			if tc.alreadyTold {
+				svc.lastRefusal.Store(senderID, time.Now())
+			}
+
+			// when
+			svc.observe(event)
+
+			// then
+			assert.Len(t, svc.jobs, tc.wantQueue)
+
+			if tc.wantQueue == 0 {
+				return
+			}
+
+			queued := <-svc.jobs
+			assert.True(t, queued.refusal, "the job must be marked as a refusal so no model call is made")
+			assert.Equal(t, botID, queued.bot.UserID)
+		})
+	}
+}
+
+func TestObserve_PermittedSummonQueuesARealReply(t *testing.T) {
+	// given
+	botID := uuid.New()
+	senderID := uuid.New()
+	authzSvc := authz.NewMockService(t)
+	authzSvc.EXPECT().Can(mock.Anything, senderID, authz.PermUseChatbot).Return(true)
+
+	svc := &service{
+		jobs:     make(chan job, 4),
+		bots:     botsByID(botID),
+		tune:     tuning{enabled: true, requirePermission: true},
+		authzSvc: authzSvc,
+	}
+	svc.loaded = true
+
+	// when
+	svc.observe(botEvent{
+		Surface:      SurfaceChat,
+		ScopeID:      uuid.New(),
+		ItemID:       uuid.New(),
+		SenderID:     senderID,
+		Body:         "@bot hello",
+		MentionedIDs: mentions(botID),
+	})
+
+	// then
+	require.Len(t, svc.jobs, 1)
+	queued := <-svc.jobs
+	assert.False(t, queued.refusal)
+}
+
+func TestRefusalMessage_PointsAtTheSettingsPage(t *testing.T) {
+	cases := []struct {
+		name    string
+		baseURL string
+		want    string
+	}{
+		{"a plain base url", "https://whentheycry.social", "https://whentheycry.social/settings"},
+		{"a trailing slash is not doubled", "https://whentheycry.social/", "https://whentheycry.social/settings"},
+		{"surrounding whitespace is trimmed", "  https://whentheycry.social  ", "https://whentheycry.social/settings"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			settingsSvc := settings.NewMockService(t)
+			settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return(tc.baseURL)
+			svc := &service{settingsSvc: settingsSvc}
+
+			// when
+			got := svc.refusalMessage(context.Background())
+
+			// then
+			assert.Contains(t, got, tc.want)
+			assert.NotContains(t, got, "//settings")
 		})
 	}
 }

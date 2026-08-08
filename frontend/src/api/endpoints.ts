@@ -925,11 +925,17 @@ export async function listWatchParties(roomId: string): Promise<WatchPartyListRe
 
 export async function startWatchParty(
     roomId: string,
-    options: { start_url?: string; region?: string; title?: string; type?: "hyperbeam" | "screenshare" },
+    options: {
+        start_url?: string;
+        region?: string;
+        title?: string;
+        type?: "hyperbeam" | "screenshare";
+        light?: boolean;
+    },
 ): Promise<StartWatchPartyResponse> {
     return apiPost<
         StartWatchPartyResponse,
-        { start_url?: string; region?: string; title?: string; type?: "hyperbeam" | "screenshare" }
+        { start_url?: string; region?: string; title?: string; type?: "hyperbeam" | "screenshare"; light?: boolean }
     >(`/chat/rooms/${roomId}/watch-parties`, options);
 }
 

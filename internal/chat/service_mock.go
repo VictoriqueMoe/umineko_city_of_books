@@ -4432,8 +4432,8 @@ func (_c *MockService_SetRoomNickname_Call) RunAndReturn(run func(ctx context.Co
 }
 
 // StartWatchParty provides a mock function for the type MockService
-func (_mock *MockService) StartWatchParty(ctx context.Context, roomID uuid.UUID, actorID uuid.UUID, startURL string, region string, title string, sessionType string) (*dto.StartWatchPartyResponse, error) {
-	ret := _mock.Called(ctx, roomID, actorID, startURL, region, title, sessionType)
+func (_mock *MockService) StartWatchParty(ctx context.Context, roomID uuid.UUID, actorID uuid.UUID, startURL string, region string, title string, sessionType string, light bool) (*dto.StartWatchPartyResponse, error) {
+	ret := _mock.Called(ctx, roomID, actorID, startURL, region, title, sessionType, light)
 
 	if len(ret) == 0 {
 		panic("no return value specified for StartWatchParty")
@@ -4441,18 +4441,18 @@ func (_mock *MockService) StartWatchParty(ctx context.Context, roomID uuid.UUID,
 
 	var r0 *dto.StartWatchPartyResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, string, string, string) (*dto.StartWatchPartyResponse, error)); ok {
-		return returnFunc(ctx, roomID, actorID, startURL, region, title, sessionType)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, string, string, string, bool) (*dto.StartWatchPartyResponse, error)); ok {
+		return returnFunc(ctx, roomID, actorID, startURL, region, title, sessionType, light)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, string, string, string) *dto.StartWatchPartyResponse); ok {
-		r0 = returnFunc(ctx, roomID, actorID, startURL, region, title, sessionType)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, string, string, string, bool) *dto.StartWatchPartyResponse); ok {
+		r0 = returnFunc(ctx, roomID, actorID, startURL, region, title, sessionType, light)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*dto.StartWatchPartyResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, string, string, string, string) error); ok {
-		r1 = returnFunc(ctx, roomID, actorID, startURL, region, title, sessionType)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, string, string, string, string, bool) error); ok {
+		r1 = returnFunc(ctx, roomID, actorID, startURL, region, title, sessionType, light)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -4472,11 +4472,12 @@ type MockService_StartWatchParty_Call struct {
 //   - region string
 //   - title string
 //   - sessionType string
-func (_e *MockService_Expecter) StartWatchParty(ctx any, roomID any, actorID any, startURL any, region any, title any, sessionType any) *MockService_StartWatchParty_Call {
-	return &MockService_StartWatchParty_Call{Call: _e.mock.On("StartWatchParty", ctx, roomID, actorID, startURL, region, title, sessionType)}
+//   - light bool
+func (_e *MockService_Expecter) StartWatchParty(ctx any, roomID any, actorID any, startURL any, region any, title any, sessionType any, light any) *MockService_StartWatchParty_Call {
+	return &MockService_StartWatchParty_Call{Call: _e.mock.On("StartWatchParty", ctx, roomID, actorID, startURL, region, title, sessionType, light)}
 }
 
-func (_c *MockService_StartWatchParty_Call) Run(run func(ctx context.Context, roomID uuid.UUID, actorID uuid.UUID, startURL string, region string, title string, sessionType string)) *MockService_StartWatchParty_Call {
+func (_c *MockService_StartWatchParty_Call) Run(run func(ctx context.Context, roomID uuid.UUID, actorID uuid.UUID, startURL string, region string, title string, sessionType string, light bool)) *MockService_StartWatchParty_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -4506,6 +4507,10 @@ func (_c *MockService_StartWatchParty_Call) Run(run func(ctx context.Context, ro
 		if args[6] != nil {
 			arg6 = args[6].(string)
 		}
+		var arg7 bool
+		if args[7] != nil {
+			arg7 = args[7].(bool)
+		}
 		run(
 			arg0,
 			arg1,
@@ -4514,6 +4519,7 @@ func (_c *MockService_StartWatchParty_Call) Run(run func(ctx context.Context, ro
 			arg4,
 			arg5,
 			arg6,
+			arg7,
 		)
 	})
 	return _c
@@ -4524,7 +4530,7 @@ func (_c *MockService_StartWatchParty_Call) Return(startWatchPartyResponse *dto.
 	return _c
 }
 
-func (_c *MockService_StartWatchParty_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, actorID uuid.UUID, startURL string, region string, title string, sessionType string) (*dto.StartWatchPartyResponse, error)) *MockService_StartWatchParty_Call {
+func (_c *MockService_StartWatchParty_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, actorID uuid.UUID, startURL string, region string, title string, sessionType string, light bool) (*dto.StartWatchPartyResponse, error)) *MockService_StartWatchParty_Call {
 	_c.Call.Return(run)
 	return _c
 }

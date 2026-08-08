@@ -218,16 +218,16 @@ func (_c *MockService_GetVMStatus_Call) RunAndReturn(run func(ctx context.Contex
 }
 
 // SetControlRole provides a mock function for the type MockService
-func (_mock *MockService) SetControlRole(ctx context.Context, vmBaseURL string, userIdentifier string, hasControl bool) error {
-	ret := _mock.Called(ctx, vmBaseURL, userIdentifier, hasControl)
+func (_mock *MockService) SetControlRole(ctx context.Context, vmBaseURL string, adminToken string, userIdentifier string, hasControl bool) error {
+	ret := _mock.Called(ctx, vmBaseURL, adminToken, userIdentifier, hasControl)
 
 	if len(ret) == 0 {
 		panic("no return value specified for SetControlRole")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, bool) error); ok {
-		r0 = returnFunc(ctx, vmBaseURL, userIdentifier, hasControl)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, bool) error); ok {
+		r0 = returnFunc(ctx, vmBaseURL, adminToken, userIdentifier, hasControl)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -242,13 +242,14 @@ type MockService_SetControlRole_Call struct {
 // SetControlRole is a helper method to define mock.On call
 //   - ctx context.Context
 //   - vmBaseURL string
+//   - adminToken string
 //   - userIdentifier string
 //   - hasControl bool
-func (_e *MockService_Expecter) SetControlRole(ctx any, vmBaseURL any, userIdentifier any, hasControl any) *MockService_SetControlRole_Call {
-	return &MockService_SetControlRole_Call{Call: _e.mock.On("SetControlRole", ctx, vmBaseURL, userIdentifier, hasControl)}
+func (_e *MockService_Expecter) SetControlRole(ctx any, vmBaseURL any, adminToken any, userIdentifier any, hasControl any) *MockService_SetControlRole_Call {
+	return &MockService_SetControlRole_Call{Call: _e.mock.On("SetControlRole", ctx, vmBaseURL, adminToken, userIdentifier, hasControl)}
 }
 
-func (_c *MockService_SetControlRole_Call) Run(run func(ctx context.Context, vmBaseURL string, userIdentifier string, hasControl bool)) *MockService_SetControlRole_Call {
+func (_c *MockService_SetControlRole_Call) Run(run func(ctx context.Context, vmBaseURL string, adminToken string, userIdentifier string, hasControl bool)) *MockService_SetControlRole_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -262,15 +263,20 @@ func (_c *MockService_SetControlRole_Call) Run(run func(ctx context.Context, vmB
 		if args[2] != nil {
 			arg2 = args[2].(string)
 		}
-		var arg3 bool
+		var arg3 string
 		if args[3] != nil {
-			arg3 = args[3].(bool)
+			arg3 = args[3].(string)
+		}
+		var arg4 bool
+		if args[4] != nil {
+			arg4 = args[4].(bool)
 		}
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4,
 		)
 	})
 	return _c
@@ -281,7 +287,7 @@ func (_c *MockService_SetControlRole_Call) Return(err error) *MockService_SetCon
 	return _c
 }
 
-func (_c *MockService_SetControlRole_Call) RunAndReturn(run func(ctx context.Context, vmBaseURL string, userIdentifier string, hasControl bool) error) *MockService_SetControlRole_Call {
+func (_c *MockService_SetControlRole_Call) RunAndReturn(run func(ctx context.Context, vmBaseURL string, adminToken string, userIdentifier string, hasControl bool) error) *MockService_SetControlRole_Call {
 	_c.Call.Return(run)
 	return _c
 }

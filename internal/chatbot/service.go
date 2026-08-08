@@ -35,6 +35,7 @@ const (
 	promptCharBudget = 200000
 	safetyIDSalt     = "umineko-chatbot-safety-id:"
 	shutdownMessage  = "chatbot worker pool drained"
+	refusalCooldown  = 10 * time.Minute
 )
 
 type (
@@ -66,6 +67,7 @@ type (
 		ev       botEvent
 		bot      repository.Chatbot
 		useChain bool
+		refusal  bool
 	}
 
 	service struct {
@@ -79,12 +81,13 @@ type (
 		settingsSvc settings.Service
 		hub         *ws.Hub
 
-		mu      sync.RWMutex
-		tune    tuning
-		bots    map[uuid.UUID]repository.Chatbot
-		loaded  bool
-		lastUse sync.Map
-		inScope sync.Map
+		mu          sync.RWMutex
+		tune        tuning
+		bots        map[uuid.UUID]repository.Chatbot
+		loaded      bool
+		lastUse     sync.Map
+		lastRefusal sync.Map
+		inScope     sync.Map
 
 		jobs    chan job
 		quit    chan struct{}

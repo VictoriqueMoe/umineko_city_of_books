@@ -6,7 +6,8 @@ import (
 )
 
 var (
-	ErrDisabled = errors.New("hyperbeam integration is not configured")
+	ErrDisabled          = errors.New("hyperbeam integration is not configured")
+	ErrMissingAdminToken = errors.New("hyperbeam: this watch party has no stored admin token")
 )
 
 type APIError struct {
