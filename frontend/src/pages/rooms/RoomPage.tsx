@@ -164,7 +164,7 @@ export function RoomPage() {
                         </button>
                         <span className={styles.sidebarTitle}>Members</span>
                         <span className={styles.memberCount}>{members.length}</span>
-                        {isHost && !isSystem && (
+                        {canModerateRoom && !isSystem && (
                             <button
                                 type="button"
                                 className={styles.inviteButton}

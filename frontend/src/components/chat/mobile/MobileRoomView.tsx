@@ -279,7 +279,7 @@ export function MobileRoomView({ controller }: { controller: RoomController }) {
                         <span className={styles.topTitle}>Members</span>
                         <span className={styles.topMeta}>{members.length} members</span>
                     </div>
-                    {isHost && !isSystem && (
+                    {canModerateRoom && !isSystem && (
                         <button
                             type="button"
                             className={styles.iconBtn}

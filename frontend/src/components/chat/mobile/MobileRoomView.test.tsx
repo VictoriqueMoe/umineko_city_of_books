@@ -747,6 +747,17 @@ describe("MobileRoomView members view", () => {
         expect(screen.queryByLabelText("Invite members")).not.toBeInTheDocument();
     });
 
+    it("offers the invite control to site staff who do not host the room", () => {
+        // given
+        const room = makeRoom({ viewer_role: "member", is_system: false });
+
+        // when
+        membersView({ room, user: staffViewer });
+
+        // then
+        expect(screen.getByLabelText("Invite members")).toBeInTheDocument();
+    });
+
     it("puts the room profile control on the viewer's own row alone", () => {
         // given
         const memberGroups = [{ label: "Members", members: [selfMember, makeMember()] }];

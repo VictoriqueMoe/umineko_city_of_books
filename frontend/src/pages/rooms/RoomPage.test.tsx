@@ -891,6 +891,30 @@ describe("RoomPage sidebar actions", () => {
         expect(screen.queryByRole("button", { name: "+ Invite" })).not.toBeInTheDocument();
     });
 
+    it("shows the invite button to site staff who do not host the room", () => {
+        // given
+        const user = makeUser({ id: "viewer-1", role: "moderator" });
+        const room = makeRoom({ viewer_role: "member" });
+
+        // when
+        renderRoom({ user, room });
+
+        // then
+        expect(screen.getByRole("button", { name: "+ Invite" })).toBeInTheDocument();
+    });
+
+    it("hides the invite button from site staff in a system room", () => {
+        // given
+        const user = makeUser({ id: "viewer-1", role: "moderator" });
+        const room = makeRoom({ viewer_role: "member", is_system: true });
+
+        // when
+        renderRoom({ user, room });
+
+        // then
+        expect(screen.queryByRole("button", { name: "+ Invite" })).not.toBeInTheDocument();
+    });
+
     it("collapses the member sidebar when asked", async () => {
         // given
         const user = userEvent.setup();
