@@ -82,7 +82,7 @@ type (
 		DeleteGlobalBannedWord(ctx context.Context, actorID, ruleID uuid.UUID) error
 
 		WatchPartyEnabled() bool
-		StartWatchParty(ctx context.Context, roomID, actorID uuid.UUID, startURL, region, title, sessionType string) (*dto.StartWatchPartyResponse, error)
+		StartWatchParty(ctx context.Context, roomID, actorID uuid.UUID, startURL, region, title, sessionType string, light bool) (*dto.StartWatchPartyResponse, error)
 		JoinWatchParty(ctx context.Context, roomID, sessionID, actorID uuid.UUID) (*dto.JoinWatchPartyResponse, error)
 		LeaveWatchParty(ctx context.Context, roomID, sessionID, actorID uuid.UUID) error
 		GrantWatchPartyControl(ctx context.Context, roomID, sessionID, callerID, targetID uuid.UUID) error

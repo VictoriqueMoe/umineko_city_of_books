@@ -218,6 +218,44 @@ describe("WatchPartyButton", () => {
         expect(onStart).toHaveBeenCalledWith({ title: "Chiru rewatch", type: "hyperbeam" });
     });
 
+    it("starts a virtual browser party once the flags arrive, even though it mounted before they did", async () => {
+        // given the button mounted before the watch party list resolved, so both flags were still false
+        const user = userEvent.setup();
+        const { onStart, rerender } = renderButton({ enabled: false, screenShareEnabled: false });
+
+        // when the list arrives saying the virtual browser is the only option
+        rerender(
+            <WatchPartyButton
+                enabled={true}
+                screenShareEnabled={false}
+                sessions={[]}
+                activeSessionId={null}
+                viewerUserId={viewerId}
+                onStart={onStart}
+                onJoin={vi.fn()}
+                onOpenExisting={vi.fn()}
+            />,
+        );
+        await openPicker(user);
+        await user.click(screen.getByRole("button", { name: "Start new" }));
+
+        // then it must not fall back to the screen share it was mounted with
+        expect(onStart).toHaveBeenCalledWith({ title: undefined, type: "hyperbeam" });
+    });
+
+    it("starts a screen share party when that is the only option available", async () => {
+        // given
+        const user = userEvent.setup();
+        const { onStart } = renderButton({ enabled: false, screenShareEnabled: true });
+        await openPicker(user);
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Start new" }));
+
+        // then
+        expect(onStart).toHaveBeenCalledWith({ title: undefined, type: "screenshare" });
+    });
+
     it("sends no title at all when the field was left blank", async () => {
         // given
         const user = userEvent.setup();

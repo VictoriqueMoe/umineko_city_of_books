@@ -2,6 +2,7 @@ package chatbot
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"umineko_city_of_books/internal/authz"
@@ -23,6 +24,7 @@ func (s *service) observe(ev botEvent) {
 
 	if !s.allowedToSummon(ev.SenderID, tune) {
 		droppedTotal.WithLabelValues("permission").Inc()
+		s.explainRefusal(ev, bot)
 
 		return
 	}
@@ -95,13 +97,17 @@ func (s *service) allowedToSummon(userID uuid.UUID, tune tuning) bool {
 }
 
 func (s *service) takeCooldown(userID uuid.UUID, window time.Duration) bool {
+	return takeSlot(&s.lastUse, userID, window)
+}
+
+func takeSlot(seen *sync.Map, userID uuid.UUID, window time.Duration) bool {
 	if window <= 0 {
 		return true
 	}
 
 	now := time.Now()
 
-	prev, ok := s.lastUse.Load(userID)
+	prev, ok := seen.Load(userID)
 	if ok {
 		last, valid := prev.(time.Time)
 		if valid && now.Sub(last) < window {
@@ -109,7 +115,25 @@ func (s *service) takeCooldown(userID uuid.UUID, window time.Duration) bool {
 		}
 	}
 
-	s.lastUse.Store(userID, now)
+	seen.Store(userID, now)
 
 	return true
+}
+
+func (s *service) explainRefusal(ev botEvent, bot repository.Chatbot) {
+	if !takeSlot(&s.lastRefusal, ev.SenderID, refusalCooldown) {
+		return
+	}
+
+	key := ev.scopeKey()
+	if _, busy := s.inScope.LoadOrStore(key, struct{}{}); busy {
+		return
+	}
+
+	select {
+	case s.jobs <- job{ev: ev, bot: bot, refusal: true}:
+	default:
+		s.inScope.Delete(key)
+		droppedTotal.WithLabelValues("queue_full").Inc()
+	}
 }

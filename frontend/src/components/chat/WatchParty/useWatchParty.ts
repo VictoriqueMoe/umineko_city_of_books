@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNotifications } from "../../../hooks/useNotifications";
+import { useTheme } from "../../../hooks/useTheme";
+import { isLightTheme } from "../../../utils/themes";
 import {
     endWatchParty as endWatchPartyApi,
     identifyWatchPartyParticipant as identifyWatchPartyParticipantApi,
@@ -86,6 +88,7 @@ function sendLeaveBeacon(roomId: string, sessionId: string) {
 
 export function useWatchParty(roomId: string | null, viewerUserId: string | null): UseWatchPartyResult {
     const { addWSListener } = useNotifications();
+    const { theme } = useTheme();
     const [data, setData] = useState<RoomScopedState>(emptyState);
     const [error, setError] = useState<string | null>(null);
     const activeIdRef = useRef<string | null>(null);
@@ -322,6 +325,7 @@ export function useWatchParty(roomId: string | null, viewerUserId: string | null
                     region: region || undefined,
                     title: opts.title,
                     type: partyType,
+                    light: isLightTheme(theme) || undefined,
                 });
                 setData(prev => ({
                     roomId,
@@ -337,7 +341,7 @@ export function useWatchParty(roomId: string | null, viewerUserId: string | null
                 throw err;
             }
         },
-        [roomId],
+        [roomId, theme],
     );
 
     const join = useCallback(

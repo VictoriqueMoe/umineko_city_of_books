@@ -144,3 +144,108 @@ func TestBuildMessages_MentionOnlySendsOneMessage(t *testing.T) {
 		})
 	}
 }
+
+func TestBuildMessages_NamesWhoeverTriggeredTheBot(t *testing.T) {
+	cases := []struct {
+		name       string
+		surface    Surface
+		senderName string
+		want       string
+	}{
+		{"a room mention carries the sender name", SurfaceChat, "Featherine Augustus Aurora", "Featherine Augustus Aurora: @beatrice who am i?"},
+		{"a room nickname is used when the sender has one", SurfaceChat, "Feather", "Feather: @beatrice who am i?"},
+		{"a game board mention carries the author name", SurfacePost, "Kujo", "Kujo: @beatrice who am i?"},
+		{"an unknown name falls back to the bare body", SurfaceChat, "", "@beatrice who am i?"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc := &service{postRepo: repository.NewMockPostRepository(t)}
+			j := job{
+				ev: botEvent{
+					Surface:    tc.surface,
+					ScopeID:    uuid.New(),
+					SenderName: tc.senderName,
+					Body:       "@beatrice who am i?",
+				},
+				bot:      repository.Chatbot{UserID: uuid.New()},
+				useChain: false,
+			}
+
+			// when
+			got := svc.buildMessages(context.Background(), j, tuning{maxReplyChain: 25, contextMessages: 20})
+
+			// then
+			assert.Equal(t, []openai.Message{{Role: "user", Content: tc.want}}, got)
+		})
+	}
+}
+
+func TestBuildMessages_ReplyChainStillNamesTheTrigger(t *testing.T) {
+	// given
+	roomID := uuid.New()
+	botID := uuid.New()
+	parentID := uuid.New()
+
+	chatRepo := repository.NewMockChatRepository(t)
+	chatRepo.EXPECT().GetMessageByID(mock.Anything, parentID).Return(&repository.ChatMessageRow{
+		ID:       parentID,
+		RoomID:   roomID,
+		SenderID: botID,
+		Body:     "the culprit is not human",
+	}, nil)
+
+	svc := &service{chatRepo: chatRepo}
+	j := job{
+		ev: botEvent{
+			Surface:    SurfaceChat,
+			ScopeID:    roomID,
+			SenderName: "Feather",
+			Body:       "explain",
+			ParentID:   &parentID,
+		},
+		bot:      repository.Chatbot{UserID: botID},
+		useChain: true,
+	}
+
+	// when
+	got := svc.buildMessages(context.Background(), j, tuning{maxReplyChain: 25})
+
+	// then
+	assert.Equal(t, []openai.Message{
+		{Role: "assistant", Content: "the culprit is not human"},
+		{Role: "user", Content: "Feather: explain"},
+	}, got)
+}
+
+func TestChatPromptRow_PrefersTheRoomNickname(t *testing.T) {
+	cases := []struct {
+		name     string
+		nickname string
+		display  string
+		username string
+		want     string
+	}{
+		{"a nickname wins over the display name", "Feather", "Featherine Augustus Aurora", "featherine", "Feather"},
+		{"a blank nickname falls back to the display name", "", "Featherine Augustus Aurora", "featherine", "Featherine Augustus Aurora"},
+		{"a whitespace nickname falls back to the display name", "   ", "Featherine Augustus Aurora", "featherine", "Featherine Augustus Aurora"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			row := repository.ChatMessageRow{
+				SenderNickname:    tc.nickname,
+				SenderDisplayName: tc.display,
+				SenderUsername:    tc.username,
+			}
+
+			// when
+			got := chatPromptRow(row)
+
+			// then
+			assert.Equal(t, tc.want, got.DisplayName)
+		})
+	}
+}

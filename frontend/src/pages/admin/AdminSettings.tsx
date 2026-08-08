@@ -344,8 +344,36 @@ export function AdminSettings() {
             </div>
 
             <div className={styles.card}>
-                <h2 className={styles.sectionTitle}>Voice Chat (LiveKit)</h2>
+                <h2 className={styles.sectionTitle}>Watch Parties, Voice &amp; Streaming</h2>
                 <div className={styles.fieldGroup}>
+                    <div className={styles.field}>
+                        <span className={styles.fieldLabel}>Watch party: shared browser (Hyperbeam)</span>
+                        <Input
+                            type="password"
+                            value={settings.hyperbeam_api_key ?? ""}
+                            onChange={e => updateField("hyperbeam_api_key", e.target.value)}
+                            fullWidth
+                            placeholder="sk_test_..."
+                        />
+                        <span className={styles.fieldHint}>
+                            Lets members watch a shared virtual browser together. Leave it empty to offer screen sharing
+                            only, which uses the LiveKit credentials below.
+                        </span>
+                    </div>
+                    <div className={styles.field}>
+                        <span className={styles.fieldLabel}>Shared browser region</span>
+                        <Select
+                            value={settings.hyperbeam_region ?? "EU"}
+                            onChange={e => updateField("hyperbeam_region", e.target.value)}
+                        >
+                            <option value="NA">North America</option>
+                            <option value="EU">Europe</option>
+                            <option value="AS">Asia</option>
+                        </Select>
+                        <span className={styles.fieldHint}>
+                            Where the shared browser runs. Pick the one nearest most of your members.
+                        </span>
+                    </div>
                     <ToggleSwitch
                         label="Enable Voice Chat"
                         description="Allow voice calls in chat rooms and DMs (requires a self-hosted LiveKit server)"

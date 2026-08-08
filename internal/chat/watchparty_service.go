@@ -24,6 +24,8 @@ const (
 	defaultSessionTimeout = 14400
 	maxWatchPartyTitleLen = 80
 
+	watchPartyQuality = "smooth"
+
 	watchPartyReconcileEvery     = 5 * time.Minute
 	watchPartyReconcileIdleAfter = 6 * time.Minute
 
@@ -59,7 +61,7 @@ func (s *watchPartyService) screenShareEnabled() bool {
 	return s.livekitSvc != nil && s.livekitSvc.Enabled()
 }
 
-func (s *watchPartyService) StartWatchParty(ctx context.Context, roomID, actorID uuid.UUID, startURL, region, title, sessionType string) (*dto.StartWatchPartyResponse, error) {
+func (s *watchPartyService) StartWatchParty(ctx context.Context, roomID, actorID uuid.UUID, startURL, region, title, sessionType string, light bool) (*dto.StartWatchPartyResponse, error) {
 	partyType, err := normaliseWatchPartyType(sessionType)
 	if err != nil {
 		return nil, err
@@ -105,7 +107,7 @@ func (s *watchPartyService) StartWatchParty(ctx context.Context, roomID, actorID
 	if partyType == watchPartyTypeHyperbeam {
 		selectedRegion := region
 		if selectedRegion == "" {
-			selectedRegion = config.Cfg.HyperbeamRegion
+			selectedRegion = strings.TrimSpace(s.settingsSvc.Get(ctx, config.SettingHyperbeamRegion))
 		}
 
 		vm, err := s.hyperbeamSvc.CreateVM(ctx, hyperbeam.CreateVMOptions{
@@ -115,6 +117,10 @@ func (s *watchPartyService) StartWatchParty(ctx context.Context, roomID, actorID
 				Offline:  defaultOfflineTimeout,
 				Absolute: defaultSessionTimeout,
 			},
+			Adblock: true,
+			WebGL:   true,
+			Dark:    !light,
+			Quality: &hyperbeam.VMQualityOpts{Mode: watchPartyQuality},
 		})
 		if err != nil {
 			return nil, fmt.Errorf("create hyperbeam vm: %w", err)
@@ -127,6 +133,7 @@ func (s *watchPartyService) StartWatchParty(ctx context.Context, roomID, actorID
 		}
 
 		sessionRow.HyperbeamSessionID = vm.SessionID
+		sessionRow.HyperbeamAdminToken = vm.AdminToken
 		sessionRow.EmbedURL = vm.EmbedURL
 		sessionRow.VMBaseURL = vmBaseURL
 		sessionRow.StartURL = stringToNull(startURL)
@@ -503,7 +510,7 @@ func (s *watchPartyService) transferControlTo(ctx context.Context, roomID uuid.U
 			continue
 		}
 		if p.HyperbeamIdentifier != "" && session.VMBaseURL != "" {
-			if err := s.hyperbeamSvc.SetControlRole(ctx, session.VMBaseURL, p.HyperbeamIdentifier, false); err != nil {
+			if err := s.hyperbeamSvc.SetControlRole(ctx, session.VMBaseURL, session.HyperbeamAdminToken, p.HyperbeamIdentifier, false); err != nil {
 				logger.Log.Warn().Err(err).Str("user_id", p.UserID.String()).Msg("transfer: demote previous controller failed")
 			}
 		}
@@ -529,7 +536,7 @@ func (s *watchPartyService) transferControlTo(ctx context.Context, roomID uuid.U
 		}
 	}
 	if targetIdentifier != "" && session.VMBaseURL != "" {
-		if err := s.hyperbeamSvc.SetControlRole(ctx, session.VMBaseURL, targetIdentifier, true); err != nil {
+		if err := s.hyperbeamSvc.SetControlRole(ctx, session.VMBaseURL, session.HyperbeamAdminToken, targetIdentifier, true); err != nil {
 			logger.Log.Warn().Err(err).Str("user_id", targetID.String()).Msg("transfer: promote target permissions failed (continuing)")
 		}
 	}
@@ -631,7 +638,7 @@ func (s *watchPartyService) IdentifyWatchPartyParticipant(ctx context.Context, r
 		return err
 	}
 	if s.hyperbeamSvc != nil && s.hyperbeamSvc.Enabled() && session.VMBaseURL != "" {
-		if err := s.hyperbeamSvc.SetControlRole(ctx, session.VMBaseURL, identifier, participant.HasControl); err != nil {
+		if err := s.hyperbeamSvc.SetControlRole(ctx, session.VMBaseURL, session.HyperbeamAdminToken, identifier, participant.HasControl); err != nil {
 			logger.Log.Warn().Err(err).Str("hyperbeam_session_id", session.HyperbeamSessionID).Msg("identify: set user permissions failed")
 		}
 	}

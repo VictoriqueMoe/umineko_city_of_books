@@ -306,6 +306,7 @@ func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid
 				RoomID:        roomID,
 				RoomType:      string(roomRow.Type),
 				SenderID:      senderID,
+				SenderName:    displayName,
 				MessageID:     msgID,
 				Body:          req.Body,
 				Members:       members,

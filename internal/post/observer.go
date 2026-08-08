@@ -24,6 +24,7 @@ type (
 		PostID       uuid.UUID
 		CommentID    *uuid.UUID
 		AuthorID     uuid.UUID
+		AuthorName   string
 		Body         string
 		MentionedIDs map[uuid.UUID]struct{}
 		ParentID     *uuid.UUID
@@ -70,6 +71,7 @@ func (s *service) observeForBot(postID uuid.UUID, commentID *uuid.UUID, authorID
 		PostID:       postID,
 		CommentID:    commentID,
 		AuthorID:     authorID,
+		AuthorName:   author.DisplayLabel(),
 		Body:         body,
 		MentionedIDs: mentioned,
 		ParentID:     parentID,

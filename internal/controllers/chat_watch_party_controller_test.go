@@ -71,13 +71,13 @@ func TestStartWatchParty_OK(t *testing.T) {
 	h, chatMock := newChatHarness(t)
 	userID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
-	chatMock.EXPECT().StartWatchParty(mock.Anything, wpRoomID(), userID, "https://example.com", "EU", "Movie", "").
+	chatMock.EXPECT().StartWatchParty(mock.Anything, wpRoomID(), userID, "https://example.com", "EU", "Movie", "", true).
 		Return(&dto.StartWatchPartyResponse{EmbedURL: "https://hb/embed"}, nil)
 
 	// when
 	status, _ := h.NewRequest("POST", "/chat/rooms/"+wpRoomID().String()+"/watch-parties").
 		WithCookie("valid-cookie").
-		WithJSONBody(dto.StartWatchPartyRequest{StartURL: "https://example.com", Region: "EU", Title: "Movie"}).Do()
+		WithJSONBody(dto.StartWatchPartyRequest{StartURL: "https://example.com", Region: "EU", Title: "Movie", Light: true}).Do()
 
 	// then
 	require.Equal(t, http.StatusCreated, status)
@@ -102,7 +102,7 @@ func TestStartWatchParty_ServiceErrors(t *testing.T) {
 			h, chatMock := newChatHarness(t)
 			userID := uuid.New()
 			h.ExpectValidSession("valid-cookie", userID)
-			chatMock.EXPECT().StartWatchParty(mock.Anything, wpRoomID(), userID, "", "", "", "").
+			chatMock.EXPECT().StartWatchParty(mock.Anything, wpRoomID(), userID, "", "", "", "", false).
 				Return(nil, tc.err)
 
 			// when

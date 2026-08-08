@@ -77,6 +77,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	chatRepo.EXPECT().GetRoomByID(mock.Anything, mock.Anything, uuid.Nil).Return(nil, nil).Maybe()
 	chatRepo.EXPECT().GetMemberNickname(mock.Anything, mock.Anything, mock.Anything).Return("", nil).Maybe()
 	userRepo.EXPECT().IsLocked(mock.Anything, mock.Anything).Return(false, nil).Maybe()
+	settingsSvc.EXPECT().Get(mock.Anything, config.SettingHyperbeamRegion).Return("EU").Maybe()
 
 	return svc, &testMocks{
 		chatRepo:       chatRepo,
@@ -1999,6 +2000,59 @@ func TestSendMessage_GroupWithMentionAndReply(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, got.ReplyTo)
 	assert.Equal(t, replyMsgID, got.ReplyTo.ID)
+}
+
+type captureMessageObserver struct {
+	events []BotMessageEvent
+}
+
+func (c *captureMessageObserver) ObserveMessage(ev BotMessageEvent) {
+	c.events = append(c.events, ev)
+}
+
+func TestSendMessage_BotTriggerCarriesTheRoomAlias(t *testing.T) {
+	cases := []struct {
+		name     string
+		nickname string
+		want     string
+	}{
+		{"the room alias is used when the sender has one", "Feather", "Feather"},
+		{"the display name is used when there is no alias", "", "User"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			obs := &captureMessageObserver{}
+			svc.SetMessageObserver(obs)
+
+			senderID := uuid.New()
+			roomID := uuid.New()
+			m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, senderID).Return(true, nil)
+			m.chatRepo.EXPECT().GetMemberTimeoutState(mock.Anything, roomID, senderID).Return(false, "", false, nil)
+			m.bannedWordRepo.EXPECT().ListApplicable(mock.Anything, roomID).Return(nil, nil).Maybe()
+			m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return([]uuid.UUID{senderID}, nil)
+			m.chatRepo.EXPECT().GetRoomSendContext(mock.Anything, roomID).Return(&repository.ChatRoomSendContext{Type: "group", Name: "G", CreatedBy: senderID}, nil)
+			m.userRepo.EXPECT().GetByID(mock.Anything, senderID).Return(sampleUser(senderID), nil)
+			m.chatRepo.EXPECT().InsertMessage(mock.Anything, mock.Anything, roomID, senderID, "who am i?", (*uuid.UUID)(nil)).Return(nil)
+			m.chatRepo.EXPECT().MarkRoomRead(mock.Anything, roomID, senderID).Return(nil)
+			m.chatRepo.EXPECT().GetRoomMembersDetailed(mock.Anything, roomID).Return([]repository.ChatRoomMemberRow{
+				{UserID: senderID, Nickname: tc.nickname},
+			}, nil)
+			m.vanityRoleRepo.EXPECT().GetRolesForUser(mock.Anything, senderID).Return(nil, nil)
+			m.userRepo.EXPECT().GetByUsernames(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+
+			// when
+			_, err := svc.SendMessage(context.Background(), senderID, roomID, dto.SendMessageRequest{Body: "who am i?"}, nil)
+			svc.sideEffectsWG.Wait()
+
+			// then
+			require.NoError(t, err)
+			require.Len(t, obs.events, 1)
+			assert.Equal(t, tc.want, obs.events[0].SenderName, "the bot must be told who is talking to it")
+		})
+	}
 }
 
 func TestSendMessage_GroupUnmutedRoomMessage(t *testing.T) {

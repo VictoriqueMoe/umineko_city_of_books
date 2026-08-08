@@ -38,6 +38,7 @@ type (
 		Region   string `json:"region,omitempty"`
 		Title    string `json:"title,omitempty"`
 		Type     string `json:"type,omitempty"`
+		Light    bool   `json:"light,omitempty"`
 	}
 
 	StartWatchPartyResponse struct {

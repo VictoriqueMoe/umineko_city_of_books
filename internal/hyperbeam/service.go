@@ -13,6 +13,7 @@ import (
 
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/logger"
+	"umineko_city_of_books/internal/settings"
 )
 
 type (
@@ -20,7 +21,7 @@ type (
 		Enabled() bool
 		CreateVM(ctx context.Context, opts CreateVMOptions) (*VM, error)
 		GetVMStatus(ctx context.Context, sessionID string) (*VMStatus, error)
-		SetControlRole(ctx context.Context, vmBaseURL, userIdentifier string, hasControl bool) error
+		SetControlRole(ctx context.Context, vmBaseURL, adminToken, userIdentifier string, hasControl bool) error
 		TerminateVM(ctx context.Context, sessionID string) error
 	}
 
@@ -28,6 +29,17 @@ type (
 		StartURL string         `json:"start_url,omitempty"`
 		Region   string         `json:"region,omitempty"`
 		Timeout  *VMTimeoutOpts `json:"timeout,omitempty"`
+		Width    int            `json:"width,omitempty"`
+		Height   int            `json:"height,omitempty"`
+		FPS      int            `json:"fps,omitempty"`
+		Adblock  bool           `json:"adblock,omitempty"`
+		WebGL    bool           `json:"webgl,omitempty"`
+		Dark     bool           `json:"dark,omitempty"`
+		Quality  *VMQualityOpts `json:"quality,omitempty"`
+	}
+
+	VMQualityOpts struct {
+		Mode string `json:"mode,omitempty"`
 	}
 
 	VMTimeoutOpts struct {
@@ -48,9 +60,9 @@ type (
 	}
 
 	service struct {
-		apiKey     string
-		baseURL    string
-		httpClient *http.Client
+		settingsSvc settings.Service
+		baseURL     string
+		httpClient  *http.Client
 	}
 )
 
@@ -60,22 +72,26 @@ const (
 	ControlRoleName = "control"
 )
 
-func NewService() Service {
+func NewService(settingsSvc settings.Service) Service {
 	svc := &service{
-		apiKey:  config.Cfg.HyperbeamAPIKey,
-		baseURL: defaultBaseURL,
+		settingsSvc: settingsSvc,
+		baseURL:     defaultBaseURL,
 		httpClient: &http.Client{
 			Timeout: requestTimeout,
 		},
 	}
 	if !svc.Enabled() {
-		logger.Log.Warn().Msg("HYPERBEAM_API_KEY is not set: watch parties are disabled")
+		logger.Log.Warn().Msg("no hyperbeam api key is set: virtual browser watch parties are disabled until one is saved in admin settings")
 	}
 	return svc
 }
 
+func (s *service) apiKey() string {
+	return strings.TrimSpace(s.settingsSvc.Get(context.Background(), config.SettingHyperbeamAPIKey))
+}
+
 func (s *service) Enabled() bool {
-	return s.apiKey != ""
+	return s.apiKey() != ""
 }
 
 func (s *service) CreateVM(ctx context.Context, opts CreateVMOptions) (*VM, error) {
@@ -103,12 +119,15 @@ func (s *service) GetVMStatus(ctx context.Context, sessionID string) (*VMStatus,
 	return &out, nil
 }
 
-func (s *service) SetControlRole(ctx context.Context, vmBaseURL, userIdentifier string, hasControl bool) error {
+func (s *service) SetControlRole(ctx context.Context, vmBaseURL, adminToken, userIdentifier string, hasControl bool) error {
 	if !s.Enabled() {
 		return ErrDisabled
 	}
 	if vmBaseURL == "" {
 		return fmt.Errorf("hyperbeam: empty vm base url")
+	}
+	if adminToken == "" {
+		return ErrMissingAdminToken
 	}
 	if userIdentifier == "" {
 		return fmt.Errorf("hyperbeam: empty user identifier")
@@ -128,7 +147,7 @@ func (s *service) SetControlRole(ctx context.Context, vmBaseURL, userIdentifier 
 		Bool("has_control", hasControl).
 		Str("path", path).
 		Msg("hyperbeam role change")
-	if err := s.do(ctx, http.MethodPost, fullURL, body, nil); err != nil {
+	if err := s.doAs(ctx, adminToken, http.MethodPost, fullURL, body, nil); err != nil {
 		logger.Log.Warn().Err(err).Str("user_identifier", userIdentifier).Str("path", path).Msg("hyperbeam role change failed")
 		return err
 	}
@@ -164,6 +183,10 @@ func ExtractVMBaseURL(embedURL string) (string, error) {
 }
 
 func (s *service) do(ctx context.Context, method, fullURL string, body any, out any) error {
+	return s.doAs(ctx, s.apiKey(), method, fullURL, body, out)
+}
+
+func (s *service) doAs(ctx context.Context, bearer, method, fullURL string, body any, out any) error {
 	var reqBody io.Reader
 	if body != nil {
 		buf, err := json.Marshal(body)
@@ -178,7 +201,7 @@ func (s *service) do(ctx context.Context, method, fullURL string, body any, out 
 		return fmt.Errorf("build hyperbeam request: %w", err)
 	}
 
-	req.Header.Set("Authorization", "Bearer "+s.apiKey)
+	req.Header.Set("Authorization", "Bearer "+bearer)
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}

@@ -140,7 +140,7 @@ func (s *Service) startWatchParty(ctx fiber.Ctx) error {
 			return nil
 		}
 	}
-	resp, err := s.ChatService.StartWatchParty(ctx.Context(), roomID, actorID, req.StartURL, req.Region, req.Title, req.Type)
+	resp, err := s.ChatService.StartWatchParty(ctx.Context(), roomID, actorID, req.StartURL, req.Region, req.Title, req.Type, req.Light)
 	if err != nil {
 		return mapWatchPartyError(ctx, err)
 	}

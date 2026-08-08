@@ -26,7 +26,7 @@ export function WatchPartyButton({
 }: WatchPartyButtonProps) {
     const [open, setOpen] = useState(false);
     const [titleDraft, setTitleDraft] = useState("");
-    const [partyType, setPartyType] = useState<"hyperbeam" | "screenshare">(enabled ? "hyperbeam" : "screenshare");
+    const [pickedType, setPickedType] = useState<"hyperbeam" | "screenshare" | null>(null);
     const [busy, setBusy] = useState(false);
     const popoverRef = useRef<HTMLDivElement | null>(null);
 
@@ -51,6 +51,7 @@ export function WatchPartyButton({
     }
 
     const showTypeSelector = enabled && screenShareEnabled;
+    const partyType = showTypeSelector ? (pickedType ?? "hyperbeam") : enabled ? "hyperbeam" : "screenshare";
     const activeCount = sessions.length;
     const buttonLabel = activeCount === 0 ? "+ Watch Party" : `Watch Parties (${activeCount})`;
 
@@ -140,7 +141,7 @@ export function WatchPartyButton({
                             <button
                                 type="button"
                                 className={`${styles.pickerType} ${partyType === "hyperbeam" ? styles.pickerTypeActive : ""}`}
-                                onClick={() => setPartyType("hyperbeam")}
+                                onClick={() => setPickedType("hyperbeam")}
                                 disabled={busy}
                             >
                                 Virtual browser
@@ -148,7 +149,7 @@ export function WatchPartyButton({
                             <button
                                 type="button"
                                 className={`${styles.pickerType} ${partyType === "screenshare" ? styles.pickerTypeActive : ""}`}
-                                onClick={() => setPartyType("screenshare")}
+                                onClick={() => setPickedType("screenshare")}
                                 disabled={busy}
                             >
                                 Screen share
