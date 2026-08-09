@@ -119,10 +119,12 @@ func TestProcessMentions_UnknownUsernameSkipped(t *testing.T) {
 	settingsSvc := settings.NewMockService(t)
 	blockSvc := block.NewMockService(t)
 	blockSvc.EXPECT().IsBlockedEither(mock.Anything, mock.Anything, mock.Anything).Return(false, nil).Maybe()
+	actorID := uuid.New()
+	userRepo.EXPECT().GetByID(mock.Anything, actorID).Return(&model.User{ID: actorID, Username: "bob"}, nil)
 	userRepo.EXPECT().GetByUsername(mock.Anything, "ghost").Return(nil, errors.New("not found"))
 
 	// when
-	ProcessMentions(userRepo, blockSvc, notifSvc, settingsSvc, uuid.New(), "@ghost", uuid.New(), "post", "/p/1")
+	ProcessMentions(userRepo, blockSvc, notifSvc, settingsSvc, actorID, "@ghost", uuid.New(), "post", "/p/1")
 
 	// then — no notification sent
 }
@@ -135,6 +137,7 @@ func TestProcessMentions_SelfMentionSkipped(t *testing.T) {
 	blockSvc := block.NewMockService(t)
 	blockSvc.EXPECT().IsBlockedEither(mock.Anything, mock.Anything, mock.Anything).Return(false, nil).Maybe()
 	actorID := uuid.New()
+	userRepo.EXPECT().GetByID(mock.Anything, actorID).Return(&model.User{ID: actorID, Username: "me", DisplayName: "Me"}, nil)
 	userRepo.EXPECT().GetByUsername(mock.Anything, "me").Return(&model.User{ID: actorID, Username: "me", DisplayName: "Me"}, nil)
 
 	// when
@@ -173,14 +176,30 @@ func TestProcessMentions_ActorLookupErrorSkipped(t *testing.T) {
 	blockSvc := block.NewMockService(t)
 	blockSvc.EXPECT().IsBlockedEither(mock.Anything, mock.Anything, mock.Anything).Return(false, nil).Maybe()
 	actorID := uuid.New()
-	mentionedID := uuid.New()
-	userRepo.EXPECT().GetByUsername(mock.Anything, "alice").Return(&model.User{ID: mentionedID, Username: "alice"}, nil)
 	userRepo.EXPECT().GetByID(mock.Anything, actorID).Return(nil, errors.New("boom"))
 
 	// when
 	ProcessMentions(userRepo, blockSvc, notifSvc, settingsSvc, actorID, "@alice", uuid.New(), "post", "/p/1")
 
 	// then — no notification sent
+}
+
+func TestProcessMentions_BotAuthoredMentionsNotifyNobody(t *testing.T) {
+	// given
+	userRepo := repository.NewMockUserRepository(t)
+	notifSvc := notification.NewMockService(t)
+	settingsSvc := settings.NewMockService(t)
+	blockSvc := block.NewMockService(t)
+	botID := uuid.New()
+	userRepo.EXPECT().GetByID(mock.Anything, botID).Return(&model.User{ID: botID, Username: "beatrice", IsBot: true}, nil)
+
+	// when
+	ProcessMentions(userRepo, blockSvc, notifSvc, settingsSvc, botID, "@alice come look at this", uuid.New(), "post", "/p/1")
+
+	// then
+	notifSvc.AssertNotCalled(t, "Notify", mock.Anything, mock.Anything)
+	userRepo.AssertNotCalled(t, "GetByUsername", mock.Anything, mock.Anything)
+	blockSvc.AssertNotCalled(t, "IsBlockedEither", mock.Anything, mock.Anything, mock.Anything)
 }
 
 func TestProcessMentions_NotifyErrorSwallowed(t *testing.T) {
@@ -212,6 +231,7 @@ func TestProcessMentions_BlockedUserIsNotNotified(t *testing.T) {
 	blockSvc := block.NewMockService(t)
 	actorID := uuid.New()
 	mentionedID := uuid.New()
+	userRepo.EXPECT().GetByID(mock.Anything, actorID).Return(&model.User{ID: actorID, Username: "bob"}, nil)
 	userRepo.EXPECT().GetByUsername(mock.Anything, "alice").Return(&model.User{ID: mentionedID, Username: "alice"}, nil)
 	blockSvc.EXPECT().IsBlockedEither(mock.Anything, actorID, mentionedID).Return(true, nil)
 

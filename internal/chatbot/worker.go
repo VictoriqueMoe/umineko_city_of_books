@@ -96,7 +96,7 @@ func (s *service) reply(ctx context.Context, j job, tune tuning, invocationID uu
 
 	req := openai.CompletionRequest{
 		Model:           model,
-		SystemPrompt:    j.bot.SystemPrompt,
+		SystemPrompt:    systemPrompt(j.bot.SystemPrompt),
 		Messages:        s.buildMessages(ctx, j, tune),
 		ReasoningEffort: firstNonBlank(j.bot.ReasoningEffort, tune.reasoningEffort),
 		Verbosity:       firstNonBlank(j.bot.Verbosity, tune.verbosity),

@@ -277,7 +277,7 @@ func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid
 	isGroup := roomRow.Type == dto.RoomTypeGroup
 
 	var mentionedIDs map[uuid.UUID]struct{}
-	if isGroup {
+	if isGroup && !sender.IsBot {
 		mentionedIDs = m.resolveMentions(ctx, req.Body, senderID, members)
 	}
 

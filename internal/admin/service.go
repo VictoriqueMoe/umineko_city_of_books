@@ -354,6 +354,10 @@ func (s *service) SetUserRole(ctx context.Context, actorID uuid.UUID, targetID u
 	}
 
 	return s.guardedAction(ctx, actorID, targetID, func() error {
+		if err := s.rejectBotTarget(ctx, targetID); err != nil {
+			return err
+		}
+
 		if err := s.roleRepo.SetRole(ctx, targetID, r); err != nil {
 			return fmt.Errorf("set role: %w", err)
 		}
@@ -478,6 +482,10 @@ func (s *service) DeleteUser(ctx context.Context, actorID uuid.UUID, targetID uu
 	user, _ := s.userRepo.GetByID(ctx, targetID)
 
 	return s.guardedAction(ctx, actorID, targetID, func() error {
+		if user != nil && user.IsBot {
+			return ErrBotAccountProtected
+		}
+
 		if err := s.userRepo.AdminDeleteAccount(ctx, targetID); err != nil {
 			return fmt.Errorf("delete user: %w", err)
 		}

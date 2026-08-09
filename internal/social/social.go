@@ -45,6 +45,15 @@ func ProcessMentions(
 	linkURL string,
 ) {
 	matches := MentionRegex.FindAllStringSubmatch(body, 20)
+	if len(matches) == 0 {
+		return
+	}
+
+	actor, err := userRepo.GetByID(context.Background(), actorID)
+	if err != nil || actor == nil || actor.IsBot {
+		return
+	}
+
 	seen := make(map[string]bool)
 
 	for _, m := range matches {
@@ -60,11 +69,6 @@ func ProcessMentions(
 		}
 
 		if blocked, _ := blockSvc.IsBlockedEither(context.Background(), actorID, mentioned.ID); blocked {
-			continue
-		}
-
-		actor, err := userRepo.GetByID(context.Background(), actorID)
-		if err != nil || actor == nil {
 			continue
 		}
 

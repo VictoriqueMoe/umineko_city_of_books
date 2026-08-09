@@ -199,7 +199,7 @@ func (s *service) Delete(urlPath string) error {
 }
 
 func (s *service) FullDiskPath(urlPath string) string {
-	rel := strings.TrimPrefix(urlPath, "/uploads/")
+	rel := filepath.Clean("/" + filepath.FromSlash(strings.TrimPrefix(urlPath, "/uploads/")))
 	return filepath.Join(s.GetUploadDir(), rel)
 }
 

@@ -369,6 +369,7 @@ func TestSetUserRole_OK(t *testing.T) {
 	target := uuid.New()
 	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleSuperAdmin, nil)
 	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, target).Return(&model.User{ID: target}, nil)
 	m.roleRepo.EXPECT().SetRole(mock.Anything, target, authz.RoleAdmin).Return(nil)
 	m.auditRepo.EXPECT().Create(mock.Anything, actor, "set_role", "user", target.String(), "admin").Return(nil)
 
@@ -382,6 +383,23 @@ func TestSetUserRole_OK(t *testing.T) {
 	assert.Equal(t, authz.RoleAdmin, m.chatSync.lastSyncRole)
 }
 
+func TestSetUserRole_BotAccountIsProtected(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	actor := uuid.New()
+	target := uuid.New()
+	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleSuperAdmin, nil)
+	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, target).Return(&model.User{ID: target, IsBot: true}, nil)
+
+	// when
+	err := svc.SetUserRole(context.Background(), actor, target, authz.RoleAdmin)
+
+	// then
+	require.ErrorIs(t, err, ErrBotAccountProtected)
+	m.roleRepo.AssertNotCalled(t, "SetRole", mock.Anything, mock.Anything, mock.Anything)
+}
+
 func TestSetUserRole_SetRoleError(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -389,6 +407,7 @@ func TestSetUserRole_SetRoleError(t *testing.T) {
 	target := uuid.New()
 	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleSuperAdmin, nil)
 	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, target).Return(&model.User{ID: target}, nil)
 	m.roleRepo.EXPECT().SetRole(mock.Anything, target, authz.RoleAdmin).Return(errors.New("boom"))
 
 	// when
@@ -407,6 +426,7 @@ func TestSetUserRole_ChatSyncErrorsLogged(t *testing.T) {
 	m.chatSync.syncErr = errors.New("sync boom")
 	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleSuperAdmin, nil)
 	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, target).Return(&model.User{ID: target}, nil)
 	m.roleRepo.EXPECT().SetRole(mock.Anything, target, authz.RoleAdmin).Return(nil)
 	m.auditRepo.EXPECT().Create(mock.Anything, actor, "set_role", "user", target.String(), "admin").Return(nil)
 
@@ -916,6 +936,23 @@ func TestDeleteUser_OK(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
+}
+
+func TestDeleteUser_BotAccountIsProtected(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	actor := uuid.New()
+	target := uuid.New()
+	m.userRepo.EXPECT().GetByID(mock.Anything, target).Return(&model.User{ID: target, IsBot: true}, nil)
+	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleSuperAdmin, nil)
+	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
+
+	// when
+	err := svc.DeleteUser(context.Background(), actor, target)
+
+	// then
+	require.ErrorIs(t, err, ErrBotAccountProtected)
+	m.userRepo.AssertNotCalled(t, "AdminDeleteAccount", mock.Anything, mock.Anything)
 }
 
 func TestDeleteUser_UserLookupFailsStillDeletes(t *testing.T) {
