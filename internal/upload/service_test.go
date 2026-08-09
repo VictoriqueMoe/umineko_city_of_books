@@ -69,6 +69,33 @@ func TestFullDiskPath_NoPrefixLeftUntouched(t *testing.T) {
 	assert.Equal(t, filepath.Join(dir, "custom/path.png"), got)
 }
 
+func TestFullDiskPath_CannotEscapeTheUploadDirectory(t *testing.T) {
+	cases := []struct {
+		name    string
+		urlPath string
+		want    string
+	}{
+		{"parent segments are neutralised", "/uploads/../../../../etc/passwd", filepath.Join("etc", "passwd")},
+		{"parent segments without the prefix are neutralised", "../../srv/app/.env", filepath.Join("srv", "app", ".env")},
+		{"a parent segment in the middle still cannot climb out", "/uploads/avatars/../../../secret", "secret"},
+		{"a leading slash does not make it absolute", "/uploads//etc/passwd", filepath.Join("etc", "passwd")},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, _, dir := newTestService(t)
+
+			// when
+			got := svc.FullDiskPath(tc.urlPath)
+
+			// then
+			assert.Equal(t, filepath.Join(dir, tc.want), got)
+			assert.True(t, strings.HasPrefix(got, dir+string(filepath.Separator)), "resolved path must stay under the upload directory, got %q", got)
+		})
+	}
+}
+
 func TestSaveFile_WritesFileAndReturnsURL(t *testing.T) {
 	// given
 	svc, _, dir := newTestService(t)

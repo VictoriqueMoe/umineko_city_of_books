@@ -79,38 +79,60 @@ func TestFitBudget_DropsWholeOldMessagesAndAlwaysKeepsTheTrigger(t *testing.T) {
 	big := strings.Repeat("x", promptCharBudget)
 
 	cases := []struct {
-		name     string
-		messages []openai.Message
-		wantLen  int
-		wantLast string
+		name      string
+		messages  []openai.Message
+		pinned    int
+		wantLen   int
+		wantFirst string
+		wantLast  string
 	}{
 		{
-			name:     "under budget is untouched",
-			messages: []openai.Message{{Content: "one"}, {Content: "two"}, {Content: "three"}},
-			wantLen:  3,
-			wantLast: "three",
+			name:      "under budget is untouched",
+			messages:  []openai.Message{{Content: "one"}, {Content: "two"}, {Content: "three"}},
+			wantLen:   3,
+			wantFirst: "one",
+			wantLast:  "three",
 		},
 		{
-			name:     "oldest are dropped whole, never truncated",
-			messages: []openai.Message{{Content: big}, {Content: big}, {Content: "trigger"}},
-			wantLen:  1,
-			wantLast: "trigger",
+			name:      "oldest are dropped whole, never truncated",
+			messages:  []openai.Message{{Content: big}, {Content: big}, {Content: "trigger"}},
+			wantLen:   1,
+			wantFirst: "trigger",
+			wantLast:  "trigger",
 		},
 		{
-			name:     "an oversized trigger alone is still sent",
-			messages: []openai.Message{{Content: big}},
-			wantLen:  1,
-			wantLast: big,
+			name:      "an oversized trigger alone is still sent",
+			messages:  []openai.Message{{Content: big}},
+			wantLen:   1,
+			wantFirst: big,
+			wantLast:  big,
+		},
+		{
+			name:      "a pinned post root survives even when everything after it is dropped",
+			messages:  []openai.Message{{Content: "the post"}, {Content: big}, {Content: big}, {Content: "trigger"}},
+			pinned:    1,
+			wantLen:   2,
+			wantFirst: "the post",
+			wantLast:  "trigger",
+		},
+		{
+			name:      "a pinned root is untouched when the thread fits",
+			messages:  []openai.Message{{Content: "the post"}, {Content: "a comment"}, {Content: "trigger"}},
+			pinned:    1,
+			wantLen:   3,
+			wantFirst: "the post",
+			wantLast:  "trigger",
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// when
-			got := fitBudget(tc.messages)
+			got := fitBudget(tc.messages, tc.pinned)
 
 			// then
 			assert.Len(t, got, tc.wantLen)
+			assert.Equal(t, tc.wantFirst, got[0].Content)
 			assert.Equal(t, tc.wantLast, got[len(got)-1].Content)
 			for i := range got {
 				assert.NotContains(t, got[i].Content, "...", "fitBudget must drop messages, never truncate them")

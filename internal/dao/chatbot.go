@@ -154,7 +154,7 @@ func (r *chatbotDAO) CompleteInvocation(ctx context.Context, id uuid.UUID, usage
 func (r *chatbotDAO) CountUserInvocationsToday(ctx context.Context, userID uuid.UUID) (int, error) {
 	var count int
 	err := r.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM chatbot_invocations WHERE user_id = $1 AND created_at > NOW() - INTERVAL '1 day'`,
+		`SELECT COUNT(*) FROM chatbot_invocations WHERE user_id = $1 AND status <> 'failed' AND created_at > NOW() - INTERVAL '1 day'`,
 		userID,
 	).Scan(&count)
 	if err != nil {
@@ -167,7 +167,7 @@ func (r *chatbotDAO) CountUserInvocationsToday(ctx context.Context, userID uuid.
 func (r *chatbotDAO) CountInvocationsToday(ctx context.Context) (int, error) {
 	var count int
 	err := r.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM chatbot_invocations WHERE created_at > NOW() - INTERVAL '1 day'`,
+		`SELECT COUNT(*) FROM chatbot_invocations WHERE status <> 'failed' AND created_at > NOW() - INTERVAL '1 day'`,
 	).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("count chatbot invocations today: %w", err)
@@ -179,7 +179,7 @@ func (r *chatbotDAO) CountInvocationsToday(ctx context.Context) (int, error) {
 func (r *chatbotDAO) OldestUserInvocationToday(ctx context.Context, userID uuid.UUID) (time.Time, error) {
 	var oldest sql.NullTime
 	err := r.db.QueryRowContext(ctx,
-		`SELECT MIN(created_at) FROM chatbot_invocations WHERE user_id = $1 AND created_at > NOW() - INTERVAL '1 day'`,
+		`SELECT MIN(created_at) FROM chatbot_invocations WHERE user_id = $1 AND status <> 'failed' AND created_at > NOW() - INTERVAL '1 day'`,
 		userID,
 	).Scan(&oldest)
 	if err != nil {
@@ -192,7 +192,7 @@ func (r *chatbotDAO) OldestUserInvocationToday(ctx context.Context, userID uuid.
 func (r *chatbotDAO) OldestInvocationToday(ctx context.Context) (time.Time, error) {
 	var oldest sql.NullTime
 	err := r.db.QueryRowContext(ctx,
-		`SELECT MIN(created_at) FROM chatbot_invocations WHERE created_at > NOW() - INTERVAL '1 day'`,
+		`SELECT MIN(created_at) FROM chatbot_invocations WHERE status <> 'failed' AND created_at > NOW() - INTERVAL '1 day'`,
 	).Scan(&oldest)
 	if err != nil {
 		return time.Time{}, fmt.Errorf("oldest chatbot invocation today: %w", err)

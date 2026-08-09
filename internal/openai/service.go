@@ -82,7 +82,7 @@ const (
 	defaultBaseURL       = "https://api.openai.com/v1/"
 	requestTimeout       = 60 * time.Second
 	settingsTimeout      = 10 * time.Second
-	defaultRateLimitHold = time.Hour
+	defaultRateLimitHold = time.Minute
 	maxErrorBodyBytes    = 512
 	costsBucketLimit     = 180
 	chatbotKeyPrefix     = "chatbot_"
