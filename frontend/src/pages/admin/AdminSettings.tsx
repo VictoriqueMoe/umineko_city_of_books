@@ -715,7 +715,7 @@ export function AdminSettings() {
                                 </span>
                             </div>
                             <div className={styles.field}>
-                                <span className={styles.fieldLabel}>Max Replies Per User Per Day</span>
+                                <span className={styles.fieldLabel}>Max Replies Per Member (rolling 24 hours)</span>
                                 <Input
                                     type="number"
                                     value={getNumber("chatbot_max_replies_per_user_per_day")}
@@ -723,12 +723,15 @@ export function AdminSettings() {
                                     disabled={chatbotLocked}
                                 />
                                 <span className={styles.fieldHint}>
-                                    How many replies one member can pull out of the bots in a day. Once they hit it they
-                                    are told to come back tomorrow and nothing further is charged for them.
+                                    How many replies one member can pull out of the bots in the last 24 hours. This is a
+                                    rolling window, not a calendar day: nothing resets at midnight, and allowance comes
+                                    back gradually as each old reply passes the 24 hour mark. A member who hits the
+                                    limit is told so by the character, with a rough idea of when they can try again, and
+                                    nothing further is charged for them. Set it to 0 for no per-member limit.
                                 </span>
                             </div>
                             <div className={styles.field}>
-                                <span className={styles.fieldLabel}>Max Replies Per Day</span>
+                                <span className={styles.fieldLabel}>Max Replies Site-wide (rolling 24 hours)</span>
                                 <Input
                                     type="number"
                                     value={getNumber("chatbot_max_replies_per_day")}
@@ -736,8 +739,10 @@ export function AdminSettings() {
                                     disabled={chatbotLocked}
                                 />
                                 <span className={styles.fieldHint}>
-                                    The site-wide ceiling across every member and every bot. This is your last line of
-                                    defence on cost, so pick a number whose worst-case bill you are happy to pay.
+                                    The ceiling across every member and every bot in the last 24 hours, also a rolling
+                                    window. This is your last line of defence on cost, so pick a number whose worst-case
+                                    bill you are happy to pay. 0 removes the ceiling entirely, which is rarely what you
+                                    want here.
                                 </span>
                             </div>
                         </>

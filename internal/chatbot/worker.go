@@ -66,12 +66,18 @@ func (s *service) run(id int, j job) {
 }
 
 func (s *service) reply(ctx context.Context, j job, tune tuning, invocationID uuid.UUID, model string) (repository.InvocationStatus, error) {
-	if over, err := s.overQuota(ctx, j.ev.SenderID, tune); err != nil || over {
-		if err != nil {
-			return repository.InvocationFailed, err
-		}
-
+	quota, err := s.overQuota(ctx, j.ev.SenderID, tune)
+	if err != nil {
+		return repository.InvocationFailed, err
+	}
+	if quota.over {
 		droppedTotal.WithLabelValues("quota").Inc()
+
+		if takeSlot(&s.lastRefusal, j.ev.SenderID, refusalCooldown) {
+			if sendErr := s.deliver(ctx, j, s.quotaMessage(quota)); sendErr != nil {
+				logger.Log.Error().Err(sendErr).Msg("failed to explain the chatbot quota refusal")
+			}
+		}
 
 		return repository.InvocationQuota, nil
 	}
@@ -154,28 +160,79 @@ func (s *service) deliver(ctx context.Context, j job, body string) error {
 	return err
 }
 
-func (s *service) overQuota(ctx context.Context, userID uuid.UUID, tune tuning) (bool, error) {
+func (s *service) overQuota(ctx context.Context, userID uuid.UUID, tune tuning) (quotaState, error) {
 	if tune.perUserPerDay > 0 {
 		used, err := s.botRepo.CountUserInvocationsToday(ctx, userID)
 		if err != nil {
-			return false, err
+			return quotaState{}, err
 		}
 		if used >= tune.perUserPerDay {
-			return true, nil
+			oldest, oldErr := s.botRepo.OldestUserInvocationToday(ctx, userID)
+			if oldErr != nil {
+				logger.Log.Warn().Err(oldErr).Msg("chatbot: could not work out when the member quota frees up")
+			}
+
+			return quotaState{over: true, clearsAt: quotaClearsAt(oldest)}, nil
 		}
 	}
 
 	if tune.perDay > 0 {
 		used, err := s.botRepo.CountInvocationsToday(ctx)
 		if err != nil {
-			return false, err
+			return quotaState{}, err
 		}
 		if used >= tune.perDay {
-			return true, nil
+			oldest, oldErr := s.botRepo.OldestInvocationToday(ctx)
+			if oldErr != nil {
+				logger.Log.Warn().Err(oldErr).Msg("chatbot: could not work out when the site quota frees up")
+			}
+
+			return quotaState{over: true, global: true, clearsAt: quotaClearsAt(oldest)}, nil
 		}
 	}
 
-	return false, nil
+	return quotaState{}, nil
+}
+
+func quotaClearsAt(oldest time.Time) time.Time {
+	if oldest.IsZero() {
+		return time.Time{}
+	}
+
+	return oldest.Add(quotaWindow)
+}
+
+func (s *service) quotaMessage(q quotaState) string {
+	wait := humaniseWait(time.Until(q.clearsAt))
+
+	if q.global {
+		return fmt.Sprintf("Everyone has been keeping me busy and the whole site has reached its message limit. Try me again %s.", wait)
+	}
+
+	return fmt.Sprintf("You have reached your message limit for the moment. Try me again %s.", wait)
+}
+
+func humaniseWait(d time.Duration) string {
+	switch {
+	case d <= 0:
+		return "shortly"
+	case d < time.Minute:
+		return "in less than a minute"
+	case d < time.Hour:
+		minutes := int(d.Round(time.Minute).Minutes())
+		if minutes == 1 {
+			return "in about a minute"
+		}
+
+		return fmt.Sprintf("in about %d minutes", minutes)
+	default:
+		hours := int(d.Round(time.Hour).Hours())
+		if hours <= 1 {
+			return "in about an hour"
+		}
+
+		return fmt.Sprintf("in about %d hours", hours)
+	}
 }
 
 func (s *service) startTyping(ev botEvent, botUserID uuid.UUID) func() {

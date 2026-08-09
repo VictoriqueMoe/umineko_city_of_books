@@ -176,6 +176,31 @@ func (r *chatbotDAO) CountInvocationsToday(ctx context.Context) (int, error) {
 	return count, nil
 }
 
+func (r *chatbotDAO) OldestUserInvocationToday(ctx context.Context, userID uuid.UUID) (time.Time, error) {
+	var oldest sql.NullTime
+	err := r.db.QueryRowContext(ctx,
+		`SELECT MIN(created_at) FROM chatbot_invocations WHERE user_id = $1 AND created_at > NOW() - INTERVAL '1 day'`,
+		userID,
+	).Scan(&oldest)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("oldest user chatbot invocation today: %w", err)
+	}
+
+	return oldest.Time, nil
+}
+
+func (r *chatbotDAO) OldestInvocationToday(ctx context.Context) (time.Time, error) {
+	var oldest sql.NullTime
+	err := r.db.QueryRowContext(ctx,
+		`SELECT MIN(created_at) FROM chatbot_invocations WHERE created_at > NOW() - INTERVAL '1 day'`,
+	).Scan(&oldest)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("oldest chatbot invocation today: %w", err)
+	}
+
+	return oldest.Time, nil
+}
+
 func (r *chatbotDAO) StatsSince(ctx context.Context, since time.Time) (*repository.ChatbotStats, error) {
 	var stats repository.ChatbotStats
 	err := r.db.QueryRowContext(ctx,

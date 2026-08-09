@@ -64,6 +64,8 @@ type (
 		CompleteInvocation(ctx context.Context, id uuid.UUID, usage InvocationUsage, status InvocationStatus) error
 		CountUserInvocationsToday(ctx context.Context, userID uuid.UUID) (int, error)
 		CountInvocationsToday(ctx context.Context) (int, error)
+		OldestUserInvocationToday(ctx context.Context, userID uuid.UUID) (time.Time, error)
+		OldestInvocationToday(ctx context.Context) (time.Time, error)
 		StatsSince(ctx context.Context, since time.Time) (*ChatbotStats, error)
 	}
 )
@@ -147,6 +149,14 @@ func (r *chatbotRepository) CompleteInvocation(ctx context.Context, id uuid.UUID
 
 func (r *chatbotRepository) CountUserInvocationsToday(ctx context.Context, userID uuid.UUID) (int, error) {
 	return r.dao.CountUserInvocationsToday(ctx, userID)
+}
+
+func (r *chatbotRepository) OldestUserInvocationToday(ctx context.Context, userID uuid.UUID) (time.Time, error) {
+	return r.dao.OldestUserInvocationToday(ctx, userID)
+}
+
+func (r *chatbotRepository) OldestInvocationToday(ctx context.Context) (time.Time, error) {
+	return r.dao.OldestInvocationToday(ctx)
 }
 
 func (r *chatbotRepository) CountInvocationsToday(ctx context.Context) (int, error) {

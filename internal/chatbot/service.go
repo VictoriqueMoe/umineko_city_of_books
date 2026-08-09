@@ -36,6 +36,7 @@ const (
 	safetyIDSalt     = "umineko-chatbot-safety-id:"
 	shutdownMessage  = "chatbot worker pool drained"
 	refusalCooldown  = 10 * time.Minute
+	quotaWindow      = 24 * time.Hour
 )
 
 type (
@@ -68,6 +69,12 @@ type (
 		bot      repository.Chatbot
 		useChain bool
 		refusal  bool
+	}
+
+	quotaState struct {
+		over     bool
+		global   bool
+		clearsAt time.Time
 	}
 
 	service struct {

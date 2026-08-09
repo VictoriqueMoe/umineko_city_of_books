@@ -5,6 +5,8 @@ import (
 	"errors"
 	"testing"
 
+	"time"
+
 	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
@@ -23,12 +25,13 @@ func TestOverQuota(t *testing.T) {
 		siteUsed      int
 		siteErr       error
 		want          bool
+		wantGlobal    bool
 		wantErr       bool
 	}{
 		{name: "both ceilings disabled"},
 		{name: "under both ceilings", perUserPerDay: 20, perDay: 500, userUsed: 3, siteUsed: 40},
 		{name: "per user ceiling reached", perUserPerDay: 20, perDay: 500, userUsed: 20, want: true},
-		{name: "site ceiling reached", perUserPerDay: 20, perDay: 500, userUsed: 1, siteUsed: 500, want: true},
+		{name: "site ceiling reached", perUserPerDay: 20, perDay: 500, userUsed: 1, siteUsed: 500, want: true, wantGlobal: true},
 		{name: "per user count failure is an error", perUserPerDay: 20, userErr: errors.New("db down"), wantErr: true},
 		{name: "site count failure is an error", perDay: 500, siteErr: errors.New("db down"), wantErr: true},
 	}
@@ -44,11 +47,13 @@ func TestOverQuota(t *testing.T) {
 			if tc.perDay > 0 {
 				botRepo.EXPECT().CountInvocationsToday(mock.Anything).Return(tc.siteUsed, tc.siteErr).Maybe()
 			}
+			botRepo.EXPECT().OldestUserInvocationToday(mock.Anything, userID).Return(time.Now().Add(-20*time.Hour), nil).Maybe()
+			botRepo.EXPECT().OldestInvocationToday(mock.Anything).Return(time.Now().Add(-20*time.Hour), nil).Maybe()
 
 			svc := &service{botRepo: botRepo}
 
 			// when
-			over, err := svc.overQuota(context.Background(), userID, tuning{perUserPerDay: tc.perUserPerDay, perDay: tc.perDay})
+			quota, err := svc.overQuota(context.Background(), userID, tuning{perUserPerDay: tc.perUserPerDay, perDay: tc.perDay})
 
 			// then
 			if tc.wantErr {
@@ -58,7 +63,8 @@ func TestOverQuota(t *testing.T) {
 			}
 
 			require.NoError(t, err)
-			assert.Equal(t, tc.want, over)
+			assert.Equal(t, tc.want, quota.over)
+			assert.Equal(t, tc.wantGlobal, quota.global)
 		})
 	}
 }

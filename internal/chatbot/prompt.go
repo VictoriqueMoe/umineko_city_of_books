@@ -59,7 +59,7 @@ func (s *service) buildMessages(ctx context.Context, j job, tune tuning) []opena
 		return s.replyChain(ctx, j.ev, j.bot.UserID, tune)
 	}
 
-	return []openai.Message{{Role: "user", Content: authored(j.ev.Body, j.ev.SenderName, messageBodyMax)}}
+	return []openai.Message{{Role: "user", Content: authored(j.ev.Body, speaker(j.ev.SenderHandle, j.ev.SenderName), messageBodyMax)}}
 }
 
 func (s *service) dmHistory(ctx context.Context, ev botEvent, botUserID uuid.UUID, tune tuning) []openai.Message {
@@ -120,7 +120,7 @@ func (s *service) replyChain(ctx context.Context, ev botEvent, botUserID uuid.UU
 		ordered = append(ordered, chain[i])
 	}
 
-	return fitBudget(append(ordered, openai.Message{Role: "user", Content: authored(ev.Body, ev.SenderName, messageBodyMax)}))
+	return fitBudget(append(ordered, openai.Message{Role: "user", Content: authored(ev.Body, speaker(ev.SenderHandle, ev.SenderName), messageBodyMax)}))
 }
 
 func (s *service) parentRow(ctx context.Context, ev botEvent, id uuid.UUID) (promptRow, *uuid.UUID, bool) {
@@ -179,12 +179,7 @@ func rowToMessage(row promptRow, botUserID uuid.UUID, limit int) openai.Message 
 		return openai.Message{Role: "assistant", Content: truncate(row.Body, limit)}
 	}
 
-	name := row.DisplayName
-	if name == "" {
-		name = row.Username
-	}
-
-	return openai.Message{Role: "user", Content: authored(row.Body, name+replyContext(row), limit)}
+	return openai.Message{Role: "user", Content: authored(row.Body, speaker(row.Username, row.DisplayName)+replyContext(row), limit)}
 }
 
 func replyContext(row promptRow) string {
@@ -199,6 +194,20 @@ func replyContext(row promptRow) string {
 	}
 
 	return fmt.Sprintf(" (replying to %s: %q)", target, truncate(quoted, replyQuoteMax))
+}
+
+func speaker(handle, name string) string {
+	handle = strings.TrimSpace(handle)
+	name = strings.TrimSpace(name)
+
+	switch {
+	case handle == "":
+		return name
+	case name == "" || strings.EqualFold(handle, name):
+		return "@" + handle
+	default:
+		return fmt.Sprintf("@%s (%s)", handle, name)
+	}
 }
 
 func authored(body, name string, limit int) string {

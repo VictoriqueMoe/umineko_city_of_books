@@ -29,6 +29,7 @@ type (
 		ItemID       uuid.UUID
 		SenderID     uuid.UUID
 		SenderName   string
+		SenderHandle string
 		Body         string
 		MentionedIDs map[uuid.UUID]struct{}
 		ParentID     *uuid.UUID
@@ -61,6 +62,7 @@ func (s *service) ObserveMessage(ev chat.BotMessageEvent) {
 		ItemID:       ev.MessageID,
 		SenderID:     ev.SenderID,
 		SenderName:   ev.SenderName,
+		SenderHandle: ev.SenderHandle,
 		Body:         ev.Body,
 		MentionedIDs: ev.MentionedIDs,
 		ParentID:     ev.ReplyToID,
@@ -84,6 +86,7 @@ func (s *service) ObserveComment(ev post.BotContentEvent) {
 		ItemID:       itemID,
 		SenderID:     ev.AuthorID,
 		SenderName:   ev.AuthorName,
+		SenderHandle: ev.AuthorHandle,
 		Body:         ev.Body,
 		MentionedIDs: ev.MentionedIDs,
 		ParentID:     ev.ParentID,

@@ -48,7 +48,7 @@ func TestBuildMessages_GameBoardChain(t *testing.T) {
 			depth: 25,
 			rows:  map[uuid.UUID]*repository.CommentRow{first: firstRow, second: secondRow},
 			want: []openai.Message{
-				{Role: "user", Content: "Kujo: who did it"},
+				{Role: "user", Content: "@kujo: who did it"},
 				{Role: "assistant", Content: "the culprit is not human"},
 				{Role: "user", Content: "explain"},
 			},
@@ -217,6 +217,34 @@ func TestBuildMessages_ReplyChainStillNamesTheTrigger(t *testing.T) {
 		{Role: "assistant", Content: "the culprit is not human"},
 		{Role: "user", Content: "Feather: explain"},
 	}, got)
+}
+
+func TestSpeaker_LeadsWithTheHandleTheSiteControls(t *testing.T) {
+	cases := []struct {
+		name   string
+		handle string
+		alias  string
+		want   string
+	}{
+		{"handle and a different alias", "Bernkastel", "Bern", "@Bernkastel (Bern)"},
+		{"an alias equal to the handle is not repeated", "Bernkastel", "Bernkastel", "@Bernkastel"},
+		{"casing differences still count as the same", "Bernkastel", "bernkastel", "@Bernkastel"},
+		{"no alias falls back to the handle alone", "Bernkastel", "", "@Bernkastel"},
+		{"no handle falls back to the alias alone", "", "Bern", "Bern"},
+		{"an impostor alias cannot displace the real handle", "impostor", "Bernkastel", "@impostor (Bernkastel)"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given the handle and alias from the table
+
+			// when
+			got := speaker(tc.handle, tc.alias)
+
+			// then
+			assert.Equal(t, tc.want, got)
+		})
+	}
 }
 
 func TestChatPromptRow_PrefersTheRoomNickname(t *testing.T) {

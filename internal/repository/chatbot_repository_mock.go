@@ -646,6 +646,132 @@ func (_c *MockChatbotRepository_ListBots_Call) RunAndReturn(run func(ctx context
 	return _c
 }
 
+// OldestInvocationToday provides a mock function for the type MockChatbotRepository
+func (_mock *MockChatbotRepository) OldestInvocationToday(ctx context.Context) (time.Time, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for OldestInvocationToday")
+	}
+
+	var r0 time.Time
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (time.Time, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) time.Time); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(time.Time)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockChatbotRepository_OldestInvocationToday_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'OldestInvocationToday'
+type MockChatbotRepository_OldestInvocationToday_Call struct {
+	*mock.Call
+}
+
+// OldestInvocationToday is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockChatbotRepository_Expecter) OldestInvocationToday(ctx any) *MockChatbotRepository_OldestInvocationToday_Call {
+	return &MockChatbotRepository_OldestInvocationToday_Call{Call: _e.mock.On("OldestInvocationToday", ctx)}
+}
+
+func (_c *MockChatbotRepository_OldestInvocationToday_Call) Run(run func(ctx context.Context)) *MockChatbotRepository_OldestInvocationToday_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatbotRepository_OldestInvocationToday_Call) Return(time1 time.Time, err error) *MockChatbotRepository_OldestInvocationToday_Call {
+	_c.Call.Return(time1, err)
+	return _c
+}
+
+func (_c *MockChatbotRepository_OldestInvocationToday_Call) RunAndReturn(run func(ctx context.Context) (time.Time, error)) *MockChatbotRepository_OldestInvocationToday_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// OldestUserInvocationToday provides a mock function for the type MockChatbotRepository
+func (_mock *MockChatbotRepository) OldestUserInvocationToday(ctx context.Context, userID uuid.UUID) (time.Time, error) {
+	ret := _mock.Called(ctx, userID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for OldestUserInvocationToday")
+	}
+
+	var r0 time.Time
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (time.Time, error)); ok {
+		return returnFunc(ctx, userID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) time.Time); ok {
+		r0 = returnFunc(ctx, userID)
+	} else {
+		r0 = ret.Get(0).(time.Time)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, userID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockChatbotRepository_OldestUserInvocationToday_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'OldestUserInvocationToday'
+type MockChatbotRepository_OldestUserInvocationToday_Call struct {
+	*mock.Call
+}
+
+// OldestUserInvocationToday is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+func (_e *MockChatbotRepository_Expecter) OldestUserInvocationToday(ctx any, userID any) *MockChatbotRepository_OldestUserInvocationToday_Call {
+	return &MockChatbotRepository_OldestUserInvocationToday_Call{Call: _e.mock.On("OldestUserInvocationToday", ctx, userID)}
+}
+
+func (_c *MockChatbotRepository_OldestUserInvocationToday_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *MockChatbotRepository_OldestUserInvocationToday_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatbotRepository_OldestUserInvocationToday_Call) Return(time1 time.Time, err error) *MockChatbotRepository_OldestUserInvocationToday_Call {
+	_c.Call.Return(time1, err)
+	return _c
+}
+
+func (_c *MockChatbotRepository_OldestUserInvocationToday_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) (time.Time, error)) *MockChatbotRepository_OldestUserInvocationToday_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // StatsSince provides a mock function for the type MockChatbotRepository
 func (_mock *MockChatbotRepository) StatsSince(ctx context.Context, since time.Time) (*ChatbotStats, error) {
 	ret := _mock.Called(ctx, since)

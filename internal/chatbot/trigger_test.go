@@ -327,6 +327,86 @@ func TestObserve_PermittedSummonQueuesARealReply(t *testing.T) {
 	assert.False(t, queued.refusal)
 }
 
+func TestHumaniseWait(t *testing.T) {
+	cases := []struct {
+		name string
+		in   time.Duration
+		want string
+	}{
+		{"already clear", -time.Minute, "shortly"},
+		{"seconds away", 30 * time.Second, "in less than a minute"},
+		{"a single minute", 70 * time.Second, "in about a minute"},
+		{"some minutes", 20 * time.Minute, "in about 20 minutes"},
+		{"just under an hour", 59 * time.Minute, "in about 59 minutes"},
+		{"an hour", 62 * time.Minute, "in about an hour"},
+		{"several hours", 3*time.Hour + 10*time.Minute, "in about 3 hours"},
+		{"most of a day", 23 * time.Hour, "in about 23 hours"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given the duration from the table
+
+			// when
+			got := humaniseWait(tc.in)
+
+			// then
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestQuotaMessage_SaysWhoseLimitAndWhenItClears(t *testing.T) {
+	cases := []struct {
+		name        string
+		state       quotaState
+		wantPhrases []string
+	}{
+		{
+			name:        "a member out of their own allowance",
+			state:       quotaState{over: true, clearsAt: time.Now().Add(2 * time.Hour)},
+			wantPhrases: []string{"your message limit", "in about 2 hours"},
+		},
+		{
+			name:        "the whole site out of allowance",
+			state:       quotaState{over: true, global: true, clearsAt: time.Now().Add(30 * time.Minute)},
+			wantPhrases: []string{"whole site", "in about 30 minutes"},
+		},
+		{
+			name:        "an unknown clearing time still says something useful",
+			state:       quotaState{over: true},
+			wantPhrases: []string{"shortly"},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc := new(service)
+
+			// when
+			got := svc.quotaMessage(tc.state)
+
+			// then
+			for _, phrase := range tc.wantPhrases {
+				assert.Contains(t, got, phrase)
+			}
+		})
+	}
+}
+
+func TestQuotaClearsAt(t *testing.T) {
+	// given
+	oldest := time.Date(2026, 8, 9, 10, 0, 0, 0, time.UTC)
+
+	// when
+	got := quotaClearsAt(oldest)
+
+	// then
+	assert.Equal(t, oldest.Add(24*time.Hour), got)
+	assert.True(t, quotaClearsAt(time.Time{}).IsZero(), "an unknown oldest invocation must not invent a clearing time")
+}
+
 func TestRefusalMessage_PointsAtTheSettingsPage(t *testing.T) {
 	cases := []struct {
 		name    string

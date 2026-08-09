@@ -431,7 +431,7 @@ describe("AdminSettings chatbot key gate", () => {
         expect(secretInput("Admin Key")).toBeDisabled();
         expect(screen.getByLabelText("Model")).toBeDisabled();
         expect(selectFor("Reasoning Effort")).toBeDisabled();
-        expect(numberInput("Max Replies Per Day")).toBeDisabled();
+        expect(numberInput("Max Replies Site-wide (rolling 24 hours)")).toBeDisabled();
         expect(screen.getByRole("button", { name: "Test model" })).toBeDisabled();
         expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument();
     });
@@ -517,7 +517,7 @@ describe("AdminSettings chatbot key gate", () => {
         expect(secretInput("Admin Key")).toBeEnabled();
         expect(screen.getByLabelText("Model")).toBeEnabled();
         expect(selectFor("Reasoning Effort")).toBeEnabled();
-        expect(numberInput("Max Replies Per Day")).toBeEnabled();
+        expect(numberInput("Max Replies Site-wide (rolling 24 hours)")).toBeEnabled();
         expect(screen.getByRole("button", { name: "Test model" })).toBeEnabled();
         expect(screen.queryByText(/stays locked/)).not.toBeInTheDocument();
     });
