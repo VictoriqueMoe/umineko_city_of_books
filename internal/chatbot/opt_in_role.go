@@ -2,7 +2,6 @@ package chatbot
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -21,12 +20,6 @@ import (
 const (
 	optInRolePageSize    = 100
 	optInMigrationWindow = 10 * time.Minute
-)
-
-var (
-	ErrOptInRoleNotFound  = errors.New("that role does not exist")
-	ErrOptInRoleIsSystem  = errors.New("auto-managed roles cannot be handed out on opt in")
-	ErrOptInRoleNoChatbot = errors.New("that role does not carry the summon chatbots permission")
 )
 
 type (

@@ -58,6 +58,7 @@ type (
 		CompletionTokens   int
 		ReasoningTokens    int
 		Incomplete         bool
+		IncompleteReason   string
 	}
 
 	CostsResult struct {
@@ -88,6 +89,9 @@ const (
 	chatbotKeyPrefix     = "chatbot_"
 
 	cacheModeExplicit = "explicit"
+
+	IncompleteMaxOutputTokens = "max_output_tokens"
+	IncompleteContentFilter   = "content_filter"
 
 	typeReasoning   = "reasoning"
 	typeOutputText  = "output_text"
@@ -224,6 +228,7 @@ func (s *service) Complete(ctx context.Context, req CompletionRequest) (*Complet
 		CompletionTokens:   int(resp.Usage.OutputTokens),
 		ReasoningTokens:    int(resp.Usage.OutputTokensDetails.ReasoningTokens),
 		Incomplete:         resp.Status == responses.ResponseStatusIncomplete,
+		IncompleteReason:   resp.IncompleteDetails.Reason,
 	}, nil
 }
 

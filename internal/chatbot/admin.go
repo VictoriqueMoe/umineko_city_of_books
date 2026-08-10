@@ -25,13 +25,6 @@ const (
 	testMaxOutputTokens = 16
 )
 
-var (
-	ErrBotNotFound     = errors.New("chatbot not found")
-	ErrBotUsernameUsed = errors.New("that username is already taken")
-	ErrBotInvalid      = errors.New("a chatbot needs a username, a display name and a system prompt")
-	ErrBotUnknownModel = errors.New("the provider does not offer that model")
-)
-
 type (
 	AdminService interface {
 		List(ctx context.Context) ([]dto.ChatbotResponse, error)

@@ -14,9 +14,32 @@ var (
 	droppedTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "chatbot_dropped_total",
-			Help: "Chatbot triggers dropped before reaching the provider, by reason.",
+			Help: "Chatbot summons that produced no answer, by reason, pipeline stage and surface.",
 		},
-		[]string{"reason"},
+		[]string{"reason", "stage", "surface"},
+	)
+
+	noticesTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "chatbot_notices_total",
+			Help: "Explanations the chatbot tried to deliver in place of an answer, by reason and result.",
+		},
+		[]string{"reason", "result"},
+	)
+
+	silentTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "chatbot_silent_total",
+			Help: "Summons that produced no user-visible output at all, not even an explanation. Should stay at zero.",
+		},
+		[]string{"reason", "stage"},
+	)
+
+	queueDepth = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "chatbot_queue_depth",
+			Help: "Chatbot jobs waiting for a worker.",
+		},
 	)
 
 	tokensTotal = prometheus.NewCounterVec(
@@ -29,5 +52,5 @@ var (
 )
 
 func init() {
-	prometheus.MustRegister(invocationsTotal, droppedTotal, tokensTotal)
+	prometheus.MustRegister(invocationsTotal, droppedTotal, tokensTotal, noticesTotal, silentTotal, queueDepth)
 }

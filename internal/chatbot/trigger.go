@@ -23,30 +23,30 @@ func (s *service) observe(ev botEvent) {
 	}
 
 	if !s.allowedToSummon(ev.SenderID, tune) {
-		droppedTotal.WithLabelValues("permission").Inc()
-		s.explainRefusal(ev, bot)
+		s.notify(ev, bot, outcome{reason: reasonNotPermitted, stage: stagePreTrigger})
 
 		return
 	}
 
 	if !ev.IsDM && !s.takeCooldown(ev.SenderID, tune.cooldown) {
-		droppedTotal.WithLabelValues("cooldown").Inc()
+		droppedTotal.WithLabelValues("cooldown", string(stagePreTrigger), string(ev.Surface)).Inc()
 
 		return
 	}
 
 	key := ev.scopeKey()
 	if _, busy := s.inScope.LoadOrStore(key, struct{}{}); busy {
-		droppedTotal.WithLabelValues("room_inflight").Inc()
+		droppedTotal.WithLabelValues("room_inflight", string(stagePreTrigger), string(ev.Surface)).Inc()
 
 		return
 	}
 
 	select {
 	case s.jobs <- job{ev: ev, bot: bot, useChain: useChain(ev, threaded)}:
+		queueDepth.Set(float64(len(s.jobs)))
 	default:
 		s.inScope.Delete(key)
-		droppedTotal.WithLabelValues("queue_full").Inc()
+		droppedTotal.WithLabelValues("queue_full", string(stagePreTrigger), string(ev.Surface)).Inc()
 	}
 }
 
@@ -100,14 +100,14 @@ func (s *service) takeCooldown(userID uuid.UUID, window time.Duration) bool {
 	return takeSlot(&s.lastUse, userID, window)
 }
 
-func takeSlot(seen *sync.Map, userID uuid.UUID, window time.Duration) bool {
+func takeSlot(seen *sync.Map, key any, window time.Duration) bool {
 	if window <= 0 {
 		return true
 	}
 
 	now := time.Now()
 
-	prev, ok := seen.Load(userID)
+	prev, ok := seen.Load(key)
 	if ok {
 		last, valid := prev.(time.Time)
 		if valid && now.Sub(last) < window {
@@ -115,25 +115,14 @@ func takeSlot(seen *sync.Map, userID uuid.UUID, window time.Duration) bool {
 		}
 	}
 
-	seen.Store(userID, now)
+	seen.Store(key, now)
 
 	return true
 }
 
-func (s *service) explainRefusal(ev botEvent, bot repository.Chatbot) {
-	if !takeSlot(&s.lastRefusal, ev.SenderID, refusalCooldown) {
-		return
-	}
+func (s *service) notify(ev botEvent, bot repository.Chatbot, out outcome) {
+	ctx, cancel := context.WithTimeout(context.Background(), noticeTimeout)
+	defer cancel()
 
-	key := ev.scopeKey()
-	if _, busy := s.inScope.LoadOrStore(key, struct{}{}); busy {
-		return
-	}
-
-	select {
-	case s.jobs <- job{ev: ev, bot: bot, refusal: true}:
-	default:
-		s.inScope.Delete(key)
-		droppedTotal.WithLabelValues("queue_full").Inc()
-	}
+	s.settle(ctx, job{ev: ev, bot: bot}, out)
 }
