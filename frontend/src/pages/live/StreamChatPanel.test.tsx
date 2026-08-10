@@ -290,7 +290,7 @@ describe("StreamChatPanel live updates", () => {
     it("hands an incoming chat message to the stream handler", async () => {
         // given
         const { listeners } = renderPanel({ streamId: "stream-4" });
-        await screen.findByTestId("composer");
+        await waitFor(() => expect(listeners.length).toBeGreaterThan(0));
         const incoming = makeMessage({ room_id: "stream-4" });
 
         // when
@@ -309,7 +309,7 @@ describe("StreamChatPanel live updates", () => {
     it("passes any other chat event to the shared branch", async () => {
         // given
         const { listeners } = renderPanel({ streamId: "stream-4" });
-        await screen.findByTestId("composer");
+        await waitFor(() => expect(listeners.length).toBeGreaterThan(0));
         const event: WSMessage = { type: "chat_message_deleted", data: { room_id: "stream-4", id: "m1" } };
 
         // when
