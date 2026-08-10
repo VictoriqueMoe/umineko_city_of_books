@@ -37,6 +37,7 @@ const (
 	shutdownMessage  = "chatbot worker pool drained"
 	refusalCooldown  = 10 * time.Minute
 	quotaWindow      = 24 * time.Hour
+	noticeTimeout    = 15 * time.Second
 )
 
 type (
@@ -68,7 +69,12 @@ type (
 		ev       botEvent
 		bot      repository.Chatbot
 		useChain bool
-		refusal  bool
+		notice   outcome
+	}
+
+	noticeKey struct {
+		user   uuid.UUID
+		reason Reason
 	}
 
 	quotaState struct {
@@ -88,13 +94,13 @@ type (
 		settingsSvc settings.Service
 		hub         *ws.Hub
 
-		mu          sync.RWMutex
-		tune        tuning
-		bots        map[uuid.UUID]repository.Chatbot
-		loaded      bool
-		lastUse     sync.Map
-		lastRefusal sync.Map
-		inScope     sync.Map
+		mu         sync.RWMutex
+		tune       tuning
+		bots       map[uuid.UUID]repository.Chatbot
+		loaded     bool
+		lastUse    sync.Map
+		lastNotice sync.Map
+		inScope    sync.Map
 
 		jobs    chan job
 		quit    chan struct{}
@@ -143,7 +149,7 @@ func (s *service) Enabled() bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	return s.tune.enabled && s.openaiSvc.Enabled()
+	return s.tune.enabled
 }
 
 func (s *service) OnSettingsBatchChanged(keys []config.SiteSettingKey) {
@@ -178,8 +184,15 @@ func (s *service) reload() {
 	if next.enabled {
 		rows, err := s.botRepo.ListBots(ctx)
 		if err != nil {
-			logger.Log.Error().Err(err).Msg("chatbot: load bots")
+			logger.Log.Error().Err(err).Msg("chatbot: load bots, keeping the previously loaded set")
+
+			s.mu.Lock()
+			s.tune = next
+			s.mu.Unlock()
+
+			return
 		}
+
 		for _, row := range rows {
 			if row.Enabled {
 				bots[row.UserID] = row

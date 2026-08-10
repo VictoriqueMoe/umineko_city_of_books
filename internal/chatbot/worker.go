@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/openai"
@@ -44,10 +43,8 @@ func (s *service) run(id int, j job) {
 	ctx, cancel := context.WithTimeout(context.Background(), jobTimeout)
 	defer cancel()
 
-	if j.refusal {
-		if err := s.deliver(ctx, j, s.refusalMessage(ctx)); err != nil {
-			logger.Log.Error().Err(err).Int("worker", id).Str("bot", j.bot.Username).Msg("failed to explain the chatbot permission refusal")
-		}
+	if j.notice.reason != reasonNone {
+		s.settle(ctx, j, j.notice)
 
 		return
 	}
@@ -57,29 +54,76 @@ func (s *service) run(id int, j job) {
 	invocationID := uuid.New()
 	model := firstNonBlank(j.bot.Model, tune.model)
 
-	status, err := s.reply(ctx, j, tune, invocationID, model)
-	if err != nil {
-		logger.Log.Error().Err(err).Int("worker", id).Str("bot", j.bot.Username).Str("surface", string(j.ev.Surface)).Msg("chatbot reply failed")
+	out := s.reply(ctx, j, tune, invocationID, model)
+
+	invocationsTotal.WithLabelValues(string(out.status)).Inc()
+
+	if out.reason == reasonNone {
+		return
 	}
 
-	invocationsTotal.WithLabelValues(string(status)).Inc()
+	logOutcome(id, j, out)
+	s.settle(ctx, j, out)
 }
 
-func (s *service) reply(ctx context.Context, j job, tune tuning, invocationID uuid.UUID, model string) (repository.InvocationStatus, error) {
+func logOutcome(id int, j job, out outcome) {
+	entry := logger.Log.Error().
+		Int("worker", id).
+		Str("bot", j.bot.Username).
+		Str("surface", string(j.ev.Surface)).
+		Str("reason", string(out.reason)).
+		Str("stage", string(out.stage))
+
+	if out.detail != "" {
+		entry = entry.Str("detail", out.detail)
+	}
+
+	if out.err != nil {
+		entry = entry.Err(out.err)
+	}
+
+	entry.Msg("chatbot could not answer")
+}
+
+func (s *service) settle(ctx context.Context, j job, out outcome) {
+	droppedTotal.WithLabelValues(string(out.reason), string(out.stage), string(j.ev.Surface)).Inc()
+
+	if out.reason.policy() && !takeSlot(&s.lastNotice, noticeKey{user: j.ev.SenderID, reason: out.reason}, refusalCooldown) {
+		noticesTotal.WithLabelValues(string(out.reason), "suppressed").Inc()
+
+		return
+	}
+
+	sendCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), noticeTimeout)
+	defer cancel()
+
+	if err := s.deliver(sendCtx, j, s.noticeText(sendCtx, out)); err != nil {
+		noticesTotal.WithLabelValues(string(out.reason), "failed").Inc()
+		silentTotal.WithLabelValues(string(out.reason), string(out.stage)).Inc()
+
+		logger.Log.Error().Err(err).
+			Str("bot", j.bot.Username).
+			Str("reason", string(out.reason)).
+			Msg("chatbot could not deliver its explanation, the member was left with nothing")
+
+		return
+	}
+
+	noticesTotal.WithLabelValues(string(out.reason), "delivered").Inc()
+}
+
+func (s *service) reply(ctx context.Context, j job, tune tuning, invocationID uuid.UUID, model string) outcome {
 	quota, err := s.overQuota(ctx, j.ev.SenderID, tune)
 	if err != nil {
-		return repository.InvocationFailed, err
+		return outcome{reason: reasonInternal, stage: stagePreModel, status: repository.InvocationFailed, err: err}
 	}
 	if quota.over {
-		droppedTotal.WithLabelValues("quota").Inc()
-
-		if takeSlot(&s.lastRefusal, j.ev.SenderID, refusalCooldown) {
-			if sendErr := s.deliver(ctx, j, s.quotaMessage(quota)); sendErr != nil {
-				logger.Log.Error().Err(sendErr).Msg("failed to explain the chatbot quota refusal")
-			}
+		reason := reasonQuotaUser
+		if quota.global {
+			reason = reasonQuotaSite
 		}
 
-		return repository.InvocationQuota, nil
+		return outcome{reason: reason, stage: stagePreModel, status: repository.InvocationQuota, clearsAt: quota.clearsAt}
 	}
 
 	var roomID *uuid.UUID
@@ -88,7 +132,7 @@ func (s *service) reply(ctx context.Context, j job, tune tuning, invocationID uu
 	}
 
 	if err := s.botRepo.CreateInvocation(ctx, invocationID, j.bot.UserID, j.ev.SenderID, roomID, j.ev.ItemID, string(j.ev.Surface), model); err != nil {
-		return repository.InvocationFailed, err
+		return outcome{reason: reasonInternal, stage: stagePreModel, status: repository.InvocationFailed, err: err}
 	}
 
 	stopTyping := s.startTyping(j.ev, j.bot.UserID)
@@ -108,17 +152,33 @@ func (s *service) reply(ctx context.Context, j job, tune tuning, invocationID uu
 	result, err := s.openaiSvc.Complete(ctx, req)
 	if err != nil {
 		_ = s.botRepo.CompleteInvocation(ctx, invocationID, repository.InvocationUsage{}, repository.InvocationFailed)
+		stopTyping()
 
-		return repository.InvocationFailed, err
+		return classifyProvider(ctx, err)
 	}
 
 	recordTokens(result)
 
 	body := strings.TrimSpace(result.Text)
-	if result.Incomplete || body == "" {
+	if body == "" {
 		_ = s.botRepo.CompleteInvocation(ctx, invocationID, usageOf(result), repository.InvocationRefused)
+		stopTyping()
 
-		return repository.InvocationRefused, nil
+		return outcome{
+			reason: reasonEmptyReply,
+			stage:  stagePostModel,
+			status: repository.InvocationRefused,
+			detail: result.IncompleteReason,
+		}
+	}
+
+	if result.Incomplete {
+		logger.Log.Warn().
+			Str("bot", j.bot.Username).
+			Str("reason", firstNonBlank(result.IncompleteReason, "unknown")).
+			Int("completion_tokens", result.CompletionTokens).
+			Int("reasoning_tokens", result.ReasoningTokens).
+			Msg("chatbot reply was cut short, delivering what it produced")
 	}
 
 	stopTyping()
@@ -126,20 +186,29 @@ func (s *service) reply(ctx context.Context, j job, tune tuning, invocationID uu
 	if sendErr := s.deliver(ctx, j, body); sendErr != nil {
 		_ = s.botRepo.CompleteInvocation(ctx, invocationID, usageOf(result), repository.InvocationRefused)
 
-		return repository.InvocationRefused, sendErr
+		return classifyDelivery(sendErr)
 	}
 
 	if err := s.botRepo.CompleteInvocation(ctx, invocationID, usageOf(result), repository.InvocationReplied); err != nil {
-		return repository.InvocationReplied, err
+		logger.Log.Error().Err(err).Str("bot", j.bot.Username).Msg("chatbot answered but the invocation could not be closed")
 	}
 
-	return repository.InvocationReplied, nil
+	return outcome{status: repository.InvocationReplied}
 }
 
-func (s *service) refusalMessage(ctx context.Context) string {
-	settingsURL := strings.TrimSuffix(strings.TrimSpace(s.settingsSvc.Get(ctx, config.SettingBaseURL)), "/") + "/settings"
+func emptyReplyMessage(reason string) string {
+	switch reason {
+	case openai.IncompleteContentFilter:
+		return "I began an answer to that and thought better of it. Try asking me another way."
+	case openai.IncompleteMaxOutputTokens:
+		return "I ran out of room before I got a word out. Ask me something narrower and I will manage it."
+	default:
+		return "I have nothing to say to that, which is unlike me. Try me again."
+	}
+}
 
-	return fmt.Sprintf("I am not permitted to answer you yet. Talking to me is opt in, so visit %s and turn it on, then summon me again.", settingsURL)
+func trimBase(raw string) string {
+	return strings.TrimSuffix(strings.TrimSpace(raw), "/")
 }
 
 func (s *service) deliver(ctx context.Context, j job, body string) error {

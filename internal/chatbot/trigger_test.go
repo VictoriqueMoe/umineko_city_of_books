@@ -6,7 +6,9 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/authz"
+	"umineko_city_of_books/internal/chat"
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
 
@@ -256,7 +258,7 @@ func TestObserve_RefusedSummonIsExplainedRatherThanSilent(t *testing.T) {
 	cases := []struct {
 		name        string
 		alreadyTold bool
-		wantQueue   int
+		wantSends   int
 	}{
 		{"the first refused summon is explained", false, 1},
 		{"a second refusal inside the window stays quiet", true, 0},
@@ -268,30 +270,35 @@ func TestObserve_RefusedSummonIsExplainedRatherThanSilent(t *testing.T) {
 			authzSvc := authz.NewMockService(t)
 			authzSvc.EXPECT().Can(mock.Anything, senderID, authz.PermUseChatbot).Return(false)
 
+			settingsSvc := settings.NewMockService(t)
+			settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("https://whentheycry.social").Maybe()
+
+			chatSvc := chat.NewMockService(t)
+			sends := 0
+			chatSvc.EXPECT().SendMessage(mock.Anything, botID, event.ScopeID, mock.Anything, mock.Anything).
+				Run(func(context.Context, uuid.UUID, uuid.UUID, dto.SendMessageRequest, []chat.FileUpload) {
+					sends++
+				}).Return(nil, nil).Maybe()
+
 			svc := &service{
-				jobs:     make(chan job, 4),
-				bots:     botsByID(botID),
-				tune:     tuning{enabled: true, requirePermission: true},
-				authzSvc: authzSvc,
+				jobs:        make(chan job, 4),
+				bots:        botsByID(botID),
+				tune:        tuning{enabled: true, requirePermission: true},
+				authzSvc:    authzSvc,
+				chatSvc:     chatSvc,
+				settingsSvc: settingsSvc,
 			}
 			svc.loaded = true
 			if tc.alreadyTold {
-				svc.lastRefusal.Store(senderID, time.Now())
+				svc.lastNotice.Store(noticeKey{user: senderID, reason: reasonNotPermitted}, time.Now())
 			}
 
 			// when
 			svc.observe(event)
 
 			// then
-			assert.Len(t, svc.jobs, tc.wantQueue)
-
-			if tc.wantQueue == 0 {
-				return
-			}
-
-			queued := <-svc.jobs
-			assert.True(t, queued.refusal, "the job must be marked as a refusal so no model call is made")
-			assert.Equal(t, botID, queued.bot.UserID)
+			assert.Equal(t, tc.wantSends, sends, "the refusal is delivered directly, never through the reply queue")
+			assert.Empty(t, svc.jobs, "a notice must not consume a worker slot")
 		})
 	}
 }
@@ -324,7 +331,7 @@ func TestObserve_PermittedSummonQueuesARealReply(t *testing.T) {
 	// then
 	require.Len(t, svc.jobs, 1)
 	queued := <-svc.jobs
-	assert.False(t, queued.refusal)
+	assert.Equal(t, reasonNone, queued.notice.reason)
 }
 
 func TestHumaniseWait(t *testing.T) {
