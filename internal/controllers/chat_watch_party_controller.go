@@ -101,6 +101,10 @@ func mapWatchPartyError(ctx fiber.Ctx, err error) error {
 		{
 			return utils.BadRequest(ctx, "invalid watch party type")
 		}
+	case errors.Is(err, chat.ErrWatchPartyNoCapacity):
+		{
+			return utils.ServiceUnavailable(ctx, "the virtual browser provider has no free machines right now. Try again shortly, or start a screen share instead")
+		}
 	case errors.Is(err, chat.ErrVoiceDisabled):
 		{
 			return utils.ServiceUnavailable(ctx, "voice chat is not configured")

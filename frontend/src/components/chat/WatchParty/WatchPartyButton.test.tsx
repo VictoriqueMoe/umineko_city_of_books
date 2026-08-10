@@ -43,6 +43,7 @@ interface ButtonOptions {
     sessions?: WatchPartySession[];
     activeSessionId?: string | null;
     viewerUserId?: string | null;
+    error?: string | null;
     onStart?: (opts: { title?: string; type?: "hyperbeam" | "screenshare" }) => Promise<unknown>;
     onJoin?: (sessionId: string) => Promise<void>;
 }
@@ -59,6 +60,7 @@ function renderButton(options: ButtonOptions = {}) {
             sessions={options.sessions ?? []}
             activeSessionId={options.activeSessionId ?? null}
             viewerUserId={options.viewerUserId === undefined ? viewerId : options.viewerUserId}
+            error={options.error ?? null}
             onStart={onStart}
             onJoin={onJoin}
             onOpenExisting={onOpenExisting}
@@ -231,6 +233,7 @@ describe("WatchPartyButton", () => {
                 sessions={[]}
                 activeSessionId={null}
                 viewerUserId={viewerId}
+                error={null}
                 onStart={onStart}
                 onJoin={vi.fn()}
                 onOpenExisting={vi.fn()}
@@ -241,6 +244,63 @@ describe("WatchPartyButton", () => {
 
         // then it must not fall back to the screen share it was mounted with
         expect(onStart).toHaveBeenCalledWith({ title: undefined, type: "hyperbeam" });
+    });
+
+    it("shows why the party could not start instead of silently returning to the button", async () => {
+        // given a start that the server refused
+        const user = userEvent.setup();
+        renderButton({
+            error: "the virtual browser provider has no free machines right now",
+            onStart: () => Promise.reject(new Error("boom")),
+        });
+
+        // when
+        await openPicker(user);
+
+        // then
+        expect(screen.getByRole("alert")).toHaveTextContent(
+            "the virtual browser provider has no free machines right now",
+        );
+    });
+
+    it("keeps the picker open so the reason stays readable when starting fails", async () => {
+        // given
+        const user = userEvent.setup();
+        renderButton({ error: "no free machines", onStart: () => Promise.reject(new Error("boom")) });
+        await openPicker(user);
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Start new" }));
+
+        // then
+        expect(screen.getByRole("alert")).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Start new" })).toBeEnabled();
+    });
+
+    it("does not let a click elsewhere close the picker while a start is still in flight", async () => {
+        // given a start that has not resolved yet, so the reason has nowhere else to appear
+        const user = userEvent.setup();
+        renderButton({ onStart: () => new Promise(() => {}) });
+        await openPicker(user);
+        await user.click(screen.getByRole("button", { name: "Start new" }));
+
+        // when the user clicks away while waiting
+        await user.click(document.body);
+
+        // then the picker is still there to receive the error
+        expect(screen.getByRole("button", { name: "Starting..." })).toBeInTheDocument();
+    });
+
+    it("still shows an error that landed while the picker was closed", async () => {
+        // given the picker was reopened after a failure
+        const user = userEvent.setup();
+        renderButton({ error: "no free machines" });
+
+        // when
+        await openPicker(user);
+
+        // then reopening must not wipe the reason on the way in
+        expect(screen.getByRole("alert")).toHaveTextContent("no free machines");
     });
 
     it("starts a screen share party when that is the only option available", async () => {

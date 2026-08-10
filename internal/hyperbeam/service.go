@@ -164,6 +164,16 @@ func (s *service) TerminateVM(ctx context.Context, sessionID string) error {
 	return s.do(ctx, http.MethodDelete, s.baseURL+"/vm/"+sessionID, nil, nil)
 }
 
+func extractErrorCode(raw []byte) string {
+	var payload struct {
+		Code string `json:"code"`
+	}
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return ""
+	}
+	return payload.Code
+}
+
 func ExtractVMBaseURL(embedURL string) (string, error) {
 	if embedURL == "" {
 		return "", fmt.Errorf("empty embed_url")
@@ -213,7 +223,7 @@ func (s *service) doAs(ctx context.Context, bearer, method, fullURL string, body
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		raw, _ := io.ReadAll(resp.Body)
-		return &APIError{StatusCode: resp.StatusCode, Body: string(raw)}
+		return &APIError{StatusCode: resp.StatusCode, Code: extractErrorCode(raw), Body: string(raw)}
 	}
 
 	if out == nil || resp.StatusCode == http.StatusNoContent {

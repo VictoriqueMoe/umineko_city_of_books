@@ -192,6 +192,118 @@ func TestStartWatchParty_HyperbeamFailureCleansUp(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestHyperbeamRegionChain(t *testing.T) {
+	cases := []struct {
+		name       string
+		requested  string
+		configured string
+		want       []string
+	}{
+		{"the browser's region is tried first, then the rest", "AS", "EU", []string{"AS", "EU", "NA"}},
+		{"the configured default leads when the browser sent nothing", "", "EU", []string{"EU", "NA", "AS"}},
+		{"a region is never retried twice", "EU", "EU", []string{"EU", "NA", "AS"}},
+		{"a configured non-default still leads", "", "NA", []string{"NA", "EU", "AS"}},
+		{"with nothing configured we let hyperbeam choose first", "", "", []string{"EU", "NA", "AS"}},
+		{"an unknown region from the client is still honoured first", "XX", "EU", []string{"XX", "EU", "NA", "AS"}},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// when
+			got := hyperbeamRegionChain(tc.requested, tc.configured)
+
+			// then
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestStartWatchParty_FallsBackToAnotherRegionWhenTheFirstIsFull(t *testing.T) {
+	// given a starter whose browser picked AS, where our plan has no machines
+	svc, m := newTestService(t)
+	roomID := uuid.New()
+	userID := uuid.New()
+	sessionID := uuid.New()
+
+	m.hyperbeamSvc.EXPECT().Enabled().Return(true)
+	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
+	expectGroupRoomLookup(m, roomID, userID)
+
+	var tried []string
+	m.hyperbeamSvc.EXPECT().CreateVM(mock.Anything, mock.Anything).
+		Run(func(_ context.Context, opts hyperbeam.CreateVMOptions) { tried = append(tried, opts.Region) }).
+		Return(nil, &hyperbeam.APIError{StatusCode: 503, Code: "err_no_available_vm", Body: "{}"}).Once()
+	m.hyperbeamSvc.EXPECT().CreateVM(mock.Anything, mock.Anything).
+		Run(func(_ context.Context, opts hyperbeam.CreateVMOptions) { tried = append(tried, opts.Region) }).
+		Return(&hyperbeam.VM{SessionID: "hb_sess_1", EmbedURL: "https://hb/embed", AdminToken: "admin"}, nil).Once()
+
+	m.watchPartyRepo.EXPECT().CreateSession(mock.Anything, mock.MatchedBy(func(r repository.ChatWatchPartySessionRow) bool {
+		return r.Region.Valid && r.Region.String == "EU"
+	})).Return(sessionID, nil)
+	m.chatRepo.EXPECT().CreateSystemRoom(mock.Anything, sessionID, "Watch party", "", SystemKindWatchParty, userID).Return(nil)
+	m.chatRepo.EXPECT().AddMemberWithRole(mock.Anything, sessionID, userID, "host", false).Return(nil)
+	m.watchPartyRepo.EXPECT().UpsertParticipant(mock.Anything, sessionID, userID, true, "").Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, userID, "watch_party.start", "chat_watch_party_session", sessionID.String(), mock.Anything).Return(nil)
+
+	stored := &repository.ChatWatchPartySessionRow{
+		ID: sessionID, RoomID: roomID, StartedBy: userID, ControllerID: userID,
+		HyperbeamSessionID: "hb_sess_1", EmbedURL: "https://hb/embed", Status: "active",
+	}
+	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(stored, nil)
+	m.watchPartyRepo.EXPECT().GetActiveParticipants(mock.Anything, sessionID).Return(nil, nil).Twice()
+	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, userID).Return(&repository.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: userID, HasControl: true}, nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(nil, nil)
+	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, mock.Anything, roomID, userID, mock.Anything).Return(nil)
+	m.chatRepo.EXPECT().GetMessageByID(mock.Anything, mock.Anything).Return(nil, nil)
+
+	// when
+	resp, err := svc.StartWatchParty(context.Background(), roomID, userID, "", "AS", "", "", false)
+
+	// then the party starts in the next region rather than failing outright
+	require.NoError(t, err)
+	assert.Equal(t, []string{"AS", "EU"}, tried)
+	assert.Equal(t, "https://hb/embed", resp.EmbedURL)
+}
+
+func TestStartWatchParty_NoCapacityAnywhereIsReportedAsSuch(t *testing.T) {
+	// given every region is full
+	svc, m := newTestService(t)
+	roomID := uuid.New()
+	userID := uuid.New()
+
+	m.hyperbeamSvc.EXPECT().Enabled().Return(true)
+	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
+	expectGroupRoomLookup(m, roomID, userID)
+	m.hyperbeamSvc.EXPECT().CreateVM(mock.Anything, mock.Anything).
+		Return(nil, &hyperbeam.APIError{StatusCode: 503, Code: "err_no_available_vm", Body: "{}"}).Times(3)
+
+	// when
+	_, err := svc.StartWatchParty(context.Background(), roomID, userID, "", "AS", "", "", false)
+
+	// then the caller gets a distinguishable error rather than a raw provider failure
+	require.ErrorIs(t, err, ErrWatchPartyNoCapacity)
+}
+
+func TestStartWatchParty_NonCapacityErrorIsNotRetried(t *testing.T) {
+	// given hyperbeam rejects the request for a reason another region will not fix
+	svc, m := newTestService(t)
+	roomID := uuid.New()
+	userID := uuid.New()
+
+	m.hyperbeamSvc.EXPECT().Enabled().Return(true)
+	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
+	expectGroupRoomLookup(m, roomID, userID)
+	m.hyperbeamSvc.EXPECT().CreateVM(mock.Anything, mock.Anything).
+		Return(nil, &hyperbeam.APIError{StatusCode: 401, Code: "err_unauthorised", Body: "{}"}).Once()
+
+	// when
+	_, err := svc.StartWatchParty(context.Background(), roomID, userID, "", "AS", "", "", false)
+
+	// then
+	require.Error(t, err)
+	assert.NotErrorIs(t, err, ErrWatchPartyNoCapacity)
+}
+
 func TestJoinWatchParty_OK(t *testing.T) {
 	// given
 	svc, m := newTestService(t)

@@ -531,6 +531,7 @@ export function MobileRoomView({ controller }: { controller: RoomController }) {
                                     sessions={watchParty.sessions}
                                     activeSessionId={watchParty.openSessionId}
                                     viewerUserId={user.id}
+                                    error={watchParty.error}
                                     onStart={opts => watchParty.start(opts)}
                                     onJoin={sid => watchParty.join(sid)}
                                     onOpenExisting={sid => watchParty.openExisting(sid)}
