@@ -275,9 +275,7 @@ func selfLabels(bot repository.Chatbot) []string {
 		labels = append(labels, handle)
 	}
 
-	for _, word := range strings.Fields(strings.ToLower(bot.DisplayName)) {
-		labels = append(labels, word)
-	}
+	labels = append(labels, strings.Fields(strings.ToLower(bot.DisplayName))...)
 
 	return labels
 }
