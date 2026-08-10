@@ -159,7 +159,7 @@ func (s *service) reply(ctx context.Context, j job, tune tuning, invocationID uu
 
 	recordTokens(result)
 
-	body := strings.TrimSpace(result.Text)
+	body := stripSelfLabel(result.Text, j.bot)
 	if body == "" {
 		_ = s.botRepo.CompleteInvocation(ctx, invocationID, usageOf(result), repository.InvocationRefused)
 		stopTyping()

@@ -390,6 +390,57 @@ func TestAuthored_AForgedLabelCannotSitFlushLeft(t *testing.T) {
 	}
 }
 
+func TestStripSelfLabel_TheBotNeverAnnouncesItsOwnHandle(t *testing.T) {
+	bot := repository.Chatbot{Username: "Erika_Furudo_bot", DisplayName: "Erika Furudo"}
+
+	cases := []struct {
+		name string
+		body string
+		want string
+	}{
+		{"the display name as a handle is dropped", "@Erika Certainly, Featherine. I am listening.", "Certainly, Featherine. I am listening."},
+		{"the username as a handle is dropped", "@Erika_Furudo_bot Heh. Obviously.", "Heh. Obviously."},
+		{"a colon after the label is dropped too", "@Erika: Heh. Obviously.", "Heh. Obviously."},
+		{"a comma after the label is dropped too", "@Erika, Heh. Obviously.", "Heh. Obviously."},
+		{"the surname also counts as its own name", "@Furudo the chapel door was open.", "the chapel door was open."},
+		{"casing does not matter", "@erika fine.", "fine."},
+		{"a mention of somebody else is left alone", "@Battler you are wrong.", "@Battler you are wrong."},
+		{"a reply that merely starts with a word is untouched", "Certainly, Featherine.", "Certainly, Featherine."},
+		{"a bare self mention with nothing after it is kept rather than emptied", "@Erika", "@Erika"},
+		{"leading whitespace does not hide the label", "   @Erika well then.", "well then."},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given the raw model output from the table
+
+			// when
+			got := stripSelfLabel(tc.body, bot)
+
+			// then
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestRowToMessage_StripsASelfLabelAlreadyStoredInHistory(t *testing.T) {
+	// given a DM history row the bot wrote back when it was prefixing its own handle
+	botID := uuid.New()
+	row := promptRow{
+		AuthorID:    botID,
+		Username:    "Erika_Furudo_bot",
+		DisplayName: "Erika Furudo",
+		Body:        "@Erika Certainly, Featherine. I am listening.",
+	}
+
+	// when
+	got := rowToMessage(row, botID, messageBodyMax)
+
+	// then
+	assert.Equal(t, "assistant", got.Role)
+	assert.Equal(t, "Certainly, Featherine. I am listening.", got.Content, "stored history must not keep teaching the bot to label itself")
+}
+
 func TestSanitiseLabel_StripsWhatWouldForgeALabel(t *testing.T) {
 	cases := []struct {
 		name string
