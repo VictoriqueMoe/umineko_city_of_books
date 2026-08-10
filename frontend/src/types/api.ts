@@ -74,12 +74,16 @@ export interface Theory {
     without_love_count: number;
     user_vote?: number;
     credibility_score: number;
+    status: "open" | "contested" | "refuted";
     created_at: string;
 }
 
 export interface TheoryDetail extends Theory {
     evidence: EvidenceItem[];
     responses: Response[];
+    refuted_by_response_id?: string;
+    refuted_by?: User;
+    refuted_at?: string;
 }
 
 export interface TheoryListResponse {
@@ -175,6 +179,8 @@ export interface UserPrivateFields {
     email_notifications?: boolean;
     play_message_sound?: boolean;
     play_notification_sound?: boolean;
+    follow_activity_notifications?: boolean;
+    echoes_enabled?: boolean;
     home_page?: string;
     game_board_sort?: string;
     default_profile_tab?: string;
@@ -222,6 +228,8 @@ export interface UpdateProfilePayload {
     email_notifications: boolean;
     play_message_sound: boolean;
     play_notification_sound: boolean;
+    follow_activity_notifications: boolean;
+    echoes_enabled: boolean;
     home_page: string;
     game_board_sort: string;
     default_profile_tab: string;
@@ -506,7 +514,11 @@ export type NotificationType =
     | "content_shared"
     | "game_invite"
     | "game_your_turn"
-    | "game_finished";
+    | "game_finished"
+    | "stream_live"
+    | "mystery_created"
+    | "theory_created"
+    | "theory_refuted";
 
 export interface Notification {
     id: number;
@@ -948,6 +960,19 @@ export interface MysteryAttachment {
     file_size: number;
 }
 
+export interface KnoxContract {
+    culprit_named_early: boolean;
+    no_supernatural: boolean;
+    passages_declared: boolean;
+    no_unknown_poison: boolean;
+    no_outsider: boolean;
+    no_lucky_accident: boolean;
+    detective_not_culprit: boolean;
+    clues_shown: boolean;
+    narrator_hides_nothing: boolean;
+    no_unannounced_twins: boolean;
+}
+
 export interface MysteryDetail {
     id: string;
     title: string;
@@ -959,6 +984,9 @@ export interface MysteryDetail {
     gm_away: boolean;
     free_for_all: boolean;
     keep_open_after_solve: boolean;
+    knox_contract: KnoxContract;
+    knox_contract_published: boolean;
+    knox_contract_locked: boolean;
     solver_count: number;
     viewer_has_solved: boolean;
     winner?: User;
@@ -1520,6 +1548,20 @@ export interface HomeActivityEntry {
     author: HomeActivityAuthor;
 }
 
+export interface HomeEcho {
+    kind: "theory" | "post" | "journal" | "art";
+    id: string;
+    title: string;
+    excerpt: string;
+    corner: string;
+    episode: number;
+    is_spoiler: boolean;
+    url: string;
+    age: string;
+    created_at: string;
+    author: HomeActivityAuthor;
+}
+
 export interface HomeMember {
     id: string;
     username: string;
@@ -1546,6 +1588,7 @@ export interface HomeCornerActivity {
 export interface HomeActivityResponse {
     online_count: number;
     recent_activity: HomeActivityEntry[];
+    echoes: HomeEcho[];
     recent_members: HomeMember[];
     public_rooms: HomePublicRoom[];
     corner_activity: HomeCornerActivity[];
@@ -1641,6 +1684,16 @@ export interface ChatbotPayload {
     enabled: boolean;
 }
 
+export interface ChatbotChannelUsage {
+    channel: string;
+    invocations: number;
+    prompt_tokens: number;
+    cached_prompt_tokens: number;
+    cache_write_tokens: number;
+    completion_tokens: number;
+    reasoning_tokens: number;
+}
+
 export interface ChatbotUsage {
     invocations: number;
     prompt_tokens: number;
@@ -1651,6 +1704,7 @@ export interface ChatbotUsage {
     billed_usd: number | null;
     failed: number;
     quota: number;
+    channels: ChatbotChannelUsage[];
 }
 
 export interface ChatbotSummary {

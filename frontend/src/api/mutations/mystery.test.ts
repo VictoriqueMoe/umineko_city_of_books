@@ -74,6 +74,18 @@ const draft = {
     difficulty: "hard",
     free_for_all: false,
     keep_open_after_solve: true,
+    knox_contract: {
+        culprit_named_early: true,
+        no_supernatural: true,
+        passages_declared: true,
+        no_unknown_poison: true,
+        no_outsider: true,
+        no_lucky_accident: true,
+        detective_not_culprit: true,
+        clues_shown: true,
+        narrator_hides_nothing: true,
+        no_unannounced_twins: true,
+    },
     clues: [{ body: "The chapel door", truth_type: "red" }],
 };
 

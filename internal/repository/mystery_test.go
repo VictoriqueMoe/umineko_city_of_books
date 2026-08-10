@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	valkeymock "github.com/valkey-io/valkey-go/mock"
 	"go.uber.org/mock/gomock"
+	"umineko_city_of_books/internal/dto"
 )
 
 type (
@@ -46,10 +47,10 @@ func mysteryLeaderboardWriters(mysteryID, attemptID, userID uuid.UUID) []mystery
 		{
 			name: "update as admin",
 			expect: func(dao *MockMysteryRepository, err error) {
-				dao.EXPECT().UpdateAsAdmin(mock.Anything, mysteryID, "t", "b", "nightmare", true, false).Return(err)
+				dao.EXPECT().UpdateAsAdmin(mock.Anything, mysteryID, "t", "b", "nightmare", true, false, mock.Anything).Return(err)
 			},
 			call: func(repo MysteryRepository) error {
-				return repo.UpdateAsAdmin(context.Background(), mysteryID, "t", "b", "nightmare", true, false)
+				return repo.UpdateAsAdmin(context.Background(), mysteryID, "t", "b", "nightmare", true, false, dto.DefaultKnoxContract())
 			},
 		},
 		{

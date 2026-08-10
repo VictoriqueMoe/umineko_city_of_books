@@ -15,24 +15,33 @@ type (
 		WithoutLoveCount int          `json:"without_love_count"`
 		UserVote         int          `json:"user_vote,omitempty"`
 		CredibilityScore float64      `json:"credibility_score"`
+		Status           TheoryStatus `json:"status"`
 		CreatedAt        string       `json:"created_at"`
 	}
 
 	TheoryDetailResponse struct {
-		ID               uuid.UUID          `json:"id"`
-		Title            string             `json:"title"`
-		Body             string             `json:"body"`
-		Episode          int                `json:"episode"`
-		Series           string             `json:"series"`
-		Author           UserResponse       `json:"author"`
-		Evidence         []EvidenceResponse `json:"evidence"`
-		Responses        []ResponseResponse `json:"responses"`
-		VoteScore        int                `json:"vote_score"`
-		WithLoveCount    int                `json:"with_love_count"`
-		WithoutLoveCount int                `json:"without_love_count"`
-		UserVote         int                `json:"user_vote,omitempty"`
-		CredibilityScore float64            `json:"credibility_score"`
-		CreatedAt        string             `json:"created_at"`
+		ID                  uuid.UUID          `json:"id"`
+		Title               string             `json:"title"`
+		Body                string             `json:"body"`
+		Episode             int                `json:"episode"`
+		Series              string             `json:"series"`
+		Author              UserResponse       `json:"author"`
+		Evidence            []EvidenceResponse `json:"evidence"`
+		Responses           []ResponseResponse `json:"responses"`
+		VoteScore           int                `json:"vote_score"`
+		WithLoveCount       int                `json:"with_love_count"`
+		WithoutLoveCount    int                `json:"without_love_count"`
+		UserVote            int                `json:"user_vote,omitempty"`
+		CredibilityScore    float64            `json:"credibility_score"`
+		Status              TheoryStatus       `json:"status"`
+		RefutedByResponseID *uuid.UUID         `json:"refuted_by_response_id,omitempty"`
+		RefutedBy           *UserResponse      `json:"refuted_by,omitempty"`
+		RefutedAt           string             `json:"refuted_at,omitempty"`
+		CreatedAt           string             `json:"created_at"`
+	}
+
+	RefuteTheoryRequest struct {
+		ResponseID uuid.UUID `json:"response_id"`
 	}
 
 	EvidenceResponse struct {

@@ -367,8 +367,8 @@ func (_c *MockChatbotRepository_CreateBotAccount_Call) RunAndReturn(run func(ctx
 }
 
 // CreateInvocation provides a mock function for the type MockChatbotRepository
-func (_mock *MockChatbotRepository) CreateInvocation(ctx context.Context, id uuid.UUID, botUserID uuid.UUID, userID uuid.UUID, roomID *uuid.UUID, messageID uuid.UUID, surface string, model string) error {
-	ret := _mock.Called(ctx, id, botUserID, userID, roomID, messageID, surface, model)
+func (_mock *MockChatbotRepository) CreateInvocation(ctx context.Context, id uuid.UUID, botUserID uuid.UUID, userID uuid.UUID, roomID *uuid.UUID, messageID uuid.UUID, channel string, model string) error {
+	ret := _mock.Called(ctx, id, botUserID, userID, roomID, messageID, channel, model)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateInvocation")
@@ -376,7 +376,7 @@ func (_mock *MockChatbotRepository) CreateInvocation(ctx context.Context, id uui
 
 	var r0 error
 	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID, *uuid.UUID, uuid.UUID, string, string) error); ok {
-		r0 = returnFunc(ctx, id, botUserID, userID, roomID, messageID, surface, model)
+		r0 = returnFunc(ctx, id, botUserID, userID, roomID, messageID, channel, model)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -395,13 +395,13 @@ type MockChatbotRepository_CreateInvocation_Call struct {
 //   - userID uuid.UUID
 //   - roomID *uuid.UUID
 //   - messageID uuid.UUID
-//   - surface string
+//   - channel string
 //   - model string
-func (_e *MockChatbotRepository_Expecter) CreateInvocation(ctx any, id any, botUserID any, userID any, roomID any, messageID any, surface any, model any) *MockChatbotRepository_CreateInvocation_Call {
-	return &MockChatbotRepository_CreateInvocation_Call{Call: _e.mock.On("CreateInvocation", ctx, id, botUserID, userID, roomID, messageID, surface, model)}
+func (_e *MockChatbotRepository_Expecter) CreateInvocation(ctx any, id any, botUserID any, userID any, roomID any, messageID any, channel any, model any) *MockChatbotRepository_CreateInvocation_Call {
+	return &MockChatbotRepository_CreateInvocation_Call{Call: _e.mock.On("CreateInvocation", ctx, id, botUserID, userID, roomID, messageID, channel, model)}
 }
 
-func (_c *MockChatbotRepository_CreateInvocation_Call) Run(run func(ctx context.Context, id uuid.UUID, botUserID uuid.UUID, userID uuid.UUID, roomID *uuid.UUID, messageID uuid.UUID, surface string, model string)) *MockChatbotRepository_CreateInvocation_Call {
+func (_c *MockChatbotRepository_CreateInvocation_Call) Run(run func(ctx context.Context, id uuid.UUID, botUserID uuid.UUID, userID uuid.UUID, roomID *uuid.UUID, messageID uuid.UUID, channel string, model string)) *MockChatbotRepository_CreateInvocation_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -454,7 +454,7 @@ func (_c *MockChatbotRepository_CreateInvocation_Call) Return(err error) *MockCh
 	return _c
 }
 
-func (_c *MockChatbotRepository_CreateInvocation_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, botUserID uuid.UUID, userID uuid.UUID, roomID *uuid.UUID, messageID uuid.UUID, surface string, model string) error) *MockChatbotRepository_CreateInvocation_Call {
+func (_c *MockChatbotRepository_CreateInvocation_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, botUserID uuid.UUID, userID uuid.UUID, roomID *uuid.UUID, messageID uuid.UUID, channel string, model string) error) *MockChatbotRepository_CreateInvocation_Call {
 	_c.Call.Return(run)
 	return _c
 }

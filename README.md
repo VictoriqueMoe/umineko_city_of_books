@@ -61,6 +61,8 @@ The original heart of the site. Submit a fan theory as a **blue truth**, attach 
 - Threaded replies on responses with flat rendering and @username attribution
 - Upvotes and downvotes on both theories and responses, separate from the credibility score
 - Per-series feeds at `/theories` (Umineko), `/theories/higurashi`, and `/theories/ciconia`, each with its own sidebar entry
+- **Lifecycle status** on every theory, stored as a native `theory_status` enum: **Open** while nobody has responded, **Contested** once a top-level response exists, and **Refuted** once the theory's own author (or a holder of `edit_any_theory`) accepts one opposing top-level response as the refutation. Refuted is terminal and stamps the theory permanently with who struck it down and a link to the killing response, mirroring how a mystery Game Master marks the winning attempt. A composite foreign key on `(id, refuted_by_response_id)` makes "the refutation belongs to this theory" a schema fact rather than a service check
+- @mentions in theory bodies and responses notify the mentioned member, with response mentions deep-linking to `#response-<id>`
 
 ### Mysteries
 
@@ -78,6 +80,7 @@ A gamified puzzle mode where a user (the Game Master) poses a mystery with gradu
 - Real-time updates over WebSocket when new attempts, replies, clues, or status changes land
 - Separate notification categories: **Mysteries (as Game Master)** and **Mysteries (as Player)**
 - Full rich-text formatting in mystery bodies and attempts (backticks, quotes, spoilers, syntax-highlighted code fences, truth colours)
+- **Knox's Decalogue** as a published fair-play contract. Ten per-mystery booleans, all defaulting to sworn, toggled in the composer and rendered as a contract card above the Red Truths. Whatever the Game Master leaves sworn binds them; what they switch off is openly permitted. The contract locks as soon as the first attempt is submitted (`ErrContractLocked`, surfaced as a 409), so the terms cannot move mid-game, and a staff edit to the contract is listed in the edit notification sent to the author. A separate `knox_contract_published` flag defaults to false, so mysteries created before the feature publish nothing: a contract is a promise, and the backfill must not invent one on the author's behalf. Publishing for the first time is allowed even mid-game, since it can only ever add constraints on the Game Master; the lock applies to changes to an already-published contract
 
 ### Gallery and Art
 
@@ -332,6 +335,7 @@ A standalone interface for browsing the full quote corpus across all three serie
 - **Achievements** panel showing every solved unlock hunt as a live-updating trophy
 - Stats box: theory count, response count, votes received, ship count, mystery count, fanfic count, follower/following counts
 - Follow system with follower and following lists, "Follows you" label, follower counts
+- Following is a live subscription, not just a count: when someone you follow goes live, posts a mystery, or posts a theory, the fan-out runs over `follows` through `notification.SendFollowerNotification`. Governed by a `follow_activity_notifications` preference (default on) filtered inside the DAO query, with an actor-scoped cooldown (`HasRecentFromActor`) so a flapping stream cannot spam every follower. These notifications deliberately carry no email leg
 - Online/offline status
 - **Players Page**: browse all users grouped by role (Reality Authors, Voyager Witches, Witches) and online/offline status, with a name search
 - Per-user **blocks** with enforcement across feeds, comments, DMs, and notifications, managed from a blocked-users panel in settings
@@ -402,6 +406,7 @@ Site events can drive on-stream alert popups through SAMMI. A streamer downloads
 
 ### Platform Features
 
+- **Echoes** on the landing activity strip. Once per UTC day the `/home/activity` payload carries a short list of candidates drawn from exactly one year ago today, falling back to one month ago today, falling back to nothing, cached under the `home:echoes:` namespace with a 24 hour TTL. The endpoint is anonymous and therefore cannot know the viewer, so the server ships candidates and the client picks the first one the viewer is allowed to see, applying the same `userProgressForSeries` rule the theory cards use and skipping art flagged as a spoiler. Authors can opt their own work out with the `echoes_enabled` preference, filtered inside the SQL
 - **Fourteen themes** grouped by series in the theme picker:
   - **Umineko**: Featherine (gold/purple, default), Beatrice (warm gold/brown), Bernkastel (blue), Lambdadelta (pink), Erika Furudo (cyan/pink), Battler, Virgilia (light mode)
   - **Higurashi**: Rika, Mion, Satoko

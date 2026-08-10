@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
@@ -15,7 +16,7 @@ import (
 func createMystery(t *testing.T, repos *repository.Repositories, userID uuid.UUID, title string, difficulty string, freeForAll bool) uuid.UUID {
 	t.Helper()
 	id := uuid.New()
-	require.NoError(t, repos.Mystery.Create(context.Background(), id, userID, title, "body", difficulty, freeForAll, false))
+	require.NoError(t, repos.Mystery.Create(context.Background(), id, userID, title, "body", difficulty, freeForAll, false, dto.DefaultKnoxContract()))
 	return id
 }
 
@@ -40,7 +41,7 @@ func TestMysteryDAO_Create(t *testing.T) {
 	id := uuid.New()
 
 	// when
-	err := repos.Mystery.Create(context.Background(), id, user.ID, "The Murder", "Who did it?", "hard", false, false)
+	err := repos.Mystery.Create(context.Background(), id, user.ID, "The Murder", "Who did it?", "hard", false, false, dto.DefaultKnoxContract())
 
 	// then
 	require.NoError(t, err)
@@ -61,7 +62,7 @@ func TestMysteryDAO_Create_FreeForAll(t *testing.T) {
 	id := uuid.New()
 
 	// when
-	err := repos.Mystery.Create(context.Background(), id, user.ID, "FFA", "body", "medium", true, false)
+	err := repos.Mystery.Create(context.Background(), id, user.ID, "FFA", "body", "medium", true, false, dto.DefaultKnoxContract())
 
 	// then
 	require.NoError(t, err)
@@ -138,7 +139,7 @@ func TestMysteryDAO_UpdateAsAdmin(t *testing.T) {
 	id := createMystery(t, repos, owner.ID, "T", "easy", false)
 
 	// when
-	err := repos.Mystery.UpdateAsAdmin(context.Background(), id, "Admin Title", "Admin Body", "nightmare", true, false)
+	err := repos.Mystery.UpdateAsAdmin(context.Background(), id, "Admin Title", "Admin Body", "nightmare", true, false, dto.DefaultKnoxContract())
 
 	// then
 	require.NoError(t, err)

@@ -457,6 +457,18 @@ export function SettingsPage() {
                             label="Notification Sound"
                             description="Play a sound when a new notification arrives"
                         />
+                        <ToggleSwitch
+                            enabled={form.followActivityNotifications}
+                            onChange={form.setFollowActivityNotifications}
+                            label="Following Activity"
+                            description="Get notified when someone you follow goes live, poses a new mystery or declares a new theory"
+                        />
+                        <ToggleSwitch
+                            enabled={form.echoesEnabled}
+                            onChange={form.setEchoesEnabled}
+                            label="Echoes"
+                            description="Allow your older theories, posts, journals and art to resurface on the landing page on their anniversary"
+                        />
                     </div>
 
                     <div className={`${styles.section} ${styles.gridFull}`}>

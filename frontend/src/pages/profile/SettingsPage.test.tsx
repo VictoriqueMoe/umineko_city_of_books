@@ -31,6 +31,11 @@ function makeForm(overrides: Partial<SettingsForm> = {}): SettingsForm {
         success: "",
         saving: false,
 
+        followActivityNotifications: true,
+        setFollowActivityNotifications: vi.fn(),
+        echoesEnabled: true,
+        setEchoesEnabled: vi.fn(),
+
         displayName: "Beatrice",
         setDisplayName: vi.fn(),
         displayNameLocked: false,

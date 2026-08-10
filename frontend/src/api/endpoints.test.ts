@@ -1154,6 +1154,8 @@ describe("profile and preference updates", () => {
         email_notifications: true,
         play_message_sound: true,
         play_notification_sound: false,
+        follow_activity_notifications: true,
+        echoes_enabled: true,
         home_page: "home",
         game_board_sort: "recent",
         default_profile_tab: "posts",
@@ -2628,6 +2630,18 @@ describe("the mystery board API", () => {
         difficulty: "hard",
         free_for_all: false,
         keep_open_after_solve: true,
+        knox_contract: {
+            culprit_named_early: true,
+            no_supernatural: true,
+            passages_declared: true,
+            no_unknown_poison: true,
+            no_outsider: true,
+            no_lucky_accident: true,
+            detective_not_culprit: true,
+            clues_shown: true,
+            narrator_hides_nothing: true,
+            no_unannounced_twins: true,
+        },
         clues: [{ body: "the key was still inside", truth_type: "red" }],
     };
 

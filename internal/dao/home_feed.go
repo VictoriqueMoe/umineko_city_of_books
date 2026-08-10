@@ -180,3 +180,53 @@ func (r *homeFeedDAO) ListPublicRooms(ctx context.Context, limit int) ([]reposit
 	}
 	return out, rows.Err()
 }
+
+const homeEchoSQL = `
+WITH feed AS (
+    SELECT 'theory' AS kind, t.id AS id, t.title AS title, substr(t.body, 1, 200) AS body,
+           t.series AS corner, t.episode AS episode, FALSE AS is_spoiler, t.created_at AS created_at, t.user_id AS author_id
+    FROM theories t
+    UNION ALL
+    SELECT 'post' AS kind, p.id AS id, '' AS title, substr(p.body, 1, 200) AS body,
+           p.corner AS corner, 0 AS episode, FALSE AS is_spoiler, p.created_at AS created_at, p.user_id AS author_id
+    FROM posts p
+    UNION ALL
+    SELECT 'journal' AS kind, j.id AS id, j.title AS title,
+           substr(COALESCE((SELECT body FROM journal_entries WHERE journal_id = j.id AND NOT is_draft ORDER BY entry_number DESC LIMIT 1), ''), 1, 200) AS body,
+           j.work AS corner, 0 AS episode, FALSE AS is_spoiler, j.created_at AS created_at, j.user_id AS author_id
+    FROM journals j
+    WHERE j.archived_at IS NULL
+    UNION ALL
+    SELECT 'art' AS kind, a.id AS id, a.title AS title, substr(a.description, 1, 200) AS body,
+           a.corner AS corner, 0 AS episode, a.is_spoiler AS is_spoiler, a.created_at AS created_at, a.user_id AS author_id
+    FROM art a
+)
+SELECT f.kind, f.id, f.title, f.body, f.corner, f.episode, f.is_spoiler, f.created_at,
+       f.author_id, u.username, u.display_name, u.avatar_url
+FROM feed f
+JOIN users u ON u.id = f.author_id
+WHERE u.banned_at IS NULL AND NOT u.is_bot AND u.echoes_enabled
+  AND f.created_at >= (CURRENT_DATE - $1::interval)
+  AND f.created_at < (CURRENT_DATE - $1::interval + INTERVAL '1 day')
+ORDER BY f.created_at DESC
+LIMIT $2
+`
+
+func (r *homeFeedDAO) ListEchoes(ctx context.Context, ago string, limit int) ([]repository.HomeEchoRow, error) {
+	rows, err := r.db.QueryContext(ctx, homeEchoSQL, ago, limit)
+	if err != nil {
+		return nil, fmt.Errorf("home feed echoes: %w", err)
+	}
+	defer rows.Close()
+
+	var out []repository.HomeEchoRow
+	for rows.Next() {
+		var row repository.HomeEchoRow
+		if err := rows.Scan(&row.Kind, &row.ID, &row.Title, &row.Body, &row.Corner, &row.Episode, &row.IsSpoiler, &row.CreatedAt,
+			&row.AuthorID, &row.Username, &row.DisplayName, &row.AvatarURL); err != nil {
+			return nil, fmt.Errorf("scan home echo: %w", err)
+		}
+		out = append(out, row)
+	}
+	return out, rows.Err()
+}

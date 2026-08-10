@@ -93,6 +93,8 @@ function makeProfilePayload(overrides: Partial<UpdateProfilePayload> = {}): Upda
         email_notifications: true,
         play_message_sound: true,
         play_notification_sound: true,
+        follow_activity_notifications: true,
+        echoes_enabled: true,
         home_page: "/",
         game_board_sort: "newest",
         default_profile_tab: "overview",

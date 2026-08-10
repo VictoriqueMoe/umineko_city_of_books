@@ -19,7 +19,8 @@ func TestService_HomeActivity_ComposesAllSections(t *testing.T) {
 	// given
 	repo := repository.NewMockHomeFeedRepository(t)
 	hub := ws.NewHub()
-	svc := homefeed.NewService(repo, hub)
+	repo.EXPECT().ListEchoes(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	svc := homefeed.NewService(repo, hub, nil)
 
 	theoryID := uuid.New()
 	postID := uuid.New()
@@ -71,7 +72,8 @@ func TestService_HomeActivity_ComposesAllSections(t *testing.T) {
 func TestService_HomeActivity_UnknownKindFallsBackToRoot(t *testing.T) {
 	// given
 	repo := repository.NewMockHomeFeedRepository(t)
-	svc := homefeed.NewService(repo, ws.NewHub())
+	repo.EXPECT().ListEchoes(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	svc := homefeed.NewService(repo, ws.NewHub(), nil)
 	repo.EXPECT().ListRecentActivity(mock.Anything, 10).Return([]repository.HomeActivityRow{
 		{Kind: "mystery", ID: uuid.New()},
 	}, nil)
@@ -128,7 +130,8 @@ func TestService_HomeActivity_PropagatesErrors(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			repo := repository.NewMockHomeFeedRepository(t)
-			svc := homefeed.NewService(repo, ws.NewHub())
+			repo.EXPECT().ListEchoes(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+			svc := homefeed.NewService(repo, ws.NewHub(), nil)
 			tc.setup(repo)
 
 			// when
@@ -143,7 +146,8 @@ func TestService_HomeActivity_PropagatesErrors(t *testing.T) {
 func TestService_SidebarActivity_BuildsMap(t *testing.T) {
 	// given
 	repo := repository.NewMockHomeFeedRepository(t)
-	svc := homefeed.NewService(repo, ws.NewHub())
+	repo.EXPECT().ListEchoes(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	svc := homefeed.NewService(repo, ws.NewHub(), nil)
 	repo.EXPECT().ListSidebarActivity(mock.Anything).Return([]repository.SidebarActivityEntry{
 		{Key: "rooms", LatestAt: "2026-04-24T09:00:00Z"},
 		{Key: "mysteries", LatestAt: "2026-04-24T08:00:00Z"},
@@ -161,7 +165,8 @@ func TestService_SidebarActivity_BuildsMap(t *testing.T) {
 func TestService_SidebarActivity_PropagatesError(t *testing.T) {
 	// given
 	repo := repository.NewMockHomeFeedRepository(t)
-	svc := homefeed.NewService(repo, ws.NewHub())
+	repo.EXPECT().ListEchoes(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	svc := homefeed.NewService(repo, ws.NewHub(), nil)
 	repo.EXPECT().ListSidebarActivity(mock.Anything).Return(nil, errors.New("boom"))
 
 	// when

@@ -104,6 +104,10 @@ const typeCases: { type: NotificationType; text: string; category: NotificationC
     { type: "game_invite", text: "invited you to a game", category: "social" },
     { type: "game_your_turn", text: "it's your move", category: "social" },
     { type: "game_finished", text: "your game has ended", category: "social" },
+    { type: "stream_live", text: "went live", category: "social" },
+    { type: "mystery_created", text: "posted a new mystery", category: "social" },
+    { type: "theory_created", text: "posted a new theory", category: "social" },
+    { type: "theory_refuted", text: "accepted your response as the refutation", category: "theories" },
 ];
 
 describe("getNotificationText", () => {
@@ -202,7 +206,41 @@ describe("getNotificationRoute", () => {
         { reference_type: "secret_comment:s9:c9", expected: "/secrets/s9#comment-c9" },
         { reference_type: "theory", expected: "/theory/ref-1" },
         { reference_type: "response", expected: "/theory/ref-1" },
+        { reference_type: "theory_response:r9", expected: "/theory/ref-1#response-r9" },
     ];
+
+    it("links a going-live notification to the stream, not the theory fallback", () => {
+        // given
+        const notif = makeNotification({ type: "stream_live", reference_type: "stream" });
+
+        // when
+        const route = getNotificationRoute(notif);
+
+        // then
+        expect(route).toBe("/live/ref-1");
+    });
+
+    it("links a new mystery notification to the mystery", () => {
+        // given
+        const notif = makeNotification({ type: "mystery_created", reference_type: "mystery" });
+
+        // when
+        const route = getNotificationRoute(notif);
+
+        // then
+        expect(route).toBe("/mystery/ref-1");
+    });
+
+    it("links a new theory notification to the theory", () => {
+        // given
+        const notif = makeNotification({ type: "theory_created", reference_type: "theory" });
+
+        // when
+        const route = getNotificationRoute(notif);
+
+        // then
+        expect(route).toBe("/theory/ref-1");
+    });
 
     for (const testCase of referenceRoutes) {
         it(`links a "${testCase.reference_type}" reference to ${testCase.expected}`, () => {
@@ -411,6 +449,7 @@ describe("groupByCategory", () => {
         { reference_type: "art_comment:c9", category: "gallery" },
         { reference_type: "theory", category: "theories" },
         { reference_type: "response", category: "theories" },
+        { reference_type: "theory_response:r9", category: "theories" },
         { reference_type: "mystery", category: "game_board" },
         { reference_type: "ship", category: "social" },
         { reference_type: "ship_comment:c9", category: "social" },

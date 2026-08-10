@@ -65,6 +65,8 @@ var overlayEvents = map[dto.NotificationType]eventMapping{
 	dto.NotifMention:        {"mention", "mentioned you"},
 	dto.NotifContentShared:  {"content_shared", "shared your content"},
 	dto.NotifArtLiked:       {"art_liked", "liked your art"},
+	dto.NotifMysterySolved:  {"mystery_solved", "chose your attempt as the winner!"},
+	dto.NotifGameFinished:   {"game_over", "your game has ended"},
 }
 
 func NewService(repo repository.OverlayTokenRepository, hub *ws.Hub, settingsSvc settings.Service, banChecker ...ws.BanChecker) Service {

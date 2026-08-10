@@ -29,10 +29,15 @@ func mysteryNullTimePtr(t sql.NullTime) *string {
 	return new(t.Time.UTC().Format(time.RFC3339))
 }
 
-func (r *mysteryDAO) Create(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, body string, difficulty string, freeForAll bool, keepOpenAfterSolve bool) error {
+func (r *mysteryDAO) Create(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, body string, difficulty string, freeForAll bool, keepOpenAfterSolve bool, knox dto.KnoxContract) error {
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO mysteries (id, user_id, title, body, difficulty, free_for_all, keep_open_after_solve) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+		`INSERT INTO mysteries (id, user_id, title, body, difficulty, free_for_all, keep_open_after_solve,
+			knox_culprit_named_early, knox_no_supernatural, knox_passages_declared, knox_no_unknown_poison, knox_no_outsider,
+			knox_no_lucky_accident, knox_detective_not_culprit, knox_clues_shown, knox_narrator_hides_nothing, knox_no_unannounced_twins, knox_contract_published)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, TRUE)`,
 		id, userID, title, body, difficulty, freeForAll, keepOpenAfterSolve,
+		knox.CulpritNamedEarly, knox.NoSupernatural, knox.PassagesDeclared, knox.NoUnknownPoison, knox.NoOutsider,
+		knox.NoLuckyAccident, knox.DetectiveNotCulprit, knox.CluesShown, knox.NarratorHidesNothing, knox.NoUnannouncedTwins,
 	)
 	if err != nil {
 		return fmt.Errorf("create mystery: %w", err)
@@ -66,10 +71,17 @@ func (r *mysteryDAO) Update(ctx context.Context, id uuid.UUID, userID uuid.UUID,
 	return nil
 }
 
-func (r *mysteryDAO) UpdateAsAdmin(ctx context.Context, id uuid.UUID, title string, body string, difficulty string, freeForAll bool, keepOpenAfterSolve bool) error {
+func (r *mysteryDAO) UpdateAsAdmin(ctx context.Context, id uuid.UUID, title string, body string, difficulty string, freeForAll bool, keepOpenAfterSolve bool, knox dto.KnoxContract) error {
 	_, err := r.db.ExecContext(ctx,
-		`UPDATE mysteries SET title = $1, body = $2, difficulty = $3, free_for_all = $4, keep_open_after_solve = $5, updated_at = CURRENT_TIMESTAMP WHERE id = $6`,
-		title, body, difficulty, freeForAll, keepOpenAfterSolve, id,
+		`UPDATE mysteries SET title = $1, body = $2, difficulty = $3, free_for_all = $4, keep_open_after_solve = $5,
+			knox_culprit_named_early = $6, knox_no_supernatural = $7, knox_passages_declared = $8, knox_no_unknown_poison = $9, knox_no_outsider = $10,
+			knox_no_lucky_accident = $11, knox_detective_not_culprit = $12, knox_clues_shown = $13, knox_narrator_hides_nothing = $14, knox_no_unannounced_twins = $15, knox_contract_published = TRUE,
+			updated_at = CURRENT_TIMESTAMP
+		 WHERE id = $16`,
+		title, body, difficulty, freeForAll, keepOpenAfterSolve,
+		knox.CulpritNamedEarly, knox.NoSupernatural, knox.PassagesDeclared, knox.NoUnknownPoison, knox.NoOutsider,
+		knox.NoLuckyAccident, knox.DetectiveNotCulprit, knox.CluesShown, knox.NarratorHidesNothing, knox.NoUnannouncedTwins,
+		id,
 	)
 	if err != nil {
 		return fmt.Errorf("update mystery as admin: %w", err)
@@ -102,7 +114,7 @@ func (r *mysteryDAO) GetByID(ctx context.Context, id uuid.UUID) (*repository.Mys
 	var solvedAt, pausedAt sql.NullTime
 	var createdAt, updatedAt time.Time
 	err := r.db.QueryRowContext(ctx,
-		`SELECT m.id, m.user_id, m.title, m.body, m.difficulty, m.solved, m.paused, m.gm_away, m.free_for_all, m.keep_open_after_solve, m.solved_at, m.paused_at, m.paused_duration_seconds, m.created_at, m.updated_at,
+		`SELECT m.id, m.user_id, m.title, m.body, m.difficulty, m.solved, m.paused, m.gm_away, m.free_for_all, m.keep_open_after_solve, m.knox_culprit_named_early, m.knox_no_supernatural, m.knox_passages_declared, m.knox_no_unknown_poison, m.knox_no_outsider, m.knox_no_lucky_accident, m.knox_detective_not_culprit, m.knox_clues_shown, m.knox_narrator_hides_nothing, m.knox_no_unannounced_twins, m.knox_contract_published, m.solved_at, m.paused_at, m.paused_duration_seconds, m.created_at, m.updated_at,
 			u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''),
 			w.id, w.username, w.display_name, w.avatar_url, COALESCE(wr.role, ''),
 			(SELECT COUNT(*) FROM mystery_attempts WHERE mystery_id = m.id AND parent_id IS NULL AND user_id != m.user_id),
@@ -115,7 +127,7 @@ func (r *mysteryDAO) GetByID(ctx context.Context, id uuid.UUID) (*repository.Mys
 		LEFT JOIN user_roles wr ON wr.user_id = w.id
 		WHERE m.id = $1`, id,
 	).Scan(
-		&row.ID, &row.UserID, &row.Title, &row.Body, &row.Difficulty, &row.Solved, &row.Paused, &row.GmAway, &row.FreeForAll, &row.KeepOpenAfterSolve, &solvedAt, &pausedAt, &row.PausedDurationSeconds, &createdAt, &updatedAt,
+		&row.ID, &row.UserID, &row.Title, &row.Body, &row.Difficulty, &row.Solved, &row.Paused, &row.GmAway, &row.FreeForAll, &row.KeepOpenAfterSolve, &row.Knox.CulpritNamedEarly, &row.Knox.NoSupernatural, &row.Knox.PassagesDeclared, &row.Knox.NoUnknownPoison, &row.Knox.NoOutsider, &row.Knox.NoLuckyAccident, &row.Knox.DetectiveNotCulprit, &row.Knox.CluesShown, &row.Knox.NarratorHidesNothing, &row.Knox.NoUnannouncedTwins, &row.KnoxPublished, &solvedAt, &pausedAt, &row.PausedDurationSeconds, &createdAt, &updatedAt,
 		&row.AuthorUsername, &row.AuthorDisplayName, &row.AuthorAvatarURL, &row.AuthorRole,
 		&row.WinnerID, &row.WinnerUsername, &row.WinnerDisplayName, &row.WinnerAvatarURL, &row.WinnerRole,
 		&row.AttemptCount, &row.ClueCount, &row.SolverCount,
@@ -167,7 +179,7 @@ func (r *mysteryDAO) List(ctx context.Context, sort string, solved *bool, limit,
 
 	limitPlaceholder := fmt.Sprintf("$%d", len(args)+1)
 	offsetPlaceholder := fmt.Sprintf("$%d", len(args)+2)
-	query := `SELECT m.id, m.user_id, m.title, m.body, m.difficulty, m.solved, m.paused, m.gm_away, m.free_for_all, m.keep_open_after_solve, m.solved_at, m.paused_at, m.paused_duration_seconds, m.created_at, m.updated_at,
+	query := `SELECT m.id, m.user_id, m.title, m.body, m.difficulty, m.solved, m.paused, m.gm_away, m.free_for_all, m.keep_open_after_solve, m.knox_culprit_named_early, m.knox_no_supernatural, m.knox_passages_declared, m.knox_no_unknown_poison, m.knox_no_outsider, m.knox_no_lucky_accident, m.knox_detective_not_culprit, m.knox_clues_shown, m.knox_narrator_hides_nothing, m.knox_no_unannounced_twins, m.knox_contract_published, m.solved_at, m.paused_at, m.paused_duration_seconds, m.created_at, m.updated_at,
 		u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''),
 		w.id, w.username, w.display_name, w.avatar_url, COALESCE(wr.role, ''),
 		(SELECT COUNT(*) FROM mystery_attempts WHERE mystery_id = m.id AND parent_id IS NULL AND user_id != m.user_id),
@@ -192,7 +204,7 @@ func (r *mysteryDAO) List(ctx context.Context, sort string, solved *bool, limit,
 		var solvedAt, pausedAt sql.NullTime
 		var createdAt, updatedAt time.Time
 		if err := rows.Scan(
-			&row.ID, &row.UserID, &row.Title, &row.Body, &row.Difficulty, &row.Solved, &row.Paused, &row.GmAway, &row.FreeForAll, &row.KeepOpenAfterSolve, &solvedAt, &pausedAt, &row.PausedDurationSeconds, &createdAt, &updatedAt,
+			&row.ID, &row.UserID, &row.Title, &row.Body, &row.Difficulty, &row.Solved, &row.Paused, &row.GmAway, &row.FreeForAll, &row.KeepOpenAfterSolve, &row.Knox.CulpritNamedEarly, &row.Knox.NoSupernatural, &row.Knox.PassagesDeclared, &row.Knox.NoUnknownPoison, &row.Knox.NoOutsider, &row.Knox.NoLuckyAccident, &row.Knox.DetectiveNotCulprit, &row.Knox.CluesShown, &row.Knox.NarratorHidesNothing, &row.Knox.NoUnannouncedTwins, &row.KnoxPublished, &solvedAt, &pausedAt, &row.PausedDurationSeconds, &createdAt, &updatedAt,
 			&row.AuthorUsername, &row.AuthorDisplayName, &row.AuthorAvatarURL, &row.AuthorRole,
 			&row.WinnerID, &row.WinnerUsername, &row.WinnerDisplayName, &row.WinnerAvatarURL, &row.WinnerRole,
 			&row.AttemptCount, &row.ClueCount, &row.SolverCount,
@@ -538,7 +550,7 @@ func (r *mysteryDAO) ListByUser(ctx context.Context, userID uuid.UUID, limit, of
 		return nil, 0, fmt.Errorf("count user mysteries: %w", err)
 	}
 
-	query := `SELECT m.id, m.user_id, m.title, m.body, m.difficulty, m.solved, m.paused, m.gm_away, m.free_for_all, m.keep_open_after_solve, m.solved_at, m.paused_at, m.paused_duration_seconds, m.created_at, m.updated_at,
+	query := `SELECT m.id, m.user_id, m.title, m.body, m.difficulty, m.solved, m.paused, m.gm_away, m.free_for_all, m.keep_open_after_solve, m.knox_culprit_named_early, m.knox_no_supernatural, m.knox_passages_declared, m.knox_no_unknown_poison, m.knox_no_outsider, m.knox_no_lucky_accident, m.knox_detective_not_culprit, m.knox_clues_shown, m.knox_narrator_hides_nothing, m.knox_no_unannounced_twins, m.knox_contract_published, m.solved_at, m.paused_at, m.paused_duration_seconds, m.created_at, m.updated_at,
 		u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''),
 		w.id, w.username, w.display_name, w.avatar_url, COALESCE(wr.role, ''),
 		(SELECT COUNT(*) FROM mystery_attempts WHERE mystery_id = m.id AND parent_id IS NULL AND user_id != m.user_id),
@@ -565,7 +577,7 @@ func (r *mysteryDAO) ListByUser(ctx context.Context, userID uuid.UUID, limit, of
 		var solvedAt, pausedAt sql.NullTime
 		var createdAt, updatedAt time.Time
 		if err := rows.Scan(
-			&row.ID, &row.UserID, &row.Title, &row.Body, &row.Difficulty, &row.Solved, &row.Paused, &row.GmAway, &row.FreeForAll, &row.KeepOpenAfterSolve, &solvedAt, &pausedAt, &row.PausedDurationSeconds, &createdAt, &updatedAt,
+			&row.ID, &row.UserID, &row.Title, &row.Body, &row.Difficulty, &row.Solved, &row.Paused, &row.GmAway, &row.FreeForAll, &row.KeepOpenAfterSolve, &row.Knox.CulpritNamedEarly, &row.Knox.NoSupernatural, &row.Knox.PassagesDeclared, &row.Knox.NoUnknownPoison, &row.Knox.NoOutsider, &row.Knox.NoLuckyAccident, &row.Knox.DetectiveNotCulprit, &row.Knox.CluesShown, &row.Knox.NarratorHidesNothing, &row.Knox.NoUnannouncedTwins, &row.KnoxPublished, &solvedAt, &pausedAt, &row.PausedDurationSeconds, &createdAt, &updatedAt,
 			&row.AuthorUsername, &row.AuthorDisplayName, &row.AuthorAvatarURL, &row.AuthorRole,
 			&row.WinnerID, &row.WinnerUsername, &row.WinnerDisplayName, &row.WinnerAvatarURL, &row.WinnerRole,
 			&row.AttemptCount, &row.ClueCount, &row.SolverCount,

@@ -36,6 +36,7 @@ function makeActivity(overrides: Partial<HomeActivityResponse> = {}): HomeActivi
     return {
         online_count: 7,
         recent_activity: [],
+        echoes: [],
         recent_members: [],
         public_rooms: [],
         corner_activity: [],

@@ -1,6 +1,10 @@
 import { Link } from "react-router";
 import { useHomeActivity } from "../../api/queries/sidebar";
-import type { HomeActivityEntry, HomeMember, HomePublicRoom } from "../../types/api";
+import type { HomeActivityEntry, HomeEcho, HomeMember, HomePublicRoom } from "../../types/api";
+import { useAuth } from "../../hooks/useAuth";
+import { userProgressForSeries } from "../../utils/seriesConfig";
+import type { Series } from "../../api/endpoints";
+import { Butterfly } from "../../components/Butterfly/Butterfly";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { RelativeTimestamp } from "../../components/RelativeTimestamp/RelativeTimestamp";
 import styles from "./LiveActivity.module.css";
@@ -12,7 +16,7 @@ const kindLabel: Record<HomeActivityEntry["kind"], string> = {
     art: "Gallery",
 };
 
-function displayTitle(entry: HomeActivityEntry): string {
+function displayTitle(entry: HomeActivityEntry | HomeEcho): string {
     if (entry.title) {
         return entry.title;
     }
@@ -47,6 +51,48 @@ function ActivityRow({ entry }: ActivityRowProps) {
                 <RelativeTimestamp value={entry.created_at} className={styles.activityTime} />
             </div>
         </li>
+    );
+}
+
+function echoIsHidden(echo: HomeEcho, user: Parameters<typeof userProgressForSeries>[0]): boolean {
+    if (echo.is_spoiler) {
+        return true;
+    }
+    if (echo.kind !== "theory" || echo.episode <= 0) {
+        return false;
+    }
+
+    const progress = userProgressForSeries(user, (echo.corner || "umineko") as Series);
+    return progress > 0 && echo.episode >= progress;
+}
+
+function EchoCard({ echoes }: { echoes: HomeEcho[] }) {
+    const { user } = useAuth();
+    const echo = echoes.find(candidate => !echoIsHidden(candidate, user));
+    if (!echo) {
+        return null;
+    }
+
+    return (
+        <div className={styles.echo}>
+            <Butterfly colour="var(--gold)" size={14} />
+            <span className={styles.echoLabel}>An echo, {echo.age}</span>
+            <Link to={echo.url} className={styles.echoLink}>
+                <span className={styles.activityKind}>{kindLabel[echo.kind]}</span>
+                <span className={styles.activityTitle}>{displayTitle(echo)}</span>
+            </Link>
+            <div className={styles.activityMeta}>
+                <ProfileLink
+                    user={{
+                        id: echo.author.id,
+                        username: echo.author.username,
+                        display_name: echo.author.display_name,
+                        avatar_url: echo.author.avatar_url,
+                    }}
+                    size="small"
+                />
+            </div>
+        </div>
     );
 }
 
@@ -120,6 +166,7 @@ export function LiveActivity() {
 
             <div className={styles.grid}>
                 <div className={styles.column}>
+                    {data.echoes?.length > 0 && <EchoCard echoes={data.echoes} />}
                     <h3 className={styles.columnTitle}>Recent activity</h3>
                     {hasActivity ? (
                         <ul className={styles.activityList}>

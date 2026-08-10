@@ -6,15 +6,16 @@ import { renderWithProviders } from "../../test-utils/render";
 import type { Response as TheoryResponse, TheoryDetail } from "../../types/api";
 import { TheoryPage } from "./TheoryPage";
 
-const { useTheory, useVoteTheory, useDeleteTheory, navigate } = vi.hoisted(() => ({
+const { useTheory, useVoteTheory, useDeleteTheory, useRefuteTheory, navigate } = vi.hoisted(() => ({
     useTheory: vi.fn(),
     useVoteTheory: vi.fn(),
     useDeleteTheory: vi.fn(),
+    useRefuteTheory: vi.fn(),
     navigate: vi.fn(),
 }));
 
 vi.mock("../../api/queries/theory", () => ({ useTheory }));
-vi.mock("../../api/mutations/theory", () => ({ useVoteTheory, useDeleteTheory }));
+vi.mock("../../api/mutations/theory", () => ({ useVoteTheory, useDeleteTheory, useRefuteTheory }));
 vi.mock("react-router", async importOriginal => {
     const actual = await importOriginal<typeof import("react-router")>();
     return { ...actual, useNavigate: () => navigate };
@@ -63,6 +64,7 @@ function makeTheoryDetail(overrides: Partial<TheoryDetail> = {}): TheoryDetail {
         without_love_count: 0,
         user_vote: 0,
         credibility_score: 55,
+        status: "open" as const,
         created_at: "2026-07-01T10:00:00Z",
         evidence: [],
         responses: [],
@@ -85,10 +87,12 @@ function stubTheory(options: StubOptions = {}) {
     });
     const voteAsync = vi.fn(options.vote ?? (() => Promise.resolve({})));
     const deleteAsync = vi.fn(() => Promise.resolve({}));
+    const refuteAsync = vi.fn();
     useVoteTheory.mockReturnValue({ mutateAsync: voteAsync });
     useDeleteTheory.mockReturnValue({ mutateAsync: deleteAsync });
+    useRefuteTheory.mockReturnValue({ mutateAsync: refuteAsync });
 
-    return { refresh, voteAsync, deleteAsync };
+    return { refresh, voteAsync, deleteAsync, refuteAsync };
 }
 
 function renderPage(user: ReturnType<typeof makeUser> | null = null, route = "/theory/theory-1") {

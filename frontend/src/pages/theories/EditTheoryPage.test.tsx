@@ -67,6 +67,7 @@ function makeTheoryDetail(overrides: Partial<TheoryDetail> = {}): TheoryDetail {
         with_love_count: 1,
         without_love_count: 0,
         credibility_score: 55,
+        status: "open" as const,
         created_at: "2026-07-01T10:00:00Z",
         evidence: [{ id: 7, note: "a quote", lang: "en", sort_order: 0 }],
         responses: [],

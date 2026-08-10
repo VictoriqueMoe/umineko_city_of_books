@@ -17,6 +17,8 @@ import { InfoPanel } from "../../components/InfoPanel/InfoPanel";
 import { ErrorBanner } from "../../components/ErrorBanner/ErrorBanner";
 import { ToggleSwitch } from "../../components/ToggleSwitch/ToggleSwitch";
 import { MediaPickerButton, MediaPreviews } from "../../components/MediaPicker/MediaPicker";
+import { ALL_KNOX_RULES_ON, KNOX_RULES } from "./knoxRules";
+import type { KnoxContract } from "../../types/api";
 import styles from "./MysteryPages.module.css";
 
 interface ClueInput {
@@ -31,6 +33,7 @@ interface MysteryDraft {
     difficulty?: string;
     freeForAll?: boolean;
     keepOpenAfterSolve?: boolean;
+    knox?: KnoxContract;
     clues?: ClueInput[];
 }
 
@@ -75,6 +78,8 @@ export function CreateMysteryPage() {
     const freeForAll = activeDraft.freeForAll ?? (isEdit ? (editMystery?.free_for_all ?? false) : false);
     const keepOpenAfterSolve =
         activeDraft.keepOpenAfterSolve ?? (isEdit ? (editMystery?.keep_open_after_solve ?? false) : false);
+    const knox = activeDraft.knox ?? (isEdit ? (editMystery?.knox_contract ?? ALL_KNOX_RULES_ON) : ALL_KNOX_RULES_ON);
+    const knoxLocked = isEdit && (editMystery?.knox_contract_locked ?? false);
     const clues = activeDraft.clues ?? baseClues;
 
     function patch(update: Partial<MysteryDraft>) {
@@ -98,6 +103,9 @@ export function CreateMysteryPage() {
     }
     function setKeepOpenAfterSolve(value: boolean) {
         patch({ keepOpenAfterSolve: value });
+    }
+    function setKnoxRule(key: keyof KnoxContract, value: boolean) {
+        patch({ knox: { ...knox, [key]: value } });
     }
     function setClues(updater: ClueInput[] | ((prev: ClueInput[]) => ClueInput[])) {
         const next = typeof updater === "function" ? updater(clues) : updater;
@@ -136,6 +144,7 @@ export function CreateMysteryPage() {
                     difficulty,
                     free_for_all: freeForAll,
                     keep_open_after_solve: keepOpenAfterSolve,
+                    knox_contract: knox,
                     clues: validClues,
                 });
                 for (const mediaId of pendingMediaDeletions) {
@@ -161,6 +170,7 @@ export function CreateMysteryPage() {
                     difficulty,
                     free_for_all: freeForAll,
                     keep_open_after_solve: keepOpenAfterSolve,
+                    knox_contract: knox,
                     clues: validClues,
                 });
                 for (const file of attachments) {
@@ -255,6 +265,30 @@ export function CreateMysteryPage() {
                         description="The mystery stays open after each correct solution. Solvers get their points privately and a public counter ticks up, but the truth and other attempts stay hidden until you mark the mystery permanently solved."
                     />
                 </div>
+
+                <h3 className={styles.cluesTitle} style={{ marginTop: "1.5rem" }}>
+                    Knox's Decalogue
+                </h3>
+                <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginBottom: "0.75rem" }}>
+                    Whatever you leave switched on is published as a contract at the top of your mystery. What you
+                    switch off is permitted, and your pieces will know it.
+                </p>
+                {knoxLocked && (
+                    <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginBottom: "0.75rem" }}>
+                        The contract sealed when the first piece submitted an attempt. It cannot be changed now.
+                    </p>
+                )}
+                {KNOX_RULES.map(rule => (
+                    <div key={rule.key} style={{ marginTop: "1rem" }}>
+                        <ToggleSwitch
+                            enabled={knox[rule.key]}
+                            onChange={value => setKnoxRule(rule.key, value)}
+                            label={rule.label}
+                            description={rule.sworn}
+                            disabled={knoxLocked}
+                        />
+                    </div>
+                ))}
 
                 <h3 className={styles.cluesTitle} style={{ marginTop: "1.5rem" }}>
                     Red Truths (Clues)

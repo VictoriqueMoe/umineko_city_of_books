@@ -4,6 +4,7 @@ import {
     createTheory,
     deleteResponse,
     deleteTheory,
+    refuteTheory,
     updateTheory,
     voteResponse,
     voteTheory,
@@ -50,6 +51,17 @@ export function useVoteTheory(id: string) {
         mutationFn: (value: number) => voteTheory(id, value),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: queryKeys.theory.detail(id) });
+        },
+    });
+}
+
+export function useRefuteTheory(theoryId: string) {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (responseId: string) => refuteTheory(theoryId, responseId),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: queryKeys.theory.detail(theoryId) });
+            qc.invalidateQueries({ queryKey: queryKeys.theory.all });
         },
     });
 }

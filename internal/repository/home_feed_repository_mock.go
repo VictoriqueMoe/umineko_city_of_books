@@ -99,6 +99,80 @@ func (_c *MockHomeFeedRepository_ListCornerActivity24h_Call) RunAndReturn(run fu
 	return _c
 }
 
+// ListEchoes provides a mock function for the type MockHomeFeedRepository
+func (_mock *MockHomeFeedRepository) ListEchoes(ctx context.Context, ago string, limit int) ([]HomeEchoRow, error) {
+	ret := _mock.Called(ctx, ago, limit)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListEchoes")
+	}
+
+	var r0 []HomeEchoRow
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int) ([]HomeEchoRow, error)); ok {
+		return returnFunc(ctx, ago, limit)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int) []HomeEchoRow); ok {
+		r0 = returnFunc(ctx, ago, limit)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]HomeEchoRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, int) error); ok {
+		r1 = returnFunc(ctx, ago, limit)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockHomeFeedRepository_ListEchoes_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListEchoes'
+type MockHomeFeedRepository_ListEchoes_Call struct {
+	*mock.Call
+}
+
+// ListEchoes is a helper method to define mock.On call
+//   - ctx context.Context
+//   - ago string
+//   - limit int
+func (_e *MockHomeFeedRepository_Expecter) ListEchoes(ctx any, ago any, limit any) *MockHomeFeedRepository_ListEchoes_Call {
+	return &MockHomeFeedRepository_ListEchoes_Call{Call: _e.mock.On("ListEchoes", ctx, ago, limit)}
+}
+
+func (_c *MockHomeFeedRepository_ListEchoes_Call) Run(run func(ctx context.Context, ago string, limit int)) *MockHomeFeedRepository_ListEchoes_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 int
+		if args[2] != nil {
+			arg2 = args[2].(int)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockHomeFeedRepository_ListEchoes_Call) Return(homeEchoRows []HomeEchoRow, err error) *MockHomeFeedRepository_ListEchoes_Call {
+	_c.Call.Return(homeEchoRows, err)
+	return _c
+}
+
+func (_c *MockHomeFeedRepository_ListEchoes_Call) RunAndReturn(run func(ctx context.Context, ago string, limit int) ([]HomeEchoRow, error)) *MockHomeFeedRepository_ListEchoes_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListPublicRooms provides a mock function for the type MockHomeFeedRepository
 func (_mock *MockHomeFeedRepository) ListPublicRooms(ctx context.Context, limit int) ([]HomePublicRoomRow, error) {
 	ret := _mock.Called(ctx, limit)

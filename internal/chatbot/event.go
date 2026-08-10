@@ -8,14 +8,10 @@ import (
 	"github.com/google/uuid"
 )
 
-const (
-	SurfaceChat        Surface = "chat"
-	SurfacePost        Surface = "post"
-	SurfacePostComment Surface = "post_comment"
-)
-
 type (
 	Surface string
+
+	Channel string
 
 	scopeKey struct {
 		surface Surface
@@ -38,6 +34,17 @@ type (
 	}
 )
 
+const (
+	SurfaceChat        Surface = "chat"
+	SurfacePost        Surface = "post"
+	SurfacePostComment Surface = "post_comment"
+
+	ChannelDM          Channel = "dm"
+	ChannelGroup       Channel = "group"
+	ChannelPost        Channel = "post"
+	ChannelPostComment Channel = "post_comment"
+)
+
 func (s Surface) gameBoard() bool {
 	return s == SurfacePost || s == SurfacePostComment
 }
@@ -52,6 +59,19 @@ func (s Surface) scope() Surface {
 
 func (ev botEvent) scopeKey() scopeKey {
 	return scopeKey{surface: ev.Surface.scope(), id: ev.ScopeID}
+}
+
+func (ev botEvent) channel() Channel {
+	switch {
+	case ev.Surface == SurfaceChat && ev.IsDM:
+		return ChannelDM
+	case ev.Surface == SurfaceChat:
+		return ChannelGroup
+	case ev.Surface == SurfacePostComment:
+		return ChannelPostComment
+	default:
+		return ChannelPost
+	}
 }
 
 func (s *service) ObserveMessage(ev chat.BotMessageEvent) {

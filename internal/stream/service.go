@@ -15,6 +15,7 @@ import (
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/livekit"
 	"umineko_city_of_books/internal/logger"
+	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/upload"
@@ -51,6 +52,8 @@ type (
 	service struct {
 		repo        repository.LiveStreamRepository
 		creds       repository.StreamCredentialsRepository
+		followRepo  repository.FollowRepository
+		notifSvc    notification.Service
 		livekitSvc  livekit.Service
 		settingsSvc settings.Service
 		uploadSvc   upload.Service
@@ -92,6 +95,8 @@ const (
 	thumbnailSubDir   = "stream-thumbnails"
 	maxThumbnailBytes = 3 * 1024 * 1024
 	thumbnailThrottle = 20 * time.Second
+
+	liveNotifyCooldown = 2 * time.Hour
 )
 
 var (
@@ -104,10 +109,12 @@ var (
 	ErrInvalidBitrate = errors.New("stream bitrate must be between 500 and 50000 Kbps")
 )
 
-func NewService(repo repository.LiveStreamRepository, creds repository.StreamCredentialsRepository, livekitSvc livekit.Service, settingsSvc settings.Service, uploadSvc upload.Service, hub *ws.Hub) Service {
+func NewService(repo repository.LiveStreamRepository, creds repository.StreamCredentialsRepository, followRepo repository.FollowRepository, livekitSvc livekit.Service, settingsSvc settings.Service, uploadSvc upload.Service, notifSvc notification.Service, hub *ws.Hub) Service {
 	return &service{
 		repo:        repo,
 		creds:       creds,
+		followRepo:  followRepo,
+		notifSvc:    notifSvc,
 		livekitSvc:  livekitSvc,
 		settingsSvc: settingsSvc,
 		uploadSvc:   uploadSvc,
@@ -731,6 +738,7 @@ func (s *service) HandleWebhook(ctx context.Context, authHeader string, body []b
 			}
 
 			s.broadcastLive(ctx, stream.ID)
+			go s.notifyFollowersLive(context.Background(), stream)
 		} else if !isMonitor {
 			s.adjustViewers(ctx, stream.ID, 1)
 		}
@@ -858,6 +866,25 @@ func hasBroadcaster(identities []string) bool {
 	}
 
 	return false
+}
+
+func (s *service) notifyFollowersLive(ctx context.Context, stream *repository.LiveStreamRow) {
+	if s.notifSvc == nil || s.followRepo == nil {
+		return
+	}
+
+	if s.notifSvc.HasRecentFromActor(ctx, dto.NotifStreamLive, stream.UserID, liveNotifyCooldown) {
+		return
+	}
+
+	notification.SendFollowerNotification(ctx, s.followRepo, s.notifSvc, notification.FollowerNotifyParams{
+		ActorID:       stream.UserID,
+		Type:          dto.NotifStreamLive,
+		ReferenceID:   stream.ID,
+		ReferenceType: "stream",
+		Action:        "went live",
+		Title:         stream.Title,
+	})
 }
 
 func (s *service) broadcastLive(ctx context.Context, id uuid.UUID) {

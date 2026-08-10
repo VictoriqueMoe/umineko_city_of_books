@@ -15,6 +15,9 @@ import { EvidenceList } from "../../components/theory/EvidenceList/EvidenceList"
 import { ResponseList } from "../../components/theory/ResponseCard/ResponseCard";
 import { ResponseEditor } from "../../components/theory/ResponseEditor/ResponseEditor";
 import { CredibilityBadge } from "../../components/theory/CredibilityBadge/CredibilityBadge";
+import { TheoryStatusBadge } from "../../components/theory/TheoryStatusBadge/TheoryStatusBadge";
+import { RefutationStamp } from "../../components/theory/RefutationStamp/RefutationStamp";
+import { useRefuteTheory } from "../../api/mutations/theory";
 import { ReportButton } from "../../components/ReportButton/ReportButton";
 import { ShareButton } from "../../components/ShareButton/ShareButton";
 import { can } from "../../utils/permissions";
@@ -44,6 +47,7 @@ export function TheoryPage() {
 
     const { score, userVote, vote } = useVote(theory?.vote_score ?? 0, theory?.user_vote ?? 0, voteFn);
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+    const refuteMutation = useRefuteTheory(theoryId);
 
     const isAuthor = user && theory && user.id === theory.author.id;
     const canEdit = isAuthor || can(user, "edit_any_theory");
@@ -93,6 +97,15 @@ export function TheoryPage() {
     const cfg = getSeriesConfig(seriesKey);
     const withLove = theory.responses?.filter(r => r.side === "with_love") ?? [];
     const withoutLove = theory.responses?.filter(r => r.side === "without_love") ?? [];
+    const canRefute = isAuthor && theory.status !== "refuted";
+
+    async function handleRefute(responseId: string) {
+        if (!window.confirm("Accept this response as the refutation? This is permanent.")) {
+            return;
+        }
+        await refuteMutation.mutateAsync(responseId);
+        refresh();
+    }
 
     return (
         <div className={styles.page}>
@@ -114,6 +127,7 @@ export function TheoryPage() {
                             {theory.episode > 0 && (
                                 <span className={styles.episode}>{formatSeriesEpisode(seriesKey, theory.episode)}</span>
                             )}
+                            <TheoryStatusBadge status={theory.status} />
                             <CredibilityBadge score={theory.credibility_score} />
                         </div>
                     </div>
@@ -136,6 +150,14 @@ export function TheoryPage() {
                         <ShareButton contentId={theory.id} contentType="theory" contentTitle={theory.title} />
                     </div>
                 </div>
+
+                {theory.status === "refuted" && (
+                    <RefutationStamp
+                        responseId={theory.refuted_by_response_id}
+                        refutedBy={theory.refuted_by}
+                        refutedAt={theory.refuted_at}
+                    />
+                )}
 
                 <div className={styles.body}>{theory.body}</div>
 
@@ -164,6 +186,7 @@ export function TheoryPage() {
                             theoryId={theoryId}
                             series={seriesKey}
                             onDeleted={refresh}
+                            onRefute={canRefute ? handleRefute : undefined}
                         />
                     ) : (
                         <div className="empty-state">No deniers yet.</div>

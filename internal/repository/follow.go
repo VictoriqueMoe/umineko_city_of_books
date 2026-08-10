@@ -16,6 +16,7 @@ type (
 		GetFollowers(ctx context.Context, userID uuid.UUID, limit, offset int) ([]FollowUser, int, error)
 		GetFollowing(ctx context.Context, userID uuid.UUID, limit, offset int) ([]FollowUser, int, error)
 		GetMutualFollowers(ctx context.Context, userID uuid.UUID) ([]FollowUser, error)
+		GetFollowerIDsToNotify(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error)
 	}
 
 	FollowUser struct {
@@ -65,4 +66,8 @@ func (r *followRepository) GetFollowing(ctx context.Context, userID uuid.UUID, l
 
 func (r *followRepository) GetMutualFollowers(ctx context.Context, userID uuid.UUID) ([]FollowUser, error) {
 	return r.dao.GetMutualFollowers(ctx, userID)
+}
+
+func (r *followRepository) GetFollowerIDsToNotify(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error) {
+	return r.dao.GetFollowerIDsToNotify(ctx, userID)
 }

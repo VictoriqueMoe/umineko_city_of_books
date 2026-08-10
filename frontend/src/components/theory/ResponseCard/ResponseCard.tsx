@@ -23,6 +23,7 @@ interface ResponseCardProps {
     replyTarget?: { parentId: string; parentAuthor: string } | null;
     isThreadReply?: boolean;
     mentionedAuthor?: string;
+    onRefute?: (responseId: string) => void;
 }
 
 function ResponseCard({
@@ -34,6 +35,7 @@ function ResponseCard({
     replyTarget,
     isThreadReply,
     mentionedAuthor,
+    onRefute,
 }: ResponseCardProps) {
     const { user } = useAuth();
     const location = useLocation();
@@ -90,6 +92,11 @@ function ResponseCard({
                         {user && user.id !== response.author.id && (
                             <ReportButton targetType="response" targetId={response.id} contextId={theoryId} />
                         )}
+                        {onRefute && !isThreadReply && (
+                            <Button variant="secondary" size="small" onClick={() => onRefute(response.id)}>
+                                Mark as the refutation
+                            </Button>
+                        )}
                         {user && (user.id === response.author.id || can(user, "delete_any_response")) && (
                             <Button variant="danger" size="small" onClick={handleDelete}>
                                 Delete
@@ -144,11 +151,13 @@ export function ResponseList({
     theoryId,
     series = "umineko",
     onDeleted,
+    onRefute,
 }: {
     responses: TheoryResponse[];
     theoryId: string;
     series?: Series;
     onDeleted?: () => void;
+    onRefute?: (responseId: string) => void;
 }) {
     const location = useLocation();
     const [replyTarget, setReplyTarget] = useState<{ parentId: string; parentAuthor: string } | null>(null);
@@ -225,6 +234,7 @@ export function ResponseList({
                             onDeleted={handleCreated}
                             onReply={handleReply}
                             replyTarget={replyTarget}
+                            onRefute={onRefute}
                         />
 
                         {hasThread && (

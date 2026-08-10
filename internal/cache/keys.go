@@ -16,6 +16,8 @@ var (
 	OGMeta  = Namespace{Prefix: "og:meta:", TTL: 5 * time.Minute}
 	OGImage = Namespace{Prefix: "og:image:", TTL: 24 * time.Hour}
 
+	HomeEchoes = Namespace{Prefix: "home:echoes:", TTL: 24 * time.Hour}
+
 	UserRole = Namespace{Prefix: "role:", TTL: 0}
 
 	Setting = Namespace{Prefix: "setting:", TTL: 0}

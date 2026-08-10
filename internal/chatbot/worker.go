@@ -56,7 +56,7 @@ func (s *service) run(id int, j job) {
 
 	out := s.reply(ctx, j, tune, invocationID, model)
 
-	invocationsTotal.WithLabelValues(string(out.status)).Inc()
+	invocationsTotal.WithLabelValues(string(out.status), string(j.ev.channel())).Inc()
 
 	if out.reason == reasonNone {
 		return
@@ -70,7 +70,7 @@ func logOutcome(id int, j job, out outcome) {
 	entry := logger.Log.Error().
 		Int("worker", id).
 		Str("bot", j.bot.Username).
-		Str("surface", string(j.ev.Surface)).
+		Str("channel", string(j.ev.channel())).
 		Str("reason", string(out.reason)).
 		Str("stage", string(out.stage))
 
@@ -86,7 +86,7 @@ func logOutcome(id int, j job, out outcome) {
 }
 
 func (s *service) settle(ctx context.Context, j job, out outcome) {
-	droppedTotal.WithLabelValues(string(out.reason), string(out.stage), string(j.ev.Surface)).Inc()
+	droppedTotal.WithLabelValues(string(out.reason), string(out.stage), string(j.ev.channel())).Inc()
 
 	if out.reason.policy() && !takeSlot(&s.lastNotice, noticeKey{user: j.ev.SenderID, reason: out.reason}, refusalCooldown) {
 		noticesTotal.WithLabelValues(string(out.reason), "suppressed").Inc()
@@ -131,7 +131,7 @@ func (s *service) reply(ctx context.Context, j job, tune tuning, invocationID uu
 		roomID = new(j.ev.ScopeID)
 	}
 
-	if err := s.botRepo.CreateInvocation(ctx, invocationID, j.bot.UserID, j.ev.SenderID, roomID, j.ev.ItemID, string(j.ev.Surface), model); err != nil {
+	if err := s.botRepo.CreateInvocation(ctx, invocationID, j.bot.UserID, j.ev.SenderID, roomID, j.ev.ItemID, string(j.ev.channel()), model); err != nil {
 		return outcome{reason: reasonInternal, stage: stagePreModel, status: repository.InvocationFailed, err: err}
 	}
 
@@ -157,7 +157,7 @@ func (s *service) reply(ctx context.Context, j job, tune tuning, invocationID uu
 		return classifyProvider(ctx, err)
 	}
 
-	recordTokens(result)
+	recordTokens(result, j.ev.channel())
 
 	body := stripSelfLabel(result.Text, j.bot)
 	if body == "" {
@@ -387,10 +387,10 @@ func usageOf(result *openai.CompletionResult) repository.InvocationUsage {
 	}
 }
 
-func recordTokens(result *openai.CompletionResult) {
-	tokensTotal.WithLabelValues("prompt").Add(float64(result.PromptTokens))
-	tokensTotal.WithLabelValues("cached_prompt").Add(float64(result.CachedPromptTokens))
-	tokensTotal.WithLabelValues("cache_write").Add(float64(result.CacheWriteTokens))
-	tokensTotal.WithLabelValues("completion").Add(float64(result.CompletionTokens))
-	tokensTotal.WithLabelValues("reasoning").Add(float64(result.ReasoningTokens))
+func recordTokens(result *openai.CompletionResult, channel Channel) {
+	tokensTotal.WithLabelValues("prompt", string(channel)).Add(float64(result.PromptTokens))
+	tokensTotal.WithLabelValues("cached_prompt", string(channel)).Add(float64(result.CachedPromptTokens))
+	tokensTotal.WithLabelValues("cache_write", string(channel)).Add(float64(result.CacheWriteTokens))
+	tokensTotal.WithLabelValues("completion", string(channel)).Add(float64(result.CompletionTokens))
+	tokensTotal.WithLabelValues("reasoning", string(channel)).Add(float64(result.ReasoningTokens))
 }

@@ -84,6 +84,47 @@
     color: #e74c3c;
 }
 
+.channelTable {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.78rem;
+}
+
+.channelCaption {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    text-align: left;
+    border-top: 1px solid rgba(var(--purple-rgb), 0.2);
+    padding: 0.5rem 0 0.25rem;
+}
+
+.channelTable th,
+.channelTable td {
+    padding: 0.15rem 0;
+    text-align: right;
+    font-weight: normal;
+}
+
+.channelTable th:first-child {
+    text-align: left;
+}
+
+.channelTable thead th {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.channelTable tbody th {
+    color: var(--text-muted);
+}
+
+.channelTable tbody td {
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+}
+
 .usageBilled {
     font-size: 0.85rem;
     color: var(--gold);

@@ -3,15 +3,27 @@ package homefeed
 import (
 	"context"
 	"fmt"
+	"time"
 
+	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
 )
 
+var echoWindows = []struct {
+	ago   string
+	label string
+}{
+	{ago: "1 year", label: "one year ago today"},
+	{ago: "1 month", label: "one month ago today"},
+}
+
 const (
+	echoCandidateLimit   = 8
 	defaultActivityLimit = 10
 	defaultMembersLimit  = 5
 	defaultRoomsLimit    = 5
@@ -24,13 +36,64 @@ type (
 	}
 
 	service struct {
-		repo repository.HomeFeedRepository
-		hub  *ws.Hub
+		repo  repository.HomeFeedRepository
+		hub   *ws.Hub
+		cache *cache.Manager
 	}
 )
 
-func NewService(repo repository.HomeFeedRepository, hub *ws.Hub) Service {
-	return &service{repo: repo, hub: hub}
+func NewService(repo repository.HomeFeedRepository, hub *ws.Hub, cacheMgr *cache.Manager) Service {
+	return &service{repo: repo, hub: hub, cache: cacheMgr}
+}
+
+func (s *service) echoes(ctx context.Context) []dto.HomeEcho {
+	key := cache.HomeEchoes.Key(time.Now().UTC().Format("2006-01-02"))
+	if cached, err := cache.Get[[]dto.HomeEcho](ctx, s.cache, key); err == nil {
+		return cached
+	}
+
+	echoes := s.buildEchoes(ctx)
+	_ = cache.Set(ctx, s.cache, key, echoes, cache.HomeEchoes.TTL)
+
+	return echoes
+}
+
+func (s *service) buildEchoes(ctx context.Context) []dto.HomeEcho {
+	for _, window := range echoWindows {
+		rows, err := s.repo.ListEchoes(ctx, window.ago, echoCandidateLimit)
+		if err != nil {
+			logger.Log.Warn().Err(err).Str("ago", window.ago).Msg("list echoes failed")
+			return nil
+		}
+		if len(rows) == 0 {
+			continue
+		}
+
+		out := make([]dto.HomeEcho, len(rows))
+		for i, r := range rows {
+			out[i] = dto.HomeEcho{
+				Kind:      r.Kind,
+				ID:        r.ID,
+				Title:     r.Title,
+				Excerpt:   r.Body,
+				Corner:    r.Corner,
+				Episode:   r.Episode,
+				IsSpoiler: r.IsSpoiler,
+				URL:       activityURL(r.Kind, r.ID),
+				Age:       window.label,
+				CreatedAt: r.CreatedAt,
+				Author: dto.HomeActivityAuthor{
+					ID:          r.AuthorID,
+					Username:    r.Username,
+					DisplayName: r.DisplayName,
+					AvatarURL:   r.AvatarURL,
+				},
+			}
+		}
+		return out
+	}
+
+	return nil
 }
 
 func (s *service) HomeActivity(ctx context.Context) (*dto.HomeActivityResponse, error) {
@@ -57,6 +120,7 @@ func (s *service) HomeActivity(ctx context.Context) (*dto.HomeActivityResponse, 
 		RecentMembers:  make([]dto.HomeMember, len(members)),
 		PublicRooms:    make([]dto.HomePublicRoom, len(rooms)),
 		CornerActivity: make([]dto.HomeCornerActivity, len(corners)),
+		Echoes:         s.echoes(ctx),
 	}
 
 	for i, a := range activity {

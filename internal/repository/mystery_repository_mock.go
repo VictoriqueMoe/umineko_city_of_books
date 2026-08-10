@@ -518,16 +518,16 @@ func (_c *MockMysteryRepository_CountClues_Call) RunAndReturn(run func(ctx conte
 }
 
 // Create provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) Create(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, body string, difficulty string, freeForAll bool, keepOpenAfterSolve bool) error {
-	ret := _mock.Called(ctx, id, userID, title, body, difficulty, freeForAll, keepOpenAfterSolve)
+func (_mock *MockMysteryRepository) Create(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, body string, difficulty string, freeForAll bool, keepOpenAfterSolve bool, knox dto.KnoxContract) error {
+	ret := _mock.Called(ctx, id, userID, title, body, difficulty, freeForAll, keepOpenAfterSolve, knox)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Create")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, string, string, bool, bool) error); ok {
-		r0 = returnFunc(ctx, id, userID, title, body, difficulty, freeForAll, keepOpenAfterSolve)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, string, string, bool, bool, dto.KnoxContract) error); ok {
+		r0 = returnFunc(ctx, id, userID, title, body, difficulty, freeForAll, keepOpenAfterSolve, knox)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -548,11 +548,12 @@ type MockMysteryRepository_Create_Call struct {
 //   - difficulty string
 //   - freeForAll bool
 //   - keepOpenAfterSolve bool
-func (_e *MockMysteryRepository_Expecter) Create(ctx any, id any, userID any, title any, body any, difficulty any, freeForAll any, keepOpenAfterSolve any) *MockMysteryRepository_Create_Call {
-	return &MockMysteryRepository_Create_Call{Call: _e.mock.On("Create", ctx, id, userID, title, body, difficulty, freeForAll, keepOpenAfterSolve)}
+//   - knox dto.KnoxContract
+func (_e *MockMysteryRepository_Expecter) Create(ctx any, id any, userID any, title any, body any, difficulty any, freeForAll any, keepOpenAfterSolve any, knox any) *MockMysteryRepository_Create_Call {
+	return &MockMysteryRepository_Create_Call{Call: _e.mock.On("Create", ctx, id, userID, title, body, difficulty, freeForAll, keepOpenAfterSolve, knox)}
 }
 
-func (_c *MockMysteryRepository_Create_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, body string, difficulty string, freeForAll bool, keepOpenAfterSolve bool)) *MockMysteryRepository_Create_Call {
+func (_c *MockMysteryRepository_Create_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, body string, difficulty string, freeForAll bool, keepOpenAfterSolve bool, knox dto.KnoxContract)) *MockMysteryRepository_Create_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -586,6 +587,10 @@ func (_c *MockMysteryRepository_Create_Call) Run(run func(ctx context.Context, i
 		if args[7] != nil {
 			arg7 = args[7].(bool)
 		}
+		var arg8 dto.KnoxContract
+		if args[8] != nil {
+			arg8 = args[8].(dto.KnoxContract)
+		}
 		run(
 			arg0,
 			arg1,
@@ -595,6 +600,7 @@ func (_c *MockMysteryRepository_Create_Call) Run(run func(ctx context.Context, i
 			arg5,
 			arg6,
 			arg7,
+			arg8,
 		)
 	})
 	return _c
@@ -605,7 +611,7 @@ func (_c *MockMysteryRepository_Create_Call) Return(err error) *MockMysteryRepos
 	return _c
 }
 
-func (_c *MockMysteryRepository_Create_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, body string, difficulty string, freeForAll bool, keepOpenAfterSolve bool) error) *MockMysteryRepository_Create_Call {
+func (_c *MockMysteryRepository_Create_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, body string, difficulty string, freeForAll bool, keepOpenAfterSolve bool, knox dto.KnoxContract) error) *MockMysteryRepository_Create_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -3473,16 +3479,16 @@ func (_c *MockMysteryRepository_Update_Call) RunAndReturn(run func(ctx context.C
 }
 
 // UpdateAsAdmin provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) UpdateAsAdmin(ctx context.Context, id uuid.UUID, title string, body string, difficulty string, freeForAll bool, keepOpenAfterSolve bool) error {
-	ret := _mock.Called(ctx, id, title, body, difficulty, freeForAll, keepOpenAfterSolve)
+func (_mock *MockMysteryRepository) UpdateAsAdmin(ctx context.Context, id uuid.UUID, title string, body string, difficulty string, freeForAll bool, keepOpenAfterSolve bool, knox dto.KnoxContract) error {
+	ret := _mock.Called(ctx, id, title, body, difficulty, freeForAll, keepOpenAfterSolve, knox)
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateAsAdmin")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, string, bool, bool) error); ok {
-		r0 = returnFunc(ctx, id, title, body, difficulty, freeForAll, keepOpenAfterSolve)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, string, bool, bool, dto.KnoxContract) error); ok {
+		r0 = returnFunc(ctx, id, title, body, difficulty, freeForAll, keepOpenAfterSolve, knox)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -3502,11 +3508,12 @@ type MockMysteryRepository_UpdateAsAdmin_Call struct {
 //   - difficulty string
 //   - freeForAll bool
 //   - keepOpenAfterSolve bool
-func (_e *MockMysteryRepository_Expecter) UpdateAsAdmin(ctx any, id any, title any, body any, difficulty any, freeForAll any, keepOpenAfterSolve any) *MockMysteryRepository_UpdateAsAdmin_Call {
-	return &MockMysteryRepository_UpdateAsAdmin_Call{Call: _e.mock.On("UpdateAsAdmin", ctx, id, title, body, difficulty, freeForAll, keepOpenAfterSolve)}
+//   - knox dto.KnoxContract
+func (_e *MockMysteryRepository_Expecter) UpdateAsAdmin(ctx any, id any, title any, body any, difficulty any, freeForAll any, keepOpenAfterSolve any, knox any) *MockMysteryRepository_UpdateAsAdmin_Call {
+	return &MockMysteryRepository_UpdateAsAdmin_Call{Call: _e.mock.On("UpdateAsAdmin", ctx, id, title, body, difficulty, freeForAll, keepOpenAfterSolve, knox)}
 }
 
-func (_c *MockMysteryRepository_UpdateAsAdmin_Call) Run(run func(ctx context.Context, id uuid.UUID, title string, body string, difficulty string, freeForAll bool, keepOpenAfterSolve bool)) *MockMysteryRepository_UpdateAsAdmin_Call {
+func (_c *MockMysteryRepository_UpdateAsAdmin_Call) Run(run func(ctx context.Context, id uuid.UUID, title string, body string, difficulty string, freeForAll bool, keepOpenAfterSolve bool, knox dto.KnoxContract)) *MockMysteryRepository_UpdateAsAdmin_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -3536,6 +3543,10 @@ func (_c *MockMysteryRepository_UpdateAsAdmin_Call) Run(run func(ctx context.Con
 		if args[6] != nil {
 			arg6 = args[6].(bool)
 		}
+		var arg7 dto.KnoxContract
+		if args[7] != nil {
+			arg7 = args[7].(dto.KnoxContract)
+		}
 		run(
 			arg0,
 			arg1,
@@ -3544,6 +3555,7 @@ func (_c *MockMysteryRepository_UpdateAsAdmin_Call) Run(run func(ctx context.Con
 			arg4,
 			arg5,
 			arg6,
+			arg7,
 		)
 	})
 	return _c
@@ -3554,7 +3566,7 @@ func (_c *MockMysteryRepository_UpdateAsAdmin_Call) Return(err error) *MockMyste
 	return _c
 }
 
-func (_c *MockMysteryRepository_UpdateAsAdmin_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, title string, body string, difficulty string, freeForAll bool, keepOpenAfterSolve bool) error) *MockMysteryRepository_UpdateAsAdmin_Call {
+func (_c *MockMysteryRepository_UpdateAsAdmin_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, title string, body string, difficulty string, freeForAll bool, keepOpenAfterSolve bool, knox dto.KnoxContract) error) *MockMysteryRepository_UpdateAsAdmin_Call {
 	_c.Call.Return(run)
 	return _c
 }

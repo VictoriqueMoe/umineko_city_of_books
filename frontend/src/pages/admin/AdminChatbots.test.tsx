@@ -2,7 +2,7 @@ import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../test-utils/render";
-import type { Chatbot, ChatbotUsage, SiteSettings } from "../../types/api";
+import type { Chatbot, ChatbotChannelUsage, ChatbotUsage, SiteSettings } from "../../types/api";
 import { AdminChatbots } from "./AdminChatbots";
 import styles from "./AdminChatbots.module.css";
 
@@ -68,6 +68,20 @@ function makeUsage(overrides: Partial<ChatbotUsage> = {}): ChatbotUsage {
         billed_usd: null,
         failed: 0,
         quota: 0,
+        channels: [],
+        ...overrides,
+    };
+}
+
+function makeChannel(overrides: Partial<ChatbotChannelUsage> = {}): ChatbotChannelUsage {
+    return {
+        channel: "group",
+        invocations: 10,
+        prompt_tokens: 1000,
+        cached_prompt_tokens: 800,
+        cache_write_tokens: 100,
+        completion_tokens: 200,
+        reasoning_tokens: 50,
         ...overrides,
     };
 }
@@ -905,6 +919,94 @@ describe("AdminChatbots usage", () => {
 
         // then
         expect(within(usagePanel("Last 7 days")).getByText(FAILURE_NOTE)).toBeInTheDocument();
+    });
+
+    it("splits the replies and tokens by the channel they came from", () => {
+        // given
+        stubBots([]);
+        stubUsage(
+            makeUsage({
+                channels: [
+                    makeChannel({
+                        channel: "group",
+                        invocations: 180,
+                        prompt_tokens: 700000,
+                        completion_tokens: 12000,
+                    }),
+                    makeChannel({ channel: "dm", invocations: 62, prompt_tokens: 400000, completion_tokens: 10000 }),
+                    makeChannel({ channel: "post", invocations: 18, prompt_tokens: 88000, completion_tokens: 2000 }),
+                    makeChannel({
+                        channel: "post_comment",
+                        invocations: 5,
+                        prompt_tokens: 21000,
+                        completion_tokens: 1000,
+                    }),
+                ],
+            }),
+        );
+
+        // when
+        renderWithProviders(<AdminChatbots />);
+
+        // then
+        const panel = usagePanel("Last 7 days");
+        expect(within(panel).getByRole("row", { name: "Group chats 180 712,000" })).toBeInTheDocument();
+        expect(within(panel).getByRole("row", { name: "DMs 62 410,000" })).toBeInTheDocument();
+        expect(within(panel).getByRole("row", { name: "Posts 18 90,000" })).toBeInTheDocument();
+        expect(within(panel).getByRole("row", { name: "Post comments 5 22,000" })).toBeInTheDocument();
+    });
+
+    it("lists the channels in the same order whatever order the server sent them", () => {
+        // given
+        stubBots([]);
+        stubUsage(
+            makeUsage({
+                channels: [
+                    makeChannel({ channel: "post_comment", invocations: 90 }),
+                    makeChannel({ channel: "dm", invocations: 40 }),
+                ],
+            }),
+        );
+
+        // when
+        renderWithProviders(<AdminChatbots />);
+
+        // then
+        const rows = within(usagePanel("Last 7 days")).getAllByRole("row");
+        expect(rows[1]).toHaveTextContent("Group chats");
+        expect(rows[2]).toHaveTextContent("DMs");
+        expect(rows[3]).toHaveTextContent("Posts");
+        expect(rows[4]).toHaveTextContent("Post comments");
+    });
+
+    it("names a channel it has never heard of rather than dropping the row", () => {
+        // given
+        stubBots([]);
+        stubUsage(makeUsage({ channels: [makeChannel({ channel: "carrier_pigeon", invocations: 3 })] }));
+
+        // when
+        renderWithProviders(<AdminChatbots />);
+
+        // then
+        const panel = usagePanel("Last 7 days");
+        expect(within(panel).getByRole("rowheader", { name: "carrier_pigeon" })).toBeInTheDocument();
+        expect(within(panel).getAllByRole("row")).toHaveLength(6);
+    });
+
+    it("keeps every channel on the card at zero so the three ranges stay the same height", () => {
+        // given
+        stubBots([]);
+        stubUsage(makeUsage({ invocations: 0, channels: [] }));
+
+        // when
+        renderWithProviders(<AdminChatbots />);
+
+        // then
+        const panel = usagePanel("Last 7 days");
+        expect(within(panel).getByRole("row", { name: "Group chats 0 0" })).toBeInTheDocument();
+        expect(within(panel).getByRole("row", { name: "DMs 0 0" })).toBeInTheDocument();
+        expect(within(panel).getByRole("row", { name: "Posts 0 0" })).toBeInTheDocument();
+        expect(within(panel).getByRole("row", { name: "Post comments 0 0" })).toBeInTheDocument();
     });
 
     it("waits while the usage is being fetched", () => {

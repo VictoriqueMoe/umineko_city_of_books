@@ -1112,3 +1112,40 @@
         margin-left: 0.75rem;
     }
 }
+
+.knoxContract {
+    background: rgba(var(--bg-purple-rgb), 0.4);
+    border: 1px solid rgba(var(--gold-rgb), 0.15);
+    border-left: 3px solid var(--gold);
+    border-radius: 4px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.knoxTitle {
+    font-family: var(--font-display);
+    color: var(--gold);
+    font-size: 1rem;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.35rem;
+}
+
+.knoxIntro,
+.knoxOutro {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.knoxList {
+    list-style: none;
+    display: grid;
+    gap: 0.4rem;
+    margin: 0.6rem 0;
+}
+
+.knoxRule {
+    font-size: 0.85rem;
+    line-height: 1.5;
+    color: var(--text);
+}

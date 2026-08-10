@@ -136,6 +136,30 @@ func (r *followDAO) GetFollowing(ctx context.Context, userID uuid.UUID, limit, o
 	return users, total, rows.Err()
 }
 
+func (r *followDAO) GetFollowerIDsToNotify(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT f.follower_id
+		FROM follows f
+		JOIN users u ON u.id = f.follower_id
+		WHERE f.following_id = $1 AND u.follow_activity_notifications = TRUE AND u.is_bot = FALSE`,
+		userID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("get follower ids to notify: %w", err)
+	}
+	defer rows.Close()
+
+	var ids []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("scan follower id: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
 func (r *followDAO) GetMutualFollowers(ctx context.Context, userID uuid.UUID) ([]repository.FollowUser, error) {
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT u.id, u.username, u.display_name, u.avatar_url, COALESCE(r.role, '')

@@ -3,6 +3,7 @@ package theory
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -29,6 +30,8 @@ import (
 type testMocks struct {
 	repo        *repository.MockTheoryRepository
 	userRepo    *repository.MockUserRepository
+	followRepo  *repository.MockFollowRepository
+	fanout      chan uuid.UUID
 	authz       *authz.MockService
 	blockSvc    *block.MockService
 	notifSvc    *notification.MockService
@@ -38,16 +41,25 @@ type testMocks struct {
 func newTestService(t *testing.T) (*service, *testMocks) {
 	repo := repository.NewMockTheoryRepository(t)
 	userRepo := repository.NewMockUserRepository(t)
+	followRepo := repository.NewMockFollowRepository(t)
 	authzSvc := authz.NewMockService(t)
 	blockSvc := block.NewMockService(t)
 	notifSvc := notification.NewMockService(t)
 	settingsSvc := settings.NewMockService(t)
 	credSvc := credibility.NewService(repo)
 	quoteClient := quotefinder.NewClient()
-	svc := NewService(repo, userRepo, authzSvc, blockSvc, notifSvc, settingsSvc, credSvc, quoteClient, contentfilter.New()).(*service)
+	svc := NewService(repo, userRepo, followRepo, authzSvc, blockSvc, notifSvc, settingsSvc, credSvc, quoteClient, contentfilter.New()).(*service)
+	fanout := make(chan uuid.UUID, 8)
+	followRepo.EXPECT().GetFollowerIDsToNotify(mock.Anything, mock.Anything).Run(func(_ context.Context, userID uuid.UUID) {
+		fanout <- userID
+	}).Return(nil, nil).Maybe()
+	notifSvc.EXPECT().NotifyMany(mock.Anything, mock.Anything).Return().Maybe()
+	repo.EXPECT().RecomputeStatus(mock.Anything, mock.Anything).Return(nil).Maybe()
 	return svc, &testMocks{
+		fanout:      fanout,
 		repo:        repo,
 		userRepo:    userRepo,
+		followRepo:  followRepo,
 		authz:       authzSvc,
 		blockSvc:    blockSvc,
 		notifSvc:    notifSvc,
@@ -893,4 +905,233 @@ func TestVoteResponse_Upvote_SendsNotification(t *testing.T) {
 	// then
 	require.NoError(t, err)
 	waitOrFail(t, &wg, 2*time.Second)
+}
+
+func TestCreateTheory_MentionNotifiesMentionedUser(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	userID := uuid.New()
+	theoryID := uuid.New()
+	mentionedID := uuid.New()
+	req := validCreateTheoryReq()
+	req.Body = "what do you make of this @alice"
+	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxTheoriesPerDay).Return(0)
+	m.repo.EXPECT().Create(mock.Anything, userID, mock.Anything).Return(theoryID, nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, DisplayName: "Battler"}, nil)
+	m.userRepo.EXPECT().GetByUsername(mock.Anything, "alice").Return(&model.User{ID: mentionedID}, nil)
+	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, mentionedID).Return(false, nil)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	m.notifSvc.EXPECT().Notify(mock.Anything, mock.MatchedBy(func(p dto.NotifyParams) bool {
+		return p.Type == dto.NotifMention && p.RecipientID == mentionedID && p.ReferenceType == "theory" && p.ReferenceID == theoryID
+	})).Run(func(_ context.Context, _ dto.NotifyParams) {
+		wg.Done()
+	}).Return(nil)
+
+	// when
+	got, err := svc.CreateTheory(context.Background(), userID, req)
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, theoryID, got)
+	waitOrFail(t, &wg, 2*time.Second)
+}
+
+func TestCreateResponse_MentionAnchorsOnTheResponse(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	userID := uuid.New()
+	theoryID := uuid.New()
+	authorID := uuid.New()
+	responseID := uuid.New()
+	mentionedID := uuid.New()
+	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxResponsesPerDay).Return(0)
+	m.repo.EXPECT().GetTheoryAuthorID(mock.Anything, theoryID).Return(authorID, nil)
+	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
+	m.repo.EXPECT().CreateResponse(mock.Anything, theoryID, userID, mock.Anything).Return(responseID, nil)
+
+	m.repo.EXPECT().GetTheorySeries(mock.Anything, theoryID).Return("umineko", nil).Maybe()
+	m.repo.EXPECT().GetResponseEvidence(mock.Anything, responseID).Return(nil, nil).Maybe()
+	m.repo.EXPECT().GetResponseEvidenceWeights(mock.Anything, theoryID).Return(0, 0, nil).Maybe()
+	m.repo.EXPECT().UpdateCredibilityScore(mock.Anything, theoryID, mock.Anything).Return(nil).Maybe()
+	m.repo.EXPECT().GetTheoryTitle(mock.Anything, theoryID).Return("t", nil).Maybe()
+	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("http://e.test").Maybe()
+	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, DisplayName: "R"}, nil).Maybe()
+	m.userRepo.EXPECT().GetByUsername(mock.Anything, "alice").Return(&model.User{ID: mentionedID}, nil).Maybe()
+	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, mentionedID).Return(false, nil).Maybe()
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	m.notifSvc.EXPECT().Notify(mock.Anything, mock.MatchedBy(func(p dto.NotifyParams) bool {
+		return p.Type == dto.NotifMention && p.ReferenceID == theoryID && p.ReferenceType == fmt.Sprintf("theory_response:%s", responseID)
+	})).Run(func(_ context.Context, _ dto.NotifyParams) {
+		wg.Done()
+	}).Return(nil).Maybe()
+	m.notifSvc.EXPECT().Notify(mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	// when
+	got, err := svc.CreateResponse(context.Background(), theoryID, userID, dto.CreateResponseRequest{Side: "with_love", Body: "agreed @alice"})
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, responseID, got)
+	waitOrFail(t, &wg, 2*time.Second)
+}
+
+func TestCreateTheory_NotifiesFollowers(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	userID := uuid.New()
+	theoryID := uuid.New()
+	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxTheoriesPerDay).Return(0)
+	m.repo.EXPECT().Create(mock.Anything, userID, mock.Anything).Return(theoryID, nil)
+
+	// when
+	_, err := svc.CreateTheory(context.Background(), userID, validCreateTheoryReq())
+
+	// then
+	require.NoError(t, err)
+	select {
+	case actorID := <-m.fanout:
+		assert.Equal(t, userID, actorID)
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for the follower fan-out")
+	}
+}
+
+func TestCreateTheory_CreateErrorSkipsFollowerFanout(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	userID := uuid.New()
+	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxTheoriesPerDay).Return(0)
+	m.repo.EXPECT().Create(mock.Anything, userID, mock.Anything).Return(uuid.Nil, errors.New("db down"))
+
+	// when
+	_, err := svc.CreateTheory(context.Background(), userID, validCreateTheoryReq())
+
+	// then
+	require.Error(t, err)
+	assert.Empty(t, m.fanout)
+}
+
+func TestUpdateTheory_EditDoesNotReNotifyMentions(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	id := uuid.New()
+	userID := uuid.New()
+	req := validCreateTheoryReq()
+	req.Body = "rethinking this @alice"
+	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(false)
+	m.repo.EXPECT().Update(mock.Anything, id, userID, mock.Anything).Return(nil)
+
+	// when
+	err := svc.UpdateTheory(context.Background(), id, userID, req)
+
+	// then
+	require.NoError(t, err)
+	m.userRepo.AssertNumberOfCalls(t, "GetByUsername", 0)
+}
+
+func TestRefuteTheory_Guards(t *testing.T) {
+	authorID := uuid.New()
+	otherID := uuid.New()
+	theoryID := uuid.New()
+	responseID := uuid.New()
+	parentID := uuid.New()
+
+	tests := []struct {
+		name    string
+		actorID uuid.UUID
+		isAdmin bool
+		status  dto.TheoryStatus
+		meta    repository.ResponseMeta
+		wantErr error
+	}{
+		{
+			name:    "author refutes with an opposing top level response",
+			actorID: authorID,
+			status:  dto.TheoryStatusContested,
+			meta:    repository.ResponseMeta{AuthorID: otherID, TheoryID: theoryID, Side: "without_love"},
+		},
+		{
+			name:    "a moderator may also refute",
+			actorID: otherID,
+			isAdmin: true,
+			status:  dto.TheoryStatusContested,
+			meta:    repository.ResponseMeta{AuthorID: otherID, TheoryID: theoryID, Side: "without_love"},
+		},
+		{
+			name:    "a bystander may not refute",
+			actorID: otherID,
+			status:  dto.TheoryStatusContested,
+			meta:    repository.ResponseMeta{AuthorID: otherID, TheoryID: theoryID, Side: "without_love"},
+			wantErr: ErrNotAuthor,
+		},
+		{
+			name:    "an already refuted theory is terminal",
+			actorID: authorID,
+			status:  dto.TheoryStatusRefuted,
+			meta:    repository.ResponseMeta{AuthorID: otherID, TheoryID: theoryID, Side: "without_love"},
+			wantErr: ErrAlreadyRefuted,
+		},
+		{
+			name:    "a response from another theory is rejected",
+			actorID: authorID,
+			status:  dto.TheoryStatusContested,
+			meta:    repository.ResponseMeta{AuthorID: otherID, TheoryID: uuid.New(), Side: "without_love"},
+			wantErr: ErrResponseNotOnTheory,
+		},
+		{
+			name:    "a threaded reply cannot be the refutation",
+			actorID: authorID,
+			status:  dto.TheoryStatusContested,
+			meta:    repository.ResponseMeta{AuthorID: otherID, TheoryID: theoryID, Side: "without_love", ParentID: &parentID},
+			wantErr: ErrRefutationMustBeTopLevel,
+		},
+		{
+			name:    "a supporting response cannot be the refutation",
+			actorID: authorID,
+			status:  dto.TheoryStatusContested,
+			meta:    repository.ResponseMeta{AuthorID: otherID, TheoryID: theoryID, Side: "with_love"},
+			wantErr: ErrRefutationMustOppose,
+		},
+		{
+			name:    "the author cannot refute themselves",
+			actorID: authorID,
+			status:  dto.TheoryStatusContested,
+			meta:    repository.ResponseMeta{AuthorID: authorID, TheoryID: theoryID, Side: "without_love"},
+			wantErr: ErrCannotRefuteWithOwn,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			m.repo.EXPECT().GetByID(mock.Anything, theoryID).Return(&dto.TheoryDetailResponse{
+				ID:     theoryID,
+				Author: dto.UserResponse{ID: authorID},
+				Status: tt.status,
+			}, nil)
+			m.authz.EXPECT().Can(mock.Anything, tt.actorID, authz.PermEditAnyTheory).Return(tt.isAdmin).Maybe()
+			m.repo.EXPECT().GetResponseMeta(mock.Anything, responseID).Return(tt.meta, nil).Maybe()
+			if tt.wantErr == nil {
+				m.repo.EXPECT().MarkRefuted(mock.Anything, theoryID, responseID).Return(nil)
+				m.repo.EXPECT().GetTheoryTitle(mock.Anything, theoryID).Return("t", nil).Maybe()
+				m.userRepo.EXPECT().GetByID(mock.Anything, tt.actorID).Return(&model.User{ID: tt.actorID, DisplayName: "A"}, nil).Maybe()
+				m.notifSvc.EXPECT().Notify(mock.Anything, mock.Anything).Return(nil).Maybe()
+			}
+
+			// when
+			err := svc.RefuteTheory(context.Background(), theoryID, tt.actorID, responseID)
+
+			// then
+			if tt.wantErr != nil {
+				require.ErrorIs(t, err, tt.wantErr)
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
 }

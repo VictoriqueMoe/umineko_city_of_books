@@ -68,6 +68,8 @@ type (
 		EmailNotifications    bool   `json:"email_notifications"`
 		PlayMessageSound      bool   `json:"play_message_sound"`
 		PlayNotificationSound bool   `json:"play_notification_sound"`
+		FollowActivity        bool   `json:"follow_activity_notifications"`
+		EchoesEnabled         bool   `json:"echoes_enabled"`
 		HomePage              string `json:"home_page"`
 		GameBoardSort         string `json:"game_board_sort"`
 		DefaultProfileTab     string `json:"default_profile_tab"`
@@ -115,6 +117,8 @@ type (
 		EmailNotifications     bool    `json:"email_notifications"`
 		PlayMessageSound       bool    `json:"play_message_sound"`
 		PlayNotificationSound  bool    `json:"play_notification_sound"`
+		FollowActivity         bool    `json:"follow_activity_notifications"`
+		EchoesEnabled          bool    `json:"echoes_enabled"`
 		HomePage               string  `json:"home_page"`
 		GameBoardSort          string  `json:"game_board_sort"`
 		DefaultProfileTab      string  `json:"default_profile_tab"`

@@ -37,6 +37,7 @@ import { CommentsSection } from "../../components/post/CommentsSection/CommentsS
 import { MediaGallery } from "../../components/post/MediaGallery/MediaGallery";
 import { MediaPickerButton, MediaPreviews } from "../../components/MediaPicker/MediaPicker";
 import { AttemptItem } from "./AttemptItem";
+import { KnoxContract } from "./KnoxContract";
 import { ShareButton } from "../../components/ShareButton/ShareButton";
 import { ReportButton } from "../../components/ReportButton/ReportButton";
 import { ErrorBanner } from "../../components/ErrorBanner/ErrorBanner";
@@ -867,6 +868,8 @@ export function MysteryDetailPage() {
                         {mediaError && <ErrorBanner message={mediaError} />}
                     </div>
                 )}
+
+                {mystery.knox_contract_published && <KnoxContract contract={mystery.knox_contract} />}
 
                 {mystery.clues.filter(c => !c.player_id).length > 0 && (
                     <div className={styles.cluesSection}>

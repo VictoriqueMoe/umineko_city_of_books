@@ -80,6 +80,8 @@ interface FormDraft {
     email_notifications?: boolean;
     play_message_sound?: boolean;
     play_notification_sound?: boolean;
+    follow_activity_notifications?: boolean;
+    echoes_enabled?: boolean;
     home_page?: string;
     game_board_sort?: string;
     default_profile_tab?: string;
@@ -143,6 +145,9 @@ export function useSettingsForm() {
     const playMessageSound = activeDraft.play_message_sound ?? profile?.private?.play_message_sound ?? true;
     const playNotificationSound =
         activeDraft.play_notification_sound ?? profile?.private?.play_notification_sound ?? true;
+    const followActivityNotifications =
+        activeDraft.follow_activity_notifications ?? profile?.private?.follow_activity_notifications ?? true;
+    const echoesEnabled = activeDraft.echoes_enabled ?? profile?.private?.echoes_enabled ?? true;
     const homePage = activeDraft.home_page ?? profile?.private?.home_page ?? "landing";
     const gameBoardSort = activeDraft.game_board_sort ?? profile?.private?.game_board_sort ?? "relevance";
     const defaultProfileTab = activeDraft.default_profile_tab ?? profile?.private?.default_profile_tab ?? "posts";
@@ -228,6 +233,12 @@ export function useSettingsForm() {
     }
     function setPlayNotificationSound(value: boolean) {
         patch({ play_notification_sound: value });
+    }
+    function setFollowActivityNotifications(value: boolean) {
+        patch({ follow_activity_notifications: value });
+    }
+    function setEchoesEnabled(value: boolean) {
+        patch({ echoes_enabled: value });
     }
     function setHomePage(value: string) {
         patch({ home_page: value });
@@ -374,6 +385,8 @@ export function useSettingsForm() {
             email_notifications: emailNotifications,
             play_message_sound: playMessageSound,
             play_notification_sound: playNotificationSound,
+            follow_activity_notifications: followActivityNotifications,
+            echoes_enabled: echoesEnabled,
             home_page: homePage,
             game_board_sort: gameBoardSort,
             default_profile_tab: defaultProfileTab,
@@ -456,7 +469,11 @@ export function useSettingsForm() {
         playMessageSound,
         setPlayMessageSound,
         playNotificationSound,
+        followActivityNotifications,
+        echoesEnabled,
         setPlayNotificationSound,
+        setFollowActivityNotifications,
+        setEchoesEnabled,
         homePage,
         setHomePage,
         gameBoardSort,
