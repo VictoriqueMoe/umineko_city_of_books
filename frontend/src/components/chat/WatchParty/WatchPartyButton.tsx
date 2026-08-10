@@ -9,6 +9,7 @@ interface WatchPartyButtonProps {
     sessions: WatchPartySession[];
     activeSessionId: string | null;
     viewerUserId: string | null;
+    error: string | null;
     onStart: (opts: { title?: string; type?: "hyperbeam" | "screenshare" }) => Promise<unknown>;
     onJoin: (sessionId: string) => Promise<void>;
     onOpenExisting: (sessionId: string) => void;
@@ -20,6 +21,7 @@ export function WatchPartyButton({
     sessions,
     activeSessionId,
     viewerUserId,
+    error,
     onStart,
     onJoin,
     onOpenExisting,
@@ -38,13 +40,16 @@ export function WatchPartyButton({
             if (!popoverRef.current) {
                 return;
             }
+            if (busy) {
+                return;
+            }
             if (!popoverRef.current.contains(e.target as Node)) {
                 setOpen(false);
             }
         };
         document.addEventListener("mousedown", handleDocClick);
         return () => document.removeEventListener("mousedown", handleDocClick);
-    }, [open]);
+    }, [open, busy]);
 
     if (!enabled && !screenShareEnabled) {
         return null;
@@ -154,6 +159,11 @@ export function WatchPartyButton({
                             >
                                 Screen share
                             </button>
+                        </div>
+                    )}
+                    {error && (
+                        <div className={styles.pickerError} role="alert">
+                            {error}
                         </div>
                     )}
                     <div className={styles.pickerStart}>

@@ -40,6 +40,8 @@ const (
 	watchPartyTypeScreenShare = "screenshare"
 )
 
+var hyperbeamRegions = []string{"EU", "NA", "AS"}
+
 type watchPartyService struct {
 	*core
 }
@@ -105,14 +107,10 @@ func (s *watchPartyService) StartWatchParty(ctx context.Context, roomID, actorID
 
 	embedURL := ""
 	if partyType == watchPartyTypeHyperbeam {
-		selectedRegion := region
-		if selectedRegion == "" {
-			selectedRegion = strings.TrimSpace(s.settingsSvc.Get(ctx, config.SettingHyperbeamRegion))
-		}
+		candidates := hyperbeamRegionChain(region, strings.TrimSpace(s.settingsSvc.Get(ctx, config.SettingHyperbeamRegion)))
 
-		vm, err := s.hyperbeamSvc.CreateVM(ctx, hyperbeam.CreateVMOptions{
+		vm, selectedRegion, err := s.createVMWithRegionFallback(ctx, hyperbeam.CreateVMOptions{
 			StartURL: startURL,
-			Region:   selectedRegion,
 			Timeout: &hyperbeam.VMTimeoutOpts{
 				Offline:  defaultOfflineTimeout,
 				Absolute: defaultSessionTimeout,
@@ -121,8 +119,12 @@ func (s *watchPartyService) StartWatchParty(ctx context.Context, roomID, actorID
 			WebGL:   true,
 			Dark:    !light,
 			Quality: &hyperbeam.VMQualityOpts{Mode: watchPartyQuality},
-		})
+		}, candidates)
 		if err != nil {
+			if hyperbeam.IsNoCapacity(err) {
+				logger.Log.Error().Err(err).Str("regions", strings.Join(candidates, ",")).Msg("every hyperbeam region is out of capacity: virtual browser watch parties cannot start")
+				return nil, ErrWatchPartyNoCapacity
+			}
 			return nil, fmt.Errorf("create hyperbeam vm: %w", err)
 		}
 
@@ -871,6 +873,53 @@ func (s *watchPartyService) loadActiveSession(ctx context.Context, roomID, sessi
 		return nil, ErrWatchPartyNotActive
 	}
 	return session, nil
+}
+
+func hyperbeamRegionChain(requested, configured string) []string {
+	ordered := make([]string, 0, len(hyperbeamRegions)+2)
+	ordered = append(ordered, requested, configured)
+	ordered = append(ordered, hyperbeamRegions...)
+
+	chain := make([]string, 0, len(ordered))
+	seen := make(map[string]struct{}, len(ordered))
+	for _, candidate := range ordered {
+		trimmed := strings.TrimSpace(candidate)
+		if trimmed == "" {
+			continue
+		}
+		if _, duplicate := seen[trimmed]; duplicate {
+			continue
+		}
+		seen[trimmed] = struct{}{}
+		chain = append(chain, trimmed)
+	}
+
+	if len(chain) == 0 {
+		return []string{""}
+	}
+
+	return chain
+}
+
+func (s *watchPartyService) createVMWithRegionFallback(ctx context.Context, opts hyperbeam.CreateVMOptions, regions []string) (*hyperbeam.VM, string, error) {
+	var lastErr error
+	for _, region := range regions {
+		opts.Region = region
+
+		vm, err := s.hyperbeamSvc.CreateVM(ctx, opts)
+		if err == nil {
+			return vm, region, nil
+		}
+
+		lastErr = err
+		if !hyperbeam.IsNoCapacity(err) {
+			return nil, "", err
+		}
+
+		logger.Log.Warn().Str("region", region).Msg("hyperbeam region has no free vms, trying the next region")
+	}
+
+	return nil, "", lastErr
 }
 
 func (s *watchPartyService) terminateHyperbeam(sessionID string) {

@@ -26,6 +26,7 @@
     border: 1px solid rgba(var(--purple-rgb), 0.3);
     border-radius: 6px;
     padding: 1.25rem;
+    min-width: 0;
 }
 
 .sectionTitle {

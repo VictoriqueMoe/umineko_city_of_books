@@ -196,6 +196,40 @@ func TestService_APIError(t *testing.T) {
 	require.True(t, strings.Contains(apiErr.Body, "bad request"))
 }
 
+func TestService_NoCapacityIsDistinguishable(t *testing.T) {
+	cases := []struct {
+		name           string
+		status         int
+		body           string
+		wantNoCapacity bool
+	}{
+		{"a full region is recognised by its error code", http.StatusServiceUnavailable, `{"code":"err_no_available_vm","message":"No VMs are currently available, please try again"}`, true},
+		{"another 503 is not mistaken for a full region", http.StatusServiceUnavailable, `{"code":"err_something_else","message":"nope"}`, false},
+		{"a body without a code is not a capacity problem", http.StatusBadRequest, `{"error":"bad request"}`, false},
+		{"a non-json body does not panic", http.StatusBadGateway, `<html>gateway</html>`, false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(tc.status)
+				_, _ = w.Write([]byte(tc.body))
+			}))
+			defer server.Close()
+
+			svc := newTestService(t, "sk_test_abc", server.URL)
+
+			// when
+			_, err := svc.CreateVM(context.Background(), CreateVMOptions{})
+
+			// then
+			require.Error(t, err)
+			require.Equal(t, tc.wantNoCapacity, IsNoCapacity(err))
+		})
+	}
+}
+
 func TestExtractVMBaseURL(t *testing.T) {
 	// given
 	cases := []struct {
