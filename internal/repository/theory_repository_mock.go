@@ -1004,6 +1004,72 @@ func (_c *MockTheoryRepository_GetResponseInfo_Call) RunAndReturn(run func(ctx c
 	return _c
 }
 
+// GetResponseMeta provides a mock function for the type MockTheoryRepository
+func (_mock *MockTheoryRepository) GetResponseMeta(ctx context.Context, responseID uuid.UUID) (ResponseMeta, error) {
+	ret := _mock.Called(ctx, responseID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetResponseMeta")
+	}
+
+	var r0 ResponseMeta
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (ResponseMeta, error)); ok {
+		return returnFunc(ctx, responseID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ResponseMeta); ok {
+		r0 = returnFunc(ctx, responseID)
+	} else {
+		r0 = ret.Get(0).(ResponseMeta)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, responseID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockTheoryRepository_GetResponseMeta_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetResponseMeta'
+type MockTheoryRepository_GetResponseMeta_Call struct {
+	*mock.Call
+}
+
+// GetResponseMeta is a helper method to define mock.On call
+//   - ctx context.Context
+//   - responseID uuid.UUID
+func (_e *MockTheoryRepository_Expecter) GetResponseMeta(ctx any, responseID any) *MockTheoryRepository_GetResponseMeta_Call {
+	return &MockTheoryRepository_GetResponseMeta_Call{Call: _e.mock.On("GetResponseMeta", ctx, responseID)}
+}
+
+func (_c *MockTheoryRepository_GetResponseMeta_Call) Run(run func(ctx context.Context, responseID uuid.UUID)) *MockTheoryRepository_GetResponseMeta_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTheoryRepository_GetResponseMeta_Call) Return(responseMeta ResponseMeta, err error) *MockTheoryRepository_GetResponseMeta_Call {
+	_c.Call.Return(responseMeta, err)
+	return _c
+}
+
+func (_c *MockTheoryRepository_GetResponseMeta_Call) RunAndReturn(run func(ctx context.Context, responseID uuid.UUID) (ResponseMeta, error)) *MockTheoryRepository_GetResponseMeta_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetResponses provides a mock function for the type MockTheoryRepository
 func (_mock *MockTheoryRepository) GetResponses(ctx context.Context, theoryID uuid.UUID, userID uuid.UUID) ([]dto.ResponseResponse, error) {
 	ret := _mock.Called(ctx, theoryID, userID)
@@ -1432,6 +1498,126 @@ func (_c *MockTheoryRepository_List_Call) Return(theoryResponses []dto.TheoryRes
 }
 
 func (_c *MockTheoryRepository_List_Call) RunAndReturn(run func(ctx context.Context, p params.ListParams, userID uuid.UUID, excludeUserIDs []uuid.UUID) ([]dto.TheoryResponse, int, error)) *MockTheoryRepository_List_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// MarkRefuted provides a mock function for the type MockTheoryRepository
+func (_mock *MockTheoryRepository) MarkRefuted(ctx context.Context, theoryID uuid.UUID, responseID uuid.UUID) error {
+	ret := _mock.Called(ctx, theoryID, responseID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for MarkRefuted")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, theoryID, responseID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockTheoryRepository_MarkRefuted_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MarkRefuted'
+type MockTheoryRepository_MarkRefuted_Call struct {
+	*mock.Call
+}
+
+// MarkRefuted is a helper method to define mock.On call
+//   - ctx context.Context
+//   - theoryID uuid.UUID
+//   - responseID uuid.UUID
+func (_e *MockTheoryRepository_Expecter) MarkRefuted(ctx any, theoryID any, responseID any) *MockTheoryRepository_MarkRefuted_Call {
+	return &MockTheoryRepository_MarkRefuted_Call{Call: _e.mock.On("MarkRefuted", ctx, theoryID, responseID)}
+}
+
+func (_c *MockTheoryRepository_MarkRefuted_Call) Run(run func(ctx context.Context, theoryID uuid.UUID, responseID uuid.UUID)) *MockTheoryRepository_MarkRefuted_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTheoryRepository_MarkRefuted_Call) Return(err error) *MockTheoryRepository_MarkRefuted_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockTheoryRepository_MarkRefuted_Call) RunAndReturn(run func(ctx context.Context, theoryID uuid.UUID, responseID uuid.UUID) error) *MockTheoryRepository_MarkRefuted_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// RecomputeStatus provides a mock function for the type MockTheoryRepository
+func (_mock *MockTheoryRepository) RecomputeStatus(ctx context.Context, theoryID uuid.UUID) error {
+	ret := _mock.Called(ctx, theoryID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RecomputeStatus")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, theoryID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockTheoryRepository_RecomputeStatus_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RecomputeStatus'
+type MockTheoryRepository_RecomputeStatus_Call struct {
+	*mock.Call
+}
+
+// RecomputeStatus is a helper method to define mock.On call
+//   - ctx context.Context
+//   - theoryID uuid.UUID
+func (_e *MockTheoryRepository_Expecter) RecomputeStatus(ctx any, theoryID any) *MockTheoryRepository_RecomputeStatus_Call {
+	return &MockTheoryRepository_RecomputeStatus_Call{Call: _e.mock.On("RecomputeStatus", ctx, theoryID)}
+}
+
+func (_c *MockTheoryRepository_RecomputeStatus_Call) Run(run func(ctx context.Context, theoryID uuid.UUID)) *MockTheoryRepository_RecomputeStatus_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTheoryRepository_RecomputeStatus_Call) Return(err error) *MockTheoryRepository_RecomputeStatus_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockTheoryRepository_RecomputeStatus_Call) RunAndReturn(run func(ctx context.Context, theoryID uuid.UUID) error) *MockTheoryRepository_RecomputeStatus_Call {
 	_c.Call.Return(run)
 	return _c
 }

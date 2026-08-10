@@ -40,6 +40,16 @@ type (
 		ReasoningTokens    int
 	}
 
+	ChatbotChannelStats struct {
+		Channel            string
+		Invocations        int
+		PromptTokens       int
+		CachedPromptTokens int
+		CacheWriteTokens   int
+		CompletionTokens   int
+		ReasoningTokens    int
+	}
+
 	ChatbotStats struct {
 		Invocations        int
 		PromptTokens       int
@@ -49,6 +59,7 @@ type (
 		ReasoningTokens    int
 		Failed             int
 		Quota              int
+		Channels           []ChatbotChannelStats
 	}
 
 	ChatbotRepository interface {
@@ -60,7 +71,7 @@ type (
 		CreateBotAccount(ctx context.Context, userID uuid.UUID, username, displayName, avatarURL string) error
 		UpdateBotAccount(ctx context.Context, userID uuid.UUID, displayName, avatarURL string) error
 
-		CreateInvocation(ctx context.Context, id, botUserID, userID uuid.UUID, roomID *uuid.UUID, messageID uuid.UUID, surface, model string) error
+		CreateInvocation(ctx context.Context, id, botUserID, userID uuid.UUID, roomID *uuid.UUID, messageID uuid.UUID, channel, model string) error
 		CompleteInvocation(ctx context.Context, id uuid.UUID, usage InvocationUsage, status InvocationStatus) error
 		CountUserInvocationsToday(ctx context.Context, userID uuid.UUID) (int, error)
 		CountInvocationsToday(ctx context.Context) (int, error)
@@ -139,8 +150,8 @@ func (r *chatbotRepository) resolveBotUserID(ctx context.Context, id uuid.UUID) 
 	return uuid.Nil
 }
 
-func (r *chatbotRepository) CreateInvocation(ctx context.Context, id, botUserID, userID uuid.UUID, roomID *uuid.UUID, messageID uuid.UUID, surface, model string) error {
-	return r.dao.CreateInvocation(ctx, id, botUserID, userID, roomID, messageID, surface, model)
+func (r *chatbotRepository) CreateInvocation(ctx context.Context, id, botUserID, userID uuid.UUID, roomID *uuid.UUID, messageID uuid.UUID, channel, model string) error {
+	return r.dao.CreateInvocation(ctx, id, botUserID, userID, roomID, messageID, channel, model)
 }
 
 func (r *chatbotRepository) CompleteInvocation(ctx context.Context, id uuid.UUID, usage InvocationUsage, status InvocationStatus) error {

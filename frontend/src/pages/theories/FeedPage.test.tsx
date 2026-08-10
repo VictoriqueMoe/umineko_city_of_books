@@ -28,6 +28,7 @@ function makeTheory(overrides: Partial<Theory> = {}): Theory {
         with_love_count: 2,
         without_love_count: 1,
         credibility_score: 55,
+        status: "open" as const,
         created_at: "2026-07-01T10:00:00Z",
         ...overrides,
     };

@@ -119,11 +119,11 @@ func (r *chatbotDAO) DeleteBot(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
-func (r *chatbotDAO) CreateInvocation(ctx context.Context, id, botUserID, userID uuid.UUID, roomID *uuid.UUID, messageID uuid.UUID, surface, model string) error {
+func (r *chatbotDAO) CreateInvocation(ctx context.Context, id, botUserID, userID uuid.UUID, roomID *uuid.UUID, messageID uuid.UUID, channel, model string) error {
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO chatbot_invocations (id, bot_user_id, user_id, room_id, message_id, surface, model, status)
+		`INSERT INTO chatbot_invocations (id, bot_user_id, user_id, room_id, message_id, channel, model, status)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending')`,
-		id, botUserID, userID, roomID, messageID, surface, model,
+		id, botUserID, userID, roomID, messageID, channel, model,
 	)
 	if err != nil {
 		return fmt.Errorf("create chatbot invocation: %w", err)
@@ -202,9 +202,9 @@ func (r *chatbotDAO) OldestInvocationToday(ctx context.Context) (time.Time, erro
 }
 
 func (r *chatbotDAO) StatsSince(ctx context.Context, since time.Time) (*repository.ChatbotStats, error) {
-	var stats repository.ChatbotStats
-	err := r.db.QueryRowContext(ctx,
-		`SELECT COUNT(*),
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT channel,
+		        COUNT(*),
 		        COALESCE(SUM(prompt_tokens), 0),
 		        COALESCE(SUM(cached_prompt_tokens), 0),
 		        COALESCE(SUM(cache_write_tokens), 0),
@@ -213,11 +213,38 @@ func (r *chatbotDAO) StatsSince(ctx context.Context, since time.Time) (*reposito
 		        COUNT(*) FILTER (WHERE status = 'failed'),
 		        COUNT(*) FILTER (WHERE status = 'quota')
 		   FROM chatbot_invocations
-		  WHERE created_at >= $1`,
+		  WHERE created_at >= $1
+		  GROUP BY channel
+		  ORDER BY COUNT(*) DESC, channel`,
 		since,
-	).Scan(&stats.Invocations, &stats.PromptTokens, &stats.CachedPromptTokens, &stats.CacheWriteTokens, &stats.CompletionTokens, &stats.ReasoningTokens, &stats.Failed, &stats.Quota)
+	)
 	if err != nil {
 		return nil, fmt.Errorf("chatbot stats since: %w", err)
+	}
+	defer rows.Close()
+
+	stats := repository.ChatbotStats{Channels: make([]repository.ChatbotChannelStats, 0)}
+	for rows.Next() {
+		var row repository.ChatbotChannelStats
+		var failed, quota int
+
+		if err := rows.Scan(&row.Channel, &row.Invocations, &row.PromptTokens, &row.CachedPromptTokens, &row.CacheWriteTokens, &row.CompletionTokens, &row.ReasoningTokens, &failed, &quota); err != nil {
+			return nil, fmt.Errorf("scan chatbot stats: %w", err)
+		}
+
+		stats.Invocations += row.Invocations
+		stats.PromptTokens += row.PromptTokens
+		stats.CachedPromptTokens += row.CachedPromptTokens
+		stats.CacheWriteTokens += row.CacheWriteTokens
+		stats.CompletionTokens += row.CompletionTokens
+		stats.ReasoningTokens += row.ReasoningTokens
+		stats.Failed += failed
+		stats.Quota += quota
+
+		stats.Channels = append(stats.Channels, row)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate chatbot stats: %w", err)
 	}
 
 	return &stats, nil

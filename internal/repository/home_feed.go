@@ -20,6 +20,21 @@ type (
 		AvatarURL   string
 	}
 
+	HomeEchoRow struct {
+		Kind        string
+		ID          uuid.UUID
+		Title       string
+		Body        string
+		Corner      string
+		Episode     int
+		IsSpoiler   bool
+		CreatedAt   string
+		AuthorID    uuid.UUID
+		Username    string
+		DisplayName string
+		AvatarURL   string
+	}
+
 	HomeMemberRow struct {
 		ID          uuid.UUID
 		Username    string
@@ -50,6 +65,7 @@ type (
 
 	HomeFeedRepository interface {
 		ListRecentActivity(ctx context.Context, limit int) ([]HomeActivityRow, error)
+		ListEchoes(ctx context.Context, ago string, limit int) ([]HomeEchoRow, error)
 		ListRecentMembers(ctx context.Context, limit int) ([]HomeMemberRow, error)
 		ListPublicRooms(ctx context.Context, limit int) ([]HomePublicRoomRow, error)
 		ListCornerActivity24h(ctx context.Context) ([]HomeCornerActivityRow, error)
@@ -63,6 +79,10 @@ type homeFeedRepository struct {
 
 func NewHomeFeedRepo(dao HomeFeedRepository) HomeFeedRepository {
 	return &homeFeedRepository{dao: dao}
+}
+
+func (r *homeFeedRepository) ListEchoes(ctx context.Context, ago string, limit int) ([]HomeEchoRow, error) {
+	return r.dao.ListEchoes(ctx, ago, limit)
 }
 
 func (r *homeFeedRepository) ListRecentActivity(ctx context.Context, limit int) ([]HomeActivityRow, error) {

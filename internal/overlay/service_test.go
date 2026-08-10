@@ -30,6 +30,53 @@ func newTestOverlayService(t *testing.T) (Service, *overlayMocks) {
 	return NewService(repo, hub, settingsSvc), &overlayMocks{repo: repo, settings: settingsSvc, hub: hub}
 }
 
+func TestOverlayEvents_MapsRecipientCentricTypes(t *testing.T) {
+	tests := []struct {
+		name       string
+		notifType  dto.NotificationType
+		wantEvent  string
+		wantAction string
+	}{
+		{
+			name:       "winning attempt reaches the winner",
+			notifType:  dto.NotifMysterySolved,
+			wantEvent:  "mystery_solved",
+			wantAction: "chose your attempt as the winner!",
+		},
+		{
+			name:       "finished game reaches the players",
+			notifType:  dto.NotifGameFinished,
+			wantEvent:  "game_over",
+			wantAction: "your game has ended",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given
+			mapping, ok := overlayEvents[tt.notifType]
+
+			// then
+			require.True(t, ok)
+			assert.Equal(t, tt.wantEvent, mapping.event)
+			assert.Equal(t, tt.wantAction, mapping.action)
+		})
+	}
+}
+
+func TestOverlayEvents_ExcludesTypesThatFireOnTheWrongPerson(t *testing.T) {
+	// given
+	excluded := []dto.NotificationType{dto.NotifStreamLive, dto.NotifSecretSolvedByOther}
+
+	for _, notifType := range excluded {
+		// when
+		_, ok := overlayEvents[notifType]
+
+		// then
+		assert.False(t, ok, "%s is delivered to someone other than the overlay owner", notifType)
+	}
+}
+
 func TestToken_ReturnsExisting(t *testing.T) {
 	// given
 	svc, m := newTestOverlayService(t)

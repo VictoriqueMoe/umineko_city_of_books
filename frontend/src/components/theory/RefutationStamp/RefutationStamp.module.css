@@ -1,0 +1,35 @@
+.stamp {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    border: 1px solid rgba(231, 76, 60, 0.4);
+    border-left: 3px solid #e74c3c;
+    background: rgba(231, 76, 60, 0.08);
+    border-radius: 4px;
+    padding: 0.6rem 0.9rem;
+    margin-bottom: 1rem;
+}
+
+.label {
+    font-family: var(--font-display);
+    color: #e74c3c;
+    font-size: 0.85rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.by,
+.when,
+.gone {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.link {
+    font-size: 0.8rem;
+    color: var(--gold);
+}

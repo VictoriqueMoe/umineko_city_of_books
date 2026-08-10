@@ -137,6 +137,10 @@ function routeByReferenceType(notif: Notification): string {
         }
         return "/secrets";
     }
+    if (refType.startsWith("theory_response:")) {
+        const responseId = refType.split(":")[1];
+        return `/theory/${notif.reference_id}#response-${responseId}`;
+    }
     return `/theory/${notif.reference_id}`;
 }
 
@@ -148,7 +152,7 @@ function categoryFromReferenceType(notif: Notification): NotificationCategory {
     if (refType === "art" || refType.startsWith("art_comment:")) {
         return "gallery";
     }
-    if (refType === "theory" || refType === "response") {
+    if (refType === "theory" || refType === "response" || refType.startsWith("theory_response:")) {
         return "theories";
     }
     if (refType === "mystery") {
@@ -488,6 +492,26 @@ const notificationConfigs: Record<NotificationType, NotificationConfig> = {
         text: "your game has ended",
         category: "social",
         route: gameRoomRoute,
+    },
+    stream_live: {
+        text: "went live",
+        category: "social",
+        route: notif => `/live/${notif.reference_id}`,
+    },
+    mystery_created: {
+        text: "posted a new mystery",
+        category: "social",
+        route: routeByReferenceType,
+    },
+    theory_created: {
+        text: "posted a new theory",
+        category: "social",
+        route: routeByReferenceType,
+    },
+    theory_refuted: {
+        text: "accepted your response as the refutation",
+        category: "theories",
+        route: routeByReferenceType,
     },
 };
 

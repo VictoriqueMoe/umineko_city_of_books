@@ -5,6 +5,7 @@ import type { Series } from "../../../api/endpoints";
 import { useAuth } from "../../../hooks/useAuth";
 import { ProfileLink } from "../../ProfileLink/ProfileLink";
 import { CredibilityBadge } from "../CredibilityBadge/CredibilityBadge";
+import { TheoryStatusBadge } from "../TheoryStatusBadge/TheoryStatusBadge";
 import { formatSeriesEpisode, userProgressForSeries } from "../../../utils/seriesConfig";
 import { formatFullDateTime } from "../../../utils/time";
 import styles from "./TheoryCard.module.css";
@@ -59,6 +60,7 @@ export function TheoryCard({ theory }: TheoryCardProps) {
                 </div>
                 <p className={styles.body}>{theory.body}</p>
                 <div className={styles.meta}>
+                    <TheoryStatusBadge status={theory.status} />
                     <CredibilityBadge score={theory.credibility_score} />
                     <span>{theory.vote_score} votes</span>
                     <span className={styles.withLove}>

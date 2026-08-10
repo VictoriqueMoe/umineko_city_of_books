@@ -16,6 +16,7 @@ import (
 	"umineko_city_of_books/internal/quotefinder"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
+	"umineko_city_of_books/internal/social"
 	"umineko_city_of_books/internal/theory/params"
 
 	"github.com/google/uuid"
@@ -30,6 +31,7 @@ type (
 		DeleteTheory(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		CreateResponse(ctx context.Context, theoryID uuid.UUID, userID uuid.UUID, req dto.CreateResponseRequest) (uuid.UUID, error)
 		DeleteResponse(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
+		RefuteTheory(ctx context.Context, theoryID uuid.UUID, userID uuid.UUID, responseID uuid.UUID) error
 		VoteTheory(ctx context.Context, userID uuid.UUID, theoryID uuid.UUID, value int) error
 		VoteResponse(ctx context.Context, userID uuid.UUID, responseID uuid.UUID, value int) error
 	}
@@ -37,6 +39,7 @@ type (
 	service struct {
 		repo           repository.TheoryRepository
 		userRepo       repository.UserRepository
+		followRepo     repository.FollowRepository
 		authz          authz.Service
 		blockSvc       block.Service
 		notifService   notification.Service
@@ -50,6 +53,7 @@ type (
 func NewService(
 	repo repository.TheoryRepository,
 	userRepo repository.UserRepository,
+	followRepo repository.FollowRepository,
 	authzService authz.Service,
 	blockSvc block.Service,
 	notifService notification.Service,
@@ -61,6 +65,7 @@ func NewService(
 	return &service{
 		repo:           repo,
 		userRepo:       userRepo,
+		followRepo:     followRepo,
 		authz:          authzService,
 		blockSvc:       blockSvc,
 		notifService:   notifService,
@@ -112,7 +117,23 @@ func (s *service) CreateTheory(ctx context.Context, userID uuid.UUID, req dto.Cr
 		}
 	}
 
-	return s.repo.Create(ctx, userID, req)
+	id, err := s.repo.Create(ctx, userID, req)
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	go social.ProcessMentions(s.userRepo, s.blockSvc, s.notifService, s.settingsSvc, userID, req.Body, id, "theory", fmt.Sprintf("/theory/%s", id))
+
+	go notification.SendFollowerNotification(context.Background(), s.followRepo, s.notifService, notification.FollowerNotifyParams{
+		ActorID:       userID,
+		Type:          dto.NotifTheoryCreated,
+		ReferenceID:   id,
+		ReferenceType: "theory",
+		Action:        "posted a new theory",
+		Title:         req.Title,
+	})
+
+	return id, nil
 }
 
 func (s *service) GetTheoryDetail(ctx context.Context, id uuid.UUID, userID uuid.UUID) (*dto.TheoryDetailResponse, error) {
@@ -234,7 +255,12 @@ func (s *service) CreateResponse(ctx context.Context, theoryID uuid.UUID, userID
 	go func() {
 		s.resolveEvidenceWeights(ctx, theoryID, id)
 		s.credibilitySvc.Recalculate(ctx, theoryID)
+		if err := s.repo.RecomputeStatus(ctx, theoryID); err != nil {
+			logger.Log.Warn().Err(err).Str("theory_id", theoryID.String()).Msg("recompute theory status failed")
+		}
 	}()
+
+	go social.ProcessMentions(s.userRepo, s.blockSvc, s.notifService, s.settingsSvc, userID, req.Body, theoryID, fmt.Sprintf("theory_response:%s", id), fmt.Sprintf("/theory/%s#response-%s", theoryID, id))
 
 	go func() {
 		authorID, err := s.repo.GetTheoryAuthorID(ctx, theoryID)
@@ -334,10 +360,73 @@ func (s *service) DeleteResponse(ctx context.Context, id uuid.UUID, userID uuid.
 	}
 
 	if err == nil && theoryID != uuid.Nil {
-		go s.credibilitySvc.Recalculate(ctx, theoryID)
+		go func() {
+			s.credibilitySvc.Recalculate(ctx, theoryID)
+			if err := s.repo.RecomputeStatus(ctx, theoryID); err != nil {
+				logger.Log.Warn().Err(err).Str("theory_id", theoryID.String()).Msg("recompute theory status failed")
+			}
+		}()
 	}
 
 	return err
+}
+
+func (s *service) RefuteTheory(ctx context.Context, theoryID uuid.UUID, userID uuid.UUID, responseID uuid.UUID) error {
+	theory, err := s.repo.GetByID(ctx, theoryID)
+	if err != nil {
+		return err
+	}
+	if theory == nil {
+		return ErrTheoryNotFound
+	}
+
+	if theory.Author.ID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyTheory) {
+		return ErrNotAuthor
+	}
+	if theory.Status == dto.TheoryStatusRefuted {
+		return ErrAlreadyRefuted
+	}
+
+	meta, err := s.repo.GetResponseMeta(ctx, responseID)
+	if err != nil {
+		return ErrResponseNotOnTheory
+	}
+	if meta.TheoryID != theoryID {
+		return ErrResponseNotOnTheory
+	}
+	if meta.ParentID != nil {
+		return ErrRefutationMustBeTopLevel
+	}
+	if meta.Side != "without_love" {
+		return ErrRefutationMustOppose
+	}
+	if meta.AuthorID == theory.Author.ID {
+		return ErrCannotRefuteWithOwn
+	}
+
+	if err := s.repo.MarkRefuted(ctx, theoryID, responseID); err != nil {
+		return err
+	}
+
+	go func() {
+		bgCtx := context.Background()
+		title, _ := s.repo.GetTheoryTitle(bgCtx, theoryID)
+		if err := s.notifService.Notify(bgCtx, dto.NotifyParams{
+			RecipientID:   meta.AuthorID,
+			Type:          dto.NotifTheoryRefuted,
+			ReferenceID:   theoryID,
+			ReferenceType: fmt.Sprintf("theory_response:%s", responseID),
+			ActorID:       userID,
+			EmailActor:    s.actorName(bgCtx, userID),
+			EmailAction:   "accepted your response as the refutation",
+			EmailTitle:    title,
+			EmailLink:     fmt.Sprintf("/theory/%s#response-%s", theoryID, responseID),
+		}); err != nil {
+			logger.Log.Warn().Err(err).Msg("notify theory refuted failed")
+		}
+	}()
+
+	return nil
 }
 
 func (s *service) VoteTheory(ctx context.Context, userID uuid.UUID, theoryID uuid.UUID, value int) error {

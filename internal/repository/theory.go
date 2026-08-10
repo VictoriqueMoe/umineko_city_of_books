@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/theory/params"
@@ -9,7 +10,18 @@ import (
 	"github.com/google/uuid"
 )
 
+var (
+	ErrRefutationRejected = errors.New("the response cannot refute this theory")
+)
+
 type (
+	ResponseMeta struct {
+		AuthorID uuid.UUID
+		TheoryID uuid.UUID
+		Side     string
+		ParentID *uuid.UUID
+	}
+
 	TheoryRepository interface {
 		Create(ctx context.Context, userID uuid.UUID, req dto.CreateTheoryRequest) (uuid.UUID, error)
 		GetByID(ctx context.Context, id uuid.UUID) (*dto.TheoryDetailResponse, error)
@@ -34,6 +46,9 @@ type (
 		CountUserResponsesToday(ctx context.Context, userID uuid.UUID) (int, error)
 		UpdateCredibilityScore(ctx context.Context, theoryID uuid.UUID, score float64) error
 		GetResponseEvidenceWeights(ctx context.Context, theoryID uuid.UUID) (withLoveSum float64, withoutLoveSum float64, err error)
+		RecomputeStatus(ctx context.Context, theoryID uuid.UUID) error
+		MarkRefuted(ctx context.Context, theoryID uuid.UUID, responseID uuid.UUID) error
+		GetResponseMeta(ctx context.Context, responseID uuid.UUID) (ResponseMeta, error)
 		SetEvidenceTruthWeight(ctx context.Context, evidenceID int, weight float64) error
 		GetTheoryTitle(ctx context.Context, theoryID uuid.UUID) (string, error)
 		GetTheorySeries(ctx context.Context, theoryID uuid.UUID) (string, error)
@@ -142,6 +157,18 @@ func (r *theoryRepository) GetResponseEvidenceWeights(ctx context.Context, theor
 
 func (r *theoryRepository) SetEvidenceTruthWeight(ctx context.Context, evidenceID int, weight float64) error {
 	return r.dao.SetEvidenceTruthWeight(ctx, evidenceID, weight)
+}
+
+func (r *theoryRepository) RecomputeStatus(ctx context.Context, theoryID uuid.UUID) error {
+	return r.dao.RecomputeStatus(ctx, theoryID)
+}
+
+func (r *theoryRepository) MarkRefuted(ctx context.Context, theoryID uuid.UUID, responseID uuid.UUID) error {
+	return r.dao.MarkRefuted(ctx, theoryID, responseID)
+}
+
+func (r *theoryRepository) GetResponseMeta(ctx context.Context, responseID uuid.UUID) (ResponseMeta, error) {
+	return r.dao.GetResponseMeta(ctx, responseID)
 }
 
 func (r *theoryRepository) GetTheoryTitle(ctx context.Context, theoryID uuid.UUID) (string, error) {

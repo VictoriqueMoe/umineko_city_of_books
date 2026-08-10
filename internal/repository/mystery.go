@@ -14,10 +14,10 @@ import (
 
 type (
 	MysteryRepository interface {
-		Create(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, body string, difficulty string, freeForAll bool, keepOpenAfterSolve bool) error
+		Create(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, body string, difficulty string, freeForAll bool, keepOpenAfterSolve bool, knox dto.KnoxContract) error
 		AddClue(ctx context.Context, mysteryID uuid.UUID, body string, truthType string, sortOrder int, playerID *uuid.UUID) error
 		Update(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, body string, difficulty string) error
-		UpdateAsAdmin(ctx context.Context, id uuid.UUID, title string, body string, difficulty string, freeForAll bool, keepOpenAfterSolve bool) error
+		UpdateAsAdmin(ctx context.Context, id uuid.UUID, title string, body string, difficulty string, freeForAll bool, keepOpenAfterSolve bool, knox dto.KnoxContract) error
 		Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		DeleteAsAdmin(ctx context.Context, id uuid.UUID) error
 		GetByID(ctx context.Context, id uuid.UUID) (*MysteryRow, error)
@@ -94,6 +94,8 @@ type (
 		GmAway                bool
 		FreeForAll            bool
 		KeepOpenAfterSolve    bool
+		Knox                  dto.KnoxContract
+		KnoxPublished         bool
 		WinnerID              *uuid.UUID
 		WinnerUsername        *string
 		WinnerDisplayName     *string
@@ -202,8 +204,8 @@ func NewMysteryRepo(dao MysteryRepository, c *cache.Manager) MysteryRepository {
 	return &mysteryRepository{dao: dao, cache: c}
 }
 
-func (r *mysteryRepository) Create(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, body string, difficulty string, freeForAll bool, keepOpenAfterSolve bool) error {
-	return r.dao.Create(ctx, id, userID, title, body, difficulty, freeForAll, keepOpenAfterSolve)
+func (r *mysteryRepository) Create(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, body string, difficulty string, freeForAll bool, keepOpenAfterSolve bool, knox dto.KnoxContract) error {
+	return r.dao.Create(ctx, id, userID, title, body, difficulty, freeForAll, keepOpenAfterSolve, knox)
 }
 
 func (r *mysteryRepository) AddClue(ctx context.Context, mysteryID uuid.UUID, body string, truthType string, sortOrder int, playerID *uuid.UUID) error {
@@ -220,8 +222,8 @@ func (r *mysteryRepository) Update(ctx context.Context, id uuid.UUID, userID uui
 	return nil
 }
 
-func (r *mysteryRepository) UpdateAsAdmin(ctx context.Context, id uuid.UUID, title string, body string, difficulty string, freeForAll bool, keepOpenAfterSolve bool) error {
-	if err := r.dao.UpdateAsAdmin(ctx, id, title, body, difficulty, freeForAll, keepOpenAfterSolve); err != nil {
+func (r *mysteryRepository) UpdateAsAdmin(ctx context.Context, id uuid.UUID, title string, body string, difficulty string, freeForAll bool, keepOpenAfterSolve bool, knox dto.KnoxContract) error {
+	if err := r.dao.UpdateAsAdmin(ctx, id, title, body, difficulty, freeForAll, keepOpenAfterSolve, knox); err != nil {
 		return err
 	}
 

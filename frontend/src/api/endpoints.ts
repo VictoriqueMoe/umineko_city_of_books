@@ -99,6 +99,7 @@ import type {
     UsernameAvailability,
     VotePayload,
     WatchPartyListResponse,
+    KnoxContract,
 } from "../types/api";
 
 const QUOTE_API = "https://quotes.auaurora.moe/api/v1";
@@ -388,6 +389,10 @@ export async function deleteResponse(id: string): Promise<void> {
 
 export async function voteTheory(id: string, value: number): Promise<void> {
     await apiPost<unknown, VotePayload>(`/theories/${id}/vote`, { value });
+}
+
+export async function refuteTheory(theoryId: string, responseId: string): Promise<void> {
+    await apiPost<unknown, { response_id: string }>(`/theories/${theoryId}/refute`, { response_id: responseId });
 }
 
 export async function voteResponse(id: string, value: number): Promise<void> {
@@ -1533,6 +1538,7 @@ export async function createMystery(data: {
     difficulty: string;
     free_for_all: boolean;
     keep_open_after_solve: boolean;
+    knox_contract: KnoxContract;
     clues: { body: string; truth_type: string }[];
 }): Promise<{ id: string }> {
     return apiPost<{ id: string }, typeof data>("/mysteries", data);
@@ -1546,6 +1552,7 @@ export async function updateMystery(
         difficulty: string;
         free_for_all: boolean;
         keep_open_after_solve: boolean;
+        knox_contract: KnoxContract;
         clues: { body: string; truth_type: string }[];
     },
 ): Promise<void> {

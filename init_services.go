@@ -109,7 +109,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 	reportSvc := report.NewService(repos.Report, repos.Role, repos.User, notifSvc, settingsSvc)
 	hyperbeamSvc := hyperbeam.NewService(settingsSvc)
 	livekitSvc := livekit.NewService(settingsSvc)
-	streamSvc := stream.NewService(repos.LiveStream, repos.StreamCredentials, livekitSvc, settingsSvc, uploadSvc, hub)
+	streamSvc := stream.NewService(repos.LiveStream, repos.StreamCredentials, repos.Follow, livekitSvc, settingsSvc, uploadSvc, notifSvc, hub)
 	chatSvc := chat.NewService(repos.Chat, repos.User, repos.Role, repos.VanityRole, repos.ChatRoomBan, repos.ChatBannedWord, repos.ChatWatchParty, repos.AuditLog, authzSvc, notifSvc, blockSvc, uploadSvc, settingsSvc, mediaProc, hub, hyperbeamSvc, livekitSvc, contentFilter)
 	streamSvc.SetChatBinder(chatSvc)
 
@@ -126,14 +126,14 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 	artSvc := artsvc.NewService(repos.Art, repos.Post, repos.User, repos.AuditLog, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, contentFilter)
 	shipSvc := ship.NewService(repos.Ship, repos.User, repos.AuditLog, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, quoteClient, contentFilter)
 	ocSvc := ocsvc.NewService(repos.OC, repos.User, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, hub, contentFilter)
-	mysterySvc := mysterysvc.NewService(repos.Mystery, repos.User, repos.AuditLog, authzSvc, blockSvc, notifSvc, settingsSvc, uploadSvc, mediaProc, hub, contentFilter)
+	mysterySvc := mysterysvc.NewService(repos.Mystery, repos.User, repos.Follow, repos.AuditLog, authzSvc, blockSvc, notifSvc, settingsSvc, uploadSvc, mediaProc, hub, contentFilter)
 	fanficSvc := fanficsvc.NewService(repos.Fanfic, repos.User, repos.AuditLog, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, contentFilter)
 	journalSvc := journal.NewService(repos.Journal, repos.User, repos.AuditLog, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, contentFilter)
 	secretSvc := secretsvc.NewService(repos.Secret, repos.UserSecret, repos.User, repos.AuditLog, authzSvc, blockSvc, notifSvc, settingsSvc, uploadSvc, mediaProc, hub, contentFilter)
 	gameRoomSvc := gameroom.NewService(repos.GameRoom, repos.User, repos.Block, notifSvc, hub, contentFilter, []gameroom.GameHandler{chess.NewHandler(), checkers.NewHandler(), othello.NewHandler(), minesweeper.NewHandler(), snakesandladders.NewHandler()})
 	announcementUploader := media.NewUploader(uploadSvc, settingsSvc, mediaProc)
 	announcementSvc := announcementsvc.NewService(repos.Announcement, repos.User, repos.AuditLog, blockSvc, notifSvc, settingsSvc, authzSvc, hub, announcementUploader)
-	homeFeedSvc := homefeed.NewService(repos.HomeFeed, hub)
+	homeFeedSvc := homefeed.NewService(repos.HomeFeed, hub, cacheManager)
 	sidebarSvc := sidebar.NewService(repos.SidebarVisited)
 	vanityRoleSvc := vanityrole.NewService(repos.VanityRole)
 	userSecretSvc := usersecret.NewService(repos.UserSecret)
@@ -185,7 +185,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		cache:           cacheManager,
 		auth:            authSvc,
 		profile:         profile.NewService(repos.User, repos.UserSecret, repos.Theory, authzSvc, uploadSvc, settingsSvc, contentFilter, hub, authSvc, sessionMgr, userSvc),
-		theory:          theory.NewService(repos.Theory, repos.User, authzSvc, blockSvc, notifSvc, settingsSvc, credibilitySvc, quoteClient, contentFilter),
+		theory:          theory.NewService(repos.Theory, repos.User, repos.Follow, authzSvc, blockSvc, notifSvc, settingsSvc, credibilitySvc, quoteClient, contentFilter),
 		notification:    notifSvc,
 		admin:           admin.NewService(repos.User, repos.Role, repos.Stats, repos.AuditLog, repos.Invite, repos.VanityRole, repos.Permission, giphyBanlist, authzSvc, settingsSvc, sessionMgr, uploadSvc, hub, chatSvc, emailSvc, authSvc),
 		authz:           authzSvc,

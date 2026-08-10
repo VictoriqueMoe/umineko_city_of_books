@@ -6,6 +6,7 @@ package notification
 
 import (
 	"context"
+	"time"
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/dto"
 
@@ -38,6 +39,75 @@ type MockService_Expecter struct {
 
 func (_m *MockService) EXPECT() *MockService_Expecter {
 	return &MockService_Expecter{mock: &_m.Mock}
+}
+
+// HasRecentFromActor provides a mock function for the type MockService
+func (_mock *MockService) HasRecentFromActor(ctx context.Context, notifType dto.NotificationType, actorID uuid.UUID, within time.Duration) bool {
+	ret := _mock.Called(ctx, notifType, actorID, within)
+
+	if len(ret) == 0 {
+		panic("no return value specified for HasRecentFromActor")
+	}
+
+	var r0 bool
+	if returnFunc, ok := ret.Get(0).(func(context.Context, dto.NotificationType, uuid.UUID, time.Duration) bool); ok {
+		r0 = returnFunc(ctx, notifType, actorID, within)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	return r0
+}
+
+// MockService_HasRecentFromActor_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'HasRecentFromActor'
+type MockService_HasRecentFromActor_Call struct {
+	*mock.Call
+}
+
+// HasRecentFromActor is a helper method to define mock.On call
+//   - ctx context.Context
+//   - notifType dto.NotificationType
+//   - actorID uuid.UUID
+//   - within time.Duration
+func (_e *MockService_Expecter) HasRecentFromActor(ctx any, notifType any, actorID any, within any) *MockService_HasRecentFromActor_Call {
+	return &MockService_HasRecentFromActor_Call{Call: _e.mock.On("HasRecentFromActor", ctx, notifType, actorID, within)}
+}
+
+func (_c *MockService_HasRecentFromActor_Call) Run(run func(ctx context.Context, notifType dto.NotificationType, actorID uuid.UUID, within time.Duration)) *MockService_HasRecentFromActor_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 dto.NotificationType
+		if args[1] != nil {
+			arg1 = args[1].(dto.NotificationType)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 time.Duration
+		if args[3] != nil {
+			arg3 = args[3].(time.Duration)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_HasRecentFromActor_Call) Return(b bool) *MockService_HasRecentFromActor_Call {
+	_c.Call.Return(b)
+	return _c
+}
+
+func (_c *MockService_HasRecentFromActor_Call) RunAndReturn(run func(ctx context.Context, notifType dto.NotificationType, actorID uuid.UUID, within time.Duration) bool) *MockService_HasRecentFromActor_Call {
+	_c.Call.Return(run)
+	return _c
 }
 
 // List provides a mock function for the type MockService

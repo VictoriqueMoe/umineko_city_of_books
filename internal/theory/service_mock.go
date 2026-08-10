@@ -468,6 +468,75 @@ func (_c *MockService_ListTheories_Call) RunAndReturn(run func(ctx context.Conte
 	return _c
 }
 
+// RefuteTheory provides a mock function for the type MockService
+func (_mock *MockService) RefuteTheory(ctx context.Context, theoryID uuid.UUID, userID uuid.UUID, responseID uuid.UUID) error {
+	ret := _mock.Called(ctx, theoryID, userID, responseID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RefuteTheory")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, theoryID, userID, responseID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_RefuteTheory_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RefuteTheory'
+type MockService_RefuteTheory_Call struct {
+	*mock.Call
+}
+
+// RefuteTheory is a helper method to define mock.On call
+//   - ctx context.Context
+//   - theoryID uuid.UUID
+//   - userID uuid.UUID
+//   - responseID uuid.UUID
+func (_e *MockService_Expecter) RefuteTheory(ctx any, theoryID any, userID any, responseID any) *MockService_RefuteTheory_Call {
+	return &MockService_RefuteTheory_Call{Call: _e.mock.On("RefuteTheory", ctx, theoryID, userID, responseID)}
+}
+
+func (_c *MockService_RefuteTheory_Call) Run(run func(ctx context.Context, theoryID uuid.UUID, userID uuid.UUID, responseID uuid.UUID)) *MockService_RefuteTheory_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 uuid.UUID
+		if args[3] != nil {
+			arg3 = args[3].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_RefuteTheory_Call) Return(err error) *MockService_RefuteTheory_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_RefuteTheory_Call) RunAndReturn(run func(ctx context.Context, theoryID uuid.UUID, userID uuid.UUID, responseID uuid.UUID) error) *MockService_RefuteTheory_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateTheory provides a mock function for the type MockService
 func (_mock *MockService) UpdateTheory(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.CreateTheoryRequest) error {
 	ret := _mock.Called(ctx, id, userID, req)

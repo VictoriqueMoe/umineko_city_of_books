@@ -26,6 +26,7 @@ type (
 		MarkAllRead(ctx context.Context, userID uuid.UUID) error
 		UnreadCount(ctx context.Context, userID uuid.UUID) (int, error)
 		HasRecentDuplicate(ctx context.Context, userID uuid.UUID, notifType dto.NotificationType, referenceID uuid.UUID, actorID uuid.UUID) (bool, error)
+		HasRecentFromActor(ctx context.Context, notifType dto.NotificationType, actorID uuid.UUID, within time.Duration) (bool, error)
 		DeleteOlderThanBatch(ctx context.Context, cutoff time.Time, limit int) (int64, error)
 	}
 )
@@ -72,6 +73,10 @@ func (r *notificationRepository) UnreadCount(ctx context.Context, userID uuid.UU
 
 func (r *notificationRepository) HasRecentDuplicate(ctx context.Context, userID uuid.UUID, notifType dto.NotificationType, referenceID uuid.UUID, actorID uuid.UUID) (bool, error) {
 	return r.dao.HasRecentDuplicate(ctx, userID, notifType, referenceID, actorID)
+}
+
+func (r *notificationRepository) HasRecentFromActor(ctx context.Context, notifType dto.NotificationType, actorID uuid.UUID, within time.Duration) (bool, error) {
+	return r.dao.HasRecentFromActor(ctx, notifType, actorID, within)
 }
 
 func (r *notificationRepository) DeleteOlderThanBatch(ctx context.Context, cutoff time.Time, limit int) (int64, error) {

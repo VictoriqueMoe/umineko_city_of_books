@@ -35,6 +35,9 @@ type (
 		GmAway                bool                     `json:"gm_away"`
 		FreeForAll            bool                     `json:"free_for_all"`
 		KeepOpenAfterSolve    bool                     `json:"keep_open_after_solve"`
+		KnoxContract          KnoxContract             `json:"knox_contract"`
+		KnoxContractPublished bool                     `json:"knox_contract_published"`
+		KnoxContractLocked    bool                     `json:"knox_contract_locked"`
 		SolverCount           int                      `json:"solver_count"`
 		ViewerHasSolved       bool                     `json:"viewer_has_solved"`
 		Winner                *UserResponse            `json:"winner,omitempty"`
@@ -48,6 +51,19 @@ type (
 		Media                 []PostMediaResponse      `json:"media"`
 		PlayerCount           int                      `json:"player_count"`
 		CreatedAt             string                   `json:"created_at"`
+	}
+
+	KnoxContract struct {
+		CulpritNamedEarly    bool `json:"culprit_named_early"`
+		NoSupernatural       bool `json:"no_supernatural"`
+		PassagesDeclared     bool `json:"passages_declared"`
+		NoUnknownPoison      bool `json:"no_unknown_poison"`
+		NoOutsider           bool `json:"no_outsider"`
+		NoLuckyAccident      bool `json:"no_lucky_accident"`
+		DetectiveNotCulprit  bool `json:"detective_not_culprit"`
+		CluesShown           bool `json:"clues_shown"`
+		NarratorHidesNothing bool `json:"narrator_hides_nothing"`
+		NoUnannouncedTwins   bool `json:"no_unannounced_twins"`
 	}
 
 	MysteryAttachment struct {
@@ -103,6 +119,7 @@ type (
 		Difficulty         string              `json:"difficulty"`
 		FreeForAll         bool                `json:"free_for_all"`
 		KeepOpenAfterSolve bool                `json:"keep_open_after_solve"`
+		KnoxContract       *KnoxContract       `json:"knox_contract,omitempty"`
 		Clues              []CreateClueRequest `json:"clues"`
 	}
 
@@ -142,3 +159,18 @@ type (
 		Entries []GMLeaderboardEntry `json:"entries"`
 	}
 )
+
+func DefaultKnoxContract() KnoxContract {
+	return KnoxContract{
+		CulpritNamedEarly:    true,
+		NoSupernatural:       true,
+		PassagesDeclared:     true,
+		NoUnknownPoison:      true,
+		NoOutsider:           true,
+		NoLuckyAccident:      true,
+		DetectiveNotCulprit:  true,
+		CluesShown:           true,
+		NarratorHidesNothing: true,
+		NoUnannouncedTwins:   true,
+	}
+}

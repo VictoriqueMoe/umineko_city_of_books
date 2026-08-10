@@ -177,6 +177,9 @@ func (s *Service) updateMystery(ctx fiber.Ctx) error {
 		if utils.MapFilterError(ctx, err) {
 			return nil
 		}
+		if errors.Is(err, mysterysvc.ErrContractLocked) {
+			return utils.Conflict(ctx, err.Error())
+		}
 		return utils.InternalError(ctx, "failed to update mystery")
 	}
 	return utils.OK(ctx)

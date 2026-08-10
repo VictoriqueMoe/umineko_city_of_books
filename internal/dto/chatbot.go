@@ -29,16 +29,27 @@ type (
 		Enabled         bool   `json:"enabled"`
 	}
 
+	ChatbotChannelUsage struct {
+		Channel            string `json:"channel"`
+		Invocations        int    `json:"invocations"`
+		PromptTokens       int    `json:"prompt_tokens"`
+		CachedPromptTokens int    `json:"cached_prompt_tokens"`
+		CacheWriteTokens   int    `json:"cache_write_tokens"`
+		CompletionTokens   int    `json:"completion_tokens"`
+		ReasoningTokens    int    `json:"reasoning_tokens"`
+	}
+
 	ChatbotUsageResponse struct {
-		Invocations        int      `json:"invocations"`
-		PromptTokens       int      `json:"prompt_tokens"`
-		CachedPromptTokens int      `json:"cached_prompt_tokens"`
-		CacheWriteTokens   int      `json:"cache_write_tokens"`
-		CompletionTokens   int      `json:"completion_tokens"`
-		ReasoningTokens    int      `json:"reasoning_tokens"`
-		Failed             int      `json:"failed"`
-		Quota              int      `json:"quota"`
-		BilledUSD          *float64 `json:"billed_usd"`
+		Invocations        int                   `json:"invocations"`
+		PromptTokens       int                   `json:"prompt_tokens"`
+		CachedPromptTokens int                   `json:"cached_prompt_tokens"`
+		CacheWriteTokens   int                   `json:"cache_write_tokens"`
+		CompletionTokens   int                   `json:"completion_tokens"`
+		ReasoningTokens    int                   `json:"reasoning_tokens"`
+		Failed             int                   `json:"failed"`
+		Quota              int                   `json:"quota"`
+		BilledUSD          *float64              `json:"billed_usd"`
+		Channels           []ChatbotChannelUsage `json:"channels"`
 	}
 
 	ChatbotSummary struct {

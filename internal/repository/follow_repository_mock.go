@@ -167,6 +167,74 @@ func (_c *MockFollowRepository_GetFollowerCount_Call) RunAndReturn(run func(ctx 
 	return _c
 }
 
+// GetFollowerIDsToNotify provides a mock function for the type MockFollowRepository
+func (_mock *MockFollowRepository) GetFollowerIDsToNotify(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error) {
+	ret := _mock.Called(ctx, userID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetFollowerIDsToNotify")
+	}
+
+	var r0 []uuid.UUID
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]uuid.UUID, error)); ok {
+		return returnFunc(ctx, userID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []uuid.UUID); ok {
+		r0 = returnFunc(ctx, userID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]uuid.UUID)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
+		r1 = returnFunc(ctx, userID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockFollowRepository_GetFollowerIDsToNotify_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetFollowerIDsToNotify'
+type MockFollowRepository_GetFollowerIDsToNotify_Call struct {
+	*mock.Call
+}
+
+// GetFollowerIDsToNotify is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+func (_e *MockFollowRepository_Expecter) GetFollowerIDsToNotify(ctx any, userID any) *MockFollowRepository_GetFollowerIDsToNotify_Call {
+	return &MockFollowRepository_GetFollowerIDsToNotify_Call{Call: _e.mock.On("GetFollowerIDsToNotify", ctx, userID)}
+}
+
+func (_c *MockFollowRepository_GetFollowerIDsToNotify_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *MockFollowRepository_GetFollowerIDsToNotify_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockFollowRepository_GetFollowerIDsToNotify_Call) Return(uUIDs []uuid.UUID, err error) *MockFollowRepository_GetFollowerIDsToNotify_Call {
+	_c.Call.Return(uUIDs, err)
+	return _c
+}
+
+func (_c *MockFollowRepository_GetFollowerIDsToNotify_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error)) *MockFollowRepository_GetFollowerIDsToNotify_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetFollowers provides a mock function for the type MockFollowRepository
 func (_mock *MockFollowRepository) GetFollowers(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]FollowUser, int, error) {
 	ret := _mock.Called(ctx, userID, limit, offset)

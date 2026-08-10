@@ -9,7 +9,7 @@ import { Modal } from "../../components/Modal/Modal";
 import { Select } from "../../components/Select/Select";
 import { TextArea } from "../../components/TextArea/TextArea";
 import { ToggleSwitch } from "../../components/ToggleSwitch/ToggleSwitch";
-import type { Chatbot, ChatbotPayload, ChatbotUsage } from "../../types/api";
+import type { Chatbot, ChatbotChannelUsage, ChatbotPayload, ChatbotUsage } from "../../types/api";
 import { ChatbotKeyGate } from "./ChatbotKeyGate";
 import styles from "./AdminChatbots.module.css";
 
@@ -33,6 +33,13 @@ type UsernameCheck =
 
 const CHARS_PER_TOKEN = 4;
 const CACHING_TOKEN_THRESHOLD = 1000;
+const CHANNEL_LABELS: Record<string, string> = {
+    group: "Group chats",
+    dm: "DMs",
+    post: "Posts",
+    post_comment: "Post comments",
+};
+const CHANNEL_ORDER = Object.keys(CHANNEL_LABELS);
 const EMPTY_FIELDS: ChatbotFields = {
     username: "",
     displayName: "",
@@ -71,6 +78,45 @@ function buildPayload(fields: ChatbotFields, enabled: boolean): ChatbotPayload {
         max_output_tokens: isNaN(maxTokens) ? 0 : maxTokens,
         enabled,
     };
+}
+
+function channelLabel(channel: string): string {
+    return CHANNEL_LABELS[channel] ?? channel;
+}
+
+function channelTokens(channel: ChatbotChannelUsage): number {
+    return channel.prompt_tokens + channel.completion_tokens;
+}
+
+function emptyChannel(channel: string): ChatbotChannelUsage {
+    return {
+        channel,
+        invocations: 0,
+        prompt_tokens: 0,
+        cached_prompt_tokens: 0,
+        cache_write_tokens: 0,
+        completion_tokens: 0,
+        reasoning_tokens: 0,
+    };
+}
+
+function channelRows(channels: ChatbotChannelUsage[]): ChatbotChannelUsage[] {
+    const returned = new Map<string, ChatbotChannelUsage>();
+    for (const channel of channels) {
+        returned.set(channel.channel, channel);
+    }
+
+    const rows: ChatbotChannelUsage[] = [];
+    for (const name of CHANNEL_ORDER) {
+        rows.push(returned.get(name) ?? emptyChannel(name));
+        returned.delete(name);
+    }
+
+    for (const channel of returned.values()) {
+        rows.push(channel);
+    }
+
+    return rows;
 }
 
 function failureDetail(e: unknown): string {
@@ -587,6 +633,25 @@ function UsagePanel({ label, usage, loading }: UsagePanelProps) {
                             <dd>{usage.quota.toLocaleString()}</dd>
                         </div>
                     </dl>
+                    <table className={styles.channelTable}>
+                        <caption className={styles.channelCaption}>Where the replies came from</caption>
+                        <thead>
+                            <tr>
+                                <th scope="col">Channel</th>
+                                <th scope="col">Replies</th>
+                                <th scope="col">Tokens</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {channelRows(usage.channels).map(channel => (
+                                <tr key={channel.channel}>
+                                    <th scope="row">{channelLabel(channel.channel)}</th>
+                                    <td>{channel.invocations.toLocaleString()}</td>
+                                    <td>{channelTokens(channel).toLocaleString()}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                     {usage.failed > 0 && (
                         <span className={styles.fieldHint}>
                             Failures are almost always a model id the provider does not recognise, a revoked or expired

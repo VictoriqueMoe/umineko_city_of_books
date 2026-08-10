@@ -62,6 +62,8 @@ type (
 		GMScoreAdjustment      int
 		Role                   string
 		IsBot                  bool
+		FollowActivity         bool
+		EchoesEnabled          bool
 	}
 
 	UserStats struct {
@@ -149,6 +151,8 @@ func (u *User) ToProfileResponse(stats *UserStats, isSelf bool) *dto.UserProfile
 			EmailNotifications:    u.EmailNotifications,
 			PlayMessageSound:      u.PlayMessageSound,
 			PlayNotificationSound: u.PlayNotificationSound,
+			FollowActivity:        u.FollowActivity,
+			EchoesEnabled:         u.EchoesEnabled,
 			HomePage:              u.HomePage,
 			GameBoardSort:         u.GameBoardSort,
 			DefaultProfileTab:     u.DefaultProfileTab,

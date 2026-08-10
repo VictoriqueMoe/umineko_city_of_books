@@ -1,7 +1,8 @@
 import { screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../test-utils/render";
-import type { HomeActivityEntry, HomeActivityResponse, HomeMember, HomePublicRoom } from "../../types/api";
+import { makeUser } from "../../test-utils/fixtures";
+import type { HomeActivityEntry, HomeActivityResponse, HomeEcho, HomeMember, HomePublicRoom } from "../../types/api";
 import { LiveActivity } from "./LiveActivity";
 
 const { homeActivity } = vi.hoisted(() => ({ homeActivity: { data: null as HomeActivityResponse | null } }));
@@ -57,6 +58,7 @@ function makeActivity(overrides: Partial<HomeActivityResponse> = {}): HomeActivi
     return {
         online_count: 5,
         recent_activity: [],
+        echoes: [],
         recent_members: [],
         public_rooms: [],
         corner_activity: [],
@@ -114,6 +116,7 @@ describe("LiveActivity", () => {
         // given
         homeActivity.data = makeActivity({
             recent_activity: [makeEntry({ title: "", excerpt: "  a fragment of blue truth  " })],
+            echoes: [],
         });
 
         // when
@@ -139,6 +142,7 @@ describe("LiveActivity", () => {
         // given
         homeActivity.data = makeActivity({
             recent_activity: [makeEntry({ kind: "post", title: "", excerpt: "   " })],
+            echoes: [],
         });
 
         // when
@@ -249,5 +253,86 @@ describe("LiveActivity", () => {
         // then
         expect(screen.getByRole("link", { name: /Ange/ })).toHaveAttribute("href", "/user/ange");
         expect(screen.getByRole("link", { name: /Maria/ })).toHaveAttribute("href", "/user/maria");
+    });
+});
+
+describe("LiveActivity echoes", () => {
+    function makeEcho(overrides: Partial<HomeEcho> = {}): HomeEcho {
+        return {
+            kind: "theory",
+            id: "echo-1",
+            title: "The culprit cannot be Battler",
+            excerpt: "",
+            corner: "umineko",
+            episode: 0,
+            is_spoiler: false,
+            url: "/theory/echo-1",
+            age: "one year ago today",
+            created_at: "2025-08-10T12:00:00Z",
+            author: { id: "u1", username: "kujo", display_name: "Kujo", avatar_url: "" },
+            ...overrides,
+        };
+    }
+
+    it("surfaces an echo above the recent activity", () => {
+        // given
+        homeActivity.data = makeActivity({ echoes: [makeEcho()] });
+
+        // when
+        renderWithProviders(<LiveActivity />);
+
+        // then
+        expect(screen.getByText(/An echo, one year ago today/)).toBeInTheDocument();
+        expect(screen.getByText("The culprit cannot be Battler")).toBeInTheDocument();
+    });
+
+    it("skips a theory echo the viewer has not read up to", () => {
+        // given
+        homeActivity.data = makeActivity({ echoes: [makeEcho({ episode: 6, corner: "umineko" })] });
+
+        // when
+        renderWithProviders(<LiveActivity />, { user: makeUser({ episode_progress: 4 }) });
+
+        // then
+        expect(screen.queryByText(/An echo/)).not.toBeInTheDocument();
+    });
+
+    it("shows a theory echo the viewer has already passed", () => {
+        // given
+        homeActivity.data = makeActivity({ echoes: [makeEcho({ episode: 2, corner: "umineko" })] });
+
+        // when
+        renderWithProviders(<LiveActivity />, { user: makeUser({ episode_progress: 5 }) });
+
+        // then
+        expect(screen.getByText(/An echo/)).toBeInTheDocument();
+    });
+
+    it("falls through to the first candidate the viewer may see", () => {
+        // given
+        homeActivity.data = makeActivity({
+            echoes: [
+                makeEcho({ id: "spoiler", title: "Too far ahead", episode: 8 }),
+                makeEcho({ id: "safe", title: "Safe to show", episode: 1 }),
+            ],
+        });
+
+        // when
+        renderWithProviders(<LiveActivity />, { user: makeUser({ episode_progress: 5 }) });
+
+        // then
+        expect(screen.getByText("Safe to show")).toBeInTheDocument();
+        expect(screen.queryByText("Too far ahead")).not.toBeInTheDocument();
+    });
+
+    it("never shows art marked as a spoiler", () => {
+        // given
+        homeActivity.data = makeActivity({ echoes: [makeEcho({ kind: "art", is_spoiler: true })] });
+
+        // when
+        renderWithProviders(<LiveActivity />);
+
+        // then
+        expect(screen.queryByText(/An echo/)).not.toBeInTheDocument();
     });
 });

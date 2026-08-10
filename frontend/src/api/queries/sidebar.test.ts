@@ -21,6 +21,7 @@ function makeHomeActivity(onlineCount: number): HomeActivityResponse {
     return {
         online_count: onlineCount,
         recent_activity: [],
+        echoes: [],
         recent_members: [],
         public_rooms: [],
         corner_activity: [],

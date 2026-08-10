@@ -443,7 +443,15 @@ func (r *Resolver) theoryMeta(ctx context.Context, idStr string) *Meta {
 		desc = desc[:197] + "..."
 	}
 
-	title := fmt.Sprintf("%s - %s's Blue Truth", theory.Title, theory.Author.DisplayName)
+	status := "Open"
+	switch theory.Status {
+	case dto.TheoryStatusContested:
+		status = "Contested"
+	case dto.TheoryStatusRefuted:
+		status = "Refuted"
+	}
+
+	title := fmt.Sprintf("%s (%s) - %s's Blue Truth", theory.Title, status, theory.Author.DisplayName)
 
 	return &Meta{
 		Title:       title,

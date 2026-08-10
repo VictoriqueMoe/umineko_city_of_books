@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"context"
 	"testing"
+	"time"
 
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/livekit"
+	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/upload"
@@ -20,25 +22,32 @@ import (
 )
 
 type streamMocks struct {
-	repo     *repository.MockLiveStreamRepository
-	creds    *repository.MockStreamCredentialsRepository
-	lk       *livekit.MockService
-	settings *settings.MockService
-	upload   *upload.MockService
+	repo       *repository.MockLiveStreamRepository
+	creds      *repository.MockStreamCredentialsRepository
+	followRepo *repository.MockFollowRepository
+	lk         *livekit.MockService
+	settings   *settings.MockService
+	upload     *upload.MockService
+	notif      *notification.MockService
 }
 
 func newTestStreamService(t *testing.T) (Service, *streamMocks) {
 	repo := repository.NewMockLiveStreamRepository(t)
 	creds := repository.NewMockStreamCredentialsRepository(t)
+	followRepo := repository.NewMockFollowRepository(t)
 	lk := livekit.NewMockService(t)
 	settingsSvc := settings.NewMockService(t)
 	uploadSvc := upload.NewMockService(t)
+	notifSvc := notification.NewMockService(t)
 
-	svc := NewService(repo, creds, lk, settingsSvc, uploadSvc, ws.NewHub())
+	svc := NewService(repo, creds, followRepo, lk, settingsSvc, uploadSvc, notifSvc, ws.NewHub())
 
 	settingsSvc.EXPECT().Get(mock.Anything, config.SettingStreamHLSOutputDir).Return("").Maybe()
+	followRepo.EXPECT().GetFollowerIDsToNotify(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	notifSvc.EXPECT().HasRecentFromActor(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(false).Maybe()
+	notifSvc.EXPECT().NotifyMany(mock.Anything, mock.Anything).Return().Maybe()
 
-	return svc, &streamMocks{repo: repo, creds: creds, lk: lk, settings: settingsSvc, upload: uploadSvc}
+	return svc, &streamMocks{repo: repo, creds: creds, followRepo: followRepo, lk: lk, settings: settingsSvc, upload: uploadSvc, notif: notifSvc}
 }
 
 func expectStreamingEnabled(m *streamMocks, enabled bool) {
@@ -573,6 +582,128 @@ func TestHandleWebhook_BroadcasterJoinedMarksLive(t *testing.T) {
 	// then
 	require.NoError(t, err)
 	assert.True(t, handled)
+}
+
+func newFanoutStreamService(t *testing.T) (Service, *streamMocks) {
+	repo := repository.NewMockLiveStreamRepository(t)
+	creds := repository.NewMockStreamCredentialsRepository(t)
+	followRepo := repository.NewMockFollowRepository(t)
+	lk := livekit.NewMockService(t)
+	settingsSvc := settings.NewMockService(t)
+	uploadSvc := upload.NewMockService(t)
+	notifSvc := notification.NewMockService(t)
+
+	svc := NewService(repo, creds, followRepo, lk, settingsSvc, uploadSvc, notifSvc, ws.NewHub())
+
+	settingsSvc.EXPECT().Get(mock.Anything, config.SettingStreamHLSOutputDir).Return("").Maybe()
+
+	return svc, &streamMocks{repo: repo, creds: creds, followRepo: followRepo, lk: lk, settings: settingsSvc, upload: uploadSvc, notif: notifSvc}
+}
+
+func expectBroadcasterJoined(m *streamMocks, streamID uuid.UUID, userID uuid.UUID, room string) *repository.LiveStreamRow {
+	row := &repository.LiveStreamRow{ID: streamID, UserID: userID, Status: "starting", LivekitRoom: room, Title: "reading EP4"}
+
+	m.lk.EXPECT().ParseWebhook("auth", []byte("body")).Return(&livekit.Event{
+		Type:     livekit.EventParticipantJoined,
+		RoomName: room,
+		Identity: "broadcaster_" + userID.String(),
+	}, nil)
+	m.repo.EXPECT().GetByRoom(mock.Anything, room).Return(row, nil)
+	m.repo.EXPECT().MarkLive(mock.Anything, streamID).Return(nil)
+	m.repo.EXPECT().GetByID(mock.Anything, streamID).Return(row, nil).Maybe()
+
+	return row
+}
+
+func TestHandleWebhook_BroadcasterJoinedNotifiesFollowers(t *testing.T) {
+	// given
+	svc, m := newFanoutStreamService(t)
+	streamID := uuid.New()
+	userID := uuid.New()
+	follower := uuid.New()
+	expectBroadcasterJoined(m, streamID, userID, "live_"+streamID.String())
+
+	m.notif.EXPECT().HasRecentFromActor(mock.Anything, dto.NotifStreamLive, userID, liveNotifyCooldown).Return(false)
+	m.followRepo.EXPECT().GetFollowerIDsToNotify(mock.Anything, userID).Return([]uuid.UUID{follower}, nil)
+
+	sent := make(chan []dto.NotifyParams, 1)
+	m.notif.EXPECT().NotifyMany(mock.Anything, mock.Anything).Run(func(_ context.Context, params []dto.NotifyParams) {
+		sent <- params
+	}).Return()
+
+	// when
+	handled, err := svc.HandleWebhook(context.Background(), "auth", []byte("body"))
+
+	// then
+	require.NoError(t, err)
+	assert.True(t, handled)
+
+	select {
+	case params := <-sent:
+		require.Len(t, params, 1)
+		assert.Equal(t, follower, params[0].RecipientID)
+		assert.Equal(t, dto.NotifStreamLive, params[0].Type)
+		assert.Equal(t, streamID, params[0].ReferenceID)
+		assert.Equal(t, "stream", params[0].ReferenceType)
+		assert.Equal(t, "went live: reading EP4", params[0].Message)
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for the follower fan-out")
+	}
+}
+
+func TestHandleWebhook_BroadcasterRejoinWithinCooldownDoesNotNotify(t *testing.T) {
+	// given
+	svc, m := newFanoutStreamService(t)
+	streamID := uuid.New()
+	userID := uuid.New()
+	expectBroadcasterJoined(m, streamID, userID, "live_"+streamID.String())
+
+	checked := make(chan struct{}, 1)
+	m.notif.EXPECT().HasRecentFromActor(mock.Anything, dto.NotifStreamLive, userID, liveNotifyCooldown).Run(func(_ context.Context, _ dto.NotificationType, _ uuid.UUID, _ time.Duration) {
+		checked <- struct{}{}
+	}).Return(true)
+
+	// when
+	handled, err := svc.HandleWebhook(context.Background(), "auth", []byte("body"))
+
+	// then
+	require.NoError(t, err)
+	assert.True(t, handled)
+
+	select {
+	case <-checked:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for the cooldown check")
+	}
+
+	m.followRepo.AssertNumberOfCalls(t, "GetFollowerIDsToNotify", 0)
+	m.notif.AssertNumberOfCalls(t, "NotifyMany", 0)
+}
+
+func TestHandleWebhook_ViewerJoinedNeverNotifiesFollowers(t *testing.T) {
+	// given
+	svc, m := newFanoutStreamService(t)
+	streamID := uuid.New()
+	userID := uuid.New()
+	room := "live_" + streamID.String()
+	row := &repository.LiveStreamRow{ID: streamID, UserID: userID, Status: "live", LivekitRoom: room}
+
+	m.lk.EXPECT().ParseWebhook("auth", []byte("body")).Return(&livekit.Event{
+		Type:     livekit.EventParticipantJoined,
+		RoomName: room,
+		Identity: "viewer_" + uuid.New().String(),
+	}, nil)
+	m.repo.EXPECT().GetByRoom(mock.Anything, room).Return(row, nil)
+	m.repo.EXPECT().AdjustViewerCount(mock.Anything, streamID, 1).Return(0, false, nil).Maybe()
+
+	// when
+	handled, err := svc.HandleWebhook(context.Background(), "auth", []byte("body"))
+
+	// then
+	require.NoError(t, err)
+	assert.True(t, handled)
+	m.notif.AssertNumberOfCalls(t, "HasRecentFromActor", 0)
+	m.followRepo.AssertNumberOfCalls(t, "GetFollowerIDsToNotify", 0)
 }
 
 func TestHandleWebhook_BroadcasterVideoPublishedStartsEgress(t *testing.T) {

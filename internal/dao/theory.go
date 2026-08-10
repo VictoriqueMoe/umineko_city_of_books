@@ -10,6 +10,7 @@ import (
 	"umineko_city_of_books/internal/db"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
+	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/theory/params"
 	"umineko_city_of_books/internal/utils"
 
@@ -57,15 +58,24 @@ func (r *theoryDAO) GetByID(ctx context.Context, id uuid.UUID) (*dto.TheoryDetai
 	var author dto.UserResponse
 	var createdAt time.Time
 
+	var refutedByResponseID *uuid.UUID
+	var refutedAt *time.Time
+	var refuterID *uuid.UUID
+	var refuter dto.UserResponse
+
 	err := r.db.QueryRowContext(ctx,
-		`SELECT t.id, t.title, t.body, t.episode, t.series, t.credibility_score, t.created_at,
+		`SELECT t.id, t.title, t.body, t.episode, t.series, t.credibility_score, t.status, t.refuted_by_response_id, t.refuted_at, t.created_at,
 		        u.id, u.username, u.display_name, u.avatar_url,
-		        COALESCE((SELECT role FROM user_roles WHERE user_id = u.id LIMIT 1), '')
+		        COALESCE((SELECT role FROM user_roles WHERE user_id = u.id LIMIT 1), ''),
+		        ru.id, COALESCE(ru.username, ''), COALESCE(ru.display_name, ''), COALESCE(ru.avatar_url, ''),
+		        COALESCE((SELECT role FROM user_roles WHERE user_id = ru.id LIMIT 1), '')
 		 FROM theories t
 		 JOIN users u ON t.user_id = u.id
+		 LEFT JOIN users ru ON t.refuted_by_user_id = ru.id
 		 WHERE t.id = $1`, id,
-	).Scan(&t.ID, &t.Title, &t.Body, &t.Episode, &t.Series, &t.CredibilityScore, &createdAt,
-		&author.ID, &author.Username, &author.DisplayName, &author.AvatarURL, &author.Role)
+	).Scan(&t.ID, &t.Title, &t.Body, &t.Episode, &t.Series, &t.CredibilityScore, &t.Status, &refutedByResponseID, &refutedAt, &createdAt,
+		&author.ID, &author.Username, &author.DisplayName, &author.AvatarURL, &author.Role,
+		&refuterID, &refuter.Username, &refuter.DisplayName, &refuter.AvatarURL, &refuter.Role)
 
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
@@ -76,6 +86,15 @@ func (r *theoryDAO) GetByID(ctx context.Context, id uuid.UUID) (*dto.TheoryDetai
 
 	t.CreatedAt = createdAt.UTC().Format(time.RFC3339)
 	t.Author = author
+
+	t.RefutedByResponseID = refutedByResponseID
+	if refutedAt != nil {
+		t.RefutedAt = refutedAt.UTC().Format(time.RFC3339)
+	}
+	if refuterID != nil {
+		refuter.ID = *refuterID
+		t.RefutedBy = &refuter
+	}
 
 	up, down, err := r.getTheoryVoteCounts(ctx, id)
 	if err != nil {
@@ -170,7 +189,7 @@ func (r *theoryDAO) List(ctx context.Context, p params.ListParams, userID uuid.U
 	offsetPH := next()
 
 	query := fmt.Sprintf(
-		`SELECT t.id, t.title, t.body, t.episode, t.series, t.credibility_score, t.created_at,
+		`SELECT t.id, t.title, t.body, t.episode, t.series, t.credibility_score, t.status, t.created_at,
 		        u.id, u.username, u.display_name, u.avatar_url,
 		        COALESCE((SELECT role FROM user_roles WHERE user_id = u.id LIMIT 1), '')
 		 FROM theories t
@@ -190,7 +209,7 @@ func (r *theoryDAO) List(ctx context.Context, p params.ListParams, userID uuid.U
 		var t dto.TheoryResponse
 		var author dto.UserResponse
 		var createdAt time.Time
-		if err := rows.Scan(&t.ID, &t.Title, &t.Body, &t.Episode, &t.Series, &t.CredibilityScore, &createdAt,
+		if err := rows.Scan(&t.ID, &t.Title, &t.Body, &t.Episode, &t.Series, &t.CredibilityScore, &t.Status, &createdAt,
 			&author.ID, &author.Username, &author.DisplayName, &author.AvatarURL, &author.Role); err != nil {
 			return nil, 0, fmt.Errorf("scan theory: %w", err)
 		}
@@ -699,4 +718,50 @@ func langOrDefault(lang string) string {
 		return "en"
 	}
 	return lang
+}
+
+func (r *theoryDAO) RecomputeStatus(ctx context.Context, theoryID uuid.UUID) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE theories t SET status = CASE
+			WHEN EXISTS (SELECT 1 FROM responses r WHERE r.theory_id = t.id AND r.parent_id IS NULL) THEN 'contested'::theory_status
+			ELSE 'open'::theory_status
+		 END
+		 WHERE t.id = $1 AND t.status <> 'refuted'`, theoryID,
+	)
+	if err != nil {
+		return fmt.Errorf("recompute theory status: %w", err)
+	}
+	return nil
+}
+
+func (r *theoryDAO) MarkRefuted(ctx context.Context, theoryID uuid.UUID, responseID uuid.UUID) error {
+	res, err := r.db.ExecContext(ctx,
+		`UPDATE theories t SET status = 'refuted', refuted_by_response_id = r.id, refuted_by_user_id = r.user_id, refuted_at = NOW()
+		 FROM responses r
+		 WHERE t.id = $1 AND r.id = $2 AND r.theory_id = t.id AND r.parent_id IS NULL AND r.side = 'without_love' AND r.user_id <> t.user_id AND t.status <> 'refuted'`,
+		theoryID, responseID,
+	)
+	if err != nil {
+		return fmt.Errorf("mark theory refuted: %w", err)
+	}
+
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("mark theory refuted rows: %w", err)
+	}
+	if affected == 0 {
+		return repository.ErrRefutationRejected
+	}
+	return nil
+}
+
+func (r *theoryDAO) GetResponseMeta(ctx context.Context, responseID uuid.UUID) (repository.ResponseMeta, error) {
+	var meta repository.ResponseMeta
+	err := r.db.QueryRowContext(ctx,
+		`SELECT user_id, theory_id, side, parent_id FROM responses WHERE id = $1`, responseID,
+	).Scan(&meta.AuthorID, &meta.TheoryID, &meta.Side, &meta.ParentID)
+	if err != nil {
+		return repository.ResponseMeta{}, fmt.Errorf("get response meta: %w", err)
+	}
+	return meta, nil
 }

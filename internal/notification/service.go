@@ -28,6 +28,7 @@ type (
 	Service interface {
 		Notify(ctx context.Context, params dto.NotifyParams) error
 		NotifyMany(ctx context.Context, params []dto.NotifyParams)
+		HasRecentFromActor(ctx context.Context, notifType dto.NotificationType, actorID uuid.UUID, within time.Duration) bool
 		List(ctx context.Context, userID uuid.UUID, page bounds.Page) (*dto.NotificationListResponse, error)
 		MarkRead(ctx context.Context, id int, userID uuid.UUID) error
 		MarkAllRead(ctx context.Context, userID uuid.UUID) error
@@ -117,6 +118,10 @@ var notifText = map[dto.NotificationType]string{
 	dto.NotifGameInvite:               "invited you to a game",
 	dto.NotifGameYourTurn:             "it's your move",
 	dto.NotifGameFinished:             "your game has ended",
+	dto.NotifStreamLive:               "went live",
+	dto.NotifMysteryCreated:           "posted a new mystery",
+	dto.NotifTheoryCreated:            "posted a new theory",
+	dto.NotifTheoryRefuted:            "accepted your response as the refutation",
 }
 
 func NewService(repo repository.NotificationRepository, userRepo repository.UserRepository, blockRepo repository.BlockRepository, hub *ws.Hub, emailSvc email.Service, pushSvc push.Service, settingsSvc settings.Service, overlay OverlayDispatcher) Service {
@@ -202,6 +207,16 @@ func (s *service) NotifyMany(ctx context.Context, params []dto.NotifyParams) {
 			logger.Log.Warn().Err(err).Str("type", string(p.Type)).Str("recipient", p.RecipientID.String()).Msg("notify failed")
 		}
 	}
+}
+
+func (s *service) HasRecentFromActor(ctx context.Context, notifType dto.NotificationType, actorID uuid.UUID, within time.Duration) bool {
+	recent, err := s.repo.HasRecentFromActor(ctx, notifType, actorID, within)
+	if err != nil {
+		logger.Log.Warn().Err(err).Str("type", string(notifType)).Str("actor", actorID.String()).Msg("recent notification lookup failed")
+		return false
+	}
+
+	return recent
 }
 
 func (s *service) sendEmail(ctx context.Context, params dto.NotifyParams) {

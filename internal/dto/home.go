@@ -21,6 +21,20 @@ type (
 		Author    HomeActivityAuthor `json:"author"`
 	}
 
+	HomeEcho struct {
+		Kind      string             `json:"kind"`
+		ID        uuid.UUID          `json:"id"`
+		Title     string             `json:"title"`
+		Excerpt   string             `json:"excerpt"`
+		Corner    string             `json:"corner"`
+		Episode   int                `json:"episode"`
+		IsSpoiler bool               `json:"is_spoiler"`
+		URL       string             `json:"url"`
+		Age       string             `json:"age"`
+		CreatedAt string             `json:"created_at"`
+		Author    HomeActivityAuthor `json:"author"`
+	}
+
 	HomeMember struct {
 		ID          uuid.UUID `json:"id"`
 		Username    string    `json:"username"`
@@ -50,6 +64,7 @@ type (
 		RecentMembers  []HomeMember         `json:"recent_members"`
 		PublicRooms    []HomePublicRoom     `json:"public_rooms"`
 		CornerActivity []HomeCornerActivity `json:"corner_activity"`
+		Echoes         []HomeEcho           `json:"echoes"`
 	}
 
 	SidebarActivityResponse struct {

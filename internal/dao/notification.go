@@ -250,3 +250,22 @@ func (r *notificationDAO) HasRecentDuplicate(
 	}
 	return count > 0, nil
 }
+
+func (r *notificationDAO) HasRecentFromActor(
+	ctx context.Context,
+	notifType dto.NotificationType,
+	actorID uuid.UUID,
+	within time.Duration,
+) (bool, error) {
+	var count int
+	err := r.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM notifications
+		 WHERE type = $1 AND actor_id = $2
+		 AND created_at > NOW() - make_interval(secs => $3)`,
+		notifType, actorID, within.Seconds(),
+	).Scan(&count)
+	if err != nil {
+		return false, fmt.Errorf("check recent notification from actor: %w", err)
+	}
+	return count > 0, nil
+}

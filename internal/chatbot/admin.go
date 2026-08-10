@@ -184,6 +184,19 @@ func (a *adminService) Usage(ctx context.Context, since time.Time) (*dto.Chatbot
 		return nil, fmt.Errorf("chatbot stats: %w", err)
 	}
 
+	channels := make([]dto.ChatbotChannelUsage, 0, len(stats.Channels))
+	for i := range stats.Channels {
+		channels = append(channels, dto.ChatbotChannelUsage{
+			Channel:            stats.Channels[i].Channel,
+			Invocations:        stats.Channels[i].Invocations,
+			PromptTokens:       stats.Channels[i].PromptTokens,
+			CachedPromptTokens: stats.Channels[i].CachedPromptTokens,
+			CacheWriteTokens:   stats.Channels[i].CacheWriteTokens,
+			CompletionTokens:   stats.Channels[i].CompletionTokens,
+			ReasoningTokens:    stats.Channels[i].ReasoningTokens,
+		})
+	}
+
 	out := &dto.ChatbotUsageResponse{
 		Invocations:        stats.Invocations,
 		PromptTokens:       stats.PromptTokens,
@@ -193,6 +206,7 @@ func (a *adminService) Usage(ctx context.Context, since time.Time) (*dto.Chatbot
 		ReasoningTokens:    stats.ReasoningTokens,
 		Failed:             stats.Failed,
 		Quota:              stats.Quota,
+		Channels:           channels,
 	}
 
 	costs, costErr := a.openaiSvc.Costs(ctx, since)

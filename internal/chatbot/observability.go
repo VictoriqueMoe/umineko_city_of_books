@@ -6,17 +6,17 @@ var (
 	invocationsTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "chatbot_invocations_total",
-			Help: "Chatbot invocations by final status.",
+			Help: "Chatbot invocations by final status and the channel the summon came from.",
 		},
-		[]string{"status"},
+		[]string{"status", "channel"},
 	)
 
 	droppedTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "chatbot_dropped_total",
-			Help: "Chatbot summons that produced no answer, by reason, pipeline stage and surface.",
+			Help: "Chatbot summons that produced no answer, by reason, pipeline stage and channel.",
 		},
-		[]string{"reason", "stage", "surface"},
+		[]string{"reason", "stage", "channel"},
 	)
 
 	noticesTotal = prometheus.NewCounterVec(
@@ -45,9 +45,9 @@ var (
 	tokensTotal = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "chatbot_tokens_total",
-			Help: "Chatbot tokens consumed by kind.",
+			Help: "Chatbot tokens consumed by kind and the channel the summon came from.",
 		},
-		[]string{"kind"},
+		[]string{"kind", "channel"},
 	)
 )
 

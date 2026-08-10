@@ -8,6 +8,7 @@ import (
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/middleware"
+	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/theory"
 	"umineko_city_of_books/internal/theory/params"
 
@@ -23,6 +24,7 @@ func (s *Service) getAllTheoryRoutes() []FSetupRoute {
 		s.setupUpdateTheoryRoute,
 		s.setupDeleteTheoryRoute,
 		s.setupVoteTheoryRoute,
+		s.setupRefuteTheoryRoute,
 		s.setupCreateResponseRoute,
 		s.setupDeleteResponseRoute,
 		s.setupVoteResponseRoute,
@@ -51,6 +53,10 @@ func (s *Service) setupDeleteTheoryRoute(r fiber.Router) {
 
 func (s *Service) setupVoteTheoryRoute(r fiber.Router) {
 	r.Post("/theories/:id/vote", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.voteTheory)
+}
+
+func (s *Service) setupRefuteTheoryRoute(r fiber.Router) {
+	r.Post("/theories/:id/refute", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.refuteTheory)
 }
 
 func (s *Service) setupCreateResponseRoute(r fiber.Router) {
@@ -266,4 +272,37 @@ func (s *Service) deleteResponse(ctx fiber.Ctx) error {
 
 func (s *Service) voteResponse(ctx fiber.Ctx) error {
 	return s.vote(ctx, s.TheoryService.VoteResponse)
+}
+
+func (s *Service) refuteTheory(ctx fiber.Ctx) error {
+	theoryID, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
+	}
+	userID := utils.UserID(ctx)
+
+	req, ok := utils.BindJSON[dto.RefuteTheoryRequest](ctx)
+	if !ok {
+		return nil
+	}
+	if req.ResponseID == uuid.Nil {
+		return utils.BadRequest(ctx, "response_id is required")
+	}
+
+	if err := s.TheoryService.RefuteTheory(ctx.Context(), theoryID, userID, req.ResponseID); err != nil {
+		if errors.Is(err, theory.ErrTheoryNotFound) {
+			return utils.NotFound(ctx, err.Error())
+		}
+		if errors.Is(err, theory.ErrNotAuthor) {
+			return utils.Forbidden(ctx, err.Error())
+		}
+		if errors.Is(err, theory.ErrAlreadyRefuted) || errors.Is(err, theory.ErrResponseNotOnTheory) ||
+			errors.Is(err, theory.ErrRefutationMustOppose) || errors.Is(err, theory.ErrRefutationMustBeTopLevel) ||
+			errors.Is(err, theory.ErrCannotRefuteWithOwn) || errors.Is(err, repository.ErrRefutationRejected) {
+			return utils.BadRequest(ctx, err.Error())
+		}
+		return utils.InternalError(ctx, "failed to refute theory")
+	}
+
+	return utils.OK(ctx)
 }

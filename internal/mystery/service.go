@@ -63,6 +63,7 @@ type (
 	service struct {
 		mysteryRepo   repository.MysteryRepository
 		userRepo      repository.UserRepository
+		followRepo    repository.FollowRepository
 		auditRepo     repository.AuditLogRepository
 		authz         authz.Service
 		blockSvc      block.Service
@@ -86,6 +87,7 @@ var (
 func NewService(
 	mysteryRepo repository.MysteryRepository,
 	userRepo repository.UserRepository,
+	followRepo repository.FollowRepository,
 	auditRepo repository.AuditLogRepository,
 	authzService authz.Service,
 	blockSvc block.Service,
@@ -99,6 +101,7 @@ func NewService(
 	return &service{
 		mysteryRepo:   mysteryRepo,
 		userRepo:      userRepo,
+		followRepo:    followRepo,
 		auditRepo:     auditRepo,
 		authz:         authzService,
 		blockSvc:      blockSvc,
@@ -268,6 +271,9 @@ func (s *service) GetMystery(ctx context.Context, id uuid.UUID, viewerID uuid.UU
 		GmAway:                row.GmAway,
 		FreeForAll:            row.FreeForAll,
 		KeepOpenAfterSolve:    row.KeepOpenAfterSolve,
+		KnoxContract:          row.Knox,
+		KnoxContractPublished: row.KnoxPublished,
+		KnoxContractLocked:    row.KnoxPublished && row.AttemptCount > 0,
 		SolverCount:           row.SolverCount,
 		ViewerHasSolved:       viewerHasSolved,
 		SolvedAt:              row.SolvedAt,
@@ -312,8 +318,13 @@ func (s *service) CreateMystery(ctx context.Context, userID uuid.UUID, req dto.C
 		req.Difficulty = "medium"
 	}
 
+	contract := dto.DefaultKnoxContract()
+	if req.KnoxContract != nil {
+		contract = *req.KnoxContract
+	}
+
 	id := uuid.New()
-	if err := s.mysteryRepo.Create(ctx, id, userID, req.Title, req.Body, req.Difficulty, req.FreeForAll, req.KeepOpenAfterSolve); err != nil {
+	if err := s.mysteryRepo.Create(ctx, id, userID, req.Title, req.Body, req.Difficulty, req.FreeForAll, req.KeepOpenAfterSolve, contract); err != nil {
 		return uuid.Nil, err
 	}
 
@@ -329,6 +340,15 @@ func (s *service) CreateMystery(ctx context.Context, userID uuid.UUID, req dto.C
 			return uuid.Nil, err
 		}
 	}
+
+	go notification.SendFollowerNotification(context.Background(), s.followRepo, s.notifService, notification.FollowerNotifyParams{
+		ActorID:       userID,
+		Type:          dto.NotifMysteryCreated,
+		ReferenceID:   id,
+		ReferenceType: "mystery",
+		Action:        "posted a new mystery",
+		Title:         req.Title,
+	})
 
 	return id, nil
 }
@@ -347,7 +367,15 @@ func (s *service) UpdateMystery(ctx context.Context, id uuid.UUID, userID uuid.U
 	}
 	oldClues, _ := s.mysteryRepo.GetClues(ctx, id)
 
-	if err := s.mysteryRepo.UpdateAsAdmin(ctx, id, req.Title, req.Body, req.Difficulty, req.FreeForAll, req.KeepOpenAfterSolve); err != nil {
+	contract := old.Knox
+	if req.KnoxContract != nil {
+		contract = *req.KnoxContract
+	}
+	if old.KnoxPublished && contract != old.Knox && old.AttemptCount > 0 {
+		return ErrContractLocked
+	}
+
+	if err := s.mysteryRepo.UpdateAsAdmin(ctx, id, req.Title, req.Body, req.Difficulty, req.FreeForAll, req.KeepOpenAfterSolve, contract); err != nil {
 		return err
 	}
 
@@ -376,6 +404,9 @@ func (s *service) UpdateMystery(ctx context.Context, id uuid.UUID, userID uuid.U
 		}
 		if cluesChanged(oldClues, req.Clues) {
 			changes = append(changes, "truths")
+		}
+		if contract != old.Knox {
+			changes = append(changes, "the Knox contract")
 		}
 		if len(changes) > 0 {
 			message := fmt.Sprintf("your mystery was edited (changed: %s)", strings.Join(changes, ", "))

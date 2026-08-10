@@ -104,4 +104,8 @@ const (
 	NotifGameInvite               NotificationType = "game_invite"
 	NotifGameYourTurn             NotificationType = "game_your_turn"
 	NotifGameFinished             NotificationType = "game_finished"
+	NotifStreamLive               NotificationType = "stream_live"
+	NotifMysteryCreated           NotificationType = "mystery_created"
+	NotifTheoryCreated            NotificationType = "theory_created"
+	NotifTheoryRefuted            NotificationType = "theory_refuted"
 )
