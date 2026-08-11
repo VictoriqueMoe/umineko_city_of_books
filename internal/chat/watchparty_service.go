@@ -405,29 +405,28 @@ func (s *watchPartyService) HandleClientDisconnect(ctx context.Context, userID u
 			logger.Log.Warn().Err(err).Str("room_id", roomID.String()).Msg("disconnect: list active watch parties failed")
 			continue
 		}
+
 		for i := range sessions {
 			sess := sessions[i]
+
 			participant, err := s.watchPartyRepo.GetParticipant(ctx, sess.ID, userID)
 			if err != nil || participant == nil || participant.LeftAt.Valid {
 				continue
 			}
-			if sess.StartedBy == userID {
-				_ = s.endWatchParty(ctx, roomID, sess.ID, userID, "owner_disconnected")
-				continue
-			}
-			if participant.HasControl {
+
+			if participant.HasControl && sess.StartedBy != userID {
 				if err := s.transferControlTo(ctx, roomID, &sess, sess.StartedBy); err != nil {
 					logger.Log.Warn().Err(err).Msg("disconnect: auto-return control failed")
 				} else {
 					s.postControlChangeSystemMessage(ctx, roomID, sess.ID, userID, sess.StartedBy, "auto_owner_return")
 				}
 			}
+
 			if err := s.watchPartyRepo.MarkParticipantLeft(ctx, sess.ID, userID); err != nil {
 				logger.Log.Warn().Err(err).Msg("disconnect: mark participant left failed")
 				continue
 			}
 
-			s.evictFromWatchPartyRoom(ctx, sess.ID, userID)
 			s.hub.BroadcastToRoom(roomID, ws.Message{
 				Type: wsWatchPartyParticipantLeft,
 				Data: dto.WatchPartyParticipantLeftEvent{

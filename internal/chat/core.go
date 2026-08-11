@@ -149,6 +149,15 @@ func (c *core) cleanupDeadSession(session *repository.ChatWatchPartySessionRow, 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
+	logger.Log.Warn().
+		Str("session_id", session.ID.String()).
+		Str("room_id", session.RoomID.String()).
+		Str("hyperbeam_session_id", session.HyperbeamSessionID).
+		Str("type", session.Type).
+		Str("started_at", session.StartedAt).
+		Str("reason", reason).
+		Msg("watch party ended")
+
 	if err := c.watchPartyRepo.MarkAllParticipantsLeft(ctx, session.ID); err != nil {
 		logger.Log.Warn().Err(err).Msg("cleanup dead session: mark participants left failed")
 	}
