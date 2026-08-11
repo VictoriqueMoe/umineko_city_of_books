@@ -160,3 +160,7 @@ func NewDeviceToken(db *sql.DB) repository.DeviceTokenRepository { return &devic
 func NewOverlayToken(db *sql.DB) repository.OverlayTokenRepository { return &overlayTokenDAO{db: db} }
 
 func NewChatbot(db *sql.DB) repository.ChatbotRepository { return &chatbotDAO{db: db} }
+
+func NewChatbotBasePrompt(db *sql.DB) repository.ChatbotBasePromptRepository {
+	return &chatbotBasePromptDAO{db: db}
+}

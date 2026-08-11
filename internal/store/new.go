@@ -53,7 +53,9 @@ func New(db *sql.DB, c *cache.Manager) *repository.Repositories {
 	repos.Sitemap = repository.NewSitemapRepo(dao.NewSitemap(db))
 	repos.DeviceToken = repository.NewDeviceTokenRepo(dao.NewDeviceToken(db))
 	repos.OverlayToken = repository.NewOverlayTokenRepo(dao.NewOverlayToken(db))
-	repos.Chatbot = repository.NewChatbotRepo(dao.NewChatbot(db), c)
+	basePrompts := repository.NewChatbotBasePromptRepo(dao.NewChatbotBasePrompt(db), c)
+	repos.ChatbotBasePrompt = basePrompts
+	repos.Chatbot = repository.NewChatbotRepo(dao.NewChatbot(db), basePrompts, c)
 
 	return repos
 }

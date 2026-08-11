@@ -2,7 +2,7 @@ import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../test-utils/render";
-import type { Chatbot, ChatbotChannelUsage, ChatbotUsage, SiteSettings } from "../../types/api";
+import type { Chatbot, ChatbotBasePrompt, ChatbotChannelUsage, ChatbotUsage, SiteSettings } from "../../types/api";
 import { AdminChatbots } from "./AdminChatbots";
 import styles from "./AdminChatbots.module.css";
 
@@ -16,9 +16,13 @@ const mocks = vi.hoisted(() => ({
     useChatbotUsage: vi.fn(),
     useChatbotModels: vi.fn(),
     useAdminSettings: vi.fn(),
+    useChatbotBasePrompts: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
     remove: vi.fn(),
+    createBase: vi.fn(),
+    updateBase: vi.fn(),
+    removeBase: vi.fn(),
     checkUsername: vi.fn(),
 }));
 
@@ -32,12 +36,16 @@ vi.mock("../../api/queries/admin", () => ({
     useChatbotUsage: mocks.useChatbotUsage,
     useChatbotModels: mocks.useChatbotModels,
     useAdminSettings: mocks.useAdminSettings,
+    useChatbotBasePrompts: mocks.useChatbotBasePrompts,
 }));
 
 vi.mock("../../api/mutations/admin", () => ({
     useCreateChatbot: () => ({ mutateAsync: mocks.create, isPending: false }),
     useUpdateChatbot: () => ({ mutateAsync: mocks.update, isPending: false }),
     useDeleteChatbot: () => ({ mutateAsync: mocks.remove, isPending: false }),
+    useCreateChatbotBasePrompt: () => ({ mutateAsync: mocks.createBase, isPending: false }),
+    useUpdateChatbotBasePrompt: () => ({ mutateAsync: mocks.updateBase, isPending: false }),
+    useDeleteChatbotBasePrompt: () => ({ mutateAsync: mocks.removeBase, isPending: false }),
 }));
 
 function makeBot(overrides: Partial<Chatbot> = {}): Chatbot {
@@ -48,6 +56,7 @@ function makeBot(overrides: Partial<Chatbot> = {}): Chatbot {
         display_name: "Beatrice",
         avatar_url: "",
         system_prompt: "You are the Golden Witch.",
+        base_prompt_id: null,
         model: "",
         reasoning_effort: "",
         verbosity: "",
@@ -88,6 +97,22 @@ function makeChannel(overrides: Partial<ChatbotChannelUsage> = {}): ChatbotChann
 
 function stubBots(bots: Chatbot[], loading = false) {
     mocks.useChatbots.mockReturnValue({ bots, loading, refresh: vi.fn() });
+}
+
+function makeBasePrompt(overrides: Partial<ChatbotBasePrompt> = {}): ChatbotBasePrompt {
+    return {
+        id: "base-1",
+        name: "game witch",
+        prompt: "You are a witch of the game boards.",
+        bot_count: 0,
+        created_at: "2026-08-11T00:00:00Z",
+        updated_at: "2026-08-11T00:00:00Z",
+        ...overrides,
+    };
+}
+
+function stubBasePrompts(basePrompts: ChatbotBasePrompt[]) {
+    mocks.useChatbotBasePrompts.mockReturnValue({ basePrompts, loading: false, refresh: vi.fn() });
 }
 
 function stubUsage(usage: ChatbotUsage | null, loading = false) {
@@ -142,10 +167,145 @@ beforeEach(() => {
     mocks.create.mockResolvedValue(undefined);
     mocks.update.mockResolvedValue(undefined);
     mocks.remove.mockResolvedValue(undefined);
+    mocks.createBase.mockResolvedValue(undefined);
+    mocks.updateBase.mockResolvedValue(undefined);
+    mocks.removeBase.mockResolvedValue(undefined);
+    stubBasePrompts([]);
     stubUsage(null, true);
     stubModels(["gpt-5.6-luna"]);
     stubSettings({ chatbot_api_key: SAVED_KEY });
     mocks.checkUsername.mockImplementation((username: string) => Promise.resolve({ username, available: true }));
+});
+
+describe("AdminChatbots base prompts", () => {
+    it("says so when no base prompt has been written yet", () => {
+        // given
+        stubBots([]);
+        stubBasePrompts([]);
+
+        // when
+        renderWithProviders(<AdminChatbots />);
+
+        // then
+        expect(screen.getByText("No base prompts yet.")).toBeInTheDocument();
+    });
+
+    it("lists a base prompt with how many bots extend it", () => {
+        // given
+        stubBots([]);
+        stubBasePrompts([makeBasePrompt({ name: "game witch", bot_count: 3 })]);
+
+        // when
+        renderWithProviders(<AdminChatbots />);
+
+        // then
+        expect(screen.getByText("game witch")).toBeInTheDocument();
+        expect(screen.getByText(/3 bots/)).toBeInTheDocument();
+    });
+
+    it("creates a base prompt from the name and text typed into the form", async () => {
+        // given
+        stubBots([]);
+        stubBasePrompts([]);
+        const user = userEvent.setup();
+        renderWithProviders(<AdminChatbots />);
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Create Base Prompt" }));
+        await user.type(screen.getByLabelText("Name"), "game witch");
+        await user.type(screen.getByLabelText("Prompt"), "You are a witch of the game boards.");
+        await user.click(screen.getByRole("button", { name: "Save" }));
+
+        // then
+        expect(mocks.createBase).toHaveBeenCalledWith({
+            name: "game witch",
+            prompt: "You are a witch of the game boards.",
+        });
+    });
+
+    it("saves an edit against the base prompt it came from", async () => {
+        // given
+        stubBots([]);
+        stubBasePrompts([makeBasePrompt({ id: "base-9", name: "game witch" })]);
+        const user = userEvent.setup();
+        renderWithProviders(<AdminChatbots />);
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Edit game witch" }));
+        await user.clear(screen.getByLabelText("Name"));
+        await user.type(screen.getByLabelText("Name"), "voyager");
+        await user.click(screen.getByRole("button", { name: "Save" }));
+
+        // then
+        expect(mocks.updateBase).toHaveBeenCalledWith({
+            id: "base-9",
+            data: { name: "voyager", prompt: "You are a witch of the game boards." },
+        });
+    });
+
+    it("refuses to delete a base prompt that bots still extend", async () => {
+        // given
+        stubBots([]);
+        stubBasePrompts([makeBasePrompt({ name: "game witch", bot_count: 2 })]);
+        const user = userEvent.setup();
+        renderWithProviders(<AdminChatbots />);
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Delete game witch" }));
+
+        // then
+        expect(mocks.removeBase).not.toHaveBeenCalled();
+        expect(screen.getByText(/still used by 2 bot/)).toBeInTheDocument();
+    });
+
+    it("sends the base prompt chosen on the bot form", async () => {
+        // given
+        stubBots([]);
+        stubBasePrompts([makeBasePrompt({ id: "base-7", name: "game witch" })]);
+        const user = userEvent.setup();
+        renderWithProviders(<AdminChatbots />);
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Create Bot" }));
+        await user.type(screen.getByLabelText("Username"), "beato");
+        await user.type(screen.getByLabelText("Display Name"), "Beato");
+        await user.type(screen.getByLabelText("System Prompt"), "You are the Golden Witch.");
+        await user.selectOptions(screen.getByLabelText("Base Prompt"), "base-7");
+        await user.click(screen.getByRole("button", { name: "Save" }));
+
+        // then
+        expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({ base_prompt_id: "base-7" }));
+    });
+
+    it("preloads the base prompt a bot already extends when editing it", async () => {
+        // given
+        stubBots([makeBot({ id: "bot-5", base_prompt_id: "base-7" })]);
+        stubBasePrompts([makeBasePrompt({ id: "base-7", name: "game witch" })]);
+        const user = userEvent.setup();
+        renderWithProviders(<AdminChatbots />);
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Edit Beatrice" }));
+
+        // then
+        expect(screen.getByLabelText("Base Prompt")).toHaveValue("base-7");
+    });
+
+    it("deletes an unused base prompt once it is confirmed", async () => {
+        // given
+        stubBots([]);
+        stubBasePrompts([makeBasePrompt({ id: "base-4", bot_count: 0 })]);
+        const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+        const user = userEvent.setup();
+        renderWithProviders(<AdminChatbots />);
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Delete game witch" }));
+
+        // then
+        expect(mocks.removeBase).toHaveBeenCalledWith("base-4");
+        confirm.mockRestore();
+    });
 });
 
 describe("AdminChatbots list", () => {
@@ -405,6 +565,7 @@ describe("AdminChatbots creating", () => {
             display_name: "Beato",
             avatar_url: "https://example.com/beato.png",
             system_prompt: "You are the Golden Witch.",
+            base_prompt_id: null,
             model: "",
             reasoning_effort: "",
             verbosity: "",
@@ -572,6 +733,7 @@ describe("AdminChatbots editing", () => {
                 display_name: "Beato",
                 avatar_url: "",
                 system_prompt: "You are the Golden Witch.",
+                base_prompt_id: null,
                 model: "",
                 reasoning_effort: "",
                 verbosity: "",

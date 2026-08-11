@@ -31,6 +31,9 @@ var (
 	VanityRolePermissions = Namespace{Prefix: "authz:vanity-perms", TTL: time.Minute}
 	UserVanityRoleIDs     = Namespace{Prefix: "authz:user-vanity:", TTL: time.Minute}
 
+	ChatbotBasePrompts    = Namespace{Prefix: "chatbot:base-prompts", TTL: 0}
+	ChatbotBasePromptByID = Namespace{Prefix: "chatbot:base-prompt:", TTL: 0}
+
 	SecretHolders = Namespace{Prefix: "secret:holders:", TTL: 0}
 	SecretSolved  = Namespace{Prefix: "secret:solved:", TTL: 0}
 )

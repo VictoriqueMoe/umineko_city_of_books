@@ -627,6 +627,7 @@ describe("admin chatbot mutations", () => {
         display_name: "Beatrice",
         avatar_url: "",
         system_prompt: "You are the Golden Witch.",
+        base_prompt_id: null,
         model: "gpt-5.6-luna",
         reasoning_effort: "low",
         verbosity: "medium",

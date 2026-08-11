@@ -48,6 +48,7 @@ type (
 		DeviceToken       DeviceTokenRepository
 		OverlayToken      OverlayTokenRepository
 		Chatbot           ChatbotRepository
+		ChatbotBasePrompt ChatbotBasePromptRepository
 	}
 )
 

@@ -14,9 +14,9 @@ import (
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/ws"
 
+	"github.com/fasthttp/websocket"
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
-	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"

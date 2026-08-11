@@ -119,7 +119,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 	chatbotSvc := chatbot.NewService(openaiSvc, chatSvc, postSvc, repos.Chat, repos.Post, repos.Chatbot, authzSvc, settingsSvc, hub)
 	chatSvc.SetMessageObserver(chatbotSvc)
 	postSvc.SetCommentObserver(chatbotSvc)
-	chatbotAdminSvc := chatbot.NewAdminService(repos.Chatbot, repos.VanityRole, userSvc, openaiSvc, chatbotSvc)
+	chatbotAdminSvc := chatbot.NewAdminService(repos.Chatbot, repos.ChatbotBasePrompt, repos.VanityRole, userSvc, openaiSvc, chatbotSvc)
 	settingsSvc.RegisterValidator(config.SettingChatbotModel, chatbot.ModelValidator(openaiSvc))
 	settingsSvc.RegisterValidator(config.SettingChatbotOptInRole, chatbot.OptInRoleValidator(repos.VanityRole, repos.Permission))
 	followSvc := follow.NewService(repos.Follow, repos.User, blockSvc, notifSvc, settingsSvc)

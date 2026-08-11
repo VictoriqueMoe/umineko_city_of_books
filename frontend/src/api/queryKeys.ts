@@ -87,6 +87,7 @@ export const queryKeys = {
         chatbots: () => ["admin", "chatbots"] as const,
         chatbotUsage: (days: number) => ["admin", "chatbots", "usage", days] as const,
         chatbotModels: () => ["admin", "chatbots", "models"] as const,
+        chatbotBasePrompts: () => ["admin", "chatbots", "base-prompts"] as const,
     },
 } as const;
 

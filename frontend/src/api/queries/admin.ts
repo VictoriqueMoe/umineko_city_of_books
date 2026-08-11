@@ -6,6 +6,7 @@ import {
     getAdminUsers,
     getAuditLog,
     getBannedGifs,
+    getChatbotBasePrompts,
     getChatbotModels,
     getChatbotUsage,
     getChatbots,
@@ -174,6 +175,14 @@ export function useChatbots() {
         queryFn: () => getChatbots(),
     });
     return { bots: query.data ?? [], loading: query.isLoading, refresh: query.refetch };
+}
+
+export function useChatbotBasePrompts() {
+    const query = useQuery({
+        queryKey: queryKeys.admin.chatbotBasePrompts(),
+        queryFn: () => getChatbotBasePrompts(),
+    });
+    return { basePrompts: query.data?.base_prompts ?? [], loading: query.isLoading, refresh: query.refetch };
 }
 
 export function useChatbotUsage(days: number) {

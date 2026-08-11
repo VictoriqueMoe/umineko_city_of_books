@@ -20,14 +20,17 @@ type (
 
 const chatbotSelectBase = `
 	SELECT c.id, c.user_id, u.username, u.display_name, u.avatar_url,
-		c.system_prompt, c.model, c.reasoning_effort, c.verbosity, c.max_output_tokens, c.enabled
+		c.system_prompt, c.base_prompt_id, COALESCE(b.prompt, ''),
+		c.model, c.reasoning_effort, c.verbosity, c.max_output_tokens, c.enabled
 	FROM chatbots c
-	JOIN users u ON u.id = c.user_id`
+	JOIN users u ON u.id = c.user_id
+	LEFT JOIN chatbot_base_prompts b ON b.id = c.base_prompt_id`
 
 func scanChatbot(row interface{ Scan(...any) error }, bot *repository.Chatbot) error {
 	return row.Scan(
 		&bot.ID, &bot.UserID, &bot.Username, &bot.DisplayName, &bot.AvatarURL,
-		&bot.SystemPrompt, &bot.Model, &bot.ReasoningEffort, &bot.Verbosity, &bot.MaxOutputTokens, &bot.Enabled,
+		&bot.SystemPrompt, &bot.BasePromptID, &bot.BasePrompt,
+		&bot.Model, &bot.ReasoningEffort, &bot.Verbosity, &bot.MaxOutputTokens, &bot.Enabled,
 	)
 }
 
@@ -69,9 +72,9 @@ func (r *chatbotDAO) GetBotByUserID(ctx context.Context, userID uuid.UUID) (*rep
 
 func (r *chatbotDAO) CreateBot(ctx context.Context, bot repository.Chatbot) error {
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO chatbots (id, user_id, system_prompt, model, reasoning_effort, verbosity, max_output_tokens, enabled)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-		bot.ID, bot.UserID, bot.SystemPrompt, bot.Model, bot.ReasoningEffort, bot.Verbosity, bot.MaxOutputTokens, bot.Enabled,
+		`INSERT INTO chatbots (id, user_id, system_prompt, base_prompt_id, model, reasoning_effort, verbosity, max_output_tokens, enabled)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+		bot.ID, bot.UserID, bot.SystemPrompt, bot.BasePromptID, bot.Model, bot.ReasoningEffort, bot.Verbosity, bot.MaxOutputTokens, bot.Enabled,
 	)
 	if err != nil {
 		return fmt.Errorf("create chatbot: %w", err)
@@ -84,14 +87,15 @@ func (r *chatbotDAO) UpdateBot(ctx context.Context, bot repository.Chatbot) erro
 	_, err := r.db.ExecContext(ctx,
 		`UPDATE chatbots
 		    SET system_prompt = $2,
-		        model = $3,
-		        reasoning_effort = $4,
-		        verbosity = $5,
-		        max_output_tokens = $6,
-		        enabled = $7,
+		        base_prompt_id = $3,
+		        model = $4,
+		        reasoning_effort = $5,
+		        verbosity = $6,
+		        max_output_tokens = $7,
+		        enabled = $8,
 		        updated_at = NOW()
 		  WHERE id = $1`,
-		bot.ID, bot.SystemPrompt, bot.Model, bot.ReasoningEffort, bot.Verbosity, bot.MaxOutputTokens, bot.Enabled,
+		bot.ID, bot.SystemPrompt, bot.BasePromptID, bot.Model, bot.ReasoningEffort, bot.Verbosity, bot.MaxOutputTokens, bot.Enabled,
 	)
 	if err != nil {
 		return fmt.Errorf("update chatbot: %w", err)
