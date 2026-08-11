@@ -771,3 +771,53 @@ func TestJoinWatchParty_KeepsTheHostsRoomRole(t *testing.T) {
 	require.NoError(t, err)
 	m.chatRepo.AssertNotCalled(t, "AddMemberWithRole", mock.Anything, sessionID, ownerID, "member", false)
 }
+
+func TestHandleClientDisconnect_OwnerDroppingDoesNotEndTheParty(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	roomID := uuid.New()
+	sessionID := uuid.New()
+	ownerID := uuid.New()
+
+	m.watchPartyRepo.EXPECT().ListActiveByRoom(mock.Anything, roomID).Return([]repository.ChatWatchPartySessionRow{{
+		ID: sessionID, RoomID: roomID, StartedBy: ownerID, ControllerID: ownerID,
+		HyperbeamSessionID: "hb_sess", Status: "active",
+	}}, nil)
+	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, ownerID).Return(&repository.ChatWatchPartyParticipantRow{
+		SessionID: sessionID, UserID: ownerID, HasControl: true,
+	}, nil)
+	m.watchPartyRepo.EXPECT().MarkParticipantLeft(mock.Anything, sessionID, ownerID).Return(nil)
+
+	// when
+	svc.HandleClientDisconnect(context.Background(), ownerID, []uuid.UUID{roomID})
+
+	// then the vm survives, the session stays active and the host keeps their party chat seat
+	m.hyperbeamSvc.AssertNotCalled(t, "TerminateVM", mock.Anything, mock.Anything)
+	m.watchPartyRepo.AssertNotCalled(t, "EndSession", mock.Anything, mock.Anything, mock.Anything)
+	m.chatRepo.AssertNotCalled(t, "RemoveMember", mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestHandleClientDisconnect_MemberDroppingKeepsTheirPartyChatSeat(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	roomID := uuid.New()
+	sessionID := uuid.New()
+	ownerID := uuid.New()
+	memberID := uuid.New()
+
+	m.watchPartyRepo.EXPECT().ListActiveByRoom(mock.Anything, roomID).Return([]repository.ChatWatchPartySessionRow{{
+		ID: sessionID, RoomID: roomID, StartedBy: ownerID, ControllerID: ownerID,
+		HyperbeamSessionID: "hb_sess", Status: "active",
+	}}, nil)
+	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, memberID).Return(&repository.ChatWatchPartyParticipantRow{
+		SessionID: sessionID, UserID: memberID, HasControl: false,
+	}, nil)
+	m.watchPartyRepo.EXPECT().MarkParticipantLeft(mock.Anything, sessionID, memberID).Return(nil)
+
+	// when
+	svc.HandleClientDisconnect(context.Background(), memberID, []uuid.UUID{roomID})
+
+	// then they are not evicted, so a reconnecting tab can still post in the party chat
+	m.chatRepo.AssertNotCalled(t, "RemoveMember", mock.Anything, mock.Anything, mock.Anything)
+	m.watchPartyRepo.AssertNotCalled(t, "EndSession", mock.Anything, mock.Anything, mock.Anything)
+}

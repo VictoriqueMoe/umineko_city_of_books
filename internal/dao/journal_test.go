@@ -229,8 +229,16 @@ func TestJournalDAO_List_SortOld(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	first := createJournal(t, repos, user.ID, "First", "b", "general")
-	time.Sleep(1100 * time.Millisecond)
 	second := createJournal(t, repos, user.ID, "Second", "b", "general")
+	base := time.Now().UTC()
+
+	for i, id := range []uuid.UUID{first, second} {
+		_, err := repos.DB().ExecContext(context.Background(),
+			`UPDATE journals SET created_at = $1 WHERE id = $2`,
+			base.Add(time.Duration(i)*time.Minute), id,
+		)
+		require.NoError(t, err)
+	}
 
 	// when
 	p := defaultJournalListParams()

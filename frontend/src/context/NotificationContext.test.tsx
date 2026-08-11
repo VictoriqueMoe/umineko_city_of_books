@@ -626,7 +626,7 @@ describe("NotificationProvider", () => {
         expect(lastSocket().sent).toEqual([JSON.stringify({ type: "ping", data: {} })]);
     });
 
-    it("closes a connection that has gone quiet for too long", () => {
+    it("probes a connection that has gone quiet for too long rather than closing it", () => {
         // given
         vi.useFakeTimers();
         vi.setSystemTime(new Date("2026-08-02T12:00:00Z"));
@@ -640,8 +640,52 @@ describe("NotificationProvider", () => {
         });
 
         // then
-        expect(socket.sent).toHaveLength(4);
+        expect(socket.sent).toHaveLength(5);
+        expect(socket.closeCount).toBe(0);
+    });
+
+    it("closes a quiet connection once the probe goes unanswered", () => {
+        // given
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date("2026-08-02T12:00:00Z"));
+        renderProvider();
+        openSocket();
+        const socket = lastSocket();
+
+        // when
+        act(() => {
+            vi.advanceTimersByTime(100_000);
+        });
+        act(() => {
+            vi.advanceTimersByTime(5_000);
+        });
+
+        // then
         expect(socket.closeCount).toBe(1);
+    });
+
+    it("keeps a quiet connection that answers the probe", () => {
+        // given
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date("2026-08-02T12:00:00Z"));
+        renderProvider();
+        openSocket();
+        const socket = lastSocket();
+
+        // when
+        act(() => {
+            vi.advanceTimersByTime(100_000);
+        });
+        act(() => {
+            vi.advanceTimersByTime(1_000);
+        });
+        emit({ type: "pong", data: {} }, socket);
+        act(() => {
+            vi.advanceTimersByTime(10_000);
+        });
+
+        // then
+        expect(socket.closeCount).toBe(0);
     });
 
     it("keeps the connection alive while messages are still arriving", () => {
@@ -823,8 +867,9 @@ describe("NotificationProvider", () => {
         expect(lastSocket().sent).toEqual([JSON.stringify({ type: "ping", data: {} })]);
     });
 
-    it("closes a stale socket when the tab becomes visible again", () => {
+    it("probes a stale socket when the tab becomes visible again rather than closing it", () => {
         // given
+        vi.useFakeTimers();
         setVisibility("visible");
         renderProvider();
         const socket = lastSocket();
@@ -835,8 +880,50 @@ describe("NotificationProvider", () => {
         });
 
         // then
+        expect(socket.sent).toHaveLength(1);
+        expect(socket.closeCount).toBe(0);
+    });
+
+    it("closes the socket when the visibility probe goes unanswered", () => {
+        // given
+        vi.useFakeTimers();
+        setVisibility("visible");
+        renderProvider();
+        const socket = lastSocket();
+
+        // when
+        act(() => {
+            document.dispatchEvent(new Event("visibilitychange"));
+        });
+        act(() => {
+            vi.advanceTimersByTime(5_000);
+        });
+
+        // then
         expect(socket.closeCount).toBe(1);
-        expect(socket.sent).toHaveLength(0);
+    });
+
+    it("keeps the socket when the visibility probe is answered", () => {
+        // given
+        vi.useFakeTimers();
+        setVisibility("visible");
+        renderProvider();
+        const socket = lastSocket();
+
+        // when
+        act(() => {
+            document.dispatchEvent(new Event("visibilitychange"));
+        });
+        act(() => {
+            vi.advanceTimersByTime(1_000);
+        });
+        emit({ type: "pong", data: {} }, socket);
+        act(() => {
+            vi.advanceTimersByTime(10_000);
+        });
+
+        // then
+        expect(socket.closeCount).toBe(0);
     });
 
     it("does nothing when the tab is being hidden", () => {

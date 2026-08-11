@@ -84,7 +84,7 @@ func (r *followDAO) GetFollowers(ctx context.Context, userID uuid.UUID, limit, o
 		JOIN users u ON f.follower_id = u.id
 		LEFT JOIN user_roles r ON r.user_id = u.id
 		WHERE f.following_id = $1
-		ORDER BY f.created_at DESC
+		ORDER BY f.created_at DESC, f.follower_id DESC
 		LIMIT $2 OFFSET $3`,
 		userID, limit, offset,
 	)
@@ -116,7 +116,7 @@ func (r *followDAO) GetFollowing(ctx context.Context, userID uuid.UUID, limit, o
 		JOIN users u ON f.following_id = u.id
 		LEFT JOIN user_roles r ON r.user_id = u.id
 		WHERE f.follower_id = $1
-		ORDER BY f.created_at DESC
+		ORDER BY f.created_at DESC, f.following_id DESC
 		LIMIT $2 OFFSET $3`,
 		userID, limit, offset,
 	)

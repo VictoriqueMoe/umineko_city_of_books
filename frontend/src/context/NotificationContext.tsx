@@ -18,6 +18,7 @@ import { getAuthToken } from "../utils/authToken";
 const MAX_BACKOFF = 30000;
 const KEEPALIVE_INTERVAL_MS = 20_000;
 const STALE_THRESHOLD_MS = 90_000;
+const PROBE_TIMEOUT_MS = 5_000;
 
 export function NotificationProvider({ children }: PropsWithChildren) {
     const { user, setUser } = useAuth();
@@ -41,6 +42,7 @@ export function NotificationProvider({ children }: PropsWithChildren) {
     const backoffRef = useRef(1000);
     const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const keepaliveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const probeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const lastMessageAtRef = useRef(0);
     const wsListenersRef = useRef<Set<WSMessageHandler>>(new Set());
     const userRef = useRef(user);
@@ -60,6 +62,32 @@ export function NotificationProvider({ children }: PropsWithChildren) {
             clearInterval(keepaliveTimerRef.current);
             keepaliveTimerRef.current = null;
         }
+        if (probeTimerRef.current !== null) {
+            clearTimeout(probeTimerRef.current);
+            probeTimerRef.current = null;
+        }
+    }, []);
+
+    const probeSocket = useCallback((socket: WebSocket) => {
+        if (socket.readyState !== WebSocket.OPEN) {
+            return;
+        }
+        if (probeTimerRef.current !== null) {
+            return;
+        }
+
+        const probedAt = Date.now();
+        socket.send(JSON.stringify({ type: "ping", data: {} }));
+
+        probeTimerRef.current = setTimeout(() => {
+            probeTimerRef.current = null;
+            if (wsRef.current !== socket) {
+                return;
+            }
+            if (lastMessageAtRef.current < probedAt) {
+                socket.close();
+            }
+        }, PROBE_TIMEOUT_MS);
     }, []);
 
     const closeSocket = useCallback(() => {
@@ -122,7 +150,7 @@ export function NotificationProvider({ children }: PropsWithChildren) {
                     return;
                 }
                 if (!document.hidden && Date.now() - lastMessageAtRef.current > STALE_THRESHOLD_MS) {
-                    socket.close();
+                    probeSocket(socket);
                     return;
                 }
                 if (socket.readyState === WebSocket.OPEN) {
@@ -265,7 +293,7 @@ export function NotificationProvider({ children }: PropsWithChildren) {
         socket.onerror = () => {
             socket.close();
         };
-    }, [closeSocket, clearKeepaliveTimer, setUser, bumpUnread, setChatUnreadCount, setLiveGamesCount, qc]);
+    }, [closeSocket, clearKeepaliveTimer, probeSocket, setUser, bumpUnread, setChatUnreadCount, setLiveGamesCount, qc]);
 
     useEffect(() => {
         connectWsRef.current = connectWs;
@@ -280,19 +308,14 @@ export function NotificationProvider({ children }: PropsWithChildren) {
             if (!socket) {
                 return;
             }
-            if (Date.now() - lastMessageAtRef.current > STALE_THRESHOLD_MS) {
-                socket.close();
-                return;
-            }
-            if (socket.readyState === WebSocket.OPEN) {
-                socket.send(JSON.stringify({ type: "ping", data: {} }));
-            }
+
+            probeSocket(socket);
         }
         document.addEventListener("visibilitychange", onVisible);
         return () => {
             document.removeEventListener("visibilitychange", onVisible);
         };
-    }, []);
+    }, [probeSocket]);
 
     const userId = user?.id;
     useEffect(() => {
